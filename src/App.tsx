@@ -96,7 +96,8 @@ const App: React.FC = () => {
   // 로그인 폼 상태
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
-  const [loginError, setLoginError] = useState(false);
+  const [loginErrorMsg, setLoginErrorMsg] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // 편의기능 체크박스 상태
   const [rememberId, setRememberId] = useState(false);
@@ -195,33 +196,39 @@ const App: React.FC = () => {
     }
   }, [currentUser, activeTab, currentTenant]);
 
-  const handleLoginSubmit = (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = login(loginId, password, autoLogin);
-    if (success) {
-      setLoginError(false);
-      
-      // 아이디 저장 처리
-      if (rememberId) {
-        localStorage.setItem('remember_id', loginId);
-      } else {
-        localStorage.removeItem('remember_id');
-      }
-      
-      // 비밀번호 저장 처리
-      if (rememberPw) {
-        localStorage.setItem('remember_pw', password);
-      } else {
-        localStorage.removeItem('remember_pw');
-      }
+    setLoginErrorMsg(null);
+    setIsLoggingIn(true);
+    try {
+      const res = await login(loginId, password, autoLogin);
+      if (res.success) {
+        // 아이디 저장 처리
+        if (rememberId) {
+          localStorage.setItem('remember_id', loginId);
+        } else {
+          localStorage.removeItem('remember_id');
+        }
+        
+        // 비밀번호 저장 처리
+        if (rememberPw) {
+          localStorage.setItem('remember_pw', password);
+        } else {
+          localStorage.removeItem('remember_pw');
+        }
 
-      // 필드 정리 (저장 설정 안된 값만 비우기)
-      if (!rememberId) setLoginId('');
-      if (!rememberPw) setPassword('');
-      
-      setActiveTab('dashboard'); // 로그인 성공시 대시보드로
-    } else {
-      setLoginError(true);
+        // 필드 정리 (저장 설정 안된 값만 비우기)
+        if (!rememberId) setLoginId('');
+        if (!rememberPw) setPassword('');
+        
+        setActiveTab('dashboard'); // 로그인 성공시 대시보드로
+      } else {
+        setLoginErrorMsg(res.reason || '아이디 또는 비밀번호가 잘못되었습니다.');
+      }
+    } catch (err: any) {
+      setLoginErrorMsg(`로그인 처리 중 시스템 오류가 발생했습니다: ${err?.message || err}`);
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -540,14 +547,43 @@ const App: React.FC = () => {
               </label>
             </div>
 
-            {loginError && (
-              <div style={{ color: 'var(--danger)', fontSize: '13px', textAlign: 'center', fontWeight: '600' }}>
-                아이디 또는 비밀번호가 잘못되었습니다.
+            {loginErrorMsg && (
+              <div 
+                data-uia="login-error-alert"
+                style={{
+                backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid #ef4444',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                color: '#f87171',
+                fontSize: '12.5px',
+                lineHeight: '1.5',
+                textAlign: 'left',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '8px',
+                whiteSpace: 'pre-line'
+              }}>
+                <AlertTriangle size={16} color="#ef4444" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <span>{loginErrorMsg}</span>
               </div>
             )}
 
-            <button type="submit" className="btn-primary" style={{ padding: '12px', fontSize: '16px', fontWeight: '600', marginTop: '4px' }}>
-              로그인
+            <button 
+              type="submit" 
+              className="btn-primary" 
+              disabled={isLoggingIn}
+              style={{ 
+                padding: '12px', 
+                fontSize: '16px', 
+                fontWeight: '600', 
+                marginTop: '4px',
+                cursor: isLoggingIn ? 'not-allowed' : 'pointer',
+                opacity: isLoggingIn ? 0.7 : 1
+              }}
+            >
+              {isLoggingIn ? '로그인 확인 중...' : '로그인'}
             </button>
           </form>
 
@@ -649,6 +685,9 @@ const App: React.FC = () => {
                 <div>• 영업관리: <strong>manager / mgr123</strong></div>
                 <div>• 일반영업: <strong>user / user123</strong></div>
                 <div>• 정비현장: <strong>mechanic / mech123</strong></div>
+              </div>
+              <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px dashed rgba(245, 158, 11, 0.3)', fontSize: '11px', color: '#b45309' }}>
+                • 임직원 로그인: <strong>사원명(예: 김동우, 이수용, 최수호)</strong> 또는 <strong>사번</strong> / 초기 비밀번호: <strong>1111</strong>
               </div>
             </div>
           )}
@@ -1117,6 +1156,7 @@ const App: React.FC = () => {
           {/* 최상단 독립 ERP 대시보드 버튼 */}
           {hasPermission('dashboard', 'view') && (
             <button
+              data-menu-id="dashboard"
               onClick={() => {
                 setActiveTab('dashboard');
                 setMobileMenuOpen(false);
@@ -1199,6 +1239,7 @@ const App: React.FC = () => {
                       return (
                         <button
                           key={item.id}
+                          data-menu-id={item.id}
                           onClick={() => {
                             setActiveTab(item.id);
                             setMobileMenuOpen(false);

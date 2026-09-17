@@ -94,7 +94,7 @@ export const VehicleOperationLogPage: React.FC = () => {
       if (!vehicleNo) continue;
 
       const matchedVeh = corporateVehicles.find(v => 
-        v.vehicleNo.replace(/\s/g, '').toLowerCase() === vehicleNo.replace(/\s/g, '').toLowerCase()
+        (v.vehicleNo || '').replace(/\s/g, '').toLowerCase() === vehicleNo.replace(/\s/g, '').toLowerCase()
       );
 
       const vehicleId = matchedVeh?.id || `veh_manual_${vehicleNo.replace(/[^0-9a-zA-Z]/g, '')}`;

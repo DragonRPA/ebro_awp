@@ -212,7 +212,9 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
       zIndex: 99999,
       padding: '20px'
     }}>
-      <div style={{
+      <div
+        data-uia="system-error-modal"
+        style={{
         backgroundColor: '#1e293b',
         border: '1px solid #ef4444',
         borderRadius: '16px',

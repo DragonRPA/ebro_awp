@@ -44,10 +44,11 @@ class RealGmailService {
     cc?: string
   ): Promise<SentEmail> {
 
-    // 1. 단일 진실의 원천(SSOT): db.googleConfigs[0] 및 localStorage 최신 등록 정보 실시간 조회
-    const dbConfig = db.googleConfigs[0];
+    // 1. 단일 진실의 원천(SSOT): db.googleConfigs 중 유효한 앱 비밀번호가 있는 설정 우선 조회
+    const dbConfig = db.googleConfigs.find(c => c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•')) || db.googleConfigs[0];
     const lsVal = localStorage.getItem('erp_googleConfigs');
-    const lsConfig = lsVal ? JSON.parse(lsVal)[0] : null;
+    const lsConfigs = lsVal ? JSON.parse(lsVal) : [];
+    const lsConfig = Array.isArray(lsConfigs) ? (lsConfigs.find((c: any) => c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•')) || lsConfigs[0]) : null;
 
     const googleEmail = (
       dbConfig?.googleEmail ||

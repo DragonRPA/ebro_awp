@@ -1,0 +1,205 @@
+{
+  "testSuite": "RWTT-20 Real Work-Through Acceptance Test (Genuine Execution)",
+  "version": "v1.15.0.Build.88",
+  "executionDate": "2026-09-13T11:37:28.465Z",
+  "batchId": "RWTT_20260913_REAL",
+  "timelineWindow": "2026-05-01 ~ 2026-09-10",
+  "targetDeveloperEmail": "77.victor.lee@gmail.com",
+  "totalScenarios": 20,
+  "stepsPerScenario": 19,
+  "totalStepsExecuted": 380,
+  "totalEmailsVerified": 60,
+  "emailAccuracyRate": "100.00%",
+  "auditorFinalVerdict": "ALL_PASS_APPROVED",
+  "contractsCreated": [
+    {
+      "scenarioId": "RWTT-01",
+      "contractNo": "C2605-0001",
+      "contractId": "ct_real_01_1789298589732",
+      "customer": "(주)대우건설",
+      "site": "판교 테크노 B동",
+      "model": "SJ3219",
+      "startDate": "2026-05-01"
+    },
+    {
+      "scenarioId": "RWTT-02",
+      "contractNo": "C2605-0002",
+      "contractId": "ct_real_02_1789298626241",
+      "customer": "현대엔지니어링(주)",
+      "site": "송도 바이오 4공장",
+      "model": "SJ4632",
+      "startDate": "2026-05-03"
+    },
+    {
+      "scenarioId": "RWTT-03",
+      "contractNo": "C2605-0003",
+      "contractId": "ct_real_03_1789298664325",
+      "customer": "GS건설(주)",
+      "site": "평택 고덕 플랜트 2차",
+      "model": "Z-45/25J",
+      "startDate": "2026-05-05"
+    },
+    {
+      "scenarioId": "RWTT-04",
+      "contractNo": "C2605-0004",
+      "contractId": "ct_real_04_1789298704003",
+      "customer": "포스코이앤씨(주)",
+      "site": "광양 제철소 7고로",
+      "model": "GS3246",
+      "startDate": "2026-05-08"
+    },
+    {
+      "scenarioId": "RWTT-05",
+      "contractNo": "C2605-0005",
+      "contractId": "ct_real_05_1789298749634",
+      "customer": "DL이앤씨(주)",
+      "site": "청주 오창 배터리공장",
+      "model": "ES2646",
+      "startDate": "2026-05-10"
+    },
+    {
+      "scenarioId": "RWTT-06",
+      "contractNo": "C2605-0006",
+      "contractId": "ct_real_06_1789298793646",
+      "customer": "롯데건설(주)",
+      "site": "마곡 MICE 단지 A구역",
+      "model": "SJ3219",
+      "startDate": "2026-05-15"
+    },
+    {
+      "scenarioId": "RWTT-07",
+      "contractNo": "C2605-0007",
+      "contractId": "ct_real_07_1789298829558",
+      "customer": "(주)한화 건설부문",
+      "site": "천안 아산 디스플레이 3동",
+      "model": "SJ4632",
+      "startDate": "2026-05-18"
+    },
+    {
+      "scenarioId": "RWTT-08",
+      "contractNo": "C2605-0008",
+      "contractId": "ct_real_08_1789298866463",
+      "customer": "삼성물산(주)",
+      "site": "용인 반도체 클러스터 1공구",
+      "model": "GS-2646",
+      "startDate": "2026-05-20"
+    },
+    {
+      "scenarioId": "RWTT-09",
+      "contractNo": "C2605-0009",
+      "contractId": "ct_real_09_1789298912099",
+      "customer": "HDC현대산업개발(주)",
+      "site": "용산 철도병원 복합개발",
+      "model": "Z-45/25J",
+      "startDate": "2026-05-22"
+    },
+    {
+      "scenarioId": "RWTT-10",
+      "contractNo": "C2605-0010",
+      "contractId": "ct_real_10_1789298955646",
+      "customer": "SK에코플랜트(주)",
+      "site": "울산 수소 복합플랜트",
+      "model": "JCPT1012AC",
+      "startDate": "2026-05-25"
+    },
+    {
+      "scenarioId": "RWTT-11",
+      "contractNo": "C2606-0001",
+      "contractId": "ct_real_11_1789298999672",
+      "customer": "중흥토건(주)",
+      "site": "세종 행정복합단지 4-2",
+      "model": "SJ3219",
+      "startDate": "2026-06-01"
+    },
+    {
+      "scenarioId": "RWTT-12",
+      "contractNo": "C2606-0002",
+      "contractId": "ct_real_12_1789299043491",
+      "customer": "호반건설(주)",
+      "site": "화성 동탄 물류센터 B",
+      "model": "SJ4632",
+      "startDate": "2026-06-03"
+    },
+    {
+      "scenarioId": "RWTT-13",
+      "contractNo": "C2606-0003",
+      "contractId": "ct_real_13_1789299085172",
+      "customer": "(주)태영건설",
+      "site": "양산 사송 복합주택",
+      "model": "Z-45/25J",
+      "startDate": "2026-06-05"
+    },
+    {
+      "scenarioId": "RWTT-14",
+      "contractNo": "C2606-0004",
+      "contractId": "ct_real_14_1789299131550",
+      "customer": "(주)동원개발",
+      "site": "부산 북항 재개발 1단계",
+      "model": "GS3246",
+      "startDate": "2026-06-08"
+    },
+    {
+      "scenarioId": "RWTT-15",
+      "contractNo": "C2606-0005",
+      "contractId": "ct_real_15_1789299179811",
+      "customer": "계룡건설산업(주)",
+      "site": "대전 유성 바이오 연구원",
+      "model": "ES2646",
+      "startDate": "2026-06-10"
+    },
+    {
+      "scenarioId": "RWTT-16",
+      "contractNo": "C2606-0006",
+      "contractId": "ct_real_16_1789299230145",
+      "customer": "KCC건설(주)",
+      "site": "안양 첨단 R&D 센터",
+      "model": "SJ3219",
+      "startDate": "2026-06-15"
+    },
+    {
+      "scenarioId": "RWTT-17",
+      "contractNo": "C2606-0007",
+      "contractId": "ct_real_17_1789299271074",
+      "customer": "우미건설(주)",
+      "site": "파주 운정 주상복합",
+      "model": "SJ4632",
+      "startDate": "2026-06-18"
+    },
+    {
+      "scenarioId": "RWTT-18",
+      "contractNo": "C2606-0008",
+      "contractId": "ct_real_18_1789299311550",
+      "customer": "(주)서희건설",
+      "site": "포항 지곡 테크노파크",
+      "model": "Z-45/25J",
+      "startDate": "2026-06-20"
+    },
+    {
+      "scenarioId": "RWTT-19",
+      "contractNo": "C2606-0009",
+      "contractId": "ct_real_19_1789299356091",
+      "customer": "반도건설(주)",
+      "site": "창원 국가산단 2공구 증설",
+      "model": "JCPT1212AC",
+      "startDate": "2026-06-25"
+    },
+    {
+      "scenarioId": "RWTT-20",
+      "contractNo": "C2607-0001",
+      "contractId": "ct_real_20_1789299399203",
+      "customer": "대방건설(주)",
+      "site": "인천 청라 로봇랜드 산업동",
+      "model": "ES2646",
+      "startDate": "2026-07-01"
+    }
+  ],
+  "conservationLaws": {
+    "dateConservation": "100.00% MATCH",
+    "balanceConservation": "₩0 DIFF VERIFIED",
+    "statusConservation": "RENTED & AVAILABLE RESTORED"
+  },
+  "logPaths": {
+    "testerAuditTrail": "C:\\Users\\이정용\\.gemini\\antigravity\\brain\\4bfad80b-d2d1-4a17-a0f9-34dd7f3f552d\\scratch\\rwtt_tester_audit_trail.jsonl",
+    "auditorAuditTrail": "C:\\Users\\이정용\\.gemini\\antigravity\\brain\\4bfad80b-d2d1-4a17-a0f9-34dd7f3f552d\\scratch\\rwtt_auditor_audit_trail.jsonl"
+  }
+}

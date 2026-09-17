@@ -81,7 +81,7 @@ interface AppContextType {
   currentUser: User | null;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
-  login: (loginId: string, passwordHash: string, keepLoggedIn?: boolean) => boolean;
+  login: (loginId: string, passwordHash: string, keepLoggedIn?: boolean) => Promise<{ success: boolean; reason?: string }>;
   logout: () => void;
   switchUser: (userId: string) => void;
   hasPermission: (menuId: string, action: 'view' | 'save') => boolean;
@@ -805,6 +805,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'initial_db_upload':    ['contracts', 'contractAssets', 'customers', 'assets', 'sites', 'billings', 'billingDetails'],
     'print_queue_monitor':  ['printStations', 'printQueue'],
     'privacy_audit':        ['privacyAccessLogs', 'users', 'departments'],
+    'receivable':           ['billings', 'billingDetails', 'customers', 'contracts', 'bankTransactions'],
+    'purchase_settlement':  ['purchaseSettlements', 'purchaseSettlementItems', 'vendors', 'assets'],
+    'inspection_checklist_manage': ['inspectionChecklists', 'inspectionItems'],
+    'error_report':         ['errorReports', 'users'],
+    'agentic_ai_lab':       ['contracts', 'assets', 'billings', 'deliveries'],
+    'agentic_dispatch_studio': ['deliveries', 'contracts', 'assets'],
+    'agentic_settlement_autopilot': ['billings', 'billingDetails', 'bankTransactions', 'purchaseSettlements'],
+    'agentic_asset_lifecycle': ['assets', 'contracts', 'repairs'],
+    'dev_uploader':         ['contracts', 'contractAssets', 'customers', 'assets'],
   };
 
   const loadTablesForMenu = async (menuId: string) => {
@@ -918,11 +927,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     document.documentElement.setAttribute('data-theme', nextTheme);
   };
 
-  const login = (loginId: string, passwordHash: string, keepLoggedIn?: boolean): boolean => {
-    if (loginId === 'admin' && passwordHash === 'admin123') {
+  const login = async (
+    loginId: string, 
+    passwordHash: string, 
+    keepLoggedIn?: boolean
+  ): Promise<{ success: boolean; reason?: string }> => {
+    const cleanId = (loginId || '').trim();
+    const cleanPw = (passwordHash || '').trim();
+
+    if (!cleanId) {
+      return { success: false, reason: '사용자 아이디를 입력해 주십시오.' };
+    }
+    if (!cleanPw) {
+      return { success: false, reason: '비밀번호를 입력해 주십시오.' };
+    }
+
+    // 1. 개발자 / 최고관리자 마스터 계정 (DB/네트워크 상태와 무관하게 100% 무조건 보장)
+    if (cleanId.toLowerCase() === 'admin' && cleanPw === 'admin123') {
       const fallbackAdmin: User = { 
         id: 'sys-admin', loginId: 'admin', passwordHash: 'admin123', 
-        name: '개발자', department: '시스템', departmentId: '', role: 'ADMIN', createdAt: new Date().toISOString() 
+        name: '개발자', department: '시스템', departmentId: '', role: 'ADMIN', customRoleId: 'role_mgmt', createdAt: new Date().toISOString() 
       };
       setCurrentUser(fallbackAdmin);
       sessionStorage.setItem('user', JSON.stringify(fallbackAdmin));
@@ -935,33 +959,159 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userId: fallbackAdmin.loginId,
         userName: fallbackAdmin.name
       }).catch(console.error);
-      return true;
+      return { success: true };
     }
 
-    const user = db.users.find(u => u.loginId === loginId && u.passwordHash === passwordHash);
-    if (user) {
-      if (user.loginId === 'admin' && user.name === '최고관리자') {
-        user.name = '개발자';
+    // 2. 개발 전용 테스트 계정 보장 (manager, user, mechanic)
+    if (cleanId.toLowerCase() === 'manager' && cleanPw === 'mgr123') {
+      const fallbackManager: User = {
+        id: 'USR-MGR-TEST', loginId: 'manager', passwordHash: 'mgr123',
+        name: '영업관리자', department: '영업관리', departmentId: 'DEPT-0000003', role: 'MANAGER', customRoleId: 'role_sales', createdAt: new Date().toISOString()
+      };
+      setCurrentUser(fallbackManager);
+      sessionStorage.setItem('user', JSON.stringify(fallbackManager));
+      if (keepLoggedIn) localStorage.setItem('auto_user', JSON.stringify(fallbackManager));
+      return { success: true };
+    }
+    if (cleanId.toLowerCase() === 'user' && cleanPw === 'user123') {
+      const fallbackUser: User = {
+        id: 'USR-USER-TEST', loginId: 'user', passwordHash: 'user123',
+        name: '일반영업', department: '영업부', departmentId: 'DEPT-0000003', role: 'USER', customRoleId: 'role_sales', createdAt: new Date().toISOString()
+      };
+      setCurrentUser(fallbackUser);
+      sessionStorage.setItem('user', JSON.stringify(fallbackUser));
+      if (keepLoggedIn) localStorage.setItem('auto_user', JSON.stringify(fallbackUser));
+      return { success: true };
+    }
+    if (cleanId.toLowerCase() === 'mechanic' && cleanPw === 'mech123') {
+      const fallbackMech: User = {
+        id: 'USR-MECH-TEST', loginId: 'mechanic', passwordHash: 'mech123',
+        name: '정비기사', department: '정비부', departmentId: 'DEPT-0000005', role: 'MECHANIC', customRoleId: 'role_mechanic', createdAt: new Date().toISOString()
+      };
+      setCurrentUser(fallbackMech);
+      sessionStorage.setItem('user', JSON.stringify(fallbackMech));
+      if (keepLoggedIn) localStorage.setItem('auto_user', JSON.stringify(fallbackMech));
+      return { success: true };
+    }
+
+    // 3. 로컬 캐시 사용자 검색 (아이디, 사원명, 사번, 전화번호, 이메일 다각도 매칭)
+    const normInput = cleanId.toLowerCase();
+    const phoneInput = cleanId.replace(/[^0-9]/g, '');
+
+    const matchUser = (u: User) => {
+      const uLogin = (u.loginId || '').trim().toLowerCase();
+      const uName = (u.name || '').trim().toLowerCase();
+      const uId = (u.id || '').trim().toLowerCase();
+      const uPhone = (u.phone || '').replace(/[^0-9]/g, '');
+      const uEmail = (u.email || '').trim().toLowerCase();
+      return uLogin === normInput || 
+             uName === normInput || 
+             uId === normInput ||
+             (uEmail.length > 0 && uEmail === normInput) || 
+             (phoneInput.length >= 8 && uPhone.length >= 8 && uPhone === phoneInput);
+    };
+
+    let user = db.users.find(matchUser);
+
+    // 4. 로컬 캐시에 없는 경우 (초기 로딩 전 또는 캐시 미반영), Supabase 원격 DB 직접 단건 조회 (Zero Race Condition)
+    if (!user && db.isSupabaseConnected() && supabase) {
+      try {
+        const { data: suUsers } = await supabase
+          .from('users')
+          .select('*')
+          .or(`loginId.ilike.${cleanId},name.ilike.${cleanId},id.ilike.${cleanId}`);
+        if (suUsers && suUsers.length > 0 && suUsers[0]) {
+          const foundUser = suUsers[0] as User;
+          user = foundUser;
+          // 로컬 캐시에 즉시 보강 저장
+          const currentList = db.users;
+          if (!currentList.some(u => u.id === foundUser.id)) {
+            db.users = [...currentList, foundUser];
+          }
+        }
+      } catch (suErr) {
+        console.warn('원격 DB 직접 사용자 인증 조회 오류:', suErr);
       }
-      setCurrentUser(user);
-      sessionStorage.setItem('user', JSON.stringify(user));
-      if (keepLoggedIn) {
-        localStorage.setItem('auto_user', JSON.stringify(user));
-      } else {
-        localStorage.removeItem('auto_user');
-      }
-      logPrivacyAccess('LOGIN', 'login', `사용자 로그인 성공: ${user.name} (${user.department})`, {
-        userId: user.loginId,
+    }
+
+    // 5. 사용자를 찾을 수 없는 경우 (등록되지 않은 사원)
+    if (!user) {
+      logPrivacyAccess('LOGIN', 'login', `로그인 거부: 미등록 계정 시도 ('${cleanId}')`, {
+        userId: cleanId,
+        userName: '미식별'
+      }).catch(console.error);
+      return { 
+        success: false, 
+        reason: `등록되지 않은 사원 계정입니다. ('${cleanId}')\n사원명(예: 김동우, 이수용 등) 또는 사번을 정확히 입력해 주십시오.` 
+      };
+    }
+
+    // 6. 계정 상태 검증 (재직, 휴직, 퇴사)
+    if (user.status === 'RETIRED') {
+      logPrivacyAccess('LOGIN', 'login', `로그인 거부: 퇴사자 계정 접속 차단 (${user.name})`, {
+        userId: user.loginId || user.id,
         userName: user.name
       }).catch(console.error);
-      return true;
+      return { 
+        success: false, 
+        reason: `퇴사 처리된 계정입니다. (${user.name} 님)\n로그인이 제한되오니 인사담당자에게 문의해 주십시오.` 
+      };
     }
 
-    logPrivacyAccess('LOGIN', 'login', `로그인 실패 시도 (시도 ID: ${loginId})`, {
-      userId: loginId,
-      userName: '미식별'
+    if (user.status === 'LEAVE_OF_ABSENCE') {
+      logPrivacyAccess('LOGIN', 'login', `로그인 거부: 휴직자 계정 접속 차단 (${user.name})`, {
+        userId: user.loginId || user.id,
+        userName: user.name
+      }).catch(console.error);
+      return { 
+        success: false, 
+        reason: `현재 휴직 상태로 설정된 계정입니다. (${user.name} 님)\n관리자에게 업무 복귀 승인을 요청해 주십시오.` 
+      };
+    }
+
+    // 7. 비밀번호 검증 (미설정 사원은 사내 기본 비밀번호 1111 적용)
+    const expectedPassword = user.passwordHash || '1111';
+    if (expectedPassword !== cleanPw) {
+      logPrivacyAccess('LOGIN', 'login', `로그인 거부: 비밀번호 불일치 (${user.name})`, {
+        userId: user.loginId || user.id,
+        userName: user.name
+      }).catch(console.error);
+      return { 
+        success: false, 
+        reason: `비밀번호가 일치하지 않습니다. (${user.name} 님)\n사원 초기 비밀번호는 '1111'입니다. 비밀번호를 다시 확인해 주십시오.` 
+      };
+    }
+
+    // 8. 권한 상속 롤 누락 시 부서 기반 자동 상속 보강
+    if (!user.customRoleId) {
+      const dept = (user.departmentId || user.department || '').toUpperCase();
+      let assignedRoleId = '';
+      if (dept.includes('0000001') || dept.includes('0000002') || dept.includes('관리') || dept.includes('경영') || dept.includes('임원') || user.position === '사장' || user.position === '부사장' || user.position === '대표이사') assignedRoleId = 'role_mgmt';
+      else if (dept.includes('0000003') || dept.includes('영업')) assignedRoleId = 'role_sales';
+      else if (dept.includes('0000004') || dept.includes('출고') || dept.includes('배차')) assignedRoleId = 'role_logistics';
+      else if (dept.includes('0000005') || dept.includes('0000006') || dept.includes('AS') || dept.includes('정비') || dept.includes('외국인')) assignedRoleId = 'role_mechanic';
+      if (assignedRoleId) {
+        user = { ...user, customRoleId: assignedRoleId };
+      }
+    }
+
+    // 9. 로그인 성공 확정
+    if (user.loginId === 'admin' && user.name === '최고관리자') {
+      user.name = '개발자';
+    }
+    setCurrentUser(user);
+    sessionStorage.setItem('user', JSON.stringify(user));
+    if (keepLoggedIn) {
+      localStorage.setItem('auto_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('auto_user');
+    }
+    logPrivacyAccess('LOGIN', 'login', `사용자 로그인 성공: ${user.name} (${user.department || user.position || '임직원'})`, {
+      userId: user.loginId || user.id,
+      userName: user.name
     }).catch(console.error);
-    return false;
+
+    return { success: true };
   };
 
   const logout = () => {
@@ -5442,6 +5592,17 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           status: 'PENDING',
           note: `[장비교체] 대체(${newAssetOrig.assetNo}) 신규 검수의뢰 | 사유: ${reason}`,
           createdAt: nowIso,
+          updatedAt: nowIso
+        });
+      }
+
+      // 4-1. 🌟 [전사 표준 헌장 2.3 단일 EXCHANGE 1건 발행/전환 원칙]: 출고불량 교체 시 배차 건을 단일 'EXCHANGE'로 갱신
+      const existingDel = db.deliveries.find(d => d.contractId === caOrig.contractId && (d.assetIds?.includes(oldAssetId) || !d.assetIds));
+      if (existingDel) {
+        db.updateRow<Delivery>('deliveries', existingDel.id, {
+          assetIds: newAssetId,
+          type: 'EXCHANGE',
+          memo: `[출고불량 교체배차 (헌장 2.3)] 구장비(${oldAssetOrig.assetNo}) ➔ 대체장비(${newAssetOrig.assetNo}) | 사유: ${cleanReason}`,
           updatedAt: nowIso
         });
       }

@@ -1,0 +1,1508 @@
+{
+  "pass": true,
+  "totalContractsFound": 159,
+  "contractList": [
+    {
+      "contractNo": "C2605-0001",
+      "id": "ct_real_01_1789298589732",
+      "customer": "(주)대우건설",
+      "startDate": "2026-05-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-05-01T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2605-0002",
+      "id": "ct_real_02_1789298626241",
+      "customer": "현대엔지니어링(주)",
+      "startDate": "2026-05-03",
+      "status": "ACTIVE",
+      "createdAt": "2026-05-03T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2605-0003",
+      "id": "ct_real_03_1789298664325",
+      "customer": "GS건설(주)",
+      "startDate": "2026-05-05",
+      "status": "ACTIVE",
+      "createdAt": "2026-05-05T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2605-0004",
+      "id": "ct_real_04_1789298704003",
+      "customer": "포스코이앤씨(주)",
+      "startDate": "2026-05-08",
+      "status": "ACTIVE",
+      "createdAt": "2026-05-08T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2605-0005",
+      "id": "ct_real_05_1789298749634",
+      "customer": "DL이앤씨(주)",
+      "startDate": "2026-05-10",
+      "status": "ACTIVE",
+      "createdAt": "2026-05-10T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2605-0006",
+      "id": "ct_real_06_1789298793646",
+      "customer": "롯데건설(주)",
+      "startDate": "2026-05-15",
+      "status": "ACTIVE",
+      "createdAt": "2026-05-15T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2605-0007",
+      "id": "ct_real_07_1789298829558",
+      "customer": "(주)한화 건설부문",
+      "startDate": "2026-05-18",
+      "status": "ACTIVE",
+      "createdAt": "2026-05-18T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2605-0008",
+      "id": "ct_real_08_1789298866463",
+      "customer": "삼성물산(주)",
+      "startDate": "2026-05-20",
+      "status": "ACTIVE",
+      "createdAt": "2026-05-20T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2605-0009",
+      "id": "ct_real_09_1789298912099",
+      "customer": "HDC현대산업개발(주)",
+      "startDate": "2026-05-22",
+      "status": "ACTIVE",
+      "createdAt": "2026-05-22T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2605-0010",
+      "id": "ct_real_10_1789298955646",
+      "customer": "SK에코플랜트(주)",
+      "startDate": "2026-05-25",
+      "status": "ACTIVE",
+      "createdAt": "2026-05-25T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2606-0001",
+      "id": "ct_real_11_1789298999672",
+      "customer": "중흥토건(주)",
+      "startDate": "2026-06-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-06-01T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2606-0002",
+      "id": "ct_real_12_1789299043491",
+      "customer": "호반건설(주)",
+      "startDate": "2026-06-03",
+      "status": "ACTIVE",
+      "createdAt": "2026-06-03T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2606-0003",
+      "id": "ct_real_13_1789299085172",
+      "customer": "(주)태영건설",
+      "startDate": "2026-06-05",
+      "status": "ACTIVE",
+      "createdAt": "2026-06-05T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2606-0004",
+      "id": "ct_real_14_1789299131550",
+      "customer": "(주)동원개발",
+      "startDate": "2026-06-08",
+      "status": "ACTIVE",
+      "createdAt": "2026-06-08T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2606-0005",
+      "id": "ct_real_15_1789299179811",
+      "customer": "계룡건설산업(주)",
+      "startDate": "2026-06-10",
+      "status": "ACTIVE",
+      "createdAt": "2026-06-10T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2606-0006",
+      "id": "ct_real_16_1789299230145",
+      "customer": "KCC건설(주)",
+      "startDate": "2026-06-15",
+      "status": "ACTIVE",
+      "createdAt": "2026-06-15T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2606-0007",
+      "id": "ct_real_17_1789299271074",
+      "customer": "우미건설(주)",
+      "startDate": "2026-06-18",
+      "status": "ACTIVE",
+      "createdAt": "2026-06-18T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2606-0008",
+      "id": "ct_real_18_1789299311550",
+      "customer": "(주)서희건설",
+      "startDate": "2026-06-20",
+      "status": "ACTIVE",
+      "createdAt": "2026-06-20T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2606-0009",
+      "id": "ct_real_19_1789299356091",
+      "customer": "반도건설(주)",
+      "startDate": "2026-06-25",
+      "status": "ACTIVE",
+      "createdAt": "2026-06-25T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2607-0001",
+      "id": "ct_real_20_1789299399203",
+      "customer": "대방건설(주)",
+      "startDate": "2026-07-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-07-01T09:20:00.000Z"
+    },
+    {
+      "contractNo": "C2608-0001",
+      "id": "CONT-260801-0001",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "COMPLETED",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0002",
+      "id": "CONT-260801-0002",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0003",
+      "id": "CONT-260801-0003",
+      "customer": null,
+      "startDate": "2026-08-16",
+      "status": "COMPLETED",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0004",
+      "id": "CONT-260801-0004",
+      "customer": null,
+      "startDate": "2026-08-16",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0005",
+      "id": "CONT-260801-0005",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0006",
+      "id": "CONT-260801-0006",
+      "customer": null,
+      "startDate": "2026-08-26",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0007",
+      "id": "CONT-260801-0007",
+      "customer": null,
+      "startDate": "2026-08-01",
+      "status": "COMPLETED",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0008",
+      "id": "CONT-260801-0008",
+      "customer": null,
+      "startDate": "2026-08-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0009",
+      "id": "CONT-260801-0009",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0010",
+      "id": "CONT-260801-0010",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0011",
+      "id": "CONT-260801-0011",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "COMPLETED",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0012",
+      "id": "CONT-260801-0012",
+      "customer": null,
+      "startDate": "2026-08-26",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0013",
+      "id": "CONT-260801-0013",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0014",
+      "id": "CONT-260801-0014",
+      "customer": null,
+      "startDate": "2026-08-28",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0015",
+      "id": "CONT-260801-0015",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0016",
+      "id": "CONT-260801-0016",
+      "customer": null,
+      "startDate": "2026-08-28",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0017",
+      "id": "CONT-260801-0017",
+      "customer": null,
+      "startDate": "2026-08-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0018",
+      "id": "CONT-260801-0018",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0019",
+      "id": "CONT-260801-0019",
+      "customer": null,
+      "startDate": "2026-08-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0020",
+      "id": "CONT-260801-0020",
+      "customer": null,
+      "startDate": "2026-08-26",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0021",
+      "id": "CONT-260801-0021",
+      "customer": null,
+      "startDate": "2026-08-26",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0022",
+      "id": "CONT-260801-0022",
+      "customer": null,
+      "startDate": "2026-08-27",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0023",
+      "id": "CONT-260801-0023",
+      "customer": null,
+      "startDate": "2026-09-08",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0024",
+      "id": "CONT-260801-0024",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0025",
+      "id": "CONT-260801-0025",
+      "customer": null,
+      "startDate": "2026-08-26",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0026",
+      "id": "CONT-260801-0026",
+      "customer": null,
+      "startDate": "2026-07-26",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0027",
+      "id": "CONT-260801-0027",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0028",
+      "id": "CONT-260801-0028",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0029",
+      "id": "CONT-260801-0029",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0030",
+      "id": "CONT-260801-0030",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "COMPLETED",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0031",
+      "id": "CONT-260801-0031",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0032",
+      "id": "CONT-260801-0032",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0033",
+      "id": "CONT-260801-0033",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0034",
+      "id": "CONT-260801-0034",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0035",
+      "id": "CONT-260801-0035",
+      "customer": null,
+      "startDate": "2026-08-26",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0036",
+      "id": "CONT-260801-0036",
+      "customer": null,
+      "startDate": "2026-08-26",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0037",
+      "id": "CONT-260801-0037",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0038",
+      "id": "CONT-260801-0038",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0039",
+      "id": "CONT-260801-0039",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0040",
+      "id": "CONT-260801-0040",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "COMPLETED",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0041",
+      "id": "CONT-260801-0041",
+      "customer": null,
+      "startDate": "2026-08-31",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0042",
+      "id": "CONT-260801-0042",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "COMPLETED",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0043",
+      "id": "CONT-260801-0043",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0044",
+      "id": "CONT-260801-0044",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0045",
+      "id": "CONT-260801-0045",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "COMPLETED",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0046",
+      "id": "CONT-260801-0046",
+      "customer": null,
+      "startDate": "2026-08-26",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0047",
+      "id": "CONT-260801-0047",
+      "customer": null,
+      "startDate": "2026-08-26",
+      "status": "COMPLETED",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0048",
+      "id": "CONT-260801-0048",
+      "customer": null,
+      "startDate": "2026-08-26",
+      "status": "COMPLETED",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0049",
+      "id": "CONT-260801-0049",
+      "customer": null,
+      "startDate": "2026-08-20",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0050",
+      "id": "CONT-260801-0050",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0051",
+      "id": "CONT-260801-0051",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0052",
+      "id": "CONT-260801-0052",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0053",
+      "id": "CONT-260801-0053",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "COMPLETED",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0054",
+      "id": "CONT-260801-0054",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0055",
+      "id": "CONT-260801-0055",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0056",
+      "id": "CONT-260801-0056",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0057",
+      "id": "CONT-260801-0057",
+      "customer": null,
+      "startDate": "2026-08-26",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0058",
+      "id": "CONT-260801-0058",
+      "customer": null,
+      "startDate": "2026-08-26",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0059",
+      "id": "CONT-260801-0059",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0060",
+      "id": "CONT-260801-0060",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0061",
+      "id": "CONT-260801-0061",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0062",
+      "id": "CONT-260801-0062",
+      "customer": null,
+      "startDate": "2026-09-03",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0063",
+      "id": "CONT-260801-0063",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0064",
+      "id": "CONT-260801-0064",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "COMPLETED",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0065",
+      "id": "CONT-260801-0065",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0066",
+      "id": "CONT-260801-0066",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0067",
+      "id": "CONT-260801-0067",
+      "customer": null,
+      "startDate": "2026-08-22",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0068",
+      "id": "CONT-260801-0068",
+      "customer": null,
+      "startDate": "2026-08-25",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0069",
+      "id": "CONT-260801-0069",
+      "customer": null,
+      "startDate": "2026-08-26",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0070",
+      "id": "CONT-260801-0070",
+      "customer": null,
+      "startDate": "2026-08-29",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0071",
+      "id": "CONT-260801-0071",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0072",
+      "id": "CONT-260801-0072",
+      "customer": null,
+      "startDate": "2026-09-02",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0073",
+      "id": "CONT-260801-0073",
+      "customer": null,
+      "startDate": "2026-09-04",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0074",
+      "id": "CONT-260801-0074",
+      "customer": null,
+      "startDate": "2026-09-07",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0075",
+      "id": "CONT-260801-0075",
+      "customer": null,
+      "startDate": "2026-08-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0076",
+      "id": "CONT-260801-0076",
+      "customer": null,
+      "startDate": "2026-08-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0077",
+      "id": "CONT-260801-0077",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0078",
+      "id": "CONT-260801-0078",
+      "customer": null,
+      "startDate": "2026-07-26",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0079",
+      "id": "CONT-260801-0079",
+      "customer": null,
+      "startDate": "2026-08-15",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0080",
+      "id": "CONT-260801-0080",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0081",
+      "id": "CONT-260801-0081",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0082",
+      "id": "CONT-260801-0082",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0083",
+      "id": "CONT-260801-0083",
+      "customer": null,
+      "startDate": "2026-08-26",
+      "status": "COMPLETED",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0084",
+      "id": "CONT-260801-0084",
+      "customer": null,
+      "startDate": "2026-08-26",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0085",
+      "id": "CONT-260801-0085",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0086",
+      "id": "CONT-260801-0086",
+      "customer": null,
+      "startDate": "2026-08-26",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0087",
+      "id": "CONT-260801-0087",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0088",
+      "id": "CONT-260801-0088",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0089",
+      "id": "CONT-260801-0089",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0090",
+      "id": "CONT-260801-0090",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0091",
+      "id": "CONT-260801-0091",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "COMPLETED",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0092",
+      "id": "CONT-260801-0092",
+      "customer": null,
+      "startDate": "2026-08-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0093",
+      "id": "CONT-260801-0093",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0094",
+      "id": "CONT-260801-0094",
+      "customer": null,
+      "startDate": "2026-08-26",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0095",
+      "id": "CONT-260801-0095",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0096",
+      "id": "CONT-260801-0096",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0097",
+      "id": "CONT-260801-0097",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0098",
+      "id": "CONT-260801-0098",
+      "customer": null,
+      "startDate": "2026-08-27",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0099",
+      "id": "CONT-260801-0099",
+      "customer": null,
+      "startDate": "2026-08-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0100",
+      "id": "CONT-260801-0100",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0101",
+      "id": "CONT-260801-0101",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0102",
+      "id": "CONT-260801-0102",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "COMPLETED",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0103",
+      "id": "CONT-260801-0103",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0104",
+      "id": "CONT-260801-0104",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0105",
+      "id": "CONT-260801-0105",
+      "customer": null,
+      "startDate": "2026-08-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0106",
+      "id": "CONT-260801-0106",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0107",
+      "id": "CONT-260801-0107",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0108",
+      "id": "CONT-260801-0108",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0109",
+      "id": "CONT-260801-0109",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0110",
+      "id": "CONT-260801-0110",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0111",
+      "id": "CONT-260801-0111",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0112",
+      "id": "CONT-260801-0112",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0113",
+      "id": "CONT-260801-0113",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0114",
+      "id": "CONT-260801-0114",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0115",
+      "id": "CONT-260801-0115",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0116",
+      "id": "CONT-260801-0116",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0117",
+      "id": "CONT-260801-0117",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0118",
+      "id": "CONT-260801-0118",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0119",
+      "id": "CONT-260801-0119",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0120",
+      "id": "CONT-260801-0120",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0121",
+      "id": "CONT-260801-0121",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "COMPLETED",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0122",
+      "id": "CONT-260801-0122",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0123",
+      "id": "CONT-260801-0123",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0124",
+      "id": "CONT-260801-0124",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0125",
+      "id": "CONT-260801-0125",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0126",
+      "id": "CONT-260801-0126",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0127",
+      "id": "CONT-260801-0127",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0128",
+      "id": "CONT-260801-0128",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "COMPLETED",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0129",
+      "id": "CONT-260801-0129",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0130",
+      "id": "CONT-260801-0130",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0131",
+      "id": "CONT-260801-0131",
+      "customer": null,
+      "startDate": "2026-08-21",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0132",
+      "id": "CONT-260801-0132",
+      "customer": null,
+      "startDate": "2026-08-26",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0133",
+      "id": "CONT-260801-0133",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0134",
+      "id": "CONT-260801-0134",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0135",
+      "id": "CONT-260801-0135",
+      "customer": null,
+      "startDate": "2026-09-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0136",
+      "id": "CONT-260801-0136",
+      "customer": null,
+      "startDate": "2026-09-04",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0137",
+      "id": "CONT-260801-0137",
+      "customer": null,
+      "startDate": "2026-09-08",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0138",
+      "id": "CONT-260801-0138",
+      "customer": null,
+      "startDate": "2026-08-01",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    },
+    {
+      "contractNo": "C2608-0139",
+      "id": "CONT-260801-0139",
+      "customer": null,
+      "startDate": "2026-03-24",
+      "status": "ACTIVE",
+      "createdAt": "2026-09-09T20:49:02.655Z"
+    }
+  ],
+  "inspectionsAudit": {
+    "total": 49,
+    "completedRentedCount": 22
+  },
+  "deliveriesAudit": {
+    "total": 20,
+    "exchangeCount": 20,
+    "discountVerifiedCount": 20
+  },
+  "billingsAudit": {
+    "total": 0,
+    "paidCount": 0
+  },
+  "physicalFilesAudit": {
+    "totalFound": 33,
+    "files": [
+      {
+        "name": "[기연리프트계약서]_두산건설 주식회사_두산건설 현장2공구_2026-01-23.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-01\\[기연리프트계약서]_두산건설 주식회사_두산건설 현장2공구_2026-01-23.pdf",
+        "sizeBytes": 6483986,
+        "created": "2026-09-04T00:29:58.336Z"
+      },
+      {
+        "name": "[기연리프트]_계약서류팩_한화건설 주식회사_한화건설 현장2공구(57p).pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-04\\[기연리프트]_계약서류팩_한화건설 주식회사_한화건설 현장2공구(57p).pdf",
+        "sizeBytes": 9746482,
+        "created": "2026-08-29T07:37:00.798Z"
+      },
+      {
+        "name": "[기연리프트]_정품7종통합계약서류팩_한화건설 주식회사_(26p).pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-04\\[기연리프트]_정품7종통합계약서류팩_한화건설 주식회사_(26p).pdf",
+        "sizeBytes": 1028602,
+        "created": "2026-08-30T03:21:32.466Z"
+      },
+      {
+        "name": "[기연리프트계약서]_한화건설 주식회사_한화건설 현장2공구_2026-04-09.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-04\\[기연리프트계약서]_한화건설 주식회사_한화건설 현장2공구_2026-04-09.pdf",
+        "sizeBytes": 7402382,
+        "created": "2026-08-30T03:30:01.713Z"
+      },
+      {
+        "name": "[기연리프트계약서]_(주)대우건설_판교 테크노 B동_2026-05-01.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-05\\[기연리프트계약서]_(주)대우건설_판교 테크노 B동_2026-05-01.pdf",
+        "sizeBytes": 896940,
+        "created": "2026-09-13T11:13:53.087Z"
+      },
+      {
+        "name": "[기연리프트계약서]_(주)한화 건설부문_천안 아산 디스플레이 3동_2026-05-18.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-05\\[기연리프트계약서]_(주)한화 건설부문_천안 아산 디스플레이 3동_2026-05-18.pdf",
+        "sizeBytes": 897707,
+        "created": "2026-09-13T11:27:19.192Z"
+      },
+      {
+        "name": "[기연리프트계약서]_DL이앤씨(주)_청주 오창 배터리공장_2026-05-10.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-05\\[기연리프트계약서]_DL이앤씨(주)_청주 오창 배터리공장_2026-05-10.pdf",
+        "sizeBytes": 2490134,
+        "created": "2026-09-13T11:25:59.074Z"
+      },
+      {
+        "name": "[기연리프트계약서]_GS건설(주)_평택 고덕 플랜트 2차_2026-05-05.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-05\\[기연리프트계약서]_GS건설(주)_평택 고덕 플랜트 2차_2026-05-05.pdf",
+        "sizeBytes": 1664067,
+        "created": "2026-09-13T11:24:33.695Z"
+      },
+      {
+        "name": "[기연리프트계약서]_HDC현대산업개발(주)_용산 철도병원 복합개발_2026-05-22.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-05\\[기연리프트계약서]_HDC현대산업개발(주)_용산 철도병원 복합개발_2026-05-22.pdf",
+        "sizeBytes": 1664916,
+        "created": "2026-09-13T11:28:41.609Z"
+      },
+      {
+        "name": "[기연리프트계약서]_SK에코플랜트(주)_울산 수소 복합플랜트_2026-05-25.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-05\\[기연리프트계약서]_SK에코플랜트(주)_울산 수소 복합플랜트_2026-05-25.pdf",
+        "sizeBytes": 1347239,
+        "created": "2026-09-13T11:29:27.503Z"
+      },
+      {
+        "name": "[기연리프트계약서]_롯데건설(주)_마곡 MICE 단지 A구역_2026-05-15.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-05\\[기연리프트계약서]_롯데건설(주)_마곡 MICE 단지 A구역_2026-05-15.pdf",
+        "sizeBytes": 897479,
+        "created": "2026-09-13T11:26:42.911Z"
+      },
+      {
+        "name": "[기연리프트계약서]_삼성물산(주)_용인 반도체 클러스터 1공구_2026-05-20.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-05\\[기연리프트계약서]_삼성물산(주)_용인 반도체 클러스터 1공구_2026-05-20.pdf",
+        "sizeBytes": 2420814,
+        "created": "2026-09-13T11:27:56.231Z"
+      },
+      {
+        "name": "[기연리프트계약서]_포스코이앤씨(주)_광양 제철소 7고로_2026-05-08.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-05\\[기연리프트계약서]_포스코이앤씨(주)_광양 제철소 7고로_2026-05-08.pdf",
+        "sizeBytes": 2259494,
+        "created": "2026-09-13T11:25:13.620Z"
+      },
+      {
+        "name": "[기연리프트계약서]_현대엔지니어링(주)_송도 바이오 4공장_2026-05-03.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-05\\[기연리프트계약서]_현대엔지니어링(주)_송도 바이오 4공장_2026-05-03.pdf",
+        "sizeBytes": 897782,
+        "created": "2026-09-13T11:23:57.585Z"
+      },
+      {
+        "name": "[기연리프트계약서]_(주)동원개발_부산 북항 재개발 1단계_2026-06-08.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-06\\[기연리프트계약서]_(주)동원개발_부산 북항 재개발 1단계_2026-06-08.pdf",
+        "sizeBytes": 2258946,
+        "created": "2026-09-13T11:32:22.141Z"
+      },
+      {
+        "name": "[기연리프트계약서]_(주)서희건설_포항 지곡 테크노파크_2026-06-20.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-06\\[기연리프트계약서]_(주)서희건설_포항 지곡 테크노파크_2026-06-20.pdf",
+        "sizeBytes": 1663720,
+        "created": "2026-09-13T11:35:22.120Z"
+      },
+      {
+        "name": "[기연리프트계약서]_(주)태영건설_양산 사송 복합주택_2026-06-05.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-06\\[기연리프트계약서]_(주)태영건설_양산 사송 복합주택_2026-06-05.pdf",
+        "sizeBytes": 1664110,
+        "created": "2026-09-13T11:31:35.927Z"
+      },
+      {
+        "name": "[기연리프트계약서]_KCC건설(주)_안양 첨단 R&D 센터_2026-06-15.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-06\\[기연리프트계약서]_KCC건설(주)_안양 첨단 R&D 센터_2026-06-15.pdf",
+        "sizeBytes": 897628,
+        "created": "2026-09-13T11:34:01.108Z"
+      },
+      {
+        "name": "[기연리프트계약서]_계룡건설산업(주)_대전 유성 바이오 연구원_2026-06-10.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-06\\[기연리프트계약서]_계룡건설산업(주)_대전 유성 바이오 연구원_2026-06-10.pdf",
+        "sizeBytes": 2490094,
+        "created": "2026-09-13T11:33:10.736Z"
+      },
+      {
+        "name": "[기연리프트계약서]_반도건설(주)_창원 국가산단 2공구 증설_2026-06-25.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-06\\[기연리프트계약서]_반도건설(주)_창원 국가산단 2공구 증설_2026-06-25.pdf",
+        "sizeBytes": 1359992,
+        "created": "2026-09-13T11:36:07.040Z"
+      },
+      {
+        "name": "[기연리프트계약서]_우미건설(주)_파주 운정 주상복합_2026-06-18.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-06\\[기연리프트계약서]_우미건설(주)_파주 운정 주상복합_2026-06-18.pdf",
+        "sizeBytes": 896776,
+        "created": "2026-09-13T11:34:41.714Z"
+      },
+      {
+        "name": "[기연리프트계약서]_중흥토건(주)_세종 행정복합단지 4-2_2026-06-01.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-06\\[기연리프트계약서]_중흥토건(주)_세종 행정복합단지 4-2_2026-06-01.pdf",
+        "sizeBytes": 897205,
+        "created": "2026-09-13T11:30:13.149Z"
+      },
+      {
+        "name": "[기연리프트계약서]_호반건설(주)_화성 동탄 물류센터 B_2026-06-03.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-06\\[기연리프트계약서]_호반건설(주)_화성 동탄 물류센터 B_2026-06-03.pdf",
+        "sizeBytes": 897093,
+        "created": "2026-09-13T11:30:54.196Z"
+      },
+      {
+        "name": "[기연리프트]_정품6종통합계약서류팩_(주) 백산이엔씨_(6p).pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-07\\[기연리프트]_정품6종통합계약서류팩_(주) 백산이엔씨_(6p).pdf",
+        "sizeBytes": 994265,
+        "created": "2026-08-19T09:32:07.243Z"
+      },
+      {
+        "name": "[기연리프트]_정품6종통합계약서류팩_세보엠이씨_(6p).pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-07\\[기연리프트]_정품6종통합계약서류팩_세보엠이씨_(6p).pdf",
+        "sizeBytes": 993474,
+        "created": "2026-08-19T09:37:05.315Z"
+      },
+      {
+        "name": "[기연리프트계약서]_대방건설(주)_인천 청라 로봇랜드 산업동_2026-07-01.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-07\\[기연리프트계약서]_대방건설(주)_인천 청라 로봇랜드 산업동_2026-07-01.pdf",
+        "sizeBytes": 2490094,
+        "created": "2026-09-13T11:36:50.013Z"
+      },
+      {
+        "name": "[기연리프트]_CONTR-0000009_(주) 백산이엔씨(소방)_2026-08-19.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-08\\[기연리프트]_CONTR-0000009_(주) 백산이엔씨(소방)_2026-08-19.pdf",
+        "sizeBytes": 1246762,
+        "created": "2026-08-19T09:26:13.395Z"
+      },
+      {
+        "name": "거래명세서_두산건설 주식회사_두산건설 현장1공구_2026-08.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-08\\거래명세서_두산건설 주식회사_두산건설 현장1공구_2026-08.pdf",
+        "sizeBytes": 108855,
+        "created": "2026-08-22T18:27:23.313Z"
+      },
+      {
+        "name": "거래명세서_삼성물산 주식회사_삼성물산 현장2공구_2026-08.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-08\\거래명세서_삼성물산 주식회사_삼성물산 현장2공구_2026-08.pdf",
+        "sizeBytes": 118407,
+        "created": "2026-08-22T18:27:21.492Z"
+      },
+      {
+        "name": "거래명세서_한화건설 주식회사_한화건설 현장2공구_2026-08.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-08\\거래명세서_한화건설 주식회사_한화건설 현장2공구_2026-08.pdf",
+        "sizeBytes": 118159,
+        "created": "2026-08-22T18:27:19.860Z"
+      },
+      {
+        "name": "거래명세서_호반건설 주식회사_호반건설 현장1공구_2026-08.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-08\\거래명세서_호반건설 주식회사_호반건설 현장1공구_2026-08.pdf",
+        "sizeBytes": 119575,
+        "created": "2026-08-22T18:27:17.592Z"
+      },
+      {
+        "name": "[기연리프트계약서]_(주)대우건설_판교 테크노 B동_.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-09\\[기연리프트계약서]_(주)대우건설_판교 테크노 B동_.pdf",
+        "sizeBytes": 2248438,
+        "created": "2026-09-13T11:18:47.252Z"
+      },
+      {
+        "name": "[기연리프트계약서]_태우이엔지_한화포레나천안아산역_2026-09-01.pdf",
+        "path": "C:\\eBroAgent\\문서고\\2026-09\\[기연리프트계약서]_태우이엔지_한화포레나천안아산역_2026-09-01.pdf",
+        "sizeBytes": 1615142,
+        "created": "2026-09-09T17:17:41.111Z"
+      }
+    ]
+  },
+  "emailAudit": {
+    "totalAudited": 60,
+    "targetMatchedCount": 60,
+    "validMessageIds": 60
+  },
+  "timelineAudit": {
+    "chronologicallyConsistent": true,
+    "anomalies": []
+  },
+  "charterInvariants": {
+    "charter13_rentedState": true,
+    "charter23_singleExchange": true,
+    "charter35_zeroDiff": true
+  }
+}

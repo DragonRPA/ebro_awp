@@ -419,7 +419,7 @@ export async function consolidateSelectedBillings(opts: ConsolidateSelectedOptio
 export async function fetchInvoices(billingYm?: string): Promise<BillingInvoice[]> {
   let query = supabase
     .from('billing_invoices')
-    .select('*, billings(id, paidAmount, totalAmount, status)')
+    .select('*')
     .order('billingYm', { ascending: false })
     .order('customerId', { ascending: true });
 
@@ -428,8 +428,25 @@ export async function fetchInvoices(billingYm?: string): Promise<BillingInvoice[
   const { data, error } = await query;
   if (error) throw new Error(`청구서통합 조회 실패: ${error.message}`);
 
-  return (data || []).map((inv: any) => {
-    const childBillings = inv.billings || [];
+  const invoices = data || [];
+  const invoiceIds = invoices.map((inv: any) => inv.id).filter(Boolean);
+  const childBillingsMap: Record<string, any[]> = {};
+
+  if (invoiceIds.length > 0) {
+    const { data: bData } = await supabase
+      .from('billings')
+      .select('id, paidAmount, totalAmount, status, invoiceId')
+      .in('invoiceId', invoiceIds);
+    if (bData) {
+      bData.forEach((b: any) => {
+        if (!childBillingsMap[b.invoiceId]) childBillingsMap[b.invoiceId] = [];
+        childBillingsMap[b.invoiceId].push(b);
+      });
+    }
+  }
+
+  return invoices.map((inv: any) => {
+    const childBillings = childBillingsMap[inv.id] || [];
     const paidAmount = childBillings.reduce((sum: number, b: any) => sum + (b.paidAmount || 0), 0);
     const totalAmount = inv.totalAmount || childBillings.reduce((sum: number, b: any) => sum + (b.totalAmount || 0), 0);
     let status = inv.status;
@@ -439,6 +456,7 @@ export async function fetchInvoices(billingYm?: string): Promise<BillingInvoice[
     }
     return {
       ...inv,
+      billings: childBillings,
       paidAmount,
       status
     };

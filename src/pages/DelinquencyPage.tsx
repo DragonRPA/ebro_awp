@@ -136,8 +136,10 @@ export const DelinquencyPage: React.FC = () => {
       }
     }
 
+    const effectiveBillDate = billing.billingDate || (billing.createdAt ? billing.createdAt.split('T')[0] : todayStr);
+
     if (customer?.paymentTermDays) {
-      const baseDate = new Date(billing.billingDate || billing.createdAt.split('T')[0]);
+      const baseDate = new Date(effectiveBillDate);
       baseDate.setDate(baseDate.getDate() + customer.paymentTermDays);
       return {
         dueDate: baseDate.toISOString().split('T')[0],
@@ -145,8 +147,7 @@ export const DelinquencyPage: React.FC = () => {
       };
     }
 
-    const billDateStr = billing.billingDate || billing.createdAt.split('T')[0];
-    const [bYear, bMonth] = billDateStr.split('-');
+    const [bYear, bMonth] = (effectiveBillDate || '').split('-');
     let y = parseInt(bYear, 10);
     let m = parseInt(bMonth, 10);
     if (!isNaN(y) && !isNaN(m)) {
@@ -158,7 +159,7 @@ export const DelinquencyPage: React.FC = () => {
       };
     }
 
-    return { dueDate: billDateStr, conditionText: '발행일 당일' };
+    return { dueDate: effectiveBillDate, conditionText: '발행일 당일' };
   };
 
   // 1. 실시간 DB(billings) + 고객 약정 납기일 기반 정밀 연체 채권 집계
@@ -271,7 +272,7 @@ export const DelinquencyPage: React.FC = () => {
         oldestOverdueDueDate: val.oldestOverdueDueDate,
         overdueDays,
         status: 'ACTIVE',
-        lastActionDate: lastLog ? lastLog.createdAt.split('T')[0] : undefined,
+        lastActionDate: (lastLog && lastLog.createdAt) ? lastLog.createdAt.split('T')[0] : undefined,
         lastActionType: lastLog ? (
           lastLog.actionType === 'DIRECTIVE' ? '경영진 독촉지시' :
           lastLog.actionType === 'CALL' ? '전화 독촉' :

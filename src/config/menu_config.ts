@@ -113,6 +113,10 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
     id: 'grp_system_dev',
     name: '시스템관리 - 개발자',
     items: [
+      { id: 'agentic_ai_lab', name: '에이전틱 AI 샌드박스 랩' },
+      { id: 'agentic_dispatch_studio', name: '에이전틱 배차 관제 스튜디오' },
+      { id: 'agentic_settlement_autopilot', name: '에이전틱 월말 대사 정산 오토파일럿' },
+      { id: 'agentic_asset_lifecycle', name: '에이전틱 자산 라이프사이클 관제' },
       { id: 'initial_db_upload', name: '초기DB 업로드' },
       { id: 'google_config', name: '구글 관리자 설정' },
       { id: 'dev_uploader', name: '[개발] DB 데이터 업로더' }
@@ -195,7 +199,11 @@ export const CANONICAL_MENU_ALIASES: Record<string, string> = {
   'error-reports': 'error_report',
   'error': 'error_report',
   'errors': 'error_report',
-  '오류신고': 'error_report'
+  '오류신고': 'error_report',
+  'agentic-ai-lab': 'agentic_ai_lab',
+  'agentic-dispatch-studio': 'agentic_dispatch_studio',
+  'agentic-settlement-autopilot': 'agentic_settlement_autopilot',
+  'agentic-asset-lifecycle': 'agentic_asset_lifecycle'
 };
 
 export function normalizeMenuId(menuId: string): string {

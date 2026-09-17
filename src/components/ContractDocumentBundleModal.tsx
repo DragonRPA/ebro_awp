@@ -425,9 +425,11 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       const primaryRecipient = recipients[0].email;
       const ccRecipients = recipients.slice(1).map(r => r.email).join(', ');
 
-      const attachments = pdf.base64Content
-        ? [{ filename: pdf.fileName, content: pdf.base64Content }]
-        : [];
+      if (!pdf || !pdf.base64Content) {
+        throw new Error('[증빙 부재 발송 차단] 계약서패키지 실물 PDF 생성이 완료되지 않아 발송을 중단합니다. (증빙 없는 계약서 발송 금지)');
+      }
+
+      const attachments = [{ filename: pdf.fileName, content: pdf.base64Content }];
 
       // 3. Gmail SMTP 서비스 호출
       await emailService.sendEmail(

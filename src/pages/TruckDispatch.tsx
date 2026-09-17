@@ -287,7 +287,10 @@ export const TruckDispatch: React.FC = () => {
   const getReturnAssets = (delivery: Delivery) => {
     if (!delivery) return [];
     if (delivery.assetIds) {
-      const ids = delivery.assetIds.split(',').map(id => id.trim()).filter(Boolean);
+      const rawIds = Array.isArray(delivery.assetIds)
+        ? (delivery.assetIds as any[])
+        : (typeof delivery.assetIds === 'string' ? delivery.assetIds.split(',') : []);
+      const ids = rawIds.map((id: any) => String(id).trim()).filter(Boolean);
       const found = ids.map(id => assets.find(a => a.id === id)).filter(Boolean) as Asset[];
       if (found.length > 0) {
         return found.map(a => ({ modelName: a.modelName || '-', assetNo: a.assetNo || '-', id: a.id }));
@@ -305,20 +308,49 @@ export const TruckDispatch: React.FC = () => {
     return [];
   };
 
-  // 출고/입고 요청서 인쇄
-  const handlePrintDispatchRequest = (delivery: Delivery, docType: 'OUTBOUND' | 'INBOUND') => {
+  // 🖨️ 출고/입고요청서 서식 생성기 (100% 흑백 / 4컬럼 50:50 대칭 그리드 - SN 컬럼 배제)
+  const buildDispatchDocHtml = (delivery: Delivery, docType: 'OUTBOUND' | 'INBOUND') => {
     const contract = getContract(delivery.contractId);
     const customer = contract ? getCustomer(contract.customerId) : null;
     const site = sites?.find(s => s.id === contract?.siteId);
     const cargoItems = parseCargoItems(delivery);
     const returnAssets = getReturnAssets(delivery);
     const isOutbound = docType === 'OUTBOUND';
-    const title = isOutbound ? '출고요청서' : '입고요청서';
+    const title = isOutbound ? '출고요청서' : '입고요청서 (회수확인서)';
     const today = new Date().toISOString().split('T')[0];
 
-    const assetRows = isOutbound
-      ? cargoItems.map((c, i) => `<tr><td>${i + 1}</td><td>${c.modelName}</td><td>${c.count}대</td><td></td><td></td></tr>`).join('')
-      : returnAssets.map((a, i) => `<tr><td>${i + 1}</td><td>${a.modelName}</td><td>{${a.assetNo}}</td><td>1대</td><td></td></tr>`).join('');
+    const unitList: { no: number; modelName: string; assetNo: string }[] = [];
+    let uNo = 1;
+    if (isOutbound) {
+      for (const c of cargoItems) {
+        const count = Math.max(1, Number(c.count) || 1);
+        for (let i = 0; i < count; i++) {
+          unitList.push({ no: uNo++, modelName: c.modelName || '-', assetNo: '' });
+        }
+      }
+    } else {
+      for (const a of returnAssets) {
+        unitList.push({ no: uNo++, modelName: a.modelName || '-', assetNo: a.assetNo || '' });
+      }
+    }
+
+    const halfCount = Math.max(1, Math.ceil(unitList.length / 2));
+    let assetRowsHtml = '';
+    for (let i = 0; i < halfCount; i++) {
+      const left = unitList[i];
+      const right = unitList[i + halfCount];
+      assetRowsHtml += `
+      <tr>
+        <td style="text-align:center;">${left ? left.no : '&nbsp;'}</td>
+        <td style="font-weight:700; padding-left:5px;">${left ? left.modelName : '&nbsp;'}</td>
+        <td style="text-align:center; font-weight:600;">${left && !isOutbound ? left.assetNo : '&nbsp;'}</td>
+        <td style="text-align:center; border-right:2px solid #000000; font-size:7.5pt;">${left ? '[ &nbsp; ]' : '&nbsp;'}</td>
+        <td style="text-align:center;">${right ? right.no : '&nbsp;'}</td>
+        <td style="font-weight:700; padding-left:5px;">${right ? right.modelName : '&nbsp;'}</td>
+        <td style="text-align:center; font-weight:600;">${right && !isOutbound ? right.assetNo : '&nbsp;'}</td>
+        <td style="text-align:center; font-size:7.5pt;">${right ? '[ &nbsp; ]' : '&nbsp;'}</td>
+      </tr>`;
+    }
 
     const fromLabel = isOutbound ? '상차지 (출발)' : '상차지 (회수지)';
     const toLabel   = isOutbound ? '하차지 (현장)' : '하차지 (반납지)';
@@ -329,49 +361,104 @@ export const TruckDispatch: React.FC = () => {
       ? `[혼적 경유] 1차: ${delivery.viaDropoffName} (${delivery.viaDropoffAddress || '본사'}) ➔ 2차: ${delivery.destinationAddress || '임차처 보관소'}` 
       : (isOutbound ? (delivery.destinationAddress || site?.address || '-') : (delivery.originAddress || '당사 보관소'));
 
-    const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
-<title>${title}</title>
-<style>
-  body { font-family: 'Malgun Gothic', sans-serif; font-size: 12px; margin: 24px; color: #111; }
-  h1 { text-align: center; font-size: 20px; font-weight: 900; margin-bottom: 4px; }
-  .sub { text-align: center; font-size: 11px; color: #666; margin-bottom: 20px; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-  th, td { border: 1px solid #888; padding: 6px 8px; }
-  th { background: #f0f0f0; font-weight: 700; text-align: left; width: 120px; }
-  .asset-table th { text-align: center; background: #e8eef8; }
-  .asset-table td { text-align: center; }
-  .sign-row { display: flex; gap: 16px; margin-top: 24px; }
-  .sign-box { flex: 1; border: 1px solid #888; border-radius: 4px; padding: 10px 14px; min-height: 60px; }
-  .sign-label { font-weight: 700; font-size: 11px; color: #555; margin-bottom: 8px; }
-  @media print { body { margin: 10px; } button { display: none; } }
-</style>
-</head><body>
-<h1>${currentTenant?.displayName || currentTenant?.tradeName || 'e-Bro'} ${title}</h1>
-<div class="sub">문서번호: ${delivery.id} | 발행일자: ${today}</div>
-<table>
-  <tr><th>계약번호</th><td>${contract?.contractNo || '-'}</td><th>배차구분</th><td>${delivery.dispatchCategory || (isOutbound ? '출고' : '입고')}</td></tr>
-  <tr><th>고객사</th><td>${customer?.name || '-'}</td><th>현장</th><td>${site?.name || '-'}</td></tr>
-  <tr><th>요청일</th><td>${delivery.requestDate || '-'}</td><th>배차일</th><td>${delivery.loadingDate || '-'}</td></tr>
-  <tr><th>${fromLabel}</th><td>${fromAddr}</td><th>${toLabel}</th><td>${toAddr}</td></tr>
-  <tr><th>담당 기사</th><td>${delivery.driverName || '(미배정)'}</td><th>차량번호</th><td>${delivery.vehicleNo || '-'}</td></tr>
-  <tr><th>비고</th><td colspan="3">${delivery.memo || ''}</td></tr>
-</table>
-<table class="asset-table">
-  <thead><tr><th>No</th><th>모델명</th>${isOutbound ? '<th>수량</th><th>비고</th><th>서명</th>' : '<th>관리번호</th><th>수량</th><th>비고</th>'}</tr></thead>
-  <tbody>${assetRows || '<tr><td colspan="5" style="text-align:center;color:#999;">장비 정보 없음</td></tr>'}</tbody>
-</table>
-<div class="sign-row">
-  <div class="sign-box"><div class="sign-label">${isOutbound ? '출고 완료자' : '입고 등록자'} 확인</div></div>
-  <div class="sign-box"><div class="sign-label">현장 수령인 서명</div></div>
-  <div class="sign-box"><div class="sign-label">운송 기사 서명</div></div>
-</div>
-<div style="margin-top:16px;text-align:center">
-  <button onclick="window.print()" style="padding:8px 24px;font-size:13px;cursor:pointer;">🖨️ 인쇄</button>
-</div>
-</body></html>`;
+    return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>${title}_${customer?.name || '고객사'}_${site?.name || '현장'}</title>
+  <style>
+    @page { size: A4 portrait; margin: 7mm 10mm 7mm 10mm; }
+    @media print {
+      @page { size: A4 portrait; margin: 7mm 10mm; }
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      body { color: #000000 !important; background-color: #ffffff !important; }
+      .no-print { display: none !important; }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { font-family: 'Malgun Gothic', '맑은 고딕', Dotum, sans-serif; padding: 0; margin: 0 auto; color: #000000; background-color: #ffffff; width: 100%; max-width: 210mm; font-size: 8.5pt; line-height: 1.15; }
+    p, div, span, table, tr, td, th { margin: 0; padding: 0; line-height: 1.15; color: #000000; }
+    table { width: 100%; border-collapse: collapse; margin-top: 2px; margin-bottom: 3px; table-layout: fixed; }
+    th, td { border: 1px solid #000000; padding: 2.5px 5px !important; font-size: 8pt; vertical-align: middle; white-space: nowrap; overflow: hidden; color: #000000; }
+    th { background-color: #f0f0f0 !important; font-weight: 700; color: #000000; text-align: left; }
+    .header-table { width: 100%; border: none; border-bottom: 2px solid #000000; margin-bottom: 3px; padding-bottom: 2px; }
+    .header-table td { border: none; padding: 0 !important; vertical-align: middle; color: #000000; }
+    .sec-title { font-size: 8.5pt; font-weight: 800; color: #000000; border-left: 3.5px solid #000000; padding-left: 4px; margin-top: 3px; margin-bottom: 1px; }
+  </style>
+</head>
+<body>
+  <div style="padding: 2px 0;">
+    <table class="header-table">
+      <tr>
+        <td style="width: 25%; text-align: left; font-size: 7.5pt; color: #333333;">
+          문서: ${delivery.id}<br>
+          발행: ${today}
+        </td>
+        <td style="width: 55%; text-align: center; font-size: 15pt; font-weight: 800; letter-spacing: 2px; color: #000000;">
+          ${(currentTenant?.displayName || currentTenant?.tradeName || '기연리프트').toUpperCase()} ${title}
+        </td>
+        <td style="width: 20%; text-align: right;">
+          <table style="width: 60px; border: 1px solid #000000; float: right; margin: 0; border-collapse: collapse;">
+            <tr><td style="background-color: #f0f0f0; border-bottom: 1px solid #000000; text-align: center; font-size: 7.5pt; font-weight: 700; padding: 1px 0;">${isOutbound ? '출고 확인' : '입고 확인'}</td></tr>
+            <tr><td style="height: 25px; text-align: center; font-size: 7.5pt; color: #777777;">(인)</td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
 
+    <div class="sec-title">1. 고객사 및 현장 정보</div>
+    <table>
+      <colgroup><col style="width: 12%;"><col style="width: 38%;"><col style="width: 12%;"><col style="width: 38%;"></colgroup>
+      <tr><th>고객사명</th><td><strong>${customer?.name || '-'}</strong></td><th>현장명</th><td><strong>${site?.name || '-'}</strong></td></tr>
+      <tr><th>계약번호</th><td><strong>${contract?.contractNo || '-'}</strong></td><th>배차구분</th><td>${delivery.dispatchCategory || (isOutbound ? '출고' : '입고')}</td></tr>
+      <tr><th>${fromLabel}</th><td colspan="3">${fromAddr}</td></tr>
+      <tr><th>${toLabel}</th><td colspan="3">${toAddr}</td></tr>
+    </table>
+
+    <div class="sec-title">2. 배차 및 운송 정보</div>
+    <table>
+      <colgroup><col style="width: 12%;"><col style="width: 38%;"><col style="width: 12%;"><col style="width: 38%;"></colgroup>
+      <tr><th>요청일</th><td>${delivery.requestDate || '-'}</td><th>배차일</th><td>${delivery.loadingDate || '-'}</td></tr>
+      <tr><th>운송기사</th><td>${delivery.driverName || '(미배정)'}</td><th>차량번호</th><td>${delivery.vehicleNo || '-'}</td></tr>
+    </table>
+
+    <div class="sec-title">3. ${isOutbound ? '출고' : '회수'} 대상 장비 목록 (총 ${unitList.length}대)</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 6%; text-align: center;">순번</th>
+          <th style="width: 21%; text-align: center;">모델명</th>
+          <th style="width: 17%; text-align: center;">관리번호</th>
+          <th style="width: 6%; text-align: center; border-right: 2px solid #000000;">확인</th>
+          <th style="width: 6%; text-align: center;">순번</th>
+          <th style="width: 21%; text-align: center;">모델명</th>
+          <th style="width: 17%; text-align: center;">관리번호</th>
+          <th style="width: 6%; text-align: center;">확인</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${assetRowsHtml || '<tr><td colspan="8" style="text-align:center; padding: 10px 0;">장비 정보 없음</td></tr>'}
+      </tbody>
+    </table>
+
+    <div class="sec-title">4. 특이사항 및 작업 지시</div>
+    <table>
+      <colgroup><col style="width: 12%;"><col style="width: 88%;"></colgroup>
+      <tr><th>지시사항</th><td>${delivery.memo || '특이사항 없음'}</td></tr>
+    </table>
+  </div>
+</body>
+</html>`;
+  };
+
+  // 🖨️ 인쇄 미리보기 및 브라우저 인쇄
+  const handlePrintDispatchRequest = (delivery: Delivery, docType: 'OUTBOUND' | 'INBOUND') => {
+    const html = buildDispatchDocHtml(delivery, docType);
     const w = window.open('', '_blank', 'width=800,height=900');
-    if (w) { w.document.write(html); w.document.close(); }
+    if (w) {
+      w.document.write(html);
+      w.document.close();
+      setTimeout(() => { w.focus(); w.print(); }, 250);
+    }
   };
 
   // 🖨️ 원격 분산 인쇄 큐 전송 (출고: 프린터1, 입고: 프린터2 자동 라우팅 무인 출력)
@@ -379,62 +466,9 @@ export const TruckDispatch: React.FC = () => {
     const contract = getContract(delivery.contractId);
     const customer = contract ? getCustomer(contract.customerId) : null;
     const site = sites?.find(s => s.id === contract?.siteId);
-    const cargoItems = parseCargoItems(delivery);
-    const returnAssets = getReturnAssets(delivery);
     const isOutbound = docType === 'OUTBOUND';
     const title = isOutbound ? '출고요청서' : '입고요청서';
-    const today = new Date().toISOString().split('T')[0];
-
-    const assetRows = isOutbound
-      ? cargoItems.map((c, i) => `<tr><td>${i + 1}</td><td>${c.modelName}</td><td>${c.count}대</td><td></td><td></td></tr>`).join('')
-      : returnAssets.map((a, i) => `<tr><td>${i + 1}</td><td>${a.modelName}</td><td>{${a.assetNo}}</td><td>1대</td><td></td></tr>`).join('');
-
-    const fromLabel = isOutbound ? '상차지 (출발)' : '상차지 (회수지)';
-    const toLabel   = isOutbound ? '하차지 (현장)' : '하차지 (반납지)';
-    const fromAddr  = delivery.pickupVendorName 
-      ? `[타사 직출고] ${delivery.pickupVendorName} (${delivery.originAddress || '-'})` 
-      : (isOutbound ? (delivery.originAddress || '당사 보관소') : (delivery.destinationAddress || site?.address || '-'));
-    const toAddr    = delivery.viaDropoffName 
-      ? `[혼적 경유] 1차: ${delivery.viaDropoffName} (${delivery.viaDropoffAddress || '본사'}) ➔ 2차: ${delivery.destinationAddress || '임차처 보관소'}` 
-      : (isOutbound ? (delivery.destinationAddress || site?.address || '-') : (delivery.originAddress || '당사 보관소'));
-
-    const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
-<title>${title}</title>
-<style>
-  body { font-family: 'Malgun Gothic', sans-serif; font-size: 12px; margin: 24px; color: #111; }
-  h1 { text-align: center; font-size: 20px; font-weight: 900; margin-bottom: 4px; }
-  .sub { text-align: center; font-size: 11px; color: #666; margin-bottom: 20px; }
-  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-  th, td { border: 1px solid #888; padding: 6px 8px; }
-  th { background: #f0f0f0; font-weight: 700; text-align: left; width: 120px; }
-  .asset-table th { text-align: center; background: #e8eef8; }
-  .asset-table td { text-align: center; }
-  .sign-row { display: flex; gap: 16px; margin-top: 24px; }
-  .sign-box { flex: 1; border: 1px solid #888; border-radius: 4px; padding: 10px 14px; min-height: 60px; }
-  .sign-label { font-weight: 700; font-size: 11px; color: #555; margin-bottom: 8px; }
-  @media print { body { margin: 10px; } button { display: none; } }
-</style>
-</head><body>
-<h1>${currentTenant?.displayName || currentTenant?.tradeName || 'e-Bro'} ${title}</h1>
-<div class="sub">문서번호: ${delivery.id} | 발행일자: ${today}</div>
-<table>
-  <tr><th>계약번호</th><td>${contract?.contractNo || '-'}</td><th>배차구분</th><td>${delivery.dispatchCategory || (isOutbound ? '출고' : '입고')}</td></tr>
-  <tr><th>고객사</th><td>${customer?.name || '-'}</td><th>현장</th><td>${site?.name || '-'}</td></tr>
-  <tr><th>요청일</th><td>${delivery.requestDate || '-'}</td><th>배차일</th><td>${delivery.loadingDate || '-'}</td></tr>
-  <tr><th>${fromLabel}</th><td>${fromAddr}</td><th>${toLabel}</th><td>${toAddr}</td></tr>
-  <tr><th>담당 기사</th><td>${delivery.driverName || '(미배정)'}</td><th>차량번호</th><td>${delivery.vehicleNo || '-'}</td></tr>
-  <tr><th>비고</th><td colspan="3">${delivery.memo || ''}</td></tr>
-</table>
-<table class="asset-table">
-  <thead><tr><th>No</th><th>모델명</th>${isOutbound ? '<th>수량</th><th>비고</th><th>서명</th>' : '<th>관리번호</th><th>수량</th><th>비고</th>'}</tr></thead>
-  <tbody>${assetRows || '<tr><td colspan="5" style="text-align:center;color:#999;">장비 정보 없음</td></tr>'}</tbody>
-</table>
-<div class="sign-row">
-  <div class="sign-box"><div class="sign-label">${isOutbound ? '출고 완료자' : '입고 등록자'} 확인</div></div>
-  <div class="sign-box"><div class="sign-label">현장 수령인 서명</div></div>
-  <div class="sign-box"><div class="sign-label">운송 기사 서명</div></div>
-</div>
-</body></html>`;
+    const html = buildDispatchDocHtml(delivery, docType);
 
     // 타겟 스테이션 결정 (선호 스테이션 우선 -> 출고: DISPATCH_ORDER/프린터1, 입고: RETURN_ORDER/프린터2)
     const targetDocType = isOutbound ? 'DISPATCH_ORDER' : 'RETURN_ORDER';
@@ -561,8 +595,8 @@ export const TruckDispatch: React.FC = () => {
         customerId: matchedCust?.id || 'cust-manual',
         customerName,
         siteName: row.siteName || '',
-        startAddress: row.startAddress || '본사 주기장',
-        endAddress: row.endAddress || row.startAddress || '현장',
+        originAddress: row.startAddress || '본사 주기장',
+        destinationAddress: row.endAddress || row.startAddress || '현장',
         requestDate: row.requestDate || today,
         scheduledDate: row.requestDate || today,
         cargoItems: JSON.stringify([{ modelName: row.modelName || '고소작업대', count: 1 }]),

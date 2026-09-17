@@ -1,0 +1,587 @@
+{
+  "totalMenusChecked": 50,
+  "totalExtraComponentsChecked": 6,
+  "missingFromMenuTableMap": [
+    "receivable",
+    "inspection_checklist_manage",
+    "purchase_settlement",
+    "error_report",
+    "agentic_ai_lab",
+    "agentic_dispatch_studio",
+    "agentic_settlement_autopilot",
+    "agentic_asset_lifecycle",
+    "dev_uploader"
+  ],
+  "menuIssues": {
+    "dashboard": {
+      "file": "Dashboard.tsx",
+      "issues": [
+        {
+          "lineNo": 84,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "} catch (e) {}"
+        }
+      ]
+    },
+    "customer": {
+      "file": "Customers.tsx",
+      "issues": []
+    },
+    "contract": {
+      "file": "Contracts.tsx",
+      "issues": [
+        {
+          "lineNo": 304,
+          "severity": "HIGH",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe .split() on date string without null check: 'const dDate = d.loadingDate || d.scheduledDate || d.requestDate || d.createdAt.split('T')[0];'",
+          "code": "const dDate = d.loadingDate || d.scheduledDate || d.requestDate || d.createdAt.split('T')[0];"
+        },
+        {
+          "lineNo": 637,
+          "severity": "HIGH",
+          "type": "DROPPED_COLUMN",
+          "message": "Referencing dropped column 'billingDay' on customer object (use customer_sites.billingDay or defaultBillingDay)",
+          "code": "'청구 마감일': `매월 ${c.billingDay}일`,"
+        },
+        {
+          "lineNo": 1313,
+          "severity": "HIGH",
+          "type": "DROPPED_COLUMN",
+          "message": "Referencing dropped column 'billingDay' on customer object (use customer_sites.billingDay or defaultBillingDay)",
+          "code": "<td style={{ whiteSpace: 'nowrap' }}>매월 {c.billingDay}일</td>"
+        },
+        {
+          "lineNo": 1911,
+          "severity": "HIGH",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe .split() on date string without null check: 'const dateStr = r.visitDate || r.completedDate || r.requestDate || r.createdAt.split('T')[0];'",
+          "code": "const dateStr = r.visitDate || r.completedDate || r.requestDate || r.createdAt.split('T')[0];"
+        }
+      ]
+    },
+    "billing": {
+      "file": "Billings.tsx",
+      "issues": [
+        {
+          "lineNo": 1390,
+          "severity": "HIGH",
+          "type": "DROPPED_COLUMN",
+          "message": "Referencing dropped column 'billingDay' on customer object (use customer_sites.billingDay or defaultBillingDay)",
+          "code": "const effectiveBillingDay = getEffectiveDay(c.billingDay);"
+        },
+        {
+          "lineNo": 3083,
+          "severity": "HIGH",
+          "type": "DROPPED_COLUMN",
+          "message": "Referencing dropped column 'billingDay' on customer object (use customer_sites.billingDay or defaultBillingDay)",
+          "code": "<div>청구 마감: <strong>매월 {c.billingDay}일</strong></div>"
+        }
+      ]
+    },
+    "receivable": {
+      "file": "Receivables.tsx",
+      "issues": []
+    },
+    "smart_dispatch4": {
+      "file": "smart_dispatch4.tsx",
+      "issues": [
+        {
+          "lineNo": 4559,
+          "severity": "MEDIUM",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe array method call on potentially undefined array: '{draft.equipments.length > 0 ? draft.equipments.map(e => `${e.modelName}×${e.qty}`).join(', ') : '없음'}'",
+          "code": "{draft.equipments.length > 0 ? draft.equipments.map(e => `${e.modelName}×${e.qty}`).join(', ') : '없음'}"
+        },
+        {
+          "lineNo": 4639,
+          "severity": "MEDIUM",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe array method call on potentially undefined array: '{selectedDraft.equipments.map(e => `${e.modelName}×${e.qty}대`).join(', ') || '없음'}'",
+          "code": "{selectedDraft.equipments.map(e => `${e.modelName}×${e.qty}대`).join(', ') || '없음'}"
+        },
+        {
+          "lineNo": 4964,
+          "severity": "MEDIUM",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe array method call on potentially undefined array: '{successModalInfo.equipments.map((eq, idx) => ('",
+          "code": "{successModalInfo.equipments.map((eq, idx) => ("
+        }
+      ]
+    },
+    "smart_return": {
+      "file": "smart_return.tsx",
+      "issues": []
+    },
+    "smart_as_request": {
+      "file": "SmartAsRequest.tsx",
+      "issues": []
+    },
+    "delinquency": {
+      "file": "DelinquencyPage.tsx",
+      "issues": [
+        {
+          "lineNo": 140,
+          "severity": "HIGH",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe .split() on date string without null check: 'const baseDate = new Date(billing.billingDate || billing.createdAt.split('T')[0]);'",
+          "code": "const baseDate = new Date(billing.billingDate || billing.createdAt.split('T')[0]);"
+        },
+        {
+          "lineNo": 148,
+          "severity": "HIGH",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe .split() on date string without null check: 'const billDateStr = billing.billingDate || billing.createdAt.split('T')[0];'",
+          "code": "const billDateStr = billing.billingDate || billing.createdAt.split('T')[0];"
+        }
+      ]
+    },
+    "product": {
+      "file": "Products.tsx",
+      "issues": []
+    },
+    "asset": {
+      "file": "Assets.tsx",
+      "issues": []
+    },
+    "acquisition_disposal": {
+      "file": "AssetAcquisitionDisposal.tsx",
+      "issues": []
+    },
+    "rent_asset": {
+      "file": "rent_assets.tsx",
+      "issues": [
+        {
+          "lineNo": 1189,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "} catch {}"
+        }
+      ]
+    },
+    "delivery": {
+      "file": "TruckDispatch.tsx",
+      "issues": [
+        {
+          "lineNo": 103,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "} catch (e) {}"
+        },
+        {
+          "lineNo": 2346,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "} catch (e) {}"
+        }
+      ]
+    },
+    "transport_master": {
+      "file": "TransportMaster.tsx",
+      "issues": []
+    },
+    "asset_inout_history": {
+      "file": "asset_history.tsx",
+      "issues": [
+        {
+          "lineNo": 68,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "try { sessionStorage.setItem('inbound_draft_photos', JSON.stringify(next)); } catch (err) {}"
+        },
+        {
+          "lineNo": 75,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "try { sessionStorage.setItem('inbound_draft_checklist', JSON.stringify(newIds)); } catch (err) {}"
+        },
+        {
+          "lineNo": 92,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "} catch (e) {}"
+        },
+        {
+          "lineNo": 120,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "try { await fullRefreshFromServer(); } catch (e) {}"
+        },
+        {
+          "lineNo": 309,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "} catch (e) {}"
+        },
+        {
+          "lineNo": 449,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "try { sessionStorage.setItem('inbound_draft_assetNo', val); } catch (err) {}"
+        },
+        {
+          "lineNo": 588,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "try { sessionStorage.setItem('inbound_draft_photos', JSON.stringify(next)); } catch (err) {}"
+        },
+        {
+          "lineNo": 619,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "try { sessionStorage.setItem('inbound_draft_memo', val); } catch (err) {}"
+        }
+      ]
+    },
+    "dispatch_assign": {
+      "file": "asset_assignment.tsx",
+      "issues": []
+    },
+    "outbound_inspections": {
+      "file": "outbound_inspections.tsx",
+      "issues": [
+        {
+          "lineNo": 359,
+          "severity": "MEDIUM",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe array method call on potentially undefined array: 'group.items.forEach(item => {'",
+          "code": "group.items.forEach(item => {"
+        },
+        {
+          "lineNo": 410,
+          "severity": "MEDIUM",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe array method call on potentially undefined array: 'selectedGroup.items.forEach(item => {'",
+          "code": "selectedGroup.items.forEach(item => {"
+        },
+        {
+          "lineNo": 528,
+          "severity": "MEDIUM",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe array method call on potentially undefined array: 'selectedGroup.items.forEach(item => {'",
+          "code": "selectedGroup.items.forEach(item => {"
+        },
+        {
+          "lineNo": 692,
+          "severity": "MEDIUM",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe array method call on potentially undefined array: 'const targetInsp = selectedGroup.items.find(i => i.assetId === exchangeModalAsset.id);'",
+          "code": "const targetInsp = selectedGroup.items.find(i => i.assetId === exchangeModalAsset.id);"
+        },
+        {
+          "lineNo": 770,
+          "severity": "MEDIUM",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe array method call on potentially undefined array: 'g.items.forEach(item => {'",
+          "code": "g.items.forEach(item => {"
+        },
+        {
+          "lineNo": 778,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "try { parsedSpecs = JSON.parse(item.specsJson); } catch (e) {}"
+        }
+      ]
+    },
+    "print_queue_monitor": {
+      "file": "PrintQueueManager.tsx",
+      "issues": []
+    },
+    "consumable_purchase": {
+      "file": "ConsumablePurchasesPage.tsx",
+      "issues": []
+    },
+    "consumable_inout": {
+      "file": "ConsumableInOutPage.tsx",
+      "issues": []
+    },
+    "consumable_stock": {
+      "file": "ConsumableStockPage.tsx",
+      "issues": []
+    },
+    "consumable": {
+      "file": "Consumables.tsx",
+      "issues": []
+    },
+    "field_as": {
+      "file": "FieldAsManagement.tsx",
+      "issues": []
+    },
+    "repair": {
+      "file": "Repairs.tsx",
+      "issues": []
+    },
+    "inspection_checklist_manage": {
+      "file": "inspection_checklist_manage.tsx",
+      "issues": [
+        {
+          "lineNo": 468,
+          "severity": "MEDIUM",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe array method call on potentially undefined array: 'const rows = analyticsData.items.map(item => {'",
+          "code": "const rows = analyticsData.items.map(item => {"
+        },
+        {
+          "lineNo": 1507,
+          "severity": "MEDIUM",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe array method call on potentially undefined array: 'analyticsData.items.map((item, idx) => {'",
+          "code": "analyticsData.items.map((item, idx) => {"
+        }
+      ]
+    },
+    "leave_application": {
+      "file": "LeaveApplicationPage.tsx",
+      "issues": []
+    },
+    "ot_management": {
+      "file": "OtManagementPage.tsx",
+      "issues": [
+        {
+          "lineNo": 117,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "} catch {}"
+        }
+      ]
+    },
+    "vehicle_log": {
+      "file": "VehicleOperationLogPage.tsx",
+      "issues": []
+    },
+    "purchase_settlement": {
+      "file": "PurchaseSettlementPage.tsx",
+      "issues": []
+    },
+    "vendors": {
+      "file": "Vendors.tsx",
+      "issues": [
+        {
+          "lineNo": 591,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "} catch {}"
+        }
+      ]
+    },
+    "bank_matching": {
+      "file": "BankMatching.tsx",
+      "issues": []
+    },
+    "corporate_card": {
+      "file": "CorporateCardPage.tsx",
+      "issues": []
+    },
+    "cash_flow": {
+      "file": "CashFlowPage.tsx",
+      "issues": []
+    },
+    "depreciation_execution": {
+      "file": "depreciation_execution.tsx",
+      "issues": []
+    },
+    "regular_reports": {
+      "file": "RegularReportsPage.tsx",
+      "issues": []
+    },
+    "organization": {
+      "file": "OrganizationSettings.tsx",
+      "issues": []
+    },
+    "permission": {
+      "file": "users_permissions.tsx",
+      "issues": [
+        {
+          "lineNo": 104,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "} catch {}"
+        },
+        {
+          "lineNo": 322,
+          "severity": "MEDIUM",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe array method call on potentially undefined array: 'grp.items.forEach(item => {'",
+          "code": "grp.items.forEach(item => {"
+        },
+        {
+          "lineNo": 1000,
+          "severity": "MEDIUM",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe array method call on potentially undefined array: '{grp.items.map(item => {'",
+          "code": "{grp.items.map(item => {"
+        },
+        {
+          "lineNo": 1402,
+          "severity": "MEDIUM",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe array method call on potentially undefined array: 'const permittedItems = grp.items.filter(item => {'",
+          "code": "const permittedItems = grp.items.filter(item => {"
+        }
+      ]
+    },
+    "payroll": {
+      "file": "PayrollPage.tsx",
+      "issues": []
+    },
+    "leave_management": {
+      "file": "LeaveManagementPage.tsx",
+      "issues": []
+    },
+    "privacy_audit": {
+      "file": "PrivacyAuditPage.tsx",
+      "issues": [
+        {
+          "lineNo": 38,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "try { return JSON.parse(saved); } catch {}"
+        }
+      ]
+    },
+    "operations_manual": {
+      "file": "OperationManualPage.tsx",
+      "issues": []
+    },
+    "error_report": {
+      "file": "ErrorReportPage.tsx",
+      "issues": [
+        {
+          "lineNo": 83,
+          "severity": "MEDIUM",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe array method call on potentially undefined array: 'grp.items.forEach(item => {'",
+          "code": "grp.items.forEach(item => {"
+        },
+        {
+          "lineNo": 1208,
+          "severity": "MEDIUM",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe array method call on potentially undefined array: '{selectedReport.attachments.map(att => ('",
+          "code": "{selectedReport.attachments.map(att => ("
+        }
+      ]
+    },
+    "agentic_ai_lab": {
+      "file": "AgenticAiLabPage.tsx",
+      "issues": []
+    },
+    "agentic_dispatch_studio": {
+      "file": "AgenticDispatchStudioPage.tsx",
+      "issues": []
+    },
+    "agentic_settlement_autopilot": {
+      "file": "AgenticSettlementAutopilotPage.tsx",
+      "issues": []
+    },
+    "agentic_asset_lifecycle": {
+      "file": "AgenticAssetLifecyclePage.tsx",
+      "issues": []
+    },
+    "initial_db_upload": {
+      "file": "InitialDbUploader.tsx",
+      "issues": [
+        {
+          "lineNo": 677,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "} catch (_) {}"
+        },
+        {
+          "lineNo": 1071,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "} catch(e) {}"
+        },
+        {
+          "lineNo": 1077,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "} catch (e) {}"
+        },
+        {
+          "lineNo": 1079,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "try { btn.click(); } catch(e) {}"
+        },
+        {
+          "lineNo": 1083,
+          "severity": "MEDIUM",
+          "type": "CHARTER_VIOLATION_5_2",
+          "message": "Empty catch block swallows error silently (Charter 5.2 Zero Silent Failures)",
+          "code": "try { innerSpan.click(); } catch(e) {}"
+        }
+      ]
+    },
+    "google_config": {
+      "file": "GoogleConfig.tsx",
+      "issues": []
+    },
+    "dev_uploader": {
+      "file": "DevDataUploader.tsx",
+      "issues": []
+    },
+    "BillingInvoiceTab.tsx": {
+      "file": "BillingInvoiceTab.tsx",
+      "issues": [
+        {
+          "lineNo": 371,
+          "severity": "MEDIUM",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe array method call on potentially undefined array: 'b.details.forEach(d => {'",
+          "code": "b.details.forEach(d => {"
+        },
+        {
+          "lineNo": 691,
+          "severity": "MEDIUM",
+          "type": "NULL_REFERENCE_RISK",
+          "message": "Unsafe array method call on potentially undefined array: 'b.details.forEach(d => {'",
+          "code": "b.details.forEach(d => {"
+        }
+      ]
+    },
+    "ContractDocumentBundleModal.tsx": {
+      "file": "ContractDocumentBundleModal.tsx",
+      "issues": []
+    },
+    "ExcelUploadModal.tsx": {
+      "file": "ExcelUploadModal.tsx",
+      "issues": []
+    },
+    "NtsStatusAuditModal.tsx": {
+      "file": "NtsStatusAuditModal.tsx",
+      "issues": []
+    },
+    "BatchBusinessLicenseModal.tsx": {
+      "file": "BatchBusinessLicenseModal.tsx",
+      "issues": []
+    },
+    "BusinessLicenseModal.tsx": {
+      "file": "BusinessLicenseModal.tsx",
+      "issues": []
+    }
+  }
+}

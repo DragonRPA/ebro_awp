@@ -301,7 +301,7 @@ export const Contracts: React.FC = () => {
     const relDels = deliveries.filter(d => d.contractId === activeContract.id);
     relDels.forEach(d => {
       const cost = d.finalCost || d.deliveryCostConfirmed || d.deliveryCost || d.expectedCost || 0;
-      const dDate = d.loadingDate || d.scheduledDate || d.requestDate || d.createdAt.split('T')[0];
+      const dDate = d.loadingDate || d.scheduledDate || d.requestDate || (d.createdAt ? d.createdAt.split('T')[0] : '');
       timeline.push({
         id: `d-${d.id}`,
         date: dDate,
@@ -1908,7 +1908,7 @@ export const Contracts: React.FC = () => {
                         {contractRepairs.map(r => {
                           const asset = assets.find(a => a.id === r.assetId);
                           const assetLabel = asset?.assetNo || r.assetNo || (activeContractAssets.length === 1 ? (assets.find(a => a.id === activeContractAssets[0].assetId)?.assetNo || '단독장비') : '현장확인');
-                          const dateStr = r.visitDate || r.completedDate || r.requestDate || r.createdAt.split('T')[0];
+                          const dateStr = r.visitDate || r.completedDate || r.requestDate || (r.createdAt ? r.createdAt.split('T')[0] : '');
 
                           return (
                             <tr key={r.id} style={{ borderBottom: '1px solid var(--border-color)' }}>

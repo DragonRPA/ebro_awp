@@ -1,0 +1,114 @@
+[
+  {
+    "file": "src\\pages\\Billings.tsx",
+    "lineNo": 536,
+    "type": "POTENTIAL_NULL_CRASH",
+    "detail": "Unsafe .split() on date/contact without null guard",
+    "line": "'등록일시': b.createdAt ? b.createdAt.split('T')[0] : '-'"
+  },
+  {
+    "file": "src\\pages\\Billings.tsx",
+    "lineNo": 1390,
+    "type": "DROPPED_COLUMN",
+    "detail": "customer.billingDay used (billingDay was dropped from customers table in Build.84; use customer_sites.billingDay or defaultBillingDay)",
+    "line": "const effectiveBillingDay = getEffectiveDay(c.billingDay);"
+  },
+  {
+    "file": "src\\pages\\Billings.tsx",
+    "lineNo": 3083,
+    "type": "DROPPED_COLUMN",
+    "detail": "customer.billingDay used (billingDay was dropped from customers table in Build.84; use customer_sites.billingDay or defaultBillingDay)",
+    "line": "<div>청구 마감: <strong>매월 {c.billingDay}일</strong></div>"
+  },
+  {
+    "file": "src\\pages\\Contracts.tsx",
+    "lineNo": 304,
+    "type": "POTENTIAL_NULL_CRASH",
+    "detail": "Unsafe .split() on date/contact without null guard",
+    "line": "const dDate = d.loadingDate || d.scheduledDate || d.requestDate || d.createdAt.split('T')[0];"
+  },
+  {
+    "file": "src\\pages\\Contracts.tsx",
+    "lineNo": 637,
+    "type": "DROPPED_COLUMN",
+    "detail": "customer.billingDay used (billingDay was dropped from customers table in Build.84; use customer_sites.billingDay or defaultBillingDay)",
+    "line": "'청구 마감일': `매월 ${c.billingDay}일`,"
+  },
+  {
+    "file": "src\\pages\\Contracts.tsx",
+    "lineNo": 647,
+    "type": "POTENTIAL_NULL_CRASH",
+    "detail": "Unsafe .split() on date/contact without null guard",
+    "line": "'등록일자': c.createdAt ? c.createdAt.split('T')[0] : '-'"
+  },
+  {
+    "file": "src\\pages\\Contracts.tsx",
+    "lineNo": 1313,
+    "type": "DROPPED_COLUMN",
+    "detail": "customer.billingDay used (billingDay was dropped from customers table in Build.84; use customer_sites.billingDay or defaultBillingDay)",
+    "line": "<td style={{ whiteSpace: 'nowrap' }}>매월 {c.billingDay}일</td>"
+  },
+  {
+    "file": "src\\pages\\Contracts.tsx",
+    "lineNo": 1911,
+    "type": "POTENTIAL_NULL_CRASH",
+    "detail": "Unsafe .split() on date/contact without null guard",
+    "line": "const dateStr = r.visitDate || r.completedDate || r.requestDate || r.createdAt.split('T')[0];"
+  },
+  {
+    "file": "src\\pages\\DelinquencyPage.tsx",
+    "lineNo": 140,
+    "type": "POTENTIAL_NULL_CRASH",
+    "detail": "Unsafe .split() on date/contact without null guard",
+    "line": "const baseDate = new Date(billing.billingDate || billing.createdAt.split('T')[0]);"
+  },
+  {
+    "file": "src\\pages\\DelinquencyPage.tsx",
+    "lineNo": 148,
+    "type": "POTENTIAL_NULL_CRASH",
+    "detail": "Unsafe .split() on date/contact without null guard",
+    "line": "const billDateStr = billing.billingDate || billing.createdAt.split('T')[0];"
+  },
+  {
+    "file": "src\\pages\\DelinquencyPage.tsx",
+    "lineNo": 274,
+    "type": "POTENTIAL_NULL_CRASH",
+    "detail": "Unsafe .split() on date/contact without null guard",
+    "line": "lastActionDate: lastLog ? lastLog.createdAt.split('T')[0] : undefined,"
+  },
+  {
+    "file": "src\\pages\\Deliveries.tsx",
+    "lineNo": 186,
+    "type": "POTENTIAL_NULL_CRASH",
+    "detail": "Unsafe .split() on date/contact without null guard",
+    "line": "const deliveryDate = d.scheduledDate || (d.createdAt ? d.createdAt.split('T')[0] : '');"
+  },
+  {
+    "file": "src\\pages\\Deliveries.tsx",
+    "lineNo": 266,
+    "type": "POTENTIAL_NULL_CRASH",
+    "detail": "Unsafe .split() on date/contact without null guard",
+    "line": "'등록일시': d.createdAt ? d.createdAt.split('T')[0] : '-'"
+  },
+  {
+    "file": "src\\pages\\FieldAsManagement.tsx",
+    "lineNo": 373,
+    "type": "POTENTIAL_NULL_CRASH",
+    "detail": "Unsafe .split() on date/contact without null guard",
+    "line": "const ticketDate = t.requestDate || t.visitDate || t.completedDate || (t.createdAt ? t.createdAt.split('T')[0] : '');"
+  },
+  {
+    "file": "src\\pages\\FieldAsManagement.tsx",
+    "lineNo": 446,
+    "type": "POTENTIAL_NULL_CRASH",
+    "detail": "Unsafe .split() on date/contact without null guard",
+    "line": "const ticketDate = t.requestDate || t.visitDate || t.completedDate || (t.createdAt ? t.createdAt.split('T')[0] : '');"
+  },
+  {
+    "file": "src\\pages\\Receivables.tsx",
+    "lineNo": 386,
+    "type": "POTENTIAL_NULL_CRASH",
+    "detail": "Unsafe .split() on date/contact without null guard",
+    "line": "'등록일자': r.createdAt ? r.createdAt.split('T')[0] : '-'"
+  }
+]

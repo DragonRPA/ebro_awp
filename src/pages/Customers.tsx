@@ -79,7 +79,7 @@ export const Customers: React.FC = () => {
 
       let targetCust = customers.find(c => 
         (row.businessNumber && c.bizRegNo && c.bizRegNo.replace(/[^0-9]/g, '') === String(row.businessNumber).replace(/[^0-9]/g, '')) ||
-        c.name.trim().toLowerCase() === name.toLowerCase()
+        (c.name || '').trim().toLowerCase() === name.toLowerCase()
       );
 
       let customerId = targetCust?.id;

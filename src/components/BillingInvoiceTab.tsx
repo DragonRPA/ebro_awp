@@ -4,10 +4,11 @@ import {
   FileText, Plus, RefreshCw, ChevronDown, ChevronRight,
   CheckCircle, AlertCircle, Clock, XCircle, Download,
   Layers, CreditCard, RotateCcw, Printer, Filter, CheckSquare, Square,
-  Building, Calendar, DollarSign, ArrowRight, ShieldAlert, Sparkles
+  Building, Calendar, DollarSign, ArrowRight, ShieldAlert, Sparkles, Mail
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useApp } from '../context/AppContext';
+import { emailService } from '../services/email';
 import {
   generateInvoices,
   consolidateExistingBillings,
@@ -627,6 +628,54 @@ export const BillingInvoiceTab: React.FC = () => {
         `${err.message || err}\n\n` +
         `💡 [대안]: [정품 엑셀 다운로드]를 통해 엑셀 파일을 다운로드하신 후, 엑셀에서 바로 PDF로 저장하시거나 [인쇄] 기능을 사용하실 수 있습니다.`
       );
+    }
+  };
+
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+
+  // ── 정품 거래명세서 및 통합청구서 이메일 발송 ──
+  const handleSendEmail = async (overrideRecipient?: string) => {
+    if (statementItems.length === 0) {
+      showErrorModal?.('이메일로 발송할 항목이 없습니다. 청구서를 1건 이상 선택해 주세요.');
+      return;
+    }
+
+    const custName = selectedCustomer?.name || '고객사';
+    const defaultEmail = selectedCustomer?.billingEmail || selectedCustomer?.email || '77.victor.lee@gmail.com';
+    const recipient = overrideRecipient || (typeof window !== 'undefined' ? window.prompt('통합 거래명세서 수신 이메일 주소를 입력해 주세요:', defaultEmail) : defaultEmail);
+    if (!recipient || !recipient.trim()) return;
+
+    setIsSendingEmail(true);
+    try {
+      const data = buildStatementData();
+      const attachments: { filename: string; content: string }[] = [];
+      try {
+        const pdfBytes = await generateTransactionStatementPdf(data);
+        let binary = '';
+        for (let i = 0; i < pdfBytes.byteLength; i++) {
+          binary += String.fromCharCode(pdfBytes[i]);
+        }
+        attachments.push({
+          filename: `[기연리프트]_통합거래명세서_${custName}_${selectedYm}.pdf`,
+          content: window.btoa(binary)
+        });
+      } catch (attachErr) {
+        console.error('통합거래명세서 PDF 생성 실패:', attachErr);
+        throw new Error(`통합거래명세서 PDF 첨부파일 생성 실패: ${(attachErr as any)?.message || attachErr}`);
+      }
+
+      await emailService.sendEmail(
+        recipient.trim(),
+        `[기연리프트] ${custName} 귀하 ${selectedYm} 통합 거래명세서 및 청구서 발송 안내`,
+        `${custName} 담당자님께,\n\n(주)기연리프트 ${selectedYm} 통합 거래명세서 및 청구서를 첨부와 같이 발송해 드립니다.\n\n- 공급가액: ${fmtAmt(accountingSummary.supplyAmount)}\n- 세액: ${fmtAmt(accountingSummary.vatAmount)}\n- 청구총액: ${fmtAmt(accountingSummary.grandTotal)}\n- 입금계좌: 신한은행 140-010-007060 (주식회사 기연리프트)\n- 납기일: ${invoiceDueDate || '당월말'}\n\n감사합니다.\n(주)기연리프트 드림`,
+        attachments
+      );
+
+      showSuccessToast?.(`통합 거래명세서 및 청구서가 ${recipient.trim()} 으로 발송되었습니다.`);
+    } catch (err: any) {
+      showErrorModal?.(`통합청구서 이메일 발송 실패: ${err.message || err}`);
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
@@ -1479,6 +1528,27 @@ export const BillingInvoiceTab: React.FC = () => {
                 >
                   <Printer size={14} />
                   인쇄
+                </button>
+
+                {/* 3-1. 이메일 발송 */}
+                <button
+                  type="button"
+                  onClick={() => handleSendEmail()}
+                  disabled={isSendingEmail || selectedBillingIds.length === 0}
+                  data-uia="btn-send-consolidated-invoice-email"
+                  title="통합 거래명세서 및 청구서 이메일 발송"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '5px',
+                    padding: '8px 12px', borderRadius: '6px',
+                    backgroundColor: '#0284c7', color: '#ffffff',
+                    border: 'none', fontSize: '12px', fontWeight: 700,
+                    cursor: (isSendingEmail || selectedBillingIds.length === 0) ? 'not-allowed' : 'pointer',
+                    opacity: (isSendingEmail || selectedBillingIds.length === 0) ? 0.5 : 1,
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <Mail size={14} />
+                  {isSendingEmail ? '발송 중...' : '이메일 발송'}
                 </button>
 
                 {/* 4. 최종 완결 액션: 통합 인보이스 발행 확정 */}

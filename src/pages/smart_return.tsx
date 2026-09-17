@@ -353,12 +353,17 @@ export const SmartReturn: React.FC = () => {
           <style>
             @page {
               size: A4 portrait;
-              margin: 12mm 15mm 15mm 15mm;
+              margin: 7mm 10mm 7mm 10mm;
             }
             @media print {
-              body {
+              @page { size: A4 portrait; margin: 7mm 10mm; }
+              * {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
+              }
+              body {
+                color: #000000 !important;
+                background-color: #ffffff !important;
               }
               .no-print {
                 display: none !important;
@@ -366,41 +371,54 @@ export const SmartReturn: React.FC = () => {
             }
             * {
               box-sizing: border-box;
+              margin: 0;
+              padding: 0;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
             body {
-              font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif;
+              font-family: 'Malgun Gothic', '맑은 고딕', Dotum, sans-serif;
               padding: 0;
               margin: 0 auto;
-              color: #111827;
+              color: #000000;
               background-color: #ffffff;
               width: 100%;
               max-width: 210mm;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
+              font-size: 8.5pt;
+              line-height: 1.15;
+            }
+            p, div, span, table, tr, td, th {
+              margin: 0;
+              padding: 0;
+              line-height: 1.15;
+              color: #000000;
             }
             table {
               width: 100%;
               border-collapse: collapse;
-              margin-bottom: 16px;
+              margin-top: 2px;
+              margin-bottom: 3px;
+              table-layout: fixed;
             }
             th, td {
-              border: 1px solid #cbd5e1;
-              padding: 8px 10px;
-              text-align: left;
-              font-size: 12px;
-              line-height: 1.4;
+              border: 1px solid #000000;
+              padding: 2.5px 5px !important;
+              font-size: 8pt;
+              vertical-align: middle;
+              white-space: nowrap;
+              overflow: hidden;
+              color: #000000;
             }
             th {
-              background-color: #f8fafc !important;
+              background-color: #f0f0f0 !important;
               font-weight: 700;
-              color: #334155;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
+              color: #000000;
+              text-align: left;
             }
           </style>
         </head>
         <body>
-          <div style="padding: 10px 0;">
+          <div style="padding: 2px 0;">
             ${printContent.innerHTML}
           </div>
           <script>
@@ -444,24 +462,70 @@ export const SmartReturn: React.FC = () => {
           <style>
             @page {
               size: A4 portrait;
-              margin: 12mm 15mm 15mm 15mm;
+              margin: 7mm 10mm 7mm 10mm;
             }
             @media print {
-              body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+              @page { size: A4 portrait; margin: 7mm 10mm; }
+              * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              body {
+                color: #000000 !important;
+                background-color: #ffffff !important;
+              }
               .no-print { display: none !important; }
             }
-            * { box-sizing: border-box; }
-            body {
-              font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif;
-              padding: 0; margin: 0 auto; color: #111827; background-color: #ffffff; width: 100%; max-width: 210mm;
+            * {
+              box-sizing: border-box;
+              margin: 0;
+              padding: 0;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-            th, td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; font-size: 12px; line-height: 1.4; }
-            th { background-color: #f8fafc !important; font-weight: 700; color: #334155; }
+            body {
+              font-family: 'Malgun Gothic', '맑은 고딕', Dotum, sans-serif;
+              padding: 0;
+              margin: 0 auto;
+              color: #000000;
+              background-color: #ffffff;
+              width: 100%;
+              max-width: 210mm;
+              font-size: 8.5pt;
+              line-height: 1.15;
+            }
+            p, div, span, table, tr, td, th {
+              margin: 0;
+              padding: 0;
+              line-height: 1.15;
+              color: #000000;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 2px;
+              margin-bottom: 3px;
+              table-layout: fixed;
+            }
+            th, td {
+              border: 1px solid #000000;
+              padding: 2.5px 5px !important;
+              font-size: 8pt;
+              vertical-align: middle;
+              white-space: nowrap;
+              overflow: hidden;
+              color: #000000;
+            }
+            th {
+              background-color: #f0f0f0 !important;
+              font-weight: 700;
+              color: #000000;
+              text-align: left;
+            }
           </style>
         </head>
         <body>
-          <div style="padding: 10px 0;">
+          <div style="padding: 2px 0;">
             ${printContent.innerHTML}
           </div>
         </body>
@@ -1202,17 +1266,17 @@ export const SmartReturn: React.FC = () => {
               </div>
 
               {/* 실제 인쇄 타겟 컨테이너 */}
-              <div id="return-sheet-print" style={{ padding: '16px 20px', backgroundColor: '#ffffff', color: '#111827', borderRadius: '4px', border: '1px solid #cbd5e1', maxWidth: '800px', width: '100%', margin: '0 auto', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', boxSizing: 'border-box', overflow: 'hidden' }}>
+              <div id="return-sheet-print" style={{ padding: '16px 20px', backgroundColor: '#ffffff', color: '#000000', borderRadius: '2px', border: '1px solid #000000', maxWidth: '800px', width: '100%', margin: '0 auto', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', boxSizing: 'border-box', overflow: 'hidden' }}>
                 
                 {/* 상단 헤더: 좌측 계약번호+출력일시 / 중앙 타이틀 / 우측 날인란 */}
-                <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', borderBottom: '2px solid #1e1b4b', paddingBottom: '8px', marginBottom: '12px', gap: '8px' }}>
+                <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', borderBottom: '2px solid #000000', paddingBottom: '6px', marginBottom: '8px', gap: '8px' }}>
 
                   {/* 좌측: 계약번호 및 출력일시 */}
                   <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <div style={{ fontSize: '12px', fontWeight: '800', color: '#312e81', whiteSpace: 'nowrap' }}>
-                      계약번호: <span style={{ color: selectedContract?.contractNo ? '#0f172a' : '#94a3b8', fontWeight: '800' }}>{selectedContract?.contractNo || '(계약 선택)'}</span>
+                    <div style={{ fontSize: '11px', fontWeight: '800', color: '#000000', whiteSpace: 'nowrap' }}>
+                      계약번호: <span style={{ color: selectedContract?.contractNo ? '#000000' : '#666666', fontWeight: '800' }}>{selectedContract?.contractNo || '(계약 선택)'}</span>
                     </div>
-                    <div style={{ fontSize: '10.5px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: '10px', color: '#333333', whiteSpace: 'nowrap' }}>
                       출력일시: {(() => {
                         const now = new Date();
                         const y = now.getFullYear();
@@ -1228,173 +1292,174 @@ export const SmartReturn: React.FC = () => {
 
                   {/* 중앙: 문서 타이틀 */}
                   <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
-                    <h1 style={{ margin: 0, fontSize: '20px', fontWeight: '800', color: '#1e1b4b', letterSpacing: '3px', whiteSpace: 'nowrap' }}>{currentTenant?.tradeName || '장비'} 입고요청서</h1>
+                    <h1 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#000000', letterSpacing: '2px', whiteSpace: 'nowrap' }}>{(currentTenant?.tradeName || '기연리프트')} 입고요청서 (회수확인서)</h1>
                   </div>
 
                   {/* 우측: 입고 등록자 날인란 */}
-                  <div style={{ flexShrink: 0, width: '76px', border: '1.5px solid #334155', overflow: 'hidden', borderRadius: '2px' }}>
+                  <div style={{ flexShrink: 0, width: '64px', border: '1px solid #000000', overflow: 'hidden' }}>
                     <div style={{
-                      backgroundColor: '#f1f5f9',
-                      borderBottom: '1px solid #334155',
+                      backgroundColor: '#f0f0f0',
+                      borderBottom: '1px solid #000000',
                       textAlign: 'center',
-                      fontSize: '10px',
+                      fontSize: '9px',
                       fontWeight: 'bold',
-                      color: '#1e293b',
-                      padding: '2px 0',
+                      color: '#000000',
+                      padding: '1px 0',
                       whiteSpace: 'nowrap',
                     }}>
-                      입고 등록자
+                      입고 확인
                     </div>
                     <div style={{
-                      height: '38px',
+                      height: '28px',
                       backgroundColor: '#ffffff',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '10px',
-                      color: '#94a3b8',
-                      fontWeight: '600',
+                      fontSize: '9px',
+                      color: '#777777',
                     }}>
-                      (서 명)
+                      (인)
                     </div>
                   </div>
                 </div>
 
-                {/* 1. 거래처 및 현장 정보 */}
-                <div style={{ fontSize: '12.5px', fontWeight: 'bold', borderLeft: '3.5px solid #312e81', paddingLeft: '6px', marginBottom: '4px', color: '#312e81' }}>1. 거래처 및 현장 정보</div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '10px', tableLayout: 'fixed', boxSizing: 'border-box' }}>
+                {/* 1. 고객사 및 회수현장 정보 */}
+                <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: '#000000' }}>1. 고객사 및 회수현장 정보</div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '4px', tableLayout: 'fixed', boxSizing: 'border-box' }}>
                   <colgroup>
-                    <col style={{ width: '16%' }} />
-                    <col style={{ width: '34%' }} />
-                    <col style={{ width: '16%' }} />
-                    <col style={{ width: '34%' }} />
+                    <col style={{ width: '12%' }} />
+                    <col style={{ width: '38%' }} />
+                    <col style={{ width: '12%' }} />
+                    <col style={{ width: '38%' }} />
                   </colgroup>
                   <tbody>
                     <tr>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', backgroundColor: '#f8fafc', color: '#334155', fontWeight: 'bold', fontSize: '12px', boxSizing: 'border-box' }}>고객사명</th>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', backgroundColor: '#ffffff', color: '#111827', fontSize: '12px', fontWeight: '700', wordBreak: 'break-all', boxSizing: 'border-box' }}>{selectedCustomer?.name || '-'}</td>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', backgroundColor: '#f8fafc', color: '#334155', fontWeight: 'bold', fontSize: '12px', boxSizing: 'border-box' }}>현장명</th>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', backgroundColor: '#ffffff', color: '#111827', fontSize: '12px', fontWeight: '700', wordBreak: 'break-all', boxSizing: 'border-box' }}>{selectedSite?.name || '-'}</td>
+                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>고객사명</th>
+                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#ffffff', color: '#000000', fontSize: '11px', fontWeight: '700', wordBreak: 'break-all', boxSizing: 'border-box' }}>{selectedCustomer?.name || '-'}</td>
+                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>회수현장</th>
+                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#ffffff', color: '#000000', fontSize: '11px', fontWeight: '700', wordBreak: 'break-all', boxSizing: 'border-box' }}>{selectedSite?.name || '-'}</td>
                     </tr>
                     <tr>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', backgroundColor: '#f8fafc', color: '#334155', fontWeight: 'bold', fontSize: '12px', boxSizing: 'border-box' }}>상세 회수주소</th>
-                      <td colSpan={3} style={{ border: '1px solid #cbd5e1', padding: '5px 8px', backgroundColor: '#ffffff', color: '#111827', fontSize: '12px', wordBreak: 'break-all', boxSizing: 'border-box' }}>{selectedSite?.address || selectedCustomer?.address || '-'}</td>
+                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>회수지주소</th>
+                      <td colSpan={3} style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#ffffff', color: '#000000', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>{selectedSite?.address || selectedCustomer?.address || '-'}</td>
                     </tr>
-                  </tbody>
-                </table>
-
-                {/* 2. 업무 관계자 정보 */}
-                <div style={{ fontSize: '12.5px', fontWeight: 'bold', borderLeft: '3.5px solid #312e81', paddingLeft: '6px', marginBottom: '4px', color: '#312e81' }}>2. 업무 관계자 정보</div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '10px', tableLayout: 'fixed', boxSizing: 'border-box' }}>
-                  <colgroup>
-                    <col style={{ width: '16%' }} />
-                    <col style={{ width: '34%' }} />
-                    <col style={{ width: '16%' }} />
-                    <col style={{ width: '34%' }} />
-                  </colgroup>
-                  <tbody>
                     <tr>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', backgroundColor: '#f8fafc', color: '#334155', fontWeight: 'bold', fontSize: '12px', boxSizing: 'border-box' }}>영업담당자</th>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', backgroundColor: '#ffffff', color: '#111827', fontSize: '12px', fontWeight: '600', wordBreak: 'break-all', boxSizing: 'border-box' }}>
+                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>영업담당</th>
+                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#ffffff', color: '#000000', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>
                         {selectedSalesperson?.name || currentUser?.name || '-'} {selectedSalesperson?.phone || currentUser?.phone ? `(${selectedSalesperson?.phone || currentUser?.phone})` : ''}
                       </td>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', backgroundColor: '#f8fafc', color: '#334155', fontWeight: 'bold', fontSize: '12px', boxSizing: 'border-box' }}>방문지 고객담당</th>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', backgroundColor: '#ffffff', color: '#111827', fontSize: '12px', fontWeight: '600', wordBreak: 'break-all', boxSizing: 'border-box' }}>
+                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>현장담당</th>
+                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#ffffff', color: '#000000', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>
                         {contactName || '-'} {contactPhone ? `(${contactPhone})` : ''}
                       </td>
                     </tr>
                   </tbody>
                 </table>
 
-                {/* 3. 회수 배차 및 대상 장비 */}
-                <div style={{ fontSize: '12.5px', fontWeight: 'bold', borderLeft: '3.5px solid #312e81', paddingLeft: '6px', marginBottom: '4px', color: '#312e81' }}>3. 회수 배차 및 대상 장비</div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '10px', tableLayout: 'fixed', boxSizing: 'border-box' }}>
+                {/* 2. 회수 배차 및 운송 정보 */}
+                <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: '#000000' }}>2. 회수 배차 및 운송 정보</div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '4px', tableLayout: 'fixed', boxSizing: 'border-box' }}>
                   <colgroup>
-                    <col style={{ width: '16%' }} />
-                    <col style={{ width: '34%' }} />
-                    <col style={{ width: '16%' }} />
-                    <col style={{ width: '34%' }} />
+                    <col style={{ width: '12%' }} />
+                    <col style={{ width: '38%' }} />
+                    <col style={{ width: '12%' }} />
+                    <col style={{ width: '38%' }} />
                   </colgroup>
                   <tbody>
                     <tr>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', backgroundColor: '#f8fafc', color: '#334155', fontWeight: 'bold', fontSize: '12px', boxSizing: 'border-box' }}>회수예정일자</th>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', backgroundColor: '#ffffff', color: '#111827', fontSize: '12px', fontWeight: '700', wordBreak: 'break-all', boxSizing: 'border-box' }}>{returnDate || '-'}</td>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', backgroundColor: '#f8fafc', color: '#334155', fontWeight: 'bold', fontSize: '12px', boxSizing: 'border-box' }}>상차 희망시간</th>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', backgroundColor: '#ffffff', color: '#111827', fontSize: '12px', wordBreak: 'break-all', boxSizing: 'border-box' }}>{loadingTime || '-'}</td>
-                    </tr>
-                    <tr>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', backgroundColor: '#f8fafc', color: '#334155', fontWeight: 'bold', fontSize: '12px', boxSizing: 'border-box' }}>회수 대상 장비</th>
-                      <td colSpan={3} style={{ border: '1px solid #cbd5e1', padding: '5px 8px', backgroundColor: '#ffffff', color: '#111827', fontSize: '12px', fontWeight: '700', wordBreak: 'break-all', boxSizing: 'border-box' }}>
-                        {selectedReturnAssets.length > 0 ? (
-                          selectedReturnAssets.map(a => `${a.modelName} {${a.assetNo}}`).join(', ') + ` (총 ${selectedReturnAssets.length}대)`
-                        ) : (
-                          <span style={{ color: '#94a3b8' }}>회수할 장비를 선택해 주세요</span>
-                        )}
-                      </td>
+                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>회수예정일</th>
+                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#ffffff', color: '#000000', fontSize: '11px', fontWeight: '700', wordBreak: 'break-all', boxSizing: 'border-box' }}>{returnDate || '-'}</td>
+                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>상차희망시간</th>
+                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#ffffff', color: '#000000', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>{loadingTime || '-'}</td>
                     </tr>
                   </tbody>
                 </table>
 
-                {/* 4. 장비 반납/회수 확인사항 (출고 옵션 상속 + 현장 점검 항목) */}
-                <div style={{ fontSize: '12.5px', fontWeight: 'bold', borderLeft: '3.5px solid #312e81', paddingLeft: '6px', marginBottom: '4px', color: '#312e81' }}>
-                  4. 장비 반납/회수 확인사항 (출고 장착 옵션 상속 점검)
+                {/* 3. 회수 대상 장비 목록 (50:50 대칭 균형 그리드) */}
+                <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: '#000000' }}>
+                  3. 회수 대상 장비 목록 (총 {selectedReturnAssets.length}대 일괄 회수)
                 </div>
-                <div style={{ padding: '7px 10px', border: '1px solid #cbd5e1', borderRadius: '4px', marginBottom: '10px', backgroundColor: '#f8fafc', color: '#111827', boxSizing: 'border-box' }}>
-                  {/* 출고 당시 부착되었던 특수 옵션 상속 목록 */}
-                  {(() => {
-                    const inheritedSpecs = getInheritedOutboundSpecs(selectedContractId);
-                    return (
-                      <>
-                        {inheritedSpecs.length > 0 && (
-                          <div style={{ marginBottom: '8px', paddingBottom: '6px', borderBottom: '1px dashed #cbd5e1' }}>
-                            <div style={{ fontSize: '11px', fontWeight: '800', color: '#b91c1c', marginBottom: '4px' }}>
-                              ⚠️ [출고 장착 옵션 필수 회수/점검] — 미반납 및 분실 위험 방어 항목
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: '11.5px' }}>
-                              {inheritedSpecs.map((s, idx) => (
-                                <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: '700', color: '#b91c1c' }}>
-                                  <span style={{ fontSize: '13px', color: '#dc2626', fontWeight: 700, lineHeight: 1 }}>□</span>
-                                  <span>[출고옵션 {idx + 1}] {s.label} 분실/파손 확인 및 회수</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '4px', tableLayout: 'fixed', boxSizing: 'border-box' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: '6%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>순번</th>
+                      <th style={{ width: '21%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>모델명</th>
+                      <th style={{ width: '17%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>관리번호</th>
+                      <th style={{ width: '6%', border: '1px solid #000000', borderRight: '2px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>확인</th>
+                      <th style={{ width: '6%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>순번</th>
+                      <th style={{ width: '21%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>모델명</th>
+                      <th style={{ width: '17%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>관리번호</th>
+                      <th style={{ width: '6%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>확인</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(() => {
+                      if (selectedReturnAssets.length === 0) {
+                        return (
+                          <tr>
+                            <td colSpan={8} style={{ border: '1px solid #000000', textAlign: 'center', padding: '10px 0', fontSize: '8pt', color: '#555555' }}>
+                              회수할 장비를 선택해 주세요
+                            </td>
+                          </tr>
+                        );
+                      }
+                      const half = Math.max(1, Math.ceil(selectedReturnAssets.length / 2));
+                      const rows = [];
+                      for (let i = 0; i < half; i++) {
+                        const left = selectedReturnAssets[i];
+                        const right = selectedReturnAssets[i + half];
+                        rows.push(
+                          <tr key={i}>
+                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontSize: '8pt', padding: '2px 3px', color: '#000000' }}>{left ? i + 1 : ''}</td>
+                            <td style={{ border: '1px solid #000000', fontWeight: '700', paddingLeft: '5px', fontSize: '8pt', color: '#000000' }}>{left?.modelName || ''}</td>
+                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontWeight: '600', fontSize: '8pt', color: '#000000' }}>{left?.assetNo || ''}</td>
+                            <td style={{ border: '1px solid #000000', borderRight: '2px solid #000000', textAlign: 'center', fontSize: '7.5pt', padding: '2px 3px', color: '#000000' }}>{left ? '[   ]' : ''}</td>
+                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontSize: '8pt', padding: '2px 3px', color: '#000000' }}>{right ? i + half + 1 : ''}</td>
+                            <td style={{ border: '1px solid #000000', fontWeight: '700', paddingLeft: '5px', fontSize: '8pt', color: '#000000' }}>{right?.modelName || ''}</td>
+                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontWeight: '600', fontSize: '8pt', color: '#000000' }}>{right?.assetNo || ''}</td>
+                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontSize: '7.5pt', padding: '2px 3px', color: '#000000' }}>{right ? '[   ]' : ''}</td>
+                          </tr>
+                        );
+                      }
+                      return rows;
+                    })()}
+                  </tbody>
+                </table>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: '11.5px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 600, color: '#111827' }}>
-                            <span style={{ fontSize: '13px', color: '#475569', fontWeight: 400, lineHeight: 1 }}>□</span>
-                            <span>1. 장비 외관 파손 및 도색 손상 점검</span>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 600, color: '#111827' }}>
-                            <span style={{ fontSize: '13px', color: '#475569', fontWeight: 400, lineHeight: 1 }}>□</span>
-                            <span>2. 상하부 조종기 및 키 스위치 이상 유무</span>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 600, color: '#111827' }}>
-                            <span style={{ fontSize: '13px', color: '#475569', fontWeight: 400, lineHeight: 1 }}>□</span>
-                            <span>3. 전용 충전기 및 전원 인입선 회수 확인</span>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 600, color: '#111827' }}>
-                            <span style={{ fontSize: '13px', color: '#475569', fontWeight: 400, lineHeight: 1 }}>□</span>
-                            <span>4. 유압유 누유 및 리프트 승하강 정상 동작</span>
-                          </div>
+                {/* 4. 출고 장착 옵션 회수 점검 (실제 출고 장착 옵션이 있을 때만 표출) */}
+                {(() => {
+                  const inheritedSpecs = getInheritedOutboundSpecs(selectedContractId);
+                  if (inheritedSpecs.length === 0) return null;
+                  return (
+                    <>
+                      <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: '#000000' }}>
+                        4. 출고 장착 옵션 회수 점검
+                      </div>
+                      <div style={{ padding: '4px 8px', border: '1px solid #000000', marginBottom: '4px', backgroundColor: '#ffffff', color: '#000000', boxSizing: 'border-box' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 10px', fontSize: '8pt' }}>
+                          {inheritedSpecs.map((s, idx) => (
+                            <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '700', color: '#000000' }}>
+                              <span style={{ fontSize: '8pt' }}>[ ]</span>
+                              <span>[출고옵션 {idx + 1}] {s.label} 회수 확인</span>
+                            </div>
+                          ))}
                         </div>
-                      </>
-                    );
-                  })()}
-                </div>
+                      </div>
+                    </>
+                  );
+                })()}
 
                 {/* 5. 현장 특이사항 및 인계 메모 */}
-                <div style={{ fontSize: '12.5px', fontWeight: 'bold', borderLeft: '3.5px solid #312e81', paddingLeft: '6px', marginBottom: '4px', color: '#312e81' }}>5. 현장 특이사항 및 인계 메모</div>
+                <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: '#000000' }}>5. 현장 특이사항 및 인계 메모</div>
                 <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', boxSizing: 'border-box' }}>
                   <colgroup>
-                    <col style={{ width: '16%' }} />
-                    <col style={{ width: '84%' }} />
+                    <col style={{ width: '12%' }} />
+                    <col style={{ width: '88%' }} />
                   </colgroup>
                   <tbody>
                     <tr>
-                      <th style={{ border: '1px solid #cbd5e1', padding: '5px 8px', backgroundColor: '#f8fafc', color: '#334155', fontWeight: 'bold', fontSize: '12px', boxSizing: 'border-box' }}>지시/비고사항</th>
-                      <td style={{ border: '1px solid #cbd5e1', padding: '5px 8px', backgroundColor: '#ffffff', color: '#111827', fontSize: '12px', wordBreak: 'break-all', boxSizing: 'border-box' }}>{note || '특이사항 없음'}</td>
+                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>지시/비고사항</th>
+                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#ffffff', color: '#000000', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>{note || '특이사항 없음'}</td>
                     </tr>
                   </tbody>
                 </table>

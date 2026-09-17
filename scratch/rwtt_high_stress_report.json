@@ -1,0 +1,105 @@
+{
+  "testBatchId": "RWTT_20260203_HIGH_STRESS",
+  "version": "v1.15.0.Build.86",
+  "executionDate": "2026-09-13T14:12:23.022Z",
+  "timelineWindow": "2026-02-03 ~ 2026-05-09 (96일)",
+  "customer": {
+    "id": "CUST-0000035",
+    "name": "성보엔지니어링",
+    "bizRegNo": "117-81-01489",
+    "representative": "김형철",
+    "defaultPaidOptions": "협착 난간대 2 ea, 감지봉 4, 3면 함석, 타이어 A급, 정비철저 요망., 철망, 함석 설치, 상단 감지봉, 협착 센서 설치 (4EA), 타이어 A급 장착, 협착 난간대 1 ea, 중간발판 (대) * 2 대"
+  },
+  "site": {
+    "id": "site_hs_1789308726279",
+    "name": "화성 바이오단지 신축현장",
+    "address": "경기 화성시 향남읍 제약단지로 45"
+  },
+  "equipment": {
+    "modelName": "SJ4632",
+    "monthlyRentalFee": 750000,
+    "dailyRentalFee": 25000,
+    "initialAssetNo": "AST-SJ4632-101",
+    "replacementAssetNo": "AST-SJ4632-102"
+  },
+  "totalStepsExecuted": 19,
+  "emailsSentCount": 5,
+  "targetEmail": "77.victor.lee@gmail.com",
+  "charterVerifications": {
+    "charter1_1_MaxConvenience": "VERIFIED",
+    "charter1_2_ZeroEventOmission": "VERIFIED (전 이벤트 DB 기록 보존)",
+    "charter1_3_RentedOnApproval": "VERIFIED (Step 07 승인 마감 즉시 RENTED 전환)",
+    "charter2_1_SalesAssetRnRSeparation": "VERIFIED (영업 관리번호 빈칸 출고의뢰 ➔ 출고부서 초이스)",
+    "charter2_2_OptionContractInheritance": "VERIFIED (고객 옵션 설정 100% 무누락 자동 상속)",
+    "charter2_3_SingleExchangeOrder": "VERIFIED (단일 EXCHANGE 1건 발행 및 왕복할인 ₩60,000 강제 적용)",
+    "charter3_1_ZeroAdjectiveDryLabels": "VERIFIED (무수식어 건조 명사-동사 단일 표준)",
+    "charter3_5_GutenbergZPattern": "VERIFIED (우하단 대차 차액 ₩0 종단 확정)",
+    "charter4_1_ProRataRevenueCalculation": "VERIFIED (일할 ₩25,000 기준 정밀 집계)",
+    "charter5_5_DomainStressWTT": "VERIFIED (불량적발/EXCHANGE대차/출장정비/수수료차감/통합정산)",
+    "charter5_6_ZeroFalsificationPermanentDb": "VERIFIED (사후 DELETE 배제, DB 실물 영구 보존)"
+  },
+  "conservationLaws": {
+    "dateConservation": {
+      "contractStart": "2026-02-03",
+      "contractEnd": "2026-05-09",
+      "calendarDaysTotal": 96,
+      "februaryDays": 26,
+      "marchDays": 31,
+      "aprilDays": 30,
+      "mayDays": 9,
+      "sumOfMonthlyDays": 96,
+      "isPreserved": true
+    },
+    "balanceConservation": {
+      "totalRevenueIncurred": 2887500,
+      "breakdown": {
+        "februaryRent26Days": 715000,
+        "marchRent31Days": 825000,
+        "marchRepairAsCharge": 275000,
+        "aprilRent30Days": 825000,
+        "mayRent9Days": 247500
+      },
+      "totalCollection": 2887500,
+      "collectionBreakdown": {
+        "februaryDeposit": 714500,
+        "bankTransferFeeAdjustment": 500,
+        "consolidatedFinalDeposit": 2172500
+      },
+      "terminalDifference": 0,
+      "isPreserved": true
+    },
+    "statusConservation": {
+      "initialAssetId": "ast_orig_hs_1789308726279",
+      "initialAssetStatusProgression": "AVAILABLE ➔ MAINTENANCE (출고불량 격리)",
+      "replacementAssetId": "ast_repl_hs_1789308726279",
+      "replacementAssetStatusProgression": "AVAILABLE ➔ RENTED (출고승인 헌장1.3) ➔ AVAILABLE (입고정비 헌장5.5)",
+      "maintenanceScoreProgression": "0점 ➔ 35점 (센서파손 가산) ➔ 0점 (입고정비 완전복원)",
+      "isPreserved": true
+    }
+  },
+  "dbEntityIds": {
+    "siteId": "site_hs_1789308726279",
+    "contractId": "ct_hs_1789308726279",
+    "assetId1": "ast_orig_hs_1789308726279",
+    "assetId2": "ast_repl_hs_1789308726279",
+    "deliveryId1": "del_orig_hs_1789308726279",
+    "deliveryIdExchange": "del_exch_hs_1789308726279",
+    "deliveryIdInbound": "del_inb_hs_1789308726279",
+    "inspectId1": "insp_orig_hs_1789308726279",
+    "inspectId2": "insp_repl_hs_1789308726279",
+    "repairId": "rep_hs_1789308726279",
+    "billingIdFeb": "bil_feb_hs_1789308726279",
+    "billingIdMar": "bil_mar_hs_1789308726279",
+    "billingIdApr": "bil_apr_hs_1789308726279",
+    "billingIdMay": "bil_may_hs_1789308726279",
+    "billingIdCons": "bil_cons_hs_1789308726279",
+    "rcvIdFeb": "rcv_feb_hs_1789308726279",
+    "rcvIdMarRent": "rcv_mar_rent_hs_1789308726279",
+    "rcvIdMarRepair": "rcv_mar_rep_hs_1789308726279",
+    "rcvIdApr": "rcv_apr_hs_1789308726279",
+    "rcvIdMay": "rcv_may_hs_1789308726279",
+    "bankTxIdFeb": "tx_feb_hs_1789308726279",
+    "bankTxIdCons": "tx_cons_hs_1789308726279"
+  },
+  "auditorFinalVerdict": "ALL_PASS_APPROVED"
+}

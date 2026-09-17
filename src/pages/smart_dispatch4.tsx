@@ -2068,6 +2068,32 @@ export const SmartDispatch4: React.FC = () => {
     const totalCount = orderEquipments.reduce((sum, e) => sum + (Number(e.qty) || 1), 0);
     const paidByLabel = orderPaidBy === 'CUSTOMER' ? '고객사 부담' : orderPaidBy === 'OURS' ? '당사 부담' : orderPaidBy === 'SPLIT' ? '협의 분담' : '기본 운임';
 
+    const unitList: { no: number; modelName: string }[] = [];
+    let uNo = 1;
+    for (const eq of orderEquipments) {
+      const q = Math.max(1, Number(eq.qty) || 1);
+      for (let i = 0; i < q; i++) {
+        unitList.push({ no: uNo++, modelName: eq.modelName || '-' });
+      }
+    }
+    const halfCount = Math.max(1, Math.ceil(unitList.length / 2));
+    let assetRowsHtml = '';
+    for (let i = 0; i < halfCount; i++) {
+      const left = unitList[i];
+      const right = unitList[i + halfCount];
+      assetRowsHtml += `
+      <tr>
+        <td style="text-align:center;">${left ? left.no : '&nbsp;'}</td>
+        <td style="font-weight:700; padding-left:5px;">${left ? left.modelName : '&nbsp;'}</td>
+        <td style="text-align:center;">&nbsp;</td>
+        <td style="text-align:center; border-right:2px solid #000000; font-size:7.5pt;">${left ? '[ &nbsp; ]' : '&nbsp;'}</td>
+        <td style="text-align:center;">${right ? right.no : '&nbsp;'}</td>
+        <td style="font-weight:700; padding-left:5px;">${right ? right.modelName : '&nbsp;'}</td>
+        <td style="text-align:center;">&nbsp;</td>
+        <td style="text-align:center; font-size:7.5pt;">${right ? '[ &nbsp; ]' : '&nbsp;'}</td>
+      </tr>`;
+    }
+
     const html = `<!DOCTYPE html>
 <html lang="ko">
   <head>
@@ -2076,12 +2102,17 @@ export const SmartDispatch4: React.FC = () => {
     <style>
       @page {
         size: A4 portrait;
-        margin: 12mm 15mm 15mm 15mm;
+        margin: 7mm 10mm 7mm 10mm;
       }
       @media print {
-        body {
+        @page { size: A4 portrait; margin: 7mm 10mm; }
+        * {
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
+        }
+        body {
+          color: #000000 !important;
+          background-color: #ffffff !important;
         }
         .no-print {
           display: none !important;
@@ -2089,204 +2120,211 @@ export const SmartDispatch4: React.FC = () => {
       }
       * {
         box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
       body {
-        font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif;
+        font-family: 'Malgun Gothic', '맑은 고딕', Dotum, sans-serif;
         padding: 0;
         margin: 0 auto;
-        color: #111827;
+        color: #000000;
         background-color: #ffffff;
         width: 100%;
         max-width: 210mm;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
+        font-size: 8.5pt;
+        line-height: 1.15;
+      }
+      p, div, span, table, tr, td, th {
+        margin: 0;
+        padding: 0;
+        line-height: 1.15;
+        color: #000000;
       }
       table {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 12px;
+        margin-top: 2px;
+        margin-bottom: 3px;
         table-layout: fixed;
       }
       th, td {
-        border: 1px solid #cbd5e1;
-        padding: 6px 9px;
-        text-align: left;
-        font-size: 11.5px;
-        line-height: 1.4;
+        border: 1px solid #000000;
+        padding: 2.5px 5px !important;
+        font-size: 8pt;
+        vertical-align: middle;
+        white-space: nowrap;
+        overflow: hidden;
+        color: #000000;
       }
       th {
-        background-color: #f8fafc !important;
+        background-color: #f0f0f0 !important;
         font-weight: 700;
-        color: #334155;
+        color: #000000;
+        text-align: left;
+      }
+      .header-table {
+        width: 100%;
+        border: none;
+        border-bottom: 2px solid #000000;
+        margin-bottom: 3px;
+        padding-bottom: 2px;
+      }
+      .header-table td {
+        border: none;
+        padding: 0 !important;
+        vertical-align: middle;
+        color: #000000;
+      }
+      .sec-title {
+        font-size: 8.5pt;
+        font-weight: 800;
+        color: #000000;
+        border-left: 3.5px solid #000000;
+        padding-left: 4px;
+        margin-top: 3px;
+        margin-bottom: 1px;
       }
     </style>
   </head>
   <body>
-    <div style="padding: 10px 0;">
-      <!-- 헤더: 문서정보 / 타이틀 / 출고완료자 서명 -->
-      <div style="display: flex; flex-direction: row; align-items: center; border-bottom: 2px solid #1e1b4b; padding-bottom: 8px; margin-bottom: 12px; gap: 8px;">
-        <div style="flex-shrink: 0; display: flex; flex-direction: column; gap: 2px;">
-          <div style="font-size: 11px; font-weight: 800; color: #312e81; white-space: nowrap;">
-            요청유형: <span style="color: #0f172a;">${contextLabel}</span>
-          </div>
-          <div style="font-size: 10px; color: #64748b; white-space: nowrap;">
-            출력일시: ${printTimeStr}
-          </div>
-        </div>
+    <div style="padding: 2px 0;">
+      <!-- 상단 헤더: 문서정보 / 중앙 타이틀 / 우측 출고 확인 -->
+      <table class="header-table">
+        <tr>
+          <td style="width: 25%; text-align: left; font-size: 7.5pt; color: #333333;">
+            유형: ${contextLabel}<br>
+            일시: ${printTimeStr}
+          </td>
+          <td style="width: 55%; text-align: center; font-size: 15pt; font-weight: 800; letter-spacing: 2px; color: #000000;">
+            ${(currentTenant?.displayName || currentTenant?.tradeName || '기연리프트').toUpperCase()} 출고요청서
+          </td>
+          <td style="width: 20%; text-align: right;">
+            <table style="width: 60px; border: 1px solid #000000; float: right; margin: 0; border-collapse: collapse;">
+              <tr><td style="background-color: #f0f0f0; border-bottom: 1px solid #000000; text-align: center; font-size: 7.5pt; font-weight: 700; padding: 1px 0;">출고 확인</td></tr>
+              <tr><td style="height: 25px; text-align: center; font-size: 7.5pt; color: #777777;">(인)</td></tr>
+            </table>
+          </td>
+        </tr>
+      </table>
 
-        <div style="flex: 1; text-align: center; min-width: 0;">
-          <h1 style="margin: 0; font-size: 20px; font-weight: 800; color: #1e1b4b; letter-spacing: 3px; white-space: nowrap;">
-            ${(currentTenant?.displayName || currentTenant?.tradeName || 'e-Bro').toUpperCase()} 출고요청서
-          </h1>
-        </div>
-
-        <div style="flex-shrink: 0; width: 76px; border: 1.5px solid #334155; overflow: hidden; border-radius: 2px;">
-          <div style="background-color: #f1f5f9; border-bottom: 1px solid #334155; text-align: center; font-size: 10px; font-weight: bold; color: #1e293b; padding: 2px 0; white-space: nowrap;">
-            출고 완료자
-          </div>
-          <div style="height: 38px; background-color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #94a3b8; font-weight: 600;">
-            (서 명)
-          </div>
-        </div>
-      </div>
-
-      <!-- 1. 거래처 및 현장 정보 -->
-      <div style="font-size: 12px; font-weight: bold; border-left: 3.5px solid #312e81; padding-left: 6px; margin-bottom: 4px; color: #312e81;">
-        1. 거래처 및 현장 정보
-      </div>
+      <!-- 1. 고객사 및 현장 정보 -->
+      <div class="sec-title">1. 고객사 및 현장 정보</div>
       <table>
         <colgroup>
-          <col style="width: 16%;" />
-          <col style="width: 34%;" />
-          <col style="width: 16%;" />
-          <col style="width: 34%;" />
+          <col style="width: 12%;" />
+          <col style="width: 38%;" />
+          <col style="width: 12%;" />
+          <col style="width: 38%;" />
         </colgroup>
         <tbody>
           <tr>
             <th>고객사명</th>
-            <td style="font-weight: 700; color: #111827;">${customerName || '-'}</td>
+            <td style="font-weight: 700;">${customerName || '-'}</td>
             <th>투입현장</th>
-            <td style="font-weight: 700; color: #111827;">${siteName || '-'}</td>
+            <td style="font-weight: 700;">${siteName || '-'}</td>
           </tr>
           <tr>
-            <th>상세 현장주소</th>
-            <td colspan="3" style="word-break: break-all;">${siteAddress || '-'}</td>
+            <th>납품주소</th>
+            <td colspan="3">${siteAddress || '-'}</td>
           </tr>
           <tr>
-            <th>정산 및 결제일정</th>
-            <td colspan="3">
-              청구(세금계산서) 마감: <strong>${orderClosingDay === 31 ? '말일' : `${orderClosingDay}일`}</strong> &nbsp;|&nbsp;
-              거래명세서 마감: <strong>${orderStatementClosingDay === 31 ? '말일' : `${orderStatementClosingDay}일`}</strong> &nbsp;|&nbsp;
-              약정 결제일: <strong>익월 ${orderPaymentDueDay === 31 ? '말일' : `${orderPaymentDueDay}일`}</strong>
-            </td>
+            <th>영업담당</th>
+            <td>${currentUser?.name || '본사 담당자'} ${currentUser?.phone ? `(${currentUser.phone})` : ''}</td>
+            <th>현장담당</th>
+            <td>${siteContactName || '-'} ${siteContactPhone ? `(${siteContactPhone})` : ''}</td>
           </tr>
         </tbody>
       </table>
 
-      <!-- 2. 업무 관계자 정보 -->
-      <div style="font-size: 12px; font-weight: bold; border-left: 3.5px solid #312e81; padding-left: 6px; margin-bottom: 4px; color: #312e81;">
-        2. 업무 관계자 정보
-      </div>
+      <!-- 2. 배송 배차 및 운송 정보 -->
+      <div class="sec-title">2. 배송 배차 및 운송 정보</div>
       <table>
         <colgroup>
-          <col style="width: 16%;" />
-          <col style="width: 34%;" />
-          <col style="width: 16%;" />
-          <col style="width: 34%;" />
-        </colgroup>
-        <tbody>
-          <tr>
-            <th>영업담당자</th>
-            <td style="font-weight: 600; color: #111827;">
-              ${currentUser?.name || '본사 담당자'} ${currentUser?.phone ? `(${currentUser.phone})` : ''}
-            </td>
-            <th>현장담당자</th>
-            <td style="font-weight: 600; color: #111827;">
-              ${siteContactName || '-'} ${siteContactPhone ? `(${siteContactPhone})` : ''}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <!-- 3. 배송 배차 및 투입 장비 -->
-      <div style="font-size: 12px; font-weight: bold; border-left: 3.5px solid #312e81; padding-left: 6px; margin-bottom: 4px; color: #312e81;">
-        3. 배송 배차 및 투입 장비
-      </div>
-      <table>
-        <colgroup>
-          <col style="width: 16%;" />
-          <col style="width: 34%;" />
-          <col style="width: 16%;" />
-          <col style="width: 34%;" />
+          <col style="width: 12%;" />
+          <col style="width: 38%;" />
+          <col style="width: 12%;" />
+          <col style="width: 38%;" />
         </colgroup>
         <tbody>
           <tr>
             <th>상차스케줄</th>
-            <td style="color: #1d4ed8; font-weight: 600;">${loadingSchedule || '-'}</td>
+            <td style="font-weight: 700;">${loadingSchedule || '-'}</td>
             <th>하차스케줄</th>
-            <td style="color: #0e7490; font-weight: 600;">${unloadingSchedule || '-'}</td>
+            <td style="font-weight: 700;">${unloadingSchedule || '-'}</td>
           </tr>
           <tr>
             <th>운송차종 / 운임</th>
             <td>${orderVehicleType} (${paidByLabel})</td>
             <th>신청 총수량</th>
-            <td style="font-weight: 700; color: #1d4ed8;">총 ${totalCount}대</td>
-          </tr>
-          <tr>
-            <th>임대 투입 장비</th>
-            <td colspan="3" style="font-weight: 700; color: #111827;">
-              ${orderEquipments.length > 0 ? orderEquipments.map(e => `${e.modelName} * ${e.qty}대`).join(', ') : '미지정'}
-            </td>
+            <td style="font-weight: 700;">총 ${totalCount}대</td>
           </tr>
         </tbody>
       </table>
 
+      <!-- 3. 출고 대상 장비 목록 (50:50 대칭 균형 그리드 / 관리번호 빈칸) -->
+      <div class="sec-title">3. 출고 대상 장비 목록 (총 ${totalCount}대 의뢰 - 주기장 실물 매핑용)</div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 6%; text-align: center;">순번</th>
+            <th style="width: 21%; text-align: center;">모델명</th>
+            <th style="width: 17%; text-align: center;">관리번호</th>
+            <th style="width: 6%; text-align: center; border-right: 2px solid #000000;">확인</th>
+            <th style="width: 6%; text-align: center;">순번</th>
+            <th style="width: 21%; text-align: center;">모델명</th>
+            <th style="width: 17%; text-align: center;">관리번호</th>
+            <th style="width: 6%; text-align: center;">확인</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${assetRowsHtml || '<tr><td colspan="8" style="text-align:center; padding: 10px 0;">의뢰된 장비 목록이 없습니다.</td></tr>'}
+        </tbody>
+      </table>
+
       <!-- 4. 장비 출하 스펙 및 안전옵션 요구사항 -->
-      <div style="font-size: 12px; font-weight: bold; border-left: 3.5px solid #312e81; padding-left: 6px; margin-bottom: 4px; color: #312e81;">
-        4. 장비 출하 스펙 요구사항 (현장 요청 검수 항목)
-      </div>
-      <div style="padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 4px; margin-bottom: 12px; background-color: #f8fafc; color: #111827; box-sizing: border-box;">
+      <div class="sec-title">4. 장비 출하 스펙 요구사항 (현장 요청 검수 항목)</div>
+      <div style="padding: 4px 8px; border: 1px solid #000000; margin-bottom: 3px; background-color: #ffffff; box-sizing: border-box;">
         ${orderSafetyOptions.length > 0 ? `
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 11px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font-size: 8pt;">
             ${orderSafetyOptions.map((opt, idx) => `
-              <div style="display: flex; align-items: center; gap: 5px; font-weight: 600; color: #111827;">
-                <span style="font-size: 12px; color: #2563eb;">☑</span>
+              <div style="display: flex; align-items: center; gap: 4px; font-weight: 700; color: #000000;">
+                <span style="font-size: 8pt;">[v]</span>
                 <span>${idx + 1}. ${opt}</span>
               </div>
             `).join('')}
           </div>
         ` : `
-          <div style="font-size: 11px; color: #64748b; padding: 2px 0;">
+          <div style="font-size: 8pt; color: #333333; padding: 1px 0;">
             • 별도 특수 요청 스펙 없음 (기본 출하 표준 검수 적용)
           </div>
         `}
       </div>
 
       <!-- 5. 현장 특이사항 및 작업 지시 -->
-      <div style="font-size: 12px; font-weight: bold; border-left: 3.5px solid #312e81; padding-left: 6px; margin-bottom: 4px; color: #312e81;">
-        5. 현장 특이사항 및 작업 지시
-      </div>
+      <div class="sec-title">5. 현장 특이사항 및 작업 지시</div>
       <table>
         <colgroup>
-          <col style="width: 16%;" />
-          <col style="width: 84%;" />
+          <col style="width: 12%;" />
+          <col style="width: 88%;" />
         </colgroup>
         <tbody>
           ${orderStaggeredMemo ? `
             <tr>
               <th>시차출고</th>
-              <td style="color: #b45309; font-weight: 600;">${orderStaggeredMemo}</td>
+              <td style="font-weight: 700;">${orderStaggeredMemo}</td>
             </tr>
           ` : ''}
           ${orderRetrievalAssetIds.length > 0 ? `
             <tr>
               <th>대차 회수대상</th>
-              <td style="color: #0891b2; font-weight: 600;">자산 #${orderRetrievalAssetIds.join(', #')} (총 ${orderRetrievalAssetIds.length}대 회수)</td>
+              <td style="font-weight: 700;">자산 #${orderRetrievalAssetIds.join(', #')} (총 ${orderRetrievalAssetIds.length}대 회수)</td>
             </tr>
           ` : ''}
           <tr>
             <th>지시사항</th>
-            <td style="word-break: break-all;">${orderNote || '특이사항 없음'}</td>
+            <td>${orderNote || '특이사항 없음'}</td>
           </tr>
         </tbody>
       </table>
@@ -4518,7 +4556,7 @@ export const SmartDispatch4: React.FC = () => {
                               {draft.siteName.value || '(현장 미정)'}
                             </td>
                             <td className="text-emerald-400 font-bold max-w-[120px] truncate">
-                              {draft.equipments.length > 0 ? draft.equipments.map(e => `${e.modelName}×${e.qty}`).join(', ') : '없음'}
+                              {(draft.equipments && draft.equipments.length > 0) ? draft.equipments.map(e => `${e.modelName}×${e.qty}`).join(', ') : '없음'}
                             </td>
                             <td className="font-mono text-slate-200 text-[11px]">
                               {draft.loadingDate.value || '미정'} {draft.loadingTime.value || ''}
@@ -4598,7 +4636,7 @@ export const SmartDispatch4: React.FC = () => {
                     <div>
                       <span className="text-slate-500 block text-[10px]">신청 장비 제원</span>
                       <span className="text-emerald-400 font-bold">
-                        {selectedDraft.equipments.map(e => `${e.modelName}×${e.qty}대`).join(', ') || '없음'}
+                        {(selectedDraft.equipments || []).map(e => `${e.modelName}×${e.qty}대`).join(', ') || '없음'}
                       </span>
                     </div>
                   </div>
@@ -4923,7 +4961,7 @@ export const SmartDispatch4: React.FC = () => {
                   <span className="text-blue-400 font-bold text-xs">총 {successModalInfo.totalQty}대</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {successModalInfo.equipments.map((eq, idx) => (
+                  {(successModalInfo.equipments || []).map((eq, idx) => (
                     <span key={idx} className="px-2.5 py-1 rounded-lg bg-blue-950/60 border border-blue-800/60 text-blue-200 text-xs font-mono font-bold">
                       {eq.modelName} × {eq.qty}대
                     </span>

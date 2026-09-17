@@ -4293,6 +4293,7 @@ class LocalDB {
     let updated = false;
     const mapped = raw.map(u => {
       if (!u.customRoleId) {
+        let assignedRoleId = '';
         const dept = (u.departmentId || u.department || '').toUpperCase();
         if (dept.includes('0000001') || dept.includes('0000002') || dept.includes('관리') || dept.includes('경영') || dept.includes('임원') || u.position === '사장' || u.position === '부사장' || u.position === '대표이사') assignedRoleId = 'role_mgmt';
         else if (dept.includes('0000003') || dept.includes('영업')) assignedRoleId = 'role_sales';

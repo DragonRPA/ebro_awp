@@ -1257,8 +1257,13 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
           filename: `[${currentTenant?.displayName || '거래명세서'}]_거래명세서_${ym}_${contractNo}_${custName}_${sName}.pdf`,
           content: base64Content
         });
-      } catch (attachErr) {
-        console.warn('[Billings] PDF 거래명세서 첨부파일 생성 실패 (본문만 발송):', attachErr);
+      } catch (attachErr: any) {
+        console.error('[Billings] PDF 거래명세서 첨부파일 생성 실패:', attachErr);
+        throw new Error(`[증빙 부재 발송 차단] 거래명세서 실물 PDF 생성에 실패하여 발송을 중단합니다:\n${attachErr?.message || attachErr}`);
+      }
+
+      if (attachments.length === 0) {
+        throw new Error('[증빙 부재 발송 차단] 거래명세서 실물 PDF 첨부파일이 존재하지 않아 발송을 중단합니다.');
       }
 
       // 2. 이메일 발송

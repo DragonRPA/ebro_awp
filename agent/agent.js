@@ -348,6 +348,15 @@ Replace-Tag $wsContract "{합계}" "₩${totalRentalFee.toLocaleString()}"
 Replace-Tag $wsContract "{옵션}" "${optionsText}"
 Replace-Tag $wsContract "{특이사항}" "${remarksText}"
 
+# ── 12대 초과 시 행 동적 확장 (기존 서식 및 하단 특약/서명란 밀어내기 보존) ──
+if (${assets.length} -gt 12) {
+    $extraRows = ${assets.length} - 12
+    for ($k = 0; $k -lt $extraRows; $k++) {
+        $wsContract.Rows.Item(54).Copy()
+        $null = $wsContract.Rows.Item(55).Insert(-4167)
+    }
+}
+
 # ── 자산별 행(Row 44부터) 1대당 1줄씩 명시적 기입 ──
 ` + assets.map((ast, idx) => {
   const row = 44 + idx;
@@ -381,7 +390,8 @@ if (${assets.length} -le 12) {
   $wsContract.PageSetup.PrintArea = "A26:K78"
   $wsContract.PageSetup.FitToPagesTall = 1
 } else {
-  $wsContract.PageSetup.PrintArea = ""
+  $endRow = 78 + (${assets.length} - 12)
+  $wsContract.PageSetup.PrintArea = "A26:K$endRow"
   $wsContract.PageSetup.FitToPagesTall = $false
 }
 
@@ -538,9 +548,9 @@ $excel.Quit()
         const siteAddress = payload.customerAddress || '';
         const siteManagerName = payload.siteManagerName || '-';
         const siteManagerPhone = payload.siteManagerPhone || '-';
-        const custBillingName = payload.custBillingManagerName || payload.billingManagerName || '-';
-        const custBillingPhone = payload.custBillingManagerPhone || payload.billingManagerPhone || '-';
-        const custBillingEmail = payload.custBillingEmail || '-';
+        const custBillingName = payload.custBillingManagerName || payload.customerBillingManagerName || '-';
+        const custBillingPhone = payload.custBillingManagerPhone || payload.customerBillingManagerPhone || '-';
+        const custBillingEmail = payload.custBillingEmail || payload.customerBillingEmail || '-';
         const custBizType = payload.customerBizType || '-';
         const custBizItem = payload.customerBizItem || '-';
 
@@ -548,6 +558,8 @@ $excel.Quit()
         const salespersonPhone = payload.salespersonPhone || '010-9402-5296';
         const billingManagerName = payload.billingManagerName || '정수아';
         const billingManagerPhone = payload.billingManagerPhone || '031-334-5295';
+        const yyyyMm = (payload.billingYm || (payload.billingDate ? payload.billingDate.substring(0, 7) : new Date().toISOString().substring(0, 7))).replace(/[\\/:*?"<>|]/g, '');
+        const supplySummary = (payload.supplySummary || payload.billingDescription || `${yyyyMm}분 고소작업대 렌탈료`).replace(/"/g, '""');
 
         const items = payload.items || [];
         const totalSupply = payload.totalSupply || 0;
@@ -636,6 +648,8 @@ Replace-Tag $curWs "{영업사원연락처}" "${salespersonPhone}"
 Replace-Tag $curWs "{청구담당자}" "${billingManagerName}"
 Replace-Tag $curWs "{청구담당자연락처}" "${billingManagerPhone}"
 
+$curWs.Cells.Item(12, 5).Value2 = "${supplySummary}"
+$curWs.Cells.Item(12, 15).Value2 = "${siteName}${pageTag}"
 $curWs.Cells.Item(13, 5).Value2 = "${billingDate}${pageTag}"
 
 `;
@@ -648,12 +662,16 @@ $curWs.Cells.Item(13, 5).Value2 = "${billingDate}${pageTag}"
       const globalNo = startGlobalIdx + r + 1;
       const m = item.month || '';
       const d = item.day || '';
-      const desc = (item.itemDescription || '').replace(/"/g, '""');
-      const qty = item.quantity || 1;
-      const price = (item.unitPrice || 0).toLocaleString();
-      const supply = (item.supplyAmount || 0).toLocaleString();
-      const vat = (item.vatAmount || 0).toLocaleString();
-      const notes = (item.notes || '').replace(/"/g, '""');
+      const rawDesc = item.itemDescription || item.description || item.itemName || [item.model, item.assetNo ? `[${item.assetNo}]` : '', item.spec].filter(Boolean).join(' ') || '고소작업대 렌탈료';
+      const desc = rawDesc.replace(/"/g, '""');
+      const qty = item.quantity || item.qty || 1;
+      const priceNum = item.unitPrice !== undefined ? Number(item.unitPrice) : (item.price !== undefined ? Number(item.price) : 0);
+      const supplyNum = item.supplyAmount !== undefined ? Number(item.supplyAmount) : (item.amount !== undefined ? Number(item.amount) : (priceNum * qty));
+      const vatNum = item.vatAmount !== undefined ? Number(item.vatAmount) : (item.vat !== undefined ? Number(item.vat) : Math.round(supplyNum * 0.1));
+      const price = priceNum.toLocaleString();
+      const supply = supplyNum.toLocaleString();
+      const vat = vatNum.toLocaleString();
+      const notes = (item.notes || item.remarks || item.memo || '').replace(/"/g, '""');
 
       s += `
 $curWs.Cells.Item(${rowNum}, 2).Value2 = "${globalNo}"
@@ -720,7 +738,22 @@ $excel.Quit()
 
         const pdfBuffer = fs.readFileSync(statementPdfPath);
         const b64 = pdfBuffer.toString('base64');
-        const fileName = `[기연리프트]_거래명세서_${custName}_${siteName}_${payload.billingYm || ''}.pdf`;
+        const safeCustName = (custName || '고객사').replace(/[\\/:*?"<>|]/g, '');
+        const safeSiteName = String(siteName || '현장').replace(/[\\/:*?"<>|]/g, '');
+        const fileName = `[기연리프트]_거래명세서_${safeCustName}_${safeSiteName}_${yyyyMm}.pdf`;
+
+        // 🌟 [로컬 문서고 영구 아카이빙 - 헌장 1.2 & 매뉴얼 6.3]
+        const archiveDir = path.join(ARCHIVE_ROOT, yyyyMm);
+        if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
+        const localSavePath = path.join(archiveDir, fileName);
+        fs.writeFileSync(localSavePath, pdfBuffer);
+
+        // 원본 엑셀 작업본도 함께 영구 보존
+        const xlsxWorkFile = path.join(tempBuildDir, '거래명세서_작업용.xlsx');
+        if (fs.existsSync(xlsxWorkFile)) {
+          const xlsxFileName = `[기연리프트]_거래명세서_${safeCustName}_${safeSiteName}_${yyyyMm}.xlsx`;
+          fs.copyFileSync(xlsxWorkFile, path.join(archiveDir, xlsxFileName));
+        }
 
         // 완료 후 임시 폴더 정리
         try { fs.rmSync(tempBuildDir, { recursive: true, force: true }); } catch (e) {}
@@ -729,9 +762,10 @@ $excel.Quit()
         res.end(JSON.stringify({
           success: true,
           fileName,
-          pageCount: 1,
+          localPath: localSavePath,
+          pageCount: chunks.length || 1,
           base64Content: b64,
-          message: `✅ 100% 정품 엑셀 기반 거래명세서 PDF 생성 완료`
+          message: `✅ 100% 정품 엑셀 기반 거래명세서 PDF 생성 및 로컬 문서고 영구 아카이빙 완료`
         }));
       } catch (statementErr) {
         console.error('❌ 거래명세서 생성 실패:', statementErr);
