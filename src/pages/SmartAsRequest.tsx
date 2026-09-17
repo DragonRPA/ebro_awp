@@ -293,11 +293,11 @@ export const SmartAsRequest: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCustomerId && !selectedSiteId && !customAssetNo) {
-      showErrorModal('고객사, 현장 또는 관리번호 중 최소 1개 이상을 입력해 주세요.');
+      showToast('고객사, 현장 또는 관리번호 중 최소 1개 이상을 입력해 주세요.', 'error');
       return;
     }
     if (!issueDescription.trim()) {
-      showErrorModal('고장 증상 및 요청 내용을 입력해 주세요.');
+      showToast('고장 증상 및 요청 내용을 입력해 주세요.', 'error');
       return;
     }
 

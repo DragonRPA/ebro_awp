@@ -1651,6 +1651,16 @@ export interface PurchaseSettlement {
   confirmedBy?: string;                // 정산 확정자 이름
   itemCount?: number;
   memo?: string;
+  // 국세청 전자세금계산서 (매입) 연동 필드
+  taxInvoiceNo?: string;              // 국세청 24자리 승인번호
+  taxInvoiceIssueDate?: string;       // 세금계산서 작성일자 (YYYY-MM-DD)
+  taxInvoiceSupplyAmount?: number;    // 세금계산서 공급가액
+  taxInvoiceVatAmount?: number;       // 세금계산서 부가세액
+  taxInvoiceTotalAmount?: number;     // 세금계산서 합계금액
+  taxInvoiceMatchStatus?: 'MATCHED' | 'MISMATCH' | 'UNMATCHED'; // 대사 상태
+  taxInvoiceMatchedAt?: string;       // 세금계산서 대사 일시
+  taxInvoiceRawSupplier?: string;     // 계산서 상 공급자명
+  taxInvoiceBizNo?: string;           // 계산서 상 공급자 사업자번호
   createdAt: string;
   updatedAt?: string;
 }
@@ -5096,7 +5106,9 @@ class LocalDB {
       if (tableName === 'users' && !['id', 'loginId', 'passwordHash', 'name', 'departmentId', 'position', 'managerId', 'role', 'status', 'baseSalary', 'phone', 'email', 'address', 'birthDate', 'joinDate', 'retireDate', 'profileImageUrl', 'customRoleId', 'createdAt', 'updatedAt'].includes(key)) {
         continue;
       }
-      if (typeof val === 'string' && (key === 'userId' || key === 'salespersonId' || key === 'requesterId' || key === 'accepterId' || key === 'completerId' || key === 'inbounderId' || key === 'createdById' || key === 'updatedById' || key.toLowerCase().includes('user'))) {
+      if (tableName === 'privacy_access_logs' && (key === 'userId' || key === 'userName')) {
+        sanitized[key] = val || (key === 'userId' ? 'sys-anon' : '시스템사용자');
+      } else if (typeof val === 'string' && (key === 'userId' || key === 'salespersonId' || key === 'requesterId' || key === 'accepterId' || key === 'completerId' || key === 'inbounderId' || key === 'createdById' || key === 'updatedById' || key.toLowerCase().includes('user'))) {
         const userExists = this.users.some(u => u.id === val);
         sanitized[key] = userExists ? val : (this.users[0]?.id || null);
       } else if (key === 'consumableId') {

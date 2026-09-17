@@ -9,7 +9,7 @@ import { useApp } from '../context/AppContext';
 import { Customer } from '../services/db';
 import { analyzeBusinessLicense, BusinessLicenseAnalysisResult, formatBizRegNo } from '../services/visionOcrService';
 import { uploadToSupabaseStorage } from '../services/supabaseStorage';
-import { checkSingleNtsStatus, NtsStatusResult } from '../services/ntsBusinessService';
+import { checkSingleNtsStatus, checkSingleNtsValidation, NtsStatusResult, NtsValidationResult } from '../services/ntsBusinessService';
 
 interface BusinessLicenseModalProps {
   isOpen: boolean;
@@ -36,6 +36,7 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
   const [isDragOver, setIsDragOver] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<BusinessLicenseAnalysisResult | null>(null);
   const [ntsResult, setNtsResult] = useState<NtsStatusResult | null>(null);
+  const [ntsValidation, setNtsValidation] = useState<NtsValidationResult | null>(null);
   const [matchedCustomer, setMatchedCustomer] = useState<Customer | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -75,6 +76,8 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
       setSelectedFile(null);
       setFilePreview(null);
       setAnalysisResult(null);
+      setNtsResult(null);
+      setNtsValidation(null);
       setMatchedCustomer(null);
       setIsSaving(false);
       if (targetCustomerId) {
@@ -121,15 +124,28 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
 
       const cleanBizNoDigits = (result.bizRegNo || '').replace(/[^0-9]/g, '');
 
-      // 국세청 홈택스 사업자 휴폐업 진위확인 실시간 조회
+      // 국세청 홈택스 사업자 진위확인 (상호명, 대표자명, 개업일자 1:1 대조 및 휴폐업 조회)
       let ntsData: NtsStatusResult | null = null;
+      let valData: NtsValidationResult | null = null;
       if (cleanBizNoDigits && cleanBizNoDigits.length === 10) {
         try {
-          ntsData = await checkSingleNtsStatus(cleanBizNoDigits);
+          valData = await checkSingleNtsValidation({
+            bizRegNo: cleanBizNoDigits,
+            openingDate: result.openingDate,
+            representative: result.representative,
+            companyName: result.companyName
+          });
+          ntsData = valData.statusResult || await checkSingleNtsStatus(cleanBizNoDigits);
         } catch (e) {
-          console.warn('[BusinessLicenseModal] NTS check error:', e);
+          console.warn('[BusinessLicenseModal] NTS validation check error:', e);
+          try {
+            ntsData = await checkSingleNtsStatus(cleanBizNoDigits);
+          } catch (statusErr) {
+            console.warn('[BusinessLicenseModal] NTS status check error:', statusErr);
+          }
         }
       }
+      setNtsValidation(valData);
       setNtsResult(ntsData);
 
       // 기존 고객사 매칭 탐색 (targetCustomerId 우선 ➔ bizRegNo 매칭 ➔ 상호 매칭)
@@ -451,41 +467,53 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
                 </button>
               </div>
 
-              {/* 🏛️ 국세청 홈택스 실시간 휴폐업 및 과세유형 진위확인 카드 */}
-              {ntsResult && (
-                <div className={`p-3 rounded-lg border text-xs flex items-center justify-between ${
-                  ntsResult.status === 'ACTIVE'
+              {/* 🏛️ 국세청 홈택스 실시간 상호 진위확인 및 휴폐업 검증 카드 */}
+              {(ntsResult || ntsValidation) && (
+                <div className={`p-3 rounded-lg border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
+                  ntsResult?.status === 'ACTIVE'
                     ? 'bg-emerald-950/40 border-emerald-800 text-emerald-300'
-                    : ntsResult.status === 'CLOSED'
+                    : ntsResult?.status === 'CLOSED'
                     ? 'bg-rose-950/60 border-rose-800 text-rose-300'
-                    : ntsResult.status === 'SUSPENDED'
+                    : ntsResult?.status === 'SUSPENDED'
                     ? 'bg-amber-950/40 border-amber-800 text-amber-300'
                     : 'bg-slate-800 border-slate-700 text-slate-400'
                 }`}>
-                  <div className="flex items-center gap-2.5">
-                    {ntsResult.status === 'ACTIVE' ? (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                  <div className="flex items-start gap-2.5">
+                    {ntsResult?.status === 'ACTIVE' ? (
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
                     ) : (
-                      <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
+                      <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
                     )}
-                    <div>
-                      <div className="font-bold flex items-center gap-2">
+                    <div className="space-y-1">
+                      <div className="font-bold flex flex-wrap items-center gap-2">
                         <span>국세청 홈택스:</span>
-                        <span className="underline decoration-1">{ntsResult.statusLabel}</span>
-                        {ntsResult.closedDate && (
+                        <span className="underline decoration-1">{ntsResult?.statusLabel || '조회 완료'}</span>
+                        {ntsResult?.closedDate && (
                           <span className="text-rose-400 font-mono text-[11px]">
                             (폐업일: {ntsResult.closedDate})
                           </span>
                         )}
+                        {/* 상호·대표자 진위확인 배지 */}
+                        {ntsValidation && (
+                          <span className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${
+                            ntsValidation.isValid
+                              ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                              : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                          }`}>
+                            {ntsValidation.isValid 
+                              ? '✓ 상호·대표자 원부 일치' 
+                              : '! 상호·대표자 불일치 주의'}
+                          </span>
+                        )}
                       </div>
-                      <p className="text-[11px] opacity-80 mt-0.5">
-                        과세유형: {ntsResult.taxType} • 조회일시: {ntsResult.checkedAt.slice(0, 16).replace('T', ' ')}
-                        {ntsResult.status === 'CLOSED' && ' • 자동 출고제한(BLOCKED) 적용 대상'}
+                      <p className="text-[11px] opacity-80">
+                        과세유형: {ntsResult?.taxType || '일반과세자'} • {ntsValidation?.validMessage || '국세청 진위확인 완료'}
+                        {ntsResult?.status === 'CLOSED' && ' • 자동 출고제한(BLOCKED) 적용 대상'}
                       </p>
                     </div>
                   </div>
-                  <span className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-black/40 border border-white/10 shrink-0">
-                    {ntsResult.source === 'NTS_LIVE_API' ? '홈택스 공적 API' : '체크섬 인증'}
+                  <span className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-black/40 border border-white/10 shrink-0 self-start sm:self-center">
+                    {ntsValidation?.source === 'NTS_LIVE_API' || ntsResult?.source === 'NTS_LIVE_API' ? '홈택스 공적 API' : '체크섬 인증'}
                   </span>
                 </div>
               )}

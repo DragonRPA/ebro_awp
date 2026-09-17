@@ -7,8 +7,9 @@ import { PurchaseSettlement, PurchaseSettlementItem, PurchaseSettlementType, db 
 import { exportToExcel } from '../services/excel';
 import {
   Truck, ShoppingBag, Building2, Plus, CheckCircle2, CreditCard,
-  ChevronDown, ChevronUp, FileText, AlertCircle, RefreshCw, X, Download, ExternalLink, Eye, Wrench
+  ChevronDown, ChevronUp, FileText, AlertCircle, RefreshCw, X, Download, ExternalLink, Eye, Wrench, Database
 } from 'lucide-react';
+import { HometaxPurchaseInvoiceModal } from '../components/HometaxPurchaseInvoiceModal';
 
 // 정산 유형 탭 정의
 const SETTLEMENT_TYPES: { id: PurchaseSettlementType | 'ALL'; label: string; icon: React.ReactNode }[] = [
@@ -70,6 +71,9 @@ export const PurchaseSettlementPage: React.FC = () => {
 
   // 증빙 파일 미리보기 모달 상태
   const [previewEvidence, setPreviewEvidence]      = useState<{ url: string; title: string } | null>(null);
+  // 국세청 매입세금계산서 대사 모달 상태
+  const [isHometaxModalOpen, setIsHometaxModalOpen] = useState(false);
+
   // 토스트 알림 상태 (헌장 5.2: 브라우저 alert/confirm 전면 퇴출)
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
@@ -86,8 +90,9 @@ export const PurchaseSettlementPage: React.FC = () => {
     const balance = totalAmount - totalPaid;
     const confirmedCount = monthSettlements.filter(s => s.status === 'CONFIRMED' || s.status === 'PAID').length;
     const paidCount = monthSettlements.filter(s => s.status === 'PAID').length;
+    const taxInvoiceIssuedCount = monthSettlements.filter(s => !!s.taxInvoiceNo).length;
 
-    return { totalCount, totalAmount, totalPaid, balance, confirmedCount, paidCount };
+    return { totalCount, totalAmount, totalPaid, balance, confirmedCount, paidCount, taxInvoiceIssuedCount };
   }, [purchaseSettlements, selectedYm]);
 
 
@@ -322,6 +327,29 @@ export const PurchaseSettlementPage: React.FC = () => {
           엑셀 내보내기
         </button>
 
+        <button
+          onClick={() => setIsHometaxModalOpen(true)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            height: '36px',
+            padding: '0 14px',
+            background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            fontWeight: '700',
+            fontSize: '13px',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)'
+          }}
+        >
+          <Database size={14} />
+          국세청 매입세금계산서 대사/업데이트
+        </button>
+
         {generateResult && (
           <div style={{ padding: '8px 14px', borderRadius: '6px', background: 'var(--bg-app)', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-primary)' }}>
             {generateResult}
@@ -434,6 +462,41 @@ export const PurchaseSettlementPage: React.FC = () => {
                     {statusInfo.label}
                   </span>
 
+                  {/* 국세청 세금계산서 대사 뱃지 */}
+                  {p.taxInvoiceNo ? (
+                    <span 
+                      title={`국세청 승인번호: ${p.taxInvoiceNo}\n작성일자: ${p.taxInvoiceIssueDate || '-'}\n공급가: ₩${(p.taxInvoiceSupplyAmount || 0).toLocaleString()} / 세액: ₩${(p.taxInvoiceVatAmount || 0).toLocaleString()}`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        color: '#10b981',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      <CheckCircle2 size={12} />
+                      계산서 수취 ({p.taxInvoiceNo.slice(0, 8)}...)
+                    </span>
+                  ) : (
+                    <span style={{
+                      fontSize: '11px',
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      background: 'rgba(148, 163, 184, 0.1)',
+                      color: 'var(--text-secondary)',
+                      border: '1px solid var(--border)',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      계산서 미수취
+                    </span>
+                  )}
+
                   {/* 카드 헤더 증빙 보기 직결 버튼 */}
                   {(() => {
                     const evidences = items.map(item => ({ item, url: getItemEvidenceUrl(item) })).filter(x => !!x.url) as { item: PurchaseSettlementItem; url: string }[];
@@ -526,6 +589,39 @@ export const PurchaseSettlementPage: React.FC = () => {
                             })}
                           </tbody>
                         </table>
+                      </div>
+                    )}
+
+                    {/* 🧾 국세청 전자세금계산서 대사 정보 블록 */}
+                    {p.taxInvoiceNo && (
+                      <div style={{
+                        marginBottom: '14px',
+                        padding: '10px 14px',
+                        borderRadius: '6px',
+                        background: 'rgba(16, 185, 129, 0.06)',
+                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '10px',
+                        fontSize: '12px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <CheckCircle2 size={16} style={{ color: '#10b981', flexShrink: 0 }} />
+                          <div>
+                            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>국세청 전자세금계산서 승인: </span>
+                            <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#10b981' }}>{p.taxInvoiceNo}</span>
+                            <span style={{ color: 'var(--text-secondary)', marginLeft: '8px' }}>
+                              (작성일: {p.taxInvoiceIssueDate || '미상'})
+                            </span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontFamily: 'monospace' }}>
+                          <span>공급가: ₩{(p.taxInvoiceSupplyAmount || 0).toLocaleString()}</span>
+                          <span>세액: ₩{(p.taxInvoiceVatAmount || 0).toLocaleString()}</span>
+                          <span style={{ fontWeight: 700, color: 'var(--primary)' }}>합계: ₩{(p.taxInvoiceTotalAmount || 0).toLocaleString()}</span>
+                        </div>
                       </div>
                     )}
 
@@ -1044,6 +1140,10 @@ export const PurchaseSettlementPage: React.FC = () => {
           <span style={{ color: settlementAuditSummary.balance > 0 ? 'var(--danger)' : 'var(--text-secondary)' }}>
             ⏳ <strong>지급잔액:</strong> ₩{settlementAuditSummary.balance.toLocaleString()}원
           </span>
+          <span style={{ color: 'var(--border-color)' }}>|</span>
+          <span style={{ color: settlementAuditSummary.taxInvoiceIssuedCount === settlementAuditSummary.totalCount && settlementAuditSummary.totalCount > 0 ? '#10b981' : '#3b82f6' }}>
+            🧾 <strong>국세청 계산서수취:</strong> {settlementAuditSummary.taxInvoiceIssuedCount}/{settlementAuditSummary.totalCount}건 ({settlementAuditSummary.totalCount > 0 ? Math.round((settlementAuditSummary.taxInvoiceIssuedCount / settlementAuditSummary.totalCount) * 100) : 0}%)
+          </span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
@@ -1061,6 +1161,16 @@ export const PurchaseSettlementPage: React.FC = () => {
       </div>
 
       <div style={{ height: '80px' }} aria-hidden="true" />
+
+      {/* 🏛️ 국세청 매입세금계산서 대사 & 업데이트 모달 */}
+      <HometaxPurchaseInvoiceModal
+        isOpen={isHometaxModalOpen}
+        onClose={() => setIsHometaxModalOpen(false)}
+        selectedYm={selectedYm}
+        onSuccess={() => {
+          showToast(`국세청 매입세금계산서 승인번호가 ${selectedYm} 정산 대장에 성공적으로 반영되었습니다.`);
+        }}
+      />
     </div>
   );
 };

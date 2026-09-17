@@ -250,6 +250,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
             </h3>
           </div>
           <button
+            data-uia="btn-close-error-modal"
             onClick={onClose}
             style={{
               background: 'none',
@@ -466,6 +467,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
           
           <button
             type="button"
+            data-uia="btn-close-error-modal-confirm"
             onClick={onClose}
             style={{
               backgroundColor: '#334155',

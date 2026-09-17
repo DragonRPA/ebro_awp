@@ -28,7 +28,14 @@ const LEGACY_AGENT_HOME = 'C:\\KiyeunAgent';
 const TARGET_EXE_PATH = path.join(AGENT_HOME, 'eBroAgent.exe');
 const ARCHIVE_ROOT = path.join(AGENT_HOME, '문서고');
 const DRIVE_MIRROR_DIR = path.join(AGENT_HOME, 'drive_mirror');
+const HOMETAX_INVOICES_DIR = path.join(AGENT_HOME, 'hometax_invoices');
 const STATION_CONFIG_FILE = path.join(AGENT_HOME, 'station_config.json');
+
+try {
+  if (!fs.existsSync(HOMETAX_INVOICES_DIR)) {
+    fs.mkdirSync(HOMETAX_INVOICES_DIR, { recursive: true });
+  }
+} catch (e) {}
 
 let activeStationConfig = null;
 try {
@@ -199,6 +206,136 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ success: false, error: err.message }));
     });
+    return;
+  }
+
+  // 3-2-1. 🏛️ 국세청 홈택스 매입세금계산서 로컬 자동 수집 API (/api/hometax/purchase-invoices)
+  if (req.method === 'GET' && pathname === '/api/hometax/purchase-invoices') {
+    try {
+      if (!fs.existsSync(HOMETAX_INVOICES_DIR)) {
+        fs.mkdirSync(HOMETAX_INVOICES_DIR, { recursive: true });
+      }
+
+      const files = fs.readdirSync(HOMETAX_INVOICES_DIR)
+        .filter(f => /\.(xlsx|xls|xml)$/i.test(f))
+        .map(f => {
+          const filePath = path.join(HOMETAX_INVOICES_DIR, f);
+          const stat = fs.statSync(filePath);
+          return { name: f, path: filePath, mtime: stat.mtime.getTime() };
+        })
+        .sort((a, b) => b.mtime - a.mtime);
+
+      if (files.length === 0) {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          success: false,
+          message: `폴더(${HOMETAX_INVOICES_DIR})에 홈택스 엑셀 또는 XML 파일이 존재하지 않습니다. 파일을 해당 폴더에 저장해 주십시오.`,
+          items: []
+        }));
+        return;
+      }
+
+      const latestFile = files[0];
+      let items = [];
+
+      if (/\.xml$/i.test(latestFile.name)) {
+        // XML 파싱
+        const content = fs.readFileSync(latestFile.path, 'utf8');
+        const getTagVal = (tag) => {
+          const m = content.match(new RegExp(`<${tag}[^>]*>([^<]+)<\/${tag}>`, 'i'));
+          return m ? m[1].trim() : '';
+        };
+
+        const issueId = getTagVal('IssueID') || getTagVal('TaxInvoiceDocumentId');
+        const supplierBizNo = getTagVal('ID').replace(/[^0-9]/g, '');
+        const supplierName = getTagVal('NameText');
+        const writeDate = (getTagVal('CalculatedDateTime') || getTagVal('IssueDateTime') || '').slice(0, 10);
+        const supplyAmt = parseInt(getTagVal('ChargeTotalAmount') || '0', 10);
+        const vatAmt = parseInt(getTagVal('TaxTotalAmount') || '0', 10);
+        const totalAmt = parseInt(getTagVal('GrandTotalAmount') || String(supplyAmt + vatAmt), 10);
+
+        items.push({
+          taxInvoiceNo: issueId || `XML-${Date.now()}`,
+          writeDate: writeDate || new Date().toISOString().slice(0, 10),
+          supplierBizNo,
+          formattedSupplierBizNo: supplierBizNo.length === 10 ? `${supplierBizNo.slice(0,3)}-${supplierBizNo.slice(3,5)}-${supplierBizNo.slice(5)}` : supplierBizNo,
+          supplierName: supplierName || '공급자',
+          supplyAmount: supplyAmt,
+          vatAmount: vatAmt,
+          totalAmount: totalAmt,
+          itemName: getTagVal('DescriptionText') || undefined
+        });
+      } else {
+        // 엑셀 파싱 시도 (xlsx 모듈 필요 시 동적 require)
+        try {
+          const XLSX = require('xlsx');
+          const workbook = XLSX.readFile(latestFile.path);
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+          let headerIdx = -1;
+          let colMap = {};
+          for (let r = 0; r < Math.min(rawData.length, 15); r++) {
+            const rowStr = (rawData[r] || []).map(c => String(c).trim()).join(' ');
+            if (rowStr.includes('승인번호') || rowStr.includes('작성일자') || rowStr.includes('공급자')) {
+              headerIdx = r;
+              rawData[r].forEach((c, idx) => {
+                const s = String(c || '').replace(/\s/g, '');
+                if (s.includes('승인번호')) colMap['taxInvoiceNo'] = idx;
+                if (s.includes('작성일')) colMap['writeDate'] = idx;
+                if (s.includes('등록번호') || s.includes('사업자')) colMap['supplierBizNo'] = idx;
+                if (s.includes('상호')) colMap['supplierName'] = idx;
+                if (s.includes('공급가')) colMap['supplyAmount'] = idx;
+                if (s.includes('세액')) colMap['vatAmount'] = idx;
+                if (s.includes('합계')) colMap['totalAmount'] = idx;
+              });
+              break;
+            }
+          }
+
+          if (headerIdx !== -1) {
+            for (let r = headerIdx + 1; r < rawData.length; r++) {
+              const row = rawData[r];
+              if (!row) continue;
+              const bNo = colMap['supplierBizNo'] !== undefined ? String(row[colMap['supplierBizNo']]).replace(/[^0-9]/g, '') : '';
+              const invNo = colMap['taxInvoiceNo'] !== undefined ? String(row[colMap['taxInvoiceNo']]).trim() : '';
+              const name = colMap['supplierName'] !== undefined ? String(row[colMap['supplierName']]).trim() : '';
+              if (!bNo && !invNo && !name) continue;
+              if (name.includes('합계')) continue;
+
+              const sAmt = colMap['supplyAmount'] !== undefined ? (parseFloat(String(row[colMap['supplyAmount']]).replace(/,/g, '')) || 0) : 0;
+              const vAmt = colMap['vatAmount'] !== undefined ? (parseFloat(String(row[colMap['vatAmount']]).replace(/,/g, '')) || 0) : 0;
+              const tAmt = colMap['totalAmount'] !== undefined ? (parseFloat(String(row[colMap['totalAmount']]).replace(/,/g, '')) || (sAmt + vAmt)) : (sAmt + vAmt);
+
+              items.push({
+                taxInvoiceNo: invNo || `EXCEL-${r}`,
+                writeDate: colMap['writeDate'] !== undefined ? String(row[colMap['writeDate']]).replace(/[^0-9]/g, '').slice(0, 8) : '',
+                supplierBizNo: bNo,
+                formattedSupplierBizNo: bNo.length === 10 ? `${bNo.slice(0,3)}-${bNo.slice(3,5)}-${bNo.slice(5)}` : bNo,
+                supplierName: name || '공급자',
+                supplyAmount: Math.round(sAmt),
+                vatAmount: Math.round(vAmt),
+                totalAmount: Math.round(tAmt)
+              });
+            }
+          }
+        } catch (excelErr) {
+          console.warn('[eBroAgent] Excel parse error in agent:', excelErr);
+        }
+      }
+
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({
+        success: true,
+        fileName: latestFile.name,
+        filePath: latestFile.path,
+        items
+      }));
+    } catch (err) {
+      console.error('[eBroAgent] Hometax collection error:', err);
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: false, error: err.message }));
+    }
     return;
   }
 

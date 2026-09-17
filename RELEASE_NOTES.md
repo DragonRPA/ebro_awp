@@ -1,3 +1,54 @@
+## [v1.15.2.Build.87] - 2026-09-17 16:33
+
+### 🏛️ [국세청 사업자등록 진위확인(상호·대표자 원부 일치 검증) 및 매입세금계산서 자동 조회·1:1 대사 업데이트 시스템 구축]
+
+**배경 및 문제의식**:
+- 사장님 요청: "사업자등록증 이미지로 업로드 할 때, 사업자휴폐업 조회가 돌아갈 째, 사업자 명칭은 확인이 안되나? 국세청 매입세금계산서 자동 조회하여 업데이트하는 기능 추가"
+- **현상 및 원인 분석**:
+  1. 기존 엔드포인트(`api/nts-status.ts`)는 국세청의 단순 상태조회 API(`/v1/status`)만 호출하여 사업자등록번호 10자리로 계속/휴업/폐업 여부만 수신함. 국세청 개인정보보호 정책상 번호만으로 상호명을 역조회(SELECT)해 주는 공공 API는 미제공.
+  2. 국세청 공식 '사업자등록정보 진위확인 API (`POST /v1/validate`)'는 사업자번호(`b_no`), 개업일자(`start_dt`), 대표자명(`p_nm`), 상호명(`b_nm`) 4대 핵심 제원을 함께 전송받아 국세청 원부와 1:1 대조하여 "01 (일치)" / "02 (불일치)"를 판정해 줌.
+  3. 당사 Vision AI OCR(`analyzeBusinessLicense`)은 이미 상호, 대표자, 개업일, 사업자번호를 모두 100% 정밀 추출하고 있으므로, 이를 국세청 진위확인 API와 연동하여 실시간 원부 일치 검증이 가능함.
+  4. 월말 매입 정산(`PurchaseSettlementPage`)의 경우, 홈택스 전자세금계산서 매입목록(엑셀/XML)을 파싱하여 정산 대장과 1:1 대사하고 24자리 승인번호와 작성일자를 자동 갱신하는 원클릭 시스템 부재.
+
+**주요 구현 및 개선 내역 (전사 시스템 개발 표준 헌장 카테고리 I~VI 전면 준수)**:
+1. **국세청 사업자등록정보 진위확인 API 서버리스 엔드포인트 신설 (`api/nts-validate.ts`)**:
+   - `https://api.odcloud.kr/api/nts-businessman/v1/validate` 연동.
+   - 상호명, 대표자성명, 개업일자(8자리), 사업자번호(10자리) 정규화 전송.
+   - 공공데이터포털 API 연동 및 오프라인/체크섬 폴백 안전장치 탑재.
+2. **클라이언트 진위확인 서비스 확장 (`src/services/ntsBusinessService.ts`)**:
+   - `checkSingleNtsValidation()` 함수 및 `NtsValidationResult` 인터페이스 신설.
+3. **사업자등록증 모달 진위확인 배지 표출 (`src/components/BusinessLicenseModal.tsx`)**:
+   - Vision AI OCR 분석 완료 즉시 국세청 진위확인 API 자동 호출.
+   - 국세청 확인 카드에 `[✓ 상호·대표자 원부 일치]` (초록 배지) 또는 `[! 상호·대표자 불일치 주의]` (황색 배지)를 실시간 표출하여 상호 오타 및 위변조 원천 방지.
+4. **홈택스 전자세금계산서 매입 파서 엔진 구현 (`src/services/hometaxTaxInvoiceParser.ts`)**:
+   - 홈택스 엑셀(`.xlsx`, `.xls`) 및 국세청 표준 XML 전자세금계산서 파싱 지원.
+   - 24자리 국세청 승인번호, 작성일자, 발급일자, 공급자 사업자번호, 상호, 공급가액, 세액, 총합계금액 자동 추출.
+5. **데이터 모델 및 DB 스키마 확장 (`src/services/db.ts` & `schema.sql`)**:
+   - `PurchaseSettlement` 인터페이스에 세금계산서 필드 확장: `taxInvoiceNo`, `taxInvoiceIssueDate`, `taxInvoiceSupplyAmount`, `taxInvoiceVatAmount`, `taxInvoiceTotalAmount`, `taxInvoiceMatchStatus`, `taxInvoiceMatchedAt`.
+   - `schema.sql`에 `purchase_settlements` 및 `purchase_settlement_items` 테이블과 국세청 세금계산서 연동 컬럼 DDL 반영.
+6. **국세청 매입세금계산서 대사 & 업데이트 모달 스튜디오 (`src/components/HometaxPurchaseInvoiceModal.tsx`)**:
+   - 헌장 카테고리 III (무수식어 건조 UI, Gutenberg Z-Pattern 4단계 동선) 준수 모달 스튜디오 신설.
+   - 홈택스 엑셀/XML 드래그 앤 드롭 업로드 & [로컬 eBroAgent 수집] 버튼 제공.
+   - 공급자 사업자등록번호 및 상호명 기반 당월 매입 정산 건과 1:1 정밀 대사.
+   - 대사 상태 표출: `완전일치 (차액 ₩0)`, `금액차이 (차액 발생)`, `미등록 매입처`.
+   - 원클릭 `[매입 정산 승인번호 일괄 업데이트]`로 정산 대장 즉시 반영 (`await db.awaitPendingWrites()`).
+7. **매입 정산 페이지 대사 툴바 및 배지 연동 (`src/pages/PurchaseSettlementPage.tsx`)**:
+   - 상단 툴바에 `[국세청 매입세금계산서 대사/업데이트]` 액션 버튼 배치.
+   - 개별 정산 카드 헤더에 `계산서 수취 ({승인번호 8자리}...)` 배지 표출.
+   - 펼쳐진 상세 영역에 국세청 세금계산서 승인번호, 작성일자, 공급가, 세액 명세 블록 노출.
+   - 최하단 4단계 대차대조 검증식 바에 `🧾 국세청 계산서수취: X/Y건 (Z%)` 실시간 통계 연동.
+8. **로컬 사이드카 에이전트 수집 라우트 탑재 (`agent/eBroAgent.js`)**:
+   - `C:\eBroAgent\hometax_invoices\` 디렉터리 자동 생성 및 최신 세금계산서 파일 읽기 `/api/hometax/purchase-invoices` GET 라우트 추가.
+
+**검증 결과**:
+1. **프로덕션 빌드 검증 (`cmd /c npm run build`)**: TypeScript 컴파일 및 Vite 번들링 무결성 확인 (`built in 995ms`, Error 0건).
+2. **핵심 로직 단위 검증 (`scratch/test_nts_and_tax_invoice.cjs`)**:
+   - 사업자번호 모듈러 10 체크섬 검증: PASS
+   - 홈택스 전자세금계산서 XML 파싱: PASS
+   - 정산 대장 1:1 자동 매칭 및 대사 차액 ₩0 완전 일치 무결성 확정: PASS
+
+---
+
 ## [v1.15.1.Build.86] - 2026-09-17 10:55
 
 ### 🛡️ [임직원 로그인 불능 원인 전수 진단 및 로직 개편·상세 거부 원인 알림 체계 구축 및 시스템 무결성 정비]

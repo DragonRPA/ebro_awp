@@ -1526,8 +1526,8 @@ CREATE INDEX IF NOT EXISTS idx_print_queue_requested_at ON print_queue("requeste
 -- ==============================================================================
 CREATE TABLE IF NOT EXISTS privacy_access_logs (
     id                    TEXT PRIMARY KEY,
-    "userId"              TEXT NOT NULL,
-    "userName"            TEXT NOT NULL,
+    "userId"              TEXT,
+    "userName"            TEXT,
     "ipAddress"           TEXT,
     "actionType"          TEXT NOT NULL, -- LOGIN, LOGOUT, VIEW, CREATE, UPDATE, DELETE, EXCEL_DOWNLOAD, UNMASK_VIEW
     "targetMenu"          TEXT NOT NULL,
@@ -1536,6 +1536,7 @@ CREATE TABLE IF NOT EXISTS privacy_access_logs (
     "actionDetail"        TEXT,
     "isMasked"            BOOLEAN DEFAULT TRUE,
     "createdAt"           TEXT NOT NULL,
+    "updatedAt"           TEXT,
     "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
 );
 
@@ -1734,3 +1735,55 @@ CREATE TABLE IF NOT EXISTS draft_dispatch_orders (
     submitted_at          TEXT,
     submitted_by_id       TEXT
 );
+
+-- 8-1. 월말 매입 정산 테이블 (purchase_settlements)
+CREATE TABLE IF NOT EXISTS purchase_settlements (
+    id                    TEXT PRIMARY KEY,
+    "settlementYm"        TEXT NOT NULL,
+    "settlementType"      TEXT NOT NULL,
+    "vendorId"            TEXT,
+    "vendorName"          TEXT NOT NULL,
+    "totalAmount"         DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "paidAmount"          DOUBLE PRECISION NOT NULL DEFAULT 0,
+    status                TEXT NOT NULL DEFAULT 'PENDING',
+    "paymentDate"         TEXT,
+    "paymentMethod"       TEXT,
+    "bankAccount"         TEXT,
+    "bankTransactionId"   TEXT,
+    "confirmedAt"         TEXT,
+    "confirmedBy"         TEXT,
+    "itemCount"           INTEGER DEFAULT 0,
+    memo                  TEXT,
+    -- 국세청 전자세금계산서 매입 대사 컬럼
+    "taxInvoiceNo"            TEXT,
+    "taxInvoiceIssueDate"     TEXT,
+    "taxInvoiceSupplyAmount"  DOUBLE PRECISION,
+    "taxInvoiceVatAmount"     DOUBLE PRECISION,
+    "taxInvoiceTotalAmount"   DOUBLE PRECISION,
+    "taxInvoiceMatchStatus"   TEXT DEFAULT 'UNMATCHED',
+    "taxInvoiceMatchedAt"     TEXT,
+    "taxInvoiceRawSupplier"   TEXT,
+    "taxInvoiceBizNo"         TEXT,
+    "createdAt"           TEXT NOT NULL,
+    "updatedAt"           TEXT,
+    tenant_id             TEXT NOT NULL DEFAULT 'giyeun'
+);
+
+-- 8-2. 월말 매입 정산 항목 테이블 (purchase_settlement_items)
+CREATE TABLE IF NOT EXISTS purchase_settlement_items (
+    id                    TEXT PRIMARY KEY,
+    "settlementId"        TEXT NOT NULL REFERENCES purchase_settlements(id) ON DELETE CASCADE,
+    "sourceType"          TEXT NOT NULL,
+    "sourceId"            TEXT NOT NULL,
+    "itemDescription"     TEXT NOT NULL,
+    quantity              DOUBLE PRECISION NOT NULL DEFAULT 1,
+    "unitPrice"           DOUBLE PRECISION NOT NULL DEFAULT 0,
+    amount                DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "evidenceFileUrl"     TEXT,
+    "createdAt"           TEXT NOT NULL,
+    tenant_id             TEXT NOT NULL DEFAULT 'giyeun'
+);
+
+CREATE INDEX IF NOT EXISTS idx_psettlement_ym ON purchase_settlements("settlementYm");
+CREATE INDEX IF NOT EXISTS idx_psettlement_vendor ON purchase_settlements("vendorId");
+CREATE INDEX IF NOT EXISTS idx_psettlement_tax_inv ON purchase_settlements("taxInvoiceNo");

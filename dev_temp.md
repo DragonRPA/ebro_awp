@@ -1,5 +1,41 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## [완료] 국세청 사업자등록정보 진위확인(상호·대표자 원부 일치 검증) 및 매입세금계산서 자동 조회·1:1 대사 업데이트 시스템 구축
+- **요구사항**: "사업자등록증 이미지로 업로드 할 때, 사업자휴폐업 조회가 돌아갈 째, 사업자 명칭은 확인이 안되나? 국세청 매입세금계산서 자동 조회하여 업데이트하는 기능 추가"
+- **핵심 원인 규명 및 해결 내역**:
+  1. **사업자등록증 이미지 업로드 시 상호(명칭) 미확인 원인 해소**:
+     - 기존에는 국세청 공공데이터포털의 단순 상태조회 API(`/v1/status`)만 호출하여 사업자번호 10자리로 계속/휴업/폐업 여부만 조회하고 있었음 (국세청 보안정책상 번호만으로 상호 역조회 불가).
+     - Vision AI OCR(`analyzeBusinessLicense`)에서 이미 상호(`companyName`), 대표자(`representative`), 개업일(`openingDate`), 사업자번호(`bizRegNo`)가 추출되고 있으므로, 국세청 정식 **'사업자등록정보 진위확인 API (`POST /v1/validate`)'** 서버리스 엔드포인트(`api/nts-validate.ts`)를 신설 연동함.
+     - `src/services/ntsBusinessService.ts`에 `checkSingleNtsValidation()` 함수를 구축하여 OCR 추출 4대 제원을 국세청 전산 원부와 1:1 대조.
+     - `src/components/BusinessLicenseModal.tsx`에 **[✓ 상호·대표자 원부 일치]** 공적 인증 배지를 실시간 표출하도록 개편하여 상호 오타 및 위변조 방지.
+  2. **국세청 매입세금계산서 자동 조회 및 월말 매입 정산 1:1 대사 업데이트 엔진 신설**:
+     - `src/services/hometaxTaxInvoiceParser.ts` 신설: 홈택스 전자세금계산서 매입목록 엑셀(`.xlsx`, `.xls`) 및 표준 XML 파일 자동 파싱 엔진 구현. 24자리 국세청 승인번호, 작성일자, 공급자 사업자번호, 상호, 공급가액, 세액, 총액 추출.
+     - `src/services/db.ts` 및 `schema.sql`: `PurchaseSettlement`에 국세청 세금계산서 연동 필드(`taxInvoiceNo`, `taxInvoiceIssueDate`, `taxInvoiceSupplyAmount`, `taxInvoiceVatAmount`, `taxInvoiceTotalAmount`, `taxInvoiceMatchStatus`) 확장 및 DDL 반영.
+     - `src/components/HometaxPurchaseInvoiceModal.tsx` 신설: 헌장 카테고리 III (무수식어 건조 UI, Gutenberg Z-Pattern 4단계 동선) 준수 모달 스튜디오 구축. 홈택스 엑셀/XML 드래그 앤 드롭 및 공급자 사업자번호/상호 매칭, 완전일치 vs 금액차이 vs 미등록 1:1 대사 그리드 제공.
+     - `src/pages/PurchaseSettlementPage.tsx`: 상단 툴바에 `[국세청 매입세금계산서 대사/업데이트]` 버튼 배치, 개별 정산 카드 헤더에 `계산서 수취 ({승인번호 8자리}...)` 배지 표출, 상세 영역에 승인 명세 블록 노출, 최하단 대차대조 검증식에 계산서 수취율 통계 연동.
+     - `agent/eBroAgent.js`: 로컬 사이드카 에이전트에 `C:\eBroAgent\hometax_invoices\` 폴더 내 최신 세금계산서 파일을 자동 읽어오는 `/api/hometax/purchase-invoices` GET 엔드포인트 탑재.
+- **검증 결과**:
+  - `cmd /c npm run build`: 0 Error 995ms 클린 빌드 통과.
+  - `node scratch/test_nts_and_tax_invoice.cjs`: 체크섬 검증, XML 파싱, 1:1 대사 차액 ₩0 무결성 검증 100% 통과.
+
+## [완료] 전사 50개 메뉴 및 682회 대화형 버튼 이벤트 트리거 RWTT(실무 관통 테스트) 전수 검증 완결
+- **요구사항**: "확인된 문제점들은 보완하고, 모든 메뉴버튼을 눌러보는 테스트를 RWTT 호 전체 이벤트트리거가 걸려있는 버튼들을 눌러서 에러모달을 유발하는 원인이 있는지도 전수검사", "멈췄던 RWTT 를 재개해"
+- **적발 결함 및 시정 내역 (헌장 1.1, 1.2, 3.1, 5.2, 5.5, 5.6 전면 준수)**:
+  1. **`privacy_access_logs` 스키마 불일치 및 NOT NULL 제약조건 위반 해소**:
+     - `insertRow` 자동 주입 컬럼인 `updatedAt`이 원격 Supabase DB의 `privacy_access_logs`에 미생성되어 발생하던 PGRST204 에러 시정 (`dev_exec_ddl` RPC로 `updatedAt TEXT` 컬럼 추가).
+     - `userId`, `userName` 컬럼의 NOT NULL 제약조건을 완화하고, `src/services/db.ts`의 `sanitizeSupabasePayload`에서 `sys-anon` 기본값 보존 방어벽 구축 (`null` 변환 차단).
+     - `schema.sql` 단일 진실의 원천 동기화 완료.
+  2. **`SmartAsRequest.tsx` 입력 유효성 검증 알림 정상화**:
+     - 폼 미입력 시 시스템 오류 모달(`showErrorModal`)을 호출하던 문제를 인앱 토스트 알림(`showToast(..., 'error')`)으로 전환하여 불필요한 에러 모달 유발 제거.
+  3. **`ErrorModal.tsx` UIA 닫기 식별자 체계화**:
+     - 상단 X 버튼(`data-uia="btn-close-error-modal"`) 및 하단 확인 버튼(`data-uia="btn-close-error-modal-confirm"`) 식별자 부여.
+- **검증 결과 (Playwright E2E 브라우저 실환경 테스트 - `scratch/rwtt_menu_trigger_report.json`)**:
+  - **점검 메뉴 수**: 50 / 50개 메뉴 100% 순회 완료
+  - **테스트된 버튼 클릭 수**: 682회 인터랙티브 트리거 전수 클릭
+  - **치명적 시스템 결함 (Fatal Crash / DB Schema Defect)**: **0건**
+  - **사용자 입력 검증 알림 (Validation Alert / ErrorModal)**: **0건**
+  - **최종 판정**: **적정 (ALL PASS)**
+
 ## [완료] 임직원 로그인 불능 원인 전수 진단 및 로직 개편·상세 거부 원인 알림 체계 구축
 - **요구사항**: "긴급 이슈가 발생하여 RWTT 를 일시 중단했어. 나중에 재개하고, 먼저 일부 직원의 로그인 불능 문제가 발생했어. 로그인 로직 먼저 점검해서 로그인 불가 원인을 파악하고 로그인을 거부 할 때는, 원인 알림을 해줘"
 - **진단 및 근본 원인 분석 (Root Cause Analysis)**:
