@@ -4,6 +4,16 @@
 - **`ebro_awp`**: 현재 프로젝트 (고소작업대 AWP 렌탈 통합 ERP - 기연리프트)
 - **`bero_it`**: 신규 형제 프로젝트 (PC/IT 장비 렌탈 ERP, 도메인: `ooo.ebro.run`, 독립 Supabase DB)
 
+## [완료] 프로젝트 공식 명칭, GitHub 원격 저장소 및 Vercel 프로젝트 ebro_awp 단일 표준 일원화 완료
+- **요구사항**: "이 프로젝트의 명칭과 git 명칭을 모두 ebro_awp 로 변경하고 싶은데"
+- **조치 내역**:
+  1. GitHub 원격 저장소 명칭: `DragonRPA/Giyeun_Lift` ➔ `DragonRPA/ebro_awp` 변경 완료.
+  2. 로컬 Git Remote URL: `https://github.com/DragonRPA/ebro_awp.git` 동기화 완료.
+  3. `package.json`: `"name": "ebro_awp"`로 갱신.
+  4. `index.html`: 브라우저 타이틀 `ebro_awp ERP | 고소작업대 렌탈 관리 시스템` 통일.
+  5. Vercel 프로젝트명: `giyuen-lift` ➔ `ebro_awp` 변경 완료 (도메인 정상 유지).
+- **검증 결과**: `npm run build` 1.05s 클린 통과, Git/Vercel 정상 작동 확인.
+
 ## [완료] ebro_awp 영업 시연용 데모판(Demo Edition) 인프라 구축, 가상 골든 데이터셋 주입 및 원클릭 리셋 엔진 구현
 - **요구사항**: "또하나, 현재 ebro_awp 의 영업활동을 위한 데모판을 만들고 운영해야할것 같아. 신규고객미팅시 시연용도로 사용할거야", "https://supabase.com/dashboard/project/idfecoovqkjopgbezcpo"
 - **구축 완료 내역**:

@@ -1,3 +1,31 @@
+## [v1.16.0.Build.89] - 2026-09-17 21:36
+
+### 🏷️ [프로젝트 공식 명칭, GitHub 원격 저장소 및 Vercel 프로젝트 ebro_awp 단일 표준 일원화 완료]
+
+**배경 및 목적**:
+- 사장님 요청: "이 프로젝트의 명칭과 git 명칭을 모두 ebro_awp 로 변경하고 싶은데"
+- 공식 네이밍 아키텍처 수립:
+  - `ebro_awp`: 본 고소작업대 ERP 프로젝트 (기연리프트)
+  - `ebro_it` / `bero_it`: 신규 형제 프로젝트 (PC/IT 장비 렌탈 ERP)
+
+**주요 조치 내역**:
+1. **GitHub 원격 저장소 이름 변경 및 로컬 Remote 동기화**:
+   - GitHub 저장소 명칭: `DragonRPA/Giyeun_Lift` ➔ `DragonRPA/ebro_awp`로 공식 변경 완료.
+   - 로컬 Git 원격 주소 갱신: `git remote set-url origin https://github.com/DragonRPA/ebro_awp.git`
+   - Git Fetch & Push 무결성 통신 검증 완료.
+2. **프로젝트 내부 명칭 변경**:
+   - `package.json`: `"name": "giyeun-lift"` ➔ `"name": "ebro_awp"`로 갱신.
+   - `index.html`: 브라우저 타이틀을 `ebro_awp ERP | 고소작업대 렌탈 관리 시스템`으로 단일 표준화.
+3. **Vercel 프로젝트 명칭 변경**:
+   - Vercel CLI를 통해 프로젝트명을 `giyuen-lift` ➔ `ebro_awp`로 공식 리네임 완료.
+   - 도메인 바인딩(`ebro.run`, `awp-demo.ebro.run`, `*.ebro.run`) 100% 무중단 정상 유지 확인.
+
+**검증 결과**:
+- 빌드 검증: `npm run build` (`ebro_awp@0.0.0`) 1.05s 무오류 클린 통과.
+- Git & Vercel 정합성: 저장소 및 프로젝트 모두 `ebro_awp`로 완벽 일원화 확정.
+
+---
+
 ## [v1.16.0.Build.88] - 2026-09-17 21:31
 
 ### 🚀 [ebro_awp 신규 영업 시연용 독립 데모판(Demo Edition) 인프라 구축, 23개 테이블 골든 데이터셋 주입, 원클릭 리셋 엔진 및 awp-demo.ebro.run 전용 도메인 배포]
