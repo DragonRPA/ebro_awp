@@ -1,8 +1,10 @@
 // @ts-nocheck
 import { createClient } from '@supabase/supabase-js';
+import { isDemoMode, DEMO_SUPABASE_CONFIG } from './demoMode';
 
-const supabaseUrl = import.meta.env?.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env?.VITE_SUPABASE_ANON_KEY;
+const isDemo = isDemoMode();
+const supabaseUrl = isDemo ? DEMO_SUPABASE_CONFIG.url : import.meta.env?.VITE_SUPABASE_URL;
+const supabaseAnonKey = isDemo ? DEMO_SUPABASE_CONFIG.anonKey : import.meta.env?.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey)

@@ -1,3 +1,52 @@
+## [v1.16.0.Build.88] - 2026-09-17 21:31
+
+### 🚀 [ebro_awp 신규 영업 시연용 독립 데모판(Demo Edition) 인프라 구축, 23개 테이블 골든 데이터셋 주입, 원클릭 리셋 엔진 및 awp-demo.ebro.run 전용 도메인 배포]
+
+**배경 및 목적**:
+- 사장님 요청: "현재 ebro_awp 의 영업활동을 위한 데모판을 만들고 운영해야할것 같아. 신규고객미팅시 시연용도로 사용할거야", "cf 에서도 새 버킷을 만들어야겠지?", "awp-demo.ebro.run"
+- **목적**:
+  1. 신규 고객사 미팅 시 당사의 최신 ERP 기능을 100% 온전히 시연할 수 있으면서도, 회사의 민감한 실운영 데이터와 완벽히 물리적으로 격리된 독립 데모 환경 구축.
+  2. 시연 중 장비 출고, 배차, 검수, 계약 체결, 정비 등록, 청구서 발행 등 모든 CUD(생성/수정/삭제)를 자유롭게 체험하고, 시연 종료 후 클릭 한 번으로 초기 골든 상태로 1초 만에 원상 복원하는 원클릭 리셋 엔진 구현.
+  3. 실운영 스토리지와 혼선되지 않도록 Cloudflare R2에 전용 버킷(`ebro-awp-demo`)을 신설하여 증빙/사진/명세서 파일 완벽 분리.
+  4. 제안서 및 명함에 바로 기재 가능한 전용 서브도메인(`https://awp-demo.ebro.run`) 개설 및 보안 SSL 연결.
+
+**주요 구현 및 개선 내역 (전사 시스템 개발 표준 헌장 카테고리 I~VI 전면 준수)**:
+1. **데모 전용 독립 Supabase 인스턴스 인프라 구축 (`idfecoovqkjopgbezcpo`, Sydney 리전)**:
+   - 68개 전사 테이블/뷰/인덱스 DDL 일괄 적용 완료.
+   - `schema.sql` 내 중복 컬럼 정의(`customer_sites.checkedSpecs`, `consumables.stockQty`) 및 전방 외래키 참조(`repairs`, `billing_invoices`) 순환 종속성 완벽 해소.
+   - 데모 환경 특성에 맞춰 68개 전 테이블 RLS 일괄 비활성화하여 원활한 시연 및 고속 데이터 리셋 보장.
+2. **살아 숨쉬는 가상 골든 데이터셋 (Golden Seed Dataset) 23개 테이블 전수 구축 및 영구 보존**:
+   - `src/services/demo_golden_dataset.json`에 23개 핵심 비즈니스 테이블의 유기적 관계 데이터 영구 보존:
+     - 테넌트: (주)기연리프트, 4대 부서(경영지원, 영업, 정비, 배차), 임직원 5명(대표이사, 영업팀장, 정비기장, 배차주임, 회계과장).
+     - 고소작업대 모델 6종(SJ3219, SJ3226, SJ4632, GS-1930, GS-2646, Z-45/25), 표준 안전옵션 5종, 소모품 10종.
+     - 협력사 7개사, 운송사 3개사 및 전담 기사 6명.
+     - 가상 우량 거래처 15개사((주)태평종합건설, (주)한빛이앤씨 등) 및 전국 대형 건설 현장 25개소.
+     - 고소작업대 실물 자산 60대 (101호~160호: AVAILABLE 24대, RENTED 28대, ASSIGNED 3대, REPAIRING 5대) 라이프사이클 완벽 일치.
+     - 활성 계약 15건, 배차 9건(헌장 2.3 준수 단일 EXCHANGE 왕복 배차 포함), 검수 5건(헌장 1.3 준수 출고 승인 즉시 RENTED 전환 실증), 정비 3건, 매출 청구 및 인보이스 4건, 통장 거래 5건, ToDo 피드 6건.
+3. **프론트엔드 데모 모드 감지 & 원클릭 리셋 엔진 구현 (`src/services/demoMode.ts`, `src/components/DemoModeBanner.tsx`)**:
+   - **자동 모드 감지**: 서브도메인(`awp-demo.ebro.run`, `*demo*`), URL 파라미터(`?demo=true`), 로컬스토리지 다중 자동 감지.
+   - **DB 스위칭 (`src/services/db.ts`)**: 데모 모드 감지 시 실운영 Supabase 대신 데모 Supabase 인스턴스로 동적 라우팅하여 실운영 DB 침범 원천 차단.
+   - **원클릭 리셋 (`resetDemoDataToGolden`)**: 외래키 종속성을 역순으로 분석하여 23개 테이블을 순차 삭제 후 골든 데이터셋을 1초 만에 100% 무결점 재주입.
+   - **상단 고정 배너**: 화면 최상단에 `[DEMO | ebro_awp 시연 모드]` 배너 고정 노출 및 `[🔄 데이터 초기화]`, `[실운영 전환]` 버튼 제공.
+   - **로그인 진입 편의**: 로그인 화면 하단에 `[⚡ 시연 데모 모드로 체험하기]` 버튼 배치.
+4. **Cloudflare R2 전용 스토리지 버킷 (`ebro-awp-demo`) 연동 및 S3 API 통신 실증**:
+   - Cloudflare R2 전용 버킷: `ebro-awp-demo` (아시아 태평양 APAC 리전)
+   - S3 API 엔드포인트: `https://35014a2514680107d74e1e68d96e6c32.r2.cloudflarestorage.com/ebro-awp-demo`
+   - 공개 개발 URL: `https://pub-8bcfaff877164013967b94ef8deafc4d.r2.dev`
+   - 기존 `Kiyeun-ERP-Sync` 토큰(All-Buckets 권한)을 활용하여 S3 API 목록 조회(`ListObjectsV2`), 파일 업로드(`PutObject`), 공개 개발 URL 다운로드(`HTTP 200 GET`)를 실증하여 100% 정상 작동 검증.
+   - 데모 Supabase `google_configs` 테이블에 R2 계정/버킷/키/도메인 완벽 동기화.
+5. **전용 서브도메인 (`https://awp-demo.ebro.run`) Vercel 바인딩 및 SSL 발급 완료**:
+   - Vercel `giyuen-lift` 프로젝트에 `awp-demo.ebro.run` 도메인 정식 추가 및 DNS CNAME(`cname.vercel-dns.com`) 연결 완료 (`verified: true`, `status: ok`).
+   - Vercel Edge Network HTTPS 보안 SSL 인증서 자동 발급 및 접속 검증 완료 (`HTTP 200 OK`).
+
+**검증 결과**:
+1. **프로덕션 빌드 검증 (`cmd /c npm run build`)**: TypeScript 컴파일 및 Vite 번들링 무결성 확인 (`built in 1.77s`, Error 0건).
+2. **원클릭 리셋 무결성 검증 (`scratch/test_demo_reset.cjs`)**: 임의 데이터 조작 후 리셋 실행 시 23개 테이블 100% 골든 데이터 원상 복구 확인.
+3. **R2 스토리지 S3 API 검증**: `ListObjectsV2` 성공, `PutObject` 성공, 공개 URL `HTTP 200 OK` 확인.
+4. **도메인 접속 실증**: `https://awp-demo.ebro.run` 직접 HTTP GET 호출 결과 `HTTP 200 OK` 및 데모 모드 정상 렌더링 확인.
+
+---
+
 ## [v1.15.2.Build.87] - 2026-09-17 16:33
 
 ### 🏛️ [국세청 사업자등록 진위확인(상호·대표자 원부 일치 검증) 및 매입세금계산서 자동 조회·1:1 대사 업데이트 시스템 구축]

@@ -18,6 +18,8 @@ import { AgenticSettlementAutopilotPage } from './pages/AgenticSettlementAutopil
 import { AgenticAssetLifecyclePage } from './pages/AgenticAssetLifecyclePage';
 import { markErpReady, markErpStatus } from './services/appReadySignal';
 import { ErpReadinessBadge } from './components/ErpReadinessBadge';
+import { DemoModeBanner } from './components/DemoModeBanner';
+import { isDemoMode, enterDemoMode } from './services/demoMode';
 
 // 페이지 컴포넌트 임포트 (SSOT 언더바 파일명 통일)
 import { Dashboard } from './pages/Dashboard';
@@ -474,11 +476,13 @@ const App: React.FC = () => {
   // 1. 비로그인 상태: 로그인 화면 렌더링
   if (!currentUser) {
     return (
-      <div style={{
-        display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center',
-        background: 'linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%)', padding: '16px'
-      }}>
-        <div className="card" style={{ width: '100%', maxWidth: '380px', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%)' }}>
+        <DemoModeBanner />
+        <div style={{
+          display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center',
+          padding: '16px'
+        }}>
+          <div className="card" style={{ width: '100%', maxWidth: '380px', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)' }}>
           <div style={{ textAlign: 'center', marginBottom: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
               <img 
@@ -586,6 +590,33 @@ const App: React.FC = () => {
               {isLoggingIn ? '로그인 확인 중...' : '로그인'}
             </button>
           </form>
+
+          {/* 시연 데모 모드 체험 바로가기 */}
+          <div style={{ marginTop: '12px' }}>
+            <button
+              type="button"
+              onClick={enterDemoMode}
+              style={{
+                width: '100%',
+                padding: '11px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                fontWeight: '700',
+                backgroundColor: '#1e293b',
+                color: '#38bdf8',
+                border: '1px solid #0284c7',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Zap size={14} color="#38bdf8" />
+              <span>시연 데모 모드로 체험하기</span>
+            </button>
+          </div>
 
           {/* 접속 화면 모드 선택 (모바일 / PC) */}
           <div style={{
@@ -716,6 +747,7 @@ const App: React.FC = () => {
         {showPrivacyPolicy && (
           <PrivacyPolicyModal onClose={() => setShowPrivacyPolicy(false)} />
         )}
+        </div>
       </div>
     );
   }
@@ -737,6 +769,7 @@ const App: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', height: '100dvh', maxHeight: '100dvh', flexDirection: 'column', overflow: 'hidden' }}>
+      <DemoModeBanner />
       
       {/* 상단 네비게이션 헤더 */}
       <header style={{

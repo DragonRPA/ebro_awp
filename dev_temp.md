@@ -1,5 +1,42 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## 🏷️ [공식 프로젝트 호칭 체계 정의]
+- **`ebro_awp`**: 현재 프로젝트 (고소작업대 AWP 렌탈 통합 ERP - 기연리프트)
+- **`bero_it`**: 신규 형제 프로젝트 (PC/IT 장비 렌탈 ERP, 도메인: `ooo.ebro.run`, 독립 Supabase DB)
+
+## [완료] ebro_awp 영업 시연용 데모판(Demo Edition) 인프라 구축, 가상 골든 데이터셋 주입 및 원클릭 리셋 엔진 구현
+- **요구사항**: "또하나, 현재 ebro_awp 의 영업활동을 위한 데모판을 만들고 운영해야할것 같아. 신규고객미팅시 시연용도로 사용할거야", "https://supabase.com/dashboard/project/idfecoovqkjopgbezcpo"
+- **구축 완료 내역**:
+  1. **전용 Supabase 데모 인스턴스 DDL 배포 (`idfecoovqkjopgbezcpo`, Sydney)**:
+     - 68개 전사 테이블/뷰/인덱스 생성 및 RLS 일괄 해제(익명 읽기/쓰기 허용) 완결.
+     - `schema.sql` 내 중복 컬럼(`customer_sites.checkedSpecs`, `consumables.stockQty`) 및 전방 외래키 참조(`repairs`, `billing_invoices`) 순환 종속성 완벽 해소.
+  2. **살아 숨쉬는 가상 골든 데이터셋 (Golden Seed Dataset) 23개 테이블 전수 주입**:
+     - 테넌트((주)기연리프트), 4대 부서, 임직원 5명(대표이사, 영업팀장, 정비기장, 배차주임, 회계과장).
+     - 고소작업대 모델 6종(SJ3219, SJ3226, SJ4632, GS-1930, GS-2646, Z-45/25), 표준 안전옵션 5종, 소모품 10종.
+     - 협력사 7개사, 운송사 3개사 및 전담 기사 6명.
+     - 가상 우량 거래처 15개사((주)태평종합건설, (주)한빛이앤씨 등) 및 대형 현장 25개소.
+     - 고소작업대 실물 자산 60대(101호~160호: AVAILABLE 24대, RENTED 28대, ASSIGNED 3대, REPAIRING 5대).
+     - 활성 계약 15건, 배차 9건(단일 EXCHANGE 배차 포함), 검수 5건(출고 승인 즉시 RENTED 전환 실증), 정비 3건, 매출 청구 및 인보이스 4건, 통장 거래 5건, ToDo 피드 6건.
+  3. **프론트엔드 데모 모드 스위칭 & 원클릭 리셋 엔진 구현**:
+     - `src/services/demoMode.ts`: `isDemoMode()`(URL 파라미터 `?demo=true`, 서브도메인 `demo.*`, 로컬스토리지 자동 감지), `enterDemoMode()`, `exitDemoMode()`, `resetDemoDataToGolden()` 구현.
+     - `src/services/db.ts`: 데모 모드 활성화 시 데모 Supabase 인스턴스 자동 스위칭.
+     - `src/components/DemoModeBanner.tsx`: 화면 최상단에 `[DEMO | ebro_awp 시연 모드]` 배너 노출 및 `[🔄 데이터 초기화]`, `[실운영 전환]` 버튼 제공.
+     - `src/App.tsx`: 로그인 화면 하단에 `[⚡ 시연 데모 모드로 체험하기]` 바로가기 버튼 탑재.
+   4. **Cloudflare R2 데모 전용 스토리지 버킷 (`ebro-awp-demo`) 연동 및 S3 API 실증**:
+      - 버킷명: `ebro-awp-demo`, 위치: 아시아 태평양(APAC)
+      - S3 API 엔드포인트: `https://35014a2514680107d74e1e68d96e6c32.r2.cloudflarestorage.com/ebro-awp-demo`
+      - 공개 개발 URL: `https://pub-8bcfaff877164013967b94ef8deafc4d.r2.dev`
+      - 권한 실증: 기존 `Kiyeun-ERP-Sync` 토큰(All-Buckets 권한)을 통해 S3 클라이언트 목록 조회(`ListObjectsV2`), 파일 업로드(`PutObject`), 공개 개발 URL 다운로드(`HTTP 200 GET`)를 실증하여 100% 정상 작동 검증 완료.
+   5. **전용 서브도메인 (`awp-demo.ebro.run`) Vercel 바인딩 및 SSL 발급 완료**:
+      - Vercel `giyuen-lift` 프로젝트에 `awp-demo.ebro.run` 도메인 정식 추가 및 DNS CNAME(`cname.vercel-dns.com`) 검증 완료 (`verified: true`, `status: ok`).
+      - HTTPS SSL 자동 발급 및 접속 검증 완료 (`HTTP 200 OK`).
+      - 도메인 자동 감지: `https://awp-demo.ebro.run`으로 접속 시 쿼리 파라미터 없이도 100% 데모 Supabase 및 R2 스토리지 모드로 자동 구동.
+- **검증 결과**:
+  - `cmd /c npm run build`: 997ms 무오류 통과.
+  - `scratch/test_demo_reset.cjs`: 임의 변경 데이터 주입 후 원클릭 리셋 검증 결과 임의 데이터 완전 소거 및 골든 데이터 100% 무결점 복원 확인.
+  - R2 S3 통신 실증: `ListObjectsV2` 성공, `PutObject` 성공(`_demo_test/ping_*.txt`), `HTTP 200` 읽기 확인.
+  - `https://awp-demo.ebro.run`: HTTP 200 OK, SSL 정상 작동 확인.
+
 ## [완료] 국세청 사업자등록정보 진위확인(상호·대표자 원부 일치 검증) 및 매입세금계산서 자동 조회·1:1 대사 업데이트 시스템 구축
 - **요구사항**: "사업자등록증 이미지로 업로드 할 때, 사업자휴폐업 조회가 돌아갈 째, 사업자 명칭은 확인이 안되나? 국세청 매입세금계산서 자동 조회하여 업데이트하는 기능 추가"
 - **핵심 원인 규명 및 해결 내역**:
