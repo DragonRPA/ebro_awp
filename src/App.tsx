@@ -486,17 +486,17 @@ const App: React.FC = () => {
           <div style={{ textAlign: 'center', marginBottom: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
               <img 
-                src={currentTenant?.ciUrl || currentTenant?.logoUrl || '/images/ci/giyeun_ci.png'} 
+                src={isDemoMode() ? '/favicon.svg' : (currentTenant?.ciUrl || currentTenant?.logoUrl || '/images/ci/giyeun_ci.png')} 
                 alt="CI" 
                 style={{ height: '32px', maxWidth: '110px', objectFit: 'contain' }} 
                 onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
               />
               <h1 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--primary)', letterSpacing: '-0.5px', margin: 0 }}>
-                {currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || '기연리프트'}
+                {isDemoMode() ? 'ebro_awp' : (currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || '기연리프트')}
               </h1>
             </div>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', fontWeight: '600', letterSpacing: '0.3px' }}>
-              e-Bro ERP System
+              {isDemoMode() ? '고소작업대 ERP 시연 데모' : 'e-Bro ERP System'}
             </p>
           </div>
 
@@ -552,71 +552,57 @@ const App: React.FC = () => {
             </div>
 
             {loginErrorMsg && (
-              <div 
-                data-uia="login-error-alert"
-                style={{
-                backgroundColor: 'rgba(239, 68, 68, 0.08)',
+              <div style={{
+                backgroundColor: '#fee2e2',
                 border: '1px solid #ef4444',
-                borderRadius: '8px',
-                padding: '10px 14px',
-                color: '#f87171',
-                fontSize: '12.5px',
-                lineHeight: '1.5',
-                textAlign: 'left',
-                fontWeight: '600',
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '8px',
-                whiteSpace: 'pre-line'
+                color: '#b91c1c',
+                padding: '10px 12px',
+                borderRadius: '6px',
+                fontSize: '13px',
+                lineHeight: '1.4'
               }}>
-                <AlertTriangle size={16} color="#ef4444" style={{ flexShrink: 0, marginTop: '2px' }} />
-                <span>{loginErrorMsg}</span>
+                {loginErrorMsg}
               </div>
             )}
 
-            <button 
-              type="submit" 
-              className="btn-primary" 
+            <button
+              type="submit"
               disabled={isLoggingIn}
-              style={{ 
-                padding: '12px', 
-                fontSize: '16px', 
-                fontWeight: '600', 
-                marginTop: '4px',
-                cursor: isLoggingIn ? 'not-allowed' : 'pointer',
-                opacity: isLoggingIn ? 0.7 : 1
-              }}
+              className="btn btn-primary"
+              style={{ width: '100%', padding: '12px', marginTop: '8px', fontSize: '15px', fontWeight: '700' }}
             >
               {isLoggingIn ? '로그인 확인 중...' : '로그인'}
             </button>
           </form>
 
-          {/* 시연 데모 모드 체험 바로가기 */}
-          <div style={{ marginTop: '12px' }}>
-            <button
-              type="button"
-              onClick={enterDemoMode}
-              style={{
-                width: '100%',
-                padding: '11px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                fontWeight: '700',
-                backgroundColor: '#1e293b',
-                color: '#38bdf8',
-                border: '1px solid #0284c7',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <Zap size={14} color="#38bdf8" />
-              <span>시연 데모 모드로 체험하기</span>
-            </button>
-          </div>
+          {/* 시연 데모 모드 체험 버튼: 오직 데모 도메인(awp-demo.ebro.run)에서만 노출하며, 기연리프트 실운영 화면에서는 100% 숨김 */}
+          {isDemoMode() && (
+            <div style={{ marginTop: '12px' }}>
+              <button
+                type="button"
+                onClick={enterDemoMode}
+                style={{
+                  width: '100%',
+                  padding: '11px',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  backgroundColor: '#1e293b',
+                  color: '#38bdf8',
+                  border: '1px solid #0284c7',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <Zap size={14} color="#38bdf8" />
+                <span>시연 데모 모드로 체험하기</span>
+              </button>
+            </div>
+          )}
 
           {/* 접속 화면 모드 선택 (모바일 / PC) */}
           <div style={{

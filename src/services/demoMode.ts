@@ -10,25 +10,54 @@ export const DEMO_SUPABASE_CONFIG = {
   projectRef: 'idfecoovqkjopgbezcpo'
 };
 
+/** 실운영 프로덕션 도메인 판별 (기연리프트 등 실제 운영사 도메인) */
+export function isProductionDomain(): boolean {
+  if (typeof window === 'undefined') return false;
+  const hostname = window.location.hostname.toLowerCase();
+  
+  // demo가 포함된 도메인은 절대 프로덕션 도메인이 아님
+  if (hostname.includes('demo')) return false;
+
+  // 실운영 도메인 (기연리프트 메인, Vercel 기본 주소 등)
+  return (
+    hostname === 'ebro.run' ||
+    hostname === 'giyuenlift.ebro.run' ||
+    hostname === 'giyeun-lift.vercel.app' ||
+    hostname === 'giyuen-lift.vercel.app' ||
+    hostname === 'ebro_awp.vercel.app' ||
+    hostname === 'ebro-awp.vercel.app' ||
+    (hostname.endsWith('.ebro.run') && !hostname.includes('demo'))
+  );
+}
+
 /** 현재 데모 모드 실행 여부 판별 */
 export function isDemoMode(): boolean {
   if (typeof window === 'undefined') return false;
 
-  // 1. URL 쿼리 파라미터 ?demo=true 감지 시 영속화
-  const searchParams = new URLSearchParams(window.location.search);
-  if (searchParams.get('demo') === 'true' || searchParams.get('mode') === 'demo') {
-    localStorage.setItem('ebro_demo_mode', 'true');
-    return true;
+  // 1. 실운영 도메인에서는 어떠한 경우에도 데모 모드 진입 불가 (기연리프트 실운영 100% 보장)
+  if (isProductionDomain()) {
+    try { localStorage.removeItem('ebro_demo_mode'); } catch (e) {}
+    return false;
   }
 
-  // 2. 도메인 호스트명 감지 (demo.ebro.run, awp-demo.ebro.run 등)
-  const hostname = window.location.hostname;
+  const hostname = window.location.hostname.toLowerCase();
+
+  // 2. 데모 전용 도메인 (awp-demo.ebro.run 등) 접속 시 무조건 100% 데모 모드
   if (hostname.includes('demo') || hostname.includes('preview')) {
     return true;
   }
 
-  // 3. 로컬 스토리지 확인
-  return localStorage.getItem('ebro_demo_mode') === 'true';
+  // 3. 로컬 개발 환경(localhost)에서 ?demo=true 쿼리 파라미터 감지
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('demo') === 'true' || searchParams.get('mode') === 'demo') {
+      localStorage.setItem('ebro_demo_mode', 'true');
+      return true;
+    }
+    return localStorage.getItem('ebro_demo_mode') === 'true';
+  }
+
+  return false;
 }
 
 /** 데모 모드 활성화 및 대표이사 계정 자동 세팅 */
