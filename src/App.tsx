@@ -486,17 +486,17 @@ const App: React.FC = () => {
           <div style={{ textAlign: 'center', marginBottom: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
               <img 
-                src={isDemoMode() ? '/favicon.svg' : (currentTenant?.ciUrl || currentTenant?.logoUrl || '/images/ci/giyeun_ci.png')} 
+                src={isDemoMode() ? '/images/ci/ebro_rental_ci.svg' : (currentTenant?.ciUrl || currentTenant?.logoUrl || '/images/ci/giyeun_ci.png')} 
                 alt="CI" 
-                style={{ height: '32px', maxWidth: '110px', objectFit: 'contain' }} 
+                style={{ height: '36px', maxWidth: '130px', objectFit: 'contain' }} 
                 onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
               />
               <h1 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--primary)', letterSpacing: '-0.5px', margin: 0 }}>
-                {isDemoMode() ? 'ebro_awp' : (currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || '기연리프트')}
+                {isDemoMode() ? '(주)e-Bro렌탈' : (currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || '기연리프트')}
               </h1>
             </div>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', fontWeight: '600', letterSpacing: '0.3px' }}>
-              {isDemoMode() ? '고소작업대 ERP 시연 데모' : 'e-Bro ERP System'}
+              {isDemoMode() ? 'e-Bro AWP 고소작업대 ERP' : 'e-Bro ERP System'}
             </p>
           </div>
 
@@ -780,18 +780,18 @@ const App: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {/* 🏢 테넌트 회사 CI 이미지 (회사이름 바로 왼쪽) */}
             <img 
-              src={currentTenant?.ciUrl || currentTenant?.logoUrl || '/images/ci/giyeun_ci.png'} 
+              src={isDemoMode() ? '/images/ci/ebro_rental_ci.svg' : (currentTenant?.ciUrl || currentTenant?.logoUrl || '/images/ci/giyeun_ci.png')} 
               alt="CI" 
-              style={{ height: '32px', maxWidth: '90px', objectFit: 'contain', flexShrink: 0 }} 
+              style={{ height: '32px', maxWidth: isDemoMode() ? '110px' : '90px', objectFit: 'contain', flexShrink: 0 }} 
               onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
             />
             {/* 🏢 1열: 고객회사명(강조) / 2열: e-Bro ERP System (작은 글씨) */}
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <span style={{ fontSize: '18px', fontWeight: '900', color: 'var(--text-primary)', letterSpacing: '-0.5px', whiteSpace: 'nowrap', lineHeight: 1.15 }}>
-                {currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || '기연리프트'}
+                {currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || (isDemoMode() ? '(주)e-Bro렌탈' : '기연리프트')}
               </span>
               <span style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--primary)', letterSpacing: '0.2px', whiteSpace: 'nowrap', marginTop: '2px' }}>
-                e-Bro ERP System
+                {isDemoMode() ? 'e-Bro AWP ERP' : 'e-Bro ERP System'}
               </span>
             </div>
           </div>

@@ -1,0 +1,26 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 70" fill="none">
+  <defs>
+    <linearGradient id="ebroGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="liftGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#60a5fa"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(10, 8)">
+    <path d="M26 2 L48 15 L48 41 L26 54 L4 41 L4 15 Z" fill="url(#ebroGrad)" opacity="0.15" stroke="url(#ebroGrad)" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M14 38 L38 18" stroke="url(#liftGrad)" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M38 38 L14 18" stroke="url(#liftGrad)" stroke-width="3.5" stroke-linecap="round"/>
+    <rect x="11" y="13" width="30" height="4" rx="2" fill="#38bdf8"/>
+    <rect x="13" y="41" width="26" height="4" rx="2" fill="#2563eb"/>
+  </g>
+
+  <g transform="translate(72, 45)">
+    <text x="0" y="0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Pretendard, sans-serif" font-size="28" font-weight="900" letter-spacing="-0.8px" fill="#ffffff">e<tspan fill="#38bdf8">-</tspan>Bro</text>
+    <text x="86" y="0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Pretendard, sans-serif" font-size="24" font-weight="800" letter-spacing="-0.5px" fill="#93c5fd">렌탈</text>
+  </g>
+</svg>
