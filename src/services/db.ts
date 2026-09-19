@@ -374,8 +374,8 @@ export interface Customer {
   paymentTermDays?: number; // Net Terms 결제기한 (발행 후 N일)
   bankAccounts?: CustomerBankAccount[]; // 고객사 다중 계좌 목록
   
-  // 🌟 [신규] 고객사 기본 옵션/보양/요구사양 자동 재사용 마스터
-  defaultPaidOptions?: string;       // 기본 유상옵션 (예: '협착방지봉 4EA, 소화기함')
+  // 🌟 [신규] 고객사 기본 옵션/보양/요구사양 자동 재사용 마스터 (수량 제외 순수 품목명)
+  defaultPaidOptions?: string;       // 기본 유상옵션 품목 (예: '협착난간대, 상부덮개, 소화기함' - 장비 대수 비례 수량 표기 제외)
   defaultProtection?: string;        // 기본 보양작업 (예: '4면 철망 보양, 탑승구 사다리')
   defaultCheckedSpecs?: Record<string, boolean>; // 기본 요구 사양 체크 상태
   specialNotes?: string;             // 고객사 특이사항 메모 (예: '재임대 출고건으로 운반비 및 배차 한솔렌탈 부담')
@@ -421,8 +421,8 @@ export interface CustomerSite {
   email: string;
   isActive?: boolean; // 사용/미사용 (공사 완공 시 미사용)
   
-  // 🌟 [신규] 현장 전용 옵션/보양/요구사양 (미입력 시 고객사 기본값 자동 상속)
-  paidOptions?: string;              // 현장 전용 유상옵션
+  // 🌟 [신규] 현장 전용 옵션/보양/요구사양 (미입력 시 고객사 기본값 자동 상속, 수량 제외 순수 품목명)
+  paidOptions?: string;              // 현장 전용 유상옵션 품목 (장비 대수 비례 수량 표기 제외)
   protection?: string;               // 현장 전용 보양작업
   checkedSpecs?: Record<string, boolean>; // 현장 전용 요구 사양 체크 상태
   billingDay?: number;               // 청구서(세금계산서) 마감일

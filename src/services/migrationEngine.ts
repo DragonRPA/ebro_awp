@@ -919,12 +919,14 @@ export function parseInitialExcelWorkbook(
       custEntity.specialNotes = custEntity.specialNotes ? `${custEntity.specialNotes} | ${memo}` : memo;
       const optionMatch = memo.match(/(협착\s*난간대[^\),]*)/);
       if (optionMatch) {
-        const optText = optionMatch[1].trim();
-        if (!custEntity.defaultPaidOptions) custEntity.defaultPaidOptions = [];
-        if (Array.isArray(custEntity.defaultPaidOptions)) {
-          if (!custEntity.defaultPaidOptions.includes(optText)) custEntity.defaultPaidOptions.push(optText);
-        } else if (typeof custEntity.defaultPaidOptions === 'string') {
-          custEntity.defaultPaidOptions = custEntity.defaultPaidOptions ? `${custEntity.defaultPaidOptions}, ${optText}` : optText;
+        const optText = cleanOptionItem(optionMatch[1].trim());
+        if (optText) {
+          if (!custEntity.defaultPaidOptions) custEntity.defaultPaidOptions = [];
+          if (Array.isArray(custEntity.defaultPaidOptions)) {
+            if (!custEntity.defaultPaidOptions.includes(optText)) custEntity.defaultPaidOptions.push(optText);
+          } else if (typeof custEntity.defaultPaidOptions === 'string') {
+            custEntity.defaultPaidOptions = custEntity.defaultPaidOptions ? normalizeOptionList(`${custEntity.defaultPaidOptions}, ${optText}`) : optText;
+          }
         }
       }
     }
@@ -2818,6 +2820,81 @@ export interface DispatchAnalysisResult {
   };
 }
 
+/**
+ * 🛠️ [옵션 수량 제거 및 순수 품목명 정규화 헬퍼]
+ * 출고요청 본문이나 엑셀 비고에서 장비 대수(n대)에 비례하여 발생한 수량 표기
+ * (예: '협착난간대 * 6', '감지봉 4EA', '중간발판 3개', '(4EA)', '과상승방지봉(4)', '2개씩', '2대씩', 'x 2')를
+ * 정밀하게 제거하고 순수 품목/사양명만 남깁니다.
+ * 면수 규격('3면', '4면'), 길이 규격('20m'), 호환 기종('GS1930용') 등 고유 사양은 완벽히 보존됩니다.
+ */
+export function cleanOptionItem(raw: string): string {
+  if (!raw) return '';
+  let str = String(raw).trim();
+  if (!str || str === '-' || str === '없음' || str === 'NONE') return '';
+
+  // 1. 괄호 속 순수 수량 패턴 제거: (4EA), (4), (2개), ( 3 대 ) 등. 단, (소), (아크릴), (GS1930용) 등 일반 텍스트는 보존
+  str = str.replace(/\(\s*\d+\s*(?:개|대|EA|ea|Ea|세트|set|SET|대씩|개씩|씩)?\s*\)/gi, '');
+
+  // 2. 곱하기 수량 표기 제거: * 6, * 1대, * 4 ea, x 2, X 3, × 2 등
+  str = str.replace(/[\s\-_/]*[*xX×]\s*\d+\s*(?:개|대|EA|ea|Ea|세트|set|SET|대씩|개씩|씩)?(?=[\s\(\)\[\],|/]|$)/gi, ' ');
+
+  // 3. 단어 끝/중간의 수량 단위 제거: 2개, 3대, 4EA, 5ea, 1세트, 2개씩, 2대씩 등 (단, 3면, 4면 등 '면'이나 20m 등 'm'은 제외)
+  str = str.replace(/[\s:：\-~]?\s*\d+\s*(?:개|대|EA|ea|Ea|세트|set|SET|개씩|대씩)(?=[\s\(\)\[\],|/]|$)/gi, '');
+
+  // 4. 감지봉4, 감지봉 4, 센서 4 등 명사 뒤에 붙은 단순 수량 숫자 제거 (단, GS1930, T50 등 영문포함 식별자는 보존)
+  str = str.replace(/(감지봉|과상승방지봉|센서|옵션)\s*[:：\-~]?\s*\d+(?=[\s\(\)\[\],|/]|$)/gi, '$1');
+
+  // 5. 끝에 남은 순수 숫자 제거 (예: '협착 2' -> '협착', 단 '3면'이나 '20m' 같은 단위가 없는 순수 숫자만)
+  str = str.replace(/[\s:：\-~]+\d+$/g, '');
+
+  // 6. 불필요한 선행/후행 기호 및 공백 정리
+  str = str.replace(/^[\s\-:,·•*~/]+|[\s\-:,·•*~/]+$/g, '').trim();
+
+  // 7. 빈 괄호 '()' 정리
+  str = str.replace(/\(\s*\)/g, '').trim();
+
+  // 8. 명칭 띄어쓰기 정규화: '협착 난간대' -> '협착난간대'
+  str = str.replace(/협착\s*난간대/g, '협착난간대');
+
+  return str;
+}
+
+/**
+ * 🛠️ [옵션 목록 일괄 정규화 및 중복 제거]
+ * 콤마/슬래시/파이프/줄바꿈 또는 배열로 입력된 복수 옵션을 각각 순수 품목명으로 정제한 후
+ * Set을 통해 중복을 완벽히 제거하여 표준 콤마 구분 문자열로 결합합니다.
+ */
+export function normalizeOptionList(rawOptions: string | string[] | undefined | null): string {
+  if (!rawOptions) return '';
+  let items: string[] = [];
+  if (Array.isArray(rawOptions)) {
+    items = rawOptions.map(String);
+  } else if (typeof rawOptions === 'string') {
+    const trimmed = rawOptions.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        items = Array.isArray(parsed) ? parsed.map(String) : trimmed.split(/[,|\/\n]/);
+      } catch {
+        items = trimmed.split(/[,|\/\n]/);
+      }
+    } else {
+      items = trimmed.split(/[,|\/\n]/);
+    }
+  } else {
+    items = [String(rawOptions)];
+  }
+
+  const set = new Set<string>();
+  for (const item of items) {
+    const cleaned = cleanOptionItem(item);
+    if (cleaned && cleaned !== '-' && cleaned !== '없음' && cleaned !== 'NONE') {
+      set.add(cleaned);
+    }
+  }
+  return Array.from(set).join(', ');
+}
+
 export function parseDispatchHistoryText(rawText: string): ParsedDispatchPost[] {
   const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
   const postHeaderRe = /^(\d{4}년\s*\d{1,2}월\s*\d{1,2}일\s*(?:오전|오후)\s*\d{1,2}:\d{2})(?:\s*게시글)?$/;
@@ -2940,17 +3017,19 @@ export function parseDispatchHistoryText(rawText: string): ParsedDispatchPost[] 
         // 현장명 괄호 안의 옵션/스펙 추출 (예: '용인 SK하이닉스 / UT동(소화기 T50)')
         const siteOptMatch = rawSite.match(/\(([^)]*(?:소화기|보양|협착|발판|센서)[^)]*)\)/i);
         if (siteOptMatch) {
-          const extOpt = siteOptMatch[1].trim();
-          if (extOpt.includes('소화기')) {
-            matchedSpecs['spec13'] = true;
-            if (!paidOptions.includes(extOpt)) paidOptions = paidOptions ? `${paidOptions}, ${extOpt}` : extOpt;
-          } else if (extOpt.includes('보양')) {
-            matchedSpecs['spec11'] = true;
-            matchedSpecs['spec12'] = true;
-            if (!protection.includes(extOpt)) protection = protection ? `${protection}, ${extOpt}` : extOpt;
-          } else {
-            if (extOpt.includes('협착') || extOpt.includes('센서')) matchedSpecs['spec3'] = true;
-            if (!paidOptions.includes(extOpt)) paidOptions = paidOptions ? `${paidOptions}, ${extOpt}` : extOpt;
+          const extOpt = cleanOptionItem(siteOptMatch[1]);
+          if (extOpt) {
+            if (extOpt.includes('소화기')) {
+              matchedSpecs['spec13'] = true;
+              if (!paidOptions.includes(extOpt)) paidOptions = paidOptions ? `${paidOptions}, ${extOpt}` : extOpt;
+            } else if (extOpt.includes('보양')) {
+              matchedSpecs['spec11'] = true;
+              matchedSpecs['spec12'] = true;
+              if (!protection.includes(extOpt)) protection = protection ? `${protection}, ${extOpt}` : extOpt;
+            } else {
+              if (extOpt.includes('협착') || extOpt.includes('센서')) matchedSpecs['spec3'] = true;
+              if (!paidOptions.includes(extOpt)) paidOptions = paidOptions ? `${paidOptions}, ${extOpt}` : extOpt;
+            }
           }
           rawSite = rawSite.replace(siteOptMatch[0], '').trim();
         }
@@ -2968,29 +3047,32 @@ export function parseDispatchHistoryText(rawText: string): ParsedDispatchPost[] 
         taxBillEmail = extractEmails(val || l) || val;
       } else if (/^(?:\d+[\.\)]\s*)?(?:모델명?|장비명?|기종)/i.test(l)) {
         const modelVal = val || l.replace(/^(?:\d+[\.\)]\s*)?(?:모델명?|장비명?|기종)\s*[:：]?\s*/i, '');
+        const cleanedModelOpt = cleanOptionItem(modelVal);
         if (modelVal.includes('중간발판') || modelVal.includes('발판')) {
           if (!paidOptions.includes('중간발판')) {
-            paidOptions = paidOptions ? `${paidOptions}, ${modelVal}` : modelVal;
+            paidOptions = paidOptions ? `${paidOptions}, ${cleanedModelOpt || '중간발판'}` : (cleanedModelOpt || '중간발판');
           }
         } else if (modelVal.includes('보양제') || modelVal.includes('보양')) {
           matchedSpecs['spec11'] = true;
           matchedSpecs['spec12'] = true;
-          if (!protection.includes(modelVal)) {
-            protection = protection ? `${protection}, ${modelVal}` : modelVal;
+          if (!protection.includes(cleanedModelOpt)) {
+            protection = protection ? `${protection}, ${cleanedModelOpt}` : cleanedModelOpt;
           }
         } else if (modelVal.includes('협착') || modelVal.includes('난간대')) {
           matchedSpecs['spec3'] = true;
-          if (!paidOptions.includes(modelVal)) {
-            paidOptions = paidOptions ? `${paidOptions}, ${modelVal}` : modelVal;
+          if (!paidOptions.includes(cleanedModelOpt)) {
+            paidOptions = paidOptions ? `${paidOptions}, ${cleanedModelOpt || '협착난간대'}` : (cleanedModelOpt || '협착난간대');
           }
         }
       } else if (/^(?:\d+[\.\)]\s*)?(?:유상\s*옵션|유상옵션|옵션|무상\s*옵션|무상옵션)/i.test(l) && !l.includes('요구') && !l.includes('스펙') && !l.includes('글 옵션')) {
-        const optVal = val || l.replace(/^(?:\d+[\.\)]\s*)?(?:유상\s*옵션|유상옵션|옵션|무상\s*옵션|무상옵션)\s*[:：]?\s*/i, '');
+        const rawOptVal = val || l.replace(/^(?:\d+[\.\)]\s*)?(?:유상\s*옵션|유상옵션|옵션|무상\s*옵션|무상옵션)\s*[:：]?\s*/i, '');
+        const optVal = normalizeOptionList(rawOptVal);
         if (optVal && optVal !== '없음' && optVal !== '-') {
           paidOptions = paidOptions ? `${paidOptions}, ${optVal}` : optVal;
         }
       } else if (/^(?:\d+[\.\)]\s*)?(?:보양\s*작업\s*조건|보양작업조건|보양\s*작업|보양작업|보양)/i.test(l)) {
-        const protVal = val || l.replace(/^(?:\d+[\.\)]\s*)?(?:보양\s*작업\s*조건|보양작업조건|보양\s*작업|보양작업|보양)\s*[:：]?\s*/i, '');
+        const rawProtVal = val || l.replace(/^(?:\d+[\.\)]\s*)?(?:보양\s*작업\s*조건|보양작업조건|보양\s*작업|보양작업|보양)\s*[:：]?\s*/i, '');
+        const protVal = normalizeOptionList(rawProtVal);
         if (protVal && protVal !== '없음' && protVal !== '-') {
           matchedSpecs['spec11'] = true;
           matchedSpecs['spec12'] = true;
@@ -2999,9 +3081,10 @@ export function parseDispatchHistoryText(rawText: string): ParsedDispatchPost[] 
       } else if (
         /^(?:배터리|트레이|주행속도|오버로드|조이스틱|탑승구|미끄럼방지|소화기함|타이어|정밀등|점멸등|작업높이|하부상승|확장대|확장부|비상정지|비상하강|시저구간|풋스위치|감지봉|함석|아크릴|철망)/i.test(l)
       ) {
-        // 🌟 [무압축 전수 보존] 세부 옵션 불릿 라인(속도셋팅, 단자마킹, 높이제한 등)을 100% 빠짐없이 수집
-        if (!paidOptions.includes(l)) {
-          paidOptions = paidOptions ? `${paidOptions}, ${l}` : l;
+        // 🌟 [무압축 전수 보존 및 순수 품목명 정제] 세부 옵션 불릿 라인을 수량 없이 순수 품목으로 정제하여 수집
+        const cleanedBullet = cleanOptionItem(l);
+        if (cleanedBullet && !paidOptions.includes(cleanedBullet)) {
+          paidOptions = paidOptions ? `${paidOptions}, ${cleanedBullet}` : cleanedBullet;
         }
       } else if (/출고서류|안전점검|직인날인/i.test(l)) {
         matchedSpecs['spec21'] = true;
@@ -3057,8 +3140,8 @@ export function parseDispatchHistoryText(rawText: string): ParsedDispatchPost[] 
       billingContactPhone: billingContactPhone.trim(),
       statementEmail: statementEmail.trim(),
       taxBillEmail: taxBillEmail.trim(),
-      paidOptions: paidOptions.trim(),
-      protection: protection.trim(),
+      paidOptions: normalizeOptionList(paidOptions),
+      protection: normalizeOptionList(protection),
       closingDay: closingDay.trim(),
       paymentDay: paymentDay.trim(),
       note: note.trim(),
@@ -3150,15 +3233,14 @@ export function analyzeDispatchHistoryForCustomerDefaults(
       }
     });
 
-    // 기본 유상옵션 및 보양 (기존 마스터 등록값 + 밴드 포스트 통합)
+    // 기본 유상옵션 및 보양 (기존 마스터 등록값 + 밴드 포스트 통합 - 100% 순수 품목명 정제)
     const combinedPaidOpts = new Set<string>();
     if (cust.defaultPaidOptions) {
-      if (Array.isArray(cust.defaultPaidOptions)) cust.defaultPaidOptions.forEach((o: string) => o && combinedPaidOpts.add(o.trim()));
-      else if (typeof cust.defaultPaidOptions === 'string' && cust.defaultPaidOptions.trim()) combinedPaidOpts.add(cust.defaultPaidOptions.trim());
+      normalizeOptionList(cust.defaultPaidOptions).split(/[,|\/]/).map(s => s.trim()).filter(Boolean).forEach(o => combinedPaidOpts.add(o));
     }
     custPosts.forEach(p => {
       if (p.paidOptions) {
-        (typeof p.paidOptions === 'string' ? p.paidOptions : String(p.paidOptions)).split(/[,|\/]/).map(s => s.trim()).filter(Boolean).forEach(o => combinedPaidOpts.add(o));
+        normalizeOptionList(p.paidOptions).split(/[,|\/]/).map(s => s.trim()).filter(Boolean).forEach(o => combinedPaidOpts.add(o));
       }
     });
     const defaultPaidOptions = Array.from(combinedPaidOpts).join(', ');
@@ -3209,7 +3291,7 @@ export function analyzeDispatchHistoryForCustomerDefaults(
           siteId: matchedSite?.id,
           siteName: matchedSite?.name || sName,
           siteAddress: p.siteAddress || matchedSite?.address,
-          paidOptions: p.paidOptions || defaultPaidOptions,
+          paidOptions: normalizeOptionList(p.paidOptions || defaultPaidOptions),
           protection: p.protection || defaultProtection,
           checkedSpecs: Object.keys(p.matchedSpecs || {}).length > 0 ? p.matchedSpecs : aggregatedSpecs,
           contactName: p.siteContactName || matchedSite?.contactName,
@@ -3330,8 +3412,12 @@ export async function ingestCustomerDefaultsFromDispatchHistory(
 
     if (existingCust) {
       const updates: any = {};
-      if (isEmptyVal(existingCust.defaultPaidOptions) && item.extractedDefaults.defaultPaidOptions) {
-        updates.defaultPaidOptions = item.extractedDefaults.defaultPaidOptions;
+      if (item.extractedDefaults.defaultPaidOptions) {
+        const normPaid = normalizeOptionList(item.extractedDefaults.defaultPaidOptions);
+        const existingNorm = normalizeOptionList(existingCust.defaultPaidOptions);
+        if (normPaid && (isEmptyVal(existingCust.defaultPaidOptions) || existingCust.defaultPaidOptions !== normPaid || existingCust.defaultPaidOptions !== existingNorm)) {
+          updates.defaultPaidOptions = normPaid;
+        }
       }
       if (isEmptyVal(existingCust.defaultProtection) && item.extractedDefaults.defaultProtection) {
         updates.defaultProtection = item.extractedDefaults.defaultProtection;
@@ -3370,8 +3456,12 @@ export async function ingestCustomerDefaultsFromDispatchHistory(
 
         if (existingSite) {
           const siteUpdates: any = {};
-          if (isEmptyVal(existingSite.paidOptions) && siteItem.paidOptions) {
-            siteUpdates.paidOptions = siteItem.paidOptions;
+          if (siteItem.paidOptions) {
+            const normSitePaid = normalizeOptionList(siteItem.paidOptions);
+            const existingSiteNorm = normalizeOptionList(existingSite.paidOptions);
+            if (normSitePaid && (isEmptyVal(existingSite.paidOptions) || existingSite.paidOptions !== normSitePaid || existingSite.paidOptions !== existingSiteNorm)) {
+              siteUpdates.paidOptions = normSitePaid;
+            }
           }
           if (isEmptyVal(existingSite.protection) && siteItem.protection) {
             siteUpdates.protection = siteItem.protection;
