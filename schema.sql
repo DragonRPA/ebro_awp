@@ -1750,3 +1750,20 @@ CREATE TABLE IF NOT EXISTS draft_dispatch_orders (
 CREATE INDEX IF NOT EXISTS idx_psettlement_ym ON purchase_settlements("settlementYm");
 CREATE INDEX IF NOT EXISTS idx_psettlement_vendor ON purchase_settlements("vendorId");
 CREATE INDEX IF NOT EXISTS idx_psettlement_tax_inv ON purchase_settlements("taxInvoiceNo");
+
+-- ==============================================================================
+-- 📡 [도메인 21] 현장 무전기 동적 채널 (Walkie-Talkie Dynamic Channels)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS walkie_channels (
+    id                    TEXT PRIMARY KEY,
+    name                  TEXT NOT NULL,
+    code                  TEXT NOT NULL,
+    "desc"                TEXT,
+    "createdById"         TEXT NOT NULL,
+    "createdByName"       TEXT NOT NULL,
+    "memberIds"           JSONB NOT NULL DEFAULT '[]'::jsonb,
+    "createdAt"           TEXT NOT NULL,
+    "isDefault"           BOOLEAN NOT NULL DEFAULT FALSE,
+    "tenant_id"           TEXT NOT NULL DEFAULT 'tenant-giyeun',
+    "updatedAt"           TEXT NOT NULL
+);

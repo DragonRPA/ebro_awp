@@ -455,6 +455,11 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
           createdAt: new Date().toISOString()
         });
 
+        // 💡 계약 레코드에 패키지 발송 일시 직접 저장 (즉각적인 배지 상태 반영)
+        db.updateRow<any>('contracts', selectedContract.id, {
+          packageSentAt: new Date().toISOString()
+        });
+
         // 🌟 [ToDo 자동 상계]: 계약서패키지 재발송 ToDo가 존재했다면 원자적 자동 완료(Clearance)
         await clearHandoverTasks({
           entityType: 'CONTRACT',

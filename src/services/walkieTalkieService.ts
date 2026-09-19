@@ -89,6 +89,7 @@ export interface TalkingStatus {
 class WalkieSoundEngine {
   private ctx: AudioContext | null = null;
   private persistentAudio: HTMLAudioElement | null = null;
+  private keepAliveNode: AudioBufferSourceNode | null = null;
 
   getContext(): AudioContext {
     if (!this.ctx || this.ctx.state === 'closed') {
@@ -107,10 +108,30 @@ class WalkieSoundEngine {
     return this.persistentAudio;
   }
 
+  // 모바일 브라우저의 AudioContext 자동 절전(Sleep/Suspension)을 원천 방지하는 무음 루프 유지 노드
+  ensureKeepAlive() {
+    try {
+      const ctx = this.getContext();
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      if (this.keepAliveNode) return;
+      const silentBuffer = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const source = ctx.createBufferSource();
+      source.buffer = silentBuffer;
+      source.loop = true;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      source.connect(gain);
+      gain.connect(ctx.destination);
+      source.start(0);
+      this.keepAliveNode = source;
+    } catch { /* ignore */ }
+  }
+
   unlockAudioOnUserGesture() {
     try {
       const ctx = this.getContext();
       if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      this.ensureKeepAlive();
       const audio = this.getPersistentAudio();
       audio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
       audio.volume = 0.01;
@@ -213,6 +234,8 @@ class WalkieTalkieService {
   private channelsList: WalkieChannel[] = [];
   private channelsListeners: ((channels: WalkieChannel[]) => void)[] = [];
   private metaChannel: any = null;
+  private dbSyncChannel: any = null;
+  private isRemoteSynced = false;
   private currentUser: { id: string; name: string; role?: string; deptName?: string } | null = null;
   private isPowerOn = true;
   private currentChannel: WalkieTalkieChannel = 'DISPATCH';
@@ -396,7 +419,15 @@ class WalkieTalkieService {
     memberIds: string[],
     creator: { id: string; name: string }
   ): WalkieChannel {
-    const codeNum = this.channelsList.length + 1;
+    let maxCode = 3;
+    for (const ch of this.channelsList) {
+      const match = ch.code?.match(/CH-(\d+)/i);
+      if (match) {
+        const n = parseInt(match[1], 10);
+        if (n > maxCode) maxCode = n;
+      }
+    }
+    const codeNum = maxCode + 1;
     const newChannel: WalkieChannel = {
       id: `ch-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
       name: name.trim(),
@@ -413,12 +444,30 @@ class WalkieTalkieService {
     this.saveChannelsToStorage();
     this.notifyChannelsChange();
 
+    // 1. Supabase Realtime WebSocket 브로드캐스트 (실시간 접속 동료 대상 즉시 전달)
     if (this.metaChannel) {
       this.metaChannel.send({
         type: 'broadcast',
         event: 'channel_created',
         payload: newChannel
       }).catch((e: any) => console.warn('meta broadcast err:', e));
+    }
+
+    // 2. Supabase DB 영구 저장 (비접속 사원 및 새로고침/재접속 시 100% 무누락 보존)
+    if (supabase) {
+      supabase.from('walkie_channels').upsert({
+        id: newChannel.id,
+        name: newChannel.name,
+        code: newChannel.code,
+        desc: newChannel.desc || null,
+        createdById: newChannel.createdById,
+        createdByName: newChannel.createdByName,
+        memberIds: newChannel.memberIds,
+        createdAt: newChannel.createdAt,
+        isDefault: false,
+        tenant_id: 'tenant-giyeun',
+        updatedAt: new Date().toISOString()
+      }).then(() => {}, (e: any) => console.warn('walkie_channels upsert error:', e));
     }
 
     this.subscribeToChannelTopic(newChannel.id);
@@ -436,15 +485,29 @@ class WalkieTalkieService {
     this.saveChannelsToStorage();
     this.notifyChannelsChange();
 
+    // 1. Supabase Realtime WebSocket 브로드캐스트 (전체 WalkieChannel 객체를 동봉하여 신규 초대된 피어도 즉시 채널 구성 가능)
     if (this.metaChannel) {
       this.metaChannel.send({
         type: 'broadcast',
         event: 'channel_updated',
-        payload: { channelId, memberIds: merged }
+        payload: {
+          channelId,
+          channel: ch,
+          memberIds: merged
+        }
       }).catch((e: any) => console.warn('meta broadcast err:', e));
     }
 
-    this.addDebugLog(`[CHANNEL] invited ${newMemberIds.length} members to "${ch.name}"`);
+    // 2. Supabase DB 영구 저장 (초대된 사원이 나중에 접속해도 무누락 동기화)
+    if (supabase) {
+      supabase.from('walkie_channels').update({
+        memberIds: merged,
+        updatedAt: new Date().toISOString()
+      }).eq('id', channelId).then(() => {}, (e: any) => console.warn('walkie_channels update error:', e));
+    }
+
+    try { soundEngine.playStartBeep(); } catch {}
+    this.addDebugLog(`[CHANNEL] invited ${newMemberIds.length} members to "${ch.name}" (total: ${merged.length})`);
     return ch;
   }
 
@@ -463,12 +526,19 @@ class WalkieTalkieService {
       this.setChannel(fallback);
     }
 
+    // 1. WebSocket 브로드캐스트
     if (this.metaChannel) {
       this.metaChannel.send({
         type: 'broadcast',
         event: 'channel_deleted',
         payload: { channelId }
       }).catch((e: any) => console.warn('meta broadcast delete err:', e));
+    }
+
+    // 2. Supabase DB 삭제
+    if (supabase) {
+      supabase.from('walkie_channels').delete().eq('id', channelId)
+        .then(() => {}, (e: any) => console.warn('walkie_channels delete error:', e));
     }
 
     this.addDebugLog(`[CHANNEL] deleted "${ch.name}" (${channelId})`);
@@ -494,12 +564,25 @@ class WalkieTalkieService {
       this.setChannel(fallback);
     }
 
+    // 1. WebSocket 브로드캐스트
     if (this.metaChannel) {
       this.metaChannel.send({
         type: 'broadcast',
         event: 'channel_updated',
-        payload: { channelId, memberIds: remaining }
+        payload: {
+          channelId,
+          channel: ch,
+          memberIds: remaining
+        }
       }).catch((e: any) => console.warn('meta broadcast leave err:', e));
+    }
+
+    // 2. Supabase DB 반영
+    if (supabase) {
+      supabase.from('walkie_channels').update({
+        memberIds: remaining,
+        updatedAt: new Date().toISOString()
+      }).eq('id', channelId).then(() => {}, (e: any) => console.warn('walkie_channels leave update error:', e));
     }
 
     this.addDebugLog(`[CHANNEL] user "${userId}" left "${ch.name}"`);
@@ -592,11 +675,133 @@ class WalkieTalkieService {
     if (!supabase) { console.warn('Supabase unavailable'); return; }
     this.currentUser = user ? { id: user.id, name: user.name, role: user.role, deptName: user.deptName } : null;
 
-    // 1. 전사 채널 메타 동기화 (새 채널 개설 / 멤버 초대 브로드캐스트)
+    // 1. 전사 채널 메타 동기화 (WebSockets broadcast)
     this.initMetaChannel(user);
 
-    // 2. 본인이 접근 가능한 채널에만 음성 토픽 구독
+    // 2. Supabase DB 실시간 변경 감지 (Postgres changes)
+    this.initDbChannelSync();
+
+    // 3. 원격 DB 채널 1회 전체 동기화 및 로컬 병합
+    this.syncChannelsFromRemote();
+
+    // 4. 본인이 접근 가능한 채널에만 음성 토픽 구독
     this.subscribeToAccessibleChannels();
+  }
+
+  // ── 원격 Supabase DB 채널 전체 동기화 ──────────────────────────────────────
+  async syncChannelsFromRemote(): Promise<void> {
+    if (!supabase) return;
+    try {
+      const { data, error } = await supabase
+        .from('walkie_channels')
+        .select('*');
+
+      if (error) {
+        console.warn('walkie_channels remote fetch error:', error.message);
+        return;
+      }
+
+      if (Array.isArray(data)) {
+        let changed = false;
+        data.forEach((row: any) => {
+          if (!row?.id || row.id === 'ALL') return;
+          const remoteCh: WalkieChannel = {
+            id: row.id,
+            name: row.name,
+            code: row.code,
+            desc: row.desc || undefined,
+            createdById: row.createdById,
+            createdByName: row.createdByName,
+            memberIds: Array.isArray(row.memberIds) ? row.memberIds : [],
+            createdAt: row.createdAt,
+            isDefault: row.isDefault || false
+          };
+
+          const idx = this.channelsList.findIndex(c => c.id === remoteCh.id);
+          if (idx === -1) {
+            this.channelsList.push(remoteCh);
+            changed = true;
+          } else {
+            const localCh = this.channelsList[idx];
+            const mergedMembers = Array.from(new Set([...(localCh.memberIds || []), ...(remoteCh.memberIds || [])]));
+            if (
+              mergedMembers.length !== localCh.memberIds.length ||
+              localCh.name !== remoteCh.name ||
+              localCh.desc !== remoteCh.desc
+            ) {
+              localCh.memberIds = mergedMembers;
+              localCh.name = remoteCh.name;
+              localCh.desc = remoteCh.desc;
+              changed = true;
+            }
+          }
+        });
+
+        if (changed) {
+          this.saveChannelsToStorage();
+          this.notifyChannelsChange();
+          this.subscribeToAccessibleChannels();
+        }
+        this.isRemoteSynced = true;
+        this.addDebugLog(`[META] synced ${data.length} channels from remote DB`);
+      }
+    } catch (err) {
+      console.warn('syncChannelsFromRemote exception:', err);
+    }
+  }
+
+  // ── Supabase DB 실시간 postgres_changes 리스너 ──────────────────────────
+  private initDbChannelSync() {
+    if (!supabase || this.dbSyncChannel) return;
+
+    this.dbSyncChannel = supabase
+      .channel('walkie_channels_db_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'walkie_channels' }, (payload: any) => {
+        try {
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const row = payload.new;
+            if (!row?.id || row.id === 'ALL') return;
+            const remoteCh: WalkieChannel = {
+              id: row.id,
+              name: row.name,
+              code: row.code,
+              desc: row.desc || undefined,
+              createdById: row.createdById,
+              createdByName: row.createdByName,
+              memberIds: Array.isArray(row.memberIds) ? row.memberIds : [],
+              createdAt: row.createdAt,
+              isDefault: row.isDefault || false
+            };
+
+            const idx = this.channelsList.findIndex(c => c.id === remoteCh.id);
+            if (idx === -1) {
+              this.channelsList.push(remoteCh);
+            } else {
+              this.channelsList[idx] = remoteCh;
+            }
+            this.saveChannelsToStorage();
+            this.notifyChannelsChange();
+            if (this.currentUser && this.canAccessChannel(remoteCh, this.currentUser.id)) {
+              this.subscribeToChannelTopic(remoteCh.id);
+              try { soundEngine.playReceiveChime(); } catch {}
+            }
+          } else if (payload.eventType === 'DELETE') {
+            const oldId = payload.old?.id;
+            if (oldId) {
+              this.channelsList = this.channelsList.filter(c => c.id !== oldId);
+              this.saveChannelsToStorage();
+              this.notifyChannelsChange();
+              if (this.currentChannel === oldId) {
+                const fallback = DEFAULT_WALKIE_CHANNELS[0]?.id || 'DISPATCH';
+                this.setChannel(fallback);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('dbSyncChannel handler error:', e);
+        }
+      })
+      .subscribe();
   }
 
   private initMetaChannel(user?: { id: string; name: string }) {
@@ -609,29 +814,42 @@ class WalkieTalkieService {
     // 타 사원이 새 채널을 개설했을 때 수신
     this.metaChannel.on('broadcast', { event: 'channel_created' }, ({ payload }: { payload: WalkieChannel }) => {
       if (!payload?.id || payload.id === 'ALL') return;
-      const exists = this.channelsList.some(c => c.id === payload.id);
-      if (!exists) {
+      const idx = this.channelsList.findIndex(c => c.id === payload.id);
+      if (idx === -1) {
         this.channelsList = [...this.channelsList, payload];
-        this.saveChannelsToStorage();
-        this.notifyChannelsChange();
-        if (this.currentUser && this.canAccessChannel(payload, this.currentUser.id)) {
-          this.subscribeToChannelTopic(payload.id);
-        }
-        this.addDebugLog(`[META] new channel discovered: "${payload.name}"`);
+      } else {
+        this.channelsList[idx] = payload;
       }
+      this.saveChannelsToStorage();
+      this.notifyChannelsChange();
+      if (this.currentUser && this.canAccessChannel(payload, this.currentUser.id)) {
+        this.subscribeToChannelTopic(payload.id);
+        try { soundEngine.playReceiveChime(); } catch {}
+      }
+      this.addDebugLog(`[META] new channel discovered: "${payload.name}"`);
     });
 
-    // 타 사원이 멤버를 초대했을 때 수신
-    this.metaChannel.on('broadcast', { event: 'channel_updated' }, ({ payload }: { payload: { channelId: string; memberIds: string[] } }) => {
-      const ch = this.channelsList.find(c => c.id === payload?.channelId);
-      if (ch && Array.isArray(payload?.memberIds)) {
+    // 타 사원이 멤버를 초대했거나 채널 정보가 업데이트되었을 때 수신
+    this.metaChannel.on('broadcast', { event: 'channel_updated' }, ({ payload }: { payload: { channelId: string; channel?: WalkieChannel; memberIds?: string[] } }) => {
+      if (!payload?.channelId) return;
+      let ch = this.channelsList.find(c => c.id === payload.channelId);
+      if (!ch && payload.channel) {
+        // 새로 초대된 사원이 전체 채널 객체를 최초 수령
+        ch = payload.channel;
+        this.channelsList = [...this.channelsList, ch];
+      } else if (ch && Array.isArray(payload.memberIds)) {
         ch.memberIds = payload.memberIds;
+        if (payload.channel?.name) ch.name = payload.channel.name;
+        if (payload.channel?.desc) ch.desc = payload.channel.desc;
+      }
+      if (ch) {
         this.saveChannelsToStorage();
         this.notifyChannelsChange();
         if (this.currentUser && this.canAccessChannel(ch, this.currentUser.id)) {
           this.subscribeToChannelTopic(ch.id);
+          try { soundEngine.playReceiveChime(); } catch {}
         }
-        this.addDebugLog(`[META] channel members updated: "${ch.name}" (${payload.memberIds.length} members)`);
+        this.addDebugLog(`[META] channel updated: "${ch.name}" (${ch.memberIds?.length || 0} members)`);
       }
     });
 
@@ -792,21 +1010,30 @@ class WalkieTalkieService {
     this.queueListeners.forEach(l => l(this.playbackQueue.length));
     try {
       this.addDebugLog(`[PLAYBACK] starting receive chime & voice from ${msg.senderName} (ch=${msg.channel})`);
+      soundEngine.ensureKeepAlive();
       const ctx = soundEngine.getContext();
       if (ctx.state === 'suspended') {
         await ctx.resume().catch(() => {});
       }
       soundEngine.playReceiveChime();
       await new Promise(r => setTimeout(r, 200));
-      await this.playAudio(msg.audioBase64);
+
+      // 최대 대기 워치독 (음성 길이 + 3초, 최소 6초) — 큐 정체 원천 방지
+      const maxPlayTimeoutMs = Math.max((msg.durationSec || 3) + 3, 6) * 1000;
+      await Promise.race([
+        this.playAudio(msg.audioBase64, msg.durationSec, msg.textTranscript, msg.senderName),
+        new Promise<void>((_, reject) => setTimeout(() => reject(new Error('Playback watchdog timeout')), maxPlayTimeoutMs))
+      ]);
+
       this.addDebugLog(`[PLAYBACK] voice playback finished: id=${msg.id}`);
       await new Promise(r => setTimeout(r, 220));
     } catch (e: any) {
       this.addDebugLog(`[PLAYBACK] ERROR: ${e?.name || 'Error'} — ${e?.message}`);
       console.warn('playback failed:', e);
+    } finally {
+      this.isQueueProcessing = false;
+      if (this.playbackQueue.length > 0) this.processPlaybackQueue();
     }
-    this.isQueueProcessing = false;
-    if (this.playbackQueue.length > 0) this.processPlaybackQueue();
   }
 
   // ── PTT record start ──────────────────────────────────────────────────────────
@@ -838,6 +1065,7 @@ class WalkieTalkieService {
         this.currentStream = await navigator.mediaDevices.getUserMedia({
           audio: {
             channelCount: 1,
+            sampleRate: 16000,
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true
@@ -846,17 +1074,23 @@ class WalkieTalkieService {
       }
       this.addDebugLog('[PTT] mic granted: ' + (this.currentStream.getAudioTracks()[0]?.label || 'unknown'));
 
-      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-      const candidates = isSafari
-        ? ['audio/mp4', 'audio/aac']
-        : ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+      // 🌟 범용 오디오 코덱 우선순위:
+      // 1순위: audio/mp4 (iOS Safari 및 최신 Chromium 모두 완벽 호환, duration 헤더 정상 산출)
+      // 2순위: audio/webm;codecs=opus (Chromium 표준 고음질)
+      // 3순위: audio/webm, audio/aac
+      const candidates = [
+        'audio/mp4',
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/aac'
+      ];
       const mimeType = candidates.find(t => { try { return MediaRecorder.isTypeSupported(t); } catch { return false; } }) || '';
       this.addDebugLog(`[PTT] MediaRecorder mimeType="${mimeType || '(browser default)'}"`);
 
       try {
         this.mediaRecorder = new MediaRecorder(this.currentStream, {
           ...(mimeType ? { mimeType } : {}),
-          audioBitsPerSecond: 32000
+          audioBitsPerSecond: 24000
         });
       } catch (recErr) {
         this.addDebugLog(`[PTT] MediaRecorder fallback without audioBitsPerSecond: ${recErr}`);
@@ -864,7 +1098,7 @@ class WalkieTalkieService {
       }
       this.mediaRecorder.ondataavailable = (e) => { if (e.data?.size > 0) this.audioChunks.push(e.data); };
       this.mediaRecorder.start();
-      this.addDebugLog('[PTT] recording started (32kbps mono voice)');
+      this.addDebugLog('[PTT] recording started (24kbps mono voice)');
 
       // Broadcast talking status
       if (sender) {
@@ -992,7 +1226,13 @@ class WalkieTalkieService {
           // 🚀 [2] 음성 브로드캐스트 즉시 전송 (상대방도 0초 즉시 청취 가능)
           if (activeCh) {
             activeCh.send({ type: 'broadcast', event: 'voice', payload: msg })
-              .then(() => this.addDebugLog('[PTT] voice broadcast sent to receivers'))
+              .then((status: any) => {
+                if (status === 'ok') {
+                  this.addDebugLog(`[PTT] voice broadcast sent OK (len=${base64.length})`);
+                } else {
+                  this.addDebugLog(`[PTT] WARNING: voice broadcast status=${status}`);
+                }
+              })
               .catch((e: any) => this.addDebugLog(`[PTT] voice broadcast err: ${e?.message}`));
           }
 
@@ -1198,16 +1438,60 @@ class WalkieTalkieService {
     }
   }
 
-  async playAudio(base64: string): Promise<void> {
+  async playAudio(
+    base64: string,
+    durationSec?: number,
+    textTranscript?: string,
+    senderName?: string
+  ): Promise<void> {
     if (!base64 || base64.trim().length < 50) throw new Error('empty audio');
     this.stopAudio();
+    soundEngine.ensureKeepAlive();
 
-    // 1순위: 사용자 제스처로 사전 언락된 persistentAudio 인스턴스 재사용 (HTML5 Audio)
-    const playViaHtmlAudio = (): Promise<void> => {
-      return new Promise((resolve, reject) => {
+    const expectedDuration = durationSec && durationSec > 0 ? durationSec : 3;
+
+    // 1순위: Web Audio API (모바일 Autoplay 정책 우회 & exact buffer playback)
+    const playViaWebAudio = async (): Promise<void> => {
+      const ctx = soundEngine.getContext();
+      if (ctx.state === 'suspended') {
+        await ctx.resume().catch(() => {});
+      }
+      const arrayBuffer = base64ToArrayBuffer(base64);
+      // slice(0)로 neutered ArrayBuffer 이슈 원천 방지
+      const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+      return new Promise<void>((resolve) => {
         try {
-          const audio = soundEngine.getPersistentAudio();
+          const source = ctx.createBufferSource();
+          source.buffer = audioBuffer;
+          source.connect(ctx.destination);
+          this.activeSourceNode = source;
+
+          let done = false;
+          const cleanup = () => {
+            if (done) return;
+            done = true;
+            if (this.activeSourceNode === source) this.activeSourceNode = null;
+            resolve();
+          };
+
+          source.onended = cleanup;
+          // 안전 워치독 타이머 (duration + 0.5초)
+          setTimeout(cleanup, (audioBuffer.duration + 0.5) * 1000);
+          source.start(0);
+        } catch (err) {
+          this.activeSourceNode = null;
+          throw err;
+        }
+      });
+    };
+
+    // 2순위: HTML5 Audio (네이티브 코덱 파이프라인 폴백)
+    const playViaHtmlAudio = (): Promise<void> => {
+      return new Promise<void>((resolve, reject) => {
+        try {
+          const audio = new Audio();
           this.activeAudio = audio;
+          audio.preload = 'auto';
           audio.volume = 1.0;
           let done = false;
           const cleanup = () => {
@@ -1216,17 +1500,29 @@ class WalkieTalkieService {
             if (this.activeAudio === audio) this.activeAudio = null;
             audio.onended = null;
             audio.onerror = null;
+            audio.ontimeupdate = null;
+            resolve();
           };
-          audio.onended = () => { cleanup(); resolve(); };
+
+          audio.onended = cleanup;
           audio.onerror = () => {
-            cleanup();
+            if (done) return;
+            done = true;
+            if (this.activeAudio === audio) this.activeAudio = null;
             reject(new Error(`HTMLAudio error: ${audio.error?.code ?? 'unknown'}`));
           };
+
+          // Chromium MediaRecorder WebM의 duration Infinity 버그 대응용 워치독
+          const watchdogMs = Math.max(expectedDuration + 1.5, 4) * 1000;
+          setTimeout(cleanup, watchdogMs);
+
           audio.src = base64;
           const p = audio.play();
           if (p) {
             p.catch(err => {
-              cleanup();
+              if (done) return;
+              done = true;
+              if (this.activeAudio === audio) this.activeAudio = null;
               reject(err);
             });
           }
@@ -1237,42 +1533,43 @@ class WalkieTalkieService {
       });
     };
 
-    // 2순위: 모바일 자동재생 정책(Autoplay Policy) 우회 Web Audio API 폴백
-    const playViaWebAudio = async (): Promise<void> => {
-      const ctx = soundEngine.getContext();
-      if (ctx.state === 'suspended') {
-        await ctx.resume().catch(() => {});
-      }
-      const arrayBuffer = base64ToArrayBuffer(base64);
-      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-      return new Promise((resolve, reject) => {
+    // 3순위: 디바이스 코덱 재생 완전 불가 시 무음 방지용 TTS 음성 안내 폴백
+    const playViaTtsFallback = (name?: string, text?: string): Promise<void> => {
+      return new Promise<void>((resolve) => {
+        if (!text || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+          resolve();
+          return;
+        }
         try {
-          const source = ctx.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(ctx.destination);
-          this.activeSourceNode = source;
-          source.onended = () => {
-            if (this.activeSourceNode === source) this.activeSourceNode = null;
-            resolve();
-          };
-          source.start(0);
-        } catch (err) {
-          this.activeSourceNode = null;
-          reject(err);
+          const utterance = new SpeechSynthesisUtterance((name ? `${name} 사원: ` : '') + text);
+          utterance.lang = 'ko-KR';
+          utterance.rate = 1.1;
+          utterance.onend = () => resolve();
+          utterance.onerror = () => resolve();
+          setTimeout(() => resolve(), 5000);
+          window.speechSynthesis.speak(utterance);
+        } catch {
+          resolve();
         }
       });
     };
 
     try {
-      await playViaHtmlAudio();
-    } catch (htmlErr: any) {
-      this.addDebugLog(`[PLAYBACK] HTMLAudio blocked/failed (${htmlErr?.message || 'err'}), trying WebAudio fallback...`);
+      await playViaWebAudio();
+      this.addDebugLog('[PLAYBACK] WebAudio playback finished cleanly');
+    } catch (webAudioErr: any) {
+      this.addDebugLog(`[PLAYBACK] WebAudio failed (${webAudioErr?.message || 'err'}), trying HTMLAudio fallback...`);
       try {
-        await playViaWebAudio();
-        this.addDebugLog('[PLAYBACK] WebAudio fallback playback succeeded!');
-      } catch (webAudioErr: any) {
-        this.addDebugLog(`[PLAYBACK] WebAudio fallback also failed: ${webAudioErr?.message}`);
-        throw webAudioErr;
+        await playViaHtmlAudio();
+        this.addDebugLog('[PLAYBACK] HTMLAudio fallback playback succeeded!');
+      } catch (htmlErr: any) {
+        this.addDebugLog(`[PLAYBACK] Both audio decoders failed: ${htmlErr?.message}`);
+        if (textTranscript) {
+          this.addDebugLog('[PLAYBACK] Running TTS audio announcement fallback...');
+          await playViaTtsFallback(senderName, textTranscript);
+        } else {
+          throw htmlErr;
+        }
       }
     }
   }
@@ -1291,7 +1588,8 @@ class WalkieTalkieService {
 function base64ToArrayBuffer(base64OrDataUrl: string): ArrayBuffer {
   const commaIdx = base64OrDataUrl.indexOf(',');
   const b64 = commaIdx >= 0 ? base64OrDataUrl.slice(commaIdx + 1) : base64OrDataUrl;
-  const binaryString = atob(b64);
+  const cleanB64 = b64.replace(/\s+/g, '');
+  const binaryString = atob(cleanB64);
   const len = binaryString.length;
   const bytes = new Uint8Array(len);
   for (let i = 0; i < len; i++) {

@@ -190,6 +190,7 @@ export const Products: React.FC = () => {
       const matchesSearch =
         !searchTerm ||
         (p.modelName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.shortName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (p.manufacturer || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (p.spec || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (p.powerSource || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -283,6 +284,7 @@ export const Products: React.FC = () => {
   const handleOpenAddModal = () => {
     setEditForm({
       modelName: '',
+      shortName: '',
       feet: 19,
       spec: '',
       manufacturer: 'Skyjack',
@@ -677,6 +679,9 @@ export const Products: React.FC = () => {
                 <th onClick={() => handleSort('modelName')} style={{ padding: '7px 8px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
                   모델명{renderSortArrow('modelName')}
                 </th>
+                <th style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>
+                  축약명
+                </th>
                 <th onClick={() => handleSort('feet')} style={{ padding: '7px 8px', cursor: 'pointer', userSelect: 'none', textAlign: 'center', whiteSpace: 'nowrap' }}>
                   피트(Feet){renderSortArrow('feet')}
                 </th>
@@ -704,7 +709,7 @@ export const Products: React.FC = () => {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={14} style={{ padding: '36px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={15} style={{ padding: '36px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
                     조회 조건에 해당하는 제품 모델이 없습니다.
                   </td>
                 </tr>
@@ -747,6 +752,11 @@ export const Products: React.FC = () => {
                       {/* 모델명 */}
                       <td style={{ padding: '6px 8px', fontWeight: 700, color: 'var(--primary)', whiteSpace: 'nowrap' }}>
                         {p.modelName}
+                      </td>
+
+                      {/* 축약명 */}
+                      <td style={{ padding: '6px 8px', whiteSpace: 'nowrap', color: 'var(--text-secondary)', fontSize: '12px' }}>
+                        {p.shortName || <span style={{ opacity: 0.35 }}>—</span>}
                       </td>
 
                       {/* 피트 */}
@@ -1090,6 +1100,7 @@ export const Products: React.FC = () => {
                 {isEditing ? (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                     <div><label style={labelStyle}>모델명 *</label><input style={inputStyle} value={editForm.modelName || ''} onChange={ef('modelName')} /></div>
+                    <div><label style={labelStyle}>축약 모델명</label><input style={inputStyle} placeholder="예: 1930, GS1930" value={editForm.shortName || ''} onChange={ef('shortName')} /></div>
                     <div><label style={labelStyle}>피트 (Feet) *</label><input type="number" style={inputStyle} value={editForm.feet ?? ''} onChange={ef('feet')} /></div>
                     <div><label style={labelStyle}>제조사</label><input style={inputStyle} value={editForm.manufacturer || ''} onChange={ef('manufacturer')} /></div>
                     <div><label style={labelStyle}>동력 방식</label><input style={inputStyle} value={editForm.powerSource || ''} onChange={ef('powerSource')} /></div>
@@ -1164,8 +1175,9 @@ export const Products: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
                 <div><label style={labelStyle}>모델명 *</label><input style={inputStyle} placeholder="예: SJ3219" value={editForm.modelName || ''} onChange={ef('modelName')} required /></div>
+                <div><label style={labelStyle}>축약 모델명</label><input style={inputStyle} placeholder="예: 1930, GS1930" value={editForm.shortName || ''} onChange={ef('shortName')} /></div>
                 <div><label style={labelStyle}>피트 (Feet) *</label><input type="number" style={inputStyle} placeholder="예: 19" value={editForm.feet ?? ''} onChange={ef('feet')} required /></div>
                 <div><label style={labelStyle}>제조사</label><input style={inputStyle} placeholder="예: Skyjack" value={editForm.manufacturer || ''} onChange={ef('manufacturer')} /></div>
               </div>

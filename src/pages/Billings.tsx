@@ -226,6 +226,8 @@ export const Billings: React.FC = () => {
   const [selectedRepairIdsForWizard, setSelectedRepairIdsForWizard] = useState<string[]>([]);
   // 마법사 연동 운송료 ID 목록
   const [selectedDeliveryIdsForWizard, setSelectedDeliveryIdsForWizard] = useState<string[]>([]);
+  // 마법사 부분 청구 자산 선택 (빈 Set = 전체 선택)
+  const [wizardSelectedCaIds, setWizardSelectedCaIds] = useState<Set<string>>(new Set());
 
   // --- 청구 면제 대장 (WAIVER 탭) 상태 ---
   const [waiverStartMonth, setWaiverStartMonth] = useState(() => {
@@ -1538,6 +1540,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     setExtraCharges([]);
     setSelectedRepairIdsForWizard([]);
     setSelectedDeliveryIdsForWizard([]);
+    setWizardSelectedCaIds(new Set()); // 부분 청구 자산 선택 초기화 (전체 선택 상태)
     setWizardBillingYm(targetYm);
     const targetBillingDate = wizardSearchEndDate <= todayStr ? wizardSearchEndDate : todayStr;
     setWizardBillingDate(targetBillingDate);
@@ -1640,7 +1643,12 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     }
   };
 
-  const totalAmountForWizard = wizardContractAssets.reduce((sum, ca) => {
+  // 부분 청구 시 선택된 자산만 필터링, 빈 Set = 전체
+  const effectiveWizardAssets = wizardSelectedCaIds.size === 0
+    ? wizardContractAssets
+    : wizardContractAssets.filter(ca => wizardSelectedCaIds.has(ca.id));
+
+  const totalAmountForWizard = effectiveWizardAssets.reduce((sum, ca) => {
     const feeInfo = calculateAssetFeeForWizard(ca);
     return sum + feeInfo.amount;
   }, 0);
@@ -1684,9 +1692,10 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     }
 
     const detailsList: any[] = [];
+    const isPartialWizardBilling = wizardSelectedCaIds.size > 0 && wizardSelectedCaIds.size < wizardContractAssets.length;
     
     // 1. 기본 장비 렌탈료 정산 (자산별 가동 기간 및 대차 교체 일할 계산 정밀 적용)
-    wizardContractAssets.forEach(ca => {
+    effectiveWizardAssets.forEach(ca => {
       const feeInfo = calculateAssetFeeForWizard(ca);
       if (!feeInfo.active || feeInfo.amount <= 0) return; // 청구 대상 외 자산 제외
 
@@ -1730,12 +1739,12 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       });
     });
 
-    // 선수금(예치금) 차감 연동
+    // 선수금(예치금) 차감 연동 — 부분 청구 시 스킵 (전체 청구에서만 차감)
     const customerInfo = customers.find(c => c.id === selectedContractForWizard.customerId);
     const baseTotalBeforeReceivables = totalAmountForWizard + pureExtraChargesTotal;
     let initialBillingAmount = baseTotalBeforeReceivables;
     
-    if (customerInfo && (customerInfo.prepaidBalance || 0) > 0) {
+    if (!isPartialWizardBilling && customerInfo && (customerInfo.prepaidBalance || 0) > 0) {
       const prepaid = customerInfo.prepaidBalance || 0;
       const appliedPrepaid = Math.min(baseTotalBeforeReceivables, prepaid);
       
@@ -1771,6 +1780,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
         totalAmount: initialBillingAmount,
         paidAmount: 0,
         status: 'REQUESTED',
+        isPartial: isPartialWizardBilling || undefined,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
@@ -1820,6 +1830,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       setSelectedRepairIdsForWizard([]);
       setSelectedDeliveryIdsForWizard([]);
       setSelectedReceivablesForWizard([]);
+      setWizardSelectedCaIds(new Set());
       showToast(`[${getCustName(selectedContractForWizard.customerId)}] 청구귀속월(${targetYm}) 총 ${overallTotal.toLocaleString()}원 청구 생성이 저장되었습니다.`);
     } catch (err: any) {
       showErrorModal(`⚠️ 청구서 DB 저장 실패:\n\n${err?.message || err}`, '청구 생성 오류');
@@ -3311,10 +3322,28 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 </div>
 
                 <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '10px' }}>장비별 예상 요금 상세</h4>
+                {wizardContractAssets.length > 1 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px', fontSize: '12.5px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer', userSelect: 'none' }}>
+                      <input
+                        type="checkbox"
+                        checked={wizardSelectedCaIds.size === 0}
+                        onChange={() => setWizardSelectedCaIds(new Set())}
+                      />
+                      전체 선택 ({wizardContractAssets.length}대)
+                    </label>
+                    {wizardSelectedCaIds.size > 0 && wizardSelectedCaIds.size < wizardContractAssets.length && (
+                      <span style={{ color: '#f59e0b', fontWeight: 600 }}>
+                        ⚠️ 부분 청구 ({wizardSelectedCaIds.size}/{wizardContractAssets.length}대 선택)
+                      </span>
+                    )}
+                  </div>
+                )}
                 <div className="table-container" style={{ border: 'none', boxShadow: 'none', marginBottom: '24px' }}>
                   <table>
                     <thead>
                       <tr>
+                        {wizardContractAssets.length > 1 && <th style={{ width: '36px' }}></th>}
                         <th>모델명</th>
                         <th>월단가</th>
                         <th>일단가</th>
@@ -3329,6 +3358,26 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
                         return (
                           <tr key={ca.id} style={{ opacity: feeInfo.active ? 1 : 0.45 }}>
+                            {wizardContractAssets.length > 1 && (
+                              <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={wizardSelectedCaIds.size === 0 || wizardSelectedCaIds.has(ca.id)}
+                                  onChange={(e) => {
+                                    setWizardSelectedCaIds(prev => {
+                                      const base = prev.size === 0
+                                        ? new Set(wizardContractAssets.map(x => x.id))
+                                        : new Set(prev);
+                                      if (e.target.checked) base.add(ca.id);
+                                      else base.delete(ca.id);
+                                      // 전체 선택 상태로 복원 시 빈 Set
+                                      if (base.size === wizardContractAssets.length) return new Set<string>();
+                                      return base;
+                                    });
+                                  }}
+                                />
+                              </td>
+                            )}
                             <td>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <span>{assetInfo ? `${assetInfo.modelName} (${assetInfo.assetNo})` : ca.expectedModel}</span>

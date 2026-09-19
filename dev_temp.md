@@ -4,6 +4,96 @@
 - **`ebro_awp`**: 현재 프로젝트 (고소작업대 AWP 렌탈 통합 ERP - 기연리프트)
 - **`bero_it`**: 신규 형제 프로젝트 (PC/IT 장비 렌탈 ERP, 도메인: `ooo.ebro.run`, 독립 Supabase DB)
 
+## [완료] 현장간 장비 이동 날짜 역일 보존(8/10 마감 ➔ 8/11 개시) 및 수리 회수 후 동일계약 재투입(redeployRepairedAsset) UI 완비 & RWTT 실증 통과
+- **요구사항**:
+  1. "현장간 이동이 되면, 우리의 계약에 대한 정의에서 A 계약에서 B 계약으로 변경되며, A현장에서는 단축(계약의 종료)가 발생하고, B 현장에서는 계약의 추가(이동된 다음 날짜에 시작) 이 맞지? 논리 충돌이 일어나는 전제조건이 있는가?"
+  2. "하나의 계약이 유지되고 있는 상황에서, 하나의 장비가 다양한 이유(예를 들면 고장 발생하여) 주기장으로 회수해서 수리한 후 다시 출고해준다면, 이 장비는 시작일과 종료일 정보가 있고 수리완료된 후 다시 출고 되는데 이때는 새로운 자산의 시작으로 작동하는가"
+  3. "정의된 개념대로 개편 적용 후 추가된 계약 작동의 개념 RWTT 수행"
+  4. "보완점 발견시 수정하고 ㄹㅇ. 수정사항이 있었으면 RWTT 추가수행"
+- **핵심 아키텍처 및 구현 내역**:
+  1. **현장간 장비 이동 날짜 역일 보존 법칙 (`relocateContractAsset`)**:
+     - 1현장(A계약) 마감일 = `relocationDate` (이동 당일로 사용료 일할 정산 완결)
+     - 2현장(B계약) 개시일 = `getNextDate(relocationDate)` (익일 개시로 이중청구 0일 원천 차단)
+     - 1현장 잔여 자산이 0대일 때 부모 계약 상태 자동 `COMPLETED` 종결.
+     - 왕복 배차 `MOVEMENT`(이동) 단일 건 발행 및 운송비/경유지 일괄 연동.
+  2. **수리 회수 후 동일 계약 재투입 (`redeployRepairedAsset`)**:
+     - 기존 계약 ID 및 고객/현장/영업담당자 정보 100% 유지.
+     - 1차 슬롯(입고 전까지 가동)과 2차 슬롯(수리 완료 후 재투입일~종료일)을 독립적인 자산 슬롯으로 분리 보존.
+     - 수리 중 다운타임 기간은 슬롯 부재로 매출 기여액 ₩0원 자동 보존 (고객 무과금 원칙 수호).
+     - 최초 계약 단가(일할단가/월임대료) 100% 자동 상속 (`Contract Property Inheritance`).
+     - 자산 상태 `RENTED`(대여중) 자동 전환 및 `OUTBOUND` 출고 배차 1건 자동 생성.
+  3. **UI/UX 전사 표준 헌장 완비 (`Contracts.tsx`)**:
+     - 계약 체결 자산 테이블 헤더 우측: `[수리 장비 재투입]` 원클릭 모달 버튼 배치.
+     - 계약 체결 자산 테이블 각 행 액션: `[재투입]` 버튼 배치.
+     - 전용 모달 `showRedeployModal`: 상하 세로 스택(`flex-direction: column`, `gap: 4px`), 무수식어 건조 표준 명사 UI 적용.
+  4. **RWTT 종단간 실무 관통 테스트 100% PASS**:
+     - Batch 1 (`rwtt_site_transfer_1789820739813`): 현장간 이동 & MOVEMENT 배차 & 날짜 역일 보존 실증 통과.
+     - Batch 2 (`rwtt_redeploy_transfer_1789821528670`): 수리 회수 후 재투입 (1차 슬롯 7/1~7/15, 다운타임 5일 ₩0원, 2차 슬롯 7/21 시작) + 8/10 마감 ➔ 8/11 개시 날짜보존 + 잔여자산 0대 부모계약 COMPLETED 종결 통과.
+     - 독립 감사관(`rwtt_auditor`) 적대적 SQL 실사 완료: `ALL_PASS_APPROVED`.
+- **검증 결과**: `npm run build` 1.19s 무오류 클린 통과.
+
+## [완료] 웹앱 영업부 출고 운송 완료 전 4대 핵심 지표(배차, 장비할당, 출고검수, 계약서패키지) 진행 상태 배지 모니터링 체계 구축
+- **요구사항**: "웹앱에서 영업부는 내의뢰가 운송 완료되기 전까지는 내의뢰가 배차 했는지, 장비할당 되었는지, 출고검수 완료인지, 계약서패키지 발송이 되었는지 각 항목의 완료 여부를 배지로 확인할수 있으면 좋겠어."
+- **배경 및 목적**:
+  - 영업담당자가 체결한 계약 및 출고 의뢰건이 실제 현장에 운송 완료(도착 인도)되기 전까지의 전 과정을 타 부서에 일일이 구두 문의하지 않고도 1화면에서 직관적으로 파악할 수 있도록 출고 4대 핵심 지표 배지 파이프라인 구축.
+  - 전사 표준 헌장 1.1(최대 편익), 1.2(임직원 업무의 최소 조작 & 최상의 편의성), 3.1(무수식어 건조한 명사·동사 UI 단일 표준), 3.2(줄바꿈 방지 white-space: nowrap) 준수.
+- **4대 마일스톤 판정 기준**:
+  1. **배차 여부**: deliveries 배차 상태가 DISPATCHED / DELIVERED이거나 기사 정보(driverName)가 지정되었는가? ➔ ✓ 배차완료 (초록) vs 배차대기 (회색)
+  2. **장비할당 여부**: 계약 체결 자산 슬롯(contractAssets) 전체에 관리번호(assetId)가 100% 매핑되었는가? ➔ ✓ 장비할당 (초록) vs 미할당 N대 / 장비미할당 (빨강)
+  3. **출고검수 완료 여부**: 출고 검수 의뢰건(outboundInspections) 전체가 COMPLETED 승인(자산 상태 RENTED 전환)되었는가? ➔ ✓ 검수완료 (초록) vs 검수진행 (주황) vs 검수대기 (회색)
+  4. **계약서패키지 발송 여부**: 계약 레코드(packageSentAt) 또는 감사 이력(contractHistory)에 DOCUMENT_SENT / 계약서패키지 발송 이력이 존재하는가? ➔ ✓ 패키지발송 (초록) vs 패키지미발송 (빨강, 클릭 시 즉시 발송 모달 연동)
+- **종단 상태 판정**:
+  - 운송 완료(DELIVERED / COMPLETED) 시: 운송완료 단일 배지로 정돈 표기.
+  - 운송 완료 전(!isDelivered): 4대 배지를 가로 일렬로 선명하게 동시 표출.
+- **구현 내역**:
+  1. `src/services/db.ts`: Contract 인터페이스에 packageSentAt?: string; 추가.
+  2. `src/components/ContractDocumentBundleModal.tsx`: 패키지 발송 시 contracts.packageSentAt 자동 갱신으로 배지 실시간 동기화.
+  3. `src/pages/Contracts.tsx`:
+     - 테이블 헤더에 [출고 진행 현황] 전용 컬럼 신설 (14개 컬럼 정렬).
+     - 테이블 행마다 4대 마일스톤 배지 인라인 렌더링 (패키지미발송 클릭 시 발송 모달 1-Click 연동).
+     - 상태 필터 칩에 [출고진행 (N건)] 신설 (내 의뢰 중 운송 완료 전 대기건 원클릭 즉시 필터링).
+     - 계약 상세 뷰(viewMode === 'DETAIL') 상단에 [출고 진행 현황 (운송 완료 전 상태 점검)] 4분할 전용 카드 배치.
+     - navigationPayload 리스너 연동 (외부 메뉴에서 특정 계약 또는 출고진행 필터로 자동 전환).
+  4. `src/pages/Dashboard.tsx`:
+     - 영업부 및 관리자 맞춤형 ToDo 피드: [내 의뢰 출고 진행 현황 (운송 완료 대기 N건)] 스마트 카드 신설.
+     - 대기 의뢰별 4대 배지 요약, [패키지 발송], [상세 ➔] 및 하단 [출고 진행 의뢰 전체 보기 ➔] 내비게이션 완비.
+- **검증 결과**: `npm.cmd run build` 1.03s 무오류 클린 통과.
+
+## [완료] 모바일 무전기(PTT) 새 채널 개설 및 동료 사원 초대 동기화 결함 완벽 해결 & Supabase DB 영구 보존 엔진 구축
+- **요구사항**: "무전기 기능에서 새 채널 열고 대화상대 초대 기능이 잘 안되는것 같은데 오류 검토후 수정"
+- **원인 분석**:
+  1. `inviteMembers` 브로드캐스트가 `{ channelId, memberIds }`만 전송하여, 해당 채널을 로컬에 모르는 피어 단말기는 메타정보 부재로 이벤트를 무음 폐기함.
+  2. 채널이 개설자 `localStorage`에만 국한되어 오프라인 피어나 나중에 접속한 동료에게 전달되지 않음 (Supabase DB 테이블 부재).
+  3. 사원 체크리스트에서 행 `div`의 터치와 체크박스 클릭 간의 모바일 고스트 클릭 간섭.
+  4. 기본 채널(전사) 초대 모달에서 새 채널 생성으로의 원클릭 동선 단절.
+- **조치 내역**:
+  1. Supabase DB `walkie_channels` 테이블 신설 + RLS 정책 + `schema.sql` 정합성 반영.
+  2. 2계층 동기화 엔진 구축: 실시간 WebSockets 브로드캐스트 (<50ms) + Realtime Postgres changes + `syncChannelsFromRemote()` REST 풀 동기화.
+  3. `inviteMembers` 브로드캐스트 시 전체 `WalkieChannel` 객체 동봉 및 수신 시 즉시 토픽 구독 & 수신 차임벨 안내.
+  4. 최대 코드 번호 기반 단조 증가 채널 코드(`CH-04`, `CH-05`, ...) 자동 발급.
+  5. 사원 선택 체크박스 `pointerEvents: 'none'` 적용으로 모바일 1회 클린 토글 보장.
+  6. 기본 채널 초대 모달에 `[새 채널 개설하기]` 원클릭 바로가기 버튼 제공.
+- **검증 결과**: `npm.cmd run build` 1.07s 무오류 클린 통과, Supabase DB 실시간 CRUD 100% 실증 완료.
+
+## [완료] 모바일 무전기(PTT) 발화 음성 수신자 디바이스 미재생 결함 원인 규명 및 3중 방어 자동재생 엔진 개편
+- **요구사항**: "무전기 기능이 내가 발화했을때, 상대방이 내 음성으로 플레이되지 않는다고 하는데 원인 검토후 수정"
+- **원인 분석**:
+  1. Chromium MediaRecorder WebM 버그(`duration: Infinity`)로 `<audio>` 태그의 `onended` 미발생 ➔ `playAudio` Promise 무한 대기 ➔ 재생 큐 동결.
+  2. 모바일 브라우저 Autoplay Policy 차단: WebSocket 네트워크 수신 콜백은 사용자 제스처가 없어 `audio.play()` 차단(`NotAllowedError`).
+  3. 모바일 OS 절전 모드로 인한 유휴 시 `AudioContext` 자동 `suspended` 전환.
+  4. iOS vs Android 코덱 불일치 (`audio/webm`은 iOS Safari에서 재생 불가).
+  5. Supabase Realtime broadcast 256KB 한도 초과 위험.
+- **조치 내역**:
+  1. `WalkieSoundEngine.ensureKeepAlive()`: 첫 터치 시 무음 루프 소스를 연결하여 모바일 OS/브라우저의 AudioContext 자동 절전(`suspended`)을 24시간 원천 방지.
+  2. 범용 오디오 포맷 `audio/mp4` 최우선 녹음 채택 (iOS Safari / Android Chrome 완벽 호환, 정상 duration 헤더) & 24kbps 모노 압축 (30초에도 100KB 내외 유지).
+  3. 3중 방어 자동재생 파이프라인 (`walkieService.playAudio`):
+     - 1순위: Web Audio API (`decodeAudioData` + duration 워치독 타이머)로 Autoplay 제한 없이 버퍼 다이렉트 출력.
+     - 2순위: HTML5 Audio 폴백 (duration Infinity 대비 시간 워치독 완비, 큐 동결 원천 방지).
+     - 3순위: 디바이스 코덱 재생 완전 불가 시 무음 방지용 TTS 음성 안내 폴백.
+  4. 재생 큐 안전 워치독 (`processPlaybackQueue`): `Promise.race` 기반 최대 대기 시간 보장으로 개별 재생 실패 시에도 큐 무조건 해제.
+  5. 모바일 앱 제스처 리스너 보강 (`MobileApp.tsx`): `touchstart`, `touchend`, `click`, `pointerdown` 전방위 감지.
+- **검증 결과**: `npm run build` 1.76s 무오류 클린 통과, Chromium 환경 송수신 및 자동재생 실기 검증 완료.
+
 ## [완료] 데모 사이트 전용 독립 테넌트 '(주)e-Bro렌탈' 사명 및 공식 CI 벡터 로고 전면 교체 적용
 - **요구사항**: "그리고, 데모 사이트에서는 테넌트 값에 다른 회사, 다른 로고를 사용해서 보여줘야 하는거 아닌가", "e-Bro렌탈 이라고 하자"
 - **조치 내역**:

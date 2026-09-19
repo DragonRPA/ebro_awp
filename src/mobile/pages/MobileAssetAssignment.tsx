@@ -1,6 +1,7 @@
 // src/mobile/pages/MobileAssetAssignment.tsx
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
+import { isModelMatch, normalizeModelKey } from '../../utils/modelUtils';
 import { 
   CheckSquare, 
   Square, 
@@ -69,26 +70,6 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // 1. 모델명 정규화 헬퍼 (공백/하이픈/대소문자 통일)
-  const normalizeModelKey = (name?: string): string => {
-    if (!name) return '미지정';
-    return name.replace(/[\s\-_]/g, '').toUpperCase();
-  };
-
-  // 2. 모델 유사 매칭 헬퍼 (제원 숫자 및 접두어 포함)
-  const isModelMatch = (assetModel?: string, expectedModel?: string): boolean => {
-    if (!assetModel || !expectedModel) return false;
-    if (assetModel === expectedModel) return true;
-    
-    const cleanedA = assetModel.replace(/[\s\-_]/g, '').toLowerCase();
-    const cleanedE = expectedModel.replace(/[\s\-_]/g, '').toLowerCase();
-    if (cleanedA.includes(cleanedE) || cleanedE.includes(cleanedA)) return true;
-
-    const nums = expectedModel.match(/\d{3,4}/);
-    if (nums && assetModel.includes(nums[0])) return true;
-
-    return false;
-  };
 
   // 3. 거래처 및 현장 명칭 헬퍼
   const getCustomerName = (customerId?: string): string => {

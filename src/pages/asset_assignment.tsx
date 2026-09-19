@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Asset } from '../services/db';
+import { isModelMatch, normalizeModelKey } from '../utils/modelUtils';
 import { Wrench, CheckCircle, PackageSearch, Layers, Truck, ChevronDown, Check, Activity, Search, AlertTriangle, CheckSquare, Square, Zap, X, Download } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
 
@@ -43,11 +44,6 @@ export const AssetAssignment: React.FC = () => {
   const pendingContractIds = Array.from(new Set(pendingCaList.map(ca => ca.contractId)));
   const pendingContracts = contracts.filter(c => pendingContractIds.includes(c.id) && !exchangeContractIds.includes(c.id));
 
-  // 모델명 정규화 키 (하이픈/공백/대소문자 무시 통일)
-  const normalizeModelKey = (name?: string): string => {
-    if (!name) return '미지정';
-    return name.replace(/[\s\-_]/g, '').toUpperCase();
-  };
 
   // 선택된 계약의 하위 슬롯들 (미할당 + 기할당)
   const currentSlots = useMemo(() => {
@@ -74,21 +70,6 @@ export const AssetAssignment: React.FC = () => {
     });
     return Array.from(map.values());
   }, [currentSlots]);
-
-  // 축약어 지원 유사 모델 매칭 헬퍼
-  const isModelMatch = (assetModel: string, expectedModel: string): boolean => {
-    if (!assetModel || !expectedModel) return false;
-    if (assetModel === expectedModel) return true;
-    
-    const cleanedA = assetModel.replace(/[\s\-_]/g, '').toLowerCase();
-    const cleanedE = expectedModel.replace(/[\s\-_]/g, '').toLowerCase();
-    if (cleanedA.includes(cleanedE) || cleanedE.includes(cleanedA)) return true;
-
-    const nums = expectedModel.match(/\d{3,4}/);
-    if (nums && assetModel.includes(nums[0])) return true;
-
-    return false;
-  };
 
   // 가용 장비 풀 필터링
   const availableAssets = useMemo(() => {

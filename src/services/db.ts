@@ -436,6 +436,7 @@ export interface CustomerSite {
 export interface Product {
   id: string;
   modelName: string;
+  shortName?: string;            // 실무 축약 모델명 (예: '1930', 'GS1930', 'GS-1930')
   feet: number;
   spec: string;
   manufacturer: string;
@@ -787,6 +788,7 @@ export interface Contract {
   lastBilledPeriodEnd?: string; // 최근 청구 종료일 (YYYY-MM-DD)
   lastBilledYm?: string; // 최근 청구 귀속월 (YYYY-MM)
   billingCount?: number; // 누적 발행 청구 건수
+  packageSentAt?: string; // 💡 계약서패키지(PDF+인증서 등) 발송 일시 (ISO string)
   createdAt: string;
   updatedAt: string;
   // 가상필드 (조인 시)
@@ -797,7 +799,8 @@ export interface ContractHistory {
   id: string;
   contractId: string;
   changeType: 'REGISTER' | 'EXTEND' | 'SHORTEN' | 'SUCCEED' | 'TERMINATE' | 'EXCHANGE' | 'FEE_CHANGE' | 'AS_SERVICE'
-           | 'BILLING_CREATED' | 'BILLING_SENT' | 'BILLING_CANCELLED' | 'BILLING_REGENERATED' | 'PAYMENT_RECEIVED' | 'PAYMENT_CANCELLED' | 'DOCUMENT_SENT' | 'ASSET_SOLD';
+           | 'BILLING_CREATED' | 'BILLING_SENT' | 'BILLING_CANCELLED' | 'BILLING_REGENERATED' | 'PAYMENT_RECEIVED' | 'PAYMENT_CANCELLED' | 'DOCUMENT_SENT' | 'ASSET_SOLD'
+           | 'ASSET_PERIOD_CHANGE' | 'ADD_ASSET';
   changeDate: string;
   prevEndDate?: string;
   newEndDate?: string;
@@ -856,6 +859,7 @@ export interface Billing {
   paidAmount: number;
   status: 'REQUESTED' | 'REJECTED' | 'UNPAID' | 'PARTIAL' | 'PAID';
   rejectReason?: string; // 반려 사유
+  isPartial?: boolean;   // 부분 청구 여부 (계약 내 일부 자산만 선택하여 생성한 청구)
   createdAt: string;
   updatedAt: string;
   // 가상필드
@@ -923,7 +927,7 @@ export interface Delivery {
   pickupType?: 'HQ_YARD' | 'VENDOR_YARD' | 'CUSTOMER_SITE'; // 상차 구분
   pickupVendorName?: string; // 타사 주기장명 (타사 직출고 시)
   destinationAddress?: string; // 하차지
-  dropoffType?: 'CUSTOMER_SITE' | 'HQ_YARD' | 'VENDOR_YARD' | 'MULTI_STOP'; // 하차 구분
+  dropoffType?: 'SINGLE' | 'MULTI_STOP' | 'CUSTOMER_SITE' | 'HQ_YARD' | 'VENDOR_YARD'; // 하차 구분
   viaDropoffAddress?: string; // 1차 경유 하차지 주소 (혼적 회수 시)
   viaDropoffName?: string; // 1차 경유지명 (예: 기연 본사 주기장)
   transportCompany?: string; // 운송 거래처 (월 마감 및 정산용)
@@ -4737,6 +4741,12 @@ class LocalDB {
     if (normalized.user_id) {
       if (!normalized.userId) normalized.userId = normalized.user_id;
       delete normalized.user_id;
+    }
+
+    // shortName (short_name ➔ shortName 변환 후 snake_case 전면 파기)
+    if (normalized.short_name !== undefined) {
+      if (normalized.shortName === undefined) normalized.shortName = normalized.short_name;
+      delete normalized.short_name;
     }
     
     // salespersonId (salesperson_id ➔ salespersonId 변환 후 snake_case 전면 파기)

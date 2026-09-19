@@ -283,8 +283,30 @@ interface AppContextType {
   createContract: (contractData: Omit<Contract, 'id' | 'createdAt' | 'updatedAt' | 'contractNo'>, assetsList: { assetId?: string; expectedModel?: string; monthlyRentalFee: number; dailyRentalFee: number }[]) => Promise<void>;
   extendContract: (contractId: string, newEndDate: string, description: string) => Promise<void> | void;
   shortenContract: (contractId: string, newEndDate: string, description: string) => Promise<void> | void;
-  succeedContract: (contractId: string, successorCustomerId: string, successorContactId: string, successorSiteId: string, successionDate: string, description: string) => Promise<void> | void;
+  succeedContract: (contractId: string, successorCustomerId: string, successorContactId: string, successorSiteId: string, successionDate: string, description: string, selectedAssetIds?: string[]) => Promise<void> | void;
   exchangeAsset: (contractId: string, oldAssetId: string, newAssetId: string, exchangeDate: string) => Promise<void> | void;
+  updateContractAssetPeriod: (caId: string, startDate: string, endDate: string, reason: string) => Promise<void>;
+  relocateContractAsset: (params: {
+    contractAssetId: string;
+    targetSiteId: string;
+    relocationDate: string;
+    needTransport?: boolean;
+    transportCost?: number;
+    paidBy?: 'OURS' | 'CUSTOMER' | 'VENDOR';
+    reason?: string;
+  }) => Promise<void>;
+  redeployRepairedAsset: (params: {
+    contractId: string;
+    assetId: string;
+    redeployDate: string;
+    expectedEndDate?: string;
+    monthlyRentalFee?: number;
+    dailyRentalFee?: number;
+    needTransport?: boolean;
+    transportCost?: number;
+    paidBy?: 'OURS' | 'CUSTOMER' | 'VENDOR';
+    reason?: string;
+  }) => Promise<void>;
   
   // 장비 할당 및 출고전 교체 / 할당 취소
   assignAssetToContract: (contractAssetId: string, assetId: string) => Promise<void>;
@@ -314,7 +336,7 @@ interface AppContextType {
   generateBillingsForMonth: (billingYm: string, billingDate: string) => Promise<void>;
   getDueContractsForBilling: (targetDate?: string) => { contract: Contract; customer: Customer; site?: CustomerSite; billingDay: number; dueReason: string }[];
   generateDueBillings: (targetDate?: string, targetYm?: string) => Promise<{ successCount: number; skippedContracts: { contractId: string; customerId: string; reason: string }[] }>;
-  generateBillingForSingleContract: (contractId: string, billingYm: string, billingDate: string) => Promise<string | null>;
+  generateBillingForSingleContract: (contractId: string, billingYm: string, billingDate: string, selectedContractAssetIds?: string[]) => Promise<string | null>;
   regenerateBilling: (billingId: string, customDetails?: Omit<BillingDetail, 'id' | 'billingId' | 'createdAt'>[], options?: { billingYm?: string; billingDate?: string; memo?: string }) => Promise<string>;
   approveBilling: (billingId: string) => Promise<void>; // UNPAID → REQUESTED (거래명세서 발송)
   cancelBilling: (billingId: string, refund?: boolean) => Promise<void>; // 환불=true, 비환불=false(기본)
@@ -1804,28 +1826,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  // 전사 계약번호 통일 생성 헬퍼 (YYMM + 4자리 순차: 예 '26070001')
-  const generateNextContractNo = (): string => {
-    const prefix = new Date().toISOString().split('T')[0].replace(/-/g, '').substring(2, 6); // e.g. "2607"
+  // 전사 계약번호 통일 생성 헬퍼 (최초발생월 YYMM 기준 C{YYMM}-{4자리 순차}: 예 'C2608-0001')
+  const generateNextContractNo = (targetDate?: string): string => {
+    let yymm = '';
+    if (targetDate) {
+      const clean = targetDate.replace(/\D/g, '');
+      if (clean.length >= 6) {
+        yymm = clean.substring(2, 6);
+      }
+    }
+    if (!yymm) {
+      yymm = new Date().toISOString().split('T')[0].replace(/-/g, '').substring(2, 6); // e.g. "2608"
+    }
+    const prefix = `C${yymm}`;
     let maxSeq = 0;
     
     db.contracts.forEach(c => {
       if (!c || !c.contractNo) return;
-      const match = c.contractNo.match(new RegExp(`${prefix}(\\d{4})`)) || c.contractNo.match(/(\d{8})/);
+      const match = c.contractNo.match(new RegExp(`^${prefix}-(\\d{4})`)) || 
+                    c.contractNo.match(new RegExp(`^${prefix}(\\d{4})`)) ||
+                    c.contractNo.match(new RegExp(`${yymm}(\\d{4})`));
       if (match) {
-        const str = match[1] || match[0];
-        if (str.length === 8 && str.startsWith(prefix)) {
-          const seq = parseInt(str.substring(4), 10);
-          if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
-        } else if (str.length === 4) {
-          const seq = parseInt(str, 10);
-          if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
-        }
+        const seq = parseInt(match[1], 10);
+        if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
       }
     });
 
     const nextSeq = String(maxSeq + 1).padStart(4, '0');
-    return `${prefix}${nextSeq}`;
+    return `${prefix}-${nextSeq}`;
   };
 
   const saveSmartDispatch = async (data: SmartDispatchData, autoRegister: boolean, onProgress?: (log: string, percent: number) => void) => {
@@ -2120,12 +2148,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const isSalespersonValid = currentUser?.id && existingUsers.some(u => u.id === currentUser.id);
     const validSalespersonId = isSalespersonValid ? currentUser.id : (existingUsers.find(u => u.id === 'u-1')?.id || existingUsers[0]?.id || undefined);
 
-    const nextContractNo = generateNextContractNo();
-
-    await notify(`📄 [3/5 계약 생성] 스마트 임대차 계약서 작성 중 (${nextContractNo})...`, 55);
-
-    const contractLateInterestRate = (rawData.lateInterestRate !== undefined && rawData.lateInterestRate !== '') ? (Number(rawData.lateInterestRate) || 0) : ((finalCustomer as any).defaultLateInterestRate || 0);
-
     const extractDate = (dateTimeStr?: string): string => {
       if (!dateTimeStr) return '';
       const match = dateTimeStr.match(/\d{4}-\d{2}-\d{2}/);
@@ -2133,41 +2155,73 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     const targetStartDate = extractDate(data.loadingTime) || extractDate(data.unloadingTime) || new Date().toISOString().split('T')[0];
 
-    const contract = db.insertRow<Contract>('contracts', {
-      contractNo: nextContractNo,
-      contractType: 'RENTAL',
-      customerId: finalCustomer.id,
-      siteId: finalSite.id,
-      startDate: targetStartDate,
-      endDate: '', 
-      billingDay: contractBillingDay,
-      statementClosingDay: contractStatementClosingDay,
-      lateInterestRate: contractLateInterestRate,
-      paymentDueDay: contractPaymentDueDay,
-      salespersonId: validSalespersonId,
-      status: 'ACTIVE',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    });
+    // ── 계약 단일성 원칙: 동일 (고객사 + 현장) 활성 계약 탐색 ──
+    const existingActiveContract = db.contracts.find(c => 
+      c.customerId === finalCustomer.id && 
+      c.siteId === finalSite.id && 
+      (c.status === 'ACTIVE' || c.status === 'EXTENDED')
+    );
 
-    // ⚠️ 외래키(Foreign Key) 제약조건 위반 방지: 부모 contract 레코드가 Supabase 원격 DB에 먼저 100% 생성되도록 1차 동기 대기!
-    try {
-      await db.awaitPendingWrites();
-    } catch (err: any) {
-      console.error('Supabase contract insert sync error:', err);
-      showErrorModal(`⚠️ 스마트 출고 계약 생성 중 DB 동기화 오류가 발생했습니다:\n${err.message || err.details || JSON.stringify(err)}`, '스마트 출고 DB 동기화 오류');
-      return { success: false, errorMessage: err.message || err.details };
+    let contract: Contract;
+
+    if (existingActiveContract) {
+      // 1) 기존 활성 계약이 존재할 경우: 신규 계약을 파편화하여 생성하지 않고 기존 계약에 장비 편입!
+      contract = existingActiveContract;
+      await notify(`📄 [3/5 기존 계약 편입] 기존 계약(${contract.contractNo})에 신규 장비 편입 중...`, 55);
+
+      // 📜 [헌장 1.2] 발생 사건 무누락 DB 저장: 기존 계약에 장비 추가 편입 이력 등록
+      db.insertRow<ContractHistory>('contractHistory', {
+        contractId: contract.id,
+        changeType: 'ADD_ASSET',
+        changeDate: targetStartDate,
+        newEndDate: contract.endDate || '',
+        description: `[스마트출고] 기존 계약(${contract.contractNo})에 추가 장비 투입 (${data.equipments.map(e => `${e.modelName} ${e.qty}대`).join(', ')})`,
+        createdAt: new Date().toISOString()
+      });
+    } else {
+      // 2) 기존 계약이 없을 경우: 최초 발생월(YYMM) 기준 채번하여 신규 계약 생성
+      const nextContractNo = generateNextContractNo(targetStartDate);
+
+      await notify(`📄 [3/5 계약 생성] 스마트 임대차 계약서 작성 중 (${nextContractNo})...`, 55);
+
+      const contractLateInterestRate = (rawData.lateInterestRate !== undefined && rawData.lateInterestRate !== '') ? (Number(rawData.lateInterestRate) || 0) : ((finalCustomer as any).defaultLateInterestRate || 0);
+
+      contract = db.insertRow<Contract>('contracts', {
+        contractNo: nextContractNo,
+        contractType: 'RENTAL',
+        customerId: finalCustomer.id,
+        siteId: finalSite.id,
+        startDate: targetStartDate,
+        endDate: '', 
+        billingDay: contractBillingDay,
+        statementClosingDay: contractStatementClosingDay,
+        lateInterestRate: contractLateInterestRate,
+        paymentDueDay: contractPaymentDueDay,
+        salespersonId: validSalespersonId,
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+
+      // ⚠️ 외래키(Foreign Key) 제약조건 위반 방지: 부모 contract 레코드가 Supabase 원격 DB에 먼저 100% 생성되도록 1차 동기 대기!
+      try {
+        await db.awaitPendingWrites();
+      } catch (err: any) {
+        console.error('Supabase contract insert sync error:', err);
+        showErrorModal(`⚠️ 스마트 출고 계약 생성 중 DB 동기화 오류가 발생했습니다:\n${err.message || err.details || JSON.stringify(err)}`, '스마트 출고 DB 동기화 오류');
+        return { success: false, errorMessage: err.message || err.details };
+      }
+
+      // 📜 [헌장 1.2] 발생 사건 무누락 DB 저장: 스마트 출고 신규 계약 체결 이력 등록
+      db.insertRow<ContractHistory>('contractHistory', {
+        contractId: contract.id,
+        changeType: 'REGISTER',
+        changeDate: contract.startDate,
+        newEndDate: '',
+        description: `[스마트출고] 신규 임대차 계약 체결 (${finalCustomer.name} / ${finalSite.name} - ${data.equipments.map(e => `${e.modelName} ${e.qty}대`).join(', ')})`,
+        createdAt: new Date().toISOString()
+      });
     }
-
-    // 📜 [헌장 1.2] 발생 사건 무누락 DB 저장: 스마트 출고 신규 계약 체결 이력 등록
-    db.insertRow<ContractHistory>('contractHistory', {
-      contractId: contract.id,
-      changeType: 'REGISTER',
-      changeDate: contract.startDate,
-      newEndDate: '',
-      description: `[스마트출고] 신규 임대차 계약 체결 (${finalCustomer.name} / ${finalSite.name} - ${data.equipments.map(e => `${e.modelName} ${e.qty}대`).join(', ')})`,
-      createdAt: new Date().toISOString()
-    });
 
     await notify('🏗️ [4/5 장비 매핑] 계약 투입 장비 모델 및 단가 자동 상속 중...', 80);
 
@@ -2220,7 +2274,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           expectedModel: eq.modelName,
           monthlyRentalFee: determinedMonthly,
           dailyRentalFee: determinedDaily,
-          startDate: contract.startDate,
+          startDate: targetStartDate || contract.startDate,
           endDate: '',
           createdAt: new Date().toISOString()
         });
@@ -4790,7 +4844,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       throw new Error('거래 불가 고객사입니다.');
     }
 
-    const contractNo = generateNextContractNo();
+    const contractNo = generateNextContractNo(contractData.startDate);
     
     const contract = db.insertRow<Contract>('contracts', {
       ...contractData,
@@ -4988,7 +5042,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     refreshAllData();
   };
 
-  const succeedContract = async (contractId: string, successorCustomerId: string, successorContactId: string, successorSiteId: string, successionDate: string, description: string) => {
+  const succeedContract = async (contractId: string, successorCustomerId: string, successorContactId: string, successorSiteId: string, successionDate: string, description: string, selectedAssetIds?: string[]) => {
     const oldContract = db.contracts.find(c => c.id === contractId);
     if (!oldContract) {
       showErrorModal('승계 대상 계약을 찾을 수 없습니다.');
@@ -5021,7 +5075,28 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       updatedAt: new Date().toISOString()
     });
 
-    const oldCAssets = db.contractAssets.filter(ca => ca.contractId === contractId);
+    const allCAssets = db.contractAssets.filter(ca => ca.contractId === contractId);
+    // Feature 5: selectedAssetIds가 지정된 경우 선택된 자산만 승계, 없으면 전체
+    const assetsToSucceed = selectedAssetIds && selectedAssetIds.length > 0
+      ? allCAssets.filter(ca => selectedAssetIds.includes(ca.id))
+      : allCAssets;
+    const assetsToRetain = selectedAssetIds && selectedAssetIds.length > 0
+      ? allCAssets.filter(ca => !selectedAssetIds.includes(ca.id))
+      : [];
+
+    // 전체 승계 시 원 계약 단축, 부분 승계 시 원 계약 ACTIVE 유지
+    if (assetsToRetain.length === 0) {
+      db.updateRow<Contract>('contracts', contractId, {
+        endDate: successionDate,
+        status: 'SHORTENED',
+        updatedAt: new Date().toISOString()
+      });
+    } else {
+      // 부분 승계: 원 계약의 상태는 ACTIVE 유지, 이전 대상 ContractAsset만 endDate 조정
+      db.updateRow<Contract>('contracts', contractId, { updatedAt: new Date().toISOString() });
+    }
+
+    const oldCAssets = assetsToSucceed;
     oldCAssets.forEach(ca => {
       db.updateRow<ContractAsset>('contractAssets', ca.id, { endDate: successionDate });
     });
@@ -5032,7 +5107,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       changeDate: successionDate,
       prevEndDate: oldEndDate,
       newEndDate: successionDate,
-      description: `계약 승계 이전(타 고객 인수)에 따른 단축 완료`,
+      description: assetsToRetain.length > 0
+        ? `계약 부분 승계 이전 (${assetsToSucceed.length}대 승계, ${assetsToRetain.length}대 잔류)`
+        : `계약 승계 이전(타 고객 인수)에 따른 단축 완료`,
       createdAt: new Date().toISOString()
     });
 
@@ -5040,38 +5117,68 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const oldCustomerName = oldCustomer ? oldCustomer.name : '-';
 
     const nextDay = new Date(new Date(successionDate).getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const newContractNo = generateNextContractNo();
 
-    const newContract = db.insertRow<Contract>('contracts', {
-      contractNo: newContractNo,
-      customerId: successorCustomerId,
-      contactId: successorContactId,
-      siteId: successorSiteId,
-      startDate: nextDay,
-      endDate: oldEndDate,
-      billingDay: oldContract.billingDay,
-      statementClosingDay: oldContract.statementClosingDay,
-      paymentDueDay: oldContract.paymentDueDay,
-      lateInterestRate: oldContract.lateInterestRate || 0,
-      salespersonId: oldContract.salespersonId,
-      status: 'ACTIVE',
-      predecessorContractId: oldContract.id,
-      predecessorContractNo: oldContract.contractNo,
-      predecessorCustomerId: oldContract.customerId,
-      predecessorCustomerName: oldCustomerName,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    });
+    // 💡 [단일 계약 원칙 준수] 양수 고객사 + 해당 현장의 기존 활성 계약 탐색
+    const existingTargetContract = db.contracts.find(c =>
+      c.customerId === successorCustomerId &&
+      c.siteId === successorSiteId &&
+      (c.status === 'ACTIVE' || c.status === 'EXTENDED')
+    );
 
-    db.updateRow<Contract>('contracts', contractId, {
-      successorContractId: newContract.id,
-      status: 'SUCCEEDED'
-    });
+    let targetContract: Contract;
+    let isTargetExisting = false;
+
+    if (existingTargetContract) {
+      targetContract = existingTargetContract;
+      isTargetExisting = true;
+      // 만약 승계 대상 자산의 종료일이 기존 계약 만료일보다 길다면 부모 계약 만료일 동적 확장
+      const currentTargetEnd = targetContract.endDate;
+      if (currentTargetEnd && oldEndDate && (currentTargetEnd === '미정' || oldEndDate > currentTargetEnd)) {
+        db.updateRow<Contract>('contracts', targetContract.id, {
+          endDate: oldEndDate,
+          updatedAt: new Date().toISOString()
+        });
+      }
+    } else {
+      const newContractNo = generateNextContractNo(nextDay);
+      targetContract = db.insertRow<Contract>('contracts', {
+        contractNo: newContractNo,
+        customerId: successorCustomerId,
+        contactId: successorContactId,
+        siteId: successorSiteId,
+        startDate: nextDay,
+        endDate: oldEndDate,
+        billingDay: oldContract.billingDay,
+        statementClosingDay: oldContract.statementClosingDay,
+        paymentDueDay: oldContract.paymentDueDay,
+        lateInterestRate: oldContract.lateInterestRate || 0,
+        salespersonId: oldContract.salespersonId,
+        status: 'ACTIVE',
+        predecessorContractId: oldContract.id,
+        predecessorContractNo: oldContract.contractNo,
+        predecessorCustomerId: oldContract.customerId,
+        predecessorCustomerName: oldCustomerName,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    // 전체 승계 시에만 원 계약을 SUCCEEDED로 mark (부분 승계 시 원 계약 ACTIVE 유지)
+    if (assetsToRetain.length === 0) {
+      db.updateRow<Contract>('contracts', contractId, {
+        successorContractId: targetContract.id,
+        status: 'SUCCEEDED'
+      });
+    } else {
+      db.updateRow<Contract>('contracts', contractId, {
+        successorContractId: targetContract.id
+      });
+    }
 
     const nowIsoSucceed = new Date().toISOString();
     oldCAssets.forEach(ca => {
       const newCA = db.insertRow<ContractAsset>('contractAssets', {
-        contractId: newContract.id,
+        contractId: targetContract.id,
         assetId: ca.assetId,
         monthlyRentalFee: ca.monthlyRentalFee,
         dailyRentalFee: ca.dailyRentalFee,
@@ -5093,7 +5200,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         const asset = db.assets.find(a => a.id === ca.assetId);
         if (asset && asset.status === 'ASSIGNED') {
           db.insertRow<OutboundInspection>('outboundInspections', {
-            contractId: newContract.id,
+            contractId: targetContract.id,
             contractAssetId: newCA.id,
             assetId: ca.assetId,
             status: 'PENDING',
@@ -5105,11 +5212,428 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     });
 
     db.insertRow<ContractHistory>('contractHistory', {
-      contractId: newContract.id,
+      contractId: targetContract.id,
       changeType: 'REGISTER',
       changeDate: successionDate,
       newEndDate: oldEndDate,
-      description: `계약 승계 인수 완료 (이전 계약번호: ${oldContract.contractNo}): ${description}`,
+      description: isTargetExisting
+        ? `계약 승계 기존계약 편입 완료 (이전 계약번호: ${oldContract.contractNo}): ${description}`
+        : `계약 승계 신규계약 인수 완료 (이전 계약번호: ${oldContract.contractNo}): ${description}`,
+      createdAt: new Date().toISOString()
+    });
+
+    await db.awaitPendingWrites();
+    refreshAllData();
+  };
+
+  // Feature 6) 동일 고객 현장간 장비 이동 (Site Transfer / Relocation)
+  const relocateContractAsset = async (params: {
+    contractAssetId: string;
+    targetSiteId: string;
+    relocationDate: string;
+    needTransport?: boolean;
+    transportCost?: number;
+    paidBy?: 'OURS' | 'CUSTOMER' | 'VENDOR';
+    reason?: string;
+  }) => {
+    const { contractAssetId, targetSiteId, relocationDate, needTransport, transportCost, paidBy, reason } = params;
+
+    const sourceCA = db.contractAssets.find(ca => ca.id === contractAssetId);
+    if (!sourceCA) {
+      showErrorModal('이동 대상 체결 자산 슬롯을 찾을 수 없습니다.');
+      return;
+    }
+
+    const sourceContract = db.contracts.find(c => c.id === sourceCA.contractId);
+    if (!sourceContract) {
+      showErrorModal('원 계약 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    if (sourceContract.siteId === targetSiteId) {
+      showErrorModal('현재 현장과 동일한 현장으로는 이동할 수 없습니다.');
+      return;
+    }
+
+    if (!relocationDate) {
+      showErrorModal('현장 이동 일자를 입력하십시오.');
+      return;
+    }
+
+    if (sourceCA.startDate && relocationDate < sourceCA.startDate) {
+      showErrorModal(`이동일자(${relocationDate})는 장비 계약 시작일(${sourceCA.startDate}) 이후여야 합니다.`);
+      return;
+    }
+
+    const asset = sourceCA.assetId ? db.assets.find(a => a.id === sourceCA.assetId) : null;
+    const assetNo = asset?.assetNo || '장비';
+    const modelName = asset?.modelName || sourceCA.expectedModel || '고소작업대';
+    const sourceSite = db.sites.find(s => s.id === sourceContract.siteId);
+    const targetSite = db.sites.find(s => s.id === targetSiteId);
+    const sourceSiteName = sourceSite?.name || '1현장';
+    const targetSiteName = targetSite?.name || '2현장';
+    const oldEndDate = sourceCA.endDate;
+
+    const nowIso = new Date().toISOString();
+
+    // 0. 날짜 보존: 1현장은 이동일 당일까지 청구(종료), 2현장은 이동 다음 날부터 개시 (역일 공백/중복 0일)
+    const getNextDate = (dStr: string): string => {
+      const d = new Date(dStr);
+      d.setDate(d.getDate() + 1);
+      return d.toISOString().split('T')[0];
+    };
+    const relocationStartDate = getNextDate(relocationDate);
+
+    // 1. 1현장(출발 계약): 해당 contractAsset의 endDate를 relocationDate로 단축 마감
+    db.updateRow<ContractAsset>('contractAssets', sourceCA.id, {
+      endDate: relocationDate
+    });
+
+    // 1현장 계약 이력에 [현장 이동 출고] 기록
+    db.insertRow<ContractHistory>('contractHistory', {
+      contractId: sourceContract.id,
+      changeType: 'SHORTEN',
+      changeDate: relocationDate,
+      prevEndDate: oldEndDate,
+      newEndDate: relocationDate,
+      description: `장비 [${assetNo} / ${modelName}] 현장간 이동 출고 (도착지: ${targetSiteName}, 이동일: ${relocationDate})${reason ? ' - 사유: ' + reason : ''}`,
+      createdAt: nowIso
+    });
+
+    // 1현장에 다른 활성 자산 잔여 여부 검사 (단일 장비 계약 시 부모 계약 COMPLETED 종결 처리)
+    const remainingSourceCAs = db.contractAssets.filter(ca =>
+      ca.contractId === sourceContract.id &&
+      ca.id !== sourceCA.id &&
+      (!ca.endDate || ca.endDate > relocationDate)
+    );
+
+    if (remainingSourceCAs.length === 0) {
+      db.updateRow<Contract>('contracts', sourceContract.id, {
+        status: 'COMPLETED',
+        endDate: relocationDate,
+        updatedAt: nowIso
+      });
+    } else {
+      const maxRemainingEndDate = remainingSourceCAs.map(ca => ca.endDate).filter(Boolean).sort().pop();
+      if (maxRemainingEndDate && sourceContract.endDate !== maxRemainingEndDate) {
+        db.updateRow<Contract>('contracts', sourceContract.id, {
+          endDate: maxRemainingEndDate,
+          updatedAt: nowIso
+        });
+      }
+    }
+
+    // 2. 2현장(도착 계약): 동일 고객 + targetSiteId의 활성 계약 탐색
+    const existingTargetContract = db.contracts.find(c =>
+      c.customerId === sourceContract.customerId &&
+      c.siteId === targetSiteId &&
+      (c.status === 'ACTIVE' || c.status === 'EXTENDED')
+    );
+
+    let destinationContract: Contract;
+    let isNewDestinationContract = false;
+
+    if (existingTargetContract) {
+      destinationContract = existingTargetContract;
+      // 부모 계약 만료일이 이전된 자산보다 짧으면 확장
+      if (oldEndDate && destinationContract.endDate && destinationContract.endDate !== '미정' && oldEndDate > destinationContract.endDate) {
+        db.updateRow<Contract>('contracts', destinationContract.id, {
+          endDate: oldEndDate,
+          updatedAt: nowIso
+        });
+      }
+    } else {
+      isNewDestinationContract = true;
+      const newContractNo = generateNextContractNo(relocationStartDate);
+      destinationContract = db.insertRow<Contract>('contracts', {
+        contractNo: newContractNo,
+        customerId: sourceContract.customerId,
+        contactId: sourceContract.contactId,
+        siteId: targetSiteId,
+        startDate: relocationStartDate,
+        endDate: oldEndDate,
+        billingDay: sourceContract.billingDay,
+        statementClosingDay: sourceContract.statementClosingDay,
+        paymentDueDay: sourceContract.paymentDueDay,
+        lateInterestRate: sourceContract.lateInterestRate || 0,
+        salespersonId: sourceContract.salespersonId,
+        status: 'ACTIVE',
+        predecessorContractId: sourceContract.id,
+        predecessorContractNo: sourceContract.contractNo,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      });
+    }
+
+    // 3. 2현장 계약에 contractAssets 슬롯 신규 삽입 (이동 익일부터 시작, 단가 및 조건 100% 자동 상속 - 헌장 2.2)
+    db.insertRow<ContractAsset>('contractAssets', {
+      contractId: destinationContract.id,
+      assetId: sourceCA.assetId,
+      monthlyRentalFee: sourceCA.monthlyRentalFee,
+      dailyRentalFee: sourceCA.dailyRentalFee,
+      startDate: relocationStartDate,
+      endDate: oldEndDate,
+      createdAt: nowIso
+    });
+
+    // 4. 2현장 계약 이력에 [현장 이동 전입] 기록
+    db.insertRow<ContractHistory>('contractHistory', {
+      contractId: destinationContract.id,
+      changeType: 'REGISTER',
+      changeDate: relocationStartDate,
+      newEndDate: oldEndDate,
+      description: isNewDestinationContract
+        ? `신규 계약 생성 - 현장 이동 전입 (출발지: ${sourceSiteName}, 이전 계약: ${sourceContract.contractNo}, 장비: ${assetNo})`
+        : `기존 계약 편입 - 현장 이동 전입 (출발지: ${sourceSiteName}, 이전 계약: ${sourceContract.contractNo}, 장비: ${assetNo})`,
+      createdAt: nowIso
+    });
+
+    // 5. 자산 마스터 (assets): currentSiteId 2현장으로 동기화 & contractEnd 갱신
+    if (sourceCA.assetId) {
+      db.updateRow<Asset>('assets', sourceCA.assetId, {
+        currentSiteId: targetSiteId,
+        contractStart: relocationStartDate,
+        contractEnd: oldEndDate,
+        updatedAt: nowIso
+      });
+    }
+
+    // 6. 배차 시스템 연동 (needTransport가 true인 경우 배차 자동 발행)
+    if (needTransport) {
+      const deliveryId = `DEL-${relocationDate.replace(/-/g, '').slice(2)}-${Math.floor(100 + Math.random() * 900)}`;
+      const cost = transportCost || 0;
+      const isCustPaid = paidBy === 'CUSTOMER';
+
+      db.insertRow<Delivery>('deliveries', {
+        id: deliveryId,
+        type: 'MOVEMENT',
+        dispatchCategory: '이동',
+        status: 'REQUESTED',
+        contractId: destinationContract.id,
+        assetIds: sourceCA.assetId || '',
+        requestDate: relocationDate,
+        scheduledDate: relocationDate,
+        loadingDate: relocationDate,
+        loadingTimeSlot: '오전',
+        unloadingDate: relocationDate,
+        unloadingTimeSlot: '오후',
+        originAddress: sourceSite?.address || `${sourceSiteName} (1현장)`,
+        pickupType: 'HQ_YARD',
+        destinationAddress: targetSite?.address || `${targetSiteName} (2현장)`,
+        dropoffType: 'SINGLE',
+        deliveryCost: cost,
+        expectedCost: cost,
+        finalCost: cost,
+        billableToCustomer: isCustPaid,
+        billableCustomerId: isCustPaid ? sourceContract.customerId : undefined,
+        isCostSettled: false,
+        memo: `[현장간 장비 이동] ${sourceSiteName} ➔ ${targetSiteName} (${assetNo} / ${modelName})${reason ? ' | 사유: ' + reason : ''}`,
+        cargoItems: JSON.stringify([{ modelName, count: 1 }]),
+        createdAt: nowIso,
+        updatedAt: nowIso
+      });
+    }
+
+    await db.awaitPendingWrites();
+    refreshAllData();
+  };
+
+  /**
+   * [헌장 1.2 & 2.2] 수리 완료 장비 동일 계약 재투입 (회수 후 수리 재출고)
+   * - 하나의 계약이 유지되는 상황에서 고장 회수된 동일 장비를 수리 완료 후 동일 계약에 재출고
+   * - 1차 슬롯(단축 마감) ➔ 수리 공백(무과금 보존) ➔ 2차 신규 슬롯(재투입일 개시)으로 분리 편입
+   * - 계약은 분할 생성되지 않고 기존 계약 유지
+   * - 자산 상태 RENTED 전환 및 OUTBOUND 배차 1건 자동 발행
+   */
+  const redeployRepairedAsset = async (params: {
+    contractId: string;
+    assetId: string;
+    redeployDate: string;
+    expectedEndDate?: string;
+    monthlyRentalFee?: number;
+    dailyRentalFee?: number;
+    needTransport?: boolean;
+    transportCost?: number;
+    paidBy?: 'OURS' | 'CUSTOMER' | 'VENDOR';
+    reason?: string;
+  }) => {
+    const {
+      contractId,
+      assetId,
+      redeployDate,
+      expectedEndDate,
+      monthlyRentalFee,
+      dailyRentalFee,
+      needTransport = false,
+      transportCost = 0,
+      paidBy = 'OURS',
+      reason
+    } = params;
+
+    const contract = db.contracts.find(c => c.id === contractId);
+    if (!contract) {
+      showErrorModal('재투입 대상 계약을 찾을 수 없습니다.');
+      return;
+    }
+
+    const asset = db.assets.find(a => a.id === assetId);
+    if (!asset) {
+      showErrorModal('재투입 대상 장비를 찾을 수 없습니다.');
+      return;
+    }
+
+    const nowIso = new Date().toISOString();
+
+    // 1. 단가 자동 상속: 해당 계약 내 동일 장비의 이전 슬롯 단가 또는 자산 기본 단가
+    const prevCA = db.contractAssets.find(ca => ca.contractId === contractId && ca.assetId === assetId);
+    const feeMonth = monthlyRentalFee !== undefined ? monthlyRentalFee : (prevCA?.monthlyRentalFee || 600000);
+    const feeDay = dailyRentalFee !== undefined ? dailyRentalFee : (prevCA?.dailyRentalFee || Math.round(feeMonth / 30));
+
+    // 2. 만료일 결정 (부모 계약 만료일 또는 전달받은 종료일)
+    const finalEndDate = expectedEndDate || contract.endDate || '';
+
+    // 3. 부모 계약 만료일 및 상태 갱신 (종료 상태였다면 ACTIVE로 복원 및 만료일 확장)
+    const contractUpdates: Partial<Contract> = {};
+    if (contract.status === 'COMPLETED') {
+      contractUpdates.status = 'ACTIVE';
+    }
+    if (finalEndDate && (!contract.endDate || contract.endDate === '미정' || finalEndDate > contract.endDate)) {
+      contractUpdates.endDate = finalEndDate;
+    }
+    if (Object.keys(contractUpdates).length > 0) {
+      db.updateRow<Contract>('contracts', contract.id, {
+        ...contractUpdates,
+        updatedAt: nowIso
+      });
+    }
+
+    // 4. 계약에 새로운 자산 슬롯(2차 운용 시작) 삽입
+    db.insertRow<ContractAsset>('contractAssets', {
+      contractId: contract.id,
+      assetId: asset.id,
+      monthlyRentalFee: feeMonth,
+      dailyRentalFee: feeDay,
+      startDate: redeployDate,
+      endDate: finalEndDate,
+      createdAt: nowIso
+    });
+
+    // 5. 계약 이력(contractHistory)에 [수리완료 재투입] ADD_ASSET 기록
+    db.insertRow<ContractHistory>('contractHistory', {
+      contractId: contract.id,
+      changeType: 'ADD_ASSET',
+      changeDate: redeployDate,
+      newEndDate: finalEndDate,
+      description: `[수리완료 재투입] 장비 [${asset.assetNo} / ${asset.modelName}] 현장 재출고 (재가동 시작: ${redeployDate})${reason ? ' - 사유: ' + reason : ''}`,
+      createdAt: nowIso
+    });
+
+    // 6. 자산 마스터 (assets): 상태 RENTED 전환 및 고객/현장/기간 동기화
+    db.updateRow<Asset>('assets', asset.id, {
+      status: 'RENTED',
+      currentCustomerId: contract.customerId,
+      currentSiteId: contract.siteId,
+      contractStart: redeployDate,
+      contractEnd: finalEndDate,
+      updatedAt: nowIso
+    });
+
+    // 7. 배차 시스템 연동: OUTBOUND 배차 1건 자동 발행
+    if (needTransport) {
+      const site = db.sites.find(s => s.id === contract.siteId);
+      const deliveryId = `DEL-RED-${redeployDate.replace(/-/g, '').slice(2)}-${Math.floor(100 + Math.random() * 900)}`;
+      const isCustPaid = paidBy === 'CUSTOMER';
+
+      db.insertRow<Delivery>('deliveries', {
+        id: deliveryId,
+        type: 'OUTBOUND',
+        dispatchCategory: '출고',
+        status: 'REQUESTED',
+        contractId: contract.id,
+        assetIds: asset.id,
+        requestDate: redeployDate,
+        scheduledDate: redeployDate,
+        loadingDate: redeployDate,
+        loadingTimeSlot: '오전',
+        unloadingDate: redeployDate,
+        unloadingTimeSlot: '오후',
+        originAddress: '당사 보관소',
+        pickupType: 'HQ_YARD',
+        destinationAddress: site?.address || site?.name || '현장',
+        dropoffType: 'SINGLE',
+        deliveryCost: transportCost,
+        expectedCost: transportCost,
+        finalCost: transportCost,
+        billableToCustomer: isCustPaid,
+        billableCustomerId: isCustPaid ? contract.customerId : undefined,
+        isCostSettled: false,
+        memo: `[수리완료 재투입 배차] ${asset.assetNo} (${asset.modelName}) ➔ ${site?.name || '현장'}${reason ? ' | 사유: ' + reason : ''}`,
+        cargoItems: JSON.stringify([{ modelName: asset.modelName, count: 1 }]),
+        createdAt: nowIso,
+        updatedAt: nowIso
+      });
+    }
+
+    await db.awaitPendingWrites();
+    refreshAllData();
+  };
+
+  // Feature 4) 개별 ContractAsset 기간 수정 (부분 연장 / 부분 단축)
+  const updateContractAssetPeriod = async (caId: string, startDate: string, endDate: string, reason: string) => {
+    const ca = db.contractAssets.find(c => c.id === caId);
+    if (!ca) {
+      showErrorModal('수정 대상 자산 계약을 찾을 수 없습니다.');
+      return;
+    }
+    if (endDate < startDate) {
+      showErrorModal('종료일은 시작일 이후여야 합니다.');
+      return;
+    }
+
+    const prevEnd = ca.endDate;
+    const isExtension = prevEnd && endDate > prevEnd;
+    const isShortening = prevEnd && endDate < prevEnd;
+
+    // 1. 개별 계약 자산 슬롯 기간 갱신
+    db.updateRow<ContractAsset>('contractAssets', caId, {
+      startDate,
+      endDate,
+      updatedAt: new Date().toISOString()
+    });
+
+    // 2. 자산 마스터의 contractEnd 동기화 (헌장 1.2: 자산 효과적 운용)
+    if (ca.assetId) {
+      db.updateRow<Asset>('assets', ca.assetId, {
+        contractEnd: endDate,
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    // 3. 부모 계약의 전체 기간 및 상태 동기 보정 (제4원칙: 자산들의 합집합 구간 자동 확장)
+    const parentContract = db.contracts.find(c => c.id === ca.contractId);
+    if (parentContract) {
+      const siblingCAs = db.contractAssets.filter(item => item.contractId === ca.contractId && item.id !== caId);
+      const allEndDates = [endDate, ...siblingCAs.map(item => item.endDate).filter(Boolean)];
+      const maxEndDate = allEndDates.reduce((max, cur) => (cur > max ? cur : max), endDate);
+      const allStartDates = [startDate, ...siblingCAs.map(item => item.startDate).filter(Boolean)];
+      const minStartDate = allStartDates.reduce((min, cur) => (cur < min ? cur : min), startDate);
+
+      db.updateRow<Contract>('contracts', parentContract.id, {
+        startDate: minStartDate,
+        endDate: maxEndDate,
+        status: isExtension ? 'EXTENDED' : isShortening ? 'SHORTENED' : parentContract.status,
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    // 4. 이력 저장
+    db.insertRow<ContractHistory>('contractHistory', {
+      contractId: ca.contractId,
+      changeType: isExtension ? 'EXTEND' : isShortening ? 'SHORTEN' : 'ASSET_PERIOD_CHANGE',
+      changeDate: new Date().toISOString().split('T')[0],
+      prevEndDate: prevEnd,
+      newEndDate: endDate,
+      description: `[부분 ${isExtension ? '연장' : isShortening ? '단축' : '기간변경'}] 자산(${ca.assetId || ca.expectedModel}) 기간 조정: ${startDate} ~ ${endDate}${reason ? ` (사유: ${reason})` : ''}`,
       createdAt: new Date().toISOString()
     });
 
@@ -6189,7 +6713,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     });
   };
 
-  const generateBillingForSingleContract = async (contractId: string, billingYm: string, billingDate: string): Promise<string | null> => {
+  const generateBillingForSingleContract = async (contractId: string, billingYm: string, billingDate: string, selectedContractAssetIds?: string[]): Promise<string | null> => {
     const c = db.contracts.find(x => x.id === contractId);
     if (!c) return null;
 
@@ -6197,17 +6721,23 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       throw new Error(`[계약 유형 오류] 계약 ${c.contractNo}는 자산 매각 계약(SALE)입니다. 월 정기 렌탈료 청구 대상이 아닙니다.`);
     }
 
-    // 중복 발행 감지 (J-3): 동일 계약 + 동일 귀속월 활성 청구 존재 시 throw
+    // 중복 발행 감지 (J-3): 동일 계약 + 동일 귀속월 활성 청구 존재 시 throw (부분 청구는 제외)
     const existingActive = db.billings.find(
-      b => b.contractId === c.id && b.billingYm === billingYm && b.status !== 'REJECTED'
+      b => b.contractId === c.id && b.billingYm === billingYm && b.status !== 'REJECTED' && !b.isPartial
     );
-    if (existingActive) {
+    if (existingActive && !selectedContractAssetIds) {
       throw new Error(`[중복 경고] 계약 ${c.contractNo}의 ${billingYm} 청구서가 이미 존재합니다.\n상태: ${existingActive.status} / ID: ${existingActive.id}`);
     }
 
     const cust = db.customers.find(cu => cu.id === c.customerId);
     const billingDay = c.billingDay || cust?.defaultBillingDay || 25;
-    const cAssets = db.contractAssets.filter(ca => ca.contractId === c.id);
+    const allCAssets = db.contractAssets.filter(ca => ca.contractId === c.id);
+    // 부분 청구 시: 선택된 자산 ID만 필터링, 전체 청구 시: 전체 자산
+    const cAssets = selectedContractAssetIds
+      ? allCAssets.filter(ca => selectedContractAssetIds.includes(ca.id))
+      : allCAssets;
+    const isPartialBilling = !!(selectedContractAssetIds && selectedContractAssetIds.length < allCAssets.length);
+
     let detailsList: Omit<BillingDetail, 'id' | 'billingId' | 'createdAt'>[] = [];
     let totalAmount = 0;
 
@@ -6270,9 +6800,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     // 2. 수리비 자동 합산 제거 (H-1 원칙: 수리비는 외상미수금 대장으로 분리 관리)
     // → 담당자가 외상미수금 화면에서 수동으로 청구에 포함
 
-    // 3. 선수금(예치금) 차감 반영 (I-1 원칙: 청구 발생 시 자동 차감)
+    // 3. 선수금(예치금) 차감 반영 — 부분 청구가 아닌 경우에만 자동 차감 (I-1 원칙)
     let finalBillingAmount = totalAmount;
-    if (cust && (cust.prepaidBalance || 0) > 0 && totalAmount > 0) {
+    if (!isPartialBilling && cust && (cust.prepaidBalance || 0) > 0 && totalAmount > 0) {
       const prepaid = cust.prepaidBalance || 0;
       const applied = Math.min(totalAmount, prepaid);
       if (applied > 0) {
@@ -6304,6 +6834,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       totalAmount: finalBillingAmount,
       paidAmount: 0,
       status: 'UNPAID',
+      isPartial: isPartialBilling || undefined,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
@@ -9340,7 +9871,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       purchaseConsumable, useConsumable, transferConsumableToMechanic, returnConsumableToHq, transferConsumableBetweenMechanics, addConsumable, updateConsumable, deleteConsumable,
       createStocktakingAudit, updateStocktakingItem, confirmStocktakingAudit, cancelStocktakingAudit, processCollectedPart,
       requestConsumablePurchase, acceptConsumablePurchase, completeConsumablePurchase, inboundConsumablePurchase, clearEvidenceFileUrls, updateEvidenceFileUrls,
-      createContract, extendContract, shortenContract, succeedContract, exchangeAsset,
+      createContract, extendContract, shortenContract, succeedContract, exchangeAsset, updateContractAssetPeriod, relocateContractAsset, redeployRepairedAsset,
       assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, exchangeOutboundAsset,
       saveSmartDispatch, saveSmartReturn,
       completeTodo, issueExecutiveDirective, resolveExecutiveDirective, cancelExecutiveDirective,

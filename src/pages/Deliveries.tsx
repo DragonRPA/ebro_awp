@@ -221,7 +221,7 @@ export const Deliveries: React.FC = () => {
         'No': idx + 1,
         '배차ID': d.id,
         '계약번호': getContractNo(d.contractId),
-        '구분': d.dispatchCategory || (d.type === 'OUTBOUND' ? '출고' : '회수'),
+        '구분': d.dispatchCategory || (d.type === 'OUTBOUND' ? '출고' : d.type === 'MOVEMENT' ? '이동' : d.type === 'EXCHANGE' ? '교환' : '회수'),
         '배송 상태': d.status === 'REQUESTED' ? '의뢰중' :
                    d.status === 'DISPATCHED' ? '배차완료' : 
                    d.status === 'DELIVERED' ? '배송완료' : '완료',
@@ -506,6 +506,7 @@ export const Deliveries: React.FC = () => {
               <option value="OUTBOUND">출고 (OUTBOUND)</option>
               <option value="INBOUND">회수 (INBOUND)</option>
               <option value="EXCHANGE">교환 (EXCHANGE)</option>
+              <option value="MOVEMENT">이동 (MOVEMENT)</option>
             </select>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

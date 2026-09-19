@@ -959,6 +959,7 @@ export function parseInitialExcelWorkbook(
   const receivables: any[] = [];
 
   let contractSeq = 1;
+  const contractSeqByYm = new Map<string, number>();
   let caSeq = 1;
   let leaseSeq = 1;
   let delivSeq = 1;
@@ -1225,26 +1226,43 @@ export function parseInitialExcelWorkbook(
     // Col[3] = 최초개시일 (실제 계약 시작일). Col[4] = 개시일은 당월 기산일
     const firstStartDate = sanitizeExcelDate(getCol(r, mainHeaderMap, ['최초개시일', '최초출고일'], 3)) || sanitizeExcelDate(r[3]) || rowStartDate;
 
-    // ── 계약 그룹핑: 동일 (고객사 + 현장 + 시작일 + 종료일) = 1개 계약 ──
-    // 재영전기처럼 같은 현장·기간에 여러 자산이 있을 경우 하나의 계약으로 묶음
-    const contractGroupKey = `${customer.id}_${site.id}_${rowStartDate}_${rowEndDate}`;
+    // ── 계약 그룹핑: 헌장 원칙에 따라 동일 (고객사 + 현장) = 단 1개 계약 ──
+    // 동일 현장의 장비는 출고일자가 다르더라도 단일 계약에 묶이며 자산별로 독립 라이프사이클을 가짐
+    const contractGroupKey = `${customer.id}_${site.id}`;
     let contractId: string;
     let contractNo: string;
 
     if (contractGroupMap.has(contractGroupKey)) {
-      // 이미 동일 (고객+현장+기간) 계약이 존재 → 기존 계약 재사용
+      // 이미 동일 (고객+현장) 계약이 존재 → 기존 계약 재사용 및 정보 갱신
       const existingContract = contractGroupMap.get(contractGroupKey);
       contractId = existingContract.id;
       contractNo = existingContract.contractNo;
-      // 계약 헤더의 월 합계를 추가 자산 단가만큼 누적
       existingContract._totalMonthlyFee = (existingContract._totalMonthlyFee || 0) + rowMonthlyFee;
+
+      // 더 이른 최초개시일이 발견되면 시작일 보정
       if (firstStartDate && (!existingContract._firstStartDate || firstStartDate < existingContract._firstStartDate)) {
         existingContract._firstStartDate = firstStartDate;
       }
+      if (rowStartDate && rowStartDate < existingContract.startDate) {
+        existingContract.startDate = rowStartDate;
+      }
+
+      // 진행중인 장비가 1대라도 있으면 계약 전체 상태는 ACTIVE 유지
+      if (!isCompleted) {
+        existingContract.status = 'ACTIVE';
+        existingContract.endDate = '9999-12-31';
+      } else if (existingContract.status === 'COMPLETED' && rowEndDate > existingContract.endDate) {
+        existingContract.endDate = rowEndDate;
+      }
     } else {
-      // 신규 계약 생성
-      contractId = `CONT-260801-${String(contractSeq++).padStart(4, '0')}`;
-      contractNo = `C2608-${String(contractSeq - 1).padStart(4, '0')}`;
+      // 신규 계약 생성: 최초 발생월(YYMM) 기준 채번
+      const effStartDate = firstStartDate || rowStartDate || '2026-08-01';
+      const yymm = effStartDate.replace(/-/g, '').substring(2, 6) || '2608';
+      const currentSeq = (contractSeqByYm.get(yymm) || 0) + 1;
+      contractSeqByYm.set(yymm, currentSeq);
+
+      contractId = `CONT-${yymm}01-${String(currentSeq).padStart(4, '0')}`;
+      contractNo = `C${yymm}-${String(currentSeq).padStart(4, '0')}`;
 
       const newContract = {
         id: contractId,

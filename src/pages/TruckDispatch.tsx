@@ -2580,12 +2580,14 @@ export const TruckDispatch: React.FC = () => {
     }
 
     try {
-      const isInbound = targetDelivery?.type === 'INBOUND'
+      const isSimpleTransit = targetDelivery?.type === 'INBOUND'
+        || targetDelivery?.type === 'MOVEMENT'
         || targetDelivery?.dispatchCategory === '입고'
-        || targetDelivery?.dispatchCategory === '반납';
+        || targetDelivery?.dispatchCategory === '반납'
+        || targetDelivery?.dispatchCategory === '이동';
 
-      if (isInbound) {
-        // [헌장 1.3] INBOUND 배차 완료 = 배차 상태만 DELIVERED로 기록.
+      if (isSimpleTransit) {
+        // [헌장 1.3] INBOUND/MOVEMENT 배차 완료 = 배차 상태만 DELIVERED로 기록.
         // 자산 상태(RENTED → AVAILABLE) 전환은 입고검수 화면에서만 수행한다.
         // completeInboundDelivery를 여기서 호출하지 않는다.
         db.updateRow<Delivery>('deliveries', deliveryId, {
@@ -2679,7 +2681,7 @@ export const TruckDispatch: React.FC = () => {
       const nowIso = new Date().toISOString();
 
       db.insertRow<Delivery>('deliveries', {
-        type: manualCategory === '출고' ? 'OUTBOUND' : manualCategory === '교환' ? 'EXCHANGE' : manualCategory === '반납' ? 'RETURN' : 'INBOUND',
+        type: manualCategory === '출고' ? 'OUTBOUND' : manualCategory === '교환' ? 'EXCHANGE' : manualCategory === '이동' ? 'MOVEMENT' : manualCategory === '반납' ? 'RETURN' : 'INBOUND',
         status: 'PENDING',
         dispatchCategory: manualCategory,
         contractId: manualContractId || undefined,
@@ -3092,8 +3094,15 @@ export const TruckDispatch: React.FC = () => {
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '4px' }}>
-                          <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--primary)' }}>
-                            [{d.dispatchCategory || '출고'}] {d.requestDate || d.loadingDate}
+                          <span style={{
+                            fontSize: '11.5px',
+                            fontWeight: 700,
+                            color: (d.type === 'MOVEMENT' || d.dispatchCategory === '이동') ? '#8b5cf6'
+                              : (d.type === 'EXCHANGE' || d.dispatchCategory === '교환') ? '#10b981'
+                              : (d.type === 'INBOUND' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납') ? '#f59e0b'
+                              : 'var(--primary)'
+                          }}>
+                            [{d.dispatchCategory || (d.type === 'MOVEMENT' ? '이동' : d.type === 'EXCHANGE' ? '교환' : d.type === 'INBOUND' ? '회수' : '출고')}] {d.requestDate || d.loadingDate}
                           </span>
                           <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                             {getOutboundInspectionBadge(d.contractId)}

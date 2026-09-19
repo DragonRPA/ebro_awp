@@ -179,10 +179,14 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
     const handleFirstGesture = () => {
       walkieService.unlockAudio();
       window.removeEventListener('touchstart', handleFirstGesture);
+      window.removeEventListener('touchend', handleFirstGesture);
       window.removeEventListener('click', handleFirstGesture);
+      window.removeEventListener('pointerdown', handleFirstGesture);
     };
     window.addEventListener('touchstart', handleFirstGesture, { passive: true });
+    window.addEventListener('touchend', handleFirstGesture, { passive: true });
     window.addEventListener('click', handleFirstGesture, { passive: true });
+    window.addEventListener('pointerdown', handleFirstGesture, { passive: true });
 
     // 전원 변경 체크 인터벌
     const interval = setInterval(() => {
@@ -192,7 +196,9 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
     return () => {
       clearInterval(interval);
       window.removeEventListener('touchstart', handleFirstGesture);
+      window.removeEventListener('touchend', handleFirstGesture);
       window.removeEventListener('click', handleFirstGesture);
+      window.removeEventListener('pointerdown', handleFirstGesture);
     };
   }, [currentUser, currentTenant]);
 

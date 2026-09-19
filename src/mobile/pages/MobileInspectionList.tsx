@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
+import { isModelMatch } from '../../utils/modelUtils';
 import { CameraUploader } from '../components/CameraUploader';
 import { db, OutboundInspection, Asset, AssetInOutLog, STANDARD_SPECS } from '../../services/db';
 import { 
@@ -24,12 +25,6 @@ import {
   Boxes
 } from 'lucide-react';
 
-function isModelMatch(a?: string, b?: string): boolean {
-  if (!a || !b) return false;
-  const cleanA = a.replace(/[-\s]/g, '').toUpperCase();
-  const cleanB = b.replace(/[-\s]/g, '').toUpperCase();
-  return cleanA.includes(cleanB) || cleanB.includes(cleanA);
-}
 
 function getDDay(dateStr?: string): { text: string; color: string; isOverdue: boolean } {
   if (!dateStr) return { text: '-', color: 'text-slate-400 bg-slate-800 border-slate-700', isOverdue: false };

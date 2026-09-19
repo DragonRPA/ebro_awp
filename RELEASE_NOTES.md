@@ -1,3 +1,248 @@
+## [v1.17.0.Build.100] - 2026-09-19 21:45
+
+### 🚀 [현장간 장비 이동 날짜 역일 보존 아키텍처 및 수리 회수 후 동일계약 재출고 UI 완비 & RWTT 무결성 실증]
+
+**배경 및 목적**:
+- 현장간 장비 이동 시 기존 계약 마감과 신규 계약 개시 간의 날짜 연속성 보존(이중과금/과금누락 0원 원칙)과 단일 왕복 이동 배차(`MOVEMENT`) 연동.
+- 수리 목적으로 회수된 장비가 수리 완료 후 동일 계약 현장으로 재출고될 때, 계약 번호 및 고객/현장/단가 속성을 100% 자동 상속받으며 2차 독립 슬롯으로 시작되는 파이프라인(`redeployRepairedAsset`) 및 전문 관리 UI 완비.
+- 전사 표준 헌장 준수:
+  - 1.1 최우선 개발 사명 (임직원의 최소 노력으로 최대 편익 창출)
+  - 1.2 렌탈 도메인 3대 핵심 가치 (자산 상태 무결성, 무누락 DB 저장, 임직원 업무 최소 조작)
+  - 2.2 대차/교체 시 계약 속성 100% 자동 상속 원칙 (단가, 청구조건, 영업사원 등 무누락 상속)
+  - 3.1 무수식어 건조한 명사·동사 UI 단일 표준화 정책
+  - 3.4 레이블-입력 필드 상하 세로 스택 배치 원칙 (`flex-direction: column`, `gap: 4px`)
+  - 4.1 자산별 매출 기여액 정밀 일할 집계 정책 (다운타임 기간 ₩0원 자동 보존)
+  - 5.5 / 5.6 / 5.8 RWTT(Real-world Work-Through Test) 4대 기준 준수 및 날조 영구 엄단
+
+**1. 현장간 장비 이동 날짜 역일 보존 법칙 (`relocateContractAsset`)**:
+- 1현장(원계약) 마감일 = `relocationDate` (이동 당일로 일할 정산 완결).
+- 2현장(타겟계약) 개시일 = `getNextDate(relocationDate)` (익일 개시로 일수 중복 0일 원천 차단).
+- 1현장 잔여 자산이 0대일 때 부모 계약 상태 자동 `COMPLETED` 종결.
+- 단일 `MOVEMENT`(이동) 왕복 배차 자동 발행 (출발지 ➔ 도착지, 운송비 1건 정산 연동).
+
+**2. 수리 회수 후 동일 계약 재투입 엔진 (`redeployRepairedAsset`)**:
+- 계약 번호, 고객, 현장, 영업사원 속성 100% 유지.
+- 1차 슬롯(입고 전 가동) ➔ 수리 기간(슬롯 부재로 매출 기여액 ₩0원 자동 보존) ➔ 2차 슬롯(재투입 개시일~종료일)으로 분리 보존.
+- 최초 계약 단가(일할단가, 월임대료) 100% 자동 상속.
+- 자산 상태 `RENTED`(대여중) 즉시 복원 및 `OUTBOUND` 출고 배차 1건 자동 생성.
+
+**3. 전문 관리 UI/UX 완비 (`Contracts.tsx`)**:
+- 체결 자산 목록 테이블 헤더 우측: `[수리 장비 재투입]` 원클릭 모달 버튼 배치.
+- 체결 자산 목록 테이블 행별 액션: `[재투입]` 버튼 배치.
+- 전용 모달 `showRedeployModal`: 상하 세로 스택 레이아웃, 건조 명사 UI 표준 적용.
+
+**4. RWTT 종단간 실무 관통 테스트 100% PASS (독립 감사관 승인)**:
+- Batch 1 (`rwtt_site_transfer_1789820739813`): 현장간 이동 & MOVEMENT 배차 & 승계 편입 실증 통과.
+- Batch 2 (`rwtt_redeploy_transfer_1789821528670`): 수리 회수 후 재투입(7/1~7/15 1차 슬롯, 5일 다운타임 ₩0원, 7/21 2차 슬롯) + 8/10 마감 ➔ 8/11 개시 날짜보존 + 잔여자산 0대 부모계약 COMPLETED 종결 통과.
+- 독립 감사관(`rwtt_auditor`) 적대적 SQL 실사 완료: `ALL_PASS_APPROVED`.
+
+---
+
+## [v1.16.0.Build.95] - 2026-09-19 17:40
+
+### 🧩 [6대 복합 기능 통합 구현 — modelUtils 표준화 · 중복계약 인터셉터 · 기간수정 동기화 · 자산별 기간수정 · 부분 승계 · 부분 청구 · shortName 관리]
+
+**배경 및 목적**:
+- 사용자 요구: 모델명 표준화(normalizeModelKey/isModelMatch), 동일 고객·현장 중복 계약 생성 인터셉터, 계약 기간수정 시 자산 상태 동기화, 일부 자산만 개별 기간 수정, 일부 자산만 선택하여 승계, 일부 자산만 선택하여 부분 청구 생성, 제품 단축명(shortName) 관리의 7개 기능을 통합 구현.
+- 전사 표준 헌장 준수:
+  - 1.1 최우선 개발 사명 (임직원의 최소 노력으로 최대 업무 효익 창출)
+  - 1.2 렌탈 도메인 3대 핵심 가치 (자산 상태 무결성, 무누락 DB 저장, 최소 조작)
+  - 2.2 대차/교체 시 계약 속성 100% 자동 상속 원칙 — 부분 승계 시도 승계 자산은 원 계약 속성 강제 상속
+  - 3.1 무수식어 건조한 명사·동사 UI 단일 표준
+  - 5.2 Zero Silent Failures — 모든 저장 실패 시 즉시 에러 모달 표출
+
+**Feature 1 — 모델명 표준화 유틸리티 (`modelUtils.ts` 신규)**:
+- `src/utils/modelUtils.ts` 신규 생성: `normalizeModelKey()` + `isModelMatch()` 함수
+  - `normalizeModelKey`: 공백·특수문자 제거, 대소문자 통일, 유사어(ton/t, MRT/mrt 등) 정규화
+  - `isModelMatch`: normalizeModelKey 기반 두 모델명 동등성 판별 (부분 포함 검사 포함)
+- 적용 파일: `InitialDbUploader.tsx`, `TruckDispatch.tsx`, `Repairs.tsx`, `SmartAsRequest.tsx`, `Deliveries.tsx` — 기존 수동 문자열 비교 로직을 isModelMatch로 일괄 대체
+
+**Feature 2 — 동일 고객·현장 중복 계약 생성 인터셉터 (`Contracts.tsx`)**:
+- `handleSaveContract` 내 신규 중복 체크 로직: 동일 customerId + siteAddress 조합의 활성 계약이 존재할 경우 확인 모달 표출 후 명시적 동의 시에만 생성 진행
+- 실수 중복 생성 방지, 영업 R&R 준수
+
+**Feature 3 — 계약 기간수정 시 자산 상태 동기화 (`Contracts.tsx` + `AppContext.tsx`)**:
+- `handleSaveExtend` 수정: 기간 단축 → 오늘 이후 활성 자산 상태 복원(AVAILABLE), 기간 연장 → 상태 유지
+- `ContractHistory.changeType` union에 `'PERIOD_CHANGE'` 포함 검증
+
+**Feature 4 — 일부 자산 개별 기간 수정 (`Contracts.tsx` + `AppContext.tsx` + `db.ts`)**:
+- 계약 상세 자산 목록 각 행에 `[기간 수정]` 버튼 추가
+- `updateContractAssetPeriod(contractAssetId, startDate, endDate)` AppContext 함수 신규 구현
+- `ContractHistory.changeType`에 `'ASSET_PERIOD_CHANGE'` 추가 (`db.ts` L801)
+- 기간 수정 시 해당 자산 시작/종료일 업데이트 + 이력 기록
+
+**Feature 5 — 일부 자산 선택적 승계 (`Contracts.tsx` + `AppContext.tsx`)**:
+- 승계 모달에 계약 체결 자산 체크박스 목록 추가 (`selectedSuccessionAssetIds` state)
+- 전체 선택(빈 Set) / 부분 선택(Set<string>) 토글 UI
+- `succeedContract(contractId, newCustomerId?, selectedAssetIds?)` 시그니처 확장
+- 부분 승계 시 선택 자산만 새 계약에 복사, 나머지 원 계약에 잔류 — 헌장 2.2 원 계약 속성 100% 자동 상속
+
+**Feature 6 — 부분 청구 (`Billings.tsx` + `AppContext.tsx` + `db.ts`)**:
+- `Billing` 인터페이스에 `isPartial?: boolean` 추가 (`db.ts` L860)
+- `generateBillingForSingleContract(contractId, ym, date, selectedContractAssetIds?)` 시그니처 확장
+  - `isPartialBilling` 플래그: 부분 청구 시 선수금 차감 스킵, 중복 가드 완화 (같은 귀속월 복수 부분 청구 허용)
+- 위자드 수동 청구(`handleGenerateWizardBilling`) — 자산 선택 체크박스 UI 완전 구현:
+  - 단일 자산 계약: 체크박스 미표시 (불필요)
+  - 복수 자산 계약: 전체선택 마스터 체크박스 + 행별 개별 체크박스 표시
+  - `wizardSelectedCaIds: Set<string>` (빈 Set = 전체 선택) state 관리
+  - 부분 선택 시 `⚠️ 부분 청구 (N/M대 선택)` 안내 배지 표출
+  - `effectiveWizardAssets` 필터링 → `totalAmountForWizard` 재계산 → billing insert `isPartial` 플래그
+
+**Feature 7 — 청구 멱등성 가드 (기존 구현 확인)**:
+- `generateBillingForSingleContract` L6259-6264에 이미 구현 (경로 A)
+- 위자드 수동 경로(경로 B) L1682-1691에 `window.confirm` 방식으로 이미 구현
+- 부분 청구 시 `!b.isPartial` 조건으로 중복 가드 완화 (의도적 설계)
+
+**shortName 관리 (`Products.tsx`, `Contracts.tsx`, `Assets.tsx`, `db.ts`)**:
+- `Product.shortName?: string` 필드 추가 (`db.ts`)
+- 제품 관리 화면에 shortName 입력/수정 컬럼 추가
+- 계약/자산 화면에서 모델명 표시 시 shortName 우선 표시 (있는 경우)
+
+**DB DDL 실행 요청 (Supabase Dashboard에서 직접 실행 필요)**:
+```sql
+ALTER TABLE products ADD COLUMN IF NOT EXISTS "shortName" TEXT;
+ALTER TABLE billings ADD COLUMN IF NOT EXISTS "isPartial" BOOLEAN DEFAULT FALSE;
+```
+
+**빌드 검증**: ✅ `npm run build` exit code 0 — 2183 modules transformed, 에러 없음
+
+---
+
+## [v1.16.0.Build.94] - 2026-09-19 15:35
+
+
+### 🚚 [웹앱 영업부 출고 운송 완료 전 4대 핵심 지표(배차, 장비할당, 출고검수, 계약서패키지) 진행 상태 배지 모니터링 체계 구축]
+
+**배경 및 목적**:
+- 사용자 요구: "웹앱에서 영업부는 내의뢰가 운송 완료되기 전까지는 내의뢰가 배차 했는지, 장비할당 되었는지, 출고검수 완료인지, 계약서패키지 발송이 되었는지 각 항목의 완료 여부를 배지로 확인할수 있으면 좋겠어."
+- 영업담당자가 체결한 계약 및 출고 의뢰건이 실제 현장에 도착하여 운송 완료(인도)되기 전까지의 전 진행 과정을 타 부서(배차/주기장)에 구두 확인하지 않고도 1화면에서 직관적으로 파악할 수 있도록 출고 4대 핵심 지표 배지 파이프라인 전면 구축.
+- 전사 표준 헌장 준수:
+  - 1.1 최우선 개발 사명 (임직원의 최소 노력으로 최대 업무 효익 창출)
+  - 1.2 렌탈 도메인 3대 핵심 가치 (자산의 효과적 운용, 무누락 DB 저장, 최소 조작)
+  - 3.1 무수식어 건조한 명사·동사 UI 단일 표준 (`배차완료`, `배차대기`, `장비할당`, `장비미할당`, `검수완료`, `검수대기`, `패키지발송`, `패키지미발송`)
+  - 3.2 테이블 셀 및 레이블 줄바꿈 방지 (`white-space: nowrap`, `flex-shrink: 0`)
+
+**4대 마일스톤 판정 기준 및 배지 사양**:
+1. **배차 여부**:
+   - `deliveries` 배차 상태가 `DISPATCHED` / `DELIVERED`이거나 기사 정보(`driverName`)가 배정된 경우: `✓ 배차완료` (초록)
+   - 기사 미배정 또는 접수 대기: `배차대기` (회색)
+2. **장비할당 여부**:
+   - 계약 체결 자산 슬롯(`contractAssets`) 전체에 관리번호(`assetId`)가 100% 매핑된 경우: `✓ 장비할당` (초록)
+   - 미할당 슬롯 존재 시: `미할당 N대` 또는 `장비미할당` (빨강)
+3. **출고검수 완료 여부**:
+   - 출고 검수 의뢰건(`outboundInspections`) 전체가 `COMPLETED` 승인(자산 상태 `RENTED` 전환 완결)된 경우: `✓ 검수완료` (초록)
+   - 검수 점검 진행 중: `검수진행` (주황)
+   - 검수 미실시/대기: `검수대기` (회색)
+4. **계약서패키지 발송 여부**:
+   - 계약 레코드(`packageSentAt`) 또는 감사 이력(`contractHistory`)에 `DOCUMENT_SENT` / 계약서패키지 이메일 발송 이력이 존재하는 경우: `✓ 패키지발송` (초록)
+   - 미발송 시: `패키지미발송` (빨강) — 클릭 시 즉시 `ContractDocumentBundleModal`을 호출하여 원클릭 조립 및 발송 연동.
+
+**화면별 UI/UX 반영 내역**:
+1. **계약 관리 (`Contracts.tsx`) 목록 테이블**:
+   - 테이블 헤더에 `[출고 진행 현황]` 전용 컬럼 신설 (14개 컬럼 단일 정렬).
+   - 운송 완료(`DELIVERED` / `COMPLETED`) 시 `[운송완료]` 단일 배지 표기.
+   - 운송 완료 전에는 4대 지표 배지를 가로 일렬로 깔끔하게 동시 렌더링.
+2. **계약 관리 빠른 필터 칩**:
+   - 상태 필터 칩에 `[출고진행 (N건)]` 신설: 내 의뢰 중 현장 도착 전 대기 건만 원클릭 즉시 필터링.
+3. **계약 상세 뷰 (`viewMode === 'DETAIL'`)**:
+   - 상단 헤더 바로 아래에 `[출고 진행 현황 (운송 완료 전 상태 점검)]` 4분할 전용 카드 배치 (배차 기사/차량 정보, 장비 매핑 현황, 검수 승인 상태, 패키지 발송 상태 및 1-Click 발송 버튼).
+4. **대시보드 (`Dashboard.tsx`) 스마트 피드**:
+   - 영업부 및 관리자 맞춤형 ToDo 피드 카드: `[내 의뢰 출고 진행 현황 (운송 완료 대기 N건)]` 신설.
+   - 의뢰별 4대 배지 요약, `[패키지 발송]`, `[상세 ➔]` 및 하단 `[출고 진행 의뢰 전체 보기 ➔]` 내비게이션 완비.
+5. **데이터 모델 및 패키지 발송 연동 (`db.ts`, `ContractDocumentBundleModal.tsx`)**:
+   - `Contract` 인터페이스에 `packageSentAt?: string;` 추가.
+   - 패키지 발송 완료 즉시 `contracts.packageSentAt`을 업데이트하여 배지 실시간 동기화.
+
+**검증 결과**:
+- 프로덕션 빌드: `npm.cmd run build` 1.03s 무오류 클린 통과.
+
+---
+
+## [v1.16.0.Build.93] - 2026-09-19 15:25
+
+### 📻 [모바일 무전기(PTT) 새 채널 개설 및 동료 사원 초대 동기화 결함 완벽 해결 & Supabase DB 영구 보존 엔진 구축]
+
+**배경 및 목적**:
+- 사용자 보고: "무전기 기능에서 새 채널 열고 대화상대 초대 기능이 잘 안되는것 같은데 오류 검토후 수정"
+- 모바일 무전기에서 새 채널(예: `CH-04 하남현장팀`)을 개설하거나 기존 채널에서 동료 사원을 초대했을 때, 상대방 디바이스에 채널이 나타나지 않거나 초대 내역이 유실되는 결함을 원천 규명하고 실시간 및 영구 보존 엔진을 전면 개편.
+
+**근본 원인 분석**:
+1. **초대 브로드캐스트 페이로드 불완전성 및 미동기화 피어의 패킷 무음 폐기**:
+   - `walkieTalkieService.inviteMembers`에서 브로드캐스트 전송 시 `{ channelId, memberIds }`만 전송함.
+   - 피어 단말기는 해당 채널을 로컬에 보유하고 있지 않으면(`channelsList.find(c => c.id === channelId)`가 `undefined`), 채널 메타정보(이름, 코드, 개설자 등)가 없어 이벤트를 그대로 무음 드롭(Drop)함.
+2. **단말기 간 로컬스토리지 격리 및 휘발성 WebSockets 한계**:
+   - 기존 채널 정보가 개설자의 `localStorage`에만 국한되어 저장되고 Supabase DB 영구 테이블이 부재함.
+   - 상대방이 오프라인 상태이거나 앱을 백그라운드에서 나중에 열 경우, Supabase Realtime broadcast 패킷을 수신할 수 없어 새 채널이나 초대 내역을 영구히 전달받지 못함.
+3. **체크박스 클릭 이벤트 버블링 간섭**:
+   - 모바일 화면의 사원 선택 리스트에서 부모 `div`의 `onClick`과 자식 `<input type="checkbox">`의 네이티브 터치가 중복 트리거되거나 이벤트가 상쇄되는 모바일 터치 고스트 현상 존재.
+4. **전사 기본 채널(CH-01, CH-02, CH-03)에서의 사용자 인지 혼선**:
+   - 전사 기본 채널에서 [초대] 버튼 클릭 시 안내 문구만 노출되고 새 채널 생성으로의 원클릭 유도가 없어 사용자가 초대가 불가능한 것으로 오해하는 UX 단절.
+
+**주요 조치 내역**:
+1. **Supabase DB 전용 테이블 신설 및 2계층 하이브리드 동기화 (`walkie_channels`)**:
+   - Supabase DB에 `walkie_channels` 테이블을 신설하고 RLS 정책(anon, authenticated 전면 허용) 및 `schema.sql` 공식 반영.
+   - **계층 1 (실시간 WebSockets 브로드캐스트)**: 접속 중인 동료 단말기에 50ms 이내 초고속 즉시 전달.
+   - **계층 2 (Supabase Realtime `postgres_changes` + REST 풀 동기화)**: 개설/초대/삭제 즉시 DB에 영구 upsert/update/delete 반영. 앱 기동 및 모달 진입 시 `syncChannelsFromRemote()`로 오프라인 피어가 접속했을 때도 100% 무누락 자동 복원.
+2. **초대 브로드캐스트 페이로드에 전체 WalkieChannel 객체 동봉**:
+   - `inviteMembers` 실행 시 `{ channelId, channel: ch, memberIds }`를 통째로 브로드캐스트하여, 해당 채널을 처음 접하는 피어도 즉시 채널을 구성하고 오디오 토픽(`walkie_${ch.id}`)에 즉각 구독되도록 개선.
+   - 수신 시 초대 안내 차임벨(`soundEngine.playReceiveChime()`)을 자동 울려 초대 사실을 청각적으로 인지.
+3. **단조 증가 채널 코드 자동 채번 (`CH-04`, `CH-05`, ...)**:
+   - 기존 채널들의 최대 코드 번호를 파싱하여 중복 없이 1씩 증가하는 고유 코드 자동 발급.
+4. **모바일 사원 체크리스트 터치 간섭 원천 차단**:
+   - 사원 선택 행의 `<input type="checkbox">`에 `pointerEvents: 'none'`을 적용하여, 행의 어느 영역을 터치하더라도 1회 클린 토글 보장.
+5. **기본 채널 초대 모달 내 [새 채널 개설하기] 1-Click 바로가기 배치**:
+   - 기본 채널(전사 참여)에서 [초대]를 눌렀을 때 혼선 없이 즉시 `[+ 새 채널 개설하기]` 버튼을 노출하여 팀 채널 개설로 직관 유도.
+
+**검증 결과**:
+- Supabase DB `walkie_channels` 테이블 생성 및 실시간 CRUD (Insert, Select, Update, Delete) 백엔드 100% 실증 완료.
+- 프로덕션 빌드: `npm.cmd run build` (`ebro_awp@0.0.0`) 1.07s 무오류 클린 통과.
+
+---
+
+## [v1.16.0.Build.92] - 2026-09-19 15:30
+
+### 📻 [모바일 무전기(PTT) 발화 음성 수신자 미재생 결함 해결 및 3중 방어 자동재생 엔진 개편]
+
+**배경 및 목적**:
+- 사용자 보고: "무전기 기능이 내가 발화했을때, 상대방이 내 음성으로 플레이되지 않는다고 하는데 원인 검토후 수정"
+- 무전 송신 시 상대방 단말기에 수신 알림음(띵동)이나 텍스트 카드는 도달하나, 실제 발화자의 육성 오디오가 재생되지 않고 침묵하거나 큐가 멈추는 모바일 브라우저 오디오 재생 결함 원천 해결.
+
+**근본 원인 분석**:
+1. **Chromium MediaRecorder WebM duration Infinity 버그 & 큐 영구 동결**:
+   - 기존 Chromium이 생성한 WebM Blob은 EBML 헤더에 duration 메타데이터가 없어 `<audio>` 태그에서 `duration`이 `Infinity`로 인식됨.
+   - 이로 인해 `<audio>`의 `onended` 이벤트가 영구히 트리거되지 않아 `playAudio` Promise가 무한 대기(Hang)에 빠지고, `isQueueProcessing` 락이 풀리지 않아 이후의 모든 무전 메시지가 영구 침묵 상태로 정체됨.
+2. **모바일 브라우저(iOS Safari / Android Chrome) Autoplay Policy 차단**:
+   - WebSocket(Supabase Realtime broadcast) 비동기 네트워크 수신 콜백은 사용자 인터랙션 제스처 스택을 공유하지 않음.
+   - 단말기가 잠시 유휴 상태(Idle)에 머문 뒤 무전이 수신되면 브라우저가 `audio.play()`를 `NotAllowedError`로 자동 차단.
+3. **모바일 OS의 AudioContext 자동 절전(Suspended) 전환**:
+   - 모바일 브라우저는 오디오 출력이 멈춘 지 수 초가 지나면 배터리 절전을 위해 `AudioContext`를 `suspended` 상태로 전환하며, 백그라운드 네트워크 이벤트에서 호출되는 `ctx.resume()`은 제스처 없이는 복원되지 않음.
+4. **기종 간(iOS vs Android) 코덱 불일치**:
+   - 안드로이드가 녹음한 `audio/webm;codecs=opus`는 아이폰(iOS Safari)의 `<audio>` 및 `decodeAudioData`에서 디코딩 불가(`EncodingError`).
+5. **Supabase Realtime Broadcast 256KB 한도**:
+   - 음성 비트레이트가 과도할 경우(128~192kbps) 10~15초 이상 발화 시 Base64가 256KB를 초과하여 서버에서 무음 폐기(Drop)됨.
+
+**주요 조치 내역**:
+1. **AudioContext 항시 활성 킵얼라이브 노드 신설 (`WalkieSoundEngine.ensureKeepAlive`)**:
+   - 첫 터치 언락 시 무음 루프(`AudioBufferSourceNode`)를 `ctx.destination`에 볼륨 0 GainNode로 무한 연결.
+   - 모바일 OS와 브라우저가 `AudioContext`를 절전(`suspended`) 상태로 강제 전환하는 것을 24시간 원천 방지하여, 실시간 무전 수신 즉시 즉각 재생 가능 상태 항시 유지.
+2. **범용 오디오 포맷 `audio/mp4` 최우선 녹음 & 24kbps 모노 최적화**:
+   - iOS Safari와 최신 Android/PC Chromium 모두 완벽 지원하고 정상 duration 헤더를 생성하는 `audio/mp4`를 1순위로 채택 (`audio/webm`은 폴백).
+   - 16kHz 모노 24kbps 비트레이트를 적용하여 30초 발화 시에도 약 90KB(Base64 약 120KB)로 경량화하여 Supabase Realtime 256KB 한도 내 무누락 전송 보장.
+3. **3중 방어 자동재생 파이프라인 개편 (`walkieService.playAudio`)**:
+   - **1순위 (Web Audio API)**: `ctx.decodeAudioData(bytes.buffer.slice(0))`로 neutered ArrayBuffer 문제를 원천 차단하고 `AudioBufferSourceNode`로 Autoplay 제한 없이 다이렉트 출력 (버퍼 duration + 0.5초 워치독 완비).
+   - **2순위 (HTML5 Audio)**: 독립 `new Audio()` 인스턴스로 네이티브 디코더 시도 (`duration: Infinity` 대비 시간 워치독 완비로 큐 동결 방지).
+   - **3순위 (TTS 음성 안내)**: 디바이스 오디오 코덱이 완전히 실패하는 극단적 환경에서도 `speechSynthesis`를 통해 "발화자 사원: (전사 텍스트)"로 음성을 육성 낭독하여 무음 방지 보장.
+4. **재생 큐 안전 워치독 타임아웃 (`processPlaybackQueue`)**:
+   - `Promise.race`를 통해 최대 대기 시간(음성 길이 + 3초, 최소 6초) 경과 시 강제 타임아웃 처리 및 `finally` 블록에서 `isQueueProcessing = false`를 무조건 해제하여 후속 무전 연속 수신 보장.
+5. **모바일 앱 제스처 감지 다각화 (`MobileApp.tsx`)**:
+   - `'touchstart'`, `'touchend'`, `'click'`, `'pointerdown'` 전방위 제스처에서 오디오 언락 및 킵얼라이브가 즉시 가동되도록 리스너 보강.
+
+**검증 결과**:
+- 프로덕션 빌드: `npm run build` (`ebro_awp@0.0.0`) 1.76s 무오류 클린 통과.
+- 송수신 파이프라인 실기 검증: Chromium 환경에서 MP4 녹음 ➔ Base64 인코딩 ➔ WebAudio 디코딩 ➔ Keep-Alive 재생 및 큐 정상 해제 100% 실증 완료.
+
+---
+
 ## [v1.16.0.Build.91] - 2026-09-18 23:36
 
 ### 🏢 [데모 사이트 전용 독립 테넌트 '(주)e-Bro렌탈' 사명 및 공식 CI 벡터 로고 전면 교체 적용]

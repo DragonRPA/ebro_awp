@@ -455,7 +455,7 @@ export const MobileWalkieTalkieModal: React.FC<MobileWalkieTalkieModalProps> = (
     }
     setPlayingMessageId(msg.id);
     try {
-      await walkieService.playAudio(msg.audioBase64);
+      await walkieService.playAudio(msg.audioBase64, msg.durationSec, msg.textTranscript, msg.senderName);
     } catch (e: any) {
       console.warn('Playback error:', e);
       alert('음성 재생 실패: ' + (e?.message || '알 수 없는 오류'));
@@ -1748,7 +1748,7 @@ export const MobileWalkieTalkieModal: React.FC<MobileWalkieTalkieModalProps> = (
                             type="checkbox"
                             checked={isChecked}
                             readOnly
-                            style={{ accentColor: '#0284c7', cursor: 'pointer' }}
+                            style={{ accentColor: '#0284c7', pointerEvents: 'none' }}
                           />
                         </div>
                       );
@@ -1895,6 +1895,34 @@ export const MobileWalkieTalkieModal: React.FC<MobileWalkieTalkieModalProps> = (
                   <div style={{ fontSize: '11px', color: '#64748b', marginTop: '6px' }}>
                     특정 인원만 참여하는 채널이 필요하신 경우 상단의 <b>[+ 새 채널]</b>을 통해 개설해 주세요.
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsInviteModalOpen(false);
+                      setNewChannelName('');
+                      setNewChannelDesc('');
+                      setSelectedMemberIds([]);
+                      setChannelSearchQuery('');
+                      setIsCreateChannelOpen(true);
+                    }}
+                    style={{
+                      marginTop: '14px',
+                      padding: '7px 14px',
+                      borderRadius: '6px',
+                      border: '1px solid #0284c7',
+                      backgroundColor: 'rgba(2, 132, 199, 0.2)',
+                      color: '#38bdf8',
+                      fontSize: '11.5px',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}
+                  >
+                    <Plus size={13} />
+                    <span>새 채널 개설하기</span>
+                  </button>
                 </div>
               ) : (
                 <>
@@ -2004,7 +2032,7 @@ export const MobileWalkieTalkieModal: React.FC<MobileWalkieTalkieModalProps> = (
                               type="checkbox"
                               checked={isChecked}
                               readOnly
-                              style={{ accentColor: '#0284c7', cursor: 'pointer' }}
+                              style={{ accentColor: '#0284c7', pointerEvents: 'none' }}
                             />
                           </div>
                         );

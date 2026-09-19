@@ -298,6 +298,20 @@ export const Dashboard: React.FC = () => {
       {/* 권한(Permission) 기반 스마트 카드 피드 렌더링 섹션 */}
       {/* ──────────────────────────────────────────────────────── */}
       {(() => {
+        // 0. 💡 [영업부] 내 의뢰 출고 진행 현황 (운송 완료 전 대기 건 4대 지표 배지 피드)
+        const isSalesOrExec = userRole === 'SALES' || isExecUser || canActContract;
+        const pendingSalesContracts = contracts.filter(c => {
+          if (c.status === 'COMPLETED') return false;
+          // 영업담당자 본인 의뢰 필터 (ADMIN/경영진은 전체, 영업담당자는 본인 계약 우선)
+          const isMyContract = !currentUser || currentUser.role === 'ADMIN' || !contracts.some(con => con.salespersonId === currentUser.id) || c.salespersonId === currentUser.id;
+          if (!isMyContract) return false;
+          const relDels = deliveries.filter(d => d.contractId === c.id);
+          const outboundDel = relDels.find(d => d.type === 'OUTBOUND' || d.type === 'EXCHANGE') || relDels[0];
+          const isDelivered = outboundDel ? (outboundDel.status === 'DELIVERED' || outboundDel.status === 'COMPLETED') : false;
+          return !isDelivered;
+        });
+        const showSalesPipelineFeed = pendingSalesContracts.length > 0 && isSalesOrExec;
+
         // 1. 계약 장비 할당 대기 건 (계약 체결 후 자산 미매핑 슬롯)
         const unassignedContractAssets = contractAssets.filter(ca => !ca.assetId);
         const unassignedContractIds = Array.from(new Set(unassignedContractAssets.map(ca => ca.contractId)));
@@ -333,10 +347,174 @@ export const Dashboard: React.FC = () => {
         // 8. 직무 맞춤 당면 과제 ToDo
         const showTodoFeed = myTodos.length > 0;
 
-        const visibleCount = [showTodoFeed, showAssignFeed, showOutboundInspectionFeed, showDeliveryFeed, showRepairFeed, showBillingFeed, showRentAssetFeed, showContractFeed].filter(Boolean).length;
+        const visibleCount = [showTodoFeed, showSalesPipelineFeed, showAssignFeed, showOutboundInspectionFeed, showDeliveryFeed, showRepairFeed, showBillingFeed, showRentAssetFeed, showContractFeed].filter(Boolean).length;
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+            {/* 0. 💡 영업부 내 의뢰 출고 진행 현황 카드 (운송 완료 전 4대 지표 배지 피드) */}
+            {showSalesPipelineFeed && (
+              <div style={{
+                backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
+                borderLeft: '5px solid #2563eb', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '11.5px', fontWeight: '800', color: '#2563eb', backgroundColor: 'rgba(37,99,235,0.12)', padding: '3px 9px', borderRadius: '4px', border: '1px solid rgba(37,99,235,0.3)' }}>
+                    출고 진행 현황
+                  </span>
+                  <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#2563eb' }}>
+                    운송 완료 대기 {pendingSalesContracts.length}건
+                  </span>
+                </div>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Truck size={18} color="#2563eb" /> {userRole === 'SALES' ? '내 의뢰 출고 진행 현황' : '영업 의뢰 출고 진행 현황'}
+                </h4>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: '1.5' }}>
+                  현장 운송 완료(인도) 전 진행 중인 의뢰의 <strong>4대 핵심 지표(배차, 장비할당, 출고검수, 계약서패키지)</strong> 완료 여부입니다.
+                </p>
+
+                {/* 의뢰별 4대 배지 리스트 */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+                  {pendingSalesContracts.slice(0, 4).map((c, idx) => {
+                    const cust = customers.find(cu => cu.id === c.customerId);
+                    const site = sites.find(s => s.id === c.siteId);
+                    const relDels = deliveries.filter(d => d.contractId === c.id);
+                    const outboundDel = relDels.find(d => d.type === 'OUTBOUND' || d.type === 'EXCHANGE') || relDels[0];
+
+                    // 1. 배차
+                    const isDispatched = outboundDel 
+                      ? (outboundDel.status === 'DISPATCHED' || outboundDel.status === 'DELIVERED' || Boolean(outboundDel.driverName && outboundDel.driverName.trim())) 
+                      : false;
+
+                    // 2. 장비할당
+                    const cas = contractAssets.filter(ca => ca.contractId === c.id);
+                    const unassignedCount = cas.filter(ca => !ca.assetId).length;
+                    const isAssigned = cas.length > 0 && unassignedCount === 0;
+
+                    // 3. 출고검수
+                    const relInsps = outboundInspections.filter(oi => oi.contractId === c.id);
+                    const isInspected = relInsps.length > 0 && relInsps.every(oi => oi.status === 'COMPLETED');
+                    const isInspecting = relInsps.some(oi => oi.status === 'IN_PROGRESS');
+
+                    // 4. 계약서패키지
+                    const isPackageSent = Boolean(c.packageSentAt) || (contractHistory || []).some(
+                      h => h.contractId === c.id && (h.changeType === 'DOCUMENT_SENT' || (h.description && h.description.includes('계약서패키지')))
+                    );
+
+                    return (
+                      <div key={c.id} style={{
+                        backgroundColor: 'var(--bg-secondary)', padding: '12px 14px', borderRadius: '8px',
+                        border: '1px solid var(--border-color)', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontWeight: '800', color: 'var(--text-main)', fontSize: '13.5px' }}>
+                              {idx + 1}. {cust?.name || '고객사'} — {site?.name || '현장'}
+                            </span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>({c.contractNo})</span>
+                          </div>
+                          
+                          {/* 액션 버튼들 */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {!isPackageSent && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setBundleTargetContractId(c.id);
+                                  setShowBundleModal(true);
+                                }}
+                                style={{
+                                  padding: '3px 8px', fontSize: '11px', fontWeight: 700, borderRadius: '4px',
+                                  border: '1px solid rgba(239,68,68,0.3)', backgroundColor: 'rgba(239,68,68,0.1)',
+                                  color: 'var(--danger)', cursor: 'pointer'
+                                }}
+                              >
+                                패키지 발송
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={() => {
+                                setNavigationPayload({ contractId: c.id });
+                                setActiveTab('contract');
+                              }}
+                              style={{ padding: '3px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                            >
+                              상세 <ArrowRight size={11} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* 4대 마일스톤 배지 바 */}
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, marginRight: '2px' }}>단계별 완료:</span>
+                          
+                          {/* 1. 배차 */}
+                          {isDispatched ? (
+                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.15)', color: '#16a34a', border: '1px solid rgba(34,197,94,0.3)' }} title={outboundDel?.driverName ? `기사: ${outboundDel.driverName}` : '배차완료'}>
+                              ✓ 배차완료
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'var(--bg-app)', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }}>
+                              배차대기
+                            </span>
+                          )}
+
+                          {/* 2. 장비할당 */}
+                          {isAssigned ? (
+                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.15)', color: '#16a34a', border: '1px solid rgba(34,197,94,0.3)' }}>
+                              ✓ 장비할당
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(239,68,68,0.12)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.3)' }}>
+                              {unassignedCount > 0 ? `미할당 ${unassignedCount}대` : '장비미할당'}
+                            </span>
+                          )}
+
+                          {/* 3. 출고검수 */}
+                          {isInspected ? (
+                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.15)', color: '#16a34a', border: '1px solid rgba(34,197,94,0.3)' }}>
+                              ✓ 검수완료
+                            </span>
+                          ) : isInspecting ? (
+                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(245,158,11,0.15)', color: '#d97706', border: '1px solid rgba(245,158,11,0.3)' }}>
+                              검수진행
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'var(--bg-app)', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }}>
+                              검수대기
+                            </span>
+                          )}
+
+                          {/* 4. 계약서패키지 */}
+                          {isPackageSent ? (
+                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.15)', color: '#16a34a', border: '1px solid rgba(34,197,94,0.3)' }}>
+                              ✓ 패키지발송
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(239,68,68,0.08)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.25)' }}>
+                              패키지미발송
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <button
+                  className="btn-primary"
+                  onClick={() => {
+                    setNavigationPayload({ quickChipFilter: 'PENDING_DELIVERY' });
+                    setActiveTab('contract');
+                  }}
+                  style={{ backgroundColor: '#2563eb', border: 'none', fontSize: '12.5px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  출고 진행 의뢰 전체 보기 ({pendingSalesContracts.length}건) <ArrowRight size={13} />
+                </button>
+              </div>
+            )}
 
             {/* 1. 계약 장비 할당 대기 피드 카드 (장비할당/배차/주기장 담당자 표출) */}
             {showAssignFeed && (

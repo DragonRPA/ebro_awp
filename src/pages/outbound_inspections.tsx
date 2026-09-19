@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { OutboundInspection, OutboundInspectionStatus, Asset, Contract, Customer, CustomerSite as Site, AssetInOutLog, Repair, ContractAsset, db, STANDARD_SPECS } from '../services/db';
 import { issueHandoverTask, clearHandoverTasks } from '../utils/taskHandoverPipeline';
+import { isModelMatch } from '../utils/modelUtils';
 import {
   CheckSquare,
   AlertTriangle,
@@ -124,7 +125,8 @@ export const OutboundInspections: React.FC = () => {
     exchangeOutboundAsset,
     inspectionChecklistItems,
     consumables,
-    mechanicConsumableStocks
+    mechanicConsumableStocks,
+    products
   } = useApp();
 
   const canEdit = hasPermission('repair', 'save') || hasPermission('delivery', 'save') || hasPermission('contract', 'save');
@@ -198,7 +200,7 @@ export const OutboundInspections: React.FC = () => {
     if (exchangeModalAsset) {
       const q = exchangeSearchQuery.toLowerCase().trim();
       const availables = assets.filter(a => {
-        if (a.status !== 'AVAILABLE' || a.modelName !== exchangeModalAsset.modelName || a.id === exchangeModalAsset.id) return false;
+        if (a.status !== 'AVAILABLE' || !isModelMatch(a.modelName, exchangeModalAsset.modelName, products) || a.id === exchangeModalAsset.id) return false;
         if (!q) return true;
         return a.assetNo.toLowerCase().includes(q) || (a.serialNo && a.serialNo.toLowerCase().includes(q));
       });
@@ -1606,7 +1608,7 @@ export const OutboundInspections: React.FC = () => {
               {(() => {
                 const q = exchangeSearchQuery.toLowerCase().trim();
                 const filteredAssets = assets.filter(a => {
-                  if (a.status !== 'AVAILABLE' || a.modelName !== exchangeModalAsset.modelName || a.id === exchangeModalAsset.id) return false;
+                  if (a.status !== 'AVAILABLE' || !isModelMatch(a.modelName, exchangeModalAsset.modelName, products) || a.id === exchangeModalAsset.id) return false;
                   if (!q) return true;
                   return a.assetNo.toLowerCase().includes(q) || (a.serialNo && a.serialNo.toLowerCase().includes(q));
                 });
