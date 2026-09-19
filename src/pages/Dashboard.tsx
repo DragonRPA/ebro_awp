@@ -238,15 +238,15 @@ export const Dashboard: React.FC = () => {
     switch (role) {
       case 'ADMIN': 
         return isTrueDeveloper 
-          ? { text: '시스템 개발자 (DEV)', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' }
-          : { text: '최고관리자 (ADMIN)', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' };
-      case 'MANAGER': return { text: '부서관리자 (MANAGER)', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' };
-      case 'SALES': return { text: '영업담당자 (SALES)', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' };
+          ? { text: '시스템 개발자', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' }
+          : { text: '최고관리자', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' };
+      case 'MANAGER': return { text: '부서관리자', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' };
+      case 'SALES': return { text: '영업담당자', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' };
       case 'REPAIR':
-      case 'MECHANIC': return { text: '정비담당자 (MECHANIC)', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' };
+      case 'MECHANIC': return { text: '정비담당자', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' };
       case 'LOGISTICS':
-      case 'DELIVERY': return { text: '배차물류담당자 (LOGISTICS)', color: '#06b6d4', bg: 'rgba(6,182,212,0.1)' };
-      default: return { text: '임직원 (USER)', color: 'var(--text-muted)', bg: 'var(--bg-secondary)' };
+      case 'DELIVERY': return { text: '배차물류담당자', color: '#06b6d4', bg: 'rgba(6,182,212,0.1)' };
+      default: return { text: '임직원', color: 'var(--text-muted)', bg: 'var(--bg-secondary)' };
     }
   };
 
@@ -596,7 +596,7 @@ export const Dashboard: React.FC = () => {
                   <CheckSquare size={18} color="#10b981" /> 출고 PDI 검수 승인 대기
                 </h4>
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: '1.5' }}>
-                  장비 할당 완료 후 출고 전 PDI 안전점검 및 승인 대기 <strong>{pendingOutboundInspections.length}건</strong>. 승인 시 자산 상태가 대여중(RENTED)으로 전환.
+                  장비 할당 완료 후 출고 전 PDI 안전점검 및 승인 대기 <strong>{pendingOutboundInspections.length}건</strong>. 승인 시 자산 상태가 대여중으로 전환.
                 </p>
 
                 {/* 검수 대기 목록 프리뷰 카드 */}

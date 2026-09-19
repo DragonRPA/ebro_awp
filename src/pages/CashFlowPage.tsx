@@ -835,7 +835,7 @@ export const CashFlowPage: React.FC = () => {
             {/* 카드 2: 구간 수납 예정 */}
             <div className="card" style={{ margin: 0, padding: '14px 16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: '600' }}>구간 수납 예정 (Inflow)</span>
+                <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: '600' }}>구간 수납 예정</span>
                 <ArrowUpRight size={16} color="var(--success)" />
               </div>
               <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--success)', whiteSpace: 'nowrap' }}>
@@ -849,7 +849,7 @@ export const CashFlowPage: React.FC = () => {
             {/* 카드 3: 구간 운영 지출 */}
             <div className="card" style={{ margin: 0, padding: '14px 16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: '600' }}>구간 운영 지출 (OPEX)</span>
+                <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: '600' }}>구간 운영 지출</span>
                 <ArrowDownRight size={16} color="var(--warning)" />
               </div>
               <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--warning)', whiteSpace: 'nowrap' }}>
@@ -863,7 +863,7 @@ export const CashFlowPage: React.FC = () => {
             {/* 카드 4: 구간 설비 투자 */}
             <div className="card" style={{ margin: 0, padding: '14px 16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: '600' }}>구간 설비 투자 (CAPEX)</span>
+                <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: '600' }}>구간 설비 투자</span>
                 <Layers size={16} color="var(--danger)" />
               </div>
               <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--danger)', whiteSpace: 'nowrap' }}>
@@ -1062,9 +1062,9 @@ export const CashFlowPage: React.FC = () => {
                     <th style={{ width: '60px', textAlign: 'center', whiteSpace: 'nowrap', padding: '0 8px' }}>상세</th>
                     <th style={{ width: '95px', whiteSpace: 'nowrap', padding: '0 10px' }}>일자</th>
                     <th style={{ width: '60px', textAlign: 'center', whiteSpace: 'nowrap', padding: '0 8px' }}>구분</th>
-                    <th style={{ textAlign: 'right', whiteSpace: 'nowrap', padding: '0 12px' }}>수납액 (Inflow)</th>
-                    <th style={{ textAlign: 'right', whiteSpace: 'nowrap', padding: '0 12px' }}>운영지출 (OPEX)</th>
-                    <th style={{ textAlign: 'right', whiteSpace: 'nowrap', padding: '0 12px' }}>투자지출 (CAPEX)</th>
+                    <th style={{ textAlign: 'right', whiteSpace: 'nowrap', padding: '0 12px' }}>수납액</th>
+                    <th style={{ textAlign: 'right', whiteSpace: 'nowrap', padding: '0 12px' }}>운영지출</th>
+                    <th style={{ textAlign: 'right', whiteSpace: 'nowrap', padding: '0 12px' }}>투자지출</th>
                     <th style={{ textAlign: 'right', whiteSpace: 'nowrap', padding: '0 12px' }}>일일 수지차</th>
                     <th style={{ textAlign: 'right', whiteSpace: 'nowrap', padding: '0 14px' }}>예상 누적 잔고</th>
                     <th style={{ width: '80px', textAlign: 'center', whiteSpace: 'nowrap', padding: '0 8px' }}>상태</th>

@@ -661,7 +661,7 @@ export const CorporateCardPage: React.FC = () => {
                   <option value="세금과공과">세금과공과</option>
                   <option value="지급수수료">지급수수료</option>
                   <option value="여비교통비">여비교통비</option>
-                  <option value="기계장치">기계장치 (CAPEX)</option>
+                  <option value="기계장치">기계장치</option>
                 </select>
               </div>
 

@@ -671,8 +671,8 @@ export const AssetHistory: React.FC = () => {
 
                 <div style={{ fontSize: '12px', color: 'var(--text-secondary)', padding: '8px', backgroundColor: 'var(--bg-card)', borderRadius: '6px' }}>
                   💡 <strong>입고 후 자동 자산 상태 전환:</strong><br />
-                  - 검수점수 0점: <strong>`임대가능 (AVAILABLE)`</strong> 상태로 자동 즉시 전이<br />
-                  - 검수점수 1점 이상: <strong>`입고반납/검수대기 (RENTED_RETURNED)`</strong> 상태로 자동 전이
+                  - 검수점수 0점: <strong>`임대가능`</strong> 상태로 자동 즉시 전이<br />
+                  - 검수점수 1점 이상: <strong>`입고반납/검수대기`</strong> 상태로 자동 전이
                 </div>
 
               </div>

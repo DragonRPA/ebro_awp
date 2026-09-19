@@ -956,7 +956,7 @@ export const AssetAssignment: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
           <span>미할당 요구: <strong style={{ color: 'var(--danger)' }}>총 {pendingCaList.length}대</strong> ({pendingContracts.length + exchangePendingContracts.length}건 계약)</span>
           <span>|</span>
-          <span>대차(EXCHANGE) 긴급: <strong style={{ color: '#b45309' }}>{exchangePendingContracts.length}건</strong></span>
+          <span>대차 긴급: <strong style={{ color: '#b45309' }}>{exchangePendingContracts.length}건</strong></span>
           <span>|</span>
           <span>가용 출고자산: <strong style={{ color: 'var(--success)' }}>총 {assets.filter(a => a.status === 'AVAILABLE').length}대</strong></span>
           <span>|</span>

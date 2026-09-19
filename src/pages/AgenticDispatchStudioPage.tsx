@@ -210,7 +210,7 @@ export const AgenticDispatchStudioPage: React.FC = () => {
                   backgroundColor: item.type === 'EXCHANGE' ? '#8b5cf6' : '#3b82f6',
                   color: '#fff'
                 }}>
-                  {item.type === 'EXCHANGE' ? '단일 교환 (EXCHANGE)' : item.type === 'OUTBOUND' ? '출고 (OUTBOUND)' : '회수 (INBOUND)'}
+                  {item.type === 'EXCHANGE' ? '교환' : item.type === 'OUTBOUND' ? '출고' : '회수'}
                 </span>
                 <span style={{ fontSize: '14px', fontWeight: '800' }}>{item.customerName}</span>
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>| {item.siteName}</span>

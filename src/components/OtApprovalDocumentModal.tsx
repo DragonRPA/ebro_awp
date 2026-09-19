@@ -382,7 +382,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
           '부서': getEmployeeDeptName(u),
           '직급': u?.position || '-',
           '시작시각': timeStr,
-          '인정시간 (h)': r.hours || 0,
+          '인정시간': r.hours || 0,
           '식사여부': (r.mealYn === 'Y' || r.hasMeal) ? 'Y' : 'N',
           '초과근무 상세 내용': r.workDetail || '-'
         };
@@ -923,7 +923,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
                 <th style={{ width: '80px' }}>성명</th>
                 <th style={{ width: '70px' }}>등록건수</th>
                 <th style={{ width: '120px' }}>총 OT 인정시간</th>
-                <th style={{ width: '75px' }}>식사여부(Y)</th>
+                <th style={{ width: '75px' }}>식사여부</th>
                 <th style={{ width: '110px' }}>본인확인 서명</th>
               </tr>
             </thead>

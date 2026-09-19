@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import {
   Plus, Calendar, Search, Download, Edit3, Repeat, Clock, Wrench, ChevronLeft,
   Building2, ArrowLeftRight, Receipt, FolderOpen, AlertCircle, ExternalLink, Copy, AlertTriangle, FileText,
-  Truck, CheckCircle2, RotateCcw, X
+  Truck, CheckCircle2
 } from 'lucide-react';
 import { Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate } from '../services/db';
 import { exportToExcel } from '../services/excel';
@@ -16,7 +16,7 @@ export const Contracts: React.FC = () => {
     contracts, contractAssets, contractHistory, customers, contacts, sites, assets, users, currentUser,
     createContract, extendContract, shortenContract, succeedContract, exchangeAsset, hasPermission,
     products, refreshAllData, deliveries, repairs, outboundInspections, billings, billingDetails, receivables,
-    navigationPayload, setNavigationPayload, updateContractAssetPeriod, relocateContractAsset, redeployRepairedAsset
+    navigationPayload, setNavigationPayload, updateContractAssetPeriod, relocateContractAsset
   } = useApp();
 
   const canSave = hasPermission('contract', 'save');
@@ -198,18 +198,6 @@ export const Contracts: React.FC = () => {
   const [relocateTransportCost, setRelocateTransportCost] = useState(0);
   const [relocatePaidBy, setRelocatePaidBy] = useState<'OURS' | 'CUSTOMER' | 'VENDOR'>('CUSTOMER');
   const [relocateReason, setRelocateReason] = useState('');
-
-  // Feature 7) 수리 완료 장비 재투입 (Redeploy) 모달 state
-  const [showRedeployModal, setShowRedeployModal] = useState(false);
-  const [redeployAssetId, setRedeployAssetId] = useState('');
-  const [redeployDate, setRedeployDate] = useState(new Date().toISOString().split('T')[0]);
-  const [redeployExpectedEndDate, setRedeployExpectedEndDate] = useState('');
-  const [redeployMonthlyFee, setRedeployMonthlyFee] = useState(600000);
-  const [redeployDailyFee, setRedeployDailyFee] = useState(20000);
-  const [redeployNeedTransport, setRedeployNeedTransport] = useState(true);
-  const [redeployTransportCost, setRedeployTransportCost] = useState(50000);
-  const [redeployPaidBy, setRedeployPaidBy] = useState<'OURS' | 'CUSTOMER' | 'VENDOR'>('OURS');
-  const [redeployReason, setRedeployReason] = useState('수리 완료 후 현장 재투입');
 
   // 헬퍼
   const getCustName = (id: string) => customers.find(c => c.id === id)?.name || '-';
@@ -775,58 +763,6 @@ export const Contracts: React.FC = () => {
     }
   };
 
-  // Feature 7) 수리 완료 장비 재투입 (Redeploy) 핸들러
-  const handleOpenRedeployModal = (ca?: ContractAsset) => {
-    if (ca && ca.assetId) {
-      setRedeployAssetId(ca.assetId);
-      setRedeployMonthlyFee(ca.monthlyRentalFee || 600000);
-      setRedeployDailyFee(ca.dailyRentalFee || 20000);
-    } else {
-      setRedeployAssetId('');
-      setRedeployMonthlyFee(600000);
-      setRedeployDailyFee(20000);
-    }
-    setRedeployDate(todayStr);
-    setRedeployExpectedEndDate(activeContract?.endDate && activeContract.endDate !== '미정' ? activeContract.endDate : '');
-    setRedeployNeedTransport(true);
-    setRedeployTransportCost(50000);
-    setRedeployPaidBy('OURS');
-    setRedeployReason('수리 완료 후 현장 재투입');
-    setShowRedeployModal(true);
-  };
-
-  const handleSaveRedeploy = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeContract) return;
-    if (!redeployAssetId) {
-      showToast('재투입할 장비를 선택하십시오.', 'error');
-      return;
-    }
-    if (!redeployDate) {
-      showToast('재투입 일자를 입력하십시오.', 'error');
-      return;
-    }
-
-    try {
-      await redeployRepairedAsset({
-        contractId: activeContract.id,
-        assetId: redeployAssetId,
-        redeployDate,
-        expectedEndDate: redeployExpectedEndDate,
-        monthlyRentalFee: redeployMonthlyFee,
-        dailyRentalFee: redeployDailyFee,
-        needTransport: redeployNeedTransport,
-        transportCost: redeployTransportCost,
-        paidBy: redeployPaidBy,
-        reason: redeployReason
-      });
-      showToast('수리 장비 재투입 처리가 완료되었습니다.');
-      setShowRedeployModal(false);
-    } catch (err: any) {
-      showToast(`재투입 처리 실패: ${err?.message || err}`, 'error');
-    }
-  };
-
   const handleOpenExchangeGlobal = () => {
     setExchangeContractAssetId('');
     setExchangeOldAssetId(activeContractAssets[0]?.assetId || '');
@@ -1040,7 +976,7 @@ export const Contracts: React.FC = () => {
     if (custSelect !== 'NEW' && custSelect) {
       const selectedCustomer = customers.find(c => c.id === custSelect);
       if (selectedCustomer?.transactionStatus === 'BLOCKED') {
-        showToast('🚫 경영진 처분으로 인해 거래 불가(BLOCKED) 상태인 거래처입니다. 신규 계약 등록이 원천 차단됩니다.', 'error');
+        showToast('🚫 경영진 처분으로 인해 거래 불가 상태인 거래처입니다. 신규 계약 등록이 원천 차단됩니다.', 'error');
         return;
       }
       if (selectedCustOverdue && !overdueAcknowledged) {
@@ -2188,16 +2124,11 @@ export const Contracts: React.FC = () => {
                 <h3 className="card-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Wrench size={16} /> 체결 자산 목록 ({activeContractAssets.length}대)
                 </h3>
-                {canSave && canModifyContract(activeContract) && (
+                {canSave && canModifyContract(activeContract) && activeContract.status !== 'COMPLETED' && (
                   <div style={{ display: 'flex', gap: '6px' }}>
-                    <button className="btn-secondary" onClick={() => handleOpenRedeployModal()} style={{ padding: '5px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <RotateCcw size={13} /> 수리 장비 재투입
+                    <button className="btn-secondary" onClick={() => handleOpenExchangeGlobal()} style={{ padding: '5px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Repeat size={13} /> 자산 교체/대차 의뢰
                     </button>
-                    {activeContract.status !== 'COMPLETED' && (
-                      <button className="btn-secondary" onClick={() => handleOpenExchangeGlobal()} style={{ padding: '5px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Repeat size={13} /> 자산 교체/대차 의뢰
-                      </button>
-                    )}
                   </div>
                 )}
               </div>
@@ -2300,9 +2231,6 @@ export const Contracts: React.FC = () => {
                                 </button>
                                 <button className="btn-secondary" onClick={() => handleOpenRelocateModal(ca)} style={{ padding: '2px 6px', fontSize: '10.5px' }} title="동일 고객 타 현장으로 장비 이동">
                                   <Truck size={11} /> 현장 이동
-                                </button>
-                                <button className="btn-secondary" onClick={() => handleOpenRedeployModal(ca)} style={{ padding: '2px 6px', fontSize: '10.5px' }} title="수리 완료 후 동일 계약 재투입">
-                                  <RotateCcw size={11} /> 재투입
                                 </button>
                               </div>
                             )}
@@ -2892,9 +2820,9 @@ export const Contracts: React.FC = () => {
               {/* 후속 업무 흐름 연계 시각화 카드 */}
               <div style={{ padding: '10px 12px', backgroundColor: 'var(--info-light)', border: '1px solid var(--info)', borderRadius: '6px', fontSize: '11.5px', color: 'var(--info)' }}>
                 <div style={{ fontWeight: 'bold', marginBottom: '3px' }}>🔄 후속 업무 자동 연계 체인</div>
-                <div>1. <strong>[배차 관리]</strong>에 교환 왕복 배차(EXCHANGE) 1건 자동 발행 (출고/회수 1:1 통합 관리)</div>
+                <div>1. <strong>[배차 관리]</strong>에 교환 왕복 배차 1건 자동 발행 (출고/회수 1:1 통합 관리)</div>
                 <div>2. <strong>[장비 할당]</strong> 보드 최상단 카드로 대차 출고 할당 요청 자동 노출</div>
-                <div>3. <strong>[입고 검수]</strong> 승인 마감 시 회수 자산 `AVAILABLE`(또는 수리) 자동 마감 연동</div>
+                <div>3. <strong>[입고 검수]</strong> 승인 마감 시 회수 자산 임대가능(또는 수리) 자동 마감 연동</div>
               </div>
 
               {/* 대차/교체 희망일자 및 희망시간대 (상하 헤더 세로 스택 컨셉) */}
@@ -2953,11 +2881,11 @@ export const Contracts: React.FC = () => {
             <div style={{ padding: '10px 14px', borderRadius: '6px', backgroundColor: selectedCustOverdue.isBlocked ? '#fef2f2' : '#fffbeb', border: `1px solid ${selectedCustOverdue.isBlocked ? '#f87171' : '#fcd34d'}`, color: selectedCustOverdue.isBlocked ? '#991b1b' : '#92400e', marginBottom: '14px', fontSize: '12px' }}>
               <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                 <AlertTriangle size={15} color={selectedCustOverdue.isBlocked ? '#dc2626' : '#d97706'} />
-                {selectedCustOverdue.isBlocked ? '🚫 [경영진 처분] 거래 불가 (BLOCKED)' : '⚠️ [연체 채권 경각심 통제 경보]'}
+                {selectedCustOverdue.isBlocked ? '🚫 [경영진 처분] 거래 불가' : '⚠️ [연체 채권 경각심 통제 경보]'}
               </div>
               <div>
                 {selectedCustOverdue.isBlocked
-                  ? '해당 거래처는 경영진의 출고금지(BLOCKED) 처분으로 신규 계약 등록이 전면 차단되어 있습니다.'
+                  ? '해당 거래처는 경영진의 출고금지 처분으로 신규 계약 등록이 전면 차단되어 있습니다.'
                   : `해당 거래처는 약정 납기일이 도과된 미납 청구서 ${selectedCustOverdue.count}건 (총 ₩${selectedCustOverdue.overdueSum.toLocaleString()}원)이 존재합니다.`
                 }
               </div>
@@ -3332,7 +3260,7 @@ export const Contracts: React.FC = () => {
                       onChange={e => setRelocateNeedTransport(e.target.checked)}
                       style={{ width: '16px', height: '16px' }}
                     />
-                    <span>🚚 현장간 장비 이동 운송 배차(MOVEMENT) 즉시 의뢰 발행</span>
+                    <span>🚚 현장간 장비 이동 운송 배차 즉시 의뢰 발행</span>
                   </label>
 
                   {relocateNeedTransport && (
@@ -3391,200 +3319,6 @@ export const Contracts: React.FC = () => {
           </div>
         );
       })()}
-
-      {/* Feature 7) 수리 완료 장비 재투입 (Redeploy) 모달 */}
-      {showRedeployModal && activeContract && (() => {
-        const currentCust = customers.find(c => c.id === activeContract.customerId);
-        const currentSite = sites.find(s => s.id === activeContract.siteId);
-
-        const availableAssets = assets.filter(a =>
-          a.status === 'AVAILABLE' || a.id === redeployAssetId
-        );
-
-        return (
-          <div className="modal-overlay" style={{ zIndex: 1200 }}>
-            <div className="modal-content" style={{ maxWidth: '540px', width: '100%', padding: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <RotateCcw size={18} color="var(--primary)" />
-                  <span>수리 장비 재투입 (동일 계약 새로운 시작)</span>
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setShowRedeployModal(false)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              {/* 계약 컨텍스트 요약 카드 */}
-              <div style={{ padding: '12px 14px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '16px', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>대상 계약:</span>
-                  <strong style={{ color: 'var(--primary)' }}>{activeContract.contractNo} (기존 계약 유지)</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>고객사:</span>
-                  <strong>{currentCust?.name || '-'}</strong>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>투입 현장:</span>
-                  <span style={{ fontWeight: 600 }}>{currentSite?.name || '현장'}</span>
-                </div>
-              </div>
-
-              <form onSubmit={handleSaveRedeploy} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>재투입 대상 장비 *</label>
-                  <select
-                    value={redeployAssetId}
-                    onChange={e => {
-                      const aId = e.target.value;
-                      setRedeployAssetId(aId);
-                      const prevCA = contractAssets.find(ca => ca.contractId === activeContract.id && ca.assetId === aId);
-                      if (prevCA) {
-                        setRedeployMonthlyFee(prevCA.monthlyRentalFee || 600000);
-                        setRedeployDailyFee(prevCA.dailyRentalFee || 20000);
-                      }
-                    }}
-                    required
-                    style={{ width: '100%', padding: '9px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)' }}
-                  >
-                    <option value="">-- 재투입할 장비 선택 --</option>
-                    {availableAssets.map(a => (
-                      <option key={a.id} value={a.id}>{a.assetNo} ({a.modelName}) - 상태: {a.status}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>재투입 일자 (새로운 시작일) *</label>
-                    <input
-                      type="date"
-                      value={redeployDate}
-                      onChange={e => setRedeployDate(e.target.value)}
-                      required
-                      style={{ width: '100%', padding: '8px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)' }}
-                    />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>종료 예정일</label>
-                    <input
-                      type="date"
-                      value={redeployExpectedEndDate}
-                      onChange={e => setRedeployExpectedEndDate(e.target.value)}
-                      style={{ width: '100%', padding: '8px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)' }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>월 렌탈료 (원)</label>
-                    <input
-                      type="number"
-                      value={redeployMonthlyFee}
-                      onChange={e => {
-                        const m = Number(e.target.value);
-                        setRedeployMonthlyFee(m);
-                        setRedeployDailyFee(Math.round(m / 30));
-                      }}
-                      style={{ width: '100%', padding: '8px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)' }}
-                    />
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>일 렌탈료 (원)</label>
-                    <input
-                      type="number"
-                      value={redeployDailyFee}
-                      onChange={e => setRedeployDailyFee(Number(e.target.value))}
-                      style={{ width: '100%', padding: '8px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)' }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>재투입 사유</label>
-                  <input
-                    type="text"
-                    placeholder="예: 수리 완료 후 현장 재투입"
-                    value={redeployReason}
-                    onChange={e => setRedeployReason(e.target.value)}
-                    style={{ width: '100%', padding: '8px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)' }}
-                  />
-                </div>
-
-                {/* 🚚 운송 배차 의뢰 옵션 섹션 */}
-                <div style={{ padding: '12px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 800 }}>
-                    <input
-                      type="checkbox"
-                      checked={redeployNeedTransport}
-                      onChange={e => setRedeployNeedTransport(e.target.checked)}
-                      style={{ width: '16px', height: '16px' }}
-                    />
-                    <span>🚚 수리 장비 현장 재출고 운송 배차(OUTBOUND) 즉시 의뢰 발행</span>
-                  </label>
-
-                  {redeployNeedTransport && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px', paddingLeft: '24px' }}>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                        • 상차지: 당사 보관소<br/>
-                        • 하차지: {currentSite?.name || '현장'} ({currentSite?.address || '주소지'})
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '11.5px', fontWeight: 700 }}>운송 비용 (원)</label>
-                          <input
-                            type="number"
-                            value={redeployTransportCost}
-                            onChange={e => setRedeployTransportCost(Number(e.target.value))}
-                            placeholder="0"
-                            style={{ width: '100%', padding: '6px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
-                          />
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '11.5px', fontWeight: 700 }}>비용 부담 주체</label>
-                          <select
-                            value={redeployPaidBy}
-                            onChange={e => setRedeployPaidBy(e.target.value as any)}
-                            style={{ width: '100%', padding: '6px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
-                          >
-                            <option value="OURS">당사 부담 (회사 비용)</option>
-                            <option value="CUSTOMER">고객 부담 (청구 포함)</option>
-                            <option value="VENDOR">협력사 부담</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '6px' }}>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => setShowRedeployModal(false)}
-                  >
-                    취소
-                  </button>
-                  <button
-                    type="submit"
-                    className="btn-primary"
-                    disabled={!redeployAssetId || !redeployDate}
-                    style={{ fontWeight: 800 }}
-                  >
-                    재투입 확정
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        );
-      })()}
-
       {/* 스타일 */}
       <style>{`
         .hover-row:hover {

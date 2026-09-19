@@ -3719,7 +3719,7 @@ export const TruckDispatch: React.FC = () => {
                   <span>|</span>
                   <span>운송 완료: <strong style={{ color: 'var(--success)' }}>총 {deliveredDeliveries}건</strong></span>
                   <span>|</span>
-                  <span>대차(EXCHANGE) 왕복배차: <strong style={{ color: '#8b5cf6' }}>총 {exchangeCount}건</strong></span>
+                  <span>대차 왕복배차: <strong style={{ color: '#8b5cf6' }}>총 {exchangeCount}건</strong></span>
                   <span>|</span>
                   <span>취소: <strong style={{ color: 'var(--danger)' }}>총 {cancelledDeliveries}건</strong></span>
                 </div>

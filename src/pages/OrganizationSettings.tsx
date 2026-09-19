@@ -841,7 +841,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                   <div>
-                    <label style={{ marginBottom: '2px', color: 'var(--primary)', fontWeight: 'bold', fontSize: '12px' }}>로그인 아이디 (ID)</label>
+                    <label style={{ marginBottom: '2px', color: 'var(--primary)', fontWeight: 'bold', fontSize: '12px' }}>로그인 아이디</label>
                     <input type="text" style={{ padding: '4px 8px', fontSize: '12px' }} placeholder="시스템 로그인 ID" value={selectedProfile.loginId || ''} onChange={e => setSelectedProfile({...selectedProfile, loginId: e.target.value})} disabled={!canEdit} />
                   </div>
                   <div>

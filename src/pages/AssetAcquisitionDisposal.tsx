@@ -2820,7 +2820,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                         onChange={e => setDeliveryLocationType(e.target.value as any)}
                         style={{ padding: '5px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', fontSize: '11.5px' }}
                       >
-                        <option value="YARD">당사 주기장 상차도 (FOB)</option>
+                        <option value="YARD">당사 주기장 상차도</option>
                         <option value="BUYER_SITE">매수처 지정장소 도착도</option>
                       </select>
                     </div>

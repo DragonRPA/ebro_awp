@@ -1101,7 +1101,7 @@ export const Products: React.FC = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                     <div><label style={labelStyle}>모델명 *</label><input style={inputStyle} value={editForm.modelName || ''} onChange={ef('modelName')} /></div>
                     <div><label style={labelStyle}>축약 모델명</label><input style={inputStyle} placeholder="예: 1930, GS1930" value={editForm.shortName || ''} onChange={ef('shortName')} /></div>
-                    <div><label style={labelStyle}>피트 (Feet) *</label><input type="number" style={inputStyle} value={editForm.feet ?? ''} onChange={ef('feet')} /></div>
+                    <div><label style={labelStyle}>피트 *</label><input type="number" style={inputStyle} value={editForm.feet ?? ''} onChange={ef('feet')} /></div>
                     <div><label style={labelStyle}>제조사</label><input style={inputStyle} value={editForm.manufacturer || ''} onChange={ef('manufacturer')} /></div>
                     <div><label style={labelStyle}>동력 방식</label><input style={inputStyle} value={editForm.powerSource || ''} onChange={ef('powerSource')} /></div>
                     <div><label style={labelStyle}>작업 높이</label><input style={inputStyle} value={editForm.workingHeight || ''} onChange={ef('workingHeight')} /></div>
@@ -1178,7 +1178,7 @@ export const Products: React.FC = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px' }}>
                 <div><label style={labelStyle}>모델명 *</label><input style={inputStyle} placeholder="예: SJ3219" value={editForm.modelName || ''} onChange={ef('modelName')} required /></div>
                 <div><label style={labelStyle}>축약 모델명</label><input style={inputStyle} placeholder="예: 1930, GS1930" value={editForm.shortName || ''} onChange={ef('shortName')} /></div>
-                <div><label style={labelStyle}>피트 (Feet) *</label><input type="number" style={inputStyle} placeholder="예: 19" value={editForm.feet ?? ''} onChange={ef('feet')} required /></div>
+                <div><label style={labelStyle}>피트 *</label><input type="number" style={inputStyle} placeholder="예: 19" value={editForm.feet ?? ''} onChange={ef('feet')} required /></div>
                 <div><label style={labelStyle}>제조사</label><input style={inputStyle} placeholder="예: Skyjack" value={editForm.manufacturer || ''} onChange={ef('manufacturer')} /></div>
               </div>
 

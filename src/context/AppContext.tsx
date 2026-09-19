@@ -4840,7 +4840,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
   const createContract = async (contractData: Omit<Contract, 'id' | 'createdAt' | 'updatedAt' | 'contractNo'>, assetsList: { assetId?: string; expectedModel?: string; monthlyRentalFee: number; dailyRentalFee: number }[]) => {
     const customer = db.customers.find(c => c.id === contractData.customerId);
     if (customer && customer.transactionStatus === 'BLOCKED') {
-      showErrorModal('⚠️ 해당 고객사는 [거래불가(BLOCKED)] 상태로 설정되어 있어 신규 계약 등록이 불가능합니다.', '계약 등록 제한');
+      showErrorModal('⚠️ 해당 고객사는 [거래불가] 상태로 설정되어 있어 신규 계약 등록이 불가능합니다.', '계약 등록 제한');
       throw new Error('거래 불가 고객사입니다.');
     }
 

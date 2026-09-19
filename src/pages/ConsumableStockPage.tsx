@@ -897,11 +897,11 @@ export const ConsumableStockPage: React.FC = () => {
                   <div style={{ fontSize: '20px', fontWeight: 800, marginTop: '2px' }}>{totalCount}건</div>
                 </div>
                 <div className="card" style={{ margin: 0, padding: '14px' }}>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>재생 대상 (REBUILD)</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>재생 대상</div>
                   <div style={{ fontSize: '20px', fontWeight: 800, marginTop: '2px', color: '#7c3aed' }}>{rebuildCount}건</div>
                 </div>
                 <div className="card" style={{ margin: 0, padding: '14px' }}>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>폐기/고철 (SCRAP)</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>폐기/고철</div>
                   <div style={{ fontSize: '20px', fontWeight: 800, marginTop: '2px', color: '#ea580c' }}>{scrapCount}건</div>
                 </div>
                 <div className="card" style={{ margin: 0, padding: '14px' }}>
@@ -922,9 +922,9 @@ export const ConsumableStockPage: React.FC = () => {
                   style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
                 >
                   <option value="ALL">전체 처분구분</option>
-                  <option value="REBUILD">재생 대상 (REBUILD)</option>
-                  <option value="SCRAP">폐기/고철 (SCRAP)</option>
-                  <option value="VENDOR_WARRANTY">제조사 무상보증 (WARRANTY)</option>
+                  <option value="REBUILD">재생 대상</option>
+                  <option value="SCRAP">폐기/고철</option>
+                  <option value="VENDOR_WARRANTY">제조사 무상보증</option>
                 </select>
 
                 <select
@@ -933,9 +933,9 @@ export const ConsumableStockPage: React.FC = () => {
                   style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
                 >
                   <option value="ALL">전체 처리상태</option>
-                  <option value="RECEIVED">수거 접수 (RECEIVED)</option>
-                  <option value="IN_PROCESS">처리 진행중 (IN_PROCESS)</option>
-                  <option value="COMPLETED">조치 완료 (COMPLETED)</option>
+                  <option value="RECEIVED">수거 접수</option>
+                  <option value="IN_PROCESS">처리 진행중</option>
+                  <option value="COMPLETED">조치 완료</option>
                 </select>
 
                 <input
@@ -1080,9 +1080,9 @@ export const ConsumableStockPage: React.FC = () => {
                     style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
                   >
                     <option value="ALL">전체 상태</option>
-                    <option value="DRAFT">작성중 (DRAFT)</option>
-                    <option value="CONFIRMED">실사확정 (CONFIRMED)</option>
-                    <option value="CANCELLED">취소 (CANCELLED)</option>
+                    <option value="DRAFT">작성중</option>
+                    <option value="CONFIRMED">실사확정</option>
+                    <option value="CANCELLED">취소</option>
                   </select>
                 </div>
               </div>

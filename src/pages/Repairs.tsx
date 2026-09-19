@@ -1317,7 +1317,7 @@ export const Repairs: React.FC = () => {
                   {/* SOP 조치 가이드 배너 */}
                   {selectedInspectionItemActionGuide && (
                     <div style={{ fontSize: '11.5px', padding: '6px 10px', backgroundColor: 'rgba(59, 130, 246, 0.08)', borderRadius: '4px', border: '1px solid rgba(59, 130, 246, 0.2)', color: 'var(--text-main)' }}>
-                      📘 <strong>표준 조치 가이드(SOP):</strong> {selectedInspectionItemActionGuide}
+                      📘 <strong>표준 조치 가이드:</strong> {selectedInspectionItemActionGuide}
                     </div>
                   )}
                 </div>
@@ -1796,9 +1796,9 @@ export const Repairs: React.FC = () => {
             flexShrink: 0
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-              <span>정비중(REPAIRING): <strong style={{ color: 'var(--danger)' }}>총 {repairingAssets}대</strong></span>
+              <span>정비중: <strong style={{ color: 'var(--danger)' }}>총 {repairingAssets}대</strong></span>
               <span>|</span>
-              <span>임대가능(AVAILABLE): <strong style={{ color: 'var(--success)' }}>총 {availableAssets}대</strong></span>
+              <span>임대가능: <strong style={{ color: 'var(--success)' }}>총 {availableAssets}대</strong></span>
               <span>|</span>
               <span>금월 정비완료: <strong style={{ color: 'var(--primary)' }}>총 {monthlyCompletedRepairs}건</strong></span>
               <span>|</span>

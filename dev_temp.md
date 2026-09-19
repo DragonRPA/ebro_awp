@@ -4,6 +4,44 @@
 - **`ebro_awp`**: 현재 프로젝트 (고소작업대 AWP 렌탈 통합 ERP - 기연리프트)
 - **`bero_it`**: 신규 형제 프로젝트 (PC/IT 장비 렌탈 ERP, 도메인: `ooo.ebro.run`, 독립 Supabase DB)
 
+## [완료] 전사 화면 정보 표기 '한글(영어)' 병기 전면 제거(순수 한글 단일 표준화) 및 '수리장비 재투입' 별도 UI 제거(일반 출고/재고 운용 통합)
+- **요구사항**:
+  1. "간단한 수정으로 시스템에서 표시하는 정보(DB에 저장하는 정보)가 한글(영어) 병기하는 것이 있다면 한글만 표시하도록 해줘. 굳이 사용자들에게 나 영어 잘해요 자랑하는것 같잖아. 이 서비스는 아직은 대한민국 내에서만 서비스 하고 있어. 굳이 영어 용어를 사용할 필요가 없어."
+  2. "그리고 수리장비 재투입, 재투입 도 왜 필요한가 싶어. 다시 출고 해야 하는 시점에 회사의 재고 상황에 따라서 니가 말하는 재투입을 할지, 다른 장비를 내보낼지 판단하면 되는거지. 내가 수리를 예시로 들어서 이렇게 판단했을수 있겠지만, 수리 외에도 무수히 많은 다른 이유로 회수되기도 하니까."
+- **조치 내역**:
+  1. **'한글(영어)' 병기 전면 제거 및 순수 한글 표준화 (25개 주요 화면 전수)**:
+     - `Deliveries.tsx`: 출고, 회수, 교환, 이동, 의뢰중, 배차완료, 배송완료, 미정산, 정산완료
+     - `Dashboard.tsx`: 최고관리자, 부서관리자, 영업담당자, 정비담당자, 배차물류담당자, 임직원, 자산 대여중 전환 안내
+     - `AgenticAssetLifecyclePage.tsx`: 임대가능, 출고대기, 대여중, 정비중
+     - `AgenticDispatchStudioPage.tsx`: 교환, 출고, 회수
+     - `ConsumableStockPage.tsx`: 재생 대상, 폐기/고철, 제조사 무상보증, 수거 접수, 처리 진행중, 조치 완료, 작성중, 실사확정, 취소
+     - `CashFlowPage.tsx`: 구간 수납 예정, 구간 운영 지출, 구간 설비 투자, 수납액, 운영지출, 투자지출
+     - `CorporateCardPage.tsx`: 기계장치
+     - `AssetAcquisitionDisposal.tsx`: 당사 주기장 상차도
+     - `Contracts.tsx`: 교환 왕복 배차, 거래 불가, 출고금지, 현장간 장비 이동 운송 배차
+     - `asset_assignment.tsx`: 대차 긴급
+     - `asset_history.tsx`: 임대가능, 입고반납/검수대기
+     - `GoogleConfig.tsx`: 개발 모드, 실무 모드, 파일 경로
+     - `Billings.tsx`: 취소 버튼
+     - `inspection_checklist_manage.tsx`: 표준 조치 절차
+     - `Repairs.tsx`: 표준 조치 가이드, 정비중, 임대가능
+     - `TruckDispatch.tsx`: 대차 왕복배차
+     - `VehicleOperationLogPage.tsx`: 경유, 휘발유, 전기
+     - `Products.tsx`: 피트
+     - `RegularReportsPage.tsx`: 교환 절감, 영업 면제 주의, 영업 청구 면제 손실 투명 보고
+     - `OrganizationSettings.tsx`: 로그인 아이디
+     - `MobileHome.tsx`: 임대가능 복원
+     - `MobileDispatchOrderCreate.tsx`: 회수대기, 출고대기
+     - `ErpReadinessBadge.tsx`: 준비완료
+     - `OtApprovalDocumentModal.tsx`: 식사여부, 인정시간
+     - `AppContext.tsx`: 거래불가 안내 모달
+  2. **'수리장비 재투입' 별도 UI 군더더기 전면 제거 (`Contracts.tsx`)**:
+     - 사장님의 본질적 지적 반영: 회수 사유는 수리뿐 아니라 무수히 많으며, 다시 출고되는 시점에 회사의 재고 상황에 따라 기존 장비를 낼지 다른 장비를 낼지 판단하여 출고(배차)하면 됨.
+     - 체결 자산 테이블 헤더의 `[수리 장비 재투입]` 버튼 삭제.
+     - 체결 자산 각 행의 `[재투입]` 버튼 삭제.
+     - `showRedeployModal` 전용 모달 JSX 및 관련 상태/핸들러 완전 소탕 ➔ UI 군더더기 제거 및 화면 단순화 달성.
+- **검증 결과**: `cmd.exe /c npm run build` 1.05s 무오류 클린 통과.
+
 ## [완료] 현장간 장비 이동 날짜 역일 보존(8/10 마감 ➔ 8/11 개시) 및 수리 회수 후 동일계약 재투입(redeployRepairedAsset) UI 완비 & RWTT 실증 통과
 - **요구사항**:
   1. "현장간 이동이 되면, 우리의 계약에 대한 정의에서 A 계약에서 B 계약으로 변경되며, A현장에서는 단축(계약의 종료)가 발생하고, B 현장에서는 계약의 추가(이동된 다음 날짜에 시작) 이 맞지? 논리 충돌이 일어나는 전제조건이 있는가?"

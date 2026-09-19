@@ -456,7 +456,7 @@ export const Deliveries: React.FC = () => {
         <div>
           <h2 style={{ fontWeight: '700', margin: 0 }}>배차 및 운송 정산 관리</h2>
           <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-            출고 배차 및 장비 회수(INBOUND)를 제어하고, 물류사 차량별 운송비(임시 vs 확정)를 정산 마감합니다.
+            출고 배차 및 장비 회수를 제어하고, 물류사 차량별 운송비(임시 vs 확정)를 정산 마감합니다.
           </span>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -503,27 +503,27 @@ export const Deliveries: React.FC = () => {
             <label style={{ fontSize: '11px', fontWeight: '600', display: 'block', whiteSpace: 'nowrap' }}>구분</label>
             <select value={tempTypeFilter} onChange={e => setTempTypeFilter(e.target.value)} style={{ width: '100%', padding: '8px' }}>
               <option value="ALL">전체</option>
-              <option value="OUTBOUND">출고 (OUTBOUND)</option>
-              <option value="INBOUND">회수 (INBOUND)</option>
-              <option value="EXCHANGE">교환 (EXCHANGE)</option>
-              <option value="MOVEMENT">이동 (MOVEMENT)</option>
+              <option value="OUTBOUND">출고</option>
+              <option value="INBOUND">회수</option>
+              <option value="EXCHANGE">교환</option>
+              <option value="MOVEMENT">이동</option>
             </select>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{ fontSize: '11px', fontWeight: '600', display: 'block', whiteSpace: 'nowrap' }}>상태</label>
             <select value={tempStatusFilter} onChange={e => setTempStatusFilter(e.target.value)} style={{ width: '100%', padding: '8px' }}>
               <option value="ALL">전체</option>
-              <option value="REQUESTED">의뢰중 (REQUESTED)</option>
-              <option value="DISPATCHED">배차완료 (DISPATCHED)</option>
-              <option value="COMPLETED">배송완료 (COMPLETED)</option>
+              <option value="REQUESTED">의뢰중</option>
+              <option value="DISPATCHED">배차완료</option>
+              <option value="COMPLETED">배송완료</option>
             </select>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{ fontSize: '11px', fontWeight: '600', display: 'block', whiteSpace: 'nowrap' }}>정산</label>
             <select value={tempSettleFilter} onChange={e => setTempSettleFilter(e.target.value)} style={{ width: '100%', padding: '8px' }}>
               <option value="ALL">전체</option>
-              <option value="UNSETTLED">미정산 (UNSETTLED)</option>
-              <option value="SETTLED">정산완료 (SETTLED)</option>
+              <option value="UNSETTLED">미정산</option>
+              <option value="SETTLED">정산완료</option>
             </select>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

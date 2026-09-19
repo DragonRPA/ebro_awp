@@ -1549,11 +1549,11 @@ export const VehicleOperationLogPage: React.FC = () => {
                     onChange={e => setVehicleForm({ ...vehicleForm, fuelType: e.target.value as CorporateVehicleFuelType })}
                     style={{ height: '36px', padding: '0 10px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '13px', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
                   >
-                    <option value="DIESEL">경유 (DIESEL)</option>
-                    <option value="GASOLINE">휘발유 (GASOLINE)</option>
+                    <option value="DIESEL">경유</option>
+                    <option value="GASOLINE">휘발유</option>
                     <option value="LPG">LPG</option>
                     <option value="HYBRID">하이브리드</option>
-                    <option value="ELECTRIC">전기 (ELECTRIC)</option>
+                    <option value="ELECTRIC">전기</option>
                   </select>
                 </div>
               </div>

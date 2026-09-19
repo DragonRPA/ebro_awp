@@ -132,19 +132,19 @@ export const AgenticAssetLifecyclePage: React.FC = () => {
       {/* 6대 라이프사이클 상태 요약 HUD */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px' }} data-uia="monitor-lifecycle-flow">
         <div className="card" style={{ padding: '10px 14px', textAlign: 'center' }}>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>임대가능 (AVAILABLE)</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>임대가능</div>
           <div style={{ fontSize: '20px', fontWeight: '900', color: '#10b981', marginTop: '4px' }}>1대</div>
         </div>
         <div className="card" style={{ padding: '10px 14px', textAlign: 'center' }}>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>출고대기 (WAITING)</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>출고대기</div>
           <div style={{ fontSize: '20px', fontWeight: '900', color: '#f59e0b', marginTop: '4px' }}>1대</div>
         </div>
         <div className="card" style={{ padding: '10px 14px', textAlign: 'center' }}>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>대여중 (RENTED)</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>대여중</div>
           <div style={{ fontSize: '20px', fontWeight: '900', color: '#3b82f6', marginTop: '4px' }}>2대</div>
         </div>
         <div className="card" style={{ padding: '10px 14px', textAlign: 'center' }}>
-          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>정비중 (IN_REPAIR)</div>
+          <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>정비중</div>
           <div style={{ fontSize: '20px', fontWeight: '900', color: '#ef4444', marginTop: '4px' }}>1대</div>
         </div>
         <div className="card" style={{ padding: '10px 14px', textAlign: 'center' }}>
@@ -190,7 +190,7 @@ export const AgenticAssetLifecyclePage: React.FC = () => {
                   backgroundColor: asset.status === 'RENTED' ? '#3b82f6' : asset.status === 'AVAILABLE' ? '#10b981' : asset.status === 'IN_REPAIR' ? '#ef4444' : '#f59e0b',
                   color: '#fff'
                 }}>
-                  {asset.status === 'RENTED' ? '대여중 (RENTED)' : asset.status === 'AVAILABLE' ? '임대가능 (AVAILABLE)' : asset.status === 'IN_REPAIR' ? '정비중 (IN_REPAIR)' : '출고대기 (WAITING)'}
+                  {asset.status === 'RENTED' ? '대여중' : asset.status === 'AVAILABLE' ? '임대가능' : asset.status === 'IN_REPAIR' ? '정비중' : '출고대기'}
                 </span>
 
                 {asset.status === 'WAITING_OUTBOUND' && (
@@ -201,7 +201,7 @@ export const AgenticAssetLifecyclePage: React.FC = () => {
                     style={{ padding: '4px 10px', fontSize: '12px', fontWeight: '700' }}
                     data-uia="btn-execute-lifecycle-action"
                   >
-                    출고 검수 승인 마감 (RENTED 전환)
+                    출고 검수 승인 마감 (대여중 전환)
                   </button>
                 )}
 

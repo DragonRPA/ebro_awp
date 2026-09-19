@@ -722,7 +722,7 @@ export const GoogleConfig: React.FC = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>
-                    현재 실행 모드: <span style={{ color: isDevMode ? 'var(--warning)' : 'var(--success)', fontWeight: 'bold' }}>{isDevMode ? '개발 모드 (TEST)' : '실무 모드 (LIVE)'}</span>
+                    현재 실행 모드: <span style={{ color: isDevMode ? 'var(--warning)' : 'var(--success)', fontWeight: 'bold' }}>{isDevMode ? '개발 모드' : '실무 모드'}</span>
                   </strong>
                   <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '4px 0 0 0', lineHeight: '1.4' }}>
                     * 개발 모드에서는 모든 메일 수신처가 <strong>77.victor.lee@gmail.com</strong>으로 강제 우회 발송되며, 발송 시 사전 알림 경고가 출력됩니다.<br />
@@ -1066,7 +1066,7 @@ export const GoogleConfig: React.FC = () => {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                     <thead>
                       <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left', backgroundColor: 'var(--bg-app)' }}>
-                        <th style={{ padding: '8px 12px', fontWeight: '700', whiteSpace: 'nowrap' }}>파일 경로 (Key)</th>
+                        <th style={{ padding: '8px 12px', fontWeight: '700', whiteSpace: 'nowrap' }}>파일 경로</th>
                         <th style={{ padding: '8px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '100px' }}>크기</th>
                         <th style={{ padding: '8px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '160px' }}>최종 수정일</th>
                       </tr>

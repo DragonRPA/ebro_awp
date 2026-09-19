@@ -1144,7 +1144,7 @@ export const InspectionChecklistManage: React.FC = () => {
                     <th style={{ whiteSpace: 'nowrap', width: '90px' }}>표준 공수</th>
                     <th style={{ whiteSpace: 'nowrap', minWidth: '160px' }}>추천 소모품 / 부품</th>
                     <th style={{ whiteSpace: 'nowrap', width: '100px' }}>누적 정비 건수</th>
-                    <th style={{ minWidth: '220px' }}>표준 조치 절차 (SOP)</th>
+                    <th style={{ minWidth: '220px' }}>표준 조치 절차</th>
                     <th style={{ whiteSpace: 'nowrap', width: '110px' }}>관리</th>
                   </tr>
                 </thead>
@@ -2590,7 +2590,7 @@ export const InspectionChecklistManage: React.FC = () => {
 
               {/* 표준 조치 절차 (SOP) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>표준 조치 절차 (SOP)</label>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>표준 조치 절차</label>
                 <textarea
                   rows={2}
                   placeholder="정비사 조치 시 핵심 확인 절차 (예: 메인 밸브 차단 후 오링 교체, 유압유 레벨 점검)..."

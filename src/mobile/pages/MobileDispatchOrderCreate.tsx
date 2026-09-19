@@ -920,7 +920,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
               <div className="flex justify-between">
                 <span className="text-slate-400">배차 상태</span>
                 <span className="text-amber-400 font-bold">
-                  {createdResult.isReturn ? '회수대기 (REQUESTED - INBOUND)' : '출고대기 (REQUESTED)'}
+                  {createdResult.isReturn ? '회수대기' : '출고대기'}
                 </span>
               </div>
             </div>

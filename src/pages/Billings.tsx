@@ -4666,7 +4666,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
               {/* 푸터 액션 버튼 */}
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
-                <button type="button" className="btn-secondary" onClick={() => setShowPayModal(false)}>취소 (ESC)</button>
+                <button type="button" className="btn-secondary" onClick={() => setShowPayModal(false)}>취소</button>
                 <button 
                   ref={paySubmitBtnRef}
                   type="submit" 

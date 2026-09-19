@@ -495,7 +495,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
                   </span>
                 )}
               </div>
-              <div className="text-xs text-slate-400">입고 결함 점검, 소모품 투입 및 임대가능(AVAILABLE) 복원</div>
+              <div className="text-xs text-slate-400">입고 결함 점검, 소모품 투입 및 임대가능 복원</div>
             </div>
           </div>
           <ArrowRight className="w-5 h-5 text-red-400" />

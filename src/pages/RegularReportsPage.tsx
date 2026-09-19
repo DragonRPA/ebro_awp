@@ -392,12 +392,12 @@ export const RegularReportsPage: React.FC = () => {
                 <strong style={{ fontSize: '14px', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>₩{kpis.estimatedMargin.toLocaleString()} ({kpis.marginRate}%)</strong>
               </div>
               <div style={S.kpiChip}>
-                <span style={S.sectionLabel}>EXCHANGE 절감</span>
+                <span style={S.sectionLabel}>교환 절감</span>
                 <strong style={{ fontSize: '14px', color: 'var(--success)', whiteSpace: 'nowrap' }}>+₩{kpis.exchangeSavedCost.toLocaleString()}</strong>
               </div>
               {kpis.totalWaivedAmount > 0 && (
                 <div style={{ ...S.kpiChip, border: '1px solid var(--warning)' }}>
-                  <span style={{ ...S.sectionLabel, color: 'var(--warning)' }}>영업 면제(Waiver) 주의</span>
+                  <span style={{ ...S.sectionLabel, color: 'var(--warning)' }}>영업 면제 주의</span>
                   <strong style={{ fontSize: '14px', color: 'var(--warning)', whiteSpace: 'nowrap' }}>₩{kpis.totalWaivedAmount.toLocaleString()}</strong>
                 </div>
               )}
@@ -703,7 +703,7 @@ export const RegularReportsPage: React.FC = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Ban size={14} style={{ color: 'var(--warning)' }} />
-                    <strong style={S.subTitle}>5. 영업 청구 면제(Waiver) 손실 투명 보고</strong>
+                    <strong style={S.subTitle}>5. 영업 청구 면제 손실 투명 보고</strong>
                   </div>
                   <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--danger)' }}>총 면제액: ₩{finance.waiverSummary.totalWaived.toLocaleString()}</span>
                 </div>
