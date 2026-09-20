@@ -795,7 +795,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
                             if (matchedVendor) {
                               autoVendorId = matchedVendor.id;
                               autoPaymentMethod = matchedVendor.defaultPaymentMethod;
-                              autoSellerName = matchedVendor.vendorName;
+                              autoSellerName = matchedVendor.name;
                             }
                           }
                         } catch (err) {
@@ -862,7 +862,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
             <div style={{ padding: '14px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>예상 총 구매비용:</span>
               <strong style={{ fontSize: '16px', color: 'var(--primary)' }}>
-                ₩{(reqQty * reqUnitPrice).toLocaleString()}원
+                ₩{reqItems.reduce((acc, item) => acc + (item.qty * item.unitPrice), 0).toLocaleString()}원
               </strong>
             </div>
 

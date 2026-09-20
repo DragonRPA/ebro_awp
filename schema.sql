@@ -90,7 +90,9 @@ CREATE TABLE departments (
     "managerId"           TEXT, -- 부서장 users.id
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun',
+    "domainUrls"          TEXT,
+    "defaultPaymentMethod" TEXT
 );
 
 -- 1-2. 사용자 및 임직원 마스터 (users)

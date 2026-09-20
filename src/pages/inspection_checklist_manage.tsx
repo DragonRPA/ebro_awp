@@ -137,7 +137,7 @@ export const InspectionChecklistManage: React.FC = () => {
       (repairs || []).forEach(r => {
         if (r.inspectionItemId === sId || r.inspectionItemCode === symptom.code) return;
 
-        const textToSearch = [r.issueCategory, r.issueDescription, r.repairDetails].join(' ');
+        const textToSearch = [r.issueCategory, r.issueDescription, r.details].join(' ');
         if (textToSearch.includes(keyword)) {
           if (!stats[sId]) stats[sId] = { count: 0 };
           stats[sId].count += 1;
@@ -155,7 +155,7 @@ export const InspectionChecklistManage: React.FC = () => {
         if (d.type === 'EXCHANGE' && d.memo && d.memo.includes(keyword)) {
           if (!stats[sId]) stats[sId] = { count: 0 };
           stats[sId].count += 1;
-          const dDate = d.deliveryDate;
+          const dDate = d.scheduledDate || d.requestDate;
           if (dDate) {
             if (!stats[sId].lastOccurred || dDate > stats[sId].lastOccurred) {
               stats[sId].lastOccurred = dDate;
@@ -2748,7 +2748,7 @@ export const InspectionChecklistManage: React.FC = () => {
                         ) : (
                           <span style={{ width: '10px', height: '10px', borderRadius: '50%', border: '1px solid var(--text-muted)', display: 'inline-block' }} />
                         )}
-                        <span>{manual.modelName} ({manual.docType})</span>
+                        <span>{manual.modelName} ({manual.category})</span>
                       </button>
                     );
                   })}

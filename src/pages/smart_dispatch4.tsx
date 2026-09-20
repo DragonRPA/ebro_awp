@@ -3773,7 +3773,7 @@ export const SmartDispatch4: React.FC = () => {
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-1 shadow-sm">
             <label className="text-[11px] font-semibold text-slate-300">배차 및 특이사항 메모 (선택사항)</label>
 
-            {draft.context.includes('EXCHANGE') && (
+            {isExchangeMode && (
               <div className="flex flex-col gap-1 mt-0.5 mb-1.5">
                 <span className="text-[10px] font-bold text-slate-400">교체(대차) 불량 증상 빠른 입력</span>
                 <div className="flex flex-wrap gap-1.5">

@@ -626,7 +626,7 @@ export interface ConsumableLot {
   currentQty: number; // 현재 주기장(HQ) 잔여 수량
   purchaseRequestId?: string; // 연결된 구매 이력
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 export interface MechanicConsumableStock {
@@ -664,6 +664,7 @@ export interface ConsumablePurchaseRequest {
   unitPrice: number;
   requestDate: string;
   sellerName: string;
+  purchaseUrl?: string;
   vendorId?: string; // 시스템 내 매입처 마스터 ID
   paymentMethod?: 'CARD' | 'CREDIT'; // 결제 방식 (CARD: 법인카드/즉시결제, CREDIT: 월말외상결제)
   status: 'REQUESTED' | 'ACCEPTED' | 'COMPLETED' | 'CANCELLED';
@@ -725,6 +726,7 @@ export interface CollectedPart {
   id: string;
   partNo: string; // COL-YYYYMMDD-XXXX
   consumableId: string;
+  lotId?: string;
   modelName: string;
   mechanicId: string;
   mechanicName: string;
@@ -1265,6 +1267,8 @@ export interface InspectionChecklistItem {
   name: string;
   score: number;
   description?: string;
+  isDefectSymptom?: boolean;
+  relatedManualIds?: string[];
   recommendedConsumableIds?: string[]; // 추천 소모품 ID 목록
   standardManHours?: number;           // 표준 작업 공수 (M/H 단위, 예: 0.5, 1.5)
   actionGuide?: string;                // 표준 조치 절차 (SOP)

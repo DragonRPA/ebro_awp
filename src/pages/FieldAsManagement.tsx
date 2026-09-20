@@ -5,7 +5,7 @@ import {
   Wrench, Plus, CheckCircle2, Clock, Calendar, AlertTriangle, Search, Download, 
   User, Building2, MapPin, Phone, Tag, Camera, Check, RefreshCw, X, ArrowRight,
   Truck, ShieldAlert, FileText, ChevronRight, Layers, MessageSquare, ExternalLink, ArrowDownLeft,
-  PhoneCall, Navigation, Smartphone, Monitor, Minus, Copy
+  PhoneCall, Navigation, Smartphone, Monitor, Minus, Copy, BookOpen
 } from 'lucide-react';
 import { db, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart } from '../services/db';
 import { exportToExcel } from '../services/excel';
@@ -2543,7 +2543,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                   {['SCHEDULED', 'IN_PROGRESS'].includes(selectedTicket.status) && (
                     <button
                       type="button"
-                      onClick={() => updateFieldAsTicketStatus(selectedTicket.id, 'REQUESTED', { mechanicId: null })}
+                      onClick={() => updateFieldAsTicketStatus(selectedTicket.id, 'REQUESTED', { mechanicId: null as any })}
                       style={{
                         padding: '12px 20px',
                         backgroundColor: 'var(--bg-app)',

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { db, supabase, Tenant, TenantWorkplace, TenantYard, TenantBusinessType, TenantBankAccount, OFFICIAL_STAMP_BASE64, User, MenuPermission, createMenuPermission, CustomRole, RolePermission, Customer, CustomerContact, CustomerSite, Product, Asset, Consumable, ConsumableLog, ConsumablePurchaseRequest, MechanicConsumableStock, Contract, ContractAsset, ContractHistory, Delivery, Billing, BillingType, BillingDetail, Receivable, Payment, PaymentDepositLink, Repair, RepairConsumable, Todo, BankTransaction, BankMatchingRule, BankAccountInitialBalance, AssetInOutLog, GoogleConfig, Vendor, CashFlowSnapshot, OutboundInspection, TransportCompany, TransportDriver, TransportNegotiation, SubleaseNegotiation, DepreciationLog, PurchaseSettlement, PurchaseSettlementItem, SettlementPaymentLog, ExternalLease, PurchaseSettlementType, PurchaseSettlementStatus, findCustomerByNormalizedName, AnnualLeaveQuota, LeaveUsage, OvertimeRecord, PayrollClosing, InspectionChecklistItem, EquipmentManual, StandardOption, InboundDefectDetail, PrepaidTransaction, DelinquencyActionLog, LegalNoticeLog, LegalNoticeTemplate, calculateAssetDepreciation, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, CorporateVehicle, VehicleOperationLog, VehicleFuelLog, RepairPartUsed, RepairCollectedPart, SaleContractTerms, StocktakingAudit, StocktakingAuditItem, CollectedPart, PrintStation, PrintQueueItem, logPrivacyAccess, ErrorReport, ErrorReportAttachment, ErrorReportStatus, ErrorReportSeverity, ErrorReportCategory } from '../services/db';
+import { db, supabase, Tenant, TenantWorkplace, TenantYard, TenantBusinessType, TenantBankAccount, OFFICIAL_STAMP_BASE64, User, MenuPermission, createMenuPermission, CustomRole, RolePermission, Customer, CustomerContact, CustomerSite, Product, Asset, Consumable, ConsumableLog, ConsumableLot, ConsumablePurchaseRequest, MechanicConsumableStock, Contract, ContractAsset, ContractHistory, Delivery, Billing, BillingType, BillingDetail, Receivable, Payment, PaymentDepositLink, Repair, RepairConsumable, Todo, BankTransaction, BankMatchingRule, BankAccountInitialBalance, AssetInOutLog, GoogleConfig, Vendor, CashFlowSnapshot, OutboundInspection, TransportCompany, TransportDriver, TransportNegotiation, SubleaseNegotiation, DepreciationLog, PurchaseSettlement, PurchaseSettlementItem, SettlementPaymentLog, ExternalLease, PurchaseSettlementType, PurchaseSettlementStatus, findCustomerByNormalizedName, AnnualLeaveQuota, LeaveUsage, OvertimeRecord, PayrollClosing, InspectionChecklistItem, EquipmentManual, StandardOption, InboundDefectDetail, PrepaidTransaction, DelinquencyActionLog, LegalNoticeLog, LegalNoticeTemplate, calculateAssetDepreciation, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, CorporateVehicle, VehicleOperationLog, VehicleFuelLog, RepairPartUsed, RepairCollectedPart, SaleContractTerms, StocktakingAudit, StocktakingAuditItem, CollectedPart, PrintStation, PrintQueueItem, logPrivacyAccess, ErrorReport, ErrorReportAttachment, ErrorReportStatus, ErrorReportSeverity, ErrorReportCategory } from '../services/db';
 import { enqueuePrintJob as serviceEnqueuePrintJob, registerPrintStation as serviceRegisterPrintStation, deletePrintStation as serviceDeletePrintStation, retryPrintJob as serviceRetryPrintJob, cancelPrintJob as serviceCancelPrintJob } from '../services/printQueueService';
 import { ErrorModal } from '../components/ErrorModal';
 import { getAllSystemMenuIds, normalizeMenuId } from '../config/menu_config';
@@ -76,6 +76,7 @@ export interface SmartReturnData {
 }
 
 interface AppContextType {
+  updatePurchaseUnitPrice: (id: string, newUnitPrice: number) => Promise<void>;
   receivables: any[];
   refreshReceivables: () => void;
   currentUser: User | null;
@@ -172,7 +173,7 @@ interface AppContextType {
   updatePermissions: (updated: MenuPermission[]) => void;
   saveUser: (user: Omit<User, 'id' | 'createdAt'> & { id?: string }) => void;
   saveCustomer: (cust: Omit<Customer, 'id' | 'createdAt'> & { id?: string }) => Promise<Customer>;
-  saveContact: (contact: Omit<CustomerContact, 'id' | 'createdAt'> & { id?: string }) => Promise<void>;
+  saveContact: (contact: Omit<CustomerContact, 'id' | 'createdAt'> & { id?: string }) => Promise<CustomerContact>;
   deleteContact: (id: string) => Promise<void>;
   saveSite: (site: Omit<CustomerSite, 'id' | 'createdAt'> & { id?: string }) => Promise<void>;
   deleteSite: (id: string) => Promise<void>;
@@ -228,7 +229,7 @@ interface AppContextType {
   deleteConsumable: (id: string) => Promise<void>;
   purchaseConsumable: (data: { modelName: string; qty: number; unit: string; unitPrice: number; supplier: string }) => Promise<void>;
   useConsumable: (data: { consumableId: string; quantity: number; targetAssetId: string; description: string }) => Promise<void>;
-  requestConsumablePurchase: (data: { consumableId?: string; modelName: string; qty: number; unitPrice: number; requestDate: string; sellerName: string }) => Promise<void>;
+  requestConsumablePurchase: (data: { consumableId?: string; modelName: string; qty: number; unitPrice: number; requestDate: string; sellerName: string; purchaseUrl?: string; requestAttachmentUrl?: string; vendorId?: string; paymentMethod?: 'CARD' | 'CREDIT'; }) => Promise<void>;
   acceptConsumablePurchase: (id: string) => Promise<void>;
   completeConsumablePurchase: (id: string) => Promise<void>;
   inboundConsumablePurchase: (id: string, qty: number, statementFileUrl: string) => Promise<void>;
@@ -1543,11 +1544,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return res;
   };
 
-  const saveContact = async (contact: Omit<CustomerContact, 'id' | 'createdAt'> & { id?: string }) => {
+  const saveContact = async (contact: Omit<CustomerContact, 'id' | 'createdAt'> & { id?: string }): Promise<CustomerContact> => {
+    let savedObj: CustomerContact;
     if (contact.id) {
-      db.updateRow<CustomerContact>('contacts', contact.id, contact as CustomerContact);
+      const res = db.updateRow<CustomerContact>('contacts', contact.id, contact as CustomerContact);
+      if (!res) throw new Error("Contact update failed (not found).");
+      savedObj = res;
     } else {
-      db.insertRow<CustomerContact>('contacts', {
+      savedObj = db.insertRow<CustomerContact>('contacts', {
         ...contact,
         isActive: contact.isActive !== undefined ? contact.isActive : true,
         createdAt: new Date().toISOString()
@@ -1564,6 +1568,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     refreshAllData();
+    return savedObj;
   };
 
   const deleteContact = async (id: string) => {
@@ -4771,7 +4776,6 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       requestDate: data.requestDate,
       sellerName: data.sellerName,
       purchaseUrl: data.purchaseUrl,
-      requestAttachmentUrl: data.requestAttachmentUrl,
       vendorId: data.vendorId,
       paymentMethod: data.paymentMethod,
       status: 'REQUESTED',
@@ -4946,7 +4950,6 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       unitPrice: req.unitPrice,
       initialQty: qty,
       currentQty: qty,
-      supplier: req.sellerName,
       purchaseRequestId: req.id,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()

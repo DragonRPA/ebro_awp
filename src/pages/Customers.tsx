@@ -1565,7 +1565,7 @@ export const Customers: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => {
-                          setTargetContactCardCustId(selectedCustomer.id);
+                          setTargetContactCardCustId(activeCustomer.id);
                           setShowContactCardModal(true);
                         }}
                         style={{
@@ -3027,7 +3027,7 @@ export const Customers: React.FC = () => {
           setTargetContactCardCustId(undefined);
         }}
         onSuccess={handleContactCardSuccess}
-        preselectedCustomerId={targetContactCardCustId}
+        targetCustomerId={targetContactCardCustId}
       />
     </div>
   );
