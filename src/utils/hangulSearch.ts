@@ -15,7 +15,7 @@ export const CHOSUNG_LIST: readonly string[] = [
 
 /**
  * 한글 복자음(겹받침) 11종 ➔ 기본 초성 자음 2자 분해 매핑 테이블
- * 한글 IME(입력기) 조합기가 빠른 초성 연속 입력 시 'ㅂ'+'ㅅ'을 'ㅄ'으로 합성하는 현상을 원래 키스트로크 순서로 정규화
+ * 한글 IME(입력기) 조합기가 초성 연속 입력 시 'ㅂ'+'ㅅ'을 'ㅄ'으로 합성하는 현상을 원래 키스트로크 순서로 정규화
  */
 export const COMPLEX_CONSONANT_MAP: Record<string, string> = {
   'ㄳ': 'ㄱㅅ',

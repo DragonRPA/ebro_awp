@@ -106,7 +106,7 @@ interface InspectionGroup {
   equipmentsSummary: string;
   checkpoints: CheckPoint[];
   specialNote: string;
-  rawText?: string; // 스마트 출고시 입력된 자연어 원문 텍스트
+  rawText?: string; // 출고시 입력된 자연어 원문 텍스트
 }
 
 export const OutboundInspections: React.FC = () => {
@@ -427,14 +427,14 @@ export const OutboundInspections: React.FC = () => {
           updatedAt: nowIso
         });
 
-        // 🟢 출고 승인 마감 시 해당 고유 장비의 status ➔ 'RENTED' (대여중) 으로 실시간 변동!
+        // 🟢 출고 승인 마감 시 해당 고유 장비의 status ➔ 'RENTED' (대여중) 으로 변동!
         if (item.assetId) {
           db.updateRow<Asset>('assets', item.assetId, {
             status: 'RENTED',
             updatedAt: nowIso
           });
 
-          // 🟢 [헌장 1.2] 발생 사건 무누락 DB 저장: 출고 검수 승인 시 자산 입출고 이력 1:1 정규화 영구 저장
+          // 🟢 [헌장 1.2] 발생 사건 무누락 DB 저장: 출고 검수 승인 시 자산 입출고 이력 1:1 정규화 저장
           const targetAsset = db.assets.find(a => a.id === item.assetId);
           const site = contract ? db.sites.find(s => s.id === contract.siteId) : undefined;
 
@@ -1317,7 +1317,7 @@ export const OutboundInspections: React.FC = () => {
               </div>
 
               {/* ────────────────────────────────────────────────────────────────── */}
-              {/* 💬 스마트 출고 요청 자연어 원본 텍스트 전용 박스 (배차와 동일 디자인) */}
+              {/* 💬 출고 요청 자연어 원본 텍스트 전용 박스 (배차와 동일 디자인) */}
               {/* ────────────────────────────────────────────────────────────────── */}
               <div style={{ marginBottom: '20px', padding: '14px 16px', backgroundColor: 'rgba(59,130,246,0.06)', border: '1.5px solid rgba(59,130,246,0.25)', borderRadius: '10px' }}>
                 <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1520,7 +1520,7 @@ export const OutboundInspections: React.FC = () => {
               </select>
             </div>
 
-            {/* 💡 정비점수 가산 실시간 안내 배너 */}
+            {/* 💡 정비점수 가산 안내 배너 */}
             {(() => {
               const matched = inspectionChecklistItems.find(item => item.id === selectedChecklistId);
               if (matched) {
@@ -1553,11 +1553,11 @@ export const OutboundInspections: React.FC = () => {
               />
             </div>
 
-            {/* 🔍 [사장님 지시] 대체 장비 관리번호/시리얼 실시간 검색창 탑재 */}
+            {/* 🔍 [사장님 지시] 대체 장비 관리번호/시리얼 검색창 탑재 */}
             <div style={{ marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                 <label style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                  <Search size={14} color="var(--primary)" /> 대체 장비 관리번호 실시간 검색
+                  <Search size={14} color="var(--primary)" /> 대체 장비 관리번호 검색
                 </label>
                 {exchangeSearchQuery && (
                   <button
@@ -1571,7 +1571,7 @@ export const OutboundInspections: React.FC = () => {
               <div style={{ position: 'relative' }}>
                 <input
                   type="text"
-                  placeholder="관리번호 (예: G19008) 또는 시리얼번호 입력시 1초 실시간 필터링..."
+                  placeholder="관리번호 (예: G19008) 또는 시리얼번호 입력시 1초 필터링..."
                   value={exchangeSearchQuery}
                   onChange={e => setExchangeSearchQuery(e.target.value)}
                   style={{

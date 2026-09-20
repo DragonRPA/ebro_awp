@@ -16,7 +16,7 @@ export const SmartReturn: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // 🖨️ 원격 분산 인쇄 큐 타겟 스테이션 설정 (1회 선택 시 영구 기억)
+  // 🖨️ 원격 분산 인쇄 큐 타겟 스테이션 설정 (1회 선택 시 기억)
   const PREFERRED_RETURN_STATION_KEY = 'preferred_print_station_return';
   const [isAgentPrinting, setIsAgentPrinting] = useState<boolean>(false);
 

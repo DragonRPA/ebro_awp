@@ -30,7 +30,7 @@ export interface ClearHandoverTasksParams {
 }
 
 /**
- * 🚀 [1] 물리적 ToDo 발행 + 실시간 브로드캐스트 원스톱 파이프라인
+ * 🚀 [1] 물리적 ToDo 발행 + 브로드캐스트 원스톱 파이프라인
  */
 export async function issueHandoverTask(params: IssueHandoverTaskParams): Promise<Todo> {
   const nowIso = new Date().toISOString();
@@ -80,10 +80,10 @@ export async function issueHandoverTask(params: IssueHandoverTaskParams): Promis
     updatedAt: nowIso
   };
 
-  // 1. 물리 DB 영구 적재
+  // 1. 물리 DB 적재
   db.insertRow<Todo>('todos', newTodo);
 
-  // 2. 실시간 푸시 & 차임벨 알림 병행 (휘발 유실 방어)
+  // 2. 푸시 & 차임벨 알림 병행 (휘발 유실 방어)
   try {
     const notifType = params.category === 'EXECUTIVE_DIRECTIVE' ? 'URGENT_DIRECTIVE' :
       params.category.includes('DISPATCH') ? 'DISPATCH' :

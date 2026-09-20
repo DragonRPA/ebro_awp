@@ -212,7 +212,7 @@ export async function processSingleLicense(
     const cleanBizNoDigits = (analysis.bizRegNo || '').replace(/[^0-9]/g, '');
     const cleanExtractedName = normalizeCompanyName(analysis.companyName || '');
 
-    // 2) 증빙 영구 보존용 스토리지 업로드 (실패해도 등록은 계속 진행)
+    // 2) 증빙 보존용 스토리지 업로드 (실패해도 등록은 계속 진행)
     let fileUrl = '';
     try {
       const ext = file.name.split('.').pop() || 'png';
@@ -231,7 +231,7 @@ export async function processSingleLicense(
       console.warn('[BatchBusinessLicense] Storage upload skipped/warned:', uploadErr);
     }
 
-    // 2.5) 국세청 홈택스 실시간 휴폐업 및 과세유형 진위확인
+    // 2.5) 국세청 홈택스 휴폐업 및 과세유형 진위확인
     let ntsData: NtsStatusResult | null = null;
     if (cleanBizNoDigits && cleanBizNoDigits.length === 10) {
       try {

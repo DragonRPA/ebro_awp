@@ -82,7 +82,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
       >
         {/* ── 1행: 좌상단 날씨 위젯 & 우상단 퀵 액션 버튼군 (360px 모바일 화면 줄바꿈·잘림 없는 컴팩트 레이아웃) ── */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '6px', minWidth: 0 }}>
-          {/* 🌤️ 좌상단 실시간 현장 날씨 위젯 */}
+          {/* 🌤️ 좌상단 현장 날씨 위젯 */}
           <div style={{ flexShrink: 1, minWidth: 0 }}>
             <WeatherWidget compact />
           </div>

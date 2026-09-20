@@ -825,7 +825,7 @@ export const PrintQueueManager: React.FC = () => {
               )}
             </div>
 
-            {/* 빠른 용도 템플릿 칩 (다중 프린터 친화형) */}
+            {/* 용도 템플릿 칩 (다중 프린터 친화형) */}
             <div
               style={{
                 padding: '12px',
@@ -838,7 +838,7 @@ export const PrintQueueManager: React.FC = () => {
               }}
             >
               <span style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>
-                빠른 용도 선택
+                용도 선택
               </span>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '6px' }}>
                 <button

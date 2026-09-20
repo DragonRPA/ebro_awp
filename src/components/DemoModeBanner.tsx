@@ -1,5 +1,5 @@
 // src/components/DemoModeBanner.tsx
-// ebro_awp 시연 데모 모드 상단 고정 배너 및 원클릭 데이터 초기화 컴포넌트
+// ebro_awp 시연 데모 모드 상단 고정 배너 및 데이터 초기화 컴포넌트
 
 import React, { useState } from 'react';
 import { isDemoMode, exitDemoMode, resetDemoDataToGolden } from '../services/demoMode';

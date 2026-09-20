@@ -212,7 +212,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ compact = false, s
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <MapPin size={20} color="var(--primary)" />
-                <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0 }}>실시간 현장 날씨 정보</h3>
+                <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0 }}>현장 날씨 정보</h3>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button

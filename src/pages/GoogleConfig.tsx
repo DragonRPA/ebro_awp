@@ -62,7 +62,7 @@ export const GoogleConfig: React.FC = () => {
   const [showR2FileModal, setShowR2FileModal] = useState(false);
   const [isLoadingR2Files, setIsLoadingR2Files] = useState(false);
 
-  // 로컬 사이드카 에이전트 실시간 모니터링 상태
+  // 로컬 사이드카 에이전트 모니터링 상태
   const [agentStatus, setAgentStatus] = useState<'ONLINE' | 'OFFLINE'>('OFFLINE');
   const [agentCallsign, setAgentCallsign] = useState<string>('');
   const [agentInfo, setAgentInfo] = useState<any>(null);
@@ -70,7 +70,7 @@ export const GoogleConfig: React.FC = () => {
 
   const [isRestartingAgent, setIsRestartingAgent] = useState(false);
 
-  // 로컬 에이전트 헬스체크 및 실시간 콜사인 동기화 (3초 주기)
+  // 로컬 에이전트 헬스체크 및 콜사인 동기화 (3초 주기)
   useEffect(() => {
     let isMounted = true;
     const checkAgent = async () => {
@@ -439,12 +439,12 @@ export const GoogleConfig: React.FC = () => {
                 <AlertTriangle size={28} style={{ color: '#EF4444' }} />
               </div>
               <div>
-                <div style={{ fontSize: '18px', fontWeight: '800', color: '#EF4444', marginBottom: '8px' }}>Storage 파일 영구 삭제</div>
+                <div style={{ fontSize: '18px', fontWeight: '800', color: '#EF4444', marginBottom: '8px' }}>Storage 파일 삭제</div>
                 <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: '600', marginBottom: '6px' }}>
                   {deleteModal.count}건의 증빙 파일을 Supabase Storage에서
                 </div>
                 <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: '600', marginBottom: '12px' }}>
-                  영구 삭제합니다.
+                  삭제합니다.
                 </div>
                 <div style={{ fontSize: '12.5px', color: '#EF4444', fontWeight: '700', padding: '10px 14px', background: 'rgba(239,68,68,0.08)', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.3)' }}>
                   ⚠️ 이 작업은 되돌릴 수 없습니다.<br/>
@@ -474,7 +474,7 @@ export const GoogleConfig: React.FC = () => {
                   }}
                   style={{ flex: 1, padding: '11px', borderRadius: '8px', border: 'none', background: '#EF4444', color: '#fff', fontWeight: '800', fontSize: '14px', cursor: isDeleting ? 'not-allowed' : 'pointer', opacity: isDeleting ? 0.7 : 1 }}
                 >
-                  {isDeleting ? '삭제 중...' : '영구 삭제'}
+                  {isDeleting ? '삭제 중...' : '삭제'}
                 </button>
               </div>
             </div>
@@ -488,7 +488,7 @@ export const GoogleConfig: React.FC = () => {
         <div>
           <h2 style={{ fontSize: '22px', fontWeight: '800', margin: 0 }}>구글 및 클라우드 연계 설정</h2>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-            e-Bro ERP와 구글 드라이브 및 Gmail SMTP 발송 서버 간의 크레덴셜 정보를 실시간 편집합니다.
+            e-Bro ERP와 구글 드라이브 및 Gmail SMTP 발송 서버 간의 크레덴셜 정보를 편집합니다.
           </p>
         </div>
       </div>
@@ -621,7 +621,7 @@ export const GoogleConfig: React.FC = () => {
                           fileUrl: p.statementFileUrl!
                         }));
                         await downloadEvidenceAsZip(items, `소모품_증빙파일_백업_${today}.zip`);
-                        setBackupProgress(`✅ ZIP 다운로드 완료 (${items.length}건) — 없애려면 영구 삭제 버튼 실행`);
+                        setBackupProgress(`✅ ZIP 다운로드 완료 (${items.length}건) — 없애려면 삭제 버튼 실행`);
                         // 커스텀 삭제 확인 모달
                         setDeleteModal({
                           open: true,
@@ -1004,7 +1004,7 @@ export const GoogleConfig: React.FC = () => {
 
                 <div style={{ backgroundColor: 'var(--bg-app)', padding: '14px 16px', borderRadius: '10px', border: '1px solid var(--border)', marginBottom: '16px' }}>
                   <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '700', color: '#2563eb' }}>
-                    ⚡ 1초 원클릭 실행 방법:
+                    ⚡ 1초 실행 방법:
                   </h4>
                   <ol style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <li><strong>[📥 eBroAgent.exe 다운로드]</strong> 버튼을 누릅니다.</li>

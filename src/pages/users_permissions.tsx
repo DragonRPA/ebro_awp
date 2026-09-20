@@ -371,7 +371,7 @@ export const UsersPermissions: React.FC = () => {
     setIsRoleDirty(true);
   };
 
-  // ── [액션 6: 권한 설정 저장 (역할별 권한 확정 및 전 직원 실시간 상속)] ──
+  // ── [액션 6: 권한 설정 저장 (역할별 권한 확정 및 전 직원 상속)] ──
   const handleSaveRolePermissions = async () => {
     if (!canSave || !selectedRoleId) return;
     const permsArray = Object.entries(workingRolePerms).map(([menuId, p]) => ({
@@ -384,7 +384,7 @@ export const UsersPermissions: React.FC = () => {
       await saveRolePermissions(selectedRoleId, permsArray);
       setIsRoleDirty(false);
       const inheritedCount = roleUserCountMap[selectedRoleId] || 0;
-      showToast(`[${selectedRole?.name || '권한'}] 설정 저장 완료 (상속 직원 ${inheritedCount}명 실시간 적용)`);
+      showToast(`[${selectedRole?.name || '권한'}] 설정 저장 완료 (상속 직원 ${inheritedCount}명 적용)`);
     } catch (err: any) {
       showErrorModal(`권한 저장 실패: ${err?.message || err}`);
     }

@@ -427,7 +427,7 @@ export const PayrollPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 📊 당월 급여 집계 실시간 요약 바 */}
+      {/* 📊 당월 급여 집계 요약 바 */}
       {(() => {
         const totalBase = payrollList.reduce((sum, p) => sum + (p.baseSalary || 0), 0);
         const totalNet = payrollList.reduce((sum, p) => sum + (p.netPay || 0), 0);
@@ -505,7 +505,7 @@ export const PayrollPage: React.FC = () => {
               </div>
               • 귀속 월({selectedMonth}) 총 OT: <strong>{payrollList.reduce((sum, p) => sum + (p.overtimeHours || 0), 0)} 시간</strong><br/>
               • 귀속 월({selectedMonth}) 총 연차: <strong>{payrollList.reduce((sum, p) => sum + (p.leaveDays || 0), 0)} 일</strong> 소진<br/>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>* [연차관리 / OT 관리] 등록 시 급여 정산 대장에 실시간 100% 동기화 반영됩니다.</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>* [연차관리 / OT 관리] 등록 시 급여 정산 대장에 100% 동기화 반영됩니다.</span>
             </div>
 
             <div style={{ padding: '12px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px', lineHeight: '1.5' }}>

@@ -23,7 +23,7 @@ export const Assets: React.FC = () => {
     }, 4000);
   };
 
-  // 실시간 검색 및 필터 상태 (즉시 반응형 로딩: 헌장 1.1 & 1.2)
+  // 검색 및 필터 상태 (즉시 반응형 로딩: 헌장 1.1 & 1.2)
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [ownerFilter, setOwnerFilter] = useState('ALL');
@@ -183,7 +183,7 @@ export const Assets: React.FC = () => {
     showToast(`자산 ${asset.assetNo} 이력 엑셀 파일이 다운로드되었습니다.`);
   };
 
-  // 실시간 KPI 통계
+  // KPI 통계
   const kpiStats = useMemo(() => {
     const totalCount = assets.length;
     const ownedCount = assets.filter(a => a.ownerType === 'OWNED').length;
@@ -224,7 +224,7 @@ export const Assets: React.FC = () => {
   // 🌟 [초고속 렌더링 청크 윈도우: 헌장 1.1] 초기 50건 우선 렌더링으로 10만 개 DOM 프리징 원천 방어
   const [visibleCount, setVisibleCount] = useState(50);
 
-  // 실시간 반응형 필터링 및 정렬
+  // 반응형 필터링 및 정렬
   const filtered = useMemo(() => {
     setVisibleCount(50); // 필터 변경 시 50건으로 리셋
     return assets.filter(a => {
@@ -450,7 +450,7 @@ export const Assets: React.FC = () => {
         </div>
       </div>
 
-      {/* ② 실시간 자산 운용 KPI 요약 바 (Scope) */}
+      {/* ② 자산 운용 KPI 요약 바 (Scope) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '6px', flexShrink: 0 }}>
         <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>임대 가능 (주기장)</span>

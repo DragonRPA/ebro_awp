@@ -1,5 +1,5 @@
 // src/services/demoMode.ts
-// ebro_awp 데모 모드 감지, 설정 및 원클릭 리셋 서비스
+// ebro_awp 데모 모드 감지, 설정 및 리셋 서비스
 
 import goldenData from './demo_golden_dataset.json';
 import { createClient } from '@supabase/supabase-js';
@@ -101,7 +101,7 @@ export function getDemoSupabaseClient() {
   return createClient(DEMO_SUPABASE_CONFIG.url, DEMO_SUPABASE_CONFIG.anonKey);
 }
 
-/** 데모 데이터 골든 데이터셋으로 원클릭 초기화(Reset) */
+/** 데모 데이터 골든 데이터셋으로 초기화(Reset) */
 export async function resetDemoDataToGolden(onProgress?: (msg: string) => void): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = getDemoSupabaseClient();

@@ -2,7 +2,7 @@
 // 출고의뢰2 - 새 설계안 (A/B 비교 테스트용)
 // ┌─────────────────────────────────────────────────────────┐
 // │  설계 원칙                                               │
-// │  1. 상단 스마트 드롭바 단 1개 (카톡 줄글 붙여넣기 → Enter) │
+// │  1. 상단 드롭바 단 1개 (카톡 줄글 붙여넣기 → Enter) │
 // │  2. 단일 전체폭 캔버스 폼 (좌우 2단 분할 없음)             │
 // │  3. 장바구니 패널: 규격 칩 클릭 + 수량 증감               │
 // │  4. 음성 마이크: 드롭바에만 1개 배치                       │
@@ -49,7 +49,7 @@ export const SmartDispatch2: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // ── 스마트 드롭바 ──────────────────────────────────────────────────────────
+  // ── 드롭바 ──────────────────────────────────────────────────────────
   const [dropBarText, setDropBarText] = useState('');
   const dropBarRef = useRef<HTMLTextAreaElement>(null);
   const [isListening, setIsListening] = useState(false);
@@ -707,13 +707,13 @@ export const SmartDispatch2: React.FC = () => {
         </div>
       </div>
 
-      {/* ─── 스마트 드롭바 ──────────────────────────────────────────────── */}
+      {/* ─── 드롭바 ──────────────────────────────────────────────── */}
       <div className="card" style={{ border: '2px solid var(--primary)', borderRadius: '10px' }}>
         <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'space-between', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <ClipboardPaste size={16} color="var(--primary)" />
-              <span style={{ fontWeight: 800, fontSize: '13px', color: 'var(--primary)' }}>스마트 드롭바</span>
+              <span style={{ fontWeight: 800, fontSize: '13px', color: 'var(--primary)' }}>드롭바</span>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>카톡 줄글 붙여넣기 → 자동 파싱 / 여러 줄 후 Enter → 파싱</span>
             </div>
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>

@@ -861,7 +861,7 @@ export const ConsumableInOutPage: React.FC = () => {
           <div className="card" style={{ margin: 0 }}>
             <div className="card-header">
               <h3 className="card-title" style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>최근 출고 내역 (최근 10건)</h3>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>현장 소진 및 자산 투입 내역 실시간 모니터링</span>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>현장 소진 및 자산 투입 내역 모니터링</span>
             </div>
 
             <div className="table-container" style={{ border: 'none', boxShadow: 'none' }}>

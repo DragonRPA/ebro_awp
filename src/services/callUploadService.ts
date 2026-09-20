@@ -59,7 +59,7 @@ export interface CallUploadRecord {
   publicUrl?:         string;
 }
 
-// ─── 파이프라인 실시간 이벤트 로그 인터페이스 ───────────────
+// ─── 파이프라인 이벤트 로그 인터페이스 ───────────────
 export interface PipelineLogRecord {
   id:             string;
   callUploadId?:  string;
@@ -206,7 +206,7 @@ export function mapLogRow(row: Record<string, unknown>): PipelineLogRecord {
   };
 }
 
-// ─── LocalDB 로컬 영구 보존 스토리지 (헌장 1.2, 5.2 무누락 보존) ─────
+// ─── LocalDB 로컬 보존 스토리지 (헌장 1.2, 5.2 무누락 보존) ─────
 const LOCAL_DRAFTS_STORAGE_KEY = 'giyeun_draft_dispatch_orders_local';
 
 function getLocalDrafts(): DraftDispatchOrder[] {
@@ -265,7 +265,7 @@ export async function fetchMyDrafts(): Promise<DraftDispatchOrder[]> {
   }
 }
 
-// ─── 초안 신규 생성 및 DB 영구 저장 (헌장 1.2, 5.2 준수) ─────
+// ─── 초안 신규 생성 및 DB 저장 (헌장 1.2, 5.2 준수) ─────
 export async function createDraftOrder(
   draft: Omit<DraftDispatchOrder, 'id' | 'createdAt'> & { id?: string }
 ): Promise<DraftDispatchOrder> {
@@ -278,7 +278,7 @@ export async function createDraftOrder(
     createdAt: now,
   };
 
-  // 1. 로컬 스토리지에 무누락 즉시 영구 저장 (F5 새로고침 시에도 증발 방지)
+  // 1. 로컬 스토리지에 무누락 즉시 저장 (F5 새로고침 시에도 증발 방지)
   const allDrafts = getLocalDrafts();
   const existingIdx = allDrafts.findIndex(d => d.id === newId);
   if (existingIdx >= 0) {
@@ -557,7 +557,7 @@ export async function uploadCallRecording(
 
   if (insertErr || !record) throw new Error(`업로드 이력 저장 실패: ${insertErr?.message}`);
 
-  // 3. 파이프라인 이벤트 실시간 로깅 (헌장 1.2 무누락 저장)
+  // 3. 파이프라인 이벤트 로깅 (헌장 1.2 무누락 저장)
   try {
     await insertPipelineLog({
       callUploadId: record.id as string,
@@ -689,7 +689,7 @@ export async function insertPipelineLog(
   return item;
 }
 
-// ─── 통화 업로드 실시간 구독 (INSERT, UPDATE, DELETE) ─────
+// ─── 통화 업로드 구독 (INSERT, UPDATE, DELETE) ─────
 export function subscribeCallUploads(onUpdate: () => void) {
   if (!supabase) return () => {};
 
@@ -711,7 +711,7 @@ export function subscribeCallUploads(onUpdate: () => void) {
   return () => { supabase!.removeChannel(channel); };
 }
 
-// ─── 파이프라인 실시간 로그 구독 ───────────────────────────
+// ─── 파이프라인 로그 구독 ───────────────────────────
 export function subscribePipelineLogs(onNewLog: (log: PipelineLogRecord) => void) {
   if (!supabase) return () => {};
 

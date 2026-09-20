@@ -334,7 +334,7 @@ const SalesManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ 
           영업부 업무 표준 매뉴얼 (PC & 모바일 통합 실무 가이드)
         </h1>
         <p style={{ fontSize: '13.5px', color: '#475569', margin: 0 }}>
-          고객사 관리부터 출고/대차 의뢰 발행, 전자계약서 발송, 현장 AS 대리접수 및 실시간 모바일 재고 조회까지 영업 직무의 전 과정을 포괄합니다.
+          고객사 관리부터 출고/대차 의뢰 발행, 전자계약서 발송, 현장 AS 대리접수 및 모바일 재고 조회까지 영업 직무의 전 과정을 포괄합니다.
         </p>
       </div>
 
@@ -355,7 +355,7 @@ const SalesManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ 
 
       <div className="no-print" style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '16px 20px', marginBottom: '32px' }}>
         <span style={{ fontSize: '12px', fontWeight: '800', color: '#64748B', display: 'block', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          빠른 목차 이동 (Click to Jump)
+          목차 이동 (Click to Jump)
         </span>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
           <button type="button" onClick={() => onNavigateTo('sales-sec-1')} style={tocBtnStyle}><span style={tocNumStyle}>1</span> 고객사 및 현장 관리</button>
@@ -365,7 +365,7 @@ const SalesManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ 
           <button type="button" onClick={() => onNavigateTo('sales-sec-5')} style={tocBtnStyle}><span style={tocNumStyle}>5</span> AI 음성통화 분석 출고의뢰</button>
           <button type="button" onClick={() => onNavigateTo('sales-sec-6')} style={tocBtnStyle}><span style={tocNumStyle}>6</span> 전자계약서 패키지 발송</button>
           <button type="button" onClick={() => onNavigateTo('sales-sec-7')} style={tocBtnStyle}><span style={tocNumStyle}>7</span> 장비 회수 및 AS 대리접수</button>
-          <button type="button" onClick={() => onNavigateTo('sales-sec-8')} style={tocBtnStyle}><span style={tocNumStyle}>8</span> 실시간 재고조회 & ToDo</button>
+          <button type="button" onClick={() => onNavigateTo('sales-sec-8')} style={tocBtnStyle}><span style={tocNumStyle}>8</span> 재고조회 & ToDo</button>
         </div>
       </div>
 
@@ -390,7 +390,7 @@ const SalesManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ 
             <ol style={stepListStyle}>
               <li>모바일 하단 <b>[고객관리]</b> 탭 터치 ➔ 상단 초성 검색(예: 'ㅅㅂ' ➔ 세보엠이씨).</li>
               <li>고객 카드 터치 시 소속 현장 및 담당자 전화번호가 즉시 표출.</li>
-              <li><b>원클릭 통화 연결</b>: <code>[📞 통화 연결]</code> 버튼을 눌러 현장 소장/담당자와 바로 통화.</li>
+              <li><b>통화 연결</b>: <code>[📞 통화 연결]</code> 버튼을 눌러 현장 소장/담당자와 바로 통화.</li>
               <li><b>즉시 출고의뢰 연계</b>: <code>[이 고객사로 출고요청 작성]</code> 버튼 터치 시 고객 정보가 자동 채워진 출고 작성 화면으로 즉시 전환.</li>
             </ol>
           </div>
@@ -426,7 +426,7 @@ const SalesManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ 
           <div style={sectionBadgeStyle}><Smartphone size={15} /> 3. 모바일 현장 출고요청 작성</div>
           <span style={sourceTagStyle}>모바일 Step 1-1 ~ 1-3</span>
         </div>
-        <p style={descTextStyle}>외근 중 스마트폰 모바일 웹앱에서 1분 만에 출고 의뢰를 발행할 수 있습니다.</p>
+        <p style={descTextStyle}>외근 중 폰 모바일 웹앱에서 1분 만에 출고 의뢰를 발행할 수 있습니다.</p>
         <ol style={stepListStyle}>
           <li><b>홈 화면 ➔ [모바일 출고 요청 작성]</b> 터치 ➔ 고객사 초성 검색 및 투입 현장 선택.</li>
           <li><b>규격 및 상세모델 터치</b>: 19ft, 26ft 등 탭 선택 후 <code>+ GS-1930</code> 터치 시 수량 즉시 반영.</li>
@@ -453,7 +453,7 @@ const SalesManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ 
           <div style={sectionBadgeStyle}><Sparkles size={15} /> 5. AI 음성통화 분석 출고의뢰 (Draft)</div>
           <span style={sourceTagStyle}>PC Step 16 | 모바일 Step 1-1</span>
         </div>
-        <p style={descTextStyle}>스마트폰 통화녹음 파일을 업로드하면 AI가 음성을 분석하여 출고요청 초안을 자동 생성합니다.</p>
+        <p style={descTextStyle}>폰 통화녹음 파일을 업로드하면 AI가 음성을 분석하여 출고요청 초안을 자동 생성합니다.</p>
         <ol style={stepListStyle}>
           <li>PC 상단 <code>[녹음 파일 등록]</code> 또는 모바일 홈의 <code>[통화 녹음 파일 직접 업로드]</code> 클릭.</li>
           <li>녹음 파일 선택 ➔ AI가 고객사명, 현장, 납품일시, 요청 기종 수량을 자동 추출.</li>
@@ -466,7 +466,7 @@ const SalesManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ 
           <div style={sectionBadgeStyle}><FileText size={15} /> 6. 전자계약서 패키지 PDF 생성 및 이메일 발송</div>
           <span style={sourceTagStyle}>PC Step 23 ~ 25</span>
         </div>
-        <p style={descTextStyle}>체결된 계약에 대해 임대차계약서, 사업자등록증, 통장사본, 보험증권이 묶인 패키지 PDF를 고객사에 원클릭 발송합니다.</p>
+        <p style={descTextStyle}>체결된 계약에 대해 임대차계약서, 사업자등록증, 통장사본, 보험증권이 묶인 패키지 PDF를 고객사에 발송합니다.</p>
         <ol style={stepListStyle}>
           <li><b>[영업관리 ➔ 계약 관리]</b> 접속 ➔ 해당 계약의 <code>[상세 ➔]</code> 클릭.</li>
           <li>우측 상단 <code>[계약서 패키지 PDF / 이메일]</code> 클릭 ➔ 수신자 확인 ➔ <code>[계약서 발송]</code> 클릭으로 즉시 전송 완료.</li>
@@ -493,12 +493,12 @@ const SalesManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ 
 
       <div id="sales-sec-8" className="manual-section" style={sectionStyle}>
         <div style={sectionHeaderStyle}>
-          <div style={sectionBadgeStyle}><Smartphone size={15} /> 8. 모바일 실시간 재고조회 & 직무 ToDo 피드</div>
+          <div style={sectionBadgeStyle}><Smartphone size={15} /> 8. 모바일 재고조회 & 직무 ToDo 피드</div>
           <span style={sourceTagStyle}>모바일 Step 1-1, 1-5 | 공통 Step 64~65, 71</span>
         </div>
-        <p style={descTextStyle}>고객 통화 중 실시간 가용 재고 확인 및 당면 ToDo 업무 처리 요령입니다.</p>
+        <p style={descTextStyle}>고객 통화 중 가용 재고 확인 및 당면 ToDo 업무 처리 요령입니다.</p>
         <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '12.5px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <li><b>실시간 가용 재고 (Step 1-5)</b>: 모바일 하단 <b>[가용재고]</b> 탭에서 19ft, 26ft 등 주기장 잔여 출고가능 대수를 통화 중 즉시 확인.</li>
+          <li><b>가용 재고 (Step 1-5)</b>: 모바일 하단 <b>[가용재고]</b> 탭에서 19ft, 26ft 등 주기장 잔여 출고가능 대수를 통화 중 즉시 확인.</li>
           <li><b>직무 ToDo 피드 (Step 1-1)</b>: 모바일 홈 최상단 <code>업무 목록</code>에서 경영진 특별지시나 계약서 재발송 건을 <code>[처리 이동]</code>으로 즉시 완결.</li>
           <li><b>법인차량 주유영수증 (Step 71)</b>: 홈 화면 <code>[법인차량 주유영수증 촬영]</code> 터치 ➔ 카메라 촬영 시 리터/금액 자동 OCR 연동.</li>
         </ul>
@@ -551,7 +551,7 @@ const OutboundManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = 
 
       <div className="no-print" style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '16px 20px', marginBottom: '32px' }}>
         <span style={{ fontSize: '12px', fontWeight: '800', color: '#64748B', display: 'block', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          빠른 목차 이동 (Click to Jump)
+          목차 이동 (Click to Jump)
         </span>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
           <button type="button" onClick={() => onNavigateTo('out-sec-1')} style={tocBtnStyle}><span style={tocNumStyle}>1</span> 주기장 모바일 대시보드</button>
@@ -567,12 +567,12 @@ const OutboundManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = 
 
       <div id="out-sec-1" className="manual-section" style={sectionStyle}>
         <div style={sectionHeaderStyle}>
-          <div style={sectionBadgeStyle}><Truck size={15} /> 1. 주기장 모바일 대시보드 & 실시간 피드</div>
+          <div style={sectionBadgeStyle}><Truck size={15} /> 1. 주기장 모바일 대시보드 & 피드</div>
           <span style={sourceTagStyle}>모바일 Step 3-1</span>
         </div>
         <p style={descTextStyle}>출고팀 전용 모바일 홈 화면에서 오늘 처리해야 할 당면 업무와 주기장 상태를 한눈에 파악합니다.</p>
         <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '12.5px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <li><b>주기장 출고 피드</b>: 상단 배너에서 <code>장비 할당 대기 N대</code> 및 <code>출고 검수 대기 N건</code>을 실시간 모니터링합니다.</li>
+          <li><b>주기장 출고 피드</b>: 상단 배너에서 <code>장비 할당 대기 N대</code> 및 <code>출고 검수 대기 N건</code>을 모니터링합니다.</li>
           <li><b>출고팀 맞춤형 ToDo 피드</b>: 미결 업무가 있을 경우 최상단에 에메랄드 테마의 <code>업무 목록</code> 카드가 표출되며 <code>[처리 이동]</code>으로 즉시 조치합니다.</li>
           <li><b>하단 내비게이션 바 메뉴</b>: <code>[홈]</code>, <code>[장비할당]</code>, <code>[출고검수]</code>, <code>[입고등록]</code>, <code>[주기장자산]</code>을 탭 터치로 즉시 전환합니다.</li>
         </ul>
@@ -720,13 +720,13 @@ const AsManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ onN
         <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '12.5px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '5px' }}>
           <li><b>현장 조치 완결 및 고객 서명 의무</b>: 현장 방문 즉시 수리 전/후 사진을 촬영하고, 조치 내역과 탑차 부품 사용을 정확히 기록하며 현장 고객 서명을 필수 저장합니다.</li>
           <li><b>유/무상 구분 명확화</b>: 장비 자체 결함은 무상(임대보증), 사용자 과실(충돌 파손, 케이블 절단 등)은 유상 수리로 명확히 구분하여 채권 분리를 지원합니다.</li>
-          <li><b>탑차 소모품 실시간 잔량 보존</b>: 출동 차량에 적재된 부품을 사용하거나 보충받을 때 모바일에서 실시간 이동 및 차감 처리하여 재고 오차를 방지합니다.</li>
+          <li><b>탑차 소모품 잔량 보존</b>: 출동 차량에 적재된 부품을 사용하거나 보충받을 때 모바일에서 이동 및 차감 처리하여 재고 오차를 방지합니다.</li>
         </ul>
       </div>
 
       <div className="no-print" style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '16px 20px', marginBottom: '32px' }}>
         <span style={{ fontSize: '12px', fontWeight: '800', color: '#64748B', display: 'block', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          빠른 목차 이동 (Click to Jump)
+          목차 이동 (Click to Jump)
         </span>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
           <button type="button" onClick={() => onNavigateTo('as-sec-1')} style={tocBtnStyle}><span style={tocNumStyle}>1</span> 모바일 출동 대시보드 & T맵</button>
@@ -743,11 +743,11 @@ const AsManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ onN
           <div style={sectionBadgeStyle}><Wrench size={15} /> 1. 모바일 출동 대시보드 & T맵 길안내</div>
           <span style={sourceTagStyle}>모바일 Step 2-1 | PC Step 36~37</span>
         </div>
-        <p style={descTextStyle}>스마트폰 모바일 웹앱에서 오늘의 AS 방문 일정을 확인하고 현장으로 출동합니다.</p>
+        <p style={descTextStyle}>폰 모바일 웹앱에서 오늘의 AS 방문 일정을 확인하고 현장으로 출동합니다.</p>
         <ol style={stepListStyle}>
           <li>모바일 하단 <b>[출동티켓]</b> 탭 접속 ➔ 오늘의 배정된 AS 카드 목록 확인.</li>
           <li>카드 터치 시 현장 주소, 고장 증상(작동불가, 에러코드 등) 상세 확인.</li>
-          <li><code>[🧭 T맵 길안내]</code> 터치 ➔ 스마트폰 T맵 앱으로 현장 목적지가 즉시 연동되어 내비게이션 시작.</li>
+          <li><code>[🧭 T맵 길안내]</code> 터치 ➔ 폰 T맵 앱으로 현장 목적지가 즉시 연동되어 내비게이션 시작.</li>
           <li><code>[📞 담당자 통화]</code> 터치 ➔ 현장 인수자/소장과 도착 예정 시간 즉시 유선 조율.</li>
         </ol>
       </div>
@@ -785,7 +785,7 @@ const AsManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ onN
           <div style={sectionBadgeStyle}><BookOpen size={15} /> 4. 모바일 장비 매뉴얼 라이브러리 열람</div>
           <span style={sourceTagStyle}>모바일 Step 2-4 | PC Step 45</span>
         </div>
-        <p style={descTextStyle}>현장 작업 중 스마트폰에서 전기 배선도, 유압 회로도, 파츠북을 즉시 열람합니다.</p>
+        <p style={descTextStyle}>현장 작업 중 폰에서 전기 배선도, 유압 회로도, 파츠북을 즉시 열람합니다.</p>
         <ul style={{ margin: 0, paddingLeft: '18px', fontSize: '12.5px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <li>모바일 상단 툴바 <code>[📖 장비 매뉴얼]</code> 퀵 버튼 또는 홈 화면 <code>[장비 매뉴얼 라이브러리]</code> 터치.</li>
           <li>기종별 에러코드(02번, 18번 등) 검색 ➔ 해결 가이드 및 회로도 모바일 즉시 확인.</li>
@@ -863,7 +863,7 @@ const AdminManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ 
 
       <div className="no-print" style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '16px 20px', marginBottom: '32px' }}>
         <span style={{ fontSize: '12px', fontWeight: '800', color: '#64748B', display: 'block', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          빠른 목차 이동 (Click to Jump)
+          목차 이동 (Click to Jump)
         </span>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
           <button type="button" onClick={() => onNavigateTo('adm-sec-1')} style={tocBtnStyle}><span style={tocNumStyle}>1</span> 인사/조직/권한 설정</button>
@@ -912,7 +912,7 @@ const AdminManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ 
         <ol style={stepListStyle}>
           <li><b>좌상단 범위 설정</b>: 정산 연월(예: 2026년 8월) 및 정산 운송사 선택.</li>
           <li><b>우상단 데이터 유입</b>: <code>[거래명세서 업로드 & 자동 대사]</code> 클릭 ➔ 운송사 엑셀 파일 선택.</li>
-          <li><b>중앙 본문 1:1 대사</b>: 시스템 배차금액 vs 운송사 청구금액 1:1 자동 대조 ➔ 차액 건 인라인 원클릭 승인/조치.</li>
+          <li><b>중앙 본문 1:1 대사</b>: 시스템 배차금액 vs 운송사 청구금액 1:1 자동 대조 ➔ 차액 건 인라인 승인/조치.</li>
           <li><b>우하단 최종 종결</b>: 대차대조 합계 검증식 확인 ➔ <code>[대사 완료 통합 지급요청 생성 ➔]</code> 클릭으로 월말 매입정산 연결.</li>
         </ol>
       </div>
@@ -977,7 +977,7 @@ const AdminManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ 
           <li><b>급여 정산 (Step 67)</b>: 연장/야간/휴일 OT 및 연차 데이터 자동 연계 급여 산출.</li>
           <li><b>감가상각 마감 (Step 68)</b>: 당사 자산에 대해 월별 정액법 감가상각 실행 ➔ 장부가치 스냅샷 확정.</li>
           <li><b>자금흐름 분석 (Step 74)</b>: 향후 30/60/90일 가용 잔고, 수납 예정액, 운영 지출(OPEX) 분석 및 부도 위험 사전 경보.</li>
-          <li><b>경영진 모바일 뷰 (모바일 Step 5-1)</b>: 전사 실시간 자산 가동률(96.2%), 매입대금 지출 결재 원클릭 승인.</li>
+          <li><b>경영진 모바일 뷰 (모바일 Step 5-1)</b>: 전사 자산 가동률(96.2%), 매입대금 지출 결재 승인.</li>
         </ul>
       </div>
     </div>

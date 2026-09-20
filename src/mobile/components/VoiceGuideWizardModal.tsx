@@ -95,7 +95,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
   const [vehicleType, setVehicleType] = useState<string>('5톤 렉카');
   const [specialMemo, setSpecialMemo] = useState<string>('');
 
-  // 🌟 기존 현장 옵션과 현재 입력된 옵션 간 차이 발생 여부 실시간 감지
+  // 🌟 기존 현장 옵션과 현재 입력된 옵션 간 차이 발생 여부 감지
   const isOptionsDiff = useMemo(() => {
     const targetSite = selectedSite || pendingSite;
     return isOptionsChangedFromSite(targetSite, paidOptions, protection, checkedSpecs);
@@ -138,7 +138,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
   const streamRef = useRef<MediaStream | null>(null);
   const recognitionRef = useRef<any>(null); // 브라우저 STT 폴백용
 
-  // 고객사 실시간 필터 목록
+  // 고객사 필터 목록
   const filteredCustomers = useMemo(() => {
     if (!customerSearchText.trim()) return customers || [];
     const q = customerSearchText.trim().toLowerCase();
@@ -1210,10 +1210,10 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
           )}
         </div>
 
-        {/* ── 4. 단계별 스마트 터치 컨트롤러 (하이브리드 인터리빙) ── */}
+        {/* ── 4. 단계별 터치 컨트롤러 (하이브리드 인터리빙) ── */}
         {currentStep === 'CUSTOMER' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {/* 고객사 실시간 검색바 */}
+            {/* 고객사 검색바 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '10px', padding: '6px 10px' }}>
               <Search size={14} color="#94a3b8" />
               <input
@@ -1244,7 +1244,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
             {/* 고객사 칩 목록 */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               <span style={{ fontSize: '11px', color: '#94a3b8', width: '100%', marginBottom: '2px' }}>
-                {customerSearchText ? '검색 결과 (터치하여 선택):' : '주요 거래처 빠른 선택:'}
+                {customerSearchText ? '검색 결과 (터치하여 선택):' : '주요 거래처 선택:'}
               </span>
               {filteredCustomers.slice(0, 6).map(c => (
                 <button
@@ -1603,7 +1603,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
           </div>
         )}
 
-        {/* ── 3단계: 장비 규격 및 수량 스마트 터치 컨트롤러 ── */}
+        {/* ── 3단계: 장비 규격 및 수량 터치 컨트롤러 ── */}
         {currentStep === 'EQUIPMENT' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ fontSize: '11px', color: '#94a3b8' }}>주요 규격 터치 선택:</div>
@@ -1690,10 +1690,10 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
           </div>
         )}
 
-        {/* ── 4단계: 하차 일시 스마트 터치 컨트롤러 ── */}
+        {/* ── 4단계: 하차 일시 터치 컨트롤러 ── */}
         {currentStep === 'DATETIME' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ fontSize: '11px', color: '#94a3b8' }}>빠른 일시 터치 선택:</div>
+            <div style={{ fontSize: '11px', color: '#94a3b8' }}>일시 터치 선택:</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
               <button
                 type="button"
@@ -1775,7 +1775,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
           </div>
         )}
 
-        {/* ── 5단계: 옵션, 보양, 운송비 및 특이사항 스마트 터치 컨트롤러 ── */}
+        {/* ── 5단계: 옵션, 보양, 운송비 및 특이사항 터치 컨트롤러 ── */}
         {currentStep === 'OPTIONS_NOTE' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ fontSize: '11px', color: '#94a3b8' }}>주요 옵션 및 조건 터치 선택:</div>

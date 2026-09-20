@@ -1778,7 +1778,7 @@ export const VehicleOperationLogPage: React.FC = () => {
                   cursor: 'pointer'
                 }}
               >
-                영구 삭제
+                삭제
               </button>
             </div>
           </div>

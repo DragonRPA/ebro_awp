@@ -125,18 +125,18 @@ export async function executeDriveMirrorSync(
   const publicDomain = config?.r2PublicDomain?.trim() || DEFAULT_CF_PUBLIC_DOMAIN;
   const r2BucketName = config?.r2BucketName?.trim() || 'kiyeun-storage';
 
-  // 🌟 1순위: 로컬 에이전트 자체 실시간 SigV4 동기화 엔진 직접 가동
+  // 🌟 1순위: 로컬 에이전트 자체 SigV4 동기화 엔진 직접 가동
   try {
     updateProgress({
       isActive: true,
       phase: 'SCANNING',
-      currentFile: '로컬 에이전트 실시간 스캔 중...',
+      currentFile: '로컬 에이전트 스캔 중...',
       currentIndex: 0,
       totalCount: 0,
       percent: 30,
-      message: '로컬 에이전트가 Cloudflare R2 버킷을 실시간 스캔 및 다운로드 중...'
+      message: '로컬 에이전트가 Cloudflare R2 버킷을 스캔 및 다운로드 중...'
     });
-    onProgress?.('로컬 에이전트 실시간 버킷 스캔 및 다운로드 요청 중...', 0, 0);
+    onProgress?.('로컬 에이전트 버킷 스캔 및 다운로드 요청 중...', 0, 0);
 
     const agentRes = await fetch('http://127.0.0.1:5175/api/trigger-sync', {
       method: 'POST',
@@ -157,7 +157,7 @@ export async function executeDriveMirrorSync(
         syncedCount: statusRes.files?.length || 0,
         failedCount: 0,
         files: statusRes.files || [],
-        message: data.message || 'Cloudflare R2 버킷 실시간 동기화가 완료되었습니다.'
+        message: data.message || 'Cloudflare R2 버킷 동기화가 완료되었습니다.'
       };
     }
   } catch (agentErr) {

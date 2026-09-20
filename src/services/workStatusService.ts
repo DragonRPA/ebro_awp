@@ -1,7 +1,7 @@
 // src/services/workStatusService.ts
 // ============================================================
 // 영업사원 출퇴근 상태 서비스
-// 웹앱 ↔ APK 실시간 동기화 (Supabase Realtime + LocalStorage Fallback)
+// 웹앱 ↔ APK 동기화 (Supabase Realtime + LocalStorage Fallback)
 // ============================================================
 import { supabase } from './db';
 
@@ -154,7 +154,7 @@ export async function clockOut(userId: string): Promise<WorkStatus> {
   return status;
 }
 
-// ─── 실시간 구독 ──────────────────────────────────────────
+// ─── 구독 ──────────────────────────────────────────
 export function subscribeWorkStatus(
   userId: string,
   onChange: (status: WorkStatus) => void

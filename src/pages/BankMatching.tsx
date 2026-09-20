@@ -159,7 +159,7 @@ export const BankMatching: React.FC = () => {
     return customers.find(c => c.id === custId)?.name || '알 수 없음';
   };
 
-  // v2: 통장 입금 잔액 계산 (PaymentDepositLinks 실시간 반영 및 음수 방지)
+  // v2: 통장 입금 잔액 계산 (PaymentDepositLinks 반영 및 음수 방지)
   const getDepositBalance = (txId: string) => {
     const tx = bankTransactions.find(t => t.id === txId);
     if (!tx) return 0;
@@ -262,7 +262,7 @@ export const BankMatching: React.FC = () => {
     }
   };
 
-  // 2. 통계 메트릭 계산 (수납/입금 관점 + 지급/출금 관점 + 실시간 업로드 최신 계좌 잔액)
+  // 2. 통계 메트릭 계산 (수납/입금 관점 + 지급/출금 관점 + 업로드 최신 계좌 잔액)
   const bankBalances = useMemo(() => {
     const bankNames = Array.from(new Set([
       '우리은행', '신한은행',
@@ -538,7 +538,7 @@ export const BankMatching: React.FC = () => {
     return true;
   }).sort((a, b) => b.transactionDate.localeCompare(a.transactionDate));
 
-  // 실시간 자동 매칭 가능 건수 집계
+  // 자동 매칭 가능 건수 집계
   const autoMatchableCount = useMemo(() => {
     const unallocated = bankTransactions.filter(t => (t.depositAmount || 0) > 0 && !t.matchedBillingId);
     let count = 0;
@@ -1755,7 +1755,7 @@ export const BankMatching: React.FC = () => {
                 </div>
               </div>
 
-              {/* 🌟 송금 수수료 500원~1,000원 자동 감액 원클릭 제안 바 */}
+              {/* 🌟 송금 수수료 500원~1,000원 자동 감액 제안 바 */}
               {(() => {
                 const targetB = billings.find(b => b.id === matchingBillingId);
                 if (!targetB) return null;
@@ -2113,7 +2113,7 @@ export const BankMatching: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
               <h3 style={{ fontSize: '16px', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
                 <Settings size={18} style={{ color: 'var(--primary)' }} />
-                은행별 기초 / 실시간 잔액 설정
+                은행별 기초 / 잔액 설정
               </h3>
               <button onClick={() => setIsInitBalanceModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
                 <X size={18} />

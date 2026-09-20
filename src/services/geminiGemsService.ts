@@ -207,7 +207,7 @@ const GEMS_TOOLS = [
 ];
 
 /**
- * 🌟 로컬 스마트 규칙 기반 파서 (API 키 미설정 또는 오프라인 시 자동 폴백)
+ * 🌟 로컬 규칙 기반 파서 (API 키 미설정 또는 오프라인 시 자동 폴백)
  */
 export function parseGemsLocally(userText: string, context: GemsContextData): {
   textResponse: string;
@@ -349,9 +349,9 @@ export async function sendGemsMessage(
 }> {
   const apiKey = getGeminiApiKey();
 
-  // API 키가 없으면 로컬 스마트 룰 파서로 자동 폴백 (무중단 작동)
+  // API 키가 없으면 로컬 룰 파서로 자동 폴백 (무중단 작동)
   if (!apiKey) {
-    console.log('ℹ️ Gemini API 키 미설정 ➔ 로컬 스마트 렌탈 파서 모드로 자동 실행합니다.');
+    console.log('ℹ️ Gemini API 키 미설정 ➔ 로컬 렌탈 파서 모드로 자동 실행합니다.');
     return parseGemsLocally(userPrompt, context);
   }
 

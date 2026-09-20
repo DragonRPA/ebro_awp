@@ -57,7 +57,7 @@ export const Dashboard: React.FC = () => {
   const [showBundleModal, setShowBundleModal] = useState(false);
   const [bundleTargetContractId, setBundleTargetContractId] = useState<string | undefined>(undefined);
 
-  // ── 🤖 로컬 사이드카 에이전트 실시간 모니터링 상태 ──
+  // ── 🤖 로컬 사이드카 에이전트 모니터링 상태 ──
   const [agentStatus, setAgentStatus] = useState<'ONLINE' | 'OFFLINE'>('OFFLINE');
   const [agentCallsign, setAgentCallsign] = useState<string>('');
   const [agentVersion, setAgentVersion] = useState<string>('');
@@ -65,7 +65,7 @@ export const Dashboard: React.FC = () => {
   const [isRestartingAgent, setIsRestartingAgent] = useState(false);
   const [showAgentGuideModal, setShowAgentGuideModal] = useState(false);
 
-  // 에이전트 헬스체크 및 실시간 콜사인 동기화 (3초 주기)
+  // 에이전트 헬스체크 및 콜사인 동기화 (3초 주기)
   useEffect(() => {
     let isMounted = true;
     const checkAgent = async () => {
@@ -96,7 +96,7 @@ export const Dashboard: React.FC = () => {
     };
   }, [currentUser]);
 
-  // ── 🔄 에이전트 원클릭 핫 재시작 ──
+  // ── 🔄 에이전트 핫 재시작 ──
   const handleRestartAgent = async () => {
     setIsRestartingAgent(true);
     try {
@@ -295,7 +295,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* ──────────────────────────────────────────────────────── */}
-      {/* 권한(Permission) 기반 스마트 카드 피드 렌더링 섹션 */}
+      {/* 권한(Permission) 기반 카드 피드 렌더링 섹션 */}
       {/* ──────────────────────────────────────────────────────── */}
       {(() => {
         // 0. 💡 [영업부] 내 의뢰 출고 진행 현황 (운송 완료 전 대기 건 4대 지표 배지 피드)
@@ -893,7 +893,7 @@ export const Dashboard: React.FC = () => {
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, flexWrap: 'wrap' }}>
-                          {/* 🌟 계약서패키지 원클릭 재발송 모달 호출 버튼 */}
+                          {/* 🌟 계약서패키지 재발송 모달 호출 버튼 */}
                           {isPackageResend && (
                             <button
                               onClick={() => {
@@ -1163,7 +1163,7 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* 📄 계약서패키지 원클릭 재발송 모달 */}
+      {/* 📄 계약서패키지 재발송 모달 */}
       <ContractDocumentBundleModal
         isOpen={showBundleModal}
         onClose={() => {

@@ -314,14 +314,14 @@ export const BillingInvoiceTab: React.FC = () => {
     );
   };
 
-  // 원클릭 부가비용 동반선택 핸들러
+  // 부가비용 동반선택 핸들러
   const handleSelectAllExtraCharges = () => {
     const extraIds = pendingExtraBillings.map(b => b.id);
     setSelectedBillingIds(prev => Array.from(new Set([...prev, ...extraIds])));
     showSuccessToast?.(`부가비용 청구 ${extraIds.length}건이 동반 선택되었습니다.`);
   };
 
-  // ── 선택된 청구서 집계 및 실시간 A4 거래명세서 품목 조립 ──
+  // ── 선택된 청구서 집계 및 A4 거래명세서 품목 조립 ──
   const selectedBillingsData = useMemo(() => {
     return unconsolidatedBillings.filter(b => selectedBillingIds.includes(b.id));
   }, [unconsolidatedBillings, selectedBillingIds]);
@@ -1088,7 +1088,7 @@ export const BillingInvoiceTab: React.FC = () => {
                     fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap'
                   }}
                 >
-                  원클릭 동반 선택
+                  동반 선택
                 </button>
               </div>
             )}
@@ -1200,7 +1200,7 @@ export const BillingInvoiceTab: React.FC = () => {
             </div>
           </div>
 
-          {/* ── [우측 48%] 통합 인보이스 작업대 & A4 11행 실시간 싱크 캔버스 ── */}
+          {/* ── [우측 48%] 통합 인보이스 작업대 & A4 11행 싱크 캔버스 ── */}
           <div style={{
             display: 'flex', flexDirection: 'column', gap: '12px',
             backgroundColor: 'var(--bg-card)', borderRadius: '8px',
@@ -1214,7 +1214,7 @@ export const BillingInvoiceTab: React.FC = () => {
                 통합 인보이스 작업대
               </div>
               <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                공식 거래명세서 실시간 싱크
+                공식 거래명세서 싱크
               </span>
             </div>
 
@@ -1267,7 +1267,7 @@ export const BillingInvoiceTab: React.FC = () => {
               </div>
             </div>
 
-            {/* ── 공식 거래명세서 A4 11행 실시간 싱크 캔버스 ── */}
+            {/* ── 공식 거래명세서 A4 11행 싱크 캔버스 ── */}
             <div
               id="printable-invoice-canvas"
               ref={printableCanvasRef}

@@ -958,7 +958,7 @@ export interface Delivery {
   vehicleRequirements?: string; // 차량 종류별 대수 지정 JSON: [{ vehicleType: string, count: number }]
   cargoItems?: string; // 운반 장비 명세 JSON: [{ modelName: string, count: number }]
   isCostSettled?: boolean;
-  rawText?: string; // 스마트 출고 시 입력된 자연어 원문 텍스트
+  rawText?: string; // 출고 시 입력된 자연어 원문 텍스트
   memo: string;
   closingMemo?: string; // 실무자 마감 비고
   vehicles?: string; // 여러 차량 배차 정보를 위한 JSON 문자열 필드
@@ -3076,7 +3076,7 @@ const generateMockAssets = (products: Product[]): Asset[] => {
     });
   }
   
-  // 20개 강제 장비 생성 (스마트 출고 테스트용: GS3246, 1012E 등)
+  // 20개 강제 장비 생성 (출고 테스트용: GS3246, 1012E 등)
   const extraModels = ['GS3246', 'GS3246', 'GS3246', 'GS3246', 'GS3246', 'GS3246', 'GS3246', 'GS3246', 'GS3246', 'GS3246',
                        '1012E', '1012E', '1012E', '1012E', '1012E', '1012E', '1012E', '1012E', '1012E', '1012E'];
   for(let i=0; i<extraModels.length; i++) {
@@ -4066,7 +4066,7 @@ export const SEED_VEHICLE_FUEL_LOGS: VehicleFuelLog[] = [
     fuelAmount: 71000,
     fuelUnitPrice: 1690,
     currentMileage: 18760,
-    gasStationName: 'GS칼텍스 평택스마트주유소',
+    gasStationName: 'GS칼텍스 평택주유소',
     paymentMethod: 'CORPORATE_CARD',
     cardLast4: '4490',
     fuelEfficiency: 16.8,
@@ -4341,7 +4341,7 @@ class LocalDB {
   get permissions() { 
     const raw = this.get<MenuPermission>('permissions', SEED_PERMISSIONS); 
     const validUserIds = new Set(this.users.map(u => u.id));
-    // userId가 유실(null)되었거나, users 마스터 대장에 없는 유령/퇴사자 권한 찌꺼기 85건을 localStorage에서 즉각 100% 영구 물리 삭제!
+    // userId가 유실(null)되었거나, users 마스터 대장에 없는 유령/퇴사자 권한 찌꺼기 85건을 localStorage에서 즉각 100% 물리 삭제!
     const cleanPermissions = raw.filter(p => p && p.userId && validUserIds.has(p.userId));
     if (cleanPermissions.length !== raw.length) {
       this.set('permissions', cleanPermissions);
@@ -4713,7 +4713,9 @@ class LocalDB {
   async awaitPendingWrites(): Promise<void> {
     if (!this.pendingWrites || this.pendingWrites.length === 0) return;
     try {
-      await Promise.all(this.pendingWrites);
+      for (const p of this.pendingWrites) {
+        await p;
+      }
     } catch (err: any) {
       console.error("Supabase pending write error:", err);
       const errMsg = err?.message || String(err);
@@ -5103,7 +5105,7 @@ class LocalDB {
         continue;
       }
       // modelName 컬럼이 존재하지 않는 테이블로의 modelName 누출 원천 방지 (departments, users, customers 등)
-      if (key === 'modelName' && !['products', 'assets', 'product_specs', 'product_spec_items', 'contract_assets', 'contract_history', 'inspection_checklist_items', 'equipment_manuals', 'consumable_purchases'].includes(tableName || '')) {
+      if (key === 'modelName' && !['products', 'assets', 'product_specs', 'product_spec_items', 'contract_assets', 'contract_history', 'inspection_checklist_items', 'equipment_manuals', 'consumable_purchases', 'asset_inout_logs'].includes(tableName || '')) {
         continue;
       }
       // supplier 컬럼이 존재하지 않는 테이블로의 supplier 누출 원천 방지
@@ -5491,7 +5493,7 @@ class LocalDB {
 
   // 조직도 및 구성원 일괄 저장 (Batch) - 기존 데이터를 전부 덮어씌움
   async saveOrganizationBatch(departments: Department[], users: User[]): Promise<void> {
-    // 🛡️ [테스터 영구 배제] 테스터 계정 원천 차단
+    // 🛡️ [테스터 배제] 테스터 계정 원천 차단
     const isTester = (u: any) =>
       u.id?.startsWith('usr-tester') ||
       u.name?.includes('테스터') ||
@@ -5614,7 +5616,7 @@ export const db = new LocalDB();
 
 /**
  * 🛡️ 법정 개인정보 접속기록 로깅 엔진 (개인정보 보호법 제29조 및 안전성 확보조치 기준 제8조 준수)
- * - 접속자, 접속일시, 접속지, 수행업무(조회, 수정, 삭제, 다운로드), 대상정보, 마스킹 여부를 영구 기록
+ * - 접속자, 접속일시, 접속지, 수행업무(조회, 수정, 삭제, 다운로드), 대상정보, 마스킹 여부를 기록
  */
 export async function logPrivacyAccess(
   actionType: PrivacyAccessLog['actionType'],
@@ -5659,3 +5661,5 @@ export async function logPrivacyAccess(
   return logEntry;
 }
 
+
+if (typeof window !== 'undefined') (window as any).__DB__ = db;

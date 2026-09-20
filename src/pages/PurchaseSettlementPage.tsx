@@ -930,7 +930,7 @@ export const PurchaseSettlementPage: React.FC = () => {
                       download={`${(previewEvidence.title || '매입증빙').replace(/[^a-zA-Z0-9가-힣_-]/g, '_')}.jpg`}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 18px', background: 'var(--primary)', color: '#fff', borderRadius: '6px', fontWeight: '700', textDecoration: 'none', fontSize: '13.5px' }}
                     >
-                      <Download size={15} /> 원본 사진 파일 저장 (내PC/스마트폰 다운로드)
+                      <Download size={15} /> 원본 사진 파일 저장 (내PC/폰 다운로드)
                     </a>
                   </div>
                 </div>

@@ -434,7 +434,7 @@ export const Contracts: React.FC = () => {
     }).length;
   }, [contracts, deliveries, contractAssets, outboundInspections, contractHistory, currentUser]);
 
-  // 🔍 조회 버튼 핸들러 (서버 실시간 데이터 재동기화 및 필터 반영)
+  // 🔍 조회 버튼 핸들러 (서버 데이터 재동기화 및 필터 반영)
   const handleSearchClick = async () => {
     setCustomerDropdownOpen(false);
     setSiteDropdownOpen(false);
@@ -1129,7 +1129,7 @@ export const Contracts: React.FC = () => {
     setBasket([]);
   };
 
-  // 실시간 계약 KPI 통계 (렌탈 계약과 매각 계약 정밀 분리)
+  // 계약 KPI 통계 (렌탈 계약과 매각 계약 정밀 분리)
   const contractKpiStats = useMemo(() => {
     const rentalContracts = contracts.filter(c => (c.contractType || 'RENTAL') === 'RENTAL');
     const saleContracts = contracts.filter(c => c.contractType === 'SALE');
@@ -1213,7 +1213,7 @@ export const Contracts: React.FC = () => {
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {/* 뷰 1: 계약 목록 (viewMode === 'LIST') */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
-            {/* 실시간 계약 운용 KPI 바 (Scope) */}
+            {/* 계약 운용 KPI 바 (Scope) */}
       {viewMode === 'LIST' && activeTab === 'ALL_LIST' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '6px', flexShrink: 0 }}>
           <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

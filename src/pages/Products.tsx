@@ -521,7 +521,7 @@ export const Products: React.FC = () => {
         </div>
       </div>
 
-      {/* ② 실시간 모델 및 자산 매핑 KPI 바 (Scope) */}
+      {/* ② 모델 및 자산 매핑 KPI 바 (Scope) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '6px', flexShrink: 0 }}>
         <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>등록 모델수</span>

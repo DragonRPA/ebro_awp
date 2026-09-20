@@ -162,7 +162,7 @@ export const DelinquencyPage: React.FC = () => {
     return { dueDate: effectiveBillDate, conditionText: '발행일 당일' };
   };
 
-  // 1. 실시간 DB(billings) + 고객 약정 납기일 기반 정밀 연체 채권 집계
+  // 1. DB(billings) + 고객 약정 납기일 기반 정밀 연체 채권 집계
   const calculatedDelinquencies = useMemo(() => {
     const custMap = new Map<string, {
       totalOverdueAmount: number;
@@ -424,7 +424,7 @@ export const DelinquencyPage: React.FC = () => {
         content: noticeCustomContent,
         deadlineDays: noticeDeadlineDays
       });
-      showToast('현재 편집 내용이 향후 작성용 [기본 서식]으로 영구 저장되었습니다.');
+      showToast('현재 편집 내용이 향후 작성용 [기본 서식]으로 저장되었습니다.');
     } catch (err: any) {
       showErrorModal(`서식 저장 오류: ${err?.message || err}`);
     }
@@ -584,7 +584,7 @@ export const DelinquencyPage: React.FC = () => {
         transactionStatus: nextStatus
       });
 
-      // delinquencyActionLogs 영구 불변 감사 기록 (헌장 1.2)
+      // delinquencyActionLogs 불변 감사 기록 (헌장 1.2)
       db.insertRow<DelinquencyActionLog>('delinquencyActionLogs', {
         customerId: customer.id,
         actionType: nextStatus === 'BLOCKED' ? 'LEGAL' : 'CALL',
@@ -1214,10 +1214,10 @@ export const DelinquencyPage: React.FC = () => {
                 </button>
               </div>
 
-              {/* 2열 스튜디오 본체: 좌측 편집기 / 우측 실시간 A4 미리보기 */}
+              {/* 2열 스튜디오 본체: 좌측 편집기 / 우측 A4 미리보기 */}
               <div style={{ display: 'grid', gridTemplateColumns: '1.05fr 1fr', gap: '14px', flex: 1, minHeight: 0 }}>
                 
-                {/* [좌측] 실시간 내용증명 편집기 */}
+                {/* [좌측] 내용증명 편집기 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', paddingRight: '4px' }}>
                   
                   <div style={{ backgroundColor: 'var(--bg-app)', padding: '10px', borderRadius: '6px', fontSize: '11.5px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
@@ -1283,10 +1283,10 @@ export const DelinquencyPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* [우측] A4 실시간 인쇄 규격 미리보기 */}
+                {/* [우측] A4 인쇄 규격 미리보기 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minHeight: 0 }}>
                   <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>A4 우체국 내용증명 규격 실시간 미리보기 (여백 20mm)</span>
+                    <span>A4 우체국 내용증명 규격 미리보기 (여백 20mm)</span>
                     <button
                       type="button"
                       className="btn-secondary"
@@ -1365,7 +1365,7 @@ export const DelinquencyPage: React.FC = () => {
               {/* 하단 액션 버튼 바 */}
               <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  발송 승인 시 내용증명 발송 이력(`legalNoticeLogs`) 및 고객 타임라인에 영구 보존됩니다.
+                  발송 승인 시 내용증명 발송 이력(`legalNoticeLogs`) 및 고객 타임라인에 보존됩니다.
                 </span>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button type="button" className="btn-secondary" onClick={() => setShowNoticeModal(false)} style={{ padding: '6px 14px', fontSize: '12px' }}>

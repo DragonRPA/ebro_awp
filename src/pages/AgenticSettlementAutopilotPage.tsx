@@ -86,7 +86,7 @@ export const AgenticSettlementAutopilotPage: React.FC = () => {
   const totalMatched = reconcileList.filter(r => r.status === 'MATCHED').reduce((acc, cur) => acc + cur.totalRevenue, 0);
   const totalDiff = reconcileList.reduce((acc, cur) => acc + cur.difference, 0);
 
-  // 원클릭 오토파일럿 대사 실행
+  // 오토파일럿 대사 실행
   const handleRunAutopilot = async () => {
     setLoading(true);
     setStatusMessage('에이전틱 AI가 전 계좌 거래내역을 파싱하고 헌장 4.1 일할 매출 기여액을 대조 중입니다...');
@@ -139,7 +139,7 @@ export const AgenticSettlementAutopilotPage: React.FC = () => {
           </div>
         </div>
 
-        {/* ② 우상단 (Input / Pipeline): 원클릭 오토파일럿 대사 실행 */}
+        {/* ② 우상단 (Input / Pipeline): 오토파일럿 대사 실행 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             className="btn-primary"
@@ -149,7 +149,7 @@ export const AgenticSettlementAutopilotPage: React.FC = () => {
             data-uia="btn-run-autopilot"
           >
             {loading ? <RefreshCw size={14} className="spin" /> : <Bot size={14} />}
-            <span>원클릭 오토파일럿 대사 실행</span>
+            <span>오토파일럿 대사 실행</span>
           </button>
         </div>
       </div>

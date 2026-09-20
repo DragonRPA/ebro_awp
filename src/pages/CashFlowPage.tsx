@@ -123,7 +123,7 @@ export const CashFlowPage: React.FC = () => {
     return Array.from(banks);
   }, [bankInitialBalances, bankTransactions]);
 
-  // ─── 1. 실시간 가용 시작 잔액 (B0) 정밀 산출 엔진 ───
+  // ─── 1. 가용 시작 잔액 (B0) 정밀 산출 엔진 ───
   // 기준일(baseDate) 시점의 실제 통장 잔고 산출:
   // B(baseDate) = 기초잔액합계 + sum(baseDate 이전 모든 실제 거래내역 입금 - 출금)
   const startingBalanceAtBase = useMemo(() => {
@@ -828,7 +828,7 @@ export const CashFlowPage: React.FC = () => {
                 {startingBalanceAtBase.toLocaleString()}원
               </div>
               <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', marginTop: '4px', whiteSpace: 'nowrap' }}>
-                {selectedBank === 'ALL' ? '전체 계좌 실시간 합산' : `${selectedBank} 기준고`}
+                {selectedBank === 'ALL' ? '전체 계좌 합산' : `${selectedBank} 기준고`}
               </div>
             </div>
 
@@ -1002,7 +1002,7 @@ export const CashFlowPage: React.FC = () => {
                   )}
                 </svg>
 
-                {/* 실시간 툴팁 */}
+                {/* 툴팁 */}
                 {hoveredPoint && (
                   <div style={{
                     position: 'absolute',
@@ -1186,7 +1186,7 @@ export const CashFlowPage: React.FC = () => {
                 자금 계획 스냅샷 동결 이력 대장
               </h2>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                경영진 의사결정 시점별 동결된 유동성 지표 및 경영지시 메모 영구 보존
+                경영진 의사결정 시점별 동결된 유동성 지표 및 경영지시 메모 보존
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

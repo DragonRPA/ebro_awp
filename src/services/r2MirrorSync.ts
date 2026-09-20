@@ -200,7 +200,7 @@ export async function executeR2MirrorSync(
     }
 
     const agentData = await agentRes.json();
-    const finalMsg = `✅ Cloudflare R2의 ${payloadFiles.length}개 파일이 C:\\eBroAgent\\drive_mirror\\ 에 실시간 미러링되었습니다.`;
+    const finalMsg = `✅ Cloudflare R2의 ${payloadFiles.length}개 파일이 C:\\eBroAgent\\drive_mirror\\ 에 미러링되었습니다.`;
 
     updateProgress({
       isActive: true,

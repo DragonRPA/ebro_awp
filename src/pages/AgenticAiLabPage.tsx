@@ -255,7 +255,7 @@ export const AgenticAiLabPage: React.FC = () => {
         </div>
       )}
 
-      {/* ── 4. 본문: ReAct 실시간 추론 타임라인 & 20대 도구 카탈로그 ── */}
+      {/* ── 4. 본문: ReAct 추론 타임라인 & 20대 도구 카탈로그 ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '14px' }}>
         
         {/* 좌측: ReAct 추론 타임라인 */}
@@ -333,7 +333,7 @@ export const AgenticAiLabPage: React.FC = () => {
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)', fontSize: '12.5px' }}>
-              상단 [에이전틱 AI 실행] 버튼을 클릭하면 AI의 실시간 ReAct 추론 과정이 표시됩니다.
+              상단 [에이전틱 AI 실행] 버튼을 클릭하면 AI의 ReAct 추론 과정이 표시됩니다.
             </div>
           )}
 

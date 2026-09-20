@@ -444,7 +444,7 @@ class WalkieTalkieService {
     this.saveChannelsToStorage();
     this.notifyChannelsChange();
 
-    // 1. Supabase Realtime WebSocket 브로드캐스트 (실시간 접속 동료 대상 즉시 전달)
+    // 1. Supabase Realtime WebSocket 브로드캐스트 (접속 동료 대상 즉시 전달)
     if (this.metaChannel) {
       this.metaChannel.send({
         type: 'broadcast',
@@ -453,7 +453,7 @@ class WalkieTalkieService {
       }).catch((e: any) => console.warn('meta broadcast err:', e));
     }
 
-    // 2. Supabase DB 영구 저장 (비접속 사원 및 새로고침/재접속 시 100% 무누락 보존)
+    // 2. Supabase DB 저장 (비접속 사원 및 새로고침/재접속 시 100% 무누락 보존)
     if (supabase) {
       supabase.from('walkie_channels').upsert({
         id: newChannel.id,
@@ -498,7 +498,7 @@ class WalkieTalkieService {
       }).catch((e: any) => console.warn('meta broadcast err:', e));
     }
 
-    // 2. Supabase DB 영구 저장 (초대된 사원이 나중에 접속해도 무누락 동기화)
+    // 2. Supabase DB 저장 (초대된 사원이 나중에 접속해도 무누락 동기화)
     if (supabase) {
       supabase.from('walkie_channels').update({
         memberIds: merged,
@@ -678,7 +678,7 @@ class WalkieTalkieService {
     // 1. 전사 채널 메타 동기화 (WebSockets broadcast)
     this.initMetaChannel(user);
 
-    // 2. Supabase DB 실시간 변경 감지 (Postgres changes)
+    // 2. Supabase DB 변경 감지 (Postgres changes)
     this.initDbChannelSync();
 
     // 3. 원격 DB 채널 1회 전체 동기화 및 로컬 병합
@@ -750,7 +750,7 @@ class WalkieTalkieService {
     }
   }
 
-  // ── Supabase DB 실시간 postgres_changes 리스너 ──────────────────────────
+  // ── Supabase DB postgres_changes 리스너 ──────────────────────────
   private initDbChannelSync() {
     if (!supabase || this.dbSyncChannel) return;
 
@@ -941,7 +941,7 @@ class WalkieTalkieService {
       config: { broadcast: { self: false } }
     });
 
-    // 1. 음성 메시지 수신 (현재 채널에 튜닝되어 있을 때만 실시간 재생)
+    // 1. 음성 메시지 수신 (현재 채널에 튜닝되어 있을 때만 재생)
     channel.on('broadcast', { event: 'voice' }, async ({ payload }: { payload: any }) => {
       const msg = payload as WalkieMessage;
       if (!msg?.id || !msg?.audioBase64) return;

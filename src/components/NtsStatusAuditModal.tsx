@@ -156,7 +156,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
 
       setScanResults(resultMap);
 
-      // 데이터 소스 판정 (국세청 실시간 API vs 체크섬 폴백)
+      // 데이터 소스 판정 (국세청 API vs 체크섬 폴백)
       const firstResult = resultMap.values().next().value;
       const isLive = firstResult?.source === 'NTS_LIVE_API';
       setScanSource(firstResult?.source || null);
@@ -181,7 +181,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
       if (isLive) {
         setScanAlert({
           type: 'success',
-          message: `국세청 공식 전수 점검 완료: 총 ${resultMap.size}개사 실시간 대사 완료 (정상: ${actCount}건, 휴업: ${suspCount}건, 폐업: ${clsdCount}건${riskCount > 0 ? `, 가동위험: ${riskCount}건` : ''})`
+          message: `국세청 공식 전수 점검 완료: 총 ${resultMap.size}개사 대사 완료 (정상: ${actCount}건, 휴업: ${suspCount}건, 폐업: ${clsdCount}건${riskCount > 0 ? `, 가동위험: ${riskCount}건` : ''})`
         });
       } else {
         setScanAlert({
@@ -238,7 +238,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
           updatedAt: new Date().toISOString()
         });
 
-        // 1) 사법 감사 로그 영구 기록
+        // 1) 사법 감사 로그 기록
         db.insertRow<DelinquencyActionLog>('delinquencyActionLogs', {
           customerId: cust.id,
           actionType: 'LEGAL',
@@ -646,7 +646,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
           </div>
         </div>
 
-        {/* ─── 실시간 점검 프로그레스 바 (스캔 중 노출) ─── */}
+        {/* ─── 점검 프로그레스 바 (스캔 중 노출) ─── */}
         {isScanning && (
           <div style={{
             padding: '8px 20px',
@@ -660,7 +660,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 600, color: '#1d4ed8' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <RefreshCw size={12} style={{ animation: 'nts-spin 1s linear infinite' }} />
-                국세청 공공데이터 공식 DB 실시간 대사 진행 중...
+                국세청 공공데이터 공식 DB 대사 진행 중...
               </span>
               <span>
                 {scanProgress.processed} / {scanProgress.total}개사 ({Math.round((scanProgress.processed / (scanProgress.total || 1)) * 100)}%)
@@ -741,7 +741,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                   gap: '4px'
                 }}>
                   <ShieldCheck size={13} />
-                  국세청 실시간 대사 완료 ({scanResults.size}건)
+                  국세청 대사 완료 ({scanResults.size}건)
                 </span>
               ) : (
                 <span style={{
@@ -784,7 +784,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
           </div>
         </div>
 
-        {/* ─── ④ 고밀도 실시간 대사 그리드 테이블 ─── */}
+        {/* ─── ④ 고밀도 대사 그리드 테이블 ─── */}
         <div style={{
           flex: 1,
           minHeight: 0,
@@ -979,7 +979,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                         )}
                       </td>
 
-                      {/* 원클릭 조치 버튼 */}
+                      {/* 조치 버튼 */}
                       <td style={{ padding: '6px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {isNtsClosed && !isAlreadyApplied ? (
                           <button

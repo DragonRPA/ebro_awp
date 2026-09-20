@@ -65,7 +65,7 @@ export const SEED_INVENTORY_ITEMS: ParsedConsumableItem[] = [
   { modelName: '지니 브레이크', stockQty: 2, unit: '개', unitPrice: 220000, supplier: '지니 (Genie)', category: '모터/구동', note: '2개 수리중 (실가용 0개)', repairingQty: 2 },
 ];
 
-/** 브랜드/공급처 스마트 판별기 */
+/** 브랜드/공급처 판별기 */
 export function detectSupplier(name: string): string {
   if (/지니|genie/i.test(name)) return '지니 (Genie)';
   if (/스카이잭|skyjack/i.test(name)) return '스카이잭 (Skyjack)';
@@ -73,7 +73,7 @@ export function detectSupplier(name: string): string {
   return '공용';
 }
 
-/** 부품 카테고리 스마트 판별기 */
+/** 부품 카테고리 판별기 */
 export function detectCategory(name: string): string {
   if (/충전기|charger/i.test(name)) return '충전기';
   if (/p콘|g콘|조이스틱|컨트롤박스|모터컨트롤러|joystick|controller/i.test(name)) return '제어기';

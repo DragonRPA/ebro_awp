@@ -1113,7 +1113,7 @@ export function runWttBankMatching50(): { summary: string; totalPassed: number; 
     record('WTT-BANK-35', 'UNDERPAYMENT', '과소입금 시 통장 입금건 100% 소진 및 사용액 정합성', '비용 축', issues.length === 0, issues, { rem, used });
   })();
 
-  // WTT-BANK-36: 부분 입금된 청구서의 미수잔액 실시간 정확성
+  // WTT-BANK-36: 부분 입금된 청구서의 미수잔액 정확성
   (() => {
     db.reset();
     db.insertCustomer({ id: 'C1', name: '제일건설', prepaidBalance: 0 } as Customer);

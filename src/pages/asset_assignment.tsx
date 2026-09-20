@@ -204,7 +204,7 @@ export const AssetAssignment: React.FC = () => {
     }
   };
 
-  // 🚀 스마트 자동 추천 선택 (현재 활성화된 모델의 요구수량만큼만 자동 선택)
+  // 🚀 자동 추천 선택 (현재 활성화된 모델의 요구수량만큼만 자동 선택)
   const handleAutoSelectTopAssets = () => {
     if (maxSelectableCount <= 0) {
       showToast('할당할 대상 슬롯이 없습니다.', 'error');
@@ -214,7 +214,7 @@ export const AssetAssignment: React.FC = () => {
     setSelectedAssetIds(topAssetIds);
   };
 
-  // ⌨️ 관리번호 빠른 입력 처리 (모델별 요구수량 엄격 준수)
+  // ⌨️ 관리번호 입력 처리 (모델별 요구수량 엄격 준수)
   const handleQuickInputSubmit = () => {
     if (!quickInputText.trim()) return;
 
@@ -422,7 +422,7 @@ export const AssetAssignment: React.FC = () => {
         <div>
           <h2 style={{ fontWeight: '800', marginBottom: '4px', fontSize: '18px', letterSpacing: '-0.5px' }}>장비 할당</h2>
           <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            계약의 모델명 × 수량별 요구 슬롯에 가용 장비를 다중 선택 및 관리번호 빠른 입력으로 일괄 매핑합니다.
+            계약의 모델명 × 수량별 요구 슬롯에 가용 장비를 다중 선택 및 관리번호 입력으로 일괄 매핑합니다.
           </p>
         </div>
         <button
@@ -745,7 +745,7 @@ export const AssetAssignment: React.FC = () => {
             </div>
           </div>
 
-          {/* 2-B: 가용 장비 선택 풀 (멀티셀렉트 & 관리번호 빠른 입력) */}
+          {/* 2-B: 가용 장비 선택 풀 (멀티셀렉트 & 관리번호 입력) */}
           <div className="card" style={{ height: '540px', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-card)', border: '2px solid var(--success-light)' }}>
             
             {/* 가용 장비 헤더 & 일괄 할당 버튼 */}
@@ -784,10 +784,10 @@ export const AssetAssignment: React.FC = () => {
               )}
             </div>
 
-            {/* ⌨️ 관리번호 빠른 입력 바 (실무자 요구: 쉼표/엔터 다중 연속 입력) */}
+            {/* ⌨️ 관리번호 입력 바 (실무자 요구: 쉼표/엔터 다중 연속 입력) */}
             <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                관리번호 빠른 입력 (쉼표 또는 엔터로 다중 연속 입력)
+                관리번호 입력 (쉼표 또는 엔터로 다중 연속 입력)
               </label>
               <div style={{ display: 'flex', gap: '6px' }}>
                 <input

@@ -966,7 +966,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
     showToast(`매수처로 [${cust.name}]이(가) 확정되었습니다.`);
   };
 
-  // 실시간 회계 집계 (공급가액, 장부가액, 유형자산처분손익, 부가세 10%, 청구총액, 분할납부액)
+  // 회계 집계 (공급가액, 장부가액, 유형자산처분손익, 부가세 10%, 청구총액, 분할납부액)
   const disposalAccounting = useMemo(() => {
     let totalSupplyAmount = 0;
     let totalBookValue = 0;
@@ -1440,7 +1440,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                           }}
                         >
                           <Search size={15} />
-                          구입처 (제조공급사 / 중고 딜러 / 거래처) 실시간 검색 및 확정
+                          구입처 (제조공급사 / 중고 딜러 / 거래처) 검색 및 확정
                         </div>
                       )}
                     </div>
@@ -1861,7 +1861,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
 
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* 🔍 구입처 (공급사 / 중고 장비 딜러 / 거래처) 실시간 검색 모달 */}
+      {/* 🔍 구입처 (공급사 / 중고 장비 딜러 / 거래처) 검색 모달 */}
       {/* ───────────────────────────────────────────────────────────── */}
       {isSupplierSearchModalOpen && (
         <div style={{
@@ -2014,7 +2014,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
       )}
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* 🔍 매수처 (고객사 / 중고 장비 딜러) 실시간 검색 모달 */}
+      {/* 🔍 매수처 (고객사 / 중고 장비 딜러) 검색 모달 */}
       {/* ───────────────────────────────────────────────────────────── */}
       {isBuyerSearchModalOpen && (
         <div style={{
@@ -2360,7 +2360,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                 </table>
               </div>
 
-              {/* 3단계: 매각 확정 바구니 (Cart: 인라인 가격 책정 및 실시간 손익 대사) */}
+              {/* 3단계: 매각 확정 바구니 (Cart: 인라인 가격 책정 및 손익 대사) */}
               <div style={{ borderTop: '2px dashed var(--border-color)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -2505,7 +2505,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                   <Receipt size={16} color="var(--primary)" /> 매각 계약 체결 & 청구서 발행 스튜디오
                 </h3>
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  원클릭 3단계 완결 (계약체결 + 매각청구 + 이메일전송)
+                  3단계 완결 (계약체결 + 매각청구 + 이메일전송)
                 </span>
               </div>
 
@@ -2599,7 +2599,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                         }}
                       >
                         <Search size={15} />
-                        매수처 (고객사 / 딜러) 실시간 검색 및 확정
+                        매수처 (고객사 / 딜러) 검색 및 확정
                       </div>
                     )}
                   </div>
@@ -2891,7 +2891,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                 </div>
               </div>
 
-              {/* 3. 실시간 회계 정산 요약 카드 */}
+              {/* 3. 회계 정산 요약 카드 */}
               <div style={{
                 backgroundColor: 'var(--bg-app)',
                 padding: '12px 14px',
@@ -2922,10 +2922,10 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                 </div>
               </div>
 
-              {/* 4. 실시간 서식 미리보기 (듀얼 탭) */}
+              {/* 4. 서식 미리보기 (듀얼 탭) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)' }}>4. 실시간 서식 미리보기</label>
+                  <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)' }}>4. 서식 미리보기</label>
                   <div style={{ display: 'flex', gap: '4px', fontSize: '11px' }}>
                     <button
                       type="button"
@@ -3072,7 +3072,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                 )}
               </div>
 
-              {/* 6. 우하단 Gutenberg Z-패턴 원클릭 완결 버튼 */}
+              {/* 6. 우하단 Gutenberg Z-패턴 완결 버튼 */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
                 <button
                   type="button"

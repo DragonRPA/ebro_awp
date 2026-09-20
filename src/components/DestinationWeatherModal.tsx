@@ -332,7 +332,7 @@ export const DestinationWeatherModal: React.FC<Props> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <MapPin size={20} color="#3B82F6" />
             <h3 style={{ margin: 0, fontSize: '16.5px', fontWeight: '800', color: 'var(--text-main)' }}>
-              운송 하차지 실시간 날씨 및 예보
+              운송 하차지 날씨 및 예보
             </h3>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}>
@@ -402,13 +402,13 @@ export const DestinationWeatherModal: React.FC<Props> = ({
           {loading ? (
             <div style={{ padding: '30px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
               <RefreshCw size={20} className="spin" style={{ marginBottom: '8px' }} />
-              <div>하차지 기상 데이터를 실시간 수신 중...</div>
+              <div>하차지 기상 데이터를 수신 중...</div>
             </div>
           ) : error ? (
             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--danger)', fontSize: '13px' }}>{error}</div>
           ) : current && weatherMeta ? (
             <>
-              {/* 현재 실시간 기온 카드 */}
+              {/* 현재 기온 카드 */}
               <div style={{
                 padding: '16px', borderRadius: '12px',
                 background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(139, 92, 246, 0.12) 100%)',

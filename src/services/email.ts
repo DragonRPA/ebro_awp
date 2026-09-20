@@ -34,7 +34,7 @@ class RealGmailService {
 
   /**
    * 구글 연동 설정(db.googleConfigs 또는 localStorage 'erp_googleConfigs')의
-   * 최신 계정 정보를 실시간으로 읽어와서 로컬 에이전트(1순위) 또는 Vercel(/api/send-email)로 전송
+   * 최신 계정 정보를 으로 읽어와서 로컬 에이전트(1순위) 또는 Vercel(/api/send-email)로 전송
    */
   async sendEmail(
     to: string,

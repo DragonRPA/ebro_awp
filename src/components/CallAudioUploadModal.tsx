@@ -238,7 +238,7 @@ export const CallAudioUploadModal: React.FC<CallAudioUploadModalProps> = ({
                   </div>
                 </div>
                 <div style={{ fontSize: 10, color: '#64748b', marginTop: 2, background: 'rgba(15,23,42,0.6)', padding: '3px 8px', borderRadius: 6 }}>
-                  스마트폰: [내 파일] ➔ [Recordings] ➔ [Call]
+                  폰: [내 파일] ➔ [Recordings] ➔ [Call]
                 </div>
               </label>
             ) : (

@@ -1327,7 +1327,7 @@ export function parseInitialExcelWorkbook(
       }
     }
 
-    // 🌟 [보강 2] 자산(assets) ➔ 계약정보 양방향 실시간 동기화 바인딩
+    // 🌟 [보강 2] 자산(assets) ➔ 계약정보 양방향 동기화 바인딩
     // 계약기간 만료 자산도 연장/반납 미결 상태이므로 RENTED + 현장 바인딩 유지.
     // 엑셀 Col[8]='종료' 명시 시에만 COMPLETED/RENTED_RETURNED 처리.
     if (matchedAsset) {
@@ -2676,7 +2676,7 @@ export async function generateAndIngestHistoricalBillingsDirect(
       await batchUpsertChunked('contract_history', contractHistories, 100, msg => onProgress?.(4, 5, msg));
     }
 
-    // 🌟 [5단계: 자산 원장(assets.cumRentalFee) 재정산 및 영구 보존 (헌장 4.1)]
+    // 🌟 [5단계: 자산 원장(assets.cumRentalFee) 재정산 및 보존 (헌장 4.1)]
     let updatedAssetCount = 0;
     if (assets && assets.length > 0) {
       onProgress?.(5, 5, '자산별 누적렌탈료(cumRentalFee) 정밀 재집계 및 동기화 중...');
@@ -2832,26 +2832,34 @@ export function cleanOptionItem(raw: string): string {
   let str = String(raw).trim();
   if (!str || str === '-' || str === '없음' || str === 'NONE') return '';
 
-  // 1. 괄호 속 순수 수량 패턴 제거: (4EA), (4), (2개), ( 3 대 ) 등. 단, (소), (아크릴), (GS1930용) 등 일반 텍스트는 보존
-  str = str.replace(/\(\s*\d+\s*(?:개|대|EA|ea|Ea|세트|set|SET|대씩|개씩|씩)?\s*\)/gi, '');
+  // 0. 전각 숫자(０-９) 및 전각 기호(＊, ×) 반각 표준화
+  str = str.replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+  str = str.replace(/[＊×]/g, '*');
 
-  // 2. 곱하기 수량 표기 제거: * 6, * 1대, * 4 ea, x 2, X 3, × 2 등
-  str = str.replace(/[\s\-_/]*[*xX×]\s*\d+\s*(?:개|대|EA|ea|Ea|세트|set|SET|대씩|개씩|씩)?(?=[\s\(\)\[\],|/]|$)/gi, ' ');
+  // 1. 괄호 속 순수 수량 패턴 제거: (4EA), (4), (2개), ( 3 대 ), (1개설치) 등
+  str = str.replace(/\(\s*\d+\s*(?:개|대|EA|ea|Ea|세트|set|SET|대씩|개씩|씩)?(?:\s*설치|\s*장착)?\s*\)/gi, '');
 
-  // 3. 단어 끝/중간의 수량 단위 제거: 2개, 3대, 4EA, 5ea, 1세트, 2개씩, 2대씩 등 (단, 3면, 4면 등 '면'이나 20m 등 'm'은 제외)
-  str = str.replace(/[\s:：\-~]?\s*\d+\s*(?:개|대|EA|ea|Ea|세트|set|SET|개씩|대씩)(?=[\s\(\)\[\],|/]|$)/gi, '');
+  // 1-1. 괄호 내부의 복합 문구 중 수량 부분만 제거 (수량 단위 필수): 예: '(1개설치, U볼트 체결)' -> '(U볼트 체결)'
+  str = str.replace(/(\(\s*)\d+\s*(?:개|대|EA|ea|Ea|세트|set|SET)(?:\s*설치|\s*장착)?\s*[,/]?\s*/gi, '$1');
+  str = str.replace(/[,/]?\s*\d+\s*(?:개|대|EA|ea|Ea|세트|set|SET)(?:\s*설치|\s*장착)?\s*(\))/gi, '$1');
+
+  // 2. 곱하기 수량 표기 제거: * 6, * 1대, * 4 ea, x 2, X 3 등
+  str = str.replace(/[\s\-_/]*[*xX]\s*\d+\s*(?:개|대|EA|ea|Ea|세트|set|SET|대씩|개씩|씩)?(?=[\s\(\)\[\],|/.]|$)/gi, ' ');
+
+  // 3. 단어 끝/중간의 수량 단위 제거: 2개, 3대, 4EA, 5ea, 1세트, 2개씩, 2대씩, 1개설치 등 (단, 3면, 4면 등 '면'이나 20m 등 'm'은 제외)
+  str = str.replace(/[\s:：\-~]?\s*\d+\s*(?:개|대|EA|ea|Ea|세트|set|SET|개씩|대씩)(?:\s*설치|\s*장착)?(?=[\s\(\)\[\],|/.]|$)/gi, '');
 
   // 4. 감지봉4, 감지봉 4, 센서 4 등 명사 뒤에 붙은 단순 수량 숫자 제거 (단, GS1930, T50 등 영문포함 식별자는 보존)
-  str = str.replace(/(감지봉|과상승방지봉|센서|옵션)\s*[:：\-~]?\s*\d+(?=[\s\(\)\[\],|/]|$)/gi, '$1');
+  str = str.replace(/(감지봉|과상승방지봉|센서|옵션)\s*[:：\-~]?\s*\d+(?=[\s\(\)\[\],|/.]|$)/gi, '$1');
 
   // 5. 끝에 남은 순수 숫자 제거 (예: '협착 2' -> '협착', 단 '3면'이나 '20m' 같은 단위가 없는 순수 숫자만)
   str = str.replace(/[\s:：\-~]+\d+$/g, '');
 
   // 6. 불필요한 선행/후행 기호 및 공백 정리
-  str = str.replace(/^[\s\-:,·•*~/]+|[\s\-:,·•*~/]+$/g, '').trim();
+  str = str.replace(/^[\s\-:,·•*~/.]+|[\s\-:,·•*~/.]+$/g, '').trim();
 
-  // 7. 빈 괄호 '()' 정리
-  str = str.replace(/\(\s*\)/g, '').trim();
+  // 7. 빈 괄호 '()' 또는 괄호 안 쉼표 정리
+  str = str.replace(/\(\s*[,/]?\s*\)/g, '').trim();
 
   // 8. 명칭 띄어쓰기 정규화: '협착 난간대' -> '협착난간대'
   str = str.replace(/협착\s*난간대/g, '협착난간대');
@@ -2874,12 +2882,12 @@ export function normalizeOptionList(rawOptions: string | string[] | undefined | 
     if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
       try {
         const parsed = JSON.parse(trimmed);
-        items = Array.isArray(parsed) ? parsed.map(String) : trimmed.split(/[,|\/\n]/);
+        items = Array.isArray(parsed) ? parsed.map(String) : trimmed.split(/[,|\/\n]|\.\s+/);
       } catch {
-        items = trimmed.split(/[,|\/\n]/);
+        items = trimmed.split(/[,|\/\n]|\.\s+/);
       }
     } else {
-      items = trimmed.split(/[,|\/\n]/);
+      items = trimmed.split(/[,|\/\n]|\.\s+/);
     }
   } else {
     items = [String(rawOptions)];

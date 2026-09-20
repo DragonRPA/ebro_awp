@@ -2102,7 +2102,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               </div>
             </div>
 
-            {/* 📊 청구 및 수납 실시간 종합 집계 (1줄 고밀도 압축 스트립) */}
+            {/* 📊 청구 및 수납 종합 집계 (1줄 고밀도 압축 스트립) */}
             {(() => {
               const totalSupply = filteredBillings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
               const totalVat = Math.round(totalSupply * 0.1);
@@ -4452,7 +4452,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 {/* ═══════════════ [탭 1: 통장입금액 수납] ═══════════════ */}
                 {payMode === 'DEPOSIT' && (
                   <>
-                    {/* 🌟 1. 상단 5단 실시간 정산 서머리 테이블 (이미지 1 표준) */}
+                    {/* 🌟 1. 상단 5단 정산 서머리 테이블 (이미지 1 표준) */}
                     <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', border: '1px solid var(--border)', background: 'var(--bg-app)', borderRadius: '6px', overflow: 'hidden' }}>
                       <thead>
                         <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid var(--border)' }}>

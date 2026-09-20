@@ -760,7 +760,7 @@ export const Deliveries: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleOpenDestWeather(d)}
-                          title="해당 운송 하차지 현장 실시간 날씨 및 주간 예보 보기"
+                          title="해당 운송 하차지 현장 날씨 및 주간 예보 보기"
                           style={{
                             padding: '2px 6px',
                             fontSize: '11px',
@@ -828,7 +828,7 @@ export const Deliveries: React.FC = () => {
         </table>
       </div>
 
-      {/* 📊 배차 건수 및 총 운송비 실시간 집계 요약 바 */}
+      {/* 📊 배차 건수 및 총 운송비 집계 요약 바 */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         padding: '12px 18px', backgroundColor: 'var(--bg-card)',
@@ -1099,7 +1099,7 @@ export const Deliveries: React.FC = () => {
         </div>
       )}
 
-      {/* [4] 운송 하차지 실시간 날씨 및 주간 예보 모달 */}
+      {/* [4] 운송 하차지 날씨 및 주간 예보 모달 */}
       <DestinationWeatherModal
         isOpen={showDestWeatherModal}
         onClose={() => setShowDestWeatherModal(false)}

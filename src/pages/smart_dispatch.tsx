@@ -24,7 +24,7 @@ export const SmartDispatch: React.FC = () => {
   // ⚡ 기존 DB 정보 자동 상속 목록 상태 (시각적 배지 노출용)
   const [inheritedFieldList, setInheritedFieldList] = useState<string[]>([]);
 
-  // 실시간 프로세스 진행 릴레이 모달 상태
+  // 프로세스 진행 릴레이 모달 상태
   const [isProcessingModalOpen, setIsProcessingModalOpen] = useState(false);
   const [progressPercent, setProgressPercent] = useState(0);
   const [currentStepText, setCurrentStepText] = useState('');
@@ -167,7 +167,7 @@ export const SmartDispatch: React.FC = () => {
     return spec.label;
   };
 
-  // 💡 [실시간 자연어 텍스트 스캐너] rawText 가 변경될 때 텍스트 내 포함된 요구사항을 100% 동적으로 스캔하여 자동 체크!
+  // 💡 [자연어 텍스트 스캐너] rawText 가 변경될 때 텍스트 내 포함된 요구사항을 100% 동적으로 스캔하여 자동 체크!
   useEffect(() => {
     if (!rawText.trim()) return;
 
@@ -601,7 +601,7 @@ export const SmartDispatch: React.FC = () => {
     setCheckedSpecs(updated);
   };
 
-  // 실시간 정형 텍스트 생성 (적용된 스펙 요구사항 필터링 표시)
+  // 정형 텍스트 생성 (적용된 스펙 요구사항 필터링 표시)
   const generateFormattedText = () => {
     const activeSpecs = STANDARD_SPECS.filter(s => checkedSpecs[s.id]);
     return (
@@ -636,7 +636,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
     );
   };
 
-  // 실시간 JSON 생성 (전체 체크박스 맵과 적용 배열 동시 출력)
+  // JSON 생성 (전체 체크박스 맵과 적용 배열 동시 출력)
   const generateJSON = () => {
     const activeSpecLabels = STANDARD_SPECS.filter(s => checkedSpecs[s.id]).map(s => s.label);
     return JSON.stringify({
@@ -923,7 +923,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
     // 프로세스 진행 모달 초기화
     setProgressLogs([]);
     setProgressPercent(0);
-    setCurrentStepText('🚀 스마트 출고 파이프라인 가동 준비 중...');
+    setCurrentStepText('🚀 출고 파이프라인 가동 준비 중...');
     setIsProcessCompleted(false);
     setIsProcessingModalOpen(true);
 
@@ -948,7 +948,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
 
     if (result.errorMessage) {
       setIsProcessingModalOpen(false);
-      showErrorModal(result.errorMessage, '스마트 출고 요청 저장 오류');
+      showErrorModal(result.errorMessage, '출고 요청 저장 오류');
       return;
     }
 
@@ -994,7 +994,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
     showToast('입력 폼이 초기화되었습니다.');
   };
 
-  // 🎙️ 대화형 의뢰작성 스튜디오 실시간 동기화 핸들러 (Live Sync)
+  // 🎙️ 대화형 의뢰작성 스튜디오 동기화 핸들러 (Live Sync)
   const handleStudioSync = (data: Partial<StudioSyncData>) => {
     if (data.customerName !== undefined) setCustomerName(data.customerName);
     if (data.siteName !== undefined) setSiteName(data.siteName);
@@ -1076,7 +1076,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
         {/* 좌측 컬럼: 상단(대화형 의뢰작성) + 하단(메신저 줄글 텍스트 추출) 수직 2단 분할 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
-          {/* [상단] 1-A단계: 대화형 의뢰작성 스튜디오 (음성·키보드 인터뷰 및 스마트 컨트롤러) */}
+          {/* [상단] 1-A단계: 대화형 의뢰작성 스튜디오 (음성·키보드 인터뷰 및 컨트롤러) */}
           <div className="card">
             <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '52px' }}>
               <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
@@ -1091,7 +1091,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
             </div>
           </div>
 
-          {/* [하단] 1-B단계: 메신저 줄글 텍스트 복사/붙여넣기 (빠른 추출) */}
+          {/* [하단] 1-B단계: 메신저 줄글 텍스트 복사/붙여넣기 (추출) */}
           <div className="card" style={{ display: 'flex', flexDirection: 'column' }}>
             <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: '52px', flexWrap: 'wrap', gap: '8px' }}>
               <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
@@ -1648,7 +1648,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
 
       </div>
 
-      {/* 실시간 프로세스 진행 릴레이 팝업 모달 */}
+      {/* 프로세스 진행 릴레이 팝업 모달 */}
       {isProcessingModalOpen && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,

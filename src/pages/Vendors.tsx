@@ -717,7 +717,7 @@ export const Vendors: React.FC = () => {
         </div>
       </div>
 
-      {/* 📊 매입처 등록 현황 실시간 요약 바 */}
+      {/* 📊 매입처 등록 현황 요약 바 */}
       {(() => {
         const rentalCount = vendors.filter(v => JSON.stringify(v.types || v.type || '').includes('RENTAL')).length;
         const transportCount = vendors.filter(v => JSON.stringify(v.types || v.type || '').includes('TRANSPORT')).length;

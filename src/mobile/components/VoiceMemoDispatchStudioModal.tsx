@@ -57,7 +57,7 @@ export const VoiceMemoDispatchStudioModal: React.FC<VoiceMemoDispatchStudioModal
   const draftRef = useRef(draft);
   draftRef.current = draft;
 
-  // 3. 5대 핵심 항목 충족 상태 실시간 평가
+  // 3. 5대 핵심 항목 충족 상태 평가
   const slotsStatus: OrderSlotsStatus = useMemo(() => {
     return evaluateOrderSlotsStatus(draft);
   }, [draft]);
@@ -362,7 +362,7 @@ export const VoiceMemoDispatchStudioModal: React.FC<VoiceMemoDispatchStudioModal
                 핸즈프리
               </span>
             </div>
-            <div className="text-[10px] text-slate-400 whitespace-nowrap">순서 없이 자유롭게 음성을 남기세요</div>
+            <div className="text-[10px] text-slate-400 whitespace-nowrap">순서 없이 음성을 남기세요</div>
           </div>
         </div>
 
@@ -423,7 +423,7 @@ export const VoiceMemoDispatchStudioModal: React.FC<VoiceMemoDispatchStudioModal
             </button>
 
             <span className="text-slate-400 font-mono text-[10px]">
-              {isListening ? '🎙️ 실시간 청취 중...' : '마이크 정지'}
+              {isListening ? '🎙️ 청취 중...' : '마이크 정지'}
             </span>
           </div>
 
@@ -468,7 +468,7 @@ export const VoiceMemoDispatchStudioModal: React.FC<VoiceMemoDispatchStudioModal
             </div>
           )}
 
-          {/* 실시간 전사 말풍선 */}
+          {/* 전사 말풍선 */}
           <div className="w-full bg-slate-950/80 border border-slate-800/80 rounded-2xl p-3 min-h-[44px] flex items-center justify-center text-center">
             {interimText ? (
               <span className="text-xs text-blue-300 font-medium animate-pulse">

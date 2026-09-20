@@ -632,7 +632,7 @@ export const DevDataUploader: React.FC = () => {
   const [fileName, setFileName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ──── Supabase 실시간 DB 스키마 정합성 검증 도구 상태 ────
+  // ──── Supabase DB 스키마 정합성 검증 도구 상태 ────
   const [checkingSchema, setCheckingSchema] = useState(false);
   const [schemaAuditResults, setSchemaAuditResults] = useState<{ table: string; status: 'OK' | 'MISSING' | 'MISMATCH'; message: string }[] | null>(null);
   const [generatedPatchSql, setGeneratedPatchSql] = useState('');
@@ -1621,7 +1621,7 @@ export const DevDataUploader: React.FC = () => {
           <div className="card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <h4 style={{ fontWeight: '700', fontSize: '14px', margin: '0 0 6px 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', color: 'var(--danger)' }}>위험 영역 (Danger Zone)</h4>
             <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
-              DB의 모든 테이블 데이터를 영구히 초기화합니다. 이 작업은 되돌릴 수 없습니다.
+              DB의 모든 테이블 데이터를 히 초기화합니다. 이 작업은 되돌릴 수 없습니다.
             </p>
             <button onClick={handleClearAllTables} className="btn-danger" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: 'auto' }}>
               <Trash2 size={14} /> 전체 테이블 초기화 (Clear All)
@@ -1632,11 +1632,11 @@ export const DevDataUploader: React.FC = () => {
 
       <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '30px 0 20px 0' }} />
 
-      {/* ✅ 재설계된 Supabase 실시간 DB 스키마 정합성 검증 도구 */}
+      {/* ✅ 재설계된 Supabase DB 스키마 정합성 검증 도구 */}
       <div className="card" style={{ padding: '24px', backgroundColor: 'var(--bg-card)', marginBottom: '30px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
           <DatabaseIcon size={20} color="var(--primary)" />
-          <h3 style={{ fontWeight: '800', fontSize: '18px', margin: 0 }}>🔍 Supabase 실시간 DB 스키마 정합성 자동화 도구</h3>
+          <h3 style={{ fontWeight: '800', fontSize: '18px', margin: 0 }}>🔍 Supabase DB 스키마 정합성 자동화 도구</h3>
         </div>
         <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', marginBottom: '16px' }}>
           <code>schema.sql</code> 정의 기준으로 실제 Supabase DB의 {schemaTableCount}개 테이블 컬럼 구조를 <strong>information_schema 직접 조회</strong>로 검증합니다.

@@ -491,7 +491,7 @@ export interface TransactionStatementPdfData {
 
 /**
  * 4. ERP 공식 표준 거래명세서 정품 A4 PDF 생성 엔진 (MS Excel COM 전용)
- * ⚠️ 원칙: 2D Canvas 눈대중 모방을 100% 영구 배제하고, 로컬 사이드카 에이전트의 정품 MS Excel COM 엔진(00.거래명세서양식.xlsx 정품 원본 기반)만을 사용합니다.
+ * ⚠️ 원칙: 2D Canvas 눈대중 모방을 100% 배제하고, 로컬 사이드카 에이전트의 정품 MS Excel COM 엔진(00.거래명세서양식.xlsx 정품 원본 기반)만을 사용합니다.
  */
 export async function generateTransactionStatementPdf(data: TransactionStatementPdfData): Promise<Uint8Array> {
   try {

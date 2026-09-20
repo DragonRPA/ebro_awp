@@ -161,7 +161,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
       loadedUsers = db.users as any;
     }
 
-    // 🛡️ [테스터 영구 배제] 로컬스토리지나 DB 캐시에 잔존하는 테스터 계정 원천 차단
+    // 🛡️ [테스터 배제] 로컬스토리지나 DB 캐시에 잔존하는 테스터 계정 원천 차단
     const isTester = (u: any) =>
       u.id?.startsWith('usr-tester') ||
       u.name?.includes('테스터') ||
@@ -224,7 +224,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
         const { modelName, supplier, ...rest } = (d as any);
         return rest as Department;
       });
-      // 🛡️ [테스터 영구 배제] 테스터 계정이 DB로 유입되는 것을 원천 차단
+      // 🛡️ [테스터 배제] 테스터 계정이 DB로 유입되는 것을 원천 차단
       const isTester = (u: any) =>
         u.id?.startsWith('usr-tester') ||
         u.name?.includes('테스터') ||
@@ -690,7 +690,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
         </div>
       </div>
 
-      {/* 📊 조직 및 임직원 현황 실시간 요약 바 */}
+      {/* 📊 조직 및 임직원 현황 요약 바 */}
       {(() => {
         const activeUsersCount = users.filter(u => u.status === 'ACTIVE').length;
         const leaveCount = users.filter(u => u.status === 'LEAVE_OF_ABSENCE').length;

@@ -5,8 +5,8 @@ export const EXPECTED_AGENT_VERSION = 'v2.0.0.Build.1';
 export const AGENT_DOWNLOAD_URL = '/downloads/BroAgent.js';            // Node.js 경량 스크립트 (BroAgent.js)
 export const AGENT_BRO_JS_URL = '/downloads/BroAgent.js';               // BroAgent.js 직접 다운로드
 export const AGENT_EBRO_JS_URL = '/downloads/eBroAgent.js';             // eBroAgent.js 호환 다운로드
-export const AGENT_REG_BAT_URL = '/downloads/등록-원클릭실행.bat';       // 브라우저 원클릭 실행 프로토콜 등록기
-export const AGENT_EXE_URL = 'https://github.com/DragonRPA/Giyeun_Lift/releases/download/agent-v1.0.0/eBroAgent.exe'; // GitHub Releases 영구 CDN 독립 실행 파일 (Vercel 번들 분리)
+export const AGENT_REG_BAT_URL = '/downloads/등록-실행.bat';       // 브라우저 실행 프로토콜 등록기
+export const AGENT_EXE_URL = 'https://github.com/DragonRPA/Giyeun_Lift/releases/download/agent-v1.0.0/eBroAgent.exe'; // GitHub Releases CDN 독립 실행 파일 (Vercel 번들 분리)
 export const AGENT_LAUNCHER_URL = '/downloads/start-agent.bat';        // 실행 배치 파일
 export const AGENT_KILL_BAT_URL = '/downloads/kill-agent.bat';
 export const AGENT_CERT_URL = '/downloads/eBroAgent_Root.cer';         // 보안 인증서
@@ -16,7 +16,7 @@ export const AGENT_PROTOCOL_URI = 'broagent://run';
 export const AGENT_PROTOCOL_FALLBACK_URI = 'ebro://run';
 
 /**
- * 🚀 브라우저(사이트)에서 로컬 에이전트(BroAgent.js) 원클릭 기동 트리거
+ * 🚀 브라우저(사이트)에서 로컬 에이전트(BroAgent.js) 기동 트리거
  */
 export function launchLocalAgentFromBrowser(): void {
   try {
@@ -81,7 +81,7 @@ export async function fetchWithAgentFallback(path: string, init?: RequestInit): 
 }
 
 /**
- * 로컬 에이전트 헬스체크 및 실시간 콜사인 동기화
+ * 로컬 에이전트 헬스체크 및 콜사인 동기화
  */
 export async function checkLocalAgentHealth(callsign: string = 'admin'): Promise<AgentHealthInfo> {
   try {
@@ -110,7 +110,7 @@ export async function checkLocalAgentHealth(callsign: string = 'admin'): Promise
 }
 
 /**
- * 에이전트 원클릭 핫 재시작
+ * 에이전트 핫 재시작
  */
 export async function restartLocalAgent(): Promise<boolean> {
   try {

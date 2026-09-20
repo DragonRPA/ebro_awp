@@ -119,7 +119,7 @@ export const AgenticDispatchStudioPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 실시간 편의성 비교 HUD (인간 vs AI) */}
+      {/* 편의성 비교 HUD (인간 vs AI) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }} data-uia="hud-dispatch-metrics">
         <div className="card" style={{ padding: '12px 16px', borderLeft: '4px solid #3b82f6' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>배차 수립 소요시간</div>

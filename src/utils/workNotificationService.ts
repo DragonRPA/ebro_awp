@@ -101,13 +101,13 @@ export async function showSystemNotification(params: {
 }
 
 /**
- * 📢 4대 핵심 업무 발생 시 전사 실시간 브로드캐스트 전송 (발생 즉시 1회)
+ * 📢 4대 핵심 업무 발생 시 전사 브로드캐스트 전송 (발생 즉시 1회)
  */
 export async function broadcastWorkNotification(payload: WorkNotificationPayload) {
   // 1. 발신자 로컬 알림 및 차임벨 (확인용)
   playWorkNotificationChime();
 
-  // 2. Supabase Realtime 메타 채널을 통한 전사 실시간 푸시 브로드캐스트
+  // 2. Supabase Realtime 메타 채널을 통한 전사 푸시 브로드캐스트
   if (!supabase) return;
 
   try {
@@ -142,7 +142,7 @@ export async function broadcastWorkNotification(payload: WorkNotificationPayload
 }
 
 /**
- * 🎧 전사 실시간 업무 수신 리스너 (앱 실행 시 1회 구독)
+ * 🎧 전사 업무 수신 리스너 (앱 실행 시 1회 구독)
  */
 let isListenerInitialized = false;
 

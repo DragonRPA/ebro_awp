@@ -1,5 +1,5 @@
 // src/components/MirrorSyncProgressToast.tsx
-// e-Bro ERP 구글 드라이브 실시간 미러링 진행상황 플로팅 토스트 UI
+// e-Bro ERP 구글 드라이브 미러링 진행상황 플로팅 토스트 UI
 
 import React, { useState, useEffect } from 'react';
 import { Cloud, CheckCircle2, AlertCircle, RefreshCw, HardDrive, X } from 'lucide-react';

@@ -828,7 +828,7 @@ export function runWttSuite(): WttResult[] {
     // 2) 사용자가 화면 검색창에 "현대" 입력하여 필터링
     const query = '현대';
     const filtered = customerList.filter(c => c.name.includes(query) || (c.representative && c.representative.includes(query)));
-    if (filtered.length === 0) issues.push('고객사 실시간 검색 필터링 실패');
+    if (filtered.length === 0) issues.push('고객사 검색 필터링 실패');
 
     // 3) 검색된 첫 번째 칩 터치 선택 시뮬레이션
     const selected = filtered[0];
@@ -837,7 +837,7 @@ export function runWttSuite(): WttResult[] {
     results.push({
       scenarioId: 'WTT-DISP-34',
       name: '고객사 음성 실패 ➔ 검색/칩 터치 선택 ➔ 다음 단계 음성 연동 검증',
-      axis: '공간/맥락(스마트 고객사 검색 칩)',
+      axis: '공간/맥락(고객사 검색 칩)',
       passed: issues.length === 0,
       issues,
       details: { query, matchedName: selected?.name }
@@ -912,7 +912,7 @@ export function runWttSuite(): WttResult[] {
   }
 
   // -------------------------------------------------------------
-  // 시나리오 37: PC 대화형 스튜디오 키보드 텍스트 대화 ➔ 우측 폼 실시간 필드 동기화 검증
+  // 시나리오 37: PC 대화형 스튜디오 키보드 텍스트 대화 ➔ 우측 폼 필드 동기화 검증
   // 5대 축: 시간/수량(키보드 텍스트 대화 파싱 및 즉시 동기화)
   // -------------------------------------------------------------
   {
@@ -943,7 +943,7 @@ export function runWttSuite(): WttResult[] {
       issues.push(`일시 파싱 불일치: ${JSON.stringify(dt)}`);
     }
 
-    // 5) 우측 폼 실시간 동기화 시뮬레이션
+    // 5) 우측 폼 동기화 시뮬레이션
     const syncedFormState = {
       customerName: cust?.name || '',
       siteName,
@@ -958,7 +958,7 @@ export function runWttSuite(): WttResult[] {
 
     results.push({
       scenarioId: 'WTT-DISP-37',
-      name: 'PC 대화형 스튜디오 키보드 텍스트 대화 ➔ 우측 폼 실시간 필드 동기화 검증',
+      name: 'PC 대화형 스튜디오 키보드 텍스트 대화 ➔ 우측 폼 필드 동기화 검증',
       axis: '시간/수량(키보드 텍스트 대화 파싱 및 즉시 동기화)',
       passed: issues.length === 0,
       issues,
@@ -967,7 +967,7 @@ export function runWttSuite(): WttResult[] {
   }
 
   // -------------------------------------------------------------
-  // 시나리오 38: PC 대화형 스튜디오 규격 칩 및 수량 카운터 클릭 ➔ 우측 장비 목록 실시간 동기화 검증
+  // 시나리오 38: PC 대화형 스튜디오 규격 칩 및 수량 카운터 클릭 ➔ 우측 장비 목록 동기화 검증
   // 5대 축: 물리/수량(인라인 규격 칩 및 카운터)
   // -------------------------------------------------------------
   {
@@ -984,7 +984,7 @@ export function runWttSuite(): WttResult[] {
 
     results.push({
       scenarioId: 'WTT-DISP-38',
-      name: 'PC 대화형 스튜디오 규격 칩 및 수량 카운터 클릭 ➔ 우측 장비 목록 실시간 동기화 검증',
+      name: 'PC 대화형 스튜디오 규격 칩 및 수량 카운터 클릭 ➔ 우측 장비 목록 동기화 검증',
       axis: '물리/수량(인라인 규격 칩 및 카운터)',
       passed: issues.length === 0,
       issues,
@@ -1162,7 +1162,7 @@ export function runWttSuite(): WttResult[] {
   }
 
   // -------------------------------------------------------------
-  // 시나리오 44: 음성 STT 인식 결과 시각화 및 원클릭 키보드 수정 인터리빙 검증
+  // 시나리오 44: 음성 STT 인식 결과 시각화 및 키보드 수정 인터리빙 검증
   // 5대 축: 공간/물리(음성 시각 피드백 및 터치/키보드 하이브리드)
   // -------------------------------------------------------------
   {
@@ -1188,7 +1188,7 @@ export function runWttSuite(): WttResult[] {
 
     results.push({
       scenarioId: 'WTT-DISP-44',
-      name: '음성 STT 인식 결과 시각화 및 원클릭 키보드 수정 인터리빙 검증',
+      name: '음성 STT 인식 결과 시각화 및 키보드 수정 인터리빙 검증',
       axis: '공간/물리(음성 시각 피드백 및 키보드 하이브리드)',
       passed: issues.length === 0,
       issues,
@@ -1249,7 +1249,7 @@ export function runWttSuite(): WttResult[] {
 
   // -------------------------------------------------------------
   // 시나리오 46: 1개 출고건 복수 모델·수량 장바구니 관리 & 단계별 통합 검색·음성 객체 직결 무결성 검증
-  // 5대 축: 수량(복수 모델 장바구니) x 맥락(인라인 증감/삭제/실시간 동기화)
+  // 5대 축: 수량(복수 모델 장바구니) x 맥락(인라인 증감/삭제/동기화)
   // -------------------------------------------------------------
   {
     const issues: string[] = [];
@@ -1282,7 +1282,7 @@ export function runWttSuite(): WttResult[] {
     const finalTotalQty = cart.reduce((sum, item) => sum + item.qty, 0);
     if (finalTotalQty !== 4) issues.push(`삭제 후 총 수량 오류: ${finalTotalQty} (기대치: 4)`);
 
-    // 5) 우측 폼 실시간 동기화 무결성 검증 (동일 출고건에 복수 모델 100% 보존)
+    // 5) 우측 폼 동기화 무결성 검증 (동일 출고건에 복수 모델 100% 보존)
     const formEquipments = cart.map(e => ({ modelName: e.modelName, qty: e.qty }));
     if (formEquipments.length !== 2) issues.push('우측 폼 복수 모델 동기화 개수 불일치');
     if (formEquipments[0].modelName !== 'GS-1930' || formEquipments[0].qty !== 2) issues.push('GS-1930 동기화 불일치');
@@ -1291,7 +1291,7 @@ export function runWttSuite(): WttResult[] {
     results.push({
       scenarioId: 'WTT-DISP-46',
       name: '1개 출고건 복수 모델·수량 장바구니 관리 & 단계별 통합 검색·음성 객체 직결 무결성 검증',
-      axis: '수량(복수 모델 장바구니) x 맥락(인라인 증감/삭제/실시간 동기화)',
+      axis: '수량(복수 모델 장바구니) x 맥락(인라인 증감/삭제/동기화)',
       passed: issues.length === 0,
       issues,
       details: { finalCart: cart, formEquipments, finalTotalQty }

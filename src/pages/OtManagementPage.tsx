@@ -297,7 +297,7 @@ export const OtManagementPage: React.FC = () => {
     setOtDate(tYmd);
   };
 
-  // OT 연장근무 등록 폼 상태 (자유로운 다중/단일 원클릭 토글 지원)
+  // OT 연장근무 등록 폼 상태 (자유로운 다중/단일 토글 지원)
   const [otDate, setOtDate] = useState<string>(getTodayYmd());
   const [otUserIds, setOtUserIds] = useState<string[]>([]);
   const [otStartTime, setOtStartTime] = useState('17:00');
@@ -314,7 +314,7 @@ export const OtManagementPage: React.FC = () => {
     }
   }, [sortedUsers]);
 
-  // 임직원 칩 자유 토글 핸들러 (원클릭으로 자유롭게 선택/해제)
+  // 임직원 칩 자유 토글 핸들러 (으로 선택/해제)
   const handleToggleUser = (userId: string) => {
     setOtUserIds(prev =>
       prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
@@ -623,7 +623,7 @@ export const OtManagementPage: React.FC = () => {
         <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>급여 대장 연동</span>
           <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <CheckCircle2 size={13} /> 실시간 반영
+            <CheckCircle2 size={13} /> 반영
           </span>
         </div>
       </div>
@@ -780,7 +780,7 @@ export const OtManagementPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* 🌟 선택된 임직원 태그 배지 (누가 선택되어 있는지 100% 한눈에 실시간 확인) */}
+              {/* 🌟 선택된 임직원 태그 배지 (누가 선택되어 있는지 100% 한눈에 확인) */}
               {otUserIds.length > 0 && (
                 <div style={{
                   display: 'flex',

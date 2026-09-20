@@ -1,5 +1,5 @@
 // src/utils/nativeLauncher.ts
-// 스마트폰(Android / iOS) 앱 딥링크, 클립보드 복사 및 전화걸기 안전 실행 유틸리티
+// 폰(Android / iOS) 앱 딥링크, 클립보드 복사 및 전화걸기 안전 실행 유틸리티
 
 import { db } from '../services/db';
 
@@ -84,7 +84,7 @@ function showFloatingToast(message: string) {
  * 2. 티맵의 길안내 스킴(tmap://route)은 위경도 숫자 좌표(goalx, goaly)가 없으면 경로 계산을 시작하지 못하고 메인 홈 화면만 엽니다.
  *    좌표가 없는 텍스트 주소는 티맵의 '검색 스킴(tmap://search?name=...)'으로 호출해야 검색창에 주소가 전달됩니다.
  * 3. 현장 상세 주소에 동/호수나 특수문자가 섞여 티맵 POI 검색이 빗나가는 경우를 100% 방지하기 위해,
- *    내비 버튼 클릭 즉시 목적지 주소를 스마트폰 클립보드에 자동 복사하여 필요 시 1-Click 붙여넣기를 보장합니다.
+ *    내비 버튼 클릭 즉시 목적지 주소를 폰 클립보드에 자동 복사하여 필요 시 1-Click 붙여넣기를 보장합니다.
  */
 export async function launchNavigation(destination: string, app: NavAppType = 'TMAP') {
   if (!destination || !destination.trim()) {
@@ -102,7 +102,7 @@ export async function launchNavigation(destination: string, app: NavAppType = 'T
 
   const cleanDest = destination.trim();
 
-  // 2. 📋 스마트폰 클립보드에 고객/현장 주소 100% 선제적 자동 복사 (붙여넣기 대비)
+  // 2. 📋 폰 클립보드에 고객/현장 주소 100% 선제적 자동 복사 (붙여넣기 대비)
   await copyToClipboard(cleanDest);
   showFloatingToast(`📋 현장 주소가 클립보드에 복사되었습니다!\n(T맵 검색창에 길게 눌러 바로 붙여넣기 가능)`);
 
@@ -156,7 +156,7 @@ export async function launchNavigation(destination: string, app: NavAppType = 'T
 /**
  * 안전한 전화걸기 헬퍼
  * - window.location.href 직접 대입으로 인한 PWA 흰 화면(ERR_UNKNOWN_URL_SCHEME) 및 세션 리셋 방지
- * - DOM <a> 태그 클릭 방식을 사용하여 스마트폰 기본 전화 다이얼러를 안전하게 호출
+ * - DOM <a> 태그 클릭 방식을 사용하여 폰 기본 전화 다이얼러를 안전하게 호출
  */
 export function safePhoneCall(phone: string | undefined | null) {
   if (!phone) {
@@ -463,7 +463,7 @@ export function buildDispatchSmsText(params: DispatchSmsParams): string {
 }
 
 /**
- * 📲 스마트폰 기본 문자메시지 앱 딥링크 호출 (sms:?body=...)
+ * 📲 폰 기본 문자메시지 앱 딥링크 호출 (sms:?body=...)
  * - 선제 클립보드 복사(copyToClipboard)를 수행하여 앱 미연동 환경에서도 1-Click 붙여넣기 지원
  */
 export async function launchDispatchSms(options: {

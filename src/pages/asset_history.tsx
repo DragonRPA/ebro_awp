@@ -57,7 +57,7 @@ export const AssetHistory: React.FC = () => {
   const calculatedInboundScore = selectedChecklistObjects.reduce((sum, item) => sum + item.score, 0);
   const selectedChecklistSummary = selectedChecklistObjects.map(item => `${item.name}(+${item.score}점)`).join(', ');
 
-  // 💡 정비 점검 항목 퀵버튼 원클릭 토글
+  // 💡 정비 점검 항목 퀵버튼 토글
   const toggleChecklistItem = (itemId: string) => {
     let newIds: string[];
     if (selectedChecklistIds.includes(itemId)) {
@@ -126,7 +126,7 @@ export const AssetHistory: React.FC = () => {
     });
   };
 
-  // 💡 기간 빠른 선택 (오늘 / 1주 / 1개월 / 전체)
+  // 💡 기간 선택 (오늘 / 1주 / 1개월 / 전체)
   const setQuickRange = (rangeType: 'TODAY' | 'WEEK' | 'MONTH' | 'ALL') => {
     const today = new Date();
     let newStart = '';
@@ -376,7 +376,7 @@ export const AssetHistory: React.FC = () => {
         </button>
       </div>
 
-      {/* 📊 자산 라이프사이클 이벤트 실시간 요약 바 */}
+      {/* 📊 자산 라이프사이클 이벤트 요약 바 */}
       {(() => {
         const inboundCount = assetInOutLogs.filter(l => l.type === 'INBOUND').length;
         const outboundCount = assetInOutLogs.filter(l => l.type === 'OUTBOUND').length;
@@ -718,7 +718,7 @@ export const AssetHistory: React.FC = () => {
               </div>
             </div>
 
-            {/* 2. 기간 빠른 선택 */}
+            {/* 2. 기간 선택 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                 기간 선택

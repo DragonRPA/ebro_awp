@@ -45,7 +45,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
     return subscribeMirrorProgress(setMirrorProgress);
   }, []);
 
-  // 3초 주기 헬스체크 및 실시간 콜사인 바인딩
+  // 3초 주기 헬스체크 및 콜사인 바인딩
   useEffect(() => {
     let isMounted = true;
     const check = async () => {
@@ -405,7 +405,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
                   disabled={isSyncingDrive}
                   onClick={async () => {
                     setIsSyncingDrive(true);
-                    setSyncMessage('CF 버킷 실시간 동기화 중...');
+                    setSyncMessage('CF 버킷 동기화 중...');
                     try {
                       const agentRes = await fetchWithAgentFallback('/api/trigger-sync', {
                         method: 'POST',
@@ -533,7 +533,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
                 {/* 2단계: 브라우저 실행 등록 */}
                 <a
                   href={AGENT_REG_BAT_URL}
-                  download="등록-원클릭실행.bat"
+                  download="등록-실행.bat"
                   style={{
                     width: '100%',
                     padding: '8px 10px',

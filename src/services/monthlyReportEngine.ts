@@ -3,7 +3,7 @@
  * src/services/monthlyReportEngine.ts
  * 전사 월간 경영 정기보고서(Executive Monthly Dossier) 실데이터 통합 집계 엔진
  * 
- * - 가짜 더미 숫자 및 허위 부서장 100% 영구 퇴출
+ * - 가짜 더미 숫자 및 허위 부서장 100% 퇴출
  * - contracts, assets, deliveries, repairs, billings, billingDetails, purchaseSettlements, customers
  *   원천 DB 레코드를 수학적으로 1:1 정밀 일할/기간 집계
  * - 헌장 1.1 최우선 편익, 헌장 1.2 3대 핵심가치, 헌장 2.3 왕복 EXCHANGE 절감, 헌장 5.1/5.5 보존 법칙 준수

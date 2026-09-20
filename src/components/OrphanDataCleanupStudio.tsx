@@ -75,7 +75,7 @@ export const OrphanDataCleanupStudio: React.FC = () => {
     targetItems: MismatchItem[];
   } | null>(null);
 
-  // ── 1. 불부합 데이터 실시간 스캔 (Audit Engine) ──
+  // ── 1. 불부합 데이터 스캔 (Audit Engine) ──
   const runScan = useCallback(() => {
     setIsScanning(true);
     try {
@@ -417,7 +417,7 @@ export const OrphanDataCleanupStudio: React.FC = () => {
     setConfirmModal({
       isOpen: true,
       title: '단건 불부합 데이터 삭제',
-      description: `[${item.categoryLabel}] "${item.title}" (${item.targetId}) 레코드를 영구 삭제하시겠습니까?`,
+      description: `[${item.categoryLabel}] "${item.title}" (${item.targetId}) 레코드를 삭제하시겠습니까?`,
       targetItems: [item]
     });
   };
@@ -431,7 +431,7 @@ export const OrphanDataCleanupStudio: React.FC = () => {
     setConfirmModal({
       isOpen: true,
       title: '선택 항목 일괄 삭제',
-      description: `현재 선택된 ${targets.length}건의 불부합 데이터를 데이터베이스에서 영구 삭제하시겠습니까?`,
+      description: `현재 선택된 ${targets.length}건의 불부합 데이터를 데이터베이스에서 삭제하시겠습니까?`,
       targetItems: targets
     });
   };
@@ -445,7 +445,7 @@ export const OrphanDataCleanupStudio: React.FC = () => {
     setConfirmModal({
       isOpen: true,
       title: `${catName} 일괄 삭제`,
-      description: `현재 필터링된 ${filteredItems.length}건의 ${catName}를 데이터베이스에서 일괄 영구 삭제하시겠습니까?`,
+      description: `현재 필터링된 ${filteredItems.length}건의 ${catName}를 데이터베이스에서 일괄 삭제하시겠습니까?`,
       targetItems: filteredItems
     });
   };
@@ -458,7 +458,7 @@ export const OrphanDataCleanupStudio: React.FC = () => {
     setConfirmModal({
       isOpen: true,
       title: '전체 불부합 데이터 전수 일괄 정리',
-      description: `시스템에서 탐지된 모든 불부합 데이터 총 ${items.length}건을 일괄 영구 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`,
+      description: `시스템에서 탐지된 모든 불부합 데이터 총 ${items.length}건을 일괄 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`,
       targetItems: items
     });
   };
@@ -841,7 +841,7 @@ export const OrphanDataCleanupStudio: React.FC = () => {
                   {confirmModal.title}
                 </h3>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  영구 삭제 대상: 총 {confirmModal.targetItems.length}건
+                  삭제 대상: 총 {confirmModal.targetItems.length}건
                 </span>
               </div>
             </div>
@@ -888,7 +888,7 @@ export const OrphanDataCleanupStudio: React.FC = () => {
                   whiteSpace: 'nowrap'
                 }}
               >
-                영구 삭제 실행
+                삭제 실행
               </button>
             </div>
           </div>

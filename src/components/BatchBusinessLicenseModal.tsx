@@ -598,7 +598,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
           </div>
         </div>
 
-        {/* ─── ③ 실시간 진행 HUD & 현황 통계 배지 ─── */}
+        {/* ─── ③ 진행 HUD & 현황 통계 배지 ─── */}
         <div style={{
           padding: '8px 20px',
           backgroundColor: 'var(--bg-secondary, #f1f5f9)',
@@ -650,7 +650,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
           </div>
         </div>
 
-        {/* ─── ④ 고밀도 실시간 스트리밍 대사 테이블 ─── */}
+        {/* ─── ④ 고밀도 스트리밍 대사 테이블 ─── */}
         <div style={{
           flex: 1,
           minHeight: 0,

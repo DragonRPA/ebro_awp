@@ -34,7 +34,7 @@ export const Customers: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // 실시간 검색 및 필터 상태 (헌장 1.1 & 1.2: 지연 조회 제거)
+  // 검색 및 필터 상태 (헌장 1.1 & 1.2: 지연 조회 제거)
   const [searchTerm, setSearchTerm] = useState('');
   const [chosungFilter, setChosungFilter] = useState<string>('전체');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'BLOCKED' | 'CLOSED'>('ALL');
@@ -228,7 +228,7 @@ export const Customers: React.FC = () => {
            !c.address || c.address === '미상';
   };
 
-  // 실시간 필터링 (초성 칩 필터 및 정규화 가나다 오름차순 정렬 통합)
+  // 필터링 (초성 칩 필터 및 정규화 가나다 오름차순 정렬 통합)
   const filteredCustomers = useMemo(() => {
     const list = customers.filter(c => {
       const matchesSearch = 
@@ -908,7 +908,7 @@ export const Customers: React.FC = () => {
         </div>
       </div>
 
-      {/* ② 실시간 고객 및 현장/담당자 KPI 바 (Scope) */}
+      {/* ② 고객 및 현장/담당자 KPI 바 (Scope) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '6px', flexShrink: 0 }}>
         <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>총 고객사</span>
@@ -1030,7 +1030,7 @@ export const Customers: React.FC = () => {
         )}
       </div>
 
-      {/* ④ 초성 자음 빠른 검색 필터 바 (SSOT 표준) */}
+      {/* ④ 초성 자음 검색 필터 바 (SSOT 표준) */}
       <div style={{
         display: 'flex',
         alignItems: 'center',

@@ -77,7 +77,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'assets', label: '주기장자산', icon: Search, badge: 0 },
     ];
   } else if (deptMode === 'EXECUTIVE') {
-    // 👑 경영진 모바일 탭 (출고승인, AS현황 영구 제거 ➔ 고객관리, 연체관리 신규 탑재)
+    // 👑 경영진 모바일 탭 (출고승인, AS현황 제거 ➔ 고객관리, 연체관리 신규 탑재)
     navItems = [
       { id: 'home', label: '경영홈', icon: Home, badge: 0 },
       { id: 'customers', label: '고객관리', icon: Users, badge: incompleteCustomerCount },

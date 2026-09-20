@@ -300,12 +300,12 @@ export const CorporateCardPage: React.FC = () => {
     }));
   };
 
-  // 매입유형 영구 삭제
+  // 매입유형 삭제
   const handleDeleteCategory = (id: string) => {
     setConfirmModal({
       isOpen: true,
       title: '매입유형 삭제',
-      message: '이 매입유형을 대장에서 영구 삭제하시겠습니까?\n삭제 시 당월 누락 검증 대조 항목에서도 제외됩니다.',
+      message: '이 매입유형을 대장에서 삭제하시겠습니까?\n삭제 시 당월 누락 검증 대조 항목에서도 제외됩니다.',
       confirmText: '삭제 실행',
       isDanger: true,
       onConfirm: () => {
@@ -436,11 +436,11 @@ export const CorporateCardPage: React.FC = () => {
               </div>
             </div>
 
-            {/* [핵심] 지능형 누락 방지 실시간 현황판 */}
+            {/* [핵심] 지능형 누락 방지 현황판 */}
             <div className="card" style={{ margin: 0 }}>
               <div className="card-header">
                 <h3 className="card-title">지능형 지출 누락 방지 모니터</h3>
-                <span className="badge badge-danger">실시간 대조</span>
+                <span className="badge badge-danger">대조</span>
               </div>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>

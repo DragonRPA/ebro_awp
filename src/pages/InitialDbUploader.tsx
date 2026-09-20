@@ -135,7 +135,7 @@ export const InitialDbUploader: React.FC = () => {
 
   const bandFileInputRef = useRef<HTMLInputElement>(null);
 
-  // 📊 업로드 적재 건수 실시간 집계
+  // 📊 업로드 적재 건수 집계
   const uploadedDispatchCount = (db.deliveries || []).filter((d: any) => d.id?.startsWith('DEL-HIST-')).length;
   const uploadedBandAsCount = (db.repairs || []).filter((r: any) => r.source === 'BAND_IMPORT' || r.ticketNo?.startsWith('BAND-') || r.id?.startsWith('rep-band-')).length;
   const unassignedAsCount = (db.repairs || []).filter((r: any) => !r.siteId || r.siteName === '미지정현장' || r.siteName === '일반 현장').length;
@@ -387,7 +387,7 @@ export const InitialDbUploader: React.FC = () => {
 
   // ── 2. DB 초기화 실행 ──
   const handleReset = async () => {
-    if (!window.confirm('기존의 모든 자산, 고객사, 계약, 배차, 청구 대장을 영구 삭제하고 초기화하시겠습니까?')) {
+    if (!window.confirm('기존의 모든 자산, 고객사, 계약, 배차, 청구 대장을 삭제하고 초기화하시겠습니까?')) {
       return;
     }
 
@@ -500,7 +500,7 @@ export const InitialDbUploader: React.FC = () => {
 
   // ── 배차 이력 일괄 롤백 (삭제) ──
   const handleDispatchRollback = async () => {
-    if (!window.confirm(`현재 DB에 적재된 배차 이력 데이터(${uploadedDispatchCount.toLocaleString()}건)를 영구 삭제하고 업로드 전으로 되돌리시겠습니까?`)) {
+    if (!window.confirm(`현재 DB에 적재된 배차 이력 데이터(${uploadedDispatchCount.toLocaleString()}건)를 삭제하고 업로드 전으로 되돌리시겠습니까?`)) {
       return;
     }
     setIsDispatchRollingBack(true);
@@ -758,7 +758,7 @@ export const InitialDbUploader: React.FC = () => {
 
   // ── 밴드 AS 이력 일괄 롤백 (삭제) ──
   const handleBandRollback = async () => {
-    if (!window.confirm(`현재 DB에 적재된 밴드 AS 이력 데이터(${uploadedBandAsCount.toLocaleString()}건)를 영구 삭제하고 업로드 전으로 되돌리시겠습니까?`)) {
+    if (!window.confirm(`현재 DB에 적재된 밴드 AS 이력 데이터(${uploadedBandAsCount.toLocaleString()}건)를 삭제하고 업로드 전으로 되돌리시겠습니까?`)) {
       return;
     }
     setIsBandRollingBack(true);
@@ -1903,7 +1903,7 @@ export const InitialDbUploader: React.FC = () => {
                 {/* 우하단 종결 버튼 (Gutenberg Z-Pattern) */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap', gap: '8px' }}>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    💡 총 <strong>{bandAnalysisResult.totalCount.toLocaleString()}건</strong>의 과거 AS 이력을 정비 마스터(`repairs`) 및 자산/계약 타임라인에 무누락 영구 저장합니다.
+                    💡 총 <strong>{bandAnalysisResult.totalCount.toLocaleString()}건</strong>의 과거 AS 이력을 정비 마스터(`repairs`) 및 자산/계약 타임라인에 무누락 저장합니다.
                   </div>
 
                   <button
@@ -2133,7 +2133,7 @@ export const InitialDbUploader: React.FC = () => {
                 >
                   {isIngestingCustomerDefaults
                     ? <><RefreshCw size={15} className="animate-spin" /> 마스터 DB 동기화 중...</>
-                    : <><Upload size={15} /> 고객 요구사항 마스터 일괄 DB 동기화 (영구 기억 및 자동 상속)</>
+                    : <><Upload size={15} /> 고객 요구사항 마스터 일괄 DB 동기화 (기억 및 자동 상속)</>
                   }
                 </button>
               </div>
@@ -2786,7 +2786,7 @@ export const InitialDbUploader: React.FC = () => {
               전체 데이터베이스 백업 내보내기
             </h3>
             <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-              현재 Supabase / 로컬 DB에 적재된 모든 20개 테이블의 데이터를 JSON 파일로 다운로드하여 영구 보관합니다.
+              현재 Supabase / 로컬 DB에 적재된 모든 20개 테이블의 데이터를 JSON 파일로 다운로드하여 보관합니다.
             </span>
           </div>
 
@@ -2833,7 +2833,7 @@ export const InitialDbUploader: React.FC = () => {
               </h3>
             </div>
             <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-              기존에 입력된 자산, 고객사, 현장, 계약, 청구서, 수납 등 모든 비즈니스 데이터를 영구 삭제합니다.
+              기존에 입력된 자산, 고객사, 현장, 계약, 청구서, 수납 등 모든 비즈니스 데이터를 삭제합니다.
             </span>
           </div>
 

@@ -93,7 +93,11 @@ export interface MenuGroup {
 }
 
 const App: React.FC = () => {
-  const { currentUser, users, switchUser, login, logout, theme, toggleTheme, hasPermission, activeTab, setActiveTab, loadTablesForMenu, currentTenant } = useApp();
+  const context = useApp();
+  if (typeof window !== 'undefined') {
+    (window as any).__APP_CONTEXT__ = context;
+  }
+  const { currentUser, users, switchUser, login, logout, theme, toggleTheme, hasPermission, activeTab, setActiveTab, loadTablesForMenu, currentTenant } = context;
 
   // 로그인 폼 상태
   const [loginId, setLoginId] = useState('');
@@ -168,7 +172,7 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // 실시간 업무 알림 리스너 연동
+  // 업무 알림 리스너 연동
   useEffect(() => {
     if (currentUser) {
       initWorkNotificationListener(currentUser);
@@ -185,7 +189,7 @@ const App: React.FC = () => {
     loadTablesForMenu(activeTab);
   }, [activeTab]);
 
-  // 🚀 에이전틱 AI 및 MCP 자동화를 위한 시스템 Ready 상태 실시간 공표
+  // 🚀 에이전틱 AI 및 MCP 자동화를 위한 시스템 Ready 상태 공표
   useEffect(() => {
     if (currentUser) {
       markErpReady({
@@ -690,7 +694,7 @@ const App: React.FC = () => {
               <span>아이폰 · 아이패드 사파리(Safari) 지원</span>
             </div>
             <div>• 사파리 브라우저 <strong>[공유]</strong> ➔ <strong>[홈 화면에 추가]</strong> 시 전체화면 단독 앱으로 즉시 실행됩니다.</div>
-            <div>• 아이패드는 화면 회전 및 상단 모드 전환을 통해 모바일/PC 뷰를 자유롭게 선택할 수 있습니다.</div>
+            <div>• 아이패드는 화면 회전 및 상단 모드 전환을 통해 모바일/PC 뷰를 선택할 수 있습니다.</div>
           </div>
 
           {/* 테스트 계정 안내 — 개발 환경(localhost)에서만 표시 */}
@@ -796,7 +800,7 @@ const App: React.FC = () => {
             </div>
           </div>
 
-          {/* 헤더 좌측 실시간 현장 날씨 정보 위젯 */}
+          {/* 헤더 좌측 현장 날씨 정보 위젯 */}
           <WeatherWidget />
         </div>
 
@@ -936,7 +940,7 @@ const App: React.FC = () => {
           {/* 🟢 시스템 준비상태 (Ready) 인디케이터 배지 */}
           <ErpReadinessBadge />
 
-          {/* 🤖 로컬 사이드카 에이전트 실시간 상태 미니 배지 */}
+          {/* 🤖 로컬 사이드카 에이전트 상태 미니 배지 */}
           <AgentHeaderBadge currentUser={currentUser} />
 
           {/* 📖 전사 업무매뉴얼 바로가기 버튼 */}
@@ -1374,7 +1378,7 @@ const App: React.FC = () => {
         }
       `}</style>
 
-      {/* 🚀 구글 드라이브 실시간 미러링 진행상황 플로팅 토스트 */}
+      {/* 🚀 구글 드라이브 미러링 진행상황 플로팅 토스트 */}
       <MirrorSyncProgressToast />
 
       {/* 🛡️ 개인정보 처리방침 법정 고지 모달 */}

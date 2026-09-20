@@ -36,7 +36,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     initialContractId || contracts[0]?.id || ''
   );
 
-  // 실시간 생성 진행 상태
+  // 생성 진행 상태
   const [isGenerating, setIsGenerating] = useState(false);
   const [progressPercent, setProgressPercent] = useState(0);
   const [progressText, setProgressText] = useState('');
@@ -415,7 +415,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
 
     setIsSendingEmail(true);
     try {
-      // 1. PDF가 아직 없으면 원클릭 논스톱 자동 조립 실행 (2-A)
+      // 1. PDF가 아직 없으면 논스톱 자동 조립 실행 (2-A)
       let pdf = generatedResult;
       if (!pdf || !pdf.base64Content) {
         pdf = await buildBundlePdf();
@@ -440,7 +440,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         ccRecipients || undefined
       );
 
-      // 4. 계약 변경 이력(contract_history)에 감사 로그 DB 영구 저장 (3-yes)
+      // 4. 계약 변경 이력(contract_history)에 감사 로그 DB 저장 (3-yes)
       try {
         const historyId = db.generateNextId('contractHistory', db.contractHistory);
         const recipientSummary = recipients.map(r => `${r.name ? `${r.name}(${r.email})` : r.email}`).join(', ');
@@ -662,7 +662,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
             >
               {recipients.length === 0 ? (
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)', paddingLeft: '4px' }}>
-                  지정된 수신인이 없습니다. 아래 빠른 선택 또는 직접 입력을 통해 추가해 주세요.
+                  지정된 수신인이 없습니다. 아래 선택 또는 직접 입력을 통해 추가해 주세요.
                 </span>
               ) : (
                 recipients.map(r => (
@@ -761,12 +761,12 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
               </button>
             </div>
 
-            {/* 3-3. 👥 고객사 연결 인물 빠른 추가 헬퍼 */}
+            {/* 3-3. 👥 고객사 연결 인물 추가 헬퍼 */}
             {availableCustomerContacts.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '2px' }}>
                 <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Users size={12} color="var(--primary)" />
-                  고객사 연결 인물 빠른 선택 (클릭하여 추가/제외):
+                  고객사 연결 인물 선택 (클릭하여 추가/제외):
                 </span>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                   {availableCustomerContacts.map(c => {
@@ -850,7 +850,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
             </div>
           </div>
 
-          {/* 5. 실시간 진행 상태 게이지 */}
+          {/* 5. 진행 상태 게이지 */}
           {isGenerating && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', backgroundColor: 'var(--primary-light)', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--primary)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', fontWeight: 700, color: 'var(--primary)' }}>
@@ -974,7 +974,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
               계약서패키지 PDF 다운로드
             </button>
 
-            {/* 2. 이메일 발송 버튼 (원클릭 논스톱 발송) */}
+            {/* 2. 이메일 발송 버튼 (논스톱 발송) */}
             <button
               type="button"
               onClick={handleSendPackageEmail}

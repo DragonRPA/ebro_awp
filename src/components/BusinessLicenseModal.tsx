@@ -228,7 +228,7 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
     setIsSaving(true);
 
     try {
-      // 1) 스토리지 업로드 (증빙 영구 보존)
+      // 1) 스토리지 업로드 (증빙 보존)
       let fileUrl = '';
       try {
         const cleanNo = (analysisResult.bizRegNo || 'cert').replace(/[^0-9]/g, '');
@@ -467,7 +467,7 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
                 </button>
               </div>
 
-              {/* 🏛️ 국세청 홈택스 실시간 상호 진위확인 및 휴폐업 검증 카드 */}
+              {/* 🏛️ 국세청 홈택스 상호 진위확인 및 휴폐업 검증 카드 */}
               {(ntsResult || ntsValidation) && (
                 <div className={`p-3 rounded-lg border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
                   ntsResult?.status === 'ACTIVE'

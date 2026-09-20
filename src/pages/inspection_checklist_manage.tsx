@@ -2872,7 +2872,7 @@ export const InspectionChecklistManage: React.FC = () => {
                     />
                   </div>
 
-                  {/* 유튜브 비디오 ID 자동 감지 및 실시간 썸네일 미리보기 */}
+                  {/* 유튜브 비디오 ID 자동 감지 및 썸네일 미리보기 */}
                   {(() => {
                     const videoId = extractYoutubeVideoId(manualFormExternalUrl);
                     if (videoId) {

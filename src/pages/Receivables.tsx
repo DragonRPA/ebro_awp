@@ -51,7 +51,7 @@ export const Receivables: React.FC = () => {
   const [formDisplayName, setFormDisplayName] = useState('');
   const [formOccurredDate, setFormOccurredDate] = useState(new Date().toISOString().split('T')[0]);
 
-  // 🔍 모달 빠른 검색어 기반 실시간 필터링된 고객사 목록 (초성 검색 지원)
+  // 🔍 모달 검색어 기반 필터링된 고객사 목록 (초성 검색 지원)
   const modalFilteredCustomers = useMemo(() => {
     if (!modalSearchTerm.trim()) return customers;
     const q = modalSearchTerm.trim().toLowerCase();
@@ -78,7 +78,7 @@ export const Receivables: React.FC = () => {
     return sortCustomersByName(matched);
   }, [customers, sites, contracts, modalSearchTerm, modalSelectedCustId]);
 
-  // 🔍 모달 빠른 검색어 기반 실시간 필터링된 현장 목록
+  // 🔍 모달 검색어 기반 필터링된 현장 목록
   const modalFilteredSites = useMemo(() => {
     let baseSites = sites;
     if (modalSelectedCustId) {
@@ -107,7 +107,7 @@ export const Receivables: React.FC = () => {
     return matched;
   }, [sites, customers, contracts, modalSelectedCustId, modalSearchTerm, modalSelectedSiteId]);
 
-  // 🔍 모달 빠른 검색어 기반 실시간 필터링된 계약 목록
+  // 🔍 모달 검색어 기반 필터링된 계약 목록
   const modalFilteredContracts = useMemo(() => {
     const q = modalSearchTerm.trim().toLowerCase();
 
@@ -131,7 +131,7 @@ export const Receivables: React.FC = () => {
   }, [contracts, customers, sites, modalSelectedCustId, modalSelectedSiteId, modalSearchTerm]);
 
   // ── 양방향 계약/고객/현장 자동 확정 핸들러 ──
-  // 1. 빠른 검색창 입력 핸들러 (계약번호/고객사명/현장명/초성)
+  // 1. 검색창 입력 핸들러 (계약번호/고객사명/현장명/초성)
   const handleModalSearchChange = (val: string) => {
     setModalSearchTerm(val);
     const term = val.trim().toLowerCase();
@@ -258,7 +258,7 @@ export const Receivables: React.FC = () => {
     setEndDate(tempEndDate);
   };
 
-  // 빠른 기간 선택 헬퍼
+  // 기간 선택 헬퍼
   const setQuickPeriod = (type: 'MONTH' | '3MONTH' | 'YEAR' | 'ALL') => {
     const today = new Date();
     const todayStr = today.toISOString().split('T')[0];
@@ -516,7 +516,7 @@ export const Receivables: React.FC = () => {
         </div>
       </div>
 
-      {/* ── 2. 슬림 컴팩트 필터 패널 (상하 세로 스택 표준 & 빠른 기간 칩) ── */}
+      {/* ── 2. 슬림 컴팩트 필터 패널 (상하 세로 스택 표준 & 기간 칩) ── */}
       <div className="card" style={{ margin: 0, padding: '10px 14px' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'flex-end' }}>
           
@@ -608,9 +608,9 @@ export const Receivables: React.FC = () => {
             />
           </div>
 
-          {/* 빠른 기간 선택 칩 */}
+          {/* 기간 선택 칩 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-            <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>빠른 기간</label>
+            <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>기간</label>
             <div style={{ display: 'flex', gap: '3px' }}>
               {[
                 { label: '당월', type: 'MONTH' as const },
@@ -868,10 +868,10 @@ export const Receivables: React.FC = () => {
                   <Search size={14} /> 귀속 계약 / 고객사 / 현장 조회 & 선택 (현재 유효한 계약 현장)
                 </div>
 
-                {/* 빠른 검색창 */}
+                {/* 검색창 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>계약 / 고객사 / 현장 빠른 검색</label>
+                    <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>계약 / 고객사 / 현장 검색</label>
                     {modalSearchTerm.trim() && (
                       <span style={{ fontSize: '10.5px', color: 'var(--primary)', fontWeight: 700 }}>
                         검색 결과: 고객사 {modalFilteredCustomers.length}건 | 현장 {modalFilteredSites.length}건 | 계약 {modalFilteredContracts.length}건

@@ -134,7 +134,7 @@ export async function registerPrintStation(station: {
 
   await db.awaitPendingWrites();
 
-  // 현재 PC의 로컬 에이전트에도 즉시 영구 저장
+  // 현재 PC의 로컬 에이전트에도 즉시 저장
   await saveStationConfigToAgent({
     stationId: payload.id,
     stationName: payload.stationName,

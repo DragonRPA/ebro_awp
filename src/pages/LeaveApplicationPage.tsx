@@ -124,7 +124,7 @@ export const LeaveApplicationPage: React.FC = () => {
     remainingDays: 15
   };
 
-  // 신청 일수 실시간 계산
+  // 신청 일수 계산
   const calculateRequestedDays = () => {
     if (leaveType === 'HALF_AM' || leaveType === 'HALF_PM') return 0.5;
     if (!leaveStartDate || !leaveEndDate) return 1.0;
@@ -437,7 +437,7 @@ export const LeaveApplicationPage: React.FC = () => {
               </div>
             )}
 
-            {/* 소진 일수 실시간 안내 배너 */}
+            {/* 소진 일수 안내 배너 */}
             <div style={{
               padding: '10px 12px',
               borderRadius: '6px',

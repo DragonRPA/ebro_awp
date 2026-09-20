@@ -3,13 +3,13 @@
 // │ 출고 요청 (통합) — smart_dispatch4  (v1.9.2.Build.216)                  │
 // │                                                                         │
 // │ [WTT 100회 스트레스 테스트 7대 결함 전수 해결]                           │
-// │  1. DB 무누락 영구 저장 (F5 시 증발 방지, 헌장 1.2, 5.2 준수)           │
+// │  1. DB 무누락 저장 (F5 시 증발 방지, 헌장 1.2, 5.2 준수)           │
 // │  2. 실제 배차 대장(deliveries) 및 계약 연동 (saveSmartDispatch 연결)      │
 // │  3. 대차(EXCHANGE) 회수 대상 전자산 1:1 매핑 패널 (헌장 2.3, 4.2 준수) │
 // │  4. 운송비 부담 주체(paidBy) 귀속선 패널 (헌장 5.5 준수)                 │
 // │  5. 현장 안전옵션/보양 4종 체크리스트 탑재                               │
 // │  6. 다수 장비 시차 출고 분할 메모 지원                                   │
-// │  7. 9대 필수 스키마 실시간 방어 차단 실드 & 정형화 서식 뷰 복원          │
+// │  7. 9대 필수 스키마 방어 차단 실드 & 정형화 서식 뷰 복원          │
 // └─────────────────────────────────────────────────────────────────────────┘
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
@@ -165,7 +165,7 @@ export const SmartDispatch4: React.FC = () => {
 
   const canSave = hasPermission('smart_dispatch', 'save') || hasPermission('delivery', 'save') || hasPermission('smart_dispatch4', 'save');
 
-  // 🖨️ 원격 분산 인쇄 큐 타겟 스테이션 설정 (1회 선택 시 영구 기억)
+  // 🖨️ 원격 분산 인쇄 큐 타겟 스테이션 설정 (1회 선택 시 기억)
   const PREFERRED_DISPATCH_STATION_KEY = 'preferred_print_station_dispatch';
   const [isAgentPrinting, setIsAgentPrinting] = useState<boolean>(false);
 
@@ -233,7 +233,7 @@ export const SmartDispatch4: React.FC = () => {
   const [queue, setQueue] = useState<DraftOrder[]>([]);
   const [selectedQueueIds, setSelectedQueueIds] = useState<Set<string>>(new Set());
 
-  // ── 통화 업로드 및 실시간 파이프라인 로그 ──────────────────────────────────
+  // ── 통화 업로드 및 파이프라인 로그 ──────────────────────────────────
   const [callUploads, setCallUploads] = useState<CallUploadRecord[]>([]);
   const [pipelineLogs, setPipelineLogs] = useState<PipelineLogRecord[]>([]);
   const [logFilter, setLogFilter] = useState<'ALL' | 'SUCCESS' | 'INFO' | 'WARN' | 'ERROR'>('ALL');
@@ -369,18 +369,18 @@ export const SmartDispatch4: React.FC = () => {
     loadDrafts();
     loadUploadsAndLogs();
 
-    // 1. 통화 업로드 실시간 구독 (INSERT, UPDATE, DELETE)
+    // 1. 통화 업로드 구독 (INSERT, UPDATE, DELETE)
     const unsubUploads = subscribeCallUploads(() => {
       loadUploadsAndLogs();
       loadDrafts();
     });
 
-    // 2. 파이프라인 실시간 로그 구독 (INSERT)
+    // 2. 파이프라인 로그 구독 (INSERT)
     const unsubLogs = subscribePipelineLogs((newLog) => {
       setPipelineLogs(prev => [newLog, ...prev.filter(l => l.id !== newLog.id)].slice(0, 150));
     });
 
-    // 3. 의뢰 초안 실시간 구독
+    // 3. 의뢰 초안 구독
     let unsubDrafts: (() => void) | undefined;
     (async () => {
       try {
@@ -1387,7 +1387,7 @@ export const SmartDispatch4: React.FC = () => {
   const passCount = useMemo(() => validationRules.filter(r => r.status === 'VALID').length, [validationRules]);
   const isFormValid = invalidRules.length === 0;
 
-  // ── 출고 지시 (DB 무누락 영구 저장 & 방어 차단) ───────────────────────────
+  // ── 출고 지시 (DB 무누락 저장 & 방어 차단) ───────────────────────────
   const handleSaveDraft = async () => {
     // 🛡️ 1차 방어 차단: 필수 스키마 누락 체크
     if (!isFormValid) {
@@ -1809,7 +1809,7 @@ export const SmartDispatch4: React.FC = () => {
     }
   };
 
-  // ── 🌟 [WTT 결함 해결 2] 출고 확정 시 실제 배차 대장(deliveries) 실시간 생성 ──
+  // ── 🌟 [WTT 결함 해결 2] 출고 확정 시 실제 배차 대장(deliveries) 생성 ──
   const handleSubmitDraft = async (draft: DraftOrder) => {
     if (draft.isNewCustomer && !draft.customerRegistered) {
       showToast('신규 고객 정식 등록 전 배차 차단 — 관리부 등록 완료 후 처리 가능합니다.', 'error');
@@ -1963,13 +1963,13 @@ export const SmartDispatch4: React.FC = () => {
     }
   };
 
-  // ── 파이프라인 디버깅용 실시간 테스트 로그 발행 ────────────
+  // ── 파이프라인 디버깅용 테스트 로그 발행 ────────────
   const handleSendTestLog = async () => {
     try {
       await insertPipelineLog({
         eventType: 'DEBUG_SIGNAL',
         level: 'INFO',
-        message: `실시간 파이프라인 모니터 수동 진단 신호 (${new Date().toLocaleTimeString('ko-KR')})`,
+        message: `파이프라인 모니터 수동 진단 신호 (${new Date().toLocaleTimeString('ko-KR')})`,
         payload: {
           testBy: currentUser?.id || 'sys-admin',
           source: 'smart_dispatch4',
@@ -3163,7 +3163,7 @@ export const SmartDispatch4: React.FC = () => {
 
             {openBlocks.has('EQUIPMENT') && (
               <div className="dispatch4-block-body">
-                {/* 상단: 피트 탭 및 빠른 검색 */}
+                {/* 상단: 피트 탭 및 검색 */}
                 <div className="flex flex-col gap-2 pb-2 border-b border-slate-800">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex gap-1.5 overflow-x-auto pb-0.5 flex-1">
@@ -3297,7 +3297,7 @@ export const SmartDispatch4: React.FC = () => {
                           key={idx}
                           className="flex items-center justify-between bg-slate-900 hover:bg-slate-850 px-3 py-2 rounded-lg border border-slate-700/80 shadow-sm transition-colors gap-2"
                         >
-                          {/* 좌측: 장비 모델명, 제원 힌트 배지(ft, 제조사), 가용/임차 실시간 배지 */}
+                          {/* 좌측: 장비 모델명, 제원 힌트 배지(ft, 제조사), 가용/임차 배지 */}
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <div className="w-6 h-6 rounded bg-emerald-950/70 border border-emerald-500/40 flex items-center justify-center flex-shrink-0">
                               <Package size={13} className="text-emerald-400" style={{ width: 13, height: 13, display: 'block' }} />
@@ -3314,7 +3314,7 @@ export const SmartDispatch4: React.FC = () => {
                                   {spec.manufacturer}
                                 </span>
                               )}
-                              {/* 🌟 가용재고 vs 신청수량 대조 실시간 상태 배지 */}
+                              {/* 🌟 가용재고 vs 신청수량 대조 상태 배지 */}
                               {isShortage ? (
                                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-950/90 text-amber-300 border border-amber-500/60 flex items-center gap-1 font-mono whitespace-nowrap flex-shrink-0">
                                   <span>가용 {availCount}대</span>
@@ -3677,7 +3677,7 @@ export const SmartDispatch4: React.FC = () => {
                         onClick={handleSaveOptionsToCurrentSite}
                         disabled={!selectedSite}
                         className="flex items-center gap-1 px-2 py-1 rounded text-[10.5px] font-bold bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 hover:text-white border border-emerald-700/60 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                        title="현재 등록된 옵션을 이 현장의 기본 옵션으로 영구 저장"
+                        title="현재 등록된 옵션을 이 현장의 기본 옵션으로 저장"
                       >
                         <Save className="w-3 h-3 text-emerald-400" />
                         <span>현장옵션 저장</span>
@@ -3852,7 +3852,7 @@ export const SmartDispatch4: React.FC = () => {
               </span>
             </div>
 
-            {/* 체크리스트 9종 실시간 표출 (2열 슬림 그리드) */}
+            {/* 체크리스트 9종 표출 (2열 슬림 그리드) */}
             <div className="dispatch4-shield-grid mt-2">
               {validationRules.map(rule => {
                 const isValid = rule.status === 'VALID';
@@ -3890,7 +3890,7 @@ export const SmartDispatch4: React.FC = () => {
             </div>
           </div>
 
-          {/* 📄 [2] 정형화된 출고의뢰서 실시간 요약 (Dossier Preview) */}
+          {/* 📄 [2] 정형화된 출고의뢰서 요약 (Dossier Preview) */}
           <div className="bg-slate-900 border border-slate-700/80 rounded-xl p-3 shadow-lg select-text flex flex-col gap-2.5">
             {/* 서식 헤더 */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
@@ -3899,7 +3899,7 @@ export const SmartDispatch4: React.FC = () => {
                   {(currentTenant?.tradeName || 'E-BRO LIFT').toUpperCase()} ERP DISPATCH ORDER
                 </span>
                 <h3 className="text-xs font-black text-white tracking-tight">
-                  출고 요청서 (실시간 정형화)
+                  출고 요청서 (정형화)
                 </h3>
               </div>
               <div className="flex items-center gap-2">
@@ -4098,7 +4098,7 @@ export const SmartDispatch4: React.FC = () => {
           </div>
         </div>
 
-        {/* 🚀 [3] Gutenberg Z-Pattern Terminal Action — 최하단 영구 고정 완결 바 */}
+        {/* 🚀 [3] Gutenberg Z-Pattern Terminal Action — 최하단 고정 완결 바 */}
         <div className="dispatch4-terminal-bar">
           <div className="flex items-center gap-2">
             <button
@@ -4733,7 +4733,7 @@ export const SmartDispatch4: React.FC = () => {
           )}
         </div>
 
-        {/* 3. 하단 실시간 파이프라인 로그 모니터 아코디언 */}
+        {/* 3. 하단 파이프라인 로그 모니터 아코디언 */}
         <PipelineConsole
           logs={pipelineLogs}
           onClearLogs={() => setPipelineLogs([])}

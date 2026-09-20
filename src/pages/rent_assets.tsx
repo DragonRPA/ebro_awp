@@ -137,7 +137,7 @@ export const RentAssets: React.FC = () => {
     setSubleaseSiteName('');
   };
 
-  // 협의 완료 건을 임차 자산 대장으로 원클릭 등록
+  // 협의 완료 건을 임차 자산 대장으로 등록
   const handleConvertSubleaseToAsset = async (nego: SubleaseNegotiation) => {
     if (!nego.modelName) return;
     const vendor = vendors.find(v => v.id === nego.vendorId);
@@ -219,7 +219,7 @@ export const RentAssets: React.FC = () => {
     return combined.sort((a, b) => a.localeCompare(b));
   }, [vendors, rentedAssets]);
 
-  // 1:1 대사 계산 엔진 (3단계 스마트 매칭 & 5대 교차 검증)
+  // 1:1 대사 계산 엔진 (3단계 매칭 & 5대 교차 검증)
   const reconcileResults: ReconcileResultItem[] = React.useMemo(() => {
     const results: ReconcileResultItem[] = [];
     const matchedAssetIds = new Set<string>();
@@ -304,7 +304,7 @@ export const RentAssets: React.FC = () => {
         const rDays = calcDaysBetween(rStart, rEnd);
         const mDays = calcDaysBetween(mStart, effectiveEnd);
 
-        // 1. 자사 기준 예상 약정금액 (expectedAmount) 스마트 산출
+        // 1. 자사 기준 예상 약정금액 (expectedAmount) 산출
         let expected = baseMonthlyFee;
         const validReturnDays = (isReturned && mReturn) ? calcDaysBetween(mStart || rStart, mReturn) : 0;
         const targetDays = validReturnDays > 0 ? validReturnDays : (mDays > 0 && mDays < 30 ? mDays : rDays);
@@ -669,7 +669,7 @@ export const RentAssets: React.FC = () => {
           const scanNotice = parseResult.isImageScan ? ' (스캔 이미지 자동 인식)' : '';
           showToast(`${vendorNotice} PDF 파싱 완료${scanNotice} (${parseResult.totalParsedCount}건, ₩${parseResult.totalParsedAmount.toLocaleString()}원)`);
         } else {
-          // 엑셀 파일 (.xlsx / .xls) 스마트 범용 파서 연동
+          // 엑셀 파일 (.xlsx / .xls) 범용 파서 연동
           const workbook = XLSX.read(new Uint8Array(data), { type: 'array' });
           // 선택된 정산연월(selectedYm, 예: '2026-08')에 가장 부합하는 시트 동적 탐색 (중부/하이로드 등 30개 시트 지원)
           const [selYear, selMonth] = (selectedYm || new Date().toISOString().slice(0, 7)).split('-');
@@ -787,7 +787,7 @@ export const RentAssets: React.FC = () => {
     showToast(`자사 임차 기간이 ${newEndDate}로 단축 반영되었습니다.`);
   };
 
-  // 💡 [약정기간 동기화] 자사 임차 기간을 임차처 청구 기간으로 원클릭 동기화 반영 (오차 ₩0 정상 일치 종결)
+  // 💡 [약정기간 동기화] 자사 임차 기간을 임차처 청구 기간으로 동기화 반영 (오차 ₩0 정상 일치 종결)
   const handleSyncAssetPeriod = async (assetId: string, newStartDate: string, newEndDate: string) => {
     if (!assetId || !newStartDate || !newEndDate) return;
     const nowIso = new Date().toISOString();
@@ -1483,7 +1483,7 @@ export const RentAssets: React.FC = () => {
         </button>
       </div>
 
-      {/* 📊 임차 장비 보유 및 월 임차료 실시간 요약 바 (임차자산 대장 탭 전용 노출로 정산화면 슬림화) */}
+      {/* 📊 임차 장비 보유 및 월 임차료 요약 바 (임차자산 대장 탭 전용 노출로 정산화면 슬림화) */}
       {activeTab === 'CURRENT' && (() => {
         const activeRentedList = rentedAssets.filter(a => !a.actualRentReturnDate && a.status !== 'RENTED_RETURNED');
         const returnedList = rentedAssets.filter(a => Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED');
@@ -2110,7 +2110,7 @@ export const RentAssets: React.FC = () => {
                                   </button>
                                 )}
 
-                                {/* [약정기간 동기화] 버튼 (임차처 청구 기간으로 원클릭 동기화 및 정상 정산 종결) */}
+                                {/* [약정기간 동기화] 버튼 (임차처 청구 기간으로 동기화 및 정상 정산 종결) */}
                                 {canSyncPeriod && (
                                   <button
                                     type="button"
@@ -2120,7 +2120,7 @@ export const RentAssets: React.FC = () => {
                                       backgroundColor: '#2563eb', border: '1px solid #1d4ed8', color: '#ffffff', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
                                       boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)'
                                     }}
-                                    title={`자사 약정 기간을 청구 기간(${stmt!.rentStart} ~ ${stmt!.rentEnd})으로 원클릭 동기화`}
+                                    title={`자사 약정 기간을 청구 기간(${stmt!.rentStart} ~ ${stmt!.rentEnd})으로 동기화`}
                                   >
                                     약정기간 동기화
                                   </button>

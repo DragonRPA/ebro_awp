@@ -128,7 +128,7 @@ export const SmartDispatchConversationalStudio: React.FC<SmartDispatchConversati
     return isOptionsChangedFromSite(targetSite, paidOptions, protection, checkedSpecs);
   }, [selectedSite, pendingSite, paidOptions, protection, checkedSpecs]);
 
-  // 고객사 필터 (완성형, 초성 및 복자음 분해 검색 실시간 지원)
+  // 고객사 필터 (완성형, 초성 및 복자음 분해 검색 지원)
   const filteredCustomers = useMemo(() => {
     if (!customerSearchText.trim()) return (customers || []).slice(0, 10);
     const q = customerSearchText.trim();
@@ -498,7 +498,7 @@ export const SmartDispatchConversationalStudio: React.FC<SmartDispatchConversati
       saveOptionsToSite
     });
     setCurrentStep('CONFIRM');
-    speakPrompt('입력된 내용이 우측 폼에 실시간 반영되었습니다. 내용을 확인 후 출고지시를 저장하세요.');
+    speakPrompt('입력된 내용이 우측 폼에 반영되었습니다. 내용을 확인 후 출고지시를 저장하세요.');
   };
 
   // 음성인식 (STT) 통합 디스패처 (각 단계별 검색/입력 객체에 직결)
@@ -565,7 +565,7 @@ export const SmartDispatchConversationalStudio: React.FC<SmartDispatchConversati
       if (dt) {
         handleConfirmDateTime(dt.date, dt.time, dt.isAsap);
       } else {
-        speakPrompt('일시를 인식하지 못했습니다. 빠른 선택 칩을 누르시거나 직접 입력해주세요.');
+        speakPrompt('일시를 인식하지 못했습니다. 선택 칩을 누르시거나 직접 입력해주세요.');
       }
       return;
     }
@@ -828,7 +828,7 @@ export const SmartDispatchConversationalStudio: React.FC<SmartDispatchConversati
         </div>
       )}
 
-      {/* 4. 각 단계별 스마트 통합 컨트롤러 (빨간색 중복 바 완전 제거 & 노란색 검색창에 음성 직결) */}
+      {/* 4. 각 단계별 통합 컨트롤러 (빨간색 중복 바 완전 제거 & 노란색 검색창에 음성 직결) */}
       <div style={{
         padding: '12px',
         backgroundColor: 'var(--bg-card)',
@@ -1369,10 +1369,10 @@ export const SmartDispatchConversationalStudio: React.FC<SmartDispatchConversati
               )}
             </div>
 
-            {/* 3-3. 장비 규격 빠른 추가 칩 (클릭 시 1대 추가 또는 카운트 증가) */}
+            {/* 3-3. 장비 규격 추가 칩 (클릭 시 1대 추가 또는 카운트 증가) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <span style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                장비 규격 빠른 추가 (클릭 시 수량 증가):
+                장비 규격 추가 (클릭 시 수량 증가):
               </span>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                 {EQUIPMENT_SPEC_MATRIX.map(spec => {
@@ -1432,7 +1432,7 @@ export const SmartDispatchConversationalStudio: React.FC<SmartDispatchConversati
           </div>
         )}
 
-        {/* ── 4단계: 일시 컨트롤러 (빠른 칩 + 피커 + 음성 마이크) ── */}
+        {/* ── 4단계: 일시 컨트롤러 (칩 + 피커 + 음성 마이크) ── */}
         {currentStep === 'DATETIME' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {/* 퀵 프리셋 칩 */}
@@ -1680,7 +1680,7 @@ export const SmartDispatchConversationalStudio: React.FC<SmartDispatchConversati
             )}
 
             <div style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <CheckCircle2 size={13} /> 우측 폼에 모든 정보가 실시간 동기화되었습니다. 우측 상단의 [출고지시] 버튼으로 저장하세요.
+              <CheckCircle2 size={13} /> 우측 폼에 모든 정보가 동기화되었습니다. 우측 상단의 [출고지시] 버튼으로 저장하세요.
             </div>
           </div>
         )}

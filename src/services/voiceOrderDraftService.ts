@@ -1119,7 +1119,7 @@ export function parseEquipmentVoiceInput(text: string): ParsedEquipmentResult | 
 }
 
 // ─────────────────────────────────────────────────────────────
-// 📅 5. 스마트 하차일시 정규화 엔진 (Smart DateTime Normalizer)
+// 📅 5. 하차일시 정규화 엔진 (Smart DateTime Normalizer)
 // ─────────────────────────────────────────────────────────────
 export interface ParsedDateTimeResult {
   date: string;         // YYYY-MM-DD
@@ -1507,7 +1507,7 @@ export function isOptionsChangedFromSite(
 }
 
 // ─────────────────────────────────────────────────────────────
-// 🎯 5대 출고의뢰 핵심 항목 실시간 충족 검증 (OrderSlotsStatus)
+// 🎯 5대 출고의뢰 핵심 항목 충족 검증 (OrderSlotsStatus)
 // ─────────────────────────────────────────────────────────────
 export interface SlotItemStatus {
   isComplete: boolean;
@@ -1533,7 +1533,7 @@ export interface OrderSlotsStatus {
 }
 
 /**
- * 음성 누적 임시저장 데이터에서 5대 필수 항목 충족 여부 실시간 평가
+ * 음성 누적 임시저장 데이터에서 5대 필수 항목 충족 여부 평가
  */
 export function evaluateOrderSlotsStatus(draft: VoiceOrderDraft): OrderSlotsStatus {
   // 1. 거래처 (고객사)

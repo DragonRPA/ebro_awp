@@ -176,7 +176,7 @@ export const TruckDispatch: React.FC = () => {
     }
   };
 
-  // 🖨️ 분산 인쇄 큐 상태 배지 헬퍼 (프린터1/프린터2 무인 출력 상태 실시간 표출)
+  // 🖨️ 분산 인쇄 큐 상태 배지 헬퍼 (프린터1/프린터2 무인 출력 상태 표출)
   const getPrintQueueBadge = (delivery: Delivery) => {
     const c = contracts.find(ct => ct.id === delivery.contractId);
     const cNo = c?.contractNo;
@@ -1049,7 +1049,7 @@ export const TruckDispatch: React.FC = () => {
       // 💡 [사장님 지시] 원격 Supabase DB 쓰기가 100% 완료될 때까지 동기 대기 (Zero Silent Failures)
       await db.awaitPendingWrites();
 
-      // 💡 [사장님 지시] 단순 대기만 하지 않고, 실제 DB를 다시 SELECT 읽기조회하여 목표 금액으로 100% 정상 수정되었는지 실시간 검증 (Read-Back Verification)
+      // 💡 [사장님 지시] 단순 대기만 하지 않고, 실제 DB를 다시 SELECT 읽기조회하여 목표 금액으로 100% 정상 수정되었는지 검증 (Read-Back Verification)
       const verifiedDelivery = db.deliveries.find(d => d.id === editingDelivery.id);
       const verifiedCost = verifiedDelivery ? (verifiedDelivery.deliveryCost || (verifiedDelivery.assignedVehicles && verifiedDelivery.assignedVehicles[0]?.deliveryCost) || 0) : 0;
 
@@ -1060,7 +1060,7 @@ export const TruckDispatch: React.FC = () => {
       // 2. 전체 데이터 및 state 갱신
       await refreshAllData();
 
-      // 3. 1:1 대사 reconPairs 실시간 차액 및 자동 짝짓기 재계산
+      // 3. 1:1 대사 reconPairs 차액 및 자동 짝짓기 재계산
       setReconPairs(prev => prev.map(p => {
         if (p.systemDelivery?.id === editingDelivery.id) {
           const excelCost = p.excelCost || 0;
@@ -1137,7 +1137,7 @@ export const TruckDispatch: React.FC = () => {
     setReconNotificationMsg(`✅ ${sysD.id} 배차건과 엑셀 행이 1:1 수동 대사 완료 처리되었습니다.`);
   };
 
-  // 📅 기간 선택 피커 헬퍼 (월별 정산 원클릭 지원)
+  // 📅 기간 선택 피커 헬퍼 (월별 정산 지원)
   const handleSetReconMonth = (year: number, month: number) => {
     const startStr = `${year}-${String(month).padStart(2, '0')}-01`;
     const lastDay = new Date(year, month, 0).getDate();
@@ -1175,7 +1175,7 @@ export const TruckDispatch: React.FC = () => {
     }
   };
 
-  // 🏢 운송사별 미지급(대사 대상) 건수 및 금액 실시간 집계 (선택된 기간 기준)
+  // 🏢 운송사별 미지급(대사 대상) 건수 및 금액 집계 (선택된 기간 기준)
   const unpaidStatsByCompany = useMemo(() => {
     const inPeriodDeliveries = deliveries.filter(d => {
       if (getNormalizedDeliveryStatus(d) !== 'DELIVERED') return false;
@@ -1280,7 +1280,7 @@ export const TruckDispatch: React.FC = () => {
     setReconNotificationMsg(`🔍 [${selectedReconCompany === 'ALL' ? '전체 거래처' : selectedReconCompany}] (${reconStartDate} ~ ${reconEndDate} / ${reconPaymentFilter === 'UNPAID' ? '미지급건' : reconPaymentFilter === 'PAID' ? '지급완료건' : '전체'}) 조회가 갱신되었습니다. (대사 정보 초기화됨)`);
   };
 
-  // 거래명세서 엑셀 파싱 및 스마트 1:1 페어링 파이프라인 (다변형 서식/날짜 정규화 & 2단계 지능형 매칭 엔진)
+  // 거래명세서 엑셀 파싱 및 1:1 페어링 파이프라인 (다변형 서식/날짜 정규화 & 2단계 지능형 매칭 엔진)
   const handleExcelFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1809,7 +1809,7 @@ export const TruckDispatch: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  // ⚡ 차액 원클릭 승인 (MISMATCH -> MATCHED 확정)
+  // ⚡ 차액 승인 (MISMATCH -> MATCHED 확정)
   const handleApproveMismatch = async (pairId: string) => {
     const pair = reconPairs.find(p => p.pairId === pairId);
     if (!pair || !pair.systemDelivery) return;
@@ -2052,7 +2052,7 @@ export const TruckDispatch: React.FC = () => {
     }
   };
 
-  // 대사 통계 실시간 집계
+  // 대사 통계 집계
   const reconStats = useMemo(() => {
     const isPairMode = reconPairs.length > 0;
     
@@ -3144,7 +3144,7 @@ export const TruckDispatch: React.FC = () => {
                               flexShrink: 0,
                               marginLeft: '6px'
                             }}
-                            title="해당 하차지 실시간 날씨 및 주간 예보 보기"
+                            title="해당 하차지 날씨 및 주간 예보 보기"
                           >
                             <Sun size={11} color="#F59E0B" /> 날씨
                           </button>
@@ -3632,10 +3632,10 @@ export const TruckDispatch: React.FC = () => {
                     );
                   })()}
 
-                  {/* 💬 최하단: 스마트 출고 요청 자연어 원본 텍스트 박스 */}
+                  {/* 💬 최하단: 출고 요청 자연어 원본 텍스트 박스 */}
                   <div style={{ marginBottom: '20px', padding: '14px 16px', backgroundColor: 'rgba(59,130,246,0.06)', border: '1.5px solid rgba(59,130,246,0.25)', borderRadius: '10px' }}>
                     <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <MessageSquare size={16} /> 💬 스마트 출고 요청 자연어 원본 텍스트 (배차 판단 참고용)
+                      <MessageSquare size={16} /> 💬 출고 요청 자연어 원본 텍스트 (배차 판단 참고용)
                     </div>
                     <div style={{ fontSize: '12.5px', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', lineHeight: '1.6', fontFamily: 'Consolas, Monaco, monospace', backgroundColor: 'var(--bg-card)', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                       {selectedDelivery.rawText || selectedDelivery.memo || '요청된 자연어 원문이 없습니다.'}
@@ -3763,7 +3763,7 @@ export const TruckDispatch: React.FC = () => {
                   </span>
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>
-                  스마트폰 또는 PC에서 녹음된 통화 파일(.m4a, .mp3, .wav)을 업로드하면 AI가 운송사, 차종, 운송비, 특약을 자동 추출합니다.
+                  폰 또는 PC에서 녹음된 통화 파일(.m4a, .mp3, .wav)을 업로드하면 AI가 운송사, 차종, 운송비, 특약을 자동 추출합니다.
                 </div>
               </div>
 
@@ -5351,7 +5351,7 @@ export const TruckDispatch: React.FC = () => {
         </div>
       )}
 
-      {/* 💡 [사장님 지시] 배차 운송료 금액 수정 모달 (DB 실시간 동기화) */}
+      {/* 💡 [사장님 지시] 배차 운송료 금액 수정 모달 (DB 동기화) */}
       {showCostEditModal && editingDelivery && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px' }}>
           <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '420px', boxShadow: '0 10px 30px rgba(0,0,0,0.3)' }}>
@@ -5394,7 +5394,7 @@ export const TruckDispatch: React.FC = () => {
                 <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 900, color: 'var(--primary)' }}>₩</span>
               </div>
               <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '6px' }}>
-                💡 변경 즉시 원격 DB(Supabase) `deliveries` 테이블의 `deliveryCost`에 저장되고 실시간 반영됩니다.
+                💡 변경 즉시 원격 DB(Supabase) `deliveries` 테이블의 `deliveryCost`에 저장되고 반영됩니다.
               </div>
             </div>
 
@@ -6007,7 +6007,7 @@ export const TruckDispatch: React.FC = () => {
         </div>
       )}
 
-      {/* ☀️ 운송 하차지 실시간 날씨 및 주간 예보 모달 */}
+      {/* ☀️ 운송 하차지 날씨 및 주간 예보 모달 */}
       <DestinationWeatherModal
         isOpen={showDestWeatherModal}
         onClose={() => setShowDestWeatherModal(false)}

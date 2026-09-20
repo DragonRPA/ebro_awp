@@ -120,7 +120,7 @@ export async function testNtsConnection(serviceKey?: string): Promise<{ success:
 }
 
 /**
- * 4. 단일 사업자등록번호 국세청 상태 실시간 조회
+ * 4. 단일 사업자등록번호 국세청 상태 조회
  */
 export async function checkSingleNtsStatus(bizNo: string, serviceKey?: string): Promise<NtsStatusResult> {
   const cleanNo = (bizNo || '').replace(/[^0-9]/g, '');
