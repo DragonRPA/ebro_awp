@@ -298,6 +298,12 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="dashboard-page" style={{ maxWidth: '850px', margin: '0 auto', paddingBottom: '40px' }}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        details > summary::-webkit-details-marker { display: none; }
+        details[open] summary ~ * { animation: slideDown 0.3s ease-in-out; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+      `}} />
+  
       
       {/* 웰컴 상단 바 */}
       <div className="card" style={{
@@ -401,10 +407,12 @@ export const Dashboard: React.FC = () => {
 
             {/* 0. 💡 영업부 내 의뢰 출고 진행 현황 카드 (운송 완료 전 4대 지표 배지 피드) */}
             {showSalesPipelineFeed && (
-              <div style={{
+              <details open style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
                 borderLeft: '5px solid #2563eb', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
               }}>
+<summary style={{ cursor: "pointer", listStyle: "none", outline: "none" }}>
+
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <span style={{ fontSize: '11.5px', fontWeight: '800', color: 'var(--primary)', backgroundColor: 'rgba(37,99,235,0.12)', padding: '3px 9px', borderRadius: '4px', border: '1px solid rgba(37,99,235,0.3)' }}>
                     출고 진행 현황
@@ -416,6 +424,9 @@ export const Dashboard: React.FC = () => {
                 <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Truck size={18} color="#2563eb" /> {userRole === 'SALES' ? '내 의뢰 출고 진행 현황' : '영업 의뢰 출고 진행 현황'}
                 </h4>
+</summary>
+<div className="details-content">
+
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: '1.5' }}>
                   현장 운송 완료(인도) 전 진행 중인 의뢰의 <strong>4대 핵심 지표(배차, 장비할당, 출고검수, 계약서패키지)</strong> 완료 여부입니다.
                 </p>
@@ -560,15 +571,19 @@ export const Dashboard: React.FC = () => {
                 >
                   출고 진행 의뢰 전체 보기 ({pendingSalesContracts.length}건) <ArrowRight size={13} />
                 </button>
-              </div>
+              
+</div>
+</details>
             )}
 
             {/* 1. 계약 장비 할당 대기 피드 카드 (장비할당/배차/주기장 담당자 표출) */}
             {showAssignFeed && (
-              <div style={{
+              <details open style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
                 borderLeft: '5px solid #8b5cf6', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
               }}>
+<summary style={{ cursor: "pointer", listStyle: "none", outline: "none" }}>
+
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <span style={{ fontSize: '11.5px', fontWeight: '800', color: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.12)', padding: '3px 9px', borderRadius: '4px', border: '1px solid rgba(139,92,246,0.3)' }}>
                     장비 할당 (매핑)
@@ -580,6 +595,9 @@ export const Dashboard: React.FC = () => {
                 <h4 style={{ margin: '0 0 10px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Layers size={18} color="#8b5cf6" /> 계약 장비 할당 대기
                 </h4>
+</summary>
+<div className="details-content">
+
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: '1.5' }}>
                   계약 체결 후 관리번호 미매핑 슬롯 <strong>{unassignedContractAssets.length}대</strong> 대기. 가용 재고에서 장비 배정 필요.
                 </p>
@@ -622,15 +640,19 @@ export const Dashboard: React.FC = () => {
                 <button className="btn-primary" onClick={() => setActiveTab('dispatch_assign')} style={{ backgroundColor: '#8b5cf6', border: 'none', fontSize: '12.5px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   장비 할당 이동 <ArrowRight size={13} />
                 </button>
-              </div>
+              
+</div>
+</details>
             )}
 
             {/* 2. 출고 PDI 검수 승인 대기 피드 카드 (검수/정비/출고 담당자 표출) */}
             {showOutboundInspectionFeed && (
-              <div style={{
+              <details open style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
                 borderLeft: '5px solid #10b981', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
               }}>
+<summary style={{ cursor: "pointer", listStyle: "none", outline: "none" }}>
+
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <span style={{ fontSize: '11.5px', fontWeight: '800', color: '#10b981', backgroundColor: 'rgba(16,185,129,0.12)', padding: '3px 9px', borderRadius: '4px', border: '1px solid rgba(16,185,129,0.3)' }}>
                     출고 검수 관리
@@ -642,6 +664,9 @@ export const Dashboard: React.FC = () => {
                 <h4 style={{ margin: '0 0 10px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <CheckSquare size={18} color="#10b981" /> 출고 PDI 검수 승인 대기
                 </h4>
+</summary>
+<div className="details-content">
+
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: '1.5' }}>
                   장비 할당 완료 후 출고 전 PDI 안전점검 및 승인 대기 <strong>{pendingOutboundInspections.length}건</strong>. 승인 시 자산 상태가 대여중으로 전환.
                 </p>
@@ -682,15 +707,19 @@ export const Dashboard: React.FC = () => {
                 <button className="btn-primary" onClick={() => setActiveTab('outbound_inspections')} style={{ backgroundColor: 'var(--success)', border: 'none', fontSize: '12.5px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   출고 검수 이동 <ArrowRight size={13} />
                 </button>
-              </div>
+              
+</div>
+</details>
             )}
 
             {/* 3. 출고/회수 배차 대기 피드 카드 (배차 저장/실행 권한자 표출) */}
             {showDeliveryFeed && (
-              <div style={{
+              <details open style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
                 borderLeft: '5px solid #06b6d4', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
               }}>
+<summary style={{ cursor: "pointer", listStyle: "none", outline: "none" }}>
+
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <span style={{ fontSize: '11.5px', fontWeight: '800', color: '#06b6d4', backgroundColor: 'rgba(6,182,212,0.12)', padding: '3px 9px', borderRadius: '4px', border: '1px solid rgba(6,182,212,0.3)' }}>
                     배차 관리
@@ -702,6 +731,9 @@ export const Dashboard: React.FC = () => {
                 <h4 style={{ margin: '0 0 10px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Truck size={18} color="#06b6d4" /> 출고/회수 배차 대기
                 </h4>
+</summary>
+<div className="details-content">
+
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: '1.5' }}>
                   차량 미배정 배차 요청 <strong>{requestedDeliveries.length}건</strong> 대기. 운송 기사 수배 및 차량 배차 처리 필요.
                 </p>
@@ -748,17 +780,21 @@ export const Dashboard: React.FC = () => {
                 <button className="btn-primary" onClick={() => setActiveTab('delivery')} style={{ backgroundColor: '#06b6d4', border: 'none', fontSize: '12.5px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   배차 관리 이동 <ArrowRight size={13} />
                 </button>
-              </div>
+              
+</div>
+</details>
             )}
 
             {/* 2. 전사 미수금 회수 카드 (수납/청구 저장/실행 권한자 표출) */}
             
             {/* 신규: 오늘 청구 발행 대기 카드 */}
             {showPendingDueBillingFeed && (
-              <div style={{
+              <details open style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
                 borderLeft: '5px solid #f97316', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
               }}>
+<summary style={{ cursor: "pointer", listStyle: "none", outline: "none" }}>
+
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <span style={{ fontSize: '11.5px', fontWeight: '800', color: '#ea580c', backgroundColor: 'rgba(249,115,22,0.12)', padding: '3px 9px', borderRadius: '4px', border: '1px solid rgba(249,115,22,0.3)' }}>
                     청구 대상 알림
@@ -770,6 +806,9 @@ export const Dashboard: React.FC = () => {
                 <h4 style={{ margin: '0 0 10px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <FileText size={18} color="#f97316" /> 오늘 청구서 발행 대기
                 </h4>
+</summary>
+<div className="details-content">
+
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: '1.5' }}>
                   오늘 자(00:00) 기준으로 청구 도래일이 도달한 미발행 계약이 <strong>{pendingDueBillings.length}건</strong> 있습니다.
                 </p>
@@ -806,14 +845,18 @@ export const Dashboard: React.FC = () => {
                 <button className="btn-primary" onClick={() => setActiveTab('billing')} style={{ backgroundColor: '#f97316', border: 'none', fontSize: '12.5px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   청구서 발행하러 가기 <ArrowRight size={13} />
                 </button>
-              </div>
+              
+</div>
+</details>
             )}
 
             {showBillingFeed && (
-              <div style={{
+              <details open style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
                 borderLeft: '5px solid #ef4444', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
               }}>
+<summary style={{ cursor: "pointer", listStyle: "none", outline: "none" }}>
+
                 <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--danger)', backgroundColor: 'rgba(239,68,68,0.1)', padding: '2px 8px', borderRadius: '4px' }}>미수금 관리</span>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>수납 미완료 {unpaidBillings.length}건</span>
@@ -821,20 +864,27 @@ export const Dashboard: React.FC = () => {
                 <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <CreditCard size={18} color="#ef4444" /> 렌탈 매출 미수금 대장
                 </h4>
+</summary>
+<div className="details-content">
+
                 <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: '1.5' }}>
                   수납 미완료 대금 총 <strong style={{ color: 'var(--danger)', fontSize: '15px' }}>{totalUnpaidAmount.toLocaleString()}원</strong> ({unpaidBillings.length}건).
                 </p>
                 <button className="btn-primary" onClick={() => setActiveTab('billing')} style={{ backgroundColor: 'var(--danger)', border: 'none', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   수납/청구 관리 이동 <ArrowRight size={12} />
                 </button>
-              </div>
+              
+</div>
+</details>
             )}
 
                         {showLongOverdueBillingsFeed && (
-              <div style={{
+              <details open style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
                 borderLeft: '5px solid #b91c1c', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
               }}>
+<summary style={{ cursor: "pointer", listStyle: "none", outline: "none" }}>
+
                 <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <span style={{ fontSize: '12px', fontWeight: '800', color: '#b91c1c', backgroundColor: 'rgba(185,28,28,0.1)', padding: '2px 8px', borderRadius: '4px' }}>장기 지연 미수금</span>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{longOverdueBillings.length}건</span>
@@ -842,6 +892,9 @@ export const Dashboard: React.FC = () => {
                 <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <CreditCard size={18} color="#b91c1c" /> 30일 초과 미수금 목록
                 </h4>
+</summary>
+<div className="details-content">
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
                   {longOverdueBillings.slice(0, 5).map((b, idx) => {
                     const cont = contracts.find(c => c.id === b.contractId);
@@ -864,15 +917,19 @@ export const Dashboard: React.FC = () => {
                 <button className="btn-primary" onClick={() => setActiveTab('billing')} style={{ backgroundColor: '#b91c1c', border: 'none', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   미수금 대장 이동 <ArrowRight size={12} />
                 </button>
-              </div>
+              
+</div>
+</details>
             )}
 
 {/* 3. 소유사(임차) 자산 반납 지연 카드 (임차 자산 저장/실행 권한자 표출) */}
             {showRentAssetFeed && (
-              <div style={{
+              <details open style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
                 borderLeft: '5px solid #f59e0b', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
               }}>
+<summary style={{ cursor: "pointer", listStyle: "none", outline: "none" }}>
+
                 <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <span style={{ fontSize: '12px', fontWeight: '800', color: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)', padding: '2px 8px', borderRadius: '4px' }}>임차 자산 관리</span>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{overdueRentedCount + mismatchRentedCount}건</span>
@@ -880,6 +937,9 @@ export const Dashboard: React.FC = () => {
                 <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <ShieldAlert size={18} color="#f59e0b" /> 임차 자산 반납 지연 및 만기 불일치
                 </h4>
+</summary>
+<div className="details-content">
+
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: '1.5' }}>
                   {overdueRentedCount > 0 && `• 반납 기한 초과 임차 장비 ${overdueRentedCount}대. `}
                   {mismatchRentedCount > 0 && `• 매출 계약-임차 만기 불일치 ${mismatchRentedCount}건.`}
@@ -887,14 +947,18 @@ export const Dashboard: React.FC = () => {
                 <button className="btn-primary" onClick={() => setActiveTab('rent_asset')} style={{ backgroundColor: 'var(--warning)', border: 'none', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   임차 자산 관리 이동 <ArrowRight size={12} />
                 </button>
-              </div>
+              
+</div>
+</details>
             )}
 
                         {showOverdueSubleaseFeed && (
-              <div style={{
+              <details open style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
                 borderLeft: '5px solid #ea580c', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
               }}>
+<summary style={{ cursor: "pointer", listStyle: "none", outline: "none" }}>
+
                 <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <span style={{ fontSize: '12px', fontWeight: '800', color: '#ea580c', backgroundColor: 'rgba(234,88,12,0.1)', padding: '2px 8px', borderRadius: '4px' }}>전대 자산 관리</span>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{overdueSubleaseAssets.length}건</span>
@@ -902,6 +966,9 @@ export const Dashboard: React.FC = () => {
                 <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <ShieldAlert size={18} color="#ea580c" /> 전대 자산 반납 지연 목록
                 </h4>
+</summary>
+<div className="details-content">
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
                   {overdueSubleaseAssets.slice(0, 5).map((a, idx) => (
                     <div key={a.id} style={{ backgroundColor: 'var(--bg-secondary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '13px' }}>
@@ -920,15 +987,19 @@ export const Dashboard: React.FC = () => {
                 <button className="btn-primary" onClick={() => setActiveTab('rent_asset')} style={{ backgroundColor: '#ea580c', border: 'none', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   임차 자산 관리 이동 <ArrowRight size={12} />
                 </button>
-              </div>
+              
+</div>
+</details>
             )}
 
 {/* 4. 장비 정비 대기열 카드 (정비 저장/실행 권한자 표출) */}
             {showRepairFeed && (
-              <div style={{
+              <details open style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
                 borderLeft: '5px solid #f59e0b', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
               }}>
+<summary style={{ cursor: "pointer", listStyle: "none", outline: "none" }}>
+
                 <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <span style={{ fontSize: '12px', fontWeight: '800', color: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.1)', padding: '2px 8px', borderRadius: '4px' }}>정비 관리</span>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>미완료 {pendingRepairs}건</span>
@@ -936,6 +1007,9 @@ export const Dashboard: React.FC = () => {
                 <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Wrench size={18} color="#f59e0b" /> 장비 정비 대기열
                 </h4>
+</summary>
+<div className="details-content">
+
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
                   {repairs.filter(r => r.status !== 'COMPLETED').slice(0, 3).map((rep, idx) => {
@@ -957,15 +1031,19 @@ export const Dashboard: React.FC = () => {
                 <button className="btn-primary" onClick={() => setActiveTab('repair')} style={{ backgroundColor: 'var(--warning)', border: 'none', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   정비 관리 이동 <ArrowRight size={12} />
                 </button>
-              </div>
+              
+</div>
+</details>
             )}
 
 
                         {showOldPendingRepairsFeed && (
-              <div style={{
+              <details open style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
                 borderLeft: '5px solid #d97706', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
               }}>
+<summary style={{ cursor: "pointer", listStyle: "none", outline: "none" }}>
+
                 <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <span style={{ fontSize: '12px', fontWeight: '800', color: '#d97706', backgroundColor: 'rgba(217,119,6,0.1)', padding: '2px 8px', borderRadius: '4px' }}>정비 지연 알림</span>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{oldPendingRepairs.length}건</span>
@@ -973,6 +1051,9 @@ export const Dashboard: React.FC = () => {
                 <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Wrench size={18} color="#d97706" /> 장기 대기 정비 의뢰
                 </h4>
+</summary>
+<div className="details-content">
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
                   {oldPendingRepairs.slice(0, 5).map((r, idx) => {
                     const asset = assets.find(a => a.id === r.assetId);
@@ -995,15 +1076,19 @@ export const Dashboard: React.FC = () => {
                 <button className="btn-primary" onClick={() => setActiveTab('repair')} style={{ backgroundColor: '#d97706', border: 'none', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   정비 관리 이동 <ArrowRight size={12} />
                 </button>
-              </div>
+              
+</div>
+</details>
             )}
 
 {/* 6. 영업 및 임대차 계약 관리 카드 (계약 저장/실행 권한자 표출) */}
             {showContractFeed && (
-              <div style={{
+              <details open style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
                 borderLeft: '5px solid #3b82f6', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
               }}>
+<summary style={{ cursor: "pointer", listStyle: "none", outline: "none" }}>
+
                 <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)', backgroundColor: 'rgba(59,130,246,0.1)', padding: '2px 8px', borderRadius: '4px' }}>계약 관리</span>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>진행 중 계약 {activeContracts}건</span>
@@ -1011,20 +1096,27 @@ export const Dashboard: React.FC = () => {
                 <h4 style={{ margin: '0 0 10px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Layers size={18} color="#3b82f6" /> 렌탈 계약 관리
                 </h4>
+</summary>
+<div className="details-content">
+
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: '1.5' }}>
                   진행 계약 <strong>{activeContracts}건</strong>.
                 </p>
                 <button className="btn-primary" onClick={() => setActiveTab('contract')} style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   계약 관리 이동 <ArrowRight size={12} />
                 </button>
-              </div>
+              
+</div>
+</details>
             )}
 
                         {showExpiringContractsFeed && (
-              <div style={{
+              <details open style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
                 borderLeft: '5px solid #2563eb', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
               }}>
+<summary style={{ cursor: "pointer", listStyle: "none", outline: "none" }}>
+
                 <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <span style={{ fontSize: '12px', fontWeight: '800', color: '#2563eb', backgroundColor: 'rgba(37,99,235,0.1)', padding: '2px 8px', borderRadius: '4px' }}>계약 종료 임박</span>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{expiringContracts.length}건</span>
@@ -1032,6 +1124,9 @@ export const Dashboard: React.FC = () => {
                 <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Layers size={18} color="#2563eb" /> 7일 이내 종료 예정 계약
                 </h4>
+</summary>
+<div className="details-content">
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
                   {expiringContracts.slice(0, 5).map((c, idx) => {
                     const cust = customers.find(cu => cu.id === c.customerId);
@@ -1054,15 +1149,19 @@ export const Dashboard: React.FC = () => {
                 <button className="btn-primary" onClick={() => setActiveTab('contract')} style={{ backgroundColor: '#2563eb', border: 'none', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   계약 관리 이동 <ArrowRight size={12} />
                 </button>
-              </div>
+              
+</div>
+</details>
             )}
 
 {/* 7. 직무 맞춤형 당면 과제 ToDo 피드 (헌장 3.3 ToDo 피드 대시보드 정책) */}
             {showTodoFeed && (
-              <div style={{
+              <details open style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
                 borderLeft: '5px solid #6366f1', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
               }}>
+<summary style={{ cursor: "pointer", listStyle: "none", outline: "none" }}>
+
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
                   <span style={{ fontSize: '12px', fontWeight: '800', color: '#6366f1', backgroundColor: 'rgba(99,102,241,0.1)', padding: '3px 9px', borderRadius: '4px' }}>
                     담당 업무
@@ -1074,6 +1173,9 @@ export const Dashboard: React.FC = () => {
                 <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Bell size={18} color="#6366f1" /> 업무 목록
                 </h4>
+</summary>
+<div className="details-content">
+
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '14px' }}>
                   {activeTasks.slice(0, 8).map(task => {
@@ -1222,7 +1324,9 @@ export const Dashboard: React.FC = () => {
                     );
                   })}
                 </div>
-              </div>
+              
+</div>
+</details>
             )}
 
             {/* 8. 나의 권한 범위 내 당면 과제가 0건일 때 완료 안내 카드 */}

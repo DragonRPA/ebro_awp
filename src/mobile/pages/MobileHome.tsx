@@ -144,10 +144,16 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   if (deptMode === 'SALES') {
     return (
       <div className="flex flex-col gap-4 pb-24 p-4 font-sans text-slate-100">
+      <style dangerouslySetInnerHTML={{ __html: `
+        details > summary::-webkit-details-marker { display: none; }
+        details[open] summary ~ * { animation: slideDown 0.3s ease-in-out; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+      `}} />
+  
         {/* 직무 맞춤형 당면 과제 ToDo 피드 (헌장 3.3 준수 - 최상단 배치) */}
         {userTodos.length > 0 && (
-          <div className="bg-slate-900 border-2 border-indigo-500/50 rounded-2xl p-4 shadow-xl flex flex-col gap-3">
-            <div className="flex items-center justify-between">
+          <details open className="bg-slate-900 border-2 border-indigo-500/50 rounded-2xl p-4 shadow-xl flex flex-col gap-3">
+            <summary className="flex items-center justify-between cursor-pointer outline-none list-none [&::-webkit-details-marker]:hidden">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 flex-shrink-0">
                   <Bell className="w-4 h-4" />
@@ -159,7 +165,9 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
               <span className="text-xs font-black px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
                 {userTodos.length}건 대기
               </span>
-            </div>
+            </summary>
+<div className="details-content">
+
 
             <div className="flex flex-col gap-2.5">
               {userTodos.map((task) => {
@@ -273,7 +281,9 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
                 );
               })}
             </div>
-          </div>
+          
+</div>
+</details>
         )}
 
         {/* 상단 현장 피드 배너 */}
@@ -384,10 +394,16 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   if (deptMode === 'OUTBOUND') {
     return (
       <div className="flex flex-col gap-4 pb-24 p-4 font-sans text-slate-100">
+      <style dangerouslySetInnerHTML={{ __html: `
+        details > summary::-webkit-details-marker { display: none; }
+        details[open] summary ~ * { animation: slideDown 0.3s ease-in-out; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+      `}} />
+  
         {/* 직무 맞춤형 당면 과제 ToDo 피드 (헌장 3.3 준수 - 최상단 배치) */}
         {userTodos.length > 0 && (
-          <div className="bg-slate-900 border-2 border-emerald-500/50 rounded-2xl p-4 shadow-xl flex flex-col gap-3">
-            <div className="flex items-center justify-between">
+          <details open className="bg-slate-900 border-2 border-emerald-500/50 rounded-2xl p-4 shadow-xl flex flex-col gap-3">
+            <summary className="flex items-center justify-between cursor-pointer outline-none list-none [&::-webkit-details-marker]:hidden">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 flex-shrink-0">
                   <Bell className="w-4 h-4" />
@@ -399,7 +415,9 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
               <span className="text-xs font-black px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
                 {userTodos.length}건 대기
               </span>
-            </div>
+            </summary>
+<div className="details-content">
+
 
             <div className="flex flex-col gap-2.5">
               {userTodos.map((task) => {
@@ -503,7 +521,9 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
                 );
               })}
             </div>
-          </div>
+          
+</div>
+</details>
         )}
 
         <div className="bg-gradient-to-br from-emerald-950/60 to-slate-900 border border-emerald-500/30 rounded-3xl p-5 shadow-xl">
@@ -616,10 +636,16 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   // 3. [AS팀 전용 홈 화면 - 기본]
   return (
     <div className="flex flex-col gap-4 pb-24 p-4 font-sans text-slate-100">
+      <style dangerouslySetInnerHTML={{ __html: `
+        details > summary::-webkit-details-marker { display: none; }
+        details[open] summary ~ * { animation: slideDown 0.3s ease-in-out; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+      `}} />
+  
       {/* 직무 맞춤형 당면 과제 ToDo 피드 (헌장 3.3 준수 - 최상단 배치) */}
       {userTodos.length > 0 && (
-        <div className="bg-slate-900 border-2 border-amber-500/50 rounded-2xl p-4 shadow-xl flex flex-col gap-3">
-          <div className="flex items-center justify-between">
+        <details open className="bg-slate-900 border-2 border-amber-500/50 rounded-2xl p-4 shadow-xl flex flex-col gap-3">
+          <summary className="flex items-center justify-between cursor-pointer outline-none list-none [&::-webkit-details-marker]:hidden">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 flex-shrink-0">
                 <Bell className="w-4 h-4" />
@@ -631,7 +657,9 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
             <span className="text-xs font-black px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30" style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
               {userTodos.length}건 대기
             </span>
-          </div>
+          </summary>
+<div className="details-content">
+
 
           <div className="flex flex-col gap-2.5">
             {userTodos.map((task) => {
@@ -735,7 +763,9 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
               );
             })}
           </div>
-        </div>
+        
+</div>
+</details>
       )}
 
       {/* 상단 현장 AS 출동 피드 배너 */}
