@@ -141,11 +141,11 @@ export const AgenticAssetLifecyclePage: React.FC = () => {
         </div>
         <div className="card" style={{ padding: '10px 14px', textAlign: 'center' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>대여중</div>
-          <div style={{ fontSize: '20px', fontWeight: '900', color: '#3b82f6', marginTop: '4px' }}>2대</div>
+          <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--primary)', marginTop: '4px' }}>2대</div>
         </div>
         <div className="card" style={{ padding: '10px 14px', textAlign: 'center' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>정비중</div>
-          <div style={{ fontSize: '20px', fontWeight: '900', color: '#ef4444', marginTop: '4px' }}>1대</div>
+          <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--danger)', marginTop: '4px' }}>1대</div>
         </div>
         <div className="card" style={{ padding: '10px 14px', textAlign: 'center' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>상태 보존 법칙</div>
@@ -210,7 +210,7 @@ export const AgenticAssetLifecyclePage: React.FC = () => {
                     className="btn-primary"
                     onClick={() => handleCompleteRepair(asset.id)}
                     disabled={loading}
-                    style={{ padding: '4px 10px', fontSize: '12px', fontWeight: '700', backgroundColor: '#10b981' }}
+                    style={{ padding: '4px 10px', fontSize: '12px', fontWeight: '700', backgroundColor: 'var(--success)' }}
                   >
                     정비 완료 보고 (점수 리셋)
                   </button>

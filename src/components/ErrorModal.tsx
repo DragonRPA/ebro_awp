@@ -215,7 +215,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
       <div
         data-uia="system-error-modal"
         style={{
-        backgroundColor: '#1e293b',
+        backgroundColor: 'var(--bg-card)',
         border: '1px solid #ef4444',
         borderRadius: '16px',
         width: '100%',
@@ -236,7 +236,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
-              backgroundColor: '#ef4444',
+              backgroundColor: 'var(--danger)',
               borderRadius: '8px',
               padding: '6px',
               display: 'flex',
@@ -255,7 +255,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
             style={{
               background: 'none',
               border: 'none',
-              color: '#94a3b8',
+              color: 'var(--text-muted)',
               cursor: 'pointer',
               padding: '4px',
               borderRadius: '6px',
@@ -284,7 +284,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
                 width: '100%',
                 minHeight: '140px',
                 maxHeight: '260px',
-                backgroundColor: '#0f172a',
+                backgroundColor: 'var(--bg-app)',
                 color: '#f87171',
                 border: '1px solid #334155',
                 borderRadius: '10px',
@@ -314,7 +314,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
                   🛡️ RLS 쓰기 차단 감지 — 즉시 복구 Policy DDL
                 </span>
               </div>
-              <p style={{ fontSize: '12px', color: '#94a3b8', margin: '0 0 8px', lineHeight: 1.5 }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '0 0 8px', lineHeight: 1.5 }}>
                 아래 SQL을 <b>Supabase SQL Editor</b>에서 실행하면 <b>RLS를 유지한 채로</b> 해당 테이블의 anon/authenticated 롤 쓰기가 허용됩니다:
               </p>
               <textarea
@@ -403,7 +403,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
         {/* 모달 푸터 / 액션 버튼 */}
         <div style={{
           padding: '14px 20px',
-          backgroundColor: '#0f172a',
+          backgroundColor: 'var(--bg-app)',
           borderTop: '1px solid #1e293b',
           display: 'flex',
           justifyContent: 'space-between',

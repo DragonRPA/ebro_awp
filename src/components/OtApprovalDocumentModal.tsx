@@ -520,7 +520,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>
               초과근무 결재 문서 출력
             </h3>
-            <span style={{ fontSize: '11px', color: '#94a3b8', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(255,255,255,0.06)' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(255,255,255,0.06)' }}>
               A4 결재 규격 · 금액 미표시
             </span>
           </div>
@@ -529,7 +529,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
             <button
               onClick={handlePrint}
               style={{
-                backgroundColor: '#2563eb',
+                backgroundColor: 'var(--primary)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: '6px',
@@ -549,7 +549,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
             <button
               onClick={handleExportExcel}
               style={{
-                backgroundColor: '#059669',
+                backgroundColor: 'var(--success)',
                 color: '#fff',
                 border: 'none',
                 borderRadius: '6px',
@@ -570,8 +570,8 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
               onClick={onClose}
               style={{
                 backgroundColor: 'transparent',
-                color: '#94a3b8',
-                border: '1px solid #475569',
+                color: 'var(--text-muted)',
+                border: '1px solid var(--border-color)',
                 borderRadius: '6px',
                 padding: '6px',
                 cursor: 'pointer',
@@ -589,7 +589,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', alignItems: 'flex-end', backgroundColor: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '8px' }}>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 600 }}>
+            <label style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600 }}>
               귀속연월 (대상기간)
             </label>
             <input
@@ -599,8 +599,8 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
               style={{
                 padding: '6px 10px',
                 borderRadius: '6px',
-                border: '1px solid #475569',
-                backgroundColor: '#0f172a',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-app)',
                 color: '#f8fafc',
                 fontSize: '13px'
               }}
@@ -608,7 +608,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 600 }}>
+            <label style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600 }}>
               신청 부서
             </label>
             <select
@@ -617,8 +617,8 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
               style={{
                 padding: '6px 10px',
                 borderRadius: '6px',
-                border: '1px solid #475569',
-                backgroundColor: '#0f172a',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-app)',
                 color: '#f8fafc',
                 fontSize: '13px'
               }}
@@ -631,7 +631,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 600 }}>
+            <label style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600 }}>
               출력 범위 설정
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', padding: '6px 0' }}>
@@ -646,10 +646,10 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: 600 }}>
+            <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600 }}>
               집계 현황
             </span>
-            <div style={{ fontSize: '13px', color: '#38bdf8', fontWeight: 700, padding: '6px 0' }}>
+            <div style={{ fontSize: '13px', color: 'var(--info)', fontWeight: 700, padding: '6px 0' }}>
               {totals.totalUsers}명 / {totals.totalCount}건 / {totals.totalHours.toFixed(1)}h
             </div>
           </div>
@@ -698,7 +698,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
                 style={{
                   backgroundColor: '#334155',
                   color: '#e2e8f0',
-                  border: '1px solid #475569',
+                  border: '1px solid var(--border-color)',
                   borderRadius: '5px',
                   padding: '4px 10px',
                   fontSize: '11.5px',
@@ -724,7 +724,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
                 <div
                   key={idx}
                   style={{
-                    backgroundColor: '#0f172a',
+                    backgroundColor: 'var(--bg-app)',
                     border: '1px solid #334155',
                     borderRadius: '6px',
                     padding: '8px 10px',
@@ -746,9 +746,9 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
                         width: '75px',
                         padding: '2px 5px',
                         fontSize: '11px',
-                        backgroundColor: '#1e293b',
+                        backgroundColor: 'var(--bg-card)',
                         color: '#f8fafc',
-                        border: '1px solid #475569',
+                        border: '1px solid var(--border-color)',
                         borderRadius: '4px',
                         textAlign: 'center'
                       }}
@@ -761,8 +761,8 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
                     style={{
                       padding: '4px 6px',
                       borderRadius: '4px',
-                      border: '1px solid #475569',
-                      backgroundColor: '#1e293b',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-card)',
                       color: '#f8fafc',
                       fontSize: '12px'
                     }}
@@ -787,7 +787,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
         style={{
           width: '100%',
           maxWidth: '920px',
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--bg-card)',
           borderRadius: '0 0 10px 10px',
           padding: '36px 40px',
           boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
@@ -801,10 +801,10 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #111827', paddingBottom: '16px' }}>
           {/* 좌측: 문서 타이틀 및 메타 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 900, letterSpacing: '-0.5px', color: '#111827' }}>
+            <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 900, letterSpacing: '-0.5px', color: 'var(--text-main)' }}>
               초과근무(OT) 확인 및 결재신청서
             </h1>
-            <div style={{ fontSize: '11.5px', color: '#4b5563', fontWeight: 600 }}>
+            <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>
               ※ 본 문서는 임직원 초과근무 시간 확인 및 결재용이며, 개인별 시급·급여 금액은 표기되지 않습니다.
             </div>
             <div style={{ marginTop: '6px', display: 'flex', gap: '16px', fontSize: '12px' }}>
@@ -828,9 +828,9 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
                         padding: '4px 2px',
                         fontSize: '11px',
                         fontWeight: 700,
-                        backgroundColor: '#f3f4f6',
+                        backgroundColor: 'var(--bg-app)',
                         border: '1px solid #111827',
-                        color: '#111827'
+                        color: 'var(--text-main)'
                       }}
                     >
                       {step.title || step.role}
@@ -852,16 +852,16 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
                           padding: '4px',
                           textAlign: 'center',
                           fontSize: '11px',
-                          color: '#111827'
+                          color: 'var(--text-main)'
                         }}
                       >
                         {u ? (
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                             <span style={{ fontSize: '11px', fontWeight: 600 }}>{u.name}</span>
-                            <span style={{ fontSize: '9px', color: '#6b7280' }}>(서명/인)</span>
+                            <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>(서명/인)</span>
                           </div>
                         ) : (
-                          <span style={{ fontSize: '9px', color: '#9ca3af' }}>(서명/인)</span>
+                          <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>(서명/인)</span>
                         )}
                       </td>
                     );
@@ -877,7 +877,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
                         border: '1px solid #111827',
                         padding: '2px',
                         fontSize: '9.5px',
-                        color: '#4b5563',
+                        color: 'var(--text-secondary)',
                         textAlign: 'center',
                         height: '18px'
                       }}
@@ -892,24 +892,24 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
         </div>
 
         {/* ── 요약 통계 배너 바 ── */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '4px', padding: '10px 16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '10px 16px' }}>
           <div style={{ display: 'flex', gap: '24px', fontSize: '12px' }}>
             <span><strong>대상 인원:</strong> 총 {totals.totalUsers}명</span>
             <span><strong>총 등록건수:</strong> {totals.totalCount}건</span>
             <span><strong>총 식사제공:</strong> {totals.totalMeals}회</span>
           </div>
           <div style={{ fontSize: '14px', fontWeight: 900, color: '#1e3a8a' }}>
-            총 인정 초과근무 시간: <span style={{ fontSize: '16px', color: '#dc2626' }}>{totals.totalHours.toFixed(1)}</span> 시간
+            총 인정 초과근무 시간: <span style={{ fontSize: '16px', color: 'var(--danger)' }}>{totals.totalHours.toFixed(1)}</span> 시간
           </div>
         </div>
 
         {/* ── [표 1] 임직원별 초과근무 집계 요약 (인당 시간 중심) ── */}
         <div className="page-break-avoid" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h2 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: '#111827' }}>
+            <h2 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: 'var(--text-main)' }}>
               [표 1] 임직원별 초과근무 시간 합계 요약
             </h2>
-            <span style={{ fontSize: '10.5px', color: '#6b7280' }}>
+            <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
               (단위: 시간, 회 / 개인별 확인 서명 필수)
             </span>
           </div>
@@ -930,7 +930,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
             <tbody>
               {employeeSummaries.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '24px', color: '#9ca3af' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
                     해당 연월({targetMonth})의 초과근무(OT) 등록 내역이 없습니다.
                   </td>
                 </tr>
@@ -946,7 +946,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
                       {emp.totalHours.toFixed(1)} 시간
                     </td>
                     <td style={{ textAlign: 'center' }}>{emp.mealCount > 0 ? `${emp.mealCount}회` : '-'}</td>
-                    <td style={{ textAlign: 'center', color: '#9ca3af', height: '26px' }}>
+                    <td style={{ textAlign: 'center', color: 'var(--text-muted)', height: '26px' }}>
                       (서명/인)
                     </td>
                   </tr>
@@ -954,16 +954,16 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
               )}
             </tbody>
             <tfoot>
-              <tr style={{ backgroundColor: '#f3f4f6', fontWeight: 800 }}>
+              <tr style={{ backgroundColor: 'var(--bg-app)', fontWeight: 800 }}>
                 <td colSpan={4} style={{ textAlign: 'center' }}>
                   합 계 (총 {totals.totalUsers}명)
                 </td>
                 <td style={{ textAlign: 'center' }}>{totals.totalCount}건</td>
-                <td style={{ textAlign: 'right', paddingRight: '12px', color: '#b91c1c', fontSize: '12px' }}>
+                <td style={{ textAlign: 'right', paddingRight: '12px', color: 'var(--danger)', fontSize: '12px' }}>
                   {totals.totalHours.toFixed(1)} 시간
                 </td>
                 <td style={{ textAlign: 'center' }}>{totals.totalMeals}회</td>
-                <td style={{ textAlign: 'center', fontSize: '10px', color: '#6b7280' }}>정산 승인</td>
+                <td style={{ textAlign: 'center', fontSize: '10px', color: 'var(--text-muted)' }}>정산 승인</td>
               </tr>
             </tfoot>
           </table>
@@ -973,10 +973,10 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
         {includeDetails && filteredRecords.length > 0 && (
           <div className="page-break-before" style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: '#111827' }}>
+              <h2 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: 'var(--text-main)' }}>
                 [표 2] 일자별 세부 초과근무 증빙 내역
               </h2>
-              <span style={{ fontSize: '10.5px', color: '#6b7280' }}>
+              <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
                 총 {filteredRecords.length}건 등록
               </span>
             </div>
@@ -1031,19 +1031,19 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
 
         {/* ── 하단 확인 서약 및 결재 상신문 ── */}
         <div className="page-break-avoid" style={{ marginTop: 'auto', paddingTop: '24px', borderTop: '1px solid #9ca3af', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
-          <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#1f2937', textAlign: 'center', lineHeight: 1.6 }}>
+          <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', textAlign: 'center', lineHeight: 1.6 }}>
             상기 임직원의 {yearStr}년 {monthStr}월 초과근무 시간 및 세부 업무 내역을 정히 확인하였으며,<br />
             이에 관련 규정에 의거하여 수당 지급을 위한 결재를 신청합니다.
           </p>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: '600px', marginTop: '12px', fontSize: '12.5px', color: '#111827' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: '600px', marginTop: '12px', fontSize: '12.5px', color: 'var(--text-main)' }}>
             <span><strong>기안일자:</strong> {todayStr}</span>
             <span>
               <strong>기안자:</strong> {currentUser?.name || '담당자'} (인/서명)
             </span>
           </div>
 
-          <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '8px' }}>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '8px' }}>
             (주)기연리프트 전사 ERP 자산관리시스템 발급 문서
           </div>
         </div>

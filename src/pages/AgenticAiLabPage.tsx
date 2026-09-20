@@ -346,8 +346,8 @@ export const AgenticAiLabPage: React.FC = () => {
               <div style={{
                 maxHeight: '140px',
                 overflowY: 'auto',
-                backgroundColor: '#0f172a',
-                color: '#38bdf8',
+                backgroundColor: 'var(--bg-app)',
+                color: 'var(--info)',
                 padding: '10px',
                 borderRadius: '6px',
                 fontFamily: 'monospace',
@@ -395,7 +395,7 @@ export const AgenticAiLabPage: React.FC = () => {
                 <div style={{ color: 'var(--text-secondary)', marginBottom: '4px', lineHeight: 1.4 }}>
                   {tool.description}
                 </div>
-                <div style={{ fontSize: '10.5px', color: '#d97706', fontWeight: '600' }}>
+                <div style={{ fontSize: '10.5px', color: 'var(--warning)', fontWeight: '600' }}>
                   ⚖️ {tool.charterRule}
                 </div>
               </div>

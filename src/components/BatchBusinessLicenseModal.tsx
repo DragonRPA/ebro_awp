@@ -290,7 +290,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
           backgroundColor: 'var(--bg-card, #ffffff)',
           color: 'var(--text-main, #0f172a)',
           borderRadius: '12px',
-          border: '1px solid var(--border-color, #cbd5e1)',
+          border: '1px solid var(--border-color, var(--border-color))',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
           display: 'flex',
           flexDirection: 'column',
@@ -335,7 +335,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
               width: '32px',
               height: '32px',
               borderRadius: '8px',
-              backgroundColor: '#0284c7',
+              backgroundColor: 'var(--primary)',
               color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
@@ -390,7 +390,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
               padding: '2px',
               borderRadius: '8px',
               backgroundColor: 'var(--bg-secondary, #f1f5f9)',
-              border: '1px solid var(--border-color, #cbd5e1)'
+              border: '1px solid var(--border-color, var(--border-color))'
             }}>
               <button
                 type="button"
@@ -449,7 +449,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
             </div>
 
             {targetType === 'VENDOR' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 8px', borderRadius: '6px', backgroundColor: 'var(--bg-secondary, #f1f5f9)', border: '1px solid var(--border-color, #cbd5e1)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 8px', borderRadius: '6px', backgroundColor: 'var(--bg-secondary, #f1f5f9)', border: '1px solid var(--border-color, var(--border-color))' }}>
                 <span style={{ fontSize: '11px', color: 'var(--text-muted, #64748b)', whiteSpace: 'nowrap' }}>유형:</span>
                 <select
                   disabled={isProcessing}
@@ -465,7 +465,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                     fontSize: '11px',
                     padding: '2px 6px',
                     borderRadius: '4px',
-                    border: '1px solid var(--border-color, #cbd5e1)',
+                    border: '1px solid var(--border-color, var(--border-color))',
                     backgroundColor: 'var(--bg-card, #ffffff)',
                     color: 'var(--text-main, #0f172a)'
                   }}
@@ -491,7 +491,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                   fontSize: '12px',
                   fontWeight: 600,
                   borderRadius: '6px',
-                  border: '1px solid var(--border-color, #cbd5e1)',
+                  border: '1px solid var(--border-color, var(--border-color))',
                   backgroundColor: 'var(--bg-secondary, #f8fafc)',
                   color: 'var(--text-main, #0f172a)',
                   cursor: isProcessing ? 'not-allowed' : 'pointer',
@@ -513,7 +513,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                   fontSize: '12px',
                   fontWeight: 600,
                   borderRadius: '6px',
-                  border: '1px solid var(--border-color, #cbd5e1)',
+                  border: '1px solid var(--border-color, var(--border-color))',
                   backgroundColor: 'var(--bg-secondary, #f8fafc)',
                   color: 'var(--text-main, #0f172a)',
                   cursor: isProcessing ? 'not-allowed' : 'pointer',
@@ -565,7 +565,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                   fontWeight: 700,
                   borderRadius: '6px',
                   border: 'none',
-                  backgroundColor: '#e11d48',
+                  backgroundColor: 'var(--danger)',
                   color: '#ffffff',
                   cursor: 'pointer',
                   display: 'flex',
@@ -586,7 +586,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
               style={{
                 padding: '6px 8px',
                 borderRadius: '6px',
-                border: '1px solid var(--border-color, #cbd5e1)',
+                border: '1px solid var(--border-color, var(--border-color))',
                 backgroundColor: 'var(--bg-secondary, #f8fafc)',
                 color: 'var(--text-secondary, #475569)',
                 cursor: (isProcessing || selectedFiles.length === 0) ? 'not-allowed' : 'pointer'
@@ -609,7 +609,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
           flexShrink: 0
         }}>
           {/* 프로그레스 바 */}
-          <div style={{ width: '100%', height: '6px', borderRadius: '3px', backgroundColor: '#e2e8f0', overflow: 'hidden' }}>
+          <div style={{ width: '100%', height: '6px', borderRadius: '3px', backgroundColor: 'var(--bg-secondary)', overflow: 'hidden' }}>
             <div 
               style={{
                 height: '100%',
@@ -632,19 +632,19 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                 </span>
               )}
               {isAborted && (
-                <span style={{ color: '#d97706', fontWeight: 700 }}>[중단됨]</span>
+                <span style={{ color: 'var(--warning)', fontWeight: 700 }}>[중단됨]</span>
               )}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span>전체: <strong>{currentProgress.total}</strong></span>
-              <span style={{ color: '#059669' }}>신규: <strong>{currentProgress.successNew}</strong></span>
+              <span style={{ color: 'var(--success)' }}>신규: <strong>{currentProgress.successNew}</strong></span>
               <span style={{ color: '#0284c7' }}>보완: <strong>{currentProgress.successUpdated}</strong></span>
               {currentProgress.failed > 0 && (
                 <span style={{ color: '#e11d48' }}>오류: <strong>{currentProgress.failed}</strong></span>
               )}
               {currentProgress.skipped > 0 && (
-                <span style={{ color: '#d97706' }}>건너뜀: <strong>{currentProgress.skipped}</strong></span>
+                <span style={{ color: 'var(--warning)' }}>건너뜀: <strong>{currentProgress.skipped}</strong></span>
               )}
             </div>
           </div>
@@ -693,7 +693,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                   style={{
                     padding: '8px 16px',
                     borderRadius: '6px',
-                    backgroundColor: '#0284c7',
+                    backgroundColor: 'var(--primary)',
                     color: '#ffffff',
                     fontSize: '12px',
                     fontWeight: 700,
@@ -719,7 +719,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                     color: 'var(--text-main, #0f172a)',
                     fontSize: '12px',
                     fontWeight: 600,
-                    border: '1px solid var(--border-color, #cbd5e1)',
+                    border: '1px solid var(--border-color, var(--border-color))',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -780,22 +780,22 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
 
                       <td style={{ padding: '6px 12px', whiteSpace: 'nowrap' }}>
                         {isNew && (
-                          <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, backgroundColor: '#dcfce7', color: '#15803d', border: '1px solid #86efac', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, backgroundColor: 'var(--success-light)', color: 'var(--success)', border: '1px solid #86efac', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                             <CheckCircle2 size={12} /> 신규등록
                           </span>
                         )}
                         {isUpdated && (
-                          <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, backgroundColor: '#e0f2fe', color: '#0369a1', border: '1px solid #7dd3fc', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, backgroundColor: 'var(--info-light)', color: 'var(--info)', border: '1px solid #7dd3fc', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                             <CheckCircle2 size={12} /> 정보보완
                           </span>
                         )}
                         {isCurProcessing && (
-                          <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, backgroundColor: '#dbeafe', color: '#1d4ed8', border: '1px solid #93c5fd', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, backgroundColor: 'var(--info-light)', color: 'var(--primary)', border: '1px solid #93c5fd', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                             <RefreshCw size={12} className="animate-spin" /> 분석중
                           </span>
                         )}
                         {isFail && (
-                          <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, backgroundColor: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, backgroundColor: 'var(--danger-light)', color: 'var(--danger)', border: '1px solid #fca5a5', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                             <AlertCircle size={12} /> 오류
                           </span>
                         )}
@@ -805,7 +805,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                           </span>
                         )}
                         {row.status === 'SKIPPED' && (
-                          <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '11px', color: '#b45309', backgroundColor: '#fef3c7' }}>
+                          <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '11px', color: 'var(--warning)', backgroundColor: 'var(--warning-light)' }}>
                             건너뜀
                           </span>
                         )}
@@ -863,7 +863,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px', color: 'var(--text-secondary, #475569)' }}>
             <span>대기열: <strong>{results.length}건</strong></span>
             <span>•</span>
-            <span style={{ color: '#059669' }}>완료: <strong>{currentProgress.successNew + currentProgress.successUpdated}건</strong></span>
+            <span style={{ color: 'var(--success)' }}>완료: <strong>{currentProgress.successNew + currentProgress.successUpdated}건</strong></span>
             {currentProgress.failed > 0 && (
               <>
                 <span>•</span>
@@ -882,7 +882,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                 borderRadius: '6px',
                 fontSize: '12px',
                 fontWeight: 600,
-                border: '1px solid var(--border-color, #cbd5e1)',
+                border: '1px solid var(--border-color, var(--border-color))',
                 backgroundColor: 'var(--bg-card, #ffffff)',
                 color: 'var(--text-main, #0f172a)',
                 cursor: results.length === 0 ? 'not-allowed' : 'pointer',

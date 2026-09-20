@@ -75,7 +75,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <div style={{
             maxWidth: '420px',
             width: '100%',
-            backgroundColor: '#0f172a',
+            backgroundColor: 'var(--bg-app)',
             border: '1px solid #ef4444',
             borderRadius: '16px',
             padding: '20px',
@@ -98,7 +98,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 <div style={{ fontSize: '15px', fontWeight: '800', color: '#f8fafc' }}>
                   {this.props.fallbackTitle || '화면 일시 오류 복구'}
                 </div>
-                <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
                   작업 상태 보호를 위해 화면을 안전하게 복원합니다.
                 </div>
               </div>
@@ -131,7 +131,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 }}>
                   <div>{rawMsg}{decodedNote}</div>
                   {this.state.errorInfo?.componentStack && (
-                    <details style={{ marginTop: '6px', color: '#94a3b8', fontSize: '10px' }}>
+                    <details style={{ marginTop: '6px', color: 'var(--text-muted)', fontSize: '10px' }}>
                       <summary style={{ cursor: 'pointer', color: '#cbd5e1' }}>컴포넌트 호출 스택</summary>
                       <pre style={{ margin: '4px 0 0 0', whiteSpace: 'pre-wrap' }}>
                         {this.state.errorInfo.componentStack.slice(0, 500)}
@@ -151,7 +151,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   padding: '10px',
                   borderRadius: '10px',
                   border: 'none',
-                  backgroundColor: '#2563eb',
+                  backgroundColor: 'var(--primary)',
                   color: '#ffffff',
                   fontSize: '13px',
                   fontWeight: '800',
@@ -174,8 +174,8 @@ export class ErrorBoundary extends Component<Props, State> {
                   padding: '9px',
                   borderRadius: '10px',
                   border: '1px solid #334155',
-                  backgroundColor: '#1e293b',
-                  color: '#94a3b8',
+                  backgroundColor: 'var(--bg-card)',
+                  color: 'var(--text-muted)',
                   fontSize: '12px',
                   fontWeight: '700',
                   display: 'flex',
@@ -197,7 +197,7 @@ export class ErrorBoundary extends Component<Props, State> {
                     width: '100%',
                     padding: '8px',
                     borderRadius: '10px',
-                    border: '1px solid #475569',
+                    border: '1px solid var(--border-color)',
                     backgroundColor: 'transparent',
                     color: '#cbd5e1',
                     fontSize: '12px',

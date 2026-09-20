@@ -1296,7 +1296,7 @@ export const Products: React.FC = () => {
 
               {/* 최대풍속 배너 */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
-                <div style={{ backgroundColor: '#dc2626', color: '#ffffff', fontWeight: 'bold', padding: '4px 12px', borderRadius: '4px', fontSize: '12px' }}>
+                <div style={{ backgroundColor: 'var(--danger)', color: '#ffffff', fontWeight: 'bold', padding: '4px 12px', borderRadius: '4px', fontSize: '12px' }}>
                   최대풍속: {selectedProduct.maxWindSpeed || '12.5 m/s 이내'}
                 </div>
               </div>

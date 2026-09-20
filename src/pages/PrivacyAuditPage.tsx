@@ -236,7 +236,7 @@ export const PrivacyAuditPage: React.FC = () => {
               fontSize: '12px',
               fontWeight: 600,
               borderRadius: '6px',
-              border: '1px solid var(--border-color, #cbd5e1)',
+              border: '1px solid var(--border-color, var(--border-color))',
               backgroundColor: 'var(--bg-card, #ffffff)',
               color: 'var(--text-main, #0f172a)',
               cursor: 'pointer',
@@ -258,7 +258,7 @@ export const PrivacyAuditPage: React.FC = () => {
               fontSize: '12px',
               fontWeight: 600,
               borderRadius: '6px',
-              border: '1px solid var(--border-color, #cbd5e1)',
+              border: '1px solid var(--border-color, var(--border-color))',
               backgroundColor: 'var(--bg-card, #ffffff)',
               color: 'var(--text-main, #0f172a)',
               cursor: isLoading ? 'not-allowed' : 'pointer',
@@ -280,7 +280,7 @@ export const PrivacyAuditPage: React.FC = () => {
       <div style={{
         backgroundColor: 'var(--bg-card, #ffffff)',
         borderRadius: '8px',
-        border: '1px solid var(--border-color, #cbd5e1)',
+        border: '1px solid var(--border-color, var(--border-color))',
         padding: '14px 18px',
         display: 'flex',
         flexDirection: 'column',
@@ -308,7 +308,7 @@ export const PrivacyAuditPage: React.FC = () => {
                   padding: '6px 10px',
                   fontSize: '12px',
                   borderRadius: '6px',
-                  border: '1px solid var(--border-color, #cbd5e1)',
+                  border: '1px solid var(--border-color, var(--border-color))',
                   backgroundColor: 'var(--bg-card, #ffffff)',
                   color: 'var(--text-main, #0f172a)',
                   outline: 'none'
@@ -328,7 +328,7 @@ export const PrivacyAuditPage: React.FC = () => {
                   padding: '6px 10px',
                   fontSize: '12px',
                   borderRadius: '6px',
-                  border: '1px solid var(--border-color, #cbd5e1)',
+                  border: '1px solid var(--border-color, var(--border-color))',
                   backgroundColor: 'var(--bg-card, #ffffff)',
                   color: 'var(--text-main, #0f172a)',
                   outline: 'none'
@@ -348,7 +348,7 @@ export const PrivacyAuditPage: React.FC = () => {
                   padding: '6px 10px',
                   fontSize: '12px',
                   borderRadius: '6px',
-                  border: '1px solid var(--border-color, #cbd5e1)',
+                  border: '1px solid var(--border-color, var(--border-color))',
                   backgroundColor: 'var(--bg-card, #ffffff)',
                   color: 'var(--text-main, #0f172a)',
                   outline: 'none'
@@ -377,7 +377,7 @@ export const PrivacyAuditPage: React.FC = () => {
                   padding: '6px 10px',
                   fontSize: '12px',
                   borderRadius: '6px',
-                  border: '1px solid var(--border-color, #cbd5e1)',
+                  border: '1px solid var(--border-color, var(--border-color))',
                   backgroundColor: 'var(--bg-card, #ffffff)',
                   color: 'var(--text-main, #0f172a)',
                   outline: 'none'
@@ -404,7 +404,7 @@ export const PrivacyAuditPage: React.FC = () => {
                   padding: '6px 10px',
                   fontSize: '12px',
                   borderRadius: '6px',
-                  border: '1px solid var(--border-color, #cbd5e1)',
+                  border: '1px solid var(--border-color, var(--border-color))',
                   backgroundColor: 'var(--bg-card, #ffffff)',
                   color: 'var(--text-main, #0f172a)',
                   outline: 'none'
@@ -431,7 +431,7 @@ export const PrivacyAuditPage: React.FC = () => {
                   padding: '6px 10px',
                   fontSize: '12px',
                   borderRadius: '6px',
-                  border: '1px solid var(--border-color, #cbd5e1)',
+                  border: '1px solid var(--border-color, var(--border-color))',
                   backgroundColor: 'var(--bg-card, #ffffff)',
                   color: 'var(--text-main, #0f172a)',
                   outline: 'none'
@@ -451,7 +451,7 @@ export const PrivacyAuditPage: React.FC = () => {
                 fontWeight: 700,
                 borderRadius: '6px',
                 border: 'none',
-                backgroundColor: '#059669',
+                backgroundColor: 'var(--success)',
                 color: '#ffffff',
                 cursor: 'pointer',
                 display: 'flex',
@@ -473,7 +473,7 @@ export const PrivacyAuditPage: React.FC = () => {
       <div style={{
         backgroundColor: 'var(--bg-card, #ffffff)',
         borderRadius: '8px',
-        border: '1px solid var(--border-color, #cbd5e1)',
+        border: '1px solid var(--border-color, var(--border-color))',
         overflow: 'auto',
         maxHeight: '600px'
       }}>
@@ -560,11 +560,11 @@ export const PrivacyAuditPage: React.FC = () => {
                     </td>
                     <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                       {isUnmasked ? (
-                        <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', backgroundColor: '#fee2e2', color: '#b91c1c', fontWeight: 700 }}>
+                        <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'var(--danger-light)', color: 'var(--danger)', fontWeight: 700 }}>
                           비마스킹 (전체)
                         </span>
                       ) : (
-                        <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', backgroundColor: '#ecfdf5', color: '#047857', fontWeight: 600 }}>
+                        <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'var(--success-light)', color: '#047857', fontWeight: 600 }}>
                           마스킹 완료
                         </span>
                       )}
@@ -586,7 +586,7 @@ export const PrivacyAuditPage: React.FC = () => {
       <div style={{
         backgroundColor: 'var(--bg-secondary, #f8fafc)',
         borderRadius: '8px',
-        border: '1px solid var(--border-color, #cbd5e1)',
+        border: '1px solid var(--border-color, var(--border-color))',
         padding: '12px 18px',
         display: 'flex',
         alignItems: 'center',
@@ -597,7 +597,7 @@ export const PrivacyAuditPage: React.FC = () => {
         {/* 대차대조 감사 통계 HUD */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '12.5px', color: 'var(--text-secondary, #475569)', flexWrap: 'wrap' }}>
           <span>📄 총 접속 건수: <strong style={{ color: 'var(--text-main, #0f172a)' }}>{stats.total.toLocaleString()}</strong>건</span>
-          <span>📥 엑셀 다운로드: <strong style={{ color: '#b45309' }}>{stats.downloadCount.toLocaleString()}</strong>건</span>
+          <span>📥 엑셀 다운로드: <strong style={{ color: 'var(--warning)' }}>{stats.downloadCount.toLocaleString()}</strong>건</span>
           <span>🔓 비마스킹(전체정보) 다운로드: <strong style={{ color: stats.unmaskedDownloads > 0 ? '#dc2626' : 'var(--text-main, #0f172a)' }}>{stats.unmaskedDownloads.toLocaleString()}</strong>건</span>
           <span>👥 접속 임직원 수: <strong style={{ color: 'var(--primary, #4f46e5)' }}>{stats.uniqueUsers}</strong>명</span>
         </div>

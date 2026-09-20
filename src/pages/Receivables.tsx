@@ -488,7 +488,7 @@ export const Receivables: React.FC = () => {
             </span>
             <span style={{
               padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.1)',
-              border: '1px solid rgba(16, 185, 129, 0.3)', color: '#059669', fontWeight: 600
+              border: '1px solid rgba(16, 185, 129, 0.3)', color: 'var(--success)', fontWeight: 600
             }}>
               기청구 <strong>₩{totalBilledSum.toLocaleString()}</strong>
             </span>
@@ -704,7 +704,7 @@ export const Receivables: React.FC = () => {
                     <td style={{ whiteSpace: 'nowrap' }}>
                       <strong style={{ color: 'var(--text-primary)' }}>{cu?.name || '고객 미지정'}</strong>
                       {cu?.transactionStatus === 'BLOCKED' && (
-                        <span style={{ marginLeft: '6px', padding: '1px 5px', fontSize: '10px', backgroundColor: '#fee2e2', color: '#b91c1c', borderRadius: '3px', fontWeight: 800 }}>
+                        <span style={{ marginLeft: '6px', padding: '1px 5px', fontSize: '10px', backgroundColor: 'var(--danger-light)', color: 'var(--danger)', borderRadius: '3px', fontWeight: 800 }}>
                           출고제한
                         </span>
                       )}

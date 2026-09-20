@@ -285,7 +285,7 @@ export const TransportMaster: React.FC = () => {
         </div>
         <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>등록 운송 기사</span>
-          <strong style={{ fontSize: '15px', color: '#16a34a' }}>{transportDrivers.length}명</strong>
+          <strong style={{ fontSize: '15px', color: 'var(--success)' }}>{transportDrivers.length}명</strong>
         </div>
       </div>
 

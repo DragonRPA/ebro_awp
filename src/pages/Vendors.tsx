@@ -13,10 +13,10 @@ import { checkSingleNtsStatus, NtsStatusResult } from '../services/ntsBusinessSe
 type VendorTypeOption = 'RENTAL' | 'PURCHASE' | 'TRANSPORT' | 'REPAIR' | 'OTHER';
 
 const VENDOR_TYPE_CONFIG: Record<VendorTypeOption, { label: string; color: string; bg: string }> = {
-  RENTAL: { label: '임차', color: '#3b82f6', bg: 'rgba(37, 99, 235, 0.15)' },
+  RENTAL: { label: '임차', color: 'var(--primary)', bg: 'rgba(37, 99, 235, 0.15)' },
   PURCHASE: { label: '구매', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.15)' },
   TRANSPORT: { label: '운송', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)' },
-  REPAIR: { label: '정비', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)' },
+  REPAIR: { label: '정비', color: 'var(--danger)', bg: 'rgba(239, 68, 68, 0.15)' },
   OTHER: { label: '기타', color: 'var(--text-secondary)', bg: 'var(--bg-secondary)' }
 };
 
@@ -554,17 +554,17 @@ export const Vendors: React.FC = () => {
   // 어떤 형식의 Supabase 반환값이든 알려진 키워드를 스캔해 컬러 pill JSX 배열 반환
   const renderTypePills = (v: Vendor): React.ReactNode[] => {
     const TYPE_MAP: { key: string; label: string; color: string; bg: string }[] = [
-      { key: 'RENTAL',    label: '임차', color: '#3b82f6', bg: 'rgba(37, 99, 235, 0.15)' },
+      { key: 'RENTAL',    label: '임차', color: 'var(--primary)', bg: 'rgba(37, 99, 235, 0.15)' },
       { key: 'PURCHASE',  label: '구매', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.15)' },
       { key: 'TRANSPORT', label: '운송', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.15)' },
-      { key: 'REPAIR',    label: '정비', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)' },
+      { key: 'REPAIR',    label: '정비', color: 'var(--danger)', bg: 'rgba(239, 68, 68, 0.15)' },
       { key: 'OTHER',     label: '기타', color: 'var(--text-secondary)', bg: 'var(--bg-secondary)' },
     ];
     // 원시 데이터를 문자열로 직렬화하여 키워드 존재 여부 스캔
     const raw = JSON.stringify(v.types ?? v.type ?? '');
     const found = TYPE_MAP.filter(({ key }) => raw.includes(key));
     if (found.length === 0 && v.type) {
-      const m = TYPE_MAP.find(x => x.key === v.type) || { key: v.type, label: v.type, color: '#6b7280', bg: '#f3f4f6' };
+      const m = TYPE_MAP.find(x => x.key === v.type) || { key: v.type, label: v.type, color: 'var(--text-muted)', bg: '#f3f4f6' };
       found.push(m);
     }
     return found.map(({ key, label, color, bg }) => (
@@ -675,7 +675,7 @@ export const Vendors: React.FC = () => {
         </div>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {syncResult && (
-            <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px', background: '#dcfce7', padding: '4px 10px', borderRadius: '6px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--success)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--success-light)', padding: '4px 10px', borderRadius: '6px' }}>
               ✓ {syncResult.updatedCount}개사 동기화 완료 (누적 ₩{syncResult.totalAmount.toLocaleString()})
             </span>
           )}
@@ -693,7 +693,7 @@ export const Vendors: React.FC = () => {
             <button 
               className="btn-secondary" 
               onClick={() => setShowBatchLicenseModal(true)} 
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', backgroundColor: '#0284c7', color: '#ffffff', borderColor: '#0369a1' }}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', backgroundColor: 'var(--primary)', color: '#ffffff', borderColor: 'var(--info)' }}
               title="사업자등록증 폴더를 지정하여 내부 모든 파일 일괄 등록 및 보완"
             >
               <FolderOpen size={15} color="#ffffff" /> 폴더 일괄 등록
@@ -734,7 +734,7 @@ export const Vendors: React.FC = () => {
             </div>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>전사 매입 누적거래액</span>
-              <strong style={{ fontSize: '15px', color: '#16a34a', whiteSpace: 'nowrap' }}>₩{totalPurchaseSum.toLocaleString()}</strong>
+              <strong style={{ fontSize: '15px', color: 'var(--success)', whiteSpace: 'nowrap' }}>₩{totalPurchaseSum.toLocaleString()}</strong>
             </div>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>거래 개시처</span>
@@ -742,11 +742,11 @@ export const Vendors: React.FC = () => {
             </div>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>임차 / 운송사</span>
-              <strong style={{ fontSize: '15px', color: '#2563eb', whiteSpace: 'nowrap' }}>{rentalCount + transportCount}개사</strong>
+              <strong style={{ fontSize: '15px', color: 'var(--primary)', whiteSpace: 'nowrap' }}>{rentalCount + transportCount}개사</strong>
             </div>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>외주 정비 / 구매처</span>
-              <strong style={{ fontSize: '15px', color: '#d97706', whiteSpace: 'nowrap' }}>{repairCount + purchaseCount}개사</strong>
+              <strong style={{ fontSize: '15px', color: 'var(--warning)', whiteSpace: 'nowrap' }}>{repairCount + purchaseCount}개사</strong>
             </div>
           </div>
         );
@@ -911,7 +911,7 @@ export const Vendors: React.FC = () => {
                       <td style={{ fontSize: '12px', padding: '6px 6px', whiteSpace: 'nowrap', color: v.firstTradeDate ? '#2563eb' : 'var(--text-muted)', fontWeight: v.firstTradeDate ? '600' : 'normal' }}>
                         {v.firstTradeDate ? (
                           <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <Clock size={12} style={{ color: '#3b82f6' }} />
+                            <Clock size={12} style={{ color: 'var(--primary)' }} />
                             {calculateTradeDuration(v.firstTradeDate)}
                           </span>
                         ) : '-'}
@@ -988,7 +988,7 @@ export const Vendors: React.FC = () => {
                                   border: 'none',
                                   background: 'none',
                                   cursor: 'pointer',
-                                  color: '#ef4444',
+                                  color: 'var(--danger)',
                                   padding: '2px',
                                   fontSize: '11px',
                                   lineHeight: 1
@@ -1057,7 +1057,7 @@ export const Vendors: React.FC = () => {
                                   border: 'none',
                                   background: 'none',
                                   cursor: 'pointer',
-                                  color: '#ef4444',
+                                  color: 'var(--danger)',
                                   padding: '2px',
                                   fontSize: '11px',
                                   lineHeight: 1
@@ -1150,14 +1150,14 @@ export const Vendors: React.FC = () => {
                   📄 <strong>조회 매입처:</strong> <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{totalVendors}</span>개사
                 </span>
                 <span style={{ color: 'var(--text-secondary)' }}>
-                  🟢 <strong>거래개시:</strong> <span style={{ color: '#2563eb', fontWeight: 700 }}>{startedVendors}</span>개사 
+                  🟢 <strong>거래개시:</strong> <span style={{ color: 'var(--primary)', fontWeight: 700 }}>{startedVendors}</span>개사 
                   <span style={{ color: 'var(--text-muted)', fontSize: '11px', marginLeft: '4px' }}>(미개시 {unstartedVendors}사)</span>
                 </span>
                 <span style={{ color: 'var(--text-secondary)' }}>
-                  🏢 <strong>상태:</strong> 정상 <span style={{ color: '#16a34a', fontWeight: 700 }}>{activeCount}</span>사 / 중단 <span style={{ color: '#ef4444', fontWeight: 700 }}>{inactiveCount}</span>사
+                  🏢 <strong>상태:</strong> 정상 <span style={{ color: 'var(--success)', fontWeight: 700 }}>{activeCount}</span>사 / 중단 <span style={{ color: 'var(--danger)', fontWeight: 700 }}>{inactiveCount}</span>사
                 </span>
                 <span style={{ color: 'var(--text-secondary)' }}>
-                  💰 <strong>조회 누적거래액 합계:</strong> <span style={{ color: '#16a34a', fontWeight: 700 }}>₩{filteredPurchaseSum.toLocaleString()}</span>
+                  💰 <strong>조회 누적거래액 합계:</strong> <span style={{ color: 'var(--success)', fontWeight: 700 }}>₩{filteredPurchaseSum.toLocaleString()}</span>
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1165,7 +1165,7 @@ export const Vendors: React.FC = () => {
                   padding: '3px 8px',
                   borderRadius: '4px',
                   backgroundColor: 'rgba(34, 197, 94, 0.12)',
-                  color: '#16a34a',
+                  color: 'var(--success)',
                   fontWeight: 600,
                   fontSize: '11px'
                 }}>
@@ -1452,7 +1452,7 @@ export const Vendors: React.FC = () => {
                         border: '1px solid rgba(59, 130, 246, 0.3)',
                         borderRadius: '4px',
                         fontSize: '11.5px',
-                        color: '#2563eb',
+                        color: 'var(--primary)',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '6px'
@@ -1560,7 +1560,7 @@ export const Vendors: React.FC = () => {
                                 style={{
                                   border: 'none',
                                   background: 'none',
-                                  color: '#ef4444',
+                                  color: 'var(--danger)',
                                   cursor: 'pointer',
                                   fontSize: '11px',
                                   padding: '2px'
@@ -1641,7 +1641,7 @@ export const Vendors: React.FC = () => {
                                 fontSize: '11.5px',
                                 fontWeight: '600',
                                 backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                                color: '#d97706',
+                                color: 'var(--warning)',
                                 textDecoration: 'none',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
@@ -1681,7 +1681,7 @@ export const Vendors: React.FC = () => {
                                 style={{
                                   border: 'none',
                                   background: 'none',
-                                  color: '#ef4444',
+                                  color: 'var(--danger)',
                                   cursor: 'pointer',
                                   fontSize: '11px',
                                   padding: '2px'

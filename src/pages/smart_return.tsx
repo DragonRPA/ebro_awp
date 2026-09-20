@@ -693,7 +693,7 @@ export const SmartReturn: React.FC = () => {
             </div>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>현장 대여중 장비</span>
-              <strong style={{ fontSize: '15px', color: '#16a34a' }}>{totalRentedAssets}대</strong>
+              <strong style={{ fontSize: '15px', color: 'var(--success)' }}>{totalRentedAssets}대</strong>
             </div>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>7일 내 만료예정 계약</span>
@@ -789,7 +789,7 @@ export const SmartReturn: React.FC = () => {
                           >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                               <span style={{ fontSize: '12px', fontWeight: 800 }}>{d.customerName?.value || '고객사 미상'}</span>
-                              <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', fontWeight: 700, backgroundColor: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>
+                              <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', fontWeight: 700, backgroundColor: 'rgba(239,68,68,0.15)', color: 'var(--danger)' }}>
                                 회수 요청
                               </span>
                             </div>
@@ -973,7 +973,7 @@ export const SmartReturn: React.FC = () => {
                 justifyContent: 'space-between',
                 alignItems: 'center'
               }}>
-                <span style={{ fontSize: '12px', color: '#2563eb', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Sparkles size={14} /> 선택된 통화 회수 내용이 자동 입력되었습니다. 회수 장비 및 일자를 확인 후 등록하십시오.
                 </span>
                 <button
@@ -1266,17 +1266,17 @@ export const SmartReturn: React.FC = () => {
               </div>
 
               {/* 실제 인쇄 타겟 컨테이너 */}
-              <div id="return-sheet-print" style={{ padding: '16px 20px', backgroundColor: '#ffffff', color: '#000000', borderRadius: '2px', border: '1px solid #000000', maxWidth: '800px', width: '100%', margin: '0 auto', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', boxSizing: 'border-box', overflow: 'hidden' }}>
+              <div id="return-sheet-print" style={{ padding: '16px 20px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', borderRadius: '2px', border: '1px solid #000000', maxWidth: '800px', width: '100%', margin: '0 auto', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', boxSizing: 'border-box', overflow: 'hidden' }}>
                 
                 {/* 상단 헤더: 좌측 계약번호+출력일시 / 중앙 타이틀 / 우측 날인란 */}
                 <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', borderBottom: '2px solid #000000', paddingBottom: '6px', marginBottom: '8px', gap: '8px' }}>
 
                   {/* 좌측: 계약번호 및 출력일시 */}
                   <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <div style={{ fontSize: '11px', fontWeight: '800', color: '#000000', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
                       계약번호: <span style={{ color: selectedContract?.contractNo ? '#000000' : '#666666', fontWeight: '800' }}>{selectedContract?.contractNo || '(계약 선택)'}</span>
                     </div>
-                    <div style={{ fontSize: '10px', color: '#333333', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
                       출력일시: {(() => {
                         const now = new Date();
                         const y = now.getFullYear();
@@ -1292,7 +1292,7 @@ export const SmartReturn: React.FC = () => {
 
                   {/* 중앙: 문서 타이틀 */}
                   <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
-                    <h1 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#000000', letterSpacing: '2px', whiteSpace: 'nowrap' }}>{(currentTenant?.tradeName || '기연리프트')} 입고요청서 (회수확인서)</h1>
+                    <h1 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: 'var(--text-main)', letterSpacing: '2px', whiteSpace: 'nowrap' }}>{(currentTenant?.tradeName || '기연리프트')} 입고요청서 (회수확인서)</h1>
                   </div>
 
                   {/* 우측: 입고 등록자 날인란 */}
@@ -1303,7 +1303,7 @@ export const SmartReturn: React.FC = () => {
                       textAlign: 'center',
                       fontSize: '9px',
                       fontWeight: 'bold',
-                      color: '#000000',
+                      color: 'var(--text-main)',
                       padding: '1px 0',
                       whiteSpace: 'nowrap',
                     }}>
@@ -1311,7 +1311,7 @@ export const SmartReturn: React.FC = () => {
                     </div>
                     <div style={{
                       height: '28px',
-                      backgroundColor: '#ffffff',
+                      backgroundColor: 'var(--bg-card)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -1324,7 +1324,7 @@ export const SmartReturn: React.FC = () => {
                 </div>
 
                 {/* 1. 고객사 및 회수현장 정보 */}
-                <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: '#000000' }}>1. 고객사 및 회수현장 정보</div>
+                <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: 'var(--text-main)' }}>1. 고객사 및 회수현장 정보</div>
                 <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '4px', tableLayout: 'fixed', boxSizing: 'border-box' }}>
                   <colgroup>
                     <col style={{ width: '12%' }} />
@@ -1334,22 +1334,22 @@ export const SmartReturn: React.FC = () => {
                   </colgroup>
                   <tbody>
                     <tr>
-                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>고객사명</th>
-                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#ffffff', color: '#000000', fontSize: '11px', fontWeight: '700', wordBreak: 'break-all', boxSizing: 'border-box' }}>{selectedCustomer?.name || '-'}</td>
-                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>회수현장</th>
-                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#ffffff', color: '#000000', fontSize: '11px', fontWeight: '700', wordBreak: 'break-all', boxSizing: 'border-box' }}>{selectedSite?.name || '-'}</td>
+                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>고객사명</th>
+                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '11px', fontWeight: '700', wordBreak: 'break-all', boxSizing: 'border-box' }}>{selectedCustomer?.name || '-'}</td>
+                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>회수현장</th>
+                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '11px', fontWeight: '700', wordBreak: 'break-all', boxSizing: 'border-box' }}>{selectedSite?.name || '-'}</td>
                     </tr>
                     <tr>
-                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>회수지주소</th>
-                      <td colSpan={3} style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#ffffff', color: '#000000', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>{selectedSite?.address || selectedCustomer?.address || '-'}</td>
+                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>회수지주소</th>
+                      <td colSpan={3} style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>{selectedSite?.address || selectedCustomer?.address || '-'}</td>
                     </tr>
                     <tr>
-                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>영업담당</th>
-                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#ffffff', color: '#000000', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>
+                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>영업담당</th>
+                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>
                         {selectedSalesperson?.name || currentUser?.name || '-'} {selectedSalesperson?.phone || currentUser?.phone ? `(${selectedSalesperson?.phone || currentUser?.phone})` : ''}
                       </td>
-                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>현장담당</th>
-                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#ffffff', color: '#000000', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>
+                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>현장담당</th>
+                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>
                         {contactName || '-'} {contactPhone ? `(${contactPhone})` : ''}
                       </td>
                     </tr>
@@ -1357,7 +1357,7 @@ export const SmartReturn: React.FC = () => {
                 </table>
 
                 {/* 2. 회수 배차 및 운송 정보 */}
-                <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: '#000000' }}>2. 회수 배차 및 운송 정보</div>
+                <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: 'var(--text-main)' }}>2. 회수 배차 및 운송 정보</div>
                 <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '4px', tableLayout: 'fixed', boxSizing: 'border-box' }}>
                   <colgroup>
                     <col style={{ width: '12%' }} />
@@ -1367,29 +1367,29 @@ export const SmartReturn: React.FC = () => {
                   </colgroup>
                   <tbody>
                     <tr>
-                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>회수예정일</th>
-                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#ffffff', color: '#000000', fontSize: '11px', fontWeight: '700', wordBreak: 'break-all', boxSizing: 'border-box' }}>{returnDate || '-'}</td>
-                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>상차희망시간</th>
-                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#ffffff', color: '#000000', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>{loadingTime || '-'}</td>
+                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>회수예정일</th>
+                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '11px', fontWeight: '700', wordBreak: 'break-all', boxSizing: 'border-box' }}>{returnDate || '-'}</td>
+                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>상차희망시간</th>
+                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>{loadingTime || '-'}</td>
                     </tr>
                   </tbody>
                 </table>
 
                 {/* 3. 회수 대상 장비 목록 (50:50 대칭 균형 그리드) */}
-                <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: '#000000' }}>
+                <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: 'var(--text-main)' }}>
                   3. 회수 대상 장비 목록 (총 {selectedReturnAssets.length}대 일괄 회수)
                 </div>
                 <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '4px', tableLayout: 'fixed', boxSizing: 'border-box' }}>
                   <thead>
                     <tr>
-                      <th style={{ width: '6%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>순번</th>
-                      <th style={{ width: '21%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>모델명</th>
-                      <th style={{ width: '17%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>관리번호</th>
-                      <th style={{ width: '6%', border: '1px solid #000000', borderRight: '2px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>확인</th>
-                      <th style={{ width: '6%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>순번</th>
-                      <th style={{ width: '21%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>모델명</th>
-                      <th style={{ width: '17%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>관리번호</th>
-                      <th style={{ width: '6%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>확인</th>
+                      <th style={{ width: '6%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>순번</th>
+                      <th style={{ width: '21%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>모델명</th>
+                      <th style={{ width: '17%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>관리번호</th>
+                      <th style={{ width: '6%', border: '1px solid #000000', borderRight: '2px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>확인</th>
+                      <th style={{ width: '6%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>순번</th>
+                      <th style={{ width: '21%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>모델명</th>
+                      <th style={{ width: '17%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>관리번호</th>
+                      <th style={{ width: '6%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>확인</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1410,14 +1410,14 @@ export const SmartReturn: React.FC = () => {
                         const right = selectedReturnAssets[i + half];
                         rows.push(
                           <tr key={i}>
-                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontSize: '8pt', padding: '2px 3px', color: '#000000' }}>{left ? i + 1 : ''}</td>
-                            <td style={{ border: '1px solid #000000', fontWeight: '700', paddingLeft: '5px', fontSize: '8pt', color: '#000000' }}>{left?.modelName || ''}</td>
-                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontWeight: '600', fontSize: '8pt', color: '#000000' }}>{left?.assetNo || ''}</td>
-                            <td style={{ border: '1px solid #000000', borderRight: '2px solid #000000', textAlign: 'center', fontSize: '7.5pt', padding: '2px 3px', color: '#000000' }}>{left ? '[   ]' : ''}</td>
-                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontSize: '8pt', padding: '2px 3px', color: '#000000' }}>{right ? i + half + 1 : ''}</td>
-                            <td style={{ border: '1px solid #000000', fontWeight: '700', paddingLeft: '5px', fontSize: '8pt', color: '#000000' }}>{right?.modelName || ''}</td>
-                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontWeight: '600', fontSize: '8pt', color: '#000000' }}>{right?.assetNo || ''}</td>
-                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontSize: '7.5pt', padding: '2px 3px', color: '#000000' }}>{right ? '[   ]' : ''}</td>
+                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontSize: '8pt', padding: '2px 3px', color: 'var(--text-main)' }}>{left ? i + 1 : ''}</td>
+                            <td style={{ border: '1px solid #000000', fontWeight: '700', paddingLeft: '5px', fontSize: '8pt', color: 'var(--text-main)' }}>{left?.modelName || ''}</td>
+                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontWeight: '600', fontSize: '8pt', color: 'var(--text-main)' }}>{left?.assetNo || ''}</td>
+                            <td style={{ border: '1px solid #000000', borderRight: '2px solid #000000', textAlign: 'center', fontSize: '7.5pt', padding: '2px 3px', color: 'var(--text-main)' }}>{left ? '[   ]' : ''}</td>
+                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontSize: '8pt', padding: '2px 3px', color: 'var(--text-main)' }}>{right ? i + half + 1 : ''}</td>
+                            <td style={{ border: '1px solid #000000', fontWeight: '700', paddingLeft: '5px', fontSize: '8pt', color: 'var(--text-main)' }}>{right?.modelName || ''}</td>
+                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontWeight: '600', fontSize: '8pt', color: 'var(--text-main)' }}>{right?.assetNo || ''}</td>
+                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontSize: '7.5pt', padding: '2px 3px', color: 'var(--text-main)' }}>{right ? '[   ]' : ''}</td>
                           </tr>
                         );
                       }
@@ -1432,13 +1432,13 @@ export const SmartReturn: React.FC = () => {
                   if (inheritedSpecs.length === 0) return null;
                   return (
                     <>
-                      <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: '#000000' }}>
+                      <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: 'var(--text-main)' }}>
                         4. 출고 장착 옵션 회수 점검
                       </div>
-                      <div style={{ padding: '4px 8px', border: '1px solid #000000', marginBottom: '4px', backgroundColor: '#ffffff', color: '#000000', boxSizing: 'border-box' }}>
+                      <div style={{ padding: '4px 8px', border: '1px solid #000000', marginBottom: '4px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', boxSizing: 'border-box' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 10px', fontSize: '8pt' }}>
                           {inheritedSpecs.map((s, idx) => (
-                            <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '700', color: '#000000' }}>
+                            <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '700', color: 'var(--text-main)' }}>
                               <span style={{ fontSize: '8pt' }}>[ ]</span>
                               <span>[출고옵션 {idx + 1}] {s.label} 회수 확인</span>
                             </div>
@@ -1450,7 +1450,7 @@ export const SmartReturn: React.FC = () => {
                 })()}
 
                 {/* 5. 현장 특이사항 및 인계 메모 */}
-                <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: '#000000' }}>5. 현장 특이사항 및 인계 메모</div>
+                <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: 'var(--text-main)' }}>5. 현장 특이사항 및 인계 메모</div>
                 <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', boxSizing: 'border-box' }}>
                   <colgroup>
                     <col style={{ width: '12%' }} />
@@ -1458,8 +1458,8 @@ export const SmartReturn: React.FC = () => {
                   </colgroup>
                   <tbody>
                     <tr>
-                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: '#000000', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>지시/비고사항</th>
-                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#ffffff', color: '#000000', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>{note || '특이사항 없음'}</td>
+                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>지시/비고사항</th>
+                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>{note || '특이사항 없음'}</td>
                     </tr>
                   </tbody>
                 </table>

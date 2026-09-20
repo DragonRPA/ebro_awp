@@ -294,7 +294,7 @@ export const DepreciationExecution: React.FC = () => {
             </div>
 
             {isAlreadyExecuted ? (
-              <div style={{ padding: '10px 12px', borderRadius: '6px', backgroundColor: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: '#16a34a', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ padding: '10px 12px', borderRadius: '6px', backgroundColor: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: 'var(--success)', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <CheckCircle2 size={16} /> [해당 연월 마감 완료] {executedLog?.executedAt.substring(0, 10)} 마감됨 (상각액: ₩{executedLog?.totalDepreciationAmount.toLocaleString()})
                 </div>
@@ -303,14 +303,14 @@ export const DepreciationExecution: React.FC = () => {
                     type="button"
                     onClick={handleCancelExecution}
                     disabled={isProcessing}
-                    style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: '1px solid rgba(239,68,68,0.4)', backgroundColor: 'rgba(239,68,68,0.1)', color: '#dc2626', cursor: 'pointer', fontWeight: 'bold' }}
+                    style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: '1px solid rgba(239,68,68,0.4)', backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--danger)', cursor: 'pointer', fontWeight: 'bold' }}
                   >
                     결산 마감 취소 (롤백)
                   </button>
                 )}
               </div>
             ) : (
-              <div style={{ padding: '10px 12px', borderRadius: '6px', backgroundColor: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#2563eb', fontSize: '12px' }}>
+              <div style={{ padding: '10px 12px', borderRadius: '6px', backgroundColor: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: 'var(--primary)', fontSize: '12px' }}>
                 ℹ️ 미마감 상태입니다. 마감 실행 시 대상 당사자산의 장부가치가 당월분만큼 차감됩니다.
               </div>
             )}

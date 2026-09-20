@@ -947,7 +947,7 @@ export const VehicleOperationLogPage: React.FC = () => {
                             style={{
                               border: 'none',
                               backgroundColor: 'transparent',
-                              color: '#ef4444',
+                              color: 'var(--danger)',
                               cursor: 'pointer',
                               padding: '2px'
                             }}
@@ -1116,7 +1116,7 @@ export const VehicleOperationLogPage: React.FC = () => {
                               <span>영수증확인</span>
                             </button>
                           ) : (
-                            <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: '700' }}>영수증누락</span>
+                            <span style={{ color: 'var(--danger)', fontSize: '11px', fontWeight: '700' }}>영수증누락</span>
                           )}
                         </td>
                         <td style={{ padding: '6px 10px', color: 'var(--text-secondary)' }}>
@@ -1138,7 +1138,7 @@ export const VehicleOperationLogPage: React.FC = () => {
                             style={{
                               border: 'none',
                               backgroundColor: 'transparent',
-                              color: '#ef4444',
+                              color: 'var(--danger)',
                               cursor: 'pointer',
                               padding: '2px'
                             }}
@@ -1343,7 +1343,7 @@ export const VehicleOperationLogPage: React.FC = () => {
                             style={{
                               border: '1px solid rgba(239,68,68,0.4)',
                               backgroundColor: 'var(--bg-app)',
-                              color: '#ef4444',
+                              color: 'var(--danger)',
                               borderRadius: '4px',
                               padding: '3px 6px',
                               cursor: 'pointer',
@@ -1411,7 +1411,7 @@ export const VehicleOperationLogPage: React.FC = () => {
                 <X size={20} />
               </button>
             </div>
-            <div style={{ padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#000', overflow: 'auto', flex: 1 }}>
+            <div style={{ padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--text-main)', overflow: 'auto', flex: 1 }}>
               {photoModal.url ? (
                 <img
                   src={photoModal.url}
@@ -1739,7 +1739,7 @@ export const VehicleOperationLogPage: React.FC = () => {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-              <div style={{ padding: '8px', backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', borderRadius: '8px' }}>
+              <div style={{ padding: '8px', backgroundColor: 'rgba(239, 68, 68, 0.15)', color: 'var(--danger)', borderRadius: '8px' }}>
                 <AlertTriangle size={20} />
               </div>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>
@@ -1769,7 +1769,7 @@ export const VehicleOperationLogPage: React.FC = () => {
                 onClick={handleExecuteDelete}
                 style={{
                   padding: '8px 16px',
-                  backgroundColor: '#ef4444',
+                  backgroundColor: 'var(--danger)',
                   border: 'none',
                   borderRadius: '6px',
                   fontSize: '13px',

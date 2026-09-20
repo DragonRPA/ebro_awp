@@ -98,7 +98,7 @@ type BlockId = 'CUSTOMER' | 'SITE' | 'EQUIPMENT' | 'SCHEDULE' | 'SAFETY_COST';
 
 const CONTEXT_OPTIONS: { id: CallContext; label: string; color: string }[] = [
   { id: 'NEW_CUSTOMER',   label: '신규고객 출고',   color: '#7c3aed' },
-  { id: 'ADDITIONAL',     label: '기존현장 출고',   color: '#2563eb' },
+  { id: 'ADDITIONAL',     label: '기존현장 출고',   color: 'var(--primary)' },
   { id: 'EXCHANGE',       label: '교체(대차)',       color: '#0891b2' },
 ];
 

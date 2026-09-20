@@ -436,17 +436,17 @@ export const GoogleConfig: React.FC = () => {
           <div style={{ background: 'var(--bg-card)', borderRadius: '12px', border: '2px solid #EF4444', padding: '32px 28px', maxWidth: '420px', width: '90%', boxShadow: '0 20px 60px rgba(239,68,68,0.3)' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center' }}>
               <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(239,68,68,0.15)', border: '2px solid #EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <AlertTriangle size={28} style={{ color: '#EF4444' }} />
+                <AlertTriangle size={28} style={{ color: 'var(--danger)' }} />
               </div>
               <div>
-                <div style={{ fontSize: '18px', fontWeight: '800', color: '#EF4444', marginBottom: '8px' }}>Storage 파일 삭제</div>
+                <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--danger)', marginBottom: '8px' }}>Storage 파일 삭제</div>
                 <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: '600', marginBottom: '6px' }}>
                   {deleteModal.count}건의 증빙 파일을 Supabase Storage에서
                 </div>
                 <div style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: '600', marginBottom: '12px' }}>
                   삭제합니다.
                 </div>
-                <div style={{ fontSize: '12.5px', color: '#EF4444', fontWeight: '700', padding: '10px 14px', background: 'rgba(239,68,68,0.08)', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.3)' }}>
+                <div style={{ fontSize: '12.5px', color: 'var(--danger)', fontWeight: '700', padding: '10px 14px', background: 'rgba(239,68,68,0.08)', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.3)' }}>
                   ⚠️ 이 작업은 되돌릴 수 없습니다.<br/>
                   백업이 완료된 것을 확인한 후 진행하세요.
                 </div>
@@ -472,7 +472,7 @@ export const GoogleConfig: React.FC = () => {
                       setDeleteModal(null);
                     }
                   }}
-                  style={{ flex: 1, padding: '11px', borderRadius: '8px', border: 'none', background: '#EF4444', color: '#fff', fontWeight: '800', fontSize: '14px', cursor: isDeleting ? 'not-allowed' : 'pointer', opacity: isDeleting ? 0.7 : 1 }}
+                  style={{ flex: 1, padding: '11px', borderRadius: '8px', border: 'none', background: 'var(--danger)', color: '#fff', fontWeight: '800', fontSize: '14px', cursor: isDeleting ? 'not-allowed' : 'pointer', opacity: isDeleting ? 0.7 : 1 }}
                 >
                   {isDeleting ? '삭제 중...' : '삭제'}
                 </button>
@@ -584,7 +584,7 @@ export const GoogleConfig: React.FC = () => {
                 저장된 모든 증빙 파일을 ZIP으로 PC에 다운로드합니다.
               </div>
               <div style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '8px', padding: '14px', fontSize: '12.5px', lineHeight: '1.7', color: 'var(--text-secondary)' }}>
-                <strong style={{ color: '#3B82F6', display: 'block', marginBottom: '6px' }}>⚙️ 최초 1회 설정 필요 (Supabase 대시보드)</strong>
+                <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '6px' }}>⚙️ 최초 1회 설정 필요 (Supabase 대시보드)</strong>
                 <ol style={{ margin: 0, paddingLeft: '18px' }}>
                   <li><a href="https://app.supabase.com" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', fontWeight: 'bold' }}>app.supabase.com</a> 접속 → 프로젝트 선택</li>
                   <li>왼쪽 메뉴 <strong>Storage</strong> → <strong>[New Bucket]</strong> 클릭</li>
@@ -1003,7 +1003,7 @@ export const GoogleConfig: React.FC = () => {
                 </p>
 
                 <div style={{ backgroundColor: 'var(--bg-app)', padding: '14px 16px', borderRadius: '10px', border: '1px solid var(--border)', marginBottom: '16px' }}>
-                  <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '700', color: '#2563eb' }}>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '700', color: 'var(--primary)' }}>
                     ⚡ 1초 실행 방법:
                   </h4>
                   <ol style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '6px' }}>

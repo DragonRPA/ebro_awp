@@ -136,7 +136,7 @@ export const CallAudioUploadModal: React.FC<CallAudioUploadModalProps> = ({
     >
       <div
         style={{
-          background: '#0f172a',
+          background: 'var(--bg-app)',
           borderTop: '1px solid #1e293b',
           borderRadius: '16px 16px 0 0',
           width: '100%',
@@ -155,13 +155,13 @@ export const CallAudioUploadModal: React.FC<CallAudioUploadModalProps> = ({
             </div>
             <div>
               <div style={{ fontWeight: 700, fontSize: 14, color: '#fff', lineHeight: 1.3 }}>통화 녹음 파일 직접 업로드</div>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>AI 출고 요청 초안 자동 생성</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>AI 출고 요청 초안 자동 생성</div>
             </div>
           </div>
           <button
             onClick={onClose}
             disabled={uploading}
-            style={{ padding: 6, borderRadius: 8, background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            style={{ padding: 6, borderRadius: 8, background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           >
             <X style={{ width: 20, height: 20 }} />
           </button>
@@ -174,7 +174,7 @@ export const CallAudioUploadModal: React.FC<CallAudioUploadModalProps> = ({
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#cbd5e1', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>1. 음성 파일 선택</span>
-              <span style={{ fontSize: 10, fontWeight: 400, color: '#94a3b8' }}>음성 또는 텍스트 중 하나 필수</span>
+              <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--text-muted)' }}>음성 또는 텍스트 중 하나 필수</span>
             </div>
 
             {/* 네이티브 파일 인풋 (Visually Hidden: 모바일 브라우저/웹뷰 터치 연동 100% 호환) */}
@@ -233,11 +233,11 @@ export const CallAudioUploadModal: React.FC<CallAudioUploadModalProps> = ({
                 </div>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>탭하여 음성/녹음 파일 선택</div>
-                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
                     .m4a · .mp3 · .wav · .aac · .amr
                   </div>
                 </div>
-                <div style={{ fontSize: 10, color: '#64748b', marginTop: 2, background: 'rgba(15,23,42,0.6)', padding: '3px 8px', borderRadius: 6 }}>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, background: 'rgba(15,23,42,0.6)', padding: '3px 8px', borderRadius: 6 }}>
                   폰: [내 파일] ➔ [Recordings] ➔ [Call]
                 </div>
               </label>
@@ -260,7 +260,7 @@ export const CallAudioUploadModal: React.FC<CallAudioUploadModalProps> = ({
                   </div>
                   <div style={{ textAlign: 'center', maxWidth: '100%' }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', wordBreak: 'break-all' }}>{file.name}</div>
-                    <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{(file.size / (1024 * 1024)).toFixed(2)} MB</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{(file.size / (1024 * 1024)).toFixed(2)} MB</div>
                   </div>
                   {audioUrl && (
                     <audio src={audioUrl} controls style={{ width: '100%', height: 38, borderRadius: 8, marginTop: 4 }} />
@@ -276,7 +276,7 @@ export const CallAudioUploadModal: React.FC<CallAudioUploadModalProps> = ({
                       borderRadius: 8,
                       fontSize: 12,
                       fontWeight: 600,
-                      background: '#1e293b',
+                      background: 'var(--bg-card)',
                       border: '1px solid #334155',
                       color: '#93c5fd',
                       textAlign: 'center',
@@ -318,7 +318,7 @@ export const CallAudioUploadModal: React.FC<CallAudioUploadModalProps> = ({
           {/* 2. 업무 맥락 */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#cbd5e1' }}>2. 통화 업무 맥락 <span style={{ fontWeight: 400, color: '#64748b' }}>(복합 선택)</span></div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#cbd5e1' }}>2. 통화 업무 맥락 <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(복합 선택)</span></div>
               <span style={{ fontSize: 10, color: '#60a5fa', fontWeight: 600 }}>{selectedContexts.size}개 선택됨</span>
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -389,7 +389,7 @@ export const CallAudioUploadModal: React.FC<CallAudioUploadModalProps> = ({
             type="button"
             onClick={onClose}
             disabled={uploading}
-            style={{ padding: '10px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600, background: '#1e293b', border: '1px solid #334155', color: '#94a3b8', cursor: 'pointer' }}
+            style={{ padding: '10px 18px', borderRadius: 10, fontSize: 13, fontWeight: 600, background: 'var(--bg-card)', border: '1px solid #334155', color: 'var(--text-muted)', cursor: 'pointer' }}
           >
             취소
           </button>
@@ -404,7 +404,7 @@ export const CallAudioUploadModal: React.FC<CallAudioUploadModalProps> = ({
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '10px 24px', borderRadius: 10, fontSize: 14, fontWeight: 700,
                   background: !canSubmit ? '#1e3a5f' : '#2563eb',
-                  border: 'none', color: !canSubmit ? '#64748b' : '#fff',
+                  border: 'none', color: !canSubmit ? 'var(--border-color)' : '#fff',
                   cursor: !canSubmit ? 'not-allowed' : 'pointer',
                   boxShadow: canSubmit ? '0 4px 16px rgba(37,99,235,0.35)' : 'none',
                   transition: 'all 0.15s',

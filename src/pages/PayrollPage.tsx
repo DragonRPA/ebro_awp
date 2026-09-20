@@ -445,7 +445,7 @@ export const PayrollPage: React.FC = () => {
             </div>
             <div style={{ padding: '12px 16px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '4px' }}>총 OT 시간</div>
-              <div style={{ fontSize: '16px', fontWeight: 800, color: '#d97706' }}>{totalOtHours}시간</div>
+              <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--warning)' }}>{totalOtHours}시간</div>
             </div>
             <div style={{ padding: '12px 16px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '4px' }}>실지급 총액 (Net Pay)</div>

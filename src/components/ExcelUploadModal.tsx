@@ -349,7 +349,7 @@ export const ExcelUploadModal: React.FC<ExcelUploadModalProps> = ({
               borderRadius: 'var(--radius-sm)',
               backgroundColor: 'rgba(16, 185, 129, 0.1)',
               border: '1px solid rgba(16, 185, 129, 0.3)',
-              color: '#059669',
+              color: 'var(--success)',
               fontSize: '12.5px',
               display: 'flex',
               alignItems: 'center',

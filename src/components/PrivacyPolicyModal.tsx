@@ -30,7 +30,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen =
         backgroundColor: 'var(--bg-card, #ffffff)',
         color: 'var(--text-main, #0f172a)',
         borderRadius: '12px',
-        border: '1px solid var(--border-color, #cbd5e1)',
+        border: '1px solid var(--border-color, var(--border-color))',
         width: '100%',
         maxWidth: '820px',
         maxHeight: '90vh',
@@ -53,7 +53,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen =
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-main, #0f172a)' }}>
               개인정보 처리방침
             </h3>
-            <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', backgroundColor: '#dcfce7', color: '#15803d', fontWeight: 600 }}>
+            <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--success-light)', color: 'var(--success)', fontWeight: 600 }}>
               법 제29조 / 안전성 고시 제8조 준수
             </span>
           </div>
@@ -101,8 +101,8 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen =
             <h4 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main, #0f172a)', marginBottom: '8px' }}>
               제2조 (처리하는 개인정보 항목 및 주민등록번호 미수집 원칙)
             </h4>
-            <div style={{ backgroundColor: 'var(--bg-secondary, #f8fafc)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color, #e2e8f0)', marginBottom: '8px' }}>
-              <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>
+            <div style={{ backgroundColor: 'var(--bg-secondary, #f8fafc)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color, var(--border-color))', marginBottom: '8px' }}>
+              <div style={{ fontWeight: 700, color: 'var(--text-main)', marginBottom: '4px' }}>
                 📌 주민등록번호 미수집 원칙 (개인정보 보호법 제24조의2 준수)
               </div>
               <p style={{ margin: 0, fontSize: '12px' }}>
@@ -150,8 +150,8 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen =
             <h4 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main, #0f172a)', marginBottom: '8px' }}>
               제5조 (개인정보 보호책임자 및 권익침해 구제)
             </h4>
-            <div style={{ backgroundColor: 'var(--bg-secondary, #f8fafc)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color, #e2e8f0)' }}>
-              <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: '4px' }}>개인정보 보호책임자</div>
+            <div style={{ backgroundColor: 'var(--bg-secondary, #f8fafc)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color, var(--border-color))' }}>
+              <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>개인정보 보호책임자</div>
               <div>• 성명: 대표이사 / 관리부 총괄</div>
               <div>• 소속/직책: (주)기연리프트 경영진</div>
               <div>• 문의 및 불만처리: 사내 관리부 (시스템 문의)</div>

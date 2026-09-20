@@ -289,7 +289,7 @@ export const Contracts: React.FC = () => {
         {/* 1. 배차 */}
         {m.isDispatched ? (
           <span
-            style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#16a34a', border: '1px solid rgba(34, 197, 94, 0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}
+            style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(34, 197, 94, 0.15)', color: 'var(--success)', border: '1px solid rgba(34, 197, 94, 0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}
             title={m.driverName ? `기사: ${m.driverName}` : '배차완료'}
           >
             ✓ 배차완료
@@ -306,14 +306,14 @@ export const Contracts: React.FC = () => {
         {/* 2. 장비할당 */}
         {m.isAssigned ? (
           <span
-            style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#16a34a', border: '1px solid rgba(34, 197, 94, 0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}
+            style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(34, 197, 94, 0.15)', color: 'var(--success)', border: '1px solid rgba(34, 197, 94, 0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}
             title={`총 ${m.cas.length}대 매핑 완료`}
           >
             ✓ 장비할당
           </span>
         ) : (
           <span
-            style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(239, 68, 68, 0.12)', color: '#dc2626', border: '1px solid rgba(239, 68, 68, 0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}
+            style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(239, 68, 68, 0.12)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}
             title="출고부서 자산 매핑 대기"
           >
             {m.unassignedCount > 0 ? `미할당 ${m.unassignedCount}대` : '장비미할당'}
@@ -323,14 +323,14 @@ export const Contracts: React.FC = () => {
         {/* 3. 출고검수 */}
         {m.isInspected ? (
           <span
-            style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#16a34a', border: '1px solid rgba(34, 197, 94, 0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}
+            style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(34, 197, 94, 0.15)', color: 'var(--success)', border: '1px solid rgba(34, 197, 94, 0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}
             title="출고 검수 승인 완료 (자산 상태: RENTED 대여중)"
           >
             ✓ 검수완료
           </span>
         ) : m.isInspecting ? (
           <span
-            style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#d97706', border: '1px solid rgba(245, 158, 11, 0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}
+            style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(245, 158, 11, 0.15)', color: 'var(--warning)', border: '1px solid rgba(245, 158, 11, 0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}
             title="출고 검수 진행중"
           >
             검수진행
@@ -347,7 +347,7 @@ export const Contracts: React.FC = () => {
         {/* 4. 계약서패키지 */}
         {m.isPackageSent ? (
           <span
-            style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(34, 197, 94, 0.15)', color: '#16a34a', border: '1px solid rgba(34, 197, 94, 0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}
+            style={{ fontSize: '10.5px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(34, 197, 94, 0.15)', color: 'var(--success)', border: '1px solid rgba(34, 197, 94, 0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}
             title="계약서패키지 발송 완료"
           >
             ✓ 패키지발송
@@ -1621,7 +1621,7 @@ export const Contracts: React.FC = () => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                               <strong>{getCustName(c.customerId)}</strong>
                               {customers.find(cu => cu.id === c.customerId)?.transactionStatus === 'BLOCKED' && (
-                                <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: '#ef4444', color: '#fff', flexShrink: 0 }}>
+                                <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: 'var(--danger)', color: '#fff', flexShrink: 0 }}>
                                   출고제한
                                 </span>
                               )}
@@ -1812,7 +1812,7 @@ export const Contracts: React.FC = () => {
                       ✓ 현장 운송 완료
                     </span>
                   ) : (
-                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', padding: '3px 10px', borderRadius: '4px', border: '1px solid rgba(59,130,246,0.3)' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--primary)', backgroundColor: 'rgba(59,130,246,0.1)', padding: '3px 10px', borderRadius: '4px', border: '1px solid rgba(59,130,246,0.3)' }}>
                       운송 완료 대기중
                     </span>
                   )}
@@ -1825,7 +1825,7 @@ export const Contracts: React.FC = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 700 }}>1. 배차 여부</span>
                       {m.isDispatched ? (
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#16a34a', backgroundColor: 'rgba(34,197,94,0.15)', padding: '2px 6px', borderRadius: '4px' }}>✓ 배차완료</span>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--success)', backgroundColor: 'rgba(34,197,94,0.15)', padding: '2px 6px', borderRadius: '4px' }}>✓ 배차완료</span>
                       ) : (
                         <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', backgroundColor: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: '4px' }}>배차대기</span>
                       )}
@@ -1843,9 +1843,9 @@ export const Contracts: React.FC = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 700 }}>2. 장비할당 여부</span>
                       {m.isAssigned ? (
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#16a34a', backgroundColor: 'rgba(34,197,94,0.15)', padding: '2px 6px', borderRadius: '4px' }}>✓ 장비할당</span>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--success)', backgroundColor: 'rgba(34,197,94,0.15)', padding: '2px 6px', borderRadius: '4px' }}>✓ 장비할당</span>
                       ) : (
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#dc2626', backgroundColor: 'rgba(239,68,68,0.12)', padding: '2px 6px', borderRadius: '4px' }}>{m.unassignedCount > 0 ? `미할당 ${m.unassignedCount}대` : '장비미할당'}</span>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--danger)', backgroundColor: 'rgba(239,68,68,0.12)', padding: '2px 6px', borderRadius: '4px' }}>{m.unassignedCount > 0 ? `미할당 ${m.unassignedCount}대` : '장비미할당'}</span>
                       )}
                     </div>
                     <div style={{ fontSize: '12.5px', color: 'var(--text-main)', fontWeight: 600 }}>
@@ -1861,9 +1861,9 @@ export const Contracts: React.FC = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 700 }}>3. 출고검수 완료</span>
                       {m.isInspected ? (
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#16a34a', backgroundColor: 'rgba(34,197,94,0.15)', padding: '2px 6px', borderRadius: '4px' }}>✓ 검수완료</span>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--success)', backgroundColor: 'rgba(34,197,94,0.15)', padding: '2px 6px', borderRadius: '4px' }}>✓ 검수완료</span>
                       ) : m.isInspecting ? (
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#d97706', backgroundColor: 'rgba(245,158,11,0.15)', padding: '2px 6px', borderRadius: '4px' }}>검수진행</span>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--warning)', backgroundColor: 'rgba(245,158,11,0.15)', padding: '2px 6px', borderRadius: '4px' }}>검수진행</span>
                       ) : (
                         <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', backgroundColor: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: '4px' }}>검수대기</span>
                       )}
@@ -1881,7 +1881,7 @@ export const Contracts: React.FC = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 700 }}>4. 계약서패키지 발송</span>
                       {m.isPackageSent ? (
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#16a34a', backgroundColor: 'rgba(34,197,94,0.15)', padding: '2px 6px', borderRadius: '4px' }}>✓ 패키지발송</span>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--success)', backgroundColor: 'rgba(34,197,94,0.15)', padding: '2px 6px', borderRadius: '4px' }}>✓ 패키지발송</span>
                       ) : (
                         <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--danger)', backgroundColor: 'rgba(239,68,68,0.12)', padding: '2px 6px', borderRadius: '4px' }}>패키지미발송</span>
                       )}
@@ -1923,7 +1923,7 @@ export const Contracts: React.FC = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <strong>{getCustName(activeContract.customerId)}</strong>
                     {customers.find(cu => cu.id === activeContract.customerId)?.transactionStatus === 'BLOCKED' && (
-                      <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: '#ef4444', color: '#fff', flexShrink: 0 }}>
+                      <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: 'var(--danger)', color: '#fff', flexShrink: 0 }}>
                         출고제한
                       </span>
                     )}
@@ -2432,17 +2432,17 @@ export const Contracts: React.FC = () => {
                               <td style={{ padding: '6px 8px' }}>
                                 <span style={{ fontWeight: 600 }}>[{r.issueCategory || '일반'}]</span> {r.issueDescription || r.details || '-'}
                               </td>
-                              <td style={{ padding: '6px 8px', color: '#059669', fontWeight: 600 }}>
+                              <td style={{ padding: '6px 8px', color: 'var(--success)', fontWeight: 600 }}>
                                 {r.actionTaken || '정비 완료'}
                               </td>
                               <td style={{ padding: '6px 8px' }}>{r.mechanicName || '-'}</td>
                               <td style={{ padding: '6px 8px' }}>
                                 {r.billableAmount && r.billableAmount > 0 ? (
-                                  <span style={{ color: '#dc2626', fontWeight: 700 }}>
+                                  <span style={{ color: 'var(--danger)', fontWeight: 700 }}>
                                     유상 ₩{r.billableAmount.toLocaleString()}
                                   </span>
                                 ) : (
-                                  <span style={{ color: '#059669' }}>무상 정비</span>
+                                  <span style={{ color: 'var(--success)' }}>무상 정비</span>
                                 )}
                               </td>
                               <td style={{ padding: '6px 8px', textAlign: 'center' }}>
@@ -3222,7 +3222,7 @@ export const Contracts: React.FC = () => {
                     ))}
                   </select>
                   {availableSites.length === 0 && (
-                    <span style={{ fontSize: '11px', color: '#dc2626' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--danger)' }}>
                       해당 고객사에 등록된 다른 현장이 없습니다. [거래처 관리]에서 새 현장을 먼저 등록하십시오.
                     </span>
                   )}

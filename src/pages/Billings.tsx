@@ -1890,7 +1890,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '16px' }}>⚠️</span>
-                <strong style={{ color: '#d97706', fontSize: '14px' }}>
+                <strong style={{ color: 'var(--warning)', fontSize: '14px' }}>
                   일괄 청구 보류 (Action Required) - {skippedContracts.length}건
                 </strong>
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
@@ -2263,7 +2263,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                         <td style={{ whiteSpace: 'nowrap' }}>
                           <span>{getCustName(b.customerId)}</span>
                           {customers.find(c => c.id === b.customerId)?.transactionStatus === 'BLOCKED' && (
-                            <span style={{ marginLeft: '6px', padding: '1px 5px', fontSize: '10px', backgroundColor: '#fee2e2', color: '#b91c1c', borderRadius: '3px', fontWeight: 800 }}>
+                            <span style={{ marginLeft: '6px', padding: '1px 5px', fontSize: '10px', backgroundColor: 'var(--danger-light)', color: 'var(--danger)', borderRadius: '3px', fontWeight: 800 }}>
                               출고제한
                             </span>
                           )}
@@ -2319,8 +2319,8 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                                   padding: '2px 6px',
                                   fontSize: '10.5px',
                                   fontWeight: '600',
-                                  backgroundColor: '#fee2e2',
-                                  color: '#b91c1c',
+                                  backgroundColor: 'var(--danger-light)',
+                                  color: 'var(--danger)',
                                   border: '1px solid #fca5a5',
                                   borderRadius: '4px',
                                   cursor: 'pointer',
@@ -2436,8 +2436,8 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                       fontSize: '12px'
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Layers size={14} style={{ color: '#4f46e5' }} />
-                        <span>통합 인보이스: <strong style={{ color: '#4f46e5' }}>{activeBilling.invoiceId}</strong> (묶음 청구됨)</span>
+                        <Layers size={14} style={{ color: 'var(--primary)' }} />
+                        <span>통합 인보이스: <strong style={{ color: 'var(--primary)' }}>{activeBilling.invoiceId}</strong> (묶음 청구됨)</span>
                       </div>
                       <button
                         type="button"
@@ -2457,7 +2457,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                       <strong style={{ fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         {custObj?.name || getCustName(activeBilling.customerId)}
                         {custObj?.transactionStatus === 'BLOCKED' && (
-                          <span style={{ padding: '1px 5px', fontSize: '10px', backgroundColor: '#fee2e2', color: '#b91c1c', borderRadius: '3px', fontWeight: 800 }}>
+                          <span style={{ padding: '1px 5px', fontSize: '10px', backgroundColor: 'var(--danger-light)', color: 'var(--danger)', borderRadius: '3px', fontWeight: 800 }}>
                             출고제한
                           </span>
                         )}
@@ -2663,7 +2663,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                                       <span>
                                         <strong style={{ color: 'var(--text-primary)' }}>{periodText}</strong>
                                         {isPartialMonth ? (
-                                          <span style={{ marginLeft: '6px', fontSize: '11px', color: '#d97706', fontWeight: 600 }}>
+                                          <span style={{ marginLeft: '6px', fontSize: '11px', color: 'var(--warning)', fontWeight: 600 }}>
                                             (일할 {displayQuantity}일)
                                           </span>
                                         ) : (
@@ -2739,7 +2739,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                                 fontSize: '11px',
                                 fontWeight: '700',
                                 backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                color: '#dc2626',
+                                color: 'var(--danger)',
                                 border: '1px solid rgba(239, 68, 68, 0.3)',
                                 borderRadius: '4px',
                                 cursor: 'pointer'
@@ -2801,8 +2801,8 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                                             padding: '2px 6px',
                                             fontSize: '10.5px',
                                             fontWeight: '600',
-                                            backgroundColor: '#fee2e2',
-                                            color: '#b91c1c',
+                                            backgroundColor: 'var(--danger-light)',
+                                            color: 'var(--danger)',
                                             border: '1px solid #fca5a5',
                                             borderRadius: '4px',
                                             cursor: 'pointer'
@@ -3064,7 +3064,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                         <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '700' }}>계약번호: {c.contractNo}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
                           {unbilledRcvList.length > 0 && (
-                            <span className="badge" style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#d97706', border: '1px solid rgba(245, 158, 11, 0.3)', fontWeight: 'bold' }}>
+                            <span className="badge" style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)', color: 'var(--warning)', border: '1px solid rgba(245, 158, 11, 0.3)', fontWeight: 'bold' }}>
                               ⚠️ 외상미수금 {unbilledRcvList.length}건 (수동정산)
                             </span>
                           )}
@@ -3078,7 +3078,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                       <h4 style={{ margin: '0 0 6px 0', fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span>{customerName}</span>
                         {customers.find(cu => cu.id === c.customerId)?.transactionStatus === 'BLOCKED' && (
-                          <span style={{ fontSize: '11px', padding: '1px 6px', borderRadius: '4px', backgroundColor: '#fee2e2', color: '#dc2626', fontWeight: 800, border: '1px solid #fca5a5' }}>
+                          <span style={{ fontSize: '11px', padding: '1px 6px', borderRadius: '4px', backgroundColor: 'var(--danger-light)', color: 'var(--danger)', fontWeight: 800, border: '1px solid #fca5a5' }}>
                             출고제한
                           </span>
                         )}
@@ -3428,13 +3428,13 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
                     return (
                       <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)', marginBottom: '14px' }}>
-                        <div style={{ fontWeight: 'bold', fontSize: '12.5px', color: '#dc2626', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ fontWeight: 'bold', fontSize: '12.5px', color: 'var(--danger)', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>⚠️ 고객 부담 미청구 정비/수리비 {unbilledRepairs.length}건 발견</span>
                           {unbilledRepairs.length > 1 && (
                             <button
                               type="button"
                               className="btn btn-sm btn-primary"
-                              style={{ fontSize: '11px', padding: '2px 8px', backgroundColor: '#dc2626', borderColor: '#dc2626' }}
+                              style={{ fontSize: '11px', padding: '2px 8px', backgroundColor: 'var(--danger)', borderColor: 'var(--danger)' }}
                               onClick={() => {
                                 const newRepairIds = unbilledRepairs.map(r => r.id);
                                 const newCharges = unbilledRepairs.map(rep => {
@@ -3499,7 +3499,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                                         date: rep.requestDate || rep.repairDate
                                       });
                                     }}
-                                    style={{ fontSize: '11.5px', padding: '3px 8px', color: '#dc2626', borderColor: '#fca5a5', fontWeight: 'bold' }}
+                                    style={{ fontSize: '11.5px', padding: '3px 8px', color: 'var(--danger)', borderColor: '#fca5a5', fontWeight: 'bold' }}
                                   >
                                     🚫 영업 면제
                                   </button>
@@ -3593,7 +3593,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                                         date: d.unloadingDate || d.loadingDate || d.requestDate
                                       });
                                     }}
-                                    style={{ fontSize: '11.5px', padding: '3px 8px', color: '#dc2626', borderColor: '#fca5a5', fontWeight: 'bold' }}
+                                    style={{ fontSize: '11.5px', padding: '3px 8px', color: 'var(--danger)', borderColor: '#fca5a5', fontWeight: 'bold' }}
                                   >
                                     🚫 영업 면제
                                   </button>
@@ -3619,7 +3619,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
                     return (
                       <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.25)', marginBottom: '14px' }}>
-                        <div style={{ fontWeight: 'bold', fontSize: '12.5px', color: '#2563eb', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ fontWeight: 'bold', fontSize: '12.5px', color: 'var(--primary)', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>ℹ️ 이 계약/고객사의 미청구 외상미수금 {unbilledReceivables.length}건 발견</span>
                           {unbilledReceivables.length > 1 && (
                             <button
@@ -3924,7 +3924,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               id: d.id,
               itemType: 'DELIVERY' as const,
               typeLabel: `운송 (${d.dispatchCategory || d.type})`,
-              badgeColor: '#c2410c',
+              badgeColor: 'var(--warning)',
               badgeBg: 'rgba(234, 88, 12, 0.1)',
               waivedAt: d.waivedAt || d.updatedAt || '',
               requestDate: d.unloadingDate || d.loadingDate || d.requestDate || '',
@@ -4128,7 +4128,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
               <div className="card" style={{ margin: 0, padding: '14px', borderLeft: '4px solid #dc2626' }}>
                 <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '4px' }}>총 영업 면제 손실액</div>
-                <div style={{ fontSize: '20px', fontWeight: 800, color: '#dc2626' }}>
+                <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--danger)' }}>
                   ₩{totalWaivedAmount.toLocaleString()}원
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -4138,7 +4138,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
               <div className="card" style={{ margin: 0, padding: '14px', borderLeft: '4px solid #2563eb' }}>
                 <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '4px' }}>현장 AS 비용 면제</div>
-                <div style={{ fontSize: '18px', fontWeight: 800, color: '#2563eb' }}>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--primary)' }}>
                   ₩{fieldAsAmount.toLocaleString()}원
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -4203,7 +4203,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                       <th style={{ width: '140px', textAlign: 'left', padding: '6px 10px', whiteSpace: 'nowrap' }}>현장명</th>
                       <th style={{ minWidth: '180px', textAlign: 'left', padding: '6px 10px', whiteSpace: 'nowrap' }}>대상 장비 / 운송 경로</th>
                       <th style={{ width: '110px', textAlign: 'right', padding: '6px 10px', whiteSpace: 'nowrap' }}>원 발생비용</th>
-                      <th style={{ width: '120px', textAlign: 'right', padding: '6px 10px', whiteSpace: 'nowrap', color: '#dc2626' }}>면제 금액</th>
+                      <th style={{ width: '120px', textAlign: 'right', padding: '6px 10px', whiteSpace: 'nowrap', color: 'var(--danger)' }}>면제 금액</th>
                       <th style={{ minWidth: '160px', textAlign: 'left', padding: '6px 10px', whiteSpace: 'nowrap' }}>면제 사유</th>
                       <th style={{ width: '90px', textAlign: 'center', padding: '6px 10px', whiteSpace: 'nowrap' }}>처리자</th>
                       <th style={{ width: '95px', textAlign: 'center', padding: '6px 10px', whiteSpace: 'nowrap' }}>원발생일</th>
@@ -4224,7 +4224,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                               type="button"
                               className="btn-secondary"
                               onClick={() => handleCancelWaiverClick(it)}
-                              style={{ fontSize: '11px', padding: '2px 8px', color: '#d97706', borderColor: '#fcd34d', fontWeight: 700 }}
+                              style={{ fontSize: '11px', padding: '2px 8px', color: 'var(--warning)', borderColor: '#fcd34d', fontWeight: 700 }}
                               title="면제를 취소하고 미청구 정산 대장으로 복원합니다."
                             >
                               면제 취소
@@ -4253,7 +4253,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                           <td style={{ textAlign: 'right', padding: '4px 10px', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
                             {it.originalCost.toLocaleString()}원
                           </td>
-                          <td style={{ textAlign: 'right', padding: '4px 10px', whiteSpace: 'nowrap', fontWeight: 800, color: '#dc2626' }}>
+                          <td style={{ textAlign: 'right', padding: '4px 10px', whiteSpace: 'nowrap', fontWeight: 800, color: 'var(--danger)' }}>
                             ₩{it.waivedAmount.toLocaleString()}원
                           </td>
                           <td style={{ textAlign: 'left', padding: '4px 10px', whiteSpace: 'nowrap', fontWeight: 600 }}>
@@ -4280,15 +4280,15 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                   📄 총 유료비용 발생: <span style={{ color: 'var(--text-primary)' }}>₩{grandTotalDiscoveredCosts.toLocaleString()}원</span>
                 </span>
                 <span style={{ color: 'var(--text-muted)' }}>=</span>
-                <span style={{ color: '#16a34a', fontWeight: 700 }}>
+                <span style={{ color: 'var(--success)', fontWeight: 700 }}>
                   🟢 정상 청구액: ₩{totalBilledBillableCosts.toLocaleString()}원
                 </span>
                 <span style={{ color: 'var(--text-muted)' }}>+</span>
-                <span style={{ color: '#dc2626', fontWeight: 700 }}>
+                <span style={{ color: 'var(--danger)', fontWeight: 700 }}>
                   🚫 영업 면제액: ₩{totalWaivedAmount.toLocaleString()}원
                 </span>
                 <span style={{ color: 'var(--text-muted)' }}>|</span>
-                <span style={{ color: '#2563eb', fontWeight: 800, backgroundColor: 'rgba(37, 99, 235, 0.08)', padding: '2px 8px', borderRadius: '4px' }}>
+                <span style={{ color: 'var(--primary)', fontWeight: 800, backgroundColor: 'rgba(37, 99, 235, 0.08)', padding: '2px 8px', borderRadius: '4px' }}>
                   ⚖️ 대차 차액 ₩0 (정합)
                 </span>
               </div>
@@ -4504,7 +4504,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
                     {/* 🌟 2. 입금 내역 대사 그리드 테이블 (이미지 1 표준) */}
                     {filteredDeposits.length === 0 ? (
-                      <div style={{ padding: '24px', borderRadius: '8px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444', fontSize: '13px', textAlign: 'center' }}>
+                      <div style={{ padding: '24px', borderRadius: '8px', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', color: 'var(--danger)', fontSize: '13px', textAlign: 'center' }}>
                         조회된 통장 입금 내역이 없습니다.<br />
                         <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>검색어를 초기화하거나 카드결제 탭을 이용해 주십시오.</span>
                       </div>
@@ -5024,7 +5024,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '18px' }}>🚫</span>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#dc2626' }}>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: 'var(--danger)' }}>
                   유료 비용 영업 청구 면제 승인
                 </h3>
               </div>
@@ -5079,7 +5079,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                     type="number"
                     value={waiverInputAmount}
                     onChange={e => setWaiverInputAmount(Math.max(0, parseInt(e.target.value) || 0))}
-                    style={{ flex: 1, padding: '8px 12px', fontSize: '14px', fontWeight: 800, border: '1px solid var(--border-color)', borderRadius: '6px', textAlign: 'right', color: '#dc2626' }}
+                    style={{ flex: 1, padding: '8px 12px', fontSize: '14px', fontWeight: 800, border: '1px solid var(--border-color)', borderRadius: '6px', textAlign: 'right', color: 'var(--danger)' }}
                   />
                   <span style={{ fontSize: '13px', fontWeight: 600 }}>원</span>
                   {waiverInputAmount !== waiverModalTarget.originalCost && (
@@ -5161,7 +5161,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 className="btn-primary"
                 onClick={handleConfirmWaiverModal}
                 disabled={isWaiverSubmitting || waiverInputAmount <= 0}
-                style={{ backgroundColor: '#dc2626', borderColor: '#dc2626', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}
+                style={{ backgroundColor: 'var(--danger)', borderColor: 'var(--danger)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 {isWaiverSubmitting ? '면제 처리 중...' : `🚫 ₩${waiverInputAmount.toLocaleString()}원 영업 면제 확정`}
               </button>

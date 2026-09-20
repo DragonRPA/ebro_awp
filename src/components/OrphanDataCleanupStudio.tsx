@@ -513,7 +513,7 @@ export const OrphanDataCleanupStudio: React.FC = () => {
                   alignItems: 'center',
                   gap: '6px',
                   padding: '8px 16px',
-                  backgroundColor: '#dc2626',
+                  backgroundColor: 'var(--danger)',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '6px',
@@ -534,14 +534,14 @@ export const OrphanDataCleanupStudio: React.FC = () => {
         {/* ── 2. 통계 지표 카드 덱 (8종) ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px', marginTop: '16px' }}>
           {[
-            { cat: 'ALL' as const, label: '총 불부합', count: counts.ALL, icon: <AlertTriangle size={15} />, color: '#dc2626', bg: 'rgba(220, 38, 38, 0.08)' },
+            { cat: 'ALL' as const, label: '총 불부합', count: counts.ALL, icon: <AlertTriangle size={15} />, color: 'var(--danger)', bg: 'rgba(220, 38, 38, 0.08)' },
             { cat: 'CONTRACT' as const, label: '고아 계약', count: counts.CONTRACT, icon: <FileText size={15} />, color: '#ea580c', bg: 'rgba(234, 88, 12, 0.08)' },
-            { cat: 'DELIVERY' as const, label: '배차/출고 의뢰', count: counts.DELIVERY, icon: <Truck size={15} />, color: '#2563eb', bg: 'rgba(37, 99, 235, 0.08)' },
-            { cat: 'REPAIR' as const, label: 'AS/정비 의뢰', count: counts.REPAIR, icon: <Wrench size={15} />, color: '#16a34a', bg: 'rgba(22, 163, 74, 0.08)' },
+            { cat: 'DELIVERY' as const, label: '배차/출고 의뢰', count: counts.DELIVERY, icon: <Truck size={15} />, color: 'var(--primary)', bg: 'rgba(37, 99, 235, 0.08)' },
+            { cat: 'REPAIR' as const, label: 'AS/정비 의뢰', count: counts.REPAIR, icon: <Wrench size={15} />, color: 'var(--success)', bg: 'rgba(22, 163, 74, 0.08)' },
             { cat: 'CONTRACT_ASSET' as const, label: '계약자산 매핑', count: counts.CONTRACT_ASSET, icon: <Layers size={15} />, color: '#7c3aed', bg: 'rgba(124, 58, 237, 0.08)' },
             { cat: 'BILLING' as const, label: '고아 청구서', count: counts.BILLING, icon: <CreditCard size={15} />, color: '#0284c7', bg: 'rgba(2, 132, 199, 0.08)' },
-            { cat: 'RECEIVABLE' as const, label: '외상미수금', count: counts.RECEIVABLE, icon: <CreditCard size={15} />, color: '#d97706', bg: 'rgba(217, 119, 6, 0.08)' },
-            { cat: 'SITE_CONTACT' as const, label: '현장/담당자', count: counts.SITE_CONTACT, icon: <Building2 size={15} />, color: '#64748b', bg: 'rgba(100, 116, 139, 0.08)' }
+            { cat: 'RECEIVABLE' as const, label: '외상미수금', count: counts.RECEIVABLE, icon: <CreditCard size={15} />, color: 'var(--warning)', bg: 'rgba(217, 119, 6, 0.08)' },
+            { cat: 'SITE_CONTACT' as const, label: '현장/담당자', count: counts.SITE_CONTACT, icon: <Building2 size={15} />, color: 'var(--text-muted)', bg: 'rgba(100, 116, 139, 0.08)' }
           ].map(stat => {
             const isActive = categoryFilter === stat.cat;
             return (
@@ -626,7 +626,7 @@ export const OrphanDataCleanupStudio: React.FC = () => {
                 alignItems: 'center',
                 gap: '6px',
                 padding: '8px 14px',
-                backgroundColor: '#ef4444',
+                backgroundColor: 'var(--danger)',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '6px',
@@ -652,7 +652,7 @@ export const OrphanDataCleanupStudio: React.FC = () => {
                 padding: '8px 14px',
                 backgroundColor: 'var(--bg-secondary)',
                 border: '1px solid #fca5a5',
-                color: '#b91c1c',
+                color: 'var(--danger)',
                 borderRadius: '6px',
                 fontSize: '12.5px',
                 fontWeight: 600,
@@ -761,7 +761,7 @@ export const OrphanDataCleanupStudio: React.FC = () => {
                     </td>
 
                     <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#dc2626', fontWeight: 600, fontSize: '12px' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--danger)', fontWeight: 600, fontSize: '12px' }}>
                         <AlertCircle size={13} />
                         {item.reason}
                       </span>
@@ -783,7 +783,7 @@ export const OrphanDataCleanupStudio: React.FC = () => {
                         style={{
                           padding: '4px 8px',
                           backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                          color: '#ef4444',
+                          color: 'var(--danger)',
                           border: '1px solid rgba(239, 68, 68, 0.25)',
                           borderRadius: '4px',
                           cursor: isDeleting ? 'not-allowed' : 'pointer',
@@ -818,7 +818,7 @@ export const OrphanDataCleanupStudio: React.FC = () => {
             <div
               style={{
                 height: '100%',
-                backgroundColor: '#2563eb',
+                backgroundColor: 'var(--primary)',
                 width: `${deleteProgress.total ? (deleteProgress.current / deleteProgress.total) * 100 : 0}%`,
                 transition: 'width 0.2s ease'
               }}
@@ -850,7 +850,7 @@ export const OrphanDataCleanupStudio: React.FC = () => {
               {confirmModal.description}
             </p>
 
-            <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.06)', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '12px', fontSize: '12px', color: '#b91c1c' }}>
+            <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.06)', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '12px', fontSize: '12px', color: 'var(--danger)' }}>
               ⚠️ 본 작업은 선택된 불부합 레코드를 데이터베이스에서 완전히 삭제하며, 삭제 즉시 원격 Supabase DB 쓰기 큐를 완결 동기화합니다.
             </div>
 
@@ -878,7 +878,7 @@ export const OrphanDataCleanupStudio: React.FC = () => {
                 disabled={isDeleting}
                 style={{
                   padding: '8px 18px',
-                  backgroundColor: '#dc2626',
+                  backgroundColor: 'var(--danger)',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '6px',

@@ -1204,7 +1204,7 @@ export const BankMatching: React.FC = () => {
                                     type="button"
                                     onClick={() => handleUnmatch(tx.id)}
                                     className="btn btn-secondary"
-                                    style={{ fontSize: '10px', padding: '2px 5px', color: '#ef4444', borderColor: '#fca5a5', fontWeight: 600 }}
+                                    style={{ fontSize: '10px', padding: '2px 5px', color: 'var(--danger)', borderColor: '#fca5a5', fontWeight: 600 }}
                                     title="수납 매칭 해제 (원복)"
                                   >
                                     해제
@@ -1238,7 +1238,7 @@ export const BankMatching: React.FC = () => {
                                     type="button"
                                     onClick={() => handleUnmatch(tx.id)}
                                     className="btn btn-secondary"
-                                    style={{ fontSize: '10px', padding: '2px 5px', color: '#ef4444', borderColor: '#fca5a5', fontWeight: 600 }}
+                                    style={{ fontSize: '10px', padding: '2px 5px', color: 'var(--danger)', borderColor: '#fca5a5', fontWeight: 600 }}
                                     title="수납 매칭 해제 (원복)"
                                   >
                                     해제
@@ -1313,8 +1313,8 @@ export const BankMatching: React.FC = () => {
                                 <span style={{
                                   fontSize: '10.5px',
                                   fontWeight: '600',
-                                  color: '#059669',
-                                  backgroundColor: '#d1fae5',
+                                  color: 'var(--success)',
+                                  backgroundColor: 'var(--success-light)',
                                   padding: '1px 5px',
                                   borderRadius: '3px'
                                 }}>
@@ -1322,9 +1322,9 @@ export const BankMatching: React.FC = () => {
                                 </span>
                               ) : isPartialUsed ? (
                                 <div style={{ display: 'flex', gap: '4px', fontSize: '10.5px' }}>
-                                  <span style={{ color: '#059669', fontWeight: '600' }}>수납 {usedDeposit.toLocaleString()}원</span>
+                                  <span style={{ color: 'var(--success)', fontWeight: '600' }}>수납 {usedDeposit.toLocaleString()}원</span>
                                   <span style={{ color: 'var(--text-muted)' }}>/</span>
-                                  <span style={{ color: '#d97706', fontWeight: '600' }}>잔여 {remBal.toLocaleString()}원</span>
+                                  <span style={{ color: 'var(--warning)', fontWeight: '600' }}>잔여 {remBal.toLocaleString()}원</span>
                                 </div>
                               ) : (
                                 <span style={{
@@ -1349,15 +1349,15 @@ export const BankMatching: React.FC = () => {
                         <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', textAlign: 'right' }}>
                           {tx.withdrawAmount > 0 ? (
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
-                              <span style={{ fontWeight: '800', color: '#dc2626', fontSize: '13px' }}>
+                              <span style={{ fontWeight: '800', color: 'var(--danger)', fontSize: '13px' }}>
                                 -{tx.withdrawAmount.toLocaleString()}원
                               </span>
                               {isMatchedWithdraw ? (
                                 <span style={{
                                   fontSize: '10.5px',
                                   fontWeight: '600',
-                                  color: '#059669',
-                                  backgroundColor: '#d1fae5',
+                                  color: 'var(--success)',
+                                  backgroundColor: 'var(--success-light)',
                                   padding: '1px 5px',
                                   borderRadius: '3px'
                                 }}>
@@ -1367,8 +1367,8 @@ export const BankMatching: React.FC = () => {
                                 <span style={{
                                   fontSize: '10.5px',
                                   fontWeight: '500',
-                                  color: '#b45309',
-                                  backgroundColor: '#fef3c7',
+                                  color: 'var(--warning)',
+                                  backgroundColor: 'var(--warning-light)',
                                   padding: '1px 5px',
                                   borderRadius: '3px'
                                 }}>
@@ -1771,7 +1771,7 @@ export const BankMatching: React.FC = () => {
                       backgroundColor: 'rgba(245, 158, 11, 0.12)', border: '1px solid #f59e0b',
                       display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px'
                     }}>
-                      <div style={{ fontSize: '12px', color: '#b45309' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--warning)' }}>
                         💡 <strong>타행 이체 수수료 차액(₩{diff.toLocaleString()}) 감지</strong>: 입금액이 청구 잔액보다 ₩{diff.toLocaleString()}원 부족합니다.
                       </div>
                       <button
@@ -1830,7 +1830,7 @@ export const BankMatching: React.FC = () => {
           justifyContent: 'center', alignItems: 'center', zIndex: 1100
         }}>
           <div style={{
-            backgroundColor: '#ffffff', color: '#111827', borderRadius: '8px',
+            backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', borderRadius: '8px',
             width: '90%', maxWidth: '680px', maxHeight: '92vh', overflowY: 'auto',
             padding: '32px', display: 'flex', flexDirection: 'column', gap: '20px',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
@@ -1839,14 +1839,14 @@ export const BankMatching: React.FC = () => {
             {/* 입금표 상단 헤더 */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #111827', paddingBottom: '12px' }}>
               <div>
-                <h2 style={{ fontSize: '24px', fontWeight: '900', letterSpacing: '4px', margin: 0, color: '#111827' }}>
+                <h2 style={{ fontSize: '24px', fontWeight: '900', letterSpacing: '4px', margin: 0, color: 'var(--text-main)' }}>
                   입 금 표 (영수증)
                 </h2>
-                <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
                   RECEIPT OF PAYMENT • 공급받는자 보관용
                 </div>
               </div>
-              <button onClick={() => setReceiptTx(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}>
+              <button onClick={() => setReceiptTx(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
                 <X size={22} />
               </button>
             </div>
@@ -1854,35 +1854,35 @@ export const BankMatching: React.FC = () => {
             {/* 기본 거래 정보 테이블 */}
             <div style={{ border: '1px solid #111827', borderRadius: '4px', overflow: 'hidden' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 120px 1fr', borderBottom: '1px solid #e5e7eb', fontSize: '12.5px' }}>
-                <div style={{ backgroundColor: '#f3f4f6', padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid #e5e7eb' }}>발행 번호</div>
+                <div style={{ backgroundColor: 'var(--bg-app)', padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid #e5e7eb' }}>발행 번호</div>
                 <div style={{ padding: '8px 10px', borderRight: '1px solid #e5e7eb' }}>RCP-{receiptTx.id.replace(/[^0-9a-zA-Z]/g, '').substring(0, 10).toUpperCase()}</div>
-                <div style={{ backgroundColor: '#f3f4f6', padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid #e5e7eb' }}>영수 일자</div>
+                <div style={{ backgroundColor: 'var(--bg-app)', padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid #e5e7eb' }}>영수 일자</div>
                 <div style={{ padding: '8px 10px' }}>{receiptTx.transactionDate.split(' ')[0]}</div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 120px 1fr', fontSize: '12.5px' }}>
-                <div style={{ backgroundColor: '#f3f4f6', padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid #e5e7eb' }}>입금 고객사</div>
-                <div style={{ padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid #e5e7eb', color: '#1d4ed8' }}>
+                <div style={{ backgroundColor: 'var(--bg-app)', padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid #e5e7eb' }}>입금 고객사</div>
+                <div style={{ padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid #e5e7eb', color: 'var(--primary)' }}>
                   {receiptTx.counterparty || receiptTx.senderName} 貴下
                 </div>
-                <div style={{ backgroundColor: '#f3f4f6', padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid #e5e7eb' }}>수납 구분</div>
+                <div style={{ backgroundColor: 'var(--bg-app)', padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid #e5e7eb' }}>수납 구분</div>
                 <div style={{ padding: '8px 10px' }}>계좌이체 (통장입금)</div>
               </div>
             </div>
 
             {/* 영수 금액 박스 */}
             <div style={{
-              backgroundColor: '#f8fafc', border: '2px solid #2563eb', borderRadius: '6px',
+              backgroundColor: 'var(--bg-app)', border: '2px solid #2563eb', borderRadius: '6px',
               padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
             }}>
               <div>
-                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>영수 총액 (금액 한글 표기)</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>영수 총액 (금액 한글 표기)</div>
                 <div style={{ fontSize: '17px', fontWeight: '900', color: '#1e3a8a', marginTop: '2px' }}>
                   금 {numberToKorean(receiptTx.depositAmount)} 원정
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>원화 표기 (VAT 포함)</div>
-                <div style={{ fontSize: '20px', fontWeight: '900', color: '#16a34a' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600' }}>원화 표기 (VAT 포함)</div>
+                <div style={{ fontSize: '20px', fontWeight: '900', color: 'var(--success)' }}>
                   ₩{receiptTx.depositAmount.toLocaleString()}
                 </div>
               </div>
@@ -1893,7 +1893,7 @@ export const BankMatching: React.FC = () => {
               border: '1px solid #d1d5db', borderRadius: '6px', padding: '14px',
               display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px', position: 'relative'
             }}>
-              <div style={{ fontSize: '12px', lineHeight: '1.7', color: '#374151' }}>
+              <div style={{ fontSize: '12px', lineHeight: '1.7', color: 'var(--text-main)' }}>
                 <div><strong>공급자 상호:</strong> {currentTenant?.corporateName || currentTenant?.tradeName || '공급자 (매출사)'}</div>
                 <div><strong>사업자등록번호:</strong> {currentTenant?.businessNumber || '-'} | <strong>대표이사:</strong> {currentTenant?.representativeName || '-'}</div>
                 <div><strong>사업장 소재지:</strong> {currentTenant?.businessAddress || '-'}</div>
@@ -1908,7 +1908,7 @@ export const BankMatching: React.FC = () => {
                 ) : (
                   <div style={{
                     width: '84px', height: '84px', borderRadius: '50%', border: '2.5px solid #dc2626',
-                    color: '#dc2626', display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    color: 'var(--danger)', display: 'flex', flexDirection: 'column', alignItems: 'center',
                     justifyContent: 'center', fontWeight: '900', fontSize: '11px', transform: 'rotate(-8deg)',
                     boxShadow: 'inset 0 0 4px rgba(220, 38, 38, 0.2)'
                   }}>
@@ -1916,11 +1916,11 @@ export const BankMatching: React.FC = () => {
                     <span style={{ fontSize: '9px' }}>[ 직 인 ]</span>
                   </div>
                 )}
-                <span style={{ fontSize: '10px', color: '#9ca3af', marginTop: '4px' }}>법인 인장 날인</span>
+                <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '4px' }}>법인 인장 날인</span>
               </div>
             </div>
 
-            <div style={{ fontSize: '11.5px', color: '#6b7280', textAlign: 'center', lineHeight: '1.5' }}>
+            <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', textAlign: 'center', lineHeight: '1.5' }}>
               위 금액을 고소작업대 렌탈료 및 관련 대금으로 정히 영수하였음을 증명합니다.
             </div>
 
@@ -1938,7 +1938,7 @@ export const BankMatching: React.FC = () => {
                 type="button"
                 className="btn btn-primary"
                 onClick={() => window.print()}
-                style={{ padding: '6px 16px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: '#1d4ed8' }}
+                style={{ padding: '6px 16px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', backgroundColor: 'var(--primary)' }}
               >
                 <Printer size={14} />
                 입금표 인쇄 (Print)

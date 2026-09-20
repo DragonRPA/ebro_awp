@@ -526,7 +526,7 @@ export const ConsumableStockPage: React.FC = () => {
             <CheckSquare size={14} /> 재고 실사
             {stocktakingAudits.filter(a => a.status === 'DRAFT').length > 0 && (
               <span style={{
-                backgroundColor: '#d97706', color: '#fff', fontSize: '11px',
+                backgroundColor: 'var(--warning)', color: '#fff', fontSize: '11px',
                 padding: '1px 6px', borderRadius: '10px', fontWeight: 700
               }}>
                 {stocktakingAudits.filter(a => a.status === 'DRAFT').length}
@@ -551,7 +551,7 @@ export const ConsumableStockPage: React.FC = () => {
             </div>
             <div className="card" style={{ margin: 0, padding: '16px' }}>
               <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>주기장 보유 수량</div>
-              <div style={{ fontSize: '22px', fontWeight: 800, marginTop: '4px', color: '#059669' }}>
+              <div style={{ fontSize: '22px', fontWeight: 800, marginTop: '4px', color: 'var(--success)' }}>
                 {stockSummary.hqTotalQty.toLocaleString()}개
               </div>
             </div>
@@ -656,7 +656,7 @@ export const ConsumableStockPage: React.FC = () => {
                             {c.stockQty}
                           </td>
                           <td style={{ textAlign: 'center', fontWeight: 600 }}>{totalVehicleQty}</td>
-                          <td style={{ textAlign: 'center', fontWeight: 800, color: '#2563eb' }}>{grandQty}</td>
+                          <td style={{ textAlign: 'center', fontWeight: 800, color: 'var(--primary)' }}>{grandQty}</td>
                           <td style={{ fontSize: '12px' }}>{c.unit || '개'}</td>
                           <td style={{ fontSize: '12px' }}>{(c.unitPrice || 0).toLocaleString()}원</td>
                           <td style={{ fontWeight: 600 }}>{hqValue.toLocaleString()}원</td>
@@ -676,7 +676,7 @@ export const ConsumableStockPage: React.FC = () => {
                                   type="button"
                                   className="btn-secondary"
                                   onClick={() => handleDeleteMaster(c.id, c.modelName)}
-                                  style={{ padding: '2px 6px', fontSize: '11px', color: '#dc2626' }}
+                                  style={{ padding: '2px 6px', fontSize: '11px', color: 'var(--danger)' }}
                                 >
                                   <Trash2 size={12} />
                                 </button>
@@ -829,7 +829,7 @@ export const ConsumableStockPage: React.FC = () => {
                             </div>
                           </td>
                           <td><strong style={{ color: 'var(--primary)' }}>{item?.modelName || '-'}</strong></td>
-                          <td style={{ textAlign: 'center', fontWeight: 800, color: '#059669' }}>
+                          <td style={{ textAlign: 'center', fontWeight: 800, color: 'var(--success)' }}>
                             {ms.stockQty}
                           </td>
                           <td style={{ fontSize: '12px' }}>{item?.unit || '개'}</td>
@@ -906,7 +906,7 @@ export const ConsumableStockPage: React.FC = () => {
                 </div>
                 <div className="card" style={{ margin: 0, padding: '14px' }}>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>제조사 무상보증 클레임</div>
-                  <div style={{ fontSize: '20px', fontWeight: 800, marginTop: '2px', color: '#2563eb' }}>{warrantyCount}건</div>
+                  <div style={{ fontSize: '20px', fontWeight: 800, marginTop: '2px', color: 'var(--primary)' }}>{warrantyCount}건</div>
                 </div>
               </div>
             );
@@ -1204,7 +1204,7 @@ export const ConsumableStockPage: React.FC = () => {
                         type="button"
                         className="btn-secondary"
                         onClick={() => handleCancelAudit(currentAudit.id)}
-                        style={{ padding: '5px 10px', fontSize: '12px', color: '#dc2626' }}
+                        style={{ padding: '5px 10px', fontSize: '12px', color: 'var(--danger)' }}
                       >
                         전표 취소
                       </button>
@@ -1338,7 +1338,7 @@ export const ConsumableStockPage: React.FC = () => {
                     <span>+</span>
                     <span>⚖️ <strong>실사 차액:</strong> ₩{currentAudit.totalDiffAmount.toLocaleString()}원</span>
                     <span style={{ color: 'var(--border-color)' }}>|</span>
-                    <span style={{ color: '#059669', fontWeight: 800 }}>⚖️ 대차 차액 ₩0 무결 확정</span>
+                    <span style={{ color: 'var(--success)', fontWeight: 800 }}>⚖️ 대차 차액 ₩0 무결 확정</span>
                   </div>
 
                   {isDraft && canSave && (
@@ -1446,7 +1446,7 @@ export const ConsumableStockPage: React.FC = () => {
           <form onSubmit={handleReturnSubmit} className="card" style={{ width: '90%', maxWidth: '450px', backgroundColor: 'var(--bg-card)', margin: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <ArrowDownLeft size={16} style={{ color: '#d97706' }} /> 차량 소모품 ➔ 주기장 반납
+                <ArrowDownLeft size={16} style={{ color: 'var(--warning)' }} /> 차량 소모품 ➔ 주기장 반납
               </h3>
               <button type="button" onClick={() => setShowReturnModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
                 <X size={18} />

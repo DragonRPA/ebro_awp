@@ -722,7 +722,7 @@ export const PrintQueueManager: React.FC = () => {
                               padding: '4px 8px',
                               fontSize: '11px',
                               fontWeight: '700',
-                              color: '#ef4444',
+                              color: 'var(--danger)',
                               backgroundColor: 'transparent',
                               border: '1px solid rgba(239, 68, 68, 0.3)',
                               borderRadius: '4px',
@@ -981,7 +981,7 @@ export const PrintQueueManager: React.FC = () => {
                       border: '1px solid rgba(239, 68, 68, 0.2)',
                       lineHeight: '1.5'
                     }}>
-                      <div style={{ color: '#dc2626', fontWeight: '700', marginBottom: '2px' }}>
+                      <div style={{ color: 'var(--danger)', fontWeight: '700', marginBottom: '2px' }}>
                         💡 에이전트 창이 켜져 있는데 프린터 목록이 안 뜰 때:
                       </div>
                       브라우저 주소창 좌측 <b>[설정/조정 아이콘]</b> ➔ <b>[기기의 앱 (Apps on device): 허용]</b>으로 변경 후 <b>[F5 새로고침]</b>하면 자동 감지됩니다. (콘솔 창 제목에 '선택'이 있으면 Enter 키를 누르세요)
@@ -1319,7 +1319,7 @@ export const PrintQueueManager: React.FC = () => {
                                 fontSize: '11px',
                                 fontWeight: '700',
                                 backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                                color: '#3b82f6',
+                                color: 'var(--primary)',
                                 border: '1px solid rgba(59, 130, 246, 0.3)'
                               }}
                             >
@@ -1355,7 +1355,7 @@ export const PrintQueueManager: React.FC = () => {
                                 fontSize: '11px',
                                 fontWeight: '700',
                                 backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                                color: '#ef4444',
+                                color: 'var(--danger)',
                                 border: '1px solid rgba(239, 68, 68, 0.3)'
                               }}
                             >
@@ -1388,7 +1388,7 @@ export const PrintQueueManager: React.FC = () => {
                           style={{
                             padding: '9px 12px',
                             whiteSpace: 'nowrap',
-                            color: '#ef4444',
+                            color: 'var(--danger)',
                             maxWidth: '140px',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis'
@@ -1436,7 +1436,7 @@ export const PrintQueueManager: React.FC = () => {
                                   padding: '3px 8px',
                                   fontSize: '11px',
                                   fontWeight: '700',
-                                  color: '#ef4444',
+                                  color: 'var(--danger)',
                                   backgroundColor: 'transparent',
                                   border: '1px solid rgba(239, 68, 68, 0.3)',
                                   borderRadius: '4px',
@@ -1523,15 +1523,15 @@ export const PrintQueueManager: React.FC = () => {
               </button>
             </div>
 
-            <div style={{ flex: 1, padding: '16px', backgroundColor: '#e2e8f0', overflow: 'auto' }}>
+            <div style={{ flex: 1, padding: '16px', backgroundColor: 'var(--bg-secondary)', overflow: 'auto' }}>
               <iframe
                 title="Document Preview"
                 srcDoc={previewItem.documentHtml}
                 style={{
                   width: '100%',
                   height: '650px',
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #cbd5e1',
+                  backgroundColor: 'var(--bg-card)',
+                  border: '1px solid var(--border-color)',
                   borderRadius: '4px',
                   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
                 }}

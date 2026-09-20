@@ -798,7 +798,7 @@ export const SmartDispatchConversationalStudio: React.FC<SmartDispatchConversati
           justifyContent: 'space-between',
           gap: '8px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#38bdf8' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--info)' }}>
             <Mic size={13} color="#38bdf8" />
             <span>음성 인식: <strong style={{ color: '#ffffff' }}>"{lastSttText}"</strong></span>
           </div>
@@ -1357,7 +1357,7 @@ export const SmartDispatchConversationalStudio: React.FC<SmartDispatchConversati
                         <button
                           type="button"
                           onClick={() => handleRemoveEquipmentItem(idx)}
-                          style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}
+                          style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '4px' }}
                           title="이 장비 삭제"
                         >
                           <Trash2 size={13} />
@@ -1631,7 +1631,7 @@ export const SmartDispatchConversationalStudio: React.FC<SmartDispatchConversati
                 flexDirection: 'column',
                 gap: '6px'
               }}>
-                <div style={{ fontSize: '12px', fontWeight: 700, color: '#d97706', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <AlertTriangle size={13} /> 현장 기억 옵션과 변경점이 감지되었습니다.
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -1679,7 +1679,7 @@ export const SmartDispatchConversationalStudio: React.FC<SmartDispatchConversati
               </div>
             )}
 
-            <div style={{ fontSize: '12px', color: '#16a34a', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--success)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
               <CheckCircle2 size={13} /> 우측 폼에 모든 정보가 동기화되었습니다. 우측 상단의 [출고지시] 버튼으로 저장하세요.
             </div>
           </div>

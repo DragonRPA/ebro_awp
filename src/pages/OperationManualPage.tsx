@@ -64,7 +64,7 @@ export const OperationManualPage: React.FC = () => {
   };
 
   return (
-    <div className="manual-page-root" style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: '#F8FAFC', color: '#0F172A', overflow: 'hidden' }}>
+    <div className="manual-page-root" style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', overflow: 'hidden' }}>
       
       {/* ── 인쇄 전용 글로벌 스타일 ── */}
       <style>{`
@@ -109,7 +109,7 @@ export const OperationManualPage: React.FC = () => {
       {/* ── 상단 툴바 (화면 표시용, 인쇄 시 숨김) ── */}
       <div className="manual-toolbar no-print" style={{
         padding: '12px 24px',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: 'var(--bg-card)',
         borderBottom: '1px solid #E2E8F0',
         display: 'flex',
         alignItems: 'center',
@@ -122,16 +122,16 @@ export const OperationManualPage: React.FC = () => {
         {/* 부서 선택 탭 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '8px' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: 'var(--info-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <BookOpen size={18} />
             </div>
             <div>
-              <span style={{ fontSize: '15px', fontWeight: '900', color: '#0F172A', whiteSpace: 'nowrap' }}>전사 업무매뉴얼</span>
-              <span style={{ fontSize: '11px', color: '#64748B', display: 'block', whiteSpace: 'nowrap' }}>E-Bro ERP 실무 표준 가이드</span>
+              <span style={{ fontSize: '15px', fontWeight: '900', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>전사 업무매뉴얼</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', whiteSpace: 'nowrap' }}>E-Bro ERP 실무 표준 가이드</span>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '4px', backgroundColor: '#F1F5F9', padding: '3px', borderRadius: '10px' }}>
+          <div style={{ display: 'flex', gap: '4px', backgroundColor: 'var(--bg-app)', padding: '3px', borderRadius: '10px' }}>
             <button
               type="button"
               onClick={() => setActiveDept('sales')}
@@ -228,11 +228,11 @@ export const OperationManualPage: React.FC = () => {
 
         {/* 우측 조작 액션 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: '#F1F5F9', padding: '2px 4px', borderRadius: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px', backgroundColor: 'var(--bg-app)', padding: '2px 4px', borderRadius: '8px' }}>
             <button
               type="button"
               onClick={() => handleZoom(-10)}
-              style={{ padding: '4px 6px', border: 'none', background: 'none', cursor: 'pointer', color: '#475569' }}
+              style={{ padding: '4px 6px', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
               title="축소"
             >
               <ZoomOut size={14} />
@@ -243,7 +243,7 @@ export const OperationManualPage: React.FC = () => {
             <button
               type="button"
               onClick={() => handleZoom(10)}
-              style={{ padding: '4px 6px', border: 'none', background: 'none', cursor: 'pointer', color: '#475569' }}
+              style={{ padding: '4px 6px', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
               title="확대"
             >
               <ZoomIn size={14} />
@@ -251,7 +251,7 @@ export const OperationManualPage: React.FC = () => {
             <button
               type="button"
               onClick={handleResetZoom}
-              style={{ padding: '4px 6px', border: 'none', background: 'none', cursor: 'pointer', color: '#64748B', borderLeft: '1px solid #CBD5E1' }}
+              style={{ padding: '4px 6px', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)', borderLeft: '1px solid var(--border-color)' }}
               title="원래 크기"
             >
               <RotateCcw size={12} />
@@ -264,7 +264,7 @@ export const OperationManualPage: React.FC = () => {
             style={{
               padding: '7px 16px',
               borderRadius: '8px',
-              backgroundColor: '#0F172A',
+              backgroundColor: 'var(--bg-app)',
               color: '#FFFFFF',
               border: 'none',
               fontSize: '13px',
@@ -291,10 +291,10 @@ export const OperationManualPage: React.FC = () => {
           style={{
             width: '100%',
             maxWidth: '960px',
-            backgroundColor: '#FFFFFF',
+            backgroundColor: 'var(--bg-card)',
             borderRadius: '12px',
             boxShadow: '0 4px 20px rgba(0,0,0,0.06)',
-            border: '1px solid #E2E8F0',
+            border: '1px solid var(--border-color)',
             padding: '40px 48px',
             boxSizing: 'border-box',
             zoom: `${zoomLevel}%`
@@ -315,33 +315,33 @@ export const OperationManualPage: React.FC = () => {
 // ─────────────────────────────────────────────────────────────────────────────
 const SalesManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ onNavigateTo }) => {
   return (
-    <div style={{ lineHeight: 1.65, color: '#1E293B' }}>
+    <div style={{ lineHeight: 1.65, color: 'var(--text-main)' }}>
       <div style={{ borderBottom: '2px solid #0F172A', paddingBottom: '20px', marginBottom: '28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '11px', fontWeight: '900', padding: '3px 8px', borderRadius: '4px', backgroundColor: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE' }}>
+            <span style={{ fontSize: '11px', fontWeight: '900', padding: '3px 8px', borderRadius: '4px', backgroundColor: 'var(--info-light)', color: 'var(--primary)', border: '1px solid #BFDBFE' }}>
               영업부 전용 (SALES)
             </span>
-            <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>
+            <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>
               문서번호: SOP-SALES-2026-02
             </span>
           </div>
-          <span style={{ fontSize: '12px', fontWeight: '800', color: '#0F172A' }}>
+          <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-main)' }}>
             E-Bro ERP 실무 매뉴얼
           </span>
         </div>
-        <h1 style={{ fontSize: '26px', fontWeight: '900', color: '#0F172A', margin: '0 0 10px 0', letterSpacing: '-0.5px' }}>
+        <h1 style={{ fontSize: '26px', fontWeight: '900', color: 'var(--text-main)', margin: '0 0 10px 0', letterSpacing: '-0.5px' }}>
           영업부 업무 표준 매뉴얼 (PC & 모바일 통합 실무 가이드)
         </h1>
-        <p style={{ fontSize: '13.5px', color: '#475569', margin: 0 }}>
+        <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0 }}>
           고객사 관리부터 출고/대차 의뢰 발행, 전자계약서 발송, 현장 AS 대리접수 및 모바일 재고 조회까지 영업 직무의 전 과정을 포괄합니다.
         </p>
       </div>
 
-      <div style={{ backgroundColor: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '10px', padding: '18px 20px', marginBottom: '28px' }}>
+      <div style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '18px 20px', marginBottom: '28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
           <Shield size={16} color="#2563EB" />
-          <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#0F172A' }}>
+          <span style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-main)' }}>
             영업부 업무 R&R 및 시스템 핵심 원칙 (전사 표준 헌장 제2장)
           </span>
         </div>
@@ -353,8 +353,8 @@ const SalesManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ 
         </ul>
       </div>
 
-      <div className="no-print" style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '16px 20px', marginBottom: '32px' }}>
-        <span style={{ fontSize: '12px', fontWeight: '800', color: '#64748B', display: 'block', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+      <div className="no-print" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px 20px', marginBottom: '32px' }}>
+        <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)', display: 'block', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           목차 이동 (Click to Jump)
         </span>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
@@ -405,18 +405,18 @@ const SalesManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ 
         <p style={descTextStyle}>현장에 장비를 투입하기 위한 공식 출고 의뢰서를 작성합니다. 카톡 텍스트 파싱과 4단계 표준 작성을 지원합니다.</p>
         <div style={scenarioBoxStyle}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-            <span style={{ fontSize: '13px', fontWeight: '800', color: '#1E293B' }}>방법 A. 카카오톡 / 문자 텍스트 자동 파싱 출고 (Step 10)</span>
-            <span style={{ fontSize: '11px', fontWeight: '700', color: '#2563EB', backgroundColor: '#EFF6FF', padding: '2px 8px', borderRadius: '4px' }}>가장 빠름 (10초 완결)</span>
+            <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-main)' }}>방법 A. 카카오톡 / 문자 텍스트 자동 파싱 출고 (Step 10)</span>
+            <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--primary)', backgroundColor: 'var(--info-light)', padding: '2px 8px', borderRadius: '4px' }}>가장 빠름 (10초 완결)</span>
           </div>
-          <p style={{ fontSize: '12px', color: '#475569', margin: 0 }}>현장 소장이나 거래처의 요청 메시지를 복사하여 <code>[카톡/문자 텍스트 붙여넣기 파싱]</code> 상자에 넣고 <code>[수동 데이터 변환]</code>을 누르면 고객사, 현장, 연락처, 일시가 자동 파싱됩니다.</p>
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>현장 소장이나 거래처의 요청 메시지를 복사하여 <code>[카톡/문자 텍스트 붙여넣기 파싱]</code> 상자에 넣고 <code>[수동 데이터 변환]</code>을 누르면 고객사, 현장, 연락처, 일시가 자동 파싱됩니다.</p>
         </div>
         <div style={{ ...scenarioBoxStyle, marginTop: '10px' }}>
-          <span style={{ fontSize: '13px', fontWeight: '800', color: '#1E293B', display: 'block', marginBottom: '6px' }}>방법 B. 신규 고객 또는 신규 현장 직접 입력 출고 (Step 11~14)</span>
+          <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--text-main)', display: 'block', marginBottom: '6px' }}>방법 B. 신규 고객 또는 신규 현장 직접 입력 출고 (Step 11~14)</span>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px' }}>
-            <div style={subStepBoxStyle}><span style={subStepNumStyle}>1단계</span><b>고객/현장 지정</b><span style={{ fontSize: '11px', color: '#64748B' }}>거래처, 도로명주소, 인수담당자 입력.</span></div>
-            <div style={subStepBoxStyle}><span style={subStepNumStyle}>2단계</span><b>출고 규격/수량</b><span style={{ fontSize: '11px', color: '#64748B' }}>19ft, 26ft 등 기종 터치 및 수량(+) 증감.</span></div>
-            <div style={subStepBoxStyle}><span style={subStepNumStyle}>3단계</span><b>상하차 일정</b><span style={{ fontSize: '11px', color: '#64748B' }}>희망 상하차 일시 및 시간지정 선택.</span></div>
-            <div style={subStepBoxStyle}><span style={subStepNumStyle}>4단계</span><b>안전옵션 & 운송비</b><span style={{ fontSize: '11px', color: '#64748B' }}>협착봉, 센서, 소화기 선택 및 현장옵션 저장.</span></div>
+            <div style={subStepBoxStyle}><span style={subStepNumStyle}>1단계</span><b>고객/현장 지정</b><span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>거래처, 도로명주소, 인수담당자 입력.</span></div>
+            <div style={subStepBoxStyle}><span style={subStepNumStyle}>2단계</span><b>출고 규격/수량</b><span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>19ft, 26ft 등 기종 터치 및 수량(+) 증감.</span></div>
+            <div style={subStepBoxStyle}><span style={subStepNumStyle}>3단계</span><b>상하차 일정</b><span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>희망 상하차 일시 및 시간지정 선택.</span></div>
+            <div style={subStepBoxStyle}><span style={subStepNumStyle}>4단계</span><b>안전옵션 & 운송비</b><span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>협착봉, 센서, 소화기 선택 및 현장옵션 저장.</span></div>
           </div>
         </div>
       </div>
@@ -482,11 +482,11 @@ const SalesManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
           <div style={cardBoxStyle}>
             <b>🔄 장비 회수 요청 (Step 34)</b>
-            <p style={{ fontSize: '12px', color: '#475569', margin: '4px 0 0 0' }}>[영업관리 ➔ 회수 요청] ➔ 현장 선택 ➔ 회수 장비 체크 ➔ 희망일자 및 현장 인수자 입력 ➔ <code>[회수 의뢰 등록]</code>.</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>[영업관리 ➔ 회수 요청] ➔ 현장 선택 ➔ 회수 장비 체크 ➔ 희망일자 및 현장 인수자 입력 ➔ <code>[회수 의뢰 등록]</code>.</p>
           </div>
           <div style={cardBoxStyle}>
             <b>🛠️ 고객 고장 AS 대리 접수 (Step 35)</b>
-            <p style={{ fontSize: '12px', color: '#475569', margin: '4px 0 0 0' }}>[영업관리 ➔ AS 요청] ➔ 현장 및 장비 선택 ➔ 고장 증상 칩 선택 ➔ 상세 내용 입력 ➔ <code>[AS의뢰 전송]</code> (AS팀 즉시 전달).</p>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>[영업관리 ➔ AS 요청] ➔ 현장 및 장비 선택 ➔ 고장 증상 칩 선택 ➔ 상세 내용 입력 ➔ <code>[AS의뢰 전송]</code> (AS팀 즉시 전달).</p>
           </div>
         </div>
       </div>
@@ -512,33 +512,33 @@ const SalesManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ 
 // ─────────────────────────────────────────────────────────────────────────────
 const OutboundManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ onNavigateTo }) => {
   return (
-    <div style={{ lineHeight: 1.65, color: '#1E293B' }}>
+    <div style={{ lineHeight: 1.65, color: 'var(--text-main)' }}>
       <div style={{ borderBottom: '2px solid #0F172A', paddingBottom: '20px', marginBottom: '28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '11px', fontWeight: '900', padding: '3px 8px', borderRadius: '4px', backgroundColor: '#ECFDF5', color: '#059669', border: '1px solid #A7F3D0' }}>
+            <span style={{ fontSize: '11px', fontWeight: '900', padding: '3px 8px', borderRadius: '4px', backgroundColor: 'var(--success-light)', color: 'var(--success)', border: '1px solid #A7F3D0' }}>
               출고/자산팀 전용 (OUTBOUND)
             </span>
-            <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>
+            <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>
               문서번호: SOP-OUTBOUND-2026-01
             </span>
           </div>
-          <span style={{ fontSize: '12px', fontWeight: '800', color: '#0F172A' }}>
+          <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-main)' }}>
             E-Bro ERP 실무 매뉴얼
           </span>
         </div>
-        <h1 style={{ fontSize: '26px', fontWeight: '900', color: '#0F172A', margin: '0 0 10px 0', letterSpacing: '-0.5px' }}>
+        <h1 style={{ fontSize: '26px', fontWeight: '900', color: 'var(--text-main)', margin: '0 0 10px 0', letterSpacing: '-0.5px' }}>
           출고/자산팀 업무 표준 매뉴얼 (주기장·검수·입출고 가이드)
         </h1>
-        <p style={{ fontSize: '13.5px', color: '#475569', margin: 0 }}>
+        <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0 }}>
           주기장 자산 할당, PDI 출고 검수 승인 마감, 회수 장비 입고 등록, 주기장 정비 및 소모품 수불 관리 실무를 포괄합니다.
         </p>
       </div>
 
-      <div style={{ backgroundColor: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '10px', padding: '18px 20px', marginBottom: '28px' }}>
+      <div style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '18px 20px', marginBottom: '28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
           <Shield size={16} color="#059669" />
-          <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#0F172A' }}>
+          <span style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-main)' }}>
             출고/자산팀 업무 R&R 및 시스템 핵심 원칙 (전사 표준 헌장 제1~2장)
           </span>
         </div>
@@ -549,8 +549,8 @@ const OutboundManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = 
         </ul>
       </div>
 
-      <div className="no-print" style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '16px 20px', marginBottom: '32px' }}>
-        <span style={{ fontSize: '12px', fontWeight: '800', color: '#64748B', display: 'block', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+      <div className="no-print" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px 20px', marginBottom: '32px' }}>
+        <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)', display: 'block', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           목차 이동 (Click to Jump)
         </span>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
@@ -687,33 +687,33 @@ const OutboundManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = 
 // ─────────────────────────────────────────────────────────────────────────────
 const AsManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ onNavigateTo }) => {
   return (
-    <div style={{ lineHeight: 1.65, color: '#1E293B' }}>
+    <div style={{ lineHeight: 1.65, color: 'var(--text-main)' }}>
       <div style={{ borderBottom: '2px solid #0F172A', paddingBottom: '20px', marginBottom: '28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '11px', fontWeight: '900', padding: '3px 8px', borderRadius: '4px', backgroundColor: '#FEF3C7', color: '#D97706', border: '1px solid #FDE68A' }}>
+            <span style={{ fontSize: '11px', fontWeight: '900', padding: '3px 8px', borderRadius: '4px', backgroundColor: 'var(--warning-light)', color: 'var(--warning)', border: '1px solid #FDE68A' }}>
               AS팀 전용 (SERVICE)
             </span>
-            <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>
+            <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>
               문서번호: SOP-AS-2026-01
             </span>
           </div>
-          <span style={{ fontSize: '12px', fontWeight: '800', color: '#0F172A' }}>
+          <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-main)' }}>
             E-Bro ERP 실무 매뉴얼
           </span>
         </div>
-        <h1 style={{ fontSize: '26px', fontWeight: '900', color: '#0F172A', margin: '0 0 10px 0', letterSpacing: '-0.5px' }}>
+        <h1 style={{ fontSize: '26px', fontWeight: '900', color: 'var(--text-main)', margin: '0 0 10px 0', letterSpacing: '-0.5px' }}>
           현장 AS팀 업무 표준 매뉴얼 (출동·수리·소모품 가이드)
         </h1>
-        <p style={{ fontSize: '13.5px', color: '#475569', margin: 0 }}>
+        <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0 }}>
           현장 출동 티켓 접수, T맵 길안내, 현장 정비 조치(부품 차감/고객 서명), 탑차 소모품 수불 및 모바일 회로도 열람 가이드를 포괄합니다.
         </p>
       </div>
 
-      <div style={{ backgroundColor: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '10px', padding: '18px 20px', marginBottom: '28px' }}>
+      <div style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '18px 20px', marginBottom: '28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
           <Shield size={16} color="#D97706" />
-          <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#0F172A' }}>
+          <span style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-main)' }}>
             AS팀 업무 R&R 및 현장 조치 원칙
           </span>
         </div>
@@ -724,8 +724,8 @@ const AsManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ onN
         </ul>
       </div>
 
-      <div className="no-print" style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '16px 20px', marginBottom: '32px' }}>
-        <span style={{ fontSize: '12px', fontWeight: '800', color: '#64748B', display: 'block', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+      <div className="no-print" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px 20px', marginBottom: '32px' }}>
+        <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)', display: 'block', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           목차 이동 (Click to Jump)
         </span>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
@@ -824,33 +824,33 @@ const AsManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ onN
 // ─────────────────────────────────────────────────────────────────────────────
 const AdminManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ onNavigateTo }) => {
   return (
-    <div style={{ lineHeight: 1.65, color: '#1E293B' }}>
+    <div style={{ lineHeight: 1.65, color: 'var(--text-main)' }}>
       <div style={{ borderBottom: '2px solid #0F172A', paddingBottom: '20px', marginBottom: '28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '11px', fontWeight: '900', padding: '3px 8px', borderRadius: '4px', backgroundColor: '#F3E8FF', color: '#7C3AED', border: '1px solid #DDD6FE' }}>
               관리부 / 경영진 전용 (ADMIN)
             </span>
-            <span style={{ fontSize: '11px', fontWeight: '700', color: '#64748B' }}>
+            <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>
               문서번호: SOP-ADMIN-2026-01
             </span>
           </div>
-          <span style={{ fontSize: '12px', fontWeight: '800', color: '#0F172A' }}>
+          <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-main)' }}>
             E-Bro ERP 실무 매뉴얼
           </span>
         </div>
-        <h1 style={{ fontSize: '26px', fontWeight: '900', color: '#0F172A', margin: '0 0 10px 0', letterSpacing: '-0.5px' }}>
+        <h1 style={{ fontSize: '26px', fontWeight: '900', color: 'var(--text-main)', margin: '0 0 10px 0', letterSpacing: '-0.5px' }}>
           관리부 및 경영진 업무 표준 매뉴얼 (배차·정산·회계·인사 가이드)
         </h1>
-        <p style={{ fontSize: '13.5px', color: '#475569', margin: 0 }}>
+        <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: 0 }}>
           배차 지시, 운송료/임차료 매입 대사, 매출 청구 및 세금계산서, 은행 통장 1:1 대사, 채권 연체 관리, 급여 및 감가상각 마감 실무를 포괄합니다.
         </p>
       </div>
 
-      <div style={{ backgroundColor: '#F8FAFC', border: '1px solid #CBD5E1', borderRadius: '10px', padding: '18px 20px', marginBottom: '28px' }}>
+      <div style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '18px 20px', marginBottom: '28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
           <Shield size={16} color="#7C3AED" />
-          <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#0F172A' }}>
+          <span style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--text-main)' }}>
             관리부 회계 정산 및 무누락 대사 원칙 (전사 표준 헌장 제3~4장)
           </span>
         </div>
@@ -861,8 +861,8 @@ const AdminManualContent: React.FC<{ onNavigateTo: (id: string) => void }> = ({ 
         </ul>
       </div>
 
-      <div className="no-print" style={{ backgroundColor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '16px 20px', marginBottom: '32px' }}>
-        <span style={{ fontSize: '12px', fontWeight: '800', color: '#64748B', display: 'block', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+      <div className="no-print" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '16px 20px', marginBottom: '32px' }}>
+        <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--text-muted)', display: 'block', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           목차 이동 (Click to Jump)
         </span>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
@@ -1005,7 +1005,7 @@ const sectionHeaderStyle: React.CSSProperties = {
 const sectionBadgeStyle: React.CSSProperties = {
   fontSize: '17px',
   fontWeight: '900',
-  color: '#0F172A',
+  color: 'var(--text-main)',
   display: 'flex',
   alignItems: 'center',
   gap: '8px',
@@ -1015,22 +1015,22 @@ const sectionBadgeStyle: React.CSSProperties = {
 const sourceTagStyle: React.CSSProperties = {
   fontSize: '11.5px',
   fontWeight: '700',
-  color: '#64748B',
-  backgroundColor: '#F1F5F9',
+  color: 'var(--text-muted)',
+  backgroundColor: 'var(--bg-app)',
   padding: '3px 8px',
   borderRadius: '6px',
-  border: '1px solid #E2E8F0'
+  border: '1px solid var(--border-color)'
 };
 
 const descTextStyle: React.CSSProperties = {
   fontSize: '13.5px',
-  color: '#475569',
+  color: 'var(--text-secondary)',
   margin: '0 0 16px 0'
 };
 
 const cardBoxStyle: React.CSSProperties = {
-  backgroundColor: '#F8FAFC',
-  border: '1px solid #E2E8F0',
+  backgroundColor: 'var(--bg-app)',
+  border: '1px solid var(--border-color)',
   borderRadius: '8px',
   padding: '16px',
   boxSizing: 'border-box'
@@ -1041,7 +1041,7 @@ const cardHeaderStyle: React.CSSProperties = {
   alignItems: 'center',
   gap: '6px',
   fontSize: '13px',
-  color: '#0F172A',
+  color: 'var(--text-main)',
   marginBottom: '10px'
 };
 
@@ -1056,7 +1056,7 @@ const stepListStyle: React.CSSProperties = {
 };
 
 const tipBoxStyle: React.CSSProperties = {
-  backgroundColor: '#EFF6FF',
+  backgroundColor: 'var(--info-light)',
   border: '1px solid #BFDBFE',
   borderRadius: '8px',
   padding: '12px 16px',
@@ -1069,15 +1069,15 @@ const tipBoxStyle: React.CSSProperties = {
 };
 
 const scenarioBoxStyle: React.CSSProperties = {
-  backgroundColor: '#F8FAFC',
-  border: '1px solid #E2E8F0',
+  backgroundColor: 'var(--bg-app)',
+  border: '1px solid var(--border-color)',
   borderRadius: '8px',
   padding: '14px 16px'
 };
 
 const subStepBoxStyle: React.CSSProperties = {
-  backgroundColor: '#FFFFFF',
-  border: '1px solid #CBD5E1',
+  backgroundColor: 'var(--bg-card)',
+  border: '1px solid var(--border-color)',
   borderRadius: '6px',
   padding: '10px 12px',
   display: 'flex',
@@ -1088,7 +1088,7 @@ const subStepBoxStyle: React.CSSProperties = {
 const subStepNumStyle: React.CSSProperties = {
   fontSize: '10.5px',
   fontWeight: '900',
-  color: '#2563EB',
+  color: 'var(--primary)',
   textTransform: 'uppercase'
 };
 
@@ -1098,8 +1098,8 @@ const tocBtnStyle: React.CSSProperties = {
   gap: '8px',
   padding: '7px 10px',
   borderRadius: '6px',
-  border: '1px solid #E2E8F0',
-  backgroundColor: '#F8FAFC',
+  border: '1px solid var(--border-color)',
+  backgroundColor: 'var(--bg-app)',
   fontSize: '12px',
   fontWeight: '700',
   color: '#334155',
@@ -1112,8 +1112,8 @@ const tocNumStyle: React.CSSProperties = {
   width: '18px',
   height: '18px',
   borderRadius: '4px',
-  backgroundColor: '#E2E8F0',
-  color: '#0F172A',
+  backgroundColor: 'var(--bg-secondary)',
+  color: 'var(--text-main)',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',

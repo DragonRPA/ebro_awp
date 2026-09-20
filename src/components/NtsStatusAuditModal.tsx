@@ -344,7 +344,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
         backgroundColor: 'var(--bg-card, #ffffff)',
         color: 'var(--text-main, #0f172a)',
         borderRadius: '12px',
-        border: '1px solid var(--border-color, #cbd5e1)',
+        border: '1px solid var(--border-color, var(--border-color))',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
         display: 'flex',
         flexDirection: 'column',
@@ -365,7 +365,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
               width: '32px',
               height: '32px',
               borderRadius: '8px',
-              backgroundColor: '#3b82f6',
+              backgroundColor: 'var(--primary)',
               color: '#ffffff',
               display: 'flex',
               alignItems: 'center',
@@ -421,7 +421,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
               padding: '2px',
               borderRadius: '8px',
               backgroundColor: 'var(--bg-secondary, #f1f5f9)',
-              border: '1px solid var(--border-color, #cbd5e1)'
+              border: '1px solid var(--border-color, var(--border-color))'
             }}>
               <button
                 type="button"
@@ -560,7 +560,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                   padding: '5px 8px 5px 28px',
                   fontSize: '12px',
                   borderRadius: '6px',
-                  border: '1px solid var(--border-color, #cbd5e1)',
+                  border: '1px solid var(--border-color, var(--border-color))',
                   backgroundColor: 'var(--bg-card, #ffffff)',
                   color: 'var(--text-main, #0f172a)',
                   outline: 'none'
@@ -608,7 +608,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                 fontSize: '12px',
                 fontWeight: 600,
                 borderRadius: '6px',
-                border: '1px solid var(--border-color, #cbd5e1)',
+                border: '1px solid var(--border-color, var(--border-color))',
                 backgroundColor: 'var(--bg-secondary, #f8fafc)',
                 color: 'var(--text-main, #0f172a)',
                 cursor: 'pointer',
@@ -630,7 +630,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                 fontSize: '12px',
                 fontWeight: 600,
                 borderRadius: '6px',
-                border: '1px solid var(--border-color, #cbd5e1)',
+                border: '1px solid var(--border-color, var(--border-color))',
                 backgroundColor: 'var(--bg-secondary, #f8fafc)',
                 color: 'var(--text-main, #0f172a)',
                 cursor: 'pointer',
@@ -650,14 +650,14 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
         {isScanning && (
           <div style={{
             padding: '8px 20px',
-            backgroundColor: '#eff6ff',
+            backgroundColor: 'var(--info-light)',
             borderBottom: '1px solid #bfdbfe',
             display: 'flex',
             flexDirection: 'column',
             gap: '5px',
             flexShrink: 0
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 600, color: '#1d4ed8' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', fontWeight: 600, color: 'var(--primary)' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <RefreshCw size={12} style={{ animation: 'nts-spin 1s linear infinite' }} />
                 국세청 공공데이터 공식 DB 대사 진행 중...
@@ -669,13 +669,13 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
             <div style={{
               width: '100%',
               height: '6px',
-              backgroundColor: '#dbeafe',
+              backgroundColor: 'var(--info-light)',
               borderRadius: '3px',
               overflow: 'hidden'
             }}>
               <div style={{
                 height: '100%',
-                backgroundColor: '#2563eb',
+                backgroundColor: 'var(--primary)',
                 width: `${Math.round((scanProgress.processed / (scanProgress.total || 1)) * 100)}%`,
                 transition: 'width 0.25s ease'
               }} />
@@ -732,8 +732,8 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                 <span style={{
                   padding: '2px 8px',
                   borderRadius: '4px',
-                  backgroundColor: '#dcfce7',
-                  color: '#15803d',
+                  backgroundColor: 'var(--success-light)',
+                  color: 'var(--success)',
                   fontWeight: 700,
                   fontSize: '11px',
                   display: 'inline-flex',
@@ -747,8 +747,8 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                 <span style={{
                   padding: '2px 8px',
                   borderRadius: '4px',
-                  backgroundColor: '#fef3c7',
-                  color: '#b45309',
+                  backgroundColor: 'var(--warning-light)',
+                  color: 'var(--warning)',
                   fontWeight: 700,
                   fontSize: '11px',
                   display: 'inline-flex',
@@ -763,14 +763,14 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ color: '#059669' }}>정상: <strong>{stats.active}</strong></span>
-            <span style={{ color: '#d97706' }}>휴업: <strong>{stats.suspended}</strong></span>
+            <span style={{ color: 'var(--success)' }}>정상: <strong>{stats.active}</strong></span>
+            <span style={{ color: 'var(--warning)' }}>휴업: <strong>{stats.suspended}</strong></span>
             <span style={{ color: '#e11d48' }}>폐업: <strong>{stats.closed}</strong></span>
             {stats.rentedRisk > 0 && (
               <span style={{
                 padding: '2px 8px',
                 borderRadius: '4px',
-                backgroundColor: '#e11d48',
+                backgroundColor: 'var(--danger)',
                 color: '#ffffff',
                 fontWeight: 800,
                 display: 'flex',
@@ -866,9 +866,9 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                             borderRadius: '4px',
                             fontSize: '11px',
                             fontWeight: 700,
-                            backgroundColor: '#fee2e2',
+                            backgroundColor: 'var(--danger-light)',
                             border: '1px solid #fca5a5',
-                            color: '#b91c1c',
+                            color: 'var(--danger)',
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '3px'
@@ -881,9 +881,9 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                             borderRadius: '4px',
                             fontSize: '11px',
                             fontWeight: 700,
-                            backgroundColor: '#fef3c7',
+                            backgroundColor: 'var(--warning-light)',
                             border: '1px solid #fcd34d',
-                            color: '#b45309',
+                            color: 'var(--warning)',
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '3px'
@@ -896,9 +896,9 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                             borderRadius: '4px',
                             fontSize: '11px',
                             fontWeight: 700,
-                            backgroundColor: '#dcfce7',
+                            backgroundColor: 'var(--success-light)',
                             border: '1px solid #86efac',
-                            color: '#15803d',
+                            color: 'var(--success)',
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '3px'
@@ -959,8 +959,8 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                             borderRadius: '4px',
                             fontSize: '11px',
                             fontWeight: 700,
-                            backgroundColor: '#fee2e2',
-                            color: '#b91c1c',
+                            backgroundColor: 'var(--danger-light)',
+                            color: 'var(--danger)',
                             border: '1px solid #fca5a5'
                           }}>
                             출고제한
@@ -970,7 +970,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                             padding: '2px 6px',
                             borderRadius: '4px',
                             fontSize: '11px',
-                            backgroundColor: '#ecfdf5',
+                            backgroundColor: 'var(--success-light)',
                             color: '#047857',
                             border: '1px solid #a7f3d0'
                           }}>
@@ -990,7 +990,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                               borderRadius: '4px',
                               fontSize: '11px',
                               fontWeight: 700,
-                              backgroundColor: '#e11d48',
+                              backgroundColor: 'var(--danger)',
                               color: '#ffffff',
                               border: 'none',
                               cursor: 'pointer',
@@ -1002,7 +1002,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                             <ShieldAlert size={12} /> 출고제한/회수 지시
                           </button>
                         ) : isAlreadyApplied ? (
-                          <span style={{ fontSize: '11px', color: '#059669', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--success)', display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
                             <Check size={12} /> 조치완료
                           </span>
                         ) : (
@@ -1046,7 +1046,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                   borderRadius: '6px',
                   fontSize: '12px',
                   fontWeight: 700,
-                  backgroundColor: '#e11d48',
+                  backgroundColor: 'var(--danger)',
                   color: '#ffffff',
                   border: 'none',
                   cursor: 'pointer',
@@ -1103,7 +1103,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
             maxWidth: '560px',
             backgroundColor: 'var(--bg-card, #ffffff)',
             borderRadius: '12px',
-            border: '1px solid var(--border-color, #cbd5e1)',
+            border: '1px solid var(--border-color, var(--border-color))',
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.25)',
             display: 'flex',
             flexDirection: 'column',
@@ -1127,7 +1127,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
               <button
                 type="button"
                 onClick={() => setShowConfigModal(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted, #64748b)' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted, var(--border-color))' }}
               >
                 <X size={18} />
               </button>
@@ -1149,7 +1149,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                     padding: '8px 12px',
                     fontSize: '12px',
                     borderRadius: '6px',
-                    border: '1px solid var(--border-color, #cbd5e1)',
+                    border: '1px solid var(--border-color, var(--border-color))',
                     backgroundColor: 'var(--bg-card, #ffffff)',
                     color: 'var(--text-main, #0f172a)',
                     fontFamily: 'monospace',
@@ -1190,8 +1190,8 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                   padding: '8px 12px',
                   borderRadius: '6px',
                   fontSize: '12px',
-                  backgroundColor: '#dcfce7',
-                  color: '#15803d',
+                  backgroundColor: 'var(--success-light)',
+                  color: 'var(--success)',
                   fontWeight: 700,
                   display: 'flex',
                   alignItems: 'center',
@@ -1220,7 +1220,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                   borderRadius: '6px',
                   fontSize: '12px',
                   fontWeight: 600,
-                  border: '1px solid var(--border-color, #cbd5e1)',
+                  border: '1px solid var(--border-color, var(--border-color))',
                   backgroundColor: 'var(--bg-card, #ffffff)',
                   color: 'var(--text-main, #0f172a)',
                   cursor: configTestState?.running ? 'not-allowed' : 'pointer',
@@ -1243,7 +1243,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                     borderRadius: '6px',
                     fontSize: '12px',
                     fontWeight: 600,
-                    border: '1px solid var(--border-color, #cbd5e1)',
+                    border: '1px solid var(--border-color, var(--border-color))',
                     backgroundColor: 'transparent',
                     color: 'var(--text-secondary, #475569)',
                     cursor: 'pointer',

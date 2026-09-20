@@ -362,7 +362,7 @@ export const ConsumableInOutPage: React.FC = () => {
             소모품 입출고 관리
           </h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-            <ShieldCheck size={14} style={{ color: '#059669' }} />
+            <ShieldCheck size={14} style={{ color: 'var(--success)' }} />
             <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               구매 승인건 입고 검수, 자산/기사 1:1 귀속 출고 및 수불 감사 대장
             </span>
@@ -380,7 +380,7 @@ export const ConsumableInOutPage: React.FC = () => {
             <PackagePlus size={14} /> 소모품 입고
             {pendingInbounds.length > 0 && (
               <span style={{
-                backgroundColor: '#dc2626', color: '#fff', fontSize: '11px',
+                backgroundColor: 'var(--danger)', color: '#fff', fontSize: '11px',
                 padding: '1px 6px', borderRadius: '10px', fontWeight: 700
               }}>
                 {pendingInbounds.length}
@@ -460,7 +460,7 @@ export const ConsumableInOutPage: React.FC = () => {
                         >
                           <td style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>{p.requestDate}</td>
                           <td><strong style={{ color: 'var(--primary)' }}>{p.modelName}</strong></td>
-                          <td style={{ textAlign: 'center', fontWeight: 700, color: '#059669' }}>{p.requestedQty}</td>
+                          <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--success)' }}>{p.requestedQty}</td>
                           <td>{(p.unitPrice || 0).toLocaleString()}원</td>
                           <td style={{ fontSize: '12px' }}>{p.sellerName}</td>
                           <td style={{ fontSize: '12px' }}>{p.requesterName}</td>
@@ -565,14 +565,14 @@ export const ConsumableInOutPage: React.FC = () => {
                       if (e.target.checked) setSelectedFile(null);
                     }}
                   />
-                  <label htmlFor="chk_no_invoice" style={{ fontSize: '12px', color: '#dc2626', fontWeight: 600, cursor: 'pointer' }}>
+                  <label htmlFor="chk_no_invoice" style={{ fontSize: '12px', color: 'var(--danger)', fontWeight: 600, cursor: 'pointer' }}>
                     거래명세서 증빙 누락 (감사 사유 입력 필수)
                   </label>
                 </div>
 
                 {noInvoice && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#dc2626' }}>증빙 누락 감사 사유 *</label>
+                    <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--danger)' }}>증빙 누락 감사 사유 *</label>
                     <input
                       type="text"
                       value={noInvoiceReason}
@@ -897,7 +897,7 @@ export const ConsumableInOutPage: React.FC = () => {
                         <tr key={l.id}>
                           <td style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>{l.actionDate}</td>
                           <td><strong>{item?.modelName || '품목'}</strong></td>
-                          <td style={{ textAlign: 'center', fontWeight: 700, color: '#dc2626' }}>{l.quantity}</td>
+                          <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--danger)' }}>{l.quantity}</td>
                           <td style={{ fontSize: '12px' }}>
                             {l.targetAssetId ? `자산: ${getAssetNo(l.targetAssetId)}` : getUserName(l.mechanicId || l.userId)}
                           </td>
@@ -1067,7 +1067,7 @@ export const ConsumableInOutPage: React.FC = () => {
             alignItems: 'center', flexWrap: 'wrap', gap: '12px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ShieldCheck size={18} style={{ color: '#059669' }} />
+              <ShieldCheck size={18} style={{ color: 'var(--success)' }} />
               <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
                 수불 대차 검증 요약
               </span>
@@ -1076,11 +1076,11 @@ export const ConsumableInOutPage: React.FC = () => {
             <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
               <div style={{ fontSize: '12px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>📥 입고 합계: </span>
-                <strong style={{ color: '#059669' }}>₩{auditBalance.inboundSum.toLocaleString()}</strong>
+                <strong style={{ color: 'var(--success)' }}>₩{auditBalance.inboundSum.toLocaleString()}</strong>
               </div>
               <div style={{ fontSize: '12px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>📤 출고 합계: </span>
-                <strong style={{ color: '#dc2626' }}>₩{auditBalance.outboundSum.toLocaleString()}</strong>
+                <strong style={{ color: 'var(--danger)' }}>₩{auditBalance.outboundSum.toLocaleString()}</strong>
               </div>
               <div style={{ fontSize: '12px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>🚚 차량불출: </span>
@@ -1088,11 +1088,11 @@ export const ConsumableInOutPage: React.FC = () => {
               </div>
               <div style={{ fontSize: '12px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>🔄 주기장반납: </span>
-                <strong style={{ color: '#d97706' }}>₩{auditBalance.returnSum.toLocaleString()}</strong>
+                <strong style={{ color: 'var(--warning)' }}>₩{auditBalance.returnSum.toLocaleString()}</strong>
               </div>
               <div style={{
                 padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 700,
-                backgroundColor: 'rgba(5, 150, 105, 0.1)', color: '#059669', border: '1px solid rgba(5, 150, 105, 0.3)'
+                backgroundColor: 'rgba(5, 150, 105, 0.1)', color: 'var(--success)', border: '1px solid rgba(5, 150, 105, 0.3)'
               }}>
                 ⚖️ 수불 무결성 검증 완료
               </div>

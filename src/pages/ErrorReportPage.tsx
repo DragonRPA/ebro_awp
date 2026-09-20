@@ -376,26 +376,26 @@ export const ErrorReportPage: React.FC = () => {
   const getSeverityBadge = (sev: ErrorReportSeverity) => {
     switch (sev) {
       case 'CRITICAL':
-        return <span style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: '#FEE2E2', color: '#DC2626', fontWeight: 600, fontSize: '11px', whiteSpace: 'nowrap' }}>치명</span>;
+        return <span style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--danger-light)', color: 'var(--danger)', fontWeight: 600, fontSize: '11px', whiteSpace: 'nowrap' }}>치명</span>;
       case 'HIGH':
         return <span style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: '#FFEDD5', color: '#EA580C', fontWeight: 600, fontSize: '11px', whiteSpace: 'nowrap' }}>긴급</span>;
       case 'MEDIUM':
-        return <span style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: '#FEF3C7', color: '#D97706', fontWeight: 600, fontSize: '11px', whiteSpace: 'nowrap' }}>보통</span>;
+        return <span style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--warning-light)', color: 'var(--warning)', fontWeight: 600, fontSize: '11px', whiteSpace: 'nowrap' }}>보통</span>;
       default:
-        return <span style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: '#F3F4F6', color: '#4B5563', fontWeight: 600, fontSize: '11px', whiteSpace: 'nowrap' }}>낮음</span>;
+        return <span style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-app)', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '11px', whiteSpace: 'nowrap' }}>낮음</span>;
     }
   };
 
   const getStatusBadge = (status: ErrorReportStatus) => {
     switch (status) {
       case 'REGISTERED':
-        return <span style={{ padding: '3px 10px', borderRadius: '4px', backgroundColor: '#FEF3C7', color: '#B45309', fontWeight: 700, fontSize: '12px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Clock size={12} /> 신고등록</span>;
+        return <span style={{ padding: '3px 10px', borderRadius: '4px', backgroundColor: 'var(--warning-light)', color: 'var(--warning)', fontWeight: 700, fontSize: '12px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Clock size={12} /> 신고등록</span>;
       case 'IN_PROGRESS':
-        return <span style={{ padding: '3px 10px', borderRadius: '4px', backgroundColor: '#DBEAFE', color: '#1D4ED8', fontWeight: 700, fontSize: '12px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><RefreshCw size={12} /> 접수처리</span>;
+        return <span style={{ padding: '3px 10px', borderRadius: '4px', backgroundColor: 'var(--info-light)', color: 'var(--primary)', fontWeight: 700, fontSize: '12px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><RefreshCw size={12} /> 접수처리</span>;
       case 'COMPLETED':
-        return <span style={{ padding: '3px 10px', borderRadius: '4px', backgroundColor: '#DCFCE7', color: '#15803D', fontWeight: 700, fontSize: '12px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><CheckCircle2 size={12} /> 완료</span>;
+        return <span style={{ padding: '3px 10px', borderRadius: '4px', backgroundColor: 'var(--success-light)', color: 'var(--success)', fontWeight: 700, fontSize: '12px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><CheckCircle2 size={12} /> 완료</span>;
       case 'CANCELLED':
-        return <span style={{ padding: '3px 10px', borderRadius: '4px', backgroundColor: '#F3F4F6', color: '#6B7280', fontWeight: 600, fontSize: '12px', whiteSpace: 'nowrap' }}>취소</span>;
+        return <span style={{ padding: '3px 10px', borderRadius: '4px', backgroundColor: 'var(--bg-app)', color: 'var(--text-muted)', fontWeight: 600, fontSize: '12px', whiteSpace: 'nowrap' }}>취소</span>;
     }
   };
 
@@ -426,7 +426,7 @@ export const ErrorReportPage: React.FC = () => {
       {/* ─── 화면 헤더 및 3대 단계 요약 HUD (Gutenberg Z-패턴: 상단) ─── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'nowrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: '#EFF6FF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563EB' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: 'var(--info-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
             <AlertTriangle size={22} />
           </div>
           <div>
@@ -452,8 +452,8 @@ export const ErrorReportPage: React.FC = () => {
               gap: '10px' 
             }}
           >
-            <div style={{ fontSize: '12px', color: '#B45309', fontWeight: 600 }}>1단계: 신고등록</div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#B45309' }}>{stats.registered}</div>
+            <div style={{ fontSize: '12px', color: 'var(--warning)', fontWeight: 600 }}>1단계: 신고등록</div>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--warning)' }}>{stats.registered}</div>
           </div>
 
           <div 
@@ -469,8 +469,8 @@ export const ErrorReportPage: React.FC = () => {
               gap: '10px' 
             }}
           >
-            <div style={{ fontSize: '12px', color: '#1D4ED8', fontWeight: 600 }}>2단계: 접수처리</div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#1D4ED8' }}>{stats.inProgress}</div>
+            <div style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: 600 }}>2단계: 접수처리</div>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--primary)' }}>{stats.inProgress}</div>
           </div>
 
           <div 
@@ -486,8 +486,8 @@ export const ErrorReportPage: React.FC = () => {
               gap: '10px' 
             }}
           >
-            <div style={{ fontSize: '12px', color: '#15803D', fontWeight: 600 }}>3단계: 완료</div>
-            <div style={{ fontSize: '18px', fontWeight: 800, color: '#15803D' }}>{stats.completed}</div>
+            <div style={{ fontSize: '12px', color: 'var(--success)', fontWeight: 600 }}>3단계: 완료</div>
+            <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--success)' }}>{stats.completed}</div>
           </div>
         </div>
       </div>
@@ -641,7 +641,7 @@ export const ErrorReportPage: React.FC = () => {
               padding: '0 16px',
               borderRadius: '6px',
               border: 'none',
-              backgroundColor: '#2563EB',
+              backgroundColor: 'var(--primary)',
               color: '#FFFFFF',
               fontSize: '13px',
               fontWeight: 700,
@@ -709,8 +709,8 @@ export const ErrorReportPage: React.FC = () => {
                         padding: '4px 8px',
                         borderRadius: '4px',
                         border: '1px solid #2563EB',
-                        backgroundColor: '#EFF6FF',
-                        color: '#2563EB',
+                        backgroundColor: 'var(--info-light)',
+                        color: 'var(--primary)',
                         fontSize: '11px',
                         fontWeight: 700,
                         cursor: 'pointer',
@@ -750,7 +750,7 @@ export const ErrorReportPage: React.FC = () => {
                         <Paperclip size={10} /> {r.attachments.length}
                       </span>
                     ) : (
-                      <span style={{ color: '#9CA3AF', fontSize: '11px' }}>-</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>-</span>
                     )}
                   </td>
                   <td style={{ padding: '0 12px', whiteSpace: 'nowrap' }}>{r.reporterName}</td>
@@ -764,7 +764,7 @@ export const ErrorReportPage: React.FC = () => {
                       style={{
                         background: 'none',
                         border: 'none',
-                        color: '#9CA3AF',
+                        color: 'var(--text-muted)',
                         cursor: 'pointer',
                         padding: '4px'
                       }}
@@ -834,7 +834,7 @@ export const ErrorReportPage: React.FC = () => {
                 {/* 헌장 3.4 레이블-입력 상하 세로 스택 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    신고 제목 <span style={{ color: '#DC2626' }}>*</span>
+                    신고 제목 <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
                   <input
                     type="text"
@@ -929,7 +929,7 @@ export const ErrorReportPage: React.FC = () => {
                 {/* 오류 상세 내용 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    상세 내용 및 재현 경로 <span style={{ color: '#DC2626' }}>*</span>
+                    상세 내용 및 재현 경로 <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
                   <textarea
                     required
@@ -956,7 +956,7 @@ export const ErrorReportPage: React.FC = () => {
                     <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
                       첨부 파일 (스크린샷 캡처 이미지, 엑셀, 문서 등)
                     </label>
-                    <span style={{ fontSize: '11px', color: '#2563EB', fontWeight: 600 }}>
+                    <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 600 }}>
                       💡 화면 캡처 후 이 창에서 바로 Ctrl+V 로 붙여넣기 가능
                     </span>
                   </div>
@@ -986,7 +986,7 @@ export const ErrorReportPage: React.FC = () => {
                       style={{ display: 'none' }}
                     />
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                      <div style={{ display: 'flex', gap: '8px', color: '#6B7280' }}>
+                      <div style={{ display: 'flex', gap: '8px', color: 'var(--text-muted)' }}>
                         <ImageIcon size={20} />
                         <FileSpreadsheet size={20} />
                         <Paperclip size={20} />
@@ -1011,7 +1011,7 @@ export const ErrorReportPage: React.FC = () => {
                             alignItems: 'center',
                             gap: '8px',
                             padding: '6px 10px',
-                            backgroundColor: '#F3F4F6',
+                            backgroundColor: 'var(--bg-app)',
                             borderRadius: '6px',
                             border: '1px solid #E5E7EB',
                             fontSize: '12px'
@@ -1030,11 +1030,11 @@ export const ErrorReportPage: React.FC = () => {
                           <span style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>
                             {att.name}
                           </span>
-                          <span style={{ fontSize: '10px', color: '#6B7280' }}>({(att.size / 1024).toFixed(1)} KB)</span>
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>({(att.size / 1024).toFixed(1)} KB)</span>
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); removeAttachment(att.id); }}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#DC2626', padding: '2px' }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '2px' }}
                           >
                             <X size={13} />
                           </button>
@@ -1059,7 +1059,7 @@ export const ErrorReportPage: React.FC = () => {
                   <div>
                     신고자: <strong>{currentUser?.name || '시스템사용자'}</strong> | 브라우저: <strong>{navigator.userAgent.includes('Chrome') ? 'Chrome' : '브라우저'}</strong> | 해상도: <strong>{window.innerWidth}x{window.innerHeight}</strong>
                   </div>
-                  <div style={{ color: '#059669', fontWeight: 600 }}>환경 정보 자동 첨부됨</div>
+                  <div style={{ color: 'var(--success)', fontWeight: 600 }}>환경 정보 자동 첨부됨</div>
                 </div>
               </div>
 
@@ -1096,7 +1096,7 @@ export const ErrorReportPage: React.FC = () => {
                     padding: '0 20px',
                     borderRadius: '6px',
                     border: 'none',
-                    backgroundColor: '#2563EB',
+                    backgroundColor: 'var(--primary)',
                     color: '#FFFFFF',
                     fontSize: '13px',
                     fontWeight: 700,
@@ -1149,7 +1149,7 @@ export const ErrorReportPage: React.FC = () => {
               backgroundColor: 'var(--bg-app)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '14px', color: '#2563EB' }}>
+                <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '14px', color: 'var(--primary)' }}>
                   {selectedReport.reportNo}
                 </span>
                 {getStatusBadge(selectedReport.status)}
@@ -1226,7 +1226,7 @@ export const ErrorReportPage: React.FC = () => {
                             style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px', cursor: 'zoom-in' }}
                           />
                         ) : (
-                          <div style={{ width: '40px', height: '40px', borderRadius: '4px', backgroundColor: '#ECFDF5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <div style={{ width: '40px', height: '40px', borderRadius: '4px', backgroundColor: 'var(--success-light)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <FileSpreadsheet size={22} color="#059669" />
                           </div>
                         )}
@@ -1244,11 +1244,11 @@ export const ErrorReportPage: React.FC = () => {
                           style={{
                             padding: '6px',
                             borderRadius: '4px',
-                            color: '#2563EB',
+                            color: 'var(--primary)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            backgroundColor: '#EFF6FF'
+                            backgroundColor: 'var(--info-light)'
                           }}
                           title="다운로드"
                         >
@@ -1281,15 +1281,15 @@ export const ErrorReportPage: React.FC = () => {
                 padding: '14px',
                 borderRadius: '8px',
                 border: '1.5px solid #BFDBFE',
-                backgroundColor: '#F8FAFC'
+                backgroundColor: 'var(--bg-app)'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '13px', color: '#1D4ED8' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '13px', color: 'var(--primary)' }}>
                     <UserCheck size={16} />
                     2단계: 접수 처리 (담당자 배정 및 1차 진단)
                   </div>
                   {selectedReport.receivedAt && (
-                    <span style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>
+                    <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 600 }}>
                       ✓ {selectedReport.receivedAt} 접수완료 (접수자: {selectedReport.receiverName})
                     </span>
                   )}
@@ -1365,7 +1365,7 @@ export const ErrorReportPage: React.FC = () => {
                         padding: '6px 14px',
                         borderRadius: '6px',
                         border: 'none',
-                        backgroundColor: '#2563EB',
+                        backgroundColor: 'var(--primary)',
                         color: '#FFFFFF',
                         fontSize: '12px',
                         fontWeight: 700,
@@ -1383,15 +1383,15 @@ export const ErrorReportPage: React.FC = () => {
                 padding: '14px',
                 borderRadius: '8px',
                 border: '1.5px solid #BBF7D0',
-                backgroundColor: '#F8FAFC'
+                backgroundColor: 'var(--bg-app)'
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '13px', color: '#15803D' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, fontSize: '13px', color: 'var(--success)' }}>
                     <CheckCircle2 size={16} />
                     3단계: 완료 처리 (수정 조치 및 배포 버전 확정)
                   </div>
                   {selectedReport.completedAt && (
-                    <span style={{ fontSize: '11px', color: '#15803D', fontWeight: 600 }}>
+                    <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 600 }}>
                       ✓ {selectedReport.completedAt} 완료 확정 (처리자: {selectedReport.resolverName})
                     </span>
                   )}
@@ -1400,7 +1400,7 @@ export const ErrorReportPage: React.FC = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px', marginBottom: '10px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                      조치 내용 및 해결 방법 <span style={{ color: '#DC2626' }}>*</span>
+                      조치 내용 및 해결 방법 <span style={{ color: 'var(--danger)' }}>*</span>
                     </label>
                     <input
                       type="text"
@@ -1467,7 +1467,7 @@ export const ErrorReportPage: React.FC = () => {
                         padding: '6px 14px',
                         borderRadius: '6px',
                         border: 'none',
-                        backgroundColor: '#16A34A',
+                        backgroundColor: 'var(--success)',
                         color: '#FFFFFF',
                         fontSize: '12px',
                         fontWeight: 700,
@@ -1485,13 +1485,13 @@ export const ErrorReportPage: React.FC = () => {
                 <div style={{
                   padding: '12px',
                   borderRadius: '6px',
-                  backgroundColor: '#FEF2F2',
+                  backgroundColor: 'var(--danger-light)',
                   border: '1px solid #FECACA',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '8px'
                 }}>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#DC2626' }}>신고 취소 사유 입력</div>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--danger)' }}>신고 취소 사유 입력</div>
                   <input
                     type="text"
                     placeholder="중복 신고 또는 사용자 오작동 등 취소 사유 기재"
@@ -1516,7 +1516,7 @@ export const ErrorReportPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleCancelSubmit}
-                      style={{ padding: '4px 12px', borderRadius: '4px', border: 'none', backgroundColor: '#DC2626', color: '#FFFFFF', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                      style={{ padding: '4px 12px', borderRadius: '4px', border: 'none', backgroundColor: 'var(--danger)', color: '#FFFFFF', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
                     >
                       취소 확정
                     </button>
@@ -1543,8 +1543,8 @@ export const ErrorReportPage: React.FC = () => {
                       padding: '6px 12px',
                       borderRadius: '6px',
                       border: '1px solid #FCA5A5',
-                      backgroundColor: '#FEF2F2',
-                      color: '#DC2626',
+                      backgroundColor: 'var(--danger-light)',
+                      color: 'var(--danger)',
                       fontSize: '12px',
                       fontWeight: 600,
                       cursor: 'pointer'
@@ -1630,7 +1630,7 @@ export const ErrorReportPage: React.FC = () => {
                 position: 'absolute',
                 top: '-14px',
                 right: '-14px',
-                backgroundColor: '#FFFFFF',
+                backgroundColor: 'var(--bg-card)',
                 border: 'none',
                 borderRadius: '50%',
                 width: '32px',

@@ -803,7 +803,7 @@ export const Customers: React.FC = () => {
                 alignItems: 'center',
                 gap: '5px',
                 whiteSpace: 'nowrap',
-                backgroundColor: '#0284c7',
+                backgroundColor: 'var(--primary)',
                 color: '#ffffff',
                 border: '1px solid #0369a1',
                 borderRadius: '4px',
@@ -829,7 +829,7 @@ export const Customers: React.FC = () => {
                 alignItems: 'center',
                 gap: '5px',
                 whiteSpace: 'nowrap',
-                backgroundColor: '#059669',
+                backgroundColor: 'var(--success)',
                 color: '#ffffff',
                 border: '1px solid #047857',
                 borderRadius: '4px',
@@ -852,7 +852,7 @@ export const Customers: React.FC = () => {
                 alignItems: 'center',
                 gap: '5px',
                 whiteSpace: 'nowrap',
-                backgroundColor: '#0284c7',
+                backgroundColor: 'var(--primary)',
                 color: '#ffffff',
                 border: '1px solid #0369a1',
                 borderRadius: '4px',
@@ -1139,7 +1139,7 @@ export const Customers: React.FC = () => {
                                   border: '1px solid #059669',
                                   borderRadius: '3px',
                                   backgroundColor: 'rgba(5,150,105,0.12)',
-                                  color: '#059669',
+                                  color: 'var(--success)',
                                   cursor: 'pointer',
                                   fontWeight: 700,
                                   display: 'flex',
@@ -1152,7 +1152,7 @@ export const Customers: React.FC = () => {
                             )}
                           </>
                         ) : (
-                          <span style={{ fontSize: '9.5px', color: '#059669', backgroundColor: 'rgba(5,150,105,0.08)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '2px' }}>
+                          <span style={{ fontSize: '9.5px', color: 'var(--success)', backgroundColor: 'rgba(5,150,105,0.08)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '2px' }}>
                             <Check size={10} /> 등록증 인증
                           </span>
                         )}
@@ -1249,7 +1249,7 @@ export const Customers: React.FC = () => {
                           borderRadius: '4px',
                           border: '1px solid #059669',
                           backgroundColor: 'rgba(5, 150, 105, 0.15)',
-                          color: '#059669',
+                          color: 'var(--success)',
                           fontWeight: 600,
                           cursor: 'pointer'
                         }}
@@ -1324,7 +1324,7 @@ export const Customers: React.FC = () => {
                           borderRadius: '4px',
                           border: '1px solid #0284c7',
                           backgroundColor: 'rgba(2, 132, 199, 0.15)',
-                          color: '#38bdf8',
+                          color: 'var(--info)',
                           fontWeight: 600,
                           cursor: 'pointer',
                           display: 'flex',
@@ -1449,12 +1449,12 @@ export const Customers: React.FC = () => {
                                   return (
                                     <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
                                       {hasPaid && (
-                                        <span style={{ padding: '1px 5px', fontSize: '9.5px', borderRadius: '3px', backgroundColor: 'rgba(59, 130, 246, 0.12)', color: '#2563eb', border: '1px solid rgba(59, 130, 246, 0.3)', fontWeight: 600 }}>
+                                        <span style={{ padding: '1px 5px', fontSize: '9.5px', borderRadius: '3px', backgroundColor: 'rgba(59, 130, 246, 0.12)', color: 'var(--primary)', border: '1px solid rgba(59, 130, 246, 0.3)', fontWeight: 600 }}>
                                           {paidStr}
                                         </span>
                                       )}
                                       {hasProt && (
-                                        <span style={{ padding: '1px 5px', fontSize: '9.5px', borderRadius: '3px', backgroundColor: 'rgba(16, 185, 129, 0.12)', color: '#059669', border: '1px solid rgba(16, 185, 129, 0.3)', fontWeight: 600 }}>
+                                        <span style={{ padding: '1px 5px', fontSize: '9.5px', borderRadius: '3px', backgroundColor: 'rgba(16, 185, 129, 0.12)', color: 'var(--success)', border: '1px solid rgba(16, 185, 129, 0.3)', fontWeight: 600 }}>
                                           {protStr}
                                         </span>
                                       )}
@@ -1745,7 +1745,7 @@ export const Customers: React.FC = () => {
                   style={{
                     padding: '2px 8px',
                     fontSize: '11px',
-                    backgroundColor: '#059669',
+                    backgroundColor: 'var(--success)',
                     color: '#ffffff',
                     border: 'none',
                     borderRadius: '4px',
@@ -2612,7 +2612,7 @@ export const Customers: React.FC = () => {
                     borderRadius: '4px',
                     border: '1px solid #0284c7',
                     backgroundColor: 'rgba(2, 132, 199, 0.15)',
-                    color: '#38bdf8',
+                    color: 'var(--info)',
                     fontWeight: 600,
                     cursor: 'pointer',
                     display: 'flex',
@@ -2770,7 +2770,7 @@ export const Customers: React.FC = () => {
                     type="button"
                     onClick={() => handleOpenAddOption('PROTECTION')}
                     className="btn-secondary"
-                    style={{ padding: '4px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #059669', color: '#059669' }}
+                    style={{ padding: '4px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #059669', color: 'var(--success)' }}
                   >
                     <Plus size={12} /> 보양작업 등록
                   </button>

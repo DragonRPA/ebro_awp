@@ -36,12 +36,12 @@ import { ConsumablePurchasesPage } from './pages/ConsumablePurchasesPage';
 import { ConsumableInOutPage } from './pages/ConsumableInOutPage';
 import { ConsumableStockPage } from './pages/ConsumableStockPage';
 import { Contracts } from './pages/Contracts';
-import { Billings } from './pages/Billings';
+
 import { Receivables } from './pages/Receivables';
 import { BankMatching } from './pages/BankMatching';
 import { TransportMaster } from './pages/TransportMaster';
-import { Deliveries } from './pages/Deliveries';
-import { TruckDispatch } from './pages/TruckDispatch';
+
+
 import { Repairs } from './pages/Repairs';
 import { SmartAsRequest } from './pages/SmartAsRequest';
 import { FieldAsManagement } from './pages/FieldAsManagement';
@@ -58,7 +58,7 @@ import { SmartDispatch3 } from './pages/smart_dispatch3';
 import { SmartDispatch4 } from './pages/smart_dispatch4';
 import { SmartReturn } from './pages/smart_return';
 import { DevDataUploader } from './pages/DevDataUploader';
-import { AssetHistory } from './pages/asset_history';
+
 import { AssetAssignment } from './pages/asset_assignment';
 import { PayrollPage } from './pages/PayrollPage';
 import { CorporateCardPage } from './pages/CorporateCardPage';
@@ -66,7 +66,7 @@ import { CashFlowPage } from './pages/CashFlowPage';
 import { DelinquencyPage } from './pages/DelinquencyPage';
 import { OutboundInspections } from './pages/outbound_inspections';
 import { DepreciationExecution } from './pages/depreciation_execution';
-import { PurchaseSettlementPage } from './pages/PurchaseSettlementPage';
+
 import { RegularReportsPage } from './pages/RegularReportsPage';
 import { GoogleConfig } from './pages/GoogleConfig';
 import { InitialDbUploader } from './pages/InitialDbUploader';
@@ -77,6 +77,16 @@ import { MirrorSyncProgressToast } from './components/MirrorSyncProgressToast';
 import { MobileApp } from './mobile/MobileApp';
 import { initWorkNotificationListener } from './utils/workNotificationService';
 import { ErrorBoundary } from './components/ErrorBoundary';
+
+const Billings = React.lazy(() => import('./pages/Billings').then(module => ({ default: module.Billings })));
+
+const TruckDispatch = React.lazy(() => import('./pages/TruckDispatch').then(module => ({ default: module.TruckDispatch })));
+
+const Deliveries = React.lazy(() => import('./pages/Deliveries').then(module => ({ default: module.Deliveries })));
+
+const PurchaseSettlementPage = React.lazy(() => import('./pages/PurchaseSettlementPage').then(module => ({ default: module.PurchaseSettlementPage })));
+
+const AssetHistory = React.lazy(() => import('./pages/asset_history').then(module => ({ default: module.AssetHistory })));
 
 export interface SubMenuItem {
   id: string;
@@ -557,9 +567,9 @@ const App: React.FC = () => {
 
             {loginErrorMsg && (
               <div style={{
-                backgroundColor: '#fee2e2',
+                backgroundColor: 'var(--danger-light)',
                 border: '1px solid #ef4444',
-                color: '#b91c1c',
+                color: 'var(--danger)',
                 padding: '10px 12px',
                 borderRadius: '6px',
                 fontSize: '13px',
@@ -591,8 +601,8 @@ const App: React.FC = () => {
                   borderRadius: '8px',
                   fontSize: '13px',
                   fontWeight: '700',
-                  backgroundColor: '#1e293b',
-                  color: '#38bdf8',
+                  backgroundColor: 'var(--bg-card)',
+                  color: 'var(--info)',
                   border: '1px solid #0284c7',
                   cursor: 'pointer',
                   display: 'flex',
@@ -685,7 +695,7 @@ const App: React.FC = () => {
             borderRadius: '12px',
             backgroundColor: 'rgba(15, 23, 42, 0.75)',
             border: '1px solid rgba(59, 130, 246, 0.25)',
-            color: '#94a3b8',
+            color: 'var(--text-muted)',
             fontSize: '11.5px',
             lineHeight: 1.5
           }}>
@@ -700,14 +710,14 @@ const App: React.FC = () => {
           {/* 테스트 계정 안내 — 개발 환경(localhost)에서만 표시 */}
           {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
             <div style={{ marginTop: '16px', padding: '12px', border: '1px dashed #f59e0b', borderRadius: 'var(--radius-sm)', backgroundColor: 'rgba(251,191,36,0.07)', fontSize: '12px' }}>
-              <div style={{ fontWeight: '700', marginBottom: '6px', color: '#d97706' }}>⚠️ [개발 전용] 테스트 계정 — 운영 환경에서는 표시 안됨</div>
+              <div style={{ fontWeight: '700', marginBottom: '6px', color: 'var(--warning)' }}>⚠️ [개발 전용] 테스트 계정 — 운영 환경에서는 표시 안됨</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                 <div>• 개발자: <strong>admin / admin123</strong></div>
                 <div>• 영업관리: <strong>manager / mgr123</strong></div>
                 <div>• 일반영업: <strong>user / user123</strong></div>
                 <div>• 정비현장: <strong>mechanic / mech123</strong></div>
               </div>
-              <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px dashed rgba(245, 158, 11, 0.3)', fontSize: '11px', color: '#b45309' }}>
+              <div style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px dashed rgba(245, 158, 11, 0.3)', fontSize: '11px', color: 'var(--warning)' }}>
                 • 임직원 로그인: <strong>사원명(예: 김동우, 이수용, 최수호)</strong> 또는 <strong>사번</strong> / 초기 비밀번호: <strong>1111</strong>
               </div>
             </div>
@@ -721,7 +731,7 @@ const App: React.FC = () => {
               style={{
                 background: 'none',
                 border: 'none',
-                color: '#94a3b8',
+                color: 'var(--text-muted)',
                 fontSize: '11.5px',
                 cursor: 'pointer',
                 textDecoration: 'underline',

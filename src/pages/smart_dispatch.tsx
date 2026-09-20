@@ -1066,7 +1066,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
         fontSize: '12.5px', flexWrap: 'wrap', gap: '12px'
       }}>
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-          <div>파서 상태: <strong style={{ color: '#16a34a' }}>정규식 파서 가동</strong></div>
+          <div>파서 상태: <strong style={{ color: 'var(--success)' }}>정규식 파서 가동</strong></div>
           <div>분석 모드: <strong style={{ color: 'var(--primary)' }}>의뢰별 맞춤 스펙 추출</strong></div>
         </div>
       </div>
@@ -1169,7 +1169,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
               }}>
                 <CheckCircle2 size={16} color="#10b981" />
                 <span>⚡ 기존 DB 자동 상속: {inheritedFieldList.join(', ')}</span>
-                <span style={{ fontSize: '11px', color: '#15803d', fontWeight: '400', marginLeft: 'auto' }}>
+                <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: '400', marginLeft: 'auto' }}>
                   (새로운 입력 시 고객/현장 마스터가 자동 최신화됩니다)
                 </span>
               </div>
@@ -1180,7 +1180,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
               <h4 style={{ fontSize: '14px', fontWeight: '700', color: 'var(--primary)', marginBottom: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>1. 기본 고객 및 현장 정보</span>
                 {findCustomerByNormalizedName(customers, customerName) && (
-                  <span style={{ fontSize: '11px', fontWeight: 600, color: '#16a34a', backgroundColor: '#dcfce7', padding: '2px 8px', borderRadius: '4px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--success)', backgroundColor: 'var(--success-light)', padding: '2px 8px', borderRadius: '4px' }}>
                     ✓ 등록 고객사 매핑됨
                   </span>
                 )}
@@ -1212,7 +1212,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                   <input type="text" value={contractNo} onChange={e => setContractNo(e.target.value)} placeholder="예: CT-2026-00123" />
                 </div>
                 <div>
-                  <label>고객사명 <span style={{ color: '#ef4444' }}>*</span></label>
+                  <label>고객사명 <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input
                     type="text"
                     list="smart-dispatch-customer-list"
@@ -1264,7 +1264,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                   </datalist>
                 </div>
                 <div>
-                  <label>현장명 <span style={{ color: '#ef4444' }}>*</span></label>
+                  <label>현장명 <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input
                     type="text"
                     list="smart-dispatch-site-list"
@@ -1314,9 +1314,9 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
               </div>
               <div style={{ marginTop: '10px' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>현장 상세 주소 <span style={{ color: '#ef4444' }}>*</span></span>
+                  <span>현장 상세 주소 <span style={{ color: 'var(--danger)' }}>*</span></span>
                   {inheritedFieldList.includes('현장 상세 주소') && (
-                    <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700 }}>[DB 상속됨]</span>
+                    <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>[DB 상속됨]</span>
                   )}
                 </label>
                 <input
@@ -1349,16 +1349,16 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>현장담당자 이름</span>
                     {inheritedFieldList.includes('현장담당자 이름') && (
-                      <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700 }}>[DB 상속됨]</span>
+                      <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>[DB 상속됨]</span>
                     )}
                   </label>
                   <input type="text" value={siteContactName} onChange={e => setSiteContactName(e.target.value)} placeholder="예: 김소장" />
                 </div>
                 <div>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>현장담당자 연락처 <span style={{ color: '#ef4444' }}>*</span></span>
+                    <span>현장담당자 연락처 <span style={{ color: 'var(--danger)' }}>*</span></span>
                     {(inheritedFieldList.includes('현장담당자 연락처') || inheritedFieldList.includes('현장담당자(연락처)')) && (
-                      <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700 }}>[DB 상속됨]</span>
+                      <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>[DB 상속됨]</span>
                     )}
                   </label>
                   <input
@@ -1375,7 +1375,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>청구담당자 이름</span>
                     {inheritedFieldList.includes('청구담당자') && (
-                      <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700 }}>[DB 상속됨]</span>
+                      <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>[DB 상속됨]</span>
                     )}
                   </label>
                   <input type="text" value={billingContactName} onChange={e => setBillingContactName(e.target.value)} placeholder="예: 이대리" />
@@ -1384,7 +1384,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>청구담당자 연락처</span>
                     {inheritedFieldList.includes('청구담당자 연락처') && (
-                      <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700 }}>[DB 상속됨]</span>
+                      <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>[DB 상속됨]</span>
                     )}
                   </label>
                   <input type="text" value={billingContactPhone} onChange={e => setBillingContactPhone(e.target.value)} placeholder="예: 010-9876-5432" />
@@ -1399,7 +1399,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>계산서 메일</span>
                     {inheritedFieldList.includes('계산서 메일') && (
-                      <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700 }}>[DB 상속됨]</span>
+                      <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>[DB 상속됨]</span>
                     )}
                   </label>
                   <input type="text" value={taxBillEmail} onChange={e => setTaxBillEmail(e.target.value)} placeholder="예: tax@company.co.kr" />
@@ -1486,7 +1486,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>유상 옵션 내역</span>
                     {(inheritedFieldList.includes('유상옵션(현장)') || inheritedFieldList.includes('유상옵션(고객기본)')) && (
-                      <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700 }}>
+                      <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>
                         [{inheritedFieldList.includes('유상옵션(현장)') ? '현장 DB 상속' : '고객 기본 상속'}]
                       </span>
                     )}
@@ -1497,7 +1497,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                   <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span>보양작업 조건</span>
                     {(inheritedFieldList.includes('보양작업(현장)') || inheritedFieldList.includes('보양작업(고객기본)')) && (
-                      <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700 }}>
+                      <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700 }}>
                         [{inheritedFieldList.includes('보양작업(현장)') ? '현장 DB 상속' : '고객 기본 상속'}]
                       </span>
                     )}
@@ -1526,7 +1526,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                   />
                   <span>🏢 이 옵션·보양·스펙을 '{customerName || '해당 고객사'}' 기본 설정으로 등록 (다음 신규 현장에도 자동 적용)</span>
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 600, color: '#3b82f6' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 600, color: 'var(--primary)' }}>
                   <input
                     type="checkbox"
                     checked={applyToAllSites}
@@ -1656,12 +1656,12 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
         }}>
           <div className="card" style={{
-            width: '100%', maxWidth: '520px', padding: '28px', backgroundColor: '#0f172a',
+            width: '100%', maxWidth: '520px', padding: '28px', backgroundColor: 'var(--bg-app)',
             color: '#f8fafc', borderRadius: '16px', border: '1px solid #334155', boxSizing: 'border-box',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--info)' }}>
                 <RefreshCw size={18} className={isProcessCompleted ? '' : 'animate-spin'} style={{ color: isProcessCompleted ? '#10b981' : '#38bdf8' }} />
                 {isProcessCompleted ? '출고 요청 등록 완료' : '출고 프로세스 진행'}
               </h3>
@@ -1671,7 +1671,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
             </div>
 
             {/* 프로그레스 바 */}
-            <div style={{ width: '100%', height: '10px', backgroundColor: '#1e293b', borderRadius: '5px', overflow: 'hidden', marginBottom: '20px' }}>
+            <div style={{ width: '100%', height: '10px', backgroundColor: 'var(--bg-card)', borderRadius: '5px', overflow: 'hidden', marginBottom: '20px' }}>
               <div style={{
                 width: `${progressPercent}%`, height: '100%',
                 backgroundColor: isProcessCompleted ? '#10b981' : '#3b82f6',
@@ -1682,14 +1682,14 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
             </div>
 
             {/* 현재 진행 단계 가이드 메인 박스 */}
-            <div style={{ backgroundColor: '#1e293b', padding: '14px', borderRadius: '10px', fontSize: '13.5px', fontWeight: '700', color: '#f1f5f9', borderLeft: isProcessCompleted ? '4px solid #10b981' : '4px solid #3b82f6', marginBottom: '16px' }}>
+            <div style={{ backgroundColor: 'var(--bg-card)', padding: '14px', borderRadius: '10px', fontSize: '13.5px', fontWeight: '700', color: '#f1f5f9', borderLeft: isProcessCompleted ? '4px solid #10b981' : '4px solid #3b82f6', marginBottom: '16px' }}>
               {currentStepText}
             </div>
 
             {/* 단계별 로그 기록 콘솔 타임라인 */}
             <div style={{
               backgroundColor: '#020617', padding: '12px 14px', borderRadius: '8px',
-              fontSize: '12px', fontFamily: 'monospace', color: '#94a3b8', maxHeight: '160px',
+              fontSize: '12px', fontFamily: 'monospace', color: 'var(--text-muted)', maxHeight: '160px',
               overflowY: 'auto', border: '1px solid #1e293b', display: 'flex', flexDirection: 'column', gap: '6px'
             }}>
               {progressLogs.map((log, idx) => (
@@ -1701,7 +1701,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
 
             {isProcessCompleted && (
               <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ fontSize: '12.5px', color: '#94a3b8', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                <div style={{ fontSize: '12.5px', color: 'var(--text-muted)', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                   ✅ 출고 지시 1건이 데이터베이스에 안전하게 등록되었습니다.<br />
                   [배차 관리] 담당자가 배차 차량 및 고유 장비 번호를 매핑할 예정입니다.
                 </div>
@@ -1710,7 +1710,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                     type="button"
                     className="btn-primary"
                     onClick={() => setIsProcessingModalOpen(false)}
-                    style={{ padding: '10px 24px', backgroundColor: '#10b981', borderColor: '#10b981', fontWeight: '800' }}
+                    style={{ padding: '10px 24px', backgroundColor: 'var(--success)', borderColor: '#10b981', fontWeight: '800' }}
                   >
                     확인 (출고 지시 완료)
                   </button>

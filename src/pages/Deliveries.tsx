@@ -471,7 +471,7 @@ export const Deliveries: React.FC = () => {
                 setShowDestWeatherModal(true);
               }
             }}
-            style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', padding: '8px 14px', backgroundColor: '#3B82F6', fontWeight: 'bold' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', padding: '8px 14px', backgroundColor: 'var(--primary)', fontWeight: 'bold' }}
           >
             <Sun size={15} color="#F59E0B" /> 하차지 일기예보
           </button>
@@ -768,7 +768,7 @@ export const Deliveries: React.FC = () => {
                             borderRadius: '4px',
                             border: '1px solid rgba(59, 130, 246, 0.4)',
                             backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                            color: '#3B82F6',
+                            color: 'var(--primary)',
                             cursor: 'pointer',
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -837,7 +837,7 @@ export const Deliveries: React.FC = () => {
       }}>
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
           <div>총 조회 건수: <strong style={{ color: 'var(--primary)' }}>{filteredDeliveries.length}건</strong></div>
-          <div>배차대기: <strong style={{ color: '#d97706' }}>{filteredDeliveries.filter(d => d.status === 'REQUESTED' || d.status === 'PENDING').length}건</strong></div>
+          <div>배차대기: <strong style={{ color: 'var(--warning)' }}>{filteredDeliveries.filter(d => d.status === 'REQUESTED' || d.status === 'PENDING').length}건</strong></div>
           <div>배송완료: <strong style={{ color: 'var(--success)' }}>{filteredDeliveries.filter(d => d.status === 'COMPLETED').length}건</strong></div>
         </div>
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>

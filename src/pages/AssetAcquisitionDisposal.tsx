@@ -2961,10 +2961,10 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                 {/* 서식 뷰어 본체 */}
                 <div style={{
                   padding: '12px 14px',
-                  backgroundColor: '#ffffff',
-                  color: '#0f172a',
+                  backgroundColor: 'var(--bg-card)',
+                  color: 'var(--text-main)',
                   borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
+                  border: '1px solid var(--border-color)',
                   fontFamily: 'serif',
                   fontSize: '11.5px',
                   maxHeight: '180px',
@@ -3006,7 +3006,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                         인도일자: {deliveryDate}
                       </p>
                       <p style={{ margin: '4px 0 2px 0', fontWeight: 700 }}>[제5조 소유권 이전 및 하자면책]</p>
-                      <p style={{ margin: '2px 0', color: '#64748b' }}>
+                      <p style={{ margin: '2px 0', color: 'var(--text-muted)' }}>
                         대금 완납 즉시 소유권이 이전되며, {useStandardAsIsClause ? '본 장비는 현상태(As-Is)로 인도하고 인수 후 일체의 하자담보책임을 부담하지 아니한다.' : '별도 협의된 품질 보증 조건에 따른다.'}
                       </p>
                       {specialNotes.trim() && (

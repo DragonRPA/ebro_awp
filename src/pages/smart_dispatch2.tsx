@@ -685,7 +685,7 @@ export const SmartDispatch2: React.FC = () => {
         <div>
           <h2 style={{ fontWeight: 800, marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             출고 요청 (신설)
-            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', backgroundColor: '#dbeafe', color: '#1d4ed8' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--info-light)', color: 'var(--primary)' }}>
               A/B 비교 테스트
             </span>
           </h2>
@@ -808,8 +808,8 @@ export const SmartDispatch2: React.FC = () => {
               </div>
               <div style={fieldWrap}>
                 <label style={labelStyle}>
-                  고객사명 <span style={{ color: '#ef4444' }}>*</span>
-                  {currentMatchedCustomer && <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700, marginLeft: '4px' }}>✓ 매핑됨</span>}
+                  고객사명 <span style={{ color: 'var(--danger)' }}>*</span>
+                  {currentMatchedCustomer && <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>✓ 매핑됨</span>}
                 </label>
                 <input type="text" list="sd2-customer-list" value={customerName}
                   onChange={e => handleCustomerChange(e.target.value)} placeholder="고객사명 입력" />
@@ -819,7 +819,7 @@ export const SmartDispatch2: React.FC = () => {
               </div>
               <div style={fieldWrap}>
                 <label style={labelStyle}>
-                  현장명 <span style={{ color: '#ef4444' }}>*</span>
+                  현장명 <span style={{ color: 'var(--danger)' }}>*</span>
                 </label>
                 <input type="text" list="sd2-site-list" value={siteName}
                   onChange={e => handleSiteChange(e.target.value)} placeholder="현장명 입력" />
@@ -831,8 +831,8 @@ export const SmartDispatch2: React.FC = () => {
               </div>
               <div style={{ ...fieldWrap, gridColumn: '1 / -1' }}>
                 <label style={labelStyle}>
-                  현장 상세 주소 <span style={{ color: '#ef4444' }}>*</span>
-                  {inheritedFieldList.includes('현장 상세 주소') && <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700, marginLeft: '4px' }}>[DB 상속]</span>}
+                  현장 상세 주소 <span style={{ color: 'var(--danger)' }}>*</span>
+                  {inheritedFieldList.includes('현장 상세 주소') && <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>[DB 상속]</span>}
                 </label>
                 <input type="text" value={siteAddress} onChange={e => setSiteAddress(e.target.value)}
                   placeholder="예: 경기도 평택시 고덕면 고덕산단로 123"
@@ -859,7 +859,7 @@ export const SmartDispatch2: React.FC = () => {
                 <div key={label} style={fieldWrap}>
                   <label style={labelStyle}>
                     {label}
-                    {inherited && <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700, marginLeft: '4px' }}>[DB 상속]</span>}
+                    {inherited && <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>[DB 상속]</span>}
                   </label>
                   <input type="text" value={val}
                     onChange={e => setter(e.target.value)}
@@ -976,7 +976,7 @@ export const SmartDispatch2: React.FC = () => {
                     <ShoppingCart size={14} color="var(--primary)" />
                     신청 장비 목록 — 총 {totalEquipmentCount}대
                     <button type="button" onClick={() => setEquipments([])}
-                      style={{ marginLeft: 'auto', fontSize: '11px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
+                      style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
                       전체비우기
                     </button>
                   </div>
@@ -999,7 +999,7 @@ export const SmartDispatch2: React.FC = () => {
                         <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>대</span>
                       </div>
                       <button type="button" onClick={() => removeEquipment(index)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', display: 'flex', alignItems: 'center' }}>
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', display: 'flex', alignItems: 'center' }}>
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -1023,7 +1023,7 @@ export const SmartDispatch2: React.FC = () => {
               <h4 style={{ fontSize: '13px', fontWeight: 800, color: 'var(--primary)', margin: 0 }}>
                 5. 필수 요구사항 체크리스트
                 {STANDARD_SPECS.filter(s => !!checkedSpecs[s.id]).length > 0 && (
-                  <span style={{ fontSize: '11px', color: '#16a34a', marginLeft: '8px', fontWeight: 700 }}>
+                  <span style={{ fontSize: '11px', color: 'var(--success)', marginLeft: '8px', fontWeight: 700 }}>
                     ({STANDARD_SPECS.filter(s => !!checkedSpecs[s.id]).length}개 선택됨)
                   </span>
                 )}
@@ -1042,7 +1042,7 @@ export const SmartDispatch2: React.FC = () => {
                 <label style={labelStyle}>
                   유상 옵션 내역
                   {(inheritedFieldList.includes('유상옵션(현장)') || inheritedFieldList.includes('유상옵션(고객기본)')) &&
-                    <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700, marginLeft: '4px' }}>[DB 상속]</span>}
+                    <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>[DB 상속]</span>}
                 </label>
                 <input type="text" value={paidOptions} onChange={e => setPaidOptions(e.target.value)} placeholder="예: 3면 함석, 감지봉 4EA" />
               </div>
@@ -1050,7 +1050,7 @@ export const SmartDispatch2: React.FC = () => {
                 <label style={labelStyle}>
                   보양작업 조건
                   {(inheritedFieldList.includes('보양작업(현장)') || inheritedFieldList.includes('보양작업(고객기본)')) &&
-                    <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700, marginLeft: '4px' }}>[DB 상속]</span>}
+                    <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>[DB 상속]</span>}
                 </label>
                 <input type="text" value={protection} onChange={e => setProtection(e.target.value)} placeholder="예: 4면 망 포함 보양" />
               </div>
@@ -1067,7 +1067,7 @@ export const SmartDispatch2: React.FC = () => {
                 <input type="checkbox" checked={isSetAsCustomerDefault} onChange={e => setIsSetAsCustomerDefault(e.target.checked)} />
                 🏢 이 옵션·보양·스펙을 '{customerName || '해당 고객사'}' 기본 설정으로 등록
               </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 600, color: '#3b82f6' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 600, color: 'var(--primary)' }}>
                 <input type="checkbox" checked={applyToAllSites} onChange={e => setApplyToAllSites(e.target.checked)} />
                 ⚡ '{customerName || '해당 고객사'}'의 모든 현장에 일괄 적용
               </label>
@@ -1117,14 +1117,14 @@ export const SmartDispatch2: React.FC = () => {
               <div style={fieldWrap}>
                 <label style={labelStyle}>
                   매달 청구 마감일
-                  {inheritedFieldList.includes('마감일') && <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700, marginLeft: '4px' }}>[DB 상속]</span>}
+                  {inheritedFieldList.includes('마감일') && <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>[DB 상속]</span>}
                 </label>
                 <input type="text" value={closingDay} onChange={e => setClosingDay(e.target.value)} placeholder="예: 20일" />
               </div>
               <div style={fieldWrap}>
                 <label style={labelStyle}>
                   결제 예정일
-                  {inheritedFieldList.includes('결제일') && <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: 700, marginLeft: '4px' }}>[DB 상속]</span>}
+                  {inheritedFieldList.includes('결제일') && <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 700, marginLeft: '4px' }}>[DB 상속]</span>}
                 </label>
                 <input type="text" value={paymentDay} onChange={e => setPaymentDay(e.target.value)} placeholder="예: 익월 말일" />
               </div>
@@ -1179,7 +1179,7 @@ export const SmartDispatch2: React.FC = () => {
               {isProcessCompleted ? '✅ 출고 지시 완료' : '🚀 출고 파이프라인 진행 중...'}
             </h3>
             <div style={{ marginBottom: '16px', height: '6px', backgroundColor: 'var(--border-color)', borderRadius: '3px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', backgroundColor: '#10b981', borderRadius: '3px', width: `${progressPercent}%`, transition: 'width 0.4s ease' }} />
+              <div style={{ height: '100%', backgroundColor: 'var(--success)', borderRadius: '3px', width: `${progressPercent}%`, transition: 'width 0.4s ease' }} />
             </div>
             <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', fontWeight: 600 }}>{currentStepText}</div>
             <div style={{

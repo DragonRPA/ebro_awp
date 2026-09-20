@@ -385,7 +385,7 @@ export const AssetHistory: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>총 입고(반납) 이력</span>
-              <strong style={{ fontSize: '15px', color: '#16a34a' }}>{inboundCount}건</strong>
+              <strong style={{ fontSize: '15px', color: 'var(--success)' }}>{inboundCount}건</strong>
             </div>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>총 출고(출하) 이력</span>
@@ -664,7 +664,7 @@ export const AssetHistory: React.FC = () => {
                     <div><strong>약정 계약기간:</strong> {inboundContract?.startDate} ~ {formatContractEndDate(inboundContract?.endDate)}</div>
                   </div>
                 ) : (
-                  <div style={{ padding: '12px', backgroundColor: 'var(--warning-light)', borderRadius: '8px', border: '1px solid var(--warning)', color: '#c2410c' }}>
+                  <div style={{ padding: '12px', backgroundColor: 'var(--warning-light)', borderRadius: '8px', border: '1px solid var(--warning)', color: 'var(--warning)' }}>
                     ⚠️ 현재 체결 대여 중인 계약(RENTED)을 찾을 수 없습니다. (입고 시 미할당 자산으로 자동 처리됩니다)
                   </div>
                 )}
@@ -1052,7 +1052,7 @@ export const AssetHistory: React.FC = () => {
           backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 11000
         }}>
           <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '10px', padding: '20px', maxWidth: '440px', width: '90%', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
-            <h4 style={{ margin: '0 0 10px 0', fontSize: '15px', color: '#ef4444' }}>입고 취소 롤백</h4>
+            <h4 style={{ margin: '0 0 10px 0', fontSize: '15px', color: 'var(--danger)' }}>입고 취소 롤백</h4>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
               자산번호 <strong>{cancelModal.log.assetNo}</strong> 입고 건을 취소하고 자산 상태를 대여중(RENTED)으로 복원하시겠습니까?
             </p>
@@ -1069,7 +1069,7 @@ export const AssetHistory: React.FC = () => {
               <button className="btn-secondary" onClick={() => setCancelModal(null)}>닫기</button>
               <button
                 className="btn-primary"
-                style={{ backgroundColor: '#ef4444', borderColor: '#ef4444' }}
+                style={{ backgroundColor: 'var(--danger)', borderColor: 'var(--danger)' }}
                 onClick={handleConfirmCancelInbound}
               >
                 입고 취소 롤백 실행

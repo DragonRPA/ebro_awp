@@ -154,20 +154,20 @@ export const TruckDispatch: React.FC = () => {
     switch (status) {
       case 'REJECTED':
         return (
-          <span style={{ padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(239,68,68,0.15)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.3)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+          <span style={{ padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(239,68,68,0.15)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
             <AlertCircle size={12} /> 🔴 출고의뢰 반려됨
           </span>
         );
       case 'COMPLETED':
         return (
-          <span style={{ padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(34,197,94,0.15)', color: '#16a34a', border: '1px solid rgba(34,197,94,0.3)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+          <span style={{ padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.3)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
             <CheckCircle size={12} /> 🟢 출고승인 완료
           </span>
         );
       case 'IN_PROGRESS':
       case 'PENDING':
         return (
-          <span style={{ padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(59,130,246,0.15)', color: '#2563eb', border: '1px solid rgba(59,130,246,0.3)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+          <span style={{ padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(59,130,246,0.15)', color: 'var(--primary)', border: '1px solid rgba(59,130,246,0.3)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
             <Clock size={12} /> 🔵 출고검수 진행중
           </span>
         );
@@ -203,7 +203,7 @@ export const TruckDispatch: React.FC = () => {
               fontSize: '11px',
               fontWeight: 800,
               backgroundColor: 'rgba(34,197,94,0.15)',
-              color: '#15803d',
+              color: 'var(--success)',
               border: '1px solid rgba(34,197,94,0.3)',
               display: 'inline-flex',
               alignItems: 'center',
@@ -224,7 +224,7 @@ export const TruckDispatch: React.FC = () => {
               fontSize: '11px',
               fontWeight: 800,
               backgroundColor: 'rgba(59,130,246,0.15)',
-              color: '#1d4ed8',
+              color: 'var(--primary)',
               border: '1px solid rgba(59,130,246,0.3)',
               display: 'inline-flex',
               alignItems: 'center',
@@ -244,7 +244,7 @@ export const TruckDispatch: React.FC = () => {
               fontSize: '11px',
               fontWeight: 800,
               backgroundColor: 'rgba(239,68,68,0.15)',
-              color: '#b91c1c',
+              color: 'var(--danger)',
               border: '1px solid rgba(239,68,68,0.3)',
               display: 'inline-flex',
               alignItems: 'center',
@@ -266,7 +266,7 @@ export const TruckDispatch: React.FC = () => {
               fontSize: '11px',
               fontWeight: 800,
               backgroundColor: 'rgba(245,158,11,0.15)',
-              color: '#b45309',
+              color: 'var(--warning)',
               border: '1px solid rgba(245,158,11,0.3)',
               display: 'inline-flex',
               alignItems: 'center',
@@ -2721,14 +2721,14 @@ export const TruckDispatch: React.FC = () => {
     switch (status) {
       case 'PENDING':
       case 'REQUESTED':
-        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(245,158,11,0.15)', color: '#d97706', border: '1px solid rgba(245,158,11,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Clock size={12} /> 🟡 배차 전 (대기)</span>;
+        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(245,158,11,0.15)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Clock size={12} /> 🟡 배차 전 (대기)</span>;
       case 'DISPATCHED':
-        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(59,130,246,0.15)', color: '#2563eb', border: '1px solid rgba(59,130,246,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Truck size={12} /> 🔵 배차 완료 (기사배정)</span>;
+        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(59,130,246,0.15)', color: 'var(--primary)', border: '1px solid rgba(59,130,246,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Truck size={12} /> 🔵 배차 완료 (기사배정)</span>;
       case 'DELIVERED':
       case 'COMPLETED':
-        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(34,197,94,0.15)', color: '#16a34a', border: '1px solid rgba(34,197,94,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><CheckCircle size={12} /> 🟢 운송 완료</span>;
+        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><CheckCircle size={12} /> 🟢 운송 완료</span>;
       case 'CANCELLED':
-        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(239,68,68,0.15)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><XCircle size={12} /> 🔴 배차 취소</span>;
+        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(239,68,68,0.15)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><XCircle size={12} /> 🔴 배차 취소</span>;
       default:
         return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(148,163,184,0.15)', color: 'var(--text-muted)' }}>미지정</span>;
     }
@@ -3114,7 +3114,7 @@ export const TruckDispatch: React.FC = () => {
                         <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span>🏢 {customer?.name || '고객사 미지정'}</span>
                           {customer?.transactionStatus === 'BLOCKED' && (
-                            <span style={{ fontSize: '10.5px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: '#ef4444', color: '#fff', flexShrink: 0 }}>
+                            <span style={{ fontSize: '10.5px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: 'var(--danger)', color: '#fff', flexShrink: 0 }}>
                               출고제한
                             </span>
                           )}
@@ -3136,7 +3136,7 @@ export const TruckDispatch: React.FC = () => {
                               borderRadius: '4px',
                               border: '1px solid rgba(59, 130, 246, 0.4)',
                               backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                              color: '#3B82F6',
+                              color: 'var(--primary)',
                               cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
@@ -3167,7 +3167,7 @@ export const TruckDispatch: React.FC = () => {
                         )}
 
                         {d.driverName && (
-                          <div style={{ marginTop: '6px', fontSize: '11.5px', fontWeight: 700, color: '#16a34a' }}>
+                          <div style={{ marginTop: '6px', fontSize: '11.5px', fontWeight: 700, color: 'var(--success)' }}>
                             🚛 기사: {d.driverName} ({d.vehicleNo || '차량번호미상'})
                           </div>
                         )}
@@ -3208,7 +3208,7 @@ export const TruckDispatch: React.FC = () => {
                         style={{
                           padding: '6px 12px',
                           borderRadius: '7px',
-                          backgroundColor: '#1e293b',
+                          backgroundColor: 'var(--bg-card)',
                           color: '#ffffff',
                           border: '1px solid #0f172a',
                           fontSize: '12px',
@@ -3285,7 +3285,7 @@ export const TruckDispatch: React.FC = () => {
                           {getNormalizedDeliveryStatus(selectedDelivery) === 'DISPATCHED' && (
                             <button
                               onClick={() => handleCompleteDeliveryStatus(selectedDelivery.id)}
-                              style={{ padding: '6px 14px', backgroundColor: '#16a34a', color: '#fff', border: 'none', borderRadius: '7px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 6px rgba(22,163,74,0.25)' }}
+                              style={{ padding: '6px 14px', backgroundColor: 'var(--success)', color: '#fff', border: 'none', borderRadius: '7px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 6px rgba(22,163,74,0.25)' }}
                             >
                               <CheckCircle size={14} /> [🟢 운송 완료 마감]
                             </button>
@@ -3293,7 +3293,7 @@ export const TruckDispatch: React.FC = () => {
 
                           <button
                             onClick={() => handleCancelDeliveryStatus(selectedDelivery.id)}
-                            style={{ padding: '6px 10px', borderRadius: '7px', backgroundColor: 'rgba(239,68,68,0.1)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.3)', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer' }}
+                            style={{ padding: '6px 10px', borderRadius: '7px', backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer' }}
                           >
                             🚫 배차 취소
                           </button>
@@ -3316,7 +3316,7 @@ export const TruckDispatch: React.FC = () => {
                           const isOutOrEx = selectedDelivery.type === 'OUTBOUND' || selectedDelivery.dispatchCategory === '출고' || selectedDelivery.dispatchCategory === '교환';
                           if (isOutOrEx && curCustomer?.transactionStatus === 'BLOCKED') {
                             return (
-                              <div style={{ padding: '10px 14px', borderRadius: '8px', backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', color: '#b91c1c', fontWeight: 800, fontSize: '13px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{ padding: '10px 14px', borderRadius: '8px', backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', color: 'var(--danger)', fontWeight: 800, fontSize: '13px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <AlertTriangle size={18} color="#ef4444" />
                                 <span>[출고제한 거래처] 거래처 [{curCustomer.name}]은(는) 연체 관리로 인해 신규 장비 출고가 차단되었습니다. 배차를 확정할 수 없습니다.</span>
                               </div>
@@ -3603,11 +3603,11 @@ export const TruckDispatch: React.FC = () => {
                                       const val = e.target.value === '' ? 0 : Number(e.target.value);
                                       handleVehicleFieldChange(idx, 'finalCost', val);
                                     }}
-                                    style={{ padding: '6px 6px', borderRadius: '6px', border: '1px solid #16a34a', backgroundColor: isFormDisabled ? 'var(--bg-card)' : 'rgba(34,197,94,0.05)', color: '#16a34a', fontSize: '11.5px', fontWeight: 800, textAlign: 'right', outline: 'none', opacity: isFormDisabled ? 0.75 : 1, cursor: isFormDisabled ? 'not-allowed' : 'default' }}
+                                    style={{ padding: '6px 6px', borderRadius: '6px', border: '1px solid #16a34a', backgroundColor: isFormDisabled ? 'var(--bg-card)' : 'rgba(34,197,94,0.05)', color: 'var(--success)', fontSize: '11.5px', fontWeight: 800, textAlign: 'right', outline: 'none', opacity: isFormDisabled ? 0.75 : 1, cursor: isFormDisabled ? 'not-allowed' : 'default' }}
                                   />
 
                                   {!isFormDisabled && (
-                                    <button onClick={() => handleRemoveVehicleRow(idx)} style={{ color: '#ef4444', border: 'none', background: 'transparent', cursor: 'pointer' }}>
+                                    <button onClick={() => handleRemoveVehicleRow(idx)} style={{ color: 'var(--danger)', border: 'none', background: 'transparent', cursor: 'pointer' }}>
                                       <Trash2 size={16} />
                                     </button>
                                   )}
@@ -3659,7 +3659,7 @@ export const TruckDispatch: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleCancelDeliveryStatus(selectedDelivery.id)}
-                          style={{ padding: '7px 12px', borderRadius: '6px', backgroundColor: 'rgba(239,68,68,0.1)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.3)', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                          style={{ padding: '7px 12px', borderRadius: '6px', backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
                         >
                           🚫 배차 취소
                         </button>
@@ -3668,7 +3668,7 @@ export const TruckDispatch: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleCompleteDeliveryStatus(selectedDelivery.id)}
-                            style={{ padding: '7px 14px', backgroundColor: '#16a34a', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                            style={{ padding: '7px 14px', backgroundColor: 'var(--success)', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
                           >
                             <CheckCircle size={14} /> [🟢 운송 완료 마감]
                           </button>
@@ -3713,7 +3713,7 @@ export const TruckDispatch: React.FC = () => {
                 flexShrink: 0
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-                  <span>배차 대기: <strong style={{ color: '#d97706' }}>총 {pendingDeliveries}건</strong></span>
+                  <span>배차 대기: <strong style={{ color: 'var(--warning)' }}>총 {pendingDeliveries}건</strong></span>
                   <span>|</span>
                   <span>배차 완료: <strong style={{ color: 'var(--primary)' }}>총 {dispatchedDeliveries}건</strong></span>
                   <span>|</span>
@@ -3751,13 +3751,13 @@ export const TruckDispatch: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <FileAudio size={18} style={{ color: '#3b82f6' }} />
+                  <FileAudio size={18} style={{ color: 'var(--primary)' }} />
                   <span style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)' }}>
                     배차 협의 통화 큐 (Call Queue)
                   </span>
                   <span style={{
                     padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800,
-                    backgroundColor: 'rgba(59,130,246,0.15)', color: '#2563eb', border: '1px solid rgba(59,130,246,0.3)'
+                    backgroundColor: 'rgba(59,130,246,0.15)', color: 'var(--primary)', border: '1px solid rgba(59,130,246,0.3)'
                   }}>
                     대기 {callQueue.filter(q => q.status !== 'CONFIRMED').length}건
                   </span>
@@ -3809,7 +3809,7 @@ export const TruckDispatch: React.FC = () => {
             </div>
 
             {callUploadError && (
-              <div style={{ padding: '8px 12px', borderRadius: '6px', backgroundColor: 'rgba(239,68,68,0.1)', color: '#dc2626', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ padding: '8px 12px', borderRadius: '6px', backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--danger)', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <AlertCircle size={14} /> {callUploadError}
               </div>
             )}
@@ -3869,7 +3869,7 @@ export const TruckDispatch: React.FC = () => {
                       {/* 추출 하이라이트 배지 */}
                       <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
                         {item.extracted.transportCompanyName && (
-                          <span style={{ fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(59,130,246,0.15)', color: '#2563eb', padding: '1px 5px', borderRadius: '4px' }}>
+                          <span style={{ fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(59,130,246,0.15)', color: 'var(--primary)', padding: '1px 5px', borderRadius: '4px' }}>
                             {item.extracted.transportCompanyName}
                           </span>
                         )}
@@ -4072,7 +4072,7 @@ export const TruckDispatch: React.FC = () => {
                                 확정: {confirmedNego.transportCompanyName}
                               </span>
                             ) : negos.length > 0 ? (
-                              <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(59,130,246,0.15)', color: '#2563eb', fontWeight: 800 }}>
+                              <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(59,130,246,0.15)', color: 'var(--primary)', fontWeight: 800 }}>
                                 견적 {negos.length}건
                               </span>
                             ) : (
@@ -4118,7 +4118,7 @@ export const TruckDispatch: React.FC = () => {
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <Sparkles size={15} style={{ color: '#3b82f6' }} />
+                              <Sparkles size={15} style={{ color: 'var(--primary)' }} />
                               <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
                                 AI 통화 분석: {selectedCall.fileName}
                               </span>
@@ -4136,7 +4136,7 @@ export const TruckDispatch: React.FC = () => {
                               onClick={() => handleSelectCallQueueItem(selectedCall)}
                               style={{
                                 fontSize: '11px', fontWeight: 800, padding: '4px 8px', borderRadius: '4px',
-                                backgroundColor: 'rgba(59,130,246,0.15)', color: '#2563eb', border: 'none', cursor: 'pointer'
+                                backgroundColor: 'rgba(59,130,246,0.15)', color: 'var(--primary)', border: 'none', cursor: 'pointer'
                               }}
                             >
                               ⚡ 폼에 다시 자동 채우기
@@ -4248,12 +4248,12 @@ export const TruckDispatch: React.FC = () => {
 
                                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
                                     <span>차종: <strong>{n.vehicleType}</strong></span>
-                                    <span>제시: <strong style={{ color: '#ef4444' }}>₩{n.proposedCost.toLocaleString()}</strong></span>
+                                    <span>제시: <strong style={{ color: 'var(--danger)' }}>₩{n.proposedCost.toLocaleString()}</strong></span>
                                     <span>목표: <strong style={{ color: '#10b981' }}>₩{n.targetCost.toLocaleString()}</strong></span>
                                   </div>
 
                                   {n.specialTerms && (
-                                    <div style={{ fontSize: '11px', color: '#d97706', backgroundColor: 'rgba(217,119,6,0.1)', padding: '4px 6px', borderRadius: '4px' }}>
+                                    <div style={{ fontSize: '11px', color: 'var(--warning)', backgroundColor: 'rgba(217,119,6,0.1)', padding: '4px 6px', borderRadius: '4px' }}>
                                       특약: {n.specialTerms}
                                     </div>
                                   )}
@@ -4293,7 +4293,7 @@ export const TruckDispatch: React.FC = () => {
                             <Plus size={14} /> 운송사 통화 견적 및 협의 조건
                           </h4>
                           {selectedCall && (
-                            <span style={{ fontSize: '11px', color: '#3b82f6', fontWeight: 700 }}>
+                            <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 700 }}>
                               AI 추출 내용 자동 입력됨
                             </span>
                           )}
@@ -4414,7 +4414,7 @@ export const TruckDispatch: React.FC = () => {
                             onClick={handleConfirmCurrentForm}
                             style={{
                               padding: '8px 20px', fontSize: '12.5px', fontWeight: 800,
-                              backgroundColor: '#10b981', borderColor: '#10b981', color: '#ffffff',
+                              backgroundColor: 'var(--success)', borderColor: '#10b981', color: '#ffffff',
                               display: 'inline-flex', alignItems: 'center', gap: '6px'
                             }}
                           >
@@ -4788,12 +4788,12 @@ export const TruckDispatch: React.FC = () => {
               <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
                 {[
                   { key: 'ALL', label: '전체', count: reconPairs.length || completedDeliveriesForRecon.length, color: 'var(--text-primary)', bg: 'var(--bg-body)' },
-                  { key: 'MATCHED', label: '대사 일치', count: reconStats.matchedCount, color: '#16a34a', bg: 'rgba(34,197,94,0.1)' },
+                  { key: 'MATCHED', label: '대사 일치', count: reconStats.matchedCount, color: 'var(--success)', bg: 'rgba(34,197,94,0.1)' },
                   { key: 'MISMATCH', label: '금액 불일치', count: reconStats.mismatchCount, color: '#ca8a04', bg: 'rgba(234,179,8,0.12)' },
-                  { key: 'EXCEL_ONLY', label: '청구 단독', count: reconPairs.filter(p => p.matchStatus === 'EXCEL_ONLY').length, color: '#dc2626', bg: 'rgba(239,68,68,0.1)' },
+                  { key: 'EXCEL_ONLY', label: '청구 단독', count: reconPairs.filter(p => p.matchStatus === 'EXCEL_ONLY').length, color: 'var(--danger)', bg: 'rgba(239,68,68,0.1)' },
                   { key: 'SYSTEM_ONLY', label: '시스템 단독', count: reconPairs.filter(p => p.matchStatus === 'SYSTEM_ONLY').length, color: 'var(--text-muted)', bg: 'var(--bg-body)' },
                   { key: 'EXCLUDED', label: '오청구 제외', count: reconStats.excludedCount, color: 'var(--text-muted)', bg: 'rgba(100,116,139,0.1)' },
-                  { key: 'PAYMENT_REQUESTED', label: '지급요청 완료', count: reconStats.paymentRequestedCount, color: '#2563eb', bg: 'rgba(37,99,235,0.1)' }
+                  { key: 'PAYMENT_REQUESTED', label: '지급요청 완료', count: reconStats.paymentRequestedCount, color: 'var(--primary)', bg: 'rgba(37,99,235,0.1)' }
                 ].map(t => (
                   <button
                     key={t.key}
@@ -4955,7 +4955,7 @@ export const TruckDispatch: React.FC = () => {
                             <tr key={d.id} style={{ borderBottom: '1px solid var(--border-color)', height: '40px' }}>
                               <td style={{ textAlign: 'center', padding: '6px' }}>
                                 {isPaymentReq ? (
-                                  <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(37,99,235,0.12)', color: '#2563eb', border: '1px solid rgba(37,99,235,0.35)', whiteSpace: 'nowrap' }}>
+                                  <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(37,99,235,0.12)', color: 'var(--primary)', border: '1px solid rgba(37,99,235,0.35)', whiteSpace: 'nowrap' }}>
                                     지급요청
                                   </span>
                                 ) : isPaidSettled ? (
@@ -4963,7 +4963,7 @@ export const TruckDispatch: React.FC = () => {
                                     지급완료
                                   </span>
                                 ) : isMatched ? (
-                                  <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(34,197,94,0.12)', color: '#16a34a', border: '1px solid rgba(34,197,94,0.35)', whiteSpace: 'nowrap' }}>
+                                  <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(34,197,94,0.12)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.35)', whiteSpace: 'nowrap' }}>
                                     대사일치
                                   </span>
                                 ) : (
@@ -4982,7 +4982,7 @@ export const TruckDispatch: React.FC = () => {
                               <td style={{ textAlign: 'center', color: 'var(--text-muted)' }}>-</td>
                               {isPaymentReq ? (
                                 <td colSpan={4} style={{ textAlign: 'center', padding: '6px 10px', fontSize: '11.5px', backgroundColor: 'rgba(37,99,235,0.03)' }}>
-                                  <span style={{ color: '#2563eb', fontWeight: 800 }}>
+                                  <span style={{ color: 'var(--primary)', fontWeight: 800 }}>
                                     {d.memo && d.memo.includes('[통합지급요청:') ? d.memo.split(']')[0].replace('[', '') : '매입 지급요청 완료'}
                                   </span>
                                   <span style={{ color: 'var(--text-secondary)', marginLeft: '8px' }}>
@@ -5061,11 +5061,11 @@ export const TruckDispatch: React.FC = () => {
                             {/* 상태 배지 */}
                             <td style={{ textAlign: 'center', padding: '6px', whiteSpace: 'nowrap' }}>
                               {isExcluded ? (
-                                <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(100,116,139,0.15)', color: '#64748b' }}>
+                                <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(100,116,139,0.15)', color: 'var(--text-muted)' }}>
                                   🚫 제외
                                 </span>
                               ) : isMatched ? (
-                                <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(34,197,94,0.15)', color: '#16a34a' }}>
+                                <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--success)' }}>
                                   🟢 일치
                                 </span>
                               ) : isMismatch ? (
@@ -5073,7 +5073,7 @@ export const TruckDispatch: React.FC = () => {
                                   🟡 차액
                                 </span>
                               ) : isExcelOnly ? (
-                                <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(239,68,68,0.15)', color: '#dc2626' }}>
+                                <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 800, backgroundColor: 'rgba(239,68,68,0.15)', color: 'var(--danger)' }}>
                                   🔴 청구
                                 </span>
                               ) : (
@@ -5140,11 +5140,11 @@ export const TruckDispatch: React.FC = () => {
                                   {pair.surchargeReason && <span style={{ fontSize: '10.5px', display: 'block', color: '#a16207' }}>({pair.surchargeReason})</span>}
                                 </span>
                               ) : isExcelOnly ? (
-                                <span style={{ fontSize: '11px', color: '#dc2626' }}>청구 단독</span>
+                                <span style={{ fontSize: '11px', color: 'var(--danger)' }}>청구 단독</span>
                               ) : isSysOnly ? (
                                 <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>배차 미청구</span>
                               ) : (
-                                <span style={{ fontSize: '11px', color: '#16a34a' }}>₩0 (완전일치)</span>
+                                <span style={{ fontSize: '11px', color: 'var(--success)' }}>₩0 (완전일치)</span>
                               )}
                             </td>
 
@@ -5166,14 +5166,14 @@ export const TruckDispatch: React.FC = () => {
                                     <button
                                       onClick={() => handleCreateDeliveryFromExcel(pair.pairId)}
                                       title="청구 내역으로 신규 배차를 생성하고 대사 완료"
-                                      style={{ padding: '3px 6px', fontSize: '10.5px', fontWeight: 700, borderRadius: '4px', border: '1px solid #2563eb', backgroundColor: 'rgba(37,99,235,0.1)', color: '#2563eb', cursor: 'pointer' }}
+                                      style={{ padding: '3px 6px', fontSize: '10.5px', fontWeight: 700, borderRadius: '4px', border: '1px solid #2563eb', backgroundColor: 'rgba(37,99,235,0.1)', color: 'var(--primary)', cursor: 'pointer' }}
                                     >
                                       배차생성
                                     </button>
                                     <button
                                       onClick={() => handleExcludeExcelOnly(pair.pairId)}
                                       title="오청구 건으로 판단하여 지급요청 대상에서 제외"
-                                      style={{ padding: '3px 6px', fontSize: '10.5px', fontWeight: 700, borderRadius: '4px', border: '1px solid #dc2626', backgroundColor: 'rgba(239,68,68,0.1)', color: '#dc2626', cursor: 'pointer' }}
+                                      style={{ padding: '3px 6px', fontSize: '10.5px', fontWeight: 700, borderRadius: '4px', border: '1px solid #dc2626', backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--danger)', cursor: 'pointer' }}
                                     >
                                       반려제외
                                     </button>
@@ -5256,9 +5256,9 @@ export const TruckDispatch: React.FC = () => {
                 <span style={{ color: 'var(--text-muted)' }}>=</span>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ color: '#16a34a', fontWeight: 700 }}>지급 확정:</span>
-                  <strong style={{ fontSize: '14px', color: '#16a34a' }}>₩{reconStats.matchedCost.toLocaleString()}</strong>
-                  <span style={{ fontSize: '11px', color: '#16a34a' }}>({reconStats.matchedCount}건)</span>
+                  <span style={{ color: 'var(--success)', fontWeight: 700 }}>지급 확정:</span>
+                  <strong style={{ fontSize: '14px', color: 'var(--success)' }}>₩{reconStats.matchedCost.toLocaleString()}</strong>
+                  <span style={{ fontSize: '11px', color: 'var(--success)' }}>({reconStats.matchedCount}건)</span>
                 </div>
 
                 <span style={{ color: 'var(--text-muted)' }}>+</span>
@@ -5273,13 +5273,13 @@ export const TruckDispatch: React.FC = () => {
                   const balanceDiff = reconStats.totalCost - (reconStats.matchedCost + reconStats.excludedCost);
                   if (balanceDiff === 0) {
                     return (
-                      <div style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', color: '#16a34a', fontSize: '11px', fontWeight: 800 }}>
+                      <div style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', color: 'var(--success)', fontSize: '11px', fontWeight: 800 }}>
                         대차 차액 ₩0 (완전 일치)
                       </div>
                     );
                   }
                   return (
-                    <div style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#dc2626', fontSize: '11px', fontWeight: 800 }}>
+                    <div style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--danger)', fontSize: '11px', fontWeight: 800 }}>
                       대차 차액 ₩{Math.abs(balanceDiff).toLocaleString()} ({balanceDiff > 0 ? '미확정 잔액' : '초과 확정'})
                     </div>
                   );
@@ -5407,7 +5407,7 @@ export const TruckDispatch: React.FC = () => {
               </button>
               <button
                 onClick={handleSaveDeliveryCost}
-                style={{ padding: '8px 18px', borderRadius: '7px', border: 'none', backgroundColor: '#2563eb', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: '13px', boxShadow: '0 2px 8px rgba(37,99,235,0.3)' }}
+                style={{ padding: '8px 18px', borderRadius: '7px', border: 'none', backgroundColor: 'var(--primary)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: '13px', boxShadow: '0 2px 8px rgba(37,99,235,0.3)' }}
               >
                 💾 DB 금액 수정 저장
               </button>
@@ -5465,12 +5465,12 @@ export const TruckDispatch: React.FC = () => {
                     </span>
                   )}
                   {isMatched && (
-                    <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 800, backgroundColor: 'rgba(34,197,94,0.15)', color: '#16a34a' }}>
+                    <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 800, backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--success)' }}>
                       🟢 대사 일치 (₩0 완전일치)
                     </span>
                   )}
                   {isExcelOnly && (
-                    <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 800, backgroundColor: 'rgba(239,68,68,0.15)', color: '#dc2626' }}>
+                    <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 800, backgroundColor: 'rgba(239,68,68,0.15)', color: 'var(--danger)' }}>
                       🔴 청구서 단독 (배차 미발견)
                     </span>
                   )}
@@ -5659,7 +5659,7 @@ export const TruckDispatch: React.FC = () => {
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>청구 운송비</span>
-                        <span style={{ fontWeight: 900, color: '#16a34a', fontSize: '14px' }}>₩{pair.excelCost.toLocaleString()}원</span>
+                        <span style={{ fontWeight: 900, color: 'var(--success)', fontSize: '14px' }}>₩{pair.excelCost.toLocaleString()}원</span>
                       </div>
                       {excel['비고'] && (
                         <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '6px' }}>
@@ -5732,7 +5732,7 @@ export const TruckDispatch: React.FC = () => {
                           padding: '9px 16px',
                           borderRadius: '7px',
                           border: 'none',
-                          backgroundColor: '#2563eb',
+                          backgroundColor: 'var(--primary)',
                           color: '#fff',
                           cursor: 'pointer',
                           fontWeight: 800,
@@ -5751,7 +5751,7 @@ export const TruckDispatch: React.FC = () => {
                           borderRadius: '7px',
                           border: '1px solid #dc2626',
                           backgroundColor: 'rgba(239,68,68,0.1)',
-                          color: '#dc2626',
+                          color: 'var(--danger)',
                           cursor: 'pointer',
                           fontWeight: 800,
                           fontSize: '13px'
@@ -5882,7 +5882,7 @@ export const TruckDispatch: React.FC = () => {
                 gap: '4px'
               }}>
                 <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)' }}>지급요청 번호</span>
-                <span style={{ fontSize: '13px', fontWeight: 900, color: '#3b82f6', fontFamily: 'monospace' }}>
+                <span style={{ fontSize: '13px', fontWeight: 900, color: 'var(--primary)', fontFamily: 'monospace' }}>
                   {paymentSuccessInfo.bundleCode}
                 </span>
               </div>
@@ -5930,7 +5930,7 @@ export const TruckDispatch: React.FC = () => {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>대사 완결 배차 건수</span>
-                <span style={{ color: '#2563eb', fontWeight: 900 }}>{paymentSuccessInfo.totalCount}건</span>
+                <span style={{ color: 'var(--primary)', fontWeight: 900 }}>{paymentSuccessInfo.totalCount}건</span>
               </div>
               <div style={{
                 display: 'flex',
@@ -5994,7 +5994,7 @@ export const TruckDispatch: React.FC = () => {
                   borderRadius: '8px',
                   fontWeight: 800,
                   fontSize: '13px',
-                  backgroundColor: '#10b981',
+                  backgroundColor: 'var(--success)',
                   color: '#fff',
                   border: 'none',
                   cursor: 'pointer'

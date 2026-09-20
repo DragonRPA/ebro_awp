@@ -37,7 +37,7 @@ export const DemoModeBanner: React.FC = () => {
 
   return (
     <div style={{
-      backgroundColor: '#0f172a',
+      backgroundColor: 'var(--bg-app)',
       color: '#ffffff',
       borderBottom: '2px solid #3b82f6',
       padding: '6px 16px',
@@ -53,7 +53,7 @@ export const DemoModeBanner: React.FC = () => {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
         <span style={{
-          backgroundColor: '#2563eb',
+          backgroundColor: 'var(--primary)',
           color: '#ffffff',
           padding: '2px 8px',
           borderRadius: '4px',
@@ -64,12 +64,12 @@ export const DemoModeBanner: React.FC = () => {
           DEMO
         </span>
         <span style={{ color: '#93c5fd', fontWeight: '700' }}>ebro_awp 시연 모드</span>
-        <span style={{ color: '#94a3b8', fontSize: '11px' }}>| 가상 시연 데이터베이스 연결됨</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>| 가상 시연 데이터베이스 연결됨</span>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
         {isResetting && (
-          <span style={{ color: '#38bdf8', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ color: 'var(--info)', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <Loader2 size={13} className="spin" style={{ animation: 'spin 1s linear infinite' }} />
             {resetStatus}
           </span>
@@ -80,9 +80,9 @@ export const DemoModeBanner: React.FC = () => {
           onClick={handleReset}
           disabled={isResetting}
           style={{
-            backgroundColor: '#1e293b',
+            backgroundColor: 'var(--bg-card)',
             color: '#f8fafc',
-            border: '1px solid #475569',
+            border: '1px solid var(--border-color)',
             borderRadius: '4px',
             padding: '4px 10px',
             fontSize: '11px',
@@ -104,7 +104,7 @@ export const DemoModeBanner: React.FC = () => {
           onClick={exitDemoMode}
           disabled={isResetting}
           style={{
-            backgroundColor: '#b91c1c',
+            backgroundColor: 'var(--danger)',
             color: '#ffffff',
             border: 'none',
             borderRadius: '4px',

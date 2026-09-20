@@ -787,7 +787,44 @@ export const Dashboard: React.FC = () => {
               </div>
             )}
 
-            {/* 3. 소유사(임차) 자산 반납 지연 카드 (임차 자산 저장/실행 권한자 표출) */}
+                        {showLongOverdueBillingsFeed && (
+              <div style={{
+                backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
+                borderLeft: '5px solid #b91c1c', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
+              }}>
+                <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '800', color: '#b91c1c', backgroundColor: 'rgba(185,28,28,0.1)', padding: '2px 8px', borderRadius: '4px' }}>장기 지연 미수금</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{longOverdueBillings.length}건</span>
+                </div>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <CreditCard size={18} color="#b91c1c" /> 30일 초과 미수금 목록
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+                  {longOverdueBillings.slice(0, 5).map((b, idx) => {
+                    const cont = contracts.find(c => c.id === b.contractId);
+                    const cust = cont ? customers.find(c => c.id === cont.customerId) : null;
+                    return (
+                      <div key={b.id} style={{ backgroundColor: 'var(--bg-secondary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '13px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+                          <span>{idx + 1}. {cust?.name || '고객사 미상'}</span>
+                          <span style={{ color: 'var(--danger)' }}>{((b.totalAmount - b.paidAmount) || 0).toLocaleString()}원</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {longOverdueBillings.length > 5 && (
+                    <div style={{ textAlign: 'center', fontSize: '12.5px', fontWeight: '700', color: 'var(--text-muted)', marginTop: '4px', padding: '8px', backgroundColor: 'var(--bg-secondary)', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
+                      ... 외 {longOverdueBillings.length - 5}건 대기 중
+                    </div>
+                  )}
+                </div>
+                <button className="btn-primary" onClick={() => setActiveTab('billing')} style={{ backgroundColor: '#b91c1c', border: 'none', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  미수금 대장 이동 <ArrowRight size={12} />
+                </button>
+              </div>
+            )}
+
+{/* 3. 소유사(임차) 자산 반납 지연 카드 (임차 자산 저장/실행 권한자 표출) */}
             {showRentAssetFeed && (
               <div style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
@@ -810,7 +847,40 @@ export const Dashboard: React.FC = () => {
               </div>
             )}
 
-            {/* 4. 장비 정비 대기열 카드 (정비 저장/실행 권한자 표출) */}
+                        {showOverdueSubleaseFeed && (
+              <div style={{
+                backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
+                borderLeft: '5px solid #ea580c', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
+              }}>
+                <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '800', color: '#ea580c', backgroundColor: 'rgba(234,88,12,0.1)', padding: '2px 8px', borderRadius: '4px' }}>전대 자산 관리</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{overdueSubleaseAssets.length}건</span>
+                </div>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ShieldAlert size={18} color="#ea580c" /> 전대 자산 반납 지연 목록
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+                  {overdueSubleaseAssets.slice(0, 5).map((a, idx) => (
+                    <div key={a.id} style={{ backgroundColor: 'var(--bg-secondary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '13px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+                        <span>{idx + 1}. {a.assetNo || '장비'} ({a.modelName || '-'})</span>
+                        <span style={{ color: 'var(--danger)' }}>계약종료: {a.rentEnd ? a.rentEnd.substring(0, 10) : '-'}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {overdueSubleaseAssets.length > 5 && (
+                    <div style={{ textAlign: 'center', fontSize: '12.5px', fontWeight: '700', color: 'var(--text-muted)', marginTop: '4px', padding: '8px', backgroundColor: 'var(--bg-secondary)', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
+                      ... 외 {overdueSubleaseAssets.length - 5}건 대기 중
+                    </div>
+                  )}
+                </div>
+                <button className="btn-primary" onClick={() => setActiveTab('rent_asset')} style={{ backgroundColor: '#ea580c', border: 'none', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  임차 자산 관리 이동 <ArrowRight size={12} />
+                </button>
+              </div>
+            )}
+
+{/* 4. 장비 정비 대기열 카드 (정비 저장/실행 권한자 표출) */}
             {showRepairFeed && (
               <div style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
@@ -848,7 +918,44 @@ export const Dashboard: React.FC = () => {
             )}
 
 
-            {/* 6. 영업 및 임대차 계약 관리 카드 (계약 저장/실행 권한자 표출) */}
+                        {showOldPendingRepairsFeed && (
+              <div style={{
+                backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
+                borderLeft: '5px solid #d97706', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
+              }}>
+                <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '800', color: '#d97706', backgroundColor: 'rgba(217,119,6,0.1)', padding: '2px 8px', borderRadius: '4px' }}>정비 지연 알림</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{oldPendingRepairs.length}건</span>
+                </div>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Wrench size={18} color="#d97706" /> 장기 대기 정비 의뢰
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+                  {oldPendingRepairs.slice(0, 5).map((r, idx) => {
+                    const asset = assets.find(a => a.id === r.assetId);
+                    return (
+                      <div key={r.id} style={{ backgroundColor: 'var(--bg-secondary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '13px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+                          <span>{idx + 1}. {asset?.assetNo || '장비'} ({asset?.modelName || '-'})</span>
+                          <span style={{ color: 'var(--danger)' }}>의뢰일: {r.createdAt ? r.createdAt.substring(0, 10) : '-'}</span>
+                        </div>
+                        <div style={{ marginTop: '6px', color: 'var(--text-secondary)' }}>내용: {r.details}</div>
+                      </div>
+                    );
+                  })}
+                  {oldPendingRepairs.length > 5 && (
+                    <div style={{ textAlign: 'center', fontSize: '12.5px', fontWeight: '700', color: 'var(--text-muted)', marginTop: '4px', padding: '8px', backgroundColor: 'var(--bg-secondary)', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
+                      ... 외 {oldPendingRepairs.length - 5}건 대기 중
+                    </div>
+                  )}
+                </div>
+                <button className="btn-primary" onClick={() => setActiveTab('repair')} style={{ backgroundColor: '#d97706', border: 'none', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  정비 관리 이동 <ArrowRight size={12} />
+                </button>
+              </div>
+            )}
+
+{/* 6. 영업 및 임대차 계약 관리 카드 (계약 저장/실행 권한자 표출) */}
             {showContractFeed && (
               <div style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
@@ -870,7 +977,44 @@ export const Dashboard: React.FC = () => {
               </div>
             )}
 
-            {/* 7. 직무 맞춤형 당면 과제 ToDo 피드 (헌장 3.3 ToDo 피드 대시보드 정책) */}
+                        {showExpiringContractsFeed && (
+              <div style={{
+                backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
+                borderLeft: '5px solid #2563eb', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
+              }}>
+                <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '800', color: '#2563eb', backgroundColor: 'rgba(37,99,235,0.1)', padding: '2px 8px', borderRadius: '4px' }}>계약 종료 임박</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{expiringContracts.length}건</span>
+                </div>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Layers size={18} color="#2563eb" /> 7일 이내 종료 예정 계약
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+                  {expiringContracts.slice(0, 5).map((c, idx) => {
+                    const cust = customers.find(cu => cu.id === c.customerId);
+                    return (
+                      <div key={c.id} style={{ backgroundColor: 'var(--bg-secondary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '13px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
+                          <span>{idx + 1}. {cust?.name || '고객사 미상'}</span>
+                          <span style={{ color: 'var(--danger)' }}>종료일: {c.endDate ? c.endDate.substring(0, 10) : '-'}</span>
+                        </div>
+                        <div style={{ marginTop: '6px', color: 'var(--text-secondary)' }}>현장: {c.siteAddress || '-'}</div>
+                      </div>
+                    );
+                  })}
+                  {expiringContracts.length > 5 && (
+                    <div style={{ textAlign: 'center', fontSize: '12.5px', fontWeight: '700', color: 'var(--text-muted)', marginTop: '4px', padding: '8px', backgroundColor: 'var(--bg-secondary)', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
+                      ... 외 {expiringContracts.length - 5}건 대기 중
+                    </div>
+                  )}
+                </div>
+                <button className="btn-primary" onClick={() => setActiveTab('contract')} style={{ backgroundColor: '#2563eb', border: 'none', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  계약 관리 이동 <ArrowRight size={12} />
+                </button>
+              </div>
+            )}
+
+{/* 7. 직무 맞춤형 당면 과제 ToDo 피드 (헌장 3.3 ToDo 피드 대시보드 정책) */}
             {showTodoFeed && (
               <div style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',

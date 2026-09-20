@@ -1022,7 +1022,7 @@ export const InspectionChecklistManage: React.FC = () => {
               }}
             >
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>총 점검항목</span>
-              <strong style={{ fontSize: '15px', color: '#16a34a' }}>{masterAuditSummary.totalCount}개</strong>
+              <strong style={{ fontSize: '15px', color: 'var(--success)' }}>{masterAuditSummary.totalCount}개</strong>
             </div>
             <div
               style={{
@@ -1036,7 +1036,7 @@ export const InspectionChecklistManage: React.FC = () => {
               }}
             >
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>평균 정비배점</span>
-              <strong style={{ fontSize: '15px', color: '#d97706' }}>{masterAuditSummary.avgScore}점</strong>
+              <strong style={{ fontSize: '15px', color: 'var(--warning)' }}>{masterAuditSummary.avgScore}점</strong>
             </div>
             <div
               style={{
@@ -1050,7 +1050,7 @@ export const InspectionChecklistManage: React.FC = () => {
               }}
             >
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>부품연계 항목</span>
-              <strong style={{ fontSize: '15px', color: '#2563eb' }}>
+              <strong style={{ fontSize: '15px', color: 'var(--primary)' }}>
                 {masterAuditSummary.linkedPartsCount}개 ({masterAuditSummary.totalCount > 0 ? ((masterAuditSummary.linkedPartsCount / masterAuditSummary.totalCount) * 100).toFixed(0) : 0}%)
               </strong>
             </div>
@@ -1194,7 +1194,7 @@ export const InspectionChecklistManage: React.FC = () => {
                                       padding: '2px 6px',
                                       borderRadius: '4px',
                                       backgroundColor: 'rgba(59, 130, 246, 0.12)',
-                                      color: '#3b82f6',
+                                      color: 'var(--primary)',
                                       border: '1px solid rgba(59, 130, 246, 0.25)',
                                       whiteSpace: 'nowrap'
                                     }}
@@ -1398,9 +1398,9 @@ export const InspectionChecklistManage: React.FC = () => {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>정비 소요 총비용</span>
-                <Wrench size={15} style={{ color: '#d97706' }} />
+                <Wrench size={15} style={{ color: 'var(--warning)' }} />
               </div>
-              <strong style={{ fontSize: '18px', color: '#d97706' }}>
+              <strong style={{ fontSize: '18px', color: 'var(--warning)' }}>
                 ₩{analyticsData.grandTotalCost.toLocaleString()}
               </strong>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -1421,9 +1421,9 @@ export const InspectionChecklistManage: React.FC = () => {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>자체 소모품비</span>
-                <span style={{ fontSize: '12px', color: '#16a34a', fontWeight: 700 }}>소모품</span>
+                <span style={{ fontSize: '12px', color: 'var(--success)', fontWeight: 700 }}>소모품</span>
               </div>
-              <strong style={{ fontSize: '18px', color: '#16a34a' }}>
+              <strong style={{ fontSize: '18px', color: 'var(--success)' }}>
                 ₩{analyticsData.grandPartCost.toLocaleString()}
               </strong>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -1444,9 +1444,9 @@ export const InspectionChecklistManage: React.FC = () => {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>고객 유상 청구액</span>
-                <span style={{ fontSize: '12px', color: '#2563eb', fontWeight: 700 }}>청구</span>
+                <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: 700 }}>청구</span>
               </div>
-              <strong style={{ fontSize: '18px', color: '#2563eb' }}>
+              <strong style={{ fontSize: '18px', color: 'var(--primary)' }}>
                 ₩{analyticsData.grandBillableAmount.toLocaleString()}
               </strong>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>고객 과실/파손 청구</span>
@@ -1465,9 +1465,9 @@ export const InspectionChecklistManage: React.FC = () => {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>당사 순부담 원가</span>
-                <span style={{ fontSize: '12px', color: '#dc2626', fontWeight: 700 }}>순원가</span>
+                <span style={{ fontSize: '12px', color: 'var(--danger)', fontWeight: 700 }}>순원가</span>
               </div>
-              <strong style={{ fontSize: '18px', color: '#dc2626' }}>
+              <strong style={{ fontSize: '18px', color: 'var(--danger)' }}>
                 ₩{analyticsData.grandCompanyCost.toLocaleString()}
               </strong>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -1531,13 +1531,13 @@ export const InspectionChecklistManage: React.FC = () => {
                           <td style={{ whiteSpace: 'nowrap', textAlign: 'right', fontSize: '12px' }}>
                             ₩{item.externalCost.toLocaleString()}
                           </td>
-                          <td style={{ whiteSpace: 'nowrap', textAlign: 'right', fontSize: '12.5px', fontWeight: 700, color: '#d97706' }}>
+                          <td style={{ whiteSpace: 'nowrap', textAlign: 'right', fontSize: '12.5px', fontWeight: 700, color: 'var(--warning)' }}>
                             ₩{item.totalCost.toLocaleString()}
                           </td>
-                          <td style={{ whiteSpace: 'nowrap', textAlign: 'right', fontSize: '12px', color: '#2563eb' }}>
+                          <td style={{ whiteSpace: 'nowrap', textAlign: 'right', fontSize: '12px', color: 'var(--primary)' }}>
                             ₩{item.billableAmount.toLocaleString()}
                           </td>
-                          <td style={{ whiteSpace: 'nowrap', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: '#dc2626' }}>
+                          <td style={{ whiteSpace: 'nowrap', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: 'var(--danger)' }}>
                             ₩{item.companyCost.toLocaleString()}
                           </td>
                           <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
@@ -1588,7 +1588,7 @@ export const InspectionChecklistManage: React.FC = () => {
                 alignItems: 'center'
               }}
             >
-              <span style={{ fontSize: '11.5px', color: '#475569', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <FileText size={12} /> PDF 문서
               </span>
               <strong style={{ fontSize: '15px', color: '#334155' }}>{manualSummary.pdfCount}건</strong>
@@ -1604,10 +1604,10 @@ export const InspectionChecklistManage: React.FC = () => {
                 alignItems: 'center'
               }}
             >
-              <span style={{ fontSize: '11.5px', color: '#dc2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '11.5px', color: 'var(--danger)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Youtube size={13} /> 유튜브 영상
               </span>
-              <strong style={{ fontSize: '15px', color: '#dc2626' }}>{manualSummary.youtubeCount}건</strong>
+              <strong style={{ fontSize: '15px', color: 'var(--danger)' }}>{manualSummary.youtubeCount}건</strong>
             </div>
             <div
               style={{
@@ -1637,7 +1637,7 @@ export const InspectionChecklistManage: React.FC = () => {
               }}
             >
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>에러코드 진단</span>
-              <strong style={{ fontSize: '15px', color: '#dc2626' }}>{manualSummary.errorCodeCount}건</strong>
+              <strong style={{ fontSize: '15px', color: 'var(--danger)' }}>{manualSummary.errorCodeCount}건</strong>
             </div>
             <div
               style={{
@@ -1650,8 +1650,8 @@ export const InspectionChecklistManage: React.FC = () => {
                 alignItems: 'center'
               }}
             >
-              <span style={{ fontSize: '11.5px', color: '#15803d', fontWeight: 600 }}>AI 색인완료</span>
-              <strong style={{ fontSize: '15px', color: '#16a34a' }}>{manualSummary.aiIndexedCount}건</strong>
+              <span style={{ fontSize: '11.5px', color: 'var(--success)', fontWeight: 600 }}>AI 색인완료</span>
+              <strong style={{ fontSize: '15px', color: 'var(--success)' }}>{manualSummary.aiIndexedCount}건</strong>
             </div>
             <div
               style={{
@@ -1835,7 +1835,7 @@ export const InspectionChecklistManage: React.FC = () => {
                   width: '100%',
                   marginTop: '4px',
                   padding: '8px 12px',
-                  backgroundColor: '#eff6ff',
+                  backgroundColor: 'var(--info-light)',
                   borderRadius: '4px',
                   border: '1px solid #bfdbfe',
                   fontSize: '11.5px',
@@ -1851,7 +1851,7 @@ export const InspectionChecklistManage: React.FC = () => {
                     {Math.round((indexingProgress.current / indexingProgress.total) * 100)}%)
                   </strong>
                 </div>
-                <div style={{ height: '5px', backgroundColor: '#dbeafe', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{ height: '5px', backgroundColor: 'var(--info-light)', borderRadius: '3px', overflow: 'hidden' }}>
                   <div
                     style={{
                       height: '100%',
@@ -1902,8 +1902,8 @@ export const InspectionChecklistManage: React.FC = () => {
                               fontWeight: 700,
                               padding: '2px 6px',
                               borderRadius: '4px',
-                              backgroundColor: '#fee2e2',
-                              color: '#dc2626',
+                              backgroundColor: 'var(--danger-light)',
+                              color: 'var(--danger)',
                               border: '1px solid #fecaca',
                               display: 'flex',
                               alignItems: 'center',
@@ -1936,9 +1936,9 @@ export const InspectionChecklistManage: React.FC = () => {
                               fontWeight: 700,
                               padding: '2px 6px',
                               borderRadius: '4px',
-                              backgroundColor: '#f1f5f9',
-                              color: '#475569',
-                              border: '1px solid #e2e8f0',
+                              backgroundColor: 'var(--bg-app)',
+                              color: 'var(--text-secondary)',
+                              border: '1px solid var(--border-color)',
                               display: 'flex',
                               alignItems: 'center',
                               gap: '3px'
@@ -1971,8 +1971,8 @@ export const InspectionChecklistManage: React.FC = () => {
                               fontWeight: 700,
                               padding: '2px 5px',
                               borderRadius: '4px',
-                              backgroundColor: '#dcfce7',
-                              color: '#15803d',
+                              backgroundColor: 'var(--success-light)',
+                              color: 'var(--success)',
                               border: '1px solid #bbf7d0',
                               display: 'flex',
                               alignItems: 'center',
@@ -1988,8 +1988,8 @@ export const InspectionChecklistManage: React.FC = () => {
                               fontWeight: 600,
                               padding: '2px 5px',
                               borderRadius: '4px',
-                              backgroundColor: '#fef3c7',
-                              color: '#b45309',
+                              backgroundColor: 'var(--warning-light)',
+                              color: 'var(--warning)',
                               border: '1px solid #fde68a'
                             }}
                           >
@@ -2010,7 +2010,7 @@ export const InspectionChecklistManage: React.FC = () => {
                           borderRadius: '6px',
                           overflow: 'hidden',
                           cursor: 'pointer',
-                          backgroundColor: '#000000',
+                          backgroundColor: 'var(--text-main)',
                           marginTop: '2px'
                         }}
                         onClick={() => setPreviewManual(manual)}
@@ -2036,7 +2036,7 @@ export const InspectionChecklistManage: React.FC = () => {
                               width: '38px',
                               height: '38px',
                               borderRadius: '50%',
-                              backgroundColor: '#dc2626',
+                              backgroundColor: 'var(--danger)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -2080,7 +2080,7 @@ export const InspectionChecklistManage: React.FC = () => {
                       }}
                     >
                       {manual.mediaType === 'YOUTUBE' ? (
-                        <Youtube size={16} style={{ color: '#dc2626', flexShrink: 0 }} />
+                        <Youtube size={16} style={{ color: 'var(--danger)', flexShrink: 0 }} />
                       ) : manual.mediaType === 'WEB_LINK' ? (
                         <Globe size={16} style={{ color: '#4338ca', flexShrink: 0 }} />
                       ) : (
@@ -2102,7 +2102,7 @@ export const InspectionChecklistManage: React.FC = () => {
                     {manual.aiSummary && (
                       <div
                         style={{
-                          backgroundColor: '#f8fafc',
+                          backgroundColor: 'var(--bg-app)',
                           borderLeft: '3px solid var(--primary)',
                           padding: '6px 10px',
                           borderRadius: '0 4px 4px 0',
@@ -2140,7 +2140,7 @@ export const InspectionChecklistManage: React.FC = () => {
                       {/* 에러코드 태그 */}
                       {manual.errorCodes && manual.errorCodes.length > 0 && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '10px', color: '#b91c1c', fontWeight: 700 }}>코드:</span>
+                          <span style={{ fontSize: '10px', color: 'var(--danger)', fontWeight: 700 }}>코드:</span>
                           {manual.errorCodes.map((ec, idx) => (
                             <span
                               key={idx}
@@ -2148,8 +2148,8 @@ export const InspectionChecklistManage: React.FC = () => {
                                 fontSize: '10px',
                                 padding: '1px 5px',
                                 borderRadius: '3px',
-                                backgroundColor: '#fee2e2',
-                                color: '#991b1b',
+                                backgroundColor: 'var(--danger-light)',
+                                color: 'var(--danger)',
                                 border: '1px solid #fecaca',
                                 fontWeight: 600
                               }}
@@ -2163,7 +2163,7 @@ export const InspectionChecklistManage: React.FC = () => {
                       {/* 고장증상 태그 */}
                       {manual.symptoms && manual.symptoms.length > 0 && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '10px', color: '#c2410c', fontWeight: 700 }}>증상:</span>
+                          <span style={{ fontSize: '10px', color: 'var(--warning)', fontWeight: 700 }}>증상:</span>
                           {manual.symptoms.map((sym, idx) => (
                             <span
                               key={idx}
@@ -2186,7 +2186,7 @@ export const InspectionChecklistManage: React.FC = () => {
                       {/* 주요부품 태그 */}
                       {manual.majorParts && manual.majorParts.length > 0 && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '10px', color: '#1d4ed8', fontWeight: 700 }}>부품:</span>
+                          <span style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: 700 }}>부품:</span>
                           {manual.majorParts.slice(0, 3).map((part, idx) => (
                             <span
                               key={idx}
@@ -2194,7 +2194,7 @@ export const InspectionChecklistManage: React.FC = () => {
                                 fontSize: '10px',
                                 padding: '1px 5px',
                                 borderRadius: '3px',
-                                backgroundColor: '#dbeafe',
+                                backgroundColor: 'var(--info-light)',
                                 color: '#1e40af',
                                 border: '1px solid #bfdbfe',
                                 fontWeight: 500
@@ -2240,8 +2240,8 @@ export const InspectionChecklistManage: React.FC = () => {
                               display: 'flex',
                               alignItems: 'center',
                               gap: '3px',
-                              backgroundColor: '#dc2626',
-                              borderColor: '#dc2626'
+                              backgroundColor: 'var(--danger)',
+                              borderColor: 'var(--danger)'
                             }}
                           >
                             <Play size={12} fill="#ffffff" /> 영상재생
@@ -2330,7 +2330,7 @@ export const InspectionChecklistManage: React.FC = () => {
                           display: 'flex',
                           alignItems: 'center',
                           gap: '3px',
-                          color: '#d97706',
+                          color: 'var(--warning)',
                           borderColor: '#fed7aa'
                         }}
                         title="AI 메타데이터 단건 재색인"
@@ -2577,7 +2577,7 @@ export const InspectionChecklistManage: React.FC = () => {
                         }}
                       >
                         {isSelected ? (
-                          <CheckCircle2 size={13} style={{ color: '#3b82f6' }} />
+                          <CheckCircle2 size={13} style={{ color: 'var(--primary)' }} />
                         ) : (
                           <span style={{ width: '10px', height: '10px', borderRadius: '50%', border: '1px solid var(--text-muted)', display: 'inline-block' }} />
                         )}
@@ -2882,7 +2882,7 @@ export const InspectionChecklistManage: React.FC = () => {
                             display: 'flex',
                             gap: '12px',
                             padding: '10px',
-                            backgroundColor: '#eff6ff',
+                            backgroundColor: 'var(--info-light)',
                             borderRadius: '6px',
                             border: '1px solid #bfdbfe',
                             alignItems: 'center'
@@ -2896,7 +2896,7 @@ export const InspectionChecklistManage: React.FC = () => {
                           <div style={{ fontSize: '11.5px', color: '#1e40af' }}>
                             <div style={{ fontWeight: 700 }}>🟢 유튜브 영상 ID 감지 완료</div>
                             <div>고유 ID: <strong>{videoId}</strong></div>
-                            <div style={{ fontSize: '11px', color: '#3b82f6' }}>앱 내에서 직접 임베드 재생됩니다.</div>
+                            <div style={{ fontSize: '11px', color: 'var(--primary)' }}>앱 내에서 직접 임베드 재생됩니다.</div>
                           </div>
                         </div>
                       );
@@ -3016,8 +3016,8 @@ export const InspectionChecklistManage: React.FC = () => {
                       fontWeight: 700,
                       padding: '2px 7px',
                       borderRadius: '4px',
-                      backgroundColor: '#fee2e2',
-                      color: '#dc2626',
+                      backgroundColor: 'var(--danger-light)',
+                      color: 'var(--danger)',
                       border: '1px solid #fecaca',
                       display: 'flex',
                       alignItems: 'center',
@@ -3066,7 +3066,7 @@ export const InspectionChecklistManage: React.FC = () => {
                       alignItems: 'center',
                       gap: '4px',
                       textDecoration: 'none',
-                      color: '#dc2626'
+                      color: 'var(--danger)'
                     }}
                   >
                     <ExternalLink size={13} /> YouTube 원본 열기
@@ -3118,7 +3118,7 @@ export const InspectionChecklistManage: React.FC = () => {
             </div>
 
             {/* 뷰어 본문 (멀티미디어 분기) */}
-            <div style={{ flex: 1, backgroundColor: '#000000', overflow: 'hidden', position: 'relative' }}>
+            <div style={{ flex: 1, backgroundColor: 'var(--text-main)', overflow: 'hidden', position: 'relative' }}>
               {previewManual.mediaType === 'YOUTUBE' && previewManual.youtubeVideoId ? (
                 /* 유튜브 반응형 임베드 플레이어 */
                 <iframe
@@ -3163,7 +3163,7 @@ export const InspectionChecklistManage: React.FC = () => {
                 <iframe
                   src={previewManual.fileUrl}
                   title={previewManual.title}
-                  style={{ width: '100%', height: '100%', border: 'none', backgroundColor: '#333333' }}
+                  style={{ width: '100%', height: '100%', border: 'none', backgroundColor: 'var(--text-main)' }}
                 />
               ) : (
                 /* 기타 파일 다운로드 안내 */
@@ -3185,7 +3185,7 @@ export const InspectionChecklistManage: React.FC = () => {
                   <div style={{ fontSize: '13px', color: '#d1d5db' }}>
                     파일 형식: {previewManual.fileName} ({previewManual.fileSizeLabel || '0 KB'})
                   </div>
-                  <p style={{ maxWidth: '500px', textAlign: 'center', fontSize: '12.5px', color: '#9ca3af' }}>
+                  <p style={{ maxWidth: '500px', textAlign: 'center', fontSize: '12.5px', color: 'var(--text-muted)' }}>
                     {previewManual.memo || '브라우저 내장 뷰어가 지원되지 않는 문서 형식입니다. [다운로드] 버튼을 눌러 원본 파일을 확인하세요.'}
                   </p>
                   <a
@@ -3497,13 +3497,13 @@ export const InspectionChecklistManage: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
             <span>📄 <strong>정비총비용:</strong> ₩{analyticsData.grandTotalCost.toLocaleString()}</span>
             <span style={{ color: 'var(--border-color)' }}>=</span>
-            <span style={{ color: '#16a34a' }}>🟢 <strong>소모품비:</strong> ₩{analyticsData.grandPartCost.toLocaleString()}</span>
+            <span style={{ color: 'var(--success)' }}>🟢 <strong>소모품비:</strong> ₩{analyticsData.grandPartCost.toLocaleString()}</span>
             <span>+</span>
-            <span style={{ color: '#d97706' }}>🏢 <strong>외주비:</strong> ₩{analyticsData.grandExternalCost.toLocaleString()}</span>
+            <span style={{ color: 'var(--warning)' }}>🏢 <strong>외주비:</strong> ₩{analyticsData.grandExternalCost.toLocaleString()}</span>
             <span style={{ color: 'var(--border-color)' }}>=</span>
-            <span style={{ color: '#2563eb' }}>🟢 <strong>고객청구:</strong> ₩{analyticsData.grandBillableAmount.toLocaleString()}</span>
+            <span style={{ color: 'var(--primary)' }}>🟢 <strong>고객청구:</strong> ₩{analyticsData.grandBillableAmount.toLocaleString()}</span>
             <span>+</span>
-            <span style={{ color: '#dc2626' }}>🔴 <strong>회사순부담:</strong> ₩{analyticsData.grandCompanyCost.toLocaleString()}</span>
+            <span style={{ color: 'var(--danger)' }}>🔴 <strong>회사순부담:</strong> ₩{analyticsData.grandCompanyCost.toLocaleString()}</span>
           </div>
         )}
 
@@ -3511,7 +3511,7 @@ export const InspectionChecklistManage: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
             <span>📚 <strong>매뉴얼 총계:</strong> {manualSummary.total}건</span>
             <span style={{ color: 'var(--border-color)' }}>|</span>
-            <span style={{ color: '#16a34a' }}>🟢 <strong>AI 색인완료:</strong> {manualSummary.aiIndexedCount}건</span>
+            <span style={{ color: 'var(--success)' }}>🟢 <strong>AI 색인완료:</strong> {manualSummary.aiIndexedCount}건</span>
             <span style={{ color: 'var(--border-color)' }}>|</span>
             <span style={{ color: manualSummary.aiPendingCount > 0 ? '#ea580c' : 'var(--text-muted)' }}>
               🟡 <strong>AI 분석대기:</strong> {manualSummary.aiPendingCount}건

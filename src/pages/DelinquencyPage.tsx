@@ -694,7 +694,7 @@ export const DelinquencyPage: React.FC = () => {
             <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>고위험 상습 연체 (🔴)</span>
             <ShieldAlert size={15} color="#dc2626" />
           </div>
-          <h3 style={{ fontSize: '17px', fontWeight: '800', margin: '2px 0', color: '#dc2626' }}>
+          <h3 style={{ fontSize: '17px', fontWeight: '800', margin: '2px 0', color: 'var(--danger)' }}>
             {highRiskCount}개사
           </h3>
           <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>60일 이상 도과 or 약속 2회 위반</span>
@@ -729,7 +729,7 @@ export const DelinquencyPage: React.FC = () => {
             <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>누적 약속 위반 횟수</span>
             <ThumbsDown size={15} color="#d97706" />
           </div>
-          <h3 style={{ fontSize: '17px', fontWeight: '800', margin: '2px 0', color: '#d97706' }}>
+          <h3 style={{ fontSize: '17px', fontWeight: '800', margin: '2px 0', color: 'var(--warning)' }}>
             {brokenPromises}건
           </h3>
           <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>전체 {totalPromises}건 중 이행 {keptPromises}건</span>
@@ -759,14 +759,14 @@ export const DelinquencyPage: React.FC = () => {
               <button 
                 className={statusFilter === 'HIGH_RISK' ? 'btn-primary' : 'btn-secondary'} 
                 onClick={() => setStatusFilter('HIGH_RISK')}
-                style={{ fontSize: '11px', padding: '3px 8px', color: '#dc2626', fontWeight: 700 }}
+                style={{ fontSize: '11px', padding: '3px 8px', color: 'var(--danger)', fontWeight: 700 }}
               >
                 🔴 고위험
               </button>
               <button 
                 className={statusFilter === 'NEGLECTED' ? 'btn-primary' : 'btn-secondary'} 
                 onClick={() => setStatusFilter('NEGLECTED')}
-                style={{ fontSize: '11px', padding: '3px 8px', color: '#b91c1c', fontWeight: 700 }}
+                style={{ fontSize: '11px', padding: '3px 8px', color: 'var(--danger)', fontWeight: 700 }}
               >
                 🚨 지시방치
               </button>
@@ -846,15 +846,15 @@ export const DelinquencyPage: React.FC = () => {
                       >
                         <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                           {del.riskTier === 'HIGH' ? (
-                            <span style={{ padding: '2px 5px', borderRadius: '3px', fontSize: '10px', fontWeight: 800, backgroundColor: '#fee2e2', color: '#b91c1c' }}>
+                            <span style={{ padding: '2px 5px', borderRadius: '3px', fontSize: '10px', fontWeight: 800, backgroundColor: 'var(--danger-light)', color: 'var(--danger)' }}>
                               🔴 고위험
                             </span>
                           ) : del.riskTier === 'MID' ? (
-                            <span style={{ padding: '2px 5px', borderRadius: '3px', fontSize: '10px', fontWeight: 700, backgroundColor: '#fef3c7', color: '#d97706' }}>
+                            <span style={{ padding: '2px 5px', borderRadius: '3px', fontSize: '10px', fontWeight: 700, backgroundColor: 'var(--warning-light)', color: 'var(--warning)' }}>
                               🟡 중위험
                             </span>
                           ) : (
-                            <span style={{ padding: '2px 5px', borderRadius: '3px', fontSize: '10px', fontWeight: 600, backgroundColor: '#dcfce7', color: '#16a34a' }}>
+                            <span style={{ padding: '2px 5px', borderRadius: '3px', fontSize: '10px', fontWeight: 600, backgroundColor: 'var(--success-light)', color: 'var(--success)' }}>
                               🟢 일반
                             </span>
                           )}
@@ -862,7 +862,7 @@ export const DelinquencyPage: React.FC = () => {
                         <td style={{ padding: '6px 8px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
                           {del.customerName}
                           {del.transactionStatus === 'BLOCKED' && (
-                            <span style={{ marginLeft: '6px', padding: '1px 5px', fontSize: '10px', backgroundColor: '#fee2e2', color: '#b91c1c', borderRadius: '3px', fontWeight: 800 }}>
+                            <span style={{ marginLeft: '6px', padding: '1px 5px', fontSize: '10px', backgroundColor: 'var(--danger-light)', color: 'var(--danger)', borderRadius: '3px', fontWeight: 800 }}>
                               출고제한
                             </span>
                           )}
@@ -887,7 +887,7 @@ export const DelinquencyPage: React.FC = () => {
                         </td>
                         <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                           {del.brokenPromisesCount > 0 ? (
-                            <span style={{ color: '#dc2626', fontWeight: 700, fontSize: '11px' }}>
+                            <span style={{ color: 'var(--danger)', fontWeight: 700, fontSize: '11px' }}>
                               {del.brokenPromisesCount}회 위반
                             </span>
                           ) : (
@@ -903,7 +903,7 @@ export const DelinquencyPage: React.FC = () => {
                               🚨 방치 {del.directiveNeglectedDays}일
                             </span>
                           ) : del.hasPendingDirective ? (
-                            <span style={{ padding: '2px 6px', borderRadius: '3px', fontSize: '10px', fontWeight: 700, backgroundColor: 'rgba(37, 99, 235, 0.12)', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#3b82f6' }}>
+                            <span style={{ padding: '2px 6px', borderRadius: '3px', fontSize: '10px', fontWeight: 700, backgroundColor: 'rgba(37, 99, 235, 0.12)', border: '1px solid rgba(59, 130, 246, 0.3)', color: 'var(--primary)' }}>
                               지시 진행중
                             </span>
                           ) : (
@@ -951,7 +951,7 @@ export const DelinquencyPage: React.FC = () => {
                 <h3 style={{ fontSize: '15px', fontWeight: '800', margin: '0 0 2px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {selectedDelinquency.customerName}
                   {selectedDelinquency.transactionStatus === 'BLOCKED' && (
-                    <span style={{ padding: '1px 6px', fontSize: '11px', backgroundColor: '#fee2e2', color: '#b91c1c', borderRadius: '4px', fontWeight: 800 }}>
+                    <span style={{ padding: '1px 6px', fontSize: '11px', backgroundColor: 'var(--danger-light)', color: 'var(--danger)', borderRadius: '4px', fontWeight: 800 }}>
                       출고제한
                     </span>
                   )}
@@ -989,7 +989,7 @@ export const DelinquencyPage: React.FC = () => {
 
             {/* 지시 방치 경보 배너 */}
             {selectedDelinquency.directiveNeglectedDays >= 3 && (
-              <div style={{ padding: '8px 12px', borderRadius: '6px', backgroundColor: '#fee2e2', border: '1px solid #f87171', color: '#b91c1c', fontSize: '11.5px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ padding: '8px 12px', borderRadius: '6px', backgroundColor: 'var(--danger-light)', border: '1px solid #f87171', color: 'var(--danger)', fontSize: '11.5px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <AlertCircle size={15} />
                 <span>경영진 독촉지시 하달 후 {selectedDelinquency.directiveNeglectedDays}일 동안 영업사원의 현장 조치 기록이 없습니다.</span>
               </div>
@@ -1168,13 +1168,13 @@ export const DelinquencyPage: React.FC = () => {
               <span>|</span>
               <span>연체 총액: <strong style={{ color: 'var(--danger)' }}>₩{totalOverdueSum.toLocaleString()}원</strong></span>
               <span>|</span>
-              <span>고위험 상습연체(🔴): <strong style={{ color: '#dc2626' }}>총 {highRiskCount}개사</strong></span>
+              <span>고위험 상습연체(🔴): <strong style={{ color: 'var(--danger)' }}>총 {highRiskCount}개사</strong></span>
               <span>|</span>
               <span>경영진 지시 진행중: <strong style={{ color: 'var(--primary)' }}>총 {pendingDirectiveCount}건</strong></span>
               {neglectedDirectiveCount > 0 && (
                 <>
                   <span>|</span>
-                  <span style={{ color: '#dc2626', fontWeight: 800 }}>🚨 3일 이상 지시 방치: 총 {neglectedDirectiveCount}건</span>
+                  <span style={{ color: 'var(--danger)', fontWeight: 800 }}>🚨 3일 이상 지시 방치: 총 {neglectedDirectiveCount}건</span>
                 </>
               )}
             </div>
@@ -1301,11 +1301,11 @@ export const DelinquencyPage: React.FC = () => {
                     id="legal-notice-print-area"
                     style={{
                       flex: 1,
-                      backgroundColor: '#ffffff',
-                      color: '#0f172a',
+                      backgroundColor: 'var(--bg-card)',
+                      color: 'var(--text-main)',
                       padding: '24px 28px',
                       borderRadius: '6px',
-                      border: '1px solid #cbd5e1',
+                      border: '1px solid var(--border-color)',
                       boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                       overflowY: 'auto',
                       fontSize: '11px',
@@ -1318,7 +1318,7 @@ export const DelinquencyPage: React.FC = () => {
                     </div>
 
                     {/* 수신인 / 발신인 상자 */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px', border: '1px solid #94a3b8', padding: '10px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px', border: '1px solid var(--border-color)', padding: '10px' }}>
                       <div>
                         <div style={{ fontWeight: 800, borderBottom: '1px dashed #cbd5e1', paddingBottom: '3px', marginBottom: '4px' }}>[수 신 인]</div>
                         <div>상 호: <strong>{noticeTargetDel.customerName}</strong></div>
@@ -1336,7 +1336,7 @@ export const DelinquencyPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div style={{ fontWeight: 800, fontSize: '12px', marginBottom: '12px', backgroundColor: '#f1f5f9', padding: '6px 8px', borderLeft: '4px solid #0f172a' }}>
+                    <div style={{ fontWeight: 800, fontSize: '12px', marginBottom: '12px', backgroundColor: 'var(--bg-app)', padding: '6px 8px', borderLeft: '4px solid #0f172a' }}>
                       제 목: {noticeTitle}
                     </div>
 
@@ -1352,7 +1352,7 @@ export const DelinquencyPage: React.FC = () => {
                       </div>
                       <div style={{ fontSize: '14px', fontWeight: 900, display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                         <span>{currentTenant?.corporateName || '주식회사 임대인'} 대표이사 {currentTenant?.representativeName || '대표자'}</span>
-                        <span style={{ border: '2px solid #dc2626', color: '#dc2626', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 800 }}>
+                        <span style={{ border: '2px solid #dc2626', color: 'var(--danger)', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 800 }}>
                           (인)
                         </span>
                       </div>
@@ -1387,7 +1387,7 @@ export const DelinquencyPage: React.FC = () => {
       {/* ──────────────────────────────────────────────────────────────────────── */}
       {viewingNoticeLog && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: '20px' }}>
-          <div className="card" style={{ width: '90%', maxWidth: '750px', maxHeight: '85vh', backgroundColor: '#ffffff', color: '#0f172a', margin: 0, padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px', overflowY: 'auto' }}>
+          <div className="card" style={{ width: '90%', maxWidth: '750px', maxHeight: '85vh', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', margin: 0, padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #cbd5e1', paddingBottom: '8px' }}>
               <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0 }}>
                 📜 발송 내용증명 원문 (발송일: {viewingNoticeLog.sentDate})
@@ -1397,10 +1397,10 @@ export const DelinquencyPage: React.FC = () => {
               </button>
             </div>
 
-            <div style={{ backgroundColor: '#f8fafc', padding: '10px', borderRadius: '6px', fontSize: '11.5px', border: '1px solid #e2e8f0' }}>
+            <div style={{ backgroundColor: 'var(--bg-app)', padding: '10px', borderRadius: '6px', fontSize: '11.5px', border: '1px solid var(--border-color)' }}>
               <div>수신: <strong>{viewingNoticeLog.customerName}</strong> ({viewingNoticeLog.representative} 귀하)</div>
               <div>발송자: <strong>{viewingNoticeLog.sentByName}</strong> (경영진)</div>
-              <div>최고금액: <strong style={{ color: '#dc2626' }}>₩{viewingNoticeLog.overdueAmount?.toLocaleString()}원</strong> ({viewingNoticeLog.overdueDays}일 도과 시점)</div>
+              <div>최고금액: <strong style={{ color: 'var(--danger)' }}>₩{viewingNoticeLog.overdueAmount?.toLocaleString()}원</strong> ({viewingNoticeLog.overdueDays}일 도과 시점)</div>
               {viewingNoticeLog.postalTrackingNo && <div>등기번호: <strong>{viewingNoticeLog.postalTrackingNo}</strong></div>}
             </div>
 
@@ -1408,7 +1408,7 @@ export const DelinquencyPage: React.FC = () => {
               제 목: {viewingNoticeLog.noticeTitle}
             </div>
 
-            <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.7', fontSize: '11.5px', backgroundColor: '#ffffff', padding: '12px', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
+            <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.7', fontSize: '11.5px', backgroundColor: 'var(--bg-card)', padding: '12px', border: '1px solid var(--border-color)', borderRadius: '4px' }}>
               {viewingNoticeLog.noticeContent}
             </div>
 

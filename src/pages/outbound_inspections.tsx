@@ -726,13 +726,13 @@ export const OutboundInspections: React.FC = () => {
   const getStatusBadge = (status: OutboundInspectionStatus) => {
     switch (status) {
       case 'PENDING':
-        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(245,158,11,0.15)', color: '#d97706', border: '1px solid rgba(245,158,11,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Clock size={12} /> 접수 대기</span>;
+        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(245,158,11,0.15)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Clock size={12} /> 접수 대기</span>;
       case 'IN_PROGRESS':
-        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(59,130,246,0.15)', color: '#2563eb', border: '1px solid rgba(59,130,246,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Wrench size={12} /> 검수 진행중</span>;
+        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(59,130,246,0.15)', color: 'var(--primary)', border: '1px solid rgba(59,130,246,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Wrench size={12} /> 검수 진행중</span>;
       case 'COMPLETED':
-        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(34,197,94,0.15)', color: '#16a34a', border: '1px solid rgba(34,197,94,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><CheckCircle size={12} /> 출고 승인</span>;
+        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><CheckCircle size={12} /> 출고 승인</span>;
       case 'REJECTED':
-        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(239,68,68,0.15)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><XCircle size={12} /> 의뢰 반려</span>;
+        return <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '11.5px', fontWeight: 700, backgroundColor: 'rgba(239,68,68,0.15)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><XCircle size={12} /> 의뢰 반려</span>;
     }
   };
 
@@ -826,7 +826,7 @@ export const OutboundInspections: React.FC = () => {
               borderRadius: '8px',
               border: '1px solid #f59e0b',
               backgroundColor: 'rgba(245, 158, 11, 0.08)',
-              color: '#d97706',
+              color: 'var(--warning)',
               fontWeight: 700,
               fontSize: '12.5px',
               cursor: 'pointer',
@@ -1036,11 +1036,11 @@ export const OutboundInspections: React.FC = () => {
                 const diffDays = Math.ceil((new Date(group.loadingDate).getTime() - new Date(todayStr).getTime()) / 86400000);
                 const isOverdue = diffDays < 0 && group.status === 'PENDING';
                 const getDdayBadge = () => {
-                  if (diffDays < 0) return <span style={{ padding: '2px 7px', borderRadius: '10px', fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(239,68,68,0.15)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.4)', whiteSpace: 'nowrap' }}>D+{Math.abs(diffDays)} 지연</span>;
-                  if (diffDays === 0) return <span style={{ padding: '2px 7px', borderRadius: '10px', fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(239,68,68,0.15)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.4)', whiteSpace: 'nowrap' }}>D-DAY</span>;
-                  if (diffDays <= 2) return <span style={{ padding: '2px 7px', borderRadius: '10px', fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(245,158,11,0.15)', color: '#d97706', border: '1px solid rgba(245,158,11,0.4)', whiteSpace: 'nowrap' }}>D-{diffDays}</span>;
+                  if (diffDays < 0) return <span style={{ padding: '2px 7px', borderRadius: '10px', fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(239,68,68,0.15)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.4)', whiteSpace: 'nowrap' }}>D+{Math.abs(diffDays)} 지연</span>;
+                  if (diffDays === 0) return <span style={{ padding: '2px 7px', borderRadius: '10px', fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(239,68,68,0.15)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.4)', whiteSpace: 'nowrap' }}>D-DAY</span>;
+                  if (diffDays <= 2) return <span style={{ padding: '2px 7px', borderRadius: '10px', fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(245,158,11,0.15)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.4)', whiteSpace: 'nowrap' }}>D-{diffDays}</span>;
                   if (diffDays <= 7) return <span style={{ padding: '2px 7px', borderRadius: '10px', fontSize: '10.5px', fontWeight: 700, backgroundColor: 'rgba(234,179,8,0.12)', color: '#ca8a04', border: '1px solid rgba(234,179,8,0.3)', whiteSpace: 'nowrap' }}>D-{diffDays}</span>;
-                  return <span style={{ padding: '2px 7px', borderRadius: '10px', fontSize: '10.5px', fontWeight: 600, backgroundColor: 'rgba(59,130,246,0.08)', color: '#2563eb', border: '1px solid rgba(59,130,246,0.2)', whiteSpace: 'nowrap' }}>D-{diffDays}</span>;
+                  return <span style={{ padding: '2px 7px', borderRadius: '10px', fontSize: '10.5px', fontWeight: 600, backgroundColor: 'rgba(59,130,246,0.08)', color: 'var(--primary)', border: '1px solid rgba(59,130,246,0.2)', whiteSpace: 'nowrap' }}>D-{diffDays}</span>;
                 };
                 return (
                   <div
@@ -1184,7 +1184,7 @@ export const OutboundInspections: React.FC = () => {
                               padding: '5px 9px',
                               borderRadius: '6px',
                               backgroundColor: 'rgba(239,68,68,0.1)',
-                              color: '#dc2626',
+                              color: 'var(--danger)',
                               border: '1px solid rgba(239,68,68,0.3)',
                               fontSize: '11px',
                               fontWeight: 700,
@@ -1208,7 +1208,7 @@ export const OutboundInspections: React.FC = () => {
                 <div style={{
                   marginBottom: '16px', padding: '10px 14px',
                   backgroundColor: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)',
-                  borderRadius: '8px', fontSize: '12.5px', color: '#b45309'
+                  borderRadius: '8px', fontSize: '12.5px', color: 'var(--warning)'
                 }}>
                   <strong>현장/고객 특이사항:</strong> {selectedGroup.specialNote}
                 </div>
@@ -1357,7 +1357,7 @@ export const OutboundInspections: React.FC = () => {
                         padding: '12px 20px',
                         borderRadius: '8px',
                         backgroundColor: 'rgba(239,68,68,0.1)',
-                        color: '#dc2626',
+                        color: 'var(--danger)',
                         border: '1px solid rgba(239,68,68,0.3)',
                         fontWeight: 800,
                         fontSize: '13.5px',
@@ -1399,7 +1399,7 @@ export const OutboundInspections: React.FC = () => {
             flexShrink: 0
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-              <span>검수 대기: <strong style={{ color: '#d97706' }}>총 {pCount}건</strong></span>
+              <span>검수 대기: <strong style={{ color: 'var(--warning)' }}>총 {pCount}건</strong></span>
               <span>|</span>
               <span>검수 진행중: <strong style={{ color: 'var(--primary)' }}>총 {ipCount}건</strong></span>
               <span>|</span>
@@ -1425,7 +1425,7 @@ export const OutboundInspections: React.FC = () => {
       {showRejectModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px' }}>
           <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '480px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#dc2626', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--danger)', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <ShieldAlert size={20} /> 출고 요청 반려 사유 작성
             </h3>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
@@ -1457,7 +1457,7 @@ export const OutboundInspections: React.FC = () => {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button onClick={() => setShowRejectModal(false)} className="btn-secondary">취소</button>
-              <button onClick={handleConfirmReject} style={{ padding: '8px 16px', borderRadius: '8px', backgroundColor: '#dc2626', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer' }}>
+              <button onClick={handleConfirmReject} style={{ padding: '8px 16px', borderRadius: '8px', backgroundColor: 'var(--danger)', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer' }}>
                 반려 처리 실행
               </button>
             </div>
@@ -1532,7 +1532,7 @@ export const OutboundInspections: React.FC = () => {
                 );
               }
               return (
-                <div style={{ marginBottom: '14px', padding: '8px 12px', backgroundColor: 'var(--warning-light, rgba(245,158,11,0.08))', border: '1px solid var(--warning, #f59e0b)', borderRadius: '6px', fontSize: '11.5px', color: '#b45309', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ marginBottom: '14px', padding: '8px 12px', backgroundColor: 'var(--warning-light, rgba(245,158,11,0.08))', border: '1px solid var(--warning, #f59e0b)', borderRadius: '6px', fontSize: '11.5px', color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <AlertTriangle size={13} style={{ flexShrink: 0 }} />
                   <span>관리 정비사유 미지정 교체 ➔ 기본 벌점 <strong>+5점</strong> 자동 가산</span>
                 </div>
@@ -1542,7 +1542,7 @@ export const OutboundInspections: React.FC = () => {
             {/* 상세 교체사유/메모 */}
             <div style={{ marginBottom: '16px' }}>
               <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '6px', display: 'block' }}>
-                상세 교체 사유 / 추가 메모 {exchangeToRepairing && !selectedChecklistId ? <span style={{ color: '#ef4444' }}>(수리전환 시 필수)</span> : <span style={{ color: 'var(--text-muted)' }}>(선택 사항)</span>}
+                상세 교체 사유 / 추가 메모 {exchangeToRepairing && !selectedChecklistId ? <span style={{ color: 'var(--danger)' }}>(수리전환 시 필수)</span> : <span style={{ color: 'var(--text-muted)' }}>(선택 사항)</span>}
               </label>
               <input
                 type="text"
@@ -1615,7 +1615,7 @@ export const OutboundInspections: React.FC = () => {
 
                 if (filteredAssets.length === 0) {
                   return (
-                    <div style={{ padding: '16px', textAlign: 'center', color: '#ef4444', backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: '8px', fontSize: '13px', fontWeight: 600 }}>
+                    <div style={{ padding: '16px', textAlign: 'center', color: 'var(--danger)', backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: '8px', fontSize: '13px', fontWeight: 600 }}>
                       {exchangeSearchQuery ? `⚠️ 검색어 [${exchangeSearchQuery}]에 해당되는 임대가능(${exchangeModalAsset.modelName}) 장비가 없습니다.` : `⚠️ 교체 가능한 동일 모델(${exchangeModalAsset.modelName})의 임대가능(AVAILABLE) 자산이 없습니다.`}
                     </div>
                   );
@@ -1759,13 +1759,13 @@ export const OutboundInspections: React.FC = () => {
                 />
               </div>
               <div style={{ display: 'flex', gap: '8px', fontSize: '12px', fontWeight: 700 }}>
-                <span style={{ padding: '6px 10px', borderRadius: '6px', background: 'rgba(59,130,246,0.1)', color: '#2563eb' }}>
+                <span style={{ padding: '6px 10px', borderRadius: '6px', background: 'rgba(59,130,246,0.1)', color: 'var(--primary)' }}>
                   총 {(consumables || []).length}종
                 </span>
-                <span style={{ padding: '6px 10px', borderRadius: '6px', background: 'rgba(16,185,129,0.1)', color: '#059669' }}>
+                <span style={{ padding: '6px 10px', borderRadius: '6px', background: 'rgba(16,185,129,0.1)', color: 'var(--success)' }}>
                   보유 {(consumables || []).filter(c => (c.stockQty || 0) > 0).length}종
                 </span>
-                <span style={{ padding: '6px 10px', borderRadius: '6px', background: 'rgba(239,68,68,0.1)', color: '#dc2626' }}>
+                <span style={{ padding: '6px 10px', borderRadius: '6px', background: 'rgba(239,68,68,0.1)', color: 'var(--danger)' }}>
                   품절 {(consumables || []).filter(c => (c.stockQty || 0) <= 0).length}종
                 </span>
               </div>

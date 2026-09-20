@@ -112,7 +112,7 @@ export async function downloadExecutiveReportPdf(data: ExecutiveMonthlyReport): 
     const startX = 40;
 
     const cards = [
-      { label: '총 매출 청구액', val: `₩${kpis.totalRevenue.toLocaleString()}`, sub: `수납 ₩${kpis.collectedAmount.toLocaleString()}`, color: '#2563EB' },
+      { label: '총 매출 청구액', val: `₩${kpis.totalRevenue.toLocaleString()}`, sub: `수납 ₩${kpis.collectedAmount.toLocaleString()}`, color: 'var(--primary)' },
       { label: '장비 가동률', val: `${kpis.fleetUtilizationRate}%`, sub: `대여중 ${kpis.activeAssetCount}대 / 총 ${kpis.totalFleetCount}대`, color: '#0D9488' },
       { label: '수납률 (진척도)', val: `${kpis.collectionRate}%`, sub: `미수잔액 ₩${kpis.unpaidAmount.toLocaleString()}`, color: '#10B981' },
       { label: '추정 공헌이익', val: `₩${kpis.estimatedMargin.toLocaleString()}`, sub: `이익률 ${kpis.marginRate}%`, color: '#6366F1' },
@@ -398,9 +398,9 @@ export async function downloadExecutiveReportPdf(data: ExecutiveMonthlyReport): 
     const agW = (a4W - 80 - 36) / 4;
     const agings = [
       { label: '정상 (30일 이하)', val: `₩${finance.receivablesAging.under30Days.toLocaleString()}`, color: '#10B981' },
-      { label: '31일 ~ 60일', val: `₩${finance.receivablesAging.days31To60.toLocaleString()}`, color: '#3B82F6' },
+      { label: '31일 ~ 60일', val: `₩${finance.receivablesAging.days31To60.toLocaleString()}`, color: 'var(--primary)' },
       { label: '61일 ~ 90일', val: `₩${finance.receivablesAging.days61To90.toLocaleString()}`, color: '#F59E0B' },
-      { label: '90일 초과 (고위험)', val: `₩${finance.receivablesAging.over90Days.toLocaleString()}`, color: '#DC2626' },
+      { label: '90일 초과 (고위험)', val: `₩${finance.receivablesAging.over90Days.toLocaleString()}`, color: 'var(--danger)' },
     ];
 
     agings.forEach((ag, idx) => {

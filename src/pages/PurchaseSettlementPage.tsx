@@ -22,7 +22,7 @@ const SETTLEMENT_TYPES: { id: PurchaseSettlementType | 'ALL'; label: string; ico
 
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   PENDING:   { label: '집계중',  color: '#F59E0B' },
-  CONFIRMED: { label: '정산확정', color: '#3B82F6' },
+  CONFIRMED: { label: '정산확정', color: 'var(--primary)' },
   PAID:      { label: '지급완료', color: '#10B981' },
 };
 
@@ -404,7 +404,7 @@ export const PurchaseSettlementPage: React.FC = () => {
           { label: '총 정산 건수',  value: `${summary.count}건`,                    color: 'var(--primary)' },
           { label: '총 청구액',     value: `${summary.total.toLocaleString()}원`,    color: '#F59E0B' },
           { label: '지급 완료액',   value: `${summary.paid.toLocaleString()}원`,     color: '#10B981' },
-          { label: '미지급 잔액',   value: `${summary.remaining.toLocaleString()}원`, color: '#EF4444' },
+          { label: '미지급 잔액',   value: `${summary.remaining.toLocaleString()}원`, color: 'var(--danger)' },
         ].map(card => (
           <div key={card.label} className="card" style={{ padding: '14px 16px' }}>
             <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginBottom: '4px', whiteSpace: 'nowrap' }}>{card.label}</div>
@@ -652,7 +652,7 @@ export const PurchaseSettlementPage: React.FC = () => {
                       {p.status === 'PENDING' && (
                         <button
                           onClick={() => handleConfirm(p.id)}
-                          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 16px', background: '#3B82F6', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 16px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}
                         >
                           <CheckCircle2 size={15} /> 정산 확정
                         </button>
@@ -805,7 +805,7 @@ export const PurchaseSettlementPage: React.FC = () => {
                                   </span>
                                 )}
                                 {isMatchVendor && !isPerfect && (
-                                  <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.2)', color: '#3B82F6', fontWeight: 'bold' }}>
+                                  <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.2)', color: 'var(--primary)', fontWeight: 'bold' }}>
                                     상호 일치
                                   </span>
                                 )}

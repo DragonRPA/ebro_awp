@@ -768,8 +768,8 @@ export const Repairs: React.FC = () => {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
               {[
                 { key: 'ALL', label: '전체', count: queueCounts.all },
-                { key: 'OUTBOUND_DEFECT', label: '출고불량', count: queueCounts.outboundDefects, color: '#ef4444' },
-                { key: 'INBOUND_DEFECT', label: '입고결함', count: queueCounts.inboundDefects, color: '#dc2626' },
+                { key: 'OUTBOUND_DEFECT', label: '출고불량', count: queueCounts.outboundDefects, color: 'var(--danger)' },
+                { key: 'INBOUND_DEFECT', label: '입고결함', count: queueCounts.inboundDefects, color: 'var(--danger)' },
                 { key: 'RENTED_RETURNED', label: '반납검수', count: queueCounts.returned, color: '#f59e0b' },
                 { key: 'REPAIRING', label: '정비중', count: queueCounts.repairing, color: '#f97316' },
                 { key: 'EXTERNAL', label: '외주위탁', count: queueCounts.external, color: '#8b5cf6' },
@@ -851,11 +851,11 @@ export const Repairs: React.FC = () => {
                         </div>
                         <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                           {pendingOutbound ? (
-                            <span className="badge badge-danger" style={{ fontSize: '10px', padding: '2px 6px', backgroundColor: '#ef4444', color: '#ffffff' }}>
+                            <span className="badge badge-danger" style={{ fontSize: '10px', padding: '2px 6px', backgroundColor: 'var(--danger)', color: '#ffffff' }}>
                               ⚡ 출고불량
                             </span>
                           ) : pendingInbound ? (
-                            <span className="badge badge-danger" style={{ fontSize: '10px', padding: '2px 6px', backgroundColor: '#dc2626', color: '#ffffff' }}>
+                            <span className="badge badge-danger" style={{ fontSize: '10px', padding: '2px 6px', backgroundColor: 'var(--danger)', color: '#ffffff' }}>
                               🚨 입고결함
                             </span>
                           ) : activeExternal ? (
@@ -897,21 +897,21 @@ export const Repairs: React.FC = () => {
 
                       {/* ⚡ 1. 출고 수행 중 불량 발견으로 교체된 장비의 불량 증상 */}
                       {pendingOutbound && (
-                        <div style={{ fontSize: '11px', color: '#dc2626', backgroundColor: 'rgba(239, 68, 68, 0.08)', padding: '3px 6px', borderRadius: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--danger)', backgroundColor: 'rgba(239, 68, 68, 0.08)', padding: '3px 6px', borderRadius: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           ⚡ 출고불량: {pendingOutbound.issueDescription || pendingOutbound.details}
                         </div>
                       )}
 
                       {/* 🚨 2. 입고 등록 시 입력된 불량 상태 */}
                       {pendingInbound && (
-                        <div style={{ fontSize: '11px', color: '#b91c1c', backgroundColor: 'rgba(239, 68, 68, 0.08)', padding: '3px 6px', borderRadius: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--danger)', backgroundColor: 'rgba(239, 68, 68, 0.08)', padding: '3px 6px', borderRadius: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           🚨 입고결함 {pendingInbound.inboundNo ? `(${pendingInbound.inboundNo})` : ''}: {pendingInbound.details.split('\n')[1] || pendingInbound.details}
                         </div>
                       )}
 
                       {/* ⏸️ 3. 소모품 대기 사유 */}
                       {unresolvedRepair && unresolvedRepair.unresolvedReason && (
-                        <div style={{ fontSize: '11px', color: '#b45309', backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--warning)', backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '2px 6px', borderRadius: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           ⏸️ 소모품대기: {unresolvedRepair.unresolvedReason}
                         </div>
                       )}
@@ -966,7 +966,7 @@ export const Repairs: React.FC = () => {
                       const pendingInbound = repairs.find(r => r.assetId === selectedAsset.id && r.status === 'PENDING' && r.source === 'INBOUND_INSPECTION');
                       if (pendingOutbound) {
                         return (
-                          <div style={{ marginTop: '6px', fontSize: '11.5px', color: '#dc2626', backgroundColor: 'rgba(239, 68, 68, 0.08)', padding: '5px 10px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{ marginTop: '6px', fontSize: '11.5px', color: 'var(--danger)', backgroundColor: 'rgba(239, 68, 68, 0.08)', padding: '5px 10px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <AlertTriangle size={14} />
                             <strong>출고 불량 교체 사유:</strong> {pendingOutbound.issueDescription || pendingOutbound.details}
                           </div>
@@ -974,7 +974,7 @@ export const Repairs: React.FC = () => {
                       }
                       if (pendingInbound) {
                         return (
-                          <div style={{ marginTop: '6px', fontSize: '11.5px', color: '#b91c1c', backgroundColor: 'rgba(239, 68, 68, 0.08)', padding: '5px 10px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{ marginTop: '6px', fontSize: '11.5px', color: 'var(--danger)', backgroundColor: 'rgba(239, 68, 68, 0.08)', padding: '5px 10px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <AlertTriangle size={14} />
                             <strong>입고 결함 점검 내용:</strong> {pendingInbound.details}
                           </div>
@@ -982,7 +982,7 @@ export const Repairs: React.FC = () => {
                       }
                       if (selectedAsset.note && !selectedAsset.note.startsWith('[정비완료') && selectedAsset.note !== '정상 입고 점검 완료') {
                         return (
-                          <div style={{ marginTop: '6px', fontSize: '11.5px', color: '#b45309', backgroundColor: 'rgba(245, 158, 11, 0.08)', padding: '5px 10px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{ marginTop: '6px', fontSize: '11.5px', color: 'var(--warning)', backgroundColor: 'rgba(245, 158, 11, 0.08)', padding: '5px 10px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <Wrench size={14} />
                             <strong>정비 필요 항목:</strong> {selectedAsset.note}
                           </div>
@@ -1006,7 +1006,7 @@ export const Repairs: React.FC = () => {
                     )}
                     {/* 소모품대기 안내 배너 */}
                     {repairs.some(r => r.assetId === selectedAsset.id && r.status === 'UNRESOLVED') && (
-                      <div style={{ marginTop: '6px', fontSize: '11.5px', color: '#b45309', backgroundColor: 'rgba(245, 158, 11, 0.12)', padding: '5px 10px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ marginTop: '6px', fontSize: '11.5px', color: 'var(--warning)', backgroundColor: 'rgba(245, 158, 11, 0.12)', padding: '5px 10px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <AlertTriangle size={14} />
                         <strong>소모품 수급 대기 중인 장비:</strong> 입고된 소모품을 아래 소모품 투입 관리에서 선택한 후 [정비 완료]를 실행하면 정상 임대가능으로 전환됩니다.
                       </div>
@@ -1036,9 +1036,9 @@ export const Repairs: React.FC = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <AlertTriangle size={16} color="#dc2626" />
-                        <strong style={{ fontSize: '13px', color: '#dc2626' }}>입고 검수 결함 리포트</strong>
+                        <strong style={{ fontSize: '13px', color: 'var(--danger)' }}>입고 검수 결함 리포트</strong>
                         {inboundMeta?.inboundNo && (
-                          <span className="badge" style={{ backgroundColor: '#fee2e2', color: '#b91c1c', fontSize: '11px', fontWeight: '700' }}>
+                          <span className="badge" style={{ backgroundColor: 'var(--danger-light)', color: 'var(--danger)', fontSize: '11px', fontWeight: '700' }}>
                             입고번호: {inboundMeta.inboundNo}
                           </span>
                         )}
@@ -1072,7 +1072,7 @@ export const Repairs: React.FC = () => {
                       {inboundDefects.map((defect, idx) => (
                         <div key={idx} style={{
                           padding: '4px 8px',
-                          backgroundColor: '#ffffff',
+                          backgroundColor: 'var(--bg-card)',
                           border: '1px solid #fca5a5',
                           borderRadius: '4px',
                           fontSize: '11.5px',
@@ -1081,8 +1081,8 @@ export const Repairs: React.FC = () => {
                           gap: '6px',
                           boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
                         }}>
-                          <span style={{ fontWeight: '700', color: '#b91c1c' }}>{defect.checkitemName}</span>
-                          <span style={{ fontSize: '10.5px', color: '#ef4444', fontWeight: '700', backgroundColor: '#fef2f2', padding: '1px 4px', borderRadius: '3px' }}>
+                          <span style={{ fontWeight: '700', color: 'var(--danger)' }}>{defect.checkitemName}</span>
+                          <span style={{ fontSize: '10.5px', color: 'var(--danger)', fontWeight: '700', backgroundColor: 'var(--danger-light)', padding: '1px 4px', borderRadius: '3px' }}>
                             +{defect.score}점
                           </span>
                         </div>
@@ -1520,7 +1520,7 @@ export const Repairs: React.FC = () => {
                           className="btn-primary"
                           onClick={handleCompleteRepair}
                           disabled={!canSave || isProcessingImage}
-                          style={{ padding: '8px 18px', fontSize: '13.5px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#16a34a', borderColor: '#16a34a', whiteSpace: 'nowrap', flexShrink: 0 }}
+                          style={{ padding: '8px 18px', fontSize: '13.5px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--success)', borderColor: 'var(--success)', whiteSpace: 'nowrap', flexShrink: 0 }}
                         >
                           <CheckCircle size={15} /> 외주 정비 완료 (임대가능 복원)
                         </button>
@@ -1541,7 +1541,7 @@ export const Repairs: React.FC = () => {
                         className="btn-primary"
                         onClick={handleCompleteRepair}
                         disabled={!canSave || isProcessingImage}
-                        style={{ padding: '8px 18px', fontSize: '13.5px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#16a34a', borderColor: '#16a34a', whiteSpace: 'nowrap', flexShrink: 0 }}
+                        style={{ padding: '8px 18px', fontSize: '13.5px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--success)', borderColor: 'var(--success)', whiteSpace: 'nowrap', flexShrink: 0 }}
                       >
                         <CheckCircle size={15} /> 정비 완료 (임대가능 복원)
                       </button>
@@ -1732,7 +1732,7 @@ export const Repairs: React.FC = () => {
                                 borderRadius: '4px',
                                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
                                 border: '1px solid rgba(59, 130, 246, 0.3)',
-                                color: '#2563eb',
+                                color: 'var(--primary)',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '3px',
@@ -2003,7 +2003,7 @@ export const Repairs: React.FC = () => {
                     <img
                       src={p.url}
                       alt={p.label}
-                      style={{ width: '100%', height: '260px', objectFit: 'contain', backgroundColor: '#000', borderRadius: '4px' }}
+                      style={{ width: '100%', height: '260px', objectFit: 'contain', backgroundColor: 'var(--text-main)', borderRadius: '4px' }}
                     />
                   </div>
                 ))}

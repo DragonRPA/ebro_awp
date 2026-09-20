@@ -175,7 +175,7 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
       initWorkNotificationListener(currentUser);
     }
 
-    // 모바일 브라우저 오디오 자동재생 언락 (첫 화면 터치 시 언락)
+    // 모바일 브라우저 오디오 자동재생 언락 (첫 화면 터치 시 영구 언락)
     const handleFirstGesture = () => {
       walkieService.unlockAudio();
       window.removeEventListener('touchstart', handleFirstGesture);

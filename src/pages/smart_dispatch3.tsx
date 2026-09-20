@@ -45,10 +45,10 @@ interface FieldValue<T = string> { value: T; source: FieldSource; }
 // ─────────────────────────────────────────────────────────────────────────────
 const sourceBadge = (source: FieldSource) => {
   const map: Record<FieldSource, { label: string; color: string }> = {
-    db:     { label: 'DB 상속', color: '#16a34a' },
-    parsed: { label: '파싱', color: '#2563eb' },
+    db:     { label: 'DB 상속', color: 'var(--success)' },
+    parsed: { label: '파싱', color: 'var(--primary)' },
     voice:  { label: '음성', color: '#7c3aed' },
-    user:   { label: '직접 입력', color: '#9ca3af' },
+    user:   { label: '직접 입력', color: 'var(--text-muted)' },
   };
   const m = map[source];
   return (
@@ -671,7 +671,7 @@ export const SmartDispatch3: React.FC = () => {
             </span>
             {sourceBadge(customerSource)}
             <button type="button" onClick={() => { setSelectedCustomer(null); setSelectedSite(null); setOpenBlock('WHO'); }}
-              style={{ marginLeft: 'auto', fontSize: '11px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
+              style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
               변경
             </button>
           </div>
@@ -703,7 +703,7 @@ export const SmartDispatch3: React.FC = () => {
                     color: selectedCustomer?.id === c.id ? '#fff' : 'var(--text-main)'
                   }}>
                   {c.name}
-                  {c.transactionStatus === 'BLOCKED' && <span style={{ color: '#ef4444', marginLeft: '4px' }}>🚫</span>}
+                  {c.transactionStatus === 'BLOCKED' && <span style={{ color: 'var(--danger)', marginLeft: '4px' }}>🚫</span>}
                 </button>
               ))}
               {filteredCustomers.length === 0 && (
@@ -728,7 +728,7 @@ export const SmartDispatch3: React.FC = () => {
             {sourceBadge(siteSource)}
             {selectedSite.address && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{selectedSite.address}</span>}
             <button type="button" onClick={() => { setSelectedSite(null); setOpenBlock('WHERE'); }}
-              style={{ marginLeft: 'auto', fontSize: '11px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
+              style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
               변경
             </button>
           </div>
@@ -736,7 +736,7 @@ export const SmartDispatch3: React.FC = () => {
         {openBlock === 'WHERE' && (
           <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {!selectedCustomer && (
-              <div style={{ padding: '10px 12px', borderRadius: '6px', backgroundColor: '#fff7ed', border: '1px solid #fed7aa', fontSize: '12.5px', color: '#c2410c', fontWeight: 600 }}>
+              <div style={{ padding: '10px 12px', borderRadius: '6px', backgroundColor: '#fff7ed', border: '1px solid #fed7aa', fontSize: '12.5px', color: 'var(--warning)', fontWeight: 600 }}>
                 먼저 고객사를 선택하세요.
               </div>
             )}
@@ -779,7 +779,7 @@ export const SmartDispatch3: React.FC = () => {
                 </div>
                 {/* 신규 현장: 주소 직접 입력 */}
                 <div style={fieldWrap}>
-                  <label style={labelSt}>신규 현장 주소 직접 입력 <span style={{ color: '#ef4444' }}>*</span></label>
+                  <label style={labelSt}>신규 현장 주소 직접 입력 <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                     <input type="text" value={siteAddress} onChange={e => setSiteAddress(e.target.value)}
                       placeholder="예: 경기도 평택시 고덕면 고덕산단로 123"
@@ -877,7 +877,7 @@ export const SmartDispatch3: React.FC = () => {
                   <ShoppingCart size={14} color="var(--primary)" />
                   신청 장바구니 — 총 {totalQty}대
                   <button type="button" onClick={() => setEquipments([])}
-                    style={{ marginLeft: 'auto', fontSize: '11px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
+                    style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--danger)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}>
                     비우기
                   </button>
                 </div>
@@ -897,7 +897,7 @@ export const SmartDispatch3: React.FC = () => {
                       <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>대</span>
                     </div>
                     <button type="button" onClick={() => setEquipments(prev => prev.filter((_, idx) => idx !== i))}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}>
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -929,7 +929,7 @@ export const SmartDispatch3: React.FC = () => {
           <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {/* 상차 */}
             <div>
-              <label style={{ ...labelSt, color: 'var(--primary)' }}>상차 (출발지 상차) <span style={{ color: '#ef4444' }}>*</span></label>
+              <label style={{ ...labelSt, color: 'var(--primary)' }}>상차 (출발지 상차) <span style={{ color: 'var(--danger)' }}>*</span></label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '8px', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input type="date" value={loadingDate} min={todayStr}
@@ -1018,7 +1018,7 @@ export const SmartDispatch3: React.FC = () => {
                   </div>
                 ))}
                 <div style={{ ...fieldWrap, gridColumn: '1 / -1' }}>
-                  <label style={labelSt}>현장 주소 <span style={{ color: '#ef4444' }}>*</span></label>
+                  <label style={labelSt}>현장 주소 <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input type="text" value={siteAddress} onChange={e => setSiteAddress(e.target.value)}
                     placeholder="예: 경기도 평택시 고덕면 고덕산단로 123"
                     style={{ borderColor: !siteAddress ? '#fca5a5' : undefined }} />
@@ -1078,11 +1078,11 @@ export const SmartDispatch3: React.FC = () => {
               <h5 style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--primary)', marginBottom: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '4px' }}>정산 정보 (자동 상속)</h5>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div style={fieldWrap}>
-                  <label style={labelSt}>청구 마감일{inheritedFields.includes('마감일') && <span style={{ color: '#16a34a', marginLeft: '4px', fontSize: '10px' }}>[DB]</span>}</label>
+                  <label style={labelSt}>청구 마감일{inheritedFields.includes('마감일') && <span style={{ color: 'var(--success)', marginLeft: '4px', fontSize: '10px' }}>[DB]</span>}</label>
                   <input type="text" value={closingDay} onChange={e => setClosingDay(e.target.value)} placeholder="예: 말일" />
                 </div>
                 <div style={fieldWrap}>
-                  <label style={labelSt}>결제 예정일{inheritedFields.includes('결제일') && <span style={{ color: '#16a34a', marginLeft: '4px', fontSize: '10px' }}>[DB]</span>}</label>
+                  <label style={labelSt}>결제 예정일{inheritedFields.includes('결제일') && <span style={{ color: 'var(--success)', marginLeft: '4px', fontSize: '10px' }}>[DB]</span>}</label>
                   <input type="text" value={paymentDay} onChange={e => setPaymentDay(e.target.value)} placeholder="예: 익월 25일" />
                 </div>
               </div>
@@ -1122,7 +1122,7 @@ export const SmartDispatch3: React.FC = () => {
               {processCompleted ? `✅ 출고 지시 완료${savedContractNo ? ` (${savedContractNo})` : ''}` : '🚀 출고 파이프라인 진행 중...'}
             </h3>
             <div style={{ marginBottom: '16px', height: '6px', backgroundColor: 'var(--border-color)', borderRadius: '3px', overflow: 'hidden' }}>
-              <div style={{ height: '100%', backgroundColor: '#10b981', borderRadius: '3px', width: `${progressPct}%`, transition: 'width 0.4s ease' }} />
+              <div style={{ height: '100%', backgroundColor: 'var(--success)', borderRadius: '3px', width: `${progressPct}%`, transition: 'width 0.4s ease' }} />
             </div>
             <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', fontWeight: 600 }}>{stepText}</div>
             <div style={{ maxHeight: '180px', overflowY: 'auto', fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'monospace', lineHeight: '1.6' }}>

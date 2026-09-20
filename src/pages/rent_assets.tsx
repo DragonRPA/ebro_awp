@@ -1497,7 +1497,7 @@ export const RentAssets: React.FC = () => {
             </div>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>월 총 임차료 지출</span>
-              <strong style={{ fontSize: '15px', color: '#EF4444' }}>₩{totalMonthlyRentCost.toLocaleString()}원</strong>
+              <strong style={{ fontSize: '15px', color: 'var(--danger)' }}>₩{totalMonthlyRentCost.toLocaleString()}원</strong>
             </div>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>반납 완료 장비</span>
@@ -1810,18 +1810,18 @@ export const RentAssets: React.FC = () => {
 
               <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.08)', padding: '5px 10px', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.25)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '10.5px', color: '#ef4444', fontWeight: 700, whiteSpace: 'nowrap' }}>임차등록 대상</span>
-                  <span style={{ fontSize: '14px', fontWeight: 800, color: '#ef4444', whiteSpace: 'nowrap' }}>{statsRecon.unregisteredCount}건</span>
+                  <span style={{ fontSize: '10.5px', color: 'var(--danger)', fontWeight: 700, whiteSpace: 'nowrap' }}>임차등록 대상</span>
+                  <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--danger)', whiteSpace: 'nowrap' }}>{statsRecon.unregisteredCount}건</span>
                 </div>
-                <div style={{ fontSize: '10.5px', color: '#ef4444', fontWeight: 700, whiteSpace: 'nowrap' }}>자산 대장 미등록</div>
+                <div style={{ fontSize: '10.5px', color: 'var(--danger)', fontWeight: 700, whiteSpace: 'nowrap' }}>자산 대장 미등록</div>
               </div>
 
               <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.08)', padding: '5px 10px', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.25)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '10.5px', color: '#3b82f6', fontWeight: 700, whiteSpace: 'nowrap' }}>미청구 / 반납</span>
-                  <span style={{ fontSize: '14px', fontWeight: 800, color: '#3b82f6', whiteSpace: 'nowrap' }}>{statsRecon.missingCount}건</span>
+                  <span style={{ fontSize: '10.5px', color: 'var(--primary)', fontWeight: 700, whiteSpace: 'nowrap' }}>미청구 / 반납</span>
+                  <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--primary)', whiteSpace: 'nowrap' }}>{statsRecon.missingCount}건</span>
                 </div>
-                <div style={{ fontSize: '10.5px', color: '#3b82f6', whiteSpace: 'nowrap' }}>반납 확인 또는 제외</div>
+                <div style={{ fontSize: '10.5px', color: 'var(--primary)', whiteSpace: 'nowrap' }}>반납 확인 또는 제외</div>
               </div>
             </div>
 
@@ -1880,7 +1880,7 @@ export const RentAssets: React.FC = () => {
                     }}
                     style={{
                       padding: '3px 8px', fontSize: '10.5px', fontWeight: 700, borderRadius: '4px', cursor: 'pointer', whiteSpace: 'nowrap',
-                      backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#d97706', border: '1px solid rgba(245, 158, 11, 0.3)'
+                      backgroundColor: 'rgba(245, 158, 11, 0.15)', color: 'var(--warning)', border: '1px solid rgba(245, 158, 11, 0.3)'
                     }}
                   >
                     일치+차액 선택 ({statsRecon.matchedCount + statsRecon.priceMismatchCount}건)
@@ -2047,7 +2047,7 @@ export const RentAssets: React.FC = () => {
                                 <span>
                                   {matched.rentStart || '~'} ~ {matched.actualRentReturnDate || matched.rentEnd || '~'}
                                   {matched.actualRentReturnDate && (
-                                    <span style={{ fontSize: '10px', color: '#ef4444', marginLeft: '4px' }}>(반납)</span>
+                                    <span style={{ fontSize: '10px', color: 'var(--danger)', marginLeft: '4px' }}>(반납)</span>
                                   )}
                                 </span>
                               ) : (
@@ -2103,7 +2103,7 @@ export const RentAssets: React.FC = () => {
                                     }}
                                     style={{
                                       padding: '2px 6px', fontSize: '10.5px', fontWeight: 700, borderRadius: '4px',
-                                      backgroundColor: 'rgba(59, 130, 246, 0.15)', border: '1px solid #3b82f6', color: '#2563eb', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
+                                      backgroundColor: 'rgba(59, 130, 246, 0.15)', border: '1px solid #3b82f6', color: 'var(--primary)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
                                     }}
                                   >
                                     임차등록
@@ -2117,7 +2117,7 @@ export const RentAssets: React.FC = () => {
                                     onClick={() => handleSyncAssetPeriod(matched!.id, stmt!.rentStart!, stmt!.rentEnd!)}
                                     style={{
                                       padding: '2px 8px', fontSize: '10.5px', fontWeight: 800, borderRadius: '4px',
-                                      backgroundColor: '#2563eb', border: '1px solid #1d4ed8', color: '#ffffff', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
+                                      backgroundColor: 'var(--primary)', border: '1px solid #1d4ed8', color: '#ffffff', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0,
                                       boxShadow: '0 1px 2px rgba(37, 99, 235, 0.2)'
                                     }}
                                     title={`자사 약정 기간을 청구 기간(${stmt!.rentStart} ~ ${stmt!.rentEnd})으로 동기화`}
@@ -2133,7 +2133,7 @@ export const RentAssets: React.FC = () => {
                                     onClick={() => handleRetroactiveStartDate(matched!.id, stmt!.rentStart!)}
                                     style={{
                                       padding: '2px 6px', fontSize: '10.5px', fontWeight: 700, borderRadius: '4px',
-                                      backgroundColor: 'rgba(59, 130, 246, 0.15)', border: '1px solid #3b82f6', color: '#2563eb', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
+                                      backgroundColor: 'rgba(59, 130, 246, 0.15)', border: '1px solid #3b82f6', color: 'var(--primary)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
                                     }}
                                   >
                                     개시일소급
@@ -2161,7 +2161,7 @@ export const RentAssets: React.FC = () => {
                                     onClick={() => handleShortenAssetPeriod(matched!.id, stmt!.rentEnd!)}
                                     style={{
                                       padding: '2px 6px', fontSize: '10.5px', fontWeight: 700, borderRadius: '4px',
-                                      backgroundColor: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10b981', color: '#059669', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
+                                      backgroundColor: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10b981', color: 'var(--success)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
                                     }}
                                   >
                                     단축
@@ -2175,7 +2175,7 @@ export const RentAssets: React.FC = () => {
                                     onClick={() => handleUpdateReturnDate(matched!.id, stmt!.rentEnd!)}
                                     style={{
                                       padding: '2px 6px', fontSize: '10.5px', fontWeight: 700, borderRadius: '4px',
-                                      backgroundColor: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', color: '#dc2626', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
+                                      backgroundColor: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', color: 'var(--danger)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
                                     }}
                                   >
                                     반납일보정
@@ -2203,7 +2203,7 @@ export const RentAssets: React.FC = () => {
                                     onClick={() => handleApprovePriceMismatch(stmt.id)}
                                     style={{
                                       padding: '2px 6px', fontSize: '10.5px', fontWeight: 700, borderRadius: '4px',
-                                      backgroundColor: 'rgba(245, 158, 11, 0.15)', border: '1px solid #f59e0b', color: '#b45309', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
+                                      backgroundColor: 'rgba(245, 158, 11, 0.15)', border: '1px solid #f59e0b', color: 'var(--warning)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
                                     }}
                                   >
                                     차액승인
@@ -2217,7 +2217,7 @@ export const RentAssets: React.FC = () => {
                                     onClick={() => handleReturnAsset(item.matchedAsset!.id)}
                                     style={{
                                       padding: '2px 6px', fontSize: '10.5px', fontWeight: 700, borderRadius: '4px',
-                                      backgroundColor: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10b981', color: '#059669', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
+                                      backgroundColor: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10b981', color: 'var(--success)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
                                     }}
                                   >
                                     반납
@@ -2248,7 +2248,7 @@ export const RentAssets: React.FC = () => {
                                     onClick={() => handleExcludeItem(stmt.id)}
                                     style={{
                                       padding: '2px 6px', fontSize: '10.5px', fontWeight: 700, borderRadius: '4px',
-                                      backgroundColor: 'rgba(239, 68, 68, 0.12)', border: '1px solid #ef4444', color: '#dc2626', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
+                                      backgroundColor: 'rgba(239, 68, 68, 0.12)', border: '1px solid #ef4444', color: 'var(--danger)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
                                     }}
                                   >
                                     정산제외
@@ -2262,7 +2262,7 @@ export const RentAssets: React.FC = () => {
                                     onClick={() => handleOpenClaimModal(item)}
                                     style={{
                                       padding: '2px 6px', fontSize: '10.5px', fontWeight: 700, borderRadius: '4px',
-                                      backgroundColor: 'rgba(245, 158, 11, 0.12)', border: '1px solid #f59e0b', color: '#b45309', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
+                                      backgroundColor: 'rgba(245, 158, 11, 0.12)', border: '1px solid #f59e0b', color: 'var(--warning)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
                                     }}
                                   >
                                     구상등록
@@ -2776,7 +2776,7 @@ export const RentAssets: React.FC = () => {
 
               <div style={{ padding: '12px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>직송 운송비 원가</span>
-                <strong style={{ fontSize: '17px', color: '#d97706' }}>₩{totalFreight.toLocaleString()}</strong>
+                <strong style={{ fontSize: '17px', color: 'var(--warning)' }}>₩{totalFreight.toLocaleString()}</strong>
                 <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>화물 배차 대장 확정액</span>
               </div>
 
@@ -2877,7 +2877,7 @@ export const RentAssets: React.FC = () => {
                         <tr key={sc.contract.id} style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-main)' }}>
                           <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
-                              <strong style={{ color: '#2563eb' }}>{sc.contract.contractNo}</strong>
+                              <strong style={{ color: 'var(--primary)' }}>{sc.contract.contractNo}</strong>
                               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{sc.site?.name || '현장 미지정'}</span>
                             </div>
                           </td>
@@ -2893,13 +2893,13 @@ export const RentAssets: React.FC = () => {
                               ))}
                             </div>
                           </td>
-                          <td style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right', fontWeight: 700, color: '#2563eb' }}>
+                          <td style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>
                             ₩{sc.confirmedRevenue.toLocaleString()}
                           </td>
-                          <td style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right', fontWeight: 600, color: '#dc2626' }}>
+                          <td style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right', fontWeight: 600, color: 'var(--danger)' }}>
                             ₩{sc.confirmedCost.toLocaleString()}
                           </td>
-                          <td style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right', color: '#d97706' }}>
+                          <td style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right', color: 'var(--warning)' }}>
                             ₩{sc.freightCost.toLocaleString()}
                           </td>
                           <td style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right', fontWeight: 800, color: sc.netProfit >= 0 ? '#16a34a' : '#dc2626' }}>
@@ -2953,13 +2953,13 @@ export const RentAssets: React.FC = () => {
                         </td>
                         <td style={{ padding: '10px', whiteSpace: 'nowrap' }}>{apl.asset.modelName}</td>
                         <td style={{ padding: '10px', whiteSpace: 'nowrap', fontWeight: 600 }}>{apl.asset.renter || '미지정'}</td>
-                        <td style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right', fontWeight: 700, color: '#2563eb' }}>
+                        <td style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>
                           ₩{apl.cumRevenue.toLocaleString()}
                         </td>
-                        <td style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right', fontWeight: 600, color: '#dc2626' }}>
+                        <td style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right', fontWeight: 600, color: 'var(--danger)' }}>
                           ₩{apl.cumCost.toLocaleString()}
                         </td>
-                        <td style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right', color: '#d97706' }}>
+                        <td style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right', color: 'var(--warning)' }}>
                           ₩{apl.freightCost.toLocaleString()}
                         </td>
                         <td style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right', fontWeight: 800, color: apl.cumNetProfit >= 0 ? '#16a34a' : '#dc2626' }}>
@@ -2996,7 +2996,7 @@ export const RentAssets: React.FC = () => {
               <span>=</span>
               <span>매입 임차료: <strong style={{ color: 'var(--danger)' }}>₩{totalCost.toLocaleString()}</strong></span>
               <span>+</span>
-              <span>직송 운송비: <strong style={{ color: '#d97706' }}>₩{totalFreight.toLocaleString()}</strong></span>
+              <span>직송 운송비: <strong style={{ color: 'var(--warning)' }}>₩{totalFreight.toLocaleString()}</strong></span>
               <span>+</span>
               <span>순마진(공헌이익): <strong style={{ color: netProfit >= 0 ? 'var(--success)' : 'var(--danger)' }}>₩{netProfit.toLocaleString()}</strong></span>
             </div>
@@ -3400,7 +3400,7 @@ export const RentAssets: React.FC = () => {
                       } as any);
                     }
                   }}
-                  style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '6px', border: '1px solid #94a3b8' }}
+                  style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}
                 >
                   <option value="">-- 신규 채번 (직접 입력) --</option>
                   {rentedAssets.filter(a => a.status === 'RENTED_RETURNED').map(a => (
@@ -3455,7 +3455,7 @@ export const RentAssets: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>임차처 (필수)</label>
                   {isRenterDisabled && (
-                    <span style={{ fontSize: '10px', color: '#d97706', fontWeight: 700, backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '1px 6px', borderRadius: '4px' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--warning)', fontWeight: 700, backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '1px 6px', borderRadius: '4px' }}>
                       🔒 임차 중 변경 불가 (표시 전용)
                     </span>
                   )}
@@ -3579,7 +3579,7 @@ export const RentAssets: React.FC = () => {
       {showReturnModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', padding: '24px', borderRadius: '12px', width: '480px', maxWidth: '90%', border: '1px solid var(--border-color)' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '14px', color: '#ef4444' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '14px', color: 'var(--danger)' }}>
               임차 자산 반납 처리
             </h2>
 
@@ -3690,7 +3690,7 @@ export const RentAssets: React.FC = () => {
                 </button>
                 <button
                   onClick={handleConfirmReturn}
-                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: '#ef4444', color: '#fff', border: 'none', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
+                  style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--danger)', color: '#fff', border: 'none', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
                 >
                   반납 완결 처리
                 </button>
@@ -3733,11 +3733,11 @@ export const RentAssets: React.FC = () => {
                     <div><strong>관리번호:</strong> {selectedReconcileDetail.statementRow.assetNo}</div>
                     <div><strong>시리얼/제조번호:</strong> {selectedReconcileDetail.statementRow.serialNo || '미기재'}</div>
                     <div><strong>임차처 표기 모델명:</strong> {selectedReconcileDetail.statementRow.modelName || '미기재'}</div>
-                    <div><strong>임차처 청구 기간:</strong> <span style={{ color: '#3b82f6', fontWeight: '700' }}>{selectedReconcileDetail.statementRow.rentStart} ~ {selectedReconcileDetail.statementRow.rentEnd}</span></div>
+                    <div><strong>임차처 청구 기간:</strong> <span style={{ color: 'var(--primary)', fontWeight: '700' }}>{selectedReconcileDetail.statementRow.rentStart} ~ {selectedReconcileDetail.statementRow.rentEnd}</span></div>
                     {selectedReconcileDetail.statementRow.unitPrice && (
                       <div><strong>임차처 약정 단가 (월단가):</strong> <span style={{ color: '#6366f1', fontWeight: '700' }}>₩{selectedReconcileDetail.statementRow.unitPrice.toLocaleString()}원</span></div>
                     )}
-                    <div><strong>임차처 실청구 금액:</strong> <span style={{ color: '#ef4444', fontWeight: '800', fontSize: '14px' }}>₩{selectedReconcileDetail.statementRow.billedAmount.toLocaleString()}원</span></div>
+                    <div><strong>임차처 실청구 금액:</strong> <span style={{ color: 'var(--danger)', fontWeight: '800', fontSize: '14px' }}>₩{selectedReconcileDetail.statementRow.billedAmount.toLocaleString()}원</span></div>
                     <div><strong>임차처 비고/메모:</strong> {selectedReconcileDetail.statementRow.memo || '없음'}</div>
                   </div>
                 ) : (
@@ -3763,7 +3763,7 @@ export const RentAssets: React.FC = () => {
                     <div><strong>약정 월 임차료:</strong> <span style={{ color: '#10b981', fontWeight: '800', fontSize: '14px' }}>₩{(selectedReconcileDetail.matchedAsset.monthlyRentFee || 0).toLocaleString()}원</span></div>
                   </div>
                 ) : (
-                  <div style={{ padding: '20px', color: '#ef4444', fontSize: '12px', textAlign: 'center', fontWeight: '700' }}>
+                  <div style={{ padding: '20px', color: 'var(--danger)', fontSize: '12px', textAlign: 'center', fontWeight: '700' }}>
                     ⚠️ 자사 DB 자산대장에 존재하지 않는 미등록 장비 (유령 청구 위험)
                   </div>
                 )}
@@ -3825,7 +3825,7 @@ export const RentAssets: React.FC = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '10px', marginBottom: '16px', backgroundColor: 'var(--bg-app)', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
                     <div>
                       <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>임차처</div>
-                      <div style={{ fontSize: '13px', fontWeight: '800', color: '#3b82f6', marginTop: '2px' }}>{vendorName}</div>
+                      <div style={{ fontSize: '13px', fontWeight: '800', color: 'var(--primary)', marginTop: '2px' }}>{vendorName}</div>
                     </div>
                     <div>
                       <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>청구 정산년월</div>
@@ -3837,7 +3837,7 @@ export const RentAssets: React.FC = () => {
                     </div>
                     <div>
                       <div style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>총 지급 요청액</div>
-                      <div style={{ fontSize: '14px', fontWeight: '800', color: '#ef4444', marginTop: '2px' }}>₩{totalSum.toLocaleString()}원</div>
+                      <div style={{ fontSize: '14px', fontWeight: '800', color: 'var(--danger)', marginTop: '2px' }}>₩{totalSum.toLocaleString()}원</div>
                     </div>
                   </div>
 
@@ -3907,7 +3907,7 @@ export const RentAssets: React.FC = () => {
                             setShowPaymentRequestModal(false);
                             setGlobalActiveTab('purchase_settlement');
                           }}
-                          style={{ padding: '8px 16px', backgroundColor: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                          style={{ padding: '8px 16px', backgroundColor: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '800', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                         >
                           <CreditCard size={14} /> 💳 [월말 매입 정산 대장]으로 즉시 이동하여 계좌이체 지급
                         </button>
@@ -3979,7 +3979,7 @@ export const RentAssets: React.FC = () => {
                         onClick={handleExecutePaymentRequest}
                         disabled={isSettling}
                         className="btn-primary"
-                        style={{ padding: '8px 20px', backgroundColor: '#10b981', borderColor: '#10b981', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        style={{ padding: '8px 20px', backgroundColor: 'var(--success)', borderColor: '#10b981', fontSize: '12px', fontWeight: 'bold', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}
                       >
                         <CreditCard size={14} /> 🚀 매입 정산 확정 & 재무팀 지급 요청 전송
                       </button>
@@ -4000,7 +4000,7 @@ export const RentAssets: React.FC = () => {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
           <div style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', padding: '24px', borderRadius: '12px', width: '520px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border-color)', boxShadow: '0 10px 25px rgba(0,0,0,0.3)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '6px', color: '#b45309' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--warning)' }}>
                 🚨 타사 청구 부대비용 ➔ 고객사 구상 미수금 등록
               </h3>
               <button
@@ -4012,7 +4012,7 @@ export const RentAssets: React.FC = () => {
               </button>
             </div>
 
-            <div style={{ backgroundColor: '#fef3c7', padding: '10px 12px', borderRadius: '8px', border: '1px solid #fde047', fontSize: '12px', color: '#92400e', marginBottom: '14px', lineHeight: '1.4' }}>
+            <div style={{ backgroundColor: 'var(--warning-light)', padding: '10px 12px', borderRadius: '8px', border: '1px solid #fde047', fontSize: '12px', color: '#92400e', marginBottom: '14px', lineHeight: '1.4' }}>
               • 타사(임차처)에 지급할 매입채무는 즉시 100% 확정 지급되며,<br/>
               • 고객 귀책 비용은 <strong>외상미수금 대장(구상채권)</strong>에 등록되어 향후 1회 또는 수회에 걸쳐 매출 청구서 반영 및 입금 상계됩니다.
             </div>
@@ -4138,7 +4138,7 @@ export const RentAssets: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  style={{ padding: '8px 18px', borderRadius: '6px', border: 'none', backgroundColor: '#d97706', color: '#ffffff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                  style={{ padding: '8px 18px', borderRadius: '6px', border: 'none', backgroundColor: 'var(--warning)', color: '#ffffff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
                 >
                   🚨 외상미수금 대장 등록 확정
                 </button>
@@ -4155,7 +4155,7 @@ export const RentAssets: React.FC = () => {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
           <div style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', padding: '24px', borderRadius: '12px', width: '580px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border-color)', boxShadow: '0 10px 25px rgba(0,0,0,0.3)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '6px', color: '#2563eb' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--primary)' }}>
                 임차등록 및 자산 매핑
               </h3>
               <button
@@ -4180,20 +4180,20 @@ export const RentAssets: React.FC = () => {
                 {matchingItem.statementRow.unitPrice && matchingItem.statementRow.unitPrice !== matchingItem.statementRow.billedAmount && (
                   <div><span style={{ color: 'var(--text-secondary)' }}>임차처 월단가:</span> <strong style={{ color: '#6366f1' }}>₩{matchingItem.statementRow.unitPrice.toLocaleString()}</strong></div>
                 )}
-                <div><span style={{ color: 'var(--text-secondary)' }}>청구 금액:</span> <strong style={{ color: '#2563eb' }}>₩{matchingItem.statementRow.billedAmount.toLocaleString()}</strong></div>
+                <div><span style={{ color: 'var(--text-secondary)' }}>청구 금액:</span> <strong style={{ color: 'var(--primary)' }}>₩{matchingItem.statementRow.billedAmount.toLocaleString()}</strong></div>
               </div>
             </div>
 
             {/* 옵션 1: 신규 임차자산으로 1초 즉시 등록 */}
             <div style={{ padding: '14px', backgroundColor: 'rgba(59, 130, 246, 0.06)', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.25)', marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <strong style={{ fontSize: '12.5px', color: '#2563eb' }}>신규 임차자산으로 바로 등록</strong>
+                <strong style={{ fontSize: '12.5px', color: 'var(--primary)' }}>신규 임차자산으로 바로 등록</strong>
                 <button
                   type="button"
                   onClick={handleQuickRegisterNewAsset}
                   style={{
                     padding: '6px 14px', borderRadius: '6px', border: 'none',
-                    backgroundColor: '#2563eb', color: '#ffffff', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer'
+                    backgroundColor: 'var(--primary)', color: '#ffffff', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer'
                   }}
                 >
                   임차자산 즉시 등록 ➔

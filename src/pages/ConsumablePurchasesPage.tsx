@@ -525,8 +525,8 @@ export const ConsumablePurchasesPage: React.FC = () => {
                                 padding: '3px 9px', 
                                 fontSize: '11px', 
                                 fontWeight: 700, 
-                                backgroundColor: '#059669', 
-                                borderColor: '#059669', 
+                                backgroundColor: 'var(--success)', 
+                                borderColor: 'var(--success)', 
                                 color: '#ffffff',
                                 display: 'inline-flex',
                                 alignItems: 'center',
@@ -543,7 +543,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
                           {/* 3. 승인접수 후 아직 실물 미입고: 입고대기 안내 (관리자는 즉시완결 가능) */}
                           {p.status === 'ACCEPTED' && !isInbounded && (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center' }}>
-                              <span style={{ fontSize: '11px', color: '#2563eb', fontWeight: '600' }}>입고대기</span>
+                              <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '600' }}>입고대기</span>
                               {canSave && (
                                 <button
                                   type="button"
@@ -560,7 +560,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
 
                           {/* 4. 구매완결: 완료 및 지급요청됨 표시 */}
                           {p.status === 'COMPLETED' && (
-                            <span style={{ fontSize: '11px', color: '#059669', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                            <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                               <Check size={12} />
                               <span>지급요청완료</span>
                             </span>

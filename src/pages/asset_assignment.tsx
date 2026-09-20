@@ -462,7 +462,7 @@ export const AssetAssignment: React.FC = () => {
       {/* 대차 교체 출고할당 대기 (최우선 표출) */}
       {exchangePendingContracts.length > 0 && (
         <div style={{ backgroundColor: 'var(--warning-light)', padding: '14px', borderRadius: '10px', border: '2px solid var(--warning)' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: '700', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px', color: '#c2410c' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: '700', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--warning)' }}>
             <AlertTriangle size={14} /> 대차 교체 출고할당 대기 ({exchangePendingContracts.length}건)
             <span style={{ fontSize: '11px', fontWeight: '500', color: '#9a3412', marginLeft: '4px' }}>— 영업사원 대차 의뢰 접수 건</span>
           </h3>
@@ -675,7 +675,7 @@ export const AssetAssignment: React.FC = () => {
                             style={{
                               background: 'none',
                               border: 'none',
-                              color: '#ef4444',
+                              color: 'var(--danger)',
                               fontSize: '10.5px',
                               fontWeight: 700,
                               cursor: 'pointer',
@@ -720,7 +720,7 @@ export const AssetAssignment: React.FC = () => {
                                     background: 'rgba(239, 68, 68, 0.15)',
                                     border: '1px solid rgba(239, 68, 68, 0.4)',
                                     borderRadius: '3px',
-                                    color: '#ef4444',
+                                    color: 'var(--danger)',
                                     cursor: 'pointer',
                                     padding: '1px 3px',
                                     display: 'inline-flex',
@@ -956,7 +956,7 @@ export const AssetAssignment: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
           <span>미할당 요구: <strong style={{ color: 'var(--danger)' }}>총 {pendingCaList.length}대</strong> ({pendingContracts.length + exchangePendingContracts.length}건 계약)</span>
           <span>|</span>
-          <span>대차 긴급: <strong style={{ color: '#b45309' }}>{exchangePendingContracts.length}건</strong></span>
+          <span>대차 긴급: <strong style={{ color: 'var(--warning)' }}>{exchangePendingContracts.length}건</strong></span>
           <span>|</span>
           <span>가용 출고자산: <strong style={{ color: 'var(--success)' }}>총 {assets.filter(a => a.status === 'AVAILABLE').length}대</strong></span>
           <span>|</span>

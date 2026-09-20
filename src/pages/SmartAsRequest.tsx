@@ -541,7 +541,7 @@ export const SmartAsRequest: React.FC = () => {
                 backgroundColor: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '8px',
                 padding: '8px 14px', marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
               }}>
-                <span style={{ fontSize: '12px', color: '#2563eb', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Sparkles size={14} /> 선택된 통화 내용이 폼에 자동 입력되었습니다. 미비한 점을 확인 후 접수 확정하십시오.
                 </span>
                 <button
@@ -609,7 +609,7 @@ export const SmartAsRequest: React.FC = () => {
                         style={{
                           display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px',
                           borderRadius: '8px', fontSize: '12px', fontWeight: 700,
-                          backgroundColor: 'var(--bg-card)', color: '#d97706', border: '1px solid var(--border-color)',
+                          backgroundColor: 'var(--bg-card)', color: 'var(--warning)', border: '1px solid var(--border-color)',
                           cursor: 'pointer', boxShadow: 'var(--shadow-sm)'
                         }}
                       >

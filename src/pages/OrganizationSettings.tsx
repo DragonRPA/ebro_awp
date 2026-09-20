@@ -704,7 +704,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
             </div>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>재직 임직원</span>
-              <strong style={{ fontSize: '15px', color: '#16a34a' }}>{activeUsersCount}명</strong>
+              <strong style={{ fontSize: '15px', color: 'var(--success)' }}>{activeUsersCount}명</strong>
             </div>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>부서 미배치 / 휴·퇴사</span>
@@ -1065,7 +1065,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
             휴직 <strong>{leaveUsersCount}명</strong>
           </span>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>+</span>
-          <span style={{ fontSize: '12px', color: '#ef4444' }}>
+          <span style={{ fontSize: '12px', color: 'var(--danger)' }}>
             퇴사 <strong>{retiredUsersCount}명</strong>
           </span>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>|</span>

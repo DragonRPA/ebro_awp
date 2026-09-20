@@ -247,7 +247,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
             </>
           ) : (
             <>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }}></span>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--success)' }}></span>
               <span>에이전트 {shortCurrent}</span>
             </>
           )}
@@ -265,7 +265,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
             borderRadius: '20px',
             background: 'rgba(245, 158, 11, 0.15)',
             border: '1px solid rgba(245, 158, 11, 0.5)',
-            color: '#b45309',
+            color: 'var(--warning)',
             display: 'flex',
             alignItems: 'center',
             gap: '5px',
@@ -277,7 +277,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
           }}
           title={`에이전트 업데이트 필요 (현재: ${agentVersion} ➔ 최신: ${EXPECTED_AGENT_VERSION})`}
         >
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#f59e0b' }}></span>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--warning)' }}></span>
           <span>{shortCurrent || '구버전'} ➔ {shortExpected}</span>
           <ChevronDown size={11} />
         </button>
@@ -293,7 +293,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
             borderRadius: '20px',
             background: 'rgba(239, 68, 68, 0.15)',
             border: '1px solid rgba(239, 68, 68, 0.4)',
-            color: '#b91c1c',
+            color: 'var(--danger)',
             display: 'flex',
             alignItems: 'center',
             gap: '5px',
@@ -305,7 +305,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
           }}
           title={`로컬 에이전트 미실행 (최신: ${EXPECTED_AGENT_VERSION})`}
         >
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ef4444' }}></span>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--danger)' }}></span>
           <span>에이전트 미실행</span>
           <ChevronDown size={11} />
         </button>
@@ -371,7 +371,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
               fontSize: '11px',
               lineHeight: '1.55'
             }}>
-              <div style={{ fontWeight: '800', color: '#dc2626', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div style={{ fontWeight: '800', color: 'var(--danger)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <AlertTriangle size={13} />
                 콘솔 창이 켜져 있는데 미연결로 표시될 때 조치법
               </div>
@@ -384,7 +384,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
                   <div>
                     <b>2.</b> 검은색 콘솔 창 제목에 <b>'선택'</b> 글자가 있으면 마우스 클릭으로 일시정지된 상태입니다. 콘솔 창을 클릭 후 <b>[Enter]</b> 또는 <b>[Esc]</b>를 1회 누르세요.
                   </div>
-                  <div style={{ color: '#16a34a', fontWeight: '800' }}>
+                  <div style={{ color: 'var(--success)', fontWeight: '800' }}>
                     <b>3.</b> <b>[F5]</b> 새로고침 시 즉시 🟢 정상 연결 완료!
                   </div>
                 </div>
@@ -396,7 +396,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
           {agentStatus === 'ONLINE' && (
             <div style={{ background: 'var(--bg-app)', padding: '10px 12px', borderRadius: '8px', marginBottom: '12px', fontSize: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <span style={{ fontWeight: '800', display: 'flex', alignItems: 'center', gap: '5px', color: '#16a34a' }}>
+                <span style={{ fontWeight: '800', display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--success)' }}>
                   <HardDrive size={13} />
                   CF 로컬 미러링 ({mirrorFiles.length}개)
                 </span>
@@ -438,7 +438,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
                     fontWeight: '700',
                     borderRadius: '4px',
                     background: 'rgba(22,163,74,0.12)',
-                    color: '#16a34a',
+                    color: 'var(--success)',
                     border: '1px solid rgba(22,163,74,0.3)',
                     cursor: isSyncingDrive ? 'wait' : 'pointer'
                   }}

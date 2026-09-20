@@ -105,7 +105,7 @@ export const ExecutiveDirectiveModal: React.FC<Props> = ({ isOpen, onClose }) =>
         backgroundColor: 'var(--bg-card, #ffffff)', borderRadius: '14px',
         width: '100%', maxWidth: '640px', maxHeight: '90vh',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
-        border: '1px solid var(--border-color, #e2e8f0)',
+        border: '1px solid var(--border-color, var(--border-color))',
         display: 'flex', flexDirection: 'column', overflow: 'hidden'
       }}>
         {/* 헤더 */}
@@ -117,7 +117,7 @@ export const ExecutiveDirectiveModal: React.FC<Props> = ({ isOpen, onClose }) =>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{
               width: '32px', height: '32px', borderRadius: '8px',
-              backgroundColor: '#ef4444', color: '#fff',
+              backgroundColor: 'var(--danger)', color: '#fff',
               display: 'flex', alignItems: 'center', justifyContent: 'center'
             }}>
               <ShieldAlert size={18} />
@@ -349,7 +349,7 @@ export const ExecutiveDirectiveModal: React.FC<Props> = ({ isOpen, onClose }) =>
               disabled={isSubmitting}
               style={{
                 padding: '10px 24px', borderRadius: '8px', border: 'none',
-                backgroundColor: '#ef4444', color: '#fff', fontSize: '13.5px', fontWeight: '800',
+                backgroundColor: 'var(--danger)', color: '#fff', fontSize: '13.5px', fontWeight: '800',
                 display: 'flex', alignItems: 'center', gap: '6px', cursor: isSubmitting ? 'wait' : 'pointer',
                 boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
               }}

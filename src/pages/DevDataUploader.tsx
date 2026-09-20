@@ -1277,7 +1277,7 @@ export const DevDataUploader: React.FC = () => {
         <div style={{
           backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid #22c55e',
           borderRadius: '8px', padding: '10px 16px', marginBottom: '20px',
-          display: 'flex', alignItems: 'center', gap: '10px', color: '#15803d'
+          display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--success)'
         }}>
           <CheckCircle size={16} />
           <span>Supabase 연결됨 — 업로드 준비 완료</span>
@@ -1328,7 +1328,7 @@ export const DevDataUploader: React.FC = () => {
                   {f.label} · <span style={{ fontStyle: 'italic' }}>{f.type}</span>
                   {f.enumValues && <span> · [{f.enumValues.join('|')}]</span>}
                 </div>
-                {f.description && <div style={{ color: '#9ca3af', marginTop: '2px' }}>{f.description}</div>}
+                {f.description && <div style={{ color: 'var(--text-muted)', marginTop: '2px' }}>{f.description}</div>}
               </div>
             ))}
           </div>
@@ -1394,7 +1394,7 @@ export const DevDataUploader: React.FC = () => {
                 {validationErrors.length === 0 ? (
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px',
-                    backgroundColor: 'rgba(34,197,94,0.1)', borderRadius: '6px', color: '#15803d'
+                    backgroundColor: 'rgba(34,197,94,0.1)', borderRadius: '6px', color: 'var(--success)'
                   }}>
                     <CheckCircle size={18} />
                     <span>유효성 검사 통과! {parsedRows.length}개 행 모두 오류 없음.</span>
@@ -1454,8 +1454,8 @@ export const DevDataUploader: React.FC = () => {
                     flex: 1, padding: '14px', borderRadius: '8px', textAlign: 'center',
                     backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid #22c55e'
                   }}>
-                    <div style={{ fontSize: '28px', fontWeight: '800', color: '#15803d' }}>{uploadResult.success}</div>
-                    <div style={{ fontSize: '12px', color: '#15803d' }}>성공</div>
+                    <div style={{ fontSize: '28px', fontWeight: '800', color: 'var(--success)' }}>{uploadResult.success}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--success)' }}>성공</div>
                   </div>
                   <div style={{
                     flex: 1, padding: '14px', borderRadius: '8px', textAlign: 'center',
@@ -1559,7 +1559,7 @@ export const DevDataUploader: React.FC = () => {
                 {bulkValidationErrors.length === 0 ? (
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px',
-                    backgroundColor: 'rgba(34,197,94,0.1)', borderRadius: '6px', color: '#15803d', fontSize: '12px'
+                    backgroundColor: 'rgba(34,197,94,0.1)', borderRadius: '6px', color: 'var(--success)', fontSize: '12px'
                   }}>
                     <CheckCircle size={14} />
                     <span>검사 완료: 모든 테이블 오류 없음!</span>
@@ -1593,7 +1593,7 @@ export const DevDataUploader: React.FC = () => {
             {bulkUploadResult && (
               <div style={{ marginTop: '8px' }}>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <div style={{ flex: 1, backgroundColor: 'rgba(34,197,94,0.1)', padding: '6px', borderRadius: '4px', textAlign: 'center', fontSize: '11px', color: '#15803d' }}>
+                  <div style={{ flex: 1, backgroundColor: 'rgba(34,197,94,0.1)', padding: '6px', borderRadius: '4px', textAlign: 'center', fontSize: '11px', color: 'var(--success)' }}>
                     성공: <strong>{bulkUploadResult.success}</strong> 건
                   </div>
                   <div style={{ flex: 1, backgroundColor: bulkUploadResult.failed > 0 ? 'rgba(239,68,68,0.1)' : 'var(--bg-body)', padding: '6px', borderRadius: '4px', textAlign: 'center', fontSize: '11px', color: bulkUploadResult.failed > 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
@@ -1851,7 +1851,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;`}
                 />
               </div>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '14px 16px', backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid #22c55e', borderRadius: '8px', color: '#15803d' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '14px 16px', backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid #22c55e', borderRadius: '8px', color: 'var(--success)' }}>
                 <CheckCircle size={16} />
                 <span style={{ fontSize: '13px', fontWeight: '700' }}>
                   ✅ 검증 완전 충족: information_schema 기준 DB 컬럼 구조가 schema.sql 정의와 100% 일치합니다.

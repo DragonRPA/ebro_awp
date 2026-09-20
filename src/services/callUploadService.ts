@@ -15,12 +15,12 @@ export type CallContext =
 
 export const CALL_CONTEXT_OPTIONS: { id: CallContext; label: string; color: string }[] = [
   { id: 'NEW_CUSTOMER',    label: '신규고객 출고',    color: '#7c3aed' },
-  { id: 'ADDITIONAL',      label: '추가 출고',        color: '#2563eb' },
+  { id: 'ADDITIONAL',      label: '추가 출고',        color: 'var(--primary)' },
   { id: 'EXCHANGE',        label: '교체(대차)',        color: '#0891b2' },
-  { id: 'RETURN',          label: '회수 요청',        color: '#dc2626' },
-  { id: 'FIELD_AS',        label: '현장 AS',          color: '#d97706' },
-  { id: 'TRANSPORT_NEGO',  label: '운송사 배차 협의',  color: '#059669' },
-  { id: 'SUBLEASE_NEGO',   label: '전대 임차 협의',   color: '#6b7280' },
+  { id: 'RETURN',          label: '회수 요청',        color: 'var(--danger)' },
+  { id: 'FIELD_AS',        label: '현장 AS',          color: 'var(--warning)' },
+  { id: 'TRANSPORT_NEGO',  label: '운송사 배차 협의',  color: 'var(--success)' },
+  { id: 'SUBLEASE_NEGO',   label: '전대 임차 협의',   color: 'var(--text-muted)' },
 ];
 
 export type ConfidenceLevel = 'HIGH' | 'MEDIUM' | 'LOW' | 'MISSING';

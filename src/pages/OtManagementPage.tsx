@@ -614,7 +614,7 @@ export const OtManagementPage: React.FC = () => {
         </div>
         <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>총 승인 OT 시간</span>
-          <strong style={{ fontSize: '15px', color: '#d97706' }}>{totalOtHours.toFixed(1)}시간</strong>
+          <strong style={{ fontSize: '15px', color: 'var(--warning)' }}>{totalOtHours.toFixed(1)}시간</strong>
         </div>
         <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>당월 OT 시간</span>
@@ -1502,7 +1502,7 @@ export const OtManagementPage: React.FC = () => {
                       padding: '2px 8px',
                       borderRadius: '4px',
                       backgroundColor: 'rgba(217, 119, 6, 0.12)',
-                      color: '#d97706',
+                      color: 'var(--warning)',
                       whiteSpace: 'nowrap'
                     }}>
                       필터: {sortedUsers.find(u => u.id === userFilter)?.name || '직원'}
@@ -1560,13 +1560,13 @@ export const OtManagementPage: React.FC = () => {
                   paddingBottom: '8px',
                   borderBottom: '1px solid var(--border-color)'
                 }}>
-                  <div style={{ color: '#ef4444' }}>일</div>
+                  <div style={{ color: 'var(--danger)' }}>일</div>
                   <div style={{ color: 'var(--text-secondary)' }}>월</div>
                   <div style={{ color: 'var(--text-secondary)' }}>화</div>
                   <div style={{ color: 'var(--text-secondary)' }}>수</div>
                   <div style={{ color: 'var(--text-secondary)' }}>목</div>
                   <div style={{ color: 'var(--text-secondary)' }}>금</div>
-                  <div style={{ color: '#3b82f6' }}>토</div>
+                  <div style={{ color: 'var(--primary)' }}>토</div>
                 </div>
 
                 {/* 일자별 그리드 */}
@@ -1643,7 +1643,7 @@ export const OtManagementPage: React.FC = () => {
                               padding: '1px 6px',
                               borderRadius: '8px',
                               backgroundColor: 'rgba(217, 119, 6, 0.18)',
-                              color: '#d97706',
+                              color: 'var(--warning)',
                               whiteSpace: 'nowrap'
                             }}>
                               +{dayTotalHours.toFixed(1)}h
@@ -1756,7 +1756,7 @@ export const OtManagementPage: React.FC = () => {
                       <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-main)' }}>
                         📌 {selectedCalDate} 초과근무 상세 ({(recordsByDateMap.get(selectedCalDate) || []).length}건)
                       </span>
-                      <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#d97706' }}>
+                      <span style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--warning)' }}>
                         합계 +{((recordsByDateMap.get(selectedCalDate) || []).reduce((sum, r) => sum + (r.hours || 0), 0)).toFixed(1)}시간
                       </span>
                     </div>
@@ -1976,7 +1976,7 @@ export const OtManagementPage: React.FC = () => {
                   padding: '2px 8px',
                   borderRadius: '12px',
                   backgroundColor: 'rgba(217, 119, 6, 0.12)',
-                  color: '#d97706',
+                  color: 'var(--warning)',
                   whiteSpace: 'nowrap'
                 }}>
                   합계 +{activeDateTotalHours.toFixed(1)}시간
