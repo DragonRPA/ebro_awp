@@ -113,8 +113,8 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
   // 4. Mgmt: Long-overdue billings > 30 days past dueDate
   const longOverdueBillings = billings.filter(b => {
     if (b.status === 'PAID') return false;
-    if (!b.dueDate) return false;
-    const due = new Date(b.dueDate);
+    if (!b.billingDate) return false;
+    const due = new Date(b.billingDate);
     due.setHours(0,0,0,0);
     const diffDays = Math.floor((todayDate.getTime() - due.getTime()) / (1000 * 60 * 60 * 24));
     return diffDays >= 30 && (b.totalAmount > b.paidAmount);
@@ -123,7 +123,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
 
   const availableAssetCount = assets.filter(a => a.status === 'AVAILABLE' && a.ownerType !== 'RENTED').length;
   const pendingAsTickets = fieldAsTickets.filter(
-    (t) => t.status === 'REQUESTED' || t.status === 'SCHEDULED' || t.status === 'REVISIT' || t.status === 'IN_PROGRESS'
+    (t) => t.status === 'REQUESTED' || ((t.status === 'SCHEDULED' || t.status === 'REVISIT' || t.status === 'IN_PROGRESS') && t.mechanicId === currentUser?.id)
   );
   const pendingDeliveries = deliveries.filter(
     (d) => d.status === 'PENDING' || d.status === 'REQUESTED' || d.status === 'DISPATCHED'

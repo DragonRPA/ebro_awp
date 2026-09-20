@@ -183,17 +183,17 @@ export const Dashboard: React.FC = () => {
 
   const longOverdueBillings = billings.filter(b => {
     if (b.status === 'PAID') return false;
-    if (!b.dueDate) return false;
-    const due = new Date(b.dueDate);
+    if (!b.billingDate) return false;
+    const due = new Date(b.billingDate);
     due.setHours(0,0,0,0);
     const diffDays = Math.floor((todayDate.getTime() - due.getTime()) / (1000 * 60 * 60 * 24));
     return diffDays >= 30 && (b.totalAmount > b.paidAmount);
   });
 
-  const showExpiringContractsFeed = expiringContracts.length > 0 && (hasPermission('role_sales_read') || hasPermission('role_sales_execute'));
-  const showOverdueSubleaseFeed = overdueSubleaseAssets.length > 0 && (hasPermission('role_logistics_read') || hasPermission('role_logistics_execute'));
-  const showOldPendingRepairsFeed = oldPendingRepairs.length > 0 && (hasPermission('role_mechanic_read') || hasPermission('role_mechanic_execute'));
-  const showLongOverdueBillingsFeed = longOverdueBillings.length > 0 && (hasPermission('role_mgmt_read') || hasPermission('role_mgmt_execute'));
+  const showExpiringContractsFeed = expiringContracts.length > 0 && (hasPermission('contract', 'view') || hasPermission('contract', 'save'));
+  const showOverdueSubleaseFeed = overdueSubleaseAssets.length > 0 && (hasPermission('delivery', 'view') || hasPermission('delivery', 'save'));
+  const showOldPendingRepairsFeed = oldPendingRepairs.length > 0 && (hasPermission('repair', 'view') || hasPermission('repair', 'save'));
+  const showLongOverdueBillingsFeed = longOverdueBillings.length > 0 && (hasPermission('billing', 'view') || hasPermission('billing', 'save'));
   // -----------------------------------
 
   const totalAssets = assets.length;
@@ -1136,7 +1136,7 @@ export const Dashboard: React.FC = () => {
                           <span>{idx + 1}. {cust?.name || '고객사 미상'}</span>
                           <span style={{ color: 'var(--danger)' }}>종료일: {c.endDate ? c.endDate.substring(0, 10) : '-'}</span>
                         </div>
-                        <div style={{ marginTop: '6px', color: 'var(--text-secondary)' }}>현장: {c.siteAddress || '-'}</div>
+                        <div style={{ marginTop: '6px', color: 'var(--text-secondary)' }}>현장: {(sites.find(s => s.id === c.siteId)?.name) || '-'}</div>
                       </div>
                     );
                   })}

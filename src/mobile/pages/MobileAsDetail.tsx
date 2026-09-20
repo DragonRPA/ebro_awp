@@ -28,6 +28,7 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
   const {
     fieldAsTickets,
     completeFieldAsTicket,
+    updateFieldAsTicketStatus,
     mechanicConsumableStocks,
     consumables,
     currentUser,
@@ -137,6 +138,30 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
   };
 
   // 최종 조치 완료 승인
+  
+  const handleAssign = async () => {
+    if (!currentUser?.id) return;
+    setIsSubmitting(true);
+    try {
+      await updateFieldAsTicketStatus(ticket.id, 'SCHEDULED', { mechanicId: currentUser.id });
+    } catch (err: any) {
+      showErrorModal('접수 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCancelAssign = async () => {
+    setIsSubmitting(true);
+    try {
+      await updateFieldAsTicketStatus(ticket.id, 'REQUESTED', { mechanicId: '' });
+    } catch (err: any) {
+      showErrorModal('접수 취소 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleComplete = async () => {
     if (!actionTaken.trim()) {
       showErrorModal('조치 내용을 입력해 주세요.');
@@ -608,16 +633,43 @@ export const MobileAsDetail: React.FC<MobileAsDetailProps> = ({ ticketId, onBack
       </div>
 
       {/* 최종 완결 버튼 */}
+      {/* 액션 버튼 */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-950/95 border-t border-slate-800 backdrop-blur-md safe-area-bottom z-30">
-        <button
-          type="button"
-          disabled={isSubmitting}
-          onClick={handleComplete}
-          className="w-full py-4 px-6 rounded-2xl bg-blue-600 hover:bg-blue-500 active:scale-98 text-white font-black text-base flex items-center justify-center gap-2 shadow-2xl shadow-blue-600/50 transition-all"
-        >
-          <CheckCircle2 className="w-5 h-5" />
-          {isSubmitting ? '완료 등록 중...' : 'AS 조치 완료 승인'}
-        </button>
+        {ticket.status === 'REQUESTED' ? (
+          <button
+            type="button"
+            disabled={isSubmitting}
+            onClick={handleAssign}
+            className="w-full py-4 px-6 rounded-2xl bg-amber-600 hover:bg-amber-500 active:scale-98 text-white font-black text-base flex items-center justify-center gap-2 shadow-2xl shadow-amber-600/50 transition-all"
+          >
+            <CheckCircle2 className="w-5 h-5" />
+            {isSubmitting ? '처리 중...' : '내 업무로 접수하기'}
+          </button>
+        ) : ticket.mechanicId === currentUser?.id ? (
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={handleCancelAssign}
+              className="py-4 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 active:scale-98 text-slate-300 font-bold text-sm flex items-center justify-center transition-all whitespace-nowrap"
+            >
+              접수 취소
+            </button>
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={handleComplete}
+              className="flex-1 py-4 px-4 rounded-2xl bg-blue-600 hover:bg-blue-500 active:scale-98 text-white font-black text-base flex items-center justify-center gap-2 shadow-2xl shadow-blue-600/50 transition-all"
+            >
+              <CheckCircle2 className="w-5 h-5" />
+              {isSubmitting ? '처리 중...' : 'AS 조치 완료 승인'}
+            </button>
+          </div>
+        ) : (
+          <div className="w-full py-4 px-6 rounded-2xl bg-slate-800 text-slate-400 font-bold text-base flex items-center justify-center">
+            다른 기사가 접수한 건입니다.
+          </div>
+        )}
       </div>
     </div>
   );
