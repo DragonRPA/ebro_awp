@@ -1,7 +1,7 @@
 // src/pages/Billings.tsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { db, Asset, Billing, BillingDetail, ContractHistory, normalizeEndDate, formatContractEndDate } from '../services/db';
+import { supabase, db, Asset, Billing, BillingDetail, ContractHistory, normalizeEndDate, formatContractEndDate } from '../services/db';
 import { Plus, Download, Mail, CheckCircle, Search, DollarSign, Calendar, FileText, Send, Edit3, RotateCcw, AlertTriangle, Check, Layers } from 'lucide-react';
 import { emailService } from '../services/email';
 import { exportToExcel, exportTransactionStatementExcel, exportTransactionStatementExcelBuffer, calcServicePeriod, formatStatementItemName } from '../services/excel';
@@ -376,6 +376,38 @@ export const Billings: React.FC = () => {
       return true;
     }).map(b => b.id);
   };
+
+  // ⚡ Localized Lazy Loading for Billings (v2 patch)
+  useEffect(() => {
+    let isMounted = true;
+    const fetchBillings = async () => {
+      try {
+        const ymsToFetch = new Set<string>();
+        ymsToFetch.add(initialYm);
+        if (startBillingYmFilter) ymsToFetch.add(startBillingYmFilter);
+        if (endBillingYmFilter) ymsToFetch.add(endBillingYmFilter);
+        if (tempStartBillingYmFilter) ymsToFetch.add(tempStartBillingYmFilter);
+        if (tempEndBillingYmFilter) ymsToFetch.add(tempEndBillingYmFilter);
+        
+        const { data, error } = await supabase
+          .from('billings')
+          .select('*')
+          .in('billingYm', Array.from(ymsToFetch));
+          
+        if (error) throw error;
+        if (isMounted && data) {
+          const newMap = new Map(db.billings.map(b => [b.id, b]));
+          data.forEach(b => newMap.set(b.id, b));
+          db.billings = Array.from(newMap.values());
+          refreshAllData();
+        }
+      } catch (err) {
+        console.error('Failed to lazy load billings:', err);
+      }
+    };
+    fetchBillings();
+    return () => { isMounted = false; };
+  }, [startBillingYmFilter, endBillingYmFilter, tempStartBillingYmFilter, tempEndBillingYmFilter, initialYm, refreshAllData]);
 
   // 최초 1회 초기 필터 조건으로 조회 스냅샷 생성
   useEffect(() => {

@@ -1,6 +1,7 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import React, { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import {
   exportFullDatabaseBackup,
   resetAllDatabaseTables,
@@ -75,20 +76,20 @@ import {
 } from 'lucide-react';
 import { OrphanDataCleanupStudio } from '../components/OrphanDataCleanupStudio';
 
-export const InitialDbUploader: React.FC = () => {
+const InitialDbUploaderContent: React.FC = () => {
   const { showSuccessToast, showErrorModal, fullRefreshFromServer, users, customers, contracts, contractAssets, sites, customerSites: appCustomerSites, assets, importBandAsHistory, currentUser } = useApp();
   const customerSites = sites || appCustomerSites || db.sites || [];
 
-  // 상태 관리
+  // ?곹깭 愿由?
   const [activeTab, setActiveTab] = useState<'INGEST' | 'CLEANUP' | 'BACKUP' | 'RESET'>('INGEST');
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [backupResult, setBackupResult] = useState<{ filename: string; count: number } | null>(null);
 
-  // 초기화 상태
+  // 珥덇린???곹깭
   const [isResetting, setIsResetting] = useState(false);
   const [keepAdminUser, setKeepAdminUser] = useState(true);
 
-  // 엑셀 파싱 및 마이그레이션 상태
+  // ?묒? ?뚯떛 諛?留덉씠洹몃젅?댁뀡 ?곹깭
   const [fileName, setFileName] = useState<string>('');
   const [parsedData, setParsedData] = useState<ParsedInitialData | null>(null);
   const [isParsing, setIsParsing] = useState(false);
@@ -100,14 +101,14 @@ export const InitialDbUploader: React.FC = () => {
   });
   const [reconciliationReport, setReconciliationReport] = useState<ReconciliationReport | null>(null);
 
-  // 소급 청구서 생성 기간 설정
+  // ?뚭툒 泥?뎄???앹꽦 湲곌컙 ?ㅼ젙
   const [histBillingEnabled, setHistBillingEnabled] = useState(true);
   const [histBillingStart, setHistBillingStart] = useState('2026-01');
   const [histBillingEnd, setHistBillingEnd] = useState('2026-07');
   const [isHistBillingIngesting, setIsHistBillingIngesting] = useState(false);
   const [histBillingProgressMsg, setHistBillingProgressMsg] = useState('');
 
-  // 배차 이력 업로드 상태
+  // 諛곗감 ?대젰 ?낅줈???곹깭
   const [dispatchFileName, setDispatchFileName] = useState<string>('');
   const [dispatchParsedData, setDispatchParsedData] = useState<ParsedDispatchData | null>(null);
   const [isDispatchParsing, setIsDispatchParsing] = useState(false);
@@ -117,7 +118,7 @@ export const InitialDbUploader: React.FC = () => {
 
   const dispatchFileInputRef = useRef<HTMLInputElement>(null);
 
-  // 밴드 과거 AS 이력 업로드 상태
+  // 諛대뱶 怨쇨굅 AS ?대젰 ?낅줈???곹깭
   const [bandFileName, setBandFileName] = useState<string>('');
   const [bandAnalysisResult, setBandAnalysisResult] = useState<BandAsAnalysisResult | null>(null);
   const [bandSearchTerm, setBandSearchTerm] = useState<string>('');
@@ -135,12 +136,12 @@ export const InitialDbUploader: React.FC = () => {
 
   const bandFileInputRef = useRef<HTMLInputElement>(null);
 
-  // 📊 업로드 적재 건수 집계
+  // ?뱤 ?낅줈???곸옱 嫄댁닔 吏묎퀎
   const uploadedDispatchCount = (db.deliveries || []).filter((d: any) => d.id?.startsWith('DEL-HIST-')).length;
   const uploadedBandAsCount = (db.repairs || []).filter((r: any) => r.source === 'BAND_IMPORT' || r.ticketNo?.startsWith('BAND-') || r.id?.startsWith('rep-band-')).length;
-  const unassignedAsCount = (db.repairs || []).filter((r: any) => !r.siteId || r.siteName === '미지정현장' || r.siteName === '일반 현장').length;
+  const unassignedAsCount = (db.repairs || []).filter((r: any) => !r.siteId || r.siteName === '誘몄??뺥쁽?? || r.siteName === '?쇰컲 ?꾩옣').length;
 
-  // 🌟 밴드 출고요청 분석 및 고객사/현장 기본 요구사항 마스터 동기화 상태
+  // ?뙚 諛대뱶 異쒓퀬?붿껌 遺꾩꽍 諛?怨좉컼???꾩옣 湲곕낯 ?붽뎄?ы빆 留덉뒪???숆린???곹깭
   const [dispatchHistFileName, setDispatchHistFileName] = useState<string>('');
   const [dispatchAnalysisResult, setDispatchAnalysisResult] = useState<DispatchAnalysisResult | null>(null);
   const [isAnalyzingDispatchHist, setIsAnalyzingDispatchHist] = useState(false);
@@ -149,14 +150,14 @@ export const InitialDbUploader: React.FC = () => {
   const [showIgnoredPostsModal, setShowIgnoredPostsModal] = useState(false);
   const dispatchHistFileInputRef = useRef<HTMLInputElement>(null);
 
-  // 📦 소모품 및 부품 재고 업로드 상태
+  // ?벀 ?뚮え??諛?遺???ш퀬 ?낅줈???곹깭
   const [consumableFileName, setConsumableFileName] = useState<string>('');
   const [parsedConsumables, setParsedConsumables] = useState<ParsedConsumableItem[] | null>(null);
   const [isConsumableParsing, setIsConsumableParsing] = useState(false);
   const [isConsumableIngesting, setIsConsumableIngesting] = useState(false);
   const consumableFileInputRef = useRef<HTMLInputElement>(null);
 
-  // 🔐 임직원 권한 마스터 업로드 상태
+  // ?뵍 ?꾩쭅??沅뚰븳 留덉뒪???낅줈???곹깭
   const [permFileName, setPermFileName] = useState<string>('');
   const [parsedPermData, setParsedPermData] = useState<ParsedPermissionData | null>(null);
   const [isPermParsing, setIsPermParsing] = useState(false);
@@ -164,14 +165,14 @@ export const InitialDbUploader: React.FC = () => {
   const [permProgressMsg, setPermProgressMsg] = useState('');
   const permFileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── 임직원 권한 JSON 파일 파싱 핸들러 ──
+  // ?? ?꾩쭅??沅뚰븳 JSON ?뚯씪 ?뚯떛 ?몃뱾????
   const handlePermFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     const file = files[0];
     setPermFileName(file.name);
     setIsPermParsing(true);
-    setPermProgressMsg('권한 JSON 파일 파싱 및 사용자 매핑 중...');
+    setPermProgressMsg('沅뚰븳 JSON ?뚯씪 ?뚯떛 諛??ъ슜??留ㅽ븨 以?..');
 
     const reader = new FileReader();
     reader.onload = (evt) => {
@@ -182,14 +183,14 @@ export const InitialDbUploader: React.FC = () => {
         const parsed = parsePermissionJson(text, currentUsers, currentDepts);
 
         if (!parsed || parsed.validPermissions.length === 0) {
-          showErrorModal?.('유효한 권한 데이터를 찾을 수 없습니다.');
+          showErrorModal?.('?좏슚??沅뚰븳 ?곗씠?곕? 李얠쓣 ???놁뒿?덈떎.');
           return;
         }
 
         setParsedPermData(parsed);
-        showSuccessToast?.(`권한 파일 파싱 완료: 임직원 ${parsed.matchedUsersCount}명, 권한 ${parsed.totalPermissions}건`);
+        showSuccessToast?.(`沅뚰븳 ?뚯씪 ?뚯떛 ?꾨즺: ?꾩쭅??${parsed.matchedUsersCount}紐? 沅뚰븳 ${parsed.totalPermissions}嫄?);
       } catch (err: any) {
-        showErrorModal?.(`권한 파일 분석 실패: ${err.message || err}`);
+        showErrorModal?.(`沅뚰븳 ?뚯씪 遺꾩꽍 ?ㅽ뙣: ${err.message || err}`);
       } finally {
         setIsPermParsing(false);
         setPermProgressMsg('');
@@ -198,15 +199,15 @@ export const InitialDbUploader: React.FC = () => {
     reader.readAsText(file);
   };
 
-  // ── 임직원 권한 DB 일괄 정확 동기화 ──
+  // ?? ?꾩쭅??沅뚰븳 DB ?쇨큵 ?뺥솗 ?숆린????
   const handlePermIngest = async () => {
     if (!parsedPermData || parsedPermData.validPermissions.length === 0) {
-      showErrorModal?.('동기화할 권한 데이터가 없습니다.');
+      showErrorModal?.('?숆린?뷀븷 沅뚰븳 ?곗씠?곌? ?놁뒿?덈떎.');
       return;
     }
 
     setIsPermIngesting(true);
-    setPermProgressMsg('권한 데이터 DB 일괄 동기화 시작...');
+    setPermProgressMsg('沅뚰븳 ?곗씠??DB ?쇨큵 ?숆린???쒖옉...');
     try {
       const result = await ingestPermissionsToDatabase(parsedPermData, (step, total, msg) => {
         setPermProgressMsg(msg);
@@ -219,14 +220,14 @@ export const InitialDbUploader: React.FC = () => {
         showErrorModal?.(result.message);
       }
     } catch (err: any) {
-      showErrorModal?.(`권한 DB 동기화 오류: ${err.message || err}`);
+      showErrorModal?.(`沅뚰븳 DB ?숆린???ㅻ쪟: ${err.message || err}`);
     } finally {
       setIsPermIngesting(false);
       setPermProgressMsg('');
     }
   };
 
-  // ── 현재 시스템 권한 마스터 JSON 백업 다운로드 ──
+  // ?? ?꾩옱 ?쒖뒪??沅뚰븳 留덉뒪??JSON 諛깆뾽 ?ㅼ슫濡쒕뱶 ??
   const handleExportCurrentPermissions = () => {
     try {
       const currentPerms = db.permissions || [];
@@ -239,29 +240,29 @@ export const InitialDbUploader: React.FC = () => {
       const a = document.createElement('a');
       a.href = url;
       const nowStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-      a.download = `사용자권한_마스터_${nowStr}.json`;
+      a.download = `?ъ슜?먭텒??留덉뒪??${nowStr}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showSuccessToast?.(`현재 권한 데이터 백업 다운로드 완료 (임직원 ${currentUsers.length}명, 권한 ${currentPerms.length}건)`);
+      showSuccessToast?.(`?꾩옱 沅뚰븳 ?곗씠??諛깆뾽 ?ㅼ슫濡쒕뱶 ?꾨즺 (?꾩쭅??${currentUsers.length}紐? 沅뚰븳 ${currentPerms.length}嫄?`);
     } catch (err: any) {
-      showErrorModal?.(`권한 백업 생성 오류: ${err.message}`);
+      showErrorModal?.(`沅뚰븳 諛깆뾽 ?앹꽦 ?ㅻ쪟: ${err.message}`);
     }
   };
 
-  // ── 직무 템플릿 기반 전 임직원 권한 일괄 자동 생성 ──
+  // ?? 吏곷Т ?쒗뵆由?湲곕컲 ???꾩쭅??沅뚰븳 ?쇨큵 ?먮룞 ?앹꽦 ??
   const [isGeneratingDefaultPerms, setIsGeneratingDefaultPerms] = useState(false);
   const [generatePermsMsg, setGeneratePermsMsg] = useState('');
 
   const handleGenerateDefaultPermissions = async () => {
     const currentUsersCount = (users || db.users || []).length;
     if (currentUsersCount === 0) {
-      showErrorModal?.('생성할 임직원 데이터가 없습니다. 먼저 사용자 데이터를 업로드하세요.');
+      showErrorModal?.('?앹꽦???꾩쭅???곗씠?곌? ?놁뒿?덈떎. 癒쇱? ?ъ슜???곗씠?곕? ?낅줈?쒗븯?몄슂.');
       return;
     }
     setIsGeneratingDefaultPerms(true);
-    setGeneratePermsMsg('직무 템플릿 기준 권한 자동 생성 시작...');
+    setGeneratePermsMsg('吏곷Т ?쒗뵆由?湲곗? 沅뚰븳 ?먮룞 ?앹꽦 ?쒖옉...');
     try {
       const result = await generateDefaultPermissionsForAllUsers((step, total, msg) => {
         setGeneratePermsMsg(msg);
@@ -273,7 +274,7 @@ export const InitialDbUploader: React.FC = () => {
         showErrorModal?.(result.message);
       }
     } catch (err: any) {
-      showErrorModal?.(`권한 자동 생성 오류: ${err.message || err}`);
+      showErrorModal?.(`沅뚰븳 ?먮룞 ?앹꽦 ?ㅻ쪟: ${err.message || err}`);
     } finally {
       setIsGeneratingDefaultPerms(false);
       setGeneratePermsMsg('');
@@ -282,7 +283,7 @@ export const InitialDbUploader: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── 소모품 파일 파싱 핸들러 (.txt 또는 .xlsx) ──
+  // ?? ?뚮え???뚯씪 ?뚯떛 ?몃뱾??(.txt ?먮뒗 .xlsx) ??
   const handleConsumableFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -301,23 +302,23 @@ export const InitialDbUploader: React.FC = () => {
           const sheetName = wb.SheetNames[0];
           const rows: any[] = XLSX.utils.sheet_to_json(wb.Sheets[sheetName]);
           const items: ParsedConsumableItem[] = rows.map((r, idx) => {
-            const mName = String(r['품목명'] || r['모델명'] || r['소모품명'] || r['품명'] || `품목-${idx + 1}`).trim();
-            const qty = Number(r['수량'] || r['현재고'] || r['재고수량'] || 1);
-            const price = Number(r['단가'] || r['입고단가'] || r['단가(원)'] || 0);
+            const mName = String(r['?덈ぉ紐?] || r['紐⑤뜽紐?] || r['?뚮え?덈챸'] || r['?덈챸'] || `?덈ぉ-${idx + 1}`).trim();
+            const qty = Number(r['?섎웾'] || r['?꾩옱怨?] || r['?ш퀬?섎웾'] || 1);
+            const price = Number(r['?④?'] || r['?낃퀬?④?'] || r['?④?(??'] || 0);
             return {
               modelName: mName,
               stockQty: isNaN(qty) ? 1 : qty,
-              unit: String(r['단위'] || '개').trim(),
+              unit: String(r['?⑥쐞'] || '媛?).trim(),
               unitPrice: isNaN(price) ? 0 : price,
-              supplier: String(r['제조사'] || r['공급처'] || detectSupplier(mName)).trim(),
-              category: String(r['분류'] || r['카테고리'] || detectCategory(mName)).trim(),
-              note: String(r['비고'] || r['특이사항'] || '').trim()
+              supplier: String(r['?쒖“??] || r['怨듦툒泥?] || detectSupplier(mName)).trim(),
+              category: String(r['遺꾨쪟'] || r['移댄뀒怨좊━'] || detectCategory(mName)).trim(),
+              note: String(r['鍮꾧퀬'] || r['?뱀씠?ы빆'] || '').trim()
             };
           });
           setParsedConsumables(items);
-          showSuccessToast?.(`소모품 엑셀 파싱 완료: ${items.length}건`);
+          showSuccessToast?.(`?뚮え???묒? ?뚯떛 ?꾨즺: ${items.length}嫄?);
         } catch (err: any) {
-          showErrorModal?.(`소모품 엑셀 파싱 오류: ${err.message}`);
+          showErrorModal?.(`?뚮え???묒? ?뚯떛 ?ㅻ쪟: ${err.message}`);
         } finally {
           setIsConsumableParsing(false);
         }
@@ -330,9 +331,9 @@ export const InitialDbUploader: React.FC = () => {
           const text = evt.target?.result as string;
           const items = parseConsumableInventoryText(text);
           setParsedConsumables(items);
-          showSuccessToast?.(`소모품 텍스트 파싱 완료: ${items.length}건`);
+          showSuccessToast?.(`?뚮え???띿뒪???뚯떛 ?꾨즺: ${items.length}嫄?);
         } catch (err: any) {
-          showErrorModal?.(`소모품 텍스트 파싱 오류: ${err.message}`);
+          showErrorModal?.(`?뚮え???띿뒪???뚯떛 ?ㅻ쪟: ${err.message}`);
         } finally {
           setIsConsumableParsing(false);
         }
@@ -341,25 +342,25 @@ export const InitialDbUploader: React.FC = () => {
     }
   };
 
-  // ── 소모품 재고 일괄 DB 반영 ──
+  // ?? ?뚮え???ш퀬 ?쇨큵 DB 諛섏쁺 ??
   const handleConsumablesIngest = async () => {
     if (!parsedConsumables || parsedConsumables.length === 0) {
-      showErrorModal?.('반영할 소모품 목록이 없습니다. 파일을 선택해 주세요.');
+      showErrorModal?.('諛섏쁺???뚮え??紐⑸줉???놁뒿?덈떎. ?뚯씪???좏깮??二쇱꽭??');
       return;
     }
     setIsConsumableIngesting(true);
     try {
       const res = await ingestConsumablesToDatabase(parsedConsumables, currentUser?.id);
-      showSuccessToast?.(`소모품 DB 반영 완료: 신규 ${res.addedCount}건, 갱신 ${res.updatedCount}건, 총 재고 ${res.totalQty}개`);
+      showSuccessToast?.(`?뚮え??DB 諛섏쁺 ?꾨즺: ?좉퇋 ${res.addedCount}嫄? 媛깆떊 ${res.updatedCount}嫄? 珥??ш퀬 ${res.totalQty}媛?);
       await fullRefreshFromServer();
     } catch (err: any) {
-      showErrorModal?.(`소모품 DB 반영 실패: ${err.message}`);
+      showErrorModal?.(`?뚮え??DB 諛섏쁺 ?ㅽ뙣: ${err.message}`);
     } finally {
       setIsConsumableIngesting(false);
     }
   };
 
-  // ── 1. DB 전체 백업 실행 ──
+  // ?? 1. DB ?꾩껜 諛깆뾽 ?ㅽ뻾 ??
   const handleBackup = async () => {
     setIsBackingUp(true);
     try {
@@ -377,17 +378,17 @@ export const InitialDbUploader: React.FC = () => {
 
       const totalRows = Object.values(backupData).reduce((acc, arr) => acc + (arr?.length || 0), 0);
       setBackupResult({ filename, count: totalRows });
-      showSuccessToast?.(`전체 DB 백업 완료 (${totalRows.toLocaleString()}건)`);
+      showSuccessToast?.(`?꾩껜 DB 諛깆뾽 ?꾨즺 (${totalRows.toLocaleString()}嫄?`);
     } catch (e: any) {
-      showErrorModal?.(`백업 실패: ${e.message}`);
+      showErrorModal?.(`諛깆뾽 ?ㅽ뙣: ${e.message}`);
     } finally {
       setIsBackingUp(false);
     }
   };
 
-  // ── 2. DB 초기화 실행 ──
+  // ?? 2. DB 珥덇린???ㅽ뻾 ??
   const handleReset = async () => {
-    if (!window.confirm('기존의 모든 자산, 고객사, 계약, 배차, 청구 대장을 삭제하고 초기화하시겠습니까?')) {
+    if (!window.confirm('湲곗〈??紐⑤뱺 ?먯궛, 怨좉컼?? 怨꾩빟, 諛곗감, 泥?뎄 ??μ쓣 ??젣?섍퀬 珥덇린?뷀븯?쒓쿋?듬땲源?')) {
       return;
     }
 
@@ -396,19 +397,19 @@ export const InitialDbUploader: React.FC = () => {
       const res = await resetAllDatabaseTables(keepAdminUser);
       if (res.success) {
         showSuccessToast?.(res.message);
-        // ✅ DB 초기화 완료 후 localStorage stale 캐시 차단 + Supabase 최신 상태로 React state 즉시 동기화
+        // ??DB 珥덇린???꾨즺 ??localStorage stale 罹먯떆 李⑤떒 + Supabase 理쒖떊 ?곹깭濡?React state 利됱떆 ?숆린??
         await fullRefreshFromServer();
       } else {
         showErrorModal?.(res.message);
       }
     } catch (e: any) {
-      showErrorModal?.(`초기화 오류: ${e.message}`);
+      showErrorModal?.(`珥덇린???ㅻ쪟: ${e.message}`);
     } finally {
       setIsResetting(false);
     }
   };
 
-  // ── 3. 엑셀 파일 선택 및 분석 ──
+  // ?? 3. ?묒? ?뚯씪 ?좏깮 諛?遺꾩꽍 ??
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -428,9 +429,9 @@ export const InitialDbUploader: React.FC = () => {
           : undefined;
         const parsed = parseWorkbookToEntities(wb, users, histRange);
         setParsedData(parsed);
-        showSuccessToast?.(`엑셀 분석 완료: 계약 ${parsed.stats.contractsCount}건, 출고배차 ${parsed.stats.outboundDeliveriesCount}건, 소급청구 ${parsed.stats.historicalBillingsCount}건`);
+        showSuccessToast?.(`?묒? 遺꾩꽍 ?꾨즺: 怨꾩빟 ${parsed.stats.contractsCount}嫄? 異쒓퀬諛곗감 ${parsed.stats.outboundDeliveriesCount}嫄? ?뚭툒泥?뎄 ${parsed.stats.historicalBillingsCount}嫄?);
       } catch (err: any) {
-        showErrorModal?.(`엑셀 파싱 오류: ${err.message}`);
+        showErrorModal?.(`?묒? ?뚯떛 ?ㅻ쪟: ${err.message}`);
       } finally {
         setIsParsing(false);
       }
@@ -438,7 +439,7 @@ export const InitialDbUploader: React.FC = () => {
     reader.readAsArrayBuffer(file);
   };
 
-  // ── 배차 이력 엑셀 파싱 ──
+  // ?? 諛곗감 ?대젰 ?묒? ?뚯떛 ??
   const handleDispatchFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -461,10 +462,10 @@ export const InitialDbUploader: React.FC = () => {
         );
         setDispatchParsedData(parsed);
         showSuccessToast?.(
-          `배차 이력 파싱 완료: 총 ${parsed.stats.total}건 / EXCHANGE ${parsed.stats.exchangeCount}건 / 고객미매핑 ${parsed.stats.customerUnmatched}건`
+          `諛곗감 ?대젰 ?뚯떛 ?꾨즺: 珥?${parsed.stats.total}嫄?/ EXCHANGE ${parsed.stats.exchangeCount}嫄?/ 怨좉컼誘몃ℓ??${parsed.stats.customerUnmatched}嫄?
         );
       } catch (err: any) {
-        showErrorModal?.(`배차 엑셀 파싱 오류: ${err.message}`);
+        showErrorModal?.(`諛곗감 ?묒? ?뚯떛 ?ㅻ쪟: ${err.message}`);
       } finally {
         setIsDispatchParsing(false);
       }
@@ -472,14 +473,14 @@ export const InitialDbUploader: React.FC = () => {
     reader.readAsArrayBuffer(file);
   };
 
-  // ── 배차 이력 일괄 적재 ──
+  // ?? 諛곗감 ?대젰 ?쇨큵 ?곸옱 ??
   const handleDispatchIngest = async () => {
     if (!dispatchParsedData) {
-      showErrorModal?.('분석된 배차 데이터가 없습니다. 먼저 파일을 선택해 주세요.');
+      showErrorModal?.('遺꾩꽍??諛곗감 ?곗씠?곌? ?놁뒿?덈떎. 癒쇱? ?뚯씪???좏깮??二쇱꽭??');
       return;
     }
     setIsDispatchIngesting(true);
-    setDispatchProgressMsg('배차 이력 적재 시작...');
+    setDispatchProgressMsg('諛곗감 ?대젰 ?곸옱 ?쒖옉...');
     try {
       const result = await ingestDispatchData(dispatchParsedData, (_step, _total, msg) => {
         setDispatchProgressMsg(msg);
@@ -491,20 +492,20 @@ export const InitialDbUploader: React.FC = () => {
         showErrorModal?.(result.message);
       }
     } catch (e: any) {
-      showErrorModal?.(`배차 적재 오류: ${e.message}`);
+      showErrorModal?.(`諛곗감 ?곸옱 ?ㅻ쪟: ${e.message}`);
     } finally {
       setIsDispatchIngesting(false);
       setDispatchProgressMsg('');
     }
   };
 
-  // ── 배차 이력 일괄 롤백 (삭제) ──
+  // ?? 諛곗감 ?대젰 ?쇨큵 濡ㅻ갚 (??젣) ??
   const handleDispatchRollback = async () => {
-    if (!window.confirm(`현재 DB에 적재된 배차 이력 데이터(${uploadedDispatchCount.toLocaleString()}건)를 삭제하고 업로드 전으로 되돌리시겠습니까?`)) {
+    if (!window.confirm(`?꾩옱 DB???곸옱??諛곗감 ?대젰 ?곗씠??${uploadedDispatchCount.toLocaleString()}嫄?瑜???젣?섍퀬 ?낅줈???꾩쑝濡??섎룎由ъ떆寃좎뒿?덇퉴?`)) {
       return;
     }
     setIsDispatchRollingBack(true);
-    setDispatchProgressMsg('배차 이력 롤백(삭제) 진행 중...');
+    setDispatchProgressMsg('諛곗감 ?대젰 濡ㅻ갚(??젣) 吏꾪뻾 以?..');
     try {
       const res = await rollbackDispatchData((msg) => setDispatchProgressMsg(msg));
       if (res.success) {
@@ -516,32 +517,32 @@ export const InitialDbUploader: React.FC = () => {
         showErrorModal?.(res.message);
       }
     } catch (err: any) {
-      showErrorModal?.(`배차 이력 롤백 실패: ${err.message || err}`);
+      showErrorModal?.(`諛곗감 ?대젰 濡ㅻ갚 ?ㅽ뙣: ${err.message || err}`);
     } finally {
       setIsDispatchRollingBack(false);
       setDispatchProgressMsg('');
     }
   };
 
-  // ── 과거 소급 청구서 독립 선택 생성 및 적재 ──
+  // ?? 怨쇨굅 ?뚭툒 泥?뎄???낅┰ ?좏깮 ?앹꽦 諛??곸옱 ??
   const handleDirectHistBillingIngest = async () => {
     if (!contracts || contracts.length === 0) {
-      showErrorModal?.('DB에 등록된 계약 데이터가 없습니다. 먼저 초기 DB 엑셀 파일을 업로드해 주세요.');
+      showErrorModal?.('DB???깅줉??怨꾩빟 ?곗씠?곌? ?놁뒿?덈떎. 癒쇱? 珥덇린 DB ?묒? ?뚯씪???낅줈?쒗빐 二쇱꽭??');
       return;
     }
 
     if (!histBillingStart || !histBillingEnd) {
-      showErrorModal?.('소급 청구서 생성 시작 월과 종료 월을 입력해 주세요.');
+      showErrorModal?.('?뚭툒 泥?뎄???앹꽦 ?쒖옉 ?붽낵 醫낅즺 ?붿쓣 ?낅젰??二쇱꽭??');
       return;
     }
 
     if (histBillingStart > histBillingEnd) {
-      showErrorModal?.('시작 월이 종료 월보다 클 수 없습니다.');
+      showErrorModal?.('?쒖옉 ?붿씠 醫낅즺 ?붾낫???????놁뒿?덈떎.');
       return;
     }
 
     setIsHistBillingIngesting(true);
-    setHistBillingProgressMsg('소급 청구서 계산 및 적재 시작...');
+    setHistBillingProgressMsg('?뚭툒 泥?뎄??怨꾩궛 諛??곸옱 ?쒖옉...');
 
     try {
       const result = await generateAndIngestHistoricalBillingsDirect(
@@ -562,14 +563,14 @@ export const InitialDbUploader: React.FC = () => {
         showErrorModal?.(result.message);
       }
     } catch (e: any) {
-      showErrorModal?.(`소급 청구서 생성 오류: ${e.message}`);
+      showErrorModal?.(`?뚭툒 泥?뎄???앹꽦 ?ㅻ쪟: ${e.message}`);
     } finally {
       setIsHistBillingIngesting(false);
       setHistBillingProgressMsg('');
     }
   };
 
-  // ── 밴드 AS 이력 텍스트/JSON 파서 및 적재 로직 ──
+  // ?? 諛대뱶 AS ?대젰 ?띿뒪??JSON ?뚯꽌 諛??곸옱 濡쒖쭅 ??
   const extractFieldsFromBandRaw = (raw: string, date: string, author: string) => {
     let site = '';
     let address = '';
@@ -581,53 +582,53 @@ export const InitialDbUploader: React.FC = () => {
 
     const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
     for (const l of lines) {
-      const colonIdx = l.indexOf(':') !== -1 ? l.indexOf(':') : l.indexOf('：');
+      const colonIdx = l.indexOf(':') !== -1 ? l.indexOf(':') : l.indexOf('竊?);
       if (colonIdx === -1) continue;
       const label = l.slice(0, colonIdx).replace(/\s+/g, '');
       const val = l.slice(colonIdx + 1).trim();
 
-      if (label.includes('현장')) {
+      if (label.includes('?꾩옣')) {
         site = val;
-      } else if (label.includes('주소') || label.includes('도로명')) {
+      } else if (label.includes('二쇱냼') || label.includes('?꾨줈紐?)) {
         address = val;
-      } else if (label.includes('업체')) {
+      } else if (label.includes('?낆껜')) {
         contractor = val;
-      } else if (label.includes('위치') || label.includes('장비위치')) {
-        // 🛡️ 위치를 먼저 파싱하여 장비번호(assetNo) 오염 원천 방지
+      } else if (label.includes('?꾩튂') || label.includes('?λ퉬?꾩튂')) {
+        // ?썳截??꾩튂瑜?癒쇱? ?뚯떛?섏뿬 ?λ퉬踰덊샇(assetNo) ?ㅼ뿼 ?먯쿇 諛⑹?
         location = val;
-      } else if (label.includes('관리번호') || label.includes('자산번호') || label.includes('호기') || label === '장비') {
+      } else if (label.includes('愿由щ쾲??) || label.includes('?먯궛踰덊샇') || label.includes('?멸린') || label === '?λ퉬') {
         assetNo = val;
-      } else if (label.includes('접수자') || label.includes('연락처') || label.includes('전화') || label.includes('담당자')) {
-        // 🛡️ 밴드 98% 빈도 '접수자' 라벨 완벽 지원
+      } else if (label.includes('?묒닔??) || label.includes('?곕씫泥?) || label.includes('?꾪솕') || label.includes('?대떦??)) {
+        // ?썳截?諛대뱶 98% 鍮덈룄 '?묒닔?? ?쇰꺼 ?꾨꼍 吏??
         contact = val;
-      } else if (label.includes('고장내용') || label.includes('고장증상') || label.includes('증상') || label.includes('내용') || label.includes('고장')) {
+      } else if (label.includes('怨좎옣?댁슜') || label.includes('怨좎옣利앹긽') || label.includes('利앹긽') || label.includes('?댁슜') || label.includes('怨좎옣')) {
         issue = val;
       }
     }
 
-    // 폴백: 관리번호 미인식 시 본문 정규식 매칭
+    // ?대갚: 愿由щ쾲??誘몄씤????蹂몃Ц ?뺢퇋??留ㅼ묶
     if (!assetNo) {
       const assetMatch = raw.match(/([A-Za-z]{1,4}[- ]?\d{2,5}|\d{4,5})/);
       if (assetMatch) assetNo = assetMatch[1];
-      else if (raw.includes('전체장비')) assetNo = '전체장비';
-      else assetNo = '현장확인';
+      else if (raw.includes('?꾩껜?λ퉬')) assetNo = '?꾩껜?λ퉬';
+      else assetNo = '?꾩옣?뺤씤';
     }
 
-    // 폴백: 연락처 미인식 시 본문 전화번호 매칭
+    // ?대갚: ?곕씫泥?誘몄씤????蹂몃Ц ?꾪솕踰덊샇 留ㅼ묶
     if (!contact) {
       const phoneMatch = raw.match(/(01[016789]\d{7,8}|01[016789][-.\s]\d{3,4}[-.\s]\d{4})/);
       if (phoneMatch) contact = phoneMatch[0];
     }
 
     if (!site) {
-      if (raw.includes('SK하이닉스') || raw.includes('하이닉스')) site = '용인 SK하이닉스';
-      else if (raw.includes('평택 P') || raw.includes('P3') || raw.includes('P4')) site = '평택 고덕';
-      else if (raw.includes('원주')) site = '원주 푸르지오';
-      else site = '일반 현장';
+      if (raw.includes('SK?섏씠?됱뒪') || raw.includes('?섏씠?됱뒪')) site = '?⑹씤 SK?섏씠?됱뒪';
+      else if (raw.includes('?됲깮 P') || raw.includes('P3') || raw.includes('P4')) site = '?됲깮 怨좊뜒';
+      else if (raw.includes('?먯＜')) site = '?먯＜ ?몃Ⅴ吏??;
+      else site = '?쇰컲 ?꾩옣';
     }
 
     if (!issue) {
-      const issueMatch = raw.match(/(?:고장|증상)[^:\n]*[:：]?\s*([^\n]+)/);
+      const issueMatch = raw.match(/(?:怨좎옣|利앹긽)[^:\n]*[:竊??\s*([^\n]+)/);
       if (issueMatch) issue = issueMatch[1].trim();
       else issue = raw.slice(0, 100);
     }
@@ -635,29 +636,29 @@ export const InitialDbUploader: React.FC = () => {
     let inspectionItemCode = '';
     let degradationScore = 0;
     
-    // 💡 [Phase 1/2] 밴드 빅데이터 고장 증상 키워드 기반 정비 마스터 코드 및 정비점수 1:1 정밀 매핑
+    // ?뮕 [Phase 1/2] 諛대뱶 鍮낅뜲?댄꽣 怨좎옣 利앹긽 ?ㅼ썙??湲곕컲 ?뺣퉬 留덉뒪??肄붾뱶 諛??뺣퉬?먯닔 1:1 ?뺣? 留ㅽ븨
     const lowerIssue = issue.toLowerCase();
-    if (lowerIssue.includes('타이어') || lowerIssue.includes('바퀴') || lowerIssue.includes('주행') || lowerIssue.includes('조향') || lowerIssue.includes('거북이') || lowerIssue.includes('핸들') || lowerIssue.includes('전진') || lowerIssue.includes('후진')) {
-      inspectionItemCode = 'CHK-000004'; // 주행/타이어/조향
+    if (lowerIssue.includes('??댁뼱') || lowerIssue.includes('諛뷀?) || lowerIssue.includes('二쇳뻾') || lowerIssue.includes('議고뼢') || lowerIssue.includes('嫄곕턿??) || lowerIssue.includes('?몃뱾') || lowerIssue.includes('?꾩쭊') || lowerIssue.includes('?꾩쭊')) {
+      inspectionItemCode = 'CHK-000004'; // 二쇳뻾/??댁뼱/議고뼢
       degradationScore = 20;
-    } else if (lowerIssue.includes('상승') || lowerIssue.includes('하강') || lowerIssue.includes('작동안됨') || lowerIssue.includes('안올라감') || lowerIssue.includes('유압') || lowerIssue.includes('실린더') || lowerIssue.includes('모터') || lowerIssue.includes('누유')) {
-      inspectionItemCode = 'CHK-000002'; // 유압/승강/동력
+    } else if (lowerIssue.includes('?곸듅') || lowerIssue.includes('?섍컯') || lowerIssue.includes('?묐룞?덈맖') || lowerIssue.includes('?덉삱?쇨컧') || lowerIssue.includes('?좎븬') || lowerIssue.includes('?ㅻ┛??) || lowerIssue.includes('紐⑦꽣') || lowerIssue.includes('?꾩쑀')) {
+      inspectionItemCode = 'CHK-000002'; // ?좎븬/?밴컯/?숇젰
       degradationScore = 25;
-    } else if (lowerIssue.includes('배터리') || lowerIssue.includes('충전') || lowerIssue.includes('전기') || lowerIssue.includes('차단기') || lowerIssue.includes('ld') || lowerIssue.includes('81') || lowerIssue.includes('02') || lowerIssue.includes('03') || lowerIssue.includes('에러')) {
-      inspectionItemCode = 'CHK-000003'; // 전기/배터리/에러코드
+    } else if (lowerIssue.includes('諛고꽣由?) || lowerIssue.includes('異⑹쟾') || lowerIssue.includes('?꾧린') || lowerIssue.includes('李⑤떒湲?) || lowerIssue.includes('ld') || lowerIssue.includes('81') || lowerIssue.includes('02') || lowerIssue.includes('03') || lowerIssue.includes('?먮윭')) {
+      inspectionItemCode = 'CHK-000003'; // ?꾧린/諛고꽣由??먮윭肄붾뱶
       degradationScore = 15;
-    } else if (lowerIssue.includes('협착') || lowerIssue.includes('센서') || lowerIssue.includes('감지봉') || lowerIssue.includes('난간대') || lowerIssue.includes('브라켓') || lowerIssue.includes('외관') || lowerIssue.includes('파손')) {
-      inspectionItemCode = 'CHK-000001'; // 안전옵션/외관
+    } else if (lowerIssue.includes('?묒갑') || lowerIssue.includes('?쇱꽌') || lowerIssue.includes('媛먯?遊?) || lowerIssue.includes('?쒓컙?') || lowerIssue.includes('釉뚮씪耳?) || lowerIssue.includes('?멸?') || lowerIssue.includes('?뚯넀')) {
+      inspectionItemCode = 'CHK-000001'; // ?덉쟾?듭뀡/?멸?
       degradationScore = 10;
     } else {
-      inspectionItemCode = 'CHK-000005'; // 기타/접수
+      inspectionItemCode = 'CHK-000005'; // 湲고?/?묒닔
       degradationScore = 5;
     }
 
     return {
-      site: site || '미지정현장',
+      site: site || '誘몄??뺥쁽??,
       address: address || '',
-      contractor: contractor || '협력업체',
+      contractor: contractor || '?묐젰?낆껜',
       asset_no: assetNo,
       location,
       contact,
@@ -684,8 +685,8 @@ export const InitialDbUploader: React.FC = () => {
       const line = lines[i].trim();
       if (!line) continue;
 
-      const dateMatch = line.match(/(20\d{2})[.\-년\s]+(\d{1,2})[.\-월\s]+(\d{1,2})/);
-      if (dateMatch && (line.includes('오전') || line.includes('오후') || line.length < 50)) {
+      const dateMatch = line.match(/(20\d{2})[.\-??s]+(\d{1,2})[.\-??s]+(\d{1,2})/);
+      if (dateMatch && (line.includes('?ㅼ쟾') || line.includes('?ㅽ썑') || line.length < 50)) {
         if (currentPost && currentPost.lines.length > 0) {
           const raw = currentPost.lines.join('\n');
           records.push(extractFieldsFromBandRaw(raw, currentPost.date || '2026-08-01', currentPost.author || ''));
@@ -723,14 +724,14 @@ export const InitialDbUploader: React.FC = () => {
       const text = await file.text();
       const analysis = analyzeBandAsHistory(text, contracts, contractAssets, customers, customerSites, assets, users);
       if (!analysis || analysis.totalCount === 0) {
-        showErrorModal?.('파싱 가능한 AS 게시글 데이터를 찾을 수 없습니다.');
+        showErrorModal?.('?뚯떛 媛?ν븳 AS 寃뚯떆湲 ?곗씠?곕? 李얠쓣 ???놁뒿?덈떎.');
         return;
       }
 
       setBandAnalysisResult(analysis);
-      showSuccessToast?.(`밴드 AS 데이터 총 ${analysis.totalCount.toLocaleString()}건 전수 분석 완료 (고유장비 ${analysis.uniqueAssetsCount.toLocaleString()}대, 계약 ${analysis.matchedContractCount.toLocaleString()}건 매핑)`);
+      showSuccessToast?.(`諛대뱶 AS ?곗씠??珥?${analysis.totalCount.toLocaleString()}嫄??꾩닔 遺꾩꽍 ?꾨즺 (怨좎쑀?λ퉬 ${analysis.uniqueAssetsCount.toLocaleString()}?, 怨꾩빟 ${analysis.matchedContractCount.toLocaleString()}嫄?留ㅽ븨)`);
     } catch (err: any) {
-      showErrorModal?.(`밴드 파일 분석 실패: ${err.message || err}`);
+      showErrorModal?.(`諛대뱶 ?뚯씪 遺꾩꽍 ?ㅽ뙣: ${err.message || err}`);
     } finally {
       setIsBandParsing(false);
       e.target.value = '';
@@ -741,7 +742,7 @@ export const InitialDbUploader: React.FC = () => {
     if (!bandAnalysisResult || bandAnalysisResult.totalCount === 0) return;
 
     setIsBandIngesting(true);
-    setBandProgressMsg('과거 AS 이력 정비 마스터(repairs) DB 적재 중...');
+    setBandProgressMsg('怨쇨굅 AS ?대젰 ?뺣퉬 留덉뒪??repairs) DB ?곸옱 以?..');
     try {
       const result = await ingestBandAsHistoryDirect(bandAnalysisResult, (curr, tot, msg) => {
         setBandProgressMsg(msg);
@@ -749,20 +750,20 @@ export const InitialDbUploader: React.FC = () => {
       showSuccessToast?.(result.message);
       await fullRefreshFromServer();
     } catch (err: any) {
-      showErrorModal?.(`밴드 AS 적재 오류: ${err.message || err}`);
+      showErrorModal?.(`諛대뱶 AS ?곸옱 ?ㅻ쪟: ${err.message || err}`);
     } finally {
       setIsBandIngesting(false);
       setBandProgressMsg('');
     }
   };
 
-  // ── 밴드 AS 이력 일괄 롤백 (삭제) ──
+  // ?? 諛대뱶 AS ?대젰 ?쇨큵 濡ㅻ갚 (??젣) ??
   const handleBandRollback = async () => {
-    if (!window.confirm(`현재 DB에 적재된 밴드 AS 이력 데이터(${uploadedBandAsCount.toLocaleString()}건)를 삭제하고 업로드 전으로 되돌리시겠습니까?`)) {
+    if (!window.confirm(`?꾩옱 DB???곸옱??諛대뱶 AS ?대젰 ?곗씠??${uploadedBandAsCount.toLocaleString()}嫄?瑜???젣?섍퀬 ?낅줈???꾩쑝濡??섎룎由ъ떆寃좎뒿?덇퉴?`)) {
       return;
     }
     setIsBandRollingBack(true);
-    setBandProgressMsg('밴드 AS 이력 롤백(삭제) 진행 중...');
+    setBandProgressMsg('諛대뱶 AS ?대젰 濡ㅻ갚(??젣) 吏꾪뻾 以?..');
     try {
       const res = await rollbackBandAsHistory((msg) => setBandProgressMsg(msg));
       if (res.success) {
@@ -774,24 +775,24 @@ export const InitialDbUploader: React.FC = () => {
         showErrorModal?.(res.message);
       }
     } catch (err: any) {
-      showErrorModal?.(`밴드 AS 이력 롤백 실패: ${err.message || err}`);
+      showErrorModal?.(`諛대뱶 AS ?대젰 濡ㅻ갚 ?ㅽ뙣: ${err.message || err}`);
     } finally {
       setIsBandRollingBack(false);
       setBandProgressMsg('');
     }
   };
 
-  // ── 기존 DB 미지정현장 AS 티켓 자산 대장 기준 일괄 역추적 복원 ──
+  // ?? 湲곗〈 DB 誘몄??뺥쁽??AS ?곗폆 ?먯궛 ???湲곗? ?쇨큵 ??텛??蹂듭썝 ??
   const handleReconcileUnassignedAs = async () => {
     if (unassignedAsCount === 0) {
-      showSuccessToast?.('현재 DB에 미지정현장 AS 티켓이 없습니다. 모두 정상 매핑되어 있습니다.');
+      showSuccessToast?.('?꾩옱 DB??誘몄??뺥쁽??AS ?곗폆???놁뒿?덈떎. 紐⑤몢 ?뺤긽 留ㅽ븨?섏뼱 ?덉뒿?덈떎.');
       return;
     }
-    if (!window.confirm(`현재 DB의 미지정현장 AS 티켓(${unassignedAsCount.toLocaleString()}건)을 자산 마스터 기준으로 일괄 역추적 매핑 복원하시겠습니까?`)) {
+    if (!window.confirm(`?꾩옱 DB??誘몄??뺥쁽??AS ?곗폆(${unassignedAsCount.toLocaleString()}嫄????먯궛 留덉뒪??湲곗??쇰줈 ?쇨큵 ??텛??留ㅽ븨 蹂듭썝?섏떆寃좎뒿?덇퉴?`)) {
       return;
     }
     setIsReconcilingAs(true);
-    setReconcileAsProgressMsg('미지정현장 AS 티켓 자산 대장 대사 및 복원 시작...');
+    setReconcileAsProgressMsg('誘몄??뺥쁽??AS ?곗폆 ?먯궛 ??????諛?蹂듭썝 ?쒖옉...');
     try {
       const res = await reconcileUnassignedBandRepairsWithAssets(
         assets || db.assets || [],
@@ -807,20 +808,20 @@ export const InitialDbUploader: React.FC = () => {
         showErrorModal?.(res.message);
       }
     } catch (err: any) {
-      showErrorModal?.(`미지정현장 매핑 복원 실패: ${err.message || err}`);
+      showErrorModal?.(`誘몄??뺥쁽??留ㅽ븨 蹂듭썝 ?ㅽ뙣: ${err.message || err}`);
     } finally {
       setIsReconcilingAs(false);
       setReconcileAsProgressMsg('');
     }
   };
 
-  // ── 🌟 정비항목 마스터 동기화 (AS 빅데이터 클러스터링 기반) ──
+  // ?? ?뙚 ?뺣퉬??ぉ 留덉뒪???숆린??(AS 鍮낅뜲?댄꽣 ?대윭?ㅽ꽣留?湲곕컲) ??
   const handleSyncInspectionChecklist = async () => {
-    if (!window.confirm('기존 DB의 AS 정비 이력을 유사어 클러스터링 분석하여 정비항목 마스터를 형성하고 repairs 매핑을 갱신하시겠습니까?')) {
+    if (!window.confirm('湲곗〈 DB??AS ?뺣퉬 ?대젰???좎궗???대윭?ㅽ꽣留?遺꾩꽍?섏뿬 ?뺣퉬??ぉ 留덉뒪?곕? ?뺤꽦?섍퀬 repairs 留ㅽ븨??媛깆떊?섏떆寃좎뒿?덇퉴?')) {
       return;
     }
     setIsSyncingInspectionItems(true);
-    setSyncInspectionProgressMsg('정비항목 마스터 빌드 및 동기화 시작...');
+    setSyncInspectionProgressMsg('?뺣퉬??ぉ 留덉뒪??鍮뚮뱶 諛??숆린???쒖옉...');
     try {
       const res = await syncInspectionChecklistFromBandRepairs((step, total, msg) => {
         setSyncInspectionProgressMsg(msg);
@@ -832,14 +833,14 @@ export const InitialDbUploader: React.FC = () => {
         showErrorModal?.(res.message);
       }
     } catch (err: any) {
-      showErrorModal?.(`정비항목 동기화 오류: ${err.message || err}`);
+      showErrorModal?.(`?뺣퉬??ぉ ?숆린???ㅻ쪟: ${err.message || err}`);
     } finally {
       setIsSyncingInspectionItems(false);
       setSyncInspectionProgressMsg('');
     }
   };
 
-  // ── 🌟 밴드 출고요청 분석 및 고객/현장 요구사항 동기화 핸들러 ──
+  // ?? ?뙚 諛대뱶 異쒓퀬?붿껌 遺꾩꽍 諛?怨좉컼/?꾩옣 ?붽뎄?ы빆 ?숆린???몃뱾????
   const handleDispatchHistFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -850,7 +851,7 @@ export const InitialDbUploader: React.FC = () => {
       const text = await file.text();
       const posts = parseDispatchHistoryText(text);
       if (!posts || posts.length === 0) {
-        showErrorModal?.('파싱 가능한 출고요청 게시글 데이터를 찾을 수 없습니다.');
+        showErrorModal?.('?뚯떛 媛?ν븳 異쒓퀬?붿껌 寃뚯떆湲 ?곗씠?곕? 李얠쓣 ???놁뒿?덈떎.');
         return;
       }
 
@@ -863,9 +864,9 @@ export const InitialDbUploader: React.FC = () => {
       );
 
       setDispatchAnalysisResult(analysis);
-      showSuccessToast?.(`출고요청 ${posts.length}건 분석 완료 (유효 계약 고객 ${analysis.stats.contractedCustomerCount}개사 매칭)`);
+      showSuccessToast?.(`異쒓퀬?붿껌 ${posts.length}嫄?遺꾩꽍 ?꾨즺 (?좏슚 怨꾩빟 怨좉컼 ${analysis.stats.contractedCustomerCount}媛쒖궗 留ㅼ묶)`);
     } catch (err: any) {
-      showErrorModal?.(`출고요청 파일 분석 실패: ${err.message || err}`);
+      showErrorModal?.(`異쒓퀬?붿껌 ?뚯씪 遺꾩꽍 ?ㅽ뙣: ${err.message || err}`);
     } finally {
       setIsAnalyzingDispatchHist(false);
       e.target.value = '';
@@ -874,12 +875,12 @@ export const InitialDbUploader: React.FC = () => {
 
   const handleCustomerDefaultsIngest = async () => {
     if (!dispatchAnalysisResult || dispatchAnalysisResult.matchedEnrichments.length === 0) {
-      showErrorModal?.('동기화할 유효 계약 고객 데이터가 없습니다.');
+      showErrorModal?.('?숆린?뷀븷 ?좏슚 怨꾩빟 怨좉컼 ?곗씠?곌? ?놁뒿?덈떎.');
       return;
     }
 
     setIsIngestingCustomerDefaults(true);
-    setDispatchHistProgressMsg('고객사/현장 기본 요구사항 마스터 동기화 중...');
+    setDispatchHistProgressMsg('怨좉컼???꾩옣 湲곕낯 ?붽뎄?ы빆 留덉뒪???숆린??以?..');
     try {
       const res = await ingestCustomerDefaultsFromDispatchHistory(
         dispatchAnalysisResult.matchedEnrichments,
@@ -895,17 +896,17 @@ export const InitialDbUploader: React.FC = () => {
         showErrorModal?.(res.message);
       }
     } catch (err: any) {
-      showErrorModal?.(`고객 요구사항 적재 오류: ${err.message || err}`);
+      showErrorModal?.(`怨좉컼 ?붽뎄?ы빆 ?곸옱 ?ㅻ쪟: ${err.message || err}`);
     } finally {
       setIsIngestingCustomerDefaults(false);
       setDispatchHistProgressMsg('');
     }
   };
 
-  // ── 밴드 콘솔 추출 스크립트 클립보드 복사 ──
+  // ?? 諛대뱶 肄섏넄 異붿텧 ?ㅽ겕由쏀듃 ?대┰蹂대뱶 蹂듭궗 ??
   const handleCopyBandScraperScript = () => {
     const scriptCode = `(async () => {
-  console.log('🚀 [ERP] 밴드 postDetailView ➔ txtBody 정밀 순차 수집기 v8.0 시작...');
+  console.log('?? [ERP] 諛대뱶 postDetailView ??txtBody ?뺣? ?쒖감 ?섏쭛湲?v8.0 ?쒖옉...');
 
   const hudId = 'band_modal_scraper_hud';
   const oldHud = document.getElementById(hudId);
@@ -916,21 +917,21 @@ export const InitialDbUploader: React.FC = () => {
   hud.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999999;background:rgba(15,23,42,0.96);color:#fff;padding:18px 22px;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,0.5);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:13px;line-height:1.5;min-width:340px;border:2px solid #38bdf8;backdrop-filter:blur(8px);';
   hud.innerHTML = 
     '<div style="font-weight:700;font-size:15px;margin-bottom:10px;color:#38bdf8;display:flex;align-items:center;justify-content:space-between;">' +
-      '<span>🚜 밴드 순차 수집기 v8.0</span>' +
-      '<span id="hud_status_badge" style="font-size:11px;font-weight:600;padding:3px 8px;background:#0284c7;border-radius:6px;color:#fff;">수집 중</span>' +
+      '<span>?슌 諛대뱶 ?쒖감 ?섏쭛湲?v8.0</span>' +
+      '<span id="hud_status_badge" style="font-size:11px;font-weight:600;padding:3px 8px;background:#0284c7;border-radius:6px;color:#fff;">?섏쭛 以?/span>' +
     '</div>' +
     '<div style="margin-bottom:6px;display:flex;justify-content:space-between;border-bottom:1px solid #334155;padding-bottom:6px;">' +
-      '<span>수집된 게시글:</span>' +
-      '<strong id="hud_post_count" style="color:#4ade80;font-size:17px;">0 건</strong>' +
+      '<span>?섏쭛??寃뚯떆湲:</span>' +
+      '<strong id="hud_post_count" style="color:#4ade80;font-size:17px;">0 嫄?/strong>' +
     '</div>' +
     '<div style="margin-bottom:8px;border-bottom:1px solid #334155;padding-bottom:6px;">' +
-      '<div style="font-size:11px;color:#94a3b8;">현재 수집된 일시 / 작성자:</div>' +
-      '<div id="hud_current_date" style="color:#facc15;font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">대기 중...</div>' +
+      '<div style="font-size:11px;color:#94a3b8;">?꾩옱 ?섏쭛???쇱떆 / ?묒꽦??</div>' +
+      '<div id="hud_current_date" style="color:#facc15;font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">?湲?以?..</div>' +
     '</div>' +
-    '<div style="margin-bottom:12px;font-size:11px;color:#cbd5e1;line-height:1.4;max-height:42px;overflow:hidden;text-overflow:ellipsis;" id="hud_info">게시글 본문(txtBody) 읽는 중...</div>' +
+    '<div style="margin-bottom:12px;font-size:11px;color:#cbd5e1;line-height:1.4;max-height:42px;overflow:hidden;text-overflow:ellipsis;" id="hud_info">寃뚯떆湲 蹂몃Ц(txtBody) ?쎈뒗 以?..</div>' +
     '<div style="display:flex;gap:8px;">' +
-      '<button id="hud_btn_stop" style="flex:1;padding:8px 10px;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px;">중단 및 저장</button>' +
-      '<button id="hud_btn_save" style="flex:1;padding:8px 10px;background:#10b981;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px;">지금 다운로드</button>' +
+      '<button id="hud_btn_stop" style="flex:1;padding:8px 10px;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px;">以묐떒 諛????/button>' +
+      '<button id="hud_btn_save" style="flex:1;padding:8px 10px;background:#10b981;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px;">吏湲??ㅼ슫濡쒕뱶</button>' +
     '</div>';
   document.body.appendChild(hud);
 
@@ -943,7 +944,7 @@ export const InitialDbUploader: React.FC = () => {
     const elDate = document.getElementById('hud_current_date');
     const elInfo = document.getElementById('hud_info');
 
-    if (elCount) elCount.innerText = postMap.size + ' 건';
+    if (elCount) elCount.innerText = postMap.size + ' 嫄?;
     if (elBadge && statusText) {
       elBadge.innerText = statusText;
       elBadge.style.background = isDone ? '#10b981' : '#0284c7';
@@ -954,7 +955,7 @@ export const InitialDbUploader: React.FC = () => {
 
   const triggerDownload = () => {
     if (postMap.size === 0) {
-      alert('수집된 게시글이 없습니다.');
+      alert('?섏쭛??寃뚯떆湲???놁뒿?덈떎.');
       return;
     }
     const allPosts = Array.from(postMap.values());
@@ -969,8 +970,8 @@ export const InitialDbUploader: React.FC = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    updateHud('완료', null, '✅ 총 ' + postMap.size + '건 파일 다운로드 완료!', true);
-    console.log('🎉 [ERP] 총 ' + postMap.size + '건 다운로드 완료! (band_dispatch_history_full.txt)');
+    updateHud('?꾨즺', null, '??珥?' + postMap.size + '嫄??뚯씪 ?ㅼ슫濡쒕뱶 ?꾨즺!', true);
+    console.log('?럦 [ERP] 珥?' + postMap.size + '嫄??ㅼ슫濡쒕뱶 ?꾨즺! (band_dispatch_history_full.txt)');
   };
 
   document.getElementById('hud_btn_stop')?.addEventListener('click', () => {
@@ -990,12 +991,12 @@ export const InitialDbUploader: React.FC = () => {
     if (!layer) return null;
 
     const authorWrap = layer.querySelector('[data-viewname="DPostAuthorView"], .postWriter');
-    let author = '관리자';
+    let author = '愿由ъ옄';
     let dateStr = '';
 
     if (authorWrap) {
       const authorText = authorWrap.innerText || '';
-      const dm = authorText.match(/(\\d{4}년\\s*\\d{1,2}월\\s*\\d{1,2}일\\s*(?:오전|오후)\\s*\\d{1,2}:\\d{2})/);
+      const dm = authorText.match(/(\\d{4}??\s*\\d{1,2}??\s*\\d{1,2}??\s*(?:?ㅼ쟾|?ㅽ썑)\\s*\\d{1,2}:\\d{2})/);
       if (dm) dateStr = dm[1];
 
       const nameEl = authorWrap.querySelector('.name, strong, a.author, .author');
@@ -1003,14 +1004,14 @@ export const InitialDbUploader: React.FC = () => {
         author = nameEl.innerText.trim();
       } else {
         const lines = authorText.split('\\n').map(s => s.trim()).filter(Boolean);
-        if (lines.length > 0 && !lines[0].includes('년') && !lines[0].includes('월')) {
+        if (lines.length > 0 && !lines[0].includes('??) && !lines[0].includes('??)) {
           author = lines[0];
         }
       }
     }
 
     if (!dateStr) {
-      const dm2 = layer.innerText.match(/(\\d{4}년\\s*\\d{1,2}월\\s*\\d{1,2}일\\s*(?:오전|오후)\\s*\\d{1,2}:\\d{2})/);
+      const dm2 = layer.innerText.match(/(\\d{4}??\s*\\d{1,2}??\s*\\d{1,2}??\s*(?:?ㅼ쟾|?ㅽ썑)\\s*\\d{1,2}:\\d{2})/);
       if (dm2) dateStr = dm2[1];
     }
 
@@ -1027,8 +1028,8 @@ export const InitialDbUploader: React.FC = () => {
       const cLines = [];
       commentNodes.forEach(cn => {
         const cText = cn.innerText.trim().replace(/\\n+/g, ' ');
-        if (cText && !cText.includes('댓글을 남겨주세요') && !cText.includes('표정짓기')) {
-          cLines.push('댓글: ' + cText);
+        if (cText && !cText.includes('?볤????④꺼二쇱꽭??) && !cText.includes('?쒖젙吏볤린')) {
+          cLines.push('?볤?: ' + cText);
         }
       });
       if (cLines.length > 0) {
@@ -1036,12 +1037,12 @@ export const InitialDbUploader: React.FC = () => {
       }
     }
 
-    const headerLine = (dateStr || '일시미상') + ' 게시글';
+    const headerLine = (dateStr || '?쇱떆誘몄긽') + ' 寃뚯떆湲';
     const fullText = headerLine + '\\n' + author + '\\n' + bodyText + commentsText;
     const signature = (dateStr || 'NODATE') + ' | ' + bodyText.slice(0, 40);
 
     return {
-      date: dateStr || '일시미상',
+      date: dateStr || '?쇱떆誘몄긽',
       author,
       body: bodyText,
       fullText,
@@ -1100,42 +1101,42 @@ export const InitialDbUploader: React.FC = () => {
   let step = 0;
   let consecutiveFailCount = 0;
 
-  console.log('🔄 밴드 상세뷰 모달 순차 수집 시작...');
+  console.log('?봽 諛대뱶 ?곸꽭酉?紐⑤떖 ?쒖감 ?섏쭛 ?쒖옉...');
 
   while (isRunning && step < 4000) {
     step++;
 
     const post = extractCurrentPost();
     if (!post) {
-      updateHud('대기 중', null, '게시글 본문(txtBody) 로딩 중...');
+      updateHud('?湲?以?, null, '寃뚯떆湲 蹂몃Ц(txtBody) 濡쒕뵫 以?..');
       await new Promise(r => setTimeout(r, 500));
       continue;
     }
 
     if (!postMap.has(post.signature) || post.fullText.length > (postMap.get(post.signature)?.length || 0)) {
       postMap.set(post.signature, post.fullText);
-      console.log('📦 [' + postMap.size + '건 수집] ' + post.date + ' | ' + post.author + ' | 본문길이: ' + post.body.length + '자');
+      console.log('?벀 [' + postMap.size + '嫄??섏쭛] ' + post.date + ' | ' + post.author + ' | 蹂몃Ц湲몄씠: ' + post.body.length + '??);
     }
 
-    updateHud('수집 중', post.date + ' (' + post.author + ')', '[' + postMap.size + '건] ' + post.body.slice(0, 35) + '...');
+    updateHud('?섏쭛 以?, post.date + ' (' + post.author + ')', '[' + postMap.size + '嫄? ' + post.body.slice(0, 35) + '...');
 
     let nextBtn = await waitForNextButton(3500);
     if (!nextBtn) {
       await new Promise(r => setTimeout(r, 1000));
       nextBtn = await waitForNextButton(2000);
       if (!nextBtn) {
-        console.log('🏁 다음(>) 버튼이 더 이상 없습니다. 마지막 글 도달 완료!');
+        console.log('?뢾 ?ㅼ쓬(>) 踰꾪듉?????댁긽 ?놁뒿?덈떎. 留덉?留?湲 ?꾨떖 ?꾨즺!');
         break;
       }
     }
 
-    updateHud('로딩 중', post.date, '다음(>) 글 로딩 중...');
+    updateHud('濡쒕뵫 以?, post.date, '?ㅼ쓬(>) 湲 濡쒕뵫 以?..');
     clickNextButton(nextBtn);
 
     const changed = await waitForPostChange(post.signature, 5000);
 
     if (!changed) {
-      console.warn('⚠️ 글 전환 지연 감지. 버튼 재클릭 시도...');
+      console.warn('?좑툘 湲 ?꾪솚 吏??媛먯?. 踰꾪듉 ?ы겢由??쒕룄...');
       const retryBtn = await waitForNextButton(2000);
       if (retryBtn) {
         clickNextButton(retryBtn);
@@ -1143,14 +1144,14 @@ export const InitialDbUploader: React.FC = () => {
         if (!retryChanged) {
           consecutiveFailCount++;
           if (consecutiveFailCount >= 2) {
-            console.log('🏁 2회 연속 글 변경 없음 -> 마지막 글 완료로 판정!');
+            console.log('?뢾 2???곗냽 湲 蹂寃??놁쓬 -> 留덉?留?湲 ?꾨즺濡??먯젙!');
             break;
           }
         } else {
           consecutiveFailCount = 0;
         }
       } else {
-        console.log('🏁 다음 버튼 없음 -> 마지막 글 완료!');
+        console.log('?뢾 ?ㅼ쓬 踰꾪듉 ?놁쓬 -> 留덉?留?湲 ?꾨즺!');
         break;
       }
     } else {
@@ -1158,28 +1159,28 @@ export const InitialDbUploader: React.FC = () => {
     }
   }
 
-  console.log('✅ 최종 수집 완료! 총 ' + postMap.size + '건 수집됨.');
+  console.log('??理쒖쥌 ?섏쭛 ?꾨즺! 珥?' + postMap.size + '嫄??섏쭛??');
   triggerDownload();
 })();`;
 
     if (navigator.clipboard) {
       navigator.clipboard.writeText(scriptCode).then(() => {
-        showSuccessToast?.('📋 밴드 추출 스크립트가 복사되었습니다. 네이버 밴드 화면의 F12 콘솔에 붙여넣어 실행하세요.');
+        showSuccessToast?.('?뱥 諛대뱶 異붿텧 ?ㅽ겕由쏀듃媛 蹂듭궗?섏뿀?듬땲?? ?ㅼ씠踰?諛대뱶 ?붾㈃??F12 肄섏넄??遺숈뿬?ｌ뼱 ?ㅽ뻾?섏꽭??');
       }).catch(() => {
-        showErrorModal?.('클립보드 복사에 실패했습니다.');
+        showErrorModal?.('?대┰蹂대뱶 蹂듭궗???ㅽ뙣?덉뒿?덈떎.');
       });
     }
   };
 
-  // ── 4. 시작점 데이터 일괄 적재 실행 ──
+  // ?? 4. ?쒖옉???곗씠???쇨큵 ?곸옱 ?ㅽ뻾 ??
   const handleIngest = async () => {
     if (!parsedData) {
-      showErrorModal?.('분석된 엑셀 데이터가 없습니다.');
+      showErrorModal?.('遺꾩꽍???묒? ?곗씠?곌? ?놁뒿?덈떎.');
       return;
     }
 
     setIsIngesting(true);
-    setProgressInfo({ step: 0, total: 13, message: '초기 DB 적재 파이프라인 시작...' });
+    setProgressInfo({ step: 0, total: 13, message: '珥덇린 DB ?곸옱 ?뚯씠?꾨씪???쒖옉...' });
 
     try {
       const result = await ingestExcelInitialData(parsedData, (step, total, message) => {
@@ -1189,18 +1190,18 @@ export const InitialDbUploader: React.FC = () => {
       if (result.success) {
         setReconciliationReport(result.report);
         showSuccessToast?.(result.message);
-        // ✅ 적재 완료 후 localStorage stale 캐시 전체 차단 + Supabase 최신 데이터로 React state 즉시 동기화
-        // (db.ts의 pullFromSupabase가 ALL_DB_KEYS 전체를 선제 초기화한 뒤 Supabase pull을 수행함)
-        setProgressInfo({ step: 12, total: 12, message: 'Supabase 최신 데이터 동기화 중...' });
+        // ???곸옱 ?꾨즺 ??localStorage stale 罹먯떆 ?꾩껜 李⑤떒 + Supabase 理쒖떊 ?곗씠?곕줈 React state 利됱떆 ?숆린??
+        // (db.ts??pullFromSupabase媛 ALL_DB_KEYS ?꾩껜瑜??좎젣 珥덇린?뷀븳 ??Supabase pull???섑뻾??
+        setProgressInfo({ step: 12, total: 12, message: 'Supabase 理쒖떊 ?곗씠???숆린??以?..' });
         await fullRefreshFromServer();
       } else {
         setReconciliationReport(result.report);
         showErrorModal?.(result.message);
-        // 실패 시에도 Supabase 현재 상태로 동기화 (부분 적재 결과 반영)
+        // ?ㅽ뙣 ?쒖뿉??Supabase ?꾩옱 ?곹깭濡??숆린??(遺遺??곸옱 寃곌낵 諛섏쁺)
         await fullRefreshFromServer();
       }
     } catch (e: any) {
-      showErrorModal?.(`적재 실행 오류: ${e.message}`);
+      showErrorModal?.(`?곸옱 ?ㅽ뻾 ?ㅻ쪟: ${e.message}`);
     } finally {
       setIsIngesting(false);
     }
@@ -1208,19 +1209,19 @@ export const InitialDbUploader: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
-      {/* 상단 타이틀 헤더 */}
+      {/* ?곷떒 ??댄? ?ㅻ뜑 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <Database size={28} color="#2563eb" />
           <div>
-            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>초기DB 업로드</h1>
+            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>珥덇린DB ?낅줈??/h1>
             <span style={{ fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-              신규 고객 서비스 개시를 위한 과거 라이프사이클 체인 복원 및 청구 마감 일괄 적재
+              ?좉퇋 怨좉컼 ?쒕퉬??媛쒖떆瑜??꾪븳 怨쇨굅 ?쇱씠?꾩궗?댄겢 泥댁씤 蹂듭썝 諛?泥?뎄 留덇컧 ?쇨큵 ?곸옱
             </span>
           </div>
         </div>
 
-        {/* 탭 네비게이션 */}
+        {/* ???ㅻ퉬寃뚯씠??*/}
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
             onClick={() => setActiveTab('INGEST')}
@@ -1239,7 +1240,7 @@ export const InitialDbUploader: React.FC = () => {
             }}
           >
             <Upload size={16} />
-            초기DB 업로드
+            珥덇린DB ?낅줈??
           </button>
 
           <button
@@ -1259,7 +1260,7 @@ export const InitialDbUploader: React.FC = () => {
             }}
           >
             <ShieldAlert size={16} />
-            불부합 데이터 정리
+            遺덈????곗씠???뺣━
           </button>
 
           <button
@@ -1279,7 +1280,7 @@ export const InitialDbUploader: React.FC = () => {
             }}
           >
             <Download size={16} />
-            DB 백업
+            DB 諛깆뾽
           </button>
 
           <button
@@ -1299,22 +1300,22 @@ export const InitialDbUploader: React.FC = () => {
             }}
           >
             <Trash2 size={16} />
-            DB 초기화
+            DB 珥덇린??
           </button>
         </div>
       </div>
 
-      {/* ── TAB 1: 초기DB 업로드 (메인) ── */}
+      {/* ?? TAB 1: 珥덇린DB ?낅줈??(硫붿씤) ?? */}
       {activeTab === 'INGEST' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* 1. 파일 선택 카드 */}
+          {/* 1. ?뚯씪 ?좏깮 移대뱶 */}
           <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '20px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px' }}>
               <label style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                엑셀 파일 선택
+                ?묒? ?뚯씪 ?좏깮
               </label>
               <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                5개 시트(보유자산현황, 보유장비 임대현황, 거래처정보현황, 업체별마감일자, 계약현황)가 포함된 초기 현황 엑셀 파일(.xlsx)
+                5媛??쒗듃(蹂댁쑀?먯궛?꾪솴, 蹂댁쑀?λ퉬 ?꾨??꾪솴, 嫄곕옒泥섏젙蹂댄쁽?? ?낆껜蹂꾨쭏媛먯씪?? 怨꾩빟?꾪솴)媛 ?ы븿??珥덇린 ?꾪솴 ?묒? ?뚯씪(.xlsx)
               </span>
             </div>
 
@@ -1346,7 +1347,7 @@ export const InitialDbUploader: React.FC = () => {
                 }}
               >
                 <FileSpreadsheet size={18} />
-                엑셀 파일 선택
+                ?묒? ?뚯씪 ?좏깮
               </button>
 
               {fileName && (
@@ -1359,27 +1360,27 @@ export const InitialDbUploader: React.FC = () => {
               {isParsing && (
                 <span style={{ fontSize: '13px', color: '#2563eb', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
                   <RefreshCw size={14} className="animate-spin" />
-                  엑셀 5개 시트 및 라이프사이클 이벤트 분석 중...
+                  ?묒? 5媛??쒗듃 諛??쇱씠?꾩궗?댄겢 ?대깽??遺꾩꽍 以?..
                 </span>
               )}
             </div>
           </div>
 
-          {/* 2. 과거 소급 청구서 선택적 생성 카드 */}
+          {/* 2. 怨쇨굅 ?뚭툒 泥?뎄???좏깮???앹꽦 移대뱶 */}
           <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
               <Layers size={16} color="#d97706" />
               <span style={{ fontSize: '14px', fontWeight: 600, color: '#d97706', whiteSpace: 'nowrap' }}>
-                과거 소급 청구서 생성 (선택 실행)
+                怨쇨굅 ?뚭툒 泥?뎄???앹꽦 (?좏깮 ?ㅽ뻾)
               </span>
               <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                지정 기간 내 계약별 월별 청구서를 독립적으로 계산하여 DB에 일괄 생성합니다.
+                吏??湲곌컙 ??怨꾩빟蹂??붾퀎 泥?뎄?쒕? ?낅┰?곸쑝濡?怨꾩궛?섏뿬 DB???쇨큵 ?앹꽦?⑸땲??
               </span>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: '16px', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>시작 월</label>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>?쒖옉 ??/label>
                 <input
                   type="month"
                   value={histBillingStart}
@@ -1395,7 +1396,7 @@ export const InitialDbUploader: React.FC = () => {
               <span style={{ fontSize: '18px', color: 'var(--text-muted)', paddingBottom: '8px' }}>~</span>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>종료 월</label>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>醫낅즺 ??/label>
                 <input
                   type="month"
                   value={histBillingEnd}
@@ -1408,7 +1409,7 @@ export const InitialDbUploader: React.FC = () => {
                 />
               </div>
 
-              {/* 과거 소급 청구서 생성 실행 버튼 */}
+              {/* 怨쇨굅 ?뚭툒 泥?뎄???앹꽦 ?ㅽ뻾 踰꾪듉 */}
               <button
                 onClick={handleDirectHistBillingIngest}
                 disabled={isHistBillingIngesting}
@@ -1423,12 +1424,12 @@ export const InitialDbUploader: React.FC = () => {
                 {isHistBillingIngesting ? (
                   <>
                     <RefreshCw size={14} className="animate-spin" />
-                    소급 청구서 생성 중...
+                    ?뚭툒 泥?뎄???앹꽦 以?..
                   </>
                 ) : (
                   <>
                     <Upload size={14} />
-                    소급 청구서 생성 및 적재 시작
+                    ?뚭툒 泥?뎄???앹꽦 諛??곸옱 ?쒖옉
                   </>
                 )}
               </button>
@@ -1437,11 +1438,11 @@ export const InitialDbUploader: React.FC = () => {
                 padding: '7px 12px', backgroundColor: '#fffbeb', border: '1px solid #fcd34d',
                 borderRadius: '6px', fontSize: '12px', color: '#92400e', whiteSpace: 'nowrap'
               }}>
-                ⚠️ {histBillingStart} ~ {histBillingEnd} 기간 계약별 월별 청구서 대량 생성
+                ?좑툘 {histBillingStart} ~ {histBillingEnd} 湲곌컙 怨꾩빟蹂??붾퀎 泥?뎄??????앹꽦
               </div>
             </div>
 
-            {/* 진행 메시지 */}
+            {/* 吏꾪뻾 硫붿떆吏 */}
             {histBillingProgressMsg && (
               <div style={{ marginTop: '12px', fontSize: '13px', color: '#d97706', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <RefreshCw size={13} className="animate-spin" />
@@ -1450,25 +1451,25 @@ export const InitialDbUploader: React.FC = () => {
             )}
           </div>
 
-          {/* ③ 배차 이력 업로드 카드 */}
+          {/* ??諛곗감 ?대젰 ?낅줈??移대뱶 */}
           <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Truck size={16} color="#0369a1" />
                 <span style={{ fontSize: '14px', fontWeight: 600, color: '#0369a1', whiteSpace: 'nowrap' }}>
-                  배차 이력 업로드
+                  諛곗감 ?대젰 ?낅줈??
                 </span>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                  배차현황 엑셀 파일 (2025-04 ~ 2026-09)
+                  諛곗감?꾪솴 ?묒? ?뚯씪 (2025-04 ~ 2026-09)
                 </span>
                 {uploadedDispatchCount > 0 && (
                   <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '9999px', backgroundColor: '#e0f2fe', color: '#0369a1', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                    DB 적재됨: {uploadedDispatchCount.toLocaleString()}건
+                    DB ?곸옱?? {uploadedDispatchCount.toLocaleString()}嫄?
                   </span>
                 )}
               </div>
 
-              {/* 우측 배차 이력 롤백 버튼 */}
+              {/* ?곗륫 諛곗감 ?대젰 濡ㅻ갚 踰꾪듉 */}
               {uploadedDispatchCount > 0 && (
                 <button
                   type="button"
@@ -1485,12 +1486,12 @@ export const InitialDbUploader: React.FC = () => {
                   }}
                 >
                   {isDispatchRollingBack ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                  배차 이력 롤백 ({uploadedDispatchCount.toLocaleString()}건 삭제)
+                  諛곗감 ?대젰 濡ㅻ갚 ({uploadedDispatchCount.toLocaleString()}嫄???젣)
                 </button>
               )}
             </div>
 
-            {/* 파일 선택 버튼 */}
+            {/* ?뚯씪 ?좏깮 踰꾪듉 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <input
                 ref={dispatchFileInputRef}
@@ -1511,7 +1512,7 @@ export const InitialDbUploader: React.FC = () => {
                 }}
               >
                 <FileSpreadsheet size={14} />
-                배차 엑셀 파일 선택
+                諛곗감 ?묒? ?뚯씪 ?좏깮
               </button>
 
               {dispatchFileName && (
@@ -1522,22 +1523,22 @@ export const InitialDbUploader: React.FC = () => {
 
               {isDispatchParsing && (
                 <span style={{ fontSize: '12px', color: '#2563eb', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
-                  <RefreshCw size={13} className="animate-spin" /> 파싱 중...
+                  <RefreshCw size={13} className="animate-spin" /> ?뚯떛 以?..
                 </span>
               )}
             </div>
 
-            {/* 파싱 결과 프리뷰 */}
+            {/* ?뚯떛 寃곌낵 ?꾨━酉?*/}
             {dispatchParsedData && (
               <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
                   {[
-                    { label: '총 배차건', value: `${dispatchParsedData.stats.total}건`, color: 'var(--text-main)' },
-                    { label: '완료', value: `${dispatchParsedData.stats.completed}건`, color: '#059669' },
-                    { label: '왕복(EXCHANGE)', value: `${dispatchParsedData.stats.exchangeCount}건`, color: '#7c3aed' },
-                    { label: '2026 운송사', value: `${dispatchParsedData.stats.transportCompaniesCount}개사`, color: '#0284c7' },
-                    { label: '고객 미매핑', value: `${dispatchParsedData.stats.customerUnmatched}건`, color: dispatchParsedData.stats.customerUnmatched > 0 ? '#dc2626' : '#059669' },
-                    { label: '계약 미매핑', value: `${dispatchParsedData.stats.contractUnmatched}건`, color: dispatchParsedData.stats.contractUnmatched > 0 ? '#d97706' : '#059669' },
+                    { label: '珥?諛곗감嫄?, value: `${dispatchParsedData.stats.total}嫄?, color: 'var(--text-main)' },
+                    { label: '?꾨즺', value: `${dispatchParsedData.stats.completed}嫄?, color: '#059669' },
+                    { label: '?뺣났(EXCHANGE)', value: `${dispatchParsedData.stats.exchangeCount}嫄?, color: '#7c3aed' },
+                    { label: '2026 ?댁넚??, value: `${dispatchParsedData.stats.transportCompaniesCount}媛쒖궗`, color: '#0284c7' },
+                    { label: '怨좉컼 誘몃ℓ??, value: `${dispatchParsedData.stats.customerUnmatched}嫄?, color: dispatchParsedData.stats.customerUnmatched > 0 ? '#dc2626' : '#059669' },
+                    { label: '怨꾩빟 誘몃ℓ??, value: `${dispatchParsedData.stats.contractUnmatched}嫄?, color: dispatchParsedData.stats.contractUnmatched > 0 ? '#d97706' : '#059669' },
                   ].map(({ label, value, color }) => (
                     <div key={label} style={{ backgroundColor: 'var(--bg-app)', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{label}</div>
@@ -1546,7 +1547,7 @@ export const InitialDbUploader: React.FC = () => {
                   ))}
                 </div>
 
-                {/* 진행 메시지 */}
+                {/* 吏꾪뻾 硫붿떆吏 */}
                 {dispatchProgressMsg && (
                   <div style={{ fontSize: '13px', color: '#2563eb', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <RefreshCw size={13} className="animate-spin" />
@@ -1554,7 +1555,7 @@ export const InitialDbUploader: React.FC = () => {
                   </div>
                 )}
 
-                {/* 적재 버튼 */}
+                {/* ?곸옱 踰꾪듉 */}
                 <button
                   onClick={handleDispatchIngest}
                   disabled={isDispatchIngesting}
@@ -1567,38 +1568,38 @@ export const InitialDbUploader: React.FC = () => {
                   }}
                 >
                   {isDispatchIngesting
-                    ? <><RefreshCw size={15} className="animate-spin" /> 배차 이력 적재 중...</>
-                    : <><Upload size={15} /> 배차 이력 일괄 적재 시작</>
+                    ? <><RefreshCw size={15} className="animate-spin" /> 諛곗감 ?대젰 ?곸옱 以?..</>
+                    : <><Upload size={15} /> 諛곗감 ?대젰 ?쇨큵 ?곸옱 ?쒖옉</>
                   }
                 </button>
               </div>
             )}
           </div>
 
-          {/* ④ 밴드 과거 AS 이력 빅데이터 업로드 카드 */}
+          {/* ??諛대뱶 怨쇨굅 AS ?대젰 鍮낅뜲?댄꽣 ?낅줈??移대뱶 */}
           <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 <Wrench size={16} color="#16a34a" />
                 <span style={{ fontSize: '14px', fontWeight: 600, color: '#16a34a', whiteSpace: 'nowrap' }}>
-                  현장 AS 과거 이력 (네이버 밴드) 빅데이터 업로드
+                  ?꾩옣 AS 怨쇨굅 ?대젰 (?ㅼ씠踰?諛대뱶) 鍮낅뜲?댄꽣 ?낅줈??
                 </span>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                  네이버 밴드 AS 게시글 텍스트 파일 (자산 기반 현장 자동 역추적 탑재)
+                  ?ㅼ씠踰?諛대뱶 AS 寃뚯떆湲 ?띿뒪???뚯씪 (?먯궛 湲곕컲 ?꾩옣 ?먮룞 ??텛???묒옱)
                 </span>
                 {uploadedBandAsCount > 0 && (
                   <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '9999px', backgroundColor: '#dcfce7', color: '#15803d', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                    DB 적재됨: {uploadedBandAsCount.toLocaleString()}건
+                    DB ?곸옱?? {uploadedBandAsCount.toLocaleString()}嫄?
                   </span>
                 )}
                 {unassignedAsCount > 0 && (
                   <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '9999px', backgroundColor: '#fef3c7', color: '#b45309', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                    미지정현장: {unassignedAsCount.toLocaleString()}건
+                    誘몄??뺥쁽?? {unassignedAsCount.toLocaleString()}嫄?
                   </span>
                 )}
               </div>
 
-              {/* 우측 액션 버튼군 */}
+              {/* ?곗륫 ?≪뀡 踰꾪듉援?*/}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 {unassignedAsCount > 0 && (
                   <button
@@ -1616,7 +1617,7 @@ export const InitialDbUploader: React.FC = () => {
                     }}
                   >
                     {isReconcilingAs ? <RefreshCw size={13} className="animate-spin" /> : <RefreshCw size={13} />}
-                    미지정현장 매핑 복원 ({unassignedAsCount.toLocaleString()}건)
+                    誘몄??뺥쁽??留ㅽ븨 蹂듭썝 ({unassignedAsCount.toLocaleString()}嫄?
                   </button>
                 )}
 
@@ -1636,7 +1637,7 @@ export const InitialDbUploader: React.FC = () => {
                     }}
                   >
                     {isSyncingInspectionItems ? <RefreshCw size={13} className="animate-spin" /> : <Layers size={13} />}
-                    정비항목 마스터 동기화
+                    ?뺣퉬??ぉ 留덉뒪???숆린??
                   </button>
                 )}
 
@@ -1656,13 +1657,13 @@ export const InitialDbUploader: React.FC = () => {
                     }}
                   >
                     {isBandRollingBack ? <RefreshCw size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                    밴드 AS 이력 롤백 ({uploadedBandAsCount.toLocaleString()}건 삭제)
+                    諛대뱶 AS ?대젰 濡ㅻ갚 ({uploadedBandAsCount.toLocaleString()}嫄???젣)
                   </button>
                 )}
               </div>
             </div>
 
-            {/* 정비항목 마스터 동기화 진행 상태 바 */}
+            {/* ?뺣퉬??ぉ 留덉뒪???숆린??吏꾪뻾 ?곹깭 諛?*/}
             {syncInspectionProgressMsg && (
               <div style={{ marginBottom: '12px', fontSize: '13px', color: '#1d4ed8', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#eff6ff', padding: '10px 14px', borderRadius: '6px', border: '1px solid #bfdbfe' }}>
                 <RefreshCw size={14} className="animate-spin" />
@@ -1670,7 +1671,7 @@ export const InitialDbUploader: React.FC = () => {
               </div>
             )}
 
-            {/* 미지정현장 복원 진행 상태 바 */}
+            {/* 誘몄??뺥쁽??蹂듭썝 吏꾪뻾 ?곹깭 諛?*/}
             {reconcileAsProgressMsg && (
               <div style={{ marginBottom: '12px', fontSize: '13px', color: '#b45309', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#fef3c7', padding: '10px 14px', borderRadius: '6px', border: '1px solid #fcd34d' }}>
                 <RefreshCw size={14} className="animate-spin" />
@@ -1678,7 +1679,7 @@ export const InitialDbUploader: React.FC = () => {
               </div>
             )}
 
-            {/* 파일 선택 버튼 & 샘플 로드 */}
+            {/* ?뚯씪 ?좏깮 踰꾪듉 & ?섑뵆 濡쒕뱶 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <input
                 ref={bandFileInputRef}
@@ -1699,34 +1700,34 @@ export const InitialDbUploader: React.FC = () => {
                 }}
               >
                 <FileText size={14} />
-                밴드 AS 파일 (.txt / .json / .html) 선택
+                諛대뱶 AS ?뚯씪 (.txt / .json / .html) ?좏깮
               </button>
 
               {bandFileName && (
                 <span style={{ fontSize: '13px', color: 'var(--text-main)', whiteSpace: 'nowrap', fontWeight: 600 }}>
-                  📄 {bandFileName}
+                  ?뱞 {bandFileName}
                 </span>
               )}
 
               {isBandParsing && (
                 <span style={{ fontSize: '12px', color: '#16a34a', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
-                  <RefreshCw size={13} className="animate-spin" /> AS 빅데이터 5대 매트릭스 전수 분석 중...
+                  <RefreshCw size={13} className="animate-spin" /> AS 鍮낅뜲?댄꽣 5? 留ㅽ듃由?뒪 ?꾩닔 遺꾩꽍 以?..
                 </span>
               )}
             </div>
 
-            {/* 파싱 결과 프리뷰 */}
+            {/* ?뚯떛 寃곌낵 ?꾨━酉?*/}
             {bandAnalysisResult && (
               <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {/* 6대 지표 바 */}
+                {/* 6? 吏??諛?*/}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
                   {[
-                    { label: '총 AS 분석 건수', value: `${bandAnalysisResult.totalCount.toLocaleString()}건`, color: 'var(--text-main)' },
-                    { label: '고유 장비 매핑', value: `${bandAnalysisResult.uniqueAssetsCount.toLocaleString()}대`, color: '#2563eb' },
-                    { label: '자산 역추적 현장 매핑', value: `${(bandAnalysisResult.assetBacktrackedSiteCount || 0).toLocaleString()}건`, color: '#059669', sub: '현장명 자동 복원' },
-                    { label: '유효 계약 연동', value: `${bandAnalysisResult.matchedContractCount.toLocaleString()}건`, color: '#7c3aed', sub: bandAnalysisResult.singleAssetGuessedCount > 0 ? `(1대 계약 추정 ${bandAnalysisResult.singleAssetGuessedCount}건)` : undefined },
-                    { label: '현장 조치완료', value: `${bandAnalysisResult.completedCount.toLocaleString()}건`, color: '#16a34a' },
-                    { label: '익일방문 / 안내', value: `${(bandAnalysisResult.revisitCount + bandAnalysisResult.guidedCount).toLocaleString()}건`, color: '#d97706' },
+                    { label: '珥?AS 遺꾩꽍 嫄댁닔', value: `${bandAnalysisResult.totalCount.toLocaleString()}嫄?, color: 'var(--text-main)' },
+                    { label: '怨좎쑀 ?λ퉬 留ㅽ븨', value: `${bandAnalysisResult.uniqueAssetsCount.toLocaleString()}?`, color: '#2563eb' },
+                    { label: '?먯궛 ??텛???꾩옣 留ㅽ븨', value: `${(bandAnalysisResult.assetBacktrackedSiteCount || 0).toLocaleString()}嫄?, color: '#059669', sub: '?꾩옣紐??먮룞 蹂듭썝' },
+                    { label: '?좏슚 怨꾩빟 ?곕룞', value: `${bandAnalysisResult.matchedContractCount.toLocaleString()}嫄?, color: '#7c3aed', sub: bandAnalysisResult.singleAssetGuessedCount > 0 ? `(1? 怨꾩빟 異붿젙 ${bandAnalysisResult.singleAssetGuessedCount}嫄?` : undefined },
+                    { label: '?꾩옣 議곗튂?꾨즺', value: `${bandAnalysisResult.completedCount.toLocaleString()}嫄?, color: '#16a34a' },
+                    { label: '?듭씪諛⑸Ц / ?덈궡', value: `${(bandAnalysisResult.revisitCount + bandAnalysisResult.guidedCount).toLocaleString()}嫄?, color: '#d97706' },
                   ].map(({ label, value, color, sub }) => (
                     <div key={label} style={{ backgroundColor: 'var(--bg-app)', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{label}</div>
@@ -1736,13 +1737,13 @@ export const InitialDbUploader: React.FC = () => {
                   ))}
                 </div>
 
-                {/* 검색 및 필터 컨트롤 바 */}
+                {/* 寃??諛??꾪꽣 而⑦듃濡?諛?*/}
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', backgroundColor: 'var(--bg-app)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: '200px' }}>
                     <Search size={14} color="#64748b" />
                     <input
                       type="text"
-                      placeholder="현장명, 고객사, 장비번호, 고장내용, 작성자 검색..."
+                      placeholder="?꾩옣紐? 怨좉컼?? ?λ퉬踰덊샇, 怨좎옣?댁슜, ?묒꽦??寃??.."
                       value={bandSearchTerm}
                       onChange={e => setBandSearchTerm(e.target.value)}
                       style={{ width: '100%', padding: '6px 10px', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '12px' }}
@@ -1760,7 +1761,7 @@ export const InitialDbUploader: React.FC = () => {
                           color: bandStatusFilter === st ? '#ffffff' : '#475569'
                         }}
                       >
-                        {st === 'ALL' ? '전체 상태' : st === 'COMPLETED' ? '조치완료' : st === 'REVISIT' ? '익일방문' : '안내종결'}
+                        {st === 'ALL' ? '?꾩껜 ?곹깭' : st === 'COMPLETED' ? '議곗튂?꾨즺' : st === 'REVISIT' ? '?듭씪諛⑸Ц' : '?덈궡醫낃껐'}
                       </button>
                     ))}
                   </div>
@@ -1776,13 +1777,13 @@ export const InitialDbUploader: React.FC = () => {
                           color: bandContractFilter === cf ? '#ffffff' : '#475569'
                         }}
                       >
-                        {cf === 'ALL' ? '계약 전체' : cf === 'MATCHED' ? '계약 매핑' : cf === 'GUESSED' ? '1대 추정' : '미매핑'}
+                        {cf === 'ALL' ? '怨꾩빟 ?꾩껜' : cf === 'MATCHED' ? '怨꾩빟 留ㅽ븨' : cf === 'GUESSED' ? '1? 異붿젙' : '誘몃ℓ??}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* 고밀도 대사 테이블 */}
+                {/* 怨좊???????뚯씠釉?*/}
                 {(() => {
                   const filteredRecords = bandAnalysisResult.records.filter(r => {
                     const matchesSearch = !bandSearchTerm || 
@@ -1806,8 +1807,8 @@ export const InitialDbUploader: React.FC = () => {
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
-                        <span>필터링된 건수: <strong>{filteredRecords.length.toLocaleString()}건</strong> / 총 {bandAnalysisResult.totalCount.toLocaleString()}건</span>
-                        <span style={{ fontSize: '11px' }}>※ 상위 50건 표시 중 (전체 {bandAnalysisResult.totalCount.toLocaleString()}건 일괄 적재 대상)</span>
+                        <span>?꾪꽣留곷맂 嫄댁닔: <strong>{filteredRecords.length.toLocaleString()}嫄?/strong> / 珥?{bandAnalysisResult.totalCount.toLocaleString()}嫄?/span>
+                        <span style={{ fontSize: '11px' }}>???곸쐞 50嫄??쒖떆 以?(?꾩껜 {bandAnalysisResult.totalCount.toLocaleString()}嫄??쇨큵 ?곸옱 ???</span>
                       </div>
 
                       <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', overflowX: 'auto', maxHeight: '360px', overflowY: 'auto' }}>
@@ -1815,15 +1816,15 @@ export const InitialDbUploader: React.FC = () => {
                           <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-secondary)', zIndex: 1 }}>
                             <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', textAlign: 'left' }}>
                               <th style={{ padding: '8px 10px' }}>No</th>
-                              <th style={{ padding: '8px 10px' }}>접수일자</th>
-                              <th style={{ padding: '8px 10px' }}>작성자</th>
-                              <th style={{ padding: '8px 10px' }}>고객사 / 현장</th>
-                              <th style={{ padding: '8px 10px' }}>관리번호 (모델)</th>
-                              <th style={{ padding: '8px 10px' }}>고장 내용</th>
-                              <th style={{ padding: '8px 10px' }}>조치 내용</th>
-                              <th style={{ padding: '8px 10px' }}>소속 계약 매핑</th>
-                              <th style={{ padding: '8px 10px', textAlign: 'center' }}>상태</th>
-                              <th style={{ padding: '8px 10px', textAlign: 'center' }}>원문</th>
+                              <th style={{ padding: '8px 10px' }}>?묒닔?쇱옄</th>
+                              <th style={{ padding: '8px 10px' }}>?묒꽦??/th>
+                              <th style={{ padding: '8px 10px' }}>怨좉컼??/ ?꾩옣</th>
+                              <th style={{ padding: '8px 10px' }}>愿由щ쾲??(紐⑤뜽)</th>
+                              <th style={{ padding: '8px 10px' }}>怨좎옣 ?댁슜</th>
+                              <th style={{ padding: '8px 10px' }}>議곗튂 ?댁슜</th>
+                              <th style={{ padding: '8px 10px' }}>?뚯냽 怨꾩빟 留ㅽ븨</th>
+                              <th style={{ padding: '8px 10px', textAlign: 'center' }}>?곹깭</th>
+                              <th style={{ padding: '8px 10px', textAlign: 'center' }}>?먮Ц</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1837,19 +1838,19 @@ export const InitialDbUploader: React.FC = () => {
                                     <span>{r.matchedCustomerName || r.customer}</span>
                                     {r.isAssetBacktracked && (
                                       <span style={{ fontSize: '9px', padding: '1px 5px', borderRadius: '4px', backgroundColor: '#dcfce7', color: '#15803d', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                                        자산역추적
+                                        ?먯궛??텛??
                                       </span>
                                     )}
                                   </div>
                                   <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{r.matchedSiteName || r.site}</div>
-                                  <div style={{ fontSize: '10.5px', color: '#0284c7' }}>📍 {r.matchedSiteAddress || r.address || '주소 미등록'}</div>
+                                  <div style={{ fontSize: '10.5px', color: '#0284c7' }}>?뱧 {r.matchedSiteAddress || r.address || '二쇱냼 誘몃벑濡?}</div>
                                 </td>
                                 <td style={{ padding: '6px 10px' }}>
                                   <span style={{ fontWeight: 700, color: r.matchedAssetId ? '#2563eb' : '#475569' }}>
                                     {r.matchedAssetNo || r.assetNo}
                                   </span>
                                   {r.isSingleAssetGuessed && (
-                                    <span className="badge badge-warning" style={{ fontSize: '9px', marginLeft: '4px' }}>1대추정</span>
+                                    <span className="badge badge-warning" style={{ fontSize: '9px', marginLeft: '4px' }}>1?異붿젙</span>
                                   )}
                                   <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '4px' }}>({r.matchedModelName})</span>
                                 </td>
@@ -1863,7 +1864,7 @@ export const InitialDbUploader: React.FC = () => {
                                   {r.matchedContractNo ? (
                                     <span className="badge badge-info" style={{ fontSize: '10px' }}>{r.matchedContractNo}</span>
                                   ) : (
-                                    <span style={{ color: '#94a3b8', fontSize: '11px' }}>- (일반이력)</span>
+                                    <span style={{ color: '#94a3b8', fontSize: '11px' }}>- (?쇰컲?대젰)</span>
                                   )}
                                 </td>
                                 <td style={{ padding: '6px 10px', textAlign: 'center' }}>
@@ -1872,7 +1873,7 @@ export const InitialDbUploader: React.FC = () => {
                                     r.status === 'REVISIT' ? 'badge-warning' :
                                     r.status === 'GUIDED' ? 'badge-info' : 'badge-secondary'
                                   }`} style={{ fontSize: '10px' }}>
-                                    {r.status === 'COMPLETED' ? '조치완료' : r.status === 'REVISIT' ? '익일방문' : '안내종결'}
+                                    {r.status === 'COMPLETED' ? '議곗튂?꾨즺' : r.status === 'REVISIT' ? '?듭씪諛⑸Ц' : '?덈궡醫낃껐'}
                                   </span>
                                 </td>
                                 <td style={{ padding: '6px 10px', textAlign: 'center' }}>
@@ -1880,7 +1881,7 @@ export const InitialDbUploader: React.FC = () => {
                                     onClick={() => setSelectedAsRecord(r)}
                                     style={{ padding: '2px 6px', fontSize: '10.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', cursor: 'pointer' }}
                                   >
-                                    상세
+                                    ?곸꽭
                                   </button>
                                 </td>
                               </tr>
@@ -1892,7 +1893,7 @@ export const InitialDbUploader: React.FC = () => {
                   );
                 })()}
 
-                {/* 진행 메시지 */}
+                {/* 吏꾪뻾 硫붿떆吏 */}
                 {bandProgressMsg && (
                   <div style={{ fontSize: '13px', color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'rgba(16, 185, 129, 0.12)', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
                     <RefreshCw size={14} className="animate-spin" />
@@ -1900,10 +1901,10 @@ export const InitialDbUploader: React.FC = () => {
                   </div>
                 )}
 
-                {/* 우하단 종결 버튼 (Gutenberg Z-Pattern) */}
+                {/* ?고븯??醫낃껐 踰꾪듉 (Gutenberg Z-Pattern) */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap', gap: '8px' }}>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    💡 총 <strong>{bandAnalysisResult.totalCount.toLocaleString()}건</strong>의 과거 AS 이력을 정비 마스터(`repairs`) 및 자산/계약 타임라인에 무누락 저장합니다.
+                    ?뮕 珥?<strong>{bandAnalysisResult.totalCount.toLocaleString()}嫄?/strong>??怨쇨굅 AS ?대젰???뺣퉬 留덉뒪??`repairs`) 諛??먯궛/怨꾩빟 ??꾨씪?몄뿉 臾대늻????ν빀?덈떎.
                   </div>
 
                   <button
@@ -1918,8 +1919,8 @@ export const InitialDbUploader: React.FC = () => {
                     }}
                   >
                     {isBandIngesting
-                      ? <><RefreshCw size={15} className="animate-spin" /> 밴드 AS 이력 일괄 적재 중...</>
-                      : <><Upload size={15} /> 🚀 과거 AS 이력 전수 정비 마스터(`repairs`) DB 일괄 적재 실행</>
+                      ? <><RefreshCw size={15} className="animate-spin" /> 諛대뱶 AS ?대젰 ?쇨큵 ?곸옱 以?..</>
+                      : <><Upload size={15} /> ?? 怨쇨굅 AS ?대젰 ?꾩닔 ?뺣퉬 留덉뒪??`repairs`) DB ?쇨큵 ?곸옱 ?ㅽ뻾</>
                     }
                   </button>
                 </div>
@@ -1927,19 +1928,19 @@ export const InitialDbUploader: React.FC = () => {
             )}
           </div>
 
-          {/* ⑤ 밴드 출고요청 분석 & 유효 계약처 기본 요구사항(옵션/보양/스펙) 마스터 동기화 카드 */}
+          {/* ??諛대뱶 異쒓퀬?붿껌 遺꾩꽍 & ?좏슚 怨꾩빟泥?湲곕낯 ?붽뎄?ы빆(?듭뀡/蹂댁뼇/?ㅽ럺) 留덉뒪???숆린??移대뱶 */}
           <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
               <FileCheck size={16} color="#7c3aed" />
               <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                출고요청 이력 분석 & 고객 요구사항 마스터 DB 동기화
+                異쒓퀬?붿껌 ?대젰 遺꾩꽍 & 怨좉컼 ?붽뎄?ы빆 留덉뒪??DB ?숆린??
               </span>
               <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                과거 출고요청 텍스트에서 고객이 요구한 맞춤 옵션·보양·특이사항을 마스터 DB에 정확히 기억하여, 향후 신규 계약 및 출고 시 100% 자동 상속·재사용합니다.
+                怨쇨굅 異쒓퀬?붿껌 ?띿뒪?몄뿉??怨좉컼???붽뎄??留욎땄 ?듭뀡쨌蹂댁뼇쨌?뱀씠?ы빆??留덉뒪??DB???뺥솗??湲곗뼲?섏뿬, ?ν썑 ?좉퇋 怨꾩빟 諛?異쒓퀬 ??100% ?먮룞 ?곸냽쨌?ъ궗?⑺빀?덈떎.
               </span>
             </div>
 
-            {/* 파일 선택 버튼 & 상태 */}
+            {/* ?뚯씪 ?좏깮 踰꾪듉 & ?곹깭 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <input
                 ref={dispatchHistFileInputRef}
@@ -1960,7 +1961,7 @@ export const InitialDbUploader: React.FC = () => {
                 }}
               >
                 <FileText size={14} />
-                출고요청 파일 (.txt / .json) 선택
+                異쒓퀬?붿껌 ?뚯씪 (.txt / .json) ?좏깮
               </button>
 
               <button
@@ -1971,10 +1972,10 @@ export const InitialDbUploader: React.FC = () => {
                   border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer',
                   fontSize: '12.5px', fontWeight: 600, whiteSpace: 'nowrap'
                 }}
-                title="네이버 밴드 화면에서 F12 콘솔에 붙여넣어 중복 없이 전체 출고 이력을 추출하는 자바스크립트 코드를 클립보드에 복사합니다."
+                title="?ㅼ씠踰?諛대뱶 ?붾㈃?먯꽌 F12 肄섏넄??遺숈뿬?ｌ뼱 以묐났 ?놁씠 ?꾩껜 異쒓퀬 ?대젰??異붿텧?섎뒗 ?먮컮?ㅽ겕由쏀듃 肄붾뱶瑜??대┰蹂대뱶??蹂듭궗?⑸땲??"
               >
                 <Copy size={13} />
-                밴드 전체 게시글 추출 스크립트 복사
+                諛대뱶 ?꾩껜 寃뚯떆湲 異붿텧 ?ㅽ겕由쏀듃 蹂듭궗
               </button>
 
               {dispatchHistFileName && (
@@ -1985,23 +1986,23 @@ export const InitialDbUploader: React.FC = () => {
 
               {isAnalyzingDispatchHist && (
                 <span style={{ fontSize: '12px', color: '#7c3aed', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
-                  <RefreshCw size={13} className="animate-spin" /> 출고요청 데이터 정밀 분석 중...
+                  <RefreshCw size={13} className="animate-spin" /> 異쒓퀬?붿껌 ?곗씠???뺣? 遺꾩꽍 以?..
                 </span>
               )}
             </div>
 
-            {/* 파싱 및 분석 결과 프리뷰 */}
+            {/* ?뚯떛 諛?遺꾩꽍 寃곌낵 ?꾨━酉?*/}
             {dispatchAnalysisResult && (
               <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {/* 통계 지표 */}
+                {/* ?듦퀎 吏??*/}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
                   {[
-                    { label: '총 출고요청 건수', value: `${dispatchAnalysisResult.stats.totalParsed}건`, color: 'var(--text-main)' },
-                    { label: '유효 계약 고객사', value: `${dispatchAnalysisResult.stats.contractedCustomerCount}개사`, color: '#7c3aed' },
-                    { label: '유효 계약 현장', value: `${dispatchAnalysisResult.stats.contractedSiteCount}개소`, color: '#2563eb' },
-                    { label: '추출 기본 유상옵션', value: `${dispatchAnalysisResult.stats.extractedOptionCount}건`, color: '#059669' },
-                    { label: '추출 기본 보양작업', value: `${dispatchAnalysisResult.stats.extractedProtectionCount}건`, color: '#d97706' },
-                    { label: '제외된 미계약 건', value: `${dispatchAnalysisResult.stats.ignoredCount}건`, color: 'var(--text-muted)' },
+                    { label: '珥?異쒓퀬?붿껌 嫄댁닔', value: `${dispatchAnalysisResult.stats.totalParsed}嫄?, color: 'var(--text-main)' },
+                    { label: '?좏슚 怨꾩빟 怨좉컼??, value: `${dispatchAnalysisResult.stats.contractedCustomerCount}媛쒖궗`, color: '#7c3aed' },
+                    { label: '?좏슚 怨꾩빟 ?꾩옣', value: `${dispatchAnalysisResult.stats.contractedSiteCount}媛쒖냼`, color: '#2563eb' },
+                    { label: '異붿텧 湲곕낯 ?좎긽?듭뀡', value: `${dispatchAnalysisResult.stats.extractedOptionCount}嫄?, color: '#059669' },
+                    { label: '異붿텧 湲곕낯 蹂댁뼇?묒뾽', value: `${dispatchAnalysisResult.stats.extractedProtectionCount}嫄?, color: '#d97706' },
+                    { label: '?쒖쇅??誘멸퀎??嫄?, value: `${dispatchAnalysisResult.stats.ignoredCount}嫄?, color: 'var(--text-muted)' },
                   ].map(({ label, value, color }) => (
                     <div key={label} style={{ backgroundColor: 'var(--bg-app)', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{label}</div>
@@ -2010,14 +2011,14 @@ export const InitialDbUploader: React.FC = () => {
                   ))}
                 </div>
 
-                {/* 매칭된 유효 고객사 기본옵션 설정 고밀도 대사 그리드 */}
+                {/* 留ㅼ묶???좏슚 怨좉컼??湲곕낯?듭뀡 ?ㅼ젙 怨좊??????洹몃━??*/}
                 <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
                   <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>
-                      고객사 기본옵션 설정(유상옵션·보양작업) 추출 내역 ({dispatchAnalysisResult.matchedEnrichments.length}개사)
+                      怨좉컼??湲곕낯?듭뀡 ?ㅼ젙(?좎긽?듭뀡쨌蹂댁뼇?묒뾽) 異붿텧 ?댁뿭 ({dispatchAnalysisResult.matchedEnrichments.length}媛쒖궗)
                     </span>
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      * 시계열 최신값 우선 & 고객/현장 기본옵션 자동 상속
+                      * ?쒓퀎??理쒖떊媛??곗꽑 & 怨좉컼/?꾩옣 湲곕낯?듭뀡 ?먮룞 ?곸냽
                     </span>
                   </div>
 
@@ -2025,13 +2026,13 @@ export const InitialDbUploader: React.FC = () => {
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
                       <thead>
                         <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>고객사명</th>
-                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>계약수</th>
-                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>최신일자</th>
-                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>기본 유상옵션</th>
-                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>기본 보양작업</th>
-                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>현장/담당자</th>
-                          <th style={{ padding: '8px 10px', minWidth: '180px' }}>고객 특이사항</th>
+                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>怨좉컼?щ챸</th>
+                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>怨꾩빟??/th>
+                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>理쒖떊?쇱옄</th>
+                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>湲곕낯 ?좎긽?듭뀡</th>
+                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>湲곕낯 蹂댁뼇?묒뾽</th>
+                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>?꾩옣/?대떦??/th>
+                          <th style={{ padding: '8px 10px', minWidth: '180px' }}>怨좉컼 ?뱀씠?ы빆</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2043,17 +2044,17 @@ export const InitialDbUploader: React.FC = () => {
                               </td>
                               <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
                                 <span style={{ padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(37, 99, 235, 0.12)', color: 'var(--primary)', fontSize: '11px', fontWeight: 600 }}>
-                                  {item.contractCount}건
+                                  {item.contractCount}嫄?
                                 </span>
                               </td>
                               <td style={{ padding: '8px 10px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                                 {item.latestDate}
                               </td>
                               <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', color: item.extractedDefaults.defaultPaidOptions ? '#059669' : '#94a3b8' }}>
-                                {item.extractedDefaults.defaultPaidOptions || '(기본)'}
+                                {item.extractedDefaults.defaultPaidOptions || '(湲곕낯)'}
                               </td>
                               <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', color: item.extractedDefaults.defaultProtection ? '#059669' : '#94a3b8' }}>
-                                {item.extractedDefaults.defaultProtection || '(기본)'}
+                                {item.extractedDefaults.defaultProtection || '(湲곕낯)'}
                               </td>
                               <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
                                 {item.sites.map(s => s.siteName).join(', ') || '-'}
@@ -2070,31 +2071,31 @@ export const InitialDbUploader: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 제외된 과거/미계약 건 안내 바 */}
+                {/* ?쒖쇅??怨쇨굅/誘멸퀎??嫄??덈궡 諛?*/}
                 {dispatchAnalysisResult.ignoredPosts.length > 0 && (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px' }}>
                     <span style={{ color: 'var(--text-muted)' }}>
-                      🚫 과거 종료 거래처 / 계약 미보유 건 <strong>{dispatchAnalysisResult.ignoredPosts.length}건</strong>은 대장 오염 방지 원칙에 따라 안전하게 제외되었습니다.
+                      ?슟 怨쇨굅 醫낅즺 嫄곕옒泥?/ 怨꾩빟 誘몃낫??嫄?<strong>{dispatchAnalysisResult.ignoredPosts.length}嫄?/strong>? ????ㅼ뿼 諛⑹? ?먯튃???곕씪 ?덉쟾?섍쾶 ?쒖쇅?섏뿀?듬땲??
                     </span>
                     <button
                       onClick={() => setShowIgnoredPostsModal(!showIgnoredPostsModal)}
                       style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', textDecoration: 'underline', fontSize: '12px', fontWeight: 600 }}
                     >
-                      {showIgnoredPostsModal ? '제외 목록 닫기' : '제외 상세 목록 확인'}
+                      {showIgnoredPostsModal ? '?쒖쇅 紐⑸줉 ?リ린' : '?쒖쇅 ?곸꽭 紐⑸줉 ?뺤씤'}
                     </button>
                   </div>
                 )}
 
-                {/* 제외 목록 상세 드롭다운 */}
+                {/* ?쒖쇅 紐⑸줉 ?곸꽭 ?쒕∼?ㅼ슫 */}
                 {showIgnoredPostsModal && (
                   <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px', backgroundColor: '#fafafa', padding: '8px' }}>
                     <table style={{ width: '100%', fontSize: '11px', textAlign: 'left', borderCollapse: 'collapse' }}>
                       <thead>
                         <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-color)' }}>
-                          <th style={{ padding: '4px 6px' }}>일시</th>
-                          <th style={{ padding: '4px 6px' }}>고객사명</th>
-                          <th style={{ padding: '4px 6px' }}>현장명</th>
-                          <th style={{ padding: '4px 6px' }}>제외 사유</th>
+                          <th style={{ padding: '4px 6px' }}>?쇱떆</th>
+                          <th style={{ padding: '4px 6px' }}>怨좉컼?щ챸</th>
+                          <th style={{ padding: '4px 6px' }}>?꾩옣紐?/th>
+                          <th style={{ padding: '4px 6px' }}>?쒖쇅 ?ъ쑀</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2111,7 +2112,7 @@ export const InitialDbUploader: React.FC = () => {
                   </div>
                 )}
 
-                {/* 진행 메시지 */}
+                {/* 吏꾪뻾 硫붿떆吏 */}
                 {dispatchHistProgressMsg && (
                   <div style={{ fontSize: '13px', color: '#7c3aed', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <RefreshCw size={13} className="animate-spin" />
@@ -2119,7 +2120,7 @@ export const InitialDbUploader: React.FC = () => {
                   </div>
                 )}
 
-                {/* 적재 완결 버튼 (Gutenberg Terminal Action) */}
+                {/* ?곸옱 ?꾧껐 踰꾪듉 (Gutenberg Terminal Action) */}
                 <button
                   onClick={handleCustomerDefaultsIngest}
                   disabled={isIngestingCustomerDefaults}
@@ -2132,34 +2133,34 @@ export const InitialDbUploader: React.FC = () => {
                   }}
                 >
                   {isIngestingCustomerDefaults
-                    ? <><RefreshCw size={15} className="animate-spin" /> 마스터 DB 동기화 중...</>
-                    : <><Upload size={15} /> 고객 요구사항 마스터 일괄 DB 동기화 (기억 및 자동 상속)</>
+                    ? <><RefreshCw size={15} className="animate-spin" /> 留덉뒪??DB ?숆린??以?..</>
+                    : <><Upload size={15} /> 怨좉컼 ?붽뎄?ы빆 留덉뒪???쇨큵 DB ?숆린??(湲곗뼲 諛??먮룞 ?곸냽)</>
                   }
                 </button>
               </div>
             )}
           </div>
 
-          {/* ⑥ 관리 소모품 및 부품 재고 업로드 카드 */}
+          {/* ??愿由??뚮え??諛?遺???ш퀬 ?낅줈??移대뱶 */}
           <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Boxes size={18} color="#0284c7" />
                   <label style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                    관리 소모품 및 부품 재고 업로드
+                    愿由??뚮え??諛?遺???ш퀬 ?낅줈??
                   </label>
                   <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '9999px', backgroundColor: '#e0f2fe', color: '#0369a1', fontWeight: 600 }}>
-                    밴드 재고 실사 텍스트 / 엑셀
+                    諛대뱶 ?ш퀬 ?ㅼ궗 ?띿뒪??/ ?묒?
                   </span>
                 </div>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                  소모품재고.txt 파일 또는 엑셀 목록을 분석하여 주기장 재고 및 최초 입고 이력을 일괄 등록합니다.
+                  ?뚮え?덉옱怨?txt ?뚯씪 ?먮뒗 ?묒? 紐⑸줉??遺꾩꽍?섏뿬 二쇨린???ш퀬 諛?理쒖큹 ?낃퀬 ?대젰???쇨큵 ?깅줉?⑸땲??
                 </span>
               </div>
             </div>
 
-            {/* 파일 업로드 바 */}
+            {/* ?뚯씪 ?낅줈??諛?*/}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', backgroundColor: 'var(--bg-main)', borderRadius: '6px', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
               <input
                 ref={consumableFileInputRef}
@@ -2182,23 +2183,23 @@ export const InitialDbUploader: React.FC = () => {
                 }}
               >
                 {isConsumableParsing ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
-                파일 선택 (.txt / .xlsx)
+                ?뚯씪 ?좏깮 (.txt / .xlsx)
               </button>
 
               <span style={{ fontSize: '13px', color: consumableFileName ? 'var(--text-main)' : 'var(--text-muted)', fontWeight: consumableFileName ? 600 : 400 }}>
-                {consumableFileName || '선택된 파일 없음 (.txt / .xlsx 등)'}
+                {consumableFileName || '?좏깮???뚯씪 ?놁쓬 (.txt / .xlsx ??'}
               </span>
             </div>
 
-            {/* 파싱 결과 고밀도 테이블 및 최종 반영 버튼 */}
+            {/* ?뚯떛 寃곌낵 怨좊????뚯씠釉?諛?理쒖쥌 諛섏쁺 踰꾪듉 */}
             {parsedConsumables && parsedConsumables.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>
-                    파싱 결과 목록 ({parsedConsumables.length}건)
+                    ?뚯떛 寃곌낵 紐⑸줉 ({parsedConsumables.length}嫄?
                   </span>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    관리 소모품 제품 및 기초 수량
+                    愿由??뚮え???쒗뭹 諛?湲곗큹 ?섎웾
                   </span>
                 </div>
 
@@ -2207,13 +2208,13 @@ export const InitialDbUploader: React.FC = () => {
                     <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-card)', zIndex: 1, borderBottom: '1px solid var(--border-color)' }}>
                       <tr style={{ color: 'var(--text-muted)' }}>
                         <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '40px' }}>No</th>
-                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>분류</th>
-                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>공급처/브랜드</th>
-                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>품목명 / 모델명</th>
-                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', textAlign: 'right' }}>재고 수량</th>
-                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', textAlign: 'right' }}>기준 단가</th>
-                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', textAlign: 'right' }}>재고 금액</th>
-                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>비고 / 수리상태</th>
+                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>遺꾨쪟</th>
+                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>怨듦툒泥?釉뚮옖??/th>
+                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>?덈ぉ紐?/ 紐⑤뜽紐?/th>
+                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', textAlign: 'right' }}>?ш퀬 ?섎웾</th>
+                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', textAlign: 'right' }}>湲곗? ?④?</th>
+                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', textAlign: 'right' }}>?ш퀬 湲덉븸</th>
+                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>鍮꾧퀬 / ?섎━?곹깭</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2224,19 +2225,19 @@ export const InitialDbUploader: React.FC = () => {
                             <td style={{ padding: '7px 12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{idx + 1}</td>
                             <td style={{ padding: '7px 12px', whiteSpace: 'nowrap' }}>
                               <span style={{ padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(2, 132, 199, 0.1)', color: '#0284c7', fontSize: '11px', fontWeight: 600 }}>
-                                {item.category || '기타소모품'}
+                                {item.category || '湲고??뚮え??}
                               </span>
                             </td>
                             <td style={{ padding: '7px 12px', whiteSpace: 'nowrap', fontWeight: 500, color: 'var(--text-main)' }}>{item.supplier}</td>
                             <td style={{ padding: '7px 12px', whiteSpace: 'nowrap', fontWeight: 600, color: 'var(--text-main)' }}>{item.modelName}</td>
                             <td style={{ padding: '7px 12px', textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 700, color: '#0284c7' }}>
-                              {item.stockQty.toLocaleString()} {item.unit || '개'}
+                              {item.stockQty.toLocaleString()} {item.unit || '媛?}
                             </td>
                             <td style={{ padding: '7px 12px', textAlign: 'right', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>
-                              {item.unitPrice ? `₩${item.unitPrice.toLocaleString()}` : '-'}
+                              {item.unitPrice ? `??{item.unitPrice.toLocaleString()}` : '-'}
                             </td>
                             <td style={{ padding: '7px 12px', textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 600, color: 'var(--text-main)' }}>
-                              {totalItemVal ? `₩${totalItemVal.toLocaleString()}` : '-'}
+                              {totalItemVal ? `??{totalItemVal.toLocaleString()}` : '-'}
                             </td>
                             <td style={{ padding: '7px 12px', whiteSpace: 'nowrap' }}>
                               {item.note ? (
@@ -2244,7 +2245,7 @@ export const InitialDbUploader: React.FC = () => {
                                   {item.note}
                                 </span>
                               ) : (
-                                <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>정상 가용</span>
+                                <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>?뺤긽 媛??/span>
                               )}
                             </td>
                           </tr>
@@ -2254,23 +2255,23 @@ export const InitialDbUploader: React.FC = () => {
                   </table>
                 </div>
 
-                {/* 4단계 우하단 Gutenberg Z-패턴: 요약 검증식 & 최종 적재 완결 버튼 */}
+                {/* 4?④퀎 ?고븯??Gutenberg Z-?⑦꽩: ?붿빟 寃利앹떇 & 理쒖쥌 ?곸옱 ?꾧껐 踰꾪듉 */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '12px 16px', backgroundColor: 'var(--bg-main)', borderRadius: '6px', border: '1px solid var(--border-color)', marginTop: '4px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', fontSize: '13px' }}>
                     <span style={{ whiteSpace: 'nowrap' }}>
-                      총 품목수: <strong style={{ color: 'var(--text-main)' }}>{parsedConsumables.length}종</strong>
+                      珥??덈ぉ?? <strong style={{ color: 'var(--text-main)' }}>{parsedConsumables.length}醫?/strong>
                     </span>
                     <span style={{ color: 'var(--border-color)' }}>|</span>
                     <span style={{ whiteSpace: 'nowrap' }}>
-                      총 재고 수량: <strong style={{ color: '#0284c7' }}>{parsedConsumables.reduce((acc, it) => acc + it.stockQty, 0).toLocaleString()}개</strong>
+                      珥??ш퀬 ?섎웾: <strong style={{ color: '#0284c7' }}>{parsedConsumables.reduce((acc, it) => acc + it.stockQty, 0).toLocaleString()}媛?/strong>
                     </span>
                     <span style={{ color: 'var(--border-color)' }}>|</span>
                     <span style={{ whiteSpace: 'nowrap' }}>
-                      수리중: <strong style={{ color: '#ef4444' }}>{parsedConsumables.reduce((acc, it) => acc + (it.repairingQty || 0), 0)}개</strong>
+                      ?섎━以? <strong style={{ color: '#ef4444' }}>{parsedConsumables.reduce((acc, it) => acc + (it.repairingQty || 0), 0)}媛?/strong>
                     </span>
                     <span style={{ color: 'var(--border-color)' }}>|</span>
                     <span style={{ whiteSpace: 'nowrap' }}>
-                      재고 자산 평가액: <strong style={{ color: '#059669' }}>₩{parsedConsumables.reduce((acc, it) => acc + (it.stockQty * (it.unitPrice || 0)), 0).toLocaleString()}</strong>
+                      ?ш퀬 ?먯궛 ?됯??? <strong style={{ color: '#059669' }}>??parsedConsumables.reduce((acc, it) => acc + (it.stockQty * (it.unitPrice || 0)), 0).toLocaleString()}</strong>
                     </span>
                   </div>
 
@@ -2289,9 +2290,9 @@ export const InitialDbUploader: React.FC = () => {
                     }}
                   >
                     {isConsumableIngesting ? (
-                      <><RefreshCw size={15} className="animate-spin" /> DB 반영 중...</>
+                      <><RefreshCw size={15} className="animate-spin" /> DB 諛섏쁺 以?..</>
                     ) : (
-                      <><Upload size={15} /> 소모품 재고 DB 반영 ({parsedConsumables.length}건)</>
+                      <><Upload size={15} /> ?뚮え???ш퀬 DB 諛섏쁺 ({parsedConsumables.length}嫄?</>
                     )}
                   </button>
                 </div>
@@ -2299,27 +2300,27 @@ export const InitialDbUploader: React.FC = () => {
             )}
           </div>
 
-          {/* ⑦ 임직원 권한 마스터 업로드 카드 */}
+          {/* ???꾩쭅??沅뚰븳 留덉뒪???낅줈??移대뱶 */}
           <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <ShieldCheck size={18} color="#4f46e5" />
                   <label style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                    임직원 권한 마스터 업로드
+                    ?꾩쭅??沅뚰븳 留덉뒪???낅줈??
                   </label>
                   <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '9999px', backgroundColor: '#eef2ff', color: '#4338ca', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                    JSON 권한 마스터
+                    JSON 沅뚰븳 留덉뒪??
                   </span>
                 </div>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                  조정 완료된 임직원별 메뉴 조회(canView) 및 저장(canSave) 권한을 파일에서 읽어와 정확하게 일괄 동기화합니다.
+                  議곗젙 ?꾨즺???꾩쭅?먮퀎 硫붾돱 議고쉶(canView) 諛????canSave) 沅뚰븳???뚯씪?먯꽌 ?쎌뼱? ?뺥솗?섍쾶 ?쇨큵 ?숆린?뷀빀?덈떎.
                 </span>
               </div>
 
-              {/* 우상단 액션 버튼군 */}
+              {/* ?곗긽???≪뀡 踰꾪듉援?*/}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                {/* 직무 템플릿 권한 자동 생성 버튼 (신규) */}
+                {/* 吏곷Т ?쒗뵆由?沅뚰븳 ?먮룞 ?앹꽦 踰꾪듉 (?좉퇋) */}
                 <button
                   type="button"
                   onClick={handleGenerateDefaultPermissions}
@@ -2335,8 +2336,8 @@ export const InitialDbUploader: React.FC = () => {
                   }}
                 >
                   {isGeneratingDefaultPerms
-                    ? <><RefreshCw size={14} className="animate-spin" /> {generatePermsMsg || '권한 자동 생성 중...'}</>
-                    : <><ShieldCheck size={14} /> 직무 템플릿 권한 자동 생성</>
+                    ? <><RefreshCw size={14} className="animate-spin" /> {generatePermsMsg || '沅뚰븳 ?먮룞 ?앹꽦 以?..'}</>
+                    : <><ShieldCheck size={14} /> 吏곷Т ?쒗뵆由?沅뚰븳 ?먮룞 ?앹꽦</>
                   }
                 </button>
                 <button
@@ -2351,12 +2352,12 @@ export const InitialDbUploader: React.FC = () => {
                   }}
                 >
                   <Download size={14} />
-                  현재 권한 백업 다운로드 (.json)
+                  ?꾩옱 沅뚰븳 諛깆뾽 ?ㅼ슫濡쒕뱶 (.json)
                 </button>
               </div>
             </div>
 
-            {/* 파일 선택 바 */}
+            {/* ?뚯씪 ?좏깮 諛?*/}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', backgroundColor: 'var(--bg-main)', borderRadius: '6px', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
               <input
                 ref={permFileInputRef}
@@ -2380,68 +2381,68 @@ export const InitialDbUploader: React.FC = () => {
                 }}
               >
                 {isPermParsing ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
-                권한 파일 선택 (.json)
+                沅뚰븳 ?뚯씪 ?좏깮 (.json)
               </button>
 
               <span style={{ fontSize: '13px', color: permFileName ? 'var(--text-main)' : 'var(--text-muted)', fontWeight: permFileName ? 600 : 400, whiteSpace: 'nowrap' }}>
-                {permFileName || `선택된 파일 없음 (예: 사용자권한_마스터_${new Date().toISOString().slice(0,10).replace(/-/g,'')}.json)`}
+                {permFileName || `?좏깮???뚯씪 ?놁쓬 (?? ?ъ슜?먭텒??留덉뒪??${new Date().toISOString().slice(0,10).replace(/-/g,'')}.json)`}
               </span>
 
               {isPermParsing && (
                 <span style={{ fontSize: '12px', color: '#4f46e5', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', marginLeft: 'auto' }}>
-                  <RefreshCw size={13} className="animate-spin" /> {permProgressMsg || '파싱 중...'}
+                  <RefreshCw size={13} className="animate-spin" /> {permProgressMsg || '?뚯떛 以?..'}
                 </span>
               )}
             </div>
 
-            {/* 파싱 결과 프리뷰 및 일괄 동기화 */}
+            {/* ?뚯떛 寃곌낵 ?꾨━酉?諛??쇨큵 ?숆린??*/}
             {parsedPermData && (
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {/* 4대 요약 지표 */}
+                {/* 4? ?붿빟 吏??*/}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px' }}>
                   <div style={{ backgroundColor: 'var(--bg-app)', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>매핑 임직원</div>
-                    <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-main)', marginTop: '2px' }}>{parsedPermData.matchedUsersCount}명</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>留ㅽ븨 ?꾩쭅??/div>
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-main)', marginTop: '2px' }}>{parsedPermData.matchedUsersCount}紐?/div>
                   </div>
                   <div style={{ backgroundColor: 'var(--bg-app)', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>총 권한 항목</div>
-                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#4f46e5', marginTop: '2px' }}>{parsedPermData.totalPermissions}건</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>珥?沅뚰븳 ??ぉ</div>
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#4f46e5', marginTop: '2px' }}>{parsedPermData.totalPermissions}嫄?/div>
                   </div>
                   <div style={{ backgroundColor: 'var(--bg-app)', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>미매핑 기록</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>誘몃ℓ??湲곕줉</div>
                     <div style={{ fontSize: '18px', fontWeight: 700, color: parsedPermData.unmatchedRecordsCount > 0 ? '#dc2626' : '#059669', marginTop: '2px' }}>
-                      {parsedPermData.unmatchedRecordsCount}건
+                      {parsedPermData.unmatchedRecordsCount}嫄?
                     </div>
                   </div>
                   <div style={{ backgroundColor: 'var(--bg-app)', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>기준 파일 일자</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>湲곗? ?뚯씪 ?쇱옄</div>
                     <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-main)', marginTop: '4px' }}>
-                      {parsedPermData.metadata?.exportedDateText || '당일'}
+                      {parsedPermData.metadata?.exportedDateText || '?뱀씪'}
                     </div>
                   </div>
                 </div>
 
-                {/* 미매핑 알림 (있을 경우) */}
+                {/* 誘몃ℓ???뚮┝ (?덉쓣 寃쎌슦) */}
                 {parsedPermData.unmatchedUsers.length > 0 && (
                   <div style={{ padding: '8px 12px', backgroundColor: '#fef2f2', borderRadius: '6px', border: '1px solid #fecaca', fontSize: '12px', color: '#b91c1c' }}>
-                    ⚠️ 현재 DB에서 일치하지 않는 사용자: {parsedPermData.unmatchedUsers.join(', ')} ({parsedPermData.unmatchedRecordsCount}건 제외됨)
+                    ?좑툘 ?꾩옱 DB?먯꽌 ?쇱튂?섏? ?딅뒗 ?ъ슜?? {parsedPermData.unmatchedUsers.join(', ')} ({parsedPermData.unmatchedRecordsCount}嫄??쒖쇅??
                   </div>
                 )}
 
-                {/* 고밀도 테이블: 임직원별 권한 세팅 프리뷰 */}
+                {/* 怨좊????뚯씠釉? ?꾩쭅?먮퀎 沅뚰븳 ?명똿 ?꾨━酉?*/}
                 <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
                     <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-card)', zIndex: 1, borderBottom: '1px solid var(--border-color)' }}>
                       <tr style={{ color: 'var(--text-muted)' }}>
                         <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', width: '40px' }}>No</th>
-                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>부서</th>
-                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>성명</th>
-                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>로그인 ID</th>
-                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>직급/역할</th>
-                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', textAlign: 'center' }}>조회 허용</th>
-                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', textAlign: 'center' }}>저장 허용</th>
-                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', textAlign: 'right' }}>총 권한 항목</th>
+                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>遺??/th>
+                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>?깅챸</th>
+                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>濡쒓렇??ID</th>
+                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>吏곴툒/??븷</th>
+                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', textAlign: 'center' }}>議고쉶 ?덉슜</th>
+                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', textAlign: 'center' }}>????덉슜</th>
+                        <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', textAlign: 'right' }}>珥?沅뚰븳 ??ぉ</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2457,13 +2458,13 @@ export const InitialDbUploader: React.FC = () => {
                             </span>
                           </td>
                           <td style={{ padding: '7px 10px', whiteSpace: 'nowrap', textAlign: 'center', color: '#059669', fontWeight: 600 }}>
-                            {u.viewPermsCount}개 메뉴
+                            {u.viewPermsCount}媛?硫붾돱
                           </td>
                           <td style={{ padding: '7px 10px', whiteSpace: 'nowrap', textAlign: 'center', color: '#4f46e5', fontWeight: 600 }}>
-                            {u.savePermsCount}개 메뉴
+                            {u.savePermsCount}媛?硫붾돱
                           </td>
                           <td style={{ padding: '7px 10px', whiteSpace: 'nowrap', textAlign: 'right', fontWeight: 700, color: 'var(--text-main)' }}>
-                            {u.totalPerms}건
+                            {u.totalPerms}嫄?
                           </td>
                         </tr>
                       ))}
@@ -2471,15 +2472,15 @@ export const InitialDbUploader: React.FC = () => {
                   </table>
                 </div>
 
-                {/* Gutenberg Z-패턴 터미널 액션 바 */}
+                {/* Gutenberg Z-?⑦꽩 ?곕????≪뀡 諛?*/}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '12px 16px', backgroundColor: 'var(--bg-main)', borderRadius: '6px', border: '1px solid var(--border-color)', marginTop: '4px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '13px' }}>
                     <span style={{ whiteSpace: 'nowrap' }}>
-                      동기화 대상: <strong style={{ color: 'var(--text-main)' }}>{parsedPermData.matchedUsersCount}명</strong>
+                      ?숆린????? <strong style={{ color: 'var(--text-main)' }}>{parsedPermData.matchedUsersCount}紐?/strong>
                     </span>
                     <span style={{ color: 'var(--border-color)' }}>|</span>
                     <span style={{ whiteSpace: 'nowrap' }}>
-                      총 권한 항목: <strong style={{ color: '#4f46e5' }}>{parsedPermData.totalPermissions}건</strong>
+                      珥?沅뚰븳 ??ぉ: <strong style={{ color: '#4f46e5' }}>{parsedPermData.totalPermissions}嫄?/strong>
                     </span>
                     {permProgressMsg && (
                       <span style={{ color: '#4f46e5', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px' }}>
@@ -2503,9 +2504,9 @@ export const InitialDbUploader: React.FC = () => {
                     }}
                   >
                     {isPermIngesting ? (
-                      <><RefreshCw size={15} className="animate-spin" /> 권한 DB 동기화 진행 중...</>
+                      <><RefreshCw size={15} className="animate-spin" /> 沅뚰븳 DB ?숆린??吏꾪뻾 以?..</>
                     ) : (
-                      <><Upload size={15} /> 권한 일괄 정확 동기화 ({parsedPermData.totalPermissions}건)</>
+                      <><Upload size={15} /> 沅뚰븳 ?쇨큵 ?뺥솗 ?숆린??({parsedPermData.totalPermissions}嫄?</>
                     )}
                   </button>
                 </div>
@@ -2513,124 +2514,124 @@ export const InitialDbUploader: React.FC = () => {
             )}
           </div>
 
-          {/* 4. 파싱 통계 프리뷰 카드뉴스 */}
+          {/* 4. ?뚯떛 ?듦퀎 ?꾨━酉?移대뱶?댁뒪 */}
           {parsedData && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                  라이프사이클 이벤트 체인 및 회계 데이터 분석 현황
+                  ?쇱씠?꾩궗?댄겢 ?대깽??泥댁씤 諛??뚭퀎 ?곗씠??遺꾩꽍 ?꾪솴
                 </h3>
                 <span style={{ fontSize: '13px', color: '#059669', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                  ✓ 스키마 및 외래키(FK) 무결성 100% 검증 완료
+                  ???ㅽ궎留?諛??몃옒??FK) 臾닿껐??100% 寃利??꾨즺
                 </span>
               </div>
 
-              {/* 통계 카드 그리드 (라이프사이클 & 회계) */}
+              {/* ?듦퀎 移대뱶 洹몃━??(?쇱씠?꾩궗?댄겢 & ?뚭퀎) */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '12px' }}>
-                {/* 1. 마스터 자산 */}
+                {/* 1. 留덉뒪???먯궛 */}
                 <div style={{ backgroundColor: 'var(--bg-app)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Layers size={14} /> 자산 대장 (assets)
+                    <Layers size={14} /> ?먯궛 ???(assets)
                   </div>
                   <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-main)', marginTop: '4px' }}>
-                    {parsedData.stats.assetsCount} 대
+                    {parsedData.stats.assetsCount} ?
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    대여중 계약연동 {parsedData.stats.activeRentedAssetsCount || 0}대 100% 매핑
+                    ??ъ쨷 怨꾩빟?곕룞 {parsedData.stats.activeRentedAssetsCount || 0}? 100% 留ㅽ븨
                   </div>
                 </div>
 
-                {/* 2. 장비 모델 & 제원문서 */}
+                {/* 2. ?λ퉬 紐⑤뜽 & ?쒖썝臾몄꽌 */}
                 <div style={{ backgroundColor: '#f0fdfa', padding: '14px', borderRadius: '8px', border: '1px solid #ccfbf1' }}>
                   <div style={{ fontSize: '12px', color: '#0f766e', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <FileText size={14} /> 모델 & 실물 제원표 (products)
+                    <FileText size={14} /> 紐⑤뜽 & ?ㅻЪ ?쒖썝??(products)
                   </div>
                   <div style={{ fontSize: '20px', fontWeight: 700, color: '#115e59', marginTop: '4px' }}>
-                    {parsedData.stats.productsCount} 종
+                    {parsedData.stats.productsCount} 醫?
                   </div>
                   <div style={{ fontSize: '11px', color: '#0d9488', marginTop: '2px' }}>
-                    R2 제원표/안전문서 {parsedData.stats.docLinkedProductsCount || 0}종 자동 연동
+                    R2 ?쒖썝???덉쟾臾몄꽌 {parsedData.stats.docLinkedProductsCount || 0}醫??먮룞 ?곕룞
                   </div>
                 </div>
 
-                {/* 3. 렌탈 계약 */}
+                {/* 3. ?뚰깉 怨꾩빟 */}
                 <div style={{ backgroundColor: 'var(--bg-app)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <FileCheck size={14} /> 렌탈 계약 (contracts)
+                    <FileCheck size={14} /> ?뚰깉 怨꾩빟 (contracts)
                   </div>
                   <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-main)', marginTop: '4px' }}>
-                    {parsedData.stats.contractsCount} 건
+                    {parsedData.stats.contractsCount} 嫄?
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>고객사 {parsedData.stats.customersCount}사 / 현장 {parsedData.stats.sitesCount}개소</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>怨좉컼??{parsedData.stats.customersCount}??/ ?꾩옣 {parsedData.stats.sitesCount}媛쒖냼</div>
                 </div>
 
-                {/* 4. 출고 배차 체인 */}
+                {/* 4. 異쒓퀬 諛곗감 泥댁씤 */}
                 <div style={{ backgroundColor: 'rgba(37, 99, 235, 0.12)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
                   <div style={{ fontSize: '12px', color: '#3b82f6', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Truck size={14} /> 출고 배차 (deliveries)
+                    <Truck size={14} /> 異쒓퀬 諛곗감 (deliveries)
                   </div>
                   <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-main)', marginTop: '4px' }}>
-                    {parsedData.stats.outboundDeliveriesCount} 건
+                    {parsedData.stats.outboundDeliveriesCount} 嫄?
                   </div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>출고검수 {parsedData.stats.outboundInspectionsCount}건 자동 승인</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>異쒓퀬寃??{parsedData.stats.outboundInspectionsCount}嫄??먮룞 ?뱀씤</div>
                 </div>
 
-                {/* 5. 회수 배차 체인 */}
+                {/* 5. ?뚯닔 諛곗감 泥댁씤 */}
                 <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.12)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                   <div style={{ fontSize: '12px', color: '#10b981', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <RotateCcw size={14} /> 회수 배차 (deliveries)
+                    <RotateCcw size={14} /> ?뚯닔 諛곗감 (deliveries)
                   </div>
                   <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-main)', marginTop: '4px' }}>
-                    {parsedData.stats.inboundDeliveriesCount} 건
+                    {parsedData.stats.inboundDeliveriesCount} 嫄?
                   </div>
-                  <div style={{ fontSize: '11px', color: '#22c55e', marginTop: '2px' }}>종료 계약 입고 등록 100% 매핑</div>
+                  <div style={{ fontSize: '11px', color: '#22c55e', marginTop: '2px' }}>醫낅즺 怨꾩빟 ?낃퀬 ?깅줉 100% 留ㅽ븨</div>
                 </div>
 
-                {/* 6. 과거 소급 청구서 */}
+                {/* 6. 怨쇨굅 ?뚭툒 泥?뎄??*/}
                 <div style={{ backgroundColor: '#faf5ff', padding: '14px', borderRadius: '8px', border: '1px solid #e9d5ff' }}>
                   <div style={{ fontSize: '12px', color: '#7e22ce', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <History size={14} /> 과거 소급 청구서 (billings)
+                    <History size={14} /> 怨쇨굅 ?뚭툒 泥?뎄??(billings)
                   </div>
                   <div style={{ fontSize: '20px', fontWeight: 700, color: '#6b21a8', marginTop: '4px' }}>
-                    {parsedData.stats.historicalBillingsCount} 건
+                    {parsedData.stats.historicalBillingsCount} 嫄?
                   </div>
-                  <div style={{ fontSize: '11px', color: '#9333ea', marginTop: '2px' }}>누적 ₩{parsedData.stats.totalHistoricalBillingAmount.toLocaleString()}</div>
+                  <div style={{ fontSize: '11px', color: '#9333ea', marginTop: '2px' }}>?꾩쟻 ??parsedData.stats.totalHistoricalBillingAmount.toLocaleString()}</div>
                 </div>
 
-                {/* 7. 2026-08 당월 청구서 */}
+                {/* 7. 2026-08 ?뱀썡 泥?뎄??*/}
                 <div style={{ backgroundColor: '#fefce8', padding: '14px', borderRadius: '8px', border: '1px solid #fef08a' }}>
                   <div style={{ fontSize: '12px', color: '#a16207', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Receipt size={14} /> 2026-08 당월 청구 합계
+                    <Receipt size={14} /> 2026-08 ?뱀썡 泥?뎄 ?⑷퀎
                   </div>
                   <div style={{ fontSize: '18px', fontWeight: 700, color: '#854d0e', marginTop: '4px' }}>
-                    ₩{parsedData.stats.currentMonthBillingAmount.toLocaleString()}
+                    ??parsedData.stats.currentMonthBillingAmount.toLocaleString()}
                   </div>
-                  <div style={{ fontSize: '11px', color: '#ca8a04', marginTop: '2px' }}>71개사 청구서 (차액 ₩0 일치)</div>
+                  <div style={{ fontSize: '11px', color: '#ca8a04', marginTop: '2px' }}>71媛쒖궗 泥?뎄??(李⑥븸 ?? ?쇱튂)</div>
                 </div>
 
-                {/* 8. 전대 매입 & 외상미수금 */}
+                {/* 8. ?꾨? 留ㅼ엯 & ?몄긽誘몄닔湲?*/}
                 <div style={{ backgroundColor: '#fff7ed', padding: '14px', borderRadius: '8px', border: '1px solid #ffedd5' }}>
                   <div style={{ fontSize: '12px', color: '#c2410c', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <TrendingUp size={14} /> 전대 매입 & 부대비
+                    <TrendingUp size={14} /> ?꾨? 留ㅼ엯 & 遺?鍮?
                   </div>
                   <div style={{ fontSize: '18px', fontWeight: 700, color: '#9a3412', marginTop: '4px' }}>
-                    ₩{parsedData.stats.totalPurchaseBillingAmount.toLocaleString()}
+                    ??parsedData.stats.totalPurchaseBillingAmount.toLocaleString()}
                   </div>
                   <div style={{ fontSize: '11px', color: '#ea580c', marginTop: '2px' }}>
-                    외상미수금 {parsedData.stats.receivablesCount}건 (운반비 등)
+                    ?몄긽誘몄닔湲?{parsedData.stats.receivablesCount}嫄?(?대컲鍮???
                   </div>
                 </div>
               </div>
 
-              {/* 3. 일괄 적재 실행 버튼 및 프로그레스 바 */}
+              {/* 3. ?쇨큵 ?곸옱 ?ㅽ뻾 踰꾪듉 諛??꾨줈洹몃젅??諛?*/}
               <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <div>
                     <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                      라이프사이클 체인 & 시작점 데이터 일괄 적재 실행
+                      ?쇱씠?꾩궗?댄겢 泥댁씤 & ?쒖옉???곗씠???쇨큵 ?곸옱 ?ㅽ뻾
                     </div>
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                      13단계 순차 DAG 배치 적재: 구버전 삭제 → 출고/회수 배차 + 검수 + 과거 소급 청구 + 8월 청구 + 매입 정산
+                      13?④퀎 ?쒖감 DAG 諛곗튂 ?곸옱: 援щ쾭????젣 ??異쒓퀬/?뚯닔 諛곗감 + 寃??+ 怨쇨굅 ?뚭툒 泥?뎄 + 8??泥?뎄 + 留ㅼ엯 ?뺤궛
                     </div>
                   </div>
 
@@ -2653,7 +2654,7 @@ export const InitialDbUploader: React.FC = () => {
                     }}
                   >
                     {isIngesting ? <RefreshCw size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
-                    전체 데이터 일괄 적재 시작
+                    ?꾩껜 ?곗씠???쇨큵 ?곸옱 ?쒖옉
                   </button>
                 </div>
 
@@ -2679,13 +2680,13 @@ export const InitialDbUploader: React.FC = () => {
             </div>
           )}
 
-          {/* 4. 4대 대차대조(Reconciliation) 검증 리포트 */}
+          {/* 4. 4? ?李⑤?議?Reconciliation) 寃利?由ы룷??*/}
           {reconciliationReport && (
             <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
                 <ShieldCheck size={24} color="#059669" />
                 <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                  4대 대차대조(Reconciliation) 무결성 검증 증명서
+                  4? ?李⑤?議?Reconciliation) 臾닿껐??寃利?利앸챸??
                 </h3>
                 <span
                   style={{
@@ -2699,72 +2700,72 @@ export const InitialDbUploader: React.FC = () => {
                     whiteSpace: 'nowrap'
                   }}
                 >
-                  {reconciliationReport.allPassed ? '전수 검증 통과 (차액 ₩0)' : '검증 불일치 발생'}
+                  {reconciliationReport.allPassed ? '?꾩닔 寃利??듦낵 (李⑥븸 ??)' : '寃利?遺덉씪移?諛쒖깮'}
                 </span>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
-                {/* 1. 자산 수량 대사 */}
+                {/* 1. ?먯궛 ?섎웾 ???*/}
                 <div style={{ padding: '14px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>1. 자산 수량 대사</div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>1. ?먯궛 ?섎웾 ???/div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '13px' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>엑셀 보유자산:</span>
-                    <span style={{ fontWeight: 600 }}>{reconciliationReport.assetCountMatch.excel} 대</span>
+                    <span style={{ color: 'var(--text-muted)' }}>?묒? 蹂댁쑀?먯궛:</span>
+                    <span style={{ fontWeight: 600 }}>{reconciliationReport.assetCountMatch.excel} ?</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>DB 자사 자산:</span>
-                    <span style={{ fontWeight: 600, color: '#059669' }}>{reconciliationReport.assetCountMatch.db} 대</span>
+                    <span style={{ color: 'var(--text-muted)' }}>DB ?먯궗 ?먯궛:</span>
+                    <span style={{ fontWeight: 600, color: '#059669' }}>{reconciliationReport.assetCountMatch.db} ?</span>
                   </div>
                   <div style={{ marginTop: '6px', fontSize: '12px', color: reconciliationReport.assetCountMatch.isMatch ? '#059669' : '#dc2626', fontWeight: 600 }}>
-                    {reconciliationReport.assetCountMatch.isMatch ? '✓ 100% 일치' : '✗ 수량 불일치'}
+                    {reconciliationReport.assetCountMatch.isMatch ? '??100% ?쇱튂' : '???섎웾 遺덉씪移?}
                   </div>
                 </div>
 
-                {/* 2. 8월 매출 총액 대사 */}
+                {/* 2. 8??留ㅼ텧 珥앹븸 ???*/}
                 <div style={{ padding: '14px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>2. 8월 청구 총액 대사</div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>2. 8??泥?뎄 珥앹븸 ???/div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '13px' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>엑셀 청구합계:</span>
-                    <span style={{ fontWeight: 600 }}>₩{reconciliationReport.currentBillingTotalMatch.excel.toLocaleString()}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>?묒? 泥?뎄?⑷퀎:</span>
+                    <span style={{ fontWeight: 600 }}>??reconciliationReport.currentBillingTotalMatch.excel.toLocaleString()}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>DB 청구서 총합:</span>
-                    <span style={{ fontWeight: 600, color: '#059669' }}>₩{reconciliationReport.currentBillingTotalMatch.db.toLocaleString()}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>DB 泥?뎄??珥앺빀:</span>
+                    <span style={{ fontWeight: 600, color: '#059669' }}>??reconciliationReport.currentBillingTotalMatch.db.toLocaleString()}</span>
                   </div>
                   <div style={{ marginTop: '6px', fontSize: '12px', color: reconciliationReport.currentBillingTotalMatch.isMatch ? '#059669' : '#dc2626', fontWeight: 600 }}>
-                    {reconciliationReport.currentBillingTotalMatch.isMatch ? '✓ 차액 ₩0 (완전 일치)' : `✗ 차액 ₩${reconciliationReport.currentBillingTotalMatch.diff.toLocaleString()}`}
+                    {reconciliationReport.currentBillingTotalMatch.isMatch ? '??李⑥븸 ?? (?꾩쟾 ?쇱튂)' : `??李⑥븸 ??{reconciliationReport.currentBillingTotalMatch.diff.toLocaleString()}`}
                   </div>
                 </div>
 
-                {/* 3. 청구 상세 라인 대사 */}
+                {/* 3. 泥?뎄 ?곸꽭 ?쇱씤 ???*/}
                 <div style={{ padding: '14px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>3. 청구 상세 라인 대사</div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>3. 泥?뎄 ?곸꽭 ?쇱씤 ???/div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '13px' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>청구 헤더 합:</span>
-                    <span style={{ fontWeight: 600 }}>₩{reconciliationReport.currentDetailsTotalMatch.headerSum.toLocaleString()}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>泥?뎄 ?ㅻ뜑 ??</span>
+                    <span style={{ fontWeight: 600 }}>??reconciliationReport.currentDetailsTotalMatch.headerSum.toLocaleString()}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>청구 상세 합:</span>
-                    <span style={{ fontWeight: 600, color: '#059669' }}>₩{reconciliationReport.currentDetailsTotalMatch.detailSum.toLocaleString()}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>泥?뎄 ?곸꽭 ??</span>
+                    <span style={{ fontWeight: 600, color: '#059669' }}>??reconciliationReport.currentDetailsTotalMatch.detailSum.toLocaleString()}</span>
                   </div>
                   <div style={{ marginTop: '6px', fontSize: '12px', color: reconciliationReport.currentDetailsTotalMatch.isMatch ? '#059669' : '#dc2626', fontWeight: 600 }}>
-                    {reconciliationReport.currentDetailsTotalMatch.isMatch ? '✓ 단수 오차 보정 완료 (₩0)' : `✗ 차액 ₩${reconciliationReport.currentDetailsTotalMatch.diff.toLocaleString()}`}
+                    {reconciliationReport.currentDetailsTotalMatch.isMatch ? '???⑥닔 ?ㅼ감 蹂댁젙 ?꾨즺 (??)' : `??李⑥븸 ??{reconciliationReport.currentDetailsTotalMatch.diff.toLocaleString()}`}
                   </div>
                 </div>
 
-                {/* 4. 라이프사이클 배차 매핑 대사 */}
+                {/* 4. ?쇱씠?꾩궗?댄겢 諛곗감 留ㅽ븨 ???*/}
                 <div style={{ padding: '14px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>4. 라이프사이클 배차 매핑</div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>4. ?쇱씠?꾩궗?댄겢 諛곗감 留ㅽ븨</div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '13px' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>총 계약 건수:</span>
-                    <span style={{ fontWeight: 600 }}>{reconciliationReport.lifecycleChainMatch.contracts} 건</span>
+                    <span style={{ color: 'var(--text-muted)' }}>珥?怨꾩빟 嫄댁닔:</span>
+                    <span style={{ fontWeight: 600 }}>{reconciliationReport.lifecycleChainMatch.contracts} 嫄?/span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>출고 배차 건수:</span>
-                    <span style={{ fontWeight: 600, color: '#059669' }}>{reconciliationReport.lifecycleChainMatch.outboundDeliveries} 건</span>
+                    <span style={{ color: 'var(--text-muted)' }}>異쒓퀬 諛곗감 嫄댁닔:</span>
+                    <span style={{ fontWeight: 600, color: '#059669' }}>{reconciliationReport.lifecycleChainMatch.outboundDeliveries} 嫄?/span>
                   </div>
                   <div style={{ marginTop: '6px', fontSize: '12px', color: '#059669', fontWeight: 600 }}>
-                    ✓ 계약 대비 100% 출고 배차 연계 완료
+                    ??怨꾩빟 ?鍮?100% 異쒓퀬 諛곗감 ?곌퀎 ?꾨즺
                   </div>
                 </div>
               </div>
@@ -2773,20 +2774,20 @@ export const InitialDbUploader: React.FC = () => {
         </div>
       )}
 
-      {/* ── TAB: 불부합 데이터 정리 (고아계약, 각종 의뢰 등) ── */}
+      {/* ?? TAB: 遺덈????곗씠???뺣━ (怨좎븘怨꾩빟, 媛곸쥌 ?섎ː ?? ?? */}
       {activeTab === 'CLEANUP' && (
         <OrphanDataCleanupStudio />
       )}
 
-      {/* ── TAB 2: DB 전체 백업 ── */}
+      {/* ?? TAB 2: DB ?꾩껜 諛깆뾽 ?? */}
       {activeTab === 'BACKUP' && (
         <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '24px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
             <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-              전체 데이터베이스 백업 내보내기
+              ?꾩껜 ?곗씠?곕쿋?댁뒪 諛깆뾽 ?대낫?닿린
             </h3>
             <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-              현재 Supabase / 로컬 DB에 적재된 모든 20개 테이블의 데이터를 JSON 파일로 다운로드하여 보관합니다.
+              ?꾩옱 Supabase / 濡쒖뺄 DB???곸옱??紐⑤뱺 20媛??뚯씠釉붿쓽 ?곗씠?곕? JSON ?뚯씪濡??ㅼ슫濡쒕뱶?섏뿬 蹂닿??⑸땲??
             </span>
           </div>
 
@@ -2810,30 +2811,30 @@ export const InitialDbUploader: React.FC = () => {
               }}
             >
               {isBackingUp ? <RefreshCw size={18} className="animate-spin" /> : <Download size={18} />}
-              전체 DB 백업 파일 다운로드 (.json)
+              ?꾩껜 DB 諛깆뾽 ?뚯씪 ?ㅼ슫濡쒕뱶 (.json)
             </button>
 
             {backupResult && (
               <span style={{ fontSize: '13px', color: '#059669', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                ✓ {backupResult.filename} 다운로드 완료 ({backupResult.count.toLocaleString()}건)
+                ??{backupResult.filename} ?ㅼ슫濡쒕뱶 ?꾨즺 ({backupResult.count.toLocaleString()}嫄?
               </span>
             )}
           </div>
         </div>
       )}
 
-      {/* ── TAB 3: DB 초기화 ── */}
+      {/* ?? TAB 3: DB 珥덇린???? */}
       {activeTab === 'RESET' && (
         <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid #fecaca', padding: '24px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#dc2626' }}>
               <AlertTriangle size={20} />
               <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                데이터베이스 전체 초기화
+                ?곗씠?곕쿋?댁뒪 ?꾩껜 珥덇린??
               </h3>
             </div>
             <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-              기존에 입력된 자산, 고객사, 현장, 계약, 청구서, 수납 등 모든 비즈니스 데이터를 삭제합니다.
+              湲곗〈???낅젰???먯궛, 怨좉컼?? ?꾩옣, 怨꾩빟, 泥?뎄?? ?섎궔 ??紐⑤뱺 鍮꾩쫰?덉뒪 ?곗씠?곕? ??젣?⑸땲??
             </span>
           </div>
 
@@ -2844,7 +2845,7 @@ export const InitialDbUploader: React.FC = () => {
                 checked={keepAdminUser}
                 onChange={(e) => setKeepAdminUser(e.target.checked)}
               />
-              시스템 관리자 계정(admin/users/departments)은 보존
+              ?쒖뒪??愿由ъ옄 怨꾩젙(admin/users/departments)? 蹂댁〈
             </label>
 
             <button
@@ -2869,12 +2870,12 @@ export const InitialDbUploader: React.FC = () => {
               {isResetting ? (
                 <>
                   <RefreshCw size={16} className="animate-spin" />
-                  데이터 전체 초기화 진행 중...
+                  ?곗씠???꾩껜 珥덇린??吏꾪뻾 以?..
                 </>
               ) : (
                 <>
                   <Trash2 size={16} />
-                  데이터 전체 초기화 실행
+                  ?곗씠???꾩껜 珥덇린???ㅽ뻾
                 </>
               )}
             </button>
@@ -2882,7 +2883,7 @@ export const InitialDbUploader: React.FC = () => {
         </div>
       )}
 
-      {/* 밴드 AS 단건 상세 원문 모달 */}
+      {/* 諛대뱶 AS ?④굔 ?곸꽭 ?먮Ц 紐⑤떖 */}
       {selectedAsRecord && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
           <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', maxWidth: '600px', width: '100%', padding: '24px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -2890,7 +2891,7 @@ export const InitialDbUploader: React.FC = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Wrench size={18} color="#16a34a" />
                 <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main)' }}>
-                  AS 게시글 상세 내역 No. {selectedAsRecord.idx}
+                  AS 寃뚯떆湲 ?곸꽭 ?댁뿭 No. {selectedAsRecord.idx}
                 </span>
               </div>
               <button
@@ -2903,46 +2904,46 @@ export const InitialDbUploader: React.FC = () => {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '13px' }}>
               <div>
-                <span style={{ color: 'var(--text-muted)' }}>접수일자:</span> <strong>{selectedAsRecord.date}</strong>
+                <span style={{ color: 'var(--text-muted)' }}>?묒닔?쇱옄:</span> <strong>{selectedAsRecord.date}</strong>
               </div>
               <div>
-                <span style={{ color: 'var(--text-muted)' }}>작성자/정비사:</span> <strong>{selectedAsRecord.author}</strong> ({selectedAsRecord.mechanicName})
+                <span style={{ color: 'var(--text-muted)' }}>?묒꽦???뺣퉬??</span> <strong>{selectedAsRecord.author}</strong> ({selectedAsRecord.mechanicName})
               </div>
               <div>
-                <span style={{ color: 'var(--text-muted)' }}>고객사:</span> <strong>{selectedAsRecord.matchedCustomerName || selectedAsRecord.customer}</strong>
+                <span style={{ color: 'var(--text-muted)' }}>怨좉컼??</span> <strong>{selectedAsRecord.matchedCustomerName || selectedAsRecord.customer}</strong>
               </div>
               <div>
-                <span style={{ color: 'var(--text-muted)' }}>현장명:</span> <strong>{selectedAsRecord.matchedSiteName || selectedAsRecord.site}</strong>
+                <span style={{ color: 'var(--text-muted)' }}>?꾩옣紐?</span> <strong>{selectedAsRecord.matchedSiteName || selectedAsRecord.site}</strong>
               </div>
               <div>
-                <span style={{ color: 'var(--text-muted)' }}>관리번호:</span> <strong style={{ color: '#2563eb' }}>{selectedAsRecord.matchedAssetNo || selectedAsRecord.assetNo}</strong> ({selectedAsRecord.matchedModelName})
+                <span style={{ color: 'var(--text-muted)' }}>愿由щ쾲??</span> <strong style={{ color: '#2563eb' }}>{selectedAsRecord.matchedAssetNo || selectedAsRecord.assetNo}</strong> ({selectedAsRecord.matchedModelName})
                 {selectedAsRecord.isSingleAssetGuessed && (
-                  <span className="badge badge-warning" style={{ fontSize: '10px', marginLeft: '6px' }}>1대계약 자동추정</span>
+                  <span className="badge badge-warning" style={{ fontSize: '10px', marginLeft: '6px' }}>1?怨꾩빟 ?먮룞異붿젙</span>
                 )}
               </div>
               <div>
-                <span style={{ color: 'var(--text-muted)' }}>소속 계약:</span> <strong>{selectedAsRecord.matchedContractNo || '미매핑(일반이력)'}</strong>
+                <span style={{ color: 'var(--text-muted)' }}>?뚯냽 怨꾩빟:</span> <strong>{selectedAsRecord.matchedContractNo || '誘몃ℓ???쇰컲?대젰)'}</strong>
               </div>
               <div style={{ gridColumn: 'span 2' }}>
-                <span style={{ color: 'var(--text-muted)' }}>장비 세부위치:</span> {selectedAsRecord.location || '미상'}
+                <span style={{ color: 'var(--text-muted)' }}>?λ퉬 ?몃??꾩튂:</span> {selectedAsRecord.location || '誘몄긽'}
               </div>
               <div style={{ gridColumn: 'span 2' }}>
-                <span style={{ color: 'var(--text-muted)' }}>현장 접수자 연락처:</span> {selectedAsRecord.contact || '미상'}
+                <span style={{ color: 'var(--text-muted)' }}>?꾩옣 ?묒닔???곕씫泥?</span> {selectedAsRecord.contact || '誘몄긽'}
               </div>
               <div style={{ gridColumn: 'span 2' }}>
-                <span style={{ color: 'var(--text-muted)' }}>고장 내용:</span>
+                <span style={{ color: 'var(--text-muted)' }}>怨좎옣 ?댁슜:</span>
                 <div style={{ marginTop: '4px', padding: '8px 12px', backgroundColor: 'rgba(239, 68, 68, 0.12)', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.25)', color: '#ef4444', fontWeight: 600 }}>
                   {selectedAsRecord.issue}
                 </div>
               </div>
               <div style={{ gridColumn: 'span 2' }}>
-                <span style={{ color: 'var(--text-muted)' }}>조치 내용:</span>
+                <span style={{ color: 'var(--text-muted)' }}>議곗튂 ?댁슜:</span>
                 <div style={{ marginTop: '4px', padding: '8px 12px', backgroundColor: 'rgba(16, 185, 129, 0.12)', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.25)', color: '#10b981', fontWeight: 600 }}>
                   {selectedAsRecord.actionTaken}
                 </div>
               </div>
               <div style={{ gridColumn: 'span 2' }}>
-                <span style={{ color: 'var(--text-muted)' }}>밴드 원문 텍스트:</span>
+                <span style={{ color: 'var(--text-muted)' }}>諛대뱶 ?먮Ц ?띿뒪??</span>
                 <div style={{ marginTop: '4px', padding: '10px', backgroundColor: 'var(--bg-app)', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '12px', color: 'var(--text-main)', maxHeight: '120px', overflowY: 'auto', whiteSpace: 'pre-wrap' }}>
                   {selectedAsRecord.raw}
                 </div>
@@ -2954,7 +2955,7 @@ export const InitialDbUploader: React.FC = () => {
                 onClick={() => setSelectedAsRecord(null)}
                 style={{ padding: '8px 18px', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
               >
-                닫기
+                ?リ린
               </button>
             </div>
           </div>
@@ -2965,4 +2966,11 @@ export const InitialDbUploader: React.FC = () => {
 };
 
 export default InitialDbUploader;
+
+
+export const InitialDbUploader: React.FC = () => (
+  <ErrorBoundary fallbackTitle="초기 DB 업로드 화면 오류">
+    <InitialDbUploaderContent />
+  </ErrorBoundary>
+);
 
