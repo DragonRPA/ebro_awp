@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { db, supabase, Tenant, TenantWorkplace, TenantYard, TenantBusinessType, TenantBankAccount, OFFICIAL_STAMP_BASE64, User, MenuPermission, createMenuPermission, CustomRole, RolePermission, Customer, CustomerContact, CustomerSite, Product, Asset, Consumable, ConsumableLog, ConsumablePurchaseRequest, MechanicConsumableStock, Contract, ContractAsset, ContractHistory, Delivery, Billing, BillingType, BillingDetail, Receivable, Payment, PaymentDepositLink, Repair, RepairConsumable, Todo, BankTransaction, BankMatchingRule, BankAccountInitialBalance, AssetInOutLog, GoogleConfig, Vendor, CashFlowSnapshot, OutboundInspection, TransportCompany, TransportDriver, TransportNegotiation, SubleaseNegotiation, DepreciationLog, PurchaseSettlement, PurchaseSettlementItem, SettlementPaymentLog, ExternalLease, PurchaseSettlementType, PurchaseSettlementStatus, findCustomerByNormalizedName, AnnualLeaveQuota, LeaveUsage, OvertimeRecord, PayrollClosing, InspectionChecklistItem, EquipmentManual, StandardOption, InboundDefectDetail, PrepaidTransaction, DelinquencyActionLog, LegalNoticeLog, LegalNoticeTemplate, calculateAssetDepreciation, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, CorporateVehicle, VehicleOperationLog, VehicleFuelLog, RepairPartUsed, RepairCollectedPart, SaleContractTerms, StocktakingAudit, StocktakingAuditItem, CollectedPart, PrintStation, PrintQueueItem, logPrivacyAccess, ErrorReport, ErrorReportAttachment, ErrorReportStatus, ErrorReportSeverity, ErrorReportCategory } from '../services/db';
 import { enqueuePrintJob as serviceEnqueuePrintJob, registerPrintStation as serviceRegisterPrintStation, deletePrintStation as serviceDeletePrintStation, retryPrintJob as serviceRetryPrintJob, cancelPrintJob as serviceCancelPrintJob } from '../services/printQueueService';
 import { ErrorModal } from '../components/ErrorModal';
@@ -51,7 +51,7 @@ export interface SmartDispatchData {
   paidOptions?: string;
   protection?: string;
   checkedSpecs?: Record<string, boolean>;
-  saveOptionsToSite?: boolean; // ?뙚 ?듭뀡 蹂寃????꾩옣 留덉뒪??????щ? (false: ?대쾲 異쒓퀬留?1?뚯꽦 ?곸슜, true: ?꾩옣 留덉뒪??媛깆떊)
+  saveOptionsToSite?: boolean; // 🌟 옵션 변경 시 현장 마스터 저장 여부 (false: 이번 출고만 1회성 적용, true: 현장 마스터 갱신)
   isSetAsCustomerDefault?: boolean;
   applyToAllSites?: boolean;
   closingDay?: string;
@@ -67,10 +67,10 @@ export interface SmartReturnData {
   loadingTime?: string;
   unloadingTime?: string;
   note?: string;
-  // ?뺣퉬?뚯닔 異붽? ?꾨뱶
+  // 정비회수 추가 필드
   repairId?: string;
   vendorId?: string;
-  // 怨좉컼痢??뚯닔 ?대떦 ?뺣낫
+  // 고객측 회수 담당 정보
   contactName?: string;
   contactPhone?: string;
 }
@@ -231,16 +231,16 @@ interface AppContextType {
   acceptConsumablePurchase: (id: string) => Promise<void>;
   completeConsumablePurchase: (id: string) => Promise<void>;
   inboundConsumablePurchase: (id: string, qty: number, statementFileUrl: string) => Promise<void>;
-  clearEvidenceFileUrls: (ids: string[]) => Promise<void>;  // Storage ??젣 ??DB URL 珥덇린??
-  updateEvidenceFileUrls: (updates: { id: string; url: string }[]) => Promise<void>; // Storage ??젣 ??Drive URL濡?援먯껜
+  clearEvidenceFileUrls: (ids: string[]) => Promise<void>;  // Storage 삭제 후 DB URL 초기화
+  updateEvidenceFileUrls: (updates: { id: string; url: string }[]) => Promise<void>; // Storage 삭제 후 Drive URL로 교체
   
-  // AS 湲곗궗 李⑤웾蹂??대룞?ш퀬 (Van Stock)
+  // AS 기사 차량별 이동재고 (Van Stock)
   mechanicConsumableStocks: MechanicConsumableStock[];
   transferConsumableToMechanic: (mechanicId: string, consumableId: string, quantity: number, memo?: string) => Promise<void>;
   returnConsumableToHq: (mechanicId: string, consumableId: string, quantity: number, memo?: string, isDefective?: boolean, disposition?: 'REBUILD' | 'SCRAP' | 'VENDOR_WARRANTY') => Promise<void>;
   transferConsumableBetweenMechanics: (fromMechanicId: string, toMechanicId: string, consumableId: string, quantity: number, memo?: string) => Promise<void>;
 
-  // ?ш퀬?ㅼ궗(Stocktaking Audit) & 怨좏뭹 愿由?
+  // 재고실사(Stocktaking Audit) & 고품 관리
   stocktakingAudits: StocktakingAudit[];
   stocktakingAuditItems: StocktakingAuditItem[];
   collectedParts: CollectedPart[];
@@ -250,7 +250,7 @@ interface AppContextType {
   cancelStocktakingAudit: (auditId: string) => Promise<void>;
   processCollectedPart: (partId: string, actionStatus: 'IN_PROCESS' | 'COMPLETED', actionMemo?: string) => Promise<void>;
 
-  // ?꾩옣 AS 愿由?
+  // 현장 AS 관리
   fieldAsTickets: FieldAsTicket[];
   createFieldAsTicket: (data: Partial<FieldAsTicket>) => Promise<FieldAsTicket>;
   updateFieldAsTicketStatus: (ticketId: string, status: FieldAsTicket['status'], extra?: Partial<FieldAsTicket>) => Promise<void>;
@@ -308,7 +308,7 @@ interface AppContextType {
     reason?: string;
   }) => Promise<void>;
   
-  // ?λ퉬 ?좊떦 諛?異쒓퀬??援먯껜 / ?좊떦 痍⑥냼
+  // 장비 할당 및 출고전 교체 / 할당 취소
   assignAssetToContract: (contractAssetId: string, assetId: string) => Promise<void>;
   batchAssignAssetsToContract: (pairs: { contractAssetId: string; assetId: string }[]) => Promise<void>;
   unassignAssetFromContract: (contractAssetId: string) => Promise<void>;
@@ -338,8 +338,8 @@ interface AppContextType {
   generateDueBillings: (targetDate?: string, targetYm?: string) => Promise<{ successCount: number; skippedContracts: { contractId: string; customerId: string; reason: string }[] }>;
   generateBillingForSingleContract: (contractId: string, billingYm: string, billingDate: string, selectedContractAssetIds?: string[]) => Promise<string | null>;
   regenerateBilling: (billingId: string, customDetails?: Omit<BillingDetail, 'id' | 'billingId' | 'createdAt'>[], options?: { billingYm?: string; billingDate?: string; memo?: string }) => Promise<string>;
-  approveBilling: (billingId: string) => Promise<void>; // UNPAID ??REQUESTED (嫄곕옒紐낆꽭??諛쒖넚)
-  cancelBilling: (billingId: string, refund?: boolean) => Promise<void>; // ?섎텋=true, 鍮꾪솚遺?false(湲곕낯)
+  approveBilling: (billingId: string) => Promise<void>; // UNPAID → REQUESTED (거래명세서 발송)
+  cancelBilling: (billingId: string, refund?: boolean) => Promise<void>; // 환불=true, 비환불=false(기본)
   addReceivable: (data: Omit<Receivable, 'id' | 'createdAt' | 'updatedAt'>) => string;
   generateStandaloneBillingForReceivable: (receivableId: string, reason: string) => Promise<string>;
   linkReceivableToBilling: (billingId: string, receivableId: string, amount: number, displayName?: string) => Promise<void>;
@@ -348,12 +348,12 @@ interface AppContextType {
     amount: number;
     method: string;
     memo: string;
-    depositLinks?: { bankTransactionId: string; usedAmount: number }[]; // ?듭옣?낃툑 ?곕룞 (N嫄?
+    depositLinks?: { bankTransactionId: string; usedAmount: number }[]; // 통장입금 연동 (N건)
   }) => Promise<void> | void;
-  cancelPayment: (paymentId: string) => Promise<void>;  // ?섎궔 痍⑥냼 + PDL ?곗뇙 ??젣 + Billing 濡ㅻ갚 + ?좎닔湲??섏썝
-  cancelAllPaymentsForBilling: (billingId: string) => Promise<void>; // 泥?뎄???꾩껜 ?섎궔 ?쇨큵 痍⑥냼 諛?濡ㅻ갚
-  saveBankDeposit: (data: Omit<BankTransaction, 'id' | 'createdAt' | 'withdrawAmount'>) => void;  // ?듭옣?낃툑 ?깅줉/?섏젙
-  deleteBankDeposit: (txId: string) => void;  // ?듭옣?낃툑 ??젣 (?곌껐 ?섎궔 ?놁쓣 ?뚮쭔)
+  cancelPayment: (paymentId: string) => Promise<void>;  // 수납 취소 + PDL 연쇄 삭제 + Billing 롤백 + 선수금 환원
+  cancelAllPaymentsForBilling: (billingId: string) => Promise<void>; // 청구서 전체 수납 일괄 취소 및 롤백
+  saveBankDeposit: (data: Omit<BankTransaction, 'id' | 'createdAt' | 'withdrawAmount'>) => void;  // 통장입금 등록/수정
+  deleteBankDeposit: (txId: string) => void;  // 통장입금 삭제 (연결 수납 없을 때만)
   uploadBankTransactions: (txs: Omit<BankTransaction, 'id' | 'createdAt'>[]) => void;
   matchTransactionManual: (
     txId: string,
@@ -455,7 +455,7 @@ interface AppContextType {
   retryPrintJob: (id: string) => Promise<void>;
   cancelPrintJob: (id: string) => Promise<void>;
 
-  // Error Reports (?ㅻ쪟 ?좉퀬 愿由? ?깅줉-?묒닔-?꾨즺 3?④퀎 ?쇱씠?꾩궗?댄겢 & ?뚯씪泥⑤?)
+  // Error Reports (오류 신고 관리: 등록-접수-완료 3단계 라이프사이클 & 파일첨부)
   errorReports: ErrorReport[];
   addErrorReport: (report: Omit<ErrorReport, 'id' | 'createdAt' | 'updatedAt' | 'reportNo'> & { id?: string; reportNo?: string }) => Promise<ErrorReport>;
   receiveErrorReport: (id: string, payload: { assigneeId: string; assigneeName: string; receptionNote?: string; targetCompletionDate?: string }) => Promise<void>;
@@ -645,14 +645,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [navigationPayload, setNavigationPayload] = useState<any>(null);
 
-  // 湲濡쒕쾶 而ㅼ뒪? ?먮윭 紐⑤떖 ?곹깭
+  // 글로벌 커스텀 에러 모달 상태
   const [errorModal, setErrorModal] = useState<{ isOpen: boolean; title?: string; message: string }>({
     isOpen: false,
-    title: '?쒖뒪???ㅻ쪟 諛쒖깮',
+    title: '시스템 오류 발생',
     message: ''
   });
 
-  const showErrorModal = (message: string, title: string = '?쒖뒪???ㅻ쪟 諛쒖깮') => {
+  const showErrorModal = (message: string, title: string = '시스템 오류 발생') => {
     setErrorModal({
       isOpen: true,
       title,
@@ -660,10 +660,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
-  // ?????????????????????????????????????????????????????????
-  // 濡쒖뺄 db ?몃찓紐⑤━ ?ㅽ넗????React state 利됱떆 ?숆린??(Supabase pull ?놁쓬 ???????利됯컖 ?붾㈃ 諛섏쁺??
+  // ─────────────────────────────────────────────────────────
+  // 로컬 db 인메모리 스토어 → React state 즉시 동기화 (Supabase pull 없음 — 저장 후 즉각 화면 반영용)
   const refreshAllData = () => {
-    // ?뮕 ?뚯옣 1.2 & 5.2 以?? DB ?곸뿉 議댁옱?섎뒗 臾쇰━??以묐났 泥?뎄 ?곸꽭 ?덉퐫???꾨꼍 ?뚰깢 & ?먭꺽 DB(Supabase) ?숆린 ??젣
+    // 💡 헌장 1.2 & 5.2 준수: DB 상에 존재하는 물리적 중복 청구 상세 레코드 완벽 소탕 & 원격 DB(Supabase) 동기 삭제
     const seen = new Set<string>();
     const duplicateIds: string[] = [];
     db.billingDetails.forEach(bd => {
@@ -676,11 +676,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
     if (duplicateIds.length > 0) {
       duplicateIds.forEach(id => db.deleteRow('billingDetails', id));
-      // ?먭꺽 DB?먯꽌??以묐났 ??臾쇰━ ??젣 ?湲?
+      // 원격 DB에서도 중복 행 물리 삭제 대기
       db.awaitPendingWrites().catch(err => console.error("BillingDetails cleanup error:", err));
     }
 
-    // ?뮕 ?뚯옣 1.2 & 5.2 以?? 怨꾩빟/諛곗감媛 議댁옱?섏? ?딅뒗 怨좎븘 異쒓퀬寃?섏쓽猶?outboundInspections) ?먮룞 ?뚰깢 & DB ?숆린 ??젣
+    // 💡 헌장 1.2 & 5.2 준수: 계약/배차가 존재하지 않는 고아 출고검수의뢰(outboundInspections) 자동 소탕 & DB 동기 삭제
     if (db.contracts.length > 0) {
       const validContractIds = new Set(db.contracts.map(c => c.id));
       const validDeliveryIds = new Set(db.deliveries.map(d => d.id));
@@ -694,10 +694,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    // 吏꾩쭨 媛쒕컻??admin, sys-admin) 怨꾩젙留?'媛쒕컻??濡??뺢퇋??(?ъ옣/遺?ъ옣 ??理쒓퀬愿由ъ옄 ?깅챸 蹂댁〈)
+    // 진짜 개발자(admin, sys-admin) 계정만 '개발자'로 정규화 (사장/부사장 등 최고관리자 성명 보존)
     db.users.forEach(u => {
       if (u.loginId === 'admin' || u.id === 'sys-admin') {
-        u.name = '媛쒕컻??;
+        u.name = '개발자';
       }
     });
 
@@ -765,13 +765,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setCurrentUser(prev => {
       if (prev && (prev.loginId === 'admin' || prev.id === 'sys-admin')) {
-        return { ...prev, name: '媛쒕컻?? };
+        return { ...prev, name: '개발자' };
       }
       return prev;
     });
   };
 
-  // ?꾩껜 ?뚯씠釉?Supabase pull ??state ?숆린??(珥덇린 濡쒕뵫 ?꾩슜)
+  // 전체 테이블 Supabase pull 후 state 동기화 (초기 로딩 전용)
   const fullRefreshFromServer = async () => {
     if (db.isSupabaseConnected()) {
       try {
@@ -783,16 +783,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     refreshAllData();
   };
 
-  // 硫붾돱蹂?愿???뚯씠釉붾쭔 Supabase pull (硫붾돱 ?꾪솚 ???몄텧 ??理쒖떊 ?곗씠??蹂댁옣)
+  // 메뉴별 관련 테이블만 Supabase pull (메뉴 전환 시 호출 — 최신 데이터 보장)
   const MENU_TABLE_MAP: Record<string, string[]> = {
-    'dashboard':            ['deliveries', 'contracts', 'todos', 'assets'],
+    'dashboard':            ['deliveries', 'contracts', 'billings', 'todos', 'assets'],
     'delivery':             ['deliveries', 'transportCompanies', 'transportDrivers', 'contracts', 'assets', 'printStations', 'printQueue'],
     'transport_master':     ['transportCompanies', 'transportDrivers'],
     'field_as':             ['repairs', 'assets', 'users', 'consumables', 'mechanicConsumableStocks', 'customers', 'sites', 'contracts'],
     'smart_as_request':     ['repairs', 'customers', 'sites', 'contracts', 'contractAssets', 'assets'],
     'repair':               ['repairs', 'assets', 'consumables', 'repairConsumables', 'mechanicConsumableStocks', 'vendors'],
-    'contract':             ['contracts', 'contractAssets', 'customers', 'assets'],
-    'billing':              ['billingDetails', 'payments', 'paymentDepositLinks', 'bankTransactions', 'contracts', 'customers'],
+    'contract':             ['contracts', 'contractAssets', 'contractHistory', 'customers', 'assets'],
+    'billing':              ['billings', 'billingDetails', 'payments', 'paymentDepositLinks', 'bankTransactions', 'contracts', 'customers'],
     'customer':             ['customers', 'contacts', 'sites'],
     'product':              ['products'],
     'asset':                ['assets', 'products', 'vendors'],
@@ -806,16 +806,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'smart_dispatch4':      ['customers', 'sites', 'contacts', 'contracts', 'deliveries', 'assets', 'products'],
     'smart_return':         ['deliveries', 'contracts', 'assets', 'transportCompanies', 'transportDrivers', 'printStations', 'printQueue'],
     'asset_inout_history':  ['assetInOutLogs', 'assets', 'customers'],
-    'dispatch_assign':      ['contracts', 'contractAssets', 'assets', 'outboundInspections', 'customers'],
+    'dispatch_assign':      ['contracts', 'contractAssets', 'assets', 'outboundInspections', 'customers', 'contractHistory'],
     'outbound_inspections': ['outboundInspections', 'contracts', 'contractAssets', 'assets', 'customers', 'sites', 'deliveries'],
-    'bank_matching':        ['bankTransactions', 'bankMatchingRules', 'customers'],
+    'bank_matching':        ['bankTransactions', 'bankMatchingRules', 'billings', 'customers'],
     'vendors':              ['vendors'],
     'organization':         ['users', 'departments'],
     'permission':           ['users', 'permissions', 'departments', 'customRoles', 'rolePermissions'],
     'payroll':              ['users', 'departments'],
-    'corporate_card':       ['vendors'],
-    'cash_flow':            ['payments', 'contracts', 'assets'],
-    'delinquency':          ['customers', 'contracts'],
+    'corporate_card':       ['vendors', 'billings'],
+    'cash_flow':            ['billings', 'payments', 'contracts', 'assets'],
+    'delinquency':          ['billings', 'customers', 'contracts'],
     'google_config':        ['googleConfigs'],
     'depreciation_execution': ['depreciationLogs', 'assets'],
     'leave_application':    ['users', 'annualLeaveQuotas', 'leaveUsages'],
@@ -823,17 +823,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'ot_management':        ['users', 'overtimeRecords', 'departments'],
     'leave_ot':             ['users', 'annualLeaveQuotas', 'leaveUsages', 'overtimeRecords'],
     'vehicle_log':          ['corporateVehicles', 'vehicleOperationLogs', 'vehicleFuelLogs', 'users'],
-    'regular_reports':      ['contracts', 'contractAssets', 'deliveries', 'assets', 'repairs', 'purchaseSettlements', 'purchaseSettlementItems', 'billingDetails', 'bankTransactions', 'customers'],
-    'initial_db_upload':    ['contracts', 'contractAssets', 'customers', 'assets', 'sites', 'billingDetails'],
+    'regular_reports':      ['contracts', 'contractAssets', 'deliveries', 'assets', 'repairs', 'purchaseSettlements', 'purchaseSettlementItems', 'billings', 'billingDetails', 'bankTransactions', 'customers'],
+    'initial_db_upload':    ['contracts', 'contractAssets', 'customers', 'assets', 'sites', 'billings', 'billingDetails'],
     'print_queue_monitor':  ['printStations', 'printQueue'],
     'privacy_audit':        ['privacyAccessLogs', 'users', 'departments'],
-    'receivable':           ['billingDetails', 'customers', 'contracts', 'bankTransactions'],
+    'receivable':           ['billings', 'billingDetails', 'customers', 'contracts', 'bankTransactions'],
     'purchase_settlement':  ['purchaseSettlements', 'purchaseSettlementItems', 'vendors', 'assets'],
     'inspection_checklist_manage': ['inspectionChecklists', 'inspectionItems'],
     'error_report':         ['errorReports', 'users'],
-    'agentic_ai_lab':       ['contracts', 'assets', 'deliveries'],
+    'agentic_ai_lab':       ['contracts', 'assets', 'billings', 'deliveries'],
     'agentic_dispatch_studio': ['deliveries', 'contracts', 'assets'],
-    'agentic_settlement_autopilot': ['billingDetails', 'bankTransactions', 'purchaseSettlements'],
+    'agentic_settlement_autopilot': ['billings', 'billingDetails', 'bankTransactions', 'purchaseSettlements'],
     'agentic_asset_lifecycle': ['assets', 'contracts', 'repairs'],
     'dev_uploader':         ['contracts', 'contractAssets', 'customers', 'assets'],
   };
@@ -852,7 +852,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
 
   useEffect(() => {
-    // Seed 怨꾩빟 ?곗씠??珥덇린?붾뒗 媛쒕컻 ?섍꼍(localhost)?먯꽌留??ㅽ뻾
+    // Seed 계약 데이터 초기화는 개발 환경(localhost)에서만 실행
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       if (!localStorage.getItem('seed_v1_8_dummy_contracts_v2')) {
         localStorage.removeItem('erp_contracts');
@@ -862,7 +862,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
 
-    // ?덉쟾??Google Config 留덉씠洹몃젅?댁뀡 (湲곗〈 ?뺣낫 蹂댁〈 諛??좉퇋 而щ읆 二쇱엯)
+    // 안전한 Google Config 마이그레이션 (기존 정보 보존 및 신규 컬럼 주입)
     const existingConfigsStr = localStorage.getItem('erp_googleConfigs');
     if (existingConfigsStr) {
       try {
@@ -871,13 +871,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           let updated = false;
           const defaultTemplate: Record<string, any> = {
             isDevMode: false,
-            quotationTemplateUrl: 'templates/?뚰깉寃ъ쟻???묒떇.html',
-            contractTemplateUrl: 'templates/怨좎냼?묒뾽?_?꾨?李④퀎?쎌꽌_?묒떇.html',
-            safetyInspectionTemplateUrl: 'templates/怨좎냼?묒뾽?_?덉쟾?먭?寃곌낵???묒떇.html',
-            preDeliveryChecklistTemplateUrl: 'templates/諛섏엯??CHECK_LIST_?묒떇.html',
+            quotationTemplateUrl: 'templates/렌탈견적서_양식.html',
+            contractTemplateUrl: 'templates/고소작업대_임대차계약서_양식.html',
+            safetyInspectionTemplateUrl: 'templates/고소작업대_안전점검결과서_양식.html',
+            preDeliveryChecklistTemplateUrl: 'templates/반입전_CHECK_LIST_양식.html',
             bizRegCertUrl: '',
             bankbookCopyUrl: '',
-            transactionStatementTemplateUrl: 'templates/嫄곕옒紐낆꽭???묒떇.html',
+            transactionStatementTemplateUrl: 'templates/거래명세서_양식.html',
             r2AccountId: '35014a2514680107d74e1e68d96e6c32',
             r2BucketName: 'kiyeun-storage',
             r2AccessKeyId: '03cdb7560d37242de608a5db2a976030',
@@ -917,8 +917,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (savedUser) {
       try {
         const parsed = JSON.parse(savedUser);
-        if (parsed.loginId === 'admin' && (parsed.name === '理쒓퀬愿由ъ옄' || !parsed.name)) {
-          parsed.name = '媛쒕컻??;
+        if (parsed.loginId === 'admin' && (parsed.name === '최고관리자' || !parsed.name)) {
+          parsed.name = '개발자';
           sessionStorage.setItem('user', JSON.stringify(parsed));
         }
         setCurrentUser(parsed);
@@ -928,8 +928,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else if (autoUser) {
       try {
         const parsed = JSON.parse(autoUser);
-        if (parsed.loginId === 'admin' && (parsed.name === '理쒓퀬愿由ъ옄' || !parsed.name)) {
-          parsed.name = '媛쒕컻??;
+        if (parsed.loginId === 'admin' && (parsed.name === '최고관리자' || !parsed.name)) {
+          parsed.name = '개발자';
           localStorage.setItem('auto_user', JSON.stringify(parsed));
         }
         setCurrentUser(parsed);
@@ -938,7 +938,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
     
-    // 珥덇린 濡쒕뵫: ?꾩껜 28媛??뚯씠釉?Supabase pull (??理쒖큹 吏꾩엯 1?뚮쭔)
+    // 초기 로딩: 전체 28개 테이블 Supabase pull (앱 최초 진입 1회만)
     fullRefreshFromServer();
   }, []);
 
@@ -958,17 +958,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const cleanPw = (passwordHash || '').trim();
 
     if (!cleanId) {
-      return { success: false, reason: '?ъ슜???꾩씠?붾? ?낅젰??二쇱떗?쒖삤.' };
+      return { success: false, reason: '사용자 아이디를 입력해 주십시오.' };
     }
     if (!cleanPw) {
-      return { success: false, reason: '鍮꾨?踰덊샇瑜??낅젰??二쇱떗?쒖삤.' };
+      return { success: false, reason: '비밀번호를 입력해 주십시오.' };
     }
 
-    // 1. 媛쒕컻??/ 理쒓퀬愿由ъ옄 留덉뒪??怨꾩젙 (DB/?ㅽ듃?뚰겕 ?곹깭? 臾닿??섍쾶 100% 臾댁“嫄?蹂댁옣)
+    // 1. 개발자 / 최고관리자 마스터 계정 (DB/네트워크 상태와 무관하게 100% 무조건 보장)
     if (cleanId.toLowerCase() === 'admin' && cleanPw === 'admin123') {
       const fallbackAdmin: User = { 
         id: 'sys-admin', loginId: 'admin', passwordHash: 'admin123', 
-        name: '媛쒕컻??, department: '?쒖뒪??, departmentId: '', role: 'ADMIN', customRoleId: 'role_mgmt', createdAt: new Date().toISOString() 
+        name: '개발자', department: '시스템', departmentId: '', role: 'ADMIN', customRoleId: 'role_mgmt', createdAt: new Date().toISOString() 
       };
       setCurrentUser(fallbackAdmin);
       sessionStorage.setItem('user', JSON.stringify(fallbackAdmin));
@@ -977,18 +977,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else {
         localStorage.removeItem('auto_user');
       }
-      logPrivacyAccess('LOGIN', 'login', '媛쒕컻??理쒓퀬愿由ъ옄 濡쒓렇???깃났', {
+      logPrivacyAccess('LOGIN', 'login', '개발자 최고관리자 로그인 성공', {
         userId: fallbackAdmin.loginId,
         userName: fallbackAdmin.name
       }).catch(console.error);
       return { success: true };
     }
 
-    // 2. 媛쒕컻 ?꾩슜 ?뚯뒪??怨꾩젙 蹂댁옣 (manager, user, mechanic)
+    // 2. 개발 전용 테스트 계정 보장 (manager, user, mechanic)
     if (cleanId.toLowerCase() === 'manager' && cleanPw === 'mgr123') {
       const fallbackManager: User = {
         id: 'USR-MGR-TEST', loginId: 'manager', passwordHash: 'mgr123',
-        name: '?곸뾽愿由ъ옄', department: '?곸뾽愿由?, departmentId: 'DEPT-0000003', role: 'MANAGER', customRoleId: 'role_sales', createdAt: new Date().toISOString()
+        name: '영업관리자', department: '영업관리', departmentId: 'DEPT-0000003', role: 'MANAGER', customRoleId: 'role_sales', createdAt: new Date().toISOString()
       };
       setCurrentUser(fallbackManager);
       sessionStorage.setItem('user', JSON.stringify(fallbackManager));
@@ -998,7 +998,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (cleanId.toLowerCase() === 'user' && cleanPw === 'user123') {
       const fallbackUser: User = {
         id: 'USR-USER-TEST', loginId: 'user', passwordHash: 'user123',
-        name: '?쇰컲?곸뾽', department: '?곸뾽遺', departmentId: 'DEPT-0000003', role: 'USER', customRoleId: 'role_sales', createdAt: new Date().toISOString()
+        name: '일반영업', department: '영업부', departmentId: 'DEPT-0000003', role: 'USER', customRoleId: 'role_sales', createdAt: new Date().toISOString()
       };
       setCurrentUser(fallbackUser);
       sessionStorage.setItem('user', JSON.stringify(fallbackUser));
@@ -1008,7 +1008,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (cleanId.toLowerCase() === 'mechanic' && cleanPw === 'mech123') {
       const fallbackMech: User = {
         id: 'USR-MECH-TEST', loginId: 'mechanic', passwordHash: 'mech123',
-        name: '?뺣퉬湲곗궗', department: '?뺣퉬遺', departmentId: 'DEPT-0000005', role: 'MECHANIC', customRoleId: 'role_mechanic', createdAt: new Date().toISOString()
+        name: '정비기사', department: '정비부', departmentId: 'DEPT-0000005', role: 'MECHANIC', customRoleId: 'role_mechanic', createdAt: new Date().toISOString()
       };
       setCurrentUser(fallbackMech);
       sessionStorage.setItem('user', JSON.stringify(fallbackMech));
@@ -1016,7 +1016,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: true };
     }
 
-    // 3. 濡쒖뺄 罹먯떆 ?ъ슜??寃??(?꾩씠?? ?ъ썝紐? ?щ쾲, ?꾪솕踰덊샇, ?대찓???ㅺ컖??留ㅼ묶)
+    // 3. 로컬 캐시 사용자 검색 (아이디, 사원명, 사번, 전화번호, 이메일 다각도 매칭)
     const normInput = cleanId.toLowerCase();
     const phoneInput = cleanId.replace(/[^0-9]/g, '');
 
@@ -1035,7 +1035,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     let user = db.users.find(matchUser);
 
-    // 4. 濡쒖뺄 罹먯떆???녿뒗 寃쎌슦 (珥덇린 濡쒕뵫 ???먮뒗 罹먯떆 誘몃컲??, Supabase ?먭꺽 DB 吏곸젒 ?④굔 議고쉶 (Zero Race Condition)
+    // 4. 로컬 캐시에 없는 경우 (초기 로딩 전 또는 캐시 미반영), Supabase 원격 DB 직접 단건 조회 (Zero Race Condition)
     if (!user && db.isSupabaseConnected() && supabase) {
       try {
         const { data: suUsers } = await supabase
@@ -1045,81 +1045,81 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (suUsers && suUsers.length > 0 && suUsers[0]) {
           const foundUser = suUsers[0] as User;
           user = foundUser;
-          // 濡쒖뺄 罹먯떆??利됱떆 蹂닿컯 ???
+          // 로컬 캐시에 즉시 보강 저장
           const currentList = db.users;
           if (!currentList.some(u => u.id === foundUser.id)) {
             db.users = [...currentList, foundUser];
           }
         }
       } catch (suErr) {
-        console.warn('?먭꺽 DB 吏곸젒 ?ъ슜???몄쬆 議고쉶 ?ㅻ쪟:', suErr);
+        console.warn('원격 DB 직접 사용자 인증 조회 오류:', suErr);
       }
     }
 
-    // 5. ?ъ슜?먮? 李얠쓣 ???녿뒗 寃쎌슦 (?깅줉?섏? ?딆? ?ъ썝)
+    // 5. 사용자를 찾을 수 없는 경우 (등록되지 않은 사원)
     if (!user) {
-      logPrivacyAccess('LOGIN', 'login', `濡쒓렇??嫄곕?: 誘몃벑濡?怨꾩젙 ?쒕룄 ('${cleanId}')`, {
+      logPrivacyAccess('LOGIN', 'login', `로그인 거부: 미등록 계정 시도 ('${cleanId}')`, {
         userId: cleanId,
-        userName: '誘몄떇蹂?
+        userName: '미식별'
       }).catch(console.error);
       return { 
         success: false, 
-        reason: `?깅줉?섏? ?딆? ?ъ썝 怨꾩젙?낅땲?? ('${cleanId}')\n?ъ썝紐??? 源?숈슦, ?댁닔???? ?먮뒗 ?щ쾲???뺥솗???낅젰??二쇱떗?쒖삤.` 
+        reason: `등록되지 않은 사원 계정입니다. ('${cleanId}')\n사원명(예: 김동우, 이수용 등) 또는 사번을 정확히 입력해 주십시오.` 
       };
     }
 
-    // 6. 怨꾩젙 ?곹깭 寃利?(?ъ쭅, ?댁쭅, ?댁궗)
+    // 6. 계정 상태 검증 (재직, 휴직, 퇴사)
     if (user.status === 'RETIRED') {
-      logPrivacyAccess('LOGIN', 'login', `濡쒓렇??嫄곕?: ?댁궗??怨꾩젙 ?묒냽 李⑤떒 (${user.name})`, {
+      logPrivacyAccess('LOGIN', 'login', `로그인 거부: 퇴사자 계정 접속 차단 (${user.name})`, {
         userId: user.loginId || user.id,
         userName: user.name
       }).catch(console.error);
       return { 
         success: false, 
-        reason: `?댁궗 泥섎━??怨꾩젙?낅땲?? (${user.name} ??\n濡쒓렇?몄씠 ?쒗븳?섏삤???몄궗?대떦?먯뿉寃?臾몄쓽??二쇱떗?쒖삤.` 
+        reason: `퇴사 처리된 계정입니다. (${user.name} 님)\n로그인이 제한되오니 인사담당자에게 문의해 주십시오.` 
       };
     }
 
     if (user.status === 'LEAVE_OF_ABSENCE') {
-      logPrivacyAccess('LOGIN', 'login', `濡쒓렇??嫄곕?: ?댁쭅??怨꾩젙 ?묒냽 李⑤떒 (${user.name})`, {
+      logPrivacyAccess('LOGIN', 'login', `로그인 거부: 휴직자 계정 접속 차단 (${user.name})`, {
         userId: user.loginId || user.id,
         userName: user.name
       }).catch(console.error);
       return { 
         success: false, 
-        reason: `?꾩옱 ?댁쭅 ?곹깭濡??ㅼ젙??怨꾩젙?낅땲?? (${user.name} ??\n愿由ъ옄?먭쾶 ?낅Т 蹂듦? ?뱀씤???붿껌??二쇱떗?쒖삤.` 
+        reason: `현재 휴직 상태로 설정된 계정입니다. (${user.name} 님)\n관리자에게 업무 복귀 승인을 요청해 주십시오.` 
       };
     }
 
-    // 7. 鍮꾨?踰덊샇 寃利?(誘몄꽕???ъ썝? ?щ궡 湲곕낯 鍮꾨?踰덊샇 1111 ?곸슜)
+    // 7. 비밀번호 검증 (미설정 사원은 사내 기본 비밀번호 1111 적용)
     const expectedPassword = user.passwordHash || '1111';
     if (expectedPassword !== cleanPw) {
-      logPrivacyAccess('LOGIN', 'login', `濡쒓렇??嫄곕?: 鍮꾨?踰덊샇 遺덉씪移?(${user.name})`, {
+      logPrivacyAccess('LOGIN', 'login', `로그인 거부: 비밀번호 불일치 (${user.name})`, {
         userId: user.loginId || user.id,
         userName: user.name
       }).catch(console.error);
       return { 
         success: false, 
-        reason: `鍮꾨?踰덊샇媛 ?쇱튂?섏? ?딆뒿?덈떎. (${user.name} ??\n?ъ썝 珥덇린 鍮꾨?踰덊샇??'1111'?낅땲?? 鍮꾨?踰덊샇瑜??ㅼ떆 ?뺤씤??二쇱떗?쒖삤.` 
+        reason: `비밀번호가 일치하지 않습니다. (${user.name} 님)\n사원 초기 비밀번호는 '1111'입니다. 비밀번호를 다시 확인해 주십시오.` 
       };
     }
 
-    // 8. 沅뚰븳 ?곸냽 濡??꾨씫 ??遺??湲곕컲 ?먮룞 ?곸냽 蹂닿컯
+    // 8. 권한 상속 롤 누락 시 부서 기반 자동 상속 보강
     if (!user.customRoleId) {
       const dept = (user.departmentId || user.department || '').toUpperCase();
       let assignedRoleId = '';
-      if (dept.includes('0000001') || dept.includes('0000002') || dept.includes('愿由?) || dept.includes('寃쎌쁺') || dept.includes('?꾩썝') || user.position === '?ъ옣' || user.position === '遺?ъ옣' || user.position === '??쒖씠??) assignedRoleId = 'role_mgmt';
-      else if (dept.includes('0000003') || dept.includes('?곸뾽')) assignedRoleId = 'role_sales';
-      else if (dept.includes('0000004') || dept.includes('異쒓퀬') || dept.includes('諛곗감')) assignedRoleId = 'role_logistics';
-      else if (dept.includes('0000005') || dept.includes('0000006') || dept.includes('AS') || dept.includes('?뺣퉬') || dept.includes('?멸뎅??)) assignedRoleId = 'role_mechanic';
+      if (dept.includes('0000001') || dept.includes('0000002') || dept.includes('관리') || dept.includes('경영') || dept.includes('임원') || user.position === '사장' || user.position === '부사장' || user.position === '대표이사') assignedRoleId = 'role_mgmt';
+      else if (dept.includes('0000003') || dept.includes('영업')) assignedRoleId = 'role_sales';
+      else if (dept.includes('0000004') || dept.includes('출고') || dept.includes('배차')) assignedRoleId = 'role_logistics';
+      else if (dept.includes('0000005') || dept.includes('0000006') || dept.includes('AS') || dept.includes('정비') || dept.includes('외국인')) assignedRoleId = 'role_mechanic';
       if (assignedRoleId) {
         user = { ...user, customRoleId: assignedRoleId };
       }
     }
 
-    // 9. 濡쒓렇???깃났 ?뺤젙
-    if (user.loginId === 'admin' && user.name === '理쒓퀬愿由ъ옄') {
-      user.name = '媛쒕컻??;
+    // 9. 로그인 성공 확정
+    if (user.loginId === 'admin' && user.name === '최고관리자') {
+      user.name = '개발자';
     }
     setCurrentUser(user);
     sessionStorage.setItem('user', JSON.stringify(user));
@@ -1128,7 +1128,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else {
       localStorage.removeItem('auto_user');
     }
-    logPrivacyAccess('LOGIN', 'login', `?ъ슜??濡쒓렇???깃났: ${user.name} (${user.department || user.position || '?꾩쭅??})`, {
+    logPrivacyAccess('LOGIN', 'login', `사용자 로그인 성공: ${user.name} (${user.department || user.position || '임직원'})`, {
       userId: user.loginId || user.id,
       userName: user.name
     }).catch(console.error);
@@ -1138,7 +1138,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const logout = () => {
     if (currentUser) {
-      logPrivacyAccess('LOGOUT', 'logout', `?ъ슜??濡쒓렇?꾩썐: ${currentUser.name}`, {
+      logPrivacyAccess('LOGOUT', 'logout', `사용자 로그아웃: ${currentUser.name}`, {
         userId: currentUser.loginId,
         userName: currentUser.name
       }).catch(console.error);
@@ -1152,7 +1152,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const switchUser = (userId: string) => {
     let targetUser = users.find(u => u.id === userId);
     if (!targetUser) {
-      // sys-admin ??users 諛곗뿴???녿뒗 fallback 怨꾩젙?쇰줈??蹂듦? 泥섎━
+      // sys-admin 등 users 배열에 없는 fallback 계정으로의 복귀 처리
       const originalAdminStr = sessionStorage.getItem('original_admin_user');
       if (originalAdminStr) {
         const originalAdmin = JSON.parse(originalAdminStr);
@@ -1163,7 +1163,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     
     if (targetUser) {
-      logPrivacyAccess('VIEW', 'switch_user', `?ъ슜??怨꾩젙 ?꾪솚: ${currentUser?.name || '誘몄씤利?} -> ${targetUser.name}`, {
+      logPrivacyAccess('VIEW', 'switch_user', `사용자 계정 전환: ${currentUser?.name || '미인증'} -> ${targetUser.name}`, {
         userId: currentUser?.loginId || targetUser.loginId,
         userName: currentUser?.name || targetUser.name,
         targetSubjectId: targetUser.id,
@@ -1181,29 +1181,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const hasPermission = (menuId: string, action: 'view' | 'save'): boolean => {
     if (!currentUser) return false;
 
-    // 0. ?댁궗(RETIRED) 怨꾩젙? ?꾩궗 紐⑤뱺 硫붾돱 沅뚰븳 利됱떆 ?꾨㈃ 李⑤떒 (Zero-Access Security)
+    // 0. 퇴사(RETIRED) 계정은 전사 모든 메뉴 권한 즉시 전면 차단 (Zero-Access Security)
     if (currentUser.status === 'RETIRED') return false;
 
-    // 0-1. ?댁쭅(LEAVE_OF_ABSENCE) 怨꾩젙? 蹂寃????save) 沅뚰븳 ?먯쿇 李⑤떒 (議고쉶留??덉슜)
+    // 0-1. 휴직(LEAVE_OF_ABSENCE) 계정은 변경/저장(save) 권한 원천 차단 (조회만 허용)
     if (currentUser.status === 'LEAVE_OF_ABSENCE' && action === 'save') return false;
 
-    // 1. ?쒖뒪??理쒓퀬愿由ъ옄 怨꾩젙 諛?ADMIN ??븷 ?ъ슜?먮뒗 紐⑤뱺 硫붾돱??100% 臾댁“嫄?沅뚰븳 遺??
+    // 1. 시스템 최고관리자 계정 및 ADMIN 역할 사용자는 모든 메뉴에 100% 무조건 권한 부여
     if (currentUser.role === 'ADMIN' || currentUser.loginId === 'admin' || currentUser.id === 'sys-admin' || currentUser.id === 'u-1') return true;
 
-    // 2. ?⑥씪 ?쒖?(SSOT) ?⑥닔??硫붾돱 ID濡??뺢퇋??
+    // 2. 단일 표준(SSOT) 단수형 메뉴 ID로 정규화
     const normMenuId = normalizeMenuId(menuId);
 
-    // 2-1. ?곗감?좎껌, 留ㅻ돱???ㅽ뒠?붿삤, ?낅Т留ㅻ돱??諛??ㅻ쪟 ?좉퀬??沅뚰븳 援щ텇 ?놁씠 紐⑤뱺 ?꾩쭅?먯쓽 怨듯넻 湲곕뒫?쇰줈 泥섎━ (?꾩썝 ?곸떆 媛쒕갑)
+    // 2-1. 연차신청, 매뉴얼 스튜디오, 업무매뉴얼 및 오류 신고는 권한 구분 없이 모든 임직원의 공통 기능으로 처리 (전원 상시 개방)
     if (normMenuId === 'leave_application' || normMenuId === 'manual_studio' || normMenuId === 'operations_manual' || normMenuId === 'error_report') {
       return true;
     }
 
-    // 2-2. ?곗감愿由?沅뚰븳? 湲됱뿬 沅뚰븳?먯? 100% ?숈씪?섍쾶 蹂寃?(湲됱뿬 沅뚰븳 ?곸냽)
+    // 2-2. 연차관리 권한은 급여 권한자와 100% 동일하게 변경 (급여 권한 상속)
     if (normMenuId === 'leave_management') {
       return hasPermission('payroll', action);
     }
 
-    // 3. ?ъ슜???뺤쓽 沅뚰븳 紐낆묶(CustomRole) ?곸냽 ?먯젙 (??븷 湲곕컲 ?먮룞 ?곸냽 理쒖슦??
+    // 3. 사용자 정의 권한 명칭(CustomRole) 상속 판정 (역할 기반 자동 상속 최우선)
     if (currentUser.customRoleId) {
       const rolePerm = rolePermissions.find(p => 
         p.roleId === currentUser.customRoleId && 
@@ -1214,7 +1214,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    // 4. ?ъ슜?먮퀎 紐낆떆???ㅻ쾭?쇱씠??媛쒖씤 ?덉쇅 沅뚰븳) ?곗꽑 ?먯젙
+    // 4. 사용자별 명시적 오버라이드(개인 예외 권한) 우선 판정
     const perm = permissions.find(p => 
       (p.userId === currentUser.id || (p as any).user_id === currentUser.id) && 
       normalizeMenuId(p.menuId) === normMenuId
@@ -1223,14 +1223,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return action === 'view' ? Boolean(perm.canView) : Boolean(perm.canSave);
     }
 
-    // 5. 吏곷Т ?쒗뵆由?RBAC) 湲곕컲 ?먮룞 ?곸냽 ?먯젙
+    // 5. 직무 템플릿(RBAC) 기반 자동 상속 판정
     const dept = currentUser.departmentId || currentUser.department;
     const templateRule = getRoleTemplatePermission(currentUser.role, dept, normMenuId, action);
     if (templateRule !== undefined) {
       return templateRule;
     }
 
-    // 6. ?꾧꺽??嫄곕? ?곗꽑 (Deny-by-Default): ?뺤쓽?섏? ?딆? 硫붾돱???꾨㈃ 李⑤떒
+    // 6. 엄격한 거부 우선 (Deny-by-Default): 정의되지 않은 메뉴는 전면 차단
     return false;
   };
 
@@ -1238,7 +1238,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       db.permissions = updated;
       if (supabase) {
-        // DB ?ㅽ궎留?諛??덇굅??role/updatedAt NOT NULL ?쒖빟 議곌굔 ?고쉶瑜??꾪빐 ??꾩뒪?ы봽 & 湲곕낯媛?遺??(userId camelCase ?⑥씪 ?쒖? ?곸슜)
+        // DB 스키마 및 레거시 role/updatedAt NOT NULL 제약 조건 우회를 위해 타임스탬프 & 기본값 부여 (userId camelCase 단일 표준 적용)
         const nowStr = new Date().toISOString();
         const payload = updated.map(p => ({
           ...p,
@@ -1248,25 +1248,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           updatedAt: nowStr
         }));
 
-        const lastCommandInfo = `supabase.from('permissions').upsert(payload[${payload.length}嫄?, { onConflict: 'id' })`;
+        const lastCommandInfo = `supabase.from('permissions').upsert(payload[${payload.length}건], { onConflict: 'id' })`;
         const samplePayloadJson = JSON.stringify(payload.slice(0, 2), null, 2);
 
         const { error } = await supabase.from('permissions').upsert(payload as any[], { onConflict: 'id' });
         if (error) {
           const isSchemaCacheOrColumnError = error.message?.includes("userId") || error.code === 'PGRST204' || error.code === 'PGRST200';
           const rawErrorDetails = 
-            `??[留덉?留??ㅽ뻾 ?쒕룄 紐낅졊]: ${lastCommandInfo}\n` +
-            `??[PostgREST Raw Error]:\n` +
+            `■ [마지막 실행 시도 명령]: ${lastCommandInfo}\n` +
+            `■ [PostgREST Raw Error]:\n` +
             `  - Code: ${error.code || 'N/A'}\n` +
             `  - Message: ${error.message || 'N/A'}\n` +
             `  - Details: ${error.details || 'N/A'}\n` +
             `  - Hint: ${error.hint || 'N/A'}\n\n` +
-            `??[?쒕룄???섏씠濡쒕뱶 ?섑뵆 (理쒕? 2嫄?]:\n${samplePayloadJson}\n\n` +
-            `??[議곗튂 ?덈궡 (媛쒕컻???꾧뎄 ?⑥튂 ?곸슜 ?먮뒗 Supabase SQL Editor ?ㅽ뻾 DDL)]:\n` +
+            `■ [시도된 페이로드 샘플 (최대 2건)]:\n${samplePayloadJson}\n\n` +
+            `■ [조치 안내 (개발자 도구 패치 적용 또는 Supabase SQL Editor 실행 DDL)]:\n` +
             (isSchemaCacheOrColumnError
-              ? `?뮕 ?먯씤: Supabase DB??permissions ?뚯씠釉?而щ읆 誘몃퉬 ?먮뒗 PostgREST ?ㅽ궎留?罹먯떆 誘멸갚???꾩긽?낅땲??\n` +
-                `1) [媛쒕컻???꾧뎄] ??[[媛쒕컻] DB ?곗씠???낅줈?? 硫붾돱 ?섎떒??[???⑥튂 ?먮룞 ?곸슜 (DB 吏곸젒 ?ㅽ뻾)] 踰꾪듉 ?대┃\n` +
-                `2) ?먮뒗 Supabase SQL Editor?먯꽌 ?꾨옒 DDL 吏곸젒 ?ㅽ뻾:\n` +
+              ? `💡 원인: Supabase DB의 permissions 테이블 컬럼 미비 또는 PostgREST 스키마 캐시 미갱신 현상입니다.\n` +
+                `1) [개발자 도구] ➔ [[개발] DB 데이터 업로더] 메뉴 하단의 [⚡ 패치 자동 적용 (DB 직접 실행)] 버튼 클릭\n` +
+                `2) 또는 Supabase SQL Editor에서 아래 DDL 직접 실행:\n` +
                 `   ALTER TABLE "permissions" ADD COLUMN IF NOT EXISTS "userId" TEXT;\n` +
                 `   NOTIFY pgrst, 'reload schema';`
               : `ALTER TABLE "permissions" ADD COLUMN IF NOT EXISTS "userId" TEXT;\nNOTIFY pgrst, 'reload schema';`);
@@ -1286,7 +1286,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const nowIso = new Date().toISOString();
       const payload: GoogleConfig = { ...configData, updatedAt: nowIso };
 
-      // 1. 濡쒖뺄 ?ㅽ넗由ъ? 利됱떆 諛섏쁺
+      // 1. 로컬 스토리지 즉시 반영
       const currentList = [...db.googleConfigs];
       const localIndex = currentList.findIndex(cfg => cfg.id === configData.id);
       if (localIndex >= 0) {
@@ -1297,7 +1297,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       db.googleConfigs = currentList;
       localStorage.setItem('erp_googleConfigs', JSON.stringify(currentList));
 
-      // 2. Supabase UPSERT ????議댁옱 ?щ?? 愿怨꾩뾾??諛섎뱶??諛섏쁺
+      // 2. Supabase UPSERT — 행 존재 여부와 관계없이 반드시 반영
       if (supabase) {
         const upsertPayload = { ...payload, createdAt: (payload as any).createdAt || nowIso };
         const { error } = await supabase
@@ -1313,12 +1313,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       refreshAllData();
     } catch (err: any) {
       console.error('updateGoogleConfig Error:', err);
-      showErrorModal(`?좑툘 援ш? ?ㅼ젙 ?먭꺽 DB ????ㅽ뙣:\n\n${err?.message || err}`, '?먭꺽 DB ????ㅻ쪟');
+      showErrorModal(`⚠️ 구글 설정 원격 DB 저장 실패:\n\n${err?.message || err}`, '원격 DB 저장 오류');
       throw err;
     }
   };
 
-  // ?? ?ъ슜???뺤쓽 沅뚰븳 紐낆묶(CustomRole) 諛?沅뚰븳(RolePermission) 愿由?裕ㅽ뀒?댄꽣 ??
+  // ── 사용자 정의 권한 명칭(CustomRole) 및 권한(RolePermission) 관리 뮤테이터 ──
   const saveCustomRole = async (role: CustomRole) => {
     try {
       const now = new Date().toISOString();
@@ -1340,7 +1340,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       refreshAllData();
     } catch (err: any) {
       console.error('saveCustomRole error:', err);
-      showErrorModal(`沅뚰븳 紐낆묶 ????ㅽ뙣: ${err?.message || err}`);
+      showErrorModal(`권한 명칭 저장 실패: ${err?.message || err}`);
       throw err;
     }
   };
@@ -1351,12 +1351,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       db.customRoles = list;
       setCustomRoles([...list]);
 
-      // ?대떦 ??븷???몃? 硫붾돱 沅뚰븳 ??젣
+      // 해당 역할의 세부 메뉴 권한 삭제
       const remainingPerms = db.rolePermissions.filter(p => p.roleId !== roleId);
       db.rolePermissions = remainingPerms;
       setRolePermissions([...remainingPerms]);
 
-      // ?대떦 ??븷???곸냽諛쏆? ?ъ슜?먮뱾??customRoleId ?댁젣
+      // 해당 역할을 상속받은 사용자들의 customRoleId 해제
       const updatedUsers = db.users.map(u => u.customRoleId === roleId ? { ...u, customRoleId: undefined } : u);
       db.users = updatedUsers;
       setUsers([...updatedUsers]);
@@ -1366,7 +1366,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       refreshAllData();
     } catch (err: any) {
       console.error('deleteCustomRole error:', err);
-      showErrorModal(`沅뚰븳 紐낆묶 ??젣 ?ㅽ뙣: ${err?.message || err}`);
+      showErrorModal(`권한 명칭 삭제 실패: ${err?.message || err}`);
       throw err;
     }
   };
@@ -1390,7 +1390,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       await db.upsertRows('rolePermissions', newPerms);
 
-      // ?봽 ?대떦 roleId瑜?蹂댁쑀???꾩쭅?먮뱾??permissions(805???명솚 ?뚯씠釉???100% ?숆린??
+      // 🔄 해당 roleId를 보유한 임직원들의 permissions(805행 호환 테이블)도 100% 동기화
       const affectedUsers = db.users.filter(u => u.customRoleId === roleId);
       if (affectedUsers.length > 0) {
         const syncPerms: MenuPermission[] = [];
@@ -1422,7 +1422,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       refreshAllData();
     } catch (err: any) {
       console.error('saveRolePermissions error:', err);
-      showErrorModal(`??븷 硫붾돱 沅뚰븳 ????ㅽ뙣: ${err?.message || err}`);
+      showErrorModal(`역할 메뉴 권한 저장 실패: ${err?.message || err}`);
       throw err;
     }
   };
@@ -1447,7 +1447,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         await db.upsertRows('users', [updatedUser]);
 
-        // ?봽 ?곸냽????븷??沅뚰븳??permissions ?뚯씠釉??덇굅??湲濡쒕쾶 ?명솚)?먮룄 1:1 ?숆린??
+        // 🔄 상속된 역할의 권한을 permissions 테이블(레거시/글로벌 호환)에도 1:1 동기화
         if (customRoleId) {
           const now = new Date().toISOString();
           const roleRules = db.rolePermissions.filter(p => p.roleId === customRoleId);
@@ -1475,7 +1475,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     } catch (err: any) {
       console.error('assignUserRole error:', err);
-      showErrorModal(`吏곸썝 沅뚰븳 紐낆묶 ?곸냽 諛곗젙 ?ㅽ뙣: ${err?.message || err}`);
+      showErrorModal(`직원 권한 명칭 상속 배정 실패: ${err?.message || err}`);
       throw err;
     }
   };
@@ -1484,10 +1484,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (userData.id) {
       db.updateRow<User>('users', userData.id, userData);
     } else {
-      // ?좉퇋 ?꾩쭅???앹꽦
+      // 신규 임직원 생성
       const newUser = db.insertRow<User>('users', { ...userData, createdAt: new Date().toISOString() });
       
-      // ADMIN ??븷 ?좉퇋 ?꾩쭅?먯? 紐⑤뱺 硫붾돱?????湲곕낯 ?꾩껜 沅뚰븳(canView+canSave=true) ?덉퐫???먮룞 ?앹꽦
+      // ADMIN 역할 신규 임직원은 모든 메뉴에 대해 기본 전체 권한(canView+canSave=true) 레코드 자동 생성
       if (userData.role === 'ADMIN' && newUser?.id) {
         const allMenuIds = getAllSystemMenuIds();
         allMenuIds.forEach(menuId => {
@@ -1507,17 +1507,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (cust.id) {
       res = db.updateRow<Customer>('customers', cust.id, cust) as Customer;
 
-      // 怨좉컼 ?뺣낫 蹂댁셿 ?꾨즺 ??愿??????Todo) ?먮룞 ?곴퀎 泥섎━
+      // 고객 정보 보완 완료 시 관련 할 일(Todo) 자동 상계 처리
       const relatedTodos = db.todos.filter(
         t => t.relatedEntityId === cust.id && t.type === 'MISSING_INFO' && !t.isCompleted
       );
       if (relatedTodos.length > 0) {
         const isInfoComplete = 
-          cust.bizRegNo && cust.bizRegNo !== '誘몄긽' && cust.bizRegNo.trim() !== '' &&
-          cust.representative && cust.representative !== '誘몄긽' && cust.representative.trim() !== '' &&
-          cust.repContact && cust.repContact !== '誘몄긽' && cust.repContact.trim() !== '' &&
-          cust.address && cust.address !== '誘몄긽' && cust.address.trim() !== '' &&
-          cust.repEmail && cust.repEmail !== '誘몄긽' && cust.repEmail.trim() !== '';
+          cust.bizRegNo && cust.bizRegNo !== '미상' && cust.bizRegNo.trim() !== '' &&
+          cust.representative && cust.representative !== '미상' && cust.representative.trim() !== '' &&
+          cust.repContact && cust.repContact !== '미상' && cust.repContact.trim() !== '' &&
+          cust.address && cust.address !== '미상' && cust.address.trim() !== '' &&
+          cust.repEmail && cust.repEmail !== '미상' && cust.repEmail.trim() !== '';
 
         if (isInfoComplete) {
           relatedTodos.forEach(todo => {
@@ -1568,12 +1568,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteContact = async (id: string) => {
-    // ??怨좎븘 ?덉퐫??諛⑹?: 怨꾩빟???깅줉???대떦????젣 李⑤떒
+    // ✅ 고아 레코드 방지: 계약에 등록된 담당자 삭제 차단
     const linkedContracts = db.contracts.filter(c => c.contactId === id);
     if (linkedContracts.length > 0) {
       showErrorModal(
-        `?좑툘 ?대떦 ?대떦?먮? ??젣?????놁뒿?덈떎.\n\n?곌껐??怨꾩빟??${linkedContracts.length}嫄?議댁옱?⑸땲??\n怨꾩빟?먯꽌 ?대떦?먮? 癒쇱? 蹂寃??댁젣?섏떗?쒖삤.`,
-        '?대떦????젣 遺덇?'
+        `⚠️ 해당 담당자를 삭제할 수 없습니다.\n\n연결된 계약이 ${linkedContracts.length}건 존재합니다.\n계약에서 담당자를 먼저 변경/해제하십시오.`,
+        '담당자 삭제 불가'
       );
       return;
     }
@@ -1616,16 +1616,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const deleteSite = async (id: string) => {
-    // ??怨좎븘 ?덉퐫??諛⑹?: ?곌껐??怨꾩빟 ?먮뒗 ?ъ엯 以묒씤 ?λ퉬媛 ?덉쑝硫???젣 李⑤떒
+    // ✅ 고아 레코드 방지: 연결된 계약 또는 투입 중인 장비가 있으면 삭제 차단
     const linkedContracts = db.contracts.filter(c => c.siteId === id);
     const linkedAssets = db.assets.filter(a => a.currentSiteId === id);
     if (linkedContracts.length > 0 || linkedAssets.length > 0) {
       showErrorModal(
-        `?좑툘 ?대떦 ?꾩옣????젣?????놁뒿?덈떎.\n\n` +
-        (linkedContracts.length > 0 ? `???곌껐??怨꾩빟: ${linkedContracts.length}嫄?n` : '') +
-        (linkedAssets.length > 0 ? `???ъ엯 以묒씤 ?λ퉬: ${linkedAssets.length}?\n` : '') +
-        `\n怨꾩빟 ?먮뒗 ?λ퉬?먯꽌 ?꾩옣 ?곌껐??癒쇱? ?댁젣?섏떗?쒖삤.`,
-        '?꾩옣 ??젣 遺덇?'
+        `⚠️ 해당 현장을 삭제할 수 없습니다.\n\n` +
+        (linkedContracts.length > 0 ? `■ 연결된 계약: ${linkedContracts.length}건\n` : '') +
+        (linkedAssets.length > 0 ? `■ 투입 중인 장비: ${linkedAssets.length}대\n` : '') +
+        `\n계약 또는 장비에서 현장 연결을 먼저 해제하십시오.`,
+        '현장 삭제 불가'
       );
       return;
     }
@@ -1658,7 +1658,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await db.awaitPendingWrites();
     } catch (err: any) {
       console.error("Supabase write await error:", err);
-      showErrorModal(`?좑툘 ?쒗뭹 移댄깉濡쒓렇 ???以?DB ?숆린???ㅻ쪟媛 諛쒖깮?덉뒿?덈떎:\n${err.message || err.details || JSON.stringify(err)}`, 'DB ?숆린???ㅻ쪟');
+      showErrorModal(`⚠️ 제품 카탈로그 저장 중 DB 동기화 오류가 발생했습니다:\n${err.message || err.details || JSON.stringify(err)}`, 'DB 동기화 오류');
       throw err;
     }
     
@@ -1666,7 +1666,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return result;
   };
 
-  // ?뮕 [?좉퇋] ?낃퀬 寃???꾩슂 ??ぉ 諛??먯닔 湲곗? CUD
+  // 💡 [신규] 입고 검수 필요 항목 및 점수 기준 CUD
   const saveInspectionChecklistItem = async (itemData: Omit<InspectionChecklistItem, 'id' | 'createdAt'> & { id?: string }) => {
     if (itemData.id) {
       db.updateRow<InspectionChecklistItem>('inspectionChecklistItems', itemData.id, {
@@ -1715,7 +1715,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     refreshAllData();
   };
 
-  // ?뤇截??꾩궗 ?쒖? ?듭뀡 留덉뒪??CUD
+  // 🏷️ 전사 표준 옵션 마스터 CUD
   const saveStandardOption = async (optionData: Omit<StandardOption, 'id' | 'createdAt'> & { id?: string }): Promise<StandardOption> => {
     let result: StandardOption;
     if (optionData.id) {
@@ -1759,28 +1759,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     if (result) {
-      // 1. ?좉퇋 痍⑤뱷(ACQUISITION) ?대젰 ?먮룞 湲곕줉
+      // 1. 신규 취득(ACQUISITION) 이력 자동 기록
       if (isNew) {
         db.insertRow<AssetInOutLog>('assetInOutLogs', {
           assetId: result.id,
           assetNo: result.assetNo,
           modelName: result.modelName,
-          type: 'INBOUND', // ACQUISITION ???INBOUND ?ъ슜?섏뿬 ?쒖빟議곌굔 ?고쉶
+          type: 'INBOUND', // ACQUISITION 대신 INBOUND 사용하여 제약조건 우회
           eventDate: result.acquisitionDate || new Date().toISOString().split('T')[0],
-          memo: `[理쒖큹痍⑤뱷] ?먯궛 理쒖큹 痍⑤뱷 諛?????깅줉 (痍⑤뱷?? ${result.acquisitionDate || '-'} / 痍⑤뱷媛: ${(result.acquisitionPrice || 0).toLocaleString()}??/ ?꾩감/援ъ엯泥? ${result.renter || '-'})`,
+          memo: `[최초취득] 자산 최초 취득 및 대장 등록 (취득일: ${result.acquisitionDate || '-'} / 취득가: ${(result.acquisitionPrice || 0).toLocaleString()}원 / 임차/구입처: ${result.renter || '-'})`,
           createdAt: new Date().toISOString()
         });
       }
 
-      // 2. ?먯궛 留ㅺ컖(DISPOSAL) ?대젰 ?먮룞 湲곕줉
+      // 2. 자산 매각(DISPOSAL) 이력 자동 기록
       if (result.status === 'SOLD' && (!existingAsset || existingAsset.status !== 'SOLD')) {
         db.insertRow<AssetInOutLog>('assetInOutLogs', {
           assetId: result.id,
           assetNo: result.assetNo,
           modelName: result.modelName,
-          type: 'OUTBOUND', // DISPOSAL ???OUTBOUND ?ъ슜?섏뿬 ?쒖빟議곌굔 ?고쉶
+          type: 'OUTBOUND', // DISPOSAL 대신 OUTBOUND 사용하여 제약조건 우회
           eventDate: result.disposalDate || new Date().toISOString().split('T')[0],
-          memo: `[留ㅺ컖泥섎텇] ?먯궛 留ㅺ컖 ?꾨즺 (留ㅺ컖?? ${result.disposalDate || '-'} / 留ㅺ컖媛: ${(result.disposalPrice || 0).toLocaleString()}??/ 留ㅺ컖?몄닔泥? ${result.buyer || '-'})`,
+          memo: `[매각처분] 자산 매각 완료 (매각일: ${result.disposalDate || '-'} / 매각가: ${(result.disposalPrice || 0).toLocaleString()}원 / 매각인수처: ${result.buyer || '-'})`,
           createdAt: new Date().toISOString()
         });
       }
@@ -1790,14 +1790,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await db.awaitPendingWrites();
     } catch (err: any) {
       console.error('saveAsset Supabase sync error:', err);
-      showErrorModal(`?좑툘 ?λ퉬 ?먯궛 ???以?DB ?숆린???ㅻ쪟媛 諛쒖깮?덉뒿?덈떎:\n${err.message || err.details || JSON.stringify(err)}`, 'DB ?숆린???ㅻ쪟');
+      showErrorModal(`⚠️ 장비 자산 저장 중 DB 동기화 오류가 발생했습니다:\n${err.message || err.details || JSON.stringify(err)}`, 'DB 동기화 오류');
       throw err;
     }
     refreshAllData();
     return result;
   };
 
-  // ?뮕 ?먯궛 ?곹깭 SSOT ?먮룞 蹂???ы띁 硫붿냼??
+  // 💡 자산 상태 SSOT 자동 변동 헬퍼 메소드
   const changeAssetStatus = async (assetId: string, newStatus: Asset['status'], extraData?: Partial<Asset>) => {
     try {
       const targetAsset = db.assets.find(a => a.id === assetId);
@@ -1810,14 +1810,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       db.updateRow<Asset>('assets', assetId, updatedPayload);
 
-      // ?먯궛 ?낆텧怨??곹깭 蹂???대젰(assetInOutLogs) ?먮룞 ??꾨씪??湲곕줉
+      // 자산 입출고/상태 변동 이력(assetInOutLogs) 자동 타임라인 기록
       db.insertRow<AssetInOutLog>('assetInOutLogs', {
         assetId: assetId,
         assetNo: targetAsset.assetNo || '',
         modelName: targetAsset.modelName || '',
         type: (newStatus === 'RENTED' || newStatus === 'ASSIGNED') ? 'OUTBOUND' : 'INBOUND',
         eventDate: new Date().toISOString().split('T')[0],
-        memo: `[?먯궛?곹깭 蹂?? ${targetAsset.status || 'AVAILABLE'} ??${newStatus}`,
+        memo: `[자산상태 변동] ${targetAsset.status || 'AVAILABLE'} ➔ ${newStatus}`,
         createdAt: new Date().toISOString()
       });
 
@@ -1827,12 +1827,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       refreshAllData();
     } catch (err: any) {
       console.error('changeAssetStatus error:', err);
-      showErrorModal(`?좑툘 ?먯궛 ?곹깭 蹂??泥섎━ 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎:\n\n${err?.message || err}`);
+      showErrorModal(`⚠️ 자산 상태 변동 처리 중 오류가 발생했습니다:\n\n${err?.message || err}`);
       throw err;
     }
   };
 
-  // ?꾩궗 怨꾩빟踰덊샇 ?듭씪 ?앹꽦 ?ы띁 (理쒖큹諛쒖깮??YYMM 湲곗? C{YYMM}-{4?먮━ ?쒖감}: ??'C2608-0001')
+  // 전사 계약번호 통일 생성 헬퍼 (최초발생월 YYMM 기준 C{YYMM}-{4자리 순차}: 예 'C2608-0001')
   const generateNextContractNo = (targetDate?: string): string => {
     let yymm = '';
     if (targetDate) {
@@ -1870,53 +1870,53 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     };
 
-    await notify('?뵇 [1/5] 怨좉컼??紐낆묶 ?뺢퇋??諛?嫄곕옒 ?곹깭 ?뺤씤 以?..', 10);
+    await notify('🔍 [1/5] 고객사 명칭 정규화 및 거래 상태 확인 중...', 10);
 
-    // ?쎌묶("?몃낫?좎씠??) ?먮뒗 ?쒓린 ?뺥깭(" (二? ?몃낫?좎씠??") 寃????湲곗〈 ?뺤떇 踰뺤씤紐?"二쇱떇?뚯궗 ?몃낫?좎씠??) ?먮룞 ?먯깋 & 蹂댁젙
+    // 약칭("세보엠이씨") 또는 표기 형태(" (주) 세보엠이씨 ") 검색 시 기존 정식 법인명("주식회사 세보엠이씨") 자동 탐색 & 보정
     let customer = findCustomerByNormalizedName(db.customers, data.customerName);
     if (customer) {
-      // ?쎌묶 ?낅젰???뺤떇 ?깅줉 紐낆묶?쇰줈 ?먮룞 移섑솚/蹂댁젙!
+      // 약칭 입력을 정식 등록 명칭으로 자동 치환/보정!
       data.customerName = customer.name;
     }
     if (customer && customer.transactionStatus === 'BLOCKED') {
-      return { success: false, errorMessage: '?좑툘 ?대떦 怨좉컼?щ뒗 [嫄곕옒遺덇?] ?곹깭濡??ㅼ젙?섏뼱 ?덉뼱 ?좉퇋 異쒓퀬 諛?怨꾩빟 ?깅줉???먯쿇 李⑤떒?⑸땲??' };
+      return { success: false, errorMessage: '⚠️ 해당 고객사는 [거래불가] 상태로 설정되어 있어 신규 출고 및 계약 등록이 원천 차단됩니다.' };
     }
     
-    // ?썳截?[1. 諛⑹뼱 媛??- Validation Guard]
-    // ?꾩옣 ?곸꽭 二쇱냼? ?꾩옣?대떦???곕씫泥섍? ?낅젰媛믨낵 湲곗〈 DB 紐⑤몢???꾪? ?녿뒗 寃쎌슦 媛뺣젰 諛⑹뼱
+    // 🛡️ [1. 방어 가드 - Validation Guard]
+    // 현장 상세 주소와 현장담당자 연락처가 입력값과 기존 DB 모두에 전혀 없는 경우 강력 방어
     const currentCust = customer;
     const existingSite = currentCust ? db.sites.find(s => s.customerId === currentCust.id && (s.name.replace(/\s/g, '') === data.siteName.replace(/\s/g, '') || s.name.includes(data.siteName) || data.siteName.includes(s.name))) : null;
     const existingContact = currentCust ? db.contacts.find(ct => ct.customerId === currentCust.id && (data.siteContactName ? ct.name.replace(/\s/g, '') === data.siteContactName.replace(/\s/g, '') : true)) : null;
 
-    const effectiveAddress = data.siteAddress?.trim() || (existingSite?.address && existingSite.address !== '誘몄긽' ? existingSite.address : '');
-    const effectivePhone = data.siteContactPhone?.trim() || (existingSite?.contact && existingSite.contact !== '誘몄긽' ? existingSite.contact : '') || (existingContact?.contact && existingContact.contact !== '誘몄긽' ? existingContact.contact : '');
+    const effectiveAddress = data.siteAddress?.trim() || (existingSite?.address && existingSite.address !== '미상' ? existingSite.address : '');
+    const effectivePhone = data.siteContactPhone?.trim() || (existingSite?.contact && existingSite.contact !== '미상' ? existingSite.contact : '') || (existingContact?.contact && existingContact.contact !== '미상' ? existingContact.contact : '');
 
     if (!effectiveAddress) {
       return {
         success: false,
-        errorMessage: `?좑툘 [?꾩옣 ?곸꽭 二쇱냼 ?꾩닔 ?꾨씫]\n\n怨좉컼??'${data.customerName}' / ?꾩옣 '${data.siteName}'??湲곗〈 DB???깅줉??二쇱냼媛 ?놁쑝硫? ?꾩옱 ?낅젰李쎌뿉??二쇱냼媛 ?앸왂?섏뼱 ?덉뒿?덈떎.\n\n諛곗감 湲곗궗 ?댁넚 諛?怨꾩빟 泥닿껐???꾪빐 ?꾩옣 ?곸꽭 二쇱냼瑜?諛섎뱶???낅젰?댁＜?몄슂.`
+        errorMessage: `⚠️ [현장 상세 주소 필수 누락]\n\n고객사 '${data.customerName}' / 현장 '${data.siteName}'의 기존 DB에 등록된 주소가 없으며, 현재 입력창에도 주소가 생략되어 있습니다.\n\n배차 기사 운송 및 계약 체결을 위해 현장 상세 주소를 반드시 입력해주세요.`
       };
     }
     if (!effectivePhone) {
       return {
         success: false,
-        errorMessage: `?좑툘 [?꾩옣 ?대떦???곕씫泥??꾩닔 ?꾨씫]\n\n怨좉컼??'${data.customerName}' / ?꾩옣 '${data.siteName}'???꾩옣 ?대떦???곕씫泥섍? 湲곗〈 DB???놁쑝硫??낅젰李쎌뿉???앸왂?섏뿀?듬땲??\n\n?λ퉬 ?섏감 ?멸퀎 諛?湲곗궗 鍮꾩긽 ?곕씫???꾪빐 ?꾩옣 ?대떦???곕씫泥섎? 諛섎뱶???낅젰?댁＜?몄슂.`
+        errorMessage: `⚠️ [현장 담당자 연락처 필수 누락]\n\n고객사 '${data.customerName}' / 현장 '${data.siteName}'의 현장 담당자 연락처가 기존 DB에 없으며 입력창에도 생략되었습니다.\n\n장비 하차 인계 및 기사 비상 연락을 위해 현장 담당자 연락처를 반드시 입력해주세요.`
       };
     }
 
-    // ??[2. 湲곗〈 ?뺣낫 ?곸냽] ?꾨씫 ?꾨뱶 ?먮룞 ?밴퀎
+    // ⚡ [2. 기존 정보 상속] 누락 필드 자동 승계
     data.siteAddress = effectiveAddress;
     if (!data.siteContactPhone?.trim()) data.siteContactPhone = effectivePhone;
-    if (!data.siteContactName?.trim() && existingSite?.contactName && existingSite.contactName !== '誘몄긽') {
+    if (!data.siteContactName?.trim() && existingSite?.contactName && existingSite.contactName !== '미상') {
       data.siteContactName = existingSite.contactName;
     }
-    if (!data.taxBillEmail?.trim() && customer?.repEmail && customer.repEmail !== '誘몄긽') {
+    if (!data.taxBillEmail?.trim() && customer?.repEmail && customer.repEmail !== '미상') {
       data.taxBillEmail = customer.repEmail;
     }
 
-    // ?썳截?[?λ퉬 ?섎웾 寃利?媛??
+    // 🛡️ [장비 수량 검증 가드]
     if (!data.equipments || data.equipments.length === 0) {
-      return { success: false, errorMessage: '?좑툘 異쒓퀬 ????λ퉬 洹쒓꺽 諛??섎웾???꾨씫?섏뿀?듬땲??' };
+      return { success: false, errorMessage: '⚠️ 출고 대상 장비 규격 및 수량이 누락되었습니다.' };
     }
     const sanitizedEquipments = data.equipments.map(eq => ({
       ...eq,
@@ -1924,13 +1924,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
     const totalEqQty = sanitizedEquipments.reduce((sum, e) => sum + e.qty, 0);
     if (totalEqQty <= 0) {
-      return { success: false, errorMessage: '?좑툘 異쒓퀬 ?섎웾? 理쒖냼 1? ?댁긽?댁뼱???⑸땲??' };
+      return { success: false, errorMessage: '⚠️ 출고 수량은 최소 1대 이상이어야 합니다.' };
     }
     data.equipments = sanitizedEquipments;
 
     const missingFields = [];
-    if (!customer) missingFields.push(`怨좉컼?? ${data.customerName}`);
-    if (!existingSite) missingFields.push(`?꾩옣: ${data.siteName}`);
+    if (!customer) missingFields.push(`고객사: ${data.customerName}`);
+    if (!existingSite) missingFields.push(`현장: ${data.siteName}`);
 
     if (missingFields.length > 0 && !autoRegister) {
       return { success: false, requiresConfirm: true, missingFields };
@@ -1940,7 +1940,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const parseDayNumber = (val: any, fallback: number): number => {
       if (val === undefined || val === null || val === '') return fallback;
       const str = String(val).trim();
-      if (str.includes('留먯씪') || str.includes('?붾쭚')) return 31;
+      if (str.includes('말일') || str.includes('월말')) return 31;
       const matched = str.match(/\d+/);
       if (matched) {
         const n = parseInt(matched[0], 10);
@@ -1953,27 +1953,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const contractPaymentDueDay = parseDayNumber(rawData.paymentDay || rawData.paymentDueDay, customer?.paymentDueDay || 15);
 
     if (!customer) {
-      await notify(`?룫 [?좉퇋 怨좉컼] DB???녿뒗 怨좉컼??'${data.customerName}' ?먮룞 ?좉퇋 ?앹꽦 以?..`, 20);
+      await notify(`🏢 [신규 고객] DB에 없는 고객사 '${data.customerName}' 자동 신규 생성 중...`, 20);
       customer = db.insertRow<Customer>('customers', {
         name: data.customerName,
-        bizRegNo: '誘몄긽',
+        bizRegNo: '미상',
         isClosed: false,
-        address: data.siteAddress || '誘몄긽',
-        representative: '誘몄긽',
-        repContact: data.siteContactPhone || '誘몄긽',
-        repEmail: data.taxBillEmail || data.statementEmail || '誘몄긽',
+        address: data.siteAddress || '미상',
+        representative: '미상',
+        repContact: data.siteContactPhone || '미상',
+        repEmail: data.taxBillEmail || data.statementEmail || '미상',
         defaultBillingDay: contractBillingDay,
         defaultStatementClosingDay: contractStatementClosingDay,
         paymentDueDay: contractPaymentDueDay,
         createdAt: new Date().toISOString()
       });
 
-      // ?좑툘 FK ?쒖빟 諛⑹?: ?좉퇋 怨좉컼??Supabase???꾩쟾????λ맂 ?꾩뿉留?contacts/sites ?앹꽦 媛??
+      // ⚠️ FK 제약 방지: 신규 고객이 Supabase에 완전히 저장된 후에만 contacts/sites 생성 가능
       try {
         await db.awaitPendingWrites();
       } catch (err: any) {
         console.error('Supabase new customer sync error:', err);
-        showErrorModal(`?좑툘 ?좉퇋 怨좉컼 DB ???以??ㅻ쪟:\n${err.message || JSON.stringify(err)}`, '異쒓퀬 ?ㅻ쪟');
+        showErrorModal(`⚠️ 신규 고객 DB 저장 중 오류:\n${err.message || JSON.stringify(err)}`, '출고 오류');
         return { success: false, errorMessage: err.message };
       }
 
@@ -1981,46 +1981,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         db.insertRow<CustomerContact>('contacts', {
           customerId: customer.id,
           name: data.siteContactName,
-          position: '?꾩옣?대떦??,
-          contact: data.siteContactPhone || '誘몄긽',
-          email: data.siteContactEmail || '誘몄긽',
+          position: '현장담당자',
+          contact: data.siteContactPhone || '미상',
+          email: data.siteContactEmail || '미상',
           createdAt: new Date().toISOString()
         });
       }
     } else {
-      await notify(`??[怨좉컼 ?뺤씤] 湲곗〈 ?깅줉 怨좉컼??'${customer.name}' 留ㅽ븨 ?꾨즺`, 25);
+      await notify(`✅ [고객 확인] 기존 등록 고객사 '${customer.name}' 매핑 완료`, 25);
       
-      // ?봽 [3. 理쒖떊 ?뺣낫 ?낅뜲?댄듃] 怨좉컼 留덉뒪???뺣낫 ?숆린??
+      // 🔄 [3. 최신 정보 업데이트] 고객 마스터 정보 동기화
       const custUpdates: Partial<Customer> = {};
-      if (data.taxBillEmail && data.taxBillEmail !== '誘몄긽' && data.taxBillEmail !== customer.repEmail) {
+      if (data.taxBillEmail && data.taxBillEmail !== '미상' && data.taxBillEmail !== customer.repEmail) {
         custUpdates.repEmail = data.taxBillEmail;
       }
       if (Object.keys(custUpdates).length > 0) {
         customer = db.updateRow<Customer>('customers', customer.id, { ...custUpdates, updatedAt: new Date().toISOString() }) as Customer;
-        await notify(`?룫 [怨좉컼 ?뺣낫 媛깆떊] 怨꾩궛???섏떊泥?'${data.taxBillEmail}')媛 怨좉컼 留덉뒪?곗뿉 ?낅뜲?댄듃?섏뿀?듬땲??`, 28);
+        await notify(`🏢 [고객 정보 갱신] 계산서 수신처('${data.taxBillEmail}')가 고객 마스터에 업데이트되었습니다.`, 28);
       }
 
-      // ?대떦???뺣낫 ?낅뜲?댄듃 諛??좉퇋 異붽?
+      // 담당자 정보 업데이트 및 신규 추가
       if (data.siteContactName) {
         const targetCustomerId = customer.id;
         const matchedContact = db.contacts.find(ct => ct.customerId === targetCustomerId && ct.name.replace(/\s/g, '') === data.siteContactName.replace(/\s/g, ''));
         if (matchedContact) {
-          if ((data.siteContactPhone && data.siteContactPhone !== '誘몄긽' && data.siteContactPhone !== matchedContact.contact) || (data.siteContactEmail && data.siteContactEmail !== '誘몄긽' && data.siteContactEmail !== matchedContact.email)) {
+          if ((data.siteContactPhone && data.siteContactPhone !== '미상' && data.siteContactPhone !== matchedContact.contact) || (data.siteContactEmail && data.siteContactEmail !== '미상' && data.siteContactEmail !== matchedContact.email)) {
             db.updateRow<CustomerContact>('contacts', matchedContact.id, {
               contact: data.siteContactPhone || matchedContact.contact,
               email: data.siteContactEmail || matchedContact.email,
               updatedAt: new Date().toISOString()
             });
-            await notify(`?뫀 [?대떦??理쒖떊?? ?대떦??'${data.siteContactName}' ?곕씫泥섍? 理쒖떊媛믪쑝濡??낅뜲?댄듃?섏뿀?듬땲??`, 30);
+            await notify(`👤 [담당자 최신화] 담당자 '${data.siteContactName}' 연락처가 최신값으로 업데이트되었습니다.`, 30);
           }
         } else {
-          await notify(`?뫀 [?좉퇋 ?대떦?? ?꾩옣 ?대떦??'${data.siteContactName}' ?깅줉 以?..`, 30);
+          await notify(`👤 [신규 담당자] 현장 담당자 '${data.siteContactName}' 등록 중...`, 30);
           db.insertRow<CustomerContact>('contacts', {
             customerId: targetCustomerId,
             name: data.siteContactName,
-            position: '?꾩옣?대떦??,
-            contact: data.siteContactPhone || '誘몄긽',
-            email: data.siteContactEmail || '誘몄긽',
+            position: '현장담당자',
+            contact: data.siteContactPhone || '미상',
+            email: data.siteContactEmail || '미상',
             createdAt: new Date().toISOString()
           });
         }
@@ -2033,9 +2033,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           db.insertRow<CustomerContact>('contacts', {
             customerId: targetCustomerId,
             name: data.billingContactName,
-            position: '泥?뎄?대떦??,
-            contact: data.billingContactPhone || '誘몄긽',
-            email: data.taxBillEmail || data.statementEmail || '誘몄긽',
+            position: '청구담당자',
+            contact: data.billingContactPhone || '미상',
+            email: data.taxBillEmail || data.statementEmail || '미상',
             createdAt: new Date().toISOString()
           });
         }
@@ -2044,17 +2044,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const finalCustomer = customer;
 
-    // ?꾩옣(Site) 泥섎━: 湲곗〈 ?꾩옣 ?낅뜲?댄듃 ?먮뒗 ?좉퇋 ?꾩옣 ?깅줉
+    // 현장(Site) 처리: 기존 현장 업데이트 또는 신규 현장 등록
     let site = db.sites.find(s => s.customerId === finalCustomer.id && (s.name.replace(/\s/g, '') === data.siteName.replace(/\s/g, '') || s.name.includes(data.siteName) || data.siteName.includes(s.name)));
     if (!site) {
-      await notify(`?뱧 [2/5 ?좉퇋 ?꾩옣] ?좉퇋 ?꾩옣 '${data.siteName}' ?먮룞 ?깅줉 以?..`, 40);
+      await notify(`📍 [2/5 신규 현장] 신규 현장 '${data.siteName}' 자동 등록 중...`, 40);
       site = db.insertRow<CustomerSite>('sites', {
         customerId: finalCustomer.id,
         name: data.siteName,
-        address: data.siteAddress || '誘몄긽',
-        contactName: data.siteContactName || '誘몄긽',
-        contact: data.siteContactPhone || '誘몄긽',
-        email: data.siteContactEmail || '誘몄긽',
+        address: data.siteAddress || '미상',
+        contactName: data.siteContactName || '미상',
+        contact: data.siteContactPhone || '미상',
+        email: data.siteContactEmail || '미상',
         paidOptions: data.paidOptions || undefined,
         protection: data.protection || undefined,
         checkedSpecs: data.checkedSpecs || undefined,
@@ -2064,18 +2064,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createdAt: new Date().toISOString()
       });
     } else {
-      // 湲곗〈 ?꾩옣 ?뺣낫媛 '誘몄긽'?닿굅??蹂寃쎈맂 寃쎌슦 理쒖떊媛믪쑝濡??낅뜲?댄듃!
+      // 기존 현장 정보가 '미상'이거나 변경된 경우 최신값으로 업데이트!
       const siteUpdates: Partial<CustomerSite> = {};
-      if (data.siteAddress && data.siteAddress !== '誘몄긽' && data.siteAddress !== site.address) {
+      if (data.siteAddress && data.siteAddress !== '미상' && data.siteAddress !== site.address) {
         siteUpdates.address = data.siteAddress;
       }
-      if (data.siteContactName && data.siteContactName !== '誘몄긽' && data.siteContactName !== site.contactName) {
+      if (data.siteContactName && data.siteContactName !== '미상' && data.siteContactName !== site.contactName) {
         siteUpdates.contactName = data.siteContactName;
       }
-      if (data.siteContactPhone && data.siteContactPhone !== '誘몄긽' && data.siteContactPhone !== site.contact) {
+      if (data.siteContactPhone && data.siteContactPhone !== '미상' && data.siteContactPhone !== site.contact) {
         siteUpdates.contact = data.siteContactPhone;
       }
-      if (data.siteContactEmail && data.siteContactEmail !== '誘몄긽' && data.siteContactEmail !== site.email) {
+      if (data.siteContactEmail && data.siteContactEmail !== '미상' && data.siteContactEmail !== site.email) {
         siteUpdates.email = data.siteContactEmail;
       }
       if (rawData.closingDay !== undefined) {
@@ -2087,7 +2087,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (rawData.paymentDay !== undefined || rawData.paymentDueDay !== undefined) {
         siteUpdates.paymentDueDay = contractPaymentDueDay;
       }
-      // ?뙚 ?듭뀡 蹂寃????꾩옣 留덉뒪??????щ? ?뺤씤 (false??寃쎌슦 ?대쾲 異쒓퀬留?1?뚯꽦 ?곸슜?섍퀬 ?꾩옣 留덉뒪?곕뒗 湲곗〈 ?듭뀡 ?먰삎 蹂댁〈)
+      // 🌟 옵션 변경 시 현장 마스터 저장 여부 확인 (false인 경우 이번 출고만 1회성 적용하고 현장 마스터는 기존 옵션 원형 보존)
       if (data.saveOptionsToSite !== false) {
         if (data.paidOptions !== undefined && data.paidOptions !== site.paidOptions) {
           siteUpdates.paidOptions = data.paidOptions;
@@ -2101,13 +2101,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       if (Object.keys(siteUpdates).length > 0) {
         site = db.updateRow<CustomerSite>('sites', site.id, { ...siteUpdates, updatedAt: new Date().toISOString() }) as CustomerSite;
-        await notify(`?뱧 [?꾩옣 ?뺣낫 理쒖떊?? ?꾩옣 '${site.name}'???뺣낫(二쇱냼/?듭뀡/蹂댁뼇)媛 怨좉컼 留덉뒪?곗뿉 ?낅뜲?댄듃?섏뿀?듬땲??`, 45);
+        await notify(`📍 [현장 정보 최신화] 현장 '${site.name}'의 정보(주소/옵션/보양)가 고객 마스터에 업데이트되었습니다.`, 45);
       } else {
-        await notify(`?뱧 [2/5 ?꾩옣 留ㅽ븨] 湲곗〈 ?꾩옣 '${site.name}' 留ㅽ븨 ?꾨즺`, 45);
+        await notify(`📍 [2/5 현장 매핑] 기존 현장 '${site.name}' 매핑 완료`, 45);
       }
     }
 
-    // ?뙚 怨좉컼??湲곕낯 ?듭뀡/蹂댁뼇 ?깅줉 諛??꾩껜 ?꾩옣 ?쇨큵 ?꾪뙆 泥섎━
+    // 🌟 고객사 기본 옵션/보양 등록 및 전체 현장 일괄 전파 처리
     const custOptionUpdates: Partial<Customer> = {};
     if (data.isSetAsCustomerDefault || (!finalCustomer.defaultPaidOptions && data.paidOptions)) {
       if (data.paidOptions) custOptionUpdates.defaultPaidOptions = data.paidOptions;
@@ -2120,7 +2120,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     if (Object.keys(custOptionUpdates).length > 0) {
       db.updateRow<Customer>('customers', finalCustomer.id, { ...custOptionUpdates, updatedAt: new Date().toISOString() });
-      await notify(`?룫 [怨좉컼??湲곕낯?ㅼ젙 ?숆린?? 怨좉컼??'${finalCustomer.name}') 湲곕낯 ?듭뀡/蹂댁뼇 留덉뒪?곌? ?깅줉?섏뿀?듬땲??`, 48);
+      await notify(`🏢 [고객사 기본설정 동기화] 고객사('${finalCustomer.name}') 기본 옵션/보양 마스터가 등록되었습니다.`, 48);
     }
 
     if (data.applyToAllSites) {
@@ -2133,15 +2133,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           updatedAt: new Date().toISOString()
         });
       }
-      await notify(`?뙋 [?꾩껜 ?꾩옣 ?꾪뙆] '${finalCustomer.name}' ?고븯 ${allSites.length}媛?紐⑤뱺 ?꾩옣???듭뀡/蹂댁뼇???쇨큵 ?곸슜?섏뿀?듬땲??`, 50);
+      await notify(`🌐 [전체 현장 전파] '${finalCustomer.name}' 산하 ${allSites.length}개 모든 현장에 옵션/보양이 일괄 적용되었습니다.`, 50);
     }
 
     if (autoRegister && currentUser) {
       db.insertRow<Todo>('todos', {
         userId: currentUser.id,
         type: 'MISSING_INFO',
-        title: `?좉퇋 怨좉컼/?꾩옣 ?뺣낫 蹂댁셿 (${data.customerName})`,
-        content: `異쒓퀬 ?붿껌 ???ъ뾽?먮벑濡앸쾲????誘몄긽?쇰줈 泥섎━???꾩닔 ??ぉ??梨꾩썙二쇱꽭??`,
+        title: `신규 고객/현장 정보 보완 (${data.customerName})`,
+        content: `출고 요청 시 사업자등록번호 등 미상으로 처리된 필수 항목을 채워주세요.`,
         isCompleted: false,
         relatedEntityId: finalCustomer.id,
         createdAt: new Date().toISOString()
@@ -2161,7 +2161,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
     const targetStartDate = extractDate(data.loadingTime) || extractDate(data.unloadingTime) || new Date().toISOString().split('T')[0];
 
-    // ?? 怨꾩빟 ?⑥씪???먯튃: ?숈씪 (怨좉컼??+ ?꾩옣) ?쒖꽦 怨꾩빟 ?먯깋 ??
+    // ── 계약 단일성 원칙: 동일 (고객사 + 현장) 활성 계약 탐색 ──
     const existingActiveContract = db.contracts.find(c => 
       c.customerId === finalCustomer.id && 
       c.siteId === finalSite.id && 
@@ -2171,24 +2171,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let contract: Contract;
 
     if (existingActiveContract) {
-      // 1) 湲곗〈 ?쒖꽦 怨꾩빟??議댁옱??寃쎌슦: ?좉퇋 怨꾩빟???뚰렪?뷀븯???앹꽦?섏? ?딄퀬 湲곗〈 怨꾩빟???λ퉬 ?몄엯!
+      // 1) 기존 활성 계약이 존재할 경우: 신규 계약을 파편화하여 생성하지 않고 기존 계약에 장비 편입!
       contract = existingActiveContract;
-      await notify(`?뱞 [3/5 湲곗〈 怨꾩빟 ?몄엯] 湲곗〈 怨꾩빟(${contract.contractNo})???좉퇋 ?λ퉬 ?몄엯 以?..`, 55);
+      await notify(`📄 [3/5 기존 계약 편입] 기존 계약(${contract.contractNo})에 신규 장비 편입 중...`, 55);
 
-      // ?뱶 [?뚯옣 1.2] 諛쒖깮 ?ш굔 臾대늻??DB ??? 湲곗〈 怨꾩빟???λ퉬 異붽? ?몄엯 ?대젰 ?깅줉
-      db.insertRow<ContractHistory>({
+      // 📜 [헌장 1.2] 발생 사건 무누락 DB 저장: 기존 계약에 장비 추가 편입 이력 등록
+      db.insertRow<ContractHistory>('contractHistory', {
         contractId: contract.id,
         changeType: 'ADD_ASSET',
         changeDate: targetStartDate,
         newEndDate: contract.endDate || '',
-        description: `[異쒓퀬] 湲곗〈 怨꾩빟(${contract.contractNo})??異붽? ?λ퉬 ?ъ엯 (${data.equipments.map(e => `${e.modelName} ${e.qty}?`).join(', ')})`,
+        description: `[출고] 기존 계약(${contract.contractNo})에 추가 장비 투입 (${data.equipments.map(e => `${e.modelName} ${e.qty}대`).join(', ')})`,
         createdAt: new Date().toISOString()
       });
     } else {
-      // 2) 湲곗〈 怨꾩빟???놁쓣 寃쎌슦: 理쒖큹 諛쒖깮??YYMM) 湲곗? 梨꾨쾲?섏뿬 ?좉퇋 怨꾩빟 ?앹꽦
+      // 2) 기존 계약이 없을 경우: 최초 발생월(YYMM) 기준 채번하여 신규 계약 생성
       const nextContractNo = generateNextContractNo(targetStartDate);
 
-      await notify(`?뱞 [3/5 怨꾩빟 ?앹꽦] ?꾨?李?怨꾩빟???묒꽦 以?(${nextContractNo})...`, 55);
+      await notify(`📄 [3/5 계약 생성] 임대차 계약서 작성 중 (${nextContractNo})...`, 55);
 
       const contractLateInterestRate = (rawData.lateInterestRate !== undefined && rawData.lateInterestRate !== '') ? (Number(rawData.lateInterestRate) || 0) : ((finalCustomer as any).defaultLateInterestRate || 0);
 
@@ -2209,27 +2209,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updatedAt: new Date().toISOString()
       });
 
-      // ?좑툘 ?몃옒??Foreign Key) ?쒖빟議곌굔 ?꾨컲 諛⑹?: 遺紐?contract ?덉퐫?쒓? Supabase ?먭꺽 DB??癒쇱? 100% ?앹꽦?섎룄濡?1李??숆린 ?湲?
+      // ⚠️ 외래키(Foreign Key) 제약조건 위반 방지: 부모 contract 레코드가 Supabase 원격 DB에 먼저 100% 생성되도록 1차 동기 대기!
       try {
         await db.awaitPendingWrites();
       } catch (err: any) {
         console.error('Supabase contract insert sync error:', err);
-        showErrorModal(`?좑툘 異쒓퀬 怨꾩빟 ?앹꽦 以?DB ?숆린???ㅻ쪟媛 諛쒖깮?덉뒿?덈떎:\n${err.message || err.details || JSON.stringify(err)}`, '異쒓퀬 DB ?숆린???ㅻ쪟');
+        showErrorModal(`⚠️ 출고 계약 생성 중 DB 동기화 오류가 발생했습니다:\n${err.message || err.details || JSON.stringify(err)}`, '출고 DB 동기화 오류');
         return { success: false, errorMessage: err.message || err.details };
       }
 
-      // ?뱶 [?뚯옣 1.2] 諛쒖깮 ?ш굔 臾대늻??DB ??? 異쒓퀬 ?좉퇋 怨꾩빟 泥닿껐 ?대젰 ?깅줉
-      db.insertRow<ContractHistory>({
+      // 📜 [헌장 1.2] 발생 사건 무누락 DB 저장: 출고 신규 계약 체결 이력 등록
+      db.insertRow<ContractHistory>('contractHistory', {
         contractId: contract.id,
         changeType: 'REGISTER',
         changeDate: contract.startDate,
         newEndDate: '',
-        description: `[異쒓퀬] ?좉퇋 ?꾨?李?怨꾩빟 泥닿껐 (${finalCustomer.name} / ${finalSite.name} - ${data.equipments.map(e => `${e.modelName} ${e.qty}?`).join(', ')})`,
+        description: `[출고] 신규 임대차 계약 체결 (${finalCustomer.name} / ${finalSite.name} - ${data.equipments.map(e => `${e.modelName} ${e.qty}대`).join(', ')})`,
         createdAt: new Date().toISOString()
       });
     }
 
-    await notify('?룛截?[4/5 ?λ퉬 留ㅽ븨] 怨꾩빟 ?ъ엯 ?λ퉬 紐⑤뜽 諛??④? ?먮룞 ?곸냽 以?..', 80);
+    await notify('🏗️ [4/5 장비 매핑] 계약 투입 장비 모델 및 단가 자동 상속 중...', 80);
 
     const custContractIds = db.contracts.filter(c => c.customerId === finalCustomer.id).map(c => c.id);
 
@@ -2237,11 +2237,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const eqData = eq as any;
       const count = Math.max(1, Math.floor(Number(eq.qty) || 1));
 
-      // 1. 紐낆떆???④? ?뺤씤 (紐⑤컮??諛쒖＜ ??
+      // 1. 명시된 단가 확인 (모바일 발주 등)
       let determinedMonthly = Number(eqData.monthlyRent || eqData.monthlyRentalFee) || 0;
       let determinedDaily = Number(eqData.dailyRent || eqData.dailyRentalFee) || 0;
 
-      // 2. 誘몄엯????怨좉컼?ъ쓽 ?숈씪 紐⑤뜽 理쒓렐 怨꾩빟 ?④? ?먮룞 ?곸냽 (?뚯옣 2.2)
+      // 2. 미입력 시 고객사의 동일 모델 최근 계약 단가 자동 상속 (헌장 2.2)
       if (!determinedMonthly && finalCustomer?.id) {
         const recentCustCA = db.contractAssets
           .filter(ca => custContractIds.includes(ca.contractId) && ca.expectedModel === eq.modelName && ca.monthlyRentalFee > 0)
@@ -2252,7 +2252,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      // 3. 誘몄엯?????먯궛 留덉뒪???숈씪 紐⑤뜽???쒖? ???뚰깉猷??곸냽
+      // 3. 미입력 시 자산 마스터 동일 모델의 표준 월 렌탈료 상속
       if (!determinedMonthly) {
         const peerAsset = db.assets.find(a => a.modelName === eq.modelName && (a.monthlyRentalFee || a.dailyRentalFee));
         if (peerAsset) {
@@ -2261,7 +2261,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      // 4. 紐⑤뜽紐?洹쒓꺽 湲곕컲 ?쒖? ?④? 異붿젙
+      // 4. 모델명 규격 기반 표준 단가 추정
       if (!determinedMonthly) {
         const m = (eq.modelName || '').toUpperCase();
         if (m.includes('53') || m.includes('1614')) determinedMonthly = 1500000;
@@ -2287,41 +2287,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     });
 
-    await notify('?슊 [5/5 諛곗감 ?앹꽦] 諛곗감/?댁넚 愿由?異쒓퀬?湲?吏?쒓굔 ?앹꽦 以?..', 90);
+    await notify('🚚 [5/5 배차 생성] 배차/운송 관리 출고대기 지시건 생성 중...', 90);
 
-    // ?좉퇋 諛곗감(Delivery) - 異쒓퀬 ?湲?嫄??먮룞 ?앹꽦
+    // 신규 배차(Delivery) - 출고 대기 건 자동 생성
     const cargoItems = JSON.stringify(data.equipments.map(e => ({ modelName: e.modelName, count: Number(e.qty) || 1 })));
     const dData = data as any;
     const loadingDateStr = extractDate(data.loadingTime) || contract.startDate;
     const getTimeSlot = (tStr: string | undefined) => {
-      if (!tStr) return '?ㅼ쟾';
+      if (!tStr) return '오전';
       if (tStr.includes('ASAP')) return 'ASAP';
-      if (tStr.includes('?ㅼ쟾')) return '?ㅼ쟾';
-      if (tStr.includes('?ㅽ썑')) return '?ㅽ썑';
+      if (tStr.includes('오전')) return '오전';
+      if (tStr.includes('오후')) return '오후';
       const m = tStr.match(/\d{1,2}:\d{2}/);
-      return m ? m[0] : (tStr.includes(' ') ? tStr.split(' ')[1] : '?ㅼ쟾');
+      return m ? m[0] : (tStr.includes(' ') ? tStr.split(' ')[1] : '오전');
     };
     const loadingTimeSlotStr = getTimeSlot(data.loadingTime);
     const unloadingDateStr = extractDate(data.unloadingTime) || contract.startDate;
     const unloadingTimeSlotStr = getTimeSlot(data.unloadingTime);
 
-    const isExchangeDelivery = dData.type === 'EXCHANGE' || dData.context?.includes('EXCHANGE') || dData.rawText?.includes('援먰솚');
+    const isExchangeDelivery = dData.type === 'EXCHANGE' || dData.context?.includes('EXCHANGE') || dData.rawText?.includes('교환');
     const isCustomerPaid = dData.paidBy === 'CUSTOMER' || !!dData.billableToCustomer;
 
     const retrievalMemo = dData.retrievalAssetIds && dData.retrievalAssetIds.length > 0
-      ? ` | [?李⑦쉶?섎??? ?먯궛 #${dData.retrievalAssetIds.join(', #')}`
+      ? ` | [대차회수대상] 자산 #${dData.retrievalAssetIds.join(', #')}`
       : '';
     const paidByMemo = dData.paidBy
-      ? ` | [?댁넚鍮꾨??? ${dData.paidBy === 'CUSTOMER' ? '怨좉컼泥?뎄' : dData.paidBy === 'OURS' ? '?뱀궗遺?? : '?몃룄吏??}`
+      ? ` | [운송비부담] ${dData.paidBy === 'CUSTOMER' ? '고객청구' : dData.paidBy === 'OURS' ? '당사부담' : '편도지원'}`
       : '';
 
     const defaultYard = currentTenant?.yards?.find((y: any) => y.isDefault) || currentTenant?.yards?.[0];
-    const defaultYardAddress = defaultYard?.address || currentTenant?.mainYardAddress || currentTenant?.businessAddress || '?뱀궗 蹂닿???;
+    const defaultYardAddress = defaultYard?.address || currentTenant?.mainYardAddress || currentTenant?.businessAddress || '당사 보관소';
 
     const createdDelivery = db.insertRow<Delivery>('deliveries', {
       contractId: contract.id,
       type: isExchangeDelivery ? 'EXCHANGE' : 'OUTBOUND',
-      dispatchCategory: isExchangeDelivery ? '援먰솚' : '異쒓퀬',
+      dispatchCategory: isExchangeDelivery ? '교환' : '출고',
       status: 'REQUESTED',
       requestDate: contract.startDate,
       scheduledDate: loadingDateStr,
@@ -2345,20 +2345,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       cargoItems,
       isCostSettled: false,
       rawText: (data as any).prompt || (data as any).rawText || data.note || '',
-      memo: `[異쒓퀬] ?꾩옣?대떦: ${data.siteContactName || '-'} (${data.siteContactPhone || '-'}) | ?곸감: ${data.loadingTime || '-'} / ?섏감: ${data.unloadingTime || '-'}${retrievalMemo}${paidByMemo} | 泥?뎄?대떦: ${data.billingContactName || '-'} (${data.billingContactPhone || '-'}) | 怨꾩궛?? ${data.taxBillEmail || '-'} | ?뱀씠?ы빆: ${data.note || '?놁쓬'}`,
-      closingMemo: `[留덇컧議곌굔] 留덇컧?? ${dData.closingDay || '-'} / 寃곗젣?? ${dData.paymentDay || '-'} | ?좎긽?듭뀡: ${dData.paidOptions || '?놁쓬'} | 蹂댁뼇: ${dData.protection || '?놁쓬'}`,
+      memo: `[출고] 현장담당: ${data.siteContactName || '-'} (${data.siteContactPhone || '-'}) | 상차: ${data.loadingTime || '-'} / 하차: ${data.unloadingTime || '-'}${retrievalMemo}${paidByMemo} | 청구담당: ${data.billingContactName || '-'} (${data.billingContactPhone || '-'}) | 계산서: ${data.taxBillEmail || '-'} | 특이사항: ${data.note || '없음'}`,
+      closingMemo: `[마감조건] 마감일: ${dData.closingDay || '-'} / 결제일: ${dData.paymentDay || '-'} | 유상옵션: ${dData.paidOptions || '없음'} | 보양: ${dData.protection || '없음'}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
 
-    await notify('?뙋 Supabase ?먭꺽 DB 理쒖쥌 2李??숆린???꾨즺 以?..', 96);
+    await notify('🌐 Supabase 원격 DB 최종 2차 동기화 완료 중...', 96);
 
     try {
       await db.awaitPendingWrites();
     } catch (err: any) {
       console.error('Supabase sync error during saveSmartDispatch:', err);
       
-      // ?뮙 DB ????ㅽ뙣 ???앹꽦?섏뿀???꾩떆 怨꾩빟/諛곗감/?щ’/?대젰 ?덉퐫??濡ㅻ갚 ??젣!
+      // 💥 DB 저장 실패 시 생성되었던 임시 계약/배차/슬롯/이력 레코드 롤백 삭제!
       if (contract?.id) {
         db.deleteRow('contracts', contract.id);
       await db.awaitPendingWrites();
@@ -2367,31 +2367,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const addedDeliveries = db.deliveries.filter(d => d.contractId === contract.id);
         addedDeliveries.forEach(d => db.deleteRow('deliveries', d.id));
         const addedHistories = db.contractHistory.filter(h => h.contractId === contract.id);
-        addedHistories.forEach(h => db.deleteRow(h.id));
-        // ??怨좎븘 ?덉퐫??諛⑹?: 濡ㅻ갚 ???앹꽦??outboundInspections???④퍡 ??젣
+        addedHistories.forEach(h => db.deleteRow('contractHistory', h.id));
+        // ✅ 고아 레코드 방지: 롤백 시 생성된 outboundInspections도 함께 삭제
         const addedInspections = db.outboundInspections.filter(i => i.contractId === contract.id);
         addedInspections.forEach(i => db.deleteRow('outboundInspections', i.id));
       }
       refreshAllData();
 
-      const errorMsg = `?좑툘 Supabase ?곗씠?곕쿋?댁뒪 ?숆린??以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎:\n\n??[?덈궡]: ????ㅽ뙣濡??명빐 ?앹꽦 ?쒕룄?덈뜕 ?곗씠?곌? ?덉쟾?섍쾶 ?먮룞 濡ㅻ갚 ?먮났?섏뿀?듬땲??\n\n${err.message || err.details || JSON.stringify(err)}`;
-      showErrorModal(errorMsg, '異쒓퀬 DB ?숆린???ㅻ쪟 (?먮룞 ?먮났 ?꾨즺)');
+      const errorMsg = `⚠️ Supabase 데이터베이스 동기화 중 오류가 발생했습니다:\n\n■ [안내]: 저장 실패로 인해 생성 시도했던 데이터가 안전하게 자동 롤백 원복되었습니다.\n\n${err.message || err.details || JSON.stringify(err)}`;
+      showErrorModal(errorMsg, '출고 DB 동기화 오류 (자동 원복 완료)');
       return { 
         success: false, 
         errorMessage: errorMsg
       };
     }
 
-    await notify('?럦 [?꾨즺] 異쒓퀬?섎ː ?앹꽦???깃났?곸쑝濡??꾨즺?섏??듬땲??', 100, 300);
+    await notify('🎉 [완료] 출고의뢰 생성을 성공적으로 완료하였습니다!', 100, 300);
 
     refreshAllData();
 
-    // ?? [?⑥씪 ?낅Т ?멸퀎 ?뚯씠?꾨씪?? 諛곗감???臾쇰━ ToDo ?곸옱 + 釉뚮줈?쒖틦?ㅽ듃
+    // 🚀 [단일 업무 인계 파이프라인] 배차팀에 물리 ToDo 적재 + 브로드캐스트
     const totalEqCount = (data.equipments || []).reduce((acc: number, eq: any) => acc + (Number(eq.qty) || 1), 0);
     await issueHandoverTask({
       category: 'DISPATCH_REQUEST',
-      title: `[異쒓퀬 諛곗감 ?섎ː] ${data.customerName || '怨좉컼??} (${totalEqCount}?)`,
-      content: `${data.customerName || '怨좉컼??} (${data.siteName || '?꾩옣'}) ${totalEqCount}? 異쒓퀬 諛곗감 ?붿껌 (?곸감: ${data.loadingTime || '誘몄젙'}, ?섏감: ${data.unloadingTime || '誘몄젙'})`,
+      title: `[출고 배차 의뢰] ${data.customerName || '고객사'} (${totalEqCount}대)`,
+      content: `${data.customerName || '고객사'} (${data.siteName || '현장'}) ${totalEqCount}대 출고 배차 요청 (상차: ${data.loadingTime || '미정'}, 하차: ${data.unloadingTime || '미정'})`,
       targetDept: 'DISPATCH',
       priority: 'HIGH',
       actionUrl: `/admin/dispatch?contractId=${contract.id}`,
@@ -2408,39 +2408,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       if (data.contractId) {
         const contract = db.contracts.find(c => c.id === data.contractId);
-        if (!contract) return { success: false, errorMessage: '怨꾩빟 ?뺣낫瑜?李얠쓣 ???놁뒿?덈떎.' };
+        if (!contract) return { success: false, errorMessage: '계약 정보를 찾을 수 없습니다.' };
 
-        // ?덈줈??怨좉컼?대떦??泥섏쓬 ?깆옣?섎뒗 ?щ엺)?쇰㈃ ?먮룞 ?깅줉!
+        // 새로운 고객담당자(처음 등장하는 사람)라면 자동 등록!
         if (data.contactName) {
           const existingContact = db.contacts.find(ct => ct.customerId === contract.customerId && ct.name.replace(/\s/g, '') === data.contactName!.replace(/\s/g, ''));
           if (!existingContact) {
             db.insertRow<CustomerContact>('contacts', {
               customerId: contract.customerId,
               name: data.contactName,
-              position: '?대떦??,
-              contact: data.contactPhone || '誘몄긽',
-              email: '誘몄긽',
+              position: '담당자',
+              contact: data.contactPhone || '미상',
+              email: '미상',
               createdAt: new Date().toISOString()
             });
           }
         }
 
-        // ?뮕 ?뚯옣 1.2 & 1.3 以??
-        // ?뚯닔 諛곗감 ?섎ː ?④퀎?먯꽌???꾩옣 ?λ퉬???ㅼ젣 媛???곹깭瑜?議곌린 醫낅즺?섍굅??RENTED_RETURNED濡?諛붽씀吏 ?딆쓬.
-        // ?먯궛 ?곹깭???ㅼ젣 ?댁넚 諛??낃퀬 寃?섍? ?꾨즺?섎뒗 ?쒖젏???꾪솚??
-        // ?ㅻ쭔 ?섎ː ?대젰 愿由щ? ?꾪빐 contractHistory???뚯닔 ?섎ː ?묒닔 ?대젰留?湲곕줉.
-        db.insertRow<ContractHistory>({
+        // 💡 헌장 1.2 & 1.3 준수:
+        // 회수 배차 의뢰 단계에서는 현장 장비의 실제 가동 상태를 조기 종료하거나 RENTED_RETURNED로 바꾸지 않음.
+        // 자산 상태는 실제 운송 및 입고 검수가 완료되는 시점에 전환됨.
+        // 다만 의뢰 이력 관리를 위해 contractHistory에 회수 의뢰 접수 이력만 기록.
+        db.insertRow<ContractHistory>('contractHistory', {
           contractId: data.contractId,
           changeType: 'SHORTEN',
           changeDate: new Date().toISOString().split('T')[0],
           prevEndDate: contract.endDate,
           newEndDate: data.returnDate,
-          description: `?뚯닔 ?섎ː ?묒닔 (?뚯닔 ??? ${data.assetIds.length}?, ?щ쭩?? ${data.returnDate})`,
+          description: `회수 의뢰 접수 (회수 대상: ${data.assetIds.length}대, 희망일: ${data.returnDate})`,
           createdAt: new Date().toISOString()
         });
 
         const contactInfoMemo = data.contactName || data.contactPhone
-          ? `[怨좉컼?대떦?? ${data.contactName || '-'} (${data.contactPhone || '-'})] `
+          ? `[고객담당자: ${data.contactName || '-'} (${data.contactPhone || '-'})] `
           : '';
         const cust = db.customers.find(c => c.id === contract.customerId);
         const site = db.sites.find(s => s.id === contract.siteId);
@@ -2455,16 +2455,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           contractId: data.contractId,
           assetIds: data.assetIds.join(','),
           type: 'INBOUND',
-          dispatchCategory: '?낃퀬',
+          dispatchCategory: '입고',
           status: 'REQUESTED',
           requestDate: data.returnDate,
           loadingDate: data.returnDate,
-          loadingTimeSlot: data.loadingTime || '?ㅼ쟾',
+          loadingTimeSlot: data.loadingTime || '오전',
           scheduledDate: data.returnDate,
           unloadingDate: data.returnDate,
-          unloadingTimeSlot: data.loadingTime || '?ㅼ쟾',
-          originAddress: `${cust?.name || '怨좉컼??} (${site?.name || '?꾩옣'})`,
-          destinationAddress: '?뱀궗 蹂닿???,
+          unloadingTimeSlot: data.loadingTime || '오전',
+          originAddress: `${cust?.name || '고객사'} (${site?.name || '현장'})`,
+          destinationAddress: '당사 보관소',
           transportCompany: '',
           vehicleType: '',
           vehicleNo: '',
@@ -2481,12 +2481,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           updatedAt: new Date().toISOString()
         });
 
-        // ?? [?⑥씪 ?낅Т ?멸퀎 ?뚯씠?꾨씪?? 諛곗감????뚯닔 諛곗감 ToDo ?곸옱
+        // 🚀 [단일 업무 인계 파이프라인] 배차팀에 회수 배차 ToDo 적재
         const retCount = data.assetIds?.length || 1;
         await issueHandoverTask({
           category: 'DISPATCH_REQUEST',
-          title: `[?뚯닔 諛곗감 ?섎ː] ${cust?.name || '怨좉컼??} (${retCount}?)`,
-          content: `${cust?.name || '怨좉컼??} (${site?.name || '?꾩옣'}) ${retCount}? ?뚯닔 諛곗감 ?붿껌 (?붿껌?? ${data.returnDate})`,
+          title: `[회수 배차 의뢰] ${cust?.name || '고객사'} (${retCount}대)`,
+          content: `${cust?.name || '고객사'} (${site?.name || '현장'}) ${retCount}대 회수 배차 요청 (요청일: ${data.returnDate})`,
           targetDept: 'DISPATCH',
           priority: 'HIGH',
           actionUrl: '/admin/dispatch',
@@ -2496,20 +2496,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           senderName: currentUser?.name
         });
       } else {
-        // Case 4: ?몄＜?뺣퉬 ?뚯닔
+        // Case 4: 외주정비 회수
         const createdRepairReturnDelivery = db.insertRow<Delivery>('deliveries', {
           assetIds: data.assetIds.join(','),
           type: 'INBOUND',
-          dispatchCategory: '?낃퀬',
+          dispatchCategory: '입고',
           status: 'REQUESTED',
           requestDate: data.returnDate,
           loadingDate: data.returnDate,
-          loadingTimeSlot: data.loadingTime || '?ㅼ쟾',
+          loadingTimeSlot: data.loadingTime || '오전',
           scheduledDate: data.returnDate,
           unloadingDate: data.returnDate,
-          unloadingTimeSlot: data.loadingTime || '?ㅼ쟾',
-          originAddress: '?몄＜?뺣퉬?낆껜',
-          destinationAddress: '?뱀궗 蹂닿???,
+          unloadingTimeSlot: data.loadingTime || '오전',
+          originAddress: '외주정비업체',
+          destinationAddress: '당사 보관소',
           transportCompany: '',
           vehicleType: '',
           vehicleNo: '',
@@ -2517,15 +2517,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           driverContact: '',
           deliveryCost: 0,
           isCostSettled: false,
-          memo: `[?몄＜?뺣퉬?뚯닔] ?뺣퉬嫄? ${data.repairId || '-'} / ?몄＜?낆껜: ${data.vendorId || '-'} | ${data.note || ''}`,
+          memo: `[외주정비회수] 정비건: ${data.repairId || '-'} / 외주업체: ${data.vendorId || '-'} | ${data.note || ''}`,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
 
         await issueHandoverTask({
           category: 'DISPATCH_REQUEST',
-          title: `[?몄＜?뺣퉬 ?뚯닔 諛곗감] ?λ퉬 ${data.assetIds.length}?`,
-          content: `?몄＜?뺣퉬?낆껜 ?뚯닔 諛곗감 ?붿껌 (?뺣퉬嫄? ${data.repairId || '-'}, ?몄＜: ${data.vendorId || '-'})`,
+          title: `[외주정비 회수 배차] 장비 ${data.assetIds.length}대`,
+          content: `외주정비업체 회수 배차 요청 (정비건: ${data.repairId || '-'}, 외주: ${data.vendorId || '-'})`,
           targetDept: 'DISPATCH',
           priority: 'NORMAL',
           actionUrl: '/admin/dispatch',
@@ -2542,7 +2542,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { success: true };
     } catch (err: any) {
       console.error('saveSmartReturn error:', err);
-      showErrorModal(`?뚯닔 ?섎ː ????ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`회수 의뢰 저장 실패:\n${err?.message || err}`);
       return { success: false, errorMessage: err?.message || String(err) };
     }
   };
@@ -2572,9 +2572,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }): Promise<Todo> => {
     const userRole = (currentUser?.role || '').toUpperCase();
     const userDept = (currentUser?.department || '').toUpperCase();
-    const isAuthorized = userRole === 'ADMIN' || userRole === 'EXECUTIVE' || userRole === 'MANAGER' || userDept.includes('寃쎌쁺') || userDept.includes('???);
+    const isAuthorized = userRole === 'ADMIN' || userRole === 'EXECUTIVE' || userRole === 'MANAGER' || userDept.includes('경영') || userDept.includes('대표');
     if (!isAuthorized) {
-      throw new Error('寃쎌쁺吏??낅Т吏??諛쒗뻾 沅뚰븳???놁뒿?덈떎. (愿由ъ옄/寃쎌쁺吏??꾩슜)');
+      throw new Error('경영진 업무지시 발행 권한이 없습니다. (관리자/경영진 전용)');
     }
 
     const newTodo = await issueHandoverTask({
@@ -2590,7 +2590,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       entityType: 'DIRECTIVE',
       entityId: `DIR-${Date.now()}`,
       senderId: currentUser?.id,
-      senderName: currentUser?.name || '寃쎌쁺吏?
+      senderName: currentUser?.name || '경영진'
     });
 
     await db.awaitPendingWrites();
@@ -2635,7 +2635,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     refreshAllData();
   };
 
-  // ?뮕 留ㅼ엯泥?嫄곕옒??諛?嫄곕옒媛쒖떆???먮룞 ?몃━嫄?媛깆떊 ?ы띁
+  // 💡 매입처 거래액 및 거래개시일 자동 트리거 갱신 헬퍼
   const triggerVendorPurchaseMetric = (vendorIdOrName: string, purchaseAmount: number, tradeDate?: string) => {
     if (!vendorIdOrName || !purchaseAmount) return;
     const targetVendor = db.vendors.find(v => 
@@ -2695,21 +2695,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: new Date().toISOString()
     });
 
-    // ?뚯옣 1.2 ?ш굔 湲곕줉 臾대늻??DB ??? 痍⑤뱷 ?대깽??媛먯궗 濡쒓렇
+    // 헌장 1.2 사건 기록 무누락 DB 저장: 취득 이벤트 감사 로그
     db.insertRow<AssetInOutLog>('assetInOutLogs', {
       assetId: newAsset.id,
       assetNo: newAsset.assetNo,
       modelName: newAsset.modelName,
       type: 'ACQUISITION',
       eventDate: newAsset.acquisitionDate || new Date().toISOString().split('T')[0],
-      memo: `?좉퇋 ?뱀궗?먯궛 痍⑤뱷 ?깅줉 (痍⑤뱷媛: ${(price || 0).toLocaleString()}??/ 怨듦툒泥? ${newAsset.supplier || '-'})`,
+      memo: `신규 당사자산 취득 등록 (취득가: ${(price || 0).toLocaleString()}원 / 공급처: ${newAsset.supplier || '-'})`,
       createdAt: new Date().toISOString()
     });
 
-    // ?뮕 留ㅼ엯泥??꾩쟻嫄곕옒??諛?嫄곕옒媛쒖떆???먮룞 ?몃━嫄?媛깆떊
+    // 💡 매입처 누적거래액 및 거래개시일 자동 트리거 갱신
     triggerVendorPurchaseMetric(newAsset.vendorId || newAsset.supplier || '', price, newAsset.acquisitionDate);
 
-    await db.awaitPendingWrites(); // ?뮕 ?뚯옣 5.2 ?숆린 ?곌린 ?湲?
+    await db.awaitPendingWrites(); // 💡 헌장 5.2 동기 쓰기 대기
     refreshAllData();
     return newAsset;
   };
@@ -2754,21 +2754,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         modelName: newAsset.modelName,
         type: 'ACQUISITION',
         eventDate: newAsset.acquisitionDate || new Date().toISOString().split('T')[0],
-        memo: `?좉퇋 ?뱀궗?먯궛 痍⑤뱷 ?깅줉 [?쇨큵] (痍⑤뱷媛: ${(price || 0).toLocaleString()}??/ 怨듦툒泥? ${newAsset.supplier || '-'})`,
+        memo: `신규 당사자산 취득 등록 [일괄] (취득가: ${(price || 0).toLocaleString()}원 / 공급처: ${newAsset.supplier || '-'})`,
         createdAt: new Date().toISOString()
       });
 
-      // ?뮕 留ㅼ엯泥??꾩쟻嫄곕옒??諛?嫄곕옒媛쒖떆???먮룞 ?몃━嫄?媛깆떊
+      // 💡 매입처 누적거래액 및 거래개시일 자동 트리거 갱신
       triggerVendorPurchaseMetric(newAsset.vendorId || newAsset.supplier || '', price, newAsset.acquisitionDate);
 
       createdList.push(newAsset);
     }
-    await db.awaitPendingWrites(); // ?뮕 ?뚯옣 5.2 ?숆린 ?곌린 ?湲?
+    await db.awaitPendingWrites(); // 💡 헌장 5.2 동기 쓰기 대기
     refreshAllData();
     return createdList;
   };
 
-  // ?먯궛 留ㅺ컖 怨꾩빟踰덊샇 ?꾩슜 梨꾨쾲湲?(SALE-YYYYMMDD-NNN)
+  // 자산 매각 계약번호 전용 채번기 (SALE-YYYYMMDD-NNN)
   const generateNextSaleContractNo = (): string => {
     const todayYmd = new Date().toISOString().split('T')[0].replace(/-/g, '');
     let maxSeq = 0;
@@ -2782,17 +2782,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return `SALE-${todayYmd}-${String(maxSeq + 1).padStart(3, '0')}`;
   };
 
-  // ?뮕 ?먯궛 留ㅺ컖 怨꾩빟 泥닿껐 & 泥?뎄??諛쒗뻾 & ?대찓??諛쒖넚 5?④퀎 ?쇱뒪???꾧껐 ?뚯씠?꾨씪??
+  // 💡 자산 매각 계약 체결 & 청구서 발행 & 이메일 발송 5단계 논스톱 완결 파이프라인
   const executeAssetSale = async (payload: AssetSalePayload): Promise<{ success: boolean; contractId: string; billingId: string; contractNo: string }> => {
     try {
       if (!payload.items || payload.items.length === 0) {
-        throw new Error('留ㅺ컖 ????먯궛??1? ?댁긽 ?좏깮?섏뼱???⑸땲??');
+        throw new Error('매각 대상 자산이 1대 이상 선택되어야 합니다.');
       }
       if (!payload.disposalDate) {
-        throw new Error('留ㅺ컖 ?쇱옄媛 吏?뺣릺吏 ?딆븯?듬땲??');
+        throw new Error('매각 일자가 지정되지 않았습니다.');
       }
 
-      // 1. 留ㅼ닔泥?怨좉컼???뺤씤 ?먮뒗 ?좉퇋 ?깅줉
+      // 1. 매수처 고객사 확인 또는 신규 등록
       let customer: Customer | undefined;
       if (payload.customerId) {
         customer = db.customers.find(c => c.id === payload.customerId);
@@ -2802,7 +2802,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       if (!customer) {
         customer = db.insertRow<Customer>('customers', {
-          name: payload.buyerName || '?먯궛留ㅼ닔泥?誘몄긽)',
+          name: payload.buyerName || '자산매수처(미상)',
           bizRegNo: payload.buyerBizRegNo || '',
           isClosed: false,
           address: payload.buyerAddress || '',
@@ -2814,12 +2814,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       }
 
-      // 2. 留ㅺ컖 怨꾩빟踰덊샇 諛?湲곕낯 泥?뎄??梨낆젙
+      // 2. 매각 계약번호 및 기본 청구월 책정
       const contractNo = generateNextSaleContractNo();
       const billingYm = payload.disposalDate.slice(0, 7);
       const dayNum = parseInt(payload.disposalDate.slice(8, 10), 10) || 30;
 
-      // 3. ?뚯옣 2.1 & 2.2: 留ㅺ컖 怨꾩빟(Sale Contract) ?앹꽦 (5? 怨꾩빟 議곌굔 ?ы븿)
+      // 3. 헌장 2.1 & 2.2: 매각 계약(Sale Contract) 생성 (5대 계약 조건 포함)
       const contract = db.insertRow<Contract>('contracts', {
         contractNo,
         contractType: 'SALE',
@@ -2839,7 +2839,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       let totalSalePrice = 0;
       const soldAssetSummaries: { assetNo: string; modelName: string; salePrice: number; bookValue: number; gainLoss: number }[] = [];
 
-      // 4. 媛??먯궛蹂?泥닿껐 ?먯궛 ?щ’ 諛붿씤??諛?留덉뒪??SOLD ?꾩씠
+      // 4. 각 자산별 체결 자산 슬롯 바인딩 및 마스터 SOLD 전이
       for (const item of payload.items) {
         const asset = db.assets.find(a => a.id === item.assetId);
         if (!asset) continue;
@@ -2859,7 +2859,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           gainLoss
         });
 
-        // 4-1. 泥닿껐 ?먯궛 ?щ’ 異붽?
+        // 4-1. 체결 자산 슬롯 추가
         const ca = db.insertRow<ContractAsset>('contractAssets', {
           contractId: contract.id,
           assetId: asset.id,
@@ -2873,7 +2873,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           createdAt: new Date().toISOString()
         });
 
-        // 4-2. ?먯궛 留덉뒪??SOLD ?꾩씠 諛?泥섎텇 ?ㅻ깄??諛섏쁺
+        // 4-2. 자산 마스터 SOLD 전이 및 처분 스냅샷 반영
         db.updateRow<Asset>('assets', asset.id, {
           status: 'SOLD',
           disposalDate: payload.disposalDate,
@@ -2885,7 +2885,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           updatedAt: new Date().toISOString()
         });
 
-        // 4-3. ?뚯옣 1.2 臾대늻??DB ??? ?먯궛 ?낆텧怨??대젰(DISPOSAL) 湲곕줉
+        // 4-3. 헌장 1.2 무누락 DB 저장: 자산 입출고 이력(DISPOSAL) 기록
         db.insertRow<AssetInOutLog>('assetInOutLogs', {
           assetId: asset.id,
           assetNo: asset.assetNo,
@@ -2894,22 +2894,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           customerId: customer.id,
           customerName: customer.name,
           eventDate: payload.disposalDate,
-          memo: `?먯궛 留ㅺ컖 泥섎텇 怨꾩빟 泥닿껐 (怨꾩빟: ${contract.contractNo}, 留ㅺ컖?④?: ??{salePrice.toLocaleString()}, 泥섎텇?먯씡: ??{gainLoss.toLocaleString()})`,
+          memo: `자산 매각 처분 계약 체결 (계약: ${contract.contractNo}, 매각단가: ₩${salePrice.toLocaleString()}, 처분손익: ₩${gainLoss.toLocaleString()})`,
           createdAt: new Date().toISOString()
         });
       }
 
-      // 5. 1?뚯꽦 留ㅺ컖 泥?뎄??billings) 諛??곸꽭(billingDetails) 諛쒗뻾 (怨쇱꽭 10% 遺꾨━, 珥앹븸 100% ?쇱튂)
+      // 5. 1회성 매각 청구서(billings) 및 상세(billingDetails) 발행 (과세 10% 분리, 총액 100% 일치)
       const vat = Math.round(totalSalePrice * 0.1);
       const grandTotal = totalSalePrice + vat;
 
-      const billing = db.insertRow<Billing>({
+      const billing = db.insertRow<Billing>('billings', {
         billingType: 'ASSET_SALE',
         customerId: customer.id,
         contractId: contract.id,
         billingYm,
         billingDate: payload.disposalDate,
-        totalAmount: grandTotal, // ?뮕 怨듦툒媛 + 遺媛??10% 珥앹븸 ?쇱튂 (BankMatching 1???ㅼ감 諛⑹?)
+        totalAmount: grandTotal, // 💡 공급가 + 부가세 10% 총액 일치 (BankMatching 1원 오차 방지)
         paidAmount: 0,
         status: 'REQUESTED',
         createdAt: new Date().toISOString(),
@@ -2919,30 +2919,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       for (const summary of soldAssetSummaries) {
         db.insertRow<BillingDetail>('billingDetails', {
           billingId: billing.id,
-          itemName: `[?먯궛留ㅺ컖] ${summary.modelName} (愿由щ쾲?? ${summary.assetNo})`,
+          itemName: `[자산매각] ${summary.modelName} (관리번호: ${summary.assetNo})`,
           quantity: 1,
           unitPrice: summary.salePrice,
           amount: summary.salePrice,
-          internalDescription: `?댁쁺 ?먯궛 留ㅺ컖 ?湲?泥?뎄 (怨꾩빟: ${contract.contractNo})`,
-          displayName: `${summary.modelName} 留ㅺ컖?湲?,
+          internalDescription: `운영 자산 매각 대금 청구 (계약: ${contract.contractNo})`,
+          displayName: `${summary.modelName} 매각대금`,
           createdAt: new Date().toISOString()
         });
       }
 
-      // 6. 怨꾩빟 ?대젰(contractHistory) 湲곕줉
-      db.insertRow<ContractHistory>({
+      // 6. 계약 이력(contractHistory) 기록
+      db.insertRow<ContractHistory>('contractHistory', {
         contractId: contract.id,
         changeType: 'ASSET_SOLD',
         changeDate: payload.disposalDate,
-        description: `?댁쁺 ?먯궛 ${soldAssetSummaries.length}? 留ㅺ컖 泥섎텇 怨꾩빟 泥닿껐 (留ㅺ컖珥앹븸: ??{totalSalePrice.toLocaleString()})`,
+        description: `운영 자산 ${soldAssetSummaries.length}대 매각 처분 계약 체결 (매각총액: ₩${totalSalePrice.toLocaleString()})`,
         createdAt: new Date().toISOString()
       });
 
-      // ?? [?⑥씪 ?낅Т ?멸퀎 ?뚯씠?꾨씪?? 二쇨린?μ뿉 留ㅺ컖 ?λ퉬 ?ㅻЪ ?몃룄 寃??ToDo 諛쒗뻾
+      // 🚀 [단일 업무 인계 파이프라인] 주기장에 매각 장비 실물 인도 검수 ToDo 발행
       await issueHandoverTask({
         category: 'ASSET_DISPOSAL_HANDOVER',
-        title: `[留ㅺ컖 ?λ퉬 ?몃룄 寃?? ${customer.name} (${soldAssetSummaries.length}?)`,
-        content: `留ㅺ컖 泥섎텇 怨꾩빟 泥닿껐 ?꾨즺 (怨꾩빟: ${contract.contractNo}, 珥앹븸: ??{grandTotal.toLocaleString()}). 二쇨린???ㅻЪ ?몃룄 諛??곸감 寃?섎? 吏꾪뻾?섏꽭??`,
+        title: `[매각 장비 인도 검수] ${customer.name} (${soldAssetSummaries.length}대)`,
+        content: `매각 처분 계약 체결 완료 (계약: ${contract.contractNo}, 총액: ₩${grandTotal.toLocaleString()}). 주기장 실물 인도 및 상차 검수를 진행하세요.`,
         targetDept: 'YARD',
         priority: 'HIGH',
         actionUrl: '/admin/asset_acquisition_disposal',
@@ -2952,10 +2952,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         senderName: currentUser?.name
       });
 
-      // 7. ?뚯옣 5.2 ?숆린 ?곌린 ?湲?
+      // 7. 헌장 5.2 동기 쓰기 대기
       await db.awaitPendingWrites();
 
-      // 8. ?대찓??諛쒖넚 ?곕룞 (?붿껌??寃쎌슦)
+      // 8. 이메일 발송 연동 (요청된 경우)
       if (payload.sendEmail && payload.recipientEmail) {
         try {
           const vat = Math.round(totalSalePrice * 0.1);
@@ -2963,40 +2963,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const tenantBrand = currentTenant?.displayName || currentTenant?.tradeName || 'e-Bro';
           const tenantCorp = currentTenant?.tradeName || currentTenant?.corporateName || tenantBrand;
           const tenantAccount = currentTenant?.bankAccounts?.[0]
-            ? `[${tenantBrand}] ${currentTenant.bankAccounts[0].bankName} ${currentTenant.bankAccounts[0].accountNumber} (?덇툑二? ${currentTenant.bankAccounts[0].accountHolder})`
-            : '[e-Bro] 怨꾩쥖臾몄쓽';
-          const subject = `[${tenantBrand}] ?먯궛 留ㅺ컖 怨꾩빟??諛?泥?뎄???덈궡 (${customer.name} 洹??`;
+            ? `[${tenantBrand}] ${currentTenant.bankAccounts[0].bankName} ${currentTenant.bankAccounts[0].accountNumber} (예금주: ${currentTenant.bankAccounts[0].accountHolder})`
+            : '[e-Bro] 계좌문의';
+          const subject = `[${tenantBrand}] 자산 매각 계약서 및 청구서 안내 (${customer.name} 귀하)`;
           const paymentTermsText = payload.saleTerms?.paymentType === 'INSTALLMENT'
-            ? `遺꾪븷 吏湲?(怨꾩빟湲? ??{(payload.saleTerms.installmentDownAmount || 0).toLocaleString()}??/ ?붽툑: ??{(payload.saleTerms.installmentBalanceAmount || 0).toLocaleString()}?? ?붽툑?⑷린: ${payload.saleTerms.installmentBalanceDueDate || '-'})`
-            : `?쇱떆遺??꾨궔 (${payload.saleTerms?.lumpSumDueTerm === 'DELIVERY' ? '?λ퉬 ?몃룄???꾨궔' : payload.saleTerms?.lumpSumDueTerm === '7_DAYS' ? '怨꾩빟?쇰줈遺??7???대궡' : payload.saleTerms?.lumpSumDueTerm === '14_DAYS' ? '怨꾩빟?쇰줈遺??14???대궡' : payload.saleTerms?.lumpSumDueTerm === 'MONTH_10' ? '?듭썡 10???꾨궔' : '怨꾩빟 泥닿껐 利됱떆 ?꾨궔'})`;
+            ? `분할 지급 (계약금: ₩${(payload.saleTerms.installmentDownAmount || 0).toLocaleString()}원 / 잔금: ₩${(payload.saleTerms.installmentBalanceAmount || 0).toLocaleString()}원, 잔금납기: ${payload.saleTerms.installmentBalanceDueDate || '-'})`
+            : `일시불 완납 (${payload.saleTerms?.lumpSumDueTerm === 'DELIVERY' ? '장비 인도일 완납' : payload.saleTerms?.lumpSumDueTerm === '7_DAYS' ? '계약일로부터 7일 이내' : payload.saleTerms?.lumpSumDueTerm === '14_DAYS' ? '계약일로부터 14일 이내' : payload.saleTerms?.lumpSumDueTerm === 'MONTH_10' ? '익월 10일 완납' : '계약 체결 즉시 완납'})`;
 
-          const deliveryTermsText = `${payload.saleTerms?.deliveryLocationType === 'BUYER_SITE' ? '留ㅼ닔泥?吏?뺤? ?섏감?? : '?뱀궗 二쇨린???곸감??FOB)'} (${payload.saleTerms?.freightBearer === 'SELLER' ? '?뱀궗 ?댁넚遺?? : '留ㅼ닔???댁넚遺??}) / ?몃룄?덉젙?? ${payload.saleTerms?.deliveryDate || payload.disposalDate}`;
+          const deliveryTermsText = `${payload.saleTerms?.deliveryLocationType === 'BUYER_SITE' ? '매수처 지정지 하차도' : '당사 주기장 상차도(FOB)'} (${payload.saleTerms?.freightBearer === 'SELLER' ? '당사 운송부담' : '매수자 운송부담'}) / 인도예정일: ${payload.saleTerms?.deliveryDate || payload.disposalDate}`;
 
           const body = `
-?덈뀞?섏꽭?? ${customer.name} ?대떦?먮떂.
-${tenantCorp}?낅땲??
+안녕하세요, ${customer.name} 담당자님.
+${tenantCorp}입니다.
 
-洹?ъ? 泥닿껐??怨좎냼?묒뾽? ?먯궛 留ㅺ컖 怨꾩빟 嫄댁뿉 ???怨꾩빟??諛?留ㅺ컖 ?湲?泥?뎄 ?댁뿭???덈궡???쒕┰?덈떎.
+귀사와 체결된 고소작업대 자산 매각 계약 건에 대한 계약서 및 매각 대금 청구 내역을 안내해 드립니다.
 
-[怨꾩빟 諛?泥?뎄 ?붿빟]
-- 怨꾩빟踰덊샇: ${contract.contractNo}
-- 怨꾩빟?좏삎: ?먯궛 留ㅺ컖 怨꾩빟
-- ?묐룄?쇱옄: ${payload.disposalDate}
-- 留ㅺ컖 ?섎웾: 珥?${soldAssetSummaries.length}?
-- 怨듦툒媛?? ??{totalSalePrice.toLocaleString()}??
-- 遺媛??(10%): ??{vat.toLocaleString()}??
-- 泥?뎄 珥앺빀怨꾧툑?? ??{grand.toLocaleString()}??
-- ?낃툑 怨꾩쥖: ${payload.saleTerms?.bankAccount ? payload.saleTerms.bankAccount : tenantAccount}
-- 寃곗젣 議곌굔: ${paymentTermsText}
-- ?몃룄 議곌굔: ${deliveryTermsText}
-${payload.saleTerms?.useStandardAsIsClause ? '- ?뱀빟: ?꾩긽???몄닔(As-Is) 諛??뚯쑀沅??좊낫(?湲??꾨궔 ???댁쟾)\n' : ''}
-[留ㅺ컖 ?λ퉬 ?곸꽭 ?댁뿭]
-${soldAssetSummaries.map((s, idx) => `${idx + 1}. 愿由щ쾲?? ${s.assetNo} / 紐⑤뜽紐? ${s.modelName} / 留ㅺ컖?④?: ??{s.salePrice.toLocaleString()}??).join('\n')}
+[계약 및 청구 요약]
+- 계약번호: ${contract.contractNo}
+- 계약유형: 자산 매각 계약
+- 양도일자: ${payload.disposalDate}
+- 매각 수량: 총 ${soldAssetSummaries.length}대
+- 공급가액: ₩${totalSalePrice.toLocaleString()}원
+- 부가세 (10%): ₩${vat.toLocaleString()}원
+- 청구 총합계금액: ₩${grand.toLocaleString()}원
+- 입금 계좌: ${payload.saleTerms?.bankAccount ? payload.saleTerms.bankAccount : tenantAccount}
+- 결제 조건: ${paymentTermsText}
+- 인도 조건: ${deliveryTermsText}
+${payload.saleTerms?.useStandardAsIsClause ? '- 특약: 현상태 인수(As-Is) 및 소유권 유보(대금 완납 시 이전)\n' : ''}
+[매각 장비 상세 내역]
+${soldAssetSummaries.map((s, idx) => `${idx + 1}. 관리번호: ${s.assetNo} / 모델명: ${s.modelName} / 매각단가: ₩${s.salePrice.toLocaleString()}원`).join('\n')}
 
-${payload.memo ? `\n[?뱀씠?ы빆 / 硫붾え]\n${payload.memo}\n` : ''}
+${payload.memo ? `\n[특이사항 / 메모]\n${payload.memo}\n` : ''}
 
-媛먯궗?⑸땲??
-${currentTenant?.corporateName || tenantCorp} 諛곗긽
+감사합니다.
+${currentTenant?.corporateName || tenantCorp} 배상
           `.trim();
 
           await emailService.sendEmail(
@@ -3007,16 +3007,16 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
             payload.ccEmail
           );
 
-          db.insertRow<ContractHistory>({
+          db.insertRow<ContractHistory>('contractHistory', {
             contractId: contract.id,
             changeType: 'DOCUMENT_SENT',
             changeDate: payload.disposalDate,
-            description: `?먯궛 留ㅺ컖 怨꾩빟??諛?泥?뎄 ?댁뿭 ?대찓??諛쒖넚 ?꾨즺 (?섏떊: ${payload.recipientEmail})`,
+            description: `자산 매각 계약서 및 청구 내역 이메일 발송 완료 (수신: ${payload.recipientEmail})`,
             createdAt: new Date().toISOString()
           });
           await db.awaitPendingWrites();
         } catch (mailErr: any) {
-          console.warn('[executeAssetSale] ?대찓??諛쒖넚 ?ㅽ뙣 (怨꾩빟 諛?泥?뎄???뺤긽 蹂댁〈??:', mailErr);
+          console.warn('[executeAssetSale] 이메일 발송 실패 (계약 및 청구는 정상 보존됨):', mailErr);
         }
       }
 
@@ -3024,12 +3024,12 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       return { success: true, contractId: contract.id, billingId: billing.id, contractNo: contract.contractNo };
     } catch (err: any) {
       console.error('[executeAssetSale] Error:', err);
-      showErrorModal(`?좑툘 ?먯궛 留ㅺ컖 怨꾩빟 泥섎━ 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎:\n\n${err?.message || err}`, '?먯궛 留ㅺ컖 ?ㅽ뙣');
+      showErrorModal(`⚠️ 자산 매각 계약 처리 중 오류가 발생했습니다:\n\n${err?.message || err}`, '자산 매각 실패');
       throw err;
     }
   };
 
-  // 援щ쾭???명솚???섑띁
+  // 구버전 호환용 래퍼
   const disposeAsset = async (assetId: string, disposalData: { disposalDate: string; disposalPrice: number; buyer: string; billingYm?: string }) => {
     return executeAssetSale({
       buyerName: disposalData.buyer,
@@ -3052,7 +3052,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         status: 'AVAILABLE',
         monthlyRentFee: sanitizedMonthlyFee,
         dailyRentFee: sanitizedDailyFee,
-        actualRentReturnDate: '', // 怨쇨굅 ?ㅼ젣 諛섎궔??珥덇린??(?ъ엫李??쒖꽦??
+        actualRentReturnDate: '', // 과거 실제 반납일 초기화 (재임차 활성화)
         updatedAt: new Date().toISOString()
       });
     } else {
@@ -3082,7 +3082,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         updatedAt: new Date().toISOString()
       });
     }
-    // ?뚯옣 1.2 臾대늻??媛먯궗 濡쒓렇: ?꾩감泥??꾩감 諛섏엯
+    // 헌장 1.2 무누락 감사 로그: 임차처 임차 반입
     if (result) {
       db.insertRow<AssetInOutLog>('assetInOutLogs', {
         assetId: result.id,
@@ -3090,7 +3090,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         modelName: result.modelName,
         type: 'INBOUND',
         eventDate: result.rentStart || new Date().toISOString().split('T')[0],
-        memo: `[?꾩감 諛섏엯] ?꾩감泥? ${result.renter || '?꾩감泥?} (?꾩감泥섎쾲?? ${result.vendorAssetNo || '-'})`,
+        memo: `[임차 반입] 임차처: ${result.renter || '임차처'} (임차처번호: ${result.vendorAssetNo || '-'})`,
         createdAt: new Date().toISOString()
       });
     }
@@ -3099,7 +3099,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
     } catch (err: any) {
       console.error('registerRentedAsset Supabase sync error:', err);
-      showErrorModal(`?좑툘 ?꾩감 ?먯궛 ???以??먭꺽 DB ?숆린???ㅻ쪟媛 諛쒖깮?덉뒿?덈떎:\n${err.message || err.details || JSON.stringify(err)}`, 'DB ?숆린???ㅻ쪟');
+      showErrorModal(`⚠️ 임차 자산 저장 중 원격 DB 동기화 오류가 발생했습니다:\n${err.message || err.details || JSON.stringify(err)}`, 'DB 동기화 오류');
       throw err;
     }
     refreshAllData();
@@ -3111,8 +3111,8 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     if (!target) return;
 
     if (target.rentStart && returnDate < target.rentStart) {
-      showErrorModal(`?좑툘 ?꾩감泥?諛섎궔??${returnDate})? ?꾩감 ?쒖옉??${target.rentStart}) ?댁쟾?????놁뒿?덈떎.`);
-      throw new Error(`?꾩감泥?諛섎궔?쇱씠 ?꾩감 ?쒖옉???댁쟾?낅땲??`);
+      showErrorModal(`⚠️ 임차처 반납일(${returnDate})은 임차 시작일(${target.rentStart}) 이전일 수 없습니다.`);
+      throw new Error(`임차처 반납일이 임차 시작일 이전입니다.`);
     }
 
     const isDirect = options?.isDirectReturn || target.status === 'RENTED';
@@ -3130,7 +3130,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         updatedAt: new Date().toISOString()
       });
 
-      // ?뚯옣 1.2 臾대늻??媛먯궗 濡쒓렇: ?꾩감泥?諛섎궔 諛섏텧 (?щ쾿 媛먯궗 ?먯젙: type OUTBOUND)
+      // 헌장 1.2 무누락 감사 로그: 임차처 반납 반출 (사법 감사 판정: type OUTBOUND)
       db.insertRow<AssetInOutLog>('assetInOutLogs', {
         assetId: target.id,
         assetNo: target.assetNo,
@@ -3142,17 +3142,17 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         siteName: site?.name,
         eventDate: returnDate,
         memo: options?.memo || (isDirect 
-          ? `[?꾩감?먯궛 ?꾩옣 吏곷컲?? 怨좉컼??${cust?.name || '-'}) ?꾩옣?먯꽌 ?꾩감泥?${target.renter || '?꾩감泥?})濡?吏곷컲??泥섎━`
-          : `[?꾩감?먯궛 二쇨린??諛섎궔] ?뱀궗 二쇨린?μ뿉???꾩감泥?${target.renter || '?꾩감泥?})濡?諛섎궔 泥섎━`),
+          ? `[임차자산 현장 직반납] 고객사(${cust?.name || '-'}) 현장에서 임차처(${target.renter || '임차처'})로 직반납 처리`
+          : `[임차자산 주기장 반납] 당사 주기장에서 임차처(${target.renter || '임차처'})로 반납 처리`),
         createdAt: new Date().toISOString()
       });
 
-      // ?뚯옣 5.2 以?? CUD ?숆린 寃利?
+      // 헌장 5.2 준수: CUD 동기 검증
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      console.error('returnRentedAsset ?숆린???ㅽ뙣:', err);
-      showErrorModal(`?좑툘 ?꾩감泥?諛섎궔 留덇컧 泥섎━ 以?DB ?숆린???ㅻ쪟媛 諛쒖깮?덉뒿?덈떎:\n${err.message || err}`, 'DB ?숆린???ㅻ쪟');
+      console.error('returnRentedAsset 동기화 실패:', err);
+      showErrorModal(`⚠️ 임차처 반납 마감 처리 중 DB 동기화 오류가 발생했습니다:\n${err.message || err}`, 'DB 동기화 오류');
       throw err;
     }
   };
@@ -3187,7 +3187,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       refreshAllData();
     } catch (err: any) {
       console.error('createVendorClaimReceivable error:', err);
-      showErrorModal(`?좑툘 援ъ긽 誘몄닔湲??깅줉 ?ㅻ쪟:\n${err.message || err.details || JSON.stringify(err)}`, 'DB ?숆린???ㅻ쪟');
+      showErrorModal(`⚠️ 구상 미수금 등록 오류:\n${err.message || err.details || JSON.stringify(err)}`, 'DB 동기화 오류');
       throw err;
     }
   };
@@ -3203,7 +3203,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?뚮え???덈ぉ ?깅줉 ?ㅻ쪟:\n${err.message || err}`, 'DB ?숆린???ㅻ쪟');
+      showErrorModal(`⚠️ 소모품 품목 등록 오류:\n${err.message || err}`, 'DB 동기화 오류');
       throw err;
     }
   };
@@ -3217,7 +3217,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?뚮え???덈ぉ ?섏젙 ?ㅻ쪟:\n${err.message || err}`, 'DB ?숆린???ㅻ쪟');
+      showErrorModal(`⚠️ 소모품 품목 수정 오류:\n${err.message || err}`, 'DB 동기화 오류');
       throw err;
     }
   };
@@ -3228,16 +3228,16 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       const hasVehicleStock = db.mechanicConsumableStocks.some(s => s.consumableId === id && s.stockQty > 0);
       
       if (hasLogs || hasVehicleStock) {
-        showErrorModal('?섎텋 ?대젰???덇굅??李⑤웾??遺덉텧???ш퀬媛 ?덉뼱 ??젣?????놁뒿?덈떎. 愿由ъ옄?먭쾶 臾몄쓽?섏뿬 ?⑥쥌 泥섎━?섏꽭??', '??젣 遺덇?');
-        throw new Error('??젣 遺덇?');
+        showErrorModal('수불 이력이 있거나 차량에 불출된 재고가 있어 삭제할 수 없습니다. 관리자에게 문의하여 단종 처리하세요.', '삭제 불가');
+        throw new Error('삭제 불가');
       }
 
       db.deleteRow('consumables', id);
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      if (err.message !== '??젣 遺덇?') {
-        showErrorModal(`?좑툘 ?뚮え????젣 ?ㅻ쪟:\n${err.message || err}`, 'DB ?숆린???ㅻ쪟');
+      if (err.message !== '삭제 불가') {
+        showErrorModal(`⚠️ 소모품 삭제 오류:\n${err.message || err}`, 'DB 동기화 오류');
       }
       throw err;
     }
@@ -3245,15 +3245,15 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
   const purchaseConsumable = async (data: { modelName: string; qty: number; unit: string; unitPrice: number; supplier: string }) => {
     if (!data.modelName?.trim()) {
-      showErrorModal('?뚮え???덈챸???낅젰?댁＜?몄슂.');
+      showErrorModal('소모품 품명을 입력해주세요.');
       return;
     }
     if (data.qty <= 0) {
-      showErrorModal('?낃퀬 ?섎웾? 1媛??댁긽?댁뼱???⑸땲??');
+      showErrorModal('입고 수량은 1개 이상이어야 합니다.');
       return;
     }
     if (data.unitPrice < 0) {
-      showErrorModal('?④???0???댁긽?댁뼱???⑸땲??');
+      showErrorModal('단가는 0원 이상이어야 합니다.');
       return;
     }
     const cleanQty = Math.max(1, Math.floor(data.qty));
@@ -3272,7 +3272,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       consumable = db.insertRow<Consumable>('consumables', {
         modelName: data.modelName.trim(),
         stockQty: cleanQty,
-        unit: data.unit || '媛?,
+        unit: data.unit || '개',
         unitPrice: cleanPrice,
         supplier: data.supplier,
         createdAt: new Date().toISOString(),
@@ -3288,7 +3288,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       supplier: data.supplier,
       userId: getValidUserId(currentUser?.id),
       actionDate: new Date().toISOString().split('T')[0],
-      description: '?뚮え??援ъ엯 ?낃퀬',
+      description: '소모품 구입 입고',
       createdAt: new Date().toISOString()
     });
 
@@ -3299,14 +3299,14 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   const useConsumable = async (data: { consumableId: string; quantity: number; targetAssetId: string; description: string }) => {
     try {
       if (data.quantity <= 0) {
-        showErrorModal('?뚮え ?섎웾? 1媛??댁긽?댁뼱???⑸땲??');
-        throw new Error('?뚮え ?섎웾? 1媛??댁긽?댁뼱???⑸땲??');
+        showErrorModal('소모 수량은 1개 이상이어야 합니다.');
+        throw new Error('소모 수량은 1개 이상이어야 합니다.');
       }
       const cleanQty = Math.max(1, Math.floor(data.quantity));
       const consumable = db.consumables.find(c => c.id === data.consumableId);
       if (!consumable || consumable.stockQty < cleanQty) {
-        const msg = `?뚮え???ш퀬媛 遺議깊빀?덈떎. (?꾩옱怨? ${consumable?.stockQty || 0}媛?/ ?붿껌: ${cleanQty}媛?`;
-        showErrorModal(`?좑툘 ${msg}`);
+        const msg = `소모품 재고가 부족합니다. (현재고: ${consumable?.stockQty || 0}개 / 요청: ${cleanQty}개)`;
+        showErrorModal(`⚠️ ${msg}`);
         throw new Error(msg);
       }
 
@@ -3339,7 +3339,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?뚮え???ъ슜 泥섎━ ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 소모품 사용 처리 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -3347,26 +3347,26 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   const transferConsumableToMechanic = async (mechanicId: string, consumableId: string, quantity: number, memo?: string): Promise<void> => {
     try {
       if (quantity <= 0) {
-        showErrorModal('遺덉텧 ?섎웾? 1媛??댁긽?댁뼱???⑸땲??');
-        throw new Error('遺덉텧 ?섎웾? 1媛??댁긽?댁뼱???⑸땲??');
+        showErrorModal('불출 수량은 1개 이상이어야 합니다.');
+        throw new Error('불출 수량은 1개 이상이어야 합니다.');
       }
       const consumable = db.consumables.find(c => c.id === consumableId);
       if (!consumable || consumable.stockQty < quantity) {
-        const msg = `蹂몄궗 ?ш퀬媛 遺議깊빀?덈떎. (蹂몄궗 ?꾩옱怨? ${consumable?.stockQty || 0}媛?`;
-        showErrorModal(`?좑툘 ${msg}`);
+        const msg = `본사 재고가 부족합니다. (본사 현재고: ${consumable?.stockQty || 0}개)`;
+        showErrorModal(`⚠️ ${msg}`);
         throw new Error(msg);
       }
 
       const mechanic = db.users.find(u => u.id === mechanicId);
-      const mechanicName = mechanic?.name || '?뺣퉬??;
+      const mechanicName = mechanic?.name || '정비사';
 
-      // 1. 蹂몄궗 ?ш퀬 李④컧
+      // 1. 본사 재고 차감
       db.updateRow<Consumable>('consumables', consumableId, {
         stockQty: consumable.stockQty - quantity,
         updatedAt: new Date().toISOString()
       });
 
-      // 2. 湲곗궗 李⑤웾 ?ш퀬 利앷?
+      // 2. 기사 차량 재고 증가
       const existingStock = db.mechanicConsumableStocks.find(s => s.mechanicId === mechanicId && s.consumableId === consumableId);
       if (existingStock) {
         db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', existingStock.id, {
@@ -3384,7 +3384,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         });
       }
 
-      // 3. ?ш퀬 ?대룞 ?섎텋 濡쒓렇 湲곕줉
+      // 3. 재고 이동 수불 로그 기록
       db.insertRow<ConsumableLog>('consumableLogs', {
         consumableId,
         type: 'TRANSFER_TO_VEHICLE',
@@ -3392,17 +3392,17 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         unitPrice: consumable.unitPrice,
         userId: currentUser?.id,
         mechanicId,
-        fromLocation: '二쇨린???ш퀬',
-        toLocation: `${mechanicName} 李⑤웾`,
+        fromLocation: '주기장 재고',
+        toLocation: `${mechanicName} 차량`,
         actionDate: new Date().toISOString().split('T')[0],
-        description: memo || `[李⑤웾 遺덉텧] 二쇨린????${mechanicName} 李⑤웾 ?대룞 (${quantity}媛?`,
+        description: memo || `[차량 불출] 주기장 ➔ ${mechanicName} 차량 이동 (${quantity}개)`,
         createdAt: new Date().toISOString()
       });
 
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 李⑤웾 遺덉텧 泥섎━ ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 차량 불출 처리 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -3417,29 +3417,29 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   ): Promise<void> => {
     try {
       if (quantity <= 0) {
-        showErrorModal('諛섎궔 ?섎웾? 1媛??댁긽?댁뼱???⑸땲??');
-        throw new Error('諛섎궔 ?섎웾? 1媛??댁긽?댁뼱???⑸땲??');
+        showErrorModal('반납 수량은 1개 이상이어야 합니다.');
+        throw new Error('반납 수량은 1개 이상이어야 합니다.');
       }
       const existingStock = db.mechanicConsumableStocks.find(s => s.mechanicId === mechanicId && s.consumableId === consumableId);
       if (!existingStock || existingStock.stockQty < quantity) {
-        const msg = `李⑤웾 蹂댁쑀 ?ш퀬媛 遺議깊빀?덈떎. (李⑤웾 ?꾩옱怨? ${existingStock?.stockQty || 0}媛?`;
-        showErrorModal(`?좑툘 ${msg}`);
+        const msg = `차량 보유 재고가 부족합니다. (차량 현재고: ${existingStock?.stockQty || 0}개)`;
+        showErrorModal(`⚠️ ${msg}`);
         throw new Error(msg);
       }
 
       const consumable = db.consumables.find(c => c.id === consumableId);
       const mechanic = db.users.find(u => u.id === mechanicId);
-      const mechanicName = mechanic?.name || '?뺣퉬??;
+      const mechanicName = mechanic?.name || '정비사';
 
-      // 1. 湲곗궗 李⑤웾 ?ш퀬 李④컧
+      // 1. 기사 차량 재고 차감
       db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', existingStock.id, {
         stockQty: existingStock.stockQty - quantity,
         updatedAt: new Date().toISOString()
       });
 
-      // 2. ?좏뭹 ?뺤긽 諛섎궔 vs 怨좏뭹 寃⑸━ 泥섎━
+      // 2. 신품 정상 반납 vs 고품 격리 처리
       if (!isDefective) {
-        // ?뺤긽 ?좏뭹 諛섎궔: 二쇨린??媛???ш퀬 利앷?
+        // 정상 신품 반납: 주기장 가용 재고 증가
         if (consumable) {
           db.updateRow<Consumable>('consumables', consumableId, {
             stockQty: consumable.stockQty + quantity,
@@ -3447,26 +3447,26 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           });
         }
       } else {
-        // 怨좏뭹(遺덈웾?? 諛섎궔: 二쇨린???좏뭹 媛?⑹옱怨?媛??李⑤떒 諛?怨좏뭹 愿由????collectedParts) 寃⑸━ ?곸옱
+        // 고품(불량품) 반납: 주기장 신품 가용재고 가산 차단 및 고품 관리 대장(collectedParts) 격리 적재
         const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
         const newPartNo = `COL-${todayStr}-${Math.floor(1000 + Math.random() * 9000)}`;
         db.insertRow<CollectedPart>('collectedParts', {
           id: `col-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
           partNo: newPartNo,
           consumableId,
-          modelName: consumable?.modelName || '遺??,
+          modelName: consumable?.modelName || '부품',
           mechanicId,
           mechanicName,
           quantity,
           disposition,
           status: 'RECEIVED',
           receivedDate: new Date().toISOString().split('T')[0],
-          memo: memo || `[怨좏뭹 ?섍굅] ${mechanicName} 李⑤웾 諛섎궔 (${disposition})`,
+          memo: memo || `[고품 수거] ${mechanicName} 차량 반납 (${disposition})`,
           createdAt: new Date().toISOString()
         });
       }
 
-      // 3. ?ш퀬 諛섎궔 ?섎텋 濡쒓렇 湲곕줉
+      // 3. 재고 반납 수불 로그 기록
       db.insertRow<ConsumableLog>('consumableLogs', {
         consumableId,
         type: 'RETURN_TO_HQ',
@@ -3474,19 +3474,19 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         unitPrice: consumable?.unitPrice || 0,
         userId: currentUser?.id,
         mechanicId,
-        fromLocation: `${mechanicName} 李⑤웾`,
-        toLocation: !isDefective ? '二쇨린???ш퀬' : `怨좏뭹 寃⑸━??(${disposition})`,
+        fromLocation: `${mechanicName} 차량`,
+        toLocation: !isDefective ? '주기장 재고' : `고품 격리실 (${disposition})`,
         actionDate: new Date().toISOString().split('T')[0],
         description: memo || (!isDefective 
-          ? `[二쇨린??諛섎궔] ${mechanicName} 李⑤웾 ??二쇨린???ш퀬 ?뚯닔 (${quantity}媛?`
-          : `[怨좏뭹 諛섎궔] ${mechanicName} 李⑤웾 ??怨좏뭹 寃⑸━ (${disposition}, ${quantity}媛?`),
+          ? `[주기장 반납] ${mechanicName} 차량 ➔ 주기장 재고 회수 (${quantity}개)`
+          : `[고품 반납] ${mechanicName} 차량 ➔ 고품 격리 (${disposition}, ${quantity}개)`),
         createdAt: new Date().toISOString()
       });
 
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 蹂몄궗 諛섎궔 泥섎━ ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 본사 반납 처리 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -3500,18 +3500,18 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   ): Promise<void> => {
     try {
       if (fromMechanicId === toMechanicId) {
-        showErrorModal('?숈씪???뺣퉬??李⑤웾 媛꾩뿉???대룞?????놁뒿?덈떎.');
-        throw new Error('?숈씪???뺣퉬??李⑤웾 媛꾩뿉???대룞?????놁뒿?덈떎.');
+        showErrorModal('동일한 정비사 차량 간에는 이동할 수 없습니다.');
+        throw new Error('동일한 정비사 차량 간에는 이동할 수 없습니다.');
       }
       if (quantity <= 0) {
-        showErrorModal('?대룞 ?섎웾? 1媛??댁긽?댁뼱???⑸땲??');
-        throw new Error('?대룞 ?섎웾? 1媛??댁긽?댁뼱???⑸땲??');
+        showErrorModal('이동 수량은 1개 이상이어야 합니다.');
+        throw new Error('이동 수량은 1개 이상이어야 합니다.');
       }
 
       const fromStock = db.mechanicConsumableStocks.find(s => s.mechanicId === fromMechanicId && s.consumableId === consumableId);
       if (!fromStock || fromStock.stockQty < quantity) {
-        const msg = `?묐룄 ?뺣퉬??李⑤웾??蹂댁쑀 ?ш퀬媛 遺議깊빀?덈떎. (?꾩옱怨? ${fromStock?.stockQty || 0}媛?`;
-        showErrorModal(`?좑툘 ${msg}`);
+        const msg = `양도 정비사 차량의 보유 재고가 부족합니다. (현재고: ${fromStock?.stockQty || 0}개)`;
+        showErrorModal(`⚠️ ${msg}`);
         throw new Error(msg);
       }
 
@@ -3519,13 +3519,13 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       const toUser = db.users.find(u => u.id === toMechanicId);
       const consumable = db.consumables.find(c => c.id === consumableId);
 
-      // 1. ?묐룄 李⑤웾 ?ш퀬 李④컧
+      // 1. 양도 차량 재고 차감
       db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', fromStock.id, {
         stockQty: fromStock.stockQty - quantity,
         updatedAt: new Date().toISOString()
       });
 
-      // 2. ?묒닔 李⑤웾 ?ш퀬 利앷?
+      // 2. 양수 차량 재고 증가
       const toStock = db.mechanicConsumableStocks.find(s => s.mechanicId === toMechanicId && s.consumableId === consumableId);
       if (toStock) {
         db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', toStock.id, {
@@ -3542,7 +3542,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         });
       }
 
-      // 3. ?섎텋 濡쒓렇 湲곕줉
+      // 3. 수불 로그 기록
       db.insertRow<ConsumableLog>('consumableLogs', {
         consumableId,
         type: 'TRANSFER_TO_VEHICLE',
@@ -3550,17 +3550,17 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         unitPrice: consumable?.unitPrice || 0,
         userId: currentUser?.id,
         mechanicId: toMechanicId,
-        fromLocation: `${fromUser?.name || '?뺣퉬??} 李⑤웾`,
-        toLocation: `${toUser?.name || '?뺣퉬??} 李⑤웾`,
+        fromLocation: `${fromUser?.name || '정비사'} 차량`,
+        toLocation: `${toUser?.name || '정비사'} 차량`,
         actionDate: new Date().toISOString().split('T')[0],
-        description: memo || `[李⑤웾 媛??듯넻] ${fromUser?.name} 李⑤웾 ??${toUser?.name} 李⑤웾 (${quantity}媛?`,
+        description: memo || `[차량 간 융통] ${fromUser?.name} 차량 ➔ ${toUser?.name} 차량 (${quantity}개)`,
         createdAt: new Date().toISOString()
       });
 
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 李⑤웾 媛?遺???듯넻 泥섎━ ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 차량 간 부품 융통 처리 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -3580,23 +3580,23 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       let vehicleNo: string | undefined;
 
       if (targetType === 'VEHICLE') {
-        if (!mechanicId) throw new Error('李⑤웾 ?ㅼ궗??寃쎌슦 ?대떦 ?뺣퉬?щ? 吏?뺥빐???⑸땲??');
+        if (!mechanicId) throw new Error('차량 실사의 경우 담당 정비사를 지정해야 합니다.');
         const mech = db.users.find(u => u.id === mechanicId);
         mechanicName = mech?.name;
         const corpVehicle = db.corporateVehicles.find(v => v.primaryDriverId === mechanicId);
         vehicleNo = corpVehicle?.vehicleNo || (mech as any)?.vehicleNo || '';
       }
 
-      // 1. ?ㅼ궗 留덉뒪???앹꽦
+      // 1. 실사 마스터 생성
       const newAuditId = `stk-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
       
-      // 2. ?뱀떆 ?꾩궛 ?ш퀬 ?ㅻ깄???앹꽦
+      // 2. 당시 전산 재고 스냅샷 생성
       const itemsToInsert: StocktakingAuditItem[] = [];
       let totalSystemQty = 0;
       let totalSystemAmount = 0;
 
       if (targetType === 'HQ') {
-        // 二쇨린???ш퀬: ?꾩껜 consumable 紐⑸줉 ?ㅻ깄??
+        // 주기장 재고: 전체 consumable 목록 스냅샷
         db.consumables.forEach(c => {
           const sysQty = c.stockQty || 0;
           const uPrice = c.unitPrice || 0;
@@ -3608,7 +3608,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
             auditId: newAuditId,
             consumableId: c.id,
             modelName: c.modelName,
-            unit: c.unit || '媛?,
+            unit: c.unit || '개',
             unitPrice: uPrice,
             systemQty: sysQty,
             actualQty: sysQty,
@@ -3617,7 +3617,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           });
         });
       } else {
-        // ?뱀젙 ?뺣퉬??李⑤웾: ?대떦 ?뺣퉬?ъ쓽 蹂댁쑀 遺???먮뒗 ?꾩궗 遺???ㅻ깄??
+        // 특정 정비사 차량: 해당 정비사의 보유 부품 또는 전사 부품 스냅샷
         const mechStocks = db.mechanicConsumableStocks.filter(s => s.mechanicId === mechanicId);
         const stockMap = new Map<string, number>();
         mechStocks.forEach(s => stockMap.set(s.consumableId, s.stockQty || 0));
@@ -3633,7 +3633,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
             auditId: newAuditId,
             consumableId: c.id,
             modelName: c.modelName,
-            unit: c.unit || '媛?,
+            unit: c.unit || '개',
             unitPrice: uPrice,
             systemQty: sysQty,
             actualQty: sysQty,
@@ -3652,7 +3652,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         vehicleNo,
         auditDate: dateStr,
         auditorId: currentUser?.id || 'admin',
-        auditorName: currentUser?.name || '?ㅼ궗?대떦??,
+        auditorName: currentUser?.name || '실사담당자',
         status: 'DRAFT',
         totalSystemQty,
         totalActualQty: totalSystemQty,
@@ -3674,7 +3674,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       refreshAllData();
       return newAudit;
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?ㅼ궗 ?꾪몴 ?앹꽦 ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 실사 전표 생성 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -3688,7 +3688,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   ): Promise<void> => {
     try {
       const item = db.stocktakingAuditItems.find(i => i.id === itemId && i.auditId === auditId);
-      if (!item) throw new Error('?ㅼ궗 ?덈ぉ??李얠쓣 ???놁뒿?덈떎.');
+      if (!item) throw new Error('실사 품목을 찾을 수 없습니다.');
 
       const clampedActualQty = Math.max(0, actualQty);
       const diffQty = clampedActualQty - item.systemQty;
@@ -3702,7 +3702,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         note
       });
 
-      // 留덉뒪???⑷퀎 媛깆떊
+      // 마스터 합계 갱신
       const allItems = db.stocktakingAuditItems.filter(i => i.auditId === auditId);
       const updatedItems = allItems.map(i => i.id === itemId ? { ...i, actualQty: clampedActualQty, diffQty, diffAmount } : i);
       const totalSystemQty = updatedItems.reduce((acc, i) => acc + (i.systemQty || 0), 0);
@@ -3725,7 +3725,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?ㅼ궗 ?덈ぉ ?섎웾 ?섏젙 ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 실사 품목 수량 수정 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -3733,17 +3733,17 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   const confirmStocktakingAudit = async (auditId: string): Promise<void> => {
     try {
       const audit = db.stocktakingAudits.find(a => a.id === auditId);
-      if (!audit) throw new Error('?ㅼ궗 ?꾪몴瑜?李얠쓣 ???놁뒿?덈떎.');
-      if (audit.status === 'CONFIRMED') throw new Error('?대? ?뺤젙 ?꾨즺???ㅼ궗 ?꾪몴?낅땲??');
+      if (!audit) throw new Error('실사 전표를 찾을 수 없습니다.');
+      if (audit.status === 'CONFIRMED') throw new Error('이미 확정 완료된 실사 전표입니다.');
 
       const items = db.stocktakingAuditItems.filter(i => i.auditId === auditId);
-      const targetLocation = audit.targetType === 'HQ' ? '二쇨린???ш퀬' : `${audit.mechanicName || '?뺣퉬??} 李⑤웾`;
+      const targetLocation = audit.targetType === 'HQ' ? '주기장 재고' : `${audit.mechanicName || '정비사'} 차량`;
 
-      // 1. 李⑥씠媛 ?덈뒗 ?덈ぉ?ㅼ뿉 ????꾩궛 ?ш퀬 媛뺤젣 蹂댁젙 & ADJUST ?섎텋 濡쒓렇 諛쒗뻾
+      // 1. 차이가 있는 품목들에 대해 전산 재고 강제 보정 & ADJUST 수불 로그 발행
       items.forEach(item => {
         if (item.diffQty !== 0) {
           if (audit.targetType === 'HQ') {
-            // 蹂몄궗 李쎄퀬 ?꾩궛?ш퀬 媛뺤젣 蹂댁젙
+            // 본사 창고 전산재고 강제 보정
             const c = db.consumables.find(con => con.id === item.consumableId);
             if (c) {
               db.updateRow<Consumable>('consumables', c.id, {
@@ -3752,7 +3752,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
               });
             }
           } else {
-            // ?뱀젙 ?뺣퉬??李⑤웾 ?꾩궛?ш퀬 媛뺤젣 蹂댁젙
+            // 특정 정비사 차량 전산재고 강제 보정
             const mStock = db.mechanicConsumableStocks.find(s => s.mechanicId === audit.mechanicId && s.consumableId === item.consumableId);
             if (mStock) {
               db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', mStock.id, {
@@ -3770,11 +3770,11 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
             }
           }
 
-          // ADJUST 媛먯궗 濡쒓렇 ?먮룞 ?곸옱
-          const reasonText = item.diffReason === 'LOST' ? '留앹떎/?꾨궃' 
-            : item.diffReason === 'DAMAGED' ? '?뚯넀/?먭린'
-            : item.diffReason === 'UNRECORDED_USAGE' ? '誘멸린濡앺쁽?μ냼紐?
-            : item.diffReason === 'SURPLUS' ? '誘몃벑濡앹엵?? : '湲고??ъ쑀';
+          // ADJUST 감사 로그 자동 적재
+          const reasonText = item.diffReason === 'LOST' ? '망실/도난' 
+            : item.diffReason === 'DAMAGED' ? '파손/폐기'
+            : item.diffReason === 'UNRECORDED_USAGE' ? '미기록현장소모'
+            : item.diffReason === 'SURPLUS' ? '미등록잉여' : '기타사유';
 
           db.insertRow<ConsumableLog>('consumableLogs', {
             consumableId: item.consumableId,
@@ -3786,24 +3786,24 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
             fromLocation: targetLocation,
             toLocation: targetLocation,
             actionDate: audit.auditDate,
-            description: `[?ㅼ궗 ${item.diffQty > 0 ? '?됱뿬' : '媛먮え'}] ${audit.auditNo} | ${item.modelName} ${item.diffQty > 0 ? `+${item.diffQty}` : item.diffQty}媛?蹂댁젙 (${reasonText}${item.note ? `: ${item.note}` : ''})`,
+            description: `[실사 ${item.diffQty > 0 ? '잉여' : '감모'}] ${audit.auditNo} | ${item.modelName} ${item.diffQty > 0 ? `+${item.diffQty}` : item.diffQty}개 보정 (${reasonText}${item.note ? `: ${item.note}` : ''})`,
             createdAt: new Date().toISOString()
           });
         }
       });
 
-      // 2. ?ㅼ궗 ?꾪몴 ?뺤젙 ?꾨즺 泥섎━
+      // 2. 실사 전표 확정 완료 처리
       db.updateRow<StocktakingAudit>('stocktakingAudits', auditId, {
         status: 'CONFIRMED',
         confirmedAt: new Date().toISOString(),
-        confirmedBy: currentUser?.name || '愿由ъ옄',
+        confirmedBy: currentUser?.name || '관리자',
         updatedAt: new Date().toISOString()
       });
 
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?ㅼ궗 ?뺤젙 泥섎━ ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 실사 확정 처리 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -3811,8 +3811,8 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   const cancelStocktakingAudit = async (auditId: string): Promise<void> => {
     try {
       const audit = db.stocktakingAudits.find(a => a.id === auditId);
-      if (!audit) throw new Error('?ㅼ궗 ?꾪몴瑜?李얠쓣 ???놁뒿?덈떎.');
-      if (audit.status === 'CONFIRMED') throw new Error('?대? ?뺤젙???ㅼ궗 ?꾪몴??痍⑥냼?????놁뒿?덈떎.');
+      if (!audit) throw new Error('실사 전표를 찾을 수 없습니다.');
+      if (audit.status === 'CONFIRMED') throw new Error('이미 확정된 실사 전표는 취소할 수 없습니다.');
 
       db.updateRow<StocktakingAudit>('stocktakingAudits', auditId, {
         status: 'CANCELLED',
@@ -3822,7 +3822,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?ㅼ궗 ?꾪몴 痍⑥냼 ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 실사 전표 취소 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -3834,7 +3834,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   ): Promise<void> => {
     try {
       const part = db.collectedParts.find(p => p.id === partId);
-      if (!part) throw new Error('?섍굅 怨좏뭹??李얠쓣 ???놁뒿?덈떎.');
+      if (!part) throw new Error('수거 고품을 찾을 수 없습니다.');
 
       db.updateRow<CollectedPart>('collectedParts', partId, {
         status: actionStatus,
@@ -3845,12 +3845,12 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 怨좏뭹 ?ы썑泥섎━ 媛깆떊 ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 고품 사후처리 갱신 실패:\n${err?.message || err}`);
       throw err;
     }
   };
 
-  // ??? [?꾩궗 ?뺣퉬 & AS ?⑥씪 臾쇰━ ?듯빀 ?듭떖 鍮꾩쫰?덉뒪 濡쒖쭅 (1-A, 2-B, 3-B, 4-A)] ?????????
+  // ─── [전사 정비 & AS 단일 물리 통합 핵심 비즈니스 로직 (1-A, 2-B, 3-B, 4-A)] ─────────
   const createFieldAsTicket = async (data: Partial<Repair>): Promise<Repair> => {
     try {
       const now = new Date();
@@ -3868,7 +3868,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       const ticketNo = `${todayPrefix}-${String(maxNum + 1).padStart(3, '0')}`;
       const newRepairId = data.id || db.generateNextId('repairs', db.repairs);
 
-      // ?뮕 怨꾩빟 諛?1? ?⑤룆怨꾩빟 ?먯궛 ?먮룞 留ㅽ븨 (?ъ옣???뺤젙 1踰??먯튃)
+      // 💡 계약 및 1대 단독계약 자산 자동 매핑 (사장님 확정 1번 원칙)
       let resolvedContractId = data.contractId;
       let resolvedAssetId = data.assetId;
       let resolvedAssetNo = data.assetNo;
@@ -3884,7 +3884,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         }
       }
 
-      if (resolvedContractId && (!resolvedAssetId || resolvedAssetId === '?꾩옣?뺤씤' || resolvedAssetNo === '?꾩옣?뺤씤')) {
+      if (resolvedContractId && (!resolvedAssetId || resolvedAssetId === '현장확인' || resolvedAssetNo === '현장확인')) {
         const cas = db.contractAssets.filter(ca => ca.contractId === resolvedContractId && ca.status !== 'RETURNED');
         if (cas.length === 1 && cas[0].assetId) {
           const singleAsset = db.assets.find(a => a.id === cas[0].assetId);
@@ -3896,7 +3896,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         }
       }
 
-      // ?뮕 ?꾨줈紐??곸꽭 二쇱냼(siteAddress) ?먮룞 ??텛??諛?留ㅽ븨 (T留??대퉬 ?곕룞 ?⑥씪 吏꾩떎???먯쿇)
+      // 💡 도로명 상세 주소(siteAddress) 자동 역추적 및 매핑 (T맵/내비 연동 단일 진실의 원천)
       let resolvedSiteAddress = data.siteAddress?.trim();
       if (!resolvedSiteAddress) {
         resolvedSiteAddress = resolveSiteDetailedAddress({
@@ -3912,7 +3912,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           contractAssets: db.contractAssets,
           customers: db.customers,
         });
-        if (resolvedSiteAddress === (data.siteName || data.customerName || '?꾩옣')) {
+        if (resolvedSiteAddress === (data.siteName || data.customerName || '현장')) {
           const cust = db.customers.find(c => (data.customerId && c.id === data.customerId) || (data.customerName && c.name === data.customerName));
           if (cust?.address?.trim()) {
             resolvedSiteAddress = cust.address.trim();
@@ -3924,7 +3924,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
       const initialMemo = data.memo || '';
       const finalMemo = (resolvedSiteAddress && !initialMemo.includes(resolvedSiteAddress))
-        ? (initialMemo ? `${initialMemo}\n[?꾩옣?꾨줈紐? ${resolvedSiteAddress}]` : `[?꾩옣?꾨줈紐? ${resolvedSiteAddress}]`)
+        ? (initialMemo ? `${initialMemo}\n[현장도로명: ${resolvedSiteAddress}]` : `[현장도로명: ${resolvedSiteAddress}]`)
         : initialMemo;
 
       const newTicket = db.insertRow<Repair>('repairs', {
@@ -3943,12 +3943,12 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         siteName: data.siteName || '',
         siteAddress: resolvedSiteAddress || '',
         assetId: resolvedAssetId || '',
-        assetNo: resolvedAssetNo || '?꾩옣?뺤씤',
-        modelName: resolvedModelName || '怨좎냼?묒뾽?',
+        assetNo: resolvedAssetNo || '현장확인',
+        modelName: resolvedModelName || '고소작업대',
         locationDetail: data.locationDetail || (resolvedSiteAddress ? resolvedSiteAddress : ''),
         reporterName: data.reporterName || '',
         reporterContact: data.reporterContact || '',
-        issueCategory: data.issueCategory || '湲고?',
+        issueCategory: data.issueCategory || '기타',
         issueDescription: data.issueDescription || '',
         details: data.issueDescription || '',
         errorCode: data.errorCode || '',
@@ -3986,11 +3986,11 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
 
-      // ?? [?⑥씪 ?낅Т ?멸퀎 ?뚯씠?꾨씪?? ?뺣퉬???臾쇰━ ToDo ?곸옱 + 釉뚮줈?쒖틦?ㅽ듃
+      // 🚀 [단일 업무 인계 파이프라인] 정비팀에 물리 ToDo 적재 + 브로드캐스트
       await issueHandoverTask({
         category: 'AS_DISPATCH_REPAIR',
-        title: `[湲닿툒 AS 異쒕룞] ${newTicket.customerName || '?꾩옣'} (${newTicket.modelName || '?λ퉬'})`,
-        content: `利앹긽: ${newTicket.issueCategory || '湲고?'} - ${newTicket.issueDescription || 'AS ?붿껌'} (?꾩옣: ${newTicket.siteName || '-'})`,
+        title: `[긴급 AS 출동] ${newTicket.customerName || '현장'} (${newTicket.modelName || '장비'})`,
+        content: `증상: ${newTicket.issueCategory || '기타'} - ${newTicket.issueDescription || 'AS 요청'} (현장: ${newTicket.siteName || '-'})`,
         targetDept: 'AS',
         priority: 'URGENT',
         actionUrl: '/mobile?tab=as',
@@ -4002,7 +4002,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
       return newTicket;
     } catch (err: any) {
-      showErrorModal(`?좑툘 AS ?묒닔 ?앹꽦 ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ AS 접수 생성 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -4017,7 +4017,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 AS ?곹깭 蹂寃??ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ AS 상태 변경 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -4033,23 +4033,23 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
       const now = new Date();
       const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-      const mechanicName = currentUser?.name || ticket.mechanicName || '?대떦湲곗궗';
+      const mechanicName = currentUser?.name || ticket.mechanicName || '담당기사';
 
       let label = '';
       let newStatus = ticket.status;
 
       if (eventType === 'CALL_MADE') {
-        label = `?뱸 [${timeStr}] ${mechanicName} ?꾩옣 ?듯솕 諛쒖떊 (${detail || ticket.reporterContact || ''})`;
+        label = `📞 [${timeStr}] ${mechanicName} 현장 통화 발신 (${detail || ticket.reporterContact || ''})`;
       } else if (eventType === 'TRANSIT_START') {
-        label = `?슅 [${timeStr}] ${mechanicName} ${detail || '?대퉬 湲몄븞??} (?꾩옣 ?대룞 ?쒖옉)`;
+        label = `🚗 [${timeStr}] ${mechanicName} ${detail || '내비 길안내'} (현장 이동 시작)`;
         if (ticket.status === 'REQUESTED' || ticket.status === 'SCHEDULED') {
           newStatus = 'IN_PROGRESS';
         }
       } else if (eventType === 'ARRIVED') {
-        label = `?뱧 [${timeStr}] ${mechanicName} ?꾩옣 ?꾩갑 諛??먭? 李⑹닔`;
+        label = `📍 [${timeStr}] ${mechanicName} 현장 도착 및 점검 착수`;
         newStatus = 'IN_PROGRESS';
       } else if (eventType === 'COMPLETED') {
-        label = `??[${timeStr}] ${mechanicName} ?꾩옣 議곗튂 ?꾨즺 (${detail || ''})`;
+        label = `✅ [${timeStr}] ${mechanicName} 현장 조치 완료 (${detail || ''})`;
       }
 
       const eventItem = {
@@ -4100,27 +4100,27 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   }): Promise<void> => {
     try {
       const ticket = db.repairs.find(t => t.id === ticketId);
-      if (!ticket) throw new Error('?대떦 ?뺣퉬/AS ?묒닔嫄댁쓣 李얠쓣 ???놁뒿?덈떎.');
+      if (!ticket) throw new Error('해당 정비/AS 접수건을 찾을 수 없습니다.');
 
       const mechanic = db.users.find(u => u.id === data.mechanicId);
-      const mechanicName = mechanic?.name || ticket.mechanicName || '?대떦湲곗궗';
+      const mechanicName = mechanic?.name || ticket.mechanicName || '담당기사';
 
-      // 1. ?뚮え??李⑤웾 ?ш퀬 ?좏슚??寃??諛?李④컧
+      // 1. 소모품 차량 재고 유효성 검사 및 차감
       if (data.partsUsed && data.partsUsed.length > 0) {
         for (const part of data.partsUsed) {
           if (!part.quantity || part.quantity <= 0) {
-            throw new Error(`?ъ슜 遺??"${part.modelName}")???섎웾? 1媛??댁긽?댁뼱???⑸땲??`);
+            throw new Error(`사용 부품("${part.modelName}")의 수량은 1개 이상이어야 합니다.`);
           }
           const vehicleStock = db.mechanicConsumableStocks.find(
             s => s.mechanicId === data.mechanicId && s.consumableId === part.consumableId
           );
           const currentQty = vehicleStock?.stockQty || 0;
           if (currentQty < part.quantity) {
-            throw new Error(`?좑툘 [李⑤웾 ?ш퀬 遺議? ${mechanicName} 湲곗궗??李⑤웾 ?ш퀬??"${part.modelName}" ?덈ぉ??遺議깊빀?덈떎.\n(?꾩옱 ?곸옱: ${currentQty}媛?/ ?ъ슜 ?꾩슂: ${part.quantity}媛?\n\n[?뚮え??愿由???李⑤웾蹂??대룞?ш퀬] 硫붾돱?먯꽌 二쇨린???ш퀬瑜?李⑤웾?쇰줈 癒쇱? 遺덉텧(?대룞) ?깅줉??二쇱떆湲?諛붾엻?덈떎.`);
+            throw new Error(`⚠️ [차량 재고 부족] ${mechanicName} 기사의 차량 재고에 "${part.modelName}" 품목이 부족합니다.\n(현재 적재: ${currentQty}개 / 사용 필요: ${part.quantity}개)\n\n[소모품 관리 ➔ 차량별 이동재고] 메뉴에서 주기장 재고를 차량으로 먼저 불출(이동) 등록해 주시기 바랍니다.`);
           }
         }
 
-        // ?ㅼ젣 李④컧 ?섑뻾
+        // 실제 차감 수행
         for (const part of data.partsUsed) {
           const vehicleStock = db.mechanicConsumableStocks.find(
             s => s.mechanicId === data.mechanicId && s.consumableId === part.consumableId
@@ -4131,7 +4131,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
               updatedAt: new Date().toISOString()
             });
 
-            // ?뚮え??異쒓퀬 濡쒓렇 湲곕줉
+            // 소모품 출고 로그 기록
             db.insertRow<ConsumableLog>('consumableLogs', {
               consumableId: part.consumableId,
               type: 'OUTBOUND',
@@ -4139,17 +4139,17 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
               unitPrice: part.unitPrice,
               userId: currentUser?.id,
               mechanicId: data.mechanicId,
-              fromLocation: `${mechanicName} 李⑤웾`,
-              toLocation: `?꾩옣AS (${ticket.siteName || ''} / ${ticket.assetNo || ''})`,
+              fromLocation: `${mechanicName} 차량`,
+              toLocation: `현장AS (${ticket.siteName || ''} / ${ticket.assetNo || ''})`,
               actionDate: new Date().toISOString().split('T')[0],
-              description: `[?꾩옣AS 議곗튂 ?뚯쭊] ${ticket.assetNo || ''} ?섎━ ?ъ슜 (${ticket.ticketNo || ticket.id})`,
+              description: `[현장AS 조치 소진] ${ticket.assetNo || ''} 수리 사용 (${ticket.ticketNo || ticket.id})`,
               createdAt: new Date().toISOString()
             });
           }
         }
       }
 
-      // 2. ?щ갑臾??곌퀎 ?곗폆 ?앹꽦 (?좏깮??寃쎌슦)
+      // 2. 재방문 연계 티켓 생성 (선택된 경우)
       let revisitRepairId: string | undefined = undefined;
       let finalStatus: Repair['status'] = 'COMPLETED';
 
@@ -4187,8 +4187,8 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           reporterName: ticket.reporterName,
           reporterContact: ticket.reporterContact,
           issueCategory: ticket.issueCategory,
-          issueDescription: `[?щ갑臾??ъ쑀] ${data.revisitReason || '?꾩냽 議곗튂 ?꾩슂'} (???묒닔: ${ticket.issueDescription})`,
-          details: `[?щ갑臾??ъ쑀] ${data.revisitReason || '?꾩냽 議곗튂 ?꾩슂'} (???묒닔: ${ticket.issueDescription})`,
+          issueDescription: `[재방문 사유] ${data.revisitReason || '후속 조치 필요'} (원 접수: ${ticket.issueDescription})`,
+          details: `[재방문 사유] ${data.revisitReason || '후속 조치 필요'} (원 접수: ${ticket.issueDescription})`,
           errorCode: ticket.errorCode,
           priority: ticket.priority,
           status: 'SCHEDULED',
@@ -4203,7 +4203,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           billableToCustomer: data.billableType === 'BILLABLE',
           parentRepairId: ticket.id,
           parentTicketId: ticket.id,
-          memo: `?댁쟾 AS ?곗폆(${ticket.ticketNo || ticket.id}) 1李??먭? ???곌퀎 ?앹꽦??,
+          memo: `이전 AS 티켓(${ticket.ticketNo || ticket.id}) 1차 점검 후 연계 생성됨`,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
@@ -4212,7 +4212,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         finalStatus = 'GUIDED';
       }
 
-      // 3. ?꾩옱 ?곗폆 ?꾨즺/醫낃껐 ?낅뜲?댄듃
+      // 3. 현재 티켓 완료/종결 업데이트
       const sanitizedBillableAmount = Math.max(0, Number(data.billableAmount) || 0);
       db.updateRow<Repair>('repairs', ticketId, {
         status: finalStatus,
@@ -4244,7 +4244,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         updatedAt: new Date().toISOString()
       });
 
-      // ?윟 ?좏뻾 AS 異쒕룞 ToDo ?먯옄???먮룞 ?곴퀎
+      // 🟢 선행 AS 출동 ToDo 원자적 자동 상계
       await clearHandoverTasks({
         entityType: 'REPAIR',
         entityId: ticketId,
@@ -4254,12 +4254,12 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         completionAction: `AS_${finalStatus}`
       });
 
-      // ?? 怨좉컼 怨쇱떎 ?좎긽 ?섎━ ??泥?뎄???諛붿씤??ToDo 諛쒗뻾 (留ㅼ텧 ?꾨씫 諛⑹?)
+      // 🚀 고객 과실 유상 수리 시 청구팀에 바인딩 ToDo 발행 (매출 누락 방지)
       if (sanitizedBillableAmount > 0) {
         await issueHandoverTask({
           category: 'BILLABLE_REPAIR_BILLING',
-          title: `[?좎긽AS 泥?뎄 諛섏쁺] ${ticket.customerName || '怨좉컼??} (??{sanitizedBillableAmount.toLocaleString()}??`,
-          content: `怨좉컼 怨쇱떎 ?좎긽 ?섎━鍮???{sanitizedBillableAmount.toLocaleString()}??泥?뎄??諛붿씤???붾쭩 (${ticket.siteName || '?꾩옣'}, ${data.actionTaken || '?섎━'})`,
+          title: `[유상AS 청구 반영] ${ticket.customerName || '고객사'} (₩${sanitizedBillableAmount.toLocaleString()}원)`,
+          content: `고객 과실 유상 수리비 ₩${sanitizedBillableAmount.toLocaleString()}원 청구서 바인딩 요망 (${ticket.siteName || '현장'}, ${data.actionTaken || '수리'})`,
           targetDept: 'ACCOUNTING',
           priority: 'HIGH',
           actionUrl: '/admin/billing',
@@ -4270,34 +4270,34 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         });
       }
 
-      // ?뙚 [?뚯옣 2.3 以?? ?꾩옣 ?섎━ 遺덈뒫 ?李??쒖븞 ???⑥씪 'EXCHANGE' ?뺣났 諛곗감 ?섎ː 1嫄??먮룞 諛쒗뻾
+      // 🌟 [헌장 2.3 준수] 현장 수리 불능 대차 제안 시 단일 'EXCHANGE' 왕복 배차 의뢰 1건 자동 발행
       if (data.exchangeSuggested) {
         const defaultYard = currentTenant?.yards?.find((y: any) => y.isDefault) || currentTenant?.yards?.[0];
-        const originYardAddress = defaultYard ? `${defaultYard.name} (${defaultYard.address || ''})` : (currentTenant?.mainYardAddress || '蹂몄궗 二쇨린??);
+        const originYardAddress = defaultYard ? `${defaultYard.name} (${defaultYard.address || ''})` : (currentTenant?.mainYardAddress || '본사 주기장');
 
         const deliveryId = db.generateNextId('deliveries', db.deliveries);
         db.insertRow<Delivery>('deliveries', {
           id: deliveryId,
           contractId: ticket.contractId,
           type: 'EXCHANGE',
-          dispatchCategory: '援먰솚',
+          dispatchCategory: '교환',
           status: 'PENDING',
           requestDate: new Date().toISOString().split('T')[0],
           originAddress: originYardAddress,
           pickupType: 'HQ_YARD',
-          destinationAddress: ticket.locationDetail || ticket.siteName || '?꾩옣',
+          destinationAddress: ticket.locationDetail || ticket.siteName || '현장',
           dropoffType: 'CUSTOMER_SITE',
           deliveryCost: 0,
-          memo: `[?꾩옣AS ?李??붿껌] ?뚯닔????먯궛: ${ticket.assetNo || '?꾩옣怨좎옣?λ퉬'} / ?꾩옣: ${ticket.siteName || ''} (${ticket.customerName || ''}) / ?ъ쑀: ${data.actionTaken || '?꾩옣 ?섎━遺덈뒫 ?李?}`,
+          memo: `[현장AS 대차 요청] 회수대상 자산: ${ticket.assetNo || '현장고장장비'} / 현장: ${ticket.siteName || ''} (${ticket.customerName || ''}) / 사유: ${data.actionTaken || '현장 수리불능 대차'}`,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
 
-        // ?? ?李?諛곗감 吏??ToDo 諛쒗뻾
+        // 🚀 대차 배차 지시 ToDo 발행
         await issueHandoverTask({
           category: 'DISPATCH_REQUEST',
-          title: `[?李?援먰솚 諛곗감] ${ticket.customerName || '怨좉컼??} (${ticket.assetNo || '?λ퉬'})`,
-          content: `?꾩옣 ?섎━遺덈뒫 ?李??붿껌. ?좉퇋 ?λ퉬 異쒓퀬 諛?怨좎옣 ?λ퉬 ?뚯닔 ?뺣났 1嫄?諛곗감 泥섎━. (?꾩옣: ${ticket.siteName || '-'})`,
+          title: `[대차 교환 배차] ${ticket.customerName || '고객사'} (${ticket.assetNo || '장비'})`,
+          content: `현장 수리불능 대차 요청. 신규 장비 출고 및 고장 장비 회수 왕복 1건 배차 처리. (현장: ${ticket.siteName || '-'})`,
           targetDept: 'DISPATCH',
           priority: 'URGENT',
           actionUrl: '/admin/dispatch',
@@ -4308,14 +4308,14 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         });
       }
 
-      // 4. ?먯궛 ?대젰(AssetInOutLog)???뺣퉬 ?ш굔 臾대늻??DB ???
+      // 4. 자산 이력(AssetInOutLog)에 정비 사건 무누락 DB 저장
       const targetAssetNo = ticket.assetNo;
-      if (targetAssetNo && targetAssetNo !== '?꾩옣?뺤씤' && targetAssetNo !== '?꾩껜?λ퉬') {
+      if (targetAssetNo && targetAssetNo !== '현장확인' && targetAssetNo !== '전체장비') {
         const matchedAsset = db.assets.find(a => a.assetNo === targetAssetNo);
         db.insertRow<AssetInOutLog>('assetInOutLogs', {
           assetId: matchedAsset?.id || ticket.assetId || `asset-${targetAssetNo}`,
           assetNo: targetAssetNo,
-          modelName: matchedAsset?.modelName || ticket.locationDetail || '怨좎냼?묒뾽?',
+          modelName: matchedAsset?.modelName || ticket.locationDetail || '고소작업대',
           type: 'REPAIR',
           eventDate: new Date().toISOString().split('T')[0],
           customerId: ticket.customerId,
@@ -4325,14 +4325,14 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         });
       }
 
-      // 5. 怨꾩빟 ?대젰(ContractHistory)??AS 諛쒖깮 諛?議곗튂 ?ш굔 臾대늻??DB ???(?묐갑???꾨꼍 異붿쟻??
+      // 5. 계약 이력(ContractHistory)에 AS 발생 및 조치 사건 무누락 DB 저장 (양방향 완벽 추적성)
       if (ticket.contractId) {
         db.insertRow<ContractHistory>('contract_history', {
           id: `ch-as-${ticket.id}-${Date.now()}`,
           contractId: ticket.contractId,
           changeType: 'AS_SERVICE',
           changeDate: new Date().toISOString().split('T')[0],
-          description: `[?꾩옣 AS ${finalStatus === 'COMPLETED' ? '?꾨즺' : '議곗튂'}] ${data.actionTaken} (${ticket.assetNo || '?꾩옣?λ퉬'}, ?뺣퉬?? ${mechanicName}${data.billableAmount && data.billableAmount > 0 ? `, ?좎긽?섎━鍮???{data.billableAmount.toLocaleString()}` : ''})`,
+          description: `[현장 AS ${finalStatus === 'COMPLETED' ? '완료' : '조치'}] ${data.actionTaken} (${ticket.assetNo || '현장장비'}, 정비사: ${mechanicName}${data.billableAmount && data.billableAmount > 0 ? `, 유상수리비 ₩${data.billableAmount.toLocaleString()}` : ''})`,
           createdAt: new Date().toISOString()
         });
       }
@@ -4340,12 +4340,12 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
 
-      // ?뱼 ?李??쒖븞 ??諛곗감/異쒓퀬????李④탳泥??뚮┝ 釉뚮줈?쒖틦?ㅽ듃
+      // 📢 대차 제안 시 배차/출고팀에 대차교체 알림 브로드캐스트
       if (data.exchangeSuggested) {
         broadcastWorkNotification({
           type: 'EXCHANGE',
-          title: '?李?援먯껜 ?섎ː ?깅줉',
-          body: `${ticket.customerName || '怨좉컼??} (${ticket.siteName || '?꾩옣'}) ${ticket.assetNo || '?λ퉬'} ?꾩옣?섎━遺덈뒫 ?李⑥슂泥?,
+          title: '대차 교체 의뢰 등록',
+          body: `${ticket.customerName || '고객사'} (${ticket.siteName || '현장'}) ${ticket.assetNo || '장비'} 현장수리불능 대차요청`,
           url: '/admin/dispatch',
           targetDepts: ['DISPATCH', 'YARD', 'ADMIN', 'EXECUTIVE']
         }).catch(console.warn);
@@ -4359,7 +4359,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   const createRevisitAsTicket = async (parentRepairId: string, revisitDate: string, revisitReason: string, mechanicId?: string): Promise<Repair> => {
     try {
       const parent = db.repairs.find(t => t.id === parentRepairId);
-      if (!parent) throw new Error('?댁쟾 AS ?곗폆??李얠쓣 ???놁뒿?덈떎.');
+      if (!parent) throw new Error('이전 AS 티켓을 찾을 수 없습니다.');
 
       const now = new Date();
       const ymCompact = now.toISOString().split('T')[0].replace(/-/g, '').slice(2, 8);
@@ -4396,8 +4396,8 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         reporterName: parent.reporterName,
         reporterContact: parent.reporterContact,
         issueCategory: parent.issueCategory,
-        issueDescription: `[?щ갑臾? ${revisitReason} (???묒닔: ${parent.issueDescription || parent.details})`,
-        details: `[?щ갑臾? ${revisitReason} (???묒닔: ${parent.issueDescription || parent.details})`,
+        issueDescription: `[재방문] ${revisitReason} (원 접수: ${parent.issueDescription || parent.details})`,
+        details: `[재방문] ${revisitReason} (원 접수: ${parent.issueDescription || parent.details})`,
         errorCode: parent.errorCode,
         priority: parent.priority,
         status: 'SCHEDULED',
@@ -4412,7 +4412,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         billableToCustomer: parent.billableToCustomer,
         parentRepairId: parent.id,
         parentTicketId: parent.id,
-        memo: `?곗폆 ${parent.ticketNo || parent.id}?먯꽌 ?щ갑臾??곌퀎 ?앹꽦`,
+        memo: `티켓 ${parent.ticketNo || parent.id}에서 재방문 연계 생성`,
         createdAt: now.toISOString(),
         updatedAt: now.toISOString()
       });
@@ -4427,7 +4427,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       refreshAllData();
       return newTicket;
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?щ갑臾??곗폆 ?앹꽦 ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 재방문 티켓 생성 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -4442,10 +4442,10 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       const newAssetLogs: AssetInOutLog[] = [];
 
       records.forEach((r, idx) => {
-        const site = r.site || '誘몄??뺥쁽??;
-        const asset = r.asset_no || '?꾩옣?뺤씤';
+        const site = r.site || '미지정현장';
+        const asset = r.asset_no || '현장확인';
         const reqDate = r.date || '2026-08-01';
-        const issue = r.issue || (r.raw ? r.raw.slice(0, 100) : '?먭? ?붿껌');
+        const issue = r.issue || (r.raw ? r.raw.slice(0, 100) : '점검 요청');
         const dedupeKey = `${site}_${asset}_${reqDate}_${issue.slice(0, 20)}`;
 
         if (existingRawSet.has(dedupeKey)) return;
@@ -4455,9 +4455,9 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
         const ticketNo = `BAND-${String(5518 - idx).padStart(4, '0')}`;
         const rawText = r.raw || '';
-        const isRevisit = rawText.includes('?댁씪諛⑸Ц') || rawText.includes('?щ갑臾?) || rawText.includes('諛⑸Ц?덉젙');
-        const isGuided = rawText.includes('?ㅻ챸泥섎━') || rawText.includes('?댁긽?놁쓬') || rawText.includes('臾몄젣?놁쓬');
-        const isCompleted = rawText.includes('?꾨즺') || rawText.includes('援먯껜') || rawText.includes('?섎━') || rawText.includes('蹂댁닔');
+        const isRevisit = rawText.includes('내일방문') || rawText.includes('재방문') || rawText.includes('방문예정');
+        const isGuided = rawText.includes('설명처리') || rawText.includes('이상없음') || rawText.includes('문제없음');
+        const isCompleted = rawText.includes('완료') || rawText.includes('교체') || rawText.includes('수리') || rawText.includes('보수');
 
         let status: Repair['status'] = 'COMPLETED';
         let resolutionType: Repair['resolutionType'] = 'REPAIR_DONE';
@@ -4472,22 +4472,22 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           resolutionType = 'REPAIR_DONE';
         }
 
-        let category = '湲고?';
-        if (issue.includes('諛⑹?遊?) || issue.includes('?묒갑')) category = '諛⑹?遊??묒갑';
-        else if (issue.includes('?곸듅') || issue.includes('?섍컯')) category = '?곹븯媛뺣텋??;
-        else if (issue.includes('異⑹쟾') || issue.includes('諛고꽣由?)) category = '異⑹쟾/?꾩썝';
-        else if (issue.includes('?ㅼ씪') || issue.includes('?꾩쑀')) category = '?ㅼ씪?꾩쑀';
-        else if (issue.includes('?ㅻ컯??) || issue.includes('?ㅼ뒪?꾩튂')) category = '?ㅻ컯???ㅼ쐞移?;
-        else if (issue.includes('?뚯씠??)) category = '?뚯씠?꾧구由?;
-        else if (issue.includes('?먭?')) category = '?먭??붿껌';
+        let category = '기타';
+        if (issue.includes('방지봉') || issue.includes('협착')) category = '방지봉/협착';
+        else if (issue.includes('상승') || issue.includes('하강')) category = '상하강불량';
+        else if (issue.includes('충전') || issue.includes('배터리')) category = '충전/전원';
+        else if (issue.includes('오일') || issue.includes('누유')) category = '오일누유';
+        else if (issue.includes('키박스') || issue.includes('키스위치')) category = '키박스/스위치';
+        else if (issue.includes('파이프')) category = '파이프걸림';
+        else if (issue.includes('점검')) category = '점검요청';
 
-        // ?뮕 4-A ?먯튃: 諛대뱶 ?묒꽦?????쒖뒪??users ?대쫫 1:1 ?먮룞 留ㅼ묶
+        // 💡 4-A 원칙: 밴드 작성자 ➔ 시스템 users 이름 1:1 자동 매칭
         const authorName = (r.author || '').trim();
         const matchedUser = db.users.find(u => u.name && authorName && (u.name.trim() === authorName || authorName.includes(u.name.trim())));
         const mechanicId = matchedUser?.id || '';
-        const mechanicName = matchedUser?.name || authorName || '?뺣퉬湲곗궗';
+        const mechanicName = matchedUser?.name || authorName || '정비기사';
 
-        // ?뮕 怨좉컼??諛??꾩옣 留ㅼ묶
+        // 💡 고객사 및 현장 매칭
         const contractorName = (r.contractor || '').trim();
         let matchedCustomer = db.customers.find(c => 
           c.name && contractorName && (
@@ -4504,23 +4504,23 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           )
         );
 
-        // 怨꾩빟 議고쉶 (怨좉컼/?꾩옣 湲곗?)
+        // 계약 조회 (고객/현장 기준)
         let matchedContract = db.contracts.find(c => 
           (matchedCustomer && c.customerId === matchedCustomer.id) || 
           (matchedSite && c.siteId === matchedSite.id)
         );
 
-        // ?뮕 5? 留ㅽ듃由?뒪 & ?ъ옣???뺤젙 ?먯튃 1: 愿由щ쾲??誘멸린????1? ?⑤룆 怨꾩빟?대㈃ ?대떦 ?먯궛?쇰줈 ?먮룞 異붿젙 留ㅽ븨
+        // 💡 5대 매트릭스 & 사장님 확정 원칙 1: 관리번호 미기재 시 1대 단독 계약이면 해당 자산으로 자동 추정 매핑
         let finalAssetNo = asset;
         let matchedAsset = db.assets.find(a => a.assetNo && asset && a.assetNo.trim().toUpperCase() === asset.trim().toUpperCase());
-        if (!matchedAsset && asset && asset !== '?꾩옣?뺤씤') {
+        if (!matchedAsset && asset && asset !== '현장확인') {
           const cleanNo = asset.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
           matchedAsset = db.assets.find(a => a.assetNo && a.assetNo.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === cleanNo);
         }
         let assetId = matchedAsset?.id || '';
 
         const currentContract = matchedContract;
-        if ((!finalAssetNo || finalAssetNo === '?꾩옣?뺤씤' || finalAssetNo === '?꾩껜?λ퉬') && currentContract) {
+        if ((!finalAssetNo || finalAssetNo === '현장확인' || finalAssetNo === '전체장비') && currentContract) {
           const contractAssetsForContract = db.contractAssets.filter(ca => ca.contractId === currentContract.id && ca.status !== 'RETURNED');
           if (contractAssetsForContract.length === 1 && contractAssetsForContract[0].assetId) {
             const singleAsset = db.assets.find(a => a.id === contractAssetsForContract[0].assetId);
@@ -4538,15 +4538,15 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           }
         }
 
-        // ?뙚 ?먯궛 留덉뒪??湲곗? ?꾩옣 諛?怨좉컼????텛??(Back-tracking)
+        // 🌟 자산 마스터 기준 현장 및 고객사 역추적 (Back-tracking)
         if (matchedAsset) {
-          if ((!matchedSite || !site || site === '誘몄??뺥쁽?? || site === '?쇰컲 ?꾩옣') && matchedAsset.currentSiteId) {
+          if ((!matchedSite || !site || site === '미지정현장' || site === '일반 현장') && matchedAsset.currentSiteId) {
             const foundSite = db.customerSites.find(s => s.id === matchedAsset.currentSiteId);
             if (foundSite) {
               matchedSite = foundSite;
             }
           }
-          if ((!matchedCustomer || !r.contractor || r.contractor === '?꾩옣 ?묐젰?낆껜' || r.contractor === '?묐젰?낆껜') && matchedAsset.currentCustomerId) {
+          if ((!matchedCustomer || !r.contractor || r.contractor === '현장 협력업체' || r.contractor === '협력업체') && matchedAsset.currentCustomerId) {
             const foundCust = db.customers.find(c => c.id === matchedAsset.currentCustomerId);
             if (foundCust) {
               matchedCustomer = foundCust;
@@ -4562,7 +4562,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           }
         }
 
-        const actionText = r.action || (isCompleted ? '?꾩옣 ?뺣퉬 諛?議곗튂 ?꾨즺' : (isRevisit ? '?듭씪 ?щ갑臾??묒닔' : '?ㅻ챸 諛??덈궡 醫낃껐'));
+        const actionText = r.action || (isCompleted ? '현장 정비 및 조치 완료' : (isRevisit ? '익일 재방문 접수' : '설명 및 안내 종결'));
 
         const repairRow: Repair = {
           id: `rep-band-${idx + 1}`,
@@ -4575,12 +4575,12 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           source: 'BAND_IMPORT',
           contractId: matchedContract?.id || undefined,
           customerId: matchedCustomer?.id || '',
-          customerName: matchedCustomer?.name || r.contractor || '?꾩옣 ?묐젰?낆껜',
+          customerName: matchedCustomer?.name || r.contractor || '현장 협력업체',
           siteId: matchedSite?.id || '',
           siteName: matchedSite?.name || site,
           assetId: assetId || undefined,
-          assetNo: finalAssetNo || '?꾩옣?뺤씤',
-          modelName: matchedAsset?.modelName || '怨좎냼?묒뾽?',
+          assetNo: finalAssetNo || '현장확인',
+          modelName: matchedAsset?.modelName || '고소작업대',
           locationDetail: r.location || '',
           reporterContact: r.contact || '',
           issueCategory: category,
@@ -4600,26 +4600,26 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           billableType: 'FREE',
           billableAmount: 0,
           billableToCustomer: false,
-          memo: `[諛대뱶 怨쇨굅?대젰 ?먮룞 ?꾪룷??\n?묒꽦?? ${authorName || '湲곗궗'}\n?먮Ц: ${rawText.slice(0, 150)}`,
+          memo: `[밴드 과거이력 자동 임포트]\n작성자: ${authorName || '기사'}\n원문: ${rawText.slice(0, 150)}`,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         };
 
         newRepairs.push(repairRow);
 
-        // ?뮕 ?먯궛 ?앹븷二쇨린 ?대젰 濡쒓렇(AssetInOutLog) ?숈떆 湲곕줉 (愿由щ쾲?멸? ?앸퀎?섎뒗 ?λ퉬)
-        if (finalAssetNo && finalAssetNo !== '?꾩옣?뺤씤' && finalAssetNo !== '?꾩껜?λ퉬') {
+        // 💡 자산 생애주기 이력 로그(AssetInOutLog) 동시 기록 (관리번호가 식별되는 장비)
+        if (finalAssetNo && finalAssetNo !== '현장확인' && finalAssetNo !== '전체장비') {
           newAssetLogs.push({
             id: `aiog-band-${idx + 1}`,
             assetId: assetId || `asset-${finalAssetNo}`,
             assetNo: finalAssetNo,
-            modelName: matchedAsset?.modelName || '怨좎냼?묒뾽?',
+            modelName: matchedAsset?.modelName || '고소작업대',
             type: 'REPAIR',
             eventDate: reqDate,
             customerName: repairRow.customerName,
             siteName: repairRow.siteName,
             repairId: repairRow.id,
-            memo: `[?꾩옣AS] ${issue} ??${actionText} (?뺣퉬?? ${mechanicName})`,
+            memo: `[현장AS] ${issue} ➔ ${actionText} (정비자: ${mechanicName})`,
             createdAt: new Date().toISOString()
           });
         }
@@ -4636,7 +4636,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
       return importedCount;
     } catch (err: any) {
-      showErrorModal(`?좑툘 諛대뱶 ?곗씠??媛?몄삤湲??ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 밴드 데이터 가져오기 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -4660,17 +4660,17 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       sellerName: data.sellerName,
       status: 'REQUESTED',
       requesterId: validUserId,
-      requesterName: currentUser?.name || '?쒖뒪??,
+      requesterName: currentUser?.name || '시스템',
       receivedQty: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
 
-    // ?? [?⑥씪 ?낅Т ?멸퀎 ?뚯씠?꾨씪?? 愿由ъ옄/遺?쒖옣?먭쾶 援щℓ 寃곗옱 ToDo 諛쒗뻾
+    // 🚀 [단일 업무 인계 파이프라인] 관리자/부서장에게 구매 결재 ToDo 발행
     await issueHandoverTask({
       category: 'CONSUMABLE_PURCHASE_APPROVAL',
-      title: `[?뚮え??援щℓ ?뱀씤] ${data.modelName} (${data.qty}EA)`,
-      content: `援щℓ ?붿껌: ${data.modelName} ${data.qty}媛?(?④?: ??{data.unitPrice.toLocaleString()}?? 怨듦툒泥? ${data.sellerName})`,
+      title: `[소모품 구매 승인] ${data.modelName} (${data.qty}EA)`,
+      content: `구매 요청: ${data.modelName} ${data.qty}개 (단가: ₩${data.unitPrice.toLocaleString()}원, 공급처: ${data.sellerName})`,
       targetRole: 'MANAGER',
       priority: data.unitPrice * data.qty >= 1000000 ? 'HIGH' : 'NORMAL',
       actionUrl: '/admin/consumable',
@@ -4690,11 +4690,11 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       status: 'ACCEPTED',
       acceptedDate: new Date().toISOString().split('T')[0],
       accepterId: validUserId,
-      accepterName: currentUser?.name || '?쒖뒪??,
+      accepterName: currentUser?.name || '시스템',
       updatedAt: new Date().toISOString()
     });
 
-    // ?윟 援щℓ 寃곗옱 ToDo ?먮룞 ?곴퀎
+    // 🟢 구매 결재 ToDo 자동 상계
     await clearHandoverTasks({
       entityType: 'CONSUMABLE',
       entityId: id,
@@ -4718,32 +4718,32 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     const effectiveQty = (req.receivedQty && req.receivedQty > 0) ? req.receivedQty : req.requestedQty;
     const totalAmount = effectiveQty * (req.unitPrice || 0);
 
-    // 1. ?붾쭚 留ㅼ엯 ?뺤궛 留덉뒪???덉퐫??(PurchaseSettlement) ?앹꽦
+    // 1. 월말 매입 정산 마스터 레코드 (PurchaseSettlement) 생성
     const settlementId = db.generateNextId('purchaseSettlements', db.purchaseSettlements);
     const settlement = db.insertRow<PurchaseSettlement>('purchaseSettlements', {
       id: settlementId,
       settlementYm,
       settlementType: 'CONSUMABLE',
-      vendorName: req.sellerName || '?뚮え??怨듦툒泥?,
+      vendorName: req.sellerName || '소모품 공급처',
       totalAmount,
       paidAmount: 0,
       status: 'CONFIRMED',
       confirmedAt: nowIso,
-      confirmedBy: currentUser?.name || req.requesterName || '援щℓ?좎껌??,
+      confirmedBy: currentUser?.name || req.requesterName || '구매신청자',
       itemCount: 1,
-      memo: `[?뚮え??援щℓ?꾧껐] ${req.modelName} ${effectiveQty}媛?(?좎껌?? ${req.requesterName || currentUser?.name || '?대떦??})`,
+      memo: `[소모품 구매완결] ${req.modelName} ${effectiveQty}개 (신청자: ${req.requesterName || currentUser?.name || '담당자'})`,
       createdAt: nowIso,
       updatedAt: nowIso
     });
 
-    // 2. ?붾쭚 留ㅼ엯 ?뺤궛 1:1 ?곸꽭 ??ぉ (PurchaseSettlementItem) ?앹꽦
+    // 2. 월말 매입 정산 1:1 상세 항목 (PurchaseSettlementItem) 생성
     const settlementItemId = db.generateNextId('purchaseSettlementItems', db.purchaseSettlementItems);
     db.insertRow<PurchaseSettlementItem>('purchaseSettlementItems', {
       id: settlementItemId,
       settlementId: settlement.id,
       sourceType: 'CONSUMABLE_PURCHASE',
       sourceId: req.id,
-      itemDescription: `${req.modelName} 횞 ${effectiveQty}媛?(${req.requestDate || todayStr})`,
+      itemDescription: `${req.modelName} × ${effectiveQty}개 (${req.requestDate || todayStr})`,
       quantity: effectiveQty,
       unitPrice: req.unitPrice || 0,
       amount: totalAmount,
@@ -4751,11 +4751,11 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       createdAt: nowIso
     });
 
-    // 3. ?뚮え??援щℓ?좎껌 ?꾧껐 ?곹깭 諛??곌퀎 ?뺤궛 ID ?낅뜲?댄듃
+    // 3. 소모품 구매신청 완결 상태 및 연계 정산 ID 업데이트
     db.updateRow<ConsumablePurchaseRequest>('consumablePurchases', id, {
       status: 'COMPLETED',
       completedDate: todayStr,
-      completerName: currentUser?.name || '援щℓ?좎껌??,
+      completerName: currentUser?.name || '구매신청자',
       settlementId: settlement.id,
       updatedAt: nowIso
     });
@@ -4773,7 +4773,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     db.updateRow<ConsumablePurchaseRequest>('consumablePurchases', id, {
       receivedQty: nextReceivedQty,
       statementFileUrl,
-      inbounderName: currentUser?.name || '?쒖뒪??,
+      inbounderName: currentUser?.name || '시스템',
       updatedAt: new Date().toISOString()
     });
 
@@ -4793,13 +4793,13 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       consumable = db.insertRow<Consumable>('consumables', {
         modelName: req.modelName,
         stockQty: qty,
-        unit: '媛?,
+        unit: '개',
         unitPrice: req.unitPrice,
         supplier: req.sellerName,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
-      // ?좑툘 FK(Foreign Key) ?꾨컲 諛⑹?: consumables 留덉뒪???앹꽦???먭꺽 DB??癒쇱? 諛섏쁺?섎룄濡?1李??숆린 ?湲?
+      // ⚠️ FK(Foreign Key) 위반 방지: consumables 마스터 생성이 원격 DB에 먼저 반영되도록 1차 동기 대기
       try {
         await db.awaitPendingWrites();
       } catch (e) {
@@ -4818,7 +4818,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       supplier: req.sellerName,
       userId: getValidUserId(currentUser?.id),
       actionDate: new Date().toISOString().split('T')[0],
-      description: `援щℓ?좎껌 ?곌퀎 ?낃퀬 (利앸튃: ${statementFileUrl.split('/').pop()})`,
+      description: `구매신청 연계 입고 (증빙: ${statementFileUrl.split('/').pop()})`,
       createdAt: new Date().toISOString()
     });
 
@@ -4826,7 +4826,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     refreshAllData();
   };
 
-  // 利앸튃 ?뚯씪 Storage ??젣 ??DB URL 珥덇린??
+  // 증빙 파일 Storage 삭제 후 DB URL 초기화
   const clearEvidenceFileUrls = async (ids: string[]): Promise<void> => {
     for (const id of ids) {
       db.updateRow<ConsumablePurchaseRequest>('consumablePurchases', id, { statementFileUrl: '' });
@@ -4835,7 +4835,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     refreshAllData();
   };
 
-  // Storage ??젣 ??Drive URL濡?援먯껜
+  // Storage 삭제 후 Drive URL로 교체
   const updateEvidenceFileUrls = async (updates: { id: string; url: string }[]): Promise<void> => {
     for (const { id, url } of updates) {
       db.updateRow<ConsumablePurchaseRequest>('consumablePurchases', id, { statementFileUrl: url });
@@ -4847,8 +4847,8 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   const createContract = async (contractData: Omit<Contract, 'id' | 'createdAt' | 'updatedAt' | 'contractNo'>, assetsList: { assetId?: string; expectedModel?: string; monthlyRentalFee: number; dailyRentalFee: number }[]): Promise<Contract> => {
     const customer = db.customers.find(c => c.id === contractData.customerId);
     if (customer && customer.transactionStatus === 'BLOCKED') {
-      showErrorModal('?좑툘 ?대떦 怨좉컼?щ뒗 [嫄곕옒遺덇?] ?곹깭濡??ㅼ젙?섏뼱 ?덉뼱 ?좉퇋 怨꾩빟 ?깅줉??遺덇??ν빀?덈떎.', '怨꾩빟 ?깅줉 ?쒗븳');
-      throw new Error('嫄곕옒 遺덇? 怨좉컼?ъ엯?덈떎.');
+      showErrorModal('⚠️ 해당 고객사는 [거래불가] 상태로 설정되어 있어 신규 계약 등록이 불가능합니다.', '계약 등록 제한');
+      throw new Error('거래 불가 고객사입니다.');
     }
 
     const contractNo = generateNextContractNo(contractData.startDate);
@@ -4864,7 +4864,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       updatedAt: new Date().toISOString()
     });
 
-    // ?좑툘 ?몃옒??Foreign Key) ?쒖빟議곌굔 ?꾨컲 諛⑹?: contract媛 Supabase ?먭꺽 DB??癒쇱? 100% ?앹꽦?섎룄濡?1李??숆린 ?湲?
+    // ⚠️ 외래키(Foreign Key) 제약조건 위반 방지: contract가 Supabase 원격 DB에 먼저 100% 생성되도록 1차 동기 대기!
     try {
       await db.awaitPendingWrites();
     } catch (err: any) {
@@ -4887,7 +4887,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
       if (item.assetId) {
         db.updateRow<Asset>('assets', item.assetId, {
-          // ?뮕 ?뚯옣 1.3 以?? 怨꾩빟 泥닿껐 ?쒖젏?먮뒗 RENTED(??ъ쨷)濡?蹂寃쏀븯吏 ?딄퀬 ASSIGNED(異쒓퀬?湲? ?좎?, 異쒓퀬 寃???뱀씤 留덇컧 ?쒖젏??RENTED濡??꾩씠??
+          // 💡 헌장 1.3 준수: 계약 체결 시점에는 RENTED(대여중)로 변경하지 않고 ASSIGNED(출고대기) 유지, 출고 검수 승인 마감 시점에 RENTED로 전이됨!
           status: 'ASSIGNED',
           currentCustomerId: contractData.customerId,
           currentSiteId: contractData.siteId,
@@ -4897,7 +4897,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           dailyRentalFee: item.dailyRentalFee,
           updatedAt: nowIso
         });
-        // ??怨좎븘 ?덉퐫??諛⑹?: assetId媛 ?덈뒗 ?щ’ ?앹꽦 ??異쒓퀬寃???섎ː ?먮룞 ?곕룞 ?앹꽦
+        // ✅ 고아 레코드 방지: assetId가 있는 슬롯 생성 시 출고검수 의뢰 자동 연동 생성
         db.insertRow<OutboundInspection>('outboundInspections', {
           contractId: contract.id,
           contractAssetId: insertedCA.id,
@@ -4909,12 +4909,12 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       }
     });
 
-    db.insertRow<ContractHistory>({
+    db.insertRow<ContractHistory>('contractHistory', {
       contractId: contract.id,
       changeType: 'REGISTER',
       changeDate: new Date().toISOString().split('T')[0],
       newEndDate: contractData.endDate,
-      description: '怨꾩빟 ?좉퇋 ?깅줉',
+      description: '계약 신규 등록',
       createdAt: new Date().toISOString()
     });
 
@@ -4922,17 +4922,17 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     db.insertRow<Delivery>('deliveries', {
       contractId: contract.id,
       type: 'OUTBOUND',
-      dispatchCategory: '異쒓퀬',
+      dispatchCategory: '출고',
       status: 'REQUESTED',
       requestDate: today,
       loadingDate: today,
-      loadingTimeSlot: '?ㅼ쟾',
+      loadingTimeSlot: '오전',
       unloadingDate: today,
-      unloadingTimeSlot: '?ㅼ쟾',
+      unloadingTimeSlot: '오전',
       deliveryCost: 0,
       isCostSettled: false,
-      memo: '?좉퇋 怨꾩빟 泥닿껐???곕Ⅸ 異쒓퀬 ?섎ː',
-      closingMemo: '異쒓퀬 ?뚯씠?꾨씪???먮룞 吏?쒓굔',
+      memo: '신규 계약 체결에 따른 출고 의뢰',
+      closingMemo: '출고 파이프라인 자동 지시건',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
@@ -4945,15 +4945,15 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   const extendContract = async (contractId: string, newEndDate: string, description: string) => {
     const contract = db.contracts.find(c => c.id === contractId);
     if (!contract) {
-      showErrorModal('怨꾩빟 ?뺣낫瑜?李얠쓣 ???놁뒿?덈떎.');
+      showErrorModal('계약 정보를 찾을 수 없습니다.');
       return;
     }
     if (!newEndDate) {
-      showErrorModal('?곗옣 醫낅즺?쇱쓣 ?낅젰?섏떗?쒖삤.');
+      showErrorModal('연장 종료일을 입력하십시오.');
       return;
     }
     if (contract.startDate && newEndDate < contract.startDate) {
-      showErrorModal(`?곗옣 醫낅즺??${newEndDate})? 怨꾩빟 ?쒖옉??${contract.startDate}) ?댄썑?ъ빞 ?⑸땲??`);
+      showErrorModal(`연장 종료일(${newEndDate})은 계약 시작일(${contract.startDate}) 이후여야 합니다.`);
       return;
     }
 
@@ -4976,13 +4976,13 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       }
     });
 
-    db.insertRow<ContractHistory>({
+    db.insertRow<ContractHistory>('contractHistory', {
       contractId,
       changeType: 'EXTEND',
       changeDate: new Date().toISOString().split('T')[0],
       prevEndDate: prevEnd,
       newEndDate,
-      description: `怨꾩빟 ?곗옣 泥섎━: ${description}`,
+      description: `계약 연장 처리: ${description}`,
       createdAt: new Date().toISOString()
     });
 
@@ -4993,15 +4993,15 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   const shortenContract = async (contractId: string, newEndDate: string, description: string) => {
     const contract = db.contracts.find(c => c.id === contractId);
     if (!contract) {
-      showErrorModal('怨꾩빟 ?뺣낫瑜?李얠쓣 ???놁뒿?덈떎.');
+      showErrorModal('계약 정보를 찾을 수 없습니다.');
       return;
     }
     if (!newEndDate) {
-      showErrorModal('?⑥텞 醫낅즺?쇱쓣 ?낅젰?섏떗?쒖삤.');
+      showErrorModal('단축 종료일을 입력하십시오.');
       return;
     }
     if (contract.startDate && newEndDate < contract.startDate) {
-      showErrorModal(`?⑥텞 醫낅즺??${newEndDate})? 怨꾩빟 ?쒖옉??${contract.startDate}) ?댄썑?ъ빞 ?⑸땲??`);
+      showErrorModal(`단축 종료일(${newEndDate})은 계약 시작일(${contract.startDate}) 이후여야 합니다.`);
       return;
     }
 
@@ -5024,13 +5024,13 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       }
     });
 
-    db.insertRow<ContractHistory>({
+    db.insertRow<ContractHistory>('contractHistory', {
       contractId,
       changeType: 'SHORTEN',
       changeDate: new Date().toISOString().split('T')[0],
       prevEndDate: prevEnd,
       newEndDate,
-      description: `怨꾩빟 ?⑥텞 泥섎━: ${description}`,
+      description: `계약 단축 처리: ${description}`,
       createdAt: new Date().toISOString()
     });
 
@@ -5042,7 +5042,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       scheduledDate: newEndDate,
       deliveryCost: 0,
       isCostSettled: false,
-      memo: '怨꾩빟 議곌린 ?⑥텞/留뚮즺???곕Ⅸ ?뚯닔 ?섎ː',
+      memo: '계약 조기 단축/만료에 따른 회수 의뢰',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
@@ -5054,32 +5054,32 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   const succeedContract = async (contractId: string, successorCustomerId: string, successorContactId: string, successorSiteId: string, successionDate: string, description: string, selectedAssetIds?: string[]) => {
     const oldContract = db.contracts.find(c => c.id === contractId);
     if (!oldContract) {
-      showErrorModal('?밴퀎 ???怨꾩빟??李얠쓣 ???놁뒿?덈떎.');
+      showErrorModal('승계 대상 계약을 찾을 수 없습니다.');
       return;
     }
     if (!successionDate) {
-      showErrorModal('?밴퀎?쇱옄瑜??낅젰?섏떗?쒖삤.');
+      showErrorModal('승계일자를 입력하십시오.');
       return;
     }
     if (oldContract.startDate && successionDate < oldContract.startDate) {
-      showErrorModal(`?밴퀎?쇱옄(${successionDate})??湲곗〈 怨꾩빟 ?쒖옉??${oldContract.startDate}) ?댄썑?ъ빞 ?⑸땲??`);
+      showErrorModal(`승계일자(${successionDate})는 기존 계약 시작일(${oldContract.startDate}) 이후여야 합니다.`);
       return;
     }
-    if (oldContract.endDate && oldContract.endDate !== '誘몄젙' && successionDate > oldContract.endDate) {
-      showErrorModal(`?밴퀎?쇱옄(${successionDate})??湲곗〈 怨꾩빟 留뚮즺??${oldContract.endDate}) ?댁쟾?댁뼱???⑸땲??`);
+    if (oldContract.endDate && oldContract.endDate !== '미정' && successionDate > oldContract.endDate) {
+      showErrorModal(`승계일자(${successionDate})는 기존 계약 만료일(${oldContract.endDate}) 이전이어야 합니다.`);
       return;
     }
 
     const successorCust = db.customers.find(c => c.id === successorCustomerId);
     if (successorCust?.transactionStatus === 'BLOCKED') {
-      showErrorModal(`?몄닔 怨좉컼??${successorCust.name})??嫄곕옒?쒗븳(異쒓퀬李⑤떒) ?곹깭?대?濡?怨꾩빟???밴퀎?????놁뒿?덈떎.`);
+      showErrorModal(`인수 고객사(${successorCust.name})는 거래제한(출고차단) 상태이므로 계약을 승계할 수 없습니다.`);
       return;
     }
 
     const oldEndDate = oldContract.endDate;
     
     const allCAssets = db.contractAssets.filter(ca => ca.contractId === contractId);
-    // Feature 5: selectedAssetIds媛 吏?뺣맂 寃쎌슦 ?좏깮???먯궛留??밴퀎, ?놁쑝硫??꾩껜
+    // Feature 5: selectedAssetIds가 지정된 경우 선택된 자산만 승계, 없으면 전체
     const assetsToSucceed = selectedAssetIds && selectedAssetIds.length > 0
       ? allCAssets.filter(ca => selectedAssetIds.includes(ca.id))
       : allCAssets;
@@ -5089,7 +5089,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
     const nowIsoForUpdate = new Date().toISOString();
 
-    // ?꾩껜 ?밴퀎 ????怨꾩빟 ?⑥텞, 遺遺??밴퀎 ???붿뿬 ?먯궛 湲곗? maxRemainingEndDate 怨꾩궛
+    // 전체 승계 시 원 계약 단축, 부분 승계 시 잔여 자산 기준 maxRemainingEndDate 계산
     if (assetsToRetain.length === 0) {
       db.updateRow<Contract>('contracts', contractId, {
         endDate: successionDate,
@@ -5097,10 +5097,10 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         updatedAt: nowIsoForUpdate
       });
     } else {
-      const hasUndefinedOrMijeong = assetsToRetain.some(ca => !ca.endDate || ca.endDate === '誘몄젙');
-      let maxRemainingEndDate = '誘몄젙';
+      const hasUndefinedOrMijeong = assetsToRetain.some(ca => !ca.endDate || ca.endDate === '미정');
+      let maxRemainingEndDate = '미정';
       if (!hasUndefinedOrMijeong) {
-        maxRemainingEndDate = assetsToRetain.map(ca => ca.endDate).filter(Boolean).sort().pop() || '誘몄젙';
+        maxRemainingEndDate = assetsToRetain.map(ca => ca.endDate).filter(Boolean).sort().pop() || '미정';
       }
       db.updateRow<Contract>('contracts', contractId, {
         endDate: maxRemainingEndDate,
@@ -5113,15 +5113,15 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       db.updateRow<ContractAsset>('contractAssets', ca.id, { endDate: successionDate });
     });
 
-    db.insertRow<ContractHistory>({
+    db.insertRow<ContractHistory>('contractHistory', {
       contractId,
       changeType: 'SHORTEN',
       changeDate: successionDate,
       prevEndDate: oldEndDate,
       newEndDate: successionDate,
       description: assetsToRetain.length > 0
-        ? `怨꾩빟 遺遺??밴퀎 ?댁쟾 (${assetsToSucceed.length}? ?밴퀎, ${assetsToRetain.length}? ?붾쪟)`
-        : `怨꾩빟 ?밴퀎 ?댁쟾(? 怨좉컼 ?몄닔)???곕Ⅸ ?⑥텞 ?꾨즺`,
+        ? `계약 부분 승계 이전 (${assetsToSucceed.length}대 승계, ${assetsToRetain.length}대 잔류)`
+        : `계약 승계 이전(타 고객 인수)에 따른 단축 완료`,
       createdAt: new Date().toISOString()
     });
 
@@ -5130,7 +5130,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
     const nextDay = new Date(new Date(successionDate).getTime() + 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    // ?뮕 [?⑥씪 怨꾩빟 ?먯튃 以?? ?묒닔 怨좉컼??+ ?대떦 ?꾩옣??湲곗〈 ?쒖꽦 怨꾩빟 ?먯깋
+    // 💡 [단일 계약 원칙 준수] 양수 고객사 + 해당 현장의 기존 활성 계약 탐색
     const existingTargetContract = db.contracts.find(c =>
       c.customerId === successorCustomerId &&
       c.siteId === successorSiteId &&
@@ -5143,9 +5143,9 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     if (existingTargetContract) {
       targetContract = existingTargetContract;
       isTargetExisting = true;
-      // 留뚯빟 ?밴퀎 ????먯궛??醫낅즺?쇱씠 湲곗〈 怨꾩빟 留뚮즺?쇰낫??湲몃떎硫?遺紐?怨꾩빟 留뚮즺???숈쟻 ?뺤옣
+      // 만약 승계 대상 자산의 종료일이 기존 계약 만료일보다 길다면 부모 계약 만료일 동적 확장
       const currentTargetEnd = targetContract.endDate;
-      if (currentTargetEnd && oldEndDate && (currentTargetEnd === '誘몄젙' || oldEndDate > currentTargetEnd)) {
+      if (currentTargetEnd && oldEndDate && (currentTargetEnd === '미정' || oldEndDate > currentTargetEnd)) {
         db.updateRow<Contract>('contracts', targetContract.id, {
           endDate: oldEndDate,
           updatedAt: new Date().toISOString()
@@ -5173,11 +5173,11 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
-      // ?좑툘 ?몃옒???쒖빟議곌굔 諛⑹?: contract媛 Supabase???앹꽦?섎룄濡??湲?
+      // ⚠️ 외래키 제약조건 방지: contract가 Supabase에 생성되도록 대기
       await db.awaitPendingWrites();
     }
 
-    // ?꾩껜 ?밴퀎 ?쒖뿉留???怨꾩빟??SUCCEEDED濡?mark (遺遺??밴퀎 ????怨꾩빟 ACTIVE ?좎?)
+    // 전체 승계 시에만 원 계약을 SUCCEEDED로 mark (부분 승계 시 원 계약 ACTIVE 유지)
     if (assetsToRetain.length === 0) {
       db.updateRow<Contract>('contracts', contractId, {
         successorContractId: targetContract.id,
@@ -5210,7 +5210,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           updatedAt: nowIsoSucceed
         });
 
-        // ??怨좎븘 ?덉퐫??諛⑹?: ASSIGNED(異쒓퀬?湲? ?곹깭 ?먯궛 ?밴퀎 ???좉퇋 怨꾩빟 湲곗? 異쒓퀬寃???섎ː ?앹꽦
+        // ✅ 고아 레코드 방지: ASSIGNED(출고대기) 상태 자산 승계 시 신규 계약 기준 출고검수 의뢰 생성
         const asset = db.assets.find(a => a.id === ca.assetId);
         if (asset && asset.status === 'ASSIGNED') {
           db.insertRow<OutboundInspection>('outboundInspections', {
@@ -5225,14 +5225,14 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       }
     });
 
-    db.insertRow<ContractHistory>({
+    db.insertRow<ContractHistory>('contractHistory', {
       contractId: targetContract.id,
       changeType: 'REGISTER',
       changeDate: successionDate,
       newEndDate: oldEndDate,
       description: isTargetExisting
-        ? `怨꾩빟 ?밴퀎 湲곗〈怨꾩빟 ?몄엯 ?꾨즺 (?댁쟾 怨꾩빟踰덊샇: ${oldContract.contractNo}): ${description}`
-        : `怨꾩빟 ?밴퀎 ?좉퇋怨꾩빟 ?몄닔 ?꾨즺 (?댁쟾 怨꾩빟踰덊샇: ${oldContract.contractNo}): ${description}`,
+        ? `계약 승계 기존계약 편입 완료 (이전 계약번호: ${oldContract.contractNo}): ${description}`
+        : `계약 승계 신규계약 인수 완료 (이전 계약번호: ${oldContract.contractNo}): ${description}`,
       createdAt: new Date().toISOString()
     });
 
@@ -5240,7 +5240,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     refreshAllData();
   };
 
-  // Feature 6) ?숈씪 怨좉컼 ?꾩옣媛??λ퉬 ?대룞 (Site Transfer / Relocation)
+  // Feature 6) 동일 고객 현장간 장비 이동 (Site Transfer / Relocation)
   const relocateContractAsset = async (params: {
     contractAssetId: string;
     targetSiteId: string;
@@ -5254,43 +5254,43 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
     const sourceCA = db.contractAssets.find(ca => ca.id === contractAssetId);
     if (!sourceCA) {
-      showErrorModal('?대룞 ???泥닿껐 ?먯궛 ?щ’??李얠쓣 ???놁뒿?덈떎.');
+      showErrorModal('이동 대상 체결 자산 슬롯을 찾을 수 없습니다.');
       return;
     }
 
     const sourceContract = db.contracts.find(c => c.id === sourceCA.contractId);
     if (!sourceContract) {
-      showErrorModal('??怨꾩빟 ?뺣낫瑜?李얠쓣 ???놁뒿?덈떎.');
+      showErrorModal('원 계약 정보를 찾을 수 없습니다.');
       return;
     }
 
     if (sourceContract.siteId === targetSiteId) {
-      showErrorModal('?꾩옱 ?꾩옣怨??숈씪???꾩옣?쇰줈???대룞?????놁뒿?덈떎.');
+      showErrorModal('현재 현장과 동일한 현장으로는 이동할 수 없습니다.');
       return;
     }
 
     if (!relocationDate) {
-      showErrorModal('?꾩옣 ?대룞 ?쇱옄瑜??낅젰?섏떗?쒖삤.');
+      showErrorModal('현장 이동 일자를 입력하십시오.');
       return;
     }
 
     if (sourceCA.startDate && relocationDate < sourceCA.startDate) {
-      showErrorModal(`?대룞?쇱옄(${relocationDate})???λ퉬 怨꾩빟 ?쒖옉??${sourceCA.startDate}) ?댄썑?ъ빞 ?⑸땲??`);
+      showErrorModal(`이동일자(${relocationDate})는 장비 계약 시작일(${sourceCA.startDate}) 이후여야 합니다.`);
       return;
     }
 
     const asset = sourceCA.assetId ? db.assets.find(a => a.id === sourceCA.assetId) : null;
-    const assetNo = asset?.assetNo || '?λ퉬';
-    const modelName = asset?.modelName || sourceCA.expectedModel || '怨좎냼?묒뾽?';
+    const assetNo = asset?.assetNo || '장비';
+    const modelName = asset?.modelName || sourceCA.expectedModel || '고소작업대';
     const sourceSite = db.sites.find(s => s.id === sourceContract.siteId);
     const targetSite = db.sites.find(s => s.id === targetSiteId);
-    const sourceSiteName = sourceSite?.name || '1?꾩옣';
-    const targetSiteName = targetSite?.name || '2?꾩옣';
+    const sourceSiteName = sourceSite?.name || '1현장';
+    const targetSiteName = targetSite?.name || '2현장';
     const oldEndDate = sourceCA.endDate;
 
     const nowIso = new Date().toISOString();
 
-    // 0. ?좎쭨 蹂댁〈: 1?꾩옣? ?대룞???뱀씪源뚯? 泥?뎄(醫낅즺), 2?꾩옣? ?대룞 ?ㅼ쓬 ?좊???媛쒖떆 (??씪 怨듬갚/以묐났 0??
+    // 0. 날짜 보존: 1현장은 이동일 당일까지 청구(종료), 2현장은 이동 다음 날부터 개시 (역일 공백/중복 0일)
     const getNextDate = (dStr: string): string => {
       const d = new Date(dStr);
       d.setDate(d.getDate() + 1);
@@ -5298,23 +5298,23 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     };
     const relocationStartDate = getNextDate(relocationDate);
 
-    // 1. 1?꾩옣(異쒕컻 怨꾩빟): ?대떦 contractAsset??endDate瑜?relocationDate濡??⑥텞 留덇컧
+    // 1. 1현장(출발 계약): 해당 contractAsset의 endDate를 relocationDate로 단축 마감
     db.updateRow<ContractAsset>('contractAssets', sourceCA.id, {
       endDate: relocationDate
     });
 
-    // 1?꾩옣 怨꾩빟 ?대젰??[?꾩옣 ?대룞 異쒓퀬] 湲곕줉
-    db.insertRow<ContractHistory>({
+    // 1현장 계약 이력에 [현장 이동 출고] 기록
+    db.insertRow<ContractHistory>('contractHistory', {
       contractId: sourceContract.id,
       changeType: 'SHORTEN',
       changeDate: relocationDate,
       prevEndDate: oldEndDate,
       newEndDate: relocationDate,
-      description: `?λ퉬 [${assetNo} / ${modelName}] ?꾩옣媛??대룞 異쒓퀬 (?꾩갑吏: ${targetSiteName}, ?대룞?? ${relocationDate})${reason ? ' - ?ъ쑀: ' + reason : ''}`,
+      description: `장비 [${assetNo} / ${modelName}] 현장간 이동 출고 (도착지: ${targetSiteName}, 이동일: ${relocationDate})${reason ? ' - 사유: ' + reason : ''}`,
       createdAt: nowIso
     });
 
-    // 1?꾩옣???ㅻⅨ ?쒖꽦 ?먯궛 ?붿뿬 ?щ? 寃??(?⑥씪 ?λ퉬 怨꾩빟 ??遺紐?怨꾩빟 COMPLETED 醫낃껐 泥섎━)
+    // 1현장에 다른 활성 자산 잔여 여부 검사 (단일 장비 계약 시 부모 계약 COMPLETED 종결 처리)
     const remainingSourceCAs = db.contractAssets.filter(ca =>
       ca.contractId === sourceContract.id &&
       ca.id !== sourceCA.id &&
@@ -5337,7 +5337,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       }
     }
 
-    // 2. 2?꾩옣(?꾩갑 怨꾩빟): ?숈씪 怨좉컼 + targetSiteId???쒖꽦 怨꾩빟 ?먯깋
+    // 2. 2현장(도착 계약): 동일 고객 + targetSiteId의 활성 계약 탐색
     const existingTargetContract = db.contracts.find(c =>
       c.customerId === sourceContract.customerId &&
       c.siteId === targetSiteId &&
@@ -5349,8 +5349,8 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
     if (existingTargetContract) {
       destinationContract = existingTargetContract;
-      // 遺紐?怨꾩빟 留뚮즺?쇱씠 ?댁쟾???먯궛蹂대떎 吏㏃쑝硫??뺤옣
-      if (oldEndDate && destinationContract.endDate && destinationContract.endDate !== '誘몄젙' && oldEndDate > destinationContract.endDate) {
+      // 부모 계약 만료일이 이전된 자산보다 짧으면 확장
+      if (oldEndDate && destinationContract.endDate && destinationContract.endDate !== '미정' && oldEndDate > destinationContract.endDate) {
         db.updateRow<Contract>('contracts', destinationContract.id, {
           endDate: oldEndDate,
           updatedAt: nowIso
@@ -5377,11 +5377,11 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         createdAt: nowIso,
         updatedAt: nowIso
       });
-      // ?좑툘 ?몃옒???쒖빟議곌굔 諛⑹?: contract媛 Supabase???앹꽦?섎룄濡??湲?
+      // ⚠️ 외래키 제약조건 방지: contract가 Supabase에 생성되도록 대기
       await db.awaitPendingWrites();
     }
 
-    // 3. 2?꾩옣 怨꾩빟??contractAssets ?щ’ ?좉퇋 ?쎌엯 (?대룞 ?듭씪遺???쒖옉, ?④? 諛?議곌굔 100% ?먮룞 ?곸냽 - ?뚯옣 2.2)
+    // 3. 2현장 계약에 contractAssets 슬롯 신규 삽입 (이동 익일부터 시작, 단가 및 조건 100% 자동 상속 - 헌장 2.2)
     db.insertRow<ContractAsset>('contractAssets', {
       contractId: destinationContract.id,
       assetId: sourceCA.assetId,
@@ -5392,19 +5392,19 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       createdAt: nowIso
     });
 
-    // 4. 2?꾩옣 怨꾩빟 ?대젰??[?꾩옣 ?대룞 ?꾩엯] 湲곕줉
-    db.insertRow<ContractHistory>({
+    // 4. 2현장 계약 이력에 [현장 이동 전입] 기록
+    db.insertRow<ContractHistory>('contractHistory', {
       contractId: destinationContract.id,
       changeType: 'REGISTER',
       changeDate: relocationStartDate,
       newEndDate: oldEndDate,
       description: isNewDestinationContract
-        ? `?좉퇋 怨꾩빟 ?앹꽦 - ?꾩옣 ?대룞 ?꾩엯 (異쒕컻吏: ${sourceSiteName}, ?댁쟾 怨꾩빟: ${sourceContract.contractNo}, ?λ퉬: ${assetNo})`
-        : `湲곗〈 怨꾩빟 ?몄엯 - ?꾩옣 ?대룞 ?꾩엯 (異쒕컻吏: ${sourceSiteName}, ?댁쟾 怨꾩빟: ${sourceContract.contractNo}, ?λ퉬: ${assetNo})`,
+        ? `신규 계약 생성 - 현장 이동 전입 (출발지: ${sourceSiteName}, 이전 계약: ${sourceContract.contractNo}, 장비: ${assetNo})`
+        : `기존 계약 편입 - 현장 이동 전입 (출발지: ${sourceSiteName}, 이전 계약: ${sourceContract.contractNo}, 장비: ${assetNo})`,
       createdAt: nowIso
     });
 
-    // 5. ?먯궛 留덉뒪??(assets): currentSiteId 2?꾩옣?쇰줈 ?숆린??& contractEnd 媛깆떊
+    // 5. 자산 마스터 (assets): currentSiteId 2현장으로 동기화 & contractEnd 갱신
     if (sourceCA.assetId) {
       db.updateRow<Asset>('assets', sourceCA.assetId, {
         currentSiteId: targetSiteId,
@@ -5414,7 +5414,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       });
     }
 
-    // 6. 諛곗감 ?쒖뒪???곕룞 (needTransport媛 true??寃쎌슦 諛곗감 ?먮룞 諛쒗뻾)
+    // 6. 배차 시스템 연동 (needTransport가 true인 경우 배차 자동 발행)
     if (needTransport) {
       const deliveryId = `DEL-${relocationDate.replace(/-/g, '').slice(2)}-${Math.floor(100 + Math.random() * 900)}`;
       const cost = transportCost || 0;
@@ -5423,19 +5423,19 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       db.insertRow<Delivery>('deliveries', {
         id: deliveryId,
         type: 'MOVEMENT',
-        dispatchCategory: '?대룞',
+        dispatchCategory: '이동',
         status: 'REQUESTED',
         contractId: destinationContract.id,
         assetIds: sourceCA.assetId || '',
         requestDate: relocationDate,
         scheduledDate: relocationDate,
         loadingDate: relocationDate,
-        loadingTimeSlot: '?ㅼ쟾',
+        loadingTimeSlot: '오전',
         unloadingDate: relocationDate,
-        unloadingTimeSlot: '?ㅽ썑',
-        originAddress: sourceSite?.address || `${sourceSiteName} (1?꾩옣)`,
+        unloadingTimeSlot: '오후',
+        originAddress: sourceSite?.address || `${sourceSiteName} (1현장)`,
         pickupType: 'HQ_YARD',
-        destinationAddress: targetSite?.address || `${targetSiteName} (2?꾩옣)`,
+        destinationAddress: targetSite?.address || `${targetSiteName} (2현장)`,
         dropoffType: 'SINGLE',
         deliveryCost: cost,
         expectedCost: cost,
@@ -5443,7 +5443,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         billableToCustomer: isCustPaid,
         billableCustomerId: isCustPaid ? sourceContract.customerId : undefined,
         isCostSettled: false,
-        memo: `[?꾩옣媛??λ퉬 ?대룞] ${sourceSiteName} ??${targetSiteName} (${assetNo} / ${modelName})${reason ? ' | ?ъ쑀: ' + reason : ''}`,
+        memo: `[현장간 장비 이동] ${sourceSiteName} ➔ ${targetSiteName} (${assetNo} / ${modelName})${reason ? ' | 사유: ' + reason : ''}`,
         cargoItems: JSON.stringify([{ modelName, count: 1 }]),
         createdAt: nowIso,
         updatedAt: nowIso
@@ -5455,11 +5455,11 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   };
 
   /**
-   * [?뚯옣 1.2 & 2.2] ?섎━ ?꾨즺 ?λ퉬 ?숈씪 怨꾩빟 ?ы닾??(?뚯닔 ???섎━ ?ъ텧怨?
-   * - ?섎굹??怨꾩빟???좎??섎뒗 ?곹솴?먯꽌 怨좎옣 ?뚯닔???숈씪 ?λ퉬瑜??섎━ ?꾨즺 ???숈씪 怨꾩빟???ъ텧怨?
-   * - 1李??щ’(?⑥텞 留덇컧) ???섎━ 怨듬갚(臾닿낵湲?蹂댁〈) ??2李??좉퇋 ?щ’(?ы닾?낆씪 媛쒖떆)?쇰줈 遺꾨━ ?몄엯
-   * - 怨꾩빟? 遺꾪븷 ?앹꽦?섏? ?딄퀬 湲곗〈 怨꾩빟 ?좎?
-   * - ?먯궛 ?곹깭 RENTED ?꾪솚 諛?OUTBOUND 諛곗감 1嫄??먮룞 諛쒗뻾
+   * [헌장 1.2 & 2.2] 수리 완료 장비 동일 계약 재투입 (회수 후 수리 재출고)
+   * - 하나의 계약이 유지되는 상황에서 고장 회수된 동일 장비를 수리 완료 후 동일 계약에 재출고
+   * - 1차 슬롯(단축 마감) ➔ 수리 공백(무과금 보존) ➔ 2차 신규 슬롯(재투입일 개시)으로 분리 편입
+   * - 계약은 분할 생성되지 않고 기존 계약 유지
+   * - 자산 상태 RENTED 전환 및 OUTBOUND 배차 1건 자동 발행
    */
   const redeployRepairedAsset = async (params: {
     contractId: string;
@@ -5488,32 +5488,32 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
     const contract = db.contracts.find(c => c.id === contractId);
     if (!contract) {
-      showErrorModal('?ы닾?????怨꾩빟??李얠쓣 ???놁뒿?덈떎.');
+      showErrorModal('재투입 대상 계약을 찾을 수 없습니다.');
       return;
     }
 
     const asset = db.assets.find(a => a.id === assetId);
     if (!asset) {
-      showErrorModal('?ы닾??????λ퉬瑜?李얠쓣 ???놁뒿?덈떎.');
+      showErrorModal('재투입 대상 장비를 찾을 수 없습니다.');
       return;
     }
 
     const nowIso = new Date().toISOString();
 
-    // 1. ?④? ?먮룞 ?곸냽: ?대떦 怨꾩빟 ???숈씪 ?λ퉬???댁쟾 ?щ’ ?④? ?먮뒗 ?먯궛 湲곕낯 ?④?
+    // 1. 단가 자동 상속: 해당 계약 내 동일 장비의 이전 슬롯 단가 또는 자산 기본 단가
     const prevCA = db.contractAssets.find(ca => ca.contractId === contractId && ca.assetId === assetId);
     const feeMonth = monthlyRentalFee !== undefined ? monthlyRentalFee : (prevCA?.monthlyRentalFee || 600000);
     const feeDay = dailyRentalFee !== undefined ? dailyRentalFee : (prevCA?.dailyRentalFee || Math.round(feeMonth / 30));
 
-    // 2. 留뚮즺??寃곗젙 (遺紐?怨꾩빟 留뚮즺???먮뒗 ?꾨떖諛쏆? 醫낅즺??
+    // 2. 만료일 결정 (부모 계약 만료일 또는 전달받은 종료일)
     const finalEndDate = expectedEndDate || contract.endDate || '';
 
-    // 3. 遺紐?怨꾩빟 留뚮즺??諛??곹깭 媛깆떊 (醫낅즺 ?곹깭??ㅻ㈃ ACTIVE濡?蹂듭썝 諛?留뚮즺???뺤옣)
+    // 3. 부모 계약 만료일 및 상태 갱신 (종료 상태였다면 ACTIVE로 복원 및 만료일 확장)
     const contractUpdates: Partial<Contract> = {};
     if (contract.status === 'COMPLETED') {
       contractUpdates.status = 'ACTIVE';
     }
-    if (finalEndDate && (!contract.endDate || contract.endDate === '誘몄젙' || finalEndDate > contract.endDate)) {
+    if (finalEndDate && (!contract.endDate || contract.endDate === '미정' || finalEndDate > contract.endDate)) {
       contractUpdates.endDate = finalEndDate;
     }
     if (Object.keys(contractUpdates).length > 0) {
@@ -5523,7 +5523,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       });
     }
 
-    // 4. 怨꾩빟???덈줈???먯궛 ?щ’(2李??댁슜 ?쒖옉) ?쎌엯
+    // 4. 계약에 새로운 자산 슬롯(2차 운용 시작) 삽입
     db.insertRow<ContractAsset>('contractAssets', {
       contractId: contract.id,
       assetId: asset.id,
@@ -5534,17 +5534,17 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       createdAt: nowIso
     });
 
-    // 5. 怨꾩빟 ?대젰(contractHistory)??[?섎━?꾨즺 ?ы닾?? ADD_ASSET 湲곕줉
-    db.insertRow<ContractHistory>({
+    // 5. 계약 이력(contractHistory)에 [수리완료 재투입] ADD_ASSET 기록
+    db.insertRow<ContractHistory>('contractHistory', {
       contractId: contract.id,
       changeType: 'ADD_ASSET',
       changeDate: redeployDate,
       newEndDate: finalEndDate,
-      description: `[?섎━?꾨즺 ?ы닾?? ?λ퉬 [${asset.assetNo} / ${asset.modelName}] ?꾩옣 ?ъ텧怨?(?ш????쒖옉: ${redeployDate})${reason ? ' - ?ъ쑀: ' + reason : ''}`,
+      description: `[수리완료 재투입] 장비 [${asset.assetNo} / ${asset.modelName}] 현장 재출고 (재가동 시작: ${redeployDate})${reason ? ' - 사유: ' + reason : ''}`,
       createdAt: nowIso
     });
 
-    // 6. ?먯궛 留덉뒪??(assets): ?곹깭 RENTED ?꾪솚 諛?怨좉컼/?꾩옣/湲곌컙 ?숆린??
+    // 6. 자산 마스터 (assets): 상태 RENTED 전환 및 고객/현장/기간 동기화
     db.updateRow<Asset>('assets', asset.id, {
       status: 'RENTED',
       currentCustomerId: contract.customerId,
@@ -5554,7 +5554,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       updatedAt: nowIso
     });
 
-    // 7. 諛곗감 ?쒖뒪???곕룞: OUTBOUND 諛곗감 1嫄??먮룞 諛쒗뻾
+    // 7. 배차 시스템 연동: OUTBOUND 배차 1건 자동 발행
     if (needTransport) {
       const site = db.sites.find(s => s.id === contract.siteId);
       const deliveryId = `DEL-RED-${redeployDate.replace(/-/g, '').slice(2)}-${Math.floor(100 + Math.random() * 900)}`;
@@ -5563,19 +5563,19 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       db.insertRow<Delivery>('deliveries', {
         id: deliveryId,
         type: 'OUTBOUND',
-        dispatchCategory: '異쒓퀬',
+        dispatchCategory: '출고',
         status: 'REQUESTED',
         contractId: contract.id,
         assetIds: asset.id,
         requestDate: redeployDate,
         scheduledDate: redeployDate,
         loadingDate: redeployDate,
-        loadingTimeSlot: '?ㅼ쟾',
+        loadingTimeSlot: '오전',
         unloadingDate: redeployDate,
-        unloadingTimeSlot: '?ㅽ썑',
-        originAddress: '?뱀궗 蹂닿???,
+        unloadingTimeSlot: '오후',
+        originAddress: '당사 보관소',
         pickupType: 'HQ_YARD',
-        destinationAddress: site?.address || site?.name || '?꾩옣',
+        destinationAddress: site?.address || site?.name || '현장',
         dropoffType: 'SINGLE',
         deliveryCost: transportCost,
         expectedCost: transportCost,
@@ -5583,7 +5583,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         billableToCustomer: isCustPaid,
         billableCustomerId: isCustPaid ? contract.customerId : undefined,
         isCostSettled: false,
-        memo: `[?섎━?꾨즺 ?ы닾??諛곗감] ${asset.assetNo} (${asset.modelName}) ??${site?.name || '?꾩옣'}${reason ? ' | ?ъ쑀: ' + reason : ''}`,
+        memo: `[수리완료 재투입 배차] ${asset.assetNo} (${asset.modelName}) ➔ ${site?.name || '현장'}${reason ? ' | 사유: ' + reason : ''}`,
         cargoItems: JSON.stringify([{ modelName: asset.modelName, count: 1 }]),
         createdAt: nowIso,
         updatedAt: nowIso
@@ -5594,15 +5594,15 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     refreshAllData();
   };
 
-  // Feature 4) 媛쒕퀎 ContractAsset 湲곌컙 ?섏젙 (遺遺??곗옣 / 遺遺??⑥텞)
+  // Feature 4) 개별 ContractAsset 기간 수정 (부분 연장 / 부분 단축)
   const updateContractAssetPeriod = async (caId: string, startDate: string, endDate: string, reason: string) => {
     const ca = db.contractAssets.find(c => c.id === caId);
     if (!ca) {
-      showErrorModal('?섏젙 ????먯궛 怨꾩빟??李얠쓣 ???놁뒿?덈떎.');
+      showErrorModal('수정 대상 자산 계약을 찾을 수 없습니다.');
       return;
     }
     if (endDate < startDate) {
-      showErrorModal('醫낅즺?쇱? ?쒖옉???댄썑?ъ빞 ?⑸땲??');
+      showErrorModal('종료일은 시작일 이후여야 합니다.');
       return;
     }
 
@@ -5610,14 +5610,14 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     const isExtension = prevEnd && endDate > prevEnd;
     const isShortening = prevEnd && endDate < prevEnd;
 
-    // 1. 媛쒕퀎 怨꾩빟 ?먯궛 ?щ’ 湲곌컙 媛깆떊
+    // 1. 개별 계약 자산 슬롯 기간 갱신
     db.updateRow<ContractAsset>('contractAssets', caId, {
       startDate,
       endDate,
       updatedAt: new Date().toISOString()
     });
 
-    // 2. ?먯궛 留덉뒪?곗쓽 contractEnd ?숆린??(?뚯옣 1.2: ?먯궛 ?④낵???댁슜)
+    // 2. 자산 마스터의 contractEnd 동기화 (헌장 1.2: 자산 효과적 운용)
     if (ca.assetId) {
       db.updateRow<Asset>('assets', ca.assetId, {
         contractEnd: endDate,
@@ -5625,7 +5625,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       });
     }
 
-    // 3. 遺紐?怨꾩빟???꾩껜 湲곌컙 諛??곹깭 ?숆린 蹂댁젙 (???먯튃: ?먯궛?ㅼ쓽 ?⑹쭛??援ш컙 ?먮룞 ?뺤옣)
+    // 3. 부모 계약의 전체 기간 및 상태 동기 보정 (제4원칙: 자산들의 합집합 구간 자동 확장)
     const parentContract = db.contracts.find(c => c.id === ca.contractId);
     if (parentContract) {
       const siblingCAs = db.contractAssets.filter(item => item.contractId === ca.contractId && item.id !== caId);
@@ -5642,14 +5642,14 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       });
     }
 
-    // 4. ?대젰 ???
-    db.insertRow<ContractHistory>({
+    // 4. 이력 저장
+    db.insertRow<ContractHistory>('contractHistory', {
       contractId: ca.contractId,
       changeType: isExtension ? 'EXTEND' : isShortening ? 'SHORTEN' : 'ASSET_PERIOD_CHANGE',
       changeDate: new Date().toISOString().split('T')[0],
       prevEndDate: prevEnd,
       newEndDate: endDate,
-      description: `[遺遺?${isExtension ? '?곗옣' : isShortening ? '?⑥텞' : '湲곌컙蹂寃?}] ?먯궛(${ca.assetId || ca.expectedModel}) 湲곌컙 議곗젙: ${startDate} ~ ${endDate}${reason ? ` (?ъ쑀: ${reason})` : ''}`,
+      description: `[부분 ${isExtension ? '연장' : isShortening ? '단축' : '기간변경'}] 자산(${ca.assetId || ca.expectedModel}) 기간 조정: ${startDate} ~ ${endDate}${reason ? ` (사유: ${reason})` : ''}`,
       createdAt: new Date().toISOString()
     });
 
@@ -5658,7 +5658,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   };
 
   const assignAssetToContract = async (contractAssetId: string, assetId: string) => {
-    // ?뮕 1. 濡ㅻ갚???먮낯 ?ㅻ깄??諛깆뾽
+    // 💡 1. 롤백용 원본 스냅샷 백업
     const origCa = db.contractAssets.find(c => c.id === contractAssetId);
     const caSnapshot = origCa ? { ...origCa } : null;
 
@@ -5668,7 +5668,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     let createdInspectionId: string | null = null;
 
     try {
-      if (!origCa) throw new Error('?대떦 怨꾩빟 ?щ’(contractAsset)??李얠쓣 ???놁뒿?덈떎.');
+      if (!origCa) throw new Error('해당 계약 슬롯(contractAsset)을 찾을 수 없습니다.');
 
       let contract = db.contracts.find(c => c.id === origCa.contractId);
       if (!contract && db.isSupabaseConnected()) {
@@ -5678,17 +5678,17 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         } catch (e) {}
       }
 
-      if (!origAsset) throw new Error('?좊떦??????λ퉬瑜?李얠쓣 ???놁뒿?덈떎.');
+      if (!origAsset) throw new Error('할당할 대상 장비를 찾을 수 없습니다.');
 
       const nowIso = new Date().toISOString();
 
-      // 1. ContractAsset ?낅뜲?댄듃 (?ㅻЪ ?λ퉬 ID ?좊떦, 湲곗〈 怨꾩빟??expectedModel 蹂댁〈)
+      // 1. ContractAsset 업데이트 (실물 장비 ID 할당, 기존 계약의 expectedModel 보존)
       db.updateRow<ContractAsset>('contractAssets', contractAssetId, {
         assetId: assetId,
         expectedModel: origCa.expectedModel || origAsset?.modelName
       });
 
-      // 2. Asset ?곹깭 ?낅뜲?댄듃 (ASSIGNED 異쒓퀬?湲곕줈 ?꾪솚)
+      // 2. Asset 상태 업데이트 (ASSIGNED 출고대기로 전환)
       const assetUpdatePayload: Partial<Asset> = {
         status: 'ASSIGNED',
         updatedAt: nowIso
@@ -5700,7 +5700,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
       db.updateRow<Asset>('assets', assetId, assetUpdatePayload);
 
-      // 3. 異쒓퀬 寃???뺣퉬 ?묒뾽 ?섎ː ?앹꽦
+      // 3. 출고 검수/정비 작업 의뢰 생성
       const createdInsp = db.insertRow<OutboundInspection>('outboundInspections', {
         contractId: origCa.contractId,
         contractAssetId: origCa.id,
@@ -5711,13 +5711,13 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       });
       createdInspectionId = createdInsp.id;
 
-      // 4. Supabase ?먭꺽 DB ?곌린 100% ?꾧껐 ?숆린 ?湲?(?ㅽ뙣 ??catch 釉붾줉?먯꽌 ?먮룞 濡ㅻ갚!)
+      // 4. Supabase 원격 DB 쓰기 100% 완결 동기 대기 (실패 시 catch 블록에서 자동 롤백!)
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
       console.error('assignAssetToContract error & Rollback:', err);
 
-      // ?뮙 DB ????ㅽ뙣 ??濡쒖뺄 DB 諛?UI State瑜?100% ?댁쟾 ?곹깭濡??먮룞 濡ㅻ갚 (Rollback Execution)!
+      // 💥 DB 저장 실패 시 로컬 DB 및 UI State를 100% 이전 상태로 자동 롤백 (Rollback Execution)!
       if (caSnapshot) {
         db.updateRow<ContractAsset>('contractAssets', contractAssetId, caSnapshot);
       }
@@ -5729,24 +5729,24 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       }
 
-      refreshAllData(); // 濡ㅻ갚???먮났 ?곹깭瑜?UI??諛섏쁺!
+      refreshAllData(); // 롤백된 원복 상태를 UI에 반영!
 
       const errMsg = err?.message || err?.details || JSON.stringify(err);
       showErrorModal(
-        `?좑툘 ?λ퉬 ?좊떦 ???以?DB ?숆린???ㅻ쪟媛 諛쒖깮?덉뒿?덈떎:\n\n` +
-        `??[?덈궡]: ????ㅽ뙣濡??명빐 ?λ퉬 ?좊떦 ?곹깭媛 ?댁쟾 誘명븷???곹깭濡??덉쟾?섍쾶 濡ㅻ갚(?먮룞 ?먮났)?섏뿀?듬땲?? ?좊떦 ???紐⑸줉?먯꽌 怨꾩냽 ?묒뾽?섏떎 ???덉뒿?덈떎.\n\n` +
-        `??[?ㅽ뙣 ?먯씤]: ${errMsg}`,
-        '?λ퉬 ?좊떦 DB ?숆린???ㅻ쪟 (?먮룞 濡ㅻ갚 ?먮났 ?꾨즺)'
+        `⚠️ 장비 할당 저장 중 DB 동기화 오류가 발생했습니다:\n\n` +
+        `■ [안내]: 저장 실패로 인해 장비 할당 상태가 이전 미할당 상태로 안전하게 롤백(자동 원복)되었습니다. 할당 대상 목록에서 계속 작업하실 수 있습니다.\n\n` +
+        `■ [실패 원인]: ${errMsg}`,
+        '장비 할당 DB 동기화 오류 (자동 롤백 원복 완료)'
       );
       throw err;
     }
   };
 
-  // ?? ?ㅼ쨷 ?λ퉬 ?먯옄???쇨큵 ?좊떦 ?몃옖??뀡 硫붿냼??(以묎컙 由щ젋?붾쭅 諛??덉씠??而⑤뵒???먯쿇 李⑤떒)
+  // 🚀 다중 장비 원자적 일괄 할당 트랜잭션 메소드 (중간 리렌더링 및 레이스 컨디션 원천 차단)
   const batchAssignAssetsToContract = async (pairs: { contractAssetId: string; assetId: string }[]) => {
     if (!pairs || pairs.length === 0) return;
 
-    // 濡ㅻ갚???꾩껜 ?ㅻ깄??以鍮?
+    // 롤백용 전체 스냅샷 준비
     const caSnapshots: { id: string; snapshot: ContractAsset }[] = [];
     const assetSnapshots: { id: string; snapshot: Asset }[] = [];
     const createdInspectionIds: string[] = [];
@@ -5754,30 +5754,30 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     const nowIso = new Date().toISOString();
 
     try {
-      // 1. ?ъ쟾 寃利?諛??ㅻ깄??諛깆뾽
+      // 1. 사전 검증 및 스냅샷 백업
       for (const pair of pairs) {
         const origCa = db.contractAssets.find(c => c.id === pair.contractAssetId);
-        if (!origCa) throw new Error(`怨꾩빟 ?щ’(${pair.contractAssetId})??李얠쓣 ???놁뒿?덈떎.`);
+        if (!origCa) throw new Error(`계약 슬롯(${pair.contractAssetId})을 찾을 수 없습니다.`);
         caSnapshots.push({ id: origCa.id, snapshot: { ...origCa } });
 
         const origAsset = db.assets.find(a => a.id === pair.assetId);
-        if (!origAsset) throw new Error(`????λ퉬(${pair.assetId})瑜?李얠쓣 ???놁뒿?덈떎.`);
+        if (!origAsset) throw new Error(`대상 장비(${pair.assetId})를 찾을 수 없습니다.`);
         assetSnapshots.push({ id: origAsset.id, snapshot: { ...origAsset } });
       }
 
-      // 2. ?꾩껜 ?щ’ 諛??먯궛 ?쇨큵 硫붾え由??낅뜲?댄듃 (?⑥씪 ?먯옄??諛곗튂)
+      // 2. 전체 슬롯 및 자산 일괄 메모리 업데이트 (단일 원자적 배치)
       for (const pair of pairs) {
         const origCa = db.contractAssets.find(c => c.id === pair.contractAssetId)!;
         const origAsset = db.assets.find(a => a.id === pair.assetId)!;
         const contract = db.contracts.find(c => c.id === origCa.contractId);
 
-        // 2-1. contractAssets ?낅뜲?댄듃 (湲곗〈 怨꾩빟??expectedModel ?덈? 蹂댁〈)
+        // 2-1. contractAssets 업데이트 (기존 계약의 expectedModel 절대 보존)
         db.updateRow<ContractAsset>('contractAssets', origCa.id, {
           assetId: origAsset.id,
           expectedModel: origCa.expectedModel || origAsset.modelName
         });
 
-        // 2-2. assets ?낅뜲?댄듃
+        // 2-2. assets 업데이트
         const assetUpdatePayload: Partial<Asset> = {
           status: 'ASSIGNED',
           updatedAt: nowIso
@@ -5789,7 +5789,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
         db.updateRow<Asset>('assets', origAsset.id, assetUpdatePayload);
 
-        // 2-3. 異쒓퀬 寃???섎ː ?앹꽦
+        // 2-3. 출고 검수 의뢰 생성
         const createdInsp = db.insertRow<OutboundInspection>('outboundInspections', {
           contractId: origCa.contractId,
           contractAssetId: origCa.id,
@@ -5798,30 +5798,30 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           createdAt: nowIso,
           updatedAt: nowIso
         });
-        // 2-4. ?뙚 [?⑦궎吏 ?쒕쪟 臾닿껐??: 湲곗〈 ?щ’???ㅻⅨ ?λ퉬媛 諛곗젙?섏뼱 ?덉뿀?붾뜲 援먯껜??寃쎌슦 ToDo 諛쒗뻾
+        // 2-4. 🌟 [패키지 서류 무결성]: 기존 슬롯에 다른 장비가 배정되어 있었는데 교체된 경우 ToDo 발행
         if (origCa.assetId && origCa.assetId !== origAsset.id) {
           try {
             await checkAndIssuePackageResendTask({
               contractId: origCa.contractId,
               oldAssetId: origCa.assetId,
               newAssetId: origAsset.id,
-              reason: '異쒓퀬 ???λ퉬 ?ы븷??援먯껜',
-              senderName: '?λ퉬?좊떦?쒖뒪??
+              reason: '출고 전 장비 재할당/교체',
+              senderName: '장비할당시스템'
             });
           } catch (taskErr) {
-            console.warn('怨꾩빟?쒗뙣?ㅼ? ?щ컻??ToDo 諛쒗뻾 寃쎄퀬 (臾댁떆):', taskErr);
+            console.warn('계약서패키지 재발송 ToDo 발행 경고 (무시):', taskErr);
           }
         }
       }
 
-      // 3. ??1?뚯쓽 ?먭꺽 DB ?곌린 ?꾧껐 ?숆린 ?湲?& ??1?뚯쓽 ?꾩뿭 由щ젋?붾쭅!
+      // 3. 단 1회의 원격 DB 쓰기 완결 동기 대기 & 단 1회의 전역 리렌더링!
       await db.awaitPendingWrites();
       refreshAllData();
 
     } catch (err: any) {
       console.error('batchAssignAssetsToContract error & Rollback:', err);
 
-      // ?뮙 ?쇨큵 濡ㅻ갚
+      // 💥 일괄 롤백
       caSnapshots.forEach(item => {
         db.updateRow<ContractAsset>('contractAssets', item.id, item.snapshot);
       });
@@ -5836,12 +5836,12 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       refreshAllData();
 
       const errMsg = err?.message || err?.details || JSON.stringify(err);
-      showErrorModal(`?좑툘 ?쇨큵 ?λ퉬 ?좊떦 以??ㅻ쪟媛 諛쒖깮?섏뿬 紐⑤뱺 ?묒뾽???덉쟾?섍쾶 ?먮났?섏뿀?듬땲??\n\n${errMsg}`, '?쇨큵 ?λ퉬 ?좊떦 ?ㅽ뙣');
+      showErrorModal(`⚠️ 일괄 장비 할당 중 오류가 발생하여 모든 작업이 안전하게 원복되었습니다:\n\n${errMsg}`, '일괄 장비 할당 실패');
       throw err;
     }
   };
 
-  // ?봽 ?λ퉬 ?좊떦 痍⑥냼 硫붿냼??(異쒓퀬 寃?????щ’ ?좊떦 ?댁젣 諛??λ퉬 AVAILABLE 蹂듭썝)
+  // 🔄 장비 할당 취소 메소드 (출고 검수 전 슬롯 할당 해제 및 장비 AVAILABLE 복원)
   const unassignAssetFromContract = async (contractAssetId: string) => {
     const origCa = db.contractAssets.find(c => c.id === contractAssetId);
     if (!origCa || !origCa.assetId) return;
@@ -5855,12 +5855,12 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     try {
       const nowIso = new Date().toISOString();
 
-      // 1. ContractAsset ?먯꽌 assetId 紐낆떆??NULL ?쒓굅 (Supabase DB 諛섏쁺 蹂댁옣)
+      // 1. ContractAsset 에서 assetId 명시적 NULL 제거 (Supabase DB 반영 보장)
       db.updateRow<ContractAsset>('contractAssets', contractAssetId, {
         assetId: null as any
       });
 
-      // 2. Asset ?곹깭瑜?AVAILABLE (?꾨?媛?? 濡?蹂듭썝 諛?怨꾩빟 ?곌껐 紐낆떆??NULL ?댁젣
+      // 2. Asset 상태를 AVAILABLE (임대가능) 로 복원 및 계약 연결 명시적 NULL 해제
       if (origAsset) {
         db.updateRow<Asset>('assets', origAssetId, {
           status: 'AVAILABLE',
@@ -5872,44 +5872,44 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         });
       }
 
-      // 3. ?꾩쭅 ?湲?以?PENDING)??異쒓퀬 寃???섎ː嫄??꾩껜 ??젣
+      // 3. 아직 대기 중(PENDING)인 출고 검수 의뢰건 전체 삭제
       const pendingInsps = db.outboundInspections.filter(
         i => (i.contractAssetId === contractAssetId || (i.contractId === origCa.contractId && i.assetId === origAssetId)) && i.status === 'PENDING'
       );
       pendingInsps.forEach(i => db.deleteRow('outboundInspections', i.id));
 
-      // 4. ?뙚 [?⑦궎吏 ?쒕쪟 臾닿껐??: 怨꾩빟?쒗뙣?ㅼ? 諛쒖넚 ??異쒓퀬 ???λ퉬 ?좊떦 ?댁젣 ??ToDo ?먮룞 諛쒗뻾
+      // 4. 🌟 [패키지 서류 무결성]: 계약서패키지 발송 후 출고 전 장비 할당 해제 시 ToDo 자동 발행
       try {
         await checkAndIssuePackageResendTask({
           contractId: origCa.contractId,
           oldAssetId: origAssetId,
           newAssetId: undefined,
-          reason: '異쒓퀬 ???λ퉬 ?좊떦 ?댁젣/痍⑥냼',
-          senderName: '?λ퉬?좊떦?쒖뒪??
+          reason: '출고 전 장비 할당 해제/취소',
+          senderName: '장비할당시스템'
         });
       } catch (taskErr) {
-        console.warn('怨꾩빟?쒗뙣?ㅼ? ?щ컻??ToDo 諛쒗뻾 寃쎄퀬 (臾댁떆):', taskErr);
+        console.warn('계약서패키지 재발송 ToDo 발행 경고 (무시):', taskErr);
       }
 
-      // 5. DB ?꾧껐 ?숆린 ?湲?& ?꾩뿭 由щ젋?붾쭅
+      // 5. DB 완결 동기 대기 & 전역 리렌더링
       await db.awaitPendingWrites();
       refreshAllData();
 
     } catch (err: any) {
       console.error('unassignAssetFromContract error & Rollback:', err);
-      // 濡ㅻ갚
+      // 롤백
       db.updateRow<ContractAsset>('contractAssets', contractAssetId, caSnapshot);
       if (assetSnapshot && origAssetId) {
         db.updateRow<Asset>('assets', origAssetId, assetSnapshot);
       }
       refreshAllData();
 
-      showErrorModal(`?좑툘 ?λ퉬 ?좊떦 痍⑥냼 以??ㅻ쪟媛 諛쒖깮?섏뿬 ?먮났?섏뿀?듬땲??\n${err?.message || err}`, '?좊떦 痍⑥냼 ?ㅽ뙣');
+      showErrorModal(`⚠️ 장비 할당 취소 중 오류가 발생하여 원복되었습니다:\n${err?.message || err}`, '할당 취소 실패');
       throw err;
     }
   };
 
-  // ?봽 ?ㅼ쨷 ?λ퉬 ?먯옄???쇨큵 ?좊떦 痍⑥냼 ?몃옖??뀡 硫붿냼??(以묎컙 由щ젋?붾쭅 諛??덉씠??而⑤뵒???먯쿇 李⑤떒)
+  // 🔄 다중 장비 원자적 일괄 할당 취소 트랜잭션 메소드 (중간 리렌더링 및 레이스 컨디션 원천 차단)
   const batchUnassignAssetsFromContract = async (contractAssetIds: string[]) => {
     if (!contractAssetIds || contractAssetIds.length === 0) return;
 
@@ -5920,7 +5920,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     const nowIso = new Date().toISOString();
 
     try {
-      // 1. ?ъ쟾 寃利?諛??ㅻ깄??諛깆뾽
+      // 1. 사전 검증 및 스냅샷 백업
       for (const caId of contractAssetIds) {
         const origCa = db.contractAssets.find(c => c.id === caId);
         if (origCa && origCa.assetId) {
@@ -5938,7 +5938,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         }
       }
 
-      // 2. ?쇨큵 硫붾え由??낅뜲?댄듃 (?⑥씪 ?먯옄??諛곗튂)
+      // 2. 일괄 메모리 업데이트 (단일 원자적 배치)
       for (const caId of contractAssetIds) {
         const origCa = db.contractAssets.find(c => c.id === caId);
         if (origCa && origCa.assetId) {
@@ -5965,13 +5965,13 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         }
       }
 
-      // 3. ??1?뚯쓽 ?먭꺽 DB ?곌린 ?꾧껐 ?숆린 ?湲?& ??1?뚯쓽 ?꾩뿭 由щ젋?붾쭅!
+      // 3. 단 1회의 원격 DB 쓰기 완결 동기 대기 & 단 1회의 전역 리렌더링!
       await db.awaitPendingWrites();
       refreshAllData();
 
     } catch (err: any) {
       console.error('batchUnassignAssetsFromContract error & Rollback:', err);
-      // ?뮙 ?쇨큵 濡ㅻ갚
+      // 💥 일괄 롤백
       caSnapshots.forEach(item => {
         db.updateRow<ContractAsset>('contractAssets', item.id, item.snapshot);
       });
@@ -5983,12 +5983,12 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       });
       refreshAllData();
 
-      showErrorModal(`?좑툘 ?쇨큵 ?λ퉬 ?좊떦 痍⑥냼 以??ㅻ쪟媛 諛쒖깮?섏뿬 紐⑤뱺 ?묒뾽???덉쟾?섍쾶 ?먮났?섏뿀?듬땲??\n\n${err?.message || err}`, '?쇨큵 ?좊떦 痍⑥냼 ?ㅽ뙣');
+      showErrorModal(`⚠️ 일괄 장비 할당 취소 중 오류가 발생하여 모든 작업이 안전하게 원복되었습니다:\n\n${err?.message || err}`, '일괄 할당 취소 실패');
       throw err;
     }
   };
 
-  // ?뮕 異쒓퀬 吏꾪뻾 以??λ퉬 援먯껜 諛??섎━?꾪솚 ?몃옖??뀡 硫붿냼??(contractAssetId ?먮뒗 contractId 2以??먮룞異붿쟻 吏??
+  // 💡 출고 진행 중 장비 교체 및 수리전환 트랜잭션 메소드 (contractAssetId 또는 contractId 2중 자동추적 지원)
   const exchangeOutboundAsset = async (
     contractAssetIdOrContractId: string,
     oldAssetId: string,
@@ -5997,11 +5997,11 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     markOldAsRepairing: boolean = true,
     customPenaltyScore?: number
   ) => {
-    // 濡ㅻ갚???ㅻ깄??以鍮?
+    // 롤백용 스냅샷 준비
     const oldAssetOrig = db.assets.find(a => a.id === oldAssetId);
     const newAssetOrig = db.assets.find(a => a.id === newAssetId);
     
-    // contractAssetId 吏곸젒 留ㅼ묶 ?먮뒗 contractId + oldAssetId 議고빀?쇰줈 2以??좎뿰 異붿쟻
+    // contractAssetId 직접 매칭 또는 contractId + oldAssetId 조합으로 2중 유연 추적
     let caOrig = db.contractAssets.find(c => c.id === contractAssetIdOrContractId);
     if (!caOrig) {
       caOrig = db.contractAssets.find(c => c.contractId === contractAssetIdOrContractId && (c.assetId === oldAssetId || !c.assetId));
@@ -6021,23 +6021,23 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
     try {
       if (!oldAssetOrig || !newAssetOrig || !caOrig) {
-        throw new Error(`援먯껜 ????λ퉬 ?먮뒗 怨꾩빟 ?щ’??李얠쓣 ???놁뒿?덈떎. (援ъ옣鍮? ${oldAssetId ? '?뺤긽' : '?꾨씫'}, ?좎옣鍮? ${newAssetId ? '?뺤긽' : '?꾨씫'}, 怨꾩빟?щ’: ${caOrig ? '?뺤긽' : '?꾨씫'})`);
+        throw new Error(`교체 대상 장비 또는 계약 슬롯을 찾을 수 없습니다. (구장비: ${oldAssetId ? '정상' : '누락'}, 신장비: ${newAssetId ? '정상' : '누락'}, 계약슬롯: ${caOrig ? '정상' : '누락'})`);
       }
 
       const today = new Date().toISOString().split('T')[0];
       const nowIso = new Date().toISOString();
 
-      // 1. 湲곗〈 ?λ퉬: ?섎━?뺣퉬以?REPAIRING) ?좏깮 ??REPAIRING ?꾪솚, ?꾨땲硫??꾨?媛??AVAILABLE) ?좎?!
-      // ?뮕 [?꾩궗 ?뺤콉]: 異쒓퀬寃???덈씫 援먯껜 ???ъ쑀 ?좊Т? 臾닿??섍쾶 ?뺣퉬?먯닔 媛??(吏???먯닔 ?먮뒗 湲곕낯 5??
+      // 1. 기존 장비: 수리정비중(REPAIRING) 선택 시 REPAIRING 전환, 아니면 임대가능(AVAILABLE) 유지!
+      // 💡 [전사 정책]: 출고검수 탈락 교체 시 사유 유무와 무관하게 정비점수 가산 (지정 점수 또는 기본 5점)
       const targetStatus = markOldAsRepairing ? 'REPAIRING' : 'AVAILABLE';
       const penaltyToAdd = typeof customPenaltyScore === 'number' && !isNaN(customPenaltyScore) ? customPenaltyScore : 5;
       const updatedScore = (Number(oldAssetOrig.maintenanceScore) || 0) + penaltyToAdd;
       
-      const cleanReason = reason && reason.trim() ? reason.trim() : '異쒓퀬寃???덈씫 援먯껜(?ъ쑀誘멸린??';
+      const cleanReason = reason && reason.trim() ? reason.trim() : '출고검수 탈락 교체(사유미기재)';
       const oldNote = oldAssetOrig.note || '';
       const appendedNote = oldNote
-        ? `${oldNote}\n[異쒓퀬寃??援먯껜(踰뚯젏+${penaltyToAdd}, 珥앹젏:${updatedScore}??] ${today}: ${cleanReason}`
-        : `[異쒓퀬寃??援먯껜(踰뚯젏+${penaltyToAdd}, 珥앹젏:${updatedScore}??] ${today}: ${cleanReason}`;
+        ? `${oldNote}\n[출고검수 교체(벌점+${penaltyToAdd}, 총점:${updatedScore}점)] ${today}: ${cleanReason}`
+        : `[출고검수 교체(벌점+${penaltyToAdd}, 총점:${updatedScore}점)] ${today}: ${cleanReason}`;
 
       const oldPayload: Partial<Asset> = {
         status: targetStatus,
@@ -6046,14 +6046,14 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         currentSiteId: undefined,
         contractStart: undefined,
         contractEnd: undefined,
-        note: appendedNote, // ?뙚 ?먯궛 ?뺣퉬?꾩슂??ぉ(note)?먮쭔 ?뺥솗?????
-        // ?뙚 memo(?쇰컲 ?먯궛 鍮꾧퀬: ?꾩감泥?寃곗젣議곌굔 ?????덈? ?ㅼ뿼?쒗궎吏 ?딄퀬 ?먮낯 100% 蹂댁〈!
+        note: appendedNote, // 🌟 자산 정비필요항목(note)에만 정확히 저장
+        // 🌟 memo(일반 자산 비고: 임차처/결제조건 등)는 절대 오염시키지 않고 원본 100% 보존!
         updatedAt: nowIso
       };
 
       db.updateRow<Asset>('assets', oldAssetId, oldPayload);
 
-      // 1-1. ?뙚 [二쇨린???뺣퉬 ?곌퀎]: ?섎━?뺣퉬以??꾪솚 ??二쇨린???뺣퉬 ???repairs) ?곗폆 1:1 ?먮룞 諛쒗뻾 (?뚯옣 1.2 臾대늻?????
+      // 1-1. 🌟 [주기장 정비 연계]: 수리정비중 전환 시 주기장 정비 대장(repairs) 티켓 1:1 자동 발행 (헌장 1.2 무누락 저장)
       if (markOldAsRepairing) {
         createdRepairId = db.generateNextId('repairs', db.repairs);
         db.insertRow<Repair>('repairs', {
@@ -6063,9 +6063,9 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           modelName: oldAssetOrig.modelName,
           contractId: caOrig.contractId,
           customerId: oldAssetOrig.currentCustomerId,
-          customerName: db.customers.find(c => c.id === oldAssetOrig.currentCustomerId)?.name || '異쒓퀬 寃?섏쿂',
+          customerName: db.customers.find(c => c.id === oldAssetOrig.currentCustomerId)?.name || '출고 검수처',
           siteId: oldAssetOrig.currentSiteId,
-          siteName: db.sites.find(s => s.id === oldAssetOrig.currentSiteId)?.name || '二쇨린??,
+          siteName: db.sites.find(s => s.id === oldAssetOrig.currentSiteId)?.name || '주기장',
           requestDate: today,
           status: 'PENDING',
           workCategory: 'YARD_INTERNAL',
@@ -6074,7 +6074,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           source: 'OUTBOUND_DEFECT',
           repairType: 'INTERNAL',
           priority: 'URGENT',
-          details: `[異쒓퀬寃??遺덈웾 ?뺣퉬 ?묒닔] 援먯껜?ъ쑀: ${cleanReason}\n?泥댁옣鍮? ${newAssetOrig.assetNo} (${newAssetOrig.modelName})`,
+          details: `[출고검수 불량 정비 접수] 교체사유: ${cleanReason}\n대체장비: ${newAssetOrig.assetNo} (${newAssetOrig.modelName})`,
           issueDescription: cleanReason,
           totalCost: 0,
           billableToCustomer: false,
@@ -6084,26 +6084,26 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           updatedAt: nowIso
         });
 
-        // ?? 二쇨린???뺣퉬???湲닿툒 ?뺣퉬 ToDo ?먮룞 ?곸옱
+        // 🚀 주기장 정비팀에 긴급 정비 ToDo 자동 적재
         try {
           await issueHandoverTask({
             category: 'OUTBOUND_REPAIR_DEFECT',
-            title: `[異쒓퀬 援먯껜 湲닿툒 ?뺣퉬] ${oldAssetOrig.assetNo} (${oldAssetOrig.modelName})`,
-            content: `異쒓퀬寃??遺덈웾 援먯껜 (+${penaltyToAdd}??: ${cleanReason} (?泥? ${newAssetOrig.assetNo})`,
+            title: `[출고 교체 긴급 정비] ${oldAssetOrig.assetNo} (${oldAssetOrig.modelName})`,
+            content: `출고검수 불량 교체 (+${penaltyToAdd}점): ${cleanReason} (대체: ${newAssetOrig.assetNo})`,
             targetDept: 'YARD',
             priority: 'URGENT',
             actionUrl: '/repairs',
             entityType: 'REPAIR',
             entityId: createdRepairId,
             senderId: currentUser?.id,
-            senderName: currentUser?.name || '異쒓퀬寃?섏떆?ㅽ뀥'
+            senderName: currentUser?.name || '출고검수시스템'
           });
         } catch (taskErr) {
-          console.warn('異쒓퀬 遺덈웾 ?뺣퉬 ToDo 諛쒗뻾 寃쎄퀬 (臾댁떆):', taskErr);
+          console.warn('출고 불량 정비 ToDo 발행 경고 (무시):', taskErr);
         }
       }
 
-      // 2. ?泥??λ퉬: 諛곗감吏??ASSIGNED)?쇰줈 ?꾪솚 諛?怨꾩빟 ?뺣낫 留ㅽ븨
+      // 2. 대체 장비: 배차지정(ASSIGNED)으로 전환 및 계약 정보 매핑
       db.updateRow<Asset>('assets', newAssetId, {
         status: 'ASSIGNED',
         currentCustomerId: oldAssetOrig.currentCustomerId,
@@ -6113,17 +6113,17 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         updatedAt: nowIso
       });
 
-      // 3. 怨꾩빟 ?щ’(contractAssets) assetId 援먯껜
+      // 3. 계약 슬롯(contractAssets) assetId 교체
       db.updateRow<ContractAsset>('contractAssets', contractAssetId, {
         assetId: newAssetId,
         expectedModel: newAssetOrig.modelName
       });
 
-      // 4. 異쒓퀬 寃???섎ː嫄?outboundInspections) assetId 援먯껜 (?놁쑝硫??좉퇋 ?앹꽦?섏뿬 寃???꾨씫 諛⑹?)
+      // 4. 출고 검수 의뢰건(outboundInspections) assetId 교체 (없으면 신규 생성하여 검수 누락 방지)
       if (inspOrig) {
         db.updateRow<OutboundInspection>('outboundInspections', inspOrig.id, {
           assetId: newAssetId,
-          note: `[?λ퉬援먯껜] 湲곗〈(${oldAssetOrig.assetNo}) ???泥?${newAssetOrig.assetNo}) | ?ъ쑀: ${reason}`,
+          note: `[장비교체] 기존(${oldAssetOrig.assetNo}) ➔ 대체(${newAssetOrig.assetNo}) | 사유: ${reason}`,
           updatedAt: nowIso
         });
       } else {
@@ -6133,24 +6133,24 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           contractAssetId,
           assetId: newAssetId,
           status: 'PENDING',
-          note: `[?λ퉬援먯껜] ?泥?${newAssetOrig.assetNo}) ?좉퇋 寃?섏쓽猶?| ?ъ쑀: ${reason}`,
+          note: `[장비교체] 대체(${newAssetOrig.assetNo}) 신규 검수의뢰 | 사유: ${reason}`,
           createdAt: nowIso,
           updatedAt: nowIso
         });
       }
 
-      // 4-1. ?뙚 [?꾩궗 ?쒖? ?뚯옣 2.3 ?⑥씪 EXCHANGE 1嫄?諛쒗뻾/?꾪솚 ?먯튃]: 異쒓퀬遺덈웾 援먯껜 ??諛곗감 嫄댁쓣 ?⑥씪 'EXCHANGE'濡?媛깆떊
+      // 4-1. 🌟 [전사 표준 헌장 2.3 단일 EXCHANGE 1건 발행/전환 원칙]: 출고불량 교체 시 배차 건을 단일 'EXCHANGE'로 갱신
       const existingDel = db.deliveries.find(d => d.contractId === caOrig.contractId && (d.assetIds?.includes(oldAssetId) || !d.assetIds));
       if (existingDel) {
         db.updateRow<Delivery>('deliveries', existingDel.id, {
           assetIds: newAssetId,
           type: 'EXCHANGE',
-          memo: `[異쒓퀬遺덈웾 援먯껜諛곗감 (?뚯옣 2.3)] 援ъ옣鍮?${oldAssetOrig.assetNo}) ???泥댁옣鍮?${newAssetOrig.assetNo}) | ?ъ쑀: ${cleanReason}`,
+          memo: `[출고불량 교체배차 (헌장 2.3)] 구장비(${oldAssetOrig.assetNo}) ➔ 대체장비(${newAssetOrig.assetNo}) | 사유: ${cleanReason}`,
           updatedAt: nowIso
         });
       }
 
-      // 5. ?먯궛 ?낆텧怨??섎━ ??꾨씪??濡쒓퉭 (?泥??λ퉬???ν썑 異쒓퀬 寃???뱀씤 ??OUTBOUND ?대젰???앹꽦??
+      // 5. 자산 입출고/수리 타임라인 로깅 (대체 장비는 향후 출고 검수 승인 시 OUTBOUND 이력이 생성됨)
       db.insertRow<AssetInOutLog>('assetInOutLogs', {
         assetId: oldAssetId,
         assetNo: oldAssetOrig.assetNo,
@@ -6158,30 +6158,30 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         type: 'REPAIR',
         repairId: createdRepairId,
         eventDate: today,
-        memo: `[異쒓퀬遺덇? ?섎━?꾪솚] ?泥댁옣鍮?${newAssetOrig.assetNo}) 援먯껜諛곗젙 | ?ъ쑀: ${cleanReason}${createdRepairId ? ` (?뺣퉬?곗폆 ${createdRepairId} ?먮룞諛쒗뻾)` : ''}`,
+        memo: `[출고불가 수리전환] 대체장비(${newAssetOrig.assetNo}) 교체배정 | 사유: ${cleanReason}${createdRepairId ? ` (정비티켓 ${createdRepairId} 자동발행)` : ''}`,
         createdAt: nowIso
       });
 
-      // 6. ?뙚 [?⑦궎吏 ?쒕쪟 臾닿껐??蹂댁〈]: 怨꾩빟?쒗뙣?ㅼ? 諛쒖넚 ??異쒓퀬 ?먯궛 援먯껜 ??ToDo ?먮룞 諛쒗뻾
+      // 6. 🌟 [패키지 서류 무결성 보존]: 계약서패키지 발송 후 출고 자산 교체 시 ToDo 자동 발행
       try {
         await checkAndIssuePackageResendTask({
           contractId: caOrig.contractId,
           oldAssetId,
           newAssetId,
           reason,
-          senderName: '異쒓퀬寃?섏떆?ㅽ뀥'
+          senderName: '출고검수시스템'
         });
       } catch (taskErr) {
-        console.warn('怨꾩빟?쒗뙣?ㅼ? ?щ컻??ToDo 諛쒗뻾 寃쎄퀬 (臾댁떆):', taskErr);
+        console.warn('계약서패키지 재발송 ToDo 발행 경고 (무시):', taskErr);
       }
 
-      // 7. DB ?꾧껐 ?숆린 ?湲?(?ㅽ뙣 ??catch 釉붾줉?먯꽌 ?먮룞 濡ㅻ갚!)
+      // 7. DB 완결 동기 대기 (실패 시 catch 블록에서 자동 롤백!)
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
       console.error('exchangeOutboundAsset error & Rollback:', err);
 
-      // ?뮙 DB ????ㅽ뙣 ??100% ?ㅻ깄??濡ㅻ갚!
+      // 💥 DB 저장 실패 시 100% 스냅샷 롤백!
       if (oldSnapshot) db.updateRow('assets', oldAssetId, oldSnapshot);
       await db.awaitPendingWrites();
       if (newSnapshot) db.updateRow('assets', newAssetId, newSnapshot);
@@ -6195,8 +6195,8 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
       refreshAllData();
 
-      const errorMsg = `?좑툘 異쒓퀬 ?λ퉬 援먯껜 泥섎━ 以?DB ?숆린???ㅻ쪟媛 諛쒖깮?덉뒿?덈떎:\n\n??[?덈궡]: ????ㅽ뙣濡??명빐 ?λ퉬 援먯껜 ?묒뾽???덉쟾?섍쾶 ?먮룞 濡ㅻ갚 ?먮났?섏뿀?듬땲??\n\n${err.message || err.details || JSON.stringify(err)}`;
-      showErrorModal(errorMsg, '異쒓퀬 ?λ퉬 援먯껜 DB ?숆린???ㅻ쪟');
+      const errorMsg = `⚠️ 출고 장비 교체 처리 중 DB 동기화 오류가 발생했습니다:\n\n■ [안내]: 저장 실패로 인해 장비 교체 작업이 안전하게 자동 롤백 원복되었습니다.\n\n${err.message || err.details || JSON.stringify(err)}`;
+      showErrorModal(errorMsg, '출고 장비 교체 DB 동기화 오류');
       throw err;
     }
   };
@@ -6205,14 +6205,14 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     try {
       const contract = db.contracts.find(c => c.id === contractId);
       if (!contract) {
-        showErrorModal('?李?援먯껜 ???怨꾩빟 ?뺣낫瑜?李얠쓣 ???놁뒿?덈떎.');
+        showErrorModal('대차 교체 대상 계약 정보를 찾을 수 없습니다.');
         return;
       }
 
       const caList = db.contractAssets.filter(ca => ca.contractId === contractId && ca.assetId === oldAssetId);
       const ca = caList.find(c => !c.endDate || new Date(c.endDate) >= new Date(exchangeDate));
       if (!ca) {
-        showErrorModal('?李????怨꾩빟 ?먯궛 ?щ’??李얠쓣 ???놁뒿?덈떎.');
+        showErrorModal('대차 대상 계약 자산 슬롯을 찾을 수 없습니다.');
         return;
       }
 
@@ -6221,7 +6221,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       prevDateObj.setDate(prevDateObj.getDate() - 1);
       const dayBeforeExchange = prevDateObj.toISOString().split('T')[0];
 
-      // ?뚯옣 4.1: ?꾩옄?곗? 援먯껜 ?꾩씪源뚯? ?쇳븷 留덇컧
+      // 헌장 4.1: 전자산은 교체 전일까지 일할 마감
       db.updateRow<ContractAsset>('contractAssets', ca.id, { 
         endDate: dayBeforeExchange,
         status: 'RETURNED',
@@ -6241,7 +6241,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         });
       }
 
-      // ?뚯옣 4.1: ?꾩옣鍮꾨뒗 援먯껜 ?뱀씪遺??媛???밴퀎
+      // 헌장 4.1: 후장비는 교체 당일부터 가동 승계
       const newAsset = db.assets.find(a => a.id === newAssetId);
       if (newAsset) {
         db.insertRow<ContractAsset>('contractAssets', {
@@ -6254,7 +6254,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           createdAt: new Date().toISOString()
         });
 
-        // ?뚯옣 1.3 以?? 諛곗감 ?④퀎?먯꽌??ASSIGNED(諛곗젙/異쒓퀬?湲? ?곹깭 遺?? 異쒓퀬 寃???뱀씤 留덇컧 ??RENTED ?꾪솚
+        // 헌장 1.3 준수: 배차 단계에서는 ASSIGNED(배정/출고대기) 상태 부여, 출고 검수 승인 마감 시 RENTED 전환
         db.updateRow<Asset>('assets', newAssetId, {
           status: 'ASSIGNED',
           currentCustomerId: contract.customerId,
@@ -6267,7 +6267,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         });
       }
 
-      // ?뚯옣 2.3 以?? ?⑥씪 EXCHANGE 諛곗감 ?섎ː 1嫄?諛쒗뻾
+      // 헌장 2.3 준수: 단일 EXCHANGE 배차 의뢰 1건 발행
       db.insertRow<Delivery>('deliveries', {
         contractId: contractId,
         type: 'EXCHANGE',
@@ -6275,24 +6275,24 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         requestDate: exchangeDate,
         deliveryCost: 0,
         isCostSettled: false,
-        memo: `?λ퉬 援먯껜 ?섎ː (援? ${oldAsset?.assetNo || '誘몄긽'} -> ?? ${newAsset?.assetNo || '誘몄긽'})`,
+        memo: `장비 교체 의뢰 (구: ${oldAsset?.assetNo || '미상'} -> 신: ${newAsset?.assetNo || '미상'})`,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
 
-      // ?뚯옣 4.2 以?? changeType 'EXCHANGE' 紐낆떆
-      db.insertRow<ContractHistory>({
+      // 헌장 4.2 준수: changeType 'EXCHANGE' 명시
+      db.insertRow<ContractHistory>('contractHistory', {
         contractId,
         changeType: 'EXCHANGE',
         changeDate: exchangeDate,
-        description: `?λ퉬 援먯껜 ?꾨즺 (援? ${oldAsset?.assetNo || '誘몄긽'} -> ?? ${newAsset?.assetNo || '誘몄긽'})`,
+        description: `장비 교체 완료 (구: ${oldAsset?.assetNo || '미상'} -> 신: ${newAsset?.assetNo || '미상'})`,
         createdAt: new Date().toISOString()
       });
 
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?李?援먯껜 泥섎━ 以?DB ?숆린???ㅻ쪟:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 대차 교체 처리 중 DB 동기화 오류:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -6303,9 +6303,9 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       const startOfMonth = new Date(year, month - 1, 1);
       const endOfMonth = new Date(year, month, 0);
 
-      // ?대떦 ?붿뿉 ?쒖꽦 ?곹깭??怨꾩빟 ?꾩껜 ?먯깋 (怨꾩빟 ?⑥쐞 ?낅┰ ?앹꽦 - E-1 ?먯튃, 留ㅺ컖 怨꾩빟 ?먯쿇 諛곗젣)
+      // 해당 월에 활성 상태인 계약 전체 탐색 (계약 단위 독립 생성 - E-1 원칙, 매각 계약 원천 배제)
       const activeContracts = db.contracts.filter(c => {
-        if ((c.contractType || 'RENTAL') !== 'RENTAL') return false; // ?슟 ?먯궛 留ㅺ컖 怨꾩빟(SALE) ?먯쿇 諛곗젣
+        if ((c.contractType || 'RENTAL') !== 'RENTAL') return false; // 🚫 자산 매각 계약(SALE) 원천 배제
         if (c.status === 'COMPLETED') return false;
         const contractStart = new Date(c.startDate);
         const contractEnd = c.endDate ? new Date(c.endDate) : null;
@@ -6322,8 +6322,8 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           const bId = await generateBillingForSingleContract(c.id, billingYm, billingDate);
           if (bId) createdCount++;
         } catch (err: any) {
-          // 以묐났 寃쎄퀬??議곗슜??skip (?대? 議댁옱?섎뒗 泥?뎄??
-          if (err?.message?.includes('[以묐났 寃쎄퀬]')) continue;
+          // 중복 경고는 조용히 skip (이미 존재하는 청구서)
+          if (err?.message?.includes('[중복 경고]')) continue;
           errors.push(err?.message || String(err));
         }
       }
@@ -6332,30 +6332,30 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       refreshAllData();
 
       if (errors.length > 0) {
-        showErrorModal(`?좑툘 ?쇰? 泥?뎄???앹꽦 ?ㅽ뙣 (${errors.length}嫄?:\n\n${errors.slice(0, 5).join('\n')}`, '泥?뎄???앹꽦 ?쇰? ?ㅽ뙣');
+        showErrorModal(`⚠️ 일부 청구서 생성 실패 (${errors.length}건):\n\n${errors.slice(0, 5).join('\n')}`, '청구서 생성 일부 실패');
       }
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?쇨큵 泥?뎄??DB ????ㅽ뙣:\n\n${err?.message || err}`, '泥?뎄???앹꽦 ?ㅽ뙣');
+      showErrorModal(`⚠️ 일괄 청구서 DB 저장 실패:\n\n${err?.message || err}`, '청구서 생성 실패');
     }
   };
 
-  // 嫄곕옒紐낆꽭??諛쒖넚: UNPAID ??REQUESTED (F-2 ?먯튃)
+  // 거래명세서 발송: UNPAID → REQUESTED (F-2 원칙)
   const approveBilling = async (billingId: string) => {
     const billing = db.billings.find(b => b.id === billingId);
     if (!billing) return;
     if (billing.status === 'UNPAID') {
-      // 諛쒖넚 泥섎━: REQUESTED濡??꾪솚
-      db.updateRow<Billing>(billingId, {
+      // 발송 처리: REQUESTED로 전환
+      db.updateRow<Billing>('billings', billingId, {
         status: 'REQUESTED',
         updatedAt: new Date().toISOString()
       });
-      // 怨꾩빟?대젰 湲곕줉
+      // 계약이력 기록
       if (billing.contractId) {
-        db.insertRow<ContractHistory>({
+        db.insertRow<ContractHistory>('contractHistory', {
           contractId: billing.contractId,
           changeType: 'BILLING_SENT',
           changeDate: new Date().toISOString().split('T')[0],
-          description: `泥?뎄??諛쒖넚: ${billing.billingYm} / ${billing.totalAmount.toLocaleString()}??(泥?뎄踰덊샇: ${billingId})`,
+          description: `청구서 발송: ${billing.billingYm} / ${billing.totalAmount.toLocaleString()}원 (청구번호: ${billingId})`,
           createdAt: new Date().toISOString()
         });
       }
@@ -6364,18 +6364,18 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     refreshAllData();
   };
 
-  // 泥?뎄 痍⑥냼 (J-1, J-2 ?먯튃)
-  // refund=true: ?섎궔 痍⑥냼 + ?낃툑?붿븸 ?뚮㈇ (?섎텋 耳?댁뒪)
-  // refund=false: 泥?뎄留?痍⑥냼, ?섎궔쨌?낃툑?붿븸 ?붾쪟 (鍮꾪솚遺?耳?댁뒪 ????泥?뎄???곌껐)
+  // 청구 취소 (J-1, J-2 원칙)
+  // refund=true: 수납 취소 + 입금잔액 소멸 (환불 케이스)
+  // refund=false: 청구만 취소, 수납·입금잔액 잔류 (비환불 케이스 → 새 청구에 연결)
   const cancelBilling = async (billingId: string, refund: boolean = false) => {
     const billing = db.billings.find(b => b.id === billingId);
     if (!billing) return;
 
     const details = db.billingDetails.filter(bd => bd.billingId === billingId);
 
-    // ?좎닔湲댟룸늻?곷젋?덈즺 濡ㅻ갚
+    // 선수금·누적렌탈료 롤백
     details.forEach(bd => {
-      if (bd.itemName === '?좎닔湲??덉튂湲? 李④컧 諛섏쁺') {
+      if (bd.itemName === '선수금(예치금) 차감 반영') {
         const customer = db.customers.find(c => c.id === billing.customerId);
         if (customer) {
           db.updateRow<Customer>('customers', customer.id, {
@@ -6396,7 +6396,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           }
         }
       }
-      // ?몄긽誘몄닔湲??곕룞 ?댁젣 (billedAmount 濡ㅻ갚)
+      // 외상미수금 연동 해제 (billedAmount 롤백)
       if (bd.receivableId) {
         const rcv = db.receivables.find(r => r.id === bd.receivableId);
         if (rcv) {
@@ -6411,7 +6411,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     });
 
     if (refund) {
-      // ?섎텋 耳?댁뒪: ?섎궔 痍⑥냼 + payment_deposit_links ?댁젣
+      // 환불 케이스: 수납 취소 + payment_deposit_links 해제
       const linkedPayments = db.payments.filter(p => p.billingId === billingId);
       linkedPayments.forEach(p => {
         db.paymentDepositLinks
@@ -6421,25 +6421,25 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       });
     }
-    // 鍮꾪솚遺?耳?댁뒪: ?섎궔쨌?낃툑?붿븸 洹몃?濡??좎? ????泥?뎄 ?앹꽦 ??FIFO濡??먮룞 ?곌껐
+    // 비환불 케이스: 수납·입금잔액 그대로 유지 → 새 청구 생성 시 FIFO로 자동 연결
 
-    // 怨듯넻: 泥?뎄 ?곸꽭 ??젣 ??泥?뎄 REJECTED 泥섎━ (?꾩쟾 ??젣 ????대젰 蹂댁〈)
+    // 공통: 청구 상세 삭제 후 청구 REJECTED 처리 (완전 삭제 대신 이력 보존)
     details.forEach(bd => db.deleteRow('billingDetails', bd.id));
-    db.updateRow<Billing>(billingId, {
+    db.updateRow<Billing>('billings', billingId, {
       status: 'REJECTED',
       updatedAt: new Date().toISOString()
     });
 
-    // 怨꾩빟?대젰 湲곕줉
+    // 계약이력 기록
     if (billing.contractId) {
-      db.insertRow<ContractHistory>({
+      db.insertRow<ContractHistory>('contractHistory', {
         contractId: billing.contractId,
         changeType: 'BILLING_CANCELLED',
         changeDate: new Date().toISOString().split('T')[0],
-        description: `泥?뎄 痍⑥냼: ${billing.billingYm} / ${billing.totalAmount.toLocaleString()}??(${refund ? '?섎텋 泥섎━' : '鍮꾪솚遺?泥섎━'}, 泥?뎄踰덊샇: ${billingId})`,
+        description: `청구 취소: ${billing.billingYm} / ${billing.totalAmount.toLocaleString()}원 (${refund ? '환불 처리' : '비환불 처리'}, 청구번호: ${billingId})`,
         createdAt: new Date().toISOString()
       });
-      // ?뮕 泥?뎄 痍⑥냼 ??怨꾩빟 硫뷀??곗씠???댁쟾 ?곹깭濡?濡ㅻ갚 ?숆린??
+      // 💡 청구 취소 시 계약 메타데이터 이전 상태로 롤백 동기화
       syncContractBillingMilestones(billing.contractId);
     }
 
@@ -6447,9 +6447,9 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     refreshAllData();
   };
 
-  // ??? ?몄긽誘몄닔湲?CRUD (4?④퀎) ??????????????????????????????????????????????
+  // ─── 외상미수금 CRUD (4단계) ──────────────────────────────────────────────
 
-  /** ?몄긽誘몄닔湲??좉퇋 ?깅줉 */
+  /** 외상미수금 신규 등록 */
   const addReceivable = (data: Omit<Receivable, 'id' | 'createdAt' | 'updatedAt'>) => {
     const now = new Date().toISOString();
     const newRcv = db.insertRow<Receivable>('receivables', {
@@ -6461,7 +6461,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     return newRcv.id;
   };
 
-  /** ?몄긽誘몄닔湲???泥?뎄 ?곸꽭 ?곕룞 (?대쾲 ??泥?뎄??湲덉븸 吏?? */
+  /** 외상미수금 → 청구 상세 연동 (이번 달 청구할 금액 지정) */
     const linkReceivableToBilling = async (
     billingId: string,
     receivableId: string,
@@ -6469,18 +6469,18 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     displayName?: string
   ) => {
     const rcv = db.receivables.find(r => r.id === receivableId);
-    if (!rcv) throw new Error('?몄긽誘몄닔湲???ぉ??李얠쓣 ???놁뒿?덈떎.');
+    if (!rcv) throw new Error('외상미수금 항목을 찾을 수 없습니다.');
 
     const remaining = rcv.totalAmount - rcv.billedAmount;
-    if (amount > remaining + 1) { // 遺?숈냼?섏젏 ?ㅼ감 ?덉슜
-      throw new Error(`泥?뎄 湲덉븸(${amount.toLocaleString()}????誘몄껌援??붿븸(${remaining.toLocaleString()}????珥덇낵?⑸땲??`);
+    if (amount > remaining + 1) { // 부동소수점 오차 허용
+      throw new Error(`청구 금액(${amount.toLocaleString()}원)이 미청구 잔액(${remaining.toLocaleString()}원)을 초과합니다.`);
     }
 
     const newBilled = rcv.billedAmount + amount;
     const newRemaining = rcv.totalAmount - newBilled;
     
-    // K-3: 怨좉컼 ?щ챸???뺣낫瑜??꾪븳 媛뺤젣 ?몃옒而??띿뒪???앹꽦
-    const trackerText = `[珥?泥?뎄??? ${rcv.totalAmount.toLocaleString()}??/ 湲덊쉶 泥?뎄: ${amount.toLocaleString()}??/ 誘몄껌援??붿븸: ${Math.max(0, newRemaining).toLocaleString()}??`;
+    // K-3: 고객 투명성 확보를 위한 강제 트래커 텍스트 생성
+    const trackerText = `[총 청구대상: ${rcv.totalAmount.toLocaleString()}원 / 금회 청구: ${amount.toLocaleString()}원 / 미청구 잔액: ${Math.max(0, newRemaining).toLocaleString()}원]`;
 
     const now = new Date().toISOString();
     db.insertRow<BillingDetail>('billingDetails', {
@@ -6503,10 +6503,10 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       updatedAt: now
     });
 
-    // 泥?뎄??珥앹븸 媛깆떊
+    // 청구서 총액 갱신
     const billing = db.billings.find(b => b.id === billingId);
     if (billing) {
-      db.updateRow<Billing>(billingId, {
+      db.updateRow<Billing>('billings', billingId, {
         totalAmount: billing.totalAmount + amount,
         updatedAt: now
       });
@@ -6516,38 +6516,38 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     refreshAllData();
   };
 
-  /** K-2: ?몄긽誘몄닔湲??⑤룆 泥?뎄??諛쒗뻾 (?섍툑 湲곕룞??諛?吏꾩긽怨좉컼 諛⑹뼱) */
+  /** K-2: 외상미수금 단독 청구서 발행 (수금 기동성 및 진상고객 방어) */
   const generateStandaloneBillingForReceivable = async (receivableId: string, reason: string): Promise<string> => {
     const rcv = db.receivables.find(r => r.id === receivableId);
-    if (!rcv) throw new Error('?몄긽誘몄닔湲???ぉ??李얠쓣 ???놁뒿?덈떎.');
-    if (rcv.status === 'CLEARED') throw new Error('?대? 泥?뎄媛 ?꾨즺??嫄댁엯?덈떎.');
-    if (!rcv.customerId) throw new Error('怨좉컼 ?뺣낫媛 ?녿뒗 誘몄닔湲덉? ?⑤룆 泥?뎄?????놁뒿?덈떎.');
+    if (!rcv) throw new Error('외상미수금 항목을 찾을 수 없습니다.');
+    if (rcv.status === 'CLEARED') throw new Error('이미 청구가 완료된 건입니다.');
+    if (!rcv.customerId) throw new Error('고객 정보가 없는 미수금은 단독 청구할 수 없습니다.');
 
     const remaining = rcv.totalAmount - rcv.billedAmount;
     const now = new Date().toISOString();
     const billingYm = now.substring(0, 7);
     const billingDate = now.split('T')[0];
 
-    // 寃곗젙: rcv.type???곕씪 ?곸젅??billingType 留ㅽ븨 (Gap 2 諛⑹뼱)
+    // 결정: rcv.type에 따라 적절한 billingType 매핑 (Gap 2 방어)
     let bType: BillingType = 'REPAIR';
     if (rcv.type === 'TRANSPORT') bType = 'TRANSPORT';
     else if (rcv.type === 'CLEANING' || rcv.type === 'REPAIR') bType = 'REPAIR';
     else if (rcv.type === 'VENDOR_CLAIM' || rcv.type === 'OTHER') bType = 'REPAIR';
 
-    const newBilling = db.insertRow<Billing>({
+    const newBilling = db.insertRow<Billing>('billings', {
       billingType: bType,
       customerId: rcv.customerId,
       contractId: rcv.contractId || (null as any),
       billingYm,
       billingDate,
-      totalAmount: 0, // linkReceivableToBilling??媛깆떊??
+      totalAmount: 0, // linkReceivableToBilling이 갱신함
       paidAmount: 0,
       status: 'UNPAID',
       createdAt: now,
       updatedAt: now
     });
 
-    const standaloneTitle = `[?⑤룆 泥?뎄 - ${reason}] ${rcv.displayName || rcv.internalDescription}`;
+    const standaloneTitle = `[단독 청구 - ${reason}] ${rcv.displayName || rcv.internalDescription}`;
     await linkReceivableToBilling(newBilling.id, rcv.id, remaining, standaloneTitle);
     
     return newBilling.id;
@@ -6561,9 +6561,9 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     const endOfMonth = new Date(year, month, 0);
     const lastDayOfMonth = endOfMonth.getDate();
 
-    // 1. ?좏슚 怨꾩빟 ?먯깋: ?꾨즺?섏? ?딆? ?댁븘?덈뒗 ?뚰깉 怨꾩빟 (留ㅺ컖 怨꾩빟 ?먯쿇 諛곗젣)
+    // 1. 유효 계약 탐색: 완료되지 않은 살아있는 렌탈 계약 (매각 계약 원천 배제)
     const liveContracts = db.contracts.filter(c => {
-      if ((c.contractType || 'RENTAL') !== 'RENTAL') return false; // ?슟 ?먯궛 留ㅺ컖 怨꾩빟(SALE) ?먯쿇 諛곗젣
+      if ((c.contractType || 'RENTAL') !== 'RENTAL') return false; // 🚫 자산 매각 계약(SALE) 원천 배제
       if (c.status === 'COMPLETED') return false;
       const cStart = new Date(c.startDate);
       if (cStart > endOfMonth) return false;
@@ -6581,8 +6581,8 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       if (!cust) return;
       const site = db.sites.find(s => s.id === c.siteId);
 
-      // ?뮕 [Gap 1 諛⑹뼱] ?대? ?대떦 洹?띿썡(targetYm)???좏슚??'?뺢린 ?뚰깉猷?RENTAL)' 泥?뎄?쒓? ?덈뒗吏 ?뺤씤
-      // ?섎━鍮?REPAIR), ?대컲鍮?TRANSPORT), ?먯궛留ㅺ컖(ASSET_SALE) ?⑤룆 泥?뎄?쒖? ?꾧꺽 遺꾨━
+      // 💡 [Gap 1 방어] 이미 해당 귀속월(targetYm)에 유효한 '정기 렌탈료(RENTAL)' 청구서가 있는지 확인
+      // 수리비(REPAIR), 운반비(TRANSPORT), 자산매각(ASSET_SALE) 단독 청구서와 엄격 분리
       const existingBilling = db.billings.find(b => 
         b.contractId === c.id && 
         b.billingYm === targetYm && 
@@ -6591,14 +6591,14 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       );
       if (existingBilling) return;
 
-      // 怨좉컼/怨꾩빟??泥?뎄 湲곗???billingDay) ?먮뒗 嫄곕옒紐낆꽭??留덇컧??statementClosingDay)
+      // 고객/계약의 청구 기준일(billingDay) 또는 거래명세서 마감일(statementClosingDay)
       const rawBillingDay = c.billingDay || cust.defaultBillingDay || 31;
       const rawStatementDay = c.statementClosingDay || cust.defaultStatementClosingDay || rawBillingDay;
       const effectiveBillingDay = Math.min(rawBillingDay, lastDayOfMonth);
       const effectiveStatementDay = Math.min(rawStatementDay, lastDayOfMonth);
       const triggerDay = Math.min(effectiveBillingDay, effectiveStatementDay);
 
-      // ?뮕 怨꾩빟 ?쒖옉?쇱씠 ?뱀썡 留덇컧??triggerDay)蹂대떎 誘몃옒??寃쎌슦: ?뱀썡 泥?뎄 ??곸씠 ?꾨땲誘濡??쒖쇅 (?듭썡 泥?뎄濡??닿?)
+      // 💡 계약 시작일이 당월 마감일(triggerDay)보다 미래인 경우: 당월 청구 대상이 아니므로 제외 (익월 청구로 이관)
       const closingDateStr = `${year}-${String(month).padStart(2, '0')}-${String(triggerDay).padStart(2, '0')}`;
       if (c.startDate > closingDateStr) {
         return;
@@ -6610,9 +6610,9 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       if (isDayPassed || isPastMonthContract) {
         let reason = '';
         if (day >= triggerDay) {
-          reason = `泥?뎄湲곗???留ㅼ썡 ${rawBillingDay}?? ?꾨옒`;
+          reason = `청구기준일(매월 ${rawBillingDay}일) 도래`;
         } else {
-          reason = `?꾩썡 ?댁썡 誘몄껌援?怨꾩빟`;
+          reason = `전월 이월 미청구 계약`;
         }
 
         dueList.push({
@@ -6629,10 +6629,10 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   };
 
   /**
-   * billingDay 湲곕컲 泥?뎄 湲곌컙 怨꾩궛 (?명꽣酉??먯튃 A-1 ~ A-5, B-1 ~ B-4)
-   * - billingDay = 泥?뎄??諛쒗뻾??(?? 25 ???꾩썡26~?뱀썡25)
-   * - 泥???/ 留덉?留??щ쭔 ?쇳븷, 以묎컙 ???뺤븸
-   * - billingDay > ?붾쭚?대㈃ ?붾쭚濡??먮룞 蹂댁젙
+   * billingDay 기반 청구 기간 계산 (인터뷰 원칙 A-1 ~ A-5, B-1 ~ B-4)
+   * - billingDay = 청구서 발행일 (예: 25 → 전월26~당월25)
+   * - 첫 달 / 마지막 달만 일할, 중간 달 정액
+   * - billingDay > 월말이면 월말로 자동 보정
    */
   const calcBillingPeriod = (
     billingYm: string,
@@ -6642,29 +6642,29 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   ) => {
     const [year, month] = billingYm.split('-').map(Number);
 
-    // ?뱀썡 billingDay 蹂댁젙 (A-5, UTC 湲곗?)
+    // 당월 billingDay 보정 (A-5, UTC 기준)
     const lastDayOfCurrent = new Date(Date.UTC(year, month, 0)).getUTCDate();
     const effectiveBillingDay = Math.min(billingDay, lastDayOfCurrent);
 
-    // 泥?뎄 湲곌컙 ?? ?뱀썡 billingDay
+    // 청구 기간 끝: 당월 billingDay
     const periodEnd = new Date(Date.UTC(year, month - 1, effectiveBillingDay));
 
-    // 泥?뎄 湲곌컙 ?쒖옉: ?꾩썡 (billingDay+1)??
+    // 청구 기간 시작: 전월 (billingDay+1)일
     const prevMonth = month === 1 ? 12 : month - 1;
     const prevYear = month === 1 ? year - 1 : year;
     const lastDayOfPrev = new Date(Date.UTC(prevYear, prevMonth, 0)).getUTCDate();
     const prevEffectiveBillingDay = Math.min(billingDay, lastDayOfPrev);
     const periodStart = new Date(Date.UTC(prevYear, prevMonth - 1, prevEffectiveBillingDay + 1));
 
-    // ?ㅼ젣 ?먯궛 ?ъ슜 湲곌컙: 怨꾩빟 startDate 蹂댁젙 (A-2)
+    // 실제 자산 사용 기간: 계약 startDate 보정 (A-2)
     const contractStart = new Date(contractStartDate.includes('T') ? contractStartDate : `${contractStartDate}T00:00:00Z`);
     const actualStart = contractStart > periodStart ? contractStart : periodStart;
 
-    // ?ㅼ젣 ?먯궛 ?ъ슜 湲곌컙: 怨꾩빟 endDate 蹂댁젙 (A-3)
+    // 실제 자산 사용 기간: 계약 endDate 보정 (A-3)
     const contractEnd = contractEndDate ? new Date(contractEndDate.includes('T') ? contractEndDate : `${contractEndDate}T00:00:00Z`) : null;
     const actualEnd = contractEnd && contractEnd < periodEnd ? contractEnd : periodEnd;
 
-    // 泥???/ 留덉?留????먮떒 ???쇳븷 怨꾩궛 ?щ? (B-2)
+    // 첫 달 / 마지막 달 판단 → 일할 계산 여부 (B-2)
     const isFirstMonth = contractStart > periodStart && contractStart <= periodEnd;
     const isLastMonth = contractEnd
       ? contractEnd >= periodStart && contractEnd <= periodEnd
@@ -6675,7 +6675,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   };
 
   /**
-   * ?쇳븷 湲덉븸 怨꾩궛 (B-1: 30??怨좎젙, ??씪 湲곗?, 1,000???⑥쐞 諛섏삱由??낃퀎 ?꾩궗 ?쒖?)
+   * 일할 금액 계산 (B-1: 30일 고정, 역일 기준, 1,000원 단위 반올림 업계 전사 표준)
    */
   const calcProRataAmount = (monthlyFee: number, dailyFee: number, days: number): number => {
     if (dailyFee > 0) {
@@ -6685,12 +6685,12 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   };
 
   /**
-   * ?뮕 怨꾩빟蹂?吏곸쟾 泥?뎄 留덉씪?ㅽ넠 硫뷀??곗씠???숆린??(?몃━嫄?媛깆떊 諛?諛깊븘)
-   * - 理쒓렐 ?뚰깉猷?泥?뎄 諛쒗뻾??(lastBillingDate)
-   * - 理쒓렐 泥?뎄 ?쒖옉??(lastBilledPeriodStart)
-   * - 理쒓렐 泥?뎄 醫낅즺??(lastBilledPeriodEnd)
-   * - 理쒓렐 泥?뎄 洹?띿썡 (lastBilledYm)
-   * - ?꾩쟻 諛쒗뻾 泥?뎄 嫄댁닔 (billingCount)
+   * 💡 계약별 직전 청구 마일스톤 메타데이터 동기화 (트리거 갱신 및 백필)
+   * - 최근 렌탈료 청구 발행일 (lastBillingDate)
+   * - 최근 청구 시작일 (lastBilledPeriodStart)
+   * - 최근 청구 종료일 (lastBilledPeriodEnd)
+   * - 최근 청구 귀속월 (lastBilledYm)
+   * - 누적 발행 청구 건수 (billingCount)
    */
   const syncContractBillingMilestones = (contractId?: string) => {
     const targetContracts = contractId 
@@ -6743,21 +6743,21 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     if (!c) return null;
 
     if ((c.contractType || 'RENTAL') !== 'RENTAL') {
-      throw new Error(`[怨꾩빟 ?좏삎 ?ㅻ쪟] 怨꾩빟 ${c.contractNo}???먯궛 留ㅺ컖 怨꾩빟(SALE)?낅땲?? ???뺢린 ?뚰깉猷?泥?뎄 ??곸씠 ?꾨떃?덈떎.`);
+      throw new Error(`[계약 유형 오류] 계약 ${c.contractNo}는 자산 매각 계약(SALE)입니다. 월 정기 렌탈료 청구 대상이 아닙니다.`);
     }
 
-    // 以묐났 諛쒗뻾 媛먯? (J-3): ?숈씪 怨꾩빟 + ?숈씪 洹?띿썡 ?쒖꽦 泥?뎄 議댁옱 ??throw (遺遺?泥?뎄???쒖쇅)
+    // 중복 발행 감지 (J-3): 동일 계약 + 동일 귀속월 활성 청구 존재 시 throw (부분 청구는 제외)
     const existingActive = db.billings.find(
       b => b.contractId === c.id && b.billingYm === billingYm && b.status !== 'REJECTED' && !b.isPartial
     );
     if (existingActive && !selectedContractAssetIds) {
-      throw new Error(`[以묐났 寃쎄퀬] 怨꾩빟 ${c.contractNo}??${billingYm} 泥?뎄?쒓? ?대? 議댁옱?⑸땲??\n?곹깭: ${existingActive.status} / ID: ${existingActive.id}`);
+      throw new Error(`[중복 경고] 계약 ${c.contractNo}의 ${billingYm} 청구서가 이미 존재합니다.\n상태: ${existingActive.status} / ID: ${existingActive.id}`);
     }
 
     const cust = db.customers.find(cu => cu.id === c.customerId);
     const billingDay = c.billingDay || cust?.defaultBillingDay || 25;
     const allCAssets = db.contractAssets.filter(ca => ca.contractId === c.id);
-    // 遺遺?泥?뎄 ?? ?좏깮???먯궛 ID留??꾪꽣留? ?꾩껜 泥?뎄 ?? ?꾩껜 ?먯궛
+    // 부분 청구 시: 선택된 자산 ID만 필터링, 전체 청구 시: 전체 자산
     const cAssets = selectedContractAssetIds
       ? allCAssets.filter(ca => selectedContractAssetIds.includes(ca.id))
       : allCAssets;
@@ -6766,7 +6766,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     let detailsList: Omit<BillingDetail, 'id' | 'billingId' | 'createdAt'>[] = [];
     let totalAmount = 0;
 
-    // 1. ?먯궛蹂??뚰깉猷?怨꾩궛 (?명꽣酉??먯튃 A, B, C ?듯빀 ?곸슜)
+    // 1. 자산별 렌탈료 계산 (인터뷰 원칙 A, B, C 통합 적용)
     cAssets.forEach(ca => {
       const { actualStart, actualEnd, isProRata } = calcBillingPeriod(
         billingYm,
@@ -6775,35 +6775,35 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         ca.endDate || c.endDate
       );
 
-      if (actualStart > actualEnd) return; // 泥?뎄 湲곌컙 ???먯궛
+      if (actualStart > actualEnd) return; // 청구 기간 외 자산
 
       const assetInfo = db.assets.find(a => a.id === ca.assetId);
       const assetName = assetInfo
-        ? `${assetInfo.modelName} (愿由щ쾲?? ${assetInfo.assetNo})`
-        : '?뚰깉 ?λ퉬';
+        ? `${assetInfo.modelName} (관리번호: ${assetInfo.assetNo})`
+        : '렌탈 장비';
 
       let rentalCost = 0;
       let calcDesc = '';
 
       if (isProRata) {
-        // ?쇳븷 怨꾩궛: 30??怨좎젙 (B-1), ??씪 湲곗? (B-4)
+        // 일할 계산: 30일 고정 (B-1), 역일 기준 (B-4)
         const diffMs = actualEnd.getTime() - actualStart.getTime();
         const days = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
         rentalCost = calcProRataAmount(ca.monthlyRentalFee, ca.dailyRentalFee, days);
-        calcDesc = `${actualStart.toISOString().split('T')[0]} ~ ${actualEnd.toISOString().split('T')[0]} ?쇳븷 泥?뎄 (${days}??횞 ${(ca.dailyRentalFee > 0 ? ca.dailyRentalFee : ca.monthlyRentalFee / 30).toLocaleString()}??`;
+        calcDesc = `${actualStart.toISOString().split('T')[0]} ~ ${actualEnd.toISOString().split('T')[0]} 일할 청구 (${days}일 × ${(ca.dailyRentalFee > 0 ? ca.dailyRentalFee : ca.monthlyRentalFee / 30).toLocaleString()}원)`;
       } else {
-        // 以묎컙 ?? ???뺤븸 (B-2)
+        // 중간 달: 월 정액 (B-2)
         rentalCost = ca.monthlyRentalFee;
         const startStr = actualStart.toISOString().split('T')[0];
         const endStr = actualEnd.toISOString().split('T')[0];
-        calcDesc = `${startStr} ~ ${endStr} ?뺢린 ?붾젋?덈즺`;
+        calcDesc = `${startStr} ~ ${endStr} 정기 월렌탈료`;
       }
 
       if (rentalCost > 0) {
         detailsList.push({
           contractAssetId: ca.id,
           assetId: ca.assetId,
-          itemName: `${assetName} ?뚰깉猷?,
+          itemName: `${assetName} 렌탈료`,
           quantity: 1,
           unitPrice: rentalCost,
           amount: rentalCost,
@@ -6813,7 +6813,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         totalAmount += rentalCost;
 
         if (assetInfo) {
-          // 湲곗닔 ?먯튃: 泥?뎄??諛쒗뻾(湲곗닔) ?쒖젏?먮쭔 cumRentalFee ?꾩쟻 ??誘몄닔(誘몃컻?? 湲덉븸 ?덈? ?ы븿 湲덉?
+          // 기수 원칙: 청구서 발행(기수) 시점에만 cumRentalFee 누적 — 미수(미발행) 금액 절대 포함 금지
           db.updateRow<Asset>('assets', assetInfo.id, {
             cumRentalFee: (assetInfo.cumRentalFee || 0) + rentalCost,
             updatedAt: new Date().toISOString()
@@ -6822,10 +6822,10 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       }
     });
 
-    // 2. ?섎━鍮??먮룞 ?⑹궛 ?쒓굅 (H-1 ?먯튃: ?섎━鍮꾨뒗 ?몄긽誘몄닔湲???μ쑝濡?遺꾨━ 愿由?
-    // ???대떦?먭? ?몄긽誘몄닔湲??붾㈃?먯꽌 ?섎룞?쇰줈 泥?뎄???ы븿
+    // 2. 수리비 자동 합산 제거 (H-1 원칙: 수리비는 외상미수금 대장으로 분리 관리)
+    // → 담당자가 외상미수금 화면에서 수동으로 청구에 포함
 
-    // 3. ?좎닔湲??덉튂湲? 李④컧 諛섏쁺 ??遺遺?泥?뎄媛 ?꾨땶 寃쎌슦?먮쭔 ?먮룞 李④컧 (I-1 ?먯튃)
+    // 3. 선수금(예치금) 차감 반영 — 부분 청구가 아닌 경우에만 자동 차감 (I-1 원칙)
     let finalBillingAmount = totalAmount;
     if (!isPartialBilling && cust && (cust.prepaidBalance || 0) > 0 && totalAmount > 0) {
       const prepaid = cust.prepaidBalance || 0;
@@ -6833,11 +6833,11 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       if (applied > 0) {
         detailsList.push({
           contractAssetId: undefined,
-          itemName: '?좎닔湲??덉튂湲? 李④컧 諛섏쁺',
+          itemName: '선수금(예치금) 차감 반영',
           quantity: 1,
           unitPrice: -applied,
           amount: -applied,
-          internalDescription: `蹂댁쑀 ?좎닔湲?以?${applied.toLocaleString()}???먮룞 李④컧`,
+          internalDescription: `보유 선수금 중 ${applied.toLocaleString()}원 자동 차감`,
           displayName: undefined
         });
         db.updateRow<Customer>('customers', cust.id, {
@@ -6850,8 +6850,8 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
     if (detailsList.length === 0) return null;
 
-    // 4. 泥?뎄???앹꽦 ??珥덇린 ?곹깭 UNPAID (F-2 ?먯튃: 嫄곕옒紐낆꽭??諛쒖넚 ??REQUESTED濡??꾪솚)
-    const newBilling = db.insertRow<Billing>({
+    // 4. 청구서 생성 — 초기 상태 UNPAID (F-2 원칙: 거래명세서 발송 후 REQUESTED로 전환)
+    const newBilling = db.insertRow<Billing>('billings', {
       customerId: c.customerId,
       contractId: c.id,
       billingYm,
@@ -6873,7 +6873,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       });
     });
 
-    // ?뮕 怨꾩빟 硫뷀??곗씠???몃━嫄??먮룞 媛깆떊 (理쒓렐 泥?뎄 諛쒗뻾?? ?쒖옉?? 醫낅즺?? 泥?뎄嫄댁닔)
+    // 💡 계약 메타데이터 트리거 자동 갱신 (최근 청구 발행일, 시작일, 종료일, 청구건수)
     syncContractBillingMilestones(c.id);
 
     return newBilling.id;
@@ -6889,7 +6889,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       const skippedContracts: { contractId: string; customerId: string; reason: string }[] = [];
 
       for (const item of dueContracts) {
-        // K-1: 誘몄껌援??몄긽誘몄닔湲?議댁옱 ?щ? 泥댄겕 (?쇨큵 泥?뎄 諛⑹뼱 濡쒖쭅)
+        // K-1: 미청구 외상미수금 존재 여부 체크 (일괄 청구 방어 로직)
         const hasPendingReceivables = db.receivables.some(r => 
           r.contractId === item.contract.id && r.status !== 'CLEARED'
         );
@@ -6898,9 +6898,9 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           skippedContracts.push({
             contractId: item.contract.id,
             customerId: item.customer.id,
-            reason: '誘몄껌援??몄긽誘몄닔湲?議댁옱'
+            reason: '미청구 외상미수금 존재'
           });
-          continue; // ?대떦 怨꾩빟? 泥?뎄 嫄대꼫? (SKIP)
+          continue; // 해당 계약은 청구 건너뜀 (SKIP)
         }
 
         const bId = await generateBillingForSingleContract(item.contract.id, ym, todayStr);
@@ -6911,7 +6911,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       refreshAllData();
       return { successCount: createdCount, skippedContracts };
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?꾨옒 怨꾩빟 泥?뎄 ?쇨큵 ?앹꽦 ?ㅽ뙣:\n\n${err?.message || err}`, '泥?뎄 ?앹꽦 ?ㅻ쪟');
+      showErrorModal(`⚠️ 도래 계약 청구 일괄 생성 실패:\n\n${err?.message || err}`, '청구 생성 오류');
       return { successCount: 0, skippedContracts: [] };
     }
   };
@@ -6922,12 +6922,12 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     options?: { billingYm?: string; billingDate?: string; memo?: string }
   ): Promise<string> => {
     const oldBilling = db.billings.find(b => b.id === billingId);
-    if (!oldBilling) throw new Error('泥?뎄?쒕? 李얠쓣 ???놁뒿?덈떎.');
+    if (!oldBilling) throw new Error('청구서를 찾을 수 없습니다.');
 
-    // 1. 湲곗〈 泥?뎄??濡ㅻ갚 & ?곹깭 REJECTED 留덇컧
+    // 1. 기존 청구서 롤백 & 상태 REJECTED 마감
     const oldDetails = db.billingDetails.filter(bd => bd.billingId === billingId);
     oldDetails.forEach(bd => {
-      if (bd.itemName === '?좎닔湲??덉튂湲? 李④컧 諛섏쁺') {
+      if (bd.itemName === '선수금(예치금) 차감 반영') {
         const cust = db.customers.find(c => c.id === oldBilling.customerId);
         if (cust) {
           db.updateRow<Customer>('customers', cust.id, {
@@ -6948,7 +6948,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           }
         }
       }
-      // ?뮕 [Gap 4 諛⑹뼱] ?몄긽誘몄닔湲?泥?뎄??濡ㅻ갚
+      // 💡 [Gap 4 방어] 외상미수금 청구액 롤백
       if (bd.receivableId) {
         const rcv = db.receivables.find(r => r.id === bd.receivableId);
         if (rcv) {
@@ -6962,20 +6962,20 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       }
     });
 
-    // 湲곗〈 ?곌껐 ?섎━鍮??댁젣
+    // 기존 연결 수리비 해제
     const linkedRepairs = db.repairs.filter(r => r.billingId === billingId);
     linkedRepairs.forEach(r => {
       db.updateRow<Repair>('repairs', r.id, { billingId: undefined });
     });
 
-    // 湲곗〈 泥?뎄??REJECTED 泥섎━ (媛먯궗 異붿쟻??蹂댁〈)
-    db.updateRow<Billing>(billingId, {
+    // 기존 청구서 REJECTED 처리 (감사 추적성 보존)
+    db.updateRow<Billing>('billings', billingId, {
       status: 'REJECTED',
-      rejectReason: options?.memo || '?섏젙?ы빆 諛섏쁺???곕Ⅸ 湲곗〈 泥?뎄??痍⑥냼 諛??ъ깮??,
+      rejectReason: options?.memo || '수정사항 반영에 따른 기존 청구서 취소 및 재생성',
       updatedAt: new Date().toISOString()
     });
 
-    // 2. ??泥?뎄???앹꽦
+    // 2. 새 청구서 생성
     const newYm = options?.billingYm || oldBilling.billingYm;
     const newDate = options?.billingDate || oldBilling.billingDate || new Date().toISOString().split('T')[0];
 
@@ -6990,7 +6990,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
     const newTotalAmount = finalDetails.reduce((sum, d) => sum + (d.amount || (d.quantity * d.unitPrice)), 0);
 
-    const newBilling = db.insertRow<Billing>({
+    const newBilling = db.insertRow<Billing>('billings', {
       customerId: oldBilling.customerId,
       contractId: oldBilling.contractId,
       billingYm: newYm,
@@ -7023,13 +7023,13 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       }
     });
 
-    // 怨꾩빟?대젰 湲곕줉 (?ъ깮??
+    // 계약이력 기록 (재생성)
     if (oldBilling.contractId) {
-      db.insertRow<ContractHistory>({
+      db.insertRow<ContractHistory>('contractHistory', {
         contractId: oldBilling.contractId,
         changeType: 'BILLING_REGENERATED',
         changeDate: new Date().toISOString().split('T')[0],
-        description: `泥?뎄 ?ъ깮?? ${newYm} / ${newTotalAmount.toLocaleString()}??(湲곗〈 ${billingId} ???좉퇋 ${newBilling.id}, ?ъ쑀: ${options?.memo || '?섏젙?ы빆 諛섏쁺'})`,
+        description: `청구 재생성: ${newYm} / ${newTotalAmount.toLocaleString()}원 (기존 ${billingId} → 신규 ${newBilling.id}, 사유: ${options?.memo || '수정사항 반영'})`,
         createdAt: new Date().toISOString()
       });
     }
@@ -7039,7 +7039,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     return newBilling.id;
   };
 
-  // v2: 蹂듭닔 ?낃툑嫄??곕룞 ?섎궔 泥섎━
+  // v2: 복수 입금건 연동 수납 처리
   const receivePayment = async (billingId: string, data: {
     paymentDate: string;
     amount: number;
@@ -7049,15 +7049,15 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   }) => {
     const billing = db.billings.find(b => b.id === billingId);
     if (!billing) {
-      showErrorModal('泥?뎄?쒕? 李얠쓣 ???놁뒿?덈떎.');
+      showErrorModal('청구서를 찾을 수 없습니다.');
       return;
     }
     if (!data.amount || data.amount <= 0) {
-      showErrorModal('?섎궔 湲덉븸? 1???댁긽?댁뼱???⑸땲??');
+      showErrorModal('수납 금액은 1원 이상이어야 합니다.');
       return;
     }
 
-    // Payment 1嫄??앹꽦
+    // Payment 1건 생성
     const newPayment = db.insertRow<Payment>('payments', {
       billingId,
       paymentDate: data.paymentDate,
@@ -7067,7 +7067,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       createdAt: new Date().toISOString()
     });
 
-    // PaymentDepositLinks N嫄??앹꽦 (?듭옣?낃툑 ?곕룞 ??
+    // PaymentDepositLinks N건 생성 (통장입금 연동 시)
     if (data.depositLinks && data.depositLinks.length > 0) {
       for (const link of data.depositLinks) {
         if (link.usedAmount > 0) {
@@ -7081,7 +7081,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       }
     }
 
-    // Billing.paidAmount / status ?먮룞 媛깆떊 (VAT ?ы븿 珥앹븸 湲곗?)
+    // Billing.paidAmount / status 자동 갱신 (VAT 포함 총액 기준)
     const nextPaid = billing.paidAmount + data.amount;
     const supply = billing.totalAmount || 0;
     const grandTotal = supply + Math.round(supply * 0.1);
@@ -7092,19 +7092,19 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       nextStatus = 'PARTIAL';
     }
 
-    db.updateRow<Billing>(billingId, {
+    db.updateRow<Billing>('billings', billingId, {
       paidAmount: nextPaid,
       status: nextStatus,
       updatedAt: new Date().toISOString()
     });
 
-    // 怨꾩빟?대젰 湲곕줉
+    // 계약이력 기록
     if (billing.contractId) {
-      db.insertRow<ContractHistory>({
+      db.insertRow<ContractHistory>('contractHistory', {
         contractId: billing.contractId,
         changeType: 'PAYMENT_RECEIVED',
         changeDate: data.paymentDate,
-        description: `?섎궔 泥섎━: ${billing.billingYm} / ${data.amount.toLocaleString()}???섎궔 (?꾩쟻: ${nextPaid.toLocaleString()}/${grandTotal.toLocaleString()}?? ?곹깭: ${nextStatus})`,
+        description: `수납 처리: ${billing.billingYm} / ${data.amount.toLocaleString()}원 수납 (누적: ${nextPaid.toLocaleString()}/${grandTotal.toLocaleString()}원, 상태: ${nextStatus})`,
         createdAt: new Date().toISOString()
       });
     }
@@ -7113,19 +7113,19 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     refreshAllData();
   };
 
-  // ?섎궔 痍⑥냼: Payment ??젣 + ?곌껐??PDL ?꾩껜 ??젣 + Billing.paidAmount 濡ㅻ갚 + ?좎닔湲??섏썝 + 怨꾩빟 ?대젰 蹂댁〈
+  // 수납 취소: Payment 삭제 + 연결된 PDL 전체 삭제 + Billing.paidAmount 롤백 + 선수금 환원 + 계약 이력 보존
   const cancelPayment = async (paymentId: string) => {
     const payment = db.payments.find(p => p.id === paymentId);
     if (!payment) return;
 
-    // 1. ?곌껐??PDL 紐⑤몢 ??젣 (?듭옣 ?낃툑?붿븸 ?먮룞 蹂듭썝)
+    // 1. 연결된 PDL 모두 삭제 (통장 입금잔액 자동 복원)
     const linkedLinks = db.paymentDepositLinks.filter(l => l.paymentId === paymentId);
     for (const link of linkedLinks) {
       db.deleteRow('paymentDepositLinks', link.id);
       await db.awaitPendingWrites();
     }
 
-    // 2. ?좎닔湲??곴퀎 ?섎궔 嫄댁씤 寃쎌슦 怨좉컼 ?좎닔湲??붿븸 ?먮룞 ?섏썝
+    // 2. 선수금 상계 수납 건인 경우 고객 선수금 잔액 자동 환원
     const billing = db.billings.find(b => b.id === payment.billingId);
     if (payment.method === 'PREPAID' && billing) {
       const cust = db.customers.find(c => c.id === billing.customerId);
@@ -7137,11 +7137,11 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       }
     }
 
-    // 3. Payment ??젣
+    // 3. Payment 삭제
     db.deleteRow('payments', paymentId);
       await db.awaitPendingWrites();
 
-    // 4. Billing paidAmount 諛??곹깭 濡ㅻ갚
+    // 4. Billing paidAmount 및 상태 롤백
     if (billing) {
       const newPaid = Math.max(0, (billing.paidAmount || 0) - payment.amount);
       const bSupply = billing.totalAmount || 0;
@@ -7150,19 +7150,19 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       if (newPaid >= bGrand) newStatus = 'PAID';
       else if (newPaid > 0) newStatus = 'PARTIAL';
 
-      db.updateRow<Billing>(billing.id, {
+      db.updateRow<Billing>('billings', billing.id, {
         paidAmount: newPaid,
         status: newStatus,
         updatedAt: new Date().toISOString()
       });
 
-      // 5. 怨꾩빟 ?대젰(ContractHistory) 臾대늻??湲곕줉
+      // 5. 계약 이력(ContractHistory) 무누락 기록
       if (billing.contractId) {
-        db.insertRow<ContractHistory>({
+        db.insertRow<ContractHistory>('contractHistory', {
           contractId: billing.contractId,
           changeType: 'PAYMENT_CANCELLED',
           changeDate: new Date().toISOString().split('T')[0],
-          description: `?섎궔 痍⑥냼 (濡ㅻ갚): ${billing.billingYm} 泥?뎄遺?/ ${payment.amount.toLocaleString()}???섎궔 痍⑥냼 (${payment.method}) (?섎궔???붿븸: ${newPaid.toLocaleString()}?? ?곹깭: ${newStatus})`,
+          description: `수납 취소 (롤백): ${billing.billingYm} 청구분 / ${payment.amount.toLocaleString()}원 수납 취소 (${payment.method}) (수납후 잔액: ${newPaid.toLocaleString()}원, 상태: ${newStatus})`,
           createdAt: new Date().toISOString()
         });
       }
@@ -7172,7 +7172,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     await db.awaitPendingWrites();
   };
 
-  // ?뱀젙 泥?뎄?쒖쓽 紐⑤뱺 ?섎궔 ?댁뿭 ?쇨큵 痍⑥냼 諛??꾩쟾 濡ㅻ갚
+  // 특정 청구서의 모든 수납 내역 일괄 취소 및 완전 롤백
   const cancelAllPaymentsForBilling = async (billingId: string) => {
     const targetPayments = db.payments.filter(p => p.billingId === billingId);
     for (const p of targetPayments) {
@@ -7180,7 +7180,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     }
   };
 
-  // ?듭옣?낃툑 ?깅줉 (?낃툑?댁뿭?쇰줈 ?섎궔 ?ъ썝 ?깅줉)
+  // 통장입금 등록 (입금내역으로 수납 재원 등록)
   const saveBankDeposit = (data: Omit<BankTransaction, 'id' | 'createdAt' | 'withdrawAmount'>) => {
     db.insertRow<BankTransaction>('bankTransactions', {
       ...data,
@@ -7191,16 +7191,16 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     refreshAllData();
   };
 
-  // ?듭옣?낃툑 ??젣 (?곌껐??PaymentDepositLink媛 ?덉쑝硫?李⑤떒)
+  // 통장입금 삭제 (연결된 PaymentDepositLink가 있으면 차단)
   const deleteBankDeposit = (txId: string) => {
     const linked = db.paymentDepositLinks.filter(l => l.bankTransactionId === txId);
     if (linked.length > 0) {
-      throw new Error(`???낃툑嫄댁뿉 ?곌껐???섎궔 ?댁뿭 ${linked.length}嫄댁씠 議댁옱?⑸땲??\n?섎궔??癒쇱? 痍⑥냼??????젣?섏꽭??`);
+      throw new Error(`이 입금건에 연결된 수납 내역 ${linked.length}건이 존재합니다.\n수납을 먼저 취소한 후 삭제하세요.`);
     }
-    // ??怨좎븘 ?덉퐫??諛⑹?: ?덇굅???⑦꽩 ?섎궔 ?덉퐫??議댁옱 ????젣 李⑤떒
+    // ✅ 고아 레코드 방지: 레거시 패턴 수납 레코드 존재 시 삭제 차단
     const legacyPayments = db.payments.filter(p => p.id.startsWith(`pay-matching-${txId}`));
     if (legacyPayments.length > 0) {
-      throw new Error(`???낃툑嫄댁뿉 ?곌껐???덇굅???섎궔 湲곕줉 ${legacyPayments.length}嫄댁씠 議댁옱?⑸땲??\n?섎궔??癒쇱? 痍⑥냼??????젣?섏꽭??`);
+      throw new Error(`이 입금건에 연결된 레거시 수납 기록 ${legacyPayments.length}건이 존재합니다.\n수납을 먼저 취소한 후 삭제하세요.`);
     }
     db.deleteRow('bankTransactions', txId);
       await db.awaitPendingWrites();
@@ -7228,7 +7228,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     const matchedBillingIds: string[] = [];
 
     if (mode === 'MULTI' && options?.allocations && options.allocations.length > 0) {
-      // ?뙚 [MULTI 紐⑤뱶]: ?ъ슜?먭? 吏?뺥븳 泥?뎄?쒕퀎 湲덉븸 諛?媛먯븸 吏곸젒 ?곸슜
+      // 🌟 [MULTI 모드]: 사용자가 지정한 청구서별 금액 및 감액 직접 적용
       for (const alloc of options.allocations) {
         if (remainingDeposit <= 0 && (!alloc.amount || alloc.amount <= 0)) continue;
         const billing = db.billings.find(b => b.id === alloc.billingId);
@@ -7247,7 +7247,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           paymentDate: tx.transactionDate.split(' ')[0],
           amount: paymentAmount,
           method: 'BANK_TRANSFER',
-          memo: `?ъ슜??遺꾪븷 ?議??섎궔 (${tx.senderName})${feeAdj > 0 ? ` (?섏닔猷?媛먯븸 ??{feeAdj.toLocaleString()})` : ''}`,
+          memo: `사용자 분할 대조 수납 (${tx.senderName})${feeAdj > 0 ? ` (수수료 감액 ₩${feeAdj.toLocaleString()})` : ''}`,
           feeAdjustment: feeAdj > 0 ? feeAdj : undefined,
           createdAt: new Date().toISOString()
         });
@@ -7261,25 +7261,25 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
         const nextPaid = (billing.paidAmount || 0) + paymentAmount + feeAdj;
         const nextStatus: Billing['status'] = nextPaid >= bGrand ? 'PAID' : 'PARTIAL';
-        db.updateRow<Billing>(billing.id, {
+        db.updateRow<Billing>('billings', billing.id, {
           paidAmount: nextPaid,
           status: nextStatus,
           updatedAt: new Date().toISOString()
         });
 
         if (billing.contractId) {
-          db.insertRow<ContractHistory>({
+          db.insertRow<ContractHistory>('contractHistory', {
             contractId: billing.contractId,
             changeType: 'PAYMENT_RECEIVED',
             changeDate: tx.transactionDate.split(' ')[0],
-            description: `?섎궔 泥섎━ (?듭옣?議?: ${billing.billingYm} / ${paymentAmount.toLocaleString()}???섎궔 (?꾩쟻: ${nextPaid.toLocaleString()}/${bGrand.toLocaleString()}?? ?곹깭: ${nextStatus})${feeAdj > 0 ? ` (?섏닔猷?媛먯븸 ??{feeAdj.toLocaleString()})` : ''}`,
+            description: `수납 처리 (통장대조): ${billing.billingYm} / ${paymentAmount.toLocaleString()}원 수납 (누적: ${nextPaid.toLocaleString()}/${bGrand.toLocaleString()}원, 상태: ${nextStatus})${feeAdj > 0 ? ` (수수료 감액 ₩${feeAdj.toLocaleString()})` : ''}`,
             createdAt: new Date().toISOString()
           });
         }
         matchedBillingIds.push(billing.id);
       }
     } else if (mode === 'PINPOINT') {
-      // ?뙚 [PINPOINT 紐⑤뱶]: ?좏깮???⑥씪 泥?뎄?쒖뿉留??꾩븸 異⑸떦
+      // 🌟 [PINPOINT 모드]: 선택한 단일 청구서에만 전액 충당
       const billing = firstBilling;
       const bSup = billing.totalAmount || 0;
       const bGrand = bSup + Math.round(bSup * 0.1);
@@ -7296,7 +7296,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         paymentDate: tx.transactionDate.split(' ')[0],
         amount: paymentAmount,
         method: 'BANK_TRANSFER',
-        memo: `?⑤룆 吏???議??섎궔 (${tx.senderName})${feeAdj > 0 ? ` (?섏닔猷?媛먯븸 ??{feeAdj.toLocaleString()})` : ''}`,
+        memo: `단독 지정 대조 수납 (${tx.senderName})${feeAdj > 0 ? ` (수수료 감액 ₩${feeAdj.toLocaleString()})` : ''}`,
         feeAdjustment: feeAdj > 0 ? feeAdj : undefined,
         createdAt: new Date().toISOString()
       });
@@ -7310,24 +7310,24 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
       const nextPaid = (billing.paidAmount || 0) + paymentAmount + feeAdj;
       const nextStatus: Billing['status'] = nextPaid >= bGrand ? 'PAID' : 'PARTIAL';
-      db.updateRow<Billing>(billing.id, {
+      db.updateRow<Billing>('billings', billing.id, {
         paidAmount: nextPaid,
         status: nextStatus,
         updatedAt: new Date().toISOString()
       });
 
       if (billing.contractId) {
-        db.insertRow<ContractHistory>({
+        db.insertRow<ContractHistory>('contractHistory', {
           contractId: billing.contractId,
           changeType: 'PAYMENT_RECEIVED',
           changeDate: tx.transactionDate.split(' ')[0],
-          description: `?섎궔 泥섎━ (?듭옣?議??⑤룆): ${billing.billingYm} / ${paymentAmount.toLocaleString()}???섎궔 (?꾩쟻: ${nextPaid.toLocaleString()}/${bGrand.toLocaleString()}?? ?곹깭: ${nextStatus})${feeAdj > 0 ? ` (?섏닔猷?媛먯븸 ??{feeAdj.toLocaleString()})` : ''}`,
+          description: `수납 처리 (통장대조 단독): ${billing.billingYm} / ${paymentAmount.toLocaleString()}원 수납 (누적: ${nextPaid.toLocaleString()}/${bGrand.toLocaleString()}원, 상태: ${nextStatus})${feeAdj > 0 ? ` (수수료 감액 ₩${feeAdj.toLocaleString()})` : ''}`,
           createdAt: new Date().toISOString()
         });
       }
       matchedBillingIds.push(billing.id);
     } else {
-      // ?뙚 [CASCADE 紐⑤뱶]: 怨쇨굅 誘몄닔遺???쒖감 異⑸떦 (?섏닔猷?媛먯븸 ?듭뀡 ?ы븿)
+      // 🌟 [CASCADE 모드]: 과거 미수부터 순차 충당 (수수료 감액 옵션 포함)
       const activeBillings = db.billings
         .filter(b => b.customerId === customerId && (b.status === 'UNPAID' || b.status === 'PARTIAL'))
         .sort((a, b) => a.billingYm.localeCompare(b.billingYm));
@@ -7363,7 +7363,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           paymentDate: tx.transactionDate.split(' ')[0],
           amount: paymentAmount,
           method: 'BANK_TRANSFER',
-          memo: `${matchingType === 'AUTO' ? '?먮룞' : '?섎룞'} ?쒖감 ?議??섎궔 (${tx.senderName})${feeAdjForThis > 0 ? ` (?섏닔猷?媛먯븸 ??{feeAdjForThis.toLocaleString()})` : ''}`,
+          memo: `${matchingType === 'AUTO' ? '자동' : '수동'} 순차 대조 수납 (${tx.senderName})${feeAdjForThis > 0 ? ` (수수료 감액 ₩${feeAdjForThis.toLocaleString()})` : ''}`,
           feeAdjustment: feeAdjForThis > 0 ? feeAdjForThis : undefined,
           createdAt: new Date().toISOString()
         });
@@ -7377,18 +7377,18 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
         const nextPaid = (billing.paidAmount || 0) + paymentAmount + feeAdjForThis;
         const nextStatus: Billing['status'] = nextPaid >= bGrand ? 'PAID' : 'PARTIAL';
-        db.updateRow<Billing>(billing.id, {
+        db.updateRow<Billing>('billings', billing.id, {
           paidAmount: nextPaid,
           status: nextStatus,
           updatedAt: new Date().toISOString()
         });
 
         if (billing.contractId) {
-          db.insertRow<ContractHistory>({
+          db.insertRow<ContractHistory>('contractHistory', {
             contractId: billing.contractId,
             changeType: 'PAYMENT_RECEIVED',
             changeDate: tx.transactionDate.split(' ')[0],
-            description: `?섎궔 泥섎━ (${matchingType === 'AUTO' ? '?듭옣?議??먮룞' : '?듭옣?議??쒖감'}): ${billing.billingYm} / ${paymentAmount.toLocaleString()}???섎궔 (?꾩쟻: ${nextPaid.toLocaleString()}/${bGrand.toLocaleString()}?? ?곹깭: ${nextStatus})${feeAdjForThis > 0 ? ` (?섏닔猷?媛먯븸 ??{feeAdjForThis.toLocaleString()})` : ''}`,
+            description: `수납 처리 (${matchingType === 'AUTO' ? '통장대조 자동' : '통장대조 순차'}): ${billing.billingYm} / ${paymentAmount.toLocaleString()}원 수납 (누적: ${nextPaid.toLocaleString()}/${bGrand.toLocaleString()}원, 상태: ${nextStatus})${feeAdjForThis > 0 ? ` (수수료 감액 ₩${feeAdjForThis.toLocaleString()})` : ''}`,
             createdAt: new Date().toISOString()
           });
         }
@@ -7397,7 +7397,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       }
     }
 
-    // 2. ?⑥? 珥덇낵湲??좎닔湲??곷┰ (怨쇰??낃툑 ?꾨꼍 ?섏? 蹂댁〈)
+    // 2. 남은 초과금 선수금 적립 (과대입금 완벽 수지 보존)
     if (remainingDeposit > 0) {
       const customer = db.customers.find(c => c.id === customerId);
       if (customer) {
@@ -7408,18 +7408,18 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         } as any);
 
         const prepaidPayId = `pay-matching-${txId}-prepaid`;
-        // ?좎닔湲?媛???섎궔 ?꾪몴 ?깅줉
+        // 선수금 가상 수납 전표 등록
         db.insertRow<Payment>('payments', {
           id: prepaidPayId,
           billingId: '',
           paymentDate: tx.transactionDate.split(' ')[0],
           amount: remainingDeposit,
           method: 'BANK_TRANSFER',
-          memo: `?듭옣 ?議?留ㅼ묶 珥덇낵 ?좎닔湲??곷┰ (${tx.senderName})`,
+          memo: `통장 대조 매칭 초과 선수금 적립 (${tx.senderName})`,
           createdAt: new Date().toISOString()
         });
 
-        // ?뙚 ?좎닔湲??꾪몴????댁꽌??PaymentDepositLink瑜??깅줉?섏뿬 ?듭옣 ?낃툑 ?ъ슜 異붿쟻 ?꾨꼍 ?쇱튂??
+        // 🌟 선수금 전표에 대해서도 PaymentDepositLink를 등록하여 통장 입금 사용 추적 완벽 일치화!
         db.insertRow<PaymentDepositLink>('paymentDepositLinks', {
           paymentId: prepaidPayId,
           bankTransactionId: txId,
@@ -7429,7 +7429,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       }
     }
 
-    // 3. 嫄곕옒 ?댁뿭 ?곹깭 蹂寃?
+    // 3. 거래 내역 상태 변경
     db.updateRow<BankTransaction>('bankTransactions', txId, {
       matchedBillingId: matchedBillingIds.length > 0 ? matchedBillingIds[0] : billingId,
       matchingType,
@@ -7443,7 +7443,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       return sup + Math.round(sup * 0.1);
     };
 
-    const cleanName = (n: string) => (n || '').replace(/\(二?)|二쇱떇?뚯궗|\s+/g, '').toLowerCase();
+    const cleanName = (n: string) => (n || '').replace(/\(주\)|주식회사|\s+/g, '').toLowerCase();
     const cleanSender = cleanName(tx.senderName);
 
     const rule = db.bankMatchingRules.find(r => r.senderName === tx.senderName);
@@ -7550,7 +7550,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     const tx = db.bankTransactions.find(t => t.id === txId);
     if (!tx) return;
 
-    // customerId ?앸퀎 (泥?뎄?? 留ㅼ묶洹쒖튃, 嫄곕옒泥???텛??
+    // customerId 식별 (청구서, 매칭규칙, 거래처 역추적)
     const linkedLinks = db.paymentDepositLinks.filter(l => l.bankTransactionId === txId);
     let customerId: string | undefined;
     for (const link of linkedLinks) {
@@ -7571,14 +7571,14 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       customerId = db.bankMatchingRules.find(r => r.senderName === tx.senderName)?.customerId;
     }
     if (!customerId) {
-      const cleanSender = (tx.senderName || '').replace(/\(二?)|二쇱떇?뚯궗|\s+/g, '').toLowerCase();
+      const cleanSender = (tx.senderName || '').replace(/\(주\)|주식회사|\s+/g, '').toLowerCase();
       customerId = db.customers.find(c => {
-        const cClean = (c.name || '').replace(/\(二?)|二쇱떇?뚯궗|\s+/g, '').toLowerCase();
+        const cClean = (c.name || '').replace(/\(주\)|주식회사|\s+/g, '').toLowerCase();
         return cleanSender && cClean && (cleanSender.includes(cClean) || cClean.includes(cleanSender));
       })?.id;
     }
 
-    // 1. paymentDepositLinks 湲곕컲 濡ㅻ갚 (?좉퇋 泥닿퀎)
+    // 1. paymentDepositLinks 기반 롤백 (신규 체계)
     linkedLinks.forEach(link => {
       const pay = db.payments.find(p => p.id === link.paymentId);
       if (pay) {
@@ -7590,24 +7590,24 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
             const feeAdj = pay.feeAdjustment || 0;
             const nextPaid = Math.max(0, (billing.paidAmount || 0) - link.usedAmount - feeAdj);
             const nextStatus: Billing['status'] = nextPaid === 0 ? 'UNPAID' : (nextPaid >= bGrand ? 'PAID' : 'PARTIAL');
-            db.updateRow<Billing>(billing.id, {
+            db.updateRow<Billing>('billings', billing.id, {
               paidAmount: nextPaid,
               status: nextStatus,
               updatedAt: new Date().toISOString()
             });
 
             if (billing.contractId) {
-              db.insertRow<ContractHistory>({
+              db.insertRow<ContractHistory>('contractHistory', {
                 contractId: billing.contractId,
                 changeType: 'PAYMENT_CANCELLED',
                 changeDate: new Date().toISOString().split('T')[0],
-                description: `?섎궔 ?議??댁젣: ${billing.billingYm} 泥?뎄遺?/ ${link.usedAmount.toLocaleString()}???섎궔 痍⑥냼 (?붿뿬: ${nextPaid.toLocaleString()}?? ?곹깭: ${nextStatus})`,
+                description: `수납 대조 해제: ${billing.billingYm} 청구분 / ${link.usedAmount.toLocaleString()}원 수납 취소 (잔여: ${nextPaid.toLocaleString()}원, 상태: ${nextStatus})`,
                 createdAt: new Date().toISOString()
               });
             }
           }
         } else if (pay.id.endsWith('-prepaid') || !pay.billingId) {
-          // 珥덇낵 ?좎닔湲??섏썝 李④컧
+          // 초과 선수금 환원 차감
           if (customerId) {
             const customer = db.customers.find(c => c.id === customerId);
             if (customer) {
@@ -7636,7 +7636,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
     });
 
-    // 2. ?덇굅??ID ?⑦꽩(`pay-matching-${txId}`)?쇰줈 ?붿〈?섎뒗 ?섎궔 ?꾪몴 寃??諛?濡ㅻ갚
+    // 2. 레거시 ID 패턴(`pay-matching-${txId}`)으로 잔존하는 수납 전표 검색 및 롤백
     const matchPrefix = `pay-matching-${txId}`;
     const associatedPayments = db.payments.filter(p => p.id.startsWith(matchPrefix));
 
@@ -7649,18 +7649,18 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           const feeAdj = pay.feeAdjustment || 0;
           const nextPaid = Math.max(0, (billing.paidAmount || 0) - pay.amount - feeAdj);
           const nextStatus: Billing['status'] = nextPaid === 0 ? 'UNPAID' : (nextPaid >= bGrand ? 'PAID' : 'PARTIAL');
-          db.updateRow<Billing>(billing.id, {
+          db.updateRow<Billing>('billings', billing.id, {
             paidAmount: nextPaid,
             status: nextStatus,
             updatedAt: new Date().toISOString()
           });
 
           if (billing.contractId) {
-            db.insertRow<ContractHistory>({
+            db.insertRow<ContractHistory>('contractHistory', {
               contractId: billing.contractId,
               changeType: 'PAYMENT_CANCELLED',
               changeDate: new Date().toISOString().split('T')[0],
-              description: `?섎궔 ?議??댁젣(?덇굅??: ${billing.billingYm} 泥?뎄遺?/ ${pay.amount.toLocaleString()}???섎궔 痍⑥냼 (?붿뿬: ${nextPaid.toLocaleString()}?? ?곹깭: ${nextStatus})`,
+              description: `수납 대조 해제(레거시): ${billing.billingYm} 청구분 / ${pay.amount.toLocaleString()}원 수납 취소 (잔여: ${nextPaid.toLocaleString()}원, 상태: ${nextStatus})`,
               createdAt: new Date().toISOString()
             });
           }
@@ -7678,7 +7678,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
     });
 
-    // 3. 嫄곕옒 ?뺣낫 蹂듦뎄
+    // 3. 거래 정보 복구
     db.updateRow<BankTransaction>('bankTransactions', txId, {
       matchedBillingId: '',
       matchingType: undefined,
@@ -7762,12 +7762,12 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       createdAt: new Date().toISOString()
     } as any);
 
-    // ?? [?⑥씪 ?낅Т ?멸퀎 ?뚯씠?꾨씪?? 遺?쒖옣?먭쾶 ?닿? ?뱀씤 ToDo 諛쒗뻾
+    // 🚀 [단일 업무 인계 파이프라인] 부서장에게 휴가 승인 ToDo 발행
     const applicant = db.users.find(u => u.id === usage.userId);
     await issueHandoverTask({
       category: 'LEAVE_OT_APPROVAL',
-      title: `[?닿? ?뱀씤 ?붾쭩] ${applicant?.name || '?꾩쭅??} (${usage.leaveType || '?곗감'})`,
-      content: `${applicant?.name || '?꾩쭅??} ?닿? ?좎껌 (${usage.startDate} ~ ${usage.endDate}, ${usage.usedDays}??. ?ъ쑀: ${usage.reason || '-'}`,
+      title: `[휴가 승인 요망] ${applicant?.name || '임직원'} (${usage.leaveType || '연차'})`,
+      content: `${applicant?.name || '임직원'} 휴가 신청 (${usage.startDate} ~ ${usage.endDate}, ${usage.usedDays}일). 사유: ${usage.reason || '-'}`,
       targetRole: 'MANAGER',
       priority: 'NORMAL',
       actionUrl: '/admin/leave_management',
@@ -7802,8 +7802,8 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     const applicant = db.users.find(u => u.id === record.userId);
     await issueHandoverTask({
       category: 'LEAVE_OT_APPROVAL',
-      title: `[珥덇낵洹쇰Т ?뱀씤 ?붾쭩] ${applicant?.name || '?꾩쭅??} (${record.hours}?쒓컙)`,
-      content: `${applicant?.name || '?꾩쭅??} ?곗옣/?쇨컙 洹쇰Т ?좎껌 (${record.startDateTime?.substring(0, 10)}, ${record.hours}?쒓컙). ?ъ쑀: ${record.workDetail || '-'}`,
+      title: `[초과근무 승인 요망] ${applicant?.name || '임직원'} (${record.hours}시간)`,
+      content: `${applicant?.name || '임직원'} 연장/야간 근무 신청 (${record.startDateTime?.substring(0, 10)}, ${record.hours}시간). 사유: ${record.workDetail || '-'}`,
       targetRole: 'MANAGER',
       priority: 'NORMAL',
       actionUrl: '/admin/ot_management',
@@ -7878,15 +7878,15 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     });
     refreshAllData();
 
-    // ?뱼 諛곗감 ?꾨즺 ??愿??遺???곸뾽/異쒓퀬/愿由?寃쎌쁺)???뚮┝ 釉뚮줈?쒖틦?ㅽ듃
+    // 📢 배차 완료 시 관련 부서(영업/출고/관리/경영)에 알림 브로드캐스트
     const dObj = db.deliveries.find(d => d.id === deliveryId);
     const dContract = dObj?.contractId ? db.contracts.find(c => c.id === dObj.contractId) : null;
     const dCust = dContract ? db.customers.find(c => c.id === dContract.customerId)?.name : '';
     const dSite = dContract ? db.sites.find(s => s.id === dContract.siteId)?.name : '';
     broadcastWorkNotification({
       type: 'DISPATCH',
-      title: '諛곗감 ?꾨즺 ?덈궡',
-      body: `${dCust || '?꾩옣'} (${dSite || '諛곗감'}) ${dispatchData.driverName || '湲곗궗'} (${dispatchData.vehicleType || '?붾Ъ'}) 諛곗감 ?꾨즺`,
+      title: '배차 완료 안내',
+      body: `${dCust || '현장'} (${dSite || '배차'}) ${dispatchData.driverName || '기사'} (${dispatchData.vehicleType || '화물'}) 배차 완료`,
       url: '/admin/dispatch',
       targetDepts: ['SALES', 'YARD', 'ADMIN', 'EXECUTIVE']
     }).catch(console.warn);
@@ -7915,7 +7915,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     const customer = contract ? db.customers.find(c => c.id === contract.customerId) : null;
     const site = contract ? db.sites.find(s => s.id === contract.siteId) : null;
 
-    // INBOUND (?뚯닔) ?꾨즺 ???λ퉬瑜??湲곗쨷(AVAILABLE)?쇰줈 蹂듭썝 諛?怨꾩빟 ?꾨즺 泥섎━
+    // INBOUND (회수) 완료 시 장비를 대기중(AVAILABLE)으로 복원 및 계약 완료 처리
     if (delivery.type === 'INBOUND' && delivery.contractId) {
       const cAssets = db.contractAssets.filter(ca => ca.contractId === delivery.contractId);
       cAssets.forEach(ca => {
@@ -7933,7 +7933,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           });
 
           if (asset) {
-            // ?낃퀬 ?대젰 異붽? (湲곕낯 ?먯닔 0, ?뱀씠?ы빆 ?놁쓬)
+            // 입고 이력 추가 (기본 점수 0, 특이사항 없음)
             db.insertRow<AssetInOutLog>('assetInOutLogs', {
               assetId: asset.id,
               assetNo: asset.assetNo,
@@ -7946,7 +7946,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
               siteName: site?.name || '',
               deliveryId: deliveryId,
               maintenanceScore: asset.maintenanceScore || 0,
-              memo: '?쇰컲 諛곗감 諛섎궔 ?낃퀬',
+              memo: '일반 배차 반납 입고',
               createdAt: new Date().toISOString()
             });
           }
@@ -7959,7 +7959,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       });
     }
 
-    // OUTBOUND (異쒓퀬) ?꾨즺 ??怨꾩빟 ?쒖꽦??諛?異쒓퀬 ?대젰 ?앹꽦
+    // OUTBOUND (출고) 완료 시 계약 활성화 및 출고 이력 생성
     if (delivery.type === 'OUTBOUND' && delivery.contractId) {
       if (contract && contract.status !== 'COMPLETED') {
         db.updateRow<Contract>('contracts', delivery.contractId, {
@@ -7967,7 +7967,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           updatedAt: new Date().toISOString()
         });
 
-        // OUTBOUND 濡쒓렇 異붽? (以묐났 諛⑹? 媛??
+        // OUTBOUND 로그 추가 (중복 방지 가드)
         const cAssets = db.contractAssets.filter(ca => ca.contractId === delivery.contractId);
         cAssets.forEach(ca => {
           if (ca.assetId) {
@@ -8051,7 +8051,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       if (review.status === 'REPAIRING') {
         db.insertRow<Repair>('repairs', {
           assetId: asset.id,
-          details: `?낃퀬 寃?????깅줉?? ${review.memo}`,
+          details: `입고 검수 시 등록됨: ${review.memo}`,
           status: 'PENDING',
           requestDate: actualReturnDate,
           totalCost: 0,
@@ -8065,13 +8065,13 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     });
 
     if (delivery.contractId) {
-      const isExchange = delivery.type === 'EXCHANGE' || delivery.dispatchCategory === '援먰솚';
+      const isExchange = delivery.type === 'EXCHANGE' || delivery.dispatchCategory === '교환';
       const reviewedAssetIds = reviews.map(r => r.assetId);
       const cAssets = db.contractAssets.filter(ca => ca.contractId === delivery.contractId);
 
       if (isExchange) {
-        // 援먰솚(EXCHANGE) 諛곗감: 怨꾩빟? 怨꾩냽 吏꾪뻾(ACTIVE)?섎?濡??꾨즺?쒗궎吏 ?딆쓬
-        // ?뚯닔 寃?섎맂 ?λ퉬 ?щ’留?RETURNED 泥섎━ (?李⑤줈 ?ъ엯???λ퉬??怨꾩냽 RENTED ?좎?)
+        // 교환(EXCHANGE) 배차: 계약은 계속 진행(ACTIVE)되므로 완료시키지 않음
+        // 회수 검수된 장비 슬롯만 RETURNED 처리 (대차로 투입된 장비는 계속 RENTED 유지)
         cAssets.forEach(ca => {
           if (ca.assetId && reviewedAssetIds.includes(ca.assetId)) {
             db.updateRow<ContractAsset>('contractAssets', ca.id, {
@@ -8082,7 +8082,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           }
         });
       } else {
-        // ?쇰컲 ?낃퀬/諛섎궔 諛곗감: 寃?섎맂 ?먯궛 ?щ’ RETURNED 泥섎━
+        // 일반 입고/반납 배차: 검수된 자산 슬롯 RETURNED 처리
         cAssets.forEach(ca => {
           if (reviewedAssetIds.length === 0 || (ca.assetId && reviewedAssetIds.includes(ca.assetId))) {
             db.updateRow<ContractAsset>('contractAssets', ca.id, {
@@ -8093,12 +8093,12 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           }
         });
 
-        // 怨꾩빟???⑥? ???泥닿껐 ?먯궛 ?щ’???덈뒗吏 ?뺤씤
+        // 계약에 남은 대여/체결 자산 슬롯이 있는지 확인
         const remainingActiveAssets = cAssets.filter(ca => 
           !(ca.assetId && reviewedAssetIds.includes(ca.assetId)) && ca.status !== 'RETURNED'
         );
 
-        // 紐⑤뱺 ?λ퉬媛 ?뚯닔 ?꾨즺?섏뿀???뚮쭔 怨꾩빟??COMPLETED濡?醫낅즺
+        // 모든 장비가 회수 완료되었을 때만 계약을 COMPLETED로 종료
         if (remainingActiveAssets.length === 0) {
           db.updateRow<Contract>('contracts', delivery.contractId, {
             status: 'COMPLETED',
@@ -8112,7 +8112,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     refreshAllData();
   };
 
-  // ?뮕 [?ъ옣??吏?? ?낃퀬 ?깅줉 (?낃퀬踰덊샇, ?섏쐞踰덊샇 INB-XXXX-01, 利앹긽蹂??ъ쭊 諛??먯궛?뺣퉬?섎━ ?먮룞?곕룞, 遺덈웾 ??REPAIRING ?꾪솚)
+  // 💡 [사장님 지시] 입고 등록 (입고번호, 하위번호 INB-XXXX-01, 증상별 사진 및 자산정비수리 자동연동, 불량 시 REPAIRING 전환)
   const registerInboundAsset = async (data: {
     assetId: string;
     returnDate: string;
@@ -8125,9 +8125,9 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     targetAssetStatus?: Asset['status'];
   }) => {
     const asset = db.assets.find(a => a.id === data.assetId);
-    if (!asset) throw new Error('?대떦 ?먯궛??李얠쓣 ???놁뒿?덈떎.');
+    if (!asset) throw new Error('해당 자산을 찾을 수 없습니다.');
 
-    // ???以묒씤 怨꾩빟 ?먯궛 ?먯깋 (?좎뿰 留ㅼ묶: RENTED ?곗꽑 ?먯깋 ??誘몃컲??泥닿껐 怨꾩빟 ?ш큵 ?먯깋)
+    // 대여 중인 계약 자산 탐색 (유연 매칭: RENTED 우선 탐색 후 미반납 체결 계약 포괄 탐색)
     const ca = db.contractAssets.find(c => c.assetId === data.assetId && c.status === 'RENTED') ||
                db.contractAssets.find(c => c.assetId === data.assetId && c.status !== 'RETURNED') ||
                db.contractAssets.find(c => c.assetId === data.assetId);
@@ -8137,27 +8137,27 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
     const score = data.maintenanceScore || 0;
     const hasDefect = score > 0 || (data.defects && data.defects.length > 0) || Boolean(data.otherDefectText);
-    // ?먯궛 ?곹깭: ?먯닔 0?먯씠怨?寃고븿 ?놁쑝硫?AVAILABLE(?꾨?媛??, ?댁긽 ??REPAIRING(?뺣퉬以? ?먮뒗 ?꾨떖??targetAssetStatus
+    // 자산 상태: 점수 0점이고 결함 없으면 AVAILABLE(임대가능), 이상 시 REPAIRING(정비중) 또는 전달된 targetAssetStatus
     const nextAssetStatus: Asset['status'] = data.targetAssetStatus || (!hasDefect ? 'AVAILABLE' : 'REPAIRING');
 
-    // ?뮕 [?낃퀬 踰덊샇 梨꾨쾲]
+    // 💡 [입고 번호 채번]
     const assignedInboundNo = data.inboundNo || db.generateNextId('inboundNo', db.assetInOutLogs as any);
 
-    // ?뮕 [遺덈웾 利앹긽 ?섏쐞 踰덊샇 寃고빀 (?? INB-20260809-001-01)]
+    // 💡 [불량 증상 하위 번호 결합 (예: INB-20260809-001-01)]
     const processedDefects: InboundDefectDetail[] = (data.defects || []).map((d, idx) => ({
       ...d,
       subNo: d.subNo || `${assignedInboundNo}-${String(idx + 1).padStart(2, '0')}`
     }));
 
     const defectsJsonStr = processedDefects.length > 0 ? JSON.stringify(processedDefects) : undefined;
-    const defectSummary = processedDefects.map(d => `[${d.subNo}] ${d.checkitemName}(+${d.score}??`).join(', ');
-    const fullDefectSummary = [defectSummary, data.otherDefectText ? `[湲고?] ${data.otherDefectText}` : ''].filter(Boolean).join(' | ');
+    const defectSummary = processedDefects.map(d => `[${d.subNo}] ${d.checkitemName}(+${d.score}점)`).join(', ');
+    const fullDefectSummary = [defectSummary, data.otherDefectText ? `[기타] ${data.otherDefectText}` : ''].filter(Boolean).join(' | ');
 
-    // 1. ?먯궛 留덉뒪??媛깆떊 (?뺣퉬?꾩슂??ぉ note ???
+    // 1. 자산 마스터 갱신 (정비필요항목 note 저장)
     db.updateRow<Asset>('assets', asset.id, {
       status: nextAssetStatus,
       maintenanceScore: score,
-      note: hasDefect ? fullDefectSummary : (score === 0 ? '?뺤긽 ?낃퀬 ?먭? ?꾨즺' : asset.note),
+      note: hasDefect ? fullDefectSummary : (score === 0 ? '정상 입고 점검 완료' : asset.note),
       currentCustomerId: '',
       currentSiteId: '',
       contractStart: '',
@@ -8165,7 +8165,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       updatedAt: new Date().toISOString()
     });
 
-    // 2. 怨꾩빟 ?먯궛 諛섎궔 媛깆떊
+    // 2. 계약 자산 반납 갱신
     if (ca) {
       db.updateRow<ContractAsset>('contractAssets', ca.id, {
         status: 'RETURNED',
@@ -8174,7 +8174,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       });
     }
 
-    // 3. ?먯궛 ?뺣퉬?섎━ ????곕룞 (寃고븿 諛쒖깮 ???먮룞 PENDING ?뺣퉬 嫄?諛쒗뻾)
+    // 3. 자산 정비수리 대장 연동 (결함 발생 시 자동 PENDING 정비 건 발행)
     let createdRepairId: string | undefined = undefined;
     if (hasDefect) {
       const repairId = db.generateNextId('repairs', db.repairs);
@@ -8187,15 +8187,15 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         modelName: asset.modelName,
         contractId: contract?.id,
         customerId: customer?.id,
-        customerName: customer?.name || '?낃퀬 ?먭?泥?,
+        customerName: customer?.name || '입고 점검처',
         siteId: site?.id,
-        siteName: site?.name || '二쇨린??,
+        siteName: site?.name || '주기장',
         requestDate: data.returnDate,
         status: 'PENDING',
         workCategory: 'YARD_INTERNAL',
         workLocation: 'YARD',
         source: 'INBOUND_INSPECTION',
-        details: `?낃퀬寃???먮룞 ?뺣퉬 ?묒닔: ${assignedInboundNo}\n?뺣퉬 ?꾩슂 ??ぉ: ${fullDefectSummary}\n鍮꾧퀬: ${data.memo || '?댁긽 臾?}`,
+        details: `입고검수 자동 정비 접수: ${assignedInboundNo}\n정비 필요 항목: ${fullDefectSummary}\n비고: ${data.memo || '이상 무'}`,
         totalCost: 0,
         billableToCustomer: false,
         inboundNo: assignedInboundNo,
@@ -8208,11 +8208,11 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         updatedAt: new Date().toISOString()
       });
 
-      // ?? [?⑥씪 ?낅Т ?멸퀎 ?뚯씠?꾨씪?? 二쇨린???뺣퉬????낃퀬 ?뺣퉬 ToDo ?곸옱
+      // 🚀 [단일 업무 인계 파이프라인] 주기장 정비팀에 입고 정비 ToDo 적재
       await issueHandoverTask({
         category: 'INBOUND_REPAIR_DEFECT',
-        title: `[?낃퀬 ?λ퉬 ?뺣퉬] ${asset.assetNo} (${asset.modelName})`,
-        content: `?낃퀬 寃고븿 諛쒓껄 (+${score}??: ${fullDefectSummary || '?뺣퉬 ?붾쭩'}`,
+        title: `[입고 장비 정비] ${asset.assetNo} (${asset.modelName})`,
+        content: `입고 결함 발견 (+${score}점): ${fullDefectSummary || '정비 요망'}`,
         targetDept: 'YARD',
         priority: score >= 5 ? 'HIGH' : 'NORMAL',
         actionUrl: '/repairs',
@@ -8223,7 +8223,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       });
     }
 
-    // ?윟 ?뚯닔 諛곗감 諛?愿???좏뻾 ToDo ?먮룞 ?곴퀎
+    // 🟢 회수 배차 및 관련 선행 ToDo 자동 상계
     await clearHandoverTasks({
       entityId: asset.id,
       completionAction: 'INBOUND_REGISTERED'
@@ -8236,7 +8236,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       });
     }
 
-    // 4. ?먯궛 ?낆텧怨??대젰 臾대늻??湲곕줉 (INBOUND)
+    // 4. 자산 입출고 이력 무누락 기록 (INBOUND)
     db.insertRow<AssetInOutLog>('assetInOutLogs', {
       assetId: asset.id,
       assetNo: asset.assetNo,
@@ -8251,7 +8251,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       repairId: createdRepairId,
       maintenanceScore: score,
       defectsJson: defectsJsonStr,
-      memo: data.memo || (hasDefect ? `遺덈웾 ?낃퀬 ?깅줉 (${fullDefectSummary})` : '?뺤긽 ?낃퀬 ?깅줉 ?꾧껐'),
+      memo: data.memo || (hasDefect ? `불량 입고 등록 (${fullDefectSummary})` : '정상 입고 등록 완결'),
       createdAt: new Date().toISOString()
     });
 
@@ -8259,15 +8259,15 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     refreshAllData();
   };
 
-  // ?뮕 [?ъ옣??吏?? ?낃퀬 痍⑥냼 濡ㅻ갚 (?대㉫?먮윭 蹂듭썝 諛?INBOUND_CANCEL ?덉뒪?좊━ 臾대늻?????
+  // 💡 [사장님 지시] 입고 취소 롤백 (휴먼에러 복원 및 INBOUND_CANCEL 히스토리 무누락 저장)
   const cancelInboundAsset = async (logId: string, cancelReason?: string) => {
     const log = db.assetInOutLogs.find(l => l.id === logId && l.type === 'INBOUND');
-    if (!log) throw new Error('?대떦 ?낃퀬 ?대젰 濡쒓렇瑜?李얠쓣 ???녾굅???대? 痍⑥냼??嫄댁엯?덈떎.');
+    if (!log) throw new Error('해당 입고 이력 로그를 찾을 수 없거나 이미 취소된 건입니다.');
 
     const asset = db.assets.find(a => a.id === log.assetId);
-    if (!asset) throw new Error('?곌? ?먯궛??李얠쓣 ???놁뒿?덈떎.');
+    if (!asset) throw new Error('연관 자산을 찾을 수 없습니다.');
 
-    // 1. ?먯궛 ?곹깭 RENTED(??ъ쨷)濡?蹂듭썝
+    // 1. 자산 상태 RENTED(대여중)로 복원
     db.updateRow<Asset>('assets', asset.id, {
       status: 'RENTED',
       currentCustomerId: log.customerId || asset.currentCustomerId,
@@ -8275,7 +8275,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       updatedAt: new Date().toISOString()
     });
 
-    // 2. 怨꾩빟 泥닿껐 ?먯궛 RENTED(??ъ쨷)濡?蹂듭썝
+    // 2. 계약 체결 자산 RENTED(대여중)로 복원
     const ca = db.contractAssets.find(c => c.assetId === asset.id);
     if (ca) {
       db.updateRow<ContractAsset>('contractAssets', ca.id, {
@@ -8285,16 +8285,16 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       });
     }
 
-    // 3. 湲곗〈 ?ㅻ벑濡??낃퀬 濡쒓렇 ??젣 諛?怨꾩빟 ?대젰??濡ㅻ갚 濡쒓렇 臾대늻???앹꽦
+    // 3. 기존 오등록 입고 로그 삭제 및 계약 이력에 롤백 로그 무누락 생성
     db.deleteRow('assetInOutLogs', logId);
       await db.awaitPendingWrites();
 
     if (ca?.contractId) {
-      db.insertRow<ContractHistory>({
+      db.insertRow<ContractHistory>('contractHistory', {
         contractId: ca.contractId,
         changeType: 'TERMINATE',
         changeDate: new Date().toISOString().split('T')[0],
-        description: `[?낃퀬 痍⑥냼 濡ㅻ갚] ?먯궛(${asset.assetNo}) ?ㅻ벑濡??낃퀬 痍⑥냼 ????ъ쨷(RENTED) 蹂듭썝 (?ъ쑀: ${cancelReason || '?ъ슜???대㉫?먮윭 ?낃퀬 痍⑥냼'})`,
+        description: `[입고 취소 롤백] 자산(${asset.assetNo}) 오등록 입고 취소 ➔ 대여중(RENTED) 복원 (사유: ${cancelReason || '사용자 휴먼에러 입고 취소'})`,
         createdAt: new Date().toISOString()
       });
     }
@@ -8314,7 +8314,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     let resolvedSiteName = repairData.siteName || '';
     let resolvedContractId = repairData.contractId;
 
-    // ??ъ쨷 ?λ퉬??寃쎌슦 ?꾩옱 怨꾩빟??怨좉컼???꾩옣 ?먮룞 留ㅽ븨
+    // 대여중 장비인 경우 현재 계약의 고객사/현장 자동 매핑
     if (targetAsset && targetAsset.status === 'RENTED') {
       const activeContractAsset = db.contractAssets.find(ca => ca.assetId === targetAsset.id && ca.status !== 'RETURNED');
       if (activeContractAsset) {
@@ -8344,8 +8344,8 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         id: repairId,
         contractId: resolvedContractId,
         assetId: repairData.assetId || '',
-        assetNo: targetAsset?.assetNo || repairData.assetNo || '?꾩옣?뺤씤',
-        modelName: targetAsset?.modelName || repairData.modelName || '怨좎냼?묒뾽?',
+        assetNo: targetAsset?.assetNo || repairData.assetNo || '현장확인',
+        modelName: targetAsset?.modelName || repairData.modelName || '고소작업대',
         mechanicId: repairData.mechanicId || currentUser?.id || '',
         maintenanceType,
         repairType: repairData.repairType || (maintenanceType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL'),
@@ -8379,11 +8379,11 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       });
     }
 
-    // ?뚮え???ш퀬 李④컧: 二쇨린???뺣퉬(YARD)?닿굅??stockSource媛 YARD_STOCK/CENTRAL_HQ??寃쎌슦 二쇨린???ш퀬?먯꽌 ?곗꽑 李④컧
+    // 소모품 재고 차감: 주기장 정비(YARD)이거나 stockSource가 YARD_STOCK/CENTRAL_HQ인 경우 주기장 재고에서 우선 차감
     const isYardDepotRepair = repairData.workLocation === 'YARD' || repairData.stockSource === 'YARD_STOCK' || repairData.stockSource === 'CENTRAL_HQ' || maintenanceType === 'INHOUSE_REPAIR';
     const effectiveMechanicId = repairData.mechanicId || currentUser?.id;
     const mechanic = db.users.find(u => u.id === effectiveMechanicId);
-    const mechanicName = mechanic?.name || '?뺣퉬??;
+    const mechanicName = mechanic?.name || '정비사';
 
     usedConsumables.forEach(uc => {
       const consumable = db.consumables.find(c => c.id === uc.consumableId);
@@ -8394,7 +8394,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         : null;
 
       if (mechanicStock && mechanicStock.stockQty >= uc.quantity) {
-        // 1. 湲곗궗 李⑤웾 ?ш퀬?먯꽌 李④컧 (?꾩옣 異쒖옣 AS??寃쎌슦)
+        // 1. 기사 차량 재고에서 차감 (현장 출장 AS인 경우)
         db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', mechanicStock.id, {
           stockQty: mechanicStock.stockQty - uc.quantity,
           updatedAt: new Date().toISOString()
@@ -8408,14 +8408,14 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           targetAssetId: repairData.assetId,
           userId: currentUser?.id,
           mechanicId: effectiveMechanicId,
-          fromLocation: `${mechanicName} 李⑤웾`,
-          toLocation: `?꾩옣 ?λ퉬(${targetAsset?.assetNo || 'N/A'})`,
+          fromLocation: `${mechanicName} 차량`,
+          toLocation: `현장 장비(${targetAsset?.assetNo || 'N/A'})`,
           actionDate: repairData.repairDate || new Date().toISOString().split('T')[0],
-          description: `[李⑤웾?ш퀬 ?뚯쭊] ?뺣퉬(${repairId}) ${mechanicName} 李⑤웾?먯꽌 ?꾩옣 ?ъ엯`,
+          description: `[차량재고 소진] 정비(${repairId}) ${mechanicName} 차량에서 현장 투입`,
           createdAt: new Date().toISOString()
         });
       } else {
-        // 2. 二쇨린???ш퀬?먯꽌 李④컧 (二쇨린???뺣퉬 ?먮뒗 蹂몄궗 遺덉텧)
+        // 2. 주기장 재고에서 차감 (주기장 정비 또는 본사 불출)
         const nextQty = Math.max(0, (consumable.stockQty || 0) - uc.quantity);
         db.updateRow<Consumable>('consumables', consumable.id, {
           stockQty: nextQty,
@@ -8429,10 +8429,10 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           unitPrice: consumable.unitPrice,
           targetAssetId: repairData.assetId,
           userId: currentUser?.id,
-          fromLocation: '二쇨린???ш퀬',
-          toLocation: `二쇨린???λ퉬(${targetAsset?.assetNo || 'N/A'})`,
+          fromLocation: '주기장 재고',
+          toLocation: `주기장 장비(${targetAsset?.assetNo || 'N/A'})`,
           actionDate: repairData.repairDate || new Date().toISOString().split('T')[0],
-          description: `[二쇨린???ш퀬 ?ъ엯] ?뺣퉬(${repairId}) 二쇨린???섎━ 遺???ъ엯`,
+          description: `[주기장 재고 투입] 정비(${repairId}) 주기장 수리 부품 투입`,
           createdAt: new Date().toISOString()
         });
       }
@@ -8446,7 +8446,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       });
     });
 
-    // ?룢截??먯궛 ?곹깭 ?쇱씠?꾩궗?댄겢 臾댁솢怨??뺥빀??蹂댁옣 (?뚯옣 移댄뀒怨좊━ 1.2, 1.3)
+    // 🏛️ 자산 상태 라이프사이클 무왜곡 정합성 보장 (헌장 카테고리 1.2, 1.3)
     if (targetAsset) {
       const isRentedAsset = targetAsset.status === 'RENTED';
       const isFieldAS = maintenanceType === 'EMERGENCY_AS' || maintenanceType === 'PREVENTIVE';
@@ -8455,19 +8455,19 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       let nextMaintenanceScore = targetAsset.maintenanceScore || 0;
 
       if (isRentedAsset && isFieldAS) {
-        // ?슚 ?꾨?以??꾩옣 異쒖옣?뺣퉬: ?λ퉬???꾩옣??怨꾩냽 ?덉쑝誘濡?'RENTED' ?곹깭 100% 蹂댁〈!
+        // 🚨 임대중 현장 출장정비: 장비는 현장에 계속 있으므로 'RENTED' 상태 100% 보존!
         nextAssetStatus = 'RENTED';
         if (repairStatus === 'COMPLETED') {
-          nextMaintenanceScore = 0; // ?뺣퉬 ?꾨즺 ???댁긽臾?由ъ뀑
+          nextMaintenanceScore = 0; // 정비 완료 시 이상무 리셋
         }
       } else if (repairData.targetAssetStatus) {
-        // ?뙚 二쇨린???뺣퉬 ?먯젙 紐낆떆???꾩씠 (AVAILABLE, REPAIRING ??
+        // 🌟 주기장 정비 판정 명시적 전이 (AVAILABLE, REPAIRING 등)
         nextAssetStatus = repairData.targetAssetStatus;
         if (nextAssetStatus === 'AVAILABLE') {
-          nextMaintenanceScore = 0; // ?꾨?媛??蹂듦? ???뺣퉬?먯닔 珥덇린??
+          nextMaintenanceScore = 0; // 임대가능 복귀 시 정비점수 초기화
         }
       } else if (repairStatus === 'COMPLETED' && (targetAsset.status === 'REPAIRING' || targetAsset.status === 'RENTED_RETURNED')) {
-        // 湲곕낯媛? ?낃퀬寃???섎━以??λ퉬???뺣퉬 ?꾨즺 ??AVAILABLE濡??먮룞 ?꾩씠
+        // 기본값: 입고검수/수리중 장비의 정비 완료 시 AVAILABLE로 자동 전이
         nextAssetStatus = 'AVAILABLE';
         nextMaintenanceScore = 0;
       }
@@ -8475,8 +8475,8 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       let nextNote = targetAsset.note;
       if (repairStatus === 'COMPLETED' && nextAssetStatus === 'AVAILABLE') {
         const dateTag = repairData.repairDate || new Date().toISOString().split('T')[0];
-        const detailSnippet = repairData.details ? repairData.details.slice(0, 30) : '?먭? ?꾨즺';
-        nextNote = `[?뺣퉬?꾨즺 ${dateTag}] ${detailSnippet}`;
+        const detailSnippet = repairData.details ? repairData.details.slice(0, 30) : '점검 완료';
+        nextNote = `[정비완료 ${dateTag}] ${detailSnippet}`;
       }
 
       db.updateRow<Asset>('assets', targetAsset.id, {
@@ -8487,18 +8487,18 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         updatedAt: new Date().toISOString()
       });
 
-      // ?뺣퉬 ?섎━ ?대젰 濡쒓렇 (AssetInOutLog) 臾대늻??湲곕줉
-      const typeLabel = maintenanceType === 'EMERGENCY_AS' ? '湲닿툒異쒖옣?뺣퉬' :
-        maintenanceType === 'PREVENTIVE' ? '?뺢린?덈갑?뺣퉬' :
-        maintenanceType === 'EXTERNAL' ? '?몄＜?뺣퉬' : '?쇱쟻?μ옄?ъ젙鍮?;
+      // 정비 수리 이력 로그 (AssetInOutLog) 무누락 기록
+      const typeLabel = maintenanceType === 'EMERGENCY_AS' ? '긴급출장정비' :
+        maintenanceType === 'PREVENTIVE' ? '정기예방정비' :
+        maintenanceType === 'EXTERNAL' ? '외주정비' : '야적장자사정비';
 
       let memoText = `[${typeLabel}] `;
       if (repairStatus === 'COMPLETED') {
-        memoText += `?뺣퉬 ?꾨즺 (鍮꾩슜: ${totalRepairCost.toLocaleString()}?? ???먯궛?곹깭 [${nextAssetStatus}] ?꾩씠: ${repairData.details || ''}`;
+        memoText += `정비 완료 (비용: ${totalRepairCost.toLocaleString()}원) ➔ 자산상태 [${nextAssetStatus}] 전이: ${repairData.details || ''}`;
       } else if (repairStatus === 'UNRESOLVED') {
-        memoText += `誘몄셿猷?(${repairData.unresolvedReason || '?ъ쑀誘멸린??}, ?꾩냽: ${repairData.nextAction || '?놁쓬'}): ${repairData.details || ''}`;
+        memoText += `미완료 (${repairData.unresolvedReason || '사유미기재'}, 후속: ${repairData.nextAction || '없음'}): ${repairData.details || ''}`;
       } else {
-        memoText += `?뺣퉬 吏꾪뻾以?(?ㅼ?以? ${repairData.scheduleDate || repairData.requestDate}): ${repairData.details || ''}`;
+        memoText += `정비 진행중 (스케줄: ${repairData.scheduleDate || repairData.requestDate}): ${repairData.details || ''}`;
       }
 
       db.insertRow<AssetInOutLog>('assetInOutLogs', {
@@ -8515,14 +8515,14 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       });
     }
 
-    // ?뱶 怨꾩빟 ?대젰(ContractHistory) 臾대늻????꾨씪???먮룞 ?곕룞
+    // 📜 계약 이력(ContractHistory) 무누락 타임라인 자동 연동
     if (resolvedContractId && repairStatus === 'COMPLETED') {
       db.insertRow<ContractHistory>('contract_history', {
         id: `ch-rep-${repairId}-${Date.now()}`,
         contractId: resolvedContractId,
         changeType: 'AS_SERVICE',
         changeDate: repairData.repairDate || repairData.requestDate || new Date().toISOString().split('T')[0],
-        description: `[?꾩옣 ?뺣퉬/AS ?꾨즺] ${repairData.details || '?뺣퉬 ?꾨즺'} (${targetAsset ? `?λ퉬: ${targetAsset.assetNo}` : '?꾩옣?뺤씤'}${mechanicName ? `, ?뺣퉬?? ${mechanicName}` : ''}${totalRepairCost > 0 ? `, 鍮꾩슜: ??{totalRepairCost.toLocaleString()}` : ''})`,
+        description: `[현장 정비/AS 완료] ${repairData.details || '정비 완료'} (${targetAsset ? `장비: ${targetAsset.assetNo}` : '현장확인'}${mechanicName ? `, 정비사: ${mechanicName}` : ''}${totalRepairCost > 0 ? `, 비용: ₩${totalRepairCost.toLocaleString()}` : ''})`,
         createdAt: new Date().toISOString()
       });
     }
@@ -8551,7 +8551,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       updatedAt: new Date().toISOString()
     });
 
-    // ?뙚 ?먯궛 ?곹깭 ?꾩씠 紐낆떆??吏??
+    // 🌟 자산 상태 전이 명시적 지원
     if (existing.assetId && targetAssetStatus) {
       const targetAsset = db.assets.find(a => a.id === existing.assetId);
       if (targetAsset) {
@@ -8568,7 +8568,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           eventDate: today,
           repairId: repairId,
           maintenanceScore: targetAssetStatus === 'AVAILABLE' ? 0 : targetAsset.maintenanceScore,
-          memo: `[二쇨린???뺣퉬 ?곹깭 媛깆떊] ${status} ???먯궛?곹깭 [${targetAssetStatus}] ?꾩씠`,
+          memo: `[주기장 정비 상태 갱신] ${status} ➔ 자산상태 [${targetAssetStatus}] 전이`,
           createdAt: new Date().toISOString()
         });
       }
@@ -8583,7 +8583,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
     let companyId = '';
     
-    // 1. ?댁넚?낆껜 泥섎━
+    // 1. 운송업체 처리
     if (companyName) {
       const existingCompany = db.transportCompanies.find(c => c.name === companyName);
       if (existingCompany) {
@@ -8593,14 +8593,14 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           name: companyName,
           businessNo: '',
           contact: contact || '',
-          memo: '?먮룞 異붽???,
+          memo: '자동 추가됨',
           createdAt: new Date().toISOString()
         });
         companyId = newCompany.id;
       }
     }
 
-    // 2. 湲곗궗 泥섎━
+    // 2. 기사 처리
     if (driverName) {
       const existingDriver = db.transportDrivers.find(d => 
         d.driverName === driverName && (companyId ? d.companyId === companyId : true)
@@ -8644,7 +8644,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         db.insertRow('vendors', vendor);
       await db.awaitPendingWrites();
       }
-      // Supabase 鍮꾨룞湲??곌린 ???꾨즺 ?湲?諛??먮윭 ?꾪뙆
+      // Supabase 비동기 쓰기 큐 완료 대기 및 에러 전파
       if (db.pendingWrites.length > 0) {
         await db.awaitPendingWrites();
       }
@@ -8656,16 +8656,16 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   };
 
   const deleteVendor = (id: string) => {
-    // ??怨좎븘 ?덉퐫??諛⑹?: ?곌? ?먯궛 ?먮뒗 留ㅼ엯 ?뺤궛嫄댁씠 ?덉쑝硫???젣 李⑤떒
+    // ✅ 고아 레코드 방지: 연관 자산 또는 매입 정산건이 있으면 삭제 차단
     const linkedAssets = db.assets.filter(a => a.vendorId === id);
     const linkedSettlements = db.purchaseSettlements.filter(s => s.vendorId === id);
     if (linkedAssets.length > 0 || linkedSettlements.length > 0) {
       showErrorModal(
-        `?좑툘 ?대떦 留ㅼ엯泥섎? ??젣?????놁뒿?덈떎.\n\n` +
-        (linkedAssets.length > 0 ? `???곌껐???먯궛: ${linkedAssets.length}?\n` : '') +
-        (linkedSettlements.length > 0 ? `???곌껐??留ㅼ엯 ?뺤궛嫄? ${linkedSettlements.length}嫄?n` : '') +
-        `\n?곌껐???먯궛/?뺤궛??癒쇱? ?댁젣??????젣?섏떗?쒖삤.`,
-        '留ㅼ엯泥???젣 遺덇?'
+        `⚠️ 해당 매입처를 삭제할 수 없습니다.\n\n` +
+        (linkedAssets.length > 0 ? `■ 연결된 자산: ${linkedAssets.length}대\n` : '') +
+        (linkedSettlements.length > 0 ? `■ 연결된 매입 정산건: ${linkedSettlements.length}건\n` : '') +
+        `\n연결된 자산/정산을 먼저 해제한 후 삭제하십시오.`,
+        '매입처 삭제 불가'
       );
       return;
     }
@@ -8674,7 +8674,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     refreshAllData();
   };
 
-  // ?뮕 ?꾩궗 留ㅼ엯泥?嫄곕옒媛쒖떆??諛?留ㅼ엯?꾩쟻嫄곕옒???쇨큵 ?ъ쭛怨??숆린???ы띁 (?뚯옣 4.1, 5.2)
+  // 💡 전사 매입처 거래개시일 및 매입누적거래액 일괄 재집계/동기화 헬퍼 (헌장 4.1, 5.2)
   const recalculateAllVendorMetrics = async (): Promise<{ updatedCount: number; totalAmount: number }> => {
     let updatedCount = 0;
     let grandTotal = 0;
@@ -8721,11 +8721,11 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     return { updatedCount, totalAmount: grandTotal };
   };
 
-  // ??1???뱀궗?먯궛 媛먭??곴컖 寃곗궛 留덇컧 ?ㅽ뻾 (?붾쭚 ?섎룄???ㅽ뻾)
+  // 월 1회 당사자산 감가상각 결산 마감 실행 (월말 의도적 실행)
   const executeMonthlyDepreciation = async (depreciationYm: string, note?: string) => {
     const existing = db.depreciationLogs.find(l => l.depreciationYm === depreciationYm);
     if (existing) {
-      throw new Error(`?대? [${depreciationYm}] ?곗썡??媛먭??곴컖 寃곗궛 留덇컧???꾨즺?섏뿀?듬땲?? (留덇컧 泥섎━?쇱떆: ${existing.executedAt.substring(0, 10)})`);
+      throw new Error(`이미 [${depreciationYm}] 연월의 감가상각 결산 마감이 완료되었습니다. (마감 처리일시: ${existing.executedAt.substring(0, 10)})`);
     }
 
     const ownedAssets = db.assets.filter(a => a.ownerType === 'OWNED');
@@ -8733,9 +8733,9 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     let updatedCount = 0;
     const nowIso = new Date().toISOString();
 
-    // 留덇컧 ?곗썡??留먯씪 ?쒖젏 Date ?앹꽦 (?? '2026-08' -> 2026??8??31??23:59:59)
+    // 마감 연월의 말일 시점 Date 생성 (예: '2026-08' -> 2026년 8월 31일 23:59:59)
     const [ymYear, ymMonth] = depreciationYm.split('-').map(Number);
-    const closingDate = new Date(ymYear, ymMonth, 0, 23, 59, 59, 999); // ?대떦 ?붿쓽 留덉?留???
+    const closingDate = new Date(ymYear, ymMonth, 0, 23, 59, 59, 999); // 해당 월의 마지막 날
 
     for (const asset of ownedAssets) {
       const cost = asset.acquisitionPrice || 0;
@@ -8743,16 +8743,16 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         continue;
       }
 
-      // 1. 痍⑤뱷?쇱옄 寃利? 留덇컧 ?곗썡 留먯씪蹂대떎 誘몃옒??痍⑤뱷???먯궛? ?뱀썡 ?곴컖 ????쒖쇅
+      // 1. 취득일자 검증: 마감 연월 말일보다 미래에 취득된 자산은 당월 상각 대상 제외
       const acqDate = new Date(asset.acquisitionDate);
       if (isNaN(acqDate.getTime()) || acqDate > closingDate) {
         continue;
       }
 
-      // 2. 留ㅺ컖 ?щ? 諛?留ㅺ컖?쇱옄 寃利? 留ㅺ컖 ?곹깭?닿굅??留ㅺ컖?쇱씠 留덇컧 ?곗썡 ?댁쟾/?뱀썡??寃쎌슦 ?곴컖 ?뺤? 泥섎━
+      // 2. 매각 여부 및 매각일자 검증: 매각 상태이거나 매각일이 마감 연월 이전/당월인 경우 상각 정지 처리
       if (asset.status === 'SOLD' || asset.disposalDate) {
         const dispDateStr = asset.disposalDate ? asset.disposalDate.substring(0, 7) : '';
-        // ?대? 留덇컧 ?곗썡 ?댁쟾?대굹 ?뱀썡 ?댁쟾??留ㅺ컖???먯궛? 媛먭??곴컖 諛쒖깮 以묐떒
+        // 이미 마감 연월 이전이나 당월 이전에 매각된 자산은 감가상각 발생 중단
         if (dispDateStr && dispDateStr < depreciationYm) {
           continue;
         }
@@ -8766,14 +8766,14 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       const monthlyDepn = depreciableAmount / asset.depreciationMonths;
       if (monthlyDepn <= 0) continue;
 
-      // 3. 痍⑤뱷??acqDate)遺??留덇컧?곗썡 留먯씪(closingDate)源뚯???寃쎄낵 媛쒖썡???뺣? ?곗텧
+      // 3. 취득일(acqDate)부터 마감연월 말일(closingDate)까지의 경과 개월수 정밀 산출
       let yearsDiff = closingDate.getFullYear() - acqDate.getFullYear();
       let monthsDiff = closingDate.getMonth() - acqDate.getMonth();
-      let totalElapsedMonths = yearsDiff * 12 + monthsDiff + 1; // 痍⑤뱷?뱀썡 ?ы븿
+      let totalElapsedMonths = yearsDiff * 12 + monthsDiff + 1; // 취득당월 포함
 
       if (totalElapsedMonths < 1) totalElapsedMonths = 1;
 
-      // 留ㅺ컖 ?먯궛? 留ㅺ컖 ?쒖젏源뚯???寃쎄낵?붿닔濡?罹??쒗븳
+      // 매각 자산은 매각 시점까지의 경과월수로 캡 제한
       if ((asset.status === 'SOLD' || asset.disposalDate) && asset.disposalDate) {
         const dispDate = new Date(asset.disposalDate);
         if (!isNaN(dispDate.getTime()) && dispDate <= closingDate) {
@@ -8783,15 +8783,15 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         }
       }
 
-      // ?댁슜?붿닔 罹??쒗븳
+      // 내용월수 캡 제한
       const effectiveElapsed = Math.min(totalElapsedMonths, asset.depreciationMonths);
 
-      // ?대쾲 留덇컧 ?곗썡 ?쒖젏??紐⑺몴 ?꾩쟻?곴컖??(IFRS ?뺤븸踰??뺣? ?곗텧)
+      // 이번 마감 연월 시점의 목표 누적상각액 (IFRS 정액법 정밀 산출)
       const targetAccum = Math.min(depreciableAmount, Math.round(monthlyDepn * effectiveElapsed));
 
       const currentAccum = asset.accumDepreciation || 0;
 
-      // ?뱀썡 諛섏쁺??媛먭??곴컖鍮?= 紐⑺몴 ?꾩쟻?곴컖??- 湲곗〈 ?꾩쟻?곴컖??
+      // 당월 반영할 감가상각비 = 목표 누적상각액 - 기존 누적상각액
       const actualDepn = Math.max(0, targetAccum - currentAccum);
 
       if (actualDepn <= 0 && currentAccum >= targetAccum) continue;
@@ -8815,7 +8815,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       executedBy: currentUser?.name || currentUser?.id,
       targetAssetCount: updatedCount,
       totalDepreciationAmount: totalDepnSum,
-      note: note || `[${depreciationYm}] ?붾쭚 ?뱀궗?먯궛 媛먭??곴컖 寃곗궛 留덇컧 ?꾨즺`,
+      note: note || `[${depreciationYm}] 월말 당사자산 감가상각 결산 마감 완료`,
       createdAt: nowIso,
       updatedAt: nowIso
     });
@@ -8830,18 +8830,18 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     return { count: updatedCount, totalAmount: totalDepnSum };
   };
 
-  // ?????????????????????????????????????????????????????????
-  // ?붾쭚 留ㅼ엯 ?뺤궛 愿??Mutators
-  // ?????????????????????????????????????????????????????????
+  // ─────────────────────────────────────────────────────────
+  // 월말 매입 정산 관련 Mutators
+  // ─────────────────────────────────────────────────────────
 
-  /** ?뱀썡 ?댁넚猷?+ ?뚮え??留ㅼ엯 + ?꾩감?먯궛 ?꾩감猷?+ ?몄＜ ?뺣퉬鍮??먮룞 吏묎퀎 ??PurchaseSettlement ?앹꽦 */
+  /** 당월 운송료 + 소모품 매입 + 임차자산 임차료 + 외주 정비비 자동 집계 → PurchaseSettlement 생성 */
   const generateMonthlyPurchaseSettlements = async (ym: string): Promise<{ transport: number; consumable: number; lease: number; repair: number }> => {
     const nowIso = new Date().toISOString();
     let transportCount = 0;
     let consumableCount = 0;
     let leaseCount = 0;
 
-    // ???댁넚猷?吏묎퀎 ???뱀썡 DELIVERED 諛곗감 以?誘몄젙??嫄?
+    // ① 운송료 집계 — 당월 DELIVERED 배차 중 미정산 건
     const deliveriesOfMonth = db.deliveries.filter(d => {
       const dateStr = d.unloadingDate || d.scheduledDate || d.requestDate;
       return dateStr?.startsWith(ym) &&
@@ -8850,16 +8850,16 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         (d.deliveryCostConfirmed || 0) > 0;
     });
 
-    // ?댁넚?щ퀎 洹몃（??
+    // 운송사별 그루핑
     const transportGroups = new Map<string, typeof deliveriesOfMonth>();
     deliveriesOfMonth.forEach(d => {
-      const key = d.transportCompany || '誘몄????댁넚??;
+      const key = d.transportCompany || '미지정 운송사';
       if (!transportGroups.has(key)) transportGroups.set(key, []);
       transportGroups.get(key)!.push(d);
     });
 
     for (const [vendorName, items] of transportGroups.entries()) {
-      // ?대? ?숈씪 ?뺤궛???댁넚???뺤궛嫄댁씠 ?덉쑝硫??ㅽ궢
+      // 이미 동일 정산월+운송사 정산건이 있으면 스킵
       const exists = db.purchaseSettlements.find(p => p.settlementYm === ym && p.settlementType === 'TRANSPORT' && p.vendorName === vendorName);
       if (exists) continue;
 
@@ -8880,7 +8880,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           settlementId: settlement.id,
           sourceType: 'DELIVERY',
           sourceId: d.id,
-          itemDescription: `諛곗감 ${d.id} / ${d.dispatchCategory || d.type} (${d.unloadingDate || d.scheduledDate || d.requestDate})`,
+          itemDescription: `배차 ${d.id} / ${d.dispatchCategory || d.type} (${d.unloadingDate || d.scheduledDate || d.requestDate})`,
           quantity: 1,
           unitPrice: d.deliveryCostConfirmed || d.deliveryCost || 0,
           amount: d.deliveryCostConfirmed || d.deliveryCost || 0,
@@ -8891,7 +8891,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       transportCount++;
     }
 
-    // ???뚮え??留ㅼ엯 吏묎퀎 ???뱀썡 COMPLETED / ?낃퀬 ?꾨즺 援щℓ?좎껌 以?誘몄젙??嫄?
+    // ② 소모품 매입 집계 — 당월 COMPLETED / 입고 완료 구매신청 중 미정산 건
     const existingConsumableSettlementSourceIds = new Set(
       db.purchaseSettlementItems
         .filter(i => i.sourceType === 'CONSUMABLE_PURCHASE')
@@ -8907,10 +8907,10 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       return normDate.startsWith(ym);
     });
 
-    // ?먮ℓ泥섎퀎 洹몃（??
+    // 판매처별 그루핑
     const consumableGroups = new Map<string, typeof purchasesOfMonth>();
     purchasesOfMonth.forEach(p => {
-      const key = p.sellerName || '誘몄????먮ℓ泥?;
+      const key = p.sellerName || '미지정 판매처';
       if (!consumableGroups.has(key)) consumableGroups.set(key, []);
       consumableGroups.get(key)!.push(p);
     });
@@ -8942,7 +8942,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           settlementId: settlement.id,
           sourceType: 'CONSUMABLE_PURCHASE',
           sourceId: p.id,
-          itemDescription: `${p.modelName} 횞 ${p.requestedQty}媛?(${p.completedDate || p.requestDate})`,
+          itemDescription: `${p.modelName} × ${p.requestedQty}개 (${p.completedDate || p.requestDate})`,
           quantity: p.requestedQty,
           unitPrice: p.unitPrice,
           amount: p.requestedQty * p.unitPrice,
@@ -8953,7 +8953,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       consumableCount++;
     }
 
-    // ???꾩감?먯궛(ownerType === 'RENTED') ?꾩감猷?吏묎퀎 諛??먮룞 ?뺤궛 ?앹꽦
+    // ③ 임차자산(ownerType === 'RENTED') 임차료 집계 및 자동 정산 생성
     const rentedAssetsOfMonth = db.assets.filter(a => {
       if (a.ownerType !== 'RENTED' || !a.monthlyRentFee || a.monthlyRentFee <= 0) return false;
       const vId = a.vendorId;
@@ -8975,7 +8975,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       if (existing) continue;
 
       const vendor = db.vendors.find(v => v.id === vendorId);
-      const vendorName = vendor?.name || aList[0]?.renter || '?λ퉬 ?꾩감泥?;
+      const vendorName = vendor?.name || aList[0]?.renter || '장비 임차처';
       const totalAmount = aList.reduce((sum, a) => sum + (a.monthlyRentFee || 0), 0);
       const settlementId = db.generateNextId('purchaseSettlements', db.purchaseSettlements);
 
@@ -8998,7 +8998,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           settlementId,
           sourceType: 'EQUIPMENT_LEASE',
           sourceId: a.id,
-          itemDescription: `?λ퉬?꾩감: ${a.assetNo} (${a.modelName})`,
+          itemDescription: `장비임차: ${a.assetNo} (${a.modelName})`,
           quantity: 1,
           unitPrice: a.monthlyRentFee || 0,
           amount: a.monthlyRentFee || 0,
@@ -9013,7 +9013,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     );
     leaseCount = leaseSettlementsOfMonth.length;
 
-    // ??[?좉퇋 異붽?] ?몄＜ ?뺣퉬鍮?吏묎퀎 ???뺣퉬?섎━(Repairs)?먯꽌 repairType === 'EXTERNAL'?닿퀬 status === 'COMPLETED'???몄＜ ?뺣퉬 嫄??섏쭛
+    // ④ [신규 추가] 외주 정비비 집계 — 정비수리(Repairs)에서 repairType === 'EXTERNAL'이고 status === 'COMPLETED'인 외주 정비 건 수집
     let repairCount = 0;
     const completedExternalRepairs = db.repairs.filter(r => {
       if (r.repairType !== 'EXTERNAL' || r.status !== 'COMPLETED' || !r.vendorId) return false;
@@ -9029,7 +9029,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
     for (const [vendorId, rList] of Object.entries(repairsByVendor)) {
       const vendor = db.vendors.find(v => v.id === vendorId);
-      const vendorName = vendor?.name || '?몄＜ ?뺣퉬?낆껜';
+      const vendorName = vendor?.name || '외주 정비업체';
       const existing = db.purchaseSettlements.find(p => p.vendorId === vendorId && p.settlementYm === ym && p.settlementType === 'EXTERNAL_REPAIR');
       if (existing) continue;
 
@@ -9055,7 +9055,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           settlementId,
           sourceType: 'REPAIR' as any,
           sourceId: r.id,
-          itemDescription: `?몄＜ ?뺣퉬 ${asset?.assetNo || '?먯궛'} ${r.details.slice(0, 30)}`,
+          itemDescription: `외주 정비 ${asset?.assetNo || '자산'} ${r.details.slice(0, 30)}`,
           quantity: 1,
           unitPrice: r.totalCost || 0,
           amount: r.totalCost || 0,
@@ -9063,7 +9063,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           createdAt: nowIso
         });
 
-        // repair??purchaseBillId ?곌껐
+        // repair에 purchaseBillId 연결
         db.updateRow<Repair>('repairs', r.id, {
           purchaseBillId: settlementId,
           updatedAt: nowIso
@@ -9087,7 +9087,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     db.updateRow<PurchaseSettlement>('purchaseSettlements', id, {
       status: 'CONFIRMED',
       confirmedAt: new Date().toISOString(),
-      confirmedBy: currentUser?.name || '?쒖뒪??
+      confirmedBy: currentUser?.name || '시스템'
     });
     if (settlement) {
       triggerVendorPurchaseMetric(
@@ -9118,7 +9118,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       memo: data.memo
     });
 
-    // SettlementPaymentLog 吏湲??대젰 ?덉퐫??1:N 蹂닿? (Audit Trail)
+    // SettlementPaymentLog 지급 이력 레코드 1:N 보관 (Audit Trail)
     const logId = `SPL-${Date.now()}`;
     const logs = db.settlementPaymentLogs;
     logs.push({
@@ -9134,7 +9134,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     });
     db.settlementPaymentLogs = logs;
 
-    // ?곌껐??諛곗감 嫄??곹깭 PAID ?곕룞
+    // 연결된 배차 건 상태 PAID 연동
     if (newStatus === 'PAID' && settlement.settlementType === 'TRANSPORT') {
       const items = db.purchaseSettlementItems.filter(i => i.settlementId === id && i.sourceType === 'DELIVERY');
       items.forEach(item => {
@@ -9159,19 +9159,19 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     refreshAllData();
   };
 
-  // ?? ?붾쭚 媛먭??곴컖 寃곗궛 痍⑥냼 (濡ㅻ갚) ??
+  // ── 월말 감가상각 결산 취소 (롤백) ──
   const cancelMonthlyDepreciation = async (depreciationYm: string): Promise<void> => {
     try {
       const log = db.depreciationLogs.find(l => l.depreciationYm === depreciationYm);
       if (!log) {
-        throw new Error(`[${depreciationYm}] ?곗썡??媛먭??곴컖 寃곗궛 ?대젰??議댁옱?섏? ?딆뒿?덈떎.`);
+        throw new Error(`[${depreciationYm}] 연월의 감가상각 결산 이력이 존재하지 않습니다.`);
       }
 
-      // 1. ?대떦 ?곗썡??DepreciationLog ??젣
+      // 1. 해당 연월의 DepreciationLog 삭제
       db.deleteRow('depreciationLogs', log.id);
       await db.awaitPendingWrites();
 
-      // 2. ?댁쟾 ?곗썡(1媛쒖썡 ????留먯씪 ?쒖젏?쇰줈 媛??먯궛??媛먭??곴컖 ?ш퀎??諛?濡ㅻ갚
+      // 2. 이전 연월(1개월 전)의 말일 시점으로 각 자산의 감가상각 재계산 및 롤백
       const [year, month] = depreciationYm.split('-').map(Number);
       const prevClosingDate = new Date(year, month - 1, 0, 23, 59, 59, 999);
 
@@ -9189,12 +9189,12 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 媛먭??곴컖 寃곗궛 痍⑥냼 ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 감가상각 결산 취소 실패:\n${err?.message || err}`);
       throw err;
     }
   };
 
-  // ?? ????꾨즺 諛곗감 ???붾쭚 留ㅼ엯 ?뺤궛 ?먮룞 吏묎퀎 ??
+  // ── 대사 완료 배차 → 월말 매입 정산 자동 집계 ──
   const convertReconciledDeliveriesToSettlement = async (settlementYm: string, transportCompanyId?: string): Promise<number> => {
     try {
       const targetDeliveries = db.deliveries.filter(d => {
@@ -9207,10 +9207,10 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
 
       if (targetDeliveries.length === 0) return 0;
 
-      // ?댁넚?щ퀎 洹몃９??
+      // 운송사별 그룹핑
       const compGroups = new Map<string, Delivery[]>();
       targetDeliveries.forEach(d => {
-        const comp = d.transportCompany || '湲고? ?댁넚??;
+        const comp = d.transportCompany || '기타 운송사';
         if (!compGroups.has(comp)) compGroups.set(comp, []);
         compGroups.get(comp)!.push(d);
       });
@@ -9246,14 +9246,14 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
           });
         }
 
-        // ?꾩씠???쎌엯 諛?諛곗감 ?곹깭 媛깆떊
+        // 아이템 삽입 및 배차 상태 갱신
         dList.forEach(d => {
           const cost = d.deliveryCostConfirmed || d.deliveryCost || 0;
           db.insertRow<PurchaseSettlementItem>('purchaseSettlementItems', {
             settlementId,
             sourceType: 'DELIVERY',
             sourceId: d.id,
-            itemDescription: `[諛곗감 ?대컲鍮? ${d.originAddress || '?곸감吏'} ??${d.destinationAddress || '?섏감吏'} (${d.vehicleType || '李⑤웾'})`,
+            itemDescription: `[배차 운반비] ${d.originAddress || '상차지'} ➔ ${d.destinationAddress || '하차지'} (${d.vehicleType || '차량'})`,
             quantity: 1,
             unitPrice: cost,
             amount: cost,
@@ -9272,12 +9272,12 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       refreshAllData();
       return totalConverted;
     } catch (err: any) {
-      showErrorModal(`?좑툘 留ㅼ엯 ?뺤궛 ?닿? ?ㅻ쪟:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 매입 정산 이관 오류:\n${err?.message || err}`);
       throw err;
     }
   };
 
-  // ?? 怨좉컼 怨쇱떎 ?섎━鍮?泥?뎄???곕룞 ??
+  // ── 고객 과실 수리비 청구서 연동 ──
   const linkRepairToBilling = async (repairId: string, billingId: string): Promise<void> => {
     try {
       db.updateRow<Repair>('repairs', repairId, {
@@ -9285,7 +9285,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         updatedAt: new Date().toISOString()
       });
 
-      // ?윟 ?좎긽 ?섎━鍮?泥?뎄 ToDo ?먮룞 ?곴퀎
+      // 🟢 유상 수리비 청구 ToDo 자동 상계
       await clearHandoverTasks({
         entityType: 'REPAIR',
         entityId: repairId,
@@ -9298,7 +9298,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?섎━鍮?泥?뎄 ?곕룞 ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 수리비 청구 연동 실패:\n${err?.message || err}`);
     }
   };
 
@@ -9311,11 +9311,11 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?섎━鍮?泥?뎄 ?곕룞 ?댁젣 ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 수리비 청구 연동 해제 실패:\n${err?.message || err}`);
     }
   };
 
-  // ?? 怨좉컼 怨쇱떎 ?섎━鍮??곸뾽 泥?뎄 硫댁젣 泥섎━ ??
+  // ── 고객 과실 수리비 영업 청구 면제 처리 ──
   const waiveRepairBilling = async (repairId: string, waivedAmount: number, waivedReason: string, waivedBy: string): Promise<void> => {
     try {
       const now = new Date().toISOString();
@@ -9328,7 +9328,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         updatedAt: now
       });
 
-      // ?윟 ?좎긽 ?섎━鍮?泥?뎄 ToDo ?먮룞 ?곴퀎 (?곸뾽 硫댁젣 ?꾨즺)
+      // 🟢 유상 수리비 청구 ToDo 자동 상계 (영업 면제 완료)
       await clearHandoverTasks({
         entityType: 'REPAIR',
         entityId: repairId,
@@ -9341,7 +9341,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?섎━鍮??곸뾽 硫댁젣 泥섎━ ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 수리비 영업 면제 처리 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -9360,12 +9360,12 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?섎━鍮??곸뾽 硫댁젣 痍⑥냼 ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 수리비 영업 면제 취소 실패:\n${err?.message || err}`);
       throw err;
     }
   };
 
-  // ?? 怨좉컼 遺???댁넚猷?泥?뎄???곕룞 諛??곸뾽 硫댁젣 ??
+  // ── 고객 부담 운송료 청구서 연동 및 영업 면제 ──
   const linkDeliveryToBilling = async (deliveryId: string, billingId: string): Promise<void> => {
     try {
       db.updateRow<Delivery>('deliveries', deliveryId, {
@@ -9375,7 +9375,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?댁넚猷?泥?뎄 ?곕룞 ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 운송료 청구 연동 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -9389,7 +9389,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?댁넚猷?泥?뎄 ?곕룞 ?댁젣 ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 운송료 청구 연동 해제 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -9408,7 +9408,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?댁넚猷??곸뾽 硫댁젣 泥섎━ ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 운송료 영업 면제 처리 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -9427,17 +9427,17 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?댁넚猷??곸뾽 硫댁젣 痍⑥냼 ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 운송료 영업 면제 취소 실패:\n${err?.message || err}`);
       throw err;
     }
   };
 
-  // ?? ?좎닔湲?(?덉튂湲? 愿由???
+  // ── 선수금 (예치금) 관리 ──
   const chargePrepaidBalance = async (customerId: string, amount: number, memo?: string): Promise<void> => {
     try {
       const customer = db.customers.find(c => c.id === customerId);
-      if (!customer) throw new Error('怨좉컼?щ? 李얠쓣 ???놁뒿?덈떎.');
-      if (amount <= 0) throw new Error('?좏슚??湲덉븸???낅젰?섏떗?쒖삤.');
+      if (!customer) throw new Error('고객사를 찾을 수 없습니다.');
+      if (amount <= 0) throw new Error('유효한 금액을 입력하십시오.');
 
       const nextBal = (customer.prepaidBalance || 0) + amount;
       db.updateRow<Customer>('customers', customerId, {
@@ -9449,14 +9449,14 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         type: 'CHARGE',
         amount,
         balanceAfter: nextBal,
-        memo: memo || '?좎닔湲??덉튂湲? 異⑹쟾/?낃툑',
+        memo: memo || '선수금(예치금) 충전/입금',
         createdAt: new Date().toISOString()
       });
 
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?좎닔湲?異⑹쟾 ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 선수금 충전 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -9464,32 +9464,32 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   const applyPrepaidBalanceForBilling = async (billingId: string, amount: number, memo?: string): Promise<void> => {
     try {
       if (!amount || amount <= 0) {
-        throw new Error('?곴퀎??湲덉븸? 1???댁긽?댁뼱???⑸땲??');
+        throw new Error('상계할 금액은 1원 이상이어야 합니다.');
       }
       const billing = db.billings.find(b => b.id === billingId);
-      if (!billing) throw new Error('泥?뎄?쒕? 李얠쓣 ???놁뒿?덈떎.');
+      if (!billing) throw new Error('청구서를 찾을 수 없습니다.');
       const customer = db.customers.find(c => c.id === billing.customerId);
-      if (!customer) throw new Error('怨좉컼?щ? 李얠쓣 ???놁뒿?덈떎.');
+      if (!customer) throw new Error('고객사를 찾을 수 없습니다.');
 
       const currentBal = customer.prepaidBalance || 0;
       if (currentBal < amount) {
-        throw new Error(`?좎닔湲??붿븸??遺議깊빀?덈떎. (?꾩옱 ?붿븸: ??{currentBal.toLocaleString()}?? ?붿껌?? ??{amount.toLocaleString()}??`);
+        throw new Error(`선수금 잔액이 부족합니다. (현재 잔액: ₩${currentBal.toLocaleString()}원, 요청액: ₩${amount.toLocaleString()}원)`);
       }
 
       const bSup = billing.totalAmount || 0;
       const bGrand = bSup + Math.round(bSup * 0.1);
       const unpaid = Math.max(0, bGrand - (billing.paidAmount || 0));
       if (amount > unpaid) {
-        throw new Error(`泥?뎄??誘몄닔湲???{unpaid.toLocaleString()}????珥덇낵?섏뿬 ?곴퀎?????놁뒿?덈떎.`);
+        throw new Error(`청구서 미수금(₩${unpaid.toLocaleString()}원)을 초과하여 상계할 수 없습니다.`);
       }
 
-      // 1. 怨좉컼 ?좎닔湲??붿븸 李④컧
+      // 1. 고객 선수금 잔액 차감
       const nextBal = currentBal - amount;
       db.updateRow<Customer>('customers', customer.id, {
         prepaidBalance: nextBal
       });
 
-      // 2. ?섎궔 (Payment) ?덉퐫???앹꽦
+      // 2. 수납 (Payment) 레코드 생성
       const paymentId = `pay-prepaid-${Date.now()}`;
       db.insertRow<Payment>('payments', {
         id: paymentId,
@@ -9497,20 +9497,20 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         paymentDate: new Date().toISOString().split('T')[0],
         amount,
         method: 'PREPAID',
-        memo: memo || `?좎닔湲??덉튂湲? ?곴퀎 ?섎궔 (?붿뿬 ?좎닔湲? ??{nextBal.toLocaleString()}??`,
+        memo: memo || `선수금(예치금) 상계 수납 (잔여 선수금: ₩${nextBal.toLocaleString()}원)`,
         createdAt: new Date().toISOString()
       });
 
-      // 3. 泥?뎄???섎궔??諛??곹깭 媛깆떊 (VAT ?ы븿 珥앹븸 湲곗?)
+      // 3. 청구서 수납액 및 상태 갱신 (VAT 포함 총액 기준)
       const newPaid = billing.paidAmount + amount;
       const newStatus = newPaid >= bGrand ? 'PAID' : 'PARTIAL';
-      db.updateRow<Billing>(billingId, {
+      db.updateRow<Billing>('billings', billingId, {
         paidAmount: newPaid,
         status: newStatus,
         updatedAt: new Date().toISOString()
       });
 
-      // 4. ?좎닔湲??ъ슜 ?대젰 湲곕줉
+      // 4. 선수금 사용 이력 기록
       db.insertRow<PrepaidTransaction>('prepaidTransactions', {
         customerId: customer.id,
         type: 'USE_FOR_BILLING',
@@ -9518,14 +9518,14 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         balanceAfter: nextBal,
         billingId,
         paymentId,
-        memo: memo || `泥?뎄??${billing.billingYm}) ?좎닔湲??곴퀎 ?섎궔`,
+        memo: memo || `청구서(${billing.billingYm}) 선수금 상계 수납`,
         createdAt: new Date().toISOString()
       });
 
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?좎닔湲??곴퀎 ?섎궔 ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 선수금 상계 수납 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -9533,13 +9533,13 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   const refundPrepaidBalance = async (customerId: string, amount: number, memo?: string): Promise<void> => {
     try {
       if (!amount || amount <= 0) {
-        throw new Error('?섎텋??湲덉븸? 1???댁긽?댁뼱???⑸땲??');
+        throw new Error('환불할 금액은 1원 이상이어야 합니다.');
       }
       const customer = db.customers.find(c => c.id === customerId);
-      if (!customer) throw new Error('怨좉컼?щ? 李얠쓣 ???놁뒿?덈떎.');
+      if (!customer) throw new Error('고객사를 찾을 수 없습니다.');
       const currentBal = customer.prepaidBalance || 0;
       if (currentBal < amount) {
-        throw new Error(`?섎텋 ?붿껌 湲덉븸???좎닔湲??붿븸??珥덇낵?⑸땲?? (?붿븸: ??{currentBal.toLocaleString()}??`);
+        throw new Error(`환불 요청 금액이 선수금 잔액을 초과합니다. (잔액: ₩${currentBal.toLocaleString()}원)`);
       }
 
       const nextBal = currentBal - amount;
@@ -9552,19 +9552,19 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
         type: 'REFUND',
         amount,
         balanceAfter: nextBal,
-        memo: memo || '?좎닔湲??덉튂湲? ?섎텋 泥섎━',
+        memo: memo || '선수금(예치금) 환불 처리',
         createdAt: new Date().toISOString()
       });
 
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?좎닔湲??섎텋 ?ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 선수금 환불 실패:\n${err?.message || err}`);
       throw err;
     }
   };
 
-  // ?? ?곗껜 議곗튂 諛??낃툑 ?쎌냽 愿由???
+  // ── 연체 조치 및 입금 약속 관리 ──
   const saveDelinquencyAction = async (action: Omit<DelinquencyActionLog, 'id' | 'createdAt'>): Promise<void> => {
     try {
       db.insertRow<DelinquencyActionLog>('delinquencyActionLogs', {
@@ -9574,7 +9574,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?곗껜 議곗튂?ы빆 ????ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 연체 조치사항 저장 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -9587,7 +9587,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       await db.awaitPendingWrites();
       refreshAllData();
     } catch (err: any) {
-      showErrorModal(`?좑툘 ?낃툑 ?쎌냽 ?곹깭 蹂寃??ㅽ뙣:\n${err?.message || err}`);
+      showErrorModal(`⚠️ 입금 약속 상태 변경 실패:\n${err?.message || err}`);
       throw err;
     }
   };
@@ -9628,7 +9628,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   };
 
   // ============================================================
-  // 踰뺤씤 李⑤웾 諛?李⑤웾?댄뻾?쇱?/二쇱쑀 ?곸닔利?Mutators (Corporate Fleet & Logs)
+  // 법인 차량 및 차량운행일지/주유 영수증 Mutators (Corporate Fleet & Logs)
   // ============================================================
 
   const registerCorporateVehicle = async (vehicleData: Omit<CorporateVehicle, 'id' | 'createdAt' | 'updatedAt'>): Promise<CorporateVehicle> => {
@@ -9653,7 +9653,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
   };
 
   const deleteCorporateVehicle = async (id: string): Promise<void> => {
-    // ??怨좎븘 ?덉퐫??諛⑹?: 李⑤웾 ??젣 ???곌? ?댄뻾?쇱?, 二쇱쑀 湲곕줉 cascade ??젣
+    // ✅ 고아 레코드 방지: 차량 삭제 시 연관 운행일지, 주유 기록 cascade 삭제
     const linkedOpLogs = db.vehicleOperationLogs.filter(l => l.vehicleId === id);
     linkedOpLogs.forEach(l => db.deleteRow('vehicleOperationLogs', l.id));
     const linkedFuelLogs = db.vehicleFuelLogs.filter(l => l.vehicleId === id);
@@ -9673,7 +9673,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       updatedAt: now
     }) as VehicleOperationLog;
 
-    // 李⑤웾???꾩옱 ?꾩쟻 二쇳뻾嫄곕━ ?먮룞 ?낅뜲?댄듃 (?꾩갑 嫄곕━媛 ????寃쎌슦)
+    // 차량의 현재 누적 주행거리 자동 업데이트 (도착 거리가 더 큰 경우)
     const veh = db.corporateVehicles.find(v => v.id === logData.vehicleId);
     if (veh && logData.arrivalMileage > veh.currentMileage) {
       db.updateRow<CorporateVehicle>('corporateVehicles', veh.id, {
@@ -9706,7 +9706,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     const now = new Date().toISOString();
     const fuelUnitPrice = fuelData.fuelUnitPrice || (fuelData.fuelVolume > 0 ? Math.round(fuelData.fuelAmount / fuelData.fuelVolume) : 0);
     
-    // 吏곸쟾 二쇱쑀 ?鍮??곕퉬 ?먮룞 怨꾩궛 (?숈씪 李⑤웾??吏곸쟾 二쇱쑀 湲곕줉 寃??
+    // 직전 주유 대비 연비 자동 계산 (동일 차량의 직전 주유 기록 검색)
     const pastFuelLogs = db.vehicleFuelLogs
       .filter(f => f.vehicleId === fuelData.vehicleId && f.currentMileage < fuelData.currentMileage)
       .sort((a, b) => b.currentMileage - a.currentMileage);
@@ -9726,7 +9726,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       updatedAt: now
     }) as VehicleFuelLog;
 
-    // 李⑤웾???꾩옱 ?꾩쟻 二쇳뻾嫄곕━ ?먮룞 ?낅뜲?댄듃
+    // 차량의 현재 누적 주행거리 자동 업데이트
     const veh = db.corporateVehicles.find(v => v.id === fuelData.vehicleId);
     if (veh && fuelData.currentMileage > veh.currentMileage) {
       db.updateRow<CorporateVehicle>('corporateVehicles', veh.id, {
@@ -9746,7 +9746,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     refreshAllData();
   };
 
-  // ?녷븺 ?몄뇙 ??& ?ㅽ뀒?댁뀡 愿由??≪뀡
+  // 分散 인쇄 큐 & 스테이션 관리 액션
   const enqueuePrintJobAction = async (params: {
     stationId?: string;
     docType: 'DISPATCH_ORDER' | 'RETURN_ORDER';
@@ -9789,7 +9789,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     refreshAllData();
   };
 
-  // ??? ?ㅻ쪟 ?좉퀬 愿由?(3?④퀎 ?쇱씠?꾩궗?댄겢 & ?뚯씪泥⑤?) ???
+  // ─── 오류 신고 관리 (3단계 라이프사이클 & 파일첨부) ───
   const addErrorReport = async (reportData: Omit<ErrorReport, 'id' | 'createdAt' | 'updatedAt' | 'reportNo'> & { id?: string; reportNo?: string }): Promise<ErrorReport> => {
     const list = db.errorReports || [];
     const reportNo = reportData.reportNo || `ERR-${new Date().toISOString().slice(0, 7).replace('-', '')}-${String(list.length + 1).padStart(4, '0')}`;
@@ -9804,7 +9804,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       severity: reportData.severity || 'MEDIUM',
       status: 'REGISTERED',
       reporterId: reportData.reporterId || currentUser?.id || 'usr-anon',
-      reporterName: reportData.reporterName || currentUser?.name || '?쒖뒪?쒖궗?⑹옄',
+      reporterName: reportData.reporterName || currentUser?.name || '시스템사용자',
       reporterDept: reportData.reporterDept,
       reporterPhone: reportData.reporterPhone,
       reportedAt: reportData.reportedAt || new Date().toISOString().replace('T', ' ').slice(0, 16),
@@ -9830,7 +9830,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     const updates: Partial<ErrorReport> = {
       status: 'IN_PROGRESS',
       receiverId: currentUser?.id || 'usr-admin',
-      receiverName: currentUser?.name || '愿由ъ옄',
+      receiverName: currentUser?.name || '관리자',
       receivedAt: nowIso.replace('T', ' ').slice(0, 16),
       assigneeId: payload.assigneeId,
       assigneeName: payload.assigneeName,
@@ -9848,7 +9848,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     const updates: Partial<ErrorReport> = {
       status: 'COMPLETED',
       resolverId: currentUser?.id || 'usr-admin',
-      resolverName: currentUser?.name || '愿由ъ옄',
+      resolverName: currentUser?.name || '관리자',
       completedAt: nowIso.replace('T', ' ').slice(0, 16),
       resolutionNote: payload.resolutionNote,
       resolvedVersion: payload.resolvedVersion || 'v1.14.0',
@@ -9864,7 +9864,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
     const nowIso = new Date().toISOString();
     const updates: Partial<ErrorReport> = {
       status: 'CANCELLED',
-      resolutionNote: reason ? `[痍⑥냼 ?ъ쑀]: ${reason}` : '?좉퀬???붿껌 ?먮뒗 以묐났 嫄?痍⑥냼',
+      resolutionNote: reason ? `[취소 사유]: ${reason}` : '신고자 요청 또는 중복 건 취소',
       updatedAt: nowIso
     };
     db.updateRow<ErrorReport>('errorReports', id, updates);
@@ -9921,7 +9921,7 @@ ${currentTenant?.corporateName || tenantCorp} 諛곗긽
       uploadBankTransactions, matchTransactionManual, batchAutoMatchTransactions, unmatchTransaction, saveMatchingRule, deleteMatchingRule,
       dispatchDelivery, settleDeliveryCost, completeDelivery, completeInboundDelivery,
       registerRepair, updateRepairStatus,
-      // ?꾩옣 AS 愿由?(?⑥씪 臾쇰━ ?뚯씠釉?repairs 酉??쒓났)
+      // 현장 AS 관리 (단일 물리 테이블 repairs 뷰 제공)
       fieldAsTickets: repairs.filter(r => r.workCategory === 'FIELD_AS' || r.source === 'BAND_IMPORT' || r.source === 'SALES_REQUEST'),
       createFieldAsTicket,
       updateFieldAsTicketStatus,
@@ -9963,4 +9963,3 @@ export const useApp = () => {
   if (!context) throw new Error('useApp must be used within AppProvider');
   return context;
 };
-

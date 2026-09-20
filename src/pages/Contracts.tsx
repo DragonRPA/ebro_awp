@@ -6,7 +6,7 @@ import {
   Building2, ArrowLeftRight, Receipt, FolderOpen, AlertCircle, ExternalLink, Copy, AlertTriangle, FileText,
   Truck, CheckCircle2
 } from 'lucide-react';
-import { supabase, Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate } from '../services/db';
+import { Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
 import { matchHangul, sortCustomersByName, compareCustomerNames } from '../utils/hangulSearch';
@@ -75,32 +75,6 @@ export const Contracts: React.FC = () => {
       setNavigationPayload?.(null);
     }
   }, [navigationPayload, setNavigationPayload]);
-
-  // ⚡ Localized Lazy Loading for ContractHistory (v2 patch)
-  useEffect(() => {
-    let isMounted = true;
-    const fetchHistory = async () => {
-      if (!selectedContractId) return;
-      try {
-        const { data, error } = await supabase
-          .from('contractHistory')
-          .select('*')
-          .eq('contractId', selectedContractId);
-          
-        if (error) throw error;
-        if (isMounted && data) {
-          const newMap = new Map(db.contractHistory.map(h => [h.id, h]));
-          data.forEach(h => newMap.set(h.id, h));
-          db.contractHistory = Array.from(newMap.values());
-          refreshAllData();
-        }
-      } catch (err) {
-        console.error('Failed to lazy load contractHistory:', err);
-      }
-    };
-    fetchHistory();
-    return () => { isMounted = false; };
-  }, [selectedContractId, refreshAllData]);
 
   // --- 계약 등록 폼 상태 ---
   const [custSelect, setCustSelect] = useState(customers[0]?.id || '');
