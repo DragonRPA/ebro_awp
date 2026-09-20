@@ -1,6 +1,7 @@
 import { supabase, db, calculateAssetDepreciation, normalizeCustomerName, findCustomerByNormalizedName, STANDARD_SPECS, InspectionChecklistItem, Repair, AssetInOutLog, ContractHistory } from './db';
 import * as XLSX from 'xlsx';
 import { PRESET_PRODUCT_SPECS, ProductPresetSpec } from '../data/presetProductSpecs';
+import { isModelMatch } from '../utils/modelUtils';
 
 // ──────────────────────────────────────────────
 // 타입 정의
@@ -2132,12 +2133,6 @@ export function parseDispatchExcelWorkbook(
   const rows: ParsedDispatchRow[] = [];
   let seq = 1;
 
-  // 모델명 정규화 키 (공백/하이픈/대소문자 무시)
-  const normalizeModelKey = (name?: string | null): string => {
-    if (!name) return '';
-    return name.replace(/[\s\-_]/g, '').toUpperCase();
-  };
-
   // 고객명 정규화 Map 생성
   const customerMap = new Map<string, string>(); // normalizedName → customerId
   customers.forEach(c => {
@@ -2236,15 +2231,14 @@ export function parseDispatchExcelWorkbook(
 
       if (customerId) {
         const custContracts = contracts.filter(c => c.customerId === customerId);
-        const modelKey = normalizeModelKey(modelRaw);
         for (const cont of custContracts) {
           const ca = contractAssets.find(ca =>
             ca.contractId === cont.id &&
             !ca.assetId &&  // 미할당 우선 매핑 시도
-            normalizeModelKey(ca.expectedModel) === modelKey
+            isModelMatch(ca.expectedModel || undefined, modelRaw)
           ) || contractAssets.find(ca =>
             ca.contractId === cont.id &&
-            normalizeModelKey(ca.expectedModel) === modelKey
+            isModelMatch(ca.expectedModel || undefined, modelRaw)
           );
           if (ca) {
             contractId = cont.id;

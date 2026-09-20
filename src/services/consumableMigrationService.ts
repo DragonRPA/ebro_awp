@@ -9,7 +9,7 @@
  * - 카테고리 5.2: await db.awaitPendingWrites() 무음 실패 방지
  */
 
-import { Consumable, ConsumableLog, db } from './db';
+import { Consumable, ConsumableLot, ConsumableLog, db } from './db';
 
 export interface ParsedConsumableItem {
   id?: string;
@@ -195,8 +195,26 @@ export async function ingestConsumablesToDatabase(
 
       // 변동 수량이 있을 경우 로그 기록
       if (diff !== 0) {
+        let lotId: string | undefined = undefined;
+
+        if (diff > 0) {
+          const lot = db.insertRow<ConsumableLot>('consumableLots', {
+            consumableId: targetConsumable.id,
+            inboundDate: todayYmd,
+            unitPrice: targetConsumable.unitPrice,
+            initialQty: diff,
+            currentQty: diff,
+            createdAt: nowIso
+          }) as ConsumableLot;
+          lotId = lot.id;
+        } else {
+          // If diff < 0 (ADJUST for negative), we would ideally deduct from oldest lot, 
+          // but for seed script we just adjust without specific lot, or let manual adjust handle it.
+        }
+
         db.insertRow<ConsumableLog>('consumableLogs', {
           consumableId: targetConsumable.id,
+          lotId,
           type: diff > 0 ? 'INBOUND' : 'ADJUST',
           quantity: Math.abs(diff),
           unitPrice: targetConsumable.unitPrice,
@@ -228,9 +246,23 @@ export async function ingestConsumablesToDatabase(
 
       targetConsumable = db.insertRow<Consumable>('consumables', newConsumableData as any) as Consumable;
 
+      let lotId: string | undefined = undefined;
+      if (targetConsumable.stockQty > 0) {
+        const lot = db.insertRow<ConsumableLot>('consumableLots', {
+          consumableId: targetConsumable.id,
+          inboundDate: todayYmd,
+          unitPrice: targetConsumable.unitPrice,
+          initialQty: targetConsumable.stockQty,
+          currentQty: targetConsumable.stockQty,
+          createdAt: nowIso
+        }) as ConsumableLot;
+        lotId = lot.id;
+      }
+
       // 최초 입고 로그 무누락 저장
       db.insertRow<ConsumableLog>('consumableLogs', {
         consumableId: targetConsumable.id,
+        lotId,
         type: 'INBOUND',
         quantity: targetConsumable.stockQty,
         unitPrice: targetConsumable.unitPrice,

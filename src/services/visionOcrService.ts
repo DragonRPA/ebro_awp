@@ -308,3 +308,58 @@ export async function analyzeBusinessLicense(file: File): Promise<BusinessLicens
     return { success: false, error: err?.message || '사업자등록증 처리 중 오류가 발생했습니다.' };
   }
 }
+
+// ─── 4. 명함 및 이메일 서명 Vision AI 자동 분석 ───
+
+export interface ContactCardAnalysisResult {
+  success: boolean;
+  companyName?: string;
+  name?: string;
+  position?: string;
+  contact?: string;
+  email?: string;
+  confidence?: number;
+  error?: string;
+}
+
+/**
+ * 4. 명함 및 이메일 서명 이미지 Vision AI 자동 인식
+ */
+export async function analyzeContactCard(file: File): Promise<ContactCardAnalysisResult> {
+  try {
+    const imageBase64 = await processImageFile(file, 1800);
+    
+    const res = await fetch('/api/vision-ocr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        taskType: 'CONTACT_CARD',
+        imageBase64
+      })
+    });
+
+    if (!res.ok) {
+      return { success: false, error: `서버 통신 오류 (HTTP ${res.status})` };
+    }
+
+    const json = await res.json();
+    if (!json.success || !json.data) {
+      return { success: false, error: json.error || '명함/서명 분석에 실패했습니다.' };
+    }
+
+    const data = json.data;
+    
+    return {
+      success: true,
+      companyName: data.companyName ? String(data.companyName).trim() : undefined,
+      name: data.name ? String(data.name).trim() : undefined,
+      position: data.position ? String(data.position).trim() : undefined,
+      contact: data.contact ? String(data.contact).trim() : undefined,
+      email: data.email ? String(data.email).trim() : undefined,
+      confidence: data.confidence || 0.95
+    };
+  } catch (err: any) {
+    console.error('[VisionOcrService] analyzeContactCard exception:', err);
+    return { success: false, error: err?.message || '명함/서명 이미지 처리 중 오류가 발생했습니다.' };
+  }
+}

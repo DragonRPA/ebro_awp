@@ -1,4 +1,4 @@
-// src/mobile/pages/MobileDispatchOrderCreate.tsx
+﻿// src/mobile/pages/MobileDispatchOrderCreate.tsx
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
@@ -22,6 +22,7 @@ import { broadcastWorkNotification } from '../../utils/workNotificationService';
 import { VoiceGuideWizardModal, VoiceGuideWizardCompleteData } from '../components/VoiceGuideWizardModal';
 import { VoiceMemoDispatchStudioModal } from '../components/VoiceMemoDispatchStudioModal';
 import { BusinessLicenseModal } from '../../components/BusinessLicenseModal';
+
 
 interface MobileDispatchOrderCreateProps {
   onBack: () => void;
@@ -60,8 +61,9 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
 }) => {
   const { 
     customers, sites, currentUser, saveSmartDispatch,
-    contracts, contractAssets, assets, saveSmartReturn, refreshAllData 
-  } = useApp();
+    contracts, contractAssets, assets, saveSmartReturn, refreshAllData, inspectionChecklistItems 
+} = useApp();
+  const defectSymptoms = useMemo(() => { const list = inspectionChecklistItems.filter(i => i.isDefectSymptom).map(i => i.name); return list.length > 0 ? list : ['불량증상(설정요망)']; }, [inspectionChecklistItems]);
 
   // 의뢰 유형 모드 (출고 DISPATCH vs 회수 RETURN vs 대차교체 EXCHANGE - 헌장 2.3)
   const [dispatchMode, setDispatchMode] = useState<'DISPATCH' | 'RETURN' | 'EXCHANGE'>('DISPATCH');
@@ -137,6 +139,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
 
   const [customerSearchText, setCustomerSearchText] = useState('');
   const [siteSearchText, setSiteSearchText] = useState('');
+  const [returnAssetSearchText, setReturnAssetSearchText] = useState('');
 
   // 1. 마운트 시 이전 임시저장 의뢰서 복원
   useEffect(() => {
@@ -686,47 +689,72 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
           return;
         }
 
-        const oldAssetId = selectedReturnAssetIds[0];
-        const oldAssetObj = assets.find(a => a.id === oldAssetId);
-        const targetContractId = siteRentedAssets.find(ra => ra.assetId === oldAssetId)?.contractId || '';
-        const targetModelName = orders[0]?.modelName || orders[0]?.ft || oldAssetObj?.modelName || '동일/동급 모델';
+        const totalEquipCount = orders.reduce((sum, o) => sum + Math.max(0, Math.floor(o.count || 0)), 0);
+        if (totalEquipCount <= 0) {
+          showToast('투입 요구 장비를 1대 이상 지정해주세요.', 'error');
+          setIsSubmitting(false);
+          return;
+        }
+
+        const firstOldAssetId = selectedReturnAssetIds[0];
+        const targetContractId = siteRentedAssets.find(ra => ra.assetId === firstOldAssetId)?.contractId || '';
+        const targetContract = contracts.find(c => c.id === targetContractId);
+
+        const oldAssetsSummary = selectedReturnAssetIds.map(id => {
+          const a = assets.find(ast => ast.id === id);
+          return a ? `${a.assetNo}(${a.modelName})` : id;
+        }).join(', ');
+
+        const newAssetsSummary = orders.map(o => `${o.modelName || o.ft} ${o.count}대`).join(', ');
 
         // 1. contractHistory 기록 (헌장 2.2 계약 속성 100% 자동 상속)
         db.insertRow<ContractHistory>('contractHistory', {
           contractId: targetContractId,
           changeType: 'EXCHANGE',
           changeDate: deliveryDate,
-          description: `[모바일 대차/교체 의뢰 접수] 회수: ${oldAssetObj?.assetNo || '미지정'}(${oldAssetObj?.modelName || '기존'}) ➔ 투입요구: ${targetModelName} (기존 계약조건 100% 자동 상속)`,
+          description: `[모바일 대차/교체 의뢰 접수] 회수(${selectedReturnAssetIds.length}대): ${oldAssetsSummary} ➔ 투입요구(${totalEquipCount}대): ${newAssetsSummary} (기존 계약조건 자동 상속)`,
           createdAt: new Date().toISOString()
         });
 
-        // 1-1. 기존 ContractAsset 종료 처리 (헌장 1.2 & 4.1 전자산 교체 전일 마감)
         const prevDateObj = new Date(deliveryDate);
         prevDateObj.setDate(prevDateObj.getDate() - 1);
         const dayBeforeDelivery = prevDateObj.toISOString().split('T')[0];
 
-        const targetOldCA = contractAssets.find(ca => ca.contractId === targetContractId && ca.assetId === oldAssetId);
-        if (targetOldCA) {
-          db.updateRow<ContractAsset>('contractAssets', targetOldCA.id, {
-            endDate: dayBeforeDelivery,
-            status: 'RETURNED',
-            actualReturnDate: deliveryDate,
-            updatedAt: new Date().toISOString()
-          });
-        }
+        let lastMonthlyFee = 0;
+        let lastDailyFee = 0;
+
+        // 1-1. 기존 ContractAsset 일괄 종료 처리 (헌장 1.2 & 4.1)
+        selectedReturnAssetIds.forEach(oldAssetId => {
+          const targetOldCA = contractAssets.find(ca => ca.contractId === targetContractId && ca.assetId === oldAssetId);
+          if (targetOldCA) {
+            if (targetOldCA.monthlyRentalFee > 0) lastMonthlyFee = targetOldCA.monthlyRentalFee;
+            if (targetOldCA.dailyRentalFee > 0) lastDailyFee = targetOldCA.dailyRentalFee;
+
+            db.updateRow<ContractAsset>('contractAssets', targetOldCA.id, {
+              endDate: dayBeforeDelivery,
+              status: 'RETURNED',
+              actualReturnDate: deliveryDate,
+              updatedAt: new Date().toISOString()
+            });
+          }
+        });
 
         // 1-2. 출고 부서를 위한 대차 출고 슬롯(ContractAsset) 자동 생성 (헌장 2.2 단가 100% 자동 상속)
-        const targetContract = contracts.find(c => c.id === targetContractId);
-        db.insertRow<ContractAsset>('contractAssets', {
-          contractId: targetContractId,
-          assetId: undefined,
-          expectedModel: targetModelName,
-          monthlyRentalFee: targetOldCA?.monthlyRentalFee || 0,
-          dailyRentalFee: targetOldCA?.dailyRentalFee || 0,
-          startDate: deliveryDate,
-          endDate: targetContract?.endDate || targetOldCA?.endDate || '미정',
-          status: 'ACTIVE',
-          createdAt: new Date().toISOString()
+        orders.forEach(o => {
+          const safeCount = Math.max(1, Math.floor(o.count || 1));
+          for (let i = 0; i < safeCount; i++) {
+            db.insertRow<ContractAsset>('contractAssets', {
+              contractId: targetContractId,
+              assetId: undefined,
+              expectedModel: o.modelName || o.ft,
+              monthlyRentalFee: lastMonthlyFee,
+              dailyRentalFee: lastDailyFee,
+              startDate: deliveryDate,
+              endDate: targetContract?.endDate || '미정',
+              status: 'ACTIVE',
+              createdAt: new Date().toISOString()
+            });
+          }
         });
 
         // 2. 단일 대차 요구에 대해 'EXCHANGE' (교환 왕복 배차) 1건만 발행 (헌장 2.3)
@@ -736,7 +764,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
 
         db.insertRow<Delivery>('deliveries', {
           contractId: targetContractId,
-          assetIds: oldAssetId,
+          assetIds: selectedReturnAssetIds.join(','),
           type: 'EXCHANGE',
           dispatchCategory: '교환',
           status: 'REQUESTED',
@@ -748,7 +776,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
           unloadingTimeSlot: deliveryTime,
           originAddress: `${selectedCust.name} (${finalSiteName})`,
           destinationAddress: `${selectedCust.name} (${finalSiteName})`,
-          memo: `[모바일 대차/교환 왕복 배차] ${contactInfoMemo}회수대상: ${oldAssetObj?.assetNo || '미지정'}(${oldAssetObj?.modelName || '기존장비'}) ➔ 대차출고요구: ${targetModelName} | 사유: ${memo.trim() || '현장 고장 교체'}`,
+          memo: `[모바일 대차/교환 왕복 배차] ${contactInfoMemo}회수대상(${selectedReturnAssetIds.length}대): ${oldAssetsSummary} ➔ 대차출고요구(${totalEquipCount}대): ${newAssetsSummary} | 사유: ${memo.trim() || '현장 고장 교체'}`,
           vehicleType: '5톤 렉카',
           driverName: '',
           deliveryCost: 0,
@@ -768,7 +796,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
         broadcastWorkNotification({
           type: 'EXCHANGE',
           title: '대차 교체 의뢰 등록',
-          body: `${selectedCust.name} (${finalSiteName}) 회수:${oldAssetObj?.assetNo || '기존'} ➔ 투입:${targetModelName}`,
+          body: `${selectedCust.name} (${finalSiteName}) 회수 ${selectedReturnAssetIds.length}대 ➔ 투입 ${totalEquipCount}대`,
           url: '/admin/dispatch',
           targetDepts: ['DISPATCH', 'YARD', 'ADMIN', 'EXECUTIVE']
         }).catch(console.warn);
@@ -776,9 +804,9 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
         clearVoiceOrderDraft();
         setCreatedResult({
           isReturn: false,
-          contractNo: `대차교환 (회수:${oldAssetObj?.assetNo || '기존'} ➔ 투입:${targetModelName})`,
+          contractNo: `대차교환 (회수 ${selectedReturnAssetIds.length}대 ➔ 투입 ${totalEquipCount}대)`,
           siteName: finalSiteName,
-          totalCount: 1
+          totalCount: totalEquipCount
         });
         setIsSubmitting(false);
         return;
@@ -1465,13 +1493,72 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
               </span>
             </div>
 
+            {/* 장비번호 쾌속 검색 및 다중 선택 UI */}
+            {siteRentedAssets.length > 0 && (
+              <div className="flex items-center gap-2 mt-1 mb-2">
+                <input
+                  type="text"
+                  value={returnAssetSearchText}
+                  onChange={(e) => setReturnAssetSearchText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      const txt = returnAssetSearchText.trim();
+                      if (txt) {
+                        const matched = siteRentedAssets.filter(ra => ra.assetNo.includes(txt) || ra.modelName.includes(txt));
+                        if (matched.length > 0) {
+                          setSelectedReturnAssetIds(prev => {
+                            const newIds = new Set(prev);
+                            matched.forEach(m => newIds.add(m.assetId));
+                            return Array.from(newIds);
+                          });
+                          setReturnAssetSearchText('');
+                          showToast(`검색된 ${matched.length}대 장비가 선택되었습니다.`);
+                        } else {
+                          showToast('검색 결과가 없습니다.', 'error');
+                        }
+                      }
+                    }
+                  }}
+                  placeholder="🔍 관리번호/모델 검색 (입력 후 Enter)"
+                  className="w-full rounded-xl p-2.5 text-xs text-white placeholder-slate-500"
+                  style={{ backgroundColor: '#090d16', border: '1px solid #334155' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const txt = returnAssetSearchText.trim();
+                    if (txt) {
+                      const matched = siteRentedAssets.filter(ra => ra.assetNo.includes(txt) || ra.modelName.includes(txt));
+                      if (matched.length > 0) {
+                        setSelectedReturnAssetIds(prev => {
+                          const newIds = new Set(prev);
+                          matched.forEach(m => newIds.add(m.assetId));
+                          return Array.from(newIds);
+                        });
+                        setReturnAssetSearchText('');
+                        showToast(`검색된 ${matched.length}대 장비가 선택되었습니다.`);
+                      } else {
+                        showToast('검색 결과가 없습니다.', 'error');
+                      }
+                    }
+                  }}
+                  className="whitespace-nowrap px-3 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold active:scale-95 transition-all"
+                >
+                  선택추가
+                </button>
+              </div>
+            )}
+
             {siteRentedAssets.length === 0 ? (
               <div className="p-6 text-center text-xs text-slate-500 bg-slate-950 rounded-xl border border-slate-800">
                 선택된 거래처/현장에서 현재 대여 중인 장비가 없습니다.
               </div>
             ) : (
               <div className="flex flex-col gap-2 max-h-60 overflow-y-auto">
-                {siteRentedAssets.map((ra) => {
+                {siteRentedAssets
+                  .filter(ra => !returnAssetSearchText.trim() || ra.assetNo.includes(returnAssetSearchText.trim()) || ra.modelName.includes(returnAssetSearchText.trim()))
+                  .map((ra) => {
                   const isChecked = selectedReturnAssetIds.includes(ra.assetId);
                   return (
                     <div
@@ -1782,6 +1869,30 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
         {/* 6. 특이사항 및 현장 메모 */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col gap-2">
           <label className="text-xs font-bold text-slate-300">특이사항 및 배차 메모</label>
+
+          {dispatchMode === 'EXCHANGE' && (
+            <div className="flex flex-col gap-1.5 mt-1 mb-2">
+              <span className="text-[11px] font-bold text-slate-400">교체(대차) 불량 증상 빠른 입력</span>
+              <div className="flex flex-wrap gap-1.5">
+                {defectSymptoms.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => {
+                      const prefix = `[불량증상] ${cat}`;
+                      if (!memo.includes(prefix)) {
+                        setMemo(prev => prev ? `${prev}\n${prefix}` : prefix);
+                      }
+                    }}
+                    className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300 border border-slate-700 active:bg-slate-700 active:scale-95 transition-all"
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <textarea
             rows={3}
             value={memo}

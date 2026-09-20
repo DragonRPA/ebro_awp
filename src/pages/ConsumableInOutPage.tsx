@@ -62,10 +62,32 @@ export const ConsumableInOutPage: React.FC = () => {
   const thisMonthStart = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`; })();
   const thisMonthEnd   = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(new Date(d.getFullYear(), d.getMonth()+1, 0).getDate()).padStart(2,'0')}`; })();
   const [logSearch, setLogSearch] = useState('');
+  const [logConsumableId, setLogConsumableId] = useState('ALL');
   const [logTypeFilter, setLogTypeFilter] = useState<'ALL' | 'INBOUND' | 'OUTBOUND' | 'TRANSFER_TO_VEHICLE' | 'RETURN_TO_HQ' | 'ADJUST'>('ALL');
   const [logStartDate, setLogStartDate] = useState(thisMonthStart);
   const [logEndDate, setLogEndDate] = useState(thisMonthEnd);
   const [logUserFilter, setLogUserFilter] = useState('ALL');
+
+  const handleQuickDate = (type: 'TODAY' | 'WEEK' | 'THIS_MONTH' | 'LAST_MONTH') => {
+    const d = new Date();
+    const todayStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if (type === 'TODAY') {
+      setLogStartDate(todayStr);
+      setLogEndDate(todayStr);
+    } else if (type === 'WEEK') {
+      const w = new Date(d.getTime() - 6 * 86400000);
+      setLogStartDate(`${w.getFullYear()}-${String(w.getMonth()+1).padStart(2,'0')}-${String(w.getDate()).padStart(2,'0')}`);
+      setLogEndDate(todayStr);
+    } else if (type === 'THIS_MONTH') {
+      setLogStartDate(thisMonthStart);
+      setLogEndDate(thisMonthEnd);
+    } else if (type === 'LAST_MONTH') {
+      const lm = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+      const lme = new Date(d.getFullYear(), d.getMonth(), 0);
+      setLogStartDate(`${lm.getFullYear()}-${String(lm.getMonth()+1).padStart(2,'0')}-01`);
+      setLogEndDate(`${lme.getFullYear()}-${String(lme.getMonth()+1).padStart(2,'0')}-${String(lme.getDate()).padStart(2,'0')}`);
+    }
+  };
 
   // 소모품 수령/출고 대상 정비사 (AS팀 실무자 및 소모품/정비/현장AS 권한 보유자)
   const mechanics = useMemo(() => {
@@ -171,15 +193,16 @@ export const ConsumableInOutPage: React.FC = () => {
       const matchStart = !logStartDate || l.actionDate >= logStartDate;
       const matchEnd = !logEndDate || l.actionDate <= logEndDate;
       const matchUser = logUserFilter === 'ALL' || l.userId === logUserFilter || l.mechanicId === logUserFilter;
+      const matchConsumable = logConsumableId === 'ALL' || l.consumableId === logConsumableId;
       const item = consumables.find(c => c.id === l.consumableId);
       const matchSearch = !logSearch || 
         (item?.modelName || '').toLowerCase().includes(logSearch.toLowerCase()) || 
         (l.description || '').toLowerCase().includes(logSearch.toLowerCase()) ||
         (l.targetAssetId && getAssetNo(l.targetAssetId).toLowerCase().includes(logSearch.toLowerCase()));
 
-      return matchType && matchStart && matchEnd && matchUser && matchSearch;
+      return matchType && matchStart && matchEnd && matchUser && matchConsumable && matchSearch;
     }).sort((a, b) => (b.actionDate || '').localeCompare(a.actionDate || ''));
-  }, [consumableLogs, consumables, logTypeFilter, logStartDate, logEndDate, logUserFilter, logSearch]);
+  }, [consumableLogs, consumables, logTypeFilter, logStartDate, logEndDate, logUserFilter, logSearch, logConsumableId]);
 
   // ─── [Z-패턴 최하단 입출고 대차대조식 요약 검증] ───
   const auditBalance = useMemo(() => {
@@ -187,18 +210,26 @@ export const ConsumableInOutPage: React.FC = () => {
     let outboundSum = 0;
     let transferSum = 0;
     let returnSum = 0;
+    let inboundQty = 0;
+    let outboundQty = 0;
 
     filteredLogs.forEach(l => {
       const amount = (l.quantity || 0) * (l.unitPrice || 0);
-      if (l.type === 'INBOUND') inboundSum += amount;
-      else if (l.type === 'OUTBOUND') outboundSum += amount;
+      if (l.type === 'INBOUND') {
+        inboundSum += amount;
+        inboundQty += (l.quantity || 0);
+      }
+      else if (l.type === 'OUTBOUND') {
+        outboundSum += amount;
+        outboundQty += (l.quantity || 0);
+      }
       else if (l.type === 'TRANSFER_TO_VEHICLE') transferSum += amount;
       else if (l.type === 'RETURN_TO_HQ') returnSum += amount;
     });
 
     // 순 출고/소진 및 이동 합계
     const netOutSum = outboundSum + transferSum - returnSum;
-    return { inboundSum, outboundSum, transferSum, returnSum, netOutSum };
+    return { inboundSum, outboundSum, transferSum, returnSum, netOutSum, inboundQty, outboundQty };
   }, [filteredLogs]);
 
   // --- 입고 확정 처리 ---
@@ -929,9 +960,23 @@ export const ConsumableInOutPage: React.FC = () => {
                     type="text"
                     value={logSearch}
                     onChange={e => setLogSearch(e.target.value)}
-                    placeholder="품목명, 비고, 자산번호..."
-                    style={{ padding: '6px 10px', fontSize: '12px', width: '180px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                    placeholder="비고, 자산번호 검색..."
+                    style={{ padding: '6px 10px', fontSize: '12px', width: '130px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
                   />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>품목 선택</label>
+                  <select
+                    value={logConsumableId}
+                    onChange={e => setLogConsumableId(e.target.value)}
+                    style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', maxWidth: '160px' }}
+                  >
+                    <option value="ALL">전체 품목</option>
+                    {consumables.map(c => (
+                      <option key={c.id} value={c.id}>{c.modelName}</option>
+                    ))}
+                  </select>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -965,7 +1010,15 @@ export const ConsumableInOutPage: React.FC = () => {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>기간</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>기간</label>
+                    <div style={{ display: 'flex', gap: '2px' }}>
+                      <button type="button" onClick={() => handleQuickDate('TODAY')} style={{ fontSize: '10px', padding: '2px 4px', border: '1px solid #ccc', borderRadius: '3px', cursor: 'pointer', backgroundColor: '#f9fafb' }}>오늘</button>
+                      <button type="button" onClick={() => handleQuickDate('WEEK')} style={{ fontSize: '10px', padding: '2px 4px', border: '1px solid #ccc', borderRadius: '3px', cursor: 'pointer', backgroundColor: '#f9fafb' }}>7일</button>
+                      <button type="button" onClick={() => handleQuickDate('THIS_MONTH')} style={{ fontSize: '10px', padding: '2px 4px', border: '1px solid #ccc', borderRadius: '3px', cursor: 'pointer', backgroundColor: '#f9fafb' }}>당월</button>
+                      <button type="button" onClick={() => handleQuickDate('LAST_MONTH')} style={{ fontSize: '10px', padding: '2px 4px', border: '1px solid #ccc', borderRadius: '3px', cursor: 'pointer', backgroundColor: '#f9fafb' }}>전월</button>
+                    </div>
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <input
                       type="date"
@@ -1074,6 +1127,11 @@ export const ConsumableInOutPage: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+              {logConsumableId !== 'ALL' && (
+                <div style={{ padding: '4px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-main)', border: '1px solid var(--border-color)', fontSize: '12px', fontWeight: 600 }}>
+                  선택 품목: <span style={{ color: 'var(--success)' }}>입고 {auditBalance.inboundQty}개</span> / <span style={{ color: 'var(--danger)' }}>출고 {auditBalance.outboundQty}개</span>
+                </div>
+              )}
               <div style={{ fontSize: '12px' }}>
                 <span style={{ color: 'var(--text-muted)' }}>📥 입고 합계: </span>
                 <strong style={{ color: 'var(--success)' }}>₩{auditBalance.inboundSum.toLocaleString()}</strong>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { findCustomerByNormalizedName, STANDARD_SPECS, SpecItem } from '../services/db';
 import { isOptionsChangedFromSite } from '../services/voiceOrderDraftService';
+import { isModelMatch } from '../utils/modelUtils';
 import { SmartDispatchConversationalStudio, StudioSyncData } from '../components/SmartDispatchConversationalStudio';
 import { Zap, Clipboard, FileText, Copy, Braces, Plus, Trash2, RefreshCw, CheckCircle2, AlertTriangle, Settings, ShieldCheck, Sparkles } from 'lucide-react';
 
@@ -468,23 +469,29 @@ export const SmartDispatch: React.FC = () => {
         parsedUnloading = val || trimmed.replace(/^(?:\d+[\.\)]\s*)?(?:하차\s*스케줄|하차스케줄|하차\s*시간|하차시간|하차|도착\s*시간|도착시간|도착)\s*[:：]?\s*/i, '');
       }
       // 11. 신청 고소작업대 모델 목록 / 모델명 / 규격
-      else if (/^(?:\d+[\.\)]\s*)?(?:신청\s*(?:고소작업대\s*)?모델\s*목록|신청모델목록|신청모델|모델명?|장비명?|규격)/i.test(trimmed) || /^\s*-\s*(?:GS|SJ|JCPT|HD|star|STAR)/i.test(trimmed)) {
-        const rawModelText = val || trimmed.replace(/^(?:\d+[\.\)]\s*)?(?:신청\s*(?:고소작업대\s*)?모델\s*목록|신청모델목록|신청모델|모델명?|장비명?|규격)\s*[:：]?\s*/i, '').replace(/^-\s*/, '');
+      else if (/^(?:[-\*\d]+[\.\)]?\s*)?(?:신청\s*(?:고소작업대\s*)?모델(?:\s*목록)?|신청모델목록|신청모델|모델명?|장비명?|규격)/i.test(trimmed) || /^(?:[-\*\d]+[\.\)]?\s*)?(?:GS|SJ|JCPT|HD|star|STAR)/i.test(trimmed)) {
+        const rawModelText = val || trimmed.replace(/^(?:[-\*\d]+[\.\)]?\s*)?(?:신청\s*(?:고소작업대\s*)?모델(?:\s*목록)?|신청모델목록|신청모델|모델명?|장비명?|규격)\s*[:：]?\s*/i, '').replace(/^(?:[-\*\d]+[\.\)]?\s*)/, '');
         const parts = rawModelText.split(/[\/,]/);
         parts.forEach(p => {
+          let rawName = '';
+          let qty = 1;
           const match = p.match(/(.+?)\s*[*xX대]\s*(\d+)/) || p.match(/(.+?)\s*(\d+)\s*대/);
           if (match) {
-            parsedEquipments.push({
-              modelName: match[1].replace(/대$/, '').trim(),
-              qty: parseInt(match[2]) || 1
-            });
+            rawName = match[1].replace(/대$/, '').trim();
+            qty = parseInt(match[2]) || 1;
           } else {
-            if (p.trim()) {
-              parsedEquipments.push({
-                modelName: p.trim(),
-                qty: 1
-              });
+            rawName = p.trim();
+          }
+
+          if (rawName) {
+            let finalName = rawName.toUpperCase();
+            for (const um of uniqueModels) {
+              if (isModelMatch(um, rawName, products)) {
+                finalName = um;
+                break;
+              }
             }
+            parsedEquipments.push({ modelName: finalName, qty });
           }
         });
       }
@@ -580,7 +587,11 @@ export const SmartDispatch: React.FC = () => {
 
   const handleEquipmentChange = (index: number, field: keyof EquipmentItem, value: any) => {
     const updated = [...equipments];
-    updated[index] = { ...updated[index], [field]: value };
+    let finalValue = value;
+    if (field === 'modelName' && typeof value === 'string') {
+      finalValue = value.toUpperCase();
+    }
+    updated[index] = { ...updated[index], [field]: finalValue };
     setEquipments(updated);
   };
 

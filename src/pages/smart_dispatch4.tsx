@@ -159,9 +159,16 @@ export const SmartDispatch4: React.FC = () => {
     saveSmartDispatch, assets, deliveries, standardOptions,
     printStations, enqueuePrintJob,
     products = [],
+    inspectionChecklistItems = [],
     setActiveTab: setGlobalActiveTab,
     refreshAllData
   } = useApp();
+
+  const defectSymptoms = useMemo(() => {
+    return inspectionChecklistItems
+      .filter(i => i.isDefectSymptom)
+      .map(i => i.name);
+  }, [inspectionChecklistItems]);
 
   const canSave = hasPermission('smart_dispatch', 'save') || hasPermission('delivery', 'save') || hasPermission('smart_dispatch4', 'save');
 
@@ -3765,6 +3772,30 @@ export const SmartDispatch4: React.FC = () => {
           {/* 특이사항 / 메모 */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 flex flex-col gap-1 shadow-sm">
             <label className="text-[11px] font-semibold text-slate-300">배차 및 특이사항 메모 (선택사항)</label>
+
+            {draft.context.includes('EXCHANGE') && (
+              <div className="flex flex-col gap-1 mt-0.5 mb-1.5">
+                <span className="text-[10px] font-bold text-slate-400">교체(대차) 불량 증상 빠른 입력</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {defectSymptoms.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => {
+                        const prefix = `[불량증상] ${cat}`;
+                        if (!note.includes(prefix)) {
+                          setNote(prev => prev ? `${prev}\n${prefix}` : prefix);
+                        }
+                      }}
+                      className="px-2 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 active:scale-95 text-[10px] font-bold transition-all"
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <textarea
               className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-blue-500 resize-none font-sans"
               rows={2}

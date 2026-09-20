@@ -86,7 +86,7 @@ export const FieldAsManagement: React.FC = () => {
     createRevisitAsTicket, importBandAsHistory, logFieldAsTimelineEvent,
     users, permissions, customers, sites, assets, consumables, mechanicConsumableStocks,
     transferConsumableToMechanic, currentUser, hasPermission, showErrorModal, setActiveTab,
-    inspectionChecklistItems
+    inspectionChecklistItems, equipmentManuals
   } = useApp();
 
   const canSave = hasPermission('field_as', 'save');
@@ -246,6 +246,32 @@ export const FieldAsManagement: React.FC = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // ─── [연관 매뉴얼 조회 헬퍼] ───
+  const getLinkedManualsForTicket = (ticket: FieldAsTicket) => {
+    let matchedItem = inspectionChecklistItems.find(i => i.id === ticket.inspectionItemId);
+    if (!matchedItem) {
+      matchedItem = inspectionChecklistItems.find(i => 
+        i.isDefectSymptom && (
+          (ticket.issueCategory && i.name.includes(ticket.issueCategory)) || 
+          (ticket.issueCategory && ticket.issueCategory.includes(i.name)) || 
+          (ticket.issueDescription && ticket.issueDescription.includes(i.name))
+        )
+      );
+    }
+
+    if (!matchedItem) return [];
+
+    const manualIdsFromItem = matchedItem.relatedManualIds || [];
+    const manualsReferringToItem = (equipmentManuals || []).filter(m => m.inspectionItemCodes?.includes(matchedItem!.code));
+
+    const allManualIds = new Set([
+      ...manualIdsFromItem,
+      ...manualsReferringToItem.map(m => m.id)
+    ]);
+
+    return (equipmentManuals || []).filter(m => allManualIds.has(m.id));
+  };
 
   const isEffectiveMobile = mobileForceView === 'MOBILE' ? true : (mobileForceView === 'DESKTOP' ? false : isMobile);
 
@@ -1944,6 +1970,49 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                         에러 코드: {selectedTicket.errorCode}
                       </div>
                     )}
+                    
+                    {(() => {
+                      const linkedManuals = getLinkedManualsForTicket(selectedTicket);
+                      if (linkedManuals.length === 0) return null;
+                      return (
+                        <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <FileText size={14} /> 증상 연계 매뉴얼 ({linkedManuals.length}건)
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {linkedManuals.map(m => (
+                              <button
+                                key={m.id}
+                                onClick={() => {
+                                  if (m.mediaType === 'WEB_LINK' && m.externalUrl) {
+                                    window.open(m.externalUrl, '_blank');
+                                  } else {
+                                    showToast(`${m.title} 문서를 엽니다.`);
+                                  }
+                                }}
+                                style={{
+                                  padding: '6px 10px',
+                                  backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                                  borderRadius: '6px',
+                                  fontSize: '12px',
+                                  color: '#2563eb',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                {m.mediaType === 'WEB_LINK' ? <ExternalLink size={12} /> : <FileText size={12} />}
+                                {m.title}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -3385,7 +3454,36 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                       </span>
                     </td>
                     <td style={{ padding: '6px 12px', color: 'var(--text-main)', maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {t.issueDescription}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.issueDescription}</div>
+                        {(() => {
+                          const linked = getLinkedManualsForTicket(t);
+                          if (linked.length === 0) return null;
+                          return (
+                            <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '2px' }}>
+                              {linked.map(m => (
+                                <a
+                                  key={m.id}
+                                  href={m.fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    display: 'inline-flex', alignItems: 'center', gap: '3px',
+                                    fontSize: '11px', padding: '2px 6px',
+                                    backgroundColor: '#f0f9ff', color: '#0369a1',
+                                    border: '1px solid #bae6fd', borderRadius: '4px',
+                                    textDecoration: 'none'
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <BookOpen size={10} />
+                                  {m.title}
+                                </a>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </td>
                     <td style={{ padding: '6px 12px', textAlign: 'center' }}>
                       <span style={{
@@ -3673,6 +3771,49 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
             {/* 고장 증상 원문 */}
             <div style={{ backgroundColor: 'rgba(244, 63, 94, 0.1)', border: '1px solid rgba(244, 63, 94, 0.3)', padding: '10px 12px', borderRadius: '8px', fontSize: '13px', color: '#fb7185' }}>
               🚨 <strong>[{selectedTicket.issueCategory}]</strong> {selectedTicket.issueDescription}
+              
+              {(() => {
+                const linkedManuals = getLinkedManualsForTicket(selectedTicket);
+                if (linkedManuals.length === 0) return null;
+                return (
+                  <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(244, 63, 94, 0.2)' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 700, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '4px', color: '#fb7185' }}>
+                      <FileText size={12} /> 연계 매뉴얼
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {linkedManuals.map(m => (
+                        <button
+                          key={m.id}
+                          onClick={() => {
+                            if (m.mediaType === 'WEB_LINK' && m.externalUrl) {
+                              window.open(m.externalUrl, '_blank');
+                            } else {
+                              showToast(`${m.title} 문서를 엽니다.`);
+                            }
+                          }}
+                          style={{
+                            padding: '4px 8px',
+                            backgroundColor: '#fb7185',
+                            border: 'none',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            color: '#ffffff',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {m.mediaType === 'WEB_LINK' ? <ExternalLink size={10} /> : <FileText size={10} />}
+                          {m.title}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* 1️⃣ 사용 부품 선택 (50px 대형 스텝퍼 카트) */}
@@ -4297,6 +4438,44 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
 
                     <div style={{ fontSize: '13px', color: 'var(--text-main)', marginBottom: '6px' }}>
                       <strong>고장증상:</strong> {t.issueDescription}
+                      
+                      {(() => {
+                        const linkedManuals = getLinkedManualsForTicket(t);
+                        if (linkedManuals.length === 0) return null;
+                        return (
+                          <div style={{ marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed var(--border-color)', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                            {linkedManuals.map(m => (
+                              <button
+                                key={m.id}
+                                onClick={() => {
+                                  if (m.mediaType === 'WEB_LINK' && m.externalUrl) {
+                                    window.open(m.externalUrl, '_blank');
+                                  } else {
+                                    showToast(`${m.title} 문서를 엽니다.`);
+                                  }
+                                }}
+                                style={{
+                                  padding: '3px 8px',
+                                  backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                                  border: '1px solid rgba(59, 130, 246, 0.2)',
+                                  borderRadius: '4px',
+                                  fontSize: '11px',
+                                  color: '#2563eb',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                {m.mediaType === 'WEB_LINK' ? <ExternalLink size={10} /> : <FileText size={10} />}
+                                {m.title}
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {t.actionTaken && (

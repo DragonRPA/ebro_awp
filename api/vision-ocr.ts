@@ -6,7 +6,7 @@ const GROQ_API_KEY = process.env.GROQ_API_KEY || String.fromCharCode(...[103,115
 // Gemini API Key (선택적 페일오버 엔진)
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
 
-export type VisionTaskType = 'ODOMETER' | 'FUEL_RECEIPT' | 'BUSINESS_LICENSE';
+export type VisionTaskType = 'ODOMETER' | 'FUEL_RECEIPT' | 'BUSINESS_LICENSE' | 'CONTACT_CARD';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -42,8 +42,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       result = await analyzeReceiptWithAI(cleanImage, vehicleContext);
     } else if (taskType === 'BUSINESS_LICENSE') {
       result = await analyzeBusinessLicenseWithAI(cleanImage, textHint);
+    } else if (taskType === 'CONTACT_CARD') {
+      result = await analyzeContactCardWithAI(cleanImage, textHint);
     } else {
-      return res.status(400).json({ error: 'Invalid taskType. Must be ODOMETER, FUEL_RECEIPT, or BUSINESS_LICENSE' });
+      return res.status(400).json({ error: 'Invalid taskType. Must be ODOMETER, FUEL_RECEIPT, BUSINESS_LICENSE, or CONTACT_CARD' });
     }
 
     const elapsedMs = Date.now() - t0;
@@ -169,6 +171,38 @@ JSON 응답 포맷:
   "taxEmail": "tax@samhwa.com",
   "repContact": "031-667-0000",
   "isCorporate": true,
+  "confidence": 0.95
+}`;
+
+  return await callVisionChat(prompt, imageUrl);
+}
+
+/**
+ * 4. 명함 및 이메일 서명 5대 핵심 항목 정밀 인식
+ */
+async function analyzeContactCardWithAI(imageUrl: string, textHint?: string): Promise<any> {
+  const hintClause = textHint ? `\n[추출 보조 텍스트 힌트]:\n${textHint.slice(0, 1500)}` : '';
+
+  const prompt = `당신은 명함 및 이메일 서명 인식 전문가입니다.
+제공된 명함 사진 또는 이메일 서명 이미지에서 아래 핵심 정보들을 추출하세요.${hintClause}
+
+[추출 항목 및 포맷 규칙]:
+1. companyName (상호 또는 회사명): 정확한 회사명을 기재.
+2. name (담당자 성명): 인물의 이름.
+3. position (직급/직책): 대리, 과장, 팀장, 이사 등.
+4. contact (휴대전화 또는 직통전화): 연락처 번호. (예: 010-0000-0000)
+5. email (이메일 주소): 이메일 주소.
+
+[주의사항]:
+- 반드시 유효한 JSON 형식으로만 응답하세요. 백틱이나 마크다운 설명은 일절 포함하지 마세요.
+
+JSON 응답 포맷:
+{
+  "companyName": "기연리프트",
+  "name": "홍길동",
+  "position": "대리",
+  "contact": "010-1234-5678",
+  "email": "hong@giyuen.com",
   "confidence": 0.95
 }`;
 

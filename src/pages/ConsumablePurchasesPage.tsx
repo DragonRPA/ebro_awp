@@ -14,9 +14,11 @@ export const ConsumablePurchasesPage: React.FC = () => {
   const {
     consumables,
     consumablePurchases,
+    vendors,
     requestConsumablePurchase,
     acceptConsumablePurchase,
     completeConsumablePurchase,
+    updatePurchaseUnitPrice,
     hasPermission,
     currentUser,
     showErrorModal
@@ -79,14 +81,27 @@ export const ConsumablePurchasesPage: React.FC = () => {
   };
 
   // --- 1. 구매신청 작성 폼 상태 ---
-  const [reqConsumableId, setReqConsumableId] = useState('NEW');
-  const [reqModelName, setReqModelName] = useState('');
-  const [reqQty, setReqQty] = useState(1);
-  const [reqUnitPrice, setReqUnitPrice] = useState(0);
+  interface DraftReqItem {
+    id: string;
+    consumableId: string;
+    modelName: string;
+    qty: number;
+    unitPrice: number;
+    sellerName: string;
+    purchaseUrl: string;
+    vendorId?: string;
+    paymentMethod?: 'CARD' | 'CREDIT';
+  }
+  
+  const [reqItems, setReqItems] = useState<DraftReqItem[]>([
+    { id: Date.now().toString(), consumableId: 'NEW', modelName: '', qty: 1, unitPrice: 0, sellerName: '', purchaseUrl: '', vendorId: undefined, paymentMethod: undefined }
+  ]);
+  const [cartScreenshotUrl, setCartScreenshotUrl] = useState<string>('');
   const [reqDate, setReqDate] = useState(new Date().toISOString().split('T')[0]);
-  const [reqSellerName, setReqSellerName] = useState('');
-  const [reqUrgency, setReqUrgency] = useState<'NORMAL' | 'URGENT'>('NORMAL');
-  const [reqPurpose, setReqPurpose] = useState('');
+  
+  // 편집(인라인 단가 수정) 상태
+  const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
+  const [editPriceValue, setEditPriceValue] = useState<number>(0);
 
   // --- 2. 구매신청 대장 필터 상태 ---
   const [searchTerm, setSearchTerm] = useState('');
@@ -126,42 +141,65 @@ export const ConsumablePurchasesPage: React.FC = () => {
   // 구매신청서 제출 핸들러
   const handleRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reqModelName.trim()) {
-      showToast('품목명을 입력해 주세요.', 'error');
+    if (reqItems.length === 0) {
+      showToast('최소 1개의 품목을 추가해 주세요.', 'error');
       return;
     }
-    if (reqQty <= 0) {
-      showToast('수량은 1개 이상이어야 합니다.', 'error');
-      return;
-    }
-    if (!reqSellerName.trim()) {
-      showToast('공급처/구매처를 입력해 주세요.', 'error');
-      return;
+
+    for (const item of reqItems) {
+      if (!item.modelName.trim()) {
+        showToast('품목명을 입력해 주세요.', 'error');
+        return;
+      }
+      if (item.qty <= 0) {
+        showToast('수량은 1개 이상이어야 합니다.', 'error');
+        return;
+      }
+      if (!item.sellerName.trim() && !item.purchaseUrl.trim()) {
+        showToast('공급처 또는 구매 URL을 입력해 주세요.', 'error');
+        return;
+      }
     }
 
     try {
-      await requestConsumablePurchase({
-        consumableId: reqConsumableId === 'NEW' ? undefined : reqConsumableId,
-        modelName: reqModelName.trim(),
-        qty: reqQty,
-        unitPrice: reqUnitPrice,
-        requestDate: reqDate,
-        sellerName: reqSellerName.trim()
-      });
+      for (const item of reqItems) {
+        await requestConsumablePurchase({
+          consumableId: item.consumableId === 'NEW' ? undefined : item.consumableId,
+          modelName: item.modelName.trim(),
+          qty: item.qty,
+          unitPrice: item.unitPrice,
+          requestDate: reqDate,
+          sellerName: item.sellerName.trim() || '온라인 구매',
+          purchaseUrl: item.purchaseUrl.trim(),
+          requestAttachmentUrl: cartScreenshotUrl.trim() || undefined,
+          vendorId: item.vendorId,
+          paymentMethod: item.paymentMethod
+        });
+      }
       await db.awaitPendingWrites();
 
-      showToast(`구매 신청서가 제출되었습니다. (${reqModelName}, ${reqQty}개)`);
+      showToast(`구매 신청서가 제출되었습니다. (${reqItems.length}개 품목)`);
       setActiveTab('REQ_LIST');
       
       // 폼 초기화
-      setReqConsumableId('NEW');
-      setReqModelName('');
-      setReqQty(1);
-      setReqUnitPrice(0);
-      setReqSellerName('');
-      setReqPurpose('');
+      setReqItems([
+        { id: Date.now().toString(), consumableId: 'NEW', modelName: '', qty: 1, unitPrice: 0, sellerName: '', purchaseUrl: '', vendorId: undefined, paymentMethod: undefined }
+      ]);
+      setCartScreenshotUrl('');
     } catch (err: any) {
       showErrorModal(`⚠️ 구매 신청 등록 실패:\n${err?.message || err}`);
+    }
+  };
+
+  // 인라인 단가 수정 핸들러
+  const handleSavePrice = async (id: string) => {
+    try {
+      await updatePurchaseUnitPrice(id, editPriceValue);
+      await db.awaitPendingWrites();
+      showToast('단가가 성공적으로 변경되었습니다.');
+      setEditingPriceId(null);
+    } catch (e: any) {
+      showErrorModal(`단가 변경 실패:\n${e.message || e}`);
     }
   };
 
@@ -435,33 +473,58 @@ export const ConsumablePurchasesPage: React.FC = () => {
                           )}
                         </td>
                         <td style={{ padding: '8px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                          ₩{(p.unitPrice || 0).toLocaleString()}원
+                          {editingPriceId === p.id ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
+                              <input 
+                                type="number" 
+                                value={editPriceValue} 
+                                onChange={e => setEditPriceValue(Number(e.target.value))}
+                                style={{ width: '80px', padding: '2px 4px', fontSize: '11px' }}
+                              />
+                              <button onClick={() => handleSavePrice(p.id)} className="btn-primary" style={{ padding: '2px 6px', fontSize: '11px' }}>저장</button>
+                              <button onClick={() => setEditingPriceId(null)} className="btn-secondary" style={{ padding: '2px 6px', fontSize: '11px' }}>취소</button>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end' }}>
+                              <span>₩{(p.unitPrice || 0).toLocaleString()}원</span>
+                              {p.status !== 'COMPLETED' && canSave && (
+                                <button 
+                                  onClick={() => { setEditingPriceId(p.id); setEditPriceValue(p.unitPrice || 0); }}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--text-muted)' }}
+                                  title="단가 수정"
+                                >
+                                  ✏️
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </td>
                         <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800', color: 'var(--primary)', whiteSpace: 'nowrap' }}>
                           ₩{((p.requestedQty || 0) * (p.unitPrice || 0)).toLocaleString()}원
                         </td>
                         <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
-                          {isUrl ? (
-                            <a 
-                              href={p.sellerName.startsWith('http') ? p.sellerName : `https://${p.sellerName}`} 
-                              target="_blank" 
-                              rel="noopener noreferrer" 
-                              style={{ 
-                                color: 'var(--primary)', 
-                                textDecoration: 'underline', 
-                                display: 'inline-flex', 
-                                alignItems: 'center', 
-                                gap: '3px', 
-                                fontWeight: 700,
-                                fontSize: '11.5px'
-                              }}
-                            >
-                              <span>온라인 구매 바로가기</span>
-                              <ExternalLink size={12} />
-                            </a>
-                          ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                             <span>{p.sellerName || '-'}</span>
-                          )}
+                            {p.purchaseUrl && (
+                              <a 
+                                href={p.purchaseUrl.startsWith('http') ? p.purchaseUrl : `https://${p.purchaseUrl}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                style={{ 
+                                  color: 'var(--primary)', 
+                                  textDecoration: 'underline', 
+                                  display: 'inline-flex', 
+                                  alignItems: 'center', 
+                                  gap: '3px', 
+                                  fontWeight: 700,
+                                  fontSize: '11px'
+                                }}
+                              >
+                                <span>구매 링크</span>
+                                <ExternalLink size={10} />
+                              </a>
+                            )}
+                          </div>
                         </td>
                         <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>{p.requesterName || '-'}</td>
                         <td style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
@@ -595,99 +658,183 @@ export const ConsumablePurchasesPage: React.FC = () => {
           </h3>
 
           <form onSubmit={handleRequestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {/* 기존 품목 선택 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>
-                소모품 품목 마스터 연동
-              </label>
-              <select
-                value={reqConsumableId}
-                onChange={e => {
-                  const val = e.target.value;
-                  setReqConsumableId(val);
-                  if (val !== 'NEW') {
-                    const found = consumables.find(c => c.id === val);
-                    if (found) {
-                      setReqModelName(found.modelName);
-                      setReqUnitPrice(found.unitPrice);
-                      setReqSellerName(found.supplier || '');
-                    }
-                  } else {
-                    setReqModelName('');
-                    setReqUnitPrice(0);
-                    setReqSellerName('');
-                  }
-                }}
-                style={{ padding: '8px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}
-              >
-                <option value="NEW">-- 신규 품목 직접 입력 --</option>
-                {consumables.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.modelName} (현재고: {c.stockQty}개, 단가: ₩{c.unitPrice.toLocaleString()}원, 공급처: {c.supplier || '-'})
-                  </option>
-                ))}
-              </select>
-            </div>
+            <datalist id="consumable-models">
+              {consumables.map(c => <option key={c.id} value={c.modelName} />)}
+            </datalist>
 
-            {/* 품목명 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>
-                품목명 *
-              </label>
-              <input
-                type="text"
-                value={reqModelName}
-                onChange={e => setReqModelName(e.target.value)}
-                placeholder="예: 스카이잭 조이스틱 컨트롤러"
-                required
-                style={{ padding: '8px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}
-              />
-            </div>
+            {reqItems.map((item, index) => (
+              <div key={item.id} style={{ padding: '12px', border: '1px solid var(--border-color)', borderRadius: '6px', backgroundColor: 'var(--bg-app)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>품목 #{index + 1}</span>
+                  {reqItems.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setReqItems(prev => prev.filter((_, i) => i !== index))}
+                      style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '12px', cursor: 'pointer', padding: 0 }}
+                    >
+                      삭제 ✕
+                    </button>
+                  )}
+                </div>
 
-            {/* 수량 & 단가 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>신청 수량 *</label>
-                <input
-                  type="number"
-                  value={reqQty}
-                  onChange={e => setReqQty(Math.max(1, parseInt(e.target.value) || 1))}
-                  min={1}
-                  required
-                  style={{ padding: '8px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}
-                />
+                {/* 품목명 (스마트 콤보박스) */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>품목명 *</label>
+                  <input
+                    type="text"
+                    list="consumable-models"
+                    value={item.modelName}
+                    onChange={e => {
+                      const val = e.target.value;
+                      const matched = consumables.find(c => c.modelName === val);
+                      setReqItems(prev => {
+                        const newArr = [...prev];
+                        newArr[index] = { 
+                          ...newArr[index], 
+                          modelName: val, 
+                          consumableId: matched ? matched.id : 'NEW',
+                          unitPrice: matched ? matched.unitPrice : newArr[index].unitPrice,
+                          sellerName: matched && matched.supplier ? matched.supplier : newArr[index].sellerName
+                        };
+                        return newArr;
+                      });
+                    }}
+                    placeholder="품목명을 입력하거나 목록에서 선택 (신규 입력시 자동 등록)"
+                    required
+                    style={{ padding: '8px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  {/* 수량 */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>신청 수량 *</label>
+                    <input
+                      type="number"
+                      value={item.qty}
+                      onChange={e => {
+                        const val = Math.max(1, parseInt(e.target.value) || 1);
+                        setReqItems(prev => {
+                          const newArr = [...prev];
+                          newArr[index].qty = val;
+                          return newArr;
+                        });
+                      }}
+                      min={1}
+                      required
+                      style={{ padding: '8px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
+                    />
+                  </div>
+
+                  {/* 단가 */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>예상 단가 (원) *</label>
+                    <input
+                      type="number"
+                      value={item.unitPrice}
+                      onChange={e => {
+                        const val = Math.max(0, parseInt(e.target.value) || 0);
+                        setReqItems(prev => {
+                          const newArr = [...prev];
+                          newArr[index].unitPrice = val;
+                          return newArr;
+                        });
+                      }}
+                      min={0}
+                      required
+                      style={{ padding: '8px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
+                    />
+                  </div>
+                </div>
+
+                {/* 판매처 & 구매 URL */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>판매처 (상호)</label>
+                    <input
+                      type="text"
+                      value={item.sellerName}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setReqItems(prev => {
+                          const newArr = [...prev];
+                          newArr[index].sellerName = val;
+                          return newArr;
+                        });
+                      }}
+                      placeholder="예: 세방상사"
+                      style={{ padding: '8px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <label style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>구매 URL</label>
+                      {item.paymentMethod && (
+                        <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', backgroundColor: item.paymentMethod === 'CARD' ? 'rgba(59, 130, 246, 0.12)' : 'rgba(16, 185, 129, 0.12)', color: item.paymentMethod === 'CARD' ? '#2563eb' : '#059669', fontWeight: 'bold' }}>
+                          {item.paymentMethod === 'CARD' ? '법인카드' : '외상매입'} 자동지정됨
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      value={item.purchaseUrl}
+                      onChange={e => {
+                        const val = e.target.value;
+                        
+                        let autoVendorId: string | undefined = undefined;
+                        let autoPaymentMethod: 'CARD' | 'CREDIT' | undefined = undefined;
+                        let autoSellerName: string | undefined = undefined;
+
+                        try {
+                          if (val.startsWith('http')) {
+                            const parsedUrl = new URL(val);
+                            const hostname = parsedUrl.hostname.toLowerCase();
+                            
+                            const matchedVendor = vendors.find(v => v.domainUrls?.some(domain => hostname.includes(domain.toLowerCase())));
+                            if (matchedVendor) {
+                              autoVendorId = matchedVendor.id;
+                              autoPaymentMethod = matchedVendor.defaultPaymentMethod;
+                              autoSellerName = matchedVendor.vendorName;
+                            }
+                          }
+                        } catch (err) {
+                          // ignore URL parse errors
+                        }
+
+                        setReqItems(prev => {
+                          const newArr = [...prev];
+                          newArr[index].purchaseUrl = val;
+                          if (autoVendorId) {
+                            newArr[index].vendorId = autoVendorId;
+                            newArr[index].sellerName = autoSellerName || newArr[index].sellerName;
+                            newArr[index].paymentMethod = autoPaymentMethod;
+                          } else if (!val) {
+                            newArr[index].vendorId = undefined;
+                            newArr[index].paymentMethod = undefined;
+                          }
+                          return newArr;
+                        });
+                      }}
+                      placeholder="온라인 구매 링크 (https://...)"
+                      style={{ padding: '8px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
+                    />
+                  </div>
+                </div>
               </div>
+            ))}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>예상 단가 (원) *</label>
-                <input
-                  type="number"
-                  value={reqUnitPrice}
-                  onChange={e => setReqUnitPrice(Math.max(0, parseInt(e.target.value) || 0))}
-                  min={0}
-                  required
-                  style={{ padding: '8px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}
-                />
-              </div>
-            </div>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setReqItems(prev => [...prev, { id: Date.now().toString(), consumableId: 'NEW', modelName: '', qty: 1, unitPrice: 0, sellerName: '', purchaseUrl: '' }])}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '10px', fontSize: '12px', borderStyle: 'dashed' }}
+            >
+              <Plus size={14} />
+              <span>품목 추가</span>
+            </button>
 
-            {/* 공급처 & 신청일자 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>판매처 또는 구매 URL *</label>
-                <input
-                  type="text"
-                  value={reqSellerName}
-                  onChange={e => setReqSellerName(e.target.value)}
-                  placeholder="예: 세방상사 또는 온라인 구매 링크(https://...)"
-                  required
-                  style={{ padding: '8px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}
-                />
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  * 거래처명을 입력하거나 온라인 판매의 경우 상품 상세 URL을 입력해 주세요.
-                </span>
-              </div>
-
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '10px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>신청 일자 *</label>
                 <input
@@ -695,6 +842,17 @@ export const ConsumablePurchasesPage: React.FC = () => {
                   value={reqDate}
                   onChange={e => setReqDate(e.target.value)}
                   required
+                  style={{ padding: '8px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)' }}>장바구니 캡처 URL (선택)</label>
+                <input
+                  type="text"
+                  value={cartScreenshotUrl}
+                  onChange={e => setCartScreenshotUrl(e.target.value)}
+                  placeholder="이미지 또는 파일 링크"
                   style={{ padding: '8px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}
                 />
               </div>

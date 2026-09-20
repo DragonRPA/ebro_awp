@@ -61,7 +61,9 @@ export const InspectionChecklistManage: React.FC = () => {
     repairs,
     repairConsumables,
     consumables,
-    products
+    products,
+    currentUser,
+    deliveries
   } = useApp();
 
   // ─── [탭 상태] ───
@@ -87,6 +89,7 @@ export const InspectionChecklistManage: React.FC = () => {
   // ─── [탭 1: 정비 항목 마스터 (MASTER)] 상태 및 로직 ───
   // ═════════════════════════════════════════════════════════════════
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterDefectSymptomOnly, setFilterDefectSymptomOnly] = useState<boolean>(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('전체');
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Partial<InspectionChecklistItem> | null>(null);
@@ -95,14 +98,18 @@ export const InspectionChecklistManage: React.FC = () => {
   const [formCode, setFormCode] = useState('');
   const [formName, setFormName] = useState('');
   const [formScore, setFormScore] = useState<number>(5);
+  const [formIsDefectSymptom, setFormIsDefectSymptom] = useState<boolean>(false);
   const [formManHours, setFormManHours] = useState<number>(0.5);
   const [formRecommendedConsumables, setFormRecommendedConsumables] = useState<string[]>([]);
+  const [formRelatedManualIds, setFormRelatedManualIds] = useState<string[]>([]);
   const [formActionGuide, setFormActionGuide] = useState('');
   const [formDescription, setFormDescription] = useState('');
 
-  // 과거 AS 발생 누적 통계 매핑
+  // 과거 AS 발생 누적 통계 매핑 (단순 외래키 매칭 + 불량 증상 텍스트 매칭)
   const repairMappingStats = useMemo(() => {
     const stats: Record<string, { count: number; lastOccurred?: string }> = {};
+    
+    // 1. 기존 명시적 매핑 (inspectionItemId/Code)
     (repairs || []).forEach(r => {
       const keys = [r.inspectionItemCode, r.inspectionItemId].filter(Boolean) as string[];
       keys.forEach(k => {
@@ -117,8 +124,49 @@ export const InspectionChecklistManage: React.FC = () => {
         }
       });
     });
+
+    // 2. 불량 증상명 기반 텍스트 매칭 (repairs, deliveries)
+    const defectSymptoms = (inspectionChecklistItems || []).filter(item => item.isDefectSymptom && item.name);
+    
+    defectSymptoms.forEach(symptom => {
+      const sId = symptom.id;
+      const keyword = symptom.name;
+      if (!sId) return;
+      
+      // Repairs에서 텍스트 포함 확인 (명시적 매핑 제외)
+      (repairs || []).forEach(r => {
+        if (r.inspectionItemId === sId || r.inspectionItemCode === symptom.code) return;
+
+        const textToSearch = [r.issueCategory, r.issueDescription, r.repairDetails].join(' ');
+        if (textToSearch.includes(keyword)) {
+          if (!stats[sId]) stats[sId] = { count: 0 };
+          stats[sId].count += 1;
+          const rDate = r.requestDate || r.repairDate || r.completedDate;
+          if (rDate) {
+            if (!stats[sId].lastOccurred || rDate > stats[sId].lastOccurred) {
+              stats[sId].lastOccurred = rDate;
+            }
+          }
+        }
+      });
+
+      // Deliveries (EXCHANGE)에서 텍스트 포함 확인
+      (deliveries || []).forEach(d => {
+        if (d.type === 'EXCHANGE' && d.memo && d.memo.includes(keyword)) {
+          if (!stats[sId]) stats[sId] = { count: 0 };
+          stats[sId].count += 1;
+          const dDate = d.deliveryDate;
+          if (dDate) {
+            if (!stats[sId].lastOccurred || dDate > stats[sId].lastOccurred) {
+              stats[sId].lastOccurred = dDate;
+            }
+          }
+        }
+      });
+    });
+
     return stats;
-  }, [repairs]);
+  }, [repairs, deliveries, inspectionChecklistItems]);
 
   // 소모품 Map (id -> Consumable)
   const consumableMap = useMemo(() => {
@@ -141,8 +189,10 @@ export const InspectionChecklistManage: React.FC = () => {
     setFormCode(nextCode);
     setFormName('');
     setFormScore(5);
+    setFormIsDefectSymptom(false);
     setFormManHours(0.5);
     setFormRecommendedConsumables([]);
+    setFormRelatedManualIds([]);
     setFormActionGuide('');
     setFormDescription('');
     setIsItemModalOpen(true);
@@ -154,8 +204,10 @@ export const InspectionChecklistManage: React.FC = () => {
     setFormCode(item.code || '');
     setFormName(item.name || '');
     setFormScore(item.score || 0);
+    setFormIsDefectSymptom(!!item.isDefectSymptom);
     setFormManHours(item.standardManHours || 0.5);
     setFormRecommendedConsumables(item.recommendedConsumableIds || []);
+    setFormRelatedManualIds(item.relatedManualIds || []);
     setFormActionGuide(item.actionGuide || '');
     setFormDescription(item.description || '');
     setIsItemModalOpen(true);
@@ -175,8 +227,10 @@ export const InspectionChecklistManage: React.FC = () => {
         code: formCode || `CHK-${Date.now().toString().slice(-7)}`,
         name: formName.trim(),
         score: Number(formScore),
+        isDefectSymptom: formIsDefectSymptom,
         standardManHours: Number(formManHours),
         recommendedConsumableIds: formRecommendedConsumables,
+        relatedManualIds: formRelatedManualIds,
         actionGuide: formActionGuide.trim(),
         description: formDescription.trim()
       });
@@ -213,8 +267,22 @@ export const InspectionChecklistManage: React.FC = () => {
     });
   };
 
+  const handleToggleDefectSymptom = async (item: InspectionChecklistItem) => {
+    try {
+      await saveInspectionChecklistItem({
+        ...item,
+        isDefectSymptom: !item.isDefectSymptom
+      });
+      await db.awaitPendingWrites();
+      showToast(`[${item.name}] 불량증상 프리셋 노출이 ${!item.isDefectSymptom ? '지정' : '해제'}되었습니다.`);
+    } catch (err: any) {
+      showToast(`저장 실패: ${err?.message || err}`, 'error');
+    }
+  };
+
   const filteredMasterItems = useMemo(() => {
     return inspectionChecklistItems.filter(item => {
+      if (filterDefectSymptomOnly && !item.isDefectSymptom) return false;
       const matchCat = selectedCategory === '전체' || item.category === selectedCategory;
       if (!matchCat) return false;
       if (!searchTerm.trim()) return true;
@@ -227,7 +295,7 @@ export const InspectionChecklistManage: React.FC = () => {
         (item.actionGuide && item.actionGuide.toLowerCase().includes(term))
       );
     });
-  }, [inspectionChecklistItems, selectedCategory, searchTerm]);
+  }, [inspectionChecklistItems, selectedCategory, searchTerm, filterDefectSymptomOnly]);
 
   // 마스터 요약 통계
   const masterAuditSummary = useMemo(() => {
@@ -524,6 +592,7 @@ export const InspectionChecklistManage: React.FC = () => {
   const [manualFormFileSize, setManualFormFileSize] = useState<number>(0);
   const [manualFormFileSizeLabel, setManualFormFileSizeLabel] = useState('0 KB');
   const [manualFormFileUrl, setManualFormFileUrl] = useState('');
+  const [manualFormInspectionItemCodes, setManualFormInspectionItemCodes] = useState<string[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -744,6 +813,7 @@ export const InspectionChecklistManage: React.FC = () => {
     setManualFormFileSize(0);
     setManualFormFileSizeLabel('0 KB');
     setManualFormFileUrl('');
+    setManualFormInspectionItemCodes([]);
     setIsManualModalOpen(true);
   };
 
@@ -812,8 +882,9 @@ export const InspectionChecklistManage: React.FC = () => {
         fileSizeLabel: targetFileSizeLabel,
         version: manualFormVersion.trim() || 'Rev. 1.0',
         uploadDate: getTodayStr(),
-        uploadedBy: '정비자산팀',
-        memo: manualFormMemo.trim()
+        uploadedBy: currentUser?.name || '정비자산팀',
+        memo: manualFormMemo.trim(),
+        inspectionItemCodes: manualFormInspectionItemCodes
       });
       await db.awaitPendingWrites();
       showToast('장비 기술 자료가 성공적으로 등록되었습니다.');
@@ -1084,6 +1155,11 @@ export const InspectionChecklistManage: React.FC = () => {
                 />
               </div>
 
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', border: '1px solid var(--border-color)', padding: '6px 12px', borderRadius: '4px', backgroundColor: filterDefectSymptomOnly ? '#eef2ff' : 'var(--bg-main)' }}>
+                <input type="checkbox" checked={filterDefectSymptomOnly} onChange={e => setFilterDefectSymptomOnly(e.target.checked)} style={{ width: '14px', height: '14px', cursor: 'pointer' }} />
+                불량증상 프리셋만 보기
+              </label>
+
               {/* 카테고리 칩 필터 */}
               <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                 {['전체', '외관/바디', '유압/동력', '전기/배터리', '주행/타이어', '기타/검수'].map(cat => (
@@ -1167,8 +1243,13 @@ export const InspectionChecklistManage: React.FC = () => {
                             <span className="badge badge-info">{item.category}</span>
                           </td>
                           <td style={{ whiteSpace: 'nowrap', fontSize: '11.5px', color: 'var(--text-muted)' }}>{item.code}</td>
-                          <td style={{ whiteSpace: 'nowrap' }}>
+                          <td style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <strong style={{ fontSize: '13px' }}>{item.name}</strong>
+                            {item.isDefectSymptom && (
+                              <span style={{ padding: '2px 6px', fontSize: '10px', backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: '4px', fontWeight: 600 }}>
+                                불량증상 칩
+                              </span>
+                            )}
                           </td>
                           <td style={{ whiteSpace: 'nowrap' }}>
                             <span
@@ -1227,6 +1308,15 @@ export const InspectionChecklistManage: React.FC = () => {
                           </td>
                           <td style={{ whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', gap: '4px' }}>
+                              <button
+                                type="button"
+                                className="btn-secondary"
+                                onClick={() => handleToggleDefectSymptom(item)}
+                                style={{ padding: '3px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '3px', color: item.isDefectSymptom ? 'var(--text-muted)' : 'var(--primary)' }}
+                                title="불량증상 칩 노출 여부를 즉시 전환합니다."
+                              >
+                                {item.isDefectSymptom ? '프리셋 해제' : '프리셋 지정'}
+                              </button>
                               <button
                                 type="button"
                                 className="btn-secondary"
@@ -2224,7 +2314,7 @@ export const InspectionChecklistManage: React.FC = () => {
                     }}
                   >
                     <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
-                      등록일: {manual.uploadDate}
+                      등록: {manual.uploadedBy} ({manual.uploadDate})
                     </span>
 
                     <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
@@ -2479,6 +2569,19 @@ export const InspectionChecklistManage: React.FC = () => {
                 />
               </div>
 
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', backgroundColor: 'var(--bg-secondary)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                <input
+                  type="checkbox"
+                  id="chk-isDefectSymptom"
+                  checked={formIsDefectSymptom}
+                  onChange={e => setFormIsDefectSymptom(e.target.checked)}
+                  style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <label htmlFor="chk-isDefectSymptom" style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', cursor: 'pointer' }}>
+                  불량증상 프리셋 지정
+                </label>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 {/* 연동 정비 배점 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -2588,6 +2691,70 @@ export const InspectionChecklistManage: React.FC = () => {
                 </div>
               </div>
 
+              {/* 연계 매뉴얼 지정 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>연계 매뉴얼</label>
+                  {formRelatedManualIds.length > 0 && (
+                    <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 600 }}>
+                      {formRelatedManualIds.length}개 매뉴얼 선택됨
+                    </span>
+                  )}
+                </div>
+                <div
+                  style={{
+                    maxHeight: '130px',
+                    overflowY: 'auto',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '6px',
+                    padding: '8px',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '6px',
+                    backgroundColor: 'var(--bg-main)'
+                  }}
+                >
+                  {(equipmentManuals || []).map(manual => {
+                    const isSelected = formRelatedManualIds.includes(manual.id);
+                    return (
+                      <button
+                        key={manual.id}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setFormRelatedManualIds(formRelatedManualIds.filter(id => id !== manual.id));
+                          } else {
+                            setFormRelatedManualIds([...formRelatedManualIds, manual.id]);
+                          }
+                        }}
+                        style={{
+                          padding: '4px 9px',
+                          borderRadius: '6px',
+                          border: isSelected ? '1px solid #3b82f6' : '1px solid var(--border-color)',
+                          backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-card)',
+                          color: isSelected ? '#3b82f6' : 'var(--text-main)',
+                          fontSize: '11.5px',
+                          fontWeight: isSelected ? 600 : 400,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0
+                        }}
+                      >
+                        {isSelected ? (
+                          <CheckCircle2 size={13} style={{ color: 'var(--primary)' }} />
+                        ) : (
+                          <span style={{ width: '10px', height: '10px', borderRadius: '50%', border: '1px solid var(--text-muted)', display: 'inline-block' }} />
+                        )}
+                        <span>{manual.modelName} ({manual.docType})</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* 표준 조치 절차 (SOP) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>표준 조치 절차</label>
@@ -2642,7 +2809,7 @@ export const InspectionChecklistManage: React.FC = () => {
                   className="btn-primary"
                   style={{ flex: 1, padding: '8px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}
                 >
-                  <Save size={14} /> 저장 완료
+                  <Save size={14} /> 저장
                 </button>
               </div>
             </form>
@@ -2932,6 +3099,70 @@ export const InspectionChecklistManage: React.FC = () => {
                   </span>
                 </div>
               )}
+
+              {/* 연계 불량증상 지정 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 'bold' }}>연계 불량증상 (선택)</label>
+                  {manualFormInspectionItemCodes.length > 0 && (
+                    <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 600 }}>
+                      {manualFormInspectionItemCodes.length}개 불량증상 선택됨
+                    </span>
+                  )}
+                </div>
+                <div
+                  style={{
+                    maxHeight: '130px',
+                    overflowY: 'auto',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '6px',
+                    padding: '8px',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '6px',
+                    backgroundColor: 'var(--bg-main)'
+                  }}
+                >
+                  {(inspectionChecklistItems || []).filter(item => item.isDefectSymptom).map(item => {
+                    const isSelected = manualFormInspectionItemCodes.includes(item.code);
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setManualFormInspectionItemCodes(manualFormInspectionItemCodes.filter(c => c !== item.code));
+                          } else {
+                            setManualFormInspectionItemCodes([...manualFormInspectionItemCodes, item.code]);
+                          }
+                        }}
+                        style={{
+                          padding: '4px 9px',
+                          borderRadius: '6px',
+                          border: isSelected ? '1px solid #3b82f6' : '1px solid var(--border-color)',
+                          backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-card)',
+                          color: isSelected ? '#3b82f6' : 'var(--text-main)',
+                          fontSize: '11.5px',
+                          fontWeight: isSelected ? 600 : 400,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0
+                        }}
+                      >
+                        {isSelected ? (
+                          <CheckCircle2 size={13} style={{ color: 'var(--primary)' }} />
+                        ) : (
+                          <span style={{ width: '10px', height: '10px', borderRadius: '50%', border: '1px solid var(--text-muted)', display: 'inline-block' }} />
+                        )}
+                        <span>{item.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
               {/* 비고 및 요약 설명 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

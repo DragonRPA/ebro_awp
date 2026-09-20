@@ -606,28 +606,42 @@ export function calculateAssetDepreciation(asset: Asset, asOfDate: Date = new Da
 export interface Consumable {
   id: string;
   modelName: string;
-  stockQty: number; // 주기장 재고
+  stockQty: number; // 주기장 총 재고 (Lot들의 현재 잔여 수량 합계)
   unit: string; // '개' | '박스' 등
-  unitPrice: number;
-  supplier: string;
-  category?: string; // 소모품 분류 (충전기, 제어기, 기판/전장, 밸브/유압, 모터/구동, 안전/센서 등)
-  note?: string; // 비고 (수리중 등 상태 특이사항)
-  repairingQty?: number; // 수리중 수량
+  unitPrice: number; // 최근 매입 단가 (참고용)
+  supplier: string; // 최근 매입처
+  category?: string;
+  note?: string;
+  repairingQty?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ConsumableLot {
+  id: string;
+  consumableId: string;
+  inboundDate: string; // 입고일
+  unitPrice: number; // 해당 로트의 입고 단가
+  initialQty: number; // 최초 입고 수량
+  currentQty: number; // 현재 주기장(HQ) 잔여 수량
+  purchaseRequestId?: string; // 연결된 구매 이력
   createdAt: string;
   updatedAt: string;
 }
 
 export interface MechanicConsumableStock {
   id: string;
-  mechanicId: string; // 담당 정비사 ID
-  consumableId: string; // 소모품 ID
-  stockQty: number; // 기사 차량 내 현재 적재 수량
+  mechanicId: string;
+  consumableId: string;
+  lotId?: string; // 연결된 재고 로트 ID
+  stockQty: number;
   updatedAt: string;
 }
 
 export interface ConsumableLog {
   id: string;
   consumableId: string;
+  lotId?: string; // 연결된 로트 ID
   type: 'INBOUND' | 'OUTBOUND' | 'ADJUST' | 'TRANSFER_TO_VEHICLE' | 'RETURN_TO_HQ';
   quantity: number;
   unitPrice: number;
@@ -650,6 +664,8 @@ export interface ConsumablePurchaseRequest {
   unitPrice: number;
   requestDate: string;
   sellerName: string;
+  vendorId?: string; // 시스템 내 매입처 마스터 ID
+  paymentMethod?: 'CARD' | 'CREDIT'; // 결제 방식 (CARD: 법인카드/즉시결제, CREDIT: 월말외상결제)
   status: 'REQUESTED' | 'ACCEPTED' | 'COMPLETED' | 'CANCELLED';
   acceptedDate?: string;
   completedDate?: string;
@@ -1024,6 +1040,8 @@ export interface Vendor {
   name: string;
   type: 'TRANSPORT' | 'RENTAL' | 'REPAIR' | 'PURCHASE' | 'CONSUMABLE' | 'OTHER';
   types?: ('TRANSPORT' | 'RENTAL' | 'REPAIR' | 'PURCHASE' | 'CONSUMABLE' | 'OTHER')[];
+  domainUrls?: string[]; // 온라인 쇼핑몰/매입처 도메인 매핑 (예: ['coupang.com', 'naver.com'])
+  defaultPaymentMethod?: 'CARD' | 'CREDIT'; // 해당 매입처 기본 결제 방식
   bizRegNo?: string;
   representative?: string;
   contactName?: string;
@@ -1091,6 +1109,7 @@ export interface RepairConsumable {
   id: string;
   repairId: string;
   consumableId: string;
+  lotId?: string; // 연결된 로트 ID
   quantity: number;
   unitPrice: number;
   cost: number;
@@ -4186,7 +4205,7 @@ export const SEED_ERROR_REPORTS: ErrorReport[] = [
 
 export const ALL_DB_KEYS = [
   'tenants', 'users', 'departments', 'permissions', 'customers', 'contacts', 'sites', 
-  'products', 'assets', 'consumables', 'consumableLogs', 'consumablePurchases',
+  'products', 'assets', 'consumables', 'consumableLots', 'consumableLogs', 'consumablePurchases',
   'contracts', 'contractAssets', 'contractHistory', 'deliveries', 
   'transportCompanies', 'transportDrivers', 'vendors',
   'billings', 'billingDetails', 'payments', 'paymentDepositLinks', 'repairs', 'repairConsumables', 'todos', 
@@ -4439,6 +4458,9 @@ class LocalDB {
   get consumables() { return this.get<Consumable>('consumables', SEED_CONSUMABLES); }
   set consumables(val: Consumable[]) { this.set('consumables', val); }
 
+  get consumableLots() { return this.get<ConsumableLot>('consumableLots', []); }
+  set consumableLots(val: ConsumableLot[]) { this.set('consumableLots', val); }
+
   get consumableLogs() { return this.get<ConsumableLog>('consumableLogs', SEED_CONSUMABLE_LOGS); }
   set consumableLogs(val: ConsumableLog[]) { this.set('consumableLogs', val); }
 
@@ -4661,6 +4683,7 @@ class LocalDB {
       products: 'products',
       assets: 'assets',
       consumables: 'consumables',
+      consumableLots: 'consumable_lots',
       consumableLogs: 'consumable_logs',
       consumablePurchases: 'consumable_purchases',
       contracts: 'contracts',

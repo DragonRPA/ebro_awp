@@ -17,6 +17,7 @@ import { getRoleTemplatePermission } from '../config/role_templates';
 export const ConsumableStockPage: React.FC = () => {
   const {
     consumables,
+    consumableLots,
     consumableLogs,
     mechanicConsumableStocks,
     stocktakingAudits,
@@ -61,6 +62,16 @@ export const ConsumableStockPage: React.FC = () => {
   const [masterUnitPrice, setMasterUnitPrice] = useState(0);
   const [masterSupplier, setMasterSupplier] = useState('');
   const [masterInitialStockQty, setMasterInitialStockQty] = useState(0);
+  const [expandedMasterIds, setExpandedMasterIds] = useState<Set<string>>(new Set());
+
+  const toggleMasterExpand = (id: string) => {
+    setExpandedMasterIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   // --- [2] 차량 재고 상태 및 이동 모달 ---
   const [vehicleStockSearch, setVehicleStockSearch] = useState('');

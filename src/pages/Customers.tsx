@@ -15,6 +15,7 @@ import { matchHangul, matchesChosungFilter, sortCustomersByName } from '../utils
 import { ChosungFilterBar } from '../components/ChosungFilterBar';
 import { BusinessLicenseModal } from '../components/BusinessLicenseModal';
 import { BatchBusinessLicenseModal } from '../components/BatchBusinessLicenseModal';
+import { ContactCardOcrModal } from '../components/ContactCardOcrModal';
 import { NtsStatusAuditModal } from '../components/NtsStatusAuditModal';
 import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal';
 
@@ -54,6 +55,10 @@ export const Customers: React.FC = () => {
   const [targetBizLicenseCustId, setTargetBizLicenseCustId] = useState<string | undefined>(undefined);
   const [showBatchLicenseModal, setShowBatchLicenseModal] = useState(false);
   const [showNtsAuditModal, setShowNtsAuditModal] = useState(false);
+
+  // 📇 명함/이메일 AI 모달 상태
+  const [showContactCardModal, setShowContactCardModal] = useState(false);
+  const [targetContactCardCustId, setTargetContactCardCustId] = useState<string | undefined>(undefined);
 
   // 엑셀 일괄 고객/현장/담당자 등록 모달 상태
   const [custExcelModalOpen, setCustExcelModalOpen] = useState(false);
@@ -136,6 +141,12 @@ export const Customers: React.FC = () => {
     setSelectedCustomerId(savedCustomer.id);
     await refreshAllData();
     showToast(isNew ? `신규 고객사 [${savedCustomer.name}] 등록 완료` : `고객사 [${savedCustomer.name}] 정보 보완 완료`, 'success');
+  };
+
+  const handleContactCardSuccess = async (savedContact: CustomerContact, isNewCust: boolean) => {
+    setSelectedCustomerId(savedContact.customerId);
+    await refreshAllData();
+    showToast(isNewCust ? `가등록 고객사 및 담당자 [${savedContact.name}] 등록 완료` : `담당자 [${savedContact.name}] 등록 완료`, 'success');
   };
 
   const [showContactModal, setShowContactModal] = useState(false);
@@ -843,6 +854,32 @@ export const Customers: React.FC = () => {
           )}
           {canSave && (
             <button
+              onClick={() => {
+                setTargetContactCardCustId(undefined);
+                setShowContactCardModal(true);
+              }}
+              style={{
+                padding: '5px 12px',
+                fontSize: '12px',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                whiteSpace: 'nowrap',
+                backgroundColor: '#f59e0b',
+                color: '#ffffff',
+                border: '1px solid #d97706',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.15)'
+              }}
+              title="명함/이메일 이미지 업로드 기반 AI 고객사 및 담당자 신규 등록"
+            >
+              <User size={13} color="#ffffff" /> 명함/이메일 AI 등록
+            </button>
+          )}
+          {canSave && (
+            <button
               onClick={() => setShowBatchLicenseModal(true)}
               style={{
                 padding: '5px 12px',
@@ -1524,6 +1561,29 @@ export const Customers: React.FC = () => {
                     >
                       <Download size={11} /> 담당자 엑셀
                     </button>
+                    {canSave && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTargetContactCardCustId(selectedCustomer.id);
+                          setShowContactCardModal(true);
+                        }}
+                        style={{
+                          padding: '2px 8px',
+                          fontSize: '11px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          backgroundColor: '#f59e0b',
+                          color: '#ffffff',
+                          border: '1px solid #d97706',
+                          borderRadius: '3px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <User size={11} color="#ffffff" /> 명함/이메일로 추가
+                      </button>
+                    )}
                     {canSave && (
                       <button
                         type="button"
@@ -2959,6 +3019,16 @@ export const Customers: React.FC = () => {
         onUpload={handleBatchUploadCustomers}
       />
 
+      {/* 📇 명함/이메일 AI 고객/담당자 자동 등록 모달 */}
+      <ContactCardOcrModal
+        isOpen={showContactCardModal}
+        onClose={() => {
+          setShowContactCardModal(false);
+          setTargetContactCardCustId(undefined);
+        }}
+        onSuccess={handleContactCardSuccess}
+        preselectedCustomerId={targetContactCardCustId}
+      />
     </div>
   );
 };

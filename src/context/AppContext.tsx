@@ -107,6 +107,7 @@ interface AppContextType {
   products: Product[];
   assets: Asset[];
   consumables: Consumable[];
+  consumableLots: ConsumableLot[];
   consumableLogs: ConsumableLog[];
   consumablePurchases: ConsumablePurchaseRequest[];
   contracts: Contract[];
@@ -3303,31 +3304,53 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         throw new Error(msg);
       }
 
+      let remainingQtyToDeduct = cleanQty;
+      const lots = db.consumableLots
+        .filter(l => l.consumableId === consumable.id && l.currentQty > 0)
+        .sort((a, b) => new Date(a.inboundDate).getTime() - new Date(b.inboundDate).getTime());
+
+      for (const lot of lots) {
+        if (remainingQtyToDeduct <= 0) break;
+        const deductQty = Math.min(lot.currentQty, remainingQtyToDeduct);
+        
+        db.updateRow<ConsumableLot>('consumableLots', lot.id, {
+          currentQty: lot.currentQty - deductQty,
+          updatedAt: new Date().toISOString()
+        });
+
+        db.insertRow<ConsumableLog>('consumableLogs', {
+          consumableId: consumable.id,
+          lotId: lot.id,
+          type: 'OUTBOUND',
+          quantity: deductQty,
+          unitPrice: lot.unitPrice,
+          targetAssetId: data.targetAssetId,
+          userId: getValidUserId(currentUser?.id),
+          actionDate: new Date().toISOString().split('T')[0],
+          description: data.description,
+          createdAt: new Date().toISOString()
+        });
+
+        const asset = db.assets.find(a => a.id === data.targetAssetId);
+        if (asset) {
+          const cost = lot.unitPrice * deductQty;
+          db.updateRow<Asset>('assets', asset.id, {
+            cumRepairCost: (asset.cumRepairCost || 0) + cost,
+            updatedAt: new Date().toISOString()
+          });
+        }
+        
+        remainingQtyToDeduct -= deductQty;
+      }
+
+      if (remainingQtyToDeduct > 0) {
+        throw new Error('Lot 데이터 무결성 오류: 총 재고는 충분하나 Lot 재고의 합이 부족합니다.');
+      }
+
       db.updateRow<Consumable>('consumables', consumable.id, {
         stockQty: consumable.stockQty - cleanQty,
         updatedAt: new Date().toISOString()
       });
-
-      db.insertRow<ConsumableLog>('consumableLogs', {
-        consumableId: consumable.id,
-        type: 'OUTBOUND',
-        quantity: cleanQty,
-        unitPrice: consumable.unitPrice,
-        targetAssetId: data.targetAssetId,
-        userId: getValidUserId(currentUser?.id),
-        actionDate: new Date().toISOString().split('T')[0],
-        description: data.description,
-        createdAt: new Date().toISOString()
-      });
-
-      const asset = db.assets.find(a => a.id === data.targetAssetId);
-      if (asset) {
-        const cost = consumable.unitPrice * cleanQty;
-        db.updateRow<Asset>('assets', asset.id, {
-          cumRepairCost: (asset.cumRepairCost || 0) + cost,
-          updatedAt: new Date().toISOString()
-        });
-      }
 
       await db.awaitPendingWrites();
       refreshAllData();
@@ -3353,43 +3376,67 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       const mechanic = db.users.find(u => u.id === mechanicId);
       const mechanicName = mechanic?.name || '정비사';
 
-      // 1. 본사 재고 차감
+      let remainingQtyToDeduct = quantity;
+      const lots = db.consumableLots
+        .filter(l => l.consumableId === consumableId && l.currentQty > 0)
+        .sort((a, b) => new Date(a.inboundDate).getTime() - new Date(b.inboundDate).getTime());
+
+      for (const lot of lots) {
+        if (remainingQtyToDeduct <= 0) break;
+        const deductQty = Math.min(lot.currentQty, remainingQtyToDeduct);
+        
+        // 1. 본사 재고(Lot) 차감
+        db.updateRow<ConsumableLot>('consumableLots', lot.id, {
+          currentQty: lot.currentQty - deductQty,
+          updatedAt: new Date().toISOString()
+        });
+
+        // 2. 기사 차량 재고(Lot) 증가
+        const existingStock = db.mechanicConsumableStocks.find(s => s.mechanicId === mechanicId && s.lotId === lot.id);
+        if (existingStock) {
+          db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', existingStock.id, {
+            stockQty: existingStock.stockQty + deductQty,
+            updatedAt: new Date().toISOString()
+          });
+        } else {
+          const newId = `mcs-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
+          db.insertRow<MechanicConsumableStock>('mechanicConsumableStocks', {
+            id: newId,
+            mechanicId,
+            consumableId,
+            lotId: lot.id,
+            stockQty: deductQty,
+            updatedAt: new Date().toISOString()
+          });
+        }
+
+        // 3. 수불 로그 기록
+        db.insertRow<ConsumableLog>('consumableLogs', {
+          consumableId,
+          lotId: lot.id,
+          type: 'TRANSFER_TO_VEHICLE',
+          quantity: deductQty,
+          unitPrice: lot.unitPrice,
+          userId: currentUser?.id,
+          mechanicId,
+          fromLocation: '주기장 재고',
+          toLocation: `${mechanicName} 차량`,
+          actionDate: new Date().toISOString().split('T')[0],
+          description: memo || `[차량 불출] 주기장 ➔ ${mechanicName} 차량 이동 (${deductQty}개)`,
+          createdAt: new Date().toISOString()
+        });
+
+        remainingQtyToDeduct -= deductQty;
+      }
+
+      if (remainingQtyToDeduct > 0) {
+        throw new Error('Lot 데이터 무결성 오류: 총 재고는 충분하나 Lot 재고의 합이 부족합니다.');
+      }
+
+      // HQ 마스터 재고 차감
       db.updateRow<Consumable>('consumables', consumableId, {
         stockQty: consumable.stockQty - quantity,
         updatedAt: new Date().toISOString()
-      });
-
-      // 2. 기사 차량 재고 증가
-      const existingStock = db.mechanicConsumableStocks.find(s => s.mechanicId === mechanicId && s.consumableId === consumableId);
-      if (existingStock) {
-        db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', existingStock.id, {
-          stockQty: existingStock.stockQty + quantity,
-          updatedAt: new Date().toISOString()
-        });
-      } else {
-        const newId = `mcs-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
-        db.insertRow<MechanicConsumableStock>('mechanicConsumableStocks', {
-          id: newId,
-          mechanicId,
-          consumableId,
-          stockQty: quantity,
-          updatedAt: new Date().toISOString()
-        });
-      }
-
-      // 3. 재고 이동 수불 로그 기록
-      db.insertRow<ConsumableLog>('consumableLogs', {
-        consumableId,
-        type: 'TRANSFER_TO_VEHICLE',
-        quantity,
-        unitPrice: consumable.unitPrice,
-        userId: currentUser?.id,
-        mechanicId,
-        fromLocation: '주기장 재고',
-        toLocation: `${mechanicName} 차량`,
-        actionDate: new Date().toISOString().split('T')[0],
-        description: memo || `[차량 불출] 주기장 ➔ ${mechanicName} 차량 이동 (${quantity}개)`,
-        createdAt: new Date().toISOString()
       });
 
       await db.awaitPendingWrites();
@@ -3413,9 +3460,14 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         showErrorModal('반납 수량은 1개 이상이어야 합니다.');
         throw new Error('반납 수량은 1개 이상이어야 합니다.');
       }
-      const existingStock = db.mechanicConsumableStocks.find(s => s.mechanicId === mechanicId && s.consumableId === consumableId);
-      if (!existingStock || existingStock.stockQty < quantity) {
-        const msg = `차량 보유 재고가 부족합니다. (차량 현재고: ${existingStock?.stockQty || 0}개)`;
+      
+      const mechStocks = db.mechanicConsumableStocks
+        .filter(s => s.mechanicId === mechanicId && s.consumableId === consumableId && s.stockQty > 0);
+      
+      const totalMechStock = mechStocks.reduce((sum, s) => sum + s.stockQty, 0);
+
+      if (totalMechStock < quantity) {
+        const msg = `차량 보유 재고가 부족합니다. (차량 현재고: ${totalMechStock}개)`;
         showErrorModal(`⚠️ ${msg}`);
         throw new Error(msg);
       }
@@ -3424,57 +3476,80 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       const mechanic = db.users.find(u => u.id === mechanicId);
       const mechanicName = mechanic?.name || '정비사';
 
-      // 1. 기사 차량 재고 차감
-      db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', existingStock.id, {
-        stockQty: existingStock.stockQty - quantity,
-        updatedAt: new Date().toISOString()
+      // Sort mechanic stocks by inboundDate of their lot (FIFO from vehicle)
+      mechStocks.sort((a, b) => {
+        const lotA = db.consumableLots.find(l => l.id === a.lotId);
+        const lotB = db.consumableLots.find(l => l.id === b.lotId);
+        return new Date(lotA?.inboundDate || 0).getTime() - new Date(lotB?.inboundDate || 0).getTime();
       });
 
-      // 2. 신품 정상 반납 vs 고품 격리 처리
-      if (!isDefective) {
-        // 정상 신품 반납: 주기장 가용 재고 증가
-        if (consumable) {
-          db.updateRow<Consumable>('consumables', consumableId, {
-            stockQty: consumable.stockQty + quantity,
-            updatedAt: new Date().toISOString()
+      let remainingQty = quantity;
+
+      for (const stock of mechStocks) {
+        if (remainingQty <= 0) break;
+        const deductQty = Math.min(stock.stockQty, remainingQty);
+        const lot = db.consumableLots.find(l => l.id === stock.lotId);
+
+        // 1. 기사 차량 재고 차감
+        db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', stock.id, {
+          stockQty: stock.stockQty - deductQty,
+          updatedAt: new Date().toISOString()
+        });
+
+        // 2. 신품 정상 반납 vs 고품 격리 처리
+        if (!isDefective) {
+          if (lot) {
+            db.updateRow<ConsumableLot>('consumableLots', lot.id, {
+              currentQty: lot.currentQty + deductQty,
+              updatedAt: new Date().toISOString()
+            });
+          }
+        } else {
+          const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
+          const newPartNo = `COL-${todayStr}-${Math.floor(1000 + Math.random() * 9000)}`;
+          db.insertRow<CollectedPart>('collectedParts', {
+            id: `col-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+            partNo: newPartNo,
+            consumableId,
+            lotId: lot?.id,
+            modelName: consumable?.modelName || '부품',
+            mechanicId,
+            mechanicName,
+            quantity: deductQty,
+            disposition,
+            status: 'RECEIVED',
+            receivedDate: new Date().toISOString().split('T')[0],
+            memo: memo || `[고품 수거] ${mechanicName} 차량 반납 (${disposition})`,
+            createdAt: new Date().toISOString()
           });
         }
-      } else {
-        // 고품(불량품) 반납: 주기장 신품 가용재고 가산 차단 및 고품 관리 대장(collectedParts) 격리 적재
-        const todayStr = new Date().toISOString().split('T')[0].replace(/-/g, '');
-        const newPartNo = `COL-${todayStr}-${Math.floor(1000 + Math.random() * 9000)}`;
-        db.insertRow<CollectedPart>('collectedParts', {
-          id: `col-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
-          partNo: newPartNo,
+
+        db.insertRow<ConsumableLog>('consumableLogs', {
           consumableId,
-          modelName: consumable?.modelName || '부품',
+          lotId: lot?.id,
+          type: 'RETURN_TO_HQ',
+          quantity: deductQty,
+          unitPrice: lot?.unitPrice || consumable?.unitPrice || 0,
+          userId: currentUser?.id,
           mechanicId,
-          mechanicName,
-          quantity,
-          disposition,
-          status: 'RECEIVED',
-          receivedDate: new Date().toISOString().split('T')[0],
-          memo: memo || `[고품 수거] ${mechanicName} 차량 반납 (${disposition})`,
+          fromLocation: `${mechanicName} 차량`,
+          toLocation: !isDefective ? '주기장 재고' : `고품 격리실 (${disposition})`,
+          actionDate: new Date().toISOString().split('T')[0],
+          description: memo || (!isDefective 
+            ? `[주기장 반납] ${mechanicName} 차량 ➔ 주기장 재고 회수 (${deductQty}개)`
+            : `[고품 반납] ${mechanicName} 차량 ➔ 고품 격리 (${disposition}, ${deductQty}개)`),
           createdAt: new Date().toISOString()
         });
+
+        remainingQty -= deductQty;
       }
 
-      // 3. 재고 반납 수불 로그 기록
-      db.insertRow<ConsumableLog>('consumableLogs', {
-        consumableId,
-        type: 'RETURN_TO_HQ',
-        quantity,
-        unitPrice: consumable?.unitPrice || 0,
-        userId: currentUser?.id,
-        mechanicId,
-        fromLocation: `${mechanicName} 차량`,
-        toLocation: !isDefective ? '주기장 재고' : `고품 격리실 (${disposition})`,
-        actionDate: new Date().toISOString().split('T')[0],
-        description: memo || (!isDefective 
-          ? `[주기장 반납] ${mechanicName} 차량 ➔ 주기장 재고 회수 (${quantity}개)`
-          : `[고품 반납] ${mechanicName} 차량 ➔ 고품 격리 (${disposition}, ${quantity}개)`),
-        createdAt: new Date().toISOString()
-      });
+      if (!isDefective && consumable) {
+        db.updateRow<Consumable>('consumables', consumableId, {
+          stockQty: consumable.stockQty + quantity,
+          updatedAt: new Date().toISOString()
+        });
+      }
 
       await db.awaitPendingWrites();
       refreshAllData();
@@ -3501,9 +3576,13 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         throw new Error('이동 수량은 1개 이상이어야 합니다.');
       }
 
-      const fromStock = db.mechanicConsumableStocks.find(s => s.mechanicId === fromMechanicId && s.consumableId === consumableId);
-      if (!fromStock || fromStock.stockQty < quantity) {
-        const msg = `양도 정비사 차량의 보유 재고가 부족합니다. (현재고: ${fromStock?.stockQty || 0}개)`;
+      const fromStocks = db.mechanicConsumableStocks
+        .filter(s => s.mechanicId === fromMechanicId && s.consumableId === consumableId && s.stockQty > 0);
+      
+      const totalFromStock = fromStocks.reduce((sum, s) => sum + s.stockQty, 0);
+
+      if (totalFromStock < quantity) {
+        const msg = `양도 정비사 차량의 보유 재고가 부족합니다. (현재고: ${totalFromStock}개)`;
         showErrorModal(`⚠️ ${msg}`);
         throw new Error(msg);
       }
@@ -3512,43 +3591,62 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       const toUser = db.users.find(u => u.id === toMechanicId);
       const consumable = db.consumables.find(c => c.id === consumableId);
 
-      // 1. 양도 차량 재고 차감
-      db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', fromStock.id, {
-        stockQty: fromStock.stockQty - quantity,
-        updatedAt: new Date().toISOString()
+      // Sort by inboundDate (FIFO)
+      fromStocks.sort((a, b) => {
+        const lotA = db.consumableLots.find(l => l.id === a.lotId);
+        const lotB = db.consumableLots.find(l => l.id === b.lotId);
+        return new Date(lotA?.inboundDate || 0).getTime() - new Date(lotB?.inboundDate || 0).getTime();
       });
 
-      // 2. 양수 차량 재고 증가
-      const toStock = db.mechanicConsumableStocks.find(s => s.mechanicId === toMechanicId && s.consumableId === consumableId);
-      if (toStock) {
-        db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', toStock.id, {
-          stockQty: toStock.stockQty + quantity,
+      let remainingQty = quantity;
+
+      for (const stock of fromStocks) {
+        if (remainingQty <= 0) break;
+        const deductQty = Math.min(stock.stockQty, remainingQty);
+        const lot = db.consumableLots.find(l => l.id === stock.lotId);
+
+        // 1. 양도 차량 재고 차감
+        db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', stock.id, {
+          stockQty: stock.stockQty - deductQty,
           updatedAt: new Date().toISOString()
         });
-      } else {
-        db.insertRow<MechanicConsumableStock>('mechanicConsumableStocks', {
-          id: `mcs-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
-          mechanicId: toMechanicId,
+
+        // 2. 양수 차량 재고 증가
+        const toStock = db.mechanicConsumableStocks.find(s => s.mechanicId === toMechanicId && s.lotId === lot?.id);
+        if (toStock) {
+          db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', toStock.id, {
+            stockQty: toStock.stockQty + deductQty,
+            updatedAt: new Date().toISOString()
+          });
+        } else {
+          db.insertRow<MechanicConsumableStock>('mechanicConsumableStocks', {
+            id: `mcs-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+            mechanicId: toMechanicId,
+            consumableId,
+            lotId: lot?.id || '',
+            stockQty: deductQty,
+            updatedAt: new Date().toISOString()
+          });
+        }
+
+        // 3. 수불 로그 기록
+        db.insertRow<ConsumableLog>('consumableLogs', {
           consumableId,
-          stockQty: quantity,
-          updatedAt: new Date().toISOString()
+          lotId: lot?.id,
+          type: 'TRANSFER_TO_VEHICLE',
+          quantity: deductQty,
+          unitPrice: lot?.unitPrice || consumable?.unitPrice || 0,
+          userId: currentUser?.id,
+          mechanicId: toMechanicId,
+          fromLocation: `${fromUser?.name || '정비사'} 차량`,
+          toLocation: `${toUser?.name || '정비사'} 차량`,
+          actionDate: new Date().toISOString().split('T')[0],
+          description: memo || `[차량 간 융통] ${fromUser?.name} 차량 ➔ ${toUser?.name} 차량 (${deductQty}개)`,
+          createdAt: new Date().toISOString()
         });
-      }
 
-      // 3. 수불 로그 기록
-      db.insertRow<ConsumableLog>('consumableLogs', {
-        consumableId,
-        type: 'TRANSFER_TO_VEHICLE',
-        quantity,
-        unitPrice: consumable?.unitPrice || 0,
-        userId: currentUser?.id,
-        mechanicId: toMechanicId,
-        fromLocation: `${fromUser?.name || '정비사'} 차량`,
-        toLocation: `${toUser?.name || '정비사'} 차량`,
-        actionDate: new Date().toISOString().split('T')[0],
-        description: memo || `[차량 간 융통] ${fromUser?.name} 차량 ➔ ${toUser?.name} 차량 (${quantity}개)`,
-        createdAt: new Date().toISOString()
-      });
+        remainingQty -= deductQty;
+      }
 
       await db.awaitPendingWrites();
       refreshAllData();
@@ -4642,15 +4740,40 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     return db.users[0]?.id || 'usr-admin';
   };
 
-  const requestConsumablePurchase = async (data: { consumableId?: string; modelName: string; qty: number; unitPrice: number; requestDate: string; sellerName: string }) => {
+  const requestConsumablePurchase = async (data: { consumableId?: string; modelName: string; qty: number; unitPrice: number; requestDate: string; sellerName: string; purchaseUrl?: string; requestAttachmentUrl?: string; vendorId?: string; paymentMethod?: 'CARD' | 'CREDIT'; }) => {
     const validUserId = getValidUserId(currentUser?.id);
+    let finalConsumableId = data.consumableId;
+
+    if (!finalConsumableId) {
+      const existing = db.consumables.find(c => c.modelName.toLowerCase() === data.modelName.toLowerCase());
+      if (existing) {
+        finalConsumableId = existing.id;
+      } else {
+        const newC = db.insertRow<any>('consumables', {
+          category: '기타',
+          modelName: data.modelName,
+          unitPrice: data.unitPrice,
+          stockQty: 0,
+          supplier: data.sellerName,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+        finalConsumableId = newC.id;
+      }
+    }
+
     const newReq = db.insertRow<ConsumablePurchaseRequest>('consumablePurchases', {
-      consumableId: data.consumableId || undefined,
+      consumableId: finalConsumableId,
       modelName: data.modelName,
       requestedQty: data.qty,
       unitPrice: data.unitPrice,
       requestDate: data.requestDate,
       sellerName: data.sellerName,
+      purchaseUrl: data.purchaseUrl,
+      requestAttachmentUrl: data.requestAttachmentUrl,
+      vendorId: data.vendorId,
+      paymentMethod: data.paymentMethod,
       status: 'REQUESTED',
       requesterId: validUserId,
       requesterName: currentUser?.name || '시스템',
@@ -4673,6 +4796,15 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       senderName: currentUser?.name
     });
 
+    await db.awaitPendingWrites();
+    refreshAllData();
+  };
+
+  const updatePurchaseUnitPrice = async (id: string, newUnitPrice: number) => {
+    db.updateRow<ConsumablePurchaseRequest>('consumablePurchases', id, {
+      unitPrice: newUnitPrice,
+      updatedAt: new Date().toISOString()
+    });
     await db.awaitPendingWrites();
     refreshAllData();
   };
@@ -4778,6 +4910,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     if (consumable) {
       db.updateRow<Consumable>('consumables', consumable.id, {
         stockQty: consumable.stockQty + qty,
+        // Master retains the latest unitPrice and supplier conceptually, though lots track their own
         unitPrice: req.unitPrice,
         supplier: req.sellerName,
         updatedAt: new Date().toISOString()
@@ -4803,14 +4936,31 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     }
 
+    // 🌟 Create a new Lot for this inbound batch
+    const newLotId = `lot-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
+    const todayStr = new Date().toISOString().split('T')[0];
+    db.insertRow<ConsumableLot>('consumableLots', {
+      id: newLotId,
+      consumableId: consumable.id,
+      inboundDate: todayStr,
+      unitPrice: req.unitPrice,
+      initialQty: qty,
+      currentQty: qty,
+      supplier: req.sellerName,
+      purchaseRequestId: req.id,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+
     db.insertRow<ConsumableLog>('consumableLogs', {
       consumableId: consumable.id,
+      lotId: newLotId,
       type: 'INBOUND',
       quantity: qty,
       unitPrice: req.unitPrice,
       supplier: req.sellerName,
       userId: getValidUserId(currentUser?.id),
-      actionDate: new Date().toISOString().split('T')[0],
+      actionDate: todayStr,
       description: `구매신청 연계 입고 (증빙: ${statementFileUrl.split('/').pop()})`,
       createdAt: new Date().toISOString()
     });
@@ -8879,6 +9029,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
     const purchasesOfMonth = db.consumablePurchases.filter(p => {
       if (existingConsumableSettlementSourceIds.has(p.id)) return false;
+      // 헌장 1.1: 법인카드/즉시결제 완료 건은 외상매입(월말정산) 대장에서 완전 배제 (가짜 부채 생성 방지)
+      if (p.paymentMethod === 'CARD') return false;
+      
       const isFinished = p.status === 'COMPLETED' || p.receivedQty > 0;
       if (!isFinished) return false;
       const rawDate = p.completedDate || p.requestDate || p.createdAt || '';
@@ -9874,7 +10027,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       addTenantWorkplace, updateTenantWorkplace, deleteTenantWorkplace,
       addTenantYard, updateTenantYard, deleteTenantYard, setDefaultYard,
       errorReports, addErrorReport, receiveErrorReport, completeErrorReport, cancelErrorReport, reopenErrorReport, deleteErrorReport,
-      users, permissions, customers, contacts, sites, products, assets, consumables, consumableLogs, consumablePurchases, mechanicConsumableStocks, contracts, contractAssets, contractHistory, deliveries, billings, billingDetails, payments, paymentDepositLinks, repairs, repairConsumables, transportCompanies, transportDrivers, transportNegotiations, subleaseNegotiations, todos,
+      users, permissions, customers, contacts, sites, products, assets, consumables, consumableLots: db.consumableLots, consumableLogs, consumablePurchases, mechanicConsumableStocks, contracts, contractAssets, contractHistory, deliveries, billings, billingDetails, payments, paymentDepositLinks, repairs, repairConsumables, transportCompanies, transportDrivers, transportNegotiations, subleaseNegotiations, todos,
       stocktakingAudits, stocktakingAuditItems, collectedParts,
       bankTransactions, bankMatchingRules, bankInitialBalances, assetInOutLogs, vendors, googleConfigs, cashFlowSnapshots, outboundInspections, depreciationLogs,
       purchaseSettlements, purchaseSettlementItems, settlementPaymentLogs: db.settlementPaymentLogs, externalLeases, inspectionChecklistItems,
@@ -9889,7 +10042,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       acquireAsset, batchAcquireAssets, disposeAsset, executeAssetSale, registerRentedAsset, returnRentedAsset, createVendorClaimReceivable, changeAssetStatus, registerInboundAsset, cancelInboundAsset,
       purchaseConsumable, useConsumable, transferConsumableToMechanic, returnConsumableToHq, transferConsumableBetweenMechanics, addConsumable, updateConsumable, deleteConsumable,
       createStocktakingAudit, updateStocktakingItem, confirmStocktakingAudit, cancelStocktakingAudit, processCollectedPart,
-      requestConsumablePurchase, acceptConsumablePurchase, completeConsumablePurchase, inboundConsumablePurchase, clearEvidenceFileUrls, updateEvidenceFileUrls,
+      requestConsumablePurchase, updatePurchaseUnitPrice, acceptConsumablePurchase, completeConsumablePurchase, inboundConsumablePurchase, clearEvidenceFileUrls, updateEvidenceFileUrls,
       createContract, extendContract, shortenContract, succeedContract, exchangeAsset, updateContractAssetPeriod, relocateContractAsset, redeployRepairedAsset,
       assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, exchangeOutboundAsset,
       saveSmartDispatch, saveSmartReturn,

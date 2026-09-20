@@ -444,6 +444,7 @@ export const TruckDispatch: React.FC = () => {
     <table>
       <colgroup><col style="width: 12%;"><col style="width: 88%;"></colgroup>
       <tr><th>지시사항</th><td>${delivery.memo || '특이사항 없음'}</td></tr>
+      ${(site?.paidOptions || site?.protection) ? `<tr><th>현장 옵션</th><td style="font-weight: 700; color: #d32f2f;">${[site?.paidOptions ? `유상옵션: ${site.paidOptions}` : null, site?.protection ? `보양: ${site.protection}` : null].filter(Boolean).join(' | ')}</td></tr>` : ''}
     </table>
   </div>
 </body>
