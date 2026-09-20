@@ -48,11 +48,11 @@ export const Dashboard: React.FC = () => {
   // 사용자 메뉴 권한 기반 카드 노출 판단 플래그 (조치/저장 실행 권한 기준 단일 표준 ID + 담당 역할/부서/조회 권한 fallback)
   const canActAssign = hasPermission('dispatch_assign', 'save') || hasPermission('dispatch_assign', 'view') || isExecUser || userRole === 'LOGISTICS' || userRole === 'DELIVERY' || userRole === 'YARD' || (userDept && (userDept.includes('출고') || userDept.includes('주기장') || userDept.includes('배차') || userDept.includes('물류')));
   const canActOutboundInspection = hasPermission('outbound_inspections', 'save') || hasPermission('outbound_inspections', 'view') || hasPermission('repair', 'save') || isExecUser || userRole === 'MECHANIC' || userRole === 'REPAIR' || userRole === 'YARD' || (userDept && (userDept.includes('출고') || userDept.includes('검수') || userDept.includes('정비') || userDept.includes('주기장')));
-  const canActDelivery = hasPermission('delivery', 'save') || hasPermission('delivery', 'view') || isExecUser || userRole === 'LOGISTICS' || userRole === 'DELIVERY' || (userDept && (userDept.includes('배차') || userDept.includes('운송') || userDept.includes('물류')));
+  const canActDelivery = hasPermission('delivery', 'save') || hasPermission('delivery', 'view') || isExecUser || userRole === 'ACCOUNTING' || (userDept && (userDept.includes('관리')));
   const canActRepair = hasPermission('repair', 'save') || hasPermission('repair', 'view') || isExecUser || userRole === 'REPAIR' || userRole === 'MECHANIC' || (userDept && (userDept.includes('정비') || userDept.includes('AS') || userDept.includes('주기장')));
   const canActBilling = hasPermission('billing', 'save') || hasPermission('billing', 'view') || isExecUser || userRole === 'ACCOUNTING' || (userDept && (userDept.includes('회계') || userDept.includes('관리') || userDept.includes('경리')));
   const canActContract = hasPermission('contract', 'save') || hasPermission('contract', 'view') || isExecUser || userRole === 'SALES' || (userDept && (userDept.includes('영업') || userDept.includes('영업부')));
-  const canActRentAsset = hasPermission('rent_asset', 'save') || hasPermission('rent_asset', 'view') || isExecUser || userRole === 'LOGISTICS' || userRole === 'DELIVERY' || (userDept && (userDept.includes('출고') || userDept.includes('배차') || userDept.includes('주기장')));
+  const canActRentAsset = hasPermission('rent_asset', 'save') || hasPermission('rent_asset', 'view') || isExecUser || userRole === 'LOGISTICS' || userRole === 'DELIVERY' || (userDept && (userDept.includes('배차') || userDept.includes('주기장')));
 
   // ── 📄 계약서패키지 재발송 모달 상태 ──
   const [showBundleModal, setShowBundleModal] = useState(false);
@@ -374,6 +374,10 @@ export const Dashboard: React.FC = () => {
         });
         const pendingInspectionContractIds = Array.from(new Set(pendingOutboundInspections.map(i => i.contractId)));
         const showOutboundInspectionFeed = pendingOutboundInspections.length > 0 && canActOutboundInspection;
+        // 2-1. 입고 검수 대기 건 (반납 후 검수 대기)
+        const pendingInboundInspections = assets.filter(a => a.status === 'RENTED_RETURNED');
+        const showInboundInspectionFeed = pendingInboundInspections.length > 0 && canActOutboundInspection;
+
 
         // 3. 배차 대기 건
         const requestedDeliveries = deliveries.filter(d => {
@@ -400,7 +404,7 @@ export const Dashboard: React.FC = () => {
         // 8. 직무 맞춤 당면 과제 ToDo
         const showTodoFeed = myTodos.length > 0;
 
-        const visibleCount = [showTodoFeed, showSalesPipelineFeed, showAssignFeed, showOutboundInspectionFeed, showDeliveryFeed, showRepairFeed, showBillingFeed, showPendingDueBillingFeed, showRentAssetFeed, showContractFeed].filter(Boolean).length;
+        const visibleCount = [showTodoFeed, showSalesPipelineFeed, showAssignFeed, showOutboundInspectionFeed, showInboundInspectionFeed, showDeliveryFeed, showRepairFeed, showBillingFeed, showPendingDueBillingFeed, showRentAssetFeed, showContractFeed].filter(Boolean).length;
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -711,6 +715,61 @@ export const Dashboard: React.FC = () => {
 </div>
 </details>
             )}
+
+            {/* 2-1. 입고 검수 대기 피드 카드 */}
+            {showInboundInspectionFeed && (
+              <details open style={{
+                backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
+                borderLeft: '5px solid #eab308', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
+              }}>
+                <summary style={{ cursor: "pointer", listStyle: "none", outline: "none" }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <span style={{ fontSize: '11.5px', fontWeight: '800', color: '#eab308', backgroundColor: 'rgba(234,179,8,0.12)', padding: '3px 9px', borderRadius: '4px', border: '1px solid rgba(234,179,8,0.3)' }}>
+                      입고 검수 관리
+                    </span>
+                    <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#eab308' }}>
+                      입고 검수 대기 {pendingInboundInspections.length}건
+                    </span>
+                  </div>
+                  <h4 style={{ margin: '0 0 10px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <CheckSquare size={18} color="#eab308" /> 입고 검수 대기
+                  </h4>
+                </summary>
+                <div className="details-content">
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: '1.5' }}>
+                    반납된 장비 중 입고 검수 및 정비 판단 대기 중인 장비 <strong>{pendingInboundInspections.length}건</strong>.
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+                    {pendingInboundInspections.slice(0, 3).map((asset, idx) => (
+                      <div key={asset.id} style={{
+                        backgroundColor: 'var(--bg-secondary)', padding: '12px 14px', borderRadius: '8px',
+                        border: '1px solid var(--border-color)', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '4px'
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: '800', color: 'var(--text-main)' }}>
+                            {idx + 1}. {asset.assetNo}
+                          </span>
+                          <span style={{
+                            fontSize: '11px', fontWeight: '800', padding: '2px 6px', borderRadius: '4px',
+                            backgroundColor: 'rgba(234,179,8,0.15)',
+                            color: '#ca8a04'
+                          }}>
+                            입고 대기
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                          <span>📦 <strong>모델:</strong> {asset.modelName}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <button className="btn-primary" onClick={() => setActiveTab('assets')} style={{ backgroundColor: '#eab308', border: 'none', fontSize: '12.5px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px', color: '#fff' }}>
+                    자산 관리 이동 <ArrowRight size={13} />
+                  </button>
+                </div>
+              </details>
+            )}
+
 
             {/* 3. 출고/회수 배차 대기 피드 카드 (배차 저장/실행 권한자 표출) */}
             {showDeliveryFeed && (

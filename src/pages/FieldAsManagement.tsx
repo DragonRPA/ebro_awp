@@ -2450,24 +2450,68 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
 
                 {/* 9. 우하단 최종 완결 버튼 (헌장 3.5 Gutenberg Z-Pattern) */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', paddingTop: '12px', borderTop: '1px solid #e2e8f0' }}>
-                  <button
-                    type="button"
-                    onClick={() => updateFieldAsTicketStatus(selectedTicket.id, 'IN_PROGRESS')}
-                    style={{
-                      padding: '12px 20px',
-                      backgroundColor: 'var(--bg-app)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '8px',
-                      fontSize: '14px',
-                      fontWeight: 600,
-                      color: 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0
-                    }}
-                  >
-                    출동중 상태 변경
-                  </button>
+                  {selectedTicket.status === 'REQUESTED' && (
+                    <button
+                      type="button"
+                      onClick={() => updateFieldAsTicketStatus(selectedTicket.id, 'SCHEDULED', { mechanicId: currentUser?.id })}
+                      style={{
+                        padding: '12px 20px',
+                        backgroundColor: '#2563eb',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        color: '#ffffff',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
+                      }}
+                    >
+                      접수
+                    </button>
+                  )}
+
+                  {['SCHEDULED', 'IN_PROGRESS'].includes(selectedTicket.status) && (
+                    <button
+                      type="button"
+                      onClick={() => updateFieldAsTicketStatus(selectedTicket.id, 'REQUESTED', { mechanicId: null })}
+                      style={{
+                        padding: '12px 20px',
+                        backgroundColor: 'var(--bg-app)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
+                      }}
+                    >
+                      접수 취소
+                    </button>
+                  )}
+
+                  {['SCHEDULED', 'IN_PROGRESS'].includes(selectedTicket.status) && (
+                    <button
+                      type="button"
+                      onClick={() => updateFieldAsTicketStatus(selectedTicket.id, 'IN_PROGRESS')}
+                      style={{
+                        padding: '12px 20px',
+                        backgroundColor: 'var(--bg-app)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        flexShrink: 0
+                      }}
+                    >
+                      출동중 상태 변경
+                    </button>
+                  )}
 
                   <button
                     type="button"
