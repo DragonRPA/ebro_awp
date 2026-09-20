@@ -30,6 +30,7 @@ export const Dashboard: React.FC = () => {
     resolveExecutiveDirective,
     setActiveTab, 
     setNavigationPayload,
+    getDueContractsForBilling,
     currentTenant 
   } = useApp();
 
@@ -238,10 +239,10 @@ export const Dashboard: React.FC = () => {
     switch (role) {
       case 'ADMIN': 
         return isTrueDeveloper 
-          ? { text: '시스템 개발자', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' }
-          : { text: '최고관리자', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' };
+          ? { text: '시스템 개발자', color: 'var(--danger)', bg: 'rgba(239,68,68,0.1)' }
+          : { text: '최고관리자', color: 'var(--danger)', bg: 'rgba(239,68,68,0.1)' };
       case 'MANAGER': return { text: '부서관리자', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' };
-      case 'SALES': return { text: '영업담당자', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' };
+      case 'SALES': return { text: '영업담당자', color: 'var(--primary)', bg: 'rgba(59,130,246,0.1)' };
       case 'REPAIR':
       case 'MECHANIC': return { text: '정비담당자', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' };
       case 'LOGISTICS':
@@ -337,6 +338,9 @@ export const Dashboard: React.FC = () => {
 
         // 5. 미수금 대장
         const showBillingFeed = unpaidBillings.length > 0 && canActBilling;
+  const pendingDueBillings = getDueContractsForBilling();
+  const showPendingDueBillingFeed = pendingDueBillings.length > 0 && canActBilling;
+
 
         // 6. 임차 자산 반납 지연
         const showRentAssetFeed = (overdueRentedCount > 0 || mismatchRentedCount > 0) && canActRentAsset;
@@ -347,7 +351,7 @@ export const Dashboard: React.FC = () => {
         // 8. 직무 맞춤 당면 과제 ToDo
         const showTodoFeed = myTodos.length > 0;
 
-        const visibleCount = [showTodoFeed, showSalesPipelineFeed, showAssignFeed, showOutboundInspectionFeed, showDeliveryFeed, showRepairFeed, showBillingFeed, showRentAssetFeed, showContractFeed].filter(Boolean).length;
+        const visibleCount = [showTodoFeed, showSalesPipelineFeed, showAssignFeed, showOutboundInspectionFeed, showDeliveryFeed, showRepairFeed, showBillingFeed, showPendingDueBillingFeed, showRentAssetFeed, showContractFeed].filter(Boolean).length;
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -359,10 +363,10 @@ export const Dashboard: React.FC = () => {
                 borderLeft: '5px solid #2563eb', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '11.5px', fontWeight: '800', color: '#2563eb', backgroundColor: 'rgba(37,99,235,0.12)', padding: '3px 9px', borderRadius: '4px', border: '1px solid rgba(37,99,235,0.3)' }}>
+                  <span style={{ fontSize: '11.5px', fontWeight: '800', color: 'var(--primary)', backgroundColor: 'rgba(37,99,235,0.12)', padding: '3px 9px', borderRadius: '4px', border: '1px solid rgba(37,99,235,0.3)' }}>
                     출고 진행 현황
                   </span>
-                  <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#2563eb' }}>
+                  <span style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--primary)' }}>
                     운송 완료 대기 {pendingSalesContracts.length}건
                   </span>
                 </div>
@@ -452,7 +456,7 @@ export const Dashboard: React.FC = () => {
                           
                           {/* 1. 배차 */}
                           {isDispatched ? (
-                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.15)', color: '#16a34a', border: '1px solid rgba(34,197,94,0.3)' }} title={outboundDel?.driverName ? `기사: ${outboundDel.driverName}` : '배차완료'}>
+                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.3)' }} title={outboundDel?.driverName ? `기사: ${outboundDel.driverName}` : '배차완료'}>
                               ✓ 배차완료
                             </span>
                           ) : (
@@ -463,22 +467,22 @@ export const Dashboard: React.FC = () => {
 
                           {/* 2. 장비할당 */}
                           {isAssigned ? (
-                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.15)', color: '#16a34a', border: '1px solid rgba(34,197,94,0.3)' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.3)' }}>
                               ✓ 장비할당
                             </span>
                           ) : (
-                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(239,68,68,0.12)', color: '#dc2626', border: '1px solid rgba(239,68,68,0.3)' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(239,68,68,0.12)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)' }}>
                               {unassignedCount > 0 ? `미할당 ${unassignedCount}대` : '장비미할당'}
                             </span>
                           )}
 
                           {/* 3. 출고검수 */}
                           {isInspected ? (
-                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.15)', color: '#16a34a', border: '1px solid rgba(34,197,94,0.3)' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.3)' }}>
                               ✓ 검수완료
                             </span>
                           ) : isInspecting ? (
-                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(245,158,11,0.15)', color: '#d97706', border: '1px solid rgba(245,158,11,0.3)' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(245,158,11,0.15)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.3)' }}>
                               검수진행
                             </span>
                           ) : (
@@ -489,7 +493,7 @@ export const Dashboard: React.FC = () => {
 
                           {/* 4. 계약서패키지 */}
                           {isPackageSent ? (
-                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.15)', color: '#16a34a', border: '1px solid rgba(34,197,94,0.3)' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.3)' }}>
                               ✓ 패키지발송
                             </span>
                           ) : (
@@ -509,7 +513,7 @@ export const Dashboard: React.FC = () => {
                     setNavigationPayload({ quickChipFilter: 'PENDING_DELIVERY' });
                     setActiveTab('contract');
                   }}
-                  style={{ backgroundColor: '#2563eb', border: 'none', fontSize: '12.5px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  style={{ backgroundColor: 'var(--primary)', border: 'none', fontSize: '12.5px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}
                 >
                   출고 진행 의뢰 전체 보기 ({pendingSalesContracts.length}건) <ArrowRight size={13} />
                 </button>
@@ -632,7 +636,7 @@ export const Dashboard: React.FC = () => {
                   })}
                 </div>
 
-                <button className="btn-primary" onClick={() => setActiveTab('outbound_inspections')} style={{ backgroundColor: '#10b981', border: 'none', fontSize: '12.5px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <button className="btn-primary" onClick={() => setActiveTab('outbound_inspections')} style={{ backgroundColor: 'var(--success)', border: 'none', fontSize: '12.5px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   출고 검수 이동 <ArrowRight size={13} />
                 </button>
               </div>
@@ -705,22 +709,79 @@ export const Dashboard: React.FC = () => {
             )}
 
             {/* 2. 전사 미수금 회수 카드 (수납/청구 저장/실행 권한자 표출) */}
+            
+            {/* 신규: 오늘 청구 발행 대기 카드 */}
+            {showPendingDueBillingFeed && (
+              <div style={{
+                backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
+                borderLeft: '5px solid #f97316', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '11.5px', fontWeight: '800', color: '#ea580c', backgroundColor: 'rgba(249,115,22,0.12)', padding: '3px 9px', borderRadius: '4px', border: '1px solid rgba(249,115,22,0.3)' }}>
+                    청구 대상 알림
+                  </span>
+                  <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#ea580c' }}>
+                    발행 대기 {pendingDueBillings.length}건
+                  </span>
+                </div>
+                <h4 style={{ margin: '0 0 10px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileText size={18} color="#f97316" /> 오늘 청구서 발행 대기
+                </h4>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: '1.5' }}>
+                  오늘 자(00:00) 기준으로 청구 도래일이 도달한 미발행 계약이 <strong>{pendingDueBillings.length}건</strong> 있습니다.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
+                  {pendingDueBillings.slice(0, 5).map((due, idx) => (
+                    <div key={due.contract.id + idx} style={{
+                      backgroundColor: 'var(--bg-secondary)', padding: '12px 14px', borderRadius: '8px',
+                      border: '1px solid var(--border-color)', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '4px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: '800', color: 'var(--text-main)' }}>
+                          {idx + 1}. {due.customer?.name || '고객사'} - {due.targetYm || '이번달'}
+                        </span>
+                        <span style={{
+                          fontSize: '11px', fontWeight: '800', padding: '2px 6px', borderRadius: '4px',
+                          backgroundColor: 'rgba(249,115,22,0.15)', color: '#ea580c'
+                        }}>
+                          매월 {due.billingDay}일
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        📄 {due.contract.contractNo} | 🚩 {due.site?.name || '현장'}
+                      </div>
+                    </div>
+                  ))}
+                  {pendingDueBillings.length > 5 && (
+                    <div style={{ textAlign: 'center', fontSize: '12.5px', fontWeight: '700', color: 'var(--text-muted)', marginTop: '4px', padding: '8px', backgroundColor: 'var(--bg-secondary)', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
+                      ... 외 {pendingDueBillings.length - 5}건 대기 중
+                    </div>
+                  )}
+                </div>
+
+                <button className="btn-primary" onClick={() => setActiveTab('billing')} style={{ backgroundColor: '#f97316', border: 'none', fontSize: '12.5px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  청구서 발행하러 가기 <ArrowRight size={13} />
+                </button>
+              </div>
+            )}
+
             {showBillingFeed && (
               <div style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
                 borderLeft: '5px solid #ef4444', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
               }}>
                 <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: '800', color: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', padding: '2px 8px', borderRadius: '4px' }}>미수금 관리</span>
+                  <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--danger)', backgroundColor: 'rgba(239,68,68,0.1)', padding: '2px 8px', borderRadius: '4px' }}>미수금 관리</span>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>수납 미완료 {unpaidBillings.length}건</span>
                 </div>
                 <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <CreditCard size={18} color="#ef4444" /> 렌탈 매출 미수금 대장
                 </h4>
                 <p style={{ fontSize: '13.5px', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: '1.5' }}>
-                  수납 미완료 대금 총 <strong style={{ color: '#ef4444', fontSize: '15px' }}>{totalUnpaidAmount.toLocaleString()}원</strong> ({unpaidBillings.length}건).
+                  수납 미완료 대금 총 <strong style={{ color: 'var(--danger)', fontSize: '15px' }}>{totalUnpaidAmount.toLocaleString()}원</strong> ({unpaidBillings.length}건).
                 </p>
-                <button className="btn-primary" onClick={() => setActiveTab('billing')} style={{ backgroundColor: '#ef4444', border: 'none', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <button className="btn-primary" onClick={() => setActiveTab('billing')} style={{ backgroundColor: 'var(--danger)', border: 'none', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   수납/청구 관리 이동 <ArrowRight size={12} />
                 </button>
               </div>
@@ -743,7 +804,7 @@ export const Dashboard: React.FC = () => {
                   {overdueRentedCount > 0 && `• 반납 기한 초과 임차 장비 ${overdueRentedCount}대. `}
                   {mismatchRentedCount > 0 && `• 매출 계약-임차 만기 불일치 ${mismatchRentedCount}건.`}
                 </p>
-                <button className="btn-primary" onClick={() => setActiveTab('rent_asset')} style={{ backgroundColor: '#f59e0b', border: 'none', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <button className="btn-primary" onClick={() => setActiveTab('rent_asset')} style={{ backgroundColor: 'var(--warning)', border: 'none', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   임차 자산 관리 이동 <ArrowRight size={12} />
                 </button>
               </div>
@@ -780,7 +841,7 @@ export const Dashboard: React.FC = () => {
                   })}
                 </div>
 
-                <button className="btn-primary" onClick={() => setActiveTab('repair')} style={{ backgroundColor: '#f59e0b', border: 'none', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <button className="btn-primary" onClick={() => setActiveTab('repair')} style={{ backgroundColor: 'var(--warning)', border: 'none', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   정비 관리 이동 <ArrowRight size={12} />
                 </button>
               </div>
@@ -794,7 +855,7 @@ export const Dashboard: React.FC = () => {
                 borderLeft: '5px solid #3b82f6', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
               }}>
                 <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: '800', color: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.1)', padding: '2px 8px', borderRadius: '4px' }}>계약 관리</span>
+                  <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)', backgroundColor: 'rgba(59,130,246,0.1)', padding: '2px 8px', borderRadius: '4px' }}>계약 관리</span>
                   <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>진행 중 계약 {activeContracts}건</span>
                 </div>
                 <h4 style={{ margin: '0 0 10px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -845,7 +906,7 @@ export const Dashboard: React.FC = () => {
                             {isDirective ? (
                               <span style={{
                                 fontSize: '11px', fontWeight: '900', padding: '2px 8px', borderRadius: '4px',
-                                backgroundColor: '#ef4444', color: '#fff', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px'
+                                backgroundColor: 'var(--danger)', color: '#fff', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px'
                               }}>
                                 ⚡ 경영진 특별지시
                               </span>
@@ -868,7 +929,7 @@ export const Dashboard: React.FC = () => {
                             {task.dueDate && (
                               <span style={{
                                 fontSize: '11px', fontWeight: '700', padding: '2px 6px', borderRadius: '4px',
-                                backgroundColor: 'rgba(245,158,11,0.12)', color: '#d97706', border: '1px solid rgba(245,158,11,0.25)', whiteSpace: 'nowrap'
+                                backgroundColor: 'rgba(245,158,11,0.12)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.25)', whiteSpace: 'nowrap'
                               }}>
                                 📅 마감: {task.dueDate}
                               </span>
@@ -902,7 +963,7 @@ export const Dashboard: React.FC = () => {
                               }}
                               style={{
                                 fontSize: '12px', padding: '6px 12px', borderRadius: '6px', border: 'none',
-                                backgroundColor: '#4f46e5', color: '#fff', fontWeight: '800', cursor: 'pointer',
+                                backgroundColor: 'var(--primary)', color: '#fff', fontWeight: '800', cursor: 'pointer',
                                 display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 2px 6px rgba(79,70,229,0.3)',
                                 whiteSpace: 'nowrap'
                               }}
@@ -949,7 +1010,7 @@ export const Dashboard: React.FC = () => {
                               }}
                               style={{
                                 fontSize: '12px', padding: '6px 12px', borderRadius: '6px', border: 'none',
-                                backgroundColor: '#10b981', color: '#fff', fontWeight: '800', cursor: 'pointer',
+                                backgroundColor: 'var(--success)', color: '#fff', fontWeight: '800', cursor: 'pointer',
                                 display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 2px 6px rgba(16,185,129,0.25)',
                                 whiteSpace: 'nowrap'
                               }}
@@ -1020,12 +1081,12 @@ export const Dashboard: React.FC = () => {
               </p>
 
               <div style={{ backgroundColor: 'var(--bg-app, #f8fafc)', padding: '14px 16px', borderRadius: '10px', border: '1px solid var(--border)', marginBottom: '16px' }}>
-                <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '700', color: '#4f46e5' }}>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '700', color: 'var(--primary)' }}>
                   ⚡ 최초 1회 실행 3단계 순서:
                 </h4>
                 <ol style={{ margin: 0, paddingLeft: '18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <li>
-                    <a href="https://nodejs.org/en/download/" target="_blank" rel="noreferrer" style={{ color: '#16a34a', fontWeight: '700' }}>🟢 Node.js 공식 사이트</a>에서 LTS 버전을 설치합니다. (최초 1회, PC당 1회)
+                    <a href="https://nodejs.org/en/download/" target="_blank" rel="noreferrer" style={{ color: 'var(--success)', fontWeight: '700' }}>🟢 Node.js 공식 사이트</a>에서 LTS 버전을 설치합니다. (최초 1회, PC당 1회)
                   </li>
                   <li>
                     <strong>[2단계: 🛡️ 보안 인증서 등록]</strong> 버튼을 누르면 배치 파일이 내려옵니다. 배치 파일을 실행하여 PC에 1회 등록합니다.
@@ -1096,7 +1157,7 @@ export const Dashboard: React.FC = () => {
 
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '12px 14px', borderRadius: '8px' }}>
-                <div style={{ fontSize: '11px', color: '#ef4444', fontWeight: '800', marginBottom: '4px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--danger)', fontWeight: '800', marginBottom: '4px' }}>
                   지시명: {reportingDirectiveTodo.title}
                 </div>
                 <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
@@ -1150,7 +1211,7 @@ export const Dashboard: React.FC = () => {
                   }}
                   style={{
                     padding: '8px 20px', borderRadius: '8px', border: 'none',
-                    backgroundColor: '#10b981', color: '#fff', fontSize: '13px', fontWeight: '800',
+                    backgroundColor: 'var(--success)', color: '#fff', fontSize: '13px', fontWeight: '800',
                     cursor: (isSubmittingReport || !directiveReportNote.trim()) ? 'not-allowed' : 'pointer',
                     boxShadow: '0 4px 10px rgba(16,185,129,0.3)'
                   }}
