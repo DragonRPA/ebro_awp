@@ -153,6 +153,49 @@ export const Dashboard: React.FC = () => {
   const activeTasks = useMemo(() => findActiveTasksForUser(todos, currentUser, hasPermission), [todos, currentUser, hasPermission]);
   const myTodos = activeTasks;
 
+  // --- Proactive Time-based Alerts ---
+  const todayDate = new Date();
+  todayDate.setHours(0,0,0,0);
+  
+  const expiringContracts = contracts.filter(c => {
+    if (c.status !== 'ACTIVE' && c.status !== 'EXTENDED') return false;
+    if (!c.endDate) return false;
+    const end = new Date(c.endDate);
+    end.setHours(0,0,0,0);
+    const diffDays = Math.ceil((end.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 7;
+  });
+
+  const overdueSubleaseAssets = assets.filter(a => a.ownerType === 'RENTED' && a.status !== 'RENTED_RETURNED' && (() => {
+      if (!a.rentEnd) return false;
+      const plannedEnd = new Date(a.rentEnd);
+      plannedEnd.setHours(0,0,0,0);
+      return todayDate.getTime() > plannedEnd.getTime();
+  })());
+
+  const oldPendingRepairs = repairs.filter(r => {
+    if (r.status !== 'PENDING') return false;
+    const created = new Date(r.createdAt);
+    created.setHours(0,0,0,0);
+    const diffDays = Math.floor((todayDate.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays >= 3;
+  });
+
+  const longOverdueBillings = billings.filter(b => {
+    if (b.status === 'PAID') return false;
+    if (!b.dueDate) return false;
+    const due = new Date(b.dueDate);
+    due.setHours(0,0,0,0);
+    const diffDays = Math.floor((todayDate.getTime() - due.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays >= 30 && (b.totalAmount > b.paidAmount);
+  });
+
+  const showExpiringContractsFeed = expiringContracts.length > 0 && (hasPermission('role_sales_read') || hasPermission('role_sales_execute'));
+  const showOverdueSubleaseFeed = overdueSubleaseAssets.length > 0 && (hasPermission('role_logistics_read') || hasPermission('role_logistics_execute'));
+  const showOldPendingRepairsFeed = oldPendingRepairs.length > 0 && (hasPermission('role_mechanic_read') || hasPermission('role_mechanic_execute'));
+  const showLongOverdueBillingsFeed = longOverdueBillings.length > 0 && (hasPermission('role_mgmt_read') || hasPermission('role_mgmt_execute'));
+  // -----------------------------------
+
   const totalAssets = assets.length;
   const rentedAssets = assets.filter(a => a.status === 'RENTED').length;
   const availableAssets = assets.filter(a => a.status === 'AVAILABLE').length;
