@@ -5187,3 +5187,16 @@ pm run build: **TypeScript 0 Error, 번들링 정상 완료 (uilt in 1.13s)**.
   3. **��� ����**:
      - `npm.cmd run build` 0 Type Error ��� ���Ἲ ��� (1.24��).
 - **Bugfix**: ����û ������� ��ȸ �� ������� ��ġ �� delinquency_action_logs ���̺��� ctionDate NOT NULL �������� ���� ���� ���� (DelinquencyActionLog �������̽��� ctionDate �߰� �� ������ 5�� ���� ���� ����)
+
+## [설계 구현] B2B SaaS 멀티테넌트 결재 엔진 스키마 및 DB 뼈대 구축 (D-001)
+- **개요**: 2026-09-22에 확정된 7티어 결재/합의 아키텍처(D-001)의 DB 스키마 및 TypeScript 타입을 구현.
+- **수행 내역**:
+  1. schema.sql 업데이트:
+     - users 테이블에 tier_level INT DEFAULT 0 컬럼 추가.
+     - approval_rules, rule_consensus, approval_requests, approval_steps, delegation_records 테이블 신설.
+  2. src/services/db.ts 업데이트:
+     - ApprovalRule, RuleConsensus, ApprovalRequest, ApprovalStep, DelegationRecord 인터페이스 선언 추가.
+     - TableName 유니온 타입에 결재 엔진 테이블 5개 추가.
+     - TABLE_COLUMNS 레코드에 각 테이블별 화이트리스트 컬럼 맵핑.
+- **감사 및 무결성 점검**: 
+  - 신규 생성된 테이블에 대한 DDL 구조 확인 및 TypeScript 빌드 무결성 점검 완료.

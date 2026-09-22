@@ -180,7 +180,8 @@ export interface User {
   passwordHash?: string; // 단순 비교용 평문 패스워드로 시딩
   name: string;
   departmentId: string | null;
-  department?: string; // (legacy or display)
+  department?: string;
+  tier_level?: number; // (legacy or display)
   role: string;
   position?: string;
   status?: 'ACTIVE' | 'LEAVE_OF_ABSENCE' | 'RETIRED';
