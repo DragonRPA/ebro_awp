@@ -1,5 +1,7 @@
 // src/pages/Billings.tsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useSortableData } from '../hooks/useSortableData';
+import { SortableTh } from '../components/SortableTh';
 import { useApp } from '../context/AppContext';
 import { db, Asset, Billing, BillingDetail, ContractHistory, normalizeEndDate, formatContractEndDate } from '../services/db';
 import { Plus, Download, Mail, CheckCircle, Search, DollarSign, Calendar, FileText, Send, Edit3, RotateCcw, AlertTriangle, Check, Layers } from 'lucide-react';
@@ -507,6 +509,24 @@ export const Billings: React.FC = () => {
       .map(id => billingMap.get(id))
       .filter((b): b is Billing => !!b && b.status !== 'REJECTED');
   }, [searchedBillingIds, billings]);
+
+  const enrichedBillings = useMemo(() => {
+    return filteredBillings.map(b => {
+      const supply = b.totalAmount || 0;
+      const vat = Math.round(supply * 0.1);
+      const grandTotal = supply + vat;
+      const unpaidAmount = b.status === 'PAID' ? 0 : grandTotal - (b.paidAmount || 0);
+      const customer = customers.find(c => c.id === b.customerId);
+      return {
+        ...b,
+        customerName: customer ? customer.name : '알 수 없음',
+        grandTotal,
+        unpaidAmount
+      };
+    });
+  }, [filteredBillings, customers]);
+
+  const { items: sortedBillings, requestSort, sortConfig } = useSortableData(enrichedBillings, { key: 'billingYm', direction: 'desc' });
 
   const handleExportExcel = () => {
     const excelData = filteredBillings.map((b, idx) => {
@@ -2199,12 +2219,12 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 <thead>
                   <tr>
                     <th style={{ whiteSpace: 'nowrap', width: '190px' }}>관리</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>청구월</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>고객사</th>
-                    <th style={{ whiteSpace: 'nowrap', textAlign: 'right', paddingRight: '12px' }}>공급가액</th>
-                    <th style={{ whiteSpace: 'nowrap', textAlign: 'right', paddingRight: '12px' }}>청구합계(VAT포함)</th>
-                    <th style={{ whiteSpace: 'nowrap', textAlign: 'right', paddingRight: '12px' }}>미납액</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>상태</th>
+                    <SortableTh label="청구월" sortKey="billingYm" currentSort={sortConfig} onSort={requestSort} style={{ whiteSpace: 'nowrap' }} />
+                    <SortableTh label="고객사" sortKey="customerName" currentSort={sortConfig} onSort={requestSort} style={{ whiteSpace: 'nowrap' }} />
+                    <SortableTh label="공급가액" sortKey="totalAmount" currentSort={sortConfig} onSort={requestSort} style={{ whiteSpace: 'nowrap', paddingRight: '12px' }} align="right" />
+                    <SortableTh label="청구합계(VAT포함)" sortKey="grandTotal" currentSort={sortConfig} onSort={requestSort} style={{ whiteSpace: 'nowrap', paddingRight: '12px' }} align="right" />
+                    <SortableTh label="미납액" sortKey="unpaidAmount" currentSort={sortConfig} onSort={requestSort} style={{ whiteSpace: 'nowrap', paddingRight: '12px' }} align="right" />
+                    <SortableTh label="상태" sortKey="status" currentSort={sortConfig} onSort={requestSort} style={{ whiteSpace: 'nowrap' }} />
                   </tr>
                 </thead>
                 <tbody>
@@ -2214,7 +2234,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                         조회 결과가 없습니다.
                       </td>
                     </tr>
-                  ) : filteredBillings.map(b => {
+                  ) : sortedBillings.map(b => {
                     const supply = b.totalAmount || 0;
                     const vat = Math.round(supply * 0.1);
                     const grandTotal = supply + vat;
