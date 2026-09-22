@@ -176,3 +176,22 @@
 - Vercel 프로덕션 배포는 `main` 브랜치 push 시에만 트리거한다.
 - **Error(실패) 상태 배포 슬롯 관리**: Vercel 빌드/배포 중 `Error` 상태가 발생한 배포 슬롯은 **슬롯 개수 카운터에 포함시키지 않고 발견 즉시 100% 무조건 자동 삭제(Purge)**한다.
 - **Ready(정상) 배포 슬롯 관리**: 정상 동작 중인 배포 슬롯은 항상 **최근 최대 12개 이하**만 상시 청정하게 유효 보존하며, 12개 초과 시 Vercel API/CLI를 호출하여 **가장 오래된 과거 정상 배포 슬롯들을 자동으로 삭제(Purge)**한다.
+
+---
+
+## 🏢 [카테고리 VII] SaaS 멀티테넌트 아키텍처 및 플러그인 확장 정책 (SaaS Multi-Tenant Architecture & Plugin Policy)
+
+### 7.1 통합 단일 코드베이스 및 런타임 동적 플러그인 매핑 원칙 (Single Codebase & Runtime Plugin Registry)
+- 전사 시스템은 다수의 렌탈사(테넌트)를 수용하더라도 **단일 웹 어플리케이션(Single Codebase)과 단일 서버 배포(Single Deployment)**만을 유지한다. 테넌트별로 프로젝트나 브랜치를 분리하여 개별 배포하는 행위를 영구 엄단한다.
+- UI 화면 컴포넌트(ent_assets.tsx, BankMatching.tsx 등) 내부에는 특정 테넌트(예: 기연리프트)에 종속된 하드코딩 파서나 이메일 템플릿 로직을 절대 직접 작성(import)하지 않는다.
+- 모든 테넌트별 고유 비즈니스 로직(은행 입출금 파서, 명세서 파서, 이메일/HTML 템플릿, 거래처별 정산 양식 등)은 오직 src/integrations/[테넌트코드]/ 폴더 내에 캡슐화된 **'테넌트 플러그인(Tenant Plugin)'** 형태로만 개발 및 보존된다.
+- 시스템 접속 시 도메인을 통해 식별된 db.currentTenant.tenantCode를 기반으로 TenantPluginManager가 해당 테넌트의 플러그인을 런타임(실행 시간)에 동적으로 로드 및 주입한다.
+
+### 7.2 테넌트 확장 지시 수용 및 처리 표준 명령체계 (Standard Instruction for Tenant Extension)
+- 사장님께서 **"OO 테넌트의 [은행명/명세서] 파서 규칙 신규 작성/수정해"**라고 지시하시는 경우, 에이전트는 이를 '동적 플러그인 확장/수정 지시'로 즉각 인지하고 아래의 절차를 자동으로 수행해야 한다:
+  1. src/integrations/ 디렉토리 하위에 해당 테넌트 코드에 맞는 폴더(예: oo_rental/)와 구조(parsers, templates 등)가 없다면 신규 생성한다.
+  2. 요구받은 규칙에 따라 테넌트 고유의 파서(ankParser.ts, endorParser.ts 등)나 템플릿(emails.ts) 코드를 작성한다.
+  3. 해당 테넌트의 index.ts (Tenant Plugin Entry)에 작성한 모듈을 레지스트리(Dictionary)에 매핑한다.
+  4. 공통 UI 컴포넌트는 건드리지 않고, 플러그인 매니저가 이를 정상 반환하는지 TypeScript 컴파일(
+pm run build)을 통해 무결성을 검증한다.
+- 개발 및 확장 과정에서 테넌트별 엑셀/PDF 파싱 좌표 등의 메타데이터는 하드코딩을 최소화하고, 가급적 Web ERP 내의 excelMappingRules (JSON)를 참조하여 유연성을 극대화하는 방향(Solution 2)으로 설계한다.
