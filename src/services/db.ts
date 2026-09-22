@@ -902,6 +902,7 @@ export interface Billing {
   status: 'REQUESTED' | 'REJECTED' | 'UNPAID' | 'PARTIAL' | 'PAID';
   rejectReason?: string; // 반려 사유
   isPartial?: boolean;   // 부분 청구 여부 (계약 내 일부 자산만 선택하여 생성한 청구)
+  parentBillingId?: string; // 청구 분할 시 원본 청구서 ID (Audit Trail)
   createdAt: string;
   updatedAt: string;
   // 가상필드

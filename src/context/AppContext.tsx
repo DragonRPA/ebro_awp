@@ -340,6 +340,7 @@ interface AppContextType {
   generateDueBillings: (targetDate?: string, targetYm?: string) => Promise<{ successCount: number; skippedContracts: { contractId: string; customerId: string; reason: string }[] }>;
   generateBillingForSingleContract: (contractId: string, billingYm: string, billingDate: string, selectedContractAssetIds?: string[]) => Promise<string | null>;
   regenerateBilling: (billingId: string, customDetails?: Omit<BillingDetail, 'id' | 'billingId' | 'createdAt'>[], options?: { billingYm?: string; billingDate?: string; memo?: string }) => Promise<string>;
+  splitBillingAbsoluteAmount: (billingId: string, splitAmount: number) => Promise<void>;
   approveBilling: (billingId: string) => Promise<void>; // UNPAID → REQUESTED (거래명세서 발송)
   cancelBilling: (billingId: string, refund?: boolean) => Promise<void>; // 환불=true, 비환불=false(기본)
   addReceivable: (data: Omit<Receivable, 'id' | 'createdAt' | 'updatedAt'>) => string;
@@ -7186,6 +7187,69 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     return newBilling.id;
   };
 
+  const splitBillingAbsoluteAmount = async (billingId: string, splitAmount: number): Promise<void> => {
+    const origBilling = db.billings.find(b => b.id === billingId);
+    if (!origBilling) throw new Error("원본 청구를 찾을 수 없습니다.");
+    if (origBilling.status === 'PAID') throw new Error("이미 수납이 완료된 청구서는 분할할 수 없습니다.");
+    if (splitAmount <= 0 || splitAmount >= origBilling.totalAmount) throw new Error("분할 금액이 유효하지 않습니다.");
+    
+    const now = new Date().toISOString();
+
+    const childBillingId = 'b_' + Date.now().toString() + '_' + Math.floor(Math.random()*1000);
+    db.insertRow<Billing>('billings', {
+      id: childBillingId,
+      billingType: origBilling.billingType,
+      customerId: origBilling.customerId,
+      contractId: origBilling.contractId,
+      invoiceId: origBilling.invoiceId,
+      billingYm: origBilling.billingYm,
+      billingDate: origBilling.billingDate,
+      totalAmount: splitAmount,
+      paidAmount: 0,
+      status: origBilling.status,
+      rejectReason: origBilling.rejectReason,
+      isPartial: origBilling.isPartial,
+      parentBillingId: origBilling.id,
+      createdAt: now,
+      updatedAt: now
+    });
+
+    const childDetailId = 'bd_' + Date.now().toString() + '_' + Math.floor(Math.random()*1000) + 'c';
+    db.insertRow<BillingDetail>('billingDetails', {
+      id: childDetailId,
+      billingId: childBillingId,
+      contractAssetId: undefined,
+      assetId: undefined,
+      itemName: '금액 분할 청구건',
+      quantity: 1,
+      unitPrice: splitAmount,
+      amount: splitAmount,
+      createdAt: now
+    });
+    
+    const subtractDetailId = 'bd_' + Date.now().toString() + '_' + Math.floor(Math.random()*1000);
+    db.insertRow<BillingDetail>('billingDetails', {
+      id: subtractDetailId,
+      billingId: origBilling.id,
+      contractAssetId: undefined,
+      assetId: undefined,
+      itemName: '청구 분할 차감',
+      quantity: 1,
+      unitPrice: -splitAmount,
+      amount: -splitAmount,
+      createdAt: now
+    });
+
+    db.updateRow<Billing>('billings', origBilling.id, {
+      totalAmount: origBilling.totalAmount - splitAmount,
+      updatedAt: now
+    });
+    
+    await db.awaitPendingWrites();
+    refreshAllData();
+  };
+
+
   // v2: 복수 입금건 연동 수납 처리
   const receivePayment = async (billingId: string, data: {
     paymentDate: string;
@@ -10050,7 +10114,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, exchangeOutboundAsset,
       saveSmartDispatch, saveSmartReturn,
       completeTodo, issueExecutiveDirective, resolveExecutiveDirective, cancelExecutiveDirective,
-      generateBillingsForMonth, getDueContractsForBilling, generateDueBillings, generateBillingForSingleContract, regenerateBilling, approveBilling, cancelBilling, receivePayment, cancelPayment, cancelAllPaymentsForBilling, saveBankDeposit, deleteBankDeposit,
+      generateBillingsForMonth, getDueContractsForBilling, generateDueBillings, generateBillingForSingleContract, splitBillingAbsoluteAmount, regenerateBilling, approveBilling, cancelBilling, receivePayment, cancelPayment, cancelAllPaymentsForBilling, saveBankDeposit, deleteBankDeposit,
       addReceivable, generateStandaloneBillingForReceivable, linkReceivableToBilling,
       uploadBankTransactions, matchTransactionManual, batchAutoMatchTransactions, unmatchTransaction, saveMatchingRule, deleteMatchingRule,
       dispatchDelivery, settleDeliveryCost, completeDelivery, completeInboundDelivery,

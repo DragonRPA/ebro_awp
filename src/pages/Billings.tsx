@@ -13,7 +13,7 @@ import { matchHangul } from '../utils/hangulSearch';
 export const Billings: React.FC = () => {
   const {
     billings, billingDetails, customers, contacts, contracts, contractAssets, assets, sites, users, googleConfigs,
-    generateBillingsForMonth, getDueContractsForBilling, generateDueBillings, regenerateBilling, generateBillingForSingleContract,
+    generateBillingsForMonth, getDueContractsForBilling, generateDueBillings, regenerateBilling, generateBillingForSingleContract, splitBillingAbsoluteAmount,
     receivePayment, cancelPayment, cancelAllPaymentsForBilling, hasPermission, currentUser, approveBilling, cancelBilling,
     refreshAllData, showErrorModal, bankTransactions, paymentDepositLinks, payments,
     repairs, linkRepairToBilling, unlinkRepairFromBilling, waiveRepairBilling, cancelRepairWaiver,
@@ -45,6 +45,9 @@ export const Billings: React.FC = () => {
   const [tempPaymentFilter, setTempPaymentFilter] = useState<'ALL' | 'PAID' | 'UNPAID_ANY'>('ALL');
   const [tempMailSentFilter, setTempMailSentFilter] = useState<'ALL' | 'SENT' | 'UNSENT'>('ALL');
   const [tempInvoiceFilter, setTempInvoiceFilter] = useState<'ALL' | 'STANDALONE' | 'INTEGRATED'>('ALL');
+  const [splitModalOpen, setSplitModalOpen] = useState(false);
+  const [splitTargetId, setSplitTargetId] = useState<string | null>(null);
+  const [splitAmountInput, setSplitAmountInput] = useState<string>('');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [contractNoFilter, setContractNoFilter] = useState('');
@@ -652,6 +655,31 @@ export const Billings: React.FC = () => {
   };
 
   // 청구 취소: 환불/비환불 2-path (J-2 원칙)
+  const handleSplitSubmit = async () => {
+    if (!splitTargetId) return;
+    const splitAmount = parseInt(splitAmountInput.replace(/[^0-9]/g, ''), 10);
+    if (isNaN(splitAmount) || splitAmount <= 0) {
+      showErrorModal('분할할 금액을 정확히 입력해 주세요.', '오류');
+      return;
+    }
+    const origBilling = billings.find(b => b.id === splitTargetId);
+    if (!origBilling) return;
+    if (splitAmount >= origBilling.totalAmount) {
+      showErrorModal('분할 금액은 원본 청구 총액보다 작아야 합니다.', '오류');
+      return;
+    }
+
+    try {
+      await splitBillingAbsoluteAmount(splitTargetId, splitAmount);
+      showToast('청구가 성공적으로 분할되었습니다.');
+      setSplitModalOpen(false);
+      setSplitTargetId(null);
+      setSplitAmountInput('');
+    } catch (err: any) {
+      showErrorModal(err.message || String(err), '분할 실패');
+    }
+  };
+
   const handleCancel = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const billing = billings.find(b => b.id === id);
@@ -2260,7 +2288,17 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                             )}
                           </div>
                         </td>
-                        <td style={{ whiteSpace: 'nowrap' }}><strong>{b.billingYm}</strong></td>
+                        <td style={{ whiteSpace: 'nowrap' }}><strong>{b.billingYm}</strong>
+                          {b.parentBillingId && (
+                            <span style={{ marginLeft: '6px', fontSize: '10px', padding: '2px 5px', backgroundColor: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', borderRadius: '4px', fontWeight: 'bold' }} title="분할 생성된 청구건입니다">
+                              ✂️ 분할됨
+                            </span>
+                          )}
+                          {b.details?.some(d => d.amount < 0 && d.itemName.includes('분할')) && !b.parentBillingId && (
+                            <span style={{ marginLeft: '6px', fontSize: '10px', padding: '2px 5px', backgroundColor: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', borderRadius: '4px', fontWeight: 'bold' }} title="일부 금액이 다른 청구서로 분할되었습니다">
+                              ✂️ 분할(원본)
+                            </span>
+                          )}</td>
                         <td style={{ whiteSpace: 'nowrap' }}>
                           <span>{getCustName(b.customerId)}</span>
                           {customers.find(c => c.id === b.customerId)?.transactionStatus === 'BLOCKED' && (
@@ -2385,6 +2423,17 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                           title="이 청구서를 취소하고 계약의 최근 청구 정보를 직전 유효 상태로 롤백합니다."
                         >
                           <RotateCcw size={13} /> 청구 취소
+                        </button>
+                      )}
+                      {canSave && activeBilling.status !== 'PAID' && (
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => { setSplitTargetId(activeBilling.id); setSplitModalOpen(true); }}
+                          style={{ padding: '5px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }}
+                          title="이 청구서를 금액 기준으로 2개의 청구서로 분할합니다."
+                        >
+                          <span>✂️</span> 청구 분할
                         </button>
                       )}
                       <button 
@@ -5171,6 +5220,77 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
         </div>
       )}
 
+      {/* 청구 분할 모달 */}
+      {splitModalOpen && splitTargetId && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(3px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-card)', padding: '24px', borderRadius: '12px',
+            width: '400px', maxWidth: '90%', border: '1px solid var(--border-color)',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+          }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 'bold' }}>청구 분할 (금액 기준)</h3>
+            <div style={{ marginBottom: '16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+              원본 청구서의 금액 중 일부를 덜어내어 <strong>새로운 청구서로 독립</strong>시킵니다.<br />
+              <span style={{ color: 'var(--danger)', fontWeight: 'bold' }}>총액 보존:</span> 분할된 두 청구서의 합은 원본과 동일하게 유지됩니다.
+            </div>
+            
+            {(() => {
+              const origBilling = billings.find(b => b.id === splitTargetId);
+              if (!origBilling) return null;
+              
+              const splitAmount = parseInt(splitAmountInput.replace(/[^0-9]/g, ''), 10) || 0;
+              const remainingAmount = origBilling.totalAmount - splitAmount;
+              
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', backgroundColor: 'var(--bg-main)', borderRadius: '6px' }}>
+                    <span>원본 청구 총액:</span>
+                    <strong>{origBilling.totalAmount.toLocaleString()}원</strong>
+                  </div>
+                  
+                  <div>
+                    <label style={{ fontSize: '12px', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>분할되어 독립할 금액 (새 청구서 B)</label>
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      placeholder="예: 3,000,000"
+                      value={splitAmountInput}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setSplitAmountInput(val ? Number(val).toLocaleString() : '');
+                      }}
+                      style={{ width: '100%', fontSize: '16px', fontWeight: 'bold', textAlign: 'right' }}
+                    />
+                  </div>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', backgroundColor: remainingAmount < 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(99, 102, 241, 0.1)', borderRadius: '6px', border: remainingAmount < 0 ? '1px solid var(--danger)' : '1px solid var(--primary)' }}>
+                    <span>분할 후 원본에 남을 금액 (청구서 A):</span>
+                    <strong style={{ color: remainingAmount < 0 ? 'var(--danger)' : 'var(--primary)' }}>
+                      {remainingAmount.toLocaleString()}원
+                    </strong>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
+                    <button 
+                      className="btn-secondary" 
+                      onClick={() => { setSplitModalOpen(false); setSplitTargetId(null); setSplitAmountInput(''); }}
+                    >취소</button>
+                    <button 
+                      className="btn-primary" 
+                      onClick={handleSplitSubmit}
+                      disabled={splitAmount <= 0 || splitAmount >= origBilling.totalAmount}
+                    >분할 확정</button>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
