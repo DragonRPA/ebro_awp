@@ -1530,18 +1530,33 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       return;
     }
 
-    const targetBillingDate = wizardSearchEndDate <= todayStr ? wizardSearchEndDate : todayStr;
+        const targetBillingDate = wizardSearchEndDate <= todayStr ? wizardSearchEndDate : todayStr;
+    
+    // 1. 귀속월 강제 프롬프트
+    const userYm = window.prompt(
+      '일괄 청구를 생성할 "청구 귀속월"을 입력해주세요.\n(형식: YYYY-MM)\n\n※ 입력하신 월을 기준으로 각 계약별 정산 기간(시작/종료일)이 자동 산정됩니다.',
+      targetYm
+    );
+    if (!userYm) return;
+    if (!/^\d{4}-\d{2}$/.test(userYm)) {
+      showErrorModal('YYYY-MM 형식으로 정확히 입력해주세요. (예: 2026-09)', '형식 오류');
+      return;
+    }
+    const finalTargetYm = userYm;
+
+    // 2. 최종 확인
     const hasExcluded = contractsWithReceivables.length > 0;
     const confirmMessage = hasExcluded
       ? `현재 조회된 정산 대상 계약 총 ${filteredWizardContracts.length}건 중,\n\n` +
-        `✅ 일괄 생성 대상: ${contractsWithoutReceivables.length}건 (외상미수금 없음)\n` +
-        `⚠️ 일괄 생성 제외: ${contractsWithReceivables.length}건 (외상미수금 존재 → 수동 검토 필요)\n\n` +
-        `외상미수금이 없는 ${contractsWithoutReceivables.length}건에 대해 청구서를 일괄 생성하시겠습니까?\n` +
-        `(제외된 ${contractsWithReceivables.length}건은 담당자가 직접 카드를 클릭하여 외상미수금을 선택 후 생성하실 수 있습니다.)`
-      : `현재 조회된 정산 대상 계약 총 ${contractsWithoutReceivables.length}건에 대해 청구서를 일괄 생성하시겠습니까?\n\n` +
+        `▶ 일괄 생성 대상: ${contractsWithoutReceivables.length}건 (외상미수금 없음)\n` +
+        `⚠️ 일괄 생성 제외: ${contractsWithReceivables.length}건 (외상미수금 존재 - 수동 검토 필요)\n\n` +
+        `[청구 귀속월: ${finalTargetYm}]\n` +
+        `외상미수금이 없는 ${contractsWithoutReceivables.length}건에 대해 청구를 일괄 생성하시겠습니까?\n` +
+        `(제외된 ${contractsWithReceivables.length}건은 수동 생성 필요)`
+      : `현재 조회된 정산 대상 계약 총 ${contractsWithoutReceivables.length}건에 대해 청구를 일괄 생성하시겠습니까?\n\n` +
         `- 청구일자: ${targetBillingDate}\n` +
-        `- 청구귀속월: ${targetYm}\n\n` +
-        `생성된 청구서는 [청구 및 수납내역] 탭에서 확인 및 출력하실 수 있습니다.`;
+        `- 청구귀속월: ${finalTargetYm}\n\n` +
+        `생성된 청구서는 [청구 및 수납내역] 탭에서 확인하실 수 있습니다.`;
 
     if (!window.confirm(confirmMessage)) return;
 
@@ -1553,7 +1568,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     try {
       for (const c of contractsWithoutReceivables) {
         try {
-          await generateBillingForSingleContract(c.id, targetYm, targetBillingDate);
+          await generateBillingForSingleContract(c.id, finalTargetYm, targetBillingDate);
           successCount++;
         } catch (err: any) {
           failCount++;
@@ -1586,6 +1601,42 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       setIsBulkGenerating(false);
     }
   };
+
+
+    // 청구 귀속월 변경 시 정산 시작일/종료일 자동 재계산 연동
+  useEffect(() => {
+    if (!selectedContractIdForWizard || !wizardBillingYm) return;
+    const c = contracts.find(x => x.id === selectedContractIdForWizard);
+    if (!c) return;
+    const [targetY, targetM] = wizardBillingYm.split('-').map(Number);
+    const firstOfM = new Date(targetY, targetM - 1, 1);
+    const lastOfM = new Date(targetY, targetM, 0);
+    
+    const startStr = firstOfM.toISOString().split('T')[0];
+    const endStr = lastOfM.toISOString().split('T')[0];
+    
+    let calcStart = startStr;
+    if (c.lastBilledPeriodEnd) {
+      const prevEndObj = new Date(c.lastBilledPeriodEnd);
+      prevEndObj.setDate(prevEndObj.getDate() + 1);
+      calcStart = prevEndObj.toISOString().split('T')[0];
+    } else if (c.startDate > startStr) {
+      calcStart = c.startDate;
+    }
+
+    const normalEnd = normalizeEndDate(c.endDate);
+    let calcEnd = normalEnd < endStr ? normalEnd : endStr;
+
+    if (calcStart > calcEnd) {
+      calcEnd = normalEnd < endStr ? normalEnd : endStr;
+      if (calcStart > calcEnd) {
+        calcEnd = calcStart;
+      }
+    }
+    
+    setWizardStartDate(calcStart);
+    setWizardEndDate(calcEnd);
+  }, [wizardBillingYm, selectedContractIdForWizard, contracts]);
 
   const handleSelectContractForWizard = (c: any) => {
     setSelectedContractIdForWizard(c.id);
