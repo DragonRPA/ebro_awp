@@ -417,13 +417,17 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
                         if (mStatus.success) setMirrorFiles(mStatus.files || []);
                         setSyncMessage(data.message || '동기화 완료');
                       } else {
-                        const res = await executeDriveMirrorSync(googleConfigs?.[0], (msg) => setSyncMessage(msg));
+                        const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
+                        const activeConfig = googleConfigs?.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs?.[0];
+                        const res = await executeDriveMirrorSync(activeConfig, (msg) => setSyncMessage(msg));
                         const mStatus = await getLocalMirrorStatus();
                         if (mStatus.success) setMirrorFiles(mStatus.files || []);
                         setSyncMessage(res.message);
                       }
                     } catch (e: any) {
-                      const res = await executeDriveMirrorSync(googleConfigs?.[0], (msg) => setSyncMessage(msg));
+                      const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
+                      const activeConfig = googleConfigs?.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs?.[0];
+                      const res = await executeDriveMirrorSync(activeConfig, (msg) => setSyncMessage(msg));
                       const mStatus = await getLocalMirrorStatus();
                       if (mStatus.success) setMirrorFiles(mStatus.files || []);
                       setSyncMessage(res.message);

@@ -193,7 +193,8 @@ function createTextCanvasLayer(
  */
 export async function generateContractPdf(data: ContractExcelData): Promise<Uint8Array> {
   const { PDFDocument, rgb } = await import('pdf-lib');
-  const res = await fetch('/templates/임대차계약서_양식_원본.pdf');
+  const tenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
+  const res = await fetch(`/tenants/${tenantId}/templates/임대차계약서_양식_원본.pdf`);
   if (!res.ok) throw new Error(`계약서 원본 템플릿 로드 실패: HTTP ${res.status}`);
 
   const templateBytes = await res.arrayBuffer();
@@ -315,7 +316,8 @@ export async function generateContractPdf(data: ContractExcelData): Promise<Uint
  */
 export async function generateChecklistPdf(data: PreDeliveryChecklistExcelData): Promise<Uint8Array> {
   const { PDFDocument, rgb } = await import('pdf-lib');
-  const res = await fetch('/templates/반입전체크리스트_양식_원본.pdf');
+  const tenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
+  const res = await fetch(`/tenants/${tenantId}/templates/반입자체점검리스트_양식_원본.pdf`);
   if (!res.ok) throw new Error(`체크리스트 원본 템플릿 로드 실패: HTTP ${res.status}`);
 
   const templateBytes = await res.arrayBuffer();
@@ -362,8 +364,9 @@ export async function generateChecklistPdf(data: PreDeliveryChecklistExcelData):
  */
 export async function generateSafetyInspectionPdf(data: SafetyInspectionExcelData): Promise<Uint8Array> {
   const { PDFDocument, rgb } = await import('pdf-lib');
-  const res = await fetch('/templates/안전점검결과서_양식_원본.pdf');
-  if (!res.ok) throw new Error(`안전점검결과서 원본 템플릿 로드 실패: HTTP ${res.status}`);
+  const tenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
+  const res = await fetch(`/tenants/${tenantId}/templates/안전점검결과표_양식_원본.pdf`);
+  if (!res.ok) throw new Error(`안전점검결과표 원본 템플릿 로드 실패: HTTP ${res.status}`);
 
   const templateBytes = await res.arrayBuffer();
   const pdfDoc = await PDFDocument.load(templateBytes);
@@ -495,10 +498,15 @@ export interface TransactionStatementPdfData {
  */
 export async function generateTransactionStatementPdf(data: TransactionStatementPdfData): Promise<Uint8Array> {
   try {
+    const payload = {
+      ...data,
+      excelMappingRules: db.currentTenant?.excelMappingRules
+    };
+    
     const agentResp = await fetch('http://127.0.0.1:5175/api/generate-statement', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+      body: JSON.stringify(payload)
     });
 
     if (agentResp.ok) {
@@ -530,9 +538,10 @@ export async function generateTransactionStatementPdf(data: TransactionStatement
  * - ExcelJS를 통해 셀 단위로 데이터를 주입한 정품 .xlsx 바이너리 반환
  */
 export async function generateTransactionStatementExcel(data: TransactionStatementPdfData): Promise<ArrayBuffer> {
-  const resp = await fetch('/00.거래명세서양식.xlsx');
+  const tenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
+  const resp = await fetch(`/tenants/${tenantId}/templates/00.거래명세서양식.xlsx`);
   if (!resp.ok) {
-    throw new Error('거래명세서 엑셀 마스터 템플릿(00.거래명세서양식.xlsx)을 불러올 수 없습니다.');
+    throw new Error(`거래명세서 엑셀 마스터 템플릿(00.거래명세서양식.xlsx)을 불러올 수 없습니다. (${tenantId})`);
   }
   const templateBytes = await resp.arrayBuffer();
 

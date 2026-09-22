@@ -1,5 +1,6 @@
 // src/components/ContractDocumentBundleModal.tsx
 import React, { useState, useMemo, useEffect } from 'react';
+import { getTenantPlugin } from '../integrations/TenantPluginManager';
 import { useApp } from '../context/AppContext';
 import { 
   X, FileText, Download, Eye, CheckCircle2, AlertCircle, 
@@ -230,8 +231,19 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     const tenantBrand = currentTenant?.displayName || currentTenant?.tradeName || 'e-Bro Lift';
     const tenantCorp = currentTenant?.tradeName || currentTenant?.corporateName || tenantBrand;
     const tenantTel = currentTenant?.tel || '031-334-5296';
-    setEmailSubject(`[${tenantBrand}] ${custName} - ${siteName} 고소작업대 임대차 계약서패키지`);
-    setEmailBody(`안녕하십니까, ${custName} 담당자님.\n${tenantCorp} 영업팀입니다.\n\n요청하신 [${siteName}] 현장 고소작업대 임대차 계약서패키지를 첨부 파일로 송부드립니다.\n\n■ 첨부 서류 구성 (단일 통합 PDF):\n1. 고소작업대 임대차 계약서 (1p)\n2. 자산별 반입 전 CHECK LIST (${mappedAssets.length}대)\n3. 자산별 안전점검 결과서 (${mappedAssets.length}대)\n4. 장비 모델별(${uniqueModelList.join(', ')}) 정규 문서(제원표, 안전인증서, 작동법 등) 일체\n5. 생산물배상책임(PL)보험증권 (계약기간 보증)\n6. 사업자등록증 (CF R2 원본)\n7. 통장사본 (CF R2 원본)\n\n계약 내용 및 장비 제원을 검토해 주시고, 문의사항이 있으시면 언제든 연락 부탁드립니다.\n\n감사합니다.\n${currentTenant?.corporateName || tenantCorp} 배상\n전화: ${tenantTel}`);
+    const plugin = getTenantPlugin(currentTenant?.tenantCode || 'GIYEUN');
+    const emailResult = plugin.templates.emails.contractBundle({
+      custName,
+      tenantCorp,
+      tenantBrand,
+      tenantTel,
+      siteName,
+      mappedAssetsCount: mappedAssets.length,
+      uniqueModelList
+    });
+    
+    setEmailSubject(emailResult.subject);
+    setEmailBody(emailResult.body);
 
     // 생성 결과 초기화
     setGeneratedResult(null);
@@ -304,6 +316,9 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     const siteAddress = site?.address || customer?.address || '현장 주소';
 
     try {
+      const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
+      const config = googleConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs[0];
+
       const bundleOptions = {
         customerName: custName,
         bizRegNo: customer?.bizRegNo || '118-81-00241',
@@ -323,13 +338,14 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         salesRepPhone: '010-9402-5296',
         optionsText: (selectedContract as any).optionsText || (selectedContract as any).remarks || '옵션 협착난간대, 튜브소화기 외',
         assets: mappedAssets.length > 0 ? mappedAssets : undefined,
-        r2Config: googleConfigs[0] ? {
-          accountId: googleConfigs[0].r2AccountId,
-          bucketName: googleConfigs[0].r2BucketName,
-          accessKeyId: googleConfigs[0].r2AccessKeyId,
-          secretAccessKey: googleConfigs[0].r2SecretAccessKey,
-          publicDomain: googleConfigs[0].r2PublicDomain,
+        r2Config: config ? {
+          accountId: config.r2AccountId,
+          bucketName: config.r2BucketName,
+          accessKeyId: config.r2AccessKeyId,
+          secretAccessKey: config.r2SecretAccessKey,
+          publicDomain: config.r2PublicDomain,
         } : undefined,
+        excelMappingRules: currentTenant?.excelMappingRules,
       };
 
       setProgressText('로컬 에이전트 정품 엑셀 엔진 가동 중...');

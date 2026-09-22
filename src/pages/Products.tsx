@@ -60,7 +60,8 @@ export const Products: React.FC = () => {
 
   // Cloudflare R2 문서 목록 로드
   const fetchR2Files = async () => {
-    const config = googleConfigs[0];
+    const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
+    const config = googleConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs[0];
     const accountId = config?.r2AccountId || '35014a2514680107d74e1e68d96e6c32';
     const bucketName = config?.r2BucketName || 'kiyeun-storage';
     const accessKeyId = config?.r2AccessKeyId || '03cdb7560d37242de608a5db2a976030';
@@ -329,7 +330,8 @@ export const Products: React.FC = () => {
 
     setUploadingDoc(true);
     try {
-      const config = googleConfigs[0];
+      const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
+      const config = googleConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs[0];
       const accountId = config?.r2AccountId || '35014a2514680107d74e1e68d96e6c32';
       const bucketName = config?.r2BucketName || 'kiyeun-storage';
       const accessKeyId = config?.r2AccessKeyId || '03cdb7560d37242de608a5db2a976030';
@@ -374,7 +376,8 @@ export const Products: React.FC = () => {
   // R2 문서 삭제
   const handleDeleteDoc = async (key: string) => {
     try {
-      const config = googleConfigs[0];
+      const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
+      const config = googleConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs[0];
       const accountId = config?.r2AccountId || '35014a2514680107d74e1e68d96e6c32';
       const bucketName = config?.r2BucketName || 'kiyeun-storage';
       const accessKeyId = config?.r2AccessKeyId || '03cdb7560d37242de608a5db2a976030';

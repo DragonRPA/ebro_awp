@@ -183,7 +183,8 @@ export const GoogleConfig: React.FC = () => {
 
   // ── 🚀 [살아있는 계약 기반] 3대 핵심 서류 생성 + 구글 드라이브 원본 통합 팩 ──
 
-  const currentConfig = googleConfigs[0];
+  const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
+  const currentConfig = googleConfigs?.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs?.[0];
 
   useEffect(() => {
     if (currentConfig) {
@@ -268,6 +269,7 @@ export const GoogleConfig: React.FC = () => {
       const updated: GoogleConfigType = {
         ...(currentConfig || {}),
         id: configId,
+        tenantId: activeTenantId,
         googleEmail,
         googlePassword: finalPassword,
         gmailAppPassword: finalAppPassword,
@@ -653,7 +655,8 @@ export const GoogleConfig: React.FC = () => {
                     onClick={async () => {
                       const targets = consumablePurchases.filter(p => p.statementFileUrl?.startsWith('http'));
                       if (!targets.length) { alert('백업할 증빙 파일이 없습니다.'); return; }
-                      const config = googleConfigs[0];
+                      const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
+                      const config = googleConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs[0];
                       const clientId = '';
                       const folder = config?.consumableFolder || '소모품납품';
                       setIsDriveBackingUp(true);

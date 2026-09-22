@@ -241,6 +241,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
         // 1) 사법 감사 로그 기록
         db.insertRow<DelinquencyActionLog>('delinquencyActionLogs', {
           customerId: cust.id,
+          actionDate: new Date().toISOString().slice(0, 10),
           actionType: 'LEGAL',
           actionDetails: `[국세청 전수점검] 폐업 확인(폐업일: ${closedDt})에 따른 직권 출고제한(BLOCKED) 조치 발효`,
           recordedBy: currentUser?.name || '시스템',

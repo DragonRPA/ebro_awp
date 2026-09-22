@@ -109,6 +109,11 @@ export const Contracts: React.FC = () => {
   const [statementClosingDay, setStatementClosingDay] = useState(25);
   const [paymentDueDay, setPaymentDueDay] = useState(25);
 
+  // 컬럼 표시 여부 토글 상태
+  const [showPeriodCol, setShowPeriodCol] = useState(false);
+  const [showLastBilledCol, setShowLastBilledCol] = useState(false);
+  const [showBillingCountCol, setShowBillingCountCol] = useState(false);
+
   // 신규 수동입력 세부 폼 상태
   const [newCustName, setNewCustName] = useState('');
   const [newBizRegNo, setNewBizRegNo] = useState('');
@@ -137,6 +142,9 @@ export const Contracts: React.FC = () => {
   const [customDaily, setCustomDaily] = useState(15000);
 
   // --- 💡 모달 팝업 상태들 ---
+  // 0) 체결자산 상세 모달
+  const [showAssetsDetailModalContractId, setShowAssetsDetailModalContractId] = useState<string | null>(null);
+
   // 1) 렌탈료 수정 모달
   const [showFeeModal, setShowFeeModal] = useState(false);
   const [editCaId, setEditCaId] = useState('');
@@ -1629,6 +1637,21 @@ export const Contracts: React.FC = () => {
                   {chip.label}
                 </button>
               ))}
+              
+              <div style={{ display: 'flex', gap: '16px', marginLeft: 'auto', alignItems: 'center' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11.5px', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 600 }}>
+                  <input type="checkbox" checked={showPeriodCol} onChange={e => setShowPeriodCol(e.target.checked)} />
+                  계약기간
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11.5px', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 600 }}>
+                  <input type="checkbox" checked={showLastBilledCol} onChange={e => setShowLastBilledCol(e.target.checked)} />
+                  최근청구기간
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11.5px', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 600 }}>
+                  <input type="checkbox" checked={showBillingCountCol} onChange={e => setShowBillingCountCol(e.target.checked)} />
+                  청구건수
+                </label>
+              </div>
             </div>
           </div>
 
@@ -1644,9 +1667,9 @@ export const Contracts: React.FC = () => {
                     <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('site')}>현장명{sortConfig?.key === 'site' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                     <th style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>출고 진행 현황</th>
                     <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('rentalFee')}>월 렌탈료{sortConfig?.key === 'rentalFee' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
-                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('period')}>계약 기간{sortConfig?.key === 'period' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
-                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('billingPeriod')}>최근 청구 기간{sortConfig?.key === 'billingPeriod' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
-                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('billingCount')}>청구 건수{sortConfig?.key === 'billingCount' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    {showPeriodCol && <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('period')}>계약 기간{sortConfig?.key === 'period' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>}
+                    {showLastBilledCol && <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('billingPeriod')}>최근 청구 기간{sortConfig?.key === 'billingPeriod' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>}
+                    {showBillingCountCol && <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('billingCount')}>청구 건수{sortConfig?.key === 'billingCount' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>}
                     <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('dday')}>만료 D-Day{sortConfig?.key === 'dday' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                     <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('billingDay')}>청구 마감일{sortConfig?.key === 'billingDay' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                     <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('salesperson')}>영업담당{sortConfig?.key === 'salesperson' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
@@ -1657,7 +1680,7 @@ export const Contracts: React.FC = () => {
                 <tbody style={{ whiteSpace: 'nowrap' }}>
                   {sortedContracts.length === 0 ? (
                     <tr>
-                      <td colSpan={14} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
+                      <td colSpan={11 + (showPeriodCol ? 1 : 0) + (showLastBilledCol ? 1 : 0) + (showBillingCountCol ? 1 : 0)} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
                         조회 결과가 없습니다.
                       </td>
                     </tr>
@@ -1676,9 +1699,17 @@ export const Contracts: React.FC = () => {
                         modelCountMap[modelName] = (modelCountMap[modelName] || 0) + 1;
                       });
 
-                      const modelSummaryText = Object.entries(modelCountMap)
-                        .map(([model, count]) => `${model} ${count}대`)
-                        .join(', ');
+                      const models = Object.entries(modelCountMap);
+                      let modelSummaryText = '';
+                      if (models.length === 0) {
+                        modelSummaryText = '미지정';
+                      } else if (models.length === 1) {
+                        modelSummaryText = `${models[0][0]} ${models[0][1]}대`;
+                      } else {
+                        const [firstModel, firstCount] = models[0];
+                        const otherCount = cas.length - firstCount;
+                        modelSummaryText = `${firstModel} 외 ${otherCount}대`;
+                      }
 
                       // 💡 계약별 청구 건수 집계 (휴먼에러 및 청구 누락 방지 교차 검증)
                       const cBillings = (billings || []).filter(b => b.contractId === c.id && b.status !== 'REJECTED');
@@ -1737,39 +1768,43 @@ export const Contracts: React.FC = () => {
                               <span>{totalFee.toLocaleString()}원</span>
                             )}
                           </td>
-                          <td style={{ whiteSpace: 'nowrap' }}>{c.startDate} ~ {formatContractEndDate(c.endDate)}</td>
-                          <td style={{ whiteSpace: 'nowrap' }}>
-                            {c.lastBilledPeriodStart && c.lastBilledPeriodEnd ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <strong style={{ color: 'var(--primary)', fontSize: '12px' }}>
-                                  {c.lastBilledPeriodStart} ~ {c.lastBilledPeriodEnd}
-                                </strong>
-                                {c.lastBillingDate && (
-                                  <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
-                                    ({c.lastBilledYm || ''}월분 / {c.lastBillingDate} 발행)
+                          {showPeriodCol && <td style={{ whiteSpace: 'nowrap' }}>{c.startDate} ~ {formatContractEndDate(c.endDate)}</td>}
+                          {showLastBilledCol && (
+                            <td style={{ whiteSpace: 'nowrap' }}>
+                              {c.lastBilledPeriodStart && c.lastBilledPeriodEnd ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <strong style={{ color: 'var(--primary)', fontSize: '12px' }}>
+                                    {c.lastBilledPeriodStart} ~ {c.lastBilledPeriodEnd}
+                                  </strong>
+                                  {c.lastBillingDate && (
+                                    <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                                      ({c.lastBilledYm || ''}월분 / {c.lastBillingDate} 발행)
+                                    </span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>- (미청구)</span>
+                              )}
+                            </td>
+                          )}
+                          {showBillingCountCol && (
+                            <td style={{ whiteSpace: 'nowrap' }}>
+                              {cBillings.length === 0 ? (
+                                <span className="badge badge-danger" style={{ fontSize: '10.5px' }}>0건 (미청구)</span>
+                              ) : (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <span className="badge badge-info" style={{ fontSize: '10.5px', fontWeight: 700 }}>
+                                    총 {cBillings.length}건
                                   </span>
-                                )}
-                              </div>
-                            ) : (
-                              <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>- (미청구)</span>
-                            )}
-                          </td>
-                          <td style={{ whiteSpace: 'nowrap' }}>
-                            {cBillings.length === 0 ? (
-                              <span className="badge badge-danger" style={{ fontSize: '10.5px' }}>0건 (미청구)</span>
-                            ) : (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <span className="badge badge-info" style={{ fontSize: '10.5px', fontWeight: 700 }}>
-                                  총 {cBillings.length}건
-                                </span>
-                                {unpaidCount > 0 && (
-                                  <span style={{ fontSize: '10.5px', color: 'var(--danger)', fontWeight: 600 }}>
-                                    (미수 {unpaidCount})
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </td>
+                                  {unpaidCount > 0 && (
+                                    <span style={{ fontSize: '10.5px', color: 'var(--danger)', fontWeight: 600 }}>
+                                      (미수 {unpaidCount})
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          )}
                           <td style={{ whiteSpace: 'nowrap' }}>
                             {dday.isWarning ? (
                               <span className="badge badge-danger" style={{ fontSize: '10px' }}>{dday.text}</span>
@@ -1788,8 +1823,14 @@ export const Contracts: React.FC = () => {
                             </span>
                           </td>
                           <td style={{ whiteSpace: 'nowrap' }}>
-                            <strong style={{ color: 'var(--text-primary)' }}>{modelSummaryText || '미지정'}</strong>
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '4px' }}>(총 {cas.length}대)</span>
+                            <div 
+                              style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}
+                              onClick={(e) => { e.stopPropagation(); setShowAssetsDetailModalContractId(c.id); }}
+                              title="클릭하여 체결자산 상세 보기"
+                            >
+                              <strong style={{ color: 'var(--text-primary)' }}>{modelSummaryText || '미지정'}</strong>
+                              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '4px' }}>(총 {cas.length}대)</span>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -2023,9 +2064,21 @@ export const Contracts: React.FC = () => {
                 </div>
                 <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>현장명</label><strong>{getSiteName(activeContract.siteId)}</strong></div>
                 
+                <div>
+                  <label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>현장 담당자</label>
+                  <span>
+                    {(() => {
+                      const site = sites.find(s => s.id === activeContract.siteId);
+                      if (site && site.contactName) {
+                        return `${site.contactName} ${site.contact ? `(${site.contact})` : ''}`;
+                      }
+                      return '-';
+                    })()}
+                  </span>
+                </div>
                 <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>영업담당</label><span>{users.find(u => u.id === activeContract.salespersonId)?.name || '-'}</span></div>
-                <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>청구 / 마감 / 납기일</label>매월 {activeContract.billingDay}일 / {activeContract.statementClosingDay || '-'}일 (납기: 익월 {activeContract.paymentDueDay || 25}일)</div>
                 
+                <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>청구 / 마감 / 납기일</label>매월 {activeContract.billingDay}일 / {activeContract.statementClosingDay || '-'}일 (납기: 익월 {activeContract.paymentDueDay || 25}일)</div>
                 <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>계약 시작일</label><span>{activeContract.startDate}</span></div>
                 <div>
                   <label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>계약 만료일</label>
@@ -2561,6 +2614,74 @@ export const Contracts: React.FC = () => {
           })()}
         </div>
       )}
+
+      {/* 0: 체결 자산 상세 모달 */}
+      {showAssetsDetailModalContractId && (() => {
+        const cId = showAssetsDetailModalContractId;
+        const c = contracts.find(x => x.id === cId);
+        if (!c) return null;
+        const cas = contractAssets.filter(x => x.contractId === cId);
+        
+        return (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowAssetsDetailModalContractId(null)}>
+            <div className="card" style={{ width: '100%', maxWidth: '600px', backgroundColor: 'var(--bg-card)', padding: '20px', maxHeight: '80vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h3 className="card-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Wrench size={16} /> 체결 자산 상세 ({cas.length}대)
+                </h3>
+                <button type="button" onClick={() => setShowAssetsDetailModalContractId(null)} style={{ border: 'none', background: 'none', color: 'var(--text-muted)', fontSize: '20px', cursor: 'pointer' }}>×</button>
+              </div>
+              
+              <div style={{ fontSize: '13px', marginBottom: '12px' }}>
+                고객사: <strong>{getCustName(c.customerId)}</strong> | 현장: <strong>{getSiteName(c.siteId)}</strong>
+              </div>
+              
+              <table className="table" style={{ width: '100%', fontSize: '12px', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                    <th style={{ padding: '8px' }}>장비번호</th>
+                    <th style={{ padding: '8px' }}>모델명</th>
+                    <th style={{ padding: '8px' }}>상태</th>
+                    <th style={{ padding: '8px' }}>월 렌탈료</th>
+                    <th style={{ padding: '8px' }}>일 렌탈료</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cas.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '16px' }}>등록된 체결 자산이 없습니다.</td>
+                    </tr>
+                  ) : (
+                    cas.map(ca => {
+                      const ast = assets.find(a => a.id === ca.assetId);
+                      return (
+                        <tr key={ca.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '8px' }}>{ast?.assetNo ? <strong style={{ color: 'var(--primary)' }}>{ast.assetNo}</strong> : <span style={{ color: 'var(--text-muted)' }}>미배정</span>}</td>
+                          <td style={{ padding: '8px' }}>{ast?.modelName || ca.expectedModel || '미지정'}</td>
+                          <td style={{ padding: '8px' }}>
+                            <span className={`badge ${
+                              ca.status === 'RENTED' ? 'badge-success' : 
+                              ca.status === 'RETURNED' ? 'badge-secondary' : 'badge-warning'
+                            }`} style={{ fontSize: '10px' }}>
+                              {ca.status === 'RENTED' ? '대여중' : 
+                               ca.status === 'RETURNED' ? '반납완료' : 
+                               ca.status === 'DISPATCHED' ? '출고중' : 
+                               ca.status === 'DELIVERED' ? '현장도착' : 
+                               ca.status === 'ASSIGNED' ? '배정됨' : '출고대기'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '8px' }}>{ca.monthlyRentalFee?.toLocaleString() || 0}원</td>
+                          <td style={{ padding: '8px' }}>{ca.dailyRentalFee?.toLocaleString() || 0}원</td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 모달 1: 렌탈료 수정 */}
       {showFeeModal && (

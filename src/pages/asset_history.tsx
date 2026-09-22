@@ -237,7 +237,8 @@ export const AssetHistory: React.FC = () => {
         : (inboundMemo.trim() || '입고 검수 이상 무');
 
       const uploadedPhotoUrls: Record<string, string> = {};
-      const config = googleConfigs[0];
+      const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
+      const config = googleConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs[0];
       const accountId = config?.r2AccountId || '35014a2514680107d74e1e68d96e6c32';
       const bucketName = config?.r2BucketName || 'kiyeun-storage';
       const accessKeyId = config?.r2AccessKeyId || '03cdb7560d37242de608a5db2a976030';

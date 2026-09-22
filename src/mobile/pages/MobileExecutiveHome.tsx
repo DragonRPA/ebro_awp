@@ -109,6 +109,7 @@ export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavi
       if (customerId) {
         db.insertRow<DelinquencyActionLog>('delinquencyActionLogs', {
           customerId: customerId,
+          actionDate: new Date().toISOString().slice(0, 10),
           actionType: 'DIRECTIVE',
           actionDetails: `경영진 모바일 홈 긴급 수금지시 하달: 전담 영업팀 수금 독촉 및 유선 상담 요망 (처리기한: ${dueDate})`,
           recordedBy: currentUser?.name || '대표이사',
@@ -134,6 +135,7 @@ export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavi
       await saveCustomer({ ...cust, transactionStatus: nextStatus });
       db.insertRow<DelinquencyActionLog>('delinquencyActionLogs', {
         customerId: cust.id,
+        actionDate: new Date().toISOString().slice(0, 10),
         actionType: nextStatus === 'BLOCKED' ? 'LEGAL' : 'CALL',
         actionDetails: `경영진 모바일 홈 직권 상태 변경: ${nextStatus === 'BLOCKED' ? '신규 장비 출고금지(BLOCKED)' : '정상거래(ALLOWED) 허용'}`,
         recordedBy: currentUser?.name || '대표이사',

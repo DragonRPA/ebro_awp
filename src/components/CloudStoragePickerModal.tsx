@@ -36,7 +36,8 @@ export const CloudStoragePickerModal: React.FC<CloudStoragePickerModalProps> = (
   initialValue = ''
 }) => {
   const { googleConfigs } = useApp();
-  const config = googleConfigs[0];
+  const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
+  const config = googleConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs[0];
 
   const [activeTab, setActiveTab] = useState<'r2' | 'url'>('r2');
   const [currentPrefix, setCurrentPrefix] = useState<string>('');

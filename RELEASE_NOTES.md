@@ -1,4 +1,10 @@
-﻿## v1.5.0.Build.3 - 2026-09-21 00:18
+﻿## v1.6.0.Build.1 - 2026-09-22 18:33
+- [아키텍처] SaaS 멀티테넌트 확장을 위한 통합 플러그인 레지스트리(Tenant Plugin Manager) 도입
+- [파서] 기존 하드코딩된 기연리프트 은행/명세서 파서를 플러그인 구조(src/integrations/giyeun)로 독립 이관
+- [템플릿] 계약서 및 거래명세서 이메일 발송 템플릿을 테넌트별 플러그인으로 분리하여 동적 생성 적용
+- [명세서] eBroAgent의 명세서(Statement) PDF 생성 기능을 테넌트별 Excel Mapping Rules를 따르도록 동적 개편
+
+## v1.5.0.Build.3 - 2026-09-21 00:18
 - [버그픽스] Vercel 배포 실패를 유발하던 TypeScript 빌드 에러 전면 수정
 - [복구] 인코딩이 깨진 MobileAsCreate.tsx 및 SmartAsRequest.tsx 파일을 정상 커밋(395edab)으로 복원
 

@@ -105,7 +105,30 @@ export interface TenantYard {
 }
 
 /** 🌟 전사 공식 법인 직인 Base64 데이터 */
-export const OFFICIAL_STAMP_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAAAXNSR0IArs4c6QAAAAlwSFlzAAALEwAACxMBAJqcGAAAAadJREFUaEPtmWFOwzAMhW/uA+4/90HACUgIEoc0ad26/lhq1STN19hOqN9SJfFjO/4e3pI3S5F3fFw8bFp97dZz8/G2abfB2wZ7D6/J+69bWJ6L52P7mHy+Xz8+Lx+fr6v6Xv5m9fP69Vrfy//2Wl/L217ra/s5t4/J91+vybE9bHl9TNu3vVbeXsszW/k59pq2r3up1+TYHk2Ove61/e01ObaHLa+PyWvbq63PseW5eE2OpvXl1XNl9dxyZe7/7M9V33t7eW/sPbfvjXXeW8u5+PzcXq7P5er293v7b8u5+O/rZ/bZ+97bf1vXz+yzz/f+3FauXN6eKz/n8q51/cw+++zzvT+3lSuXt+fKz7m8a10/s88++3zvz23lyuXtufJzLu9a18/ss88++3zvz23lyuXtufJzLu9a18/ss88++3zvz23lyuXtufJzLu9a18/ss88++3zvz23lyuXtufJzLu9a18/ss88++3zvz23lyuXtufJzLu9a18/ss88++3zvz23lyuXtufJzLu9a18/ss88++3zvz23lyuXtufJzLu9a/wdzK+i+0EagAAAAABJRU5ErkJggg==';
+export const OFFICIAL_STAMP_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAAAXNSR0IArs4c6QAAAAlwSFlzAAALEwAACxMBAJqcGAAAAadJREFUaEPtmWFOwzAMhW/uA+4/90HACUgIEoc0ad26/lhq1STN19hOqN9SJfFjO/4e3pI3S5F3fFw8bFp97dZz8/G2abfB2wZ7D6/J+69bWJ6L52P7mHy+Xz8+Lx+fr6v6Xv5m9fP69Vrfy//2Wl/L217ra/s5t4/J91+vybE9bHl9TNu3vVbeXsszW/k59pq2r3up1+TYHk2Ove61/e01ObaHLa+PyWvbq63PseW5eE2OpvXl1XNl9dxyZe7/7M9V33t7eW/sPbfvjXXeW8u5+PzcXq7P5er293v7b8u5+O/rZ/bZ+97bf1vXz+yzz/f+3FauXN6eKz/n8q51/cw+++zzvT+3lSuXt+fKz7m8a10/s88++3zvz23lyuXtufJzLu9a18/ss88++3zvz23lyuXtufJzLu9a18/ss88++3zvz23lyuXtufJzLu9a18/ss88++3zvz23lyuXtufJzLu9a18/ss88++3zvz23lyuXtufJzLu9a18/ss88++3zvz23lyuXtufJzLu9a/wdzK+i+0EagAAAAABJRU5ErkJggg==';
+
+export interface TenantExcelMappingRules {
+  // 계약서 패키지 엑셀 매핑 규칙
+  contractAssetsStartRow: number;
+  contractModelCol: number;
+  contractQtyCol: number;
+  contractSnCol: number;
+  contractFeeCol: number;
+  contractAmountCol: number;
+  contractPrintAreaBase: string; // e.g. "A26:K" (the end row will be appended)
+  contractPrintAreaStartRow: number; // e.g. 26
+  
+  // 거래명세서 엑셀 매핑 규칙
+  statementAssetsStartRow: number;
+  statementModelCol: number;
+  statementSnCol: number;
+  statementPeriodCol: number;
+  statementQtyCol: number;
+  statementPriceCol: number;
+  statementAmountCol: number;
+  statementPrintAreaBase: string; // e.g. "A1:J"
+  statementPrintAreaStartRow: number; // e.g. 1
+}
 
 export interface Tenant {
   id: string;                          // 테넌트 고유 ID (예: 'tenant-1' 또는 'tenant-giyeun')
@@ -148,6 +171,7 @@ export interface Tenant {
   isDefault: boolean;                  // 기본 테넌트 여부
   createdAt: string;
   updatedAt?: string;
+  excelMappingRules?: TenantExcelMappingRules;
 }
 
 export interface User {
@@ -1468,6 +1492,7 @@ export interface LegalNoticeTemplate {
 export interface DelinquencyActionLog {
   id: string;
   customerId: string;
+  actionDate: string;
   actionType: 'CALL' | 'NOTICE_SENT' | 'VISIT' | 'LEGAL' | 'DIRECTIVE';
   actionDetails: string;
   proofFileName?: string;
@@ -1558,6 +1583,7 @@ export interface BankAccountInitialBalance {
 
 export interface GoogleConfig {
   id: string;
+  tenantId?: string; // 테넌트 격리 ID
   googleEmail: string;
   googlePassword?: string;
   gmailAppPassword?: string;
@@ -3400,6 +3426,25 @@ export const SEED_TENANTS: Tenant[] = [
     isDefault: true,
     createdAt: '2013-04-03T00:00:00.000Z',
     updatedAt: new Date().toISOString(),
+    excelMappingRules: {
+      contractAssetsStartRow: 44,
+      contractModelCol: 1,
+      contractQtyCol: 3,
+      contractSnCol: 4,
+      contractFeeCol: 5,
+      contractAmountCol: 7,
+      contractPrintAreaBase: "A26:K",
+      contractPrintAreaStartRow: 26,
+      statementAssetsStartRow: 21,
+      statementModelCol: 1,
+      statementSnCol: 2,
+      statementPeriodCol: 3,
+      statementQtyCol: 4,
+      statementPriceCol: 5,
+      statementAmountCol: 8,
+      statementPrintAreaBase: "A1:J",
+      statementPrintAreaStartRow: 1
+    }
   },
 ];
 

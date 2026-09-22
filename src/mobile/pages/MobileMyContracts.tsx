@@ -345,6 +345,12 @@ export const MobileMyContracts: React.FC<MobileMyContractsProps> = ({ onOpenCrea
                       <div className="text-[10px] text-slate-500">만료 상태</div>
                       <div className="font-bold text-amber-300">{selectedContract.dDayText || '-'}</div>
                     </div>
+                    <div>
+                      <div className="text-[10px] text-slate-500">현장 담당자</div>
+                      <div className="font-bold text-slate-200 truncate">
+                        {siteObj?.contactName ? `${siteObj.contactName} ${siteObj.contact ? `(${siteObj.contact})` : ''}` : '-'}
+                      </div>
+                    </div>
                   </div>
                 </div>
 

@@ -45,10 +45,14 @@ class RealGmailService {
   ): Promise<SentEmail> {
 
     // 1. 단일 진실의 원천(SSOT): db.googleConfigs 중 유효한 앱 비밀번호가 있는 설정 우선 조회
-    const dbConfig = db.googleConfigs.find(c => c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•')) || db.googleConfigs[0];
+    const currentTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
+    const tenantConfigs = db.googleConfigs.filter(c => c.tenantId === currentTenantId || !c.tenantId);
+    const dbConfig = tenantConfigs.find(c => c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•')) || tenantConfigs[0] || db.googleConfigs[0];
+    
     const lsVal = localStorage.getItem('erp_googleConfigs');
     const lsConfigs = lsVal ? JSON.parse(lsVal) : [];
-    const lsConfig = Array.isArray(lsConfigs) ? (lsConfigs.find((c: any) => c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•')) || lsConfigs[0]) : null;
+    const lsTenantConfigs = Array.isArray(lsConfigs) ? lsConfigs.filter((c: any) => c.tenantId === currentTenantId || !c.tenantId) : [];
+    const lsConfig = lsTenantConfigs.find((c: any) => c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•')) || lsTenantConfigs[0] || (Array.isArray(lsConfigs) ? lsConfigs[0] : null);
 
     const googleEmail = (
       dbConfig?.googleEmail ||

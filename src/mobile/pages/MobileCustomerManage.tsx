@@ -147,6 +147,7 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
       // 사법 감사 판정 준수: delinquencyActionLogs에 영구 불변 감사 로그 기록
       db.insertRow<DelinquencyActionLog>('delinquencyActionLogs', {
         customerId: c.id,
+        actionDate: new Date().toISOString().slice(0, 10),
         actionType: nextStatus === 'BLOCKED' ? 'LEGAL' : 'CALL',
         actionDetails: nextStatus === 'BLOCKED'
           ? `[${roleLabel}] 신규 장비 출고 및 배차 전면 금지(BLOCKED) 조치 발효`

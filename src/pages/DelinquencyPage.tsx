@@ -457,6 +457,7 @@ export const DelinquencyPage: React.FC = () => {
       // 2. DelinquencyActionLog에 NOTICE_SENT 기록
       await saveDelinquencyAction({
         customerId: noticeTargetDel.customerId,
+        actionDate: new Date().toISOString().slice(0, 10),
         actionType: 'NOTICE_SENT',
         actionDetails: `[내용증명/최고장 발송] ${noticeTitle.trim()} (최고금액: ₩${noticeTargetDel.totalOverdueAmount.toLocaleString()}원, 최고기한: ${noticeDeadlineDays}일)${noticeTrackingNo ? ` (등기번호: ${noticeTrackingNo})` : ''}`,
         recordedBy: currentUser?.name || '경영진',
@@ -485,6 +486,7 @@ export const DelinquencyPage: React.FC = () => {
     try {
       await saveDelinquencyAction({
         customerId: selectedDelinquency.customerId,
+        actionDate: new Date().toISOString().slice(0, 10),
         actionType: newActionType,
         actionDetails: newActionDetails.trim(),
         proofFileName: proofFile,
@@ -537,6 +539,7 @@ export const DelinquencyPage: React.FC = () => {
       // 1. DelinquencyActionLog에 DIRECTIVE 기록
       await saveDelinquencyAction({
         customerId: directiveTargetDel.customerId,
+        actionDate: new Date().toISOString().slice(0, 10),
         actionType: 'DIRECTIVE',
         actionDetails: `[경영진 지시] ${directiveDetails.trim()} (기한: ${directiveDueDate})`,
         recordedBy: currentUser?.name || '경영진',
@@ -587,6 +590,7 @@ export const DelinquencyPage: React.FC = () => {
       // delinquencyActionLogs 불변 감사 기록 (헌장 1.2)
       db.insertRow<DelinquencyActionLog>('delinquencyActionLogs', {
         customerId: customer.id,
+        actionDate: new Date().toISOString().slice(0, 10),
         actionType: nextStatus === 'BLOCKED' ? 'LEGAL' : 'CALL',
         actionDetails: nextStatus === 'BLOCKED'
           ? '[경영진 직권 처분] 신규 장비 출고 및 배차 전면 금지(BLOCKED) 조치 발효'

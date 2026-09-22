@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
 import { db, BankTransaction } from '../services/db';
-import { parseBankExcelFile } from '../services/bankParser';
+import { getTenantPlugin } from '../integrations/TenantPluginManager';
 import { matchHangul, sortCustomersByName } from '../utils/hangulSearch';
 
 // 한글 금액 변환 헬퍼 (공식 입금표용)
@@ -378,12 +378,19 @@ export const BankMatching: React.FC = () => {
     if (!file) return;
 
     try {
-      const parsedResult = await parseBankExcelFile(file);
+      const tenantCode = currentTenant?.tenantCode || 'GIYEUN';
+      const plugin = getTenantPlugin(tenantCode);
+      const parser = plugin.parsers.bank['default'] || plugin.parsers.bank['기업은행'];
+      
+      if (!parser) {
+        throw new Error('해당 테넌트에 등록된 은행 파서가 없습니다.');
+      }
+      
+      const parsedResult = await parser(file);
       if (parsedResult.transactions.length === 0) {
-        showToast('엑셀 파일에서 읽을 수 있는 통장 거래 내역을 찾지 못했습니다.', 'warning');
+        showToast('엑셀 파일에 인식 가능한 거래 내역이 없습니다.', 'warning');
         return;
       }
-
       // 0원 이하 비정상 금액 필터링 및 차단
       const validTxs = parsedResult.transactions.filter(t => (t.depositAmount > 0 || t.withdrawAmount > 0));
       if (validTxs.length === 0) {

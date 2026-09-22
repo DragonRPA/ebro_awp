@@ -1429,12 +1429,12 @@ export const Customers: React.FC = () => {
                     <thead>
                       <tr style={{ backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
                         <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>현장명</th>
+                        <th style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>관리</th>
                         <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>현장 주소</th>
                         <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>현장 소장/담당</th>
                         <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>연락처</th>
-                        <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>유상옵션 / 보양</th>
                         <th style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>상태</th>
-                        <th style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>관리</th>
+                        <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>유상옵션 / 보양</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1462,9 +1462,46 @@ export const Customers: React.FC = () => {
                                   (계약 {activeContracts.length}건 / {activeAssetCount}대)
                                 </span>
                               </td>
+                              <td style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                {canSave && (
+                                  <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                    <button
+                                      type="button"
+                                      className="btn-secondary"
+                                      onClick={() => handleOpenSiteOptionModal(cs)}
+                                      style={{ padding: '1px 5px', fontSize: '10.5px', color: '#0070C0', border: '1px solid rgba(0, 112, 192, 0.3)' }}
+                                      title="현장 전용 유상옵션 및 보양작업 관리"
+                                    >
+                                      옵션
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn-secondary"
+                                      onClick={() => handleOpenEditSite(cs)}
+                                      style={{ padding: '1px 5px', fontSize: '10.5px' }}
+                                    >
+                                      수정
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="btn-secondary"
+                                      onClick={() => handleDeleteSite(cs.id, cs.name)}
+                                      style={{ padding: '1px 5px', fontSize: '10.5px', color: 'var(--danger-color, #ef4444)' }}
+                                      title="현장 삭제"
+                                    >
+                                      삭제
+                                    </button>
+                                  </div>
+                                )}
+                              </td>
                               <td style={{ padding: '5px 6px', whiteSpace: 'nowrap', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cs.address}</td>
                             <td style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>{cs.contactName || '-'}</td>
                             <td style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>{cs.contact || '-'}</td>
+                            <td style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                              <span className={`badge ${cs.isActive !== false ? 'badge-success' : 'badge-secondary'}`} style={{ fontSize: '9.5px' }}>
+                                {cs.isActive !== false ? '가동' : '종료'}
+                              </span>
+                            </td>
                             <td style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>
                               <div 
                                 onClick={() => canSave && handleOpenSiteOptionModal(cs)}
@@ -1499,43 +1536,6 @@ export const Customers: React.FC = () => {
                                   );
                                 })()}
                               </div>
-                            </td>
-                            <td style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                              <span className={`badge ${cs.isActive !== false ? 'badge-success' : 'badge-secondary'}`} style={{ fontSize: '9.5px' }}>
-                                {cs.isActive !== false ? '가동' : '종료'}
-                              </span>
-                            </td>
-                            <td style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                              {canSave && (
-                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                                  <button
-                                    type="button"
-                                    className="btn-secondary"
-                                    onClick={() => handleOpenSiteOptionModal(cs)}
-                                    style={{ padding: '1px 5px', fontSize: '10.5px', color: '#0070C0', border: '1px solid rgba(0, 112, 192, 0.3)' }}
-                                    title="현장 전용 유상옵션 및 보양작업 관리"
-                                  >
-                                    옵션
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="btn-secondary"
-                                    onClick={() => handleOpenEditSite(cs)}
-                                    style={{ padding: '1px 5px', fontSize: '10.5px' }}
-                                  >
-                                    수정
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="btn-secondary"
-                                    onClick={() => handleDeleteSite(cs.id, cs.name)}
-                                    style={{ padding: '1px 5px', fontSize: '10.5px', color: 'var(--danger-color, #ef4444)' }}
-                                    title="현장 삭제"
-                                  >
-                                    삭제
-                                  </button>
-                                </div>
-                              )}
                             </td>
                           </tr>
                         );

@@ -1,6 +1,6 @@
 // src/services/templates.ts
-import { drive } from './drive';
-import { db } from './db';
+import { drive } from '../../../services/drive';
+import { db } from '../../../services/db';
 
 // 테넌트 정보 동적 조회 헬퍼
 function getLessorInfo() {
