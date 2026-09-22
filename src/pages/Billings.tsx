@@ -690,7 +690,10 @@ export const Billings: React.FC = () => {
     }
 
     try {
-      await splitBillingAbsoluteAmount(splitTargetId, splitAmount);
+      const newBillingId = await splitBillingAbsoluteAmount(splitTargetId, splitAmount);
+      if (searchedBillingIds) {
+        setSearchedBillingIds([...searchedBillingIds, newBillingId]);
+      }
       showToast('청구가 성공적으로 분할되었습니다.');
       setSplitModalOpen(false);
       setSplitTargetId(null);

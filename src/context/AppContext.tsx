@@ -340,7 +340,7 @@ interface AppContextType {
   generateDueBillings: (targetDate?: string, targetYm?: string) => Promise<{ successCount: number; skippedContracts: { contractId: string; customerId: string; reason: string }[] }>;
   generateBillingForSingleContract: (contractId: string, billingYm: string, billingDate: string, selectedContractAssetIds?: string[]) => Promise<string | null>;
   regenerateBilling: (billingId: string, customDetails?: Omit<BillingDetail, 'id' | 'billingId' | 'createdAt'>[], options?: { billingYm?: string; billingDate?: string; memo?: string }) => Promise<string>;
-  splitBillingAbsoluteAmount: (billingId: string, splitAmount: number) => Promise<void>;
+  splitBillingAbsoluteAmount: (billingId: string, splitAmount: number) => Promise<string>;
   approveBilling: (billingId: string) => Promise<void>; // UNPAID → REQUESTED (거래명세서 발송)
   cancelBilling: (billingId: string, refund?: boolean) => Promise<void>; // 환불=true, 비환불=false(기본)
   addReceivable: (data: Omit<Receivable, 'id' | 'createdAt' | 'updatedAt'>) => string;
@@ -7187,7 +7187,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     return newBilling.id;
   };
 
-  const splitBillingAbsoluteAmount = async (billingId: string, splitAmount: number): Promise<void> => {
+  const splitBillingAbsoluteAmount = async (billingId: string, splitAmount: number): Promise<string> => {
     const origBilling = db.billings.find(b => b.id === billingId);
     if (!origBilling) throw new Error("원본 청구를 찾을 수 없습니다.");
     if (origBilling.status === 'PAID') throw new Error("이미 수납이 완료된 청구서는 분할할 수 없습니다.");
@@ -7247,6 +7247,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     
     await db.awaitPendingWrites();
     refreshAllData();
+    return childBillingId;
   };
 
 
