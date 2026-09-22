@@ -7,6 +7,8 @@ import {
   Edit, Trash2, X, AlertTriangle, ShieldCheck, FileCheck
 } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 import { 
   Consumable, MechanicConsumableStock, StocktakingAudit, 
   StocktakingAuditItem, CollectedPart, db 
@@ -201,6 +203,57 @@ export const ConsumableStockPage: React.FC = () => {
       grandTotalValue: hqTotalValue + vehicleTotalValue
     };
   }, [consumables, mechanicConsumableStocks]);
+
+  // --- 정렬용 Enriched Data ---
+  const enrichedStock = useMemo(() => {
+    return consumables.filter(c => {
+      return !stockSearch || 
+        c.modelName.toLowerCase().includes(stockSearch.toLowerCase()) || 
+        (c.supplier || '').toLowerCase().includes(stockSearch.toLowerCase());
+    }).map(c => {
+      const totalVehicleQty = (mechanicConsumableStocks || [])
+        .filter(ms => ms.consumableId === c.id)
+        .reduce((sum, ms) => sum + ms.stockQty, 0);
+      const grandQty = (c.stockQty || 0) + totalVehicleQty;
+      const hqValue = (c.stockQty || 0) * (c.unitPrice || 0);
+      return { ...c, totalVehicleQty, grandQty, hqValue };
+    });
+  }, [consumables, stockSearch, mechanicConsumableStocks]);
+
+  const { items: sortedStock, requestSort: requestSortStock, sortConfig: sortConfigStock } = useSortableData(enrichedStock);
+
+  const enrichedVehicleStock = useMemo(() => {
+    return (mechanicConsumableStocks || []).filter(ms => {
+      if (ms.stockQty <= 0) return false;
+      const matchMech = selectedMechanicFilter === 'ALL' || ms.mechanicId === selectedMechanicFilter;
+      const item = consumables.find(c => c.id === ms.consumableId);
+      const matchSearch = !vehicleStockSearch || 
+        (item && item.modelName.toLowerCase().includes(vehicleStockSearch.toLowerCase()));
+      return matchMech && matchSearch;
+    }).map(ms => {
+      const item = consumables.find(c => c.id === ms.consumableId);
+      const mechanic = mechanics.find(m => m.id === ms.mechanicId);
+      const msValue = (ms.stockQty || 0) * (item?.unitPrice || 0);
+      return { ...ms, item, mechanic, msValue };
+    });
+  }, [mechanicConsumableStocks, selectedMechanicFilter, vehicleStockSearch, consumables, mechanics]);
+
+  const { items: sortedVehicleStock, requestSort: requestSortVehicle, sortConfig: sortConfigVehicle } = useSortableData(enrichedVehicleStock);
+
+  const enrichedCollectedParts = useMemo(() => {
+    return collectedParts.filter(p => {
+      const matchDisp = partDispositionFilter === 'ALL' || p.disposition === partDispositionFilter;
+      const matchStatus = partStatusFilter === 'ALL' || p.status === partStatusFilter;
+      const matchSearch = !partSearch || 
+        p.modelName.toLowerCase().includes(partSearch.toLowerCase()) || 
+        p.partNo.toLowerCase().includes(partSearch.toLowerCase());
+      return matchDisp && matchStatus && matchSearch;
+    }).map(p => {
+      return { ...p, quantity: p.quantity }; // Ensure quantity maps for sorting
+    });
+  }, [collectedParts, partDispositionFilter, partStatusFilter, partSearch]);
+
+  const { items: sortedCollectedParts, requestSort: requestSortParts, sortConfig: sortConfigParts } = useSortableData(enrichedCollectedParts);
 
   // --- 엑셀 다운로드 핸들러 ---
   const handleExportStock = () => {
@@ -623,24 +676,20 @@ export const ConsumableStockPage: React.FC = () => {
                 <thead>
                   <tr>
                     <th>No</th>
-                    <th>품목명</th>
-                    <th style={{ textAlign: 'center' }}>주기장 재고</th>
-                    <th style={{ textAlign: 'center' }}>차량 재고</th>
-                    <th style={{ textAlign: 'center' }}>전사 총수량</th>
-                    <th>단위</th>
-                    <th>단가</th>
-                    <th>주기장 평가액</th>
-                    <th>공급처</th>
+                    <SortableTh label="품목명" sortKey="modelName" currentSort={sortConfigStock} onSort={requestSortStock} />
+                    <SortableTh label="주기장 재고" sortKey="stockQty" currentSort={sortConfigStock} onSort={requestSortStock} align="center" />
+                    <SortableTh label="차량 재고" sortKey="totalVehicleQty" currentSort={sortConfigStock} onSort={requestSortStock} align="center" />
+                    <SortableTh label="전사 총수량" sortKey="grandQty" currentSort={sortConfigStock} onSort={requestSortStock} align="center" />
+                    <SortableTh label="단위" sortKey="unit" currentSort={sortConfigStock} onSort={requestSortStock} />
+                    <SortableTh label="단가" sortKey="unitPrice" currentSort={sortConfigStock} onSort={requestSortStock} />
+                    <SortableTh label="주기장 평가액" sortKey="hqValue" currentSort={sortConfigStock} onSort={requestSortStock} />
+                    <SortableTh label="공급처" sortKey="supplier" currentSort={sortConfigStock} onSort={requestSortStock} />
                     <th style={{ textAlign: 'center' }}>관리</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(() => {
-                    const filtered = consumables.filter(c => {
-                      return !stockSearch || 
-                        c.modelName.toLowerCase().includes(stockSearch.toLowerCase()) || 
-                        (c.supplier || '').toLowerCase().includes(stockSearch.toLowerCase());
-                    });
+                    const filtered = sortedStock;
 
                     if (filtered.length === 0) {
                       return (
@@ -797,25 +846,19 @@ export const ConsumableStockPage: React.FC = () => {
               <table>
                 <thead>
                   <tr>
-                    <th>담당 정비사</th>
-                    <th>품목명</th>
-                    <th style={{ textAlign: 'center' }}>차량 적재수량</th>
-                    <th>단위</th>
-                    <th>단가</th>
-                    <th>평가 금액</th>
-                    <th>최종 갱신일</th>
+                    <SortableTh label="담당 정비사" sortKey="mechanic.name" currentSort={sortConfigVehicle} onSort={requestSortVehicle} />
+                    <SortableTh label="품목명" sortKey="item.modelName" currentSort={sortConfigVehicle} onSort={requestSortVehicle} />
+                    <SortableTh label="차량 적재수량" sortKey="stockQty" currentSort={sortConfigVehicle} onSort={requestSortVehicle} align="center" />
+                    <SortableTh label="단위" sortKey="item.unit" currentSort={sortConfigVehicle} onSort={requestSortVehicle} />
+                    <SortableTh label="단가" sortKey="item.unitPrice" currentSort={sortConfigVehicle} onSort={requestSortVehicle} />
+                    <SortableTh label="평가 금액" sortKey="msValue" currentSort={sortConfigVehicle} onSort={requestSortVehicle} />
+                    <SortableTh label="최종 갱신일" sortKey="updatedAt" currentSort={sortConfigVehicle} onSort={requestSortVehicle} />
                     <th style={{ textAlign: 'center' }}>인라인 조치</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(() => {
-                    const filteredList = (mechanicConsumableStocks || []).filter(ms => {
-                      if (ms.stockQty <= 0) return false;
-                      const matchMech = selectedMechanicFilter === 'ALL' || ms.mechanicId === selectedMechanicFilter;
-                      const item = consumables.find(c => c.id === ms.consumableId);
-                      const matchSearch = !vehicleStockSearch || (item?.modelName || '').toLowerCase().includes(vehicleStockSearch.toLowerCase());
-                      return matchMech && matchSearch;
-                    });
+                    const filteredList = sortedVehicleStock;
 
                     if (filteredList.length === 0) {
                       return (
@@ -966,28 +1009,21 @@ export const ConsumableStockPage: React.FC = () => {
               <table>
                 <thead>
                   <tr>
-                    <th>고품 번호</th>
-                    <th>부품 품목명</th>
-                    <th style={{ textAlign: 'center' }}>수량</th>
-                    <th>수거 정비사</th>
-                    <th style={{ textAlign: 'center' }}>처분 구분</th>
-                    <th style={{ textAlign: 'center' }}>처리 상태</th>
-                    <th>수거 일자</th>
-                    <th>조치 일자</th>
-                    <th>조치 메모</th>
+                    <SortableTh label="고품 번호" sortKey="partNo" currentSort={sortConfigParts} onSort={requestSortParts} />
+                    <SortableTh label="부품 품목명" sortKey="modelName" currentSort={sortConfigParts} onSort={requestSortParts} />
+                    <SortableTh label="수량" sortKey="quantity" currentSort={sortConfigParts} onSort={requestSortParts} align="center" />
+                    <SortableTh label="수거 정비사" sortKey="mechanicName" currentSort={sortConfigParts} onSort={requestSortParts} />
+                    <SortableTh label="처분 구분" sortKey="disposition" currentSort={sortConfigParts} onSort={requestSortParts} align="center" />
+                    <SortableTh label="처리 상태" sortKey="status" currentSort={sortConfigParts} onSort={requestSortParts} align="center" />
+                    <SortableTh label="수거 일자" sortKey="receivedDate" currentSort={sortConfigParts} onSort={requestSortParts} />
+                    <SortableTh label="조치 일자" sortKey="actionDate" currentSort={sortConfigParts} onSort={requestSortParts} />
+                    <SortableTh label="조치 메모" sortKey="actionMemo" currentSort={sortConfigParts} onSort={requestSortParts} />
                     <th style={{ textAlign: 'center' }}>조치 액션</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(() => {
-                    const filtered = collectedParts.filter(p => {
-                      const matchDisp = partDispositionFilter === 'ALL' || p.disposition === partDispositionFilter;
-                      const matchStatus = partStatusFilter === 'ALL' || p.status === partStatusFilter;
-                      const matchSearch = !partSearch || 
-                        p.modelName.toLowerCase().includes(partSearch.toLowerCase()) || 
-                        p.partNo.toLowerCase().includes(partSearch.toLowerCase());
-                      return matchDisp && matchStatus && matchSearch;
-                    });
+                    const filtered = sortedCollectedParts;
 
                     if (filtered.length === 0) {
                       return (
