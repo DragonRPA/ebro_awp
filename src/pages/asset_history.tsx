@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
 import { InboundDefectDetail, formatContractEndDate } from '../services/db';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 import { compressImageFile } from '../utils/imageCompressor';
 
 export const AssetHistory: React.FC = () => {
@@ -211,6 +213,8 @@ export const AssetHistory: React.FC = () => {
     }).sort((a, b) => new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime());
   }, [assetInOutLogs, activeTab, selectedAssetId, activeSearchParams, todayStr]);
 
+  const { items: sortedTabLogs, requestSort, sortConfig } = useSortableData(filteredTabLogs);
+
   // 💡 [오타방지 및 유연매칭] 입고 등록용 선택된 자산 정보 및 대여 계약 자동 매칭 탐색
   const inboundTargetAsset = assets.find(a => a.id === selectedInboundAssetId || a.assetNo.toLowerCase() === inboundAssetNoInput.trim().toLowerCase());
   const inboundContractAsset = inboundTargetAsset ? (
@@ -347,7 +351,7 @@ export const AssetHistory: React.FC = () => {
   // 6. 엑셀 다운로드 (정밀 모델명, 현장명, 상세 정비 정보 반영)
   const handleExport = () => {
     const tabName = activeTab === 'OUTBOUND' ? '출고이력' : '입고이력';
-    const excelData = filteredTabLogs.map((log, idx) => ({
+    const excelData = sortedTabLogs.map((log, idx) => ({
       'No': idx + 1,
       '발생일자': log.eventDate,
       '관리번호': log.assetNo,
@@ -912,38 +916,38 @@ export const AssetHistory: React.FC = () => {
                 {activeTab === 'OUTBOUND' && (
                   <tr>
                     <th style={{ whiteSpace: 'nowrap' }}>번호</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>출고일자</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>관리번호</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>모델명</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>고객사 (거래처)</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>현장명</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>비고 / 메모</th>
+                    <SortableTh label="출고일자" sortKey="eventDate" currentSort={sortConfig} onSort={requestSort} />
+                    <SortableTh label="관리번호" sortKey="assetNo" currentSort={sortConfig} onSort={requestSort} />
+                    <SortableTh label="모델명" sortKey="modelName" currentSort={sortConfig} onSort={requestSort} />
+                    <SortableTh label="고객사 (거래처)" sortKey="customerName" currentSort={sortConfig} onSort={requestSort} />
+                    <SortableTh label="현장명" sortKey="siteName" currentSort={sortConfig} onSort={requestSort} />
+                    <SortableTh label="비고 / 메모" sortKey="memo" currentSort={sortConfig} onSort={requestSort} />
                   </tr>
                 )}
                 {activeTab === 'INBOUND' && (
                   <tr>
                     <th style={{ whiteSpace: 'nowrap' }}>번호</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>입고 고유번호</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>입고일자</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>관리번호</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>모델명</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>고객사 (거래처)</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>현장명</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>정비 점수</th>
+                    <SortableTh label="입고 고유번호" sortKey="id" currentSort={sortConfig} onSort={requestSort} />
+                    <SortableTh label="입고일자" sortKey="eventDate" currentSort={sortConfig} onSort={requestSort} />
+                    <SortableTh label="관리번호" sortKey="assetNo" currentSort={sortConfig} onSort={requestSort} />
+                    <SortableTh label="모델명" sortKey="modelName" currentSort={sortConfig} onSort={requestSort} />
+                    <SortableTh label="고객사 (거래처)" sortKey="customerName" currentSort={sortConfig} onSort={requestSort} />
+                    <SortableTh label="현장명" sortKey="siteName" currentSort={sortConfig} onSort={requestSort} />
+                    <SortableTh label="정비 점수" sortKey="totalPenaltyScore" currentSort={sortConfig} onSort={requestSort} />
                     <th style={{ whiteSpace: 'nowrap' }}>불량 증상 상세</th>
                     <th style={{ whiteSpace: 'nowrap' }}>작업</th>
                   </tr>
                 )}
               </thead>
               <tbody>
-                {filteredTabLogs.length === 0 ? (
+                {sortedTabLogs.length === 0 ? (
                   <tr>
                     <td colSpan={activeTab === 'INBOUND' ? 10 : 7} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)' }}>
                       선택한 탭 및 검색 조건에 부합하는 자산 이력 데이터가 존재하지 않습니다.
                     </td>
                   </tr>
                 ) : (
-                    filteredTabLogs.map((log, idx) => {
+                    sortedTabLogs.map((log, idx) => {
                       const parsedDefects: InboundDefectDetail[] = log.defectsJson ? JSON.parse(log.defectsJson) : [];
                       const precisionModel = resolvePrecisionModelName(log.assetId, log.assetNo, log.modelName);
                       return (
