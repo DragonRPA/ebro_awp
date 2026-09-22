@@ -2069,14 +2069,20 @@ export const Contracts: React.FC = () => {
                   <span>
                     {(() => {
                       const site = sites.find(s => s.id === activeContract.siteId);
-                      if (site && site.contactName) {
-                        return `${site.contactName} ${site.contact ? `(${site.contact})` : ''}`;
-                      }
-                      return '-';
+                      return site && site.contactName ? site.contactName : '-';
                     })()}
                   </span>
                 </div>
                 <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>영업담당</label><span>{users.find(u => u.id === activeContract.salespersonId)?.name || '-'}</span></div>
+                
+                <div>
+                  <label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>담당자 연락처</label>
+                  <span>{sites.find(s => s.id === activeContract.siteId)?.contact || '-'}</span>
+                </div>
+                <div>
+                  <label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>담당자 이메일</label>
+                  <span>{sites.find(s => s.id === activeContract.siteId)?.email || '-'}</span>
+                </div>
                 
                 <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>청구 / 마감 / 납기일</label>매월 {activeContract.billingDay}일 / {activeContract.statementClosingDay || '-'}일 (납기: 익월 {activeContract.paymentDueDay || 25}일)</div>
                 <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>계약 시작일</label><span>{activeContract.startDate}</span></div>
