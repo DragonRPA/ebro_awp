@@ -1,5 +1,7 @@
 // d:\Kiyeun_Lift\src\pages\Deliveries.tsx
 import React, { useState } from 'react';
+import { useSortableData } from '../hooks/useSortableData';
+import { SortableTh } from '../components/SortableTh';
 import { useApp } from '../context/AppContext';
 import { Truck, Check, DollarSign, Calendar, Navigation, AlertTriangle, CheckCircle, ShieldAlert, Download, Search, Camera, Upload, Sun, MapPin } from 'lucide-react';
 import { Delivery, db, logPrivacyAccess } from '../services/db';
@@ -191,6 +193,22 @@ export const Deliveries: React.FC = () => {
     const matchesSite = siteFilter === 'ALL' || (deliveryContract?.siteId || '') === siteFilter;
 
     return matchesSearch && matchesType && matchesStatus && matchesSettle && matchesDateStart && matchesDateEnd && matchesTransport && matchesSite;
+  });
+
+  const { items: sortedDeliveries, requestSort: requestDelSort, sortConfig: delSortConfig } = useSortableData(filteredDeliveries, null, (a, key) => {
+    switch(key) {
+      case 'seq': return (a as any).seq || 0;
+      case 'category': return a.dispatchCategory || '';
+      case 'contractNo': return a.contractId || '';
+      case 'customer': return getCustNameFromContract(a.contractId) || '';
+      case 'vehicle': return (a as any).vehicles ? (a as any).vehicles.length : 0;
+      case 'driver': return (a as any).vehicles && (a as any).vehicles.length > 0 ? (a as any).vehicles[0].driverName : '';
+      case 'costEst': return (a as any).vehicles ? (a as any).vehicles.reduce((sum: number, v: any) => sum + (v.deliveryCost || 0), 0) : 0;
+      case 'costConf': return (a as any).vehicles ? (a as any).vehicles.reduce((sum: number, v: any) => sum + (v.deliveryCostConfirmed || v.deliveryCost || 0), 0) : 0;
+      case 'status': return a.status || '';
+      case 'settled': return (a as any).isSettled ? 1 : 0;
+      default: return (a as any)[key] || '';
+    }
   });
 
   const handleExportExcel = () => {
@@ -663,16 +681,16 @@ export const Deliveries: React.FC = () => {
           <thead>
             <tr>
               <th style={{ whiteSpace: 'nowrap' }}>관리</th>
-              <th style={{ whiteSpace: 'nowrap' }}>번호</th>
-              <th style={{ whiteSpace: 'nowrap' }}>구분</th>
-              <th style={{ whiteSpace: 'nowrap' }}>계약번호 / 의뢰메모</th>
-              <th style={{ whiteSpace: 'nowrap' }}>고객사명 / 회수지</th>
-              <th style={{ whiteSpace: 'nowrap' }}>운송 차량</th>
-              <th style={{ whiteSpace: 'nowrap' }}>담당기사/연락처</th>
-              <th style={{ whiteSpace: 'nowrap' }}>운송비(임시)</th>
-              <th style={{ whiteSpace: 'nowrap' }}>운송비(확정)</th>
-              <th style={{ whiteSpace: 'nowrap' }}>배송상태</th>
-              <th style={{ whiteSpace: 'nowrap' }}>용역 정산</th>
+              <SortableTh label="번호" sortKey="seq" currentSort={delSortConfig} onSort={requestDelSort} style={{ whiteSpace: 'nowrap' }} />
+              <SortableTh label="구분" sortKey="category" currentSort={delSortConfig} onSort={requestDelSort} style={{ whiteSpace: 'nowrap' }} />
+              <SortableTh label="계약번호 / 의뢰메모" sortKey="contractNo" currentSort={delSortConfig} onSort={requestDelSort} style={{ whiteSpace: 'nowrap' }} />
+              <SortableTh label="고객사명 / 회수지" sortKey="customer" currentSort={delSortConfig} onSort={requestDelSort} style={{ whiteSpace: 'nowrap' }} />
+              <SortableTh label="배송 차량" sortKey="vehicle" currentSort={delSortConfig} onSort={requestDelSort} style={{ whiteSpace: 'nowrap' }} />
+              <SortableTh label="담당기사/연락처" sortKey="driver" currentSort={delSortConfig} onSort={requestDelSort} style={{ whiteSpace: 'nowrap' }} />
+              <SortableTh label="운송비(임시)" sortKey="costEst" currentSort={delSortConfig} onSort={requestDelSort} style={{ whiteSpace: 'nowrap' }} align="right" />
+              <SortableTh label="운송비(확정)" sortKey="costConf" currentSort={delSortConfig} onSort={requestDelSort} style={{ whiteSpace: 'nowrap' }} align="right" />
+              <SortableTh label="배송상태" sortKey="status" currentSort={delSortConfig} onSort={requestDelSort} style={{ whiteSpace: 'nowrap' }} />
+              <SortableTh label="용역 정산" sortKey="settled" currentSort={delSortConfig} onSort={requestDelSort} style={{ whiteSpace: 'nowrap' }} />
             </tr>
           </thead>
           <tbody>
@@ -683,7 +701,7 @@ export const Deliveries: React.FC = () => {
                 </td>
               </tr>
             ) : (
-              [...filteredDeliveries].reverse().map((d, idx) => {
+              [...sortedDeliveries].reverse().map((d, idx) => {
                 // 외주정비회수 및 일반회수 가독성 바인딩
                 let displayName = getCustNameFromContract(d.contractId);
                 if (displayName === '-' && (d.memo || '').includes('[외주정비회수]')) {
