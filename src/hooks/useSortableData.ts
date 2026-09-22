@@ -6,30 +6,41 @@ export interface SortConfig {
   direction: SortDirection;
 }
 
-export function useSortableData<T>(items: T[], initialConfig: SortConfig | null = null) {
+export function useSortableData<T>(
+  items: T[], 
+  initialConfig: SortConfig | null = null,
+  getSortValue?: (item: T, key: string) => any
+) {
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(initialConfig);
 
   const sortedItems = useMemo(() => {
     let sortableItems = [...items];
     if (sortConfig !== null && sortConfig.direction !== null) {
       sortableItems.sort((a, b) => {
-        // Handle nested keys like "customer.name"
-        const keys = sortConfig.key.split('.');
-        let aValue: any = a;
-        let bValue: any = b;
-        
-        for (const k of keys) {
-          aValue = aValue ? aValue[k as keyof typeof aValue] : undefined;
-          bValue = bValue ? bValue[k as keyof typeof bValue] : undefined;
+        let aValue: any;
+        let bValue: any;
+
+        if (getSortValue) {
+          aValue = getSortValue(a, sortConfig.key);
+          bValue = getSortValue(b, sortConfig.key);
+        } else {
+          // Handle nested keys like "customer.name"
+          const keys = sortConfig.key.split('.');
+          aValue = a;
+          bValue = b;
+          for (const k of keys) {
+            aValue = aValue ? aValue[k as keyof typeof aValue] : undefined;
+            bValue = bValue ? bValue[k as keyof typeof bValue] : undefined;
+          }
         }
 
-        // Handle string comparison (case insensitive)
+        // String comparison
         if (typeof aValue === 'string' && typeof bValue === 'string') {
           const comp = aValue.localeCompare(bValue, 'ko');
           return sortConfig.direction === 'asc' ? comp : -comp;
         }
         
-        // Handle numbers and booleans
+        // Number / Boolean / Date fallback
         if (aValue < bValue) {
           return sortConfig.direction === 'asc' ? -1 : 1;
         }
@@ -40,7 +51,7 @@ export function useSortableData<T>(items: T[], initialConfig: SortConfig | null 
       });
     }
     return sortableItems;
-  }, [items, sortConfig]);
+  }, [items, sortConfig, getSortValue]);
 
   const requestSort = (key: string) => {
     let direction: SortDirection = 'asc';

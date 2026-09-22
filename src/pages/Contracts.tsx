@@ -1,5 +1,7 @@
 // src/pages/Contracts.tsx - 렌탈 계약 관리 (건조하고 직관적인 전문 용어 적용)
 import React, { useState, useMemo, useEffect } from 'react';
+import { useSortableData } from '../hooks/useSortableData';
+import { SortableTh } from '../components/SortableTh';
 import { useApp } from '../context/AppContext';
 import {
   Plus, Calendar, Search, Download, Edit3, Repeat, Clock, Wrench, ChevronLeft,
