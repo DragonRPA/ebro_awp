@@ -15,7 +15,7 @@ import { matchHangul } from '../utils/hangulSearch';
 export const Billings: React.FC = () => {
   const {
     billings, billingDetails, customers, contacts, contracts, contractAssets, assets, sites, users, googleConfigs,
-    generateBillingsForMonth, getDueContractsForBilling, generateDueBillings, regenerateBilling, generateBillingForSingleContract, splitBillingAbsoluteAmount,
+    generateBillingsForMonth, getDueContractsForBilling, generateDueBillings, regenerateBilling, generateBillingForSingleContract, splitBillingAbsoluteAmount, syncContractBillingMilestones,
     receivePayment, cancelPayment, cancelAllPaymentsForBilling, hasPermission, currentUser, approveBilling, cancelBilling,
     refreshAllData, showErrorModal, bankTransactions, paymentDepositLinks, payments,
     repairs, linkRepairToBilling, unlinkRepairFromBilling, waiveRepairBilling, cancelRepairWaiver,
@@ -1915,6 +1915,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       }
 
       // 💡 헌장 5.2 준수: 원격 DB 저장을 동기로 대기하여 데이터 누락 및 무음 실패 100% 방지
+      syncContractBillingMilestones(selectedContractForWizard.id);
       await db.awaitPendingWrites();
 
       // 계약이력 기록
@@ -3225,7 +3226,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                           <span style={{ color: 'var(--text-muted)' }}>직전 청구:</span>
                           {c.lastBilledPeriodStart && c.lastBilledPeriodEnd ? (
                             <strong style={{ color: 'var(--primary)' }}>
-                              {c.lastBilledPeriodStart} ~ {c.lastBilledPeriodEnd}
+                              {c.lastBilledPeriodStart} ~ {c.lastBilledPeriodEnd} {c.lastBilledYm && `(${c.lastBilledYm}월분)`}
                             </strong>
                           ) : (
                             <span className="badge badge-secondary" style={{ fontSize: '10px' }}>최초 청구 대상</span>

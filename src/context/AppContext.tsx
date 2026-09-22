@@ -338,6 +338,7 @@ interface AppContextType {
   generateBillingsForMonth: (billingYm: string, billingDate: string) => Promise<void>;
   getDueContractsForBilling: (targetDate?: string) => { contract: Contract; customer: Customer; site?: CustomerSite; billingDay: number; dueReason: string; targetYm?: string }[];
   generateDueBillings: (targetDate?: string, targetYm?: string) => Promise<{ successCount: number; skippedContracts: { contractId: string; customerId: string; reason: string }[] }>;
+  syncContractBillingMilestones: (contractId?: string) => void;
   generateBillingForSingleContract: (contractId: string, billingYm: string, billingDate: string, selectedContractAssetIds?: string[]) => Promise<string | null>;
   regenerateBilling: (billingId: string, customDetails?: Omit<BillingDetail, 'id' | 'billingId' | 'createdAt'>[], options?: { billingYm?: string; billingDate?: string; memo?: string }) => Promise<string>;
   splitBillingAbsoluteAmount: (billingId: string, splitAmount: number) => Promise<string>;
@@ -6846,7 +6847,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
     targetContracts.forEach(c => {
       const activeBillings = db.billings
-        .filter(b => b.contractId === c.id && b.status !== 'REJECTED')
+        .filter(b => b.contractId === c.id && b.status !== 'REJECTED' && (!b.billingType || b.billingType === 'RENTAL'))
         .sort((a, b) => (b.billingYm || '').localeCompare(a.billingYm || ''));
 
       const count = activeBillings.length;
@@ -10115,7 +10116,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, exchangeOutboundAsset,
       saveSmartDispatch, saveSmartReturn,
       completeTodo, issueExecutiveDirective, resolveExecutiveDirective, cancelExecutiveDirective,
-      generateBillingsForMonth, getDueContractsForBilling, generateDueBillings, generateBillingForSingleContract, splitBillingAbsoluteAmount, regenerateBilling, approveBilling, cancelBilling, receivePayment, cancelPayment, cancelAllPaymentsForBilling, saveBankDeposit, deleteBankDeposit,
+      generateBillingsForMonth, getDueContractsForBilling, generateDueBillings, generateBillingForSingleContract, syncContractBillingMilestones, splitBillingAbsoluteAmount, regenerateBilling, approveBilling, cancelBilling, receivePayment, cancelPayment, cancelAllPaymentsForBilling, saveBankDeposit, deleteBankDeposit,
       addReceivable, generateStandaloneBillingForReceivable, linkReceivableToBilling,
       uploadBankTransactions, matchTransactionManual, batchAutoMatchTransactions, unmatchTransaction, saveMatchingRule, deleteMatchingRule,
       dispatchDelivery, settleDeliveryCost, completeDelivery, completeInboundDelivery,
