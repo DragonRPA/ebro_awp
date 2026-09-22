@@ -1842,17 +1842,20 @@ ALTER TABLE walkie_channels ENABLE ROW LEVEL SECURITY;
 
 
 -- =================================================================================
+
+
+-- =================================================================================
 -- [APPROVAL ENGINE] 결재 엔진 및 합의 라우팅 테이블
 -- =================================================================================
 
 CREATE TABLE IF NOT EXISTS approval_rules (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL, -- FK to tenants (if tenant architecture applies)
-    event_code TEXT NOT NULL, -- 업무 이벤트 식별자 (예: ASSET_DISPOSAL)
+    tenant_id TEXT NOT NULL DEFAULT 'giyeun',
+    event_code TEXT NOT NULL,
     event_name TEXT NOT NULL,
     description TEXT,
-    is_enabled BOOLEAN DEFAULT true, -- ON/OFF. FALSE면 즉시 승인(Tier 0)
-    required_tier INT DEFAULT 0, -- 전결 완료 기준 티어 (0~7)
+    is_enabled BOOLEAN DEFAULT true,
+    required_tier INT DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
@@ -1860,24 +1863,24 @@ CREATE TABLE IF NOT EXISTS approval_rules (
 CREATE TABLE IF NOT EXISTS rule_consensus (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     rule_id UUID REFERENCES approval_rules(id) ON DELETE CASCADE,
-    trigger_after_tier INT NOT NULL, -- 이 수직 결재 티어가 완료된 직후 발동
-    target_dept_id UUID REFERENCES departments(id) ON DELETE CASCADE,
-    consensus_tier INT NOT NULL, -- 해당 부서 내 합의를 요구할 티어
-    execution_type TEXT DEFAULT 'PARALLEL', -- SEQUENTIAL | PARALLEL
+    trigger_after_tier INT NOT NULL,
+    target_dept_id TEXT REFERENCES departments(id) ON DELETE CASCADE,
+    consensus_tier INT NOT NULL,
+    execution_type TEXT DEFAULT 'PARALLEL',
     seq_order INT DEFAULT 1,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
 CREATE TABLE IF NOT EXISTS approval_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id UUID NOT NULL,
+    tenant_id TEXT NOT NULL DEFAULT 'giyeun',
     rule_id UUID REFERENCES approval_rules(id) ON DELETE CASCADE,
-    originator_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    target_record_id UUID NOT NULL, -- 결재 대상 레코드 ID
+    originator_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+    target_record_id TEXT NOT NULL,
     target_table TEXT NOT NULL,
-    status TEXT DEFAULT 'PENDING', -- PENDING | APPROVED | REJECTED
+    status TEXT DEFAULT 'PENDING',
     current_step INT DEFAULT 1,
-    escalated_tier INT, -- 기안자 상향 시 반영
+    escalated_tier INT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
@@ -1886,9 +1889,9 @@ CREATE TABLE IF NOT EXISTS approval_steps (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     request_id UUID REFERENCES approval_requests(id) ON DELETE CASCADE,
     step_index INT NOT NULL,
-    step_type TEXT NOT NULL, -- VERTICAL | CONSENSUS
-    approver_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    status TEXT DEFAULT 'PENDING', -- PENDING | APPROVED | REJECTED
+    step_type TEXT NOT NULL,
+    approver_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+    status TEXT DEFAULT 'PENDING',
     tier_level INT NOT NULL,
     comment TEXT,
     acted_at TIMESTAMP WITH TIME ZONE,
@@ -1897,11 +1900,17 @@ CREATE TABLE IF NOT EXISTS approval_steps (
 
 CREATE TABLE IF NOT EXISTS delegation_records (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    delegator_id UUID REFERENCES users(id) ON DELETE CASCADE,
-    delegate_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    delegator_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+    delegate_id TEXT REFERENCES users(id) ON DELETE CASCADE,
     valid_from DATE NOT NULL,
     valid_until DATE NOT NULL,
     reason TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
-    CONSTRAINT delegate_tier_check CHECK (delegate_id != delegator_id) -- In reality needs complex check, simplified for schema
+    CONSTRAINT delegate_tier_check CHECK (delegate_id != delegator_id)
 );
+
+ALTER TABLE approval_rules ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rule_consensus ENABLE ROW LEVEL SECURITY;
+ALTER TABLE approval_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE approval_steps ENABLE ROW LEVEL SECURITY;
+ALTER TABLE delegation_records ENABLE ROW LEVEL SECURITY;
