@@ -17710,3 +17710,6 @@ PostgreSQL DB ??덇볼??`billings_status_check` ??뽯튋 鈺곌퀗援??野껉퀣
 - **?⑤씪??援щℓ ?꾨찓???먮룞 遺꾩꽍**: 援щℓ URL ?꾨찓?몄쓣 遺꾩꽍?섏뿬 留ㅼ엯泥? 寃곗젣諛⑹떇(踰뺤씤移대뱶/?몄긽), ?먮ℓ?먮챸???먮룞 ?좊떦?섎뒗 湲곕뒫 ?곸슜.
 - **?먯궛 洹몃９??諛?留덉뒪??移댄깉濡쒓렇 蹂묓빀 以鍮?*: ?뚮え??援щℓ ?뺤궛 濡쒖쭅 怨좊룄??諛?酉곗뼱 UI 理쒖쟻???곸슜.
 
+
+### [v1.0.1.Build.141] 2026-09-22 13:22
+- **Grid Header Sorting**: Implement table header sorting for the grid in Contracts.tsx, allowing toggle between ascending, descending, and no sorting. Fixed related TypeScript type errors for illingPeriod and illingDay.

@@ -425,6 +425,98 @@ export const Contracts: React.FC = () => {
     });
   }, [contracts, contractAssets, assets, customers, sites, contacts, searchTerm, contractTypeFilter, statusFilter, customerFilter, siteFilter, startDateFilter, endDateFilter, quickChipFilter, deliveries, outboundInspections, contractHistory, currentUser]);
 
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key) {
+      if (sortConfig.direction === 'asc') {
+        direction = 'desc';
+      } else {
+        setSortConfig(null);
+        return;
+      }
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedContracts = useMemo(() => {
+    let sortable = [...filteredContracts];
+    if (sortConfig !== null) {
+      sortable.sort((a, b) => {
+        let aValue: any = '';
+        let bValue: any = '';
+
+        switch(sortConfig.key) {
+          case 'contractNo':
+            aValue = a.contractNo;
+            bValue = b.contractNo;
+            break;
+          case 'customer':
+            aValue = getCustName(a.customerId);
+            bValue = getCustName(b.customerId);
+            break;
+          case 'site':
+            aValue = getSiteName(a.siteId);
+            bValue = getSiteName(b.siteId);
+            break;
+          case 'rentalFee': {
+            const casA = contractAssets.filter(ca => ca.contractId === a.id);
+            aValue = casA.reduce((sum, ca) => sum + (ca.monthlyRentalFee || 0), 0);
+            const casB = contractAssets.filter(ca => ca.contractId === b.id);
+            bValue = casB.reduce((sum, ca) => sum + (ca.monthlyRentalFee || 0), 0);
+            break;
+          }
+          case 'period':
+            aValue = a.startDate || '';
+            bValue = b.startDate || '';
+            break;
+          case 'billingPeriod': {
+            aValue = a.lastBilledPeriodEnd || '';
+            bValue = b.lastBilledPeriodEnd || '';
+            break;
+          }
+          case 'billingCount': {
+            aValue = a.billingCount || 0;
+            bValue = b.billingCount || 0;
+            break;
+          }
+          case 'dday':
+             aValue = a.endDate || '';
+             bValue = b.endDate || '';
+             break;
+          case 'billingDay':
+             aValue = a.billingDay || 0;
+             bValue = b.billingDay || 0;
+             break;
+          case 'salesperson':
+            aValue = users.find(u => u.id === a.salespersonId)?.name || '';
+            bValue = users.find(u => u.id === b.salespersonId)?.name || '';
+            break;
+          case 'status':
+            aValue = a.status;
+            bValue = b.status;
+            break;
+          case 'assets': {
+            const casA = contractAssets.filter(ca => ca.contractId === a.id);
+            aValue = casA.length;
+            const casB = contractAssets.filter(ca => ca.contractId === b.id);
+            bValue = casB.length;
+            break;
+          }
+        }
+
+        if (aValue === null) aValue = '';
+        if (bValue === null) bValue = '';
+
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return sortable;
+  }, [filteredContracts, sortConfig, contractAssets, billings, users]);
+
   // 💡 출고 진행 중인 계약 건수 (운송 완료 전)
   const pendingDeliveryCount = useMemo(() => {
     return contracts.filter(c => {
@@ -1547,30 +1639,30 @@ export const Contracts: React.FC = () => {
                 <thead>
                   <tr style={{ backgroundColor: 'var(--bg-app)', whiteSpace: 'nowrap' }}>
                     <th style={{ textAlign: 'center', whiteSpace: 'nowrap', width: '80px' }}>상세 보기</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>계약번호</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>고객사명</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>현장명</th>
+                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('contractNo')}>계약번호{sortConfig?.key === 'contractNo' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('customer')}>고객사명{sortConfig?.key === 'customer' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('site')}>현장명{sortConfig?.key === 'site' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                     <th style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>출고 진행 현황</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>월 렌탈료</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>계약 기간</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>최근 청구 기간</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>청구 건수</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>만료 D-Day</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>청구 마감일</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>영업담당</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>상태</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>체결 자산</th>
+                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('rentalFee')}>월 렌탈료{sortConfig?.key === 'rentalFee' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('period')}>계약 기간{sortConfig?.key === 'period' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('billingPeriod')}>최근 청구 기간{sortConfig?.key === 'billingPeriod' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('billingCount')}>청구 건수{sortConfig?.key === 'billingCount' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('dday')}>만료 D-Day{sortConfig?.key === 'dday' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('billingDay')}>청구 마감일{sortConfig?.key === 'billingDay' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('salesperson')}>영업담당{sortConfig?.key === 'salesperson' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('status')}>상태{sortConfig?.key === 'status' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('assets')}>체결 자산{sortConfig?.key === 'assets' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                   </tr>
                 </thead>
                 <tbody style={{ whiteSpace: 'nowrap' }}>
-                  {filteredContracts.length === 0 ? (
+                  {sortedContracts.length === 0 ? (
                     <tr>
                       <td colSpan={14} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
                         조회 결과가 없습니다.
                       </td>
                     </tr>
                   ) : (
-                    filteredContracts.map(c => {
+                    sortedContracts.map(c => {
                       const cas = contractAssets.filter(ca => ca.contractId === c.id);
                       const totalFee = cas.reduce((sum, ca) => sum + (ca.monthlyRentalFee || 0), 0);
                       const dday = getDDayText(c.endDate);
