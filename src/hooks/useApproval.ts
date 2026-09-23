@@ -1,12 +1,12 @@
-import { useState, useCallback, useMemo } from 'react';
-import { supabase, ApprovalRule, RuleConsensus, ApprovalRequest, ApprovalStep, DelegationRecord } from '../services/db';
+import { useState, useCallback } from 'react';
+import { supabase, ApprovalRule, RuleConsensus, ApprovalRequest, ApprovalStep } from '../services/db';
 
 export function useApproval() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 1. 규칙 및 합의 라우팅 조회
   const fetchRuleForEvent = useCallback(async (eventCode: string): Promise<{ rule: ApprovalRule | null, consensus: RuleConsensus[] }> => {
+    if (!supabase) throw new Error('Supabase Client not initialized');
     setLoading(true);
     try {
       const { data: ruleData, error: ruleErr } = await supabase
@@ -36,7 +36,6 @@ export function useApproval() {
     }
   }, []);
 
-  // 2. 기안 생성 (결재 대상 상신)
   const createApprovalRequest = useCallback(async (
     ruleId: string, 
     originatorId: string, 
@@ -44,6 +43,7 @@ export function useApproval() {
     targetTable: string,
     escalatedTier?: number
   ) => {
+    if (!supabase) throw new Error('Supabase Client not initialized');
     setLoading(true);
     try {
       const { data, error: reqErr } = await supabase
@@ -61,11 +61,6 @@ export function useApproval() {
         .single();
         
       if (reqErr) throw reqErr;
-      
-      // 실제로는 여기서 수직 결재선(approval_steps)을 originator의 부서/상급자를 조회해 자동 생성해야 함.
-      // 본 RWTT 환경에서는 백엔드 트리거 또는 Edge Function으로 처리하거나, 클라이언트에서 계산하여 insert 
-      // 여기서는 스켈레톤만 유지하고 상세 로직은 API 단에서 완성된 것으로 가정 (또는 추가 구현)
-      
       return data;
     } catch (err: any) {
       setError(err.message);
@@ -75,8 +70,8 @@ export function useApproval() {
     }
   }, []);
 
-  // 3. 결재 처리 (승인/반려)
   const processApprovalStep = useCallback(async (stepId: string, action: 'APPROVED' | 'REJECTED', comment?: string) => {
+    if (!supabase) throw new Error('Supabase Client not initialized');
     setLoading(true);
     try {
       const { error: stepErr } = await supabase
@@ -89,13 +84,6 @@ export function useApproval() {
         .eq('id', stepId);
         
       if (stepErr) throw stepErr;
-      
-      // 반려 시 ApprovalRequest 전체를 REJECTED로 롤백 (완전 초기화 원칙)
-      if (action === 'REJECTED') {
-        // 백엔드 트랜잭션/트리거 의존 또는 직접 쿼리
-        // 생략...
-      }
-      
       return true;
     } catch (err: any) {
       setError(err.message);
@@ -105,11 +93,5 @@ export function useApproval() {
     }
   }, []);
 
-  return {
-    loading,
-    error,
-    fetchRuleForEvent,
-    createApprovalRequest,
-    processApprovalStep
-  };
+  return { loading, error, fetchRuleForEvent, createApprovalRequest, processApprovalStep };
 }

@@ -9,8 +9,9 @@ const ApprovalRulesManage: React.FC = () => {
   const [newReqTier, setNewReqTier] = useState(0);
 
   const fetchRules = async () => {
+    if (!supabase) return;
     setLoading(true);
-    const { data } = await supabase!.from('approval_rules').select('*').order('created_at', { ascending: false });
+    const { data } = await supabase.from('approval_rules').select('*').order('created_at', { ascending: false });
     if (data) setRules(data);
     setLoading(false);
   };
@@ -20,9 +21,10 @@ const ApprovalRulesManage: React.FC = () => {
   }, []);
 
   const handleAddRule = async () => {
+    if (!supabase) return alert('DB 오류');
     if (!newEventCode || !newEventName) return alert('이벤트 코드와 명칭을 입력하세요.');
     setLoading(true);
-    const { error } = await supabase!.from('approval_rules').insert({
+    const { error } = await supabase.from('approval_rules').insert({
       event_code: newEventCode,
       event_name: newEventName,
       required_tier: newReqTier,
@@ -38,14 +40,14 @@ const ApprovalRulesManage: React.FC = () => {
   };
 
   const handleToggle = async (id: string, current: boolean) => {
-    await supabase!.from('approval_rules').update({ is_enabled: !current }).eq('id', id);
+    if (!supabase) return;
+    await supabase.from('approval_rules').update({ is_enabled: !current }).eq('id', id);
     fetchRules();
   };
 
   return (
     <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
       <h2 style={{ marginBottom: '16px', fontSize: '18px', fontWeight: 'bold' }}>결재선 규칙 설정</h2>
-      
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexDirection: 'column' }}>
         <div style={{ display: 'flex', gap: '8px' }}>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -89,14 +91,11 @@ const ApprovalRulesManage: React.FC = () => {
             </tr>
           ))}
           {rules.length === 0 && (
-            <tr>
-              <td colSpan={4} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>설정된 결재선 규칙이 없습니다.</td>
-            </tr>
+            <tr><td colSpan={4} style={{ padding: '20px', textAlign: 'center', color: '#888' }}>설정된 결재선 규칙이 없습니다.</td></tr>
           )}
         </tbody>
       </table>
     </div>
   );
 };
-
 export default ApprovalRulesManage;
