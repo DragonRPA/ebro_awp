@@ -5200,3 +5200,11 @@ pm run build: **TypeScript 0 Error, 번들링 정상 완료 (uilt in 1.13s)**.
      - TABLE_COLUMNS 레코드에 각 테이블별 화이트리스트 컬럼 맵핑.
 - **감사 및 무결성 점검**: 
   - 신규 생성된 테이블에 대한 DDL 구조 확인 및 TypeScript 빌드 무결성 점검 완료.
+
+## [기능 구현] 결재 엔진 프론트엔드 UI 구축 (RWTT 기반 마련)
+- **개요**: D-001 스키마를 바탕으로 실제 사용자 조작(RWTT)이 가능하도록 결재선 설정 및 승인/반려 UI를 구현.
+- **수행 내역**:
+  1. ApprovalRulesManage.tsx (관리자 결재선 설정 화면)
+  2. ApprovalInbox.tsx (내 결재함 화면)
+  3. useApproval.ts 코어 로직 훅 고도화
+  4. App.tsx 메뉴 등록

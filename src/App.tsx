@@ -7,7 +7,7 @@ import {
   TrendingUp, Clock, AlertTriangle, Building2, ChevronDown, ChevronRight, Briefcase, Box, FolderKanban, ShieldAlert, Terminal, ArrowLeftRight, CheckSquare,
   Smartphone, Monitor, Car, FileText, Search, Printer, PackagePlus, Boxes, Calendar, Camera, BookOpen,
   FileCheck, ShieldCheck, Bot
-} from 'lucide-react';
+, CheckCircle, Settings as SettingsIcon } from 'lucide-react';
 
 import { WeatherWidget } from './components/WeatherWidget';
 import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';

@@ -174,6 +174,67 @@ export interface Tenant {
   excelMappingRules?: TenantExcelMappingRules;
 }
 
+
+export interface ApprovalRule {
+  id?: string;
+  tenant_id?: string;
+  event_code: string;
+  event_name: string;
+  description?: string;
+  is_enabled: boolean;
+  required_tier: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface RuleConsensus {
+  id?: string;
+  rule_id: string;
+  trigger_after_tier: number;
+  target_dept_id: string;
+  consensus_tier: number;
+  execution_type: 'SEQUENTIAL' | 'PARALLEL';
+  seq_order: number;
+  created_at?: string;
+}
+
+export interface ApprovalRequest {
+  id?: string;
+  tenant_id?: string;
+  rule_id: string;
+  originator_id: string;
+  target_record_id: string;
+  target_table: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  current_step: number;
+  escalated_tier?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ApprovalStep {
+  id?: string;
+  request_id: string;
+  step_index: number;
+  step_type: 'VERTICAL' | 'CONSENSUS';
+  approver_id: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  tier_level: number;
+  comment?: string;
+  acted_at?: string;
+  created_at?: string;
+}
+
+export interface DelegationRecord {
+  id?: string;
+  delegator_id: string;
+  delegate_id: string;
+  valid_from: string;
+  valid_until: string;
+  reason?: string;
+  created_at?: string;
+}
+
 export interface User {
   id: string;
   loginId?: string;
