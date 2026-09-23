@@ -1,4 +1,5 @@
 // src/pages/Customers.tsx - 전사 표준 헌장 준수 거래처 고객사 및 현장/담당자 마스터 스튜디오
+import { useApproval } from '../hooks/useApproval';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
@@ -399,13 +400,31 @@ export const Customers: React.FC = () => {
     setShowCustModal(true);
   };
 
+  const { createApprovalRequest, fetchRuleForEvent } = useApproval();
+
   const handleSaveCustSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCust || !editingCust.name) return;
 
     try {
+      const isNew = !editingCust.id;
       const saved = await saveCustomer(editingCust as Omit<Customer, 'id' | 'createdAt'>);
-      showToast(`고객사 [${saved.name}] 정보가 저장되었습니다.`);
+      
+      // 결재선(RWTT 용): 신규 고객 등록 시 CUSTOMER_REGISTRATION 결재 태우기
+      if (isNew) {
+        const { rule } = await fetchRuleForEvent('CUSTOMER_REGISTRATION');
+        if (rule) {
+          await createApprovalRequest(
+            rule.id!,
+            currentUser?.id || 'usr-admin',
+            saved.id!,
+            'customers',
+            rule.required_tier // 기본 결재선 티어
+          );
+        }
+      }
+
+      showToast(`고객사 [${saved.name}] 정보가 저장되었습니다.${isNew ? ' (결재 상신 완료)' : ''}`);
       setShowCustModal(false);
       setEditingCust(null);
       setSelectedCustomerId(saved.id);
