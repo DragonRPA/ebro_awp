@@ -10,6 +10,8 @@ import {
 , CheckCircle, Settings as SettingsIcon } from 'lucide-react';
 
 import { WeatherWidget } from './components/WeatherWidget';
+import ApprovalRulesManage from './pages/ApprovalRulesManage';
+import ApprovalInbox from './pages/ApprovalInbox';
 import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
 import { PrivacyAuditPage } from './pages/PrivacyAuditPage';
 import { AgenticAiLabPage } from './pages/AgenticAiLabPage';
@@ -250,6 +252,15 @@ const App: React.FC = () => {
 
   // 계층형 상위-하위 아코디언 메뉴 구조 정의 (유저 지정 규격)
   const menuGroups: MenuGroup[] = [
+    {
+      id: 'grp_approval',
+      name: '결재 센터',
+      icon: <CheckCircle size={18} />,
+      items: [
+        { id: 'approvalInbox', name: '내 결재함 (수신)', icon: <CheckCircle size={16} />, component: <ApprovalInbox /> },
+        { id: 'approvalRules', name: '결재선 규칙 설정', icon: <SettingsIcon size={16} />, component: <ApprovalRulesManage /> },
+      ]
+    },
     {
       id: 'grp_sales',
       name: '영업관리',
