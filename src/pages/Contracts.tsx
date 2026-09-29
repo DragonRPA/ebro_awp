@@ -1760,6 +1760,16 @@ export const Contracts: React.FC = () => {
                             })}
                           </td>
                           <td style={{ whiteSpace: 'nowrap' }}>
+                            <div 
+                              style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}
+                              onClick={(e) => { e.stopPropagation(); setShowAssetsDetailModalContractId(c.id); }}
+                              title="클릭하여 체결자산 상세 보기"
+                            >
+                              <strong style={{ color: 'var(--text-primary)' }}>{modelSummaryText || '미지정'}</strong>
+                              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '4px' }}>(총 {cas.length}대)</span>
+                            </div>
+                          </td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
                             {c.contractType === 'SALE' ? (
                               <span style={{ color: '#8b5cf6', fontWeight: 700 }}>
                                 매각가 ₩{cas.reduce((s, ca) => s + (ca.salePrice || 0), 0).toLocaleString()}원
@@ -1823,16 +1833,6 @@ export const Contracts: React.FC = () => {
                             }>
                               {c.status === 'ACTIVE' ? '진행중' : c.status === 'EXTENDED' ? '연장됨' : c.status === 'SUCCEEDED' ? '승계됨' : '종료'}
                             </span>
-                          </td>
-                          <td style={{ whiteSpace: 'nowrap' }}>
-                            <div 
-                              style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}
-                              onClick={(e) => { e.stopPropagation(); setShowAssetsDetailModalContractId(c.id); }}
-                              title="클릭하여 체결자산 상세 보기"
-                            >
-                              <strong style={{ color: 'var(--text-primary)' }}>{modelSummaryText || '미지정'}</strong>
-                              <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '4px' }}>(총 {cas.length}대)</span>
-                            </div>
                           </td>
                         </tr>
                       );
