@@ -107,6 +107,7 @@ export interface MenuGroup {
 
 import ReactDOM from 'react-dom';
 import { db, supabase } from './services/db';
+import { useGridWheel } from './hooks/useGridWheel';
 
 
 const ContextualManualButton: React.FC = () => {
@@ -198,6 +199,8 @@ const ContextualManualButton: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  const { activeTab: currentTabForWheel } = useApp();
+  useGridWheel(currentTabForWheel);
   const context = useApp();
   if (typeof window !== 'undefined') {
     (window as any).__APP_CONTEXT__ = context;
