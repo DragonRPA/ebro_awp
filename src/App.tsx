@@ -107,7 +107,6 @@ export interface MenuGroup {
 
 import ReactDOM from 'react-dom';
 import { db, supabase } from './services/db';
-import { useGlobalGridScroll } from './hooks/useGlobalGridScroll';
 
 
 const ContextualManualButton: React.FC = () => {
@@ -199,7 +198,6 @@ const ContextualManualButton: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  useGlobalGridScroll();
   const context = useApp();
   if (typeof window !== 'undefined') {
     (window as any).__APP_CONTEXT__ = context;
