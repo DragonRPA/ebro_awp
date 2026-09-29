@@ -421,6 +421,22 @@ const server = http.createServer(async (req, res) => {
         const managerPhone = payload.managerPhone || '010-0000-0000';
         const optionsText = payload.optionsText || '협착방지대, 튜브소화기';
         const remarksText = payload.remarksText || '안전발판 지급';
+        const deliveryDate = payload.deliveryDate || payload.contractStartDate || contractDate;
+        let inspectionDate = payload.inspectionDate;
+        if (!inspectionDate) {
+          try {
+            const cleanD = String(deliveryDate).replace(/[^0-9-]/g, '').slice(0, 10);
+            const d = new Date(cleanD);
+            if (!isNaN(d.getTime())) {
+              d.setDate(d.getDate() - 2);
+              inspectionDate = d.toISOString().split('T')[0];
+            } else {
+              inspectionDate = contractDate;
+            }
+          } catch (e) {
+            inspectionDate = contractDate;
+          }
+        }
 
         const assets = payload.assets && payload.assets.length > 0 ? payload.assets : [
           { assetNo: 'G06119', modelName: 'GTJZ0608ME', sn: '0108000379', rentalFee: 390000 }
@@ -559,6 +575,8 @@ for ($i = 0; $i -lt $assetsJson.Count; $i++) {
     Replace-Tag $curSafety "{사업장명}" "${siteName}"
     Replace-Tag $curSafety "{형식}" "자주식 시저형"
     Replace-Tag $curSafety "{제조사}" "SINOBOOM"
+    Replace-Tag $curSafety "{테넌트}" "${tenantName}"
+    Replace-Tag $curSafety "(주)기연리프트" "${tenantName}"
     Replace-Tag $curSafety "{고객명}" "${custName}"
     Replace-Tag $curSafety "{동력방식}" "배터리식"
     Replace-Tag $curSafety "{모델명}" "$($asset.modelName)"
@@ -569,7 +587,10 @@ for ($i = 0; $i -lt $assetsJson.Count; $i++) {
     Replace-Tag $curSafety "{차량번호}" "$($asset.assetNo) ($($asset.sn))"
     Replace-Tag $curSafety "{제조연도}" "2021년"
     Replace-Tag $curSafety "{안전인증일}" "2021-05-12"
-    Replace-Tag $curSafety "{Today}" "${contractDate}"
+    Replace-Tag $curSafety "{Today}" "${inspectionDate}"
+    Replace-Tag $curSafety "{안전점검일시}" "${inspectionDate}"
+    Replace-Tag $curSafety "{(배차일)-2} 또는 {지정}" "${inspectionDate}"
+    Replace-Tag $curSafety "{(배차일)-2}" "${inspectionDate}"
     Replace-Tag $curSafety "{점검자}" "김관주"
     $curSafety.PageSetup.Orientation = 1
     $curSafety.PageSetup.Zoom = $false
