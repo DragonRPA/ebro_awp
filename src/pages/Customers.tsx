@@ -1934,7 +1934,7 @@ export const Customers: React.FC = () => {
           backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100,
           padding: '20px'
         }}>
-          <form onSubmit={handleSaveCustSubmit} className="card" style={{ width: '100%', maxWidth: '540px', maxHeight: '90vh', overflowY: 'auto', backgroundColor: 'var(--bg-card)' }}>
+          <form onSubmit={handleSaveCustSubmit} className="card" style={{ width: '100%', maxWidth: '660px', maxHeight: '90vh', overflowY: 'auto', backgroundColor: 'var(--bg-card)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>
                 {editingCust.id ? '고객사 정보 수정' : '신규 고객사 등록'}
@@ -2073,9 +2073,18 @@ export const Customers: React.FC = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', padding: '8px 10px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px dashed var(--border-color)' }}>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1.05fr 1.05fr 1.6fr',
+                gap: '12px',
+                padding: '10px 14px',
+                backgroundColor: 'var(--bg-app)',
+                borderRadius: '6px',
+                border: '1px dashed var(--border-color)',
+                alignItems: 'start'
+              }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={labelStyle}>청구서(세금계산서) 마감일</label>
+                  <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>청구서(세금계산서) 마감일</label>
                   <select
                     style={inputStyle}
                     value={editingCust.defaultBillingDay || 30}
@@ -2087,7 +2096,7 @@ export const Customers: React.FC = () => {
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={labelStyle}>거래명세서 마감일</label>
+                  <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>거래명세서 마감일</label>
                   <select
                     style={inputStyle}
                     value={editingCust.defaultStatementClosingDay || 25}
@@ -2099,10 +2108,10 @@ export const Customers: React.FC = () => {
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={labelStyle}>약정 결제일</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: '4px' }}>
+                  <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>약정 결제일</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '6px' }}>
                     <select
-                      style={inputStyle}
+                      style={{ ...inputStyle, padding: '5px 6px' }}
                       value={editingCust.paymentDueMonthOffset !== undefined ? editingCust.paymentDueMonthOffset : 1}
                       onChange={e => setEditingCust({ ...editingCust, paymentDueMonthOffset: Number(e.target.value) })}
                     >
@@ -2111,7 +2120,7 @@ export const Customers: React.FC = () => {
                       ))}
                     </select>
                     <select
-                      style={inputStyle}
+                      style={{ ...inputStyle, padding: '5px 6px' }}
                       value={editingCust.paymentDueDay || 25}
                       onChange={e => setEditingCust({ ...editingCust, paymentDueDay: Number(e.target.value) })}
                     >
@@ -2367,7 +2376,7 @@ export const Customers: React.FC = () => {
           backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100,
           padding: '20px'
         }}>
-          <form onSubmit={handleSaveSiteSubmit} className="card" style={{ width: '100%', maxWidth: '540px', maxHeight: '90vh', overflowY: 'auto', backgroundColor: 'var(--bg-card)' }}>
+          <form onSubmit={handleSaveSiteSubmit} className="card" style={{ width: '100%', maxWidth: '660px', maxHeight: '90vh', overflowY: 'auto', backgroundColor: 'var(--bg-card)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>
                 {editingSite.id ? '현장 수정' : '신규 현장 등록'}
@@ -2534,9 +2543,9 @@ export const Customers: React.FC = () => {
               </div>
 
               {/* 💳 현장 약정 결제일 (고객사 기본값 상속 또는 현장 개별 지정) */}
-              <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '8px 10px', backgroundColor: 'var(--bg-app)' }}>
-                <label style={labelStyle}>현장 약정 결제일 (미지정 시 고객사 조건 상속)</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: '4px' }}>
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px 14px', backgroundColor: 'var(--bg-app)' }}>
+                <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>현장 약정 결제일 (미지정 시 고객사 조건 상속)</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '6px', maxWidth: '340px' }}>
                   <select
                     style={inputStyle}
                     value={editingSite.paymentDueMonthOffset !== undefined ? editingSite.paymentDueMonthOffset : (activeCustomer?.paymentDueMonthOffset ?? 1)}

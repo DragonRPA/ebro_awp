@@ -3203,22 +3203,22 @@ export const Contracts: React.FC = () => {
               )}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.45fr', gap: '10px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>청구 마감일 (일) *</label>
+                <label style={{ fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>청구 마감일 (일) *</label>
                 <input type="number" min={1} max={31} value={billingDay} onChange={e => setBillingDay(Number(e.target.value))} required style={{ width: '100%', padding: '8px' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>명세서 마감일 (일)</label>
+                <label style={{ fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>명세서 마감일 (일)</label>
                 <input type="number" min={1} max={31} value={statementClosingDay} onChange={e => setStatementClosingDay(Number(e.target.value))} style={{ width: '100%', padding: '8px' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>약정 결제일</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>약정 결제일</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.25fr 1fr', gap: '6px' }}>
                   <select
                     value={paymentDueMonthOffset}
                     onChange={e => setPaymentDueMonthOffset(Number(e.target.value))}
-                    style={{ width: '100%', padding: '8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
+                    style={{ width: '100%', padding: '8px 6px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
                   >
                     {PAYMENT_DUE_MONTH_OPTIONS.map(opt => (
                       <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -3227,7 +3227,7 @@ export const Contracts: React.FC = () => {
                   <select
                     value={paymentDueDay}
                     onChange={e => setPaymentDueDay(Number(e.target.value))}
-                    style={{ width: '100%', padding: '8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
+                    style={{ width: '100%', padding: '8px 6px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
                   >
                     {Array.from({ length: 30 }, (_, i) => i + 1).map(day => (
                       <option key={day} value={day}>{day}일</option>

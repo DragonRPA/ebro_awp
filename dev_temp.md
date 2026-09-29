@@ -5243,3 +5243,13 @@ pm run build: **TypeScript 0 Error, 번들링 정상 완료 (uilt in 1.13s)**.
   7. ContractDocumentBundleModal.tsx & Billings.tsx: 현장 복수 담당자 이메일 수신자 자동 추출 및 수신인(To) 자동 매핑
   8. TruckDispatch.tsx: 운송기사용 SMS에 현장 동시 복수 담당자 연락처 모두 자동 표기
   9. TypeScript 및 Vite 프로덕션 빌드 성공 검증 완료 (0 Type Errors)
+
+
+## [조정 완료] 고객사/계약 모달 약정 결제일 및 마감일 행 가로폭 및 간격 최적화
+- **요구사항**: 고객사 정보 수정 모달의 청구서 마감일 / 거래명세서 마감일 / 약정 결제일 행의 가로폭과 간격 조정 (약정 결제일 월 구분 글자 잘림 방지)
+- **조치 내역**:
+  1. Customers.tsx: 모달 카드 maxWidth를 540px ➔ 660px로 확장하여 전반적인 가로 작업대 확보
+  2. 마감일/결제일 행의 3분할 비례를 1:1:1 ➔ 1.05fr : 1.05fr : 1.6fr로 최적화하여 2개의 셀렉트가 들어가는 약정 결제일 영역에 240px 이상 폭 배정
+  3. 약정 결제일 내부 그리드를 1.3fr : 1fr (gap: 6px)로 조정하여 익월 (M1) 등 텍스트가 잘리지 않고 여유 있게 렌더링되도록 개선
+  4. 레이블에 whiteSpace: nowrap 적용하여 해상도별 줄바꿈 원천 방지
+  5. Contracts.tsx 계약 등록 폼의 동일 행에도 1fr : 1fr : 1.45fr 및 1.25fr : 1fr 비례와 여백 동기화 적용
