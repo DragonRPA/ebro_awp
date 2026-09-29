@@ -55,11 +55,13 @@ const ApprovalInbox: React.FC = () => {
   const getRecordSummary = (targetTable: string, targetId: string): string => {
     if (targetTable === 'customers') {
       const c = customers.find(x => x.id === targetId);
-      return c ? `${c.name} (사업자: ${c.businessNumber || '—'})` : targetId;
+      return c ? `${c.name} (사업자: ${c.bizRegNo || '—'})` : targetId;
     }
     if (targetTable === 'contracts') {
       const c = contracts.find(x => x.id === targetId);
-      return c ? `${c.contractNumber || '계약'} — ${c.customerName || ''}` : targetId;
+      if (!c) return targetId;
+      const cust = customers.find(x => x.id === c.customerId);
+      return `${c.contractNo} — ${cust?.name || ''}`;
     }
     return targetId;
   };
