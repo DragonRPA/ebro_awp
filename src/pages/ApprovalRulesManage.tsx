@@ -238,6 +238,7 @@ const ApprovalRulesManage: React.FC = () => {
             </span>
           )}
           <button
+            data-mid="btn-seed-all"
             onClick={handleSeedAll}
             disabled={seeding || missingEvents.length === 0}
             style={{
@@ -301,6 +302,7 @@ const ApprovalRulesManage: React.FC = () => {
                   }}>
                     {/* 확장 토글 */}
                     <td
+                      data-mid="btn-expand-consensus"
                       style={{ ...tdBase, textAlign: 'center', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '11px', padding: '9px 6px' }}
                       onClick={() => handleToggleConsensus(r.id!)}
                     >
@@ -315,6 +317,7 @@ const ApprovalRulesManage: React.FC = () => {
                     {/* 이벤트명 — 인라인 편집 */}
                     <td style={tdBase}>
                       <input
+                        data-mid="input-event-name"
                         value={r.event_name}
                         onChange={e => updateLocalRule(r.id!, 'event_name', e.target.value)}
                         onBlur={e => saveField(r.id!, 'event_name', e.target.value)}
@@ -346,6 +349,7 @@ const ApprovalRulesManage: React.FC = () => {
                     {/* 전결 티어 */}
                     <td style={{ ...tdBase, textAlign: 'center' }}>
                       <select
+                        data-mid="select-tier"
                         value={r.required_tier}
                         onChange={e => handleFieldChange(r.id!, 'required_tier', parseInt(e.target.value))}
                         style={sel}
@@ -375,6 +379,7 @@ const ApprovalRulesManage: React.FC = () => {
                     {/* 사용여부 */}
                     <td style={{ ...tdBase, textAlign: 'center' }}>
                       <button
+                        data-mid="btn-toggle-enabled"
                         onClick={() => handleFieldChange(r.id!, 'is_enabled', !r.is_enabled)}
                         style={{
                           padding: '5px 10px',
