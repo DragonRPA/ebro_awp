@@ -199,13 +199,12 @@ const ContextualManualButton: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  const { activeTab: currentTabForWheel } = useApp();
-  useGridWheel(currentTabForWheel);
   const context = useApp();
   if (typeof window !== 'undefined') {
     (window as any).__APP_CONTEXT__ = context;
   }
   const { currentUser, users, switchUser, login, logout, theme, toggleTheme, hasPermission, activeTab, setActiveTab, loadTablesForMenu, currentTenant } = context;
+  useGridWheel(activeTab); // Shift+Wheel 횡스크롤: 그리드 컨테이너에만 적용
 
   // 로그인 폼 상태
   const [loginId, setLoginId] = useState('');
