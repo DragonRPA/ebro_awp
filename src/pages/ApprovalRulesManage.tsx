@@ -1,44 +1,48 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase, ApprovalRule, RuleConsensus, APPROVAL_EVENT_REGISTRY, TIER_LABELS } from '../services/db';
 
-/* ─── Style helpers ─────────────────────────────────────────── */
+/* ─── CSS 변수 기반 스타일 (라이트/다크 테마 자동 적응) ──────── */
 const thBase: React.CSSProperties = {
-  padding: '9px 12px',
+  padding: '10px 14px',
   textAlign: 'left',
-  background: '#f1f5f9',
-  borderBottom: '2px solid #e2e8f0',
-  fontSize: '12px',
+  background: 'var(--bg-card-header)',
+  borderBottom: '2px solid var(--border-color)',
+  fontSize: '13px',
   fontWeight: 700,
-  color: '#475569',
+  color: 'var(--text-main)',
   whiteSpace: 'nowrap',
 };
 const tdBase: React.CSSProperties = {
-  padding: '7px 12px',
-  borderBottom: '1px solid #f1f5f9',
-  fontSize: '13px',
+  padding: '9px 14px',
+  borderBottom: '1px solid var(--border-color)',
+  fontSize: '14px',
   verticalAlign: 'middle',
+  color: 'var(--text-main)',
 };
 const inlineInput: React.CSSProperties = {
   width: '100%',
   padding: '5px 8px',
   border: '1px solid transparent',
-  borderRadius: '4px',
-  fontSize: '13px',
+  borderRadius: '5px',
+  fontSize: '14px',
   background: 'transparent',
+  color: 'var(--text-main)',
   outline: 'none',
   boxSizing: 'border-box',
-  transition: 'border-color 0.15s',
+  fontWeight: 600,
+  transition: 'border-color 0.15s, background 0.15s',
 };
 const sel: React.CSSProperties = {
-  padding: '5px 8px',
-  border: '1px solid #e2e8f0',
+  padding: '6px 10px',
+  border: '1px solid var(--border-color)',
   borderRadius: '6px',
   fontSize: '13px',
-  background: '#fff',
+  background: 'var(--bg-card)',
+  color: 'var(--text-main)',
   cursor: 'pointer',
 };
 
-/* ─── Tier dropdown options ─────────────────────────────────── */
+/* ─── Tier options ───────────────────────────────────────────── */
 const TierOptions = () => (
   <>
     {Object.entries(TIER_LABELS).map(([t, label]) => (
@@ -47,15 +51,15 @@ const TierOptions = () => (
   </>
 );
 
-/* ─── Category badge ────────────────────────────────────────── */
+/* ─── 카테고리 색상 정의 ─────────────────────────────────────── */
 const CATEGORY_COLORS: Record<string, { bg: string; color: string }> = {
-  '고객':     { bg: '#dbeafe', color: '#1d4ed8' },
-  '계약':     { bg: '#dcfce7', color: '#15803d' },
-  '출고/반납':{ bg: '#fef9c3', color: '#a16207' },
-  '배차':     { bg: '#f3e8ff', color: '#7e22ce' },
-  '자산':     { bg: '#fee2e2', color: '#b91c1c' },
-  '정비':     { bg: '#ffedd5', color: '#c2410c' },
-  '정산':     { bg: '#e0f2fe', color: '#0369a1' },
+  '고객':      { bg: '#1d4ed8', color: '#dbeafe' },
+  '계약':      { bg: '#15803d', color: '#dcfce7' },
+  '출고/반납': { bg: '#a16207', color: '#fef9c3' },
+  '배차':      { bg: '#7e22ce', color: '#f3e8ff' },
+  '자산':      { bg: '#b91c1c', color: '#fee2e2' },
+  '정비':      { bg: '#c2410c', color: '#ffedd5' },
+  '정산':      { bg: '#0369a1', color: '#e0f2fe' },
 };
 
 /* ══════════════════════════════════════════════════════════════
@@ -68,46 +72,58 @@ const ApprovalRulesManage: React.FC = () => {
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
   const [seeding, setSeeding] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [seedError, setSeedError] = useState<string | null>(null);
 
   /* ── 규칙 목록 조회 ──────────────────────────────────────── */
   const fetchRules = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('approval_rules')
       .select('*')
       .order('created_at', { ascending: true });
-    if (data) setRules(data);
+    if (error) {
+      console.error('fetchRules error:', error);
+    } else if (data) {
+      setRules(data);
+    }
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchRules(); }, [fetchRules]);
 
-  /* ── 미등록 이벤트 목록 계산 ─────────────────────────────── */
+  /* ── 미등록 이벤트 목록 ──────────────────────────────────── */
   const missingEvents = APPROVAL_EVENT_REGISTRY.filter(
     ev => !rules.find(r => r.event_code === ev.code)
   );
 
   /* ── 전체 업무 일괄 생성 ─────────────────────────────────── */
   const handleSeedAll = async () => {
-    if (!supabase || missingEvents.length === 0) return;
+    if (!supabase) { setSeedError('DB 연결 오류'); return; }
+    if (missingEvents.length === 0) return;
     setSeeding(true);
-    for (const ev of missingEvents) {
-      await supabase.from('approval_rules').upsert(
-        {
-          event_code: ev.code,
-          event_name: ev.name,
-          required_tier: 4, // 기본값: 부장
-          is_enabled: false, // 기본 OFF — 담당자가 직접 ON 전환
-        },
-        { onConflict: 'event_code' }
-      );
+    setSeedError(null);
+
+    const toInsert = missingEvents.map(ev => ({
+      event_code: ev.code,
+      event_name: ev.name,
+      required_tier: 4,
+      is_enabled: false,
+    }));
+
+    const { error } = await supabase.from('approval_rules').insert(toInsert);
+    if (error) {
+      console.error('seed error:', error);
+      setSeedError('생성 오류: ' + error.message);
+      setSeeding(false);
+      return;
     }
+
     await fetchRules();
     setSeeding(false);
   };
 
-  /* ── 필드 즉시 저장 (낙관적 업데이트) ───────────────────── */
+  /* ── 필드 즉시 저장 ──────────────────────────────────────── */
   const saveField = async (ruleId: string, field: string, value: unknown) => {
     if (!supabase) return;
     setSavingIds(prev => new Set(prev).add(ruleId));
@@ -130,17 +146,11 @@ const ApprovalRulesManage: React.FC = () => {
 
   /* ── 합의선 패널 토글 ────────────────────────────────────── */
   const handleToggleConsensus = async (ruleId: string) => {
-    if (expandedRuleId === ruleId) {
-      setExpandedRuleId(null);
-      return;
-    }
+    if (expandedRuleId === ruleId) { setExpandedRuleId(null); return; }
     setExpandedRuleId(ruleId);
-    if (consensusMap[ruleId] === undefined) {
-      await fetchConsensus(ruleId);
-    }
+    if (consensusMap[ruleId] === undefined) await fetchConsensus(ruleId);
   };
 
-  /* ── 합의선 목록 조회 ────────────────────────────────────── */
   const fetchConsensus = async (ruleId: string) => {
     if (!supabase) return;
     const { data } = await supabase
@@ -151,47 +161,33 @@ const ApprovalRulesManage: React.FC = () => {
     setConsensusMap(prev => ({ ...prev, [ruleId]: data || [] }));
   };
 
-  /* ── 합의선 단계 추가 ────────────────────────────────────── */
   const handleAddConsensus = async (ruleId: string) => {
     if (!supabase) return;
     const existing = consensusMap[ruleId] || [];
     const { error } = await supabase.from('rule_consensus').insert({
-      rule_id: ruleId,
-      trigger_after_tier: 3,
-      target_dept_id: '',
-      consensus_tier: 3,
-      execution_type: 'SEQUENTIAL',
-      seq_order: existing.length + 1,
+      rule_id: ruleId, trigger_after_tier: 3,
+      target_dept_id: '', consensus_tier: 3,
+      execution_type: 'SEQUENTIAL', seq_order: existing.length + 1,
     });
     if (error) { alert('추가 오류: ' + error.message); return; }
     await fetchConsensus(ruleId);
   };
 
-  /* ── 합의선 단계 삭제 ────────────────────────────────────── */
   const handleDeleteConsensus = async (consensusId: string, ruleId: string) => {
     if (!supabase) return;
     await supabase.from('rule_consensus').delete().eq('id', consensusId);
     await fetchConsensus(ruleId);
   };
 
-  /* ── 합의선 필드 즉시 저장 ───────────────────────────────── */
-  const handleConsensusChange = async (
-    consensusId: string,
-    ruleId: string,
-    field: string,
-    value: unknown
-  ) => {
+  const handleConsensusChange = async (consensusId: string, ruleId: string, field: string, value: unknown) => {
     if (!supabase) return;
     setConsensusMap(prev => ({
       ...prev,
-      [ruleId]: (prev[ruleId] || []).map(c =>
-        c.id === consensusId ? { ...c, [field]: value } : c
-      ),
+      [ruleId]: (prev[ruleId] || []).map(c => c.id === consensusId ? { ...c, [field]: value } : c),
     }));
     await supabase.from('rule_consensus').update({ [field]: value }).eq('id', consensusId);
   };
 
-  /* ── 규칙 삭제 (소프트) ──────────────────────────────────── */
   const handleDeleteRule = async (ruleId: string, eventName: string) => {
     if (!supabase) return;
     if (!window.confirm(`'${eventName}' 결재선 규칙을 삭제하시겠습니까?`)) return;
@@ -200,15 +196,14 @@ const ApprovalRulesManage: React.FC = () => {
     if (expandedRuleId === ruleId) setExpandedRuleId(null);
   };
 
-  /* ── 카테고리 뱃지 렌더 ──────────────────────────────────── */
   const renderCategoryBadge = (eventCode: string) => {
     const ev = APPROVAL_EVENT_REGISTRY.find(e => e.code === eventCode);
     if (!ev) return null;
-    const colors = CATEGORY_COLORS[ev.category] || { bg: '#f1f5f9', color: '#64748b' };
+    const colors = CATEGORY_COLORS[ev.category] || { bg: '#475569', color: '#e2e8f0' };
     return (
       <span style={{
-        fontSize: '11px', fontWeight: 600, padding: '2px 7px', borderRadius: '10px',
-        background: colors.bg, color: colors.color, whiteSpace: 'nowrap'
+        fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '10px',
+        background: colors.bg, color: colors.color, whiteSpace: 'nowrap', display: 'inline-block',
       }}>
         {ev.category}
       </span>
@@ -219,19 +214,26 @@ const ApprovalRulesManage: React.FC = () => {
      렌더
   ════════════════════════════════════════════════════════════ */
   return (
-    <div style={{ padding: '20px 24px', maxWidth: '1180px', margin: '0 auto' }}>
+    <div style={{ padding: '20px 24px', maxWidth: '1200px', margin: '0 auto' }}>
 
       {/* ── 헤더 ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', gap: '16px' }}>
         <div>
-          <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b', margin: 0 }}>결재선 규칙 설정</h2>
-          <p style={{ fontSize: '12px', color: '#64748b', margin: '3px 0 0' }}>
-            업무 이벤트명·전결 티어·합의선은 셀 클릭 즉시 수정·저장됩니다.
+          <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-main)', margin: '0 0 4px' }}>
+            결재선 규칙 설정
+          </h2>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+            업무 이벤트명·전결 티어·사용 여부는 셀 수정 즉시 저장됩니다. ▶ 클릭으로 합의선을 설정합니다.
           </p>
+          {seedError && (
+            <p style={{ fontSize: '13px', color: 'var(--danger)', margin: '6px 0 0', fontWeight: 600 }}>
+              ⚠ {seedError}
+            </p>
+          )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
           {missingEvents.length > 0 && (
-            <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+            <span style={{ fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               미등록 {missingEvents.length}건
             </span>
           )}
@@ -239,11 +241,11 @@ const ApprovalRulesManage: React.FC = () => {
             onClick={handleSeedAll}
             disabled={seeding || missingEvents.length === 0}
             style={{
-              padding: '8px 16px',
-              background: missingEvents.length > 0 ? '#3b82f6' : '#e2e8f0',
-              color: missingEvents.length > 0 ? '#fff' : '#94a3b8',
-              border: 'none', borderRadius: '6px', fontWeight: 700,
-              fontSize: '13px', cursor: missingEvents.length > 0 ? 'pointer' : 'default',
+              padding: '9px 18px',
+              background: missingEvents.length > 0 ? 'var(--primary)' : 'var(--bg-secondary)',
+              color: missingEvents.length > 0 ? '#fff' : 'var(--text-muted)',
+              border: 'none', borderRadius: '7px', fontWeight: 700,
+              fontSize: '14px', cursor: missingEvents.length > 0 ? 'pointer' : 'default',
               whiteSpace: 'nowrap',
             }}
           >
@@ -253,17 +255,21 @@ const ApprovalRulesManage: React.FC = () => {
       </div>
 
       {/* ── 그리드 ── */}
-      <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+      <div style={{
+        border: '1px solid var(--border-color)', borderRadius: '10px',
+        overflow: 'hidden', background: 'var(--bg-card)',
+        boxShadow: 'var(--shadow-sm)',
+      }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <colgroup>
-            <col style={{ width: '28px' }} />   {/* 확장 토글 */}
-            <col style={{ width: '70px' }} />   {/* 카테고리 */}
-            <col />                             {/* 업무 이벤트명 */}
-            <col style={{ width: '210px' }} />  {/* 이벤트 코드 */}
-            <col style={{ width: '160px' }} />  {/* 전결 티어 */}
-            <col style={{ width: '70px' }} />   {/* 합의선 */}
-            <col style={{ width: '58px' }} />   {/* 사용여부 */}
-            <col style={{ width: '44px' }} />   {/* 삭제 */}
+            <col style={{ width: '30px' }} />
+            <col style={{ width: '76px' }} />
+            <col />
+            <col style={{ width: '220px' }} />
+            <col style={{ width: '165px' }} />
+            <col style={{ width: '74px' }} />
+            <col style={{ width: '62px' }} />
+            <col style={{ width: '44px' }} />
           </colgroup>
           <thead>
             <tr>
@@ -285,87 +291,97 @@ const ApprovalRulesManage: React.FC = () => {
 
               return (
                 <React.Fragment key={r.id}>
-                  {/* ── 메인 행 ── */}
                   <tr style={{
-                    background: isSaving ? '#fef9c3' : isExpanded ? '#f0f9ff' : '#fff',
+                    background: isSaving
+                      ? 'var(--warning-light)'
+                      : isExpanded
+                      ? 'var(--bg-active)'
+                      : 'var(--bg-card)',
                     transition: 'background 0.2s',
                   }}>
                     {/* 확장 토글 */}
                     <td
-                      style={{ ...tdBase, textAlign: 'center', cursor: 'pointer', color: '#94a3b8', fontSize: '11px' }}
+                      style={{ ...tdBase, textAlign: 'center', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '11px', padding: '9px 6px' }}
                       onClick={() => handleToggleConsensus(r.id!)}
                     >
                       {isExpanded ? '▼' : '▶'}
                     </td>
 
-                    {/* 카테고리 뱃지 */}
-                    <td style={{ ...tdBase, textAlign: 'center' }}>
+                    {/* 카테고리 */}
+                    <td style={{ ...tdBase, textAlign: 'center', padding: '9px 8px' }}>
                       {renderCategoryBadge(r.event_code)}
                     </td>
 
-                    {/* 업무 이벤트명 — 인라인 편집 */}
+                    {/* 이벤트명 — 인라인 편집 */}
                     <td style={tdBase}>
                       <input
                         value={r.event_name}
                         onChange={e => updateLocalRule(r.id!, 'event_name', e.target.value)}
                         onBlur={e => saveField(r.id!, 'event_name', e.target.value)}
-                        style={{
-                          ...inlineInput,
-                          fontWeight: 600,
+                        style={inlineInput}
+                        onFocus={e => {
+                          e.currentTarget.style.borderColor = 'var(--primary)';
+                          e.currentTarget.style.background = 'var(--bg-app)';
                         }}
-                        onFocus={e => { e.currentTarget.style.borderColor = '#93c5fd'; e.currentTarget.style.background = '#fff'; }}
-                        onBlurCapture={e => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
+                        onBlurCapture={e => {
+                          e.currentTarget.style.borderColor = 'transparent';
+                          e.currentTarget.style.background = 'transparent';
+                        }}
                       />
                     </td>
 
                     {/* 이벤트 코드 (읽기 전용) */}
-                    <td style={tdBase}>
+                    <td style={{ ...tdBase, padding: '9px 12px' }}>
                       <span style={{
-                        fontFamily: 'monospace', fontSize: '11px', color: '#64748b',
-                        background: '#f1f5f9', padding: '2px 7px', borderRadius: '4px',
-                        whiteSpace: 'nowrap',
+                        fontFamily: 'monospace', fontSize: '12px',
+                        color: 'var(--text-secondary)',
+                        background: 'var(--bg-secondary)',
+                        padding: '3px 8px', borderRadius: '5px',
+                        whiteSpace: 'nowrap', display: 'inline-block',
                       }}>
                         {r.event_code}
                       </span>
                     </td>
 
-                    {/* 전결 티어 드롭다운 */}
+                    {/* 전결 티어 */}
                     <td style={{ ...tdBase, textAlign: 'center' }}>
                       <select
                         value={r.required_tier}
                         onChange={e => handleFieldChange(r.id!, 'required_tier', parseInt(e.target.value))}
-                        style={{ ...sel, fontSize: '13px' }}
+                        style={sel}
                       >
                         <TierOptions />
                       </select>
                     </td>
 
-                    {/* 합의선 뱃지 */}
+                    {/* 합의선 */}
                     <td style={{ ...tdBase, textAlign: 'center' }}>
                       <button
                         onClick={() => handleToggleConsensus(r.id!)}
                         style={{
-                          padding: '3px 10px',
-                          background: consensusCount !== null && consensusCount > 0 ? '#dbeafe' : '#f1f5f9',
-                          color: consensusCount !== null && consensusCount > 0 ? '#1d4ed8' : '#94a3b8',
+                          padding: '4px 10px',
+                          background: consensusCount !== null && consensusCount > 0
+                            ? 'var(--primary-light)' : 'var(--bg-secondary)',
+                          color: consensusCount !== null && consensusCount > 0
+                            ? 'var(--primary)' : 'var(--text-muted)',
                           border: 'none', borderRadius: '12px', fontSize: '12px',
-                          cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap',
+                          cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap',
                         }}
                       >
                         {consensusCount === null ? '설정' : `${consensusCount}단계`}
                       </button>
                     </td>
 
-                    {/* 사용여부 토글 */}
+                    {/* 사용여부 */}
                     <td style={{ ...tdBase, textAlign: 'center' }}>
                       <button
                         onClick={() => handleFieldChange(r.id!, 'is_enabled', !r.is_enabled)}
                         style={{
-                          padding: '4px 10px',
-                          background: r.is_enabled ? '#10b981' : '#e2e8f0',
-                          color: r.is_enabled ? '#fff' : '#94a3b8',
-                          border: 'none', borderRadius: '12px', fontSize: '12px',
-                          cursor: 'pointer', fontWeight: 700, minWidth: '40px',
+                          padding: '5px 10px',
+                          background: r.is_enabled ? 'var(--success)' : 'var(--bg-secondary)',
+                          color: r.is_enabled ? '#fff' : 'var(--text-muted)',
+                          border: 'none', borderRadius: '12px', fontSize: '13px',
+                          cursor: 'pointer', fontWeight: 700, minWidth: '44px',
                         }}
                       >
                         {r.is_enabled ? 'ON' : 'OFF'}
@@ -376,11 +392,12 @@ const ApprovalRulesManage: React.FC = () => {
                     <td style={{ ...tdBase, textAlign: 'center' }}>
                       <button
                         onClick={() => handleDeleteRule(r.id!, r.event_name)}
-                        style={{
-                          padding: '3px 8px', background: 'none',
-                          color: '#cbd5e1', border: 'none', cursor: 'pointer', fontSize: '14px',
-                        }}
                         title="규칙 삭제"
+                        style={{
+                          padding: '4px 8px', background: 'none',
+                          color: 'var(--text-muted)', border: 'none',
+                          cursor: 'pointer', fontSize: '15px', lineHeight: 1,
+                        }}
                       >
                         🗑
                       </button>
@@ -390,17 +407,26 @@ const ApprovalRulesManage: React.FC = () => {
                   {/* ── 합의선 확장 패널 ── */}
                   {isExpanded && (
                     <tr>
-                      <td colSpan={8} style={{ padding: 0, background: '#f8fafc', borderBottom: '2px solid #e2e8f0' }}>
-                        <div style={{ padding: '12px 20px 14px 48px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#475569' }}>
-                              합의선 설정 — <span style={{ color: '#64748b', fontWeight: 400 }}>결재 이전에 병행 협의가 필요한 부서/직책 단계를 추가합니다.</span>
+                      <td colSpan={8} style={{
+                        padding: 0,
+                        background: 'var(--bg-secondary)',
+                        borderBottom: '2px solid var(--primary)',
+                      }}>
+                        <div style={{ padding: '14px 20px 16px 52px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>
+                              합의선 설정
+                              <span style={{ fontWeight: 400, color: 'var(--text-secondary)', marginLeft: '8px', fontSize: '12px' }}>
+                                결재 전 협의가 필요한 부서/직책 단계를 추가합니다.
+                              </span>
                             </span>
                             <button
                               onClick={() => handleAddConsensus(r.id!)}
                               style={{
-                                padding: '5px 14px', background: '#3b82f6', color: '#fff',
-                                border: 'none', borderRadius: '5px', fontSize: '12px', cursor: 'pointer', fontWeight: 600,
+                                padding: '6px 14px',
+                                background: 'var(--primary)', color: '#fff',
+                                border: 'none', borderRadius: '6px',
+                                fontSize: '13px', cursor: 'pointer', fontWeight: 700,
                               }}
                             >
                               + 합의 단계 추가
@@ -408,36 +434,36 @@ const ApprovalRulesManage: React.FC = () => {
                           </div>
 
                           {(consensusMap[r.id!] || []).length === 0 ? (
-                            <p style={{ fontSize: '12px', color: '#94a3b8', margin: '4px 0 6px' }}>
+                            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '4px 0 6px' }}>
                               설정된 합의선 없음 — 결재선만 단독 적용됩니다.
                             </p>
                           ) : (
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', background: '#fff', borderRadius: '6px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,.06)' }}>
+                            <table style={{
+                              width: '100%', borderCollapse: 'collapse', fontSize: '13px',
+                              background: 'var(--bg-card)', borderRadius: '7px',
+                              overflow: 'hidden', boxShadow: 'var(--shadow-sm)',
+                            }}>
                               <thead>
-                                <tr style={{ background: '#e2e8f0' }}>
-                                  <th style={{ padding: '6px 10px', fontWeight: 700, textAlign: 'center', whiteSpace: 'nowrap', width: '48px' }}>순</th>
-                                  <th style={{ padding: '6px 10px', fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap' }}>트리거 시점 (이후 티어)</th>
-                                  <th style={{ padding: '6px 10px', fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap' }}>합의 대상 부서</th>
-                                  <th style={{ padding: '6px 10px', fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap' }}>합의 최소 티어</th>
-                                  <th style={{ padding: '6px 10px', fontWeight: 700, textAlign: 'center', whiteSpace: 'nowrap' }}>실행 방식</th>
-                                  <th style={{ padding: '6px 10px', width: '44px' }} />
+                                <tr style={{ background: 'var(--bg-card-header)' }}>
+                                  <th style={{ padding: '7px 10px', fontWeight: 700, textAlign: 'center', whiteSpace: 'nowrap', width: '44px', color: 'var(--text-main)' }}>순</th>
+                                  <th style={{ padding: '7px 10px', fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap', color: 'var(--text-main)' }}>트리거 시점</th>
+                                  <th style={{ padding: '7px 10px', fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap', color: 'var(--text-main)' }}>합의 대상 부서</th>
+                                  <th style={{ padding: '7px 10px', fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap', color: 'var(--text-main)' }}>합의 최소 티어</th>
+                                  <th style={{ padding: '7px 10px', fontWeight: 700, textAlign: 'center', whiteSpace: 'nowrap', color: 'var(--text-main)' }}>실행 방식</th>
+                                  <th style={{ padding: '7px 10px', width: '48px' }} />
                                 </tr>
                               </thead>
                               <tbody>
                                 {(consensusMap[r.id!] || []).map((c, idx) => (
-                                  <tr key={c.id} style={{ background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
-                                    <td style={{ padding: '6px 10px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>{c.seq_order}</td>
-                                    <td style={{ padding: '6px 10px' }}>
-                                      <select
-                                        value={c.trigger_after_tier}
-                                        onChange={e => handleConsensusChange(c.id!, r.id!, 'trigger_after_tier', parseInt(e.target.value))}
-                                        style={{ ...sel, fontSize: '12px', padding: '3px 6px' }}
-                                      >
+                                  <tr key={c.id} style={{ background: idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)' }}>
+                                    <td style={{ padding: '7px 10px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 700 }}>{c.seq_order}</td>
+                                    <td style={{ padding: '7px 10px' }}>
+                                      <select value={c.trigger_after_tier} onChange={e => handleConsensusChange(c.id!, r.id!, 'trigger_after_tier', parseInt(e.target.value))} style={{ ...sel, fontSize: '13px' }}>
                                         <TierOptions />
                                       </select>
-                                      <span style={{ fontSize: '11px', color: '#94a3b8', marginLeft: '4px' }}>결재 후</span>
+                                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '5px' }}>결재 후</span>
                                     </td>
-                                    <td style={{ padding: '6px 10px' }}>
+                                    <td style={{ padding: '7px 10px' }}>
                                       <input
                                         value={c.target_dept_id}
                                         onChange={e => setConsensusMap(prev => ({
@@ -445,41 +471,32 @@ const ApprovalRulesManage: React.FC = () => {
                                           [r.id!]: (prev[r.id!] || []).map(x => x.id === c.id ? { ...x, target_dept_id: e.target.value } : x)
                                         }))}
                                         onBlur={e => handleConsensusChange(c.id!, r.id!, 'target_dept_id', e.target.value)}
-                                        placeholder="예: 기술부서, 재무팀"
-                                        style={{ ...sel, fontSize: '12px', padding: '4px 7px', width: '100%', boxSizing: 'border-box' }}
+                                        placeholder="예: 재무팀, 기술부서"
+                                        style={{ ...sel, fontSize: '13px', width: '100%', boxSizing: 'border-box' }}
                                       />
                                     </td>
-                                    <td style={{ padding: '6px 10px' }}>
-                                      <select
-                                        value={c.consensus_tier}
-                                        onChange={e => handleConsensusChange(c.id!, r.id!, 'consensus_tier', parseInt(e.target.value))}
-                                        style={{ ...sel, fontSize: '12px', padding: '3px 6px' }}
-                                      >
+                                    <td style={{ padding: '7px 10px' }}>
+                                      <select value={c.consensus_tier} onChange={e => handleConsensusChange(c.id!, r.id!, 'consensus_tier', parseInt(e.target.value))} style={{ ...sel, fontSize: '13px' }}>
                                         <TierOptions />
                                       </select>
                                     </td>
-                                    <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                                    <td style={{ padding: '7px 10px', textAlign: 'center' }}>
                                       <button
                                         onClick={() => handleConsensusChange(c.id!, r.id!, 'execution_type', c.execution_type === 'SEQUENTIAL' ? 'PARALLEL' : 'SEQUENTIAL')}
                                         style={{
-                                          padding: '3px 10px',
-                                          background: c.execution_type === 'SEQUENTIAL' ? '#f0fdf4' : '#eff6ff',
-                                          color: c.execution_type === 'SEQUENTIAL' ? '#16a34a' : '#2563eb',
-                                          border: `1px solid ${c.execution_type === 'SEQUENTIAL' ? '#86efac' : '#93c5fd'}`,
-                                          borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 600,
+                                          padding: '4px 12px',
+                                          background: c.execution_type === 'SEQUENTIAL' ? 'var(--success-light)' : 'var(--primary-light)',
+                                          color: c.execution_type === 'SEQUENTIAL' ? 'var(--success)' : 'var(--primary)',
+                                          border: 'none', borderRadius: '5px', fontSize: '12px', cursor: 'pointer', fontWeight: 700,
                                         }}
                                       >
                                         {c.execution_type === 'SEQUENTIAL' ? '순차' : '병렬'}
                                       </button>
                                     </td>
-                                    <td style={{ padding: '6px 10px', textAlign: 'center' }}>
+                                    <td style={{ padding: '7px 10px', textAlign: 'center' }}>
                                       <button
                                         onClick={() => handleDeleteConsensus(c.id!, r.id!)}
-                                        style={{
-                                          padding: '3px 8px', background: '#fee2e2',
-                                          color: '#dc2626', border: 'none', borderRadius: '4px',
-                                          fontSize: '11px', cursor: 'pointer',
-                                        }}
+                                        style={{ padding: '4px 10px', background: 'var(--danger-light)', color: 'var(--danger)', border: 'none', borderRadius: '5px', fontSize: '12px', cursor: 'pointer' }}
                                       >
                                         삭제
                                       </button>
@@ -500,16 +517,19 @@ const ApprovalRulesManage: React.FC = () => {
             {/* 빈 상태 */}
             {rules.length === 0 && !loading && (
               <tr>
-                <td colSpan={8} style={{ padding: '48px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
-                  등록된 결재선 규칙이 없습니다.
-                  <br />
-                  <span style={{ color: '#64748b' }}>상단 '전체 업무 일괄 생성' 버튼으로 {APPROVAL_EVENT_REGISTRY.length}개 전사 업무를 한 번에 등록하세요.</span>
+                <td colSpan={8} style={{ padding: '56px 24px', textAlign: 'center' }}>
+                  <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', margin: '0 0 8px' }}>
+                    등록된 결재선 규칙이 없습니다.
+                  </p>
+                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+                    상단 '전체 업무 일괄 생성' 버튼으로 {APPROVAL_EVENT_REGISTRY.length}개 전사 업무를 한 번에 등록하세요.
+                  </p>
                 </td>
               </tr>
             )}
             {loading && (
               <tr>
-                <td colSpan={8} style={{ padding: '24px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>
+                <td colSpan={8} style={{ padding: '32px', textAlign: 'center', fontSize: '14px', color: 'var(--text-secondary)' }}>
                   불러오는 중…
                 </td>
               </tr>
@@ -518,16 +538,19 @@ const ApprovalRulesManage: React.FC = () => {
         </table>
       </div>
 
-      {/* ── 하단 범례 ── */}
-      <div style={{ marginTop: '12px', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+      {/* ── 하단 범례 + 안내 ── */}
+      <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
         {Object.entries(CATEGORY_COLORS).map(([cat, colors]) => (
-          <span key={cat} style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: colors.bg, border: `1px solid ${colors.color}`, display: 'inline-block' }} />
-            <span style={{ color: '#64748b' }}>{cat}</span>
+          <span key={cat} style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{
+              width: '10px', height: '10px', borderRadius: '50%',
+              background: colors.bg, display: 'inline-block', flexShrink: 0,
+            }} />
+            <span style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{cat}</span>
           </span>
         ))}
-        <span style={{ fontSize: '11px', color: '#94a3b8', marginLeft: 'auto' }}>
-          저장 중 행은 노란색 표시 · 전결 티어/사용 여부는 선택 즉시 저장 · 이름은 셀 이탈 시 저장
+        <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+          저장 중 행은 강조 표시 · 전결 티어/사용 여부는 선택 즉시 저장 · 이름은 셀 이탈 시 저장
         </span>
       </div>
     </div>
