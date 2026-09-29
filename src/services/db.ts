@@ -235,6 +235,39 @@ export interface DelegationRecord {
   created_at?: string;
 }
 
+/** 결재 티어 레이블 매핑 (tier_level → 직책명) */
+export const TIER_LABELS: Record<number, string> = {
+  0: '사원',
+  1: '대리',
+  2: '과장',
+  3: '차장',
+  4: '부장',
+  5: '이사',
+  6: '상무',
+  7: '대표',
+};
+
+/** 전사 업무 이벤트 레지스트리 (SSOT) — 결재선 설정 화면 드롭다운 원본 */
+export const APPROVAL_EVENT_REGISTRY = [
+  { code: 'CUSTOMER_REGISTRATION',  name: '고객 등록',        targetTable: 'customers',          category: '고객' },
+  { code: 'CONTRACT_SIGN',          name: '계약 체결',        targetTable: 'contracts',           category: '계약' },
+  { code: 'CONTRACT_TERMINATE',     name: '계약 해지',        targetTable: 'contracts',           category: '계약' },
+  { code: 'CONTRACT_EXTEND',        name: '계약 연장',        targetTable: 'contracts',           category: '계약' },
+  { code: 'CONTRACT_SUCCEED',       name: '계약 승계',        targetTable: 'contracts',           category: '계약' },
+  { code: 'EXCHANGE_APPROVE',       name: '대차 교체 승인',   targetTable: 'contracts',           category: '출고/반납' },
+  { code: 'OUTBOUND_APPROVE',       name: '출고 검수 승인',   targetTable: 'deliveries',          category: '출고/반납' },
+  { code: 'RETURN_APPROVE',         name: '반납 검수 승인',   targetTable: 'deliveries',          category: '출고/반납' },
+  { code: 'TRUCK_DISPATCH_APPROVE', name: '배차 발행 승인',   targetTable: 'deliveries',          category: '배차' },
+  { code: 'ASSET_DISPOSAL',         name: '자산 매각',        targetTable: 'assets',              category: '자산' },
+  { code: 'ASSET_WRITE_OFF',        name: '자산 폐기',        targetTable: 'assets',              category: '자산' },
+  { code: 'REPAIR_CLOSE',           name: '수리 완료 승인',   targetTable: 'repair_records',      category: '정비' },
+  { code: 'BILLING_FINALIZE',       name: '청구서 확정',      targetTable: 'billing_statements',  category: '정산' },
+  { code: 'PAYMENT_CONFIRM',        name: '수납 확정',        targetTable: 'receipts',            category: '정산' },
+  { code: 'DELINQUENCY_WRITE_OFF',  name: '연체 탕감 승인',   targetTable: 'contracts',           category: '정산' },
+] as const;
+
+export type ApprovalEventCode = typeof APPROVAL_EVENT_REGISTRY[number]['code'];
+
 export interface User {
   id: string;
   loginId?: string;
