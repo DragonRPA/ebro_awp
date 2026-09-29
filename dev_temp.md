@@ -5208,3 +5208,15 @@ pm run build: **TypeScript 0 Error, 번들링 정상 완료 (uilt in 1.13s)**.
   2. ApprovalInbox.tsx (내 결재함 화면)
   3. useApproval.ts 코어 로직 훅 고도화
   4. App.tsx 메뉴 등록
+
+## [완료] 임차장비 관리 편의성 개선 및 사업자등록증 판정 모달 1080p 최적화 (Build.6)
+- **요구사항**:
+  1. 임차장비 관리 조회 필터에 '임대가능' 추가
+  2. 임차자산 등록 모달 편의성 개선 (임차처 초성조회 지원, 새로운 임차자산일 때 자동 신규채번, 과거 반납 자산 재활용)
+  3. 사업자등록증 업로드 결과 판정 모달 PC 1080p 화면 높이 대응 여백 축소 및 수직 스크롤 장착
+  4. 광건티앤씨 고객 조회 불가 원인 규명 및 DB 정정
+- **조치 내역**:
+  1. `src/pages/rent_assets.tsx` 임대가능 필터 추가 및 채번/초성/과거자산 재활용 UX 완성
+  2. `src/components/BusinessLicenseModal.tsx` 상하 여백 슬림화, `min-h-0 overflow-y-auto` 수직 스크롤, 1:1 대사 테이블 컬럼 잘림 방지
+  3. Supabase `customers` CUST-0000357 상호 '광안티앤씨 (주)' ➔ '광건티앤씨 (주)' 정정
+  4. `npm run build` 성공 검증

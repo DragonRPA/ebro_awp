@@ -320,20 +320,36 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-xs">
-      <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden text-slate-100 animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 p-2 sm:p-4 backdrop-blur-xs flex items-center justify-center">
+      <style>{`
+        .custom-modal-scroll::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-modal-scroll::-webkit-scrollbar-track {
+          background: #0f172a;
+          border-radius: 4px;
+        }
+        .custom-modal-scroll::-webkit-scrollbar-thumb {
+          background: #475569;
+          border-radius: 4px;
+        }
+        .custom-modal-scroll::-webkit-scrollbar-thumb:hover {
+          background: #64748b;
+        }
+      `}</style>
+      <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-3xl max-h-[calc(100vh-32px)] flex flex-col overflow-hidden text-slate-100 my-auto animate-in fade-in zoom-in-95 duration-200">
         
         {/* 상단 헤더 (3.1 무수식어 건조 표준) */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800 bg-slate-950/60">
+        <div className="flex items-center justify-between px-4 py-2.5 sm:px-5 sm:py-3 border-b border-slate-800 bg-slate-950/60 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
-              <FileText size={18} />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
+              <FileText size={16} />
             </div>
             <div>
-              <h2 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
+              <h2 className="text-sm sm:text-base font-semibold text-white tracking-tight flex items-center gap-2">
                 사업자등록증 고객 등록 / 정보 보완
                 {step === 'RESULT' && (
-                  <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${
+                  <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium ${
                     matchedCustomer 
                       ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' 
                       : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
@@ -342,7 +358,7 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
                   </span>
                 )}
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">
                 {step === 'UPLOAD' && '사업자등록증 이미지(카톡/문자 사진) 또는 PDF 파일을 업로드하세요.'}
                 {step === 'ANALYZING' && 'AI 멀티모달 비전 엔진이 사업자등록증을 분석 중입니다...'}
                 {step === 'RESULT' && (matchedCustomer 
@@ -354,14 +370,20 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
           <button
             onClick={onClose}
             disabled={isSaving || step === 'ANALYZING'}
-            className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+            className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer shrink-0"
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* 본문 작업대 (Gutenberg Z-Pattern 중앙 영역) */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-4 text-sm">
+        {/* 본문 작업대 (Gutenberg Z-Pattern 중앙 영역 - 수직 스크롤 탑재) */}
+        <div 
+          className="flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-4 space-y-2.5 sm:space-y-3 text-xs sm:text-sm custom-modal-scroll"
+          style={{
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#475569 #0f172a'
+          }}
+        >
           
           {/* [단계 1] 업로드 드롭존 */}
           {step === 'UPLOAD' && (
@@ -450,18 +472,18 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
 
           {/* [단계 3] 판독 결과 대사 및 확인 (Z-Pattern 중앙) */}
           {step === 'RESULT' && analysisResult && (
-            <div className="space-y-5">
+            <div className="space-y-2.5 sm:space-y-3">
               
               {/* 상단 파일 요약 칩 */}
-              <div className="flex items-center justify-between p-3 bg-slate-800/80 border border-slate-700 rounded-lg text-xs">
+              <div className="flex items-center justify-between px-3 py-1.5 bg-slate-800/80 border border-slate-700 rounded-lg text-xs">
                 <div className="flex items-center gap-2 overflow-hidden">
-                  <FileText size={15} className="text-blue-400 shrink-0" />
+                  <FileText size={14} className="text-blue-400 shrink-0" />
                   <span className="text-slate-300 truncate font-medium">{selectedFile?.name}</span>
                   <span className="text-slate-500 shrink-0">({analysisResult.sourceType || 'IMAGE'})</span>
                 </div>
                 <button
                   onClick={() => setStep('UPLOAD')}
-                  className="text-xs text-slate-400 hover:text-white px-2 py-1 rounded hover:bg-slate-700 transition-colors shrink-0 cursor-pointer"
+                  className="text-xs text-slate-400 hover:text-white px-2 py-0.5 rounded hover:bg-slate-700 transition-colors shrink-0 cursor-pointer"
                 >
                   다른 파일 재업로드
                 </button>
@@ -469,7 +491,7 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
 
               {/* 🏛️ 국세청 홈택스 상호 진위확인 및 휴폐업 검증 카드 */}
               {(ntsResult || ntsValidation) && (
-                <div className={`p-3 rounded-lg border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
+                <div className={`px-3 py-2 rounded-lg border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${
                   ntsResult?.status === 'ACTIVE'
                     ? 'bg-emerald-950/40 border-emerald-800 text-emerald-300'
                     : ntsResult?.status === 'CLOSED'
@@ -478,14 +500,14 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
                     ? 'bg-amber-950/40 border-amber-800 text-amber-300'
                     : 'bg-slate-800 border-slate-700 text-slate-400'
                 }`}>
-                  <div className="flex items-start gap-2.5">
+                  <div className="flex items-start gap-2">
                     {ntsResult?.status === 'ACTIVE' ? (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                     ) : (
-                      <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+                      <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                     )}
-                    <div className="space-y-1">
-                      <div className="font-bold flex flex-wrap items-center gap-2">
+                    <div className="space-y-0.5">
+                      <div className="font-bold flex flex-wrap items-center gap-1.5">
                         <span>국세청 홈택스:</span>
                         <span className="underline decoration-1">{ntsResult?.statusLabel || '조회 완료'}</span>
                         {ntsResult?.closedDate && (
@@ -495,7 +517,7 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
                         )}
                         {/* 상호·대표자 진위확인 배지 */}
                         {ntsValidation && (
-                          <span className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${
+                          <span className={`px-1.5 py-0.5 rounded text-[10.5px] font-semibold border ${
                             ntsValidation.isValid
                               ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
                               : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
@@ -506,13 +528,13 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] opacity-80">
+                      <p className="text-[11px] opacity-80 leading-normal">
                         과세유형: {ntsResult?.taxType || '일반과세자'} • {ntsValidation?.validMessage || '국세청 진위확인 완료'}
                         {ntsResult?.status === 'CLOSED' && ' • 자동 출고제한(BLOCKED) 적용 대상'}
                       </p>
                     </div>
                   </div>
-                  <span className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-black/40 border border-white/10 shrink-0 self-start sm:self-center">
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-black/40 border border-white/10 shrink-0 self-start sm:self-center">
                     {ntsValidation?.source === 'NTS_LIVE_API' || ntsResult?.source === 'NTS_LIVE_API' ? '홈택스 공적 API' : '체크섬 인증'}
                   </span>
                 </div>
@@ -520,8 +542,8 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
 
               {/* 분기 1: 기존 고객 정보 보완 (1:1 Diff Table) */}
               {matchedCustomer ? (
-                <div className="space-y-3">
-                  <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-200 flex items-center justify-between">
+                <div className="space-y-2">
+                  <div className="px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-200 flex items-center justify-between">
                     <div>
                       <span className="font-semibold text-amber-300">[{matchedCustomer.name}]</span> 기존 등록 데이터와 일치합니다.
                       <p className="text-slate-400 text-[11px] mt-0.5">사업자등록증에서 새로 판독된 항목을 선택하여 갱신하세요.</p>
@@ -532,20 +554,20 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
                   </div>
 
                   {/* 1:1 대사 그리드 테이블 */}
-                  <div className="border border-slate-700 rounded-lg overflow-hidden">
-                    <table className="w-full text-xs text-left border-collapse">
+                  <div className="border border-slate-700 rounded-lg overflow-x-auto">
+                    <table className="w-full text-xs text-left border-collapse table-fixed">
                       <thead className="bg-slate-800/90 text-slate-400 border-b border-slate-700 uppercase font-medium">
                         <tr>
-                          <th className="p-2.5 w-10 text-center">적용</th>
-                          <th className="p-2.5 w-24">항목</th>
-                          <th className="p-2.5">기존 ERP 값</th>
-                          <th className="p-2.5 text-emerald-400">사업자등록증 추출 값</th>
+                          <th className="px-2 py-1.5 w-10 text-center">적용</th>
+                          <th className="px-2.5 py-1.5 w-24 whitespace-nowrap">항목</th>
+                          <th className="px-2.5 py-1.5 w-[38%]">기존 ERP 값</th>
+                          <th className="px-2.5 py-1.5 w-[42%] text-emerald-400">사업자등록증 추출 값</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800 bg-slate-900/60">
                         {/* 0. 상호 (법인명) - 사장님 지시: 등록증 기준으로 개편 */}
                         <tr className="hover:bg-slate-800/40">
-                          <td className="p-2.5 text-center">
+                          <td className="px-2 py-1.5 text-center">
                             <input
                               type="checkbox"
                               checked={diffSelections.name}
@@ -553,12 +575,12 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
                               className="rounded border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
                             />
                           </td>
-                          <td className="p-2.5 font-medium text-slate-300 whitespace-nowrap">상호 (법인명)</td>
-                          <td className="p-2.5 text-slate-400">{matchedCustomer.name || '미상'}</td>
-                          <td className="p-2.5 text-emerald-300 font-semibold">
+                          <td className="px-2.5 py-1.5 font-medium text-slate-300 whitespace-nowrap">상호 (법인명)</td>
+                          <td className="px-2.5 py-1.5 text-slate-400 break-all">{matchedCustomer.name || '미상'}</td>
+                          <td className="px-2.5 py-1.5 text-emerald-300 font-semibold break-all">
                             {analysisResult.companyName || '(미추출)'}
                             {analysisResult.companyName && matchedCustomer.name !== analysisResult.companyName && (
-                              <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 font-normal">
+                              <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 font-normal">
                                 등록증 기준 교체
                               </span>
                             )}
@@ -567,85 +589,85 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
 
                         {/* 1. 사업자등록번호 */}
                         <tr className="hover:bg-slate-800/40">
-                          <td className="p-2.5 text-center">
+                          <td className="px-2 py-1.5 text-center">
                             <input
                               type="checkbox"
                               checked={diffSelections.bizRegNo}
                               onChange={(e) => setDiffSelections({ ...diffSelections, bizRegNo: e.target.checked })}
-                              className="rounded border-slate-600 text-blue-600 focus:ring-blue-500"
+                              className="rounded border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
                             />
                           </td>
-                          <td className="p-2.5 font-medium text-slate-300 whitespace-nowrap">사업자등록번호</td>
-                          <td className="p-2.5 text-slate-400 font-mono">{matchedCustomer.bizRegNo || '미상'}</td>
-                          <td className="p-2.5 text-emerald-300 font-mono font-semibold">
+                          <td className="px-2.5 py-1.5 font-medium text-slate-300 whitespace-nowrap">사업자등록번호</td>
+                          <td className="px-2.5 py-1.5 text-slate-400 font-mono">{matchedCustomer.bizRegNo || '미상'}</td>
+                          <td className="px-2.5 py-1.5 text-emerald-300 font-mono font-semibold">
                             {analysisResult.bizRegNo || '(미추출)'}
                           </td>
                         </tr>
 
                         {/* 2. 대표자명 */}
                         <tr className="hover:bg-slate-800/40">
-                          <td className="p-2.5 text-center">
+                          <td className="px-2 py-1.5 text-center">
                             <input
                               type="checkbox"
                               checked={diffSelections.representative}
                               onChange={(e) => setDiffSelections({ ...diffSelections, representative: e.target.checked })}
-                              className="rounded border-slate-600 text-blue-600 focus:ring-blue-500"
+                              className="rounded border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
                             />
                           </td>
-                          <td className="p-2.5 font-medium text-slate-300 whitespace-nowrap">대표자</td>
-                          <td className="p-2.5 text-slate-400">{matchedCustomer.representative || '미상'}</td>
-                          <td className="p-2.5 text-emerald-300 font-semibold">
+                          <td className="px-2.5 py-1.5 font-medium text-slate-300 whitespace-nowrap">대표자</td>
+                          <td className="px-2.5 py-1.5 text-slate-400">{matchedCustomer.representative || '미상'}</td>
+                          <td className="px-2.5 py-1.5 text-emerald-300 font-semibold">
                             {analysisResult.representative || '(미추출)'}
                           </td>
                         </tr>
 
                         {/* 3. 사업장 소재지 */}
                         <tr className="hover:bg-slate-800/40">
-                          <td className="p-2.5 text-center">
+                          <td className="px-2 py-1.5 text-center">
                             <input
                               type="checkbox"
                               checked={diffSelections.address}
                               onChange={(e) => setDiffSelections({ ...diffSelections, address: e.target.checked })}
-                              className="rounded border-slate-600 text-blue-600 focus:ring-blue-500"
+                              className="rounded border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
                             />
                           </td>
-                          <td className="p-2.5 font-medium text-slate-300 whitespace-nowrap">사업장 소재지</td>
-                          <td className="p-2.5 text-slate-400">{matchedCustomer.address || '미상'}</td>
-                          <td className="p-2.5 text-emerald-300 font-semibold">
+                          <td className="px-2.5 py-1.5 font-medium text-slate-300 whitespace-nowrap">사업장 소재지</td>
+                          <td className="px-2.5 py-1.5 text-slate-400 break-all">{matchedCustomer.address || '미상'}</td>
+                          <td className="px-2.5 py-1.5 text-emerald-300 font-semibold break-all">
                             {analysisResult.address || '(미추출)'}
                           </td>
                         </tr>
 
                         {/* 4. 업태 */}
                         <tr className="hover:bg-slate-800/40">
-                          <td className="p-2.5 text-center">
+                          <td className="px-2 py-1.5 text-center">
                             <input
                               type="checkbox"
                               checked={diffSelections.bizType}
                               onChange={(e) => setDiffSelections({ ...diffSelections, bizType: e.target.checked })}
-                              className="rounded border-slate-600 text-blue-600 focus:ring-blue-500"
+                              className="rounded border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
                             />
                           </td>
-                          <td className="p-2.5 font-medium text-slate-300 whitespace-nowrap">업태</td>
-                          <td className="p-2.5 text-slate-400">{matchedCustomer.bizType || '(미등록)'}</td>
-                          <td className="p-2.5 text-emerald-300 font-semibold">
+                          <td className="px-2.5 py-1.5 font-medium text-slate-300 whitespace-nowrap">업태</td>
+                          <td className="px-2.5 py-1.5 text-slate-400 break-all">{matchedCustomer.bizType || '(미등록)'}</td>
+                          <td className="px-2.5 py-1.5 text-emerald-300 font-semibold break-all">
                             {analysisResult.bizType || '(미추출)'}
                           </td>
                         </tr>
 
                         {/* 5. 종목 */}
                         <tr className="hover:bg-slate-800/40">
-                          <td className="p-2.5 text-center">
+                          <td className="px-2 py-1.5 text-center">
                             <input
                               type="checkbox"
                               checked={diffSelections.bizItem}
                               onChange={(e) => setDiffSelections({ ...diffSelections, bizItem: e.target.checked })}
-                              className="rounded border-slate-600 text-blue-600 focus:ring-blue-500"
+                              className="rounded border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
                             />
                           </td>
-                          <td className="p-2.5 font-medium text-slate-300 whitespace-nowrap">종목</td>
-                          <td className="p-2.5 text-slate-400">{matchedCustomer.bizItem || '(미등록)'}</td>
-                          <td className="p-2.5 text-emerald-300 font-semibold">
+                          <td className="px-2.5 py-1.5 font-medium text-slate-300 whitespace-nowrap">종목</td>
+                          <td className="px-2.5 py-1.5 text-slate-400 break-all">{matchedCustomer.bizItem || '(미등록)'}</td>
+                          <td className="px-2.5 py-1.5 text-emerald-300 font-semibold break-all">
                             {analysisResult.bizItem || '(미추출)'}
                           </td>
                         </tr>
@@ -653,17 +675,17 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
                         {/* 6. 세금계산서 이메일 */}
                         {analysisResult.taxEmail && (
                           <tr className="hover:bg-slate-800/40">
-                            <td className="p-2.5 text-center">
+                            <td className="px-2 py-1.5 text-center">
                               <input
                                 type="checkbox"
                                 checked={diffSelections.taxEmail}
                                 onChange={(e) => setDiffSelections({ ...diffSelections, taxEmail: e.target.checked })}
-                                className="rounded border-slate-600 text-blue-600 focus:ring-blue-500"
+                                className="rounded border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
                               />
                             </td>
-                            <td className="p-2.5 font-medium text-slate-300 whitespace-nowrap">세금계산서 이메일</td>
-                            <td className="p-2.5 text-slate-400">{matchedCustomer.repEmail || '미상'}</td>
-                            <td className="p-2.5 text-emerald-300 font-semibold">
+                            <td className="px-2.5 py-1.5 font-medium text-slate-300 whitespace-nowrap">세금계산서 이메일</td>
+                            <td className="px-2.5 py-1.5 text-slate-400 break-all">{matchedCustomer.repEmail || '미상'}</td>
+                            <td className="px-2.5 py-1.5 text-emerald-300 font-semibold break-all">
                               {analysisResult.taxEmail}
                             </td>
                           </tr>
@@ -672,17 +694,17 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
                         {/* 7. 대표 연락처 */}
                         {analysisResult.repContact && (
                           <tr className="hover:bg-slate-800/40">
-                            <td className="p-2.5 text-center">
+                            <td className="px-2 py-1.5 text-center">
                               <input
                                 type="checkbox"
                                 checked={diffSelections.repContact}
                                 onChange={(e) => setDiffSelections({ ...diffSelections, repContact: e.target.checked })}
-                                className="rounded border-slate-600 text-blue-600 focus:ring-blue-500"
+                                className="rounded border-slate-600 text-blue-600 focus:ring-blue-500 cursor-pointer"
                               />
                             </td>
-                            <td className="p-2.5 font-medium text-slate-300 whitespace-nowrap">대표 연락처</td>
-                            <td className="p-2.5 text-slate-400">{matchedCustomer.repContact || '미상'}</td>
-                            <td className="p-2.5 text-emerald-300 font-semibold">
+                            <td className="px-2.5 py-1.5 font-medium text-slate-300 whitespace-nowrap">대표 연락처</td>
+                            <td className="px-2.5 py-1.5 text-slate-400">{matchedCustomer.repContact || '미상'}</td>
+                            <td className="px-2.5 py-1.5 text-emerald-300 font-semibold">
                               {analysisResult.repContact}
                             </td>
                           </tr>
@@ -692,103 +714,103 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
                   </div>
                 </div>
               ) : (
-                /* 분기 2: 신규 고객 등록 폼 (3.4 상하 스택 레이아웃 표준) */
-                <div className="space-y-3.5">
-                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-xs text-emerald-200">
+                /* 분기 2: 신규 고객 등록 폼 (3.4 상하 세로 스택 레이아웃 표준) */
+                <div className="space-y-2 sm:space-y-2.5">
+                  <div className="px-3 py-1.5 sm:py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-xs text-emerald-200">
                     <span className="font-semibold text-emerald-300">신규 고객사 자동 감지</span> — 사업자등록증에서 추출된 데이터가 자동 입력되었습니다.
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
                     {/* 상호 */}
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs text-slate-300 font-medium">상호 (법인명) *</label>
+                    <div className="flex flex-col gap-0.5 sm:gap-1">
+                      <label className="text-[11px] sm:text-xs text-slate-300 font-medium">상호 (법인명) *</label>
                       <input
                         type="text"
                         value={newForm.name}
                         onChange={(e) => setNewForm({ ...newForm, name: e.target.value })}
-                        className="bg-slate-800 border border-slate-700 rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                        className="bg-slate-800 border border-slate-700 rounded-md px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
                       />
                     </div>
 
                     {/* 사업자등록번호 */}
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs text-slate-300 font-medium">사업자등록번호 *</label>
+                    <div className="flex flex-col gap-0.5 sm:gap-1">
+                      <label className="text-[11px] sm:text-xs text-slate-300 font-medium">사업자등록번호 *</label>
                       <input
                         type="text"
                         value={newForm.bizRegNo}
                         onChange={(e) => setNewForm({ ...newForm, bizRegNo: formatBizRegNo(e.target.value) })}
                         placeholder="000-00-00000"
-                        className="bg-slate-800 border border-slate-700 rounded-md px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
+                        className="bg-slate-800 border border-slate-700 rounded-md px-2.5 py-1 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
                       />
                     </div>
 
                     {/* 대표자 성명 */}
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs text-slate-300 font-medium">대표자 성명</label>
+                    <div className="flex flex-col gap-0.5 sm:gap-1">
+                      <label className="text-[11px] sm:text-xs text-slate-300 font-medium">대표자 성명</label>
                       <input
                         type="text"
                         value={newForm.representative}
                         onChange={(e) => setNewForm({ ...newForm, representative: e.target.value })}
-                        className="bg-slate-800 border border-slate-700 rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                        className="bg-slate-800 border border-slate-700 rounded-md px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
                       />
                     </div>
 
                     {/* 대표 연락처 */}
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs text-slate-300 font-medium">대표 연락처</label>
+                    <div className="flex flex-col gap-0.5 sm:gap-1">
+                      <label className="text-[11px] sm:text-xs text-slate-300 font-medium">대표 연락처</label>
                       <input
                         type="text"
                         value={newForm.repContact}
                         onChange={(e) => setNewForm({ ...newForm, repContact: e.target.value })}
                         placeholder="010-0000-0000"
-                        className="bg-slate-800 border border-slate-700 rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                        className="bg-slate-800 border border-slate-700 rounded-md px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
                       />
                     </div>
 
                     {/* 사업장 소재지 */}
-                    <div className="flex flex-col gap-1 sm:col-span-2">
-                      <label className="text-xs text-slate-300 font-medium">사업장 소재지 (주소)</label>
+                    <div className="flex flex-col gap-0.5 sm:gap-1 sm:col-span-2">
+                      <label className="text-[11px] sm:text-xs text-slate-300 font-medium">사업장 소재지 (주소)</label>
                       <input
                         type="text"
                         value={newForm.address}
                         onChange={(e) => setNewForm({ ...newForm, address: e.target.value })}
-                        className="bg-slate-800 border border-slate-700 rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                        className="bg-slate-800 border border-slate-700 rounded-md px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
                       />
                     </div>
 
                     {/* 업태 */}
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs text-slate-300 font-medium">업태</label>
+                    <div className="flex flex-col gap-0.5 sm:gap-1">
+                      <label className="text-[11px] sm:text-xs text-slate-300 font-medium">업태</label>
                       <input
                         type="text"
                         value={newForm.bizType}
                         onChange={(e) => setNewForm({ ...newForm, bizType: e.target.value })}
                         placeholder="예: 건설업"
-                        className="bg-slate-800 border border-slate-700 rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                        className="bg-slate-800 border border-slate-700 rounded-md px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
                       />
                     </div>
 
                     {/* 종목 */}
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs text-slate-300 font-medium">종목</label>
+                    <div className="flex flex-col gap-0.5 sm:gap-1">
+                      <label className="text-[11px] sm:text-xs text-slate-300 font-medium">종목</label>
                       <input
                         type="text"
                         value={newForm.bizItem}
                         onChange={(e) => setNewForm({ ...newForm, bizItem: e.target.value })}
                         placeholder="예: 고소작업대 임대"
-                        className="bg-slate-800 border border-slate-700 rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                        className="bg-slate-800 border border-slate-700 rounded-md px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
                       />
                     </div>
 
                     {/* 세금계산서 이메일 */}
-                    <div className="flex flex-col gap-1">
-                      <label className="text-xs text-slate-300 font-medium">세금계산서 수신 이메일</label>
+                    <div className="flex flex-col gap-0.5 sm:gap-1">
+                      <label className="text-[11px] sm:text-xs text-slate-300 font-medium">세금계산서 수신 이메일</label>
                       <input
                         type="email"
                         value={newForm.repEmail}
                         onChange={(e) => setNewForm({ ...newForm, repEmail: e.target.value })}
                         placeholder="tax@company.com"
-                        className="bg-slate-800 border border-slate-700 rounded-md px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
+                        className="bg-slate-800 border border-slate-700 rounded-md px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500"
                       />
                     </div>
                   </div>
@@ -798,11 +820,11 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
           )}
         </div>
 
-        {/* 하단 완결 액션 바 (Gutenberg Z-Pattern 우하단 Terminal Action) */}
-        <div className="px-5 py-3.5 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between">
-          <div className="text-xs text-slate-400">
+        {/* 하단 완결 액션 바 (Gutenberg Z-Pattern 우하단 Terminal Action - 고정 바) */}
+        <div className="px-4 py-2.5 sm:px-5 sm:py-3 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between shrink-0">
+          <div className="text-[11px] sm:text-xs text-slate-400">
             {step === 'RESULT' && (
-              <span>증빙 원본 파일이 사내 스토리지에 자동 보관됩니다.</span>
+              <span className="hidden sm:inline">증빙 원본 파일이 사내 스토리지에 자동 보관됩니다.</span>
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -810,7 +832,7 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={isSaving}
-              className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors cursor-pointer"
+              className="px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors cursor-pointer"
             >
               닫기
             </button>
@@ -819,7 +841,7 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
                 type="button"
                 onClick={handleSave}
                 disabled={isSaving}
-                className={`px-4 py-2 rounded-lg text-white text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
+                className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-white text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
                   matchedCustomer 
                     ? 'bg-amber-600 hover:bg-amber-500' 
                     : 'bg-emerald-600 hover:bg-emerald-500'

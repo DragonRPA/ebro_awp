@@ -1,5 +1,5 @@
 // src/pages/rent_assets.tsx
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   Plus, CheckCircle, Search, AlertTriangle, Download, Clock, Layers, ShieldAlert, Upload, FileSpreadsheet, RefreshCw, FileText, Check, ArrowRight, XCircle, CreditCard, CheckCircle2, AlertCircle, X, ExternalLink, ShieldCheck, Building, Calendar
@@ -10,6 +10,7 @@ import * as XLSX from 'xlsx';
 
 import { VendorStatementRow, parseVendorStatementExcel } from '../services/vendorStatementParser';
 import { parsePdfStatement } from '../services/pdfStatementParser';
+import { matchHangul } from '../utils/hangulSearch';
 
 // 5대 대사 결과 항목 인터페이스
 export type ReconcileStatusKey = 'MATCHED' | 'PRICE_MISMATCH' | 'PERIOD_MISMATCH' | 'UNREGISTERED' | 'MISSING_BILLING';
@@ -1036,6 +1037,27 @@ export const RentAssets: React.FC = () => {
     }
   });
 
+  // 임차처 초성 검색 및 콤보박스 상태
+  const [renterSearchQuery, setRenterSearchQuery] = useState('');
+  const [isRenterDropdownOpen, setIsRenterDropdownOpen] = useState(false);
+  const renterComboboxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (renterComboboxRef.current && !renterComboboxRef.current.contains(e.target as Node)) {
+        setIsRenterDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredRenterVendors = React.useMemo(() => {
+    if (!renterSearchQuery.trim()) return renterVendors;
+    const q = renterSearchQuery.trim();
+    return renterVendors.filter(r => matchHangul(r, q));
+  }, [renterVendors, renterSearchQuery]);
+
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [returnAssetId, setReturnAssetId] = useState('');
   const [returnDate, setReturnDate] = useState(new Date().toISOString().split('T')[0]);
@@ -1102,13 +1124,77 @@ export const RentAssets: React.FC = () => {
     return subleaseEnd.getTime() > leaseEnd.getTime();
   };
 
+  // 임차 자산 신규 자동 채번 헬퍼 (R-xxx 형식 순차 증가)
+  const generateNextRentedAssetNo = (allAssets: Asset[]): string => {
+    const rented = (allAssets || []).filter(a => a.ownerType === 'RENTED');
+    let maxNum = 0;
+    for (const a of rented) {
+      if (!a.assetNo) continue;
+      const match = a.assetNo.match(/^(?:R-|RENT-|R)(\d+)$/i);
+      if (match) {
+        const val = parseInt(match[1], 10);
+        if (!isNaN(val) && val > maxNum) {
+          maxNum = val;
+        }
+      }
+    }
+    const nextNum = maxNum + 1;
+    return `R-${nextNum.toString().padStart(3, '0')}`;
+  };
+
+  // 관리번호 수동 입력 시 과거 반납 자산 자동 감지 및 승계
+  const handleAssetNoChange = (val: string) => {
+    const trimmed = val.trim();
+    const pastReturned = rentedAssets.find(a => 
+      a.status === 'RENTED_RETURNED' && a.assetNo && a.assetNo.toLowerCase() === trimmed.toLowerCase()
+    );
+
+    if (pastReturned) {
+      const today = new Date().toISOString().split('T')[0];
+      const resolvedRenter = pastReturned.renter || (pastReturned.vendorId ? vendors.find(v => v.id === pastReturned.vendorId)?.name : '') || '';
+      setRenterSearchQuery(resolvedRenter);
+      setEditingAsset(prev => prev ? ({
+        ...prev,
+        ...pastReturned,
+        assetNo: val,
+        rentStart: today,
+        rentEnd: calcRentEnd(today),
+        actualRentReturnDate: '',
+        status: 'AVAILABLE',
+        renter: resolvedRenter,
+        vendorId: pastReturned.vendorId || vendors.find(v => v.name === resolvedRenter)?.id,
+        isReactivating: true
+      } as any) : null);
+    } else {
+      setEditingAsset(prev => prev ? ({
+        ...prev,
+        assetNo: val,
+        isReactivating: false
+      } as any) : null);
+    }
+  };
+
+  // 신규 채번 버튼 핸들러
+  const handleAutoGenerateAssetNo = () => {
+    const nextNo = generateNextRentedAssetNo(assets);
+    setEditingAsset(prev => prev ? ({
+      ...prev,
+      assetNo: nextNo,
+      isReactivating: false
+    } as any) : null);
+  };
+
   const handleOpenAdd = () => {
     const today = new Date().toISOString().split('T')[0];
     const defaultRenter = renterQuery || lastUsedRenter || (rentedAssets.length > 0 ? (rentedAssets[0].renter || '') : '') || renterVendors[0] || '';
     const matchedVendor = vendors.find(v => v.name === defaultRenter);
+    const nextAssetNo = generateNextRentedAssetNo(assets);
+    setRenterSearchQuery(defaultRenter);
+    setIsRenterDropdownOpen(false);
     setEditingAsset({
       modelName: sortedProducts[0]?.modelName || '',
-      assetNo: '',
+      assetNo: nextAssetNo,
+      vendorAssetNo: '',
       serialNo: '',
       manufacturer: '',
       renter: defaultRenter,
@@ -1117,14 +1203,17 @@ export const RentAssets: React.FC = () => {
       rentEnd: calcRentEnd(today),
       monthlyRentFee: 0,
       dailyRentFee: 0,
-      memo1: ''
-    });
+      memo1: '',
+      isReactivating: false
+    } as any);
     setShowModal(true);
   };
 
   const handleOpenEdit = (a: Asset) => {
     const resolvedRenter = a.renter || (a.vendorId ? vendors.find(v => v.id === a.vendorId)?.name : '') || '';
     const resolvedVendorId = a.vendorId || (resolvedRenter ? vendors.find(v => v.name === resolvedRenter)?.id : undefined);
+    setRenterSearchQuery(resolvedRenter);
+    setIsRenterDropdownOpen(false);
     setEditingAsset({
       ...a,
       renter: resolvedRenter,
@@ -1158,7 +1247,7 @@ export const RentAssets: React.FC = () => {
       return;
     }
 
-    const resolvedRenter = editingAsset.renter || (editingAsset.vendorId ? vendors.find(v => v.id === editingAsset.vendorId)?.name : '') || '';
+    const resolvedRenter = renterSearchQuery.trim() || editingAsset.renter || (editingAsset.vendorId ? vendors.find(v => v.id === editingAsset.vendorId)?.name : '') || '';
     if (!resolvedRenter) {
       showToast('임차처를 선택해 주세요.', 'error');
       return;
@@ -1193,6 +1282,8 @@ export const RentAssets: React.FC = () => {
       showToast(`임차 자산 ${editingAsset.assetNo} 등록/수정이 완료되었습니다.`);
       setShowModal(false);
       setEditingAsset(null);
+      setIsRenterDropdownOpen(false);
+      setRenterSearchQuery('');
     } catch (err: any) {
       showToast(`처리 오류: ${err?.message || err}`, 'error');
     }
@@ -1236,6 +1327,8 @@ export const RentAssets: React.FC = () => {
     const today = new Date().toISOString().split('T')[0];
     const renterVal = a.renter || lastUsedRenter || (rentedAssets.length > 0 ? (rentedAssets[0].renter || '') : '') || renterVendors[0] || '';
     const matchedVendor = vendors.find(v => v.name === renterVal);
+    setRenterSearchQuery(renterVal);
+    setIsRenterDropdownOpen(false);
     setEditingAsset({
       ...a,
       renter: renterVal,
@@ -3382,51 +3475,51 @@ export const RentAssets: React.FC = () => {
               {editingAsset.id ? '임차 자산 수정' : '임차 자산 신규/재임차 등록'}
             </h2>
 
-            {/* 과거 반납 자산 재임차 1초 선택기 (신규 등록 시에만 노출) */}
-            {!editingAsset.id && rentedAssets.some(a => a.status === 'RENTED_RETURNED') && (
-              <div style={{ backgroundColor: 'var(--bg-app)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                  🔄 과거 반납된 자산 재임차 선택 (기존 관리번호 재활용):
-                </span>
-                <select
-                  onChange={e => {
-                    const found = rentedAssets.find(a => a.id === e.target.value);
-                    if (found) {
-                      const today = new Date().toISOString().split('T')[0];
-                      setEditingAsset({
-                        ...found,
-                        rentStart: today,
-                        rentEnd: calcRentEnd(today),
-                        actualRentReturnDate: '',
-                        status: 'AVAILABLE',
-                        isReactivating: true
-                      } as any);
-                    }
-                  }}
-                  style={{ padding: '6px 8px', fontSize: '12px', borderRadius: '6px', border: '1px solid var(--border-color)' }}
-                >
-                  <option value="">-- 신규 채번 (직접 입력) --</option>
-                  {rentedAssets.filter(a => a.status === 'RENTED_RETURNED').map(a => (
-                    <option key={a.id} value={a.id}>
-                      {a.assetNo} ({a.modelName} | 임차처: {a.renter || '미지정'} | {a.vendorAssetNo ? `임차처번호:${a.vendorAssetNo}` : '임차처번호없음'})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
             <form onSubmit={handleSubmitAsset} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>자사 관리번호 (필수)</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>자사 관리번호 (필수)</label>
+                    {!editingAsset.id && (
+                      <button
+                        type="button"
+                        onClick={handleAutoGenerateAssetNo}
+                        style={{
+                          fontSize: '10.5px',
+                          fontWeight: 700,
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          border: '1px solid var(--border-color)',
+                          backgroundColor: 'var(--bg-card)',
+                          color: 'var(--primary)',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        신규 채번
+                      </button>
+                    )}
+                  </div>
                   <input
                     type="text"
+                    list="past-returned-asset-nos"
                     required
                     placeholder="예: R-001"
                     value={editingAsset.assetNo || ''}
-                    onChange={e => setEditingAsset({ ...editingAsset, assetNo: e.target.value })}
+                    onChange={e => handleAssetNoChange(e.target.value)}
                     style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
                   />
+                  <datalist id="past-returned-asset-nos">
+                    {rentedAssets.filter(a => a.status === 'RENTED_RETURNED').map(a => (
+                      <option key={a.id} value={a.assetNo}>
+                        {`${a.modelName} | ${a.renter || '미지정'} (반납 자산)`}
+                      </option>
+                    ))}
+                  </datalist>
+                  {(editingAsset as any).isReactivating && (
+                    <div style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                      <CheckCircle2 size={12} /> 과거 반납 이력 자산 (재임차 승계)
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -3454,45 +3547,136 @@ export const RentAssets: React.FC = () => {
                 </select>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>임차처 (필수)</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }} ref={renterComboboxRef}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>
+                    임차처 (필수, 초성검색 지원)
+                  </label>
                   {isRenterDisabled && (
                     <span style={{ fontSize: '10px', color: 'var(--warning)', fontWeight: 700, backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '1px 6px', borderRadius: '4px' }}>
-                      🔒 임차 중 변경 불가 (표시 전용)
+                      임차 중 변경 불가
                     </span>
                   )}
                 </div>
-                <select
-                  required
-                  disabled={isRenterDisabled}
-                  value={currentRenterVal}
-                  onChange={e => {
-                    if (isRenterDisabled) return;
-                    const selectedName = e.target.value;
-                    const matchedVendor = vendors.find(v => v.name === selectedName);
-                    setEditingAsset({
-                      ...editingAsset,
-                      renter: selectedName,
-                      vendorId: matchedVendor?.id || editingAsset.vendorId
-                    });
-                  }}
-                  style={{
-                    padding: '6px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border-color)',
-                    backgroundColor: isRenterDisabled ? 'var(--bg-app)' : 'var(--bg-card)',
-                    color: isRenterDisabled ? 'var(--text-muted)' : 'var(--text-main)',
-                    cursor: isRenterDisabled ? 'not-allowed' : 'default',
-                    opacity: isRenterDisabled ? 0.85 : 1,
-                    fontSize: '12px'
-                  }}
-                >
-                  <option value="">-- 임차처 선택 --</option>
-                  {renterVendors.map(r => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
+
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    required
+                    disabled={isRenterDisabled}
+                    placeholder="임차처 입력 또는 초성 검색 (예: ㄹㅇㅈ, 한국)"
+                    value={renterSearchQuery}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setRenterSearchQuery(val);
+                      setIsRenterDropdownOpen(true);
+                      const matched = vendors.find(v => v.name === val.trim());
+                      setEditingAsset({
+                        ...editingAsset,
+                        renter: val,
+                        vendorId: matched?.id || editingAsset.vendorId
+                      });
+                    }}
+                    onFocus={() => {
+                      if (!isRenterDisabled) setIsRenterDropdownOpen(true);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '6px 30px 6px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: isRenterDisabled ? 'var(--bg-app)' : 'var(--bg-card)',
+                      color: isRenterDisabled ? 'var(--text-muted)' : 'var(--text-main)',
+                      cursor: isRenterDisabled ? 'not-allowed' : 'text',
+                      fontSize: '12px',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                  {renterSearchQuery && !isRenterDisabled && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRenterSearchQuery('');
+                        setEditingAsset({ ...editingAsset, renter: '', vendorId: undefined });
+                        setIsRenterDropdownOpen(true);
+                      }}
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        padding: '2px',
+                        display: 'flex'
+                      }}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                {/* 초성 검색 결과 드롭다운 */}
+                {isRenterDropdownOpen && !isRenterDisabled && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      marginTop: '4px',
+                      backgroundColor: 'var(--bg-card)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                      maxHeight: '180px',
+                      overflowY: 'auto',
+                      zIndex: 1050
+                    }}
+                  >
+                    {filteredRenterVendors.length === 0 ? (
+                      <div style={{ padding: '8px 12px', fontSize: '11.5px', color: 'var(--text-muted)', textAlign: 'center' }}>
+                        일치하는 임차처 없음 (입력한 상호명으로 등록)
+                      </div>
+                    ) : (
+                      filteredRenterVendors.map(name => {
+                        const isSelected = (editingAsset.renter || renterSearchQuery) === name;
+                        return (
+                          <div
+                            key={name}
+                            onClick={() => {
+                              setRenterSearchQuery(name);
+                              const matched = vendors.find(v => v.name === name);
+                              setEditingAsset({
+                                ...editingAsset,
+                                renter: name,
+                                vendorId: matched?.id || editingAsset.vendorId
+                              });
+                              setIsRenterDropdownOpen(false);
+                            }}
+                            style={{
+                              padding: '7px 12px',
+                              fontSize: '12px',
+                              fontWeight: isSelected ? 700 : 500,
+                              color: isSelected ? 'var(--primary)' : 'var(--text-main)',
+                              backgroundColor: isSelected ? 'rgba(59,130,246,0.08)' : 'transparent',
+                              cursor: 'pointer',
+                              borderBottom: '1px solid var(--border-color)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between'
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-app)')}
+                            onMouseLeave={e => (e.currentTarget.style.backgroundColor = isSelected ? 'rgba(59,130,246,0.08)' : 'transparent')}
+                          >
+                            <span>{name}</span>
+                            {isSelected && <Check size={13} color="var(--primary)" />}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
