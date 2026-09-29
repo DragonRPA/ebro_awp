@@ -1057,8 +1057,10 @@ export const RentAssets: React.FC = () => {
     const matchesStartDate = !startDateQuery || (a.rentEnd && a.rentEnd >= startDateQuery);
     const matchesEndDate = !endDateQuery || (a.rentStart && a.rentStart <= endDateQuery);
     const isReturned = Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED';
+    const isAvailable = !isReturned && (a.status === 'AVAILABLE' || (!a.currentCustomerId && a.status !== 'RENTED' && a.status !== 'ASSIGNED' && a.status !== 'REPAIRING'));
     const matchesReturn = returnQuery === 'ALL' ? true :
                           returnQuery === 'RETURNED' ? isReturned :
+                          returnQuery === 'AVAILABLE' ? isAvailable :
                           !isReturned;
 
     return matchesSearch && matchesRenter && matchesStartDate && matchesEndDate && matchesReturn;
@@ -3082,6 +3084,7 @@ export const RentAssets: React.FC = () => {
                   style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px', minWidth: '130px' }}
                 >
                   <option value="ALL">전체 반납 상태</option>
+                  <option value="AVAILABLE">임대가능</option>
                   <option value="ACTIVE">미반납 (임차 가동 중)</option>
                   <option value="RETURNED">반납 완료</option>
                 </select>
