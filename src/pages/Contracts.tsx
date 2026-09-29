@@ -1658,16 +1658,17 @@ export const Contracts: React.FC = () => {
           </div>
 
           {/* 계약 목록 데이터 테이블 (횡 스크롤 지원 & 셀 줄바꿈 방지) */}
-          <div className="card" style={{ padding: 0, margin: 0, overflowX: 'auto' }}>
-            <div className="table-container" style={{ overflowX: 'auto' }}>
+          <div className="card" style={{ padding: 0, margin: 0, overflow: 'hidden' }}>
+            <div className="table-container" style={{ maxHeight: 'calc(100vh - 410px)', minHeight: '380px', overflowY: 'auto', overflowX: 'auto', position: 'relative' }}>
               <table style={{ width: '100%', minWidth: '1200px', borderCollapse: 'collapse', whiteSpace: 'nowrap' }}>
-                <thead>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'var(--bg-app)' }}>
                   <tr style={{ backgroundColor: 'var(--bg-app)', whiteSpace: 'nowrap' }}>
                     <th style={{ textAlign: 'center', whiteSpace: 'nowrap', width: '80px' }}>상세 보기</th>
                     <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('contractNo')}>계약번호{sortConfig?.key === 'contractNo' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                     <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('customer')}>고객사명{sortConfig?.key === 'customer' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                     <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('site')}>현장명{sortConfig?.key === 'site' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                     <th style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>출고 진행 현황</th>
+                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('assets')}>체결 자산{sortConfig?.key === 'assets' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                     <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('rentalFee')}>월 렌탈료{sortConfig?.key === 'rentalFee' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                     {showPeriodCol && <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('period')}>계약 기간{sortConfig?.key === 'period' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>}
                     {showLastBilledCol && <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('billingPeriod')}>최근 청구 기간{sortConfig?.key === 'billingPeriod' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>}
@@ -1676,7 +1677,6 @@ export const Contracts: React.FC = () => {
                     <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('billingDay')}>청구 마감일{sortConfig?.key === 'billingDay' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                     <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('salesperson')}>영업담당{sortConfig?.key === 'salesperson' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                     <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('status')}>상태{sortConfig?.key === 'status' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
-                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('assets')}>체결 자산{sortConfig?.key === 'assets' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                   </tr>
                 </thead>
                 <tbody style={{ whiteSpace: 'nowrap' }}>
