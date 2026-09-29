@@ -459,17 +459,19 @@ export const PAYMENT_DUE_MONTH_OPTIONS = [
   { value: 3, label: '익익익월 (M3)', shortLabel: '익익익월' },
 ] as const;
 
-export function formatPaymentDueCondition(monthOffset: number = 1, day: number = 25): string {
+export function formatPaymentDueCondition(monthOffset?: number | null, day?: number | null): string {
+  const safeOffset = (monthOffset !== undefined && monthOffset !== null && !isNaN(monthOffset)) ? monthOffset : 1;
+  const safeDay = (day !== undefined && day !== null && !isNaN(day) && day > 0) ? day : 25;
   const monthLabels = ['당월', '익월', '익익월', '익익익월'];
-  const monthText = monthLabels[monthOffset] !== undefined ? monthLabels[monthOffset] : '익월';
-  const dayText = day === 31 ? '말일' : `${day}일`;
+  const monthText = monthLabels[safeOffset] !== undefined ? monthLabels[safeOffset] : '익월';
+  const dayText = safeDay === 31 ? '말일' : `${safeDay}일`;
   return `${monthText} ${dayText}`;
 }
 
 export function calculatePaymentDueDate(
   baseYmOrDate: string,
-  monthOffset: number = 1,
-  dueDay: number = 25
+  monthOffset?: number | null,
+  dueDay?: number | null
 ): string {
   if (!baseYmOrDate) return '';
   const [yStr, mStr] = baseYmOrDate.slice(0, 7).split('-');
@@ -477,7 +479,10 @@ export function calculatePaymentDueDate(
   let month = parseInt(mStr, 10);
   if (isNaN(year) || isNaN(month)) return '';
 
-  month += (monthOffset ?? 1);
+  const safeOffset = (monthOffset !== undefined && monthOffset !== null && !isNaN(monthOffset)) ? monthOffset : 1;
+  const safeDay = (dueDay !== undefined && dueDay !== null && !isNaN(dueDay) && dueDay > 0) ? dueDay : 25;
+
+  month += safeOffset;
   while (month > 12) {
     month -= 12;
     year += 1;
@@ -488,7 +493,7 @@ export function calculatePaymentDueDate(
   }
 
   const lastDay = new Date(year, month, 0).getDate();
-  const actualDay = (dueDay === 31 || !dueDay) ? lastDay : Math.min(dueDay, lastDay);
+  const actualDay = safeDay === 31 ? lastDay : Math.min(safeDay, lastDay);
   return `${year}-${String(month).padStart(2, '0')}-${String(actualDay).padStart(2, '0')}`;
 }
 
@@ -4563,8 +4568,13 @@ class LocalDB {
         defProt = String(defProt).trim();
         changed = true;
       }
+      let dueMonthOffset = c.paymentDueMonthOffset !== undefined && c.paymentDueMonthOffset !== null ? c.paymentDueMonthOffset : 1;
+      let dueDay = c.paymentDueDay || 25;
+      if (c.paymentDueMonthOffset !== dueMonthOffset || c.paymentDueDay !== dueDay) {
+        changed = true;
+      }
       if (changed) {
-        return { ...c, defaultPaidOptions: defPaid, defaultProtection: defProt };
+        return { ...c, defaultPaidOptions: defPaid, defaultProtection: defProt, paymentDueMonthOffset: dueMonthOffset, paymentDueDay: dueDay };
       }
       return c;
     }).sort((a, b) => compareCustomerNames(a?.name, b?.name));
@@ -4597,8 +4607,13 @@ class LocalDB {
         prot = String(prot).trim();
         changed = true;
       }
+      let dueMonthOffset = s.paymentDueMonthOffset !== undefined && s.paymentDueMonthOffset !== null ? s.paymentDueMonthOffset : 1;
+      let contacts = s.contacts && Array.isArray(s.contacts) ? s.contacts : [];
+      if (s.paymentDueMonthOffset !== dueMonthOffset || !s.contacts) {
+        changed = true;
+      }
       if (changed) {
-        return { ...s, paidOptions: paid, protection: prot };
+        return { ...s, paidOptions: paid, protection: prot, paymentDueMonthOffset: dueMonthOffset, contacts };
       }
       return s;
     });
@@ -4648,7 +4663,18 @@ class LocalDB {
   get collectedParts() { return this.get<CollectedPart>('collectedParts', []); }
   set collectedParts(val: CollectedPart[]) { this.set('collectedParts', val); }
 
-  get contracts() { return this.get<Contract>('contracts', SEED_CONTRACTS); }
+  get contracts() { 
+    const raw = this.get<Contract>('contracts', SEED_CONTRACTS);
+    return raw.map(c => {
+      if (!c) return c;
+      const dueMonthOffset = c.paymentDueMonthOffset !== undefined && c.paymentDueMonthOffset !== null ? c.paymentDueMonthOffset : 1;
+      const dueDay = c.paymentDueDay || 25;
+      if (c.paymentDueMonthOffset !== dueMonthOffset || c.paymentDueDay !== dueDay) {
+        return { ...c, paymentDueMonthOffset: dueMonthOffset, paymentDueDay: dueDay };
+      }
+      return c;
+    });
+  }
   set contracts(val: Contract[]) { this.set('contracts', val); }
 
   get contractAssets() { return this.get<ContractAsset>('contractAssets', SEED_CONTRACT_ASSETS); }

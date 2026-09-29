@@ -393,13 +393,13 @@
 }
 
 .dispatch4-slot-btn {
-  padding: 4px 8px;
+  padding: 6px 12px;
   border-radius: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  border: 1px solid #334155;
+  font-size: 12.5px;
+  font-weight: 800;
+  border: 1.5px solid #475569;
   background-color: #1e293b;
-  color: #94a3b8;
+  color: #f1f5f9;
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
@@ -407,21 +407,24 @@
 
 .dispatch4-slot-btn:hover {
   background-color: #334155;
-  color: #f1f5f9;
+  color: #ffffff;
+  border-color: #94a3b8;
 }
 
 .dispatch4-slot-btn.active {
-  background-color: rgba(59, 130, 246, 0.25);
-  border-color: #3b82f6;
-  color: #60a5fa;
-  font-weight: 800;
+  background-color: #2563eb;
+  border-color: #93c5fd;
+  color: #ffffff;
+  font-weight: 900;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.4);
 }
 
 .dispatch4-slot-btn.active-amber {
-  background-color: rgba(245, 158, 11, 0.25);
-  border-color: #f59e0b;
-  color: #fbbf24;
-  font-weight: 800;
+  background-color: #d97706;
+  border-color: #fcd34d;
+  color: #ffffff;
+  font-weight: 900;
+  box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.4);
 }
 
 .dispatch4-exchange-list {

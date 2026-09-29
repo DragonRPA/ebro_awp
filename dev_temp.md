@@ -5253,3 +5253,16 @@ pm run build: **TypeScript 0 Error, 번들링 정상 완료 (uilt in 1.13s)**.
   3. 약정 결제일 내부 그리드를 1.3fr : 1fr (gap: 6px)로 조정하여 익월 (M1) 등 텍스트가 잘리지 않고 여유 있게 렌더링되도록 개선
   4. 레이블에 whiteSpace: nowrap 적용하여 해상도별 줄바꿈 원천 방지
   5. Contracts.tsx 계약 등록 폼의 동일 행에도 1fr : 1fr : 1.45fr 및 1.25fr : 1fr 비례와 여백 동기화 적용
+
+
+## [실사 및 보정 완료] 기존 고객사/현장/계약 약정결제일 데이터 영향도 전수 실사 및 무결성 보정 완료
+- **요구사항**: 약정결제일 구조 개편(월 offset M0~M3 및 일자)이 기존 데이터에 미치는 영향 검토 및 전수 데이터 보정
+- **영향도 실사 결과**:
+  1. 고객사(customers, 총 409건): 178건은 명시적 결제일(30일 107건, 15일 45건 등)을 보유하여 익월(1) 속성 정상 보존. 231건(대형건설사 등)은 paymentDueDay가 NULL 상태로 존재하여 기존 UI의 암묵적 기본값(25일)에 의존하고 있었음.
+  2. 현장(customer_sites, 총 528건): 전수 paymentDueDay: null 상태로 고객사 약정 결제일을 정상 상속 중.
+  3. 계약(contracts, 총 225건): 198건은 명시적 결제일 보유. 27건은 paymentDueDay가 NULL 상태였으며, 이 중 4건은 고객사 약정일(30일)이 계약에 미승계된 상태였음.
+- **보정 조치 집행 (Supabase 원격 DB 및 로컬)**:
+  1. customers: paymentDueDay가 NULL이던 231건 전수를 기본 표준 약정일인 paymentDueDay = 25, paymentDueMonthOffset = 1로 명시적 UPDATE 완료 (NULL 0건 달성).
+  2. customer_sites: contacts가 NULL이던 건을 []로 초기화하고 paymentDueMonthOffset = 1 보정 완료.
+  3. contracts: 27건의 NULL 계약에 대해 부모 고객사의 paymentDueDay 및 paymentDueMonthOffset을 100% 자동 상속 보정 집행 (MK이엔지 4건 계약 30일로 정상 상속, 잔여 23건 25일 보정, NULL 0건 달성).
+  4. src/services/db.ts: ormatPaymentDueCondition 및 calculatePaymentDueDate에 방어 코드(null/undefined/0/NaN 방어)를 적용하고, LocalDB의 customers/sites/contracts getter에서 로컬 캐시 자동 정규화를 구현하여 브라우저 캐시 잔존 시에도 무결성 100% 보장.

@@ -2835,10 +2835,10 @@ export const SmartDispatch4: React.FC = () => {
                   </div>
                 ) : !selectedCustomer ? (
                   /* 2. 고객사 미선택 시 안내 */
-                  <div className="p-5 bg-slate-950/60 border border-slate-800 rounded-xl text-center flex flex-col items-center justify-center gap-2 text-xs text-slate-400">
-                    <MapPin className="w-5 h-5 text-slate-500" />
-                    <span className="font-bold text-slate-300">고객사를 먼저 선택하십시오</span>
-                    <span className="text-[11px] text-slate-500">1. 거래처 블록에서 거래처(고객사)를 지정하면 해당 고객사의 등록 현장 목록이 표시됩니다.</span>
+                  <div className="p-6 bg-slate-900 border-2 border-slate-700/80 rounded-xl text-center flex flex-col items-center justify-center gap-2 text-sm text-slate-200 shadow-sm">
+                    <MapPin className="w-6 h-6 text-blue-400" />
+                    <span className="font-black text-white text-sm tracking-tight">고객사를 먼저 선택하십시오</span>
+                    <span className="text-xs text-slate-300 font-medium">1. 거래처 블록에서 거래처(고객사)를 지정하면 해당 고객사의 등록 현장 목록이 표시됩니다.</span>
                   </div>
                 ) : isRegisteringNewSite ? (
                   /* 3. 신규 현장 등록 모드 (퀵카드/버튼 클릭 시) */
@@ -3156,11 +3156,11 @@ export const SmartDispatch4: React.FC = () => {
               }`}
               onClick={() => toggleBlock('EQUIPMENT')}
             >
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-100">
+              <div className="flex items-center gap-2 text-sm font-black text-white">
                 <Package className="w-4 h-4 text-emerald-400" />
                 <span>3. 출고 장비 규격</span>
                 {totalQty > 0 && (
-                  <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-500/30">
+                  <span className="text-xs font-black text-emerald-300 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/50">
                     ✓ 총 {totalQty}대 선택됨
                   </span>
                 )}
@@ -3180,15 +3180,15 @@ export const SmartDispatch4: React.FC = () => {
                           <button
                             key={ft}
                             onClick={() => setActiveFt(ft)}
-                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
+                            className={`px-3 py-1.5 rounded-lg text-xs font-black transition whitespace-nowrap flex items-center gap-1.5 ${
                               activeFt === ft
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-slate-800 text-slate-400 hover:text-white'
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'bg-slate-800 text-slate-200 hover:text-white hover:bg-slate-700 border border-slate-700'
                             }`}
                           >
                             <span>{ft}</span>
-                            <span className={`text-[10px] px-1 py-0.2 rounded-full ${
-                              activeFt === ft ? 'bg-emerald-800 text-emerald-100' : 'bg-slate-700 text-slate-400'
+                            <span className={`text-[11px] font-black px-1.5 py-0.5 rounded-full ${
+                              activeFt === ft ? 'bg-blue-800 text-white' : 'bg-slate-700 text-slate-200'
                             }`}>
                               {count}
                             </span>
@@ -3203,7 +3203,7 @@ export const SmartDispatch4: React.FC = () => {
                         placeholder="모델 검색..."
                         value={modelSearchQuery}
                         onChange={e => setModelSearchQuery(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                       />
                       {modelSearchQuery && (
                         <button
@@ -3218,18 +3218,18 @@ export const SmartDispatch4: React.FC = () => {
                   </div>
 
                   {/* 가용재고 안내 바 (헌장 2.1 준수) */}
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 px-1">
+                  <div className="flex items-center justify-between text-xs text-slate-300 font-bold px-1">
                     <span>
                       {activeFt} {modelSearchQuery ? `(검색결과 ${displayedModels.length}건)` : `(${displayedModels.length}개 모델)`}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-medium">
+                    <span className="text-xs text-amber-300/90 font-bold">
                       * 가용 0대 모델도 출고 요청 가능 (출고/자산 부서에서 외부 임차 장비 매핑 지원)
                     </span>
                   </div>
                 </div>
 
                 {/* 모델 버튼 목록 */}
-                <div className="flex flex-wrap gap-1.5 max-h-[210px] overflow-y-auto pr-1">
+                <div className="flex flex-wrap gap-2 max-h-[220px] overflow-y-auto pr-1">
                   {displayedModels.map(m => {
                     const isPicked = equipments.some(e => e.modelName === m.modelName);
                     return (
@@ -3237,21 +3237,21 @@ export const SmartDispatch4: React.FC = () => {
                         key={m.modelName}
                         onClick={() => addModel(m.modelName)}
                         title={`${m.modelName} (${m.manufacturer || ''}) | 당사 가용재고: ${m.availableCount}대 ${m.availableCount === 0 ? '(외부 임차/전대 필요)' : '(자사 출고 가능)'}`}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition border flex items-center gap-1.5 ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border flex items-center gap-2 ${
                           isPicked
-                            ? 'bg-emerald-900/50 border-emerald-500 text-emerald-200 shadow-sm'
+                            ? 'bg-blue-600 border-blue-400 text-white shadow-md ring-2 ring-blue-400/50'
                             : m.availableCount > 0
-                              ? 'bg-slate-800/90 border-slate-700 text-slate-200 hover:bg-slate-750 hover:border-emerald-500/50'
-                              : 'bg-slate-850 border-amber-900/40 text-slate-300 hover:bg-slate-800 hover:border-amber-600/50'
+                              ? 'bg-slate-800/95 border-slate-600 text-white hover:bg-slate-700 hover:border-slate-400 shadow-sm'
+                              : 'bg-slate-800/95 border-amber-600/70 text-white hover:bg-slate-700 hover:border-amber-400 shadow-sm'
                         }`}
                       >
-                        <span className="whitespace-nowrap">+ {m.modelName}</span>
+                        <span className="whitespace-nowrap font-black">+ {m.modelName}</span>
                         {m.availableCount > 0 ? (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-500/50 font-mono font-bold whitespace-nowrap flex-shrink-0">
+                          <span className="text-[11px] px-1.5 py-0.5 rounded bg-emerald-600 text-white font-mono font-black whitespace-nowrap flex-shrink-0 shadow-sm">
                             가용 {m.availableCount}대
                           </span>
                         ) : (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-950/90 text-amber-300 border border-amber-500/60 font-mono font-bold whitespace-nowrap flex-shrink-0">
+                          <span className="text-[11px] px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-mono font-black whitespace-nowrap flex-shrink-0 shadow-sm">
                             가용 0대 (임차필요)
                           </span>
                         )}
@@ -3259,7 +3259,7 @@ export const SmartDispatch4: React.FC = () => {
                     );
                   })}
                   {displayedModels.length === 0 && (
-                    <div className="w-full py-4 text-center text-xs text-slate-500">
+                    <div className="w-full py-4 text-center text-xs text-slate-400 font-bold">
                       일치하는 모델이 없습니다.
                     </div>
                   )}
@@ -3276,16 +3276,16 @@ export const SmartDispatch4: React.FC = () => {
 
                       return (
                         <div className="flex items-center justify-between px-1 flex-wrap gap-1">
-                          <span className="text-[11px] font-bold text-slate-300">
+                          <span className="text-xs font-black text-slate-200">
                             선택된 출고 장비 목록 ({equipments.length}종 / 총 {totalQty}대):
                           </span>
                           {totalAvailShortage > 0 ? (
-                            <span className="text-[10.5px] font-bold px-2 py-0.5 rounded bg-amber-950/90 text-amber-300 border border-amber-500/60 flex items-center gap-1 font-mono whitespace-nowrap">
+                            <span className="text-xs font-black px-2 py-0.5 rounded bg-amber-500 text-slate-950 flex items-center gap-1 font-mono whitespace-nowrap shadow-sm">
                               <span>⚠️ 외부 임차 {totalAvailShortage}대 필요</span>
-                              <span className="text-amber-200/70 font-normal">(자사 가용재고 초과)</span>
+                              <span className="font-bold">(가용 초과)</span>
                             </span>
                           ) : (
-                            <span className="text-[10.5px] font-bold px-2 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-500/50 flex items-center gap-1 font-mono whitespace-nowrap">
+                            <span className="text-xs font-black px-2 py-0.5 rounded bg-emerald-600 text-white flex items-center gap-1 font-mono whitespace-nowrap shadow-sm">
                               <span>✓ 전량 자사 가용재고 출고 가능</span>
                             </span>
                           )}
@@ -3302,37 +3302,37 @@ export const SmartDispatch4: React.FC = () => {
                       return (
                         <div
                           key={idx}
-                          className="flex items-center justify-between bg-slate-900 hover:bg-slate-850 px-3 py-2 rounded-lg border border-slate-700/80 shadow-sm transition-colors gap-2"
+                          className="flex items-center justify-between bg-slate-900 hover:bg-slate-850 px-3 py-2.5 rounded-lg border border-slate-700 shadow-sm transition-colors gap-2"
                         >
                           {/* 좌측: 장비 모델명, 제원 힌트 배지(ft, 제조사), 가용/임차 배지 */}
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                            <div className="w-6 h-6 rounded bg-emerald-950/70 border border-emerald-500/40 flex items-center justify-center flex-shrink-0">
-                              <Package size={13} className="text-emerald-400" style={{ width: 13, height: 13, display: 'block' }} />
+                            <div className="w-7 h-7 rounded bg-emerald-950 border border-emerald-500/60 flex items-center justify-center flex-shrink-0">
+                              <Package size={15} className="text-emerald-400" style={{ width: 15, height: 15, display: 'block' }} />
                             </div>
                             <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                              <span className="text-xs font-black text-white tracking-tight truncate">{eq.modelName}</span>
+                              <span className="text-sm font-black text-white tracking-tight truncate">{eq.modelName}</span>
                               {ftLabel && (
-                                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 border border-slate-700 flex-shrink-0 whitespace-nowrap">
+                                <span className="text-xs font-black px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 border border-slate-600 flex-shrink-0 whitespace-nowrap">
                                   {ftLabel}
                                 </span>
                               )}
                               {spec?.manufacturer && (
-                                <span className="text-[10px] text-slate-400 px-1 rounded bg-slate-800/60 border border-slate-700/50 flex-shrink-0 whitespace-nowrap">
+                                <span className="text-xs font-bold text-slate-300 px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 flex-shrink-0 whitespace-nowrap">
                                   {spec.manufacturer}
                                 </span>
                               )}
                               {/* 🌟 가용재고 vs 신청수량 대조 상태 배지 */}
                               {isShortage ? (
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-950/90 text-amber-300 border border-amber-500/60 flex items-center gap-1 font-mono whitespace-nowrap flex-shrink-0">
+                                <span className="text-xs font-black px-2 py-0.5 rounded bg-amber-500 text-slate-950 flex items-center gap-1 font-mono whitespace-nowrap flex-shrink-0 shadow-sm">
                                   <span>가용 {availCount}대</span>
-                                  <span className="text-amber-200 underline underline-offset-2">
+                                  <span className="underline underline-offset-2 font-bold">
                                     ({availCount === 0 ? '전량' : `${shortage}대`} 임차 필요)
                                   </span>
                                 </span>
                               ) : (
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-950/90 text-emerald-300 border border-emerald-500/50 flex items-center gap-1 font-mono whitespace-nowrap flex-shrink-0">
+                                <span className="text-xs font-black px-2 py-0.5 rounded bg-emerald-600 text-white flex items-center gap-1 font-mono whitespace-nowrap flex-shrink-0 shadow-sm">
                                   <span>가용 {availCount}대</span>
-                                  <span className="text-emerald-400/80 font-normal">(자사 출고 가능)</span>
+                                  <span className="font-medium">(자사 출고 가능)</span>
                                 </span>
                               )}
                             </div>
@@ -3414,11 +3414,11 @@ export const SmartDispatch4: React.FC = () => {
               }`}
               onClick={() => toggleBlock('SCHEDULE')}
             >
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-100">
+              <div className="flex items-center gap-2 text-sm font-black text-white">
                 <Calendar className="w-4 h-4 text-amber-400" />
                 <span>4. 출고 및 하차 일정</span>
                 {loadingDate && (
-                  <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-500/30 font-mono">
+                  <span className="text-xs font-black text-emerald-300 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/50 font-mono">
                     ✓ 상차: {loadingDate} {loadingTimeType === 'ASAP' ? '[ASAP]' : loadingTimeType === 'MORNING' ? '[오전]' : loadingTimeType === 'AFTERNOON' ? '[오후]' : loadingTimeVal || ''}
                   </span>
                 )}
@@ -3429,19 +3429,19 @@ export const SmartDispatch4: React.FC = () => {
             {openBlocks.has('SCHEDULE') && (
               <div className="dispatch4-block-body">
                 {/* 상차 일정 */}
-                <div className="p-2.5 bg-slate-950/60 rounded-xl border border-slate-800 flex flex-col gap-2">
+                <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-700 flex flex-col gap-2.5">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-amber-300 flex items-center gap-1.5">
-                      <Truck className="w-3.5 h-3.5" />
+                    <label className="text-sm font-black text-amber-300 flex items-center gap-1.5">
+                      <Truck className="w-4 h-4" />
                       <span>상차 (출고) 희망일시 *</span>
                     </label>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-semibold text-slate-300">상차 희망일자 *</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-200">상차 희망일자 *</label>
                       <input
                         type="date"
-                        className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-blue-500 font-mono"
+                        className="bg-slate-800 border-2 border-slate-600 text-white rounded-lg p-2.5 text-sm font-bold focus:outline-none focus:border-blue-400 font-mono shadow-sm"
                         value={loadingDate}
                         onChange={e => {
                           setLoadingDate(e.target.value);
@@ -3449,8 +3449,8 @@ export const SmartDispatch4: React.FC = () => {
                         }}
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-semibold text-slate-300">상차 시간 구분 *</label>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-200">상차 시간 구분 *</label>
                       <div className="dispatch4-slot-group">
                         {[
                           { id: 'ASAP', label: '⚡ ASAP (최우선)' },
@@ -3475,7 +3475,7 @@ export const SmartDispatch4: React.FC = () => {
                       {loadingTimeType === 'EXACT' && (
                         <input
                           type="time"
-                          className="bg-slate-800 border border-blue-500 text-white rounded-lg p-1.5 text-xs font-mono mt-1"
+                          className="bg-slate-800 border-2 border-blue-400 text-white rounded-lg p-2 text-sm font-bold font-mono mt-1"
                           value={loadingTimeVal}
                           onChange={e => setLoadingTimeVal(e.target.value)}
                         />
@@ -3485,26 +3485,26 @@ export const SmartDispatch4: React.FC = () => {
                 </div>
 
                 {/* 하차 일정 */}
-                <div className="p-2.5 bg-slate-950/60 rounded-xl border border-slate-800 flex flex-col gap-2">
+                <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-700 flex flex-col gap-2.5">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5" />
+                    <label className="text-sm font-black text-cyan-300 flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4" />
                       <span>하차 (현장 도착) 희망일시</span>
                     </label>
-                    <span className="text-[10px] text-slate-500">미지정 시 상차 직송으로 간주</span>
+                    <span className="text-xs text-slate-400 font-medium">미지정 시 상차 직송으로 간주</span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-semibold text-slate-300">하차 희망일자</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-200">하차 희망일자</label>
                       <input
                         type="date"
-                        className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-cyan-500 font-mono"
+                        className="bg-slate-800 border-2 border-slate-600 text-white rounded-lg p-2.5 text-sm font-bold focus:outline-none focus:border-cyan-400 font-mono shadow-sm"
                         value={unloadingDate}
                         onChange={e => setUnloadingDate(e.target.value)}
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] font-semibold text-slate-300">하차 시간 구분</label>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold text-slate-200">하차 시간 구분</label>
                       <div className="dispatch4-slot-group">
                         {[
                           { id: 'ASAP', label: '⚡ ASAP' },
@@ -3529,7 +3529,7 @@ export const SmartDispatch4: React.FC = () => {
                       {unloadingTimeType === 'EXACT' && (
                         <input
                           type="time"
-                          className="bg-slate-800 border border-cyan-500 text-white rounded-lg p-1.5 text-xs font-mono mt-1"
+                          className="bg-slate-800 border-2 border-cyan-400 text-white rounded-lg p-2 text-sm font-bold font-mono mt-1"
                           value={unloadingTimeVal}
                           onChange={e => setUnloadingTimeVal(e.target.value)}
                         />
@@ -3853,10 +3853,10 @@ export const SmartDispatch4: React.FC = () => {
           {/* 🛡️ [1] 9대 필수 스키마 유효성 검증 실드 */}
           <div className={`rounded-xl border p-4 shadow-lg transition-all ${
             isFormValid
-              ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-100'
-              : 'bg-slate-900 border-red-500/40 text-slate-100'
+              ? 'bg-emerald-950/50 border-2 border-emerald-500 text-white'
+              : 'bg-slate-900 border-2 border-red-500/70 text-white'
           }`}>
-            <div className="flex items-center justify-between pb-3 border-b border-slate-700/60">
+            <div className="flex items-center justify-between pb-2.5 border-b border-slate-700/80">
               <div className="flex items-center gap-2">
                 {isFormValid ? (
                   <ShieldCheck className="w-5 h-5 text-emerald-400 flex-shrink-0" />
@@ -3864,20 +3864,20 @@ export const SmartDispatch4: React.FC = () => {
                   <ShieldAlert className="w-5 h-5 text-red-400 flex-shrink-0" />
                 )}
                 <div>
-                  <h4 className="text-xs font-extrabold tracking-wide">
+                  <h4 className="text-xs font-black tracking-wide text-white">
                     {isFormValid ? '스키마 검증 100% 통과' : '필수 정보 검증 & 방어 차단'}
                   </h4>
-                  <p className="text-[10px] text-slate-400">
+                  <p className="text-[11px] text-slate-300 font-medium">
                     {isFormValid
                       ? '모든 필수 스키마가 완결되어 즉시 출고지시가 가능합니다.'
                       : `미충족 ${invalidRules.length}건 — 정보 누락 상태로 발행 시 자동 차단됩니다.`}
                   </p>
                 </div>
               </div>
-              <span className={`text-xs font-black font-mono px-2 py-1 rounded-md border ${
+              <span className={`text-xs font-black font-mono px-2.5 py-1 rounded-md border ${
                 isFormValid
-                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                  : 'bg-red-500/20 text-red-300 border-red-500/40'
+                  ? 'bg-emerald-600 text-white border-emerald-400'
+                  : 'bg-red-600 text-white border-red-400'
               }`}>
                 {passCount} / {validationRules.length}
               </span>
@@ -3892,26 +3892,26 @@ export const SmartDispatch4: React.FC = () => {
                   <div
                     key={rule.id}
                     onClick={() => setOpenBlock(rule.targetBlock)}
-                    className={`flex items-center justify-between px-2 py-1 rounded-md text-xs cursor-pointer transition border ${
+                    className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs cursor-pointer transition border-2 ${
                       isValid
-                        ? 'bg-slate-950/40 border-emerald-900/40 text-slate-300 hover:bg-slate-800'
+                        ? 'bg-slate-950 border-emerald-700/60 text-slate-100 hover:bg-slate-800'
                         : isWarn
-                          ? 'bg-amber-950/20 border-amber-800/40 text-amber-300 hover:bg-amber-950/40'
-                          : 'bg-red-950/30 border-red-800/50 text-red-200 hover:bg-red-950/50'
+                          ? 'bg-amber-950/40 border-amber-600 text-amber-200 hover:bg-amber-950/60'
+                          : 'bg-rose-950/50 border-rose-600 text-rose-100 hover:bg-rose-950/70'
                     }`}
                   >
                     <div className="flex items-center gap-1.5 min-w-0">
                       {isValid ? (
-                        <Check className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+                        <Check className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
                       ) : isWarn ? (
-                        <AlertCircle className="w-3 h-3 text-amber-400 flex-shrink-0" />
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
                       ) : (
-                        <AlertTriangle className="w-3 h-3 text-red-400 flex-shrink-0" />
+                        <AlertTriangle className="w-3.5 h-3.5 text-rose-400 flex-shrink-0" />
                       )}
-                      <span className="font-bold whitespace-nowrap text-[10.5px] truncate">{rule.label}</span>
+                      <span className="font-black whitespace-nowrap text-xs truncate">{rule.label}</span>
                     </div>
-                    <span className={`text-[9.5px] font-bold px-1.5 py-0.2 rounded ml-1 flex-shrink-0 ${
-                      isValid ? 'text-emerald-400 bg-emerald-950' : isWarn ? 'text-amber-400 bg-amber-950' : 'text-red-400 bg-red-950'
+                    <span className={`text-[11px] font-black px-2 py-0.5 rounded ml-1 flex-shrink-0 ${
+                      isValid ? 'text-white bg-emerald-600' : isWarn ? 'text-slate-950 bg-amber-400' : 'text-white bg-rose-600 shadow-sm'
                     }`}>
                       {isValid ? '완료' : isWarn ? '확인' : '누락'}
                     </span>
@@ -3956,66 +3956,66 @@ export const SmartDispatch4: React.FC = () => {
             </div>
 
             {/* 서식 테이블 1: 거래처 / 현장 정보 (담당자 포함) */}
-            <div className="border border-slate-800 rounded-lg overflow-hidden text-xs">
-              <div className="grid grid-cols-4 border-b border-slate-800">
-                <div className="col-span-1 bg-slate-950 p-1.5 font-bold text-slate-400 border-r border-slate-800 flex items-center text-[11px]">
+            <div className="border border-slate-700 rounded-lg overflow-hidden text-xs">
+              <div className="grid grid-cols-4 border-b border-slate-700">
+                <div className="col-span-1 bg-slate-800 p-2 font-black text-slate-200 border-r border-slate-700 flex items-center text-xs">
                   고객사명
                 </div>
-                <div className="col-span-3 bg-slate-900/90 p-1.5 font-black text-white text-[11px]">
+                <div className="col-span-3 bg-slate-900 p-2 font-black text-white text-xs">
                   {custDisplay}
                 </div>
               </div>
-              <div className="grid grid-cols-4 border-b border-slate-800">
-                <div className="col-span-1 bg-slate-950 p-1.5 font-bold text-slate-400 border-r border-slate-800 flex items-center text-[11px]">
+              <div className="grid grid-cols-4 border-b border-slate-700">
+                <div className="col-span-1 bg-slate-800 p-2 font-black text-slate-200 border-r border-slate-700 flex items-center text-xs">
                   투입현장
                 </div>
-                <div className="col-span-3 bg-slate-900/90 p-1.5 font-bold text-slate-200 text-[11px]">
+                <div className="col-span-3 bg-slate-900 p-2 font-black text-slate-100 text-xs">
                   {siteDisplay}
                 </div>
               </div>
-              <div className="grid grid-cols-4 border-b border-slate-800">
-                <div className="col-span-1 bg-slate-950 p-1.5 font-bold text-slate-400 border-r border-slate-800 flex items-center text-[11px]">
+              <div className="grid grid-cols-4 border-b border-slate-700">
+                <div className="col-span-1 bg-slate-800 p-2 font-black text-slate-200 border-r border-slate-700 flex items-center text-xs">
                   현장주소
                 </div>
-                <div className="col-span-3 bg-slate-900/90 p-1.5 text-slate-300 break-all text-[10.5px]">
+                <div className="col-span-3 bg-slate-900 p-2 font-bold text-slate-200 break-all text-xs">
                   {addrDisplay}
                 </div>
               </div>
-              <div className="grid grid-cols-4 border-b border-slate-800">
-                <div className="col-span-1 bg-slate-950 p-1.5 font-bold text-slate-400 border-r border-slate-800 flex items-center text-[11px]">
+              <div className="grid grid-cols-4 border-b border-slate-700">
+                <div className="col-span-1 bg-slate-800 p-2 font-black text-slate-200 border-r border-slate-700 flex items-center text-xs">
                   현장담당자
                 </div>
-                <div className="col-span-3 bg-slate-900/90 p-1.5 font-bold text-slate-100 text-[11px]">
+                <div className="col-span-3 bg-slate-900 p-2 font-bold text-slate-100 text-xs">
                   {contactPerson ? `${contactPerson} (${contactPhone || '연락처 미등록'})` : '(담당자 미등록)'}
                 </div>
               </div>
               <div className="grid grid-cols-4">
-                <div className="col-span-1 bg-slate-950 p-1.5 font-bold text-slate-400 border-r border-slate-800 flex items-center text-[11px]">
+                <div className="col-span-1 bg-slate-800 p-2 font-black text-slate-200 border-r border-slate-700 flex items-center text-xs">
                   정산/결제일
                 </div>
-                <div className="col-span-3 bg-slate-900/90 p-1.5 font-bold text-amber-300 text-[11px]">
+                <div className="col-span-3 bg-slate-900 p-2 font-black text-amber-300 text-xs">
                   청구 {closingDay === 31 ? '말일' : `${closingDay}일`} · 명세서 {statementClosingDay === 31 ? '말일' : `${statementClosingDay}일`} · 결제 익월 {paymentDueDay === 31 ? '말일' : `${paymentDueDay}일`}
                 </div>
               </div>
             </div>
 
             {/* 서식 테이블 2: 출고 일정 / 운송비 부담 */}
-            <div className="border border-slate-800 rounded-lg overflow-hidden text-xs">
-              <div className="grid grid-cols-4 border-b border-slate-800">
-                <div className="col-span-1 bg-slate-950 p-1.5 font-bold text-slate-400 border-r border-slate-800 flex items-center text-[11px]">
+            <div className="border border-slate-700 rounded-lg overflow-hidden text-xs">
+              <div className="grid grid-cols-4 border-b border-slate-700">
+                <div className="col-span-1 bg-slate-800 p-2 font-black text-slate-200 border-r border-slate-700 flex items-center text-xs">
                   상차일시
                 </div>
-                <div className="col-span-3 bg-slate-900/90 p-1.5 font-bold text-blue-400 font-mono text-[11px]">
+                <div className="col-span-3 bg-slate-900 p-2 font-black text-blue-400 font-mono text-xs">
                   {loadingDate
                     ? `${loadingDate} ${loadingTimeType === 'ASAP' ? '[ASAP]' : loadingTimeType === 'MORNING' ? '[오전]' : loadingTimeType === 'AFTERNOON' ? '[오후]' : loadingTimeVal || ''}`
                     : '(상차일시 미지정)'}
                 </div>
               </div>
-              <div className={`grid grid-cols-4 ${staggeredMemo ? 'border-b border-slate-800' : ''}`}>
-                <div className="col-span-1 bg-slate-950 p-1.5 font-bold text-slate-400 border-r border-slate-800 flex items-center text-[11px]">
+              <div className={`grid grid-cols-4 ${staggeredMemo ? 'border-b border-slate-700' : ''}`}>
+                <div className="col-span-1 bg-slate-800 p-2 font-black text-slate-200 border-r border-slate-700 flex items-center text-xs">
                   하차일시
                 </div>
-                <div className="col-span-3 bg-slate-900/90 p-1.5 font-bold text-cyan-400 font-mono text-[11px]">
+                <div className="col-span-3 bg-slate-900 p-2 font-black text-cyan-400 font-mono text-xs">
                   {unloadingDate || loadingDate
                     ? `${unloadingDate || loadingDate} ${unloadingTimeType === 'ASAP' ? '[ASAP]' : unloadingTimeType === 'MORNING' ? '[오전]' : unloadingTimeType === 'AFTERNOON' ? '[오후]' : unloadingTimeVal || '(상차직송)'}`
                     : '(하차일시 미지정)'}
@@ -4023,10 +4023,10 @@ export const SmartDispatch4: React.FC = () => {
               </div>
               {staggeredMemo && (
                 <div className="grid grid-cols-4">
-                  <div className="col-span-1 bg-slate-950 p-1.5 font-bold text-slate-400 border-r border-slate-800 flex items-center text-[11px]">
+                  <div className="col-span-1 bg-slate-800 p-2 font-black text-slate-200 border-r border-slate-700 flex items-center text-xs">
                     시차출고
                   </div>
-                  <div className="col-span-3 bg-slate-900/90 p-1.5 text-slate-300 text-[10.5px]">
+                  <div className="col-span-3 bg-slate-900 p-2 font-bold text-slate-200 text-xs">
                     {staggeredMemo}
                   </div>
                 </div>
@@ -4043,25 +4043,25 @@ export const SmartDispatch4: React.FC = () => {
                 }, 0);
 
                 return (
-                  <div className="text-[10.5px] font-bold text-slate-400 mb-1 flex items-center justify-between">
+                  <div className="text-xs font-black text-slate-300 mb-1.5 flex items-center justify-between">
                     <span className="flex items-center gap-1.5">
                       <span>신청 장비 제원</span>
                       {totalAvailShortage > 0 ? (
-                        <span className="text-[9.5px] font-bold text-amber-300 bg-amber-950/80 px-1.5 py-0.2 rounded border border-amber-500/40 font-mono">
+                        <span className="text-[11px] font-black text-slate-950 bg-amber-400 px-2 py-0.5 rounded font-mono shadow-sm">
                           (임차 {totalAvailShortage}대 필요)
                         </span>
                       ) : equipments.length > 0 ? (
-                        <span className="text-[9.5px] font-bold text-emerald-300 bg-emerald-950/80 px-1.5 py-0.2 rounded border border-emerald-500/40 font-mono">
+                        <span className="text-[11px] font-black text-white bg-emerald-600 px-2 py-0.5 rounded font-mono shadow-sm">
                           (자사 가용 충족)
                         </span>
                       ) : null}
                     </span>
-                    <span className="text-blue-400 font-mono font-bold">합계: {totalQty}대</span>
+                    <span className="text-blue-400 font-mono font-black text-xs">합계: {totalQty}대</span>
                   </div>
                 );
               })()}
-              <div className="border border-slate-800 rounded-lg overflow-hidden text-xs">
-                <div className="grid grid-cols-4 bg-slate-950 border-b border-slate-800 p-1.5 font-bold text-slate-400 text-[11px]">
+              <div className="border border-slate-700 rounded-lg overflow-hidden text-xs">
+                <div className="grid grid-cols-4 bg-slate-800 border-b border-slate-700 p-2 font-black text-slate-200 text-xs">
                   <div className="col-span-2">모델명</div>
                   <div className="col-span-1 text-center">가용/임차</div>
                   <div className="col-span-1 text-right font-mono">수량</div>
@@ -4072,25 +4072,25 @@ export const SmartDispatch4: React.FC = () => {
                     const avail = spec?.availableCount ?? 0;
                     const shortage = Math.max(0, eq.qty - avail);
                     return (
-                      <div key={i} className="grid grid-cols-4 border-b border-slate-800/80 last:border-b-0 p-1.5 bg-slate-900/80 hover:bg-slate-850 text-[11px] items-center">
-                        <div className="col-span-2 font-bold text-white truncate">{eq.modelName}</div>
+                      <div key={i} className="grid grid-cols-4 border-b border-slate-800 last:border-b-0 p-2 bg-slate-900 hover:bg-slate-850 text-xs items-center">
+                        <div className="col-span-2 font-black text-white truncate">{eq.modelName}</div>
                         <div className="col-span-1 text-center">
                           {shortage > 0 ? (
-                            <span className="text-[9.5px] font-bold px-1.5 py-0.2 rounded bg-amber-950 text-amber-300 border border-amber-500/40 whitespace-nowrap">
+                            <span className="text-[11px] font-black px-2 py-0.5 rounded bg-amber-500 text-slate-950 whitespace-nowrap shadow-sm">
                               {avail === 0 ? '전량 임차' : `임차 ${shortage}대`}
                             </span>
                           ) : (
-                            <span className="text-[9.5px] font-bold px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40 whitespace-nowrap">
+                            <span className="text-[11px] font-black px-2 py-0.5 rounded bg-emerald-600 text-white whitespace-nowrap shadow-sm">
                               자사 가용
                             </span>
                           )}
                         </div>
-                        <div className="col-span-1 text-right font-mono font-bold text-blue-400">{eq.qty}대</div>
+                        <div className="col-span-1 text-right font-mono font-black text-blue-400 text-xs">{eq.qty}대</div>
                       </div>
                     );
                   })
                 ) : (
-                  <div className="p-2.5 text-center text-slate-500 italic bg-slate-900/60 text-[11px]">
+                  <div className="p-3 text-center text-slate-400 font-bold bg-slate-900 text-xs">
                     선택된 장비가 없습니다.
                   </div>
                 )}
@@ -4099,19 +4099,19 @@ export const SmartDispatch4: React.FC = () => {
 
             {/* 특이사항 및 옵션 */}
             {(note || selectedSafetyOptions.size > 0 || (isExchangeMode && retrievalAssetIds.length > 0)) && (
-              <div className="bg-slate-950 border border-slate-800 rounded-lg p-2 text-[10.5px] text-slate-300 flex flex-col gap-1">
+              <div className="bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 flex flex-col gap-1.5">
                 {selectedSafetyOptions.size > 0 && (
                   <div>
-                    <span className="font-bold text-amber-400">요청옵션: </span>
-                    <span className="text-slate-200">
+                    <span className="font-black text-amber-400">요청옵션: </span>
+                    <span className="text-white font-bold">
                       {Array.from(selectedSafetyOptions).join(', ')}
                     </span>
                   </div>
                 )}
                 {isExchangeMode && retrievalAssetIds.length > 0 && (
                   <div>
-                    <span className="font-bold text-cyan-400">대차 회수장비: </span>
-                    <span className="text-slate-200">
+                    <span className="font-black text-cyan-400">대차 회수장비: </span>
+                    <span className="text-white font-bold">
                       {isUnknownRetrieval
                         ? '모름 (기사 현장 확인 후 회수)'
                         : `자산 #${retrievalAssetIds.join(', #')} (총 ${retrievalAssetIds.length}대, 회수)`}
@@ -4120,8 +4120,8 @@ export const SmartDispatch4: React.FC = () => {
                 )}
                 {note && (
                   <div>
-                    <span className="font-bold text-slate-400">배차 메모: </span>
-                    <span className="text-slate-200">{note}</span>
+                    <span className="font-black text-slate-300">배차 메모: </span>
+                    <span className="text-white font-medium">{note}</span>
                   </div>
                 )}
               </div>
@@ -4136,20 +4136,20 @@ export const SmartDispatch4: React.FC = () => {
               type="button"
               onClick={() => handlePrintAction()}
               disabled={isAgentPrinting}
-              className="py-2.5 px-3.5 rounded-xl font-bold text-xs bg-indigo-600 hover:bg-indigo-500 text-white transition-all flex items-center justify-center gap-1.5 shadow-md flex-shrink-0 cursor-pointer"
+              className="py-3 px-4 rounded-xl font-black text-xs bg-indigo-600 hover:bg-indigo-500 text-white transition-all flex items-center justify-center gap-1.5 shadow-md flex-shrink-0 cursor-pointer"
               title="선택된 프린터로 출고요청서 인쇄"
             >
-              <Printer className="w-3.5 h-3.5" />
+              <Printer className="w-4 h-4" />
               <span className="whitespace-nowrap">{isAgentPrinting ? '인쇄 전송중...' : '출고요청서 인쇄'}</span>
             </button>
             <button
               type="button"
               onClick={handleSaveDraft}
               disabled={!canSave || isSubmittingDispatch}
-              className={`flex-1 py-2.5 px-3 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-2 shadow-lg ${
+              className={`flex-1 py-3 px-4 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 shadow-lg ${
                 isFormValid
                   ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/40 cursor-pointer active:scale-98'
-                  : 'bg-slate-800 border border-red-500/40 text-red-300 hover:bg-slate-750'
+                  : 'bg-slate-800 border-2 border-red-500/70 text-red-200 hover:bg-slate-750'
               }`}
             >
               {isSubmittingDispatch ? (
@@ -4170,7 +4170,7 @@ export const SmartDispatch4: React.FC = () => {
               )}
             </button>
           </div>
-          <p className="text-[10px] text-slate-400 text-center m-0">
+          <p className="text-[11px] text-slate-300 font-medium text-center m-0">
             {isFormValid
               ? '확인 완료 시 고객사·현장·배차 대장 및 장비 할당이 즉시 생성되며, 지정된 프린터로 출고요청서가 자동 출력됩니다.'
               : '누락된 항목이 있으면 출고 요청 발행이 자동으로 방어 차단됩니다.'}
