@@ -1659,7 +1659,7 @@ export const Contracts: React.FC = () => {
 
           {/* 계약 목록 데이터 테이블 (횡 스크롤 지원 & 셀 줄바꿈 방지) */}
           <div className="card" style={{ padding: 0, margin: 0, overflow: 'hidden' }}>
-            <div className="table-container" style={{ maxHeight: 'calc(100vh - 410px)', minHeight: '380px', overflowY: 'auto', overflowX: 'auto', position: 'relative' }}>
+            <div className="table-container" style={{ maxHeight: 'calc(100vh - 465px)', minHeight: '300px', overflowY: 'auto', overflowX: 'auto', position: 'relative' }}>
               <table style={{ width: '100%', minWidth: '1200px', borderCollapse: 'collapse', whiteSpace: 'nowrap' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'var(--bg-app)' }}>
                   <tr style={{ backgroundColor: 'var(--bg-app)', whiteSpace: 'nowrap' }}>
@@ -1848,7 +1848,6 @@ export const Contracts: React.FC = () => {
               backgroundColor: 'var(--bg-app)',
               borderTop: '1px solid var(--border-color)',
               display: 'flex',
-              justifyContent: 'space-between',
               alignItems: 'center',
               flexWrap: 'wrap',
               gap: '8px',
@@ -1862,16 +1861,6 @@ export const Contracts: React.FC = () => {
                 <span>|</span>
                 <span>월 렌탈료 총액: <strong style={{ color: 'var(--primary)' }}>₩{contractKpiStats.totalRentSum.toLocaleString()}원</strong></span>
               </div>
-              <span style={{
-                padding: '2px 8px',
-                borderRadius: '4px',
-                backgroundColor: 'var(--success-light)',
-                color: 'var(--success)',
-                fontWeight: 700,
-                fontSize: '11px'
-              }}>
-                ⚖️ 대차 정상 (계약-자산-청구 기준정보 100% 무결)
-              </span>
             </div>
 
           </div>
