@@ -1,4 +1,46 @@
+## 2026-09-29 17:50 (v1.8.2.Build.1)
+
+### [신규] 인앱 오버레이 매뉴얼 시스템 — ManualStudio(999.매뉴얼) 철학 이식
+
+> 매뉴얼을 별도 문서로 읽는 것이 아닌, **현재 사용 중인 화면 위에 즉시 오버레이로 표시**하는 시스템.
+
+#### DB (신규 테이블)
+- `manual_annotations`: `tenant_id + page_id (UNIQUE)` + `annotations JSONB` + `version`
+- RLS 정책: SELECT(anon/authenticated) + INSERT/UPDATE/DELETE(authenticated)
+
+#### 신규 파일
+1. **`src/types/manual.ts`**: `ManualAnnotationItem`, `ManualPage`, `ManualAnnotationRow` 타입 + 상수
+2. **`src/hooks/useManual.ts`**: Supabase CRUD — `loadPage`, `savePage` (Auto Re-indexing 포함), `upsertItem`, `deleteItem`
+3. **`src/components/manual/ManualContext.tsx`**: 전역 모드(`off/viewing/authoring`) + 현재 페이지 상태 Provider
+4. **`src/components/manual/ManualOverlay.tsx`**: 보기 모드 오버레이 (ReactDOM.createPortal → body)
+   - **Stamp 순번 뱃지** ①②③ (position:fixed, 클릭 시 Callout 팝오버)
+   - **HighlightBox**: 두꺼운 컬러 테두리 + 반투명 채우기
+   - **Spotlight**: SVG mask 전체화면 어둠 + 대상 요소만 밝게 (ManualStudio Spotlight 이식)
+   - **Click Ripple**: CSS keyframe 파동 애니메이션 (ManualStudio click 이식)
+   - **Callout 말풍선**: 설명 + 이미지 확대 토글
+   - **ElbowArrow**: SVG 직각 꺾인 화살표 (ManualStudio elbow 이식)
+   - ResizeObserver + scroll 리스너 위치 실시간 갱신
+   - 하단 네비게이션 바 (전체 순번 버튼, 스크롤 이동)
+5. **`src/components/manual/ManualAuthorPanel.tsx`**: 작성 모드 우측 플로팅 패널
+   - **🎯 요소 선택 모드**: 클릭 인터셉터 → `data-mid`, `textContent`, `placeholder`, `aria-label` 자동 추출 (ManualStudio OCR 대체)
+   - CSS Selector 자동 생성 (`data-mid` 우선 → `#id` → 계층 경로)
+   - 어노테이션 타입/레이블/설명/색상/위치/Spotlight 설정
+   - 이미지 파일 업로드 → Supabase Storage
+   - **Filmstrip 패널**: 현재 어노테이션 카드 리스트 (클릭 편집, 삭제, 순번 표시) — ManualStudio FilmstripDock 이식
+   - **Auto Re-indexing**: 추가/삭제 시 seq 자동 재정렬 — ManualStudio 이식
+
+#### App.tsx 통합
+- `ManualProvider`로 App 전체 래핑
+- 헤더 우측: `[📖 매뉴얼 보기]` (모든 사용자) + `[✏️ 매뉴얼 작성]` (5티어 이상 관리자만)
+- 탭 전환 시 해당 페이지 매뉴얼 자동 로드
+
+#### 3순위 — 차후 구현 예정
+- Standalone HTML 내보내기, Animated GIF 내보내기, QR 모바일 링크, MCP AI 자동 작성
+
+---
+
 ## 2026-09-29 17:10 (v1.8.1.Build.3)
+
 
 ### [결재] 결재선 규칙 설정 전면 재설계 — 레지스트리 기반 일괄 생성 + 인라인 즉시 편집
 

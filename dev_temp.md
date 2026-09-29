@@ -1,3 +1,65 @@
+﻿# 개발 요구사항 임시 기록 (dev_temp.md)
+
+## [스켈톤 발상 — 인앱 오버레이 매뉴얼 시스템 v1.8.2] 2026-09-29
+
+### 핵심 컨셉
+"매뉴얼을 별도로 읽는 것이 아니라, 현재 사용 중인 화면 위에 즉시 오버레이로 표시"
+ManualStudio(999.매뉴얼) 프로젝트의 어노테이션 철학을 웹 DOM 오버레이로 이식.
+
+### DB 구조 (신규 테이블)
+- manual_annotations: tenant_id + page_id (UNIQUE) + annotations JSONB + version
+
+### 어노테이션 JSON 스키마 (ManualStudio .mcs.json 참조)
+```
+{
+  pageId: string,           // 'ApprovalRulesManage'
+  pageTitle: string,
+  version: number,
+  items: [{
+    seq: number,            // 순번 (자동 재정렬)
+    selector: string,       // '[data-mid="btn-seed-all"]' 안정적 앵커
+    type: 'stamp'|'callout'|'click_ripple'|'highlight',
+    label: string,          // 주석 제목
+    description: string,    // 주석 내용
+    badgeColor: string,
+    positionHint: 'top'|'bottom'|'left'|'right',
+    spotlight: boolean,     // ManualStudio spotlight 이식 — 대상 외 어둡게
+    arrow?: { style:'straight'|'elbow', route?:'HV'|'VH' },
+    imageUrl?: string|null, // Supabase Storage
+    autoExtracted?: string  // DOM textContent/placeholder/aria-label 자동 추출값
+  }]
+}
+```
+
+### 구현 파일 목록
+1. src/types/manual.ts — 타입 정의
+2. src/hooks/useManual.ts — Supabase CRUD + 자동 버전관리
+3. src/components/manual/ManualContext.tsx — 전역 모드 상태 (off/viewing/authoring)
+4. src/components/manual/ManualOverlay.tsx — 보기 모드 렌더 (Portal → body)
+   - Stamp 뱃지 ①②③ position:fixed
+   - HighlightBox: outline + 반투명 채우기
+   - Spotlight: SVG mask 전체화면 어둠 + 타겟만 밝게
+   - Click Ripple: CSS keyframe 파동
+   - Callout 말풍선: CSS clip-path 꼬리
+   - ElbowArrow: SVG path 직각 화살표
+   - ResizeObserver + scroll 리스너로 위치 실시간 갱신
+5. src/components/manual/ManualAuthorPanel.tsx — 작성 모드 (position:fixed 우측 플로팅)
+   - 요소 선택 모드: 클릭 인터셉터 → data-mid/textContent/placeholder/aria-label 자동 추출
+   - 폼: seq(자동), type, label, description, spotlight, color, 이미지 업로드
+   - Filmstrip: 현재 어노테이션 썸네일 카드 리스트
+   - Auto Re-indexing: 추가/삭제 시 seq 자동 재정렬
+6. src/App.tsx — 헤더 우측에 [📝 작성] (admin) + [📖 보기] 버튼 추가
+7. Supabase DDL 실행
+
+### 3순위 (차후 보류)
+- Standalone HTML 내보내기
+- Animated GIF 내보내기
+- QR 모바일 링크
+- MCP AI 자동 작성
+
+### 버전: v1.8.2.Build.1 (Y 증가: 신규 DB 테이블 + 신규 컴포넌트 시스템)
+
+
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
 ## 🏷️ [공식 프로젝트 호칭 체계 정의]
@@ -5186,7 +5248,7 @@ pm run build: **TypeScript 0 Error, 번들링 정상 완료 (uilt in 1.13s)**.
      - ���� ���� ���: �ѻ���(AS����), �ֿ���(AS����), �弼��(AS����), �̱�Ź(AS����), �̼���(�Ѱ�������) ? **���� ���� (5��)**
   3. **��� ����**:
      - `npm.cmd run build` 0 Type Error ��� ���Ἲ ��� (1.24��).
-- **Bugfix**: ����û ������� ��ȸ �� ������� ��ġ �� delinquency_action_logs ���̺��� ctionDate NOT NULL �������� ���� ���� ���� (DelinquencyActionLog �������̽��� ctionDate �߰� �� ������ 5�� ���� ���� ����)
+- **Bugfix**: ����û ������� ��ȸ �� ������� ��ġ �� delinquency_action_logs ���̺��� ctionDate NOT NULL �������� ���� ���� ���� (DelinquencyActionLog �������̽��� ctionDate �߰� �� ����� 5�� ���� ���� ����)
 
 ## [설계 구현] B2B SaaS 멀티테넌트 결재 엔진 스키마 및 DB 뼈대 구축 (D-001)
 - **개요**: 2026-09-22에 확정된 7티어 결재/합의 아키텍처(D-001)의 DB 스키마 및 TypeScript 타입을 구현.
@@ -5266,3 +5328,4 @@ pm run build: **TypeScript 0 Error, 번들링 정상 완료 (uilt in 1.13s)**.
   2. customer_sites: contacts가 NULL이던 건을 []로 초기화하고 paymentDueMonthOffset = 1 보정 완료.
   3. contracts: 27건의 NULL 계약에 대해 부모 고객사의 paymentDueDay 및 paymentDueMonthOffset을 100% 자동 상속 보정 집행 (MK이엔지 4건 계약 30일로 정상 상속, 잔여 23건 25일 보정, NULL 0건 달성).
   4. src/services/db.ts: ormatPaymentDueCondition 및 calculatePaymentDueDate에 방어 코드(null/undefined/0/NaN 방어)를 적용하고, LocalDB의 customers/sites/contracts getter에서 로컬 캐시 자동 정규화를 구현하여 브라우저 캐시 잔존 시에도 무결성 100% 보장.
+

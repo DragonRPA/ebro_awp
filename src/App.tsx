@@ -80,6 +80,10 @@ import { MirrorSyncProgressToast } from './components/MirrorSyncProgressToast';
 import { MobileApp } from './mobile/MobileApp';
 import { initWorkNotificationListener } from './utils/workNotificationService';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ManualProvider, useManualContext } from './components/manual/ManualContext';
+import { ManualOverlay } from './components/manual/ManualOverlay';
+import { ManualAuthorPanel } from './components/manual/ManualAuthorPanel';
+
 
 const Billings = React.lazy(() => import('./pages/Billings').then(module => ({ default: module.Billings })));
 
@@ -108,6 +112,66 @@ export interface MenuGroup {
 import ReactDOM from 'react-dom';
 import { db, supabase } from './services/db';
 import { useGridWheel } from './hooks/useGridWheel';
+
+/* ── 인앱 오버레이 매뉴얼 버튼 (헤더 우측 배치) ─────────────── */
+const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any }> = ({ activeTab, currentUser }) => {
+  const { mode, setMode, loadPage, page } = useManualContext();
+  const isAdmin = currentUser?.tier_level >= 5;
+
+  const handleView = async () => {
+    if (mode === 'viewing') { setMode('off'); return; }
+    setMode('off');
+    await loadPage(activeTab, activeTab);
+    setMode('viewing');
+  };
+
+  const handleAuthor = async () => {
+    if (mode === 'authoring') { setMode('off'); return; }
+    setMode('off');
+    await loadPage(activeTab, activeTab);
+    setMode('authoring');
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+      <button
+        onClick={handleView}
+        style={{
+          padding: '6px 12px', borderRadius: '20px', fontSize: '12.5px', fontWeight: 700,
+          background: mode === 'viewing' ? '#dbeafe' : 'var(--bg-app)',
+          color: mode === 'viewing' ? '#1d4ed8' : 'var(--text-primary)',
+          border: mode === 'viewing' ? '1.5px solid #1d4ed8' : '1px solid var(--border-color)',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap',
+        }}
+        title="현재 화면 매뉴얼 오버레이 표시"
+      >
+        📖 {mode === 'viewing' ? '매뉴얼 닫기' : '매뉴얼 보기'}
+        {page && page.items.length > 0 && mode !== 'viewing' && (
+          <span style={{ background: '#1d4ed8', color: '#fff', borderRadius: '10px', padding: '1px 6px', fontSize: '11px' }}>
+            {page.items.length}
+          </span>
+        )}
+      </button>
+      {isAdmin && (
+        <button
+          onClick={handleAuthor}
+          style={{
+            padding: '6px 12px', borderRadius: '20px', fontSize: '12.5px', fontWeight: 700,
+            background: mode === 'authoring' ? '#e0e7ff' : 'var(--bg-app)',
+            color: mode === 'authoring' ? '#4f46e5' : 'var(--text-primary)',
+            border: mode === 'authoring' ? '1.5px solid #4f46e5' : '1px solid var(--border-color)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap',
+          }}
+          title="현재 화면 매뉴얼 작성 모드"
+        >
+          ✏️ {mode === 'authoring' ? '작성 종료' : '매뉴얼 작성'}
+        </button>
+      )}
+    </div>
+  );
+};
+
+
 
 
 const ContextualManualButton: React.FC = () => {
@@ -1082,6 +1146,9 @@ const App: React.FC = () => {
             <BookOpen size={14} color="#2563EB" />
             업무매뉴얼
           </button>
+          {/* 📖 인앱 오버레이 매뉴얼 보기/작성 버튼 */}
+          <ManualHeaderButtons activeTab={activeTab} currentUser={currentUser} />
+
 
           {/* ⚠️ 오류 신고 바로가기 버튼 (헌장 1.1) */}
           <button
@@ -1498,6 +1565,10 @@ const App: React.FC = () => {
       <MirrorSyncProgressToast />
         <ContextualManualButton />
 
+      {/* 📖 인앱 오버레이 매뉴얼 시스템 */}
+      <ManualOverlay />
+      <ManualAuthorPanel />
+
       {/* 🛡️ 개인정보 처리방침 법정 고지 모달 */}
       {showPrivacyPolicy && (
         <PrivacyPolicyModal onClose={() => setShowPrivacyPolicy(false)} />
@@ -1507,4 +1578,10 @@ const App: React.FC = () => {
   );
 };
 
-export default App;
+const AppWithManual: React.FC = () => (
+  <ManualProvider>
+    <App />
+  </ManualProvider>
+);
+
+export default AppWithManual;
