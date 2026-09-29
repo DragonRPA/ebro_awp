@@ -2450,8 +2450,20 @@ export const TruckDispatch: React.FC = () => {
       delivery: dObj,
       siteName: site?.name || targetDelivery.destinationAddress,
       siteAddress: targetDelivery.destinationAddress || site?.address,
-      siteContactName: site?.contactName,
-      siteContactPhone: site?.contact,
+      siteContactName: (() => {
+        const actContacts = (site?.contacts || []).filter(c => c.isActive !== false);
+        if (actContacts.length > 1) {
+          return actContacts.map(c => c.position ? `${c.name}(${c.position})` : c.name).join(', ');
+        }
+        return site?.contactName;
+      })(),
+      siteContactPhone: (() => {
+        const actContacts = (site?.contacts || []).filter(c => c.isActive !== false);
+        if (actContacts.length > 1) {
+          return actContacts.map(c => `${c.name}: ${c.contact}`).join(' / ');
+        }
+        return site?.contact;
+      })(),
       customerName: customer?.name,
       companyName,
       hqYardAddress,

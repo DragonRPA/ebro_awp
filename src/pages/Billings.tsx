@@ -895,6 +895,18 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
       }
     });
 
+    // 👥 현장 담당자 이메일 자동 포함 (동시 복수 담당자 지원)
+    if (site?.contacts && site.contacts.length > 0) {
+      site.contacts.filter(sc => sc.isActive !== false && sc.email && sc.email !== '미상').forEach(sc => {
+        if (!emails.includes(sc.email!.trim())) {
+          emails.push(sc.email!.trim());
+        }
+      });
+    }
+    if (site?.email && site.email !== '미상' && !emails.includes(site.email.trim())) {
+      emails.push(site.email.trim());
+    }
+
     const custName = customer?.name || '고객명';
     const siteName = site?.name || '현장명';
     const contractNo = contract?.contractNo || billing.contractId || '계약번호';

@@ -1,7 +1,7 @@
 // src/mobile/pages/MobileDelinquencyManage.tsx
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { db, Todo, DelinquencyActionLog, Customer, Billing } from '../../services/db';
+import { db, Todo, DelinquencyActionLog, Customer, Billing, calculatePaymentDueDate, formatPaymentDueCondition } from '../../services/db';
 import { 
   AlertTriangle, Phone, Send, Lock, Unlock, Clock, 
   Calendar, CheckCircle2, ShieldAlert, Plus, X, ChevronRight, Check, Search
@@ -66,17 +66,12 @@ export const MobileDelinquencyManage: React.FC = () => {
   const getAgreedDueDate = (billing: Billing, customer?: Customer): { dueDate: string; conditionText: string } => {
     if (customer?.paymentDueDay) {
       const ym = billing.billingYm || billing.createdAt.slice(0, 7);
-      const [yearStr, monthStr] = ym.split('-');
-      let year = parseInt(yearStr, 10);
-      let month = parseInt(monthStr, 10);
-      if (!isNaN(year) && !isNaN(month)) {
-        month += 1;
-        if (month > 12) { month = 1; year += 1; }
-        const lastDay = new Date(year, month, 0).getDate();
-        const dueDay = Math.min(customer.paymentDueDay, lastDay);
+      const offset = customer.paymentDueMonthOffset !== undefined ? customer.paymentDueMonthOffset : 1;
+      const dueDate = calculatePaymentDueDate(ym, offset, customer.paymentDueDay);
+      if (dueDate) {
         return {
-          dueDate: `${year}-${String(month).padStart(2, '0')}-${String(dueDay).padStart(2, '0')}`,
-          conditionText: `익월 ${customer.paymentDueDay}일`
+          dueDate,
+          conditionText: formatPaymentDueCondition(offset, customer.paymentDueDay)
         };
       }
     }

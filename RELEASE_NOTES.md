@@ -1,3 +1,44 @@
+## 2026-09-29 16:15 (v1.8.1.Build.1)
+
+### [기능 확장] 현장 담당자 실제 동시 2인 이상 허용 및 약정 결제일(M0~M3, 1~30일/말일) 전사 연동
+
+1. **현장 담당자(CustomerSite) 실제 동시 복수 인원(2인 이상) 관리 및 전사 연동**:
+   - **DB 스키마**: Supabase 원격 DB 및 `schema.sql`의 `customer_sites`에 `contacts` (JSONB) 컬럼 추가. 기존 `contactName`, `contact`, `email`과 100% 하위 호환성 유지.
+   - **데이터 모델**: `SiteContactPerson` 타입 선언 (성명, 직책, 연락처, 이메일, 대표지정 `isPrimary`, 재직/퇴사 `isActive`, 비고).
+   - **거래처 관리 (`Customers.tsx`)**:
+     - 현장 등록/수정 모달에 다중 담당자 편집 UI 탑재 (대표 담당자 지정, 재직/퇴사 상태 토글, 담당자 추가/삭제, 성명/직책/연락처/이메일 입력).
+     - 현장 목록 테이블에 가동 현장별 활성 담당자 2인의 정보(성명, 직책, 대표 배지, 휴대폰, 이메일) 상하 2줄 정돈 표기.
+     - 엑셀 내보내기 시 동시 담당자 모두 표기 및 개인정보 마스킹 연동.
+   - **계약서 패키지 이메일 발송 (`ContractDocumentBundleModal.tsx`)**:
+     - 현장 등록 복수 담당자 이메일을 수신자 후보로 자동 추출하여 이메일 수신 목록(To/CC)에 원클릭 포함.
+     - 계약서 표지 및 PDF 서식의 현장소장/과장 성명과 연락처에 복수 담당자 자동 병기.
+   - **월말 거래명세서/청구서 이메일 발송 (`Billings.tsx`)**:
+     - 명세서 발송 시 고객사 대표 이메일 외에 해당 현장 복수 담당자의 이메일도 수신인(`To`) 후보군으로 자동 취합.
+   - **배차 SMS 발송 (`TruckDispatch.tsx`)**:
+     - 운송 기사용 배차 안내 SMS 본문에 현장 동시 복수 담당자의 성명/직책 및 연락처(`김소장: 010-XXXX-XXXX / 박과장: 010-YYYY-YYYY`) 자동 기재.
+
+2. **약정 결제일 월 구분 (당월 M0 ~ 익익익월 M3) 및 일자 (1~30일, 말일) 확장**:
+   - **DB 스키마**: Supabase 원격 DB 및 `schema.sql`의 `customers`, `customer_sites`, `contracts`에 `paymentDueMonthOffset` (INTEGER) 컬럼 추가.
+   - **계산 엔진 (`db.ts`)**:
+     - `PAYMENT_DUE_MONTH_OPTIONS`: 당월(M0), 익월(M1), 익익월(M2), 익익익월(M3).
+     - `formatPaymentDueCondition`: '익월 25일', '당월 말일', '익익월 10일' 등 전사 단일 표준 문자열 포맷팅.
+     - `calculatePaymentDueDate`: 귀속월, 월 offset, 말일(31일 지정 시 28/30/31일 가변 윤달 자동 치환)을 정밀 계산하여 실제 납기일 산출.
+   - **거래처 관리 (`Customers.tsx`)**:
+     - 고객사 등록/수정 모달: 약정 결제일을 `[월 구분 (M0~M3)]` + `[일자 (1~30일, 말일)]` 독립 드롭다운으로 개편.
+     - 현장 등록/수정 모달: 현장 개별 약정 결제일 지정 가능 (미지정 시 고객사 기본값 자동 상속).
+   - **계약 관리 (`Contracts.tsx` & `AppContext.tsx`)**:
+     - 신규 계약 등록 시 고객사/현장의 `paymentDueMonthOffset` 및 결제일 100% 자동 상속 및 등록 폼 개편.
+     - 계약 승계 시: 표준 헌장 2.2 계약 속성 자동 상속 원칙에 따라 `paymentDueMonthOffset` 100% 자동 승계.
+   - **청구서 통합 발행 (`BillingInvoiceTab.tsx`)**:
+     - 거래처 선택 시 인보이스 납기일(`invoiceDueDate`) 기본값을 `calculatePaymentDueDate`로 연동하여 당월/익월/익익월/익익익월 및 말일 자동 산출.
+   - **연체 채권 관리 (`DelinquencyPage.tsx` & `MobileDelinquencyManage.tsx`)**:
+     - 약정 월(`paymentDueMonthOffset`) 및 말일에 맞춰 실제 납기일(`dueDate`)과 연체 경과일수를 1일의 오차도 없이 정밀 집계.
+
+3. **안정성 보강**:
+   - Google Chrome 자동 번역 발 React DOM 노드 훼손(`removeChild` on Node) 원천 차단을 위해 `index.html`에 `notranslate` 메타 및 클래스 속성 적용.
+
+---
+
 ## 2026-09-29 15:15 (v1.8.0.Build.6)
 
 ### [UX/UI] 임차장비 관리 편의성 개선 및 사업자등록증 판정 모달 1080p 최적화

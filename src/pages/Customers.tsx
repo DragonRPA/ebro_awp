@@ -9,7 +9,7 @@ import {
   Sliders, Tag, Settings, CheckSquare, Square, ChevronDown, ChevronUp, FileText, FolderOpen,
   ShieldAlert, FileSpreadsheet
 } from 'lucide-react';
-import { db, Customer, CustomerContact, CustomerSite, CustomerBankAccount, StandardOption, logPrivacyAccess } from '../services/db';
+import { db, Customer, CustomerContact, CustomerSite, CustomerBankAccount, StandardOption, logPrivacyAccess, SiteContactPerson, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { isPrivilegedPrivacyUser, maskPhoneNumber, maskEmail, maskName, maskAddress } from '../utils/privacyMasking';
 import { matchHangul, matchesChosungFilter, sortCustomersByName } from '../utils/hangulSearch';
@@ -315,7 +315,7 @@ export const Customers: React.FC = () => {
       '사업자등록번호': c.bizRegNo || '-',
       '세금계산서 마감일': `매월 ${c.defaultBillingDay || 30}일`,
       '거래명세서 마감일': `매월 ${c.defaultStatementClosingDay || 25}일`,
-      '약정 결제일': c.paymentDueDay ? `익월 ${c.paymentDueDay}일` : '익월 25일',
+      '약정 결제일': formatPaymentDueCondition(c.paymentDueMonthOffset, c.paymentDueDay),
       '본사 주소': isPrivileged ? (c.address || '-') : maskAddress(c.address),
       '영업 상태': c.isClosed ? '폐업' : '영업중',
       '거래 상태': c.transactionStatus === 'BLOCKED' ? '거래제한' : '거래가능',
@@ -362,8 +362,23 @@ export const Customers: React.FC = () => {
       '고객사명': activeCustomer.name,
       '현장명': cs.name,
       '현장 주소': isPrivileged ? (cs.address || '-') : maskAddress(cs.address),
-      '현장 담당자': isPrivileged ? (cs.contactName || '-') : maskName(cs.contactName),
-      '연락처': isPrivileged ? (cs.contact || '-') : maskPhoneNumber(cs.contact),
+      '현장 담당자': (() => {
+        const activeContacts = (cs.contacts || []).filter(c => c.isActive !== false);
+        if (activeContacts.length > 0) {
+          return activeContacts.map(c => {
+            const n = isPrivileged ? c.name : maskName(c.name);
+            return c.position ? `${n}(${c.position})` : n;
+          }).join(', ');
+        }
+        return isPrivileged ? (cs.contactName || '-') : maskName(cs.contactName);
+      })(),
+      '연락처': (() => {
+        const activeContacts = (cs.contacts || []).filter(c => c.isActive !== false);
+        if (activeContacts.length > 0) {
+          return activeContacts.map(c => isPrivileged ? c.contact : maskPhoneNumber(c.contact)).join(', ');
+        }
+        return isPrivileged ? (cs.contact || '-') : maskPhoneNumber(cs.contact);
+      })(),
       '유상옵션': normalizeOptionString(cs.paidOptions) || normalizeOptionString(activeCustomer.defaultPaidOptions) || '-',
       '보양작업': normalizeOptionString(cs.protection) || normalizeOptionString(activeCustomer.defaultProtection) || '-',
       '사용여부': cs.isActive !== false ? '사용' : '종료',
@@ -384,7 +399,7 @@ export const Customers: React.FC = () => {
     setEditingCust({ 
       name: '', bizRegNo: '', isClosed: false, address: '', 
       representative: '', repContact: '', repEmail: '', 
-      defaultBillingDay: 30, defaultStatementClosingDay: 25, paymentDueDay: 25,
+      defaultBillingDay: 30, defaultStatementClosingDay: 25, paymentDueMonthOffset: 1, paymentDueDay: 25,
       transactionStatus: 'ALLOWED'
     });
     setShowCustModal(true);
@@ -394,6 +409,7 @@ export const Customers: React.FC = () => {
     setEditingCust({
       defaultBillingDay: 30,
       defaultStatementClosingDay: 25,
+      paymentDueMonthOffset: cust.paymentDueMonthOffset !== undefined ? cust.paymentDueMonthOffset : 1,
       paymentDueDay: cust.paymentDueDay || 25,
       ...cust
     });
@@ -477,18 +493,127 @@ export const Customers: React.FC = () => {
     }
   };
 
-  // 현장 등록/수정
+  // 👥 현장 등록/수정 및 다중 담당자(동시 2인 이상) 핸들러
   const handleOpenAddSite = () => {
     if (!selectedCustomerId) return;
-    setEditingSite({ customerId: selectedCustomerId, name: '', address: '', contactName: '', contact: '', email: '', isActive: true });
+    const parentCust = customers.find(c => c.id === selectedCustomerId);
+    const initialContact: SiteContactPerson = {
+      id: 'SC-' + Date.now(),
+      name: '',
+      position: '현장소장',
+      contact: '',
+      email: '',
+      isPrimary: true,
+      isActive: true,
+      memo: ''
+    };
+    setEditingSite({
+      customerId: selectedCustomerId,
+      name: '',
+      address: '',
+      contactName: '',
+      contact: '',
+      email: '',
+      isActive: true,
+      contacts: [initialContact],
+      paymentDueMonthOffset: parentCust?.paymentDueMonthOffset ?? 1,
+      paymentDueDay: parentCust?.paymentDueDay || 25
+    });
     setShowSiteSpecs(false);
     setShowSiteModal(true);
   };
 
   const handleOpenEditSite = (cs: CustomerSite) => {
-    setEditingSite(cs);
+    let contactsList: SiteContactPerson[] = [];
+    if (cs.contacts && Array.isArray(cs.contacts) && cs.contacts.length > 0) {
+      contactsList = cs.contacts.map((c, idx) => ({
+        ...c,
+        id: c.id || `SC-${idx}-${Date.now()}`,
+        isPrimary: c.isPrimary !== undefined ? c.isPrimary : idx === 0,
+        isActive: c.isActive !== false
+      }));
+    } else if (cs.contactName || cs.contact || cs.email) {
+      contactsList = [{
+        id: 'SC-' + Date.now(),
+        name: cs.contactName || '',
+        position: '현장소장',
+        contact: cs.contact || '',
+        email: cs.email || '',
+        isPrimary: true,
+        isActive: true
+      }];
+    } else {
+      contactsList = [{
+        id: 'SC-' + Date.now(),
+        name: '',
+        position: '현장소장',
+        contact: '',
+        email: '',
+        isPrimary: true,
+        isActive: true
+      }];
+    }
+
+    setEditingSite({
+      ...cs,
+      contacts: contactsList
+    });
     setShowSiteSpecs(false);
     setShowSiteModal(true);
+  };
+
+  const handleAddSiteContact = () => {
+    if (!editingSite) return;
+    const currentList = editingSite.contacts || [];
+    const newContact: SiteContactPerson = {
+      id: 'SC-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+      name: '',
+      position: currentList.length === 0 ? '현장소장' : (currentList.length === 1 ? '공무과장' : '안전관리자'),
+      contact: '',
+      email: '',
+      isPrimary: currentList.length === 0,
+      isActive: true,
+      memo: ''
+    };
+    setEditingSite({
+      ...editingSite,
+      contacts: [...currentList, newContact]
+    });
+  };
+
+  const handleUpdateSiteContact = (index: number, field: keyof SiteContactPerson, value: any) => {
+    if (!editingSite || !editingSite.contacts) return;
+    const updated = [...editingSite.contacts];
+    updated[index] = { ...updated[index], [field]: value };
+    setEditingSite({ ...editingSite, contacts: updated });
+  };
+
+  const handleSetPrimarySiteContact = (index: number) => {
+    if (!editingSite || !editingSite.contacts) return;
+    const updated = editingSite.contacts.map((c, i) => ({
+      ...c,
+      isPrimary: i === index
+    }));
+    setEditingSite({ ...editingSite, contacts: updated });
+  };
+
+  const handleToggleSiteContactActive = (index: number) => {
+    if (!editingSite || !editingSite.contacts) return;
+    const updated = [...editingSite.contacts];
+    updated[index] = {
+      ...updated[index],
+      isActive: updated[index].isActive === false ? true : false
+    };
+    setEditingSite({ ...editingSite, contacts: updated });
+  };
+
+  const handleRemoveSiteContact = (index: number) => {
+    if (!editingSite || !editingSite.contacts) return;
+    const updated = editingSite.contacts.filter((_, i) => i !== index);
+    if (updated.length > 0 && !updated.some(c => c.isPrimary)) {
+      updated[0].isPrimary = true;
+    }
+    setEditingSite({ ...editingSite, contacts: updated });
   };
 
   const handleSaveSiteSubmit = async (e: React.FormEvent) => {
@@ -496,7 +621,23 @@ export const Customers: React.FC = () => {
     if (!editingSite || !editingSite.name || !editingSite.customerId) return;
 
     try {
-      await saveSite(editingSite as Omit<CustomerSite, 'id' | 'createdAt'>);
+      // 👥 동시 복수 현장 담당자 정규화 및 대표자 동기화
+      const rawContacts = editingSite.contacts || [];
+      const validContacts = rawContacts.filter(c => (c.name && c.name.trim() !== '') || (c.contact && c.contact.trim() !== ''));
+      
+      const primaryContact = validContacts.find(c => c.isPrimary && c.isActive !== false) 
+        || validContacts.find(c => c.isActive !== false) 
+        || validContacts[0];
+
+      const siteToSave: CustomerSite = {
+        ...editingSite,
+        contactName: primaryContact?.name || editingSite.contactName || '',
+        contact: primaryContact?.contact || editingSite.contact || '',
+        email: primaryContact?.email || editingSite.email || '',
+        contacts: validContacts.length > 0 ? validContacts : undefined
+      } as CustomerSite;
+
+      await saveSite(siteToSave as Omit<CustomerSite, 'id' | 'createdAt'>);
       showToast(`현장 [${editingSite.name}] 정보가 저장되었습니다.`);
       setShowSiteModal(false);
       setEditingSite(null);
@@ -869,32 +1010,6 @@ export const Customers: React.FC = () => {
               title="사업자등록증 이미지/PDF 업로드 기반 AI 신규 등록 및 정보 보완"
             >
               <FileText size={13} color="#ffffff" /> 사업자등록증 AI 등록/보완
-            </button>
-          )}
-          {canSave && (
-            <button
-              onClick={() => {
-                setTargetContactCardCustId(undefined);
-                setShowContactCardModal(true);
-              }}
-              style={{
-                padding: '5px 12px',
-                fontSize: '12px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                whiteSpace: 'nowrap',
-                backgroundColor: '#f59e0b',
-                color: '#ffffff',
-                border: '1px solid #d97706',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.15)'
-              }}
-              title="명함/이메일 이미지 업로드 기반 AI 고객사 및 담당자 신규 등록"
-            >
-              <User size={13} color="#ffffff" /> 명함/이메일 AI 등록
             </button>
           )}
           {canSave && (
@@ -1335,7 +1450,7 @@ export const Customers: React.FC = () => {
                   <div><span style={{ color: 'var(--text-secondary)' }}>종목:</span> {activeCustomer.bizItem || '-'}</div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>청구서 마감:</span> 매월 <strong>{activeCustomer.defaultBillingDay || 30}일</strong></div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>명세서 마감:</span> 매월 <strong>{activeCustomer.defaultStatementClosingDay || 25}일</strong></div>
-                  <div><span style={{ color: 'var(--text-secondary)' }}>약정 결제일:</span> 익월 <strong>{activeCustomer.paymentDueDay || 25}일</strong></div>
+                  <div><span style={{ color: 'var(--text-secondary)' }}>약정 결제일:</span> <strong>{formatPaymentDueCondition(activeCustomer.paymentDueMonthOffset, activeCustomer.paymentDueDay)}</strong></div>
                   <div style={{ gridColumn: 'span 4' }}>
                     <span style={{ color: 'var(--text-secondary)' }}>사업장 주소:</span> {activeCustomer.address || '-'}
                   </div>
@@ -1514,8 +1629,35 @@ export const Customers: React.FC = () => {
                                 )}
                               </td>
                               <td style={{ padding: '5px 6px', whiteSpace: 'nowrap', maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cs.address}</td>
-                            <td style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>{cs.contactName || '-'}</td>
-                            <td style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>{cs.contact || '-'}</td>
+                            <td style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>
+                              {cs.contacts && cs.contacts.filter(c => c.isActive !== false).length > 0 ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                  {cs.contacts.filter(c => c.isActive !== false).map((c, cIdx) => (
+                                    <div key={c.id || cIdx} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+                                      <span style={{ fontWeight: 600 }}>{c.name}</span>
+                                      {c.position && <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>({c.position})</span>}
+                                      {c.isPrimary && <span className="badge badge-primary" style={{ fontSize: '9px', padding: '0 3px' }}>대표</span>}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span>{cs.contactName || '-'}</span>
+                              )}
+                            </td>
+                            <td style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>
+                              {cs.contacts && cs.contacts.filter(c => c.isActive !== false).length > 0 ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                  {cs.contacts.filter(c => c.isActive !== false).map((c, cIdx) => (
+                                    <div key={c.id || cIdx} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+                                      <span>{c.contact || '-'}</span>
+                                      {c.email && <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>&lt;{c.email}&gt;</span>}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span>{cs.contact || '-'}{cs.email ? ` (${cs.email})` : ''}</span>
+                              )}
+                            </td>
                             <td style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                               <span className={`badge ${cs.isActive !== false ? 'badge-success' : 'badge-secondary'}`} style={{ fontSize: '9.5px' }}>
                                 {cs.isActive !== false ? '가동' : '종료'}
@@ -1957,16 +2099,28 @@ export const Customers: React.FC = () => {
                   </select>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={labelStyle}>약정 결제일 (익월 N일)</label>
-                  <select
-                    style={inputStyle}
-                    value={editingCust.paymentDueDay || 25}
-                    onChange={e => setEditingCust({ ...editingCust, paymentDueDay: Number(e.target.value) })}
-                  >
-                    {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                      <option key={day} value={day}>{day === 31 ? '익월 말일' : `익월 ${day}일`}</option>
-                    ))}
-                  </select>
+                  <label style={labelStyle}>약정 결제일</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: '4px' }}>
+                    <select
+                      style={inputStyle}
+                      value={editingCust.paymentDueMonthOffset !== undefined ? editingCust.paymentDueMonthOffset : 1}
+                      onChange={e => setEditingCust({ ...editingCust, paymentDueMonthOffset: Number(e.target.value) })}
+                    >
+                      {PAYMENT_DUE_MONTH_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                    <select
+                      style={inputStyle}
+                      value={editingCust.paymentDueDay || 25}
+                      onChange={e => setEditingCust({ ...editingCust, paymentDueDay: Number(e.target.value) })}
+                    >
+                      {Array.from({ length: 30 }, (_, i) => i + 1).map(day => (
+                        <option key={day} value={day}>{day}일</option>
+                      ))}
+                      <option value={31}>말일</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -2213,7 +2367,7 @@ export const Customers: React.FC = () => {
           backgroundColor: 'rgba(0,0,0,0.55)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100,
           padding: '20px'
         }}>
-          <form onSubmit={handleSaveSiteSubmit} className="card" style={{ width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto', backgroundColor: 'var(--bg-card)' }}>
+          <form onSubmit={handleSaveSiteSubmit} className="card" style={{ width: '100%', maxWidth: '540px', maxHeight: '90vh', overflowY: 'auto', backgroundColor: 'var(--bg-card)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>
                 {editingSite.id ? '현장 수정' : '신규 현장 등록'}
@@ -2246,38 +2400,163 @@ export const Customers: React.FC = () => {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <div>
-                  <label style={labelStyle}>현장 소장/담당자명</label>
-                  <input
-                    type="text"
-                    style={inputStyle}
-                    value={editingSite.contactName || ''}
-                    onChange={e => setEditingSite({ ...editingSite, contactName: e.target.value })}
-                    placeholder="소장명"
-                  />
+              {/* 👥 현장 담당자 섹션 (실제 동시 2명 이상 & 전임자/퇴사자 관리) */}
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px', backgroundColor: 'var(--bg-app)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    👥 현장 담당자 (동시 복수 담당자 등록 가능)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleAddSiteContact}
+                    style={{
+                      padding: '2px 8px',
+                      fontSize: '11px',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '4px',
+                      backgroundColor: 'var(--bg-card)',
+                      color: 'var(--primary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '3px',
+                      fontWeight: 600
+                    }}
+                  >
+                    <Plus size={12} /> 담당자 추가
+                  </button>
                 </div>
-                <div>
-                  <label style={labelStyle}>현장 연락처</label>
-                  <input
-                    type="text"
-                    style={inputStyle}
-                    value={editingSite.contact || ''}
-                    onChange={e => setEditingSite({ ...editingSite, contact: e.target.value })}
-                    placeholder="010-0000-0000"
-                  />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {(editingSite.contacts || []).map((sc, scIdx) => (
+                    <div
+                      key={sc.id || scIdx}
+                      style={{
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '5px',
+                        padding: '8px 10px',
+                        backgroundColor: sc.isActive === false ? 'rgba(0,0,0,0.03)' : 'var(--bg-card)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontWeight: 700, fontSize: '11.5px' }}>
+                            담당자 {scIdx + 1}
+                          </span>
+                          {sc.isPrimary ? (
+                            <span className="badge badge-primary" style={{ fontSize: '9.5px', padding: '1px 5px' }}>
+                              ★ 대표 담당자
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleSetPrimarySiteContact(scIdx)}
+                              style={{ padding: '1px 5px', fontSize: '10px', border: '1px solid var(--border-color)', borderRadius: '3px', background: 'transparent', cursor: 'pointer', color: 'var(--text-secondary)' }}
+                            >
+                              대표 지정
+                            </button>
+                          )}
+                          <span className={`badge ${sc.isActive !== false ? 'badge-success' : 'badge-secondary'}`} style={{ fontSize: '9.5px' }}>
+                            {sc.isActive !== false ? '재직' : '변동/퇴사'}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSiteContactActive(scIdx)}
+                            style={{ padding: '1px 6px', fontSize: '10px', border: '1px solid var(--border-color)', borderRadius: '3px', background: 'transparent', cursor: 'pointer', color: 'var(--text-secondary)' }}
+                          >
+                            {sc.isActive !== false ? '변동처리' : '재직전환'}
+                          </button>
+                          {(editingSite.contacts || []).length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSiteContact(scIdx)}
+                              style={{ background: 'none', border: 'none', color: 'var(--danger-color, #ef4444)', cursor: 'pointer', padding: '2px' }}
+                              title="삭제"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '6px', marginBottom: '6px' }}>
+                        <div>
+                          <label style={labelStyle}>성명 *</label>
+                          <input
+                            type="text"
+                            style={inputStyle}
+                            value={sc.name || ''}
+                            onChange={e => handleUpdateSiteContact(scIdx, 'name', e.target.value)}
+                            placeholder="예: 김소장 / 박과장"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>직책 / 역할</label>
+                          <input
+                            type="text"
+                            style={inputStyle}
+                            value={sc.position || ''}
+                            onChange={e => handleUpdateSiteContact(scIdx, 'position', e.target.value)}
+                            placeholder="현장소장, 공무과장 등"
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '6px' }}>
+                        <div>
+                          <label style={labelStyle}>연락처 (휴대폰) *</label>
+                          <input
+                            type="text"
+                            style={inputStyle}
+                            value={sc.contact || ''}
+                            onChange={e => handleUpdateSiteContact(scIdx, 'contact', e.target.value)}
+                            placeholder="010-0000-0000"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>이메일 (계약서/명세서 수신)</label>
+                          <input
+                            type="email"
+                            style={inputStyle}
+                            value={sc.email || ''}
+                            onChange={e => handleUpdateSiteContact(scIdx, 'email', e.target.value)}
+                            placeholder="site@company.com"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div>
-                <label style={labelStyle}>현장 이메일</label>
-                <input
-                  type="email"
-                  style={inputStyle}
-                  value={editingSite.email || ''}
-                  onChange={e => setEditingSite({ ...editingSite, email: e.target.value })}
-                  placeholder="site@company.com"
-                />
+              {/* 💳 현장 약정 결제일 (고객사 기본값 상속 또는 현장 개별 지정) */}
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '8px 10px', backgroundColor: 'var(--bg-app)' }}>
+                <label style={labelStyle}>현장 약정 결제일 (미지정 시 고객사 조건 상속)</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: '4px' }}>
+                  <select
+                    style={inputStyle}
+                    value={editingSite.paymentDueMonthOffset !== undefined ? editingSite.paymentDueMonthOffset : (activeCustomer?.paymentDueMonthOffset ?? 1)}
+                    onChange={e => setEditingSite({ ...editingSite, paymentDueMonthOffset: Number(e.target.value) })}
+                  >
+                    {PAYMENT_DUE_MONTH_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <select
+                    style={inputStyle}
+                    value={editingSite.paymentDueDay || activeCustomer?.paymentDueDay || 25}
+                    onChange={e => setEditingSite({ ...editingSite, paymentDueDay: Number(e.target.value) })}
+                  >
+                    {Array.from({ length: 30 }, (_, i) => i + 1).map(day => (
+                      <option key={day} value={day}>{day}일</option>
+                    ))}
+                    <option value={31}>말일</option>
+                  </select>
+                </div>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', backgroundColor: 'var(--bg-app)', borderRadius: '4px' }}>

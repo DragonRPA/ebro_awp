@@ -440,6 +440,58 @@ export const SEED_STANDARD_OPTIONS: StandardOption[] = [
   { id: 'opt_prot_floor', category: 'PROTECTION', name: '바닥/발판 보양', defaultPrice: 0, unit: '건', description: '데크 바닥 합판 및 고무패드 보양', isActive: true, sortOrder: 6, createdAt: '2026-01-01' }
 ];
 
+
+export interface SiteContactPerson {
+  id: string;
+  name: string;
+  position?: string;
+  contact: string;
+  email?: string;
+  isPrimary?: boolean;
+  isActive?: boolean;
+  memo?: string;
+}
+
+export const PAYMENT_DUE_MONTH_OPTIONS = [
+  { value: 0, label: '당월 (M0)', shortLabel: '당월' },
+  { value: 1, label: '익월 (M1)', shortLabel: '익월' },
+  { value: 2, label: '익익월 (M2)', shortLabel: '익익월' },
+  { value: 3, label: '익익익월 (M3)', shortLabel: '익익익월' },
+] as const;
+
+export function formatPaymentDueCondition(monthOffset: number = 1, day: number = 25): string {
+  const monthLabels = ['당월', '익월', '익익월', '익익익월'];
+  const monthText = monthLabels[monthOffset] !== undefined ? monthLabels[monthOffset] : '익월';
+  const dayText = day === 31 ? '말일' : `${day}일`;
+  return `${monthText} ${dayText}`;
+}
+
+export function calculatePaymentDueDate(
+  baseYmOrDate: string,
+  monthOffset: number = 1,
+  dueDay: number = 25
+): string {
+  if (!baseYmOrDate) return '';
+  const [yStr, mStr] = baseYmOrDate.slice(0, 7).split('-');
+  let year = parseInt(yStr, 10);
+  let month = parseInt(mStr, 10);
+  if (isNaN(year) || isNaN(month)) return '';
+
+  month += (monthOffset ?? 1);
+  while (month > 12) {
+    month -= 12;
+    year += 1;
+  }
+  while (month < 1) {
+    month += 12;
+    year -= 1;
+  }
+
+  const lastDay = new Date(year, month, 0).getDate();
+  const actualDay = (dueDay === 31 || !dueDay) ? lastDay : Math.min(dueDay, lastDay);
+  return `${year}-${String(month).padStart(2, '0')}-${String(actualDay).padStart(2, '0')}`;
+}
+
 export interface Customer {
   id: string;
   name: string;
@@ -456,7 +508,8 @@ export interface Customer {
   transactionStatus?: 'ALLOWED' | 'BLOCKED'; // ALLOWED: 거래가능 (기본), BLOCKED: 거래불가 (신규 계약/출고 제한)
   defaultBillingDay?: number; // 청구서(세금계산서) 기본 마감일 (예: 30일/월말)
   defaultStatementClosingDay?: number; // 거래명세서 기본 마감일 (예: 25일)
-  paymentDueDay?: number; // 익월 결제일 (N일)
+  paymentDueDay?: number; // 결제일 (1~30, 31: 말일)
+  paymentDueMonthOffset?: number; // 0: 당월(M0), 1: 익월(M1), 2: 익익월(M2), 3: 익익익월(M3), 기본값 1
   paymentTermDays?: number; // Net Terms 결제기한 (발행 후 N일)
   bankAccounts?: CustomerBankAccount[]; // 고객사 다중 계좌 목록
   
@@ -506,6 +559,8 @@ export interface CustomerSite {
   contact: string;
   email: string;
   isActive?: boolean; // 사용/미사용 (공사 완공 시 미사용)
+  contacts?: SiteContactPerson[]; // 👥 실제 동시 2명 이상 현장 담당자 목록
+  paymentDueMonthOffset?: number; // 0: 당월(M0), 1: 익월(M1), 2: 익익월(M2), 3: 익익익월(M3)
   
   // 🌟 [신규] 현장 전용 옵션/보양/요구사양 (미입력 시 고객사 기본값 자동 상속, 수량 제외 순수 품목명)
   paidOptions?: string;              // 현장 전용 유상옵션 품목 (장비 대수 비례 수량 표기 제외)
@@ -513,7 +568,7 @@ export interface CustomerSite {
   checkedSpecs?: Record<string, boolean>; // 현장 전용 요구 사양 체크 상태
   billingDay?: number;               // 청구서(세금계산서) 마감일
   statementClosingDay?: number;      // 거래명세서 마감일
-  paymentDueDay?: number;            // 약정 결제일 (익월 N일)
+  paymentDueDay?: number;            // 약정 결제일 (1~30, 31: 말일)
 
   createdAt: string;
   updatedAt?: string;
@@ -877,7 +932,8 @@ export interface Contract {
   billingDay: number; // 청구서 발행일 (예: 25 → 매월 25일 발행, 청구기간: 전월26~당월25)
   statementClosingDay?: number; // 거래명세서 마감일 (구버전 호환)
   lateInterestRate: number; // 연체이자율 (%), 기본값 0 = 미발생
-  paymentDueDay?: number; // 납기일: 세금계산서 발행 익월 N일 (계약별 개별 지정)
+  paymentDueDay?: number; // 납기일 (1~30, 31: 말일)
+  paymentDueMonthOffset?: number; // 0: 당월(M0), 1: 익월(M1), 2: 익익월(M2), 3: 익익익월(M3)
   status: 'ACTIVE' | 'EXTENDED' | 'SHORTENED' | 'SUCCEEDED' | 'COMPLETED';
   successorContractId?: string;
   predecessorContractId?: string; // 승계 전 이전 계약 ID

@@ -24,7 +24,7 @@ import {
   type TransactionStatementPdfData,
   type TransactionStatementItem
 } from '../services/excelTemplateEngine';
-import type { BillingInvoice, Billing, BillingDetail } from '../services/db';
+import { calculatePaymentDueDate, type BillingInvoice, type Billing, type BillingDetail } from '../services/db';
 import { matchHangul, sortCustomersByName } from '../utils/hangulSearch';
 
 // ── 상태 배지 ──
@@ -202,12 +202,9 @@ export const BillingInvoiceTab: React.FC = () => {
     if (!selectedCustomerId || !customers) return;
     const cust = customers.find(c => c.id === selectedCustomerId);
     if (cust) {
-      const dueDay = cust.paymentDueDay || 25;
-      const today = new Date();
-      const yr = selectedYm ? parseInt(selectedYm.slice(0, 4), 10) : today.getFullYear();
-      const mo = selectedYm ? parseInt(selectedYm.slice(5, 7), 10) : today.getMonth() + 1;
-      const dStr = String(Math.min(dueDay, 28)).padStart(2, '0');
-      setInvoiceDueDate(`${yr}-${String(mo).padStart(2, '0')}-${dStr}`);
+      const baseYm = selectedYm || new Date().toISOString().slice(0, 7);
+      const calculatedDate = calculatePaymentDueDate(baseYm, cust.paymentDueMonthOffset ?? 1, cust.paymentDueDay || 25);
+      setInvoiceDueDate(calculatedDate);
     }
     // 고객사 변경 시 선택 초기화
     setSelectedBillingIds([]);

@@ -5220,3 +5220,26 @@ pm run build: **TypeScript 0 Error, 번들링 정상 완료 (uilt in 1.13s)**.
   2. `src/components/BusinessLicenseModal.tsx` 상하 여백 슬림화, `min-h-0 overflow-y-auto` 수직 스크롤, 1:1 대사 테이블 컬럼 잘림 방지
   3. Supabase `customers` CUST-0000357 상호 '광안티앤씨 (주)' ➔ '광건티앤씨 (주)' 정정
   4. `npm run build` 성공 검증
+
+## [진행중/반영완료] 고객 관리 상단 중복 '명함/이메일 AI 등록' 버튼 제거
+- **요구사항**: 표시한 명함/이메일로 고객담당자 등록 기능은 상단 위치에는 불필요. 우측 하단의 고객담당자 등록 기능에도 있음 (중복)
+- **조치 내역**:
+  - `src/pages/Customers.tsx` 상단 액션바의 `[명함/이메일 AI 등록]` 버튼 제거
+  - 우측 하단 '고객 담당자 목록' 패널 내 `[명함/이메일로 추가]` 기능은 정상 보존
+  - 빌드 검증(Exit Code 0) 완료
+
+
+## [반영완료] 현장 담당자 동시 2인 이상 허용 및 약정 결제일(M0~M3, 1~30일/말일) 전사 연동
+- **요구사항**:
+  1. 고객 1개 현장(CustomerSite)에 실제로 담당자가 동시에 2명 이상(소장, 공무과장 등) 존재하는 케이스 허용 및 계약서/거래명세서 이메일 발송, 배차 하차 연락처 연동
+  2. 약정 결제일 월 구분(당월 M0, 익월 M1, 익익월 M2, 익익익월 M3) 및 일자(1~30일, 말일) 지정 확장 및 청구/수납/연체관리 연동
+- **조치 내역**:
+  1. Supabase 원격 DB 및 schema.sql DDL 마이그레이션 (customer_sites.contacts jsonb, customers/customer_sites/contracts.paymentDueMonthOffset int 추가)
+  2. src/services/db.ts: SiteContactPerson 타입 선언, PAYMENT_DUE_MONTH_OPTIONS, ormatPaymentDueCondition, calculatePaymentDueDate 엔진 추가
+  3. src/pages/Customers.tsx: 현장 등록/수정 모달에 복수 담당자(대표 지정, 재직/퇴사, 추가/삭제) 에디터 탑재, 현장 목록에 동시 담당자 2명 멀티라인 렌더링, 고객사/현장 약정 결제일 (M0~M3 + 1~30일/말일) 입력 및 상세 표기
+  4. src/pages/Contracts.tsx: 고객사 약정 결제일(M0~M3, 일자) 자동 상속 및 계약 등록 폼 개편, 계약 상세 및 엑셀에 동적 납기일 표기, 계약 승계 시 결제일 100% 자동 승계
+  5. src/components/BillingInvoiceTab.tsx: 통합 인보이스 납기일 calculatePaymentDueDate 기반 연동
+  6. src/pages/DelinquencyPage.tsx & src/mobile/pages/MobileDelinquencyManage.tsx: getAgreedDueDate를 calculatePaymentDueDate로 개편하여 M0~M3 및 말일 연체 계산 정밀화
+  7. ContractDocumentBundleModal.tsx & Billings.tsx: 현장 복수 담당자 이메일 수신자 자동 추출 및 수신인(To) 자동 매핑
+  8. TruckDispatch.tsx: 운송기사용 SMS에 현장 동시 복수 담당자 연락처 모두 자동 표기
+  9. TypeScript 및 Vite 프로덕션 빌드 성공 검증 완료 (0 Type Errors)

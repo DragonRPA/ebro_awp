@@ -5306,6 +5306,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         billingDay: oldContract.billingDay,
         statementClosingDay: oldContract.statementClosingDay,
         paymentDueDay: oldContract.paymentDueDay,
+        paymentDueMonthOffset: oldContract.paymentDueMonthOffset,
         lateInterestRate: oldContract.lateInterestRate || 0,
         salespersonId: oldContract.salespersonId,
         status: 'ACTIVE',

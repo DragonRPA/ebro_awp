@@ -153,16 +153,29 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       });
     });
 
-    // 2) 고객사 현장 목록의 현장 담당자
-    const custSites = (sites || []).filter(s => s.customerId === customer.id && s.email);
+    // 2) 고객사 현장 목록의 현장 담당자 (동시 복수 담당자 지원)
+    const custSites = (sites || []).filter(s => s.customerId === customer.id);
     custSites.forEach(s => {
-      list.push({
-        id: `site-${s.id}`,
-        name: s.contactName || s.name || '현장담당자',
-        position: s.name ? `${s.name} 현장` : '현장담당',
-        email: s.email.trim(),
-        typeLabel: '현장담당'
-      });
+      if (s.contacts && s.contacts.length > 0) {
+        s.contacts.filter(sc => sc.isActive !== false && sc.email).forEach((sc, idx) => {
+          list.push({
+            id: `site-${s.id}-c-${sc.id || idx}`,
+            name: sc.name || s.contactName || s.name || '현장담당자',
+            position: sc.position ? `${s.name} ${sc.position}` : `${s.name} 현장`,
+            email: sc.email!.trim(),
+            typeLabel: sc.isPrimary ? '현장대표' : '현장담당'
+          });
+        });
+      }
+      if (s.email && s.email.trim()) {
+        list.push({
+          id: `site-${s.id}`,
+          name: s.contactName || s.name || '현장담당자',
+          position: s.name ? `${s.name} 현장` : '현장담당',
+          email: s.email.trim(),
+          typeLabel: '현장담당'
+        });
+      }
     });
 
     // 이메일 기준 중복 제거
@@ -221,7 +234,12 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       }
     });
 
-    // 3. 현장 담당자
+    // 3. 현장 담당자 (동시 복수 담당자 지원)
+    if (site?.contacts && site.contacts.length > 0) {
+      site.contacts.filter(sc => sc.isActive !== false && sc.email).forEach(sc => {
+        addRecipient(sc.email, sc.name || site.contactName || site.name, `현장담당 (${sc.position || site.name})`, 'SITE');
+      });
+    }
     if (site?.email) {
       addRecipient(site.email, site.contactName || site.name, `현장담당 (${site.name})`, 'SITE');
     }
@@ -363,8 +381,20 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         contractNo: selectedContract.id,
         managerName: customer?.representative || '계약담당자',
         managerPhone: customer?.repContact || '010-0000-0000',
-        siteManagerName: site?.contactName || '현장소장',
-        siteManagerPhone: site?.contact || '010-0000-0000',
+        siteManagerName: (() => {
+          const actContacts = (site?.contacts || []).filter(c => c.isActive !== false);
+          if (actContacts.length > 0) {
+            return actContacts.map(c => c.position ? `${c.name}(${c.position})` : c.name).join(', ');
+          }
+          return site?.contactName || '현장소장';
+        })(),
+        siteManagerPhone: (() => {
+          const actContacts = (site?.contacts || []).filter(c => c.isActive !== false);
+          if (actContacts.length > 0) {
+            return actContacts.map(c => `${c.name}: ${c.contact}`).join(' / ');
+          }
+          return site?.contact || '010-0000-0000';
+        })(),
         salesRepName: '김동우 팀장',
         salesRepPhone: '010-9402-5296',
         optionsText: (selectedContract as any).optionsText || (selectedContract as any).remarks || '옵션 협착난간대, 튜브소화기 외',

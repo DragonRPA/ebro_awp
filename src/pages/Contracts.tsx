@@ -8,7 +8,7 @@ import {
   Building2, ArrowLeftRight, Receipt, FolderOpen, AlertCircle, ExternalLink, Copy, AlertTriangle, FileText,
   Truck, CheckCircle2
 } from 'lucide-react';
-import { Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate } from '../services/db';
+import { Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
 import { matchHangul, sortCustomersByName, compareCustomerNames } from '../utils/hangulSearch';
@@ -110,6 +110,7 @@ export const Contracts: React.FC = () => {
   const [billingDay, setBillingDay] = useState(30);
   const [statementClosingDay, setStatementClosingDay] = useState(25);
   const [paymentDueDay, setPaymentDueDay] = useState(25);
+  const [paymentDueMonthOffset, setPaymentDueMonthOffset] = useState(1);
 
   // 컬럼 표시 여부 토글 상태
   const [showPeriodCol, setShowPeriodCol] = useState(false);
@@ -185,7 +186,7 @@ export const Contracts: React.FC = () => {
   const [pendingContractPayload, setPendingContractPayload] = useState<{
     customerId: string; contactId?: string; siteId?: string; salespersonId?: string;
     startDate: string; endDate: string; billingDay: number;
-    statementClosingDay: number; paymentDueDay: number; lateInterestRate: number; status: string;
+    statementClosingDay: number; paymentDueDay: number; paymentDueMonthOffset?: number; lateInterestRate: number; status: string;
     basket: { assetId?: string; expectedModel?: string; monthlyRentalFee: number; dailyRentalFee: number }[];
   } | null>(null);
 
@@ -1026,7 +1027,7 @@ export const Contracts: React.FC = () => {
         '계약 시작일': c.startDate,
         '계약 만료일': formatContractEndDate(c.endDate),
         '청구 마감일': `매월 ${c.billingDay}일`,
-        '납기일': c.paymentDueDay ? `익월 ${c.paymentDueDay}일` : '익월 25일 (기본)',
+        '납기일': formatPaymentDueCondition(c.paymentDueMonthOffset, c.paymentDueDay),
         '월 임대료 합계(원)': totalMonthlyRent,
 
         // ⑤ 승계 및 이력 연계
@@ -1158,6 +1159,7 @@ export const Contracts: React.FC = () => {
         billingDay: Number(billingDay),
         statementClosingDay: Number(statementClosingDay),
         paymentDueDay: Number(paymentDueDay) || 25,
+        paymentDueMonthOffset: paymentDueMonthOffset !== undefined ? Number(paymentDueMonthOffset) : 1,
         lateInterestRate: 0,
         status: 'ACTIVE',
         basket,
@@ -2068,14 +2070,32 @@ export const Contracts: React.FC = () => {
                 
                 <div>
                   <label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>담당자 연락처</label>
-                  <span>{sites.find(s => s.id === activeContract.siteId)?.contact || '-'}</span>
+                  <span>
+                    {(() => {
+                      const curSite = sites.find(s => s.id === activeContract.siteId);
+                      const actContacts = (curSite?.contacts || []).filter(c => c.isActive !== false);
+                      if (actContacts.length > 0) {
+                        return actContacts.map(c => `${c.name}: ${c.contact}`).join(' / ');
+                      }
+                      return curSite?.contact || '-';
+                    })()}
+                  </span>
                 </div>
                 <div>
                   <label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>담당자 이메일</label>
-                  <span>{sites.find(s => s.id === activeContract.siteId)?.email || '-'}</span>
+                  <span>
+                    {(() => {
+                      const curSite = sites.find(s => s.id === activeContract.siteId);
+                      const actContacts = (curSite?.contacts || []).filter(c => c.isActive !== false && c.email);
+                      if (actContacts.length > 0) {
+                        return actContacts.map(c => `${c.name}<${c.email}>`).join(', ');
+                      }
+                      return curSite?.email || '-';
+                    })()}
+                  </span>
                 </div>
                 
-                <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>청구 / 마감 / 납기일</label>매월 {activeContract.billingDay}일 / {activeContract.statementClosingDay || '-'}일 (납기: 익월 {activeContract.paymentDueDay || 25}일)</div>
+                <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>청구 / 마감 / 납기일</label>매월 {activeContract.billingDay}일 / {activeContract.statementClosingDay || '-'}일 (납기: {formatPaymentDueCondition(activeContract.paymentDueMonthOffset, activeContract.paymentDueDay)})</div>
                 <div><label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>계약 시작일</label><span>{activeContract.startDate}</span></div>
                 <div>
                   <label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>계약 만료일</label>
@@ -3138,6 +3158,7 @@ export const Contracts: React.FC = () => {
                       setBillingDay(sel.defaultBillingDay || 30);
                       setStatementClosingDay(sel.defaultStatementClosingDay || 25);
                       setPaymentDueDay(sel.paymentDueDay || 25);
+                      setPaymentDueMonthOffset(sel.paymentDueMonthOffset !== undefined ? sel.paymentDueMonthOffset : 1);
                     }
                   }
                 }}
@@ -3192,8 +3213,28 @@ export const Contracts: React.FC = () => {
                 <input type="number" min={1} max={31} value={statementClosingDay} onChange={e => setStatementClosingDay(Number(e.target.value))} style={{ width: '100%', padding: '8px' }} />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600 }}>약정 결제일 (일)</label>
-                <input type="number" min={1} max={31} value={paymentDueDay} onChange={e => setPaymentDueDay(Number(e.target.value))} style={{ width: '100%', padding: '8px' }} />
+                <label style={{ fontSize: '12px', fontWeight: 600 }}>약정 결제일</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr', gap: '4px' }}>
+                  <select
+                    value={paymentDueMonthOffset}
+                    onChange={e => setPaymentDueMonthOffset(Number(e.target.value))}
+                    style={{ width: '100%', padding: '8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
+                  >
+                    {PAYMENT_DUE_MONTH_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={paymentDueDay}
+                    onChange={e => setPaymentDueDay(Number(e.target.value))}
+                    style={{ width: '100%', padding: '8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
+                  >
+                    {Array.from({ length: 30 }, (_, i) => i + 1).map(day => (
+                      <option key={day} value={day}>{day}일</option>
+                    ))}
+                    <option value={31}>말일</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
