@@ -2462,6 +2462,7 @@ export const SmartDispatch4: React.FC = () => {
               5단계 요청 서식 ({openBlocks.size}/5 블록 열림)
             </span>
             <button
+              data-mid="dispatch4-btn-toggle-blocks"
               type="button"
               onClick={toggleAllBlocks}
               className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-850 hover:bg-slate-750 text-slate-300 hover:text-white transition border border-slate-750 shadow-sm"
@@ -2502,6 +2503,7 @@ export const SmartDispatch4: React.FC = () => {
                       onChange={handleTextFileChange}
                     />
                     <button
+                      data-mid="dispatch4-btn-file-load"
                       type="button"
                       onClick={() => txtFileInputRef.current?.click()}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 hover:border-amber-500/50 transition shadow-sm cursor-pointer"
@@ -2521,6 +2523,7 @@ export const SmartDispatch4: React.FC = () => {
                       닫기
                     </button>
                     <button
+                      data-mid="dispatch4-btn-parse"
                       type="button"
                       onClick={() => runParse(pasteText)}
                       className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition shadow-sm cursor-pointer"
@@ -2661,6 +2664,7 @@ export const SmartDispatch4: React.FC = () => {
                         <div className="flex flex-col gap-1">
                           <label className="text-xs font-semibold text-slate-300">거래처 검색 (초성 검색 가능)</label>
                           <input
+                            data-mid="dispatch4-customer-search"
                             className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2.5 text-xs focus:outline-none focus:border-blue-500"
                             value={customerQuery}
                             onChange={e => setCustomerQuery(e.target.value)}
@@ -2742,6 +2746,7 @@ export const SmartDispatch4: React.FC = () => {
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-semibold text-slate-300">신규 현장명 *</label>
                       <input
+                        data-mid="dispatch4-site-search"
                         className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2.5 text-xs focus:outline-none focus:border-blue-500"
                         value={newSiteName}
                         onChange={e => setNewSiteName(e.target.value)}
@@ -2751,13 +2756,14 @@ export const SmartDispatch4: React.FC = () => {
                     <div className="flex flex-col gap-1">
                       <label className="text-xs font-semibold text-slate-300">현장 상세주소 *</label>
                       <input
+                        data-mid="dispatch4-site-address"
                         className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2.5 text-xs focus:outline-none focus:border-blue-500"
                         value={newSiteAddress}
                         onChange={e => setNewSiteAddress(e.target.value)}
                         placeholder="기사 배차용 도로명 주소 (예: 경기도 평택시 고덕면 ...)"
                       />
                     </div>
-                    <div className="pt-2 border-t border-slate-800 flex flex-col gap-2">
+                    <div data-mid="dispatch4-site-contact" className="pt-2 border-t border-slate-800 flex flex-col gap-2">
                       <div className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
                         <User className="w-3.5 h-3.5" />
                         <span>현장 담당자 정보 *</span>
@@ -2785,7 +2791,7 @@ export const SmartDispatch4: React.FC = () => {
                       </div>
                     </div>
                     {/* 🌟 신규현장 청구 및 결제 마감 일정 (3대 필수 일정) */}
-                    <div className="pt-2 border-t border-slate-800 flex flex-col gap-2">
+                    <div data-mid="dispatch4-site-schedule" className="pt-2 border-t border-slate-800 flex flex-col gap-2">
                       <div className="text-xs font-bold text-amber-300 flex items-center justify-between">
                         <span className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5" />
@@ -3092,6 +3098,7 @@ export const SmartDispatch4: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <div className="relative flex-1">
                         <input
+                          data-mid="dispatch4-site-search"
                           className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg pl-8 pr-3 py-2 text-xs focus:outline-none focus:border-cyan-500"
                           value={siteQuery}
                           onChange={e => setSiteQuery(e.target.value)}
@@ -3173,7 +3180,7 @@ export const SmartDispatch4: React.FC = () => {
                 {/* 상단: 피트 탭 및 검색 */}
                 <div className="flex flex-col gap-2 pb-2 border-b border-slate-800">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex gap-1.5 overflow-x-auto pb-0.5 flex-1">
+                    <div data-mid="dispatch4-ft-tabs" className="flex gap-1.5 overflow-x-auto pb-0.5 flex-1">
                       {FT_GROUPS.map(ft => {
                         const count = getFtCount(ft);
                         return (
@@ -3229,7 +3236,7 @@ export const SmartDispatch4: React.FC = () => {
                 </div>
 
                 {/* 모델 버튼 목록 */}
-                <div className="flex flex-wrap gap-2 max-h-[220px] overflow-y-auto pr-1">
+                <div data-mid="dispatch4-model-chips" className="flex flex-wrap gap-2 max-h-[220px] overflow-y-auto pr-1">
                   {displayedModels.map(m => {
                     const isPicked = equipments.some(e => e.modelName === m.modelName);
                     return (
@@ -3265,6 +3272,7 @@ export const SmartDispatch4: React.FC = () => {
                   )}
                 </div>
 
+                <div data-mid="dispatch4-equipment-list">
                 {equipments.length > 0 ? (
                   <div className="mt-1 flex flex-col gap-1.5 p-2 bg-slate-950 rounded-lg border border-slate-800">
                     {(() => {
@@ -3402,6 +3410,7 @@ export const SmartDispatch4: React.FC = () => {
                     <span>상단 규격 탭(19ft, 26ft 등)에서 모델을 클릭하여 출고 장비를 추가하세요.</span>
                   </div>
                 )}
+                </div>
               </div>
             )}
           </div>
@@ -3429,7 +3438,7 @@ export const SmartDispatch4: React.FC = () => {
             {openBlocks.has('SCHEDULE') && (
               <div className="dispatch4-block-body">
                 {/* 상차 일정 */}
-                <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-700 flex flex-col gap-2.5">
+                <div data-mid="dispatch4-loading-slot" className="p-3 bg-slate-950/80 rounded-xl border border-slate-700 flex flex-col gap-2.5">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-black text-amber-300 flex items-center gap-1.5">
                       <Truck className="w-4 h-4" />
@@ -3485,7 +3494,7 @@ export const SmartDispatch4: React.FC = () => {
                 </div>
 
                 {/* 하차 일정 */}
-                <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-700 flex flex-col gap-2.5">
+                <div data-mid="dispatch4-unloading-slot" className="p-3 bg-slate-950/80 rounded-xl border border-slate-700 flex flex-col gap-2.5">
                   <div className="flex items-center justify-between">
                     <label className="text-sm font-black text-cyan-300 flex items-center gap-1.5">
                       <MapPin className="w-4 h-4" />
@@ -3580,7 +3589,7 @@ export const SmartDispatch4: React.FC = () => {
               <div className="dispatch4-block-body">
                 {/* 1. 대차(EXCHANGE) 시 회수 대상 전자산 다수 매핑 지원 */}
                 {isExchangeMode && (
-                  <div className="p-2.5 bg-cyan-950/40 border border-cyan-500/40 rounded-xl flex flex-col gap-2">
+                  <div data-mid="dispatch4-exchange-panel" className="p-2.5 bg-cyan-950/40 border border-cyan-500/40 rounded-xl flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <label className="text-[11px] font-black text-cyan-200 flex items-center gap-1.5">
                         <RotateCcw className="w-3.5 h-3.5" />
@@ -3657,7 +3666,7 @@ export const SmartDispatch4: React.FC = () => {
 
                 {/* 2. 운송비 부담 귀속선 선택기 */}
                 {/* 2. 고객 요청 옵션 및 작업 요구사항 */}
-                <div className="flex flex-col gap-2">
+                <div data-mid="dispatch4-safety-options" className="flex flex-col gap-2">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
                       <Wrench className="w-3.5 h-3.5 text-amber-400" />
@@ -3797,6 +3806,7 @@ export const SmartDispatch4: React.FC = () => {
             )}
 
             <textarea
+              data-mid="dispatch4-note-input"
               className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg p-2 text-xs focus:outline-none focus:border-blue-500 resize-none font-sans"
               rows={2}
               value={note}
@@ -4133,6 +4143,7 @@ export const SmartDispatch4: React.FC = () => {
         <div className="dispatch4-terminal-bar">
           <div className="flex items-center gap-2">
             <button
+              data-mid="dispatch4-btn-print-action"
               type="button"
               onClick={() => handlePrintAction()}
               disabled={isAgentPrinting}
@@ -4831,6 +4842,7 @@ export const SmartDispatch4: React.FC = () => {
           </div>
 
           <button
+            data-mid="dispatch4-btn-print-top"
             type="button"
             onClick={() => handlePrintAction()}
             disabled={isAgentPrinting}
@@ -4841,6 +4853,7 @@ export const SmartDispatch4: React.FC = () => {
           </button>
 
           <button
+            data-mid="dispatch4-btn-audio-upload"
             type="button"
             onClick={() => setAudioUploadOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-900/40 hover:bg-blue-900/60 border border-blue-500/50 text-blue-200 text-xs font-bold transition shadow-sm whitespace-nowrap flex-shrink-0 cursor-pointer"

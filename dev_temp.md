@@ -1,5 +1,33 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## [완료] 매뉴얼 타겟 UI 요소 부드러운 자동 스크롤(Auto-Scroll) & 마우스 휠 패스스루 인터랙션 복원 & 출고 요청 24단계 data-mid 100% 전수 완비
+- **요구사항**:
+  "스크롤이 있는 메뉴에서 화면 아래쪽에 배치된 UI 가 강조표시(파동효과)가 작동하고 있는데, 매뉴얼 표시 상태에서는 스크롤이 작동하지 않아서, 매뉴얼의 지시를 따라갈 수 없어. 매뉴얼이 강조 표시해주는 지점으로 화면이 스크롤 자동 이동되어줄 필요가 있어."
+- **문제의 본질 (원인 분석)**:
+  1. **스크롤 부모 컨테이너 탐색 및 자동 스크롤 결여**:
+     - `smart_dispatch4`와 같은 복잡한 비즈니스 스튜디오는 브라우저 `window` 스크롤이 아니라 좌측 마스터 스트림 `.dispatch4-left-pane { overflow-y: auto; }`가 독자 스크롤 컨테이너임.
+     - 기존의 `el.scrollIntoView({ block: 'center' })`는 하단에 `BottomDossierCard`(bottom: 76px, height: 160~200px)와 하단 도크(50px)가 약 260px을 가리고 있어 타겟 요소가 카드 뒤에 숨겨지거나, `smooth` 스크롤 도중 뱃지와 파동이 엘리먼트를 실시간으로 따라가지 못하고 어긋나는 현상 발생.
+  2. **매뉴얼 표시 상태에서 마우스 휠 스크롤 먹통 결함**:
+     - `Spotlight` 컴포넌트 내부의 SVG 및 `<rect>` 태그에 `pointer-events: none`이 명시되지 않아 브라우저 히트 테스트에서 마우스 휠을 가로막음.
+     - 하단에 뜬 `BottomDossierCard`(width: 520px)와 하단 네비게이션 도크 바가 마우스 포인터의 휠 이벤트를 삼켜 아래 실제 본문 컨텐츠로 전달하지 못함.
+  3. **`smart_dispatch4.tsx` 24개 실무 요소 DOM 앵커 누락**:
+     - 24개 각 단계에 대응하는 `data-mid` 속성 중 19개가 누락되어 있어, 미매칭 단계에서 엉뚱한 화면 맨 아래 `출고요청서 인쇄` 버튼에 파동을 뿜어냄.
+- **수정 및 개선 내역**:
+  1. **독자 스크롤 컨테이너 자동 탐색 및 안전 여백 자동 스크롤 (`scrollTargetIntoView`, `findScrollParent`)**:
+     - `findScrollParent(el)`로 가장 가까운 `overflowY: auto|scroll` 조상 엘리먼트를 동적 탐색.
+     - 하단 카드(260px)와 상단 헤더(80px)를 피해 화면 뷰포트 상단 110px 위치에 오도록 부드럽게(`smooth`) 정렬 이동.
+  2. **실시간 밀착 추적 rAF 애니메이션 루프 (`startTrackingLoop`)**:
+     - 스크롤 진행 중 800ms 동안 `requestAnimationFrame` 루프로 실시간 `recalcTargets()`를 수행하여 뱃지와 파동(Click Ripple)이 스크롤되는 엘리먼트에 착 달라붙어 추적하도록 개선.
+  3. **접힌 아코디언 블록 자동 전개 (Auto Expand)**:
+     - 닫힌 블록 내부에 속한 단계(현장, 규격, 일정, 안전옵션 등) 선택 시 블록 헤더를 자동으로 감지하여 클릭 전개 후 스크롤.
+  4. **마우스 휠 스크롤 인터랙션 완벽 복원 & 패스스루 핸들러 (`onWheel`)**:
+     - `Spotlight`의 모든 SVG/rect 요소에 `style={{ pointerEvents: 'none' }}` 100% 명시.
+     - `BottomDossierCard` 및 하단 네비게이션 컨트롤 바에 `onWheel` 패스스루 핸들러를 장착하여, 마우스 커서가 카드 위에 있더라도 하부 실제 컨텐츠가 시원하게 스크롤되도록 구현.
+     - `window.addEventListener('wheel', recalcTargets, { passive: true, capture: true })`로 휠 스크롤 즉시 뱃지 좌표를 실시간 동기화.
+  5. **`smart_dispatch4.tsx` 24단계 1:1 DOM 앵커 (`data-mid`) 100% 완비**:
+     - 1단계부터 24단계까지 모든 단계의 `data-mid`를 전수 바인딩하여 엉뚱한 폴백 없이 실제 UI 요소에 정확히 매칭.
+- **검증**: `npm run build` 정상 통과 (0 error, 837ms).
+
 ## [완료] 언더스코어 메뉴(`smart_dispatch4` 등) 매뉴얼 더미 폴백 버그 해결 및 Ctrl+M 한글 IME·토글 안정화
 - **요구사항**:
   "매뉴얼을 전체 오버홀 했다고 했는데, 왜 아직 그대로이지? 또한 ctrl + m 단축키가 좀 이상하게 작동하고 있어."

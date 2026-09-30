@@ -66,9 +66,29 @@ export function resolveTargetElement(
             }
           }
         } else {
-          const el = root.querySelector(sel);
+          let el = root.querySelector(sel);
           if (el && (el as HTMLElement).offsetParent !== null) {
             return el as HTMLElement;
+          }
+          // 접힌 아코디언 블록 내부에 있는 경우 블록 헤더 자동 클릭하여 펼침
+          if (!el || (el as HTMLElement).offsetParent === null) {
+            if (sel.includes('dispatch4-site-')) {
+              const b = root.querySelector('[data-mid="dispatch4-block-site"] .dispatch4-block-header') as HTMLElement | null;
+              if (b && !root.querySelector('[data-mid="dispatch4-block-site"] .dispatch4-block-body')) b.click();
+            } else if (sel.includes('dispatch4-ft-') || sel.includes('dispatch4-model-') || sel.includes('dispatch4-equipment-')) {
+              const b = root.querySelector('[data-mid="dispatch4-block-equipments"] .dispatch4-block-header') as HTMLElement | null;
+              if (b && !root.querySelector('[data-mid="dispatch4-block-equipments"] .dispatch4-block-body')) b.click();
+            } else if (sel.includes('dispatch4-loading-') || sel.includes('dispatch4-unloading-')) {
+              const b = root.querySelector('[data-mid="dispatch4-block-schedule"] .dispatch4-block-header') as HTMLElement | null;
+              if (b && !root.querySelector('[data-mid="dispatch4-block-schedule"] .dispatch4-block-body')) b.click();
+            } else if (sel.includes('dispatch4-exchange-') || sel.includes('dispatch4-safety-')) {
+              const b = root.querySelector('[data-mid="dispatch4-block-safety"] .dispatch4-block-header') as HTMLElement | null;
+              if (b && !root.querySelector('[data-mid="dispatch4-block-safety"] .dispatch4-block-body')) b.click();
+            }
+            const retryEl = root.querySelector(sel);
+            if (retryEl && (retryEl as HTMLElement).offsetParent !== null) {
+              return retryEl as HTMLElement;
+            }
           }
         }
       } catch { /* ignore invalid selector */ }
@@ -188,6 +208,64 @@ function getRect(el: HTMLElement | null): Rect | null {
   return { top: r.top, left: r.left, width: r.width, height: r.height };
 }
 
+/**
+ * 주어진 엘리먼트의 가장 가까운 수직 스크롤 가능 부모 컨테이너 탐색
+ */
+export function findScrollParent(el: HTMLElement | null): HTMLElement | Window {
+  if (!el) return window;
+  let parent = el.parentElement;
+  while (parent && parent !== document.body && parent !== document.documentElement) {
+    const style = window.getComputedStyle(parent);
+    const overflowY = style.overflowY;
+    const isScrollable = (overflowY === 'auto' || overflowY === 'scroll') && (parent.scrollHeight > parent.clientHeight);
+    if (isScrollable) {
+      return parent;
+    }
+    parent = parent.parentElement;
+  }
+  return window;
+}
+
+/**
+ * 타겟 요소를 하단 플로팅 카드(약 260px)와 상단 헤더(약 80px)를 피해
+ * 화면의 가장 쾌적한 뷰포트 지점(상단 110px)에 오도록 부드럽게 스크롤 이동
+ */
+export function scrollTargetIntoView(el: HTMLElement | null): void {
+  if (!el) return;
+
+  // 1. 접힌 아코디언 블록 내부에 숨겨져 있다면 블록 헤더 자동 클릭하여 펼침
+  const blockWrapper = el.closest('[data-mid*="block-"]') || el.closest('.dispatch4-block-body')?.parentElement;
+  if (blockWrapper) {
+    const header = blockWrapper.querySelector('.dispatch4-block-header') as HTMLElement | null;
+    const body = blockWrapper.querySelector('.dispatch4-block-body') as HTMLElement | null;
+    if (header && !body) {
+      header.click();
+    }
+  }
+
+  // 2. 스크롤 컨테이너 탐색
+  const container = findScrollParent(el);
+
+  if (container === window) {
+    const elRect = el.getBoundingClientRect();
+    const desiredTop = 110;
+    const delta = elRect.top - desiredTop;
+    if (Math.abs(delta) > 8) {
+      window.scrollBy({ top: delta, behavior: 'smooth' });
+    }
+  } else {
+    const cEl = container as HTMLElement;
+    const cRect = cEl.getBoundingClientRect();
+    const elRect = el.getBoundingClientRect();
+    const currentRelativeTop = elRect.top - cRect.top;
+    const desiredRelativeTop = 90; // 컨테이너 상단으로부터 90px 아래
+    const delta = currentRelativeTop - desiredRelativeTop;
+    if (Math.abs(delta) > 8) {
+      cEl.scrollBy({ top: delta, behavior: 'smooth' });
+    }
+  }
+}
+
 /* ── Spotlight: 대상 외 어둡게 (ManualStudio Spotlight 이식) ─── */
 const Spotlight: React.FC<{ rect: Rect; color: string; zIndex?: number }> = ({ rect, color, zIndex = 200000 }) => {
   const PAD = 8;
@@ -197,20 +275,22 @@ const Spotlight: React.FC<{ rect: Rect; color: string; zIndex?: number }> = ({ r
     >
       <defs>
         <mask id="spotlight-mask">
-          <rect width="100%" height="100%" fill="white" />
+          <rect width="100%" height="100%" fill="white" style={{ pointerEvents: 'none' }} />
           <rect
             x={rect.left - PAD} y={rect.top - PAD}
             width={rect.width + PAD * 2} height={rect.height + PAD * 2}
             rx="6" fill="black"
+            style={{ pointerEvents: 'none' }}
           />
         </mask>
       </defs>
-      <rect width="100%" height="100%" fill="rgba(0,0,0,0.55)" mask="url(#spotlight-mask)" />
+      <rect width="100%" height="100%" fill="rgba(0,0,0,0.55)" mask="url(#spotlight-mask)" style={{ pointerEvents: 'none' }} />
       <rect
         x={rect.left - PAD} y={rect.top - PAD}
         width={rect.width + PAD * 2} height={rect.height + PAD * 2}
         rx="6" fill="none"
         stroke={color} strokeWidth="3"
+        style={{ pointerEvents: 'none' }}
       />
     </svg>
   );
@@ -293,9 +373,23 @@ const BottomDossierCard: React.FC<{
   hasTarget: boolean;
   zIndex?: number;
 }> = ({ item, totalCount, onPrev, onNext, onClose, hasTarget, zIndex = 200003 }) => {
+  const handleCardWheel = (e: React.WheelEvent) => {
+    const scrollTarget = document.querySelector('.dispatch4-left-pane') ||
+                         document.querySelector('.table-container') ||
+                         document.querySelector('.main-content-area') ||
+                         document.querySelector('main');
+    const scrollContainer = findScrollParent(scrollTarget as HTMLElement | null);
+    if (scrollContainer === window) {
+      window.scrollBy({ top: e.deltaY, behavior: 'auto' });
+    } else if (scrollContainer && 'scrollBy' in scrollContainer) {
+      (scrollContainer as HTMLElement).scrollBy({ top: e.deltaY, behavior: 'auto' });
+    }
+  };
+
   return (
     <div
       data-manual-ui="true"
+      onWheel={handleCardWheel}
       style={{
         position: 'fixed',
         bottom: '76px',
@@ -402,6 +496,7 @@ export const ManualOverlay: React.FC = () => {
   const [expandedSeq, setExpandedSeq] = useState<number | null>(null);
   const lastPageIdRef = useRef<string | null>(null);
   const rafRef = useRef<number>(0);
+  const trackingLoopRef = useRef<number | null>(null);
 
   const isModal = Boolean(page?.pageId?.startsWith('modal_'));
   const activeModal = isModal ? detectActiveModalElement() : null;
@@ -434,13 +529,43 @@ export const ManualOverlay: React.FC = () => {
     setRects(nextRects);
   }, [page, setMode]);
 
-  // 페이지/서브뷰 전환 시 1단계 자동 포커스 초기화
+  // 스크롤 이동 중 뱃지 및 파동이 실시간으로 엘리먼트를 밀착 추적하는 rAF 루프
+  const startTrackingLoop = useCallback((durationMs = 800) => {
+    const startTime = performance.now();
+    if (trackingLoopRef.current) {
+      cancelAnimationFrame(trackingLoopRef.current);
+    }
+    const step = () => {
+      recalcTargets();
+      const elapsed = performance.now() - startTime;
+      if (elapsed < durationMs) {
+        trackingLoopRef.current = requestAnimationFrame(step);
+      } else {
+        recalcTargets();
+        trackingLoopRef.current = null;
+      }
+    };
+    trackingLoopRef.current = requestAnimationFrame(step);
+  }, [recalcTargets]);
+
+  // 페이지/서브뷰 전환 시 1단계 자동 포커스 및 스크롤
   useEffect(() => {
     if (page?.pageId && page.pageId !== lastPageIdRef.current) {
       lastPageIdRef.current = page.pageId;
       setExpandedSeq(1);
+
+      const timer = setTimeout(() => {
+        if (page.items[0]) {
+          const el = resolveTargetElement(page.items[0], null, isModal);
+          if (el) {
+            scrollTargetIntoView(el);
+            startTrackingLoop(800);
+          }
+        }
+      }, 150);
+      return () => clearTimeout(timer);
     }
-  }, [page?.pageId]);
+  }, [page?.pageId, isModal, startTrackingLoop]);
 
   useEffect(() => {
     if (mode !== 'viewing') { setExpandedSeq(null); return; }
@@ -492,6 +617,7 @@ export const ManualOverlay: React.FC = () => {
     });
     ro.observe(document.body);
     window.addEventListener('scroll', recalcTargets, true);
+    window.addEventListener('wheel', recalcTargets, { passive: true, capture: true });
     window.addEventListener('resize', recalcTargets);
 
     // 4. Escape 키 입력 시 매뉴얼 닫기
@@ -512,9 +638,11 @@ export const ManualOverlay: React.FC = () => {
       if (modalCheckInterval) clearInterval(modalCheckInterval);
       ro.disconnect();
       window.removeEventListener('scroll', recalcTargets, true);
+      window.removeEventListener('wheel', recalcTargets, true);
       window.removeEventListener('resize', recalcTargets);
       window.removeEventListener('keydown', handleKeyDown, true);
       cancelAnimationFrame(rafRef.current);
+      if (trackingLoopRef.current) cancelAnimationFrame(trackingLoopRef.current);
     };
   }, [mode, isModal, recalcTargets, setMode]);
 
@@ -626,13 +754,33 @@ export const ManualOverlay: React.FC = () => {
     }
     setExpandedSeq(seq);
 
-    const el = elements[seq];
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // 요소 재계산
-      setTimeout(recalcTargets, 300);
+    // 대상 요소 획득
+    let el = elements[seq];
+    if (!el && page) {
+      const item = page.items.find(i => i.seq === seq);
+      if (item) {
+        el = resolveTargetElement(item, null, isModal);
+      }
     }
-  }, [expandedSeq, elements, recalcTargets]);
+
+    if (el) {
+      scrollTargetIntoView(el);
+      startTrackingLoop(800);
+    } else {
+      // 아코디언 블록 전개 대기 후 2차 스크롤 시도
+      setTimeout(() => {
+        recalcTargets();
+        const retryItem = page?.items.find(i => i.seq === seq);
+        if (retryItem) {
+          const retryEl = resolveTargetElement(retryItem, null, isModal);
+          if (retryEl) {
+            scrollTargetIntoView(retryEl);
+            startTrackingLoop(800);
+          }
+        }
+      }, 120);
+    }
+  }, [expandedSeq, elements, page, isModal, recalcTargets, startTrackingLoop]);
 
   const handlePrev = useCallback(() => {
     if (!page || page.items.length === 0) return;
@@ -751,6 +899,18 @@ export const ManualOverlay: React.FC = () => {
       {/* ④ 하단 플로팅 네비게이션 컨트롤 바 */}
       <div
         data-manual-ui="true"
+        onWheel={(e) => {
+          const scrollTarget = document.querySelector('.dispatch4-left-pane') ||
+                               document.querySelector('.table-container') ||
+                               document.querySelector('.main-content-area') ||
+                               document.querySelector('main');
+          const scrollContainer = findScrollParent(scrollTarget as HTMLElement | null);
+          if (scrollContainer === window) {
+            window.scrollBy({ top: e.deltaY, behavior: 'auto' });
+          } else if (scrollContainer && 'scrollBy' in scrollContainer) {
+            (scrollContainer as HTMLElement).scrollBy({ top: e.deltaY, behavior: 'auto' });
+          }
+        }}
         style={{
           position: 'fixed', bottom: '16px', left: '50%', transform: 'translateX(-50%)',
           display: 'flex', alignItems: 'center', gap: '8px',

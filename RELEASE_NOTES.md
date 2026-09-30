@@ -1,3 +1,30 @@
+## 2026-09-30 22:50 (v1.8.5.Build.12)
+
+### [매뉴얼 UX 극대화] 타겟 UI 요소 부드러운 자동 스크롤(Auto-Scroll) & 마우스 휠 패스스루 인터랙션 복원 & 출고 요청 24단계 data-mid 100% 전수 완비
+
+- **배경 및 원인 분석**:
+  - 스크롤이 존재하는 전문 관리 화면(예: `출고 요청` / `smart_dispatch4`)에서 매뉴얼(Ctrl+M) 활성화 시, 화면 아래쪽에 배치된 UI(초성 검색, 현장, 규격, 일정, 옵션, 인쇄 등)에 강조 파동이 작동함에도 불구하고:
+    1. 화면이 해당 위치로 자동 스크롤되지 않아 사용자가 지시를 직관적으로 따라갈 수 없음.
+    2. 매뉴얼 표시 상태에서 마우스 휠 스크롤이 작동하지 않아(먹통 현상) 화면을 아래로 내릴 수 없음.
+    3. `smart_dispatch4.tsx` 내 19개 핵심 UI 요소에 고유 `data-mid` 속성이 누락되어 있어, 6단계 검색 등의 파동이 화면 맨 아래 엉뚱한 `출고요청서 인쇄` 버튼에 표출됨.
+- **주요 수정 및 개선 내역**:
+  1. **독자 스크롤 컨테이너 자동 탐색 및 안전 여백 자동 스크롤 (`src/components/manual/ManualOverlay.tsx`)**:
+     - `findScrollParent(el)` 헬퍼를 신설하여 `window`뿐만 아니라 `.dispatch4-left-pane`, `.table-container` 등 독자 스크롤 컨테이너를 동적 탐색.
+     - `scrollTargetIntoView(el)`를 통해 하단 카드(약 260px)와 상단 헤더(약 80px)에 가려지지 않도록 화면 상단 110px 지점에 요소를 부드럽게(`smooth`) 자동 정렬.
+  2. **실시간 밀착 추적 rAF 애니메이션 루프 (`startTrackingLoop`)**:
+     - 스크롤 이동이 진행되는 800ms 동안 `requestAnimationFrame` 루프로 실시간 `recalcTargets()`를 수행하여, 스크롤되는 도중에도 뱃지와 파동(Click Ripple)이 엘리먼트에 착 달라붙어 따라다니도록 구현.
+  3. **접힌 아코디언 블록 자동 전개 (Auto Expand)**:
+     - 닫힌 블록 내부에 속한 단계(현장, 규격, 일정, 안전옵션 등)를 선택할 경우, 블록 헤더를 자동으로 감지하여 클릭 전개 후 스크롤되도록 처리.
+  4. **마우스 휠 스크롤 인터랙션 완벽 복원 & 패스스루 핸들러 (`onWheel`)**:
+     - `Spotlight`의 모든 SVG 및 `<rect>`에 `style={{ pointerEvents: 'none' }}`를 100% 명시하여 휠 이벤트 차단 원천 제거.
+     - 하단 플로팅 카드(`BottomDossierCard`) 및 하단 네비게이션 컨트롤 바에 `onWheel` 패스스루 핸들러를 장착하여, 마우스가 카드 위에 있더라도 화면 스크롤이 시원하게 전달되도록 조치.
+     - `window.addEventListener('wheel', recalcTargets, { passive: true, capture: true })` 리스너를 추가하여 휠 스크롤 즉시 뱃지 좌표를 실시간 동기화.
+  5. **`smart_dispatch4.tsx` 24단계 1:1 고유 DOM 앵커 (`data-mid`) 100% 완비 (`src/pages/smart_dispatch4.tsx`)**:
+     - 1단계부터 24단계까지 모든 단계의 `data-mid` 속성을 전수 바인딩하여 엉뚱한 폴백 없이 실제 UI 요소에 정확히 매칭 완료.
+- **검증**: `tsc -b && vite build` 정상 빌드 완료 (0 error, 837ms).
+
+---
+
 ## 2026-09-30 22:30 (v1.8.5.Build.11)
 
 ### [매뉴얼 엔진 결함 원천 해결] 언더스코어 메뉴(`smart_dispatch4` 등) 매뉴얼 더미 폴백 버그 수정 & `Ctrl + M` 한글 IME 완벽 지원 및 토글 안정화
