@@ -32,6 +32,27 @@ const RIPPLE_CSS = `
 interface Rect { top: number; left: number; width: number; height: number; }
 
 /**
+ * 안전한 DOM 쿼리 셀렉터 헬퍼 (SyntaxError 및 파싱 실패 시 예외 던짐 방지)
+ */
+function safeQuery<T extends Element = HTMLElement>(root: ParentNode | null | undefined, selector: string): T | null {
+  if (!root || !selector) return null;
+  try {
+    return root.querySelector<T>(selector);
+  } catch {
+    return null;
+  }
+}
+
+function safeQueryAll<T extends Element = HTMLElement>(root: ParentNode | null | undefined, selector: string): T[] {
+  if (!root || !selector) return [];
+  try {
+    return Array.from(root.querySelectorAll<T>(selector));
+  } catch {
+    return [];
+  }
+}
+
+/**
  * 스마트 DOM 앵커 탐색기 (모달 팝업 내부 우선 탐색 지원):
  * 1) 콤마 구분 selector 매칭 (rootContainer 우선)
  * 2) label / 키워드 기반 DOM 텍스트 매칭
@@ -59,14 +80,14 @@ export function resolveTargetElement(
           if (match) {
             const baseTag = match[1] || '*';
             const textToFind = match[2];
-            const candidateEls = Array.from(root.querySelectorAll(baseTag));
+            const candidateEls = safeQueryAll(root, baseTag);
             const found = candidateEls.find(el => (el as HTMLElement).innerText && (el as HTMLElement).innerText.includes(textToFind));
             if (found && (found as HTMLElement).offsetParent !== null) {
               return found as HTMLElement;
             }
           }
         } else {
-          let el = root.querySelector(sel);
+          let el = safeQuery(root, sel);
           if (el && (el as HTMLElement).offsetParent !== null) {
             return el as HTMLElement;
           }
@@ -75,16 +96,16 @@ export function resolveTargetElement(
           }
           // 셀렉터에 해당하는 아코디언 블록 헤더 폴백 (DOM 조작 없이 안전 조회)
           if (sel.includes('dispatch4-site-')) {
-            const b = root.querySelector('[data-mid="dispatch4-block-site"]') as HTMLElement | null;
+            const b = safeQuery(root, '[data-mid="dispatch4-block-site"]');
             if (b) return b;
           } else if (sel.includes('dispatch4-ft-') || sel.includes('dispatch4-model-') || sel.includes('dispatch4-equipment-')) {
-            const b = root.querySelector('[data-mid="dispatch4-block-equipments"]') as HTMLElement | null;
+            const b = safeQuery(root, '[data-mid="dispatch4-block-equipments"]');
             if (b) return b;
           } else if (sel.includes('dispatch4-loading-') || sel.includes('dispatch4-unloading-')) {
-            const b = root.querySelector('[data-mid="dispatch4-block-schedule"]') as HTMLElement | null;
+            const b = safeQuery(root, '[data-mid="dispatch4-block-schedule"]');
             if (b) return b;
           } else if (sel.includes('dispatch4-exchange-') || sel.includes('dispatch4-safety-')) {
-            const b = root.querySelector('[data-mid="dispatch4-block-safety"]') as HTMLElement | null;
+            const b = safeQuery(root, '[data-mid="dispatch4-block-safety"]');
             if (b) return b;
           }
         }
@@ -95,30 +116,30 @@ export function resolveTargetElement(
   // 2. 레이블 기반 스마트 탐색 (root 내부 우선)
   const label = item.label || '';
   if (label) {
-    const buttons = Array.from(root.querySelectorAll('button'));
+    const buttons = safeQueryAll<HTMLButtonElement>(root, 'button');
     const btn = buttons.find(b => b.innerText && (b.innerText.includes(label) || label.includes(b.innerText.trim())));
     if (btn && btn.offsetParent !== null) return btn;
 
-    const labels = Array.from(root.querySelectorAll('label'));
+    const labels = safeQueryAll<HTMLLabelElement>(root, 'label');
     const lbl = labels.find(l => l.innerText && (l.innerText.includes(label) || label.includes(l.innerText.trim())));
     if (lbl && lbl.offsetParent !== null) {
-      const siblingInput = lbl.parentElement?.querySelector('input, select, textarea');
+      const siblingInput = safeQuery(lbl.parentElement, 'input, select, textarea');
       return (siblingInput || lbl) as HTMLElement;
     }
   }
 
   // 3. rootContainer(모달) 내부 순번 기반 폴백
   if (rootContainer) {
-    const inputs = Array.from(rootContainer.querySelectorAll('input, select, textarea, button'));
+    const inputs = safeQueryAll(rootContainer, 'input, select, textarea, button');
     if (inputs.length > 0) {
       if (item.seq === 1) {
-        const titleOrHeader = rootContainer.querySelector('h1, h2, h3, h4, .card-title, strong');
+        const titleOrHeader = safeQuery(rootContainer, 'h1, h2, h3, h4, .card-title, strong');
         return (titleOrHeader || inputs[0]) as HTMLElement;
       } else if (item.seq === 2) {
         const midIdx = Math.floor(inputs.length / 2);
         return inputs[midIdx] as HTMLElement;
       } else if (item.seq === 3 || item.seq === 4) {
-        const submitBtn = rootContainer.querySelector('button[type="submit"], button.btn-primary, button:last-of-type');
+        const submitBtn = safeQuery(rootContainer, 'button[type="submit"], button.btn-primary, button:last-of-type');
         return (submitBtn || inputs[inputs.length - 1]) as HTMLElement;
       }
     }
@@ -132,44 +153,47 @@ export function resolveTargetElement(
   }
 
   // 4. 일반 화면 7단계 Gutenberg Z-패턴 스마트 앵커링 폴백 (1~7단계 전수 지원)
-  const main = document.querySelector('.main-content-area') || document.querySelector('main') || document.body;
+  const main = safeQuery(document, '.main-content-area') || safeQuery(document, 'main') || document.body;
 
   // 1단계: 좌상단 스코프 및 조건 설정 영역 (필터 패널 카드 전체, 탭 컨테이너, 기간/상태 필터 바)
   if (item.seq === 1) {
-    const el = main.querySelector('[data-mid*="filter-panel"], [data-mid*="filter"], [data-mid*="scope"], .filter-panel, .filter-box, .nav-tabs, .card:has(input)');
+    const el = safeQuery(main, '[data-mid*="filter-panel"], [data-mid*="filter"], [data-mid*="scope"], .filter-panel, .filter-box, .nav-tabs');
     if (el && (el as HTMLElement).offsetParent !== null) return el as HTMLElement;
-    const dateInput = main.querySelector('input[type="date"], input[type="month"]');
+    const dateInput = safeQuery(main, 'input[type="date"], input[type="month"]');
     if (dateInput && dateInput.parentElement && (dateInput.parentElement as HTMLElement).offsetParent !== null) {
       return (dateInput.closest('.card') || dateInput.parentElement) as HTMLElement;
     }
   }
   // 2단계: KPI 현황 요약 바 / 통계 메트릭 / 상태 분계 탭
   else if (item.seq === 2) {
-    const el = main.querySelector('[data-mid*="kpi"], [data-mid*="summary"], .summary-bar, .metric-cards, [data-mid*="metric"], div[style*="grid-template-columns"]');
+    const el = safeQuery(main, '[data-mid*="kpi"], [data-mid*="summary"], .summary-bar, .metric-cards, [data-mid*="metric"], div[style*="grid-template-columns"]');
     if (el && (el as HTMLElement).offsetParent !== null) return el as HTMLElement;
   }
   // 3단계: 통합 빠른 검색창 / 유형 전환 탭 / 필터 칩 바
   else if (item.seq === 3) {
-    const el = main.querySelector('[data-mid*="search"], .search-bar, input[placeholder*="검색"], [data-mid*="grid-header"], table thead');
+    const el = safeQuery(main, '[data-mid*="search"], .search-bar, input[placeholder*="검색"], [data-mid*="grid-header"], table thead');
     if (el && (el as HTMLElement).offsetParent !== null) {
       return (el.closest('div[style*="display: flex"]') || el) as HTMLElement;
     }
   }
   // 4단계: 핵심 데이터 테이블 그리드 / 본문 컨테이너
   else if (item.seq === 4) {
-    const el = main.querySelector('[data-mid*="table"], .table-container, table, [data-mid*="grid"]');
+    const el = safeQuery(main, '[data-mid*="table"], .table-container, table, [data-mid*="grid"]');
     if (el && (el as HTMLElement).offsetParent !== null) return el as HTMLElement;
   }
   // 5단계: 개별 행 상세 보기 [상세 ➔] 액션 / 금액 및 부가세 대사 바
   else if (item.seq === 5) {
-    const detailBtn = main.querySelector('[data-mid*="detail"], button:contains("상세"), table tbody tr:first-child button');
+    const detailBtn = safeQuery(main, '[data-mid*="detail"], table tbody tr:first-child button');
     if (detailBtn && (detailBtn as HTMLElement).offsetParent !== null) return detailBtn as HTMLElement;
-    const vatBar = main.querySelector('[data-mid*="vat"], [data-mid*="reconcile"], table tbody tr:first-child');
+    const buttons = safeQueryAll<HTMLButtonElement>(main, 'button');
+    const textDetailBtn = buttons.find(b => (b.innerText || '').includes('상세'));
+    if (textDetailBtn && (textDetailBtn as HTMLElement).offsetParent !== null) return textDetailBtn as HTMLElement;
+    const vatBar = safeQuery(main, '[data-mid*="vat"], [data-mid*="reconcile"], table tbody tr:first-child');
     if (vatBar && (vatBar as HTMLElement).offsetParent !== null) return vatBar as HTMLElement;
   }
   // 6단계: 인쇄 / 엑셀 다운로드 / 전송 / 서식 / 패키지 버튼군
   else if (item.seq === 6) {
-    const buttons = Array.from(main.querySelectorAll('button'));
+    const buttons = safeQueryAll<HTMLButtonElement>(main, 'button');
     const exportBtn = buttons.find(b => {
       const txt = b.innerText || '';
       return txt.includes('엑셀') || txt.includes('다운로드') || txt.includes('출력') || txt.includes('인쇄') || txt.includes('패키지') || txt.includes('발송');
@@ -178,18 +202,18 @@ export function resolveTargetElement(
   }
   // 7단계: 신규 등록 / 최종 마감 확정 / 결재 상신 / 종단 액션
   else if (item.seq === 7) {
-    const buttons = Array.from(main.querySelectorAll('button'));
+    const buttons = safeQueryAll<HTMLButtonElement>(main, 'button');
     const finalBtn = buttons.find(b => {
       const txt = b.innerText || '';
       return txt.includes('신규') || txt.includes('등록') || txt.includes('확정') || txt.includes('저장') || txt.includes('완료') || txt.includes('마감') || txt.includes('승인');
     });
     if (finalBtn && (finalBtn as HTMLElement).offsetParent !== null) return finalBtn as HTMLElement;
-    const bottomBar = main.querySelector('[data-mid*="reconcile"], div[style*="border-top"], .card-footer, button.btn-primary:last-of-type');
+    const bottomBar = safeQuery(main, '[data-mid*="reconcile"], div[style*="border-top"], .card-footer, button.btn-primary:last-of-type');
     if (bottomBar && (bottomBar as HTMLElement).offsetParent !== null) return bottomBar as HTMLElement;
   }
 
   // 5. 일반 스마트 fallback: 순번에 비례하여 화면 내 인터랙티브 엘리먼트 매핑
-  const allFocusable = Array.from(main.querySelectorAll('button, input, select, table, .card'));
+  const allFocusable = safeQueryAll(main, 'button, input, select, table, .card');
   if (allFocusable.length > 0) {
     const targetIdx = Math.min(allFocusable.length - 1, Math.floor(((item.seq - 1) / 6) * allFocusable.length));
     return allFocusable[targetIdx] as HTMLElement;
@@ -849,20 +873,20 @@ export const ManualOverlay: React.FC = () => {
         let blockBodySelector = '';
 
         if (sel.includes('dispatch4-site-')) {
-          blockHeader = document.querySelector('[data-mid="dispatch4-block-site"] .dispatch4-block-header');
+          blockHeader = safeQuery(document, '[data-mid="dispatch4-block-site"] .dispatch4-block-header');
           blockBodySelector = '[data-mid="dispatch4-block-site"] .dispatch4-block-body';
         } else if (sel.includes('dispatch4-ft-') || sel.includes('dispatch4-model-') || sel.includes('dispatch4-equipment-')) {
-          blockHeader = document.querySelector('[data-mid="dispatch4-block-equipments"] .dispatch4-block-header');
+          blockHeader = safeQuery(document, '[data-mid="dispatch4-block-equipments"] .dispatch4-block-header');
           blockBodySelector = '[data-mid="dispatch4-block-equipments"] .dispatch4-block-body';
         } else if (sel.includes('dispatch4-loading-') || sel.includes('dispatch4-unloading-')) {
-          blockHeader = document.querySelector('[data-mid="dispatch4-block-schedule"] .dispatch4-block-header');
+          blockHeader = safeQuery(document, '[data-mid="dispatch4-block-schedule"] .dispatch4-block-header');
           blockBodySelector = '[data-mid="dispatch4-block-schedule"] .dispatch4-block-body';
         } else if (sel.includes('dispatch4-exchange-') || sel.includes('dispatch4-safety-')) {
-          blockHeader = document.querySelector('[data-mid="dispatch4-block-safety"] .dispatch4-block-header');
+          blockHeader = safeQuery(document, '[data-mid="dispatch4-block-safety"] .dispatch4-block-header');
           blockBodySelector = '[data-mid="dispatch4-block-safety"] .dispatch4-block-body';
         }
 
-        if (blockHeader && (!blockBodySelector || !document.querySelector(blockBodySelector))) {
+        if (blockHeader && (!blockBodySelector || !safeQuery(document, blockBodySelector))) {
           blockHeader.click();
         }
       }

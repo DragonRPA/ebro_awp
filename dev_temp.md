@@ -1,5 +1,20 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## [완료] 매뉴얼 5단계 Gutenberg 폴백 querySelector SyntaxError(:contains 결함) 원천 수정 및 safeQuery 안전망 구축
+- **요구사항**:
+  - 화면에 "시스템 일시 오류 복구 - Failed to execute 'querySelector' on 'Element': '[data-mid*="detail"], button:contains("상세"), table tbody tr:first-child button' is not a valid selector" 에러 모달 발생 차단.
+- **문제의 본질 (원인 분석)**:
+  - `src/components/manual/ManualOverlay.tsx` 165라인에서 5단계 fallback 대상을 탐색할 때, 브라우저 표준 CSS 셀렉터가 아닌 jQuery 가상 클래스인 `:contains("상세")`를 `main.querySelector(...)`에 직접 전달함.
+  - 브라우저 네이티브 `querySelector`는 `:contains`를 지원하지 않아 즉각 `DOMException (SyntaxError)`을 던지며, 이것이 `try/catch` 없이 노출되어 React 렌더링 트리를 크래시시키고 에러 바운더리 팝업("시스템 일시 오류 복구")을 트리거함.
+- **수정 및 개선 내역**:
+  1. **안전한 DOM 쿼리 헬퍼 `safeQuery` / `safeQueryAll` 신설 (`src/components/manual/ManualOverlay.tsx`)**:
+     - `try { return root.querySelector(sel); } catch { return null; }` 구조로 감싸 잘못된 셀렉터나 DOM 파싱 실패 시에도 앱이 절대 다운되지 않고 안전하게 `null` 또는 `[]`을 반환하도록 차폐.
+  2. **5단계 상세 버튼 탐색 로직 표준화**:
+     - 셀렉터 문자열에서 비표준 `:contains`를 완전 제거하고, `safeQueryAll<HTMLButtonElement>(main, 'button').find(b => b.innerText?.includes('상세'))`로 안전한 텍스트 매칭 전환.
+  3. **`ManualOverlay.tsx` 내 모든 DOM 쿼리 safeQuery 전면 적용**:
+     - 아코디언 헤더, 본문 스크롤 컨테이너, 폼 입력창 등 모든 동적 쿼리에 `safeQuery` 및 `safeQueryAll`을 적용하여 DOM 예외 발생 가능성을 100% 원천 차단.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 error, 877ms).
+
 ## [완료] 매뉴얼 상세 설명 카드(BottomDossierCard) 지능형 타겟 충돌 회피(좌/우 이동) & 회수의뢰 관리(smart_return) 1:1 DOM 앵커 및 실무 10단계 매뉴얼 전면 오버홀
 - **요구사항**:
   1. "매뉴얼 단계표시가, UI 단계 표시 및 파동효과를 가릴 때, 표시한 UI 단계 표시가 왼쪽 또는 오른쪽으로 이동해서 비켜줘야 하겠어."
