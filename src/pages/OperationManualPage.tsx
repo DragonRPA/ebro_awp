@@ -541,6 +541,130 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
         </div>
       </div>
 
+      {/* ── 메뉴 내부 하위 탭 구성 및 역할 ── */}
+      {item.subTabs && item.subTabs.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Layers size={14} color="#0284C7" />
+            <span>메뉴 내부 하위 탭 구성 및 역할 ({item.subTabs.length}개 탭)</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px' }}>
+            {item.subTabs.map((st, idx) => (
+              <div
+                key={st.tabId || idx}
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--bg-app)',
+                  border: '1px solid var(--border-color)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)' }}>
+                    {st.tabName}
+                  </span>
+                  <span style={{ fontSize: '10.5px', fontFamily: 'monospace', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(2,132,199,0.1)', color: '#0284C7', fontWeight: 700 }}>
+                    {st.tabId}
+                  </span>
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.45' }}>
+                  {st.purpose}
+                </div>
+                {st.keyActions && st.keyActions.length > 0 && (
+                  <div style={{ marginTop: '4px', paddingTop: '6px', borderTop: '1px dashed var(--border-color)', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)' }}>주요 액션:</span>
+                    {st.keyActions.map((act, aIdx) => (
+                      <div key={aIdx} style={{ fontSize: '11.5px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ color: '#0284C7', fontSize: '10px' }}>▶</span>
+                        <span>{act}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 팝업(모달) 업무 흐름 가이드 ── */}
+      {item.modalWorkflows && item.modalWorkflows.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Sparkles size={14} color="#7C3AED" />
+            <span>팝업(모달) 업무 흐름 가이드 ({item.modalWorkflows.length}개 스튜디오)</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {item.modalWorkflows.map((mw, mIdx) => (
+              <div
+                key={mIdx}
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: '10px',
+                  backgroundColor: '#FAF5FF',
+                  border: '1px solid #E9D5FF',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #F3E8FF', paddingBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: '#7C3AED', color: '#fff', fontSize: '11px', fontWeight: 800 }}>
+                      모달 #{mIdx + 1}
+                    </span>
+                    <span style={{ fontSize: '13.5px', fontWeight: 800, color: '#581C87' }}>
+                      {mw.modalName}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '11.5px', color: '#6B21A8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span>트리거:</span>
+                    <span style={{ padding: '2px 6px', borderRadius: '4px', backgroundColor: '#EDE9FE', border: '1px solid #DDD6FE', color: '#5B21B6', fontFamily: 'monospace' }}>
+                      {mw.triggerButton}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 3단계 스튜디오 파이프라인 */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px' }}>
+                  {/* ① 검토 및 입력 항목 */}
+                  <div style={{ backgroundColor: '#fff', padding: '10px 12px', borderRadius: '6px', border: '1px solid #E9D5FF', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#7C3AED' }}>① 모달 내부 핵심 검토/입력 항목</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      {mw.keyFields.map((kf, kIdx) => (
+                        <div key={kIdx} style={{ fontSize: '11.5px', color: '#334155', display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
+                          <span style={{ color: '#7C3AED', fontSize: '10px' }}>•</span>
+                          <span>{kf}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ② 완결 액션 */}
+                  <div style={{ backgroundColor: '#fff', padding: '10px 12px', borderRadius: '6px', border: '1px solid #E9D5FF', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#2563EB' }}>② 터미널 완결 액션 버튼</span>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#1E40AF', padding: '6px 8px', borderRadius: '4px', backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE' }}>
+                      {mw.terminalAction}
+                    </div>
+                  </div>
+
+                  {/* ③ 사후 상태 전이 */}
+                  <div style={{ backgroundColor: '#fff', padding: '10px 12px', borderRadius: '6px', border: '1px solid #E9D5FF', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#059669' }}>③ 사후 자산/DB 상태 전이 (Transition)</span>
+                    <div style={{ fontSize: '11.5px', color: '#065F46', lineHeight: '1.45', fontWeight: 600 }}>
+                      {mw.afterStateTransition}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── 4. 최종 확정 및 대차대조 결과 (Audit Result - Gutenberg 질문 4) ── */}
       <div style={{ backgroundColor: '#F0FDF4', padding: '12px 16px', borderRadius: '8px', borderLeft: '4px solid #059669' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>

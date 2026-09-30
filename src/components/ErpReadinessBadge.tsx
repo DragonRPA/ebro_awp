@@ -45,7 +45,8 @@ export const ErpReadinessBadge: React.FC = () => {
         color: isReady ? '#10b981' : '#f59e0b',
         cursor: 'default',
         whiteSpace: 'nowrap',
-        userSelect: 'none'
+        userSelect: 'none',
+        flexShrink: 0
       }}
       title={`시스템 상태: ${isReady ? '준비완료' : '초기화중'}\n활성 메뉴: ${readiness.activeMenu}\n가드레일: 헌장 1.3, 2.3, 4.1, 5.2 활성화`}
       data-uia="badge-erp-readiness"

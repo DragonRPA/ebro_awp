@@ -2,6 +2,21 @@
 // 전사 모든 메뉴 기능의 본질적 업무 목적 및 표준 매뉴얼 데이터 (SSOT)
 import type { ManualPage, ManualAnnotationItem } from '../types/manual';
 
+export interface MenuSubTabDetail {
+  tabId: string;
+  tabName: string;
+  purpose: string;
+  keyActions: string[];
+}
+
+export interface ModalWorkflowDetail {
+  modalName: string;           // 모달/스튜디오 팝업 명칭
+  triggerButton: string;       // 팝업 트리거 버튼명
+  keyFields: string[];         // 모달 내부 핵심 검토 및 입력 항목
+  terminalAction: string;      // 최종 완결 버튼명
+  afterStateTransition: string; // 사후 자산/DB 상태 전이 결과
+}
+
 export interface MenuManualDetail {
   menuId: string;
   menuName: string;
@@ -12,6 +27,8 @@ export interface MenuManualDetail {
   objective: string;          // 최종 목표 (Terminal Objective - Gutenberg 질문 1)
   scopeInfo: string;          // 시작 정보 및 전제 조건 (Scope - 질문 2)
   cognitiveSequence: string[]; // 인지 및 조작 순서 1-Way 동선 (Cognitive Sequence - 질문 3)
+  subTabs?: MenuSubTabDetail[]; // 메뉴 내부 하위 탭 구성 및 역할
+  modalWorkflows?: ModalWorkflowDetail[]; // 모달(팝업) 업무 흐름 가이드
   auditResult: string;        // 최종 확정 및 대차대조 결과 (Audit Result - 질문 4)
   rulesCompliance: string[];  // 전사 시스템 개발 표준 헌장 준수 지침 (카테고리 I~VII)
   precautions: string[];      // 현장 물리적 마찰 방지 및 WTT 주의사항
@@ -34,6 +51,19 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '2. 주기장 기상 위젯 및 작업 환경 지표 점검 (강풍/강우 시 고소작업대 상하차 안전 유의)',
       '3. 주요 파이프라인 KPI 카운터(임대가능, 대여중, 정비중, 연체 채권) 클릭을 통한 해당 전담 메뉴 즉시 이동',
       '4. 당일 처리율 및 부서별 잔여 태스크 완결 현황 확인'
+    ],
+        modalWorkflows: [
+          {
+                "modalName": "업무 지시 및 공지 팝업 (Directive Modal)",
+                "triggerButton": "[긴급 업무 지시 등록]",
+                "keyFields": [
+                      "수신 부서/담당자",
+                      "지시 우선순위(긴급/통상)",
+                      "지시 내용 및 마감 시한"
+                ],
+                "terminalAction": "[업무 지시 발령]",
+                "afterStateTransition": "해당 부서 임직원 대시보드 ToDo 피드에 실시간 업무 카드 생성"
+          }
     ],
     auditResult: '당일 긴급 미처리 업무 0건 달성 및 전사 자산 상태 라이프사이클의 유기적 흐름 개시',
     rulesCompliance: [
@@ -93,6 +123,49 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '2. 결재 건 선택 후 우측 또는 카드 상세에서 기안 내용, 결재선 타임라인, 합의(Consensus) 현황 검토',
       '3. 첨부 증빙 및 원천 문서(계약서, 배차지시서, 영수증 등) 1:1 대조 확인',
       '4. 우하단 [승인] 또는 [반려(사유입력)] 버튼 클릭으로 의사결정 종결'
+    ],
+        subTabs: [
+          {
+                "tabId": "PENDING",
+                "tabName": "대기 문서",
+                "purpose": "본인 승인 권한에 속한 미결재 문서 검토 및 승인/반려",
+                "keyActions": [
+                      "기안 내용 검토",
+                      "원천 문서 증빙 확인",
+                      "[승인] 또는 [반려]"
+                ]
+          },
+          {
+                "tabId": "IN_PROGRESS",
+                "tabName": "진행 문서",
+                "purpose": "본인이 기안하거나 결재 완료하여 상위 결재선으로 이관된 진행 문서 추적",
+                "keyActions": [
+                      "현재 결재 단계 모니터링",
+                      "긴급 시 기안 회수"
+                ]
+          },
+          {
+                "tabId": "COMPLETED",
+                "tabName": "완료 문서",
+                "purpose": "최종 승인(APPROVED) 또는 반려(REJECTED) 완료된 결재 원장 조회",
+                "keyActions": [
+                      "감사 로그 확인",
+                      "결재 공문 PDF 인쇄"
+                ]
+          }
+    ],
+    modalWorkflows: [
+          {
+                "modalName": "결재 합의 및 승인/반려 다이얼로그 (Approval Action Modal)",
+                "triggerButton": "[승인] 또는 [반려]",
+                "keyFields": [
+                      "전결 규정 티어 부합 여부",
+                      "차순위 결재선 지정",
+                      "결재 의견 및 반려 사유"
+                ],
+                "terminalAction": "[승인 확정] / [반려 확정]",
+                "afterStateTransition": "결재 상태 변경, 원천 비즈니스 레코드(계약/배차/감면) 즉시 실시간 동기화"
+          }
     ],
     auditResult: '결재 승인 즉시 차순위 결재자 인계 또는 최종 확정(Approved) 전환 및 감사 로그 영구 기록',
     rulesCompliance: [
@@ -162,6 +235,28 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '3. 중앙 고밀도 그리드에서 최소 승인 티어, 복수 합의 필수 여부, 금액 임계치 인라인 정의',
       '4. 우측/하단 대결(Delegation) 패널에서 부재자 대결자 지정 및 유효기간 설정 후 [규칙 저장]'
     ],
+        subTabs: [
+          {
+                "tabId": "RULES",
+                "tabName": "결재선 규칙 설정",
+                "purpose": "금액 및 업무 성격에 따른 승인 라우팅 조건 정의",
+                "keyActions": [
+                      "규칙 신규 등록",
+                      "최소 결재 티어 지정",
+                      "합의(Consensus) 필수 여부 설정"
+                ]
+          },
+          {
+                "tabId": "TIERS",
+                "tabName": "직급 티어 및 대결 설정",
+                "purpose": "임직원 결재 권한 티어(Tier 1~7) 매핑 및 부재 시 대결자 지정",
+                "keyActions": [
+                      "대결 기간 설정",
+                      "대결 수임자 지정",
+                      "전결 한도액 설정"
+                ]
+          }
+    ],
     auditResult: '전사 결재 상신 시 해당 룰에 따라 결재선과 합의자가 오차 없이 자동 생성되는 기준 확립',
     rulesCompliance: [
       '헌장 5.3 [단일 진실의 원천(SSOT)]: 결재 티어 레벨을 전사 단일 표준(Tier 1~7)으로 관리',
@@ -221,6 +316,43 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '3. 중앙 그리드에서 신용도, 결제 조건(익월말, 말일 등), 여신 한도액 확인 및 수정',
       '4. 하단 계약 이력 및 미수 잔액 탭 연계 확인 후 [저장]'
     ],
+        subTabs: [
+          {
+                "tabId": "CUST_LIST",
+                "tabName": "거래처 원장",
+                "purpose": "고객사 사업자 정보 및 신용 여신 상태 관리",
+                "keyActions": [
+                      "신규 거래처 등록",
+                      "홈택스 휴폐업 검증",
+                      "여신 한도액 설정"
+                ]
+          },
+          {
+                "tabId": "SITE_LIST",
+                "tabName": "현장 관리",
+                "purpose": "거래처별 납품/작업 현장 주소 및 현장 소장/안전담당자 관리",
+                "keyActions": [
+                      "현장 추가",
+                      "현장 고유 출고 안전 옵션 지정",
+                      "현장 지도 위치 확인"
+                ]
+          }
+    ],
+    modalWorkflows: [
+          {
+                "modalName": "거래처 및 현장 등록/홈택스 검증 팝업 (Customer & Site Modal)",
+                "triggerButton": "[신규 거래처 등록] 또는 [현장 추가]",
+                "keyFields": [
+                      "사업자등록번호 (국세청 API 실시간 유효성 검증)",
+                      "상호 및 대표자",
+                      "세금계산서 전용 이메일",
+                      "현장 주소 및 담당자 연락처",
+                      "기본 안전 옵션"
+                ],
+                "terminalAction": "[거래처/현장 저장]",
+                "afterStateTransition": "거래처 및 현장 레코드 DB 즉시 생성, 계약 작성 시 자동 완성 지원"
+          }
+    ],
     auditResult: '고객 마스터 등록 완결 및 신규 계약 체결 시 자동 완성 데이터 원천 구축',
     rulesCompliance: [
       '헌장 3.2 [줄바꿈 방지 원칙]: 거래처명, 사업자번호, 대표자 셀에 `white-space: nowrap` 적용',
@@ -277,6 +409,56 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '2. 우상단 [신규 계약 체결] 버튼으로 계약 기본 정보 및 청구/현장 속성 입력',
       '3. 중앙 계약 상세 카드에서 체결 자산 목록, 누적 매출 기여액, 계약 변경 이력 타임라인 확인',
       '4. 대차 교체 발생 시 [대차/교체 요구] 발행 ➔ 출고부서로 바통 인계 (영업부 장비 직접지정 금지 - 헌장 2.1)'
+    ],
+        subTabs: [
+          {
+                "tabId": "ALL_LIST",
+                "tabName": "계약 대장 목록",
+                "purpose": "체결된 전체 렌탈 계약의 기간, 상태, 청구 조건, 자산 목록 통합 조망",
+                "keyActions": [
+                      "계약 상세 조회",
+                      "계약서 PDF 인쇄",
+                      "기간 연장/단축",
+                      "대차 교체 의뢰"
+                ]
+          },
+          {
+                "tabId": "CREATE",
+                "tabName": "신규 계약 작성",
+                "purpose": "신규 장비 임대차 계약서 작성 및 전자 서명 발행",
+                "keyActions": [
+                      "거래처/현장 선택",
+                      "계약 장비 모델 및 단가 입력",
+                      "작업지시서 첨부",
+                      "계약서 저장/발송"
+                ]
+          }
+    ],
+    modalWorkflows: [
+          {
+                "modalName": "EXCHANGE 대차 교체 의뢰 팝업 (Exchange Order Modal)",
+                "triggerButton": "체결 자산 행의 [대차/교체]",
+                "keyFields": [
+                      "회수 대상 전자산 번호",
+                      "교체 사유(고장, 사양 변경 등)",
+                      "대차 요청 모델/수량",
+                      "현장 인도 희망 시각"
+                ],
+                "terminalAction": "[EXCHANGE 단일 배차 의뢰 발행]",
+                "afterStateTransition": "단일 EXCHANGE 배차 의뢰 1건 발행(헌장 2.3), 계약 속성 100% 자동 상속(헌장 2.2), 타임라인 1:1 연결 기록(헌장 4.2)"
+          },
+          {
+                "modalName": "계약 변경(기간 연장 / 단가 변경) 팝업 (Contract Amendment Modal)",
+                "triggerButton": "[기간 연장] 또는 [단가 변경]",
+                "keyFields": [
+                      "신규 만료일자",
+                      "연장/변경 월 렌탈료 단가",
+                      "적용 시작일자",
+                      "변경 사유"
+                ],
+                "terminalAction": "[변경 확정 및 결재 상신]",
+                "afterStateTransition": "계약 이력(contractHistory)에 AMENDMENT 이력 영구 보존, 매출 일할 청구 계산식 자동 갱신"
+          }
     ],
     auditResult: '유효 계약 체결 확정 및 자산별 매출 기여액 정밀 일할 집계 기반 마련',
     rulesCompliance: [
@@ -347,6 +529,60 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '3. 중앙 고밀도 그리드에서 계약별 청구액, 부가세, 할인/공제액 인라인 검증',
       '4. 우하단 대차대조식(청구총액 = 확정액 + 조정액) 확인 후 [일괄 청구 확정 / 세금계산서 발행]'
     ],
+        subTabs: [
+          {
+                "tabId": "LIST",
+                "tabName": "월별 청구 대장",
+                "purpose": "당월 마감 청구 목록 및 전자세금계산서 발행 상태 조망",
+                "keyActions": [
+                      "청구서 상세 조회",
+                      "전자세금계산서 일괄 발행",
+                      "청구서 팩스/이메일 발송"
+                ]
+          },
+          {
+                "tabId": "WIZARD",
+                "tabName": "미청구 정산 위저드",
+                "purpose": "가동 중인 장비의 기간별 일할 매출을 집계하여 미청구 금액을 정산 및 청구 확정",
+                "keyActions": [
+                      "마감 연월 선택",
+                      "일할 계산 검증",
+                      "면제/감면 차감 적용",
+                      "청구 확정 생성"
+                ]
+          },
+          {
+                "tabId": "INVOICE",
+                "tabName": "통합 청구서 관리",
+                "purpose": "동일 거래처 다수 현장 계약 건을 1장의 통합 청구서로 합산 발행",
+                "keyActions": [
+                      "거래처별 합산 미리보기",
+                      "통합 청구서 PDF 생성"
+                ]
+          },
+          {
+                "tabId": "WAIVER",
+                "tabName": "청구 면제/감면 대장",
+                "purpose": "우천, 파업, 고장 대차 등 특약에 의한 청구 감면 내역 감사 원장",
+                "keyActions": [
+                      "면제 승인 건 검토",
+                      "면제 증빙 확인"
+                ]
+          }
+    ],
+    modalWorkflows: [
+          {
+                "modalName": "청구 면제/감면 신청 팝업 (Billing Waiver Modal)",
+                "triggerButton": "[면제/감면 신청]",
+                "keyFields": [
+                      "면제 사유(우천, 현장 파업, 장비 고장 대차 기간 공제)",
+                      "면제 일수 및 면제 금액",
+                      "현장 입증 증빙(날씨 확인서, 공문 등)"
+                ],
+                "terminalAction": "[면제 승인 결재 상신]",
+                "afterStateTransition": "결재 완료 시 해당 계약 월말 청구액에서 면제액 자동 차감 반영"
+          }
+    ],
     auditResult: '월말 매출 채권 확정 및 세금계산서 발행 연계, 외상미수금 대장으로 잔액 바통 인계',
     rulesCompliance: [
       '헌장 3.5 [Gutenberg Z-패턴 표준]: 좌상단(정산월) ➔ 우상단(집계) ➔ 중앙(1:1검증) ➔ 우하단([일괄 확정])',
@@ -404,6 +640,51 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '3. 장기 미수 업체 클릭 시 입금 내역 수기 매칭 및 수금 약속일 메모 등록',
       '4. 우하단 전사 미수금 총액 요약 확인 및 [잔액 대사 확정]'
     ],
+        subTabs: [
+          {
+                "tabId": "PENDING_PARTIAL",
+                "tabName": "미수금 / 부분입금 현황",
+                "purpose": "청구 완료되었으나 아직 전액 수납되지 않은 미수 채권 목록",
+                "keyActions": [
+                      "수납 등록",
+                      "입금 독촉 알림톡 발송",
+                      "부분 입금 처리"
+                ]
+          },
+          {
+                "tabId": "PAID",
+                "tabName": "수납 완결 대장",
+                "purpose": "입금이 100% 완료되어 정산 종결된 매출 청구서 원장",
+                "keyActions": [
+                      "입금 영수증 출력",
+                      "수납 감사 로그 확인"
+                ]
+          },
+          {
+                "tabId": "OVERDUE",
+                "tabName": "연체 채권 관리",
+                "purpose": "약정 지급기일(30일/60일/90일)을 초과한 장기 연체 거래처 집중 관리",
+                "keyActions": [
+                      "연체이자 계산",
+                      "내용증명 발송 요청",
+                      "채권 회수 등급 조정"
+                ]
+          }
+    ],
+    modalWorkflows: [
+          {
+                "modalName": "외상매출금 수기 수납 처리 팝업 (Receivable Receipt Modal)",
+                "triggerButton": "[수납 등록]",
+                "keyFields": [
+                      "수납 일자",
+                      "실제 입금 금액",
+                      "입금 계좌 선택",
+                      "차액 처리 구분(할인, 수수료, 단수절사)"
+                ],
+                "terminalAction": "[수납 확정]",
+                "afterStateTransition": "청구서 수납 상태 PAID 전환, 미수금 잔액 즉시 0원 처리, 거래처 여신 한도 복원"
+          }
+    ],
     auditResult: '전사 외상매출금 잔액 일치 확정 및 연체 채권 조기 적발',
     rulesCompliance: [
       '헌장 3.2 [셀 줄바꿈 방지]: 모든 금액 컬럼 white-space: nowrap 강제',
@@ -460,6 +741,45 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '2. 출고 희망 일시, 정확한 현장 하차지 주소, 현장 반입 조건(지하 진입 여부 등) 입력',
       '3. 장비 요구 옵션(상부 센서, 과상승 방지, 논마킹 타이어 등) 체크',
       '4. 우하단 [출고 요청서 발행] 버튼 클릭으로 배차/주기장 큐로 공식 전송'
+    ],
+        subTabs: [
+          {
+                "tabId": "NEW",
+                "tabName": "신규 배차 의뢰",
+                "purpose": "접수된 미배정 배차 건 목록 조망 및 운송사/기사 매칭",
+                "keyActions": [
+                      "배차 의뢰 접수",
+                      "추천 기사 선택",
+                      "배차 지시 발행"
+                ]
+          },
+          {
+                "tabId": "ASSIGNED",
+                "tabName": "배차 완료 / 운송중",
+                "purpose": "기사 배정 후 현장 출발 및 운송 이동 중인 실시간 차량 위치/상태 추적",
+                "keyActions": [
+                      "기사 실시간 연락",
+                      "도착 예정 시각 안내"
+                ]
+          },
+          {
+                "tabId": "COMPLETED",
+                "tabName": "운송 완료 / 하차",
+                "purpose": "현장 상하차가 정상 완료된 건의 운송 완료 보고서 및 서명 확인",
+                "keyActions": [
+                      "인수증 확인",
+                      "운송 완료 확정"
+                ]
+          },
+          {
+                "tabId": "CANCELLED",
+                "tabName": "배차 취소 / 예외",
+                "purpose": "현장 변심, 우천, 일정 연기로 취소된 배차 건 원장 및 취소 사유 관리",
+                "keyActions": [
+                      "취소 사유 검토",
+                      "배차 정보 수정 후 재배정 복귀"
+                ]
+          }
     ],
     auditResult: '출고 의뢰 레코드 생성 및 배차 관리(TruckDispatch) 및 장비 할당(AssetAssignment) 대기열 자동 등록',
     rulesCompliance: [
@@ -631,6 +951,49 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '2. 중앙 고밀도 그리드에서 거래처별 연체금액, 최종 수금일, 신용등급 확인',
       '3. 대상 거래처 선택 후 [출고 보류(Blacklist)] 지정 또는 [최고장/내용증명 양식 출력]',
       '4. 장비 미회수 위험 현장의 경우 즉시 [장비 강제 회수 배차] 연계 조치'
+    ],
+        subTabs: [
+          {
+                "tabId": "OVERDUE_30",
+                "tabName": "30일 이상 경과",
+                "purpose": "초기 연체 거래처에 대한 1차 독촉 및 상환 약정 체결",
+                "keyActions": [
+                      "독촉 알림톡 발송",
+                      "분납 약정 등록"
+                ]
+          },
+          {
+                "tabId": "OVERDUE_60",
+                "tabName": "60일 이상 경과",
+                "purpose": "중기 연체 거래처 대상 신규 출고 정지 및 최고장 발송",
+                "keyActions": [
+                      "출고 제한 설정",
+                      "최고장 발송"
+                ]
+          },
+          {
+                "tabId": "OVERDUE_90",
+                "tabName": "90일 이상 악성",
+                "purpose": "장기 악성 연체 건의 현장 장비 강제 회수 및 법적 조치 이행",
+                "keyActions": [
+                      "강제 회수 배차 의뢰",
+                      "법적 절차 이관"
+                ]
+          }
+    ],
+    modalWorkflows: [
+          {
+                "modalName": "독촉장 및 최고장 발송 팝업 (Delinquency Notice Modal)",
+                "triggerButton": "[독촉장 발송] 또는 [최고장 발송]",
+                "keyFields": [
+                      "수신 거래처 및 대표자",
+                      "연체 청구서 목록 및 연체 이자",
+                      "납부 기한 지정",
+                      "내용증명 양식 선택"
+                ],
+                "terminalAction": "[전자 문서 발송]",
+                "afterStateTransition": "독촉 발송 이력 저장, 거래처 신용 등급 강등 처리"
+          }
     ],
     auditResult: '부실 채권 조기 회수 조치 완결 및 추가 부실 출고 원천 차단',
     rulesCompliance: [
@@ -806,6 +1169,43 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '3. 매각/폐기 시 대상 장비 선택 후 감가상각 잔존가액 확인 및 매각가액 입력',
       '4. 처분 손익 자동 계산 확인 후 [매각/폐기 확정] ➔ 자산 대장에서 DISPOSED 상태 자동 전환'
     ],
+        subTabs: [
+          {
+                "tabId": "ACQUISITION",
+                "tabName": "자산 취득 원장",
+                "purpose": "신규 고소작업대 매입 계약, 취득가액, 제조번호(시리얼), 도입 검수 관리",
+                "keyActions": [
+                      "신규 자산 취득 등록",
+                      "자산 바코드 발급",
+                      "초기 검수"
+                ]
+          },
+          {
+                "tabId": "DISPOSAL",
+                "tabName": "자산 매각/폐기 원장",
+                "purpose": "노후화 또는 파손 장비의 매각처, 매각 대금 정산 및 폐기 말소 승인",
+                "keyActions": [
+                      "매각/폐기 기안",
+                      "매각 대금 수납",
+                      "자산 상태 DISPOSED 마감"
+                ]
+          }
+    ],
+    modalWorkflows: [
+          {
+                "modalName": "신규 자산 취득 등록 팝업 (Asset Acquisition Modal)",
+                "triggerButton": "[신규 자산 취득 등록]",
+                "keyFields": [
+                      "제조사 및 모델명",
+                      "장비 제조번호(시리얼)",
+                      "취득일자 및 취득가액",
+                      "구입처(공급업체)",
+                      "초기 검수 상태"
+                ],
+                "terminalAction": "[취득 등록 확정]",
+                "afterStateTransition": "자산 마스터(assets)에 AVAILABLE(임대가능) 상태로 신규 등록, QR 라벨 인쇄 큐 전송"
+          }
+    ],
     auditResult: '고정자산 관리대장 동기화 및 유형자산 처분손익 회계 전표 원천 확정',
     rulesCompliance: [
       '헌장 5.1 [리포트/통계 2단계 검증]: 장부가액 - 매각가액 = 처분손익 수학적 수식 정합성 충족',
@@ -862,6 +1262,45 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '2. 우상단 [외부 임차 계약 등록]으로 원사 계약 조건 및 월 임차료 입력',
       '3. 중앙 그리드에서 당사 고객 계약과의 1:1 전대 매핑 현황 및 마진율 확인',
       '4. 월말 매입 정산(PurchaseSettlement) 시 원사 지급액과 1:1 대사 확정'
+    ],
+        subTabs: [
+          {
+                "tabId": "CURRENT",
+                "tabName": "임차 장비 현황",
+                "purpose": "외부 타사에서 임차하여 고객사 현장에 투입(전대) 중인 장비 목록 조망",
+                "keyActions": [
+                      "신규 타사 임차 등록",
+                      "임차 계약 조건 확인",
+                      "반납 요청"
+                ]
+          },
+          {
+                "tabId": "NEGOTIATION",
+                "tabName": "원사 단가 협의",
+                "purpose": "원소유주(원사)와의 월 임차료 단가 협의 및 연장 조건 관리",
+                "keyActions": [
+                      "단가 변경 기안",
+                      "협의 이력 관리"
+                ]
+          },
+          {
+                "tabId": "PROFIT_LEDGER",
+                "tabName": "전대 손익 대장",
+                "purpose": "고객사 수취 렌탈료 vs 원사 지급 임차료 간 마진율 및 일할 손익 분석",
+                "keyActions": [
+                      "자산별 순마진 확인",
+                      "적자 임차 장비 색출"
+                ]
+          },
+          {
+                "tabId": "RECONCILIATION",
+                "tabName": "월말 임차료 정산 대사",
+                "purpose": "원사가 청구한 월간 세금계산서와 당사 전대 가동일수 간 1:1 대사",
+                "keyActions": [
+                      "청구액 검증",
+                      "지급 승인"
+                ]
+          }
     ],
     auditResult: '외부 임차 장비의 원가/매출 분리 집계 및 반납 기한 준수를 통한 연체료 방지',
     rulesCompliance: [
@@ -921,6 +1360,66 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '2. 기사 배정 및 수정: 운송거래처, 기사명, 차종(1.2T/3.5T/4T/5T/5T장축/8.5T 셀프), 운송료 단가 지정 후 [배차 확정]',
       '3. 취소된 건도 언제든 정보 수정 후 [배차 완료로 재배정] 복원 조치',
       '4. [탭 2: 월말 운송료 대사]: 고밀도 그리드에서 운송사 청구서와 1:1 대사 ➔ 차액 승인 ➔ 우하단 [통합 지급요청] 완결'
+    ],
+        subTabs: [
+          {
+                "tabId": "DISPATCH",
+                "tabName": "배차 지시 및 기사 배정",
+                "purpose": "출고, 입고, 교환(EXCHANGE) 배차 요청 접수 및 운송 기사/차량 배정 처리 (유형 A 카드 도시에)",
+                "keyActions": [
+                      "배차 카드 검토",
+                      "기사 배정",
+                      "배차 정보 수정",
+                      "배차 취소/재배정"
+                ]
+          },
+          {
+                "tabId": "NEGOTIATION",
+                "tabName": "운임 협의 및 조율",
+                "purpose": "원거리, 특수 차량, 야간 배차 시 운송사와의 운임 단가 협의 내역 관리",
+                "keyActions": [
+                      "운임 견적 비교",
+                      "협의 운임 승인 요청"
+                ]
+          },
+          {
+                "tabId": "RECONCILIATION",
+                "tabName": "월말 운송료 대사 대장",
+                "purpose": "운송사가 청구한 월간 세금계산서와 당사 배차 완료 실적 간 1:1 대사 및 차액 승인 (유형 B 그리드)",
+                "keyActions": [
+                      "운송사 엑셀 업로드",
+                      "1:1 차액 분석",
+                      "차액 사유 승인",
+                      "통합 지급 요청"
+                ]
+          }
+    ],
+    modalWorkflows: [
+          {
+                "modalName": "배차 수정 및 재배정 스튜디오 (Dispatch Edit Modal)",
+                "triggerButton": "배차 카드 행의 [수정] 버튼",
+                "keyFields": [
+                      "운송거래처(협력 운송사) 변경",
+                      "운송기사명 및 연락처",
+                      "차종/톤수(1.2T 셀프, 3.5T 셀프, 4T 셀프, 5T 셀프, 5T장축 셀프, 8.5T 셀프)",
+                      "상하차 일정/시각",
+                      "편도/왕복 운송료 단가",
+                      "배차 상태(취소된 건도 재배정/정상화 가능)"
+                ],
+                "terminalAction": "[배차 정보 저장]",
+                "afterStateTransition": "배차 레코드 실시간 동기화, 취소 건 재활성화, 월말 운송료 대사 원장 자동 갱신"
+          },
+          {
+                "modalName": "월말 운송료 대사 차액 승인 팝업 (Delivery Reconciliation Modal)",
+                "triggerButton": "대사 그리드 행의 [차액 승인]",
+                "keyFields": [
+                      "청구 운임 vs 시스템 운임 비교",
+                      "차액 발생 원인(대기료, 고속도로 통행료, 야간 할증 등)",
+                      "증빙 영수증 확인"
+                ],
+                "terminalAction": "[차액 승인 확정]",
+                "afterStateTransition": "해당 배차 건 확정액(Approved Amount) 반영, 대차대조 차액 ₩0 달성"
+          }
     ],
     auditResult: '차량 배차 100% 완료 및 월말 운송료 청구총액 = 확정액 + 반려액 (차액 ₩0) 무결성 확정',
     rulesCompliance: [
@@ -1049,6 +1548,36 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '3. 바코드 스캐너 또는 모바일 앱 연동 입출고 태깅 내역 1:1 대조',
       '4. 누락 또는 수동 입출고 건 발생 시 [수동 게이트 통과 기록]'
     ],
+        subTabs: [
+          {
+                "tabId": "INBOUND_REGISTER",
+                "tabName": "입고 등록 및 점검",
+                "purpose": "현장 반납된 장비의 실물 도착 접수 및 초기 외관 점검",
+                "keyActions": [
+                      "반납 도착 등록",
+                      "기본 점검표 작성",
+                      "정비 대기 이관"
+                ]
+          },
+          {
+                "tabId": "INBOUND",
+                "tabName": "입고 완료 원장",
+                "purpose": "과거 입고된 모든 장비의 회수 일자, 운송 기사, 입고 상태 이력 조회",
+                "keyActions": [
+                      "입고증 출력",
+                      "반납 이력 검색"
+                ]
+          },
+          {
+                "tabId": "OUTBOUND",
+                "tabName": "출고 완료 원장",
+                "purpose": "현장으로 출고된 모든 장비의 출고 검수 승인 및 반출 이력 조회",
+                "keyActions": [
+                      "출고증 출력",
+                      "출고 시 사진 확인"
+                ]
+          }
+    ],
     auditResult: '주기장 내 물리적 장비 재고와 시스템 DB 재고의 100% 일치 보장',
     rulesCompliance: [
       '헌장 1.2 [발생 사건 무누락 DB 저장]: 게이트 통과 이벤트 타임스탬프 영구 보존',
@@ -1153,6 +1682,21 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '3. 장비 4면 외관 및 계기판/배터리 비중 사진 실시간 촬영 업로드',
       '4. 불량 발견 시 [검수 불량 반려(정비인계)] / 전 항목 합격 시 [출고 검수 최종 승인]'
     ],
+        modalWorkflows: [
+          {
+                "modalName": "출고 검수 승인 팝업 (Outbound Inspection Modal)",
+                "triggerButton": "출고 대기 자산 행의 [검수 승인]",
+                "keyFields": [
+                      "배터리 전압 및 충전 상태",
+                      "유압 라인 누유 여부",
+                      "상승/하강 리미트 센서 및 비상 정지 스위치",
+                      "도색 및 외관 손상 여부",
+                      "검수 실사 사진 등록"
+                ],
+                "terminalAction": "[최종 출고 승인 마감]",
+                "afterStateTransition": "헌장 1.3에 따라 자산 상태가 즉시 RENTED(대여중)로 전환, 출고 검수증 PDF 자동 발행, 주기장 반출 허가"
+          }
+    ],
     auditResult: '출고 검수 성적서 발행 및 자산 상태 즉시 RENTED(대여중) 전환 완료 (헌장 1.3)',
     rulesCompliance: [
       '헌장 1.3 [출고 검수 승인 마감 시 자산 상태 RENTED 전환 원칙]: 배차 단계가 아닌 이 시점에 대여중 전환 완결',
@@ -1210,6 +1754,60 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '3. 실사 차이 발생 시 [재고 실사 보정]을 통해 차액 원인(파손/손모) 등록',
       '4. 안전 재고 미달 품목 선택 후 [소모품 구매 발주 요청] 연계'
     ],
+        subTabs: [
+          {
+                "tabId": "STOCK",
+                "tabName": "메인 창고 현재고",
+                "purpose": "중앙 주기장 창고의 부품/소모품 규격별 현재고 및 적정 재고 모니터링",
+                "keyActions": [
+                      "안전재고 미달 품목 확인",
+                      "재고 이동 기안",
+                      "바코드/라벨 인쇄"
+                ]
+          },
+          {
+                "tabId": "VEHICLE_STOCK",
+                "tabName": "서비스 차량 탑재 재고",
+                "purpose": "현장 AS 출동 차량(1호차~5호차)에 상시 적재된 부품 재고 파악",
+                "keyActions": [
+                      "차량별 재고 실사",
+                      "주기장 창고에서 차량으로 불출 이동"
+                ]
+          },
+          {
+                "tabId": "COLLECTED_PARTS",
+                "tabName": "회수 부품 창고",
+                "purpose": "현장 수리 후 회수된 고장 부품의 재생/폐기 대기 현황 관리",
+                "keyActions": [
+                      "재생 가능 판정",
+                      "폐기 처리"
+                ]
+          },
+          {
+                "tabId": "STOCKTAKING",
+                "tabName": "재고 실사 및 보정",
+                "purpose": "정기 물리적 실사 수량과 전산 수량 간 오차 파악 및 재고 보정",
+                "keyActions": [
+                      "실사표 출력",
+                      "실사 수량 입력",
+                      "재고 차이 보정 승인"
+                ]
+          }
+    ],
+    modalWorkflows: [
+          {
+                "modalName": "부품 재고 이동 및 차량 불출 팝업 (Stock Transfer Modal)",
+                "triggerButton": "[재고 이동] 또는 [차량 불출]",
+                "keyFields": [
+                      "출고 창고 (메인 창고)",
+                      "입고 창고 (서비스 1호차 등)",
+                      "이동 품목 및 수량",
+                      "불출 목적/비고"
+                ],
+                "terminalAction": "[재고 이동 확정]",
+                "afterStateTransition": "출고처 재고 차감, 입고처 재고 가산, 수불부 TRANSFER 이력 무누락 저장"
+          }
+    ],
     auditResult: '정비 부품 결품 제로 달성 및 주기장 자재 자산 가액 정확한 결산 반영',
     rulesCompliance: [
       '헌장 3.1 [건조한 UI 표기]: "스마트 재고", "자동 감시" 등 수식어 배제, 규격과 수량 중심 표기',
@@ -1266,6 +1864,27 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '2. 중앙 고밀도 모니터에서 인쇄 대기/실패 작업 큐 실시간 상태 조망',
       '3. 인쇄 위치 밀림 발생 시 [인쇄 위치 보정(X/Y Offset)] 미세 조정',
       '4. 전송 에러 발생 건 선택 후 [재전송] 또는 [큐 초기화] 종결'
+    ],
+        subTabs: [
+          {
+                "tabId": "stations",
+                "tabName": "프린트 스테이션 상태",
+                "purpose": "주기장 및 사무실에 설치된 제브라(Zebra)/네트워크 프린터의 온라인/오프라인 연결 상태 감시",
+                "keyActions": [
+                      "프린터 연결 테스트",
+                      "ZPL 포트 설정"
+                ]
+          },
+          {
+                "tabId": "queue",
+                "tabName": "인쇄 대기열 큐 모니터링",
+                "purpose": "발행된 자산 QR 라벨, 부품 바코드의 전송 상태, 오류 인쇄 재전송",
+                "keyActions": [
+                      "대기열 일시 정지",
+                      "오류 인쇄 재전송",
+                      "완료 큐 비우기"
+                ]
+          }
     ],
     auditResult: '출고 자산 실물 방수 라벨 부착 100% 보장 및 인쇄 오류 무중단 복구',
     rulesCompliance: [
@@ -1326,6 +1945,27 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '3. 발주 금액에 따른 결재선 자동 상신 및 승인 완료 확인',
       '4. 물품 도착 시 [입고 검수 확정] ➔ 재고 수량 자동 가산 및 월말 매입 정산 연동'
     ],
+        subTabs: [
+          {
+                "tabId": "REQ_WRITE",
+                "tabName": "구매 발주 기안",
+                "purpose": "안전재고 미달 품목 또는 긴급 수리 부품의 신규 구매 발주서 작성",
+                "keyActions": [
+                      "부품 규격 선택",
+                      "구매 수량 및 견적 단가 입력",
+                      "발주서 결재 상신"
+                ]
+          },
+          {
+                "tabId": "REQ_LIST",
+                "tabName": "구매 발주 현황 대장",
+                "purpose": "상신된 구매 발주서의 결재 상태, 입고 예정일, 공급사 납품 현황 추적",
+                "keyActions": [
+                      "발주서 상세 확인",
+                      "공급사 입고 확인"
+                ]
+          }
+    ],
     auditResult: '부품 발주부터 입고까지의 정산 원천 데이터 확정 및 매입 채무 연계',
     rulesCompliance: [
       '헌장 3.4 [상하 스택 배치]: 발주 입력 필드 상하 세로 스택 준수',
@@ -1382,6 +2022,36 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '2. 정비 작업에 부품 투입 시 [부품 불출 등록]으로 해당 정비 카드에 원가 매핑',
       '3. 중앙 그리드에서 불출자, 정비 대상 장비번호, 사용 수량 1:1 대사',
       '4. 불량 부품 반품 시 [반품 출고] 처리'
+    ],
+        subTabs: [
+          {
+                "tabId": "REQ_INBOUND",
+                "tabName": "입고 요청 및 검수 등록",
+                "purpose": "구매 발주 완료된 부품의 실물 입고 검수 및 창고 입고 등록",
+                "keyActions": [
+                      "실물 수량 대조",
+                      "불량 검수",
+                      "입고 확정"
+                ]
+          },
+          {
+                "tabId": "OUTBOUND",
+                "tabName": "불출 및 출고 대장",
+                "purpose": "정비 작업 및 현장 AS 출동을 위해 불출된 부품의 출고 내역 조회",
+                "keyActions": [
+                      "불출 영수증 확인",
+                      "부품 투입 장비 번호 추적"
+                ]
+          },
+          {
+                "tabId": "LOGS",
+                "tabName": "수불부 전체 이력",
+                "purpose": "입고, 출고, 이동, 실사보정 등 부품별 모든 재고 증감 로그 종합 조망",
+                "keyActions": [
+                      "부품별 수불 카드 조회",
+                      "월간 수불 대사"
+                ]
+          }
     ],
     auditResult: '부품 재고 실시간 차감 및 정비 작업별 원가 투입 데이터 100% 무결성 확립',
     rulesCompliance: [
@@ -1440,6 +2110,34 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '3. 사용자 과실(충돌, 케이블 단선 등) 여부 확인 후 유상/무상 판정',
       '4. 수리 완료 사진 첨부 및 현장 소장 디지털 서명 수령 후 [AS 종결 확정]'
     ],
+        modalWorkflows: [
+          {
+                "modalName": "현장 AS 접수 및 출동 지시 팝업 (Field AS Dispatch Modal)",
+                "triggerButton": "[신규 AS 접수]",
+                "keyFields": [
+                      "고객사 및 현장명",
+                      "고장 장비 번호 및 증상 유형(시동 불가, 유압 누유, 충전 불량 등)",
+                      "긴급도",
+                      "출동 담당 기사 지정",
+                      "예상 소요 시간"
+                ],
+                "terminalAction": "[AS 접수 및 기사 배정]",
+                "afterStateTransition": "AS 상태 PENDING에서 DISPATCHED 전환, 기사 스마트폰 ToDo 연동"
+          },
+          {
+                "modalName": "현장 AS 조치 완료 보고 팝업 (Field AS Complete Modal)",
+                "triggerButton": "[조치 완료 보고]",
+                "keyFields": [
+                      "현장 원인 분석",
+                      "조치 내용(부품 교체, 응급 배선 수리 등)",
+                      "투입 부품 선택",
+                      "유/무상 판정 및 유상 비용",
+                      "현장 확인 서명 사진"
+                ],
+                "terminalAction": "[AS 완료 승인]",
+                "afterStateTransition": "AS 상태 COMPLETED 전환, 유상 건은 매출 청구 원장으로 자동 연계"
+          }
+    ],
     auditResult: '현장 AS 조치 완료 및 유상 수리 시 매출 청구(Billing) 데이터로 즉시 이첩',
     rulesCompliance: [
       '헌장 5.5 [현장 마찰 계수 주입]: 현장 수리 불가 시 즉시 EXCHANGE 대차 배차 연동',
@@ -1497,6 +2195,42 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '3. 투입된 정비 시간 및 소모 부품 등록 ➔ 자산 원가 반영',
       '4. 전 기능 정상 작동 확인 후 우하단 [정비 완료 승인] ➔ 자산 상태 AVAILABLE 자동 전환'
     ],
+        subTabs: [
+          {
+                "tabId": "STUDIO",
+                "tabName": "정비 조치 스튜디오",
+                "purpose": "현장에서 입고된 반납 장비의 입고 점검, 세척, 수리, 부품 투입 조치 (유형 A 카드 도시에)",
+                "keyActions": [
+                      "입고 점검 체크리스트 작성",
+                      "정비 조치 등록",
+                      "투입 부품 선택",
+                      "수리 완료 판정"
+                ]
+          },
+          {
+                "tabId": "LEDGER",
+                "tabName": "정비 완료 원장",
+                "purpose": "완료된 정비 이력, 투입 부품 원가, 장비별 정비 지출 누적 내역 조회",
+                "keyActions": [
+                      "정비 원가 분석",
+                      "장비별 누적 수리 이력 출력"
+                ]
+          }
+    ],
+    modalWorkflows: [
+          {
+                "modalName": "정비 조치 및 부품 투입 팝업 (Repair Execution Modal)",
+                "triggerButton": "[정비 조치 / 부품 투입]",
+                "keyFields": [
+                      "고장 증상 및 정비 내용",
+                      "투입 소모품/부품 및 수량 선택 (재고 실시간 조회)",
+                      "정비 시간 및 공임",
+                      "최종 판정 (정비 완료 / 외주 정비 / 폐기)"
+                ],
+                "terminalAction": "[정비 완료 승인]",
+                "afterStateTransition": "소모품 재고 자동 출고 차감(OUTBOUND), 자산 상태 UNDER_REPAIR에서 AVAILABLE(임대가능)으로 전환 복귀"
+          }
+    ],
     auditResult: '장비 정비 완결 및 자산 상태 AVAILABLE(임대가능) 복원, 가용 자산 풀 재편입',
     rulesCompliance: [
       '헌장 1.2 [렌탈 자산 효과적 운용]: 정비 완료 시점에 정확히 AVAILABLE 상태로 복귀',
@@ -1553,6 +2287,35 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '2. 중앙 고밀도 그리드에서 점검 항목 순서, 기준 설명, 필수 여부 편집',
       '3. 우상단 [새 점검 항목 추가]로 신규 안전 기준 법 개정 사항 반영',
       '4. 우하단 [템플릿 저장]으로 전사 모바일 검수 폼에 즉시 동기화'
+    ],
+        subTabs: [
+          {
+                "tabId": "MASTER",
+                "tabName": "점검 항목 마스터",
+                "purpose": "출고, 입고, 정기점검 시 평가할 세부 안전/기능 점검 항목 정의",
+                "keyActions": [
+                      "신규 점검 항목 추가",
+                      "배점/가중치 설정",
+                      "필수 여부 지정"
+                ]
+          },
+          {
+                "tabId": "PRESETS",
+                "tabName": "장비군별 점검표 템플릿",
+                "purpose": "시저 리프트, 굴절 붐, 직진 붐 등 차종별 맞춤형 체크리스트 프리셋 구성",
+                "keyActions": [
+                      "템플릿 복제",
+                      "차종 매핑"
+                ]
+          },
+          {
+                "tabId": "HISTORY",
+                "tabName": "점검표 개정 이력",
+                "purpose": "안전 기준 강화에 따른 체크리스트 버전 관리 및 개정 이력 추적",
+                "keyActions": [
+                      "버전별 변경점 비교"
+                ]
+          }
     ],
     auditResult: '고소작업대 안전보건공단 안전인증 기준에 부합하는 점검 체계 확립',
     rulesCompliance: [
@@ -1670,6 +2433,27 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '3. 연장 근로 사유(긴급 출고 검수, 야간 배차 대응 등) 정당성 검토',
       '4. 우하단 [OT 일괄 승인] ➔ 당월 급여 정산(PayrollPage) 수당 테이블로 자동 반영'
     ],
+        subTabs: [
+          {
+                "tabId": "LIST",
+                "tabName": "OT 신청 및 처리 대장",
+                "purpose": "연장, 야간, 휴일 근무 사전 신청 및 실제 승인 실적 원장",
+                "keyActions": [
+                      "OT 사전 신청",
+                      "사후 실적 확인",
+                      "부서장 승인"
+                ]
+          },
+          {
+                "tabId": "CALENDAR",
+                "tabName": "월간 OT 캘린더",
+                "purpose": "부서별 일자별 연장근무 투입 현황을 캘린더 뷰로 직관 조망",
+                "keyActions": [
+                      "특정 일자 집중 근무자 확인",
+                      "법정 주 52시간 준수 모니터링"
+                ]
+          }
+    ],
     auditResult: '근로기준법 52시간 준수 모니터링 및 정확한 법정 가산 수당 확정',
     rulesCompliance: [
       '헌장 5.1 [수학적 수식 검증]: 통상시급 × OT시간 × 1.5 가산율 수학적 산식 준수',
@@ -1726,6 +2510,35 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '2. 우상단 [운행 일지 등록]으로 당일 출발/도착 누적 계기판 거리 및 방문 현장 입력',
       '3. 주유 영수증 첨부 및 유류비/통행료 비용 등록',
       '4. 중앙 그리드에서 연비 및 사적 사용 여부 감사 후 [일지 확정]'
+    ],
+        subTabs: [
+          {
+                "tabId": "FUEL_LOG",
+                "tabName": "주유 및 충전 일지",
+                "purpose": "배차 트럭 및 AS 출동 차량의 주유량, 충전비용, 주유소 전표 관리",
+                "keyActions": [
+                      "주유 영수증 등록",
+                      "연비 계산"
+                ]
+          },
+          {
+                "tabId": "OPERATION_LOG",
+                "tabName": "운행 일지",
+                "purpose": "출발지, 도착지, 주행거리(km), 운행 목적 기록 (국세청 제출 양식)",
+                "keyActions": [
+                      "운행 일지 작성",
+                      "국세청 양식 엑셀 출력"
+                ]
+          },
+          {
+                "tabId": "MAINTENANCE",
+                "tabName": "차량 정비 점검",
+                "purpose": "엔진오일 교환, 타이어 교체 등 업무차량 정기 소모품 점검 주기 관리",
+                "keyActions": [
+                      "정비 알림 설정",
+                      "차량 수리비 지출 기록"
+                ]
+          }
     ],
     auditResult: '국세청 업무용 승용차 운행기록부 법정 양식 자동 생성 및 비용 인정 충족',
     rulesCompliance: [
@@ -1898,6 +2711,40 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '3. 중앙 그리드에서 해당 매출 청구서와 1:1 인라인 매칭 선택',
       '4. 우하단 [원클릭 수납 매칭 확정] ➔ 외상미수금 대장 실시간 상계 반영'
     ],
+        subTabs: [
+          {
+                "tabId": "MATCHING",
+                "tabName": "통장 입금 1:1 대사",
+                "purpose": "통장 거래내역과 시스템 매출 청구서를 1:1로 비교 매칭하여 자동 수납 처리",
+                "keyActions": [
+                      "통장 엑셀 업로드",
+                      "자동 매칭 실행",
+                      "수기 매칭 승인"
+                ]
+          },
+          {
+                "tabId": "RULES",
+                "tabName": "자동 매칭 규칙 설정",
+                "purpose": "입금자명 패턴(상호+현장명 등)에 따라 거래처를 자동 식별하는 룰셋 관리",
+                "keyActions": [
+                      "입금자 패턴 추가",
+                      "거래처 자동 매핑 룰 정의"
+                ]
+          }
+    ],
+    modalWorkflows: [
+          {
+                "modalName": "통장 입금 1:1 수기 대사 매칭 팝업 (Bank Matching Modal)",
+                "triggerButton": "통장 내역 행의 [수기 매칭]",
+                "keyFields": [
+                      "입금 내역(일자, 입금자명, 입금액)",
+                      "매칭 대상 미수 청구서 선택",
+                      "차액(타행이체 수수료 등) 입력"
+                ],
+                "terminalAction": "[매칭 확정 및 수납 완료]",
+                "afterStateTransition": "통장 내역 매칭 완료 플래그 저장, 해당 매출 청구서 PAID 수납 처리"
+          }
+    ],
     auditResult: '통장 잔액과 시스템 장부 잔액 100% 일치 및 미수금 실시간 회수 처리',
     rulesCompliance: [
       '헌장 3.6 [유형 B 고밀도 그리드]: 한눈에 20~30건의 입금 내역을 동시 조망하며 인라인 처리',
@@ -1955,6 +2802,28 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '3. 가맹점명 기반 계정과목(식대, 소모품비, 유류비, 통행료 등) 선택 및 영수증 증빙 대조',
       '4. 우하단 [카드 매입 전표 확정] ➔ 부가세 매입세액 공제 신고 기초 데이터 확정'
     ],
+        subTabs: [
+          {
+                "tabId": "settlement",
+                "tabName": "법인카드 전표 정산",
+                "purpose": "카드사 연동 승인 내역에 용도, 계정과목, 영수증 증빙을 매핑하여 전표 처리",
+                "keyActions": [
+                      "카드 승인 내역 수집",
+                      "용도/계정과목 지정",
+                      "영수증 사진 첨부",
+                      "정산 상신"
+                ]
+          },
+          {
+                "tabId": "settings",
+                "tabName": "카드 및 한도 관리",
+                "purpose": "임직원별 지급된 법인카드 목록, 유효기간, 월 한도액 관리",
+                "keyActions": [
+                      "신규 카드 등록",
+                      "한도 조정"
+                ]
+          }
+    ],
     auditResult: '법인카드 사용 내역 100% 증빙 완결 및 세무 신고용 매입 전표 확정',
     rulesCompliance: [
       '헌장 3.1 [무수식어 표기]: 객관적 승인 일시, 가맹점, 공급가액, 세액만 정밀 표기',
@@ -2011,6 +2880,25 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '2. 중앙 캐시플로우 트렌드 차트에서 순자금 증감(Inflow vs Outflow) 추이 분석',
       '3. 차기 30일간의 만기 도래 채권 및 채무 예정 스케줄표 검토',
       '4. 자금 과부족 발생 예상 시점 파악 및 단기 차입/유동성 확보 대책 수립'
+    ],
+        subTabs: [
+          {
+                "tabId": "FORECAST",
+                "tabName": "자금 수지 예측",
+                "purpose": "향후 30일/60일/90일간 예정된 매출 수납액과 운송료, 임차료, 급여 지출 예측",
+                "keyActions": [
+                      "일자별 예상 잔액 확인",
+                      "자금 부족 위험 구간 경보"
+                ]
+          },
+          {
+                "tabId": "HISTORY",
+                "tabName": "입출금 실적 내역",
+                "purpose": "실제 통장 입출금 실적과 예측치 간 편차 분석 및 감사 로그",
+                "keyActions": [
+                      "실적 대비 편차율 검토"
+                ]
+          }
     ],
     auditResult: '전사 자금 건전성 조망 및 현금 유동성 경색 위험 선제적 차단',
     rulesCompliance: [
@@ -2116,6 +3004,26 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '3. 지표별 수식 및 DB 데이터 1:1 정합성 검증 확인',
       '4. 우상단 [PDF 인쇄] 또는 [엑셀 내보내기]로 경영진 보고 자료 생성 종결'
     ],
+        subTabs: [
+          {
+                "tabId": "EXECUTIVE",
+                "tabName": "경영진 핵심 요약 보고서",
+                "purpose": "월별 전사 가동률, 매출 총액, 미수 채권, 자산 수익률 1장 요약 브리핑",
+                "keyActions": [
+                      "기간별 KPI 비교",
+                      "PDF 리포트 출력"
+                ]
+          },
+          {
+                "tabId": "DRILLDOWN",
+                "tabName": "부문별 상세 손익 드릴다운",
+                "purpose": "장비 모델별, 거래처별, 영업담당자별 공헌이익 및 비용 세부 분석",
+                "keyActions": [
+                      "장비군별 수익성 필터",
+                      "엑셀 데이터 내보내기"
+                ]
+          }
+    ],
     auditResult: '경영 의사결정을 위한 100% 무오류 정기 경영 분석 보고서 완결',
     rulesCompliance: [
       '헌장 5.1 [2단계 검증 정책 필수 이행]: 모든 통계 지표는 수학적 산식 정립 + DB 스키마 1:1 검증 후 집계',
@@ -2175,6 +3083,26 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '3. 우측 테넌트 설정 패널에서 [개인정보보호 책임자] 성명, 부서, 직통 연락처 지정',
       '4. 우하단 [조직 설정 저장]으로 전사 결재선 및 사용자 권한에 즉시 반영'
     ],
+        subTabs: [
+          {
+                "tabId": "DEPT",
+                "tabName": "부서 및 팀 조직도",
+                "purpose": "영업팀, 주기장팀, 정비팀, 배차팀, 관리본부 등 사내 직제 및 부서 관리",
+                "keyActions": [
+                      "부서 신설/수정",
+                      "부서장 지정"
+                ]
+          },
+          {
+                "tabId": "UNASSIGNED",
+                "tabName": "미배치 인원 관리",
+                "purpose": "신규 입사자 또는 부서 이동 대기 인원의 소속 부서 배정",
+                "keyActions": [
+                      "소속 부서 지정",
+                      "인수인계 설정"
+                ]
+          }
+    ],
     auditResult: '전사 부서 및 권한 통제의 근간이 되는 조직 마스터 SSOT 확립',
     rulesCompliance: [
       '헌장 5.3 [단일 진실의 원천(SSOT)]: 조직 및 직급 메타데이터의 단일 원본 보존',
@@ -2231,6 +3159,26 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '2. 사원 정보(아이디, 성명, 이메일, 소속부서, 직급) 입력 및 유효 티어 레벨 설정',
       '3. 우측 메뉴 권한 매트릭스에서 담당 직무에 따른 메뉴별 열람/편집/삭제 체크박스 부여',
       '4. 우하단 [사용자 권한 저장] ➔ 해당 사용자의 다음 로그인 시 메뉴 사이드바 및 액션 버튼 실시간 통제'
+    ],
+        subTabs: [
+          {
+                "tabId": "ROLES",
+                "tabName": "역할/권한 그룹 설정",
+                "purpose": "영업, 주기장, 정비, 회계, 관리자 등 역할별 메뉴 접근 및 수정 권한 매트릭스 정의",
+                "keyActions": [
+                      "신규 권한 그룹 생성",
+                      "메뉴별 읽기/쓰기 체크박스 설정"
+                ]
+          },
+          {
+                "tabId": "USERS",
+                "tabName": "사용자별 역할 매핑",
+                "purpose": "개별 임직원 계정에 특정 권한 그룹을 매핑하여 시스템 접근 통제",
+                "keyActions": [
+                      "임직원 권한 변경",
+                      "임시 관리자 권한 부여"
+                ]
+          }
     ],
     auditResult: '부서별 업무 R&R에 입각한 엄격한 최소 권한(Least Privilege) 체계 확립',
     rulesCompliance: [
@@ -2346,6 +3294,26 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '3. 연차 미사용 임직원 대상 법정 [연차 사용 촉진 통보서 자동 생성 및 발송]',
       '4. 연말 잔여 연차 보상 수당 산출 연동 및 [연차 마감]'
     ],
+        subTabs: [
+          {
+                "tabId": "QUOTA",
+                "tabName": "연차 부여 및 한도 관리",
+                "purpose": "임직원별 근속연수 기준 연차 발생일수 부여 및 잔여일수 관리",
+                "keyActions": [
+                      "연차 일괄 생성",
+                      "포상/특별 휴가 부여"
+                ]
+          },
+          {
+                "tabId": "USAGE",
+                "tabName": "연차 사용 현황 대장",
+                "purpose": "임직원 연차 사용 신청, 승인 내역 및 월별 연차 소진율 집계",
+                "keyActions": [
+                      "휴가 캘린더 확인",
+                      "연차 사용 촉진 안내"
+                ]
+          }
+    ],
     auditResult: '근로기준법 제61조 연차 사용 촉진 절차 완벽 준수 및 연차 충당부채 확정',
     rulesCompliance: [
       '헌장 5.1 [수학적 산식 준수]: 잔여 연차 = 발생 연차 - 승인 완료 사용 연차 일치 보장',
@@ -2402,6 +3370,25 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '2. 중앙 고밀도 그리드에서 1초 단위 개인정보 열람 로그 전수 감사',
       '3. 특정 사용자의 대량 엑셀 다운로드 이력 클릭 시 다운로드 사유 소명 검토',
       '4. 우상단 [월간 개인정보 접속 감사 보고서 출력]으로 법정 감사 증적 보관'
+    ],
+        subTabs: [
+          {
+                "tabId": "LOGS",
+                "tabName": "개인정보 열람 감사 로그",
+                "purpose": "고객사 대표자, 기사, 임직원의 주민등록번호, 계좌번호 등 민감정보 열람 기록 전수 감사",
+                "keyActions": [
+                      "열람 일시/사유 확인",
+                      "비정상 대량 열람 적발"
+                ]
+          },
+          {
+                "tabId": "POLICY",
+                "tabName": "개인정보 처리방침 관리",
+                "purpose": "개인정보 보유 기간, 파기 절차, 위수탁 계약 기준 관리",
+                "keyActions": [
+                      "보유 기간 만료 데이터 파기"
+                ]
+          }
     ],
     auditResult: '개인정보 접속 기록 최소 1~2년 이상 위변조 없이 안전 보관 법정 의무 충족',
     rulesCompliance: [
@@ -2518,6 +3505,20 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '2. 문제 현상 및 발생 직전 수행한 조작 순서를 2~3줄로 명확히 기재',
       '3. 화면 캡처 이미지 또는 에러 팝업 캡처 첨부',
       '4. 우하단 [오류 접수] 클릭 ➔ 개발팀 실시간 핫픽스 이슈 트래커로 즉각 전송'
+    ],
+        modalWorkflows: [
+          {
+                "modalName": "시스템 오류 등록 팝업 (Error Register Modal)",
+                "triggerButton": "[오류 등록]",
+                "keyFields": [
+                      "오류 발생 메뉴",
+                      "오류 유형(UI 깨짐, 데이터 불일치, DB 저장 실패 등)",
+                      "화면 캡처 첨부",
+                      "발생 경로 및 증상"
+                ],
+                "terminalAction": "[오류 등록 완료]",
+                "afterStateTransition": "개발팀 시스템 이슈 트래커에 즉시 연동 및 접수 번호 발행"
+          }
     ],
     auditResult: '오류 티켓 접수 완료 및 개발팀 24시간 내 패치 릴리즈 큐 인계',
     rulesCompliance: [
@@ -2756,6 +3757,46 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '3. 검수 오류 항목 인라인 확인 및 수정',
       '4. 우하단 [원자적 DB 일괄 주입] 클릭 ➔ Supabase 트랜잭션 적재 종결'
     ],
+        subTabs: [
+          {
+                "tabId": "INGEST",
+                "tabName": "엑셀 데이터 적재",
+                "purpose": "과거 ERP/엑셀 데이터(고객, 계약, 자산, 부품)의 무누락 DB 적재",
+                "keyActions": [
+                      "엑셀 파일 업로드",
+                      "컬럼 매핑",
+                      "유효성 검사",
+                      "DB 적재"
+                ]
+          },
+          {
+                "tabId": "CLEANUP",
+                "tabName": "데이터 정제 및 중복 제거",
+                "purpose": "적재된 데이터 중 사업자번호 중복, 빈값, 비정상 포맷 정제",
+                "keyActions": [
+                      "중복 데이터 색출",
+                      "일괄 병합/정제"
+                ]
+          },
+          {
+                "tabId": "BACKUP",
+                "tabName": "DB 백업 및 스냅샷",
+                "purpose": "대량 데이터 변경 전 시스템 전체 스냅샷 생성 및 롤백 보증",
+                "keyActions": [
+                      "스냅샷 생성",
+                      "스냅샷 다운로드"
+                ]
+          },
+          {
+                "tabId": "RESET",
+                "tabName": "테넌트 데이터 초기화",
+                "purpose": "테스트 데이터 전면 소탕 및 청정 초기화 (최고관리자 전용)",
+                "keyActions": [
+                      "초기화 승인 코드 입력",
+                      "테넌트 DB 초기화"
+                ]
+          }
+    ],
     auditResult: '신규 테넌트의 오염 없는 청정 초기 데이터베이스 셋업 완료',
     rulesCompliance: [
       '헌장 5.3 [로컬 DB 스키마 정합성 자가 검증]: 로컬 schema.sql 정의와 완벽 일치 검증',
@@ -2812,6 +3853,19 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '2. 서비스 계정 인증서 키 및 OAuth 2.0 클라이언트 자격증명 입력',
       '3. [연결 테스트] 클릭으로 구글 드라이브 및 OCR API 응답 확인',
       '4. 우하단 [설정 저장]으로 클라우드 동기화 서비스 활성화'
+    ],
+        modalWorkflows: [
+          {
+                "modalName": "클라우드 파일 업로드/관리 팝업 (Cloud Storage Modal)",
+                "triggerButton": "[스토리지 파일 관리]",
+                "keyFields": [
+                      "버킷 선택",
+                      "업로드 대상 파일",
+                      "접근 권한(공개/비공개)"
+                ],
+                "terminalAction": "[파일 업로드]",
+                "afterStateTransition": "Cloudflare R2 스토리지에 영구 보존 및 CDN URL 발급"
+          }
     ],
     auditResult: '구글 클라우드 서비스와의 무장애 보안 연동 채널 확립',
     rulesCompliance: [

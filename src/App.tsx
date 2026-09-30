@@ -116,9 +116,10 @@ import { useGridWheel } from './hooks/useGridWheel';
 /* ── 인앱 오버레이 매뉴얼 버튼 (헤더 우측 배치) ─────────────── */
 const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activeTabName?: string }> = ({ activeTab, currentUser, activeTabName }) => {
   const { mode, setMode, loadPage, page } = useManualContext();
-  // tier_level이 NULL인 경우 대표(7)로 간주 (개발자 계정), 4(차장) 이상이면 작성 가능
-  const tier = currentUser?.tier_level ?? 7;
-  const canAuthor = tier >= 4 || currentUser?.id;
+  
+  // 개발자 계정(admin, sys-admin)일 때만 매뉴얼 작성 기능 노출
+  const isTrueDev = (u?: any) => u && (u.loginId === 'admin' || u.id === 'sys-admin');
+  const canAuthor = Boolean(isTrueDev(currentUser));
 
   const pageTitle = activeTabName || activeTab;
 
@@ -130,6 +131,7 @@ const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activ
   };
 
   const handleAuthor = async () => {
+    if (!canAuthor) return;
     if (mode === 'authoring') { setMode('off'); return; }
     setMode('off');
     await loadPage(activeTab, pageTitle);
@@ -137,7 +139,7 @@ const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activ
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
       <button
         onClick={handleView}
         style={{
@@ -146,8 +148,9 @@ const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activ
           color: mode === 'viewing' ? '#1d4ed8' : 'var(--text-primary)',
           border: mode === 'viewing' ? '1.5px solid #1d4ed8' : '1px solid var(--border-color)',
           cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap',
+          flexShrink: 0,
         }}
-        title="현재 화면 매뉴얼 오버레이 표시"
+        title="현재 화면 매뉴얼 오버레이 표시 (Ctrl+M)"
       >
         📖 {mode === 'viewing' ? '매뉴얼 닫기' : '매뉴얼 보기'}
         {page && page.items.length > 0 && mode !== 'viewing' && (
@@ -155,6 +158,19 @@ const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activ
             {page.items.length}
           </span>
         )}
+        <span style={{
+          fontSize: '10px',
+          padding: '1px 5px',
+          borderRadius: '4px',
+          backgroundColor: mode === 'viewing' ? '#bfdbfe' : 'var(--bg-card)',
+          border: '1px solid var(--border-color)',
+          color: mode === 'viewing' ? '#1e40af' : 'var(--text-muted)',
+          fontFamily: 'monospace',
+          marginLeft: '2px',
+          fontWeight: 600
+        }}>
+          Ctrl+M
+        </span>
       </button>
       {canAuthor && (
         <button
@@ -165,8 +181,9 @@ const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activ
             color: mode === 'authoring' ? '#4f46e5' : 'var(--text-primary)',
             border: mode === 'authoring' ? '1.5px solid #4f46e5' : '1px solid var(--border-color)',
             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap',
+            flexShrink: 0,
           }}
-          title="현재 화면 매뉴얼 작성/편집 모드"
+          title="현재 화면 매뉴얼 작성/편집 모드 (개발자 전용)"
         >
           ✏️ {mode === 'authoring' ? '작성 종료' : '매뉴얼 작성'}
         </button>
@@ -271,6 +288,7 @@ const App: React.FC = () => {
     (window as any).__APP_CONTEXT__ = context;
   }
   const { currentUser, users, switchUser, login, logout, theme, toggleTheme, hasPermission, activeTab, setActiveTab, loadTablesForMenu, currentTenant } = context;
+  const { mode: manualMode, setMode: setManualMode, loadPage: loadManualPage } = useManualContext();
   useGridWheel(activeTab); // Shift+Wheel 횡스크롤: 그리드 컨테이너에만 적용
 
   // 로그인 폼 상태
@@ -353,8 +371,11 @@ const App: React.FC = () => {
     }
   }, [currentUser]);
 
-  // 메뉴(activeTab) 전환 시 스크롤 최상단 리셋 + 해당 메뉴 관련 테이블만 Supabase pull (최신 데이터 보장)
+  // 메뉴(activeTab) 전환 시 스크롤 최상단 리셋 + 해당 메뉴 관련 테이블만 Supabase pull + 켜진 매뉴얼 자동 끄기
   useEffect(() => {
+    if (manualMode !== 'off') {
+      setManualMode('off');
+    }
     window.scrollTo({ top: 0, behavior: 'instant' });
     const mainArea = document.querySelector('.main-content-area');
     if (mainArea) {
@@ -556,11 +577,11 @@ const App: React.FC = () => {
 
   const searchResults = menuSearchResults();
 
-  // 전역 키보드 단축키: '/' 또는 Ctrl+K → 검색창 오픈
+  // 전역 키보드 단축키: Ctrl+K (메뉴 검색), Ctrl+M (매뉴얼 보기 토글)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+K 또는 Cmd+K
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      // 1. Ctrl+K 또는 Cmd+K -> 메뉴 검색
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault();
         setMenuSearchOpen(true);
         setMenuSearchQuery('');
@@ -568,16 +589,40 @@ const App: React.FC = () => {
         setTimeout(() => menuSearchInputRef.current?.focus(), 50);
         return;
       }
-      // Esc — 닫기
-      if (e.key === 'Escape' && menuSearchOpen) {
-        setMenuSearchOpen(false);
-        setMenuSearchQuery('');
+
+      // 2. Ctrl+M 또는 Cmd+M -> 매뉴얼 보기 켜기/끄기 토글
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'm' || e.key === 'M')) {
+        e.preventDefault();
+        if (manualMode === 'viewing') {
+          setManualMode('off');
+        } else {
+          setManualMode('off');
+          const allItems = menuGroups.flatMap(g => g.items);
+          const currentItem = allItems.find(i => i.id === activeTab);
+          const pageTitle = currentItem?.name || activeTab;
+          loadManualPage(activeTab, pageTitle).then(() => {
+            setManualMode('viewing');
+          });
+        }
         return;
+      }
+
+      // 3. Esc — 메뉴 검색 닫기 또는 매뉴얼 닫기
+      if (e.key === 'Escape') {
+        if (menuSearchOpen) {
+          setMenuSearchOpen(false);
+          setMenuSearchQuery('');
+          return;
+        }
+        if (manualMode === 'viewing') {
+          setManualMode('off');
+          return;
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [menuSearchOpen]);
+  }, [menuSearchOpen, manualMode, activeTab, loadManualPage, setManualMode, menuGroups]);
 
   // 검색창 외부 클릭 시 닫기
   useEffect(() => {
@@ -990,7 +1035,7 @@ const App: React.FC = () => {
         {/* ─── 헤더 중앙: 메뉴 검색 네비게이터 ─── */}
         <div
           ref={menuSearchBoxRef}
-          style={{ position: 'relative', flex: '0 1 380px', minWidth: 0 }}
+          style={{ position: 'relative', flex: '0 1 320px', minWidth: '120px' }}
         >
           {/* 검색 트리거 버튼 (닫힌 상태) */}
           {!menuSearchOpen && (
@@ -1118,7 +1163,7 @@ const App: React.FC = () => {
         </div>
 
         {/* 사용자 정보 및 화면 모드 (밝은화면모드 / 어두운화면모드 / 모바일전환) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
 
           {/* 🟢 시스템 준비상태 (Ready) 인디케이터 배지 */}
           <ErpReadinessBadge />
@@ -1126,62 +1171,14 @@ const App: React.FC = () => {
           {/* 🤖 로컬 사이드카 에이전트 상태 미니 배지 */}
           <AgentHeaderBadge currentUser={currentUser} />
 
-          {/* 📖 전사 업무매뉴얼 바로가기 버튼 */}
-          <button
-            onClick={() => setActiveTab('operations_manual')}
-            style={{
-              padding: '6px 13px',
-              borderRadius: '20px',
-              backgroundColor: activeTab === 'operations_manual' ? '#EFF6FF' : 'var(--bg-app)',
-              color: activeTab === 'operations_manual' ? '#2563EB' : 'var(--text-primary)',
-              border: activeTab === 'operations_manual' ? '1.5px solid #2563EB' : '1px solid var(--border-color)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '12.5px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease'
-            }}
-            title="기연리프트 전사 표준 업무매뉴얼 열람 및 A4 인쇄"
-          >
-            <BookOpen size={14} color="#2563EB" />
-            업무매뉴얼
-          </button>
           {/* 📖 인앱 오버레이 매뉴얼 보기/작성 버튼 */}
           <ManualHeaderButtons activeTab={activeTab} currentUser={currentUser} />
-
-
-          {/* ⚠️ 오류 신고 바로가기 버튼 (헌장 1.1) */}
-          <button
-            onClick={() => setActiveTab('error_report')}
-            style={{
-              padding: '6px 13px',
-              borderRadius: '20px',
-              backgroundColor: activeTab === 'error_report' ? '#FEF2F2' : 'var(--bg-app)',
-              color: activeTab === 'error_report' ? '#DC2626' : 'var(--text-primary)',
-              border: activeTab === 'error_report' ? '1.5px solid #DC2626' : '1px solid var(--border-color)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '12.5px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.15s ease'
-            }}
-            title="오류 신고 및 조치 현황 확인"
-          >
-            <AlertTriangle size={14} color="#DC2626" />
-            오류 신고
-          </button>
 
           {/* 🛡️ 개인정보 처리방침 법정 고지 열람 버튼 */}
           <button
             onClick={() => setShowPrivacyPolicy(true)}
             style={{
-              padding: '6px 13px',
+              padding: '6px 11px',
               borderRadius: '20px',
               backgroundColor: 'var(--bg-app)',
               color: 'var(--text-primary)',
@@ -1189,16 +1186,17 @@ const App: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              fontSize: '12.5px',
+              fontSize: '12px',
               fontWeight: '700',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
+              flexShrink: 0,
               transition: 'all 0.15s ease'
             }}
             title="개인정보 보호법 제30조 및 안전성 확보조치 기준 고지 열람"
           >
             <ShieldCheck size={14} color="#10B981" />
-            개인정보처리방침
+            <span>개인정보처리방침</span>
           </button>
 
           {/* 모바일 현장 전용 뷰 전환 버튼 */}
@@ -1208,7 +1206,7 @@ const App: React.FC = () => {
               localStorage.setItem('erp_view_mode', 'mobile');
             }}
             style={{
-              padding: '6px 14px',
+              padding: '6px 11px',
               borderRadius: '20px',
               backgroundColor: 'var(--bg-app)',
               color: 'var(--text-primary)',
@@ -1216,15 +1214,16 @@ const App: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              fontSize: '12.5px',
+              fontSize: '12px',
               fontWeight: '600',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
+              flexShrink: 0,
               transition: 'all 0.15s ease'
             }}
             title="모바일 현장 PWA 모드로 전환"
           >
-            <Smartphone size={15} color="#38BDF8" />
+            <Smartphone size={14} color="#38BDF8" />
             <span>모바일화면</span>
           </button>
 
@@ -1232,7 +1231,7 @@ const App: React.FC = () => {
           <button
             onClick={toggleTheme}
             style={{
-              padding: '6px 14px',
+              padding: '6px 11px',
               borderRadius: '20px',
               backgroundColor: 'var(--bg-app)',
               color: 'var(--text-primary)',
@@ -1240,28 +1239,29 @@ const App: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              fontSize: '12.5px',
+              fontSize: '12px',
               fontWeight: '600',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
+              flexShrink: 0,
               transition: 'all 0.15s ease'
             }}
             title={theme === 'light' ? '어두운화면모드(다크모드)로 전환' : '밝은화면모드(라이트모드)로 전환'}
           >
             {theme === 'light' ? (
               <>
-                <Sun size={15} color="#F59E0B" />
+                <Sun size={14} color="#F59E0B" />
                 <span>밝은화면모드</span>
               </>
             ) : (
               <>
-                <Moon size={15} color="#8B5CF6" />
+                <Moon size={14} color="#8B5CF6" />
                 <span>어두운화면모드</span>
               </>
             )}
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }} className="user-profile-badge">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }} className="user-profile-badge">
             {(() => {
               const originalAdminStr = sessionStorage.getItem('original_admin_user');
               const originalAdmin = originalAdminStr ? JSON.parse(originalAdminStr) : null;
@@ -1290,7 +1290,7 @@ const App: React.FC = () => {
 
                 if (allUsers.length > 0) {
                   return (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', flexShrink: 0 }}>
                       <select
                         value={currentUser.id}
                         onChange={(e) => switchUser(e.target.value)}
@@ -1302,7 +1302,10 @@ const App: React.FC = () => {
                           border: '1px solid var(--primary)',
                           backgroundColor: 'var(--bg-secondary)',
                           color: 'var(--text-main)',
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          maxWidth: '180px',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0
                         }}
                         title="[관리자 전용] 다른 사용자로 권한 테스트 전환"
                       >
@@ -1319,15 +1322,15 @@ const App: React.FC = () => {
               }
 
               return (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                  <span style={{ fontSize: '13px', fontWeight: '700' }}>{getUserDisplayName(currentUser)} {getUserRoleLabel(currentUser)}</span>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{currentUser.department} ({getUserRoleLabel(currentUser)})</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  <span style={{ fontSize: '12.5px', fontWeight: '700', whiteSpace: 'nowrap' }}>{getUserDisplayName(currentUser)} {getUserRoleLabel(currentUser)}</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{currentUser.department} ({getUserRoleLabel(currentUser)})</span>
                 </div>
               );
             })()}
             <div style={{
-              width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'var(--primary)', color: '#fff',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700'
+              width: '32px', height: '32px', minWidth: '32px', minHeight: '32px', borderRadius: '50%', backgroundColor: 'var(--primary)', color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', flexShrink: 0, fontSize: '13px'
             }}>
               {(((currentUser.loginId === 'admin' || currentUser.id === 'sys-admin') ? '개발자' : (currentUser.name || 'U'))).substring(0, 1)}
             </div>
@@ -1336,9 +1339,21 @@ const App: React.FC = () => {
           <button
             onClick={logout}
             className="btn-secondary"
-            style={{ padding: '8px 12px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{
+              padding: '6px 12px',
+              fontSize: '12.5px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+              height: '32px',
+              cursor: 'pointer'
+            }}
           >
-            <LogOut size={14} /> 로그아웃
+            <LogOut size={14} style={{ flexShrink: 0 }} />
+            <span>로그아웃</span>
           </button>
         </div>
       </header>
@@ -1367,6 +1382,7 @@ const App: React.FC = () => {
             <button
               data-menu-id="dashboard"
               onClick={() => {
+                if (manualMode !== 'off') setManualMode('off');
                 setActiveTab('dashboard');
                 setMobileMenuOpen(false);
               }}
@@ -1450,6 +1466,7 @@ const App: React.FC = () => {
                           key={item.id}
                           data-menu-id={item.id}
                           onClick={() => {
+                            if (manualMode !== 'off') setManualMode('off');
                             setActiveTab(item.id);
                             setMobileMenuOpen(false);
                           }}

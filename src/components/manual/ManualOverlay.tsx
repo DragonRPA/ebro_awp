@@ -179,22 +179,25 @@ const BottomDossierCard: React.FC<{
   hasTarget: boolean;
 }> = ({ item, totalCount, onPrev, onNext, onClose, hasTarget }) => {
   return (
-    <div style={{
-      position: 'fixed',
-      bottom: '76px',
-      left: '50%',
-      transform: 'translateX(-50%)',
-      width: '520px',
-      maxWidth: 'calc(100vw - 32px)',
-      background: 'var(--bg-card)',
-      border: `2px solid ${item.badgeColor}`,
-      borderRadius: '14px',
-      padding: '16px 20px',
-      boxShadow: '0 12px 36px rgba(0,0,0,0.3)',
-      zIndex: 10003,
-      pointerEvents: 'all',
-      animation: 'manual-card-in 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-    }}>
+    <div
+      data-manual-ui="true"
+      style={{
+        position: 'fixed',
+        bottom: '76px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '520px',
+        maxWidth: 'calc(100vw - 32px)',
+        background: 'var(--bg-card)',
+        border: `2px solid ${item.badgeColor}`,
+        borderRadius: '14px',
+        padding: '16px 20px',
+        boxShadow: '0 12px 36px rgba(0,0,0,0.3)',
+        zIndex: 10003,
+        pointerEvents: 'all',
+        animation: 'manual-card-in 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+      }}
+    >
       {/* 카드 헤더 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -325,6 +328,55 @@ export const ManualOverlay: React.FC = () => {
     };
   }, [mode, recalcTargets]);
 
+  // 사용자가 좌측 메뉴를 클릭하거나 화면 내부 탭/페이지 전환 버튼을 클릭할 때 매뉴얼 자동 끄기
+  useEffect(() => {
+    if (mode !== 'viewing') return;
+
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+
+      // 1. 매뉴얼 오버레이 자체 UI 요소는 보호 (하단 바, 카드, 오버레이 뱃지 등)
+      if (target.closest('[data-manual-ui="true"], .manual-overlay-ui')) {
+        return;
+      }
+
+      // 2. 상단 헤더의 [매뉴얼 보기 / 닫기] 버튼 자체는 해당 버튼 핸들러에 위임
+      if (target.closest('button[title*="매뉴얼"], .manual-header-buttons')) {
+        return;
+      }
+
+      // 3. 좌측 패널(사이드바)의 메뉴 버튼 클릭 시 -> 매뉴얼 즉시 끄기
+      const isSidebarMenu = target.closest('[data-menu-id], .sidebar button, aside button, nav button');
+      if (isSidebarMenu) {
+        setMode('off');
+        return;
+      }
+
+      // 4. 화면 내부 탭 버튼 또는 네비게이션 버튼 클릭 시 -> 매뉴얼 즉시 끄기
+      const clickedBtn = target.closest('button, [role="tab"], .tab, a');
+      if (clickedBtn) {
+        const parent = clickedBtn.parentElement;
+        const siblingButtons = parent ? Array.from(parent.children).filter(c => c.tagName === 'BUTTON' || c.getAttribute('role') === 'tab') : [];
+        const isTabGroup = siblingButtons.length >= 2;
+        const isTabStyle = clickedBtn.getAttribute('role') === 'tab' ||
+                           clickedBtn.className?.includes('tab') ||
+                           clickedBtn.className?.includes('btn-primary') ||
+                           clickedBtn.className?.includes('btn-secondary');
+
+        if (isTabGroup || isTabStyle) {
+          setMode('off');
+        }
+      }
+    };
+
+    // 캡처링 단계에서 클릭 감지 (이벤트 차단 없이 mode만 off 전환)
+    window.addEventListener('click', handleGlobalClick, true);
+    return () => {
+      window.removeEventListener('click', handleGlobalClick, true);
+    };
+  }, [mode, setMode]);
+
   // 번호 선택 및 스크롤 핸들러
   const handleSelectSeq = useCallback((seq: number) => {
     if (expandedSeq === seq) {
@@ -387,6 +439,7 @@ export const ManualOverlay: React.FC = () => {
 
             {/* Stamp 순번 뱃지 (실제 DOM 요소 위) */}
             <div
+              data-manual-ui="true"
               onClick={() => handleSelectSeq(item.seq)}
               style={{
                 position: 'fixed',
@@ -426,14 +479,17 @@ export const ManualOverlay: React.FC = () => {
       )}
 
       {/* ④ 하단 플로팅 네비게이션 컨트롤 바 */}
-      <div style={{
-        position: 'fixed', bottom: '16px', left: '50%', transform: 'translateX(-50%)',
-        display: 'flex', alignItems: 'center', gap: '8px',
-        background: 'var(--bg-card)', border: '1px solid var(--border-color)',
-        borderRadius: '28px', padding: '8px 18px',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
-        zIndex: 10002, pointerEvents: 'all',
-      }}>
+      <div
+        data-manual-ui="true"
+        style={{
+          position: 'fixed', bottom: '16px', left: '50%', transform: 'translateX(-50%)',
+          display: 'flex', alignItems: 'center', gap: '8px',
+          background: 'var(--bg-card)', border: '1px solid var(--border-color)',
+          borderRadius: '28px', padding: '8px 18px',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+          zIndex: 10002, pointerEvents: 'all',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '4px' }}>
           <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
             📖 {page.pageTitle}
