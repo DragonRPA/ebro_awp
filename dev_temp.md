@@ -1,5 +1,31 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## [완료] 매뉴얼 설명 맥락 및 실제 화면 UI 1:1 완벽 정합성 검수 (계약/고객/배차/자산/청구 전수)
+- **요구사항**:
+  "매뉴얼이 설명하는 내용과, 표시되는 UI 가 달라. 조건을 설정 하라고 안내하고 있으면서 매뉴얼은 엉뚱한 위치에서 파동효과를 보여주고 있어. 필터를 설명하는 매뉴얼의 단계에서는 실제 필터를 강조표시하게 해줘. 매뉴얼이 맥락과 실제가 안맞는 부분을 검수해"
+- **문제의 본질 (원인 분석)**:
+  1. **모달 내부 절차와 기본 화면 UI 불일치**: 기존 `contract` 매뉴얼 등이 기본 목록 화면 기준이 아니라 가상의 "신규 계약 작성 모달 내부 입력 폼(장비 모델 단가 설정 등)"을 7단계로 기술하고 있었음.
+  2. **3단계 헤더 오잡힘 및 엉뚱한 파동 표출**: 화면에 모달 폼 요소가 없자 `ManualOverlay.tsx`의 3단계 폴백 `div[style*="justify-content: space-between"]`이 화면 최상단 헤더 전체를 매칭하여 3단계("장비 모델 및 단가") 파동이 상단 헤더 전체에 뿜어짐.
+  3. **1단계 필터 패널 협소 타겟팅**: 필터 카드 전체가 아닌 `button:contains("조회")`나 `input[type="date"]` 1개에만 앵커가 붙어 필터 조건 설정 영역 전체를 포괄하지 못함.
+  4. **Supabase DB 과거 v4 캐싱 잔존**: `manual_annotations` 테이블에 과거 v4가 저장되어 있어 클라이언트 코드 수정 후에도 DB 레코드가 우선 로드되던 현상.
+- **수정 및 개선 내역**:
+  1. **계약 관리(`Contracts.tsx`) 화면 1~7단계 DOM 앵커 완비 & 매뉴얼 v5 정합화**:
+     - 1단계: `contract-filter-panel` (고객사/현장/기간/상태칩/조회 버튼이 포함된 필터 카드 전체)
+     - 2단계: `contract-kpi-summary` (상단 6종 계약 운용 KPI 카드 바)
+     - 3단계: `contract-search-bar` (통합 빠른 검색 및 렌탈/매각 유형 전환 탭)
+     - 4단계: `contract-table` (고밀도 계약 대장 그리드 테이블)
+     - 5단계: `contract-detail-action` (첫 번째 행 `[상세 ➔]` 버튼)
+     - 6단계: `contract-export-actions` (`[계약서패키지 PDF / 이메일]` 버튼)
+     - 7단계: `btn-new-contract` (`[+ 신규 계약 등록]` 버튼)
+  2. **`ManualOverlay.tsx` 스마트 앵커링 폴백 버그 원천 해결**:
+     - 3단계 폴백의 광범위 헤더 셀렉터 `div[style*="justify-content: space-between"]` 영구 제거.
+     - 1단계 폴백 시 개별 인풋이 아닌 `.card:has(input)`, `.filter-panel` 등 필터 패널 전체를 타겟팅하도록 강화.
+  3. **고객 관리(`Customers.tsx`), 배차/운송(`TruckDispatch.tsx`), 자산 관리(`Assets.tsx`) DOM 앵커 완비 및 v5 정합화**:
+     - 각 화면의 기본 뷰에 맞추어 1~7단계 `data-mid` 속성을 체계적으로 부여하고, `allMenuManuals.ts`의 인지 시퀀스 및 단계를 100% 일치하도록 전면 갱신.
+  4. **Supabase DB `manual_annotations` 테이블 실시간 동기화 (`scripts/sync_manuals_to_db.ts`)**:
+     - `contract`, `customer`, `billing`, `asset`, `delivery` v5 매뉴얼을 Supabase DB에 즉시 영구 반영하여 모든 접속 브라우저에서 최신 정합 매뉴얼이 즉각 로드되도록 조치 완료.
+  5. **빌드 검증**: `npm run build` 정상 통과 (0 Errors, 823ms).
+
 ## [완료] 1~7단계 전수 스마트 앵커링 알고리즘 확장 및 매뉴얼 작성 모드 UI 위치 인스펙터 구축
 - **요구사항**:
   "심도를 7단계 까지 작성은 했는데, 보여주는 UI 요소가 1~3 까지만 있어. 매뉴얼 작성할때 4~7 은 왜 제외했지? 그리고 매뉴얼 작성 기능에서 해당 단계의 UI 가 어디인지 볼수 있게 해줘. ㄹㅇ"

@@ -2900,7 +2900,7 @@ export const TruckDispatch: React.FC = () => {
               <FileSpreadsheet size={15} color="var(--primary)" />
               <span>배차 엑셀 일괄 등록</span>
             </button>
-            <button className="btn-primary" onClick={() => setShowManualModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', fontWeight: 700, fontSize: '13px' }}>
+            <button className="btn-primary" data-mid="btn-new-dispatch" onClick={() => setShowManualModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', fontWeight: 700, fontSize: '13px' }}>
               <Plus size={15} /> [+ 수동 배차 생성]
             </button>
           </div>
@@ -2908,7 +2908,7 @@ export const TruckDispatch: React.FC = () => {
       </div>
 
       {/* 메인 탭 (헌장 3.1 무수식어 건조 표준: 배차 관리 / 운송료 대사 - 운송사 배차 협의는 임시 숨김) */}
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', marginBottom: '20px' }}>
+      <div data-mid="dispatch-mode-tabs" style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', marginBottom: '20px' }}>
         <button
           onClick={() => setActiveTab('DISPATCH')}
           style={{
@@ -2960,7 +2960,7 @@ export const TruckDispatch: React.FC = () => {
           })()}
 
           {/* 4단계 배차 진행 상태 카운트 탭 */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          <div data-mid="dispatch-status-tabs" style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
             {[
               { key: 'ALL', label: '전체 보기', count: deliveries.length },
               { key: 'PENDING', label: '🟡 배차 전 (대기)', count: deliveries.filter(d => getNormalizedDeliveryStatus(d) === 'PENDING').length },
@@ -3003,6 +3003,7 @@ export const TruckDispatch: React.FC = () => {
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
               <button
                 onClick={handleExportDispatchExcel}
+                data-mid="btn-dispatch-export"
                 style={{
                   padding: '8px 14px',
                   borderRadius: '8px',
@@ -3030,10 +3031,10 @@ export const TruckDispatch: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 420px) 1fr', gap: '20px' }}>
             
             {/* [좌측] 배차 목록 카드 + 📅 요청/운송일 기간 선택 폼 */}
-            <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 230px)', minHeight: '600px' }}>
+            <div data-mid="dispatch-dossier-card" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 230px)', minHeight: '600px' }}>
               
               {/* 📅 배차 요청/운송일 기간 선택 폼 */}
-              <div style={{ marginBottom: '12px', padding: '10px 12px', backgroundColor: 'var(--bg-body)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+              <div data-mid="dispatch-date-filter" style={{ marginBottom: '12px', padding: '10px 12px', backgroundColor: 'var(--bg-body)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <Calendar size={13} /> 배차 운송일/신청일 기간 조회
@@ -3277,7 +3278,7 @@ export const TruckDispatch: React.FC = () => {
             </div>
 
             {/* [우측] 배차 기사 배정 및 상세 폼 */}
-            <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px', height: 'calc(100vh - 230px)', minHeight: '600px', overflowY: 'auto' }}>
+            <div data-mid="dispatch-assign-studio" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px', height: 'calc(100vh - 230px)', minHeight: '600px', overflowY: 'auto' }}>
               {!selectedDelivery ? (
                 <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
                   <Truck size={48} style={{ opacity: 0.3, marginBottom: '12px' }} />
@@ -3302,6 +3303,7 @@ export const TruckDispatch: React.FC = () => {
                       {/* 🖨️ 현장 무인 인쇄 버튼 (출고: 프린터1, 입고: 프린터2 자동 라우팅) */}
                       <button
                         type="button"
+                        data-mid="btn-dispatch-print"
                         onClick={() => handleRemoteQueuePrintDispatchRequest(selectedDelivery, (selectedDelivery.type === 'INBOUND' || selectedDelivery.dispatchCategory === '입고' || selectedDelivery.dispatchCategory === '반납') ? 'INBOUND' : 'OUTBOUND')}
                         style={{
                           padding: '6px 12px',

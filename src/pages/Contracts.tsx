@@ -1293,6 +1293,7 @@ export const Contracts: React.FC = () => {
             <button
               type="button"
               className="btn-secondary"
+              data-mid="contract-export-actions"
               onClick={() => {
                 setBundleTargetContractId(undefined);
                 setShowBundleModal(true);
@@ -1304,6 +1305,7 @@ export const Contracts: React.FC = () => {
             {canSave && (
               <button
                 className={activeTab === 'CREATE' ? 'btn-success' : 'btn-secondary'}
+                data-mid="btn-new-contract"
                 onClick={() => setActiveTab('CREATE')}
                 style={{ padding: '7px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
               >
@@ -1319,7 +1321,7 @@ export const Contracts: React.FC = () => {
       {/* ────────────────────────────────────────────────────────────────────────── */}
             {/* 계약 운용 KPI 바 (Scope) */}
       {viewMode === 'LIST' && activeTab === 'ALL_LIST' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '6px', flexShrink: 0 }}>
+        <div data-mid="contract-kpi-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '6px', flexShrink: 0 }}>
           <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>총 계약건수</span>
             <strong style={{ fontSize: '14px', color: 'var(--primary)', whiteSpace: 'nowrap' }}>{contractKpiStats.totalCount}건</strong>
@@ -1351,7 +1353,7 @@ export const Contracts: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           
           {/* 필터 패널 */}
-          <div className="card" style={{ padding: '14px', margin: 0, border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div className="card" data-mid="contract-filter-panel" style={{ padding: '14px', margin: 0, border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             
             {/* 0행: 계약 유형 분계선 탭 (렌탈 계약 vs 매각 계약) */}
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1415,7 +1417,7 @@ export const Contracts: React.FC = () => {
             </div>
 
             {/* 1행: 검색어 & 엑셀 다운로드 */}
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div data-mid="contract-search-bar" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--bg-app)', padding: '8px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                 <Search size={16} color="var(--text-muted)" />
                 <input
@@ -1437,7 +1439,7 @@ export const Contracts: React.FC = () => {
             </div>
 
             {/* 2행: 고객사, 현장, 시작일, 종료일 세부 상세 필터 (레이블 상단 헤더 세로 스택 구조) */}
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap', backgroundColor: 'var(--bg-app)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <div data-mid="contract-detailed-filters" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap', backgroundColor: 'var(--bg-app)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               {/* 고객사 콤보박스 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0, position: 'relative' }}>
                 <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>고객사 선택</label>
@@ -1660,7 +1662,7 @@ export const Contracts: React.FC = () => {
           </div>
 
           {/* 계약 목록 데이터 테이블 (횡 스크롤 지원 & 셀 줄바꿈 방지) */}
-          <div className="card" style={{ padding: 0, margin: 0, overflow: 'hidden' }}>
+          <div className="card" data-mid="contract-table" style={{ padding: 0, margin: 0, overflow: 'hidden' }}>
             <div className="table-container" style={{ maxHeight: 'calc(100vh - 465px)', minHeight: '300px', overflowY: 'auto', overflowX: 'auto', position: 'relative' }}>
               <table style={{ width: '100%', minWidth: '1200px', borderCollapse: 'collapse', whiteSpace: 'nowrap' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'var(--bg-app)' }}>
@@ -1689,7 +1691,7 @@ export const Contracts: React.FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    sortedContracts.map(c => {
+                    sortedContracts.map((c, idx) => {
                       const cas = contractAssets.filter(ca => ca.contractId === c.id);
                       const totalFee = cas.reduce((sum, ca) => sum + (ca.monthlyRentalFee || 0), 0);
                       const dday = getDDayText(c.endDate);
@@ -1728,6 +1730,7 @@ export const Contracts: React.FC = () => {
                           <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                             <button
                               className="btn-primary"
+                              data-mid={idx === 0 ? "contract-detail-action" : undefined}
                               style={{ padding: '3px 10px', fontSize: '11px' }}
                               onClick={() => handleSelectContract(c.id)}
                             >

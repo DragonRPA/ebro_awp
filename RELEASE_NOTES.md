@@ -1,3 +1,30 @@
+## 2026-09-30 20:05 (v1.8.5.Build.4)
+
+### [매뉴얼 설명 맥락 및 실제 화면 UI 1:1 완벽 정합화] 필터 패널 전체 강조 타겟팅 & 3단계 헤더 오잡힘 파동 결함 원천 해결 & 계약/고객/배차/자산/청구 전수 DOM 앵커 완비
+
+- **계약 관리(`Contracts.tsx`) 화면 1~7단계 DOM 앵커 완비 및 매뉴얼 1:1 정합화 (`src/pages/Contracts.tsx`, `src/data/allMenuManuals.ts`)**:
+  - 기존 계약 매뉴얼이 기본 목록 화면이 아닌 가상의 신규 계약 모달 입력 절차로 작성되어 1단계는 [조회] 버튼 하나만 잡히고, 3단계("장비 모델 및 단가")는 해당 요소가 없어 상단 헤더 컨테이너 전체에 엉뚱한 보라색 파동이 돌던 결함 완벽 해결.
+  - 기본 목록 뷰의 실제 UI 조작 순서와 100% 일치하도록 1~7단계 `data-mid` 속성 명시 부여 및 v5 정합화:
+    - 1단계: `contract-filter-panel` (고객사/현장/기간/상태칩/조회 버튼이 포함된 필터 카드 전체)
+    - 2단계: `contract-kpi-summary` (상단 6종 계약 운용 KPI 카드 바)
+    - 3단계: `contract-search-bar` (통합 빠른 검색창 및 렌탈/매각 탭)
+    - 4단계: `contract-table` (고밀도 계약 대장 그리드 테이블)
+    - 5단계: `contract-detail-action` (첫 번째 행 `[상세 ➔]` 버튼)
+    - 6단계: `contract-export-actions` (`[계약서패키지 PDF / 이메일]` 버튼)
+    - 7단계: `btn-new-contract` (`[+ 신규 계약 등록]` 버튼)
+- **`ManualOverlay.tsx` 스마트 앵커링 폴백 버그 원천 해결 (`src/components/manual/ManualOverlay.tsx`)**:
+  - 3단계 폴백의 광범위 셀렉터 `div[style*="justify-content: space-between"]`가 상단 메뉴 헤더 전체를 매칭하던 버그를 영구 삭제.
+  - 1단계 폴백 시 개별 날짜 input 하나만 잡지 않고 `.card:has(input)`, `.filter-panel` 등 필터 패널 전체를 타겟팅하도록 강화.
+- **고객 관리(`Customers.tsx`), 배차/운송(`TruckDispatch.tsx`), 자산 관리(`Assets.tsx`) DOM 앵커 완비 및 v5 정합화**:
+  - `Customers.tsx`: `customer-search-filter`, `customer-kpi-summary`, `customer-list-panel`, `customer-detail-dossier`, `btn-ocr-biz-license`, `btn-nts-audit`, `btn-new-customer` 1:1 부여 (v5).
+  - `TruckDispatch.tsx`: `dispatch-date-filter`, `dispatch-status-tabs`, `dispatch-dossier-card`, `dispatch-assign-studio`, `btn-dispatch-print`, `btn-dispatch-export`, `btn-new-dispatch` 1:1 부여 (v5).
+  - `Assets.tsx`: `asset-filter-bar`, `asset-kpi-summary`, `asset-table-container`, `asset-detail-action`, `asset-balance-bar`, `btn-asset-export`, `btn-new-asset` 1:1 부여 (v5).
+- **Supabase DB `manual_annotations` 테이블 실시간 동기화 (`scripts/sync_manuals_to_db.ts`)**:
+  - DB에 저장되어 있던 과거 v4 레코드들을 `contract`, `customer`, `billing`, `asset`, `delivery` v5 최신 정의로 Supabase 원격 DB에 영구 일괄 갱신 완료.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 Errors, 823ms).
+
+---
+
 ## 2026-09-30 19:35 (v1.8.5.Build.3)
 
 ### [인앱 매뉴얼 전수 가이드 완결 및 작성 모드 UI 위치 인스펙터 구축] 1~7단계 전수 스마트 앵커링 알고리즘 확장 & 매뉴얼 작성 모드 대상 UI 위치 실시간 인스펙터 신설

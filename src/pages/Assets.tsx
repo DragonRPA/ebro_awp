@@ -425,9 +425,10 @@ export const Assets: React.FC = () => {
         </div>
 
         {/* 우상단 파이프라인 버튼군 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div data-mid="asset-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <button
             className="btn-secondary"
+            data-mid="btn-asset-export"
             onClick={handleExport}
             style={{ padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
           >
@@ -435,6 +436,7 @@ export const Assets: React.FC = () => {
           </button>
           <button
             className="btn-secondary"
+            data-mid="btn-new-asset"
             onClick={() => setGlobalActiveTab('acquisition_disposal')}
             style={{ padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
           >
@@ -451,7 +453,7 @@ export const Assets: React.FC = () => {
       </div>
 
       {/* ② 자산 운용 KPI 요약 바 (Scope) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '6px', flexShrink: 0 }}>
+      <div data-mid="asset-kpi-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '6px', flexShrink: 0 }}>
         <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>임대 가능 (주기장)</span>
           <strong style={{ fontSize: '14px', color: 'var(--success)', whiteSpace: 'nowrap' }}>{kpiStats.availableCount}대</strong>
@@ -479,7 +481,7 @@ export const Assets: React.FC = () => {
       </div>
 
       {/* ③ 필터 컨트롤 바 (Vertical Header-Label Layout: 헌장 3.4) */}
-      <div style={{
+      <div data-mid="asset-filter-bar" style={{
         display: 'flex',
         alignItems: 'center',
         gap: '8px',
@@ -591,7 +593,7 @@ export const Assets: React.FC = () => {
       </div>
 
       {/* ④ 고밀도 전사 자산 대장 그리드 (Body / Inspection: 헌장 3.6 유형 B) */}
-      <div style={{
+      <div data-mid="asset-table-container" style={{
         flex: 1,
         backgroundColor: 'var(--bg-card)',
         borderRadius: '6px',
@@ -692,7 +694,7 @@ export const Assets: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                visibleAssets.map(a => {
+                visibleAssets.map((a, idx) => {
                   const ci = getAssetContractInfo(a.id);
                   const isReturned = Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED';
                   const renterName = getAssetRenterName(a);
@@ -718,6 +720,7 @@ export const Assets: React.FC = () => {
                       {/* 1. 상세 버튼 (고정) */}
                       <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap', position: 'sticky', left: 0, zIndex: 2, backgroundColor: 'var(--bg-card)' }}>
                         <button
+                          data-mid={idx === 0 ? "asset-detail-action" : undefined}
                           onClick={(e) => { e.stopPropagation(); handleSelectAsset(a); }}
                           style={{
                             padding: '2px 6px',
@@ -929,7 +932,7 @@ export const Assets: React.FC = () => {
         </div>
 
         {/* ⑤ 우하단 Terminal Action: 전사 자산 회계 대차대조식 검증 바 (헌장 3.5) */}
-        <div style={{
+        <div data-mid="asset-balance-bar" style={{
           padding: '8px 14px',
           backgroundColor: 'var(--bg-app)',
           borderTop: '1px solid var(--border-color)',

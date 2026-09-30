@@ -1007,6 +1007,7 @@ export const Customers: React.FC = () => {
                 cursor: 'pointer',
                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.15)'
               }}
+              data-mid="btn-ocr-biz-license"
               title="사업자등록증 이미지/PDF 업로드 기반 AI 신규 등록 및 정보 보완"
             >
               <FileText size={13} color="#ffffff" /> 사업자등록증 AI 등록/보완
@@ -1038,6 +1039,7 @@ export const Customers: React.FC = () => {
           {canSave && (
             <button
               onClick={() => setShowNtsAuditModal(true)}
+              data-mid="btn-nts-audit"
               style={{
                 padding: '5px 12px',
                 fontSize: '12px',
@@ -1070,6 +1072,7 @@ export const Customers: React.FC = () => {
           {canSave && (
             <button
               className="btn-primary"
+              data-mid="btn-new-customer"
               onClick={handleOpenAddCust}
               style={{ padding: '5px 12px', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
             >
@@ -1080,7 +1083,7 @@ export const Customers: React.FC = () => {
       </div>
 
       {/* ② 고객 및 현장/담당자 KPI 바 (Scope) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '6px', flexShrink: 0 }}>
+      <div data-mid="customer-kpi-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '6px', flexShrink: 0 }}>
         <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>총 고객사</span>
           <strong style={{ fontSize: '14px', color: 'var(--primary)', whiteSpace: 'nowrap' }}>{kpiStats.totalCust}개사</strong>
@@ -1106,7 +1109,7 @@ export const Customers: React.FC = () => {
       </div>
 
       {/* ③ 필터 컨트롤 바 (Vertical Header-Label Layout: 헌장 3.4) */}
-      <div style={{
+      <div data-mid="customer-search-filter" style={{
         display: 'flex',
         alignItems: 'center',
         gap: '8px',
@@ -1233,7 +1236,7 @@ export const Customers: React.FC = () => {
       }}>
 
         {/* 좌측: 고객사 고밀도 목록 패널 (360px) */}
-        <div style={{
+        <div data-mid="customer-list-panel" style={{
           backgroundColor: 'var(--bg-card)',
           borderRadius: '6px',
           border: '1px solid var(--border-color)',
@@ -1377,7 +1380,7 @@ export const Customers: React.FC = () => {
         </div>
 
         {/* 우측: 선택 고객사 360도 마스터-디테일 스튜디오 (flex 1) */}
-        <div style={{
+        <div data-mid="customer-detail-dossier" style={{
           backgroundColor: 'var(--bg-card)',
           borderRadius: '6px',
           border: '1px solid var(--border-color)',

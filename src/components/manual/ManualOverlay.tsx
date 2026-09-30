@@ -117,51 +117,57 @@ export function resolveTargetElement(
   // 4. 일반 화면 7단계 Gutenberg Z-패턴 스마트 앵커링 폴백 (1~7단계 전수 지원)
   const main = document.querySelector('.main-content-area') || document.querySelector('main') || document.body;
 
-  // 1단계: 좌상단 스코프 영역 (탭 컨테이너, 기간/날짜 선택기, 최상단 필터 바, 첫 번째 카드)
+  // 1단계: 좌상단 스코프 및 조건 설정 영역 (필터 패널 카드 전체, 탭 컨테이너, 기간/상태 필터 바)
   if (item.seq === 1) {
-    const el = main.querySelector('[data-mid*="scope"], .nav-tabs, div[style*="border-bottom"], input[type="date"], input[type="month"], select, .card:first-of-type');
+    const el = main.querySelector('[data-mid*="filter-panel"], [data-mid*="filter"], [data-mid*="scope"], .filter-panel, .filter-box, .nav-tabs, .card:has(input)');
     if (el && (el as HTMLElement).offsetParent !== null) return el as HTMLElement;
+    const dateInput = main.querySelector('input[type="date"], input[type="month"]');
+    if (dateInput && dateInput.parentElement && (dateInput.parentElement as HTMLElement).offsetParent !== null) {
+      return (dateInput.closest('.card') || dateInput.parentElement) as HTMLElement;
+    }
   }
-  // 2단계: 검색창 / 조회 버튼 / 상태 필터 그룹
+  // 2단계: KPI 현황 요약 바 / 통계 메트릭 / 상태 분계 탭
   else if (item.seq === 2) {
-    const el = main.querySelector('[data-mid*="filter"], input[placeholder*="검색"], input[type="text"], button:contains("조회"), .filter-bar, select:nth-of-type(2)');
+    const el = main.querySelector('[data-mid*="kpi"], [data-mid*="summary"], .summary-bar, .metric-cards, [data-mid*="metric"], div[style*="grid-template-columns"]');
     if (el && (el as HTMLElement).offsetParent !== null) return el as HTMLElement;
   }
-  // 3단계: 일할 집계표 / 메인 테이블 헤더 / 상단 요약 바 / 카드 타이틀
+  // 3단계: 통합 빠른 검색창 / 유형 전환 탭 / 필터 칩 바
   else if (item.seq === 3) {
-    const el = main.querySelector('[data-mid*="grid"], [data-mid*="summary"], table thead, .table-container, div[style*="justify-content: space-between"], .card-title');
-    if (el && (el as HTMLElement).offsetParent !== null) return el as HTMLElement;
+    const el = main.querySelector('[data-mid*="search"], .search-bar, input[placeholder*="검색"], [data-mid*="grid-header"], table thead');
+    if (el && (el as HTMLElement).offsetParent !== null) {
+      return (el.closest('div[style*="display: flex"]') || el) as HTMLElement;
+    }
   }
-  // 4단계: 테이블 본문 첫 번째 데이터 행 / 상세 열 / 핵심 바디
+  // 4단계: 핵심 데이터 테이블 그리드 / 본문 컨테이너
   else if (item.seq === 4) {
-    const el = main.querySelector('[data-mid*="exchange"], [data-mid*="audit"], table tbody tr:first-child, table tbody, .card:nth-of-type(2)');
+    const el = main.querySelector('[data-mid*="table"], .table-container, table, [data-mid*="grid"]');
     if (el && (el as HTMLElement).offsetParent !== null) return el as HTMLElement;
   }
-  // 5단계: 금액/부가세/미수금 요약 바 또는 테이블 특정 금액 컬럼
+  // 5단계: 개별 행 상세 보기 [상세 ➔] 액션 / 금액 및 부가세 대사 바
   else if (item.seq === 5) {
-    const el = main.querySelector('[data-mid*="vat"], [data-mid*="reconcile"], table tbody tr:first-child td:nth-child(4), div[style*="background-color: var(--bg-app)"]');
-    if (el && (el as HTMLElement).offsetParent !== null) return el as HTMLElement;
+    const detailBtn = main.querySelector('[data-mid*="detail"], button:contains("상세"), table tbody tr:first-child button');
+    if (detailBtn && (detailBtn as HTMLElement).offsetParent !== null) return detailBtn as HTMLElement;
+    const vatBar = main.querySelector('[data-mid*="vat"], [data-mid*="reconcile"], table tbody tr:first-child');
+    if (vatBar && (vatBar as HTMLElement).offsetParent !== null) return vatBar as HTMLElement;
   }
-  // 6단계: 인쇄 / 엑셀 다운로드 / 전송 / 발송 / 서식 버튼군
+  // 6단계: 인쇄 / 엑셀 다운로드 / 전송 / 서식 / 패키지 버튼군
   else if (item.seq === 6) {
     const buttons = Array.from(main.querySelectorAll('button'));
     const exportBtn = buttons.find(b => {
       const txt = b.innerText || '';
-      return txt.includes('엑셀') || txt.includes('다운로드') || txt.includes('출력') || txt.includes('인쇄') || txt.includes('발송') || txt.includes('발행');
+      return txt.includes('엑셀') || txt.includes('다운로드') || txt.includes('출력') || txt.includes('인쇄') || txt.includes('패키지') || txt.includes('발송');
     });
     if (exportBtn && (exportBtn as HTMLElement).offsetParent !== null) return exportBtn as HTMLElement;
-    const secondCard = main.querySelector('.card:last-child, button.btn-secondary');
-    if (secondCard && (secondCard as HTMLElement).offsetParent !== null) return secondCard as HTMLElement;
   }
-  // 7단계: 종단 마감 확정 / 최종 저장 / 결재 상신 / 하단 대차대조 바
+  // 7단계: 신규 등록 / 최종 마감 확정 / 결재 상신 / 종단 액션
   else if (item.seq === 7) {
     const buttons = Array.from(main.querySelectorAll('button'));
     const finalBtn = buttons.find(b => {
       const txt = b.innerText || '';
-      return txt.includes('확정') || txt.includes('저장') || txt.includes('완료') || txt.includes('마감') || txt.includes('승인') || txt.includes('상신');
+      return txt.includes('신규') || txt.includes('등록') || txt.includes('확정') || txt.includes('저장') || txt.includes('완료') || txt.includes('마감') || txt.includes('승인');
     });
     if (finalBtn && (finalBtn as HTMLElement).offsetParent !== null) return finalBtn as HTMLElement;
-    const bottomBar = main.querySelector('[data-mid*="reconcile"], div[style*="border-top"], .card-footer, button.btn-primary:last-of-type, main > div:last-child');
+    const bottomBar = main.querySelector('[data-mid*="reconcile"], div[style*="border-top"], .card-footer, button.btn-primary:last-of-type');
     if (bottomBar && (bottomBar as HTMLElement).offsetParent !== null) return bottomBar as HTMLElement;
   }
 
