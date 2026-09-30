@@ -313,7 +313,7 @@ export const TransportMaster: React.FC = () => {
             </div>
           </div>
           
-          <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
             <div 
               onClick={() => setSelectedCompanyId(null)}
               style={{
@@ -401,9 +401,9 @@ export const TransportMaster: React.FC = () => {
             </div>
           </div>
 
-          <div className="table-container" style={{ marginTop: '16px' }}>
+          <div className="table-container" style={{ marginTop: '16px', maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
             <table>
-              <thead>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                 <tr style={{ whiteSpace: 'nowrap' }}>
                   <th style={{ whiteSpace: 'nowrap' }}>기사명</th>
                   <th style={{ whiteSpace: 'nowrap' }}>소속 운송사</th>
