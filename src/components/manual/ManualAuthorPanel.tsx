@@ -74,7 +74,7 @@ const emptyForm = (): Omit<ManualAnnotationItem, 'seq'> => ({
   badgeColor: DEFAULT_BADGE_COLORS[0],
   positionHint: 'bottom',
   spotlight: false,
-  arrow: null,
+  arrow: undefined,
   imageUrl: null,
   autoExtracted: '',
 });
@@ -524,7 +524,7 @@ export const ManualAuthorPanel: React.FC = () => {
                     💡 Spotlight {form.spotlight ? 'ON' : 'OFF'}
                   </button>
                   <button
-                    onClick={() => setForm(p => ({ ...p, arrow: p.arrow ? null : { style: 'elbow', route: 'HV' } }))}
+                    onClick={() => setForm(p => ({ ...p, arrow: p.arrow ? undefined : { style: 'elbow' as const, route: 'HV' as const } }))}
                     style={{
                       ...btnBase, flex: 1, padding: '6px 8px', fontSize: '12px',
                       background: form.arrow ? '#4f46e5' : 'var(--bg-secondary)',
