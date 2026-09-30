@@ -20,7 +20,6 @@ import { AgenticDispatchStudioPage } from './pages/AgenticDispatchStudioPage';
 import { AgenticSettlementAutopilotPage } from './pages/AgenticSettlementAutopilotPage';
 import { AgenticAssetLifecyclePage } from './pages/AgenticAssetLifecyclePage';
 import { markErpReady, markErpStatus } from './services/appReadySignal';
-import { ErpReadinessBadge } from './components/ErpReadinessBadge';
 import { DemoModeBanner } from './components/DemoModeBanner';
 import { isDemoMode, enterDemoMode } from './services/demoMode';
 
@@ -116,7 +115,7 @@ import { useGridWheel } from './hooks/useGridWheel';
 
 /* ── 인앱 오버레이 매뉴얼 버튼 (헤더 우측 배치) ─────────────── */
 const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activeTabName?: string }> = ({ activeTab, currentUser, activeTabName }) => {
-  const { mode, setMode, loadPage, page, openDocModal } = useManualContext();
+  const { mode, setMode, loadPage, page } = useManualContext();
   
   // 개발자 계정(admin, sys-admin)일 때만 매뉴얼 작성 기능 노출
   const isTrueDev = (u?: any) => u && (u.loginId === 'admin' || u.id === 'sys-admin');
@@ -150,22 +149,6 @@ const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activ
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-      {/* 📄 기능 정의서 (.md) 열람/편집 버튼 */}
-      <button
-        onClick={() => openDocModal(activeTab, pageTitle)}
-        style={{
-          padding: '6px 11px', borderRadius: '20px', fontSize: '12px', fontWeight: 700,
-          background: 'var(--bg-app)',
-          color: 'var(--text-primary)',
-          border: '1px solid var(--border-color)',
-          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap',
-          flexShrink: 0,
-        }}
-        title="현재 메뉴의 마크다운 기능 정의서 열람/편집 및 MCP 연동 규격 확인"
-      >
-        📄 기능 정의서 (.md)
-      </button>
-
       <button
         onClick={handleView}
         style={{
@@ -1198,9 +1181,6 @@ const App: React.FC = () => {
 
         {/* 사용자 정보 및 화면 모드 (밝은화면모드 / 어두운화면모드 / 모바일전환) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-
-          {/* 🟢 시스템 준비상태 (Ready) 인디케이터 배지 */}
-          <ErpReadinessBadge />
 
           {/* 🤖 로컬 사이드카 에이전트 상태 미니 배지 */}
           <AgentHeaderBadge currentUser={currentUser} />
