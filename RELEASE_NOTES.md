@@ -1,3 +1,30 @@
+## 2026-09-30 20:45 (v1.8.5.Build.6)
+
+### [매출 청구 관리 — 청구 대장 탭 매뉴얼 UI 1:1 완벽 정합화] 7단계 전수 DOM 앵커 분산 바인딩 & 무수식어 건조 UI 표준 적용 & 읽기 전용 대차 검증 바 허위 클릭 리플 완전 해소
+
+- **`Billings.tsx` (청구 대장 탭) 7대 핵심 인터페이스 1:1 고유 DOM 앵커 재정비 (`src/pages/Billings.tsx`)**:
+  - 1단계: `billing-period-scope` (`청구 귀속월` 시작월~종료월 입력창 및 `<, 당월, >` 퀵버튼을 1개 스코핑 블록으로 통합 바인딩하여 뱃지가 정확히 날짜 필터를 왕관처럼 조망)
+  - 2단계: `billing-customer-filter` (전체 필터 패널 바깥에 걸려 1단계와 겹치던 결함을 해소하고, `고객사 검색` 및 계약번호 입력 영역에 분리 바인딩)
+  - 3단계: `billing-kpi-summary` (기존 오명칭 `billing-grid-pro-rata`를 제거하고, 조회건수·공급가액·총청구합계·기수납액·미수채권·통장잔액 1줄 종합 집계 스트립에 명확히 지정)
+  - 4단계: `billing-export-btn` (기존에 엉뚱하게 `btn-print-invoice`로 오기재되어 매뉴얼 6단계와 충돌하던 청구 목록 좌상단 `[엑셀 다운로드]` 버튼의 앵커를 정규화)
+  - 5단계: `billing-list-table` (기존에 `exchange-audit-cell`로 잘못 명명되어 있던 월별 청구 대장 테이블 그리드에 1:1 정규 바인딩)
+  - 6단계: `billing-detail-studio` & `billing-row-actions` (테이블 행별 `[수납] [발송] [취소/재정산]` 액션 버튼군과 우측 청구 명세서·정품 PDF/엑셀 출력 스튜디오를 동시 지원)
+  - 7단계: `billing-bottom-audit-bar` (버튼이 아님에도 `btn-finalize-billing`으로 명명되어 파동 리플이 돌던 하단 회계 대차대조식 검증 바의 앵커를 검증 전용으로 정규화)
+- **`allMenuManuals.ts` 내 `billing` (청구 대장) v5 매뉴얼 완벽 갱신 (`src/data/allMenuManuals.ts`)**:
+  - 헌장 3.1(무수식어 건조 명사·동사 UI 단일 표준) 및 헌장 3.5(Gutenberg Z-패턴 4단계)에 부합하도록 단계 레이블, 설명, 목표, 감사 결과를 전면 개편:
+    - 1단계: `청구 귀속월 스코프` (stamp, #1D4ED8)
+    - 2단계: `고객사 및 계약 검색` (stamp, #059669)
+    - 3단계: `청구·수납 종합 집계` (stamp, #7C3AED)
+    - 4단계: `청구 대장 엑셀 다운로드` (click_ripple, #D97706)
+    - 5단계: `월별 청구 대장 그리드` (highlight, #2563EB)
+    - 6단계: `청구 명세서 및 수납 관리` (stamp, #4F46E5)
+    - 7단계: `회계 대차대조 검증 바` (callout, #10B981) - 클릭 리플 제거 및 대차 검증 전용 안내로 전환
+- **Supabase DB 원격 동기화 (`scripts/sync_manuals_to_db.ts`)**:
+  - `billing` v5 최신 레코드를 원격 Supabase DB `manual_annotations` 테이블에 영구 동기화(upsert) 완료.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 Errors, 797ms).
+
+---
+
 ## 2026-09-30 20:35 (v1.8.5.Build.5)
 
 ### [서브뷰/탭별 인앱 매뉴얼 동적 감지 엔진 구축 및 신규 계약 등록·미청구 정산 1:1 완벽 정합화] 탭 전환 시 매뉴얼 실시간 스위칭 & 뱃지 뭉침·파동 오배치 전면 해소

@@ -2071,7 +2071,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               <button 
                 type="button" 
                 className="btn-secondary" 
-                data-mid="btn-print-invoice"
+                data-mid="billing-export-btn"
                 onClick={handleExportExcel}
                 style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', padding: '5px 10px' }}
               >
@@ -2080,8 +2080,8 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
             </div>
 
             {/* 필터 바 (1줄 고밀도 컴팩트 수평 정렬) */}
-            <div data-mid="billing-customer-filter" style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', flexWrap: 'wrap', backgroundColor: 'var(--bg-app)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1, minWidth: '120px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', flexWrap: 'wrap', backgroundColor: 'var(--bg-app)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+              <div data-mid="billing-customer-filter" style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1, minWidth: '120px' }}>
                 <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>고객사 검색</label>
                 <input 
                   type="text" 
@@ -2105,55 +2105,57 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 />
               </div>
 
-              {/* 📅 청구 귀속월 */}
-              <div data-mid="billing-period-scope" style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0 }}>
-                <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>청구 귀속월</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                  <input 
-                    type="month"
-                    value={tempStartBillingYmFilter} 
-                    onChange={e => setTempStartBillingYmFilter(e.target.value)} 
-                    style={{ width: '110px', padding: '5px 6px', fontSize: '12px', borderRadius: '5px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}
-                  />
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>~</span>
-                  <input 
-                    type="month"
-                    value={tempEndBillingYmFilter} 
-                    onChange={e => setTempEndBillingYmFilter(e.target.value)} 
-                    style={{ width: '110px', padding: '5px 6px', fontSize: '12px', borderRadius: '5px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}
-                  />
+              {/* 📅 청구 귀속월 및 당월 퀵버튼 */}
+              <div data-mid="billing-period-scope" style={{ display: 'flex', gap: '4px', alignItems: 'flex-end', flexShrink: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>청구 귀속월</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <input 
+                      type="month"
+                      value={tempStartBillingYmFilter} 
+                      onChange={e => setTempStartBillingYmFilter(e.target.value)} 
+                      style={{ width: '110px', padding: '5px 6px', fontSize: '12px', borderRadius: '5px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}
+                    />
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>~</span>
+                    <input 
+                      type="month"
+                      value={tempEndBillingYmFilter} 
+                      onChange={e => setTempEndBillingYmFilter(e.target.value)} 
+                      style={{ width: '110px', padding: '5px 6px', fontSize: '12px', borderRadius: '5px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {/* ◀ 당월 ▶ 이동 */}
-              <div style={{ display: 'flex', gap: '2px', alignItems: 'center', flexShrink: 0, paddingBottom: '1px' }}>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={handlePrevMonth}
-                  style={{ padding: '4px 7px', height: '28px', fontSize: '11px', fontWeight: 'bold' }}
-                  title="전월"
-                >
-                  &lt;
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={handleCurrentMonth}
-                  style={{ padding: '4px 8px', height: '28px', fontSize: '11px', fontWeight: 'bold', whiteSpace: 'nowrap' }}
-                  title="당월"
-                >
-                  당월
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={handleNextMonth}
-                  style={{ padding: '4px 7px', height: '28px', fontSize: '11px', fontWeight: 'bold' }}
-                  title="익월"
-                >
-                  &gt;
-                </button>
+                {/* ◀ 당월 ▶ 이동 */}
+                <div style={{ display: 'flex', gap: '2px', alignItems: 'center', paddingBottom: '1px' }}>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={handlePrevMonth}
+                    style={{ padding: '4px 7px', height: '28px', fontSize: '11px', fontWeight: 'bold' }}
+                    title="전월"
+                  >
+                    &lt;
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={handleCurrentMonth}
+                    style={{ padding: '4px 8px', height: '28px', fontSize: '11px', fontWeight: 'bold', whiteSpace: 'nowrap' }}
+                    title="당월"
+                  >
+                    당월
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={handleNextMonth}
+                    style={{ padding: '4px 7px', height: '28px', fontSize: '11px', fontWeight: 'bold' }}
+                    title="익월"
+                  >
+                    &gt;
+                  </button>
+                </div>
               </div>
 
               {/* 💰 수납 상태 */}
@@ -2241,7 +2243,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               const totalUnappliedDeposit = relevantDeposits.reduce((sum, t) => sum + getDepositBalance(t.id), 0);
 
               return (
-                <div data-mid="billing-grid-pro-rata" style={{
+                <div data-mid="billing-kpi-summary" style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -2262,7 +2264,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                     <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>공급가액:</span>
                     <strong>₩{totalSupply.toLocaleString()}</strong>
                   </div>
-                  <div data-mid="billing-vat-summary" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <div  style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>총 청구(VAT포함):</span>
                     <strong style={{ color: '#0070C0', fontSize: '13.5px' }}>₩{totalGrand.toLocaleString()}</strong>
                   </div>
@@ -2283,7 +2285,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
             })()}
 
             <div className="table-container" style={{ border: 'none', boxShadow: 'none', overflowX: 'auto' }}>
-              <table data-mid="exchange-audit-cell" style={{ minWidth: '650px', whiteSpace: 'nowrap' }}>
+              <table data-mid="billing-list-table" style={{ minWidth: '650px', whiteSpace: 'nowrap' }}>
                 <thead>
                   <tr>
                     <th style={{ whiteSpace: 'nowrap', width: '190px' }}>관리</th>
@@ -2322,7 +2324,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                         onClick={() => setSelectedBillingId(b.id)}
                       >
                         <td onClick={e => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                          <div data-mid="billing-row-actions" style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                             {/* 1. 수납 버튼: 미납 잔액이 있는 상태 (UNPAID, REQUESTED, PARTIAL) */}
                             {canSave && !isPaid && unpaid > 0 && b.status !== 'REJECTED' && (
                               <button 
@@ -2469,7 +2471,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
           </div>
 
           {/* 청구 상세 정보 (우측 독립 스크롤 & 고정) */}
-          <div style={{ position: 'sticky', top: '16px', maxHeight: 'calc(100vh - 160px)', overflowY: 'auto' }}>
+          <div data-mid="billing-detail-studio" style={{ position: 'sticky', top: '16px', maxHeight: 'calc(100vh - 160px)', overflowY: 'auto' }}>
             {activeBilling ? (() => {
               const contractObj = contracts.find(c => c.id === activeBilling.contractId);
               const siteObj = sites.find(s => s.id === contractObj?.siteId);
@@ -2984,7 +2986,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
             sumUnpaid += uAmt;
           });
           return (
-            <div data-mid="btn-finalize-billing" style={{
+            <div data-mid="billing-bottom-audit-bar" style={{
               gridColumn: '1 / -1',
               padding: '8px 14px',
               backgroundColor: 'var(--bg-app)',

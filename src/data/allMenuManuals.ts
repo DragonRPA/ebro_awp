@@ -825,150 +825,152 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     groupName: '영업관리',
     department: '영업/재무팀',
     archetype: '유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)',
-    objective: '월말 렌탈 매출 정산 대장 확인, 일할 계산 기반 정밀 청구액 확정, 세금계산서 발행 및 입금 수납 처리 완결',
-    scopeInfo: '정산 연월(YYYY-MM), 청구 대상 거래처, 계약별 일할 가동일수 및 단가',
+    objective: '월별 청구 대장 조회, 고객사별 수납 등록 및 미수금 관리, 정품 거래명세서 출력 및 전자발송, 회계 대차대조식 검증',
+    scopeInfo: '청구 귀속월(YYYY-MM), 고객사, 계약번호, 수납 상태(완납/미납), 메일 발송 여부',
     cognitiveSequence: [
-      '1. 좌상단 정산 연월 및 청구 마감일 조건 스코핑 (1일~말일, 15일~익월14일 등)',
-      '2. 미청구 및 청구 대기 거래처 파이프라인 필터링',
-      '3. 자산별 누적 가동일수 및 정밀 일할 매출 계산식 검증 (헌장 4.1)',
-      '4. 대차 교체 자산 매출 승계 1:1 대사 확인 (전자산 전일 마감 ➔ 후장비 당일 승계)',
-      '5. 부가세(VAT 10%) 및 선수금/공제액 정밀 산출',
-      '6. 거래처별 매출 청구서/거래명세표 PDF 인쇄 및 전자발송',
-      '7. 청구 마감 확정 및 외상매출금(미수금) 원장 자동 이관 (Audit Result)'
+      '1. 좌상단 청구 귀속월(시작~종료) 및 전월/당월 퀵버튼 스코핑',
+      '2. 고객사명(초성), 계약번호, 수납 상태 및 메일 발송 필터링',
+      '3. 청구·수납 종합 집계 (조회건수, 공급가액, 총 청구합계, 기수납액, 미수채권, 통장잔액) 확인',
+      '4. 필터링된 청구 대장 전체 데이터 엑셀(XLSX) 양식 다운로드',
+      '5. 월별 청구 대장 그리드에서 청구서 목록 및 수납 상태 확인',
+      '6. 개별 청구서 [수납] 등록, 거래명세서 메일 발송 및 우측 세부 명세/PDF 출력',
+      '7. 하단 회계 대차대조식 검증 바(청구총액 = 수납액 + 미수잔액) 무결성 확인 (Audit Result)'
     ],
-        subTabs: [
-          {
-                "tabId": "LIST",
-                "tabName": "월별 청구 대장",
-                "purpose": "당월 마감 청구 목록 및 전자세금계산서 발행 상태 조망",
-                "keyActions": [
-                      "청구서 상세 조회",
-                      "전자세금계산서 일괄 발행",
-                      "청구서 팩스/이메일 발송"
-                ]
-          },
-          {
-                "tabId": "WIZARD",
-                "tabName": "미청구 정산 위저드",
-                "purpose": "가동 중인 장비의 기간별 일할 매출을 집계하여 미청구 금액을 정산 및 청구 확정",
-                "keyActions": [
-                      "마감 연월 선택",
-                      "일할 계산 검증",
-                      "면제/감면 차감 적용",
-                      "청구 확정 생성"
-                ]
-          },
-          {
-                "tabId": "INVOICE",
-                "tabName": "통합 청구서 관리",
-                "purpose": "동일 거래처 다수 현장 계약 건을 1장의 통합 청구서로 합산 발행",
-                "keyActions": [
-                      "거래처별 합산 미리보기",
-                      "통합 청구서 PDF 생성"
-                ]
-          },
-          {
-                "tabId": "WAIVER",
-                "tabName": "청구 면제/감면 대장",
-                "purpose": "우천, 파업, 고장 대차 등 특약에 의한 청구 감면 내역 감사 원장",
-                "keyActions": [
-                      "면제 승인 건 검토",
-                      "면제 증빙 확인"
-                ]
-          }
+    subTabs: [
+      {
+        tabId: 'LIST',
+        tabName: '청구 대장',
+        purpose: '월별 청구 목록 조회, 수납 등록 및 거래명세서 출력·발송',
+        keyActions: [
+          '청구서 상세 조회',
+          '수납 등록 및 취소',
+          '거래명세서 PDF/엑셀 출력',
+          '거래명세서 이메일 발송'
+        ]
+      },
+      {
+        tabId: 'WIZARD',
+        tabName: '미청구 정산',
+        purpose: '정산 대상 계약의 기간별 일할 매출을 집계하여 청구서 생성',
+        keyActions: [
+          '마감 연월 선택',
+          '일할 계산 검증',
+          '정산 기간 설정',
+          '청구 생성 마감'
+        ]
+      },
+      {
+        tabId: 'INVOICE',
+        tabName: '청구서통합',
+        purpose: '동일 거래처 다수 현장 계약 건을 1장의 통합 청구서로 합산 발행',
+        keyActions: [
+          '거래처별 합산 미리보기',
+          '통합 청구서 PDF 생성'
+        ]
+      },
+      {
+        tabId: 'WAIVER',
+        tabName: '청구 면제 대장',
+        purpose: '우천, 파업, 고장 대차 등 특약에 의한 청구 감면 내역 감사 원장',
+        keyActions: [
+          '면제 승인 건 검토',
+          '면제 증빙 확인'
+        ]
+      }
     ],
     modalWorkflows: [
-          {
-                "modalName": "청구 면제/감면 신청 팝업 (Billing Waiver Modal)",
-                "triggerButton": "[면제/감면 신청]",
-                "keyFields": [
-                      "면제 사유(우천, 현장 파업, 장비 고장 대차 기간 공제)",
-                      "면제 일수 및 면제 금액",
-                      "현장 입증 증빙(날씨 확인서, 공문 등)"
-                ],
-                "terminalAction": "[면제 승인 결재 상신]",
-                "afterStateTransition": "결재 완료 시 해당 계약 월말 청구액에서 면제액 자동 차감 반영"
-          }
+      {
+        modalName: '수납 등록 팝업 (Receipt Modal)',
+        triggerButton: '[수납]',
+        keyFields: [
+          '수납 일자 및 입금 계좌',
+          '수납 금액 및 통장 거래 매칭',
+          '입금자명 확인'
+        ],
+        terminalAction: '[수납 처리 완료]',
+        afterStateTransition: '청구서 상태가 PAID(완납) 또는 PARTIAL(일부납)로 갱신되고 미수채권 차감'
+      }
     ],
-    auditResult: '월말 매출 채권 확정 및 세금계산서 발행 연계, 외상미수금 대장으로 잔액 바통 인계',
+    auditResult: '청구 총액과 기수납액, 미수 잔액의 합이 100% 일치(대차 차액 ₩0)하여 외상매출금 원장과 무결하게 연계됨',
     rulesCompliance: [
-      '헌장 3.5 [Gutenberg Z-패턴 표준]: 좌상단(정산월) ➔ 우상단(집계) ➔ 중앙(1:1검증) ➔ 우하단([일괄 확정])',
-      '헌장 4.1 [정밀 일할 집계 정책]: 1원의 오차도 없는 일할 매출 기여액 합산 검증식 충족'
+      '헌장 3.1 [무수식어 건조 UI 표준]: 과장된 수식어 전면 배제 및 건조한 명사·동사 단일 체계 준수',
+      '헌장 3.5 [Gutenberg Z-패턴 표준]: 좌상단(스코프/필터) ➔ 우상단(집계/엑셀) ➔ 중앙(청구대장 그리드) ➔ 우하단(대차대조 검증 바)',
+      '헌장 4.1 [정밀 일할 집계 정책]: 청구서별 장비 일할 렌탈료 및 추가비용 1:1 대사 검증'
     ],
     precautions: [
-      '중도 반납 또는 대차 교체 건의 가동 일수가 역일(달력 일수)과 정확히 일치하는지 대조',
-      '세금계산서 국세청 전송 후에는 금액 임의 수정 불가하므로 확정 전 철저히 검증'
+      '완납 처리된 청구서는 임의 삭제가 불가하므로 수납 전 입금 내역을 철저히 대조',
+      '취소/재정산 시 계약의 최근 청구 이력이 롤백되므로 이의제기 사유를 명확히 기재'
     ],
     annotations: [
       {
         seq: 1,
-        selector: '[data-mid="billing-period-scope"], .billing-scope',
+        selector: '[data-mid="billing-period-scope"]',
         type: 'stamp',
-        label: '정산 연월 스코프',
-        description: '정산 연월과 청구 마감 주기(말일/특약일)를 선택합니다.',
+        label: '청구 귀속월 스코프',
+        description: '조회할 청구 귀속월(시작~종료)과 전월/당월/익월 퀵 버튼으로 정산 기간을 지정합니다.',
         badgeColor: '#1D4ED8',
         positionHint: 'bottom',
         spotlight: false,
       },
       {
         seq: 2,
-        selector: '[data-mid="billing-customer-filter"], .customer-select',
+        selector: '[data-mid="billing-customer-filter"]',
         type: 'stamp',
-        label: '청구 대상 거래처',
-        description: '당월 청구 대상 거래처 및 미청구 현황을 필터링합니다.',
+        label: '고객사 및 계약 검색',
+        description: '고객사명(초성 검색 지원), 계약번호, 수납 상태 및 메일 발송 여부로 청구 대상을 필터링합니다.',
         badgeColor: '#059669',
         positionHint: 'bottom',
         spotlight: false,
       },
       {
         seq: 3,
-        selector: '[data-mid="billing-grid-pro-rata"], table.billing-table',
-        type: 'highlight',
-        label: '일할 매출 집계표',
-        description: '자산별 실가동 일수와 일할 단가를 곱해 정확한 매출액을 계산합니다.',
+        selector: '[data-mid="billing-kpi-summary"]',
+        type: 'stamp',
+        label: '청구·수납 종합 집계',
+        description: '조회 건수, 공급가액, 총 청구합계(VAT포함), 기수납액, 미수채권 잔액 및 통장잔액 현황을 한눈에 파악합니다.',
         badgeColor: '#7C3AED',
-        positionHint: 'top',
-        spotlight: false,
-      },
-      {
-        seq: 4,
-        selector: '[data-mid="exchange-audit-cell"], .exchange-audit',
-        type: 'callout',
-        label: '대차 교체 매출 승계',
-        description: '전자산 교체 전일까지 마감 ➔ 후장비 당일부터 승계 집계를 확인합니다.',
-        badgeColor: '#D97706',
         positionHint: 'bottom',
         spotlight: false,
       },
       {
+        seq: 4,
+        selector: '[data-mid="billing-export-btn"]',
+        type: 'click_ripple',
+        label: '청구 대장 엑셀 다운로드',
+        description: '필터링된 청구 목록 전체 데이터를 엑셀(XLSX) 양식으로 즉시 다운로드하여 재무 보고 및 보관용으로 활용합니다.',
+        badgeColor: '#D97706',
+        positionHint: 'bottom',
+        spotlight: true,
+      },
+      {
         seq: 5,
-        selector: '[data-mid="billing-vat-summary"], .vat-box',
-        type: 'stamp',
-        label: '공급가 및 부가세',
-        description: '공급가액, 부가세 10%, 할인/공제액 합계를 수학적으로 검증합니다.',
+        selector: '[data-mid="billing-list-table"]',
+        type: 'highlight',
+        label: '월별 청구 대장 그리드',
+        description: '청구월, 고객사, 공급가액, 청구합계(VAT포함), 미납액 및 수납 상태를 확인하고, 특정 청구서를 클릭하여 우측 상세 내역을 조회합니다.',
         badgeColor: '#2563EB',
         positionHint: 'top',
         spotlight: false,
       },
       {
         seq: 6,
-        selector: '[data-mid="btn-print-invoice"], button:contains("명세서 출력")',
-        type: 'click_ripple',
-        label: '거래명세표 PDF 발행',
-        description: '국세청 전자세금계산서 연동 및 청구서/명세표 PDF를 출력·발송합니다.',
+        selector: '[data-mid="billing-detail-studio"], [data-mid="billing-row-actions"]',
+        type: 'stamp',
+        label: '청구 명세서 및 수납 관리',
+        description: '행 액션의 [수납] 등록, [발송]을 실행하거나, 우측 명세서 패널에서 장비별 일할 렌탈료 상세 내역 확인 및 정품 PDF/엑셀 거래명세서를 출력합니다.',
         badgeColor: '#4F46E5',
-        positionHint: 'top',
-        spotlight: true,
+        positionHint: 'left',
+        spotlight: false,
       },
       {
         seq: 7,
-        selector: '[data-mid="btn-finalize-billing"], button:contains("청구 확정")',
-        type: 'click_ripple',
-        label: '매출 청구 마감 확정',
-        description: '청구를 최종 마감하고 외상매출금 원장으로 데이터를 자동 이관합니다.',
+        selector: '[data-mid="billing-bottom-audit-bar"]',
+        type: 'callout',
+        label: '회계 대차대조 검증 바',
+        description: '조회 청구 총액이 기수납액과 미수 잔액의 합과 정확히 일치(대차 차액 ₩0)하는지 무결성을 검증하고 외상매출금 원장과 연계합니다.',
         badgeColor: '#10B981',
         positionHint: 'top',
-        spotlight: true,
+        spotlight: false,
       }
     ]
   },
