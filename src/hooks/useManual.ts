@@ -2,6 +2,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../services/db';
 import type { ManualPage, ManualAnnotationItem } from '../types/manual';
+import { ALL_MENU_MANUALS, getManualPageForMenu } from '../data/allMenuManuals';
 
 const TENANT_ID = 'default';
 
@@ -9,33 +10,13 @@ export function useManual() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /** 특정 페이지의 매뉴얼 JSON을 로드 */
-  const loadPage = useCallback(async (pageId: string): Promise<ManualPage | null> => {
-    if (!supabase) return null;
-    const { data, error: e } = await supabase
-      .from('manual_annotations')
-      .select('annotations, page_title, version')
-      .eq('tenant_id', TENANT_ID)
-      .eq('page_id', pageId)
-      .single();
-    if (e || !data) return null;
-    // DB의 annotations JSONB가 ManualPage 구조를 직접 포함
-    const ann = data.annotations as ManualPage;
-    return {
-      pageId,
-      pageTitle: data.page_title || ann?.pageTitle || pageId,
-      version: data.version,
-      items: ann?.items ?? [],
-    };
-  }, []);
-
   /** 전체 ManualPage를 upsert 저장 */
   const savePage = useCallback(async (page: ManualPage, updatedBy?: string): Promise<boolean> => {
     if (!supabase) return false;
     setSaving(true);
     setError(null);
 
-    // seq 자동 재정렬 (Auto Re-indexing — ManualStudio 이식)
+    // seq 자동 재정렬 (Auto Re-indexing)
     const reindexed: ManualPage = {
       ...page,
       items: page.items.map((item, i) => ({ ...item, seq: i + 1 })),
@@ -77,6 +58,72 @@ export function useManual() {
     return true;
   }, []);
 
+  /** 특정 페이지의 매뉴얼 JSON을 로드 (DB 조회 후 없으면 SSOT 시드 매뉴얼 자동 반환 및 자동 보존) */
+  const loadPage = useCallback(async (pageId: string, pageTitle?: string): Promise<ManualPage> => {
+    if (supabase) {
+      try {
+        const { data, error: e } = await supabase
+          .from('manual_annotations')
+          .select('annotations, page_title, version')
+          .eq('tenant_id', TENANT_ID)
+          .eq('page_id', pageId)
+          .single();
+
+        if (!e && data && data.annotations) {
+          const ann = data.annotations as ManualPage;
+          if (ann.items && ann.items.length > 0) {
+            return {
+              pageId,
+              pageTitle: data.page_title || ann?.pageTitle || pageTitle || pageId,
+              version: data.version || ann.version || 1,
+              items: ann.items,
+            };
+          }
+        }
+      } catch (err) {
+        console.warn('[useManual] Failed to fetch from DB, falling back to SSOT seed', err);
+      }
+    }
+
+    // DB에 없거나 비어있는 경우 SSOT 시드 매뉴얼 로드
+    const seed = getManualPageForMenu(pageId, pageTitle);
+    
+    // 백그라운드에서 DB에 자동 시드 upsert (실패해도 사용자는 시드 데이터로 즉시 열람 가능)
+    if (supabase) {
+      savePage(seed).catch(err => console.warn('[useManual] Auto-seed background write failed:', err));
+    }
+
+    return seed;
+  }, [savePage]);
+
+  /** 전사 51개 모든 메뉴의 표준 매뉴얼을 DB에 일괄 주입(Batch Seed) */
+  const seedAllManuals = useCallback(async (updatedBy?: string): Promise<{ success: number; failed: number }> => {
+    if (!supabase) return { success: 0, failed: 0 };
+    setSaving(true);
+    let success = 0;
+    let failed = 0;
+
+    for (const menu of ALL_MENU_MANUALS) {
+      const pageData: ManualPage = {
+        pageId: menu.menuId,
+        pageTitle: menu.menuName,
+        version: 1,
+        items: menu.annotations.map((item, i) => ({ ...item, seq: i + 1 })),
+      };
+
+      try {
+        const ok = await savePage(pageData, updatedBy);
+        if (ok) success++;
+        else failed++;
+      } catch {
+        failed++;
+      }
+    }
+
+    setSaving(false);
+    return { success, failed };
+  }, [savePage]);
+
   /** 단일 어노테이션 아이템 추가/수정 후 즉시 저장 */
   const upsertItem = useCallback(async (
     page: ManualPage,
@@ -105,5 +152,5 @@ export function useManual() {
     return updated;
   }, [savePage]);
 
-  return { loadPage, savePage, upsertItem, deleteItem, saving, error };
+  return { loadPage, savePage, seedAllManuals, upsertItem, deleteItem, saving, error };
 }

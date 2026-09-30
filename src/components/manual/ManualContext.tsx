@@ -16,6 +16,7 @@ interface ManualContextValue {
   savePage: (p: ManualPage) => Promise<boolean>;
   upsertItem: (item: ManualAnnotationItem) => Promise<void>;
   deleteItem: (seq: number) => Promise<void>;
+  seedAllManuals: () => Promise<{ success: number; failed: number }>;
   saving: boolean;
 }
 
@@ -32,17 +33,13 @@ export const ManualProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [currentPageId, setCurrentPageId] = useState('');
   const [currentPageTitle, setCurrentPageTitle] = useState('');
   const [page, setPage] = useState<ManualPage | null>(null);
-  const { loadPage: dbLoad, savePage: dbSave, upsertItem: dbUpsert, deleteItem: dbDelete, saving } = useManual();
+  const { loadPage: dbLoad, savePage: dbSave, seedAllManuals: dbSeedAll, upsertItem: dbUpsert, deleteItem: dbDelete, saving } = useManual();
 
   const loadPage = useCallback(async (pageId: string, pageTitle?: string) => {
     setCurrentPageId(pageId);
     if (pageTitle) setCurrentPageTitle(pageTitle);
-    const loaded = await dbLoad(pageId);
-    if (loaded) {
-      setPage(loaded);
-    } else {
-      setPage({ pageId, pageTitle: pageTitle || pageId, version: 0, items: [] });
-    }
+    const loaded = await dbLoad(pageId, pageTitle);
+    setPage(loaded);
   }, [dbLoad]);
 
   const savePage = useCallback(async (p: ManualPage): Promise<boolean> => {
@@ -50,6 +47,10 @@ export const ManualProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (ok) setPage(p);
     return ok;
   }, [dbSave]);
+
+  const seedAllManuals = useCallback(async () => {
+    return await dbSeedAll();
+  }, [dbSeedAll]);
 
   const upsertItem = useCallback(async (item: ManualAnnotationItem) => {
     if (!page) return;
@@ -78,6 +79,7 @@ export const ManualProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       page, setPage,
       loadPage, savePage,
       upsertItem, deleteItem,
+      seedAllManuals,
       saving,
     }}>
       {children}

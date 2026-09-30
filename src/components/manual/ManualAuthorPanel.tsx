@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { ManualAnnotationItem, AnnotationType, PositionHint } from '../../types/manual';
 import { DEFAULT_BADGE_COLORS, DEFAULT_ITEM } from '../../types/manual';
 import { useManualContext } from './ManualContext';
+import { getManualPageForMenu } from '../../data/allMenuManuals';
 
 /* ─── 상수 ────────────────────────────────────────────────────── */
 const ANNOTATION_TYPES: { value: AnnotationType; label: string; icon: string }[] = [
@@ -83,9 +84,10 @@ const emptyForm = (): Omit<ManualAnnotationItem, 'seq'> => ({
    메인 패널 컴포넌트
 ════════════════════════════════════════════════════════════════ */
 export const ManualAuthorPanel: React.FC = () => {
-  const { mode, setMode, page, setPage, savePage, currentPageId, currentPageTitle, saving } = useManualContext();
+  const { mode, setMode, page, setPage, savePage, seedAllManuals, currentPageId, currentPageTitle, saving } = useManualContext();
 
   /* ─ 상태 ─────────────────────────────────────────────────── */
+  const [seeding, setSeeding] = useState(false);
   const [selectMode, setSelectMode] = useState(false);      // 요소 선택 모드
   const [hoveredRect, setHoveredRect] = useState<DOMRect | null>(null); // 선택 모드 시 마우스 호버 요소 테두리
   const [editingSeq, setEditingSeq] = useState<number | null>(null); // 편집 중 seq
@@ -275,6 +277,26 @@ export const ManualAuthorPanel: React.FC = () => {
     setPanelTab('list');
   }, [form, editingSeq, insertAfterSeq, page, setPage, savePage]);
 
+  /* ─ 전사 51개 표준 매뉴얼 DB 일괄 주입 ─────────────────────── */
+  const handleSeedAll = useCallback(async () => {
+    if (!window.confirm('전사 51개 모든 메뉴의 표준 매뉴얼을 DB에 일괄 주입(동기화)하시겠습니까?\n(기존 작성 내용이 있는 경우 표준 데이터로 보강/동기화됩니다)')) return;
+    setSeeding(true);
+    const res = await seedAllManuals();
+    setSeeding(false);
+    alert(`전사 매뉴얼 일괄 주입 완료!\n성공: ${res.success}개 메뉴 / 실패: ${res.failed}개`);
+    const seedPage = getManualPageForMenu(currentPageId, currentPageTitle);
+    setPage(seedPage);
+  }, [seedAllManuals, currentPageId, currentPageTitle, setPage]);
+
+  /* ─ 현재 페이지 표준 기본값 복원 ───────────────────────────── */
+  const handleResetToSeed = useCallback(async () => {
+    if (!window.confirm(`"${currentPageTitle || currentPageId}" 메뉴의 매뉴얼을 표준 기본값으로 복원하시겠습니까?`)) return;
+    const seedPage = getManualPageForMenu(currentPageId, currentPageTitle);
+    setPage(seedPage);
+    await savePage(seedPage);
+    alert('표준 기본 매뉴얼로 복원되었습니다.');
+  }, [currentPageId, currentPageTitle, setPage, savePage]);
+
   if (mode !== 'authoring') return null;
 
   const items = page?.items ?? [];
@@ -426,9 +448,15 @@ export const ManualAuthorPanel: React.FC = () => {
             {panelTab === 'list' && (
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 {/* 상단 액션 */}
-                <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '6px' }}>
-                  <button onClick={() => startNew()} style={{ ...btnBase, flex: 1, padding: '7px', background: '#4f46e5', color: '#fff', fontSize: '13px' }}>
+                <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  <button onClick={() => startNew()} style={{ ...btnBase, flex: 2, padding: '7px', background: '#4f46e5', color: '#fff', fontSize: '12.5px', whiteSpace: 'nowrap' }}>
                     + 항목 추가
+                  </button>
+                  <button onClick={handleResetToSeed} style={{ ...btnBase, flex: 1, padding: '7px 8px', background: 'var(--bg-secondary)', color: 'var(--text-main)', border: '1px solid var(--border-color)', fontSize: '11.5px', whiteSpace: 'nowrap' }} title="현재 메뉴를 표준 기본 매뉴얼로 복원">
+                    🔄 기본 복원
+                  </button>
+                  <button onClick={handleSeedAll} disabled={seeding} style={{ ...btnBase, width: '100%', padding: '6px 8px', background: '#f59e0b', color: '#fff', fontSize: '11.5px', marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }} title="시스템에 존재하는 51개 모든 메뉴의 매뉴얼을 DB에 일괄 주입">
+                    {seeding ? '⚡ 전사 매뉴얼 주입 중…' : '⚡ 전사 51개 표준 매뉴얼 DB 일괄 주입'}
                   </button>
                 </div>
 
