@@ -1,3 +1,30 @@
+## 2026-10-01 00:08 (v1.8.5.Build.16)
+
+### [매뉴얼 언어 표준화] 55개 전 메뉴 영문 혼입 전수 감사 및 11개 메뉴 77개 단계 100% 한국어 실무 표준화 완결
+
+- **배경 및 원인 분석**:
+  - `주기장 소모품 재고`(`consumable_stock`) 등 특정 메뉴에서 매뉴얼 설명이 `Stock Actions - Register and update consumable stock` 등 영문으로 왜곡 표출되는 현상 발견.
+  - **원인**: 지난 9월 30일 밤 10:07경 `manual_patches/` 폴더 내 일부 패치 파일(`consumable_stock.json`, `field_as.json`, `permission.json` 등 11개)에 영문 플레이스홀더(`Stock Actions`, `Tab Navigation`, `Manual step for ...`)가 임시 작성된 상태로 `allMenuManuals.ts`에 일괄 병합되었기 때문.
+- **전수 감사 및 처리 내역**:
+  - 시스템 내 55개 전체 메뉴의 매뉴얼 어노테이션을 전수 스캔하여 영문이 포함된 11개 메뉴(총 77개 단계)를 발굴:
+    1. `consumable_stock` (주기장 소모품 재고, 8개 단계)
+    2. `field_as` (현장 AS 관리, 5개 단계)
+    3. `repair` (주기장 정비 관리, 5개 단계)
+    4. `vehicle_log` (차량 / 주유관리, 8개 단계)
+    5. `depreciation_execution` (감가상각 마감 실행, 7개 단계)
+    6. `regular_reports` (정기보고서 생성, 5개 단계)
+    7. `organization` (조직 / 인사 관리, 7개 단계)
+    8. `permission` (사용자 및 권한, 9개 단계)
+    9. `payroll` (급여 정산, 7개 단계)
+    10. `leave_management` (연차관리, 8개 단계)
+    11. `privacy_audit` (개인정보 접속 감사, 8개 단계)
+  - 전사 시스템 표준 헌장(카테고리 III 3.1: 무수식어 건조한 명사·동사 UI 단일 표준화)에 입각하여 77개 단계의 레이블 및 설명을 현장 실무에 부합하는 건조하고 명확한 100% 한국어로 전면 개편.
+  - `src/data/allMenuManuals.ts` 및 `manual_patches/*.json` 1:1 동기화 완료.
+  - **전수 재감사 결과**: 시스템 내 영문 잔류 0건 달성.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 error, 865ms).
+
+---
+
 ## 2026-09-30 23:49 (v1.8.5.Build.15)
 
 ### [시스템 안정성 긴급 패치] 매뉴얼 5단계 Gutenberg 폴백 querySelector SyntaxError(:contains) 원천 수정 및 safeQuery 안전망 구축

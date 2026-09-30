@@ -3342,86 +3342,87 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '유압 작동유는 이물질 혼입 방지를 위해 개봉 후 밀봉 보관 확인'
     ],
     annotations: [
-      {
-        seq: 1,
-        selector: '[data-mid="consumable_stock-tab-nav"]',
-        type: 'stamp',
-        label: 'Tab Navigation',
-        description: 'Switch between HQ stock, Vehicle stock, and Stocktaking.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 2,
-        selector: '[data-mid="consumable_stock-kpi-stats"]',
-        type: 'stamp',
-        label: 'KPI Stats',
-        description: 'Key performance indicators for consumable stock.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 3,
-        selector: '[data-mid="consumable_stock-scope"]',
-        type: 'stamp',
-        label: 'Scope & Filter',
-        description: 'Search and filter through the consumable stock list.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 4,
-        selector: '[data-mid="consumable_stock-pipeline-actions"]',
-        type: 'stamp',
-        label: 'Stock Actions',
-        description: 'Register and update consumable stock.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 5,
-        selector: '[data-mid="consumable_stock-inspection-grid"]',
-        type: 'stamp',
-        label: 'Stock Grid',
-        description: 'Grid view of consumable stock items.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'right',
-        spotlight: false
-      },
-      {
-        seq: 6,
-        selector: '[data-mid="consumable_stock-vehicle-scope"]',
-        type: 'stamp',
-        label: 'Vehicle Filter',
-        description: 'Filter the stock by specific vehicle or mechanic.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 7,
-        selector: '[data-mid="consumable_stock-pipeline-transfer"]',
-        type: 'stamp',
-        label: 'Transfer Parts',
-        description: 'Transfer parts to a vehicle.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'left',
-        spotlight: false
-      },
-      {
-        seq: 8,
-        selector: '[data-mid="consumable_stock-terminal-audit-confirm"]',
-        type: 'stamp',
-        label: 'Audit Confirmation',
-        description: 'Confirm stocktaking audit results.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'top',
-        spotlight: false
-      }
+
+        {
+                seq: 1,
+                selector: "[data-mid=\"consumable_stock-tab-nav\"]",
+                type: "stamp",
+                label: "재고 영역 전환",
+                description: "본사 주기장 재고, 이동 정비차량 재고, 실사 재고조사 탭을 전환합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 2,
+                selector: "[data-mid=\"consumable_stock-kpi-stats\"]",
+                type: "stamp",
+                label: "소모품 현황 요약",
+                description: "관리 품목 수, 총 보유 수량, 주기장 평가액, 전사 총 재고액을 조회합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 3,
+                selector: "[data-mid=\"consumable_stock-scope\"]",
+                type: "stamp",
+                label: "품목 검색 필터",
+                description: "품목명, 공급처, 재고 상태별로 소모품 목록을 검색 및 정렬합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 4,
+                selector: "[data-mid=\"consumable_stock-pipeline-actions\"]",
+                type: "stamp",
+                label: "소모품 관리 액션",
+                description: "신규 품목 마스터 등록 및 소모품 재고 대장을 엑셀로 내보냅니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 5,
+                selector: "[data-mid=\"consumable_stock-inspection-grid\"]",
+                type: "stamp",
+                label: "소모품 재고 대장",
+                description: "품목별 주기장 재고, 차량 재고, 단가, 평가액을 대조하고 품목 정보를 수정합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "right",
+                spotlight: false
+        },
+        {
+                seq: 6,
+                selector: "[data-mid=\"consumable_stock-vehicle-scope\"]",
+                type: "stamp",
+                label: "정비 차량 선택",
+                description: "정비 차량별 적재 부품 및 담당 기사별 출고 재고를 선택 조회합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 7,
+                selector: "[data-mid=\"consumable_stock-pipeline-transfer\"]",
+                type: "stamp",
+                label: "차량 부품 이송",
+                description: "주기장 재고 부품을 현장 정비 차량으로 불출 이관 등록합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "left",
+                spotlight: false
+        },
+        {
+                seq: 8,
+                selector: "[data-mid=\"consumable_stock-terminal-audit-confirm\"]",
+                type: "stamp",
+                label: "실사 재고 확정",
+                description: "전산 재고와 실물 실사 수량의 차액을 대조하고 재고 조정을 최종 확정합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "top",
+                spotlight: false
+        }
     ]
   },
   {
@@ -3888,56 +3889,57 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '유상 수리 건은 현장 담당자에게 유상 안내 및 서명 사전 득 필수'
     ],
     annotations: [
-      {
-        seq: 1,
-        selector: '[data-mid="field_as-scope"]',
-        type: 'stamp',
-        label: 'Scope & Filter',
-        description: 'Navigation and high-level filters for Field A/S.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 2,
-        selector: '[data-mid="field_as-filter"]',
-        type: 'stamp',
-        label: 'List Filters',
-        description: 'Specific filters for the ticket feed.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'right',
-        spotlight: false
-      },
-      {
-        seq: 3,
-        selector: '[data-mid="field_as-inspection-grid"]',
-        type: 'stamp',
-        label: 'Ticket List',
-        description: 'List of A/S tickets.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'right',
-        spotlight: false
-      },
-      {
-        seq: 4,
-        selector: '[data-mid="field_as-pipeline-add"]',
-        type: 'stamp',
-        label: 'Ticket Actions',
-        description: 'Panel to take actions and complete the ticket.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'left',
-        spotlight: false
-      },
-      {
-        seq: 5,
-        selector: '[data-mid="field_as-audit"]',
-        type: 'stamp',
-        label: 'A/S Ledger',
-        description: 'Audit trail of all field A/S work.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'top',
-        spotlight: false
-      }
+
+        {
+                seq: 1,
+                selector: "[data-mid=\"field_as-scope\"]",
+                type: "stamp",
+                label: "AS 탭 전환",
+                description: "당일 긴급 출동 대기 큐와 전체 AS 조치 대장 탭을 전환합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 2,
+                selector: "[data-mid=\"field_as-filter\"]",
+                type: "stamp",
+                label: "AS 접수 검색 필터",
+                description: "접수 일자, 거래처, 현장, 장비 번호, 증상별로 필터링합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 3,
+                selector: "[data-mid=\"field_as-inspection-grid\"]",
+                type: "stamp",
+                label: "AS 접수 대기 목록",
+                description: "현장 고장 접수 내역, 긴급도, 투입 장비 제원 및 고장 증상을 확인합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "right",
+                spotlight: false
+        },
+        {
+                seq: 4,
+                selector: "[data-mid=\"field_as-pipeline-add\"]",
+                type: "stamp",
+                label: "현장 조치 및 부품 등록",
+                description: "출동 기사 배정, 투입 부품, 수리 내역, 유/무상 여부를 입력하고 조치를 완료합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "left",
+                spotlight: false
+        },
+        {
+                seq: 5,
+                selector: "[data-mid=\"field_as-audit\"]",
+                type: "stamp",
+                label: "AS 이력 대장",
+                description: "완료된 현장 수리 이력, 사용 부품 대금, 수리 일자별 이력을 통합 조회합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "top",
+                spotlight: false
+        }
     ]
   },
   {
@@ -4005,56 +4007,57 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '충전 테스트는 최소 4시간 이상 연속 부하 충전하여 만충 전압(25.4V 이상) 확인'
     ],
     annotations: [
-      {
-        seq: 1,
-        selector: '[data-mid="repair-scope"]',
-        type: 'stamp',
-        label: 'Scope & Filter',
-        description: 'Tab and scope selection for repair management.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 2,
-        selector: '[data-mid="repair-filter"]',
-        type: 'stamp',
-        label: 'Filters',
-        description: 'Filter repair target assets by status.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 3,
-        selector: '[data-mid="repair-inspection-grid"]',
-        type: 'stamp',
-        label: 'Target Asset Grid',
-        description: 'List of assets requiring repair.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'right',
-        spotlight: false
-      },
-      {
-        seq: 4,
-        selector: '[data-mid="repair-pipeline-add"]',
-        type: 'stamp',
-        label: 'Repair Action Panel',
-        description: 'Panel to add repair records, parts, and complete repairs.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'left',
-        spotlight: false
-      },
-      {
-        seq: 5,
-        selector: '[data-mid="repair-audit"]',
-        type: 'stamp',
-        label: 'Repair Ledger',
-        description: 'Audit trail and ledger of all repairs.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'top',
-        spotlight: false
-      }
+
+        {
+                seq: 1,
+                selector: "[data-mid=\"repair-scope\"]",
+                type: "stamp",
+                label: "정비 모드 전환",
+                description: "입고 검수 대기, 진행 중 정비, 정비 완료 이력 탭을 전환합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 2,
+                selector: "[data-mid=\"repair-filter\"]",
+                type: "stamp",
+                label: "정비 대상 필터",
+                description: "자산 번호, 장비 규격, 정비 유형(도색/유압/배터리/판금)별로 검색합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 3,
+                selector: "[data-mid=\"repair-inspection-grid\"]",
+                type: "stamp",
+                label: "정비 대상 자산 목록",
+                description: "주기장 입고 장비의 고장 부위, 수리 우선순위, 입고일을 확인합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "right",
+                spotlight: false
+        },
+        {
+                seq: 4,
+                selector: "[data-mid=\"repair-pipeline-add\"]",
+                type: "stamp",
+                label: "정비 내역 및 부품 등록",
+                description: "소모 부품 출고, 정비 공수 입력, 완료 사진 등록 후 자산을 임대가능 상태로 전환합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "left",
+                spotlight: false
+        },
+        {
+                seq: 5,
+                selector: "[data-mid=\"repair-audit\"]",
+                type: "stamp",
+                label: "정비 이력 대장",
+                description: "자산별 누적 정비 비용, 교체 부품 이력, 정비 판정을 종합 관리합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "top",
+                spotlight: false
+        }
     ]
   },
   {
@@ -4390,86 +4393,87 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '엔진오일 교환 주기(10,000km) 및 자동차 정기검사 만료일 사전 점검'
     ],
     annotations: [
-      {
-        seq: 1,
-        selector: '[data-mid="vehicle_log-header"]',
-        type: 'stamp',
-        label: 'Header',
-        description: 'Header actions for vehicle operation log.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 2,
-        selector: '[data-mid="vehicle_log-export-nts"]',
-        type: 'stamp',
-        label: 'Export NTS',
-        description: 'Download National Tax Service format.',
-        badgeColor: '#10b981',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 3,
-        selector: '[data-mid="vehicle_log-upload-excel"]',
-        type: 'stamp',
-        label: 'Upload Excel',
-        description: 'Batch upload fuel logs via Excel.',
-        badgeColor: '#ea580c',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 4,
-        selector: '[data-mid="vehicle_log-export-fuel"]',
-        type: 'stamp',
-        label: 'Export Fuel Logs',
-        description: 'Download fuel logs ledger.',
-        badgeColor: '#a855f7',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 5,
-        selector: '[data-mid="vehicle_log-tab-fuel"]',
-        type: 'stamp',
-        label: 'Fuel Ledger Tab',
-        description: 'View fuel ledger.',
-        badgeColor: '#0284c7',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 6,
-        selector: '[data-mid="vehicle_log-tab-fleet"]',
-        type: 'stamp',
-        label: 'Fleet Master Tab',
-        description: 'Manage fleet master.',
-        badgeColor: '#0284c7',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 7,
-        selector: '[data-mid="vehicle_log-filter"]',
-        type: 'stamp',
-        label: 'Filter & Search',
-        description: 'Filter conditions for logs.',
-        badgeColor: '#f59e0b',
-        positionHint: 'bottom',
-        spotlight: true
-      },
-      {
-        seq: 8,
-        selector: '[data-mid="vehicle_log-grid-fuel"]',
-        type: 'stamp',
-        label: 'Fuel Logs Data',
-        description: 'Data grid for fuel logs.',
-        badgeColor: '#ef4444',
-        positionHint: 'top',
-        spotlight: false
-      }
+
+        {
+                seq: 1,
+                selector: "[data-mid=\"vehicle_log-header\"]",
+                type: "stamp",
+                label: "차량 운용 현황 요약",
+                description: "보유 차량 수, 당월 총 주행거리, 총 주유비, 유류대 정산 현황을 모니터링합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 2,
+                selector: "[data-mid=\"vehicle_log-export-nts\"]",
+                type: "stamp",
+                label: "국세청 양식 내보내기",
+                description: "국세청 업무용 승용차 운행기록부 법정 서식으로 엑셀을 즉시 내려받습니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 3,
+                selector: "[data-mid=\"vehicle_log-upload-excel\"]",
+                type: "stamp",
+                label: "주유 내역 엑셀 업로드",
+                description: "법인카드 주유 전표 및 전자세금계산서 주유 데이터를 일괄 업로드합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 4,
+                selector: "[data-mid=\"vehicle_log-export-fuel\"]",
+                type: "stamp",
+                label: "주유 대장 내보내기",
+                description: "기간별 차량 주유 집계 및 정산 내역을 엑셀로 다운로드합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 5,
+                selector: "[data-mid=\"vehicle_log-tab-fuel\"]",
+                type: "stamp",
+                label: "주유 정산 대장 탭",
+                description: "차량별 주유 일자, 주유량(L), 금액, 주유소를 1:1 대사합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 6,
+                selector: "[data-mid=\"vehicle_log-tab-fleet\"]",
+                type: "stamp",
+                label: "차량 마스터 관리 탭",
+                description: "회사 보유 차량 번호, 차종, 배정 임직원, 보험 만기일을 관리합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 7,
+                selector: "[data-mid=\"vehicle_log-filter\"]",
+                type: "stamp",
+                label: "운행 기록 검색 조건",
+                description: "조회 기간, 차량 번호, 운전자, 업무용/비업무용 구분별로 필터링합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 8,
+                selector: "[data-mid=\"vehicle_log-grid-fuel\"]",
+                type: "stamp",
+                label: "운행 및 주유 데이터 대장",
+                description: "일자별 출발/도착지, 주행거리, 유류대 실지출 내역을 검토 및 수정합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        }
     ]
   },
   {
@@ -5101,76 +5105,77 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '당월 마감 확정 후에는 취득원가 수정이 불가하므로 실행 전 신규 취득 등록 완료 여부 점검'
     ],
     annotations: [
-      {
-        seq: 1,
-        selector: '[data-mid="dep-export-asset"]',
-        type: 'stamp',
-        label: 'Export Target Assets',
-        description: 'Download target assets to Excel.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 2,
-        selector: '[data-mid="dep-execute-panel"]',
-        type: 'stamp',
-        label: 'Execution Panel',
-        description: 'Run depreciation execution.',
-        badgeColor: '#10b981',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 3,
-        selector: '[data-mid="dep-rollback"]',
-        type: 'stamp',
-        label: 'Rollback',
-        description: 'Cancel closed depreciation.',
-        badgeColor: '#ea580c',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 4,
-        selector: '[data-mid="dep-execute-btn"]',
-        type: 'stamp',
-        label: 'Execute',
-        description: 'Execute monthly depreciation.',
-        badgeColor: '#a855f7',
-        positionHint: 'bottom',
-        spotlight: true
-      },
-      {
-        seq: 5,
-        selector: '[data-mid="dep-rules-panel"]',
-        type: 'stamp',
-        label: 'Rules Overview',
-        description: 'Read depreciation policies.',
-        badgeColor: '#0284c7',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 6,
-        selector: '[data-mid="dep-export-logs"]',
-        type: 'stamp',
-        label: 'Export Logs',
-        description: 'Download execution logs.',
-        badgeColor: '#f59e0b',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 7,
-        selector: '[data-mid="dep-logs-grid"]',
-        type: 'stamp',
-        label: 'Execution Logs Grid',
-        description: 'Review past executions.',
-        badgeColor: '#ef4444',
-        positionHint: 'top',
-        spotlight: false
-      }
+
+        {
+                seq: 1,
+                selector: "[data-mid=\"dep-export-asset\"]",
+                type: "stamp",
+                label: "상각 대상 자산 내보내기",
+                description: "당월 감가상각 계산 대상 자산 목록 및 기초 장부가액을 엑셀로 내려받습니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 2,
+                selector: "[data-mid=\"dep-execute-panel\"]",
+                type: "stamp",
+                label: "감가상각 실행 패널",
+                description: "상각 기준 연월을 선택하고 당월 상각비 및 기말 장부가액을 자동 산출합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 3,
+                selector: "[data-mid=\"dep-rollback\"]",
+                type: "stamp",
+                label: "마감 롤백 취소",
+                description: "오기 입력이나 회계 수정 발생 시 기마감된 감가상각 전표를 회계 취소합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 4,
+                selector: "[data-mid=\"dep-execute-btn\"]",
+                type: "stamp",
+                label: "감가상각 최종 실행",
+                description: "정액법에 따른 월할 상각비를 계산하여 자산 장부가액에 영구 반영 마감합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 5,
+                selector: "[data-mid=\"dep-rules-panel\"]",
+                type: "stamp",
+                label: "상각 회계 정책",
+                description: "내용연수(5년/8년 등), 잔존가액 정책, 취득월 일할 기준을 확인합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 6,
+                selector: "[data-mid=\"dep-export-logs\"]",
+                type: "stamp",
+                label: "상각 이력 내보내기",
+                description: "과거 회계연도별 누적 감가상각 실행 대장을 엑셀로 저장합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 7,
+                selector: "[data-mid=\"dep-logs-grid\"]",
+                type: "stamp",
+                label: "상각 실행 로그 대장",
+                description: "월별 상각 완료 일시, 실행 담당자, 상각 총액, 자산 변동 내역을 실사합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        }
     ]
   },
   {
@@ -5222,56 +5227,57 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '가동률 계산 시 역일(달력 일수)과 장비 총 보유 대수 기준을 명확히 명기'
     ],
     annotations: [
-      {
-        seq: 1,
-        selector: '[data-mid="reports-header"]',
-        type: 'stamp',
-        label: 'Header',
-        description: 'Change closing month.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 2,
-        selector: '[data-mid="reports-btn-refresh"]',
-        type: 'stamp',
-        label: 'Refresh',
-        description: 'Reload latest data.',
-        badgeColor: '#10b981',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 3,
-        selector: '[data-mid="reports-btn-print"]',
-        type: 'stamp',
-        label: 'Print',
-        description: 'Print report.',
-        badgeColor: '#ea580c',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 4,
-        selector: '[data-mid="reports-btn-pdf"]',
-        type: 'stamp',
-        label: 'PDF',
-        description: 'Download official PDF.',
-        badgeColor: '#a855f7',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 5,
-        selector: '[data-mid="reports-kpi"]',
-        type: 'stamp',
-        label: 'KPIs',
-        description: 'Executive KPIs overview.',
-        badgeColor: '#0284c7',
-        positionHint: 'bottom',
-        spotlight: true
-      }
+
+        {
+                seq: 1,
+                selector: "[data-mid=\"reports-header\"]",
+                type: "stamp",
+                label: "보고서 기준 연월 설정",
+                description: "정기 경영보고서 집계 기준 연월을 선택하고 데이터 범위를 확정합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 2,
+                selector: "[data-mid=\"reports-btn-refresh\"]",
+                type: "stamp",
+                label: "최신 실적 집계 갱신",
+                description: "매출, 수납, 가동률, 회계 전표 데이터를 원천 DB에서 최신으로 재집계합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 3,
+                selector: "[data-mid=\"reports-btn-print\"]",
+                type: "stamp",
+                label: "보고서 출력 인쇄",
+                description: "A4 최적화 레이아웃으로 경영 실적 보고서를 인쇄합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 4,
+                selector: "[data-mid=\"reports-btn-pdf\"]",
+                type: "stamp",
+                label: "공식 PDF 내보내기",
+                description: "임원 보고용 정기 경영 분석 보고서를 고해상도 PDF 파일로 저장합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 5,
+                selector: "[data-mid=\"reports-kpi\"]",
+                type: "stamp",
+                label: "경영 핵심 지표 요약",
+                description: "월간 총매출, 영업이익, 장비 가동률, 채권 회수율 등 경영 실적을 조망합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        }
     ]
   },
 
@@ -5325,76 +5331,77 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '정보보호 책임자 변경 시 개인정보 접속 감사 페이지 및 처리방침에 즉시 연동 반영'
     ],
     annotations: [
-      {
-        seq: 1,
-        selector: '[data-mid="org-header"]',
-        type: 'stamp',
-        label: 'Header',
-        description: 'Master settings overview.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 2,
-        selector: '[data-mid="org-export-excel"]',
-        type: 'stamp',
-        label: 'Export Excel',
-        description: 'Download org data.',
-        badgeColor: '#10b981',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 3,
-        selector: '[data-mid="org-save-all"]',
-        type: 'stamp',
-        label: 'Save All',
-        description: 'Save changes to DB.',
-        badgeColor: '#ea580c',
-        positionHint: 'bottom',
-        spotlight: true
-      },
-      {
-        seq: 4,
-        selector: '[data-mid="org-tree-panel"]',
-        type: 'stamp',
-        label: 'Department Tree',
-        description: 'Manage dept structure.',
-        badgeColor: '#a855f7',
-        positionHint: 'right',
-        spotlight: false
-      },
-      {
-        seq: 5,
-        selector: '[data-mid="org-unassigned-pool"]',
-        type: 'stamp',
-        label: 'Unassigned Pool',
-        description: 'View unassigned members.',
-        badgeColor: '#0284c7',
-        positionHint: 'top',
-        spotlight: false
-      },
-      {
-        seq: 6,
-        selector: '[data-mid="org-users-panel"]',
-        type: 'stamp',
-        label: 'Members Grid',
-        description: 'Users in selected pool/dept.',
-        badgeColor: '#f59e0b',
-        positionHint: 'left',
-        spotlight: false
-      },
-      {
-        seq: 7,
-        selector: '[data-mid="org-btn-add-user"]',
-        type: 'stamp',
-        label: 'Add User',
-        description: 'Create new profile.',
-        badgeColor: '#ef4444',
-        positionHint: 'bottom',
-        spotlight: false
-      }
+
+        {
+                seq: 1,
+                selector: "[data-mid=\"org-header\"]",
+                type: "stamp",
+                label: "조직 마스터 현황",
+                description: "전체 부서 수, 재직 임직원 수, 직급 체계 및 계정 상태를 확인합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 2,
+                selector: "[data-mid=\"org-export-excel\"]",
+                type: "stamp",
+                label: "조직도 엑셀 내보내기",
+                description: "전체 임직원 명부 및 부서 배치 데이터를 엑셀로 내려받습니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 3,
+                selector: "[data-mid=\"org-save-all\"]",
+                type: "stamp",
+                label: "조직 변동 저장",
+                description: "부서 이동 및 직책 변경 사항을 DB에 일괄 반영 저장합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 4,
+                selector: "[data-mid=\"org-tree-panel\"]",
+                type: "stamp",
+                label: "부서 조직도 트리",
+                description: "영업부, 배차팀, 주기장정비팀 등 트리 구조로 부서를 추가·수정·배치합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 5,
+                selector: "[data-mid=\"org-unassigned-pool\"]",
+                type: "stamp",
+                label: "미배치 사원 대기 큐",
+                description: "신규 가입 후 부서나 팀이 미지정된 임직원 계정을 확인합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 6,
+                selector: "[data-mid=\"org-users-panel\"]",
+                type: "stamp",
+                label: "부서원 명부 대장",
+                description: "선택 부서에 소속된 사원의 성명, 직급, 사번, 연락처, 입사일을 관리합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 7,
+                selector: "[data-mid=\"org-btn-add-user\"]",
+                type: "stamp",
+                label: "신규 임직원 등록",
+                description: "새로운 직원의 프로필, 로그인 이메일, 기본 부서 및 직급을 생성합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        }
     ]
   },
   {
@@ -5446,96 +5453,97 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '관리자(Tier 7) 권한은 대표이사 및 전산 책임자 외 임의 부여 절대 금지'
     ],
     annotations: [
-      {
-        seq: 1,
-        selector: '[data-mid="permission-scope"]',
-        type: 'stamp',
-        label: 'Scope',
-        description: 'Manual step for permission-scope',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 2,
-        selector: '[data-mid="permission-user-scope"]',
-        type: 'stamp',
-        label: 'Scope',
-        description: 'Manual step for permission-user-scope',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 3,
-        selector: '[data-mid="permission-pipeline-add"]',
-        type: 'stamp',
-        label: 'Add',
-        description: 'Manual step for permission-pipeline-add',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 4,
-        selector: '[data-mid="permission-inspection-grid"]',
-        type: 'stamp',
-        label: 'Grid',
-        description: 'Manual step for permission-inspection-grid',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 5,
-        selector: '[data-mid="permission-inspection-detail"]',
-        type: 'stamp',
-        label: 'Detail',
-        description: 'Manual step for permission-inspection-detail',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 6,
-        selector: '[data-mid="permission-pipeline-save"]',
-        type: 'stamp',
-        label: 'Save',
-        description: 'Manual step for permission-pipeline-save',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 7,
-        selector: '[data-mid="permission-user-inspection-filter"]',
-        type: 'stamp',
-        label: 'Filter',
-        description: 'Manual step for permission-user-inspection-filter',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 8,
-        selector: '[data-mid="permission-user-inspection-grid"]',
-        type: 'stamp',
-        label: 'Grid',
-        description: 'Manual step for permission-user-inspection-grid',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 9,
-        selector: '[data-mid="permission-terminal-audit"]',
-        type: 'stamp',
-        label: 'Audit',
-        description: 'Manual step for permission-terminal-audit',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      }
+
+        {
+                seq: 1,
+                selector: "[data-mid=\"permission-scope\"]",
+                type: "stamp",
+                label: "권한 롤 선택",
+                description: "최고관리자, 영업관리, 배차담당, 정비기사 등 권한 그룹을 선택합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 2,
+                selector: "[data-mid=\"permission-user-scope\"]",
+                type: "stamp",
+                label: "사용자별 권한 스코핑",
+                description: "특정 임직원을 검색하여 개별 메뉴 접근 및 CUD 권한을 확인합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 3,
+                selector: "[data-mid=\"permission-pipeline-add\"]",
+                type: "stamp",
+                label: "신규 권한 그룹 생성",
+                description: "새로운 직무 롤을 정의하고 직무별 기본 권한 템플릿을 생성합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 4,
+                selector: "[data-mid=\"permission-inspection-grid\"]",
+                type: "stamp",
+                label: "메뉴별 접근 권한 매트릭스",
+                description: "각 메뉴별 읽기, 쓰기, 삭제, 엑셀 출력 권한을 1:1 매핑 체크합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 5,
+                selector: "[data-mid=\"permission-inspection-detail\"]",
+                type: "stamp",
+                label: "특수 권한 상세 설정",
+                description: "단가 조회, 미수금 열람, 감사 로그 접근 등 보안 속성을 상세 제어합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 6,
+                selector: "[data-mid=\"permission-pipeline-save\"]",
+                type: "stamp",
+                label: "권한 변경 사항 저장",
+                description: "수정된 권한 매트릭스 정책을 DB 및 사용자 세션에 즉시 적용합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 7,
+                selector: "[data-mid=\"permission-user-inspection-filter\"]",
+                type: "stamp",
+                label: "임직원 권한 검색",
+                description: "부서별, 재직 상태별로 임직원을 필터링하여 권한 현황을 검토합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 8,
+                selector: "[data-mid=\"permission-user-inspection-grid\"]",
+                type: "stamp",
+                label: "임직원 롤 매핑 대장",
+                description: "개별 사원에게 부여된 주 권한과 추가 예외 권한을 대조합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 9,
+                selector: "[data-mid=\"permission-terminal-audit\"]",
+                type: "stamp",
+                label: "보안 감사 로그 대조",
+                description: "권한 변경 이력, 최종 수정자, 변경 시각을 감사 추적합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        }
     ]
   },
   {
@@ -5567,76 +5575,77 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '급여 데이터는 극비 개인정보이므로 권한 없는 자의 화면 접근 절대 차단'
     ],
     annotations: [
-      {
-        seq: 1,
-        selector: '[data-mid="payroll-scope-month"]',
-        type: 'stamp',
-        label: 'Month',
-        description: 'Manual step for payroll-scope-month',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 2,
-        selector: '[data-mid="payroll-scope-emp"]',
-        type: 'stamp',
-        label: 'Emp',
-        description: 'Manual step for payroll-scope-emp',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 3,
-        selector: '[data-mid="payroll-pipeline-upload"]',
-        type: 'stamp',
-        label: 'Upload',
-        description: 'Manual step for payroll-pipeline-upload',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 4,
-        selector: '[data-mid="payroll-inspection-grid"]',
-        type: 'stamp',
-        label: 'Grid',
-        description: 'Manual step for payroll-inspection-grid',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 5,
-        selector: '[data-mid="payroll-terminal-audit-close"]',
-        type: 'stamp',
-        label: 'Close',
-        description: 'Manual step for payroll-terminal-audit-close',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 6,
-        selector: '[data-mid="payroll-terminal-audit-email"]',
-        type: 'stamp',
-        label: 'Email',
-        description: 'Manual step for payroll-terminal-audit-email',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 7,
-        selector: '[data-mid="payroll-terminal-audit-excel"]',
-        type: 'stamp',
-        label: 'Excel',
-        description: 'Manual step for payroll-terminal-audit-excel',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      }
+
+        {
+                seq: 1,
+                selector: "[data-mid=\"payroll-scope-month\"]",
+                type: "stamp",
+                label: "정산 지급 연월 설정",
+                description: "급여 지급 대상 연월 및 정산 기준일을 지정합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 2,
+                selector: "[data-mid=\"payroll-scope-emp\"]",
+                type: "stamp",
+                label: "급여 대상 임직원 필터",
+                description: "전체 사원, 정규직, 계약직, 현장 기사별로 정산 대상을 선택합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 3,
+                selector: "[data-mid=\"payroll-pipeline-upload\"]",
+                type: "stamp",
+                label: "근태 및 수당 엑셀 업로드",
+                description: "연장근무, 휴일수당, 식대, 차량보조금 실적을 엑셀로 일괄 반입합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 4,
+                selector: "[data-mid=\"payroll-inspection-grid\"]",
+                type: "stamp",
+                label: "급여 정산 명세 대장",
+                description: "기본급, 수당, 4대보험, 소득세 원천징수액 및 실지급액을 1:1 검증합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 5,
+                selector: "[data-mid=\"payroll-terminal-audit-close\"]",
+                type: "stamp",
+                label: "급여 마감 최종 확정",
+                description: "당월 급여 산출 내역을 확정 마감하고 회계 전표로 이관합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 6,
+                selector: "[data-mid=\"payroll-terminal-audit-email\"]",
+                type: "stamp",
+                label: "급여명세서 전자 발송",
+                description: "암호화된 개인별 급여명세서를 임직원 이메일로 일괄 전송합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 7,
+                selector: "[data-mid=\"payroll-terminal-audit-excel\"]",
+                type: "stamp",
+                label: "급여 대장 엑셀 내보내기",
+                description: "은행 급여 이체용 대장 및 급여 대장 원부를 엑셀로 다운로드합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        }
     ]
   },
   {
@@ -5688,86 +5697,87 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '연차 촉진 통보서를 기한 내 서면/전자 통보하지 않으면 미사용 연차 수당 지급 의무 발생'
     ],
     annotations: [
-      {
-        seq: 1,
-        selector: '[data-mid="leave-scope-emp"]',
-        type: 'stamp',
-        label: 'Emp',
-        description: 'Manual step for leave-scope-emp',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 2,
-        selector: '[data-mid="leave-inspection-quota-grid"]',
-        type: 'stamp',
-        label: 'Grid',
-        description: 'Manual step for leave-inspection-quota-grid',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 3,
-        selector: '[data-mid="leave-inspection-usage-grid"]',
-        type: 'stamp',
-        label: 'Grid',
-        description: 'Manual step for leave-inspection-usage-grid',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 4,
-        selector: '[data-mid="leave-pipeline-add"]',
-        type: 'stamp',
-        label: 'Add',
-        description: 'Manual step for leave-pipeline-add',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 5,
-        selector: '[data-mid="leave-terminal-audit-excel"]',
-        type: 'stamp',
-        label: 'Excel',
-        description: 'Manual step for leave-terminal-audit-excel',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 6,
-        selector: '[data-mid="leave-terminal-audit-delete"]',
-        type: 'stamp',
-        label: 'Delete',
-        description: 'Manual step for leave-terminal-audit-delete',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 7,
-        selector: '[data-mid="leave-pipeline-edit"]',
-        type: 'stamp',
-        label: 'Edit',
-        description: 'Manual step for leave-pipeline-edit',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 8,
-        selector: '[data-mid="leave-inspection-summary"]',
-        type: 'stamp',
-        label: 'Summary',
-        description: 'Manual step for leave-inspection-summary',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      }
+
+        {
+                seq: 1,
+                selector: "[data-mid=\"leave-scope-emp\"]",
+                type: "stamp",
+                label: "임직원 연차 조회 조건",
+                description: "귀속 연도, 부서, 사원명을 선택하여 연차 현황을 스코핑합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 2,
+                selector: "[data-mid=\"leave-inspection-quota-grid\"]",
+                type: "stamp",
+                label: "연차 부여 및 잔여 대장",
+                description: "근속연수별 발생 연차, 기사용 연차, 잔여 일수를 1:1 대조합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 3,
+                selector: "[data-mid=\"leave-inspection-usage-grid\"]",
+                type: "stamp",
+                label: "연차 사용 상세 내역",
+                description: "신청 일자, 휴가 유형(연차/반차/경조/병가), 사용 사유, 결재 상태를 조회합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 4,
+                selector: "[data-mid=\"leave-pipeline-add\"]",
+                type: "stamp",
+                label: "연차 수동 조정 및 등록",
+                description: "포상 휴가 가산, 이월 연차 반영 등 수동 가감 조정을 등록합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 5,
+                selector: "[data-mid=\"leave-terminal-audit-excel\"]",
+                type: "stamp",
+                label: "연차 대장 엑셀 내보내기",
+                description: "전사 연차 발생 및 사용 결산 현황을 엑셀 파일로 내려받습니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 6,
+                selector: "[data-mid=\"leave-terminal-audit-delete\"]",
+                type: "stamp",
+                label: "연차 사용 내역 취소",
+                description: "미승인 또는 취소 요청된 연차 내역을 삭제하고 잔여 연차를 복원합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 7,
+                selector: "[data-mid=\"leave-pipeline-edit\"]",
+                type: "stamp",
+                label: "연차 발생 일수 수정",
+                description: "입사일 기준 회계연도 비례 연차 부여 일수를 수정 저장합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 8,
+                selector: "[data-mid=\"leave-inspection-summary\"]",
+                type: "stamp",
+                label: "연차 소진율 요약 지표",
+                description: "전사 총 발생일수, 총 사용일수, 평균 소진율, 촉구 대상자를 모니터링합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        }
     ]
   },
   {
@@ -5818,86 +5828,87 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '심야 시간대 대량 다운로드 감지 시 즉시 정보보호 책임자에게 비상 경보 발령'
     ],
     annotations: [
-      {
-        seq: 1,
-        selector: '[data-mid="privacy-scope-date"]',
-        type: 'stamp',
-        label: 'Date',
-        description: 'Manual step for privacy-scope-date',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 2,
-        selector: '[data-mid="privacy-scope-text"]',
-        type: 'stamp',
-        label: 'Text',
-        description: 'Manual step for privacy-scope-text',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 3,
-        selector: '[data-mid="privacy-scope-select"]',
-        type: 'stamp',
-        label: 'Select',
-        description: 'Manual step for privacy-scope-select',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 4,
-        selector: '[data-mid="privacy-inspection-grid"]',
-        type: 'stamp',
-        label: 'Grid',
-        description: 'Manual step for privacy-inspection-grid',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 5,
-        selector: '[data-mid="privacy-terminal-audit-excel"]',
-        type: 'stamp',
-        label: 'Excel',
-        description: 'Manual step for privacy-terminal-audit-excel',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 6,
-        selector: '[data-mid="privacy-pipeline-refresh"]',
-        type: 'stamp',
-        label: 'Refresh',
-        description: 'Manual step for privacy-pipeline-refresh',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 7,
-        selector: '[data-mid="privacy-inspection-detail"]',
-        type: 'stamp',
-        label: 'Detail',
-        description: 'Manual step for privacy-inspection-detail',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 8,
-        selector: '[data-mid="privacy-scope-header"]',
-        type: 'stamp',
-        label: 'Header',
-        description: 'Manual step for privacy-scope-header',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      }
+
+        {
+                seq: 1,
+                selector: "[data-mid=\"privacy-scope-date\"]",
+                type: "stamp",
+                label: "감사 기간 범위 설정",
+                description: "접속 로그 조회 시작일과 종료일을 지정하여 감사 범위를 확정합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 2,
+                selector: "[data-mid=\"privacy-scope-text\"]",
+                type: "stamp",
+                label: "접속자 및 대상 검색",
+                description: "조회 사원명, 로그인 계정, 고객 상호, 주민/사업자번호를 검색합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 3,
+                selector: "[data-mid=\"privacy-scope-select\"]",
+                type: "stamp",
+                label: "수행 작업 유형 필터",
+                description: "열람, 수정, 삭제, 엑셀 다운로드, 인쇄 등 작업 유형별로 필터링합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 4,
+                selector: "[data-mid=\"privacy-inspection-grid\"]",
+                type: "stamp",
+                label: "개인정보 접속 감사 대장",
+                description: "접속 일시, 접속자 IP, 접근 메뉴, 조회된 개인정보 항목, 사유를 실사합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 5,
+                selector: "[data-mid=\"privacy-terminal-audit-excel\"]",
+                type: "stamp",
+                label: "감사 로그 엑셀 내보내기",
+                description: "법적 증빙 보존을 위해 개인정보 접속 기록을 암호화 엑셀로 내려받습니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 6,
+                selector: "[data-mid=\"privacy-pipeline-refresh\"]",
+                type: "stamp",
+                label: "감사 로그 즉시 갱신",
+                description: "최신 발생된 접속 및 다운로드 이벤트를 원천 DB에서 즉시 재조회합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 7,
+                selector: "[data-mid=\"privacy-inspection-detail\"]",
+                type: "stamp",
+                label: "접속 상세 패킷 검토",
+                description: "대량 다운로드 또는 비정상 시간대 접속 건의 상세 페이로드를 확인합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        },
+        {
+                seq: 8,
+                selector: "[data-mid=\"privacy-scope-header\"]",
+                type: "stamp",
+                label: "개인정보 감사 규정 요약",
+                description: "법정 보존 기한(2년 이상), 이상 징후 알림 기준, 개인정보보호법 준수 지표를 조망합니다.",
+                badgeColor: "#1D4ED8",
+                positionHint: "bottom",
+                spotlight: false
+        }
     ]
   },
 

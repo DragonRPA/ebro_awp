@@ -1,5 +1,33 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## [완료] 전 메뉴 매뉴얼 영문 혼입 전수 감사 및 11개 메뉴 77개 단계 100% 한국어 실무 표준화 완결
+- **요구사항**:
+  - "이 메뉴 처럼 매뉴얼 설명이 영어로 나오는 페이지가 더 있는지 확인하고 언어를 한국어로 처리해. 이거 왜 영어인거야"
+- **영문 혼입 원인 규명**:
+  - 2026-09-30 22:07경 `manual_patches/` 폴더에 임시 생성되었던 일부 패치 파일(`consumable_stock.json`, `field_as.json`, `permission.json` 등 11개)에 영문 플레이스홀더(`Stock Actions`, `Tab Navigation`, `Manual step for ...`)가 작성된 채로 `allMenuManuals.ts`에 일괄 반영되었기 때문.
+- **전수 감사 결과**:
+  - 시스템 내 55개 전체 메뉴의 매뉴얼 어노테이션, 개요, 인지 시퀀스, 주의사항 전수 스캔 집행.
+  - 총 11개 메뉴에서 영문 어노테이션(총 77개 단계) 발견:
+    1. `consumable_stock` (주기장 소모품 재고, 8개 단계)
+    2. `field_as` (현장 AS 관리, 5개 단계)
+    3. `repair` (주기장 정비 관리, 5개 단계)
+    4. `vehicle_log` (차량 / 주유관리, 8개 단계)
+    5. `depreciation_execution` (감가상각 마감 실행, 7개 단계)
+    6. `regular_reports` (정기보고서 생성, 5개 단계)
+    7. `organization` (조직 / 인사 관리, 7개 단계)
+    8. `permission` (사용자 및 권한, 9개 단계)
+    9. `payroll` (급여 정산, 7개 단계)
+    10. `leave_management` (연차관리, 8개 단계)
+    11. `privacy_audit` (개인정보 접속 감사, 8개 단계)
+- **수정 및 개선 내역**:
+  1. **전사 표준 헌장(카테고리 III 3.1) 건조한 명사·동사 한국어 표준화**:
+     - 11개 메뉴 77개 단계의 레이블 및 상세 설명을 현장 실무 용어로 100% 한국어 전환 (수식어·형용사 배제).
+     - 예: `Stock Actions` ➔ `소모품 관리 액션`, `Transfer Parts` ➔ `차량 부품 이송`, `Audit Confirmation` ➔ `실사 재고 확정`, `Manual step for ...` 등 더미 영문 전면 청산.
+  2. **`allMenuManuals.ts` 및 `manual_patches/*.json` 1:1 동기화 완료**:
+     - 소스 코드 및 패치 저장소까지 일괄 동기화하여 재빌드 시 영문 덮어쓰기 원천 차단.
+  3. **전수 재감사 결과**: 잔여 영문 어노테이션 0건 확인 완료.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 error, 865ms).
+
 ## [완료] 매뉴얼 5단계 Gutenberg 폴백 querySelector SyntaxError(:contains 결함) 원천 수정 및 safeQuery 안전망 구축
 - **요구사항**:
   - 화면에 "시스템 일시 오류 복구 - Failed to execute 'querySelector' on 'Element': '[data-mid*="detail"], button:contains("상세"), table tbody tr:first-child button' is not a valid selector" 에러 모달 발생 차단.
