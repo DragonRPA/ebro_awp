@@ -1321,7 +1321,7 @@ export const Contracts: React.FC = () => {
       {/* ────────────────────────────────────────────────────────────────────────── */}
             {/* 계약 운용 KPI 바 (Scope) */}
       {viewMode === 'LIST' && activeTab === 'ALL_LIST' && (
-        <div data-mid="contract-kpi-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '6px', flexShrink: 0 }}>
+        <div data-subview="contract" data-subview-title="계약 관리" data-mid="contract-kpi-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '6px', flexShrink: 0 }}>
           <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>총 계약건수</span>
             <strong style={{ fontSize: '14px', color: 'var(--primary)', whiteSpace: 'nowrap' }}>{contractKpiStats.totalCount}건</strong>
@@ -1876,7 +1876,7 @@ export const Contracts: React.FC = () => {
       {/* 뷰 2: 계약 상세 뷰 (viewMode === 'DETAIL') */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {viewMode === 'DETAIL' && activeContract && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div data-subview="contract_detail" data-subview-title="계약 상세" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           
           {/* 상단 컨트롤 바 */}
           <div className="card" style={{ padding: '12px 18px', margin: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '10px' }}>
@@ -3107,7 +3107,7 @@ export const Contracts: React.FC = () => {
 
       {/* 뷰 3: 신규 계약 등록 */}
       {viewMode === 'LIST' && activeTab === 'CREATE' && (
-        <form onSubmit={handleCreateContractSubmit} className="card" style={{ margin: 0 }}>
+        <form onSubmit={handleCreateContractSubmit} className="card" data-subview="contract_create" data-subview-title="신규 계약 등록" style={{ margin: 0 }}>
           <h3 className="card-title" style={{ marginBottom: '16px' }}>신규 계약 등록</h3>
           
           {selectedCustOverdue && (
@@ -3132,7 +3132,7 @@ export const Contracts: React.FC = () => {
           )}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div data-mid="create-contract-cust" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <label style={{ fontSize: '12px', fontWeight: 600 }}>고객사 선택 *</label>
                 {custModalSearch && (
@@ -3180,7 +3180,7 @@ export const Contracts: React.FC = () => {
               </select>
             </div>
 
-            <div>
+            <div data-mid="create-contract-salesperson">
               <label>영업담당 *</label>
               <select value={salespersonSelect} onChange={e => setSalespersonSelect(e.target.value)} required style={{ width: '100%', padding: '8px' }}>
                 {users.map(u => (
@@ -3189,14 +3189,14 @@ export const Contracts: React.FC = () => {
               </select>
             </div>
 
-            <div>
+            <div data-mid="create-contract-start-date">
               <label>계약 시작일 *</label>
               <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} required style={{ width: '100%', padding: '8px' }} />
             </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-            <div>
+            <div data-mid="create-contract-end-date">
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                 <input type="checkbox" checked={isEndDateOpen} onChange={e => setIsEndDateOpen(e.target.checked)} />
                 종료일 미정 (상시 대여중)
@@ -3206,7 +3206,7 @@ export const Contracts: React.FC = () => {
               )}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.45fr', gap: '10px' }}>
+            <div data-mid="create-contract-billing-terms" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.45fr', gap: '10px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}>청구 마감일 (일) *</label>
                 <input type="number" min={1} max={31} value={billingDay} onChange={e => setBillingDay(Number(e.target.value))} required style={{ width: '100%', padding: '8px' }} />
@@ -3243,7 +3243,7 @@ export const Contracts: React.FC = () => {
           </div>
 
           {/* 자산 바스켓 */}
-          <div style={{ padding: '14px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
+          <div data-mid="create-contract-basket-picker" style={{ padding: '14px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
             <h4 style={{ fontWeight: 600, marginBottom: '10px' }}>체결 자산 선택</h4>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', marginBottom: '10px', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -3303,7 +3303,7 @@ export const Contracts: React.FC = () => {
 
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
             <button type="button" className="btn-secondary" onClick={() => setActiveTab('ALL_LIST')}>취소</button>
-            <button type="submit" className="btn-success">계약 등록</button>
+            <button type="submit" data-mid="create-contract-submit" className="btn-success">계약 등록</button>
           </div>
         </form>
       )}

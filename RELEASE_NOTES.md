@@ -1,3 +1,41 @@
+## 2026-09-30 20:35 (v1.8.5.Build.5)
+
+### [서브뷰/탭별 인앱 매뉴얼 동적 감지 엔진 구축 및 신규 계약 등록·미청구 정산 1:1 완벽 정합화] 탭 전환 시 매뉴얼 실시간 스위칭 & 뱃지 뭉침·파동 오배치 전면 해소
+
+- **화면 서브뷰/탭별 인앱 매뉴얼 동적 자동 감지 엔진 신설 (`detectCurrentContext`, `src/data/modalManuals.ts`)**:
+  - 단일 메뉴 ID 기반 로딩 방식의 한계를 극복하고, 활성 팝업(모달) ➔ 화면 노출 중인 서브뷰(`[data-subview]`) ➔ 기본 메뉴 ID 순으로 사용자가 실제 작업 중인 인터페이스를 런타임에 100% 자동 식별.
+- **`App.tsx` 매뉴얼 트리거 및 단축키(Ctrl+M) 연동 (`src/App.tsx`)**:
+  - `handleView`, `handleAuthor`, 전역 `Ctrl+M` 입력 시 `detectCurrentContext`를 실행하여 현재 화면에 열려 있는 서브뷰(또는 모달)의 전용 매뉴얼을 정확히 바인딩 로드.
+- **`ManualOverlay.tsx` 동적 서브뷰 실시간 자동 스위칭 (`src/components/manual/ManualOverlay.tsx`)**:
+  - 매뉴얼이 화면에 켜져 있는 상태에서 사용자가 탭을 전환(`목록` ↔ `신규 계약 등록`, `청구 대장` ↔ `미청구 정산`)하면, `MutationObserver`가 컨텍스트 전환을 즉각 인지하여 해당 서브뷰의 7단계 매뉴얼로 자동 스위칭 및 1단계 포커스 자동 리셋.
+- **계약 관리 — 신규 계약 등록 폼 7단계 DOM 앵커 완비 및 v5 전용 매뉴얼 신설 (`src/pages/Contracts.tsx`, `src/data/allMenuManuals.ts`)**:
+  - 기존 신규 계약 등록 폼에서 1~5단계 뱃지가 "고객사 선택" 드롭다운 1곳에 뒤엉켜 뭉쳐지던 결함 원천 해결.
+  - `data-subview="contract_create"` 속성 부여 및 7대 핵심 입력/액션 요소에 1:1 DOM 앵커 부여:
+    - 1단계: `create-contract-cust` (고객사 검색·선택 및 연체/거래제한 실시간 검증)
+    - 2단계: `create-contract-salesperson` (총괄 사내 영업담당 임직원 지정)
+    - 3단계: `create-contract-start-date` (장비 투입 및 과금 개시 계약 시작일)
+    - 4단계: `create-contract-end-date` (약정 만료일 또는 종료일 미정 상시대여)
+    - 5단계: `create-contract-billing-terms` (청구 마감일, 명세서 마감일, 약정 결제일 조건)
+    - 6단계: `create-contract-basket-picker` (체결 장비 모델 및 월 렌탈료 단가 바스켓 추가)
+    - 7단계: `create-contract-submit` (`[계약 등록]` 최종 체결 제출 버튼)
+- **매출 청구 관리 — 미청구 정산 위저드 7단계 DOM 앵커 완비 및 v5 전용 매뉴얼 신설 (`src/pages/Billings.tsx`, `src/data/allMenuManuals.ts`)**:
+  - 상단 탭 바 div에 잘못 붙어 1단계 파동이 우측 빈 공간에 뿜어지고 2~7단계 뱃지가 날짜 input에 뭉치던 오배치 결함 완전 해결.
+  - `data-subview="billing_wizard"` 부여 및 미청구 정산 2열 스튜디오에 1:1 DOM 앵커 부여:
+    - 1단계: `wizard-period-scope` (마감일 기준 검색 기간 및 전월/당월 퀵버튼 스코핑)
+    - 2단계: `wizard-search-filter` (고객사명, 계약번호, 현장명 세부 필터링)
+    - 3단계: `wizard-bulk-generate-btn` (외상미수금 없는 정상 계약 원클릭 일괄 청구 생성)
+    - 4단계: `wizard-contract-card-list` (마감 도래 정산 대상 계약 카드 목록)
+    - 5단계: `wizard-calc-period` (권장 시작일/당월/전월 퀵버튼 및 청구 귀속월 설정)
+    - 6단계: `wizard-calc-items` (장비별 일할 청구액, 현장 AS 수리비, 운송료 및 외상미수금 대사)
+    - 7단계: `wizard-submit-btn` (`[청구 생성]` 최종 마감 발행 버튼)
+    - 폴백: `wizard-calculator-container` (계약 카드 미선택 시 우측 패널 안정적 가이드)
+  - 기존 `청구 대장` 탭의 1단계 앵커(`billing-period-scope`)는 `청구 귀속월` 필터 영역에 정확히 재배치.
+- **Supabase DB 원격 동기화 (`scripts/sync_manuals_to_db.ts`)**:
+  - `contract_create`, `billing_wizard`, `billing` v5 최신 레코드를 Supabase 원격 DB `manual_annotations`에 영구 upsert 완료.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 Errors, 794ms).
+
+---
+
 ## 2026-09-30 20:05 (v1.8.5.Build.4)
 
 ### [매뉴얼 설명 맥락 및 실제 화면 UI 1:1 완벽 정합화] 필터 패널 전체 강조 타겟팅 & 3단계 헤더 오잡힘 파동 결함 원천 해결 & 계약/고객/배차/자산/청구 전수 DOM 앵커 완비

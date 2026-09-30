@@ -5,7 +5,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import type { ManualAnnotationItem, AnnotationType } from '../../types/manual';
 import { useManualContext } from './ManualContext';
-import { detectActiveModalElement } from '../../data/modalManuals';
+import { detectActiveModalElement, detectCurrentContext } from '../../data/modalManuals';
 import { MenuBriefingBox } from './MenuBriefingBox';
 
 /* ── 리플(파동) 및 펄스 애니메이션 CSS ────────────────────────── */
@@ -396,10 +396,11 @@ const BottomDossierCard: React.FC<{
    메인 오버레이 컴포넌트
 ══════════════════════════════════════════════════════════════ */
 export const ManualOverlay: React.FC = () => {
-  const { mode, setMode, page, openDocModal } = useManualContext();
+  const { mode, setMode, page, openDocModal, loadPage } = useManualContext();
   const [elements, setElements] = useState<Record<number, HTMLElement | null>>({});
   const [rects, setRects] = useState<Record<number, Rect | null>>({});
   const [expandedSeq, setExpandedSeq] = useState<number | null>(null);
+  const lastPageIdRef = useRef<string | null>(null);
   const rafRef = useRef<number>(0);
 
   const isModal = Boolean(page?.pageId?.startsWith('modal_'));
@@ -433,12 +434,34 @@ export const ManualOverlay: React.FC = () => {
     setRects(nextRects);
   }, [page, setMode]);
 
+  // 페이지/서브뷰 전환 시 1단계 자동 포커스 초기화
+  useEffect(() => {
+    if (page?.pageId && page.pageId !== lastPageIdRef.current) {
+      lastPageIdRef.current = page.pageId;
+      setExpandedSeq(1);
+    }
+  }, [page?.pageId]);
+
   useEffect(() => {
     if (mode !== 'viewing') { setExpandedSeq(null); return; }
     recalcTargets();
 
-    // 1. DOM 변경 감시: 모달 닫힘 실시간 감지 및 단계 뱃지 위치 재계산
+    // 1. DOM 변경 감시: 서브뷰 전환, 모달 열림/닫힘 실시간 감지 및 단계 뱃지 위치 재계산
     const mo = new MutationObserver(() => {
+      // 💡 [동적 서브뷰 및 모달 자동 전환]
+      if (page) {
+        const baseId = page.pageId.split('_')[0] || page.pageId;
+        const ctx = detectCurrentContext(baseId, page.pageTitle);
+        if (ctx.pageId !== page.pageId) {
+          if (isModal && !ctx.isModal && ctx.pageId === baseId) {
+            setMode('off');
+            return;
+          }
+          loadPage(ctx.pageId, ctx.pageTitle);
+          return;
+        }
+      }
+
       if (isModal) {
         const active = detectActiveModalElement();
         if (!active) {

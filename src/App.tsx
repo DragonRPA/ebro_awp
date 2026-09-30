@@ -83,7 +83,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { ManualProvider, useManualContext } from './components/manual/ManualContext';
 import { ManualOverlay } from './components/manual/ManualOverlay';
 import { ManualAuthorPanel } from './components/manual/ManualAuthorPanel';
-import { detectActiveModalElement } from './data/modalManuals';
+import { detectActiveModalElement, detectCurrentContext } from './data/modalManuals';
 
 
 const Billings = React.lazy(() => import('./pages/Billings').then(module => ({ default: module.Billings })));
@@ -127,7 +127,8 @@ const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activ
   const handleView = async () => {
     if (mode === 'viewing') { setMode('off'); return; }
     setMode('off');
-    await loadPage(activeTab, pageTitle);
+    const ctx = detectCurrentContext(activeTab, pageTitle);
+    await loadPage(ctx.pageId, ctx.pageTitle);
     setMode('viewing');
   };
 
@@ -135,7 +136,8 @@ const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activ
     if (!canAuthor) return;
     if (mode === 'authoring') { setMode('off'); return; }
     setMode('off');
-    await loadPage(activeTab, pageTitle);
+    const ctx = detectCurrentContext(activeTab, pageTitle);
+    await loadPage(ctx.pageId, ctx.pageTitle);
     setMode('authoring');
   };
 
@@ -607,27 +609,20 @@ const App: React.FC = () => {
         return;
       }
 
-      // 2. Ctrl+M 또는 Cmd+M -> 매뉴얼 보기 켜기/끄기 토글 (모달 열림 시 모달 매뉴얼 우선 작동)
+      // 2. Ctrl+M 또는 Cmd+M -> 매뉴얼 보기 켜기/끄기 토글 (모달 및 서브뷰 동적 자동 감지)
       if ((e.ctrlKey || e.metaKey) && (e.key === 'm' || e.key === 'M')) {
         e.preventDefault();
         if (manualMode === 'viewing') {
           setManualMode('off');
         } else {
           setManualMode('off');
-          // 💡 [핵심] 현재 화면에 열려있는 팝업(모달) 감지
-          const activeModal = detectActiveModalElement();
-          if (activeModal) {
-            loadManualPage(activeModal.modalKey, activeModal.title).then(() => {
-              setManualMode('viewing');
-            });
-          } else {
-            const allItems = menuGroups.flatMap(g => g.items);
-            const currentItem = allItems.find(i => i.id === activeTab);
-            const pageTitle = currentItem?.name || activeTab;
-            loadManualPage(activeTab, pageTitle).then(() => {
-              setManualMode('viewing');
-            });
-          }
+          const allItems = menuGroups.flatMap(g => g.items);
+          const currentItem = allItems.find(i => i.id === activeTab);
+          const defaultPageTitle = currentItem?.name || activeTab;
+          const ctx = detectCurrentContext(activeTab, defaultPageTitle);
+          loadManualPage(ctx.pageId, ctx.pageTitle).then(() => {
+            setManualMode('viewing');
+          });
         }
         return;
       }

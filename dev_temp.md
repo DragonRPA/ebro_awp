@@ -1,5 +1,30 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## [완료] 화면 서브뷰/탭별 인앱 매뉴얼 동적 자동 감지 엔진 구축 및 신규 계약 등록·미청구 정산 매뉴얼 1:1 완벽 정합화
+- **요구사항**:
+  "이 메뉴의 매뉴얼이 UI 요소와 불일치 해 점검해서 수정" (계약 관리 `신규 계약 등록` 폼 및 매출 청구 관리 `미청구 정산` 화면 캡처 업로드)
+- **문제의 본질 (원인 분석)**:
+  1. **단일 메뉴-단일 화면 전제의 한계**: ERP 화면들이 탭 및 서브뷰(예: 계약 관리의 목록 vs 신규 계약 등록 vs 계약 상세, 청구 관리의 청구 대장 vs 미청구 정산 위저드)로 구성되어 있음에도, 매뉴얼 시스템이 상위 메뉴 ID(`contract`, `billing`)만을 일괄 로드함.
+  2. **신규 계약 등록 폼 뱃지 뭉침 결함**: 목록 뷰의 필터, KPI, 그리드 요소가 신규 계약 등록 폼에 존재하지 않아, 스마트 폴백이 발동하여 1~5단계 뱃지가 좌상단 "고객사 선택" 드롭다운 1곳에 뭉쳐지고, 6단계는 상단 헤더 패키지 버튼, 7단계는 신규등록 버튼에 잘못 붙는 현상 발생.
+  3. **미청구 정산 탭 1단계 파동 오배치 및 뱃지 뭉침 결함**: `Billings.tsx`에서 `data-mid="billing-period-scope"`가 전체 탭 바 flex div에 오배치되어 있어 1단계 파동이 우측 상단 빈 공간에 뿜어지고, 2~7단계는 좌측 시작/종료일자 input에 뭉쳐지는 현상 발생.
+- **수정 및 개선 내역**:
+  1. **실시간 컨텍스트 자동 감지 엔진 신설 (`detectCurrentContext`, `src/data/modalManuals.ts`)**:
+     - 활성 팝업(모달), 화면에 노출 중인 서브뷰(`[data-subview]`), 기본 메뉴 ID 순으로 현재 사용자가 작업 중인 정확한 뷰를 실시간 판별.
+  2. **`App.tsx` 매뉴얼 로딩 파이프라인 연동 (`src/App.tsx`)**:
+     - `handleView`, `handleAuthor`, 전역 단축키 `Ctrl+M`에서 `detectCurrentContext`를 호출하여 현재 화면에 렌더링된 서브뷰(또는 모달) 전용 매뉴얼 자동 로드.
+  3. **`ManualOverlay.tsx` 동적 서브뷰 실시간 자동 스위칭 (`src/components/manual/ManualOverlay.tsx`)**:
+     - 매뉴얼 열람 상태에서 사용자가 탭을 전환(`목록` ↔ `신규 계약 등록`, `청구 대장` ↔ `미청구 정산`)할 경우, `MutationObserver`가 컨텍스트 변경을 실시간 감지하여 해당 서브뷰 매뉴얼로 동적 스위칭하고 1단계 포커스를 자동 초기화.
+  4. **신규 계약 등록 폼 1~7단계 DOM 앵커 완비 및 v5 매뉴얼 신설 (`Contracts.tsx`, `allMenuManuals.ts`)**:
+     - `data-subview="contract_create"` 부여 및 1~7단계 1:1 고유 앵커(`create-contract-cust`, `create-contract-salesperson`, `create-contract-start-date`, `create-contract-end-date`, `create-contract-billing-terms`, `create-contract-basket-picker`, `create-contract-submit`) 부여.
+     - `allMenuManuals.ts`에 `contract_create` v5 7단계 매뉴얼(고객사 선택 ➔ 영업담당 ➔ 시작일 ➔ 종료일 ➔ 청구/결제조건 ➔ 자산바스켓 ➔ 계약등록) 신설.
+  5. **미청구 정산 위저드 1~7단계 DOM 앵커 완비 및 v5 매뉴얼 신설 (`Billings.tsx`, `allMenuManuals.ts`)**:
+     - 상단 탭 바 div에서 오배치된 `billing-period-scope` 제거 후 `청구 대장` 탭의 `청구 귀속월` 필터 영역에 정확히 재배치.
+     - `data-subview="billing_wizard"` 부여 및 1~7단계 1:1 고유 앵커(`wizard-period-scope`, `wizard-search-filter`, `wizard-bulk-generate-btn`, `wizard-contract-card-list`, `wizard-calc-period`, `wizard-calc-items`, `wizard-submit-btn` 및 폴백용 `wizard-calculator-container`) 부여.
+     - `allMenuManuals.ts`에 `billing_wizard` v5 7단계 매뉴얼(검색기간 ➔ 세부필터 ➔ 일괄청구생성 ➔ 계약카드목록 ➔ 정산기간 ➔ 일할대사 ➔ 청구생성) 신설.
+  6. **Supabase DB `manual_annotations` 원격 동기화 (`scripts/sync_manuals_to_db.ts`)**:
+     - `contract_create`, `billing_wizard`, `billing` v5 최신 정의를 Supabase DB에 영구 upsert 완료.
+  7. **빌드 검증**: `npm run build` 정상 통과 (0 Errors, 794ms).
+
 ## [완료] 매뉴얼 설명 맥락 및 실제 화면 UI 1:1 완벽 정합성 검수 (계약/고객/배차/자산/청구 전수)
 - **요구사항**:
   "매뉴얼이 설명하는 내용과, 표시되는 UI 가 달라. 조건을 설정 하라고 안내하고 있으면서 매뉴얼은 엉뚱한 위치에서 파동효과를 보여주고 있어. 필터를 설명하는 매뉴얼의 단계에서는 실제 필터를 강조표시하게 해줘. 매뉴얼이 맥락과 실제가 안맞는 부분을 검수해"

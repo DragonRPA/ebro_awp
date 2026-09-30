@@ -1960,7 +1960,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       <h2 style={{ marginBottom: '18px', fontWeight: '700' }}>매출 청구 관리</h2>
 
       {/* 탭 */}
-      <div data-mid="billing-period-scope" style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
         {canSave && (
           <button className={activeTab === 'WIZARD' ? 'btn-primary' : 'btn-secondary'} onClick={() => setActiveTab('WIZARD')}>
             <Calendar size={14} /> 미청구 정산
@@ -1992,7 +1992,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
         const dueContracts = getDueContractsForBilling();
 
         return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div data-subview="billing" data-subview-title="청구 대장" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* ⚠️ K-1: 일괄 청구 보류(SKIP) 대시보드 (1행 1건 컴팩트 테이블 형태) */}
           {skippedContracts.length > 0 && (
             <div style={{
@@ -2106,7 +2106,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               </div>
 
               {/* 📅 청구 귀속월 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0 }}>
+              <div data-mid="billing-period-scope" style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0 }}>
                 <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>청구 귀속월</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
                   <input 
@@ -3029,14 +3029,14 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
 
       {activeTab === 'WIZARD' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '24px', alignItems: 'flex-start' }}>
+        <div data-subview="billing_wizard" data-subview-title="미청구 정산" style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '24px', alignItems: 'flex-start' }}>
           {/* 왼쪽: 계약 카드 목록 */}
           <div>
             <div className="card" style={{ margin: 0, marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <h3 className="card-title" style={{ margin: 0 }}>정산 대상 계약 목록</h3>
               
               {/* 1행: 마감일 기준 검색 기간 (Z-구텐버그 좌상단 Scope 퀵버튼 탑재) */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div data-mid="wizard-period-scope" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap' }}>
                   <label style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--text-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
                     마감일 기준 검색 기간
@@ -3094,7 +3094,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               </div>
 
               {/* 2행: 고객사, 계약번호, 현장명 세부 필터 & [조회] & [일괄청구생성] 버튼 */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto auto', gap: '8px', alignItems: 'end', backgroundColor: 'var(--bg-app)', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', overflowX: 'auto' }}>
+              <div data-mid="wizard-search-filter" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto auto', gap: '8px', alignItems: 'end', backgroundColor: 'var(--bg-app)', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)', overflowX: 'auto' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
                   <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>고객사 검색</label>
                   <input
@@ -3144,6 +3144,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                   <button
                     type="button"
                     className="btn-primary"
+                    data-mid="wizard-bulk-generate-btn"
                     onClick={handleBulkGenerateWizard}
                     disabled={isBulkGenerating || contractsWithoutReceivables.length === 0}
                     style={{
@@ -3171,7 +3172,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div data-mid="wizard-contract-card-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {filteredWizardContracts.length === 0 ? (
                 <div className="card" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)', margin: 0 }}>
                   해당 조건의 정산 대상 계약이 없습니다.
@@ -3258,7 +3259,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
           </div>
 
           {/* 오른쪽: 정산 계산기 */}
-          <div>
+          <div data-mid="wizard-calculator-container">
             {selectedContractForWizard ? (
               <div className="card" style={{ margin: 0, borderTop: '4px solid var(--primary)' }}>
                 <h3 className="card-title" style={{ marginBottom: '8px' }}>
@@ -3271,7 +3272,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
                   {/* 정산 기간 입력 (퀵버튼 탑재) */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div data-mid="wizard-calc-period" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap' }}>
                       <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)' }}>
                         정산 대상 기간 설정
@@ -3477,7 +3478,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                     )}
                   </div>
                 )}
-                <div className="table-container" style={{ border: 'none', boxShadow: 'none', marginBottom: '24px' }}>
+                <div data-mid="wizard-calc-items" className="table-container" style={{ border: 'none', boxShadow: 'none', marginBottom: '24px' }}>
                   <table>
                     <thead>
                       <tr>
@@ -3986,7 +3987,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                   <button type="button" className="btn-secondary" onClick={() => setSelectedContractIdForWizard(null)}>
                     취소
                   </button>
-                  <button type="button" className="btn-primary" onClick={handleGenerateWizardBilling} disabled={(totalAmountForWizard + extraCharges.reduce((sum, ec) => sum + ec.quantity * ec.unitPrice, 0)) <= 0}>
+                  <button type="button" data-mid="wizard-submit-btn" className="btn-primary" onClick={handleGenerateWizardBilling} disabled={(totalAmountForWizard + extraCharges.reduce((sum, ec) => sum + ec.quantity * ec.unitPrice, 0)) <= 0}>
                     청구 생성
                   </button>
                 </div>

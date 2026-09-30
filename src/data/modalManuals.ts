@@ -1016,3 +1016,61 @@ export function getModalManualPage(modalKey: string, customTitle?: string): Manu
     items: def.annotations,
   };
 }
+
+/**
+ * 💡 [전사 표준] 현재 화면의 실행 컨텍스트(활성 모달, 활성 서브뷰/탭, 기본 메뉴)를 동적으로 실시간 감지
+ * @param baseMenuId 현재 상위 메뉴 ID (예: 'contract', 'billing')
+ * @param defaultTitle 현재 상위 메뉴명 (예: '계약 관리', '청구 / 수납 관리')
+ */
+export function detectCurrentContext(baseMenuId: string, defaultTitle?: string): {
+  pageId: string;
+  pageTitle: string;
+  isModal: boolean;
+  rootEl: HTMLElement | null;
+} {
+  if (typeof document === 'undefined') {
+    return { pageId: baseMenuId, pageTitle: defaultTitle || baseMenuId, isModal: false, rootEl: null };
+  }
+
+  // 1. 최우선 순위: 화면에 열려있는 팝업/모달 감지
+  const activeModal = detectActiveModalElement();
+  if (activeModal) {
+    return {
+      pageId: activeModal.modalKey,
+      pageTitle: activeModal.title,
+      isModal: true,
+      rootEl: activeModal.modalEl,
+    };
+  }
+
+  // 2. 현재 화면에 표시(visible) 중인 서브뷰 감지 ([data-subview])
+  const subviewEls = Array.from(document.querySelectorAll<HTMLElement>('[data-subview]'));
+  for (const el of subviewEls) {
+    // 매뉴얼 자체 UI 배제
+    if (el.closest('[data-manual-ui="true"]') || el.getAttribute('data-manual-ui') === 'true') continue;
+    // 실제 화면에 노출 중인 서브뷰인지 검사
+    const rect = el.getBoundingClientRect();
+    const style = window.getComputedStyle(el);
+    const isVisible = (el.offsetParent !== null || rect.height > 0) && style.display !== 'none' && style.visibility !== 'hidden';
+    if (isVisible) {
+      const subviewId = el.getAttribute('data-subview');
+      const subviewTitle = el.getAttribute('data-subview-title') || defaultTitle || baseMenuId;
+      if (subviewId) {
+        return {
+          pageId: subviewId,
+          pageTitle: subviewTitle,
+          isModal: false,
+          rootEl: el,
+        };
+      }
+    }
+  }
+
+  // 3. 기본 메뉴 ID 폴백
+  return {
+    pageId: baseMenuId,
+    pageTitle: defaultTitle || baseMenuId,
+    isModal: false,
+    rootEl: null,
+  };
+}
