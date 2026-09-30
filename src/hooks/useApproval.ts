@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase, ApprovalRule, RuleConsensus, ApprovalRequest, ApprovalStep } from '../services/db';
+import { supabase, ApprovalRule, RuleConsensus, ApprovalRequest, ApprovalStep, getUserEffectiveTier } from '../services/db';
 
 export function useApproval() {
   const [loading, setLoading] = useState(false);
@@ -65,10 +65,10 @@ export function useApproval() {
         
       if (reqErr) throw reqErr;
       
-      // 결재선(approval_steps) 자동 생성 로직
+      // 결재선(approval_steps) 자동 생성 로직 (R&R 기반 직책 티어 우선 판정)
       const { data: usersData } = await supabase.from('users').select('*');
       const originator = usersData?.find(u => u.id === originatorId);
-      const currentTier = originator?.tier_level || 0;
+      const currentTier = originator ? getUserEffectiveTier(originator).effectiveTier : 0;
       
       let stepNum = 1;
       const stepsToInsert = [];
@@ -81,8 +81,10 @@ export function useApproval() {
       }
       
       for (const t of requiredTiers) {
-         // 실제 환경에서는 부서 정보 등을 매칭해야 하지만 RWTT를 위해 해당 티어 사용자 탐색
-         const approver = usersData?.find(u => (u.tier_level || 0) === t) || usersData?.find(u => u.role === 'ADMIN');
+         // 직책/직급 기반 유효 티어가 t 이상인 결재권자 탐색 (직책 우선)
+         const approver = usersData?.find(u => getUserEffectiveTier(u).effectiveTier === t) 
+           || usersData?.find(u => getUserEffectiveTier(u).effectiveTier >= t) 
+           || usersData?.find(u => u.role === 'ADMIN');
          if (approver) {
             stepsToInsert.push({
                request_id: reqData.id,

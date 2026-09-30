@@ -1,6 +1,6 @@
 // src/components/manual/ManualAuthorPanel.tsx
 // 작성 모드 — 매뉴얼 항목 전체 관리 패널
-// 기능: 항목 목록 조회, 추가, 편집, 삭제, 순서변경(위/아래), 요소 자동 선택
+// 기능: 항목 목록 조회, 추가, 편집, 삭제, 순서변경(위/아래), 요소 자동 선택, 패널 자유 드래그 이동
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { ManualAnnotationItem, AnnotationType, PositionHint } from '../../types/manual';
 import { DEFAULT_BADGE_COLORS, DEFAULT_ITEM } from '../../types/manual';
@@ -87,12 +87,54 @@ export const ManualAuthorPanel: React.FC = () => {
 
   /* ─ 상태 ─────────────────────────────────────────────────── */
   const [selectMode, setSelectMode] = useState(false);      // 요소 선택 모드
+  const [hoveredRect, setHoveredRect] = useState<DOMRect | null>(null); // 선택 모드 시 마우스 호버 요소 테두리
   const [editingSeq, setEditingSeq] = useState<number | null>(null); // 편집 중 seq
   const [form, setForm] = useState<Omit<ManualAnnotationItem, 'seq'>>(emptyForm());
   const [insertAfterSeq, setInsertAfterSeq] = useState<number | null>(null); // 삽입 위치
   const [panelTab, setPanelTab] = useState<'list' | 'edit'>('list'); // list / edit
   const [collapsed, setCollapsed] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+
+  /* ─ 패널 자유 드래그 위치 상태 ───────────────────────────── */
+  const [pos, setPos] = useState<{ x: number; y: number }>(() => {
+    const defaultX = Math.max(10, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 360);
+    return { x: defaultX, y: 70 };
+  });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ mouseX: number; mouseY: number; startX: number; startY: number }>({
+    mouseX: 0, mouseY: 0, startX: 0, startY: 0,
+  });
+
+  const handleDragStart = (e: React.MouseEvent) => {
+    // 닫기/접기 버튼 등 인터랙티브 엘리먼트는 드래그 시작에서 제외
+    if ((e.target as HTMLElement).closest('button, input, select, textarea')) return;
+    setIsDragging(true);
+    dragStartRef.current = {
+      mouseX: e.clientX,
+      mouseY: e.clientY,
+      startX: pos.x,
+      startY: pos.y,
+    };
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const onMouseMove = (e: MouseEvent) => {
+      const dx = e.clientX - dragStartRef.current.mouseX;
+      const dy = e.clientY - dragStartRef.current.mouseY;
+      const newX = Math.max(10, Math.min(dragStartRef.current.startX + dx, window.innerWidth - (collapsed ? 50 : 350)));
+      const newY = Math.max(10, Math.min(dragStartRef.current.startY + dy, window.innerHeight - 80));
+      setPos({ x: newX, y: newY });
+    };
+    const onMouseUp = () => {
+      setIsDragging(false);
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [isDragging, collapsed]);
 
   /* 편집 시작 시 패널 탭 전환 */
   const startEdit = useCallback((item: ManualAnnotationItem) => {
@@ -110,13 +152,35 @@ export const ManualAuthorPanel: React.FC = () => {
     setPanelTab('edit');
   }, []);
 
-  /* ─ 요소 선택 인터셉터 ────────────────────────────────────── */
+  /* ─ 요소 선택 인터셉터 & 호버 하이라이트 ─────────────────────── */
   useEffect(() => {
-    if (!selectMode) return;
-    const handler = (e: MouseEvent) => {
-      e.preventDefault(); e.stopPropagation();
-      const el = e.target as Element;
-      if ((el as HTMLElement).closest?.('[data-manual-panel]')) return;
+    if (!selectMode) {
+      setHoveredRect(null);
+      return;
+    }
+
+    // 마우스 이동 시 호버된 요소 감지
+    const moveHandler = (e: MouseEvent) => {
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      if (!el || el.closest?.('[data-manual-panel]') || el.closest?.('[data-manual-guide]')) {
+        setHoveredRect(null);
+        return;
+      }
+      setHoveredRect(el.getBoundingClientRect());
+    };
+
+    // 클릭 시 요소 선택 확정
+    const clickHandler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // 패널 내부 또는 안내 바 클릭은 인터셉트하지 않고 정상 조작 허용
+      if (target.closest?.('[data-manual-panel]') || target.closest?.('[data-manual-guide]')) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const el = document.elementFromPoint(e.clientX, e.clientY) || target;
+      if (!el || el.closest?.('[data-manual-panel]')) return;
+
       const sel = buildSelector(el);
       const extracted = autoExtract(el);
       setForm(prev => ({
@@ -126,9 +190,27 @@ export const ManualAuthorPanel: React.FC = () => {
         label: prev.label || extracted.split(' / ')[0] || '',
       }));
       setSelectMode(false);
+      setHoveredRect(null);
     };
-    document.addEventListener('click', handler, true);
-    return () => document.removeEventListener('click', handler, true);
+
+    // ESC 키 입력 시 선택 모드 취소
+    const keyHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSelectMode(false);
+        setHoveredRect(null);
+      }
+    };
+
+    window.addEventListener('mousemove', moveHandler, true);
+    document.addEventListener('click', clickHandler, true);
+    window.addEventListener('keydown', keyHandler);
+
+    return () => {
+      window.removeEventListener('mousemove', moveHandler, true);
+      document.removeEventListener('click', clickHandler, true);
+      window.removeEventListener('keydown', keyHandler);
+      setHoveredRect(null);
+    };
   }, [selectMode]);
 
   /* ─ 순서 변경 ─────────────────────────────────────────────── */
@@ -205,30 +287,65 @@ export const ManualAuthorPanel: React.FC = () => {
   ════════════════════════════════════════════════════════════ */
   return (
     <>
-      {/* ── 요소 선택 오버레이 ── */}
+      {/* ── 요소 선택 오버레이 & 실시간 타겟 하이라이트 ── */}
       {selectMode && (
-        <div style={{
-          position: 'fixed', inset: 0, cursor: 'crosshair', zIndex: 19990,
-          background: 'rgba(99,102,241,0.07)', border: '2px dashed #6366f1',
-        }}>
-          <div style={{
-            position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
-            background: '#4f46e5', color: '#fff', padding: '12px 28px',
-            borderRadius: '14px', fontSize: '16px', fontWeight: 700,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.35)', pointerEvents: 'none',
-          }}>
-            🎯 어노테이션할 UI 요소를 클릭하세요
+        <>
+          {/* 실시간 마우스 호버 요소 테두리 박스 */}
+          {hoveredRect && (
+            <div
+              style={{
+                position: 'fixed',
+                left: `${hoveredRect.left}px`,
+                top: `${hoveredRect.top}px`,
+                width: `${hoveredRect.width}px`,
+                height: `${hoveredRect.height}px`,
+                border: '2px solid #4f46e5',
+                background: 'rgba(79, 70, 229, 0.15)',
+                borderRadius: '4px',
+                pointerEvents: 'none',
+                zIndex: 99998,
+                transition: 'all 0.05s ease-out',
+                boxShadow: '0 0 0 1px #fff, 0 0 12px rgba(79,70,229,0.5)',
+              }}
+            />
+          )}
+
+          {/* 상단 플로팅 안내 바 */}
+          <div
+            data-manual-guide="true"
+            style={{
+              position: 'fixed', top: '16px', left: '50%', transform: 'translateX(-50%)',
+              background: '#4f46e5', color: '#fff', padding: '10px 22px',
+              borderRadius: '30px', fontSize: '14px', fontWeight: 700,
+              boxShadow: '0 8px 30px rgba(0,0,0,0.3)', zIndex: 99999,
+              display: 'flex', alignItems: 'center', gap: '14px',
+              pointerEvents: 'auto',
+            }}
+          >
+            <span>🎯 어노테이션할 화면 요소를 마우스로 직접 클릭하세요</span>
+            <button
+              onClick={() => { setSelectMode(false); setHoveredRect(null); }}
+              style={{
+                padding: '4px 10px', background: 'rgba(255,255,255,0.25)',
+                border: 'none', borderRadius: '15px', color: '#fff',
+                fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+              }}
+            >
+              취소 (ESC)
+            </button>
           </div>
-        </div>
+        </>
       )}
 
-      {/* ── 메인 패널 ── */}
+      {/* ── 메인 패널 (자유 드래그 이동 가능) ── */}
       <div
         data-manual-panel="true"
         style={{
-          position: 'fixed', top: '68px', right: '10px',
+          position: 'fixed',
+          left: `${pos.x}px`,
+          top: `${pos.y}px`,
           width: collapsed ? '42px' : '340px',
-          maxHeight: 'calc(100vh - 78px)',
+          maxHeight: 'calc(100vh - 80px)',
           background: 'var(--bg-card)',
           border: '2px solid #4f46e5',
           borderRadius: '12px',
@@ -236,18 +353,25 @@ export const ManualAuthorPanel: React.FC = () => {
           zIndex: 9995,
           display: 'flex', flexDirection: 'column',
           overflow: 'hidden',
-          transition: 'width 0.2s',
+          transition: isDragging ? 'none' : 'width 0.2s',
+          userSelect: isDragging ? 'none' : 'auto',
         }}
       >
-        {/* ── 헤더 ── */}
-        <div style={{
-          padding: '10px 12px',
-          background: '#4f46e5', color: '#fff',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          flexShrink: 0, gap: '6px',
-        }}>
+        {/* ── 헤더 (드래그 핸들) ── */}
+        <div
+          onMouseDown={handleDragStart}
+          style={{
+            padding: '10px 12px',
+            background: '#4f46e5', color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            flexShrink: 0, gap: '6px',
+            cursor: isDragging ? 'grabbing' : 'grab',
+          }}
+          title="마우스로 드래그하여 패널 위치 이동"
+        >
           {!collapsed && (
-            <>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '13px', opacity: 0.7, cursor: isDragging ? 'grabbing' : 'grab' }}>⠿</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   ✏️ 매뉴얼 작성
@@ -257,13 +381,21 @@ export const ManualAuthorPanel: React.FC = () => {
                   {saving && <span style={{ marginLeft: '6px', opacity: 0.75 }}>저장 중…</span>}
                 </div>
               </div>
-            </>
+            </div>
           )}
           <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-            <button onClick={() => setCollapsed(v => !v)} style={{ ...btnBase, background: 'rgba(255,255,255,0.2)', color: '#fff', padding: '4px 8px' }}>
+            <button
+              onClick={() => setCollapsed(v => !v)}
+              title={collapsed ? '패널 펼치기' : '패널 접기'}
+              style={{ ...btnBase, background: 'rgba(255,255,255,0.2)', color: '#fff', padding: '4px 8px' }}
+            >
               {collapsed ? '◀' : '▶'}
             </button>
-            <button onClick={() => setMode('off')} style={{ ...btnBase, background: 'rgba(255,255,255,0.2)', color: '#fff', padding: '4px 8px' }}>
+            <button
+              onClick={() => setMode('off')}
+              title="매뉴얼 작성 종료"
+              style={{ ...btnBase, background: 'rgba(255,255,255,0.2)', color: '#fff', padding: '4px 8px' }}
+            >
               ✕
             </button>
           </div>
@@ -450,7 +582,7 @@ export const ManualAuthorPanel: React.FC = () => {
                   <input
                     value={form.label}
                     onChange={e => setForm(p => ({ ...p, label: e.target.value }))}
-                    placeholder="예: 전체 업무 일괄 생성"
+                    placeholder="예: 고객 등록 버튼"
                     style={inputS}
                   />
                 </div>

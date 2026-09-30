@@ -1,5 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { supabase, ApprovalRule, RuleConsensus, APPROVAL_EVENT_REGISTRY, TIER_LABELS } from '../services/db';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { 
+  supabase, 
+  ApprovalRule, 
+  RuleConsensus, 
+  APPROVAL_EVENT_REGISTRY, 
+  ApprovalTierConfig,
+  DEFAULT_POSITION_TIERS,
+  DEFAULT_DUTY_TIERS,
+  getUserEffectiveTier,
+  getTierDisplayLabel
+} from '../services/db';
 
 /* ─── CSS 변수 기반 스타일 (라이트/다크 테마 자동 적응) ──────── */
 const thBase: React.CSSProperties = {
@@ -12,6 +22,7 @@ const thBase: React.CSSProperties = {
   color: 'var(--text-main)',
   whiteSpace: 'nowrap',
 };
+
 const tdBase: React.CSSProperties = {
   padding: '9px 14px',
   borderBottom: '1px solid var(--border-color)',
@@ -19,6 +30,7 @@ const tdBase: React.CSSProperties = {
   verticalAlign: 'middle',
   color: 'var(--text-main)',
 };
+
 const inlineInput: React.CSSProperties = {
   width: '100%',
   padding: '5px 8px',
@@ -32,6 +44,7 @@ const inlineInput: React.CSSProperties = {
   fontWeight: 600,
   transition: 'border-color 0.15s, background 0.15s',
 };
+
 const sel: React.CSSProperties = {
   padding: '6px 10px',
   border: '1px solid var(--border-color)',
@@ -41,15 +54,6 @@ const sel: React.CSSProperties = {
   color: 'var(--text-main)',
   cursor: 'pointer',
 };
-
-/* ─── Tier options ───────────────────────────────────────────── */
-const TierOptions = () => (
-  <>
-    {Object.entries(TIER_LABELS).map(([t, label]) => (
-      <option key={t} value={t}>{label} ({t}티어)</option>
-    ))}
-  </>
-);
 
 /* ─── 카테고리 색상 정의 ─────────────────────────────────────── */
 const CATEGORY_COLORS: Record<string, { bg: string; color: string }> = {
@@ -66,13 +70,229 @@ const CATEGORY_COLORS: Record<string, { bg: string; color: string }> = {
    메인 컴포넌트
 ══════════════════════════════════════════════════════════════ */
 const ApprovalRulesManage: React.FC = () => {
+  // 상단 메인 탭 ('RULES': 결재선 규칙 | 'TIERS': 직급·직책 티어 설정)
+  const [activeTab, setActiveTab] = useState<'RULES' | 'TIERS'>('RULES');
+
+  // ── 결재선 규칙 상태 ──
   const [rules, setRules] = useState<ApprovalRule[]>([]);
   const [consensusMap, setConsensusMap] = useState<Record<string, RuleConsensus[]>>({});
   const [expandedRuleId, setExpandedRuleId] = useState<string | null>(null);
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
-  const [seeding, setSeeding] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [seedError, setSeedError] = useState<string | null>(null);
+
+  // ── 직급 / 직책 티어 마스터 상태 ──
+  const [dutyConfigs, setDutyConfigs] = useState<ApprovalTierConfig[]>(DEFAULT_DUTY_TIERS);
+  const [positionConfigs, setPositionConfigs] = useState<ApprovalTierConfig[]>(DEFAULT_POSITION_TIERS);
+  const [tierLoading, setTierLoading] = useState(false);
+  const [tierSaving, setTierSaving] = useState(false);
+  const [tierMessage, setTierMessage] = useState<string | null>(null);
+
+  // 신규 직책/직급 등록 인라인 폼 상태
+  const [newDutyTitle, setNewDutyTitle] = useState('');
+  const [newDutyTier, setNewDutyTier] = useState<number>(4);
+  const [newDutyDesc, setNewDutyDesc] = useState('');
+
+  const [newPosTitle, setNewPosTitle] = useState('');
+  const [newPosTier, setNewPosTier] = useState<number>(2);
+  const [newPosDesc, setNewPosDesc] = useState('');
+
+  // R&R 유효 티어 판정 시뮬레이터 상태
+  const [simPosition, setSimPosition] = useState<string>('과장');
+  const [simDuty, setSimDuty] = useState<string>('팀장');
+
+  /* ── 티어 설정 조회 및 동기화 ───────────────────────────── */
+  const fetchTierConfigs = useCallback(async () => {
+    setTierLoading(true);
+    let loadedFromDb = false;
+
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('approval_tier_configs')
+          .select('*')
+          .order('seq_order', { ascending: true });
+
+        if (!error && data && data.length > 0) {
+          const duties = data.filter((item: ApprovalTierConfig) => item.category === 'DUTY');
+          const positions = data.filter((item: ApprovalTierConfig) => item.category === 'POSITION');
+
+          if (duties.length > 0) setDutyConfigs(duties);
+          if (positions.length > 0) setPositionConfigs(positions);
+          loadedFromDb = true;
+        }
+      } catch (err) {
+        console.warn('approval_tier_configs table not ready or network error, fallback to local storage:', err);
+      }
+    }
+
+    if (!loadedFromDb) {
+      try {
+        const rawLocal = localStorage.getItem('erp_approval_tier_configs');
+        if (rawLocal) {
+          const parsed = JSON.parse(rawLocal);
+          if (parsed.duties && parsed.duties.length > 0) setDutyConfigs(parsed.duties);
+          if (parsed.positions && parsed.positions.length > 0) setPositionConfigs(parsed.positions);
+        } else {
+          // 기본값 로컬 저장
+          localStorage.setItem('erp_approval_tier_configs', JSON.stringify({
+            duties: DEFAULT_DUTY_TIERS,
+            positions: DEFAULT_POSITION_TIERS,
+          }));
+        }
+      } catch (err) {
+        console.warn('localStorage parse error:', err);
+      }
+    }
+    setTierLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchTierConfigs();
+  }, [fetchTierConfigs]);
+
+  /* ── 티어 설정 영속화 헬퍼 ───────────────────────────────── */
+  const persistTierConfigs = async (duties: ApprovalTierConfig[], positions: ApprovalTierConfig[]) => {
+    setTierSaving(true);
+    // 1. LocalStorage 저장
+    try {
+      localStorage.setItem('erp_approval_tier_configs', JSON.stringify({
+        duties,
+        positions,
+      }));
+    } catch {}
+
+    // 2. Supabase 저장 시도
+    if (supabase) {
+      try {
+        const payload = [
+          ...duties.map((d, i) => ({
+            category: 'DUTY',
+            title: d.title.trim(),
+            tier_level: d.tier_level,
+            description: d.description || '',
+            seq_order: i + 1,
+            tenant_id: 'giyeun',
+            updated_at: new Date().toISOString()
+          })),
+          ...positions.map((p, i) => ({
+            category: 'POSITION',
+            title: p.title.trim(),
+            tier_level: p.tier_level,
+            description: p.description || '',
+            seq_order: i + 1,
+            tenant_id: 'giyeun',
+            updated_at: new Date().toISOString()
+          }))
+        ];
+
+        await supabase.from('approval_tier_configs').upsert(payload, { onConflict: 'tenant_id,category,title' });
+      } catch (err) {
+        console.warn('Supabase approval_tier_configs sync failed (graceful):', err);
+      }
+    }
+
+    setTierSaving(false);
+    setTierMessage('설정이 안전하게 저장되었습니다.');
+    setTimeout(() => setTierMessage(null), 3000);
+  };
+
+  /* ── 직책 관리 핸들러 ───────────────────────────────────── */
+  const handleAddDuty = () => {
+    if (!newDutyTitle.trim()) {
+      alert('직책명을 입력하세요.');
+      return;
+    }
+    if (dutyConfigs.some(d => d.title.trim() === newDutyTitle.trim())) {
+      alert('이미 등록된 직책명입니다.');
+      return;
+    }
+    const updated: ApprovalTierConfig[] = [
+      ...dutyConfigs,
+      {
+        category: 'DUTY',
+        title: newDutyTitle.trim(),
+        tier_level: Number(newDutyTier),
+        description: newDutyDesc.trim(),
+        seq_order: dutyConfigs.length + 1
+      }
+    ];
+    setDutyConfigs(updated);
+    setNewDutyTitle('');
+    setNewDutyDesc('');
+    persistTierConfigs(updated, positionConfigs);
+  };
+
+  const handleUpdateDuty = (index: number, field: keyof ApprovalTierConfig, value: unknown) => {
+    const updated = [...dutyConfigs];
+    updated[index] = { ...updated[index], [field]: value };
+    setDutyConfigs(updated);
+    persistTierConfigs(updated, positionConfigs);
+  };
+
+  const handleDeleteDuty = (index: number) => {
+    const target = dutyConfigs[index];
+    if (!window.confirm(`'${target.title}' 직책을 삭제하시겠습니까?`)) return;
+    const updated = dutyConfigs.filter((_, i) => i !== index);
+    setDutyConfigs(updated);
+    persistTierConfigs(updated, positionConfigs);
+  };
+
+  /* ── 직급 관리 핸들러 ───────────────────────────────────── */
+  const handleAddPosition = () => {
+    if (!newPosTitle.trim()) {
+      alert('직급명을 입력하세요.');
+      return;
+    }
+    if (positionConfigs.some(p => p.title.trim() === newPosTitle.trim())) {
+      alert('이미 등록된 직급명입니다.');
+      return;
+    }
+    const updated: ApprovalTierConfig[] = [
+      ...positionConfigs,
+      {
+        category: 'POSITION',
+        title: newPosTitle.trim(),
+        tier_level: Number(newPosTier),
+        description: newPosDesc.trim(),
+        seq_order: positionConfigs.length + 1
+      }
+    ];
+    setPositionConfigs(updated);
+    setNewPosTitle('');
+    setNewPosDesc('');
+    persistTierConfigs(dutyConfigs, updated);
+  };
+
+  const handleUpdatePosition = (index: number, field: keyof ApprovalTierConfig, value: unknown) => {
+    const updated = [...positionConfigs];
+    updated[index] = { ...updated[index], [field]: value };
+    setPositionConfigs(updated);
+    persistTierConfigs(dutyConfigs, updated);
+  };
+
+  const handleDeletePosition = (index: number) => {
+    const target = positionConfigs[index];
+    if (!window.confirm(`'${target.title}' 직급을 삭제하시겠습니까?`)) return;
+    const updated = positionConfigs.filter((_, i) => i !== index);
+    setPositionConfigs(updated);
+    persistTierConfigs(dutyConfigs, updated);
+  };
+
+  const handleResetToDefaults = () => {
+    if (!window.confirm('직급 및 직책 티어 설정을 시스템 표준 기본값으로 초기화하시겠습니까?')) return;
+    setDutyConfigs(DEFAULT_DUTY_TIERS);
+    setPositionConfigs(DEFAULT_POSITION_TIERS);
+    persistTierConfigs(DEFAULT_DUTY_TIERS, DEFAULT_POSITION_TIERS);
+  };
+
+  /* ── R&R 유효 티어 시뮬레이션 계산 ────────────────────────── */
+  const simulationResult = useMemo(() => {
+    return getUserEffectiveTier(
+      { position: simPosition || null, duty: simDuty || null },
+      dutyConfigs,
+      positionConfigs
+    );
+  }, [simPosition, simDuty, dutyConfigs, positionConfigs]);
 
   /* ── 규칙 목록 조회 ──────────────────────────────────────── */
   const fetchRules = useCallback(async () => {
@@ -90,47 +310,30 @@ const ApprovalRulesManage: React.FC = () => {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchRules(); }, [fetchRules]);
-
-  /* ── 미등록 이벤트 목록 ──────────────────────────────────── */
-  const missingEvents = APPROVAL_EVENT_REGISTRY.filter(
-    ev => !rules.find(r => r.event_code === ev.code)
-  );
-
-  /* ── 전체 업무 일괄 생성 ─────────────────────────────────── */
-  const handleSeedAll = async () => {
-    if (!supabase) { setSeedError('DB 연결 오류'); return; }
-    if (missingEvents.length === 0) return;
-    setSeeding(true);
-    setSeedError(null);
-
-    const toInsert = missingEvents.map(ev => ({
-      event_code: ev.code,
-      event_name: ev.name,
-      required_tier: 4,
-      is_enabled: false,
-    }));
-
-    const { error } = await supabase.from('approval_rules').insert(toInsert);
-    if (error) {
-      console.error('seed error:', error);
-      setSeedError('생성 오류: ' + error.message);
-      setSeeding(false);
-      return;
+  useEffect(() => { 
+    if (activeTab === 'RULES') {
+      fetchRules(); 
     }
-
-    await fetchRules();
-    setSeeding(false);
-  };
+  }, [fetchRules, activeTab]);
 
   /* ── 필드 즉시 저장 ──────────────────────────────────────── */
   const saveField = async (ruleId: string, field: string, value: unknown) => {
     if (!supabase) return;
     setSavingIds(prev => new Set(prev).add(ruleId));
-    const { error } = await supabase
+    let { error } = await supabase
       .from('approval_rules')
       .update({ [field]: value, updated_at: new Date().toISOString() })
       .eq('id', ruleId);
+
+    // updated_at 컬럼 미존재 시 에러 자동 방어 재시도
+    if (error && (error.message?.includes('updated_at') || error.code === 'PGRST204' || error.message?.includes('column'))) {
+      const retry = await supabase
+        .from('approval_rules')
+        .update({ [field]: value })
+        .eq('id', ruleId);
+      error = retry.error;
+    }
+
     if (error) alert('저장 오류: ' + error.message);
     setSavingIds(prev => { const s = new Set(prev); s.delete(ruleId); return s; });
   };
@@ -210,354 +413,789 @@ const ApprovalRulesManage: React.FC = () => {
     );
   };
 
+  /* ── 티어 옵션 셀렉트 컴포넌트 ───────────────────────────── */
+  const renderTierSelectOptions = () => (
+    <>
+      {[0, 1, 2, 3, 4, 5, 6, 7].map(t => (
+        <option key={t} value={t}>
+          {getTierDisplayLabel(t, dutyConfigs, positionConfigs)}
+        </option>
+      ))}
+    </>
+  );
+
   /* ════════════════════════════════════════════════════════════
      렌더
   ════════════════════════════════════════════════════════════ */
   return (
-    <div style={{ padding: '20px 24px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ padding: '20px 24px', maxWidth: '1280px', margin: '0 auto' }}>
 
-      {/* ── 헤더 ── */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '20px', gap: '16px' }}>
-        <div>
-          <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-main)', margin: '0 0 4px' }}>
-            결재선 규칙 설정
-          </h2>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
-            업무 이벤트명·전결 티어·사용 여부는 셀 수정 즉시 저장됩니다. ▶ 클릭으로 합의선을 설정합니다.
-          </p>
-          {seedError && (
-            <p style={{ fontSize: '13px', color: 'var(--danger)', margin: '6px 0 0', fontWeight: 600 }}>
-              ⚠ {seedError}
-            </p>
-          )}
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-          {missingEvents.length > 0 && (
-            <span style={{ fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-              미등록 {missingEvents.length}건
-            </span>
-          )}
+      {/* ── 상단 탭 내비게이션 ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', borderBottom: '2px solid var(--border-color)', paddingBottom: '12px' }}>
+        <div style={{ display: 'flex', gap: '8px' }}>
           <button
-            data-mid="btn-seed-all"
-            onClick={handleSeedAll}
-            disabled={seeding || missingEvents.length === 0}
+            onClick={() => setActiveTab('RULES')}
             style={{
               padding: '9px 18px',
-              background: missingEvents.length > 0 ? 'var(--primary)' : 'var(--bg-secondary)',
-              color: missingEvents.length > 0 ? '#fff' : 'var(--text-muted)',
-              border: 'none', borderRadius: '7px', fontWeight: 700,
-              fontSize: '14px', cursor: missingEvents.length > 0 ? 'pointer' : 'default',
-              whiteSpace: 'nowrap',
+              borderRadius: '7px',
+              fontWeight: 700,
+              fontSize: '14px',
+              border: 'none',
+              cursor: 'pointer',
+              background: activeTab === 'RULES' ? 'var(--primary)' : 'var(--bg-card)',
+              color: activeTab === 'RULES' ? '#fff' : 'var(--text-secondary)',
+              boxShadow: activeTab === 'RULES' ? 'var(--shadow-sm)' : 'none',
+              transition: 'all 0.2s',
             }}
           >
-            {seeding ? '생성 중…' : `전체 업무 일괄 생성 (${APPROVAL_EVENT_REGISTRY.length}건)`}
+            결재선 규칙
+          </button>
+          <button
+            onClick={() => setActiveTab('TIERS')}
+            style={{
+              padding: '9px 18px',
+              borderRadius: '7px',
+              fontWeight: 700,
+              fontSize: '14px',
+              border: 'none',
+              cursor: 'pointer',
+              background: activeTab === 'TIERS' ? 'var(--primary)' : 'var(--bg-card)',
+              color: activeTab === 'TIERS' ? '#fff' : 'var(--text-secondary)',
+              boxShadow: activeTab === 'TIERS' ? 'var(--shadow-sm)' : 'none',
+              transition: 'all 0.2s',
+            }}
+          >
+            직급·직책 티어 설정
           </button>
         </div>
+
+        {tierMessage && (
+          <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600 }}>
+            ✓ {tierMessage}
+          </span>
+        )}
       </div>
 
-      {/* ── 그리드 ── */}
-      <div style={{
-        border: '1px solid var(--border-color)', borderRadius: '10px',
-        overflow: 'hidden', background: 'var(--bg-card)',
-        boxShadow: 'var(--shadow-sm)',
-      }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-          <colgroup>
-            <col style={{ width: '30px' }} />
-            <col style={{ width: '76px' }} />
-            <col />
-            <col style={{ width: '220px' }} />
-            <col style={{ width: '165px' }} />
-            <col style={{ width: '74px' }} />
-            <col style={{ width: '62px' }} />
-            <col style={{ width: '44px' }} />
-          </colgroup>
-          <thead>
-            <tr>
-              <th style={thBase} />
-              <th style={{ ...thBase, textAlign: 'center' }}>구분</th>
-              <th style={thBase}>업무 이벤트명</th>
-              <th style={thBase}>이벤트 코드</th>
-              <th style={{ ...thBase, textAlign: 'center' }}>전결 티어</th>
-              <th style={{ ...thBase, textAlign: 'center' }}>합의선</th>
-              <th style={{ ...thBase, textAlign: 'center' }}>사용</th>
-              <th style={thBase} />
-            </tr>
-          </thead>
-          <tbody>
-            {rules.map(r => {
-              const isSaving = savingIds.has(r.id!);
-              const isExpanded = expandedRuleId === r.id;
-              const consensusCount = consensusMap[r.id!]?.length ?? null;
+      {/* ════════════════════════════════════════════════════════
+         [탭 1] 결재선 규칙 설정
+      ════════════════════════════════════════════════════════ */}
+      {activeTab === 'RULES' && (
+        <>
+          {/* ── 헤더 ── */}
+          <div style={{ marginBottom: '20px' }}>
+            <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-main)', margin: '0 0 4px' }}>
+              결재선 규칙
+            </h2>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+              업무 이벤트명·전결 티어·사용 여부는 셀 수정 즉시 저장됩니다. ▶ 클릭으로 합의선을 설정합니다.
+            </p>
+          </div>
 
-              return (
-                <React.Fragment key={r.id}>
-                  <tr style={{
-                    background: isSaving
-                      ? 'var(--warning-light)'
-                      : isExpanded
-                      ? 'var(--bg-active)'
-                      : 'var(--bg-card)',
-                    transition: 'background 0.2s',
-                  }}>
-                    {/* 확장 토글 */}
-                    <td
-                      data-mid="btn-expand-consensus"
-                      style={{ ...tdBase, textAlign: 'center', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '11px', padding: '9px 6px' }}
-                      onClick={() => handleToggleConsensus(r.id!)}
-                    >
-                      {isExpanded ? '▼' : '▶'}
-                    </td>
+          {/* ── 그리드 ── */}
+          <div style={{
+            border: '1px solid var(--border-color)', borderRadius: '10px',
+            overflow: 'hidden', background: 'var(--bg-card)',
+            boxShadow: 'var(--shadow-sm)',
+          }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+              <colgroup>
+                <col style={{ width: '30px' }} />
+                <col style={{ width: '76px' }} />
+                <col />
+                <col style={{ width: '220px' }} />
+                <col style={{ width: '240px' }} />
+                <col style={{ width: '74px' }} />
+                <col style={{ width: '62px' }} />
+                <col style={{ width: '44px' }} />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th style={thBase} />
+                  <th style={{ ...thBase, textAlign: 'center' }}>구분</th>
+                  <th style={thBase}>업무 이벤트명</th>
+                  <th style={thBase}>이벤트 코드</th>
+                  <th style={{ ...thBase, textAlign: 'center' }}>전결 티어 (직급/직책 매핑)</th>
+                  <th style={{ ...thBase, textAlign: 'center' }}>합의선</th>
+                  <th style={{ ...thBase, textAlign: 'center' }}>사용</th>
+                  <th style={thBase} />
+                </tr>
+              </thead>
+              <tbody>
+                {rules.map(r => {
+                  const isSaving = savingIds.has(r.id!);
+                  const isExpanded = expandedRuleId === r.id;
+                  const consensusCount = consensusMap[r.id!]?.length ?? null;
 
-                    {/* 카테고리 */}
-                    <td style={{ ...tdBase, textAlign: 'center', padding: '9px 8px' }}>
-                      {renderCategoryBadge(r.event_code)}
-                    </td>
-
-                    {/* 이벤트명 — 인라인 편집 */}
-                    <td style={tdBase}>
-                      <input
-                        data-mid="input-event-name"
-                        value={r.event_name}
-                        onChange={e => updateLocalRule(r.id!, 'event_name', e.target.value)}
-                        onBlur={e => saveField(r.id!, 'event_name', e.target.value)}
-                        style={inlineInput}
-                        onFocus={e => {
-                          e.currentTarget.style.borderColor = 'var(--primary)';
-                          e.currentTarget.style.background = 'var(--bg-app)';
-                        }}
-                        onBlurCapture={e => {
-                          e.currentTarget.style.borderColor = 'transparent';
-                          e.currentTarget.style.background = 'transparent';
-                        }}
-                      />
-                    </td>
-
-                    {/* 이벤트 코드 (읽기 전용) */}
-                    <td style={{ ...tdBase, padding: '9px 12px' }}>
-                      <span style={{
-                        fontFamily: 'monospace', fontSize: '12px',
-                        color: 'var(--text-secondary)',
-                        background: 'var(--bg-secondary)',
-                        padding: '3px 8px', borderRadius: '5px',
-                        whiteSpace: 'nowrap', display: 'inline-block',
+                  return (
+                    <React.Fragment key={r.id}>
+                      <tr style={{
+                        background: isSaving
+                          ? 'var(--warning-light)'
+                          : isExpanded
+                          ? 'var(--bg-active)'
+                          : 'var(--bg-card)',
+                        transition: 'background 0.2s',
                       }}>
-                        {r.event_code}
-                      </span>
-                    </td>
+                        {/* 확장 토글 */}
+                        <td
+                          data-mid="btn-expand-consensus"
+                          style={{ ...tdBase, textAlign: 'center', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '11px', padding: '9px 6px' }}
+                          onClick={() => handleToggleConsensus(r.id!)}
+                        >
+                          {isExpanded ? '▼' : '▶'}
+                        </td>
 
-                    {/* 전결 티어 */}
-                    <td style={{ ...tdBase, textAlign: 'center' }}>
-                      <select
-                        data-mid="select-tier"
-                        value={r.required_tier}
-                        onChange={e => handleFieldChange(r.id!, 'required_tier', parseInt(e.target.value))}
-                        style={sel}
-                      >
-                        <TierOptions />
-                      </select>
-                    </td>
+                        {/* 카테고리 */}
+                        <td style={{ ...tdBase, textAlign: 'center', padding: '9px 8px' }}>
+                          {renderCategoryBadge(r.event_code)}
+                        </td>
 
-                    {/* 합의선 */}
-                    <td style={{ ...tdBase, textAlign: 'center' }}>
-                      <button
-                        onClick={() => handleToggleConsensus(r.id!)}
-                        style={{
-                          padding: '4px 10px',
-                          background: consensusCount !== null && consensusCount > 0
-                            ? 'var(--primary-light)' : 'var(--bg-secondary)',
-                          color: consensusCount !== null && consensusCount > 0
-                            ? 'var(--primary)' : 'var(--text-muted)',
-                          border: 'none', borderRadius: '12px', fontSize: '12px',
-                          cursor: 'pointer', fontWeight: 700, whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {consensusCount === null ? '설정' : `${consensusCount}단계`}
-                      </button>
-                    </td>
+                        {/* 이벤트명 — 인라인 편집 */}
+                        <td style={tdBase}>
+                          <input
+                            data-mid="input-event-name"
+                            value={r.event_name}
+                            onChange={e => updateLocalRule(r.id!, 'event_name', e.target.value)}
+                            onBlur={e => saveField(r.id!, 'event_name', e.target.value)}
+                            style={inlineInput}
+                            onFocus={e => {
+                              e.currentTarget.style.borderColor = 'var(--primary)';
+                              e.currentTarget.style.background = 'var(--bg-app)';
+                            }}
+                            onBlurCapture={e => {
+                              e.currentTarget.style.borderColor = 'transparent';
+                              e.currentTarget.style.background = 'transparent';
+                            }}
+                          />
+                        </td>
 
-                    {/* 사용여부 */}
-                    <td style={{ ...tdBase, textAlign: 'center' }}>
-                      <button
-                        data-mid="btn-toggle-enabled"
-                        onClick={() => handleFieldChange(r.id!, 'is_enabled', !r.is_enabled)}
-                        style={{
-                          padding: '5px 10px',
-                          background: r.is_enabled ? 'var(--success)' : 'var(--bg-secondary)',
-                          color: r.is_enabled ? '#fff' : 'var(--text-muted)',
-                          border: 'none', borderRadius: '12px', fontSize: '13px',
-                          cursor: 'pointer', fontWeight: 700, minWidth: '44px',
-                        }}
-                      >
-                        {r.is_enabled ? 'ON' : 'OFF'}
-                      </button>
-                    </td>
+                        {/* 이벤트 코드 (읽기 전용) */}
+                        <td style={{ ...tdBase, padding: '9px 12px' }}>
+                          <span style={{
+                            fontFamily: 'monospace', fontSize: '12px',
+                            color: 'var(--text-secondary)',
+                            background: 'var(--bg-secondary)',
+                            padding: '3px 8px', borderRadius: '5px',
+                            whiteSpace: 'nowrap', display: 'inline-block',
+                          }}>
+                            {r.event_code}
+                          </span>
+                        </td>
 
-                    {/* 삭제 */}
-                    <td style={{ ...tdBase, textAlign: 'center' }}>
-                      <button
-                        onClick={() => handleDeleteRule(r.id!, r.event_name)}
-                        title="규칙 삭제"
-                        style={{
-                          padding: '4px 8px', background: 'none',
-                          color: 'var(--text-muted)', border: 'none',
-                          cursor: 'pointer', fontSize: '15px', lineHeight: 1,
-                        }}
-                      >
-                        🗑
-                      </button>
+                        {/* 전결 티어 (직급/직책 매핑 표기) */}
+                        <td style={{ ...tdBase, textAlign: 'center' }}>
+                          <select
+                            data-mid="select-tier"
+                            value={r.required_tier}
+                            onChange={e => handleFieldChange(r.id!, 'required_tier', parseInt(e.target.value))}
+                            style={{ ...sel, width: '100%', maxWidth: '230px' }}
+                          >
+                            {renderTierSelectOptions()}
+                          </select>
+                        </td>
+
+                        {/* 합의선 */}
+                        <td style={{ ...tdBase, textAlign: 'center' }}>
+                          <button
+                            onClick={() => handleToggleConsensus(r.id!)}
+                            style={{
+                              padding: '4px 10px',
+                              background: consensusCount !== null && consensusCount > 0
+                                ? 'var(--primary-light)' : 'var(--bg-secondary)',
+                              color: consensusCount !== null && consensusCount > 0
+                                ? 'var(--primary)' : 'var(--text-muted)',
+                              border: 'none', borderRadius: '5px',
+                              fontSize: '12px', cursor: 'pointer', fontWeight: 600,
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {consensusCount !== null && consensusCount > 0
+                              ? `${consensusCount}개` : '+ 합의선'}
+                          </button>
+                        </td>
+
+                        {/* 사용 여부 (토글) */}
+                        <td style={{ ...tdBase, textAlign: 'center' }}>
+                          <input
+                            data-mid="chk-is-enabled"
+                            type="checkbox"
+                            checked={r.is_enabled}
+                            onChange={e => handleFieldChange(r.id!, 'is_enabled', e.target.checked)}
+                            style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                          />
+                        </td>
+
+                        {/* 삭제 */}
+                        <td style={{ ...tdBase, textAlign: 'center', padding: '9px 6px' }}>
+                          <button
+                            onClick={() => handleDeleteRule(r.id!, r.event_name)}
+                            title="규칙 삭제"
+                            style={{
+                              background: 'none', border: 'none', cursor: 'pointer',
+                              color: 'var(--text-muted)', fontSize: '14px', padding: '2px 4px',
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </td>
+                      </tr>
+
+                      {/* ── 합의선 확장 패널 ── */}
+                      {isExpanded && (
+                        <tr>
+                          <td colSpan={8} style={{ padding: '0', background: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
+                            <div style={{ padding: '14px 20px 14px 44px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>
+                                  합의선 설정 — {r.event_name}
+                                </span>
+                                <button
+                                  data-mid="btn-add-consensus"
+                                  onClick={() => handleAddConsensus(r.id!)}
+                                  style={{
+                                    padding: '5px 12px', background: 'var(--primary)', color: '#fff',
+                                    border: 'none', borderRadius: '5px', fontSize: '12px',
+                                    fontWeight: 700, cursor: 'pointer',
+                                  }}
+                                >
+                                  + 합의 부서 추가
+                                </button>
+                              </div>
+
+                              {(consensusMap[r.id!] || []).length === 0 ? (
+                                <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '6px 0' }}>
+                                  등록된 합의 부서가 없습니다.
+                                </p>
+                              ) : (
+                                <table style={{
+                                  width: '100%', borderCollapse: 'collapse',
+                                  background: 'var(--bg-card)', borderRadius: '6px',
+                                  overflow: 'hidden', border: '1px solid var(--border-color)',
+                                }}>
+                                  <thead>
+                                    <tr style={{ background: 'var(--bg-card-header)' }}>
+                                      <th style={{ padding: '7px 10px', fontWeight: 700, textAlign: 'center', whiteSpace: 'nowrap', width: '44px', color: 'var(--text-main)' }}>순</th>
+                                      <th style={{ padding: '7px 10px', fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap', color: 'var(--text-main)' }}>트리거 시점</th>
+                                      <th style={{ padding: '7px 10px', fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap', color: 'var(--text-main)' }}>합의 대상 부서</th>
+                                      <th style={{ padding: '7px 10px', fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap', color: 'var(--text-main)' }}>합의 최소 티어</th>
+                                      <th style={{ padding: '7px 10px', fontWeight: 700, textAlign: 'center', whiteSpace: 'nowrap', color: 'var(--text-main)' }}>실행 방식</th>
+                                      <th style={{ padding: '7px 10px', width: '48px' }} />
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {(consensusMap[r.id!] || []).map((c, idx) => (
+                                      <tr key={c.id} style={{ background: idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)' }}>
+                                        <td style={{ padding: '7px 10px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 700 }}>{c.seq_order}</td>
+                                        <td style={{ padding: '7px 10px' }}>
+                                          <select value={c.trigger_after_tier} onChange={e => handleConsensusChange(c.id!, r.id!, 'trigger_after_tier', parseInt(e.target.value))} style={{ ...sel, fontSize: '13px' }}>
+                                            {renderTierSelectOptions()}
+                                          </select>
+                                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '5px' }}>결재 후</span>
+                                        </td>
+                                        <td style={{ padding: '7px 10px' }}>
+                                          <input
+                                            value={c.target_dept_id}
+                                            onChange={e => setConsensusMap(prev => ({
+                                              ...prev,
+                                              [r.id!]: (prev[r.id!] || []).map(x => x.id === c.id ? { ...x, target_dept_id: e.target.value } : x)
+                                            }))}
+                                            onBlur={e => handleConsensusChange(c.id!, r.id!, 'target_dept_id', e.target.value)}
+                                            placeholder="예: 재무팀, 기술부서"
+                                            style={{ ...sel, fontSize: '13px', width: '100%', boxSizing: 'border-box' }}
+                                          />
+                                        </td>
+                                        <td style={{ padding: '7px 10px' }}>
+                                          <select value={c.consensus_tier} onChange={e => handleConsensusChange(c.id!, r.id!, 'consensus_tier', parseInt(e.target.value))} style={{ ...sel, fontSize: '13px' }}>
+                                            {renderTierSelectOptions()}
+                                          </select>
+                                        </td>
+                                        <td style={{ padding: '7px 10px', textAlign: 'center' }}>
+                                          <button
+                                            onClick={() => handleConsensusChange(c.id!, r.id!, 'execution_type', c.execution_type === 'SEQUENTIAL' ? 'PARALLEL' : 'SEQUENTIAL')}
+                                            style={{
+                                              padding: '4px 12px',
+                                              background: c.execution_type === 'SEQUENTIAL' ? 'var(--success-light)' : 'var(--primary-light)',
+                                              color: c.execution_type === 'SEQUENTIAL' ? 'var(--success)' : 'var(--primary)',
+                                              border: 'none', borderRadius: '5px', fontSize: '12px', cursor: 'pointer', fontWeight: 700,
+                                            }}
+                                          >
+                                            {c.execution_type === 'SEQUENTIAL' ? '순차' : '병렬'}
+                                          </button>
+                                        </td>
+                                        <td style={{ padding: '7px 10px', textAlign: 'center' }}>
+                                          <button
+                                            onClick={() => handleDeleteConsensus(c.id!, r.id!)}
+                                            style={{ padding: '4px 10px', background: 'var(--danger-light)', color: 'var(--danger)', border: 'none', borderRadius: '5px', fontSize: '12px', cursor: 'pointer' }}
+                                          >
+                                            삭제
+                                          </button>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+
+                {/* 빈 상태 */}
+                {rules.length === 0 && !loading && (
+                  <tr>
+                    <td colSpan={8} style={{ padding: '56px 24px', textAlign: 'center' }}>
+                      <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                        등록된 결재선 규칙이 없습니다.
+                      </p>
                     </td>
                   </tr>
+                )}
+                {loading && (
+                  <tr>
+                    <td colSpan={8} style={{ padding: '32px', textAlign: 'center', fontSize: '14px', color: 'var(--text-secondary)' }}>
+                      불러오는 중…
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
 
-                  {/* ── 합의선 확장 패널 ── */}
-                  {isExpanded && (
-                    <tr>
-                      <td colSpan={8} style={{
-                        padding: 0,
-                        background: 'var(--bg-secondary)',
-                        borderBottom: '2px solid var(--primary)',
-                      }}>
-                        <div style={{ padding: '14px 20px 16px 52px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>
-                              합의선 설정
-                              <span style={{ fontWeight: 400, color: 'var(--text-secondary)', marginLeft: '8px', fontSize: '12px' }}>
-                                결재 전 협의가 필요한 부서/직책 단계를 추가합니다.
-                              </span>
-                            </span>
-                            <button
-                              onClick={() => handleAddConsensus(r.id!)}
-                              style={{
-                                padding: '6px 14px',
-                                background: 'var(--primary)', color: '#fff',
-                                border: 'none', borderRadius: '6px',
-                                fontSize: '13px', cursor: 'pointer', fontWeight: 700,
-                              }}
-                            >
-                              + 합의 단계 추가
-                            </button>
-                          </div>
+          {/* ── 하단 범례 + 안내 ── */}
+          <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            {Object.entries(CATEGORY_COLORS).map(([cat, colors]) => (
+              <span key={cat} style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{
+                  width: '10px', height: '10px', borderRadius: '50%',
+                  background: colors.bg, display: 'inline-block', flexShrink: 0,
+                }} />
+                <span style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{cat}</span>
+              </span>
+            ))}
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
+              저장 중 행은 강조 표시 · 전결 티어/사용 여부는 선택 즉시 저장 · 이름은 셀 이탈 시 저장
+            </span>
+          </div>
+        </>
+      )}
 
-                          {(consensusMap[r.id!] || []).length === 0 ? (
-                            <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '4px 0 6px' }}>
-                              설정된 합의선 없음 — 결재선만 단독 적용됩니다.
-                            </p>
-                          ) : (
-                            <table style={{
-                              width: '100%', borderCollapse: 'collapse', fontSize: '13px',
-                              background: 'var(--bg-card)', borderRadius: '7px',
-                              overflow: 'hidden', boxShadow: 'var(--shadow-sm)',
-                            }}>
-                              <thead>
-                                <tr style={{ background: 'var(--bg-card-header)' }}>
-                                  <th style={{ padding: '7px 10px', fontWeight: 700, textAlign: 'center', whiteSpace: 'nowrap', width: '44px', color: 'var(--text-main)' }}>순</th>
-                                  <th style={{ padding: '7px 10px', fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap', color: 'var(--text-main)' }}>트리거 시점</th>
-                                  <th style={{ padding: '7px 10px', fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap', color: 'var(--text-main)' }}>합의 대상 부서</th>
-                                  <th style={{ padding: '7px 10px', fontWeight: 700, textAlign: 'left', whiteSpace: 'nowrap', color: 'var(--text-main)' }}>합의 최소 티어</th>
-                                  <th style={{ padding: '7px 10px', fontWeight: 700, textAlign: 'center', whiteSpace: 'nowrap', color: 'var(--text-main)' }}>실행 방식</th>
-                                  <th style={{ padding: '7px 10px', width: '48px' }} />
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {(consensusMap[r.id!] || []).map((c, idx) => (
-                                  <tr key={c.id} style={{ background: idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)' }}>
-                                    <td style={{ padding: '7px 10px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 700 }}>{c.seq_order}</td>
-                                    <td style={{ padding: '7px 10px' }}>
-                                      <select value={c.trigger_after_tier} onChange={e => handleConsensusChange(c.id!, r.id!, 'trigger_after_tier', parseInt(e.target.value))} style={{ ...sel, fontSize: '13px' }}>
-                                        <TierOptions />
-                                      </select>
-                                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '5px' }}>결재 후</span>
-                                    </td>
-                                    <td style={{ padding: '7px 10px' }}>
-                                      <input
-                                        value={c.target_dept_id}
-                                        onChange={e => setConsensusMap(prev => ({
-                                          ...prev,
-                                          [r.id!]: (prev[r.id!] || []).map(x => x.id === c.id ? { ...x, target_dept_id: e.target.value } : x)
-                                        }))}
-                                        onBlur={e => handleConsensusChange(c.id!, r.id!, 'target_dept_id', e.target.value)}
-                                        placeholder="예: 재무팀, 기술부서"
-                                        style={{ ...sel, fontSize: '13px', width: '100%', boxSizing: 'border-box' }}
-                                      />
-                                    </td>
-                                    <td style={{ padding: '7px 10px' }}>
-                                      <select value={c.consensus_tier} onChange={e => handleConsensusChange(c.id!, r.id!, 'consensus_tier', parseInt(e.target.value))} style={{ ...sel, fontSize: '13px' }}>
-                                        <TierOptions />
-                                      </select>
-                                    </td>
-                                    <td style={{ padding: '7px 10px', textAlign: 'center' }}>
-                                      <button
-                                        onClick={() => handleConsensusChange(c.id!, r.id!, 'execution_type', c.execution_type === 'SEQUENTIAL' ? 'PARALLEL' : 'SEQUENTIAL')}
-                                        style={{
-                                          padding: '4px 12px',
-                                          background: c.execution_type === 'SEQUENTIAL' ? 'var(--success-light)' : 'var(--primary-light)',
-                                          color: c.execution_type === 'SEQUENTIAL' ? 'var(--success)' : 'var(--primary)',
-                                          border: 'none', borderRadius: '5px', fontSize: '12px', cursor: 'pointer', fontWeight: 700,
-                                        }}
-                                      >
-                                        {c.execution_type === 'SEQUENTIAL' ? '순차' : '병렬'}
-                                      </button>
-                                    </td>
-                                    <td style={{ padding: '7px 10px', textAlign: 'center' }}>
-                                      <button
-                                        onClick={() => handleDeleteConsensus(c.id!, r.id!)}
-                                        style={{ padding: '4px 10px', background: 'var(--danger-light)', color: 'var(--danger)', border: 'none', borderRadius: '5px', fontSize: '12px', cursor: 'pointer' }}
-                                      >
-                                        삭제
-                                      </button>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          )}
-                        </div>
-                      </td>
+      {/* ════════════════════════════════════════════════════════
+         [탭 2] 직급·직책 티어 설정 (R&R 기반 단위조직 책임자 결재 우선)
+      ════════════════════════════════════════════════════════ */}
+      {activeTab === 'TIERS' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          {/* ── 상단 R&R 결재 원칙 및 시뮬레이터 카드 ── */}
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '10px',
+            padding: '18px 22px',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+              <div>
+                <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-main)', margin: '0 0 6px' }}>
+                  직급·직책 결재 티어 운영 원칙 (R&R 우선순위)
+                </h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.6' }}>
+                  • <strong>직책 우선 원칙</strong>: 단위 기능조직 책임자(파트장, 팀장, 센터장, 공장장, 본부장, 총괄 등)는 직급과 무관하게 <strong>직책 티어가 최우선 전결권</strong>으로 강력하게 작동합니다.<br />
+                  • <strong>직급 호환 원칙</strong>: 직책이 지정되지 않은 일반 사원 및 직책 구분이 없는 소규모 조직은 <strong>소속 직급 티어</strong>로 자동 fallback 작동합니다.
+                </p>
+              </div>
+
+              <button
+                onClick={handleResetToDefaults}
+                style={{
+                  padding: '7px 14px',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                표준 기본값 복원
+              </button>
+            </div>
+
+            {/* 실시간 유효 티어 판정 시뮬레이터 */}
+            <div style={{
+              marginTop: '16px',
+              padding: '14px 18px',
+              background: 'var(--bg-secondary)',
+              borderRadius: '8px',
+              border: '1px solid var(--border-color)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '14px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>
+                  유효 티어 판정 시뮬레이터:
+                </span>
+                
+                {/* 직급 선택 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>직급:</span>
+                  <select
+                    value={simPosition}
+                    onChange={e => setSimPosition(e.target.value)}
+                    style={{ ...sel, padding: '4px 8px', fontSize: '12px' }}
+                  >
+                    <option value="">(직급 없음)</option>
+                    {positionConfigs.map(p => (
+                      <option key={p.title} value={p.title}>{p.title} ({p.tier_level}티어)</option>
+                    ))}
+                  </select>
+                </div>
+
+                <span style={{ color: 'var(--text-muted)' }}>+</span>
+
+                {/* 직책 선택 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>직책:</span>
+                  <select
+                    value={simDuty}
+                    onChange={e => setSimDuty(e.target.value)}
+                    style={{ ...sel, padding: '4px 8px', fontSize: '12px' }}
+                  >
+                    <option value="">(직책 미지정 - 직급 적용)</option>
+                    {dutyConfigs.map(d => (
+                      <option key={d.title} value={d.title}>{d.title} ({d.tier_level}티어)</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* 시뮬레이션 결과 */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 14px',
+                borderRadius: '6px',
+                background: simulationResult.source === 'DUTY' ? 'var(--primary-light)' : 'var(--bg-card)',
+                border: '1px solid ' + (simulationResult.source === 'DUTY' ? 'var(--primary)' : 'var(--border-color)')
+              }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>최종 결재 권한:</span>
+                <strong style={{ fontSize: '14px', color: simulationResult.source === 'DUTY' ? 'var(--primary)' : 'var(--text-main)' }}>
+                  {simulationResult.effectiveTier}티어 ({simulationResult.title})
+                </strong>
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  background: simulationResult.source === 'DUTY' ? 'var(--primary)' : 'var(--bg-secondary)',
+                  color: simulationResult.source === 'DUTY' ? '#fff' : 'var(--text-muted)'
+                }}>
+                  {simulationResult.source === 'DUTY' ? '직책 우선 적용' : simulationResult.source === 'POSITION' ? '직급 적용' : '기본 적용'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── 좌우 2단 그리드: 직책별 티어 설정 & 직급별 티어 설정 ── */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+
+            {/* ── 좌측: 직책별 티어 관리 (Duty Tiers Master) ── */}
+            <div style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '10px',
+              padding: '18px 20px',
+              boxShadow: 'var(--shadow-sm)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h4 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-main)', margin: '0 0 2px' }}>
+                    직책별 티어 마스터 (단위 조직 책임자)
+                  </h4>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    총 {dutyConfigs.length}개 직책 등록됨 (결재 시 직책 티어 최우선 반영)
+                  </span>
+                </div>
+              </div>
+
+              {/* 신규 직책 등록 바 */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '120px 100px 1fr 64px',
+                gap: '8px',
+                padding: '10px 12px',
+                background: 'var(--bg-secondary)',
+                borderRadius: '8px',
+                alignItems: 'center'
+              }}>
+                <input
+                  type="text"
+                  placeholder="새 직책명"
+                  value={newDutyTitle}
+                  onChange={e => setNewDutyTitle(e.target.value)}
+                  style={{ ...sel, padding: '6px 8px', fontSize: '12px' }}
+                />
+                <select
+                  value={newDutyTier}
+                  onChange={e => setNewDutyTier(Number(e.target.value))}
+                  style={{ ...sel, padding: '6px 8px', fontSize: '12px' }}
+                >
+                  {[0, 1, 2, 3, 4, 5, 6, 7].map(t => (
+                    <option key={t} value={t}>{t}티어</option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  placeholder="설명 / 업무 범위"
+                  value={newDutyDesc}
+                  onChange={e => setNewDutyDesc(e.target.value)}
+                  style={{ ...sel, padding: '6px 8px', fontSize: '12px' }}
+                />
+                <button
+                  onClick={handleAddDuty}
+                  style={{
+                    padding: '6px 10px',
+                    background: 'var(--primary)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  추가
+                </button>
+              </div>
+
+              {/* 직책 목록 테이블 */}
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                  <colgroup>
+                    <col style={{ width: '120px' }} />
+                    <col style={{ width: '100px' }} />
+                    <col />
+                    <col style={{ width: '50px' }} />
+                  </colgroup>
+                  <thead>
+                    <tr style={{ background: 'var(--bg-card-header)' }}>
+                      <th style={thBase}>직책명</th>
+                      <th style={{ ...thBase, textAlign: 'center' }}>부여 티어</th>
+                      <th style={thBase}>설명</th>
+                      <th style={thBase} />
                     </tr>
-                  )}
-                </React.Fragment>
-              );
-            })}
+                  </thead>
+                  <tbody>
+                    {dutyConfigs.map((item, idx) => (
+                      <tr key={item.id || item.title} style={{ background: idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)' }}>
+                        <td style={{ ...tdBase, fontWeight: 700 }}>
+                          <input
+                            value={item.title}
+                            onChange={e => handleUpdateDuty(idx, 'title', e.target.value)}
+                            style={{ ...inlineInput, fontSize: '13px' }}
+                          />
+                        </td>
+                        <td style={{ ...tdBase, textAlign: 'center' }}>
+                          <select
+                            value={item.tier_level}
+                            onChange={e => handleUpdateDuty(idx, 'tier_level', Number(e.target.value))}
+                            style={{ ...sel, padding: '4px 8px', fontSize: '12px', width: '100%' }}
+                          >
+                            {[0, 1, 2, 3, 4, 5, 6, 7].map(t => (
+                              <option key={t} value={t}>{t}티어</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td style={tdBase}>
+                          <input
+                            value={item.description || ''}
+                            placeholder="설명 입력"
+                            onChange={e => handleUpdateDuty(idx, 'description', e.target.value)}
+                            style={{ ...inlineInput, fontSize: '12px', color: 'var(--text-secondary)' }}
+                          />
+                        </td>
+                        <td style={{ ...tdBase, textAlign: 'center', padding: '6px' }}>
+                          <button
+                            onClick={() => handleDeleteDuty(idx)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--danger)',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              padding: '2px 4px'
+                            }}
+                            title="직책 삭제"
+                          >
+                            ✕
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-            {/* 빈 상태 */}
-            {rules.length === 0 && !loading && (
-              <tr>
-                <td colSpan={8} style={{ padding: '56px 24px', textAlign: 'center' }}>
-                  <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', margin: '0 0 8px' }}>
-                    등록된 결재선 규칙이 없습니다.
-                  </p>
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
-                    상단 '전체 업무 일괄 생성' 버튼으로 {APPROVAL_EVENT_REGISTRY.length}개 전사 업무를 한 번에 등록하세요.
-                  </p>
-                </td>
-              </tr>
-            )}
-            {loading && (
-              <tr>
-                <td colSpan={8} style={{ padding: '32px', textAlign: 'center', fontSize: '14px', color: 'var(--text-secondary)' }}>
-                  불러오는 중…
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            {/* ── 우측: 직급별 티어 관리 (Position Tiers Master) ── */}
+            <div style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '10px',
+              padding: '18px 20px',
+              boxShadow: 'var(--shadow-sm)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <h4 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-main)', margin: '0 0 2px' }}>
+                    직급별 티어 마스터 (일반 사원 / 소규모 조직)
+                  </h4>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    총 {positionConfigs.length}개 직급 등록됨 (직책 미지정 시 fallback 적용)
+                  </span>
+                </div>
+              </div>
 
-      {/* ── 하단 범례 + 안내 ── */}
-      <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-        {Object.entries(CATEGORY_COLORS).map(([cat, colors]) => (
-          <span key={cat} style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-            <span style={{
-              width: '10px', height: '10px', borderRadius: '50%',
-              background: colors.bg, display: 'inline-block', flexShrink: 0,
-            }} />
-            <span style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{cat}</span>
-          </span>
-        ))}
-        <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: 'auto', whiteSpace: 'nowrap' }}>
-          저장 중 행은 강조 표시 · 전결 티어/사용 여부는 선택 즉시 저장 · 이름은 셀 이탈 시 저장
-        </span>
-      </div>
+              {/* 신규 직급 등록 바 */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '120px 100px 1fr 64px',
+                gap: '8px',
+                padding: '10px 12px',
+                background: 'var(--bg-secondary)',
+                borderRadius: '8px',
+                alignItems: 'center'
+              }}>
+                <input
+                  type="text"
+                  placeholder="새 직급명"
+                  value={newPosTitle}
+                  onChange={e => setNewPosTitle(e.target.value)}
+                  style={{ ...sel, padding: '6px 8px', fontSize: '12px' }}
+                />
+                <select
+                  value={newPosTier}
+                  onChange={e => setNewPosTier(Number(e.target.value))}
+                  style={{ ...sel, padding: '6px 8px', fontSize: '12px' }}
+                >
+                  {[0, 1, 2, 3, 4, 5, 6, 7].map(t => (
+                    <option key={t} value={t}>{t}티어</option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  placeholder="설명 / 직급 구분"
+                  value={newPosDesc}
+                  onChange={e => setNewPosDesc(e.target.value)}
+                  style={{ ...sel, padding: '6px 8px', fontSize: '12px' }}
+                />
+                <button
+                  onClick={handleAddPosition}
+                  style={{
+                    padding: '6px 10px',
+                    background: 'var(--primary)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  추가
+                </button>
+              </div>
+
+              {/* 직급 목록 테이블 */}
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                  <colgroup>
+                    <col style={{ width: '120px' }} />
+                    <col style={{ width: '100px' }} />
+                    <col />
+                    <col style={{ width: '50px' }} />
+                  </colgroup>
+                  <thead>
+                    <tr style={{ background: 'var(--bg-card-header)' }}>
+                      <th style={thBase}>직급명</th>
+                      <th style={{ ...thBase, textAlign: 'center' }}>부여 티어</th>
+                      <th style={thBase}>설명</th>
+                      <th style={thBase} />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {positionConfigs.map((item, idx) => (
+                      <tr key={item.id || item.title} style={{ background: idx % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-secondary)' }}>
+                        <td style={{ ...tdBase, fontWeight: 700 }}>
+                          <input
+                            value={item.title}
+                            onChange={e => handleUpdatePosition(idx, 'title', e.target.value)}
+                            style={{ ...inlineInput, fontSize: '13px' }}
+                          />
+                        </td>
+                        <td style={{ ...tdBase, textAlign: 'center' }}>
+                          <select
+                            value={item.tier_level}
+                            onChange={e => handleUpdatePosition(idx, 'tier_level', Number(e.target.value))}
+                            style={{ ...sel, padding: '4px 8px', fontSize: '12px', width: '100%' }}
+                          >
+                            {[0, 1, 2, 3, 4, 5, 6, 7].map(t => (
+                              <option key={t} value={t}>{t}티어</option>
+                            ))}
+                          </select>
+                        </td>
+                        <td style={tdBase}>
+                          <input
+                            value={item.description || ''}
+                            placeholder="설명 입력"
+                            onChange={e => handleUpdatePosition(idx, 'description', e.target.value)}
+                            style={{ ...inlineInput, fontSize: '12px', color: 'var(--text-secondary)' }}
+                          />
+                        </td>
+                        <td style={{ ...tdBase, textAlign: 'center', padding: '6px' }}>
+                          <button
+                            onClick={() => handleDeletePosition(idx)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--danger)',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              padding: '2px 4px'
+                            }}
+                            title="직급 삭제"
+                          >
+                            ✕
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
     </div>
   );
 };

@@ -450,6 +450,7 @@ export const UsersPermissions: React.FC = () => {
         u.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         u.loginId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         u.position?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        u.duty?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         getDeptName(u).toLowerCase().includes(searchTerm.toLowerCase());
 
       if (!matchText) return false;
@@ -518,6 +519,7 @@ export const UsersPermissions: React.FC = () => {
         '성명': u.name,
         '소속부서': getDeptName(u),
         '직급': u.position || '-',
+        '직책': u.duty || '-',
         '시스템등급': u.role,
         '상속권한명칭': roleObj?.name || '미지정',
         '허용메뉴수': summary.total,
@@ -1186,7 +1188,7 @@ export const UsersPermissions: React.FC = () => {
                   <th style={{ padding: '8px 12px', textAlign: 'left', width: '110px' }}>사번 / ID</th>
                   <th style={{ padding: '8px 12px', textAlign: 'left', width: '90px' }}>성명</th>
                   <th style={{ padding: '8px 12px', textAlign: 'left', width: '100px' }}>소속 부서</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left', width: '70px' }}>직급</th>
+                  <th style={{ padding: '8px 12px', textAlign: 'left', width: '120px' }}>직급 / 직책</th>
                   <th style={{ padding: '8px 12px', textAlign: 'center', width: '90px' }}>시스템 등급</th>
                   <th style={{ padding: '8px 12px', textAlign: 'left', width: '220px' }}>상속 권한 명칭 (핵심)</th>
                   <th style={{ padding: '8px 12px', textAlign: 'left' }}>상속 권한 메뉴 요약</th>
@@ -1229,7 +1231,7 @@ export const UsersPermissions: React.FC = () => {
                           {deptName}
                         </td>
                         <td style={{ padding: '8px 12px', color: 'var(--text-muted, #64748b)' }}>
-                          {user.position || '-'}
+                          {user.position || '-'}{user.duty ? ` (${user.duty})` : ''}
                         </td>
                         {/* 시스템 등급 (ADMIN / USER) */}
                         <td style={{ padding: '8px 12px', textAlign: 'center' }}>

@@ -24,6 +24,7 @@ interface UserNode {
   departmentId: string | null;
   department?: string;
   position: string;
+  duty?: string; // 직책 (파트장, 팀장, 센터장, 공장장, 본부장, 총괄 등 단위조직 책임자)
   status: 'ACTIVE' | 'LEAVE_OF_ABSENCE' | 'RETIRED';
   role: string;
   loginId?: string;
@@ -319,6 +320,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
       name: '',
       departmentId: null, // 무조건 미배정으로 생성
       position: '',
+      duty: '',
       status: 'ACTIVE',
       role: 'USER',
       loginId: '',
@@ -490,6 +492,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
         '아이디': u.loginId || '-',
         '소속부서': deptName,
         '직급': u.position || '-',
+        '직책': u.duty || '-',
         '역할/권한': u.role || 'USER',
         '재직상태': statusLabel,
         '입사일': u.joinDate || '-',
@@ -634,7 +637,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
             </span>
           </div>
           <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            {user.position || '직급 미지정'} | {user.role}
+            {user.position || '직급 미지정'}{user.duty ? ` (${user.duty})` : ''} | {user.role}
           </div>
           {user.phone && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>📞 {user.phone}</div>}
         </div>
@@ -887,25 +890,47 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
                     <input 
                       type="text" 
                       style={{ padding: '4px 8px', fontSize: '12px' }} 
-                      placeholder="직급 입력 (예: 사원/대리)"
+                      placeholder="직급 (예: 사원/과장)"
                       value={selectedProfile.position} 
                       onChange={e => setSelectedProfile({...selectedProfile, position: e.target.value})} 
                       disabled={!canEdit} 
                     />
                   </div>
                   <div>
-                    <label style={{ marginBottom: '2px', fontSize: '12px' }}>시스템 역할</label>
-                    <select 
-                      value={selectedProfile.role} 
+                    <label style={{ marginBottom: '2px', fontSize: '12px' }}>직책 (R&R 결재 우선)</label>
+                    <input 
+                      type="text" 
+                      list="duty-suggestions"
                       style={{ padding: '4px 8px', fontSize: '12px' }} 
-                      onChange={e => setSelectedProfile({...selectedProfile, role: e.target.value})} 
-                      disabled={!canEdit || selectedProfile.id === 'sys-admin'}
-                    >
-                      {isSuperAdmin && <option value="ADMIN">ADMIN</option>}
-                      <option value="MANAGER">MANAGER</option>
-                      <option value="USER">USER</option>
-                    </select>
+                      placeholder="직책 (예: 팀장/파트장)"
+                      value={selectedProfile.duty || ''} 
+                      onChange={e => setSelectedProfile({...selectedProfile, duty: e.target.value})} 
+                      disabled={!canEdit} 
+                    />
+                    <datalist id="duty-suggestions">
+                      <option value="파트장" />
+                      <option value="팀장" />
+                      <option value="센터장" />
+                      <option value="공장장" />
+                      <option value="본부장" />
+                      <option value="총괄" />
+                      <option value="대표이사" />
+                    </datalist>
                   </div>
+                </div>
+
+                <div>
+                  <label style={{ marginBottom: '2px', fontSize: '12px' }}>시스템 역할</label>
+                  <select 
+                    value={selectedProfile.role} 
+                    style={{ padding: '4px 8px', fontSize: '12px', width: '100%' }} 
+                    onChange={e => setSelectedProfile({...selectedProfile, role: e.target.value})} 
+                    disabled={!canEdit || selectedProfile.id === 'sys-admin'}
+                  >
+                    {isSuperAdmin && <option value="ADMIN">ADMIN</option>}
+                    <option value="MANAGER">MANAGER</option>
+                    <option value="USER">USER</option>
+                  </select>
                 </div>
 
                 <div>

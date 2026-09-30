@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Settings, Users, Truck, Plus, Trash2, Edit2, Copy, Check, X, CreditCard, Building, Download } from 'lucide-react';
-import { TransportCompany, TransportDriver, db, logPrivacyAccess } from '../services/db';
+import { TransportCompany, TransportDriver, db, logPrivacyAccess, VEHICLE_TYPE_OPTIONS } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { isPrivilegedPrivacyUser, maskPhoneNumber, maskName, maskAddress } from '../utils/privacyMasking';
 
@@ -563,16 +563,9 @@ export const TransportMaster: React.FC = () => {
                 <div>
                   <label>차종 / 톤수</label>
                   <select value={editingDriver.vehicleType || '3.5T'} onChange={e => setEditingDriver({ ...editingDriver, vehicleType: e.target.value })}>
-                    <option value="1.4T">1.4T</option>
-                    <option value="2.5T">2.5T</option>
-                    <option value="3.5T">3.5T</option>
-                    <option value="4T">4T</option>
-                    <option value="4.5T">4.5T</option>
-                    <option value="5T">5T</option>
-                    <option value="5T장축">5T장축</option>
-                    <option value="8.5T">8.5T</option>
-                    <option value="11T">11T</option>
-                    <option value="노배드">노배드</option>
+                    {VEHICLE_TYPE_OPTIONS.map(v => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
                   </select>
                 </div>
                 <div>

@@ -172,6 +172,24 @@ export interface Tenant {
   createdAt: string;
   updatedAt?: string;
   excelMappingRules?: TenantExcelMappingRules;
+
+  // 🛡️ 법정 개인정보 보호책임자 (CPO - Chief Privacy Officer)
+  privacyOfficer?: TenantPrivacyOfficer;
+  privacyOfficerName?: string;
+  privacyOfficerPosition?: string;
+  privacyOfficerDepartment?: string;
+  privacyOfficerPhone?: string;
+  privacyOfficerEmail?: string;
+}
+
+/** 🛡️ 법정 개인정보 보호책임자 (CPO) 엔티티 */
+export interface TenantPrivacyOfficer {
+  name: string;        // 성명 (예: '이수용')
+  position: string;    // 직책/직급 (예: '대표이사 / 관리부 총괄')
+  department?: string; // 소속 부서 (예: '(주)기연리프트 경영진')
+  phone?: string;      // 연락처 (예: '031-334-5295')
+  email?: string;      // 문의 및 불만처리 이메일 (예: 'giyeonlift@naver.com')
+  updatedAt?: string;  // 지정/수정 일시
 }
 
 
@@ -235,7 +253,42 @@ export interface DelegationRecord {
   created_at?: string;
 }
 
-/** 결재 티어 레이블 매핑 (tier_level → 직책명) */
+export interface ApprovalTierConfig {
+  id?: string;
+  tenant_id?: string;
+  category: 'POSITION' | 'DUTY';
+  title: string;
+  tier_level: number;
+  description?: string;
+  seq_order?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/** 기본 직급별 티어 매핑 (소규모 기업 및 직급 기반 결재 호환) */
+export const DEFAULT_POSITION_TIERS: ApprovalTierConfig[] = [
+  { category: 'POSITION', title: '사원', tier_level: 0, description: '일반 실무 사원', seq_order: 1 },
+  { category: 'POSITION', title: '대리', tier_level: 1, description: '실무 담당 대리', seq_order: 2 },
+  { category: 'POSITION', title: '과장', tier_level: 2, description: '중간 실무 과장', seq_order: 3 },
+  { category: 'POSITION', title: '차장', tier_level: 3, description: '선임 차장', seq_order: 4 },
+  { category: 'POSITION', title: '부장', tier_level: 4, description: '부서 실무 총괄', seq_order: 5 },
+  { category: 'POSITION', title: '이사', tier_level: 5, description: '임원 이사', seq_order: 6 },
+  { category: 'POSITION', title: '상무', tier_level: 6, description: '임원 상무/전무', seq_order: 7 },
+  { category: 'POSITION', title: '대표', tier_level: 7, description: '대표이사', seq_order: 8 },
+];
+
+/** 기본 직책별 티어 매핑 (R&R 기반 단위 기능조직 책임자 결재 우선 원칙) */
+export const DEFAULT_DUTY_TIERS: ApprovalTierConfig[] = [
+  { category: 'DUTY', title: '파트장', tier_level: 2, description: '단위 업무 파트 리더', seq_order: 1 },
+  { category: 'DUTY', title: '팀장', tier_level: 4, description: '부서/팀 운영 책임자', seq_order: 2 },
+  { category: 'DUTY', title: '센터장', tier_level: 5, description: '운영/서비스 센터 책임자', seq_order: 3 },
+  { category: 'DUTY', title: '공장장', tier_level: 5, description: '생산/정비 공장 책임자', seq_order: 4 },
+  { category: 'DUTY', title: '본부장', tier_level: 6, description: '사업 본부 총괄', seq_order: 5 },
+  { category: 'DUTY', title: '총괄', tier_level: 7, description: '전사 사업 부문 총괄', seq_order: 6 },
+  { category: 'DUTY', title: '대표이사', tier_level: 7, description: '최고 경영자', seq_order: 7 },
+];
+
+/** 결재 티어 레이블 매핑 (tier_level → 직책명/직급명 레거시 호환) */
 export const TIER_LABELS: Record<number, string> = {
   0: '사원',
   1: '대리',
@@ -246,6 +299,79 @@ export const TIER_LABELS: Record<number, string> = {
   6: '상무',
   7: '대표',
 };
+
+/**
+ * 임직원의 유효 결재 티어 산출 함수 (R&R 기반 직책 우선 강제 원칙)
+ * 1. 직책(duty)이 등록되어 있으면 직책 티어가 최우선(더 강력하게) 작동
+ * 2. 직책이 없거나 미등록 직책인 경우 직급(position) 티어로 fallback 작동 (소규모 기업/일반 사원 호환)
+ * 3. 둘 다 매핑되지 않으면 user.tier_level 또는 0 반환
+ */
+export function getUserEffectiveTier(
+  user: { duty?: string | null; position?: string | null; tier_level?: number | null },
+  dutyConfigs?: ApprovalTierConfig[],
+  positionConfigs?: ApprovalTierConfig[]
+): {
+  effectiveTier: number;
+  source: 'DUTY' | 'POSITION' | 'DEFAULT';
+  title: string;
+} {
+  const dutyList = dutyConfigs && dutyConfigs.length > 0 ? dutyConfigs : DEFAULT_DUTY_TIERS;
+  const positionList = positionConfigs && positionConfigs.length > 0 ? positionConfigs : DEFAULT_POSITION_TIERS;
+
+  // 1. 직책(Duty) 우선 판정 (R&R 단위 조직 책임자 권한 우선)
+  if (user.duty && user.duty.trim()) {
+    const trimmedDuty = user.duty.trim().toLowerCase();
+    const matchedDuty = dutyList.find(d => d.title.trim().toLowerCase() === trimmedDuty);
+    if (matchedDuty) {
+      return {
+        effectiveTier: matchedDuty.tier_level,
+        source: 'DUTY',
+        title: matchedDuty.title
+      };
+    }
+  }
+
+  // 2. 직급(Position) 판정 (Fallback for 소규모 기업 및 일반 사원)
+  if (user.position && user.position.trim()) {
+    const trimmedPos = user.position.trim().toLowerCase();
+    const matchedPos = positionList.find(p => p.title.trim().toLowerCase() === trimmedPos);
+    if (matchedPos) {
+      return {
+        effectiveTier: matchedPos.tier_level,
+        source: 'POSITION',
+        title: matchedPos.title
+      };
+    }
+  }
+
+  // 3. 기본 티어 (tier_level 또는 0)
+  return {
+    effectiveTier: user.tier_level ?? 0,
+    source: 'DEFAULT',
+    title: user.position || '사원'
+  };
+}
+
+/** 티어 번호(0~7)별 대표 직급 및 직책 요약 라벨 반환 */
+export function getTierDisplayLabel(
+  tier: number,
+  dutyConfigs?: ApprovalTierConfig[],
+  positionConfigs?: ApprovalTierConfig[]
+): string {
+  const dList = dutyConfigs && dutyConfigs.length > 0 ? dutyConfigs : DEFAULT_DUTY_TIERS;
+  const pList = positionConfigs && positionConfigs.length > 0 ? positionConfigs : DEFAULT_POSITION_TIERS;
+
+  const positions = pList.filter(p => p.tier_level === tier).map(p => p.title);
+  const duties = dList.filter(d => d.tier_level === tier).map(d => d.title);
+
+  const posText = positions.join('/') || `미정`;
+  const dutyText = duties.join('·');
+
+  if (dutyText) {
+    return `${tier}티어: ${posText} [직책: ${dutyText}]`;
+  }
+  return `${tier}티어: ${posText}`;
+}
 
 /** 전사 업무 이벤트 레지스트리 (SSOT) — 결재선 설정 화면 드롭다운 원본 */
 export const APPROVAL_EVENT_REGISTRY = [
@@ -276,6 +402,7 @@ export interface User {
   departmentId: string | null;
   department?: string;
   tier_level?: number; // (legacy or display)
+  duty?: string; // 직책 (예: 파트장, 팀장, 센터장, 공장장, 본부장, 총괄 등 단위 기능조직 책임자)
   role: string;
   position?: string;
   status?: 'ACTIVE' | 'LEAVE_OF_ABSENCE' | 'RETIRED';
@@ -1108,6 +1235,28 @@ export interface PaymentDepositLink {
 }
 
 export type DeliveryStatus = 'PENDING' | 'DISPATCHED' | 'DELIVERED' | 'CANCELLED' | 'REQUESTED' | 'COMPLETED';
+
+/** 전사 표준 차종/톤수 옵션 목록 (SSOT) */
+export const VEHICLE_TYPE_OPTIONS: string[] = [
+  '1.4T',
+  '2.5T',
+  '3.5T',
+  '4T',
+  '4.5T',
+  '5T',
+  '5T장축',
+  '8.5T',
+  '11T',
+  '노배드',
+  '1.2T 셀프',
+  '3.5T 셀프',
+  '4T 셀프',
+  '5T 셀프',
+  '5T장축 셀프',
+  '8.5T 셀프'
+];
+
+export type VehicleType = string;
 
 export interface Delivery {
   id: string;
@@ -3506,6 +3655,21 @@ export const SEED_TENANTS: Tenant[] = [
     email: 'giyeonlift@naver.com',
     websiteUrl: '',
     
+    // 🛡️ 법정 개인정보 보호책임자 (CPO)
+    privacyOfficer: {
+      name: '이수용',
+      position: '대표이사 / 관리부 총괄',
+      department: '(주)기연리프트 경영진',
+      phone: '031-334-5295',
+      email: 'giyeonlift@naver.com (사내 관리부)',
+      updatedAt: '2026-01-01T00:00:00.000Z'
+    },
+    privacyOfficerName: '이수용',
+    privacyOfficerPosition: '대표이사 / 관리부 총괄',
+    privacyOfficerDepartment: '(주)기연리프트 경영진',
+    privacyOfficerPhone: '031-334-5295',
+    privacyOfficerEmail: 'giyeonlift@naver.com (사내 관리부)',
+    
     // 🏢 본사 및 사업장 목록 (다수 사업장 체계)
     workplaces: [
       {
@@ -5822,6 +5986,7 @@ class LocalDB {
             name: u.name,
             departmentId: u.departmentId || null,
             position: u.position || '',
+            duty: u.duty || null,
             managerId: (u as any).managerId || null,
             role: u.role || 'USER',
             status: u.status || 'ACTIVE',
@@ -5845,6 +6010,7 @@ class LocalDB {
                 const copy: any = { ...u };
                 delete copy.retireDate;
                 delete copy.profileImageUrl;
+                if (msg.includes('duty')) delete copy.duty;
                 return copy;
               });
               const retryRes = await supabase.from('users').upsert(fallbackUsers, { onConflict: 'id' });

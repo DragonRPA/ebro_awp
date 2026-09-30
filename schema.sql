@@ -103,6 +103,7 @@ CREATE TABLE users (
     name                  TEXT NOT NULL,
     "departmentId"        TEXT REFERENCES departments(id) ON DELETE SET NULL,
     position              TEXT, -- 직급 (사원, 대리, 과장, 차장, 부장, 이사, 대표이사)
+    duty                  TEXT, -- 직책 (파트장, 팀장, 센터장, 공장장, 본부장, 총괄 등 단위조직 책임자)
     "managerId"           TEXT REFERENCES users(id) ON DELETE SET NULL, -- 직속 상급자
     role                  TEXT CHECK (role IN ('ADMIN', 'MANAGER', 'USER', 'MECHANIC')) NOT NULL DEFAULT 'USER',
     status                TEXT CHECK (status IN ('ACTIVE', 'LEAVE_OF_ABSENCE', 'RETIRED')) NOT NULL DEFAULT 'ACTIVE',
@@ -1620,9 +1621,22 @@ CREATE TABLE IF NOT EXISTS tenants (
     yards                 JSONB DEFAULT '[]'::jsonb,
     "mainYardAddress"     TEXT,
     "stampBase64"         TEXT,
+    "privacyOfficer"      JSONB DEFAULT '{}'::jsonb,
+    "privacyOfficerName"  TEXT,
+    "privacyOfficerPosition" TEXT,
+    "privacyOfficerDepartment" TEXT,
+    "privacyOfficerPhone" TEXT,
+    "privacyOfficerEmail" TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL
 );
+
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "privacyOfficer" JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "privacyOfficerName" TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "privacyOfficerPosition" TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "privacyOfficerDepartment" TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "privacyOfficerPhone" TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "privacyOfficerEmail" TEXT;
 
 -- ==============================================================================
 -- 📦 [도메인 4-9] 소모품 실사 및 고품 관리 (Stocktaking & Collected Parts)
@@ -1913,8 +1927,23 @@ CREATE TABLE IF NOT EXISTS delegation_records (
     CONSTRAINT delegate_tier_check CHECK (delegate_id != delegator_id)
 );
 
+CREATE TABLE IF NOT EXISTS approval_tier_configs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id TEXT NOT NULL DEFAULT 'giyeun',
+    category TEXT NOT NULL CHECK (category IN ('POSITION', 'DUTY')),
+    title TEXT NOT NULL,
+    tier_level INT NOT NULL DEFAULT 0,
+    description TEXT,
+    seq_order INT DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    UNIQUE(tenant_id, category, title)
+);
+
 ALTER TABLE approval_rules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rule_consensus ENABLE ROW LEVEL SECURITY;
 ALTER TABLE approval_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE approval_steps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE delegation_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE approval_tier_configs ENABLE ROW LEVEL SECURITY;
+

@@ -11,7 +11,7 @@ import { exportToExcel } from '../services/excel';
 import { PrivacyPolicyModal } from '../components/PrivacyPolicyModal';
 
 export const PrivacyAuditPage: React.FC = () => {
-  const { currentUser, users, hasPermission, showErrorModal } = useApp();
+  const { currentUser, users, hasPermission, showErrorModal, currentTenant } = useApp();
   const isSuperAdmin = currentUser?.id === 'u-1' || currentUser?.id === 'sys-admin' || currentUser?.loginId === 'admin';
   const isExecutive = currentUser?.role === 'ADMIN' || ['대표', '대표이사', '사장', '부사장'].includes(currentUser?.position || '') || currentUser?.department === '기연리프트';
   const canAudit = isSuperAdmin || isExecutive || hasPermission('permission', 'view');
@@ -273,6 +273,68 @@ export const PrivacyAuditPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* 🛡️ 테넌트별 개인정보 보호책임자(CPO) 지정 현황 바 */}
+      {(() => {
+        const companyName = currentTenant?.tradeName || currentTenant?.corporateName || currentTenant?.displayName || '(주)기연리프트';
+        const officer = currentTenant?.privacyOfficer || {
+          name: currentTenant?.privacyOfficerName || currentTenant?.representativeName || '대표이사 / 관리부 총괄',
+          position: currentTenant?.privacyOfficerPosition || '대표이사 / 관리부 총괄',
+          department: currentTenant?.privacyOfficerDepartment || `${companyName} 경영진`,
+          phone: currentTenant?.privacyOfficerPhone || currentTenant?.tel || '031-334-5295',
+          email: currentTenant?.privacyOfficerEmail || currentTenant?.email || currentTenant?.taxEmail || '사내 관리부'
+        };
+
+        return (
+          <div style={{
+            backgroundColor: 'var(--bg-card, #ffffff)',
+            borderRadius: '8px',
+            border: '1px solid var(--border-color)',
+            padding: '12px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{
+                padding: '4px 8px',
+                borderRadius: '6px',
+                backgroundColor: 'rgba(79, 70, 229, 0.12)',
+                color: 'var(--primary)',
+                fontWeight: 700,
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}>
+                <UserCheck size={14} />
+                [{companyName}] 법정 개인정보 보호책임자(CPO)
+              </div>
+              <div style={{ fontSize: '13px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span>성명: <strong>{officer.name}</strong></span>
+                <span style={{ color: 'var(--border-color)' }}>|</span>
+                <span>직책: <strong>{officer.position}</strong></span>
+                <span style={{ color: 'var(--border-color)' }}>|</span>
+                <span>소속: {officer.department}</span>
+                <span style={{ color: 'var(--border-color)' }}>|</span>
+                <span style={{ color: 'var(--text-secondary)' }}>문의: {officer.phone || officer.email}</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowPolicyModal(true)}
+              className="btn btn-secondary"
+              style={{ fontSize: '11.5px', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '5px' }}
+            >
+              <Shield size={13} color="var(--primary)" />
+              책임자 정보 변경 및 방침 확인
+            </button>
+          </div>
+        );
+      })()}
 
       {/* ─────────────────────────────────────────────────────────────
           Z-패턴 ① 좌상단 (Scope) & ② 우상단 (Pipeline) 필터 패널

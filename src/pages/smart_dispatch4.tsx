@@ -13,7 +13,7 @@
 // └─────────────────────────────────────────────────────────────────────────┘
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { db, Customer, CustomerSite, findCustomerByNormalizedName, StandardOption } from '../services/db';
+import { db, Customer, CustomerSite, findCustomerByNormalizedName, StandardOption, VEHICLE_TYPE_OPTIONS } from '../services/db';
 import { EQUIPMENT_SPEC_MATRIX } from '../services/voiceOrderDraftService';
 import { matchHangul, sortCustomersByName } from '../utils/hangulSearch';
 import {
@@ -60,7 +60,7 @@ interface EquipmentItem { modelName: string; qty: number; }
 
 export type PaidBy = 'CUSTOMER' | 'OURS' | 'SPLIT';
 
-export const VEHICLE_TYPE_OPTIONS = ['1.4T', '2.5T', '3.5T', '4T', '4.5T', '5T', '5T장축', '8.5T', '11T', '노배드', '셀프로더'];
+export { VEHICLE_TYPE_OPTIONS };
 
 interface DraftOrder {
   id: string;

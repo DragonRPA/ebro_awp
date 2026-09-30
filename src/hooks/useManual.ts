@@ -42,7 +42,7 @@ export function useManual() {
       version: (page.version || 0) + 1,
     };
 
-    const { error: e } = await supabase
+    let { error: e } = await supabase
       .from('manual_annotations')
       .upsert({
         tenant_id: TENANT_ID,
@@ -53,6 +53,20 @@ export function useManual() {
         updated_by: updatedBy || null,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'tenant_id,page_id' });
+
+    if (e && (e.message?.includes('updated_at') || e.message?.includes('column'))) {
+      const retry = await supabase
+        .from('manual_annotations')
+        .upsert({
+          tenant_id: TENANT_ID,
+          page_id: page.pageId,
+          page_title: page.pageTitle,
+          version: reindexed.version,
+          annotations: reindexed,
+          updated_by: updatedBy || null,
+        }, { onConflict: 'tenant_id,page_id' });
+      e = retry.error;
+    }
 
     if (e) {
       setError('저장 오류: ' + e.message);

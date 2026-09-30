@@ -191,7 +191,7 @@ export const BankMatching: React.FC = () => {
 
         if (!payObj.billingId || payObj.id.endsWith('-prepaid')) {
           elements.push(
-            <div key={link.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#10b981', fontSize: '12px', whiteSpace: 'nowrap' }}>
+            <div key={link.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--success)', fontSize: '12px', whiteSpace: 'nowrap' }}>
               <span>• 초과 선수금 적립 (+{link.usedAmount.toLocaleString()}원)</span>
             </div>
           );
@@ -216,7 +216,7 @@ export const BankMatching: React.FC = () => {
         if (renderedPayIds.has(p.id)) return;
         if (!p.billingId || p.id.endsWith('-prepaid')) {
           elements.push(
-            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#10b981', fontSize: '12px', whiteSpace: 'nowrap' }}>
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--success)', fontSize: '12px', whiteSpace: 'nowrap' }}>
               <span>• 초과 선수금 적립 (+{p.amount.toLocaleString()}원)</span>
             </div>
           );
@@ -236,7 +236,7 @@ export const BankMatching: React.FC = () => {
       const remBal = getDepositBalance(tx.id);
       if (remBal > 0) {
         elements.push(
-          <div key="rem-bal" style={{ fontSize: '11px', color: '#10B981', fontWeight: 600, marginTop: '2px' }}>
+          <div key="rem-bal" style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 600, marginTop: '2px' }}>
             ↳ 잔여 가용잔액: {remBal.toLocaleString()}원
           </div>
         );
@@ -254,8 +254,8 @@ export const BankMatching: React.FC = () => {
       const matchedSettlement = purchaseSettlements.find(s => s.bankTransactionId === tx.id);
       if (!matchedSettlement) return <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>-</span>;
       return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: '#10B981', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
-          <LinkIcon size={10} style={{ flexShrink: 0 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--text-main)', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
+          <LinkIcon size={10} style={{ color: 'var(--primary)', flexShrink: 0 }} />
           <span>[{matchedSettlement.vendorName}] {matchedSettlement.settlementYm} 매입정산 대사됨</span>
         </div>
       );
@@ -797,8 +797,6 @@ export const BankMatching: React.FC = () => {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '5px',
-                backgroundColor: autoMatchableCount > 0 ? '#10B981' : undefined,
-                borderColor: autoMatchableCount > 0 ? '#059669' : undefined,
                 whiteSpace: 'nowrap',
                 fontWeight: 'bold'
               }}
@@ -858,7 +856,7 @@ export const BankMatching: React.FC = () => {
             <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <Wallet size={14} style={{ color: 'var(--primary)' }} /> 은행 계좌 잔액
             </span>
-            <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--success)' }}>
+            <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-main)' }}>
               ₩{bankBalances.totalBalance.toLocaleString()}
             </span>
           </div>
@@ -892,7 +890,7 @@ export const BankMatching: React.FC = () => {
           </div>
         </div>
 
-        {/* 블록 2: 📥 입금 (매출 수납 대사 현황) */}
+        {/* 블록 2: 입금 수납 대사 현황 */}
         <div style={{
           padding: '10px 14px',
           backgroundColor: 'var(--bg-surface)',
@@ -903,10 +901,10 @@ export const BankMatching: React.FC = () => {
           gap: '6px'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              📥 입금 수납 대사 ({deposits.length}건 / ₩{totalDepositAmountSum.toLocaleString()})
+            <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              입금 수납 대사 ({deposits.length}건 / ₩{totalDepositAmountSum.toLocaleString()})
             </span>
-            <span style={{ fontSize: '13px', fontWeight: '800', color: 'var(--success)' }}>
+            <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--primary)' }}>
               수납완료 {depositMatchRate}% (₩{totalDepositUsedAmountSum.toLocaleString()})
             </span>
           </div>
@@ -920,7 +918,7 @@ export const BankMatching: React.FC = () => {
           </div>
         </div>
 
-        {/* 블록 3: 💸 출금 (매입 지급 대사 현황) */}
+        {/* 블록 3: 출금 지급 대사 현황 */}
         <div style={{
           padding: '10px 14px',
           backgroundColor: 'var(--bg-surface)',
@@ -931,10 +929,10 @@ export const BankMatching: React.FC = () => {
           gap: '6px'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '12px', fontWeight: '700', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              💸 출금 지급 대사 ({withdraws.length}건 / ₩{totalWithdrawAmountSum.toLocaleString()})
+            <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              출금 지급 대사 ({withdraws.length}건 / ₩{totalWithdrawAmountSum.toLocaleString()})
             </span>
-            <span style={{ fontSize: '13px', fontWeight: '800', color: '#10B981' }}>
+            <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--primary)' }}>
               정산대사 {withdrawMatchRate}% (₩{totalWithdrawMatchedAmountSum.toLocaleString()})
             </span>
           </div>
@@ -1178,7 +1176,7 @@ export const BankMatching: React.FC = () => {
                         key={tx.id}
                         style={{ 
                           borderBottom: '1px solid var(--border-color)',
-                          backgroundColor: isMatched ? 'rgba(16, 185, 129, 0.08)' : 'transparent',
+                          backgroundColor: 'transparent',
                           height: '38px'
                         }}
                       >
@@ -1188,13 +1186,13 @@ export const BankMatching: React.FC = () => {
                           position: 'sticky',
                           left: 0,
                           zIndex: 1,
-                          backgroundColor: isMatched ? 'var(--success-light)' : 'var(--bg-card)'
+                          backgroundColor: 'var(--bg-card)'
                         }}>
                           {tx.depositAmount > 0 ? (
                             isFullyUsed ? (
                               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <span style={{ fontSize: '11px', padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10B981', fontWeight: 'bold' }}>
-                                  ✓ 완납 매칭
+                                <span style={{ fontSize: '11px', padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(34, 197, 94, 0.12)', color: 'var(--success)', fontWeight: 'bold' }}>
+                                  완납 매칭
                                 </span>
                                 <button
                                   type="button"
@@ -1224,7 +1222,7 @@ export const BankMatching: React.FC = () => {
                                   type="button"
                                   onClick={() => handleOpenManualMatch(tx)}
                                   className="btn btn-secondary"
-                                  style={{ fontSize: '10.5px', padding: '2px 7px', color: '#10B981', borderColor: '#10B981', fontWeight: 'bold', whiteSpace: 'nowrap' }}
+                                  style={{ fontSize: '10.5px', padding: '2px 7px', color: 'var(--primary)', borderColor: 'var(--primary)', fontWeight: 'bold', whiteSpace: 'nowrap' }}
                                   disabled={!canSave}
                                 >
                                   <Check size={11} style={{ marginRight: '2px' }} />
@@ -1265,14 +1263,14 @@ export const BankMatching: React.FC = () => {
                             )
                           ) : tx.withdrawAmount > 0 ? (
                             isMatchedWithdraw ? (
-                              <span style={{ fontSize: '11px', padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10B981', fontWeight: 'bold' }}>
-                                ✓ 지급대사됨
+                              <span style={{ fontSize: '11px', padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(34, 197, 94, 0.12)', color: 'var(--success)', fontWeight: 'bold' }}>
+                                지급 대사 완료
                               </span>
                             ) : (
                               <button
                                 onClick={() => handleOpenWithdrawMatchModal(tx)}
                                 className="btn btn-secondary"
-                                style={{ fontSize: '11px', padding: '3px 8px', color: '#10B981', borderColor: '#10B981', fontWeight: 'bold', whiteSpace: 'nowrap' }}
+                                style={{ fontSize: '11px', padding: '3px 8px', color: 'var(--primary)', borderColor: 'var(--primary)', fontWeight: 'bold', whiteSpace: 'nowrap' }}
                                 disabled={!canSave}
                               >
                                 <DollarSign size={11} style={{ marginRight: '2px' }} />
@@ -1290,8 +1288,8 @@ export const BankMatching: React.FC = () => {
                             borderRadius: '4px',
                             fontSize: '11px',
                             fontWeight: 'bold',
-                            backgroundColor: bBank === '우리은행' ? 'rgba(59, 130, 246, 0.15)' : bBank === '신한은행' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(156, 163, 175, 0.15)',
-                            color: bBank === '우리은행' ? 'var(--primary)' : bBank === '신한은행' ? 'var(--success)' : 'var(--text-muted)'
+                            backgroundColor: bBank === '우리은행' ? 'rgba(59, 130, 246, 0.12)' : 'rgba(100, 116, 139, 0.12)',
+                            color: bBank === '우리은행' ? 'var(--primary)' : 'var(--text-secondary)'
                           }}>
                             {bBank}
                           </span>
@@ -1321,11 +1319,11 @@ export const BankMatching: React.FC = () => {
                                   fontSize: '10.5px',
                                   fontWeight: '600',
                                   color: 'var(--success)',
-                                  backgroundColor: 'var(--success-light)',
+                                  backgroundColor: 'rgba(34, 197, 94, 0.12)',
                                   padding: '1px 5px',
                                   borderRadius: '3px'
                                 }}>
-                                  ✓ 전액 수납완결 ({usedDeposit.toLocaleString()}원)
+                                  전액 수납완결 ({usedDeposit.toLocaleString()}원)
                                 </span>
                               ) : isPartialUsed ? (
                                 <div style={{ display: 'flex', gap: '4px', fontSize: '10.5px' }}>
@@ -1352,7 +1350,7 @@ export const BankMatching: React.FC = () => {
                           )}
                         </td>
 
-                        {/* 🌟 출금액 대비 매입정산 결과 셀 */}
+                        {/* 출금액 대비 매입정산 결과 셀 */}
                         <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', textAlign: 'right' }}>
                           {tx.withdrawAmount > 0 ? (
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
@@ -1364,11 +1362,11 @@ export const BankMatching: React.FC = () => {
                                   fontSize: '10.5px',
                                   fontWeight: '600',
                                   color: 'var(--success)',
-                                  backgroundColor: 'var(--success-light)',
+                                  backgroundColor: 'rgba(34, 197, 94, 0.12)',
                                   padding: '1px 5px',
                                   borderRadius: '3px'
                                 }}>
-                                  ✓ 정산대사 완료 ({matchedWithdrawAmt.toLocaleString()}원)
+                                  정산대사 완료 ({matchedWithdrawAmt.toLocaleString()}원)
                                 </span>
                               ) : (
                                 <span style={{
@@ -1379,7 +1377,7 @@ export const BankMatching: React.FC = () => {
                                   padding: '1px 5px',
                                   borderRadius: '3px'
                                 }}>
-                                  ⚠️ 미대사 출금 (-{tx.withdrawAmount.toLocaleString()}원)
+                                  미대사 출금 (-{tx.withdrawAmount.toLocaleString()}원)
                                 </span>
                               )}
                             </div>
@@ -1448,14 +1446,14 @@ export const BankMatching: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12.5px', flexWrap: 'wrap' }}>
                   <span>{isWithdrawView ? '조회 출금 총액' : '조회 입금 총액'}: <strong>₩{barTotal.toLocaleString()}</strong></span>
                   <span>=</span>
-                  <span>{isWithdrawView ? '정산 반영액' : '확정 수납액'}: <strong style={{ color: '#10b981' }}>₩{barUsed.toLocaleString()}</strong></span>
+                  <span>{isWithdrawView ? '정산 반영액' : '확정 수납액'}: <strong style={{ color: 'var(--primary)' }}>₩{barUsed.toLocaleString()}</strong></span>
                   <span>+</span>
-                  <span>{isWithdrawView ? '미정산 잔액' : '미수납 잔액'}: <strong style={{ color: barAvail > 0 ? '#ef4444' : 'var(--text-secondary)' }}>₩{barAvail.toLocaleString()}</strong></span>
+                  <span>{isWithdrawView ? '미정산 잔액' : '미수납 잔액'}: <strong style={{ color: barAvail > 0 ? 'var(--danger)' : 'var(--text-secondary)' }}>₩{barAvail.toLocaleString()}</strong></span>
                   <span style={{ color: 'var(--border-color)' }}>|</span>
-                  <span style={{ color: '#10b981', fontWeight: 700 }}>⚖️ 대차 차액 ₩0 (일치)</span>
+                  <span style={{ color: 'var(--success)', fontWeight: 700 }}>대차 차액 ₩0 (일치)</span>
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  {isWithdrawView ? '지급 매칭률' : '수납 매칭률'}: <strong style={{ color: '#10b981' }}>{barRate}%</strong>
+                  {isWithdrawView ? '지급 매칭률' : '수납 매칭률'}: <strong style={{ color: 'var(--primary)' }}>{barRate}%</strong>
                 </div>
               </div>
             );
@@ -1971,8 +1969,8 @@ export const BankMatching: React.FC = () => {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
               <h3 style={{ fontSize: '17px', fontWeight: 'bold', margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <DollarSign size={18} style={{ color: '#10B981' }} />
-                통장 출금 지급 대사 승인 (Audit Trail)
+                <DollarSign size={18} style={{ color: 'var(--primary)' }} />
+                통장 출금 지급 대사 승인
               </h3>
               <button onClick={() => setSelectedWithdrawTx(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
                 <X size={20} />
@@ -2039,8 +2037,8 @@ export const BankMatching: React.FC = () => {
                           style={{
                             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                             padding: '10px 12px', borderRadius: '6px', cursor: 'pointer',
-                            backgroundColor: matchingSettlementId === s.id ? 'rgba(16, 185, 129, 0.15)' : 'var(--bg-card)',
-                            border: matchingSettlementId === s.id ? '1px solid #10B981' : '1px solid var(--border-color)'
+                            backgroundColor: matchingSettlementId === s.id ? 'rgba(59, 130, 246, 0.12)' : 'var(--bg-card)',
+                            border: matchingSettlementId === s.id ? '1.5px solid var(--primary)' : '1px solid var(--border-color)'
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -2060,7 +2058,7 @@ export const BankMatching: React.FC = () => {
                                   </span>
                                 )}
                                 {isExactAmount && (
-                                  <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#10B981', fontWeight: 'bold' }}>
+                                  <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.2)', color: 'var(--primary)', fontWeight: 'bold' }}>
                                     금액 일치
                                   </span>
                                 )}
