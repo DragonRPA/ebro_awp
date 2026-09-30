@@ -1960,7 +1960,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       <h2 style={{ marginBottom: '18px', fontWeight: '700' }}>매출 청구 관리</h2>
 
       {/* 탭 */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+      <div data-mid="billing-period-scope" style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
         {canSave && (
           <button className={activeTab === 'WIZARD' ? 'btn-primary' : 'btn-secondary'} onClick={() => setActiveTab('WIZARD')}>
             <Calendar size={14} /> 미청구 정산
@@ -2071,6 +2071,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               <button 
                 type="button" 
                 className="btn-secondary" 
+                data-mid="btn-print-invoice"
                 onClick={handleExportExcel}
                 style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', padding: '5px 10px' }}
               >
@@ -2079,7 +2080,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
             </div>
 
             {/* 필터 바 (1줄 고밀도 컴팩트 수평 정렬) */}
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', flexWrap: 'wrap', backgroundColor: 'var(--bg-app)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <div data-mid="billing-customer-filter" style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', flexWrap: 'wrap', backgroundColor: 'var(--bg-app)', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1, minWidth: '120px' }}>
                 <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>고객사 검색</label>
                 <input 
@@ -2240,7 +2241,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               const totalUnappliedDeposit = relevantDeposits.reduce((sum, t) => sum + getDepositBalance(t.id), 0);
 
               return (
-                <div style={{
+                <div data-mid="billing-grid-pro-rata" style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
@@ -2261,7 +2262,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                     <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>공급가액:</span>
                     <strong>₩{totalSupply.toLocaleString()}</strong>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <div data-mid="billing-vat-summary" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                     <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>총 청구(VAT포함):</span>
                     <strong style={{ color: '#0070C0', fontSize: '13.5px' }}>₩{totalGrand.toLocaleString()}</strong>
                   </div>
@@ -2282,7 +2283,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
             })()}
 
             <div className="table-container" style={{ border: 'none', boxShadow: 'none', overflowX: 'auto' }}>
-              <table style={{ minWidth: '650px', whiteSpace: 'nowrap' }}>
+              <table data-mid="exchange-audit-cell" style={{ minWidth: '650px', whiteSpace: 'nowrap' }}>
                 <thead>
                   <tr>
                     <th style={{ whiteSpace: 'nowrap', width: '190px' }}>관리</th>
@@ -2983,7 +2984,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
             sumUnpaid += uAmt;
           });
           return (
-            <div style={{
+            <div data-mid="btn-finalize-billing" style={{
               gridColumn: '1 / -1',
               padding: '8px 14px',
               backgroundColor: 'var(--bg-app)',

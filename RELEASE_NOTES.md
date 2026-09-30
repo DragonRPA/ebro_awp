@@ -1,3 +1,37 @@
+## 2026-09-30 19:35 (v1.8.5.Build.3)
+
+### [인앱 매뉴얼 전수 가이드 완결 및 작성 모드 UI 위치 인스펙터 구축] 1~7단계 전수 스마트 앵커링 알고리즘 확장 & 매뉴얼 작성 모드 대상 UI 위치 실시간 인스펙터 신설
+
+- **4~7단계 매뉴얼 미노출 결함 원천 해결 및 1~7단계 스마트 앵커링 전면 확장 (`src/components/manual/ManualOverlay.tsx`)**:
+  - 기존 `resolveTargetElement` 내부에서 `seq === 1`, `2`, `3`에만 폴백이 선언되어 있어 4~7단계는 셀렉터 미매칭 시 `null`을 반환하여 화면에서 완전히 증발하던 결함 적발 및 해결.
+  - Gutenberg Z-패턴 4단계 및 업무 라이프사이클에 맞추어 1~7단계 전수에 대한 체계적 스마트 앵커링 폴백 알고리즘 구축:
+    - 1단계: 스코프/탭/마스터 컨테이너 (`data-mid`, `.tab-container`, `h1, h2` 등)
+    - 2단계: 검색/필터 바 (`input[type="date"]`, `input[type="search"]`, `.filter-box` 등)
+    - 3단계: 집계 헤더/메트릭 바 (`[data-summary]`, `table thead`, `th` 등)
+    - 4단계: 핵심 데이터 테이블/행 (`table tbody tr`, `.grid-row`, `table` 등)
+    - 5단계: 금액/부가세/차액 검증 바 (`[data-vat]`, `.total-summary`, 하단 합계 영역 등)
+    - 6단계: 서식/인쇄/엑셀/발송 파이프라인 (`button[data-excel]`, `button:has(svg)` 등)
+    - 7단계: 최종 마감/확정/종단 액션 바 (`button[type="submit"]`, 하단 우측 고정 버튼군 등)
+  - `resolveTargetElement` 함수를 외부 export하여 매뉴얼 작성 패널에서도 100% 동일한 DOM 앵커 탐색 로직을 공유하도록 SSOT 정합성 보장.
+- **매출 청구 관리 화면 DOM 앵커 1:1 매핑 정밀화 (`src/pages/Billings.tsx`)**:
+  - `Billings.tsx` 주요 인터페이스 영역에 1~7단계 고유 `data-mid` 속성을 정확히 부여하여 오차 없는 고정밀 타겟팅 확립:
+    - 1단계: `billing-period-scope` (정산 연월 및 탭 스코프)
+    - 2단계: `billing-customer-filter` (거래처 및 청구 대상 필터)
+    - 3단계: `billing-grid-pro-rata` (일할 매출 집계 헤더)
+    - 4단계: `exchange-audit-cell` (청구 대사 테이블 및 데이터 셀)
+    - 5단계: `billing-vat-summary` (공급가/부가세/총합 집계 바)
+    - 6단계: `btn-print-invoice` (청구서 인쇄 및 엑셀 다운로드)
+    - 7단계: `btn-finalize-billing` (최종 마감 확정 및 대차대조 검증 바)
+- **매뉴얼 작성 모드 UI 위치 실시간 인스펙터 기능 구축 (`src/components/manual/ManualAuthorPanel.tsx`)**:
+  - 매뉴얼 작성/편집 중 각 단계가 실제 화면의 어느 UI 요소를 가리키고 있는지 즉시 확인할 수 있는 **`[🎯 위치]` 인스펙터 버튼** 신설.
+  - 클릭 시 해당 요소가 화면 정중앙에 오도록 부드럽게 스크롤(`scrollIntoView({ behavior: 'smooth', block: 'center' })`)하고, 3.5초간 보라색 3중 파동 이펙트와 하이라이트 박스 및 `🎯 [{seq}단계 UI 위치]` 플로팅 핀 뱃지를 표출.
+  - 마우스 호버(`onMouseEnter` / `onMouseLeave`) 시에도 실시간으로 해당 요소의 위치를 즉각 비추어 작업 편의성 극대화.
+  - 각 단계 카드 헤더에 `🟢 UI 연결` vs `⚠️ 미탐색` 실시간 감지 상태 뱃지를 표시하여 DOM 탐색 성공 여부를 직관 제공.
+  - 요소 미탐색 시 상세 안내 모달/알림으로 어떤 셀렉터나 영역을 확인해야 하는지 안내 제공.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 Errors, 785ms).
+
+---
+
 ## 2026-09-30 19:25 (v1.8.5.Build.2)
 
 ### [매뉴얼 UI/UX 고도화] 파동 이펙트(Ripple) 현재 활성 단계 동적 추적 표출 및 비활성 고정 잔존 버그 해결

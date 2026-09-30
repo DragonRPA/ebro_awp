@@ -6,6 +6,7 @@ import type { ManualAnnotationItem, AnnotationType, PositionHint } from '../../t
 import { DEFAULT_BADGE_COLORS, DEFAULT_ITEM } from '../../types/manual';
 import { useManualContext } from './ManualContext';
 import { getManualPageForMenu } from '../../data/allMenuManuals';
+import { resolveTargetElement } from './ManualOverlay';
 
 /* ─── 상수 ────────────────────────────────────────────────────── */
 const ANNOTATION_TYPES: { value: AnnotationType; label: string; icon: string }[] = [
@@ -95,6 +96,45 @@ export const ManualAuthorPanel: React.FC = () => {
   const [insertAfterSeq, setInsertAfterSeq] = useState<number | null>(null); // 삽입 위치
   const [panelTab, setPanelTab] = useState<'list' | 'edit'>('list'); // list / edit
   const [collapsed, setCollapsed] = useState(false);
+  const [inspectItem, setInspectItem] = useState<{ rect: DOMRect; color: string; label: string; seq: number } | null>(null);
+
+  /* 특정 단계의 화면 UI 위치 확인 (스크롤 + 하이라이트 + 파동 이펙트) */
+  const handleInspectItem = useCallback((item: ManualAnnotationItem) => {
+    const el = resolveTargetElement(item);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const r = el.getBoundingClientRect();
+      setInspectItem({
+        rect: r,
+        color: item.badgeColor || '#4f46e5',
+        label: item.label,
+        seq: item.seq,
+      });
+      // 3.5초 후 자동 해제
+      setTimeout(() => {
+        setInspectItem(p => (p && p.seq === item.seq ? null : p));
+      }, 3500);
+    } else {
+      alert(`⚠️ [${item.seq}단계] "${item.label}"\n\n화면에서 지정된 셀렉터(${item.selector || '없음'})에 해당하는 UI 요소를 찾을 수 없습니다.\n작성 모드의 '🎯' 버튼이나 '✏️' 편집 버튼으로 화면 요소를 직접 클릭하여 지정해 주세요.`);
+    }
+  }, []);
+
+  const handleHoverItem = useCallback((item: ManualAnnotationItem | null) => {
+    if (!item) {
+      setInspectItem(null);
+      return;
+    }
+    const el = resolveTargetElement(item);
+    if (el) {
+      const r = el.getBoundingClientRect();
+      setInspectItem({
+        rect: r,
+        color: item.badgeColor || '#4f46e5',
+        label: item.label,
+        seq: item.seq,
+      });
+    }
+  }, []);
 
   /* ─ 패널 자유 드래그 위치 상태 ───────────────────────────── */
   const [pos, setPos] = useState<{ x: number; y: number }>(() => {
@@ -359,6 +399,68 @@ export const ManualAuthorPanel: React.FC = () => {
         </>
       )}
 
+      {/* ── 작성 모드: 단계 UI 위치 확인 파동 및 하이라이트 오버레이 ── */}
+      {inspectItem && (
+        <div style={{ pointerEvents: 'none', zIndex: 99990 }}>
+          {/* 요소 외곽 하이라이트 박스 */}
+          <div
+            style={{
+              position: 'fixed',
+              top: inspectItem.rect.top - 4,
+              left: inspectItem.rect.left - 4,
+              width: inspectItem.rect.width + 8,
+              height: inspectItem.rect.height + 8,
+              border: `3px solid ${inspectItem.color}`,
+              borderRadius: '8px',
+              backgroundColor: `${inspectItem.color}22`,
+              boxShadow: `0 0 24px ${inspectItem.color}bb, inset 0 0 12px ${inspectItem.color}33`,
+              transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          />
+          {/* 중심 3중 파동 이펙트 */}
+          {[0, 250, 500].map(delay => (
+            <div
+              key={delay}
+              style={{
+                position: 'fixed',
+                left: inspectItem.rect.left + inspectItem.rect.width / 2,
+                top: inspectItem.rect.top + inspectItem.rect.height / 2,
+                width: '54px',
+                height: '54px',
+                borderRadius: '50%',
+                border: `3px solid ${inspectItem.color}`,
+                animation: `manual-ripple 1.4s ${delay}ms ease-out infinite`,
+                pointerEvents: 'none',
+              }}
+            />
+          ))}
+          {/* 상단 타겟 핀 뱃지 */}
+          <div
+            style={{
+              position: 'fixed',
+              top: Math.max(10, inspectItem.rect.top - 32),
+              left: Math.max(10, inspectItem.rect.left + inspectItem.rect.width / 2 - 50),
+              backgroundColor: inspectItem.color,
+              color: '#fff',
+              padding: '4px 12px',
+              borderRadius: '16px',
+              fontSize: '12px',
+              fontWeight: 800,
+              boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              whiteSpace: 'nowrap',
+              pointerEvents: 'none',
+              animation: 'manual-card-in 0.2s ease-out',
+            }}
+          >
+            <span>🎯 [{inspectItem.seq}단계 UI 위치]</span>
+            <span style={{ fontWeight: 600, opacity: 0.95 }}>{inspectItem.label}</span>
+          </div>
+        </div>
+      )}
+
       {/* ── 메인 패널 (자유 드래그 이동 가능) ── */}
       <div
         data-manual-panel="true"
@@ -470,13 +572,22 @@ export const ManualAuthorPanel: React.FC = () => {
                   <div style={{ padding: '6px 8px' }}>
                     {items.map((item, idx) => {
                       const tl = typeLabel(item.type);
+                      const targetEl = typeof document !== 'undefined' ? resolveTargetElement(item) : null;
+                      const isFound = !!targetEl;
+
                       return (
-                        <div key={item.seq} style={{
-                          marginBottom: '4px', borderRadius: '8px',
-                          border: `1px solid ${editingSeq === item.seq ? '#4f46e5' : 'var(--border-color)'}`,
-                          background: editingSeq === item.seq ? '#eef2ff' : 'var(--bg-card)',
-                          overflow: 'hidden',
-                        }}>
+                        <div
+                          key={item.seq}
+                          onMouseEnter={() => handleHoverItem(item)}
+                          onMouseLeave={() => handleHoverItem(null)}
+                          style={{
+                            marginBottom: '4px', borderRadius: '8px',
+                            border: `1px solid ${editingSeq === item.seq ? '#4f46e5' : inspectItem?.seq === item.seq ? '#059669' : 'var(--border-color)'}`,
+                            background: editingSeq === item.seq ? '#eef2ff' : inspectItem?.seq === item.seq ? '#f0fdf4' : 'var(--bg-card)',
+                            overflow: 'hidden',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
                           {/* 항목 행 */}
                           <div style={{ display: 'flex', alignItems: 'center', padding: '7px 8px', gap: '6px' }}>
                             {/* 순번 뱃지 */}
@@ -489,14 +600,25 @@ export const ManualAuthorPanel: React.FC = () => {
 
                             {/* 정보 */}
                             <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {item.label || '(레이블 없음)'}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {item.label || '(레이블 없음)'}
+                                </span>
+                                {isFound ? (
+                                  <span style={{ fontSize: '9.5px', color: '#059669', background: '#ecfdf5', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                    🟢 UI 연결
+                                  </span>
+                                ) : (
+                                  <span style={{ fontSize: '9.5px', color: '#d97706', background: '#fef3c7', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }} title="화면에서 요소를 찾지 못함 (폴백 적용)">
+                                    ⚠️ 미탐색
+                                  </span>
+                                )}
                               </div>
                               <div style={{ display: 'flex', gap: '5px', alignItems: 'center', marginTop: '2px' }}>
                                 <span style={{ fontSize: '10px', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', padding: '1px 5px', borderRadius: '3px', fontWeight: 700 }}>
                                   {tl?.icon} {tl?.label}
                                 </span>
-                                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>
+                                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100px' }} title={item.selector}>
                                   {item.selector}
                                 </span>
                               </div>
@@ -504,6 +626,14 @@ export const ManualAuthorPanel: React.FC = () => {
 
                             {/* 액션 버튼들 */}
                             <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleInspectItem(item);
+                                }}
+                                title="화면에서 이 단계의 UI 위치 확인 (스크롤 및 파동 강조)"
+                                style={{ ...btnBase, padding: '4px 6px', background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0' }}
+                              >🎯 위치</button>
                               <button
                                 onClick={() => moveItem(item.seq, -1)}
                                 disabled={idx === 0}

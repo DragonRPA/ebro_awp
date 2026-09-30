@@ -1,5 +1,31 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## [완료] 1~7단계 전수 스마트 앵커링 알고리즘 확장 및 매뉴얼 작성 모드 UI 위치 인스펙터 구축
+- **요구사항**:
+  "심도를 7단계 까지 작성은 했는데, 보여주는 UI 요소가 1~3 까지만 있어. 매뉴얼 작성할때 4~7 은 왜 제외했지? 그리고 매뉴얼 작성 기능에서 해당 단계의 UI 가 어디인지 볼수 있게 해줘. ㄹㅇ"
+- **문제의 본질**:
+  - 기존 `ManualOverlay.tsx`의 DOM 앵커 탐색 로직(`resolveTargetElement`)에서 폴백 시 `seq === 1`, `2`, `3`에만 대응 로직이 작성되어 있어, 실제 페이지에 `data-mid` 속성이 아직 완비되지 않은 경우 4~7단계는 `return null`이 되어 화면에서 완전히 제외(미노출)되는 결함 존재.
+  - 매뉴얼 작성 모드(`ManualAuthorPanel.tsx`)에서는 각 단계가 현재 화면의 어느 실제 요소를 타겟팅하고 있는지 시각적으로 확인할 수 있는 수단이 없어, 작성자가 올바른 요소에 단계가 지정되었는지 검증하기 어려웠음.
+- **수정 및 개선 내역**:
+  1. **1~7단계 전수 스마트 앵커링 폴백 알고리즘 확장 (`ManualOverlay.tsx`)**:
+     - Gutenberg Z-Pattern 4대 영역 및 실무 라이프사이클에 맞추어 1~7단계 전수 스마트 앵커링 폴백 구축:
+       - 1단계: 스코프/탭/마스터 컨테이너 (`data-mid`, `.tab-container`, `h1, h2` 등)
+       - 2단계: 검색/필터 바 (`input[type="date"]`, `input[type="search"]`, `.filter-box` 등)
+       - 3단계: 집계 헤더/메트릭 바 (`[data-summary]`, `table thead`, `th` 등)
+       - 4단계: 핵심 데이터 테이블/행 (`table tbody tr`, `.grid-row`, `table` 등)
+       - 5단계: 금액/부가세/차액 검증 바 (`[data-vat]`, `.total-summary`, 하단 합계 영역 등)
+       - 6단계: 서식/인쇄/엑셀/발송 파이프라인 (`button[data-excel]`, `button:has(svg)` 등)
+       - 7단계: 최종 마감/확정/종단 액션 바 (`button[type="submit"]`, 하단 우측 고정 버튼군 등)
+     - `resolveTargetElement` 함수를 외부 export하여 매뉴얼 작성 패널에서도 100% 동일한 DOM 앵커 탐색 로직을 공유하도록 SSOT 정합성 보장.
+  2. **매출 청구 관리 화면 DOM 앵커 1:1 매핑 정밀화 (`Billings.tsx`)**:
+     - 1~7단계 고유 `data-mid` 속성(`billing-period-scope`, `billing-customer-filter`, `billing-grid-pro-rata`, `exchange-audit-cell`, `billing-vat-summary`, `btn-print-invoice`, `btn-finalize-billing`) 명시 부여.
+  3. **매뉴얼 작성 모드 UI 위치 실시간 인스펙터 기능 구축 (`ManualAuthorPanel.tsx`)**:
+     - 매뉴얼 작성/편집 중 각 단계가 실제 화면의 어느 UI 요소를 가리키고 있는지 즉시 확인할 수 있는 **`[🎯 위치]` 인스펙터 버튼** 신설.
+     - 클릭 시 해당 요소가 화면 정중앙에 오도록 부드럽게 스크롤(`scrollIntoView({ behavior: 'smooth', block: 'center' })`)하고, 3.5초간 보라색 3중 파동 이펙트와 하이라이트 박스 및 `🎯 [{seq}단계 UI 위치]` 플로팅 핀 뱃지를 표출.
+     - 마우스 호버(`onMouseEnter` / `onMouseLeave`) 시에도 실시간으로 해당 요소의 위치를 즉각 비추어 작업 편의성 극대화.
+     - 각 단계 카드 헤더에 `🟢 UI 연결` vs `⚠️ 미탐색` 실시간 감지 상태 뱃지를 표시하여 DOM 탐색 성공 여부를 직관 제공.
+     - 요소 미탐색 시 상세 안내 모달/알림으로 어떤 셀렉터나 영역을 확인해야 하는지 안내 제공.
+
 ## [완료] 인앱 매뉴얼 파동 이펙트(Ripple) 활성 단계 UI 요소 동적 추적 및 비활성 고정 잔존 제거
 - **요구사항**:
   "매뉴얼에서 현재 보고잇는 단계의 UI 요소에 파동이펙트가 표시되어야지. 1~7단계를 순서대로 보고 있는데, 내가 몇단계를 보고 있던지 특정(이번 경우에는 2단계)에 계속 파동 이펙트가 머물러 있으면 시각적 효과가 떨어지잖아"
