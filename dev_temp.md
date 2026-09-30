@@ -1,5 +1,35 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## [완료] 언더스코어 메뉴(`smart_dispatch4` 등) 매뉴얼 더미 폴백 버그 해결 및 Ctrl+M 한글 IME·토글 안정화
+- **요구사항**:
+  "매뉴얼을 전체 오버홀 했다고 했는데, 왜 아직 그대로이지? 또한 ctrl + m 단축키가 좀 이상하게 작동하고 있어."
+- **문제의 본질 (원인 분석)**:
+  1. **`ManualOverlay.tsx`의 `split('_')[0]` 치명적 결함**:
+     - `ManualOverlay`가 마운트될 때 `MutationObserver` 콜백에서 `const baseId = page.pageId.split('_')[0] || page.pageId;` 로 기본 메뉴 ID를 유추하도록 작성되어 있었음.
+     - `smart_dispatch4`, `smart_return`, `smart_as_request`, `transport_master`, `asset_assignment` 등 언더스코어(`_`)가 포함된 메뉴에서 매뉴얼을 열자마자 `baseId`가 `smart`, `transport` 등으로 잘려나감.
+     - `detectCurrentContext('smart')`가 실행되어 유효하지 않은 메뉴 ID인 `smart`로 `loadPage`가 재호출됨.
+     - `ALL_MENU_MANUALS`에 `smart`가 없으므로 시스템이 1단계 기본 더미 안내("본 메뉴는 시스템 표준 업무 프로세스를 처리하는 작업대입니다.", "출고 요청 기본 안내: 이 화면의 상세 조작 및 업무 지침은 [업무매뉴얼] 메뉴에서 확인하실 수 있습니다.")를 생성하고, DB에 `page_id: 'smart'`로 자동 저장하며 화면의 정상 9~24단계 오버홀 매뉴얼을 덮어써버렸음.
+  2. **`Ctrl + M` 단축키의 한글 IME(입력기) 미지원 및 토글 상태 경쟁**:
+     - 윈도우 환경에서 한글 입력기 상태일 때 `Ctrl + M`을 누르면 `e.key`가 `'m'`이 아니라 `'ㅡ'`로 전달되어 `e.key === 'm' || e.key === 'M'` 조건이 무시됨 (`e.code === 'KeyM'` 미체크).
+     - 매뉴얼 활성화 시 비동기 로딩과 `MutationObserver`의 이중 `loadPage` 연쇄 호출로 인해 화면 깜빡임 및 이벤트 씹힘 발생.
+     - 토글 로직에서 `manualMode === 'viewing'`만 체크하여 작성 모드 등에서 토글 상태가 꼬이는 문제 발생.
+- **수정 및 개선 내역**:
+  1. **`ManualContext.tsx` 상위 메뉴 컨텍스트 공식 관리 (`src/components/manual/ManualContext.tsx`)**:
+     - `baseMenuId`, `baseMenuTitle`, `setBaseMenu(id: string, title?: string)`를 신설하여 현재 상위 메뉴 컨텍스트를 안전하게 보존.
+  2. **`ManualOverlay.tsx`의 `split('_')[0]` 버그 원천 제거 (`src/components/manual/ManualOverlay.tsx`)**:
+     - 결함이 있던 `page.pageId.split('_')[0]` 코드를 완전 제거하고, `ManualContext`의 `baseMenuId`를 참조하여 안전하게 컨텍스트 감지를 수행하도록 리팩토링.
+  3. **`App.tsx` 메뉴 동기화 & Ctrl+M 단축키 대폭 강화 (`src/App.tsx`)**:
+     - `activeTab` 변경 시 `setBaseMenu(activeTab, title)`를 자동 호출하여 메뉴 전환 시마다 실시간 컨텍스트 자동 동기화.
+     - `Ctrl + M` 핸들러에 `e.code === 'KeyM'` 및 `e.key === 'ㅡ'`(한글 IME) 전면 지원, `e.stopPropagation()` 추가.
+     - `manualMode !== 'off'` 조건으로 클린 닫기를 지원하여 토글 동작 100% 안정화.
+     - 헤더 버튼 `ManualHeaderButtons`에 `activeTabName` 정상 주입 및 `mode !== 'off'` 클린 닫기 적용.
+  4. **`useManual.ts` 쓰레기 레코드 DB 자동 생성 방지 (`src/hooks/useManual.ts`)**:
+     - 정규 메뉴 또는 모달이 아닌 유효하지 않은 임의의 `pageId`가 DB에 백그라운드로 자동 저장되는 것을 방어하는 가드(`isKnownMenu`) 추가.
+  5. **Supabase DB 청소**:
+     - `manual_annotations` 테이블에서 과거 버그로 자동 생성되었던 쓰레기 레코드 `page_id: 'smart'` 영구 삭제 완료.
+  6. **빌드 검증**: `npm run build` 정상 통과 (0 Errors, 820ms).
+
+
 ## [완료] 화면 서브뷰/탭별 인앱 매뉴얼 동적 자동 감지 엔진 구축 및 신규 계약 등록·미청구 정산 매뉴얼 1:1 완벽 정합화
 - **요구사항**:
   "이 메뉴의 매뉴얼이 UI 요소와 불일치 해 점검해서 수정" (계약 관리 `신규 계약 등록` 폼 및 매출 청구 관리 `미청구 정산` 화면 캡처 업로드)

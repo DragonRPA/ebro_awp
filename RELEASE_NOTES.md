@@ -1,3 +1,28 @@
+## 2026-09-30 22:30 (v1.8.5.Build.11)
+
+### [매뉴얼 엔진 결함 원천 해결] 언더스코어 메뉴(`smart_dispatch4` 등) 매뉴얼 더미 폴백 버그 수정 & `Ctrl + M` 한글 IME 완벽 지원 및 토글 안정화
+
+- **배경 및 원인 분석**:
+  - `출고 요청`(`smart_dispatch4`) 등 45개 전 메뉴의 v5 매뉴얼 오버홀이 완료되었음에도 불구하고, 화면 진입 시 상단에 `smart 공통`, `"본 메뉴는 시스템 표준 업무 프로세스를 처리하는 작업대입니다."`, 하단에 `"1/1단계: 출고 요청 기본 안내"` 더미 텍스트가 노출되는 현상 발생.
+  - **원인 1**: `ManualOverlay.tsx`의 `MutationObserver`에서 `const baseId = page.pageId.split('_')[0] || page.pageId;` 로 기본 메뉴 ID를 자르는 치명적 버그 존재. `smart_dispatch4`, `smart_return`, `smart_as_request`, `transport_master`, `asset_assignment` 등 언더스코어(`_`)가 포함된 메뉴에서 매뉴얼 마운트 즉시 `baseId`가 `smart` 등으로 왜곡되어 `loadPage('smart')`가 재호출되고, 1단계 더미 매뉴얼이 자동 생성되어 정상 24단계 매뉴얼을 덮어씀.
+  - **원인 2**: 윈도우 환경에서 한글 입력 모드일 때 `Ctrl + M` 입력 시 `e.key`가 `'ㅡ'`로 전달되어 단축키 핸들러(`e.key === 'm' || e.key === 'M'`)가 씹히고, 토글 시 `manualMode === 'viewing'` 조건으로 인해 모드가 꼬이는 현상 발생.
+- **주요 수정 및 개선 내역**:
+  1. **`ManualContext.tsx` 상위 메뉴 컨텍스트 공식 바인딩 (`src/components/manual/ManualContext.tsx`)**:
+     - `baseMenuId`, `baseMenuTitle`, `setBaseMenu(id: string, title?: string)`를 추가하여 상위 메뉴 ID가 임의로 잘리거나 왜곡되지 않고 온전히 보존되도록 구현.
+  2. **`ManualOverlay.tsx` 결함 코드 완전 제거 (`src/components/manual/ManualOverlay.tsx`)**:
+     - `split('_')[0]` 코드를 영구 삭제하고, `ManualContext`의 `baseMenuId`를 기반으로 모달/서브뷰/기본 메뉴를 안전하게 감지하도록 전면 리팩토링.
+  3. **`App.tsx` 단축키 대폭 강화 및 메뉴 동기화 (`src/App.tsx`)**:
+     - **한글 IME 완벽 지원**: `e.code === 'KeyM'` 물리 키 코드 및 `e.key === 'ㅡ'`를 동시 지원하여 한/영 입력 상태 무관하게 100% 즉시 동작하도록 개선.
+     - **클린 토글 & 전파 차단**: `manualMode !== 'off'`일 때 클린 종료되도록 처리하고, `e.stopPropagation()`을 적용해 이벤트 간섭을 원천 차단.
+     - **메뉴 동기화**: `activeTab` 변경 시 `setBaseMenu`를 실시간 호출하고, `ManualHeaderButtons`에 `activeTabName`을 전달하여 헤더 버튼 및 단축키 실행 시 항상 정확한 메뉴 타이틀과 매뉴얼이 바인딩되도록 조치.
+  4. **`useManual.ts` 가비지 데이터 DB 유입 차단 (`src/hooks/useManual.ts`)**:
+     - 등록되지 않은 임의의 pageId가 DB의 `manual_annotations` 테이블에 자동 저장되지 않도록 `isKnownMenu` 가드 적용.
+  5. **Supabase 원격 DB 청소**:
+     - 과거 버그로 자동 생성되었던 쓰레기 레코드 `page_id: 'smart'`를 영구 삭제 정리 완료.
+- **검증**: `tsc -b && vite build` 정상 빌드 완료 (0 error, 820ms).
+
+---
+
 ## 2026-09-30 21:20 (v1.8.5.Build.10)
 
 ### [팝업/모달 유형 전용 매뉴얼 심도 혁신 개편] 외상미수금 등록 모달 10단계 전수 1:1 관통 실무 조작 가이드 완성 & 팝업 공통 다이얼로그 6단계 구조화 개편 & DB 스테일 타이틀 완전 소탕

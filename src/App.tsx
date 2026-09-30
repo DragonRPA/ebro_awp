@@ -125,8 +125,7 @@ const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activ
   const pageTitle = activeTabName || activeTab;
 
   const handleView = async () => {
-    if (mode === 'viewing') { setMode('off'); return; }
-    setMode('off');
+    if (mode !== 'off') { setMode('off'); return; }
     const ctx = detectCurrentContext(activeTab, pageTitle);
     await loadPage(ctx.pageId, ctx.pageTitle);
     setMode('viewing');
@@ -307,7 +306,7 @@ const App: React.FC = () => {
     (window as any).__APP_CONTEXT__ = context;
   }
   const { currentUser, users, switchUser, login, logout, theme, toggleTheme, hasPermission, activeTab, setActiveTab, loadTablesForMenu, currentTenant } = context;
-  const { mode: manualMode, setMode: setManualMode, loadPage: loadManualPage } = useManualContext();
+  const { mode: manualMode, setMode: setManualMode, loadPage: loadManualPage, setBaseMenu } = useManualContext();
   useGridWheel(activeTab); // Shift+Wheel 횡스크롤: 그리드 컨테이너에만 적용
 
   // 로그인 폼 상태
@@ -609,16 +608,17 @@ const App: React.FC = () => {
         return;
       }
 
-      // 2. Ctrl+M 또는 Cmd+M -> 매뉴얼 보기 켜기/끄기 토글 (모달 및 서브뷰 동적 자동 감지)
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'm' || e.key === 'M')) {
+      // 2. Ctrl+M 또는 Cmd+M -> 매뉴얼 보기 켜기/끄기 토글 (영문/한글 IME 완벽 지원, 모달 및 서브뷰 동적 자동 감지)
+      const isMKey = e.code === 'KeyM' || (e.key && (e.key.toLowerCase() === 'm' || e.key === 'ㅡ'));
+      if ((e.ctrlKey || e.metaKey) && isMKey) {
         e.preventDefault();
-        if (manualMode === 'viewing') {
+        e.stopPropagation();
+        if (manualMode !== 'off') {
           setManualMode('off');
         } else {
-          setManualMode('off');
           const allItems = menuGroups.flatMap(g => g.items);
           const currentItem = allItems.find(i => i.id === activeTab);
-          const defaultPageTitle = currentItem?.name || activeTab;
+          const defaultPageTitle = currentItem?.name || (activeTab === 'dashboard' ? '대시보드' : activeTab);
           const ctx = detectCurrentContext(activeTab, defaultPageTitle);
           loadManualPage(ctx.pageId, ctx.pageTitle).then(() => {
             setManualMode('viewing');
@@ -634,7 +634,7 @@ const App: React.FC = () => {
           setMenuSearchQuery('');
           return;
         }
-        if (manualMode === 'viewing') {
+        if (manualMode !== 'off') {
           setManualMode('off');
           return;
         }
@@ -705,14 +705,18 @@ const App: React.FC = () => {
     }));
   };
 
-  // activeTab이 활성화될 때 속한 상위 그룹 자동 펼침
+  // activeTab이 활성화될 때 속한 상위 그룹 자동 펼침 및 매뉴얼 기준 메뉴(baseMenu) 동기화
   useEffect(() => {
     menuGroups.forEach(grp => {
       if (grp.items.some(item => item.id === activeTab)) {
         setExpandedGroups(prev => ({ ...prev, [grp.id]: true }));
       }
     });
-  }, [activeTab]);
+    const allItems = menuGroups.flatMap(g => g.items);
+    const currentItem = allItems.find(item => item.id === activeTab);
+    const title = currentItem?.name || (activeTab === 'dashboard' ? '대시보드' : activeTab);
+    setBaseMenu(activeTab, title);
+  }, [activeTab, menuGroups, setBaseMenu]);
 
   // 활성 페이지 컴포넌트 탐색
   const getActiveComponent = () => {
@@ -1194,7 +1198,11 @@ const App: React.FC = () => {
           <AgentHeaderBadge currentUser={currentUser} />
 
           {/* 📖 인앱 오버레이 매뉴얼 보기/작성 버튼 */}
-          <ManualHeaderButtons activeTab={activeTab} currentUser={currentUser} />
+          <ManualHeaderButtons
+            activeTab={activeTab}
+            currentUser={currentUser}
+            activeTabName={menuGroups.flatMap(g => g.items).find(i => i.id === activeTab)?.name || (activeTab === 'dashboard' ? '대시보드' : activeTab)}
+          />
 
           {/* 🛡️ 개인정보 처리방침 법정 고지 열람 버튼 */}
           <button

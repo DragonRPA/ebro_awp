@@ -2,7 +2,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../services/db';
 import type { ManualPage, ManualAnnotationItem } from '../types/manual';
-import { ALL_MENU_MANUALS, getManualPageForMenu } from '../data/allMenuManuals';
+import { ALL_MENU_MANUALS, getManualPageForMenu, getMenuManual } from '../data/allMenuManuals';
 import { MODAL_MANUAL_REGISTRY, getModalManualPage } from '../data/modalManuals';
 
 const TENANT_ID = 'default';
@@ -100,8 +100,9 @@ export function useManual() {
       }
     }
 
-    // DB에 없거나 비어있는 경우 SSOT 시드 매뉴얼 반환 및 백그라운드 저장
-    if (supabase) {
+    // DB에 없거나 비어있는 경우 SSOT 시드 매뉴얼 반환 및 정규 메뉴/모달인 경우에만 백그라운드 저장
+    const isKnownMenu = Boolean(getMenuManual(pageId)) || pageId.startsWith('modal_');
+    if (supabase && isKnownMenu) {
       savePage(seed).catch(err => console.warn('[useManual] Auto-seed background write failed:', err));
     }
 

@@ -396,7 +396,7 @@ const BottomDossierCard: React.FC<{
    메인 오버레이 컴포넌트
 ══════════════════════════════════════════════════════════════ */
 export const ManualOverlay: React.FC = () => {
-  const { mode, setMode, page, openDocModal, loadPage } = useManualContext();
+  const { mode, setMode, page, openDocModal, loadPage, baseMenuId, baseMenuTitle } = useManualContext();
   const [elements, setElements] = useState<Record<number, HTMLElement | null>>({});
   const [rects, setRects] = useState<Record<number, Rect | null>>({});
   const [expandedSeq, setExpandedSeq] = useState<number | null>(null);
@@ -450,8 +450,9 @@ export const ManualOverlay: React.FC = () => {
     const mo = new MutationObserver(() => {
       // 💡 [동적 서브뷰 및 모달 자동 전환]
       if (page) {
-        const baseId = page.pageId.split('_')[0] || page.pageId;
-        const ctx = detectCurrentContext(baseId, page.pageTitle);
+        const baseId = baseMenuId || (page.pageId.startsWith('modal_') ? 'dashboard' : page.pageId);
+        const baseTitle = baseMenuTitle || page.pageTitle;
+        const ctx = detectCurrentContext(baseId, baseTitle);
         if (ctx.pageId !== page.pageId) {
           if (isModal && !ctx.isModal && ctx.pageId === baseId) {
             setMode('off');

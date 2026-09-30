@@ -7,6 +7,9 @@ import { MenuSpecDocModal } from './MenuSpecDocModal';
 interface ManualContextValue {
   mode: ManualMode;
   setMode: (m: ManualMode) => void;
+  baseMenuId: string;
+  baseMenuTitle: string;
+  setBaseMenu: (id: string, title?: string) => void;
   currentPageId: string;
   setCurrentPageId: (id: string) => void;
   currentPageTitle: string;
@@ -34,9 +37,16 @@ export const useManualContext = () => {
 
 export const ManualProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mode, setMode] = useState<ManualMode>('off');
+  const [baseMenuId, setBaseMenuId] = useState('dashboard');
+  const [baseMenuTitle, setBaseMenuTitle] = useState('대시보드');
   const [currentPageId, setCurrentPageId] = useState('');
   const [currentPageTitle, setCurrentPageTitle] = useState('');
   const [page, setPage] = useState<ManualPage | null>(null);
+
+  const setBaseMenu = useCallback((id: string, title?: string) => {
+    setBaseMenuId(id);
+    if (title) setBaseMenuTitle(title);
+  }, []);
   const [docModalState, setDocModalState] = useState<{ isOpen: boolean; menuId: string; menuTitle: string }>({
     isOpen: false,
     menuId: '',
@@ -96,6 +106,7 @@ export const ManualProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   return (
     <ManualCtx.Provider value={{
       mode, setMode,
+      baseMenuId, baseMenuTitle, setBaseMenu,
       currentPageId, setCurrentPageId,
       currentPageTitle, setCurrentPageTitle,
       page, setPage,
