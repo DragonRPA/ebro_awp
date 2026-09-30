@@ -11,12 +11,17 @@ import { MenuBriefingBox } from './MenuBriefingBox';
 /* ── 리플(파동) 및 펄스 애니메이션 CSS ────────────────────────── */
 const RIPPLE_CSS = `
 @keyframes manual-ripple {
-  0%   { transform: translate(-50%,-50%) scale(0.5); opacity: 0.9; }
-  100% { transform: translate(-50%,-50%) scale(2.8); opacity: 0; }
+  0%   { transform: translate(-50%,-50%) scale(0.4); opacity: 0.95; }
+  100% { transform: translate(-50%,-50%) scale(3.0); opacity: 0; }
 }
 @keyframes manual-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,0.7); }
-  50%       { box-shadow: 0 0 0 14px rgba(37,99,235,0); }
+  0%   { transform: scale(0.95); opacity: 0.85; }
+  50%  { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.85; }
+}
+@keyframes manual-box-ripple {
+  0%   { transform: scale(0.98); opacity: 0.85; }
+  100% { transform: scale(1.08); opacity: 0; }
 }
 @keyframes manual-card-in {
   from { opacity: 0; transform: translate(-50%, 10px); }
@@ -161,44 +166,67 @@ const Spotlight: React.FC<{ rect: Rect; color: string; zIndex?: number }> = ({ r
 };
 
 /* ── HighlightBox ─────────────────────────────────────────────── */
-const HighlightBox: React.FC<{ rect: Rect; color: string; zIndex?: number }> = ({ rect, color, zIndex = 200001 }) => (
+const HighlightBox: React.FC<{
+  rect: Rect;
+  color: string;
+  isActive?: boolean;
+  zIndex?: number;
+}> = ({ rect, color, isActive = false, zIndex = 200001 }) => (
   <div style={{
     position: 'fixed',
     top: rect.top - 4, left: rect.left - 4,
     width: rect.width + 8, height: rect.height + 8,
-    border: `3px solid ${color}`,
+    border: isActive ? `3px solid ${color}` : `1.5px dashed ${color}66`,
     borderRadius: '8px',
-    backgroundColor: color + '18',
+    backgroundColor: isActive ? color + '22' : 'transparent',
     pointerEvents: 'none',
     zIndex,
-    boxShadow: `0 0 16px ${color}66`,
-    transition: 'all 0.2s',
+    boxShadow: isActive ? `0 0 20px ${color}88, inset 0 0 10px ${color}22` : 'none',
+    transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
   }} />
 );
 
-/* ── Click Ripple (ManualStudio click 이식) ───────────────────── */
-const ClickRipple: React.FC<{ rect: Rect; color: string; zIndex?: number }> = ({ rect, color, zIndex = 200001 }) => {
+/* ── Click Ripple (ManualStudio click 이식: 활성 단계 대상 요소에만 집중 표출) ── */
+const ClickRipple: React.FC<{ rect: Rect; color: string; zIndex?: number }> = ({ rect, color, zIndex = 200002 }) => {
   const cx = rect.left + rect.width / 2;
   const cy = rect.top + rect.height / 2;
   return (
     <>
-      {[0, 200, 400].map(delay => (
+      {/* 1. 중심부 3중 동심원 리플 (파동) */}
+      {[0, 250, 500].map(delay => (
         <div key={delay} style={{
           position: 'fixed', left: cx, top: cy,
-          width: '44px', height: '44px',
+          width: '50px', height: '50px',
           borderRadius: '50%',
           border: `2.5px solid ${color}`,
-          animation: `manual-ripple 1.4s ${delay}ms ease-out infinite`,
+          animation: `manual-ripple 1.5s ${delay}ms ease-out infinite`,
           pointerEvents: 'none', zIndex,
         }} />
       ))}
+
+      {/* 2. 중심부 펄스 닷 코어 */}
       <div style={{
         position: 'fixed', left: cx - 10, top: cy - 10,
         width: '20px', height: '20px',
         borderRadius: '50%',
         background: color,
+        boxShadow: `0 0 12px ${color}, 0 0 24px ${color}88`,
         animation: 'manual-pulse 1.4s ease-in-out infinite',
         pointerEvents: 'none', zIndex: zIndex + 1,
+      }} />
+
+      {/* 3. 요소 외곽 테두리 펄스 리플 (버튼/인풋 전체 윤곽선 리플) */}
+      <div style={{
+        position: 'fixed',
+        top: rect.top - 6,
+        left: rect.left - 6,
+        width: rect.width + 12,
+        height: rect.height + 12,
+        borderRadius: '10px',
+        border: `2px solid ${color}`,
+        animation: 'manual-box-ripple 1.8s ease-out infinite',
+        pointerEvents: 'none',
+        zIndex,
       }} />
     </>
   );
@@ -579,11 +607,24 @@ export const ManualOverlay: React.FC = () => {
 
         return (
           <React.Fragment key={item.seq}>
-            {/* HighlightBox */}
-            <HighlightBox rect={rect} color={item.badgeColor} zIndex={baseZIndex + 1} />
+            {/* HighlightBox: 현재 보고 있는 단계는 선명하게, 비활성 단계는 은은한 점선 테두리로 구분 */}
+            <HighlightBox
+              rect={rect}
+              color={item.badgeColor}
+              isActive={isExpanded}
+              zIndex={isExpanded ? baseZIndex + 2 : baseZIndex + 1}
+            />
 
-            {/* Click Ripple */}
-            {item.type === 'click_ripple' && <ClickRipple rect={rect} color={item.badgeColor} zIndex={baseZIndex + 1} />}
+            {/* 🌟 Click Ripple (파동 이펙트):
+                현재 사용자가 보고 있는 활성 단계(isExpanded)의 UI 요소에만 파동 이펙트 집중 표출!
+                비활성 단계에 파동이 고정되어 머물러 있는 현상을 원천 방지 */}
+            {isExpanded && (
+              <ClickRipple
+                rect={rect}
+                color={item.badgeColor}
+                zIndex={baseZIndex + 2}
+              />
+            )}
 
             {/* Stamp 순번 뱃지 (실제 DOM 요소 위) */}
             <div
@@ -593,17 +634,22 @@ export const ManualOverlay: React.FC = () => {
                 position: 'fixed',
                 top: Math.max(10, rect.top - 16),
                 left: Math.max(10, rect.left + rect.width / 2 - 16),
-                width: '32px', height: '32px',
+                width: isExpanded ? '36px' : '30px',
+                height: isExpanded ? '36px' : '30px',
                 borderRadius: '50%',
                 background: item.badgeColor,
                 color: '#fff',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '14px', fontWeight: 900,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
-                cursor: 'pointer', zIndex: baseZIndex + 2,
-                border: '2.5px solid #fff',
-                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                transform: isExpanded ? 'scale(1.25)' : 'scale(1)',
+                fontSize: isExpanded ? '15px' : '13px',
+                fontWeight: 900,
+                boxShadow: isExpanded
+                  ? `0 0 16px ${item.badgeColor}, 0 6px 16px rgba(0,0,0,0.4)`
+                  : '0 3px 8px rgba(0,0,0,0.3)',
+                cursor: 'pointer',
+                zIndex: isExpanded ? baseZIndex + 3 : baseZIndex + 2,
+                border: isExpanded ? '3px solid #fff' : '2px solid rgba(255,255,255,0.85)',
+                transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                transform: isExpanded ? 'scale(1.2)' : 'scale(1)',
                 userSelect: 'none',
               }}
               title={`${item.label} (클릭하여 상세 보기)`}
