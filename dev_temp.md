@@ -5343,3 +5343,53 @@ pm run build: **TypeScript 0 Error, 번들링 정상 완료 (uilt in 1.13s)**.
      - `tbody`에서 `renderCategoryBadge(r.event_code, r.event_name)` 연동
   4. TypeScript 타입 검증(`tsc -b`) 및 Vite 프로덕션 빌드 성공 검증 완료 (0 Errors)
 
+## [반영완료] 일상업무 결재선 7건 제거 및 구분 변경, 유형별 정렬 개편 (v1.8.3.Build.16)
+- **요구사항**:
+  1. 일상업무 관련으로 매번 결재하는 실익이 적은 결재선 7건 제거:
+     - 대차 교체 승인 (`EXCHANGE_APPROVE`)
+     - 출고 검수 승인 (`OUTBOUND_APPROVE`)
+     - 반납 검수 승인 (`RETURN_APPROVE`)
+     - 배차 발행 승인 (`TRUCK_DISPATCH_APPROVE`)
+     - 청구서 확정 (`BILLING_FINALIZE`)
+     - 수납 확정 (`PAYMENT_CONFIRM`)
+     - 수리 완료 승인 (`REPAIR_CLOSE`)
+  2. 결재 항목의 구분(카테고리) 변경:
+     - **정산**: 운송료 지급 (`DISPATCH_PAYMENT`), 소모품 구입 지급 (`CONSUMABLE_PURCHASE_PAYMENT`)
+     - **계약**: 수리비 청구 (`REPAIR_BILLING`)
+     - **인사**: 연차신청 (`LEAVE_APPLICATION`), 급여지급 (`PAYROLL_PAYMENT`)
+  3. 정리된 결재선을 유형별로 정렬
+- **조치 내역**:
+  1. `src/services/db.ts`: `APPROVAL_EVENT_REGISTRY`에서 일상업무 7건 제거 및 정산/계약/인사 구분 재지정, 레지스트리 자체를 6대 유형 순서로 정렬 (총 15건)
+  2. `src/pages/ApprovalRulesManage.tsx`:
+     - `APPROVAL_CATEGORY_ORDER` (`고객` -> `계약` -> `자산` -> `정산` -> `인사` -> `보고`) 전사 표준 SSOT 정의
+     - `CATEGORY_COLORS` 및 `renderCategoryBadge` 폴백 로직을 새 구분에 맞추어 정합성 보장
+     - `sortedRules` 메모이제이션 구현: DB 레코드 인입 순서와 무관하게 유형 순서 및 레지스트리 우선순위에 따라 완벽히 자동 정렬
+     - 결재선 목록 상단에 **카테고리별 요약 바 (고객 1 · 계약 5 · 자산 2 · 정산 4 · 인사 2 · 보고 1)** 신설
+     - 테이블 본문에 **카테고리별 그룹 구분 헤더 행**을 렌더링하여 유형별 구분을 직관적으로 제공
+  3. Supabase 원격 DB(`approval_rules`):
+     - 제거 대상 7개 레코드 영구 DELETE 완료 (종속 데이터 0건 확인)
+     - `PAYROLL_PAYMENT`의 `event_name`을 '급여지급'으로 UPDATE 완료
+     - 잔여 규칙 15건 정상 보존 검증 완료
+  4. TypeScript 타입 검증(`tsc -b`) 및 Vite 빌드 성공 검증 완료 (0 Errors, 789ms)
+
+## [반영완료] 인사관리 직급·직책 결재선 티어 연동 및 선택 제한 개편 (v1.8.3.Build.17)
+- **요구사항**:
+  1. 인사관리에서 직급은 결재선 티어 설정에서 정의된 직급 내에서만 입력(선택) 가능하도록 제한
+  2. 직책 설정 필요 (결재선 티어 설정과 연동된 직책 선택 체계 확립)
+  3. 인사정보와 결재선 작동이 100% 상호 연동되어 작동해야 함
+- **조치 내역**:
+  1. `src/services/db.ts`:
+     - `loadApprovalTierConfigs` (비동기) & `getStoredApprovalTierConfigs` (동기) 전사 SSOT 티어 설정 로더 신설
+     - `getUserEffectiveTier` 및 `getTierDisplayLabel`: 파라미터 미지정 시에도 저장된 최신 결재선 직급/직책 설정을 자동 참조하도록 fallback 메커니즘 보강
+     - `saveOrganizationBatch`: `users` 배치 동기화 시 `tier_level` 자동 산출 및 DB 컬럼 부재 시 자동 fallback 방어 적용
+  2. `src/pages/OrganizationSettings.tsx`:
+     - **직급 (Position)**: 기존 자유 텍스트 input ➔ 결재선 티어 설정(`positionConfigs`)에 등록된 직급(사원~대표)만 선택 가능한 `<select>` 드롭다운으로 개편 (미등록 직급 fallback 보존)
+     - **직책 (Duty)**: 기존 datalist 자유 입력 ➔ 결재선 티어 설정(`dutyConfigs`)에 등록된 직책(파트장~대표이사, 미지정 포함)만 선택 가능한 `<select>` 드롭다운으로 전면 개편
+     - **실시간 결재 권한 티어 연동**: 프로필 패널 내 `getUserEffectiveTier` 기반 **[🛡️ 결재 권한 티어]** 인포 박스 신설 (직책 우선 판정 / 직급 기본 판정 실시간 안내)
+     - **조직도 소속원 카드**: 중앙 본문 카드에 각 임직원의 결재 권한 티어 배지(`{eff.effectiveTier}티어`) 및 직급/직책 동시 표출
+     - **저장 무결성**: 단일 프로필 저장(`applyProfileChanges`) 및 마스터 일괄 저장(`handleSaveAll`) 시 `tier_level`을 자동 계산하여 DB(`users`) 및 LocalStorage에 무누락 저장
+     - **엑셀 내보내기**: 임직원 대장 내보내기에 `결재티어` 컬럼 추가
+  3. `src/hooks/useApproval.ts`:
+     - 전자결재 상신 및 결재선 자동 생성(`createApprovalRequest`) 시, 인사관리에서 설정한 최신 직책(`duty`)과 직급(`position`)을 온전히 병합하여 기안자 티어 및 직책/직급 기반 결재권자(Approver)를 100% 무오차로 자동 탐색/배정
+  4. TypeScript 타입 검증(`tsc -b`) 및 Vite 프로덕션 빌드 성공 검증 완료 (0 Errors, 781ms)
+

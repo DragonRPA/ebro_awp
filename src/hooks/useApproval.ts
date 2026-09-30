@@ -66,8 +66,27 @@ export function useApproval() {
       if (reqErr) throw reqErr;
       
       // 결재선(approval_steps) 자동 생성 로직 (R&R 기반 직책 티어 우선 판정)
+      let usersList: any[] = [];
       const { data: usersData } = await supabase.from('users').select('*');
-      const originator = usersData?.find(u => u.id === originatorId);
+      if (usersData && usersData.length > 0) {
+        usersList = [...usersData];
+      }
+      // 로컬스토리지 erp_users와 지능형 병합하여 최신 duty, position, tier_level 완벽 보존
+      try {
+        const rawLocalUsers = localStorage.getItem('erp_users');
+        if (rawLocalUsers) {
+          const localUsers = JSON.parse(rawLocalUsers);
+          usersList = usersList.map(u => {
+            const matched = localUsers.find((lu: any) => lu.id === u.id);
+            return matched ? { ...u, duty: matched.duty || u.duty, position: matched.position || u.position, tier_level: matched.tier_level ?? u.tier_level } : u;
+          });
+          localUsers.forEach((lu: any) => {
+            if (!usersList.some(u => u.id === lu.id)) usersList.push(lu);
+          });
+        }
+      } catch {}
+
+      const originator = usersList.find(u => u.id === originatorId);
       const currentTier = originator ? getUserEffectiveTier(originator).effectiveTier : 0;
       
       let stepNum = 1;
@@ -82,9 +101,9 @@ export function useApproval() {
       
       for (const t of requiredTiers) {
          // 직책/직급 기반 유효 티어가 t 이상인 결재권자 탐색 (직책 우선)
-         const approver = usersData?.find(u => getUserEffectiveTier(u).effectiveTier === t) 
-           || usersData?.find(u => getUserEffectiveTier(u).effectiveTier >= t) 
-           || usersData?.find(u => u.role === 'ADMIN');
+         const approver = usersList.find(u => getUserEffectiveTier(u).effectiveTier === t) 
+           || usersList.find(u => getUserEffectiveTier(u).effectiveTier >= t) 
+           || usersList.find(u => u.role === 'ADMIN');
          if (approver) {
             stepsToInsert.push({
                request_id: reqData.id,
@@ -99,7 +118,7 @@ export function useApproval() {
       
       // 만약 아무도 배정되지 않았다면 최고관리자(admin) 강제 배정
       if (stepsToInsert.length === 0) {
-         const admin = usersData?.find(u => u.role === 'ADMIN');
+         const admin = usersList.find(u => u.role === 'ADMIN');
          if (admin) {
             stepsToInsert.push({
                request_id: reqData.id,

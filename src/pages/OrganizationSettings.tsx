@@ -2,10 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Network, Plus, Trash2, Edit2, AlertCircle, GripVertical, ChevronRight, 
   ChevronDown, CheckCircle, Upload, Save, X, User as UserIcon, Calendar, 
-  MapPin, Phone, Mail, Download 
+  MapPin, Phone, Mail, Download, ShieldCheck
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { db } from '../services/db';
+import { 
+  db, 
+  ApprovalTierConfig, 
+  loadApprovalTierConfigs, 
+  getStoredApprovalTierConfigs, 
+  getUserEffectiveTier 
+} from '../services/db';
 import { exportToExcel } from '../services/excel';
 
 // --- Type Definitions ---
@@ -25,6 +31,7 @@ interface UserNode {
   department?: string;
   position: string;
   duty?: string; // 직책 (파트장, 팀장, 센터장, 공장장, 본부장, 총괄 등 단위조직 책임자)
+  tier_level?: number; // 결재선 유효 티어
   status: 'ACTIVE' | 'LEAVE_OF_ABSENCE' | 'RETIRED';
   role: string;
   loginId?: string;
@@ -53,6 +60,17 @@ export const OrganizationSettings: React.FC = () => {
   // --- States ---
   const [departments, setDepartments] = useState<Department[]>([]);
   const [users, setUsers] = useState<UserNode[]>([]);
+
+  // 결재선 티어 설정 마스터 상태 (결재선 설정 화면과 100% 동기화)
+  const [dutyConfigs, setDutyConfigs] = useState<ApprovalTierConfig[]>(() => getStoredApprovalTierConfigs().duties);
+  const [positionConfigs, setPositionConfigs] = useState<ApprovalTierConfig[]>(() => getStoredApprovalTierConfigs().positions);
+
+  useEffect(() => {
+    loadApprovalTierConfigs().then(({ duties, positions }) => {
+      if (duties && duties.length > 0) setDutyConfigs(duties);
+      if (positions && positions.length > 0) setPositionConfigs(positions);
+    });
+  }, []);
 
 // Enforce manager policies across departments
 const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) => {
@@ -235,8 +253,10 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
         .map(u => {
           const { modelName, supplier, ...rest } = (u as any);
           const dept = cleanDepts.find(d => d.id === u.departmentId);
+          const eff = getUserEffectiveTier(u, dutyConfigs, positionConfigs);
           return {
             ...rest,
+            tier_level: eff.effectiveTier,
             department: dept ? dept.name : (rest.department || '')
           } as UserNode;
         });
@@ -315,12 +335,15 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
   const handleAddUser = () => {
     if (!canEdit) return;
     const nowIso = new Date().toISOString();
+    const defaultPos = positionConfigs[0]?.title || '사원';
+    const initialTier = getUserEffectiveTier({ position: defaultPos, duty: '' }, dutyConfigs, positionConfigs).effectiveTier;
     const newUser: UserNode = {
       id: db.generateNextId('users', users.map(u => ({ id: u.id }))),
       name: '',
       departmentId: null, // 무조건 미배정으로 생성
-      position: '',
+      position: defaultPos,
       duty: '',
+      tier_level: initialTier,
       status: 'ACTIVE',
       role: 'USER',
       loginId: '',
@@ -461,7 +484,17 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
         showErrorModal('ADMIN 시스템 역할은 개발자(admin) 계정만 부여할 수 있습니다.', '권한 부여 제한');
         return;
       }
-      let updated = users.map(u => u.id === selectedProfile.id ? selectedProfile : u);
+      const eff = getUserEffectiveTier(
+        { position: selectedProfile.position, duty: selectedProfile.duty },
+        dutyConfigs,
+        positionConfigs
+      );
+      const profileWithTier: UserNode = {
+        ...selectedProfile,
+        tier_level: eff.effectiveTier
+      };
+
+      let updated = users.map(u => u.id === selectedProfile.id ? profileWithTier : u);
       updated = enforceManagerPolicies(updated, departments);
       
       // DB 및 AppContext 데이터 저장 전파
@@ -486,6 +519,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
     const rows = users.map((u, idx) => {
       const deptName = u.departmentId ? (deptMap.get(u.departmentId) || u.department || '미지정') : (u.department || '미배치');
       const statusLabel = u.status === 'ACTIVE' ? '재직' : u.status === 'RETIRED' ? '퇴사' : '휴직';
+      const eff = getUserEffectiveTier(u, dutyConfigs, positionConfigs);
       const row: any = {
         'No': idx + 1,
         '성명': u.name || '-',
@@ -493,6 +527,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
         '소속부서': deptName,
         '직급': u.position || '-',
         '직책': u.duty || '-',
+        '결재티어': `${eff.effectiveTier}티어`,
         '역할/권한': u.role || 'USER',
         '재직상태': statusLabel,
         '입사일': u.joinDate || '-',
@@ -591,59 +626,71 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
     );
   };
 
-  const renderUserCard = (user: UserNode) => (
-    <div 
-      key={user.id}
-      draggable={canEdit}
-      onDragStart={(e) => handleDragStart(e, user.id)}
-      onDoubleClick={() => setSelectedProfile(user)}
-      style={{
-        border: '1px solid var(--border-color)',
-        borderRadius: 'var(--radius-md)',
-        padding: '16px',
-        backgroundColor: 'var(--bg-card)',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-        cursor: canEdit ? 'grab' : 'pointer',
-        opacity: draggedUserId === user.id ? 0.5 : 1,
-        position: 'relative',
-        transition: 'all 0.2s ease'
-      }}
-      title="더블클릭하여 상세 프로필 수정"
-    >
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-        {canEdit && <GripVertical size={16} color="var(--text-muted)" style={{ cursor: 'grab', marginTop: '4px' }} />}
-        
-        {/* Avatar */}
-        <div style={{
-          width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'var(--primary-light)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)',
-          backgroundImage: user.profileImageUrl ? `url(${user.profileImageUrl})` : 'none',
-          backgroundSize: 'cover', backgroundPosition: 'center', flexShrink: 0
-        }}>
-          {!user.profileImageUrl && (user.name ? user.name.substring(0, 1) : '신')}
-        </div>
+  const renderUserCard = (user: UserNode) => {
+    const eff = getUserEffectiveTier(user, dutyConfigs, positionConfigs);
+    return (
+      <div 
+        key={user.id}
+        draggable={canEdit}
+        onDragStart={(e) => handleDragStart(e, user.id)}
+        onDoubleClick={() => setSelectedProfile(user)}
+        style={{
+          border: '1px solid var(--border-color)',
+          borderRadius: 'var(--radius-md)',
+          padding: '16px',
+          backgroundColor: 'var(--bg-card)',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+          cursor: canEdit ? 'grab' : 'pointer',
+          opacity: draggedUserId === user.id ? 0.5 : 1,
+          position: 'relative',
+          transition: 'all 0.2s ease'
+        }}
+        title="더블클릭하여 상세 프로필 수정"
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+          {canEdit && <GripVertical size={16} color="var(--text-muted)" style={{ cursor: 'grab', marginTop: '4px' }} />}
+          
+          {/* Avatar */}
+          <div style={{
+            width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'var(--primary-light)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)',
+            backgroundImage: user.profileImageUrl ? `url(${user.profileImageUrl})` : 'none',
+            backgroundSize: 'cover', backgroundPosition: 'center', flexShrink: 0
+          }}>
+            {!user.profileImageUrl && (user.name ? user.name.substring(0, 1) : '신')}
+          </div>
 
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontWeight: '700', fontSize: '15px', color: user.name ? 'var(--text-main)' : 'var(--text-muted)' }}>
-              {user.name || '신규직원(이름 미입력)'}
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontWeight: '700', fontSize: '15px', color: user.name ? 'var(--text-main)' : 'var(--text-muted)' }}>
+                  {user.name || '신규직원(이름 미입력)'}
+                </span>
+                <span style={{
+                  fontSize: '11px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px',
+                  background: eff.source === 'DUTY' ? 'rgba(15, 118, 110, 0.15)' : 'rgba(21, 128, 61, 0.15)',
+                  color: eff.source === 'DUTY' ? '#0f766e' : '#15803d',
+                }}>
+                  {eff.effectiveTier}티어
+                </span>
+              </div>
+              <span style={{ 
+                fontSize: '11px', padding: '2px 8px', borderRadius: '12px', fontWeight: '600',
+                backgroundColor: user.status === 'ACTIVE' ? 'var(--success-light)' : user.status === 'RETIRED' ? 'var(--danger-light)' : 'var(--warning-light)',
+                color: user.status === 'ACTIVE' ? 'var(--success)' : user.status === 'RETIRED' ? 'var(--danger)' : 'var(--warning)'
+              }}>
+                {user.status === 'ACTIVE' ? '재직' : user.status === 'RETIRED' ? '퇴사' : '휴직'}
+              </span>
             </div>
-            <span style={{ 
-              fontSize: '11px', padding: '2px 8px', borderRadius: '12px', fontWeight: '600',
-              backgroundColor: user.status === 'ACTIVE' ? 'var(--success-light)' : user.status === 'RETIRED' ? 'var(--danger-light)' : 'var(--warning-light)',
-              color: user.status === 'ACTIVE' ? 'var(--success)' : user.status === 'RETIRED' ? 'var(--danger)' : 'var(--warning)'
-            }}>
-              {user.status === 'ACTIVE' ? '재직' : user.status === 'RETIRED' ? '퇴사' : '휴직'}
-            </span>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+              {user.position || '직급 미지정'}{user.duty ? ` (${user.duty})` : ''} | {user.role}
+            </div>
+            {user.phone && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>📞 {user.phone}</div>}
           </div>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            {user.position || '직급 미지정'}{user.duty ? ` (${user.duty})` : ''} | {user.role}
-          </div>
-          {user.phone && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>📞 {user.phone}</div>}
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const displayedUsers = activeTab === 'DEPT' 
     ? users.filter(u => u.departmentId === selectedDeptId)
@@ -886,38 +933,81 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                   <div>
-                    <label style={{ marginBottom: '2px', fontSize: '12px' }}>직급</label>
-                    <input 
-                      type="text" 
-                      style={{ padding: '4px 8px', fontSize: '12px' }} 
-                      placeholder="직급 (예: 사원/과장)"
-                      value={selectedProfile.position} 
-                      onChange={e => setSelectedProfile({...selectedProfile, position: e.target.value})} 
-                      disabled={!canEdit} 
-                    />
+                    <label style={{ marginBottom: '2px', fontSize: '12px', fontWeight: 600 }}>직급 (결재 티어 매핑)</label>
+                    <select
+                      style={{ 
+                        padding: '4px 8px', fontSize: '12px', width: '100%', borderRadius: '4px', 
+                        border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' 
+                      }}
+                      value={selectedProfile.position || ''}
+                      onChange={e => setSelectedProfile({...selectedProfile, position: e.target.value})}
+                      disabled={!canEdit}
+                    >
+                      <option value="">(직급 선택)</option>
+                      {selectedProfile.position && !positionConfigs.some(p => p.title.trim().toLowerCase() === selectedProfile.position.trim().toLowerCase()) && (
+                        <option value={selectedProfile.position}>{selectedProfile.position} (미등록 직급)</option>
+                      )}
+                      {[...positionConfigs].sort((a, b) => a.tier_level - b.tier_level).map(p => (
+                        <option key={p.title} value={p.title}>
+                          {p.title} ({p.tier_level}티어)
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
-                    <label style={{ marginBottom: '2px', fontSize: '12px' }}>직책 (R&R 결재 우선)</label>
-                    <input 
-                      type="text" 
-                      list="duty-suggestions"
-                      style={{ padding: '4px 8px', fontSize: '12px' }} 
-                      placeholder="직책 (예: 팀장/파트장)"
-                      value={selectedProfile.duty || ''} 
-                      onChange={e => setSelectedProfile({...selectedProfile, duty: e.target.value})} 
-                      disabled={!canEdit} 
-                    />
-                    <datalist id="duty-suggestions">
-                      <option value="파트장" />
-                      <option value="팀장" />
-                      <option value="센터장" />
-                      <option value="공장장" />
-                      <option value="본부장" />
-                      <option value="총괄" />
-                      <option value="대표이사" />
-                    </datalist>
+                    <label style={{ marginBottom: '2px', fontSize: '12px', fontWeight: 600 }}>직책 (R&R 결재 우선)</label>
+                    <select
+                      style={{ 
+                        padding: '4px 8px', fontSize: '12px', width: '100%', borderRadius: '4px', 
+                        border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' 
+                      }}
+                      value={selectedProfile.duty || ''}
+                      onChange={e => setSelectedProfile({...selectedProfile, duty: e.target.value})}
+                      disabled={!canEdit}
+                    >
+                      <option value="">(미지정 / 팀원)</option>
+                      {selectedProfile.duty && !dutyConfigs.some(d => d.title.trim().toLowerCase() === selectedProfile.duty?.trim().toLowerCase()) && (
+                        <option value={selectedProfile.duty}>{selectedProfile.duty} (사용자 정의 직책)</option>
+                      )}
+                      {[...dutyConfigs].sort((a, b) => a.tier_level - b.tier_level).map(d => (
+                        <option key={d.title} value={d.title}>
+                          {d.title} ({d.tier_level}티어{d.description ? ` · ${d.description}` : ''})
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
+
+                {/* 🛡️ 결재 권한 티어 실시간 연동 인포 박스 */}
+                {(() => {
+                  const eff = getUserEffectiveTier(
+                    { position: selectedProfile.position, duty: selectedProfile.duty },
+                    dutyConfigs,
+                    positionConfigs
+                  );
+                  return (
+                    <div style={{
+                      padding: '8px 10px', borderRadius: '6px',
+                      background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      fontSize: '12px', marginTop: '2px',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <ShieldCheck size={14} color={eff.source === 'DUTY' ? '#0f766e' : '#15803d'} />
+                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>
+                          결재 권한 티어
+                        </span>
+                      </div>
+                      <span style={{
+                        fontWeight: 700, padding: '2px 8px', borderRadius: '8px',
+                        background: eff.source === 'DUTY' ? '#0f766e' : '#15803d',
+                        color: '#fff', fontSize: '11px',
+                      }}>
+                        {eff.effectiveTier}티어 ({eff.source === 'DUTY' ? `직책 우선: ${eff.title}` : `직급 기준: ${eff.title}`})
+                      </span>
+                    </div>
+                  );
+                })()}
 
                 <div>
                   <label style={{ marginBottom: '2px', fontSize: '12px' }}>시스템 역할</label>

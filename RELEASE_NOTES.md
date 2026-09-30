@@ -1,3 +1,41 @@
+## 2026-09-30 17:51 (v1.8.3.Build.17)
+
+### [전자결재 및 인사조직] 일상업무 결재선 7건 제거 및 6대 유형 정렬 & 인사관리 직급·직책 결재선 티어 100% 연동 개편
+
+- **일상업무 결재선 7건 영구 제거 (매번 결재 실익 부재 프로세스 경량화)**:
+  - 전사 표준 헌장 1.2 "임직원 업무의 최소 조작 & 최상의 편의성" 준수에 따라 매번 결재 상신의 실익이 적은 일상 업무 결재선 7건을 전면 제거:
+    1. `대차 교체 승인` (`EXCHANGE_APPROVE`)
+    2. `출고 검수 승인` (`OUTBOUND_APPROVE`)
+    3. `반납 검수 승인` (`RETURN_APPROVE`)
+    4. `배차 발행 승인` (`TRUCK_DISPATCH_APPROVE`)
+    5. `청구서 확정` (`BILLING_FINALIZE`)
+    6. `수납 확정` (`PAYMENT_CONFIRM`)
+    7. `수리 완료 승인` (`REPAIR_CLOSE`)
+  - Supabase 원격 DB(`approval_rules`)에서 7건 영구 DELETE 및 종속 데이터 0건 무결성 확정.
+- **결재선 구분(카테고리) 재정의 및 6대 유형 순차 정렬 (총 15건)**:
+  - **정산**: `운송료 지급` (`DISPATCH_PAYMENT`), `소모품 구입 지급` (`CONSUMABLE_PURCHASE_PAYMENT`), `임차료 지급` (`RENT_PAYMENT`), `연체 탕감 승인` (`DELINQUENCY_WRITE_OFF`)
+  - **계약**: `수리비 청구` (`REPAIR_BILLING`), `계약 체결` (`CONTRACT_SIGN`), `계약 해지` (`CONTRACT_TERMINATE`), `계약 연장` (`CONTRACT_EXTEND`), `계약 승계` (`CONTRACT_SUCCEED`)
+  - **인사**: `연차신청` (`LEAVE_APPLICATION`), `급여지급` (`PAYROLL_PAYMENT`, 기존 '급여정산 지급' 명칭 표준화)
+  - **고객**: `고객 등록` (`CUSTOMER_REGISTRATION`)
+  - **자산**: `자산 매각` (`ASSET_DISPOSAL`), `자산 폐기` (`ASSET_WRITE_OFF`)
+  - **보고**: `재고실사보고` (`STOCK_AUDIT_REPORT`)
+  - `src/services/db.ts`: `APPROVAL_EVENT_REGISTRY`를 6대 유형 순서로 재정렬.
+  - `src/pages/ApprovalRulesManage.tsx`:
+    - `APPROVAL_CATEGORY_ORDER` (`고객` ➔ `계약` ➔ `자산` ➔ `정산` ➔ `인사` ➔ `보고`) 기준 `sortedRules` 정렬 적용
+    - 상단 **유형별 요약 현황 바** 및 그리드 내 **카테고리 구분 헤더 행** 추가
+- **인사관리 직급·직책 결재선 티어 연동 및 선택 제한 (`src/pages/OrganizationSettings.tsx`)**:
+  - **직급 (Position)**: 자유 텍스트 input ➔ 결재선 티어 설정(`positionConfigs`)에 등록된 직급(0티어 사원 ~ 7티어 대표)만 선택 가능한 드롭다운(`<select>`)으로 전면 개편 (미등록 직급 자동 fallback)
+  - **직책 (Duty)**: 기존 datalist 자유 입력 ➔ 결재선 티어 설정(`dutyConfigs`)에 정의된 직책(파트장, 팀장, 센터장, 공장장, 본부장, 총괄, 대표이사, 미지정) 전용 드롭다운(`<select>`)으로 개편
+  - **실시간 결재 권한 티어 인포 박스**: 직급/직책 선택 즉시 `getUserEffectiveTier`에 따른 **[🛡️ 결재 권한 티어: N티어 (직책 우선 판정 / 직급 기준 판정)]** 안내 박스 실시간 렌더링
+  - **조직도 소속원 카드**: 중앙 카드에 `{user.name} | {eff.effectiveTier}티어` 배지 및 `{user.position} · {user.duty}` 직관 표출
+  - **저장 및 엑셀 무결성**: 단일 저장(`applyProfileChanges`) 및 일괄 저장(`handleSaveAll`) 시 `tier_level` 자동 계산 후 DB(`users`) 및 LocalStorage 동기화, 엑셀 내보내기에 `결재티어` 컬럼 추가
+- **결재선 엔진 연동 강화 (`src/hooks/useApproval.ts` & `src/services/db.ts`)**:
+  - `loadApprovalTierConfigs` / `getStoredApprovalTierConfigs` SSOT 로더 탑재
+  - `createApprovalRequest` 시 인사관리에서 설정한 최신 `duty`와 `position`을 완벽 병합하여 직책/직급 기반 결재권자(Approver) 자동 탐색·배정
+- **검증**: `tsc -b && vite build` 정상 통과 (0 Errors).
+
+---
+
 ## 2026-09-30 18:35 (v1.8.3.Build.15)
 
 ### [전자결재 엔진] '재고실사보고' 결재선 추가 및 '근태'/'보고' 신규 결재 유형 배지 신설 & 배지 무누락 지능형 보장

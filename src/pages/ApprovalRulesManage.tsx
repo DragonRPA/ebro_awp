@@ -55,18 +55,20 @@ const sel: React.CSSProperties = {
   cursor: 'pointer',
 };
 
-/* ─── 카테고리 색상 정의 ─────────────────────────────────────── */
+/* ─── 카테고리 순서 및 색상 정의 (전사 표준 SSOT) ────────── */
+export const APPROVAL_CATEGORY_ORDER = ['고객', '계약', '자산', '정산', '인사', '보고'] as const;
+
 const CATEGORY_COLORS: Record<string, { bg: string; color: string }> = {
   '고객':      { bg: '#1d4ed8', color: '#dbeafe' },
   '계약':      { bg: '#15803d', color: '#dcfce7' },
+  '자산':      { bg: '#b91c1c', color: '#fee2e2' },
+  '정산':      { bg: '#0369a1', color: '#e0f2fe' },
+  '인사':      { bg: '#0f766e', color: '#ccfbf1' },
+  '보고':      { bg: '#4338ca', color: '#e0e7ff' },
   '출고/반납': { bg: '#a16207', color: '#fef9c3' },
   '배차':      { bg: '#7e22ce', color: '#f3e8ff' },
-  '자산':      { bg: '#b91c1c', color: '#fee2e2' },
   '정비':      { bg: '#c2410c', color: '#ffedd5' },
-  '정산':      { bg: '#0369a1', color: '#e0f2fe' },
   '근태':      { bg: '#059669', color: '#d1fae5' },
-  '보고':      { bg: '#4338ca', color: '#e0e7ff' },
-  '인사':      { bg: '#0f766e', color: '#ccfbf1' },
   '기타':      { bg: '#475569', color: '#e2e8f0' },
 };
 
@@ -431,15 +433,11 @@ const ApprovalRulesManage: React.FC = () => {
     const ev = APPROVAL_EVENT_REGISTRY.find(e => e.code === eventCode);
     let category: string | undefined = ev?.category;
     if (!category) {
-      if (eventCode.includes('LEAVE') || eventName?.includes('연차') || eventName?.includes('근태')) category = '근태';
+      if (eventCode.includes('LEAVE') || eventName?.includes('연차') || eventCode.includes('PAYROLL') || eventName?.includes('급여')) category = '인사';
       else if (eventCode.includes('REPORT') || eventCode.includes('STOCK') || eventName?.includes('보고') || eventName?.includes('실사')) category = '보고';
-      else if (eventCode.includes('PAYROLL') || eventName?.includes('급여')) category = '인사';
-      else if (eventCode.includes('DISPATCH') || eventName?.includes('배차') || eventName?.includes('운송')) category = '배차';
-      else if (eventCode.includes('REPAIR') || eventCode.includes('CONSUMABLE') || eventName?.includes('수리') || eventName?.includes('소모품')) category = '정비';
-      else if (eventCode.includes('RENT') || eventCode.includes('BILLING') || eventCode.includes('PAYMENT') || eventName?.includes('지급') || eventName?.includes('청구') || eventName?.includes('수납') || eventName?.includes('정산')) category = '정산';
+      else if (eventCode.includes('DISPATCH') || eventName?.includes('운송') || eventCode.includes('CONSUMABLE') || eventName?.includes('소모품') || eventCode.includes('RENT') || eventCode.includes('임차') || eventCode.includes('DELINQUENCY') || eventCode.includes('연체') || eventName?.includes('정산')) category = '정산';
+      else if (eventCode.includes('REPAIR_BILLING') || eventName?.includes('수리비') || eventCode.includes('CONTRACT') || eventName?.includes('계약')) category = '계약';
       else if (eventCode.includes('CUSTOMER') || eventName?.includes('고객')) category = '고객';
-      else if (eventCode.includes('CONTRACT') || eventName?.includes('계약')) category = '계약';
-      else if (eventCode.includes('OUTBOUND') || eventCode.includes('RETURN') || eventName?.includes('출고') || eventName?.includes('반납')) category = '출고/반납';
       else if (eventCode.includes('ASSET') || eventName?.includes('자산')) category = '자산';
       else category = '기타';
     }
@@ -454,6 +452,49 @@ const ApprovalRulesManage: React.FC = () => {
       </span>
     );
   };
+
+  /* ── 결재선 유형(카테고리)별 정렬 ────────────────────────── */
+  const sortedRules = useMemo(() => {
+    const registryMap = new Map<string, { category: string; order: number }>();
+    APPROVAL_EVENT_REGISTRY.forEach((ev, idx) => {
+      registryMap.set(ev.code, { category: ev.category, order: idx });
+    });
+
+    const catRank = (cat: string) => {
+      const idx = (APPROVAL_CATEGORY_ORDER as readonly string[]).indexOf(cat as any);
+      return idx >= 0 ? idx : 999;
+    };
+
+    return [...rules].sort((a, b) => {
+      const metaA = registryMap.get(a.event_code);
+      const metaB = registryMap.get(b.event_code);
+
+      const catA = metaA?.category || (a.event_code.includes('LEAVE') || a.event_code.includes('PAYROLL') ? '인사' : '기타');
+      const catB = metaB?.category || (b.event_code.includes('LEAVE') || b.event_code.includes('PAYROLL') ? '인사' : '기타');
+
+      const rankA = catRank(catA);
+      const rankB = catRank(catB);
+
+      if (rankA !== rankB) return rankA - rankB;
+
+      const orderA = metaA !== undefined ? metaA.order : 999;
+      const orderB = metaB !== undefined ? metaB.order : 999;
+      if (orderA !== orderB) return orderA - orderB;
+
+      return (a.event_name || '').localeCompare(b.event_name || '', 'ko');
+    });
+  }, [rules]);
+
+  /* ── 카테고리별 건수 집계 ───────────────────────────────── */
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    sortedRules.forEach(r => {
+      const ev = APPROVAL_EVENT_REGISTRY.find(e => e.code === r.event_code);
+      const cat = ev?.category || '기타';
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+    return counts;
+  }, [sortedRules]);
 
   /* ── 티어 옵션 셀렉트 컴포넌트 ───────────────────────────── */
   const renderTierSelectOptions = () => (
@@ -550,6 +591,34 @@ const ApprovalRulesManage: React.FC = () => {
             </button>
           </div>
 
+          {/* ── 카테고리별 요약 바 (유형별 정렬 현황) ── */}
+          <div style={{
+            display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px',
+            marginBottom: '14px', padding: '10px 14px',
+            background: 'var(--bg-card)', border: '1px solid var(--border-color)',
+            borderRadius: '8px',
+          }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginRight: '6px' }}>
+              결재선 유형 현황 (총 {sortedRules.length}건):
+            </span>
+            {APPROVAL_CATEGORY_ORDER.map(cat => {
+              const count = categoryCounts[cat] || 0;
+              const colors = CATEGORY_COLORS[cat] || { bg: '#475569', color: '#e2e8f0' };
+              return (
+                <span
+                  key={cat}
+                  style={{
+                    fontSize: '11px', fontWeight: 700, padding: '3px 9px', borderRadius: '12px',
+                    background: colors.bg, color: colors.color, display: 'inline-flex', alignItems: 'center', gap: '4px',
+                  }}
+                >
+                  <span>{cat}</span>
+                  <span style={{ opacity: 0.9 }}>{count}</span>
+                </span>
+              );
+            })}
+          </div>
+
           {/* ── 그리드 ── */}
           <div style={{
             border: '1px solid var(--border-color)', borderRadius: '10px',
@@ -578,13 +647,28 @@ const ApprovalRulesManage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {rules.map(r => {
+                {sortedRules.map((r, idx) => {
                   const isSaving = savingIds.has(r.id!);
                   const isExpanded = expandedRuleId === r.id;
                   const consensusCount = consensusMap[r.id!]?.length ?? null;
 
+                  // 카테고리 구분 섹션 판정
+                  const ev = APPROVAL_EVENT_REGISTRY.find(e => e.code === r.event_code);
+                  const currentCategory = ev?.category || '기타';
+                  const prevEv = idx > 0 ? APPROVAL_EVENT_REGISTRY.find(e => e.code === sortedRules[idx - 1].event_code) : null;
+                  const prevCategory = prevEv?.category || (idx === 0 ? null : '기타');
+                  const isNewCategory = currentCategory !== prevCategory;
+                  const categoryTotal = categoryCounts[currentCategory] || 0;
+
                   return (
                     <React.Fragment key={r.id}>
+                      {isNewCategory && (
+                        <tr style={{ background: 'var(--bg-card-header)', borderTop: idx > 0 ? '2px solid var(--border-color)' : undefined }}>
+                          <td colSpan={7} style={{ padding: '6px 14px', fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                            {currentCategory} ({categoryTotal})
+                          </td>
+                        </tr>
+                      )}
                       <tr style={{
                         background: isSaving
                           ? 'var(--warning-light)'

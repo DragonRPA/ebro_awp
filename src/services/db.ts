@@ -300,6 +300,84 @@ export const TIER_LABELS: Record<number, string> = {
   7: '대표',
 };
 
+/** 전사 직급·직책 결재 티어 설정 로더 (Supabase DB ➔ LocalStorage ➔ DEFAULT_TIERS SSOT 캐싱) */
+export async function loadApprovalTierConfigs(): Promise<{
+  duties: ApprovalTierConfig[];
+  positions: ApprovalTierConfig[];
+}> {
+  let duties: ApprovalTierConfig[] = DEFAULT_DUTY_TIERS;
+  let positions: ApprovalTierConfig[] = DEFAULT_POSITION_TIERS;
+
+  // 1. Supabase DB 조회 시도
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('approval_tier_configs')
+        .select('*')
+        .order('seq_order', { ascending: true });
+
+      if (!error && data && data.length > 0) {
+        const dbDuties = data.filter((item: ApprovalTierConfig) => item.category === 'DUTY');
+        const dbPositions = data.filter((item: ApprovalTierConfig) => item.category === 'POSITION');
+
+        if (dbDuties.length > 0) duties = dbDuties;
+        if (dbPositions.length > 0) positions = dbPositions;
+
+        try {
+          localStorage.setItem('erp_approval_tier_configs', JSON.stringify({ duties, positions }));
+        } catch {}
+
+        return { duties, positions };
+      }
+    } catch (err) {
+      // fallback to localStorage
+    }
+  }
+
+  // 2. LocalStorage 조회
+  try {
+    const rawLocal = localStorage.getItem('erp_approval_tier_configs');
+    if (rawLocal) {
+      const parsed = JSON.parse(rawLocal);
+      if (parsed.duties && parsed.duties.length > 0) duties = parsed.duties;
+      if (parsed.positions && parsed.positions.length > 0) positions = parsed.positions;
+      return { duties, positions };
+    }
+  } catch {}
+
+  // 3. 기본값 fallback 및 로컬 저장
+  try {
+    localStorage.setItem('erp_approval_tier_configs', JSON.stringify({
+      duties: DEFAULT_DUTY_TIERS,
+      positions: DEFAULT_POSITION_TIERS,
+    }));
+  } catch {}
+
+  return { duties, positions };
+}
+
+/** 동기(Sync) 로더 (LocalStorage 또는 기본값 즉시 반환) */
+export function getStoredApprovalTierConfigs(): {
+  duties: ApprovalTierConfig[];
+  positions: ApprovalTierConfig[];
+} {
+  try {
+    const rawLocal = localStorage.getItem('erp_approval_tier_configs');
+    if (rawLocal) {
+      const parsed = JSON.parse(rawLocal);
+      return {
+        duties: (parsed.duties && parsed.duties.length > 0) ? parsed.duties : DEFAULT_DUTY_TIERS,
+        positions: (parsed.positions && parsed.positions.length > 0) ? parsed.positions : DEFAULT_POSITION_TIERS,
+      };
+    }
+  } catch {}
+
+  return {
+    duties: DEFAULT_DUTY_TIERS,
+    positions: DEFAULT_POSITION_TIERS,
+  };
+}
+
 /**
  * 임직원의 유효 결재 티어 산출 함수 (R&R 기반 직책 우선 강제 원칙)
  * 1. 직책(duty)이 등록되어 있으면 직책 티어가 최우선(더 강력하게) 작동
@@ -315,8 +393,9 @@ export function getUserEffectiveTier(
   source: 'DUTY' | 'POSITION' | 'DEFAULT';
   title: string;
 } {
-  const dutyList = dutyConfigs && dutyConfigs.length > 0 ? dutyConfigs : DEFAULT_DUTY_TIERS;
-  const positionList = positionConfigs && positionConfigs.length > 0 ? positionConfigs : DEFAULT_POSITION_TIERS;
+  const stored = (!dutyConfigs || !positionConfigs) ? getStoredApprovalTierConfigs() : null;
+  const dutyList = (dutyConfigs && dutyConfigs.length > 0) ? dutyConfigs : (stored?.duties || DEFAULT_DUTY_TIERS);
+  const positionList = (positionConfigs && positionConfigs.length > 0) ? positionConfigs : (stored?.positions || DEFAULT_POSITION_TIERS);
 
   // 1. 직책(Duty) 우선 판정 (R&R 단위 조직 책임자 권한 우선)
   if (user.duty && user.duty.trim()) {
@@ -358,8 +437,9 @@ export function getTierDisplayLabel(
   dutyConfigs?: ApprovalTierConfig[],
   positionConfigs?: ApprovalTierConfig[]
 ): string {
-  const dList = dutyConfigs && dutyConfigs.length > 0 ? dutyConfigs : DEFAULT_DUTY_TIERS;
-  const pList = positionConfigs && positionConfigs.length > 0 ? positionConfigs : DEFAULT_POSITION_TIERS;
+  const stored = (!dutyConfigs || !positionConfigs) ? getStoredApprovalTierConfigs() : null;
+  const dList = (dutyConfigs && dutyConfigs.length > 0) ? dutyConfigs : (stored?.duties || DEFAULT_DUTY_TIERS);
+  const pList = (positionConfigs && positionConfigs.length > 0) ? positionConfigs : (stored?.positions || DEFAULT_POSITION_TIERS);
 
   const positions = pList.filter(p => p.tier_level === tier).map(p => p.title);
   const duties = dList.filter(d => d.tier_level === tier).map(d => d.title);
@@ -373,30 +453,34 @@ export function getTierDisplayLabel(
   return `${tier}티어: ${posText}`;
 }
 
-/** 전사 업무 이벤트 레지스트리 (SSOT) — 결재선 설정 화면 드롭다운 원본 */
+/** 전사 업무 이벤트 레지스트리 (SSOT) — 결재선 설정 화면 드롭다운 원본 (유형별 정렬) */
 export const APPROVAL_EVENT_REGISTRY = [
-  { code: 'CUSTOMER_REGISTRATION',  name: '고객 등록',        targetTable: 'customers',          category: '고객' },
-  { code: 'CONTRACT_SIGN',          name: '계약 체결',        targetTable: 'contracts',           category: '계약' },
-  { code: 'CONTRACT_TERMINATE',     name: '계약 해지',        targetTable: 'contracts',           category: '계약' },
-  { code: 'CONTRACT_EXTEND',        name: '계약 연장',        targetTable: 'contracts',           category: '계약' },
-  { code: 'CONTRACT_SUCCEED',       name: '계약 승계',        targetTable: 'contracts',           category: '계약' },
-  { code: 'EXCHANGE_APPROVE',       name: '대차 교체 승인',   targetTable: 'contracts',           category: '출고/반납' },
-  { code: 'OUTBOUND_APPROVE',       name: '출고 검수 승인',   targetTable: 'deliveries',          category: '출고/반납' },
-  { code: 'RETURN_APPROVE',         name: '반납 검수 승인',   targetTable: 'deliveries',          category: '출고/반납' },
-  { code: 'TRUCK_DISPATCH_APPROVE', name: '배차 발행 승인',   targetTable: 'deliveries',          category: '배차' },
-  { code: 'ASSET_DISPOSAL',         name: '자산 매각',        targetTable: 'assets',              category: '자산' },
-  { code: 'ASSET_WRITE_OFF',        name: '자산 폐기',        targetTable: 'assets',              category: '자산' },
-  { code: 'REPAIR_CLOSE',           name: '수리 완료 승인',   targetTable: 'repair_records',      category: '정비' },
-  { code: 'BILLING_FINALIZE',       name: '청구서 확정',      targetTable: 'billing_statements',  category: '정산' },
-  { code: 'PAYMENT_CONFIRM',        name: '수납 확정',        targetTable: 'receipts',            category: '정산' },
-  { code: 'DELINQUENCY_WRITE_OFF',  name: '연체 탕감 승인',   targetTable: 'contracts',           category: '정산' },
-  { code: 'LEAVE_APPLICATION',      name: '연차신청',          targetTable: 'leave_requests',      category: '근태' },
-  { code: 'RENT_PAYMENT',           name: '임차료 지급',      targetTable: 'rent_assets',         category: '정산' },
-  { code: 'DISPATCH_PAYMENT',       name: '운송료 지급',      targetTable: 'deliveries',          category: '배차' },
-  { code: 'CONSUMABLE_PURCHASE_PAYMENT', name: '소모품 구입 지급', targetTable: 'consumable_purchases', category: '정비' },
-  { code: 'PAYROLL_PAYMENT',        name: '급여정산 지급',    targetTable: 'payroll_records',     category: '인사' },
-  { code: 'REPAIR_BILLING',         name: '수리비 청구',      targetTable: 'repairs',             category: '정비' },
-  { code: 'STOCK_AUDIT_REPORT',     name: '재고실사보고',      targetTable: 'consumables',         category: '보고' },
+  // ── 1. 고객 (1) ──
+  { code: 'CUSTOMER_REGISTRATION',       name: '고객 등록',        targetTable: 'customers',           category: '고객' },
+
+  // ── 2. 계약 (5) ──
+  { code: 'CONTRACT_SIGN',               name: '계약 체결',        targetTable: 'contracts',           category: '계약' },
+  { code: 'CONTRACT_TERMINATE',          name: '계약 해지',        targetTable: 'contracts',           category: '계약' },
+  { code: 'CONTRACT_EXTEND',             name: '계약 연장',        targetTable: 'contracts',           category: '계약' },
+  { code: 'CONTRACT_SUCCEED',            name: '계약 승계',        targetTable: 'contracts',           category: '계약' },
+  { code: 'REPAIR_BILLING',              name: '수리비 청구',      targetTable: 'repairs',             category: '계약' },
+
+  // ── 3. 자산 (2) ──
+  { code: 'ASSET_DISPOSAL',              name: '자산 매각',        targetTable: 'assets',              category: '자산' },
+  { code: 'ASSET_WRITE_OFF',             name: '자산 폐기',        targetTable: 'assets',              category: '자산' },
+
+  // ── 4. 정산 (4) ──
+  { code: 'DISPATCH_PAYMENT',            name: '운송료 지급',      targetTable: 'deliveries',          category: '정산' },
+  { code: 'CONSUMABLE_PURCHASE_PAYMENT', name: '소모품 구입 지급', targetTable: 'consumable_purchases', category: '정산' },
+  { code: 'RENT_PAYMENT',                name: '임차료 지급',      targetTable: 'rent_assets',         category: '정산' },
+  { code: 'DELINQUENCY_WRITE_OFF',       name: '연체 탕감 승인',   targetTable: 'contracts',           category: '정산' },
+
+  // ── 5. 인사 (2) ──
+  { code: 'LEAVE_APPLICATION',           name: '연차신청',         targetTable: 'leave_requests',      category: '인사' },
+  { code: 'PAYROLL_PAYMENT',             name: '급여지급',         targetTable: 'payroll_records',     category: '인사' },
+
+  // ── 6. 보고 (1) ──
+  { code: 'STOCK_AUDIT_REPORT',          name: '재고실사보고',     targetTable: 'consumables',         category: '보고' },
 ] as const;
 
 export type ApprovalEventCode = typeof APPROVAL_EVENT_REGISTRY[number]['code'];
@@ -5994,6 +6078,7 @@ class LocalDB {
             departmentId: u.departmentId || null,
             position: u.position || '',
             duty: u.duty || null,
+            tier_level: getUserEffectiveTier(u).effectiveTier,
             managerId: (u as any).managerId || null,
             role: u.role || 'USER',
             status: u.status || 'ACTIVE',
@@ -6018,6 +6103,7 @@ class LocalDB {
                 delete copy.retireDate;
                 delete copy.profileImageUrl;
                 if (msg.includes('duty')) delete copy.duty;
+                if (msg.includes('tier_level')) delete copy.tier_level;
                 return copy;
               });
               const retryRes = await supabase.from('users').upsert(fallbackUsers, { onConflict: 'id' });
