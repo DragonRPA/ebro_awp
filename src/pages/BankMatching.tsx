@@ -1134,11 +1134,11 @@ export const BankMatching: React.FC = () => {
           </div>
 
           {/* 데이터 테이블 (헌장 3.6: 유형 B 고밀도 슬림 그리드, 38~42px 행, Col 0 Sticky 고정) */}
-          <div style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto' }}>
+          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto' }}>
             <table style={{ width: '100%', minWidth: '1100px', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
               <thead>
-                <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', width: '150px', position: 'sticky', left: 0, zIndex: 2, backgroundColor: 'var(--bg-main)' }}>수납/지급 대사</th>
+                <tr style={{ backgroundColor: 'var(--bg-card-header)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', width: '150px', position: 'sticky', left: 0, zIndex: 2, backgroundColor: 'var(--bg-card-header)' }}>수납/지급 대사</th>
                   <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>은행명</th>
                   <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>거래일시</th>
                   <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>적요</th>
@@ -1178,7 +1178,7 @@ export const BankMatching: React.FC = () => {
                         key={tx.id}
                         style={{ 
                           borderBottom: '1px solid var(--border-color)',
-                          backgroundColor: isMatched ? 'rgba(16, 185, 129, 0.02)' : 'transparent',
+                          backgroundColor: isMatched ? 'rgba(16, 185, 129, 0.08)' : 'transparent',
                           height: '38px'
                         }}
                       >
@@ -1188,7 +1188,7 @@ export const BankMatching: React.FC = () => {
                           position: 'sticky',
                           left: 0,
                           zIndex: 1,
-                          backgroundColor: isMatched ? '#f0fdf4' : 'var(--bg-surface)'
+                          backgroundColor: isMatched ? 'var(--success-light)' : 'var(--bg-card)'
                         }}>
                           {tx.depositAmount > 0 ? (
                             isFullyUsed ? (
