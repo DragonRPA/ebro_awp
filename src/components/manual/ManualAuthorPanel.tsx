@@ -1,92 +1,124 @@
 // src/components/manual/ManualAuthorPanel.tsx
-// 작성 모드 — position:fixed 우측 플로팅 패널
-// ManualStudio 이식: 요소 선택, OCR 대체 자동 추출, Filmstrip, Auto Re-index
+// 작성 모드 — 매뉴얼 항목 전체 관리 패널
+// 기능: 항목 목록 조회, 추가, 편집, 삭제, 순서변경(위/아래), 요소 자동 선택
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase } from '../../services/db';
 import type { ManualAnnotationItem, AnnotationType, PositionHint } from '../../types/manual';
 import { DEFAULT_BADGE_COLORS, DEFAULT_ITEM } from '../../types/manual';
 import { useManualContext } from './ManualContext';
 
-const ANNOTATION_TYPES: { value: AnnotationType; label: string }[] = [
-  { value: 'stamp', label: '① 순번 뱃지' },
-  { value: 'callout', label: '💬 말풍선' },
-  { value: 'click_ripple', label: '🔵 클릭 리플' },
-  { value: 'highlight', label: '📌 강조 박스' },
+/* ─── 상수 ────────────────────────────────────────────────────── */
+const ANNOTATION_TYPES: { value: AnnotationType; label: string; icon: string }[] = [
+  { value: 'stamp',        label: '순번 뱃지',   icon: '①' },
+  { value: 'callout',      label: '말풍선',      icon: '💬' },
+  { value: 'click_ripple', label: '클릭 리플',   icon: '🔵' },
+  { value: 'highlight',    label: '강조 박스',   icon: '📌' },
 ];
-
 const POSITION_HINTS: { value: PositionHint; label: string }[] = [
   { value: 'bottom', label: '아래' },
-  { value: 'top', label: '위' },
-  { value: 'right', label: '오른쪽' },
-  { value: 'left', label: '왼쪽' },
+  { value: 'top',    label: '위' },
+  { value: 'right',  label: '오른쪽' },
+  { value: 'left',   label: '왼쪽' },
 ];
 
-const inputStyle: React.CSSProperties = {
+/* ─── 스타일 유틸 ──────────────────────────────────────────────── */
+const inputS: React.CSSProperties = {
   width: '100%', padding: '6px 10px',
-  border: '1px solid var(--border-color)',
-  borderRadius: '6px', fontSize: '13px',
-  background: 'var(--bg-card)', color: 'var(--text-main)',
+  border: '1px solid var(--border-color)', borderRadius: '6px',
+  fontSize: '13px', background: 'var(--bg-card)', color: 'var(--text-main)',
   boxSizing: 'border-box',
 };
-const labelStyle: React.CSSProperties = {
-  fontSize: '11px', fontWeight: 700,
-  color: 'var(--text-secondary)', marginBottom: '3px', display: 'block',
+const labelS: React.CSSProperties = {
+  fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)',
+  marginBottom: '2px', display: 'block',
 };
-const fieldStyle: React.CSSProperties = {
-  display: 'flex', flexDirection: 'column', gap: '3px', marginBottom: '10px',
+const fieldS: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: '2px', marginBottom: '8px' };
+const btnBase: React.CSSProperties = {
+  border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 700, fontSize: '12px',
 };
 
-/* ── OCR 대체: DOM 요소에서 텍스트 자동 추출 ─────────────────── */
-function autoExtractFromEl(el: Element): string {
-  const t = (el as HTMLElement).getAttribute('data-mid') || '';
-  const ph = (el as HTMLInputElement).placeholder || '';
-  const aria = el.getAttribute('aria-label') || '';
-  const title = el.getAttribute('title') || '';
-  const text = (el as HTMLElement).innerText?.trim().slice(0, 60) || '';
-  return [t, ph, aria, title, text].filter(Boolean).join(' / ');
-}
-
-/* ── CSS Selector 자동 생성 ──────────────────────────────────── */
+/* ─── CSS Selector 자동 생성 ──────────────────────────────────── */
 function buildSelector(el: Element): string {
   const mid = el.getAttribute('data-mid');
   if (mid) return `[data-mid="${mid}"]`;
-  const id = el.id;
-  if (id) return `#${id}`;
-  // 계층 최대 3단계
+  if (el.id) return `#${el.id}`;
   const parts: string[] = [];
   let cur: Element | null = el;
-  for (let i = 0; i < 3 && cur; i++) {
+  for (let i = 0; i < 3 && cur && cur !== document.body; i++) {
     let part = cur.tagName.toLowerCase();
-    const cls = Array.from(cur.classList).filter(c => !c.match(/^(active|selected|hover|focus)$/)).slice(0, 2).join('.');
+    const cls = Array.from(cur.classList)
+      .filter(c => !c.match(/^(active|selected|hover|focus|open|visible)$/i))
+      .slice(0, 2).join('.');
     if (cls) part += '.' + cls;
     parts.unshift(part);
     cur = cur.parentElement;
   }
   return parts.join(' > ');
 }
+function autoExtract(el: Element): string {
+  const attrs = [
+    el.getAttribute('data-mid'),
+    (el as HTMLInputElement).placeholder,
+    el.getAttribute('aria-label'),
+    el.getAttribute('title'),
+    (el as HTMLElement).innerText?.trim().slice(0, 50),
+  ].filter(Boolean);
+  return attrs.join(' / ');
+}
 
 /* ════════════════════════════════════════════════════════════════
-   메인 작성 패널
+   빈 편집 폼 초기값
+════════════════════════════════════════════════════════════════ */
+const emptyForm = (): Omit<ManualAnnotationItem, 'seq'> => ({
+  ...DEFAULT_ITEM,
+  type: 'stamp',
+  badgeColor: DEFAULT_BADGE_COLORS[0],
+  positionHint: 'bottom',
+  spotlight: false,
+  arrow: null,
+  imageUrl: null,
+  autoExtracted: '',
+});
+
+/* ════════════════════════════════════════════════════════════════
+   메인 패널 컴포넌트
 ════════════════════════════════════════════════════════════════ */
 export const ManualAuthorPanel: React.FC = () => {
-  const { mode, page, upsertItem, deleteItem, saving, currentPageId, currentPageTitle } = useManualContext();
-  const [selectMode, setSelectMode] = useState(false);
-  const [form, setForm] = useState<Omit<ManualAnnotationItem, 'seq'>>({ ...DEFAULT_ITEM });
-  const [editingSeq, setEditingSeq] = useState<number | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  const { mode, setMode, page, setPage, savePage, currentPageId, currentPageTitle, saving } = useManualContext();
+
+  /* ─ 상태 ─────────────────────────────────────────────────── */
+  const [selectMode, setSelectMode] = useState(false);      // 요소 선택 모드
+  const [editingSeq, setEditingSeq] = useState<number | null>(null); // 편집 중 seq
+  const [form, setForm] = useState<Omit<ManualAnnotationItem, 'seq'>>(emptyForm());
+  const [insertAfterSeq, setInsertAfterSeq] = useState<number | null>(null); // 삽입 위치
+  const [panelTab, setPanelTab] = useState<'list' | 'edit'>('list'); // list / edit
+  const [collapsed, setCollapsed] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // 요소 선택 인터셉터
+  /* 편집 시작 시 패널 탭 전환 */
+  const startEdit = useCallback((item: ManualAnnotationItem) => {
+    setEditingSeq(item.seq);
+    setForm({ ...item });
+    setPanelTab('edit');
+    setInsertAfterSeq(null);
+  }, []);
+
+  /* 신규 추가 시작 */
+  const startNew = useCallback((afterSeq?: number) => {
+    setEditingSeq(null);
+    setForm(emptyForm());
+    setInsertAfterSeq(afterSeq ?? null);
+    setPanelTab('edit');
+  }, []);
+
+  /* ─ 요소 선택 인터셉터 ────────────────────────────────────── */
   useEffect(() => {
     if (!selectMode) return;
     const handler = (e: MouseEvent) => {
       e.preventDefault(); e.stopPropagation();
       const el = e.target as Element;
-      // 패널 자체 클릭 무시
-      if (el.closest('[data-manual-panel]')) return;
+      if ((el as HTMLElement).closest?.('[data-manual-panel]')) return;
       const sel = buildSelector(el);
-      const extracted = autoExtractFromEl(el);
+      const extracted = autoExtract(el);
       setForm(prev => ({
         ...prev,
         selector: sel,
@@ -99,272 +131,447 @@ export const ManualAuthorPanel: React.FC = () => {
     return () => document.removeEventListener('click', handler, true);
   }, [selectMode]);
 
-  const handleEditItem = (item: ManualAnnotationItem) => {
-    setEditingSeq(item.seq);
-    setForm({ ...item });
-  };
+  /* ─ 순서 변경 ─────────────────────────────────────────────── */
+  const moveItem = useCallback(async (seq: number, dir: -1 | 1) => {
+    if (!page) return;
+    const items = [...page.items];
+    const idx = items.findIndex(i => i.seq === seq);
+    const swapIdx = idx + dir;
+    if (swapIdx < 0 || swapIdx >= items.length) return;
+    [items[idx], items[swapIdx]] = [items[swapIdx], items[idx]];
+    // seq 재번호
+    const reindexed = items.map((item, i) => ({ ...item, seq: i + 1 }));
+    const updated = { ...page, items: reindexed };
+    setPage(updated);
+    await savePage(updated);
+  }, [page, setPage, savePage]);
 
-  const handleSave = async () => {
+  /* ─ 항목 삭제 ─────────────────────────────────────────────── */
+  const deleteItem = useCallback(async (seq: number, label: string) => {
+    if (!page) return;
+    if (!window.confirm(`항목 #${seq} "${label}"을 삭제하시겠습니까?`)) return;
+    const filtered = page.items.filter(i => i.seq !== seq);
+    const reindexed = filtered.map((item, i) => ({ ...item, seq: i + 1 }));
+    const updated = { ...page, items: reindexed };
+    setPage(updated);
+    await savePage(updated);
+    if (editingSeq === seq) { setEditingSeq(null); setPanelTab('list'); }
+  }, [page, setPage, savePage, editingSeq]);
+
+  /* ─ 편집 폼 저장 ──────────────────────────────────────────── */
+  const saveForm = useCallback(async () => {
     if (!form.selector || !form.label) { alert('요소 선택 및 레이블을 입력하세요.'); return; }
-    const item: ManualAnnotationItem = {
-      ...form,
-      seq: editingSeq ?? (page?.items.length ?? 0) + 1,
-    };
-    await upsertItem(item);
+    if (!page) return;
+
+    let newItems: ManualAnnotationItem[];
+
+    if (editingSeq !== null) {
+      // 기존 항목 수정
+      newItems = page.items.map(i =>
+        i.seq === editingSeq ? { ...form, seq: editingSeq } : i
+      );
+    } else {
+      // 신규 삽입
+      if (insertAfterSeq !== null) {
+        const insertIdx = page.items.findIndex(i => i.seq === insertAfterSeq);
+        const before = page.items.slice(0, insertIdx + 1);
+        const after  = page.items.slice(insertIdx + 1);
+        newItems = [...before, { ...form, seq: 0 }, ...after];
+      } else {
+        newItems = [...page.items, { ...form, seq: 0 }];
+      }
+      // seq 재번호
+      newItems = newItems.map((item, i) => ({ ...item, seq: i + 1 }));
+    }
+
+    const updated = { ...page, items: newItems };
+    setPage(updated);
+    await savePage(updated);
     setEditingSeq(null);
-    setForm({ ...DEFAULT_ITEM });
-  };
-
-  const handleDelete = async (seq: number) => {
-    if (!window.confirm(`어노테이션 #${seq}을 삭제하시겠습니까?`)) return;
-    await deleteItem(seq);
-    if (editingSeq === seq) { setEditingSeq(null); setForm({ ...DEFAULT_ITEM }); }
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !supabase) return;
-    setUploading(true); setUploadError(null);
-    const ext = file.name.split('.').pop();
-    const path = `manual/${currentPageId}/${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from('attachments').upload(path, file, { upsert: true });
-    if (error) { setUploadError('업로드 오류: ' + error.message); setUploading(false); return; }
-    const { data: urlData } = supabase.storage.from('attachments').getPublicUrl(path);
-    setForm(prev => ({ ...prev, imageUrl: urlData.publicUrl }));
-    setUploading(false);
-  };
+    setForm(emptyForm());
+    setInsertAfterSeq(null);
+    setPanelTab('list');
+  }, [form, editingSeq, insertAfterSeq, page, setPage, savePage]);
 
   if (mode !== 'authoring') return null;
 
+  const items = page?.items ?? [];
+
+  /* ─ 타입 레이블 ───────────────────────────────────────────── */
+  const typeLabel = (t: AnnotationType) => ANNOTATION_TYPES.find(a => a.value === t);
+
+  /* ════════════════════════════════════════════════════════════
+     JSX
+  ════════════════════════════════════════════════════════════ */
   return (
     <>
-      {/* 요소 선택 모드 인터셉터 오버레이 */}
+      {/* ── 요소 선택 오버레이 ── */}
       {selectMode && (
         <div style={{
-          position: 'fixed', inset: 0,
-          cursor: 'crosshair', zIndex: 9990,
-          background: 'rgba(99,102,241,0.08)',
-          border: '2px dashed var(--primary)',
+          position: 'fixed', inset: 0, cursor: 'crosshair', zIndex: 19990,
+          background: 'rgba(99,102,241,0.07)', border: '2px dashed #6366f1',
         }}>
           <div style={{
             position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
-            background: 'var(--primary)', color: '#fff',
-            padding: '12px 24px', borderRadius: '12px',
-            fontSize: '16px', fontWeight: 700,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-            pointerEvents: 'none',
+            background: '#4f46e5', color: '#fff', padding: '12px 28px',
+            borderRadius: '14px', fontSize: '16px', fontWeight: 700,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.35)', pointerEvents: 'none',
           }}>
             🎯 어노테이션할 UI 요소를 클릭하세요
           </div>
         </div>
       )}
 
-      {/* 작성 패널 */}
+      {/* ── 메인 패널 ── */}
       <div
         data-manual-panel="true"
         style={{
-          position: 'fixed', top: '80px', right: '12px',
-          width: '320px', maxHeight: 'calc(100vh - 100px)',
+          position: 'fixed', top: '68px', right: '10px',
+          width: collapsed ? '42px' : '340px',
+          maxHeight: 'calc(100vh - 78px)',
           background: 'var(--bg-card)',
-          border: '2px solid var(--primary)',
+          border: '2px solid #4f46e5',
           borderRadius: '12px',
           boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
-          zIndex: 9995, display: 'flex', flexDirection: 'column',
+          zIndex: 9995,
+          display: 'flex', flexDirection: 'column',
           overflow: 'hidden',
+          transition: 'width 0.2s',
         }}
       >
-        {/* 패널 헤더 */}
+        {/* ── 헤더 ── */}
         <div style={{
-          padding: '12px 14px',
-          background: 'var(--primary)', color: '#fff',
+          padding: '10px 12px',
+          background: '#4f46e5', color: '#fff',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          flexShrink: 0,
+          flexShrink: 0, gap: '6px',
         }}>
-          <span style={{ fontSize: '14px', fontWeight: 700 }}>
-            📝 매뉴얼 작성 — {currentPageTitle || currentPageId}
-          </span>
-          {saving && <span style={{ fontSize: '11px', opacity: 0.85 }}>저장 중…</span>}
+          {!collapsed && (
+            <>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  ✏️ 매뉴얼 작성
+                </div>
+                <div style={{ fontSize: '11px', opacity: 0.8, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {currentPageTitle || currentPageId} · {items.length}건
+                  {saving && <span style={{ marginLeft: '6px', opacity: 0.75 }}>저장 중…</span>}
+                </div>
+              </div>
+            </>
+          )}
+          <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+            <button onClick={() => setCollapsed(v => !v)} style={{ ...btnBase, background: 'rgba(255,255,255,0.2)', color: '#fff', padding: '4px 8px' }}>
+              {collapsed ? '◀' : '▶'}
+            </button>
+            <button onClick={() => setMode('off')} style={{ ...btnBase, background: 'rgba(255,255,255,0.2)', color: '#fff', padding: '4px 8px' }}>
+              ✕
+            </button>
+          </div>
         </div>
 
-        {/* 스크롤 영역 */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '14px' }}>
-
-          {/* ── 요소 선택 ── */}
-          <div style={fieldStyle}>
-            <label style={labelStyle}>대상 UI 요소</label>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              <input
-                value={form.selector}
-                onChange={e => setForm(p => ({ ...p, selector: e.target.value }))}
-                placeholder='[data-mid="..."] 또는 직접 입력'
-                style={{ ...inputStyle, flex: 1, fontSize: '11px', fontFamily: 'monospace' }}
-              />
-              <button
-                onClick={() => setSelectMode(true)}
-                title="화면에서 직접 클릭하여 선택"
-                style={{
-                  padding: '6px 10px', background: 'var(--primary)', color: '#fff',
-                  border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 700,
-                  fontSize: '18px', lineHeight: 1, flexShrink: 0,
-                }}
-              >🎯</button>
-            </div>
-            {form.autoExtracted && (
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '2px' }}>
-                자동 추출: {form.autoExtracted}
-              </div>
-            )}
-          </div>
-
-          {/* ── 타입 ── */}
-          <div style={fieldStyle}>
-            <label style={labelStyle}>어노테이션 타입</label>
-            <select value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value as AnnotationType }))} style={inputStyle}>
-              {ANNOTATION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </div>
-
-          {/* ── 레이블 ── */}
-          <div style={fieldStyle}>
-            <label style={labelStyle}>주석 제목 *</label>
-            <input value={form.label} onChange={e => setForm(p => ({ ...p, label: e.target.value }))} placeholder="예: 전체 업무 일괄 생성" style={inputStyle} />
-          </div>
-
-          {/* ── 설명 ── */}
-          <div style={fieldStyle}>
-            <label style={labelStyle}>설명</label>
-            <textarea
-              value={form.description}
-              onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-              rows={3} placeholder="사용 방법 및 주의사항을 입력하세요."
-              style={{ ...inputStyle, resize: 'vertical' }}
-            />
-          </div>
-
-          {/* ── 배지 색상 ── */}
-          <div style={fieldStyle}>
-            <label style={labelStyle}>배지 색상</label>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {DEFAULT_BADGE_COLORS.map(c => (
-                <button key={c} onClick={() => setForm(p => ({ ...p, badgeColor: c }))} style={{
-                  width: '24px', height: '24px', borderRadius: '50%',
-                  background: c, border: form.badgeColor === c ? '3px solid var(--text-main)' : '2px solid transparent',
-                  cursor: 'pointer',
-                }} />
-              ))}
-              <input type="color" value={form.badgeColor} onChange={e => setForm(p => ({ ...p, badgeColor: e.target.value }))} style={{ width: '28px', height: '28px', border: 'none', borderRadius: '4px', cursor: 'pointer', padding: 0 }} />
-            </div>
-          </div>
-
-          {/* ── 위치 힌트 ── */}
-          <div style={fieldStyle}>
-            <label style={labelStyle}>말풍선 위치</label>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {POSITION_HINTS.map(h => (
-                <button key={h.value} onClick={() => setForm(p => ({ ...p, positionHint: h.value }))} style={{
-                  flex: 1, padding: '5px 4px', fontSize: '12px',
-                  background: form.positionHint === h.value ? 'var(--primary)' : 'var(--bg-secondary)',
-                  color: form.positionHint === h.value ? '#fff' : 'var(--text-secondary)',
-                  border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 600,
-                }}>
-                  {h.label}
+        {!collapsed && (
+          <>
+            {/* ── 탭 ── */}
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }}>
+              {(['list', 'edit'] as const).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => { if (tab === 'edit' && editingSeq === null && panelTab !== 'edit') startNew(); else setPanelTab(tab); }}
+                  style={{
+                    flex: 1, padding: '8px 4px', border: 'none',
+                    fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                    background: panelTab === tab ? 'var(--bg-card)' : 'var(--bg-secondary)',
+                    color: panelTab === tab ? '#4f46e5' : 'var(--text-secondary)',
+                    borderBottom: panelTab === tab ? '2px solid #4f46e5' : '2px solid transparent',
+                  }}
+                >
+                  {tab === 'list' ? `항목 목록 (${items.length})` : editingSeq !== null ? `#${editingSeq} 편집` : '새 항목'}
                 </button>
               ))}
             </div>
-          </div>
 
-          {/* ── Spotlight 토글 ── */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-            <button
-              onClick={() => setForm(p => ({ ...p, spotlight: !p.spotlight }))}
-              style={{
-                padding: '5px 12px', fontWeight: 700, fontSize: '12px',
-                background: form.spotlight ? 'var(--primary)' : 'var(--bg-secondary)',
-                color: form.spotlight ? '#fff' : 'var(--text-muted)',
-                border: 'none', borderRadius: '12px', cursor: 'pointer',
-              }}
-            >
-              💡 Spotlight {form.spotlight ? 'ON' : 'OFF'}
-            </button>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>클릭 시 대상 외 어둡게</span>
-          </div>
-
-          {/* ── 이미지 업로드 ── */}
-          <div style={fieldStyle}>
-            <label style={labelStyle}>참조 이미지 (선택)</label>
-            {form.imageUrl && (
-              <div style={{ position: 'relative', marginBottom: '6px' }}>
-                <img src={form.imageUrl} alt="preview" style={{ width: '100%', borderRadius: '6px', border: '1px solid var(--border-color)' }} />
-                <button onClick={() => setForm(p => ({ ...p, imageUrl: null }))} style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', padding: '2px 8px', fontSize: '12px' }}>×</button>
-              </div>
-            )}
-            <button onClick={() => fileRef.current?.click()} disabled={uploading} style={{ ...inputStyle, cursor: 'pointer', textAlign: 'center', fontWeight: 700 }}>
-              {uploading ? '업로드 중…' : '📎 이미지 선택'}
-            </button>
-            <input ref={fileRef} type="file" accept="image/*" onChange={handleImageUpload} style={{ display: 'none' }} />
-            {uploadError && <span style={{ fontSize: '11px', color: 'var(--danger)' }}>{uploadError}</span>}
-          </div>
-
-          {/* ── 저장 버튼 ── */}
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              onClick={handleSave}
-              style={{
-                flex: 1, padding: '9px', fontWeight: 700, fontSize: '14px',
-                background: 'var(--primary)', color: '#fff',
-                border: 'none', borderRadius: '7px', cursor: 'pointer',
-              }}
-            >
-              {editingSeq !== null ? '수정 저장' : '+ 어노테이션 추가'}
-            </button>
-            {editingSeq !== null && (
-              <button onClick={() => { setEditingSeq(null); setForm({ ...DEFAULT_ITEM }); }} style={{ padding: '9px 14px', background: 'var(--bg-secondary)', color: 'var(--text-main)', border: 'none', borderRadius: '7px', cursor: 'pointer', fontWeight: 700 }}>
-                취소
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* ── Filmstrip — 현재 어노테이션 목록 (ManualStudio 이식) ── */}
-        {page && page.items.length > 0 && (
-          <div style={{
-            borderTop: '1px solid var(--border-color)',
-            padding: '10px 14px',
-            background: 'var(--bg-secondary)',
-            flexShrink: 0, maxHeight: '200px', overflowY: 'auto',
-          }}>
-            <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '8px' }}>
-              FILMSTRIP — {page.items.length}건 (클릭하여 편집)
-            </div>
-            {page.items.map(item => (
-              <div
-                key={item.seq}
-                onClick={() => handleEditItem(item)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '8px',
-                  padding: '6px 8px', borderRadius: '6px', cursor: 'pointer', marginBottom: '4px',
-                  background: editingSeq === item.seq ? 'var(--primary-light)' : 'var(--bg-card)',
-                  border: `1px solid ${editingSeq === item.seq ? 'var(--primary)' : 'var(--border-color)'}`,
-                  transition: 'background 0.15s',
-                }}
-              >
-                <span style={{
-                  width: '22px', height: '22px', borderRadius: '50%',
-                  background: item.badgeColor, color: '#fff',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '11px', fontWeight: 700, flexShrink: 0,
-                }}>{item.seq}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.label || '(레이블 없음)'}</div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'monospace', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.selector}</div>
+            {/* ══════════ 탭 1: 항목 목록 ══════════ */}
+            {panelTab === 'list' && (
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                {/* 상단 액션 */}
+                <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '6px' }}>
+                  <button onClick={() => startNew()} style={{ ...btnBase, flex: 1, padding: '7px', background: '#4f46e5', color: '#fff', fontSize: '13px' }}>
+                    + 항목 추가
+                  </button>
                 </div>
-                <button
-                  onClick={e => { e.stopPropagation(); handleDelete(item.seq); }}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '14px', flexShrink: 0, padding: '2px 4px' }}
-                >🗑</button>
+
+                {items.length === 0 ? (
+                  <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                    <div style={{ fontSize: '32px', marginBottom: '8px' }}>📭</div>
+                    등록된 매뉴얼 항목이 없습니다.<br />
+                    「+ 항목 추가」로 시작하세요.
+                  </div>
+                ) : (
+                  <div style={{ padding: '6px 8px' }}>
+                    {items.map((item, idx) => {
+                      const tl = typeLabel(item.type);
+                      return (
+                        <div key={item.seq} style={{
+                          marginBottom: '4px', borderRadius: '8px',
+                          border: `1px solid ${editingSeq === item.seq ? '#4f46e5' : 'var(--border-color)'}`,
+                          background: editingSeq === item.seq ? '#eef2ff' : 'var(--bg-card)',
+                          overflow: 'hidden',
+                        }}>
+                          {/* 항목 행 */}
+                          <div style={{ display: 'flex', alignItems: 'center', padding: '7px 8px', gap: '6px' }}>
+                            {/* 순번 뱃지 */}
+                            <span style={{
+                              width: '22px', height: '22px', borderRadius: '50%',
+                              background: item.badgeColor, color: '#fff',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: '11px', fontWeight: 900, flexShrink: 0,
+                            }}>{item.seq}</span>
+
+                            {/* 정보 */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {item.label || '(레이블 없음)'}
+                              </div>
+                              <div style={{ display: 'flex', gap: '5px', alignItems: 'center', marginTop: '2px' }}>
+                                <span style={{ fontSize: '10px', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', padding: '1px 5px', borderRadius: '3px', fontWeight: 700 }}>
+                                  {tl?.icon} {tl?.label}
+                                </span>
+                                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>
+                                  {item.selector}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* 액션 버튼들 */}
+                            <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
+                              <button
+                                onClick={() => moveItem(item.seq, -1)}
+                                disabled={idx === 0}
+                                title="위로"
+                                style={{ ...btnBase, padding: '4px 6px', background: 'var(--bg-secondary)', color: idx === 0 ? 'var(--text-muted)' : 'var(--text-main)', opacity: idx === 0 ? 0.4 : 1 }}
+                              >▲</button>
+                              <button
+                                onClick={() => moveItem(item.seq, 1)}
+                                disabled={idx === items.length - 1}
+                                title="아래로"
+                                style={{ ...btnBase, padding: '4px 6px', background: 'var(--bg-secondary)', color: idx === items.length - 1 ? 'var(--text-muted)' : 'var(--text-main)', opacity: idx === items.length - 1 ? 0.4 : 1 }}
+                              >▼</button>
+                              <button
+                                onClick={() => startNew(item.seq)}
+                                title="이 항목 아래에 삽입"
+                                style={{ ...btnBase, padding: '4px 6px', background: '#dbeafe', color: '#1d4ed8' }}
+                              >+▼</button>
+                              <button
+                                onClick={() => startEdit(item)}
+                                title="편집"
+                                style={{ ...btnBase, padding: '4px 7px', background: '#e0e7ff', color: '#4f46e5' }}
+                              >✏</button>
+                              <button
+                                onClick={() => deleteItem(item.seq, item.label)}
+                                title="삭제"
+                                style={{ ...btnBase, padding: '4px 6px', background: '#fee2e2', color: '#dc2626' }}
+                              >🗑</button>
+                            </div>
+                          </div>
+
+                          {/* 미리보기: description 첫 줄 */}
+                          {item.description && (
+                            <div style={{ padding: '0 8px 6px 36px', fontSize: '11px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                              {item.description.slice(0, 60)}{item.description.length > 60 ? '…' : ''}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            ))}
-          </div>
+            )}
+
+            {/* ══════════ 탭 2: 편집 폼 ══════════ */}
+            {panelTab === 'edit' && (
+              <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
+
+                {/* 삽입 위치 표시 */}
+                {editingSeq === null && (
+                  <div style={{ padding: '5px 10px', background: '#e0e7ff', borderRadius: '6px', fontSize: '12px', color: '#4f46e5', fontWeight: 700, marginBottom: '10px' }}>
+                    {insertAfterSeq !== null
+                      ? `#${insertAfterSeq} 아래에 삽입`
+                      : '맨 끝에 추가'}
+                  </div>
+                )}
+
+                {/* ── 요소 선택 ── */}
+                <div style={fieldS}>
+                  <label style={labelS}>대상 UI 요소 *</label>
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    <input
+                      value={form.selector}
+                      onChange={e => setForm(p => ({ ...p, selector: e.target.value }))}
+                      placeholder='[data-mid="..."]'
+                      style={{ ...inputS, flex: 1, fontSize: '11px', fontFamily: 'monospace' }}
+                    />
+                    <button
+                      onClick={() => setSelectMode(true)}
+                      title="화면에서 직접 요소 클릭 선택"
+                      style={{ ...btnBase, padding: '6px 10px', background: '#4f46e5', color: '#fff', fontSize: '16px', flexShrink: 0 }}
+                    >🎯</button>
+                  </div>
+                  {form.autoExtracted && (
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                      자동 추출: {form.autoExtracted}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── 타입 ── */}
+                <div style={fieldS}>
+                  <label style={labelS}>어노테이션 타입</label>
+                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                    {ANNOTATION_TYPES.map(t => (
+                      <button
+                        key={t.value}
+                        onClick={() => setForm(p => ({ ...p, type: t.value }))}
+                        style={{
+                          ...btnBase, padding: '5px 9px', fontSize: '12px',
+                          background: form.type === t.value ? '#4f46e5' : 'var(--bg-secondary)',
+                          color: form.type === t.value ? '#fff' : 'var(--text-secondary)',
+                        }}
+                      >
+                        {t.icon} {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ── 레이블 ── */}
+                <div style={fieldS}>
+                  <label style={labelS}>주석 제목 *</label>
+                  <input
+                    value={form.label}
+                    onChange={e => setForm(p => ({ ...p, label: e.target.value }))}
+                    placeholder="예: 전체 업무 일괄 생성"
+                    style={inputS}
+                  />
+                </div>
+
+                {/* ── 설명 ── */}
+                <div style={fieldS}>
+                  <label style={labelS}>설명</label>
+                  <textarea
+                    value={form.description}
+                    onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+                    rows={3}
+                    placeholder="사용 방법 및 주의사항..."
+                    style={{ ...inputS, resize: 'vertical', lineHeight: 1.5 }}
+                  />
+                </div>
+
+                {/* ── 배지 색상 ── */}
+                <div style={fieldS}>
+                  <label style={labelS}>배지 색상</label>
+                  <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    {DEFAULT_BADGE_COLORS.map(c => (
+                      <button
+                        key={c}
+                        onClick={() => setForm(p => ({ ...p, badgeColor: c }))}
+                        style={{
+                          width: '22px', height: '22px', borderRadius: '50%', border: 'none',
+                          background: c, cursor: 'pointer',
+                          outline: form.badgeColor === c ? '3px solid var(--text-main)' : '2px solid transparent',
+                          outlineOffset: '2px',
+                        }}
+                      />
+                    ))}
+                    <input
+                      type="color" value={form.badgeColor}
+                      onChange={e => setForm(p => ({ ...p, badgeColor: e.target.value }))}
+                      style={{ width: '26px', height: '26px', border: 'none', borderRadius: '4px', cursor: 'pointer', padding: 0 }}
+                    />
+                  </div>
+                </div>
+
+                {/* ── 말풍선 위치 ── */}
+                <div style={fieldS}>
+                  <label style={labelS}>말풍선 위치</label>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    {POSITION_HINTS.map(h => (
+                      <button
+                        key={h.value}
+                        onClick={() => setForm(p => ({ ...p, positionHint: h.value }))}
+                        style={{
+                          ...btnBase, flex: 1, padding: '5px 2px', fontSize: '11px',
+                          background: form.positionHint === h.value ? '#4f46e5' : 'var(--bg-secondary)',
+                          color: form.positionHint === h.value ? '#fff' : 'var(--text-secondary)',
+                        }}
+                      >
+                        {h.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ── Spotlight + 화살표 ── */}
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '8px' }}>
+                  <button
+                    onClick={() => setForm(p => ({ ...p, spotlight: !p.spotlight }))}
+                    style={{
+                      ...btnBase, flex: 1, padding: '6px 8px', fontSize: '12px',
+                      background: form.spotlight ? '#4f46e5' : 'var(--bg-secondary)',
+                      color: form.spotlight ? '#fff' : 'var(--text-muted)',
+                    }}
+                  >
+                    💡 Spotlight {form.spotlight ? 'ON' : 'OFF'}
+                  </button>
+                  <button
+                    onClick={() => setForm(p => ({ ...p, arrow: p.arrow ? null : { style: 'elbow', route: 'HV' } }))}
+                    style={{
+                      ...btnBase, flex: 1, padding: '6px 8px', fontSize: '12px',
+                      background: form.arrow ? '#4f46e5' : 'var(--bg-secondary)',
+                      color: form.arrow ? '#fff' : 'var(--text-muted)',
+                    }}
+                  >
+                    ↗ 화살표 {form.arrow ? 'ON' : 'OFF'}
+                  </button>
+                </div>
+
+                {/* ── 이미지 URL 직접 입력 ── */}
+                <div style={fieldS}>
+                  <label style={labelS}>이미지 URL (선택)</label>
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    <input
+                      value={form.imageUrl || ''}
+                      onChange={e => setForm(p => ({ ...p, imageUrl: e.target.value || null }))}
+                      placeholder="https://... 또는 data:image/..."
+                      style={{ ...inputS, flex: 1, fontSize: '11px' }}
+                    />
+                    {form.imageUrl && (
+                      <button onClick={() => setForm(p => ({ ...p, imageUrl: null }))} style={{ ...btnBase, padding: '6px 10px', background: '#fee2e2', color: '#dc2626' }}>×</button>
+                    )}
+                  </div>
+                  {form.imageUrl && (
+                    <img src={form.imageUrl} alt="preview" style={{ width: '100%', borderRadius: '6px', border: '1px solid var(--border-color)', marginTop: '4px', maxHeight: '120px', objectFit: 'contain' }} />
+                  )}
+                </div>
+
+                {/* ── 저장 / 취소 ── */}
+                <div style={{ display: 'flex', gap: '7px', paddingTop: '4px' }}>
+                  <button
+                    onClick={saveForm}
+                    style={{ ...btnBase, flex: 1, padding: '10px', fontSize: '13px', background: '#4f46e5', color: '#fff' }}
+                  >
+                    {editingSeq !== null ? '✓ 수정 저장' : '+ 추가 저장'}
+                  </button>
+                  <button
+                    onClick={() => { setEditingSeq(null); setForm(emptyForm()); setInsertAfterSeq(null); setPanelTab('list'); }}
+                    style={{ ...btnBase, padding: '10px 14px', background: 'var(--bg-secondary)', color: 'var(--text-main)' }}
+                  >
+                    취소
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
     </>

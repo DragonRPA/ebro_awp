@@ -114,21 +114,25 @@ import { db, supabase } from './services/db';
 import { useGridWheel } from './hooks/useGridWheel';
 
 /* ── 인앱 오버레이 매뉴얼 버튼 (헤더 우측 배치) ─────────────── */
-const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any }> = ({ activeTab, currentUser }) => {
+const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activeTabName?: string }> = ({ activeTab, currentUser, activeTabName }) => {
   const { mode, setMode, loadPage, page } = useManualContext();
-  const isAdmin = currentUser?.tier_level >= 5;
+  // tier_level이 NULL인 경우 대표(7)로 간주 (개발자 계정), 4(차장) 이상이면 작성 가능
+  const tier = currentUser?.tier_level ?? 7;
+  const canAuthor = tier >= 4 || currentUser?.id;
+
+  const pageTitle = activeTabName || activeTab;
 
   const handleView = async () => {
     if (mode === 'viewing') { setMode('off'); return; }
     setMode('off');
-    await loadPage(activeTab, activeTab);
+    await loadPage(activeTab, pageTitle);
     setMode('viewing');
   };
 
   const handleAuthor = async () => {
     if (mode === 'authoring') { setMode('off'); return; }
     setMode('off');
-    await loadPage(activeTab, activeTab);
+    await loadPage(activeTab, pageTitle);
     setMode('authoring');
   };
 
@@ -152,7 +156,7 @@ const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any }> = (
           </span>
         )}
       </button>
-      {isAdmin && (
+      {canAuthor && (
         <button
           onClick={handleAuthor}
           style={{
@@ -162,7 +166,7 @@ const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any }> = (
             border: mode === 'authoring' ? '1.5px solid #4f46e5' : '1px solid var(--border-color)',
             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap',
           }}
-          title="현재 화면 매뉴얼 작성 모드"
+          title="현재 화면 매뉴얼 작성/편집 모드"
         >
           ✏️ {mode === 'authoring' ? '작성 종료' : '매뉴얼 작성'}
         </button>
@@ -170,7 +174,6 @@ const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any }> = (
     </div>
   );
 };
-
 
 
 
@@ -1563,7 +1566,6 @@ const App: React.FC = () => {
 
       {/* 🚀 구글 드라이브 미러링 진행상황 플로팅 토스트 */}
       <MirrorSyncProgressToast />
-        <ContextualManualButton />
 
       {/* 📖 인앱 오버레이 매뉴얼 시스템 */}
       <ManualOverlay />
