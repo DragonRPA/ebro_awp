@@ -1099,7 +1099,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
+    <div data-subview="acquisition_disposal" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
       
       {/* 토스트 메시지 표출 */}
       {toastMessage && (
@@ -1221,7 +1221,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
           {acqMode === 'SINGLE' && (
             <form onSubmit={handleExecuteSingleAcquisition} className="card" style={{ margin: 0, padding: '18px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <div data-mid="[data-mid=" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
                 <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Plus size={16} color="var(--primary)" /> 신규 자산 취득 정보 입력
                 </h3>

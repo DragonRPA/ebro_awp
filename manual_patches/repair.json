@@ -1,0 +1,56 @@
+{
+  "menuId": "repair",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"repair-scope\"]",
+      "type": "stamp",
+      "label": "Scope & Filter",
+      "description": "Tab and scope selection for repair management.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"repair-filter\"]",
+      "type": "stamp",
+      "label": "Filters",
+      "description": "Filter repair target assets by status.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"repair-inspection-grid\"]",
+      "type": "stamp",
+      "label": "Target Asset Grid",
+      "description": "List of assets requiring repair.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "right",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"repair-pipeline-add\"]",
+      "type": "stamp",
+      "label": "Repair Action Panel",
+      "description": "Panel to add repair records, parts, and complete repairs.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "left",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"repair-audit\"]",
+      "type": "stamp",
+      "label": "Repair Ledger",
+      "description": "Audit trail and ledger of all repairs.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    }
+  ]
+}

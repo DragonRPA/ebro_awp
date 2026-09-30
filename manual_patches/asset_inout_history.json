@@ -1,0 +1,76 @@
+{
+  "menuId": "asset_inout_history",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"asset_inout_history-scope\"]",
+      "type": "stamp",
+      "label": "검색 및 필터 (Scope)",
+      "description": "입출고 이력을 검색합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"asset_inout_history-pipeline\"]",
+      "type": "stamp",
+      "label": "입출고 등록 (Pipeline)",
+      "description": "수동으로 입출고 이력을 등록합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"asset_inout_history-inspection-grid\"]",
+      "type": "stamp",
+      "label": "이력 목록 (Grid)",
+      "description": "입출고 이력 데이터 그리드입니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"asset_inout_history-detail\"]",
+      "type": "stamp",
+      "label": "상세 정보 (Detail)",
+      "description": "선택한 이력의 상세 정보입니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"asset_inout_history-chart\"]",
+      "type": "stamp",
+      "label": "통계/차트 (Chart)",
+      "description": "입출고 통계를 시각적으로 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"asset_inout_history-terminal-audit\"]",
+      "type": "stamp",
+      "label": "감사 로그 (Audit)",
+      "description": "입출고 관련된 시스템 로그입니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"asset_inout_history-actions\"]",
+      "type": "stamp",
+      "label": "작업 버튼 (Actions)",
+      "description": "엑셀 다운로드 등 부가 작업입니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    }
+  ]
+}

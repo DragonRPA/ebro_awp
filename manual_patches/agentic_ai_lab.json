@@ -1,0 +1,76 @@
+{
+  "menuId": "agentic_ai_lab",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"agentic_ai_lab-scope\"]",
+      "type": "stamp",
+      "label": "시나리오 프리셋",
+      "description": "다양한 에이전틱 AI 업무 시나리오 프리셋을 선택하여 신속하게 테스트합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"agentic_ai_lab-input\"]",
+      "type": "stamp",
+      "label": "자연어 프롬프트 입력",
+      "description": "에이전트에게 지시할 비즈니스 업무를 자연어로 직접 입력합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"agentic_ai_lab-pipeline-run\"]",
+      "type": "stamp",
+      "label": "단일 에이전트 실행",
+      "description": "입력된 프롬프트를 기반으로 AI 에이전트를 단발성으로 실행합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"agentic_ai_lab-pipeline-stress\"]",
+      "type": "stamp",
+      "label": "스트레스 테스트",
+      "description": "20회 연속으로 에이전트를 실행하여 시스템 부하 및 안정성을 테스트합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"agentic_ai_lab-metrics\"]",
+      "type": "stamp",
+      "label": "효익 정량 비교 HUD",
+      "description": "수동 작업 대비 AI가 절감한 시간, 조작 횟수 및 무결성 결과를 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"agentic_ai_lab-timeline\"]",
+      "type": "stamp",
+      "label": "ReAct 추론 타임라인",
+      "description": "AI 에이전트의 단계별 사고 과정(Thought) 및 도구 호출(Action) 내역을 모니터링합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"agentic_ai_lab-manifest\"]",
+      "type": "stamp",
+      "label": "도구 매니페스트",
+      "description": "에이전트가 활용 가능한 전사 표준 원자적(Atomic) API 도구 목록을 조회합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    }
+  ]
+}

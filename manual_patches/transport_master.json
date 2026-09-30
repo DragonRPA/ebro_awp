@@ -1,0 +1,76 @@
+{
+  "menuId": "transport_master",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"transport_master-header\"]",
+      "type": "stamp",
+      "label": "운송 거래처 관리",
+      "description": "물류사 및 소속 기사를 관리합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"transport_master-summary\"]",
+      "type": "stamp",
+      "label": "현황 요약",
+      "description": "전체 등록 운송사 및 기사 수를 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"transport_master-company-list\"]",
+      "type": "stamp",
+      "label": "운송사 목록",
+      "description": "등록된 운송 거래처를 선택하여 조회합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"transport_master-company-add-btn\"]",
+      "type": "stamp",
+      "label": "운송사 등록",
+      "description": "새로운 운송 거래처를 등록합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"transport_master-driver-list\"]",
+      "type": "stamp",
+      "label": "소속 기사 목록",
+      "description": "선택된 운송사의 소속 기사를 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"transport_master-driver-add-btn\"]",
+      "type": "stamp",
+      "label": "기사 등록",
+      "description": "새로운 운송 기사를 등록합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"transport_master-driver-grid\"]",
+      "type": "stamp",
+      "label": "기사 상세",
+      "description": "운송 기사의 차량, 연락처 등 상세 정보입니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    }
+  ]
+}

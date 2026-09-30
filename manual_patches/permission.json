@@ -1,0 +1,96 @@
+{
+  "menuId": "permission",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"permission-scope\"]",
+      "type": "stamp",
+      "label": "Scope",
+      "description": "Manual step for permission-scope",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"permission-user-scope\"]",
+      "type": "stamp",
+      "label": "Scope",
+      "description": "Manual step for permission-user-scope",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"permission-pipeline-add\"]",
+      "type": "stamp",
+      "label": "Add",
+      "description": "Manual step for permission-pipeline-add",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"permission-inspection-grid\"]",
+      "type": "stamp",
+      "label": "Grid",
+      "description": "Manual step for permission-inspection-grid",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"permission-inspection-detail\"]",
+      "type": "stamp",
+      "label": "Detail",
+      "description": "Manual step for permission-inspection-detail",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"permission-pipeline-save\"]",
+      "type": "stamp",
+      "label": "Save",
+      "description": "Manual step for permission-pipeline-save",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"permission-user-inspection-filter\"]",
+      "type": "stamp",
+      "label": "Filter",
+      "description": "Manual step for permission-user-inspection-filter",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 8,
+      "selector": "[data-mid=\"permission-user-inspection-grid\"]",
+      "type": "stamp",
+      "label": "Grid",
+      "description": "Manual step for permission-user-inspection-grid",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 9,
+      "selector": "[data-mid=\"permission-terminal-audit\"]",
+      "type": "stamp",
+      "label": "Audit",
+      "description": "Manual step for permission-terminal-audit",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    }
+  ]
+}

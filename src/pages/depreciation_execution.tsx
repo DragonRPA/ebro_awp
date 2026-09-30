@@ -231,7 +231,7 @@ export const DepreciationExecution: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontSize: '13px', position: 'relative' }}>
+    <div data-subview="depreciation_execution" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontSize: '13px', position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -294,7 +294,7 @@ export const DepreciationExecution: React.FC = () => {
             </div>
 
             {isAlreadyExecuted ? (
-              <div style={{ padding: '10px 12px', borderRadius: '6px', backgroundColor: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: 'var(--success)', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+              <div data-mid="[data-mid=" style={{ padding: '10px 12px', borderRadius: '6px', backgroundColor: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', color: 'var(--success)', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <CheckCircle2 size={16} /> [해당 연월 마감 완료] {executedLog?.executedAt.substring(0, 10)} 마감됨 (상각액: ₩{executedLog?.totalDepreciationAmount.toLocaleString()})
                 </div>

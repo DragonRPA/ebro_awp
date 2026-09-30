@@ -1,0 +1,76 @@
+{
+  "menuId": "agentic_dispatch_studio",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"agentic_dispatch_studio-metrics\"]",
+      "type": "stamp",
+      "label": "AI 배차 효율성 HUD",
+      "description": "수동 배차 대비 단축된 시간, 절감된 클릭 수 및 헌장 준수 현황을 실시간으로 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"agentic_dispatch_studio-input\"]",
+      "type": "stamp",
+      "label": "자연어 배차 지시 입력",
+      "description": "운송지, 장비, 요청 사항 등을 자연어로 입력하여 배차를 지시합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"agentic_dispatch_studio-pipeline-run\"]",
+      "type": "stamp",
+      "label": "배차 수립 실행",
+      "description": "에이전틱 AI가 자연어 지시를 분석하고 헌장 2.3을 검증하여 배차를 수립합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"agentic_dispatch_studio-inspection-deck\"]",
+      "type": "stamp",
+      "label": "배차 관제 큐",
+      "description": "AI가 수립한 배차 의뢰 내역과 기존 배차 확정 내역을 목록으로 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "left",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"agentic_dispatch_studio-inspection-card\"]",
+      "type": "stamp",
+      "label": "배차 상세 카드",
+      "description": "개별 배차의 출고/회수/교환 유형, 운송 경로, 기사 정보 및 운송비 정산 내역을 상세 조회합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"agentic_dispatch_studio-terminal-confirm\"]",
+      "type": "stamp",
+      "label": "배차 최종 승인",
+      "description": "AI가 자동 배정한 기사와 운송비를 검토 후 최종 배차를 확정합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"agentic_dispatch_studio-audit-discount\"]",
+      "type": "stamp",
+      "label": "왕복할인 검증",
+      "description": "대차 교환 배차 시 헌장 2.3에 따른 왕복할인 정산이 정확히 차감되었는지 검증합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "menuId": "smart_return",
+  "version": 5,
+  "annotations": [
+    { "seq": 1, "selector": "[data-mid=\"smart_return-scope\"]", "type": "stamp", "label": "진행중인 계약/장비", "description": "진행중인 계약 현황을 확인합니다.", "badgeColor": "#1D4ED8", "positionHint": "bottom", "spotlight": false },
+    { "seq": 2, "selector": "[data-mid=\"smart_return-contracts-grid\"]", "type": "stamp", "label": "계약 현황 그리드", "description": "전체 현황 요약입니다.", "badgeColor": "#1D4ED8", "positionHint": "bottom", "spotlight": false },
+    { "seq": 3, "selector": "[data-mid=\"smart_return-drafts\"]", "type": "stamp", "label": "회수 대기 목록", "description": "전화 접수된 회수 대기 내역입니다.", "badgeColor": "#1D4ED8", "positionHint": "right", "spotlight": false },
+    { "seq": 4, "selector": "[data-mid=\"smart_return-pipeline\"]", "type": "stamp", "label": "회수 등록", "description": "회수할 장비를 선택하고 등록합니다.", "badgeColor": "#1D4ED8", "positionHint": "bottom", "spotlight": true },
+    { "seq": 5, "selector": "[data-mid=\"smart_return-preview\"]", "type": "stamp", "label": "서식 출력 및 미리보기", "description": "회수 관련 서식을 미리보고 출력합니다.", "badgeColor": "#1D4ED8", "positionHint": "bottom", "spotlight": false },
+    { "seq": 6, "selector": "[data-mid=\"smart_return-maint-grid\"]", "type": "stamp", "label": "외주정비 현황", "description": "외주정비 자산 현황을 조회합니다.", "badgeColor": "#1D4ED8", "positionHint": "bottom", "spotlight": false },
+    { "seq": 7, "selector": "[data-mid=\"smart_return-maint-pipeline\"]", "type": "stamp", "label": "정비 완료 회수", "description": "외주정비가 완료된 장비를 회수 처리합니다.", "badgeColor": "#1D4ED8", "positionHint": "bottom", "spotlight": false }
+  ]
+}

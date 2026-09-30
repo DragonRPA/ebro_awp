@@ -415,7 +415,7 @@ export const AssetAssignment: React.FC = () => {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '13px' }}>
+    <div data-mid="[data-mid=" data-subview="dispatch_assign" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '13px' }}>
       
       {/* 타이틀 및 설명 헤더 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>

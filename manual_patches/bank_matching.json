@@ -1,0 +1,76 @@
+{
+  "menuId": "bank_matching",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"bank_matching-scope-tab\"]",
+      "type": "stamp",
+      "label": "탭 메뉴",
+      "description": "통장 입출금 대사 화면과 매칭 규칙 화면 간을 전환합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"bank_matching-pipeline-auto\"]",
+      "type": "stamp",
+      "label": "일괄 자동 수납",
+      "description": "상호 또는 금액이 일치하는 미대사 입금 건을 즉시 일괄 수납 처리합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"bank_matching-inspection-stats\"]",
+      "type": "stamp",
+      "label": "은행 입출금 현황",
+      "description": "전체 은행 계좌 잔액 및 수납, 지급 대사 현황을 요약해서 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"bank_matching-scope-search\"]",
+      "type": "stamp",
+      "label": "조회 필터",
+      "description": "구분, 은행, 대사 상태, 검색어 및 기간 등의 조건으로 상세 검색을 수행합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"bank_matching-pipeline-upload\"]",
+      "type": "stamp",
+      "label": "통장 엑셀 업로드",
+      "description": "은행에서 다운로드한 엑셀(CSV) 파일을 업로드하여 입출금 내역을 추가합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"bank_matching-pipeline-export\"]",
+      "type": "stamp",
+      "label": "엑셀 내보내기",
+      "description": "조회된 입출금 대사 내역을 엑셀 파일로 다운로드합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"bank_matching-inspection-grid\"]",
+      "type": "stamp",
+      "label": "대사 내역 목록",
+      "description": "개별 입출금 내역의 매칭 결과를 확인하고 수동으로 수납 또는 지급 대사 처리를 합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    }
+  ]
+}

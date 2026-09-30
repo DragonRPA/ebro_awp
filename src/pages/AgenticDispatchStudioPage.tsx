@@ -107,7 +107,7 @@ export const AgenticDispatchStudioPage: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: '100%', minHeight: 0 }} data-uia="agentic-dispatch-studio-container">
+    <div data-subview="agentic_dispatch_studio" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: '100%', minHeight: 0 }} data-uia="agentic-dispatch-studio-container">
       {/* 상단 타이틀 바 (헌장 3.1 무수식어 건조 명사 표준) */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -141,7 +141,7 @@ export const AgenticDispatchStudioPage: React.FC = () => {
 
         <div className="card" style={{ padding: '12px 16px', borderLeft: '4px solid #f59e0b' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>헌장 2.3 EXCHANGE 단일화</div>
-          <div style={{ fontSize: '18px', fontWeight: '900', color: '#f59e0b', marginTop: '4px' }}>100% 준수</div>
+          <div data-mid="[data-mid=" style={{ fontSize: '18px', fontWeight: '900', color: '#f59e0b', marginTop: '4px' }}>100% 준수</div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>왕복할인 ₩60,000 자동 차감</div>
         </div>
 

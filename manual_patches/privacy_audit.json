@@ -1,0 +1,86 @@
+{
+  "menuId": "privacy_audit",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"privacy-scope-date\"]",
+      "type": "stamp",
+      "label": "Date",
+      "description": "Manual step for privacy-scope-date",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"privacy-scope-text\"]",
+      "type": "stamp",
+      "label": "Text",
+      "description": "Manual step for privacy-scope-text",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"privacy-scope-select\"]",
+      "type": "stamp",
+      "label": "Select",
+      "description": "Manual step for privacy-scope-select",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"privacy-inspection-grid\"]",
+      "type": "stamp",
+      "label": "Grid",
+      "description": "Manual step for privacy-inspection-grid",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"privacy-terminal-audit-excel\"]",
+      "type": "stamp",
+      "label": "Excel",
+      "description": "Manual step for privacy-terminal-audit-excel",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"privacy-pipeline-refresh\"]",
+      "type": "stamp",
+      "label": "Refresh",
+      "description": "Manual step for privacy-pipeline-refresh",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"privacy-inspection-detail\"]",
+      "type": "stamp",
+      "label": "Detail",
+      "description": "Manual step for privacy-inspection-detail",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 8,
+      "selector": "[data-mid=\"privacy-scope-header\"]",
+      "type": "stamp",
+      "label": "Header",
+      "description": "Manual step for privacy-scope-header",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    }
+  ]
+}

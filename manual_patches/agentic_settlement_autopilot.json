@@ -1,0 +1,86 @@
+{
+  "menuId": "agentic_settlement_autopilot",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"agentic_settlement_autopilot-header\"]",
+      "type": "stamp",
+      "label": "������ƽ �������Ϸ� ���",
+      "description": "���� 4.1 ���� ���� �⿩�� 1�� ���� ���� �������Ϸ��� ���¿� ������ ǥ���մϴ�.",
+      "badgeColor": "#10b981",
+      "positionHint": "bottom",
+      "spotlight": true
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"agentic_settlement_autopilot-scope\"]",
+      "type": "stamp",
+      "label": "���� ��� �� ���� ���� ���� (Scope)",
+      "description": "��縦 ������ ���� ������ ��� �ŷ�ó, ����� ������ �����մϴ�.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"agentic_settlement_autopilot-scope-month\"]",
+      "type": "stamp",
+      "label": "���� �� ����",
+      "description": "����ϰ��� �ϴ� ���� ������ ��Ȯ�� �����մϴ�.",
+      "badgeColor": "#6b7280",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"agentic_settlement_autopilot-pipeline-run\"]",
+      "type": "stamp",
+      "label": "�������Ϸ� ��� ���� (Pipeline)",
+      "description": "��ư Ŭ�� �� ������ƽ AI�� �Ա� ���� �� ��� ���� ���� ���� ������ �ڵ� �����մϴ�.",
+      "badgeColor": "#8b5cf6",
+      "positionHint": "bottom",
+      "spotlight": true
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"agentic_settlement_autopilot-status\"]",
+      "type": "stamp",
+      "label": "��� ���� ���� �޽���",
+      "description": "���� AI�� ��� ���� ��Ȳ �Ǵ� �Ϸ� ����� ���������� �ȳ��մϴ�.",
+      "badgeColor": "#f59e0b",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"agentic_settlement_autopilot-inspection-grid\"]",
+      "type": "stamp",
+      "label": "�������� ���Ἲ �׸��� (Inspection)",
+      "description": "���ڻ� �� ������� �°� �������� 1�� ���̵� ���� ������ ���� ������ ǥ���մϴ�.",
+      "badgeColor": "#3b82f6",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"agentic_settlement_autopilot-terminal-summary\"]",
+      "type": "stamp",
+      "label": "���� �հ� �� ���� ���� (Terminal)",
+      "description": "û���Ѿ�, Ȯ����, ���� ���� �հ踦 ���� ���� �ϰἺ �Ǵ��� �����ϴ�.",
+      "badgeColor": "#10b981",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 8,
+      "selector": "[data-mid=\"agentic_settlement_autopilot-terminal-commit\"]",
+      "type": "stamp",
+      "label": "���� ���� �� ���� ����",
+      "description": "���� ���� ������ �Ϸ�� �� ���� ���縦 �ø��� �ش� ���� ������ ���� ó���մϴ�.",
+      "badgeColor": "#ef4444",
+      "positionHint": "top",
+      "spotlight": true
+    }
+  ]
+}

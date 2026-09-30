@@ -1,0 +1,76 @@
+{
+  "menuId": "corporate_card",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"corporate_card-scope-tab\"]",
+      "type": "stamp",
+      "label": "탭 메뉴",
+      "description": "매입정산 내역 검증 화면과 매입유형 항목 설정 화면으로 이동합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"corporate_card-pipeline-upload\"]",
+      "type": "stamp",
+      "label": "명세서 파일 로드",
+      "description": "카드사 이용내역 명세서 파일을 업로드하여 내역을 가져옵니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"corporate_card-inspection-monitor\"]",
+      "type": "stamp",
+      "label": "누락 방지 모니터",
+      "description": "사전에 정의된 예상 지출금액과 실제 지출을 비교하여 누락되거나 과다한 지출을 파악합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"corporate_card-inspection-summary\"]",
+      "type": "stamp",
+      "label": "총매입 정산 대장",
+      "description": "매입 유형별 집행된 금액 합계와 전사 총 정산 매입액을 한눈에 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"corporate_card-pipeline-auto\"]",
+      "type": "stamp",
+      "label": "자동 매칭",
+      "description": "업로드된 카드 이용 내역을 바탕으로 매입 항목과 자동으로 연결(매핑)합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"corporate_card-pipeline-export\"]",
+      "type": "stamp",
+      "label": "엑셀 내보내기",
+      "description": "법인카드 이용내역 및 정산 현황을 엑셀 파일로 다운로드합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"corporate_card-inspection-grid\"]",
+      "type": "stamp",
+      "label": "명세 리스트",
+      "description": "법인카드 건별 이용 명세와 계정과목 배정 상태를 목록 형태로 조회하고 편집합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    }
+  ]
+}

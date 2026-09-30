@@ -1,0 +1,86 @@
+{
+  "menuId": "vehicle_log",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"vehicle_log-header\"]",
+      "type": "stamp",
+      "label": "Header",
+      "description": "Header actions for vehicle operation log.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"vehicle_log-export-nts\"]",
+      "type": "stamp",
+      "label": "Export NTS",
+      "description": "Download National Tax Service format.",
+      "badgeColor": "#10b981",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"vehicle_log-upload-excel\"]",
+      "type": "stamp",
+      "label": "Upload Excel",
+      "description": "Batch upload fuel logs via Excel.",
+      "badgeColor": "#ea580c",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"vehicle_log-export-fuel\"]",
+      "type": "stamp",
+      "label": "Export Fuel Logs",
+      "description": "Download fuel logs ledger.",
+      "badgeColor": "#a855f7",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"vehicle_log-tab-fuel\"]",
+      "type": "stamp",
+      "label": "Fuel Ledger Tab",
+      "description": "View fuel ledger.",
+      "badgeColor": "#0284c7",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"vehicle_log-tab-fleet\"]",
+      "type": "stamp",
+      "label": "Fleet Master Tab",
+      "description": "Manage fleet master.",
+      "badgeColor": "#0284c7",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"vehicle_log-filter\"]",
+      "type": "stamp",
+      "label": "Filter & Search",
+      "description": "Filter conditions for logs.",
+      "badgeColor": "#f59e0b",
+      "positionHint": "bottom",
+      "spotlight": true
+    },
+    {
+      "seq": 8,
+      "selector": "[data-mid=\"vehicle_log-grid-fuel\"]",
+      "type": "stamp",
+      "label": "Fuel Logs Data",
+      "description": "Data grid for fuel logs.",
+      "badgeColor": "#ef4444",
+      "positionHint": "top",
+      "spotlight": false
+    }
+  ]
+}

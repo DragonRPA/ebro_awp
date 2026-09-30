@@ -1,0 +1,76 @@
+{
+  "menuId": "google_config",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"google_config-header\"]",
+      "type": "stamp",
+      "label": "���� �� Ŭ���� ���� ���",
+      "description": "ũ������ �� Ŭ���� ������ ���� ȭ���� ���� �����Դϴ�.",
+      "badgeColor": "#10b981",
+      "positionHint": "bottom",
+      "spotlight": true
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"google_config-auth\"]",
+      "type": "stamp",
+      "label": "���� ���� ���� ���� (Scope)",
+      "description": "�ý��� ���� �߼� �� ����̺� ���ٿ� ����� ���� ���� ������ �����մϴ�.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"google_config-storage\"]",
+      "type": "stamp",
+      "label": "Supabase ���� ����� ����",
+      "description": "���� �������� ���� ������ Ŭ���� ���丮�� ��� �� ��å�� �����մϴ�.",
+      "badgeColor": "#8b5cf6",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"google_config-mode\"]",
+      "type": "stamp",
+      "label": "�ý��� ���� ��� ���� (Pipeline)",
+      "description": "�׽�Ʈ�� ���� ���� ���� ���� ���� ��� ���� �ǹ� ��带 ��ȯ�մϴ�.",
+      "badgeColor": "#f59e0b",
+      "positionHint": "top",
+      "spotlight": true
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"google_config-r2\"]",
+      "type": "stamp",
+      "label": "Cloudflare R2 ���� (Inspection)",
+      "description": "��뷮 �̵�� �� ��� �����͸� ������ Cloudflare R2 ��Ŷ ������ �����մϴ�.",
+      "badgeColor": "#3b82f6",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"google_config-folders\"]",
+      "type": "stamp",
+      "label": "���� ����̺� ���� ����",
+      "description": "��༭, ��ǰ���� �� ���� ������ ����� ���� ����̺� ������ ���� ID�� �����մϴ�.",
+      "badgeColor": "#6b7280",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"google_config-save\"]",
+      "type": "stamp",
+      "label": "Ŭ���� ���� ���� ���� (Terminal)",
+      "description": "�Էµ� ��� Ŭ���� ũ������ �� ���� ������ DB�� ���� �ݿ��մϴ�.",
+      "badgeColor": "#ef4444",
+      "positionHint": "top",
+      "spotlight": true
+    }
+  ]
+}

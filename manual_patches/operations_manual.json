@@ -1,0 +1,76 @@
+{
+  "menuId": "operations_manual",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"operations_manual-scope\"]",
+      "type": "stamp",
+      "label": "매뉴얼 검색 스코프",
+      "description": "메뉴, 목표, 헌장 등 전체 매뉴얼 컨텐츠를 검색합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"operations_manual-filter\"]",
+      "type": "stamp",
+      "label": "부서 필터링",
+      "description": "담당 부서별로 매뉴얼을 필터링하여 조회합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"operations_manual-pipeline-db\"]",
+      "type": "stamp",
+      "label": "DB 일괄 주입",
+      "description": "모든 표준 매뉴얼을 DB에 영구 주입 및 동기화합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"operations_manual-pipeline-print\"]",
+      "type": "stamp",
+      "label": "A4 인쇄",
+      "description": "선택된 매뉴얼 또는 전체 매뉴얼을 A4 규격으로 인쇄합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"operations_manual-inspection-nav\"]",
+      "type": "stamp",
+      "label": "메뉴 목록 네비게이션",
+      "description": "그룹화된 메뉴 목록에서 상세 조회할 매뉴얼을 선택합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "right",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"operations_manual-terminal-detail\"]",
+      "type": "stamp",
+      "label": "매뉴얼 상세 컨텐츠",
+      "description": "선택된 메뉴의 Z-패턴 조작 동선 및 감사 결과를 포함한 전체 매뉴얼을 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "left",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"operations_manual-inspection-card\"]",
+      "type": "stamp",
+      "label": "매뉴얼 요약 정보",
+      "description": "해당 메뉴의 소속 부서, 아키타입, 메뉴ID 등의 핵심 요약을 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    }
+  ]
+}

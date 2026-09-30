@@ -363,7 +363,7 @@ export const SmartAsRequest: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: '1440px', margin: '0 auto', position: 'relative' }}>
+    <div data-subview="smart_as_request" data-subview-title="Generated" style={{ padding: '20px 24px', maxWidth: '1440px', margin: '0 auto', position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -422,7 +422,7 @@ export const SmartAsRequest: React.FC = () => {
             접수번호: <strong>{submitSuccessTicket.ticketNo}</strong> (현장: {submitSuccessTicket.siteName} / 장비: {submitSuccessTicket.assetNo})
           </p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
-            <button
+            <button data-mid="[data-mid="
               onClick={handleReset}
               style={{
                 padding: '10px 20px',

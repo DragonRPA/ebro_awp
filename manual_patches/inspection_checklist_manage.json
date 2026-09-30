@@ -1,0 +1,56 @@
+{
+  "menuId": "inspection_checklist_manage",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"inspection_checklist_manage-scope\"]",
+      "type": "stamp",
+      "label": "탭 메뉴",
+      "description": "마스터 관리, 조직 역량 분석, 장비 매뉴얼 라이브러리 간 탭 전환을 수행할 수 있습니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"inspection_checklist_manage-terminal-audit\"]",
+      "type": "stamp",
+      "label": "정비 요약 통계",
+      "description": "정비 항목수, 항목 평점, 권장 표준 공수, 부품 연동 등 주요 통계를 표시합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"inspection_checklist_manage-pipeline-add\"]",
+      "type": "stamp",
+      "label": "정비 항목 등록",
+      "description": "새로운 정비 항목을 등록하거나 목록을 엑셀로 내보낼 수 있습니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"inspection_checklist_manage-inspection-grid\"]",
+      "type": "stamp",
+      "label": "정비 대장 목록",
+      "description": "등록된 모든 정비 항목의 상세 내용과 연관 부품 등을 조회할 수 있습니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"inspection_checklist_manage-analytics-filter\"]",
+      "type": "stamp",
+      "label": "검색 및 분석 필터",
+      "description": "조건에 맞는 데이터만 추려내어 정비 비용 및 성과를 분석할 수 있습니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    }
+  ]
+}

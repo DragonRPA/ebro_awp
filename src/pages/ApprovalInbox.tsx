@@ -127,7 +127,7 @@ const ApprovalInbox: React.FC = () => {
      렌더
   ════════════════════════════════════════════════════ */
   return (
-    <div style={{ padding: '20px 24px', maxWidth: '1100px', margin: '0 auto' }}>
+    <div data-mid="[data-mid=" data-subview="approvalInbox" data-subview-title="Generated" style={{ padding: '20px 24px', maxWidth: '1100px', margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
         <div>
           <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#1e293b', margin: 0 }}>결재함 (수신)</h2>

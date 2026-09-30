@@ -1,0 +1,76 @@
+{
+  "menuId": "error_report",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"error_report-scope-status\"]",
+      "type": "stamp",
+      "label": "단계별 오류 현황",
+      "description": "신고등록, 접수처리, 완료 등 3대 단계별 오류 신고 현황을 한눈에 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"error_report-scope-filters\"]",
+      "type": "stamp",
+      "label": "신고 내역 검색 필터",
+      "description": "단계, 발생 메뉴, 중요도, 검색어 등을 통해 오류 신고 내역을 필터링합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"error_report-pipeline-export\"]",
+      "type": "stamp",
+      "label": "엑셀 내보내기",
+      "description": "현재 필터링된 오류 신고 내역을 엑셀 파일로 다운로드합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"error_report-pipeline-register\"]",
+      "type": "stamp",
+      "label": "신규 신고 등록",
+      "description": "새로운 시스템 오류, 버그, 또는 개선 요청을 등록합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"error_report-inspection-grid\"]",
+      "type": "stamp",
+      "label": "오류 신고 대장 그리드",
+      "description": "등록된 오류 신고의 처리 상태, 중요도, 신고자 및 담당자를 목록에서 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"error_report-modal-register\"]",
+      "type": "stamp",
+      "label": "신고 등록 모달",
+      "description": "발생 메뉴, 오류 유형, 상세 내용 및 증빙 화면 캡처 등을 첨부하여 신고를 접수합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"error_report-modal-detail\"]",
+      "type": "stamp",
+      "label": "신고 상세 및 처리 모달",
+      "description": "신고 상세 내역을 확인하고, 담당자 배정(접수) 및 조치 완료 처리를 수행합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    }
+  ]
+}

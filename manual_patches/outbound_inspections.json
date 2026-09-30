@@ -1,0 +1,76 @@
+{
+  "menuId": "outbound_inspections",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"outbound_inspections-scope\"]",
+      "type": "stamp",
+      "label": "필터 및 검색 (Scope)",
+      "description": "검수 목록을 필터링합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"outbound_inspections-pipeline-add\"]",
+      "type": "stamp",
+      "label": "새 검수 등록 (Pipeline)",
+      "description": "새로운 검수 건을 등록합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"outbound_inspections-inspection-grid\"]",
+      "type": "stamp",
+      "label": "검수 목록 (Grid)",
+      "description": "출고 검수 목록입니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"outbound_inspections-detail-form\"]",
+      "type": "stamp",
+      "label": "검수 상세 (Detail)",
+      "description": "검수 상세 정보 입력 폼입니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"outbound_inspections-checklist\"]",
+      "type": "stamp",
+      "label": "체크리스트 (Inspection)",
+      "description": "검수 항목을 체크합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"outbound_inspections-terminal-audit\"]",
+      "type": "stamp",
+      "label": "이력 및 감사 (Audit)",
+      "description": "검수 이력을 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"outbound_inspections-actions\"]",
+      "type": "stamp",
+      "label": "작업 버튼 (Actions)",
+      "description": "검수 완료 및 기타 작업을 수행합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    }
+  ]
+}

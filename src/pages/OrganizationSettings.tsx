@@ -553,7 +553,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
     if (children.length === 0) return null;
 
     return (
-      <div style={{ marginLeft: depth > 0 ? '20px' : '0' }}>
+    <div data-subview="organization" data-subview-title="Generated" style={{ marginLeft: depth > 0 ? '20px' : '0' }}>
         {children.map(dept => {
           const isSelected = selectedDeptId === dept.id;
           const userCount = users.filter(u => u.departmentId === dept.id).length;
@@ -629,7 +629,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
   const renderUserCard = (user: UserNode) => {
     const eff = getUserEffectiveTier(user, dutyConfigs, positionConfigs);
     return (
-      <div 
+      <div data-mid="[data-mid=" 
         key={user.id}
         draggable={canEdit}
         onDragStart={(e) => handleDragStart(e, user.id)}

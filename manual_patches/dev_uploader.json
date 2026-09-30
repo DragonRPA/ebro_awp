@@ -1,0 +1,76 @@
+{
+  "menuId": "dev_uploader",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"dev_uploader-header\"]",
+      "type": "stamp",
+      "label": "������ ���δ� ���",
+      "description": "Supabase DB �ʱ� ����� ������ ���� ��� �����Դϴ�.",
+      "badgeColor": "#10b981",
+      "positionHint": "bottom",
+      "spotlight": true
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"dev_uploader-auth\"]",
+      "type": "stamp",
+      "label": "DB ũ������ (Scope)",
+      "description": "Supabase ������Ʈ URL�� ���� ������ ���� ����Ű�� �Է��մϴ�.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"dev_uploader-tabs\"]",
+      "type": "stamp",
+      "label": "���ε� ��� ����",
+      "description": "����(���� ����), SQL ����, JSON ����Ʈ ���� ������ ���� ����� �����մϴ�.",
+      "badgeColor": "#8b5cf6",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"dev_uploader-excel\"]",
+      "type": "stamp",
+      "label": "���� ������ ���ε� (Pipeline)",
+      "description": "���̺����� ��Ʈ���� ��Ī�Ͽ� ���� �����͸� Ư�� ���̺��� �����մϴ�.",
+      "badgeColor": "#3b82f6",
+      "positionHint": "top",
+      "spotlight": true
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"dev_uploader-sql\"]",
+      "type": "stamp",
+      "label": "SQL ���� ����",
+      "description": "DDL �� DML ���� ��ũ��Ʈ�� ���� �����Ͽ� DB�� ����ȭ�ϰų� ������ �����մϴ�.",
+      "badgeColor": "#f59e0b",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"dev_uploader-upload-btn\"]",
+      "type": "stamp",
+      "label": "���ε�/���� (Terminal)",
+      "description": "���õ� �����͸� ������� �����Ͽ� ���� DB ���縦 �����մϴ�.",
+      "badgeColor": "#10b981",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"dev_uploader-reset\"]",
+      "type": "stamp",
+      "label": "DB �ʱ�ȭ ���� ����",
+      "description": "����� ��ü �����͸� �ϰ� �����ϴ� ���� �۾� ���ɾ��Դϴ�.",
+      "badgeColor": "#ef4444",
+      "positionHint": "top",
+      "spotlight": true
+    }
+  ]
+}

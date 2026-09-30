@@ -141,7 +141,7 @@ export const RegularReportsPage: React.FC = () => {
     const hasContent = tc.comment.trim() || tc.links.some(l => l.url.trim());
 
     return (
-      <div className="mt-3 rounded-lg border border-dashed transition-all"
+    <div data-subview="regular_reports" data-subview-title="Generated" className="mt-3 rounded-lg border border-dashed transition-all"
         style={{ borderColor: hasContent ? 'rgba(99,102,241,0.5)' : 'var(--border-color)', backgroundColor: hasContent ? 'rgba(99,102,241,0.04)' : 'transparent' }}>
         {/* 헤더 토글 */}
         <button
@@ -176,7 +176,7 @@ export const RegularReportsPage: React.FC = () => {
             {/* 코멘트 작성자 + 텍스트 */}
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold text-slate-400">작성자</label>
-              <input
+              <input data-mid="[data-mid="
                 type="text"
                 value={tc.authorName}
                 onChange={e => updateTeamComment(teamKey, 'authorName', e.target.value)}

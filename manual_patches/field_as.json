@@ -1,0 +1,56 @@
+{
+  "menuId": "field_as",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"field_as-scope\"]",
+      "type": "stamp",
+      "label": "Scope & Filter",
+      "description": "Navigation and high-level filters for Field A/S.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"field_as-filter\"]",
+      "type": "stamp",
+      "label": "List Filters",
+      "description": "Specific filters for the ticket feed.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "right",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"field_as-inspection-grid\"]",
+      "type": "stamp",
+      "label": "Ticket List",
+      "description": "List of A/S tickets.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "right",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"field_as-pipeline-add\"]",
+      "type": "stamp",
+      "label": "Ticket Actions",
+      "description": "Panel to take actions and complete the ticket.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "left",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"field_as-audit\"]",
+      "type": "stamp",
+      "label": "A/S Ledger",
+      "description": "Audit trail of all field A/S work.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    }
+  ]
+}

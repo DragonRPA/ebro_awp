@@ -1,0 +1,76 @@
+{
+  "menuId": "print_queue_monitor",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"print_queue_monitor-header\"]",
+      "type": "stamp",
+      "label": "프린트 큐 모니터",
+      "description": "프린트 큐 모니터 및 프린터 스테이션을 관리합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"print_queue_monitor-agent-status\"]",
+      "type": "stamp",
+      "label": "에이전트 상태",
+      "description": "로컬 프린터 에이전트 연결 상태를 확인하고 재탐색합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"print_queue_monitor-tabs\"]",
+      "type": "stamp",
+      "label": "탭 메뉴",
+      "description": "프린터 스테이션 관리와 인쇄 대기 대장 탭을 전환합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"print_queue_monitor-station-list\"]",
+      "type": "stamp",
+      "label": "등록 프린터 목록",
+      "description": "시스템에 등록된 프린터 스테이션 목록입니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"print_queue_monitor-station-form\"]",
+      "type": "stamp",
+      "label": "프린터 설정",
+      "description": "새 프린터를 등록하거나 기존 프린터 설정을 수정합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"print_queue_monitor-queue-filter\"]",
+      "type": "stamp",
+      "label": "큐 필터",
+      "description": "상태, 문서, 스테이션별로 인쇄 대기열을 필터링합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"print_queue_monitor-queue-grid\"]",
+      "type": "stamp",
+      "label": "인쇄 대기 대장",
+      "description": "인쇄 큐에 쌓인 문서들의 상태를 조회하고 관리합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    }
+  ]
+}

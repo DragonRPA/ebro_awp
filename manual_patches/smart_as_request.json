@@ -1,0 +1,13 @@
+{
+  "menuId": "smart_as_request",
+  "version": 5,
+  "annotations": [
+    { "seq": 1, "selector": "[data-mid=\"smart_as_request-scope\"]", "type": "stamp", "label": "AS 접수", "description": "AS 요청을 접수합니다.", "badgeColor": "#1D4ED8", "positionHint": "bottom", "spotlight": false },
+    { "seq": 2, "selector": "[data-mid=\"smart_as_request-pipeline-add\"]", "type": "stamp", "label": "고객/장비 선택", "description": "해당 고객사와 대상 장비를 선택합니다.", "badgeColor": "#1D4ED8", "positionHint": "bottom", "spotlight": false },
+    { "seq": 3, "selector": "[data-mid=\"smart_as_request-details\"]", "type": "stamp", "label": "현장 정보", "description": "자산의 상세 현장 위치를 입력합니다.", "badgeColor": "#1D4ED8", "positionHint": "bottom", "spotlight": false },
+    { "seq": 4, "selector": "[data-mid=\"smart_as_request-issue\"]", "type": "stamp", "label": "고장 증상", "description": "에러 코드 등 고장 증상을 입력합니다.", "badgeColor": "#1D4ED8", "positionHint": "bottom", "spotlight": false },
+    { "seq": 5, "selector": "[data-mid=\"smart_as_request-reporter\"]", "type": "stamp", "label": "현장 접수자", "description": "현장에서 접수한 담당자 정보를 입력합니다.", "badgeColor": "#1D4ED8", "positionHint": "bottom", "spotlight": false },
+    { "seq": 6, "selector": "[data-mid=\"smart_as_request-submit\"]", "type": "stamp", "label": "AS 접수 등록", "description": "AS 티켓을 생성합니다.", "badgeColor": "#1D4ED8", "positionHint": "bottom", "spotlight": true },
+    { "seq": 7, "selector": "[data-mid=\"smart_as_request-terminal-audit\"]", "type": "stamp", "label": "전화 접수 AS 대기", "description": "전화로 접수된 AS 대기 내역을 확인합니다.", "badgeColor": "#1D4ED8", "positionHint": "right", "spotlight": false }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "menuId": "acquisition_disposal",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"acquisition_disposal-scope\"]",
+      "type": "stamp",
+      "label": "필터 및 검색 (Scope)",
+      "description": "취득/매각 내역을 필터링합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"acquisition_disposal-pipeline-add\"]",
+      "type": "stamp",
+      "label": "신규 등록 (Pipeline)",
+      "description": "새로운 취득/매각 건을 등록합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"acquisition_disposal-inspection-grid\"]",
+      "type": "stamp",
+      "label": "내역 목록 (Grid)",
+      "description": "취득/매각 내역 데이터 그리드입니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"acquisition_disposal-detail-form\"]",
+      "type": "stamp",
+      "label": "상세 폼 (Detail)",
+      "description": "항목의 세부 내용을 조회하고 수정합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"acquisition_disposal-financial\"]",
+      "type": "stamp",
+      "label": "재무 정보 (Financial)",
+      "description": "금액 및 결제 정보를 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"acquisition_disposal-terminal-audit\"]",
+      "type": "stamp",
+      "label": "이력/로그 (Audit)",
+      "description": "처리 이력 및 감사 로그입니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"acquisition_disposal-actions\"]",
+      "type": "stamp",
+      "label": "작업 버튼 (Actions)",
+      "description": "저장, 삭제 등 주요 액션 버튼입니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    }
+  ]
+}

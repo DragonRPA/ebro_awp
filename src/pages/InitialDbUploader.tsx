@@ -919,7 +919,7 @@ export const InitialDbUploader: React.FC = () => {
       '<span>🚜 밴드 순차 수집기 v8.0</span>' +
       '<span id="hud_status_badge" style="font-size:11px;font-weight:600;padding:3px 8px;background:#0284c7;border-radius:6px;color:#fff;">수집 중</span>' +
     '</div>' +
-    '<div style="margin-bottom:6px;display:flex;justify-content:space-between;border-bottom:1px solid #334155;padding-bottom:6px;">' +
+    '<div data-mid="[data-mid=" style="margin-bottom:6px;display:flex;justify-content:space-between;border-bottom:1px solid #334155;padding-bottom:6px;">' +
       '<span>수집된 게시글:</span>' +
       '<strong id="hud_post_count" style="color:#4ade80;font-size:17px;">0 건</strong>' +
     '</div>' +
@@ -1207,7 +1207,7 @@ export const InitialDbUploader: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div data-subview="initial_db_upload" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
       {/* 상단 타이틀 헤더 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>

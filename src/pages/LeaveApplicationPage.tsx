@@ -257,7 +257,7 @@ export const LeaveApplicationPage: React.FC = () => {
   });
 
   return (
-    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div data-subview="leave_application" data-subview-title="Generated" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
       {/* 헤더 타이틀 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
@@ -279,7 +279,7 @@ export const LeaveApplicationPage: React.FC = () => {
       </div>
 
       {/* 📊 본인 연차 현황 카드 */}
-      <div style={{
+      <div data-mid="[data-mid=" style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
         gap: '12px',

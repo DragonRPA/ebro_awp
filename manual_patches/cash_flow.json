@@ -1,0 +1,96 @@
+{
+  "menuId": "cash_flow",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"cash_flow-scope\"]",
+      "type": "stamp",
+      "label": "분석 기준일 및 설정",
+      "description": "유동성 분석을 위한 기준일, 전망 기간, 계좌 및 안전 기준액을 설정합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"cash_flow-pipeline-sync\"]",
+      "type": "stamp",
+      "label": "실데이터 동기화",
+      "description": "최신 전사 실데이터를 즉시 동기화합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"cash_flow-pipeline-snapshot\"]",
+      "type": "stamp",
+      "label": "스냅샷 동결",
+      "description": "현재 분석된 유동성 전망 데이터를 스냅샷으로 저장합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"cash_flow-pipeline-export\"]",
+      "type": "stamp",
+      "label": "엑셀 내보내기",
+      "description": "자금 흐름 분석 결과를 엑셀 파일로 내보냅니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"cash_flow-inspection-cards\"]",
+      "type": "stamp",
+      "label": "핵심 지표 카드뉴스",
+      "description": "잔액, 예정, 지출, 투자 등 핵심 지표를 요약하여 보여줍니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"cash_flow-inspection-chart\"]",
+      "type": "stamp",
+      "label": "유동성 추이 밴드 차트",
+      "description": "안전 기준선과 부도 위험선을 기준으로 자금 잔고 추이를 시각화합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"cash_flow-inspection-grid\"]",
+      "type": "stamp",
+      "label": "일별 수지 대사 원장",
+      "description": "일별 수납액, 지출액, 누적 잔고 및 유동성 상태를 상세히 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 8,
+      "selector": "[data-mid=\"cash_flow-audit-history\"]",
+      "type": "stamp",
+      "label": "스냅샷 이력 대장",
+      "description": "저장된 과거의 자금 계획 스냅샷 이력을 조회하고 엑셀로 내보냅니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 9,
+      "selector": "[data-mid=\"cash_flow-terminal-audit\"]",
+      "type": "stamp",
+      "label": "대차대조식 검증 바",
+      "description": "현금흐름과 대차 차액을 요약하여 유동성 정상 여부를 표시합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    }
+  ]
+}

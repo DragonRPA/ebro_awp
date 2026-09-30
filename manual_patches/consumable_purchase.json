@@ -1,0 +1,86 @@
+{
+  "menuId": "consumable_purchase",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"consumable_purchase-scope\"]",
+      "type": "stamp",
+      "label": "조회 필터",
+      "description": "상태, 기간, 검색어 등으로 구매 신청 내역을 필터링합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"consumable_purchase-pipeline-add\"]",
+      "type": "stamp",
+      "label": "구매신청등록",
+      "description": "새로운 소모품 구매 신청서를 작성합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"consumable_purchase-pipeline-batch\"]",
+      "type": "stamp",
+      "label": "엑셀 일괄 등록",
+      "description": "엑셀 템플릿을 사용하여 여러 구매 신청을 일괄 등록합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"consumable_purchase-pipeline-excel\"]",
+      "type": "stamp",
+      "label": "엑셀 다운로드",
+      "description": "조회된 구매 신청 대장을 엑셀로 내보냅니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"consumable_purchase-inspection-grid\"]",
+      "type": "stamp",
+      "label": "구매신청 목록",
+      "description": "구매신청 내역과 상태, 결재진행 및 입고 현황을 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"consumable_purchase-terminal-audit\"]",
+      "type": "stamp",
+      "label": "요약",
+      "description": "조회된 항목의 총 수량과 예상 금액을 요약하여 보여줍니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"consumable_purchase-inspection-form\"]",
+      "type": "stamp",
+      "label": "신청서 폼",
+      "description": "품목, 수량, 단가 및 구매처를 입력하여 구매 신청서를 작성합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 8,
+      "selector": "[data-mid=\"consumable_purchase-terminal-submit\"]",
+      "type": "stamp",
+      "label": "제출",
+      "description": "작성된 신청서를 최종 제출합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "left",
+      "spotlight": false
+    }
+  ]
+}

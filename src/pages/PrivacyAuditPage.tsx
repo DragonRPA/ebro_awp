@@ -168,7 +168,7 @@ export const PrivacyAuditPage: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '0 4px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+    <div data-subview="privacy_audit" data-subview-title="Generated" style={{ padding: '0 4px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
       {/* 🔔 인앱 토스트 */}
       {toastMessage && (
         <div style={{
@@ -298,7 +298,7 @@ export const PrivacyAuditPage: React.FC = () => {
             gap: '12px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              <div style={{
+              <div data-mid="[data-mid=" style={{
                 padding: '4px 8px',
                 borderRadius: '6px',
                 backgroundColor: 'rgba(79, 70, 229, 0.12)',

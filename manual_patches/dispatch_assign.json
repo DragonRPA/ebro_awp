@@ -1,0 +1,13 @@
+{
+  "menuId": "dispatch_assign",
+  "version": 5,
+  "annotations": [
+    { "seq": 1, "selector": "[data-mid=\"dispatch_assign-scope\"]", "type": "stamp", "label": "배차 현황", "description": "배차 현황을 요약하여 확인합니다.", "badgeColor": "#1D4ED8", "positionHint": "bottom", "spotlight": false },
+    { "seq": 2, "selector": "[data-mid=\"dispatch_assign-exchange-list\"]", "type": "stamp", "label": "교체 요청 목록", "description": "대체 장비가 필요한 교체 건을 확인합니다.", "badgeColor": "#1D4ED8", "positionHint": "bottom", "spotlight": false },
+    { "seq": 3, "selector": "[data-mid=\"dispatch_assign-list\"]", "type": "stamp", "label": "출고 대기 목록", "description": "출고 대기 중인 계약 목록입니다.", "badgeColor": "#1D4ED8", "positionHint": "bottom", "spotlight": false },
+    { "seq": 4, "selector": "[data-mid=\"dispatch_assign-pipeline\"]", "type": "stamp", "label": "장비 할당", "description": "장비 할당 상세 화면입니다.", "badgeColor": "#1D4ED8", "positionHint": "bottom", "spotlight": false },
+    { "seq": 5, "selector": "[data-mid=\"dispatch_assign-left-panel\"]", "type": "stamp", "label": "매핑 대상", "description": "매핑해야 할 장비 목록입니다.", "badgeColor": "#1D4ED8", "positionHint": "bottom", "spotlight": false },
+    { "seq": 6, "selector": "[data-mid=\"dispatch_assign-right-grid\"]", "type": "stamp", "label": "가용 장비", "description": "현재 할당 가능한 장비 목록입니다.", "badgeColor": "#1D4ED8", "positionHint": "bottom", "spotlight": false },
+    { "seq": 7, "selector": "[data-mid=\"dispatch_assign-right-panel\"]", "type": "stamp", "label": "장비 매핑", "description": "선택한 장비를 계약에 매핑합니다.", "badgeColor": "#1D4ED8", "positionHint": "bottom", "spotlight": true }
+  ]
+}

@@ -909,7 +909,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
   }, [fieldAsTickets, historyModalAssetNo]);
 
   return (
-    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', boxSizing: 'border-box', position: 'relative' }}>
+    <div data-subview="field_as" data-subview-title="Generated" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', boxSizing: 'border-box', position: 'relative' }}>
       {/* 알림 토스트 배너 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -930,7 +930,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
           animation: 'fadeIn 0.2s ease-in-out'
         }}>
           {toastMessage.type === 'success' ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
-          <span>{toastMessage.text}</span>
+          <span data-mid="[data-mid=">{toastMessage.text}</span>
         </div>
       )}
       

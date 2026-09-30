@@ -1,0 +1,86 @@
+{
+  "menuId": "consumable_stock",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"consumable_stock-tab-nav\"]",
+      "type": "stamp",
+      "label": "Tab Navigation",
+      "description": "Switch between HQ stock, Vehicle stock, and Stocktaking.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"consumable_stock-kpi-stats\"]",
+      "type": "stamp",
+      "label": "KPI Stats",
+      "description": "Key performance indicators for consumable stock.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"consumable_stock-scope\"]",
+      "type": "stamp",
+      "label": "Scope & Filter",
+      "description": "Search and filter through the consumable stock list.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"consumable_stock-pipeline-actions\"]",
+      "type": "stamp",
+      "label": "Stock Actions",
+      "description": "Register and update consumable stock.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"consumable_stock-inspection-grid\"]",
+      "type": "stamp",
+      "label": "Stock Grid",
+      "description": "Grid view of consumable stock items.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "right",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"consumable_stock-vehicle-scope\"]",
+      "type": "stamp",
+      "label": "Vehicle Filter",
+      "description": "Filter the stock by specific vehicle or mechanic.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"consumable_stock-pipeline-transfer\"]",
+      "type": "stamp",
+      "label": "Transfer Parts",
+      "description": "Transfer parts to a vehicle.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "left",
+      "spotlight": false
+    },
+    {
+      "seq": 8,
+      "selector": "[data-mid=\"consumable_stock-terminal-audit-confirm\"]",
+      "type": "stamp",
+      "label": "Audit Confirmation",
+      "description": "Confirm stocktaking audit results.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    }
+  ]
+}

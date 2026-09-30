@@ -420,7 +420,7 @@ export const VehicleOperationLogPage: React.FC = () => {
   };
 
   return (
-    <div style={{
+    <div data-subview="vehicle_log" data-subview-title="Generated" style={{
       display: 'flex',
       flexDirection: 'column',
       height: 'calc(100dvh - 85px)',
@@ -453,7 +453,7 @@ export const VehicleOperationLogPage: React.FC = () => {
         {/* 상단 퀵 액션 버튼군 */}
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
           {activeTab === 'OPERATION_LOG' && (
-            <button
+            <button data-mid="[data-mid="
               onClick={handleExportNtsExcel}
               style={{
                 display: 'flex',

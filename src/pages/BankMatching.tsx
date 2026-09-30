@@ -191,7 +191,7 @@ export const BankMatching: React.FC = () => {
 
         if (!payObj.billingId || payObj.id.endsWith('-prepaid')) {
           elements.push(
-            <div key={link.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--success)', fontSize: '12px', whiteSpace: 'nowrap' }}>
+            <div data-mid="[data-mid=" key={link.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--success)', fontSize: '12px', whiteSpace: 'nowrap' }}>
               <span>• 초과 선수금 적립 (+{link.usedAmount.toLocaleString()}원)</span>
             </div>
           );
@@ -254,7 +254,7 @@ export const BankMatching: React.FC = () => {
       const matchedSettlement = purchaseSettlements.find(s => s.bankTransactionId === tx.id);
       if (!matchedSettlement) return <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>-</span>;
       return (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--text-main)', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
+    <div data-subview="bank_matching" data-subview-title="Generated" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--text-main)', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
           <LinkIcon size={10} style={{ color: 'var(--primary)', flexShrink: 0 }} />
           <span>[{matchedSettlement.vendorName}] {matchedSettlement.settlementYm} 매입정산 대사됨</span>
         </div>

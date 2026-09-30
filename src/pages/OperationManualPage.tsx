@@ -105,7 +105,7 @@ export const OperationManualPage: React.FC = () => {
   }, [selectedMenuId]);
 
   return (
-    <div className="manual-page-root" style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', overflow: 'hidden' }}>
+    <div data-subview="operations_manual" data-subview-title="Generated" className="manual-page-root" style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', overflow: 'hidden' }}>
       
       {/* ── 인쇄 전용 글로벌 스타일 ── */}
       <style>{`
@@ -161,7 +161,7 @@ export const OperationManualPage: React.FC = () => {
         zIndex: 20
       }}>
         {/* 타이틀 및 부서 필터 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div data-mid="[data-mid=" style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <BookOpen size={18} />

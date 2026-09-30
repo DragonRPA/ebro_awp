@@ -1,0 +1,86 @@
+{
+  "menuId": "agentic_asset_lifecycle",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"agentic_asset_lifecycle-header\"]",
+      "type": "stamp",
+      "label": "�ڻ� ����������Ŭ ���",
+      "description": "������ƽ �ڻ� ����������Ŭ ������ ������ ǥ���մϴ�.",
+      "badgeColor": "#10b981",
+      "positionHint": "bottom",
+      "spotlight": true
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"agentic_asset_lifecycle-scope\"]",
+      "type": "stamp",
+      "label": "���� ��Ģ ���� (Scope)",
+      "description": "��� �˼� ���� �� RENTED ���� ��ȯ ��Ģ�� ��Ÿ���� ������ �����Դϴ�.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"agentic_asset_lifecycle-pipeline\"]",
+      "type": "stamp",
+      "label": "���� ��� HUD (Pipeline)",
+      "description": "6�� ����������Ŭ ���� ��� �������������� �ڻ��� �������� ���¸� �����մϴ�.",
+      "badgeColor": "#8b5cf6",
+      "positionHint": "bottom",
+      "spotlight": true
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"agentic_asset_lifecycle-status\"]",
+      "type": "stamp",
+      "label": "���� ó�� �޽���",
+      "description": "������ƽ AI�� ��ġ ���(���� �Ϸ�, ���� ���� ��)�� ǥ���ϴ� �����Դϴ�.",
+      "badgeColor": "#f59e0b",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"agentic_asset_lifecycle-inspection\"]",
+      "type": "stamp",
+      "label": "���� ť Ÿ��Ʋ (Inspection)",
+      "description": "�ڻ� ����������Ŭ ���� ť�� ���� ����� �����ݴϴ�.",
+      "badgeColor": "#3b82f6",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"agentic_asset_lifecycle-card\"]",
+      "type": "stamp",
+      "label": "���� �ڻ� ī��",
+      "description": "�� ����� ����, ���� �� ��ġ ������ ��ư�� ���Ե� ī���Դϴ�.",
+      "badgeColor": "#10b981",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"agentic_asset_lifecycle-metrics\"]",
+      "type": "stamp",
+      "label": "�ڻ� ���� ���� ��ġ",
+      "description": "�����ð�, ��������, �����˻� ��ȿ�Ⱓ �� ����� ���� ��Ʈ�����Դϴ�.",
+      "badgeColor": "#6b7280",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 8,
+      "selector": "[data-mid=\"agentic_asset_lifecycle-terminal-audit\"]",
+      "type": "stamp",
+      "label": "���� ��ȯ ���� (Terminal)",
+      "description": "��� �˼� ���� Ȥ�� ���� �Ϸ� ���� ��ġ�� �����Ͽ� �ڻ��� ���¸� �����մϴ�.",
+      "badgeColor": "#ef4444",
+      "positionHint": "top",
+      "spotlight": true
+    }
+  ]
+}

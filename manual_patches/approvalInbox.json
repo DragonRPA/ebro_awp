@@ -1,0 +1,86 @@
+{
+  "menuId": "approvalInbox",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"approvalInbox-header\"]",
+      "type": "stamp",
+      "label": "결재함 헤더",
+      "description": "대기 중인 전체 결재 건수를 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"approvalInbox-refresh\"]",
+      "type": "stamp",
+      "label": "결재함 새로고침",
+      "description": "최신 결재 요청 목록을 다시 불러옵니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"approvalInbox-list-container\"]",
+      "type": "stamp",
+      "label": "결재 대기 목록",
+      "description": "승인이나 반려 처리가 필요한 결재 건들의 목록입니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"approvalInbox-card\"]",
+      "type": "stamp",
+      "label": "개별 결재 카드",
+      "description": "각 결재 요청 건의 상세 정보와 액션 버튼을 포함합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"approvalInbox-card-header\"]",
+      "type": "stamp",
+      "label": "결재 유형 및 티어",
+      "description": "결재 규칙, 합의/결재 여부 및 최소 필요 티어 정보를 표시합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"approvalInbox-card-summary\"]",
+      "type": "stamp",
+      "label": "대상 건 요약",
+      "description": "결재 요청의 대상 테이블 및 관련 요약 정보를 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"approvalInbox-card-progress\"]",
+      "type": "stamp",
+      "label": "결재 진행 현황",
+      "description": "결재 프로세스의 전체 단계 및 현재 상태를 나타냅니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 8,
+      "selector": "[data-mid=\"approvalInbox-card-action\"]",
+      "type": "stamp",
+      "label": "승인 / 반려 처리",
+      "description": "해당 결재 건을 승인하거나 사유를 작성하여 반려합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    }
+  ]
+}

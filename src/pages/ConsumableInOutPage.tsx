@@ -370,7 +370,7 @@ export const ConsumableInOutPage: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px', maxWidth: '1440px', margin: '0 auto' }}>
+    <div data-subview="consumable_inout" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px', maxWidth: '1440px', margin: '0 auto' }}>
       {/* ─── 토스트 알림 ─── */}
       {toastMessage && (
         <div style={{
@@ -387,7 +387,7 @@ export const ConsumableInOutPage: React.FC = () => {
       )}
 
       {/* ─── [Z-패턴 1단계: 헤더 & 탭 네비게이션] ─── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+      <div data-mid="[data-mid=" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
             소모품 입출고 관리

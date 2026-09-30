@@ -1,0 +1,66 @@
+{
+  "menuId": "approvalRules",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"approvalRules-tabs\"]",
+      "type": "stamp",
+      "label": "메뉴 탭 전환",
+      "description": "결재선 규칙과 직급·직책 티어 설정 간 화면을 전환합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"approvalRules-sync\"]",
+      "type": "stamp",
+      "label": "표준 규칙 동기화",
+      "description": "시스템의 표준 결재 이벤트 목록을 동기화하여 가져옵니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"approvalRules-rules-grid\"]",
+      "type": "stamp",
+      "label": "결재선 규칙 목록",
+      "description": "이벤트별 전결 티어, 합의선 및 사용 여부를 설정합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"approvalRules-tier-simulator\"]",
+      "type": "stamp",
+      "label": "유효 티어 판정 시뮬레이터",
+      "description": "설정한 직책과 직급의 조합에 따른 최종 결재 권한 티어를 시뮬레이션합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"approvalRules-duty-config\"]",
+      "type": "stamp",
+      "label": "직책별 티어 관리",
+      "description": "단위 조직 책임자의 직책 티어를 설정합니다. (직급보다 우선 적용됨)",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"approvalRules-position-config\"]",
+      "type": "stamp",
+      "label": "직급별 티어 관리",
+      "description": "일반 사원 및 소규모 조직에 자동 적용될 직급 티어를 설정합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    }
+  ]
+}

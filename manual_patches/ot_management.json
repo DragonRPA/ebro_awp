@@ -1,0 +1,46 @@
+{
+  "menuId": "ot_management",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"ot_management-terminal-audit\"]",
+      "type": "stamp",
+      "label": "OT 현황 요약",
+      "description": "총 승인 시간, 당월 OT 시간 등 전체적인 현황을 요약하여 보여줍니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"ot_management-pipeline-add\"]",
+      "type": "stamp",
+      "label": "OT 연장근무 등록",
+      "description": "다중 인원 선택 및 일자, 시간을 지정하여 OT를 등록할 수 있습니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"ot_management-inspection-grid\"]",
+      "type": "stamp",
+      "label": "OT 목록 조회",
+      "description": "과거 및 현재 등록된 전체 OT 기록을 테이블 형태로 조회할 수 있습니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"ot_management-analytics-grid\"]",
+      "type": "stamp",
+      "label": "OT 캘린더 뷰",
+      "description": "월별 OT 내역을 캘린더 형태로 확인하고 일별 상세 조회에 접근합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    }
+  ]
+}

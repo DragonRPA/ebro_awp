@@ -1,0 +1,96 @@
+{
+  "menuId": "initial_db_upload",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"initial_db_upload-header\"]",
+      "type": "stamp",
+      "label": "�ʱ� DB ���ε� ���",
+      "description": "�ʱ� DB ���ε��� ���� �� ������ ǥ���մϴ�.",
+      "badgeColor": "#2563eb",
+      "positionHint": "bottom",
+      "spotlight": true
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"initial_db_upload-tabs\"]",
+      "type": "stamp",
+      "label": "�ֿ� �۾� �� (Scope)",
+      "description": "������ ���ε�, �Һ��� ����, ���, �ʱ�ȭ �� �۾� ������ �����մϴ�.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"initial_db_upload-excel-import\"]",
+      "type": "stamp",
+      "label": "�ʱ� ��Ȳ ���� ���ε�",
+      "description": "�����ڻ�, �Ӵ���Ȳ, �ŷ�ó �� ���� �����͸� ������ �ϰ� �����մϴ�.",
+      "badgeColor": "#8b5cf6",
+      "positionHint": "bottom",
+      "spotlight": true
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"initial_db_upload-hist-billing\"]",
+      "type": "stamp",
+      "label": "���� �ұ� û���� ���� (Pipeline)",
+      "description": "���� �����͸� ������� ���� û�� ������ �ϰ� �������Ͽ� �����մϴ�.",
+      "badgeColor": "#f59e0b",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"initial_db_upload-dispatch-import\"]",
+      "type": "stamp",
+      "label": "���� �̷� ���ε�",
+      "description": "���� ���� �� ��� ������ ������ ���ε��Ͽ� ����� ����ȭ�մϴ�.",
+      "badgeColor": "#3b82f6",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"initial_db_upload-band-import\"]",
+      "type": "stamp",
+      "label": "��� AS �̷� ���ε� (Inspection)",
+      "description": "���� �����Ͼ��� ��� AS �̷� �ؽ�Ʈ�� �Ľ��Ͽ� ���� �������� ��ȯ �����մϴ�.",
+      "badgeColor": "#10b981",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"initial_db_upload-cleanup\"]",
+      "type": "stamp",
+      "label": "������ ���Ἲ ���� (Inspection)",
+      "description": "���ε�� ������ �� �Һ���(����) �����͸� �ĺ��ϰ� �����մϴ�.",
+      "badgeColor": "#ef4444",
+      "positionHint": "top",
+      "spotlight": true
+    },
+    {
+      "seq": 8,
+      "selector": "[data-mid=\"initial_db_upload-backup\"]",
+      "type": "stamp",
+      "label": "��ü DB ��� (Terminal)",
+      "description": "������� ����� ��� �����ͺ��̽��� �����̳� JSON ���·� ����մϴ�.",
+      "badgeColor": "#6b7280",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 9,
+      "selector": "[data-mid=\"initial_db_upload-reset\"]",
+      "type": "stamp",
+      "label": "������ �ʱ�ȭ (Terminal)",
+      "description": "���� �����͸� ��� �����ϰ� �� ���·� �ʱ�ȭ�ϴ� ���� �۾��� �����մϴ�.",
+      "badgeColor": "#ef4444",
+      "positionHint": "top",
+      "spotlight": false
+    }
+  ]
+}

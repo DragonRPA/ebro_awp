@@ -335,7 +335,7 @@ export const CorporateCardPage: React.FC = () => {
   const totalTaxInvoicesReceived = 60020000; // 수취 세금계산서 고정값
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div data-subview="corporate_card" data-subview-title="Generated" style={{ position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -374,7 +374,7 @@ export const CorporateCardPage: React.FC = () => {
           >
             월별 매입정산 & 누락 검증
           </button>
-          <button
+          <button data-mid="[data-mid="
             onClick={() => setActiveSubTab('settings')}
             style={{
               padding: '6px 16px', borderRadius: '6px', fontSize: '13px', border: 'none', cursor: 'pointer',

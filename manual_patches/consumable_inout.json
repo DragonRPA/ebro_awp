@@ -1,0 +1,96 @@
+{
+  "menuId": "consumable_inout",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"consumable_inout-pipeline-inbound-tab\"]",
+      "type": "stamp",
+      "label": "소모품 입고",
+      "description": "구매 승인된 소모품의 입고 처리를 진행하는 탭입니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"consumable_inout-pipeline-outbound-tab\"]",
+      "type": "stamp",
+      "label": "소모품 출고",
+      "description": "현장 정비 등 자산에 투입할 소모품 출고 처리를 진행하는 탭입니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"consumable_inout-pipeline-logs-tab\"]",
+      "type": "stamp",
+      "label": "입출고 이력",
+      "description": "소모품의 전체 수불 내역을 조회하는 탭입니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"consumable_inout-inspection-inbound-list\"]",
+      "type": "stamp",
+      "label": "입고 대기 목록",
+      "description": "현재 창고 입고 대기 중인 구매신청 건 목록입니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "right",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"consumable_inout-inspection-inbound-form\"]",
+      "type": "stamp",
+      "label": "입고 확정",
+      "description": "실제 입고 수량과 거래명세서를 첨부하여 입고 확정을 처리합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "left",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"consumable_inout-inspection-outbound-form\"]",
+      "type": "stamp",
+      "label": "출고 확정",
+      "description": "출고 품목, 수량, 대상 자산 및 정비사를 지정하여 출고를 확정합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "right",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"consumable_inout-scope\"]",
+      "type": "stamp",
+      "label": "이력 조회 필터",
+      "description": "검색어, 품목, 구분, 담당자, 기간 조건으로 입출고 이력을 조회합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 8,
+      "selector": "[data-mid=\"consumable_inout-inspection-grid\"]",
+      "type": "stamp",
+      "label": "입출고 수불 내역",
+      "description": "조건에 맞는 입출고 수불 내역을 상세히 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 9,
+      "selector": "[data-mid=\"consumable_inout-terminal-audit\"]",
+      "type": "stamp",
+      "label": "수불 대차 검증",
+      "description": "조회된 내역에 대해 입고, 출고 등의 금액과 수량 합계를 요약 검증합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    }
+  ]
+}

@@ -294,7 +294,7 @@ export const LeaveManagementPage: React.FC = () => {
   });
 
   return (
-    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div data-subview="leave_management" data-subview-title="Generated" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
       {/* 헤더 타이틀 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
@@ -431,7 +431,7 @@ export const LeaveManagementPage: React.FC = () => {
                         <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', fontWeight: 'bold', color: 'var(--text-main)' }}>
                           {u.name}
                         </td>
-                        <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
+                        <td data-mid="[data-mid=" style={{ padding: '10px 14px', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
                           {u.department || '미지정'} / {u.position || '직원'}
                         </td>
                         <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', color: 'var(--text-main)' }}>

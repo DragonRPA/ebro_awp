@@ -810,7 +810,7 @@ export const OutboundInspections: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', color: 'var(--text-primary)' }}>
+    <div data-subview="outbound_inspections" data-subview-title="Generated" style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', color: 'var(--text-primary)' }}>
       {/* 헤더 영역 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
@@ -928,7 +928,7 @@ export const OutboundInspections: React.FC = () => {
                   { label: '1개월', type: 'MONTH' },
                   { label: '전체', type: 'ALL' }
                 ].map(b => (
-                  <button
+                  <button data-mid="[data-mid="
                     key={b.type}
                     onClick={() => handleSetDateRange(b.type as any)}
                     style={{

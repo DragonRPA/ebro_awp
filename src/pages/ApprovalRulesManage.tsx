@@ -444,7 +444,7 @@ const ApprovalRulesManage: React.FC = () => {
     const finalCategory = category || '기타';
     const colors = CATEGORY_COLORS[finalCategory] || { bg: '#475569', color: '#e2e8f0' };
     return (
-      <span style={{
+      <span data-mid="[data-mid=" style={{
         fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '10px',
         background: colors.bg, color: colors.color, whiteSpace: 'nowrap', display: 'inline-block',
       }}>
@@ -511,7 +511,7 @@ const ApprovalRulesManage: React.FC = () => {
      렌더
   ════════════════════════════════════════════════════════════ */
   return (
-    <div style={{ padding: '20px 24px', maxWidth: '1280px', margin: '0 auto' }}>
+    <div data-subview="approvalRules" data-subview-title="Generated" style={{ padding: '20px 24px', maxWidth: '1280px', margin: '0 auto' }}>
 
       {/* ── 상단 탭 내비게이션 ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', borderBottom: '2px solid var(--border-color)', paddingBottom: '12px' }}>

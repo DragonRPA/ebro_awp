@@ -1,0 +1,46 @@
+{
+  "menuId": "leave_application",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"leave_application-terminal-audit\"]",
+      "type": "stamp",
+      "label": "연차 현황 요약",
+      "description": "선택된 임직원의 연차 현황(부여, 소진, 잔여 일수)을 실시간으로 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"leave_application-pipeline-add\"]",
+      "type": "stamp",
+      "label": "연차 신청",
+      "description": "본인 또는 대상 임직원의 연차 및 반차를 신청합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"leave_application-scope\"]",
+      "type": "stamp",
+      "label": "신청 내역 필터",
+      "description": "구분별, 본인/전체 대상 내역만 모아보기 위한 필터를 제공합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"leave_application-inspection-grid\"]",
+      "type": "stamp",
+      "label": "연차 이력",
+      "description": "등록된 연차 신청 및 차감 이력을 목록 형태로 상세 조회합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    }
+  ]
+}

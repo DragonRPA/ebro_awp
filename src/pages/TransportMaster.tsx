@@ -270,7 +270,7 @@ export const TransportMaster: React.FC = () => {
   };
 
   return (
-    <div>
+    <div data-subview="transport_master" data-subview-title="Generated">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h2 style={{ fontWeight: '700', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Settings size={22} color="var(--primary)" /> 운송 거래처 관리
@@ -279,7 +279,7 @@ export const TransportMaster: React.FC = () => {
 
       {/* 📊 운송사 및 기사 등록 현황 요약 바 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
-        <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div data-mid="[data-mid=" style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>등록 운송사</span>
           <strong style={{ fontSize: '15px', color: 'var(--primary)' }}>{transportCompanies.length}개사</strong>
         </div>

@@ -1469,7 +1469,7 @@ export const RentAssets: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '14px 20px', maxWidth: '1600px', margin: '0 auto' }}>
+    <div data-subview="rent_asset" data-subview-title="Generated" style={{ padding: '14px 20px', maxWidth: '1600px', margin: '0 auto' }}>
       
       {/* 1. 상단 메뉴 헤더 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -1595,7 +1595,7 @@ export const RentAssets: React.FC = () => {
               <strong style={{ fontSize: '15px', color: 'var(--danger)' }}>₩{totalMonthlyRentCost.toLocaleString()}원</strong>
             </div>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>반납 완료 장비</span>
+              <span data-mid="[data-mid=" style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>반납 완료 장비</span>
               <strong style={{ fontSize: '15px', color: 'var(--text-muted)' }}>{returnedList.length}대</strong>
             </div>
           </div>

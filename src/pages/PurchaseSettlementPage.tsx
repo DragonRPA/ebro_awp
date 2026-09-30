@@ -259,7 +259,7 @@ export const PurchaseSettlementPage: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: '1100px', position: 'relative' }}>
+    <div data-subview="purchase_settlement" data-subview-title="Generated" style={{ padding: '20px 24px', maxWidth: '1100px', position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -296,7 +296,7 @@ export const PurchaseSettlementPage: React.FC = () => {
           </select>
         </div>
 
-        <button
+        <button data-mid="[data-mid="
           onClick={handleGenerate}
           disabled={isGenerating}
           style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '36px', padding: '0 16px', background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: '700', fontSize: '13.5px', cursor: isGenerating ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}

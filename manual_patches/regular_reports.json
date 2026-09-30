@@ -1,0 +1,56 @@
+{
+  "menuId": "regular_reports",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"reports-header\"]",
+      "type": "stamp",
+      "label": "Header",
+      "description": "Change closing month.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"reports-btn-refresh\"]",
+      "type": "stamp",
+      "label": "Refresh",
+      "description": "Reload latest data.",
+      "badgeColor": "#10b981",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"reports-btn-print\"]",
+      "type": "stamp",
+      "label": "Print",
+      "description": "Print report.",
+      "badgeColor": "#ea580c",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"reports-btn-pdf\"]",
+      "type": "stamp",
+      "label": "PDF",
+      "description": "Download official PDF.",
+      "badgeColor": "#a855f7",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"reports-kpi\"]",
+      "type": "stamp",
+      "label": "KPIs",
+      "description": "Executive KPIs overview.",
+      "badgeColor": "#0284c7",
+      "positionHint": "bottom",
+      "spotlight": true
+    }
+  ]
+}

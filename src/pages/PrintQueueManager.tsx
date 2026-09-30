@@ -218,7 +218,7 @@ export const PrintQueueManager: React.FC = () => {
   <div class="box">
     <h1>기연리프트 분산 인쇄 테스트</h1>
     <table>
-      <tr><th>프린터 명칭</th><td>${station.stationName}</td></tr>
+      <tr><th>프린터 명칭</th><td data-mid="[data-mid=">${station.stationName}</td></tr>
       <tr><th>타겟 프린터</th><td>${station.localPrinterName}</td></tr>
       <tr><th>호스트 PC</th><td>${station.machineName || '-'}</td></tr>
       <tr><th>기본 서식</th><td>${station.docTypeDefault === 'DISPATCH_ORDER' ? '출고요청서' : station.docTypeDefault === 'RETURN_ORDER' ? '회수요청서' : '공용'}</td></tr>
@@ -322,7 +322,7 @@ export const PrintQueueManager: React.FC = () => {
   };
 
   return (
-    <div
+    <div data-subview="print_queue_monitor" data-subview-title="Generated"
       style={{
         padding: '24px',
         backgroundColor: 'var(--bg-app)',

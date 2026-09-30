@@ -1,0 +1,76 @@
+{
+  "menuId": "organization",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"org-header\"]",
+      "type": "stamp",
+      "label": "Header",
+      "description": "Master settings overview.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"org-export-excel\"]",
+      "type": "stamp",
+      "label": "Export Excel",
+      "description": "Download org data.",
+      "badgeColor": "#10b981",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"org-save-all\"]",
+      "type": "stamp",
+      "label": "Save All",
+      "description": "Save changes to DB.",
+      "badgeColor": "#ea580c",
+      "positionHint": "bottom",
+      "spotlight": true
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"org-tree-panel\"]",
+      "type": "stamp",
+      "label": "Department Tree",
+      "description": "Manage dept structure.",
+      "badgeColor": "#a855f7",
+      "positionHint": "right",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"org-unassigned-pool\"]",
+      "type": "stamp",
+      "label": "Unassigned Pool",
+      "description": "View unassigned members.",
+      "badgeColor": "#0284c7",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"org-users-panel\"]",
+      "type": "stamp",
+      "label": "Members Grid",
+      "description": "Users in selected pool/dept.",
+      "badgeColor": "#f59e0b",
+      "positionHint": "left",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"org-btn-add-user\"]",
+      "type": "stamp",
+      "label": "Add User",
+      "description": "Create new profile.",
+      "badgeColor": "#ef4444",
+      "positionHint": "bottom",
+      "spotlight": false
+    }
+  ]
+}

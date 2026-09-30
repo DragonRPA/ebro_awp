@@ -1,0 +1,86 @@
+{
+  "menuId": "rent_asset",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"rent_asset-header\"]",
+      "type": "stamp",
+      "label": "임차 장비 관리",
+      "description": "임차 장비 관리 메뉴입니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"rent_asset-add-btn\"]",
+      "type": "stamp",
+      "label": "신규 등록",
+      "description": "임차 자산을 신규 등록합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"rent_asset-tabs\"]",
+      "type": "stamp",
+      "label": "탭 메뉴",
+      "description": "대장, 협의, 원장, 정산 탭으로 이동합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"rent_asset-recon-scope\"]",
+      "type": "stamp",
+      "label": "정산 범위 설정",
+      "description": "정산할 연월 및 임차처를 설정합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"rent_asset-recon-pipeline\"]",
+      "type": "stamp",
+      "label": "파이프라인",
+      "description": "명세서 데이터를 업로드합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"rent_asset-recon-grid\"]",
+      "type": "stamp",
+      "label": "대사 결과",
+      "description": "업로드된 명세서와 자사 데이터를 대사합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"rent_asset-profit-summary\"]",
+      "type": "stamp",
+      "label": "손익 요약",
+      "description": "전대 손익 및 매출/매입 요약입니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 8,
+      "selector": "[data-mid=\"rent_asset-profit-grid\"]",
+      "type": "stamp",
+      "label": "손익 원장",
+      "description": "자산별 누적 손익 상세 현황입니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    }
+  ]
+}

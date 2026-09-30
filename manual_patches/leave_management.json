@@ -1,0 +1,86 @@
+{
+  "menuId": "leave_management",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"leave-scope-emp\"]",
+      "type": "stamp",
+      "label": "Emp",
+      "description": "Manual step for leave-scope-emp",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"leave-inspection-quota-grid\"]",
+      "type": "stamp",
+      "label": "Grid",
+      "description": "Manual step for leave-inspection-quota-grid",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"leave-inspection-usage-grid\"]",
+      "type": "stamp",
+      "label": "Grid",
+      "description": "Manual step for leave-inspection-usage-grid",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"leave-pipeline-add\"]",
+      "type": "stamp",
+      "label": "Add",
+      "description": "Manual step for leave-pipeline-add",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"leave-terminal-audit-excel\"]",
+      "type": "stamp",
+      "label": "Excel",
+      "description": "Manual step for leave-terminal-audit-excel",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"leave-terminal-audit-delete\"]",
+      "type": "stamp",
+      "label": "Delete",
+      "description": "Manual step for leave-terminal-audit-delete",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"leave-pipeline-edit\"]",
+      "type": "stamp",
+      "label": "Edit",
+      "description": "Manual step for leave-pipeline-edit",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 8,
+      "selector": "[data-mid=\"leave-inspection-summary\"]",
+      "type": "stamp",
+      "label": "Summary",
+      "description": "Manual step for leave-inspection-summary",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    }
+  ]
+}

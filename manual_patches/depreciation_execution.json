@@ -1,0 +1,76 @@
+{
+  "menuId": "depreciation_execution",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"dep-export-asset\"]",
+      "type": "stamp",
+      "label": "Export Target Assets",
+      "description": "Download target assets to Excel.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"dep-execute-panel\"]",
+      "type": "stamp",
+      "label": "Execution Panel",
+      "description": "Run depreciation execution.",
+      "badgeColor": "#10b981",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"dep-rollback\"]",
+      "type": "stamp",
+      "label": "Rollback",
+      "description": "Cancel closed depreciation.",
+      "badgeColor": "#ea580c",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"dep-execute-btn\"]",
+      "type": "stamp",
+      "label": "Execute",
+      "description": "Execute monthly depreciation.",
+      "badgeColor": "#a855f7",
+      "positionHint": "bottom",
+      "spotlight": true
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"dep-rules-panel\"]",
+      "type": "stamp",
+      "label": "Rules Overview",
+      "description": "Read depreciation policies.",
+      "badgeColor": "#0284c7",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"dep-export-logs\"]",
+      "type": "stamp",
+      "label": "Export Logs",
+      "description": "Download execution logs.",
+      "badgeColor": "#f59e0b",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"dep-logs-grid\"]",
+      "type": "stamp",
+      "label": "Execution Logs Grid",
+      "description": "Review past executions.",
+      "badgeColor": "#ef4444",
+      "positionHint": "top",
+      "spotlight": false
+    }
+  ]
+}

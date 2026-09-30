@@ -297,7 +297,7 @@ export const Dashboard: React.FC = () => {
   const badge = getRoleBadge();
 
   return (
-    <div className="dashboard-page" style={{ maxWidth: '850px', margin: '0 auto', paddingBottom: '40px' }}>
+    <div data-subview="dashboard" data-subview-title="Generated" className="dashboard-page" style={{ maxWidth: '850px', margin: '0 auto', paddingBottom: '40px' }}>
       <style dangerouslySetInnerHTML={{ __html: `
         details > summary::-webkit-details-marker { display: none; }
         details[open] summary ~ * { animation: slideDown 0.3s ease-in-out; }
@@ -306,7 +306,7 @@ export const Dashboard: React.FC = () => {
   
       
       {/* 웰컴 상단 바 */}
-      <div className="card" style={{
+      <div data-mid="[data-mid=" className="card" style={{
         margin: '0 0 24px 0', padding: '24px', borderRadius: '12px',
         background: 'linear-gradient(135deg, var(--bg-card) 0%, var(--bg-secondary) 100%)',
         border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px'

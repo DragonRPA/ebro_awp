@@ -1,0 +1,76 @@
+{
+  "menuId": "purchase_settlement",
+  "version": 5,
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "[data-mid=\"purchase_settlement-pipeline-generate\"]",
+      "type": "stamp",
+      "label": "월간 자동 집계",
+      "description": "선택한 연월의 운송료, 소모품, 임차료 등 매입 내역을 자동으로 집계합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 2,
+      "selector": "[data-mid=\"purchase_settlement-pipeline-excel\"]",
+      "type": "stamp",
+      "label": "엑셀 내보내기",
+      "description": "조회된 매입 정산 대장을 엑셀로 내보냅니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 3,
+      "selector": "[data-mid=\"purchase_settlement-pipeline-hometax\"]",
+      "type": "stamp",
+      "label": "국세청 대사",
+      "description": "국세청 매입세금계산서와 대사하여 정산 정보를 업데이트합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 4,
+      "selector": "[data-mid=\"purchase_settlement-scope\"]",
+      "type": "stamp",
+      "label": "정산 유형",
+      "description": "전체, 운송료, 소모품, 임차료, 외주 정비비 등 정산 유형별로 내역을 필터링합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 5,
+      "selector": "[data-mid=\"purchase_settlement-inspection-filter\"]",
+      "type": "stamp",
+      "label": "검색 필터",
+      "description": "지급 상태나 매입처명으로 정산 내역을 상세 조회합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 6,
+      "selector": "[data-mid=\"purchase_settlement-terminal-audit\"]",
+      "type": "stamp",
+      "label": "정산 요약 지표",
+      "description": "당월 정산 건수, 총 청구액, 지급 완료액, 미지급 잔액을 실시간으로 확인합니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "bottom",
+      "spotlight": false
+    },
+    {
+      "seq": 7,
+      "selector": "[data-mid=\"purchase_settlement-inspection-grid\"]",
+      "type": "stamp",
+      "label": "매입 정산 내역",
+      "description": "매입처별 정산 금액과 세금계산서, 증빙을 확인하고 지급 처리를 진행할 수 있습니다.",
+      "badgeColor": "#1D4ED8",
+      "positionHint": "top",
+      "spotlight": false
+    }
+  ]
+}
