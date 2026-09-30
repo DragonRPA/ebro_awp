@@ -3,6 +3,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '../services/db';
 import type { ManualPage, ManualAnnotationItem } from '../types/manual';
 import { ALL_MENU_MANUALS, getManualPageForMenu } from '../data/allMenuManuals';
+import { MODAL_MANUAL_REGISTRY, getModalManualPage } from '../data/modalManuals';
 
 const TENANT_ID = 'default';
 
@@ -85,8 +86,10 @@ export function useManual() {
       }
     }
 
-    // DB에 없거나 비어있는 경우 SSOT 시드 매뉴얼 로드
-    const seed = getManualPageForMenu(pageId, pageTitle);
+    // DB에 없거나 비어있는 경우 SSOT 시드 매뉴얼 로드 (모달인 경우 모달 전용 매뉴얼 시드 반환)
+    const seed = pageId.startsWith('modal_')
+      ? getModalManualPage(pageId, pageTitle)
+      : getManualPageForMenu(pageId, pageTitle);
     
     // 백그라운드에서 DB에 자동 시드 upsert (실패해도 사용자는 시드 데이터로 즉시 열람 가능)
     if (supabase) {
@@ -96,13 +99,14 @@ export function useManual() {
     return seed;
   }, [savePage]);
 
-  /** 전사 51개 모든 메뉴의 표준 매뉴얼을 DB에 일괄 주입(Batch Seed) */
+  /** 전사 51개 모든 메뉴 및 20개 모달 팝업의 표준 매뉴얼을 DB에 일괄 주입(Batch Seed) */
   const seedAllManuals = useCallback(async (updatedBy?: string): Promise<{ success: number; failed: number }> => {
     if (!supabase) return { success: 0, failed: 0 };
     setSaving(true);
     let success = 0;
     let failed = 0;
 
+    // 1. 메뉴 매뉴얼 일괄 주입
     for (const menu of ALL_MENU_MANUALS) {
       const pageData: ManualPage = {
         pageId: menu.menuId,
@@ -113,6 +117,24 @@ export function useManual() {
 
       try {
         const ok = await savePage(pageData, updatedBy);
+        if (ok) success++;
+        else failed++;
+      } catch {
+        failed++;
+      }
+    }
+
+    // 2. 모달 팝업 매뉴얼 일괄 주입
+    for (const modal of Object.values(MODAL_MANUAL_REGISTRY)) {
+      const modalData: ManualPage = {
+        pageId: modal.modalId,
+        pageTitle: modal.modalName,
+        version: 1,
+        items: modal.annotations.map((item, i) => ({ ...item, seq: i + 1 })),
+      };
+
+      try {
+        const ok = await savePage(modalData, updatedBy);
         if (ok) success++;
         else failed++;
       } catch {

@@ -1,3 +1,85 @@
+## 2026-09-30 18:35 (v1.8.3.Build.15)
+
+### [전자결재 엔진] '재고실사보고' 결재선 추가 및 '근태'/'보고' 신규 결재 유형 배지 신설 & 배지 무누락 지능형 보장
+
+- **`재고실사보고` (`STOCK_AUDIT_REPORT`) 결재선 신설**:
+  - `src/services/db.ts`: `APPROVAL_EVENT_REGISTRY`에 `{ code: 'STOCK_AUDIT_REPORT', name: '재고실사보고', targetTable: 'consumables', category: '보고' }` 등록
+  - Supabase 원격 DB(`approval_rules`)에 `STOCK_AUDIT_REPORT` 표준 결재선 레코드 영구 저장 완료 (`id: ef289234-efe6-454d-83a6-2aa75d0d0313`, 기본 필요 티어: 4티어)
+  - `ApprovalRulesManage.tsx`: 상단 `[표준 규칙 동기화]` 엔진에도 `STOCK_AUDIT_REPORT`가 자동 반영되도록 연동
+- **결재 유형 배지 신설 및 재분류 (`ApprovalRulesManage.tsx`)**:
+  - **`근태` 배지 신설**: 에메랄드/그린(`bg: #059669`, `color: #d1fae5`) 배지 신규 적용
+    - `연차신청` (`LEAVE_APPLICATION`)의 카테고리를 `인사`에서 `근태`로 재분류
+  - **`보고` 배지 신설**: 인디고/퍼플(`bg: #4338ca`, `color: #e0e7ff`) 배지 신규 적용
+    - `재고실사보고` (`STOCK_AUDIT_REPORT`)에 `보고` 카테고리 적용
+- **배지 무누락 지능형 폴백(`renderCategoryBadge`) 탑재**:
+  - 레지스트리 검색 실패 또는 브라우저 로컬 캐시 지연 시에도 이벤트 코드 및 이벤트명 키워드(LEAVE/연차/근태 ➔ 근태, REPORT/STOCK/보고/실사 ➔ 보고, PAYROLL/급여 ➔ 인사, DISPATCH/배차/운송 ➔ 배차, REPAIR/CONSUMABLE/수리/소모품 ➔ 정비, RENT/PAYMENT/지급/청구 ➔ 정산 등)를 지능적으로 분석하여 빈 배지 없이 100% 명확한 색상 배지를 표출하도록 보장
+  - 미분류 예외 시 `'기타'` 배지(`bg: #475569`, `color: #e2e8f0`)로 안전 렌더링
+
+---
+
+## 2026-09-30 18:25 (v1.8.3.Build.14)
+
+### [전사 매뉴얼 고도화] 팝업(모달) 실시간 자동 감지 및 모달 전용 인앱 매뉴얼(Ctrl+M) 엔진 신설
+
+- **`src/data/modalManuals.ts` (신규 파일)**:
+  - **전사 20대 핵심 팝업(모달) 전용 표준 매뉴얼 레지스트리 제정**:
+    1. `modal_customer_register`: 고객사 및 현장 등록·수정
+    2. `modal_exchange_order`: EXCHANGE 대차 교체 의뢰 (헌장 2.3 단일 배차 표준)
+    3. `modal_contract_amendment`: 계약 변경 (기간 연장 / 단가 조정 / 계약 승계)
+    4. `modal_outbound_inspection`: 출고 검수 승인 (헌장 1.3 RENTED 전환)
+    5. `modal_inbound_inspection`: 반납/입고 검수 승인 (고객 과실 귀책 판정)
+    6. `modal_dispatch_manual`: 수동 배차 신규 생성
+    7. `modal_dispatch_cost_edit`: 배차 운송료 금액 수정
+    8. `modal_dispatch_detail`: 배차 수정 및 운송 기사 배정
+    9. `modal_repair_execution`: 정비 조치 및 부품 투입
+    10. `modal_field_as_dispatch`: 현장 AS 긴급 접수 및 출동 지시
+    11. `modal_billing_waiver`: 청구 면제 및 감면 신청
+    12. `modal_bank_matching`: 통장 입금 1:1 수기 대사 매칭
+    13. `modal_delinquency_notice`: 독촉장 및 최고장 발송
+    14. `modal_excel_upload`: 엑셀 데이터 일괄 업로드
+    15. `modal_approval_action`: 결재 합의 및 승인/반려
+    16. `modal_business_license`: 사업자등록증 AI OCR 및 홈택스 검증
+    17. `modal_destination_weather`: 현장 기상 및 고소작업 풍속 안전 기준
+    18. `modal_asset_acquisition`: 신규 자산 취득 등록
+    19. `modal_vendor_register`: 매입처(협력사) 등록 및 수정
+    20. `modal_generic_dialog`: 일반 팝업 다이얼로그 표준 가이드
+  - **`detectActiveModalElement()` 실시간 DOM 감지 엔진 탑재**:
+    - `position: fixed` 백드롭 및 `zIndex` 상위 레이어를 실시간 스캔하여 현재 떠있는 최상단 모달의 제목과 컨테이너 DOM 요소를 정밀 추출
+  - **`matchModalKeyFromTitle()` 지능형 키 매핑 엔진**:
+    - 모달 헤더 텍스트 키워드 기반으로 20개 모달 매뉴얼 자동 바인딩
+- **`src/App.tsx`**:
+  - **`Ctrl + M` 모달 우선 작동 로직 연동**: 단축키 입력 시 현재 모달이 열려 있으면 해당 모달 전용 매뉴얼(`modal_*`)을 자동 로드하고, 모달이 없을 때만 기본 화면 매뉴얼을 로드하도록 분기 고도화
+- **`src/components/manual/ManualOverlay.tsx`**:
+  - **모달 내부 우선 타겟팅 (`resolveTargetElement`)**: `rootContainer`로 감지된 모달 요소를 전달받아, 모달 내부의 입력 폼, 체크리스트, 저장 버튼을 100% 오차 없이 정확히 포커싱·하이라이트
+  - **동적 z-index 최적화 (`baseZIndex >= 200,000`)**: 모달의 z-index(최대 99,999)보다 항상 상위에 렌더링되도록 Spotlight, Stamp, HighlightBox, BottomDossierCard 레이어 순위 격상
+  - **하단 바 타이틀 차별화**: 모달 매뉴얼 활성 시 `🖼️ 팝업: {제목}` 안내 태그 표출
+- **`src/hooks/useManual.ts`**:
+  - `loadPage`에서 `modal_*` 키 접두사 감지 시 모달 전용 시드 매뉴얼 자동 반환 및 DB 동기화 연동
+
+---
+
+## 2026-09-30 18:15 (v1.8.3.Build.13)
+
+### [전자결재 엔진] 결재선 규칙 테이블 중복 화살표 제거 및 6대 신규 결재선(수리비 청구·연차·임차료·운송료·소모품·급여) 주입
+
+- **`src/pages/ApprovalRulesManage.tsx`**:
+  - **테이블 좌측 중복 화살표 열 제거**: 행 맨 좌측의 `▶`/`▼` 버튼을 제거하고, `합의선` 컬럼 버튼(`[+ 합의선]` / `[n개]` / `[닫기]`)으로 하위 합의선 패널 토글 조작을 단일화 (가로 폭 최적화)
+  - **테이블 컬럼 수 8개 ➔ 7개 구조 조정**: `colgroup`, `thead`, `tbody` 및 하위 패널/빈 상태 `colSpan={7}` 통일
+  - **인사 카테고리 배지 색상 추가**: 청록 계열(`bg: #0f766e`, `color: #ccfbf1`) 배지 스타일링
+  - **표준 규칙 동기화 버튼 신설**: 우상단 `[표준 규칙 동기화]` 버튼을 통해 DB에 누락된 표준 이벤트 레코드를 자동 주입
+- **`src/services/db.ts`**:
+  - `APPROVAL_EVENT_REGISTRY`에 신규 6대 결재 조건 전사 표준 등록:
+    1. `REPAIR_BILLING`: 수리비 청구 (정비)
+    2. `LEAVE_APPLICATION`: 연차신청 (인사)
+    3. `RENT_PAYMENT`: 임차료 지급 (정산)
+    4. `DISPATCH_PAYMENT`: 운송료 지급 (배차)
+    5. `CONSUMABLE_PURCHASE_PAYMENT`: 소모품 구입 지급 (정비)
+    6. `PAYROLL_PAYMENT`: 급여정산 지급 (인사)
+- **Supabase DB (`approval_rules`)**:
+  - 원격 DB에 위 신규 결재선 규칙 레코드(`REPAIR_BILLING` 포함 6건) 생성 및 검증 완료 (총 21개 규칙 완비)
+
+---
+
 ## 2026-09-30 17:45 (v1.8.3.Build.12)
 
 ### [UI/UX 최적화] 헤더 중복 버튼 정리, 로그아웃 줄바꿈 방지, Ctrl+M 단축키 및 비개발자 매뉴얼 작성 은닉

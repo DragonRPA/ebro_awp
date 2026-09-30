@@ -390,6 +390,13 @@ export const APPROVAL_EVENT_REGISTRY = [
   { code: 'BILLING_FINALIZE',       name: '청구서 확정',      targetTable: 'billing_statements',  category: '정산' },
   { code: 'PAYMENT_CONFIRM',        name: '수납 확정',        targetTable: 'receipts',            category: '정산' },
   { code: 'DELINQUENCY_WRITE_OFF',  name: '연체 탕감 승인',   targetTable: 'contracts',           category: '정산' },
+  { code: 'LEAVE_APPLICATION',      name: '연차신청',          targetTable: 'leave_requests',      category: '근태' },
+  { code: 'RENT_PAYMENT',           name: '임차료 지급',      targetTable: 'rent_assets',         category: '정산' },
+  { code: 'DISPATCH_PAYMENT',       name: '운송료 지급',      targetTable: 'deliveries',          category: '배차' },
+  { code: 'CONSUMABLE_PURCHASE_PAYMENT', name: '소모품 구입 지급', targetTable: 'consumable_purchases', category: '정비' },
+  { code: 'PAYROLL_PAYMENT',        name: '급여정산 지급',    targetTable: 'payroll_records',     category: '인사' },
+  { code: 'REPAIR_BILLING',         name: '수리비 청구',      targetTable: 'repairs',             category: '정비' },
+  { code: 'STOCK_AUDIT_REPORT',     name: '재고실사보고',      targetTable: 'consumables',         category: '보고' },
 ] as const;
 
 export type ApprovalEventCode = typeof APPROVAL_EVENT_REGISTRY[number]['code'];

@@ -1,4 +1,4 @@
-﻿# 개발 요구사항 임시 기록 (dev_temp.md)
+# 개발 요구사항 임시 기록 (dev_temp.md)
 
 ## [스켈톤 발상 — 인앱 오버레이 매뉴얼 시스템 v1.8.2] 2026-09-29
 
@@ -5327,5 +5327,19 @@ pm run build: **TypeScript 0 Error, 번들링 정상 완료 (uilt in 1.13s)**.
   1. customers: paymentDueDay가 NULL이던 231건 전수를 기본 표준 약정일인 paymentDueDay = 25, paymentDueMonthOffset = 1로 명시적 UPDATE 완료 (NULL 0건 달성).
   2. customer_sites: contacts가 NULL이던 건을 []로 초기화하고 paymentDueMonthOffset = 1 보정 완료.
   3. contracts: 27건의 NULL 계약에 대해 부모 고객사의 paymentDueDay 및 paymentDueMonthOffset을 100% 자동 상속 보정 집행 (MK이엔지 4건 계약 30일로 정상 상속, 잔여 23건 25일 보정, NULL 0건 달성).
-  4. src/services/db.ts: ormatPaymentDueCondition 및 calculatePaymentDueDate에 방어 코드(null/undefined/0/NaN 방어)를 적용하고, LocalDB의 customers/sites/contracts getter에서 로컬 캐시 자동 정규화를 구현하여 브라우저 캐시 잔존 시에도 무결성 100% 보장.
+  4. src/services/db.ts: formatPaymentDueCondition 및 calculatePaymentDueDate에 방어 코드(null/undefined/0/NaN 방어)를 적용하고, LocalDB의 customers/sites/contracts getter에서 로컬 캐시 자동 정규화를 구현하여 브라우저 캐시 잔존 시에도 무결성 100% 보장.
+
+## [반영완료] 결재선 종류 재고실사보고 추가 및 결재 유형 배지 신설 (근태, 보고) (v1.8.3.Build.15)
+- **요구사항**:
+  1. 결재선 종류에 재고실사보고(`STOCK_AUDIT_REPORT`) 추가
+  2. 결재 유형 배지 추가 및 유형 종류 추가: 근태 (연차신청), 보고 (재고실사보고)
+  3. 결재선 테이블 내 모든 항목에 카테고리 배지가 누락 없이 표출되도록 보장
+- **조치 내역**:
+  1. `src/services/db.ts`: `APPROVAL_EVENT_REGISTRY`에 `STOCK_AUDIT_REPORT`(재고실사보고, 카테고리 '보고') 등록 및 `LEAVE_APPLICATION`(연차신청) 카테고리를 '근태'로 재지정
+  2. Supabase 원격 DB(`approval_rules`): `STOCK_AUDIT_REPORT` 표준 결재선 레코드 영구 저장 완료 (`id: ef289234-efe6-454d-83a6-2aa75d0d0313`, 필요 티어: 4티어)
+  3. `src/pages/ApprovalRulesManage.tsx`:
+     - `CATEGORY_COLORS`에 '근태'(`bg: #059669`, `color: #d1fae5`), '보고'(`bg: #4338ca`, `color: #e0e7ff`), '기타' 배지 스타일 신설
+     - `renderCategoryBadge` 지능형 폴백 탑재 (레지스트리 불일치나 캐시 지연 시에도 이벤트명/코드 키워드로 카테고리를 자동 추론하여 배지 무누락 100% 보장)
+     - `tbody`에서 `renderCategoryBadge(r.event_code, r.event_name)` 연동
+  4. TypeScript 타입 검증(`tsc -b`) 및 Vite 프로덕션 빌드 성공 검증 완료 (0 Errors)
 

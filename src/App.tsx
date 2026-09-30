@@ -83,6 +83,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { ManualProvider, useManualContext } from './components/manual/ManualContext';
 import { ManualOverlay } from './components/manual/ManualOverlay';
 import { ManualAuthorPanel } from './components/manual/ManualAuthorPanel';
+import { detectActiveModalElement } from './data/modalManuals';
 
 
 const Billings = React.lazy(() => import('./pages/Billings').then(module => ({ default: module.Billings })));
@@ -590,19 +591,27 @@ const App: React.FC = () => {
         return;
       }
 
-      // 2. Ctrl+M 또는 Cmd+M -> 매뉴얼 보기 켜기/끄기 토글
+      // 2. Ctrl+M 또는 Cmd+M -> 매뉴얼 보기 켜기/끄기 토글 (모달 열림 시 모달 매뉴얼 우선 작동)
       if ((e.ctrlKey || e.metaKey) && (e.key === 'm' || e.key === 'M')) {
         e.preventDefault();
         if (manualMode === 'viewing') {
           setManualMode('off');
         } else {
           setManualMode('off');
-          const allItems = menuGroups.flatMap(g => g.items);
-          const currentItem = allItems.find(i => i.id === activeTab);
-          const pageTitle = currentItem?.name || activeTab;
-          loadManualPage(activeTab, pageTitle).then(() => {
-            setManualMode('viewing');
-          });
+          // 💡 [핵심] 현재 화면에 열려있는 팝업(모달) 감지
+          const activeModal = detectActiveModalElement();
+          if (activeModal) {
+            loadManualPage(activeModal.modalKey, activeModal.title).then(() => {
+              setManualMode('viewing');
+            });
+          } else {
+            const allItems = menuGroups.flatMap(g => g.items);
+            const currentItem = allItems.find(i => i.id === activeTab);
+            const pageTitle = currentItem?.name || activeTab;
+            loadManualPage(activeTab, pageTitle).then(() => {
+              setManualMode('viewing');
+            });
+          }
         }
         return;
       }

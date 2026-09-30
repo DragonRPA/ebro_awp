@@ -64,6 +64,10 @@ const CATEGORY_COLORS: Record<string, { bg: string; color: string }> = {
   '자산':      { bg: '#b91c1c', color: '#fee2e2' },
   '정비':      { bg: '#c2410c', color: '#ffedd5' },
   '정산':      { bg: '#0369a1', color: '#e0f2fe' },
+  '근태':      { bg: '#059669', color: '#d1fae5' },
+  '보고':      { bg: '#4338ca', color: '#e0e7ff' },
+  '인사':      { bg: '#0f766e', color: '#ccfbf1' },
+  '기타':      { bg: '#475569', color: '#e2e8f0' },
 };
 
 /* ══════════════════════════════════════════════════════════════
@@ -347,6 +351,30 @@ const ApprovalRulesManage: React.FC = () => {
     saveField(ruleId, field, value);
   };
 
+  /* ── 표준 규칙 동기화 ────────────────────────────────────── */
+  const handleSyncStandardRules = async () => {
+    if (!supabase) return;
+    setLoading(true);
+    try {
+      for (const ev of APPROVAL_EVENT_REGISTRY) {
+        const exists = rules.find(r => r.event_code === ev.code);
+        if (!exists) {
+          await supabase.from('approval_rules').insert({
+            event_code: ev.code,
+            event_name: ev.name,
+            required_tier: 4,
+            is_enabled: false,
+          });
+        }
+      }
+      await fetchRules();
+    } catch (err) {
+      console.error('표준 규칙 동기화 오류:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   /* ── 합의선 패널 토글 ────────────────────────────────────── */
   const handleToggleConsensus = async (ruleId: string) => {
     if (expandedRuleId === ruleId) { setExpandedRuleId(null); return; }
@@ -399,16 +427,30 @@ const ApprovalRulesManage: React.FC = () => {
     if (expandedRuleId === ruleId) setExpandedRuleId(null);
   };
 
-  const renderCategoryBadge = (eventCode: string) => {
+  const renderCategoryBadge = (eventCode: string, eventName?: string) => {
     const ev = APPROVAL_EVENT_REGISTRY.find(e => e.code === eventCode);
-    if (!ev) return null;
-    const colors = CATEGORY_COLORS[ev.category] || { bg: '#475569', color: '#e2e8f0' };
+    let category: string | undefined = ev?.category;
+    if (!category) {
+      if (eventCode.includes('LEAVE') || eventName?.includes('연차') || eventName?.includes('근태')) category = '근태';
+      else if (eventCode.includes('REPORT') || eventCode.includes('STOCK') || eventName?.includes('보고') || eventName?.includes('실사')) category = '보고';
+      else if (eventCode.includes('PAYROLL') || eventName?.includes('급여')) category = '인사';
+      else if (eventCode.includes('DISPATCH') || eventName?.includes('배차') || eventName?.includes('운송')) category = '배차';
+      else if (eventCode.includes('REPAIR') || eventCode.includes('CONSUMABLE') || eventName?.includes('수리') || eventName?.includes('소모품')) category = '정비';
+      else if (eventCode.includes('RENT') || eventCode.includes('BILLING') || eventCode.includes('PAYMENT') || eventName?.includes('지급') || eventName?.includes('청구') || eventName?.includes('수납') || eventName?.includes('정산')) category = '정산';
+      else if (eventCode.includes('CUSTOMER') || eventName?.includes('고객')) category = '고객';
+      else if (eventCode.includes('CONTRACT') || eventName?.includes('계약')) category = '계약';
+      else if (eventCode.includes('OUTBOUND') || eventCode.includes('RETURN') || eventName?.includes('출고') || eventName?.includes('반납')) category = '출고/반납';
+      else if (eventCode.includes('ASSET') || eventName?.includes('자산')) category = '자산';
+      else category = '기타';
+    }
+    const finalCategory = category || '기타';
+    const colors = CATEGORY_COLORS[finalCategory] || { bg: '#475569', color: '#e2e8f0' };
     return (
       <span style={{
         fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '10px',
         background: colors.bg, color: colors.color, whiteSpace: 'nowrap', display: 'inline-block',
       }}>
-        {ev.category}
+        {finalCategory}
       </span>
     );
   };
@@ -482,13 +524,30 @@ const ApprovalRulesManage: React.FC = () => {
       {activeTab === 'RULES' && (
         <>
           {/* ── 헤더 ── */}
-          <div style={{ marginBottom: '20px' }}>
-            <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-main)', margin: '0 0 4px' }}>
-              결재선 규칙
-            </h2>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
-              업무 이벤트명·전결 티어·사용 여부는 셀 수정 즉시 저장됩니다. ▶ 클릭으로 합의선을 설정합니다.
-            </p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+            <div>
+              <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-main)', margin: '0 0 4px' }}>
+                결재선 규칙
+              </h2>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+                업무 이벤트명·전결 티어·사용 여부는 셀 수정 즉시 저장됩니다. [합의선] 클릭으로 부서 합의선을 설정합니다.
+              </p>
+            </div>
+            <button
+              onClick={handleSyncStandardRules}
+              style={{
+                padding: '7px 14px',
+                borderRadius: '6px',
+                fontSize: '13px',
+                fontWeight: 600,
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-main)',
+                cursor: 'pointer',
+              }}
+            >
+              표준 규칙 동기화
+            </button>
           </div>
 
           {/* ── 그리드 ── */}
@@ -499,18 +558,16 @@ const ApprovalRulesManage: React.FC = () => {
           }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
               <colgroup>
-                <col style={{ width: '30px' }} />
                 <col style={{ width: '76px' }} />
                 <col />
                 <col style={{ width: '220px' }} />
                 <col style={{ width: '240px' }} />
-                <col style={{ width: '74px' }} />
+                <col style={{ width: '84px' }} />
                 <col style={{ width: '62px' }} />
                 <col style={{ width: '44px' }} />
               </colgroup>
               <thead>
                 <tr>
-                  <th style={thBase} />
                   <th style={{ ...thBase, textAlign: 'center' }}>구분</th>
                   <th style={thBase}>업무 이벤트명</th>
                   <th style={thBase}>이벤트 코드</th>
@@ -536,18 +593,9 @@ const ApprovalRulesManage: React.FC = () => {
                           : 'var(--bg-card)',
                         transition: 'background 0.2s',
                       }}>
-                        {/* 확장 토글 */}
-                        <td
-                          data-mid="btn-expand-consensus"
-                          style={{ ...tdBase, textAlign: 'center', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '11px', padding: '9px 6px' }}
-                          onClick={() => handleToggleConsensus(r.id!)}
-                        >
-                          {isExpanded ? '▼' : '▶'}
-                        </td>
-
                         {/* 카테고리 */}
                         <td style={{ ...tdBase, textAlign: 'center', padding: '9px 8px' }}>
-                          {renderCategoryBadge(r.event_code)}
+                          {renderCategoryBadge(r.event_code, r.event_name)}
                         </td>
 
                         {/* 이벤트명 — 인라인 편집 */}
@@ -597,19 +645,27 @@ const ApprovalRulesManage: React.FC = () => {
                         {/* 합의선 */}
                         <td style={{ ...tdBase, textAlign: 'center' }}>
                           <button
+                            data-mid="btn-expand-consensus"
                             onClick={() => handleToggleConsensus(r.id!)}
                             style={{
                               padding: '4px 10px',
-                              background: consensusCount !== null && consensusCount > 0
+                              background: isExpanded
+                                ? 'var(--primary)'
+                                : consensusCount !== null && consensusCount > 0
                                 ? 'var(--primary-light)' : 'var(--bg-secondary)',
-                              color: consensusCount !== null && consensusCount > 0
+                              color: isExpanded
+                                ? '#fff'
+                                : consensusCount !== null && consensusCount > 0
                                 ? 'var(--primary)' : 'var(--text-muted)',
-                              border: 'none', borderRadius: '5px',
+                              border: isExpanded ? '1px solid var(--primary)' : 'none',
+                              borderRadius: '5px',
                               fontSize: '12px', cursor: 'pointer', fontWeight: 600,
                               whiteSpace: 'nowrap',
                             }}
                           >
-                            {consensusCount !== null && consensusCount > 0
+                            {isExpanded
+                              ? '닫기'
+                              : consensusCount !== null && consensusCount > 0
                               ? `${consensusCount}개` : '+ 합의선'}
                           </button>
                         </td>
@@ -643,7 +699,7 @@ const ApprovalRulesManage: React.FC = () => {
                       {/* ── 합의선 확장 패널 ── */}
                       {isExpanded && (
                         <tr>
-                          <td colSpan={8} style={{ padding: '0', background: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
+                          <td colSpan={7} style={{ padding: '0', background: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
                             <div style={{ padding: '14px 20px 14px 44px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                                 <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>
@@ -746,7 +802,7 @@ const ApprovalRulesManage: React.FC = () => {
                 {/* 빈 상태 */}
                 {rules.length === 0 && !loading && (
                   <tr>
-                    <td colSpan={8} style={{ padding: '56px 24px', textAlign: 'center' }}>
+                    <td colSpan={7} style={{ padding: '56px 24px', textAlign: 'center' }}>
                       <p style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
                         등록된 결재선 규칙이 없습니다.
                       </p>
@@ -755,7 +811,7 @@ const ApprovalRulesManage: React.FC = () => {
                 )}
                 {loading && (
                   <tr>
-                    <td colSpan={8} style={{ padding: '32px', textAlign: 'center', fontSize: '14px', color: 'var(--text-secondary)' }}>
+                    <td colSpan={7} style={{ padding: '32px', textAlign: 'center', fontSize: '14px', color: 'var(--text-secondary)' }}>
                       불러오는 중…
                     </td>
                   </tr>

@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import type { ManualAnnotationItem, AnnotationType } from '../../types/manual';
 import { useManualContext } from './ManualContext';
+import { detectActiveModalElement } from '../../data/modalManuals';
 
 /* ── 리플(파동) 및 펄스 애니메이션 CSS ────────────────────────── */
 const RIPPLE_CSS = `
@@ -25,13 +26,15 @@ const RIPPLE_CSS = `
 interface Rect { top: number; left: number; width: number; height: number; }
 
 /**
- * 스마트 DOM 앵커 탐색기:
- * 1) 콤마 구분 selector 매칭
+ * 스마트 DOM 앵커 탐색기 (모달 팝업 내부 우선 탐색 지원):
+ * 1) 콤마 구분 selector 매칭 (rootContainer 우선)
  * 2) label / 키워드 기반 DOM 텍스트 매칭
- * 3) 화면 3대 영역(필터 폼 / 데이터 테이블 / 하단 액션) 지능형 폴백
+ * 3) 모달 내부 입력폼 순서 또는 화면 3대 영역 지능형 폴백
  */
-function resolveTargetElement(item: ManualAnnotationItem): HTMLElement | null {
-  // 1. selector 파싱 (콤마 구분 시도 및 :contains 지원)
+function resolveTargetElement(item: ManualAnnotationItem, rootContainer?: HTMLElement | null): HTMLElement | null {
+  const root = rootContainer || document;
+
+  // 1. selector 파싱 (콤마 구분 시도 및 :contains 지원, root 내부 우선)
   if (item.selector) {
     const parts = item.selector.split(',').map(s => s.trim()).filter(Boolean);
     for (const sel of parts) {
@@ -41,14 +44,14 @@ function resolveTargetElement(item: ManualAnnotationItem): HTMLElement | null {
           if (match) {
             const baseTag = match[1] || '*';
             const textToFind = match[2];
-            const candidateEls = Array.from(document.querySelectorAll(baseTag));
+            const candidateEls = Array.from(root.querySelectorAll(baseTag));
             const found = candidateEls.find(el => (el as HTMLElement).innerText && (el as HTMLElement).innerText.includes(textToFind));
             if (found && (found as HTMLElement).offsetParent !== null) {
               return found as HTMLElement;
             }
           }
         } else {
-          const el = document.querySelector(sel);
+          const el = root.querySelector(sel);
           if (el && (el as HTMLElement).offsetParent !== null) {
             return el as HTMLElement;
           }
@@ -57,24 +60,39 @@ function resolveTargetElement(item: ManualAnnotationItem): HTMLElement | null {
     }
   }
 
-  // 2. 레이블 기반 스마트 탐색
+  // 2. 레이블 기반 스마트 탐색 (root 내부 우선)
   const label = item.label || '';
   if (label) {
-    // 버튼 탐색
-    const buttons = Array.from(document.querySelectorAll('button'));
+    const buttons = Array.from(root.querySelectorAll('button'));
     const btn = buttons.find(b => b.innerText && (b.innerText.includes(label) || label.includes(b.innerText.trim())));
     if (btn && btn.offsetParent !== null) return btn;
 
-    // 라벨 탐색
-    const labels = Array.from(document.querySelectorAll('label'));
+    const labels = Array.from(root.querySelectorAll('label'));
     const lbl = labels.find(l => l.innerText && (l.innerText.includes(label) || label.includes(l.innerText.trim())));
     if (lbl && lbl.offsetParent !== null) {
-      const siblingInput = lbl.parentElement?.querySelector('input, select');
+      const siblingInput = lbl.parentElement?.querySelector('input, select, textarea');
       return (siblingInput || lbl) as HTMLElement;
     }
   }
 
-  // 3. seq 기반 폴백 (화면 주요 3대 구역)
+  // 3. rootContainer(모달) 내부 순번 기반 폴백
+  if (rootContainer) {
+    const inputs = Array.from(rootContainer.querySelectorAll('input, select, textarea, button'));
+    if (inputs.length > 0) {
+      if (item.seq === 1) {
+        const titleOrHeader = rootContainer.querySelector('h1, h2, h3, h4, .card-title, strong');
+        return (titleOrHeader || inputs[0]) as HTMLElement;
+      } else if (item.seq === 2) {
+        const midIdx = Math.floor(inputs.length / 2);
+        return inputs[midIdx] as HTMLElement;
+      } else if (item.seq === 3 || item.seq === 4) {
+        const submitBtn = rootContainer.querySelector('button[type="submit"], button.btn-primary, button:last-of-type');
+        return (submitBtn || inputs[inputs.length - 1]) as HTMLElement;
+      }
+    }
+  }
+
+  // 4. 일반 화면 seq 기반 폴백 (화면 주요 3대 구역)
   const main = document.querySelector('.main-content-area') || document.querySelector('main') || document.body;
   if (item.seq === 1) {
     const firstInput = main.querySelector('input, select, .filter-panel, .card');
@@ -98,11 +116,11 @@ function getRect(el: HTMLElement | null): Rect | null {
 }
 
 /* ── Spotlight: 대상 외 어둡게 (ManualStudio Spotlight 이식) ─── */
-const Spotlight: React.FC<{ rect: Rect; color: string }> = ({ rect, color }) => {
+const Spotlight: React.FC<{ rect: Rect; color: string; zIndex?: number }> = ({ rect, color, zIndex = 200000 }) => {
   const PAD = 8;
   return (
     <svg
-      style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', zIndex: 9998, pointerEvents: 'none' }}
+      style={{ position: 'fixed', inset: 0, width: '100vw', height: '100vh', zIndex, pointerEvents: 'none' }}
     >
       <defs>
         <mask id="spotlight-mask">
@@ -126,7 +144,7 @@ const Spotlight: React.FC<{ rect: Rect; color: string }> = ({ rect, color }) => 
 };
 
 /* ── HighlightBox ─────────────────────────────────────────────── */
-const HighlightBox: React.FC<{ rect: Rect; color: string }> = ({ rect, color }) => (
+const HighlightBox: React.FC<{ rect: Rect; color: string; zIndex?: number }> = ({ rect, color, zIndex = 200001 }) => (
   <div style={{
     position: 'fixed',
     top: rect.top - 4, left: rect.left - 4,
@@ -135,14 +153,14 @@ const HighlightBox: React.FC<{ rect: Rect; color: string }> = ({ rect, color }) 
     borderRadius: '8px',
     backgroundColor: color + '18',
     pointerEvents: 'none',
-    zIndex: 9999,
+    zIndex,
     boxShadow: `0 0 16px ${color}66`,
     transition: 'all 0.2s',
   }} />
 );
 
 /* ── Click Ripple (ManualStudio click 이식) ───────────────────── */
-const ClickRipple: React.FC<{ rect: Rect; color: string }> = ({ rect, color }) => {
+const ClickRipple: React.FC<{ rect: Rect; color: string; zIndex?: number }> = ({ rect, color, zIndex = 200001 }) => {
   const cx = rect.left + rect.width / 2;
   const cy = rect.top + rect.height / 2;
   return (
@@ -154,7 +172,7 @@ const ClickRipple: React.FC<{ rect: Rect; color: string }> = ({ rect, color }) =
           borderRadius: '50%',
           border: `2.5px solid ${color}`,
           animation: `manual-ripple 1.4s ${delay}ms ease-out infinite`,
-          pointerEvents: 'none', zIndex: 9999,
+          pointerEvents: 'none', zIndex,
         }} />
       ))}
       <div style={{
@@ -163,7 +181,7 @@ const ClickRipple: React.FC<{ rect: Rect; color: string }> = ({ rect, color }) =
         borderRadius: '50%',
         background: color,
         animation: 'manual-pulse 1.4s ease-in-out infinite',
-        pointerEvents: 'none', zIndex: 10000,
+        pointerEvents: 'none', zIndex: zIndex + 1,
       }} />
     </>
   );
@@ -177,7 +195,8 @@ const BottomDossierCard: React.FC<{
   onNext: () => void;
   onClose: () => void;
   hasTarget: boolean;
-}> = ({ item, totalCount, onPrev, onNext, onClose, hasTarget }) => {
+  zIndex?: number;
+}> = ({ item, totalCount, onPrev, onNext, onClose, hasTarget, zIndex = 200003 }) => {
   return (
     <div
       data-manual-ui="true"
@@ -193,7 +212,7 @@ const BottomDossierCard: React.FC<{
         borderRadius: '14px',
         padding: '16px 20px',
         boxShadow: '0 12px 36px rgba(0,0,0,0.3)',
-        zIndex: 10003,
+        zIndex,
         pointerEvents: 'all',
         animation: 'manual-card-in 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
@@ -287,13 +306,22 @@ export const ManualOverlay: React.FC = () => {
   const [expandedSeq, setExpandedSeq] = useState<number | null>(null);
   const rafRef = useRef<number>(0);
 
+  const isModal = Boolean(page?.pageId?.startsWith('modal_'));
+  const activeModal = isModal ? detectActiveModalElement() : null;
+  const modalZIndex = activeModal ? (parseInt(window.getComputedStyle(activeModal.modalEl).zIndex, 10) || 0) : 0;
+  const baseZIndex = isModal ? Math.max(200000, modalZIndex + 10) : 100000;
+
   const recalcTargets = useCallback(() => {
     if (!page) return;
+    const isModalActive = Boolean(page.pageId?.startsWith('modal_'));
+    const modalInfo = isModalActive ? detectActiveModalElement() : null;
+    const rootEl = modalInfo?.modalEl || null;
+
     const nextEls: Record<number, HTMLElement | null> = {};
     const nextRects: Record<number, Rect | null> = {};
 
     page.items.forEach(item => {
-      const el = resolveTargetElement(item);
+      const el = resolveTargetElement(item, rootEl);
       nextEls[item.seq] = el;
       nextRects[item.seq] = getRect(el);
     });
@@ -420,7 +448,7 @@ export const ManualOverlay: React.FC = () => {
 
       {/* ① Spotlight (활성 항목이 존재하고 위치를 찾은 경우) */}
       {activeItem && activeRect && (
-        <Spotlight rect={activeRect} color={activeItem.badgeColor} />
+        <Spotlight rect={activeRect} color={activeItem.badgeColor} zIndex={baseZIndex} />
       )}
 
       {/* ② 화면 요소 위 어노테이션 뱃지 & 하이라이트 렌더링 */}
@@ -432,10 +460,10 @@ export const ManualOverlay: React.FC = () => {
         return (
           <React.Fragment key={item.seq}>
             {/* HighlightBox */}
-            <HighlightBox rect={rect} color={item.badgeColor} />
+            <HighlightBox rect={rect} color={item.badgeColor} zIndex={baseZIndex + 1} />
 
             {/* Click Ripple */}
-            {item.type === 'click_ripple' && <ClickRipple rect={rect} color={item.badgeColor} />}
+            {item.type === 'click_ripple' && <ClickRipple rect={rect} color={item.badgeColor} zIndex={baseZIndex + 1} />}
 
             {/* Stamp 순번 뱃지 (실제 DOM 요소 위) */}
             <div
@@ -452,7 +480,7 @@ export const ManualOverlay: React.FC = () => {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '14px', fontWeight: 900,
                 boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
-                cursor: 'pointer', zIndex: 10001,
+                cursor: 'pointer', zIndex: baseZIndex + 2,
                 border: '2.5px solid #fff',
                 transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
                 transform: isExpanded ? 'scale(1.25)' : 'scale(1)',
@@ -475,6 +503,7 @@ export const ManualOverlay: React.FC = () => {
           onNext={handleNext}
           onClose={() => setExpandedSeq(null)}
           hasTarget={!!rects[activeItem.seq]}
+          zIndex={baseZIndex + 3}
         />
       )}
 
@@ -487,12 +516,12 @@ export const ManualOverlay: React.FC = () => {
           background: 'var(--bg-card)', border: '1px solid var(--border-color)',
           borderRadius: '28px', padding: '8px 18px',
           boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
-          zIndex: 10002, pointerEvents: 'all',
+          zIndex: baseZIndex + 4, pointerEvents: 'all',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '4px' }}>
           <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-            📖 {page.pageTitle}
+            {isModal ? '🖼️ 팝업: ' : '📖 '} {page.pageTitle}
           </span>
           <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
             어노테이션 {items.length}건
