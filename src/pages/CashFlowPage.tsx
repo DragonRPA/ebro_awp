@@ -478,7 +478,7 @@ export const CashFlowPage: React.FC = () => {
     }
 
     const exportRows = forecastList.map((item, idx) => {
-      const statusStr = item.status === 'CRITICAL' ? '부도위험' : item.status === 'WARNING' ? '자금주의' : '안전';
+      const statusStr = item.status === 'CRITICAL' ? '결손' : item.status === 'WARNING' ? '주의' : '정상';
       const isPastStr = item.isPast ? '실적' : '예정';
       return {
         'No': idx + 1,
@@ -773,7 +773,7 @@ export const CashFlowPage: React.FC = () => {
             </div>
           </div>
 
-          {/* ─── 조기 경보 배너 (부도 위험 또는 안전마진 하회 시) ─── */}
+          {/* ─── 현금흐름 이상 및 안전 기준액 미달 안내 (헌장 3.1 건조 표준) ─── */}
           {minBalanceItem && minBalanceItem.cumulative < 0 && (
             <div style={{
               backgroundColor: 'rgba(239, 68, 68, 0.08)',
@@ -784,14 +784,12 @@ export const CashFlowPage: React.FC = () => {
               alignItems: 'center',
               gap: '12px'
             }}>
-              <ShieldAlert size={24} color="var(--danger)" style={{ flexShrink: 0 }} />
+              <ShieldAlert size={20} color="var(--danger)" style={{ flexShrink: 0 }} />
               <div style={{ fontSize: '13px', lineHeight: '1.5', color: 'var(--text-main)' }}>
-                <strong style={{ color: 'var(--danger)' }}>🚨 자금 고갈(부도 위험) 경보</strong>: 
-                기준일로부터 {forecastDays}일 전망 중 <strong>{minBalanceItem.date}</strong>에 누적 가용잔고가 
-                <strong style={{ color: 'var(--danger)', marginLeft: '4px' }}>
-                  {minBalanceItem.cumulative.toLocaleString()}원
-                </strong>으로 마이너스 전이가 감지되었습니다. 
-                (예상 최고 결손액: <strong>{Math.abs(minBalanceItem.cumulative).toLocaleString()}원</strong>)
+                <strong style={{ color: 'var(--danger)' }}>현금흐름 이상</strong>: 
+                <strong>{minBalanceItem.date}</strong> 기준 누적 잔고 음수 전환 (
+                <strong style={{ color: 'var(--danger)' }}>{minBalanceItem.cumulative.toLocaleString()}원</strong>, 
+                결손 예상액: <strong>{Math.abs(minBalanceItem.cumulative).toLocaleString()}원</strong>)
               </div>
             </div>
           )}
@@ -806,11 +804,10 @@ export const CashFlowPage: React.FC = () => {
               alignItems: 'center',
               gap: '12px'
             }}>
-              <AlertTriangle size={24} color="var(--warning)" style={{ flexShrink: 0 }} />
+              <AlertTriangle size={20} color="var(--warning)" style={{ flexShrink: 0 }} />
               <div style={{ fontSize: '13px', lineHeight: '1.5', color: 'var(--text-main)' }}>
-                <strong style={{ color: 'var(--warning)' }}>⚠️ 안전 자금 주의 경보</strong>: 
-                <strong>{minBalanceItem.date}</strong> 기준 최저 잔고(<strong>{minBalanceItem.cumulative.toLocaleString()}원</strong>)가 
-                설정된 안전 기준액(<strong>{safetyThreshold.toLocaleString()}원</strong>)을 하회합니다. 미수금 조기 회수 관리가 필요합니다.
+                <strong style={{ color: 'var(--warning)' }}>안전 기준액 미달</strong>: 
+                <strong>{minBalanceItem.date}</strong> 기준 최저 잔고 <strong>{minBalanceItem.cumulative.toLocaleString()}원</strong> (안전 기준액: <strong>{safetyThreshold.toLocaleString()}원</strong>)
               </div>
             </div>
           )}
@@ -896,7 +893,7 @@ export const CashFlowPage: React.FC = () => {
                 {finalBalance.toLocaleString()}원
               </div>
               <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', marginTop: '4px', whiteSpace: 'nowrap' }}>
-                현금 런웨이: <strong>{cashRunwayDays >= 999 ? '안정적(999일+)' : `${cashRunwayDays}일`}</strong>
+                가용 일수: <strong>{cashRunwayDays >= 999 ? '999일 이상' : `${cashRunwayDays}일`}</strong>
               </div>
             </div>
 
@@ -909,7 +906,7 @@ export const CashFlowPage: React.FC = () => {
                 <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span>잔고 추이 타임라인</span>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    (안전선: ₩{safetyThreshold.toLocaleString()} | 부도위험선: ₩0)
+                    (안전선: ₩{safetyThreshold.toLocaleString()} | 기준선: ₩0)
                   </span>
                 </div>
                 {minBalanceItem && (
@@ -1160,7 +1157,7 @@ export const CashFlowPage: React.FC = () => {
                           backgroundColor: item.status === 'SAFE' ? 'rgba(34, 197, 94, 0.12)' : item.status === 'WARNING' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(239, 68, 68, 0.15)',
                           color: item.status === 'SAFE' ? 'var(--success)' : item.status === 'WARNING' ? 'var(--warning)' : 'var(--danger)'
                         }}>
-                          {item.status === 'SAFE' ? '안전' : item.status === 'WARNING' ? '주의' : '부도위험'}
+                          {item.status === 'SAFE' ? '정상' : item.status === 'WARNING' ? '주의' : '결손'}
                         </span>
                       </td>
 
@@ -1532,10 +1529,10 @@ export const CashFlowPage: React.FC = () => {
             whiteSpace: 'nowrap'
           }}>
             {auditSummary.isCritical 
-              ? '🚨 부도 위험 (자금 결손 감지)' 
+              ? '현금흐름 결손' 
               : auditSummary.isSafe 
-                ? '✅ 유동성 정상 (수지 무결)' 
-                : '⚠️ 안전마진 하회 (주의)'}
+                ? '유동성 정상' 
+                : '안전 기준액 미달'}
           </span>
         </div>
       </div>
