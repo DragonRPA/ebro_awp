@@ -627,30 +627,60 @@ export const TruckDispatch: React.FC = () => {
   };
 
   // 4단계 배차 진행 상태 탭 state ('ALL' | 'PENDING' | 'DISPATCHED' | 'DELIVERED' | 'CANCELLED')
-  const [activeDispatchStatusTab, setActiveDispatchStatusTab] = useState<string>('ALL');
+  // 💡 [사장님 지시] 기본값: 배차 전(대기) ('PENDING')
+  const [activeDispatchStatusTab, setActiveDispatchStatusTab] = useState<string>('PENDING');
 
   // 📅 배차 요청/운송일 기간 조회 피커 state
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  // 💡 [사장님 지시] 데이터 누적 시 성능 저하 방지 — 기본값: 오늘부터 7일간
+  const getInitialDispatchDateRange = () => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+
+    const future = new Date(today);
+    future.setDate(today.getDate() + 7);
+    const fY = future.getFullYear();
+    const fM = String(future.getMonth() + 1).padStart(2, '0');
+    const fD = String(future.getDate()).padStart(2, '0');
+    const futureStr = `${fY}-${fM}-${fD}`;
+
+    return { todayStr, futureStr };
+  };
+
+  const initialRange = getInitialDispatchDateRange();
+  const [startDate, setStartDate] = useState<string>(initialRange.todayStr);
+  const [endDate, setEndDate] = useState<string>(initialRange.futureStr);
 
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   const handleSetDateRange = (type: 'TODAY' | 'WEEK' | 'MONTH' | 'ALL') => {
     const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+
     if (type === 'TODAY') {
       setStartDate(todayStr);
       setEndDate(todayStr);
     } else if (type === 'WEEK') {
-      const future = new Date();
+      const future = new Date(today);
       future.setDate(today.getDate() + 7);
+      const fY = future.getFullYear();
+      const fM = String(future.getMonth() + 1).padStart(2, '0');
+      const fD = String(future.getDate()).padStart(2, '0');
       setStartDate(todayStr);
-      setEndDate(future.toISOString().split('T')[0]);
+      setEndDate(`${fY}-${fM}-${fD}`);
     } else if (type === 'MONTH') {
-      const future = new Date();
+      const future = new Date(today);
       future.setMonth(today.getMonth() + 1);
+      const fY = future.getFullYear();
+      const fM = String(future.getMonth() + 1).padStart(2, '0');
+      const fD = String(future.getDate()).padStart(2, '0');
       setStartDate(todayStr);
-      setEndDate(future.toISOString().split('T')[0]);
+      setEndDate(`${fY}-${fM}-${fD}`);
     } else {
       setStartDate('');
       setEndDate('');
@@ -3014,24 +3044,48 @@ export const TruckDispatch: React.FC = () => {
                       { label: '1주일', type: 'WEEK' },
                       { label: '1개월', type: 'MONTH' },
                       { label: '전체', type: 'ALL' }
-                    ].map(b => (
-                      <button
-                        key={b.type}
-                        onClick={() => handleSetDateRange(b.type as any)}
-                        style={{
-                          padding: '2px 7px',
-                          borderRadius: '4px',
-                          border: '1px solid var(--border-color)',
-                          backgroundColor: 'var(--bg-card)',
-                          fontSize: '10.5px',
-                          fontWeight: 600,
-                          color: 'var(--text-secondary)',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {b.label}
-                      </button>
-                    ))}
+                    ].map(b => {
+                      const today = new Date();
+                      const yyyy = today.getFullYear();
+                      const mm = String(today.getMonth() + 1).padStart(2, '0');
+                      const dd = String(today.getDate()).padStart(2, '0');
+                      const todayStr = `${yyyy}-${mm}-${dd}`;
+
+                      const weekEnd = new Date(today);
+                      weekEnd.setDate(today.getDate() + 7);
+                      const weekEndStr = `${weekEnd.getFullYear()}-${String(weekEnd.getMonth() + 1).padStart(2, '0')}-${String(weekEnd.getDate()).padStart(2, '0')}`;
+
+                      const monthEnd = new Date(today);
+                      monthEnd.setMonth(today.getMonth() + 1);
+                      const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth() + 1).padStart(2, '0')}-${String(monthEnd.getDate()).padStart(2, '0')}`;
+
+                      const isSelected =
+                        (b.type === 'TODAY' && startDate === todayStr && endDate === todayStr) ||
+                        (b.type === 'WEEK' && startDate === todayStr && endDate === weekEndStr) ||
+                        (b.type === 'MONTH' && startDate === todayStr && endDate === monthEndStr) ||
+                        (b.type === 'ALL' && !startDate && !endDate);
+
+                      return (
+                        <button
+                          key={b.type}
+                          onClick={() => handleSetDateRange(b.type as any)}
+                          style={{
+                            padding: '2px 7px',
+                            borderRadius: '4px',
+                            border: '1px solid',
+                            borderColor: isSelected ? 'var(--primary)' : 'var(--border-color)',
+                            backgroundColor: isSelected ? 'rgba(59,130,246,0.12)' : 'var(--bg-card)',
+                            fontSize: '10.5px',
+                            fontWeight: isSelected ? 800 : 600,
+                            color: isSelected ? 'var(--primary)' : 'var(--text-secondary)',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          {b.label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 

@@ -59,8 +59,13 @@ export function useManual() {
     return true;
   }, []);
 
-  /** 특정 페이지의 매뉴얼 JSON을 로드 (DB 조회 후 없으면 SSOT 시드 매뉴얼 자동 반환 및 자동 보존) */
+  /** 특정 페이지의 매뉴얼 JSON을 로드 (DB 조회 후 없거나 시드가 더 최신이면 SSOT 시드 매뉴얼 자동 반환 및 자동 보존) */
   const loadPage = useCallback(async (pageId: string, pageTitle?: string): Promise<ManualPage> => {
+    // SSOT 시드 매뉴얼 로드 (모달인 경우 모달 전용 매뉴얼 시드 반환)
+    const seed = pageId.startsWith('modal_')
+      ? getModalManualPage(pageId, pageTitle)
+      : getManualPageForMenu(pageId, pageTitle);
+
     if (supabase) {
       try {
         const { data, error: e } = await supabase
@@ -72,11 +77,20 @@ export function useManual() {
 
         if (!e && data && data.annotations) {
           const ann = data.annotations as ManualPage;
+          const dbVersion = data.version || ann.version || 1;
+          const seedVersion = seed.version || 1;
+
+          // 💡 [SSOT 버전 정합성 보장] 코드 시드 버전이 DB보다 더 높으면 최신 시드를 반환하고 DB 자동 갱신
+          if (seedVersion > dbVersion) {
+            savePage(seed).catch(err => console.warn('[useManual] Auto-update to higher seed failed:', err));
+            return seed;
+          }
+
           if (ann.items && ann.items.length > 0) {
             return {
               pageId,
               pageTitle: data.page_title || ann?.pageTitle || pageTitle || pageId,
-              version: data.version || ann.version || 1,
+              version: dbVersion,
               items: ann.items,
             };
           }
@@ -86,12 +100,7 @@ export function useManual() {
       }
     }
 
-    // DB에 없거나 비어있는 경우 SSOT 시드 매뉴얼 로드 (모달인 경우 모달 전용 매뉴얼 시드 반환)
-    const seed = pageId.startsWith('modal_')
-      ? getModalManualPage(pageId, pageTitle)
-      : getManualPageForMenu(pageId, pageTitle);
-    
-    // 백그라운드에서 DB에 자동 시드 upsert (실패해도 사용자는 시드 데이터로 즉시 열람 가능)
+    // DB에 없거나 비어있는 경우 SSOT 시드 매뉴얼 반환 및 백그라운드 저장
     if (supabase) {
       savePage(seed).catch(err => console.warn('[useManual] Auto-seed background write failed:', err));
     }

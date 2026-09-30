@@ -6,6 +6,7 @@ import ReactDOM from 'react-dom';
 import type { ManualAnnotationItem, AnnotationType } from '../../types/manual';
 import { useManualContext } from './ManualContext';
 import { detectActiveModalElement } from '../../data/modalManuals';
+import { MenuBriefingBox } from './MenuBriefingBox';
 
 /* ── 리플(파동) 및 펄스 애니메이션 CSS ────────────────────────── */
 const RIPPLE_CSS = `
@@ -31,7 +32,16 @@ interface Rect { top: number; left: number; width: number; height: number; }
  * 2) label / 키워드 기반 DOM 텍스트 매칭
  * 3) 모달 내부 입력폼 순서 또는 화면 3대 영역 지능형 폴백
  */
-function resolveTargetElement(item: ManualAnnotationItem, rootContainer?: HTMLElement | null): HTMLElement | null {
+function resolveTargetElement(
+  item: ManualAnnotationItem,
+  rootContainer?: HTMLElement | null,
+  isModalContext?: boolean
+): HTMLElement | null {
+  // 모달 매뉴얼 모드인데 모달 엘리먼트가 없으면 탐색하지 않음 (일반 화면 요소로 폴백 방지)
+  if (isModalContext && !rootContainer) {
+    return null;
+  }
+
   const root = rootContainer || document;
 
   // 1. selector 파싱 (콤마 구분 시도 및 :contains 지원, root 내부 우선)
@@ -90,6 +100,13 @@ function resolveTargetElement(item: ManualAnnotationItem, rootContainer?: HTMLEl
         return (submitBtn || inputs[inputs.length - 1]) as HTMLElement;
       }
     }
+    // 모달 컨텍스트에서는 모달 내부에서 대상을 못 찾으면 일반 화면으로 폴백되지 않고 null 반환
+    return null;
+  }
+
+  // 모달 컨텍스트인 경우 일반 화면 폴백 엄격 배제
+  if (isModalContext) {
+    return null;
   }
 
   // 4. 일반 화면 seq 기반 폴백 (화면 주요 3대 구역)
@@ -300,7 +317,7 @@ const BottomDossierCard: React.FC<{
    메인 오버레이 컴포넌트
 ══════════════════════════════════════════════════════════════ */
 export const ManualOverlay: React.FC = () => {
-  const { mode, setMode, page } = useManualContext();
+  const { mode, setMode, page, openDocModal } = useManualContext();
   const [elements, setElements] = useState<Record<number, HTMLElement | null>>({});
   const [rects, setRects] = useState<Record<number, Rect | null>>({});
   const [expandedSeq, setExpandedSeq] = useState<number | null>(null);
@@ -315,26 +332,57 @@ export const ManualOverlay: React.FC = () => {
     if (!page) return;
     const isModalActive = Boolean(page.pageId?.startsWith('modal_'));
     const modalInfo = isModalActive ? detectActiveModalElement() : null;
+
+    // 모달 매뉴얼 모드인데 화면에서 모달이 닫혀서 감지되지 않는 경우 -> 매뉴얼 즉시 종료
+    if (isModalActive && !modalInfo) {
+      setMode('off');
+      return;
+    }
+
     const rootEl = modalInfo?.modalEl || null;
 
     const nextEls: Record<number, HTMLElement | null> = {};
     const nextRects: Record<number, Rect | null> = {};
 
     page.items.forEach(item => {
-      const el = resolveTargetElement(item, rootEl);
+      const el = resolveTargetElement(item, rootEl, isModalActive);
       nextEls[item.seq] = el;
       nextRects[item.seq] = getRect(el);
     });
 
     setElements(nextEls);
     setRects(nextRects);
-  }, [page]);
+  }, [page, setMode]);
 
   useEffect(() => {
     if (mode !== 'viewing') { setExpandedSeq(null); return; }
     recalcTargets();
 
-    // 탭 전환 및 리사이즈 시 실시간 위치 재계산
+    // 1. DOM 변경 감시: 모달 닫힘 실시간 감지 및 어노테이션 위치 재계산
+    const mo = new MutationObserver(() => {
+      if (isModal) {
+        const active = detectActiveModalElement();
+        if (!active) {
+          setMode('off');
+          return;
+        }
+      }
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(recalcTargets);
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+
+    // 2. 모달 닫힘 감지 주기적 안전망 (CSS display:none 전환 등 대비)
+    let modalCheckInterval: number | null = null;
+    if (isModal) {
+      modalCheckInterval = window.setInterval(() => {
+        if (!detectActiveModalElement()) {
+          setMode('off');
+        }
+      }, 200);
+    }
+
+    // 3. 탭 전환 및 리사이즈 시 실시간 위치 재계산
     const ro = new ResizeObserver(() => {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(recalcTargets);
@@ -343,20 +391,31 @@ export const ManualOverlay: React.FC = () => {
     window.addEventListener('scroll', recalcTargets, true);
     window.addEventListener('resize', recalcTargets);
 
-    // 기본으로 첫 번째 어노테이션 자동 포커스 (최초 1회 안내)
+    // 4. Escape 키 입력 시 매뉴얼 닫기
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setMode('off');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+
+    // 5. 기본으로 첫 번째 어노테이션 자동 포커스 (최초 1회 안내)
     if (page && page.items.length > 0 && expandedSeq === null) {
       setExpandedSeq(1);
     }
 
     return () => {
+      mo.disconnect();
+      if (modalCheckInterval) clearInterval(modalCheckInterval);
       ro.disconnect();
       window.removeEventListener('scroll', recalcTargets, true);
       window.removeEventListener('resize', recalcTargets);
+      window.removeEventListener('keydown', handleKeyDown, true);
       cancelAnimationFrame(rafRef.current);
     };
-  }, [mode, recalcTargets]);
+  }, [mode, isModal, recalcTargets, setMode]);
 
-  // 사용자가 좌측 메뉴를 클릭하거나 화면 내부 탭/페이지 전환 버튼을 클릭할 때 매뉴얼 자동 끄기
+  // 사용자가 좌측 메뉴를 클릭하거나 모달을 닫거나 다른 메뉴/화면으로 이동할 때 매뉴얼 자동 끄기
   useEffect(() => {
     if (mode !== 'viewing') return;
 
@@ -374,15 +433,46 @@ export const ManualOverlay: React.FC = () => {
         return;
       }
 
-      // 3. 좌측 패널(사이드바)의 메뉴 버튼 클릭 시 -> 매뉴얼 즉시 끄기
-      const isSidebarMenu = target.closest('[data-menu-id], .sidebar button, aside button, nav button');
+      // 3. 좌측 패널(사이드바)의 모든 메뉴 버튼 클릭 시 -> 매뉴얼 즉시 끄기
+      const isSidebarMenu = target.closest('[data-menu-id], .sidebar button, aside button, nav button, [data-sidebar-item]');
       if (isSidebarMenu) {
         setMode('off');
         return;
       }
 
-      // 4. 화면 내부 탭 버튼 또는 네비게이션 버튼 클릭 시 -> 매뉴얼 즉시 끄기
-      const clickedBtn = target.closest('button, [role="tab"], .tab, a');
+      // 4. 모달 매뉴얼 상태인 경우:
+      if (isModal) {
+        const currentModal = detectActiveModalElement();
+        if (!currentModal) {
+          setMode('off');
+          return;
+        }
+
+        // a) 모달 닫기/취소/확인/저장 버튼 클릭 감지
+        const isButton = target.closest('button, [role="button"]');
+        if (isButton) {
+          const btnText = (isButton as HTMLElement).innerText || '';
+          const titleAttr = isButton.getAttribute('title') || '';
+          const ariaLabel = isButton.getAttribute('aria-label') || '';
+          const isCloseLike = btnText.includes('닫기') || btnText.includes('취소') || btnText.includes('확인') ||
+                              btnText.includes('저장') || btnText.includes('등록') || btnText.trim() === '✕' ||
+                              btnText.trim() === 'X' || titleAttr.includes('닫기') || ariaLabel.includes('close');
+          if (isCloseLike) {
+            setMode('off');
+            return;
+          }
+        }
+
+        // b) 모달 바깥 백드롭 영역 클릭 감지
+        const clickedInside = currentModal.modalEl.contains(target);
+        if (!clickedInside) {
+          setMode('off');
+          return;
+        }
+      }
+
+      // 5. 화면 내부 탭 버튼, 링크, 네비게이션 버튼 클릭 시 -> 매뉴얼 즉시 끄기
+      const clickedBtn = target.closest('button, [role="tab"], .tab, a, [data-nav-item]');
       if (clickedBtn) {
         const parent = clickedBtn.parentElement;
         const siblingButtons = parent ? Array.from(parent.children).filter(c => c.tagName === 'BUTTON' || c.getAttribute('role') === 'tab') : [];
@@ -394,16 +484,36 @@ export const ManualOverlay: React.FC = () => {
 
         if (isTabGroup || isTabStyle) {
           setMode('off');
+          return;
         }
       }
+
+      // 6. 클릭 후 비동기로 모달이 닫히는 경우 대비 50ms 후 검사
+      if (isModal) {
+        setTimeout(() => {
+          if (!detectActiveModalElement()) {
+            setMode('off');
+          }
+        }, 50);
+      }
+    };
+
+    // 7. 브라우저 라우팅 및 히스토리 변경 감지 (뒤로가기, 앞으로가기, 해시 변경)
+    const handleNavigation = () => {
+      setMode('off');
     };
 
     // 캡처링 단계에서 클릭 감지 (이벤트 차단 없이 mode만 off 전환)
     window.addEventListener('click', handleGlobalClick, true);
+    window.addEventListener('popstate', handleNavigation);
+    window.addEventListener('hashchange', handleNavigation);
+
     return () => {
       window.removeEventListener('click', handleGlobalClick, true);
+      window.removeEventListener('popstate', handleNavigation);
+      window.removeEventListener('hashchange', handleNavigation);
     };
-  }, [mode, setMode]);
+  }, [mode, isModal, setMode]);
 
   // 번호 선택 및 스크롤 핸들러
   const handleSelectSeq = useCallback((seq: number) => {
@@ -445,6 +555,16 @@ export const ManualOverlay: React.FC = () => {
     <>
       {/* ripple & pulse CSS 주입 */}
       <style>{RIPPLE_CSS}</style>
+
+      {/* 🎯 메뉴 기능 목적 브리핑 텍스트박스 (상단 좌측 플로팅, 접기/펼치기 가능) */}
+      <MenuBriefingBox
+        pageId={page.pageId}
+        pageTitle={page.pageTitle}
+        isModal={isModal}
+        onSelectSeq={handleSelectSeq}
+        onOpenSpecDoc={() => openDocModal(page.pageId, page.pageTitle)}
+        zIndex={baseZIndex + 4}
+      />
 
       {/* ① Spotlight (활성 항목이 존재하고 위치를 찾은 경우) */}
       {activeItem && activeRect && (
@@ -554,6 +674,21 @@ export const ManualOverlay: React.FC = () => {
             );
           })}
         </div>
+
+        {/* 📖 기능 정의서 (.md) 열기 버튼 */}
+        <button
+          onClick={() => openDocModal(page.pageId, page.pageTitle)}
+          style={{
+            marginLeft: '6px', padding: '4px 10px', borderRadius: '14px',
+            border: '1px solid var(--primary)', background: 'rgba(59,130,246,0.1)',
+            fontSize: '11.5px', fontWeight: 800, color: 'var(--primary)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+            whiteSpace: 'nowrap',
+          }}
+          title="현재 메뉴의 마크다운 기능 정의서 열람 및 편집"
+        >
+          📖 기능 정의서 (.md)
+        </button>
 
         {/* 닫기 버튼 */}
         <button

@@ -2471,7 +2471,7 @@ export const SmartDispatch4: React.FC = () => {
           </div>
 
           {/* 텍스트 붙여넣기 파싱 */}
-          <div className="bg-slate-900 border border-slate-700/80 rounded-xl overflow-hidden shadow-sm">
+          <div data-mid="dispatch4-paste-zone" className="bg-slate-900 border border-slate-700/80 rounded-xl overflow-hidden shadow-sm">
             <div
               className="dispatch4-block-header bg-slate-800/60 hover:bg-slate-800 transition"
               onClick={() => setPasteZoneOpen(p => !p)}
@@ -2535,7 +2535,7 @@ export const SmartDispatch4: React.FC = () => {
           </div>
 
           {/* 업무 유형 선택 버튼군 (단일 선택 강제 & 건조한 명사 단일 표준) */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 shadow-sm">
+          <div data-mid="dispatch4-context-types" className="bg-slate-900 border border-slate-800 rounded-xl p-2.5 shadow-sm">
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-bold text-slate-300">업무 유형</label>
             </div>
@@ -2573,7 +2573,7 @@ export const SmartDispatch4: React.FC = () => {
           )}
 
           {/* 1. 거래처 (고객사) */}
-          <div className="bg-slate-900 border border-slate-700/80 rounded-xl overflow-hidden shadow-sm">
+          <div data-mid="dispatch4-block-customer" className="bg-slate-900 border border-slate-700/80 rounded-xl overflow-hidden shadow-sm">
             <div
               className={`dispatch4-block-header ${
                 openBlocks.has('CUSTOMER') ? 'bg-blue-950/40 border-b border-blue-500/30' : 'bg-slate-800/50 hover:bg-slate-800'
@@ -2705,7 +2705,7 @@ export const SmartDispatch4: React.FC = () => {
           </div>
 
           {/* 2. 투입 현장 및 현장 담당자 */}
-          <div className="bg-slate-900 border border-slate-700/80 rounded-xl overflow-hidden shadow-sm">
+          <div data-mid="dispatch4-block-site" className="bg-slate-900 border border-slate-700/80 rounded-xl overflow-hidden shadow-sm">
             <div
               className={`dispatch4-block-header ${
                 openBlocks.has('SITE') ? 'bg-blue-950/40 border-b border-blue-500/30' : 'bg-slate-800/50 hover:bg-slate-800'
@@ -3149,7 +3149,7 @@ export const SmartDispatch4: React.FC = () => {
           </div>
 
           {/* 3. 출고 장비 규격 */}
-          <div className="bg-slate-900 border border-slate-700/80 rounded-xl overflow-hidden shadow-sm">
+          <div data-mid="dispatch4-block-equipments" className="bg-slate-900 border border-slate-700/80 rounded-xl overflow-hidden shadow-sm">
             <div
               className={`dispatch4-block-header ${
                 openBlocks.has('EQUIPMENT') ? 'bg-blue-950/40 border-b border-blue-500/30' : 'bg-slate-800/50 hover:bg-slate-800'
@@ -3407,7 +3407,7 @@ export const SmartDispatch4: React.FC = () => {
           </div>
 
           {/* 4. 출고 및 하차 일정 */}
-          <div className="bg-slate-900 border border-slate-700/80 rounded-xl overflow-hidden shadow-sm">
+          <div data-mid="dispatch4-block-schedule" className="bg-slate-900 border border-slate-700/80 rounded-xl overflow-hidden shadow-sm">
             <div
               className={`dispatch4-block-header ${
                 openBlocks.has('SCHEDULE') ? 'bg-blue-950/40 border-b border-blue-500/30' : 'bg-slate-800/50 hover:bg-slate-800'
@@ -3553,7 +3553,7 @@ export const SmartDispatch4: React.FC = () => {
           </div>
 
           {/* 🌟 SAFETY & COST 블록 — 안전옵션, 대차회수 ───────────── */}
-          <div className="bg-slate-900 border border-slate-700/80 rounded-xl overflow-hidden shadow-sm">
+          <div data-mid="dispatch4-block-safety" className="bg-slate-900 border border-slate-700/80 rounded-xl overflow-hidden shadow-sm">
             <div
               className={`dispatch4-block-header ${
                 openBlocks.has('SAFETY_COST') ? 'bg-blue-950/40 border-b border-blue-500/30' : 'bg-slate-800/50 hover:bg-slate-800'
@@ -3851,7 +3851,7 @@ export const SmartDispatch4: React.FC = () => {
           <div className="dispatch4-right-scroll dispatch4-scrollbar">
 
           {/* 🛡️ [1] 9대 필수 스키마 유효성 검증 실드 */}
-          <div className={`rounded-xl border p-4 shadow-lg transition-all ${
+          <div data-mid="dispatch4-validation-shield" className={`rounded-xl border p-4 shadow-lg transition-all ${
             isFormValid
               ? 'bg-emerald-950/50 border-2 border-emerald-500 text-white'
               : 'bg-slate-900 border-2 border-red-500/70 text-white'
@@ -3922,7 +3922,7 @@ export const SmartDispatch4: React.FC = () => {
           </div>
 
           {/* 📄 [2] 정형화된 출고의뢰서 요약 (Dossier Preview) */}
-          <div className="bg-slate-900 border border-slate-700/80 rounded-xl p-3 shadow-lg select-text flex flex-col gap-2.5">
+          <div data-mid="dispatch4-preview-dossier" className="bg-slate-900 border border-slate-700/80 rounded-xl p-3 shadow-lg select-text flex flex-col gap-2.5">
             {/* 서식 헤더 */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">
               <div>
@@ -4143,6 +4143,7 @@ export const SmartDispatch4: React.FC = () => {
               <span className="whitespace-nowrap">{isAgentPrinting ? '인쇄 전송중...' : '출고요청서 인쇄'}</span>
             </button>
             <button
+              data-mid="dispatch4-btn-submit"
               type="button"
               onClick={handleSaveDraft}
               disabled={!canSave || isSubmittingDispatch}
@@ -4785,6 +4786,7 @@ export const SmartDispatch4: React.FC = () => {
           <h2 className="dispatch4-title">출고 요청</h2>
           <div className="dispatch4-tab-group">
             <button
+              data-mid="dispatch4-tab-new"
               type="button"
               onClick={() => setActiveTab('NEW')}
               className={`dispatch4-tab-btn ${activeTab === 'NEW' ? 'active' : ''}`}
@@ -4792,6 +4794,7 @@ export const SmartDispatch4: React.FC = () => {
               새 요청 작성
             </button>
             <button
+              data-mid="dispatch4-tab-queue"
               type="button"
               onClick={() => setActiveTab('QUEUE')}
               className={`dispatch4-tab-btn ${activeTab === 'QUEUE' ? 'active' : ''}`}

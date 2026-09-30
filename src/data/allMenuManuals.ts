@@ -32,6 +32,7 @@ export interface MenuManualDetail {
   auditResult: string;        // 최종 확정 및 대차대조 결과 (Audit Result - 질문 4)
   rulesCompliance: string[];  // 전사 시스템 개발 표준 헌장 준수 지침 (카테고리 I~VII)
   precautions: string[];      // 현장 물리적 마찰 방지 및 WTT 주의사항
+  version?: number;           // 매뉴얼 버전 (DB 갱신 비교용)
   annotations: ManualAnnotationItem[]; // 인앱 오버레이 어노테이션
 }
 
@@ -730,93 +731,135 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   {
     menuId: 'smart_dispatch4',
     menuName: '출고 요청',
+    version: 3,
     groupId: 'grp_sales',
     groupName: '영업관리',
     department: '영업부',
     archetype: '유형 A: 요청 처리형 (Card Dossier)',
-    objective: '영업부서가 체결된 계약을 바탕으로 현장 납기일, 장비 제원, 현장 주소, 특이사항을 명시하여 출고/배차 부서에 공식 출고 의뢰 발행 (헌장 2.1)',
-    scopeInfo: '체결 계약 정보, 요청 작업 높이/모델 규격, 현장 반입 예정 일시, 현장 담당자 연락처, 도로 진입 여건',
+    objective: '영업담당자가 고객사로부터 접수한 렌탈 출고요청을 자연어 파싱 및 5단계 표준 서식으로 정형화하고, 9대 필수 스키마 실시간 검증을 거쳐 배차·출고 부서로 공식 출고 의뢰를 발행하는 전사 출고 파이프라인의 출발점 (헌장 2.1)',
+    scopeInfo: '고객사/현장 마스터, 자연어 카톡/문자 원문, 모델 규격별 수량, 상하차 희망 일시, 현장 인수자 연락처, 필수 안전옵션, 9대 방어차단 규칙',
     cognitiveSequence: [
-      '1. 상단 계약 검색에서 출고를 요청할 고객사 및 체결 계약서 선택',
-      '2. 출고 희망 일시, 정확한 현장 하차지 주소, 현장 반입 조건(지하 진입 여부 등) 입력',
-      '3. 장비 요구 옵션(상부 센서, 과상승 방지, 논마킹 타이어 등) 체크',
-      '4. 우하단 [출고 요청서 발행] 버튼 클릭으로 배차/주기장 큐로 공식 전송'
+      '1. (선택) 카톡/문자 텍스트 붙여넣기 파싱으로 자연어 요청 원문 자동 변환',
+      '2. 업무 유형 선택 (신규고객 출고 / 기존현장 출고 / 교체(대차))',
+      '3. 1. 거래처 (고객사) 블록에서 거래처 검색 지정 또는 신규 거래처 등록',
+      '4. 2. 투입 현장 블록에서 현장 선택/신규등록 및 현장 인수자(성명/연락처) 지정',
+      '5. 3. 출고 장비 규격 블록에서 작업높이 및 모델별 요구 수량 선택 (헌장 2.1 모델 요구)',
+      '6. 4. 출고 및 하차 일정 블록에서 상차 희망일시(ASAP/지정시간) 및 현장 도착일정 지정',
+      '7. 5. 안전옵션 블록에서 필수 안전장치(난간대, 감지봉 등) 체크 및 진입로 특이 메모 기재',
+      '8. 우측 [필수 정보 검증 & 방어 차단] 9대 항목 충족 확인 (미충족 시 발행 자동 차단)',
+      '9. 우하단 [출고 요청 발행] 클릭 ➔ 배차/출고 대기열(TruckDispatch)로 공식 전송'
     ],
-        subTabs: [
-          {
-                "tabId": "NEW",
-                "tabName": "신규 배차 의뢰",
-                "purpose": "접수된 미배정 배차 건 목록 조망 및 운송사/기사 매칭",
-                "keyActions": [
-                      "배차 의뢰 접수",
-                      "추천 기사 선택",
-                      "배차 지시 발행"
-                ]
-          },
-          {
-                "tabId": "ASSIGNED",
-                "tabName": "배차 완료 / 운송중",
-                "purpose": "기사 배정 후 현장 출발 및 운송 이동 중인 실시간 차량 위치/상태 추적",
-                "keyActions": [
-                      "기사 실시간 연락",
-                      "도착 예정 시각 안내"
-                ]
-          },
-          {
-                "tabId": "COMPLETED",
-                "tabName": "운송 완료 / 하차",
-                "purpose": "현장 상하차가 정상 완료된 건의 운송 완료 보고서 및 서명 확인",
-                "keyActions": [
-                      "인수증 확인",
-                      "운송 완료 확정"
-                ]
-          },
-          {
-                "tabId": "CANCELLED",
-                "tabName": "배차 취소 / 예외",
-                "purpose": "현장 변심, 우천, 일정 연기로 취소된 배차 건 원장 및 취소 사유 관리",
-                "keyActions": [
-                      "취소 사유 검토",
-                      "배차 정보 수정 후 재배정 복귀"
-                ]
-          }
+    subTabs: [
+      {
+        tabId: 'NEW',
+        tabName: '새 요청 작성',
+        purpose: '신규 렌탈 출고 요청 5단계 서식 작성, 자연어 파싱, 실시간 유효성 검증 및 공식 발행',
+        keyActions: [
+          '카톡/문자 텍스트 자동 파싱',
+          '업무 유형 및 5단계 정보 입력',
+          '9대 스키마 유효성 검증 확인',
+          '출고 요청 공식 발행'
+        ]
+      },
+      {
+        tabId: 'QUEUE',
+        tabName: '처리 대기 (임시저장 큐)',
+        purpose: '작성 중 임시 보관된 출고 초안 및 통화 녹음 연동 건 열람, 수정, 재개',
+        keyActions: [
+          '초안 목록 조회 및 선택',
+          '새 요청 작성으로 초안 불러오기',
+          '다수 초안 일괄 처리 및 삭제'
+        ]
+      }
     ],
-    auditResult: '출고 의뢰 레코드 생성 및 배차 관리(TruckDispatch) 및 장비 할당(AssetAssignment) 대기열 자동 등록',
+    auditResult: '출고 의뢰 레코드(deliveries) 생성 및 배차 관리(TruckDispatch) 및 자산 출고 대기 큐로 공식 바인딩 전송',
     rulesCompliance: [
-      '헌장 2.1 [부서 R&R 엄격 분리]: 영업부서는 모델 규격 요구만 발행하며, 특정 자산번호 강제 지정 불가',
-      '헌장 1.2 [이벤트 기록 무누락]: 출고 요청 발행 시각, 요청자, 계약 ID 영구 보존'
+      '헌장 2.1 [영업-출고 R&R 엄격 분리]: 영업부서는 모델 규격 요구만 의뢰하며, 특정 자산번호 강제 지정 절대 금지',
+      '헌장 1.2 [이벤트 기록 무누락 DB 저장]: 요청 발행 일시, 영업담당자, 고객/현장 속성 100% 영구 보존',
+      '헌장 3.5 [Gutenberg Z-Pattern]: 좌상단 텍스트 파싱 ➔ 중앙 5단계 서식 ➔ 우측 실시간 검증 ➔ 우하단 출고 요청 최종 발행'
     ],
     precautions: [
-      '당일 긴급 출고의 경우 배차실 및 주기장 담당자에게 유선 통보 병행 권장',
-      '현장 진입로 협소(5톤 트럭 진입 불가 등) 시 톤수 특이사항을 전달 메모에 필수 기재'
+      '현장 상세주소 및 현장 인수자(성명/휴대폰) 미입력 시 출고 요청 발행이 시스템에 의해 자동 방어 차단됩니다.',
+      '신규 고객사의 경우 영업사원이 출고 요청을 발행한 후 관리부의 사업자등록 검증이 완료되어야 배차가 진행됩니다.',
+      '현장 진입로 협소(5톤 축차 불가 등) 시 배차 및 특이사항 메모에 반드시 기재해야 합니다.'
     ],
     annotations: [
       {
         seq: 1,
-        selector: '[data-mid="contract-select-box"]',
-        type: 'stamp',
-        label: '계약서 선택',
-        description: '출고를 진행할 유효 체결 계약을 선택합니다.',
+        selector: '[data-mid="dispatch4-paste-zone"]',
+        type: 'callout',
+        label: '카톡/문자 텍스트 파싱',
+        description: '카톡, 문자, 메일로 접수된 자연어 요청 원문을 붙여넣으면 고객사, 현장, 장비, 날짜를 AI/정규식으로 자동 추출하여 폼에 즉시 채워줍니다.',
         badgeColor: '#1D4ED8',
         positionHint: 'bottom',
         spotlight: true,
       },
       {
         seq: 2,
-        selector: '[data-mid="dispatch-request-form"]',
-        type: 'highlight',
-        label: '현장 납기 및 조건 입력',
-        description: '반입 일시, 현장 수령인 연락처, 필수 안전 옵션을 입력합니다.',
+        selector: '[data-mid="dispatch4-context-types"]',
+        type: 'stamp',
+        label: '업무 유형 선택',
+        description: '신규고객 출고, 기존현장 추가출고, 교체(대차) 중 해당하는 비즈니스 맥락을 선택합니다.',
         badgeColor: '#059669',
-        positionHint: 'top',
+        positionHint: 'bottom',
         spotlight: false,
       },
       {
         seq: 3,
-        selector: '[data-mid="btn-submit-request"]',
+        selector: '[data-mid="dispatch4-block-customer"]',
+        type: 'stamp',
+        label: '1. 거래처 (고객사)',
+        description: '출고 대상 거래처(고객사)를 검색 선택하거나, 신규 고객사 정보를 직접 입력합니다.',
+        badgeColor: '#2563EB',
+        positionHint: 'bottom',
+        spotlight: false,
+      },
+      {
+        seq: 4,
+        selector: '[data-mid="dispatch4-block-site"]',
+        type: 'stamp',
+        label: '2. 투입 현장 및 담당자',
+        description: '장비가 반입될 공사 현장과 현장 인수자(성명, 휴대전화)를 지정합니다. 배차 운송의 필수 기준이 됩니다.',
+        badgeColor: '#0891B2',
+        positionHint: 'bottom',
+        spotlight: false,
+      },
+      {
+        seq: 5,
+        selector: '[data-mid="dispatch4-block-equipments"]',
+        type: 'stamp',
+        label: '3. 출고 장비 규격',
+        description: '현장 요구에 맞는 작업 높이/모델 규격과 수량을 지정합니다. 헌장 2.1에 따라 영업은 개별 자산번호가 아닌 모델 규격으로만 의뢰합니다.',
+        badgeColor: '#059669',
+        positionHint: 'bottom',
+        spotlight: false,
+      },
+      {
+        seq: 6,
+        selector: '[data-mid="dispatch4-block-schedule"]',
+        type: 'stamp',
+        label: '4. 출고 및 하차 일정',
+        description: '상차 희망일시(ASAP, 오전, 오후, 지정시간) 및 현장 도착일정을 설정합니다. 다수 장비의 경우 시차 출고 메모를 남길 수 있습니다.',
+        badgeColor: '#D97706',
+        positionHint: 'bottom',
+        spotlight: false,
+      },
+      {
+        seq: 7,
+        selector: '[data-mid="dispatch4-validation-shield"]',
+        type: 'callout',
+        label: '필수 정보 검증 & 방어 차단',
+        description: '고객사, 현장주소, 인수자, 장비, 일정 등 9대 필수 항목을 실시간 검증하며, 정보 누락 시 출고 요청 발행을 자동 차단하여 불완전 배차를 원천 방지합니다.',
+        badgeColor: '#DC2626',
+        positionHint: 'left',
+        spotlight: true,
+      },
+      {
+        seq: 8,
+        selector: '[data-mid="dispatch4-btn-submit"]',
         type: 'click_ripple',
-        label: '출고 요청 발행',
-        description: '출고/배차 부서로 공식 출고 의뢰를 발행합니다.',
+        label: '출고 요청 최종 발행',
+        description: '9대 필수 검증을 100% 통과하면 최종 발행 버튼이 활성화되며, 클릭 즉시 배차/출고 부서의 대기열로 공식 출고 의뢰가 전송됩니다.',
         badgeColor: '#E53935',
         positionHint: 'top',
         spotlight: true,
@@ -3983,7 +4026,7 @@ export function getManualPageForMenu(menuId: string, customTitle?: string): Manu
   return {
     pageId: manual.menuId,
     pageTitle: manual.menuName,
-    version: 1,
+    version: manual.version || 1,
     items: manual.annotations,
   };
 }

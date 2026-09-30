@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import type { ManualMode, ManualPage, ManualAnnotationItem } from '../../types/manual';
 import { useManual } from '../../hooks/useManual';
+import { MenuSpecDocModal } from './MenuSpecDocModal';
 
 interface ManualContextValue {
   mode: ManualMode;
@@ -18,6 +19,9 @@ interface ManualContextValue {
   deleteItem: (seq: number) => Promise<void>;
   seedAllManuals: () => Promise<{ success: number; failed: number }>;
   saving: boolean;
+  docModalState: { isOpen: boolean; menuId: string; menuTitle: string };
+  openDocModal: (menuId?: string, menuTitle?: string) => void;
+  closeDocModal: () => void;
 }
 
 const ManualCtx = createContext<ManualContextValue | null>(null);
@@ -33,7 +37,25 @@ export const ManualProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [currentPageId, setCurrentPageId] = useState('');
   const [currentPageTitle, setCurrentPageTitle] = useState('');
   const [page, setPage] = useState<ManualPage | null>(null);
+  const [docModalState, setDocModalState] = useState<{ isOpen: boolean; menuId: string; menuTitle: string }>({
+    isOpen: false,
+    menuId: '',
+    menuTitle: '',
+  });
+
   const { loadPage: dbLoad, savePage: dbSave, seedAllManuals: dbSeedAll, upsertItem: dbUpsert, deleteItem: dbDelete, saving } = useManual();
+
+  const openDocModal = useCallback((menuId?: string, menuTitle?: string) => {
+    setDocModalState({
+      isOpen: true,
+      menuId: menuId || currentPageId || 'dashboard',
+      menuTitle: menuTitle || currentPageTitle || menuId || '대시보드',
+    });
+  }, [currentPageId, currentPageTitle]);
+
+  const closeDocModal = useCallback(() => {
+    setDocModalState(prev => ({ ...prev, isOpen: false }));
+  }, []);
 
   const loadPage = useCallback(async (pageId: string, pageTitle?: string) => {
     setCurrentPageId(pageId);
@@ -81,8 +103,19 @@ export const ManualProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       upsertItem, deleteItem,
       seedAllManuals,
       saving,
+      docModalState,
+      openDocModal,
+      closeDocModal,
     }}>
       {children}
+      {docModalState.isOpen && (
+        <MenuSpecDocModal
+          isOpen={docModalState.isOpen}
+          menuId={docModalState.menuId}
+          menuTitle={docModalState.menuTitle}
+          onClose={closeDocModal}
+        />
+      )}
     </ManualCtx.Provider>
   );
 };

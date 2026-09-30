@@ -1,5 +1,113 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## [완료] 전사 51개 메뉴 기능 목적 브리핑 텍스트박스 및 마크다운(MD) 기능 정의서 뷰어/편집기 구축 (MCP 연동 지원)
+- **요구사항**:
+  "그렇다면, 모든 메뉴의 매뉴얼에 간략이 각 매뉴의 기능 목적을 정의해서 텍스트박스로 보여주도록 해. 메뉴에 달려있는 버튼(기능) 목록. 모달의 기능 등을 정리해서 MD 형식으로 저장하고, (편집도 가능하고) 기능 정의 문서를 열어볼 수 있도록 해주면 더 좋겠네. 미래에 MCP 연결에도 도움이 될것 같아"
+- **개발 배경 및 목적**:
+  1. 기존 어노테이션 뷰는 번호 뱃지 중심이어서 화면에 진입했을 때 메뉴의 전체적인 기능 목적과 버튼/모달 구성을 한눈에 조망하기 어려웠음.
+  2. 에이전틱 AI 및 미래 MCP(Model Context Protocol) 툴 연동 시, 각 메뉴의 비즈니스 목적, 주요 제어 버튼, 연동 모달, 전사 표준 헌장 제약조건이 정형화된 Grounding Specification(Markdown)으로 제공되어야 함.
+- **주요 구현 및 개선 내역**:
+  1. **`src/utils/menuSpecMarkdown.ts` (마크다운 엔진 & MCP 규격화)**:
+     - 전사 51개 메뉴 및 모달 명세를 파싱하여 실시간 요약 데이터를 추출하는 `getMenuBriefingSummary(menuId)` 구현.
+     - 10대 핵심 섹션(메타데이터, 업무 목적, 시작 전제조건, 주요 버튼 및 기능 목록, 하위 탭 구성, 연동 모달 스펙, 인지·조작 시퀀스, 종단 감사 결과, 전사 표준 헌장 준수, MCP 에이전트 연동 가이드)을 갖춘 표준 `.md` 자동 생성 엔진 `generateDefaultMenuSpecMarkdown(menuId)` 구현.
+     - Supabase DB `manual_annotations` (JSONB)와 무중단 호환 로드/저장 (`loadMenuSpecMarkdown`, `saveMenuSpecMarkdown`).
+     - 브라우저 및 MCP 에이전트 자율 연동 글로벌 헬퍼 `window.__GET_MENU_SPEC_MARKDOWN__` 등 등록.
+  2. **`src/components/manual/MenuBriefingBox.tsx` (기능 목적 브리핑 텍스트박스)**:
+     - 매뉴얼 보기 활성화 시 화면 좌상단에 플로팅되는 고밀도 브리핑 카드 신설.
+     - 메뉴 타이틀, 담당 부서, UI 아키타입, 업무 기능 목적(Terminal Objective) 명시.
+     - 화면 주요 조작 버튼 칩 목록: 클릭 시 해당 화면 요소로 자동 스크롤 및 하이라이트/스포트라이트 포커스 이동.
+     - 연동 모달 및 하위 탭 칩 목록 표시.
+     - `[기능 정의서 (.md)]` 원클릭 열람 버튼, 최소화(접기/펼치기) 토글, 닫기 지원.
+  3. **`src/components/manual/MenuSpecDocModal.tsx` (기능 정의서 뷰어/편집기 모달)**:
+     - 경량 GitHub 스타일 마크다운 렌더러 (H1~H4, Blockquote, Bullet list, Inline code, Code block).
+     - 마크다운 실시간 직접 편집기(Textarea) ↔ 뷰어 즉시 전환 모드.
+     - `[변경사항 저장]` (DB 영구 보존), `[MD 복사]`, `[.md 파일 다운로드]`, `[기본 서식으로 복원]`.
+  4. **`src/components/manual/ManualContext.tsx`**:
+     - `docModalState`, `openDocModal`, `closeDocModal` 전역 상태 및 `MenuSpecDocModal` 통합 마운트.
+  5. **`src/components/manual/ManualOverlay.tsx`**:
+     - 상단 좌측 `MenuBriefingBox` 마운트 및 하단 플로팅 툴바에 `[📖 기능 정의서 (.md)]` 버튼 배치.
+  6. **`src/App.tsx`**:
+     - 헤더 우측 `ManualHeaderButtons`에 `[📄 기능 정의서 (.md)]` 버튼을 상시 배치하여 매뉴얼 오버레이를 켜지 않고도 1클릭 즉시 열람/편집 지원.
+  7. **빌드 검증**:
+     - `cmd.exe /c "npm run build"` 무오류 빌드 통과 완료 (819ms).
+
+## [완료] '출고 요청' 인앱 매뉴얼 전면 개편 (단순 출력 설명 ➔ 8단계 출고 요청 파이프라인 정밀 가이드)
+- **요구사항**:
+  "출고요청 매뉴의 매뉴얼이 너무 황당하네. 출고요청 절차에 대한 단계별 설명 이어야 하는데, 출고요청서 출력에 대한 설명만 있는것 같아. 이 메뉴의 기능을 더 깊이 판단해보고 매뉴얼 수정해"
+- **문제의 본질**:
+  1. 기존 `smart_dispatch4` 매뉴얼에 `TruckDispatch`(배차 관리)의 서브탭이 복사되어 들어가 있었음.
+  2. 화면 DOM에 존재하지 않는 가짜 selector(`[data-mid="contract-select-box"]`)가 등록되어 있어, DOM 폴백 탐색기가 우상단의 [출력 프린터 (브라우저 직접 인쇄)] 드롭다운을 1번 타겟으로 오인 매핑하는 치명적 오류 발생.
+  3. 이로 인해 영업사원의 5단계 출고 요청 및 9대 방어차단 검증이라는 본질 기능은 배제된 채 "출고요청서 출력"에 대한 설명만 노출되는 황당한 현상 초래.
+- **수정 및 개선 내역**:
+  1. **`src/pages/smart_dispatch4.tsx`**:
+     - 실제 5단계 서식 블록과 핵심 컨트롤에 고유하고 안정적인 `data-mid` 속성 전수 부여:
+       - `dispatch4-tab-new`: 상단 '새 요청 작성' 탭
+       - `dispatch4-tab-queue`: 상단 '처리 대기' 탭
+       - `dispatch4-paste-zone`: 카톡/문자 텍스트 붙여넣기 파싱
+       - `dispatch4-context-types`: 업무 유형 선택 (신규고객 / 기존현장 / 대차)
+       - `dispatch4-block-customer`: 1. 거래처 (고객사) 블록
+       - `dispatch4-block-site`: 2. 투입 현장 및 현장 담당자 블록
+       - `dispatch4-block-equipments`: 3. 출고 장비 규격 블록 (헌장 2.1 모델 요구)
+       - `dispatch4-block-schedule`: 4. 출고 및 하차 일정 블록
+       - `dispatch4-block-safety`: 5. 안전옵션 블록
+       - `dispatch4-validation-shield`: 우측 9대 필수 정보 검증 & 방어 차단 실드
+       - `dispatch4-preview-dossier`: 우측 출고 요청서(정형화) 실시간 프리뷰
+       - `dispatch4-btn-submit`: 우하단 [출고 요청 발행] 최종 완결 버튼
+  2. **`src/data/allMenuManuals.ts`**:
+     - `smart_dispatch4` 매뉴얼을 영업부서의 8단계 출고 요청 절차로 전면 개편:
+       - **목적**: 렌탈 출고요청을 자연어 파싱 및 5단계 서식으로 정형화하고, 9대 필수 스키마 실시간 검증을 거쳐 배차·출고 부서로 공식 출고 의뢰 발행 (헌장 2.1)
+       - **단계별 8종 인앱 어노테이션 신설**:
+         ① 카톡/문자 텍스트 파싱 ➔ ② 업무 유형 선택 ➔ ③ 1. 거래처 (고객사) ➔ ④ 2. 투입 현장 및 담당자 ➔ ⑤ 3. 출고 장비 규격 ➔ ⑥ 4. 출고 및 하차 일정 ➔ ⑦ 필수 정보 검증 & 방어 차단 ➔ ⑧ 출고 요청 최종 발행
+       - **서브탭 정정**: `새 요청 작성` / `처리 대기 (임시저장 큐)`로 정합성 확보.
+       - **헌장 준수 사항**: 헌장 2.1(영업-출고 R&R 분리), 헌장 1.2(이벤트 무누락 DB 저장), 헌장 3.5(Gutenberg Z-Pattern) 반영.
+  3. **`src/hooks/useManual.ts`**:
+     - `loadPage`: 코드 시드 버전이 DB 캐시 버전보다 높을 경우 최신 시드를 자동 채택하고 DB를 자동 업데이트하도록 SSOT 버전 정합성 보장 로직 구현.
+  4. **원격 Supabase DB 즉시 동기화**:
+     - 원격 `manual_annotations` 테이블의 `smart_dispatch4` 레코드를 v3(8단계 정밀 워크플로우)로 즉시 갱신 완료.
+  5. **빌드 검증**:
+     - `cmd.exe /c "npm run build"` 무오류 빌드 통과 완료 (798ms).
+
+## [완료] 배차/운송 관리 기본 조회 설정 개편 (오늘부터 7일간 + '배차 전(대기)' 기본값 제공)
+- **요구사항**:
+  "배차운송관리 메뉴의 기본 적인 조회 설정을 보면, 기간이 기본값이 없으므로 전체 기간이 조회되고, 데이터가 누적되면 나중에는 매우 느려질것 같아. 기본값은, 오늘 부터 7일간 정도로 제공해주고, 배차 전(대기) 를 보여주도록 해줘"
+- **문제의 본질**:
+  - 기존 초기 진입 시 상태 필터가 `'ALL'`(전체 보기), 기간 조회 `startDate`/`endDate`가 `''` 빈값(전체 기간)으로 설정되어 있어, 시스템 누적 시 수천~수만 건의 배차/운송 이력이 한 번에 쿼리/필터링/렌더링되어 성능 저하 위험이 있었음.
+  - 현장 배차 담당자의 실제 일상 업무는 "오늘과 향후 상차 예정인 배차 대기 건"을 처리하는 것이 최우선 업무이므로 기본 뷰가 이에 최적화되어야 함.
+- **수정 및 개선 내역**:
+  1. **`src/pages/TruckDispatch.tsx`**:
+     - `activeDispatchStatusTab`: 기본값을 `'ALL'` ➔ **`'PENDING'` (`배차 전 (대기)`)**로 변경.
+     - `startDate` & `endDate`: 기본값을 전체 빈값 ➔ **로컬 타임존 기준 오늘(`todayStr`)부터 7일간(`today + 7일`)**으로 자동 계산하여 초기 세팅.
+     - `handleSetDateRange`: UTC 기준 `toISOString()` 시차 버그를 방지하고 로컬 타임존 기반으로 일관성 있게 날짜 생성하도록 정규화.
+     - 기간 프리셋 버튼 하이라이트 UI: `[오늘] [1주일] [1개월] [전체]` 버튼에 현재 선택된 기간 일치 여부(`isSelected`)를 검사하여 `1주일` 버튼이 초기 진입 시 은은한 파란색(`var(--primary)`) 테두리와 배경으로 활성화 하이라이트되도록 시각적 피드백 보강.
+  2. **빌드 검증**:
+     - `cmd.exe /c "npm run build"` 무오류 빌드 통과 완료 (784ms).
+
+## [완료] 모달 닫힘 및 메뉴/화면 이동 시 오버레이 매뉴얼 보기 자동 종료 처리
+- **요구사항**:
+  "모달에서 매뉴얼 보기를 했다가 모달을 닫았더니, 매뉴얼보기 켜진 상태로 남아서 이미지처럼 되었어. 매뉴얼 보기 상태에서 모달이 닫힐때, 다른 매뉴로 이동될 때에도 매뉴얼 보기를 꺼줘"
+- **문제 원인**:
+  1. 모달 매뉴얼 상태(`page.pageId.startsWith('modal_')`)에서 모달이 언마운트되거나 닫혔을 때, `detectActiveModalElement()`가 `null`을 반환해도 `recalcTargets`에서 모드를 종료(`setMode('off')`)하지 않음.
+  2. `resolveTargetElement` 내부에서 모달이 없거나 모달 내 요소를 못 찾았을 때 일반 화면 요소(input, table, card 등)로 폴백되어 메인 화면에 엉뚱한 테두리와 어노테이션 뱃지(1, 2, 3), 하단 네비게이션 독이 잔존하여 화면을 가림.
+  3. React 컴포넌트 언마운트/DOM 제거를 실시간으로 감지하는 `MutationObserver` 부재.
+  4. 메뉴 검색 결과(Enter 또는 클릭) 및 일부 메뉴/화면 전환 시 매뉴얼 끄기 트리거 누락.
+- **수정 및 개선 내역**:
+  1. **`src/components/manual/ManualOverlay.tsx`**:
+     - `resolveTargetElement`: `isModalContext` 인자 추가. 모달 매뉴얼 모드인 경우 모달 컨테이너 외부(일반 화면)로의 폴백을 원천 차단하여 일반 화면에 잘못된 어노테이션이 꽂히는 현상 제거.
+     - `recalcTargets`: 모달 매뉴얼 활성 상태(`isModalActive`)에서 화면 상 모달이 미감지(`!modalInfo`)되면 즉시 `setMode('off')`로 종료.
+     - `MutationObserver`: `mode === 'viewing'` 상태에서 `document.body`의 자식/서브트리 변경을 감시하여, 모달이 언마운트되는 즉시 1ms 내에 `setMode('off')` 자동 실행.
+     - `setInterval` 200ms 보조 안전망: CSS `display: none` 등의 닫힘 방식까지 100% 감지하여 자동 종료.
+     - `Escape` 키 감지: ESC 키 입력 시 모달 닫힘과 동시에 매뉴얼 즉시 자동 종료.
+     - 전역 클릭 감지 (`handleGlobalClick`):
+       - 모달 닫기 버튼(X, 취소, 확인, 저장, 등록) 클릭 감지 시 즉시 `setMode('off')`.
+       - 모달 바깥 백드롭 영역 클릭 시 즉시 `setMode('off')`.
+       - 사이드바 메뉴 버튼 클릭 시 즉시 `setMode('off')`.
+       - 화면 내부 탭, 버튼, 링크, 네비게이션 클릭 시 즉시 `setMode('off')`.
+     - 브라우저 히스토리 변경 감지: `popstate`, `hashchange` 발생 시 즉시 `setMode('off')`.
+  2. **`src/App.tsx`**:
+     - 메뉴 검색 네비게이터에서 결과 항목 선택 시(Enter 키보드 및 마우스 클릭 모두) `setManualMode('off')` 추가.
+  3. **빌드 검증**:
+     - `cmd.exe /c "npm run build"` 무오류 빌드 통과 완료.
+
 ## [스켈톤 발상 — 인앱 오버레이 매뉴얼 시스템 v1.8.2] 2026-09-29
 
 ### 핵심 컨셉

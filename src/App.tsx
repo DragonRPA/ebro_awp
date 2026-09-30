@@ -116,7 +116,7 @@ import { useGridWheel } from './hooks/useGridWheel';
 
 /* ── 인앱 오버레이 매뉴얼 버튼 (헤더 우측 배치) ─────────────── */
 const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activeTabName?: string }> = ({ activeTab, currentUser, activeTabName }) => {
-  const { mode, setMode, loadPage, page } = useManualContext();
+  const { mode, setMode, loadPage, page, openDocModal } = useManualContext();
   
   // 개발자 계정(admin, sys-admin)일 때만 매뉴얼 작성 기능 노출
   const isTrueDev = (u?: any) => u && (u.loginId === 'admin' || u.id === 'sys-admin');
@@ -141,6 +141,22 @@ const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activ
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+      {/* 📄 기능 정의서 (.md) 열람/편집 버튼 */}
+      <button
+        onClick={() => openDocModal(activeTab, pageTitle)}
+        style={{
+          padding: '6px 11px', borderRadius: '20px', fontSize: '12px', fontWeight: 700,
+          background: 'var(--bg-app)',
+          color: 'var(--text-primary)',
+          border: '1px solid var(--border-color)',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap',
+          flexShrink: 0,
+        }}
+        title="현재 메뉴의 마크다운 기능 정의서 열람/편집 및 MCP 연동 규격 확인"
+      >
+        📄 기능 정의서 (.md)
+      </button>
+
       <button
         onClick={handleView}
         style={{
@@ -664,6 +680,7 @@ const App: React.FC = () => {
       e.preventDefault();
       const target = searchResults[menuSearchHighlight];
       if (target) {
+        if (manualMode !== 'off') setManualMode('off');
         setActiveTab(target.id);
         setMenuSearchOpen(false);
         setMenuSearchQuery('');
@@ -1138,6 +1155,7 @@ const App: React.FC = () => {
                   <div
                     key={item.id}
                     onMouseDown={() => {
+                      if (manualMode !== 'off') setManualMode('off');
                       setActiveTab(item.id);
                       setMenuSearchOpen(false);
                       setMenuSearchQuery('');
