@@ -60,7 +60,7 @@ interface EquipmentItem { modelName: string; qty: number; }
 
 export type PaidBy = 'CUSTOMER' | 'OURS' | 'SPLIT';
 
-export const VEHICLE_TYPE_OPTIONS = ['1.4T', '2.5T', '3.5T', '5T', '5T장축', '8.5T', '11T', '노배드', '셀프로더'];
+export const VEHICLE_TYPE_OPTIONS = ['1.4T', '2.5T', '3.5T', '4T', '4.5T', '5T', '5T장축', '8.5T', '11T', '노배드', '셀프로더'];
 
 interface DraftOrder {
   id: string;

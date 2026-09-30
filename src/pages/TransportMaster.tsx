@@ -566,6 +566,8 @@ export const TransportMaster: React.FC = () => {
                     <option value="1.4T">1.4T</option>
                     <option value="2.5T">2.5T</option>
                     <option value="3.5T">3.5T</option>
+                    <option value="4T">4T</option>
+                    <option value="4.5T">4.5T</option>
                     <option value="5T">5T</option>
                     <option value="5T장축">5T장축</option>
                     <option value="8.5T">8.5T</option>
