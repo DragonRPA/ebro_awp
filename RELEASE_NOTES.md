@@ -1,3 +1,38 @@
+## 2026-09-30 21:10 (v1.8.5.Build.8)
+
+### [청구서통합(INVOICE) 탭 실무 조작 매뉴얼 1:1 완벽 정합화] 서브뷰 동적 분리 & 15대 핵심 UI 조작 DOM 앵커 1:1 완비 & v5 전용 매뉴얼 구축으로 뱃지 뭉침 및 오배치 전면 해소
+
+- **배경 및 원인 분석**:
+  - `매출 청구 관리` 메뉴에서 사용자가 `청구서통합` 탭을 활성화했음에도 불구하고, 해당 탭 컴포넌트에 `data-subview="billing_invoice"`가 누락되어 상위 기본 메뉴인 `billing`(`청구 대장` 15단계 매뉴얼)으로 폴백되는 현상 발생.
+  - 이로 인해 `청구 대장` 전용 셀렉터들이 `청구서통합` 화면에서 일치하지 않아 오버레이 폴백 휴리스틱이 동작하면서, 상단 탭 바의 `청구 대장` 버튼에 엉뚱하게 10번 뱃지가 부착되고 나머지 뱃지들이 엉뚱한 위치에 산란 배치되는 결함 적발.
+- **`Billings.tsx` 및 `BillingInvoiceTab.tsx` 서브뷰 동적 식별 체계 확립**:
+  - `Billings.tsx` 내 `activeTab === 'INVOICE'` 렌더링 블록 및 `BillingInvoiceTab.tsx` 루트 컨테이너에 `data-subview="billing_invoice"`, `data-subview-title="청구서통합"` 명시.
+  - `activeTab === 'WAIVER'` 블록에도 `data-subview="billing_waiver"`, `data-subview-title="청구 면제 대장"`을 동시 부여하여 청구 관리 4개 탭 전원 100% 독립 컨텍스트 격리 완료.
+- **`BillingInvoiceTab.tsx` 15대 핵심 실무 조작 요소 1:1 고유 DOM 앵커(`data-mid`) 완비**:
+  - Gutenberg Z-패턴과 실제 실무자 조작 순서에 맞추어 15개 인터페이스에 `data-mid` 분산 바인딩:
+    - 1단계: `invoice-period-ym` (청구 귀속연월 설정 input)
+    - 2단계: `invoice-customer-search` (고객명 초성·상호 실시간 검색창)
+    - 3단계: `invoice-customer-select` (고객사 선택 드롭다운)
+    - 4단계: `invoice-groupby-select` (통합 단위 설정: 고객 단위 vs 현장 단위)
+    - 5단계: `invoice-viewmode-toggle` (뷰 모드 전환: [통합 발행 스튜디오] ↔ [발행 이력 대장])
+    - 6단계: `invoice-batch-consolidate-btn` (`[기존 청구 소급 묶기]` 배치 버튼)
+    - 7단계: `invoice-refresh-btn` (`[새로고침]` DB 최신 데이터 재조회 버튼)
+    - 8단계: `invoice-category-filter` (품목 카테고리 필터: 전체/렌탈/수리/운반)
+    - 9단계: `invoice-unbilled-table` (좌측 미통합 청구서 바구니 목록 및 체크리스트)
+    - 10단계: `invoice-form-inputs` (우측 인보이스 정보 입력: 납기일자 및 통합 비고 메모)
+    - 11단계: `invoice-statement-canvas` (공식 거래명세서 A4 11행 정규 싱크 캔버스)
+    - 12단계: `invoice-reconcile-summary` (하단 회계 대차 검증 스트립: 공급가 + 세액 = 총합계)
+    - 13단계: `invoice-export-excel-btn` (`[정품 엑셀 다운로드]` COM 서식 주입 버튼)
+    - 14단계: `invoice-print-email-actions` (`[PDF 다운로드]`, `[인쇄]`, `[이메일 발송]` 액션군)
+    - 15단계: `invoice-issue-submit-btn` (`[통합 청구서 발행]` 최종 완결 마감 버튼)
+- **`allMenuManuals.ts` 내 `billing_invoice` (청구서통합) v5 실무 조작 매뉴얼 신설**:
+  - 15단계 실무 조작 단위, 구체적 버튼 기능, 뱃지 색상, 위치 힌트, 파동 리플(클릭 버튼)을 정교하게 탑재.
+- **Supabase 원격 DB 동기화 (`scripts/sync_manuals_to_db.ts`)**:
+  - `billing_invoice` v5 (15단계) 매뉴얼을 Supabase 원격 `manual_annotations` 테이블에 upsert 동기화 완료.
+- **검증**: `tsc -b && vite build` 정상 빌드 완료 (0 error, 805ms).
+
+---
+
 ## 2026-09-30 20:50 (v1.8.5.Build.7)
 
 ### [인앱 실무 매뉴얼 15단계 심도(Depth) 혁신 개편 — 청구 대장] 피상적 개념 설명을 넘어 입력·클릭·기능 전수 1:1 관통 실무 조작 가이드 완성 & 15+ 단계 UI 방어 강화 & 전사 고기능 메뉴 심도 확대 로드맵 수립

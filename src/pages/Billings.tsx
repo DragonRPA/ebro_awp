@@ -1986,7 +1986,11 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       </div>
 
       {/* 청구서통합 탭 */}
-      {activeTab === 'INVOICE' && <BillingInvoiceTab />}
+      {activeTab === 'INVOICE' && (
+        <div data-subview="billing_invoice" data-subview-title="청구서통합" style={{ display: 'flex', flexDirection: 'column' }}>
+          <BillingInvoiceTab />
+        </div>
+      )}
 
       {activeTab === 'LIST' && (() => {
         const dueContracts = getDueContractsForBilling();
@@ -4197,7 +4201,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
         };
 
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div data-subview="billing_waiver" data-subview-title="청구 면제 대장" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* ① 상단 필터 & 액션 바 (헌장 3.5 Z-패턴 1, 2단계) */}
             <div className="card" style={{ margin: 0, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>

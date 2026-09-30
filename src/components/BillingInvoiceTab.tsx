@@ -803,7 +803,7 @@ export const BillingInvoiceTab: React.FC = () => {
   }, [invoices, historyStatusFilter, selectedCustomerId]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
+    <div data-subview="billing_invoice" data-subview-title="청구서통합" style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
 
       {/* ── 거래명세서 캔버스 및 인쇄 스타일 ── */}
       <style>{`
@@ -865,7 +865,7 @@ export const BillingInvoiceTab: React.FC = () => {
         <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
 
           {/* 귀속연월 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div data-mid="invoice-period-ym" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>
               귀속연월
             </span>
@@ -882,7 +882,7 @@ export const BillingInvoiceTab: React.FC = () => {
           </div>
 
           {/* 1. 고객명 검색 인풋 (초성검색 지원) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div data-mid="invoice-customer-search" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>
               고객명 검색
             </span>
@@ -899,7 +899,7 @@ export const BillingInvoiceTab: React.FC = () => {
           </div>
 
           {/* 2. 고객사 선택 드롭다운 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div data-mid="invoice-customer-select" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>
               고객사 선택 ({filteredCustomers.length}개사)
             </span>
@@ -922,7 +922,7 @@ export const BillingInvoiceTab: React.FC = () => {
           </div>
 
           {/* 통합 단위 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div data-mid="invoice-groupby-select" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>
               통합 단위
             </span>
@@ -944,7 +944,7 @@ export const BillingInvoiceTab: React.FC = () => {
         <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
 
           {/* 뷰 모드 전환 버튼군 */}
-          <div style={{
+          <div data-mid="invoice-viewmode-toggle" style={{
             display: 'flex', backgroundColor: 'var(--bg-app)', padding: '3px',
             borderRadius: '6px', border: '1px solid var(--border-color)'
           }}>
@@ -974,6 +974,7 @@ export const BillingInvoiceTab: React.FC = () => {
 
           {/* 소급 묶기 버튼 */}
           <button
+            data-mid="invoice-batch-consolidate-btn"
             onClick={handleConsolidateBatch}
             disabled={isConsolidating}
             title="기존 미통합 청구 일괄 소급 통합"
@@ -990,6 +991,7 @@ export const BillingInvoiceTab: React.FC = () => {
 
           {/* 새로고침 */}
           <button
+            data-mid="invoice-refresh-btn"
             onClick={loadInvoices}
             disabled={isLoadingInvoices}
             title="새로고침"
@@ -1015,7 +1017,7 @@ export const BillingInvoiceTab: React.FC = () => {
         }}>
 
           {/* ── [좌측 52%] 미통합 개별 청구서 바구니 ── */}
-          <div style={{
+          <div data-mid="invoice-unbilled-table" style={{
             display: 'flex', flexDirection: 'column', gap: '12px',
             backgroundColor: 'var(--bg-card)', borderRadius: '8px',
             border: '1px solid var(--border-color)', padding: '16px'
@@ -1034,7 +1036,7 @@ export const BillingInvoiceTab: React.FC = () => {
               </div>
 
               {/* 품목 필터 탭 */}
-              <div style={{
+              <div data-mid="invoice-category-filter" style={{
                 display: 'flex', gap: '4px', backgroundColor: 'var(--bg-app)',
                 padding: '2px', borderRadius: '6px', border: '1px solid var(--border-color)'
               }}>
@@ -1216,7 +1218,7 @@ export const BillingInvoiceTab: React.FC = () => {
             </div>
 
             {/* 인보이스 기본 정보 폼 (상하 세로 스택) */}
-            <div style={{
+            <div data-mid="invoice-form-inputs" style={{
               display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px',
               padding: '12px', backgroundColor: 'var(--bg-app)', borderRadius: '6px'
             }}>
@@ -1266,6 +1268,7 @@ export const BillingInvoiceTab: React.FC = () => {
 
             {/* ── 공식 거래명세서 A4 11행 싱크 캔버스 ── */}
             <div
+              data-mid="invoice-statement-canvas"
               id="printable-invoice-canvas"
               ref={printableCanvasRef}
               style={{
@@ -1456,7 +1459,7 @@ export const BillingInvoiceTab: React.FC = () => {
               gap: '10px'
             }}>
               {/* 좌측: 대차대조식 무결성 확정 요약 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              <div data-mid="invoice-reconcile-summary" style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                 <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                   청구 대상: <strong>{selectedBillingIds.length}</strong>건 선택됨
                 </span>
@@ -1469,6 +1472,7 @@ export const BillingInvoiceTab: React.FC = () => {
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                 {/* 1. 정품 엑셀 서식 다운로드 */}
                 <button
+                  data-mid="invoice-export-excel-btn"
                   type="button"
                   onClick={handleExportExcel}
                   disabled={selectedBillingIds.length === 0}
@@ -1487,6 +1491,7 @@ export const BillingInvoiceTab: React.FC = () => {
                   정품 엑셀 다운로드
                 </button>
 
+                <div data-mid="invoice-print-email-actions" style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                 {/* 2. PDF 변환 / 다운로드 */}
                 <button
                   type="button"
@@ -1548,8 +1553,10 @@ export const BillingInvoiceTab: React.FC = () => {
                   {isSendingEmail ? '발송 중...' : '이메일 발송'}
                 </button>
 
+                </div>
                 {/* 4. 최종 완결 액션: 통합 인보이스 발행 확정 */}
                 <button
+                  data-mid="invoice-issue-submit-btn"
                   type="button"
                   onClick={handleIssueInvoice}
                   disabled={isIssuing || selectedBillingIds.length === 0 || !selectedCustomerId}
