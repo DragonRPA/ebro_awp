@@ -4206,7 +4206,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
             <div className="card" style={{ margin: 0, padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                 {/* 기간 필터 (헌장 3.4 세로 스택) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
+                <div data-mid="waiver-period-scope" style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
                   <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                     면제 연월 범위
                   </label>
@@ -4228,7 +4228,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 </div>
 
                 {/* 구분 필터 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
+                <div data-mid="waiver-category-filter" style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
                   <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                     항목 구분
                   </label>
@@ -4245,7 +4245,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 </div>
 
                 {/* 통합 검색어 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '220px', flexShrink: 0 }}>
+                <div data-mid="waiver-search-input" style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '220px', flexShrink: 0 }}>
                   <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                     검색 (고객사 / 계약 / 담당자 / 사유)
                   </label>
@@ -4262,6 +4262,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               {/* 우상단 엑셀 내보내기 (헌장 3.1 명사 표준) */}
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
+                  data-mid="waiver-export-excel-btn"
                   type="button"
                   className="btn-secondary"
                   onClick={handleExportWaiverExcel}
@@ -4273,7 +4274,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
             </div>
 
             {/* ② KPI 요약 카드 그리드 */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+            <div data-mid="waiver-kpi-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
               <div className="card" style={{ margin: 0, padding: '14px', borderLeft: '4px solid #dc2626' }}>
                 <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '4px' }}>총 영업 면제 손실액</div>
                 <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--danger)' }}>
@@ -4317,7 +4318,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
             {/* 사유 분석 및 영업사원별 현황 칩 바 */}
             {(topReasons.length > 0 || topSalespeople.length > 0) && (
-              <div className="card" style={{ margin: 0, padding: '10px 14px', backgroundColor: 'var(--bg-app)', display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap', fontSize: '12px' }}>
+              <div data-mid="waiver-reason-sales-strip" className="card" style={{ margin: 0, padding: '10px 14px', backgroundColor: 'var(--bg-app)', display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap', fontSize: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                   <span style={{ fontWeight: 800, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>📊 사유별 비중:</span>
                   {topReasons.slice(0, 4).map(([rs, data]) => (
@@ -4338,7 +4339,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
             )}
 
             {/* ③ 본문 고밀도 슬림 그리드 (헌장 3.6 유형 B, 행 높이 38~40px) */}
-            <div className="card" style={{ margin: 0, padding: 0, overflow: 'hidden' }}>
+            <div data-mid="waiver-list-table" className="card" style={{ margin: 0, padding: 0, overflow: 'hidden' }}>
               <div style={{ maxHeight: 'calc(100vh - 430px)', minHeight: '350px', overflowY: 'auto', overflowX: 'auto' }}>
                 <table className="table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px' }}>
                   <thead>
@@ -4369,6 +4370,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                         <tr key={it.id} style={{ height: '38px', borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.15s' }}>
                           <td style={{ textAlign: 'center', padding: '4px 8px', whiteSpace: 'nowrap', position: 'sticky', left: 0, backgroundColor: 'var(--bg-card)', zIndex: 5 }}>
                             <button
+                              data-mid="waiver-cancel-btn"
                               type="button"
                               className="btn-secondary"
                               onClick={() => handleCancelWaiverClick(it)}
@@ -4422,7 +4424,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
             </div>
 
             {/* ④ 우하단 Gutenberg Z-패턴 대차대조식 검증 바 (헌장 3.5 Z-패턴 4단계) */}
-            <div className="card" style={{ margin: 0, padding: '12px 18px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            <div data-mid="waiver-bottom-audit-bar" className="card" style={{ margin: 0, padding: '12px 18px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '13px', flexWrap: 'wrap' }}>
                 <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>
                   📄 총 유료비용 발생: <span style={{ color: 'var(--text-primary)' }}>₩{grandTotalDiscoveredCosts.toLocaleString()}원</span>
