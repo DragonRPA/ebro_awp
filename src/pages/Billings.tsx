@@ -2093,7 +2093,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1, minWidth: '100px' }}>
+              <div data-mid="billing-contract-filter" style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1, minWidth: '100px' }}>
                 <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>계약번호</label>
                 <input 
                   type="text" 
@@ -2127,7 +2127,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 </div>
 
                 {/* ◀ 당월 ▶ 이동 */}
-                <div style={{ display: 'flex', gap: '2px', alignItems: 'center', paddingBottom: '1px' }}>
+                <div data-mid="billing-month-quick" style={{ display: 'flex', gap: '2px', alignItems: 'center', paddingBottom: '1px' }}>
                   <button
                     type="button"
                     className="btn-secondary"
@@ -2159,7 +2159,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               </div>
 
               {/* 💰 수납 상태 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0 }}>
+              <div data-mid="billing-payment-filter" style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0 }}>
                 <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>수납 상태</label>
                 <select 
                   value={tempPaymentFilter} 
@@ -2173,7 +2173,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               </div>
 
               {/* ✉️ 메일 발송 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0 }}>
+              <div data-mid="billing-mail-filter" style={{ display: 'flex', flexDirection: 'column', gap: '3px', flexShrink: 0 }}>
                 <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>메일 발송</label>
                 <select 
                   value={tempMailSentFilter} 
@@ -2201,7 +2201,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               </div>
 
               {/* 버튼 그룹 */}
-              <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0, paddingBottom: '1px' }}>
+              <div data-mid="billing-search-action" style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0, paddingBottom: '1px' }}>
                 <button 
                   type="button" 
                   className="btn-primary" 
@@ -2330,6 +2330,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                               <button 
                                 type="button"
                                 className="btn-success" 
+                                data-mid="billing-pay-btn"
                                 onClick={() => handleOpenPay(b.id, unpaid)} 
                                 style={{ padding: '3px 6px', fontSize: '11px', whiteSpace: 'nowrap', fontWeight: 'bold' }}
                                 title="수납 등록"
@@ -2343,6 +2344,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                               <button 
                                 type="button" 
                                 className="btn-secondary" 
+                                data-mid="billing-mail-btn"
                                 onClick={() => handleOpenMail(b.id)} 
                                 style={{ padding: '3px 6px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}
                                 title={b.invoiceId ? `통합 청구서(${b.invoiceId})에 포함됨 - 개별 명세서 발송` : "거래명세서 이메일 발송"}
@@ -2356,6 +2358,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                               <button 
                                 type="button" 
                                 className="btn-secondary" 
+                                data-mid="billing-cancel-btn"
                                 onClick={(e) => handleOpenRegenerate(b.id, e)} 
                                 style={{ padding: '3px 6px', fontSize: '11px', color: 'var(--primary)', fontWeight: '600', whiteSpace: 'nowrap' }}
                                 title="내역 수정 및 재생성"

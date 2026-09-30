@@ -757,9 +757,11 @@ export const ManualOverlay: React.FC = () => {
           borderRadius: '28px', padding: '8px 18px',
           boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
           zIndex: baseZIndex + 4, pointerEvents: 'all',
+          maxWidth: 'calc(100vw - 32px)',
+          overflowX: 'auto',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginRight: '4px', flexShrink: 0 }}>
           <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
             {isModal ? '🖼️ 팝업: ' : '📖 '} {page.pageTitle}
           </span>
@@ -769,7 +771,7 @@ export const ManualOverlay: React.FC = () => {
         </div>
 
         {/* 1, 2, 3 번호 버튼군 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
           {items.map(item => {
             const isSelected = expandedSeq === item.seq;
             return (
@@ -781,11 +783,12 @@ export const ManualOverlay: React.FC = () => {
                   background: isSelected ? item.badgeColor : 'var(--bg-secondary)',
                   color: isSelected ? '#fff' : 'var(--text-main)',
                   border: `2px solid ${item.badgeColor}`,
-                  fontSize: '12.5px', fontWeight: 800, cursor: 'pointer',
+                  fontSize: '12px', fontWeight: 800, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   boxShadow: isSelected ? `0 0 10px ${item.badgeColor}88` : 'none',
                   transition: 'all 0.15s ease',
-                  transform: isSelected ? 'scale(1.15)' : 'scale(1)'
+                  transform: isSelected ? 'scale(1.15)' : 'scale(1)',
+                  flexShrink: 0
                 }}
                 title={`${item.seq}. ${item.label}`}
               >
@@ -803,7 +806,7 @@ export const ManualOverlay: React.FC = () => {
             border: '1px solid var(--primary)', background: 'rgba(59,130,246,0.1)',
             fontSize: '11.5px', fontWeight: 800, color: 'var(--primary)',
             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
-            whiteSpace: 'nowrap',
+            whiteSpace: 'nowrap', flexShrink: 0
           }}
           title="현재 메뉴의 마크다운 기능 정의서 열람 및 편집"
         >
@@ -817,7 +820,7 @@ export const ManualOverlay: React.FC = () => {
             marginLeft: '6px', padding: '4px 10px', borderRadius: '14px',
             border: '1px solid var(--border-color)', background: 'var(--bg-app)',
             fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)',
-            cursor: 'pointer'
+            cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0
           }}
         >
           매뉴얼 닫기

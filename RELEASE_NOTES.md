@@ -1,3 +1,43 @@
+## 2026-09-30 20:50 (v1.8.5.Build.7)
+
+### [인앱 실무 매뉴얼 15단계 심도(Depth) 혁신 개편 — 청구 대장] 피상적 개념 설명을 넘어 입력·클릭·기능 전수 1:1 관통 실무 조작 가이드 완성 & 15+ 단계 UI 방어 강화 & 전사 고기능 메뉴 심도 확대 로드맵 수립
+
+- **배경 및 개편 취지**:
+  - 기존 7단계 매뉴얼은 화면 구역(Scope, Pipeline, Inspection, Terminal)을 개념적으로만 설명하여, 실무자가 화면에 위치한 다양한 입력창(기간 설정, 퀵점프, 초성 검색, 계약번호, 수납/메일 필터 등)과 개별 행 액션 버튼(`[수납]`, `[발송]`, `[취소/재생성]`), 우측 명세서 스튜디오의 `[청구 분할 ✂️]`, 정품 PDF/엑셀 출력 기능 등의 구체적 조작과 비즈니스 영향을 학습할 수 없었음.
+  - 이에 따라 실제 업무 흐름을 처리하기 위한 조작 단위(입력 ➔ 버튼 클릭 ➔ 각 버튼의 비즈니스 기능 설명 ➔ 회계 검증)를 빠짐없이 1:1로 설명하는 **15단계 실무 조작 매뉴얼 체계**로 전면 개편.
+- **`Billings.tsx` (청구 대장 탭) 15개 핵심 조작 요소 1:1 고유 DOM 앵커 완비 (`src/pages/Billings.tsx`)**:
+  - Gutenberg Z-패턴과 실제 실무자 조작 순서에 맞추어 15개 인터페이스에 `data-mid` 분산 바인딩:
+    - 1단계: `billing-period-scope` (청구 귀속월 시작월~종료월 기간 설정 input)
+    - 2단계: `billing-month-quick` (`<, 당월, >` 1개월 단위 빠른 점프 버튼군)
+    - 3단계: `billing-customer-filter` (고객사명 / 한글 초성 실시간 검색창)
+    - 4단계: `billing-contract-filter` (계약번호 직접 조회 입력창)
+    - 5단계: `billing-payment-filter` (수납 상태 전체/완납/미완료 셀렉트박스)
+    - 6단계: `billing-mail-filter` (메일 발송 여부 및 통합 인보이스 구분 셀렉트박스)
+    - 7단계: `billing-search-action` (`[조회]` 및 `[초기화]` 실행 버튼)
+    - 8단계: `billing-kpi-summary` (조회건수, 공급가, 총액, 수납액, 미수금, 통장잔액 6대 집계)
+    - 9단계: `billing-export-btn` (`[엑셀 다운로드]` 청구 대장 전체 내보내기 버튼)
+    - 10단계: `billing-list-table` (월별 청구 대장 데이터 테이블 그리드 조망 및 행 선택)
+    - 11단계: `billing-pay-btn` (`[수납]` 통장 입금 내역 1:1 매칭 및 영수 등록 버튼)
+    - 12단계: `billing-mail-btn` (`[발송]` 정품 거래명세서 이메일 즉시 전송 버튼)
+    - 13단계: `billing-cancel-btn` (`[취소/재생성]` 계약 롤백 및 청구 취소 버튼)
+    - 14단계: `billing-detail-studio` (우측 청구 명세서, 장비 일할 렌탈료 대조, `[청구 분할 ✂️]`, 정품 A4 서식 PDF/엑셀 출력)
+    - 15단계: `billing-bottom-audit-bar` (하단 회계 대차대조식 검증 바: `청구총액 = 수납액 + 미수잔액 | 차액 ₩0`)
+- **`ManualOverlay.tsx` 15+ 단계 UI 렌더링 방어 강화 (`src/components/manual/ManualOverlay.tsx`)**:
+  - 단계 수가 14~15개 이상으로 대폭 확장되어도 하단 컨트롤 바가 화면 바깥으로 튀어나가지 않도록 `maxWidth: calc(100vw - 32px)`, `overflowX: auto` 적용.
+  - 모든 번호 뱃지(1~15), 타이틀, 버튼에 `flexShrink: 0`, `white-space: nowrap`을 적용하여 찌그러짐 없는 미려한 가로 스크롤 및 포커스 렌더링 보장.
+- **`allMenuManuals.ts` 내 `billing` (청구 대장) v5 실무 조작 매뉴얼 전면 갱신 (`src/data/allMenuManuals.ts`)**:
+  - 15개 각 조작 단계별 명칭, 구체적 조작 안내, 비즈니스 효과, 뱃지 컬러, 위치 힌트, 파동 리플(클릭 버튼)을 정교하게 탑재.
+- **Supabase 원격 DB 동기화 (`scripts/sync_manuals_to_db.ts`)**:
+  - `billing` v5 (15단계) 및 최신 매뉴얼을 Supabase 원격 `manual_annotations` 테이블에 upsert 동기화 완료.
+- **전사 핵심 고기능 메뉴 심도 확대 로드맵 수립**:
+  - `contract_create` (신규 계약 등록): 10~12단계 심도 계획
+  - `TruckDispatch` (배차 / 운송 관리): 12~14단계 심도 계획
+  - `OutboundInspection` (출고 검수 승인): 10~12단계 심도 계획
+  - `Receivables` (미수금 / 수납 관리): 12~14단계 심도 계획
+- **검증**: `tsc -b && vite build` 정상 빌드 완료 (0 error, 808ms).
+
+---
+
 ## 2026-09-30 20:45 (v1.8.5.Build.6)
 
 ### [매출 청구 관리 — 청구 대장 탭 매뉴얼 UI 1:1 완벽 정합화] 7단계 전수 DOM 앵커 분산 바인딩 & 무수식어 건조 UI 표준 적용 & 읽기 전용 대차 검증 바 허위 클릭 리플 완전 해소
