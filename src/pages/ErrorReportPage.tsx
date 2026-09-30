@@ -659,16 +659,17 @@ export const ErrorReportPage: React.FC = () => {
       </div>
 
       {/* ─── ③ 중앙 본문: 고밀도 오류 신고 대장 그리드 (화면 80% 작업대) ─── */}
-      <div style={{ 
-        backgroundColor: 'var(--bg-surface)', 
+      <div className="table-container" style={{ 
+        backgroundColor: 'var(--bg-card)', 
         borderRadius: '8px', 
         border: '1px solid var(--border-color)', 
         overflowX: 'auto',
-        minHeight: '480px'
+        maxHeight: 'calc(100vh - 270px)',
+        overflowY: 'auto'
       }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
-          <thead>
-            <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1.5px solid var(--border-color)', height: '40px' }}>
+          <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
+            <tr style={{ backgroundColor: 'var(--bg-card-header)', borderBottom: '1.5px solid var(--border-color)', height: '40px' }}>
               <th style={{ padding: '0 12px', whiteSpace: 'nowrap', width: '80px', flexShrink: 0 }}>처리</th>
               <th style={{ padding: '0 12px', whiteSpace: 'nowrap', width: '90px' }}>단계</th>
               <th style={{ padding: '0 12px', whiteSpace: 'nowrap', width: '120px' }}>신고번호</th>

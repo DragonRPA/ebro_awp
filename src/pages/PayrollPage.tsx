@@ -553,9 +553,10 @@ export const PayrollPage: React.FC = () => {
             </div>
           </div>
 
-          <table style={{ width: '100%', fontSize: '12.5px' }}>
-            <thead>
-              <tr>
+          <div className="table-container" style={{ border: 'none', boxShadow: 'none', maxHeight: 'calc(100vh - 360px)', overflowY: 'auto' }}>
+            <table style={{ width: '100%', fontSize: '12.5px' }}>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-card)' }}>
+                <tr>
                 <th>사원명(부서)</th>
                 <th>기본급</th>
                 <th>근태 가산수당 시간 (연장/휴일/야간)</th>
@@ -671,6 +672,7 @@ export const PayrollPage: React.FC = () => {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
 

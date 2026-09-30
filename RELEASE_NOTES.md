@@ -1,4 +1,18 @@
+## 2026-09-30 13:55 (v1.8.2.Build.7)
+
+### [UI/UX] 급여 정산 대장 / 연차관리 / 오류 신고 관리 테이블 세로 스크롤바 일괄 추가
+
+- **`src/pages/PayrollPage.tsx`**:
+  - 급여 정산 대장 테이블에 세로 스크롤 컨테이너(`maxHeight: calc(100vh - 360px)`, `overflowY: auto`) 및 `sticky thead` 적용
+- **`src/pages/LeaveManagementPage.tsx`**:
+  - 임직원 연차 현황 및 연차 소진 대장 테이블에 세로 스크롤(`maxHeight: calc(100vh - 290px)`, `overflowY: auto`) 및 `sticky thead` 적용
+- **`src/pages/ErrorReportPage.tsx`**:
+  - 오류 신고 대장 그리드 테이블에 세로 스크롤(`maxHeight: calc(100vh - 270px)`, `overflowY: auto`) 및 `sticky thead` 적용
+
+---
+
 ## 2026-09-30 13:50 (v1.8.2.Build.6)
+
 
 ### [표준화] 자금 흐름 분석 이모지 및 과잉 표현 전면 제거 (건조한 전문 용어 표준화)
 

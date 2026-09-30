@@ -386,10 +386,10 @@ export const LeaveManagementPage: React.FC = () => {
       {activeTab === 'QUOTA' && (
         <>
           {/* 테이블 (헌장 3.2: 1열 액션 버튼 배치, white-space: nowrap) */}
-          <div style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto' }}>
+          <div className="table-container" style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto', maxHeight: 'calc(100vh - 290px)', overflowY: 'auto' }}>
             <table style={{ width: '100%', minWidth: '1000px', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
+                <tr style={{ backgroundColor: 'var(--bg-card-header)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
                   <th style={{ padding: '12px 14px', whiteSpace: 'nowrap', width: '130px' }}>연차 갱신 액션</th>
                   <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>성명</th>
                   <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>부서 / 직급</th>
@@ -564,10 +564,10 @@ export const LeaveManagementPage: React.FC = () => {
           </div>
 
           {/* 전사 사용 이력 테이블 */}
-          <div style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto', height: 'fit-content' }}>
+          <div className="table-container" style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto', maxHeight: 'calc(100vh - 290px)', overflowY: 'auto' }}>
             <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
+                <tr style={{ backgroundColor: 'var(--bg-card-header)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
                   <th style={{ padding: '10px 14px', whiteSpace: 'nowrap', width: '80px' }}>취소</th>
                   <th style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>성명</th>
                   <th style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>구분</th>
