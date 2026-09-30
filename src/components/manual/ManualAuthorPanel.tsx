@@ -344,7 +344,7 @@ export const ManualAuthorPanel: React.FC = () => {
               pointerEvents: 'auto',
             }}
           >
-            <span>🎯 어노테이션할 화면 요소를 마우스로 직접 클릭하세요</span>
+            <span>🎯 단계를 지정할 화면 요소를 마우스로 직접 클릭하세요</span>
             <button
               onClick={() => { setSelectMode(false); setHoveredRect(null); }}
               style={{
@@ -586,7 +586,7 @@ export const ManualAuthorPanel: React.FC = () => {
 
                 {/* ── 타입 ── */}
                 <div style={fieldS}>
-                  <label style={labelS}>어노테이션 타입</label>
+                  <label style={labelS}>단계 유형</label>
                   <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                     {ANNOTATION_TYPES.map(t => (
                       <button
@@ -606,7 +606,7 @@ export const ManualAuthorPanel: React.FC = () => {
 
                 {/* ── 레이블 ── */}
                 <div style={fieldS}>
-                  <label style={labelS}>주석 제목 *</label>
+                  <label style={labelS}>단계 제목 *</label>
                   <input
                     value={form.label}
                     onChange={e => setForm(p => ({ ...p, label: e.target.value }))}

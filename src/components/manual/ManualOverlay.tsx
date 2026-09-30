@@ -1,5 +1,5 @@
 // src/components/manual/ManualOverlay.tsx
-// 보기 모드 — 현재 화면 위에 어노테이션 오버레이 렌더링
+// 보기 모드 — 현재 화면 위에 단계 가이드 오버레이 렌더링
 // ManualStudio 이식: Stamp, HighlightBox, Spotlight, Callout, Click Ripple, ElbowArrow, Bottom Dossier Popover
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom';
@@ -204,7 +204,7 @@ const ClickRipple: React.FC<{ rect: Rect; color: string; zIndex?: number }> = ({
   );
 };
 
-/* ── 하단 플로팅 어노테이션 카드 (Dossier Popover) ──────────────── */
+/* ── 하단 플로팅 단계 안내 카드 (Dossier Popover) ──────────────── */
 const BottomDossierCard: React.FC<{
   item: ManualAnnotationItem;
   totalCount: number;
@@ -284,7 +284,7 @@ const BottomDossierCard: React.FC<{
       {/* 카드 하단 네비게이션 컨트롤 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
         <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>
-          {item.seq} / {totalCount} 항목
+          {item.seq} / {totalCount} 단계
         </span>
         <div style={{ display: 'flex', gap: '6px' }}>
           <button
@@ -358,7 +358,7 @@ export const ManualOverlay: React.FC = () => {
     if (mode !== 'viewing') { setExpandedSeq(null); return; }
     recalcTargets();
 
-    // 1. DOM 변경 감시: 모달 닫힘 실시간 감지 및 어노테이션 위치 재계산
+    // 1. DOM 변경 감시: 모달 닫힘 실시간 감지 및 단계 뱃지 위치 재계산
     const mo = new MutationObserver(() => {
       if (isModal) {
         const active = detectActiveModalElement();
@@ -399,7 +399,7 @@ export const ManualOverlay: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown, true);
 
-    // 5. 기본으로 첫 번째 어노테이션 자동 포커스 (최초 1회 안내)
+    // 5. 기본으로 첫 번째 1단계 자동 포커스 (최초 1회 안내)
     if (page && page.items.length > 0 && expandedSeq === null) {
       setExpandedSeq(1);
     }
@@ -571,7 +571,7 @@ export const ManualOverlay: React.FC = () => {
         <Spotlight rect={activeRect} color={activeItem.badgeColor} zIndex={baseZIndex} />
       )}
 
-      {/* ② 화면 요소 위 어노테이션 뱃지 & 하이라이트 렌더링 */}
+      {/* ② 화면 요소 위 단계 뱃지 & 하이라이트 렌더링 */}
       {items.map(item => {
         const rect = rects[item.seq];
         if (!rect) return null;
@@ -614,7 +614,7 @@ export const ManualOverlay: React.FC = () => {
         );
       })}
 
-      {/* ③ 하단 활성 어노테이션 상세 카드 (번호 클릭 시 100% 노출) */}
+      {/* ③ 하단 활성 단계 상세 카드 (번호 클릭 시 100% 노출) */}
       {activeItem && (
         <BottomDossierCard
           item={activeItem}
@@ -644,7 +644,7 @@ export const ManualOverlay: React.FC = () => {
             {isModal ? '🖼️ 팝업: ' : '📖 '} {page.pageTitle}
           </span>
           <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-            어노테이션 {items.length}건
+            총 {items.length}단계
           </span>
         </div>
 

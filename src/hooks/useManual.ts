@@ -155,7 +155,7 @@ export function useManual() {
     return { success, failed };
   }, [savePage]);
 
-  /** 단일 어노테이션 아이템 추가/수정 후 즉시 저장 */
+  /** 단일 단계 가이드 아이템 추가/수정 후 즉시 저장 */
   const upsertItem = useCallback(async (
     page: ManualPage,
     item: ManualAnnotationItem,

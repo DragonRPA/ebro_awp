@@ -76,7 +76,7 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
             borderRadius: '10px',
             fontWeight: 700,
           }}>
-            버튼 {summary.buttons.length}
+            총 {summary.buttons.length}단계
           </span>
         )}
         <button
@@ -297,7 +297,7 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
           </div>
         </div>
 
-        {/* 2. 주요 버튼 및 기능 목록 */}
+        {/* 2. 주요 조작 단계 목록 */}
         {summary.buttons.length > 0 && (
           <div>
             <div style={{
@@ -306,7 +306,7 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
               color: 'var(--text-muted)',
               marginBottom: '6px',
             }}>
-              주요 조작 버튼 ({summary.buttons.length}) · 클릭 시 화면 내 위치 강조
+              업무 단계 ({summary.buttons.length}단계) · 클릭 시 화면 내 위치 강조
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
               {summary.buttons.map(b => (
@@ -328,7 +328,7 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
                     whiteSpace: 'nowrap',
                     transition: 'all 0.15s ease',
                   }}
-                  title={`[${b.seq}] ${b.label} 화면 위치로 이동 및 상세 보기`}
+                  title={`[${b.seq}단계] ${b.label} 화면 위치로 이동 및 상세 보기`}
                 >
                   <span style={{
                     width: '16px',
