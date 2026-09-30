@@ -843,7 +843,7 @@ export const Receivables: React.FC = () => {
             <form onSubmit={handleAddSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
               {/* 1. 발생일 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div data-mid="rec-modal-occurred-date" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>발생일 *</label>
                 <input
                   type="date"
@@ -869,7 +869,7 @@ export const Receivables: React.FC = () => {
                 </div>
 
                 {/* 검색창 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div data-mid="rec-modal-search-box" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>계약 / 고객사 / 현장 검색</label>
                     {modalSearchTerm.trim() && (
@@ -917,7 +917,7 @@ export const Receivables: React.FC = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.2fr', gap: '10px' }}>
                   
                   {/* (1) 고객사 선택 */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div data-mid="rec-modal-cust-select" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>고객사 필터/선택</label>
                     <select
                       value={modalSelectedCustId}
@@ -941,7 +941,7 @@ export const Receivables: React.FC = () => {
                   </div>
 
                   {/* (2) 계약 현장 선택 */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div data-mid="rec-modal-site-select" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>계약 현장 선택</label>
                     <select
                       value={modalSelectedSiteId}
@@ -962,7 +962,7 @@ export const Receivables: React.FC = () => {
                   </div>
 
                   {/* (3) 계약번호 직접 선택 */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div data-mid="rec-modal-contract-select" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>계약번호 선택</label>
                     <select
                       value={formContractId}
@@ -1043,7 +1043,7 @@ export const Receivables: React.FC = () => {
 
               {/* 3. 비용 유형 & 외상 총액 */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div data-mid="rec-modal-cost-type" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>비용 유형 *</label>
                   <select
                     value={formType}
@@ -1057,7 +1057,7 @@ export const Receivables: React.FC = () => {
                   </select>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div data-mid="rec-modal-total-amount" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>외상 총액 *</label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <input
@@ -1075,7 +1075,7 @@ export const Receivables: React.FC = () => {
               </div>
 
               {/* 4. 내부 장부 기재명 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div data-mid="rec-modal-internal-desc" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>
                   내부 기재명 (실제 발생 내역) *
                 </label>
@@ -1090,7 +1090,7 @@ export const Receivables: React.FC = () => {
               </div>
 
               {/* 5. 명세서 표기명 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div data-mid="rec-modal-display-name" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary)' }}>
                   명세서 표기명 (고객 노출용 - 선택)
                 </label>
@@ -1117,6 +1117,7 @@ export const Receivables: React.FC = () => {
                   닫기
                 </button>
                 <button
+                  data-mid="rec-modal-submit-btn"
                   type="submit"
                   className="btn-primary"
                   style={{ padding: '6px 18px', fontSize: '12px', fontWeight: 700 }}
