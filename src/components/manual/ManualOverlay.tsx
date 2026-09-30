@@ -70,25 +70,22 @@ export function resolveTargetElement(
           if (el && (el as HTMLElement).offsetParent !== null) {
             return el as HTMLElement;
           }
-          // 접힌 아코디언 블록 내부에 있는 경우 블록 헤더 자동 클릭하여 펼침
-          if (!el || (el as HTMLElement).offsetParent === null) {
-            if (sel.includes('dispatch4-site-')) {
-              const b = root.querySelector('[data-mid="dispatch4-block-site"] .dispatch4-block-header') as HTMLElement | null;
-              if (b && !root.querySelector('[data-mid="dispatch4-block-site"] .dispatch4-block-body')) b.click();
-            } else if (sel.includes('dispatch4-ft-') || sel.includes('dispatch4-model-') || sel.includes('dispatch4-equipment-')) {
-              const b = root.querySelector('[data-mid="dispatch4-block-equipments"] .dispatch4-block-header') as HTMLElement | null;
-              if (b && !root.querySelector('[data-mid="dispatch4-block-equipments"] .dispatch4-block-body')) b.click();
-            } else if (sel.includes('dispatch4-loading-') || sel.includes('dispatch4-unloading-')) {
-              const b = root.querySelector('[data-mid="dispatch4-block-schedule"] .dispatch4-block-header') as HTMLElement | null;
-              if (b && !root.querySelector('[data-mid="dispatch4-block-schedule"] .dispatch4-block-body')) b.click();
-            } else if (sel.includes('dispatch4-exchange-') || sel.includes('dispatch4-safety-')) {
-              const b = root.querySelector('[data-mid="dispatch4-block-safety"] .dispatch4-block-header') as HTMLElement | null;
-              if (b && !root.querySelector('[data-mid="dispatch4-block-safety"] .dispatch4-block-body')) b.click();
-            }
-            const retryEl = root.querySelector(sel);
-            if (retryEl && (retryEl as HTMLElement).offsetParent !== null) {
-              return retryEl as HTMLElement;
-            }
+          if (el) {
+            return el as HTMLElement;
+          }
+          // 셀렉터에 해당하는 아코디언 블록 헤더 폴백 (DOM 조작 없이 안전 조회)
+          if (sel.includes('dispatch4-site-')) {
+            const b = root.querySelector('[data-mid="dispatch4-block-site"]') as HTMLElement | null;
+            if (b) return b;
+          } else if (sel.includes('dispatch4-ft-') || sel.includes('dispatch4-model-') || sel.includes('dispatch4-equipment-')) {
+            const b = root.querySelector('[data-mid="dispatch4-block-equipments"]') as HTMLElement | null;
+            if (b) return b;
+          } else if (sel.includes('dispatch4-loading-') || sel.includes('dispatch4-unloading-')) {
+            const b = root.querySelector('[data-mid="dispatch4-block-schedule"]') as HTMLElement | null;
+            if (b) return b;
+          } else if (sel.includes('dispatch4-exchange-') || sel.includes('dispatch4-safety-')) {
+            const b = root.querySelector('[data-mid="dispatch4-block-safety"]') as HTMLElement | null;
+            if (b) return b;
           }
         }
       } catch { /* ignore invalid selector */ }
@@ -371,8 +368,9 @@ const BottomDossierCard: React.FC<{
   onNext: () => void;
   onClose: () => void;
   hasTarget: boolean;
+  targetRect?: Rect | null;
   zIndex?: number;
-}> = ({ item, totalCount, onPrev, onNext, onClose, hasTarget, zIndex = 200003 }) => {
+}> = ({ item, totalCount, onPrev, onNext, onClose, hasTarget, targetRect, zIndex = 200003 }) => {
   const handleCardWheel = (e: React.WheelEvent) => {
     const scrollTarget = document.querySelector('.dispatch4-left-pane') ||
                          document.querySelector('.table-container') ||
@@ -386,25 +384,98 @@ const BottomDossierCard: React.FC<{
     }
   };
 
+  // 💡 [지능형 타겟 회피 배치 (Smart Collision Avoidance)]
+  // 매뉴얼 상세 카드가 타겟 UI 및 파동 효과(Click Ripple)를 가릴 경우,
+  // 타겟 위치를 감지하여 카드를 왼쪽 또는 오른쪽으로 자동 비켜서 배치!
+  const getPositionStyle = (): React.CSSProperties => {
+    if (typeof window === 'undefined') {
+      return { bottom: '76px', left: '50%', transform: 'translateX(-50%)' };
+    }
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const cardWidth = Math.min(520, vw - 32);
+
+    // 기본 위치 (하단 중앙)
+    const defaultLeft = (vw - cardWidth) / 2;
+    const defaultRight = defaultLeft + cardWidth;
+    const defaultBottom = 76;
+    const defaultTop = vh - defaultBottom - 190; // 카드의 예상 높이 약 190px
+
+    if (!targetRect) {
+      return {
+        bottom: `${defaultBottom}px`,
+        left: '50%',
+        transform: 'translateX(-50%)',
+      };
+    }
+
+    // 타겟 요소와 파동 효과 영역 (안전 여백 35px)
+    const tTop = targetRect.top - 35;
+    const tBottom = targetRect.top + targetRect.height + 35;
+    const tLeft = targetRect.left - 35;
+    const tRight = targetRect.left + targetRect.width + 35;
+
+    // 카드가 기본 중앙 위치에 있을 때 타겟과 겹치는지(Collision) 검사
+    const isColliding = !(
+      tRight < defaultLeft ||
+      tLeft > defaultRight ||
+      tBottom < defaultTop ||
+      tTop > vh - defaultBottom
+    );
+
+    if (!isColliding) {
+      // 겹치지 않으면 편안한 하단 중앙 유지
+      return {
+        bottom: `${defaultBottom}px`,
+        left: '50%',
+        transform: 'translateX(-50%)',
+      };
+    }
+
+    // 겹칠 때: 타겟의 수평 중심점 기준 좌/우 회피
+    const targetCenterX = targetRect.left + targetRect.width / 2;
+    const screenCenterX = vw / 2;
+
+    // 타겟이 화면 중앙 기준 우측에 있다면 -> 카드를 좌측으로 비켜주기!
+    if (targetCenterX >= screenCenterX) {
+      return {
+        bottom: `${defaultBottom}px`,
+        left: '24px',
+        right: 'auto',
+        transform: 'none',
+      };
+    } else {
+      // 타겟이 화면 중앙 기준 좌측에 있다면 -> 카드를 우측으로 비켜주기!
+      return {
+        bottom: `${defaultBottom}px`,
+        left: 'auto',
+        right: '24px',
+        transform: 'none',
+      };
+    }
+  };
+
+  const posStyle = getPositionStyle();
+
   return (
     <div
       data-manual-ui="true"
       onWheel={handleCardWheel}
       style={{
         position: 'fixed',
-        bottom: '76px',
-        left: '50%',
-        transform: 'translateX(-50%)',
+        ...posStyle,
         width: '520px',
         maxWidth: 'calc(100vw - 32px)',
         background: 'var(--bg-card)',
         border: `2px solid ${item.badgeColor}`,
         borderRadius: '14px',
         padding: '16px 20px',
-        boxShadow: '0 12px 36px rgba(0,0,0,0.3)',
+        boxShadow: '0 12px 36px rgba(0,0,0,0.35)',
         zIndex,
         pointerEvents: 'all',
         animation: 'manual-card-in 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+        transition: 'left 0.25s cubic-bezier(0.16, 1, 0.3, 1), right 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
       {/* 카드 헤더 */}
@@ -646,6 +717,13 @@ export const ManualOverlay: React.FC = () => {
     };
   }, [mode, isModal, recalcTargets, setMode]);
 
+  const mountTimeRef = useRef<number>(Date.now());
+  useEffect(() => {
+    if (mode === 'viewing') {
+      mountTimeRef.current = Date.now();
+    }
+  }, [mode]);
+
   // 사용자가 좌측 메뉴를 클릭하거나 모달을 닫거나 다른 메뉴/화면으로 이동할 때 매뉴얼 자동 끄기
   useEffect(() => {
     if (mode !== 'viewing') return;
@@ -653,6 +731,11 @@ export const ManualOverlay: React.FC = () => {
     const handleGlobalClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
+
+      // 0. 마운트 직후 400ms 동안은 마운트 트리거 클릭 버블링으로 인한 자동 닫힘 방어
+      if (Date.now() - mountTimeRef.current < 400) {
+        return;
+      }
 
       // 1. 매뉴얼 오버레이 자체 UI 요소는 보호 (하단 바, 카드, 오버레이 뱃지 등)
       if (target.closest('[data-manual-ui="true"], .manual-overlay-ui')) {
@@ -664,14 +747,19 @@ export const ManualOverlay: React.FC = () => {
         return;
       }
 
-      // 3. 좌측 패널(사이드바)의 모든 메뉴 버튼 클릭 시 -> 매뉴얼 즉시 끄기
+      // 3. 서식 아코디언 토글 헤더 및 폼 입력 요소 클릭 시에는 매뉴얼 닫지 않음
+      if (target.closest('.dispatch4-block-header, .dispatch4-block, [data-mid*="dispatch4-block-"], input, select, textarea, label, option')) {
+        return;
+      }
+
+      // 4. 좌측 패널(사이드바)의 모든 메뉴 버튼 클릭 시 -> 매뉴얼 즉시 끄기
       const isSidebarMenu = target.closest('[data-menu-id], .sidebar button, aside button, nav button, [data-sidebar-item]');
       if (isSidebarMenu) {
         setMode('off');
         return;
       }
 
-      // 4. 모달 매뉴얼 상태인 경우:
+      // 5. 모달 매뉴얼 상태인 경우:
       if (isModal) {
         const currentModal = detectActiveModalElement();
         if (!currentModal) {
@@ -702,16 +790,14 @@ export const ManualOverlay: React.FC = () => {
         }
       }
 
-      // 5. 화면 내부 탭 버튼, 링크, 네비게이션 버튼 클릭 시 -> 매뉴얼 즉시 끄기
+      // 6. 화면 내부 탭 버튼, 링크, 네비게이션 버튼 클릭 시 -> 매뉴얼 즉시 끄기
       const clickedBtn = target.closest('button, [role="tab"], .tab, a, [data-nav-item]');
       if (clickedBtn) {
         const parent = clickedBtn.parentElement;
         const siblingButtons = parent ? Array.from(parent.children).filter(c => c.tagName === 'BUTTON' || c.getAttribute('role') === 'tab') : [];
         const isTabGroup = siblingButtons.length >= 2;
         const isTabStyle = clickedBtn.getAttribute('role') === 'tab' ||
-                           clickedBtn.className?.includes('tab') ||
-                           clickedBtn.className?.includes('btn-primary') ||
-                           clickedBtn.className?.includes('btn-secondary');
+                           clickedBtn.className?.includes('tab');
 
         if (isTabGroup || isTabStyle) {
           setMode('off');
@@ -719,7 +805,7 @@ export const ManualOverlay: React.FC = () => {
         }
       }
 
-      // 6. 클릭 후 비동기로 모달이 닫히는 경우 대비 50ms 후 검사
+      // 7. 클릭 후 비동기로 모달이 닫히는 경우 대비 50ms 후 검사
       if (isModal) {
         setTimeout(() => {
           if (!detectActiveModalElement()) {
@@ -729,7 +815,7 @@ export const ManualOverlay: React.FC = () => {
       }
     };
 
-    // 7. 브라우저 라우팅 및 히스토리 변경 감지 (뒤로가기, 앞으로가기, 해시 변경)
+    // 8. 브라우저 라우팅 및 히스토리 변경 감지 (뒤로가기, 앞으로가기, 해시 변경)
     const handleNavigation = () => {
       setMode('off');
     };
@@ -753,6 +839,34 @@ export const ManualOverlay: React.FC = () => {
       return;
     }
     setExpandedSeq(seq);
+
+    // 💡 [사용자 선택 시 아코디언 블록 안전 전개] 접힌 블록이 있다면 1회 전개
+    if (page && page.items) {
+      const item = page.items.find(i => i.seq === seq);
+      if (item && item.selector) {
+        const sel = item.selector;
+        let blockHeader: HTMLElement | null = null;
+        let blockBodySelector = '';
+
+        if (sel.includes('dispatch4-site-')) {
+          blockHeader = document.querySelector('[data-mid="dispatch4-block-site"] .dispatch4-block-header');
+          blockBodySelector = '[data-mid="dispatch4-block-site"] .dispatch4-block-body';
+        } else if (sel.includes('dispatch4-ft-') || sel.includes('dispatch4-model-') || sel.includes('dispatch4-equipment-')) {
+          blockHeader = document.querySelector('[data-mid="dispatch4-block-equipments"] .dispatch4-block-header');
+          blockBodySelector = '[data-mid="dispatch4-block-equipments"] .dispatch4-block-body';
+        } else if (sel.includes('dispatch4-loading-') || sel.includes('dispatch4-unloading-')) {
+          blockHeader = document.querySelector('[data-mid="dispatch4-block-schedule"] .dispatch4-block-header');
+          blockBodySelector = '[data-mid="dispatch4-block-schedule"] .dispatch4-block-body';
+        } else if (sel.includes('dispatch4-exchange-') || sel.includes('dispatch4-safety-')) {
+          blockHeader = document.querySelector('[data-mid="dispatch4-block-safety"] .dispatch4-block-header');
+          blockBodySelector = '[data-mid="dispatch4-block-safety"] .dispatch4-block-body';
+        }
+
+        if (blockHeader && (!blockBodySelector || !document.querySelector(blockBodySelector))) {
+          blockHeader.click();
+        }
+      }
+    }
 
     // 대상 요소 획득
     let el = elements[seq];
@@ -778,7 +892,7 @@ export const ManualOverlay: React.FC = () => {
             startTrackingLoop(800);
           }
         }
-      }, 120);
+      }, 150);
     }
   }, [expandedSeq, elements, page, isModal, recalcTargets, startTrackingLoop]);
 
@@ -892,6 +1006,7 @@ export const ManualOverlay: React.FC = () => {
           onNext={handleNext}
           onClose={() => setExpandedSeq(null)}
           hasTarget={!!rects[activeItem.seq]}
+          targetRect={rects[activeItem.seq]}
           zIndex={baseZIndex + 3}
         />
       )}

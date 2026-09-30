@@ -1,3 +1,60 @@
+## 2026-09-30 23:35 (v1.8.5.Build.14)
+
+### [매뉴얼 UX 극대화] 상세 설명 카드(BottomDossierCard) 지능형 타겟 충돌 회피(좌/우 이동) & 회수의뢰 관리(smart_return) 1:1 DOM 앵커 및 실무 10단계 매뉴얼 전면 오버홀
+
+- **배경 및 원인 분석**:
+  1. **상세 설명 카드와 하단 타겟 요소 충돌(가림) 결함**:
+     - 기존 `BottomDossierCard`는 화면 하단 정중앙(`bottom: 76px, left: 50%, transform: translateX(-50%)`)에 고정 렌더링됨.
+     - 하단 중앙 부근에 위치한 주요 액션 버튼(예: AS 접수 등록, 저장, 의뢰 확정 버튼 등)이 타겟일 경우, 카드가 버튼과 뱃지, 파동(Ripple) 효과를 완전히 덮어버려 사용자가 지시 요소를 볼 수 없는 문제 발생.
+  2. **회수의뢰 관리(`smart_return`) 매뉴얼 실무 괴리 및 DOM 앵커 전무**:
+     - `src/pages/smart_return.tsx`에 고유 식별자(`data-mid`)가 단 하나도 바인딩되어 있지 않았음.
+     - 매뉴얼 텍스트 또한 실제 시스템의 핵심 비즈니스(AI 통화 초안 접수 큐, 임대 계약 초성 검색, 자산 부분/다중 체크리스트, 회수 일정/담당자, 안전옵션 대조표 회수, A4 회수요청서 인쇄, 외주정비 접수 탭 등)와 전혀 동떨어진 7단계 껍데기 텍스트로 방치되어 있었음.
+- **주요 수정 및 개선 내역**:
+  1. **`BottomDossierCard` 지능형 타겟 충돌 회피 알고리즘(Collision Avoidance) 구현 (`src/components/manual/ManualOverlay.tsx`)**:
+     - `targetRect`와 카드의 예상 바운딩 박스(너비 최대 520px, 높이 약 190px, 안전 여백 ±35px) 간의 2D 바운딩 박스 충돌 검사 로직 구축.
+     - 비충돌 시: 편안한 기본 하단 중앙(`bottom: 76px, left: 50%, transform: translateX(-50%)`) 유지.
+     - 충돌 감지 시: 타겟 요소의 수평 중심점(`targetCenterX`)과 화면 중심점(`screenCenterX`)을 비교하여:
+       - 타겟이 화면 우측에 있으면 ➔ 카드가 좌측 여백(`left: 24px, right: auto, transform: none`)으로 자동 이동.
+       - 타겟이 화면 좌측/중앙에 있으면 ➔ 카드가 우측 여백(`left: auto, right: 24px, transform: none`)으로 자동 이동.
+     - 부드러운 위치 전환(`transition: left 0.25s ease, right 0.25s ease, transform 0.25s ease`)을 부여하여 타겟 뱃지와 파동이 100% 온전히 노출되도록 개선.
+  2. **`smart_return.tsx` 14개 핵심 실무 UI 요소 `data-mid` 전수 바인딩 (`src/pages/smart_return.tsx`)**:
+     - 상단 요약 바(`smart_return-summary`), 탭 전환(`smart_return-mode-tabs`), 통화 접수 초안 큐(`smart_return-call-drafts`), 계약 초성 검색(`smart_return-search-filter`), 계약 목록(`smart_return-contract-list`), 계약 상세 기본정보(`smart_return-contract-info`), 회수 자산 체크리스트(`smart_return-asset-select`), 회수 일정(`smart_return-schedule`), 현장 인계자(`smart_return-contact`), 특이사항(`smart_return-note`), 회수 등록 확정 버튼(`smart_return-submit-btn`), A4 인쇄 및 옵션 대조표(`smart_return-preview-print`), 외주업체 목록(`smart_return-maint-vendors`), 외주정비 폼(`smart_return-maint-form`) 등 전수 바인딩.
+  3. **회수의뢰 관리 10단계 실무 프로세스 매뉴얼 전면 재작성 (`src/data/allMenuManuals.ts`)**:
+     - 회수의뢰 접수부터 A4 인쇄, 외주정비 이관까지 현장 업무 흐름을 100% 반영한 고밀도 실무 10단계 매뉴얼(콜센터 초안 반입 ➔ 계약 검색 ➔ 자산 부분 회수 ➔ 인계자 정보 ➔ 안전옵션 분실 방지 ➔ A4 출력 ➔ 외주정비)로 전면 개편.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 error, 830ms).
+
+---
+
+## 2026-09-30 23:15 (v1.8.5.Build.13)
+
+### [매뉴얼 안정성 원천 확보] 출고 요청(smart_dispatch4) 매뉴얼 깜빡임·즉시 닫힘 결함 해결 & 투명 배경 가짜 모달 오탐 원천 차단 및 순수 쿼리 복원
+
+- **배경 및 원인 분석**:
+  - `출고 요청`(`smart_dispatch4`) 메뉴에서 `Ctrl+M` 또는 헤더의 `[📖 매뉴얼 보기]` 버튼을 누르면 매뉴얼 오버레이가 잠깐 떴다가 즉시 깜빡하며 자동으로 꺼져버리는 치명적 결함 발생 (다른 일반 메뉴에서는 정상 작동).
+  - 또한 상단 헤더의 버튼에 24단계가 아닌 `[📖 매뉴얼 보기 6 (Ctrl+M)]`으로 왜곡 표출됨.
+  - **원인 1 (가짜 모달 오인 감지)**: `detectActiveModalElement()`(`src/data/modalManuals.ts`)에서 `bg.includes('rgba')` 검사를 수행하여, 브라우저의 기본 투명색(`rgba(0, 0, 0, 0)`)인 레이아웃 요소를 모달 백드롭으로 오탐함. 이로 인해 `smart_dispatch4` 화면에서 실제 모달이 뜨지 않았음에도 6단계 범용 팝업 매뉴얼(`modal_generic_dialog`)이 강제 로드됨.
+  - **원인 2 (`b.click()` 폭격 부작용)**: 초기 로딩 시 서식 5대 아코디언 블록(`openBlocks`)이 접혀 있는데, `recalcTargets()`가 24개 아이템을 순회하며 요소를 찾지 못해 `resolveTargetElement` 내부에서 `b.click()`을 4번 연속 실행함. 이 동기적 클릭 이벤트가 문서 전체로 버블링되면서 `handleGlobalClick`의 탭/버튼 클릭 핸들러를 트리거하여 매뉴얼이 0.05초 만에 `setMode('off')`로 꺼져버림.
+  - **원인 3 (마운트 시점 클릭 잔류 및 오탐)**: 마운트 직후 캡처 단계에서 유입된 클릭 이벤트나, 폼 입력/아코디언 토글 클릭을 탭 전환으로 오인하여 매뉴얼이 자동 종료됨.
+- **주요 수정 및 개선 내역**:
+  1. **`detectActiveModalElement()` 모달 판정 엄격화 & 가짜 모달 원천 차단 (`src/data/modalManuals.ts`)**:
+     - `main`, `.main-content-area`, `.dispatch4-container`, `body`, `#root` 등 메인 레이아웃 컨테이너를 모달 후보에서 100% 명시적 배제.
+     - `rgba(0, 0, 0, 0)` 투명 요소 오탐 제거: 실제 불투명도 25% 이상의 어두운 백드롭(`alpha >= 0.25`) 또는 `backdrop-filter` 및 `zIndex >= 40`을 필수로 검증.
+     - 백드롭 내부에 실제 중앙 팝업 카드(너비 200px 이상, 뷰포트보다 작은 실제 모달 창)가 존재하는지 물리적 검증 추가.
+     - `detectCurrentContext`에서 명시적 `role="dialog"`나 모달 클래스가 아닌 모호한 `modal_generic_dialog`는 메인 메뉴 매뉴얼(`baseMenuId`)을 우선 보존하도록 가드 보강.
+  2. **`resolveTargetElement` 내부 `b.click()` 100% 영구 삭제 (순수 쿼리 복원, `src/components/manual/ManualOverlay.tsx`)**:
+     - DOM 요소를 탐색하는 순수 함수에서 일체의 `.click()` 호출을 완전 제거하여 이벤트 버블링 및 글로벌 클릭 핸들러 오작동 원천 차단.
+     - 접힌 블록 내부에 속한 셀렉터는 해당 아코디언 블록 헤더(`[data-mid="dispatch4-block-..."]`)로 안전하게 폴백되어 안정적 뱃지 및 스크롤 배치 보장.
+  3. **`handleGlobalClick` 마운트 시간 가드(`mountTimeRef`) & 폼/아코디언 보호**:
+     - 마운트 직후 400ms 동안은 클릭 이벤트로 인한 자동 닫힘을 무시하여 열림 즉시 깜빡 꺼지는 현상 완벽 방어.
+     - `.dispatch4-block-header`, `input`, `select`, `textarea`, `label` 등 서식 입력/토글 요소 클릭 시 매뉴얼 유지.
+  4. **사용자 명시적 단계 선택(`handleSelectSeq`) 시 아코디언 안전 전개**:
+     - 사용자가 특정 단계를 직접 클릭했을 때에만 해당 아코디언 블록을 안전하게 1회 전개 후 부드러운 스크롤 및 실시간 추적 실행.
+  5. **`ManualHeaderButtons` 메뉴 전환 시 매뉴얼 페이지 동기화 (`src/App.tsx`)**:
+     - `activeTab` 변경 시 `detectCurrentContext`를 통해 현재 메뉴 매뉴얼을 선제 로드하여 상단 헤더의 단계 뱃지 숫자가 항상 24단계로 정확하게 표시되도록 동기화.
+- **검증**: `tsc -b && vite build` 846ms 정상 빌드 완료.
+
+---
+
 ## 2026-09-30 22:50 (v1.8.5.Build.12)
 
 ### [매뉴얼 UX 극대화] 타겟 UI 요소 부드러운 자동 스크롤(Auto-Scroll) & 마우스 휠 패스스루 인터랙션 복원 & 출고 요청 24단계 data-mid 100% 전수 완비

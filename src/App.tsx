@@ -124,6 +124,14 @@ const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activ
 
   const pageTitle = activeTabName || activeTab;
 
+  // 💡 [메뉴 전환 시 매뉴얼 단계 수 동기화]
+  useEffect(() => {
+    if (activeTab) {
+      const ctx = detectCurrentContext(activeTab, pageTitle);
+      loadPage(ctx.pageId, ctx.pageTitle);
+    }
+  }, [activeTab, pageTitle, loadPage]);
+
   const handleView = async () => {
     if (mode !== 'off') { setMode('off'); return; }
     const ctx = detectCurrentContext(activeTab, pageTitle);

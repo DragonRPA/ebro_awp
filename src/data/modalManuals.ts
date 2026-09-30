@@ -1084,21 +1084,60 @@ export function matchModalKeyFromTitle(title: string): string {
 }
 
 /**
+ * 요소 내부에서 제목(헤더) 텍스트를 추출하는 헬퍼
+ */
+function extractTitleFromElement(el: HTMLElement): string {
+  const titleEl = el.querySelector('h1, h2, h3, h4, .card-title, [data-mid*="title"], strong, b');
+  let title = titleEl ? (titleEl as HTMLElement).innerText.trim() : '';
+  if (!title) {
+    const boldText = el.querySelector('div[style*="fontWeight"], div[style*="font-weight"]');
+    if (boldText) title = (boldText as HTMLElement).innerText.trim().slice(0, 40);
+  }
+  return title;
+}
+
+/**
  * 현재 브라우저 DOM 상에 열려있는 최상위 모달 요소 탐색
  * - position: fixed / absolute
  * - 뷰포트를 채우는 백드롭 또는 높은 z-index
- * - 매뉴얼 자체 UI([data-manual-ui="true"])는 엄격히 제외
+ * - 매뉴얼 자체 UI([data-manual-ui="true"]) 및 메인 레이아웃은 엄격히 제외
  */
 export function detectActiveModalElement(): { modalEl: HTMLElement; title: string; modalKey: string } | null {
   if (typeof document === 'undefined') return null;
 
-  // 전체 DOM에서 fixed/absolute 요소들 중 백드롭이나 다이얼로그 탐색
-  const candidates = Array.from(document.querySelectorAll<HTMLElement>('div, section, dialog'));
+  // 1. 명시적인 dialog 태그 또는 role="dialog" / aria-modal="true" 요소를 최우선 탐색
+  const explicitDialogs = Array.from(document.querySelectorAll<HTMLElement>(
+    'dialog[open], [role="dialog"], [aria-modal="true"], .modal.show, .modal.open, .modal-backdrop'
+  ));
+  
+  for (const el of explicitDialogs) {
+    if (el.closest('[data-manual-ui="true"]') || el.getAttribute('data-manual-ui') === 'true') continue;
+    const style = window.getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') continue;
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) continue;
+
+    const title = extractTitleFromElement(el);
+    const modalKey = matchModalKeyFromTitle(title);
+    return { modalEl: el, title: title || '팝업(모달)', modalKey };
+  }
+
+  // 2. 전체 DOM에서 fixed/absolute 요소들 중 실제 어두운 백드롭을 가진 팝업 다이얼로그 탐색
+  const candidates = Array.from(document.querySelectorAll<HTMLElement>('div, section'));
   const foundModals: { el: HTMLElement; zIndex: number; title: string }[] = [];
 
   for (const el of candidates) {
-    // 매뉴얼 자체 UI 제외
+    // 매뉴얼 자체 UI 및 메인 레이아웃 컨테이너 명시적 제외
     if (el.closest('[data-manual-ui="true"]') || el.getAttribute('data-manual-ui') === 'true') continue;
+    if (
+      el.classList.contains('main-content-area') ||
+      el.classList.contains('dispatch4-container') ||
+      el.tagName.toLowerCase() === 'main' ||
+      el.id === 'root' ||
+      el.tagName.toLowerCase() === 'body'
+    ) {
+      continue;
+    }
 
     const style = window.getComputedStyle(el);
     if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') continue;
@@ -1106,27 +1145,49 @@ export function detectActiveModalElement(): { modalEl: HTMLElement; title: strin
     const pos = style.position;
     if (pos !== 'fixed' && pos !== 'absolute') continue;
 
-    const rect = el.getBoundingClientRect();
-    const isFullScreenBackdrop = (rect.width >= window.innerWidth * 0.7 && rect.height >= window.innerHeight * 0.7);
     const zIndexVal = parseInt(style.zIndex, 10) || 0;
-    const bg = style.backgroundColor || '';
-    const hasBackdropBg = bg.includes('rgba') || bg.includes('rgb(0, 0, 0)') || style.backdropFilter !== 'none';
+    // 모달 백드롭/컨테이너는 최소 z-index가 40 이상이어야 함 (일반 레이아웃 침범 방지)
+    if (zIndexVal < 40) continue;
 
-    const isExplicitDialog = el.getAttribute('role') === 'dialog' || el.getAttribute('aria-modal') === 'true';
+    const rect = el.getBoundingClientRect();
+    const isFullScreen = (rect.width >= window.innerWidth * 0.65 && rect.height >= window.innerHeight * 0.65);
+    if (!isFullScreen) continue;
+
+    // 실제 어두운 백드롭 배경색 또는 backdrop-filter 검사
+    // 주의: 브라우저 기본 투명색 "rgba(0, 0, 0, 0)"는 알파가 0이므로 백드롭이 아님!
+    const bg = style.backgroundColor || '';
+    let hasRealBackdropBg = false;
+    if (style.backdropFilter && style.backdropFilter !== 'none') {
+      hasRealBackdropBg = true;
+    } else {
+      const rgbaMatch = bg.match(/rgba\s*\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)/);
+      if (rgbaMatch) {
+        const alpha = parseFloat(rgbaMatch[4]);
+        if (alpha >= 0.25) { // 불투명도가 최소 25% 이상인 실제 백드롭
+          hasRealBackdropBg = true;
+        }
+      } else if (bg.startsWith('rgb(') && !bg.includes('rgba')) {
+        hasRealBackdropBg = true;
+      }
+    }
+
     const isModalClass = el.className && typeof el.className === 'string' && (
       el.className.includes('modal') || el.className.includes('dialog')
     );
 
-    // 조건 충족 시 모달로 판정
-    if ((isFullScreenBackdrop && (hasBackdropBg || zIndexVal >= 100)) || isExplicitDialog || (isModalClass && zIndexVal >= 100)) {
-      // 모달 내부 제목 텍스트 탐색
-      const titleEl = el.querySelector('h1, h2, h3, h4, .card-title, [data-mid*="title"], strong, b');
-      let title = titleEl ? (titleEl as HTMLElement).innerText.trim() : '';
-      if (!title) {
-        const boldText = el.querySelector('div[style*="fontWeight"], div[style*="font-weight"]');
-        if (boldText) title = (boldText as HTMLElement).innerText.trim().slice(0, 40);
+    // 실제 백드롭이거나 모달 클래스가 있는 경우
+    if (hasRealBackdropBg || (isModalClass && zIndexVal >= 100)) {
+      // 💡 [핵심 검증] 화면 전체를 덮는 백드롭이라면, 그 내부에 실제로 팝업 창(카드)이 존재하는지 확인!
+      const innerCards = Array.from(el.querySelectorAll<HTMLElement>('div, section')).filter(child => {
+        const cStyle = window.getComputedStyle(child);
+        const cRect = child.getBoundingClientRect();
+        return cStyle.display !== 'none' && cRect.width > 200 && cRect.width < rect.width * 0.95 && cRect.height > 100;
+      });
+
+      if (innerCards.length > 0 || isModalClass) {
+        const title = extractTitleFromElement(el);
+        foundModals.push({ el, zIndex: zIndexVal, title });
       }
-      foundModals.push({ el, zIndex: zIndexVal, title });
     }
   }
 
@@ -1175,12 +1236,22 @@ export function detectCurrentContext(baseMenuId: string, defaultTitle?: string):
   // 1. 최우선 순위: 화면에 열려있는 팝업/모달 감지
   const activeModal = detectActiveModalElement();
   if (activeModal) {
-    return {
-      pageId: activeModal.modalKey,
-      pageTitle: activeModal.title,
-      isModal: true,
-      rootEl: activeModal.modalEl,
-    };
+    // 💡 [가드] 모달 키가 특정되지 않고 'modal_generic_dialog'인 경우,
+    // 메인 메뉴(baseMenuId)가 명확하게 주어진 상태라면 가짜 감지일 가능성을 배제하기 위해
+    // 실제 role="dialog", aria-modal="true" 또는 명시적 모달 클래스일 경우에만 모달로 인정!
+    const isExplicit = activeModal.modalEl.getAttribute('role') === 'dialog' ||
+                       activeModal.modalEl.getAttribute('aria-modal') === 'true' ||
+                       (activeModal.modalEl.className && typeof activeModal.modalEl.className === 'string' &&
+                        (activeModal.modalEl.className.includes('modal') || activeModal.modalEl.className.includes('dialog')));
+
+    if (activeModal.modalKey !== 'modal_generic_dialog' || isExplicit) {
+      return {
+        pageId: activeModal.modalKey,
+        pageTitle: activeModal.title,
+        isModal: true,
+        rootEl: activeModal.modalEl,
+      };
+    }
   }
 
   // 2. 현재 화면에 표시(visible) 중인 서브뷰 감지 ([data-subview])

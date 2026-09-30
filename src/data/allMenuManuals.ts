@@ -1783,13 +1783,16 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     objective: '현장 공사 완료 또는 임대 만료에 따라 현장에 투입된 장비의 회수(반납) 의뢰를 배차 부서에 정식 발행',
     scopeInfo: '대여 중인 계약, 회수 대상 자산번호, 반출 희망 일시, 현장 상차지 주소 및 상차 가능 여건',
     cognitiveSequence: [
-      '1. 반납 요청 텍스트(카톡/문자) 자동 파싱 및 계약 매핑',
-      '2. 반납 대상 현장 및 투입 자산 일련번호 확인',
-      '3. 반납 희망 일시 및 현장 상차 환경(지게차/크레인 유무) 입력',
-      '4. 장비 파손/오염 여부 1차 문진 및 현장 사진 첨부',
-      '5. 회수 배차 운송비 부담 주체 설정 (고객부담 / 당사부담 / 원사부담)',
-      '6. 입고 검수 및 정비부서 반납 입고 예고 자동 통보',
-      '7. 반납 요청 최종 발행 및 단일 회수 배차 의뢰 연동 (헌장 2.3)'
+      '1. 계약 및 현장 대여 자산 요약 확인',
+      '2. 회수 업무 모드 선택 (임대 계약 회수 vs 외주 정비 수리완료)',
+      '3. 통화 접수 회수 대기 큐 확인 및 1-클릭 서식 바인딩',
+      '4. 계약 초성 검색 및 만료일 순 정렬 필터링',
+      '5. 회수 대상 임대 계약 선택',
+      '6. 회수 대상 자산 지정 (전량 vs 부분 조기반송 체크리스트)',
+      '7. 회수 예정일자 및 상차 시간대 설정',
+      '8. 방문지 현장 인계 담당자명 및 연락처 확인',
+      '9. 회수 의뢰 등록 확정 및 배차 대장 INBOUND 연동 (헌장 2.3)',
+      '10. A4 회수요청서 인쇄 및 출고 장착옵션 회수 대조표 점검'
     ],
     auditResult: '회수 배차 의뢰 발행 및 자산 상태 추적(회수 대기 플래그) 연동',
     rulesCompliance: [
@@ -1803,72 +1806,102 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     annotations: [
       {
         seq: 1,
-        selector: '[data-mid="smart_return-scope"]',
-        type: 'stamp',
-        label: '진행중인 계약/장비',
-        description: '진행중인 계약 현황을 확인합니다.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 2,
-        selector: '[data-mid="smart_return-contracts-grid"]',
-        type: 'stamp',
-        label: '계약 현황 그리드',
-        description: '전체 현황 요약입니다.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
-      },
-      {
-        seq: 3,
-        selector: '[data-mid="smart_return-drafts"]',
-        type: 'stamp',
-        label: '회수 대기 목록',
-        description: '전화 접수된 회수 대기 내역입니다.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'right',
-        spotlight: false
-      },
-      {
-        seq: 4,
-        selector: '[data-mid="smart_return-pipeline"]',
-        type: 'stamp',
-        label: '회수 등록',
-        description: '회수할 장비를 선택하고 등록합니다.',
+        selector: '[data-mid="smart_return-summary"]',
+        type: 'callout',
+        label: '계약 및 현장 대여 자산 요약',
+        description: '진행중인 임대 계약, 현장 가동 자산 대수, 7일 내 만료 예정 계약 현황을 실시간 조망합니다.',
         badgeColor: '#1D4ED8',
         positionHint: 'bottom',
         spotlight: true
       },
       {
-        seq: 5,
-        selector: '[data-mid="smart_return-preview"]',
+        seq: 2,
+        selector: '[data-mid="smart_return-mode-tabs"]',
         type: 'stamp',
-        label: '서식 출력 및 미리보기',
-        description: '회수 관련 서식을 미리보고 출력합니다.',
-        badgeColor: '#1D4ED8',
+        label: '회수 업무 모드 선택',
+        description: '현장 공사 완료에 따른 [임대 계약 회수 의뢰]와 공장 수리 완료에 따른 [외주 정비 수리완료 회수 의뢰] 중 업무 목적을 선택합니다.',
+        badgeColor: '#059669',
         positionHint: 'bottom',
         spotlight: false
+      },
+      {
+        seq: 3,
+        selector: '[data-mid="smart_return-call-drafts"]',
+        type: 'stamp',
+        label: '통화 접수 회수 대기 큐',
+        description: '현장에서 걸려온 반납 요청 통화 녹음이 AI로 분석된 대기 목록입니다. 카드를 클릭하면 계약과 회수 조건이 우측 서식에 1-클릭 자동 입력됩니다.',
+        badgeColor: '#7C3AED',
+        positionHint: 'bottom',
+        spotlight: false
+      },
+      {
+        seq: 4,
+        selector: '[data-mid="smart_return-search-filter"]',
+        type: 'stamp',
+        label: '계약 초성 검색 및 만료일 정렬',
+        description: '고객사명, 현장명, 초성(예: ㅅㅅ, ㅎㄷ) 검색과 계약 만료일 순 정렬을 통해 회수 대상 계약을 신속히 필터링합니다.',
+        badgeColor: '#2563EB',
+        positionHint: 'bottom',
+        spotlight: false
+      },
+      {
+        seq: 5,
+        selector: '[data-mid="smart_return-contract-list"]',
+        type: 'click_ripple',
+        label: '회수 대상 임대 계약 선택',
+        description: '장비를 반납할 현장 계약을 클릭하여 선택합니다. 선택 즉시 우측 서식에 현장 정보와 투입 자산 목록이 바인딩됩니다.',
+        badgeColor: '#E53935',
+        positionHint: 'right',
+        spotlight: true
       },
       {
         seq: 6,
-        selector: '[data-mid="smart_return-maint-grid"]',
+        selector: '[data-mid="smart_return-asset-select"]',
         type: 'stamp',
-        label: '외주정비 현황',
-        description: '외주정비 자산 현황을 조회합니다.',
-        badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
-        spotlight: false
+        label: '회수 자산 지정 (전량 / 부분 조기반납)',
+        description: '현장에 투입된 장비 중 실제로 철수하는 장비의 체크박스를 선택합니다. 다수 장비 중 일부만 조기 반납하는 부분 회수도 지원합니다.',
+        badgeColor: '#D97706',
+        positionHint: 'left',
+        spotlight: true
       },
       {
         seq: 7,
-        selector: '[data-mid="smart_return-maint-pipeline"]',
+        selector: '[data-mid="smart_return-schedule"]',
         type: 'stamp',
-        label: '정비 완료 회수',
-        description: '외주정비가 완료된 장비를 회수 처리합니다.',
+        label: '회수 예정일자 및 상차 시간대',
+        description: '현장 상차 및 화물차 배차 일시를 지정합니다. 기본값으로 오늘 날짜가 자동 설정되며 시간대(오전/오후/수시/시간)를 지정합니다.',
+        badgeColor: '#059669',
+        positionHint: 'top',
+        spotlight: false
+      },
+      {
+        seq: 8,
+        selector: '[data-mid="smart_return-contact"]',
+        type: 'stamp',
+        label: '현장 상차 담당자 및 연락처',
+        description: '운송 기사가 현장 도착 시 통화할 현장 소장 또는 인계 담당자 연락처를 확인 및 수정합니다. 출고 배차 정보가 자동 승계됩니다.',
         badgeColor: '#1D4ED8',
-        positionHint: 'bottom',
+        positionHint: 'top',
+        spotlight: false
+      },
+      {
+        seq: 9,
+        selector: '[data-mid="smart_return-submit-btn"]',
+        type: 'click_ripple',
+        label: '회수 의뢰 등록 확정',
+        description: '회수 배차 의뢰를 확정 등록합니다. 배차 대장에 INBOUND(회수) 배차가 1건 자동 생성되며 입고 검수 예고 상태로 연동됩니다.',
+        badgeColor: '#10B981',
+        positionHint: 'top',
+        spotlight: true
+      },
+      {
+        seq: 10,
+        selector: '[data-mid="smart_return-preview-print"]',
+        type: 'stamp',
+        label: 'A4 회수요청서 인쇄 및 옵션 대조표',
+        description: '출고 시 부착되었던 안전옵션(철망/함석, 감지봉, 충전기 등)의 회수 체크리스트와 공인 A4 회수요청서를 미리보고 지정 프린터로 즉시 인쇄합니다.',
+        badgeColor: '#4F46E5',
+        positionHint: 'top',
         spotlight: false
       }
     ]

@@ -686,7 +686,7 @@ export const SmartReturn: React.FC = () => {
         const activeContractsCount = contracts.filter(c => c.status === 'ACTIVE').length;
 
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
+          <div data-mid="smart_return-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>진행중인 계약</span>
               <strong style={{ fontSize: '15px', color: 'var(--primary)' }}>{activeContractsCount}건</strong>
@@ -704,7 +704,7 @@ export const SmartReturn: React.FC = () => {
       })()}
 
       {/* 모드 전환 탭 */}
-      <div style={{ display: 'flex', gap: '10px', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px' }}>
+      <div data-mid="smart_return-mode-tabs" style={{ display: 'flex', gap: '10px', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px' }}>
         <button
           type="button"
           onClick={() => {
@@ -750,7 +750,7 @@ export const SmartReturn: React.FC = () => {
                 
                 {/* 📞 통화 접수 회수 대기 큐 (헌장 3.1 무수식어 건조 표준) */}
                 {returnDrafts.length > 0 && (
-                  <div style={{
+                  <div data-mid="smart_return-call-drafts" style={{
                     backgroundColor: 'var(--bg-app)',
                     border: '1px solid var(--border-color)',
                     borderRadius: '6px',
@@ -815,7 +815,7 @@ export const SmartReturn: React.FC = () => {
                 )}
 
                 {/* 검색 필터 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div data-mid="smart_return-search-filter" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <input
                       type="text"
@@ -903,7 +903,7 @@ export const SmartReturn: React.FC = () => {
                 </div>
 
                 {/* 계약 목록 */}
-                <div style={{ maxHeight: '380px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px', backgroundColor: 'var(--bg-app)' }}>
+                <div data-mid="smart_return-contract-list" style={{ maxHeight: '380px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px', backgroundColor: 'var(--bg-app)' }}>
                   {sortedContracts.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--text-muted)', fontSize: '13px' }}>
                       검색 조건에 맞는 활성 임대계약이 없습니다.
@@ -990,7 +990,7 @@ export const SmartReturn: React.FC = () => {
               <form onSubmit={handleSalesSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 
                 {/* 1. 계약 기본 확인 */}
-                <div style={{ padding: '12px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '13px' }}>
+                <div data-mid="smart_return-contract-info" style={{ padding: '12px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '13px' }}>
                   {(() => {
                     const c = contracts.find(con => con.id === selectedContractId);
                     const cust = customers.find(cust => cust.id === c?.customerId);
@@ -1006,7 +1006,7 @@ export const SmartReturn: React.FC = () => {
                 </div>
 
                 {/* 2. 자산 선택 (전부 vs 일부) */}
-                <div>
+                <div data-mid="smart_return-asset-select">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <label style={{ margin: 0, fontSize: '13px', fontWeight: 'bold' }}>회수할 자산 지정 *</label>
                     <button
@@ -1081,7 +1081,7 @@ export const SmartReturn: React.FC = () => {
                 </div>
 
                 {/* 3. 일정 */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div data-mid="smart_return-schedule" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
                     <label>회수 예정일자 *</label>
                     <input
@@ -1134,7 +1134,7 @@ export const SmartReturn: React.FC = () => {
                 </div>
 
                 {/* 4. 고객 담당 정보 */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div data-mid="smart_return-contact" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
                     <label>방문지 고객 담당자명 *</label>
                     <input
@@ -1158,7 +1158,7 @@ export const SmartReturn: React.FC = () => {
                 </div>
 
                 {/* 5. 비고 */}
-                <div>
+                <div data-mid="smart_return-note">
                   <label>특이사항 및 비고</label>
                   <textarea
                     rows={2}
@@ -1169,6 +1169,7 @@ export const SmartReturn: React.FC = () => {
                 </div>
 
                 <button
+                  data-mid="smart_return-submit-btn"
                   type="submit"
                   className="btn-success"
                   style={{ width: '100%', padding: '10px', fontSize: '14px', fontWeight: 'bold' }}
@@ -1204,7 +1205,7 @@ export const SmartReturn: React.FC = () => {
           const selectedReturnAssets = assets.filter(a => selectedAssetIds.includes(a.id));
 
           return (
-            <div className="card" style={{ marginTop: '20px', padding: '20px' }}>
+            <div data-mid="smart_return-preview-print" className="card" style={{ marginTop: '20px', padding: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
                 <h4 style={{ margin: 0, fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <FileText size={18} className="text-primary" />
@@ -1485,7 +1486,7 @@ export const SmartReturn: React.FC = () => {
               ℹ 현재 외주 정비 (`EXTERNAL`) 중인 리프트 자산이 존재하는 정비소들만 노출됩니다.
             </div>
 
-            <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
+            <div data-mid="smart_return-maint-vendors" style={{ border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
               {repairVendors.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--text-muted)', fontSize: '13px' }}>
                   현재 외주정비 진행 중인 자산이 없습니다.
@@ -1539,7 +1540,7 @@ export const SmartReturn: React.FC = () => {
             </div>
 
             {selectedVendorId ? (
-              <form onSubmit={handleMaintSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <form data-mid="smart_return-maint-form" onSubmit={handleMaintSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 
                 {/* 외주업체 정보 */}
                 <div style={{ padding: '12px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '13px' }}>
@@ -1651,6 +1652,7 @@ export const SmartReturn: React.FC = () => {
                 </div>
 
                 <button
+                  data-mid="smart_return-maint-submit-btn"
                   type="submit"
                   className="btn-success"
                   style={{ width: '100%', padding: '10px', fontSize: '14px', fontWeight: 'bold' }}
