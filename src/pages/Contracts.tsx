@@ -114,7 +114,7 @@ export const Contracts: React.FC = () => {
   const [paymentDueMonthOffset, setPaymentDueMonthOffset] = useState(1);
 
   // 컬럼 표시 여부 토글 상태
-  const [showPeriodCol, setShowPeriodCol] = useState(false);
+  const [showPeriodCol, setShowPeriodCol] = useState(true);
   const [showLastBilledCol, setShowLastBilledCol] = useState(false);
   const [showBillingCountCol, setShowBillingCountCol] = useState(false);
 

@@ -1015,18 +1015,18 @@ export const DailyInOutStatus: React.FC = () => {
                 해당 일자에는 등록된 입출고 실적 및 배차 예정 내역이 없습니다.
               </div>
             ) : (
-              <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+              <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '420px', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                 <table style={{ width: '100%', minWidth: '850px', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
-                  <thead>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
                     <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '70px' }}>구분</th>
-                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '80px' }}>진행구분</th>
-                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '130px' }}>모델명 * 수량</th>
-                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '60px' }}>수량</th>
-                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '140px' }}>자산번호</th>
-                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>거래처 / 현장</th>
-                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '120px' }}>배차/진행상태</th>
-                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '120px' }}>운송기사/업체</th>
+                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '70px', backgroundColor: 'var(--bg-secondary)' }}>구분</th>
+                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '80px', backgroundColor: 'var(--bg-secondary)' }}>진행구분</th>
+                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '130px', backgroundColor: 'var(--bg-secondary)' }}>모델명 * 수량</th>
+                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '60px', backgroundColor: 'var(--bg-secondary)' }}>수량</th>
+                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '140px', backgroundColor: 'var(--bg-secondary)' }}>자산번호</th>
+                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', backgroundColor: 'var(--bg-secondary)' }}>거래처 / 현장</th>
+                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '120px', backgroundColor: 'var(--bg-secondary)' }}>배차/진행상태</th>
+                      <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '120px', backgroundColor: 'var(--bg-secondary)' }}>운송기사/업체</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1121,20 +1121,29 @@ export const DailyInOutStatus: React.FC = () => {
             </span>
           </div>
 
-          <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+          <div 
+            style={{ 
+              overflowY: 'auto', 
+              overflowX: 'auto', 
+              maxHeight: 'calc(100vh - 330px)', 
+              minHeight: '480px',
+              border: '1px solid var(--border-color)', 
+              borderRadius: '8px' 
+            }}
+          >
             <table style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
-              <thead>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
                 <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '95px' }}>일자</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '70px' }}>구분</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '80px' }}>진행상태</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '160px' }}>모델명 * 수량</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '60px' }}>수량</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '130px' }}>자산번호</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>거래처 / 현장</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '110px' }}>배차/상태</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '130px' }}>운송기사 / 업체</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>비고</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '95px', backgroundColor: 'var(--bg-secondary)' }}>일자</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '70px', backgroundColor: 'var(--bg-secondary)' }}>구분</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '80px', backgroundColor: 'var(--bg-secondary)' }}>진행상태</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '160px', backgroundColor: 'var(--bg-secondary)' }}>모델명 * 수량</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '60px', backgroundColor: 'var(--bg-secondary)' }}>수량</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '130px', backgroundColor: 'var(--bg-secondary)' }}>자산번호</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', backgroundColor: 'var(--bg-secondary)' }}>거래처 / 현장</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '110px', backgroundColor: 'var(--bg-secondary)' }}>배차/상태</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '130px', backgroundColor: 'var(--bg-secondary)' }}>운송기사 / 업체</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', backgroundColor: 'var(--bg-secondary)' }}>비고</th>
                 </tr>
               </thead>
               <tbody>

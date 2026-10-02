@@ -1,6 +1,25 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
-## [완료] 배차 완료 카카오톡 안내 메시지 자동 생성 및 원클릭 클립보드 복사 기능 구축
+## [완료] 계약 관리(Contracts) 계약기간 컬럼 표시 체크박스 기본값 true 변경
+- **요구사항**:
+  - "표시의 계약기간은 기본값을 true 로 변경. ㄹㅇ" (첨부 이미지: 계약 관리 메뉴 상태 필터 우측 `[ ] 계약기간` 체크박스에 빨간색 마킹)
+- **구현 내역**:
+  - `src/pages/Contracts.tsx`: `showPeriodCol` 상태 초기값을 `useState(false)`에서 `useState(true)`로 변경하여, 계약 관리 대장 진입 시 기본적으로 `[계약기간]` 컬럼(`c.startDate ~ c.endDate`)이 즉시 표출되도록 개선.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 error, 858ms).
+
+## [완료] 일일 입출고 조회(daily_inout) 표 형태 대장 테이블 우측 세로 스크롤바 탑재 및 sticky thead 헤더 고정
+- **요구사항**:
+  - "표시위치에 스크롤바 추가" (첨부 이미지: `2026년 9월 입출고 대장 (총 718건)` 표 형태 뷰의 우측 데이터 영역에 빨간색 V 마킹)
+- **원인 분석**:
+  - `src/pages/DailyInOutStatus.tsx`의 표 형태 테이블 래퍼(`table-grid-card`)에 가로 스크롤(`overflowX: 'auto'`)만 지정되어 있고, 세로 높이 제한(`maxHeight`) 및 세로 스크롤(`overflowY: 'auto'`)이 누락되어 718건의 데이터가 브라우저 전체 창을 밀어내며 아래로 길게 펼쳐져 내부 스크롤바가 생성되지 않음.
+- **구현 및 개선 내역**:
+  1. `src/pages/DailyInOutStatus.tsx` 표 형태 대장 테이블 컨테이너:
+     - `overflowY: 'auto'`, `overflowX: 'auto'` 적용.
+     - `maxHeight: 'calc(100vh - 330px)'`, `minHeight: '480px'` 적용하여 뷰포트 반응형 작업대 영역 확보.
+     - `thead`에 `position: 'sticky'`, `top: 0`, `zIndex: 5` 적용 및 모든 `th`에 `backgroundColor: 'var(--bg-secondary)'`를 지정하여 대량 행 스크롤 시 헤더가 상단에 완벽 고정되도록 개선.
+  2. 캘린더 형태 일자별 상세 목록 테이블 컨테이너:
+     - `overflowY: 'auto'`, `maxHeight: '420px'`, sticky thead 동일 적용.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 error, 839ms).
 - **요구사항**:
   - "배차 완료된 상태에서, 영업사원 및 배차 된 화물기사에게 배차정보를 안내해주기 위해, 배차유형별로 다음과 같은 양식을 준수하는 텍스트 생성을 클립보드에 붙여주는 카카오톡 메세지 복사 버튼을 만들어줘. 이하는 유형별 톡 메세지 양식이야."
 - **유형별 3대 단일 표준 톡 양식 반영**:
