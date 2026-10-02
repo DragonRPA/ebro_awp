@@ -11,11 +11,11 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { exportToExcel } from '../services/excel';
-import { Delivery, TransportCompany, TransportDriver, TransportNegotiation, db, DeliveryStatus, Asset, PurchaseSettlement, PurchaseSettlementItem, VEHICLE_TYPE_OPTIONS } from '../services/db';
+import { Delivery, TransportCompany, TransportDriver, TransportNegotiation, db, DeliveryStatus, Asset, PurchaseSettlement, PurchaseSettlementItem, VEHICLE_TYPE_OPTIONS, isCustomerRestricted } from '../services/db';
 import { DestinationWeatherModal } from '../components/DestinationWeatherModal';
 import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal';
 import { matchHangul } from '../utils/hangulSearch';
-import { buildDispatchSmsText, launchDispatchSms } from '../utils/nativeLauncher';
+import { buildDispatchSmsText, launchDispatchSms, buildDispatchKakaoTalkText, copyToClipboard } from '../utils/nativeLauncher';
 import { broadcastWorkNotification } from '../utils/workNotificationService';
 import { issueHandoverTask, clearHandoverTasks } from '../utils/taskHandoverPipeline';
 import {
@@ -1036,6 +1036,12 @@ export const TruckDispatch: React.FC = () => {
     setIsBundleCopied(true);
     setTimeout(() => setIsBundleCopied(false), 2000);
   };
+
+  // 💬 카카오톡 배차 안내 메시지 모달 state
+  const [showKakaoModal, setShowKakaoModal] = useState(false);
+  const [kakaoText, setKakaoText] = useState('');
+  const [kakaoTargetDelivery, setKakaoTargetDelivery] = useState<Delivery | null>(null);
+  const [isKakaoCopied, setIsKakaoCopied] = useState(false);
 
   // 💡 [사장님 지시] 대사 행 더블클릭 시 배차 상세 및 대사 비교 모달 state
   const [selectedReconDetailPair, setSelectedReconDetailPair] = useState<ReconPairRow | null>(null);
@@ -2507,6 +2513,85 @@ export const TruckDispatch: React.FC = () => {
     });
   };
 
+  // 💬 카카오톡 배차 안내 메시지 생성 및 클립보드 복사 핸들러 (유형별 단일 표준 양식)
+  const handleCopyKakaoDispatchMessage = async (targetDelivery: Delivery) => {
+    const targetContract = targetDelivery.contractId ? contracts.find(c => c.id === targetDelivery.contractId) : null;
+    const customer = targetContract ? customers.find(c => c.id === targetContract.customerId) : null;
+    const site = targetContract ? sites.find(s => s.id === targetContract.siteId) : null;
+
+    // 현재 폼에 선택된 배차와 같으면 폼에 수정/입력 중인 최신 값을 우선 반영
+    const isSelected = selectedDelivery?.id === targetDelivery.id;
+    const currentVehType = assignedVehicles.length > 0 ? assignedVehicles[0].vehicleType : undefined;
+    const dObj = {
+      ...targetDelivery,
+      type: targetDelivery.type,
+      dispatchCategory: isSelected ? (dispatchCategory || targetDelivery.dispatchCategory) : targetDelivery.dispatchCategory,
+      vehicleType: isSelected ? (currentVehType || targetDelivery.vehicleType) : targetDelivery.vehicleType,
+      originAddress: isSelected ? (originAddress || targetDelivery.originAddress) : targetDelivery.originAddress,
+      destinationAddress: isSelected ? (destinationAddress || targetDelivery.destinationAddress) : targetDelivery.destinationAddress,
+      loadingDate: isSelected ? (loadingDate || targetDelivery.loadingDate) : targetDelivery.loadingDate,
+      loadingTimeSlot: isSelected ? ((loadingTimeSlot === '희망시간' ? loadingCustomTime : loadingTimeSlot) || targetDelivery.loadingTimeSlot) : targetDelivery.loadingTimeSlot,
+      unloadingDate: isSelected ? (unloadingDate || targetDelivery.unloadingDate) : targetDelivery.unloadingDate,
+      unloadingTimeSlot: isSelected ? ((unloadingTimeSlot === '희망시간' ? unloadingCustomTime : unloadingTimeSlot) || targetDelivery.unloadingTimeSlot) : targetDelivery.unloadingTimeSlot,
+      memo: isSelected ? (closingMemo || targetDelivery.memo) : targetDelivery.memo
+    };
+
+    // 장비 종류 포맷팅 (모델명*수량 / 모델명*수량)
+    let cargoFormatted = '';
+    const parsedCargos = parseCargoItems(dObj);
+    const validCargos = parsedCargos.filter(p => p.modelName && !p.modelName.includes('미지정'));
+    if (validCargos.length > 0) {
+      cargoFormatted = validCargos.map(p => `${p.modelName}*${p.count}`).join(' / ');
+    } else if (targetContract) {
+      const cAssets = contractAssets.filter(ca => ca.contractId === targetContract.id);
+      if (cAssets.length > 0) {
+        const counts: Record<string, number> = {};
+        cAssets.forEach(ca => {
+          const asset = assets.find(a => a.id === ca.assetId);
+          const mName = asset?.modelName || (ca as any).modelName || '고소작업대';
+          counts[mName] = (counts[mName] || 0) + 1;
+        });
+        cargoFormatted = Object.entries(counts).map(([m, cnt]) => `${m}*${cnt}`).join(' / ');
+      }
+    }
+
+    const defaultYard = currentTenant?.yards?.find(y => y.isDefault) || currentTenant?.yards?.[0];
+    const hqYardAddress = defaultYard?.address || currentTenant?.mainYardAddress || currentTenant?.businessAddress || '경기 용인시 처인구 모현읍 갈담리 176-1';
+    const hqYardPhone = currentTenant?.tel || '010-5403-0117';
+    const hqYardContactPerson = '김원진부장';
+
+    // 현장 담당자
+    const actContacts = (site?.contacts || []).filter(c => c.isActive !== false);
+    const siteContactName = actContacts.length > 0 ? actContacts[0].name : (site?.contactName || customer?.representative);
+    const siteContactPhone = actContacts.length > 0 ? actContacts[0].contact : (site?.contact || customer?.repContact);
+    const siteContactPosition = actContacts.length > 0 ? actContacts[0].position : undefined;
+
+    const generatedText = buildDispatchKakaoTalkText({
+      delivery: dObj,
+      siteName: site?.name || targetDelivery.destinationAddress || '현장',
+      siteAddress: targetDelivery.destinationAddress || site?.address,
+      siteContactName,
+      siteContactPhone,
+      siteContactPosition,
+      customerName: customer?.name,
+      companyName: currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || '기연리프트',
+      hqYardAddress,
+      hqYardPhone,
+      hqYardContactPerson,
+      cargoFormattedString: cargoFormatted
+    });
+
+    // 1. 클립보드에 선제 복사
+    await copyToClipboard(generatedText);
+
+    // 2. 모달 열어서 전문 표출 및 안내
+    setKakaoText(generatedText);
+    setKakaoTargetDelivery(targetDelivery);
+    setIsKakaoCopied(true);
+    setShowKakaoModal(true);
+    showToast('카카오톡 배차 안내 메시지가 클립보드에 복사되었습니다.\n(카카오톡에 Ctrl+V로 붙여넣기 하세요)');
+  };
+
   // 3. 배차 배정 저장 (status: 'DISPATCHED' 배차 완료 전환!)
   const handleSaveDispatch = async () => {
     if (!selectedDelivery) return;
@@ -2519,12 +2604,12 @@ export const TruckDispatch: React.FC = () => {
     const isRestoringFromCancelled = prevStatus === 'CANCELLED';
     const isModifyingDispatched = prevStatus === 'DISPATCHED';
 
-    // 🚨 출고 제한(BLOCKED) 거래처 출고 배차 원천 차단
+    // 🚨 출고 제한(BLOCKED / RESTRICT_NEW) 거래처 출고 배차 원천 차단
     const targetContract = selectedDelivery.contractId ? contracts.find(c => c.id === selectedDelivery.contractId) : null;
     const targetCustomer = targetContract ? customers.find(c => c.id === targetContract.customerId) : null;
     const isOutboundOrExchange = selectedDelivery.type === 'OUTBOUND' || selectedDelivery.dispatchCategory === '출고' || selectedDelivery.dispatchCategory === '교환';
-    if (isOutboundOrExchange && targetCustomer?.transactionStatus === 'BLOCKED') {
-      showErrorModal(`[출고제한] 거래처 [${targetCustomer.name}]은(는) 연체 관리 또는 경영진 지시로 인해 신규 출고가 차단된 상태입니다. 배차 기사를 배정할 수 없습니다.`, '출고 차단');
+    if (isOutboundOrExchange && isCustomerRestricted(targetCustomer?.transactionStatus)) {
+      showErrorModal(`[출고제한] 거래처 [${targetCustomer?.name}]은(는) 연체 관리 또는 경영진 지시로 인해 신규 출고가 차단된 상태입니다. 배차 기사를 배정할 수 없습니다.`, '출고 차단');
       return;
     }
 
@@ -2743,8 +2828,8 @@ export const TruckDispatch: React.FC = () => {
 
     if (manualCategory === '출고' || manualCategory === '교환') {
       const targetCust = customers.find(c => c.id === manualCustomerId || (manualContractId && contracts.find(ct => ct.id === manualContractId)?.customerId === c.id));
-      if (targetCust?.transactionStatus === 'BLOCKED') {
-        showErrorModal(`[출고제한] 거래처 [${targetCust.name}]은(는) 신규 장비 출고가 차단된 상태입니다. 신규 출고 배차를 생성할 수 없습니다.`, '출고 차단');
+      if (isCustomerRestricted(targetCust?.transactionStatus)) {
+        showErrorModal(`[출고제한] 거래처 [${targetCust?.name}]은(는) 신규 장비 출고가 차단된 상태입니다. 신규 출고 배차를 생성할 수 없습니다.`, '출고 차단');
         return;
       }
     }
@@ -3212,9 +3297,14 @@ export const TruckDispatch: React.FC = () => {
 
                         <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span>🏢 {customer?.name || '고객사 미지정'}</span>
-                          {customer?.transactionStatus === 'BLOCKED' && (
-                            <span style={{ fontSize: '10.5px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: 'var(--danger)', color: '#fff', flexShrink: 0 }}>
-                              출고제한
+                          {customer?.transactionStatus === 'RESTRICT_NEW' && (
+                            <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #f59e0b', flexShrink: 0 }}>
+                              추가계약금지
+                            </span>
+                          )}
+                          {(customer?.transactionStatus === 'BLOCKED_ALL' || customer?.transactionStatus === 'BLOCKED') && (
+                            <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: 'var(--danger)', color: '#fff', flexShrink: 0 }}>
+                              출고차단
                             </span>
                           )}
                         </div>
@@ -3369,6 +3459,30 @@ export const TruckDispatch: React.FC = () => {
                       >
                         <MessageSquare size={13} color="#0284c7" />
                         기사 배차문자
+                      </button>
+
+                      {/* 💬 카카오톡 배차 안내 메시지 생성 및 클립보드 복사 버튼 */}
+                      <button
+                        type="button"
+                        onClick={() => handleCopyKakaoDispatchMessage(selectedDelivery)}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '7px',
+                          backgroundColor: '#FEE500',
+                          color: '#191919',
+                          border: '1px solid #E6CF00',
+                          fontSize: '12px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                        }}
+                        title="영업사원 및 배차 기사용 카카오톡 배차 메시지 생성 및 클립보드 복사"
+                      >
+                        <MessageSquare size={13} color="#191919" />
+                        카톡 메시지 복사
                       </button>
 
                       {/* 💡 상단 배차/운송완료/취소 액션 버튼 */}
@@ -3535,11 +3649,12 @@ export const TruckDispatch: React.FC = () => {
                           const curContract = getContract(selectedDelivery.contractId);
                           const curCustomer = curContract ? getCustomer(curContract.customerId) : null;
                           const isOutOrEx = selectedDelivery.type === 'OUTBOUND' || selectedDelivery.dispatchCategory === '출고' || selectedDelivery.dispatchCategory === '교환';
-                          if (isOutOrEx && curCustomer?.transactionStatus === 'BLOCKED') {
+                          if (isOutOrEx && isCustomerRestricted(curCustomer?.transactionStatus)) {
+                            const isTotal = curCustomer?.transactionStatus === 'BLOCKED_ALL' || curCustomer?.transactionStatus === 'BLOCKED';
                             return (
                               <div style={{ padding: '10px 14px', borderRadius: '8px', backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', color: 'var(--danger)', fontWeight: 800, fontSize: '13px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <AlertTriangle size={18} color="#ef4444" />
-                                <span>[출고제한 거래처] 거래처 [{curCustomer.name}]은(는) 연체 관리로 인해 신규 장비 출고가 차단되었습니다. 배차를 확정할 수 없습니다.</span>
+                                <span>[출고차단 거래처] 거래처 [{curCustomer?.name}]은(는) {isTotal ? '전면 거래차단(장비회수)' : '추가계약 및 출고금지'} 처분으로 인해 신규 장비 출고가 차단되었습니다. 배차를 확정할 수 없습니다.</span>
                               </div>
                             );
                           }
@@ -6327,6 +6442,193 @@ export const TruckDispatch: React.FC = () => {
                 }}
               >
                 확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 💬 카카오톡 배차 안내 메시지 확인 및 재복사 모달 */}
+      {showKakaoModal && (
+        <div
+          data-mid="kakao-dispatch-modal"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.55)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+          onClick={() => setShowKakaoModal(false)}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--bg-card, #ffffff)',
+              borderRadius: '12px',
+              width: '100%',
+              maxWidth: '560px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 10px 10px -5px rgba(0, 0, 0, 0.1)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              maxHeight: '90vh'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 모달 헤더 */}
+            <div
+              style={{
+                padding: '16px 20px',
+                borderBottom: '1px solid var(--border-color, #e5e7eb)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: '#FEE500'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <MessageSquare size={18} color="#191919" />
+                <span style={{ fontSize: '15px', fontWeight: 800, color: '#191919' }}>
+                  카카오톡 배차 메시지
+                </span>
+                {kakaoTargetDelivery && (
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      backgroundColor: 'rgba(0,0,0,0.08)',
+                      color: '#191919'
+                    }}
+                  >
+                    {kakaoTargetDelivery.dispatchCategory || kakaoTargetDelivery.type || '배차'}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowKakaoModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '20px',
+                  lineHeight: 1,
+                  color: '#191919',
+                  cursor: 'pointer',
+                  padding: '2px 6px',
+                  fontWeight: 700
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 모달 본문 */}
+            <div style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {isKakaoCopied && (
+                <div
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    color: '#065f46',
+                    fontSize: '12.5px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <CheckCircle size={15} color="#059669" />
+                  클립보드에 복사되었습니다. 카카오톡 창에 바로 붙여넣기(Ctrl + V) 하실 수 있습니다.
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary, #6b7280)' }}>
+                    메시지 전문 (필요 시 수정 가능)
+                  </label>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted, #9ca3af)' }}>
+                    총 {kakaoText.length}자
+                  </span>
+                </div>
+                <textarea
+                  value={kakaoText}
+                  onChange={(e) => setKakaoText(e.target.value)}
+                  rows={15}
+                  style={{
+                    width: '100%',
+                    padding: '12px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color, #d1d5db)',
+                    backgroundColor: 'var(--bg-app, #f9fafb)',
+                    color: 'var(--text-primary, #111827)',
+                    fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+                    fontSize: '12.5px',
+                    lineHeight: '1.6',
+                    resize: 'vertical',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* 모달 하단 액션 버튼 */}
+            <div
+              style={{
+                padding: '14px 20px',
+                borderTop: '1px solid var(--border-color, #e5e7eb)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: 'var(--bg-app, #f9fafb)'
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setShowKakaoModal(false)}
+                className="btn-secondary"
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '7px',
+                  fontSize: '12.5px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                닫기
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await copyToClipboard(kakaoText);
+                  setIsKakaoCopied(true);
+                  showToast('클립보드에 다시 복사되었습니다.');
+                }}
+                style={{
+                  padding: '8px 18px',
+                  borderRadius: '7px',
+                  backgroundColor: '#FEE500',
+                  color: '#191919',
+                  border: '1px solid #E6CF00',
+                  fontSize: '12.5px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                }}
+              >
+                <Copy size={14} color="#191919" />
+                다시 복사
               </button>
             </div>
           </div>

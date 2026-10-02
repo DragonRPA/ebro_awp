@@ -748,6 +748,30 @@ export function calculatePaymentDueDate(
   return `${year}-${String(month).padStart(2, '0')}-${String(actualDay).padStart(2, '0')}`;
 }
 
+// 🚦 거래처 거래 제한 상태 (2대 차단 유형 체계)
+// 1. ALLOWED: 정상 거래
+// 2. RESTRICT_NEW: 기존계약 유지 및 추가계약 금지 (신규 계약/출고 차단)
+// 3. BLOCKED_ALL (or BLOCKED): 기존장비 회수 및 전면 계약 금지 (전면 거래 중단)
+export type CustomerTransactionStatus = 'ALLOWED' | 'RESTRICT_NEW' | 'BLOCKED_ALL' | 'BLOCKED';
+
+export const isCustomerRestricted = (status?: string): boolean => {
+  return status === 'RESTRICT_NEW' || status === 'BLOCKED_ALL' || status === 'BLOCKED';
+};
+
+export const isCustomerTotalBlocked = (status?: string): boolean => {
+  return status === 'BLOCKED_ALL' || status === 'BLOCKED';
+};
+
+export const getCustomerTransactionStatusLabel = (status?: string): { label: string; color: string; badgeClass: string; isBlocked: boolean; isTotal: boolean } => {
+  if (status === 'RESTRICT_NEW') {
+    return { label: '추가계약 금지', color: '#d97706', badgeClass: 'badge-warning', isBlocked: true, isTotal: false };
+  }
+  if (status === 'BLOCKED_ALL' || status === 'BLOCKED') {
+    return { label: '전면 차단 (장비회수)', color: '#dc2626', badgeClass: 'badge-danger', isBlocked: true, isTotal: true };
+  }
+  return { label: '정상 거래', color: '#16a34a', badgeClass: 'badge-success', isBlocked: false, isTotal: false };
+};
+
 export interface Customer {
   id: string;
   name: string;
@@ -761,7 +785,7 @@ export interface Customer {
   bizItem?: string; // 종목 (예: 고소작업대임대, 가설재)
   driveFolderId?: string;
   prepaidBalance?: number; // 선수금 (예치금) 잔액
-  transactionStatus?: 'ALLOWED' | 'BLOCKED'; // ALLOWED: 거래가능 (기본), BLOCKED: 거래불가 (신규 계약/출고 제한)
+  transactionStatus?: CustomerTransactionStatus; // ALLOWED: 정상거래, RESTRICT_NEW: 추가계약금지(기존계약유지), BLOCKED_ALL: 전면차단(장비회수·계약금지)
   defaultBillingDay?: number; // 청구서(세금계산서) 기본 마감일 (예: 30일/월말)
   defaultStatementClosingDay?: number; // 거래명세서 기본 마감일 (예: 25일)
   paymentDueDay?: number; // 결제일 (1~30, 31: 말일)
@@ -1890,8 +1914,10 @@ export interface DelinquencyActionLog {
   id: string;
   customerId: string;
   actionDate: string;
-  actionType: 'CALL' | 'NOTICE_SENT' | 'VISIT' | 'LEGAL' | 'DIRECTIVE';
+  actionType: 'CALL' | 'SMS' | 'VISIT' | 'LEGAL_NOTICE' | 'DEVICE_LOCK' | 'NOTICE_SENT' | 'LEGAL' | 'DIRECTIVE';
   actionDetails: string;
+  content?: string; // Supabase DB NOT NULL 보장 본문
+  blockType?: 'RESTRICT_NEW' | 'BLOCKED_ALL'; // 차단 유형 (추가계약금지 vs 전면차단·장비회수)
   proofFileName?: string;
   recordedBy: string;
   mandateType: 'CEO_AUTO_MANDATE';
@@ -5659,6 +5685,23 @@ class LocalDB {
           sanitized.memo = sanitized.memo ? `${sanitized.memo}\n[현장도로명: ${addr}]` : `[현장도로명: ${addr}]`;
         }
       }
+    }
+    // delinquency_action_logs 테이블 NOT NULL content 및 actionType check constraint 완벽 보정
+    if (tableName === 'delinquency_action_logs') {
+      if (!sanitized.content || String(sanitized.content).trim() === '') {
+        sanitized.content = sanitized.actionDetails || sanitized.actionType || '연체 채권 조치 기록';
+      }
+      // 원격 DB check constraint: ('CALL', 'SMS', 'VISIT', 'LEGAL_NOTICE', 'DEVICE_LOCK')
+      const allowedTypes = ['CALL', 'SMS', 'VISIT', 'LEGAL_NOTICE', 'DEVICE_LOCK'];
+      if (!allowedTypes.includes(sanitized.actionType)) {
+        if (sanitized.actionType === 'LEGAL' || sanitized.actionType === 'LEGAL_ACTION' || sanitized.actionType === 'NOTICE_SENT' || sanitized.actionType === 'DIRECTIVE') {
+          sanitized.actionType = 'LEGAL_NOTICE';
+        } else {
+          sanitized.actionType = 'CALL';
+        }
+      }
+      // 원격 DB 컬럼에 없을 수 있는 blockType 안전 격리
+      delete sanitized.blockType;
     }
     return sanitized;
   }

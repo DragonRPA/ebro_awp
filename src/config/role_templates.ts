@@ -43,9 +43,11 @@ export const ACCOUNTING_TEMPLATE: PermissionRuleMap = {
   acquisition_disposal: { canView: true, canSave: true },
   // 열람만 허용 (영업/자산 상태 대사)
   customer: { canView: true, canSave: false },
+  site_options: { canView: true, canSave: false },
   contract: { canView: true, canSave: false },
   product: { canView: true, canSave: false },
   asset: { canView: true, canSave: false },
+  daily_inout: { canView: true, canSave: false },
   // 소모품 구매 승인 및 입출고/재고 총괄
   consumable_purchase: { canView: true, canSave: true },
   consumable_inout: { canView: true, canSave: true },
@@ -59,6 +61,7 @@ export const ACCOUNTING_TEMPLATE: PermissionRuleMap = {
 export const SALES_TEMPLATE: PermissionRuleMap = {
   ...BASE_COMMON_PERMISSIONS,
   customer: { canView: true, canSave: true },
+  site_options: { canView: true, canSave: true },
   contract: { canView: true, canSave: true },
   smart_dispatch: { canView: true, canSave: true },
   smart_dispatch4: { canView: true, canSave: true },
@@ -66,6 +69,7 @@ export const SALES_TEMPLATE: PermissionRuleMap = {
   smart_as_request: { canView: true, canSave: true },
   receivable: { canView: true, canSave: true }, // 외상미수금 확인 및 독촉
   delinquency: { canView: true, canSave: true }, // 미수 채권 연체 관리
+  daily_inout: { canView: true, canSave: false },
   // 열람만 허용
   billing: { canView: true, canSave: false },
   product: { canView: true, canSave: false },
@@ -83,7 +87,9 @@ export const LOGISTICS_TEMPLATE: PermissionRuleMap = {
   dispatch_assign: { canView: true, canSave: true },
   outbound_inspections: { canView: true, canSave: true },
   asset_inout_history: { canView: true, canSave: true },
+  daily_inout: { canView: true, canSave: true },
   print_queue_monitor: { canView: true, canSave: true },
+  site_options: { canView: true, canSave: false },
   // 열람만 허용
   smart_dispatch4: { canView: true, canSave: false },
   product: { canView: true, canSave: false },
@@ -110,7 +116,9 @@ export const MECHANIC_TEMPLATE: PermissionRuleMap = {
   smart_as_request: { canView: true, canSave: true },
   outbound_inspections: { canView: true, canSave: true },
   asset_inout_history: { canView: true, canSave: true },
+  daily_inout: { canView: true, canSave: false },
   print_queue_monitor: { canView: true, canSave: true },
+  site_options: { canView: true, canSave: false },
   // 열람만 허용
   asset: { canView: true, canSave: false },
   product: { canView: true, canSave: false },

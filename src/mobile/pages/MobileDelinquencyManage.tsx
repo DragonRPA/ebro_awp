@@ -1,7 +1,7 @@
 // src/mobile/pages/MobileDelinquencyManage.tsx
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../../context/AppContext';
-import { db, Todo, DelinquencyActionLog, Customer, Billing, calculatePaymentDueDate, formatPaymentDueCondition } from '../../services/db';
+import { db, Todo, DelinquencyActionLog, Customer, Billing, calculatePaymentDueDate, formatPaymentDueCondition, CustomerTransactionStatus, isCustomerRestricted, isCustomerTotalBlocked } from '../../services/db';
 import { 
   AlertTriangle, Phone, Send, Lock, Unlock, Clock, 
   Calendar, CheckCircle2, ShieldAlert, Plus, X, ChevronRight, Check, Search
@@ -14,7 +14,7 @@ interface CalculatedDelinquency {
   bizRegNo?: string;
   representative?: string;
   repContact?: string;
-  transactionStatus: 'ALLOWED' | 'BLOCKED';
+  transactionStatus: CustomerTransactionStatus;
   salespersonId?: string;
   salespersonName: string;
   totalOverdueAmount: number;
@@ -202,7 +202,7 @@ export const MobileDelinquencyManage: React.FC = () => {
       if (activeFilter === 'HIGH_RISK' && item.riskTier !== 'HIGH') return false;
       if (activeFilter === 'OVERDUE_30' && item.overdueDays < 30) return false;
       if (activeFilter === 'OVERDUE_60' && item.overdueDays < 60) return false;
-      if (activeFilter === 'BLOCKED' && item.transactionStatus !== 'BLOCKED') return false;
+      if (activeFilter === 'BLOCKED' && !isCustomerRestricted(item.transactionStatus)) return false;
       if (activeFilter === 'NEGLECTED' && !(item.hasPendingDirective && item.directiveNeglectedDays >= 3)) return false;
 
       if (searchTerm.trim()) {
@@ -221,7 +221,7 @@ export const MobileDelinquencyManage: React.FC = () => {
   const totalOverdueSum = useMemo(() => calculatedList.reduce((sum, i) => sum + i.totalOverdueAmount, 0), [calculatedList]);
   const highRiskList = useMemo(() => calculatedList.filter(i => i.riskTier === 'HIGH'), [calculatedList]);
   const highRiskAmount = useMemo(() => highRiskList.reduce((sum, i) => sum + i.totalOverdueAmount, 0), [highRiskList]);
-  const blockedCount = useMemo(() => calculatedList.filter(i => i.transactionStatus === 'BLOCKED').length, [calculatedList]);
+  const blockedCount = useMemo(() => calculatedList.filter(i => isCustomerRestricted(i.transactionStatus)).length, [calculatedList]);
   const neglectedCount = useMemo(() => calculatedList.filter(i => i.hasPendingDirective && i.directiveNeglectedDays >= 3).length, [calculatedList]);
 
   const isExecutive = currentUser?.role === 'ADMIN' || currentUser?.role === 'EXECUTIVE';
@@ -234,18 +234,21 @@ export const MobileDelinquencyManage: React.FC = () => {
     }
     const cust = customers.find(c => c.id === item.customerId);
     if (!cust) return;
-    const nextStatus = cust.transactionStatus === 'BLOCKED' ? 'ALLOWED' : 'BLOCKED';
+    const isRestricted = isCustomerRestricted(cust.transactionStatus);
+    const nextStatus = isRestricted ? 'ALLOWED' : 'BLOCKED_ALL';
     try {
       await saveCustomer({ ...cust, transactionStatus: nextStatus });
 
       // 사법 감사 판정 준수: delinquencyActionLogs 영구 불변 기록
+      const memo = nextStatus === 'BLOCKED_ALL'
+        ? '[경영진 직권 처분] 신규 장비 출고 및 배차 전면 금지(BLOCKED_ALL) 조치 발효'
+        : '[경영진 직권 처분] 대금 변제/확약 확인에 따른 출고금지 해제 (정상거래 환원)';
       db.insertRow<DelinquencyActionLog>('delinquencyActionLogs', {
         customerId: cust.id,
         actionDate: new Date().toISOString().slice(0, 10),
-        actionType: nextStatus === 'BLOCKED' ? 'LEGAL' : 'CALL',
-        actionDetails: nextStatus === 'BLOCKED'
-          ? '[경영진 직권 처분] 신규 장비 출고 및 배차 전면 금지(BLOCKED) 조치 발효'
-          : '[경영진 직권 처분] 대금 변제/확약 확인에 따른 출고금지 해제 (정상거래 환원)',
+        actionType: nextStatus === 'BLOCKED_ALL' ? 'LEGAL_NOTICE' : 'CALL',
+        actionDetails: memo,
+        content: memo,
         recordedBy: currentUser?.name || '대표이사',
         mandateType: 'CEO_AUTO_MANDATE',
         createdAt: new Date().toISOString()
@@ -253,7 +256,7 @@ export const MobileDelinquencyManage: React.FC = () => {
 
       await db.awaitPendingWrites();
       await refreshAllData();
-      showToast(`[${cust.name}] 거래처가 '${nextStatus === 'BLOCKED' ? '출고제한' : '정상거래'}'(으)로 처분되었습니다.`);
+      showToast(`[${cust.name}] 거래처가 '${nextStatus === 'BLOCKED_ALL' ? '전면차단' : '정상거래'}'(으)로 처분되었습니다.`);
     } catch (err: any) {
       showErrorModal(`출고제한 상태 변경 실패: ${err?.message || err}`);
     }
@@ -444,7 +447,7 @@ export const MobileDelinquencyManage: React.FC = () => {
           </div>
         ) : (
           filteredList.map(item => {
-            const isBlk = item.transactionStatus === 'BLOCKED';
+            const isBlk = isCustomerRestricted(item.transactionStatus);
             const isHigh = item.riskTier === 'HIGH';
             const repPhone = item.repContact || '';
 
@@ -475,11 +478,15 @@ export const MobileDelinquencyManage: React.FC = () => {
                           주의
                         </span>
                       ) : null}
-                      {isBlk && (
-                        <span className="px-1.5 py-0.5 rounded bg-rose-900 text-rose-200 text-[10px] font-bold whitespace-nowrap flex-shrink-0">
-                          출고제한
+                      {item.transactionStatus === 'RESTRICT_NEW' ? (
+                        <span className="px-1.5 py-0.5 rounded bg-amber-900/60 text-amber-200 text-[10px] font-bold border border-amber-700 whitespace-nowrap flex-shrink-0">
+                          추가금지
                         </span>
-                      )}
+                      ) : isCustomerTotalBlocked(item.transactionStatus) ? (
+                        <span className="px-1.5 py-0.5 rounded bg-rose-900 text-rose-200 text-[10px] font-bold whitespace-nowrap flex-shrink-0">
+                          전면차단
+                        </span>
+                      ) : null}
                     </div>
                     <div className="text-[11px] text-slate-400 font-mono mt-0.5 flex items-center gap-1.5 whitespace-nowrap overflow-hidden text-ellipsis">
                       <span>담당: {item.salespersonName}</span>

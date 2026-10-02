@@ -1,13 +1,14 @@
 // src/pages/DelinquencyPage.tsx
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { db, Todo, DelinquencyActionLog, Customer, Billing, calculatePaymentDueDate, formatPaymentDueCondition } from '../services/db';
+import { db, Todo, DelinquencyActionLog, Customer, Billing, calculatePaymentDueDate, formatPaymentDueCondition, CustomerTransactionStatus, isCustomerRestricted, isCustomerTotalBlocked, getCustomerTransactionStatusLabel } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { 
   AlertTriangle, PhoneCall, Mail, CheckCircle, 
   Clock, Plus, Upload, Trash2, ArrowRight, UserCheck, ShieldAlert,
   Calendar, DollarSign, Award, ThumbsUp, ThumbsDown, Lock, Unlock, Search,
-  Send, AlertCircle, FileText, Check, Printer, FileCheck, Save, Eye, Download
+  Send, AlertCircle, FileText, Check, Printer, FileCheck, Save, Eye, Download,
+  X, ShieldX, Truck, RefreshCw
 } from 'lucide-react';
 
 interface CalculatedDelinquency {
@@ -15,7 +16,7 @@ interface CalculatedDelinquency {
   customerId: string;
   customerName: string;
   bizRegNo?: string;
-  transactionStatus: 'ALLOWED' | 'BLOCKED';
+  transactionStatus: CustomerTransactionStatus;
   responsibleEmployeeId: string;
   responsibleEmployeeName: string;
   totalOverdueAmount: number;
@@ -43,13 +44,20 @@ const QUICK_DIRECTIVE_PRESETS = [
 
 export const DelinquencyPage: React.FC = () => {
   const { 
-    currentUser, hasPermission, billings, customers, users, contracts, 
+    currentUser, hasPermission, billings, customers, users, contracts, contractAssets,
     delinquencyActionLogs, saveDelinquencyAction, updateDelinquencyActionPromise,
     saveCustomer, refreshAllData, showErrorModal, todos,
     legalNoticeLogs, legalNoticeTemplates, saveLegalNoticeLog, saveLegalNoticeTemplate,
-    currentTenant
+    currentTenant, setActiveTab, setNavigationPayload
   } = useApp();
   const canSave = hasPermission('billing', 'save');
+
+  // ─── [거래처 제재 차단 2종 모달 상태] ───
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [blockTargetDel, setBlockTargetDel] = useState<CalculatedDelinquency | null>(null);
+  const [selectedBlockType, setSelectedBlockType] = useState<'RESTRICT_NEW' | 'BLOCKED_ALL'>('RESTRICT_NEW');
+  const [blockReasonMemo, setBlockReasonMemo] = useState('');
+
   // ─── [내용증명 스튜디오 상태] ───
   const isExecutive = currentUser?.role === 'ADMIN' || currentUser?.role === 'EXECUTIVE';
   const [showNoticeModal, setShowNoticeModal] = useState(false);
@@ -86,7 +94,7 @@ export const DelinquencyPage: React.FC = () => {
   // 선택된 연체 고객사
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'OVERDUE_30' | 'OVERDUE_60' | 'BLOCKED' | 'HIGH_RISK' | 'NEGLECTED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'OVERDUE_30' | 'OVERDUE_60' | 'BLOCKED' | 'RESTRICT_NEW' | 'BLOCKED_ALL' | 'HIGH_RISK' | 'NEGLECTED'>('ALL');
 
   const [salesFilter, setSalesFilter] = useState('ALL');
   const [amountRangeFilter, setAmountRangeFilter] = useState('ALL');
@@ -306,7 +314,9 @@ export const DelinquencyPage: React.FC = () => {
       let matchesStatus = true;
       if (statusFilter === 'OVERDUE_30') matchesStatus = d.overdueDays >= 30;
       else if (statusFilter === 'OVERDUE_60') matchesStatus = d.overdueDays >= 60;
-      else if (statusFilter === 'BLOCKED') matchesStatus = d.transactionStatus === 'BLOCKED';
+      else if (statusFilter === 'BLOCKED') matchesStatus = isCustomerRestricted(d.transactionStatus);
+      else if (statusFilter === 'RESTRICT_NEW') matchesStatus = d.transactionStatus === 'RESTRICT_NEW';
+      else if (statusFilter === 'BLOCKED_ALL') matchesStatus = isCustomerTotalBlocked(d.transactionStatus);
       else if (statusFilter === 'HIGH_RISK') matchesStatus = d.riskTier === 'HIGH';
       else if (statusFilter === 'NEGLECTED') matchesStatus = d.directiveNeglectedDays >= 3;
 
@@ -565,31 +575,137 @@ export const DelinquencyPage: React.FC = () => {
     }
   };
 
-  // 거래 차단 / 해제 토글 (경영진 고유 권한 엄격 한정)
-  const handleToggleCustomerBlock = async (del: CalculatedDelinquency) => {
+  // 특정 고객사의 현장 가동 계약 및 투입 장비 현황 산출
+  const getCustomerRentedInfo = (customerId: string) => {
+    const activeContracts = contracts.filter(c => 
+      c.customerId === customerId && 
+      c.status !== 'COMPLETED'
+    );
+    const activeContractIds = new Set(activeContracts.map(c => c.id));
+    const rentedAssets = contractAssets.filter(ca => 
+      activeContractIds.has(ca.contractId) && 
+      ca.status !== 'RETURNED'
+    );
+
+    return {
+      contractCount: activeContracts.length,
+      assetCount: rentedAssets.length,
+      contracts: activeContracts,
+      assets: rentedAssets
+    };
+  };
+
+  // 차단 모달 오픈
+  const handleOpenBlockModal = (del: CalculatedDelinquency, initialType?: 'RESTRICT_NEW' | 'BLOCKED_ALL') => {
     if (!isExecutive) {
-      showToast('신규계약 및 출고금지(BLOCKED) 처분은 경영진 고유 권한입니다.', 'error');
+      showToast('거래처 거래제한(차단) 처분은 경영진 고유 권한입니다.', 'error');
+      return;
+    }
+    const targetType = initialType || (del.transactionStatus === 'RESTRICT_NEW' ? 'RESTRICT_NEW' : 'BLOCKED_ALL');
+    const rented = getCustomerRentedInfo(del.customerId);
+    
+    setBlockTargetDel(del);
+    setSelectedBlockType(targetType);
+    setBlockReasonMemo(
+      targetType === 'RESTRICT_NEW'
+        ? `[경영진 직권 제재] 연체금(₩${del.totalOverdueAmount.toLocaleString()}원, ${del.overdueDays}일 도과) 미변제로 인한 신규 계약 및 추가 출고 금지 조치 (기존 현장 ${rented.assetCount}대 계약 유지)`
+        : `[경영진 직권 전면차단] 심각한 연체금(₩${del.totalOverdueAmount.toLocaleString()}원, ${del.overdueDays}일 도과)으로 인한 전면 거래 금지 및 기존 현장 가동 장비(${rented.assetCount}대) 즉시 전량 회수 명령 발효`
+    );
+    setShowBlockModal(true);
+  };
+
+  // 차단 유형 선택 변경
+  const handleSelectBlockType = (type: 'RESTRICT_NEW' | 'BLOCKED_ALL') => {
+    setSelectedBlockType(type);
+    if (!blockTargetDel) return;
+    const rented = getCustomerRentedInfo(blockTargetDel.customerId);
+    setBlockReasonMemo(
+      type === 'RESTRICT_NEW'
+        ? `[경영진 직권 제재] 연체금(₩${blockTargetDel.totalOverdueAmount.toLocaleString()}원, ${blockTargetDel.overdueDays}일 도과) 미변제로 인한 신규 계약 및 추가 출고 금지 조치 (기존 현장 ${rented.assetCount}대 계약 유지)`
+        : `[경영진 직권 전면차단] 심각한 연체금(₩${blockTargetDel.totalOverdueAmount.toLocaleString()}원, ${blockTargetDel.overdueDays}일 도과)으로 인한 전면 거래 금지 및 기존 현장 가동 장비(${rented.assetCount}대) 즉시 전량 회수 명령 발효`
+    );
+  };
+
+  // 차단 처분 실행 (2대 유형 체계 지원)
+  const handleExecuteBlock = async () => {
+    if (!isExecutive || !blockTargetDel) return;
+    const customer = customers.find(c => c.id === blockTargetDel.customerId);
+    if (!customer) return;
+
+    const rented = getCustomerRentedInfo(blockTargetDel.customerId);
+    const detailsText = blockReasonMemo.trim() || (
+      selectedBlockType === 'RESTRICT_NEW'
+        ? `[경영진 직권 제재] 신규 계약 체결 및 추가 출고 금지 조치 (기존 현장 ${rented.assetCount}대 계약 유지)`
+        : `[경영진 직권 전면차단] 전면 거래 금지 및 현장 가동 장비(${rented.assetCount}대) 즉시 회수 명령`
+    );
+
+    try {
+      // 1. 거래처 상태 업데이트
+      await saveCustomer({
+        ...customer,
+        transactionStatus: selectedBlockType
+      });
+
+      // 2. delinquencyActionLogs 불변 감사 기록 (헌장 1.2 / 원격 DB check constraint 준수)
+      db.insertRow<DelinquencyActionLog>('delinquencyActionLogs', {
+        customerId: customer.id,
+        actionDate: new Date().toISOString().slice(0, 10),
+        actionType: 'LEGAL_NOTICE',
+        actionDetails: detailsText,
+        content: detailsText,
+        blockType: selectedBlockType,
+        recordedBy: currentUser?.name || '경영진',
+        mandateType: 'CEO_AUTO_MANDATE',
+        createdAt: new Date().toISOString()
+      });
+
+      // 3. 전면 차단(BLOCKED_ALL)일 경우 담당 영업사원에게 긴급 장비회수 ToDo 자동 발행
+      if (selectedBlockType === 'BLOCKED_ALL' && blockTargetDel.responsibleEmployeeId) {
+        db.insertRow<Todo>('todos', {
+          type: 'GENERAL',
+          title: `[긴급 장비회수 지시] ${blockTargetDel.customerName} 전면차단 조치`,
+          content: `연체금액: ₩${blockTargetDel.totalOverdueAmount.toLocaleString()}원 (${blockTargetDel.overdueDays}일 도과)\n현장 가동 장비: ${rented.assetCount}대\n지시사항: 거래처 전면 차단 처분이 발효되었습니다. 현장에 투입된 고소작업대 ${rented.assetCount}대를 즉시 전량 회수 조치하고 반납/배차 관리에 회수의뢰를 접수하십시오.`,
+          userId: blockTargetDel.responsibleEmployeeId,
+          relatedEntityId: blockTargetDel.customerId,
+          isCompleted: false,
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      await db.awaitPendingWrites();
+      refreshAllData();
+
+      const typeLabel = selectedBlockType === 'RESTRICT_NEW' ? '추가계약 금지' : '전면 차단(장비회수)';
+      showToast(`[${blockTargetDel.customerName}] 거래처 상태가 [${typeLabel}]로 처분되었습니다.`);
+      setShowBlockModal(false);
+      setBlockTargetDel(null);
+    } catch (err: any) {
+      showErrorModal(`거래처 차단 처분 중 오류:\n${err?.message || err}`);
+    }
+  };
+
+  // 차단 해제 (정상 거래 환원)
+  const handleUnblockCustomer = async (del: CalculatedDelinquency) => {
+    if (!isExecutive) {
+      showToast('거래처 제재 해제는 경영진 고유 권한입니다.', 'error');
       return;
     }
     const customer = customers.find(c => c.id === del.customerId);
     if (!customer) return;
 
-    const nextStatus = del.transactionStatus === 'BLOCKED' ? 'ALLOWED' : 'BLOCKED';
-
     try {
       await saveCustomer({
         ...customer,
-        transactionStatus: nextStatus
+        transactionStatus: 'ALLOWED'
       });
 
-      // delinquencyActionLogs 불변 감사 기록 (헌장 1.2)
+      const memo = '[경영진 직권 처분] 대금 변제/확약 확인에 따른 거래 제재 전면 해제 (정상거래 복원)';
       db.insertRow<DelinquencyActionLog>('delinquencyActionLogs', {
         customerId: customer.id,
         actionDate: new Date().toISOString().slice(0, 10),
-        actionType: nextStatus === 'BLOCKED' ? 'LEGAL' : 'CALL',
-        actionDetails: nextStatus === 'BLOCKED'
-          ? '[경영진 직권 처분] 신규 장비 출고 및 배차 전면 금지(BLOCKED) 조치 발효'
-          : '[경영진 직권 처분] 대금 변제/확약 확인에 따른 출고금지 해제 (정상거래 환원)',
+        actionType: 'CALL',
+        actionDetails: memo,
+        content: memo,
         recordedBy: currentUser?.name || '경영진',
         mandateType: 'CEO_AUTO_MANDATE',
         createdAt: new Date().toISOString()
@@ -597,9 +713,24 @@ export const DelinquencyPage: React.FC = () => {
 
       await db.awaitPendingWrites();
       refreshAllData();
-      showToast(`거래처 상태가 [${nextStatus === 'BLOCKED' ? '거래 불가(BLOCKED)' : '정상 거래(ALLOWED)'}]로 변경되었습니다.`);
+      showToast(`[${del.customerName}] 거래처 제재가 해제되어 정상 거래(ALLOWED)로 복원되었습니다.`);
     } catch (err: any) {
-      showErrorModal(`상태 변경 중 오류:\n${err?.message || err}`);
+      showErrorModal(`차단 해제 중 오류:\n${err?.message || err}`);
+    }
+  };
+
+  // 스마트 회수 관리로 이동
+  const handleNavigateToSmartReturn = (customerId: string, customerName: string) => {
+    if (setNavigationPayload) {
+      setNavigationPayload({
+        customerId,
+        customerName,
+        defaultFilter: customerName
+      });
+    }
+    if (setActiveTab) {
+      setActiveTab('smart_return');
+      showToast(`[${customerName}] 반납/회수 관리 화면으로 이동합니다.`);
     }
   };
 
@@ -777,11 +908,18 @@ export const DelinquencyPage: React.FC = () => {
                 30일 이상
               </button>
               <button 
-                className={statusFilter === 'BLOCKED' ? 'btn-primary' : 'btn-secondary'} 
-                onClick={() => setStatusFilter('BLOCKED')}
-                style={{ fontSize: '11px', padding: '3px 8px', color: 'var(--danger)' }}
+                className={statusFilter === 'RESTRICT_NEW' ? 'btn-primary' : 'btn-secondary'} 
+                onClick={() => setStatusFilter('RESTRICT_NEW')}
+                style={{ fontSize: '11px', padding: '3px 8px', color: '#d97706', fontWeight: statusFilter === 'RESTRICT_NEW' ? 800 : 600 }}
               >
-                거래차단
+                🟡 추가계약금지
+              </button>
+              <button 
+                className={statusFilter === 'BLOCKED_ALL' ? 'btn-primary' : 'btn-secondary'} 
+                onClick={() => setStatusFilter('BLOCKED_ALL')}
+                style={{ fontSize: '11px', padding: '3px 8px', color: 'var(--danger)', fontWeight: statusFilter === 'BLOCKED_ALL' ? 800 : 600 }}
+              >
+                🔴 전면차단
               </button>
               <button
                 type="button"
@@ -860,9 +998,14 @@ export const DelinquencyPage: React.FC = () => {
                         </td>
                         <td style={{ padding: '6px 8px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
                           {del.customerName}
-                          {del.transactionStatus === 'BLOCKED' && (
-                            <span style={{ marginLeft: '6px', padding: '1px 5px', fontSize: '10px', backgroundColor: 'var(--danger-light)', color: 'var(--danger)', borderRadius: '3px', fontWeight: 800 }}>
-                              출고제한
+                          {del.transactionStatus === 'RESTRICT_NEW' && (
+                            <span style={{ marginLeft: '6px', padding: '1px 5px', fontSize: '10px', backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#d97706', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '3px', fontWeight: 800 }}>
+                              추가계약금지
+                            </span>
+                          )}
+                          {(del.transactionStatus === 'BLOCKED_ALL' || del.transactionStatus === 'BLOCKED') && (
+                            <span style={{ marginLeft: '6px', padding: '1px 5px', fontSize: '10px', backgroundColor: 'var(--danger-light)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '3px', fontWeight: 800 }}>
+                              전면차단(회수)
                             </span>
                           )}
                           <span style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block' }}>
@@ -918,18 +1061,47 @@ export const DelinquencyPage: React.FC = () => {
                           )}
                         </td>
                         <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                          <button
-                            type="button"
-                            className="btn-secondary"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleToggleCustomerBlock(del);
-                            }}
-                            title={del.transactionStatus === 'BLOCKED' ? '차단 해제' : '거래 차단'}
-                            style={{ padding: '2px 6px', fontSize: '11px', color: del.transactionStatus === 'BLOCKED' ? 'var(--success)' : 'var(--danger)' }}
-                          >
-                            {del.transactionStatus === 'BLOCKED' ? <Unlock size={12} /> : <Lock size={12} />}
-                          </button>
+                          {isCustomerRestricted(del.transactionStatus) ? (
+                            <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center' }}>
+                              <button
+                                type="button"
+                                className="btn-secondary"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUnblockCustomer(del);
+                                }}
+                                title="제재 해제 (정상거래 복원)"
+                                style={{ padding: '2px 6px', fontSize: '10.5px', color: 'var(--success)', display: 'inline-flex', alignItems: 'center', gap: '2px' }}
+                              >
+                                <Unlock size={11} /> 해제
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-secondary"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenBlockModal(del);
+                                }}
+                                title="차단 유형 변경"
+                                style={{ padding: '2px 5px', fontSize: '10.5px', color: 'var(--text-secondary)' }}
+                              >
+                                변경
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenBlockModal(del);
+                              }}
+                              title="거래 차단 처분"
+                              style={{ padding: '2px 6px', fontSize: '10.5px', color: 'var(--danger)', display: 'inline-flex', alignItems: 'center', gap: '2px' }}
+                            >
+                              <Lock size={11} /> 차단
+                            </button>
+                          )}
                         </td>
                       </tr>
                     );
@@ -949,9 +1121,14 @@ export const DelinquencyPage: React.FC = () => {
               <div>
                 <h3 style={{ fontSize: '15px', fontWeight: '800', margin: '0 0 2px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   {selectedDelinquency.customerName}
-                  {selectedDelinquency.transactionStatus === 'BLOCKED' && (
-                    <span style={{ padding: '1px 6px', fontSize: '11px', backgroundColor: 'var(--danger-light)', color: 'var(--danger)', borderRadius: '4px', fontWeight: 800 }}>
-                      출고제한
+                  {selectedDelinquency.transactionStatus === 'RESTRICT_NEW' && (
+                    <span style={{ padding: '2px 8px', fontSize: '11px', backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#d97706', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '4px', fontWeight: 800 }}>
+                      🟡 추가계약 금지
+                    </span>
+                  )}
+                  {(selectedDelinquency.transactionStatus === 'BLOCKED_ALL' || selectedDelinquency.transactionStatus === 'BLOCKED') && (
+                    <span style={{ padding: '2px 8px', fontSize: '11px', backgroundColor: 'var(--danger-light)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '4px', fontWeight: 800 }}>
+                      🔴 전면 차단 (장비회수)
                     </span>
                   )}
                 </h3>
@@ -965,15 +1142,38 @@ export const DelinquencyPage: React.FC = () => {
               </div>
               <div style={{ display: 'flex', gap: '6px' }}>
                 {isExecutive && (
-                  <button 
-                    type="button" 
-                    className="btn-secondary" 
-                    onClick={() => handleOpenNoticeModal(selectedDelinquency)}
-                    style={{ padding: '4px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', color: '#7e22ce', fontWeight: 700, borderColor: '#d8b4fe', backgroundColor: '#faf5ff' }}
-                    title="경영진 고유권한: 최고장/내용증명 작성 및 인쇄"
-                  >
-                    <FileText size={12} /> 내용증명 작성
-                  </button>
+                  <>
+                    {isCustomerRestricted(selectedDelinquency.transactionStatus) ? (
+                      <button 
+                        type="button" 
+                        className="btn-secondary" 
+                        onClick={() => handleUnblockCustomer(selectedDelinquency)}
+                        style={{ padding: '4px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--success)', fontWeight: 700 }}
+                        title="경영진 고유권한: 제재 해제 및 정상거래 복원"
+                      >
+                        <Unlock size={12} /> 제재 해제
+                      </button>
+                    ) : (
+                      <button 
+                        type="button" 
+                        className="btn-secondary" 
+                        onClick={() => handleOpenBlockModal(selectedDelinquency)}
+                        style={{ padding: '4px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--danger)', fontWeight: 700 }}
+                        title="경영진 고유권한: 거래처 거래차단 처분"
+                      >
+                        <Lock size={12} /> 거래 차단
+                      </button>
+                    )}
+                    <button 
+                      type="button" 
+                      className="btn-secondary" 
+                      onClick={() => handleOpenNoticeModal(selectedDelinquency)}
+                      style={{ padding: '4px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', color: '#7e22ce', fontWeight: 700, borderColor: '#d8b4fe', backgroundColor: '#faf5ff' }}
+                      title="경영진 고유권한: 최고장/내용증명 작성 및 인쇄"
+                    >
+                      <FileText size={12} /> 내용증명 작성
+                    </button>
+                  </>
                 )}
                 <button 
                   type="button" 
@@ -985,6 +1185,57 @@ export const DelinquencyPage: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {/* 전면 차단 시 가동 장비 즉시 회수 경보 및 반납/회수 연동 배너 */}
+            {(() => {
+              const rented = getCustomerRentedInfo(selectedDelinquency.customerId);
+              if (isCustomerTotalBlocked(selectedDelinquency.transactionStatus)) {
+                return (
+                  <div style={{ padding: '10px 14px', borderRadius: '6px', backgroundColor: 'rgba(239, 68, 68, 0.08)', border: '1px solid #ef4444', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#b91c1c', fontWeight: 800, fontSize: '12px' }}>
+                        <AlertTriangle size={15} />
+                        <span>[전면 거래차단 발효] 현장 가동 장비 즉시 전량 회수 대상</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-danger"
+                        onClick={() => handleNavigateToSmartReturn(selectedDelinquency.customerId, selectedDelinquency.customerName)}
+                        style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
+                      >
+                        <Truck size={12} /> 회수 요청 발행 (반납관리) ➔
+                      </button>
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', display: 'flex', gap: '12px' }}>
+                      <span>현재 계약: <strong>{rented.contractCount}건</strong></span>
+                      <span>현장 투입 장비: <strong style={{ color: '#b91c1c' }}>{rented.assetCount}대</strong></span>
+                      <span style={{ color: 'var(--danger)' }}>모든 신규계약 및 추가출고 전면 차단 중</span>
+                    </div>
+                  </div>
+                );
+              }
+              if (selectedDelinquency.transactionStatus === 'RESTRICT_NEW') {
+                return (
+                  <div style={{ padding: '8px 12px', borderRadius: '6px', backgroundColor: 'rgba(245, 158, 11, 0.08)', border: '1px solid #f59e0b', color: '#b45309', fontSize: '11.5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <AlertCircle size={14} />
+                      <span>[추가계약 금지 발효] 기존 현장 가동 장비({rented.assetCount}대)는 정상 유지되며, 신규 계약 및 추가 출고만 차단됩니다.</span>
+                    </div>
+                    {isExecutive && (
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => handleOpenBlockModal(selectedDelinquency, 'BLOCKED_ALL')}
+                        style={{ padding: '2px 8px', fontSize: '11px', color: '#b91c1c', borderColor: '#f87171' }}
+                      >
+                        전면차단(장비회수)으로 격상
+                      </button>
+                    )}
+                  </div>
+                );
+              }
+              return null;
+            })()}
 
             {/* 지시 방치 경보 배너 */}
             {selectedDelinquency.directiveNeglectedDays >= 3 && (
@@ -1493,6 +1744,166 @@ export const DelinquencyPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* ──────────────────────────────────────────────────────────────────────── */}
+      {/* 경영진 직권 거래처 제재/차단 처분 모달 (2대 유형 체계 지원)                  */}
+      {/* ──────────────────────────────────────────────────────────────────────── */}
+      {showBlockModal && blockTargetDel && (() => {
+        const rented = getCustomerRentedInfo(blockTargetDel.customerId);
+        return (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, padding: '16px' }}>
+            <div className="card" style={{ width: '100%', maxWidth: '560px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', margin: 0, padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px', borderRadius: '8px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+              
+              {/* 모달 헤더 */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <ShieldAlert size={18} color="var(--danger)" />
+                  거래처 거래제한(차단) 처분
+                </h3>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setShowBlockModal(false);
+                    setBlockTargetDel(null);
+                  }} 
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', color: 'var(--text-secondary)' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* 대상 정보 요약 */}
+              <div style={{ backgroundColor: 'var(--bg-app)', padding: '10px 12px', borderRadius: '6px', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '4px', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>대상 거래처: <strong>{blockTargetDel.customerName}</strong> ({blockTargetDel.bizRegNo || '사업자번호 미등록'})</span>
+                  <span style={{ color: 'var(--text-muted)' }}>담당: {blockTargetDel.responsibleEmployeeName}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>연체 총액: <strong style={{ color: 'var(--danger)' }}>₩{blockTargetDel.totalOverdueAmount.toLocaleString()}원</strong> ({blockTargetDel.overdueDays}일 도과)</span>
+                  <span>현장 가동 장비: <strong style={{ color: rented.assetCount > 0 ? '#b91c1c' : 'var(--text-main)' }}>{rented.assetCount}대</strong> (계약 {rented.contractCount}건)</span>
+                </div>
+              </div>
+
+              {/* 차단 유형 선택 (2가지 유형) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 800 }}>처분 유형 선택</label>
+                
+                {/* 유형 1: 추가계약 금지 */}
+                <div 
+                  onClick={() => handleSelectBlockType('RESTRICT_NEW')}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '6px',
+                    border: selectedBlockType === 'RESTRICT_NEW' ? '2px solid #f59e0b' : '1px solid var(--border-color)',
+                    backgroundColor: selectedBlockType === 'RESTRICT_NEW' ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-app)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input 
+                        type="radio" 
+                        name="blockType" 
+                        checked={selectedBlockType === 'RESTRICT_NEW'} 
+                        onChange={() => handleSelectBlockType('RESTRICT_NEW')} 
+                      />
+                      <strong style={{ fontSize: '13px', color: '#b45309' }}>[유형 1] 추가계약 금지 (기존계약 유지)</strong>
+                    </div>
+                    <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', backgroundColor: '#fef3c7', color: '#b45309', fontWeight: 800 }}>
+                      기존 현장 가동 지속
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', paddingLeft: '22px', lineHeight: '1.4' }}>
+                    현장에 투입되어 가동 중인 기존 장비({rented.assetCount}대)는 그대로 유지하여 렌탈료를 계속 청구하고, <strong>신규 계약 체결 및 추가 출고요청(배차)만을 전면 차단</strong>합니다.
+                  </div>
+                </div>
+
+                {/* 유형 2: 전면 차단 (장비 회수) */}
+                <div 
+                  onClick={() => handleSelectBlockType('BLOCKED_ALL')}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '6px',
+                    border: selectedBlockType === 'BLOCKED_ALL' ? '2px solid #ef4444' : '1px solid var(--border-color)',
+                    backgroundColor: selectedBlockType === 'BLOCKED_ALL' ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-app)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input 
+                        type="radio" 
+                        name="blockType" 
+                        checked={selectedBlockType === 'BLOCKED_ALL'} 
+                        onChange={() => handleSelectBlockType('BLOCKED_ALL')} 
+                      />
+                      <strong style={{ fontSize: '13px', color: '#b91c1c' }}>[유형 2] 전면 차단 (기존장비 회수 + 전면금지)</strong>
+                    </div>
+                    <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', backgroundColor: '#fee2e2', color: '#b91c1c', fontWeight: 800 }}>
+                      장비 전량 강제 회수
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', paddingLeft: '22px', lineHeight: '1.4' }}>
+                    심각한 연체로 인해 <strong>모든 신규 계약 및 출고를 금지</strong>하고, 현재 현장에 투입된 <strong>기존 가동 장비({rented.assetCount}대)를 즉시 전량 회수 대상으로 지정</strong>하며 담당 영업사원에게 긴급 회수 지시를 발행합니다.
+                  </div>
+                </div>
+              </div>
+
+              {/* 처분 사유 및 조치 메모 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '11.5px', fontWeight: 700 }}>처분 사유 및 조치 상세 (감사 로그 영구 기록)</label>
+                <textarea
+                  value={blockReasonMemo}
+                  onChange={e => setBlockReasonMemo(e.target.value)}
+                  placeholder="차단 처분 사유를 기재해 주십시오..."
+                  rows={3}
+                  style={{ width: '100%', padding: '8px', fontSize: '12px', borderRadius: '5px', border: '1px solid var(--border-color)', resize: 'vertical' }}
+                />
+              </div>
+
+              {/* 하단 버튼 */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  {selectedBlockType === 'BLOCKED_ALL' ? '⚠️ 실행 시 영업사원에게 긴급 회수 ToDo가 자동 발행됩니다.' : '💡 기존 계약은 현장에서 계속 정상 청구됩니다.'}
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    type="button" 
+                    className="btn-secondary" 
+                    onClick={() => {
+                      setShowBlockModal(false);
+                      setBlockTargetDel(null);
+                    }} 
+                    style={{ padding: '6px 14px', fontSize: '12px' }}
+                  >
+                    취소
+                  </button>
+                  <button 
+                    type="button" 
+                    className={selectedBlockType === 'BLOCKED_ALL' ? 'btn-danger' : 'btn-primary'}
+                    onClick={handleExecuteBlock} 
+                    style={{ 
+                      padding: '6px 16px', 
+                      fontSize: '12px',
+                      backgroundColor: selectedBlockType === 'RESTRICT_NEW' ? '#d97706' : undefined,
+                      borderColor: selectedBlockType === 'RESTRICT_NEW' ? '#d97706' : undefined
+                    }}
+                  >
+                    {selectedBlockType === 'RESTRICT_NEW' ? '추가계약 금지 처분 실행' : '전면 차단 및 회수명령 실행'}
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );

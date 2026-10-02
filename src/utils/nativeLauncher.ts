@@ -495,4 +495,239 @@ export async function launchDispatchSms(options: {
     return false;
   }
 }
+/**
+ * 💬 날짜 포맷팅 헬퍼 (MM월 DD일(요일))
+ */
+export function formatKakaoDate(dateStr?: string): { formatted: string; monthDay: string; dayOfWeek: string } {
+  if (!dateStr) return { formatted: '', monthDay: '', dayOfWeek: '' };
+  const clean = dateStr.slice(0, 10);
+  const parts = clean.split('-');
+  if (parts.length === 3) {
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const d = parseInt(parts[2], 10);
+    const dt = new Date(y, m - 1, d);
+    const days = ['일', '월', '화', '수', '목', '금', '토'];
+    const dow = days[dt.getDay()] || '월';
+    const mm = String(m).padStart(2, '0');
+    const dd = String(d).padStart(2, '0');
+    return {
+      formatted: `${mm}월 ${dd}일(${dow})`,
+      monthDay: `${mm}월 ${dd}일`,
+      dayOfWeek: `(${dow})`
+    };
+  }
+  return { formatted: dateStr, monthDay: dateStr, dayOfWeek: '' };
+}
+
+/**
+ * 💬 차량 톤수 포맷팅 헬퍼 ((5톤), (8.5톤))
+ */
+export function formatVehicleTon(vehicleType?: string): string {
+  if (!vehicleType) return '(5톤)';
+  let clean = vehicleType.trim();
+  if (clean.endsWith('T') || clean.endsWith('t')) {
+    clean = clean.slice(0, -1) + '톤';
+  } else if (!clean.endsWith('톤') && !isNaN(Number(clean))) {
+    clean = clean + '톤';
+  }
+  return `(${clean})`;
+}
+
+/**
+ * 💬 시간 문자열 포맷팅 헬퍼
+ */
+export function formatKakaoTimeSlot(timeSlot?: string, defaultPrefix = '오전'): string {
+  if (!timeSlot || timeSlot === 'NONE' || timeSlot === '시간미정') return '시간협의';
+  let t = timeSlot.trim();
+  t = t.replace(/(상차|하차)$/, '').trim();
+  return t || defaultPrefix;
+}
+
+/**
+ * 💬 카카오톡 배차 안내 메시지 생성 파라미터
+ */
+export interface DispatchKakaoParams {
+  delivery: {
+    id?: string;
+    type?: string;
+    dispatchCategory?: string;
+    loadingDate?: string;
+    loadingTimeSlot?: string;
+    unloadingDate?: string;
+    unloadingTimeSlot?: string;
+    scheduledDate?: string;
+    requestDate?: string;
+    originAddress?: string;
+    destinationAddress?: string;
+    vehicleNo?: string;
+    vehicleType?: string;
+    driverName?: string;
+    driverContact?: string;
+    deliveryCost?: number;
+    finalCost?: number;
+    cargoItems?: string;
+    memo?: string;
+    closingMemo?: string;
+  };
+  siteName?: string;
+  siteAddress?: string;
+  siteContactName?: string;
+  siteContactPhone?: string;
+  siteContactPosition?: string;
+  customerName?: string;
+  companyName?: string;
+  hqYardAddress?: string;
+  hqYardPhone?: string;
+  hqYardContactPerson?: string;
+  cargoFormattedString?: string;
+  isSelfCar?: boolean;
+}
+
+/**
+ * 💬 영업사원 및 화물기사용 카카오톡 배차 안내 전문 조립기 (유형별 단일 표준 양식)
+ */
+export function buildDispatchKakaoTalkText(params: DispatchKakaoParams): string {
+  const { delivery } = params;
+
+  // 1. 기본 주기장 및 당사 담당자 정보
+  const defaultYard = db.currentTenant?.yards?.find(y => y.isDefault) || db.currentTenant?.yards?.[0];
+  const defaultYardAddress = defaultYard?.address || db.currentTenant?.mainYardAddress || db.currentTenant?.businessAddress || '경기 용인시 처인구 모현읍 갈담리 176-1';
+  const defaultYardContact = params.hqYardContactPerson || '김원진부장 010-5403-0117';
+
+  const hqAddress = params.hqYardAddress || defaultYardAddress;
+  const hqContact = params.hqYardPhone 
+    ? (params.hqYardContactPerson ? `${params.hqYardContactPerson} ${params.hqYardPhone}` : params.hqYardPhone) 
+    : defaultYardContact;
+
+  // 2. 배차 유형 판정 (출고 / 반납 / 교환)
+  const rawType = (delivery.type || '').toUpperCase();
+  const rawCat = (delivery.dispatchCategory || '').trim();
+
+  const isExchange = rawType === 'EXCHANGE' || rawCat === '교환';
+  const isReturn = rawType === 'RETURN' || rawType === 'INBOUND' || rawCat === '반납' || rawCat === '입고' || rawCat === '회수';
+
+  // 3. 날짜 & 요일 포맷팅
+  const baseLoadingDateStr = delivery.loadingDate || delivery.scheduledDate || delivery.requestDate || new Date().toISOString().slice(0, 10);
+  const loadingDateInfo = formatKakaoDate(baseLoadingDateStr);
+
+  const baseUnloadingDateStr = delivery.unloadingDate || baseLoadingDateStr;
+  const unloadingDateInfo = formatKakaoDate(baseUnloadingDateStr);
+
+  // 4. 셀프카 여부 판정
+  const vType = (delivery.vehicleType || '').trim();
+  const memoText = [delivery.memo, delivery.closingMemo, delivery.cargoItems].filter(Boolean).join(' ');
+  const isSelfCar = params.isSelfCar || vType.includes('셀프') || memoText.includes('셀프');
+
+  // 5. 차량 톤수 포맷
+  const vehicleTon = formatVehicleTon(vType);
+
+  // 6. 상차시간 & 하차시간 포맷
+  const loadingTimeFormatted = formatKakaoTimeSlot(delivery.loadingTimeSlot, '오전');
+  const unloadingTimeFormatted = formatKakaoTimeSlot(delivery.unloadingTimeSlot, '오후');
+
+  // 7. 장비종류 포맷 (예: GS3246*1 / GS2646*1 / GS1930*2 또는 0808E*4)
+  let cargoStr = params.cargoFormattedString;
+  if (!cargoStr && delivery.cargoItems) {
+    try {
+      if (typeof delivery.cargoItems === 'string' && delivery.cargoItems.startsWith('[')) {
+        const parsed = JSON.parse(delivery.cargoItems);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          cargoStr = parsed.map((p: any) => `${p.modelName || '장비'}*${p.count || 1}`).join(' / ');
+        }
+      }
+    } catch {}
+  }
+  if (!cargoStr) {
+    cargoStr = delivery.cargoItems || '고소작업대*1';
+  }
+
+  // 8. 고객사 및 현장 정보
+  const customerName = params.customerName || '고객사';
+  const siteName = params.siteName || '현장';
+  const siteAddress = params.siteAddress || delivery.destinationAddress || '현장 주소 확인요망';
+
+  // 현장 담당자 (이름 + 직함 + 연락처 결합)
+  const contactParts: string[] = [];
+  if (params.siteContactName) contactParts.push(params.siteContactName);
+  if (params.siteContactPosition && !params.siteContactName?.includes(params.siteContactPosition)) {
+    contactParts.push(params.siteContactPosition);
+  }
+  if (params.siteContactPhone) contactParts.push(params.siteContactPhone);
+  const siteContactFull = contactParts.join(' ') || '현장담당자 확인요망';
+
+  const lines: string[] = [];
+
+  // ───────────────────────────────────────────────
+  // 헤더: 날짜 + (셀프카) + 차량톤수
+  // ───────────────────────────────────────────────
+  lines.push(`날짜:${loadingDateInfo.formatted}`);
+  lines.push(``);
+
+  if (isSelfCar) {
+    lines.push(`셀프카`);
+    lines.push(``);
+  }
+
+  lines.push(`차량톤수:${vehicleTon}`);
+
+  // ───────────────────────────────────────────────
+  // 본문: 유형별 분기
+  // ───────────────────────────────────────────────
+  if (isReturn) {
+    // ═══════════════════════════════════════════════
+    // [유형 1: 반납/회수 배차] (현장 상차 -> 당사 주기장 하차)
+    // ═══════════════════════════════════════════════
+    lines.push(``);
+    lines.push(`상차시간 : ${loadingTimeFormatted} 상차`);
+    lines.push(`업체명 : ${customerName}`);
+    lines.push(`현장명 : ${siteName}`);
+    lines.push(`상차지 : ${delivery.originAddress || siteAddress}`);
+    lines.push(`담당자 : ${siteContactFull}`);
+    lines.push(`장비종류 : ${cargoStr}`);
+    lines.push(``);
+    lines.push(`하차시간 : ${unloadingDateInfo.formatted} ${unloadingTimeFormatted} 하차`);
+    lines.push(`하차지: ${delivery.destinationAddress || hqAddress}`);
+    lines.push(`담당자: ${hqContact}`);
+
+  } else if (isExchange) {
+    // ═══════════════════════════════════════════════
+    // [유형 3: 교환 배차] (당사 출고 상차 -> 현장 맞교환 -> 당사 회수 입고)
+    // ═══════════════════════════════════════════════
+    lines.push(``);
+    lines.push(`[교환배차]`);
+    lines.push(`상차시간 : ${loadingTimeFormatted} 상차`);
+    lines.push(`상차지 : ${delivery.originAddress || hqAddress}`);
+    lines.push(`담당자 : ${hqContact}`);
+    lines.push(`출고장비 : ${cargoStr}`);
+    lines.push(``);
+    lines.push(`하차시간 : ${unloadingDateInfo.formatted} ${unloadingTimeFormatted} 하차`);
+    lines.push(`현장명 : ${siteName}`);
+    lines.push(`현장 상세 : ${siteAddress}`);
+    lines.push(`업체명 : ${customerName}`);
+    lines.push(`담당자 : ${siteContactFull}`);
+    lines.push(`회수장비 : ${cargoStr} (회수)`);
+    lines.push(``);
+    lines.push(`하차지: ${delivery.destinationAddress || hqAddress}`);
+    lines.push(`담당자: ${hqContact}`);
+
+  } else {
+    // ═══════════════════════════════════════════════
+    // [유형 2: 출고 배차 (기본)] (당사 상차 -> 고객 현장 하차)
+    // ═══════════════════════════════════════════════
+    lines.push(`상차시간 : ${loadingTimeFormatted} 상차`);
+    lines.push(`상차지: ${delivery.originAddress || hqAddress}`);
+    lines.push(`담당자: ${hqContact}`);
+    lines.push(`장비종류 : ${cargoStr}`);
+    lines.push(``);
+    lines.push(`하차시간 : ${unloadingDateInfo.formatted} ${unloadingTimeFormatted} 하차`);
+    lines.push(`현장명 : ${siteName}`);
+    lines.push(`현장 상세 : ${delivery.destinationAddress || siteAddress}`);
+    lines.push(`업체명 : ${customerName}`);
+    lines.push(`담당자 : ${siteContactFull}`);
+  }
+
+  return lines.join('\n');
+}
+
 

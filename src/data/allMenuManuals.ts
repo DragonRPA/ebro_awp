@@ -573,6 +573,122 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ]
   },
   {
+    menuId: 'site_options',
+    version: 1,
+    menuName: '현장별 옵션 관리',
+    groupId: 'grp_sales',
+    groupName: '영업관리',
+    department: '영업부 / 출고부',
+    archetype: '유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)',
+    objective: '고소작업대 렌탈 현장별 유상옵션, 보양작업, 요구사양을 옵션품목마스터로부터 100% 자동 상속받고 현장 특약 단가를 오버라이드하여 계약/출고/배차 파이프라인과 완벽 연동',
+    scopeInfo: '고객사 필터, 현장 검색어, 선택된 현장, 옵션품목마스터(StandardOption) 품목군(유상/보양/사양), 현장 특약단가, 필수 장착 여부, 현장 메모',
+    cognitiveSequence: [
+      '1. 좌상단 고객사 필터 및 현장 검색창을 통해 대상 현장 스코핑',
+      '2. 좌측 등록 현장 목록에서 옵션을 설정할 특정 현장 선택',
+      '3. 우측 상속 작업대 상단에서 [마스터 초기화] 또는 [고객사 기본값 상속] 클릭으로 1클릭 상속 실행',
+      '4. 중앙 1. 유상 옵션 그리드에서 적용할 옵션 체크박스 활성화 및 현장 특약단가(₩) 오버라이드 입력',
+      '5. 2. 보양 작업 카드에서 해당 현장 환경에 부합하는 보양 규격 1종 선택',
+      '6. 3. 현장 요구 사양에서 안전인증, 경광등, 센서 연동 등 필수 점검 항목 체크',
+      '7. 우하단 요약 바에서 적용 유상옵션 건수, 선택된 보양작업, 월 유상옵션 총액 합계 검증',
+      '8. 우하단 [현장 옵션 설정 저장] 버튼을 클릭하여 CustomerSite DB에 100% 동기화 저장 완료'
+    ],
+    auditResult: '총 옵션 항목수 = 활성 옵션수 + 비활성 옵션수 | 월 유상옵션 총액 = Σ(활성 유상옵션별 현장 특약단가)',
+    rulesCompliance: [
+      '헌장 1.1: 임직원 최소 노력으로 마스터 옵션을 1클릭 상속받아 현장 옵션값을 즉시 구축하는 최대 편익 달성',
+      '헌장 2.2: 옵션품목마스터 기준단가 및 고객사 기본 옵션 속성 100% 자동 상속 원칙 완결',
+      '헌장 3.1: 감성적 수식어 배제 및 건조한 명사·동사 UI 단일 표준 준수',
+      '헌장 3.2: 테이블 셀 white-space: nowrap 적용으로 줄바꿈 방지',
+      '헌장 3.5: 좌측 현장 스코프 ➔ 우측 상속 작업대 ➔ 우하단 월 옵션 총액 및 최종 저장 4단계 Gutenberg Z-패턴 동선 확립'
+    ],
+    precautions: [
+      '현장별 옵션은 반드시 옵션품목마스터(StandardOption)의 품목 체계를 상속받아 구성되어야 합니다.',
+      '현장에서 특약 단가를 변경한 경우 계약서 및 견적서 옵션 청구 항목에 해당 특약 단가가 우선 적용됩니다.',
+      '보양작업은 현장별 1종 선택(라디오)이 원칙이며, 미선택 시 기본 상속 처리됩니다.'
+    ],
+    annotations: [
+      {
+        seq: 1,
+        selector: '[data-mid="filter-panel"]',
+        type: 'stamp',
+        label: '조회 조건 패널 (Scope)',
+        description: '고객사 필터 및 현장 검색창을 통해 대상 현장을 스코핑합니다.',
+        badgeColor: '#1D4ED8',
+        positionHint: 'bottom',
+        spotlight: false
+      },
+      {
+        seq: 2,
+        selector: '[data-mid="tab-toggle"]',
+        type: 'stamp',
+        label: '탭 전환 (Tab Toggle)',
+        description: '현장별 옵션 관리 작업대와 옵션 품목 마스터 간 화면을 전환합니다.',
+        badgeColor: '#1D4ED8',
+        positionHint: 'bottom',
+        spotlight: false
+      },
+      {
+        seq: 3,
+        selector: '[data-mid="panel-site-scope"]',
+        type: 'stamp',
+        label: '현장 선택 (Site Scope)',
+        description: '옵션을 설정할 고객 현장을 목록에서 클릭 선택합니다.',
+        badgeColor: '#1D4ED8',
+        positionHint: 'right',
+        spotlight: true
+      },
+      {
+        seq: 4,
+        selector: '[data-mid="btn-inherit-master"]',
+        type: 'stamp',
+        label: '마스터 상속 (Inherit Master)',
+        description: '옵션품목마스터의 모든 표준 품목 및 기준단가를 1클릭 상속받습니다.',
+        badgeColor: '#10B981',
+        positionHint: 'bottom',
+        spotlight: false
+      },
+      {
+        seq: 5,
+        selector: '[data-mid="table-paid-options"]',
+        type: 'stamp',
+        label: '유상 옵션 (Paid Options)',
+        description: '현장에 투입될 유상옵션 적용 여부와 현장 특약단가를 인라인 입력합니다.',
+        badgeColor: '#2563EB',
+        positionHint: 'top',
+        spotlight: false
+      },
+      {
+        seq: 6,
+        selector: '[data-mid="card-protection-options"]',
+        type: 'stamp',
+        label: '보양 작업 (Protection)',
+        description: '현장 환경에 부합하는 보호 완충/함석 보양 규격을 1종 선택합니다.',
+        badgeColor: '#059669',
+        positionHint: 'top',
+        spotlight: false
+      },
+      {
+        seq: 7,
+        selector: '[data-mid="summary-monthly-fee"]',
+        type: 'stamp',
+        label: '월 옵션 총액 (Summary)',
+        description: '적용 유상옵션 건수, 보양작업 및 월 청구 옵션 총액을 검증합니다.',
+        badgeColor: '#1D4ED8',
+        positionHint: 'top',
+        spotlight: false
+      },
+      {
+        seq: 8,
+        selector: '[data-mid="btn-save-site-options"]',
+        type: 'stamp',
+        label: '설정 저장 (Terminal Action)',
+        description: '작업대에서 구성한 옵션값을 해당 현장의 DB 레코드에 최종 저장합니다.',
+        badgeColor: '#1D4ED8',
+        positionHint: 'top',
+        spotlight: true
+      }
+    ]
+  },
+  {
     menuId: 'contract',
     version: 5,
     menuName: '계약 관리',
@@ -2911,6 +3027,122 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
 
   // ─── 5. 입출고관리 (grp_inout) ────────────────────────────
+  {
+    menuId: 'daily_inout',
+    version: 1,
+    menuName: '일일 입출고 조회',
+    groupId: 'grp_inout',
+    groupName: '입출고관리',
+    department: '출고팀 / 주기장팀',
+    archetype: '유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)',
+    objective: '고소작업대 렌탈 현장의 매일 발생하는 장비 출고와 입고 현황을 일자별·기종별로 파악하고 주기장 실물 재고의 순유입/유출 추이를 직관적으로 모니터링',
+    scopeInfo: '조회 기준 연월, 입출 구분(입고/출고), 진행 상태(실적/배차예정), 모델명(기종), 거래처 및 현장 정보',
+    cognitiveSequence: [
+      '1. 좌상단 조회 연월(이전달/다음달/오늘) 및 입출구분/진행상태/모델 필터 설정',
+      '2. 우상단 뷰 모드(캘린더 형태 / 표 형태) 선택 및 필요 시 엑셀 내보내기 실행',
+      '3. 중앙 캘린더 그리드에서 일자별 입고(청색) 및 출고(적색) 수량과 기종별 표기(모델명 * 수량) 조망',
+      '4. 일자 셀 상단 순유동 배지(순유입/순유출)를 통한 당일 주기장 재고 변동 확인',
+      '5. 특정 일자 클릭 시 하단 상세 도시에 패널에서 건별 거래처, 현장, 자산번호, 배차상태 실사',
+      '6. 표 형태 보기 전환 시 슬림 고밀도 행 기반 1:1 대사 그리드에서 전수 목록 확인',
+      '7. 최하단 대차대조 집계 바에서 당월 총 입고, 총 출고 및 주기장 실물 순유동 대차 차액 검증'
+    ],
+    auditResult: '당월 총 입고 대수 = 실적 입고 + 배차예정 입고 | 당월 총 출고 대수 = 실적 출고 + 배차예정 출고 | 주기장 순유동 = 총 입고 - 총 출고',
+    rulesCompliance: [
+      '헌장 1.1: 임직원 최소 조작으로 월간/일간 입출고 현황을 한눈에 파악하는 최대 편익 창출',
+      '헌장 1.2: assetInOutLogs 실적 및 deliveries 배차예정 이벤트 무누락 DB 추적',
+      '헌장 3.1: 감성적 수식어 배제 및 건조한 명사·동사 UI 단일 표준 준수',
+      '헌장 3.2: 캘린더 칩 및 테이블 셀 white-space: nowrap 적용으로 줄바꿈 방지',
+      '헌장 3.4: 필터 패널 레이블-입력 상하 스택(vertical column) 레이아웃 준수',
+      '헌장 3.5: 좌상단 스코프 ➔ 우상단 파이프라인 ➔ 중앙 본문 ➔ 우하단 대차대조 4단계 Gutenberg Z-패턴 동선 확립'
+    ],
+    precautions: [
+      '출고 및 입고 수량은 단일 표준 표기인 [모델명 * 수량] 규칙을 준수해야 합니다.',
+      '배차 진행 상태가 DELIVERED(운송완료)인 건은 입출고 실적과 중복 집계되지 않도록 소스가 투명하게 구분되어야 합니다.',
+      '교환(EXCHANGE) 배차의 경우 상차일은 출고, 하차일은 입고로 1:1 분기 집계됩니다.'
+    ],
+    annotations: [
+      {
+        seq: 1,
+        selector: '[data-mid="filter-panel"]',
+        type: 'stamp',
+        label: '조회 조건 패널 (Scope)',
+        description: '조회 연월 이동 및 입출구분, 진행상태, 모델 필터를 설정합니다.',
+        badgeColor: '#1D4ED8',
+        positionHint: 'bottom',
+        spotlight: false
+      },
+      {
+        seq: 2,
+        selector: '[data-mid="view-mode-toggle"]',
+        type: 'stamp',
+        label: '보기 전환 (View Mode)',
+        description: '캘린더 형태 보기와 고밀도 표 형태 보기 간 전환합니다.',
+        badgeColor: '#1D4ED8',
+        positionHint: 'bottom',
+        spotlight: false
+      },
+      {
+        seq: 3,
+        selector: '[data-mid="btn-export-excel"]',
+        type: 'stamp',
+        label: '엑셀 내보내기 (Export)',
+        description: '조회 조건에 부합하는 일일 입출고 대장을 엑셀 파일로 다운로드합니다.',
+        badgeColor: '#10B981',
+        positionHint: 'bottom',
+        spotlight: false
+      },
+      {
+        seq: 4,
+        selector: '[data-mid="calendar-grid-card"]',
+        type: 'stamp',
+        label: '월간 캘린더 (Calendar Grid)',
+        description: '월간 7열 달력 상에서 일자별 입고/출고 칩과 순유동을 확인합니다.',
+        badgeColor: '#1D4ED8',
+        positionHint: 'bottom',
+        spotlight: false
+      },
+      {
+        seq: 5,
+        selector: '[data-mid="chip-inbound"]',
+        type: 'stamp',
+        label: '입고 칩 (Inbound)',
+        description: '청색 계열 입고 칩에서 일일 입고 총수량 및 모델별 수량을 확인합니다.',
+        badgeColor: '#2563EB',
+        positionHint: 'bottom',
+        spotlight: false
+      },
+      {
+        seq: 6,
+        selector: '[data-mid="chip-outbound"]',
+        type: 'stamp',
+        label: '출고 칩 (Outbound)',
+        description: '적색 계열 출고 칩에서 일일 출고 총수량 및 모델별 수량을 확인합니다.',
+        badgeColor: '#DC2626',
+        positionHint: 'bottom',
+        spotlight: false
+      },
+      {
+        seq: 7,
+        selector: '[data-mid="daily-detail-panel"]',
+        type: 'stamp',
+        label: '일자 상세 내역 (Detail)',
+        description: '선택된 일자의 입고/출고 건별 거래처, 현장, 자산번호, 배차상태를 실사합니다.',
+        badgeColor: '#1D4ED8',
+        positionHint: 'top',
+        spotlight: false
+      },
+      {
+        seq: 8,
+        selector: '[data-mid="audit-summary-bar"]',
+        type: 'stamp',
+        label: '대차대조 집계 바 (Audit Summary)',
+        description: '당월 총 입고, 총 출고 및 주기장 실물 순유동 대차 차액을 최종 검증합니다.',
+        badgeColor: '#1D4ED8',
+        positionHint: 'top',
+        spotlight: false
+      }
+    ]
+  },
   {
     menuId: 'asset_inout_history',
     version: 5,

@@ -1,5 +1,5 @@
 // d:\Giyeun_Lift\src\App.tsx
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useApp } from './context/AppContext';
 import {
   LayoutDashboard, Users, UserCheck, Package, Layers, PlusCircle,
@@ -7,7 +7,7 @@ import {
   TrendingUp, Clock, AlertTriangle, Building2, ChevronDown, ChevronRight, Briefcase, Box, FolderKanban, ShieldAlert, Terminal, ArrowLeftRight, CheckSquare,
   Smartphone, Monitor, Car, FileText, Search, Printer, PackagePlus, Boxes, Calendar, Camera, BookOpen,
   FileCheck, ShieldCheck, Bot
-, CheckCircle, Settings as SettingsIcon } from 'lucide-react';
+, CheckCircle, Settings as SettingsIcon, SlidersHorizontal } from 'lucide-react';
 
 import { WeatherWidget } from './components/WeatherWidget';
 import ApprovalRulesManage from './pages/ApprovalRulesManage';
@@ -22,6 +22,8 @@ import { AgenticAssetLifecyclePage } from './pages/AgenticAssetLifecyclePage';
 import { markErpReady, markErpStatus } from './services/appReadySignal';
 import { DemoModeBanner } from './components/DemoModeBanner';
 import { isDemoMode, enterDemoMode } from './services/demoMode';
+import { SidebarCustomizationModal } from './components/SidebarCustomizationModal';
+import { useMenuPreferences } from './hooks/useMenuPreferences';
 
 // 페이지 컴포넌트 임포트 (SSOT 언더바 파일명 통일)
 import { Dashboard } from './pages/Dashboard';
@@ -68,6 +70,8 @@ import { CashFlowPage } from './pages/CashFlowPage';
 import { DelinquencyPage } from './pages/DelinquencyPage';
 import { OutboundInspections } from './pages/outbound_inspections';
 import { DepreciationExecution } from './pages/depreciation_execution';
+import { DailyInOutStatus } from './pages/DailyInOutStatus';
+import { SiteOptionManage } from './pages/SiteOptionManage';
 
 import { RegularReportsPage } from './pages/RegularReportsPage';
 import { GoogleConfig } from './pages/GoogleConfig';
@@ -459,6 +463,7 @@ const App: React.FC = () => {
       icon: <Briefcase size={17} />,
       items: [
         { id: 'customer', name: '고객 관리', icon: <Users size={16} />, component: <Customers /> },
+        { id: 'site_options', name: '현장별 옵션 관리', icon: <SlidersHorizontal size={16} />, component: <SiteOptionManage /> },
         { id: 'contract', name: '계약 관리', icon: <UserCheck size={16} />, component: <Contracts /> },
         { id: 'billing', name: '청구 / 수납 관리', icon: <CreditCard size={16} />, component: <Billings /> },
         { id: 'receivable', name: '외상미수금 대장', icon: <CreditCard size={16} />, component: <Receivables /> },
@@ -493,6 +498,7 @@ const App: React.FC = () => {
       name: '입출고관리',
       icon: <ArrowLeftRight size={17} />,
       items: [
+        { id: 'daily_inout', name: '일일 입출고 조회', icon: <Calendar size={16} />, component: <DailyInOutStatus /> },
         { id: 'asset_inout_history', name: '자산 입출고', icon: <Clock size={16} />, component: <AssetHistory /> },
         { id: 'dispatch_assign', name: '장비 할당 / 매핑', icon: <Layers size={16} />, component: <AssetAssignment /> },
         { id: 'outbound_inspections', name: '출고 검수 관리', icon: <CheckSquare size={16} />, component: <OutboundInspections /> },
@@ -673,9 +679,50 @@ const App: React.FC = () => {
       }
     } else if (e.key === 'Escape') {
       setMenuSearchOpen(false);
-      setMenuSearchQuery('');
     }
   };
+
+  // ── 🎨 좌측 메뉴 패널 개인화 상태 및 훅 ──
+  const [showSidebarCustomModal, setShowSidebarCustomModal] = useState(false);
+  const {
+    preferences: menuPreferences,
+    toggleVisibility: toggleMenuVisibility,
+    setMenuColor,
+    moveItemUp: moveMenuItemUp,
+    moveItemDown: moveMenuItemDown,
+    resetToDefault: resetMenuPreferences,
+    getColorPreset
+  } = useMenuPreferences(currentUser?.id || currentUser?.loginId);
+
+  const menuPrefs = useMemo(() => {
+    return menuPreferences?.items || {};
+  }, [menuPreferences]);
+
+  // 권한이 있는 메뉴만 추출하여 모달에 전달
+  const customizationGroups = useMemo(() => {
+    return menuGroups
+      .map(grp => {
+        const permitted = grp.items.filter(item => hasPermission(item.id, 'view'));
+        const sorted = [...permitted].sort((a, b) => {
+          const orderA = menuPrefs[a.id]?.order ?? 999;
+          const orderB = menuPrefs[b.id]?.order ?? 999;
+          return orderA - orderB;
+        });
+        return {
+          id: grp.id,
+          name: grp.name,
+          icon: grp.icon,
+          items: sorted.map(item => ({
+            id: item.id,
+            name: item.name,
+            icon: item.icon,
+            groupId: grp.id,
+            groupName: grp.name
+          }))
+        };
+      })
+      .filter(grp => grp.items.length > 0);
+  }, [menuGroups, hasPermission, menuPrefs]);
 
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     grp_sales: true,
@@ -1426,10 +1473,21 @@ const App: React.FC = () => {
             </button>
           )}
 
-          {/* 계층형 접이식 상위-하위 아코디언 그룹 메뉴 */}
+          {/* 계층형 접이식 상위-하위 아코디언 그룹 메뉴 (개인화 순서, 노출 여부, 색상 연동) */}
           {menuGroups.map(grp => {
-            // 권한이 있는 하위 메뉴가 1개 이상 존재하는지 확인
-            const visibleItems = grp.items.filter(item => hasPermission(item.id, 'view'));
+            // 1. 사용자가 권한을 가진 하위 메뉴 필터링 (권한 연동 100%)
+            const permittedItems = grp.items.filter(item => hasPermission(item.id, 'view'));
+            if (permittedItems.length === 0) return null;
+
+            // 2. 개인화 순서(order)에 따라 정렬
+            const sortedItems = [...permittedItems].sort((a, b) => {
+              const orderA = menuPrefs[a.id]?.order ?? 999;
+              const orderB = menuPrefs[b.id]?.order ?? 999;
+              return orderA - orderB;
+            });
+
+            // 3. 사용자가 숨김(visible: false) 처리한 메뉴 제외
+            const visibleItems = sortedItems.filter(item => menuPrefs[item.id]?.visible !== false);
             if (visibleItems.length === 0) return null;
 
             const isExpanded = expandedGroups[grp.id] !== false;
@@ -1445,7 +1503,7 @@ const App: React.FC = () => {
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     width: '100%',
-                    padding: '8px 10px', // 상위 아이콘 시작 X = 10px, 텍스트 시작 X = 38px
+                    padding: '8px 10px',
                     borderRadius: 'var(--radius-sm)',
                     border: 'none',
                     backgroundColor: hasActiveChild ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
@@ -1479,6 +1537,21 @@ const App: React.FC = () => {
                   }}>
                     {visibleItems.map(item => {
                       const isItemActive = activeTab === item.id;
+                      const customColorId = menuPrefs[item.id]?.colorId;
+                      const colorPreset = getColorPreset(customColorId);
+                      const hasCustomColor = Boolean(customColorId && customColorId !== 'default');
+
+                      // 커스텀 색상 스타일
+                      const itemTextColor = isItemActive 
+                        ? (hasCustomColor ? colorPreset.color : 'var(--primary)') 
+                        : (hasCustomColor ? colorPreset.color : 'var(--text-secondary)');
+                      const itemBgColor = isItemActive 
+                        ? (hasCustomColor ? colorPreset.bgTint : 'var(--primary-light)') 
+                        : 'transparent';
+                      const itemBorder = isItemActive && hasCustomColor 
+                        ? `1px solid ${colorPreset.borderTint}` 
+                        : 'none';
+
                       return (
                         <button
                           key={item.id}
@@ -1490,17 +1563,17 @@ const App: React.FC = () => {
                           }}
                           style={{
                             display: 'grid',
-                            gridTemplateColumns: '16px 1fr',
+                            gridTemplateColumns: '16px 1fr auto',
                             columnGap: '8px',
                             alignItems: 'center',
                             width: '100%',
                             padding: '7px 8px 7px 8px',
                             borderRadius: 'var(--radius-sm)',
-                            border: 'none',
+                            border: itemBorder,
                             fontSize: '12px',
-                            fontWeight: isItemActive ? '700' : '400',
-                            color: isItemActive ? 'var(--primary)' : 'var(--text-secondary)',
-                            backgroundColor: isItemActive ? 'var(--primary-light)' : 'transparent',
+                            fontWeight: isItemActive ? '800' : hasCustomColor ? '700' : '400',
+                            color: itemTextColor,
+                            backgroundColor: itemBgColor,
                             textAlign: 'left',
                             cursor: 'pointer',
                             transition: 'all var(--transition-fast)',
@@ -1515,6 +1588,7 @@ const App: React.FC = () => {
                             height: '16px',
                             flexShrink: 0,
                             overflow: 'hidden',
+                            color: hasCustomColor ? colorPreset.color : 'inherit'
                           }}>
                             {item.icon}
                           </span>
@@ -1525,6 +1599,16 @@ const App: React.FC = () => {
                           }}>
                             {item.name}
                           </span>
+                          {/* 커스텀 색상이 지정된 메뉴에 작은 컬러 도트 뱃지 노출 */}
+                          {hasCustomColor && (
+                            <span style={{
+                              width: '6px',
+                              height: '6px',
+                              borderRadius: '50%',
+                              backgroundColor: colorPreset.color,
+                              flexShrink: 0
+                            }} />
+                          )}
                         </button>
                       );
                     })}
@@ -1533,6 +1617,34 @@ const App: React.FC = () => {
               </div>
             );
           })}
+
+          {/* ⚙️ 사이드바 최하단: 메뉴 패널 개인화 설정 버튼 */}
+          <div style={{ marginTop: 'auto', paddingTop: '14px', borderTop: '1px solid var(--border-color)' }}>
+            <button
+              type="button"
+              onClick={() => setShowSidebarCustomModal(true)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                width: '100%',
+                padding: '8px 10px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px dashed var(--border-color)',
+                backgroundColor: 'var(--bg-card)',
+                color: 'var(--text-secondary)',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+              title="사이드바 메뉴 보이기/숨기기, 순서 변경 및 메뉴별 색상 지정"
+            >
+              <SlidersHorizontal size={14} />
+              <span>메뉴 패널 설정</span>
+            </button>
+          </div>
         </aside>
 
         {/* 메인 콘텐츠 영역 (독자 종스크롤 & 다이나믹 뷰포트 활용, 두꺼운 16px 스크롤바 적용) */}
@@ -1610,6 +1722,19 @@ const App: React.FC = () => {
       {showPrivacyPolicy && (
         <PrivacyPolicyModal onClose={() => setShowPrivacyPolicy(false)} />
       )}
+
+      {/* 🎨 좌측 메뉴 패널 개인화 설정 모달 */}
+      <SidebarCustomizationModal
+        isOpen={showSidebarCustomModal}
+        onClose={() => setShowSidebarCustomModal(false)}
+        groups={customizationGroups}
+        menuPrefs={menuPrefs}
+        onToggleVisibility={toggleMenuVisibility}
+        onSetColor={setMenuColor}
+        onMoveUp={(list, idx) => moveMenuItemUp(list, idx)}
+        onMoveDown={(list, idx) => moveMenuItemDown(list, idx)}
+        onReset={resetMenuPreferences}
+      />
 
     </div>
   );

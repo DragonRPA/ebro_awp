@@ -7,9 +7,9 @@ import {
   CreditCard, ShieldCheck, Zap, Sparkles, CheckCircle2, AlertCircle, 
   X, Edit2, Trash2, RefreshCw, Layers, Check, Building2, Circle,
   Sliders, Tag, Settings, CheckSquare, Square, ChevronDown, ChevronUp, FileText, FolderOpen,
-  ShieldAlert, FileSpreadsheet
+  ShieldAlert, FileSpreadsheet, SlidersHorizontal
 } from 'lucide-react';
-import { db, Customer, CustomerContact, CustomerSite, CustomerBankAccount, StandardOption, logPrivacyAccess, SiteContactPerson, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition } from '../services/db';
+import { db, Customer, CustomerContact, CustomerSite, CustomerBankAccount, StandardOption, logPrivacyAccess, SiteContactPerson, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, CustomerTransactionStatus, isCustomerRestricted, isCustomerTotalBlocked, getCustomerTransactionStatusLabel } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { isPrivilegedPrivacyUser, maskPhoneNumber, maskEmail, maskName, maskAddress } from '../utils/privacyMasking';
 import { matchHangul, matchesChosungFilter, sortCustomersByName } from '../utils/hangulSearch';
@@ -24,7 +24,7 @@ export const Customers: React.FC = () => {
   const {
     customers, contacts, sites, contracts, contractAssets, saveCustomer, saveContact, deleteContact, saveSite, deleteSite, hasPermission,
     navigationPayload, setNavigationPayload, currentUser, refreshAllData, legalNoticeLogs,
-    standardOptions, saveStandardOption, deleteStandardOption
+    standardOptions, saveStandardOption, deleteStandardOption, setActiveTab
   } = useApp();
 
   const canSave = hasPermission('customer', 'save');
@@ -39,7 +39,7 @@ export const Customers: React.FC = () => {
   // 검색 및 필터 상태 (헌장 1.1 & 1.2: 지연 조회 제거)
   const [searchTerm, setSearchTerm] = useState('');
   const [chosungFilter, setChosungFilter] = useState<string>('전체');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'BLOCKED' | 'CLOSED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'BLOCKED' | 'RESTRICT_NEW' | 'BLOCKED_ALL' | 'CLOSED'>('ALL');
   const [showOnlyIncomplete, setShowOnlyIncomplete] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -254,8 +254,10 @@ export const Customers: React.FC = () => {
 
       const matchesStatus = 
         statusFilter === 'ALL' ? true :
-        statusFilter === 'ACTIVE' ? (c.transactionStatus !== 'BLOCKED' && !c.isClosed) :
-        statusFilter === 'BLOCKED' ? (c.transactionStatus === 'BLOCKED') :
+        statusFilter === 'ACTIVE' ? (!isCustomerRestricted(c.transactionStatus) && !c.isClosed) :
+        statusFilter === 'RESTRICT_NEW' ? (c.transactionStatus === 'RESTRICT_NEW') :
+        statusFilter === 'BLOCKED_ALL' ? isCustomerTotalBlocked(c.transactionStatus) :
+        statusFilter === 'BLOCKED' ? isCustomerRestricted(c.transactionStatus) :
         (c.isClosed === true);
 
       const matchesIncomplete = !showOnlyIncomplete || isMissingBizCert(c);
@@ -279,8 +281,8 @@ export const Customers: React.FC = () => {
   // KPI 집계
   const kpiStats = useMemo(() => {
     const totalCust = customers.length;
-    const activeCust = customers.filter(c => c.transactionStatus !== 'BLOCKED' && !c.isClosed).length;
-    const blockedCust = customers.filter(c => c.transactionStatus === 'BLOCKED').length;
+    const activeCust = customers.filter(c => !isCustomerRestricted(c.transactionStatus) && !c.isClosed).length;
+    const blockedCust = customers.filter(c => isCustomerRestricted(c.transactionStatus)).length;
     const closedCust = customers.filter(c => c.isClosed).length;
     const totalSites = sites.length;
     const activeSites = sites.filter(s => s.isActive !== false).length;
@@ -318,7 +320,7 @@ export const Customers: React.FC = () => {
       '약정 결제일': formatPaymentDueCondition(c.paymentDueMonthOffset, c.paymentDueDay),
       '본사 주소': isPrivileged ? (c.address || '-') : maskAddress(c.address),
       '영업 상태': c.isClosed ? '폐업' : '영업중',
-      '거래 상태': c.transactionStatus === 'BLOCKED' ? '거래제한' : '거래가능',
+      '거래 상태': getCustomerTransactionStatusLabel(c.transactionStatus),
       '등록 일시': c.createdAt?.substring(0, 10) || '-'
     }));
     exportToExcel(excelData, `고객정보_조회목록_${new Date().toISOString().split('T')[0]}`, '고객사대장');
@@ -844,6 +846,27 @@ export const Customers: React.FC = () => {
     showToast(`고객사 기본 옵션 및 보양작업을 불러왔습니다.`);
   };
 
+  // 🏷️ 옵션품목마스터 전체 상속 핸들러
+  const handleInheritFromOptionMaster = () => {
+    const paidOpts = standardOptions.filter(o => o.category === 'PAID' && o.isActive).map(o => o.name).join(', ');
+    const firstProt = standardOptions.find(o => o.category === 'PROTECTION' && o.isActive)?.name || '';
+    setEditingSite(prev => ({
+      ...prev,
+      paidOptions: paidOpts,
+      protection: firstProt
+    }));
+    showToast('옵션품목마스터의 표준 품목을 일괄 상속받았습니다.');
+  };
+
+  // 🧭 현장별 옵션 관리 전용 메뉴 바로가기
+  const handleNavigateToSiteOptionManage = (siteId?: string) => {
+    setNavigationPayload({
+      siteId: siteId || editingSite?.id,
+      customerId: selectedCustomerId
+    });
+    setActiveTab('site_options');
+  };
+
   // 계좌 관리
   const handleOpenAddAccount = () => {
     if (!selectedCustomerId) return;
@@ -1151,7 +1174,9 @@ export const Customers: React.FC = () => {
           >
             <option value="ALL">전체 상태</option>
             <option value="ACTIVE">정상 거래</option>
-            <option value="BLOCKED">거래 제한</option>
+            <option value="RESTRICT_NEW">🟡 추가계약 금지</option>
+            <option value="BLOCKED_ALL">🔴 전면 차단</option>
+            <option value="BLOCKED">전체 제재 (차단/금지)</option>
             <option value="CLOSED">폐업</option>
           </select>
         </div>
@@ -1332,8 +1357,10 @@ export const Customers: React.FC = () => {
                         )}
                         {cust.isClosed ? (
                           <span className="badge badge-danger" style={{ fontSize: '9.5px', padding: '1px 4px' }}>폐업</span>
-                        ) : cust.transactionStatus === 'BLOCKED' ? (
-                          <span className="badge badge-danger" style={{ fontSize: '9.5px', padding: '1px 4px' }}>제한</span>
+                        ) : cust.transactionStatus === 'RESTRICT_NEW' ? (
+                          <span className="badge" style={{ fontSize: '9.5px', padding: '1px 4px', backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #f59e0b' }}>추가금지</span>
+                        ) : isCustomerTotalBlocked(cust.transactionStatus) ? (
+                          <span className="badge badge-danger" style={{ fontSize: '9.5px', padding: '1px 4px' }}>전면차단</span>
                         ) : null}
                         {(() => {
                           const noticeCount = (legalNoticeLogs || []).filter(l => l.customerId === cust.id).length;
@@ -1400,9 +1427,19 @@ export const Customers: React.FC = () => {
                     <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>
                       {activeCustomer.name}
                     </h3>
-                    <span className={`badge ${activeCustomer.transactionStatus === 'BLOCKED' ? 'badge-danger' : 'badge-success'}`} style={{ fontSize: '10px' }}>
-                      {activeCustomer.transactionStatus === 'BLOCKED' ? '거래제한' : '거래가능'}
-                    </span>
+                    {activeCustomer.transactionStatus === 'RESTRICT_NEW' ? (
+                      <span className="badge" style={{ fontSize: '10px', backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #f59e0b' }}>
+                        추가계약금지
+                      </span>
+                    ) : isCustomerTotalBlocked(activeCustomer.transactionStatus) ? (
+                      <span className="badge badge-danger" style={{ fontSize: '10px' }}>
+                        전면차단(장비회수)
+                      </span>
+                    ) : (
+                      <span className="badge badge-success" style={{ fontSize: '10px' }}>
+                        거래가능
+                      </span>
+                    )}
                     {activeCustomer.isClosed && <span className="badge badge-danger" style={{ fontSize: '10px' }}>폐업</span>}
                   </div>
 
@@ -1605,10 +1642,11 @@ export const Customers: React.FC = () => {
                                     <button
                                       type="button"
                                       className="btn-secondary"
-                                      onClick={() => handleOpenSiteOptionModal(cs)}
-                                      style={{ padding: '1px 5px', fontSize: '10.5px', color: '#0070C0', border: '1px solid rgba(0, 112, 192, 0.3)' }}
-                                      title="현장 전용 유상옵션 및 보양작업 관리"
+                                      onClick={() => handleNavigateToSiteOptionManage(cs.id)}
+                                      style={{ padding: '1px 6px', fontSize: '10.5px', color: '#0070C0', border: '1px solid rgba(0, 112, 192, 0.3)', display: 'flex', alignItems: 'center', gap: '3px' }}
+                                      title="현장별 옵션 관리 화면으로 이동하여 옵션값 상속 및 단가 설정"
                                     >
+                                      <SlidersHorizontal size={10} />
                                       옵션
                                     </button>
                                     <button
@@ -2020,12 +2058,13 @@ export const Customers: React.FC = () => {
                 <div>
                   <label style={labelStyle}>거래 상태 (출고)</label>
                   <select
-                    style={{ ...inputStyle, fontWeight: editingCust.transactionStatus === 'BLOCKED' ? 700 : 400, color: editingCust.transactionStatus === 'BLOCKED' ? '#dc2626' : 'inherit' }}
+                    style={{ ...inputStyle, fontWeight: isCustomerRestricted(editingCust.transactionStatus) ? 700 : 400, color: isCustomerRestricted(editingCust.transactionStatus) ? '#dc2626' : 'inherit' }}
                     value={editingCust.transactionStatus || 'ALLOWED'}
-                    onChange={e => setEditingCust({ ...editingCust, transactionStatus: e.target.value as 'ALLOWED' | 'BLOCKED' })}
+                    onChange={e => setEditingCust({ ...editingCust, transactionStatus: e.target.value as CustomerTransactionStatus })}
                   >
-                    <option value="ALLOWED">정상 (출고가능)</option>
-                    <option value="BLOCKED">거래제한 (출고차단)</option>
+                    <option value="ALLOWED">정상 거래 (ALLOWED)</option>
+                    <option value="RESTRICT_NEW">추가계약 금지 (기존계약 유지)</option>
+                    <option value="BLOCKED_ALL">전면 차단 (기존장비 회수)</option>
                   </select>
                 </div>
               </div>
@@ -2585,19 +2624,44 @@ export const Customers: React.FC = () => {
 
               {/* 현장 전용 옵션/보양 설정 */}
               <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>
-                    현장 전용 옵션 및 보양 설정
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                    현장 옵션 및 보양 설정
                   </span>
-                  {activeCustomer && (
+                  <div style={{ display: 'flex', gap: '5px', alignItems: 'center', flexWrap: 'nowrap' }}>
                     <button
                       type="button"
-                      onClick={handleCopyCustomerDefaultsToSite}
-                      style={{ padding: '2px 6px', fontSize: '10.5px', border: '1px solid var(--border-color)', borderRadius: '3px', backgroundColor: 'transparent', color: 'var(--primary)', cursor: 'pointer' }}
+                      onClick={handleInheritFromOptionMaster}
+                      style={{ padding: '2px 8px', fontSize: '10.5px', border: '1px solid var(--border-color)', borderRadius: '3px', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      title="옵션품목마스터의 모든 표준 품목을 일괄 상속"
                     >
-                      고객사 기본값 상속
+                      <SlidersHorizontal size={11} />
+                      마스터 상속
                     </button>
-                  )}
+                    {activeCustomer && (
+                      <button
+                        type="button"
+                        onClick={handleCopyCustomerDefaultsToSite}
+                        style={{ padding: '2px 8px', fontSize: '10.5px', border: '1px solid var(--border-color)', borderRadius: '3px', backgroundColor: 'transparent', color: 'var(--primary)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        title="해당 고객사의 기본 옵션값 상속"
+                      >
+                        고객사 기본값 상속
+                      </button>
+                    )}
+                    {editingSite.id && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowSiteModal(false);
+                          handleNavigateToSiteOptionManage(editingSite.id);
+                        }}
+                        style={{ padding: '2px 8px', fontSize: '10.5px', border: '1px solid #2563eb', borderRadius: '3px', backgroundColor: 'rgba(37, 99, 235, 0.08)', color: '#1d4ed8', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        title="현장별 옵션 관리 상세 화면으로 이동"
+                      >
+                        현장별 옵션 관리 ➔
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -2971,7 +3035,7 @@ export const Customers: React.FC = () => {
               <button type="button" onClick={() => setShowSiteOptionModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px', marginBottom: '8px', alignItems: 'center' }}>
               {activeCustomer && (
                 <button
                   type="button"
@@ -2993,6 +3057,28 @@ export const Customers: React.FC = () => {
                   <ShieldCheck size={12} /> 고객사 기본값 상속
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSiteOptionModal(false);
+                  handleNavigateToSiteOptionManage(editingSiteOption.id);
+                }}
+                style={{
+                  padding: '3px 9px',
+                  fontSize: '11px',
+                  borderRadius: '4px',
+                  border: '1px solid #2563eb',
+                  backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                  color: '#1d4ed8',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <SlidersHorizontal size={12} /> 현장별 옵션 관리 ➔
+              </button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px' }}>

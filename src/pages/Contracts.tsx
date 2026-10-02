@@ -8,7 +8,7 @@ import {
   Building2, ArrowLeftRight, Receipt, FolderOpen, AlertCircle, ExternalLink, Copy, AlertTriangle, FileText,
   Truck, CheckCircle2
 } from 'lucide-react';
-import { Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition } from '../services/db';
+import { Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, isCustomerRestricted, isCustomerTotalBlocked } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
 import { matchHangul, sortCustomersByName, compareCustomerNames } from '../utils/hangulSearch';
@@ -98,8 +98,9 @@ export const Contracts: React.FC = () => {
     const custBillings = billings.filter(b => b.customerId === custSelect && b.status !== 'PAID' && (b.totalAmount - b.paidAmount) > 0);
     const overdueSum = custBillings.reduce((s, b) => s + (b.totalAmount - b.paidAmount), 0);
     const mc = customers.find(c => c.id === custSelect);
-    if (overdueSum <= 0 && mc?.transactionStatus !== 'BLOCKED') return null;
-    return { overdueSum, count: custBillings.length, isBlocked: mc?.transactionStatus === 'BLOCKED' };
+    const isBlocked = isCustomerRestricted(mc?.transactionStatus);
+    if (overdueSum <= 0 && !isBlocked) return null;
+    return { overdueSum, count: custBillings.length, isBlocked, blockStatus: mc?.transactionStatus };
   }, [custSelect, customers, billings]);
   const [contactSelect, setContactSelect] = useState('');
   const [siteSelect, setSiteSelect] = useState('');
@@ -719,8 +720,8 @@ export const Contracts: React.FC = () => {
     const activeCust = customers.find(cu => cu.id === activeContract.customerId);
     const isShortened = !isIndefiniteEndDate(activeContract.endDate) && modNewEndDate < activeContract.endDate!;
 
-    if (!isShortened && activeCust?.transactionStatus === 'BLOCKED') {
-      showToast(`[출고제한] 거래처 [${activeCust.name}]은(는) 거래 차단 상태이므로 계약 기간 연장이 불가합니다.`, 'error');
+    if (!isShortened && isCustomerRestricted(activeCust?.transactionStatus)) {
+      showToast(`[출고제한] 거래처 [${activeCust?.name}]은(는) 거래 제한 상태이므로 계약 기간 연장이 불가합니다.`, 'error');
       return;
     }
 
@@ -1078,8 +1079,8 @@ export const Contracts: React.FC = () => {
 
     if (custSelect !== 'NEW' && custSelect) {
       const selectedCustomer = customers.find(c => c.id === custSelect);
-      if (selectedCustomer?.transactionStatus === 'BLOCKED') {
-        showToast('🚫 경영진 처분으로 인해 거래 불가 상태인 거래처입니다. 신규 계약 등록이 원천 차단됩니다.', 'error');
+      if (isCustomerRestricted(selectedCustomer?.transactionStatus)) {
+        showToast('🚫 경영진 처분으로 인해 거래 제한 상태인 거래처입니다. 신규 계약 등록이 원천 차단됩니다.', 'error');
         return;
       }
       if (selectedCustOverdue && !overdueAcknowledged) {
@@ -1750,9 +1751,14 @@ export const Contracts: React.FC = () => {
                           <td style={{ whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                               <strong>{getCustName(c.customerId)}</strong>
-                              {customers.find(cu => cu.id === c.customerId)?.transactionStatus === 'BLOCKED' && (
+                              {customers.find(cu => cu.id === c.customerId)?.transactionStatus === 'RESTRICT_NEW' && (
+                                <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #f59e0b', flexShrink: 0 }}>
+                                  추가금지
+                                </span>
+                              )}
+                              {isCustomerTotalBlocked(customers.find(cu => cu.id === c.customerId)?.transactionStatus) && (
                                 <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: 'var(--danger)', color: '#fff', flexShrink: 0 }}>
-                                  출고제한
+                                  전면차단
                                 </span>
                               )}
                             </div>
@@ -2051,9 +2057,14 @@ export const Contracts: React.FC = () => {
                   <label style={{ color: 'var(--text-muted)', fontSize: '11px', display: 'block' }}>고객사명</label>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <strong>{getCustName(activeContract.customerId)}</strong>
-                    {customers.find(cu => cu.id === activeContract.customerId)?.transactionStatus === 'BLOCKED' && (
+                    {customers.find(cu => cu.id === activeContract.customerId)?.transactionStatus === 'RESTRICT_NEW' && (
+                      <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #f59e0b', flexShrink: 0 }}>
+                        추가금지
+                      </span>
+                    )}
+                    {isCustomerTotalBlocked(customers.find(cu => cu.id === activeContract.customerId)?.transactionStatus) && (
                       <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: 'var(--danger)', color: '#fff', flexShrink: 0 }}>
-                        출고제한
+                        전면차단
                       </span>
                     )}
                   </div>
@@ -3173,7 +3184,7 @@ export const Contracts: React.FC = () => {
                 </option>
                 {filteredCustModalList.map(c => (
                   <option key={c.id} value={c.id}>
-                    {c.transactionStatus === 'BLOCKED' ? `🚫 [거래제한] ${c.name}` : c.name} ({c.bizRegNo})
+                    {c.transactionStatus === 'RESTRICT_NEW' ? `🟡 [추가계약금지] ${c.name}` : isCustomerTotalBlocked(c.transactionStatus) ? `🔴 [전면차단] ${c.name}` : c.name} ({c.bizRegNo})
                   </option>
                 ))}
                 <option value="NEW">+ [신규 고객사 직접 등록]</option>

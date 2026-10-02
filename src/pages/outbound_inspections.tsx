@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { ToggleSwitch } from '../components/ToggleSwitch';
-import { OutboundInspection, OutboundInspectionStatus, Asset, Contract, Customer, CustomerSite as Site, AssetInOutLog, Repair, ContractAsset, db, STANDARD_SPECS } from '../services/db';
+import { OutboundInspection, OutboundInspectionStatus, Asset, Contract, Customer, CustomerSite as Site, AssetInOutLog, Repair, ContractAsset, db, STANDARD_SPECS, isCustomerRestricted } from '../services/db';
 import { issueHandoverTask, clearHandoverTasks } from '../utils/taskHandoverPipeline';
 import { isModelMatch } from '../utils/modelUtils';
 import {
@@ -386,7 +386,7 @@ export const OutboundInspections: React.FC = () => {
     // 🔴 [출고제한 가드] 연체 및 거래차단(BLOCKED) 고객사 최종 출고 승인 원천 차단
     const contract = db.contracts.find(c => c.id === selectedGroup.contractId);
     const customer = contract ? db.customers.find(c => c.id === contract.customerId) : undefined;
-    if (customer && customer.transactionStatus === 'BLOCKED') {
+    if (customer && isCustomerRestricted(customer.transactionStatus)) {
       showErrorModal(`⚠️ [출고제한 가드] 연체 및 거래차단(BLOCKED) 상태인 고객사(${customer.name})의 장비는 출고 승인할 수 없습니다.\n관리부 채권 확인 및 거래 제한 해제 후 진행해 주십시오.`);
       return;
     }

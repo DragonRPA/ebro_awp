@@ -1,7 +1,7 @@
 // d:\Kiyeun_Lift\src\pages\Dashboard.tsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Activity, ShieldAlert, Users, Layers, ShieldCheck, Wrench, Truck, CreditCard, CheckCircle, Bell, AlertTriangle, ArrowRight, Cloud, AlertCircle, Download, FileText, Bot, Shield, CheckSquare } from 'lucide-react';
+import { Activity, ShieldAlert, Users, Layers, ShieldCheck, Wrench, Truck, CreditCard, CheckCircle, Bell, AlertTriangle, ArrowRight, Cloud, AlertCircle, Download, FileText, Bot, Shield, CheckSquare, Calendar, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { EXPECTED_AGENT_VERSION, AGENT_DOWNLOAD_URL, AGENT_CERT_URL, AGENT_INSTALL_BAT_URL, AGENT_KILL_BAT_URL, AGENT_EXE_URL } from '../services/agentService';
 import { findActiveTasksForUser } from '../utils/taskHandoverPipeline';
 import { ExecutiveDirectiveModal } from '../components/ExecutiveDirectiveModal';
@@ -17,6 +17,7 @@ export const Dashboard: React.FC = () => {
     contractAssets, 
     contractHistory,
     outboundInspections,
+    assetInOutLogs,
     consumables, 
     repairs, 
     deliveries, 
@@ -156,6 +157,121 @@ export const Dashboard: React.FC = () => {
   // --- Proactive Time-based Alerts ---
   const todayDate = new Date();
   todayDate.setHours(0,0,0,0);
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+
+  // ── 📅 금일 입출고 요약 집계 (대시보드 피드 연동) ──
+  const todayInOutSummary = useMemo(() => {
+    // 1. 실적 (assetInOutLogs)
+    const inLogs = (assetInOutLogs || []).filter(l => l.eventDate?.startsWith(todayStr) && l.type === 'INBOUND');
+    const outLogs = (assetInOutLogs || []).filter(l => l.eventDate?.startsWith(todayStr) && l.type === 'OUTBOUND');
+
+    // 2. 예정 (deliveries)
+    const inDeliveries = (deliveries || []).filter(d => {
+      if (d.status === 'CANCELLED') return false;
+      const dDate = d.unloadingDate || d.scheduledDate || d.requestDate;
+      return (d.type === 'INBOUND' || d.type === 'RETURN') && dDate?.startsWith(todayStr);
+    });
+    const outDeliveries = (deliveries || []).filter(d => {
+      if (d.status === 'CANCELLED') return false;
+      const dDate = d.loadingDate || d.scheduledDate || d.requestDate;
+      return d.type === 'OUTBOUND' && dDate?.startsWith(todayStr);
+    });
+    const excDeliveries = (deliveries || []).filter(d => {
+      if (d.status === 'CANCELLED') return false;
+      const outDate = d.loadingDate || d.scheduledDate || d.requestDate;
+      const inDate = d.unloadingDate || d.scheduledDate || d.requestDate;
+      return d.type === 'EXCHANGE' && (outDate?.startsWith(todayStr) || inDate?.startsWith(todayStr));
+    });
+
+    const inModelMap = new Map<string, number>();
+    const outModelMap = new Map<string, number>();
+
+    inLogs.forEach(l => {
+      const m = l.modelName || '기타';
+      inModelMap.set(m, (inModelMap.get(m) || 0) + 1);
+    });
+    outLogs.forEach(l => {
+      const m = l.modelName || '기타';
+      outModelMap.set(m, (outModelMap.get(m) || 0) + 1);
+    });
+
+    const parseCargo = (cargoStr?: string) => {
+      if (!cargoStr) return [];
+      try {
+        const arr = JSON.parse(cargoStr);
+        if (Array.isArray(arr)) return arr;
+      } catch (e) {}
+      return [];
+    };
+
+    inDeliveries.filter(d => d.status !== 'DELIVERED').forEach(d => {
+      const cargo = parseCargo(d.cargoItems);
+      if (cargo.length > 0) {
+        cargo.forEach((c: any) => {
+          const m = c.modelName || '기타';
+          const cnt = Number(c.count || c.qty || 1);
+          inModelMap.set(m, (inModelMap.get(m) || 0) + cnt);
+        });
+      } else {
+        inModelMap.set('기타 기종', (inModelMap.get('기타 기종') || 0) + 1);
+      }
+    });
+
+    outDeliveries.filter(d => d.status !== 'DELIVERED').forEach(d => {
+      const cargo = parseCargo(d.cargoItems);
+      if (cargo.length > 0) {
+        cargo.forEach((c: any) => {
+          const m = c.modelName || '기타';
+          const cnt = Number(c.count || c.qty || 1);
+          outModelMap.set(m, (outModelMap.get(m) || 0) + cnt);
+        });
+      } else {
+        outModelMap.set('기타 기종', (outModelMap.get('기타 기종') || 0) + 1);
+      }
+    });
+
+    excDeliveries.filter(d => d.status !== 'DELIVERED').forEach(d => {
+      const outDate = d.loadingDate || d.scheduledDate || d.requestDate;
+      const inDate = d.unloadingDate || d.scheduledDate || d.requestDate;
+      const cargo = parseCargo(d.cargoItems);
+      if (outDate?.startsWith(todayStr)) {
+        if (cargo.length > 0) {
+          cargo.forEach((c: any) => {
+            const m = c.modelName || '기타';
+            outModelMap.set(m, (outModelMap.get(m) || 0) + Number(c.count || 1));
+          });
+        } else {
+          outModelMap.set('기타 기종', (outModelMap.get('기타 기종') || 0) + 1);
+        }
+      }
+      if (inDate?.startsWith(todayStr)) {
+        if (cargo.length > 0) {
+          cargo.forEach((c: any) => {
+            const m = c.modelName || '기타';
+            inModelMap.set(m, (inModelMap.get(m) || 0) + Number(c.count || 1));
+          });
+        } else {
+          inModelMap.set('기타 기종', (inModelMap.get('기타 기종') || 0) + 1);
+        }
+      }
+    });
+
+    let totalIn = 0;
+    inModelMap.forEach(cnt => totalIn += cnt);
+    let totalOut = 0;
+    outModelMap.forEach(cnt => totalOut += cnt);
+
+    const inSummary = Array.from(inModelMap.entries()).map(([m, c]) => `${m} * ${c}대`).join(', ') || '입고 없음';
+    const outSummary = Array.from(outModelMap.entries()).map(([m, c]) => `${m} * ${c}대`).join(', ') || '출고 없음';
+
+    return {
+      totalIn,
+      totalOut,
+      inSummary,
+      outSummary,
+      hasActivity: totalIn > 0 || totalOut > 0
+    };
+  }, [assetInOutLogs, deliveries, todayStr]);
   
   const expiringContracts = contracts.filter(c => {
     if (c.status !== 'ACTIVE' && c.status !== 'EXTENDED') return false;
@@ -408,6 +524,107 @@ export const Dashboard: React.FC = () => {
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+            {/* 🌟 금일 입출고 현황 요약 피드 카드 (일일 입출고 조회 다이렉트 연동) */}
+            <details open style={{
+              backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
+              borderLeft: '5px solid #059669', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
+            }}>
+              <summary style={{ cursor: "pointer", listStyle: "none", outline: "none" }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '11.5px', fontWeight: '800', color: '#059669', backgroundColor: 'rgba(5, 150, 105, 0.12)', padding: '3px 9px', borderRadius: '4px', border: '1px solid rgba(5, 150, 105, 0.3)' }}>
+                    일일 입출고 요약
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#2563eb' }}>
+                      🔵 입고 {todayInOutSummary.totalIn}대
+                    </span>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>|</span>
+                    <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#dc2626' }}>
+                      🔴 출고 {todayInOutSummary.totalOut}대
+                    </span>
+                  </div>
+                </div>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Calendar size={18} color="#059669" /> 금일 입출고 현황 ({todayStr})
+                </h4>
+              </summary>
+              <div className="details-content">
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: '1.5' }}>
+                  오늘 현장에 투입되는 출고 장비와 회수/반납되는 입고 장비의 기종별 실시간 집계입니다.
+                </p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+                  {/* 입고 박스 (청색 계열) */}
+                  <div style={{
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                    border: '1px solid rgba(37, 99, 235, 0.25)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '12px', fontWeight: '800', color: '#1d4ed8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <ArrowDownLeft size={14} /> 입고 수량
+                      </span>
+                      <span style={{ fontSize: '15px', fontWeight: '900', color: '#1d4ed8' }}>
+                        {todayInOutSummary.totalIn}대
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '12px', fontWeight: '700', color: '#2563eb', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={todayInOutSummary.inSummary}>
+                      {todayInOutSummary.inSummary}
+                    </div>
+                  </div>
+
+                  {/* 출고 박스 (적색 계열) */}
+                  <div style={{
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(220, 38, 38, 0.08)',
+                    border: '1px solid rgba(220, 38, 38, 0.25)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '12px', fontWeight: '800', color: '#b91c1c', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <ArrowUpRight size={14} /> 출고 수량
+                      </span>
+                      <span style={{ fontSize: '15px', fontWeight: 900, color: '#b91c1c' }}>
+                        {todayInOutSummary.totalOut}대
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '12px', fontWeight: '700', color: '#dc2626', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={todayInOutSummary.outSummary}>
+                      {todayInOutSummary.outSummary}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('daily_inout')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 16px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: 'var(--primary)',
+                      color: '#ffffff',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    일일 입출고 조회 (캘린더 / 표 보기) <ArrowRight size={14} />
+                  </button>
+                </div>
+              </div>
+            </details>
 
             {/* 0. 💡 영업부 내 의뢰 출고 진행 현황 카드 (운송 완료 전 4대 지표 배지 피드) */}
             {showSalesPipelineFeed && (
