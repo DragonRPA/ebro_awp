@@ -1438,6 +1438,46 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     });
   }, [contracts, billings, targetYm, wizardSearchStartDate, wizardSearchEndDate, todayStr]);
 
+  // 💡 오늘 거래명세서 마감 건 우선 필터 토글 ('ALL' | 'TODAY_STATEMENT' | 'OVERDUE_STATEMENT')
+  const [statementDueQuickFilter, setStatementDueQuickFilter] = useState<'ALL' | 'TODAY_STATEMENT' | 'OVERDUE_STATEMENT'>('ALL');
+
+  // 💡 계약 및 고객 현장별 거래명세서 마감일 판정 헬퍼
+  const getTodayStatementDueStatus = (c: any) => {
+    const today = new Date();
+    const todayDay = today.getDate();
+    const lastDayThisMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+
+    // 1. 현장 설정 거래명세서 마감일 최우선 상속 체인
+    const siteObj = sites.find(s => s.id === c.siteId);
+    const custObj = customers.find(cu => cu.id === c.customerId);
+    const rawStatementDay = siteObj?.statementClosingDay || c.statementClosingDay || custObj?.defaultStatementClosingDay || 25;
+    const effectiveStatementDay = Math.min(rawStatementDay, lastDayThisMonth);
+    const rawBillingDay = siteObj?.billingDay || c.billingDay || custObj?.defaultBillingDay || 30;
+
+    // 2. 오늘 마감 및 도과 여부 판정
+    const isTodayDue = todayDay === effectiveStatementDay;
+    const isOverdue = todayDay > effectiveStatementDay;
+    const daysUntilDue = effectiveStatementDay - todayDay;
+
+    // 3. 당월 청구서 기발행 여부 확인 (당월 청구가 이미 발행되었으면 마감 완료로 간주)
+    const currentYm = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const isAlreadyBilledThisMonth = Boolean(
+      (c.lastBilledYm && c.lastBilledYm >= currentYm) ||
+      (c.lastBilledPeriodEnd && c.lastBilledPeriodEnd >= `${currentYm}-${String(effectiveStatementDay).padStart(2, '0')}`)
+    );
+
+    return {
+      rawStatementDay,
+      effectiveStatementDay,
+      isTodayDue,
+      isOverdue,
+      daysUntilDue,
+      isAlreadyBilledThisMonth,
+      isSiteSpecific: Boolean(siteObj?.statementClosingDay),
+      rawBillingDay
+    };
+  };
+
   const isDuePeriod = (c: any) => {
     if (!wizardSearchStartDate || !wizardSearchEndDate) return true;
     
@@ -1453,8 +1493,14 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       return Math.min(targetDay, lastDayOfMonth);
     };
 
-    const effectiveBillingDay = getEffectiveDay(c.billingDay);
-    const effectiveStatementDay = getEffectiveDay(c.statementClosingDay);
+    // 💡 현장 설정 마감일 최우선 상속 체인
+    const siteObj = sites.find(s => s.id === c.siteId);
+    const custObj = customers.find(cu => cu.id === c.customerId);
+    const rawBillingDay = siteObj?.billingDay || c.billingDay || custObj?.defaultBillingDay || 30;
+    const rawStatementDay = siteObj?.statementClosingDay || c.statementClosingDay || custObj?.defaultStatementClosingDay || 25;
+
+    const effectiveBillingDay = getEffectiveDay(rawBillingDay);
+    const effectiveStatementDay = getEffectiveDay(rawStatementDay);
 
     // 💡 계약 시작일(c.startDate)이 이번 달 마감일보다 뒤에 있는 경우 (예: 8/31 시작 > 8/30 마감)
     // 당월 마감 기준으로는 가동일이 0일이므로 당월 청구 대상에서 제외 (익월 청구로 이관)
@@ -1499,6 +1545,22 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     setWizardSiteFilter(wizardTempSiteFilter);
   };
 
+  // 💡 오늘 거래명세서 마감 대상(미발행) 계약 목록
+  const todayStatementDueContracts = useMemo(() => {
+    return activeContractsForWizard.filter(c => {
+      const status = getTodayStatementDueStatus(c);
+      return status.isTodayDue && !status.isAlreadyBilledThisMonth;
+    });
+  }, [activeContractsForWizard, sites, customers]);
+
+  // 💡 마감일 도과 미발행 계약 목록
+  const overdueStatementContracts = useMemo(() => {
+    return activeContractsForWizard.filter(c => {
+      const status = getTodayStatementDueStatus(c);
+      return status.isOverdue && !status.isAlreadyBilledThisMonth;
+    });
+  }, [activeContractsForWizard, sites, customers]);
+
   const filteredWizardContracts = activeContractsForWizard.filter(c => {
     const custName = getCustName(c.customerId).toLowerCase();
     const siteName = getSiteName(c.siteId).toLowerCase();
@@ -1508,6 +1570,15 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     const matchesCustomer = !wizardCustomerFilter || matchHangul(getCustName(c.customerId), wizardCustomerFilter);
     const matchesContractNo = !wizardContractNoFilter || contractNoStr.includes(wizardContractNoFilter.trim().toLowerCase());
     const matchesSite = !wizardSiteFilter || matchHangul(getSiteName(c.siteId), wizardSiteFilter);
+
+    // 🔔 거래명세서 마감 퀵 필터 반영
+    if (statementDueQuickFilter === 'TODAY_STATEMENT') {
+      const status = getTodayStatementDueStatus(c);
+      if (!status.isTodayDue || status.isAlreadyBilledThisMonth) return false;
+    } else if (statementDueQuickFilter === 'OVERDUE_STATEMENT') {
+      const status = getTodayStatementDueStatus(c);
+      if (!status.isOverdue || status.isAlreadyBilledThisMonth) return false;
+    }
 
     return matchesDue && matchesCustomer && matchesContractNo && matchesSite;
   });
@@ -1962,8 +2033,13 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       {/* 탭 */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
         {canSave && (
-          <button className={activeTab === 'WIZARD' ? 'btn-primary' : 'btn-secondary'} onClick={() => setActiveTab('WIZARD')}>
+          <button className={activeTab === 'WIZARD' ? 'btn-primary' : 'btn-secondary'} onClick={() => setActiveTab('WIZARD')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
             <Calendar size={14} /> 미청구 정산
+            {todayStatementDueContracts.length > 0 && (
+              <span style={{ padding: '1px 6px', fontSize: '10.5px', fontWeight: 800, borderRadius: '10px', backgroundColor: '#dc2626', color: '#ffffff', lineHeight: '1.2' }}>
+                오늘 마감 {todayStatementDueContracts.length}
+              </span>
+            )}
           </button>
         )}
         <button className={activeTab === 'LIST' ? 'btn-primary' : 'btn-secondary'} onClick={() => setActiveTab('LIST')}>
@@ -3043,6 +3119,90 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
           <div>
             <div className="card" style={{ margin: 0, marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <h3 className="card-title" style={{ margin: 0 }}>정산 대상 계약 목록</h3>
+
+              {/* 🔔 오늘 거래명세서 마감 현황 알림 & 누락 방지 컨트롤 */}
+              <div 
+                data-mid="statement-closing-today-alert"
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  backgroundColor: todayStatementDueContracts.length > 0 ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-app)',
+                  border: todayStatementDueContracts.length > 0 ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--border-color)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '8px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileText size={15} color={todayStatementDueContracts.length > 0 ? '#dc2626' : 'var(--primary)'} />
+                  <span style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    오늘 거래명세서 마감:
+                  </span>
+                  <span style={{
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    color: todayStatementDueContracts.length > 0 ? '#dc2626' : 'var(--text-muted)'
+                  }}>
+                    {todayStatementDueContracts.length > 0 ? `총 ${todayStatementDueContracts.length}건 (오늘 즉시 발행 필요)` : '오늘 마감 대상 없음'}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setStatementDueQuickFilter(statementDueQuickFilter === 'TODAY_STATEMENT' ? 'ALL' : 'TODAY_STATEMENT')}
+                    style={{
+                      padding: '3px 8px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      borderRadius: '4px',
+                      border: statementDueQuickFilter === 'TODAY_STATEMENT' ? '1px solid #dc2626' : '1px solid var(--border-color)',
+                      backgroundColor: statementDueQuickFilter === 'TODAY_STATEMENT' ? '#dc2626' : 'var(--bg-card)',
+                      color: statementDueQuickFilter === 'TODAY_STATEMENT' ? '#ffffff' : '#dc2626',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    🔔 오늘 명세서 마감 ({todayStatementDueContracts.length}건)
+                  </button>
+                  {overdueStatementContracts.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setStatementDueQuickFilter(statementDueQuickFilter === 'OVERDUE_STATEMENT' ? 'ALL' : 'OVERDUE_STATEMENT')}
+                      style={{
+                        padding: '3px 8px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        borderRadius: '4px',
+                        border: statementDueQuickFilter === 'OVERDUE_STATEMENT' ? '1px solid #d97706' : '1px solid var(--border-color)',
+                        backgroundColor: statementDueQuickFilter === 'OVERDUE_STATEMENT' ? '#d97706' : 'var(--bg-card)',
+                        color: statementDueQuickFilter === 'OVERDUE_STATEMENT' ? '#ffffff' : '#d97706',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      ⚠️ 마감 도과 ({overdueStatementContracts.length}건)
+                    </button>
+                  )}
+                  {statementDueQuickFilter !== 'ALL' && (
+                    <button
+                      type="button"
+                      onClick={() => setStatementDueQuickFilter('ALL')}
+                      style={{
+                        padding: '3px 6px',
+                        fontSize: '11px',
+                        borderRadius: '4px',
+                        border: '1px solid var(--border-color)',
+                        backgroundColor: 'transparent',
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      전체 해제
+                    </button>
+                  )}
+                </div>
+              </div>
               
               {/* 1행: 마감일 기준 검색 기간 (Z-구텐버그 좌상단 Scope 퀵버튼 탑재) */}
               <div data-mid="wizard-period-scope" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -3193,6 +3353,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                   const isSelected = selectedContractIdForWizard === c.id;
                   const due = isDuePeriod(c);
                   const unbilledRcvList = getUnbilledReceivablesForContract(c);
+                  const statementStatus = getTodayStatementDueStatus(c);
 
                   return (
                     <div
@@ -3211,6 +3372,16 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                         <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '700' }}>계약번호: {c.contractNo}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                          {statementStatus.isTodayDue && !statementStatus.isAlreadyBilledThisMonth && (
+                            <span className="badge" style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #ef4444', fontWeight: 'bold' }}>
+                              🔔 오늘 명세서 마감
+                            </span>
+                          )}
+                          {statementStatus.isOverdue && !statementStatus.isAlreadyBilledThisMonth && (
+                            <span className="badge" style={{ backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #f59e0b', fontWeight: 'bold' }}>
+                              ⚠️ 마감 도과
+                            </span>
+                          )}
                           {unbilledRcvList.length > 0 && (
                             <span className="badge" style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)', color: 'var(--warning)', border: '1px solid rgba(245, 158, 11, 0.3)', fontWeight: 'bold' }}>
                               ⚠️ 외상미수금 {unbilledRcvList.length}건 (수동정산)
@@ -3239,8 +3410,18 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                         <div>계약만료: <strong>{formatContractEndDate(c.endDate)}</strong></div>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '8px', color: 'var(--text-muted)' }}>
-                        <div>청구 마감: <strong>매월 {c.billingDay}일</strong></div>
-                        <div>명세서 마감: <strong>매월 {c.statementClosingDay || '-'}일</strong></div>
+                        <div>청구 마감: <strong>매월 {statementStatus.rawBillingDay === 31 ? '말일' : `${statementStatus.rawBillingDay}일`}</strong></div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span>명세서 마감:</span>
+                          <strong style={{ color: statementStatus.isTodayDue && !statementStatus.isAlreadyBilledThisMonth ? '#dc2626' : 'inherit' }}>
+                            매월 {statementStatus.rawStatementDay === 31 ? '말일' : `${statementStatus.rawStatementDay}일`}
+                          </strong>
+                          {statementStatus.isSiteSpecific && (
+                            <span style={{ fontSize: '9.5px', padding: '0 3px', borderRadius: '3px', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--primary)', fontWeight: 700 }}>
+                              현장지정
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* 💡 직전 청구 마일스톤 뱃지 바 */}
@@ -3277,6 +3458,31 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', flexWrap: 'wrap' }}>
                   <span>계약번호: <strong>{selectedContractForWizard.contractNo}</strong></span>
                   <span>계약 기간: <strong>{selectedContractForWizard.startDate} ~ {formatContractEndDate(selectedContractForWizard.endDate)}</strong></span>
+                  {(() => {
+                    const selDue = getTodayStatementDueStatus(selectedContractForWizard);
+                    return (
+                      <>
+                        <span>현장: <strong>{getSiteName(selectedContractForWizard.siteId)}</strong></span>
+                        <span>청구 마감: <strong>매월 {selDue.rawBillingDay === 31 ? '말일' : `${selDue.rawBillingDay}일`}</strong></span>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          명세서 마감: 
+                          <strong style={{ color: selDue.isTodayDue && !selDue.isAlreadyBilledThisMonth ? '#dc2626' : 'inherit' }}>
+                            매월 {selDue.rawStatementDay === 31 ? '말일' : `${selDue.rawStatementDay}일`}
+                          </strong>
+                          {selDue.isSiteSpecific && (
+                            <span style={{ fontSize: '10px', padding: '1px 4px', borderRadius: '3px', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: 'var(--primary)', fontWeight: 700 }}>
+                              현장지정
+                            </span>
+                          )}
+                          {selDue.isTodayDue && !selDue.isAlreadyBilledThisMonth && (
+                            <span className="badge" style={{ backgroundColor: '#fee2e2', color: '#dc2626', border: '1px solid #ef4444', fontSize: '10px' }}>
+                              🔔 오늘 마감
+                            </span>
+                          )}
+                        </span>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>

@@ -283,7 +283,36 @@ const server = http.createServer(async (req, res) => {
         const managerName = payload.managerName || '현장담당자';
         const managerPhone = payload.managerPhone || '010-0000-0000';
         const optionsText = payload.optionsText || '협착방지대, 튜브소화기';
-        const remarksText = payload.remarksText || '안전발판 지급';
+        const remarksText = payload.remarksText || '특이사항 없음';
+        const tenantName = payload.tenantName || payload.tenantCorp || '(주)기연리프트';
+        const deliveryDate = payload.deliveryDate || payload.contractStartDate || contractDate;
+        let inspectionDate = payload.inspectionDate;
+        if (!inspectionDate) {
+          try {
+            const cleanD = String(deliveryDate).replace(/[^0-9-]/g, '').slice(0, 10);
+            const d = new Date(cleanD);
+            if (!isNaN(d.getTime())) {
+              d.setDate(d.getDate() - 2);
+              inspectionDate = d.toISOString().split('T')[0];
+            } else {
+              inspectionDate = contractDate;
+            }
+          } catch (e) {
+            inspectionDate = contractDate;
+          }
+        }
+        
+        // 💡 [SaaS Customization] 테넌트별 엑셀 매핑 룰 수신 (없으면 기연리프트 기본값)
+        const rules = payload.excelMappingRules || {
+          contractAssetsStartRow: 44,
+          contractModelCol: 1,
+          contractQtyCol: 3,
+          contractSnCol: 4,
+          contractFeeCol: 5,
+          contractAmountCol: 7,
+          contractPrintAreaBase: "A26:K",
+          contractPrintAreaStartRow: 26
+        };
 
         const assets = payload.assets && payload.assets.length > 0 ? payload.assets : [
           { assetNo: 'G06119', modelName: 'GTJZ0608ME', sn: '0108000379', rentalFee: 390000 }
@@ -291,6 +320,10 @@ const server = http.createServer(async (req, res) => {
 
         const primaryAsset = assets[0];
         const totalRentalFee = assets.reduce((sum, a) => sum + (Number(a.rentalFee) || 0), 0);
+
+        // 복사/삽입을 위한 기준 행 계산 (테넌트 양식에 맞게 동적 계산)
+        const copyRowIndex = rules.contractAssetsStartRow + 10; 
+        const insertRowIndex = rules.contractAssetsStartRow + 11;
 
         // PowerShell 스크립트 작성 (UTF-8 BOM 필수)
         const psScript = `\ufeff
@@ -307,9 +340,9 @@ function Replace-Tag($targetWs, $tag, $val) {
   $null = $targetWs.Cells.Replace($tag, $val, 2, 1, $false, $false, $false)
 }
 
-# --- 1. 마스터 파일 복사 및 열기 ---
+# --- 1. 파일 복사 및 열기 ---
 $masterIn = '${DRIVE_MIRROR_DIR.replace(/\\/g, '\\\\')}\\\\01.계약서패키지_마스터.xlsx'
-$masterWork = '${tempBuildDir.replace(/\\/g, '\\\\')}\\\\01.마스터_작업용.xlsx'
+$masterWork = '${tempBuildDir.replace(/\\/g, '\\\\')}\\\\01.계약_작업중.xlsx'
 $masterPdf = '${tempBuildDir.replace(/\\/g, '\\\\')}\\\\01.계약서패키지.pdf'
 Copy-Item $masterIn $masterWork -Force
 $wb = $excel.Workbooks.Open($masterWork)
@@ -347,38 +380,39 @@ Replace-Tag $wsContract "{소계}" "${totalRentalFee.toLocaleString()}"
 Replace-Tag $wsContract "{합계}" "₩${totalRentalFee.toLocaleString()}"
 Replace-Tag $wsContract "{옵션}" "${optionsText}"
 Replace-Tag $wsContract "{특이사항}" "${remarksText}"
+Replace-Tag $wsContract "{테넌트}" "${tenantName}"
 
 # ── 12대 초과 시 행 동적 확장 (기존 서식 및 하단 특약/서명란 밀어내기 보존) ──
 if (${assets.length} -gt 12) {
     $extraRows = ${assets.length} - 12
     for ($k = 0; $k -lt $extraRows; $k++) {
-        $wsContract.Rows.Item(54).Copy()
-        $null = $wsContract.Rows.Item(55).Insert(-4167)
+        $wsContract.Rows.Item(${copyRowIndex}).Copy()
+        $null = $wsContract.Rows.Item(${insertRowIndex}).Insert(-4167)
     }
 }
 
-# ── 자산별 행(Row 44부터) 1대당 1줄씩 명시적 기입 ──
+# ── 자산별 행(Row ${rules.contractAssetsStartRow}부터) 1대당 1줄씩 명시적 기입 ──
 ` + assets.map((ast, idx) => {
-  const row = 44 + idx;
+  const row = rules.contractAssetsStartRow + idx;
   const aModel = ast.modelName || 'GS-2646';
   const aSn = ast.sn ? String(ast.sn) : '';
   const aNo = ast.assetNo || '';
   const aFee = (ast.rentalFee || 480000).toLocaleString();
   return `
-$wsContract.Cells.Item(${row}, 1).Value2 = "${aModel}"
-$wsContract.Cells.Item(${row}, 3).Value2 = "1"
-$wsContract.Cells.Item(${row}, 4).Value2 = "${aSn}\`r\`n${aNo}"
-$wsContract.Cells.Item(${row}, 5).Value2 = "${aFee}"
-$wsContract.Cells.Item(${row}, 7).Value2 = "${aFee}"
+$wsContract.Cells.Item(${row}, ${rules.contractModelCol}).Value2 = "${aModel}"
+$wsContract.Cells.Item(${row}, ${rules.contractQtyCol}).Value2 = "1"
+$wsContract.Cells.Item(${row}, ${rules.contractSnCol}).Value2 = "${aSn}\`r\`n${aNo}"
+$wsContract.Cells.Item(${row}, ${rules.contractFeeCol}).Value2 = "${aFee}"
+$wsContract.Cells.Item(${row}, ${rules.contractAmountCol}).Value2 = "${aFee}"
 `;
 }).join('') + (assets.length < 12 ? Array.from({ length: 12 - assets.length }, (_, k) => {
-  const row = 44 + assets.length + k;
+  const row = rules.contractAssetsStartRow + assets.length + k;
   return `
-$wsContract.Cells.Item(${row}, 1).Value2 = ""
-$wsContract.Cells.Item(${row}, 3).Value2 = ""
-$wsContract.Cells.Item(${row}, 4).Value2 = ""
-$wsContract.Cells.Item(${row}, 5).Value2 = ""
-$wsContract.Cells.Item(${row}, 7).Value2 = ""
+$wsContract.Cells.Item(${row}, ${rules.contractModelCol}).Value2 = ""
+$wsContract.Cells.Item(${row}, ${rules.contractQtyCol}).Value2 = ""
+$wsContract.Cells.Item(${row}, ${rules.contractSnCol}).Value2 = ""
+$wsContract.Cells.Item(${row}, ${rules.contractFeeCol}).Value2 = ""
+$wsContract.Cells.Item(${row}, ${rules.contractAmountCol}).Value2 = ""
 `;
 }).join('') : '') + `
 
@@ -387,11 +421,12 @@ $wsContract.PageSetup.Orientation = 1
 $wsContract.PageSetup.Zoom = $false
 $wsContract.PageSetup.FitToPagesWide = 1
 if (${assets.length} -le 12) {
-  $wsContract.PageSetup.PrintArea = "A26:K78"
+  $endRow = ${rules.contractPrintAreaStartRow} + 52
+  $wsContract.PageSetup.PrintArea = "${rules.contractPrintAreaBase}$endRow"
   $wsContract.PageSetup.FitToPagesTall = 1
 } else {
-  $endRow = 78 + (${assets.length} - 12)
-  $wsContract.PageSetup.PrintArea = "A26:K$endRow"
+  $endRow = ${rules.contractPrintAreaStartRow} + 52 + (${assets.length} - 12)
+  $wsContract.PageSetup.PrintArea = "${rules.contractPrintAreaBase}$endRow"
   $wsContract.PageSetup.FitToPagesTall = $false
 }
 
@@ -422,6 +457,8 @@ for ($i = 0; $i -lt $assetsJson.Count; $i++) {
     Replace-Tag $curSafety "{사업장명}" "${siteName}"
     Replace-Tag $curSafety "{형식}" "자주식 시저형"
     Replace-Tag $curSafety "{제조사}" "SINOBOOM"
+    Replace-Tag $curSafety "{테넌트}" "${tenantName}"
+    Replace-Tag $curSafety "(주)기연리프트" "${tenantName}"
     Replace-Tag $curSafety "{고객명}" "${custName}"
     Replace-Tag $curSafety "{동력방식}" "배터리식"
     Replace-Tag $curSafety "{모델명}" "$($asset.modelName)"
@@ -432,7 +469,10 @@ for ($i = 0; $i -lt $assetsJson.Count; $i++) {
     Replace-Tag $curSafety "{차량번호}" "$($asset.assetNo) ($($asset.sn))"
     Replace-Tag $curSafety "{제조연도}" "2021년"
     Replace-Tag $curSafety "{안전인증일}" "2021-05-12"
-    Replace-Tag $curSafety "{Today}" "${contractDate}"
+    Replace-Tag $curSafety "{Today}" "${inspectionDate}"
+    Replace-Tag $curSafety "{안전점검일시}" "${inspectionDate}"
+    Replace-Tag $curSafety "{(배차일)-2} 또는 {지정}" "${inspectionDate}"
+    Replace-Tag $curSafety "{(배차일)-2}" "${inspectionDate}"
     Replace-Tag $curSafety "{점검자}" "김관주"
     $curSafety.PageSetup.Orientation = 1
     $curSafety.PageSetup.Zoom = $false
@@ -498,7 +538,8 @@ $excel.Quit()
         const safeCustName = (payload.customerName || '고객').replace(/[\\/:*?"<>|]/g, '');
         const safeSiteName = String(payload.siteName || '현장').replace(/[\\/:*?"<>|]/g, '');
         const contractStartDateStr = String(payload.contractStartDate || payload.contractDate || '').replace(/[\\/:*?"<>|]/g, '');
-        const fileName = `[기연리프트계약서]_${safeCustName}_${safeSiteName}_${contractStartDateStr}.pdf`;
+        const tenantBrand = (payload.tenantName || payload.tenantCorp || '기연리프트').replace(/[\(\)\s]/g, '');
+        const fileName = `[${tenantBrand}계약서]_${safeCustName}_${safeSiteName}_${contractStartDateStr}.pdf`;
 
         // 로컬 문서고 영구 아카이빙
         const yyyyMm = contractDate.substring(0, 7) || new Date().toISOString().substring(0, 7);
@@ -560,7 +601,8 @@ $excel.Quit()
         const billingManagerPhone = payload.billingManagerPhone || '031-334-5295';
         const yyyyMm = (payload.billingYm || (payload.billingDate ? payload.billingDate.substring(0, 7) : new Date().toISOString().substring(0, 7))).replace(/[\\/:*?"<>|]/g, '');
         const supplySummary = (payload.supplySummary || payload.billingDescription || `${yyyyMm}분 고소작업대 렌탈료`).replace(/"/g, '""');
-
+        const rules = payload.excelMappingRules || { statementAssetsStartRow: 16 };
+        
         const items = payload.items || [];
         const totalSupply = payload.totalSupply || 0;
         const totalVat = payload.totalVat || 0;
@@ -662,39 +704,36 @@ $curWs.Cells.Item(13, 5).Value2 = "${billingDate}${pageTag}"
       const globalNo = startGlobalIdx + r + 1;
       const m = item.month || '';
       const d = item.day || '';
-      const rawDesc = item.itemDescription || item.description || item.itemName || [item.model, item.assetNo ? `[${item.assetNo}]` : '', item.spec].filter(Boolean).join(' ') || '고소작업대 렌탈료';
-      const desc = rawDesc.replace(/"/g, '""');
-      const qty = item.quantity || item.qty || 1;
-      const priceNum = item.unitPrice !== undefined ? Number(item.unitPrice) : (item.price !== undefined ? Number(item.price) : 0);
-      const supplyNum = item.supplyAmount !== undefined ? Number(item.supplyAmount) : (item.amount !== undefined ? Number(item.amount) : (priceNum * qty));
-      const vatNum = item.vatAmount !== undefined ? Number(item.vatAmount) : (item.vat !== undefined ? Number(item.vat) : Math.round(supplyNum * 0.1));
-      const price = priceNum.toLocaleString();
-      const supply = supplyNum.toLocaleString();
-      const vat = vatNum.toLocaleString();
-      const notes = (item.notes || item.remarks || item.memo || '').replace(/"/g, '""');
+      const itemDesc = item.item || '';
+      const sn = item.sn || '';
+      const period = item.period || '';
+      const qty = item.qty || '';
+      const price = item.price ? Number(item.price).toLocaleString() : '';
+      const supply = item.supply ? Number(item.supply).toLocaleString() : '';
+      const vat = item.vat ? Number(item.vat).toLocaleString() : '';
 
       s += `
-$curWs.Cells.Item(${rowNum}, 2).Value2 = "${globalNo}"
-$curWs.Cells.Item(${rowNum}, 3).Value2 = "${m}"
-$curWs.Cells.Item(${rowNum}, 4).Value2 = "${d}"
-$curWs.Cells.Item(${rowNum}, 5).Value2 = "${desc}"
-$curWs.Cells.Item(${rowNum}, 12).Value2 = "${qty}"
-$curWs.Cells.Item(${rowNum}, 13).Value2 = "${price}"
-$curWs.Cells.Item(${rowNum}, 15).Value2 = "${supply}"
-$curWs.Cells.Item(${rowNum}, 17).Value2 = "${vat}"
-$curWs.Cells.Item(${rowNum}, 20).Value2 = "${notes}"
+$curWs.Cells.Item(${rowNum}, 1).Value2 = "${m}"
+$curWs.Cells.Item(${rowNum}, 2).Value2 = "${d}"
+$curWs.Cells.Item(${rowNum}, ${rules.statementModelCol || 3}).Value2 = "${itemDesc}"
+$curWs.Cells.Item(${rowNum}, ${rules.statementSnCol || 8}).Value2 = "${sn}"
+$curWs.Cells.Item(${rowNum}, ${rules.statementPeriodCol || 10}).Value2 = "${period}"
+$curWs.Cells.Item(${rowNum}, ${rules.statementQtyCol || 14}).Value2 = "${qty}"
+$curWs.Cells.Item(${rowNum}, ${rules.statementPriceCol || 15}).Value2 = "${price}"
+$curWs.Cells.Item(${rowNum}, ${rules.statementAmountCol || 18}).Value2 = "${supply}"
+$curWs.Cells.Item(${rowNum}, ${(rules.statementAmountCol || 18) + 3}).Value2 = "${vat}"
 `;
     } else {
       s += `
+$curWs.Cells.Item(${rowNum}, 1).Value2 = ""
 $curWs.Cells.Item(${rowNum}, 2).Value2 = ""
-$curWs.Cells.Item(${rowNum}, 3).Value2 = ""
-$curWs.Cells.Item(${rowNum}, 4).Value2 = ""
-$curWs.Cells.Item(${rowNum}, 5).Value2 = ""
-$curWs.Cells.Item(${rowNum}, 12).Value2 = ""
-$curWs.Cells.Item(${rowNum}, 13).Value2 = ""
-$curWs.Cells.Item(${rowNum}, 15).Value2 = ""
-$curWs.Cells.Item(${rowNum}, 17).Value2 = ""
-$curWs.Cells.Item(${rowNum}, 20).Value2 = ""
+$curWs.Cells.Item(${rowNum}, ${rules.statementModelCol || 3}).Value2 = ""
+$curWs.Cells.Item(${rowNum}, ${rules.statementSnCol || 8}).Value2 = ""
+$curWs.Cells.Item(${rowNum}, ${rules.statementPeriodCol || 10}).Value2 = ""
+$curWs.Cells.Item(${rowNum}, ${rules.statementQtyCol || 14}).Value2 = ""
+$curWs.Cells.Item(${rowNum}, ${rules.statementPriceCol || 15}).Value2 = ""
+$curWs.Cells.Item(${rowNum}, ${rules.statementAmountCol || 18}).Value2 = ""
+$curWs.Cells.Item(${rowNum}, ${(rules.statementAmountCol || 18) + 3}).Value2 = ""
 `;
     }
   }
@@ -740,7 +779,8 @@ $excel.Quit()
         const b64 = pdfBuffer.toString('base64');
         const safeCustName = (custName || '고객사').replace(/[\\/:*?"<>|]/g, '');
         const safeSiteName = String(siteName || '현장').replace(/[\\/:*?"<>|]/g, '');
-        const fileName = `[기연리프트]_거래명세서_${safeCustName}_${safeSiteName}_${yyyyMm}.pdf`;
+        const fileDateTag = payload.customFileName ? '' : (payload.billingDate ? `_${payload.billingDate}` : `_${yyyyMm}`);
+        const fileName = payload.customFileName || `[기연리프트]_거래명세서_${safeCustName}_${safeSiteName}${fileDateTag}.pdf`;
 
         // 🌟 [로컬 문서고 영구 아카이빙 - 헌장 1.2 & 매뉴얼 6.3]
         const archiveDir = path.join(ARCHIVE_ROOT, yyyyMm);
@@ -751,7 +791,7 @@ $excel.Quit()
         // 원본 엑셀 작업본도 함께 영구 보존
         const xlsxWorkFile = path.join(tempBuildDir, '거래명세서_작업용.xlsx');
         if (fs.existsSync(xlsxWorkFile)) {
-          const xlsxFileName = `[기연리프트]_거래명세서_${safeCustName}_${safeSiteName}_${yyyyMm}.xlsx`;
+          const xlsxFileName = fileName.replace(/\.pdf$/i, '.xlsx');
           fs.copyFileSync(xlsxWorkFile, path.join(archiveDir, xlsxFileName));
         }
 
@@ -956,30 +996,44 @@ $excel.Quit()
 
         // 임시 인쇄용 HTML 파일 작성 (UTF-8)
         const tempPrintHtml = path.join(AGENT_HOME, `temp_dispatch_print_${Date.now()}.html`);
-        fs.writeFileSync(tempPrintHtml, `<!DOCTYPE html>
+        let finalHtml = (htmlContent || '').trim();
+        if (!finalHtml.toLowerCase().startsWith('<!doctype') && !finalHtml.toLowerCase().startsWith('<html')) {
+          finalHtml = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <title>${title}</title>
   <style>
-    body { font-family: 'Malgun Gothic', 'Noto Sans KR', sans-serif; padding: 20px; color: #111; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ddd; padding: 8px 10px; font-size: 13px; text-align: left; }
-    th { background-color: #f9fafb; font-weight: bold; width: 130px; }
-    .header { text-align: center; border-bottom: 2px solid #312e81; padding-bottom: 12px; margin-bottom: 20px; }
-    .header h1 { margin: 0; font-size: 24px; font-weight: 800; color: #1e1b4b; letter-spacing: 2px; }
-    .section-title { font-size: 14px; font-weight: bold; border-left: 4px solid #312e81; padding-left: 8px; margin: 16px 0 8px 0; color: #312e81; }
+    @page { size: A4 portrait; margin: 8mm 10mm 8mm 10mm; mso-page-orientation: portrait; }
+    * { box-sizing: border-box; margin: 0; padding: 0; mso-line-height-rule: exactly; }
+    body { font-family: 'Malgun Gothic', '맑은 고딕', Dotum, sans-serif; margin: 0; padding: 0; color: #0f172a; font-size: 8.5pt; line-height: 1.15; }
+    p, div, span, table, tr, td, th { margin: 0; padding: 0; line-height: 1.15; }
+    table { width: 100%; border-collapse: collapse; margin-top: 2px; margin-bottom: 4px; table-layout: fixed; }
+    th, td { border: 1px solid #cbd5e1; padding: 2.5px 5px !important; font-size: 8pt; vertical-align: middle; }
+    th { background-color: #f1f5f9; font-weight: 700; color: #334155; text-align: left; }
+    .header-table { width: 100%; border: none; border-bottom: 2px solid #1e1b4b; margin-bottom: 4px; padding-bottom: 2px; }
+    .header-table td { border: none; padding: 0 !important; vertical-align: middle; }
+    .title { font-size: 15pt; font-weight: 800; color: #1e1b4b; text-align: center; letter-spacing: 2px; }
+    .doc-info { font-size: 7.5pt; color: #64748b; }
+    .sign-box { width: 60px; border: 1px solid #475569; text-align: center; font-size: 7.5pt; }
+    .sign-title { background: #f1f5f9; font-weight: 700; border-bottom: 1px solid #475569; padding: 1px 0; }
+    .sign-body { height: 26px; line-height: 26px; color: #94a3b8; }
+    .sec-title { font-size: 8.5pt; font-weight: 800; color: #1e1b4b; border-left: 3px solid #1e1b4b; padding-left: 4px; margin-top: 3px; margin-bottom: 1px; }
   </style>
 </head>
 <body>
-  ${htmlContent}
+  ${finalHtml}
 </body>
-</html>`, 'utf8');
+</html>`;
+        }
+        fs.writeFileSync(tempPrintHtml, finalHtml, 'utf8');
 
         console.log(`🖨️ [다이렉트 인쇄] 대상 프린터: [${printerName}], 임시파일: ${tempPrintHtml}`);
 
-        const printCmd = `Start-Process rundll32.exe -ArgumentList 'mshtml.dll,PrintHTML "${tempPrintHtml}" "${printerName}"' -NoNewWindow`;
-        execSync(`powershell -NoProfile -Command "${printCmd}"`, { stdio: 'ignore' });
+        const psScriptPath = path.join(AGENT_HOME, 'print_html_word.ps1');
+        const targetPrinter = (printerName || 'Apeos C2060').trim();
+        const cmd = `powershell -NoProfile -ExecutionPolicy Bypass -File "${psScriptPath}" -HtmlPath "${tempPrintHtml}" -PrinterName "${targetPrinter}"`;
+        execSync(cmd, { encoding: 'utf8', timeout: 30000 });
 
         // 10초 후 임시 파일 자동 정리
         setTimeout(() => {
@@ -1291,51 +1345,83 @@ async function checkAndProcessPrintQueue() {
     const printerName = activeStationConfig.localPrinterName;
     const title = job.title || '기연리프트_출력물';
 
-    fs.writeFileSync(tempPrintHtml, `<!DOCTYPE html>
+    let finalHtml = (job.documentHtml || '').trim();
+    if (!finalHtml.toLowerCase().startsWith('<!doctype') && !finalHtml.toLowerCase().startsWith('<html')) {
+      finalHtml = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <title>${title}</title>
   <style>
-    body { font-family: 'Malgun Gothic', 'Noto Sans KR', sans-serif; padding: 20px; color: #111; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ddd; padding: 8px 10px; font-size: 13px; text-align: left; }
-    th { background-color: #f9fafb; font-weight: bold; width: 130px; }
-    .header { text-align: center; border-bottom: 2px solid #312e81; padding-bottom: 12px; margin-bottom: 20px; }
-    .header h1 { margin: 0; font-size: 24px; font-weight: 800; color: #1e1b4b; letter-spacing: 2px; }
-    .section-title { font-size: 14px; font-weight: bold; border-left: 4px solid #312e81; padding-left: 8px; margin: 16px 0 8px 0; color: #312e81; }
-    @media print {
-      @page { margin: 10mm; }
-    }
+    @page { size: A4 portrait; margin: 8mm 10mm 8mm 10mm; mso-page-orientation: portrait; }
+    * { box-sizing: border-box; margin: 0; padding: 0; mso-line-height-rule: exactly; }
+    body { font-family: 'Malgun Gothic', '맑은 고딕', Dotum, sans-serif; margin: 0; padding: 0; color: #0f172a; font-size: 8.5pt; line-height: 1.15; }
+    p, div, span, table, tr, td, th { margin: 0; padding: 0; line-height: 1.15; }
+    table { width: 100%; border-collapse: collapse; margin-top: 2px; margin-bottom: 4px; table-layout: fixed; }
+    th, td { border: 1px solid #cbd5e1; padding: 2.5px 5px !important; font-size: 8pt; vertical-align: middle; }
+    th { background-color: #f1f5f9; font-weight: 700; color: #334155; text-align: left; }
+    .header-table { width: 100%; border: none; border-bottom: 2px solid #1e1b4b; margin-bottom: 4px; padding-bottom: 2px; }
+    .header-table td { border: none; padding: 0 !important; vertical-align: middle; }
+    .title { font-size: 15pt; font-weight: 800; color: #1e1b4b; text-align: center; letter-spacing: 2px; }
+    .doc-info { font-size: 7.5pt; color: #64748b; }
+    .sign-box { width: 60px; border: 1px solid #475569; text-align: center; font-size: 7.5pt; }
+    .sign-title { background: #f1f5f9; font-weight: 700; border-bottom: 1px solid #475569; padding: 1px 0; }
+    .sign-body { height: 26px; line-height: 26px; color: #94a3b8; }
+    .sec-title { font-size: 8.5pt; font-weight: 800; color: #1e1b4b; border-left: 3px solid #1e1b4b; padding-left: 4px; margin-top: 3px; margin-bottom: 1px; }
   </style>
 </head>
 <body>
-  ${job.documentHtml || ''}
+  ${finalHtml}
 </body>
-</html>`, 'utf8');
+</html>`;
+    }
+    fs.writeFileSync(tempPrintHtml, finalHtml, 'utf8');
 
     console.log(`🖨️ [무인 다이렉트 출력 전송] 프린터: [${printerName}], 작업: ${job.id}`);
-    const printCmd = `Start-Process rundll32.exe -ArgumentList 'mshtml.dll,PrintHTML "${tempPrintHtml}" "${printerName}"' -NoNewWindow`;
-    execSync(`powershell -NoProfile -Command "${printCmd}"`, { stdio: 'ignore' });
+    
+    try {
+      const psScriptPath = path.join(AGENT_HOME, 'print_html_word.ps1');
+      const targetPrinter = (printerName || 'Apeos C2060').trim();
+      const cmd = `powershell -NoProfile -ExecutionPolicy Bypass -File "${psScriptPath}" -HtmlPath "${tempPrintHtml}" -PrinterName "${targetPrinter}"`;
+      const printOut = execSync(cmd, { encoding: 'utf8', timeout: 35000 });
+      console.log(`🖨️ [스풀 완료] ${printOut.trim()} (프린터: ${targetPrinter})`);
 
-    // 3. 완료 상태 업데이트
-    await fetch(`${SUPABASE_REST_URL}/print_queue?id=eq.${encodeURIComponent(job.id)}`, {
-      method: 'PATCH',
-      headers: {
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({
-        status: 'COMPLETED',
-        printedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }),
-      signal: AbortSignal.timeout(4000)
-    });
+      // 3. 완료 상태 업데이트
+      await fetch(`${SUPABASE_REST_URL}/print_queue?id=eq.${encodeURIComponent(job.id)}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          status: 'COMPLETED',
+          printedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }),
+        signal: AbortSignal.timeout(4000)
+      });
 
-    console.log(`✅ [인쇄 완료 보고 완료] 작업: ${job.id}`);
+      console.log(`✅ [인쇄 완료 보고 완료] 작업: ${job.id}`);
+    } catch (printExecErr) {
+      console.error(`❌ [인쇄 실행 실패] 작업: ${job.id}:`, printExecErr.message);
+      await fetch(`${SUPABASE_REST_URL}/print_queue?id=eq.${encodeURIComponent(job.id)}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          status: 'FAILED',
+          errorMessage: printExecErr.message,
+          updatedAt: new Date().toISOString()
+        }),
+        signal: AbortSignal.timeout(4000)
+      });
+    }
 
     setTimeout(() => {
       try { if (fs.existsSync(tempPrintHtml)) fs.unlinkSync(tempPrintHtml); } catch (e) {}

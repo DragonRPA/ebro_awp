@@ -518,6 +518,8 @@ export const Customers: React.FC = () => {
       email: '',
       isActive: true,
       contacts: [initialContact],
+      statementClosingDay: parentCust?.defaultStatementClosingDay || 25,
+      billingDay: parentCust?.defaultBillingDay || 30,
       paymentDueMonthOffset: parentCust?.paymentDueMonthOffset ?? 1,
       paymentDueDay: parentCust?.paymentDueDay || 25
     });
@@ -556,8 +558,13 @@ export const Customers: React.FC = () => {
       }];
     }
 
+    const parentCust = customers.find(c => c.id === cs.customerId);
     setEditingSite({
       ...cs,
+      statementClosingDay: cs.statementClosingDay || parentCust?.defaultStatementClosingDay || 25,
+      billingDay: cs.billingDay || parentCust?.defaultBillingDay || 30,
+      paymentDueMonthOffset: cs.paymentDueMonthOffset !== undefined ? cs.paymentDueMonthOffset : (parentCust?.paymentDueMonthOffset ?? 1),
+      paymentDueDay: cs.paymentDueDay || parentCust?.paymentDueDay || 25,
       contacts: contactsList
     });
     setShowSiteSpecs(false);
@@ -1607,6 +1614,7 @@ export const Customers: React.FC = () => {
                         <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>현장 주소</th>
                         <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>현장 소장/담당</th>
                         <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>연락처</th>
+                        <th style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>명세서 마감일</th>
                         <th style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>상태</th>
                         <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>유상옵션 / 보양</th>
                       </tr>
@@ -1614,7 +1622,7 @@ export const Customers: React.FC = () => {
                     <tbody>
                       {customerSites.length === 0 ? (
                         <tr>
-                          <td colSpan={7} style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-muted)' }}>
+                          <td colSpan={8} style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-muted)' }}>
                             등록된 현장이 없습니다. 현장을 추가해 주세요.
                           </td>
                         </tr>
@@ -1698,6 +1706,11 @@ export const Customers: React.FC = () => {
                               ) : (
                                 <span>{cs.contact || '-'}{cs.email ? ` (${cs.email})` : ''}</span>
                               )}
+                            </td>
+                            <td style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                              <span style={{ fontSize: '10.5px', fontWeight: 600, color: cs.statementClosingDay ? 'var(--primary)' : 'var(--text-muted)' }}>
+                                매월 {cs.statementClosingDay === 31 ? '말일' : `${cs.statementClosingDay || activeCustomer?.defaultStatementClosingDay || 25}일`}
+                              </span>
                             </td>
                             <td style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                               <span className={`badge ${cs.isActive !== false ? 'badge-success' : 'badge-secondary'}`} style={{ fontSize: '9.5px' }}>
@@ -2584,29 +2597,69 @@ export const Customers: React.FC = () => {
                 </div>
               </div>
 
-              {/* 💳 현장 약정 결제일 (고객사 기본값 상속 또는 현장 개별 지정) */}
-              <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px 14px', backgroundColor: 'var(--bg-app)' }}>
-                <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>현장 약정 결제일 (미지정 시 고객사 조건 상속)</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '6px', maxWidth: '340px' }}>
-                  <select
-                    style={inputStyle}
-                    value={editingSite.paymentDueMonthOffset !== undefined ? editingSite.paymentDueMonthOffset : (activeCustomer?.paymentDueMonthOffset ?? 1)}
-                    onChange={e => setEditingSite({ ...editingSite, paymentDueMonthOffset: Number(e.target.value) })}
-                  >
-                    {PAYMENT_DUE_MONTH_OPTIONS.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
-                  <select
-                    style={inputStyle}
-                    value={editingSite.paymentDueDay || activeCustomer?.paymentDueDay || 25}
-                    onChange={e => setEditingSite({ ...editingSite, paymentDueDay: Number(e.target.value) })}
-                  >
-                    {Array.from({ length: 30 }, (_, i) => i + 1).map(day => (
-                      <option key={day} value={day}>{day}일</option>
-                    ))}
-                    <option value={31}>말일</option>
-                  </select>
+              {/* 📅 현장 마감 조건 (거래명세서 마감일 / 계산서 청구일 / 약정 결제일) */}
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px 14px', backgroundColor: 'var(--bg-app)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  {/* 거래명세서 마감일 */}
+                  <div>
+                    <label style={{ ...labelStyle, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span>거래명세서 마감일</span>
+                      <span style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: 700 }}>*청구생성 연동</span>
+                    </label>
+                    <select
+                      style={inputStyle}
+                      value={editingSite.statementClosingDay || activeCustomer?.defaultStatementClosingDay || 25}
+                      onChange={e => setEditingSite({ ...editingSite, statementClosingDay: Number(e.target.value) })}
+                    >
+                      {Array.from({ length: 30 }, (_, i) => i + 1).map(day => (
+                        <option key={day} value={day}>매월 {day}일</option>
+                      ))}
+                      <option value={31}>31일 (말일)</option>
+                    </select>
+                  </div>
+
+                  {/* 세금계산서 청구 마감일 */}
+                  <div>
+                    <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>
+                      세금계산서 청구일
+                    </label>
+                    <select
+                      style={inputStyle}
+                      value={editingSite.billingDay || activeCustomer?.defaultBillingDay || 30}
+                      onChange={e => setEditingSite({ ...editingSite, billingDay: Number(e.target.value) })}
+                    >
+                      {Array.from({ length: 30 }, (_, i) => i + 1).map(day => (
+                        <option key={day} value={day}>매월 {day}일</option>
+                      ))}
+                      <option value={31}>31일 (말일)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 약정 결제일 */}
+                <div>
+                  <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>현장 약정 결제일 (미지정 시 고객사 조건 상속)</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '6px', maxWidth: '340px' }}>
+                    <select
+                      style={inputStyle}
+                      value={editingSite.paymentDueMonthOffset !== undefined ? editingSite.paymentDueMonthOffset : (activeCustomer?.paymentDueMonthOffset ?? 1)}
+                      onChange={e => setEditingSite({ ...editingSite, paymentDueMonthOffset: Number(e.target.value) })}
+                    >
+                      {PAYMENT_DUE_MONTH_OPTIONS.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                    <select
+                      style={inputStyle}
+                      value={editingSite.paymentDueDay || activeCustomer?.paymentDueDay || 25}
+                      onChange={e => setEditingSite({ ...editingSite, paymentDueDay: Number(e.target.value) })}
+                    >
+                      {Array.from({ length: 30 }, (_, i) => i + 1).map(day => (
+                        <option key={day} value={day}>{day}일</option>
+                      ))}
+                      <option value={31}>말일</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 

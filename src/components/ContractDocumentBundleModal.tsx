@@ -419,7 +419,8 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       });
 
       if (!agentResp.ok) {
-        throw new Error(`에이전트 응답 오류: HTTP ${agentResp.status}`);
+        const errJson = await agentResp.json().catch(() => null);
+        throw new Error(errJson?.error ? `에이전트 오류: ${errJson.error}` : `에이전트 응답 오류: HTTP ${agentResp.status}`);
       }
 
       const agentRes = await agentResp.json();

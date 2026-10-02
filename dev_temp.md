@@ -1,5 +1,41 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## [완료] 계약서패키지 이메일 발송 및 PDF 다운로드 에이전트 HTTP 500 오류 원인 규명 및 원천 수정
+- **요구사항**:
+  - "계약서패키지 이메일 발송 오류" (첨부 이미지: `PDF 다운로드 실패: 에이전트 응답 오류: HTTP 500` 시스템 오류 팝업)
+- **오류 근본 원인 분석**:
+  - `eBroAgent.js`의 `/api/generate-contract-bundle` 엔드포인트 내 안전점검결과서 시트 태그 치환(`Replace-Tag $curSafety "{테넌트}" "${tenantName}"`) 및 일자 치환(`"${inspectionDate}"`) 시, JavaScript 템플릿 리터럴 내부에서 참조되는 `tenantName`과 `inspectionDate` 변수 선언이 누락되어 Node.js 런타임에서 `ReferenceError: tenantName is not defined`가 발생하면서 HTTP 500 응답 반환.
+  - 프론트엔드(`ContractDocumentBundleModal.tsx`)에서도 에이전트가 반환한 구체적인 에러 JSON body를 파싱하지 않고 단순 `HTTP 500`으로 표출하여 원인 파악을 저해함.
+- **수정 및 개선 내역**:
+  1. `C:\eBroAgent\eBroAgent.js` & `public/downloads/eBroAgent.js` (및 `agent.js`, `BroAgent.js`):
+     - `tenantName` (`payload.tenantName || payload.tenantCorp || '(주)기연리프트'`) 변수 안전 선언.
+     - `deliveryDate` 및 `inspectionDate` (미지정 시 배차일-2일 자동 보정) 변수 선언 복원 및 완결.
+     - 계약서 시트(`$wsContract`) 내 `{테넌트}` 태그 치환 추가.
+     - 최종 PDF 파일명 동적 테넌트 브랜드명 연동 (`[${tenantBrand}계약서]...`).
+  2. 로컬 에이전트 데몬 핫 재기동 및 E2E 실증 검증:
+     - 구버전 프로세스 종료 후 최신 코드로 에이전트 서비스 재가동.
+     - `/api/generate-contract-bundle` 실호출 테스트 결과 10페이지 계약서패키지 PDF 생성 완벽 성공 (`SUCCESS: True, pageCount: 10`, 2.25MB 아카이빙 확인).
+  3. `src/components/ContractDocumentBundleModal.tsx`:
+     - 에이전트 호출 오류 시 HTTP 상태코드 외에 에이전트가 반환한 상세 에러 JSON(`errJson.error`)을 우선 추출하여 화면에 친절히 표출하도록 방어 로직 강화.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 error, 821ms).
+
+## [완료] 고객 현장 등록 메뉴 거래명세서 마감일 항목 관리 및 청구수납관리 청구생성 연동
+- **요구사항**:
+  - "고객 현장 등록 메뉴에서 거래명세서 마감일 항목도 입력 관리. 이 고객 현장별 거래명세서 마감일 은 청구수납관리의 청구생성 관리에 연동되어 청구 담당자가 오늘 거래명세서를 발행 해아 하는지 인지하고 업무를 누락하지 않도록 방지"
+- **구현 및 개선 내역**:
+  1. `src/pages/Customers.tsx`:
+     - 현장 등록/수정 모달에 거래명세서 마감일(`statementClosingDay`, 1~31일) 및 세금계산서 청구일(`billingDay`) 드롭다운 폼 탑재.
+     - 고객사 기본값(`defaultStatementClosingDay` / `defaultBillingDay`) 자동 상속 체인 적용.
+     - 고객사 상세 하위 현장 목록 테이블에 `명세서 마감일` 컬럼 표출 (개별 지정 시 `매월 N일`, 미지정 시 기본값 표기).
+  2. `src/pages/Billings.tsx`:
+     - 마감일 다계층 상속 체인 구현: 현장(`sites`) 마감일 최우선 ➔ 계약 마감일 ➔ 고객사 기본값 ➔ 25일 디폴트.
+     - 오늘 마감(`isTodayDue`) 및 도과(`isOverdue`), 당월 기발행 여부(`isAlreadyBilledThisMonth`) 판정 엔진 구현.
+     - 상단 `[미청구 정산(청구생성)]` 탭 버튼에 당일 마감 건수 알림 배지(`오늘 마감 N`) 표시.
+     - 청구생성 상단 `[🔔 오늘 명세서 마감 (N건)]`, `[⚠️ 마감 도과 (N건)]`, `[전체 해제]` 퀵 필터 칩 및 알림 배너 탑재.
+     - 정산 대상 계약 카드에 `🔔 오늘 명세서 마감` 및 `⚠️ 마감 도과` 뱃지, 현장지정 뱃지 표출.
+     - 요금 계산기 헤더에 현장별 청구/명세서 마감 정보 및 오늘 마감 배지 실시간 동기화.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 error, 853ms).
+
 ## [완료] 계약 관리(Contracts) 계약기간 컬럼 표시 체크박스 기본값 true 변경
 - **요구사항**:
   - "표시의 계약기간은 기본값을 true 로 변경. ㄹㅇ" (첨부 이미지: 계약 관리 메뉴 상태 필터 우측 `[ ] 계약기간` 체크박스에 빨간색 마킹)
