@@ -35,6 +35,7 @@ import {
   FolderOpen, Zap, Phone, Terminal, Activity, Printer
 } from 'lucide-react';
 import { CallAudioUploadModal } from '../components/CallAudioUploadModal';
+import { canViewFinancials } from '../utils/privacyMasking';
 import './smart_dispatch4.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -55,7 +56,12 @@ interface ScoredField {
   confirmed: boolean;
 }
 
-interface EquipmentItem { modelName: string; qty: number; }
+interface EquipmentItem { 
+  modelName: string; 
+  qty: number; 
+  monthlyRate?: number; // 🔒 월단가 (영업사원, 관리부, 경영진 전용)
+  dailyRate?: number;   // 🔒 일단가 (영업사원, 관리부, 경영진 전용)
+}
 
 export type PaidBy = 'CUSTOMER' | 'OURS' | 'SPLIT';
 
@@ -170,6 +176,8 @@ export const SmartDispatch4: React.FC = () => {
   }, [inspectionChecklistItems]);
 
   const canSave = hasPermission('smart_dispatch', 'save') || hasPermission('delivery', 'save') || hasPermission('smart_dispatch4', 'save');
+  // 🔒 단가/재무 정보 접근 통제 (영업사원, 관리부/청구담당자, 경영진만 단가 입력 및 조회 허용)
+  const hasFinancialAccess = canViewFinancials(currentUser);
 
   // 🖨️ 원격 분산 인쇄 큐 타겟 스테이션 설정 (1회 선택 시 기억)
   const PREFERRED_DISPATCH_STATION_KEY = 'preferred_print_station_dispatch';
@@ -710,10 +718,15 @@ export const SmartDispatch4: React.FC = () => {
   }, [catalogModels]);
 
   const addModel = (modelName: string) => {
+    // 모델 기준 단가 조회 (기본 단가 자동 제안)
+    const prod = products.find(p => p.modelName === modelName);
+    const defMonthly = (prod as any)?.standardPrice || (prod as any)?.monthlyPrice || 0;
+    const defDaily = defMonthly > 0 ? Math.round(defMonthly / 30) : 0;
+
     setEquipments(prev => {
       const idx = prev.findIndex(e => e.modelName === modelName);
       if (idx >= 0) { const u = [...prev]; u[idx] = { ...u[idx], qty: u[idx].qty + 1 }; return u; }
-      return [...prev, { modelName, qty: 1 }];
+      return [...prev, { modelName, qty: 1, monthlyRate: defMonthly, dailyRate: defDaily }];
     });
   };
   const changeQty = (index: number, delta: number) => {
@@ -730,6 +743,13 @@ export const SmartDispatch4: React.FC = () => {
     setEquipments(prev => {
       const u = [...prev];
       u[index] = { ...u[index], qty };
+      return u;
+    });
+  };
+  const setModelRate = (index: number, field: 'monthlyRate' | 'dailyRate', val: number) => {
+    setEquipments(prev => {
+      const u = [...prev];
+      u[index] = { ...u[index], [field]: val };
       return u;
     });
   };
@@ -3341,59 +3361,91 @@ export const SmartDispatch4: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* 우측: 고밀도 엔터프라이즈 수량 조절기 & 삭제 액션 */}
-                          <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800 shadow-inner flex-shrink-0">
-                            {/* 감산 버튼 [-] */}
-                            <button
-                              type="button"
-                              onClick={() => changeQty(idx, -1)}
-                              disabled={eq.qty <= 1}
-                              className="dispatch4-qty-btn"
-                              title={eq.qty <= 1 ? "최소 수량은 1대입니다 (삭제는 우측 휴지통)" : "수량 1대 감소"}
-                              aria-label="수량 1대 감소"
-                            >
-                              <Minus size={14} strokeWidth={2.5} color="currentColor" style={{ width: 14, height: 14, display: 'block' }} />
-                            </button>
+                          {/* 우측: 단가 입력(영업/관리/경영진) 및 수량 조절기 & 삭제 액션 */}
+                          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+                            {/* 🔒 영업사원 / 관리부 / 경영진 전용: 단가(월단가/일단가) 입력 UI */}
+                            {hasFinancialAccess && (
+                              <div className="flex items-center gap-2 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800 shadow-inner">
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">월단가</span>
+                                  <input
+                                    type="number"
+                                    placeholder="월단가"
+                                    value={eq.monthlyRate ?? ''}
+                                    onChange={e => setModelRate(idx, 'monthlyRate', Number(e.target.value) || 0)}
+                                    className="w-20 px-1.5 py-0.5 bg-slate-900 border border-slate-700 rounded text-right text-xs font-mono font-bold text-amber-300 focus:outline-none focus:border-amber-400"
+                                    title="월 렌탈료 단가 (영업사원/청구담당자 전용)"
+                                  />
+                                  <span className="text-[10px] text-slate-500">원</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">일단가</span>
+                                  <input
+                                    type="number"
+                                    placeholder="일단가"
+                                    value={eq.dailyRate ?? ''}
+                                    onChange={e => setModelRate(idx, 'dailyRate', Number(e.target.value) || 0)}
+                                    className="w-16 px-1.5 py-0.5 bg-slate-900 border border-slate-700 rounded text-right text-xs font-mono font-bold text-emerald-300 focus:outline-none focus:border-emerald-400"
+                                    title="일할 단가 (영업사원/청구담당자 전용)"
+                                  />
+                                  <span className="text-[10px] text-slate-500">원</span>
+                                </div>
+                              </div>
+                            )}
 
-                            {/* 수량 직접 입력 및 '대' 단위 */}
-                            <div className="flex items-center justify-center min-w-[52px] px-0.5">
-                              <input
-                                type="number"
-                                min={1}
-                                max={999}
-                                value={eq.qty}
-                                onChange={e => setModelQty(idx, parseInt(e.target.value) || 1)}
-                                className="dispatch4-qty-input"
-                                title="수량 직접 입력"
-                                aria-label={`${eq.modelName} 수량`}
-                              />
-                              <span className="text-[11px] text-slate-400 font-bold ml-1 select-none">대</span>
+                            <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800 shadow-inner">
+                              {/* 감산 버튼 [-] */}
+                              <button
+                                type="button"
+                                onClick={() => changeQty(idx, -1)}
+                                disabled={eq.qty <= 1}
+                                className="dispatch4-qty-btn"
+                                title={eq.qty <= 1 ? "최소 수량은 1대입니다 (삭제는 우측 휴지통)" : "수량 1대 감소"}
+                                aria-label="수량 1대 감소"
+                              >
+                                <Minus size={14} strokeWidth={2.5} color="currentColor" style={{ width: 14, height: 14, display: 'block' }} />
+                              </button>
+
+                              {/* 수량 직접 입력 및 '대' 단위 */}
+                              <div className="flex items-center justify-center min-w-[52px] px-0.5">
+                                <input
+                                  type="number"
+                                  min={1}
+                                  max={999}
+                                  value={eq.qty}
+                                  onChange={e => setModelQty(idx, parseInt(e.target.value) || 1)}
+                                  className="dispatch4-qty-input"
+                                  title="수량 직접 입력"
+                                  aria-label={`${eq.modelName} 수량`}
+                                />
+                                <span className="text-[11px] text-slate-400 font-bold ml-1 select-none">대</span>
+                              </div>
+
+                              {/* 가산 버튼 [+] */}
+                              <button
+                                type="button"
+                                onClick={() => changeQty(idx, 1)}
+                                className="dispatch4-qty-btn"
+                                title="수량 1대 증가"
+                                aria-label="수량 1대 증가"
+                              >
+                                <Plus size={14} strokeWidth={2.5} color="currentColor" style={{ width: 14, height: 14, display: 'block' }} />
+                              </button>
+
+                              {/* 세로 구분선 */}
+                              <div className="w-[1px] h-4 bg-slate-700/80 mx-0.5 flex-shrink-0" />
+
+                              {/* 삭제 버튼 [휴지통] */}
+                              <button
+                                type="button"
+                                onClick={() => removeEquipment(idx)}
+                                className="dispatch4-delete-btn group"
+                                title={`${eq.modelName} 출고 목록에서 삭제`}
+                                aria-label={`${eq.modelName} 삭제`}
+                              >
+                                <Trash2 size={14} strokeWidth={2.2} color="currentColor" style={{ width: 14, height: 14, display: 'block' }} className="transition-colors group-hover:text-red-400" />
+                              </button>
                             </div>
-
-                            {/* 가산 버튼 [+] */}
-                            <button
-                              type="button"
-                              onClick={() => changeQty(idx, 1)}
-                              className="dispatch4-qty-btn"
-                              title="수량 1대 증가"
-                              aria-label="수량 1대 증가"
-                            >
-                              <Plus size={14} strokeWidth={2.5} color="currentColor" style={{ width: 14, height: 14, display: 'block' }} />
-                            </button>
-
-                            {/* 세로 구분선 */}
-                            <div className="w-[1px] h-4 bg-slate-700/80 mx-0.5 flex-shrink-0" />
-
-                            {/* 삭제 버튼 [휴지통] */}
-                            <button
-                              type="button"
-                              onClick={() => removeEquipment(idx)}
-                              className="dispatch4-delete-btn group"
-                              title={`${eq.modelName} 출고 목록에서 삭제`}
-                              aria-label={`${eq.modelName} 삭제`}
-                            >
-                              <Trash2 size={14} strokeWidth={2.2} color="currentColor" style={{ width: 14, height: 14, display: 'block' }} className="transition-colors group-hover:text-red-400" />
-                            </button>
                           </div>
                         </div>
                       );

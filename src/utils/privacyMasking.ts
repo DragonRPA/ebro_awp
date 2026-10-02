@@ -31,6 +31,40 @@ export function isPrivilegedPrivacyUser(user?: User | null): boolean {
 }
 
 /**
+ * 🔒 단가/매출/이익/비용/계약금액 열람 권한자 판별 (단가 보안 정책 SSOT)
+ * - 경영진 (Executive): admin, 대표, 경영진 소속 등
+ * - 관리부 (Management / Billing / Accounting): 관리팀, 청구팀, 정산팀, 회계, 경리, manager, billing 등
+ * - 영업부 (Sales): 영업팀, 영업사원, sales 등
+ * - 그 외(정비부, 출고팀, 주기장, 운송팀 등 현장/기술 부서)는 단가/매출/비용/이익 비노출
+ */
+export function canViewFinancials(user?: User | null): boolean {
+  if (!user) return false;
+
+  // 1. 최고관리자 / 개발자 / 시스템 관리자
+  if (user.id === 'sys-admin' || user.id === 'u-1' || user.loginId === 'admin') return true;
+  if (user.role?.toUpperCase() === 'ADMIN') return true;
+
+  // 2. 경영진 (직급 및 부서)
+  const pos = (user.position || '').trim();
+  if (['대표', '대표이사', '사장', '부사장', '총괄대표', '이사', '본부장'].some(p => pos.includes(p))) return true;
+  const dept = (user.department || '').trim();
+  if (['기연리프트', '경영진', '임원실'].some(d => dept.includes(d))) return true;
+  if (user.tier_level !== undefined && user.tier_level !== null && user.tier_level >= 5) return true;
+
+  // 3. 관리부 / 청구 담당자 (회계, 정산, 총무, 재무, billing, manager)
+  const role = (user.role || '').toLowerCase();
+  if (['manager', 'billing', 'accounting', 'finance', 'admin'].includes(role)) return true;
+  if (['관리', '청구', '정산', '회계', '경리', '재무', '총무'].some(k => dept.includes(k))) return true;
+
+  // 4. 영업부 (영업사원, sales)
+  if (role.includes('sales') || role.includes('영업')) return true;
+  if (dept.includes('영업')) return true;
+
+  // 그 외: 정비부, 출고팀, 배차/운송, 주기장 등 기술/현장 부서는 단가 비노출
+  return false;
+}
+
+/**
  * 전화번호 마스킹 (가운데 3~4자리 마스킹)
  * 예: 010-1234-5678 -> 010-****-5678
  *     02-123-4567 -> 02-***-4567

@@ -692,9 +692,39 @@ export const SEED_STANDARD_OPTIONS: StandardOption[] = [
 ];
 
 
+export type SiteContactType = 'EQUIPMENT' | 'CLOSING' | 'SAFETY'; // EQUIPMENT: 장비담당자(기존), CLOSING: 마감담당자(거래명세서 수신인), SAFETY: 안전담당자(신설)
+
+export const SITE_CONTACT_TYPE_CONFIG: Record<SiteContactType, { label: string; subLabel: string; icon: string; defaultPosition: string; color: string; bg: string }> = {
+  EQUIPMENT: {
+    label: '장비담당자',
+    subLabel: '현장 장비 인수/운용/반납 (기존)',
+    icon: '🏗️',
+    defaultPosition: '현장소장',
+    color: '#2563eb',
+    bg: 'rgba(37, 99, 235, 0.1)'
+  },
+  CLOSING: {
+    label: '마감담당자',
+    subLabel: '거래명세서 / 정산서 수신인',
+    icon: '🧾',
+    defaultPosition: '공무과장',
+    color: '#059669',
+    bg: 'rgba(5, 150, 105, 0.1)'
+  },
+  SAFETY: {
+    label: '안전담당자',
+    subLabel: '안전점검결과서 / 안전서류 (신설)',
+    icon: '🦺',
+    defaultPosition: '안전관리자',
+    color: '#d97706',
+    bg: 'rgba(217, 119, 6, 0.1)'
+  }
+};
+
 export interface SiteContactPerson {
   id: string;
   name: string;
+  contactType?: SiteContactType; // 담당자 유형 (장비담당자 | 마감담당자 | 안전담당자)
   position?: string;
   contact: string;
   email?: string;
@@ -839,7 +869,13 @@ export interface CustomerSite {
   contact: string;
   email: string;
   isActive?: boolean; // 사용/미사용 (공사 완공 시 미사용)
-  contacts?: SiteContactPerson[]; // 👥 실제 동시 2명 이상 현장 담당자 목록
+  contacts?: SiteContactPerson[]; // 👥 실제 동시 2명 이상 현장 담당자 목록 (장비, 마감, 안전)
+  billingContactName?: string;    // 마감담당자 성명
+  billingContactPhone?: string;   // 마감담당자 전화번호
+  billingContactEmail?: string;   // 마감담당자 이메일
+  safetyContactName?: string;     // 안전담당자 성명
+  safetyContactPhone?: string;    // 안전담당자 전화번호
+  safetyContactEmail?: string;    // 안전담당자 이메일
   paymentDueMonthOffset?: number; // 0: 당월(M0), 1: 익월(M1), 2: 익익월(M2), 3: 익익익월(M3)
   
   // 🌟 [신규] 현장 전용 옵션/보양/요구사양 (미입력 시 고객사 기본값 자동 상속, 수량 제외 순수 품목명)

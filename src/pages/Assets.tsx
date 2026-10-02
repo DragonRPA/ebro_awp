@@ -4,15 +4,18 @@ import { Search, Download, Eye, Layers, Edit2, Save, X, Wrench, RefreshCw, PlusC
 import { exportToExcel } from '../services/excel';
 import { Asset, calculateAssetDepreciation, AssetInOutLog, Repair } from '../services/db';
 import { ASSET_STATUS_SSOT, getAssetStatusLabel, getAssetStatusBadgeClass } from '../config/asset_status_config';
+import { canViewFinancials } from '../utils/privacyMasking';
 
 export const Assets: React.FC = () => {
   const { 
     assets, customers, sites, contracts, contractAssets, hasPermission, 
     saveAsset, showErrorModal, loadTablesForMenu, assetInOutLogs, repairs, 
-    vendors, products, setActiveTab: setGlobalActiveTab 
+    vendors, products, setActiveTab: setGlobalActiveTab, currentUser
   } = useApp();
 
   const canEdit = hasPermission('asset', 'save');
+  // 🔒 부서별 단가/재무 정보 접근 통제 (경영진, 관리부, 영업부만 열람 허용)
+  const hasFinancialAccess = canViewFinancials(currentUser);
 
   // 토스트 알림 상태
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -335,7 +338,9 @@ export const Assets: React.FC = () => {
       const netProfit = (a.cumRentalFee || 0) - (a.cumRepairCost || 0);
       const accumDepn = a.ownerType === 'OWNED' ? (a.accumDepreciation || 0) : 0;
       const bookVal = a.ownerType === 'OWNED' ? (a.bookValue ?? Math.max(0, (a.acquisitionPrice || 0) - accumDepn)) : 0;
-      return {
+
+      // 기본 비재무 자산 속성 (전 부서 공통)
+      const baseRow: Record<string, any> = {
         'No': idx + 1,
         '관리번호': a.assetNo || '-',
         '모델명': a.modelName || '-',
@@ -349,20 +354,27 @@ export const Assets: React.FC = () => {
         '현재 현장': getSiteName(a.currentSiteId),
         '계약번호': ci ? ci.contractNo : '-',
         '계약기간': a.contractStart ? `${a.contractStart.slice(0, 10)} ~ ${a.contractEnd?.slice(0, 10) || ''}` : '-',
-        '청구마감일': a.billingDay ? `${a.billingDay}일` : '-',
-        '월 렌탈료(원)': a.monthlyRentalFee || 0,
-        '임차처': getAssetRenterName(a),
-        '구입/공급처': getAssetSupplierName(a),
-        '취득일자': a.acquisitionDate ? a.acquisitionDate.slice(0, 10) : (a.rentStart ? a.rentStart.slice(0, 10) : '-'),
-        '취득원가(원)': a.acquisitionPrice || 0,
-        '감가상각누계액(원)': accumDepn,
-        '장부가치(원)': bookVal,
-        '누적렌탈수익(원)': a.cumRentalFee || 0,
-        '누적수리비(원)': a.cumRepairCost || 0,
-        '기여순익(원)': netProfit,
-        '정비점수': a.maintenanceScore || 0,
-        '비고': a.memo || a.memo1 || '-'
+        '청구마감일': a.billingDay ? `${a.billingDay}일` : '-'
       };
+
+      // 🔒 경영진, 관리부, 영업부 전용 단가/매출/이익/비용/취득가액 재무 필드
+      if (hasFinancialAccess) {
+        baseRow['월 렌탈료(원)'] = a.monthlyRentalFee || 0;
+        baseRow['임차처'] = getAssetRenterName(a);
+        baseRow['구입/공급처'] = getAssetSupplierName(a);
+        baseRow['취득일자'] = a.acquisitionDate ? a.acquisitionDate.slice(0, 10) : (a.rentStart ? a.rentStart.slice(0, 10) : '-');
+        baseRow['취득원가(원)'] = a.acquisitionPrice || 0;
+        baseRow['감가상각누계액(원)'] = accumDepn;
+        baseRow['장부가치(원)'] = bookVal;
+        baseRow['누적렌탈수익(원)'] = a.cumRentalFee || 0;
+        baseRow['누적수리비(원)'] = a.cumRepairCost || 0;
+        baseRow['기여순익(원)'] = netProfit;
+      }
+
+      baseRow['정비점수'] = a.maintenanceScore || 0;
+      baseRow['비고'] = a.memo || a.memo1 || '-';
+
+      return baseRow;
     });
     exportToExcel(data, `전사자산목록_${new Date().toISOString().split('T')[0]}`, '자산목록');
     showToast(`전사 자산 목록 (${filtered.length}건) 엑셀이 다운로드되었습니다.`);
@@ -658,8 +670,10 @@ export const Assets: React.FC = () => {
                 <th style={{ padding: '7px 8px', width: '160px', textAlign: 'center', whiteSpace: 'nowrap' }}>계약기간</th>
                 {/* 14. 청구일 */}
                 <th style={{ padding: '7px 8px', width: '65px', textAlign: 'center', whiteSpace: 'nowrap' }}>청구일</th>
-                {/* 15. 월 렌탈료 */}
-                <th style={{ padding: '7px 8px', width: '95px', textAlign: 'right', whiteSpace: 'nowrap' }}>월 렌탈료</th>
+                {/* 15. 월 렌탈료 (경영진/관리부/영업부) */}
+                {hasFinancialAccess && (
+                  <th style={{ padding: '7px 8px', width: '95px', textAlign: 'right', whiteSpace: 'nowrap' }}>월 렌탈료</th>
+                )}
                 {/* 16. 임차처 */}
                 <th style={{ padding: '7px 8px', width: '120px', whiteSpace: 'nowrap' }}>임차처</th>
                 {/* 17. 구입/공급처 */}
@@ -668,18 +682,17 @@ export const Assets: React.FC = () => {
                 <th onClick={() => handleSort('acquisitionDate')} style={{ padding: '7px 8px', width: '90px', cursor: 'pointer', userSelect: 'none', textAlign: 'center', whiteSpace: 'nowrap' }}>
                   취득/개시일{renderSortArrow('acquisitionDate')}
                 </th>
-                {/* 19. 취득원가 */}
-                <th style={{ padding: '7px 8px', width: '105px', textAlign: 'right', whiteSpace: 'nowrap' }}>취득원가</th>
-                {/* 20. 감가누계액 */}
-                <th style={{ padding: '7px 8px', width: '105px', textAlign: 'right', whiteSpace: 'nowrap' }}>감가누계액</th>
-                {/* 21. 장부가치 */}
-                <th style={{ padding: '7px 8px', width: '105px', textAlign: 'right', whiteSpace: 'nowrap' }}>장부가치</th>
-                {/* 22. 누적 렌탈수익 */}
-                <th style={{ padding: '7px 8px', width: '105px', textAlign: 'right', whiteSpace: 'nowrap' }}>누적 렌탈수익</th>
-                {/* 23. 누적 수리비 */}
-                <th style={{ padding: '7px 8px', width: '95px', textAlign: 'right', whiteSpace: 'nowrap' }}>누적 수리비</th>
-                {/* 24. 기여 순익 */}
-                <th style={{ padding: '7px 8px', width: '105px', textAlign: 'right', whiteSpace: 'nowrap' }}>기여 순익</th>
+                {/* 19. 취득원가 ~ 24. 기여 순익 (경영진/관리부/영업부 전용) */}
+                {hasFinancialAccess && (
+                  <>
+                    <th style={{ padding: '7px 8px', width: '105px', textAlign: 'right', whiteSpace: 'nowrap' }}>취득원가</th>
+                    <th style={{ padding: '7px 8px', width: '105px', textAlign: 'right', whiteSpace: 'nowrap' }}>감가누계액</th>
+                    <th style={{ padding: '7px 8px', width: '105px', textAlign: 'right', whiteSpace: 'nowrap' }}>장부가치</th>
+                    <th style={{ padding: '7px 8px', width: '105px', textAlign: 'right', whiteSpace: 'nowrap' }}>누적 렌탈수익</th>
+                    <th style={{ padding: '7px 8px', width: '95px', textAlign: 'right', whiteSpace: 'nowrap' }}>누적 수리비</th>
+                    <th style={{ padding: '7px 8px', width: '105px', textAlign: 'right', whiteSpace: 'nowrap' }}>기여 순익</th>
+                  </>
+                )}
                 {/* 25. 정비점수 */}
                 <th style={{ padding: '7px 8px', width: '70px', textAlign: 'center', whiteSpace: 'nowrap' }}>정비점수</th>
                 {/* 26. 비고 */}
@@ -689,7 +702,7 @@ export const Assets: React.FC = () => {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={26} style={{ padding: '36px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={hasFinancialAccess ? 26 : 19} style={{ padding: '36px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
                     조회 조건에 해당하는 자산이 없습니다.
                   </td>
                 </tr>
@@ -829,10 +842,12 @@ export const Assets: React.FC = () => {
                         {a.billingDay ? `${a.billingDay}일` : '-'}
                       </td>
 
-                      {/* 15. 월 렌탈료 */}
-                      <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                        {a.monthlyRentalFee ? `₩${a.monthlyRentalFee.toLocaleString()}` : '-'}
-                      </td>
+                      {/* 15. 월 렌탈료 (경영진/관리부/영업부) */}
+                      {hasFinancialAccess && (
+                        <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                          {a.monthlyRentalFee ? `₩${a.monthlyRentalFee.toLocaleString()}` : '-'}
+                        </td>
+                      )}
 
                       {/* 16. 임차처 - 임차자산 전용 */}
                       <td style={{ padding: '6px 8px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
@@ -849,41 +864,35 @@ export const Assets: React.FC = () => {
                         {a.acquisitionDate ? a.acquisitionDate.slice(0, 10) : (a.rentStart ? a.rentStart.slice(0, 10) : '-')}
                       </td>
 
-                      {/* 19. 취득원가 */}
-                      <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                        {a.ownerType === 'OWNED'
-                          ? `₩${(a.acquisitionPrice || 0).toLocaleString()}`
-                          : <span style={{ color: 'var(--text-muted)' }}>(임차자산)</span>}
-                      </td>
-
-                      {/* 20. 감가누계액 */}
-                      <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                        {a.ownerType === 'OWNED'
-                          ? <span style={{ color: 'var(--danger)' }}>₩{accumDepn.toLocaleString()}</span>
-                          : <span style={{ color: 'var(--text-muted)' }}>-</span>}
-                      </td>
-
-                      {/* 21. 장부가치 */}
-                      <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                        {a.ownerType === 'OWNED'
-                          ? <span style={{ color: 'var(--success)' }}>₩{bookVal.toLocaleString()}</span>
-                          : <span style={{ color: 'var(--text-muted)' }}>-</span>}
-                      </td>
-
-                      {/* 22. 누적 렌탈수익 */}
-                      <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                        ₩{(a.cumRentalFee || 0).toLocaleString()}
-                      </td>
-
-                      {/* 23. 누적 수리비 */}
-                      <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                        ₩{(a.cumRepairCost || 0).toLocaleString()}
-                      </td>
-
-                      {/* 24. 기여 순익 */}
-                      <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap', color: netProfit >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                        {netProfit >= 0 ? `+₩${netProfit.toLocaleString()}` : `-₩${Math.abs(netProfit).toLocaleString()}`}
-                      </td>
+                      {/* 19. 취득원가 ~ 24. 기여 순익 (경영진/관리부/영업부 전용) */}
+                      {hasFinancialAccess && (
+                        <>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                            {a.ownerType === 'OWNED'
+                              ? `₩${(a.acquisitionPrice || 0).toLocaleString()}`
+                              : <span style={{ color: 'var(--text-muted)' }}>(임차자산)</span>}
+                          </td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                            {a.ownerType === 'OWNED'
+                              ? <span style={{ color: 'var(--danger)' }}>₩{accumDepn.toLocaleString()}</span>
+                              : <span style={{ color: 'var(--text-muted)' }}>-</span>}
+                          </td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                            {a.ownerType === 'OWNED'
+                              ? <span style={{ color: 'var(--success)' }}>₩{bookVal.toLocaleString()}</span>
+                              : <span style={{ color: 'var(--text-muted)' }}>-</span>}
+                          </td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                            ₩{(a.cumRentalFee || 0).toLocaleString()}
+                          </td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                            ₩{(a.cumRepairCost || 0).toLocaleString()}
+                          </td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap', color: netProfit >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                            {netProfit >= 0 ? `+₩${netProfit.toLocaleString()}` : `-₩${Math.abs(netProfit).toLocaleString()}`}
+                          </td>
+                        </>
+                      )}
 
                       {/* 25. 정비점수 */}
                       <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
@@ -904,7 +913,7 @@ export const Assets: React.FC = () => {
               {/* 🌟 [청크 로딩 안내 & 전체 확장 행: 헌장 1.1] */}
               {visibleCount < filtered.length && (
                 <tr style={{ backgroundColor: 'var(--bg-app)', borderTop: '2px dashed var(--border-color)' }}>
-                  <td colSpan={26} style={{ padding: '10px 16px', textAlign: 'center' }}>
+                  <td colSpan={hasFinancialAccess ? 26 : 19} style={{ padding: '10px 16px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
                       <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
                         현재 <strong>{visibleAssets.length}</strong>대 표시 중 (전체 {filtered.length}대 중 잔여 {filtered.length - visibleAssets.length}대)
@@ -1119,26 +1128,38 @@ export const Assets: React.FC = () => {
                 )}
               </div>
 
-              {/* 3. 소유 속성별 재무/임차 정보 */}
+              {/* 3. 소유 속성별 자산 및 재무 정보 */}
               {(isEditing ? editForm.ownerType === 'OWNED' : selectedAsset.ownerType === 'OWNED') ? (
                 <div style={{ padding: '10px 12px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                  <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>3. 당사자산 감가상각 / 장부가치</div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>
+                    3. 당사자산 {hasFinancialAccess ? '감가상각 / 장부가치' : '취득 및 운용 정보'}
+                  </div>
                   {isEditing ? (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                       <div><label style={labelStyle}>취득일자</label><input type="date" style={inputStyle} value={editForm.acquisitionDate || ''} onChange={ef('acquisitionDate')} /></div>
-                      <div><label style={labelStyle}>취득원가 (원)</label><input type="number" style={inputStyle} value={editForm.acquisitionPrice ?? ''} onChange={ef('acquisitionPrice')} /></div>
+                      {hasFinancialAccess && (
+                        <div><label style={labelStyle}>취득원가 (원)</label><input type="number" style={inputStyle} value={editForm.acquisitionPrice ?? ''} onChange={ef('acquisitionPrice')} /></div>
+                      )}
                       <div><label style={labelStyle}>구입처 (공급자)</label><input style={inputStyle} value={editForm.supplier || ''} onChange={ef('supplier')} /></div>
                       <div><label style={labelStyle}>내용연수(개월)</label><input type="number" style={inputStyle} value={editForm.depreciationMonths ?? ''} onChange={ef('depreciationMonths')} /></div>
-                      <div><label style={labelStyle}>잔존가치율 (%)</label><input type="number" style={inputStyle} value={editForm.residualValueRate ?? ''} onChange={ef('residualValueRate')} /></div>
+                      {hasFinancialAccess && (
+                        <div><label style={labelStyle}>잔존가치율 (%)</label><input type="number" style={inputStyle} value={editForm.residualValueRate ?? ''} onChange={ef('residualValueRate')} /></div>
+                      )}
                     </div>
                   ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11.5px' }}>
                       <div><span style={{ color: 'var(--text-secondary)' }}>취득일자:</span> {selectedAsset.acquisitionDate || '-'}</div>
-                      <div><span style={{ color: 'var(--text-secondary)' }}>취득원가:</span> <strong>₩{(selectedAsset.acquisitionPrice || 0).toLocaleString()}</strong></div>
+                      {hasFinancialAccess && (
+                        <div><span style={{ color: 'var(--text-secondary)' }}>취득원가:</span> <strong>₩{(selectedAsset.acquisitionPrice || 0).toLocaleString()}</strong></div>
+                      )}
                       <div><span style={{ color: 'var(--text-secondary)' }}>구입처:</span> <strong>{supplierName}</strong></div>
                       <div><span style={{ color: 'var(--text-secondary)' }}>내용연수:</span> {selectedAsset.depreciationMonths ? `${selectedAsset.depreciationMonths}개월 (경과: ${depn.elapsedMonths}개월)` : '-'}</div>
-                      <div><span style={{ color: 'var(--text-secondary)' }}>감가누계액:</span> <strong style={{ color: 'var(--danger)' }}>₩{depn.accumDepreciation.toLocaleString()}</strong></div>
-                      <div><span style={{ color: 'var(--text-secondary)' }}>미상각 장부가:</span> <strong style={{ color: 'var(--success)' }}>₩{depn.bookValue.toLocaleString()}</strong></div>
+                      {hasFinancialAccess && (
+                        <>
+                          <div><span style={{ color: 'var(--text-secondary)' }}>감가누계액:</span> <strong style={{ color: 'var(--danger)' }}>₩{depn.accumDepreciation.toLocaleString()}</strong></div>
+                          <div><span style={{ color: 'var(--text-secondary)' }}>미상각 장부가:</span> <strong style={{ color: 'var(--success)' }}>₩{depn.bookValue.toLocaleString()}</strong></div>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1147,29 +1168,35 @@ export const Assets: React.FC = () => {
                   <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>3. 임차 약정 조건</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11.5px' }}>
                     <div><span style={{ color: 'var(--text-secondary)' }}>임차처:</span> <strong>{renterName}</strong></div>
-                    <div><span style={{ color: 'var(--text-secondary)' }}>월 임차료:</span> <strong style={{ color: 'var(--danger)' }}>₩{(selectedAsset.monthlyRentFee || 0).toLocaleString()}</strong></div>
+                    {hasFinancialAccess && (
+                      <div><span style={{ color: 'var(--text-secondary)' }}>월 임차료:</span> <strong style={{ color: 'var(--danger)' }}>₩{(selectedAsset.monthlyRentFee || 0).toLocaleString()}</strong></div>
+                    )}
                     <div><span style={{ color: 'var(--text-secondary)' }}>임차 시작일:</span> {selectedAsset.rentStart || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>임차 만료예정:</span> {selectedAsset.rentEnd || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>임차처 반납일:</span> {selectedAsset.actualRentReturnDate ? <span style={{ color: 'var(--success)', fontWeight: 600 }}>{selectedAsset.actualRentReturnDate} (반납)</span> : '미반납'}</div>
-                    <div><span style={{ color: 'var(--text-secondary)' }}>일할 단가:</span> ₩{(selectedAsset.dailyRentFee || 0).toLocaleString()}</div>
+                    {hasFinancialAccess && (
+                      <div><span style={{ color: 'var(--text-secondary)' }}>일할 단가:</span> ₩{(selectedAsset.dailyRentFee || 0).toLocaleString()}</div>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* 4. 자산 손익 및 공헌이익 */}
-              <div style={{ padding: '10px 12px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>4. 누적 손익 및 공헌이익</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11.5px' }}>
-                  <div><span style={{ color: 'var(--text-secondary)' }}>누적 렌탈수익:</span> <strong style={{ color: 'var(--primary)' }}>₩{(selectedAsset.cumRentalFee || 0).toLocaleString()}</strong></div>
-                  <div><span style={{ color: 'var(--text-secondary)' }}>누적 수리비:</span> <strong style={{ color: 'var(--danger)' }}>₩{(selectedAsset.cumRepairCost || 0).toLocaleString()}</strong></div>
-                  <div style={{ gridColumn: 'span 2' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>기여 순이익:</span>{' '}
-                    <strong style={{ color: netProfit >= 0 ? 'var(--success)' : 'var(--danger)', fontSize: '13px' }}>
-                      {netProfit >= 0 ? `+₩${netProfit.toLocaleString()}` : `-₩${Math.abs(netProfit).toLocaleString()}`}
-                    </strong>
+              {/* 4. 자산 손익 및 공헌이익 (경영진, 관리부, 영업부 전용) */}
+              {hasFinancialAccess && (
+                <div style={{ padding: '10px 12px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                  <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '8px' }}>4. 누적 손익 및 공헌이익</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11.5px' }}>
+                    <div><span style={{ color: 'var(--text-secondary)' }}>누적 렌탈수익:</span> <strong style={{ color: 'var(--primary)' }}>₩{(selectedAsset.cumRentalFee || 0).toLocaleString()}</strong></div>
+                    <div><span style={{ color: 'var(--text-secondary)' }}>누적 수리비:</span> <strong style={{ color: 'var(--danger)' }}>₩{(selectedAsset.cumRepairCost || 0).toLocaleString()}</strong></div>
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>기여 순이익:</span>{' '}
+                      <strong style={{ color: netProfit >= 0 ? 'var(--success)' : 'var(--danger)', fontSize: '13px' }}>
+                        {netProfit >= 0 ? `+₩${netProfit.toLocaleString()}` : `-₩${Math.abs(netProfit).toLocaleString()}`}
+                      </strong>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* 5. 정비 및 검수 이력 현황 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
