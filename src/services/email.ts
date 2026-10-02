@@ -25,7 +25,32 @@ class RealGmailService {
   }
 
   private setEmails(data: SentEmail[]) {
-    localStorage.setItem('sent_emails', JSON.stringify(data));
+    try {
+      // 💡 [LocalStorage 쿼터 초과 방지] 최근 20건만 유지하고, 긴 본문은 요약본(최대 200자)만 보관
+      const trimmed = (data || []).slice(0, 20).map(item => ({
+        ...item,
+        body: item.body && item.body.length > 200 ? item.body.slice(0, 200) + '...' : (item.body || '')
+      }));
+      localStorage.setItem('sent_emails', JSON.stringify(trimmed));
+    } catch (err) {
+      console.warn('⚠️ localStorage sent_emails 저장 쿼터 초과, 안전 정리 모드 실행:', err);
+      try {
+        // 쿼터 초과 시 본문 제거 후 최소 메타데이터 5건만 보존
+        const minimal = (data || []).slice(0, 5).map(item => ({
+          id: item.id,
+          to: item.to,
+          cc: item.cc,
+          subject: item.subject,
+          body: '',
+          sentAt: item.sentAt,
+          success: item.success
+        }));
+        localStorage.setItem('sent_emails', JSON.stringify(minimal));
+      } catch {
+        // 그래도 용량이 모자라면 sent_emails 키 완전 정리
+        try { localStorage.removeItem('sent_emails'); } catch {}
+      }
+    }
   }
 
   listSentEmails(): SentEmail[] {
@@ -41,7 +66,8 @@ class RealGmailService {
     subject: string,
     body: string,
     attachments: { filename: string; content: string }[] = [],
-    cc?: string
+    cc?: string,
+    fromName?: string
   ): Promise<SentEmail> {
 
     // 1. 단일 진실의 원천(SSOT): db.googleConfigs 중 유효한 앱 비밀번호가 있는 설정 우선 조회
@@ -86,7 +112,8 @@ class RealGmailService {
       body,
       googleEmail,
       gmailAppPassword,
-      attachments
+      attachments,
+      fromName: fromName || '(주)기연리프트'
     };
 
     let sendSuccess = false;
@@ -153,9 +180,13 @@ class RealGmailService {
       success: true
     };
 
-    const history = this.getEmails();
-    history.unshift(newEmail);
-    this.setEmails(history);
+    try {
+      const history = this.getEmails();
+      history.unshift(newEmail);
+      this.setEmails(history);
+    } catch (saveErr) {
+      console.warn('발송 이력 저장 실패 (메일 발송은 이미 성공함):', saveErr);
+    }
 
     return newEmail;
   }

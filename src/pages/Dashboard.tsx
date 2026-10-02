@@ -466,17 +466,206 @@ export const Dashboard: React.FC = () => {
       {(() => {
         // 0. 💡 [영업부] 내 의뢰 출고 진행 현황 (운송 완료 전 대기 건 4대 지표 배지 피드)
         const isSalesOrExec = userRole === 'SALES' || isExecUser || canActContract;
-        const pendingSalesContracts = contracts.filter(c => {
-          if (c.status === 'COMPLETED') return false;
-          // 영업담당자 본인 의뢰 필터 (ADMIN/경영진은 전체, 영업담당자는 본인 계약 우선)
-          const isMyContract = !currentUser || currentUser.role === 'ADMIN' || !contracts.some(con => con.salespersonId === currentUser.id) || c.salespersonId === currentUser.id;
-          if (!isMyContract) return false;
-          const relDels = deliveries.filter(d => d.contractId === c.id);
-          const outboundDel = relDels.find(d => d.type === 'OUTBOUND' || d.type === 'EXCHANGE') || relDels[0];
-          const isDelivered = outboundDel ? (outboundDel.status === 'DELIVERED' || outboundDel.status === 'COMPLETED') : false;
-          return !isDelivered;
+        const parseDeliveryCargo = (cargoStr?: string): { modelName: string; count: number }[] => {
+          if (!cargoStr) return [];
+          try {
+            const arr = JSON.parse(cargoStr);
+            if (Array.isArray(arr)) {
+              return arr.map((item: any) => ({
+                modelName: item.modelName || item.model || '장비',
+                count: Number(item.count || item.qty || 1)
+              }));
+            }
+          } catch (e) {}
+          return [];
+        };
+
+        interface OutboundMonitoringRow {
+          id: string;
+          deliveryId?: string;
+          contractId?: string;
+          contractNo?: string;
+          requestDate: string; // 1. 출고요청일자
+          arrivalDateTime: string; // 2. 현장도착일시
+          customerName: string; // 3. 거래처명
+          siteName: string; // 4. 현장명
+          modelName: string; // 5. 모델명
+          quantity: number; // 6. 수량
+          assetNos: string; // 7. 관리번호
+          isAssigned: boolean;
+          statusBadge: {
+            text: string;
+            bg: string;
+            color: string;
+            border: string;
+          };
+          driverInfo?: string;
+          isPackageSent: boolean;
+        }
+
+        const outboundMonitoringRows: OutboundMonitoringRow[] = [];
+
+        // 1) 출고/교환 배차(deliveries) 수집 (상차완료되지 않은 건)
+        const activeOutboundDeliveries = deliveries.filter(d => {
+          const isOutbound = d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환';
+          if (!isOutbound) return false;
+          // 상차완료(DELIVERED) 또는 완료(COMPLETED)되었거나 상차완료일시가 있으면 모니터링 표에서 제외(사라짐)
+          if (d.status === 'DELIVERED' || d.status === 'COMPLETED' || d.status === 'CANCELLED' || Boolean(d.loadingCompletedAt)) {
+            return false;
+          }
+          // 영업담당자 필터: 본인 계약이거나 담당자인 경우 (관리자는 전체)
+          const relContract = d.contractId ? contracts.find(c => c.id === d.contractId) : null;
+          if (userRole === 'SALES' && relContract && relContract.salespersonId && currentUser?.id) {
+            const hasMyContracts = contracts.some(c => c.salespersonId === currentUser.id);
+            if (hasMyContracts && relContract.salespersonId !== currentUser.id) {
+              return false;
+            }
+          }
+          return true;
         });
-        const showSalesPipelineFeed = pendingSalesContracts.length > 0 && isSalesOrExec;
+
+        activeOutboundDeliveries.forEach(d => {
+          const relContract = d.contractId ? contracts.find(c => c.id === d.contractId) : null;
+          const cust = relContract ? customers.find(cu => cu.id === relContract.customerId) : null;
+          const site = relContract ? sites.find(s => s.id === relContract.siteId) : null;
+          
+          const cargo = parseDeliveryCargo(d.cargoItems);
+          const relCas = relContract ? contractAssets.filter(ca => ca.contractId === relContract.id) : [];
+          
+          let modelStr = '';
+          let totalQty = 0;
+          if (cargo.length > 0) {
+            modelStr = cargo.map(c => `${c.modelName} ${c.count}대`).join(', ');
+            totalQty = cargo.reduce((sum, c) => sum + c.count, 0);
+          } else if (relCas.length > 0) {
+            const modelCounts = new Map<string, number>();
+            relCas.forEach(ca => {
+              const m = ca.expectedModel || (ca.assetId ? assets.find(a => a.id === ca.assetId)?.modelName : '') || '장비';
+              modelCounts.set(m, (modelCounts.get(m) || 0) + 1);
+            });
+            modelStr = Array.from(modelCounts.entries()).map(([m, cnt]) => `${m} ${cnt}대`).join(', ');
+            totalQty = relCas.length;
+          } else {
+            modelStr = '기타 기종';
+            totalQty = 1;
+          }
+
+          const assignedAssetNos = relCas.filter(ca => ca.assetId).map(ca => {
+            const a = assets.find(ast => ast.id === ca.assetId);
+            return a?.assetNo || ca.assetId;
+          }).filter(Boolean);
+
+          const isAssigned = relCas.length > 0 && assignedAssetNos.length === relCas.length;
+
+          const arrival = d.unloadingDate
+            ? `${d.unloadingDate} ${d.unloadingTimeSlot || ''}`.trim()
+            : (d.scheduledDate || d.loadingDate || relContract?.startDate || '-');
+
+          const isDispatched = d.status === 'DISPATCHED' || Boolean(d.driverName && d.driverName.trim());
+          const statusBadge = isDispatched ? {
+            text: d.driverName ? `기사배정 (${d.driverName})` : '배차완료',
+            bg: 'rgba(34,197,94,0.15)',
+            color: 'var(--success)',
+            border: '1px solid rgba(34,197,94,0.3)'
+          } : {
+            text: '배차대기',
+            bg: 'rgba(245,158,11,0.15)',
+            color: 'var(--warning)',
+            border: '1px solid rgba(245,158,11,0.3)'
+          };
+
+          const isPackageSent = Boolean(relContract?.packageSentAt) || (contractHistory || []).some(
+            h => relContract && h.contractId === relContract.id && (h.changeType === 'DOCUMENT_SENT' || (h.description && h.description.includes('계약서패키지')))
+          );
+
+          outboundMonitoringRows.push({
+            id: `del-${d.id}`,
+            deliveryId: d.id,
+            contractId: d.contractId,
+            contractNo: relContract?.contractNo,
+            requestDate: d.requestDate || d.loadingDate || d.createdAt?.slice(0, 10) || '-',
+            arrivalDateTime: arrival,
+            customerName: cust?.name || '고객사',
+            siteName: site?.name || d.destinationAddress || '현장',
+            modelName: modelStr,
+            quantity: totalQty,
+            assetNos: assignedAssetNos.length > 0 ? assignedAssetNos.join(', ') : '배정대기',
+            isAssigned,
+            statusBadge,
+            driverInfo: d.driverName ? `${d.driverName} ${d.driverContact ? `(${d.driverContact})` : ''}`.trim() : undefined,
+            isPackageSent
+          });
+        });
+
+        // 2) 출고 배차가 아직 미발행된 활성 계약 추가
+        const pendingContractsWithoutDel = contracts.filter(c => {
+          if (c.status === 'COMPLETED') return false;
+          if (userRole === 'SALES' && currentUser?.id && c.salespersonId) {
+            const hasMyContracts = contracts.some(con => con.salespersonId === currentUser.id);
+            if (hasMyContracts && c.salespersonId !== currentUser.id) return false;
+          }
+          const relDels = deliveries.filter(d => d.contractId === c.id);
+          const hasOutboundDel = relDels.some(d => d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환');
+          return !hasOutboundDel;
+        });
+
+        pendingContractsWithoutDel.forEach(c => {
+          const cust = customers.find(cu => cu.id === c.customerId);
+          const site = sites.find(s => s.id === c.siteId);
+          const relCas = contractAssets.filter(ca => ca.contractId === c.id);
+          
+          let modelStr = '';
+          if (relCas.length > 0) {
+            const modelCounts = new Map<string, number>();
+            relCas.forEach(ca => {
+              const m = ca.expectedModel || (ca.assetId ? assets.find(a => a.id === ca.assetId)?.modelName : '') || '장비';
+              modelCounts.set(m, (modelCounts.get(m) || 0) + 1);
+            });
+            modelStr = Array.from(modelCounts.entries()).map(([m, cnt]) => `${m} ${cnt}대`).join(', ');
+          } else {
+            modelStr = '장비 미지정';
+          }
+
+          const assignedAssetNos = relCas.filter(ca => ca.assetId).map(ca => {
+            const a = assets.find(ast => ast.id === ca.assetId);
+            return a?.assetNo || ca.assetId;
+          }).filter(Boolean);
+
+          const isAssigned = relCas.length > 0 && assignedAssetNos.length === relCas.length;
+
+          const isPackageSent = Boolean(c.packageSentAt) || (contractHistory || []).some(
+            h => h.contractId === c.id && (h.changeType === 'DOCUMENT_SENT' || (h.description && h.description.includes('계약서패키지')))
+          );
+
+          outboundMonitoringRows.push({
+            id: `con-${c.id}`,
+            contractId: c.id,
+            contractNo: c.contractNo,
+            requestDate: c.startDate || c.createdAt?.slice(0, 10) || '-',
+            arrivalDateTime: c.startDate || '-',
+            customerName: cust?.name || '고객사',
+            siteName: site?.name || '현장',
+            modelName: modelStr,
+            quantity: relCas.length || 1,
+            assetNos: assignedAssetNos.length > 0 ? assignedAssetNos.join(', ') : '배정대기',
+            isAssigned,
+            statusBadge: {
+              text: '배차미등록',
+              bg: 'var(--bg-app)',
+              color: 'var(--text-muted)',
+              border: '1px solid var(--border-color)'
+            },
+            isPackageSent
+          });
+        });
+
+        outboundMonitoringRows.sort((a, b) => {
+          const dateA = a.arrivalDateTime !== '-' ? a.arrivalDateTime : a.requestDate;
+          const dateB = b.arrivalDateTime !== '-' ? b.arrivalDateTime : b.requestDate;
+          return dateA.localeCompare(dateB);
+        });
+
+        const showSalesPipelineFeed = outboundMonitoringRows.length > 0 && isSalesOrExec;
 
         // 1. 계약 장비 할당 대기 건 (계약 체결 후 자산 미매핑 슬롯)
         const unassignedContractAssets = contractAssets.filter(ca => !ca.assetId);
@@ -629,172 +818,174 @@ export const Dashboard: React.FC = () => {
             {/* 0. 💡 영업부 내 의뢰 출고 진행 현황 카드 (운송 완료 전 4대 지표 배지 피드) */}
             {showSalesPipelineFeed && (
               <details open style={{
-                backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
-                borderLeft: '5px solid #2563eb', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
+                backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '18px 22px',
+                borderLeft: '5px solid #2563eb', border: '1px solid var(--border-color)', borderLeftWidth: '5px',
+                marginBottom: '16px'
               }}>
-<summary style={{ cursor: "pointer", listStyle: "none", outline: "none" }}>
+                <summary style={{ cursor: "pointer", listStyle: "none", outline: "none" }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '11.5px', fontWeight: '800', color: 'var(--primary)', backgroundColor: 'rgba(37,99,235,0.12)', padding: '3px 9px', borderRadius: '4px', border: '1px solid rgba(37,99,235,0.3)' }}>
+                      출고 진행 모니터링
+                    </span>
+                    <span style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--primary)' }}>
+                      상차 대기 {outboundMonitoringRows.length}건
+                    </span>
+                  </div>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Truck size={18} color="#2563eb" /> {userRole === 'SALES' ? '내 의뢰 출고 진행 모니터링' : '출고 진행 모니터링'}
+                  </h4>
+                </summary>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '11.5px', fontWeight: '800', color: 'var(--primary)', backgroundColor: 'rgba(37,99,235,0.12)', padding: '3px 9px', borderRadius: '4px', border: '1px solid rgba(37,99,235,0.3)' }}>
-                    출고 진행 현황
-                  </span>
-                  <span style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--primary)' }}>
-                    운송 완료 대기 {pendingSalesContracts.length}건
-                  </span>
-                </div>
-                <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Truck size={18} color="#2563eb" /> {userRole === 'SALES' ? '내 의뢰 출고 진행 현황' : '영업 의뢰 출고 진행 현황'}
-                </h4>
-</summary>
-<div className="details-content">
+                <div className="details-content" style={{ marginTop: '12px' }}>
+                  <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', margin: '0 0 12px 0', lineHeight: '1.5' }}>
+                    출고팀에서 배차 차량에 <strong>[상차완료]</strong> 처리를 완료하면 본 모니터링 표에서 자동으로 제외(완료)됩니다.
+                  </p>
 
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '0 0 14px 0', lineHeight: '1.5' }}>
-                  현장 운송 완료(인도) 전 진행 중인 의뢰의 <strong>4대 핵심 지표(배차, 장비할당, 출고검수, 계약서패키지)</strong> 완료 여부입니다.
-                </p>
+                  {/* 7대 컬럼 고밀도 모니터링 표 */}
+                  <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', fontWeight: 800, color: 'var(--text-secondary)' }}>출고요청일자</th>
+                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', fontWeight: 800, color: 'var(--text-secondary)' }}>현장도착일시</th>
+                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', fontWeight: 800, color: 'var(--text-secondary)' }}>거래처명</th>
+                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', fontWeight: 800, color: 'var(--text-secondary)' }}>현장명</th>
+                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', fontWeight: 800, color: 'var(--text-secondary)' }}>모델명</th>
+                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', fontWeight: 800, color: 'var(--text-secondary)', textAlign: 'center' }}>수량</th>
+                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', fontWeight: 800, color: 'var(--text-secondary)' }}>관리번호</th>
+                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', fontWeight: 800, color: 'var(--text-secondary)', textAlign: 'center' }}>진행상태</th>
+                          <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', fontWeight: 800, color: 'var(--text-secondary)', textAlign: 'center' }}>작업</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {outboundMonitoringRows.map((row, idx) => (
+                          <tr 
+                            key={row.id}
+                            style={{ 
+                              borderBottom: idx === outboundMonitoringRows.length - 1 ? 'none' : '1px solid var(--border-color)',
+                              backgroundColor: idx % 2 === 1 ? 'rgba(0,0,0,0.015)' : 'transparent'
+                            }}
+                          >
+                            {/* 1. 출고요청일자 */}
+                            <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>
+                              {row.requestDate}
+                            </td>
 
-                {/* 의뢰별 4대 배지 리스트 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
-                  {pendingSalesContracts.slice(0, 4).map((c, idx) => {
-                    const cust = customers.find(cu => cu.id === c.customerId);
-                    const site = sites.find(s => s.id === c.siteId);
-                    const relDels = deliveries.filter(d => d.contractId === c.id);
-                    const outboundDel = relDels.find(d => d.type === 'OUTBOUND' || d.type === 'EXCHANGE') || relDels[0];
+                            {/* 2. 현장도착일시 */}
+                            <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', fontWeight: 700, color: 'var(--text-main)' }}>
+                              {row.arrivalDateTime}
+                            </td>
 
-                    // 1. 배차
-                    const isDispatched = outboundDel 
-                      ? (outboundDel.status === 'DISPATCHED' || outboundDel.status === 'DELIVERED' || Boolean(outboundDel.driverName && outboundDel.driverName.trim())) 
-                      : false;
+                            {/* 3. 거래처명 */}
+                            <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', fontWeight: 700, color: 'var(--text-main)' }}>
+                              {row.customerName}
+                              {row.contractNo && (
+                                <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '4px' }}>
+                                  ({row.contractNo})
+                                </span>
+                              )}
+                            </td>
 
-                    // 2. 장비할당
-                    const cas = contractAssets.filter(ca => ca.contractId === c.id);
-                    const unassignedCount = cas.filter(ca => !ca.assetId).length;
-                    const isAssigned = cas.length > 0 && unassignedCount === 0;
+                            {/* 4. 현장명 */}
+                            <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', color: 'var(--text-secondary)', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.siteName}>
+                              📍 {row.siteName}
+                            </td>
 
-                    // 3. 출고검수
-                    const relInsps = outboundInspections.filter(oi => oi.contractId === c.id);
-                    const isInspected = relInsps.length > 0 && relInsps.every(oi => oi.status === 'COMPLETED');
-                    const isInspecting = relInsps.some(oi => oi.status === 'IN_PROGRESS');
+                            {/* 5. 모델명 */}
+                            <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', fontWeight: 700, color: 'var(--text-primary)' }}>
+                              {row.modelName}
+                            </td>
 
-                    // 4. 계약서패키지
-                    const isPackageSent = Boolean(c.packageSentAt) || (contractHistory || []).some(
-                      h => h.contractId === c.id && (h.changeType === 'DOCUMENT_SENT' || (h.description && h.description.includes('계약서패키지')))
-                    );
+                            {/* 6. 수량 */}
+                            <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', textAlign: 'center', fontWeight: 800, color: '#2563eb' }}>
+                              {row.quantity}대
+                            </td>
 
-                    return (
-                      <div key={c.id} style={{
-                        backgroundColor: 'var(--bg-secondary)', padding: '12px 14px', borderRadius: '8px',
-                        border: '1px solid var(--border-color)', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontWeight: '800', color: 'var(--text-main)', fontSize: '13.5px' }}>
-                              {idx + 1}. {cust?.name || '고객사'} — {site?.name || '현장'}
-                            </span>
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>({c.contractNo})</span>
-                          </div>
-                          
-                          {/* 액션 버튼들 */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            {!isPackageSent && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setBundleTargetContractId(c.id);
-                                  setShowBundleModal(true);
-                                }}
+                            {/* 7. 관리번호 */}
+                            <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
+                              {row.assetNos !== '배정대기' ? (
+                                <span style={{ fontWeight: 800, color: 'var(--text-main)' }}>
+                                  {row.assetNos}
+                                </span>
+                              ) : (
+                                <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                                  배정대기
+                                </span>
+                              )}
+                            </td>
+
+                            {/* 진행상태 배지 */}
+                            <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                              <span 
                                 style={{
-                                  padding: '3px 8px', fontSize: '11px', fontWeight: 700, borderRadius: '4px',
-                                  border: '1px solid rgba(239,68,68,0.3)', backgroundColor: 'rgba(239,68,68,0.1)',
-                                  color: 'var(--danger)', cursor: 'pointer'
+                                  fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px',
+                                  backgroundColor: row.statusBadge.bg, color: row.statusBadge.color, border: row.statusBadge.border
                                 }}
+                                title={row.driverInfo || row.statusBadge.text}
                               >
-                                패키지 발송
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              className="btn-secondary"
-                              onClick={() => {
-                                setNavigationPayload({ contractId: c.id });
-                                setActiveTab('contract');
-                              }}
-                              style={{ padding: '3px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                            >
-                              상세 <ArrowRight size={11} />
-                            </button>
-                          </div>
-                        </div>
+                                {row.statusBadge.text}
+                              </span>
+                            </td>
 
-                        {/* 4대 마일스톤 배지 바 */}
-                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, marginRight: '2px' }}>단계별 완료:</span>
-                          
-                          {/* 1. 배차 */}
-                          {isDispatched ? (
-                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.3)' }} title={outboundDel?.driverName ? `기사: ${outboundDel.driverName}` : '배차완료'}>
-                              ✓ 배차완료
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'var(--bg-app)', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }}>
-                              배차대기
-                            </span>
-                          )}
+                            {/* 작업 액션 */}
+                            <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                {row.contractId && !row.isPackageSent && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setBundleTargetContractId(row.contractId);
+                                      setShowBundleModal(true);
+                                    }}
+                                    style={{
+                                      padding: '2px 6px', fontSize: '11px', fontWeight: 700, borderRadius: '4px',
+                                      border: '1px solid rgba(239,68,68,0.3)', backgroundColor: 'rgba(239,68,68,0.1)',
+                                      color: 'var(--danger)', cursor: 'pointer'
+                                    }}
+                                  >
+                                    패키지
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  className="btn-secondary"
+                                  onClick={() => {
+                                    if (row.deliveryId) {
+                                      setNavigationPayload({ deliveryId: row.deliveryId });
+                                      setActiveTab('dispatch_calendar');
+                                    } else if (row.contractId) {
+                                      setNavigationPayload({ contractId: row.contractId });
+                                      setActiveTab('contract');
+                                    }
+                                  }}
+                                  style={{ padding: '2px 6px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '2px' }}
+                                >
+                                  상세 <ArrowRight size={10} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
 
-                          {/* 2. 장비할당 */}
-                          {isAssigned ? (
-                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.3)' }}>
-                              ✓ 장비할당
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(239,68,68,0.12)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)' }}>
-                              {unassignedCount > 0 ? `미할당 ${unassignedCount}대` : '장비미할당'}
-                            </span>
-                          )}
-
-                          {/* 3. 출고검수 */}
-                          {isInspected ? (
-                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.3)' }}>
-                              ✓ 검수완료
-                            </span>
-                          ) : isInspecting ? (
-                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(245,158,11,0.15)', color: 'var(--warning)', border: '1px solid rgba(245,158,11,0.3)' }}>
-                              검수진행
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'var(--bg-app)', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }}>
-                              검수대기
-                            </span>
-                          )}
-
-                          {/* 4. 계약서패키지 */}
-                          {isPackageSent ? (
-                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.15)', color: 'var(--success)', border: '1px solid rgba(34,197,94,0.3)' }}>
-                              ✓ 패키지발송
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', backgroundColor: 'rgba(239,68,68,0.08)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.25)' }}>
-                              패키지미발송
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
+                    <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                      총 {outboundMonitoringRows.length}건 대기 중
+                    </span>
+                    <button
+                      className="btn-primary"
+                      onClick={() => {
+                        setActiveTab('smart_dispatch4');
+                      }}
+                      style={{ backgroundColor: 'var(--primary)', border: 'none', fontSize: '12px', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '5px 12px' }}
+                    >
+                      새 출고 의뢰 작성 <ArrowRight size={12} />
+                    </button>
+                  </div>
                 </div>
-
-                <button
-                  className="btn-primary"
-                  onClick={() => {
-                    setNavigationPayload({ quickChipFilter: 'PENDING_DELIVERY' });
-                    setActiveTab('contract');
-                  }}
-                  style={{ backgroundColor: 'var(--primary)', border: 'none', fontSize: '12.5px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}
-                >
-                  출고 진행 의뢰 전체 보기 ({pendingSalesContracts.length}건) <ArrowRight size={13} />
-                </button>
-              
-</div>
-</details>
+              </details>
             )}
 
             {/* 1. 계약 장비 할당 대기 피드 카드 (장비할당/배차/주기장 담당자 표출) */}

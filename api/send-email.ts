@@ -30,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { to, cc, subject, body, html, googleEmail, gmailAppPassword, attachments } = req.body || {};
+  const { to, cc, subject, body, html, googleEmail, gmailAppPassword, attachments, tenantCorp, tenantBrand, fromName } = req.body || {};
 
   if (!to || !subject || !body) {
     return res.status(400).json({ error: '수신자(to), 제목(subject), 본문(body)은 필수 항목입니다.' });
@@ -66,8 +66,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       };
     }) : undefined;
 
+    const senderBrand = fromName || tenantCorp || tenantBrand || '(주)기연리프트';
+
     const mailOptions: nodemailer.SendMailOptions = {
-      from: `"(주)기연리프트" <${cleanEmail}>`,
+      from: `"${senderBrand}" <${cleanEmail}>`,
       to: String(to).trim(),
       cc: cc ? String(cc).trim() : undefined,
       subject: String(subject).trim(),

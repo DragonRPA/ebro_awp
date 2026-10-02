@@ -35,7 +35,6 @@ import {
   FolderOpen, Zap, Phone, Terminal, Activity, Printer
 } from 'lucide-react';
 import { CallAudioUploadModal } from '../components/CallAudioUploadModal';
-import { PipelineConsole } from '../components/PipelineConsole';
 import './smart_dispatch4.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -438,8 +437,8 @@ export const SmartDispatch4: React.FC = () => {
 
   const pendingCount = queue.filter(q => q.status === 'DRAFT').length;
 
-  // ── 업무 유형 (단일 맥락 선택, 🌟 기본값 null: 아무것도 자동 선택되지 않음) ──
-  const [selectedContext, setSelectedContext] = useState<CallContext | null>(null);
+  // ── 업무 유형 (기본값: 기존현장 출고) ──
+  const [selectedContext, setSelectedContext] = useState<CallContext>('ADDITIONAL');
 
   // 🏷️ 옵션 분할 헬퍼 (천단위 금액 쉼표 30,000원 및 옵션명 내부 슬래시 '협착방지봉 / 상부센서' 보존 & 배열/비문자열 원천 방어)
   const parseOptionString = (str?: any): string[] => {
@@ -957,7 +956,7 @@ export const SmartDispatch4: React.FC = () => {
 
   const handleSelectContext = (ctx: CallContext) => {
     setSelectedContext(prev => {
-      const next = prev === ctx ? null : ctx;
+      const next = prev === ctx ? 'ADDITIONAL' : ctx;
       if (next === 'NEW_CUSTOMER') {
         setSelectedCustomer(null);
         setSelectedSite(null);
@@ -1242,7 +1241,7 @@ export const SmartDispatch4: React.FC = () => {
     setSelectedSafetyOptions(new Set()); setInitialSiteOptions(new Set());
     setNewOptionInput('');
     setStaggeredMemo('');
-    setSelectedContext(null);
+    setSelectedContext('ADDITIONAL');
     setClosingDay(30);
     setStatementClosingDay(25);
     setPaymentDueDay(15);
@@ -1264,8 +1263,6 @@ export const SmartDispatch4: React.FC = () => {
   }
 
   const validationRules = useMemo<ValidationRule[]>(() => {
-    const hasContext = selectedContext !== null;
-
     const custName = isNewCustomerMode ? newCustomerName.trim() : (selectedCustomer?.name || '');
     const siteNameVal = (isNewCustomerMode || isRegisteringNewSite ? newSiteName : (selectedSite?.name || '')).trim();
     const addrVal = isNewCustomerMode
@@ -1273,7 +1270,7 @@ export const SmartDispatch4: React.FC = () => {
       : isRegisteringNewSite
         ? newSiteAddress.trim()
         : (selectedSiteAddress || selectedSite?.address || '').trim();
-    const hasEquip = hasContext && (equipments.length > 0 && equipments.every(e => e.modelName && e.qty > 0));
+    const hasEquip = equipments.length > 0 && equipments.every(e => e.modelName && (Number(e.qty) || 0) > 0);
     const hasDate = !!loadingDate.trim();
     const hasTime = loadingTimeType === 'ASAP' || loadingTimeType === 'MORNING' || loadingTimeType === 'AFTERNOON' || (loadingTimeType === 'EXACT' && !!loadingTimeVal.trim());
     const hasContactPerson = !!contactPerson.trim();
@@ -1330,11 +1327,9 @@ export const SmartDispatch4: React.FC = () => {
         label: '출고 신청 장비',
         targetBlock: 'EQUIPMENT',
         status: hasEquip ? 'VALID' : 'INVALID',
-        currentVal: !hasContext
-          ? '(업무유형 먼저 선택)'
-          : totalQty > 0
-            ? `${equipments.map(e => `${e.modelName}×${e.qty}`).join(', ')} (총 ${totalQty}대)`
-            : '(장비 미선택)',
+        currentVal: totalQty > 0
+          ? `${equipments.map(e => `${e.modelName}×${e.qty}`).join(', ')} (총 ${totalQty}대)`
+          : '(장비 미선택)',
         hint: '최소 1대 이상 규격 및 수량 선택',
       },
       {
@@ -1662,7 +1657,7 @@ export const SmartDispatch4: React.FC = () => {
 
       await loadDrafts();
       resetForm();
-      showToast('초안이 처리 대기 큐에 임시 저장되었습니다.', 'info');
+      showToast('초안이 임시 보관함에 저장되었습니다.', 'info');
       setActiveTab('QUEUE');
     } catch (e: any) {
       showToast(`초안 저장 오류: ${e?.message}`, 'error');
@@ -1900,7 +1895,7 @@ export const SmartDispatch4: React.FC = () => {
       showToast('초안이 폐기되었습니다.', 'info');
     } catch {
       setQueue(prev => prev.filter(d => d.id !== id));
-      showToast('초안이 큐에서 제거되었습니다.', 'info');
+      showToast('초안이 보관함에서 삭제되었습니다.', 'info');
     }
   };
 
@@ -3839,10 +3834,10 @@ export const SmartDispatch4: React.FC = () => {
                 type="button"
                 onClick={handleSaveToQueueOnly}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-850 hover:bg-slate-750 text-slate-300 hover:text-white transition border border-slate-750 cursor-pointer"
-                title="배차 발행 없이 처리 대기 큐에 초안으로만 임시 저장"
+                title="배차 발행 없이 임시 보관함에 초안으로 저장"
               >
                 <Save className="w-3 h-3 text-slate-400" />
-                <span>대기 큐 임시저장</span>
+                <span>임시저장 (초안)</span>
               </button>
               <button
                 type="button"
@@ -4776,12 +4771,6 @@ export const SmartDispatch4: React.FC = () => {
           )}
         </div>
 
-        {/* 3. 하단 파이프라인 로그 모니터 아코디언 */}
-        <PipelineConsole
-          logs={pipelineLogs}
-          onClearLogs={() => setPipelineLogs([])}
-          onSendTestLog={handleSendTestLog}
-        />
       </div>
     );
   };
@@ -4802,7 +4791,7 @@ export const SmartDispatch4: React.FC = () => {
               onClick={() => setActiveTab('NEW')}
               className={`dispatch4-tab-btn ${activeTab === 'NEW' ? 'active' : ''}`}
             >
-              새 요청 작성
+              출고 요청 작성
             </button>
             <button
               data-mid="dispatch4-tab-queue"
@@ -4810,7 +4799,7 @@ export const SmartDispatch4: React.FC = () => {
               onClick={() => setActiveTab('QUEUE')}
               className={`dispatch4-tab-btn ${activeTab === 'QUEUE' ? 'active' : ''}`}
             >
-              <span>처리 대기</span>
+              <span>임시 보관함</span>
               {(pendingCount > 0 || callUploads.length > 0) && (
                 <span className="px-1.5 py-0.2 rounded-full bg-blue-600 text-white text-[10px] font-mono">
                   {callUploads.length > 0 ? `통화 ${callUploads.length} · 초안 ${pendingCount}` : pendingCount}

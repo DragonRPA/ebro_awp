@@ -29,8 +29,10 @@ export interface InOutEventItem {
 export const DailyInOutStatus: React.FC = () => {
   const { 
     assetInOutLogs, deliveries, assets, contracts, customers, sites, 
-    contractAssets, fullRefreshFromServer, showErrorModal 
+    contractAssets, fullRefreshFromServer, showErrorModal, theme 
   } = useApp();
+
+  const isDark = theme === 'dark';
 
   const now = new Date();
   const getTodayStr = () => now.toISOString().split('T')[0];
@@ -863,11 +865,16 @@ export const DailyInOutStatus: React.FC = () => {
                       {(totalIn > 0 || totalOut > 0) && (
                         <span style={{
                           fontSize: '10px',
-                          fontWeight: 700,
+                          fontWeight: 800,
                           padding: '1px 5px',
                           borderRadius: '4px',
-                          backgroundColor: netMovement > 0 ? 'rgba(37, 99, 235, 0.1)' : netMovement < 0 ? 'rgba(220, 38, 38, 0.1)' : 'var(--bg-secondary)',
-                          color: netMovement > 0 ? '#2563eb' : netMovement < 0 ? '#dc2626' : 'var(--text-muted)',
+                          backgroundColor: isDark 
+                            ? (netMovement > 0 ? 'rgba(37, 99, 235, 0.35)' : netMovement < 0 ? 'rgba(220, 38, 38, 0.35)' : 'rgba(255,255,255,0.1)')
+                            : (netMovement > 0 ? 'rgba(37, 99, 235, 0.12)' : netMovement < 0 ? 'rgba(220, 38, 38, 0.12)' : 'var(--bg-secondary)'),
+                          color: isDark 
+                            ? '#fde047' 
+                            : (netMovement > 0 ? '#1e3a8a' : '#111827'),
+                          border: isDark ? '1px solid rgba(253, 224, 71, 0.35)' : 'none',
                           whiteSpace: 'nowrap'
                         }}>
                           {netMovement > 0 ? `+${netMovement} 유입` : netMovement < 0 ? `${netMovement} 유출` : '±0'}
@@ -880,29 +887,29 @@ export const DailyInOutStatus: React.FC = () => {
                       <div 
                         data-mid="chip-inbound"
                         style={{
-                          backgroundColor: 'rgba(37, 99, 235, 0.12)',
-                          border: '1px solid rgba(37, 99, 235, 0.3)',
+                          backgroundColor: isDark ? 'rgba(37, 99, 235, 0.28)' : 'rgba(37, 99, 235, 0.12)',
+                          border: isDark ? '1px solid rgba(96, 165, 250, 0.45)' : '1px solid rgba(37, 99, 235, 0.3)',
                           borderRadius: '5px',
                           padding: '3px 6px',
                           display: 'flex',
                           flexDirection: 'column',
                           gap: '1px',
                           fontSize: '11px',
-                          color: '#1d4ed8',
+                          color: isDark ? '#ffffff' : '#1e3a8a',
                           lineHeight: '1.2'
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 800 }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap' }}>
-                            <ArrowDownLeft size={12} color="#2563eb" /> 입고
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap', color: isDark ? '#ffffff' : '#1e3a8a' }}>
+                            <ArrowDownLeft size={12} color={isDark ? '#ffffff' : '#1e3a8a'} /> 입고
                           </span>
-                          <span style={{ whiteSpace: 'nowrap' }}>{totalIn}대</span>
+                          <span style={{ whiteSpace: 'nowrap', color: isDark ? '#fde047' : '#1e3a8a', fontWeight: 800 }}>{totalIn}대</span>
                         </div>
-                        {/* 모델명 * 수량 표기 */}
+                        {/* 모델명 * 수량 표기 (다크: 노란색, 라이트: 짙은 파란색/검은색) */}
                         <div style={{ 
                           fontSize: '10px', 
-                          color: '#2563eb', 
-                          fontWeight: 600,
+                          color: isDark ? '#fde047' : '#1e3a8a', 
+                          fontWeight: 700,
                           overflow: 'hidden', 
                           textOverflow: 'ellipsis', 
                           whiteSpace: 'nowrap' 
@@ -917,29 +924,29 @@ export const DailyInOutStatus: React.FC = () => {
                       <div 
                         data-mid="chip-outbound"
                         style={{
-                          backgroundColor: 'rgba(220, 38, 38, 0.1)',
-                          border: '1px solid rgba(220, 38, 38, 0.28)',
+                          backgroundColor: isDark ? 'rgba(220, 38, 38, 0.25)' : 'rgba(220, 38, 38, 0.1)',
+                          border: isDark ? '1px solid rgba(248, 113, 113, 0.45)' : '1px solid rgba(220, 38, 38, 0.28)',
                           borderRadius: '5px',
                           padding: '3px 6px',
                           display: 'flex',
                           flexDirection: 'column',
                           gap: '1px',
                           fontSize: '11px',
-                          color: '#b91c1c',
+                          color: isDark ? '#ffffff' : '#111827',
                           lineHeight: '1.2'
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 800 }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap' }}>
-                            <ArrowUpRight size={12} color="#dc2626" /> 출고
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap', color: isDark ? '#ffffff' : '#111827' }}>
+                            <ArrowUpRight size={12} color={isDark ? '#ffffff' : '#dc2626'} /> 출고
                           </span>
-                          <span style={{ whiteSpace: 'nowrap' }}>{totalOut}대</span>
+                          <span style={{ whiteSpace: 'nowrap', color: isDark ? '#fde047' : '#111827', fontWeight: 800 }}>{totalOut}대</span>
                         </div>
-                        {/* 모델명 * 수량 표기 */}
+                        {/* 모델명 * 수량 표기 (다크: 노란색, 라이트: 검은색) */}
                         <div style={{ 
                           fontSize: '10px', 
-                          color: '#b91c1c', 
-                          fontWeight: 600,
+                          color: isDark ? '#fde047' : '#111827', 
+                          fontWeight: 700,
                           overflow: 'hidden', 
                           textOverflow: 'ellipsis', 
                           whiteSpace: 'nowrap' 
@@ -988,24 +995,24 @@ export const DailyInOutStatus: React.FC = () => {
                 <span style={{
                   padding: '3px 10px',
                   borderRadius: '12px',
-                  backgroundColor: 'rgba(37, 99, 235, 0.12)',
-                  color: '#1d4ed8',
+                  backgroundColor: isDark ? 'rgba(37, 99, 235, 0.3)' : 'rgba(37, 99, 235, 0.12)',
+                  color: isDark ? '#ffffff' : '#1e3a8a',
                   fontSize: '11.5px',
                   fontWeight: 800,
                   whiteSpace: 'nowrap'
                 }}>
-                  🔵 입고 {selectedDateData.totalIn}대 ({selectedDateData.inModelSummary})
+                  🔵 입고 <strong style={{ color: isDark ? '#fde047' : '#1e3a8a' }}>{selectedDateData.totalIn}대</strong> ({selectedDateData.inModelSummary})
                 </span>
                 <span style={{
                   padding: '3px 10px',
                   borderRadius: '12px',
-                  backgroundColor: 'rgba(220, 38, 38, 0.1)',
-                  color: '#b91c1c',
+                  backgroundColor: isDark ? 'rgba(220, 38, 38, 0.25)' : 'rgba(220, 38, 38, 0.1)',
+                  color: isDark ? '#ffffff' : '#111827',
                   fontSize: '11.5px',
                   fontWeight: 800,
                   whiteSpace: 'nowrap'
                 }}>
-                  🔴 출고 {selectedDateData.totalOut}대 ({selectedDateData.outModelSummary})
+                  🔴 출고 <strong style={{ color: isDark ? '#fde047' : '#111827' }}>{selectedDateData.totalOut}대</strong> ({selectedDateData.outModelSummary})
                 </span>
               </div>
             </div>
@@ -1046,8 +1053,12 @@ export const DailyInOutStatus: React.FC = () => {
                               borderRadius: '4px',
                               fontSize: '11px',
                               fontWeight: 800,
-                              backgroundColor: isIn ? 'rgba(37, 99, 235, 0.15)' : 'rgba(220, 38, 38, 0.15)',
-                              color: isIn ? '#1d4ed8' : '#b91c1c'
+                              backgroundColor: isIn 
+                                ? (isDark ? 'rgba(37, 99, 235, 0.35)' : 'rgba(37, 99, 235, 0.15)') 
+                                : (isDark ? 'rgba(220, 38, 38, 0.3)' : 'rgba(220, 38, 38, 0.15)'),
+                              color: isIn 
+                                ? (isDark ? '#ffffff' : '#1e3a8a') 
+                                : (isDark ? '#fde047' : '#111827')
                             }}>
                               {isIn ? '🔵 입고' : '🔴 출고'}
                             </span>
@@ -1173,8 +1184,12 @@ export const DailyInOutStatus: React.FC = () => {
                             borderRadius: '4px',
                             fontSize: '11px',
                             fontWeight: 800,
-                            backgroundColor: isIn ? 'rgba(37, 99, 235, 0.15)' : 'rgba(220, 38, 38, 0.15)',
-                            color: isIn ? '#1d4ed8' : '#b91c1c'
+                            backgroundColor: isIn 
+                              ? (isDark ? 'rgba(37, 99, 235, 0.35)' : 'rgba(37, 99, 235, 0.15)') 
+                              : (isDark ? 'rgba(220, 38, 38, 0.3)' : 'rgba(220, 38, 38, 0.15)'),
+                            color: isIn 
+                              ? (isDark ? '#ffffff' : '#1e3a8a') 
+                              : (isDark ? '#fde047' : '#111827')
                           }}>
                             {isIn ? '🔵 입고' : '🔴 출고'}
                           </span>

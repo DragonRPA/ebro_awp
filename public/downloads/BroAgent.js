@@ -204,12 +204,13 @@ const server = http.createServer(async (req, res) => {
 
   // 3-2-2. 📧 실시간 Gmail SMTP 이메일 발송 API (/api/send-email)
   if (req.method === 'POST' && pathname === '/api/send-email') {
-    let bodyData = '';
-    req.on('data', chunk => { bodyData += chunk; });
+    const chunks = [];
+    req.on('data', chunk => { chunks.push(chunk); });
     req.on('end', async () => {
       try {
+        const bodyData = Buffer.concat(chunks).toString('utf8');
         const payload = JSON.parse(bodyData || '{}');
-        const { to, cc, subject, body, googleEmail, gmailAppPassword, attachments } = payload;
+        const { to, cc, subject, body, googleEmail, gmailAppPassword, attachments, tenantCorp, tenantBrand, fromName } = payload;
 
         if (!to || !subject || !body) {
           res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -244,8 +245,10 @@ const server = http.createServer(async (req, res) => {
           };
         }) : undefined;
 
+        const senderBrand = fromName || tenantCorp || tenantBrand || '(주)기연리프트';
+
         const info = await transporter.sendMail({
-          from: `"(주)기연리프트" <${cleanEmail}>`,
+          from: `"${senderBrand}" <${cleanEmail}>`,
           to: String(to).trim(),
           cc: cc ? String(cc).trim() : undefined,
           subject: String(subject).trim(),
@@ -324,6 +327,17 @@ const server = http.createServer(async (req, res) => {
         // 복사/삽입을 위한 기준 행 계산 (테넌트 양식에 맞게 동적 계산)
         const copyRowIndex = rules.contractAssetsStartRow + 10; 
         const insertRowIndex = rules.contractAssetsStartRow + 11;
+        
+        // 💡 [필수 서식 파일 존재 검증]
+        const masterExcelPath = path.join(DRIVE_MIRROR_DIR, '01.계약서패키지_마스터.xlsx');
+        if (!fs.existsSync(masterExcelPath)) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            success: false,
+            error: `[필수 서식 누락] 계약서 마스터 서식(01.계약서패키지_마스터.xlsx)이 로컬 저장소(${DRIVE_MIRROR_DIR})에 존재하지 않습니다.\nCloudflare R2 동기화 상태를 확인하시거나 'C:\\eBroAgent\\drive_mirror\\01.계약서패키지_마스터.xlsx' 경로에 서식 파일을 배치해 주세요.`
+          }));
+          return;
+        }
 
         // PowerShell 스크립트 작성 (UTF-8 BOM 필수)
         const psScript = `\ufeff
@@ -502,6 +516,8 @@ $excel.Quit()
           path.join(tempBuildDir, '01.계약서패키지.pdf')
         ];
 
+        const missingAttachments = [];
+
         // 중복 모델 제거
         const uniqueModels = [...new Set((assets || []).map(a => a.modelName).filter(Boolean))];
         
@@ -515,13 +531,25 @@ $excel.Quit()
             for (const f of files) {
               pdfSources.push(path.join(eqDocDir, f));
             }
+          } else {
+            missingAttachments.push(`장비 제원/등록증 미보유: Eq_doc/${model}`);
           }
         }
 
         // 공통 서류 추가
-        pdfSources.push(path.join(DRIVE_MIRROR_DIR, '08.생산물배상책임보험증권.pdf'));
-        pdfSources.push(path.join(DRIVE_MIRROR_DIR, '09.사업자등록증.pdf'));
-        pdfSources.push(path.join(DRIVE_MIRROR_DIR, '10.통장사본.pdf'));
+        const commonDocs = [
+          '08.생산물배상책임보험증권.pdf',
+          '09.사업자등록증.pdf',
+          '10.통장사본.pdf'
+        ];
+        for (const cDoc of commonDocs) {
+          const docPath = path.join(DRIVE_MIRROR_DIR, cDoc);
+          if (fs.existsSync(docPath)) {
+            pdfSources.push(docPath);
+          } else {
+            missingAttachments.push(`공통 첨부서류 미보유: ${cDoc}`);
+          }
+        }
 
 
         for (const p of pdfSources) {
@@ -559,6 +587,7 @@ $excel.Quit()
           pageCount,
           localPath: localSavePath,
           base64Content: b64,
+          missingAttachments: missingAttachments.length > 0 ? missingAttachments : undefined,
           message: `✅ 100% 정품 엑셀 기반 7종 통합 서류팩 생성 완료 (총 ${pageCount}페이지)`
         }));
       } catch (bundleErr) {

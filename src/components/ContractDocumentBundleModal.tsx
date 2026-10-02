@@ -58,6 +58,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
   const [emailBody, setEmailBody] = useState('');
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailSentSuccess, setEmailSentSuccess] = useState(false);
+  const [isEmailContentOpen, setIsEmailContentOpen] = useState(false);
 
   // 선택된 계약 상세 정보 계산
   const selectedContract = useMemo(() => {
@@ -447,7 +448,11 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       };
 
       setProgressPercent(100);
-      setProgressText(`✅ 총 ${finalRes.pageCount}페이지 정품 계약서패키지 조립 완료!`);
+      let successMsg = `✅ 총 ${finalRes.pageCount}페이지 정품 계약서패키지 조립 완료!`;
+      if (agentRes.missingAttachments && agentRes.missingAttachments.length > 0) {
+        successMsg += ` (⚠️ 일부 첨부 서류 미보유: ${agentRes.missingAttachments.join(', ')})`;
+      }
+      setProgressText(successMsg);
       setGeneratedResult(finalRes);
       return finalRes;
     } catch (err: any) {
@@ -509,13 +514,17 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
 
       const attachments = [{ filename: pdf.fileName, content: pdf.base64Content }];
 
+      const tenantBrand = currentTenant?.displayName || currentTenant?.tradeName || 'e-Bro Lift';
+      const tenantCorp = currentTenant?.tradeName || currentTenant?.corporateName || tenantBrand || '(주)기연리프트';
+
       // 3. Gmail SMTP 서비스 호출
       await emailService.sendEmail(
         primaryRecipient,
         emailSubject,
         emailBody,
         attachments,
-        ccRecipients || undefined
+        ccRecipients || undefined,
+        tenantCorp
       );
 
       // 4. 계약 변경 이력(contract_history)에 감사 로그 DB 저장 (3-yes)
@@ -937,6 +946,82 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
                     );
                   })}
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* 3-4. 이메일 발송 내용 (제목 및 본문 점검/편집) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '14px 16px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+                <Mail size={15} color="var(--primary)" />
+                이메일 발송 서식 및 본문
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsEmailContentOpen(prev => !prev)}
+                style={{
+                  fontSize: '11.5px',
+                  color: 'var(--primary)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {isEmailContentOpen ? '내용 접기 ▲' : '내용 확인 및 수정 ▼'}
+              </button>
+            </div>
+
+            {isEmailContentOpen ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                    메일 제목
+                  </label>
+                  <input
+                    type="text"
+                    value={emailSubject}
+                    onChange={e => setEmailSubject(e.target.value)}
+                    disabled={isGenerating || isSendingEmail}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-card)',
+                      color: 'var(--text-main)',
+                      fontSize: '12.5px',
+                      fontWeight: 600
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                    메일 본문
+                  </label>
+                  <textarea
+                    rows={9}
+                    value={emailBody}
+                    onChange={e => setEmailBody(e.target.value)}
+                    disabled={isGenerating || isSendingEmail}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-card)',
+                      color: 'var(--text-main)',
+                      fontSize: '12px',
+                      lineHeight: '1.5',
+                      resize: 'vertical',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <strong style={{ color: 'var(--text-main)' }}>제목:</strong> {emailSubject || '메일 제목 생성 대기'}
               </div>
             )}
           </div>

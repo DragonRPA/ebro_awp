@@ -1,17 +1,46 @@
-﻿import { EmailTemplateContext, EmailTemplateResult } from '../../types';
+import { EmailTemplateContext, EmailTemplateResult } from '../../types';
 
 export const contractBundleEmail = (ctx: EmailTemplateContext): EmailTemplateResult => {
   const { custName, tenantCorp, tenantBrand, tenantTel, siteName, mappedAssetsCount = 0, uniqueModelList = [] } = ctx;
+  const modelsText = uniqueModelList.length > 0 ? uniqueModelList.join(', ') : '전체 장비';
+
   return {
-    subject: `[${tenantBrand}] ${custName} - ${siteName} 怨꾩빟???⑦궎吏`,
-    body: `?덈뀞?섏떗?덇퉴, ${custName} ?대떦?먮떂.\n${tenantCorp} ?낅땲??\n\n?붿껌?섏떊 [${siteName}] ?꾩옣??怨꾩빟???⑦궎吏 泥⑤? ?뚯씪濡??〓??쒕┰?덈떎.\n\n??泥⑤? ?댁뿭 (?⑥씪 PDF):\n1. ?꾨?李?怨꾩빟??(1p)\n2. ?먯궛蹂?諛섏엯??CHECK LIST (${mappedAssetsCount}??\n3. ?먯궛蹂??덉쟾?먭?寃곌낵??(${mappedAssetsCount}??\n4. ?λ퉬 紐⑤뜽蹂?${uniqueModelList.join(', ')}) ?쒖썝???쒖썝, ?꾨㈃, ?묐룞踰??? 紐낆꽭??n5. ?곸뾽諛곗긽梨낆엫(PL)利앷텒 (湲곌컙 ??\n6. ?ъ뾽?먮벑濡앹쬆 (?낅줈????寃쎌슦)\n7. ?듭옣?щ낯 (?낅줈????寃쎌슦)\n\n?댁슜 寃?????쒕챸 諛?吏곸씤 ?좎씤?섏뿬 ?뚯떊 遺?곷뱶由쎈땲??\n\n媛먯궗?⑸땲??\n${tenantCorp} 諛곗긽\n?꾪솕: ${tenantTel}`
+    subject: `[${tenantBrand}] ${custName} - ${siteName} 계약서패키지`,
+    body: `안녕하십니까, ${custName} 담당자님.
+${tenantCorp} 입니다.
+
+요청하신 [${siteName}] 현장의 계약서패키지를 첨부 파일로 송부드립니다.
+
+■ 첨부 서류 내역 (단일 패키지 PDF):
+1. 고소작업대 임대차 계약서 (1p)
+2. 자산별 반입 전 CHECK LIST (${mappedAssetsCount}대)
+3. 자산별 안전점검 결과서 (${mappedAssetsCount}대)
+4. 장비 모델별(${modelsText}) 제원표 (제원, 도면, 작동법 등 명세서)
+5. 생산물배상책임(PL)보험증권 (계약기간 보증)
+6. 사업자등록증 (사본)
+7. 통장사본 (사본)
+
+내용 검토 후 서명 및 직인 날인하시어 회신 부탁드립니다.
+
+감사합니다.
+${tenantCorp} 배상
+전화: ${tenantTel}`
   };
 };
 
 export const statementEmail = (ctx: EmailTemplateContext): EmailTemplateResult => {
   const { custName, tenantCorp, tenantBrand, tenantTel } = ctx;
   return {
-    subject: `[${tenantBrand}] ${custName} 嫄곕옒紐낆꽭???〓?`,
-    body: `?덈뀞?섏떗?덇퉴, ${custName} ?대떦?먮떂.\n${tenantCorp} ?낅땲??\n\n?붿껌?섏떊 嫄곕옒紐낆꽭?쒕? 泥⑤? ?뚯씪濡??〓??쒕┰?덈떎.\n\n媛먯궗?⑸땲??\n${tenantCorp} 諛곗긽\n?꾪솕: ${tenantTel}`
+    subject: `[${tenantBrand}] ${custName} 거래명세표 송부`,
+    body: `안녕하십니까, ${custName} 담당자님.
+${tenantCorp} 입니다.
+
+요청하신 거래명세표를 첨부 파일로 송부드립니다.
+
+내용 확인 부탁드리며, 문의사항이 있으시면 언제든지 연락 주시기 바랍니다.
+
+감사합니다.
+${tenantCorp} 배상
+전화: ${tenantTel}`
   };
 };

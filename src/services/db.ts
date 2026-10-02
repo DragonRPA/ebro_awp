@@ -1384,6 +1384,7 @@ export interface Delivery {
   scheduledDate?: string;
   loadingDate?: string; // 상차 일자 (YYYY-MM-DD)
   loadingTimeSlot?: string; // 상차 시간 구분 (오전/오후/희망시간)
+  loadingCompletedAt?: string; // 출고팀 상차완료 처리 일시
   unloadingDate?: string; // 하차 일자 (YYYY-MM-DD)
   unloadingTimeSlot?: string; // 하차 시간 구분 (오전/오후/희망시간)
   originAddress?: string; // 상차지

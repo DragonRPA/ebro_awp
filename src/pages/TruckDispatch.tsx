@@ -2733,6 +2733,11 @@ export const TruckDispatch: React.FC = () => {
         || targetDelivery?.dispatchCategory === '반납'
         || targetDelivery?.dispatchCategory === '이동';
 
+      const isOutboundLike = targetDelivery?.type === 'OUTBOUND'
+        || targetDelivery?.type === 'EXCHANGE'
+        || targetDelivery?.dispatchCategory === '출고'
+        || targetDelivery?.dispatchCategory === '교환';
+
       if (isSimpleTransit) {
         // [헌장 1.3] INBOUND/MOVEMENT 배차 완료 = 배차 상태만 DELIVERED로 기록.
         // 자산 상태(RENTED → AVAILABLE) 전환은 입고검수 화면에서만 수행한다.
@@ -2746,6 +2751,12 @@ export const TruckDispatch: React.FC = () => {
         // OUTBOUND / EXCHANGE: completeDelivery — 출고 이력 추가 + 계약 ACTIVE 전환.
         // 자산 상태는 변경하지 않음 (출고 검수 승인 시점에 RENTED 전환 — 헌장 1.3).
         await completeDelivery(deliveryId);
+        // 출고팀 상차완료 처리 일시 및 상태 명시 기록
+        db.updateRow<Delivery>('deliveries', deliveryId, {
+          status: 'DELIVERED',
+          loadingCompletedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
         await db.awaitPendingWrites();
       }
 
@@ -2778,10 +2789,11 @@ export const TruckDispatch: React.FC = () => {
         setSelectedDelivery({
           ...selectedDelivery,
           status: 'DELIVERED',
+          loadingCompletedAt: isOutboundLike ? new Date().toISOString() : selectedDelivery.loadingCompletedAt,
           updatedAt: new Date().toISOString()
         });
       }
-      showToast('운송이 완료 마감되었습니다. (운송 완료)');
+      showToast(isOutboundLike ? '출고 상차가 완료되었습니다. (상차완료)' : '운송이 완료 마감되었습니다. (입고완료)');
     } catch (err: any) {
       showErrorModal(`⚠️ 운송 완료 처리 실패:\n${err?.message || err}`);
     }
@@ -3356,8 +3368,35 @@ export const TruckDispatch: React.FC = () => {
                         )}
 
                         {d.driverName && (
-                          <div style={{ marginTop: '6px', fontSize: '11.5px', fontWeight: 700, color: 'var(--success)' }}>
-                            🚛 기사: {d.driverName} ({d.vehicleNo || '차량번호미상'})
+                          <div style={{ marginTop: '6px', fontSize: '11.5px', fontWeight: 700, color: 'var(--success)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span>🚛 기사: {d.driverName} ({d.vehicleNo || '차량번호미상'})</span>
+                            {normStatus === 'DISPATCHED' && canSave && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCompleteDeliveryStatus(d.id);
+                                }}
+                                style={{
+                                  padding: '3px 8px',
+                                  fontSize: '11px',
+                                  fontWeight: 800,
+                                  backgroundColor: 'var(--success)',
+                                  color: '#fff',
+                                  border: 'none',
+                                  borderRadius: '5px',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                                }}
+                                title={(d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환') ? '출고 상차완료 처리' : '입고(하차) 완료 처리'}
+                              >
+                                <CheckCircle size={11} />
+                                {(d.type === 'OUTBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '출고' || d.dispatchCategory === '교환') ? '상차완료' : '입고완료'}
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -3540,8 +3579,10 @@ export const TruckDispatch: React.FC = () => {
                                 type="button"
                                 onClick={() => handleCompleteDeliveryStatus(selectedDelivery.id)}
                                 style={{ padding: '6px 14px', backgroundColor: 'var(--success)', color: '#fff', border: 'none', borderRadius: '7px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 6px rgba(22,163,74,0.25)' }}
+                                title={(selectedDelivery.type === 'OUTBOUND' || selectedDelivery.type === 'EXCHANGE' || selectedDelivery.dispatchCategory === '출고' || selectedDelivery.dispatchCategory === '교환') ? '출고 상차완료 처리' : '입고(하차) 완료 처리'}
                               >
-                                <CheckCircle size={14} /> 운송 완료 마감
+                                <CheckCircle size={14} />
+                                {(selectedDelivery.type === 'OUTBOUND' || selectedDelivery.type === 'EXCHANGE' || selectedDelivery.dispatchCategory === '출고' || selectedDelivery.dispatchCategory === '교환') ? '상차완료' : '입고완료'}
                               </button>
 
                               <button
@@ -4037,8 +4078,10 @@ export const TruckDispatch: React.FC = () => {
                               type="button"
                               onClick={() => handleCompleteDeliveryStatus(selectedDelivery.id)}
                               style={{ padding: '7px 14px', backgroundColor: 'var(--success)', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                              title={(selectedDelivery.type === 'OUTBOUND' || selectedDelivery.type === 'EXCHANGE' || selectedDelivery.dispatchCategory === '출고' || selectedDelivery.dispatchCategory === '교환') ? '출고 상차완료 처리' : '입고(하차) 완료 처리'}
                             >
-                              <CheckCircle size={14} /> 운송 완료 마감
+                              <CheckCircle size={14} />
+                              {(selectedDelivery.type === 'OUTBOUND' || selectedDelivery.type === 'EXCHANGE' || selectedDelivery.dispatchCategory === '출고' || selectedDelivery.dispatchCategory === '교환') ? '상차완료' : '입고완료'}
                             </button>
 
                             <button
