@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import {
   Plus, CheckCircle, Search, AlertTriangle, Download, Clock, Layers, ShieldAlert, Upload, FileSpreadsheet, RefreshCw, FileText, Check, ArrowRight, XCircle, CreditCard, CheckCircle2, AlertCircle, X, ExternalLink, ShieldCheck, Building, Calendar
 } from 'lucide-react';
-import { Asset, db, PurchaseSettlement, PurchaseSettlementItem, Delivery, SubleaseNegotiation } from '../services/db';
+import { Asset, db, PurchaseSettlement, PurchaseSettlementItem, Delivery, SubleaseNegotiation, AntiEntrapmentOwnership, ANTI_ENTRAPMENT_OWNERSHIP_MAP } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import * as XLSX from 'xlsx';
 
@@ -149,6 +149,7 @@ export const RentAssets: React.FC = () => {
       assetNo: `R-${Math.floor(1000 + Math.random() * 9000)}`,
       modelName: nego.modelName,
       ownerType: 'RENTED',
+      antiEntrapmentOwnership: nego.antiEntrapmentOwnership || 'VENDOR',
       vendorId: nego.vendorId,
       renter: nego.vendorName,
       monthlyRentFee: nego.monthlyRate,
@@ -749,6 +750,7 @@ export const RentAssets: React.FC = () => {
       modelName: stmt.modelName || '임차고소작업대',
       serialNo: stmt.serialNo || '',
       ownerType: 'RENTED',
+      antiEntrapmentOwnership: 'VENDOR',
       status: 'AVAILABLE',
       renter: selectedVendor || '외부임차처',
       rentStart: stmt.rentStart || `${selectedYm || new Date().toISOString().slice(0, 7)}-01`,
@@ -1197,6 +1199,8 @@ export const RentAssets: React.FC = () => {
       vendorAssetNo: '',
       serialNo: '',
       manufacturer: '',
+      ownerType: 'RENTED',
+      antiEntrapmentOwnership: 'VENDOR', // 기본값: 임차처 소유 (오탈거 방지 기본 방어)
       renter: defaultRenter,
       vendorId: matchedVendor?.id,
       rentStart: today,
@@ -1216,6 +1220,7 @@ export const RentAssets: React.FC = () => {
     setIsRenterDropdownOpen(false);
     setEditingAsset({
       ...a,
+      antiEntrapmentOwnership: a.antiEntrapmentOwnership || 'NONE',
       renter: resolvedRenter,
       vendorId: resolvedVendorId,
       isReactivating: false
@@ -1331,6 +1336,7 @@ export const RentAssets: React.FC = () => {
     setIsRenterDropdownOpen(false);
     setEditingAsset({
       ...a,
+      antiEntrapmentOwnership: a.antiEntrapmentOwnership || 'NONE',
       renter: renterVal,
       vendorId: a.vendorId || matchedVendor?.id,
       rentStart: today,
@@ -3345,6 +3351,19 @@ export const RentAssets: React.FC = () => {
                                   임차처번호: {a.vendorAssetNo}
                                 </div>
                               )}
+                              {a.antiEntrapmentOwnership === 'VENDOR' ? (
+                                <div style={{ marginTop: '2px' }}>
+                                  <span style={{ fontSize: '9.5px', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(220, 38, 38, 0.1)', color: '#dc2626', fontWeight: 700, border: '1px solid rgba(220, 38, 38, 0.25)', whiteSpace: 'nowrap' }}>
+                                    🚨 원사협착봉 (탈거금지)
+                                  </span>
+                                </div>
+                              ) : a.antiEntrapmentOwnership === 'OURS' ? (
+                                <div style={{ marginTop: '2px' }}>
+                                  <span style={{ fontSize: '9.5px', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: '#2563eb', fontWeight: 700, border: '1px solid rgba(37, 99, 235, 0.25)', whiteSpace: 'nowrap' }}>
+                                    🔧 당사협착봉 (회수대상)
+                                  </span>
+                                </div>
+                              ) : null}
                             </td>
 
                             {/* 모델명 */}
@@ -3679,6 +3698,38 @@ export const RentAssets: React.FC = () => {
                 )}
               </div>
 
+              {/* 협착방지봉 옵션 소유권 (입고 시 오탈거 및 비용 피청구 방지) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>
+                    협착방지봉 옵션 소유권 (입고 시 오탈거 방지)
+                  </label>
+                  {editingAsset.antiEntrapmentOwnership === 'VENDOR' ? (
+                    <span style={{ fontSize: '10px', color: 'var(--danger)', fontWeight: 700, backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '1px 6px', borderRadius: '4px' }}>
+                      주기장 입고 시 탈거 절대 금지
+                    </span>
+                  ) : editingAsset.antiEntrapmentOwnership === 'OURS' ? (
+                    <span style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: 700, backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '1px 6px', borderRadius: '4px' }}>
+                      원사 반납 시 탈거 회수
+                    </span>
+                  ) : null}
+                </div>
+                <select
+                  value={editingAsset.antiEntrapmentOwnership || 'NONE'}
+                  onChange={e => setEditingAsset({ ...editingAsset, antiEntrapmentOwnership: e.target.value as any })}
+                  style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
+                >
+                  <option value="VENDOR">임차처 소유 (탈거 절대 금지 / 원형 보존)</option>
+                  <option value="OURS">당사 소유 (원사 반납 전 탈거 회수)</option>
+                  <option value="NONE">미장착 (협착방지봉 없음)</option>
+                </select>
+                <div style={{ fontSize: '10.5px', color: editingAsset.antiEntrapmentOwnership === 'VENDOR' ? 'var(--danger)' : 'var(--text-muted)', lineHeight: '1.4' }}>
+                  {editingAsset.antiEntrapmentOwnership === 'VENDOR' && '⚠️ 주기장 입고 시 출고/정비팀이 임의 탈거하지 않도록 입고 검수 경고가 자동 연동됩니다.'}
+                  {editingAsset.antiEntrapmentOwnership === 'OURS' && '🔧 당사 소유 부품이므로 임차처 최종 반납 시 탈거하여 부품실로 회수 안내가 표출됩니다.'}
+                  {(!editingAsset.antiEntrapmentOwnership || editingAsset.antiEntrapmentOwnership === 'NONE') && '장비에 협착방지봉이 장착되어 있지 않습니다.'}
+                </div>
+              </div>
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>임차 시작일</label>
@@ -3763,14 +3814,28 @@ export const RentAssets: React.FC = () => {
       {/* ========================================================================= */}
       {/* 4. 모달: 임차 자산 반납 및 회수 배차 동시 신청 모달 */}
       {/* ========================================================================= */}
-      {showReturnModal && (
+      {showReturnModal && (() => {
+        const returnTargetAsset = assets.find(a => a.id === returnAssetId);
+        return (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', padding: '24px', borderRadius: '12px', width: '480px', maxWidth: '90%', border: '1px solid var(--border-color)' }}>
             <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '14px', color: 'var(--danger)' }}>
-              임차 자산 반납 처리
+              임차 자산 반납 처리 {returnTargetAsset ? `(${returnTargetAsset.assetNo} / ${returnTargetAsset.modelName})` : ''}
             </h2>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* 협착방지봉 소유권 주의 배너 */}
+              {returnTargetAsset?.antiEntrapmentOwnership === 'VENDOR' && (
+                <div style={{ padding: '10px 12px', borderRadius: '6px', backgroundColor: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.3)', color: '#dc2626', fontSize: '11.5px', lineHeight: '1.4' }}>
+                  🚨 <strong>[임차처 소유 협착방지봉 확인]</strong> 해당 장비는 <strong>임차거래처 소유 협착방지봉</strong>이 장착되어 있습니다. 절대로 탈거하지 말고 <strong>장착된 상태 그대로 원형 반납</strong>하십시오. (임의 탈거 시 비용 피청구 발생)
+                </div>
+              )}
+              {returnTargetAsset?.antiEntrapmentOwnership === 'OURS' && (
+                <div style={{ padding: '10px 12px', borderRadius: '6px', backgroundColor: 'rgba(37, 99, 235, 0.1)', border: '1px solid rgba(37, 99, 235, 0.3)', color: '#2563eb', fontSize: '11.5px', lineHeight: '1.4' }}>
+                  🔧 <strong>[당사 소유 협착방지봉 탈거 확인]</strong> 반납 전 당사 소유 협착방지봉을 <strong>반드시 탈거하여 당사 부품실로 회수</strong>하였는지 확인하십시오.
+                </div>
+              )}
+
               {/* 반납 방식 선택 (직반납 vs 주기장 반납) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>반납 방식 선택</label>
@@ -3885,7 +3950,8 @@ export const RentAssets: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* ========================================================================= */}
       {/* 5. 모달: 임차처 거래명세서 수신 내용 ↔ 자사 DB 대장 1:1 원본 대조 상세 모달 */}
@@ -4516,6 +4582,34 @@ export const RentAssets: React.FC = () => {
                   <div><span style={{ color: 'var(--text-secondary)' }}>제조사:</span> {a.manufacturer || '-'}</div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>시리얼번호:</span> {a.serialNo || '-'}</div>
                   <div><span style={{ color: 'var(--text-secondary)' }}>임차처번호:</span> {a.vendorAssetNo || '-'}</div>
+                </div>
+              </div>
+
+              {/* 협착방지봉 옵션 소유권 및 입고/반납 지침 */}
+              <div style={{
+                padding: '10px 12px',
+                backgroundColor: a.antiEntrapmentOwnership === 'VENDOR' ? 'rgba(220, 38, 38, 0.08)' : a.antiEntrapmentOwnership === 'OURS' ? 'rgba(37, 99, 235, 0.08)' : 'var(--bg-app)',
+                borderRadius: '6px',
+                border: `1px solid ${a.antiEntrapmentOwnership === 'VENDOR' ? 'rgba(220, 38, 38, 0.3)' : a.antiEntrapmentOwnership === 'OURS' ? 'rgba(37, 99, 235, 0.3)' : 'var(--border-color)'}`
+              }}>
+                <div style={{ fontWeight: 600, color: a.antiEntrapmentOwnership === 'VENDOR' ? 'var(--danger)' : a.antiEntrapmentOwnership === 'OURS' ? 'var(--primary)' : 'var(--text-main)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <ShieldAlert size={14} />
+                  협착방지봉 소유권: {a.antiEntrapmentOwnership === 'VENDOR' ? '임차처 소유' : a.antiEntrapmentOwnership === 'OURS' ? '당사 소유' : '미장착'}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-main)', lineHeight: '1.4' }}>
+                  {a.antiEntrapmentOwnership === 'VENDOR' && (
+                    <span style={{ color: 'var(--danger)', fontWeight: 700 }}>
+                      🚨 주기장 입고 시 절대 탈거 금지! 출고팀/정비팀은 원형 그대로 보존해야 하며, 임의 탈거 시 임차처로부터 분실/원상복구 비용이 피청구됩니다.
+                    </span>
+                  )}
+                  {a.antiEntrapmentOwnership === 'OURS' && (
+                    <span style={{ color: 'var(--primary)', fontWeight: 600 }}>
+                      🔧 당사 소유 부품입니다. 임차처 최종 반납 시 장착된 협착방지봉을 반드시 탈거하여 당사 부품실로 회수하십시오.
+                    </span>
+                  )}
+                  {(!a.antiEntrapmentOwnership || a.antiEntrapmentOwnership === 'NONE') && (
+                    <span style={{ color: 'var(--text-muted)' }}>협착방지봉 옵션이 장착되어 있지 않은 자산입니다.</span>
+                  )}
                 </div>
               </div>
 

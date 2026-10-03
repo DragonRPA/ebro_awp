@@ -293,7 +293,13 @@ export const TruckDispatch: React.FC = () => {
       const ids = rawIds.map((id: any) => String(id).trim()).filter(Boolean);
       const found = ids.map(id => assets.find(a => a.id === id)).filter(Boolean) as Asset[];
       if (found.length > 0) {
-        return found.map(a => ({ modelName: a.modelName || '-', assetNo: a.assetNo || '-', id: a.id }));
+        return found.map(a => ({
+          modelName: a.modelName || '-',
+          assetNo: a.assetNo || '-',
+          id: a.id,
+          ownerType: a.ownerType,
+          antiEntrapmentOwnership: a.antiEntrapmentOwnership
+        }));
       }
     }
     if (delivery.contractId) {
@@ -301,9 +307,21 @@ export const TruckDispatch: React.FC = () => {
         .filter(ca => ca.contractId === delivery.contractId)
         .map(ca => {
           const asset = assets.find(a => a.id === ca.assetId);
-          return asset ? { modelName: asset.modelName || ca.expectedModel || '-', assetNo: asset.assetNo || '-', id: asset.id } : null;
+          return asset ? {
+            modelName: asset.modelName || ca.expectedModel || '-',
+            assetNo: asset.assetNo || '-',
+            id: asset.id,
+            ownerType: asset.ownerType,
+            antiEntrapmentOwnership: asset.antiEntrapmentOwnership
+          } : null;
         })
-        .filter(Boolean) as { modelName: string; assetNo: string; id: string }[];
+        .filter(Boolean) as {
+          modelName: string;
+          assetNo: string;
+          id: string;
+          ownerType?: Asset['ownerType'];
+          antiEntrapmentOwnership?: Asset['antiEntrapmentOwnership'];
+        }[];
     }
     return [];
   };
@@ -445,6 +463,7 @@ export const TruckDispatch: React.FC = () => {
       <colgroup><col style="width: 12%;"><col style="width: 88%;"></colgroup>
       <tr><th>지시사항</th><td>${delivery.memo || '특이사항 없음'}</td></tr>
       ${(site?.paidOptions || site?.protection) ? `<tr><th>현장 옵션</th><td style="font-weight: 700; color: #d32f2f;">${[site?.paidOptions ? `유상옵션: ${site.paidOptions}` : null, site?.protection ? `보양: ${site.protection}` : null].filter(Boolean).join(' | ')}</td></tr>` : ''}
+      ${!isOutbound && returnAssets.some(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR') ? `<tr><th style="color: #dc2626; font-weight: 800;">옵션 주의</th><td style="color: #dc2626; font-weight: 800; background-color: #fee2e2;">🚨 [임차처 소유 협착방지봉 탈거 절대 금지] ${returnAssets.filter(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR').map(a => `${a.assetNo}(${a.modelName})`).join(', ')} 장비는 임차거래처 소유 협착방지봉이 장착되어 있으므로 주기장 입고 시 절대 탈거(제거)하지 마십시오!</td></tr>` : ''}
     </table>
   </div>
 </body>
@@ -3355,10 +3374,19 @@ export const TruckDispatch: React.FC = () => {
                         {(d.type === 'INBOUND' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납') ? (
                           // 회수 배차: 계약/회수 자산 목록 표시 (모델명 {관리번호})
                           <div style={{ padding: '6px 8px', backgroundColor: 'rgba(239,68,68,0.05)', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.2)', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                            🔄 회수 대상:&nbsp;
-                            {getReturnAssets(d).length > 0
-                              ? getReturnAssets(d).map(a => `${a.modelName} {${a.assetNo}}`).join(' / ')
-                              : (cargoItems.length > 0 ? cargoItems.map(c => `${c.modelName} ${c.count}대`).join(', ') : '자산 정보 미확인')}
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px' }}>
+                              <span>
+                                🔄 회수 대상:&nbsp;
+                                {getReturnAssets(d).length > 0
+                                  ? getReturnAssets(d).map(a => `${a.modelName} {${a.assetNo}}`).join(' / ')
+                                  : (cargoItems.length > 0 ? cargoItems.map(c => `${c.modelName} ${c.count}대`).join(', ') : '자산 정보 미확인')}
+                              </span>
+                              {getReturnAssets(d).some(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR') && (
+                                <span style={{ fontSize: '9.5px', color: '#dc2626', fontWeight: 800, backgroundColor: 'rgba(220, 38, 38, 0.12)', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(220,38,38,0.25)', whiteSpace: 'nowrap' }}>
+                                  🚨 원사협착봉 (탈거금지)
+                                </span>
+                              )}
+                            </div>
                           </div>
                         ) : (
                           // 출고 배차: 화물 cargoItems 표시

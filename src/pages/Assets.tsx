@@ -781,9 +781,21 @@ export const Assets: React.FC = () => {
 
                       {/* 8. 소유구분 */}
                       <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        <span className={`badge ${a.ownerType === 'OWNED' ? 'badge-success' : 'badge-info'}`} style={{ fontSize: '10px', padding: '1px 5px' }}>
-                          {a.ownerType === 'OWNED' ? '당사' : '임차'}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                          <span className={`badge ${a.ownerType === 'OWNED' ? 'badge-success' : 'badge-info'}`} style={{ fontSize: '10px', padding: '1px 5px' }}>
+                            {a.ownerType === 'OWNED' ? '당사' : '임차'}
+                          </span>
+                          {a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR' && (
+                            <span style={{ fontSize: '9px', padding: '1px 4px', borderRadius: '3px', backgroundColor: 'rgba(220, 38, 38, 0.1)', color: '#dc2626', fontWeight: 700, border: '1px solid rgba(220, 38, 38, 0.25)', whiteSpace: 'nowrap' }}>
+                              원사협착봉
+                            </span>
+                          )}
+                          {a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'OURS' && (
+                            <span style={{ fontSize: '9px', padding: '1px 4px', borderRadius: '3px', backgroundColor: 'rgba(37, 99, 235, 0.1)', color: '#2563eb', fontWeight: 700, border: '1px solid rgba(37, 99, 235, 0.25)', whiteSpace: 'nowrap' }}>
+                              당사협착봉
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* 9. FSM 운용 상태 */}
@@ -1084,6 +1096,16 @@ export const Assets: React.FC = () => {
                         <option value="RENTED">임차자산</option>
                       </select>
                     </div>
+                    {editForm.ownerType === 'RENTED' && (
+                      <div>
+                        <label style={labelStyle}>협착방지봉 소유권</label>
+                        <select style={inputStyle} value={editForm.antiEntrapmentOwnership || 'NONE'} onChange={ef('antiEntrapmentOwnership')}>
+                          <option value="VENDOR">임차처 소유 (탈거 절대 금지)</option>
+                          <option value="OURS">당사 소유 (원사 반납 전 회수)</option>
+                          <option value="NONE">미장착 (없음)</option>
+                        </select>
+                      </div>
+                    )}
                     <div>
                       <label style={labelStyle}>상태</label>
                       <select style={inputStyle} value={editForm.status || 'AVAILABLE'} onChange={ef('status')}>
@@ -1100,7 +1122,19 @@ export const Assets: React.FC = () => {
                     <div><span style={{ color: 'var(--text-secondary)' }}>제조사:</span> {selectedAsset.manufacturer || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>제조번호:</span> {selectedAsset.serialNo || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>연식:</span> {selectedAsset.manufactureYear || '-'}</div>
-                    <div><span style={{ color: 'var(--text-secondary)' }}>소유구분:</span> {selectedAsset.ownerType === 'OWNED' ? '당사자산' : '임차자산'}</div>
+                    <div><span style={{ color: 'var(--text-secondary)' }}>소유구분:</span> {selectedAsset.ownerType === 'OWNED' ? '당사자산' : `임차자산 (${selectedAsset.renter || '임차처'})`}</div>
+                    {selectedAsset.ownerType === 'RENTED' && (
+                      <div style={{ gridColumn: 'span 2', marginTop: '2px', padding: '6px 8px', borderRadius: '4px', backgroundColor: selectedAsset.antiEntrapmentOwnership === 'VENDOR' ? 'rgba(220, 38, 38, 0.1)' : selectedAsset.antiEntrapmentOwnership === 'OURS' ? 'rgba(37, 99, 235, 0.1)' : 'var(--bg-app)', border: `1px solid ${selectedAsset.antiEntrapmentOwnership === 'VENDOR' ? 'rgba(220, 38, 38, 0.3)' : selectedAsset.antiEntrapmentOwnership === 'OURS' ? 'rgba(37, 99, 235, 0.3)' : 'var(--border-color)'}` }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>협착방지봉:</span>{' '}
+                        {selectedAsset.antiEntrapmentOwnership === 'VENDOR' ? (
+                          <strong style={{ color: '#dc2626' }}>🚨 임차처 소유 (주기장 입고 시 탈거 절대 금지 / 원형 보존)</strong>
+                        ) : selectedAsset.antiEntrapmentOwnership === 'OURS' ? (
+                          <strong style={{ color: '#2563eb' }}>🔧 당사 소유 (임차처 반납 전 탈거 회수)</strong>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>미장착 (없음)</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1174,6 +1208,16 @@ export const Assets: React.FC = () => {
                     <div><span style={{ color: 'var(--text-secondary)' }}>임차 시작일:</span> {selectedAsset.rentStart || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>임차 만료예정:</span> {selectedAsset.rentEnd || '-'}</div>
                     <div><span style={{ color: 'var(--text-secondary)' }}>임차처 반납일:</span> {selectedAsset.actualRentReturnDate ? <span style={{ color: 'var(--success)', fontWeight: 600 }}>{selectedAsset.actualRentReturnDate} (반납)</span> : '미반납'}</div>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>협착방지봉:</span>{' '}
+                      {selectedAsset.antiEntrapmentOwnership === 'VENDOR' ? (
+                        <strong style={{ color: '#dc2626' }}>임차처 소유 (탈거 금지)</strong>
+                      ) : selectedAsset.antiEntrapmentOwnership === 'OURS' ? (
+                        <strong style={{ color: '#2563eb' }}>당사 소유 (회수 대상)</strong>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>미장착</span>
+                      )}
+                    </div>
                     {hasFinancialAccess && (
                       <div><span style={{ color: 'var(--text-secondary)' }}>일할 단가:</span> ₩{(selectedAsset.dailyRentFee || 0).toLocaleString()}</div>
                     )}

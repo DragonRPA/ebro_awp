@@ -1069,6 +1069,16 @@ export const SmartReturn: React.FC = () => {
                               <strong style={{ color: 'var(--primary)' }}>{asset.assetNo}</strong>
                               <span style={{ fontWeight: 600 }}>{asset.modelName}</span>
                               {asset.serialNo && <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>(S/N: {asset.serialNo})</span>}
+                              {asset.ownerType === 'RENTED' && asset.antiEntrapmentOwnership === 'VENDOR' && (
+                                <span style={{ fontSize: '10px', color: '#dc2626', fontWeight: 700, backgroundColor: 'rgba(220, 38, 38, 0.1)', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(220,38,38,0.25)', whiteSpace: 'nowrap' }}>
+                                  🚨 원사협착봉 (탈거금지)
+                                </span>
+                              )}
+                              {asset.ownerType === 'RENTED' && asset.antiEntrapmentOwnership === 'OURS' && (
+                                <span style={{ fontSize: '10px', color: '#2563eb', fontWeight: 700, backgroundColor: 'rgba(37, 99, 235, 0.1)', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(37,99,235,0.25)', whiteSpace: 'nowrap' }}>
+                                  🔧 당사협착봉 (회수)
+                                </span>
+                              )}
                             </div>
                           </label>
                         );

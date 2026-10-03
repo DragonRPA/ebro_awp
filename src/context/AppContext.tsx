@@ -3045,11 +3045,15 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const sanitizedDailyFee = assetData.dailyRentFee ? Math.max(0, Number(assetData.dailyRentFee)) : Math.floor(sanitizedMonthlyFee / 30);
 
     const existing = db.assets.find(a => a.assetNo === assetData.assetNo || (assetData.id && a.id === assetData.id));
+    const resolvedOwnership = assetData.antiEntrapmentOwnership || existing?.antiEntrapmentOwnership || 'NONE';
+    const ownershipLabel = resolvedOwnership === 'VENDOR' ? '임차처 소유(탈거금지)' : resolvedOwnership === 'OURS' ? '당사 소유(회수대상)' : '미장착';
+
     if (existing) {
       result = db.updateRow<Asset>('assets', existing.id, {
         ...assetData,
         vendorAssetNo: assetData.vendorAssetNo || existing.vendorAssetNo || '',
         ownerType: 'RENTED',
+        antiEntrapmentOwnership: resolvedOwnership,
         status: 'AVAILABLE',
         monthlyRentFee: sanitizedMonthlyFee,
         dailyRentFee: sanitizedDailyFee,
@@ -3064,6 +3068,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         serialNo: assetData.serialNo || '',
         manufacturer: assetData.manufacturer || '',
         ownerType: 'RENTED',
+        antiEntrapmentOwnership: resolvedOwnership,
         status: 'AVAILABLE',
         renter: assetData.renter || '',
         rentStart: assetData.rentStart || '',
@@ -3091,7 +3096,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         modelName: result.modelName,
         type: 'INBOUND',
         eventDate: result.rentStart || new Date().toISOString().split('T')[0],
-        memo: `[임차 반입] 임차처: ${result.renter || '임차처'} (임차처번호: ${result.vendorAssetNo || '-'})`,
+        memo: `[임차 반입] 임차처: ${result.renter || '임차처'} (임차처번호: ${result.vendorAssetNo || '-'}, 협착방지봉: ${ownershipLabel})`,
         createdAt: new Date().toISOString()
       });
     }
@@ -8441,6 +8446,12 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     }
 
     // 4. 자산 입출고 이력 무누락 기록 (INBOUND)
+    const ownershipNote = asset.ownerType === 'RENTED' && asset.antiEntrapmentOwnership === 'VENDOR'
+      ? ' [협착방지봉: 원사 소유(탈거금지)]'
+      : asset.ownerType === 'RENTED' && asset.antiEntrapmentOwnership === 'OURS'
+      ? ' [협착방지봉: 당사 소유(회수대상)]'
+      : '';
+
     db.insertRow<AssetInOutLog>('assetInOutLogs', {
       assetId: asset.id,
       assetNo: asset.assetNo,
@@ -8455,7 +8466,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       repairId: createdRepairId,
       maintenanceScore: score,
       defectsJson: defectsJsonStr,
-      memo: data.memo || (hasDefect ? `불량 입고 등록 (${fullDefectSummary})` : '정상 입고 등록 완결'),
+      memo: (data.memo || (hasDefect ? `불량 입고 등록 (${fullDefectSummary})` : '정상 입고 등록 완결')) + ownershipNote,
       createdAt: new Date().toISOString()
     });
 

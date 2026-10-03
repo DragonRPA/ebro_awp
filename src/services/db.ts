@@ -926,6 +926,48 @@ export interface Product {
   updatedAt?: string;
 }
 
+/**
+ * 🔒 협착방지봉(Anti-entrapment Safety Bar) 옵션 소유권 구분
+ * - 'VENDOR': 임차거래처 소유 (※ 주기장 입고 시 절대 탈거 금지, 원형 보존 필수. 탈거 시 분실/원상복구 비용 피청구 방지)
+ * - 'OURS': 당사(기연) 소유 (※ 임차처 최종 반납 전 반드시 탈거하여 당사 부품고로 회수)
+ * - 'NONE': 미장착 (협착방지봉 없음)
+ */
+export type AntiEntrapmentOwnership = 'VENDOR' | 'OURS' | 'NONE';
+
+export const ANTI_ENTRAPMENT_OWNERSHIP_MAP: Record<AntiEntrapmentOwnership, {
+  label: string;
+  badgeLabel: string;
+  color: string;
+  bgColor: string;
+  inboundGuide: string;
+  returnGuide: string;
+}> = {
+  VENDOR: {
+    label: '임차처 소유 (탈거 금지 / 원형 보존)',
+    badgeLabel: '원사소유 (탈거금지)',
+    color: '#dc2626',
+    bgColor: 'rgba(220, 38, 38, 0.12)',
+    inboundGuide: '⚠️ 임차거래처 소유 협착방지봉이 장착되어 있습니다. 주기장 입고 시 절대 탈거(제거)하지 마십시오! (탈거 시 분실/원상복구 비용 피청구 대상)',
+    returnGuide: '임차처 소유 협착방지봉이 장착된 상태 그대로 원형 반납되어야 합니다.'
+  },
+  OURS: {
+    label: '당사 소유 (반납 시 탈거 회수)',
+    badgeLabel: '당사소유 (탈거회수)',
+    color: '#2563eb',
+    bgColor: 'rgba(37, 99, 235, 0.12)',
+    inboundGuide: '🔧 당사 소유 협착방지봉이 장착되어 있습니다. 임차처 최종 반납 전 당사 부품고로 탈거 회수하십시오.',
+    returnGuide: '임차처 반납 전 당사 소유 협착방지봉을 반드시 탈거하여 당사 재고로 회수하십시오.'
+  },
+  NONE: {
+    label: '미장착 (없음)',
+    badgeLabel: '미장착',
+    color: '#6b7280',
+    bgColor: 'rgba(107, 114, 128, 0.1)',
+    inboundGuide: '협착방지봉 미장착 장비입니다.',
+    returnGuide: '협착방지봉 미장착 장비입니다.'
+  }
+};
+
 export interface Asset {
   id: string;
   modelName: string;
@@ -936,6 +978,7 @@ export interface Asset {
   manufacturer?: string;
   manufactureYear?: string; // 제조년도 (예: 2023)
   ownerType: 'OWNED' | 'RENTED'; // 당사자산 / 임차자산
+  antiEntrapmentOwnership?: AntiEntrapmentOwnership; // 협착방지봉 소유권 ('VENDOR': 임차처 소유, 'OURS': 당사 소유, 'NONE': 미장착)
   status: 'AVAILABLE' | 'ASSIGNED' | 'RENTED' | 'REPAIRING' | 'RENTED_RETURNED' | 'SOLD';
   
   maintenanceScore?: number; // 정비 소요 점수 (0이 최상 상태)
@@ -1514,6 +1557,7 @@ export interface SubleaseNegotiation {
   targetCustomerId?: string; // 투입 예정 고객사 ID
   targetSiteName?: string; // 투입 예정 현장명
   memo?: string; // 협의 메모 (연식, 스펙 요구 등)
+  antiEntrapmentOwnership?: AntiEntrapmentOwnership; // 협착방지봉 소유권
   registeredAssetId?: string; // 확정 시 등록된 자산 ID
   createdAt: string;
   updatedAt?: string;
@@ -3616,6 +3660,7 @@ const generateMockAssets = (products: Product[]): Asset[] => {
     modelName: 'GS3246',
     assetNo: 'RENT-0001',
     ownerType: 'RENTED',
+    antiEntrapmentOwnership: 'VENDOR', // 임차처 소유 (탈거 금지)
     status: 'RENTED',
     renter: 'AJ네트웍스',
     rentStart: '2026-05-01',
@@ -3640,6 +3685,7 @@ const generateMockAssets = (products: Product[]): Asset[] => {
     modelName: '1012E',
     assetNo: 'RENT-0002',
     ownerType: 'RENTED',
+    antiEntrapmentOwnership: 'OURS', // 당사 소유 (회수 대상)
     status: 'RENTED_RETURNED',
     renter: '한국종합렌탈',
     rentStart: '2026-06-01',
@@ -3659,6 +3705,7 @@ const generateMockAssets = (products: Product[]): Asset[] => {
     modelName: 'GS3246',
     assetNo: 'RENT-0003',
     ownerType: 'RENTED',
+    antiEntrapmentOwnership: 'VENDOR', // 임차처 소유 (탈거 금지)
     status: 'AVAILABLE',
     renter: 'AJ네트웍스',
     rentStart: '2026-06-10',

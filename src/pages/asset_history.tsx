@@ -472,6 +472,54 @@ export const AssetHistory: React.FC = () => {
                 />
               </div>
 
+              {/* 🚨 임차처 소유 협착방지봉 탈거 절대 금지 경고 배너 */}
+              {inboundTargetAsset?.ownerType === 'RENTED' && inboundTargetAsset.antiEntrapmentOwnership === 'VENDOR' && (
+                <div style={{
+                  padding: '12px 14px',
+                  backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                  border: '2px solid #ef4444',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#dc2626', fontWeight: 800, fontSize: '13px' }}>
+                    <AlertTriangle size={18} /> 🚨 [출고팀 / 정비팀 필독] 원사 소유 협착방지봉 - 탈거 절대 금지!
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-main)', lineHeight: '1.5' }}>
+                    이 장비는 <strong>외부 임차 장비({inboundTargetAsset.renter || '임차처'})</strong>이며, 장착된 협착방지봉은 <strong>임차거래처 소유물</strong>입니다.<br />
+                    <strong style={{ color: '#dc2626' }}>
+                      주기장 입고 시 절대로 협착방지봉을 제거(탈거)하지 마십시오!
+                    </strong>
+                    <br />
+                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      ※ 임의 제거 시 타사 소유물 분실로 간주되어 추가 반환 업무 및 변상/원상복구 비용이 피청구됩니다.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* 🔧 당사 소유 협착방지봉 회수 안내 배너 */}
+              {inboundTargetAsset?.ownerType === 'RENTED' && inboundTargetAsset.antiEntrapmentOwnership === 'OURS' && (
+                <div style={{
+                  padding: '12px 14px',
+                  backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                  border: '2px solid #3b82f6',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#2563eb', fontWeight: 800, fontSize: '13px' }}>
+                    <ShieldCheck size={18} /> 🔧 [당사 자재 회수 안내] 당사 소유 협착방지봉 장착 장비
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-main)', lineHeight: '1.5' }}>
+                    외부 임차 장비이나 장착된 협착방지봉은 <strong>당사(기연) 소유</strong>입니다.<br />
+                    임차처로 최종 반납하기 전 <strong>반드시 협착방지봉을 탈거하여 당사 부품실로 회수</strong>하십시오.
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', backgroundColor: 'var(--bg-app)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <label style={{ fontSize: '12.5px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -654,7 +702,25 @@ export const AssetHistory: React.FC = () => {
                     {inboundTargetAsset.assetNo} {inboundTargetAsset.modelName}
                   </div>
                   <div><strong>시리얼번호(S/N):</strong> {inboundTargetAsset.serialNo || '-'}</div>
-                  <div><strong>소유형태:</strong> {inboundTargetAsset.ownerType === 'OWNED' ? '당사 자산' : '외부 임차 장비'}</div>
+                  <div><strong>소유형태:</strong> {inboundTargetAsset.ownerType === 'OWNED' ? '당사 자산' : `외부 임차 장비 (${inboundTargetAsset.renter || '임차처'})`}</div>
+                  {inboundTargetAsset.ownerType === 'RENTED' && (
+                    <div style={{
+                      marginTop: '6px',
+                      padding: '6px 8px',
+                      borderRadius: '4px',
+                      backgroundColor: inboundTargetAsset.antiEntrapmentOwnership === 'VENDOR' ? 'rgba(220, 38, 38, 0.1)' : inboundTargetAsset.antiEntrapmentOwnership === 'OURS' ? 'rgba(37, 99, 235, 0.1)' : 'var(--bg-app)',
+                      border: `1px solid ${inboundTargetAsset.antiEntrapmentOwnership === 'VENDOR' ? 'rgba(220, 38, 38, 0.3)' : inboundTargetAsset.antiEntrapmentOwnership === 'OURS' ? 'rgba(37, 99, 235, 0.3)' : 'var(--border-color)'}`
+                    }}>
+                      <strong>협착방지봉 소유권:</strong>{' '}
+                      {inboundTargetAsset.antiEntrapmentOwnership === 'VENDOR' ? (
+                        <span style={{ color: '#dc2626', fontWeight: 800 }}>🚨 임차처 소유 (탈거 절대 금지 / 원형 보존)</span>
+                      ) : inboundTargetAsset.antiEntrapmentOwnership === 'OURS' ? (
+                        <span style={{ color: '#2563eb', fontWeight: 800 }}>🔧 당사 소유 (원사 반납 시 탈거 회수)</span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)' }}>미장착 (없음)</span>
+                      )}
+                    </div>
+                  )}
                   <div><strong>현재 자산 상태:</strong> <span className="badge badge-info">{inboundTargetAsset.status}</span></div>
                 </div>
 
@@ -851,7 +917,17 @@ export const AssetHistory: React.FC = () => {
               <div><strong>관리번호:</strong> <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{selectedAsset.assetNo}</span></div>
               <div><strong>모델명:</strong> {selectedAsset.modelName}</div>
               <div><strong>제조번호 (SN):</strong> {selectedAsset.serialNo || '-'}</div>
-              <div><strong>소유 형태:</strong> {selectedAsset.ownerType === 'OWNED' ? '자사자산' : '외부임차장비'}</div>
+              <div><strong>소유 형태:</strong> {selectedAsset.ownerType === 'OWNED' ? '자사자산' : `외부임차장비 (${selectedAsset.renter || '임차처'})`}</div>
+              {selectedAsset.ownerType === 'RENTED' && (
+                <div>
+                  <strong>협착방지봉:</strong>{' '}
+                  {selectedAsset.antiEntrapmentOwnership === 'VENDOR' ? (
+                    <span style={{ color: '#dc2626', fontWeight: 700 }}>임차처 소유 (탈거 금지)</span>
+                  ) : selectedAsset.antiEntrapmentOwnership === 'OURS' ? (
+                    <span style={{ color: '#2563eb', fontWeight: 700 }}>당사 소유 (회수 대상)</span>
+                  ) : '미장착'}
+                </div>
+              )}
               <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '4px 0' }} />
               <div><strong>기여액 (누적):</strong> {(selectedAsset.cumRentalFee || 0).toLocaleString()}원</div>
               <div><strong>수리비 지출 (누적):</strong> {(selectedAsset.cumRepairCost || 0).toLocaleString()}원</div>
