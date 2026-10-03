@@ -891,11 +891,11 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                   <th style={{ padding: '8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>규모</th>
                   <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>주용도</th>
                   <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>도로폭</th>
+                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>착공일</th>
+                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>준공예정</th>
                   <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>안전망(CSI)</th>
                   <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>사업명 / 건물명</th>
                   <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>대지위치</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>착공일</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>준공예정</th>
                   <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>시공사(건설사)</th>
                   <th style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>영업 조치</th>
                 </tr>
@@ -982,6 +982,16 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                           {renderRoadBadge(item.roadAccess)}
                         </td>
 
+                        {/* 착공일 */}
+                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', color: '#64748b' }}>
+                          {item.actualStartDate || item.startPlanDate || '-'}
+                        </td>
+
+                        {/* 준공예정 */}
+                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', color: '#64748b' }}>
+                          {item.expectedEndDate}
+                        </td>
+
                         {/* CSI 안전망 */}
                         <td style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>
                           {renderCsiBadge(item.csiSafety)}
@@ -995,16 +1005,6 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                         {/* 대지위치 */}
                         <td style={{ padding: '6px 12px', color: '#475569', whiteSpace: 'nowrap' }}>
                           {item.siteRoadAddress || item.siteAddress}
-                        </td>
-
-                        {/* 착공일 */}
-                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', color: '#64748b' }}>
-                          {item.actualStartDate || item.startPlanDate || '-'}
-                        </td>
-
-                        {/* 준공예정 */}
-                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', color: '#64748b' }}>
-                          {item.expectedEndDate}
                         </td>
 
                         {/* 시공사 */}
