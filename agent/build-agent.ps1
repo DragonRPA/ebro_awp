@@ -70,9 +70,26 @@ Copy-Item (Join-Path $scriptDir "start-agent.bat") (Join-Path $publicDownloadsDi
 Copy-Item (Join-Path $scriptDir "kill-agent.bat") (Join-Path $publicDownloadsDir "kill-agent.bat") -Force
 powershell -ExecutionPolicy Bypass -File (Join-Path $scriptDir "sign-agent.ps1")
 
+# 6. Inno Setup 정식 인스톨러 컴파일 (27MB 초압축 Setup 패키지)
+Write-Host "6. Compiling Inno Setup Installer package..." -ForegroundColor Yellow
+$isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+if (Test-Path $isccPath) {
+    & $isccPath (Join-Path $scriptDir "eBroAgent.iss")
+    $setupExe = Join-Path $publicDownloadsDir "eBroAgent_Setup.exe"
+    if (Test-Path $setupExe) {
+        Copy-Item $setupExe (Join-Path $publicDownloadsDir "eBroAgent_Setup_GIYEUN.exe") -Force
+        Copy-Item $setupExe (Join-Path $publicDownloadsDir "eBroAgent_Setup_HANSOL.exe") -Force
+        Copy-Item $setupExe (Join-Path $publicDownloadsDir "eBroAgent_Setup_EBRO.exe") -Force
+        Copy-Item $setupExe (Join-Path $publicDownloadsDir "eBroAgent_Setup_DEMO.exe") -Force
+        Write-Host "✅ Inno Setup Installer compilation and tenant setup sync completed!" -ForegroundColor Green
+    }
+} else {
+    Write-Host "⚠️ Inno Setup ISCC.exe not found at $isccPath" -ForegroundColor Yellow
+}
+
 Write-Host "========================================================" -ForegroundColor Green
-Write-Host "  [OK] eBroAgent.exe and eBroAgent.js build completed!" -ForegroundColor Green
-Write-Host "  - agent\eBroAgent.exe" -ForegroundColor White
-Write-Host "  - public\downloads\eBroAgent.exe" -ForegroundColor White
+Write-Host "  [OK] eBroAgent.exe and Inno Setup build completed!" -ForegroundColor Green
+Write-Host "  - agent\eBroAgent.exe (104MB Single Binary)" -ForegroundColor White
+Write-Host "  - public\downloads\eBroAgent_Setup.exe (27MB Inno Setup)" -ForegroundColor White
 Write-Host "  - public\downloads\eBroAgent.js" -ForegroundColor White
 Write-Host "========================================================" -ForegroundColor Green

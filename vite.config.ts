@@ -8,13 +8,7 @@ export default defineConfig({
     port: 5174,
     watch: {
       ignored: [
-        '**/공공데이터포탈API/**',
-        '**/ebro-agent-core/**',
-        '**/*.pdf',
-        '**/*.exe',
-        '**/*.zip',
-        '**/agent/**',
-        '**/.git/**',
+        /(^|[/\\])(\.git|dist|공공데이터포탈API|ebro-agent-core|agent|public[/\\]downloads)([/\\]|$)|\.(tmp|pdf|exe|zip|log|cer|apk)$/i
       ],
     },
   },

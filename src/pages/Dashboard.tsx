@@ -140,7 +140,7 @@ export const Dashboard: React.FC = () => {
     try {
       const link = document.createElement('a');
       link.href = AGENT_EXE_URL;
-      link.download = 'eBroAgent.exe';
+      link.download = 'eBroAgent_Setup.exe';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

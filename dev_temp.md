@@ -1,6 +1,36 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
-## 2026-10-03 21:53 (v1.13.0.Build.9)
+## 2026-10-03 22:25 (v1.13.0.Build.10)
+
+### [인스톨러/InnoSetup] 104MB 단일 실행파일 ➔ 27MB 초경량 Inno Setup 정식 인스톨러 전격 전환 및 1-Click 무확인/무음 설치(/VERYSILENT) 완벽 지원
+
+- **배경 및 사장님 지침**:
+  - "우리의 에이전트는 inno 설치가 아닌건가? 계속 단일 실행파일 인거야? 아까 나는 의사결정을 변경했다고 생각했는데"
+  - "진행해. 다만 우리는 설치 절차에서 사용자에게 특별히 확인을 요청할 것이 없어. 무음설치를 옵션으로 해. 진행. ㄹㅇ"
+- **문제 원인 및 아키텍처 결함 규명 (헌장 1.1, 1.2, 3.1, 5.2, 6.1, 6.2)**:
+  1. **단일 바이너리(104.5MB) vs Inno Setup 인스톨러 혼선 원인**:
+     - 기존에는 104.5MB Node.js SEA 바이너리를 단순히 파일명만 `Setup`으로 배포하여 실행 시 마법사나 진행률 표시 없이 백그라운드로 숨어버렸고, 104MB에 달하는 다운로드 용량 부담이 컸음.
+     - 또한 `src/services/agentService.ts`의 `downloadUrl`이 GitHub Releases의 단일 바이너리(`eBroAgent.exe`)로 잘못 매핑되어 있어 사용자가 Inno Setup 인스톨러가 아닌 이전 단일 파일을 계속 내려받게 되었음.
+  2. **사용자 최소 조작 편의성(헌장 1.1, 1.2-3) 극대화 요구**:
+     - 사용자가 설치 시 "설치 폴더 선택", "시작 메뉴 지정", "설치 확인", "완료 후 닫기" 등 불필요한 번복 입력이나 확인 클릭을 일절 하지 않도록 1-Click 자동화가 필수적임.
+     - 백그라운드 무인 배포를 위한 완전 무음 설치(`/VERYSILENT`) 옵션 지원 필수.
+- **도메인 핵심 가치 및 기술 조치**:
+  1. **27MB 초경량 Inno Setup 정식 인스톨러 파이프라인 구축 (`agent/eBroAgent.iss`, `agent/build-agent.ps1`)**:
+     - Inno Setup 6.7.3 컴파일러 연동 및 LZMA2 Ultra 압축 적용으로 **104.5MB ➔ 27.2MB (27,203,592 Bytes, 74% 용량 절감)** 달성.
+     - `DisableDirPage=yes`, `DisableProgramGroupPage=yes`, `DisableReadyPage=yes`, `DisableFinishedPage=yes`를 전면 적용하여, 실행 시 번거로운 질의창 없이 1-Click으로 즉시 설치 및 완료 후 자동 종료.
+     - `certutil.exe -user -addstore Root` 보안 인증서 자동 등록, 윈도우 시작프로그램 및 `ebro://`, `broagent://` 브라우저 프로토콜 자동 등록.
+     - `[Run]` 섹션에서 설치 완료 즉시 `eBroAgent.exe`를 백그라운드로 자동 실행(Flags: nowait).
+     - `[Code]` 섹션에서 설치 전 기존 프로세스(`eBroAgent.exe`, `KiyeunAgent.exe`)를 자동 강제 종료하여 파일 잠금 충돌 방지.
+  2. **무음 설치(`/VERYSILENT`) 옵션 완벽 지원**:
+     - `eBroAgent_Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART` 명령행 옵션 지원으로 무인 원클릭 배포 지원.
+  3. **Cloudflare R2 버킷 27.2MB 인스톨러 6종 실물 업로드 및 URL 매핑 최신화 (`src/services/agentService.ts`)**:
+     - S3 API를 통해 Cloudflare R2 버킷(`kiyeun-storage`)에 6개 바이너리(`eBroAgent_Setup.exe`, `eBroAgentSetup.exe`, `eBroAgent_Setup_GIYEUN.exe`, `eBroAgent_Setup_HANSOL.exe`, `eBroAgent_Setup_EBRO.exe`, `eBroAgent_Setup_DEMO.exe`) 실물 업로드 완료.
+     - `AGENT_EXE_URL` 및 `triggerTenantAgentDownload`의 다운로드 경로를 Inno Setup 27MB 인스톨러로 전격 전환.
+- **실환경 검증**:
+  - `ISCC.exe` 컴파일 성공: 27,203,592 Bytes (27.2MB) 정상 생성.
+  - Cloudflare R2 업로드 및 HTTP 200 OK (Content-Length: 27,203,592) 다운로드 검증 통과.
+  - `npm run build`: 935ms 무결성 통과 (0 error).
+
 
 ### [다운로드속도/CDN전환] Cloudflare R2 무료 개발도메인(pub-*.r2.dev) 43KB/s 대역폭 제한 박멸 및 GitHub Releases 초고속 글로벌 CDN(6~10MB/s) 기본 엔드포인트 전격 복원
 
