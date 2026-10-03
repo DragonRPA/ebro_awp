@@ -1,3 +1,47 @@
+## 2026-10-03 13:00 (v1.10.2.Build.15)
+
+### [매출청구/거래명세서/멀티테넌트] 특수 거래명세서 작성 스튜디오 신설, 테넌트별 On/Off 제어, 회계 원장 보존 및 변환 사유 추적성(Audit Trail) 구현
+
+- **배경 및 요구사항**:
+  - 청구 생성 시 실제 청구 액수총액을 다른 항목으로 전체 임의수정해서 거래명세서를 만들 수 있는 특수한 청구작성 메뉴 신설.
+  - 이 기능은 테넌트(Tenant)별로 사용 가능(On) / 사용 불가(Off) 제어할 수 있어야 함.
+  - **핵심 회계 원칙**: 청구 데이터는 실제 계약과 정상적인 청구 DB(원장) 그대로 작성·보존되어야 함.
+  - **추적성 요구사항**: 고객용 거래명세서를 어떻게 다르게 만들었는지(사유 및 원본 대비 차이/변환 내역)를 시스템에 별도로 기록·보존해야 함.
+- **도메인 핵심 가치 및 회계 무결성 방어선**:
+  1. **정상 회계 원장 DB(Billing & BillingDetail) 1원도 왜곡 없이 100% 원형 보존**:
+     - 대차대조식, 자산별 누적 매출 기여액(`cumRentalFee`), 계약 마일스톤은 실제 계약 조건과 정상 계산식 그대로 DB 원장에 보존.
+     - 고객 발행용 거래명세서 품목만 `customStatementItems`로 오버라이드 렌더링.
+  2. **감사 추적성(Audit Trail) 및 변환 사유 필수화 (헌장 1.2 & 5.6)**:
+     - 거래명세서 변환 사유(`customStatementReason`), 작성자(`customStatementCreatedBy`), 작성일시(`customStatementCreatedAt`), 원장 요약(`customStatementOriginalSummary`)을 영구 보존.
+  3. **멀티테넌트 동적 피처 토글 (헌장 카테고리 VII)**:
+     - `Tenant.allowCustomBillingStatement` 속성을 통해 테넌트별 독립 On/Off 제어.
+     - 단일 코드베이스 내에서 테넌트 권한에 따라 메뉴 노출 동적 제어.
+  4. **청구 상세 스튜디오 1:1 대조 열람 탭 제공**:
+     - 청구 상세 패널에서 [회계 원장 내역] vs [특수 거래명세서 품목]을 원클릭으로 비교 열람 가능.
+- **주요 구현 및 변경 내역**:
+  1. **데이터 모델 및 DB 스키마 확장 (`src/services/db.ts`)**:
+     - `Tenant`: `allowCustomBillingStatement?: boolean;` 추가.
+     - `CustomStatementItem`: 품목명, 규격, 수량, 단가, 공급가액, 부가세, 비고, 원본 매핑 ID 인터페이스 정의.
+     - `Billing`: `hasCustomStatement`, `customStatementReason`, `customStatementItems`, `customStatementOriginalSummary`, `customStatementCreatedAt`, `customStatementCreatedBy` 필드 확장.
+  2. **비즈니스 상태 및 액션 메서드 구현 (`src/context/AppContext.tsx`)**:
+     - `saveCustomStatementForBilling`: 기존 청구 건의 특수 거래명세서 품목 및 변환 사유 저장.
+     - `removeCustomStatementForBilling`: 특수 거래명세서를 제거하고 정상 원장 명세서로 원복.
+     - `toggleTenantCustomBillingStatement`: 테넌트별 특수 거래명세서 기능 활성화/비활성화 토글.
+  3. **특수 거래명세서 작성 스튜디오 및 대장 UI (`src/pages/Billings.tsx`)**:
+     - 상단 탭에 `[특수 거래명세서 작성]`(`CUSTOM_STATEMENT`) 탭 신설 (Gutenberg Z-패턴 4단계 레이아웃 적용).
+     - 계약 선택 시 정상 원장 자동 산출 ➔ 거래명세서 품목 임의 수정 그리드 ➔ 변환 사유 필수 입력 ➔ 대차대조 비교 바 ➔ 원장 보존형 청구 생성.
+     - 관리자용 상단 탭 바 테넌트별 On/Off 토글 스위치 제공.
+     - 청구 목록 테이블에 `[특수명세서]` 뱃지 표출.
+     - 청구 상세 헤더에 `[특수 명세서 수정]` 및 `[정상 복원]` 버튼 제공.
+     - 기존 청구 건 대상 `CustomStatementEditModal` 팝업 구현.
+  4. **출력 엔진(PDF/Excel/Email) 100% 연동 (`src/services/excel.ts`, `src/pages/Billings.tsx`)**:
+     - `downloadStatementPdf`: 특수 거래명세서 품목 감지 시 커스텀 품목으로 PDF 자동 생성.
+     - `downloadStatementExcel` & `exportTransactionStatementExcel` & `exportTransactionStatementExcelBuffer`: 정품 엑셀 서식 셀 매핑 시 특수 거래명세서 품목 100% 반영.
+     - 이메일 발송 본문 및 첨부파일에 특수 거래명세서 품목 자동 바인딩.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 error).
+
+---
+
 ## 2026-10-03 11:00 (v1.10.2.Build.14)
 
 ### [입고관리/청구정산/매뉴얼] 입고일 vs 입고등록일시 엄격 분리 및 청구 연동, UI 표기 표준화, 전사 인앱 매뉴얼 한글 깨짐 100% 복원

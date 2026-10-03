@@ -187,31 +187,40 @@ export const exportTransactionStatementExcel = async (
   const ITEM_START_ROW = 16;
   const ITEM_MAX = 11;
 
-  const sortedDetails = [...details].sort((a, b) => {
-    const aIsAsset = Boolean(a.contractAssetId);
-    const bIsAsset = Boolean(b.contractAssetId);
-    if (aIsAsset && !bIsAsset) return -1;
-    if (!aIsAsset && bIsAsset) return 1;
-    return 0;
-  });
+  const hasCustom = Boolean(billing?.hasCustomStatement && billing.customStatementItems && billing.customStatementItems.length > 0);
+  const itemsToRender: any[] = hasCustom
+    ? billing!.customStatementItems!.map((ci: any) => ({
+        unitPrice: ci.unitPrice || 0,
+        quantity: ci.quantity || 1,
+        amount: ci.supplyAmount || ((ci.unitPrice || 0) * (ci.quantity || 1)),
+        memo: ci.notes || '',
+        _customDesc: ci.specification ? `${ci.itemDescription} (${ci.specification})` : ci.itemDescription
+      }))
+    : [...details].sort((a, b) => {
+        const aIsAsset = Boolean(a.contractAssetId);
+        const bIsAsset = Boolean(b.contractAssetId);
+        if (aIsAsset && !bIsAsset) return -1;
+        if (!aIsAsset && bIsAsset) return 1;
+        return 0;
+      });
 
   let totalSupply = 0;
   let totalVat = 0;
 
   for (let i = 0; i < ITEM_MAX; i++) {
-    const d = sortedDetails[i];
+    const d = itemsToRender[i];
     const row = ITEM_START_ROW + i;
 
     if (d) {
       const unitPrice = d.unitPrice || 0;
       const qty = d.quantity || 1;
-      const itemSupply = unitPrice * qty;
+      const itemSupply = d.amount || (unitPrice * qty);
       const itemVat = Math.round(itemSupply * 0.1);
       totalSupply += itemSupply;
       totalVat += itemVat;
 
-      // 💡 [새 서식 표준] 품목: {모델명}[{관리번호}]_{청구시작일}~{청구종료일}
-      const itemDescription = formatStatementItemName(d, billing, contract);
+      // 💡 [새 서식 표준] 품목: 커스텀 품목명 또는 표준 {모델명}[{관리번호}]_{청구시작일}~{청구종료일}
+      const itemDescription = d._customDesc || formatStatementItemName(d, billing, contract);
 
       setCenterVal(`B${row}`, i + 1);                     // 순번
       setCenterVal(`C${row}`, dateM);                     // 월
@@ -344,30 +353,39 @@ export const exportTransactionStatementExcelBuffer = async (
   const ITEM_START_ROW = 16;
   const ITEM_MAX = 11;
 
-  const sortedDetails = [...details].sort((a, b) => {
-    const aIsAsset = Boolean(a.contractAssetId);
-    const bIsAsset = Boolean(b.contractAssetId);
-    if (aIsAsset && !bIsAsset) return -1;
-    if (!aIsAsset && bIsAsset) return 1;
-    return 0;
-  });
+  const hasCustom = Boolean(billing?.hasCustomStatement && billing.customStatementItems && billing.customStatementItems.length > 0);
+  const itemsToRender: any[] = hasCustom
+    ? billing!.customStatementItems!.map((ci: any) => ({
+        unitPrice: ci.unitPrice || 0,
+        quantity: ci.quantity || 1,
+        amount: ci.supplyAmount || ((ci.unitPrice || 0) * (ci.quantity || 1)),
+        memo: ci.notes || '',
+        _customDesc: ci.specification ? `${ci.itemDescription} (${ci.specification})` : ci.itemDescription
+      }))
+    : [...details].sort((a, b) => {
+        const aIsAsset = Boolean(a.contractAssetId);
+        const bIsAsset = Boolean(b.contractAssetId);
+        if (aIsAsset && !bIsAsset) return -1;
+        if (!aIsAsset && bIsAsset) return 1;
+        return 0;
+      });
 
   let totalSupply = 0;
   let totalVat = 0;
 
   for (let i = 0; i < ITEM_MAX; i++) {
-    const d = sortedDetails[i];
+    const d = itemsToRender[i];
     const row = ITEM_START_ROW + i;
     if (d) {
       const unitPrice = d.unitPrice || 0;
       const qty = d.quantity || 1;
-      const itemSupply = unitPrice * qty;
+      const itemSupply = d.amount || (unitPrice * qty);
       const itemVat = Math.round(itemSupply * 0.1);
       totalSupply += itemSupply;
       totalVat += itemVat;
 
-      // 💡 [새 서식 표준] 품목: {모델명}[{관리번호}]_{청구시작일}~{청구종료일}
-      const itemDescription = formatStatementItemName(d, billing, contract);
+      // 💡 [새 서식 표준] 품목: 커스텀 품목명 또는 표준 {모델명}[{관리번호}]_{청구시작일}~{청구종료일}
+      const itemDescription = d._customDesc || formatStatementItemName(d, billing, contract);
 
       setCenterVal(`B${row}`, i + 1);
       setCenterVal(`C${row}`, dateM);

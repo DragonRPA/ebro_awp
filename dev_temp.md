@@ -1,5 +1,36 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## [완료] 특수 거래명세서 작성 스튜디오 신설, 테넌트별 On/Off 제어, 회계 원장 보존 및 변환 사유 추적성(Audit Trail) 구현
+- **요구사항**: "청구 생성에 대해서, 실제 청구 액수총액을 다른 항목으로 전체 임의수정해서 거래명세서를 만들수 있는 특수한 청구작성 메뉴를 만들어줘. 이 기능은 테넌트별로 사용 가능하거나 사용 못하게 만들거나 해야돼. 청구 데이터는 실제 계약과 정상적인 청구 DB 그대로 작성되지만, 어떻게 다르게 거래명세서를 만들었는지도 따로 적을수 있어야 해"
+- **도메인 핵심 가치 및 회계 무결성 방어선**:
+  1. **정상 회계 원장 DB(Billing & BillingDetail) 100% 원형 보존**:
+     - 실제 계약 조건과 정상 일할 계산에 따른 공급가액, 부가세, 자산별 누적 매출 기여액(`cumRentalFee`), 대차대조 원장은 1원도 왜곡 없이 DB에 저장.
+     - 거래명세서 출력 및 이메일 발송 시에만 `customStatementItems`를 참조하여 교부 품목을 임의 수정 렌더링.
+  2. **감사 추적성(Audit Trail) 및 변환 사유 필수화 (헌장 1.2 & 5.6)**:
+     - 거래명세서 변환 사유(`customStatementReason`), 작성자, 작성일시, 회계 원장 요약을 영구 보존.
+  3. **멀티테넌트 동적 피처 토글 (헌장 카테고리 VII)**:
+     - 테넌트 속성 `Tenant.allowCustomBillingStatement`에 따라 On/Off 제어.
+     - 관리자 탭 바 우측에 테넌트별 원클릭 토글 스위치 제공.
+  4. **청구 상세 스튜디오 1:1 대조 열람 탭 제공**:
+     - [회계 원장 내역] vs [특수 거래명세서 품목] 원클릭 비교 열람 지원.
+- **아키텍처 및 구현 내역**:
+  1. `src/services/db.ts`:
+     - `Tenant.allowCustomBillingStatement?: boolean;`
+     - `CustomStatementItem` 인터페이스 정의.
+     - `Billing` 인터페이스에 특수 거래명세서 필드 6종 확장.
+  2. `src/context/AppContext.tsx`:
+     - `saveCustomStatementForBilling`, `removeCustomStatementForBilling`, `toggleTenantCustomBillingStatement` 구현.
+  3. `src/pages/Billings.tsx`:
+     - `activeTab === 'CUSTOM_STATEMENT'` 특수 거래명세서 작성 스튜디오 뷰 구현 (Gutenberg Z-Pattern 4단계).
+     - 청구 대장 목록에 `[특수명세서]` 뱃지 표출.
+     - 청구 상세 헤더에 `[특수 명세서 수정]`, `[정상 복원]` 버튼 및 `CustomStatementEditModal` 연동.
+     - 상세 본문에 1:1 대조 열람 탭(`activeBillingDetailTab`) 제공.
+  4. `src/services/excel.ts`:
+     - `exportTransactionStatementExcel` & `exportTransactionStatementExcelBuffer`에 `hasCustomStatement` 분기 적용.
+- **검증**: `npm.cmd run build` 정상 통과 (0 error).
+
+---
+
 ## [완료] 입고등록 시 입고일 vs 입고등록일시 엄격 분리 및 청구 연동, UI 표기 표준화, 전사 인앱 매뉴얼 한글 깨짐 100% 복원
 - **요구사항**: "입고등록 시, 입고등록 처리하는 시점으로 입고하는 기본값이지만, 회사의 업무량 과다에 의한 지연처리, 담무누락(실수)에 의한 당자의 업지연처리을 방어하기 위하여, 입고등록일시 값을 구분하여, 입고일과 입고등록일시를 구분하고, 청구의 계산은 입고일 을 기준으로 연동되어야 함. 입고등록일시는 실제 행위가 발생한 기록이고, 청구 업무는 입고일에 연동. 이해했으면 설계하고 진행. 모르겠으면 질문. UI 표기는 입고일 만 표시 해주고, 입고등록일시는 DB 에 자동으로 기록. 변경사항 매뉴얼 업데이트. 매뉴얼에 한글 깨짐 있어. 점검후 수정.ㄹㅇ"
 - **도메인 핵심 목적 및 비즈니스 방어선**:

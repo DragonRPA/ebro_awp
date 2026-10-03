@@ -172,6 +172,7 @@ export interface Tenant {
   createdAt: string;
   updatedAt?: string;
   excelMappingRules?: TenantExcelMappingRules;
+  allowCustomBillingStatement?: boolean; // 💡 특수 거래명세서(항목 임의수정 및 사유 기록) 기능 활성화 여부
 
   // 🛡️ 법정 개인정보 보호책임자 (CPO - Chief Privacy Officer)
   privacyOfficer?: TenantPrivacyOfficer;
@@ -1367,6 +1368,19 @@ export interface BillingInvoice {
 
 export type BillingType = 'RENTAL' | 'REPAIR' | 'TRANSPORT' | 'ASSET_SALE';
 
+/** 💡 특수 거래명세서 오버라이드 항목 (실제 계약/청구 DB는 보존하되 명세서만 임의 수정) */
+export interface CustomStatementItem {
+  id: string;
+  itemDescription: string;     // 품목 및 규격 (자유 수정, 예: '안전 가설재 임대', '소모자재비' 등)
+  specification?: string;      // 규격/사양
+  quantity: number;            // 수량
+  unitPrice: number;           // 단가
+  supplyAmount: number;        // 공급가액
+  vatAmount: number;           // 세액
+  notes?: string;              // 비고 (기간 등)
+  originalDetailId?: string;   // 원본 청구 상세 ID 연결 (대조 추적용)
+}
+
 export interface Billing {
   id: string;
   billingType?: BillingType; // 💡 신규 추가: 'RENTAL' (기본값) | 'REPAIR' | 'TRANSPORT' | 'ASSET_SALE' (자산매각)
@@ -1381,6 +1395,15 @@ export interface Billing {
   rejectReason?: string; // 반려 사유
   isPartial?: boolean;   // 부분 청구 여부 (계약 내 일부 자산만 선택하여 생성한 청구)
   parentBillingId?: string; // 청구 분할 시 원본 청구서 ID (Audit Trail)
+  
+  // 💡 [사장님 지시] 특수 거래명세서(임의수정 명세서 및 사유 기록) 필드
+  hasCustomStatement?: boolean;              // 특수 거래명세서 커스텀 적용 여부
+  customStatementReason?: string;            // 어떻게 다르게 거래명세서를 만들었는지 사유/내역
+  customStatementItems?: CustomStatementItem[]; // 거래명세서 전용 오버라이드 품목 목록
+  customStatementOriginalSummary?: string;   // 원본 청구 내역 요약 (대조 감사용)
+  customStatementCreatedAt?: string;         // 작성 일시
+  customStatementCreatedBy?: string;         // 작성자
+
   createdAt: string;
   updatedAt: string;
   // 가상필드
@@ -3951,6 +3974,7 @@ export const SEED_TENANTS: Tenant[] = [
     isDefault: true,
     createdAt: '2013-04-03T00:00:00.000Z',
     updatedAt: new Date().toISOString(),
+    allowCustomBillingStatement: true, // 💡 특수 거래명세서 기능 활성화
     excelMappingRules: {
       contractAssetsStartRow: 44,
       contractModelCol: 1,

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { db, supabase, Tenant, TenantWorkplace, TenantYard, TenantBusinessType, TenantBankAccount, OFFICIAL_STAMP_BASE64, User, MenuPermission, createMenuPermission, CustomRole, RolePermission, Customer, CustomerContact, CustomerSite, Product, Asset, Consumable, ConsumableLog, ConsumableLot, ConsumablePurchaseRequest, MechanicConsumableStock, Contract, ContractAsset, ContractHistory, Delivery, Billing, BillingType, BillingDetail, Receivable, Payment, PaymentDepositLink, Repair, RepairConsumable, Todo, BankTransaction, BankMatchingRule, BankAccountInitialBalance, AssetInOutLog, GoogleConfig, Vendor, CashFlowSnapshot, OutboundInspection, TransportCompany, TransportDriver, TransportNegotiation, SubleaseNegotiation, DepreciationLog, PurchaseSettlement, PurchaseSettlementItem, SettlementPaymentLog, ExternalLease, PurchaseSettlementType, PurchaseSettlementStatus, findCustomerByNormalizedName, AnnualLeaveQuota, LeaveUsage, OvertimeRecord, PayrollClosing, InspectionChecklistItem, EquipmentManual, StandardOption, InboundDefectDetail, PrepaidTransaction, DelinquencyActionLog, LegalNoticeLog, LegalNoticeTemplate, calculateAssetDepreciation, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, CorporateVehicle, VehicleOperationLog, VehicleFuelLog, RepairPartUsed, RepairCollectedPart, SaleContractTerms, StocktakingAudit, StocktakingAuditItem, CollectedPart, PrintStation, PrintQueueItem, logPrivacyAccess, ErrorReport, ErrorReportAttachment, ErrorReportStatus, ErrorReportSeverity, ErrorReportCategory } from '../services/db';
+import { db, supabase, Tenant, TenantWorkplace, TenantYard, TenantBusinessType, TenantBankAccount, OFFICIAL_STAMP_BASE64, User, MenuPermission, createMenuPermission, CustomRole, RolePermission, Customer, CustomerContact, CustomerSite, Product, Asset, Consumable, ConsumableLog, ConsumableLot, ConsumablePurchaseRequest, MechanicConsumableStock, Contract, ContractAsset, ContractHistory, Delivery, Billing, BillingType, BillingDetail, CustomStatementItem, Receivable, Payment, PaymentDepositLink, Repair, RepairConsumable, Todo, BankTransaction, BankMatchingRule, BankAccountInitialBalance, AssetInOutLog, GoogleConfig, Vendor, CashFlowSnapshot, OutboundInspection, TransportCompany, TransportDriver, TransportNegotiation, SubleaseNegotiation, DepreciationLog, PurchaseSettlement, PurchaseSettlementItem, SettlementPaymentLog, ExternalLease, PurchaseSettlementType, PurchaseSettlementStatus, findCustomerByNormalizedName, AnnualLeaveQuota, LeaveUsage, OvertimeRecord, PayrollClosing, InspectionChecklistItem, EquipmentManual, StandardOption, InboundDefectDetail, PrepaidTransaction, DelinquencyActionLog, LegalNoticeLog, LegalNoticeTemplate, calculateAssetDepreciation, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, CorporateVehicle, VehicleOperationLog, VehicleFuelLog, RepairPartUsed, RepairCollectedPart, SaleContractTerms, StocktakingAudit, StocktakingAuditItem, CollectedPart, PrintStation, PrintQueueItem, logPrivacyAccess, ErrorReport, ErrorReportAttachment, ErrorReportStatus, ErrorReportSeverity, ErrorReportCategory } from '../services/db';
 import { enqueuePrintJob as serviceEnqueuePrintJob, registerPrintStation as serviceRegisterPrintStation, deletePrintStation as serviceDeletePrintStation, retryPrintJob as serviceRetryPrintJob, cancelPrintJob as serviceCancelPrintJob } from '../services/printQueueService';
 import { ErrorModal } from '../components/ErrorModal';
 import { getAllSystemMenuIds, normalizeMenuId } from '../config/menu_config';
@@ -341,6 +341,9 @@ interface AppContextType {
   syncContractBillingMilestones: (contractId?: string) => void;
   generateBillingForSingleContract: (contractId: string, billingYm: string, billingDate: string, selectedContractAssetIds?: string[]) => Promise<string | null>;
   regenerateBilling: (billingId: string, customDetails?: Omit<BillingDetail, 'id' | 'billingId' | 'createdAt'>[], options?: { billingYm?: string; billingDate?: string; memo?: string }) => Promise<string>;
+  saveCustomStatementForBilling: (billingId: string, data: { reason: string; items: CustomStatementItem[]; originalSummary?: string }) => Promise<void>;
+  removeCustomStatementForBilling: (billingId: string) => Promise<void>;
+  toggleTenantCustomBillingStatement: (tenantId: string, enabled: boolean) => Promise<void>;
   splitBillingAbsoluteAmount: (billingId: string, splitAmount: number) => Promise<string>;
   approveBilling: (billingId: string) => Promise<void>; // UNPAID → REQUESTED (거래명세서 발송)
   cancelBilling: (billingId: string, refund?: boolean) => Promise<void>; // 환불=true, 비환불=false(기본)
@@ -7257,6 +7260,59 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     return childBillingId;
   };
 
+  // 💡 [사장님 지시] 특수 거래명세서 커스텀 항목 및 사유 저장 (실제 계약/청구 DB 원형 보존)
+  const saveCustomStatementForBilling = async (
+    billingId: string,
+    data: {
+      reason: string;
+      items: CustomStatementItem[];
+      originalSummary?: string;
+    }
+  ) => {
+    const billing = db.billings.find(b => b.id === billingId);
+    if (!billing) throw new Error('청구서를 찾을 수 없습니다.');
+
+    const now = new Date().toISOString();
+    db.updateRow<Billing>('billings', billingId, {
+      hasCustomStatement: true,
+      customStatementReason: data.reason,
+      customStatementItems: data.items,
+      customStatementOriginalSummary: data.originalSummary,
+      customStatementCreatedAt: now,
+      customStatementCreatedBy: currentUser?.name || '관리자',
+      updatedAt: now
+    });
+
+    await db.awaitPendingWrites();
+    refreshAllData();
+  };
+
+  // 💡 특수 거래명세서 해제 (원래 정상 청구 양식으로 원복)
+  const removeCustomStatementForBilling = async (billingId: string) => {
+    const billing = db.billings.find(b => b.id === billingId);
+    if (!billing) throw new Error('청구서를 찾을 수 없습니다.');
+
+    const now = new Date().toISOString();
+    db.updateRow<Billing>('billings', billingId, {
+      hasCustomStatement: false,
+      customStatementReason: undefined,
+      customStatementItems: undefined,
+      customStatementOriginalSummary: undefined,
+      customStatementCreatedAt: undefined,
+      customStatementCreatedBy: undefined,
+      updatedAt: now
+    });
+
+    await db.awaitPendingWrites();
+    refreshAllData();
+  };
+
+  // 💡 테넌트별 특수 거래명세서 기능 활성화/비활성화 제어
+  const toggleTenantCustomBillingStatement = async (tenantId: string, enabled: boolean) => {
+    const target = tenants.find(t => t.id === tenantId) || currentTenant;
+    if (!target) return;
+    await saveTenant({ id: target.id, allowCustomBillingStatement: enabled });
+  };
 
   // v2: 복수 입금건 연동 수납 처리
   const receivePayment = async (billingId: string, data: {
@@ -10140,7 +10196,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, exchangeOutboundAsset,
       saveSmartDispatch, saveSmartReturn,
       completeTodo, issueExecutiveDirective, resolveExecutiveDirective, cancelExecutiveDirective,
-      generateBillingsForMonth, getDueContractsForBilling, generateDueBillings, generateBillingForSingleContract, syncContractBillingMilestones, splitBillingAbsoluteAmount, regenerateBilling, approveBilling, cancelBilling, receivePayment, cancelPayment, cancelAllPaymentsForBilling, saveBankDeposit, deleteBankDeposit,
+      generateBillingsForMonth, getDueContractsForBilling, generateDueBillings, generateBillingForSingleContract, syncContractBillingMilestones, splitBillingAbsoluteAmount, regenerateBilling, saveCustomStatementForBilling, removeCustomStatementForBilling, toggleTenantCustomBillingStatement, approveBilling, cancelBilling, receivePayment, cancelPayment, cancelAllPaymentsForBilling, saveBankDeposit, deleteBankDeposit,
       addReceivable, generateStandaloneBillingForReceivable, linkReceivableToBilling,
       uploadBankTransactions, matchTransactionManual, batchAutoMatchTransactions, unmatchTransaction, saveMatchingRule, deleteMatchingRule,
       dispatchDelivery, settleDeliveryCost, completeDelivery, completeInboundDelivery,
