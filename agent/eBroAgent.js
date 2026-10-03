@@ -17,7 +17,7 @@ const os = require('os');
 const { spawn, execSync } = require('child_process');
 const { handleStudioRequest, launchStudioWindow } = require('./studioEngine');
 
-const VERSION = 'v2.0.0.Build.2';
+const VERSION = 'v2.0.0.Build.3';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -77,6 +77,11 @@ if (isExe && path.resolve(currentExePath).toLowerCase() !== path.resolve(TARGET_
     setTimeout(() => {
       try {
         fs.copyFileSync(currentExePath, TARGET_EXE_PATH);
+        const traySrc = path.join(path.dirname(currentExePath), 'trayIcon.ps1');
+        const trayDest = path.join(AGENT_HOME, 'trayIcon.ps1');
+        if (fs.existsSync(traySrc)) {
+          try { fs.copyFileSync(traySrc, trayDest); } catch (e) {}
+        }
         console.log('✅ C:\\eBroAgent\\eBroAgent.exe 최신 버전으로 교체 완료!');
         console.log('🚀 최신 엔진으로 백그라운드 기동합니다...');
         console.log('====================================================');
@@ -1373,19 +1378,67 @@ $excel.Quit()
   res.end('Not Found');
 });
 
+// ── 포트 선점 프로세스 강제 정리 및 Windows 시스템 트레이 워커 관리 ──
+function freePortIfOccupied(port) {
+  try {
+    const netstatOut = execSync('netstat -ano -p tcp', { encoding: 'utf8' });
+    const lines = netstatOut.split('\n');
+    for (const line of lines) {
+      if (line.includes(`:${port}`) && (line.includes('LISTENING') || line.includes('듣는 중'))) {
+        const parts = line.trim().split(/\s+/);
+        const pidStr = parts[parts.length - 1];
+        const targetPid = parseInt(pidStr, 10);
+        if (targetPid && targetPid !== process.pid && targetPid !== 0 && targetPid !== 4) {
+          console.log(`⚠️ 포트 ${port} 점유 프로세스(PID: ${targetPid}) 강제 정리`);
+          try { process.kill(targetPid, 'SIGKILL'); } catch (k) {
+            try { execSync(`taskkill /F /PID ${targetPid}`, { stdio: 'ignore' }); } catch (t) {}
+          }
+        }
+      }
+    }
+  } catch (e) {}
+}
+
+function startTrayWorker() {
+  const trayScriptInHome = path.join(AGENT_HOME, 'trayIcon.ps1');
+  const trayScriptInDir = path.join(__dirname, 'trayIcon.ps1');
+  const targetScript = fs.existsSync(trayScriptInHome) ? trayScriptInHome : (fs.existsSync(trayScriptInDir) ? trayScriptInDir : null);
+
+  if (targetScript) {
+    try {
+      const ps = spawn('powershell.exe', [
+        '-STA',
+        '-NoProfile',
+        '-WindowStyle', 'Hidden',
+        '-ExecutionPolicy', 'Bypass',
+        '-File', targetScript,
+        String(process.pid),
+        String(PORT)
+      ], {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true
+      });
+      ps.unref();
+      console.log(`🔔 [시스템 트레이] Windows 알림 영역 트레이 아이콘 워커 기동 완료 (PID: ${process.pid})`);
+    } catch (e) {
+      console.warn('⚠️ 시스템 트레이 워커 실행 오류:', e.message);
+    }
+  }
+}
+
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     console.warn(`⚠️ 포트 ${PORT} 가 사용 중입니다. 이전 프로세스를 정리하고 1초 후 재시도합니다...`);
-    try {
-      execSync(`powershell -NoProfile -Command "Get-NetTCPConnection -LocalPort ${PORT} -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue }"`, { stdio: 'ignore' });
-    } catch (e) {}
+    freePortIfOccupied(PORT);
     setTimeout(() => {
-      server.close();
+      try { server.close(); } catch (e) {}
       server.listen(PORT, '127.0.0.1', () => {
         console.log(`🟢 로컬 에이전트 서비스 리스닝 시작: http://127.0.0.1:${PORT}`);
+        startTrayWorker();
         const isDaemon = process.argv.includes('--daemon') || process.argv.includes('--silent');
         if (!isDaemon) {
-          setTimeout(() => { launchStudioWindow(PORT); }, 800);
+          setTimeout(() => { launchStudioWindow(PORT); }, 500);
         }
       });
     }, 1000);
@@ -1698,8 +1751,15 @@ async function sendStationHeartbeat() {
   } catch (e) {}
 }
 
+// 기동 전 포트 5175 선점 프로세스(좀비) 사전 청정 정리
+freePortIfOccupied(PORT);
+
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`🟢 로컬 에이전트 서비스 리스닝 시작: http://127.0.0.1:${PORT}`);
+
+  // 🔔 윈도우 시스템 트레이(알림 영역) 아이콘 워커 즉시 가동 (상시 유지)
+  startTrayWorker();
+
   // 기동 즉시 백그라운드에서 CF 실시간 동적 미러링 실행 (1회)
   setTimeout(autoSyncFromCloudflare, 300);
   // 이후 1시간마다 백그라운드 자가 점검 (3600000 ms)
@@ -1715,7 +1775,7 @@ server.listen(PORT, '127.0.0.1', () => {
   if (!isDaemon) {
     setTimeout(() => {
       launchStudioWindow(PORT);
-    }, 800);
+    }, 500);
   }
 });
 

@@ -1,7 +1,7 @@
 // src/services/agentService.ts
 // e-Bro ERP 로컬 사이드카 에이전트(eBroAgent) 단일 표준 메타데이터 및 통신 헬퍼
 
-export const EXPECTED_AGENT_VERSION = 'v2.0.0.Build.2';
+export const EXPECTED_AGENT_VERSION = 'v2.0.0.Build.3';
 // 🚀 GitHub Releases 글로벌 초고속 CDN (Azure/Fastly 한국 PoP 8~10MB/s 3초 다운로드)
 export const DEFAULT_GITHUB_RELEASE_BASE_URL = 'https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0';
 // 🌐 Cloudflare R2 보조 엔드포인트 (Fallback)

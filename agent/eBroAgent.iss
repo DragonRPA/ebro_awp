@@ -24,7 +24,7 @@
 [Setup]
 AppId={{#AppId}}
 AppName={#AppName}
-AppVersion=v2.0.0.Build.2
+AppVersion=v2.0.0.Build.3
 AppPublisher={#AppPublisher}
 AppPublisherURL=https://ebro.run
 AppSupportURL=https://ebro.run
@@ -56,6 +56,7 @@ Name: "desktopicon"; Description: "바탕화면에 eBro AI Agent 바로가기 �
 ; 🛡️ 완벽한 소스코드 보호: eBroAgent.js / studioEngine.js 원본 소스코드 완전 배제!
 ; V8 바이트코드 및 패키징 완료된 eBroAgent.exe 단일 바이너리만 배포 (고객 PC 소스코드 노출 0%)
 Source: "eBroAgent.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "trayIcon.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "eBroAgent_Root.cer"; DestDir: "{app}"; Flags: ignoreversion
 Source: "start-agent.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "kill-agent.bat"; DestDir: "{app}"; Flags: ignoreversion
@@ -85,11 +86,12 @@ Filename: "certutil.exe"; Parameters: "-user -addstore Root ""{app}\eBroAgent_Ro
 Filename: "{app}\eBroAgent.exe"; Flags: nowait
 
 [Code]
-// 설치 전 기존 프로세스 종료
+// 설치 전 기존 프로세스 및 트레이 워커 종료
 function InitializeSetup(): Boolean;
 var
   ResultCode: Integer;
 begin
   Exec('taskkill.exe', '/F /IM eBroAgent.exe /IM KiyeunAgent.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('powershell.exe', '-NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like ''*trayIcon.ps1*'' } | Stop-Process -Force -ErrorAction SilentlyContinue"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := True;
 end;

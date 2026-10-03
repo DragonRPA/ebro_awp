@@ -249,37 +249,40 @@ async function executeTask(task) {
 }
 
 // ── 🖥️ 독립 데스크톱 전용 창 실행 ──
+// ── 🖥️ 독립 데스크톱 전용 창 실행 ──
 function launchStudioWindow(port = 5175) {
   const url = `http://127.0.0.1:${port}/studio`;
-  const edgePathCandidates = [
+  const browserCandidates = [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
     'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
     'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-    path.join(process.env['LOCALAPPDATA'] || '', 'Microsoft\\Edge\\Application\\msedge.exe'),
-    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
+    path.join(process.env['LOCALAPPDATA'] || '', 'Microsoft\\Edge\\Application\\msedge.exe')
   ];
 
-  const browserExe = edgePathCandidates.find(p => p && fs.existsSync(p));
+  const browserExe = browserCandidates.find(p => p && fs.existsSync(p));
 
   if (browserExe) {
     const args = [
       `--app=${url}`,
-      '--window-size=1020,740',
-      '--window-position=60,60',
-      '--disable-extensions-except=',
-      '--disable-plugins'
+      '--window-size=1100,800',
+      '--window-position=80,80'
     ];
     try {
       const child = spawn(browserExe, args, { detached: true, stdio: 'ignore' });
       child.unref();
       return true;
     } catch (e) {
-      execSync(`start "" "${url}"`, { stdio: 'ignore' });
-      return true;
+      try {
+        execSync(`powershell -NoProfile -Command "Start-Process '${url}'"`, { stdio: 'ignore' });
+        return true;
+      } catch (e2) {
+        return false;
+      }
     }
   } else {
     try {
-      execSync(`start "" "${url}"`, { stdio: 'ignore' });
+      execSync(`powershell -NoProfile -Command "Start-Process '${url}'"`, { stdio: 'ignore' });
       return true;
     } catch (e) {
       return false;
