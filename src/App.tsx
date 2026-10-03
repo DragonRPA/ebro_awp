@@ -6,10 +6,14 @@ import {
   Truck, Wrench, Shield, ShoppingBag, CreditCard, LogOut, Sun, Moon, Menu, X, Zap, Settings, Database as DatabaseIcon,
   TrendingUp, Clock, AlertTriangle, Building2, ChevronDown, ChevronRight, Briefcase, Box, FolderKanban, ShieldAlert, Terminal, ArrowLeftRight, CheckSquare,
   Smartphone, Monitor, Car, FileText, Search, Printer, PackagePlus, Boxes, Calendar, Camera, BookOpen,
-  FileCheck, ShieldCheck, Bot, Download
+  FileCheck, ShieldCheck, Bot, Download, Bell
 , CheckCircle, Settings as SettingsIcon, SlidersHorizontal, Mail } from 'lucide-react';
 import { OfficialMailPage } from './pages/OfficialMailPage';
 import { getTenantAgentInstallerInfo, triggerTenantAgentDownload, AGENT_CERT_URL } from './services/agentService';
+
+import { JobAlertModal } from './components/JobAlertModal';
+import { PersistentJobAlertToast } from './components/PersistentJobAlertToast';
+import { jobNotificationService } from './services/jobNotificationService';
 
 import { WeatherWidget } from './components/WeatherWidget';
 import ApprovalRulesManage from './pages/ApprovalRulesManage';
@@ -79,7 +83,7 @@ import { SiteOptionManage } from './pages/SiteOptionManage';
 import { RegularReportsPage } from './pages/RegularReportsPage';
 import { GoogleConfig } from './pages/GoogleConfig';
 import { InitialDbUploader } from './pages/InitialDbUploader';
-import { AgentHeaderBadge } from './components/AgentHeaderBadge';
+import { AgentRequiredModal } from './components/AgentRequiredModal';
 import { OperationManualPage } from './pages/OperationManualPage';
 import { ErrorReportPage } from './pages/ErrorReportPage';
 import { MirrorSyncProgressToast } from './components/MirrorSyncProgressToast';
@@ -326,6 +330,15 @@ const App: React.FC = () => {
   // 개인정보 처리방침 법정 고지 모달 상태
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
 
+  // 🔔 주기장/공장 현장용 업무 알림 설정 상태
+  const [showJobAlertModal, setShowJobAlertModal] = useState(false);
+  const [jobNotifySettings, setJobNotifySettings] = useState(jobNotificationService.getSettings());
+
+  useEffect(() => {
+    const unsub = jobNotificationService.onSettingsChange(setJobNotifySettings);
+    return () => unsub();
+  }, []);
+
   // ─── 메뉴 검색 네비게이터 상태 ───
   const [menuSearchOpen, setMenuSearchOpen] = useState(false);
   const [menuSearchQuery, setMenuSearchQuery] = useState('');
@@ -333,12 +346,16 @@ const App: React.FC = () => {
   const menuSearchInputRef = useRef<HTMLInputElement>(null);
   const menuSearchBoxRef = useRef<HTMLDivElement>(null);
 
-  // 모바일 전용 뷰 모드 (PWA / Field App)
+  // 모바일 전용 뷰 모드 (PWA / Field App) — ebro.run/mobile 또는 /m 전용 주소 처리
   const [isMobileView, setIsMobileView] = useState<boolean>(() => {
-    // 1. URL 쿼리나 해시 확인 (/m 또는 ?mode=mobile 또는 ?view=mobile)
+    // 1. URL 경로 또는 쿼리 확인 (/mobile 또는 /m 또는 ?mode=mobile 또는 ?view=mobile)
+    const pathname = window.location.pathname.toLowerCase();
     const search = window.location.search;
     if (
-      window.location.pathname.startsWith('/m') ||
+      pathname === '/mobile' ||
+      pathname.startsWith('/mobile/') ||
+      pathname === '/m' ||
+      pathname.startsWith('/m/') ||
       search.includes('view=mobile') ||
       search.includes('mode=mobile')
     ) {
@@ -363,6 +380,44 @@ const App: React.FC = () => {
 
     return false;
   });
+
+  // 📱 브라우저 URL 경로(/mobile, /m) 동적 감지
+  useEffect(() => {
+    const handleUrlCheck = () => {
+      const pathname = window.location.pathname.toLowerCase();
+      if (
+        pathname === '/mobile' ||
+        pathname.startsWith('/mobile/') ||
+        pathname === '/m' ||
+        pathname.startsWith('/m/')
+      ) {
+        setIsMobileView(true);
+      }
+    };
+    window.addEventListener('popstate', handleUrlCheck);
+    return () => window.removeEventListener('popstate', handleUrlCheck);
+  }, []);
+
+  // 🤖 온디맨드 로컬 에이전트 실행 안내 모달 상태 (평상시 비노출, 필요 시점에 미응답일 때만 표출)
+  const [agentRequiredModal, setAgentRequiredModal] = useState<{
+    isOpen: boolean;
+    actionName?: string;
+  }>({
+    isOpen: false,
+    actionName: '로컬 연동 작업'
+  });
+
+  useEffect(() => {
+    const handleAgentRequired = (e: any) => {
+      const actionName = e?.detail?.actionName || '로컬 연동 작업';
+      setAgentRequiredModal({
+        isOpen: true,
+        actionName
+      });
+    };
+    window.addEventListener('ebro:agent_required', handleAgentRequired);
+    return () => window.removeEventListener('ebro:agent_required', handleAgentRequired);
+  }, []);
 
   // 컴포넌트 마운트 시 저장된 로그인 편의 정보 로드
   useEffect(() => {
@@ -977,59 +1032,33 @@ const App: React.FC = () => {
               </span>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <div>
               <button
                 type="button"
                 onClick={handleAgentInstallerDownload}
                 style={{
-                  padding: '9px 10px',
+                  width: '100%',
+                  padding: '10px 14px',
                   borderRadius: '8px',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-card)',
-                  color: 'var(--text-primary)',
-                  fontSize: '12px',
+                  border: '1px solid var(--primary)',
+                  backgroundColor: 'var(--primary)',
+                  color: '#ffffff',
+                  fontSize: '13px',
                   fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '6px',
+                  gap: '8px',
                   transition: 'all 0.15s ease',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  boxShadow: '0 2px 4px rgba(37, 99, 235, 0.25)',
                   whiteSpace: 'nowrap'
                 }}
-                title="PC 로컬 데스크톱 에이전트 설치 프로그램 다운로드 (콘솔 창 없는 무소음 백그라운드)"
+                title="PC 백그라운드 에이전트 및 웹 확장도구 통합 설치 패키지 다운로드"
               >
-                <Download size={13} color="var(--primary)" style={{ flexShrink: 0 }} />
-                <span>PC 에이전트 (.exe)</span>
+                <Download size={15} color="#ffffff" style={{ flexShrink: 0 }} />
+                <span>eBro 통합 에이전트 설치 (.exe)</span>
               </button>
-
-              <a
-                href="/downloads/ebro-web-agent.zip"
-                download="ebro-web-agent.zip"
-                style={{
-                  padding: '9px 10px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-card)',
-                  color: 'var(--text-primary)',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  transition: 'all 0.15s ease',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                  textDecoration: 'none',
-                  whiteSpace: 'nowrap'
-                }}
-                title="Chrome/Edge 브라우저 확장 프로그램 다운로드"
-              >
-                <Bot size={13} color="#0284c7" style={{ flexShrink: 0 }} />
-                <span>웹 확장도구 (.zip)</span>
-              </a>
             </div>
 
             {installerDownloadMsg && (
@@ -1057,21 +1086,36 @@ const App: React.FC = () => {
               paddingTop: '2px',
               whiteSpace: 'nowrap'
             }}>
-              <span>Windows 10 / 11 (64-bit)</span>
-              <a
-                href={AGENT_CERT_URL}
-                download="eBroAgent_Root.cer"
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  color: 'var(--text-muted)',
-                  textDecoration: 'underline',
-                  fontSize: '11px',
-                  cursor: 'pointer'
-                }}
-              >
-                보안 인증서 (.cer)
-              </a>
+              <span>PC 백그라운드 서비스 &amp; 웹 확장도구 통합 (Windows 10/11)</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <a
+                  href="/downloads/ebro-web-agent.zip"
+                  download="ebro-web-agent.zip"
+                  style={{
+                    color: 'var(--text-muted)',
+                    textDecoration: 'underline',
+                    fontSize: '11px',
+                    cursor: 'pointer'
+                  }}
+                  title="관리자/수동 개발자용 웹 확장 패키지 다운로드"
+                >
+                  수동패키지(.zip)
+                </a>
+                <a
+                  href={AGENT_CERT_URL}
+                  download="eBroAgent_Root.cer"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    color: 'var(--text-muted)',
+                    textDecoration: 'underline',
+                    fontSize: '11px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  보안 인증서 (.cer)
+                </a>
+              </div>
             </div>
           </div>
 
@@ -1209,13 +1253,19 @@ const App: React.FC = () => {
     );
   }
 
-  // 2. 모바일 전용 PWA 화면 렌더링 (분리 구축 뷰)
+  // 2. 모바일 전용 PWA 화면 렌더링 (분리 구축 뷰 — ebro.run/mobile)
   if (isMobileView) {
     return (
       <MobileApp
         onSwitchToPc={() => {
           setIsMobileView(false);
           localStorage.setItem('erp_view_mode', 'desktop');
+          if (
+            window.location.pathname.toLowerCase().startsWith('/mobile') ||
+            window.location.pathname.toLowerCase().startsWith('/m')
+          ) {
+            window.history.pushState(null, '', '/');
+          }
         }}
       />
     );
@@ -1431,11 +1481,8 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {/* 사용자 정보 및 화면 모드 (밝은화면모드 / 어두운화면모드 / 모바일전환) */}
+        {/* 사용자 정보 및 화면 모드 (밝은화면모드 / 어두운화면모드) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-
-          {/* 🤖 로컬 사이드카 에이전트 상태 미니 배지 */}
-          <AgentHeaderBadge currentUser={currentUser} />
 
           {/* 📖 인앱 오버레이 매뉴얼 보기/작성 버튼 */}
           <ManualHeaderButtons
@@ -1444,37 +1491,9 @@ const App: React.FC = () => {
             activeTabName={menuGroups.flatMap(g => g.items).find(i => i.id === activeTab)?.name || (activeTab === 'dashboard' ? '대시보드' : activeTab)}
           />
 
-          {/* 🛡️ 개인정보 처리방침 법정 고지 열람 버튼 */}
+          {/* 🔔 주기장/공장 현장용 업무 알림 설정 버튼 (소리-차임벨 & 팝업 토스트) */}
           <button
-            onClick={() => setShowPrivacyPolicy(true)}
-            style={{
-              padding: '6px 11px',
-              borderRadius: '20px',
-              backgroundColor: 'var(--bg-app)',
-              color: 'var(--text-primary)',
-              border: '1px solid var(--border-color)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '12px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-              transition: 'all 0.15s ease'
-            }}
-            title="개인정보 보호법 제30조 및 안전성 확보조치 기준 고지 열람"
-          >
-            <ShieldCheck size={14} color="#10B981" />
-            <span>개인정보처리방침</span>
-          </button>
-
-          {/* 모바일 현장 전용 뷰 전환 버튼 */}
-          <button
-            onClick={() => {
-              setIsMobileView(true);
-              localStorage.setItem('erp_view_mode', 'mobile');
-            }}
+            onClick={() => setShowJobAlertModal(true)}
             style={{
               padding: '6px 11px',
               borderRadius: '20px',
@@ -1489,12 +1508,25 @@ const App: React.FC = () => {
               cursor: 'pointer',
               whiteSpace: 'nowrap',
               flexShrink: 0,
-              transition: 'all 0.15s ease'
+              transition: 'all 0.15s ease',
+              position: 'relative'
             }}
-            title="모바일 현장 PWA 모드로 전환"
+            title="주기장/공장 현장 업무 알림 설정 (소리 차임벨, 확인 버튼 팝업, 직무별 수신)"
           >
-            <Smartphone size={14} color="#38BDF8" />
-            <span>모바일화면</span>
+            <Bell size={14} color="#2563eb" />
+            <span>업무알림설정</span>
+            {jobNotifySettings.soundEnabled && (
+              <span
+                style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#2563eb',
+                  display: 'inline-block'
+                }}
+                title="소리 알림 켜짐"
+              />
+            )}
           </button>
 
           {/* 화면 모드 전환 버튼 (명시적 텍스트 라벨 적용) */}
@@ -1941,6 +1973,22 @@ const App: React.FC = () => {
         onMoveGroupUp={(groupList, idx) => moveMenuGroupUp(groupList, idx)}
         onMoveGroupDown={(groupList, idx) => moveMenuGroupDown(groupList, idx)}
         onReset={resetMenuPreferences}
+      />
+
+      {/* 🔔 주기장/공장 현장용 고정 팝업 토스트 (확인 버튼 클릭 시까지 상주) */}
+      <PersistentJobAlertToast onNavigateMenu={(menuId) => setActiveTab(menuId)} />
+
+      {/* ⚙️ 직무별 업무 알림 설정 모달 */}
+      <JobAlertModal
+        isOpen={showJobAlertModal}
+        onClose={() => setShowJobAlertModal(false)}
+      />
+
+      {/* 🤖 온디맨드 로컬 에이전트 실행 안내 모달 (실행 필요 시점에만 팝업) */}
+      <AgentRequiredModal
+        isOpen={agentRequiredModal.isOpen}
+        onClose={() => setAgentRequiredModal(prev => ({ ...prev, isOpen: false }))}
+        actionName={agentRequiredModal.actionName}
       />
 
     </div>

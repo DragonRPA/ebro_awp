@@ -18,6 +18,7 @@ import { matchHangul } from '../utils/hangulSearch';
 import { buildDispatchSmsText, launchDispatchSms, buildDispatchKakaoTalkText, copyToClipboard } from '../utils/nativeLauncher';
 import { broadcastWorkNotification } from '../utils/workNotificationService';
 import { issueHandoverTask, clearHandoverTasks } from '../utils/taskHandoverPipeline';
+import { jobNotificationService } from '../services/jobNotificationService';
 import {
   TransportCallQueueItem,
   getTransportCallQueue,
@@ -2895,6 +2896,21 @@ export const TruckDispatch: React.FC = () => {
         cargoItems: JSON.stringify(manualCargos),
         createdAt: nowIso,
         updatedAt: nowIso
+      });
+
+      // 🔔 주기장/공장 현장용 업무 알림 트리거 (소리 차임벨 및 확인 팝업 토스트)
+      const targetCust = customers.find(c => c.id === manualCustomerId || (manualContractId && contracts.find(ct => ct.id === manualContractId)?.customerId === c.id));
+      const targetContract = contracts.find(ct => ct.id === manualContractId);
+      jobNotificationService.triggerJobAlert({
+        type: manualCategory === '교환' ? 'EXCHANGE_REQUESTED' : (manualCategory === '반납' ? 'INBOUND_RETURN' : 'OUTBOUND_REQUESTED'),
+        title: manualCategory === '교환' ? '대차·교환(EXCHANGE) 의뢰 발생' : (manualCategory === '반납' ? '입고·반납 장비 주기장 도착' : '신규 출고의뢰 접수 (출고요청서 발행)'),
+        customerName: targetCust?.name || '고객사',
+        siteName: (targetContract as any)?.siteName || (targetContract?.siteId ? sites.find(s => s.id === targetContract.siteId)?.name : '') || manualDestination || '현장',
+        modelName: manualCargos[0]?.modelName || '고소작업대',
+        quantity: manualCargos.reduce((acc, c) => acc + (c.count || 1), 0),
+        deliveryDate: manualLoadingDate,
+        memo: manualMemo || undefined,
+        actionMenuId: 'outbound_inspection'
       });
 
       await db.awaitPendingWrites();

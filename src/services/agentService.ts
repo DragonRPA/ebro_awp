@@ -225,3 +225,12 @@ export async function restartLocalAgent(): Promise<boolean> {
     return true;
   }
 }
+
+/**
+ * 📢 에이전트가 필요한 시점에 응답하지 않을 때 전역 모달 표출 이벤트 디스패치
+ */
+export function notifyAgentRequired(actionName: string = '로컬 연동 작업'): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('ebro:agent_required', { detail: { actionName } }));
+  }
+}

@@ -30,6 +30,7 @@ import {
   Download
 } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
+import { notifyAgentRequired } from '../services/agentService';
 
 export const PrintQueueManager: React.FC = () => {
   const {
@@ -84,7 +85,7 @@ export const PrintQueueManager: React.FC = () => {
   };
 
   // 로컬 PC의 eBroAgent 프린터 목록 및 기존 설정 로드
-  const scanLocalAgent = async () => {
+  const scanLocalAgent = async (isManualClick: boolean = false) => {
     setIsScanningAgent(true);
     setFormFeedback(null);
     try {
@@ -104,9 +105,14 @@ export const PrintQueueManager: React.FC = () => {
           if (localCfg.localPrinterName && !selectedPrinter) setSelectedPrinter(localCfg.localPrinterName);
           if (localCfg.docTypeDefault) setDocTypeDefault(localCfg.docTypeDefault);
         }
+      } else if (isManualClick) {
+        notifyAgentRequired('로컬 프린터 목록 조회');
       }
     } catch (err: any) {
       console.warn('Agent scan failed:', err);
+      if (isManualClick) {
+        notifyAgentRequired('로컬 프린터 목록 조회');
+      }
     } finally {
       setIsScanningAgent(false);
     }
@@ -196,6 +202,10 @@ export const PrintQueueManager: React.FC = () => {
   // 테스트 인쇄 큐 전송 핸들러
   const handleSendTestPrint = async (station: PrintStation) => {
     if (!confirm(`[${station.stationName}] (${station.localPrinterName})으로 테스트 인쇄를 발행하시겠습니까?`)) {
+      return;
+    }
+    if (!isStationOnline(station)) {
+      notifyAgentRequired(`[${station.stationName}] 프린터 출력 (에이전트 미실행)`);
       return;
     }
     try {
@@ -370,47 +380,18 @@ export const PrintQueueManager: React.FC = () => {
           </div>
         </div>
 
-        {/* 로컬 에이전트 상태 바 & 재탐색 버튼 */}
+        {/* 상단 우측: 프린터 목록 갱신 버튼 (헌장 3.1 무수식어 건조 표준, 상시 상태바 배제) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'nowrap' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              borderRadius: '20px',
-              fontSize: '12px',
-              fontWeight: '700',
-              whiteSpace: 'nowrap',
-              backgroundColor: agentStatus.online ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-              color: agentStatus.online ? '#10b981' : '#ef4444',
-              border: `1px solid ${agentStatus.online ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
-            }}
-          >
-            <span
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor: agentStatus.online ? '#10b981' : '#ef4444'
-              }}
-            />
-            <span>
-              {agentStatus.online
-                ? `에이전트 연결됨 (${agentStatus.machineName || 'PC'})`
-                : '에이전트 미연결'}
-            </span>
-          </div>
-
           <button
             type="button"
             className="btn-secondary"
-            onClick={scanLocalAgent}
+            onClick={() => scanLocalAgent(true)}
             disabled={isScanningAgent}
-            style={{ padding: '6px 12px', fontSize: '12px', fontWeight: '700', whiteSpace: 'nowrap' }}
+            style={{ padding: '7px 14px', fontSize: '12px', fontWeight: '700', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
+            title="로컬 PC 프린터 드라이버 목록 조회"
           >
-            <RefreshCw size={12} className={isScanningAgent ? 'animate-spin' : ''} />
-            <span>에이전트 재탐색</span>
+            <RefreshCw size={13} className={isScanningAgent ? 'animate-spin' : ''} />
+            <span>프린터 목록 갱신</span>
           </button>
         </div>
       </div>
@@ -933,7 +914,7 @@ export const PrintQueueManager: React.FC = () => {
                   </label>
                   <button
                     type="button"
-                    onClick={scanLocalAgent}
+                    onClick={() => scanLocalAgent(true)}
                     style={{
                       fontSize: '11px',
                       color: 'var(--primary)',
