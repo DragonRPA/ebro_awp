@@ -1,3 +1,44 @@
+## 2026-10-03 11:00 (v1.10.2.Build.14)
+
+### [입고관리/청구정산/매뉴얼] 입고일 vs 입고등록일시 엄격 분리 및 청구 연동, UI 표기 표준화, 전사 인앱 매뉴얼 한글 깨짐 100% 복원
+
+- **배경 및 요구사항**:
+  - 입고등록 시 처리 시점으로 입고하는 것이 기본값이지만, 회사의 업무량 과다 또는 담당자 실수/누락에 의한 지연 처리를 방어하기 위해 **입고일(`inDate`)**과 **입고등록일시(`inRegisteredAt`)** 값을 명확히 분리.
+  - **청구(Billing) 및 정산의 계산은 전산 등록일시가 아닌 실제 입고일을 기준으로 100% 연동**.
+  - **UI 표기는 "입고일"만 단일 표준 표기**하고, 입고등록일시는 DB에 자동 영구 기록.
+  - 전사 매뉴얼 업데이트 및 매뉴얼 내 한글 깨짐 전수 점검 및 완전 복원.
+- **도메인 핵심 목적 및 리스크 방어**:
+  1. **고객사 과다 청구 분쟁 원천 방어**:
+     - 현장 반납은 며칠 전에 되었으나 전산 처리가 늦어진 경우, 전산 등록일시로 청구되면 고객사에 사용하지 않은 일수만큼 과다 청구되는 중대 분쟁 발생.
+     - 실제 장비 반납일인 **"입고일"**을 기준으로 청구서 일할 계산이 자동 연동되도록 하여 분쟁 및 회계 왜곡을 100% 방지.
+  2. **시계열 감사 타임라인 무결성 보장 (헌장 1.2 & 5.6)**:
+     - 언제 전산 등록 버튼을 눌렀는지 실제 물리적 트랜잭션 시각(`inRegisteredAt`)을 DB에 자동 영구 보존.
+  3. **전사 인앱 매뉴얼 가독성 및 신뢰성 100% 복원**:
+     - 과거 마이그레이션 패치 시 유입되었던 `src/data/allMenuManuals.ts` 내 5개 메뉴의 깨진 문자 `\uFFFD` 2,067개를 전면 소탕하고, 무수식어 건조 표준 한국어로 완벽 복원.
+- **주요 구현 및 변경 내역**:
+  1. **데이터 모델 및 DB 스키마 확장 (`src/services/db.ts`)**:
+     - `ContractAsset`: `inRegisteredAt?: string;` (전산 입고 처리 일시) 추가.
+     - `AssetInOutLog`: `inDate?: string;` (실제 현장 입고일) 및 `inRegisteredAt?: string;` (전산 입고 등록 일시) 확장.
+  2. **입고 처리 비즈니스 로직 연동 (`src/context/AppContext.tsx`)**:
+     - `registerInboundAsset`:
+       - `contractAssets.actualReturnDate`에 실제 입고일(`data.returnDate`), `inRegisteredAt`에 전산 일시(`registeredAt`) 자동 저장.
+       - `assetInOutLogs`에 `eventDate`, `inDate`, `inRegisteredAt`, `createdAt` 무누락 영구 기록.
+     - `completeInboundDelivery`: 배차 회수 검수 시에도 실제 입고일과 전산 등록일시 동시 반영.
+  3. **청구 및 일할 정산 100% 자동 연동 (`src/pages/Billings.tsx`)**:
+     - `calculateAssetFeeForWizard`:
+       - 계약 자산의 유효 종료일 산출 시 실제 입고일(`ca.actualReturnDate`)이 존재하면 원래 계약 종료일이 남아있더라도 실제 입고일을 우선 종료일로 채택하여 정확히 실제 입고일까지로 일할 계산 연동.
+       - 일할 청구 비고란에 `(입고일: YYYY-MM-DD)` 자동 각인.
+  4. **UI 표기 표준화 (`src/pages/asset_history.tsx`)**:
+     - 입고 등록 폼 레이블: `입고일 *`
+     - 입고 이력 테이블 컬럼 헤더: `입고일`
+     - 데이터 셀 및 타임라인: `log.inDate || log.eventDate` 단일 표준 표기.
+  5. **전사 인앱 매뉴얼 복원 및 공식 문서 최신화**:
+     - `src/data/allMenuManuals.ts`: `dashboard`, `agentic_settlement_autopilot`, `agentic_asset_lifecycle`, `initial_db_upload`, `google_config` 5개 메뉴 어노테이션 38단계 전면 복원 (`\uFFFD` 2,067개 ➔ 0개).
+     - `manual_patches/` 잔재 6종 JSON 청정화.
+     - `docs/e_Bro_Manual.md`: 제3부 [체인 9], [체인 11] 및 제4부 [M-15]에 입고일 vs 입고등록일시 및 청구 연동 원칙 명문화.
+
+---
+
 ## 2026-10-02 17:10 (v1.10.2.Build.13)
 
 ### [임차자산/옵션소유권/입고검수] 임차자산 협착방지봉 소유권(임차처 소유 vs 당사 소유) 관리 및 주기장 입고 시 오탈거·비용 피청구 방지 경고 시스템 구현

@@ -8241,12 +8241,16 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         updatedAt: new Date().toISOString()
       });
 
+      const registeredAt = new Date().toISOString();
+
       db.insertRow<AssetInOutLog>('assetInOutLogs', {
         assetId: asset.id,
         assetNo: asset.assetNo,
         modelName: asset.modelName,
         type: 'INBOUND',
         eventDate: actualReturnDate,
+        inDate: actualReturnDate,
+        inRegisteredAt: registeredAt,
         customerId: contract?.customerId || '',
         customerName: customer?.name || '',
         siteId: contract?.siteId || '',
@@ -8254,7 +8258,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         deliveryId: deliveryId,
         maintenanceScore: review.maintenanceScore,
         memo: review.memo,
-        createdAt: new Date().toISOString()
+        createdAt: registeredAt
       });
 
       if (review.status === 'REPAIRING') {
@@ -8267,8 +8271,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           billableToCustomer: false,
           isCustomerFault: true,
           faultImageUrl: review.faultImageUrl || '',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          createdAt: registeredAt,
+          updatedAt: registeredAt
         });
       }
     });
@@ -8277,6 +8281,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       const isExchange = delivery.type === 'EXCHANGE' || delivery.dispatchCategory === '교환';
       const reviewedAssetIds = reviews.map(r => r.assetId);
       const cAssets = db.contractAssets.filter(ca => ca.contractId === delivery.contractId);
+      const registeredAt = new Date().toISOString();
 
       if (isExchange) {
         // 교환(EXCHANGE) 배차: 계약은 계속 진행(ACTIVE)되므로 완료시키지 않음
@@ -8286,7 +8291,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
             db.updateRow<ContractAsset>('contractAssets', ca.id, {
               status: 'RETURNED',
               actualReturnDate: ca.actualReturnDate || actualReturnDate,
-              updatedAt: new Date().toISOString()
+              inRegisteredAt: ca.inRegisteredAt || registeredAt,
+              updatedAt: registeredAt
             });
           }
         });
@@ -8297,7 +8303,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
             db.updateRow<ContractAsset>('contractAssets', ca.id, {
               status: 'RETURNED',
               actualReturnDate: ca.actualReturnDate || actualReturnDate,
-              updatedAt: new Date().toISOString()
+              inRegisteredAt: ca.inRegisteredAt || registeredAt,
+              updatedAt: registeredAt
             });
           }
         });
@@ -8362,6 +8369,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const defectSummary = processedDefects.map(d => `[${d.subNo}] ${d.checkitemName}(+${d.score}점)`).join(', ');
     const fullDefectSummary = [defectSummary, data.otherDefectText ? `[기타] ${data.otherDefectText}` : ''].filter(Boolean).join(' | ');
 
+    const registeredAt = new Date().toISOString();
+
     // 1. 자산 마스터 갱신 (정비필요항목 note 저장)
     db.updateRow<Asset>('assets', asset.id, {
       status: nextAssetStatus,
@@ -8371,15 +8380,16 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       currentSiteId: '',
       contractStart: '',
       contractEnd: '',
-      updatedAt: new Date().toISOString()
+      updatedAt: registeredAt
     });
 
-    // 2. 계약 자산 반납 갱신
+    // 2. 계약 자산 반납 갱신 (청구 연동: actualReturnDate는 실제 입고일, inRegisteredAt은 전산 등록일시)
     if (ca) {
       db.updateRow<ContractAsset>('contractAssets', ca.id, {
         status: 'RETURNED',
-        actualReturnDate: data.returnDate,
-        updatedAt: new Date().toISOString()
+        actualReturnDate: data.returnDate, // 실제 입고일 (청구 및 일할 정산 기준)
+        inRegisteredAt: registeredAt,     // 💡 실제 전산 입고 등록 일시 (행위 감사 기록)
+        updatedAt: registeredAt
       });
     }
 
@@ -8413,8 +8423,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         targetAssetStatus: 'REPAIRING',
         inspectionItemCode: processedDefects.length > 0 ? processedDefects.map(d => d.checkitemId).join(',') : undefined,
         degradationScore: score,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        createdAt: registeredAt,
+        updatedAt: registeredAt
       });
 
       // 🚀 [단일 업무 인계 파이프라인] 주기장 정비팀에 입고 정비 ToDo 영구 적재
@@ -8445,7 +8455,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     }
 
-    // 4. 자산 입출고 이력 무누락 기록 (INBOUND)
+    // 4. 자산 입출고 이력 무누락 기록 (INBOUND: eventDate/inDate는 실제 입고일, inRegisteredAt/createdAt은 등록일시)
     const ownershipNote = asset.ownerType === 'RENTED' && asset.antiEntrapmentOwnership === 'VENDOR'
       ? ' [협착방지봉: 원사 소유(탈거금지)]'
       : asset.ownerType === 'RENTED' && asset.antiEntrapmentOwnership === 'OURS'
@@ -8458,7 +8468,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       modelName: asset.modelName,
       type: 'INBOUND',
       inboundNo: assignedInboundNo,
-      eventDate: data.returnDate,
+      eventDate: data.returnDate,        // 기준 일자 (실제 입고일)
+      inDate: data.returnDate,           // 💡 실제 현장 입고일 (YYYY-MM-DD, 청구 및 가동일수 정산 기준)
+      inRegisteredAt: registeredAt,     // 💡 실제 전산 입고 등록 일시 (ISO String, 행위 발생 감사 기준)
       customerId: customer?.id || '',
       customerName: customer?.name || '',
       siteId: site?.id || '',
@@ -8467,7 +8479,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       maintenanceScore: score,
       defectsJson: defectsJsonStr,
       memo: (data.memo || (hasDefect ? `불량 입고 등록 (${fullDefectSummary})` : '정상 입고 등록 완결')) + ownershipNote,
-      createdAt: new Date().toISOString()
+      createdAt: registeredAt
     });
 
     await db.awaitPendingWrites();

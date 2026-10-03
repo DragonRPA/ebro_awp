@@ -1247,6 +1247,7 @@ export interface ContractAsset {
   expectedModel?: string;
   status?: 'RENTED' | 'RETURNED' | 'ASSIGNED' | 'SOLD' | string;
   actualReturnDate?: string;
+  inRegisteredAt?: string;   // 💡 전산 입고 처리 일시 (ISO String)
   monthlyRentalFee: number;
   dailyRentalFee: number;
   salePrice?: number; // 💡 자산 매각 계약 시 매각 공급가액
@@ -2140,7 +2141,9 @@ export interface AssetInOutLog {
   modelName: string;
   type: 'ACQUISITION' | 'OUTBOUND' | 'INBOUND' | 'INBOUND_CANCEL' | 'REPAIR' | 'DISPOSAL'; // 취득등록, 출고, 입고, 입고취소롤백, 정비, 매각
   inboundNo?: string; // 입고 고유 번호 (예: INB-20260809-001)
-  eventDate: string; // YYYY-MM-DD
+  eventDate: string; // YYYY-MM-DD (기준 일자)
+  inDate?: string; // 💡 실제 현장 입고일 (YYYY-MM-DD, 청구 및 가동일수 정산 기준)
+  inRegisteredAt?: string; // 💡 실제 전산 입고 등록 일시 (ISO String, 행위 발생 감사 기준)
   customerId?: string;
   customerName?: string;
   siteId?: string;

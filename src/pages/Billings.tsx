@@ -1783,19 +1783,23 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
   const diffDaysForWizard = getDiffDays();
 
-  // 💡 헌장 4.1 준수: 계약 내 개별 자산의 대차/회수/투입 기간을 반영한 정밀 일할/월정액 계산
+  // 💡 헌장 4.1 & 사장님 지침: 계약 내 개별 자산의 대차/회수/입고 기간을 반영한 정밀 일할/월정액 계산
+  // 청구 계산은 전산 등록일시가 아닌 실제 입고일(actualReturnDate / inDate)을 기준으로 100% 연동
   const calculateAssetFeeForWizard = (ca: any) => {
     if (!wizardStartDate || !wizardEndDate) return { amount: 0, days: 0, desc: '', active: false, isExchangeProRata: false };
 
-    // 계약 내 자산의 개별 유효 기간
+    // 계약 내 자산의 개별 유효 기간: 실제 입고일(actualReturnDate)이 있으면 우선 종료일로 엄격 채택
     const caStart = ca.startDate || wizardStartDate;
-    const caEnd = ca.endDate && ca.endDate !== '미정' ? ca.endDate : wizardEndDate;
+    const caEffectiveEnd = (ca.actualReturnDate && ca.actualReturnDate.trim() !== '' && ca.actualReturnDate !== '미정')
+      ? ca.actualReturnDate
+      : (ca.endDate && ca.endDate !== '미정' ? ca.endDate : wizardEndDate);
+    const caEnd = caEffectiveEnd;
 
     // 청구 대상 기간과 자산 유효 기간의 교집합(실제 가동 기간) 계산
     const effectiveStart = caStart > wizardStartDate ? caStart : wizardStartDate;
     const effectiveEnd = caEnd < wizardEndDate ? caEnd : wizardEndDate;
 
-    // 만약 청구 기간 외인 경우 (예: 이미 이전 달에 종료된 자산이 이번 청구에 걸린 경우 등)
+    // 만약 청구 기간 외인 경우 (예: 이미 이전 달에 종료/입고된 자산이 이번 청구에 걸린 경우 등)
     if (effectiveStart > effectiveEnd) {
       return { amount: 0, days: 0, desc: '청구 기간 외 (가동 없음)', active: false, isExchangeProRata: false };
     }
@@ -1805,8 +1809,8 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     const diff = Math.abs(d2.getTime() - d1.getTime());
     const days = isNaN(diff) ? 0 : Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1;
 
-    // 청구 기간 전체와 100% 일치하고 월정액 방식인 경우
-    const isFullPeriod = (effectiveStart === wizardStartDate && effectiveEnd === wizardEndDate);
+    // 청구 기간 전체와 100% 일치하고 월정액 방식인 경우 (중도 입고 반납이 없는 경우)
+    const isFullPeriod = (effectiveStart === wizardStartDate && effectiveEnd === wizardEndDate) && !ca.actualReturnDate;
     if (calcMethod === 'MONTHLY' && isFullPeriod) {
       return {
         amount: ca.monthlyRentalFee,
@@ -1816,13 +1820,14 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
         isExchangeProRata: false
       };
     } else {
-      // 대차 교체로 중도 회수/투입되었거나 일할 정산인 경우
+      // 대차 교체/중도 입고 반납되었거나 일할 정산인 경우 (실제 입고일까지 일할 계산)
       const daily = ca.dailyRentalFee > 0 ? ca.dailyRentalFee : Math.round(ca.monthlyRentalFee / 30);
       const amount = daily * days;
+      const inboundNote = ca.actualReturnDate ? ` (입고일: ${ca.actualReturnDate})` : '';
       return {
         amount,
         days,
-        desc: `${effectiveStart} ~ ${effectiveEnd} 일할 청구 (${days}일)`,
+        desc: `${effectiveStart} ~ ${effectiveEnd} 일할 청구 (${days}일)${inboundNote}`,
         active: true,
         isExchangeProRata: !isFullPeriod
       };

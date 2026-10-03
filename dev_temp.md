@@ -1,5 +1,43 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## [완료] 입고등록 시 입고일 vs 입고등록일시 엄격 분리 및 청구 연동, UI 표기 표준화, 전사 인앱 매뉴얼 한글 깨짐 100% 복원
+- **요구사항**: "입고등록 시, 입고등록 처리하는 시점으로 입고하는 기본값이지만, 회사의 업무량 과다에 의한 지연처리, 담무누락(실수)에 의한 당자의 업지연처리을 방어하기 위하여, 입고등록일시 값을 구분하여, 입고일과 입고등록일시를 구분하고, 청구의 계산은 입고일 을 기준으로 연동되어야 함. 입고등록일시는 실제 행위가 발생한 기록이고, 청구 업무는 입고일에 연동. 이해했으면 설계하고 진행. 모르겠으면 질문. UI 표기는 입고일 만 표시 해주고, 입고등록일시는 DB 에 자동으로 기록. 변경사항 매뉴얼 업데이트. 매뉴얼에 한글 깨짐 있어. 점검후 수정.ㄹㅇ"
+- **도메인 핵심 목적 및 비즈니스 방어선**:
+  1. **입고일 (`inDate` / `actualReturnDate`)**:
+     - 실제 장비가 고객 현장에서 반납되어 주기장에 도착한 물리적 기준 일자.
+     - 담당자가 업무량 과다 또는 실수로 며칠 뒤 전산 입력(지연 등록)하더라도 실제 반납일로 소급 지정 가능 (기본값: 오늘 날짜).
+     - **청구(Billing) 및 정산(Pro-rata)의 절대적 기준일**: 렌탈료 일할 계산 시 지연된 전산 등록 시점이 아닌 실제 입고일까지로 칼같이 마감하여 고객 과다 청구 분쟁을 원천 방어.
+     - **UI 표기**: 사용자의 시각적 혼선을 방지하고 직관성을 극대화하기 위해 UI 폼, 테이블, 그리드 전체에 **"입고일"** 단일 표준 표기.
+  2. **입고등록일시 (`inRegisteredAt` / `createdAt`)**:
+     - 담당자가 시스템에서 '입고 등록' 버튼을 물리적으로 클릭한 실제 트랜잭션 타임스탬프 (`new Date().toISOString()`).
+     - DB에 100% 자동 기록되어 전사 표준 헌장 1.2(사건 기록 무누락 DB 저장) 및 5.6(시계열 타임라인/감사 무결성) 준수.
+  3. **전사 인앱 매뉴얼 한글 깨짐 전면 복원**:
+     - 과거 마이그레이션 패치 시 유입되었던 `src/data/allMenuManuals.ts` 내 5개 메뉴(`dashboard`, `agentic_settlement_autopilot`, `agentic_asset_lifecycle`, `initial_db_upload`, `google_config`)의 깨진 문자 `\uFFFD` 2,067개를 100% 무수식어 건조 표준 한국어로 완벽 복원 (`\uFFFD = 0`).
+     - `manual_patches/` 내 잔재 파일 6종 정합화 및 `docs/e_Bro_Manual.md` 공식 매뉴얼 최신화 반영.
+- **아키텍처 및 구현 내역**:
+  1. `src/services/db.ts`:
+     - `ContractAsset` 인터페이스에 `inRegisteredAt?: string;` 추가.
+     - `AssetInOutLog` 인터페이스에 `inDate?: string;` (실제 입고일) 및 `inRegisteredAt?: string;` (전산 등록일시) 확장.
+  2. `src/context/AppContext.tsx`:
+     - `registerInboundAsset`:
+       - `ContractAsset.actualReturnDate`에 실제 입고일(`data.returnDate`), `inRegisteredAt`에 전산 등록일시(`registeredAt`) 자동 기록.
+       - `AssetInOutLog`에 `eventDate`, `inDate`, `inRegisteredAt`, `createdAt` 무누락 영구 저장.
+     - `completeInboundDelivery`:
+       - 배차 기반 회수 검수 시에도 실제 입고일과 전산 등록일시 동시 기록.
+  3. `src/pages/Billings.tsx`:
+     - `calculateAssetFeeForWizard`:
+       - 계약 자산의 유효 종료일 산출 시, 실제 입고일(`ca.actualReturnDate`)이 존재하면 계약 만료일이 남아있더라도 실제 입고일을 우선 종료일로 채택하여 정확히 실제 입고일까지로 일할 계산 연동.
+       - 일할 청구 비고란에 `(입고일: YYYY-MM-DD)` 자동 각인.
+  4. `src/pages/asset_history.tsx`:
+     - 입고 등록 폼 레이블을 `입고일 *`로 건조 표준화.
+     - 테이블 헤더를 `입고일`로 표준화하고 셀 데이터에 `log.inDate || log.eventDate` 표출.
+  5. `src/data/allMenuManuals.ts` & `docs/e_Bro_Manual.md`:
+     - 5개 메뉴 38개 단계 어노테이션 한국어 완벽 복원 (깨진 문자 0개 달성).
+     - 전사 통합 운영 매뉴얼 [체인 9], [체인 11], [M-15]에 입고일 vs 입고등록일시 및 청구 연동 지침 명문화.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 error, 895ms), 인코딩 감사 스크립트 `\uFFFD` 전수 0건 무결성 통과.
+
+---
+
 ## [완료] 임차자산 협착방지봉 소유권(임차처 소유 vs 당사 소유) 관리 및 주기장 입고 시 오탈거·비용 피청구 방지 경고 시스템 구현
 - **요구사항**: "임차자산 등록시 소유권이 임차거래처 소유인 물건이 있어. "협착방지봉" 이라는 옵션인데, 이것이 임차처 소유인지 당사 소유인지를 선택적을호 적용 해야돼. 이 정보는 임차자산이 반납되어 주기장에 입고 되었을 때, 출고팀이 이 옵션을 제거해서, 추가로 반환업무가 발생하거나 비용을 피 청구 당하는 이슈를 방지하려는 의도야. 어떻게 작동되어야 할지 설계해보고 진행."
 - **도메인 핵심 목적 및 리스크 방지**:

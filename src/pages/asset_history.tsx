@@ -461,7 +461,7 @@ export const AssetHistory: React.FC = () => {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12.5px', fontWeight: 'bold' }}>입고 일자 *</label>
+                <label style={{ fontSize: '12.5px', fontWeight: 'bold' }}>입고일 *</label>
                 <input
                   type="date"
                   max={todayStr}
@@ -1004,7 +1004,7 @@ export const AssetHistory: React.FC = () => {
                   <tr>
                     <th style={{ whiteSpace: 'nowrap' }}>번호</th>
                     <SortableTh label="입고 고유번호" sortKey="id" currentSort={sortConfig} onSort={requestSort} />
-                    <SortableTh label="입고일자" sortKey="eventDate" currentSort={sortConfig} onSort={requestSort} />
+                    <SortableTh label="입고일" sortKey="eventDate" currentSort={sortConfig} onSort={requestSort} />
                     <SortableTh label="관리번호" sortKey="assetNo" currentSort={sortConfig} onSort={requestSort} />
                     <SortableTh label="모델명" sortKey="modelName" currentSort={sortConfig} onSort={requestSort} />
                     <SortableTh label="고객사 (거래처)" sortKey="customerName" currentSort={sortConfig} onSort={requestSort} />
@@ -1051,7 +1051,7 @@ export const AssetHistory: React.FC = () => {
                               <td style={{ whiteSpace: 'nowrap', fontWeight: 'bold', color: 'var(--primary)', fontSize: '12px' }}>
                                 {log.inboundNo || '-'}
                               </td>
-                              <td style={{ whiteSpace: 'nowrap' }}>{log.eventDate}</td>
+                              <td style={{ whiteSpace: 'nowrap' }}>{log.inDate || log.eventDate}</td>
                               <td style={{ whiteSpace: 'nowrap' }}><strong style={{ color: 'var(--primary)' }}>{log.assetNo}</strong></td>
                               <td style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>{precisionModel}</td>
                               <td style={{ whiteSpace: 'nowrap' }}><strong>{log.customerName || '-'}</strong></td>
