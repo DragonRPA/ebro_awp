@@ -45,6 +45,7 @@ export const ACCOUNTING_TEMPLATE: PermissionRuleMap = {
   customer: { canView: true, canSave: false },
   site_options: { canView: true, canSave: false },
   contract: { canView: true, canSave: false },
+  public_construction_permits: { canView: true, canSave: false },
   product: { canView: true, canSave: false },
   asset: { canView: true, canSave: false },
   daily_inout: { canView: true, canSave: false },
@@ -69,6 +70,7 @@ export const SALES_TEMPLATE: PermissionRuleMap = {
   smart_as_request: { canView: true, canSave: true },
   receivable: { canView: true, canSave: true }, // 외상미수금 확인 및 독촉
   delinquency: { canView: true, canSave: true }, // 미수 채권 연체 관리
+  public_construction_permits: { canView: true, canSave: true }, // 인허가 건축공정 조회
   daily_inout: { canView: true, canSave: false },
   // 열람만 허용
   billing: { canView: true, canSave: false },

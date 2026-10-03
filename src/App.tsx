@@ -6,8 +6,10 @@ import {
   Truck, Wrench, Shield, ShoppingBag, CreditCard, LogOut, Sun, Moon, Menu, X, Zap, Settings, Database as DatabaseIcon,
   TrendingUp, Clock, AlertTriangle, Building2, ChevronDown, ChevronRight, Briefcase, Box, FolderKanban, ShieldAlert, Terminal, ArrowLeftRight, CheckSquare,
   Smartphone, Monitor, Car, FileText, Search, Printer, PackagePlus, Boxes, Calendar, Camera, BookOpen,
-  FileCheck, ShieldCheck, Bot
-, CheckCircle, Settings as SettingsIcon, SlidersHorizontal } from 'lucide-react';
+  FileCheck, ShieldCheck, Bot, Download
+, CheckCircle, Settings as SettingsIcon, SlidersHorizontal, Mail } from 'lucide-react';
+import { OfficialMailPage } from './pages/OfficialMailPage';
+import { getTenantAgentInstallerInfo, triggerTenantAgentDownload, AGENT_CERT_URL } from './services/agentService';
 
 import { WeatherWidget } from './components/WeatherWidget';
 import ApprovalRulesManage from './pages/ApprovalRulesManage';
@@ -50,6 +52,7 @@ import { Repairs } from './pages/Repairs';
 import { SmartAsRequest } from './pages/SmartAsRequest';
 import { FieldAsManagement } from './pages/FieldAsManagement';
 import { OrganizationSettings } from './pages/OrganizationSettings';
+import { TenantManagementPage } from './pages/TenantManagementPage';
 import { OtManagementPage } from './pages/OtManagementPage';
 import { LeaveApplicationPage } from './pages/LeaveApplicationPage';
 import { LeaveManagementPage } from './pages/LeaveManagementPage';
@@ -99,6 +102,8 @@ const PurchaseSettlementPage = React.lazy(() => import('./pages/PurchaseSettleme
 
 const AssetHistory = React.lazy(() => import('./pages/asset_history').then(module => ({ default: module.AssetHistory })));
 
+const PublicConstructionPermitsPage = React.lazy(() => import('./pages/PublicConstructionPermitsPage').then(module => ({ default: module.PublicConstructionPermitsPage })));
+
 export interface SubMenuItem {
   id: string;
   name: string;
@@ -114,7 +119,7 @@ export interface MenuGroup {
 }
 
 import ReactDOM from 'react-dom';
-import { db, supabase } from './services/db';
+import { db, supabase, getTenantSubscriptionInfo } from './services/db';
 import { useGridWheel } from './hooks/useGridWheel';
 
 /* ── 인앱 오버레이 매뉴얼 버튼 (헤더 우측 배치) ─────────────── */
@@ -423,6 +428,15 @@ const App: React.FC = () => {
     }
   }, [currentUser, activeTab, currentTenant]);
 
+  const [installerDownloadMsg, setInstallerDownloadMsg] = useState<string | null>(null);
+
+  const handleAgentInstallerDownload = () => {
+    const info = getTenantAgentInstallerInfo(currentTenant);
+    triggerTenantAgentDownload(currentTenant);
+    setInstallerDownloadMsg(`[${info.tenantName}] 설치 프로그램 다운로드가 시작되었습니다.`);
+    setTimeout(() => setInstallerDownloadMsg(null), 4000);
+  };
+
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginErrorMsg(null);
@@ -484,6 +498,8 @@ const App: React.FC = () => {
         { id: 'smart_return', name: '회수 요청', icon: <Zap size={16} />, component: <SmartReturn /> },
         { id: 'smart_as_request', name: 'AS 요청', icon: <Wrench size={16} />, component: <SmartAsRequest /> },
         { id: 'delinquency', name: '미수 채권 연체 관리', icon: <AlertTriangle size={16} />, component: <DelinquencyPage /> },
+        { id: 'official_mail', name: '공식 메일 발송', icon: <Mail size={16} />, component: <OfficialMailPage /> },
+        { id: 'public_construction_permits', name: '인허가 건축공정 조회', icon: <Building2 size={16} />, component: <PublicConstructionPermitsPage /> },
       ]
     },
     {
@@ -556,6 +572,7 @@ const App: React.FC = () => {
       items: [
         { id: 'organization', name: '조직 / 인사 관리', icon: <Users size={16} />, component: <OrganizationSettings /> },
         { id: 'permission', name: '사용자 및 권한', icon: <Shield size={16} />, component: <UsersPermissions /> },
+        { id: 'tenant_management', name: '테넌트 관리', icon: <Building2 size={16} />, component: <TenantManagementPage /> },
         { id: 'payroll', name: '급여 정산', icon: <CreditCard size={16} />, component: <PayrollPage /> },
         { id: 'leave_management', name: '연차관리', icon: <UserCheck size={16} />, component: <LeaveManagementPage /> },
         { id: 'privacy_audit', name: '개인정보 접속 감사', icon: <FileCheck size={16} />, component: <PrivacyAuditPage /> },
@@ -927,6 +944,137 @@ const App: React.FC = () => {
             </div>
           )}
 
+          {/* 💻 PC 에이전트 설치 프로그램 다운로드 (접속 URL 기준 테넌트 자동 식별) */}
+          <div style={{
+            marginTop: '16px',
+            padding: '14px 16px',
+            borderRadius: '10px',
+            backgroundColor: 'var(--bg-app)',
+            border: '1px solid var(--border-color)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+                <Monitor size={15} color="var(--primary)" style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: '12.5px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                  PC 에이전트 설치 프로그램
+                </span>
+              </div>
+              <span style={{
+                fontSize: '11px',
+                fontWeight: 800,
+                color: 'var(--primary)',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                padding: '2px 8px',
+                borderRadius: '12px',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
+              }}>
+                {isDemoMode() ? '(주)e-Bro렌탈 전용' : `${currentTenant?.displayName || currentTenant?.tradeName || '기연리프트'} 전용`}
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={handleAgentInstallerDownload}
+                style={{
+                  padding: '9px 10px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-card)',
+                  color: 'var(--text-primary)',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  whiteSpace: 'nowrap'
+                }}
+                title="PC 로컬 데스크톱 에이전트 설치 프로그램 다운로드 (콘솔 창 없는 무소음 백그라운드)"
+              >
+                <Download size={13} color="var(--primary)" style={{ flexShrink: 0 }} />
+                <span>PC 에이전트 (.exe)</span>
+              </button>
+
+              <a
+                href="/downloads/ebro-web-agent.zip"
+                download="ebro-web-agent.zip"
+                style={{
+                  padding: '9px 10px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-card)',
+                  color: 'var(--text-primary)',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  textDecoration: 'none',
+                  whiteSpace: 'nowrap'
+                }}
+                title="Chrome/Edge 브라우저 확장 프로그램 다운로드"
+              >
+                <Bot size={13} color="#0284c7" style={{ flexShrink: 0 }} />
+                <span>웹 확장도구 (.zip)</span>
+              </a>
+            </div>
+
+            {installerDownloadMsg && (
+              <div style={{
+                padding: '6px 10px',
+                borderRadius: '6px',
+                backgroundColor: '#dcfce7',
+                border: '1px solid #86efac',
+                color: '#166534',
+                fontSize: '11.5px',
+                fontWeight: 600,
+                textAlign: 'center',
+                whiteSpace: 'nowrap'
+              }}>
+                {installerDownloadMsg}
+              </div>
+            )}
+
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              fontSize: '11px',
+              color: 'var(--text-muted)',
+              paddingTop: '2px',
+              whiteSpace: 'nowrap'
+            }}>
+              <span>Windows 10 / 11 (64-bit)</span>
+              <a
+                href={AGENT_CERT_URL}
+                download="eBroAgent_Root.cer"
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  color: 'var(--text-muted)',
+                  textDecoration: 'underline',
+                  fontSize: '11px',
+                  cursor: 'pointer'
+                }}
+              >
+                보안 인증서 (.cer)
+              </a>
+            </div>
+          </div>
+
           {/* 접속 화면 모드 선택 (모바일 / PC) */}
           <div style={{
             marginTop: '16px',
@@ -1108,11 +1256,40 @@ const App: React.FC = () => {
               style={{ height: '32px', maxWidth: isDemoMode() ? '110px' : '90px', objectFit: 'contain', flexShrink: 0 }} 
               onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
             />
-            {/* 🏢 1열: 고객회사명(강조) / 2열: e-Bro ERP System (작은 글씨) */}
+            {/* 🏢 1열: 고객회사명(강조) + 만료상태 / 2열: e-Bro ERP System (작은 글씨) */}
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <span style={{ fontSize: '18px', fontWeight: '900', color: 'var(--text-primary)', letterSpacing: '-0.5px', whiteSpace: 'nowrap', lineHeight: 1.15 }}>
-                {currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || (isDemoMode() ? '(주)e-Bro렌탈' : '기연리프트')}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '18px', fontWeight: '900', color: 'var(--text-primary)', letterSpacing: '-0.5px', whiteSpace: 'nowrap', lineHeight: 1.15 }}>
+                  {currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || (isDemoMode() ? '(주)e-Bro렌탈' : '기연리프트')}
+                </span>
+                {currentTenant && (() => {
+                  const subInfo = getTenantSubscriptionInfo(currentTenant);
+                  if (subInfo.isExpiringSoon || subInfo.isExpired || subInfo.isGracePeriod) {
+                    return (
+                      <span
+                        title={`구독 만료일자: ${currentTenant.subscription?.endDate || ''} (클릭 시 테넌트 관리로 이동)`}
+                        onClick={() => setActiveTab('tenantManagement')}
+                        style={{
+                          padding: '1px 6px',
+                          borderRadius: '10px',
+                          fontSize: '10.5px',
+                          fontWeight: 800,
+                          backgroundColor: subInfo.badgeBg,
+                          color: subInfo.badgeColor,
+                          border: '1px solid rgba(0,0,0,0.08)',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px'
+                        }}
+                      >
+                        {subInfo.label}
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
               <span style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--primary)', letterSpacing: '0.2px', whiteSpace: 'nowrap', marginTop: '2px' }}>
                 {isDemoMode() ? 'e-Bro AWP ERP' : 'e-Bro ERP System'}
               </span>

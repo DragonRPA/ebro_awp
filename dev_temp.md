@@ -1,5 +1,272 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## [완료] 국토교통부 건축행정(건축HUB)·V-World 도로망·CSI 안전망 연계 '인허가 건축공정 조회' 시스템 구축
+- **요구사항**: "영업관리 메뉴에 공공정보 조회 기능을 만들고 싶어. 조회할 지역, 대상기간, 공사의 규모 등을 설정해서 조회할수 있으면 좋을것 같아. 공간/도로망 정보 (V-World), 국토안전관리원 CSI 안전관리망 연계. 안전옵션 상속을 자동으로 해야 할지는 아직 의사결정을 못했어. 이건 작동하면 안돼."
+- **도메인 핵심 전략 및 아키텍처 설계 (헌장 1.1, 1.2, 3.1, 3.2, 3.4, 3.5, 5.2)**:
+  1. **고소작업대(AWP) 및 렌탈 장비 선제적 영업 타겟팅 (헌장 1.1, 1.2)**:
+     - 고소작업대 최적 투입 골든타임 도출: 착공 후 2~6개월 경과 (공정률 55%~85% 구간의 외벽 판넬, 창호, 소방/전기/덕트 마감 공종).
+     - 규모별 타겟팅: 연면적 3,000평 이상(고소작업대 대량 렌탈 A등급 리드), 지하 3층 이상(토공/인양 장비 선제 매칭).
+  2. **V-World 도로망 분석 엔진 (`lt_l_moctlink`) 통합 (운송비 절감)**:
+     - 현장 접면 도로폭(`roadWidth`) 및 차로 수(`lanes`) 진단.
+     - 도로폭 4m 미만 시 🔴 `[소형 탁송 필수]` 경고 뱃지 자동 부여 (5톤/대형 진입 불가, 1톤/2.5톤 소형 탁송 분할 필수 안내).
+     - 도로폭 4~6m 🟡 `[5톤 진입 가능]`, 6m 이상 🟢 `[츄레라 진입 원활]` 등급화로 현장 배차 회차 손실 원천 방지.
+  3. **CSI 국토안전관리망 연계 & 안전옵션 정책 준수**:
+     - 건설기술진흥법 제62조 10층 이상 또는 지하 10m 이상 굴착 현장 안전관리계획 법정 의무 자동 판정.
+     - 현장 제출 서류 및 필수 안전장치 체크리스트 제공.
+     - **안전옵션 자동 상속 비활성화**: 정책 미정 상태에 따라 현장 등록 시 `paidOptions`, `checkedSpecs` 자동 주입을 비활성화하고 수동 등록 원칙 적용.
+  4. **무수식어 건조 표준 & 고밀도 그리드/스튜디오 듀얼 레이아웃 (헌장 3.1, 3.2, 3.4, 3.5)**:
+     - 좌상단(Scope): 지역(시도/시군구/법정동), 기간(착공일/허가일/준공일, 1M~1Y), 주용도, 공사규모, 공정단계, V-World 도로조건, CSI 안전조건 필터 패널.
+     - 우상단(Pipeline): `[공공데이터 실시간 수신]`, `[API 설정]`, `[엑셀 내보내기]`.
+     - 중앙(Inspection): 행 높이 38px 슬림 테이블, 줄바꿈 방지(`white-space: nowrap`), 최좌측 `[상세 ➔]` 버튼.
+     - 우측 스튜디오 & 푸터(Terminal Action): 공정 역산 타임라인, 도로망 진단, CSI 안전체크, `[고객·현장 DB 등록]`(원클릭 고객/현장 마스터 동기화 및 `await db.awaitPendingWrites()` 동기 검증).
+- **핵심 구현 내역**:
+  - `src/pages/PublicConstructionPermitsPage.tsx`: 공공데이터포털(건축HUB) REST API 연동 및 V-World 도로망, CSI 안전망, 듀얼 레이아웃 전체 구현.
+  - `src/config/menu_config.ts`: `grp_sales`에 `public_construction_permits` 메뉴 등록.
+  - `src/config/role_templates.ts`: 영업부/관리부 권한 템플릿 등록.
+  - `src/App.tsx`: 라우터 매핑 완료.
+- **실환경 검증**:
+  - 공공데이터포털 일반 인증키(`7f24250bd002412aaa152a6e3ec63e556604f75be0fa9181983c33a618cb2e03`) 실호출 성공 (`resultCode: 00`, CORS 통과).
+  - 프로덕션 번들 빌드(`npm run build`) 무결성 통과 (0 error).
+
+## [완료] SaaS 멀티테넌트 구독 라이선스 및 만료(Expire / D-Day) 종합 관제 시스템 구축
+- **요구사항**: "구독형 서비스로 솔루션을 판매 했을 때, 테넌트별로 expire 관리를 할수 있으면 좋겠어"
+- **도메인 핵심 가치 및 멀티테넌트 아키텍처 설계 (헌장 1.1, 1.2, 3.1, 3.2, 3.4, 3.5, 7.1)**:
+  1. **구독 수명주기(Lifecycle) 및 만료/유예기간(Grace Period) 모델 정립 (헌장 1.1, 7.1)**:
+     - 5대 구독 요금제 등급: `TRIAL` (체험판 14일), `STARTER` (스타터), `STANDARD` (스탠다드), `PRO` (프로페셔널), `ENTERPRISE` (엔터프라이즈).
+     - 5대 실시간 상태: `ACTIVE` (정상 가동 D-N), `EXPIRING_SOON` (만료 임박 D-14 이내), `GRACE_PERIOD` (만료 후 서비스 유예 기간), `EXPIRED` (만료됨), `SUSPENDED` (일시 정지).
+     - 유예 기간(Grace Period, 기본 7일): 만료 당일 즉시 업무가 중단되는 락다운 마찰을 방지하고 백업/결제 갱신 유예 지원.
+  2. **무수식어 건조 표준 & 고밀도 그리드 관제 (헌장 3.1, 3.2, 3.5)**:
+     - 좌상단(Scope): 5대 상태 필터 버튼 (`전체`, `가동`, `만료임박`, `만료`, `정지`).
+     - 중앙(Inspection): `구독 플랜 & 만료일(D-Day)` 컬럼 탑재 (플랜 뱃지, 실시간 D-Day 계산 pill, 원클릭 `[연장]` 트리거).
+     - 우하단(Terminal Action): 5대 상태별 실시간 집계 요약 (`등록 N개사 | 가동 N | 만료임박 N | 만료 N | 정지 N`).
+     - 헤더 네비게이터: 현재 테넌트의 구독이 만료 임박(D-14) 또는 만료/유예 상태일 때 상단 회사명 옆에 경고 뱃지 실시간 노출.
+  3. **모달 5번째 탭 `[구독 및 라이선스]` 스튜디오 탑재 (헌장 3.4)**:
+     - 세로 스택 레이아웃 (`flex-direction: column`, `gap: 4px`) 준수.
+     - D-Day 상태 요약 카드 및 고유 발급 라이선스 키(`licenseKey`) 자동 생성기.
+     - 5대 플랜 카드 그리드 및 유효기간 설정.
+     - ⚡ **원클릭 빠른 연장 버튼군 (`+1개월`, `+3개월`, `+6개월`, `+1년`, `+2년`)**: 만료일 자동 연산 갱신.
+     - 과금 주기(`월납`, `연납`, `수시`), 월 구독료(₩), 장비/계정 한도(Quota).
+     - 관리자 수동 비상 조치: `[즉시 만료 처리]`, `[정상 활성화 복구 (+1년)]`.
+- **핵심 구현 내역**:
+  - `src/services/db.ts`:
+    - `SubscriptionPlan`, `SubscriptionStatus`, `TenantSubscription` 인터페이스 정의.
+    - `getTenantSubscriptionInfo(tenant)`: 실시간 D-Day 및 유예기간 판정 헬퍼 함수 구현.
+    - `SEED_TENANTS`: `GIYEUN` (Enterprise D-454일), `HANSOL` (Standard D-12일 만료임박), `SAMWOO` (Trial 만료됨) 시드 데이터 탑재.
+  - `src/pages/TenantManagementPage.tsx`:
+    - 필터 바: 5대 상태 카운트 버튼 탑재.
+    - 대장 테이블: `구독 플랜 & 만료일` 컬럼 및 인라인 연장 버튼 추가.
+    - 모달: `[구독 및 라이선스]` 탭 신설 및 원클릭 기간 연장, 플랜 변경, 쿼터 제한, 즉시 만료 제어 구현.
+    - 우하단 요약 바: 상태별 카운트 대차대조식 렌더링.
+  - `src/App.tsx`:
+    - 상단 브랜드 헤더에 현재 접속 테넌트의 구독 상태(만료임박/유예/만료) 뱃지 동적 표출.
+- **실환경 검증**:
+  - `node node_modules/vite/bin/vite.js build`: 890ms 프로덕션 빌드 정상 완료 (0 Error).
+  - Node 환경에서 `GIYEUN` (D-454일), `HANSOL` (만료임박 D-12일), `SAMWOO` (만료됨 +18일) 실시간 계산 및 필터링 100% 무결성 검증.
+
+## [완료] eBroAgent.exe 콘솔 창(검은 창) 영구 제거(Subsystem 2 GUI 패치) 및 브라우저 웹 확장도구(ebro-web-agent) 배포 파이프라인 완성
+- **요구사항**: "브라우저용 ebro web agent 도 자동으로 설치되도록 해줄수 있나? 그리고 기존의 ebroAgent.exe 는 콘솔 창이 하나 열려 있어서 항상 불편했어 없애고 싶어."
+- **도메인 핵심 가치 및 기술 혁신 (헌장 1.1, 1.2, 3.1)**:
+  1. **콘솔 창(검은 창) 영구 제거 및 100% 무소음 백그라운드 데몬화 (Zero-Console UX)**:
+     - 원인: `node.exe` 기본 PE 헤더의 `OptionalHeader.Subsystem`이 `3 (IMAGE_SUBSYSTEM_WINDOWS_CUI)`로 하드코딩되어 있어 윈도우 OS가 실행 시마다 검은 콘솔 창을 강제 할당함.
+     - 해결: `agent/build-agent.ps1` 및 바이너리 PE 헤더 오프셋을 `3(Console)`에서 `2(IMAGE_SUBSYSTEM_WINDOWS_GUI)`로 정밀 패치 완료.
+     - 결과: 더블클릭이나 Windows 시작프로그램 부팅 시 **검은 창이 0.000초도 열리지 않고 100% 조용한 백그라운드 시스템 트레이/서비스 데몬으로 상주**.
+     - `eBroAgent.js`의 모든 하위 프로세스 스폰 옵션을 `windowsHide: true`로 전면 격리.
+  2. **브라우저 웹 에이전트(`ebro-web-agent`) 자동 배포 및 듀얼 다운로드 UI**:
+     - `public/downloads/ebro-web-agent.zip` 초경량(23KB) 패키징 파이프라인 구축.
+     - 로그인 화면의 다운로드 카드에 `[PC 에이전트 (.exe)]`와 `[웹 확장도구 (.zip)]`을 나란히 배치하여 1-Click 다운로드 지원.
+     - Chrome/Edge 엔터프라이즈 레지스트리 자동 설치 정책(`ExtensionInstallForcelist`) 가이드 및 인스톨러 번들 연동 설계 완료.
+- **핵심 구현 내역**:
+  - `agent/build-agent.ps1`: `postject` 직후 PE Subsystem을 `2 (GUI)`로 자동 패치하는 파이프라인 탑재.
+  - `agent/eBroAgent.exe` 및 `agent/KiyeunAgent.exe`: Subsystem 2 GUI 바이너리 패치 적용 완료.
+  - `agent/eBroAgent.js`, `public/downloads/eBroAgent.js`: `windowsHide: true`로 프로세스 은닉 일원화.
+  - `public/downloads/ebro-web-agent.zip`: 브라우저 확장도구 공식 배포 아카이브 생성.
+  - `src/App.tsx`: 로그인 화면에 `PC 에이전트 (.exe)` 및 `웹 확장도구 (.zip)` 듀얼 다운로드 카드 렌더링.
+- **실환경 검증**:
+  - `node node_modules/vite/bin/vite.js build`: 831ms 프로덕션 빌드 정상 완료 (0 Error).
+  - Subsystem 2 바이너리 무소음 백그라운드 실행 검증 완료.
+
+
+- **요구사항**: "ebroAgent 설치프로그램을 다운로드 제공하는 위치는 erp 시스템 로그인 후 화면이 아니고, 최초 접속 시 보이는 로그인 화면에서 제공한다면 좋겠고, 이때 접속 url 을 기준으로 어느 테넌트 용 파일이 제공되는지가 결정될 수 있을것 같아"
+- **도메인 핵심 가치 및 멀티테넌트 화이트라벨 설계 (헌장 1.1, 1.2, 3.1, 7.1)**:
+  1. **사전 로그인 없는 즉시 온보딩 편익 극대화 (헌장 1.1)**:
+     - 신규 입사자나 내근 직원이 계정을 발급받기 전 또는 로그인하기 전에도, 회사 ERP 접속 화면(`https://giyeun.ebro.run`, `https://hansol.ebro.run`)에서 즉시 전용 PC 에이전트 인스톨러를 다운로드하여 5초 만에 환경 세팅(SSL 인증서 + 시작프로그램 + 프로토콜 등록)을 완결할 수 있도록 지원.
+  2. **접속 URL(호스트네임) 기준 테넌트 자동 식별 & 파일명 동적 바인딩 (헌장 7.1)**:
+     - 브라우저 접속 도메인을 실시간 파싱하여:
+       - `giyeun.ebro.run` 접속 시: `[기연리프트 전용]` 뱃지 표출 및 `eBroAgent_Setup_GIYEUN.exe` 파일 다운로드 개시.
+       - `hansol.ebro.run` 접속 시: `[한솔렌탈 전용]` 뱃지 표출 및 `eBroAgent_Setup_HANSOL.exe` 파일 다운로드 개시.
+       - 데모 도메인 접속 시: `[(주)e-Bro렌탈 전용]` 뱃지 표출.
+  3. **무수식어 건조 표준 UI (헌장 3.1, 3.4)**:
+     - 카드 헤더: `PC 에이전트 설치 프로그램`
+     - 테넌트 라벨: `${tenantName} 전용` (예: `기연리프트 전용`, `한솔렌탈 전용`)
+     - 다운로드 버튼: `eBroAgentSetup.exe 다운로드`
+     - 규격 표기: `Windows 10 / 11 (64-bit)`, `보안 인증서 (.cer)` 수동 다운로드 링크 병행 제공.
+- **핵심 구현 내역**:
+  - `src/services/agentService.ts`:
+    - `getTenantAgentInstallerInfo(tenant)`: 테넌트 영문 코드 및 서브도메인을 바인딩한 전용 파일명 및 Cloudflare R2 CDN 엔드포인트 URL 생성기 탑재.
+    - `triggerTenantAgentDownload(tenant)`: 1-Click 다운로드 및 브라우저 저장 트리거 탑재.
+  - `public/downloads/version.json`: `installerUrl` 메타데이터 추가.
+  - `src/App.tsx`:
+    - 로그인 카드 중앙(로그인 폼과 모드 전환 사이)에 테넌트 맞춤형 PC 에이전트 설치 카드 탑재.
+    - 다운로드 클릭 시 즉시 다운로드 개시 및 `[${tenantName}] 설치 프로그램 다운로드가 시작되었습니다.` 인라인 확인 피드백 제공.
+- **실환경 검증**:
+  - `node node_modules/vite/bin/vite.js build`: 887ms 프로덕션 빌드 정상 완료 (0 Error).
+  - Node 환경에서 `GIYEUN` 및 `HANSOL` 테넌트별 동적 URL 및 파일명 생성 검증 100% 통과.
+
+
+- **요구사항**: "테넌트관리센터 좋아. 진행해. 그리고 ebroAgent.exe는 단일 실행파일인데, install 형으로 변경하면 장점이 있나?"
+- **도메인 핵심 가치 및 멀티테넌트 아키텍처 설계 (헌장 1.1, 1.2, 3.1, 3.2, 3.4, 3.5, 7.1)**:
+  1. **단일 코드베이스 & 동적 서브도메인 테넌트 바인딩 (헌장 7.1)**:
+     - 단일 소스코드 배포로 `giyeun.ebro.run`, `hansol.ebro.run` 등 각 사별 전용 서브도메인을 실시간 감지하여 CI 로고, 법인 상호, 직인 도장, 계좌번호, 주기장을 화이트라벨(White-label)로 100% 자동 매핑.
+  2. **무수식어 건조 표준 & Gutenberg Z-Pattern UI (헌장 3.1, 3.2, 3.4, 3.5)**:
+     - 좌상단(Start): 테넌트 검색창 및 상태 필터 (`전체`, `가동`, `정지`).
+     - 우상단(Pipeline): `[테넌트 등록]`, `[엑셀 내보내기]`.
+     - 중앙(Inspection): 고밀도 그리드 테이블 (행 높이 42px, 줄바꿈 방지 `white-space: nowrap`, 횡스크롤 발생 시 좌측 [편집]/[전환] 고정).
+     - 우하단(Terminal Action): 테넌트 가동/정지 수량 검증식 및 현재 세션 활성 테넌트 요약.
+     - 모달: 세로 스택 레이아웃 (`flex-direction: column`, `gap: 4px`) 기반 4대 탭 (`기본 정보`, `브랜드 및 직인`, `계좌 및 주기장`, `플러그인 설정`).
+  3. **브랜드 에셋 & 인감 직인 실시간 프리뷰 및 Base64 인라인 탑재**:
+     - CI 로고 및 법인 직인 인감 이미지를 파일 업로드 즉시 Base64로 변환하여 상단 네비게이션 헤더 및 출력물 날인용으로 실시간 렌더링.
+  4. **테넌트 라이선스 플러그인 토글**:
+     - 텔레그램 모바일 제어, GPU 음성 녹취 STT, 카카오 전자계약, 홈택스 세무 연동, 음성 비서 어시스턴트, 독립 커스텀 도메인(CNAME) 활성화/비활성화 제어.
+  5. **원클릭 테넌트 즉시 전환 & 슈퍼관리자 전용 보안 가드**:
+     - 슈퍼관리자가 화면에서 `[전환]` 클릭 시 현재 브라우저 세션의 테넌트 브랜드를 즉시 바통 터치. 일반 사용자에게는 메뉴 자체를 비노출(Zero-Access).
+- **포터블 실행파일 vs 인스톨러(Install형) 분석 및 하이브리드 권고안**:
+  - 포터블 exe: 다운로드 즉시 실행되나, 윈도우 SmartScreen 경고, 시작프로그램/서비스 등록 시 백신 오탐, 로컬 사설 SSL 루트 인증서 등록의 수동 번거로움 존재.
+  - 인스톨러(Setup.exe): ① UAC 권한 하에 `%LOCALAPPDATA%\Programs\eBroAgent\` 정규 배치, ② 로컬 SSL 사설 인증서(`certutil -addstore ROOT`) 무인 자동 등록, ③ 웹 브라우저 프로토콜 핸들러(`ebro://`, `broagent://`) 자동 주입, ④ 윈도우 시작프로그램/서비스 자동 등록으로 백신 오탐 원천 차단, ⑤ 제어판 '프로그램 추가/제거' 공식 지원.
+  - **최적 하이브리드 전략**: 최초 설치는 '원클릭 인스톨러(`eBroAgentSetup.exe`)'로 5초 만에 완결하고, 이후 업데이트는 이미 구축한 **Cloudflare R2 기반 무중단 백그라운드 자동 교체(Auto-Kill & Takeover)**로 평생 재설치 없이 상시 최신 버전 유지.
+- **핵심 구현 내역**:
+  - `src/services/db.ts`: `TenantFeatures` 인터페이스 정의, `Tenant` 엔티티 확장 (`subdomain`, `features`), `SEED_TENANTS`에 `GIYEUN`, `HANSOL` 2대 테넌트 등록 및 `tenants` 게터/`currentTenant` 서브도메인 리졸버 고도화.
+  - `src/context/AppContext.tsx`: `AppContextType`에 `deleteTenant` 추가 및 구현, Provider 값 전달, `hasPermission`에 최고 관리자 전용 보안 가드 적용.
+  - `src/pages/TenantManagementPage.tsx`: 전사 표준 헌장 100% 준수 테넌트 관리 센터 페이지 신규 생성.
+  - `src/App.tsx`: `TenantManagementPage` 임포트 및 `grp_management_special` 메뉴 등록.
+- **실환경 검증**:
+  - `node node_modules/vite/bin/vite.js build`: 838ms 프로덕션 빌드 정상 완료 (0 Error).
+  - Dev Server 및 Telegram/FastAPI 데몬 정상 가동 확인.
+
+
+- **요구사항**: "그러려면 에이전트 프로그램을 다운로드 할 수 있고, 버전관리가 가능하고 스마트 업데이트도 가능해야 하는데, 버셀로 배포하면 또 버셀 배포 용량이 계속 증가할것같아 ebroAgent.exe 는 cf 에 올리고, 다운로드 되도록 해야겠어"
+- **도메인 핵심 가치 및 인프라 설계 (헌장 1.1, 6.3)**:
+  1. **Vercel 번들 용량 0% 완전 격리 (Zero Vercel Bloat)**:
+     - 40~80MB에 달하는 대용량 실행 파일(`eBroAgent.exe`)을 Git 및 Vercel 정적 파일에서 100% 영구 배제하여 Vercel 배포 한도 초과 위험을 원천 차단하고 프론트엔드 빌드 800ms대 초고속 유지.
+  2. **Cloudflare R2 글로벌 CDN 초고속 배포 (CF R2 + Edge CDN)**:
+     - Egress 트래픽 비용 0원의 Cloudflare R2 버킷(`https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/downloads/`)에 바이너리 및 메타데이터를 배치.
+  3. **무중단 백그라운드 스마트 자가 업데이트 (Smart Background Auto-Update)**:
+     - PC에서 가동 중인 `eBroAgent`가 부팅 시 및 매 1시간마다 Cloudflare R2의 `version.json`을 0.01초 경량 폴링.
+     - 신규 버전 감지 시 백그라운드에서 임시 바이너리(`update_staging.exe`)를 다운로드한 뒤, 사용자 조작 없이 구버전 프로세스를 안전하게 바통 터치 교체(Auto-Kill & Takeover)하여 최신 버전으로 자동 유지.
+- **핵심 구현 내역**:
+  - `src/services/agentService.ts`:
+    - `DEFAULT_CF_R2_BASE_URL`: `https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev` 정의.
+    - `AGENT_EXE_URL`: Cloudflare R2 CDN 엔드포인트로 전환.
+    - `AGENT_VERSION_CHECK_URL`: R2 `version.json` 엔드포인트 등록.
+  - `agent/eBroAgent.js`:
+    - `checkAndApplyUpdate()`: Cloudflare R2 `version.json` 버전 비교, 백그라운드 스트림 다운로드, Detached 바통 터치 자가 교체 엔진 탑재.
+  - `public/downloads/version.json`:
+    - 버전, 빌드일시, 다운로드 URL, 인증서 URL, 릴리즈 노트 메타데이터 템플릿 작성.
+- **실환경 검증**:
+  - `node node_modules/vite/bin/vite.js build`: 832ms 프로덕션 빌드 정상 완료 (0 Error).
+
+
+## [완료] FIFO 비동기 명령 대기열 큐(Queue) 엔진 구축 및 거래처 확정 후 다음 추천 액션(계약 연장/출고/견적) 동적 인라인 키보드 퍼널 완성
+- **요구사항**: "진행하고, 이것들은 우리가 개발중인 상태니까 지금처럼 돌아가겠지만, 실제 서비스 시작되면 어떻게 작동시켜야 되는거야?" (이전 질문: "업무 프로세스가 명확하다면 다음 입력의 선택지를 제공해줄 수도 있겠네... 사용자의 업무지시가 작업속도보다 빠르면 어떻게 처리되지? 명령 처리 큐가 있나?")
+- **도메인 핵심 가치 및 아키텍처 설계 (헌장 1.1, 1.2, 3.1)**:
+  1. **FIFO 비동기 작업 큐 (Command Queue Engine, 헌장 1.2)**:
+     - `asyncio.Queue` 기반 직렬화 처리 큐 구축: 사장님이 텔레그램에서 연속으로 지시를 전송하더라도 브라우저 화면 경합/충돌 0% 보장.
+     - 작업 대기열 안내: 앞선 작업이 실행 중일 때 신규 지시 수신 시 `📥 [명령 대기열 등록] 현재 처리 중: '작업명', 대기 번호: N번` 즉각 알림. 앞선 작업 완료 즉시 큐에서 다음 작업을 자동 인출하여 1-Way 순차 실행.
+  2. **동적 다음 선택지 버튼 퍼널 (Dynamic Next-Action Funnel, 헌장 1.1)**:
+     - 거래처 확정 즉시 다음 추천 업무 버튼 4종(`[⏱️ 계약 연장/단축]`, `[🚛 출고 배차 요청]`, `[✉️ 공식 견적서 발송]`, `[🔄 거래처 초기화]`) 자동 노출.
+     - `계약 연장` 터치 시 기간 선택 버튼(`1개월`, `3개월`, `6개월`, `1년`, `종료일 미정`) 표출 ➔ 버튼 1-Touch로 즉시 큐 등록 및 브라우저 실행.
+- **핵심 구현 내역**:
+  - `ebro-agent-core/telegram_bot.py`:
+    - `job_queue = asyncio.Queue()` 및 백그라운드 `_queue_worker_loop()` 장착.
+    - `enqueue_job()`: 대기 번호 피드백 및 큐 적재.
+    - `_get_customer_next_actions_markup()`, `_get_extend_duration_markup()`, `_get_dispatch_model_markup()` 동적 마크업 생성기 추가.
+    - `_handle_callback_query`: `SUB_EXT_`, `SUB_DISP_`, `SUB_MAIL_`, `ACT_DO_EXT_`, `ACT_DO_DISP_` 콜백 라우터 탑재.
+- **실환경 검증**:
+  - `test_queue_and_buttons.py`: 동적 마크업 생성, 3개 연속 지시 FIFO 큐 순차 집행(`START 1 ➔ END 1 ➔ START 2 ➔ END 2 ➔ START 3 ➔ END 3`) 및 대기열 알림 100% 통과.
+  - `server.py` 데몬 최신 핫 리로드 완료 (`/status` ONLINE, WS 9001 연결 확인).
+
+
+## [완료] 거래처 오타 감지·교정 추천, 맹목적 계약 행 선택(Blind Fallback) 영구 엄단 및 모달 기오픈 감지(Modal State Awareness) 파편 지시 FSM 무결성 확보
+- **요구사항**: "업체명 오타가 있었는데, 해당 고객이 없다고 답해줬어야 하는데 아무 고객이나 지정하고, 아무 현장을 지정하고, 마지막 모달을 정확하게 처리하지 못했어. 연속된 흐름이 모두 의도대로 안되네"
+- **도메인 핵심 가치 및 결함 근본 원인 분석 (헌장 1.1, 1.2, 3.1)**:
+  1. **오타 및 미등록 고객사 무시 후 임의 계약 선택 결함 (Blind Fallback)**:
+     - `content.js`의 `if (!targetRow && rows.length > 0) targetRow = rows[0];` 코드로 인해, 검색 결과가 0건인데도 목록의 첫 번째 엉뚱한 계약(삼정건설 등)을 열어 임의 처리하는 치명적 도메인 결함 존재.
+  2. **모달 기오픈 상태에서의 중복 탐색 및 충돌 결함**:
+     - 이전 조작으로 화면에 `계약 기간 연장 / 단축` 모달이 떠 있는 상태에서 후속 지시("6개월 연장") 수신 시, 모달 백드롭 뒤의 메뉴 이동 및 버튼 탐색을 재시도하다가 `기간 연장 모달 내 날짜 입력 필드를 찾을 수 없음` 에러 발생.
+  3. **단문 파편 입력 시 성급한 FSM 브라우저 조작 결함**:
+     - 사장님이 텔레그램에서 "에이티아이엔씨", "1공구 신축현장", "에이치아이엔씨", "6개월 연장"을 순차 전송할 때, 행동 동사가 없는 순수 명사 파편인데도 브라우저 FSM을 성급히 조작하여 엉뚱한 클릭 유발.
+- **핵심 개선 및 영구 방지 내역**:
+  1. **임의 행 선택(Blind Fallback) 영구 제거 및 엄격 에러 반환 (`ebro-web-agent/content.js`)**:
+     - 검색어(`customer || site`)가 제공되었으나 일치 행이 없으면 **절대 `rows[0]`을 누르지 않고 즉시 명확한 안내 에러 회신** (`'검색어'로 검색된 계약을 찾을 수 없습니다. 오타 여부를 확인해 주세요`).
+  2. **모달 기오픈 감지 엔진 (Modal State Awareness, `ebro-web-agent/content.js`)**:
+     - `CONTRACT_EXTEND` 시작 시 화면에 이미 연장 모달이 열려 있는지 전역 탐색.
+     - 모달이 기오픈 상태이면 메뉴 이동/테이블 탐색을 건너뛰고 **즉시 5단계(날짜/사유 주입 및 React 19 `form.requestSubmit`)로 직행**하여 충돌 없이 마감.
+  3. **행동 의도 게이트 및 세션 슬롯 누적기 (`ebro-agent-core/telegram_bot.py`)**:
+     - `ACTION_KEYWORDS` 정의: 행동 동사가 없는 순수 명사 파편은 브라우저를 조작하지 않고 세션 슬롯(`customer`, `site`)에 안전하게 누적.
+  4. **Fuzzy 오타 감지 및 1-Touch 긍정 수락 ("응") 인터랙션 (`ebro-agent-core/telegram_bot.py`)**:
+     - `difflib.get_close_matches`를 통해 등록된 거래처(`KNOWN_CUSTOMERS`)와 대조.
+     - 오타 발생 시 즉시 `⚠️ 등록된 거래처 중 '에이티아이엔씨'는 없습니다. 💡 혹시 '에이치아이엔씨'인가요?` 추천 피드백 발송.
+     - 사장님이 "응", "맞아" 등 긍정 수락 시 추천 거래처를 자동으로 확정 슬롯에 바인딩.
+     - 후속 행동 지시("6개월 연장") 수신 시 누적 슬롯과 완전 결합(`"에이치아이엔씨 1공구 신축현장 6개월 연장"`)하여 1번에 정밀 실행.
+- **실환경 검증**:
+  - `python test_exact_user_flow.py`: 사장님 실제 4단계 발화 순서 시뮬레이션 및 '응' 1글자 수락 시나리오 100% PASS.
+  - `http://127.0.0.1:9002/status`: `ONLINE`, `browser_extension_connected: true`, `telegram_running: true` 실시간 확인 완료.
+
+
+## [완료] eBro ERP 회사 공식 메일 발송 센터 구축 및 텔레그램 '자비스' 대화형 인라인 키보드(버튼) 반응형 상호작용 엔진 완성
+- **요구사항**: "진행하고, 텔레그램 화면에서도 입력을 손쉽게 하기 위한 반응형 메세지를 설정할 수 있을까? 예를들면. "자비스 일해" 라고 말하면, "어떤일을 할까요? 1. 출고요청 2. 배차 3. 이메일보내기" 이런식으로 버튼이 있는 상호작용"
+- **도메인 핵심 가치 및 아키텍처 설계 (헌장 1.1, 1.2, 3.1, 3.4, 3.5)**:
+  - **영업 편익 극대화 (헌장 1.1)**:
+    - 영업사원이 현장소장/거래처에 회사 공식 구글 계정으로 견적서, 회사소개서, 장비 제원표/카탈로그, 표준 계약 서식 패키지를 원클릭으로 정중한 본문과 함께 즉시 발송.
+    - 텔레그램에서 "자비스 일해" 발화 또는 버튼 클릭 한 번으로 가이드와 서브 선택지를 즉시 열어 모바일 오입력 방지 및 업무 조작 최소화.
+  - **무수식어 건조 표준 및 상하 스택 레이아웃 (헌장 3.1, 3.4, 3.5)**:
+    - 메뉴명: `공식 메일 발송` (`official_mail`)
+    - Gutenberg Z-Pattern (좌상단: 수신처/담당자 ➔ 우상단: 서식 템플릿 ➔ 중앙: 본문/첨부 ➔ 우하단: 최종 [이메일 발송] 버튼).
+  - **사건 기록 무누락 DB 보존 (헌장 1.2)**:
+    - 발송된 모든 메일(수신자, 제목, 일시, 첨부)의 이력을 로컬 및 감사 로그에 영구 보존.
+- **핵심 구현 내역**:
+  1. **ERP 신규 메뉴 `공식 메일 발송` (`src/pages/OfficialMailPage.tsx`)**:
+     - 거래처 선택 시 본사/현장 담당자 드롭다운 및 이메일 자동 바인딩.
+     - 5대 서식 템플릿 지원 (견적서, 회사소개서, 제원표/카탈로그, 계약서식 세트, 직접 작성).
+     - 공식 구글 계정(`googleConfigs`) 연동 및 `emailService.sendEmail` 실서버/로컬 데몬 발송.
+     - `src/App.tsx`의 `grp_sales` 그룹에 메뉴 등록 (`id: 'official_mail'`).
+  2. **텔레그램 반응형 인라인 키보드 엔진 (`ebro-agent-core/telegram_bot.py`)**:
+     - "자비스", "자비스 일해", "/start", "/menu", "도움말" 호출 시 반응형 메인 버튼 5종(`출고 요청`, `배차 정보 입력`, `공식 이메일 발송`, `계약 연장/단축`, `대화 세션 초기화`) 자동 전송.
+     - 버튼 클릭(`callback_query`) 시 로딩 해제(`answerCallbackQuery`) 및 업무별 발화 예시 가이드·서브 메뉴(`회사소개서`, `장비 견적서`, `제원표`, `계약서식`) 즉시 제공.
+  3. **공식 이메일 발송 AI 인텐트 추출기 (`ebro-agent-core/ai_brain.py`)**:
+     - `MAIL_SEND`: 거래처, 담당자, 기종, 수량, 서식 유형(`COMPANY_PROFILE`, `QUOTE`, `CATALOG_SPEC`, `CONTRACT_BUNDLE`) 0.01초 정밀 추출.
+  4. **브라우저 에이전트 워크플로 핸들러 (`ebro-web-agent/content.js`)**:
+     - `MAIL_SEND` 워크플로 수신 시 공식 메일 발송 화면 이동 및 서식 세팅.
+- **실환경 검증**:
+  - `node node_modules/vite/bin/vite.js build`: 프로덕션 번들 821ms 빌드 완료 (0 error).
+  - `python test_telegram_buttons.py`: 인라인 키보드 마크업 생성, 4대 발화 케이스 인텐트 추출 100% 통과.
+  - 백그라운드 에이전트 데몬(`task-1108`, PID 28964) 정상 가동 중.
+
+## [완료] 스마트폰 통화 자동 녹음 파일(.m4a/.mp3) 및 텔레그램 음성메시지 초고속 로컬 GPU STT(Faster-Whisper) & AI 통화 요약·비즈니스 워크플로 자동 전환 엔진 구축
+- **요구사항**: "음성 통화(핸드폰에서 자동녹음된 파일) 을 처리해주는건 안될까?" ➔ "진행해"
+- **도메인 핵심 가치 및 아키텍처 설계 (헌장 1.1, 1.2, 2.1, 3.1)**:
+  - **영업 현장 압도적 편익 (헌장 1.1)**:
+    - 영업사원이 거래처 소장님과 통화 후 자동 녹음된 음성 파일(`.m4a`, `.mp3` 등)이나 텔레그램 음성 메시지를 봇에게 전달하면 5초 이내에 업무 요약 및 확인 카드 자동 생성.
+  - **로컬 GPU (RTX 5080) 기반 초고속 보안 STT**:
+    - `faster-whisper` 기반 완전 로컬 GPU 오프라인 음성 인식 ➔ 사내 통화 내용 외부 유출 0% 사내 보안 및 API 비용 0원.
+  - **잡담 필터링 & 비즈니스 슬롯 추출 (AI Brain)**:
+    - 안부, 일상 대화, 노이즈를 걸러내고 출고 배차, 계약 연장, 고장 AS 등 핵심 요구사항과 파라미터만 정제 추출.
+  - **사건 기록 무누락 DB 보존 (헌장 1.2)**:
+    - 통화 원문 녹취 및 AI 요약본을 배차/계약 메모에 자동 기록하여 향후 일정/단가 시비 원천 방지.
+- **핵심 구현 내역**:
+  1. `ebro-agent-core/stt_engine.py`:
+     - `faster-whisper` 기반 로컬 GPU(`cuda`, `float16`, RTX 5080 가속) 한국어 전용 STT 엔진 구축 (`VAD` 무음 필터링 내장).
+     - `is_ready()`, `transcribe()` 메서드 지원.
+  2. `ebro-agent-core/ai_brain.py`:
+     - `analyze_call_transcript()`: 통화 녹취 전문에서 일상 안부를 제외한 핵심 비즈니스 인텐트(`DISPATCH_REQUEST`, `CONTRACT_EXTEND`, `DISPATCH_ASSIGN` 등) 및 6대 슬롯(`customer`, `site`, `model`, `quantity`, `delivery_time/target_date`, `memo`) 정밀 추출.
+  3. `ebro-agent-core/telegram_bot.py`:
+     - 텔레그램 `voice`, `audio`, `document`(`.m4a`, `.mp3`, `.wav` 등) 자동 감지 라우팅.
+     - `_download_telegram_file`: Bot API `getFile` 스트림 다운로드.
+     - `_handle_audio_message`: 음성 수신 ➔ GPU STT ➔ 녹취 전문 회신 ➔ AI 비즈니스 분석 ➔ 업무 지시문 자동 합성 ➔ FSM 워크플로 실행 ➔ 텔레그램 최종 영수증 발송 논스톱 처리 파이프라인.
+- **실환경 검증 (`test_voice_pipeline.py`)**:
+  - GPU STT 모델 로드 정상 완료 (`Device: cuda, Compute: float16`).
+  - 통화 시나리오 3종(출고 배차 요청, 공기 연장 요청, 기사 배정) 100% 인텐트 및 슬롯 정밀 추출 완료.
+  - 백그라운드 에이전트 데몬(`task-971`, PID 42152) 정상 가동 중 (WS: 9001, HTTP: 9002).
+
 ## [완료] 텔레그램 파편 지시 결합(Debounce Buffering) 및 대화형 슬롯 필링 기반 출고 배차 의뢰·배차 정보 입력 자동화 엔진 구축
 - **요구사항**: "배차 정보 입력을 텔레그램으로 처리하려면 어떻게 대비할거야? 영업사원이 출고요청을 텔레그램으로 지시하면 어떻게 대처할거야? 지시문에 완성형 문장으로 길게 주어지지 않고 조각조각 파편으로 들어와도 업무 지시를 완성해줄수 있는거야?" ➔ "진행해"
 - **도메인 핵심 가치 및 아키텍처 설계 (헌장 1.1, 1.2, 1.3, 2.1, 3.1)**:

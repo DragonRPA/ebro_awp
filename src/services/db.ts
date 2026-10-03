@@ -130,9 +130,148 @@ export interface TenantExcelMappingRules {
   statementPrintAreaStartRow: number; // e.g. 1
 }
 
+/** ⚡ 테넌트별 라이선스 및 기능 플러그인 설정 */
+export interface TenantFeatures {
+  telegramBot?: boolean;          // 텔레그램 모바일 관제 봇
+  callRecordingStt?: boolean;     // 음성 통화 녹취 STT
+  kakaoContract?: boolean;        // 카카오 전자계약 / 알림톡
+  autoTaxInvoice?: boolean;       // 홈택스 전자세금계산서 연동
+  customDomain?: string;          // 고객사 독립 커스텀 도메인
+  voiceAssistance?: boolean;      // 음성 비서 어시스턴트
+}
+
+/** 💳 테넌트 구독 요금제 등급 */
+export type SubscriptionPlan = 'TRIAL' | 'STARTER' | 'STANDARD' | 'PRO' | 'ENTERPRISE';
+
+/** ⏳ 테넌트 구독 라이선스 상태 */
+export type SubscriptionStatus = 'ACTIVE' | 'EXPIRING_SOON' | 'GRACE_PERIOD' | 'EXPIRED' | 'SUSPENDED';
+
+/** 📑 테넌트 구독 계약 및 만료(Expire) 라이선스 정보 */
+export interface TenantSubscription {
+  plan: SubscriptionPlan;              // 구독 요금제 등급
+  status: SubscriptionStatus;          // 구독 상태
+  startDate: string;                   // 구독 시작일자 (YYYY-MM-DD)
+  endDate: string;                     // 구독 만료일자 (YYYY-MM-DD)
+  gracePeriodDays: number;             // 만료 후 서비스 유예 기간 일수 (기본 7일)
+  billingCycle: 'MONTHLY' | 'YEARLY' | 'CUSTOM'; // 결제 주기 (월납, 연납, 수시)
+  monthlyFee?: number;                 // 월간 구독료 (원 단위)
+  autoRenew?: boolean;                 // 자동 갱신 여부
+  maxAssets?: number;                  // 최대 허용 관리 장비 대수 (0 또는 미지정: 무제한)
+  maxUsers?: number;                   // 최대 허용 계정 수 (0 또는 미지정: 무제한)
+  licenseKey?: string;                 // 고유 발급 라이선스 키 (eBroAgent / 외부 API 연동용)
+  memo?: string;                       // 계약 및 라이선스 메모
+}
+
+/** 📊 테넌트 구독 만료 및 D-Day 실시간 판정 헬퍼 */
+export function getTenantSubscriptionInfo(tenant: Tenant): {
+  plan: SubscriptionPlan;
+  status: SubscriptionStatus;
+  daysRemaining: number;
+  isExpired: boolean;
+  isGracePeriod: boolean;
+  isExpiringSoon: boolean;
+  label: string;
+  badgeBg: string;
+  badgeColor: string;
+  planLabel: string;
+} {
+  const sub = tenant.subscription;
+  if (!sub) {
+    return {
+      plan: 'STANDARD',
+      status: 'ACTIVE',
+      daysRemaining: 999,
+      isExpired: false,
+      isGracePeriod: false,
+      isExpiringSoon: false,
+      label: '무제한',
+      badgeBg: '#f3f4f6',
+      badgeColor: '#4b5563',
+      planLabel: '표준 요금제',
+    };
+  }
+
+  const planLabels: Record<SubscriptionPlan, string> = {
+    TRIAL: '체험판 (14일)',
+    STARTER: '스타터',
+    STANDARD: '스탠다드',
+    PRO: '프로페셔널',
+    ENTERPRISE: '엔터프라이즈',
+  };
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const endStr = sub.endDate || todayStr;
+  const today = new Date(todayStr).getTime();
+  const end = new Date(endStr).getTime();
+  const diffDays = Math.round((end - today) / (1000 * 60 * 60 * 24));
+  const graceDays = sub.gracePeriodDays ?? 7;
+
+  if (diffDays < 0) {
+    const overdueDays = Math.abs(diffDays);
+    if (overdueDays <= graceDays) {
+      return {
+        plan: sub.plan,
+        status: 'GRACE_PERIOD',
+        daysRemaining: diffDays,
+        isExpired: false,
+        isGracePeriod: true,
+        isExpiringSoon: false,
+        label: `유예 ${graceDays - overdueDays}일 남음`,
+        badgeBg: '#ffedd5',
+        badgeColor: '#c2410c',
+        planLabel: planLabels[sub.plan] || sub.plan,
+      };
+    } else {
+      return {
+        plan: sub.plan,
+        status: 'EXPIRED',
+        daysRemaining: diffDays,
+        isExpired: true,
+        isGracePeriod: false,
+        isExpiringSoon: false,
+        label: `만료됨 (+${overdueDays}일)`,
+        badgeBg: '#fee2e2',
+        badgeColor: '#b91c1c',
+        planLabel: planLabels[sub.plan] || sub.plan,
+      };
+    }
+  }
+
+  if (diffDays <= 14) {
+    return {
+      plan: sub.plan,
+      status: 'EXPIRING_SOON',
+      daysRemaining: diffDays,
+      isExpired: false,
+      isGracePeriod: false,
+      isExpiringSoon: true,
+      label: `만료 임박 (D-${diffDays})`,
+      badgeBg: '#fef3c7',
+      badgeColor: '#b45309',
+      planLabel: planLabels[sub.plan] || sub.plan,
+    };
+  }
+
+  return {
+    plan: sub.plan,
+    status: 'ACTIVE',
+    daysRemaining: diffDays,
+    isExpired: false,
+    isGracePeriod: false,
+    isExpiringSoon: false,
+    label: `D-${diffDays}일`,
+    badgeBg: '#dcfce7',
+    badgeColor: '#15803d',
+    planLabel: planLabels[sub.plan] || sub.plan,
+  };
+}
+
 export interface Tenant {
   id: string;                          // 테넌트 고유 ID (예: 'tenant-1' 또는 'tenant-giyeun')
   tenantCode: string;                  // 테넌트 영문 코드 (예: 'GIYEUN')
+  subdomain?: string;                  // 전용 서브도메인 (예: 'giyeun' -> giyeun.ebro.run)
+  features?: TenantFeatures;           // 활성화된 모듈 및 라이선스 플러그인
+  subscription?: TenantSubscription;   // 💳 구독 요금제 및 만료(Expire) 라이선스 정보
   systemName: string;                  // 시스템 기본 명칭 ('e-Bro System')
   displayName: string;                 // 시스템 표출 회사명 (예: '기연리프트')
   corporateName: string;               // 법인명(단체명): '주식회사 기연리프트'
@@ -167,7 +306,7 @@ export interface Tenant {
   logoUrl?: string;                    // 로고 이미지 URL
   ciUrl?: string;                      // 회사 CI/브랜드 심볼 이미지 URL
   stampImageUrl?: string;              // 정식 등록 법인 인감/도장 이미지 URL (또는 Base64)
-  status: 'ACTIVE' | 'SUSPENDED' | 'TERMINATED';
+  status: 'ACTIVE' | 'SUSPENDED' | 'TERMINATED' | 'EXPIRED';
   isDefault: boolean;                  // 기본 테넌트 여부
   createdAt: string;
   updatedAt?: string;
@@ -3997,6 +4136,28 @@ export const SEED_TENANTS: Tenant[] = [
     ],
     logoUrl: '/images/ci/giyeun_ci.png',
     ciUrl: '/images/ci/giyeun_ci.png',
+    subdomain: 'giyeun',
+    features: {
+      telegramBot: true,
+      callRecordingStt: true,
+      kakaoContract: true,
+      autoTaxInvoice: true,
+      voiceAssistance: true,
+    },
+    subscription: {
+      plan: 'ENTERPRISE',
+      status: 'ACTIVE',
+      startDate: '2024-01-01',
+      endDate: '2027-12-31',
+      gracePeriodDays: 14,
+      billingCycle: 'YEARLY',
+      monthlyFee: 1500000,
+      autoRenew: true,
+      maxAssets: 0,
+      maxUsers: 0,
+      licenseKey: 'EBR-GIYEUN-20271231-X9K2',
+      memo: '전사 무제한 엔터프라이즈 라이선스 (본점 및 전 지점 통합)',
+    },
     stampImageUrl: OFFICIAL_STAMP_BASE64,
     status: 'ACTIVE',
     isDefault: true,
@@ -4023,6 +4184,178 @@ export const SEED_TENANTS: Tenant[] = [
       statementPrintAreaStartRow: 1
     }
   },
+  {
+    id: 'tenant-2',
+    tenantCode: 'HANSOL',
+    subdomain: 'hansol',
+    features: {
+      telegramBot: true,
+      callRecordingStt: true,
+      kakaoContract: false,
+      autoTaxInvoice: true,
+      voiceAssistance: false,
+    },
+    subscription: {
+      plan: 'STANDARD',
+      status: 'ACTIVE',
+      startDate: '2025-06-15',
+      endDate: '2026-10-15',
+      gracePeriodDays: 7,
+      billingCycle: 'MONTHLY',
+      monthlyFee: 500000,
+      autoRenew: false,
+      maxAssets: 150,
+      maxUsers: 10,
+      licenseKey: 'EBR-HANSOL-20261015-B7D4',
+      memo: '월간 갱신 플랜 (만료 14일 전 결제 갱신 알림 대상)',
+    },
+    systemName: 'e-Bro System',
+    displayName: '한솔렌탈',
+    corporateName: '주식회사 한솔렌탈',
+    tradeName: '(주)한솔렌탈',
+    businessNumber: '214-88-91204',
+    corporateRegistrationNumber: '110111-5829103',
+    representativeName: '한태수',
+    openingDate: '2017-06-15',
+    businessAddress: '충청남도 천안시 서북구 직산읍 직산로 105',
+    headOfficeAddress: '충청남도 천안시 서북구 직산읍 직산로 105',
+    businessCategory: '사업지원및임대서비스업',
+    businessItem: '고소작업대임대',
+    businessTypes: [
+      { bizType: '사업지원및임대서비스업', bizItem: '고소작업대임대' },
+      { bizType: '건설기계임대', bizItem: '중장비수리업' }
+    ],
+    isUnitTaxation: false,
+    taxEmail: 'hansol_tax@hansolrental.co.kr',
+    taxOffice: '천안세무서장',
+    certificateIssueDate: '2025-10-12',
+    tel: '041-558-1204',
+    fax: '041-558-1205',
+    salesPhone: '010-8821-1204',
+    email: 'contact@hansolrental.co.kr',
+    websiteUrl: '',
+    privacyOfficer: {
+      name: '한태수',
+      position: '대표이사',
+      department: '경영지원팀',
+      phone: '041-558-1204',
+      email: 'privacy@hansolrental.co.kr',
+      updatedAt: '2026-01-01T00:00:00.000Z'
+    },
+    privacyOfficerName: '한태수',
+    privacyOfficerPosition: '대표이사',
+    privacyOfficerDepartment: '경영지원팀',
+    privacyOfficerPhone: '041-558-1204',
+    privacyOfficerEmail: 'privacy@hansolrental.co.kr',
+    workplaces: [
+      {
+        id: 'wp-hansol-01',
+        workplaceCode: 'HQ',
+        name: '천안 본사',
+        isHeadquarter: true,
+        businessNumber: '214-88-91204',
+        address: '충청남도 천안시 서북구 직산읍 직산로 105',
+        tel: '041-558-1204',
+        managerName: '한태수',
+        createdAt: '2017-06-15T00:00:00.000Z',
+      }
+    ],
+    yards: [
+      {
+        id: 'yard-hansol-01',
+        yardCode: 'YARD-CHEONAN',
+        name: '한솔 천안 직산 주기장',
+        isDefault: true,
+        address: '충청남도 천안시 서북구 직산읍 직산로 105',
+        operatingCapacity: 120,
+        managerName: '관리팀',
+        managerPhone: '041-558-1204',
+        tel: '041-558-1204',
+        createdAt: '2017-06-15T00:00:00.000Z',
+      }
+    ],
+    mainYardAddress: '한솔 천안 직산 주기장',
+    bankAccounts: [
+      {
+        bankName: '국민은행',
+        accountNumber: '421801-04-192837',
+        accountHolder: '주식회사 한솔렌탈',
+        isDefault: true,
+      }
+    ],
+    logoUrl: '/images/ci/ebro_rental_ci.svg',
+    ciUrl: '/images/ci/ebro_rental_ci.svg',
+    stampImageUrl: OFFICIAL_STAMP_BASE64,
+    status: 'ACTIVE',
+    isDefault: false,
+    createdAt: '2017-06-15T00:00:00.000Z',
+    updatedAt: new Date().toISOString(),
+    allowCustomBillingStatement: false,
+  },
+  {
+    id: 'tenant-3',
+    tenantCode: 'SAMWOO',
+    subdomain: 'samwoo',
+    features: {
+      telegramBot: true,
+      callRecordingStt: false,
+      kakaoContract: false,
+      autoTaxInvoice: false,
+      voiceAssistance: false,
+    },
+    subscription: {
+      plan: 'TRIAL',
+      status: 'EXPIRED',
+      startDate: '2026-09-01',
+      endDate: '2026-09-15',
+      gracePeriodDays: 7,
+      billingCycle: 'CUSTOM',
+      monthlyFee: 0,
+      autoRenew: false,
+      maxAssets: 30,
+      maxUsers: 3,
+      licenseKey: 'EBR-SAMWOO-20260915-TRIAL',
+      memo: '14일 무료 체험판 종료 후 정식 계약 대기 (만료 상태)',
+    },
+    systemName: 'e-Bro System',
+    displayName: '삼우렌탈',
+    corporateName: '주식회사 삼우렌탈',
+    tradeName: '(주)삼우렌탈',
+    businessNumber: '129-86-45120',
+    corporateRegistrationNumber: '134111-0982314',
+    representativeName: '박삼우',
+    openingDate: '2020-03-10',
+    businessAddress: '경기도 평택시 고덕면 고덕로 200',
+    headOfficeAddress: '경기도 평택시 고덕면 고덕로 200',
+    businessCategory: '사업지원및임대서비스업',
+    businessItem: '고소작업대임대',
+    isUnitTaxation: false,
+    taxEmail: 'tax@samwoorental.com',
+    taxOffice: '평택세무서장',
+    tel: '031-665-3341',
+    fax: '031-665-3342',
+    salesPhone: '010-3341-8890',
+    email: 'contact@samwoorental.com',
+    workplaces: [],
+    yards: [],
+    mainYardAddress: '경기도 평택시 고덕면 고덕로 200',
+    bankAccounts: [
+      {
+        bankName: '우리은행',
+        accountNumber: '1002-881-992014',
+        accountHolder: '주식회사 삼우렌탈',
+        isDefault: true,
+      }
+    ],
+    logoUrl: '',
+    ciUrl: '',
+    stampImageUrl: OFFICIAL_STAMP_BASE64,
+    status: 'EXPIRED',
+    isDefault: false,
+    createdAt: '2026-09-01T00:00:00.000Z',
+    updatedAt: new Date().toISOString(),
+    allowCustomBillingStatement: false,
+  }
 ];
 
 const SEED_USERS: User[] = [];
@@ -4896,14 +5229,41 @@ class LocalDB {
   get tenants() { 
     const list = this.get<Tenant>('tenants', SEED_TENANTS);
     let modified = false;
-    const patched = list.map(t => {
-      if ((!t.ciUrl || !t.logoUrl) && (t.id === 'tenant-1' || t.tenantCode === 'GIYEUN' || t.isDefault)) {
+    // SEED_TENANTS 중 로컬에 아직 없는 테넌트 자동 병합
+    SEED_TENANTS.forEach(seed => {
+      if (!list.some(t => t.id === seed.id || t.tenantCode === seed.tenantCode)) {
+        list.push(seed);
         modified = true;
-        return {
-          ...t,
-          ciUrl: t.ciUrl || '/images/ci/giyeun_ci.png',
-          logoUrl: t.logoUrl || '/images/ci/giyeun_ci.png'
+      }
+    });
+    const patched = list.map(t => {
+      let changed = false;
+      let ci = t.ciUrl;
+      let logo = t.logoUrl;
+      let sub = t.subdomain;
+      let feat = t.features;
+      if ((!ci || !logo) && (t.id === 'tenant-1' || t.tenantCode === 'GIYEUN' || t.isDefault)) {
+        ci = ci || '/images/ci/giyeun_ci.png';
+        logo = logo || '/images/ci/giyeun_ci.png';
+        changed = true;
+      }
+      if (!sub && t.tenantCode) {
+        sub = t.tenantCode.toLowerCase();
+        changed = true;
+      }
+      if (!feat) {
+        feat = {
+          telegramBot: true,
+          callRecordingStt: true,
+          kakaoContract: true,
+          autoTaxInvoice: true,
+          voiceAssistance: true,
         };
+        changed = true;
+      }
+      if (changed) {
+        modified = true;
+        return { ...t, ciUrl: ci, logoUrl: logo, subdomain: sub, features: feat };
       }
       return t;
     });
@@ -4927,7 +5287,9 @@ class LocalDB {
         const matched = list.find(t => {
           const code = (t.tenantCode || '').toLowerCase();
           const dName = (t.displayName || '').toLowerCase();
-          return code === sub ||
+          const subField = (t.subdomain || '').toLowerCase();
+          return subField === sub ||
+                 code === sub ||
                  sub.startsWith(code) ||
                  code.startsWith(sub) ||
                  (sub.includes('giyuen') && code === 'giyeun') ||

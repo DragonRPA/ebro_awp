@@ -1,0 +1,10 @@
+{
+  "version": "v2.0.0.Build.1",
+  "buildTime": "2026-10-03T18:00:00.000Z",
+  "downloadUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/downloads/eBroAgent.exe",
+  "installerUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/downloads/eBroAgentSetup.exe",
+  "certUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/downloads/eBroAgent_Root.cer",
+  "changelog": "통합 PC 데스크톱 에이전트: Cloudflare R2 기반 초고속 CDN 다운로드 및 무중단 스마트 자가 업데이트(Auto-Update) 지원",
+  "minCompatibleVersion": "v2.0.0.Build.1",
+  "fileSize": "68.5MB"
+}

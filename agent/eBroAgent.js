@@ -84,7 +84,7 @@ if (isExe && path.resolve(currentExePath).toLowerCase() !== path.resolve(TARGET_
         const child = spawn(TARGET_EXE_PATH, [], {
           detached: true,
           stdio: 'ignore',
-          windowsHide: false
+          windowsHide: true
         });
         child.unref();
 
@@ -100,10 +100,19 @@ if (isExe && path.resolve(currentExePath).toLowerCase() !== path.resolve(TARGET_
   }
 }
 
-// 🔄 윈도우 시작 시 자동 실행(Auto-Startup) 레지스트리 자동 등록
+// 🔄 윈도우 시작 시 자동 실행(Auto-Startup) 및 브라우저 프로토콜(ebro://, broagent://) 레지스트리 자동 등록
 try {
   execSync(`reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "eBroAgent" /t REG_SZ /d "${TARGET_EXE_PATH}" /f`, { stdio: 'ignore' });
   try { execSync('reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "KiyeunAgent" /f', { stdio: 'ignore' }); } catch (e) {}
+
+  // 브라우저 프로토콜 핸들러 등록
+  execSync(`reg add "HKCU\\Software\\Classes\\ebro" /ve /t REG_SZ /d "URL:eBro Protocol" /f`, { stdio: 'ignore' });
+  execSync(`reg add "HKCU\\Software\\Classes\\ebro" /v "URL Protocol" /t REG_SZ /d "" /f`, { stdio: 'ignore' });
+  execSync(`reg add "HKCU\\Software\\Classes\\ebro\\shell\\open\\command" /ve /t REG_SZ /d "\\"${TARGET_EXE_PATH}\\"" /f`, { stdio: 'ignore' });
+
+  execSync(`reg add "HKCU\\Software\\Classes\\broagent" /ve /t REG_SZ /d "URL:BroAgent Protocol" /f`, { stdio: 'ignore' });
+  execSync(`reg add "HKCU\\Software\\Classes\\broagent" /v "URL Protocol" /t REG_SZ /d "" /f`, { stdio: 'ignore' });
+  execSync(`reg add "HKCU\\Software\\Classes\\broagent\\shell\\open\\command" /ve /t REG_SZ /d "\\"${TARGET_EXE_PATH}\\"" /f`, { stdio: 'ignore' });
 } catch (e) {}
 
 // 디렉토리 자동 생성 (정식 위치 실행 시)
@@ -123,6 +132,69 @@ console.log(`📂 에이전트 홈 경로: ${AGENT_HOME}`);
 console.log(`📑 문서 영구 보관소: ${ARCHIVE_ROOT}`);
 console.log(`🌐 로컬 통신 포트: http://127.0.0.1:${PORT}`);
 console.log('====================================================');
+
+// ── 🌐 Cloudflare R2 기반 스마트 자가 업데이트 (Auto-Update) 엔진 ──
+const CF_R2_VERSION_URL = process.env.CF_R2_VERSION_URL || 'https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/downloads/version.json';
+
+async function checkAndApplyUpdate() {
+  try {
+    const res = await new Promise((resolve, reject) => {
+      const clientReq = https.get(CF_R2_VERSION_URL, { timeout: 6000 }, (resp) => {
+        if (resp.statusCode !== 200) {
+          resolve({ ok: false, statusCode: resp.statusCode });
+          return;
+        }
+        let data = '';
+        resp.on('data', chunk => data += chunk);
+        resp.on('end', () => resolve({ ok: true, body: data }));
+      });
+      clientReq.on('error', reject);
+    });
+
+    if (res.ok && res.body) {
+      const info = JSON.parse(res.body);
+      const remoteVersion = info.version;
+      const downloadUrl = info.downloadUrl;
+
+      if (remoteVersion && remoteVersion !== VERSION && downloadUrl) {
+        console.log(`🚀 [eBroAgent Auto-Update] 새 버전 감지: ${VERSION} ➔ ${remoteVersion}`);
+        console.log(`📥 Cloudflare R2에서 백그라운드 다운로드 시작: ${downloadUrl}`);
+
+        const stagingPath = path.join(AGENT_HOME, 'update_staging.exe');
+        const fileStream = fs.createWriteStream(stagingPath);
+
+        https.get(downloadUrl, (fileRes) => {
+          if (fileRes.statusCode !== 200) {
+            console.warn(`⚠️ [eBroAgent Auto-Update] 다운로드 실패 HTTP ${fileRes.statusCode}`);
+            return;
+          }
+          fileRes.pipe(fileStream);
+          fileStream.on('finish', () => {
+            fileStream.close();
+            console.log(`✅ [eBroAgent Auto-Update] 다운로드 완료! 신규 엔진으로 교체 기동합니다...`);
+
+            // 신규 바이너리를 detached 모드로 실행하여 구버전 자동 교체 (Auto-Kill & Takeover)
+            const child = spawn(stagingPath, [], {
+              detached: true,
+              stdio: 'ignore',
+              windowsHide: true
+            });
+            child.unref();
+            process.exit(0);
+          });
+        }).on('error', err => {
+          console.warn('⚠️ [eBroAgent Auto-Update] 다운로드 스트림 오류:', err.message);
+        });
+      }
+    }
+  } catch (err) {
+    // 오프라인이거나 CF 연결 불가 시 무음 처리하여 정상 가동 유지
+  }
+}
+
+// 윈도우 부팅 15초 후 첫 검사, 이후 1시간마다 주기적 백그라운드 검사
+setTimeout(checkAndApplyUpdate, 15000);
+setInterval(checkAndApplyUpdate, 3600000);
 
 // ── HTTP 요청 핸들러 ──
 let activeCallsign = CALLSIGN;
@@ -179,7 +251,7 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify({ success: true, message: '에이전트를 1초 후 자동 재시작합니다.' }));
     setTimeout(() => {
-      const child = spawn(TARGET_EXE_PATH, [], { detached: true, stdio: 'ignore', windowsHide: false });
+      const child = spawn(TARGET_EXE_PATH, [], { detached: true, stdio: 'ignore', windowsHide: true });
       child.unref();
       process.exit(0);
     }, 500);

@@ -48,7 +48,12 @@ MENU_MAPPING = {
     '통장': 'bank_matching',
     '프린트': 'print_queue_monitor',
     '라벨': 'print_queue_monitor',
-    '입출고': 'daily_inout'
+    '입출고': 'daily_inout',
+    '메일': 'official_mail',
+    '이메일': 'official_mail',
+    '공식메일': 'official_mail',
+    '견적서': 'official_mail',
+    '회사소개서': 'official_mail'
 }
 
 # 📚 eBro ERP 전사 57개 메뉴 기능정의서 지식 베이스 로드
@@ -310,6 +315,53 @@ def extract_domain_workflow(prompt: str) -> dict:
             }
         }
 
+    # 4. ✉️ 공식 이메일 발송 (MAIL_SEND) 의도 판별
+    is_mail_action = any(k in p_lower for k in ['보내', '보내줘', '송부', '발송', '메일', '이메일'])
+    is_mail_target = any(k in p_lower for k in ['회사소개서', '견적서', '제원표', '카탈로그', '브로셔', '계약서식', '서식'])
+    if is_mail_action and is_mail_target:
+        mail_type = "CUSTOM"
+        if '회사소개서' in p_lower:
+            mail_type = "COMPANY_PROFILE"
+        elif '견적' in p_lower:
+            mail_type = "QUOTE"
+        elif any(k in p_lower for k in ['제원표', '카탈로그', '브로셔']):
+            mail_type = "CATALOG_SPEC"
+        elif any(k in p_lower for k in ['계약서식', '서식']):
+            mail_type = "CONTRACT_BUNDLE"
+
+        model = ""
+        m_model = re.search(r'([A-Za-z]*[-_]?\d{4}[A-Za-z]*)', p)
+        if m_model:
+            raw_mod = m_model.group(1).upper()
+            model = f"GS-{raw_mod}" if raw_mod in ['1930', '3246', '1530', '2032', '2632'] else raw_mod
+
+        quantity = 1
+        m_qty = re.search(r'(\d+)\s*대', p)
+        if m_qty:
+            quantity = int(m_qty.group(1))
+
+        recipient = ""
+        m_recip = re.search(r'([가-힣]{1,4}(?:부장|과장|차장|대리|소장|팀장|대표|기사|주임))', p)
+        if m_recip:
+            recipient = m_recip.group(1)
+
+        cleaned = re.sub(r'([가-힣]{1,4}(?:부장|과장|차장|대리|소장|팀장|대표|기사|주임)|[A-Za-z]*[-_]?\d{4}[A-Za-z]*|\d+\s*대|회사소개서|견적서|제원표|카탈로그|브로셔|계약서식|서식|보내줘?|송부|발송|이?메일로?|에게|한테)', ' ', p)
+        tokens = [t.strip() for t in cleaned.split() if len(t.strip()) >= 2]
+        customer = tokens[0] if tokens else ""
+
+        return {
+            "tool": "execute_workflow",
+            "params": {
+                "workflow": "MAIL_SEND",
+                "mail_type": mail_type,
+                "customer": customer,
+                "recipient": recipient,
+                "model": model or "GS-1930",
+                "quantity": quantity,
+                "raw_text": p
+            }
+        }
+
     return None
 
 def normalize_menu_id(raw_menu: str) -> str:
@@ -499,5 +551,94 @@ class AiBrain:
 
         # 기본값: 화면 상태 진단
         return {"source": "RULE_ENGINE", "tool": "get_page_content", "params": {}, "actions": [{"tool": "get_page_content", "params": {}}]}
+
+    async def analyze_call_transcript(self, transcript_text: str) -> dict:
+        """
+        통화 녹취 전문을 분석하여:
+        1. 통화 요약(1~2줄)
+        2. 비즈니스 업무 인텐트(출고배차, 계약연장 등) 및 슬롯
+        3. 정제된 실행 계획(actions) 생성
+        """
+        text = transcript_text.strip()
+
+        # 1. Ollama LLM 추론 시도
+        ollama_online = await self.check_ollama_available()
+        if ollama_online:
+            try:
+                system_prompt = (
+                    "당신은 건설장비 렌탈 ERP 시스템의 통화 녹취 분석 전문 AI입니다.\n"
+                    "고객사/현장소장과의 통화 녹취록 전문을 읽고, 일상 대화나 안부를 제외한 핵심 비즈니스 요구사항을 분석하여 JSON으로 응답하십시오.\n\n"
+                    "지원 업무(workflow):\n"
+                    "- DISPATCH_REQUEST: 신규 출고 배차 의뢰 (장비 보내달라, 출고해달라)\n"
+                    "- CONTRACT_EXTEND: 계약 기간 연장 (공기 연장, 더 쓰겠다)\n"
+                    "- CONTRACT_SHORTEN: 조기 반납/종료 (일찍 빼겠다)\n"
+                    "- DISPATCH_ASSIGN: 배차 기사 배정 및 운송비\n"
+                    "- GENERAL_INQUIRY: 단순 문의/잡담\n\n"
+                    "응답 JSON 규격:\n"
+                    "{\n"
+                    '  "summary": "1~2줄 건조한 명사형 통화 요약",\n'
+                    '  "workflow": "DISPATCH_REQUEST|CONTRACT_EXTEND|CONTRACT_SHORTEN|DISPATCH_ASSIGN|GENERAL_INQUIRY",\n'
+                    '  "customer": "거래처명",\n'
+                    '  "site": "현장명",\n'
+                    '  "model": "장비모델명(예: GS-1930, GS-3246 등)",\n'
+                    '  "quantity": 1,\n'
+                    '  "target_date": "희망일시",\n'
+                    '  "duration_months": 0,\n'
+                    '  "memo": "특이사항 메모"\n'
+                    "}"
+                )
+                payload = {
+                    "model": self.preferred_model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"[통화 녹취록]\n{text}"}
+                    ],
+                    "stream": False,
+                    "format": "json",
+                    "options": {"temperature": 0.1, "num_predict": 300}
+                }
+                res = await self.http_client.post(OLLAMA_API_URL, json=payload, timeout=15.0)
+                if res.status_code == 200:
+                    content = res.json().get("message", {}).get("content", "").strip()
+                    match = re.search(r'\{.*\}', content, re.DOTALL)
+                    if match:
+                        parsed = json.loads(match.group(0))
+                        wf = parsed.get("workflow", "DISPATCH_REQUEST")
+                        return {
+                            "source": "OLLAMA_CALL_ANALYZER",
+                            "summary": parsed.get("summary", "통화 분석 완료"),
+                            "workflow": wf,
+                            "params": {
+                                "workflow": wf,
+                                "customer": parsed.get("customer", ""),
+                                "site": parsed.get("site", ""),
+                                "model": parsed.get("model", "GS-1930"),
+                                "quantity": int(parsed.get("quantity") or 1),
+                                "delivery_time": parsed.get("target_date", "익일 오전"),
+                                "target_date": parsed.get("target_date"),
+                                "duration_months": int(parsed.get("duration_months") or 0),
+                                "memo": parsed.get("memo", f"[통화녹취] {text[:60]}...")
+                            }
+                        }
+            except Exception as e:
+                print(f"⚠️ [AiBrain] LLM 통화 분석 실패 -> 규칙 엔진 폴백: {e}")
+
+        # 2. 내장 시맨틱 파서 폴백
+        domain_act = extract_domain_workflow(text)
+        if domain_act:
+            wf = domain_act["params"]["workflow"]
+            return {
+                "source": "RULE_CALL_ANALYZER",
+                "summary": f"{domain_act['params'].get('customer', '')} {domain_act['params'].get('site', '')} 업무 요청 감지",
+                "workflow": wf,
+                "params": domain_act["params"]
+            }
+
+        return {
+            "source": "FALLBACK",
+            "summary": "일반 통화 (특정 비즈니스 업무 미감지)",
+            "workflow": "GENERAL_INQUIRY",
+            "params": {"raw_text": text}
+        }
 
 ai_brain = AiBrain()

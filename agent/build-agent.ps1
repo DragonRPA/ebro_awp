@@ -47,7 +47,18 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ postject 주입 실패!" -ForegroundColor Red
     exit 1
 }
-Start-Sleep -Milliseconds 1000
+Start-Sleep -Milliseconds 500
+
+# 4-1. 콘솔 창(검은 창) 완전 제거: PE Header Subsystem을 3(Console)에서 2(GUI)로 패치
+Write-Host "4-1. Patching PE Subsystem to GUI (Removing Console Window completely)..." -ForegroundColor Yellow
+$bytes = [System.IO.File]::ReadAllBytes($targetExe)
+$peOffset = [System.BitConverter]::ToUInt32($bytes, 0x3C)
+$subsystemOffset = $peOffset + 0x18 + 0x44
+$bytes[$subsystemOffset] = 2  # IMAGE_SUBSYSTEM_WINDOWS_GUI
+$bytes[$subsystemOffset + 1] = 0
+[System.IO.File]::WriteAllBytes($targetExe, $bytes)
+Write-Host "✅ Subsystem successfully patched to Windows GUI (100% Windowless Background Service)!" -ForegroundColor Green
+Start-Sleep -Milliseconds 500
 
 # 5. 디지털 서명 및 public/downloads 동기화
 Write-Host "5. Code signing and sync to public/downloads..." -ForegroundColor Yellow

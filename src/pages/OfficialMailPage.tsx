@@ -1,0 +1,712 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import { Mail, Send, Paperclip, CheckCircle2, AlertCircle, FileText, Building2, User, Phone, Check, RefreshCw, X, Eye } from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { db, Customer, CustomerContact, CustomerSite } from '../services/db';
+import { emailService, SentEmail } from '../services/email';
+
+type TemplateType = 'QUOTE' | 'COMPANY_PROFILE' | 'CATALOG_SPEC' | 'CONTRACT_BUNDLE' | 'CUSTOM';
+
+interface MailAttachment {
+  filename: string;
+  content: string; // base64
+  size?: number;
+}
+
+export const OfficialMailPage: React.FC = () => {
+  const { customers, products, googleConfigs, currentUser } = useApp();
+  const customerContacts: CustomerContact[] = db.contacts;
+  const customerSites: CustomerSite[] = db.sites;
+
+  // 1. 발송 대상 (좌상단 Scope)
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [selectedContactId, setSelectedContactId] = useState<string>('');
+  const [selectedSiteId, setSelectedSiteId] = useState<string>('');
+  const [recipientEmail, setRecipientEmail] = useState<string>('');
+  const [recipientName, setRecipientName] = useState<string>('');
+  const [recipientPhone, setRecipientPhone] = useState<string>('');
+  const [ccEmail, setCcEmail] = useState<string>('');
+
+  // 2. 템플릿 및 첨부 (우상단 Pipeline)
+  const [templateType, setTemplateType] = useState<TemplateType>('QUOTE');
+  const [quoteModel, setQuoteModel] = useState<string>('GS-1930');
+  const [quoteQuantity, setQuoteQuantity] = useState<number>(1);
+  const [quoteMonthlyRate, setQuoteMonthlyRate] = useState<number>(450000);
+  const [quoteDailyRate, setQuoteDailyRate] = useState<number>(50000);
+  const [quoteDeliveryFee, setQuoteDeliveryFee] = useState<number>(150000);
+  const [quotePeriod, setQuotePeriod] = useState<string>('1개월');
+  const [specModel, setSpecModel] = useState<string>('GS-1930');
+
+  // 3. 본문 및 제목 (중앙 본문)
+  const [subject, setSubject] = useState<string>('');
+  const [body, setBody] = useState<string>('');
+  const [attachments, setAttachments] = useState<MailAttachment[]>([]);
+  const [isAttaching, setIsAttaching] = useState<boolean>(false);
+
+  // 4. 발송 상태 및 이력
+  const [isSending, setIsSending] = useState<boolean>(false);
+  const [sendResultMsg, setSendResultMsg] = useState<{ success: boolean; text: string } | null>(null);
+  const [sentHistory, setSentHistory] = useState<SentEmail[]>([]);
+
+  // 공식 발신 계정
+  const officialConfig = useMemo(() => {
+    return googleConfigs.find(c => c.googleEmail && c.gmailAppPassword && !c.gmailAppPassword.includes('•')) || googleConfigs[0];
+  }, [googleConfigs]);
+
+  const senderEmail = officialConfig?.googleEmail || '미설정 (구글 관리자 설정 필요)';
+  const senderBrand = '(주)기연리프트';
+
+  // 최근 발송 이력 로드
+  const loadHistory = () => {
+    try {
+      setSentHistory(emailService.listSentEmails());
+    } catch {
+      setSentHistory([]);
+    }
+  };
+
+  useEffect(() => {
+    loadHistory();
+  }, []);
+
+  // 거래처 변경 시 담당자 및 현장 자동 연동
+  const currentCustomer = useMemo(() => {
+    return customers.find(c => c.id === selectedCustomerId);
+  }, [customers, selectedCustomerId]);
+
+  const relatedContacts = useMemo(() => {
+    if (!selectedCustomerId) return [];
+    return customerContacts.filter(c => c.customerId === selectedCustomerId);
+  }, [customerContacts, selectedCustomerId]);
+
+  const relatedSites = useMemo(() => {
+    if (!selectedCustomerId) return [];
+    return customerSites.filter(s => s.customerId === selectedCustomerId);
+  }, [customerSites, selectedCustomerId]);
+
+  // 고객사 선택 처리
+  const handleCustomerChange = (custId: string) => {
+    setSelectedCustomerId(custId);
+    setSelectedContactId('');
+    setSelectedSiteId('');
+    const cust = customers.find(c => c.id === custId);
+    if (cust) {
+      setRecipientEmail(cust.repEmail || '');
+      setRecipientName(cust.name || '');
+      setRecipientPhone(cust.repContact || '');
+    } else {
+      setRecipientEmail('');
+      setRecipientName('');
+      setRecipientPhone('');
+    }
+  };
+
+  // 담당자 선택 처리
+  const handleContactChange = (contactId: string) => {
+    setSelectedContactId(contactId);
+    const cnt = relatedContacts.find(c => c.id === contactId);
+    if (cnt) {
+      if (cnt.email) setRecipientEmail(cnt.email);
+      setRecipientName(cnt.name ? `${currentCustomer?.name || ''} ${cnt.name} ${cnt.position || '담당자'}` : recipientName);
+      if (cnt.contact) setRecipientPhone(cnt.contact);
+    }
+  };
+
+  // 서식 파일 비동기 로드 함수
+  const fetchTemplateBase64 = async (url: string, filename: string): Promise<MailAttachment | null> => {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64data = (reader.result as string).split(',')[1];
+          resolve({ filename, content: base64data, size: blob.size });
+        };
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  };
+
+  // 템플릿 변경 시 본문 및 첨부 파일 자동 재구성
+  useEffect(() => {
+    const custTitle = recipientName || (currentCustomer ? currentCustomer.name : '고객사');
+    const siteTitle = selectedSiteId ? (relatedSites.find(s => s.id === selectedSiteId)?.name || '') : '';
+
+    const applyTemplate = async () => {
+      setIsAttaching(true);
+      const newAtts: MailAttachment[] = [];
+
+      if (templateType === 'QUOTE') {
+        setSubject(`[${senderBrand}] ${custTitle} 고소작업대 견적서 송부`);
+        setBody(
+          `안녕하십니까, ${custTitle} 담당자님.\n` +
+          `${senderBrand} 영업팀입니다.\n\n` +
+          `요청하신 고소작업대 임대 견적서를 아래와 같이 송부드립니다.\n\n` +
+          `■ 견적 명세 요약\n` +
+          `• 현장명: ${siteTitle || '지정 현장'}\n` +
+          `• 장비 기종: ${quoteModel}\n` +
+          `• 요청 수량: ${quoteQuantity}대\n` +
+          `• 예상 사용 기간: ${quotePeriod}\n` +
+          `• 월 임대료: 대당 ₩${quoteMonthlyRate.toLocaleString()} (부가세 별도)\n` +
+          `• 일 임대료: 대당 ₩${quoteDailyRate.toLocaleString()} (부가세 별도)\n` +
+          `• 왕복 운송비: ₩${quoteDeliveryFee.toLocaleString()} (현장 협의 가능)\n\n` +
+          `상기 단가는 당사 표준 정기점검 및 안전인증 장비 기준이며, 세부 조건 협의 가능합니다.\n` +
+          `검토 후 회신 또는 유선 연락 주시면 신속히 배차 지원하겠습니다.\n\n` +
+          `감사합니다.\n` +
+          `${senderBrand} 영업부\n` +
+          `대표전화: 031-000-0000`
+        );
+
+        // 회사소개서 및 표준제원표 자동 번들 첨부
+        const prof = await fetchTemplateBase64('/tenants/giyuen/templates/회사소개서_공식.pdf', `(주)기연리프트_회사소개서.pdf`);
+        if (prof) newAtts.push(prof);
+        const spec = await fetchTemplateBase64('/tenants/giyuen/templates/표준제원표양식.pdf', `고소작업대_${quoteModel}_표준제원표.pdf`);
+        if (spec) newAtts.push(spec);
+
+      } else if (templateType === 'COMPANY_PROFILE') {
+        setSubject(`[${senderBrand}] ${custTitle} 회사소개서 송부`);
+        setBody(
+          `안녕하십니까, ${custTitle} 담당자님.\n` +
+          `고소작업대 렌탈 전문기업 ${senderBrand} 입니다.\n\n` +
+          `당사의 사업 영역 및 보유 장비, 안전관리 체계를 수록한 회사소개서를 첨부 파일로 송부드립니다.\n\n` +
+          `■ 주요 사업 안내\n` +
+          `1. 직진/굴절 붐, 시저리프트 전 기종 최신 장비 렌탈 및 현장 배차\n` +
+          `2. 100% 사내 전문 정비팀 정기 점검 및 안전인증 검사필 필증 부착\n` +
+          `3. 수도권 24시간 긴급 현장 출동 AS 체계 구축\n\n` +
+          `문의 사항이나 필요 장비가 있으시면 언제든지 편하게 연락 주시기 바랍니다.\n\n` +
+          `감사합니다.\n` +
+          `${senderBrand} 배상`
+        );
+
+        const prof = await fetchTemplateBase64('/tenants/giyuen/templates/회사소개서_공식.pdf', `(주)기연리프트_회사소개서.pdf`);
+        if (prof) newAtts.push(prof);
+
+      } else if (templateType === 'CATALOG_SPEC') {
+        setSubject(`[${senderBrand}] ${custTitle} ${specModel} 장비 제원표 및 카탈로그 송부`);
+        setBody(
+          `안녕하십니까, ${custTitle} 담당자님.\n` +
+          `${senderBrand} 기술지원팀입니다.\n\n` +
+          `요청하신 [${specModel}] 고소작업대의 상세 규격, 작업 반경도 및 안전 하중 제원표를 첨부 송부드립니다.\n\n` +
+          `■ 장비 제원 확인 사항\n` +
+          `• 모델명: ${specModel}\n` +
+          `• 주요 용도: 실내 마감, 배관, 닥트, 전기 통신 및 고소 설치 공사\n` +
+          `• 안전 수칙 및 장비 치수 명세 첨부 참조\n\n` +
+          `현장 여건(출입문 높이, 바닥 하중 등)에 따른 추가 문의사항은 연락 주시면 상세 안내드리겠습니다.\n\n` +
+          `감사합니다.\n` +
+          `${senderBrand} 기술지원팀`
+        );
+
+        const spec = await fetchTemplateBase64('/tenants/giyuen/templates/표준제원표양식.pdf', `고소작업대_${specModel}_제원표.pdf`);
+        if (spec) newAtts.push(spec);
+
+      } else if (templateType === 'CONTRACT_BUNDLE') {
+        setSubject(`[${senderBrand}] ${custTitle} 고소작업대 표준 계약 서식 패키지 송부`);
+        setBody(
+          `안녕하십니까, ${custTitle} 담당자님.\n` +
+          `${senderBrand} 관리부입니다.\n\n` +
+          `현장 투입 및 사전 등록에 필요한 당사 표준 계약 서식 3종을 첨부 송부드립니다.\n\n` +
+          `■ 첨부 서식 목록\n` +
+          `1. 고소작업대 임대차 계약서 양식\n` +
+          `2. 자산별 반입 전 CHECK LIST 양식\n` +
+          `3. 자체 안전점검 결과서 양식\n\n` +
+          `내용 확인하시고 날인 및 서류 접수 진행 부탁드립니다.\n\n` +
+          `감사합니다.\n` +
+          `${senderBrand} 관리부`
+        );
+
+        const c1 = await fetchTemplateBase64('/tenants/giyuen/templates/임대차계약서_양식_원본.pdf', `임대차계약서_양식.pdf`);
+        if (c1) newAtts.push(c1);
+        const c2 = await fetchTemplateBase64('/tenants/giyuen/templates/반입전체크리스트_양식_원본.pdf', `반입전체크리스트_양식.pdf`);
+        if (c2) newAtts.push(c2);
+        const c3 = await fetchTemplateBase64('/tenants/giyuen/templates/안전점검결과서_양식_원본.pdf', `안전점검결과서_양식.pdf`);
+        if (c3) newAtts.push(c3);
+
+      } else if (templateType === 'CUSTOM') {
+        if (!subject) setSubject(`[${senderBrand}] ${custTitle} 업무 협조의 건`);
+        if (!body) setBody(`안녕하십니까, ${custTitle} 담당자님.\n${senderBrand} 입니다.\n\n내용을 입력하세요.\n\n감사합니다.`);
+      }
+
+      setAttachments(newAtts);
+      setIsAttaching(false);
+    };
+
+    applyTemplate();
+  }, [templateType, selectedCustomerId, recipientName, selectedSiteId, quoteModel, quoteQuantity, quoteMonthlyRate, quoteDailyRate, quoteDeliveryFee, quotePeriod, specModel]);
+
+  // 로컬 파일 사용자 직접 추가
+  const handleUserFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64data = (reader.result as string).split(',')[1];
+        setAttachments(prev => [...prev, { filename: file.name, content: base64data, size: file.size }]);
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
+  // 첨부 파일 삭제
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // 이메일 최종 발송
+  const handleSendEmail = async () => {
+    if (!recipientEmail || !recipientEmail.trim()) {
+      alert('수신자 이메일 주소를 입력해 주세요.');
+      return;
+    }
+    if (!subject || !subject.trim()) {
+      alert('이메일 제목을 입력해 주세요.');
+      return;
+    }
+    if (!body || !body.trim()) {
+      alert('이메일 본문을 입력해 주세요.');
+      return;
+    }
+
+    setIsSending(true);
+    setSendResultMsg(null);
+
+    try {
+      const res = await emailService.sendEmail(
+        recipientEmail.trim(),
+        subject.trim(),
+        body,
+        attachments.map(a => ({ filename: a.filename, content: a.content })),
+        ccEmail.trim() || undefined,
+        senderBrand
+      );
+
+      setSendResultMsg({
+        success: true,
+        text: `메일 발송 성공: ${res.to} (${attachments.length}개 파일 첨부)`
+      });
+      loadHistory();
+    } catch (err: any) {
+      setSendResultMsg({
+        success: false,
+        text: `메일 발송 실패: ${err?.message || err}`
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <div className="p-6 space-y-6 max-w-[1600px] mx-auto text-slate-800 dark:text-slate-100">
+      {/* 화면 헤더 (무수식어 건조 표준) */}
+      <div className="flex items-center justify-between border-b pb-4 border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-blue-600/10 text-blue-600 dark:text-blue-400 rounded-lg">
+            <Mail size={22} />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight">공식 메일 발송</h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              회사 공식 구글 계정({senderEmail}) 기반 견적서·회사소개서·제원표·서식 발송 센터
+            </p>
+          </div>
+        </div>
+
+        {/* 발신 계정 상태 배지 */}
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span className="text-slate-500">발신 계정:</span>
+          <span className="font-semibold text-slate-800 dark:text-slate-200">{senderEmail}</span>
+        </div>
+      </div>
+
+      {/* 발송 결과 피드백 배너 */}
+      {sendResultMsg && (
+        <div className={`p-4 rounded-lg flex items-center justify-between text-sm ${sendResultMsg.success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800' : 'bg-rose-50 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'}`}>
+          <div className="flex items-center gap-2">
+            {sendResultMsg.success ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+            <span className="font-medium">{sendResultMsg.text}</span>
+          </div>
+          <button onClick={() => setSendResultMsg(null)} className="text-xs opacity-70 hover:opacity-100">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      {/* 메인 3분할 Z-패턴 작업 영역 */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        {/* 좌측 패널: ① 좌상단 Scope (거래처 및 수신자 설정) */}
+        <div className="lg:col-span-4 space-y-5 bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="flex items-center gap-2 font-semibold text-sm border-b pb-2 border-slate-100 dark:border-slate-800">
+            <Building2 size={16} className="text-blue-500" />
+            <span>수신 대상 지정</span>
+          </div>
+
+          {/* 거래처 선택 */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">
+              거래처 선택
+            </label>
+            <select
+              value={selectedCustomerId}
+              onChange={(e) => handleCustomerChange(e.target.value)}
+              className="w-full h-9 px-2.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">-- 거래처 선택 (직접 입력 가능) --</option>
+              {customers.map((c: Customer) => (
+                <option key={c.id} value={c.id}>{c.name} {c.bizRegNo ? `(${c.bizRegNo})` : ''}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* 담당자 선택 (거래처 등록 담당자) */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">
+              담당자 선택
+            </label>
+            <select
+              value={selectedContactId}
+              onChange={(e) => handleContactChange(e.target.value)}
+              disabled={relatedContacts.length === 0}
+              className="w-full h-9 px-2.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+            >
+              <option value="">-- 담당자 선택 {relatedContacts.length === 0 ? '(등록된 담당자 없음)' : ''} --</option>
+              {relatedContacts.map(cnt => (
+                <option key={cnt.id} value={cnt.id}>
+                  {cnt.name} {cnt.position || '담당'} {cnt.email ? `(${cnt.email})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 현장 선택 */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">
+              관련 현장 선택
+            </label>
+            <select
+              value={selectedSiteId}
+              onChange={(e) => setSelectedSiteId(e.target.value)}
+              disabled={relatedSites.length === 0}
+              className="w-full h-9 px-2.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+            >
+              <option value="">-- 현장 선택 {relatedSites.length === 0 ? '(등록된 현장 없음)' : ''} --</option>
+              {relatedSites.map(s => (
+                <option key={s.id} value={s.id}>{s.name} ({s.address || '주소 미등록'})</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="border-t pt-4 border-slate-100 dark:border-slate-800 space-y-3">
+            {/* 수신자명 */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                수신자 호칭 / 성명
+              </label>
+              <input
+                type="text"
+                value={recipientName}
+                onChange={(e) => setRecipientName(e.target.value)}
+                placeholder="예: 에이치엔아이씨 김소장"
+                className="w-full h-9 px-2.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* 수신 이메일 (필수) */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap flex items-center justify-between">
+                <span>수신 이메일 주소 <span className="text-rose-500">*</span></span>
+              </label>
+              <input
+                type="email"
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
+                placeholder="recipient@company.com"
+                className="w-full h-9 px-2.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            {/* 참조 (CC) */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                참조 (CC) 이메일
+              </label>
+              <input
+                type="email"
+                value={ccEmail}
+                onChange={(e) => setCcEmail(e.target.value)}
+                placeholder="cc@company.com (선택 사항)"
+                className="w-full h-9 px-2.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* 우측 상단 & 중앙 패널: ② Pipeline (템플릿) & ③ Inspection (본문/첨부) */}
+        <div className="lg:col-span-8 space-y-5 bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+          
+          <div className="space-y-4">
+            {/* 템플릿 선택 탭 바 (무수식어 건조 표준) */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                발송 서식 템플릿 선택
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {[
+                  { key: 'QUOTE', label: '견적서' },
+                  { key: 'COMPANY_PROFILE', label: '회사소개서' },
+                  { key: 'CATALOG_SPEC', label: '제원표/카탈로그' },
+                  { key: 'CONTRACT_BUNDLE', label: '계약서식 세트' },
+                  { key: 'CUSTOM', label: '직접 작성' },
+                ].map(item => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => setTemplateType(item.key as TemplateType)}
+                    className={`h-9 px-3 text-xs font-medium rounded-lg border transition-all whitespace-nowrap ${templateType === item.key ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 견적서 선택 시 전용 파라미터 입력 블록 */}
+            {templateType === 'QUOTE' && (
+              <div className="p-3.5 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/50 rounded-lg grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">장비 기종</label>
+                  <select
+                    value={quoteModel}
+                    onChange={(e) => setQuoteModel(e.target.value)}
+                    className="h-8 px-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="GS-1930">GS-1930 (6m 시저)</option>
+                    <option value="GS-3246">GS-3246 (10m 시저)</option>
+                    <option value="GS-4047">GS-4047 (12m 시저)</option>
+                    <option value="SJ-3219">SJ-3219 (6m 시저)</option>
+                    <option value="Z-34/22">Z-34/22 (굴절 붐)</option>
+                    <option value="S-60">S-60 (직진 붐)</option>
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">수량 (대)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={quoteQuantity}
+                    onChange={(e) => setQuoteQuantity(Number(e.target.value) || 1)}
+                    className="h-8 px-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">월 단가 (원)</label>
+                  <input
+                    type="number"
+                    step="10000"
+                    value={quoteMonthlyRate}
+                    onChange={(e) => setQuoteMonthlyRate(Number(e.target.value) || 0)}
+                    className="h-8 px-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">예상 사용기간</label>
+                  <input
+                    type="text"
+                    value={quotePeriod}
+                    onChange={(e) => setQuotePeriod(e.target.value)}
+                    placeholder="예: 3개월"
+                    className="h-8 px-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* 제원표 선택 시 기종 선택 */}
+            {templateType === 'CATALOG_SPEC' && (
+              <div className="p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-lg flex items-center gap-4">
+                <span className="text-xs font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">대상 모델 선택:</span>
+                <select
+                  value={specModel}
+                  onChange={(e) => setSpecModel(e.target.value)}
+                  className="h-8 px-3 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-blue-500 max-w-xs"
+                >
+                  <option value="GS-1930">Genie GS-1930 (6m 작업높이 7.8m)</option>
+                  <option value="GS-3246">Genie GS-3246 (10m 작업높이 11.7m)</option>
+                  <option value="GS-4047">Genie GS-4047 (12m 작업높이 13.9m)</option>
+                  <option value="Z-34/22">Genie Z-34/22 (굴절 붐 12m)</option>
+                </select>
+              </div>
+            )}
+
+            {/* 이메일 제목 */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                메일 제목
+              </label>
+              <input
+                type="text"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder="메일 제목을 입력하세요"
+                className="w-full h-9 px-3 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500 font-medium"
+              />
+            </div>
+
+            {/* 이메일 본문 */}
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap flex items-center justify-between">
+                <span>메일 본문</span>
+                <span className="text-[11px] text-slate-400 font-normal">정중한 비즈니스 서식 자동 생성</span>
+              </label>
+              <textarea
+                rows={9}
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                className="w-full p-3 text-xs font-mono bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500 leading-relaxed resize-none"
+              />
+            </div>
+
+            {/* 첨부 파일 패널 */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap flex items-center gap-1.5">
+                  <Paperclip size={14} />
+                  <span>첨부 파일 ({attachments.length}개)</span>
+                  {isAttaching && <span className="text-[11px] text-blue-500 font-normal animate-pulse">서식 로딩 중...</span>}
+                </label>
+                <label className="cursor-pointer px-2.5 py-1 text-xs font-medium rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">
+                  + PC 파일 추가
+                  <input type="file" multiple onChange={handleUserFileUpload} className="hidden" />
+                </label>
+              </div>
+
+              <div className="min-h-[50px] p-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-lg flex flex-wrap gap-2 items-center">
+                {attachments.length === 0 ? (
+                  <span className="text-xs text-slate-400 px-2">첨부된 파일이 없습니다.</span>
+                ) : (
+                  attachments.map((att, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-xs shadow-sm"
+                    >
+                      <FileText size={13} className="text-blue-500" />
+                      <span className="font-medium max-w-[200px] truncate" title={att.filename}>{att.filename}</span>
+                      {att.size && <span className="text-[10px] text-slate-400">({Math.round(att.size / 1024)}KB)</span>}
+                      <button
+                        type="button"
+                        onClick={() => removeAttachment(idx)}
+                        className="ml-1 text-slate-400 hover:text-rose-500"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ④ 우하단 Terminal Action (최종 발송 완결 바) */}
+          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <div className="text-xs text-slate-500">
+              수신: <span className="font-semibold text-slate-700 dark:text-slate-300">{recipientEmail || '(미지정)'}</span> | 
+              발신: <span className="font-semibold text-slate-700 dark:text-slate-300">{senderBrand}</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSendEmail}
+              disabled={isSending || !recipientEmail}
+              className="h-10 px-6 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg shadow transition-all flex items-center gap-2"
+            >
+              {isSending ? (
+                <>
+                  <RefreshCw size={15} className="animate-spin" />
+                  <span>이메일 발송 중...</span>
+                </>
+              ) : (
+                <>
+                  <Send size={15} />
+                  <span>이메일 발송</span>
+                </>
+              )}
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+      {/* 하단 패널: 최근 발송 내역 (헌장 1.2 무누락 DB 보존) */}
+      <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
+        <div className="flex items-center justify-between border-b pb-2 border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-2 font-semibold text-sm">
+            <CheckCircle2 size={16} className="text-emerald-500" />
+            <span>최근 공식 메일 발송 이력</span>
+          </div>
+          <button
+            onClick={loadHistory}
+            className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1"
+          >
+            <RefreshCw size={12} />
+            <span>새로고침</span>
+          </button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-left border-collapse">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500">
+                <th className="py-2 px-3 whitespace-nowrap">발송 일시</th>
+                <th className="py-2 px-3 whitespace-nowrap">수신자</th>
+                <th className="py-2 px-3 whitespace-nowrap">메일 제목</th>
+                <th className="py-2 px-3 whitespace-nowrap">상태</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+              {sentHistory.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="py-6 text-center text-slate-400">발송 이력이 없습니다.</td>
+                </tr>
+              ) : (
+                sentHistory.slice(0, 5).map((mail) => (
+                  <tr key={mail.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                    <td className="py-2 px-3 whitespace-nowrap text-slate-500">
+                      {new Date(mail.sentAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    </td>
+                    <td className="py-2 px-3 whitespace-nowrap font-medium text-slate-700 dark:text-slate-300">
+                      {mail.to}
+                    </td>
+                    <td className="py-2 px-3 truncate max-w-[400px] text-slate-600 dark:text-slate-400">
+                      {mail.subject}
+                    </td>
+                    <td className="py-2 px-3 whitespace-nowrap">
+                      {mail.success ? (
+                        <span className="px-2 py-0.5 rounded text-[11px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                          발송 완료
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-[11px] bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                          실패
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};

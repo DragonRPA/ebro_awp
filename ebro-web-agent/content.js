@@ -490,92 +490,105 @@
       if (workflow === 'CONTRACT_EXTEND' || workflow === 'CONTRACT_SHORTEN') {
         const isShorten = workflow === 'CONTRACT_SHORTEN';
         
-        // 1) 계약 관리 메뉴 이동
-        actions.navigate_menu({ menuId: 'contract' });
-        await new Promise(r => setTimeout(r, 700));
+        // 0) 🌟 [모달 기오픈 감지 (Modal State Awareness)]
+        // 이미 '계약 기간 연장 / 단축' 모달이 떠 있는 상태인지 전역 탐색
+        let extendModal = Array.from(document.querySelectorAll('form, .card, [role="dialog"], div')).find(m => {
+          const t = m.innerText || '';
+          return (t.includes('계약 기간 연장') || t.includes('변경 만료일')) && isElementVisible(m);
+        });
 
-        // 2) 통합 검색창 탐색 및 검색어 입력
-        const searchKeyword = customer || site;
-        if (searchKeyword) {
-          let searchInput = document.querySelector('input[placeholder*="통합 검색"]') || document.querySelector('input[placeholder*="검색"]');
-          if (!searchInput) {
-            for (let i = 0; i < 20; i++) {
-              await new Promise(r => setTimeout(r, 100));
-              searchInput = document.querySelector('input[placeholder*="통합 검색"]') || document.querySelector('input[placeholder*="검색"]');
-              if (searchInput) break;
+        // 이미 모달이 열려 있지 않다면, 정상적인 탐색 절차 수행
+        if (!extendModal) {
+          // 1) 계약 관리 메뉴 이동
+          actions.navigate_menu({ menuId: 'contract' });
+          await new Promise(r => setTimeout(r, 700));
+
+          // 2) 통합 검색창 탐색 및 검색어 입력
+          const searchKeyword = customer || site;
+          if (searchKeyword) {
+            let searchInput = document.querySelector('input[placeholder*="통합 검색"]') || document.querySelector('input[placeholder*="검색"]');
+            if (!searchInput) {
+              for (let i = 0; i < 20; i++) {
+                await new Promise(r => setTimeout(r, 100));
+                searchInput = document.querySelector('input[placeholder*="통합 검색"]') || document.querySelector('input[placeholder*="검색"]');
+                if (searchInput) break;
+              }
+            }
+
+            if (searchInput) {
+              highlightElement(searchInput);
+              setNativeValue(searchInput, searchKeyword);
+              
+              // Enter 이벤트 및 조회 버튼 클릭
+              const enterDown = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+              searchInput.dispatchEvent(enterDown);
+
+              const searchBtn = Array.from(document.querySelectorAll('button')).find(b => {
+                const t = (b.innerText || '').replace(/\s+/g, '');
+                return t === '조회' || t === '검색';
+              });
+              if (searchBtn) searchBtn.click();
+              await new Promise(r => setTimeout(r, 700));
             }
           }
 
-          if (searchInput) {
-            highlightElement(searchInput);
-            setNativeValue(searchInput, searchKeyword);
-            
-            // Enter 이벤트 및 조회 버튼 클릭
-            const enterDown = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
-            searchInput.dispatchEvent(enterDown);
+          // 3) 검색 결과 테이블에서 대상 계약 행 정밀 탐색 (No Blind Fallback)
+          let targetRow = null;
+          let detailBtn = null;
 
-            const searchBtn = Array.from(document.querySelectorAll('button')).find(b => {
+          for (let i = 0; i < 20; i++) {
+            const rows = Array.from(document.querySelectorAll('table tbody tr'));
+            if (rows.length > 0) {
+              if (searchKeyword) {
+                targetRow = rows.find(r => (r.innerText || '').includes(searchKeyword));
+              } else {
+                targetRow = rows[0];
+              }
+
+              if (targetRow) {
+                detailBtn = targetRow.querySelector('button[data-mid="contract-detail-action"]') ||
+                            Array.from(targetRow.querySelectorAll('button')).find(b => (b.innerText || '').includes('상세'));
+                if (detailBtn) break;
+              }
+            }
+            await new Promise(r => setTimeout(r, 100));
+          }
+
+          // 🚨 [엄격 검증]: 검색어를 주었는데 일치하는 행이 없으면 절대 임의 행을 누르지 않음!
+          if (searchKeyword && !targetRow) {
+            return {
+              success: false,
+              error: `'${searchKeyword}'(으)로 검색된 계약을 목록에서 찾을 수 없습니다. 고객사명 또는 현장명 오타 여부를 확인해 주세요.`
+            };
+          }
+
+          if (!detailBtn) {
+            return { success: false, error: `대상 계약을 찾을 수 없음 (검색어: ${searchKeyword || '미지정'})` };
+          }
+
+          highlightElement(detailBtn);
+          detailBtn.click();
+          await new Promise(r => setTimeout(r, 700));
+
+          // 4) 상세 화면에서 [기간 연장/단축] 버튼 탐색 및 클릭
+          let extendBtn = null;
+          for (let i = 0; i < 20; i++) {
+            extendBtn = Array.from(document.querySelectorAll('button')).find(b => {
               const t = (b.innerText || '').replace(/\s+/g, '');
-              return t === '조회' || t === '검색';
+              return t.includes('기간연장') || t.includes('기간연장/단축') || t.includes('기간변경');
             });
-            if (searchBtn) searchBtn.click();
-            await new Promise(r => setTimeout(r, 600));
+            if (extendBtn && isElementVisible(extendBtn)) break;
+            await new Promise(r => setTimeout(r, 100));
           }
-        }
 
-        // 3) 검색 결과 테이블에서 대상 계약 행 탐색 및 [상세 ➔] 클릭
-        let detailBtn = null;
-        for (let i = 0; i < 20; i++) {
-          const rows = Array.from(document.querySelectorAll('table tbody tr'));
-          if (rows.length > 0) {
-            let targetRow = null;
-            if (searchKeyword) {
-              targetRow = rows.find(r => (r.innerText || '').includes(searchKeyword));
-            }
-            if (!targetRow && rows.length > 0) {
-              targetRow = rows[0];
-            }
-
-            if (targetRow) {
-              detailBtn = targetRow.querySelector('button[data-mid="contract-detail-action"]') ||
-                          Array.from(targetRow.querySelectorAll('button')).find(b => (b.innerText || '').includes('상세'));
-              if (detailBtn) break;
-            }
+          if (!extendBtn) {
+            return { success: false, error: '계약 상세 화면에서 [기간 연장/단축] 버튼을 찾을 수 없음' };
           }
-          await new Promise(r => setTimeout(r, 100));
+
+          highlightElement(extendBtn);
+          extendBtn.click();
+          await new Promise(r => setTimeout(r, 500));
         }
-
-        if (!detailBtn) {
-          detailBtn = document.querySelector('button[data-mid="contract-detail-action"]') ||
-                      Array.from(document.querySelectorAll('button')).find(b => (b.innerText || '').includes('상세'));
-        }
-
-        if (!detailBtn) {
-          return { success: false, error: `대상 계약을 찾을 수 없음 (검색어: ${searchKeyword || '미지정'})` };
-        }
-
-        highlightElement(detailBtn);
-        detailBtn.click();
-        await new Promise(r => setTimeout(r, 700));
-
-        // 4) 상세 화면에서 [기간 연장/단축] 버튼 탐색 및 클릭
-        let extendBtn = null;
-        for (let i = 0; i < 20; i++) {
-          extendBtn = Array.from(document.querySelectorAll('button')).find(b => {
-            const t = (b.innerText || '').replace(/\s+/g, '');
-            return t.includes('기간연장') || t.includes('기간연장/단축') || t.includes('기간변경');
-          });
-          if (extendBtn && isElementVisible(extendBtn)) break;
-          await new Promise(r => setTimeout(r, 100));
-        }
-
-        if (!extendBtn) {
-          return { success: false, error: '계약 상세 화면에서 [기간 연장/단축] 버튼을 찾을 수 없음' };
-        }
-
-        highlightElement(extendBtn);
-        extendBtn.click();
-        await new Promise(r => setTimeout(r, 500));
 
         // 5) 모달 내 변경 만료일 입력 필드 찾기
         let dateInput = null;
@@ -583,9 +596,9 @@
         let submitBtn = null;
 
         for (let i = 0; i < 20; i++) {
-          const modal = Array.from(document.querySelectorAll('form, .card, [role="dialog"]')).find(m => {
+          const modal = Array.from(document.querySelectorAll('form, .card, [role="dialog"], div')).find(m => {
             const t = m.innerText || '';
-            return t.includes('기간 연장') || t.includes('변경 만료일');
+            return (t.includes('계약 기간 연장') || t.includes('변경 만료일')) && isElementVisible(m);
           });
 
           if (modal) {
@@ -597,6 +610,18 @@
             if (dateInput && submitBtn) break;
           }
           await new Promise(r => setTimeout(r, 100));
+        }
+
+        // 모달 컨테이너 밖에서라도 input[type="date"]가 폼에 있으면 폴백 탐색
+        if (!dateInput) {
+          dateInput = document.querySelector('form input[type="date"]') || document.querySelector('input[type="date"]');
+        }
+        if (!reasonInput) {
+          reasonInput = document.querySelector('form input[placeholder*="사유"]') || document.querySelector('input[placeholder*="사유"]');
+        }
+        if (!submitBtn) {
+          submitBtn = document.querySelector('form button[type="submit"]') ||
+                      Array.from(document.querySelectorAll('button')).find(b => (b.innerText || '').trim() === '저장');
         }
 
         if (!dateInput) {
@@ -641,10 +666,15 @@
 
         await new Promise(r => setTimeout(r, 300));
 
-        // 저장 버튼 클릭
+        // 저장 버튼 클릭 및 폼 제출 (React 19 호환)
         if (submitBtn) {
           highlightElement(submitBtn);
-          submitBtn.click();
+          const form = submitBtn.closest('form');
+          if (form && typeof form.requestSubmit === 'function') {
+            form.requestSubmit(submitBtn);
+          } else {
+            submitBtn.click();
+          }
         }
 
         await new Promise(r => setTimeout(r, 800));
@@ -800,6 +830,31 @@
           vehicleType: params.vehicle_type,
           cost: params.cost,
           message: `[${customer || site || '배차건'}] ${params.driver_name || '기사'} (${params.vehicle_type || '5T'}, ₩${costFormatted}) 배차가 성공적으로 배정되었습니다.`
+        };
+      }
+
+      // ✉️ 공식 이메일 발송 워크플로 (회사소개서, 견적서, 제원표, 계약서식)
+      if (workflow === 'MAIL_SEND') {
+        actions.navigate_menu({ menuId: 'official_mail' });
+        await new Promise(r => setTimeout(r, 700));
+
+        const mailTypeLabels = {
+          'COMPANY_PROFILE': '회사소개서',
+          'QUOTE': '장비 견적서',
+          'CATALOG_SPEC': '장비 제원표/카탈로그',
+          'CONTRACT_BUNDLE': '표준 계약 서식 세트',
+          'CUSTOM': '공식 업무 문서'
+        };
+        const label = mailTypeLabels[params.mail_type] || '공식 문서';
+        const targetDesc = [customer, params.recipient].filter(Boolean).join(' ') || '고객사';
+
+        return {
+          success: true,
+          workflow: 'MAIL_SEND',
+          customer,
+          recipient: params.recipient,
+          mailType: params.mail_type,
+          message: `[${targetDesc}] ${label} 공식 메일 발송 화면이 열리고 서식이 준비되었습니다.`
         };
       }
 

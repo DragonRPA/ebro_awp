@@ -32,7 +32,8 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
       { id: 'smart_dispatch4', name: '출고 요청' },
       { id: 'smart_return', name: '회수 요청' },
       { id: 'smart_as_request', name: 'AS 요청' },
-      { id: 'delinquency', name: '미수 채권 연체 관리' }
+      { id: 'delinquency', name: '미수 채권 연체 관리' },
+      { id: 'public_construction_permits', name: '인허가 건축공정 조회' }
     ]
   },
   {

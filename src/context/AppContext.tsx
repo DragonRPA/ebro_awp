@@ -93,6 +93,7 @@ interface AppContextType {
   currentTenant: Tenant;
   setCurrentTenantId: (tenantId: string) => void;
   saveTenant: (tenant: Partial<Tenant> & { id?: string }) => Promise<Tenant>;
+  deleteTenant: (tenantId: string) => Promise<boolean>;
   addTenantWorkplace: (tenantId: string, workplace: Omit<TenantWorkplace, 'id'>) => Promise<Tenant>;
   updateTenantWorkplace: (tenantId: string, workplaceId: string, workplace: Partial<TenantWorkplace>) => Promise<Tenant>;
   deleteTenantWorkplace: (tenantId: string, workplaceId: string) => Promise<Tenant>;
@@ -509,6 +510,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await db.awaitPendingWrites();
     setTenants([...db.tenants]);
     return saved;
+  };
+
+  const deleteTenant = async (tenantId: string): Promise<boolean> => {
+    const list = db.tenants;
+    if (list.length <= 1) {
+      throw new Error('최소 1개의 기본 테넌트가 유지되어야 합니다.');
+    }
+    const target = list.find(t => t.id === tenantId);
+    if (target?.isDefault) {
+      throw new Error('기본 테넌트는 삭제할 수 없습니다. 다른 테넌트를 기본으로 지정한 후 삭제하십시오.');
+    }
+    db.deleteRow('tenants', tenantId);
+    await db.awaitPendingWrites();
+    setTenants([...db.tenants]);
+    if (currentTenantId === tenantId) {
+      const remaining = db.tenants.find(t => t.isDefault) || db.tenants[0];
+      if (remaining) setCurrentTenantId(remaining.id);
+    }
+    return true;
   };
 
   const addTenantWorkplace = async (tenantId: string, workplaceData: Omit<TenantWorkplace, 'id'>): Promise<Tenant> => {
@@ -1208,6 +1228,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 2-2. 연차관리 권한은 급여 권한자와 100% 동일하게 변경 (급여 권한 상속)
     if (normMenuId === 'leave_management') {
       return hasPermission('payroll', action);
+    }
+
+    // 2-3. 테넌트 관리는 최고 관리자(ADMIN, admin, sys-admin) 전용 보안 메뉴
+    if (normMenuId === 'tenant_management') {
+      return currentUser.role === 'ADMIN' || currentUser.loginId === 'admin' || currentUser.id === 'sys-admin';
     }
 
     // 3. 사용자 정의 권한 명칭(CustomRole) 상속 판정 (역할 기반 자동 상속 최우선)
@@ -10183,7 +10208,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
   return (
     <AppContext.Provider value={{ receivables: db.receivables as any[], refreshReceivables: () => {}, 
       currentUser, theme, toggleTheme, login, logout, switchUser, hasPermission, showErrorModal,
-      tenants, currentTenant, setCurrentTenantId, saveTenant,
+      tenants, currentTenant, setCurrentTenantId, saveTenant, deleteTenant,
       addTenantWorkplace, updateTenantWorkplace, deleteTenantWorkplace,
       addTenantYard, updateTenantYard, deleteTenantYard, setDefaultYard,
       errorReports, addErrorReport, receiveErrorReport, completeErrorReport, cancelErrorReport, reopenErrorReport, deleteErrorReport,
