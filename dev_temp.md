@@ -1,5 +1,33 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## [완료] 좌측 메뉴 패널 개인화 설정 - 메뉴 그룹 단위 위/아래 순서 재배치 기능 구현
+- **요구사항**: "메뉴 그룹단위로도 위아래 배치를 변경 가능하도록 적용"
+- **도메인 핵심 가치 및 편의성**:
+  1. **개인화 편의성 극대화 (헌장 1.1)**:
+     - 하위 메뉴 순서 재배치뿐만 아니라, 최상위 '메뉴 그룹(결재 센터, 영업관리, 자산관리, 배차관리, 입출고관리, 정비관리, 경영관리 등)' 자체의 배치 순서도 사용자 직무 우선순위에 맞게 위/아래로 자유롭게 변경 가능.
+  2. **직관적인 원클릭 상하 이동 인터페이스 (헌장 3.1 & 3.2)**:
+     - 개인화 설정 모달 좌측의 각 메뉴 그룹 행마다 컴팩트한 상하 스택형 `▲` / `▼` 이동 버튼 배치.
+     - 그룹 선택 기능과 순서 변경 기능을 독립 분리하여 클릭 즉시 순서 스왑(Swap) 및 로컬스토리지 영구 보존.
+  3. **사이드바 내비게이션 및 모달 동기화**:
+     - `sortedMenuGroups`가 사용자 설정 순서(`groupOrder`)를 즉각 반영하여 좌측 사이드바와 설정 모달 양쪽에 동일하게 정렬된 순서로 렌더링.
+     - '기본값 복원' 클릭 시 하위 메뉴 설정과 함께 메뉴 그룹 순서도 시스템 초기 표준으로 원클릭 일괄 복원.
+- **아키텍처 및 구현 내역**:
+  1. `src/hooks/useMenuPreferences.ts`:
+     - `moveGroupUp(groupList, targetIndex)` 및 `moveGroupDown(groupList, targetIndex)` 콜백 추가.
+     - `groupOrder` 배열 내 그룹 ID 스왑 및 저장 로직 구현.
+     - `resetToDefault` 시 `groupOrder: undefined`로 그룹 순서도 초기화.
+  2. `src/components/SidebarCustomizationModal.tsx`:
+     - `onMoveGroupUp`, `onMoveGroupDown` props 추가.
+     - 좌측 메뉴 그룹 선택 패널 너비를 240px로 확장하고, 각 그룹 행에 미니 `▲`/`▼` 순서 변경 버튼 배치.
+     - 모달 너비를 860px로 여유롭게 확장.
+  3. `src/App.tsx`:
+     - `useMenuPreferences`에서 `moveMenuGroupUp`, `moveMenuGroupDown` 연동.
+     - `menuPreferences?.groupOrder`에 따라 메뉴 그룹을 정렬하는 `sortedMenuGroups` useMemo 훅 추가.
+     - 사이드바 아코디언 렌더링과 모달 `customizationGroups`에 `sortedMenuGroups` 적용.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 error).
+
+---
+
 ## [완료] 특수 거래명세서 작성 스튜디오 신설, 테넌트별 On/Off 제어, 회계 원장 보존 및 변환 사유 추적성(Audit Trail) 구현
 - **요구사항**: "청구 생성에 대해서, 실제 청구 액수총액을 다른 항목으로 전체 임의수정해서 거래명세서를 만들수 있는 특수한 청구작성 메뉴를 만들어줘. 이 기능은 테넌트별로 사용 가능하거나 사용 못하게 만들거나 해야돼. 청구 데이터는 실제 계약과 정상적인 청구 DB 그대로 작성되지만, 어떻게 다르게 거래명세서를 만들었는지도 따로 적을수 있어야 해"
 - **도메인 핵심 가치 및 회계 무결성 방어선**:

@@ -30,6 +30,8 @@ interface SidebarCustomizationModalProps {
   onSetColor: (menuId: string, colorId: string) => void;
   onMoveUp: (menuList: { id: string }[], index: number) => void;
   onMoveDown: (menuList: { id: string }[], index: number) => void;
+  onMoveGroupUp?: (groupList: { id: string }[], index: number) => void;
+  onMoveGroupDown?: (groupList: { id: string }[], index: number) => void;
   onReset: () => void;
 }
 
@@ -42,6 +44,8 @@ export const SidebarCustomizationModal: React.FC<SidebarCustomizationModalProps>
   onSetColor,
   onMoveUp,
   onMoveDown,
+  onMoveGroupUp,
+  onMoveGroupDown,
   onReset
 }) => {
   const [selectedGroupId, setSelectedGroupId] = useState<string>(groups[0]?.id || '');
@@ -70,7 +74,7 @@ export const SidebarCustomizationModal: React.FC<SidebarCustomizationModalProps>
         borderRadius: '14px',
         border: '1px solid var(--border-color)',
         width: '100%',
-        maxWidth: '820px',
+        maxWidth: '860px',
         maxHeight: '88vh',
         display: 'flex',
         flexDirection: 'column',
@@ -93,7 +97,7 @@ export const SidebarCustomizationModal: React.FC<SidebarCustomizationModalProps>
                 좌측 메뉴 패널 개인화 설정
               </h3>
               <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-muted)' }}>
-                권한이 부여된 메뉴에 한하여 노출 여부, 순서 재배치, 메뉴별 강조 색상을 설정할 수 있습니다.
+                권한이 부여된 메뉴 그룹 및 하위 메뉴의 노출 여부, 순서 재배치, 메뉴별 강조 색상을 설정할 수 있습니다.
               </p>
             </div>
           </div>
@@ -121,7 +125,7 @@ export const SidebarCustomizationModal: React.FC<SidebarCustomizationModalProps>
         <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden' }}>
           {/* 1. 좌측 그룹 탭 목록 */}
           <div style={{
-            width: '210px',
+            width: '240px',
             borderRight: '1px solid var(--border-color)',
             backgroundColor: 'var(--bg-secondary)',
             padding: '12px 8px',
@@ -130,53 +134,127 @@ export const SidebarCustomizationModal: React.FC<SidebarCustomizationModalProps>
             flexDirection: 'column',
             gap: '4px'
           }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', padding: '4px 8px', whiteSpace: 'nowrap' }}>
-              메뉴 그룹 선택
-            </span>
-            {groups.map(grp => {
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 6px 4px 6px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                메뉴 그룹 선택
+              </span>
+              <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                ▲/▼ 순서변경
+              </span>
+            </div>
+            {groups.map((grp, grpIdx) => {
               const isSelected = (currentGroup?.id || '') === grp.id;
               const visibleCount = grp.items.filter(item => (menuPrefs[item.id]?.visible ?? true)).length;
 
               return (
-                <button
+                <div
                   key={grp.id}
-                  type="button"
-                  onClick={() => setSelectedGroupId(grp.id)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '9px 12px',
+                    gap: '4px',
                     borderRadius: '8px',
-                    border: 'none',
                     backgroundColor: isSelected ? 'var(--primary)' : 'transparent',
-                    color: isSelected ? '#ffffff' : 'var(--text-primary)',
-                    fontSize: '12.5px',
-                    fontWeight: isSelected ? 800 : 600,
-                    cursor: 'pointer',
-                    textAlign: 'left',
+                    padding: '2px 4px 2px 2px',
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
-                      {grp.icon}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedGroupId(grp.id)}
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '7px 8px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: 'transparent',
+                      color: isSelected ? '#ffffff' : 'var(--text-primary)',
+                      fontSize: '12.5px',
+                      fontWeight: isSelected ? 800 : 600,
+                      cursor: 'pointer',
+                      textAlign: 'left'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', overflow: 'hidden' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0, color: isSelected ? '#ffffff' : 'inherit' }}>
+                        {grp.icon}
+                      </span>
+                      <span style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                        {grp.name}
+                      </span>
+                    </div>
+                    <span style={{
+                      fontSize: '10.5px',
+                      fontWeight: 700,
+                      padding: '1px 5px',
+                      borderRadius: '10px',
+                      backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.25)' : 'var(--bg-card)',
+                      color: isSelected ? '#ffffff' : 'var(--text-secondary)',
+                      flexShrink: 0,
+                      marginLeft: '4px'
+                    }}>
+                      {visibleCount}/{grp.items.length}
                     </span>
-                    <span style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                      {grp.name}
-                    </span>
+                  </button>
+
+                  {/* 메뉴 그룹 단위 위/아래 순서 변경 버튼 */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      disabled={grpIdx === 0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMoveGroupUp?.(groups, grpIdx);
+                      }}
+                      style={{
+                        width: '18px',
+                        height: '14px',
+                        borderRadius: '3px',
+                        border: isSelected ? 'none' : '1px solid var(--border-color)',
+                        backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.25)' : 'var(--bg-card)',
+                        color: isSelected ? '#ffffff' : (grpIdx === 0 ? 'var(--text-muted)' : 'var(--text-primary)'),
+                        cursor: grpIdx === 0 ? 'not-allowed' : 'pointer',
+                        opacity: grpIdx === 0 ? 0.3 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 0
+                      }}
+                      title="메뉴 그룹 위로 이동"
+                    >
+                      <ChevronUp size={11} strokeWidth={2.5} />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={grpIdx === groups.length - 1}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMoveGroupDown?.(groups, grpIdx);
+                      }}
+                      style={{
+                        width: '18px',
+                        height: '14px',
+                        borderRadius: '3px',
+                        border: isSelected ? 'none' : '1px solid var(--border-color)',
+                        backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.25)' : 'var(--bg-card)',
+                        color: isSelected ? '#ffffff' : (grpIdx === groups.length - 1 ? 'var(--text-muted)' : 'var(--text-primary)'),
+                        cursor: grpIdx === groups.length - 1 ? 'not-allowed' : 'pointer',
+                        opacity: grpIdx === groups.length - 1 ? 0.3 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 0
+                      }}
+                      title="메뉴 그룹 아래로 이동"
+                    >
+                      <ChevronDown size={11} strokeWidth={2.5} />
+                    </button>
                   </div>
-                  <span style={{
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    padding: '1px 6px',
-                    borderRadius: '10px',
-                    backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.25)' : 'var(--bg-card)',
-                    color: isSelected ? '#ffffff' : 'var(--text-secondary)'
-                  }}>
-                    {visibleCount}/{grp.items.length}
-                  </span>
-                </button>
+                </div>
               );
             })}
           </div>

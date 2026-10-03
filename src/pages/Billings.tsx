@@ -246,6 +246,7 @@ export const Billings: React.FC = () => {
   const [csBillingYm, setCsBillingYm] = useState(() => new Date().toISOString().slice(0, 7));
   const [csBillingDate, setCsBillingDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [csReason, setCsReason] = useState('');
+  const [csReasonError, setCsReasonError] = useState(false);
   const [csItems, setCsItems] = useState<CustomStatementItem[]>([]);
   const [csSearchTerm, setCsSearchTerm] = useState('');
   const [csIsGenerating, setCsIsGenerating] = useState(false);
@@ -1523,25 +1524,37 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
   // 신규 특수 거래명세서 청구 생성 핸들러
   const handleCreateCustomStatementBilling = async () => {
     if (!csSelectedContractId) {
+      showErrorModal('청구 대상 계약을 먼저 선택해 주세요.', '계약 선택 필수');
       showToast('청구 대상 계약을 먼저 선택해 주세요.', 'error');
       return;
     }
     const contract = contracts.find(c => c.id === csSelectedContractId);
     if (!contract) {
+      showErrorModal('선택된 계약 정보를 찾을 수 없습니다.', '계약 조회 오류');
       showToast('선택된 계약 정보를 찾을 수 없습니다.', 'error');
       return;
     }
     if (!csReason.trim()) {
+      setCsReasonError(true);
+      const el = document.getElementById('cs-reason-textarea');
+      if (el) {
+        el.focus();
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      showErrorModal('⚠️ 거래명세서 변환 사유를 반드시 입력해야 합니다.\n\n정상 회계 원장(계약 DB)과 다르게 고객용 거래명세서를 임의 변경하는 사유와 원본과의 차이점을 상단 텍스트 영역에 구체적으로 기재해 주십시오.', '필수 입력 누락');
       showToast('거래명세서 변환 사유를 반드시 입력해야 합니다. (필수)', 'error');
       return;
     }
     if (csItems.length === 0) {
+      showErrorModal('거래명세서 품목을 최소 1개 이상 등록해야 합니다.', '품목 누락');
       showToast('명세서 품목을 최소 1개 이상 등록해야 합니다.', 'error');
       return;
     }
 
-    for (const it of csItems) {
+    for (let i = 0; i < csItems.length; i++) {
+      const it = csItems[i];
       if (!it.itemDescription || !it.itemDescription.trim()) {
+        showErrorModal(`${i + 1}번째 품목의 품목명이 비어있습니다. 모든 품목의 품목명을 입력해야 합니다.`, '품목명 누락');
         showToast('모든 품목의 품목명을 입력해야 합니다.', 'error');
         return;
       }
@@ -5376,18 +5389,33 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
             </div>
 
             {/* 상단 2: 거래명세서 변환 사유 필수 입력 */}
-            <div className="card" style={{ margin: 0, padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px', borderLeft: '4px solid #7c3aed' }}>
+            <div className="card" style={{
+              margin: 0,
+              padding: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              borderLeft: csReasonError ? '4px solid #ef4444' : '4px solid #7c3aed',
+              backgroundColor: csReasonError ? 'rgba(239, 68, 68, 0.04)' : undefined,
+              transition: 'all 0.2s ease'
+            }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ fontSize: '12.5px', fontWeight: 800, color: '#6d28d9' }}>
+                <label style={{ fontSize: '12.5px', fontWeight: 800, color: csReasonError ? '#ef4444' : '#6d28d9' }}>
                   거래명세서 변환 사유 및 원본 차이 내역 (필수 기록) *
                 </label>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  어떻게 다르게 거래명세서를 만들었는지 사유와 배경을 구체적으로 기재합니다.
+                <span style={{ fontSize: '11px', color: csReasonError ? '#ef4444' : 'var(--text-muted)', fontWeight: csReasonError ? 700 : 400 }}>
+                  {csReasonError ? '⚠️ 필수 입력 항목입니다. 변환 사유를 반드시 기재해야 청구서가 저장됩니다.' : '어떻게 다르게 거래명세서를 만들었는지 사유와 배경을 구체적으로 기재합니다.'}
                 </span>
               </div>
               <textarea
+                id="cs-reason-textarea"
                 value={csReason}
-                onChange={(e) => setCsReason(e.target.value)}
+                onChange={(e) => {
+                  setCsReason(e.target.value);
+                  if (csReasonError && e.target.value.trim()) {
+                    setCsReasonError(false);
+                  }
+                }}
                 placeholder="예: 고객사 회계팀 요청에 따른 품목 명칭 변경 (고소작업대 2대를 '비품 임대료' 1건으로 통합 표기) 및 합의 단가 적용 등"
                 rows={2}
                 style={{
@@ -5395,10 +5423,12 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                   padding: '8px 12px',
                   fontSize: '12.5px',
                   borderRadius: '5px',
-                  border: '1px solid var(--border-color)',
+                  border: csReasonError ? '2px solid #ef4444' : '1px solid var(--border-color)',
                   backgroundColor: 'var(--bg-app)',
                   color: 'var(--text-primary)',
-                  resize: 'vertical'
+                  resize: 'vertical',
+                  outline: 'none',
+                  boxShadow: csReasonError ? '0 0 0 3px rgba(239, 68, 68, 0.15)' : 'none'
                 }}
               />
             </div>
@@ -6915,6 +6945,46 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               );
             })()}
           </div>
+        </div>
+      )}
+
+      {/* 🔔 전역 플로팅 토스트 알림 컴포넌트 */}
+      {toastMessage && (
+        <div style={{
+          position: 'fixed',
+          top: '24px',
+          right: '24px',
+          zIndex: 99999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          padding: '12px 20px',
+          borderRadius: '8px',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+          backgroundColor: toastMessage.type === 'error' ? '#ef4444' : toastMessage.type === 'warning' ? '#f59e0b' : '#10b981',
+          color: '#ffffff',
+          fontSize: '13.5px',
+          fontWeight: 700,
+          border: '1px solid rgba(255,255,255,0.2)'
+        }}>
+          <span style={{ fontSize: '16px' }}>{toastMessage.type === 'error' ? '⚠️' : toastMessage.type === 'warning' ? '⚡' : '✅'}</span>
+          <span>{toastMessage.text}</span>
+          <button
+            type="button"
+            onClick={() => setToastMessage(null)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#ffffff',
+              cursor: 'pointer',
+              marginLeft: '8px',
+              padding: '0 4px',
+              fontSize: '14px',
+              fontWeight: 800
+            }}
+          >
+            ✕
+          </button>
         </div>
       )}
     </div>

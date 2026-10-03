@@ -145,7 +145,91 @@ export function useMenuPreferences(userId?: string) {
     });
   }, [storageKey]);
 
-  // 7. 전체 기본값 복원 (초기화)
+  // 7. 메뉴 그룹 순서 위로 이동
+  const moveGroupUp = useCallback((groupList: { id: string }[], targetIndex: number) => {
+    if (targetIndex <= 0 || targetIndex >= groupList.length) return;
+
+    setPreferences(prev => {
+      const currentList = groupList.map(g => g.id);
+      let baseOrder = prev?.groupOrder && prev.groupOrder.length > 0
+        ? [...prev.groupOrder]
+        : [...currentList];
+
+      currentList.forEach(id => {
+        if (!baseOrder.includes(id)) {
+          baseOrder.push(id);
+        }
+      });
+
+      const targetId = groupList[targetIndex].id;
+      const prevId = groupList[targetIndex - 1].id;
+
+      const idxTarget = baseOrder.indexOf(targetId);
+      const idxPrev = baseOrder.indexOf(prevId);
+
+      if (idxTarget !== -1 && idxPrev !== -1) {
+        const temp = baseOrder[idxTarget];
+        baseOrder[idxTarget] = baseOrder[idxPrev];
+        baseOrder[idxPrev] = temp;
+      }
+
+      const newPrefs: UserMenuPreferences = {
+        userId: prev?.userId || userId || 'anonymous',
+        items: prev?.items || {},
+        groupOrder: baseOrder,
+        updatedAt: new Date().toISOString()
+      };
+
+      if (storageKey) {
+        try { localStorage.setItem(storageKey, JSON.stringify(newPrefs)); } catch (e) {}
+      }
+      return newPrefs;
+    });
+  }, [storageKey, userId]);
+
+  // 8. 메뉴 그룹 순서 아래로 이동
+  const moveGroupDown = useCallback((groupList: { id: string }[], targetIndex: number) => {
+    if (targetIndex < 0 || targetIndex >= groupList.length - 1) return;
+
+    setPreferences(prev => {
+      const currentList = groupList.map(g => g.id);
+      let baseOrder = prev?.groupOrder && prev.groupOrder.length > 0
+        ? [...prev.groupOrder]
+        : [...currentList];
+
+      currentList.forEach(id => {
+        if (!baseOrder.includes(id)) {
+          baseOrder.push(id);
+        }
+      });
+
+      const targetId = groupList[targetIndex].id;
+      const nextId = groupList[targetIndex + 1].id;
+
+      const idxTarget = baseOrder.indexOf(targetId);
+      const idxNext = baseOrder.indexOf(nextId);
+
+      if (idxTarget !== -1 && idxNext !== -1) {
+        const temp = baseOrder[idxTarget];
+        baseOrder[idxTarget] = baseOrder[idxNext];
+        baseOrder[idxNext] = temp;
+      }
+
+      const newPrefs: UserMenuPreferences = {
+        userId: prev?.userId || userId || 'anonymous',
+        items: prev?.items || {},
+        groupOrder: baseOrder,
+        updatedAt: new Date().toISOString()
+      };
+
+      if (storageKey) {
+        try { localStorage.setItem(storageKey, JSON.stringify(newPrefs)); } catch (e) {}
+      }
+      return newPrefs;
+    });
+  }, [storageKey, userId]);
+
+  // 9. 전체 기본값 복원 (초기화)
   const resetToDefault = useCallback(() => {
     if (!storageKey) return;
     try {
@@ -153,6 +237,7 @@ export function useMenuPreferences(userId?: string) {
       setPreferences({
         userId: userId || 'anonymous',
         items: {},
+        groupOrder: undefined,
         updatedAt: new Date().toISOString()
       });
     } catch (e) {
@@ -173,6 +258,8 @@ export function useMenuPreferences(userId?: string) {
     setMenuColor,
     moveItemUp,
     moveItemDown,
+    moveGroupUp,
+    moveGroupDown,
     resetToDefault,
     getColorPreset
   };

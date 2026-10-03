@@ -690,6 +690,8 @@ const App: React.FC = () => {
     setMenuColor,
     moveItemUp: moveMenuItemUp,
     moveItemDown: moveMenuItemDown,
+    moveGroupUp: moveMenuGroupUp,
+    moveGroupDown: moveMenuGroupDown,
     resetToDefault: resetMenuPreferences,
     getColorPreset
   } = useMenuPreferences(currentUser?.id || currentUser?.loginId);
@@ -698,9 +700,22 @@ const App: React.FC = () => {
     return menuPreferences?.items || {};
   }, [menuPreferences]);
 
-  // 권한이 있는 메뉴만 추출하여 모달에 전달
+  // 메뉴 그룹 순서 개인화 (groupOrder 반영)
+  const sortedMenuGroups = useMemo(() => {
+    const orderList = menuPreferences?.groupOrder;
+    if (!orderList || orderList.length === 0) return menuGroups;
+    return [...menuGroups].sort((a, b) => {
+      const indexA = orderList.indexOf(a.id);
+      const indexB = orderList.indexOf(b.id);
+      const valA = indexA === -1 ? 999 : indexA;
+      const valB = indexB === -1 ? 999 : indexB;
+      return valA - valB;
+    });
+  }, [menuGroups, menuPreferences?.groupOrder]);
+
+  // 권한이 있는 메뉴만 추출하여 모달에 전달 (정렬된 그룹 순서 반영)
   const customizationGroups = useMemo(() => {
-    return menuGroups
+    return sortedMenuGroups
       .map(grp => {
         const permitted = grp.items.filter(item => hasPermission(item.id, 'view'));
         const sorted = [...permitted].sort((a, b) => {
@@ -722,7 +737,7 @@ const App: React.FC = () => {
         };
       })
       .filter(grp => grp.items.length > 0);
-  }, [menuGroups, hasPermission, menuPrefs]);
+  }, [sortedMenuGroups, hasPermission, menuPrefs]);
 
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     grp_sales: true,
@@ -1473,8 +1488,8 @@ const App: React.FC = () => {
             </button>
           )}
 
-          {/* 계층형 접이식 상위-하위 아코디언 그룹 메뉴 (개인화 순서, 노출 여부, 색상 연동) */}
-          {menuGroups.map(grp => {
+          {/* 계층형 접이식 상위-하위 아코디언 그룹 메뉴 (개인화 그룹/메뉴 순서, 노출 여부, 색상 연동) */}
+          {sortedMenuGroups.map(grp => {
             // 1. 사용자가 권한을 가진 하위 메뉴 필터링 (권한 연동 100%)
             const permittedItems = grp.items.filter(item => hasPermission(item.id, 'view'));
             if (permittedItems.length === 0) return null;
@@ -1733,6 +1748,8 @@ const App: React.FC = () => {
         onSetColor={setMenuColor}
         onMoveUp={(list, idx) => moveMenuItemUp(list, idx)}
         onMoveDown={(list, idx) => moveMenuItemDown(list, idx)}
+        onMoveGroupUp={(groupList, idx) => moveMenuGroupUp(groupList, idx)}
+        onMoveGroupDown={(groupList, idx) => moveMenuGroupDown(groupList, idx)}
         onReset={resetMenuPreferences}
       />
 
