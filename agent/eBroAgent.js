@@ -17,7 +17,7 @@ const os = require('os');
 const { spawn, execSync } = require('child_process');
 const { handleStudioRequest, launchStudioWindow } = require('./studioEngine');
 
-const VERSION = 'v2.0.0.Build.1';
+const VERSION = 'v2.0.0.Build.2';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -136,10 +136,26 @@ console.log('====================================================');
 // ── 🌐 Cloudflare R2 기반 스마트 자가 업데이트 (Auto-Update) 엔진 ──
 const CF_R2_VERSION_URL = process.env.CF_R2_VERSION_URL || 'https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/downloads/version.json';
 
-async function checkAndApplyUpdate() {
+let updateState = {
+  status: 'idle', // 'idle' | 'checking' | 'downloading' | 'installing' | 'completed' | 'error'
+  currentVersion: VERSION,
+  targetVersion: null,
+  message: '',
+  lastChecked: null
+};
+
+async function checkAndApplyUpdate(force = false) {
+  if (updateState.status === 'downloading' || updateState.status === 'installing') {
+    return { status: updateState.status, message: '업데이트 작업 진행 중' };
+  }
+
+  updateState.status = 'checking';
+  updateState.message = '원격 버전 확인 중...';
+  updateState.lastChecked = new Date().toISOString();
+
   try {
     const res = await new Promise((resolve, reject) => {
-      const clientReq = https.get(CF_R2_VERSION_URL, { timeout: 6000 }, (resp) => {
+      const clientReq = https.get(CF_R2_VERSION_URL, { timeout: 7000 }, (resp) => {
         if (resp.statusCode !== 200) {
           resolve({ ok: false, statusCode: resp.statusCode });
           return;
@@ -154,17 +170,26 @@ async function checkAndApplyUpdate() {
     if (res.ok && res.body) {
       const info = JSON.parse(res.body);
       const remoteVersion = info.version;
+      const installerUrl = info.installerUrl || 'https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/downloads/eBroAgent_Setup.exe';
       const downloadUrl = info.downloadUrl;
 
-      if (remoteVersion && remoteVersion !== VERSION && downloadUrl) {
+      updateState.targetVersion = remoteVersion;
+
+      if (remoteVersion && (remoteVersion !== VERSION || force)) {
         console.log(`🚀 [eBroAgent Auto-Update] 새 버전 감지: ${VERSION} ➔ ${remoteVersion}`);
-        console.log(`📥 Cloudflare R2에서 백그라운드 다운로드 시작: ${downloadUrl}`);
+        updateState.status = 'downloading';
+        updateState.message = `새 버전(${remoteVersion}) 백그라운드 다운로드 중...`;
 
-        const stagingPath = path.join(AGENT_HOME, 'update_staging.exe');
-        const fileStream = fs.createWriteStream(stagingPath);
+        // Inno Setup 정식 인스톨러 무음 업데이트 지원
+        const targetUrl = installerUrl || downloadUrl;
+        const isInstaller = targetUrl.toLowerCase().includes('setup');
+        const updateFilePath = path.join(AGENT_HOME, isInstaller ? 'eBroAgent_Setup_Update.exe' : 'update_staging.exe');
+        const fileStream = fs.createWriteStream(updateFilePath);
 
-        https.get(downloadUrl, (fileRes) => {
+        https.get(targetUrl, (fileRes) => {
           if (fileRes.statusCode !== 200) {
+            updateState.status = 'error';
+            updateState.message = `다운로드 실패 HTTP ${fileRes.statusCode}`;
             console.warn(`⚠️ [eBroAgent Auto-Update] 다운로드 실패 HTTP ${fileRes.statusCode}`);
             return;
           }
@@ -172,29 +197,56 @@ async function checkAndApplyUpdate() {
           fileStream.on('finish', () => {
             fileStream.close();
             console.log(`✅ [eBroAgent Auto-Update] 다운로드 완료! 신규 엔진으로 교체 기동합니다...`);
+            updateState.status = 'installing';
+            updateState.message = '새 버전으로 백그라운드 무음 교체 기동 중...';
 
-            // 신규 바이너리를 detached 모드로 실행하여 구버전 자동 교체 (Auto-Kill & Takeover)
-            const child = spawn(stagingPath, [], {
-              detached: true,
-              stdio: 'ignore',
-              windowsHide: true
-            });
-            child.unref();
-            process.exit(0);
+            if (isInstaller) {
+              // Inno Setup 완전 무음 설치: /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
+              const child = spawn(updateFilePath, ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-'], {
+                detached: true,
+                stdio: 'ignore'
+              });
+              child.unref();
+            } else {
+              // 단일 바이너리 바통 터치
+              const child = spawn(updateFilePath, [], {
+                detached: true,
+                stdio: 'ignore',
+                windowsHide: true
+              });
+              child.unref();
+            }
+
+            setTimeout(() => {
+              process.exit(0);
+            }, 1000);
           });
         }).on('error', err => {
+          updateState.status = 'error';
+          updateState.message = `다운로드 오류: ${err.message}`;
           console.warn('⚠️ [eBroAgent Auto-Update] 다운로드 스트림 오류:', err.message);
         });
+
+        return { status: 'updating', currentVersion: VERSION, targetVersion: remoteVersion };
+      } else {
+        updateState.status = 'idle';
+        updateState.message = '최신 버전을 사용 중입니다.';
+        return { status: 'latest', currentVersion: VERSION };
       }
     }
+    updateState.status = 'error';
+    updateState.message = '원격 버전 정보 응답 오류';
+    return { status: 'error', message: updateState.message };
   } catch (err) {
-    // 오프라인이거나 CF 연결 불가 시 무음 처리하여 정상 가동 유지
+    updateState.status = 'error';
+    updateState.message = err.message;
+    return { status: 'error', message: err.message };
   }
 }
 
-// 윈도우 부팅 15초 후 첫 검사, 이후 1시간마다 주기적 백그라운드 검사
-setTimeout(checkAndApplyUpdate, 15000);
-setInterval(checkAndApplyUpdate, 3600000);
+// 윈도우 부팅 5초 후 첫 검사, 이후 10분마다 주기적 백그라운드 검사
+setTimeout(checkAndApplyUpdate, 5000);
+setInterval(checkAndApplyUpdate, 600000);
 
 // ── HTTP 요청 핸들러 ──
 let activeCallsign = CALLSIGN;
@@ -245,8 +297,29 @@ const server = http.createServer(async (req, res) => {
       archiveRoot: ARCHIVE_ROOT,
       driveMirrorDir: DRIVE_MIRROR_DIR,
       uptimeSeconds: Math.floor(process.uptime()),
+      updateState: updateState,
       timestamp: new Date().toISOString()
     }));
+    return;
+  }
+
+  // 1-2. 에이전트 자가 자동 업데이트 즉시 검사 및 실행 API
+  if ((req.method === 'POST' || req.method === 'GET') && pathname === '/api/check-update') {
+    const isForce = searchParams.get('force') === 'true' || searchParams.get('force') === '1';
+    checkAndApplyUpdate(isForce).then((result) => {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: true, result, updateState }));
+    }).catch(err => {
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: false, error: err.message, updateState }));
+    });
+    return;
+  }
+
+  // 1-3. 에이전트 업데이트 진행 상태 조회 API
+  if (req.method === 'GET' && pathname === '/api/update-status') {
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ success: true, updateState }));
     return;
   }
 

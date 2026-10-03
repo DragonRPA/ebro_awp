@@ -1,10 +1,10 @@
 {
-  "version": "v2.0.0.Build.1",
-  "buildTime": "2026-10-03T18:00:00.000Z",
+  "version": "v2.0.0.Build.2",
+  "buildTime": "2026-10-03T23:00:00.000Z",
   "downloadUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/downloads/eBroAgent.exe",
-  "installerUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/downloads/eBroAgentSetup.exe",
+  "installerUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/downloads/eBroAgent_Setup.exe",
   "certUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/downloads/eBroAgent_Root.cer",
-  "changelog": "통합 PC 데스크톱 에이전트: Cloudflare R2 기반 초고속 CDN 다운로드 및 무중단 스마트 자가 업데이트(Auto-Update) 지원",
+  "changelog": "eBro AI 데스크톱 스튜디오 엔진 탑재 및 무음 스마트 백그라운드 자동 업데이트 지원",
   "minCompatibleVersion": "v2.0.0.Build.1",
-  "fileSize": "68.5MB"
+  "fileSize": "27.4MB"
 }

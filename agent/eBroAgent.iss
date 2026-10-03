@@ -4,7 +4,7 @@
 [Setup]
 AppId={{EBR0-ERP-AG3NT-S1D3CAR-2026}}
 AppName=eBro ERP Agent
-AppVersion=v2.0.0.Build.1
+AppVersion=v2.0.0.Build.2
 AppPublisher=(주)기연리프트 / e-Bro ERP
 AppPublisherURL=https://ebro.run
 AppSupportURL=https://ebro.run

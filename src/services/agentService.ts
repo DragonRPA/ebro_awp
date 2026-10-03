@@ -1,7 +1,7 @@
 // src/services/agentService.ts
 // e-Bro ERP 로컬 사이드카 에이전트(eBroAgent) 단일 표준 메타데이터 및 통신 헬퍼
 
-export const EXPECTED_AGENT_VERSION = 'v2.0.0.Build.1';
+export const EXPECTED_AGENT_VERSION = 'v2.0.0.Build.2';
 // 🌐 Cloudflare R2 글로벌 CDN 기반 대용량 독립 실행 파일 및 스마트 버전 관리 엔드포인트 (Vercel 용량 0% 격리)
 export const DEFAULT_CF_R2_BASE_URL = 'https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev';
 export const AGENT_INSTALLER_BASE_URL = `${DEFAULT_CF_R2_BASE_URL}/downloads/eBroAgent_Setup.exe`; // Inno Setup 27MB 정식 인스톨러
@@ -133,6 +133,13 @@ export interface AgentHealthInfo {
   archiveRoot?: string;
   driveMirrorDir?: string;
   uptimeSeconds?: number;
+  updateState?: {
+    status: string;
+    currentVersion: string;
+    targetVersion: string | null;
+    message: string;
+    lastChecked: string | null;
+  };
   timestamp?: string;
 }
 
@@ -192,6 +199,7 @@ export async function checkLocalAgentHealth(callsign: string = 'admin'): Promise
         archiveRoot: data.archiveRoot,
         driveMirrorDir: data.driveMirrorDir,
         uptimeSeconds: data.uptimeSeconds,
+        updateState: data.updateState,
         timestamp: data.timestamp
       };
     }
@@ -251,6 +259,25 @@ export async function restartLocalAgent(): Promise<boolean> {
 }
 
 /**
+ * 🚀 로컬 에이전트 자가 자동 업데이트(Inno Setup 백그라운드 무음 교체) 즉시 트리거
+ */
+export async function triggerAgentSelfUpdate(force: boolean = false): Promise<{ success: boolean; message?: string; updateState?: any }> {
+  try {
+    const res = await fetchWithAgentFallback(`/api/check-update?force=${force ? 'true' : 'false'}`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(5000)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return { success: true, message: '자동 업데이트가 시작되었습니다.', updateState: data.updateState };
+    }
+    return { success: false, message: `업데이트 요청 실패 (HTTP ${res.status})` };
+  } catch (e: any) {
+    return { success: false, message: e.message || '에이전트 통신 실패' };
+  }
+}
+
+/**
  * 📢 에이전트가 필요한 시점에 응답하지 않을 때 전역 모달 표출 이벤트 디스패치
  */
 export function notifyAgentRequired(actionName: string = '로컬 연동 작업'): void {
@@ -258,3 +285,4 @@ export function notifyAgentRequired(actionName: string = '로컬 연동 작업')
     window.dispatchEvent(new CustomEvent('ebro:agent_required', { detail: { actionName } }));
   }
 }
+

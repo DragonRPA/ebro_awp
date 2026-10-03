@@ -1,3 +1,38 @@
+## 2026-10-03 23:00 (v1.13.0.Build.12)
+
+### [자동업데이트/AutoUpdate] eBroAgent 스마트 무음 자가 업데이트(Auto-Update) 메커니즘 완전 개통 및 웹 ERP 실시간 감지·1클릭 업데이트 연동
+
+- **배경 및 사장님 지침**:
+  - "나는 직전 버전 설치를 했었고 이번에 개편이 됐는데, 그럼 자동 업데이트가 되어야 하는것 아닌가?"
+- **문제 원인 및 아키텍처 결함 규명 (헌장 1.1, 1.2, 3.1, 5.2, 6.1, 6.2)**:
+  1. **버전 메타데이터 정체 (Version Match)**:
+     - 에이전트 소스코드(`eBroAgent.js`)와 Cloudflare R2의 `version.json`이 직전 빌드와 동일한 `v2.0.0.Build.1`로 유지되어 `remoteVersion !== VERSION` 비교문이 `false`로 평가되어 새 버전 배포를 감지하지 못했음.
+  2. **백그라운드 점검 주기 지연 (Polling Latency)**:
+     - 점검 주기가 1시간(3,600,000ms)으로 길어, 배포 직후 켜져 있는 클라이언트 에이전트가 즉각 반응하지 못했음.
+  3. **인스톨러 기반 무음 업데이트 파이프라인 부재**:
+     - 기존 단일 104MB exe 교체 대신 최신 27MB Inno Setup 인스톨러를 다운로드하여 `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART`로 조용히 덮어쓰고 재기동하는 파이프라인이 정립되지 않았음.
+  4. **웹 브라우저 UI와 에이전트 간 즉시 업데이트 지시 트리거 부재**:
+     - 웹 화면에서 에이전트가 구버전임을 감지하더라도 사용자가 수동으로 새 파일을 다운로드받아 설치해야 했으며, 브라우저에서 에이전트에 즉각 업데이트 명령을 쏘는 API와 원클릭 버튼이 없었음.
+- **도메인 핵심 가치 및 기술 조치 (헌장 1.1 임직원의 최소 노력으로 최대 편익 달성)**:
+  1. **에이전트 버전 상향 및 원격 R2 메타데이터 실시간 동기화**:
+     - `eBroAgent.js`, `eBroAgent.iss`, `version.json`, `agentService.ts` 버전을 `v2.0.0.Build.2`로 일제 상향.
+     - Cloudflare R2 버킷에 `downloads/version.json` 및 최신 27.4MB `eBroAgent_Setup.exe` (테넌트 4종 포함) 즉시 업로드 완료.
+  2. **에이전트 스마트 무음 자가 업데이트 엔진 고도화 (`agent/eBroAgent.js`)**:
+     - 부팅 5초 후 1차 검사, 이후 10분(600,000ms)마다 백그라운드 자동 검사.
+     - 새 버전 감지 시 R2에서 Inno Setup 인스톨러(`eBroAgent_Setup.exe`)를 백그라운드 다운로드 ➔ `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-` 실행으로 사용자 확인 팝업 Zero 무음 교체 기동.
+     - `POST /api/check-update`, `GET /api/update-status` HTTP 엔드포인트 탑재로 외부 강제 트리거 지원.
+  3. **웹 ERP 실시간 감지 및 1클릭 원터치 자동 업데이트 연동 (`AgentHeaderBadge.tsx`, `agentService.ts`)**:
+     - `EXPECTED_AGENT_VERSION = 'v2.0.0.Build.2'` 대사 로직 탑재.
+     - 구버전 에이전트 가동 감지 시, 헤더 배지 옆에 **`[자동 업데이트]`** 원클릭 버튼 즉시 노출.
+     - 미니 팝오버 메뉴 내 최상단에 **`[🚀 최신 버전(v2.0.0.Build.2) 원클릭 자동 업데이트]`** 배치.
+     - 클릭 시 수동 파일 다운로드 없이 에이전트가 백그라운드에서 즉시 무음 설치 및 자동 재연결 수행.
+- **실환경 실증 검증**:
+  - 로컬 구버전 에이전트(`v2.0.0.Build.1`) 기동 시 R2의 `v2.0.0.Build.2`를 정확히 감지:
+    `🚀 [eBroAgent Auto-Update] 새 버전 감지: v2.0.0.Build.1 ➔ v2.0.0.Build.2`
+    `📥 Cloudflare R2에서 백그라운드 다운로드 시작: https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/downloads/eBroAgent_Setup.exe`
+    무음 자동 다운로드 및 교체 트리거 실물 로그 완벽 실증 통과.
+  - `npm run build`: 0 error 무결성 통과.
+
 ## 2026-10-03 22:45 (v1.13.0.Build.11)
 
 ### [인증서정돈/스튜디오UI] 루트 인증서 발급자/주체 문자열 글자 깨짐 완전 박멸 및 eBro AI Agent 독립 데스크톱 스튜디오(UI) & 자연어 업무 지시 큐 시스템 전격 구축

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bot, Download, RefreshCw, Shield, ChevronDown, CheckCircle2, AlertTriangle, X, Cloud, FolderCheck, HardDrive, Play } from 'lucide-react';
-import { EXPECTED_AGENT_VERSION, AGENT_DOWNLOAD_URL, AGENT_BRO_JS_URL, AGENT_REG_BAT_URL, AGENT_LAUNCHER_URL, AGENT_CERT_URL, AGENT_INSTALL_BAT_URL, NODEJS_INSTALL_URL, launchLocalAgentFromBrowser, restartLocalAgent, fetchWithAgentFallback, openAgentStudio } from '../services/agentService';
+import { EXPECTED_AGENT_VERSION, AGENT_DOWNLOAD_URL, AGENT_BRO_JS_URL, AGENT_REG_BAT_URL, AGENT_LAUNCHER_URL, AGENT_CERT_URL, AGENT_INSTALL_BAT_URL, NODEJS_INSTALL_URL, launchLocalAgentFromBrowser, restartLocalAgent, fetchWithAgentFallback, openAgentStudio, triggerAgentSelfUpdate } from '../services/agentService';
 import { executeDriveMirrorSync, getLocalMirrorStatus, subscribeMirrorProgress, MirrorProgressState } from '../services/driveMirrorSync';
 import { useApp } from '../context/AppContext';
 
@@ -19,6 +19,8 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
   const [isRestarting, setIsRestarting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isLaunching, setIsLaunching] = useState(false);
+  const [isUpdatingSelf, setIsUpdatingSelf] = useState(false);
+  const [updateMsg, setUpdateMsg] = useState('');
   const [launchMsg, setLaunchMsg] = useState('');
   const [isOpenMenu, setIsOpenMenu] = useState(false);
 
@@ -204,6 +206,29 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
     }, 2000);
   };
 
+  // 🚀 무음 스마트 백그라운드 자동 업데이트 실행
+  const handleSelfUpdate = async () => {
+    setIsUpdatingSelf(true);
+    setUpdateMsg('최신 버전(v2.0.0.Build.2) 백그라운드 다운로드 중...');
+    try {
+      const res = await triggerAgentSelfUpdate(true);
+      if (res.success) {
+        setUpdateMsg('무음 교체 설치 중... 잠시 후 자동 재연결됩니다.');
+        setTimeout(() => {
+          setIsUpdatingSelf(false);
+          setUpdateMsg('');
+          setIsOpenMenu(false);
+        }, 8000);
+      } else {
+        setUpdateMsg(res.message || '업데이트 요청 실패');
+        setIsUpdatingSelf(false);
+      }
+    } catch (e: any) {
+      setUpdateMsg(e.message || '통신 오류');
+      setIsUpdatingSelf(false);
+    }
+  };
+
   // 버전 약식 변환 헬퍼 (예: v1.100.0.Build.217 -> v1.100)
   const toShortVer = (ver: string) => {
     if (!ver) return '';
@@ -282,32 +307,59 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
         </button>
       )}
 
-      {/* 🟡 구버전 가동 중 배지 (버전 차이 약식 표기: v1.98 ➔ v1.100) */}
+      {/* 🟡 구버전 가동 중 배지 & 1클릭 무음 자동 업데이트 버튼 */}
       {isOutdated && (
-        <button
-          type="button"
-          onClick={() => setIsOpenMenu(!isOpenMenu)}
-          style={{
-            padding: '5px 10px',
-            borderRadius: '20px',
-            background: 'rgba(245, 158, 11, 0.15)',
-            border: '1px solid rgba(245, 158, 11, 0.5)',
-            color: 'var(--warning)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '5px',
-            fontSize: '12px',
-            fontWeight: '800',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            transition: 'all 0.15s ease'
-          }}
-          title={`에이전트 업데이트 필요 (현재: ${agentVersion} ➔ 최신: ${EXPECTED_AGENT_VERSION})`}
-        >
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--warning)' }}></span>
-          <span>{shortCurrent || '구버전'} ➔ {shortExpected}</span>
-          <ChevronDown size={11} />
-        </button>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+          <button
+            type="button"
+            onClick={() => setIsOpenMenu(!isOpenMenu)}
+            style={{
+              padding: '5px 10px',
+              borderRadius: '20px',
+              background: 'rgba(245, 158, 11, 0.15)',
+              border: '1px solid rgba(245, 158, 11, 0.5)',
+              color: 'var(--warning)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              fontSize: '12px',
+              fontWeight: '800',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease'
+            }}
+            title={`에이전트 업데이트 필요 (현재: ${agentVersion} ➔ 최신: ${EXPECTED_AGENT_VERSION})`}
+          >
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--warning)' }}></span>
+            <span>{shortCurrent || '구버전'} ➔ {shortExpected}</span>
+            <ChevronDown size={11} />
+          </button>
+
+          <button
+            type="button"
+            disabled={isUpdatingSelf}
+            onClick={handleSelfUpdate}
+            style={{
+              padding: '4px 9px',
+              borderRadius: '6px',
+              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              border: 'none',
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '11px',
+              fontWeight: '800',
+              cursor: isUpdatingSelf ? 'wait' : 'pointer',
+              whiteSpace: 'nowrap',
+              boxShadow: '0 1px 4px rgba(217, 119, 6, 0.35)'
+            }}
+            title="클릭 즉시 백그라운드 무음 자동 업데이트를 시작합니다."
+          >
+            <RefreshCw size={11} className={isUpdatingSelf ? 'animate-spin' : ''} />
+            <span>{isUpdatingSelf ? '업데이트 중...' : '자동 업데이트'}</span>
+          </button>
+        </div>
       )}
 
       {/* 🔴 미실행 (오프라인) 상태 배지 */}
@@ -644,16 +696,60 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
             )}
 
             {isOutdated && (
-              <button
-                type="button"
-                className="btn-primary"
-                disabled={isDownloading}
-                onClick={handleDownloadAgent}
-                style={{ width: '100%', padding: '9px 10px', fontSize: '12.5px', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', border: 'none', color: '#fff' }}
-              >
-                <Download size={14} />
-                {isDownloading ? '다운로드 중...' : `📥 최신 에이전트 (${EXPECTED_AGENT_VERSION}) 받기`}
-              </button>
+              <>
+                <button
+                  type="button"
+                  disabled={isUpdatingSelf}
+                  onClick={handleSelfUpdate}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    fontSize: '12.5px',
+                    fontWeight: '800',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                    border: 'none',
+                    borderRadius: '7px',
+                    color: '#fff',
+                    cursor: isUpdatingSelf ? 'wait' : 'pointer',
+                    boxShadow: '0 2px 6px rgba(217,119,6,0.35)'
+                  }}
+                >
+                  <RefreshCw size={14} className={isUpdatingSelf ? 'animate-spin' : ''} />
+                  {isUpdatingSelf ? '무음 자동 업데이트 진행 중...' : `🚀 최신 버전(${EXPECTED_AGENT_VERSION}) 원클릭 자동 업데이트`}
+                </button>
+                {updateMsg && (
+                  <div style={{ fontSize: '11px', textAlign: 'center', color: updateMsg.includes('실패') ? '#dc2626' : '#16a34a', fontWeight: '700' }}>
+                    {updateMsg}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  disabled={isDownloading}
+                  onClick={handleDownloadAgent}
+                  style={{
+                    width: '100%',
+                    padding: '7px 10px',
+                    fontSize: '11.5px',
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '5px',
+                    background: 'var(--bg-app)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '6px',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Download size={12} />
+                  <span>수동 설치 파일 다운로드</span>
+                </button>
+              </>
             )}
 
 
