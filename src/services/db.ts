@@ -138,6 +138,8 @@ export interface TenantFeatures {
   autoTaxInvoice?: boolean;       // 홈택스 전자세금계산서 연동
   customDomain?: string;          // 고객사 독립 커스텀 도메인
   voiceAssistance?: boolean;      // 음성 비서 어시스턴트
+  publicDataApiKey?: string;      // 국토교통부 세움터 공공데이터포털 인증키 (서버/DB 보관)
+  vworldApiKey?: string;          // V-World 공간정보 오픈플랫폼 인증키 (서버/DB 보관)
 }
 
 /** 💳 테넌트 구독 요금제 등급 */

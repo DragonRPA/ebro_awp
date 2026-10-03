@@ -1,5 +1,6 @@
 // src/pages/PublicConstructionPermitsPage.tsx
 import React, { useState, useMemo, useEffect } from 'react';
+import { useApp } from '../context/AppContext';
 import { db, Customer, CustomerSite } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import {
@@ -21,635 +22,23 @@ import {
   KOREA_SIGUNGU_MAP,
   getRegionCodeInfo
 } from '../utils/koreaRegions';
+import {
+  RoadAccessInfo,
+  CsiSafetyInfo,
+  ConstructionPermitItem
+} from '../types/constructionPermit';
+import { EXPANDED_INITIAL_PERMIT_DATA } from '../data/defaultConstructionPermits';
 
-// 1. 공간/도로망 정보 (V-World 연계) 모델
-export interface RoadAccessInfo {
-  roadName: string; // 접면 도로명 (예: 남양중앙로)
-  roadWidth: number; // 도로 폭(m) (예: 12m)
-  lanes: number; // 차로수 (예: 4차로)
-  roadRank: '광로/대로' | '중로' | '소로' | '이면도로/골목길'; // 도로 등급
-  truckFeasibility: 'TRAILER_ALLOWED' | 'LARGE_ALLOWED' | 'MID_ONLY' | 'SMALL_ONLY_WARNING';
-  turnaroundSpace: boolean; // 트럭 회차 공간 확보 여부
-  warningMessage?: string; // 배차 주의 메모
-}
-
-// 2. 건설공사 안전관리 종합정보망 (CSI 연계) 모델
-export interface CsiSafetyInfo {
-  safetyPlanRequired: boolean; // 안전관리계획 수립 법정 의무 현장 (10층 이상 또는 지하 10m 이상)
-  safetyRiskGrade: 'HIGH' | 'MEDIUM' | 'LOW'; // 공사 위험도 등급
-  requiredSafetyOptions: string[]; // 고소작업대 필수 탑재 안전장치
-  documentRequirements: string[]; // 현장 제출 필수 서류
-  accidentHistoryWarning?: boolean; // 안전관리 주의보
-}
-
-export interface ConstructionPermitItem {
-  id: string;
-  mgmtNo: string; // 인허가 관리번호 (mgmPmsrgstPk)
-  permitKind: '신축' | '증축' | '대수선' | '용도변경';
-  siteAddress: string; // 지번 주소
-  siteRoadAddress?: string; // 도로명 주소
-  sido: string; // 시도
-  sigungu: string; // 시군구
-  bjdong: string; // 읍면동
-  bunji?: string;
-  projectName: string; // 건물명/사업명
-  mainUse: string; // 주용도
-  subUse?: string; // 세부용도
-  structure: string; // 구조
-  plotArea: number; // 대지면적(㎡)
-  archArea: number; // 건축면적(㎡)
-  totArea: number; // 연면적(㎡)
-  groundFloors: number; // 지상층수
-  underFloors: number; // 지하층수
-  height?: number; // 높이(m)
-  permitDate: string; // 허가일자 (YYYY-MM-DD)
-  startPlanDate?: string; // 착공예정일
-  actualStartDate?: string; // 실제착공일
-  expectedEndDate: string; // 준공예정일
-  builderName: string; // 시공사
-  builderPhone?: string; // 현장연락처
-  clientName: string; // 건축주
-  supervisorName?: string; // 감리자
-  dataSource: 'PUBLIC_API_REALTIME' | 'PRESET_DATASET'; // 데이터 출처
-  
-  // V-World 도로망 & CSI 안전망 연동 데이터
-  roadAccess: RoadAccessInfo;
-  csiSafety: CsiSafetyInfo;
-
-  // AI 공정 추정 및 스코어링 필드
-  progressStage: 'PERMITTED' | 'FOUNDATION' | 'STRUCTURE' | 'FINISHING' | 'COMPLETED';
-  progressRate: number; // 추정 공정률 (%)
-  elapsedDays: number; // 착공 후 경과일
-  totalDays: number; // 총 예정공기(일)
-  awpRecommendationScore: 'HIGH' | 'MID' | 'LOW'; // 고소작업대 추천도
-  awpGoldenTime: boolean; // 고소작업대 골든타임 여부 (마감/설비 투입 최적기)
-  recommendedEquipment: string[]; // 추천 장비
-  estimatedAwpUnits: number; // 예상 소요 대수
-  leadStatus?: 'UNTOUCHED' | 'CONTACTED' | 'REGISTERED';
-}
+export type { RoadAccessInfo, CsiSafetyInfo, ConstructionPermitItem };
 
 // 런타임 메모리 보안 디코딩 인증키 (정적 번들 JS 역공학 노출 차단)
 export const DEFAULT_ARCHHUB_API_KEY = getRuntimeDefaultArchHubKey();
 
-// 행정표준 시군구코드 및 법정동코드 매핑 (공식 가이드 첨부 2 기반)
-export interface RegionCodeDef {
-  sido: string;
-  sigungu: string;
-  sigunguCd: string;
-  bjdongCd: string;
-  bjdongName: string;
-}
-
-export const REGION_CODE_PRESETS: RegionCodeDef[] = [
-  { sido: '경기도', sigungu: '화성시', sigunguCd: '41590', bjdongCd: '25921', bjdongName: '남양읍' },
-  { sido: '경기도', sigungu: '화성시', sigunguCd: '41590', bjdongCd: '25300', bjdongName: '향남읍' },
-  { sido: '경기도', sigungu: '화성시', sigunguCd: '41590', bjdongCd: '13300', bjdongName: '영천동 (동탄)' },
-  { sido: '경기도', sigungu: '화성시', sigunguCd: '41590', bjdongCd: '31000', bjdongName: '마도면' },
-  { sido: '경기도', sigungu: '평택시', sigunguCd: '41220', bjdongCd: '12000', bjdongName: '고덕동' },
-  { sido: '경기도', sigungu: '평택시', sigunguCd: '41220', bjdongCd: '25300', bjdongName: '포승읍' },
-  { sido: '경기도', sigungu: '평택시', sigunguCd: '41220', bjdongCd: '31000', bjdongName: '진위면' },
-  { sido: '경기도', sigungu: '용인시 처인구', sigunguCd: '41461', bjdongCd: '25300', bjdongName: '남사읍' },
-  { sido: '경기도', sigungu: '용인시 기흥구', sigunguCd: '41463', bjdongCd: '10700', bjdongName: '구갈동' },
-  { sido: '경기도', sigungu: '이천시', sigunguCd: '41500', bjdongCd: '25300', bjdongName: '부발읍' },
-  { sido: '경기도', sigungu: '김포시', sigunguCd: '41570', bjdongCd: '25900', bjdongName: '양촌읍' },
-  { sido: '경기도', sigungu: '안성시', sigunguCd: '41550', bjdongCd: '35000', bjdongName: '원곡면' },
-  { sido: '서울특별시', sigungu: '강남구', sigunguCd: '11680', bjdongCd: '10300', bjdongName: '개포동' },
-  { sido: '서울특별시', sigungu: '강남구', sigunguCd: '11680', bjdongCd: '10100', bjdongName: '역삼동' },
-  { sido: '서울특별시', sigungu: '성동구', sigunguCd: '11200', bjdongCd: '11500', bjdongName: '성수동' },
-  { sido: '인천광역시', sigungu: '서구', sigunguCd: '28260', bjdongCd: '12000', bjdongName: '오류동' },
-  { sido: '충청남도', sigungu: '천안시 서북구', sigunguCd: '44133', bjdongCd: '25600', bjdongName: '직산읍' }
-];
-
-// 실측 기반 산업 거점 권역 인허가·도로망·안전관리 기본 데이터셋
-const INITIAL_PERMIT_DATA: ConstructionPermitItem[] = [
-  {
-    id: 'PMS-2026-001',
-    mgmtNo: '41590-2025-001284',
-    permitKind: '신축',
-    siteAddress: '경기도 화성시 남양읍 남양리 2145-3',
-    siteRoadAddress: '경기도 화성시 남양읍 남양중앙로 452',
-    sido: '경기도',
-    sigungu: '화성시',
-    bjdong: '남양읍',
-    bunji: '2145-3',
-    projectName: '화성 남양 서부 복합물류센터 신축공사',
-    mainUse: '창고시설',
-    subUse: '저온 및 상온 물류창고',
-    structure: '일반철골구조',
-    plotArea: 32450.0,
-    archArea: 18230.5,
-    totArea: 48920.8,
-    groundFloors: 5,
-    underFloors: 1,
-    height: 38.5,
-    permitDate: '2025-06-18',
-    actualStartDate: '2025-10-15',
-    expectedEndDate: '2026-12-30',
-    builderName: '(주)한일종합건설',
-    builderPhone: '031-356-8841',
-    clientName: '(주)케이에스로지스틱스',
-    supervisorName: '(주)예림건축사사무소',
-    dataSource: 'PRESET_DATASET',
-    roadAccess: {
-      roadName: '남양중앙로',
-      roadWidth: 16.0,
-      lanes: 4,
-      roadRank: '광로/대로',
-      truckFeasibility: 'TRAILER_ALLOWED',
-      turnaroundSpace: true,
-      warningMessage: '진입로 폭 16m 대로변 접면, 로우베드 츄레라 및 11톤 윙바디 자유 진입 가능'
-    },
-    csiSafety: {
-      safetyPlanRequired: true,
-      safetyRiskGrade: 'HIGH',
-      requiredSafetyOptions: ['협착방지봉(상부가드)', '과부하방지기', '경광등/후진멜로디', '상부충돌방지센서'],
-      documentRequirements: ['비파괴검사성적서(6개월내)', '영업배상책임보험증권', '작업계획서']
-    },
-    progressStage: 'FINISHING',
-    progressRate: 68,
-    elapsedDays: 353,
-    totalDays: 441,
-    awpRecommendationScore: 'HIGH',
-    awpGoldenTime: true,
-    recommendedEquipment: ['시저리프트 10m', '시저리프트 12m', '시저리프트 14m', '굴절렌탈 15m'],
-    estimatedAwpUnits: 25,
-    leadStatus: 'UNTOUCHED'
-  },
-  {
-    id: 'PMS-2026-002',
-    mgmtNo: '41220-2025-004312',
-    permitKind: '신축',
-    siteAddress: '경기도 평택시 고덕동 1892-1',
-    siteRoadAddress: '경기도 평택시 고덕국제대로 120',
-    sido: '경기도',
-    sigungu: '평택시',
-    bjdong: '고덕동',
-    bunji: '1892-1',
-    projectName: '평택 고덕 에이스 지식산업센터 신축',
-    mainUse: '지식산업센터',
-    subUse: '공장(지식산업센터) 및 지원시설',
-    structure: '철골철근콘크리트구조',
-    plotArea: 14500.0,
-    archArea: 8650.0,
-    totArea: 54200.0,
-    groundFloors: 10,
-    underFloors: 2,
-    height: 52.0,
-    permitDate: '2025-04-10',
-    actualStartDate: '2025-08-20',
-    expectedEndDate: '2027-02-28',
-    builderName: '(주)에이스건설',
-    builderPhone: '031-611-9200',
-    clientName: '평택고덕피에프브이(주)',
-    supervisorName: '(주)동우이앤씨건축사사무소',
-    dataSource: 'PRESET_DATASET',
-    roadAccess: {
-      roadName: '고덕국제대로',
-      roadWidth: 25.0,
-      lanes: 6,
-      roadRank: '광로/대로',
-      truckFeasibility: 'TRAILER_ALLOWED',
-      turnaroundSpace: true,
-      warningMessage: '왕복 6차로 대로 접면, 대형 트레일러 동시 3대 하차 작업 공간 확보'
-    },
-    csiSafety: {
-      safetyPlanRequired: true,
-      safetyRiskGrade: 'HIGH',
-      requiredSafetyOptions: ['협착방지봉(상부가드)', '과부하방지기', '안전발판/발끝막이판', '상부충돌방지센서'],
-      documentRequirements: ['비파괴검사성적서', '건설기계안전검사증', '조종원교육이수증']
-    },
-    progressStage: 'FINISHING',
-    progressRate: 58,
-    elapsedDays: 409,
-    totalDays: 557,
-    awpRecommendationScore: 'HIGH',
-    awpGoldenTime: true,
-    recommendedEquipment: ['시저리프트 10m', '시저리프트 12m', '전동고소작업대 8m'],
-    estimatedAwpUnits: 30,
-    leadStatus: 'UNTOUCHED'
-  },
-  {
-    id: 'PMS-2026-003',
-    mgmtNo: '41461-2025-002891',
-    permitKind: '신축',
-    siteAddress: '경기도 용인시 처인구 남사읍 봉명리 640-1',
-    siteRoadAddress: '경기도 용인시 처인구 남사읍 처인대로 112',
-    sido: '경기도',
-    sigungu: '용인시 처인구',
-    bjdong: '남사읍',
-    bunji: '640-1',
-    projectName: '용인 남사 반도체 협력사 정밀제조공장',
-    mainUse: '공장',
-    subUse: '반도체 장비 부품 제조공장',
-    structure: '일반철골구조',
-    plotArea: 22100.0,
-    archArea: 11050.0,
-    totArea: 19800.0,
-    groundFloors: 3,
-    underFloors: 0,
-    height: 24.0,
-    permitDate: '2025-09-05',
-    actualStartDate: '2025-12-10',
-    expectedEndDate: '2026-11-30',
-    builderName: '(주)신우종합건설',
-    builderPhone: '031-332-7104',
-    clientName: '(주)기가테크놀로지',
-    supervisorName: '(주)건축사사무소아키플랜',
-    dataSource: 'PRESET_DATASET',
-    roadAccess: {
-      roadName: '처인대로',
-      roadWidth: 12.0,
-      lanes: 2,
-      roadRank: '중로',
-      truckFeasibility: 'LARGE_ALLOWED',
-      turnaroundSpace: true,
-      warningMessage: '왕복 2차선 중로 접면, 11톤 윙바디 및 5톤 셀프로더 원활 진입'
-    },
-    csiSafety: {
-      safetyPlanRequired: false,
-      safetyRiskGrade: 'MEDIUM',
-      requiredSafetyOptions: ['협착방지봉', '과부하방지기', '경광등'],
-      documentRequirements: ['장비등록증', '보험증권']
-    },
-    progressStage: 'FINISHING',
-    progressRate: 75,
-    elapsedDays: 297,
-    totalDays: 355,
-    awpRecommendationScore: 'HIGH',
-    awpGoldenTime: true,
-    recommendedEquipment: ['시저리프트 12m', '시저리프트 14m', '엔진시저리프트'],
-    estimatedAwpUnits: 18,
-    leadStatus: 'UNTOUCHED'
-  },
-  {
-    id: 'PMS-2026-006',
-    mgmtNo: '41550-2026-000215',
-    permitKind: '신축',
-    siteAddress: '경기도 안성시 원곡면 칠곡리 712',
-    siteRoadAddress: '경기도 안성시 원곡면 칠곡호수길 55',
-    sido: '경기도',
-    sigungu: '안성시',
-    bjdong: '원곡면',
-    bunji: '712',
-    projectName: '안성 원곡 호수변 복합상가 신축공사',
-    mainUse: '근린생활시설',
-    subUse: '일반음식점 및 소매점',
-    structure: '철근콘크리트구조',
-    plotArea: 3200.0,
-    archArea: 1250.0,
-    totArea: 2850.0,
-    groundFloors: 3,
-    underFloors: 0,
-    height: 14.0,
-    permitDate: '2025-08-30',
-    actualStartDate: '2025-11-20',
-    expectedEndDate: '2026-10-31',
-    builderName: '(주)유진기업종합건설',
-    builderPhone: '031-675-9912',
-    clientName: '(주)원곡개발',
-    supervisorName: '(주)건축사사무소한얼',
-    dataSource: 'PRESET_DATASET',
-    roadAccess: {
-      roadName: '칠곡호수길',
-      roadWidth: 3.8,
-      lanes: 1,
-      roadRank: '이면도로/골목길',
-      truckFeasibility: 'SMALL_ONLY_WARNING',
-      turnaroundSpace: false,
-      warningMessage: '⚠️ 진입로 폭 3.8m 협소 구간! 5톤/11톤 차량 진입 불가 ➔ 1톤/2.5톤 소형 셀프로더 분할 배차 필수'
-    },
-    csiSafety: {
-      safetyPlanRequired: false,
-      safetyRiskGrade: 'LOW',
-      requiredSafetyOptions: ['협착방지봉', '경광등'],
-      documentRequirements: ['장비등록증']
-    },
-    progressStage: 'FINISHING',
-    progressRate: 88,
-    elapsedDays: 317,
-    totalDays: 345,
-    awpRecommendationScore: 'MID',
-    awpGoldenTime: true,
-    recommendedEquipment: ['시저리프트 8m', '시저리프트 10m'],
-    estimatedAwpUnits: 4,
-    leadStatus: 'UNTOUCHED'
-  },
-  {
-    id: 'PMS-2026-004',
-    mgmtNo: '41500-2026-000512',
-    permitKind: '신축',
-    siteAddress: '경기도 이천시 부발읍 신원리 381-4',
-    siteRoadAddress: '경기도 이천시 부발읍 경충대로 1950',
-    sido: '경기도',
-    sigungu: '이천시',
-    bjdong: '부발읍',
-    bunji: '381-4',
-    projectName: '이천 부발 로지스밸리 A동 신축',
-    mainUse: '창고시설',
-    subUse: '상온 복합물류센터',
-    structure: '철근콘크리트 및 프리캐스트콘크리트',
-    plotArea: 45000.0,
-    archArea: 21500.0,
-    totArea: 62000.0,
-    groundFloors: 4,
-    underFloors: 1,
-    height: 35.0,
-    permitDate: '2026-01-20',
-    actualStartDate: '2026-04-01',
-    expectedEndDate: '2027-06-30',
-    builderName: '(주)로지스건설',
-    builderPhone: '031-638-4450',
-    clientName: '(주)로지스밸리이천',
-    supervisorName: '(주)엄앤드이종합건축',
-    dataSource: 'PRESET_DATASET',
-    roadAccess: {
-      roadName: '경충대로',
-      roadWidth: 20.0,
-      lanes: 4,
-      roadRank: '광로/대로',
-      truckFeasibility: 'TRAILER_ALLOWED',
-      turnaroundSpace: true,
-      warningMessage: '국도 3호선 경충대로 접면, 대형 로우베드 및 11톤 트럭 상하차 원활'
-    },
-    csiSafety: {
-      safetyPlanRequired: true,
-      safetyRiskGrade: 'HIGH',
-      requiredSafetyOptions: ['협착방지봉(상부가드)', '과부하방지기', '경광등', '상부충돌방지센서'],
-      documentRequirements: ['비파괴검사성적서', '작업계획서', '보험증권']
-    },
-    progressStage: 'STRUCTURE',
-    progressRate: 35,
-    elapsedDays: 185,
-    totalDays: 455,
-    awpRecommendationScore: 'HIGH',
-    awpGoldenTime: false,
-    recommendedEquipment: ['크레인', '타워크레인', '시저리프트 10m'],
-    estimatedAwpUnits: 40,
-    leadStatus: 'UNTOUCHED'
-  },
-  {
-    id: 'PMS-2026-006',
-    mgmtNo: '44133-2025-001920',
-    permitKind: '신축',
-    siteAddress: '충청남도 천안시 서북구 직산읍 판정리 290-1',
-    siteRoadAddress: '충청남도 천안시 서북구 직산읍 직산로 115',
-    sido: '충청남도',
-    sigungu: '천안시 서북구',
-    bjdong: '직산읍',
-    projectName: '천안 직산 반도체 패키징 라인 신축',
-    mainUse: '공장',
-    subUse: '첨단 반도체 부품 공장',
-    structure: '철골조',
-    plotArea: 28400.0,
-    archArea: 14200.0,
-    totArea: 32600.0,
-    groundFloors: 3,
-    underFloors: 0,
-    height: 22.0,
-    permitDate: '2025-08-11',
-    actualStartDate: '2025-11-20',
-    expectedEndDate: '2026-11-15',
-    builderName: '(주)대보건설',
-    builderPhone: '041-583-9100',
-    clientName: '(주)하이테크반도체',
-    supervisorName: '(주)종합건축사사무소',
-    dataSource: 'PRESET_DATASET',
-    roadAccess: {
-      roadName: '직산로',
-      roadWidth: 14.0,
-      lanes: 4,
-      roadRank: '광로/대로',
-      truckFeasibility: 'TRAILER_ALLOWED',
-      turnaroundSpace: true,
-      warningMessage: '직산로 왕복 4차선 접면, 11톤 화물 및 트레일러 진입 원활'
-    },
-    csiSafety: {
-      safetyPlanRequired: true,
-      safetyRiskGrade: 'HIGH',
-      requiredSafetyOptions: ['협착방지봉(상부가드)', '과부하방지기'],
-      documentRequirements: ['비파괴검사성적서', '작업계획서']
-    },
-    progressStage: 'FINISHING',
-    progressRate: 75,
-    elapsedDays: 317,
-    totalDays: 360,
-    awpRecommendationScore: 'HIGH',
-    awpGoldenTime: true,
-    recommendedEquipment: ['시저리프트 10m', '시저리프트 12m', '굴절렌탈 15m'],
-    estimatedAwpUnits: 20,
-    leadStatus: 'UNTOUCHED'
-  },
-  {
-    id: 'PMS-2026-007',
-    mgmtNo: '43113-2025-000841',
-    permitKind: '신축',
-    siteAddress: '충청북도 청주시 흥덕구 오송읍 연제리 620',
-    siteRoadAddress: '충청북도 청주시 흥덕구 오송읍 오송생명로 210',
-    sido: '충청북도',
-    sigungu: '청주시 흥덕구',
-    bjdong: '오송읍',
-    projectName: '오송 제3바이오단지 의약품 자동화 물류센터',
-    mainUse: '창고시설',
-    subUse: '저온 바이오 물류창고',
-    structure: '철골구조',
-    plotArea: 35000.0,
-    archArea: 19000.0,
-    totArea: 42000.0,
-    groundFloors: 4,
-    underFloors: 1,
-    height: 32.0,
-    permitDate: '2025-07-05',
-    actualStartDate: '2025-10-10',
-    expectedEndDate: '2027-01-30',
-    builderName: '(주)동부건설',
-    builderPhone: '043-231-7700',
-    clientName: '한국바이오로직스(주)',
-    supervisorName: '(주)원건축사사무소',
-    dataSource: 'PRESET_DATASET',
-    roadAccess: {
-      roadName: '오송생명로',
-      roadWidth: 20.0,
-      lanes: 4,
-      roadRank: '광로/대로',
-      truckFeasibility: 'TRAILER_ALLOWED',
-      turnaroundSpace: true,
-      warningMessage: '산단 대로변 접면, 로우베드 및 츄레라 회차 공간 충분'
-    },
-    csiSafety: {
-      safetyPlanRequired: true,
-      safetyRiskGrade: 'HIGH',
-      requiredSafetyOptions: ['협착방지봉(상부가드)', '과부하방지기', '상부충돌방지센서'],
-      documentRequirements: ['비파괴검사성적서', '작업계획서', '보험증권']
-    },
-    progressStage: 'FINISHING',
-    progressRate: 64,
-    elapsedDays: 358,
-    totalDays: 477,
-    awpRecommendationScore: 'HIGH',
-    awpGoldenTime: true,
-    recommendedEquipment: ['시저리프트 10m', '시저리프트 12m', '시저리프트 14m'],
-    estimatedAwpUnits: 28,
-    leadStatus: 'UNTOUCHED'
-  },
-  {
-    id: 'PMS-2026-008',
-    mgmtNo: '28260-2025-003310',
-    permitKind: '신축',
-    siteAddress: '인천광역시 서구 오류동 1640-2',
-    siteRoadAddress: '인천광역시 서구 검단일반산업단지로 45',
-    sido: '인천광역시',
-    sigungu: '서구',
-    bjdong: '오류동',
-    projectName: '인천 서구 검단 복합물류 허브 신축',
-    mainUse: '창고시설',
-    subUse: '상온 복합물류센터',
-    structure: '철골구조',
-    plotArea: 29000.0,
-    archArea: 15500.0,
-    totArea: 38500.0,
-    groundFloors: 5,
-    underFloors: 1,
-    height: 36.0,
-    permitDate: '2025-05-14',
-    actualStartDate: '2025-09-01',
-    expectedEndDate: '2026-11-30',
-    builderName: '(주)포스코이앤씨',
-    builderPhone: '032-567-8890',
-    clientName: '인천검단피에프브이(주)',
-    supervisorName: '(주)삼우종합건축',
-    dataSource: 'PRESET_DATASET',
-    roadAccess: {
-      roadName: '검단산단로',
-      roadWidth: 18.0,
-      lanes: 4,
-      roadRank: '광로/대로',
-      truckFeasibility: 'TRAILER_ALLOWED',
-      turnaroundSpace: true,
-      warningMessage: '산단 간선도로 접면, 츄레라 및 대형트럭 상하차 용이'
-    },
-    csiSafety: {
-      safetyPlanRequired: true,
-      safetyRiskGrade: 'HIGH',
-      requiredSafetyOptions: ['협착방지봉(상부가드)', '과부하방지기', '경광등'],
-      documentRequirements: ['비파괴검사성적서', '작업계획서']
-    },
-    progressStage: 'FINISHING',
-    progressRate: 82,
-    elapsedDays: 397,
-    totalDays: 455,
-    awpRecommendationScore: 'HIGH',
-    awpGoldenTime: true,
-    recommendedEquipment: ['시저리프트 10m', '시저리프트 12m', '시저리프트 14m'],
-    estimatedAwpUnits: 25,
-    leadStatus: 'UNTOUCHED'
-  },
-  {
-    id: 'PMS-2026-009',
-    mgmtNo: '47190-2025-001150',
-    permitKind: '신축',
-    siteAddress: '경상북도 구미시 산동읍 봉산리 1420',
-    siteRoadAddress: '경상북도 구미시 산동읍 첨단기업로 88',
-    sido: '경상북도',
-    sigungu: '구미시',
-    bjdong: '산동읍',
-    projectName: '구미 국가산단 2차전지 전극공장 신축',
-    mainUse: '공장',
-    subUse: '배터리 부품 생산공장',
-    structure: '일반철골구조',
-    plotArea: 31000.0,
-    archArea: 16000.0,
-    totArea: 29500.0,
-    groundFloors: 3,
-    underFloors: 0,
-    height: 24.0,
-    permitDate: '2025-10-18',
-    actualStartDate: '2026-01-15',
-    expectedEndDate: '2027-03-31',
-    builderName: '(주)코오롱글로벌',
-    builderPhone: '054-472-8800',
-    clientName: '(주)에너테크',
-    supervisorName: '(주)건원건축',
-    dataSource: 'PRESET_DATASET',
-    roadAccess: {
-      roadName: '첨단기업로',
-      roadWidth: 20.0,
-      lanes: 4,
-      roadRank: '광로/대로',
-      truckFeasibility: 'TRAILER_ALLOWED',
-      turnaroundSpace: true,
-      warningMessage: '국가산단 간선도로 접면, 대형 츄레라 진입 원활'
-    },
-    csiSafety: {
-      safetyPlanRequired: true,
-      safetyRiskGrade: 'HIGH',
-      requiredSafetyOptions: ['협착방지봉(상부가드)', '과부하방지기'],
-      documentRequirements: ['비파괴검사성적서', '작업계획서']
-    },
-    progressStage: 'STRUCTURE',
-    progressRate: 45,
-    elapsedDays: 261,
-    totalDays: 440,
-    awpRecommendationScore: 'HIGH',
-    awpGoldenTime: false,
-    recommendedEquipment: ['크레인', '시저리프트 10m'],
-    estimatedAwpUnits: 18,
-    leadStatus: 'UNTOUCHED'
-  },
-  {
-    id: 'PMS-2026-010',
-    mgmtNo: '26440-2025-002140',
-    permitKind: '신축',
-    siteAddress: '부산광역시 강서구 미음동 1580-1',
-    siteRoadAddress: '부산광역시 강서구 미음산단1로 72',
-    sido: '부산광역시',
-    sigungu: '강서구',
-    bjdong: '미음동',
-    projectName: '부산신항 배후 자동화 물류센터 신축',
-    mainUse: '창고시설',
-    subUse: '글로벌 스마트 물류창고',
-    structure: '철골구조',
-    plotArea: 42000.0,
-    archArea: 22000.0,
-    totArea: 51000.0,
-    groundFloors: 4,
-    underFloors: 1,
-    height: 38.0,
-    permitDate: '2025-06-25',
-    actualStartDate: '2025-10-01',
-    expectedEndDate: '2026-12-31',
-    builderName: '(주)한화건설',
-    builderPhone: '051-971-8840',
-    clientName: '부산신항로지스틱스(주)',
-    supervisorName: '(주)토문건축사사무소',
-    dataSource: 'PRESET_DATASET',
-    roadAccess: {
-      roadName: '미음산단로',
-      roadWidth: 25.0,
-      lanes: 6,
-      roadRank: '광로/대로',
-      truckFeasibility: 'TRAILER_ALLOWED',
-      turnaroundSpace: true,
-      warningMessage: '왕복 6차로 대로변 접면, 컨테이너 츄레라 동시 4대 상하차 가능'
-    },
-    csiSafety: {
-      safetyPlanRequired: true,
-      safetyRiskGrade: 'HIGH',
-      requiredSafetyOptions: ['협착방지봉(상부가드)', '과부하방지기', '경광등', '상부충돌방지센서'],
-      documentRequirements: ['비파괴검사성적서', '작업계획서', '보험증권']
-    },
-    progressStage: 'FINISHING',
-    progressRate: 70,
-    elapsedDays: 367,
-    totalDays: 456,
-    awpRecommendationScore: 'HIGH',
-    awpGoldenTime: true,
-    recommendedEquipment: ['시저리프트 10m', '시저리프트 12m', '시저리프트 14m'],
-    estimatedAwpUnits: 35,
-    leadStatus: 'UNTOUCHED'
-  }
-];
+// 실측 기반 전국 17개 광역시·도 산업 거점 고밀도 인허가 기본 데이터셋 (총 52개소)
+const INITIAL_PERMIT_DATA: ConstructionPermitItem[] = EXPANDED_INITIAL_PERMIT_DATA;
 
 export const PublicConstructionPermitsPage: React.FC = () => {
+  const { currentTenant } = useApp();
   const darkMode = false;
 
   // 목록 데이터 상태
@@ -677,15 +66,9 @@ export const PublicConstructionPermitsPage: React.FC = () => {
 
   const [searchKeyword, setSearchKeyword] = useState<string>('');
 
-  // API 모달 및 호출 상태
-  const [isApiModalOpen, setIsApiModalOpen] = useState<boolean>(false);
-  const [isFormulaModalOpen, setIsFormulaModalOpen] = useState<boolean>(false); // 공정 및 장비 산출 공식 안내 모달
-  const [showApiKey, setShowApiKey] = useState<boolean>(false); // 비밀번호 보기/숨김
-  const [apiKey, setApiKey] = useState<string>(() => getEncryptedStorage('ARCHHUB_DATA_GO_KR_KEY', getRuntimeDefaultArchHubKey()));
-  const [vworldApiKey, setVworldApiKey] = useState<string>(() => getEncryptedStorage('VWORLD_API_KEY', 'VWORLD_FREE_OPENAPI_KEY'));
-  const [apiEndpoint, setApiEndpoint] = useState<string>('https://apis.data.go.kr/1613000/ArchPmsHubService/getApBasisOulnInfo');
-  const [apiStatusMessage, setApiStatusMessage] = useState<string>('');
-  const [isLoadingApi, setIsLoadingApi] = useState<boolean>(false);
+  // 공정 및 장비 산출 공식 안내 모달 (프론트 API 키 설정 모달은 전면 제거하여 서버/DB에서만 기억)
+  const [isFormulaModalOpen, setIsFormulaModalOpen] = useState<boolean>(false);
+  const [apiEndpoint] = useState<string>('https://apis.data.go.kr/1613000/ArchPmsHubService/getApBasisOulnInfo');
   const [isLiveApiFetching, setIsLiveApiFetching] = useState<boolean>(false);
 
   // 리드 등록 성공 피드백 토스트
@@ -780,35 +163,25 @@ export const PublicConstructionPermitsPage: React.FC = () => {
 
   // V-World 도로망 뱃지 렌더러
   const renderRoadBadge = (road: RoadAccessInfo) => {
-    if (road.truckFeasibility === 'SMALL_ONLY_WARNING') {
+    if (road.truckFeasibility === 'SMALL_ONLY_WARNING' || road.roadWidth < 4) {
       return (
         <span style={{
-          padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 600,
+          padding: '2px 7px', borderRadius: '4px', fontSize: '11px', fontWeight: 600,
           background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca',
           display: 'inline-flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap'
-        }}>
+        }} title={`도로폭 ${road.roadWidth}m (폭원 4m 미만)`}>
           <AlertTriangle size={12} color="#b91c1c" />
-          {road.roadWidth}m (소형탁송경고)
-        </span>
-      );
-    } else if (road.truckFeasibility === 'TRAILER_ALLOWED') {
-      return (
-        <span style={{
-          padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 500,
-          background: '#f8fafc', color: '#334155', border: '1px solid #cbd5e1',
-          display: 'inline-flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap'
-        }}>
-          <Truck size={12} color="#475569" />
-          {road.roadWidth}m (츄레라)
+          {road.roadWidth}m
         </span>
       );
     }
     return (
       <span style={{
-        padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 500,
-        background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', whiteSpace: 'nowrap'
-      }}>
-        {road.roadWidth}m ({road.lanes}차로)
+        padding: '2px 7px', borderRadius: '4px', fontSize: '11px', fontWeight: 600,
+        background: '#f8fafc', color: '#334155', border: '1px solid #cbd5e1',
+        display: 'inline-flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap'
+      }} title={`도로폭 ${road.roadWidth}m`}>
+        {road.roadWidth}m
       </span>
     );
   };
@@ -1003,7 +376,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
 
   // 공공데이터포털 실시간 API 호출 함수
   const fetchLivePublicData = async () => {
-    const key = apiKey.trim() || DEFAULT_ARCHHUB_API_KEY;
+    const key = currentTenant?.features?.publicDataApiKey || getRuntimeDefaultArchHubKey() || DEFAULT_ARCHHUB_API_KEY;
     setIsLiveApiFetching(true);
 
     try {
@@ -1169,43 +542,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
     }
   };
 
-  // 공공데이터포털 API 저장 및 실시간 조회 테스트
-  const handleSaveAndTestApi = async () => {
-    if (!apiKey.trim()) {
-      alert('공공데이터포털(data.go.kr) 서비스 인증키를 입력해주세요.');
-      return;
-    }
-    setEncryptedStorage('ARCHHUB_DATA_GO_KR_KEY', apiKey.trim());
-    setEncryptedStorage('VWORLD_API_KEY', vworldApiKey.trim());
-    setIsLoadingApi(true);
-    setApiStatusMessage('공공데이터포털 건축인허가 API 엔드포인트 연동 테스트 중...');
-
-    try {
-      const testUrl = `${apiEndpoint}?serviceKey=${encodeURIComponent(apiKey.trim())}&sigunguCd=11680&bjdongCd=10300&numOfRows=2&pageNo=1&_type=json`;
-      
-      const res = await fetch(testUrl);
-      if (res.ok) {
-        const data = await res.json();
-        const resCode = data?.response?.header?.resultCode;
-        const resMsg = data?.response?.header?.resultMsg;
-        const total = data?.response?.body?.totalCount;
-
-        if (resCode === '00') {
-          setApiStatusMessage(`인증 성공! 결과: ${resMsg} (총 ${total}건 확인됨). 정식 서비스 인증키가 정상 작동합니다.`);
-          showToast('공공데이터포털 건축인허가 공식 API 인증 성공');
-        } else {
-          setApiStatusMessage(`응답 코드: ${resCode} (${resMsg})`);
-        }
-      } else {
-        setApiStatusMessage(`서버 응답 오류 (상태코드: ${res.status})`);
-      }
-    } catch (err: any) {
-      setApiStatusMessage(`연동 결과: 공공데이터포털에 성공적으로 접속되었습니다. (상태: ${err?.message || '정상'})`);
-    } finally {
-      setIsLoadingApi(false);
-    }
-  };
-
+  
   return (
     <div style={{
       display: 'flex',
@@ -1275,21 +612,6 @@ export const PublicConstructionPermitsPage: React.FC = () => {
             공공데이터 실시간 수신
           </button>
           
-          <button
-            onClick={() => setIsApiModalOpen(true)}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: '5px',
-              padding: '6px 12px', borderRadius: '5px',
-              fontSize: '12px', fontWeight: 600,
-              backgroundColor: '#f8fafc',
-              border: '1px solid #cbd5e1',
-              color: '#334155',
-              cursor: 'pointer', whiteSpace: 'nowrap'
-            }}
-          >
-            <Lock size={14} color="#475569" />
-            API 및 보안 설정
-          </button>
           <button
             onClick={handleExportExcel}
             style={{
@@ -1435,7 +757,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '115px' }}>
           <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px' }}>
             <Navigation size={11} color="#64748b" />
-            도로 진입성
+            도로폭
           </label>
           <select
             value={roadFilter}
@@ -1447,8 +769,8 @@ export const PublicConstructionPermitsPage: React.FC = () => {
             }}
           >
             <option value="ALL">전체 도로폭</option>
-            <option value="TRAILER">츄레라 진입 가능 (8m↑)</option>
-            <option value="SMALL_WARNING">소형탁송 전용 (4m 미만)</option>
+            <option value="TRAILER">8m 이상</option>
+            <option value="SMALL_WARNING">4m 미만</option>
           </select>
         </div>
 
@@ -1568,7 +890,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                   <th style={{ padding: '8px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>연면적(㎡)</th>
                   <th style={{ padding: '8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>규모</th>
                   <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>주용도</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>도로 진입성</th>
+                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>도로폭</th>
                   <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>안전망(CSI)</th>
                   <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>사업명 / 건물명</th>
                   <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>대지위치</th>
@@ -1779,7 +1101,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                       display: 'flex', alignItems: 'center', gap: '5px'
                     }}>
                       <Navigation size={14} color={selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? '#dc2626' : '#2563eb'} />
-                      도로망 및 탁송 배차 진단 (V-World)
+                      접면 도로 정보 (V-World)
                     </span>
                     <span style={{
                       fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px',
@@ -1787,8 +1109,8 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                       color: selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? '#991b1b' : '#334155',
                       border: `1px solid ${selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? '#fecaca' : '#cbd5e1'}`
                     }}>
-                      {selectedItem.roadAccess.truckFeasibility === 'TRAILER_ALLOWED' ? '츄레라 진입가능' :
-                       selectedItem.roadAccess.truckFeasibility === 'LARGE_ALLOWED' ? '11톤/5톤 가능' : '소형탁송(1톤) 한정'}
+                      {selectedItem.roadAccess.roadWidth >= 8 ? '8m 이상' :
+                       selectedItem.roadAccess.roadWidth >= 4 ? '4m~8m' : '4m 미만 (협소)'}
                     </span>
                   </div>
 
@@ -2064,155 +1386,6 @@ export const PublicConstructionPermitsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ── [공공데이터 API 및 보안 설정 모달] ── */}
-      {isApiModalOpen && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex', justifyContent: 'center', alignItems: 'center',
-          zIndex: 9999
-        }}>
-          <div style={{
-            width: '640px',
-            backgroundColor: '#ffffff',
-            borderRadius: '10px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
-            overflow: 'hidden',
-            display: 'flex', flexDirection: 'column'
-          }}>
-            {/* 모달 헤더 */}
-            <div style={{
-              padding: '14px 18px',
-              borderBottom: '1px solid #e2e8f0',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Lock size={18} color="#2563eb" />
-                <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0 }}>
-                  공공데이터 API 및 암호화 보안 설정
-                </h3>
-              </div>
-              <button
-                onClick={() => setIsApiModalOpen(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* 모달 본문 */}
-            <div style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '12px' }}>
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 600, color: '#334155' }}>
-                    1. 공공데이터포털(data.go.kr) 건축인허가 일반 인증키
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(prev => !prev)}
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: '11px', color: '#2563eb', display: 'flex', alignItems: 'center', gap: '3px'
-                    }}
-                  >
-                    {showApiKey ? <EyeOff size={13} /> : <Eye size={13} />}
-                    {showApiKey ? '키 마스킹 숨기기' : '키 평문 확인'}
-                  </button>
-                </div>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type={showApiKey ? 'text' : 'password'}
-                    placeholder="인증키를 입력하세요 (자동 암호화 보관)"
-                    value={apiKey}
-                    onChange={e => setApiKey(e.target.value)}
-                    style={{
-                      width: '100%', padding: '7px 9px', borderRadius: '4px', fontSize: '11px',
-                      backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a',
-                      fontFamily: 'monospace'
-                    }}
-                  />
-                </div>
-                <div style={{ fontSize: '10px', color: '#64748b', marginTop: '4px', display: 'flex', justifyContent: 'space-between' }}>
-                  <span>식별 마스킹: <b>{maskApiKey(apiKey)}</b></span>
-                  <span style={{ color: '#166534' }}>● 64-Byte XOR 난독화 활성 (역공학 평문 노출 차단)</span>
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#334155', marginBottom: '4px' }}>
-                  2. 국토교통부 V-World 공간정보 오픈플랫폼 API 키 (도로망/지적도 WFS)
-                </label>
-                <input
-                  type="text"
-                  placeholder="vworld.kr 발급 키"
-                  value={vworldApiKey}
-                  onChange={e => setVworldApiKey(e.target.value)}
-                  style={{
-                    width: '100%', padding: '7px 9px', borderRadius: '4px', fontSize: '11px',
-                    backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', color: '#0f172a',
-                    fontFamily: 'monospace'
-                  }}
-                />
-              </div>
-
-              <div style={{
-                padding: '10px 12px', borderRadius: '6px',
-                backgroundColor: '#f1f5f9', border: '1px solid #e2e8f0',
-                fontSize: '11px', color: '#475569', lineHeight: 1.6
-              }}>
-                <b style={{ color: '#0f172a' }}>🔒 보안 및 역공학 방지 헌장 (Zero-Exposure Policy):</b>
-                <br />• <b>번들 정적 분석 차단</b>: 공공 API 인증키는 번들 빌드 시 런타임 XOR 마스킹 바이트 스트림으로 암호화되어 일반 텍스트 검색(`grep`, `strings`)으로 일체 추출되지 않습니다.
-                <br />• <b>로컬 스토리지 암호화</b>: 브라우저 개발자 도구 Storage 탭에서도 평문이 아닌 Base64/XOR 암호화 토큰(`__ENC__`)으로 영구 저장됩니다.
-                <br />• <b>화면 마스킹</b>: 어깨너머 훔쳐보기(Shoulder Surfing) 방지를 위해 기본 비밀번호(`password`) 필드로 보호됩니다.
-              </div>
-
-              {apiStatusMessage && (
-                <div style={{
-                  padding: '8px 12px', borderRadius: '6px',
-                  backgroundColor: apiStatusMessage.includes('성공') ? '#f0fdf4' : '#fffbeb',
-                  color: apiStatusMessage.includes('성공') ? '#166534' : '#92400e',
-                  border: `1px solid ${apiStatusMessage.includes('성공') ? '#bbf7d0' : '#fde68a'}`,
-                  fontSize: '11px', lineHeight: 1.5
-                }}>
-                  {apiStatusMessage}
-                </div>
-              )}
-            </div>
-
-            {/* 모달 푸터 */}
-            <div style={{
-              padding: '12px 18px',
-              borderTop: '1px solid #e2e8f0',
-              backgroundColor: '#f8fafc',
-              display: 'flex', justifyContent: 'flex-end', gap: '8px'
-            }}>
-              <button
-                onClick={() => setIsApiModalOpen(false)}
-                style={{
-                  padding: '6px 14px', borderRadius: '4px', fontSize: '12px',
-                  backgroundColor: '#ffffff', border: '1px solid #cbd5e1',
-                  color: '#334155', cursor: 'pointer'
-                }}
-              >
-                닫기
-              </button>
-              <button
-                onClick={handleSaveAndTestApi}
-                disabled={isLoadingApi}
-                style={{
-                  padding: '6px 16px', borderRadius: '4px', fontSize: '12px', fontWeight: 600,
-                  backgroundColor: '#2563eb', color: '#ffffff', border: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: '6px'
-                }}
-              >
-                {isLoadingApi ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
-                암호화 저장 및 연동 테스트
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── [공정 단계 추론 및 추천 장비 산출 공식 안내 모달] ── */}
       {isFormulaModalOpen && (
         <div style={{
@@ -2352,9 +1525,9 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                   <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
                     <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: '4px' }}>🚛 V-World 도로망 (국토부 표준노드링크)</div>
                     <ul style={{ margin: 0, paddingLeft: '16px', color: '#475569', lineHeight: 1.5, fontSize: '11px' }}>
-                      <li><b>도로폭 ≥ 12m</b>: 츄레라 / 로우베드 원활 진입 가능</li>
+                      <li><b>도로폭 ≥ 12m</b>: 광폭 대로변, 폭원 및 회차 공간 충분</li>
                       <li><b>도로폭 6m ~ 12m</b>: 5톤/11톤 트럭 진입 가능</li>
-                      <li><b>도로폭 &lt; 4m</b>: 🔴 <b>소형탁송(1톤/2.5톤) 분할 운송 필수 경고</b> (배차 회차비 낭비 차단)</li>
+                      <li><b>도로폭 &lt; 4m</b>: 🔴 <b>폭원 협소 경고</b> (사전 진입로 폭원 확인 필수)</li>
                     </ul>
                   </div>
 
