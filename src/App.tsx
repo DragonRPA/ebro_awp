@@ -1077,46 +1077,7 @@ const App: React.FC = () => {
               </div>
             )}
 
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              fontSize: '11px',
-              color: 'var(--text-muted)',
-              paddingTop: '2px',
-              whiteSpace: 'nowrap'
-            }}>
-              <span>PC 백그라운드 서비스 &amp; 웹 확장도구 통합 (Windows 10/11)</span>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <a
-                  href="/downloads/ebro-web-agent.zip"
-                  download="ebro-web-agent.zip"
-                  style={{
-                    color: 'var(--text-muted)',
-                    textDecoration: 'underline',
-                    fontSize: '11px',
-                    cursor: 'pointer'
-                  }}
-                  title="관리자/수동 개발자용 웹 확장 패키지 다운로드"
-                >
-                  수동패키지(.zip)
-                </a>
-                <a
-                  href={AGENT_CERT_URL}
-                  download="eBroAgent_Root.cer"
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    color: 'var(--text-muted)',
-                    textDecoration: 'underline',
-                    fontSize: '11px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  보안 인증서 (.cer)
-                </a>
-              </div>
-            </div>
+
           </div>
 
           {/* 접속 화면 모드 선택 (모바일 / PC) */}

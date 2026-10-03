@@ -4,7 +4,8 @@
 export const EXPECTED_AGENT_VERSION = 'v2.0.0.Build.1';
 // 🌐 Cloudflare R2 글로벌 CDN 기반 대용량 독립 실행 파일 및 스마트 버전 관리 엔드포인트 (Vercel 용량 0% 격리)
 export const DEFAULT_CF_R2_BASE_URL = 'https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev';
-export const AGENT_EXE_URL = `${DEFAULT_CF_R2_BASE_URL}/downloads/eBroAgent.exe`; // Cloudflare R2 CDN 초고속 배포 (Vercel 번들 완전 격리)
+export const GITHUB_RELEASE_AGENT_URL = 'https://github.com/DragonRPA/Giyeun_Lift/releases/download/agent-v1.0.0/eBroAgent.exe'; // GitHub Releases 초고속 CDN (100MB 10초대 완료)
+export const AGENT_EXE_URL = GITHUB_RELEASE_AGENT_URL; // 기본 초고속 다운로드 엔드포인트
 export const AGENT_VERSION_CHECK_URL = `${DEFAULT_CF_R2_BASE_URL}/downloads/version.json`; // 스마트 업데이트 검증 메타데이터
 export const AGENT_DOWNLOAD_URL = '/downloads/eBroAgent.js';            // Node.js 경량 스크립트 (eBroAgent.js)
 export const AGENT_BRO_JS_URL = '/downloads/eBroAgent.js';               // eBroAgent.js 직접 다운로드
@@ -16,7 +17,7 @@ export const AGENT_CERT_URL = `${DEFAULT_CF_R2_BASE_URL}/downloads/eBroAgent_Roo
 export const AGENT_INSTALL_BAT_URL = '/downloads/install-cert.bat';     // 인증서 등록 배치 파일
 export const NODEJS_INSTALL_URL = 'https://nodejs.org/en/download/';
 export const AGENT_PROTOCOL_URI = 'broagent://run';
-export const AGENT_INSTALLER_BASE_URL = `${DEFAULT_CF_R2_BASE_URL}/downloads/eBroAgentSetup.exe`; // 인스톨러 표준 다운로드 URL
+export const AGENT_INSTALLER_BASE_URL = `${DEFAULT_CF_R2_BASE_URL}/downloads/eBroAgentSetup.exe`; // 인스톨러 보조 다운로드 URL
 
 export interface TenantAgentInstallerInfo {
   downloadUrl: string;
@@ -46,9 +47,10 @@ export function getTenantAgentInstallerInfo(tenant?: {
   // 테넌트 전용 설치 파일명 (예: eBroAgent_Setup_GIYEUN.exe, eBroAgent_Setup_HANSOL.exe)
   const fileName = `eBroAgent_Setup_${code}.exe`;
   
-  // Cloudflare R2 엔드포인트 URL (서버 파라미터로 테넌트 식별자 동봉)
-  const downloadUrl = `${DEFAULT_CF_R2_BASE_URL}/downloads/${fileName}?tenant=${encodeURIComponent(code)}&subdomain=${encodeURIComponent(sub)}`;
-  const fallbackUrl = `${DEFAULT_CF_R2_BASE_URL}/downloads/eBroAgentSetup.exe?tenant=${encodeURIComponent(code)}`;
+  // 초고속 GitHub Releases 글로벌 CDN 기본 적용 (국내 ISP 6~10MB/s 초고속 전송)
+  const downloadUrl = GITHUB_RELEASE_AGENT_URL;
+  // Cloudflare R2 보조 엔드포인트 URL
+  const fallbackUrl = `${DEFAULT_CF_R2_BASE_URL}/downloads/${fileName}?tenant=${encodeURIComponent(code)}&subdomain=${encodeURIComponent(sub)}`;
 
   return {
     downloadUrl,

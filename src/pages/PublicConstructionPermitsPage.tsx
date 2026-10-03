@@ -9,7 +9,7 @@ import {
   ExternalLink, HardHat, TrendingUp, Check, X, Shield, PlusCircle,
   Truck, Clock, Info, ChevronRight, FileSpreadsheet, MapPin, Globe, Database,
   AlertTriangle, Navigation, Compass, FileCheck, ShieldAlert, ShieldCheck,
-  Eye, EyeOff, Calculator, HelpCircle, Lock
+  Eye, EyeOff, Calculator, HelpCircle, Lock, Briefcase
 } from 'lucide-react';
 import {
   getRuntimeDefaultArchHubKey,
@@ -34,8 +34,31 @@ export type { RoadAccessInfo, CsiSafetyInfo, ConstructionPermitItem };
 // 런타임 메모리 보안 디코딩 인증키 (정적 번들 JS 역공학 노출 차단)
 export const DEFAULT_ARCHHUB_API_KEY = getRuntimeDefaultArchHubKey();
 
-// 실측 기반 전국 17개 광역시·도 산업 거점 고밀도 인허가 기본 데이터셋 (총 52개소)
+// 실측 기반 전국 17개 광역시·도 산업 거점 고밀도 인허가 기본 데이터셋 (총 103개소)
 const INITIAL_PERMIT_DATA: ConstructionPermitItem[] = EXPANDED_INITIAL_PERMIT_DATA;
+
+// 테이블 헤더 정렬 타입 정의
+export type SortField =
+  | 'dataSource'
+  | 'progressStage'
+  | 'totArea'
+  | 'groundFloors'
+  | 'mainUse'
+  | 'roadWidth'
+  | 'actualStartDate'
+  | 'expectedEndDate'
+  | 'csiSafety'
+  | 'projectName'
+  | 'siteAddress'
+  | 'builderName'
+  | 'leadStatus';
+
+export type SortDirection = 'ASC' | 'DESC' | 'NONE';
+
+export interface SortConfig {
+  field: SortField | null;
+  direction: SortDirection;
+}
 
 export const PublicConstructionPermitsPage: React.FC = () => {
   const { currentTenant } = useApp();
@@ -44,6 +67,24 @@ export const PublicConstructionPermitsPage: React.FC = () => {
   // 목록 데이터 상태
   const [items, setItems] = useState<ConstructionPermitItem[]>(INITIAL_PERMIT_DATA);
   const [selectedItem, setSelectedItem] = useState<ConstructionPermitItem | null>(INITIAL_PERMIT_DATA[0]);
+
+  // 테이블 헤더 정렬 상태 (오름차순 ▲ ➔ 내림차순 ▼ ➔ 정렬안함 ↕)
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ field: null, direction: 'NONE' });
+
+  const handleToggleSort = (field: SortField) => {
+    setSortConfig(prev => {
+      if (prev.field !== field) {
+        return { field, direction: 'ASC' };
+      }
+      if (prev.direction === 'ASC') {
+        return { field, direction: 'DESC' };
+      }
+      if (prev.direction === 'DESC') {
+        return { field: null, direction: 'NONE' };
+      }
+      return { field, direction: 'ASC' };
+    });
+  };
 
   // 필터 조건 상태
   const [sidoFilter, setSidoFilter] = useState<string>('전체');
@@ -160,6 +201,137 @@ export const PublicConstructionPermitsPage: React.FC = () => {
       return true;
     });
   }, [items, sidoFilter, sigunguFilter, bjdongKeyword, useFilter, scaleFilter, stageFilter, goldenTimeOnly, roadFilter, csiFilter, dateCriterion, startDate, endDate, searchKeyword]);
+
+  // 정렬 적용된 목록 (오름차순 / 내림차순 / 정렬안함 3-state)
+  const sortedItems = useMemo(() => {
+    if (!sortConfig.field || sortConfig.direction === 'NONE') {
+      return filteredItems;
+    }
+
+    const { field, direction } = sortConfig;
+    const factor = direction === 'ASC' ? 1 : -1;
+
+    return [...filteredItems].sort((a, b) => {
+      switch (field) {
+        case 'dataSource':
+          return (a.dataSource || '').localeCompare(b.dataSource || '') * factor;
+        case 'progressStage': {
+          const rank: Record<string, number> = {
+            PERMITTED: 1,
+            FOUNDATION: 2,
+            STRUCTURE: 3,
+            FINISHING: 4,
+            COMPLETED: 5
+          };
+          return ((rank[a.progressStage] || 0) - (rank[b.progressStage] || 0)) * factor;
+        }
+        case 'totArea':
+          return ((a.totArea || 0) - (b.totArea || 0)) * factor;
+        case 'groundFloors':
+          return ((a.groundFloors || 0) - (b.groundFloors || 0)) * factor;
+        case 'mainUse':
+          return (a.mainUse || '').localeCompare(b.mainUse || '', 'ko') * factor;
+        case 'roadWidth':
+          return ((a.roadAccess?.roadWidth || 0) - (b.roadAccess?.roadWidth || 0)) * factor;
+        case 'actualStartDate': {
+          const valA = a.actualStartDate || a.startPlanDate || '';
+          const valB = b.actualStartDate || b.startPlanDate || '';
+          return valA.localeCompare(valB) * factor;
+        }
+        case 'expectedEndDate':
+          return (a.expectedEndDate || '').localeCompare(b.expectedEndDate || '') * factor;
+        case 'csiSafety': {
+          const reqA = a.csiSafety?.safetyPlanRequired ? 1 : 0;
+          const reqB = b.csiSafety?.safetyPlanRequired ? 1 : 0;
+          return (reqA - reqB) * factor;
+        }
+        case 'projectName':
+          return (a.projectName || '').localeCompare(b.projectName || '', 'ko') * factor;
+        case 'siteAddress': {
+          const addrA = a.siteRoadAddress || a.siteAddress || '';
+          const addrB = b.siteRoadAddress || b.siteAddress || '';
+          return addrA.localeCompare(addrB, 'ko') * factor;
+        }
+        case 'builderName':
+          return (a.builderName || '').localeCompare(b.builderName || '', 'ko') * factor;
+        case 'leadStatus': {
+          const stA = a.leadStatus === 'REGISTERED' ? 1 : 0;
+          const stB = b.leadStatus === 'REGISTERED' ? 1 : 0;
+          return (stA - stB) * factor;
+        }
+        default:
+          return 0;
+      }
+    });
+  }, [filteredItems, sortConfig]);
+
+  // 정렬 필드 레이블 조회
+  const getSortFieldLabel = (field: SortField): string => {
+    switch (field) {
+      case 'dataSource': return '출처';
+      case 'progressStage': return '공정 단계';
+      case 'totArea': return '연면적';
+      case 'groundFloors': return '규모';
+      case 'mainUse': return '주용도';
+      case 'roadWidth': return '도로폭';
+      case 'actualStartDate': return '착공일';
+      case 'expectedEndDate': return '준공예정';
+      case 'csiSafety': return '안전망(CSI)';
+      case 'projectName': return '사업명';
+      case 'siteAddress': return '대지위치';
+      case 'builderName': return '시공사';
+      case 'leadStatus': return '영업 조치';
+      default: return '';
+    }
+  };
+
+  // 테이블 헤더 정렬 렌더러 (오름차순 ▲ / 내림차순 ▼ / 정렬안함 ↕)
+  const renderSortTh = (
+    field: SortField,
+    label: string,
+    align: 'left' | 'center' | 'right' = 'left',
+    extraStyle?: React.CSSProperties
+  ) => {
+    const isCurrent = sortConfig.field === field && sortConfig.direction !== 'NONE';
+    const dir = isCurrent ? sortConfig.direction : 'NONE';
+
+    return (
+      <th
+        onClick={() => handleToggleSort(field)}
+        style={{
+          padding: '8px 10px',
+          textAlign: align,
+          whiteSpace: 'nowrap',
+          cursor: 'pointer',
+          userSelect: 'none',
+          backgroundColor: isCurrent ? '#eff6ff' : undefined,
+          color: isCurrent ? '#1d4ed8' : '#334155',
+          borderBottom: isCurrent ? '2px solid #2563eb' : undefined,
+          transition: 'all 0.15s ease',
+          ...extraStyle
+        }}
+        title={`${label} 정렬 (클릭 시: 오름차순 ➔ 내림차순 ➔ 정렬안함)`}
+      >
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start',
+          width: '100%'
+        }}>
+          <span>{label}</span>
+          <span style={{
+            fontSize: '10px',
+            color: isCurrent ? '#2563eb' : '#94a3b8',
+            opacity: isCurrent ? 1 : 0.6,
+            fontWeight: isCurrent ? 800 : 400
+          }}>
+            {dir === 'ASC' ? '▲' : dir === 'DESC' ? '▼' : '↕'}
+          </span>
+        </div>
+      </th>
+    );
+  };
 
   // V-World 도로망 뱃지 렌더러
   const renderRoadBadge = (road: RoadAccessInfo) => {
@@ -305,8 +477,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
         email: '',
         isActive: true,
         // 안전옵션 자동 상속 비활성화 (정책 미정, 향후 수동 등록 원칙)
-        paidOptions: '',
-        protection: item.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? '진입로 협소(1톤 분할배차 필수)' : '일반',
+        protection: `[영업지시] 도로폭 ${item.roadAccess.roadWidth}m(${item.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? '1톤분할' : '대형가능'}) | CSI:${item.csiSafety.safetyPlanRequired ? '법정의무' : '일반'} | 추천:${item.recommendedEquipment.join('/')}(${item.estimatedAwpUnits}대) | 공정:${item.progressStage}`,
         checkedSpecs: {},
         createdAt: new Date().toISOString()
       };
@@ -329,7 +500,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
 
   // 엑셀 내보내기 (V-World 및 CSI 컬럼 확장)
   const handleExportExcel = () => {
-    const exportData = filteredItems.map(item => ({
+    const exportData = sortedItems.map(item => ({
       관리번호: item.mgmtNo,
       건축구분: item.permitKind,
       사업명: item.projectName,
@@ -386,7 +557,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
         serviceKey: key,
         sigunguCd: regionInfo.sigunguCd,
         bjdongCd: regionInfo.bjdongCd,
-        numOfRows: '30',
+        numOfRows: '100',
         pageNo: '1',
         _type: 'json'
       });
@@ -852,8 +1023,42 @@ export const PublicConstructionPermitsPage: React.FC = () => {
             fontSize: '12px',
             flexShrink: 0
           }}>
-            <span style={{ fontWeight: 600, color: '#475569' }}>
-              조회 결과: <b style={{ color: '#0f172a' }}>{filteredItems.length}</b>건
+            <span style={{ fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>조회 결과: <b style={{ color: '#0f172a' }}>{sortedItems.length}</b>건</span>
+              {sortConfig.field && sortConfig.direction !== 'NONE' && (
+                <span style={{ 
+                  color: '#0284c7', 
+                  backgroundColor: '#e0f2fe', 
+                  padding: '2px 8px', 
+                  borderRadius: '4px',
+                  fontWeight: 600,
+                  fontSize: '11px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  정렬: {getSortFieldLabel(sortConfig.field)} {sortConfig.direction === 'ASC' ? '▲ 오름차순' : '▼ 내림차순'}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSortConfig({ field: null, direction: 'NONE' });
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#0369a1',
+                      padding: 0,
+                      marginLeft: '2px',
+                      fontSize: '12px',
+                      lineHeight: 1
+                    }}
+                    title="정렬 초기화"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
               {goldenTimeOnly && <span style={{ color: '#16a34a', marginLeft: '6px' }}>(장비투입 골든타임 필터링 중)</span>}
               {roadFilter !== 'ALL' && <span style={{ color: '#2563eb', marginLeft: '6px' }}>(도로망 필터 적용)</span>}
               {csiFilter !== 'ALL' && <span style={{ color: '#b45309', marginLeft: '6px' }}>(CSI 안전의무 필터 적용)</span>}
@@ -863,7 +1068,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#0284c7' }} />
                 공공데이터포털 실시간 수신 가능
               </span>
-              | 행 클릭 시 우측 도로/안전 분석 패널 확인
+              | 컬럼 클릭 시 오름/내림/해제 정렬 | 행 클릭 시 상세 패널
             </span>
           </div>
 
@@ -885,30 +1090,30 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                   whiteSpace: 'nowrap'
                 }}>
                   <th style={{ padding: '8px 10px', width: '50px', textAlign: 'center', whiteSpace: 'nowrap' }}>상세</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>출처</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>공정 단계</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>연면적(㎡)</th>
-                  <th style={{ padding: '8px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>규모</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>주용도</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>도로폭</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>착공일</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>준공예정</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>안전망(CSI)</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>사업명 / 건물명</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>대지위치</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>시공사(건설사)</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>영업 조치</th>
+                  {renderSortTh('dataSource', '출처', 'left')}
+                  {renderSortTh('progressStage', '공정 단계', 'left')}
+                  {renderSortTh('totArea', '연면적(㎡)', 'right')}
+                  {renderSortTh('groundFloors', '규모', 'center', { padding: '8px 8px' })}
+                  {renderSortTh('mainUse', '주용도', 'left')}
+                  {renderSortTh('roadWidth', '도로폭', 'left')}
+                  {renderSortTh('actualStartDate', '착공일', 'left')}
+                  {renderSortTh('expectedEndDate', '준공예정', 'left')}
+                  {renderSortTh('csiSafety', '안전망(CSI)', 'left')}
+                  {renderSortTh('projectName', '사업명 / 건물명', 'left', { padding: '8px 12px' })}
+                  {renderSortTh('siteAddress', '대지위치', 'left', { padding: '8px 12px' })}
+                  {renderSortTh('builderName', '시공사(건설사)', 'left', { padding: '8px 12px' })}
+                  {renderSortTh('leadStatus', '영업 조치', 'center')}
                 </tr>
               </thead>
               <tbody>
-                {filteredItems.length === 0 ? (
+                {sortedItems.length === 0 ? (
                   <tr>
                     <td colSpan={14} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
                       설정한 조건에 부합하는 데이터가 없습니다. 상단 [공공데이터 실시간 수신] 버튼을 눌러보세요.
                     </td>
                   </tr>
                 ) : (
-                  filteredItems.map(item => {
+                  sortedItems.map(item => {
                     const isSelected = selectedItem?.id === item.id;
                     return (
                       <tr
@@ -1352,6 +1557,68 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                       </tr>
                     </tbody>
                   </table>
+                </div>
+
+                {/* 6. 경영 판단 및 영업 지시 가이드 카드 */}
+                <div style={{
+                  padding: '12px 14px', borderRadius: '8px',
+                  backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', fontSize: '11px',
+                  boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Briefcase size={14} color="#0284c7" />
+                      경영 판단 및 영업 지시
+                    </span>
+                    <span style={{
+                      fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px',
+                      background: selectedItem.awpGoldenTime ? '#dcfce7' : '#eff6ff',
+                      color: selectedItem.awpGoldenTime ? '#15803d' : '#1d4ed8',
+                      border: `1px solid ${selectedItem.awpGoldenTime ? '#86efac' : '#bfdbfe'}`
+                    }}>
+                      예상 {selectedItem.estimatedAwpUnits}대 규모
+                    </span>
+                  </div>
+
+                  <div style={{ marginBottom: '8px' }}>
+                    <div style={{ color: '#64748b', marginBottom: '4px', fontWeight: 500 }}>추천 고소작업대 기종:</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                      {selectedItem.recommendedEquipment.map((eq, idx) => (
+                        <span key={idx} style={{
+                          fontSize: '11px', padding: '2px 6px', borderRadius: '4px',
+                          background: '#ffffff', border: '1px solid #cbd5e1', color: '#0f172a', fontWeight: 600
+                        }}>
+                          {eq}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    padding: '8px 10px', borderRadius: '6px',
+                    backgroundColor: '#ffffff', border: '1px solid #e2e8f0',
+                    display: 'flex', flexDirection: 'column', gap: '4px'
+                  }}>
+                    <div style={{ fontWeight: 600, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <CheckCircle2 size={13} color="#2563eb" />
+                      영업 지시 핵심 체크포인트:
+                    </div>
+                    <div style={{ color: '#475569', lineHeight: 1.5, fontSize: '11px' }}>
+                      {selectedItem.awpGoldenTime
+                        ? '• [골든타임] 마감·설비 공정 진입 중. 시공사 공무팀 방문 및 대규모 일괄 견적 즉시 전달 필요.'
+                        : '• [착공 관리] 골조 공사 단계. 착공 후 90일 시점에 시저리프트 패키지 사전 영업 착수.'}
+                    </div>
+                    <div style={{ color: '#475569', lineHeight: 1.5, fontSize: '11px' }}>
+                      {selectedItem.csiSafety.safetyPlanRequired
+                        ? '• [안전 우위] CSI 법정관리 현장이므로 비파괴검사성적서 및 상부센서 완비 장비로 안전 강조 제안.'
+                        : '• [표준 납품] 일반 관리 현장으로 표준 안전사양 장비 신속 배차 가능.'}
+                    </div>
+                    {selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' && (
+                      <div style={{ color: '#b91c1c', fontWeight: 600, lineHeight: 1.5, fontSize: '11px' }}>
+                        • [배차 주의] 진입로 폭 4m 미만 협소. 대형 카고 진입 불가, 1톤 분할 배차 사전 안내 필수.
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
