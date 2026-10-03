@@ -1,5 +1,0 @@
-v1.13.0.Build.6 2026-10-03 21:15 Move Start and End Dates Columns Before CSI Safety in Permits Table
-
-- Reorder table thead and tbody in PublicConstructionPermitsPage.tsx:
-  roadAccess -> actualStartDate/startPlanDate -> expectedEndDate -> csiSafety -> projectName -> siteAddress -> builderName
-- Comply with Gutenberg Z-Pattern cognitive workflow (Rule 3.5) and no-wrap (Rule 3.2)
