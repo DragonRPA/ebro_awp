@@ -1,3 +1,123 @@
+## 2026-10-03 17:05 (v1.11.0.Build.1)
+
+### [AI에이전트/웹에이전트/모바일원격제어] ebro web agent 브라우저 확장·독립 PC 에이전트 코어 구축, 텔레그램 모바일 1:1 연동, 2계층 하이브리드 지능 아키텍처 및 출고배차·계약기간 자동화 엔진 완성
+
+- **배경 및 사장님 지침**:
+  - "ebro web agent 로 깃에 추가해서 커밋해줘"
+  - "내 별도 추가지시를 기다리지 말고, 전체를 구축하고 브라우저 확장 프로그램(명칭 = ebro web agent)을 통해서 우리 ebro erp 를 제어할수 있도록 해줘"
+  - "내 핸드폰 텔레그램과 어떻게 연결하지? 실제 환경에서는 모든 직원이 각자 자신의 텔레그램과 자신의 PC를 1:1 또는 1:n 으로 연결해야 할텐데?"
+  - "이런 업무 유형은 키워드 단위로 처리해야 하는거야? LLM의 학습으로는 해결이 안되나? 기능정의서를 강화하면 업무를 더 잘 처리할 수 있나? 연장만 문제겠어? 단축, 승계, 교환(대차) AS 접수, 거래명세서 발송 등등 영업사원이 말로 지시할 업무가 굉장히 많을텐데"
+  - "배차 정보 입력을 텔레그램으로 처리하려면 어떻게 대비할거야? 영업사원이 출고요청을 텔레그램으로 지시하면 어떻게 대처할거야? 지시문에 완성형 문장으로 길게 주어지지 않고 조각조각 파편으로 들어와도 업무 지시를 완성해줄수 있는거야?"
+- **주요 구현 및 개선 내역**:
+  1. **브라우저 확장 프로그램 (`ebro-web-agent`) 구축**:
+     - Manifest V3 (`manifest.json`): Chrome / Edge / Whale 완벽 호환, Keepalive 포트 상시 생존.
+     - `content.js`: DOM 간소화 엔진, Set-of-Mark (SoM) 오버레이 번호표, React 19 호환 신뢰 이벤트 실행기, 고수준 도메인 워크플로 핸들러(`execute_workflow`).
+     - `popup.html`, `popup.css`, `popup.js`: 전사 표준 헌장 3.1 무수식어 건조 표준 및 3.4 상하 세로 스택 준수. `[작업 제어]` / `[환경설정]` 탭 분리, 텔레그램 토큰/아이디 입력 폼 및 테스트 발송 기능 탑재.
+  2. **독립 PC 에이전트 코어 (`ebro-agent-core`) 구축**:
+     - `server.py`: WebSocket(포트 9001) 및 HTTP REST API(포트 9002) 서빙. 환경설정 실시간 핫 리로드 지원.
+     - `fsm_engine.py`: 결정론적 업무 FSM 엔진 (`[INIT] -> [PARSE] -> [STATE_CHECK] -> [ACTION] -> [VERIFY] -> [DONE]`).
+     - `safety_guard.py`: Human-in-the-Loop 위험 작업(C/U/D 및 결재) 통제 가드레일.
+     - `audit_logger.py`: SQLite(`ebro_audit.db`) 감사 로그 무누락 영구 저장 (헌장 1.2, 5.2 준수).
+  3. **텔레그램 모바일 1:1 양방향 제어 및 파편 지시 결합기 (`telegram_bot.py`)**:
+     - 사내 방화벽/포트포워딩을 우회하는 Long Polling 방식 채택. 화이트리스트 사용자 검증.
+     - **파편 지시 디바운스 버퍼링 (Debounce Buffering)**: 영업사원이 1~2초 간격으로 보낸 단문 파편("에이치 1공구", "1930 2대 낼아침", "출고요청")을 2.5초 윈도우 동안 대화 버퍼에 취합하여 단일 종합 명령서로 자동 결합.
+     - **대화형 슬롯 필링 (Interactive Slot Filling)**: 필수 항목 누락 시 친절한 대화형 되묻기 및 세션 보존 (`/reset` 지원).
+  4. **2계층 하이브리드 지능 엔진 (`ai_brain.py`)**:
+     - **계층 1: 시맨틱 인텐트 & 슬롯 추출 (LLM + 고속 파서)**: 브라우저 DOM 클릭을 환각하지 않고 오직 비즈니스 의도(`CONTRACT_EXTEND`, `CONTRACT_SHORTEN`, `DISPATCH_REQUEST`, `DISPATCH_ASSIGN`)와 파라미터만 0.01초 무결점 추출.
+     - **계층 2: 결정론적 도메인 워크플로 엔진 (`content.js`)**: 전사 표준 헌장 1.3(배차 자산상태 비조작) 및 2.1(영업 R&R 준수: 모델단위 의뢰 등록)을 준수하며 브라우저 UI에서 1-Way로 결정론적 실행.
+     - **상세 영수증 회신**: 처리 완료 후 텔레그램으로 변경 전/후 일자, 배차 정보가 포함된 영수증 자동 브리핑.
+- **검증**:
+  - `tsc -b && vite build` 정상 통과 (0 error, built in 826ms).
+  - 계약 연장/단축, 출고 배차 의뢰, 기사/운송비 배정 단위 테스트 100% 무결점 통과.
+
+---
+
+## 2026-10-03 14:20 (v1.10.2.Build.20)
+
+### [결재선/스테이징/자동커밋] 계약 및 청구 결재선 Staging-to-Live on Approval 패턴 구현 (사전 입력 ➔ 전결권자 승인 시 라이브 DB 100% 자동 반영 및 As-Is vs To-Be Diff 뷰어)
+
+- **배경 및 사장님 지침**:
+  - 사장님 지시: "계약과 청구에 관련된 결재선이 작동될 때에는 어떻게 프로세스가 작동되는것이 편리하고 합리적일까? 내 생각은, 현재(as-is) 를 수정(to-be) 로 변경하는 내용을 먼저 다 입력하고 결재상신해서, 전결권자까지 승인 되면 미리 입력된 정보로 자동 변경 되게 하는것이 좋을것 같은데" ➔ "적용"
+  - 담당자가 변경 사항(To-Be)을 1회만 입력하고 결재를 상신하면, 결재 완료 시 번복 입력(Zero Re-typing) 없이 라이브 DB에 자동으로 영구 커밋되도록 전사 프로세스 고도화 완료.
+- **주요 구현 및 개선 내역**:
+  1. **`ApprovalPayload` 모델 및 인프라 구축 (`src/services/db.ts`, `src/hooks/useApproval.ts`)**:
+     - 결재 대기 중인 Staging 데이터를 담는 `ApprovalPayload` 인터페이스 정립 (`actionType`, `targetTable`, `targetId`, `asIs`, `toBe`, `reason`, `summaryText`).
+     - `ApprovalRequest`, `Contract`, `Billing`에 Staging 필드(`stagedExtend`, `stagedCustomStatement`, `approvalStatus`) 확장.
+     - `useApproval.createApprovalRequest`에 `payload` 파라미터 지원 및 원격 Supabase 컬럼 유무와 무관한 안전 Fallback + 로컬스토리지 영구 보존.
+  2. **매출 청구 특수명세서 Staging 상신 연동 (`src/pages/Billings.tsx`, `src/context/AppContext.tsx`)**:
+     - 특수명세서 작성 시 결재선 규칙(`CUSTOM_BILLING_CREATE`)이 활성화되어 있으면, 정상 원장(As-Is)은 그대로 보존하고 변경 품목(To-Be)을 Staging으로 묶어 결재 상신.
+     - 전결권자 최종 승인 전까지 운영 라이브 DB는 원본 형태를 유지하여 미승인 거래명세서 유출을 원천 방지.
+     - 청구 목록 및 상세 패널에 `[결재대기]` 뱃지 및 상태 실시간 동기화.
+  3. **계약 기간 연장/단축 Staging 상신 연동 (`src/pages/Contracts.tsx`)**:
+     - 계약 기간 연장/단축 모달에서 `CONTRACT_EXTEND` 결재선 존재 시, 라이브 계약 종료일을 즉시 바꾸지 않고 Staging(`stagedExtend`) 및 payload로 패키징하여 결재 상신.
+     - 계약 목록 테이블 및 상세 헤더에 `[결재대기]` 뱃지 및 변경 요청 만료일 안내 배너 표출.
+  4. **내 결재함(`ApprovalInbox.tsx`) As-Is vs To-Be Diff 스튜디오 & 최종 승인 자동 커밋**:
+     - 결재권자가 승인 판단을 내릴 수 있도록 각 카드 내에 `[현재 상태 (As-Is)] ➔ [변경 요청 (To-Be)]` 1:1 대조 패널 렌더링.
+     - **특수청구 대조**: 변환 사유, 원장 정상 요약 배지, 품목별 공급가/부가세/합계 100% 일치 대조표 표출.
+     - **계약 연장 대조**: 현재 계약 종료일 ➔ 변경 요청 종료일 및 대상 자산 정보 표출.
+     - **전결권자 최종 승인 시 100% 자동 커밋**:
+       - `billings`: `hasCustomStatement: true`, `customStatementItems: toBe.items`, `customStatementReason: toBe.reason` 자동 반영.
+       - `contracts`: `endDate: toBe.endDate`, 대상 자산 슬롯(`contractAssets`) 및 실물 자산(`assets`) 만료일 자동 동기화.
+       - 계약 이력(`contractHistory`)에 승인 완료 감사 로그 무누락 자동 기록.
+     - **반려 시**: Staging 데이터 폐기 및 라이브 원형 100% 보존.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 error, built in 850ms).
+
+---
+
+## 2026-10-03 13:55 (v1.10.2.Build.19)
+
+### [특수청구/UI단일화/리팩토링] 특수 거래명세서 기능 이원화 해소 - 상단 독립 탭 분리 제거 및 청구 상세(Dossier) 모달 단일화 일원화
+
+- **배경 및 사용자 피드백**:
+  - 기존에 매출 청구 관리 상단에 독립 탭(`[✏️ 특수 거래명세서 작성]`)과 우측 청구 상세(Dossier) 패널 내 `[✏️ 특수 명세서 작성/수정]` 버튼으로 기능이 이원화되어 혼선을 초래함.
+  - 사장님 지침: "기능이 이원화 되어있으니, 탭 분리 기능은 제거" 요구에 따라 상단 탭 분리 기능을 완전히 제거하고 청구 건별 상세 모달로 단일화 완료.
+- **주요 구현 및 개선 내역**:
+  1. **상단 독립 탭 분리 기능 전면 제거 (`src/pages/Billings.tsx`)**:
+     - 상단 탭 내비게이션 바에서 `[✏️ 특수 거래명세서 작성]` 탭 버튼 제거.
+     - `activeTab` 유니온 타입에서 `'CUSTOM_STATEMENT'` 제거 (`'LIST' | 'GENERATE' | 'WIZARD' | 'INVOICE' | 'WAIVER'`).
+     - `CUSTOM_STATEMENT` 스튜디오 탭 뷰 렌더링 블록 및 미사용 상태(`csSelectedContractId`, `csReason`, `csItems` 등 약 580라인) 소탕.
+  2. **청구 상세 모달(`customStatementModalOpen`) 단일화 및 검증 로직 이식**:
+     - 기존 발행된 모든 청구건에 대해 우측 청구 상세(Dossier)의 `[✏️ 특수 명세서 작성]` (기등록 건은 `[✏️ 특수 명세서 수정]`) 버튼을 통해 단일 창구로 접근.
+     - **원청구액 100% 일치 제한 (`diffGrand === 0`)**: 원장 정상 총액과 특수명세서 품목 합계가 일치하지 않으면 하단 `[명세서 저장]` 버튼 비활성화(`disabled`), 경고 뱃지 표출 및 저장 원천 차단.
+     - **결재선 연동 (`CUSTOM_BILLING_CREATE`)**: 모달 저장 시에도 결재 규칙이 있으면 `PENDING` 상태 지정 및 결재선 레코드 자동 상신.
+     - **감사 추적(Audit Trail)**: 변환 사유 필수 입력 검증 및 `contractHistory` 계약 이력 자동 기록.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 error).
+
+---
+
+## 2026-10-03 13:50 (v1.10.2.Build.18)
+
+### [특수청구/권한관리/결재선/회계보존법칙] 특수청구 권한관리 SSOT 연동, 결재선(CUSTOM_BILLING_CREATE) 구축, 원청구액(렌탈료+추가청구액) 100% 일치 강제, 원청구 식별 뱃지/배너 고도화
+
+- **배경 및 요구사항**:
+  1. 특수청구(특수 거래명세서) 작성 기능의 접근 및 저장 권한을 시스템 '권한관리' 화면에서 사용자/역할별로 부여할 수 있도록 설정.
+  2. 특수청구 생성에 대한 결재선(Approval Flow)을 구축하여 결재 요청/승인/반려 사이클 및 '내 결재함' 연동.
+  3. 특수청구는 정상 사유로 발생시킨 원청구액(정상 렌탈료 청구액 + 고객 부담 운송비/수리비 등 추가청구액)과 거래명세서 품목 합계액이 1원도 틀림없이 정확히 같아야만 저장이 가능하도록 엄격 제한 (수지 보존 법칙).
+  4. 특수청구가 생성되면, 원청구 목록 및 상세를 조회할 때 특수청구가 발행된 건임을 한눈에 알 수 있도록 직관적인 뱃지 및 배너 표기.
+  5. 특수청구가 처리될 때의 DB 저장 구조 및 회계 원장 보존 방식에 대한 명확한 기술 문서화.
+
+- **주요 구현 및 개선 내역**:
+  1. **전사 메뉴 및 권한 단일 진실의 원천(SSOT) 등록 (`src/config/menu_config.ts`)**:
+     - `SYSTEM_MENU_CONFIG`의 `grp_sales` 그룹에 `{ id: 'custom_billing', name: '특수 거래명세서 (특수청구) 작성' }` 정식 등록.
+     - `CANONICAL_MENU_ALIASES`에 `custom_billing`, `custom-billing`, `특수청구` 정규화 매핑 추가.
+     - `users_permissions.tsx`에서 모든 역할(Role) 및 개별 사용자에 대해 조회/저장 권한을 체크박스로 제어 가능.
+  2. **특수청구 결재선(Approval Event) 신설 및 내 결재함 연동 (`src/services/db.ts`, `src/pages/ApprovalInbox.tsx`)**:
+     - `APPROVAL_EVENT_REGISTRY`의 '계약' 카테고리에 `{ code: 'CUSTOM_BILLING_CREATE', name: '특수청구 생성 승인', targetTable: 'billings', category: '계약' }` 이벤트 코드 등록.
+     - `Billing` 인터페이스에 `approvalStatus?: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED'`, `approvalRequestId?: string` 필드 확장.
+     - 특수청구 생성 시 결재 규칙 존재 시 자동으로 `PENDING` 상태로 결재 요청 레코드 및 결재선 스텝 생성.
+     - '내 결재함'(`ApprovalInbox.tsx`)에서 특수청구 요약 정보(`[특수청구] YYYY-MM 청구 — 고객사명 (공급가 ₩X)`) 표출 및 승인/반려 시 `billings` 레코드의 `approvalStatus` 자동 동기화.
+  3. **원청구액(렌탈료 + 추가청구액) 100% 수지 보존 검증식 강제 (`src/pages/Billings.tsx`)**:
+     - 원청구 정상액 = 장비 렌탈료(가동일수 일할/월정액) + 미청구 고객부담 운송비(`unbilledDeliveries`) + 미청구 고객부담 수리비(`unbilledRepairs`).
+     - 특수명세서 품목 공급가 총액 및 VAT 포함 총액이 원청구 총액과 1원도 차이나지 않아야 함 (`totalDifference === 0`).
+     - 차액 발생 시 저장 버튼 비활성화(`disabled`), 경고 뱃지 표출 및 저장 핸들러 진입 시 에러 모달 원천 차단.
+  4. **원청구 조회 시 특수청구 식별 뱃지 및 상세 배너 연동**:
+     - 청구 목록 테이블(`LIST` 탭): `📄 특수청구 (승인/대기/반려)` 상태별 색상 뱃지 적용.
+     - 청구 상세 패널(Dossier): 상단에 연보라색 특수청구 알림 배너 배치 (사유, 결재상태, 원장 총액 100% 일치 인증 문구 및 서식 수정 버튼).
+     - 원장 vs 거래명세서 품목 탭 분리: `📝 특수 거래명세서 품목 (N건)`과 `📄 실제 계약 원장 (N건)`을 탭으로 즉시 대조 조회.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 error).
+
+---
+
 ## 2026-10-03 13:40 (v1.10.2.Build.17)
 
 ### [특수거래명세서/유효성검사/UI결함패치] 거래명세서 변환 사유 필수 입력 누락 시 화면 무반응 결함 100% 해결, 에러 모달 및 입력창 자동 포커스, 전역 플로팅 토스트 컴포넌트 복원

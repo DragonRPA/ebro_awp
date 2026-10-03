@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "ebro web agent",
+  "version": "1.0.0",
+  "description": "eBro ERP 전용 로컬 AI 지능형 브라우저 제어 에이전트 (SoM 오버레이, DOM 추상화, 로컬 WebSocket 오케스트레이션)",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "ebro web agent",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.ebro.run/*",
+        "https://giyuonlift.ebro.run/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "https://*/*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://*.ebro.run/*",
+    "https://giyuonlift.ebro.run/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*",
+    "https://*/*"
+  ]
+}

@@ -384,6 +384,19 @@ const App: React.FC = () => {
     }
   }, [currentUser]);
 
+  // 🧭 eBro Web Agent 및 외부 자동화 신호에 따른 메뉴 전환 리스너
+  useEffect(() => {
+    const handleErpNavigate = (e: any) => {
+      const targetMenu = e.detail?.menuId || e.detail?.menu;
+      if (targetMenu && typeof targetMenu === 'string') {
+        if (manualMode !== 'off') setManualMode('off');
+        setActiveTab(targetMenu);
+      }
+    };
+    window.addEventListener('erp:navigate', handleErpNavigate);
+    return () => window.removeEventListener('erp:navigate', handleErpNavigate);
+  }, [manualMode]);
+
   // 메뉴(activeTab) 전환 시 스크롤 최상단 리셋 + 해당 메뉴 관련 테이블만 Supabase pull + 켜진 매뉴얼 자동 끄기
   useEffect(() => {
     if (manualMode !== 'off') {

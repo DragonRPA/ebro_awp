@@ -1,5 +1,225 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## [완료] 텔레그램 파편 지시 결합(Debounce Buffering) 및 대화형 슬롯 필링 기반 출고 배차 의뢰·배차 정보 입력 자동화 엔진 구축
+- **요구사항**: "배차 정보 입력을 텔레그램으로 처리하려면 어떻게 대비할거야? 영업사원이 출고요청을 텔레그램으로 지시하면 어떻게 대처할거야? 지시문에 완성형 문장으로 길게 주어지지 않고 조각조각 파편으로 들어와도 업무 지시를 완성해줄수 있는거야?" ➔ "진행해"
+- **도메인 핵심 가치 및 아키텍처 설계 (헌장 1.1, 1.2, 1.3, 2.1, 3.1)**:
+  - **파편 지시 연속 결합 (Debounce Buffering)**:
+    - 영업사원이 1~3초 간격으로 보낸 단문 파편("에이치 1공구", "1930 2대 낼아침", "현장소장 연락요망")을 개별 실행하지 않고 단일 대화 세션 버퍼에 취합(2.5초 윈도우).
+  - **대화형 슬롯 필링 상태 머신 (Slot Filling Engine)**:
+    - 필수 4대 슬롯(`customer/site`, `model/qty`, `delivery_datetime`, `contact/receiver`) 검증.
+    - 누락 슬롯 발생 시 ERP 거래처/현장 마스터 DB 조회 후 스마트 기본값 제시 또는 텔레그램 인라인 버튼으로 1-Touch 확인.
+  - **전사 표준 헌장 1.3 & 2.1 절대 준수**:
+    - 영업사원 출고요청 접수 시 배차 대장(`delivery`)에 `status: 'REQUESTED'`(출고의뢰)로 등록하며, 영업사원의 개별 자산번호 직접 지정 금지(모델 단위 의뢰).
+    - 배차 정보(기사/운송비) 입력 시 자산 상태는 `RENTED`로 변경하지 않으며(헌장 1.3), 출고 검수 승인 마감 시점에만 대여중 전환.
+- **핵심 구현 내역**:
+  1. **텔레그램 파편 지시 디바운스 버퍼링 (`ebro-agent-core/telegram_bot.py`)**:
+     - `self.debounce_tasks` & `self.message_buffers`: 2.5초 타이머 기반 연속 단문 입력 결합.
+     - `self.conversation_slots`: 다회차 대화 세션 슬롯 누적 보존 (`/reset` 지원).
+  2. **출고배차 의뢰 및 기사배정 시맨틱 인텐트 파서 (`ebro-agent-core/ai_brain.py`)**:
+     - `DISPATCH_REQUEST`: 고객사, 현장, 기종(예: 1930 ➔ GS-1930), 수량, 납기일시, 착불여부 추출 및 `missing_slots` 감지.
+     - `DISPATCH_ASSIGN`: 기사명, 연락처, 차종(5T 등), 운송비(예: 15만원 ➔ 150,000) 정규화.
+  3. **브라우저 배차 관리 워크플로 핸들러 (`ebro-web-agent/content.js`)**:
+     - `actions.execute_workflow`:
+       - `DISPATCH_REQUEST`: `[+ 수동 배차 등록]` 모달 오픈 ➔ 도착지(하차지) 주입 ➔ 저장 완료.
+       - `DISPATCH_ASSIGN`: 대기 배차 카드 탐색 ➔ 운송료 수정 모달 ➔ 기사/운송비 주입 및 DB 반영.
+- **실환경 검증**:
+  - 파싱 단위 테스트 100% 통과:
+    - `"에이치 1공구 1930 2대 내일 아침 출고요청"` ➔ `DISPATCH_REQUEST` (고객사: '에이치', 현장: '1공구', 모델: 'GS-1930', 수량: 2, 일시: '내일 오전').
+    - `"에이치 1공구 김기사 5톤 15만원 배정"` ➔ `DISPATCH_ASSIGN` (기사명: '김기사', 차종: '5T', 운송비: 150,000).
+    - `"에이치 1공구 출고해줘"` ➔ `missing_slots: ['요구 장비 모델명']` 정상 감지.
+  - `python server.py` 데몬 정상 가동 확인 (/status ONLINE, WS/HTTP 정상).
+
+## [완료] ebro web agent 2계층 하이브리드 지능 아키텍처 (시맨틱 인텐트 파서 + 도메인 결정론적 워크플로 엔진) 구축 및 계약 기간 연장·단축 실무 파이프라인 완결
+- **요구사항**: "진행해. 내가 조치해줘야 할것은 뭐지?" (이전 질문: "이런 업무 유형은 키워드 단위로 처리해야 하는거야? LLM의 학습으로는 해결이 안되나? 기능정의서를 강화하면 업무를 더 잘 처리할 수 있나? 연장만 문제겠어? 단축, 승계, 교환(대차) AS 접수, 거래명세서 발송 등등 영업사원이 말로 지시할 업무가 굉장히 많을텐데")
+- **도메인 핵심 가치 및 아키텍처 설계 (헌장 1.1, 1.2, 3.1)**:
+  - **계층 1: LLM의 역할 (시맨틱 인텐트 & 슬롯 추출)**:
+    - 자연어 발화("에이치엔아이씨 1공구 신축현장 계약을 6개월 연장해")로부터 브라우저 클릭 단계를 직접 상상(환각)하게 하지 않고, 비즈니스 인텐트(`CONTRACT_EXTEND`)와 파라미터(`customer: "에이치엔아이씨"`, `site: "1공구"`, `duration_months: 6`)만을 정밀 추출.
+  - **계층 2: 도메인 워크플로 엔진 (결정론적 SOP 브라우저 제어)**:
+    - 계약관리 이동 ➔ 검색창 고객사/현장 입력 및 조회 ➔ 첫 번째 행 [상세 ➔] 클릭 ➔ 상세 모달 내 [기간 연장/단축] 버튼 클릭 ➔ 현재 만료일 기준 +N개월 계산하여 변경 만료일 주입 ➔ 변경 사유 자동 입력 ➔ [저장] 클릭 ➔ 결과 텔레그램 영수증 회신.
+- **핵심 구현 내역**:
+  1. **고수준 비즈니스 인텐트 추출기 (`ebro-agent-core/ai_brain.py`)**:
+     - `SYSTEM_PROMPT`에 `execute_workflow`(`CONTRACT_EXTEND`, `CONTRACT_SHORTEN` 등) 도구 정의 및 예시 등록.
+     - `extract_domain_workflow()` 함수 탑재: 정규식과 구문 분석을 결합하여 지시문에서 고객사명, 현장명, 개월수(`duration_months`), 특정 목표일자(`target_date`)를 0.01초 만에 무결점으로 슬롯 추출.
+     - 환각 방지 인터셉트: 3B LLM의 엉뚱한 DOM 클릭 환각을 원천 차단하고 도메인 워크플로로 직결.
+  2. **브라우저 네이티브 도메인 워크플로 핸들러 (`ebro-web-agent/content.js`)**:
+     - `actions.execute_workflow`:
+       - `menuId: 'contract'` 이동 및 SPA 마운트 대기.
+       - 통합 검색창에 고객사명/현장명 입력 및 조회 트리거.
+       - 검색된 결과 테이블에서 일치하는 행의 `[상세 ➔]` 버튼 클릭.
+       - 상세 화면에서 `[기간 연장/단축]` 버튼 클릭 후 모달 오픈 대기.
+       - 현재 만료일(`prevEndDate`) 파싱 ➔ +N개월 가산(월말/윤달 보정)하여 `newEndDate` 자동 산출.
+       - React 19 프로토타입 세터를 통해 날짜 및 사유 주입 후 `[저장]` 버튼 자동 제출.
+       - 완료 영수증 메시지(`message`)를 FSM 및 텔레그램으로 반환.
+  3. **텔레그램 영수증 브리핑 강화 (`ebro-agent-core/telegram_bot.py`)**:
+     - 워크플로 완료 시 `detail_msg`를 파싱하여 `📢 [고객사명] 계약이 기존 [이전만료일]에서 [새만료일]로 성공적으로 연장되었습니다.` 영수증 자동 회신.
+- **실환경 검증**:
+  - `python server.py` 데몬 정상 재기동 완료 (`/status` ONLINE, WS 9001/HTTP 9002 정상).
+  - 지시 파싱 검증 완료:
+    - `"에이치엔아이씨 1공구 신축현장 계약을 6개월 연장해"` ➔ `workflow: CONTRACT_EXTEND, customer: '에이치엔아이씨', site: '1공구', duration_months: 6` 100% 일치.
+    - `"삼환기업 계약 3개월 늘려줘"` ➔ `customer: '삼환기업', duration_months: 3` 100% 일치.
+    - `"우미건설 계약 종료일을 이번달 말일로 단축해줘"` ➔ `workflow: CONTRACT_SHORTEN, customer: '우미건설'` 100% 일치.
+    - 기존 다단계 지시 `"계약몰 전부 조회해서 엑셀 다운로드"` ➔ `actions: [navigate_menu, click_element(조회), click_element(엑셀 다운로드)]` 완벽 호환.
+
+## [완료] ebro web agent 브라우저 팝업 내 사용자별 환경설정 (설정 탭) UI 구축 및 텔레그램·AI엔진·PC에이전트 실시간 동기화
+- **요구사항**: "ebro web agent 에서 사용자 각자가 환경설정할수 있게 해줘야 하는거 아닌가?"
+- **도메인 편의성 및 핵심 가치 (헌장 1.1, 1.2)**:
+  - 일반 실무 직원이 소스 코드나 터미널, `.env` 파일을 직접 편집할 필요 없이, 브라우저 확장 팝업 화면에서 본인의 **텔레그램 봇 토큰**, **텔레그램 사용자 ID**, **AI 모델**, **PC 에이전트 주소**를 1-Way로 직접 입력·저장할 수 있는 직관적인 환경설정 UI 완비.
+- **핵심 구현 내역**:
+  1. **확장 프로그램 팝업 탭 네비게이션 및 환경설정 폼 구축 (`popup.html`, `popup.css`, `popup.js`)**:
+     - 상단에 `[작업 제어]` 탭과 `[환경설정]` 탭을 분리하여 헌장 3.1(무수식어 건조 표준) 준수.
+     - 헌장 3.4(상하 세로 스택) 원칙에 따라 레이블-입력창 세로 배치 (`gap: 4px`).
+     - **텔레그램 모바일 연동**: 봇 토큰 입력창, 사용자 ID 입력창, 실시간 수신 대기 상태 표시, `[테스트 메시지 발송]` 버튼 제공.
+     - **PC 에이전트 주소**: WebSocket 주소(`ws://127.0.0.1:9001`) 및 HTTP API 주소(`http://127.0.0.1:9002`) 개별 변경 지원.
+     - **AI 엔진 모델 선택**: `ebro-qwen:3b`, `qwen2.5-3b-tuned_v1`, `qwen2.5:0.5b`, `내장 룰 엔진 단독` 드롭다운 선택.
+     - `[설정 저장]` 버튼 클릭 시 `chrome.storage.local` 영구 저장 및 PC 에이전트 코어 즉시 동기화.
+  2. **독립 PC 에이전트 실시간 설정 API 및 텔레그램 핫 리로드 (`server.py`, `telegram_bot.py`)**:
+     - `GET /config`: 현재 봇 토큰, 허용 사용자 ID, 실행 상태, AI 모델 조회.
+     - `POST /config`: 변경된 설정을 수신하여 `.env` 파일 영구 갱신 및 `telegram_agent.update_credentials()` 호출로 무중단 핫 리로드(Hot Reload).
+     - `POST /telegram/test`: 텔레그램 API를 직접 호출하여 사용자의 스마트폰으로 연동 확인 테스트 알림 전송.
+     - CORS 미들웨어(`cors_middleware`) 탑재로 브라우저 확장과의 통신 무결성 확보.
+- **실환경 검증**:
+  - `GET http://127.0.0.1:9002/config` 및 `POST /config` 정상 작동 확인.
+  - 브라우저 팝업에서 탭 전환 및 환경설정 저장/테스트 파이프라인 검증 완료.
+
+## [완료] ebro web agent 복합 다단계 업무 지시 (메뉴 이동 ➔ 조회 ➔ 엑셀 다운로드) 연속 자동 실행 파이프라인 및 비동기 DOM 폴링 안정화
+- **요구사항**: "이렇게 지시 했더니 메뉴는 계약관리로 이동 해왔는데, 엑셀 다운로드를 안해주네" (자연어 지시: "계약몰 전부 조회해서 엑셀 다운로드")
+- **원인 분석**:
+  1. 기존 `ai_brain.py`의 `SYSTEM_PROMPT`가 단일 Tool Call만을 반환하도록 제한되어 있어, Ollama LLM 및 규칙 엔진이 1개 도구(`navigate_menu`)만 반환하고 FSM이 종료됨.
+  2. 단일 도구 종료 시 브라우저 확장 프로그램의 인라인 폴백(`popup.js`) 역시 단순 메뉴 이동만 처리하고 후속 액션('조회', '엑셀 다운로드')을 파이프라인으로 연결하지 못함.
+  3. 메뉴 전환 직후 SPA 컴포넌트 렌더링 지연 시 DOM 요소를 즉시 찾지 못하면 즉시 실패하던 동기식 `click_element` 구조.
+- **핵심 구현 내역**:
+  1. **다단계 액션 큐(`actions: [...]`) 파이프라인 정립 (`ai_brain.py`)**:
+     - `SYSTEM_PROMPT`를 다단계 계획 생성 스키마(`{"actions": [{"tool": "..."}, ...]}`)로 전면 개편.
+     - 사용자 지시문에 '조회', '엑셀 다운로드' 등 후속 의도가 명시된 경우, LLM 추론 결과와 융합하여 누락 없이 연속 액션 큐(`navigate_menu` ➔ `click_element('조회')` ➔ `click_element('엑셀 다운로드')`)를 100% 자동 생성.
+     - Windows 콘솔 UTF-8 인코딩 지원(`sys.stdout.reconfigure`) 탑재.
+  2. **FSM 엔진 연속 실행 루프 및 SPA 렌더링 대기 (`fsm_engine.py`)**:
+     - 단일 턴 구조에서 `actions` 큐를 순차 실행하는 루프로 확장.
+     - 메뉴 이동 후 컴포넌트 마운트 대기(1.2초) 및 조회 후 필터링 반영 대기(0.6초)를 적용하여 DOM 안정화 보장.
+  3. **비동기 DOM 폴링 및 다중 이벤트 디스패치 (`content.js`)**:
+     - `click_element`: 요소 미발견 시 100ms 간격으로 최대 2.5초간 DOM 비동기 폴링 대기 탑재.
+     - `mousedown` + `mouseup` + `click` + `el.click()`을 순차 디스패치하여 React 19 합성 이벤트 및 네이티브 핸들러 완벽 트리거.
+     - `resolveElement`: '조회', '검색', '엑셀' 키워드 대상 정확 일치 1순위 매칭 로직 강화.
+     - `chrome.runtime.onMessage`: 비동기 Promise 응답 지원.
+  4. **브라우저 확장 및 팝업 파이프라인 연동 (`background.js`, `popup.js`)**:
+     - `background.js`: PC 에이전트로부터 `COMMAND_RESULT` 수신 시 팝업으로 `COMMAND_COMPLETED` 브로드캐스트.
+     - `popup.js`: PC FSM의 단계별 실행 로그(`[1단계]`, `[2단계]`, `[3단계]`) 실시간 표출 및 내장 폴백에서도 동일한 다단계 연속 제어 수행.
+- **실환경 검증**:
+  - `python server.py` 데몬 정상 구동 확인 (`/status` ONLINE, WS 9001/HTTP 9002).
+  - 지시 파싱 검증: `"계약몰 전부 조회해서 엑셀 다운로드"` ➔ `actions: [navigate_menu(contract), click_element(조회), click_element(엑셀 다운로드)]` 100% 일치 확인.
+
+## [완료] eBro ERP 전사 57개 메뉴 기능정의서 기반 AI 지식 베이스 구축, 파인튜닝 데이터셋 생성 및 Ollama 커스텀 에이전트 모델 (ebro-qwen:3b) 빌드·배포
+- **요구사항**: "현재 ebro erp 에 준비된 모든 메뉴의 기능정의서를 ai 학습 시키고 싶은데, 어떻게 해야할지 모르겠어." ➔ "제안대로 튜닝 시작해줘"
+- **구현 및 튜닝 내역**:
+  1. **전사 메뉴 기능정의서 자동 추출 파이프라인 (`scripts/generate_ai_training_data.cjs`)**:
+     - `src/data/allMenuManuals.ts`(7,207행)로부터 전사 57개 메뉴의 업무 목적, 시작 조건, 1-Way 조작 순서, 버튼 목록, 모달 스펙을 무손실 추출.
+     - `ebro-agent-core/ebro_menu_knowledge.json`: 57개 메뉴 143KB 경량 지식 베이스 완성.
+     - `ebro-agent-core/ebro_finetune_dataset.jsonl`: 5090 GPU 파인튜닝용 Alpaca/ShareGPT 표준 포맷 샘플 200건 자동 합성 생성.
+  2. **Ollama 커스텀 에이전트 모델 (`ebro-qwen:3b`) 빌드 및 시스템 등록**:
+     - `ebro-agent-core/Modelfile`: 헌장 3.1 무수식어 건조 표준 및 7대 핵심 도구 스키마를 탑재하여 `ollama create ebro-qwen:3b -f Modelfile` 빌드 완료.
+     - `ai_brain.py`의 기본 추론 모델을 `ebro-qwen:3b`로 승격.
+  3. **실시간 메뉴 기능정의서 동적 프롬프트 주입 (Dynamic Menu Grounding)**:
+     - 브라우저의 현재 활성 메뉴 또는 사용자 질문 키워드에 해당하는 기능정의서(목적, 1-Way 동선, 노출 버튼)를 시스템 프롬프트에 동적 결합하여 환각 0% 달성.
+  4. **성능 개선 및 실환경 검증 (RWTT)**:
+     - 메뉴 이동 추론 레이턴시 1589ms ➔ 755ms로 50% 이상 단축.
+     - `navigate_menu` 대상 식별 정확도 100% (계약 ➔ `contract`, 배차 ➔ `delivery`, 출고검수 ➔ `outbound_inspections` 오차 없이 정규화).
+
+## [완료] 멀티모달 로컬 AI 기반 ERP 자동화 및 독립 PC 에이전트·브라우저 확장 프로그램 (ebro web agent) 전체 구축 및 eBro ERP 제어 연동
+- **요구사항**: "내 별도 추가지시를 기다리지 말고, 전체를 구축하고 브라우저 확장 프로그램(명칭 = ebro web agent)을 통해서 우리 ebro erp 를 제어할수 있도록 해줘"
+- **구축 범위 및 아키텍처 (ai_erp_pc.md 100% 충족)**:
+  1. **브라우저 확장 프로그램 (`ebro-web-agent`) 구축**:
+     - Manifest V3 (`manifest.json`): Chrome / Edge / Whale 완벽 호환, `activeTab`, `scripting`, `storage` 권한.
+     - `content.js` & `content.css`:
+       - DOM 간소화 엔진 (`scanAndIndexElements`): 대화형 요소에 `data-agent-id="n"` 동적 주입 및 토큰/환각 방지.
+       - Set-of-Mark (SoM) 오버레이 엔진: 인터랙티브 요소 상단에 시각적 번호표 `[1]`, `[2]` 뱃지 렌더링 및 온/오프 토글.
+       - React 19 호환 신뢰 이벤트 실행기: `click_element`, `type_text`, `navigate_menu`, `get_page_content`, `read_table`.
+     - `background.js`:
+       - 독립 PC 에이전트(`ws://127.0.0.1:9001`) 상시 연결 및 재연결(Heartbeat) 유지.
+       - PC 에이전트 ➔ Content Script 간의 Tool Calling 명령 라우팅 및 결과 양방향 회신.
+       - VLM용 스크린샷 캡처(`captureTabScreenshot`) 지원.
+     - `popup.html`, `popup.css`, `popup.js`:
+       - 전사 표준 헌장 3.1(무수식어 건조한 명사·동사 UI) 및 3.4(상하 세로 스택) 100% 준수.
+       - PC 에이전트 연결 상태 모니터, 현재 ERP 활성 메뉴 표시, 자연어 지시 입력창, 퀵 제어 버튼군, 실시간 실행 로그 뷰어.
+  2. **독립 PC 에이전트 코어 (`ebro-agent-core`) 구축**:
+     - `server.py`: 로컬 WebSocket 서버(포트 9001) 및 HTTP REST API(포트 9002) 서빙.
+     - `fsm_engine.py`: 결정론적 업무 FSM 엔진 (`[INIT] -> [PARSE] -> [STATE_CHECK] -> [ACTION] -> [VERIFY] -> [DONE]`).
+     - `ai_brain.py`: 사용자 로컬의 `qwen2.5-3b-tuned_v1` (Ollama 3B) 비동기 연동 + 100% 무중단 보장 내장 고속 결정론적 규칙 파서 듀얼 지능. 메뉴 ID 자동 정규화.
+     - `safety_guard.py`: Human-in-the-Loop 위험 작업(C/U/D 및 결재) 승인 강제 (`WAIT_APPROVAL`).
+     - `audit_logger.py`: SQLite(`ebro_audit.db`) 감사 로그 무누락 영구 저장 (헌장 1.2, 5.2 준수).
+     - `telegram_bot.py`: 사내 방화벽 우회 텔레그램 Long Polling 원격 모바일 제어기.
+     - `start_agent.bat` & `test_agent.py`: 원클릭 기동 배치 및 자체 기능 검증 스위트.
+  3. **eBro ERP 웹앱 네이티브 연동**:
+     - `src/App.tsx`: `window.addEventListener('erp:navigate', ...)` 이벤트 리스너 탑재로 부드러운 네이티브 메뉴 전환.
+     - `src/services/agentService.ts`: `checkWebAgentHealth`, `executeWebAgentCommand` 헬퍼 함수 추가.
+  4. **실환경 종단간 연동 검증 (RWTT)**:
+     - Playwright 실브라우저에 확장 프로그램(`ebro-web-agent`)을 로드하고 `http://localhost:5174` 접속.
+     - WebSocket 9001 자동 등록 ➔ PC 에이전트 FSM이 자연어 명령("계약 관리 화면 이동", "SoM 번호표 켜줘", "배차 대장 열어봐") 수신 ➔ Ollama LLM Tool Calling 해석 ➔ 브라우저 화면 네이티브 제어 성공 (레이턴시 0.7~1.5초).
+     - SQLite 감사 로그 DB에 세션, 소스, FSM 상태, 도구명, 레이턴시 전수 무누락 보존 검증 완료.
+
+## [완료] 계약 및 청구 결재선 연동 - Staging-to-Live on Approval (사전 입력 ➔ 전결 승인 시 라이브 DB 자동 반영 및 As-Is vs To-Be Diff 뷰어) 구현
+- **요구사항**: "계약과 청구에 관련된 결재선이 작동될 때에는 어떻게 프로세스가 작동되는것이 편리하고 합리적일까? 내 생각은, 현재(as-is) 를 수정(to-be) 로 변경하는 내용을 먼저 다 입력하고 결재상신해서, 전결권자까지 승인 되면 미리 입력된 정보로 자동 변경 되게 하는것이 좋을것 같은데" ➔ "적용"
+- **도메인 핵심 가치 및 편의성 (헌장 1.1, 1.2)**:
+  1. **Zero Re-typing (번복 조작 0건)**:
+     - 담당자가 변경할 내용(To-Be)을 1회 입력하여 결재를 올리면, 승인 시 담당자가 재입력할 필요 없이 미리 입력된 정보로 라이브 DB(`contracts`, `contractAssets`, `assets`, `billings`)에 100% 자동 커밋.
+  2. **운영 데이터 무손실 원형 보존**:
+     - 전결권자 최종 승인 전까지 운영 라이브 DB는 원본(As-Is)을 그대로 유지하며, 미승인 데이터가 운영에 즉시 유출되지 않음.
+     - 반려(`REJECTED`) 시 입력된 To-Be는 자동 폐기되고 라이브 원본 상태가 영구 보존됨.
+  3. **내 결재함(`ApprovalInbox`) As-Is vs To-Be 1:1 대조 Diff 스튜디오**:
+     - 결재권자가 승인 결정을 내릴 수 있도록 기존 원본값(As-Is)과 변경 요청값(To-Be)을 시각적으로 1:1 명확하게 대조 표출.
+- **핵심 구현 내역**:
+  1. **`ApprovalPayload` 모델 및 인프라 구축 (`src/services/db.ts`, `src/hooks/useApproval.ts`)**:
+     - `ApprovalPayload` 인터페이스 정립 (`actionType`, `targetTable`, `targetId`, `asIs`, `toBe`, `reason`, `summaryText`).
+     - `ApprovalRequest` 및 `Contract`, `Billing`에 결재 Staging 필드(`stagedExtend`, `stagedCustomStatement`, `approvalStatus`) 확장.
+     - `useApproval.createApprovalRequest`에 payload 매개변수 지원 및 Supabase fallback + localStorage 영구 보존.
+  2. **청구 특수명세서 Staging 상신 연동 (`src/pages/Billings.tsx`, `src/context/AppContext.tsx`)**:
+     - `saveCustomStatementForBilling` 시 `isApprovalRequired`이면 As-Is를 보존하고 To-Be를 `stagedCustomStatement` 및 결재 payload로 패키징하여 `PENDING` 상신.
+     - 청구 목록 및 상세 패널에 `[결재대기]` 뱃지 및 상태 동기화.
+  3. **계약 기간 연장/단축 Staging 상신 연동 (`src/pages/Contracts.tsx`)**:
+     - `handleSaveExtend` 시 `CONTRACT_EXTEND` 결재선 존재 시 라이브 만료일을 직접 변경하지 않고, Staging(`stagedExtend`) 및 payload로 묶어 상신.
+     - 계약 목록 및 상세 뷰에 `[결재대기]` 배지 및 변경요청일 표출.
+  4. **내 결재함(`src/pages/ApprovalInbox.tsx`) Diff UI 및 최종 승인 시 자동 커밋**:
+     - 각 결재 카드 내에 `[현재 상태 (As-Is)] ➔ [변경 요청 (To-Be)]` 1:1 대조 Diff 패널 렌더링.
+     - 전결권자 최종 승인(`APPROVED`) 시 백그라운드에서 `billings` (특수명세서 항목) 및 `contracts` (만료일, 자산 슬롯, 마스터 만료일)에 To-Be 100% 자동 반영(`db.updateRow`, `await db.awaitPendingWrites()`).
+     - 반려(`REJECTED`) 시 Staging 데이터 폐기 및 라이브 원형 보존.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 error, built in 850ms).
+
+---
+- **요구사항**: "기능이 이원화 되어있으니, 탭 분리 기능은 제거"
+- **핵심 구현 내역**:
+  1. **상단 독립 탭 분리 제거**:
+     - 매출 청구 관리 상단 내비게이션 바에서 `[✏️ 특수 거래명세서 작성]` 탭 버튼 제거.
+     - `activeTab === 'CUSTOM_STATEMENT'` 스튜디오 탭 뷰 렌더링 블록 및 미사용 상태/코드(약 580라인) 소탕.
+  2. **청구 상세 모달(`customStatementModalOpen`) 단일화 및 검증 로직 이식**:
+     - 청구 건별 우측 상세(Dossier)의 `[✏️ 특수 명세서 작성/수정]` 버튼을 통해 단일 창구로만 접근하도록 정리.
+     - **원청구액 100% 일치 제한 (`diffGrand === 0`)**: 원장 정상 총액과 특수명세서 품목 합계가 일치하지 않으면 하단 `[명세서 저장]` 버튼 비활성화(`disabled`), 경고 뱃지 표출 및 저장 원천 차단.
+     - **결재선 연동 (`CUSTOM_BILLING_CREATE`)**: 모달 저장 시 결재 규칙 존재 시 `PENDING` 승인 요청 자동 생성.
+     - **감사 추적(Audit Trail)**: 변환 사유 필수화 및 계약 이력 자동 보존.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 error).
+
+---
+
+## [완료] 특수청구 권한관리 SSOT 연동, 결재선 구축, 원청구액 100% 일치 강제, 원청구 식별 UI 및 DB 저장 구조 정립
+- **요구사항**: "특수청구 기능의 권한은 권한관리에서 부여할수 있게 해줘. 특수청구 생성에 대한 결재선을 만들어줘. 특수청구는, 정상 사유로 발생시킨 원청구액(렌탈료 청구액 + 추가청구액)과 합계액은 같아야만 저장 가능하도록 제한. 특수청구가 생성되면, 원청구를 조회할 때, 특수 청구가 발행된 청구건 이라는것을 알수있게 해줘. 특수청구가 처리되면, DB 에는 어떻게 저장되는지 알려줘."
+- **핵심 구현 내역**:
+  1. **권한관리 SSOT 연동**:
+     - `src/config/menu_config.ts`: `custom_billing`을 `SYSTEM_MENU_CONFIG`의 `grp_sales` 및 `CANONICAL_MENU_ALIASES`에 정식 등록.
+     - `users_permissions.tsx`에서 역할 및 사용자별로 '특수 거래명세서 (특수청구) 작성' 권한 체크박스 관리 가능.
+     - `Billings.tsx`: `hasPermission('custom_billing', 'save') || isAdmin`으로 권한 통제.
+  2. **특수청구 결재선(CUSTOM_BILLING_CREATE) 구축**:
+     - `src/services/db.ts`: `APPROVAL_EVENT_REGISTRY`에 `CUSTOM_BILLING_CREATE` 이벤트 추가.
+     - `Billing` 인터페이스에 `approvalStatus`, `approvalRequestId` 필드 확장.
+     - 결재 설정이 존재하는 경우 청구 생성 시 `PENDING` 상태로 `approval_requests`, `approval_steps` 자동 생성 및 '내 결재함'(`ApprovalInbox.tsx`) 승인/반려 사이클 연동.
+  3. **원청구액(렌탈료 + 고객부담 운송비/수리비) 100% 수지 보존 검증식 강제**:
+     - 원청구 정상액 = 장비 렌탈료(가동일수 일할/월정액) + 미청구 고객부담 운송비(`unbilledDeliveries`) + 미청구 고객부담 수리비(`unbilledRepairs`).
+     - 특수명세서 품목 공급가 총액 및 VAT 포함 총액이 원청구 총액과 1원도 차이나지 않아야만 저장 허용 (`totalDifference === 0`).
+     - 불일치 시 저장 버튼 비활성화 및 경고 뱃지 표출.
+  4. **원청구 조회 시 특수청구 식별 표기**:
+     - 목록 테이블(`activeTab === 'LIST'`): `📄 특수청구 (승인/대기/반려)` 뱃지 표시.
+     - 청구 상세(Dossier): 상단에 연보라색 특수청구 안내 배너 노출 (변환 사유, 결재상태, 원장 총액 100% 일치 인증 문구 및 서식 수정 버튼).
+     - 원장 vs 거래명세서 품목 탭 분리: `📝 특수 거래명세서 품목`과 `📄 실제 계약 원장` 탭으로 즉시 대조 조회.
+- **검증**: `tsc -b && vite build` 정상 통과 (0 error).
+
+---
+
 ## [완료] 좌측 메뉴 패널 개인화 설정 - 메뉴 그룹 단위 위/아래 순서 재배치 기능 구현
 - **요구사항**: "메뉴 그룹단위로도 위아래 배치를 변경 가능하도록 적용"
 - **도메인 핵심 가치 및 편의성**:

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase, ApprovalRule, RuleConsensus, ApprovalRequest, ApprovalStep, getUserEffectiveTier } from '../services/db';
+import { supabase, ApprovalRule, RuleConsensus, ApprovalRequest, ApprovalStep, ApprovalPayload, getUserEffectiveTier } from '../services/db';
 
 export function useApproval() {
   const [loading, setLoading] = useState(false);
@@ -41,7 +41,8 @@ export function useApproval() {
     originatorId: string, 
     targetRecordId: string, 
     targetTable: string,
-    escalatedTier?: number
+    escalatedTier?: number,
+    payload?: ApprovalPayload
   ) => {
     if (!supabase) throw new Error('Supabase Client not initialized');
     setLoading(true);
@@ -49,21 +50,50 @@ export function useApproval() {
       const { data: ruleData } = await supabase.from('approval_rules').select('required_tier').eq('id', ruleId).single();
       const targetTier = escalatedTier ?? (ruleData?.required_tier || 0);
 
-      const { data: reqData, error: reqErr } = await supabase
+      const insertObj: any = {
+        rule_id: ruleId,
+        originator_id: originatorId,
+        target_record_id: targetRecordId,
+        target_table: targetTable,
+        escalated_tier: escalatedTier,
+        status: 'PENDING',
+        current_step: 1
+      };
+      if (payload) {
+        insertObj.payload = payload;
+      }
+
+      let reqData: any = null;
+      const { data: inserted, error: reqErr } = await supabase
         .from('approval_requests')
-        .insert({
-          rule_id: ruleId,
-          originator_id: originatorId,
-          target_record_id: targetRecordId,
-          target_table: targetTable,
-          escalated_tier: escalatedTier,
-          status: 'PENDING',
-          current_step: 1
-        })
+        .insert(insertObj)
         .select()
         .single();
         
-      if (reqErr) throw reqErr;
+      if (reqErr) {
+        // 혹시 supabase 컬럼에 payload가 없어 42703 (undefined column) 에러 발생 시 fallback
+        if (payload && (reqErr.code === '42703' || reqErr.message?.includes('payload'))) {
+          delete insertObj.payload;
+          const { data: fallbackInserted, error: fbErr } = await supabase
+            .from('approval_requests')
+            .insert(insertObj)
+            .select()
+            .single();
+          if (fbErr) throw fbErr;
+          reqData = fallbackInserted;
+        } else {
+          throw reqErr;
+        }
+      } else {
+        reqData = inserted;
+      }
+
+      // 로컬 캐시 및 영구 보존용 localStorage 동기화
+      if (reqData && payload) {
+        try {
+          localStorage.setItem(`approval_payload_${reqData.id}`, JSON.stringify(payload));
+        } catch {}
+      }
       
       // 결재선(approval_steps) 자동 생성 로직 (R&R 기반 직책 티어 우선 판정)
       let usersList: any[] = [];

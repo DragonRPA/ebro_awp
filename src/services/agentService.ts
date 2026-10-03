@@ -110,17 +110,50 @@ export async function checkLocalAgentHealth(callsign: string = 'admin'): Promise
 }
 
 /**
- * 에이전트 핫 재시작
+ * 🤖 eBro Web Agent & PC 에이전트 코어 (포트 9002) 헬스체크
+ */
+export async function checkWebAgentHealth(): Promise<{ online: boolean; extensionConnected: boolean; version?: string }> {
+  try {
+    const res = await fetch('http://127.0.0.1:9002/status', {
+      method: 'GET',
+      signal: AbortSignal.timeout(1000)
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        online: data.status === 'ONLINE',
+        extensionConnected: Boolean(data.browser_extension_connected),
+        version: data.version
+      };
+    }
+  } catch (e) {}
+  return { online: false, extensionConnected: false };
+}
+
+/**
+ * 🤖 eBro PC 에이전트에 자연어 명령 전달
+ */
+export async function executeWebAgentCommand(prompt: string): Promise<any> {
+  const res = await fetch('http://127.0.0.1:9002/execute', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, source: 'ERP_WEB_APP' })
+  });
+  return await res.json();
+}
+
+/**
+ * 🔄 로컬 에이전트 재시작 트리거
  */
 export async function restartLocalAgent(): Promise<boolean> {
   try {
-    const res = await fetchWithAgentFallback('/api/restart', {
+    const res = await fetchWithAgentFallback('/restart', {
       method: 'POST',
       signal: AbortSignal.timeout(2000)
     });
     return res.ok;
-  } catch (err) {
-    return false;
+  } catch (e) {
+    launchLocalAgentFromBrowser();
+    return true;
   }
 }
-

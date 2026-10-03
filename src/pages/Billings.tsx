@@ -3,13 +3,14 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSortableData } from '../hooks/useSortableData';
 import { SortableTh } from '../components/SortableTh';
 import { useApp } from '../context/AppContext';
-import { db, Asset, Billing, BillingDetail, ContractHistory, normalizeEndDate, formatContractEndDate, CustomStatementItem } from '../services/db';
+import { db, Asset, Billing, BillingDetail, ContractHistory, normalizeEndDate, formatContractEndDate, CustomStatementItem, ApprovalPayload } from '../services/db';
 import { Plus, Download, Mail, CheckCircle, Search, DollarSign, Calendar, FileText, Send, Edit3, RotateCcw, AlertTriangle, Check, Layers, Sliders, Settings } from 'lucide-react';
 import { emailService } from '../services/email';
 import { exportToExcel, exportTransactionStatementExcel, exportTransactionStatementExcelBuffer, calcServicePeriod, formatStatementItemName } from '../services/excel';
 import { generateTransactionStatementPdf, generateTransactionStatementExcel } from '../services/excelTemplateEngine';
 import { BillingInvoiceTab } from '../components/BillingInvoiceTab';
 import { matchHangul } from '../utils/hangulSearch';
+import { useApproval } from '../hooks/useApproval';
 
 
 export const Billings: React.FC = () => {
@@ -29,6 +30,8 @@ export const Billings: React.FC = () => {
 
   const canSave = hasPermission('billing', 'save');
   const isAdmin = currentUser?.role === 'ADMIN';
+  const canCustomBilling = hasPermission('custom_billing', 'save') || isAdmin;
+  const { fetchRuleForEvent, createApprovalRequest } = useApproval();
 
   // 토스트 알림 상태 (헌장 5.2: 브라우저 alert/confirm 전면 퇴출)
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
@@ -37,7 +40,7 @@ export const Billings: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const [activeTab, setActiveTab] = useState<'LIST' | 'GENERATE' | 'WIZARD' | 'INVOICE' | 'WAIVER' | 'CUSTOM_STATEMENT'>('LIST');
+  const [activeTab, setActiveTab] = useState<'LIST' | 'GENERATE' | 'WIZARD' | 'INVOICE' | 'WAIVER'>('LIST');
 
   // --- 청구 조회 필터 상태 ---
   const initialYm = new Date().toISOString().slice(0, 7);
@@ -240,16 +243,6 @@ export const Billings: React.FC = () => {
   const [customStatementTargetBillingId, setCustomStatementTargetBillingId] = useState<string | null>(null);
   const [customStatementReasonInput, setCustomStatementReasonInput] = useState('');
   const [customStatementItemsDraft, setCustomStatementItemsDraft] = useState<CustomStatementItem[]>([]);
-
-  // --- 특수 거래명세서 작성 탭 (CUSTOM_STATEMENT) 상태 ---
-  const [csSelectedContractId, setCsSelectedContractId] = useState<string | null>(null);
-  const [csBillingYm, setCsBillingYm] = useState(() => new Date().toISOString().slice(0, 7));
-  const [csBillingDate, setCsBillingDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [csReason, setCsReason] = useState('');
-  const [csReasonError, setCsReasonError] = useState(false);
-  const [csItems, setCsItems] = useState<CustomStatementItem[]>([]);
-  const [csSearchTerm, setCsSearchTerm] = useState('');
-  const [csIsGenerating, setCsIsGenerating] = useState(false);
 
   // 청구 상세 뷰 내부 탭: 회계 원장 vs 특수 거래명세서
   const [activeBillingDetailTab, setActiveBillingDetailTab] = useState<'ORIGINAL' | 'STATEMENT'>('STATEMENT');
@@ -1489,22 +1482,128 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
   // 기존 청구건 특수 명세서 저장
   const handleSaveCustomStatementDraft = async () => {
     if (!customStatementTargetBillingId) return;
+    const targetBilling = billings.find(b => b.id === customStatementTargetBillingId);
+    if (!targetBilling) return;
+
     if (!customStatementReasonInput.trim()) {
+      showErrorModal('⚠️ 거래명세서 변환 사유를 반드시 입력해야 합니다.\n\n정상 회계 원장(계약 DB)과 다르게 고객용 거래명세서를 임의 변경하는 사유와 원본과의 차이점을 구체적으로 기재해 주십시오.', '필수 입력 누락');
       showToast('거래명세서 변환 사유를 반드시 입력해야 합니다.', 'error');
       return;
     }
     if (customStatementItemsDraft.length === 0) {
+      showErrorModal('명세서 품목을 최소 1건 이상 등록해야 합니다.', '품목 누락');
       showToast('명세서 품목을 최소 1건 이상 등록해야 합니다.', 'error');
       return;
     }
 
+    for (let i = 0; i < customStatementItemsDraft.length; i++) {
+      const it = customStatementItemsDraft[i];
+      if (!it.itemDescription || !it.itemDescription.trim()) {
+        showErrorModal(`${i + 1}번째 품목의 품목명이 비어있습니다. 모든 품목의 품목명을 입력해야 합니다.`, '품목명 누락');
+        showToast('모든 품목의 품목명을 입력해야 합니다.', 'error');
+        return;
+      }
+    }
+
+    // 1. 총액 일치성 엄격 검증 (원청구 합계와 특수명세서 품목 합계 1원 단위 100% 일치 제한)
+    const originalSupply = targetBilling.totalAmount || 0;
+    const originalVat = Math.round(originalSupply * 0.1);
+    const originalGrand = originalSupply + originalVat;
+
+    const draftSupply = customStatementItemsDraft.reduce((s, it) => s + (it.supplyAmount || 0), 0);
+    const draftVat = customStatementItemsDraft.reduce((s, it) => s + (it.vatAmount || 0), 0);
+    const draftGrand = draftSupply + draftVat;
+    const diffGrand = draftGrand - originalGrand;
+
+    if (diffGrand !== 0) {
+      showErrorModal(
+        `⚠️ 특수청구 총액 불일치 (저장 제한)\n\n` +
+        `• 정상 원청구 합계액: ₩${originalGrand.toLocaleString()} (공급가 ₩${originalSupply.toLocaleString()})\n` +
+        `• 특수 거래명세서 합계액: ₩${draftGrand.toLocaleString()}\n` +
+        `• 대차 차액: ₩${Math.abs(diffGrand).toLocaleString()} (${diffGrand > 0 ? '초과' : '부족'})\n\n` +
+        `특수청구는 정상 회계 총액을 보존한 상태에서 거래명세서의 품목/규격/단가 표기만 재편성하는 기능이므로, ` +
+        `원청구 합계액과 특수 거래명세서 합계액이 1원도 틀림없이 정확히 일치해야만 저장이 가능합니다.\n\n` +
+        `품목 단가나 수량을 수정하여 차액을 0원으로 맞추신 후 다시 시도해 주십시오.`,
+        '총액 불일치 저장 불가'
+      );
+      return;
+    }
+
+    // 2. 결재선 규칙(CUSTOM_BILLING_CREATE) 조회 및 결재 상태 판정
+    let ruleData: any = null;
     try {
+      const res = await fetchRuleForEvent('CUSTOM_BILLING_CREATE');
+      ruleData = res?.rule;
+    } catch (e) {
+      console.warn('결재 규칙 조회 경고:', e);
+    }
+    const isApprovalRequired = Boolean(ruleData && ruleData.is_enabled);
+    const initialApprovalStatus = isApprovalRequired ? 'PENDING' : 'APPROVED';
+
+    try {
+      let createdRequestId: string | undefined = undefined;
+      const approvalPayload: ApprovalPayload = {
+        actionType: 'CUSTOM_BILLING_CREATE',
+        targetTable: 'billings',
+        targetId: targetBilling.id,
+        asIs: {
+          hasCustomStatement: targetBilling.hasCustomStatement || false,
+          customStatementReason: targetBilling.customStatementReason || '',
+          customStatementItems: targetBilling.customStatementItems || []
+        },
+        toBe: {
+          hasCustomStatement: true,
+          reason: customStatementReasonInput.trim(),
+          items: customStatementItemsDraft,
+          originalSummary: `원장 정상 공급가 ₩${originalSupply.toLocaleString()}, VAT ₩${originalVat.toLocaleString()}, 합계 ₩${originalGrand.toLocaleString()}`
+        },
+        reason: customStatementReasonInput.trim(),
+        summaryText: `${targetBilling.billingYm} 특수 거래명세서 품목 승인 요청 (합계 ₩${draftGrand.toLocaleString()})`
+      };
+
+      if (isApprovalRequired && currentUser) {
+        try {
+          const req = await createApprovalRequest(
+            ruleData.id, 
+            currentUser.id, 
+            targetBilling.id, 
+            'billings', 
+            undefined, 
+            approvalPayload
+          );
+          if (req?.id) {
+            createdRequestId = req.id;
+          }
+        } catch (apprErr: any) {
+          console.error('결재선 상신 중 오류:', apprErr);
+        }
+      }
+
       await saveCustomStatementForBilling(customStatementTargetBillingId, {
         reason: customStatementReasonInput.trim(),
-        items: customStatementItemsDraft
+        items: customStatementItemsDraft,
+        originalSummary: `원장 정상 공급가 ₩${originalSupply.toLocaleString()}, VAT ₩${originalVat.toLocaleString()}, 합계 ₩${originalGrand.toLocaleString()}`,
+        approvalStatus: initialApprovalStatus,
+        approvalRequestId: createdRequestId
       });
+
+      // 계약 이력 기록
+      if (targetBilling.contractId) {
+        db.insertRow<ContractHistory>('contractHistory', {
+          contractId: targetBilling.contractId,
+          changeType: 'BILLING_CREATED',
+          changeDate: new Date().toISOString().split('T')[0],
+          description: `[특수 거래명세서] 품목 작성/수정: ${targetBilling.billingYm} / 원장 ₩${originalGrand.toLocaleString()} (사유: ${customStatementReasonInput.trim()}) (결재상태: ${initialApprovalStatus})`,
+          createdAt: new Date().toISOString()
+        });
+      }
+
       setCustomStatementModalOpen(false);
-      showToast('특수 거래명세서 품목이 성공적으로 저장되었습니다.');
+      if (isApprovalRequired) {
+        showToast('특수 거래명세서 결재가 상신되었습니다. 전결권자 승인 시 자동으로 반영됩니다.');
+      } else {
+        showToast('특수 거래명세서 품목이 성공적으로 저장되었습니다.');
+      }
     } catch (err: any) {
       showErrorModal('특수 거래명세서 저장 실패: ' + (err?.message || String(err)));
     }
@@ -1518,181 +1617,6 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       showToast('정상 계약 거래명세서로 복원되었습니다.');
     } catch (err: any) {
       showErrorModal('명세서 복원 실패: ' + (err?.message || String(err)));
-    }
-  };
-
-  // 신규 특수 거래명세서 청구 생성 핸들러
-  const handleCreateCustomStatementBilling = async () => {
-    if (!csSelectedContractId) {
-      showErrorModal('청구 대상 계약을 먼저 선택해 주세요.', '계약 선택 필수');
-      showToast('청구 대상 계약을 먼저 선택해 주세요.', 'error');
-      return;
-    }
-    const contract = contracts.find(c => c.id === csSelectedContractId);
-    if (!contract) {
-      showErrorModal('선택된 계약 정보를 찾을 수 없습니다.', '계약 조회 오류');
-      showToast('선택된 계약 정보를 찾을 수 없습니다.', 'error');
-      return;
-    }
-    if (!csReason.trim()) {
-      setCsReasonError(true);
-      const el = document.getElementById('cs-reason-textarea');
-      if (el) {
-        el.focus();
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-      showErrorModal('⚠️ 거래명세서 변환 사유를 반드시 입력해야 합니다.\n\n정상 회계 원장(계약 DB)과 다르게 고객용 거래명세서를 임의 변경하는 사유와 원본과의 차이점을 상단 텍스트 영역에 구체적으로 기재해 주십시오.', '필수 입력 누락');
-      showToast('거래명세서 변환 사유를 반드시 입력해야 합니다. (필수)', 'error');
-      return;
-    }
-    if (csItems.length === 0) {
-      showErrorModal('거래명세서 품목을 최소 1개 이상 등록해야 합니다.', '품목 누락');
-      showToast('명세서 품목을 최소 1개 이상 등록해야 합니다.', 'error');
-      return;
-    }
-
-    for (let i = 0; i < csItems.length; i++) {
-      const it = csItems[i];
-      if (!it.itemDescription || !it.itemDescription.trim()) {
-        showErrorModal(`${i + 1}번째 품목의 품목명이 비어있습니다. 모든 품목의 품목명을 입력해야 합니다.`, '품목명 누락');
-        showToast('모든 품목의 품목명을 입력해야 합니다.', 'error');
-        return;
-      }
-    }
-
-    setIsSending(true);
-    setCsIsGenerating(true);
-
-    try {
-      // 1. 실제 정상 원장 금액 및 자산 품목 계산 (실제 계약 기준 원장 보존)
-      const cAssets = contractAssets.filter(ca => ca.contractId === contract.id && ca.status !== 'TERMINATED');
-      const targetYm = csBillingYm;
-      const targetDate = csBillingDate;
-
-      const [yStr, mStr] = targetYm.split('-');
-      const yNum = Number(yStr);
-      const mNum = Number(mStr);
-      const monthStartStr = `${targetYm}-01`;
-      const lastDay = new Date(yNum, mNum, 0).getDate();
-      const monthEndStr = `${targetYm}-${String(lastDay).padStart(2, '0')}`;
-
-      let normalTotalSupply = 0;
-      const normalDetailsToCreate: Array<Omit<BillingDetail, 'id'>> = [];
-
-      for (const ca of cAssets) {
-        const asset = assets.find(a => a.id === ca.assetId);
-        const caStart = ca.startDate || contract.startDate || monthStartStr;
-        const caEnd = ca.endDate || contract.endDate || monthEndStr;
-
-        const effectiveStart = caStart > monthStartStr ? caStart : monthStartStr;
-        const effectiveEnd = caEnd < monthEndStr ? caEnd : monthEndStr;
-
-        let supplyAmount = 0;
-        let qty = 1;
-        let unitPrice = ca.monthlyRentalFee || 0;
-
-        if (effectiveStart <= effectiveEnd) {
-          const diffDays = Math.max(1, Math.round((new Date(effectiveEnd).getTime() - new Date(effectiveStart).getTime()) / (1000 * 60 * 60 * 24)) + 1);
-          if (diffDays >= 28) {
-            supplyAmount = ca.monthlyRentalFee || 0;
-            qty = 1;
-            unitPrice = supplyAmount;
-          } else {
-            qty = diffDays;
-            unitPrice = Math.round((ca.monthlyRentalFee || 0) / 30);
-            supplyAmount = unitPrice * qty;
-          }
-        } else {
-          supplyAmount = ca.monthlyRentalFee || 0;
-        }
-
-        normalTotalSupply += supplyAmount;
-
-        const modelName = asset?.modelName || ca.expectedModel || '고소작업대';
-        const assetNo = asset?.assetNo ? `[${asset.assetNo}]` : '';
-
-        normalDetailsToCreate.push({
-          billingId: '',
-          contractAssetId: ca.id,
-          assetId: ca.assetId,
-          itemName: `${modelName}${assetNo}`,
-          description: `${effectiveStart}~${effectiveEnd}`,
-          quantity: qty,
-          unitPrice: unitPrice,
-          amount: supplyAmount,
-          createdAt: new Date().toISOString()
-        });
-      }
-
-      if (normalDetailsToCreate.length === 0) {
-        const dummySupply = csItems.reduce((sum, it) => sum + (it.supplyAmount || 0), 0);
-        normalTotalSupply = dummySupply;
-        normalDetailsToCreate.push({
-          billingId: '',
-          itemName: '장비 렌탈료',
-          description: `${monthStartStr}~${monthEndStr}`,
-          quantity: 1,
-          unitPrice: dummySupply,
-          amount: dummySupply,
-          createdAt: new Date().toISOString()
-        });
-      }
-
-      const normalTotalVat = Math.round(normalTotalSupply * 0.1);
-      const normalTotalGrand = normalTotalSupply + normalTotalVat;
-
-      // 2. Billing 레코드 생성 (실제 원장 금액 totalAmount 저장 + customStatementItems 보존)
-      const newBilling = db.insertRow<Billing>('billings', {
-        contractId: contract.id,
-        customerId: contract.customerId,
-        billingYm: targetYm,
-        billingDate: targetDate,
-        totalAmount: normalTotalSupply,
-        paidAmount: 0,
-        status: 'UNPAID',
-        hasCustomStatement: true,
-        customStatementReason: csReason.trim(),
-        customStatementItems: csItems,
-        customStatementOriginalSummary: `원장 정상 공급가 ₩${normalTotalSupply.toLocaleString()}, VAT ₩${normalTotalVat.toLocaleString()}, 합계 ₩${normalTotalGrand.toLocaleString()}`,
-        customStatementCreatedAt: new Date().toISOString(),
-        customStatementCreatedBy: currentUser?.name || currentUser?.loginId || '담당자',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-
-      // 3. BillingDetail 레코드들 생성
-      for (const d of normalDetailsToCreate) {
-        db.insertRow<BillingDetail>('billingDetails', {
-          ...d,
-          billingId: newBilling.id
-        });
-      }
-
-      // 4. 계약 마일스톤 동기화 및 계약 이력 저장
-      syncContractBillingMilestones(contract.id);
-      db.insertRow<ContractHistory>('contractHistory', {
-        contractId: contract.id,
-        changeType: 'BILLING_CREATED',
-        changeDate: targetDate,
-        description: `[특수 거래명세서] 청구 생성: ${targetYm} / 원장 ${normalTotalGrand.toLocaleString()}원 (사유: ${csReason.trim()}) (청구번호: ${newBilling.id})`,
-        createdAt: new Date().toISOString()
-      });
-
-      await db.awaitPendingWrites();
-      refreshAllData();
-
-      setSelectedBillingId(newBilling.id);
-      setActiveTab('LIST');
-      showToast(`[${getCustName(contract.customerId)}] 특수 거래명세서 청구서(청구번호: ${newBilling.id})가 성공적으로 생성되었습니다.`);
-      
-      setCsSelectedContractId(null);
-      setCsReason('');
-      setCsItems([]);
-    } catch (err: any) {
-      showErrorModal(`⚠️ 특수 거래명세서 청구 생성 실패:\n\n${err?.message || err}`, '청구 생성 오류');
-    } finally {
-      setIsSending(false);
-      setCsIsGenerating(false);
     }
   };
 
@@ -2388,22 +2312,6 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
         >
           <AlertTriangle size={14} /> 청구 면제 대장
         </button>
-        {currentTenant?.allowCustomBillingStatement && canSave && (
-          <button
-            className={activeTab === 'CUSTOM_STATEMENT' ? 'btn-primary' : 'btn-secondary'}
-            onClick={() => setActiveTab('CUSTOM_STATEMENT')}
-            style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '6px',
-              backgroundColor: activeTab === 'CUSTOM_STATEMENT' ? '#7c3aed' : undefined,
-              borderColor: activeTab === 'CUSTOM_STATEMENT' ? '#6d28d9' : '#ddd6fe',
-              color: activeTab === 'CUSTOM_STATEMENT' ? '#ffffff' : '#6d28d9'
-            }}
-          >
-            <Edit3 size={14} /> 특수 거래명세서 작성
-          </button>
-        )}
         {isAdmin && (
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', padding: '3px 10px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
             <span style={{ fontSize: '11.5px', fontWeight: '600', color: 'var(--text-secondary)' }}>
@@ -2834,21 +2742,22 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                           </div>
                         </td>
                         <td style={{ whiteSpace: 'nowrap' }}><strong>{b.billingYm}</strong>
-                          {b.hasCustomStatement && (
+                          {(b.hasCustomStatement || b.approvalStatus === 'PENDING') && (
                             <span 
                               style={{ 
                                 marginLeft: '6px', 
                                 fontSize: '10px', 
                                 padding: '2px 5px', 
-                                backgroundColor: '#ede9fe', 
-                                color: '#6d28d9', 
-                                border: '1px solid #ddd6fe',
+                                backgroundColor: b.approvalStatus === 'PENDING' ? '#fef3c7' : b.approvalStatus === 'REJECTED' ? '#fee2e2' : '#ede9fe', 
+                                color: b.approvalStatus === 'PENDING' ? '#b45309' : b.approvalStatus === 'REJECTED' ? '#b91c1c' : '#6d28d9', 
+                                border: `1px solid ${b.approvalStatus === 'PENDING' ? '#fde68a' : b.approvalStatus === 'REJECTED' ? '#fca5a5' : '#ddd6fe'}`,
                                 borderRadius: '4px', 
-                                fontWeight: 'bold' 
+                                fontWeight: 'bold',
+                                whiteSpace: 'nowrap'
                               }} 
-                              title={`특수 거래명세서 적용 건\n사유: ${b.customStatementReason || '사유 미기재'}`}
+                              title={`특수 청구(명세서) 적용 건\n결재상태: ${b.approvalStatus === 'PENDING' ? '결재대기' : b.approvalStatus === 'REJECTED' ? '반려됨' : '승인완료'}\n사유: ${b.customStatementReason || '사유 미기재'}`}
                             >
-                              특수명세서
+                              📄 특수청구{b.approvalStatus === 'PENDING' ? ' (대기)' : b.approvalStatus === 'REJECTED' ? ' (반려)' : ' (승인)'}
                             </span>
                           )}
                           {b.parentBillingId && (
@@ -3016,7 +2925,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                       >
                         <Download size={13} /> PDF 다운로드
                       </button>
-                      {currentTenant?.allowCustomBillingStatement && canSave && activeBilling.status !== 'REJECTED' && (
+                      {currentTenant?.allowCustomBillingStatement && canCustomBilling && activeBilling.status !== 'REJECTED' && (
                         <>
                           <button
                             type="button"
@@ -3120,6 +3029,56 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                       >
                         청구서통합 탭 이동 ➔
                       </button>
+                    </div>
+                  )}
+
+                  {/* 특수 거래명세서(특수청구) 알림 배너 */}
+                  {(activeBilling.hasCustomStatement || activeBilling.approvalStatus === 'PENDING') && (
+                    <div style={{
+                      padding: '10px 14px',
+                      backgroundColor: '#f5f3ff',
+                      border: '1px solid #ddd6fe',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontSize: '12px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <FileText size={16} style={{ color: '#7c3aed', flexShrink: 0 }} />
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <strong style={{ color: '#6d28d9', fontSize: '13px' }}>특수 거래명세서 발행 청구건</strong>
+                            <span style={{
+                              fontSize: '10.5px',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              fontWeight: 'bold',
+                              backgroundColor: activeBilling.approvalStatus === 'PENDING' ? '#fef3c7' : activeBilling.approvalStatus === 'REJECTED' ? '#fee2e2' : '#dcfce7',
+                              color: activeBilling.approvalStatus === 'PENDING' ? '#b45309' : activeBilling.approvalStatus === 'REJECTED' ? '#b91c1c' : '#15803d',
+                              border: `1px solid ${activeBilling.approvalStatus === 'PENDING' ? '#fde68a' : activeBilling.approvalStatus === 'REJECTED' ? '#fca5a5' : '#86efac'}`
+                            }}>
+                              {activeBilling.approvalStatus === 'PENDING' ? '결재대기' : activeBilling.approvalStatus === 'REJECTED' ? '반려됨' : '결재완료 (승인)'}
+                            </span>
+                          </div>
+                          <div style={{ color: '#5b21b6', fontSize: '11px', marginTop: '2px' }}>
+                            사유: {activeBilling.customStatementReason || '고객사 요청 서식/품목 단일화'} (실제 계약 원장 및 회계 청구 총액 ₩{totalGrand.toLocaleString()}과 100% 일치)
+                          </div>
+                        </div>
+                      </div>
+                      {canCustomBilling && (
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => {
+                            setCustomStatementTargetBillingId(activeBilling.id);
+                            setCustomStatementModalOpen(true);
+                          }}
+                          style={{ padding: '3px 10px', fontSize: '11px', whiteSpace: 'nowrap', borderColor: '#c4b5fd', color: '#6d28d9' }}
+                        >
+                          명세서 서식/품목 수정
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -5209,519 +5168,6 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
         );
       })()}
 
-      {/* 🔮 특수 거래명세서 작성 스튜디오 탭 (CUSTOM_STATEMENT) */}
-      {activeTab === 'CUSTOM_STATEMENT' && (() => {
-        const activeContracts = contracts.filter(c => c.status !== 'COMPLETED');
-        const filteredContracts = activeContracts.filter(c => {
-          if (!csSearchTerm.trim()) return true;
-          const q = csSearchTerm.trim().toLowerCase();
-          const custName = getCustName(c.customerId).toLowerCase();
-          const cNo = (c.contractNo || '').toLowerCase();
-          const siteName = getSiteName(c.siteId).toLowerCase();
-          return custName.includes(q) || cNo.includes(q) || siteName.includes(q);
-        });
-
-        const selectedContract = contracts.find(c => c.id === csSelectedContractId);
-        const selectedCustomer = selectedContract ? customers.find(cu => cu.id === selectedContract.customerId) : null;
-        const selectedSite = selectedContract ? sites.find(s => s.id === selectedContract.siteId) : null;
-        const selectedCAssets = selectedContract ? contractAssets.filter(ca => ca.contractId === selectedContract.id && ca.status !== 'TERMINATED') : [];
-
-        const [yStr, mStr] = csBillingYm.split('-');
-        const yNum = Number(yStr);
-        const mNum = Number(mStr);
-        const monthStartStr = `${csBillingYm}-01`;
-        const lastDay = new Date(yNum, mNum, 0).getDate();
-        const monthEndStr = `${csBillingYm}-${String(lastDay).padStart(2, '0')}`;
-
-        let normalSupply = 0;
-        selectedCAssets.forEach(ca => {
-          const caStart = ca.startDate || selectedContract?.startDate || monthStartStr;
-          const caEnd = ca.endDate || selectedContract?.endDate || monthEndStr;
-          const effStart = caStart > monthStartStr ? caStart : monthStartStr;
-          const effEnd = caEnd < monthEndStr ? caEnd : monthEndStr;
-          if (effStart <= effEnd) {
-            const diffDays = Math.max(1, Math.round((new Date(effEnd).getTime() - new Date(effStart).getTime()) / (1000 * 60 * 60 * 24)) + 1);
-            if (diffDays >= 28) {
-              normalSupply += (ca.monthlyRentalFee || 0);
-            } else {
-              normalSupply += Math.round((ca.monthlyRentalFee || 0) / 30) * diffDays;
-            }
-          } else {
-            normalSupply += (ca.monthlyRentalFee || 0);
-          }
-        });
-        const normalVat = Math.round(normalSupply * 0.1);
-        const normalGrand = normalSupply + normalVat;
-
-        const csTotalSupply = csItems.reduce((sum, it) => sum + (it.supplyAmount || 0), 0);
-        const csTotalVat = csItems.reduce((sum, it) => sum + (it.vatAmount || 0), 0);
-        const csTotalGrand = csTotalSupply + csTotalVat;
-        const totalDifference = csTotalGrand - normalGrand;
-
-        const handleLoadDefaultItemsFromContract = (cntr: typeof contracts[0]) => {
-          const cAssets = contractAssets.filter(ca => ca.contractId === cntr.id && ca.status !== 'TERMINATED');
-          const loaded: CustomStatementItem[] = cAssets.map((ca, idx) => {
-            const asset = assets.find(a => a.id === ca.assetId);
-            const model = asset?.modelName || ca.expectedModel || '고소작업대';
-            const aNo = asset?.assetNo ? `[${asset.assetNo}]` : '';
-            const fee = ca.monthlyRentalFee || 0;
-            return {
-              id: `cs-item-${Date.now()}-${idx}`,
-              itemDescription: `${model}${aNo}`,
-              specification: asset?.modelName || '',
-              quantity: 1,
-              unitPrice: fee,
-              supplyAmount: fee,
-              vatAmount: Math.round(fee * 0.1),
-              notes: ''
-            };
-          });
-
-          if (loaded.length === 0) {
-            loaded.push({
-              id: `cs-item-${Date.now()}-0`,
-              itemDescription: '고소작업대 렌탈료',
-              specification: '',
-              quantity: 1,
-              unitPrice: 400000,
-              supplyAmount: 400000,
-              vatAmount: 40000,
-              notes: ''
-            });
-          }
-          setCsItems(loaded);
-        };
-
-        return (
-          <div data-subview="custom-statement-studio" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* 상단 1: Scope & Pipeline 패널 */}
-            <div className="card" style={{ margin: 0, padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Edit3 size={18} color="#7c3aed" />
-                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#6d28d9' }}>
-                    특수 거래명세서 작성 스튜디오
-                  </h3>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    (실제 계약 회계 원장 DB는 보존되며, 거래명세서 품목을 전체 임의수정하여 청구를 생성합니다)
-                  </span>
-                </div>
-              </div>
-
-              {/* 3대 기본 스코프: 계약 선택, 청구귀속월, 청구발행일 */}
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '12px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                    청구 대상 계약 선택 *
-                  </label>
-                  <select
-                    value={csSelectedContractId || ''}
-                    onChange={(e) => {
-                      const cid = e.target.value || null;
-                      setCsSelectedContractId(cid);
-                      if (cid) {
-                        const targetCntr = contracts.find(c => c.id === cid);
-                        if (targetCntr) handleLoadDefaultItemsFromContract(targetCntr);
-                      }
-                    }}
-                    style={{ padding: '7px 10px', fontSize: '12.5px', borderRadius: '5px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', fontWeight: 600 }}
-                  >
-                    <option value="">-- 계약을 선택하세요 ({activeContracts.length}건) --</option>
-                    {filteredContracts.map(c => {
-                      const cust = customers.find(cu => cu.id === c.customerId);
-                      const st = sites.find(s => s.id === c.siteId);
-                      return (
-                        <option key={c.id} value={c.id}>
-                          [{c.contractNo || c.id}] {cust?.name || '고객사'} / {st?.name || '현장'} (계약기간: {c.startDate || '-'} ~ {c.endDate || '미정'})
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                    청구 귀속월 (YYYY-MM) *
-                  </label>
-                  <input
-                    type="month"
-                    value={csBillingYm}
-                    onChange={(e) => setCsBillingYm(e.target.value)}
-                    style={{ padding: '6px 10px', fontSize: '12.5px', borderRadius: '5px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                    거래명세서 발행일자 *
-                  </label>
-                  <input
-                    type="date"
-                    value={csBillingDate}
-                    onChange={(e) => setCsBillingDate(e.target.value)}
-                    style={{ padding: '6px 10px', fontSize: '12.5px', borderRadius: '5px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}
-                  />
-                </div>
-              </div>
-
-              {selectedContract && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', padding: '10px 14px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                  <div>
-                    <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', display: 'block' }}>고객사명</span>
-                    <strong style={{ fontSize: '13px' }}>{selectedCustomer?.name || '-'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', display: 'block' }}>현장명</span>
-                    <strong style={{ fontSize: '13px' }}>{selectedSite?.name || '직납'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', display: 'block' }}>계약 체결 장비</span>
-                    <strong style={{ fontSize: '13px' }}>{selectedCAssets.length}대 가동 중</strong>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', display: 'block' }}>실제 계약 원장 정상 청구액</span>
-                    <strong style={{ fontSize: '13px', color: 'var(--primary)' }}>
-                      ₩{normalGrand.toLocaleString()} (공급가 ₩{normalSupply.toLocaleString()})
-                    </strong>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 상단 2: 거래명세서 변환 사유 필수 입력 */}
-            <div className="card" style={{
-              margin: 0,
-              padding: '16px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px',
-              borderLeft: csReasonError ? '4px solid #ef4444' : '4px solid #7c3aed',
-              backgroundColor: csReasonError ? 'rgba(239, 68, 68, 0.04)' : undefined,
-              transition: 'all 0.2s ease'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ fontSize: '12.5px', fontWeight: 800, color: csReasonError ? '#ef4444' : '#6d28d9' }}>
-                  거래명세서 변환 사유 및 원본 차이 내역 (필수 기록) *
-                </label>
-                <span style={{ fontSize: '11px', color: csReasonError ? '#ef4444' : 'var(--text-muted)', fontWeight: csReasonError ? 700 : 400 }}>
-                  {csReasonError ? '⚠️ 필수 입력 항목입니다. 변환 사유를 반드시 기재해야 청구서가 저장됩니다.' : '어떻게 다르게 거래명세서를 만들었는지 사유와 배경을 구체적으로 기재합니다.'}
-                </span>
-              </div>
-              <textarea
-                id="cs-reason-textarea"
-                value={csReason}
-                onChange={(e) => {
-                  setCsReason(e.target.value);
-                  if (csReasonError && e.target.value.trim()) {
-                    setCsReasonError(false);
-                  }
-                }}
-                placeholder="예: 고객사 회계팀 요청에 따른 품목 명칭 변경 (고소작업대 2대를 '비품 임대료' 1건으로 통합 표기) 및 합의 단가 적용 등"
-                rows={2}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  fontSize: '12.5px',
-                  borderRadius: '5px',
-                  border: csReasonError ? '2px solid #ef4444' : '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-primary)',
-                  resize: 'vertical',
-                  outline: 'none',
-                  boxShadow: csReasonError ? '0 0 0 3px rgba(239, 68, 68, 0.15)' : 'none'
-                }}
-              />
-            </div>
-
-            {/* 중앙 본문 3: 거래명세서 품목 임의 수정 그리드 */}
-            <div className="card" style={{ margin: 0, padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 800 }}>
-                    거래명세서 출력 품목 편집 (총 {csItems.length}행)
-                  </h4>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    고객에게 교부될 실제 거래명세서의 품목명, 규격, 수량, 단가, 공급가액을 자유롭게 입력합니다.
-                  </span>
-                </div>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  {selectedContract && (
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => handleLoadDefaultItemsFromContract(selectedContract)}
-                      style={{ fontSize: '11.5px', padding: '3px 8px' }}
-                    >
-                      <RotateCcw size={12} /> 계약 원장 품목으로 리셋
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={() => {
-                      setCsItems([
-                        ...csItems,
-                        {
-                          id: `cs-item-${Date.now()}-${csItems.length}`,
-                          itemDescription: '',
-                          specification: '',
-                          quantity: 1,
-                          unitPrice: 0,
-                          supplyAmount: 0,
-                          vatAmount: 0,
-                          notes: ''
-                        }
-                      ]);
-                    }}
-                    style={{ fontSize: '11.5px', padding: '3px 10px', backgroundColor: '#7c3aed', borderColor: '#6d28d9' }}
-                  >
-                    <Plus size={12} /> 행 추가
-                  </button>
-                </div>
-              </div>
-
-              <div className="table-container" style={{ border: '1px solid var(--border-color)', borderRadius: '6px', overflowX: 'auto', maxHeight: '450px' }}>
-                <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', whiteSpace: 'nowrap' }}>
-                  <thead style={{ position: 'sticky', top: 0, zIndex: 5, backgroundColor: 'var(--bg-app)' }}>
-                    <tr style={{ height: '36px', borderBottom: '1px solid var(--border-color)' }}>
-                      <th style={{ width: '40px', textAlign: 'center', padding: '4px 6px' }}>순번</th>
-                      <th style={{ minWidth: '180px', textAlign: 'left', padding: '4px 8px' }}>품목명 (거래명세서 표기) *</th>
-                      <th style={{ width: '130px', textAlign: 'left', padding: '4px 8px' }}>규격 / 상세</th>
-                      <th style={{ width: '70px', textAlign: 'right', padding: '4px 8px' }}>수량 *</th>
-                      <th style={{ width: '110px', textAlign: 'right', padding: '4px 8px' }}>단가 *</th>
-                      <th style={{ width: '120px', textAlign: 'right', padding: '4px 8px' }}>공급가액 *</th>
-                      <th style={{ width: '100px', textAlign: 'right', padding: '4px 8px' }}>부가세 (10%)</th>
-                      <th style={{ width: '120px', textAlign: 'right', padding: '4px 8px' }}>합계</th>
-                      <th style={{ minWidth: '130px', textAlign: 'left', padding: '4px 8px' }}>비고</th>
-                      <th style={{ width: '50px', textAlign: 'center', padding: '4px 6px' }}>삭제</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {csItems.length === 0 ? (
-                      <tr>
-                        <td colSpan={10} style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)' }}>
-                          계약을 선택하거나 [행 추가] 버튼을 눌러 거래명세서 품목을 입력하세요.
-                        </td>
-                      </tr>
-                    ) : (
-                      csItems.map((item, idx) => {
-                        const lineTotal = (item.supplyAmount || 0) + (item.vatAmount || 0);
-                        return (
-                          <tr key={item.id} style={{ height: '38px', borderBottom: '1px solid var(--border-color)' }}>
-                            <td style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '4px 6px' }}>
-                              {idx + 1}
-                            </td>
-                            <td style={{ padding: '4px 6px' }}>
-                              <input
-                                type="text"
-                                value={item.itemDescription}
-                                onChange={(e) => {
-                                  const updated = [...csItems];
-                                  updated[idx].itemDescription = e.target.value;
-                                  setCsItems(updated);
-                                }}
-                                placeholder="예: 고소작업대 렌탈료"
-                                style={{ width: '100%', padding: '4px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
-                              />
-                            </td>
-                            <td style={{ padding: '4px 6px' }}>
-                              <input
-                                type="text"
-                                value={item.specification || ''}
-                                onChange={(e) => {
-                                  const updated = [...csItems];
-                                  updated[idx].specification = e.target.value;
-                                  setCsItems(updated);
-                                }}
-                                placeholder="예: 8M / SJ3219"
-                                style={{ width: '100%', padding: '4px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
-                              />
-                            </td>
-                            <td style={{ padding: '4px 6px' }}>
-                              <input
-                                type="number"
-                                value={item.quantity}
-                                min={1}
-                                onChange={(e) => {
-                                  const qty = Number(e.target.value) || 1;
-                                  const updated = [...csItems];
-                                  updated[idx].quantity = qty;
-                                  updated[idx].supplyAmount = qty * (updated[idx].unitPrice || 0);
-                                  updated[idx].vatAmount = Math.round(updated[idx].supplyAmount * 0.1);
-                                  setCsItems(updated);
-                                }}
-                                style={{ width: '100%', textAlign: 'right', padding: '4px 6px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
-                              />
-                            </td>
-                            <td style={{ padding: '4px 6px' }}>
-                              <input
-                                type="number"
-                                value={item.unitPrice}
-                                step={1000}
-                                onChange={(e) => {
-                                  const uPrice = Number(e.target.value) || 0;
-                                  const updated = [...csItems];
-                                  updated[idx].unitPrice = uPrice;
-                                  updated[idx].supplyAmount = (updated[idx].quantity || 1) * uPrice;
-                                  updated[idx].vatAmount = Math.round(updated[idx].supplyAmount * 0.1);
-                                  setCsItems(updated);
-                                }}
-                                style={{ width: '100%', textAlign: 'right', padding: '4px 6px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
-                              />
-                            </td>
-                            <td style={{ padding: '4px 6px' }}>
-                              <input
-                                type="number"
-                                value={item.supplyAmount}
-                                step={1000}
-                                onChange={(e) => {
-                                  const sAmt = Number(e.target.value) || 0;
-                                  const updated = [...csItems];
-                                  updated[idx].supplyAmount = sAmt;
-                                  if (updated[idx].quantity > 0) {
-                                    updated[idx].unitPrice = Math.round(sAmt / updated[idx].quantity);
-                                  }
-                                  updated[idx].vatAmount = Math.round(sAmt * 0.1);
-                                  setCsItems(updated);
-                                }}
-                                style={{ width: '100%', textAlign: 'right', padding: '4px 6px', fontSize: '12px', fontWeight: 700, borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
-                              />
-                            </td>
-                            <td style={{ padding: '4px 6px' }}>
-                              <input
-                                type="number"
-                                value={item.vatAmount}
-                                onChange={(e) => {
-                                  const vAmt = Number(e.target.value) || 0;
-                                  const updated = [...csItems];
-                                  updated[idx].vatAmount = vAmt;
-                                  setCsItems(updated);
-                                }}
-                                style={{ width: '100%', textAlign: 'right', padding: '4px 6px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-muted)' }}
-                              />
-                            </td>
-                            <td style={{ textAlign: 'right', padding: '4px 8px', fontWeight: 800, color: '#7c3aed' }}>
-                              ₩{lineTotal.toLocaleString()}
-                            </td>
-                            <td style={{ padding: '4px 6px' }}>
-                              <input
-                                type="text"
-                                value={item.notes || ''}
-                                onChange={(e) => {
-                                  const updated = [...csItems];
-                                  updated[idx].notes = e.target.value;
-                                  setCsItems(updated);
-                                }}
-                                placeholder="비고 입력"
-                                style={{ width: '100%', padding: '4px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
-                              />
-                            </td>
-                            <td style={{ textAlign: 'center', padding: '4px 6px' }}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setCsItems(csItems.filter((_, i) => i !== idx));
-                                }}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)', padding: '2px 4px' }}
-                                title="행 삭제"
-                              >
-                                ✕
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                  {csItems.length > 0 && (
-                    <tfoot style={{ position: 'sticky', bottom: 0, backgroundColor: 'var(--bg-app)', borderTop: '2px solid var(--border-color)', fontWeight: 800 }}>
-                      <tr style={{ height: '38px' }}>
-                        <td colSpan={3} style={{ textAlign: 'center', padding: '4px 8px' }}>
-                          명세서 총액 합계 ({csItems.length}품목)
-                        </td>
-                        <td style={{ textAlign: 'right', padding: '4px 8px' }}>
-                          {csItems.reduce((s, it) => s + (it.quantity || 1), 0)}
-                        </td>
-                        <td style={{ textAlign: 'right', padding: '4px 8px' }}>-</td>
-                        <td style={{ textAlign: 'right', padding: '4px 8px' }}>
-                          ₩{csTotalSupply.toLocaleString()}
-                        </td>
-                        <td style={{ textAlign: 'right', padding: '4px 8px', color: '#0070C0' }}>
-                          ₩{csTotalVat.toLocaleString()}
-                        </td>
-                        <td style={{ textAlign: 'right', padding: '4px 8px', color: '#7c3aed' }}>
-                          ₩{csTotalGrand.toLocaleString()}
-                        </td>
-                        <td colSpan={2}></td>
-                      </tr>
-                    </tfoot>
-                  )}
-                </table>
-              </div>
-            </div>
-
-            {/* ④ 우하단 Gutenberg Z-패턴 대차대조식 검증 바 & 최종 완결 액션 */}
-            <div className="card" style={{ margin: 0, padding: '14px 18px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '13px', flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                  📄 계약 원장 정상 청구액: <strong>₩{normalGrand.toLocaleString()}원</strong> (공급가 ₩{normalSupply.toLocaleString()})
-                </span>
-                <span style={{ color: 'var(--text-muted)' }}>|</span>
-                <span style={{ fontWeight: 800, color: '#6d28d9' }}>
-                  📝 특수 거래명세서 발행액: <strong>₩{csTotalGrand.toLocaleString()}원</strong> (공급가 ₩{csTotalSupply.toLocaleString()})
-                </span>
-                <span style={{ color: 'var(--text-muted)' }}>|</span>
-                <span style={{
-                  padding: '3px 8px',
-                  borderRadius: '4px',
-                  fontWeight: 800,
-                  fontSize: '12.5px',
-                  backgroundColor: totalDifference === 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(234, 88, 12, 0.1)',
-                  color: totalDifference === 0 ? 'var(--success)' : 'var(--warning)',
-                  border: `1px solid ${totalDifference === 0 ? 'var(--success)' : 'var(--warning)'}44`
-                }}>
-                  {totalDifference === 0 ? '⚖️ 총액 일치 (변환 정합)' : `⚠️ 총액 차액: ₩${totalDifference.toLocaleString()}원 (임의 조정)`}
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => {
-                    setCsSelectedContractId(null);
-                    setCsReason('');
-                    setCsItems([]);
-                    setActiveTab('LIST');
-                  }}
-                  style={{ fontSize: '12px', padding: '6px 14px' }}
-                >
-                  취소
-                </button>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  onClick={handleCreateCustomStatementBilling}
-                  disabled={csIsGenerating || !csSelectedContractId || csItems.length === 0}
-                  style={{
-                    fontSize: '13px',
-                    padding: '8px 18px',
-                    fontWeight: 800,
-                    backgroundColor: '#7c3aed',
-                    borderColor: '#6d28d9',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  <Check size={15} /> 특수 거래명세서 청구 생성 및 저장
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
       {/* 🛠️ 기존 청구건 대상 특수 거래명세서 편집 모달 */}
       {customStatementModalOpen && (() => {
         const targetBilling = billings.find(b => b.id === customStatementTargetBillingId);
@@ -5967,14 +5413,15 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                   <span>➔</span>
                   <span style={{ fontWeight: 800, color: '#7c3aed' }}>명세서: ₩{draftGrand.toLocaleString()}</span>
                   <span style={{
-                    padding: '2px 6px',
+                    padding: '3px 8px',
                     borderRadius: '4px',
-                    fontWeight: 700,
+                    fontWeight: 800,
                     fontSize: '11.5px',
-                    backgroundColor: diffGrand === 0 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(234, 88, 12, 0.1)',
-                    color: diffGrand === 0 ? 'var(--success)' : 'var(--warning)'
+                    backgroundColor: diffGrand === 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                    color: diffGrand === 0 ? 'var(--success)' : 'var(--danger)',
+                    border: `1px solid ${diffGrand === 0 ? 'var(--success)' : 'var(--danger)'}44`
                   }}>
-                    {diffGrand === 0 ? '총액 일치' : `차액: ₩${diffGrand.toLocaleString()}`}
+                    {diffGrand === 0 ? '⚖️ 총액 일치 (저장 승인 가능)' : `🚫 저장 불가: 총액 불일치 (차액: ₩${diffGrand.toLocaleString()})`}
                   </span>
                 </div>
 
@@ -6006,7 +5453,18 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                     type="button"
                     className="btn-primary"
                     onClick={handleSaveCustomStatementDraft}
-                    style={{ fontSize: '12px', padding: '6px 16px', backgroundColor: '#7c3aed', borderColor: '#6d28d9', fontWeight: 800 }}
+                    disabled={diffGrand !== 0 || !customStatementReasonInput.trim() || customStatementItemsDraft.length === 0}
+                    style={{
+                      fontSize: '12px',
+                      padding: '6px 16px',
+                      backgroundColor: diffGrand === 0 && customStatementReasonInput.trim() ? '#7c3aed' : 'var(--bg-secondary)',
+                      borderColor: diffGrand === 0 && customStatementReasonInput.trim() ? '#6d28d9' : 'var(--border-color)',
+                      color: diffGrand === 0 && customStatementReasonInput.trim() ? '#ffffff' : 'var(--text-muted)',
+                      fontWeight: 800,
+                      cursor: diffGrand !== 0 || !customStatementReasonInput.trim() ? 'not-allowed' : 'pointer',
+                      opacity: diffGrand !== 0 || !customStatementReasonInput.trim() ? 0.6 : 1
+                    }}
+                    title={diffGrand !== 0 ? '원청구 합계와 특수명세서 품목 합계가 정확히 일치해야만 저장할 수 있습니다.' : !customStatementReasonInput.trim() ? '거래명세서 변환 사유를 입력해 주세요.' : '특수 거래명세서 품목 저장'}
                   >
                     명세서 저장
                   </button>

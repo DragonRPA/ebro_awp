@@ -217,6 +217,16 @@ export interface RuleConsensus {
   created_at?: string;
 }
 
+export interface ApprovalPayload {
+  actionType: 'CUSTOM_BILLING_CREATE' | 'CONTRACT_EXTEND' | 'CONTRACT_SHORTEN' | string;
+  targetTable: string;
+  targetId: string;
+  asIs: Record<string, any>;
+  toBe: Record<string, any>;
+  reason?: string;
+  summaryText?: string;
+}
+
 export interface ApprovalRequest {
   id?: string;
   tenant_id?: string;
@@ -227,6 +237,7 @@ export interface ApprovalRequest {
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   current_step: number;
   escalated_tier?: number;
+  payload?: ApprovalPayload; // 💡 Staging Data for Auto-Commit upon Final Approval
   created_at?: string;
   updated_at?: string;
 }
@@ -459,12 +470,13 @@ export const APPROVAL_EVENT_REGISTRY = [
   // ── 1. 고객 (1) ──
   { code: 'CUSTOMER_REGISTRATION',       name: '고객 등록',        targetTable: 'customers',           category: '고객' },
 
-  // ── 2. 계약 (5) ──
+  // ── 2. 계약 / 청구 (6) ──
   { code: 'CONTRACT_SIGN',               name: '계약 체결',        targetTable: 'contracts',           category: '계약' },
   { code: 'CONTRACT_TERMINATE',          name: '계약 해지',        targetTable: 'contracts',           category: '계약' },
   { code: 'CONTRACT_EXTEND',             name: '계약 연장',        targetTable: 'contracts',           category: '계약' },
   { code: 'CONTRACT_SUCCEED',            name: '계약 승계',        targetTable: 'contracts',           category: '계약' },
   { code: 'REPAIR_BILLING',              name: '수리비 청구',      targetTable: 'repairs',             category: '계약' },
+  { code: 'CUSTOM_BILLING_CREATE',       name: '특수청구 생성 승인', targetTable: 'billings',            category: '계약' },
 
   // ── 3. 자산 (2) ──
   { code: 'ASSET_DISPOSAL',              name: '자산 매각',        targetTable: 'assets',              category: '자산' },
@@ -1310,6 +1322,15 @@ export interface Contract {
   lastBilledYm?: string; // 최근 청구 귀속월 (YYYY-MM)
   billingCount?: number; // 누적 발행 청구 건수
   packageSentAt?: string; // 💡 계약서패키지(PDF+인증서 등) 발송 일시 (ISO string)
+  // 💡 결재선 연동 및 사전 입력 승인(Staging-to-Live) 필드
+  approvalStatus?: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED';
+  approvalRequestId?: string;
+  stagedExtend?: {
+    targetEndDate: string;
+    isShortened: boolean;
+    reason: string;
+    assetIds?: string[];
+  };
   createdAt: string;
   updatedAt: string;
   // 가상필드 (조인 시)
@@ -1403,6 +1424,13 @@ export interface Billing {
   customStatementOriginalSummary?: string;   // 원본 청구 내역 요약 (대조 감사용)
   customStatementCreatedAt?: string;         // 작성 일시
   customStatementCreatedBy?: string;         // 작성자
+  approvalStatus?: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED'; // 결재선 승인 상태
+  approvalRequestId?: string;                // 결재 요청 FK
+  stagedCustomStatement?: {                  // 💡 전결권자 승인 대기 중인 변경 예정 데이터 (Staging)
+    reason: string;
+    items: CustomStatementItem[];
+    originalSummary?: string;
+  };
 
   createdAt: string;
   updatedAt: string;

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ebro web agent</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="agent-panel">
+    <!-- 헤더 -->
+    <header class="panel-header">
+      <div class="brand">
+        <span class="brand-title">ebro web agent</span>
+        <span class="brand-version">v1.0.0</span>
+      </div>
+      <div id="pcStatusBadge" class="status-badge status-offline">
+        <span class="status-dot"></span>
+        <span id="pcStatusText">PC 오프라인</span>
+      </div>
+    </header>
+
+    <!-- 탭 네비게이션 (무수식어 건조 표준 3.1) -->
+    <nav class="nav-tabs">
+      <button type="button" id="tabBtnControl" class="nav-tab active">작업 제어</button>
+      <button type="button" id="tabBtnConfig" class="nav-tab">환경설정</button>
+    </nav>
+
+    <!-- 탭 1: 작업 제어 패널 -->
+    <main id="tabPanelControl" class="tab-panel active">
+      <!-- 현재 ERP 상태 카드 -->
+      <section class="info-card">
+        <div class="info-row">
+          <span class="info-label">ERP 시스템 상태</span>
+          <span id="erpStatusValue" class="info-value">확인 중...</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">활성 메뉴</span>
+          <span id="erpMenuValue" class="info-value font-mono">-</span>
+        </div>
+      </section>
+
+      <!-- 자연어 지시 입력 폼 (상하 세로 스택) -->
+      <section class="form-stack">
+        <label for="commandInput" class="field-label">작업 지시 입력</label>
+        <div class="input-action-row">
+          <input 
+            type="text" 
+            id="commandInput" 
+            class="text-input" 
+            placeholder="예: 계약 관리 이동 / 배차 대장 조회" 
+            autocomplete="off"
+          />
+          <button type="button" id="btnSendCommand" class="btn btn-primary">실행</button>
+        </div>
+      </section>
+
+      <!-- 퀵 제어 버튼군 -->
+      <section class="quick-actions-section">
+        <div class="field-label">빠른 제어</div>
+        <div class="btn-grid">
+          <button type="button" id="btnToggleSom" class="btn btn-outline">SoM 번호표</button>
+          <button type="button" id="btnReadDom" class="btn btn-outline">DOM 정보 추출</button>
+          <button type="button" id="btnNavContract" class="btn btn-outline">계약 관리</button>
+          <button type="button" id="btnNavDispatch" class="btn btn-outline">배차 관리</button>
+          <button type="button" id="btnNavInspection" class="btn btn-outline">출고 검수</button>
+          <button type="button" id="btnNavDashboard" class="btn btn-outline">대시보드</button>
+        </div>
+      </section>
+
+      <!-- 실행 로그 모니터 -->
+      <section class="log-section">
+        <div class="log-header">
+          <span class="field-label">실행 로그</span>
+          <button type="button" id="btnClearLog" class="btn-text">지우기</button>
+        </div>
+        <div id="logViewer" class="log-viewer font-mono">
+          <div class="log-item info">[준비] ebro web agent 초기화 완료</div>
+        </div>
+      </section>
+    </main>
+
+    <!-- 탭 2: 환경설정 패널 -->
+    <main id="tabPanelConfig" class="tab-panel">
+      <!-- 텔레그램 모바일 연동 설정 -->
+      <section class="config-section">
+        <div class="config-title">텔레그램 모바일 연동</div>
+        <div class="form-stack">
+          <label for="cfgTelegramToken" class="field-label">텔레그램 봇 토큰 (Bot Token)</label>
+          <input 
+            type="password" 
+            id="cfgTelegramToken" 
+            class="text-input" 
+            placeholder="@BotFather 발급 토큰" 
+            autocomplete="off"
+          />
+        </div>
+        <div class="form-stack">
+          <label for="cfgTelegramUserId" class="field-label">텔레그램 사용자 ID (User ID)</label>
+          <input 
+            type="text" 
+            id="cfgTelegramUserId" 
+            class="text-input" 
+            placeholder="@userinfobot 확인 숫자 ID" 
+            autocomplete="off"
+          />
+        </div>
+        <div class="info-row" style="margin-top: 2px;">
+          <span class="info-label">모바일 수신 대기 상태</span>
+          <span id="telegramLiveStatus" class="info-value font-mono">확인 중</span>
+        </div>
+        <button type="button" id="btnTestTelegram" class="btn btn-outline" style="width: 100%; margin-top: 4px;">
+          테스트 메시지 발송
+        </button>
+      </section>
+
+      <!-- PC 에이전트 통신 주소 설정 -->
+      <section class="config-section">
+        <div class="config-title">PC 에이전트 주소</div>
+        <div class="form-stack">
+          <label for="cfgWsUrl" class="field-label">WebSocket 주소</label>
+          <input 
+            type="text" 
+            id="cfgWsUrl" 
+            class="text-input font-mono" 
+            value="ws://127.0.0.1:9001" 
+          />
+        </div>
+        <div class="form-stack">
+          <label for="cfgHttpUrl" class="field-label">HTTP API 주소</label>
+          <input 
+            type="text" 
+            id="cfgHttpUrl" 
+            class="text-input font-mono" 
+            value="http://127.0.0.1:9002" 
+          />
+        </div>
+      </section>
+
+      <!-- AI 엔진 모델 설정 -->
+      <section class="config-section">
+        <div class="config-title">AI 엔진 모델</div>
+        <div class="form-stack">
+          <label for="cfgAiModel" class="field-label">기본 추론 모델</label>
+          <select id="cfgAiModel" class="text-input">
+            <option value="ebro-qwen:3b">ebro-qwen:3b (기능정의서 튜닝 모델)</option>
+            <option value="qwen2.5-3b-tuned_v1">qwen2.5-3b-tuned_v1</option>
+            <option value="qwen2.5:0.5b">qwen2.5:0.5b (초경량 모델)</option>
+            <option value="RULE_ONLY">내장 룰 엔진 단독 (Ollama 미사용)</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- 설정 저장 액션 -->
+      <button type="button" id="btnSaveConfig" class="btn btn-primary" style="width: 100%; padding: 8px;">
+        설정 저장
+      </button>
+      <div id="configFeedbackMsg" class="feedback-msg"></div>
+    </main>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -8,10 +8,11 @@ import {
   Building2, ArrowLeftRight, Receipt, FolderOpen, AlertCircle, ExternalLink, Copy, AlertTriangle, FileText,
   Truck, CheckCircle2
 } from 'lucide-react';
-import { Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, isCustomerRestricted, isCustomerTotalBlocked } from '../services/db';
+import { Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, isCustomerRestricted, isCustomerTotalBlocked, ApprovalPayload } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
 import { matchHangul, sortCustomersByName, compareCustomerNames } from '../utils/hangulSearch';
+import { useApproval } from '../hooks/useApproval';
 
 export const Contracts: React.FC = () => {
   const {
@@ -23,6 +24,7 @@ export const Contracts: React.FC = () => {
 
   const canSave = hasPermission('contract', 'save');
   const canGeneratePackage = hasPermission('agent_badge', 'view');  // 계약서 패키지 생성 권한 = agent_badge
+  const { fetchRuleForEvent, createApprovalRequest } = useApproval();
 
   // 토스트 알림 상태 (헌장 5.2: 브라우저 alert 전면 퇴출)
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -740,6 +742,82 @@ export const Contracts: React.FC = () => {
         ? allActiveCAs.filter(ca => selectedExtendAssetIds.has(ca.id))
         : allActiveCAs;
 
+      // 💡 결재선 규칙(CONTRACT_EXTEND) 조회 및 결재 상신 판정
+      let ruleData: any = null;
+      try {
+        const res = await fetchRuleForEvent('CONTRACT_EXTEND');
+        ruleData = res?.rule;
+      } catch (e) {
+        console.warn('계약 연장 결재 규칙 조회 경고:', e);
+      }
+
+      const isApprovalRequired = Boolean(ruleData && ruleData.is_enabled);
+
+      if (isApprovalRequired && currentUser) {
+        const approvalPayload: ApprovalPayload = {
+          actionType: isShortened ? 'CONTRACT_SHORTEN' : 'CONTRACT_EXTEND',
+          targetTable: 'contracts',
+          targetId: activeContract.id,
+          asIs: {
+            endDate: activeContract.endDate,
+            status: activeContract.status
+          },
+          toBe: {
+            endDate: targetEndDate,
+            status: isShortened ? 'SHORTENED' : 'EXTENDED',
+            targetAssetIds: Array.from(selectedExtendAssetIds)
+          },
+          reason: modDesc || (isShortened ? '계약 기간 단축' : '계약 기간 연장'),
+          summaryText: `${activeContract.contractNo} 계약 기간 ${isShortened ? '단축' : '연장'} 요청 (${prevEnd || '미정'} ➔ ${targetEndDate})`
+        };
+
+        let createdRequestId: string | undefined = undefined;
+        try {
+          const req = await createApprovalRequest(
+            ruleData.id,
+            currentUser.id,
+            activeContract.id,
+            'contracts',
+            undefined,
+            approvalPayload
+          );
+          if (req?.id) createdRequestId = req.id;
+        } catch (apprErr) {
+          console.error('계약 연장 결재 상신 오류:', apprErr);
+        }
+
+        // 계약 레코드에 Staging 상태 기록 (라이브 만료일은 전결권자 승인 전까지 안전하게 원본 유지)
+        db.updateRow<Contract>('contracts', activeContract.id, {
+          approvalStatus: 'PENDING',
+          approvalRequestId: createdRequestId,
+          stagedExtend: {
+            targetEndDate,
+            isShortened,
+            reason: modDesc || '',
+            assetIds: Array.from(selectedExtendAssetIds)
+          },
+          updatedAt: new Date().toISOString()
+        });
+
+        // 계약 이력 기록
+        db.insertRow<ContractHistory>('contractHistory', {
+          contractId: activeContract.id,
+          changeType: isShortened ? 'SHORTEN' : 'EXTEND',
+          changeDate: todayStr,
+          prevEndDate: prevEnd,
+          newEndDate: targetEndDate,
+          description: `[결재 상신] 계약 기간 ${isShortened ? '단축' : '연장'} 결재 요청: ${prevEnd || '미정'} ➔ ${targetEndDate} (사유: ${modDesc || '기간 조정'}) (결재상태: PENDING)`,
+          createdAt: new Date().toISOString()
+        });
+
+        await db.awaitPendingWrites();
+        refreshAllData();
+        showToast(`계약 기간 ${isShortened ? '단축' : '연장'} 결재가 상신되었습니다. 전결권자 승인 시 자동으로 반영됩니다.`);
+        setShowExtendModal(false);
+        return;
+      }
+
+      // ── 결재선 미적용 시 즉시 라이브 갱신 ──
       // 1. 대상 자산 슬롯 및 장비 마스터 만료일 갱신
       targetCAssets.forEach(ca => {
         db.updateRow<ContractAsset>('contractAssets', ca.id, {
@@ -764,6 +842,8 @@ export const Contracts: React.FC = () => {
       db.updateRow<Contract>('contracts', activeContract.id, {
         endDate: parentMaxEnd,
         status: isShortened ? 'SHORTENED' : 'EXTENDED',
+        approvalStatus: 'APPROVED',
+        stagedExtend: undefined,
         updatedAt: new Date().toISOString()
       });
 
@@ -1838,12 +1918,19 @@ export const Contracts: React.FC = () => {
                           <td style={{ whiteSpace: 'nowrap' }}>매월 {c.billingDay}일</td>
                           <td style={{ whiteSpace: 'nowrap' }}>{users.find(u => u.id === c.salespersonId)?.name || '-'}</td>
                           <td style={{ whiteSpace: 'nowrap' }}>
-                            <span className={
-                              c.status === 'ACTIVE' || c.status === 'EXTENDED' ? 'badge badge-success' :
-                              c.status === 'SUCCEEDED' ? 'badge badge-info' : 'badge badge-secondary'
-                            }>
-                              {c.status === 'ACTIVE' ? '진행중' : c.status === 'EXTENDED' ? '연장됨' : c.status === 'SUCCEEDED' ? '승계됨' : '종료'}
-                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <span className={
+                                c.status === 'ACTIVE' || c.status === 'EXTENDED' ? 'badge badge-success' :
+                                c.status === 'SUCCEEDED' ? 'badge badge-info' : 'badge badge-secondary'
+                              }>
+                                {c.status === 'ACTIVE' ? '진행중' : c.status === 'EXTENDED' ? '연장됨' : c.status === 'SUCCEEDED' ? '승계됨' : '종료'}
+                              </span>
+                              {c.approvalStatus === 'PENDING' && (
+                                <span style={{ fontSize: '10.5px', padding: '1px 6px', borderRadius: '4px', background: '#fef3c7', color: '#b45309', fontWeight: 700 }}>
+                                  결재대기
+                                </span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1890,6 +1977,11 @@ export const Contracts: React.FC = () => {
               <span className="badge badge-success" style={{ fontSize: '12px' }}>
                 {activeContract.status === 'ACTIVE' ? '진행중' : activeContract.status === 'EXTENDED' ? '연장됨' : activeContract.status === 'SUCCEEDED' ? '승계됨' : '종료'}
               </span>
+              {activeContract.approvalStatus === 'PENDING' && (
+                <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: '#fef3c7', color: '#b45309', fontWeight: 800 }}>
+                  ⏳ 결재 대기 중 {activeContract.stagedExtend ? `(변경요청일: ${activeContract.stagedExtend.targetEndDate})` : ''}
+                </span>
+              )}
               <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>등록일: {activeContract.createdAt?.split('T')[0]}</span>
             </div>
 

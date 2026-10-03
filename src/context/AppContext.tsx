@@ -341,7 +341,7 @@ interface AppContextType {
   syncContractBillingMilestones: (contractId?: string) => void;
   generateBillingForSingleContract: (contractId: string, billingYm: string, billingDate: string, selectedContractAssetIds?: string[]) => Promise<string | null>;
   regenerateBilling: (billingId: string, customDetails?: Omit<BillingDetail, 'id' | 'billingId' | 'createdAt'>[], options?: { billingYm?: string; billingDate?: string; memo?: string }) => Promise<string>;
-  saveCustomStatementForBilling: (billingId: string, data: { reason: string; items: CustomStatementItem[]; originalSummary?: string }) => Promise<void>;
+  saveCustomStatementForBilling: (billingId: string, data: { reason: string; items: CustomStatementItem[]; originalSummary?: string; approvalStatus?: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED'; approvalRequestId?: string }) => Promise<void>;
   removeCustomStatementForBilling: (billingId: string) => Promise<void>;
   toggleTenantCustomBillingStatement: (tenantId: string, enabled: boolean) => Promise<void>;
   splitBillingAbsoluteAmount: (billingId: string, splitAmount: number) => Promise<string>;
@@ -7267,19 +7267,30 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       reason: string;
       items: CustomStatementItem[];
       originalSummary?: string;
+      approvalStatus?: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED';
+      approvalRequestId?: string;
     }
   ) => {
     const billing = db.billings.find(b => b.id === billingId);
     if (!billing) throw new Error('청구서를 찾을 수 없습니다.');
 
     const now = new Date().toISOString();
+    const isApproved = (data.approvalStatus || 'APPROVED') === 'APPROVED';
+
     db.updateRow<Billing>('billings', billingId, {
-      hasCustomStatement: true,
-      customStatementReason: data.reason,
-      customStatementItems: data.items,
+      hasCustomStatement: isApproved ? true : (billing.hasCustomStatement || false),
+      customStatementReason: isApproved ? data.reason : (billing.customStatementReason || ''),
+      customStatementItems: isApproved ? data.items : (billing.customStatementItems || []),
       customStatementOriginalSummary: data.originalSummary,
       customStatementCreatedAt: now,
       customStatementCreatedBy: currentUser?.name || '관리자',
+      approvalStatus: data.approvalStatus || billing.approvalStatus || 'APPROVED',
+      approvalRequestId: data.approvalRequestId || billing.approvalRequestId,
+      stagedCustomStatement: !isApproved ? {
+        reason: data.reason,
+        items: data.items,
+        originalSummary: data.originalSummary
+      } : undefined,
       updatedAt: now
     });
 
