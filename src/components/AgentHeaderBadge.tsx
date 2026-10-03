@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bot, Download, RefreshCw, Shield, ChevronDown, CheckCircle2, AlertTriangle, X, Cloud, FolderCheck, HardDrive, Play } from 'lucide-react';
-import { EXPECTED_AGENT_VERSION, AGENT_DOWNLOAD_URL, AGENT_BRO_JS_URL, AGENT_REG_BAT_URL, AGENT_LAUNCHER_URL, AGENT_CERT_URL, AGENT_INSTALL_BAT_URL, NODEJS_INSTALL_URL, launchLocalAgentFromBrowser, restartLocalAgent, fetchWithAgentFallback } from '../services/agentService';
+import { EXPECTED_AGENT_VERSION, AGENT_DOWNLOAD_URL, AGENT_BRO_JS_URL, AGENT_REG_BAT_URL, AGENT_LAUNCHER_URL, AGENT_CERT_URL, AGENT_INSTALL_BAT_URL, NODEJS_INSTALL_URL, launchLocalAgentFromBrowser, restartLocalAgent, fetchWithAgentFallback, openAgentStudio } from '../services/agentService';
 import { executeDriveMirrorSync, getLocalMirrorStatus, subscribeMirrorProgress, MirrorProgressState } from '../services/driveMirrorSync';
 import { useApp } from '../context/AppContext';
 
@@ -255,6 +255,33 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
         </button>
       )}
 
+      {/* 🏢 에이전트 가동 시 데스크톱 스튜디오 원클릭 호출 버튼 */}
+      {agentStatus === 'ONLINE' && !isOutdated && (
+        <button
+          type="button"
+          onClick={() => openAgentStudio()}
+          style={{
+            padding: '4px 8px',
+            borderRadius: '6px',
+            backgroundColor: 'rgba(37, 99, 235, 0.12)',
+            border: '1px solid rgba(59, 130, 246, 0.35)',
+            color: 'var(--primary)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            fontSize: '11px',
+            fontWeight: '700',
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            transition: 'all 0.15s ease'
+          }}
+          title="eBro AI Agent 독립 데스크톱 스튜디오 창 열기"
+        >
+          <Bot size={12} color="var(--primary)" />
+          <span>스튜디오</span>
+        </button>
+      )}
+
       {/* 🟡 구버전 가동 중 배지 (버전 차이 약식 표기: v1.98 ➔ v1.100) */}
       {isOutdated && (
         <button
@@ -359,6 +386,36 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
               </div>
             )}
           </div>
+
+          {/* 🏢 eBro AI Agent 데스크톱 스튜디오 열기 */}
+          {agentStatus === 'ONLINE' && (
+            <button
+              type="button"
+              onClick={() => {
+                openAgentStudio();
+                setIsOpenMenu(false);
+              }}
+              style={{
+                width: '100%',
+                padding: '9px 12px',
+                fontSize: '12px',
+                fontWeight: '700',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                background: '#1e3a8a',
+                border: '1px solid #3b82f6',
+                borderRadius: '7px',
+                color: '#93c5fd',
+                cursor: 'pointer',
+                marginBottom: '12px'
+              }}
+            >
+              <Bot size={14} color="#60a5fa" />
+              eBro AI Agent 데스크톱 스튜디오 열기
+            </button>
+          )}
 
           {/* ⚠️ 에이전트 콘솔 창이 켜져 있는데 미연결로 뜰 때 브라우저 보안 안내 */}
           {agentStatus === 'OFFLINE' && (

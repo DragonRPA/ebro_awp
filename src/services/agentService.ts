@@ -102,6 +102,28 @@ export function launchLocalAgentFromBrowser(): void {
   }
 }
 
+/**
+ * 🖥️ eBro AI Agent 독립 데스크톱 스튜디오 창 호출
+ */
+export async function openAgentStudio(): Promise<boolean> {
+  try {
+    const res = await fetchWithAgentFallback('/api/launch-studio', {
+      method: 'POST',
+      signal: AbortSignal.timeout(2000)
+    });
+    if (res.ok) return true;
+  } catch (e) {}
+
+  // 브라우저 팝업/프로토콜 폴백
+  try {
+    window.open('http://127.0.0.1:5175/studio', '_blank', 'width=1020,height=740');
+    return true;
+  } catch (e) {
+    launchLocalAgentFromBrowser();
+    return false;
+  }
+}
+
 
 export interface AgentHealthInfo {
   status: 'ONLINE' | 'OFFLINE';

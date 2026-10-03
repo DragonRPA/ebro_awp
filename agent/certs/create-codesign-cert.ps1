@@ -18,7 +18,7 @@ Write-Host "========================================================" -Foregroun
 Write-Host "[1/4] 신규 코드 서명 인증서(10년 유효) 생성 중..." -ForegroundColor Yellow
 $cert = New-SelfSignedCertificate `
     -Type CodeSigningCert `
-    -Subject "CN=(주)기연리프트 전사 ERP, O=(주)기연리프트, OU=System Development, C=KR" `
+    -Subject "CN=eBro ERP Root CA (Kiyeun Lift), O=Kiyeun Lift, OU=eBro System, C=KR" `
     -KeyUsage DigitalSignature `
     -KeyAlgorithm RSA `
     -KeyLength 2048 `
@@ -35,7 +35,9 @@ Write-Host " -> PFX 파일 생성 완료" -ForegroundColor Green
 # 3. CER 파일로 내보내기 (배포용 공개키)
 Write-Host ("[3/4] 클라이언트 배포용 CER 파일 내보내기: " + $cerPath) -ForegroundColor Yellow
 Export-Certificate -Cert $cert -FilePath $cerPath | Out-Null
-Write-Host " -> CER 파일 생성 완료" -ForegroundColor Green
+$ebroAgentCer = Join-Path (Split-Path -Parent $scriptDir) "eBroAgent_Root.cer"
+Export-Certificate -Cert $cert -FilePath $ebroAgentCer | Out-Null
+Write-Host " -> CER 파일 생성 완료 (KiyeunLift_Root.cer & eBroAgent_Root.cer)" -ForegroundColor Green
 
 # 4. 현재 개발 PC의 Root 및 TrustedPublisher 저장소에 자동 등록
 Write-Host "[4/4] 로컬 PC 신뢰할 수 있는 루트 인증 기관 및 게시자에 등록 중..." -ForegroundColor Yellow
@@ -51,7 +53,8 @@ try {
 $targetPublic = Join-Path (Split-Path -Parent (Split-Path -Parent $scriptDir)) "public\downloads"
 if (Test-Path $targetPublic) {
     Copy-Item -Path $cerPath -Destination (Join-Path $targetPublic "KiyeunLift_Root.cer") -Force
-    Write-Host " -> public/downloads/KiyeunLift_Root.cer 복사 완료" -ForegroundColor Green
+    Copy-Item -Path $ebroAgentCer -Destination (Join-Path $targetPublic "eBroAgent_Root.cer") -Force
+    Write-Host " -> public/downloads/ (KiyeunLift_Root.cer & eBroAgent_Root.cer) 복사 완료" -ForegroundColor Green
 }
 
 Write-Host "========================================================" -ForegroundColor Cyan

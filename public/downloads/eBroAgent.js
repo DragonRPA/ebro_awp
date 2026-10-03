@@ -15,7 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { spawn, execSync } = require('child_process');
-
+const { handleStudioRequest, launchStudioWindow } = require('./studioEngine');
 
 const VERSION = 'v2.0.0.Build.1';
 const PORT = process.env.PORT || 5175;
@@ -224,6 +224,10 @@ const server = http.createServer(async (req, res) => {
   const queryIndex = rawUrl.indexOf('?');
   const queryString = queryIndex !== -1 ? rawUrl.substring(queryIndex + 1) : '';
   const searchParams = new URLSearchParams(queryString);
+
+  // 🏢 eBro AI Agent 지시 스튜디오 및 큐 API 처리
+  const isStudioHandled = await handleStudioRequest(req, res, pathname, searchParams, PORT, VERSION);
+  if (isStudioHandled) return;
 
   // 1. 헬스체크 및 동적 콜사인 바인딩 API
   if (req.method === 'GET' && pathname === '/health') {
@@ -1296,6 +1300,10 @@ server.on('error', (err) => {
       server.close();
       server.listen(PORT, '127.0.0.1', () => {
         console.log(`🟢 로컬 에이전트 서비스 리스닝 시작: http://127.0.0.1:${PORT}`);
+        const isDaemon = process.argv.includes('--daemon') || process.argv.includes('--silent');
+        if (!isDaemon) {
+          setTimeout(() => { launchStudioWindow(PORT); }, 800);
+        }
       });
     }, 1000);
   } else {
@@ -1618,6 +1626,14 @@ server.listen(PORT, '127.0.0.1', () => {
   setInterval(checkAndProcessPrintQueue, 3000);
   // 🖨️ 스테이션 하트비트 (30초 주기)
   setInterval(sendStationHeartbeat, 30000);
+
+  // 🖥️ 독립 데스크톱 스튜디오 창 실행 (데몬 모드가 아닐 때)
+  const isDaemon = process.argv.includes('--daemon') || process.argv.includes('--silent');
+  if (!isDaemon) {
+    setTimeout(() => {
+      launchStudioWindow(PORT);
+    }, 800);
+  }
 });
 
 

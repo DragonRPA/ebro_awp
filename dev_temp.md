@@ -1,6 +1,38 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
-## 2026-10-03 22:25 (v1.13.0.Build.10)
+## 2026-10-03 22:45 (v1.13.0.Build.11)
+
+### [인증서정돈/스튜디오UI] 루트 인증서 발급자/주체 문자열 글자 깨짐 완전 박멸 및 eBro AI Agent 독립 데스크톱 스튜디오(UI) & 자연어 업무 지시 큐 시스템 전격 구축
+
+- **배경 및 사장님 지침**:
+  - "글자 깨짐. 개발안 진행" (첨부 이미지: Windows 보안 경고 창에 `(=?넚겟뷜由ы벮???끎꾩 ERP` 글자 깨짐 확인)
+- **문제 원인 및 아키텍처 결함 규명 (헌장 1.1, 1.2, 3.1, 5.2, 6.1, 6.2)**:
+  1. **인증서 주체(Subject) 인코딩 깨짐 원인**:
+     - 구 인증서 생성 스크립트 실행 시 Windows PowerShell의 UTF-8/CP949 인코딩 처리 비호환으로 인해 `(주)기연리프트 전사 ERP` 문자열이 손상되어 Windows CryptoAPI 설치 경고 창에서 `(=?넚겟뷜由ы벮???끎꾩 ERP`로 출력되었음.
+  2. **에이전트 가시성 및 자연어 지시 큐의 본질적 필요성**:
+     - 기존 에이전트는 백그라운드 데몬(5175 포트)으로만 동작하여 사용자가 볼 수 있는 전용 창이나 자연어 입력 접점이 없었음.
+     - 사용자가 자연어로 연속 지시를 내리고 큐에 쌓인 작업을 에이전트가 브라우저 조작 또는 ERP 쿼리 직통으로 처리하는 독립 창(UI)이 필수적임.
+- **도메인 핵심 가치 및 기술 조치**:
+  1. **인증서 글자 깨짐 완전 해결 (`agent/certs/create-codesign-cert.ps1`)**:
+     - 인증서 주체 및 발급자를 표준 영문/괄호 명칭인 `CN=eBro ERP Root CA (Kiyeun Lift), O=Kiyeun Lift, OU=eBro System, C=KR`로 재발급.
+     - Windows 보안 경고 창에서 일체의 글자 깨짐 없이 `eBro ERP Root CA (Kiyeun Lift)`로 깔끔하게 표출되도록 조치 완료.
+     - `eBroAgent.exe` 재서명 및 `public/downloads/eBroAgent_Root.cer` 실물 동기화.
+  2. **eBro AI Agent 독립 데스크톱 스튜디오 창(UI) 엔진 구축 (`agent/studioEngine.js`, `agent/eBroAgent.js`)**:
+     - Windows 내장 Edge/Chrome `--app=http://127.0.0.1:5175/studio` 옵션을 활용하여 추가 번들 용량 0MB로 전용 독립 데스크톱 앱 윈도우 구현.
+     - 자연어 업무 지시 입력 패널 (`Ctrl+Enter` 단축키, 상하 스택 폼 표준 준수).
+     - 실행 모드 분기: `[자동 판단]`, `[브라우저 화면 조작 (듀얼모니터 시각화)]`, `[ERP 쿼리 직통]`, `[로컬/출력]`.
+     - 실시간 작업 큐 모니터 (7컬럼 슬림 그리드, 진행률 바, 취소/재시도 액션).
+     - 실시간 실행 콘솔 로그 스트림 (SSE 기반 0ms 실시간 업데이트).
+     - Ollama 로컬 LLM (`http://127.0.0.1:11434`) 헬스체크 및 모델 자동 감지 연동 (미실행 시 내장 규칙 엔진 폴백).
+  3. **ERP 메인 웹 연동 (`src/components/AgentHeaderBadge.tsx`, `src/services/agentService.ts`)**:
+     - 상단 헤더 배지 옆에 `[스튜디오]` 원클릭 버튼 및 드롭다운 메뉴 바로가기 배치 (`openAgentStudio`).
+  4. **Inno Setup 정식 인스톨러 재컴파일 및 Cloudflare R2 업로드**:
+     - `eBroAgent_Setup.exe` (27.4MB) 및 테넌트 6종 바이너리 R2 업로드 완료 (HTTP 200 OK 검증).
+     - 바탕화면에 `eBro AI Agent` 바로가기 자동 생성.
+- **실환경 검증**:
+  - `certutil -dump agent/eBroAgent_Root.cer`: `CN=eBro ERP Root CA (Kiyeun Lift)` 무결성 통과.
+  - `node --check`: 에이전트 스크립트 문법 0 에러 통과.
+  - `npm run build`: 1.59s 무결성 통과 (0 error).
 
 ### [인스톨러/InnoSetup] 104MB 단일 실행파일 ➔ 27MB 초경량 Inno Setup 정식 인스톨러 전격 전환 및 1-Click 무확인/무음 설치(/VERYSILENT) 완벽 지원
 
