@@ -195,31 +195,41 @@ async function checkAndApplyUpdate(force = false) {
           }
           fileRes.pipe(fileStream);
           fileStream.on('finish', () => {
-            fileStream.close();
-            console.log(`✅ [eBroAgent Auto-Update] 다운로드 완료! 신규 엔진으로 교체 기동합니다...`);
-            updateState.status = 'installing';
-            updateState.message = '새 버전으로 백그라운드 무음 교체 기동 중...';
+            fileStream.close(() => {
+              // 🛡️ Windows 파일 핸들 해제 및 백신 검사 완료를 위한 1.2초 지연 (EBUSY 방지)
+              setTimeout(() => {
+                try {
+                  console.log(`✅ [eBroAgent Auto-Update] 다운로드 완료! 신규 엔진으로 교체 기동합니다...`);
+                  updateState.status = 'installing';
+                  updateState.message = '새 버전으로 백그라운드 무음 교체 기동 중...';
 
-            if (isInstaller) {
-              // Inno Setup 완전 무음 설치: /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
-              const child = spawn(updateFilePath, ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-'], {
-                detached: true,
-                stdio: 'ignore'
-              });
-              child.unref();
-            } else {
-              // 단일 바이너리 바통 터치
-              const child = spawn(updateFilePath, [], {
-                detached: true,
-                stdio: 'ignore',
-                windowsHide: true
-              });
-              child.unref();
-            }
+                  if (isInstaller) {
+                    // Inno Setup 완전 무음 설치: /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
+                    const child = spawn(updateFilePath, ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-'], {
+                      detached: true,
+                      stdio: 'ignore'
+                    });
+                    child.unref();
+                  } else {
+                    // 단일 바이너리 바통 터치
+                    const child = spawn(updateFilePath, [], {
+                      detached: true,
+                      stdio: 'ignore',
+                      windowsHide: true
+                    });
+                    child.unref();
+                  }
 
-            setTimeout(() => {
-              process.exit(0);
-            }, 1000);
+                  setTimeout(() => {
+                    process.exit(0);
+                  }, 1500);
+                } catch (spawnErr) {
+                  console.error('⚠️ [eBroAgent Auto-Update] spawn 오류:', spawnErr.message);
+                  updateState.status = 'error';
+                  updateState.message = `실행 오류: ${spawnErr.message}`;
+                }
+              }, 1200);
+            });
           });
         }).on('error', err => {
           updateState.status = 'error';
