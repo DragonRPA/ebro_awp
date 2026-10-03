@@ -3,8 +3,18 @@
   "version": "2.0.0",
   "description": "e-Bro ERP 로컬 사이드카 에이전트 (eBroAgent)",
   "main": "eBroAgent.js",
+  "bin": "eBroAgent.js",
+  "pkg": {
+    "scripts": [
+      "studioEngine.js"
+    ],
+    "targets": [
+      "node18-win-x64"
+    ]
+  },
   "scripts": {
-    "start": "node eBroAgent.js"
+    "start": "node eBroAgent.js",
+    "build:exe": "npx pkg . --output eBroAgent.exe"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7",

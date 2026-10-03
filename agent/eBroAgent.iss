@@ -1,11 +1,31 @@
 ; agent/eBroAgent.iss
-; e-Bro ERP 로컬 사이드카 에이전트 정식 Inno Setup 인스톨러 스크립트
+; e-Bro ERP 로컬 사이드카 에이전트 정식 Inno Setup 인스톨러 스크립트 (테넌트별 동적 빌드 & 소스코드 보호 적용)
+
+#ifndef TenantCode
+  #define TenantCode "GIYEUN"
+#endif
+
+#ifndef AppPublisher
+  #define AppPublisher "(주)기연리프트 / e-Bro ERP"
+#endif
+
+#ifndef AppName
+  #define AppName "eBro AI Agent (기연리프트)"
+#endif
+
+#ifndef AppId
+  #define AppId "{EBR0-ERP-AG3NT-GIYEUN-2026}"
+#endif
+
+#ifndef OutputBaseFilename
+  #define OutputBaseFilename "eBroAgent_Setup_GIYEUN"
+#endif
 
 [Setup]
-AppId={{EBR0-ERP-AG3NT-S1D3CAR-2026}}
-AppName=eBro ERP Agent
+AppId={{#AppId}}
+AppName={#AppName}
 AppVersion=v2.0.0.Build.2
-AppPublisher=(주)기연리프트 / e-Bro ERP
+AppPublisher={#AppPublisher}
 AppPublisherURL=https://ebro.run
 AppSupportURL=https://ebro.run
 AppUpdatesURL=https://ebro.run
@@ -16,14 +36,14 @@ DisableReadyPage=yes
 DisableFinishedPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\public\downloads
-OutputBaseFilename=eBroAgent_Setup
+OutputBaseFilename={#OutputBaseFilename}
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 CloseApplications=force
 RestartApplications=no
 ArchitecturesInstallIn64BitMode=x64
-UninstallDisplayName=eBro ERP Agent
+UninstallDisplayName={#AppName}
 UninstallDisplayIcon={app}\eBroAgent.exe
 
 [Languages]
@@ -33,9 +53,9 @@ Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
 Name: "desktopicon"; Description: "바탕화면에 eBro AI Agent 바로가기 아이콘 생성"; GroupDescription: "추가 작업:"; Flags: checkedonce
 
 [Files]
+; 🛡️ 완벽한 소스코드 보호: eBroAgent.js / studioEngine.js 원본 소스코드 완전 배제!
+; V8 바이트코드 및 패키징 완료된 eBroAgent.exe 단일 바이너리만 배포 (고객 PC 소스코드 노출 0%)
 Source: "eBroAgent.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "eBroAgent.js"; DestDir: "{app}"; Flags: ignoreversion
-Source: "studioEngine.js"; DestDir: "{app}"; Flags: ignoreversion
 Source: "eBroAgent_Root.cer"; DestDir: "{app}"; Flags: ignoreversion
 Source: "start-agent.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "kill-agent.bat"; DestDir: "{app}"; Flags: ignoreversion

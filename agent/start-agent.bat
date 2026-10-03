@@ -14,14 +14,16 @@ if exist "%~dp0BroAgent.js" (
     copy /y "%~dp0BroAgent.js" "C:\eBroAgent\BroAgent.js" >nul 2>&1
 )
 
-if exist BroAgent.js (
+if exist "eBroAgent.exe" (
+    start "" "eBroAgent.exe"
+) else if exist BroAgent.js (
     node BroAgent.js
 ) else if exist eBroAgent.js (
     node eBroAgent.js
 ) else if exist agent.js (
     node agent.js
 ) else (
-    echo [ERROR] BroAgent.js not found in C:\eBroAgent!
-    echo Please download BroAgent.js from the website first.
+    echo [ERROR] eBroAgent.exe not found in C:\eBroAgent!
+    echo Please install eBroAgent first.
     pause
 )

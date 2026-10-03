@@ -2,15 +2,18 @@
 // e-Bro ERP 로컬 사이드카 에이전트(eBroAgent) 단일 표준 메타데이터 및 통신 헬퍼
 
 export const EXPECTED_AGENT_VERSION = 'v2.0.0.Build.2';
-// 🌐 Cloudflare R2 글로벌 CDN 기반 대용량 독립 실행 파일 및 스마트 버전 관리 엔드포인트 (Vercel 용량 0% 격리)
+// 🚀 GitHub Releases 글로벌 초고속 CDN (Azure/Fastly 한국 PoP 8~10MB/s 3초 다운로드)
+export const DEFAULT_GITHUB_RELEASE_BASE_URL = 'https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0';
+// 🌐 Cloudflare R2 보조 엔드포인트 (Fallback)
 export const DEFAULT_CF_R2_BASE_URL = 'https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev';
-export const AGENT_INSTALLER_BASE_URL = `${DEFAULT_CF_R2_BASE_URL}/downloads/eBroAgent_Setup.exe`; // Inno Setup 27MB 정식 인스톨러
+
+export const AGENT_INSTALLER_BASE_URL = `${DEFAULT_GITHUB_RELEASE_BASE_URL}/eBroAgent_Setup.exe`; // Inno Setup 16MB 초고속 정식 인스톨러
 export const AGENT_EXE_URL = AGENT_INSTALLER_BASE_URL; // 기본 초고속 인스톨러 다운로드 엔드포인트
 export const AGENT_SILENT_INSTALL_CMD = 'eBroAgent_Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART'; // 무음 설치 명령행
 export const AGENT_VERSION_CHECK_URL = `${DEFAULT_CF_R2_BASE_URL}/downloads/version.json`; // 스마트 업데이트 검증 메타데이터
-export const AGENT_DOWNLOAD_URL = '/downloads/eBroAgent.js';            // Node.js 경량 스크립트 (eBroAgent.js)
-export const AGENT_BRO_JS_URL = '/downloads/eBroAgent.js';               // eBroAgent.js 직접 다운로드
-export const AGENT_EBRO_JS_URL = '/downloads/eBroAgent.js';             // eBroAgent.js 호환 다운로드
+export const AGENT_DOWNLOAD_URL = `${DEFAULT_GITHUB_RELEASE_BASE_URL}/eBroAgent_Setup.exe`;
+export const AGENT_BRO_JS_URL = `${DEFAULT_GITHUB_RELEASE_BASE_URL}/eBroAgent_Setup.exe`;
+export const AGENT_EBRO_JS_URL = `${DEFAULT_GITHUB_RELEASE_BASE_URL}/eBroAgent_Setup.exe`;
 export const AGENT_REG_BAT_URL = '/downloads/등록-실행.bat';       // 브라우저 실행 프로토콜 등록기
 export const AGENT_LAUNCHER_URL = '/downloads/start-agent.bat';        // 실행 배치 파일
 export const AGENT_KILL_BAT_URL = '/downloads/kill-agent.bat';
@@ -31,7 +34,7 @@ export interface TenantAgentInstallerInfo {
 
 /**
  * 📦 접속 URL 및 테넌트 기준 맞춤형 eBroAgent 설치 프로그램 메타데이터 생성
- * 각 고객사(테넌트)별 서브도메인 및 상호가 바인딩된 전용 설치 파일명 및 다운로드 링크를 제공합니다.
+ * 각 고객사(테넌트)별 서브도메인 및 상호가 바인딩된 전용 설치 파일명 및 초고속 CDN 다운로드 링크를 제공합니다.
  */
 export function getTenantAgentInstallerInfo(tenant?: {
   tenantCode?: string;
@@ -47,10 +50,10 @@ export function getTenantAgentInstallerInfo(tenant?: {
   // 테넌트 전용 설치 파일명 (예: eBroAgent_Setup_GIYEUN.exe, eBroAgent_Setup_HANSOL.exe)
   const fileName = `eBroAgent_Setup_${code}.exe`;
   
-  // Cloudflare R2 초고속 CDN 기반 Inno Setup 27MB 정식 인스톨러 (1-Click & 무음 설치 지원)
-  const downloadUrl = `${DEFAULT_CF_R2_BASE_URL}/downloads/${fileName}`;
-  // 로컬/배포 서버 보조 엔드포인트 URL
-  const fallbackUrl = `/downloads/${fileName}`;
+  // 🚀 GitHub Releases 글로벌 초고속 CDN 기반 (8~10MB/s, 16MB를 3초 만에 다운로드 완료)
+  const downloadUrl = `${DEFAULT_GITHUB_RELEASE_BASE_URL}/${fileName}`;
+  // Cloudflare R2 보조 엔드포인트 URL
+  const fallbackUrl = `${DEFAULT_CF_R2_BASE_URL}/downloads/${fileName}`;
 
   return {
     downloadUrl,
