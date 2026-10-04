@@ -1,5 +1,4 @@
-// src/services/agentService.ts
-// e-Bro ERP 로컬 사이드카 에이전트(eBroAgent) 단일 표준 메타데이터 및 통신 헬퍼
+import type { TenantFeatures } from './db';
 
 export const EXPECTED_AGENT_VERSION = 'v2.0.0.Build.5';
 // 🚀 GitHub Releases 글로벌 초고속 CDN (Azure/Fastly 한국 PoP 8~10MB/s 3초 다운로드)
@@ -140,6 +139,12 @@ export interface AgentHealthInfo {
   archiveRoot?: string;
   driveMirrorDir?: string;
   uptimeSeconds?: number;
+  policy?: {
+    agentAiEnabled: boolean;
+    tenantCode?: string;
+    updatedAt?: string;
+  };
+  isAiEnabled?: boolean;
   updateState?: {
     status: string;
     currentVersion: string;
@@ -148,6 +153,32 @@ export interface AgentHealthInfo {
     lastChecked: string | null;
   };
   timestamp?: string;
+}
+
+/**
+ * 🌐 테넌트 관리 센터의 기능 정책을 로컬 에이전트에 실시간 핫 동기화
+ */
+export async function syncTenantPolicyToAgent(tenant?: {
+  tenantCode?: string;
+  features?: TenantFeatures;
+} | null): Promise<boolean> {
+  if (!tenant) return false;
+  try {
+    const isAiEnabled = Boolean(tenant.features?.agentAiEnabled);
+    const code = tenant.tenantCode || 'GIYEONLIFT';
+    const res = await fetchWithAgentFallback('/api/policy/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agentAiEnabled: isAiEnabled,
+        tenantCode: code
+      }),
+      signal: AbortSignal.timeout(1500)
+    });
+    return res.ok;
+  } catch (e) {
+    return false;
+  }
 }
 
 // 활성 에이전트 베이스 URL (127.0.0.1 ➔ localhost 자동 동적 폴백)

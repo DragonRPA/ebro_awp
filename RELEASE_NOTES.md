@@ -1,3 +1,29 @@
+## 2026-10-04 20:35 (v1.13.0.Build.29)
+
+### [테넌트관리센터eBroAIAgent런타임ON/OFF제어탑재/단일바이너리무재컴파일유지/SilentCore무음인쇄·문서모드완벽분리/FullAIStudio개방선택형아키텍처완결] 테넌트 관리 센터(TenantManagementPage) 내 eBro AI Agent 런타임 ON/OFF 스위치 신설, 단일 바이너리(eBroAgent.exe) 재컴파일 없이 테넌트별 동적 정책(tenant_policy.json 및 /api/policy/sync) 주입, AI 기능 비활성화(OFF) 시 텔레그램 명령 및 브라우저 확장 제어를 잠그고 시스템 트레이에서 복합기·라벨 인쇄 큐 관리 및 엑셀 계약서/명세서 번들 생성만 백그라운드로 안전 수행하는 Silent Core 모드 완비, AI 기능 활성화(ON) 시 텔레그램 모바일 원격 명령 큐 및 브라우저 제어·데스크톱 AI Studio 전면 개방
+
+- **배경 및 사장님 지침**:
+  - "ebro agent 의 AI 에이전트 기능자체를 공개해주지 않아야 하는 테넌트도 생길것 같아. 매번 다른 컴파일을 제공해주는것도 불편할텐데, 테넌트관리센터에서 제어할 방법이 있을까? off 하면 그냥 조용히 시스템 트레이에 있으면서 print 관리와, 엑셍파일 처리 (계약서, 거래명세서 등) 만 해주고, 열어주면 메신저 명령기능, 확장프로그램 제어, 등이 열리게 작동. 가능성 검토, 개편 명세 작성, 성공판정 작성후 적용"
+
+- **핵심 아키텍처 및 도메인 원칙 (헌장 1.1, 1.2, 1.4, 3.1)**:
+  1. **단일 바이너리 무재컴파일 유지 원칙 (Zero-Recompile Single Binary)**:
+     - 테넌트마다 다른 `.exe`를 빌드·배포하는 비효율을 원천 배제하고, 단일 바이너리(`eBroAgent.exe`)가 런타임 정책 파일(`C:\eBroAgent\tenant_policy.json`) 및 로컬 HTTP 동기화 API(`/api/policy/sync`)를 통해 모드를 즉각 전환.
+  2. **이원화 동작 모드 완벽 분리**:
+     - **OFF (Silent Core 업무 지원 모드)**: AI 메신저 지시 큐 수신 거부, Chrome 브라우저 확장 화면 조작 잠금, 데스크톱 AI Studio 창 차단 (접속 시 로컬 문서고 직행). 시스템 트레이에서 조용히 상주하며 라벨/복합기 인쇄 큐(`/api/print`, `/api/print-raw`)와 엑셀 계약서/명세서 번들 생성(`/api/generate-contract-bundle`, `/api/generate-statement-bundle`), 로컬 문서고(`C:\eBroAgent\문서고`) 백그라운드 무음 안전 수행.
+     - **ON (Full AI Studio 모드)**: 텔레그램 모바일 원격 업무 지시 수확, Chrome 브라우저 확장 화면 조작, 데스크톱 AI Studio UI 전면 개방.
+  3. **테넌트 관리 센터 중앙 런타임 제어**:
+     - `TenantManagementPage`의 플러그인 탭 및 에이전트 관제 탭에서 원클릭으로 `agentAiEnabled` 토글 시, 웹 브라우저가 로컬 에이전트에 정책을 실시간 핫 싱크 전송.
+
+- **기술 조치 내역**:
+  1. `src/services/db.ts`: `TenantFeatures`에 `agentAiEnabled?: boolean` 신설 및 `SEED_TENANTS`에 기본값 반영.
+  2. `agent/studioEngine.js`: `tenant_policy.json` 로컬 캐시 관리, `isAiEnabled()`, `getAgentPolicy()`, `updateAgentPolicy()`, `/api/policy`, `/api/policy/sync`, Silent Core 전용 안내 렌더러(`/studio` 및 `/api/open-archive`) 탑재.
+  3. `agent/eBroAgent.js`: `/health` 엔드포인트에 `policy` 및 `isAiEnabled` 상태값 반환 연동.
+  4. `agent/make-tray.cjs` & `agent/trayIcon.ps1`: 윈도우 시스템 트레이 아이콘이 `tenant_policy.json` 상태에 따라 메뉴명(`eBro Agent - 업무 지원 모드`), 더블클릭 액션(문서고 폴더 열기 vs 스튜디오 열기), 메뉴 노출 여부 동적 분기.
+  5. `src/services/agentService.ts`: `syncTenantPolicyToAgent(tenant)` 핫 동기화 함수 및 헬스 체크 타입 인터페이스 확장.
+  6. `src/pages/TenantManagementPage.tsx`: PLUGINS 탭 내 토글 스위치, AGENTS 탭 상단 런타임 제어 배너 및 즉시 전환 버튼, 테넌트 목록 테이블 AI활성/AI잠금 뱃지 추가.
+  7. `src/App.tsx`: 시스템 Ready 시그널 발송 시 현재 테넌트의 정책(`syncTenantPolicyToAgent`)을 로컬 에이전트에 자동 핫 전송.
+  8. `npm.cmd run build`: TypeScript 및 Vite 프로덕션 빌드 0 오류 검증 완료.
+
 ## 2026-10-04 20:25 (v1.13.0.Build.28)
 
 ### [ebro.run공식홍보마케팅랜딩/admin.ebro.run테넌트관리센터최고관리자관제탑3단도메인격리개통/고객사ERP빠른이동모달/플랫폼보안강화완결] ebro.run 공식 솔루션 소개 및 마케팅 랜딩 페이지(LandingPage.tsx) 개통(기연리프트 로고/화면 완전 배제, 5대 핵심 솔루션 소개, 테넌트 퀵 스위처 모달, 라이브 데모 바로가기, 도입 상담 모달), admin.ebro.run 플랫폼 최고관리자(admin, sys-admin) 전용 관제탑 개통 및 일반 사원 접속 차단 보안 분리, 테넌트 관리 센터(TenantManagementPage) 자동 직행 및 플랫폼 본부 전용 헤더 띠 배너 연동, 도메인 라우팅 엔진(domainRouter.ts) 구축 완결

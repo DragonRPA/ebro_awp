@@ -9,7 +9,7 @@ import {
   FileCheck, ShieldCheck, Bot, Download, Bell
 , CheckCircle, Settings as SettingsIcon, SlidersHorizontal, Mail } from 'lucide-react';
 import { OfficialMailPage } from './pages/OfficialMailPage';
-import { getTenantAgentInstallerInfo, triggerTenantAgentDownload, AGENT_CERT_URL } from './services/agentService';
+import { getTenantAgentInstallerInfo, triggerTenantAgentDownload, AGENT_CERT_URL, syncTenantPolicyToAgent } from './services/agentService';
 
 import { JobAlertModal } from './components/JobAlertModal';
 import { PersistentJobAlertToast } from './components/PersistentJobAlertToast';
@@ -488,6 +488,9 @@ const App: React.FC = () => {
         menu: activeTab,
         tenant: currentTenant
       });
+      if (currentTenant) {
+        syncTenantPolicyToAgent(currentTenant).catch(() => {});
+      }
     } else {
       markErpStatus('LOGIN_REQUIRED', 'login');
     }

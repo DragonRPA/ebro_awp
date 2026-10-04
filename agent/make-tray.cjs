@@ -21,9 +21,25 @@ try {
     }
 } catch {}
 
+# 🌐 테넌트 정책에 따른 AI 기능 동적 분기
+$policyPath = "C:\\eBroAgent\\tenant_policy.json"
+$aiEnabled = $true
+if (Test-Path $policyPath) {
+    try {
+        $policyJson = Get-Content $policyPath -Raw | ConvertFrom-Json
+        if ($null -ne $policyJson.agentAiEnabled) {
+            $aiEnabled = [bool]$policyJson.agentAiEnabled
+        }
+    } catch {}
+}
+
 $notify = New-Object System.Windows.Forms.NotifyIcon
 $notify.Icon = [System.Drawing.SystemIcons]::Application
-$notify.Text = "eBro AI Agent (Port: $Port)"
+if ($aiEnabled) {
+    $notify.Text = "eBro AI Agent (Port: $Port)"
+} else {
+    $notify.Text = "eBro Agent - 업무 지원 모드 (Port: $Port)"
+}
 $notify.Visible = $true
 
 function Open-Studio {
@@ -41,23 +57,31 @@ function Open-Studio {
     }
 }
 
-$notify.add_DoubleClick({ Open-Studio })
+function Open-Archive {
+    $dir = "C:\\eBroAgent\\문서고"
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    Start-Process "explorer.exe" $dir
+}
+
+if ($aiEnabled) {
+    $notify.add_DoubleClick({ Open-Studio })
+} else {
+    $notify.add_DoubleClick({ Open-Archive })
+}
 
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
 
-$mStudio = $menu.Items.Add("eBro AI Studio")
-$mStudio.Font = New-Object System.Drawing.Font($menu.Font, [System.Drawing.FontStyle]::Bold)
-$mStudio.add_Click({ Open-Studio })
+if ($aiEnabled) {
+    $mStudio = $menu.Items.Add("eBro AI Studio")
+    $mStudio.Font = New-Object System.Drawing.Font($menu.Font, [System.Drawing.FontStyle]::Bold)
+    $mStudio.add_Click({ Open-Studio })
+}
 
 $mErp = $menu.Items.Add("e-Bro ERP")
 $mErp.add_Click({ Start-Process "https://ebro.run" })
 
-$mFolder = $menu.Items.Add("Local Archive")
-$mFolder.add_Click({
-    $dir = "C:\\eBroAgent\\문서고"
-    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-    Start-Process "explorer.exe" $dir
-})
+$mFolder = $menu.Items.Add("Local Archive (문서고)")
+$mFolder.add_Click({ Open-Archive })
 
 $menu.Items.Add("-") | Out-Null
 

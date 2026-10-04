@@ -4,7 +4,7 @@ import {
   Download, Search, RefreshCw, Eye, EyeOff, Star, Upload, FileText, Smartphone,
   Mic, FileSignature, Receipt, ArrowRight, ToggleLeft, ToggleRight, X,
   MapPin, CreditCard, Layers, Calendar, Clock, Key, AlertTriangle, 
-  CheckCircle2, XCircle, Zap
+  CheckCircle2, XCircle, Zap, Bot
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { 
@@ -13,6 +13,7 @@ import {
 } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { SYSTEM_MENU_CONFIG, getAllSystemMenuIds, MenuGroupConfig } from '../config/menu_config';
+import { syncTenantPolicyToAgent } from '../services/agentService';
 
 export const TenantManagementPage: React.FC = () => {
   const { 
@@ -165,6 +166,7 @@ export const TenantManagementPage: React.FC = () => {
           kakaoContract: tenant.features?.kakaoContract ?? true,
           autoTaxInvoice: tenant.features?.autoTaxInvoice ?? true,
           voiceAssistance: tenant.features?.voiceAssistance ?? true,
+          agentAiEnabled: tenant.features?.agentAiEnabled ?? false,
           customDomain: tenant.features?.customDomain ?? '',
         },
         allowedPages: Array.isArray(tenant.allowedPages) ? [...tenant.allowedPages] : [],
@@ -240,6 +242,7 @@ export const TenantManagementPage: React.FC = () => {
           kakaoContract: true,
           autoTaxInvoice: true,
           voiceAssistance: true,
+          agentAiEnabled: false,
           customDomain: '',
         },
         bankAccounts: [
@@ -1043,6 +1046,17 @@ export const TenantManagementPage: React.FC = () => {
                       {/* 라이선스 플러그인 뱃지 */}
                       <td style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span 
+                            title={`eBro AI 에이전트: ${tenant.features?.agentAiEnabled ? 'Full AI 활성 (메신저·확장 제어)' : 'Silent Core (인쇄·엑셀 전용)'}`}
+                            style={{ 
+                              padding: '2px 6px', borderRadius: '4px', fontSize: '10.5px', fontWeight: 800,
+                              backgroundColor: tenant.features?.agentAiEnabled ? '#dbeafe' : 'var(--bg-app)',
+                              color: tenant.features?.agentAiEnabled ? '#1d4ed8' : 'var(--text-muted)',
+                              border: `1px solid ${tenant.features?.agentAiEnabled ? '#bfdbfe' : 'var(--border-color)'}`
+                            }}
+                          >
+                            {tenant.features?.agentAiEnabled ? 'AI활성' : 'AI잠금'}
+                          </span>
                           <span 
                             title={`텔레그램 제어: ${tenant.features?.telegramBot ? '활성' : '미사용'}`}
                             style={{ 
@@ -2338,6 +2352,12 @@ export const TenantManagementPage: React.FC = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {[
                     {
+                      key: 'agentAiEnabled',
+                      title: 'eBro AI Agent 고유 기능 (텔레그램 명령 / 웹 확장 제어)',
+                      desc: '켜짐 시 텔레그램 모바일 업무 지시 및 브라우저 확장 조작 개방 / 꺼짐 시 Silent Core 모드 (인쇄 & 엑셀 문서 처리 전용)',
+                      icon: <Bot size={18} color="#2563eb" />,
+                    },
+                    {
                       key: 'telegramBot',
                       title: '텔레그램 모바일 관제 봇',
                       desc: '임직원 및 배차/정비 현장 텔레그램 연동 및 반응형 버튼 제어',
@@ -2811,6 +2831,82 @@ export const TenantManagementPage: React.FC = () => {
               {/* ─── 7번째 탭: 에이전트 관제 (AGENTS) ─── */}
               {modalTab === 'AGENTS' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* 🌐 테넌트 AI 에이전트 런타임 동작 모드 제어 배너 */}
+                  <div style={{
+                    padding: '14px 18px',
+                    backgroundColor: formData.features?.agentAiEnabled ? 'rgba(59, 130, 246, 0.08)' : 'rgba(100, 116, 139, 0.08)',
+                    borderRadius: '10px',
+                    border: `1.5px solid ${formData.features?.agentAiEnabled ? '#3b82f6' : 'var(--border-color)'}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '16px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                      <div style={{
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '10px',
+                        backgroundColor: formData.features?.agentAiEnabled ? '#2563eb' : '#64748b',
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 900,
+                        fontSize: '13px',
+                        flexShrink: 0
+                      }}>
+                        {formData.features?.agentAiEnabled ? 'AI' : 'OFF'}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            eBro AI Agent 고유 기능: {formData.features?.agentAiEnabled ? '🟢 Full AI Studio 모드 (개방)' : '🔵 Silent Core 모드 (인쇄·문서 처리 전용)'}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          {formData.features?.agentAiEnabled 
+                            ? '텔레그램 모바일 원격 업무 지시 수확, Chrome 브라우저 확장 조작, 데스크톱 AI Studio UI가 전면 개방되어 있습니다.'
+                            : 'AI 기능이 잠겨 있습니다. 시스템 트레이에 조용히 상주하며 라벨/복합기 인쇄 큐 관리 및 엑셀 계약서/명세서 번들 생성만 백그라운드로 안전 수행합니다.'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextVal = !Boolean(formData.features?.agentAiEnabled);
+                        setFormData(prev => ({
+                          ...prev,
+                          features: {
+                            ...prev.features,
+                            agentAiEnabled: nextVal
+                          }
+                        }));
+                        // 로컬 에이전트에 정책 즉시 핫 전송
+                        syncTenantPolicyToAgent({
+                          tenantCode: formData.tenantCode,
+                          features: { ...formData.features, agentAiEnabled: nextVal }
+                        });
+                      }}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        fontSize: '12.5px',
+                        fontWeight: 700,
+                        backgroundColor: formData.features?.agentAiEnabled ? '#ef4444' : '#2563eb',
+                        color: '#ffffff',
+                        border: 'none',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.15s ease',
+                        flexShrink: 0
+                      }}
+                    >
+                      {formData.features?.agentAiEnabled ? 'Silent Core로 전환 (AI 잠금)' : 'Full AI 에이전트 개방 (활성화)'}
+                    </button>
+                  </div>
+
                   {/* 상단 통계 요약 바 */}
                   <div style={{
                     display: 'grid',

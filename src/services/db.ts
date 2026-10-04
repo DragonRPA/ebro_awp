@@ -140,6 +140,7 @@ export interface TenantFeatures {
   voiceAssistance?: boolean;      // 음성 비서 어시스턴트
   publicDataApiKey?: string;      // 국토교통부 세움터 공공데이터포털 인증키 (서버/DB 보관)
   vworldApiKey?: string;          // V-World 공간정보 오픈플랫폼 인증키 (서버/DB 보관)
+  agentAiEnabled?: boolean;       // eBro AI Agent 고유 기능 (텔레그램 명령 / 브라우저 확장 제어 / 데스크톱 AI Studio) 활성화 여부 (false 시 Silent Core 인쇄·문서 처리 모드)
 }
 
 /** 💳 테넌트 구독 요금제 등급 */
@@ -4210,6 +4211,7 @@ export const SEED_TENANTS: Tenant[] = [
       kakaoContract: true,
       autoTaxInvoice: true,
       voiceAssistance: true,
+      agentAiEnabled: true,
     },
     subscription: {
       plan: 'ENTERPRISE',
@@ -4261,6 +4263,7 @@ export const SEED_TENANTS: Tenant[] = [
       kakaoContract: false,
       autoTaxInvoice: true,
       voiceAssistance: false,
+      agentAiEnabled: false,
     },
     subscription: {
       plan: 'STANDARD',
@@ -4369,6 +4372,7 @@ export const SEED_TENANTS: Tenant[] = [
       kakaoContract: false,
       autoTaxInvoice: false,
       voiceAssistance: false,
+      agentAiEnabled: false,
     },
     subscription: {
       plan: 'TRIAL',

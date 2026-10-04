@@ -67,6 +67,56 @@ function saveQueue() {
 
 loadQueue();
 
+// ── 🌐 테넌트별 런타임 정책 엔진 (전사 표준 헌장 1.1, 7.1) ──
+// 테넌트관리센터의 제어에 따라 AI 에이전트 기능 락/언락 (단일 컴파일 무결성 보장)
+const POLICY_FILE = path.join(AGENT_HOME, 'tenant_policy.json');
+let agentPolicy = {
+  agentAiEnabled: true,
+  tenantCode: 'GIYEONLIFT',
+  updatedAt: new Date().toISOString()
+};
+
+function loadPolicy() {
+  try {
+    if (fs.existsSync(POLICY_FILE)) {
+      const data = fs.readFileSync(POLICY_FILE, 'utf8');
+      agentPolicy = Object.assign(agentPolicy, JSON.parse(data));
+    }
+  } catch (e) {}
+}
+
+function savePolicy() {
+  try {
+    if (!fs.existsSync(AGENT_HOME)) {
+      fs.mkdirSync(AGENT_HOME, { recursive: true });
+    }
+    fs.writeFileSync(POLICY_FILE, JSON.stringify(agentPolicy, null, 2), 'utf8');
+  } catch (e) {}
+}
+
+loadPolicy();
+
+function isAiEnabled() {
+  return Boolean(agentPolicy.agentAiEnabled);
+}
+
+function getAgentPolicy() {
+  return agentPolicy;
+}
+
+function updateAgentPolicy(newPolicy) {
+  if (typeof newPolicy === 'object' && newPolicy !== null) {
+    agentPolicy = {
+      ...agentPolicy,
+      ...newPolicy,
+      updatedAt: new Date().toISOString()
+    };
+    savePolicy();
+    broadcastStudioLog('POLICY', `테넌트 정책 동기화 완료: AI기능=${agentPolicy.agentAiEnabled ? '활성화(FULL_AI)' : '비활성화(SILENT_CORE)'}, 테넌트=${agentPolicy.tenantCode || '-'}`);
+  }
+  return agentPolicy;
+}
+
 // 실시간 SSE 이벤트 브로드캐스트
 function broadcastEvent(eventType, payload) {
   const data = JSON.stringify({ type: eventType, data: payload, timestamp: new Date().toISOString() });
@@ -182,6 +232,9 @@ async function parseInstructionIntent(instruction, requestedMode = 'AUTO') {
 
 // ──  작업 큐 등록 및 관리 ──
 async function addTask(instruction, requestedMode = 'AUTO') {
+  if (!isAiEnabled()) {
+    throw new Error('현재 테넌트는 AI 에이전트 기능이 비활성화(Silent Core 모드)되어 있습니다. 인쇄 및 엑셀 문서 처리 전용으로 안전 가동 중입니다.');
+  }
   if (!instruction || !instruction.trim()) {
     throw new Error('지시 내용을 입력해 주십시오.');
   }
@@ -277,8 +330,17 @@ async function executeTask(task) {
 }
 
 // ──  독립 데스크톱 전용 창 실행 ──
-// ──  독립 데스크톱 전용 창 실행 ──
 function launchStudioWindow(port = 5175) {
+  if (!isAiEnabled()) {
+    // Silent Core 모드일 때는 AI 스튜디오 대신 로컬 문서고 폴더를 안전하게 열어줌
+    const archiveDir = path.join(AGENT_HOME, '문서고');
+    try {
+      if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
+      exec(`explorer.exe "${archiveDir}"`);
+    } catch (e) {}
+    return false;
+  }
+
   const url = `http://127.0.0.1:${port}/studio`;
   const browserCandidates = [
     'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -962,6 +1024,186 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
 </html>`;
 }
 
+// ── 🛡️ Silent Core (기본 사무 지원 전용) 안내 UI ──
+function renderSilentCoreHtml(port = 5175, version = 'v2.0.0.Build.6', tenantCode = 'GIYEONLIFT') {
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>eBro Agent - 기본 업무 지원 모드</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #0b0f19;
+      color: #e2e8f0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .card {
+      background-color: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 16px;
+      max-width: 600px;
+      width: 100%;
+      padding: 32px;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border-bottom: 1px solid #1f2937;
+      padding-bottom: 16px;
+    }
+    .logo-badge {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 18px;
+      color: #fff;
+    }
+    .title-area h1 {
+      font-size: 18px;
+      font-weight: 800;
+      color: #f8fafc;
+    }
+    .title-area p {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+    .badge-silent {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background-color: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      color: #93c5fd;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 11.5px;
+      font-weight: 700;
+      width: fit-content;
+    }
+    .desc {
+      font-size: 13px;
+      color: #cbd5e1;
+      line-height: 1.6;
+      background: #0f172a;
+      padding: 14px 16px;
+      border-radius: 10px;
+      border-left: 4px solid #3b82f6;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .grid-item {
+      background-color: #1e293b;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+    }
+    .grid-item .label {
+      font-size: 11px;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+    .grid-item .val {
+      font-size: 13px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-top: 4px;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .btn {
+      flex: 1;
+      padding: 11px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      border: none;
+      transition: all 0.15s;
+    }
+    .btn-primary { background-color: #2563eb; color: #fff; }
+    .btn-primary:hover { background-color: #1d4ed8; }
+    .btn-secondary { background-color: #334155; color: #e2e8f0; }
+    .btn-secondary:hover { background-color: #475569; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="logo-badge">eB</div>
+      <div class="title-area">
+        <h1>eBro Agent — 기본 업무 지원 모드</h1>
+        <p>포트: ${port} | 버전: ${version} | 테넌트: ${tenantCode}</p>
+      </div>
+    </div>
+
+    <div class="badge-silent">
+      <span>●</span>
+      <span>Silent Core (인쇄 & 문서 처리 모드)</span>
+    </div>
+
+    <div class="desc">
+      현재 테넌트 관리 센터 정책에 따라 <strong>AI 어시스턴트 및 확장프로그램 제어 기능이 잠겨 있습니다.</strong><br/>
+      시스템 트레이에서 조용히 상주하며 복합기/라벨 인쇄 큐 관리 및 엑셀 계약서/거래명세서 번들 생성 기능을 안전하게 지원합니다.
+    </div>
+
+    <div class="grid">
+      <div class="grid-item">
+        <div class="label">복합기 / 라벨 인쇄 큐</div>
+        <div class="val" style="color: #4ade80;">정상 가동 (HTTP 5175)</div>
+      </div>
+      <div class="grid-item">
+        <div class="label">엑셀 COM 자동화</div>
+        <div class="val" style="color: #4ade80;">Excel.Application 대기</div>
+      </div>
+      <div class="grid-item">
+        <div class="label">로컬 문서고 저장소</div>
+        <div class="val" style="color: #93c5fd;">C:\\eBroAgent\\문서고</div>
+      </div>
+      <div class="grid-item">
+        <div class="label">AI 메신저 명령 / 확장 제어</div>
+        <div class="val" style="color: #94a3b8;">미사용 (잠금됨)</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" onclick="fetch('/api/open-archive', {method:'POST'}).catch(alert)">
+        로컬 문서고 열기
+      </button>
+      <a class="btn btn-primary" href="https://ebro.run" target="_blank">
+        eBro ERP 웹 포털 이동
+      </a>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 // ──  HTTP 핸들러 라우팅 연동 ──
 async function handleStudioRequest(req, res, pathname, searchParams, port = 5175, version = 'v2.0.0.Build.1', tenantCode = 'GIYEONLIFT') {
   // 0. 스튜디오 파비콘 및 작업표시줄 아이콘 서빙
@@ -991,9 +1233,53 @@ async function handleStudioRequest(req, res, pathname, searchParams, port = 5175
     }
   }
 
+  // 🌐 테넌트 정책 조회 API (/api/policy)
+  if (req.method === 'GET' && pathname === '/api/policy') {
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ success: true, policy: getAgentPolicy() }));
+    return true;
+  }
+
+  // 🌐 테넌트 정책 실시간 핫 동기화 API (/api/policy/sync)
+  if (req.method === 'POST' && pathname === '/api/policy/sync') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body);
+        const updated = updateAgentPolicy(payload);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: true, policy: updated }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return true;
+  }
+
+  // 📂 로컬 문서고 폴더 열기 API (/api/open-archive)
+  if (req.method === 'POST' && pathname === '/api/open-archive') {
+    const archiveDir = path.join(AGENT_HOME, '문서고');
+    try {
+      if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
+      exec(`explorer.exe "${archiveDir}"`);
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: true }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+    return true;
+  }
+
   // 1. 스튜디오 데스크톱 UI 서빙 (/studio, /ui)
   if (req.method === 'GET' && (pathname === '/studio' || pathname === '/studio/' || pathname === '/ui' || pathname === '/ui/')) {
-    const html = renderStudioHtml(port, version, tenantCode);
+    // 🛡️ AI 비활성화(Silent Core 모드) 시 조용한 지원 UI 렌더링
+    const html = isAiEnabled() 
+      ? renderStudioHtml(port, version, tenantCode) 
+      : renderSilentCoreHtml(port, version, tenantCode);
+
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
       'Content-Length': Buffer.byteLength(html)
@@ -1004,6 +1290,16 @@ async function handleStudioRequest(req, res, pathname, searchParams, port = 5175
 
   // 2. 독립 창 실행 트리거 (/api/launch-studio)
   if (req.method === 'POST' && pathname === '/api/launch-studio') {
+    if (!isAiEnabled()) {
+      launchStudioWindow(port); // 문서고 폴더 안전 오픈
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ 
+        success: false, 
+        reason: 'SILENT_CORE', 
+        message: '현재 테넌트는 기본 업무 지원 모드(인쇄 및 엑셀 전용)로 설정되어 있습니다. 로컬 문서고를 열었습니다.' 
+      }));
+      return true;
+    }
     const ok = launchStudioWindow(port);
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify({ success: ok, message: ok ? '데스크톱 독립 스튜디오 창을 실행하였습니다.' : '창 실행에 실패하였습니다.' }));
@@ -1107,5 +1403,8 @@ module.exports = {
   launchStudioWindow,
   addTask,
   checkOllamaStatus,
-  broadcastStudioLog
+  broadcastStudioLog,
+  getAgentPolicy,
+  updateAgentPolicy,
+  isAiEnabled
 };

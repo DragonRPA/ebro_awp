@@ -1,98 +1,49 @@
-# agent/trayIcon.ps1
+﻿# agent/trayIcon.ps1
 # eBro AI Agent Windows System Tray Icon Worker
 param(
     [int]$AgentPid = 0,
-    [int]$Port = 5175,
-    [string]$TenantCode = "GIYEUN"
+    [int]$Port = 5175
 )
 
-try {
-    Add-Content -Path "C:\eBroAgent\tray.log" -Value "[$([DateTime]::Now.ToString('HH:mm:ss'))] Tray worker invoked: PID=$PID, AgentPid=$AgentPid, Port=$Port, Tenant=$TenantCode"
-} catch {}
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
-# 단일 인스턴스 보장 (기존 잔류 프로세스 강제 승계 Takeover & Mutex 확보)
-$mutex = [System.Threading.Mutex]::new($false, "Local\eBroAgentTrayMutex")
-$hasMutex = $false
+# 단일 인스턴스 보장 (Mutex)
+$createdNew = $false
 try {
-    $hasMutex = $mutex.WaitOne(300, $false)
-} catch [System.Threading.AbandonedMutexException] {
-    $hasMutex = $true
-} catch {
-    $hasMutex = $false
-}
-
-if (-not $hasMutex) {
-    # 기존 잔류 trayIcon 프로세스 강제 정리 및 소유권 승계 (Takeover)
-    Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*trayIcon.ps1*' -and $_.ProcessId -ne $PID } | ForEach-Object {
-        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+    $mutex = [System.Threading.Mutex]::new($true, "Local\eBroAgentTrayMutex", [ref]$createdNew)
+    if (-not $createdNew) {
+        exit
     }
-    Start-Sleep -Milliseconds 200
+} catch {}
+
+# 🌐 테넌트 정책에 따른 AI 기능 동적 분기
+$policyPath = "C:\eBroAgent\tenant_policy.json"
+$aiEnabled = $true
+if (Test-Path $policyPath) {
     try {
-        $hasMutex = $mutex.WaitOne(1000, $false)
-    } catch [System.Threading.AbandonedMutexException] {
-        $hasMutex = $true
-    } catch {
-        $hasMutex = $false
-    }
-}
-
-if (-not $hasMutex) {
-    # 이미 정상 인스턴스가 동작 중이므로 즉시 무음 정상 종료
-    exit 0
+        $policyJson = Get-Content $policyPath -Raw | ConvertFrom-Json
+        if ($null -ne $policyJson.agentAiEnabled) {
+            $aiEnabled = [bool]$policyJson.agentAiEnabled
+        }
+    } catch {}
 }
 
 $notify = New-Object System.Windows.Forms.NotifyIcon
-
-# 1순위: 전용 eBroAgent.ico 직접 로드 (시스템 트레이 16x16 고해상도 최적화)
-$icoCandidates = @(
-    "C:\eBroAgent\eBroAgent.ico",
-    (Join-Path $PSScriptRoot "eBroAgent.ico")
-)
-$appIcon = $null
-foreach ($cand in $icoCandidates) {
-    if (Test-Path $cand) {
-        try {
-            $appIcon = [System.Drawing.Icon]::new($cand)
-            if ($appIcon) { break }
-        } catch {}
-    }
-}
-
-# 2순위: eBroAgent.exe에서 앱 아이콘 추출
-if (-not $appIcon) {
-    $exeCandidates = @(
-        "C:\eBroAgent\eBroAgent.exe",
-        (Join-Path $PSScriptRoot "eBroAgent.exe")
-    )
-    foreach ($cand in $exeCandidates) {
-        if (Test-Path $cand) {
-            try {
-                $appIcon = [System.Drawing.Icon]::ExtractAssociatedIcon($cand)
-                if ($appIcon) { break }
-            } catch {}
-        }
-    }
-}
-
-if ($appIcon) {
-    $notify.Icon = $appIcon
+$notify.Icon = [System.Drawing.SystemIcons]::Application
+if ($aiEnabled) {
+    $notify.Text = "eBro AI Agent (Port: $Port)"
 } else {
-    $notify.Icon = [System.Drawing.SystemIcons]::Application
+    $notify.Text = "eBro Agent - 업무 지원 모드 (Port: $Port)"
 }
-
-$notify.Text = "eBro AI Agent"
 $notify.Visible = $true
 
 function Open-Studio {
     $url = "http://127.0.0.1:$Port/studio"
     $candidates = @(
         "C:\Program Files\Google\Chrome\Application\chrome.exe",
-        "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
         "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-        "C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-        (Join-Path $env:LOCALAPPDATA "Microsoft\Edge\Application\msedge.exe")
+        "C:\Program Files\Microsoft\Edge\Application\msedge.exe"
     )
     $browser = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
     if ($browser) {
@@ -102,25 +53,31 @@ function Open-Studio {
     }
 }
 
-$notify.add_DoubleClick({ Open-Studio })
+function Open-Archive {
+    $dir = "C:\eBroAgent\문서고"
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    Start-Process "explorer.exe" $dir
+}
+
+if ($aiEnabled) {
+    $notify.add_DoubleClick({ Open-Studio })
+} else {
+    $notify.add_DoubleClick({ Open-Archive })
+}
 
 $menu = New-Object System.Windows.Forms.ContextMenuStrip
 
-$mStudio = $menu.Items.Add("eBro AI Studio")
-$mStudio.Font = New-Object System.Drawing.Font($menu.Font, [System.Drawing.FontStyle]::Bold)
-$mStudio.add_Click({ Open-Studio })
+if ($aiEnabled) {
+    $mStudio = $menu.Items.Add("eBro AI Studio")
+    $mStudio.Font = New-Object System.Drawing.Font($menu.Font, [System.Drawing.FontStyle]::Bold)
+    $mStudio.add_Click({ Open-Studio })
+}
 
 $mErp = $menu.Items.Add("e-Bro ERP")
-$mErp.add_Click({ Start-Process "https://$($TenantCode.ToLower()).ebro.run" })
+$mErp.add_Click({ Start-Process "https://ebro.run" })
 
-$mFolder = $menu.Items.Add("Local Archive")
-$mFolder.add_Click({
-    $archiveUtf8Bytes = [byte[]]@(0xEB, 0xAC, 0xB8, 0xEC, 0x84, 0x9C, 0xEA, 0xB3, 0xA0)
-    $archiveFolder = [System.Text.Encoding]::UTF8.GetString($archiveUtf8Bytes)
-    $dir = [System.IO.Path]::Combine("C:\eBroAgent", $archiveFolder)
-    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
-    Start-Process "explorer.exe" $dir
-})
+$mFolder = $menu.Items.Add("Local Archive (문서고)")
+$mFolder.add_Click({ Open-Archive })
 
 $menu.Items.Add("-") | Out-Null
 
@@ -136,7 +93,10 @@ $mExit.add_Click({
 
 $notify.ContextMenuStrip = $menu
 
-# 시스템 트레이 상주 (무음 시작)
+$notify.BalloonTipTitle = "eBro AI Agent"
+$notify.BalloonTipText = "Agent is running. Click icon to open Studio."
+$notify.BalloonTipIcon = [System.Windows.Forms.ToolTipIcon]::Info
+$notify.ShowBalloonTip(3000)
 
 if ($AgentPid -gt 0) {
     $timer = New-Object System.Windows.Forms.Timer

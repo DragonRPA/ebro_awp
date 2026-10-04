@@ -16,7 +16,7 @@ const path = require('path');
 const os = require('os');
 const { pipeline } = require('stream');
 const { spawn, exec, execSync } = require('child_process');
-const { handleStudioRequest, launchStudioWindow, broadcastStudioLog } = require('./studioEngine');
+const { handleStudioRequest, launchStudioWindow, broadcastStudioLog, getAgentPolicy, isAiEnabled } = require('./studioEngine');
 
 //  Windows GUI 서브시스템(무음 백그라운드) 환경 콘솔 크래시 원천 차단
 if (process.platform === 'win32') {
@@ -506,6 +506,8 @@ const server = http.createServer(async (req, res) => {
       driveMirrorDir: DRIVE_MIRROR_DIR,
       uptimeSeconds: Math.floor(process.uptime()),
       updateState: updateState,
+      policy: getAgentPolicy(),
+      isAiEnabled: isAiEnabled(),
       timestamp: new Date().toISOString()
     }));
     return;
