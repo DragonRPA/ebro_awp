@@ -30,6 +30,8 @@ import { DemoModeBanner } from './components/DemoModeBanner';
 import { isDemoMode, enterDemoMode } from './services/demoMode';
 import { SidebarCustomizationModal } from './components/SidebarCustomizationModal';
 import { useMenuPreferences } from './hooks/useMenuPreferences';
+import { getDomainMode, getAdminConsoleUrl, getLandingUrl, getTenantUrl } from './utils/domainRouter';
+import { LandingPage } from './pages/LandingPage';
 
 // 페이지 컴포넌트 임포트 (SSOT 언더바 파일명 통일)
 import { Dashboard } from './pages/Dashboard';
@@ -876,6 +878,13 @@ const App: React.FC = () => {
     return <Dashboard />;
   };
 
+  const domainMode = getDomainMode();
+
+  // 🌐 [1단계: ebro.run 공식 홍보 마케팅 랜딩 페이지]
+  if (domainMode === 'LANDING') {
+    return <LandingPage />;
+  }
+
   // 1. 비로그인 상태: 로그인 화면 렌더링
   if (!currentUser) {
     return (
@@ -887,20 +896,53 @@ const App: React.FC = () => {
         }}>
           <div className="card" style={{ width: '100%', maxWidth: '380px', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)' }}>
           <div style={{ textAlign: 'center', marginBottom: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-              <img 
-                src={isDemoMode() ? '/images/ci/ebro_rental_ci.svg' : (currentTenant?.ciUrl || currentTenant?.logoUrl || '/images/ci/giyeun_ci.png')} 
-                alt="CI" 
-                style={{ height: '36px', maxWidth: '130px', objectFit: 'contain' }} 
-                onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
-              />
-              <h1 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--primary)', letterSpacing: '-0.5px', margin: 0 }}>
-                {isDemoMode() ? '(주)e-Bro렌탈' : (currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || '기연리프트')}
-              </h1>
-            </div>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', fontWeight: '600', letterSpacing: '0.3px' }}>
-              {isDemoMode() ? 'e-Bro AWP 고소작업대 ERP' : 'e-Bro ERP System'}
-            </p>
+            {domainMode === 'ADMIN' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                <div style={{
+                  width: '48px', height: '48px', borderRadius: '14px',
+                  background: 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 8px 16px rgba(79, 70, 229, 0.35)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)'
+                }}>
+                  <span style={{ color: '#fff', fontSize: '20px', fontWeight: '900', letterSpacing: '-1px' }}>eB</span>
+                </div>
+                <h1 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--primary)', letterSpacing: '-0.5px', margin: 0 }}>
+                  eBro 플랫폼 최고관리자
+                </h1>
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  color: '#818cf8',
+                  backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                  padding: '2px 8px',
+                  borderRadius: '9999px'
+                }}>
+                  admin.ebro.run 관제탑
+                </span>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>
+                  플랫폼 최고관리자(admin, sys-admin) 전용 로그인
+                </p>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                  <img 
+                    src={isDemoMode() ? '/images/ci/ebro_rental_ci.svg' : (currentTenant?.ciUrl || currentTenant?.logoUrl || '/images/ci/giyeun_ci.png')} 
+                    alt="CI" 
+                    style={{ height: '36px', maxWidth: '130px', objectFit: 'contain' }} 
+                    onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                  />
+                  <h1 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--primary)', letterSpacing: '-0.5px', margin: 0 }}>
+                    {isDemoMode() ? '(주)e-Bro렌탈' : (currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || '기연리프트')}
+                  </h1>
+                </div>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', fontWeight: '600', letterSpacing: '0.3px' }}>
+                  {isDemoMode() ? 'e-Bro AWP 고소작업대 ERP' : 'e-Bro ERP System'}
+                </p>
+              </>
+            )}
           </div>
 
           <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -1019,6 +1061,36 @@ const App: React.FC = () => {
               {isLoggingIn ? '로그인 확인 중...' : '로그인'}
             </button>
           </form>
+
+          {/* 🌐 플랫폼 최고관리자 도메인 접속 시 일반 사용자용 고객사 포털 안내 */}
+          {domainMode === 'ADMIN' && (
+            <div style={{
+              marginTop: '12px',
+              padding: '10px 12px',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(79, 70, 229, 0.12)',
+              border: '1px solid rgba(99, 102, 241, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '12px'
+            }}>
+              <span style={{ color: 'var(--text-secondary)' }}>일반 테넌트 임직원이신가요?</span>
+              <a
+                href={getLandingUrl()}
+                style={{
+                  color: '#818cf8',
+                  fontWeight: '700',
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                고객사 ERP 바로가기 ➔
+              </a>
+            </div>
+          )}
 
           {/* 시연 데모 모드 체험 버튼: 오직 데모 도메인(awp-demo.ebro.run)에서만 노출하며, 기연리프트 실운영 화면에서는 100% 숨김 */}
           {isDemoMode() && (
@@ -1289,6 +1361,52 @@ const App: React.FC = () => {
     <div style={{ display: 'flex', height: '100dvh', maxHeight: '100dvh', flexDirection: 'column', overflow: 'hidden' }}>
       <DemoModeBanner />
       
+      {/* 🌐 플랫폼 최고관리자 관제탑 안내 띠 배너 */}
+      {domainMode === 'ADMIN' && (
+        <div style={{
+          backgroundColor: '#1e1b4b',
+          color: '#e0e7ff',
+          fontSize: '12px',
+          fontWeight: '600',
+          padding: '6px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: '1px solid #3730a3',
+          zIndex: 60,
+          whiteSpace: 'nowrap'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ backgroundColor: '#4f46e5', color: '#fff', padding: '1px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '800' }}>
+              ADMIN
+            </span>
+            <span>eBro 플랫폼 최고관리자 관제탑 (admin.ebro.run) - 멀티테넌트 통합 제어</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <span style={{ color: '#a5b4fc', fontSize: '11px' }}>
+              현재 활성 테넌트: <strong>{currentTenant?.displayName || currentTenant?.tradeName || '기연리프트'}</strong>
+            </span>
+            <a
+              href={getLandingUrl()}
+              style={{
+                color: '#c7d2fe',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '11.5px',
+                fontWeight: '700',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                backgroundColor: 'rgba(255, 255, 255, 0.08)'
+              }}
+            >
+              공식 솔루션 소개 (ebro.run) ➔
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* 상단 네비게이션 헤더 */}
       <header style={{
         height: '64px',
@@ -1310,67 +1428,116 @@ const App: React.FC = () => {
             {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {/* 🏢 테넌트 회사 CI 이미지 (회사이름 바로 왼쪽) */}
-            <img 
-              src={isDemoMode() ? '/images/ci/ebro_rental_ci.svg' : (currentTenant?.ciUrl || currentTenant?.logoUrl || '/images/ci/giyeun_ci.png')} 
-              alt="CI" 
-              style={{ height: '32px', maxWidth: isDemoMode() ? '110px' : '90px', objectFit: 'contain', flexShrink: 0 }} 
-              onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
-            />
-            {/* 🏢 1열: 고객회사명(강조) + 만료상태 / 2열: e-Bro ERP System (작은 글씨) */}
-            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span 
-                  onClick={() => {
-                    if (hasPermission('tenant_management', 'view')) {
-                      setActiveTab('tenant_management');
-                    }
-                  }}
-                  style={{ 
-                    fontSize: '18px', 
-                    fontWeight: '900', 
-                    color: 'var(--text-primary)', 
-                    letterSpacing: '-0.5px', 
-                    whiteSpace: 'nowrap', 
-                    lineHeight: 1.15,
-                    cursor: hasPermission('tenant_management', 'view') ? 'pointer' : 'default'
-                  }}
-                  title={hasPermission('tenant_management', 'view') ? '클릭 시 테넌트 관리로 이동' : undefined}
-                >
-                  {currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || (isDemoMode() ? '(주)e-Bro렌탈' : '기연리프트')}
-                </span>
-                {currentTenant && (() => {
-                  const subInfo = getTenantSubscriptionInfo(currentTenant);
-                  if (subInfo.isExpiringSoon || subInfo.isExpired || subInfo.isGracePeriod) {
-                    return (
-                      <span
-                        title={`구독 만료일자: ${currentTenant.subscription?.endDate || ''} (클릭 시 테넌트 관리로 이동)`}
-                        onClick={() => setActiveTab('tenant_management')}
-                        style={{
-                          padding: '1px 6px',
-                          borderRadius: '10px',
-                          fontSize: '10.5px',
-                          fontWeight: 800,
-                          backgroundColor: subInfo.badgeBg,
-                          color: subInfo.badgeColor,
-                          border: '1px solid rgba(0,0,0,0.08)',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '3px'
-                        }}
-                      >
-                        {subInfo.label}
-                      </span>
-                    );
-                  }
-                  return null;
-                })()}
-              </div>
-              <span style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--primary)', letterSpacing: '0.2px', whiteSpace: 'nowrap', marginTop: '2px' }}>
-                {isDemoMode() ? 'e-Bro AWP ERP' : 'e-Bro ERP System'}
-              </span>
-            </div>
+            {domainMode === 'ADMIN' ? (
+              <>
+                <div style={{
+                  width: '32px', height: '32px', borderRadius: '8px',
+                  background: 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 4px 10px rgba(79, 70, 229, 0.35)',
+                  flexShrink: 0
+                }}>
+                  <span style={{ color: '#fff', fontSize: '15px', fontWeight: '900' }}>eB</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span
+                      onClick={() => setActiveTab('tenant_management')}
+                      style={{
+                        fontSize: '17px',
+                        fontWeight: '900',
+                        color: 'var(--text-primary)',
+                        letterSpacing: '-0.5px',
+                        whiteSpace: 'nowrap',
+                        lineHeight: 1.15,
+                        cursor: 'pointer'
+                      }}
+                      title="클릭 시 테넌트 관리 센터로 이동"
+                    >
+                      eBro 플랫폼 본부
+                    </span>
+                    <span style={{
+                      padding: '1px 6px',
+                      borderRadius: '10px',
+                      fontSize: '10.5px',
+                      fontWeight: 800,
+                      backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                      color: '#818cf8',
+                      border: '1px solid rgba(99, 102, 241, 0.3)'
+                    }}>
+                      admin.ebro.run
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: '700', color: 'var(--primary)', letterSpacing: '0.2px', whiteSpace: 'nowrap', marginTop: '2px' }}>
+                    테넌트 통합 관제 센터
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* 🏢 테넌트 회사 CI 이미지 (회사이름 바로 왼쪽) */}
+                <img 
+                  src={isDemoMode() ? '/images/ci/ebro_rental_ci.svg' : (currentTenant?.ciUrl || currentTenant?.logoUrl || '/images/ci/giyeun_ci.png')} 
+                  alt="CI" 
+                  style={{ height: '32px', maxWidth: isDemoMode() ? '110px' : '90px', objectFit: 'contain', flexShrink: 0 }} 
+                  onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                />
+                {/* 🏢 1열: 고객회사명(강조) + 만료상태 / 2열: e-Bro ERP System (작은 글씨) */}
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span 
+                      onClick={() => {
+                        if (hasPermission('tenant_management', 'view')) {
+                          setActiveTab('tenant_management');
+                        }
+                      }}
+                      style={{ 
+                        fontSize: '18px', 
+                        fontWeight: '900', 
+                        color: 'var(--text-primary)', 
+                        letterSpacing: '-0.5px', 
+                        whiteSpace: 'nowrap', 
+                        lineHeight: 1.15,
+                        cursor: hasPermission('tenant_management', 'view') ? 'pointer' : 'default'
+                      }}
+                      title={hasPermission('tenant_management', 'view') ? '클릭 시 테넌트 관리로 이동' : undefined}
+                    >
+                      {currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || (isDemoMode() ? '(주)e-Bro렌탈' : '기연리프트')}
+                    </span>
+                    {currentTenant && (() => {
+                      const subInfo = getTenantSubscriptionInfo(currentTenant);
+                      if (subInfo.isExpiringSoon || subInfo.isExpired || subInfo.isGracePeriod) {
+                        return (
+                          <span
+                            title={`구독 만료일자: ${currentTenant.subscription?.endDate || ''} (클릭 시 테넌트 관리로 이동)`}
+                            onClick={() => setActiveTab('tenant_management')}
+                            style={{
+                              padding: '1px 6px',
+                              borderRadius: '10px',
+                              fontSize: '10.5px',
+                              fontWeight: 800,
+                              backgroundColor: subInfo.badgeBg,
+                              color: subInfo.badgeColor,
+                              border: '1px solid rgba(0,0,0,0.08)',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px'
+                            }}
+                          >
+                            {subInfo.label}
+                          </span>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
+                  <span style={{ fontSize: '11.5px', fontWeight: '700', color: 'var(--primary)', letterSpacing: '0.2px', whiteSpace: 'nowrap', marginTop: '2px' }}>
+                    {isDemoMode() ? 'e-Bro AWP ERP' : 'e-Bro ERP System'}
+                  </span>
+                </div>
+              </>
+            )}
           </div>
 
           {/* 헤더 좌측 현장 날씨 정보 위젯 */}

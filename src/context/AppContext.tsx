@@ -9,6 +9,7 @@ import { issueHandoverTask, clearHandoverTasks, findActiveTasksForUser, checkAnd
 import { resolveSiteDetailedAddress } from '../utils/nativeLauncher';
 import { emailService } from '../services/email';
 import { sortCustomersByName } from '../utils/hangulSearch';
+import { getDomainMode } from '../utils/domainRouter';
 
 export interface AssetSaleItem {
   assetId: string;
@@ -669,7 +670,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
 
   // Navigation / Routing states
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    return (typeof window !== 'undefined' && getDomainMode() === 'ADMIN') ? 'tenant_management' : 'dashboard';
+  });
   const [navigationPayload, setNavigationPayload] = useState<any>(null);
 
   // 글로벌 커스텀 에러 모달 상태
@@ -1010,11 +1013,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else {
         localStorage.removeItem('auto_user');
       }
+      if (getDomainMode() === 'ADMIN') {
+        setActiveTab('tenant_management');
+      }
       logPrivacyAccess('LOGIN', 'login', '개발자 최고관리자 로그인 성공', {
         userId: fallbackAdmin.loginId,
         userName: fallbackAdmin.name
       }).catch(console.error);
       return { success: true };
+    }
+
+    // 🌐 플랫폼 최고관리자 도메인(admin.ebro.run) 접속 시 일반 계정 차단
+    if (getDomainMode() === 'ADMIN') {
+      return {
+        success: false,
+        reason: 'admin.ebro.run은 eBro 플랫폼 최고관리자 전용 관제탑입니다.\n일반 테넌트 임직원께서는 각 사 전용 도메인 또는 ebro.run 메인 포털에서 접속해 주십시오.'
+      };
     }
 
     // 2. 개발 전용 테스트 계정 보장 (manager, user, mechanic)
