@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { 
-  Building2, Plus, Edit2, Trash2, Globe, Shield, Check, ExternalLink, 
+  Building2, Database, Plus, Edit2, Trash2, Globe, Shield, Check, ExternalLink, 
   Download, Search, RefreshCw, Eye, EyeOff, Star, Upload, FileText, Smartphone,
   Mic, FileSignature, Receipt, ArrowRight, ToggleLeft, ToggleRight, X,
   MapPin, CreditCard, Layers, Calendar, Clock, Key, AlertTriangle, 
@@ -26,6 +26,14 @@ import {
   resetTenantTemplate,
   getDefaultTemplate
 } from '../services/universalTemplateEngine';
+import * as XLSX from 'xlsx';
+import {
+  parseWorkbookToEntities,
+  ingestExcelInitialData,
+  resetAllDatabaseTables,
+  exportInitialDataExcelTemplate,
+  ParsedInitialData
+} from '../services/migrationEngine';
 import { analyzeBusinessLicense, formatBizRegNo, BusinessLicenseAnalysisResult } from '../services/visionOcrService';
 
 export const TenantManagementPage: React.FC = () => {
@@ -46,11 +54,21 @@ export const TenantManagementPage: React.FC = () => {
   // 2. 모달 상태
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
-  const [modalTab, setModalTab] = useState<'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'AGENTS' | 'TEMPLATES'>('BASIC');
+  const [modalTab, setModalTab] = useState<'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'AGENTS' | 'TEMPLATES' | 'INITIAL_DB'>('BASIC');
   const [tenantHeartbeats, setTenantHeartbeats] = useState<any[]>([]);
   const [isLoadingHeartbeats, setIsLoadingHeartbeats] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [pageSearchKeyword, setPageSearchKeyword] = useState<string>('');
+
+  // 9. 초기 DB 업로드 (INITIAL_DB) 상태
+  const [initialDbFile, setInitialDbFile] = useState<File | null>(null);
+  const [initialDbParsed, setInitialDbParsed] = useState<ParsedInitialData | null>(null);
+  const [isInitialDbParsing, setIsInitialDbParsing] = useState<boolean>(false);
+  const [isInitialDbIngesting, setIsInitialDbIngesting] = useState<boolean>(false);
+  const [initialDbProgress, setInitialDbProgress] = useState<{ step: number; total: number; message: string }>({ step: 0, total: 13, message: '' });
+  const [initialDbResultMsg, setInitialDbResultMsg] = useState<string>('');
+  const [initialDbErrorMsg, setInitialDbErrorMsg] = useState<string>('');
+  const initialDbFileInputRef = useRef<HTMLInputElement>(null);
 
   // 서식 관리 (TEMPLATES) 상태
   const [selectedDocType, setSelectedDocType] = useState<TemplateDocType>('CONTRACT');
@@ -180,7 +198,7 @@ export const TenantManagementPage: React.FC = () => {
 
   // ── 테넌트 등록/수정 모달 오픈 ──
   // ── 테넌트 등록/수정 모달 오픈 ──
-  const handleOpenModal = (tenant?: Tenant, initialTab: 'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'AGENTS' | 'TEMPLATES' = 'BASIC') => {
+  const handleOpenModal = (tenant?: Tenant, initialTab: 'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'AGENTS' | 'TEMPLATES' | 'INITIAL_DB' = 'BASIC') => {
     setModalTab(initialTab);
     setPageSearchKeyword('');
     if (tenant) {
@@ -1472,6 +1490,7 @@ export const TenantManagementPage: React.FC = () => {
                 { key: 'PAGES', label: '페이지 노출 관리' },
                 { key: 'AGENTS', label: '에이전트 관제' },
                 { key: 'TEMPLATES', label: '서식 관리' },
+                { key: 'INITIAL_DB', label: '초기 DB 업로드' },
               ].map(tab => (
                 <button
                   key={tab.key}

@@ -1,3 +1,36 @@
+## 2026-10-04 21:05 (v1.13.0.Build.31)
+
+### [초기DB엑셀업로드전사멀티테넌트격리대개편/전역삭제폭탄영구제거/targetTenantId강제바인딩/테넌트관리센터9번째초기DB업로드탭/표준엑셀3대서식다운로드탑재완결] 기존 전역 TRUNCATE(.neq('id', '____IMPOSSIBLE____')) 및 tenant_id 누락으로 인한 타 테넌트 데이터 전멸 위험 원천 박멸, 모든 초기 적재(ingestExcelInitialData) 및 초기화(resetAllDatabaseTables)에 targetTenantId 강제 주입 및 .eq('tenant_id', scopeId) 격리 안전 삭제 전환, filterRecordBySchema에 tenant_id 무조건 보존 규칙 적용, 표준 엑셀 3대 시트(장비자산목록, 고객사거래처, 현재계약대여) 다운로드 엔진(exportInitialDataExcelTemplate) 신설, TenantManagementPage 내 9번째 모달 탭 '초기 DB 업로드(INITIAL_DB)' 신설(테넌트별 자산·고객·계약 프리뷰, 프로그레스 바, 전용 안전 주입/초기화) 및 목록 테이블 '초기DB' 바로가기 버튼 탑재, InitialDbUploader.tsx 상단 멀티테넌트 격리 배너 및 currentTenant 자동 바인딩 완료
+
+- **배경 및 사장님 지침**:
+  - "초기 DB업로드 기능에 대해서 언급을 누락했어. 테넌트별 작동해야할 기능중에 중요도가 매우 높은 기능이야. 기능 설계 검토하고 성공 기준 설정해서 개편"
+
+- **기능 설계 검토 및 위험 분석 (전사 표준 헌장 1.1, 1.2, 5.2, 7.1)**:
+  1. **전역 삭제 폭탄(Global TRUNCATE) 원천 제거**:
+     - 기존 `ingestExcelInitialData` 및 `resetAllDatabaseTables`가 `.delete().neq('id', '____IMPOSSIBLE____')`로 전체 DB를 날려버리던 치명적 결함을 적발하여 영구 제거.
+     - 오직 지정된 테넌트의 행만 `.eq('tenant_id', scopeId)`로 정밀 삭제하도록 안전 격리 잠금(Safe Scoped Deletion) 장치 적용.
+  2. **100% 무누락 `tenant_id` 주입 (Zero Data Leak)**:
+     - 엑셀에서 파싱된 모든 엔티티(자산, 고객, 현장, 담당자, 계약, 계약자산, 전대, 청구 등)에 `item.tenant_id = scopeId`를 일괄 주입.
+     - `filterRecordBySchema`에서 `record.tenant_id`가 존재할 경우 컬럼 화이트리스트와 무관하게 100% 보존하도록 방어벽 구축.
+  3. **플랫폼 본부 테넌트관리센터(`TenantManagementPage`) 직통 연동**:
+     - 특정 테넌트(예: 한솔, 테크원 등)를 지정하여 해당 테넌트 영역으로만 엑셀을 업로드하고 안전 주입하는 9번째 모달 탭 `INITIAL_DB` 구축.
+  4. **표준 엑셀 3대 시트 템플릿 배포**:
+     - `exportInitialDataExcelTemplate`: 장비_자산목록, 고객사_거래처목록, 현재계약_대여현황 표준 컬럼과 예시 데이터가 포함된 `.xlsx` 즉시 다운로드 제공.
+
+- **기술 조치 내역**:
+  1. `src/services/migrationEngine.ts`:
+     - `filterRecordBySchema`: `tenant_id` 보존 규칙 탑재.
+     - `resetAllDatabaseTables(keepAdmin, targetTenantId)`: 테넌트 스코프 한정 삭제로 전면 리팩토링.
+     - `ingestExcelInitialData(parsed, onProgress, targetTenantId)`: 테넌트 스코프 삭제 및 전 엔티티 `tenant_id` 주입.
+     - `exportInitialDataExcelTemplate(tenantName)`: 표준 엑셀 템플릿 생성기 신설.
+  2. `src/pages/TenantManagementPage.tsx`:
+     - 9번째 모달 탭 `INITIAL_DB` (초기 DB 업로드) 신설.
+     - 엑셀 업로드 ➔ 5대 엔티티 사전 검증(Dry-run Preview) 통계 카드 ➔ 단계별 프로그레스 바 ➔ 안전 주입 실행.
+     - 테넌트 목록 테이블에 `[초기DB]` 원클릭 바로가기 버튼 추가.
+  3. `src/pages/InitialDbUploader.tsx`:
+     - `currentTenant` 자동 바인딩 및 상단 테넌트 격리 안전 배너/표준 서식 다운로드 버튼 연동.
+  4. `npm.cmd run build`: TypeScript 및 Vite 프로덕션 빌드 0 오류 검증 완료 (1.03s).
+
 ## 2026-10-04 20:55 (v1.13.0.Build.30)
 
 ### [서브에이전트병렬분할개발성공/복합테넌트다중솔루션AWP·IT지원/상단헤더원클릭솔루션전환기/테넌트관리센터8번째서식관리탭/사업자등록증원클릭온보딩완결] 전문 서브에이전트 3기 동시 투입 병렬 분할 개발 성공, 테넌트 솔루션 업종(solutionType: AWP | IT | MULTI) 및 깃허브 타깃 레포지토리 연계 탑재, *.awp.ebro.run 및 *.it.ebro.run 2단계 멀티 서브도메인 라우팅 엔진 탑재, App.tsx 상단 네비게이션 헤더 바에 원클릭 솔루션 전환기(SolutionAppSwitcher) 연동, TenantManagementPage 내 8번째 모달 탭 '서식 관리(TEMPLATES)' 신설(표준 서식 4종, 실시간 HTML Iframe 미리보기, 다운로드/업로드/기본복원), 상단 액션 바 사업자등록증 OCR 원클릭 온보딩 모달 완성

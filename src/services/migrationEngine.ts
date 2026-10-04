@@ -204,6 +204,10 @@ export function filterRecordBySchema(table: string, record: any): any {
       filtered[col] = record[col];
     }
   });
+  // 🛡️ 멀티테넌트 필수 격리 필드 보존: tenant_id가 존재하면 화이트리스트와 무관하게 100% 보존
+  if (record.tenant_id !== undefined) {
+    filtered.tenant_id = record.tenant_id;
+  }
   return filtered;
 }
 
@@ -495,7 +499,10 @@ export async function exportFullDatabaseBackup(): Promise<{ backupData: Record<s
 // ──────────────────────────────────────────────
 // 3. 기존 비즈니스 데이터 전체 안전 초기화 모듈 (FK 역순)
 // ──────────────────────────────────────────────
-export async function resetAllDatabaseTables(keepAdmin: boolean = true): Promise<{ success: boolean; message: string }> {
+export async function resetAllDatabaseTables(
+  keepAdmin: boolean = true,
+  targetTenantId?: string
+): Promise<{ success: boolean; message: string }> {
   const DELETION_ORDER = [
     'settlement_payment_logs',
     'purchase_settlement_items',
@@ -560,20 +567,24 @@ export async function resetAllDatabaseTables(keepAdmin: boolean = true): Promise
   ];
 
   try {
+    const scopeId = targetTenantId || 'giyeonlift';
     if (supabase) {
       for (const table of DELETION_ORDER) {
-        const { error } = await supabase.from(table).delete().neq('id', 'KEEP_NOTHING_ALL');
-        if (error && !error.message.includes('not found')) {
+        // 🛡️ 멀티테넌트 안전 삭제: 타 테넌트 데이터 침범 절대 방지, 오직 대상 테넌트 레코드만 한정 삭제
+        const { error } = await supabase.from(table).delete().eq('tenant_id', scopeId);
+        if (error && !error.message.includes('not found') && !error.message.includes('tenant_id')) {
           console.warn(`[Reset Table Warning] ${table}:`, error.message);
         }
       }
     } else {
       DELETION_ORDER.forEach(tbl => {
-        (db as any)[tbl] = [];
+        if (Array.isArray((db as any)[tbl])) {
+          (db as any)[tbl] = (db as any)[tbl].filter((r: any) => r.tenant_id && r.tenant_id !== scopeId);
+        }
       });
     }
 
-    return { success: true, message: '전체 비즈니스 테이블 안전 초기화 완료' };
+    return { success: true, message: `[${scopeId}] 테넌트 비즈니스 데이터 안전 초기화 완료` };
   } catch (error: any) {
     return { success: false, message: `초기화 오류: ${error.message}` };
   }
@@ -1807,14 +1818,16 @@ async function batchUpsertChunked(table: string, records: any[], chunkSize: numb
 
 export async function ingestExcelInitialData(
   parsed: ParsedInitialData,
-  onProgress?: (step: number, total: number, message: string) => void
+  onProgress?: (step: number, total: number, message: string) => void,
+  targetTenantId: string = 'giyeonlift'
 ): Promise<{ success: boolean; report: ReconciliationReport; message: string }> {
   try {
     const totalSteps = 13;
+    const scopeId = targetTenantId || 'giyeonlift';
 
-    // Step 0: 기존 비즈니스 데이터 전체 삭제 (stale 데이터 완전 차단)
-    // upsert만으로는 ID가 다른 구버전 행이 잔류하므로, 재적재 전 FK 역순으로 DELETE ALL 수행
-    onProgress?.(0, totalSteps, '0/13: 기존 비즈니스 데이터 정리 중 (stale 행 완전 삭제)...');
+    // Step 0: 기존 비즈니스 데이터 정리 (대상 테넌트 한정 안전 삭제)
+    // 🛡️ 멀티테넌트 원칙: 타 테넌트의 데이터는 절대 건드리지 않고, 오직 scopeId 테넌트 행만 격리 삭제
+    onProgress?.(0, totalSteps, `0/13: [${scopeId}] 기존 데이터 정리 중 (해당 테넌트 격리 삭제)...`);
     if (supabase) {
       const TRUNCATE_ORDER = [
         'asset_inout_logs',
@@ -1836,8 +1849,8 @@ export async function ingestExcelInitialData(
       ];
       for (const table of TRUNCATE_ORDER) {
         try {
-          const { error } = await supabase.from(table).delete().neq('id', '____IMPOSSIBLE____');
-          if (error) {
+          const { error } = await supabase.from(table).delete().eq('tenant_id', scopeId);
+          if (error && !error.message.includes('not found') && !error.message.includes('tenant_id')) {
             console.warn(`[Ingest] pre-truncate warning for ${table}:`, error.message);
           }
         } catch (e) {
@@ -1845,6 +1858,35 @@ export async function ingestExcelInitialData(
         }
       }
     }
+
+    // 🛡️ 멀티테넌트 필수: 파싱된 모든 엔티티에 scopeId (tenant_id) 강제 일괄 주입
+    const injectTenantId = (items: any[]) => {
+      if (!Array.isArray(items)) return;
+      items.forEach(item => {
+        if (item && typeof item === 'object') {
+          item.tenant_id = scopeId;
+        }
+      });
+    };
+
+    injectTenantId(parsed.products);
+    injectTenantId(parsed.vendors);
+    injectTenantId(parsed.customers);
+    injectTenantId(parsed.customerSites);
+    injectTenantId(parsed.customerContacts);
+    injectTenantId(parsed.assets);
+    injectTenantId(parsed.contracts);
+    injectTenantId(parsed.contractHistories);
+    injectTenantId(parsed.contractAssets);
+    injectTenantId(parsed.externalLeases);
+    injectTenantId(parsed.deliveries);
+    injectTenantId(parsed.outboundInspections);
+    injectTenantId(parsed.assetInOutLogs);
+    injectTenantId(parsed.billings);
+    injectTenantId(parsed.billingDetails);
+    injectTenantId(parsed.purchaseBillings);
+    injectTenantId(parsed.purchaseBillingDetails);
+    injectTenantId(parsed.receivables);
 
     // Step 1: Products & R2 Docs
     onProgress?.(1, totalSteps, `1/13: 장비 모델 마스터 (${parsed.products.length}종 & R2 제원표 연동) 적재 중...`);
@@ -4847,6 +4889,52 @@ export async function syncInspectionChecklistFromBandRepairs(
   }
 }
 
+/**
+ * 📊 신규 테넌트 초기 데이터 업로드를 위한 표준 엑셀 템플릿(3대 핵심 시트) 생성 및 브라우저 다운로드
+ */
+export function exportInitialDataExcelTemplate(tenantName: string = '신규테넌트'): void {
+  const wb = XLSX.utils.book_new();
 
+  // 1. 자산_장비목록 시트
+  const assetHeaders = [
+    '관리번호*', '제조사*', '모델명*', '작업높이(m)', '장비상태*',
+    '시리얼번호', '도입일자', '취득가액', '월렌탈료', '일렌탈료', '주기장명', '비고'
+  ];
+  const sampleAssets = [
+    ['KY-001', 'GENIE', 'GS-1930', 7.8, '대여가능', 'GS1930-100234', '2024-01-15', 12000000, 350000, 25000, '본사 주기장', '초기 도입 장비'],
+    ['KY-002', 'SKYJACK', 'SJ3219', 7.8, '대여중', 'SJ3219-58912', '2024-03-20', 11500000, 350000, 25000, '제1 주기장', '정기점검 완료'],
+    ['KY-003', 'DINGLI', 'JCPT1008HD', 10.0, '대여가능', 'DL1008-88219', '2024-06-10', 14000000, 450000, 30000, '본사 주기장', '']
+  ];
+  const wsAssets = XLSX.utils.aoa_to_sheet([assetHeaders, ...sampleAssets]);
+  XLSX.utils.book_append_sheet(wb, wsAssets, '장비_자산목록');
 
+  // 2. 고객사_거래처목록 시트
+  const customerHeaders = [
+    '고객사명*', '사업자등록번호', '대표자명', '대표연락처', '계산서이메일',
+    '기본현장명', '현장주소', '결제마감일(일)', '담당자명', '담당자연락처'
+  ];
+  const sampleCustomers = [
+    ['(주)현대건설', '101-81-00123', '김철수', '02-1234-5678', 'tax@hdec.co.kr', '고덕 삼성 P4 신축현장', '경기 평택시 고덕면', 30, '이과장', '010-1234-5678'],
+    ['(주)삼성물산', '102-81-00456', '이영희', '02-8765-4321', 'tax@samsung.com', '용인 원삼 반도체 클러스터', '경기 용인시 처인구 원삼면', 30, '박차장', '010-9876-5432'],
+    ['(주)포스코이앤씨', '103-81-00789', '박민수', '031-111-2222', 'invoice@poscoenc.com', '송도 바이오 연구소 현장', '인천 연수구 송도동', 25, '정부장', '010-5555-6666']
+  ];
+  const wsCustomers = XLSX.utils.aoa_to_sheet([customerHeaders, ...sampleCustomers]);
+  XLSX.utils.book_append_sheet(wb, wsCustomers, '고객사_거래처목록');
 
+  // 3. 현재계약_대여현황 시트
+  const contractHeaders = [
+    '계약번호*', '고객사명*', '자산번호*', '대여시작일*', '대여종료일',
+    '월렌탈료', '현장명', '현장주소', '운송비부담', '특약사항'
+  ];
+  const sampleContracts = [
+    ['CNT-2026-001', '(주)현대건설', 'KY-002', '2026-08-01', '2026-12-31', 350000, '고덕 삼성 P4 신축현장', '경기 평택시 고덕면', '임차인부담', '배터리 매일 충전 필수'],
+    ['CNT-2026-002', '(주)삼성물산', 'KY-003', '2026-09-15', '2027-03-31', 450000, '용인 원삼 반도체 클러스터', '경기 용인시 처인구 원삼면', '임대인부담', '월 1회 정기 방문점검']
+  ];
+  const wsContracts = XLSX.utils.aoa_to_sheet([contractHeaders, ...sampleContracts]);
+  XLSX.utils.book_append_sheet(wb, wsContracts, '현재계약_대여현황');
+
+  // 파일 다운로드
+  const safeName = tenantName.replace(/[^가-힣a-zA-Z0-9_-]/g, '_');
+  const fileName = `eBro_초기데이터_업로드_표준양식_${safeName}.xlsx`;
+  XLSX.writeFile(wb, fileName);
+}

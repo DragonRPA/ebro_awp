@@ -25,7 +25,8 @@ import {
   reconcileUnassignedBandRepairsWithAssets,
   syncInspectionChecklistFromBandRepairs,
   BandAsAnalysisResult,
-  ParsedBandAsRecord
+  ParsedBandAsRecord,
+  exportInitialDataExcelTemplate
 } from '../services/migrationEngine';
 import {
   parseConsumableInventoryText,
@@ -76,7 +77,7 @@ import {
 import { OrphanDataCleanupStudio } from '../components/OrphanDataCleanupStudio';
 
 export const InitialDbUploader: React.FC = () => {
-  const { showSuccessToast, showErrorModal, fullRefreshFromServer, users, customers, contracts, contractAssets, sites, customerSites: appCustomerSites, assets, importBandAsHistory, currentUser } = useApp();
+  const { showSuccessToast, showErrorModal, fullRefreshFromServer, users, customers, contracts, contractAssets, sites, customerSites: appCustomerSites, assets, importBandAsHistory, currentUser, currentTenant } = useApp();
   const customerSites = sites || appCustomerSites || db.sites || [];
 
   // 상태 관리
@@ -393,7 +394,8 @@ export const InitialDbUploader: React.FC = () => {
 
     setIsResetting(true);
     try {
-      const res = await resetAllDatabaseTables(keepAdminUser);
+      const targetTenantId = currentTenant?.id || 'giyeonlift';
+      const res = await resetAllDatabaseTables(keepAdminUser, targetTenantId);
       if (res.success) {
         showSuccessToast?.(res.message);
         // ✅ DB 초기화 완료 후 localStorage stale 캐시 차단 + Supabase 최신 상태로 React state 즉시 동기화
@@ -1182,9 +1184,10 @@ export const InitialDbUploader: React.FC = () => {
     setProgressInfo({ step: 0, total: 13, message: '초기 DB 적재 파이프라인 시작...' });
 
     try {
+      const targetTenantId = currentTenant?.id || 'giyeonlift';
       const result = await ingestExcelInitialData(parsedData, (step, total, message) => {
         setProgressInfo({ step, total, message });
-      });
+      }, targetTenantId);
 
       if (result.success) {
         setReconciliationReport(result.report);
