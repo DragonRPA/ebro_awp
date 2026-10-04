@@ -28,6 +28,7 @@ import { AgenticAssetLifecyclePage } from './pages/AgenticAssetLifecyclePage';
 import { markErpReady, markErpStatus } from './services/appReadySignal';
 import { DemoModeBanner } from './components/DemoModeBanner';
 import { isDemoMode, enterDemoMode } from './services/demoMode';
+import { SolutionAppSwitcher } from './components/SolutionAppSwitcher';
 import { SidebarCustomizationModal } from './components/SidebarCustomizationModal';
 import { useMenuPreferences } from './hooks/useMenuPreferences';
 import { getDomainMode, getAdminConsoleUrl, getLandingUrl, getTenantUrl } from './utils/domainRouter';
@@ -340,6 +341,20 @@ const App: React.FC = () => {
     const unsub = jobNotificationService.onSettingsChange(setJobNotifySettings);
     return () => unsub();
   }, []);
+
+  // 🔄 AWP / IT 솔루션 전환 스위처 노출 여부 (전사 표준 헌장 1.1, 3.1)
+  // MULTI 솔루션 테넌트이거나 데모 모드 / 개발자 계정 / 로컬 환경일 때 항상 테스트 가능하도록 노출
+  const isDevOrDemo = Boolean(
+    isDemoMode() ||
+    (currentUser && (currentUser.loginId === 'admin' || currentUser.id === 'sys-admin' || currentUser.role === 'ADMIN')) ||
+    (typeof window !== 'undefined' && (
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.search.includes('mode=dev') ||
+      window.location.search.includes('solution=')
+    ))
+  );
+  const showSolutionSwitcher = currentTenant?.solutionType === 'MULTI' || isDevOrDemo;
 
   // ─── 메뉴 검색 네비게이터 상태 ───
   const [menuSearchOpen, setMenuSearchOpen] = useState(false);
@@ -1680,6 +1695,11 @@ const App: React.FC = () => {
 
         {/* 사용자 정보 및 화면 모드 (밝은화면모드 / 어두운화면모드) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+
+          {/* 🔄 AWP / IT 솔루션 전환 스위처 (전사 표준 헌장 3.1) */}
+          {showSolutionSwitcher && (
+            <SolutionAppSwitcher currentTenant={currentTenant} />
+          )}
 
           {/* 📖 인앱 오버레이 매뉴얼 보기/작성 버튼 */}
           <ManualHeaderButtons

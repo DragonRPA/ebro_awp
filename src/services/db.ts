@@ -269,10 +269,14 @@ export function getTenantSubscriptionInfo(tenant: Tenant): {
   };
 }
 
+export type SolutionType = 'AWP' | 'IT' | 'MULTI';
+
 export interface Tenant {
   id: string;                          // 테넌트 고유 ID (예: 'tenant-1' 또는 'tenant-giyeun')
   tenantCode: string;                  // 테넌트 영문 코드 (예: 'GIYEUN')
   subdomain?: string;                  // 전용 서브도메인 (예: 'giyeun' -> giyeun.ebro.run)
+  solutionType?: SolutionType;         // 솔루션 업종 분류 (AWP: 고소작업대, IT: IT 인프라/장비, MULTI: 복합 사업군)
+  targetRepo?: string;                 // 연동 깃허브 레포지토리 (예: 'DragonRPA/ebro_awp', 'DragonRPA/ebro_it')
   features?: TenantFeatures;           // 활성화된 모듈 및 라이선스 플러그인
   subscription?: TenantSubscription;   // 💳 구독 요금제 및 만료(Expire) 라이선스 정보
   systemName: string;                  // 시스템 기본 명칭 ('e-Bro System')
@@ -4089,6 +4093,7 @@ export const SEED_TENANTS: Tenant[] = [
   {
     id: 'tenant-1',
     tenantCode: 'GIYEONLIFT',
+    solutionType: 'MULTI',
     systemName: 'eBro System',
     displayName: '기연리프트',
     corporateName: '주식회사 기연리프트',
@@ -4205,6 +4210,8 @@ export const SEED_TENANTS: Tenant[] = [
     logoUrl: '/images/ci/giyeonlift_ci.png',
     ciUrl: '/images/ci/giyeonlift_ci.png',
     subdomain: 'giyeonlift',
+    solutionType: 'AWP',
+    targetRepo: 'DragonRPA/ebro_awp',
     features: {
       telegramBot: true,
       callRecordingStt: true,
@@ -4257,6 +4264,8 @@ export const SEED_TENANTS: Tenant[] = [
     id: 'tenant-2',
     tenantCode: 'HANSOL',
     subdomain: 'hansol',
+    solutionType: 'AWP',
+    targetRepo: 'DragonRPA/ebro_awp',
     features: {
       telegramBot: true,
       callRecordingStt: true,
@@ -4366,6 +4375,8 @@ export const SEED_TENANTS: Tenant[] = [
     id: 'tenant-3',
     tenantCode: 'SAMWOO',
     subdomain: 'samwoo',
+    solutionType: 'AWP',
+    targetRepo: 'DragonRPA/ebro_awp',
     features: {
       telegramBot: true,
       callRecordingStt: false,
@@ -4426,6 +4437,184 @@ export const SEED_TENANTS: Tenant[] = [
     createdAt: '2026-09-01T00:00:00.000Z',
     updatedAt: new Date().toISOString(),
     allowCustomBillingStatement: false,
+  },
+  {
+    id: 'tenant-4',
+    tenantCode: 'TECHONE',
+    subdomain: 'techone',
+    solutionType: 'IT',
+    targetRepo: 'DragonRPA/ebro_it',
+    features: {
+      telegramBot: true,
+      callRecordingStt: true,
+      kakaoContract: true,
+      autoTaxInvoice: true,
+      voiceAssistance: true,
+      agentAiEnabled: true,
+    },
+    subscription: {
+      plan: 'PRO',
+      status: 'ACTIVE',
+      startDate: '2025-01-01',
+      endDate: '2027-12-31',
+      gracePeriodDays: 14,
+      billingCycle: 'YEARLY',
+      monthlyFee: 1200000,
+      autoRenew: true,
+      maxAssets: 500,
+      maxUsers: 25,
+      licenseKey: 'EBR-TECHONE-20271231-IT99',
+      memo: 'IT 인프라 및 서버 렌탈 전용 솔루션',
+    },
+    systemName: 'e-Bro IT Solution',
+    displayName: '테크원네트웍스',
+    corporateName: '주식회사 테크원네트웍스',
+    tradeName: '(주)테크원',
+    businessNumber: '107-87-12345',
+    corporateRegistrationNumber: '110111-4567890',
+    representativeName: '김테크',
+    openingDate: '2021-05-10',
+    businessAddress: '서울특별시 구로구 디지털로 300, 11층',
+    headOfficeAddress: '서울특별시 구로구 디지털로 300, 11층',
+    businessCategory: '정보통신업',
+    businessItem: '컴퓨터 및 서버 임대·유지보수',
+    businessTypes: [
+      { bizType: '정보통신업', bizItem: '소프트웨어 개발 및 IT인프라 임대' },
+      { bizType: '도매및소매업', bizItem: '컴퓨터 및 주변장치' }
+    ],
+    isUnitTaxation: false,
+    taxEmail: 'tax@techone.co.kr',
+    taxOffice: '구로세무서장',
+    tel: '02-850-1234',
+    fax: '02-850-1235',
+    salesPhone: '02-850-1230',
+    email: 'contact@techone.co.kr',
+    workplaces: [
+      {
+        id: 'wp-techone-01',
+        workplaceCode: 'HQ',
+        name: '구로 본사 IDC 센터',
+        isHeadquarter: true,
+        businessNumber: '107-87-12345',
+        address: '서울특별시 구로구 디지털로 300, 11층',
+        tel: '02-850-1234',
+        managerName: '김테크',
+        createdAt: '2021-05-10T00:00:00.000Z',
+      }
+    ],
+    yards: [],
+    bankAccounts: [
+      {
+        bankName: '신한은행',
+        accountNumber: '110-382-990112',
+        accountHolder: '주식회사 테크원네트웍스',
+        isDefault: true,
+      }
+    ],
+    logoUrl: '/images/ci/ebro_rental_ci.svg',
+    ciUrl: '/images/ci/ebro_rental_ci.svg',
+    stampImageUrl: OFFICIAL_STAMP_BASE64,
+    status: 'ACTIVE',
+    isDefault: false,
+    createdAt: '2021-05-10T00:00:00.000Z',
+    updatedAt: new Date().toISOString(),
+    allowCustomBillingStatement: false,
+  },
+  {
+    id: 'tenant-5',
+    tenantCode: 'ACE_GROUP',
+    subdomain: 'ace',
+    solutionType: 'MULTI',
+    targetRepo: 'DragonRPA/ebro_awp,DragonRPA/ebro_it',
+    features: {
+      telegramBot: true,
+      callRecordingStt: true,
+      kakaoContract: true,
+      autoTaxInvoice: true,
+      voiceAssistance: true,
+      agentAiEnabled: true,
+    },
+    subscription: {
+      plan: 'ENTERPRISE',
+      status: 'ACTIVE',
+      startDate: '2024-01-01',
+      endDate: '2028-12-31',
+      gracePeriodDays: 30,
+      billingCycle: 'YEARLY',
+      monthlyFee: 2500000,
+      autoRenew: true,
+      maxAssets: 0,
+      maxUsers: 0,
+      licenseKey: 'EBR-ACEGROUP-20281231-MULTI',
+      memo: 'AWP + IT 복합 멀티 솔루션 그룹 엔터프라이즈 라이선스',
+    },
+    systemName: 'e-Bro Multi Hub',
+    displayName: '에이스종합렌탈그룹',
+    corporateName: '주식회사 에이스그룹',
+    tradeName: '(주)에이스그룹',
+    businessNumber: '220-88-99887',
+    corporateRegistrationNumber: '110111-9876543',
+    representativeName: '박에이스',
+    openingDate: '2019-08-20',
+    businessAddress: '경기도 수원시 영통구 광교중앙로 170',
+    headOfficeAddress: '경기도 수원시 영통구 광교중앙로 170',
+    businessCategory: '종합임대서비스업',
+    businessItem: '고소장비 및 IT 인프라 통합 렌탈',
+    businessTypes: [
+      { bizType: '사업지원및임대서비스업', bizItem: '건설기계 및 고소장비 임대' },
+      { bizType: '정보통신업', bizItem: '컴퓨터 및 IT 장비 임대' }
+    ],
+    isUnitTaxation: false,
+    taxEmail: 'tax@acegroup.co.kr',
+    taxOffice: '동수원세무서장',
+    tel: '031-210-9000',
+    fax: '031-210-9001',
+    salesPhone: '010-9988-7766',
+    email: 'contact@acegroup.co.kr',
+    workplaces: [
+      {
+        id: 'wp-ace-01',
+        workplaceCode: 'HQ',
+        name: '수원 광교 본사',
+        isHeadquarter: true,
+        businessNumber: '220-88-99887',
+        address: '경기도 수원시 영통구 광교중앙로 170',
+        tel: '031-210-9000',
+        managerName: '박에이스',
+        createdAt: '2019-08-20T00:00:00.000Z',
+      }
+    ],
+    yards: [
+      {
+        id: 'yard-ace-01',
+        yardCode: 'YARD-SUWON',
+        name: '에이스 수원 종합 주기장',
+        isDefault: true,
+        address: '경기도 수원시 권선구 고색동 100',
+        operatingCapacity: 250,
+        managerName: '물류운영팀',
+        managerPhone: '031-210-9000',
+        tel: '031-210-9000',
+        createdAt: '2019-08-20T00:00:00.000Z',
+      }
+    ],
+    mainYardAddress: '에이스 수원 종합 주기장',
+    bankAccounts: [
+      {
+        bankName: '하나은행',
+        accountNumber: '355-910022-81705',
+        accountHolder: '주식회사 에이스그룹',
+        isDefault: true,
+      }
+    ],
+    logoUrl: '/images/ci/ebro_rental_ci.svg',
+    ciUrl: '/images/ci/ebro_rental_ci.svg',
+    stampImageUrl: OFFICIAL_STAMP_BASE64,
+    status: 'ACTIVE',
+    isDefault: false,
+    createdAt: '2019-08-20T00:00:00.000Z',
+    updatedAt: new Date().toISOString(),
+    allowCustomBillingStatement: true,
   }
 ];
 
@@ -5313,6 +5502,17 @@ class LocalDB {
       let logo = t.logoUrl;
       let sub = t.subdomain;
       let feat = t.features;
+      let sol = t.solutionType;
+      let repo = t.targetRepo;
+      const seedMatch = SEED_TENANTS.find(s => s.id === t.id || s.tenantCode === t.tenantCode);
+      if (!sol && seedMatch?.solutionType) {
+        sol = seedMatch.solutionType;
+        changed = true;
+      }
+      if (!repo && seedMatch?.targetRepo) {
+        repo = seedMatch.targetRepo;
+        changed = true;
+      }
       if ((!ci || !logo) && (t.id === 'tenant-1' || t.id === 'tenant-giyeonlift' || t.tenantCode === 'GIYEONLIFT' || t.tenantCode === 'GIYEUN' || t.isDefault)) {
         ci = ci || '/images/ci/giyeonlift_ci.png';
         logo = logo || '/images/ci/giyeonlift_ci.png';
@@ -5334,7 +5534,7 @@ class LocalDB {
       }
       if (changed) {
         modified = true;
-        return { ...t, ciUrl: ci, logoUrl: logo, subdomain: sub, features: feat };
+        return { ...t, ciUrl: ci, logoUrl: logo, subdomain: sub, features: feat, solutionType: sol, targetRepo: repo };
       }
       return t;
     });

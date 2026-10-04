@@ -80,3 +80,37 @@ export function getLandingUrl(): string {
   }
   return 'https://ebro.run';
 }
+
+/**
+ * 멀티 솔루션 테넌트(AWP + IT 복합 운영)의 각 솔루션별 접근 URL 세트를 생성합니다.
+ */
+export function getMultiSolutionTenantUrls(subdomain: string): { awpUrl: string; itUrl: string; hubUrl: string } {
+  const clean = (subdomain || '').trim().toLowerCase();
+  return {
+    awpUrl: `https://${clean}.awp.ebro.run`,
+    itUrl: `https://${clean}.it.ebro.run`,
+    hubUrl: `https://${clean}.ebro.run`,
+  };
+}
+
+/**
+ * 현재 브라우저의 URL 쿼리 파라미터 및 호스트명을 기반으로 활성 솔루션(AWP / IT / ALL)을 판정합니다.
+ */
+export function detectActiveSolution(): 'AWP' | 'IT' | 'ALL' {
+  if (typeof window === 'undefined') return 'AWP';
+  const search = window.location.search.toLowerCase();
+  if (search.includes('solution=it') || search.includes('app=it')) return 'IT';
+  if (search.includes('solution=awp') || search.includes('app=awp')) return 'AWP';
+  const host = window.location.hostname.toLowerCase();
+  if (host.includes('.it.') || host.startsWith('it.')) return 'IT';
+  if (host.includes('.awp.') || host.startsWith('awp.')) return 'AWP';
+  try {
+    const stored = localStorage.getItem('ebro_current_solution')?.toLowerCase();
+    if (stored === 'it') return 'IT';
+    if (stored === 'awp') return 'AWP';
+  } catch {
+    // Ignore storage errors
+  }
+  return 'AWP';
+}
+

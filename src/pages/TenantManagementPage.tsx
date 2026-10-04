@@ -9,11 +9,24 @@ import {
 import { useApp } from '../context/AppContext';
 import { 
   Tenant, TenantFeatures, TenantBankAccount, TenantYard, OFFICIAL_STAMP_BASE64,
-  TenantSubscription, SubscriptionPlan, SubscriptionStatus, getTenantSubscriptionInfo 
+  TenantSubscription, SubscriptionPlan, SubscriptionStatus, getTenantSubscriptionInfo,
+  SolutionType 
 } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { SYSTEM_MENU_CONFIG, getAllSystemMenuIds, MenuGroupConfig } from '../config/menu_config';
 import { syncTenantPolicyToAgent } from '../services/agentService';
+import { 
+  STANDARD_DOCUMENTS, 
+  TemplateDocType, 
+  TemplateDataPayload, 
+  SAMPLE_TEMPLATE_PAYLOAD, 
+  renderTemplateToHtml, 
+  getTenantTemplate, 
+  saveTenantTemplate, 
+  resetTenantTemplate,
+  getDefaultTemplate
+} from '../services/universalTemplateEngine';
+import { analyzeBusinessLicense, formatBizRegNo, BusinessLicenseAnalysisResult } from '../services/visionOcrService';
 
 export const TenantManagementPage: React.FC = () => {
   const { 
@@ -33,16 +46,30 @@ export const TenantManagementPage: React.FC = () => {
   // 2. 모달 상태
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
-  const [modalTab, setModalTab] = useState<'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'AGENTS'>('BASIC');
+  const [modalTab, setModalTab] = useState<'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'AGENTS' | 'TEMPLATES'>('BASIC');
   const [tenantHeartbeats, setTenantHeartbeats] = useState<any[]>([]);
   const [isLoadingHeartbeats, setIsLoadingHeartbeats] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [pageSearchKeyword, setPageSearchKeyword] = useState<string>('');
 
+  // 서식 관리 (TEMPLATES) 상태
+  const [selectedDocType, setSelectedDocType] = useState<TemplateDocType>('CONTRACT');
+  const [templateVersion, setTemplateVersion] = useState<number>(0);
+  const [templateSuccessMsg, setTemplateSuccessMsg] = useState<string>('');
+  const templateFileInputRef = useRef<HTMLInputElement>(null);
+
+  // 사업자등록증 온보딩 상태
+  const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState<boolean>(false);
+  const [isAnalyzingLicense, setIsAnalyzingLicense] = useState<boolean>(false);
+  const [onboardingError, setOnboardingError] = useState<string>('');
+  const licenseFileInputRef = useRef<HTMLInputElement>(null);
+
   // 3. 폼 상태
   const [formData, setFormData] = useState<Partial<Tenant>>({
     tenantCode: '',
     subdomain: '',
+    solutionType: 'AWP',
+    targetRepo: 'DragonRPA/ebro_awp',
     displayName: '',
     corporateName: '',
     tradeName: '',
@@ -153,13 +180,15 @@ export const TenantManagementPage: React.FC = () => {
 
   // ── 테넌트 등록/수정 모달 오픈 ──
   // ── 테넌트 등록/수정 모달 오픈 ──
-  const handleOpenModal = (tenant?: Tenant, initialTab: 'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'AGENTS' = 'BASIC') => {
+  const handleOpenModal = (tenant?: Tenant, initialTab: 'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'AGENTS' | 'TEMPLATES' = 'BASIC') => {
     setModalTab(initialTab);
     setPageSearchKeyword('');
     if (tenant) {
       setEditingTenant(tenant);
       setFormData({
         ...tenant,
+        solutionType: tenant.solutionType || 'AWP',
+        targetRepo: tenant.targetRepo || '',
         features: {
           telegramBot: tenant.features?.telegramBot ?? true,
           callRecordingStt: tenant.features?.callRecordingStt ?? true,
@@ -197,6 +226,8 @@ export const TenantManagementPage: React.FC = () => {
       setFormData({
         tenantCode: '',
         subdomain: '',
+        solutionType: 'AWP',
+        targetRepo: 'DragonRPA/ebro_awp',
         displayName: '',
         corporateName: '',
         tradeName: '',
@@ -268,6 +299,140 @@ export const TenantManagementPage: React.FC = () => {
       });
     }
     setIsModalOpen(true);
+  };
+
+  // ── 서식 관리 (TEMPLATES) 핸들러 ──
+  const handleDownloadTemplate = () => {
+    const code = formData.tenantCode || 'GIYEUN';
+    const custom = getTenantTemplate(code, selectedDocType);
+    const content = custom || getDefaultTemplate(selectedDocType);
+    const blob = new Blob([content], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${code}_${selectedDocType}_TEMPLATE.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleUploadTemplate = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        const code = formData.tenantCode || 'GIYEUN';
+        saveTenantTemplate(code, selectedDocType, content);
+        setTemplateVersion(v => v + 1);
+        setTemplateSuccessMsg('맞춤 서식이 성공적으로 적용되었습니다.');
+        setTimeout(() => setTemplateSuccessMsg(''), 3000);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleResetTemplate = () => {
+    const code = formData.tenantCode || 'GIYEUN';
+    resetTenantTemplate(code, selectedDocType);
+    setTemplateVersion(v => v + 1);
+    setTemplateSuccessMsg('기본 서식으로 복원되었습니다.');
+    setTimeout(() => setTemplateSuccessMsg(''), 3000);
+  };
+
+  // ── 서식 실시간 미리보기 HTML 계산 ──
+  const previewHtml = useMemo(() => {
+    const currentCode = formData.tenantCode || 'GIYEUN';
+    const previewPayload: TemplateDataPayload = {
+      ...SAMPLE_TEMPLATE_PAYLOAD,
+      tenant: {
+        ...SAMPLE_TEMPLATE_PAYLOAD.tenant,
+        tenantCode: currentCode,
+        corporateName: formData.corporateName || formData.displayName || '(주)기연리프트',
+        tradeName: formData.tradeName || formData.displayName || '(주)기연리프트',
+        businessNumber: formData.businessNumber || '138-81-83251',
+        representativeName: formData.representativeName || '이정용',
+        businessAddress: formData.businessAddress || '경기도 화성시 남양읍 시청로 123',
+        tel: formData.tel || '031-334-5295',
+        fax: formData.fax || '031-335-5297',
+        taxEmail: formData.taxEmail || 'admin@giyeun.co.kr',
+        stampImageUrl: formData.stampImageUrl || OFFICIAL_STAMP_BASE64,
+        displayName: formData.displayName || '기연리프트',
+        bankAccounts: formData.bankAccounts && formData.bankAccounts.length > 0 ? formData.bankAccounts : undefined
+      }
+    };
+    return renderTemplateToHtml(selectedDocType, previewPayload, currentCode);
+  }, [selectedDocType, templateVersion, formData.tenantCode, formData.corporateName, formData.displayName, formData.tradeName, formData.businessNumber, formData.representativeName, formData.businessAddress, formData.tel, formData.fax, formData.taxEmail, formData.stampImageUrl, formData.bankAccounts]);
+
+  // ── 사업자등록증 온보딩 핸들러 ──
+  const applyLicenseResultToForm = (result: BusinessLicenseAnalysisResult) => {
+    const rawName = result.companyName || '신규테넌트';
+    const cleanName = rawName.replace(/주식회사|\(주\)|\(유\)/g, '').trim() || rawName;
+    const genCode = (cleanName.replace(/[^a-zA-Z0-9]/g, '') || 'TENANT').toUpperCase().slice(0, 10);
+    const sub = genCode.toLowerCase();
+
+    handleOpenModal();
+    setFormData(prev => ({
+      ...prev,
+      corporateName: rawName,
+      tradeName: rawName,
+      displayName: cleanName,
+      tenantCode: genCode,
+      subdomain: sub,
+      businessNumber: formatBizRegNo(result.bizRegNo || ''),
+      representativeName: result.representative || '',
+      openingDate: result.openingDate || new Date().toISOString().slice(0, 10),
+      businessAddress: result.address || '',
+      headOfficeAddress: result.headOfficeAddress || result.address || '',
+      businessCategory: result.bizType || '사업지원및임대서비스업',
+      businessItem: result.bizItem || '고소작업대임대',
+      taxEmail: result.taxEmail || '',
+      tel: result.repContact || '',
+      taxOffice: result.taxOffice || '',
+      solutionType: 'AWP',
+      targetRepo: 'DragonRPA/ebro_awp'
+    }));
+    setIsOnboardingModalOpen(false);
+  };
+
+  const handleLicenseFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsAnalyzingLicense(true);
+    setOnboardingError('');
+    try {
+      const result = await analyzeBusinessLicense(file);
+      if (result && result.success) {
+        applyLicenseResultToForm(result);
+      } else {
+        setOnboardingError(result.error || '사업자등록증 정보 추출에 실패했습니다. 데모 샘플 데이터 입력을 사용하거나 직접 입력해 주세요.');
+      }
+    } catch (err: any) {
+      setOnboardingError(err?.message || '사업자등록증 분석 중 오류가 발생했습니다.');
+    } finally {
+      setIsAnalyzingLicense(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleDemoLicenseOnboarding = () => {
+    applyLicenseResultToForm({
+      success: true,
+      companyName: '주식회사 미래렌탈',
+      representative: '김미래',
+      bizRegNo: '211-88-76543',
+      openingDate: '2021-05-10',
+      address: '경기도 화성시 향남읍 발안공단로 150',
+      headOfficeAddress: '경기도 화성시 향남읍 발안공단로 150',
+      bizType: '사업지원및임대서비스업',
+      bizItem: '고소작업대임대',
+      taxEmail: 'tax@miraerental.com',
+      repContact: '031-8059-1234',
+      taxOffice: '화성세무서'
+    });
   };
 
   // ── 페이지 노출/숨김 판정 및 제어 헬퍼 ──
@@ -737,6 +902,27 @@ export const TenantManagementPage: React.FC = () => {
 
           <button
             type="button"
+            onClick={() => setIsOnboardingModalOpen(true)}
+            className="btn btn-secondary"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              fontSize: '13px',
+              fontWeight: 700,
+              whiteSpace: 'nowrap',
+              backgroundColor: '#ecfdf5',
+              borderColor: '#6ee7b7',
+              color: '#047857',
+            }}
+          >
+            <FileText size={14} />
+            <span>사업자등록증 온보딩</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => handleOpenModal()}
             className="btn btn-primary"
             style={{
@@ -778,6 +964,7 @@ export const TenantManagementPage: React.FC = () => {
               }}>
                 <th style={{ padding: '8px 14px', whiteSpace: 'nowrap', width: '130px' }}>관리 조치</th>
                 <th style={{ padding: '8px 14px', whiteSpace: 'nowrap', width: '80px' }}>상태</th>
+                <th style={{ padding: '8px 14px', whiteSpace: 'nowrap', width: '90px' }}>솔루션</th>
                 <th style={{ padding: '8px 14px', whiteSpace: 'nowrap', width: '100px' }}>테넌트 코드</th>
                 <th style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>표시 상호 / 법인명</th>
                 <th style={{ padding: '8px 14px', whiteSpace: 'nowrap', width: '190px' }}>구독 플랜 & 만료일</th>
@@ -793,7 +980,7 @@ export const TenantManagementPage: React.FC = () => {
             <tbody>
               {filteredTenants.length === 0 ? (
                 <tr>
-                  <td colSpan={12} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={13} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
                     일치하는 테넌트 데이터가 없습니다.
                   </td>
                 </tr>
@@ -914,6 +1101,35 @@ export const TenantManagementPage: React.FC = () => {
                             </span>
                           )}
                         </div>
+                      </td>
+
+                      {/* 솔루션 배지 */}
+                      <td style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>
+                        {(() => {
+                          const sType = tenant.solutionType || 'AWP';
+                          const badgeConfig = {
+                            AWP: { bg: '#dbeafe', color: '#1d4ed8', label: 'AWP' },
+                            IT: { bg: '#f3e8ff', color: '#7e22ce', label: 'IT' },
+                            MULTI: { bg: '#d1fae5', color: '#047857', label: 'MULTI' },
+                          }[sType] || { bg: '#dbeafe', color: '#1d4ed8', label: 'AWP' };
+
+                          return (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              padding: '2px 8px',
+                              borderRadius: '9999px',
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              backgroundColor: badgeConfig.bg,
+                              color: badgeConfig.color,
+                              letterSpacing: '0.025em',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {badgeConfig.label}
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* 테넌트 코드 */}
@@ -1255,6 +1471,7 @@ export const TenantManagementPage: React.FC = () => {
                 { key: 'PLUGINS', label: '플러그인 설정' },
                 { key: 'PAGES', label: '페이지 노출 관리' },
                 { key: 'AGENTS', label: '에이전트 관제' },
+                { key: 'TEMPLATES', label: '서식 관리' },
               ].map(tab => (
                 <button
                   key={tab.key}
@@ -1313,6 +1530,90 @@ export const TenantManagementPage: React.FC = () => {
                       />
                       <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>.ebro.run</span>
                     </div>
+                    {/* MULTI 선택 시 듀얼 도메인 배지 */}
+                    {formData.solutionType === 'MULTI' && (
+                      <div style={{ display: 'flex', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          backgroundColor: '#dbeafe',
+                          color: '#1d4ed8',
+                          fontFamily: 'monospace'
+                        }}>
+                          {formData.subdomain || formData.tenantCode?.toLowerCase() || 'subdomain'}.awp.ebro.run
+                        </span>
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          backgroundColor: '#f3e8ff',
+                          color: '#7e22ce',
+                          fontFamily: 'monospace'
+                        }}>
+                          {formData.subdomain || formData.tenantCode?.toLowerCase() || 'subdomain'}.it.ebro.run
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 솔루션 업종 */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                      솔루션 업종
+                    </label>
+                    <select
+                      value={formData.solutionType || 'AWP'}
+                      onChange={e => {
+                        const sType = e.target.value as SolutionType;
+                        const defaultRepo = sType === 'AWP' ? 'DragonRPA/ebro_awp' : sType === 'IT' ? 'DragonRPA/ebro_it' : (formData.targetRepo || 'DragonRPA/ebro_awp');
+                        setFormData(prev => ({ 
+                          ...prev, 
+                          solutionType: sType,
+                          targetRepo: prev.targetRepo || defaultRepo
+                        }));
+                      }}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-color)',
+                        backgroundColor: 'var(--bg-app)',
+                        color: 'var(--text-primary)',
+                        fontSize: '13px'
+                      }}
+                    >
+                      <option value="AWP">AWP (고소작업대)</option>
+                      <option value="IT">IT (IT 인프라/장비)</option>
+                      <option value="MULTI">MULTI (복합 사업군)</option>
+                    </select>
+                  </div>
+
+                  {/* 연동 깃허브 레포지토리 */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                      연동 깃허브 레포지토리
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.targetRepo || ''}
+                      onChange={e => setFormData(prev => ({ ...prev, targetRepo: e.target.value }))}
+                      placeholder="예: DragonRPA/ebro_awp 또는 DragonRPA/ebro_it"
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border-color)',
+                        backgroundColor: 'var(--bg-app)',
+                        color: 'var(--text-primary)',
+                        fontSize: '13px',
+                        fontFamily: 'monospace'
+                      }}
+                    />
                   </div>
 
                   {/* 시스템 표출 상호 */}
@@ -3029,6 +3330,232 @@ export const TenantManagementPage: React.FC = () => {
                   </div>
                 </div>
               )}
+
+              {/* ─── 8번째 탭: 서식 관리 (TEMPLATES) ─── */}
+              {modalTab === 'TEMPLATES' && (
+                <div style={{ display: 'flex', gap: '16px', minHeight: '620px' }}>
+                  {/* 좌측: 표준 서식 문서 목록 */}
+                  <div style={{
+                    width: '260px',
+                    flexShrink: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    borderRight: '1px solid var(--border-color)',
+                    paddingRight: '16px'
+                  }}>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                      표준 업무 서식
+                    </div>
+                    {STANDARD_DOCUMENTS.map(doc => {
+                      const isSelected = selectedDocType === doc.type;
+                      const currentCode = formData.tenantCode || 'GIYEUN';
+                      const hasCustom = Boolean(getTenantTemplate(currentCode, doc.type));
+
+                      return (
+                        <button
+                          key={doc.type}
+                          type="button"
+                          onClick={() => setSelectedDocType(doc.type)}
+                          style={{
+                            padding: '12px',
+                            borderRadius: '8px',
+                            border: isSelected ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
+                            backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.06)' : 'var(--bg-card)',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '6px',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: '13px', fontWeight: 800, color: isSelected ? 'var(--primary)' : 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                              {doc.label}
+                            </span>
+                            <span style={{
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              backgroundColor: hasCustom ? '#eff6ff' : '#f1f5f9',
+                              color: hasCustom ? '#1d4ed8' : '#64748b',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {hasCustom ? '맞춤 서식' : '기본 서식'}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                            {doc.desc}
+                          </div>
+                          <div style={{ fontSize: '10.5px', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
+                            코드: {doc.code}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* 우측: 서식 제어 바 & 실시간 HTML 미리보기 Frame */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {/* 서식 헤더 & 액션 버튼군 */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      backgroundColor: 'var(--bg-app)',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border-color)',
+                      gap: '12px'
+                    }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            {STANDARD_DOCUMENTS.find(d => d.type === selectedDocType)?.label}
+                          </span>
+                          <span style={{
+                            fontSize: '11px',
+                            fontFamily: 'monospace',
+                            fontWeight: 700,
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            backgroundColor: '#e2e8f0',
+                            color: '#334155'
+                          }}>
+                            {selectedDocType}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                          {getTenantTemplate(formData.tenantCode || 'GIYEUN', selectedDocType) 
+                            ? '테넌트 전용 맞춤 서식이 적용 중입니다.' 
+                            : '시스템 기본 표준 서식이 적용 중입니다.'}
+                        </span>
+                      </div>
+
+                      {/* 액션 버튼 3종 */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="file"
+                          ref={templateFileInputRef}
+                          accept=".html,.htm"
+                          style={{ display: 'none' }}
+                          onChange={handleUploadTemplate}
+                        />
+
+                        <button
+                          type="button"
+                          onClick={handleResetTemplate}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            borderRadius: '6px',
+                            border: '1px solid var(--border-color)',
+                            backgroundColor: 'var(--bg-card)',
+                            color: 'var(--text-secondary)',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          <RefreshCw size={12} />
+                          <span>기본 서식 복원</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleDownloadTemplate}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            borderRadius: '6px',
+                            border: '1px solid var(--border-color)',
+                            backgroundColor: 'var(--bg-card)',
+                            color: 'var(--text-secondary)',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          <Download size={12} />
+                          <span>서식 HTML 다운로드</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => templateFileInputRef.current?.click()}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            padding: '6px 12px',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            borderRadius: '6px',
+                            border: '1px solid #3b82f6',
+                            backgroundColor: '#2563eb',
+                            color: '#ffffff',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          <Upload size={12} />
+                          <span>맞춤 서식 HTML 업로드</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {templateSuccessMsg && (
+                      <div style={{
+                        padding: '8px 14px',
+                        backgroundColor: '#ecfdf5',
+                        border: '1px solid #a7f3d0',
+                        borderRadius: '6px',
+                        color: '#047857',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        <Check size={14} />
+                        <span>{templateSuccessMsg}</span>
+                      </div>
+                    )}
+
+                    {/* 인라인 HTML 렌더링 뷰어 (Sandbox iframe) */}
+                    <div style={{
+                      flex: 1,
+                      minHeight: '520px',
+                      backgroundColor: '#ffffff',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.06)'
+                    }}>
+                      <iframe
+                        title="템플릿 미리보기"
+                        srcDoc={previewHtml}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          minHeight: '520px',
+                          border: 'none',
+                          display: 'block'
+                        }}
+                        sandbox="allow-same-origin"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* 모달 푸터 */}
@@ -3057,6 +3584,187 @@ export const TenantManagementPage: React.FC = () => {
                 style={{ padding: '8px 20px', fontSize: '13px', fontWeight: 800 }}
               >
                 {isSaving ? '저장 처리 중...' : '테넌트 저장'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 사업자등록증 온보딩 모달 ── */}
+      {isOnboardingModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1050,
+          padding: '20px'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-card)',
+            borderRadius: '12px',
+            width: '100%',
+            maxWidth: '520px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+            overflow: 'hidden',
+            border: '1px solid var(--border-color)',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            {/* 모달 헤더 */}
+            <div style={{
+              padding: '16px 20px',
+              borderBottom: '1px solid var(--border-color)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: 'var(--bg-app)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileText size={18} color="var(--primary)" />
+                <span style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  사업자등록증 온보딩
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOnboardingModalOpen(false);
+                  setOnboardingError('');
+                }}
+                style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* 모달 본문 */}
+            <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ fontSize: '12.5px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+                사업자등록증 파일(PDF, JPG, PNG)을 업로드하면 Vision AI가 상호, 사업자번호, 대표자, 주소 등을 자동 추출하여 신규 테넌트 폼을 완성합니다.
+              </div>
+
+              {/* 숨겨진 파일 인풋 */}
+              <input
+                type="file"
+                ref={licenseFileInputRef}
+                accept="image/*,.pdf"
+                style={{ display: 'none' }}
+                onChange={handleLicenseFileSelect}
+              />
+
+              {/* 드롭/선택 영역 */}
+              <div
+                onClick={() => !isAnalyzingLicense && licenseFileInputRef.current?.click()}
+                style={{
+                  border: '2px dashed var(--border-color)',
+                  borderRadius: '10px',
+                  padding: '36px 20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  backgroundColor: 'var(--bg-app)',
+                  cursor: isAnalyzingLicense ? 'not-allowed' : 'pointer',
+                  transition: 'border-color 0.15s ease'
+                }}
+              >
+                {isAnalyzingLicense ? (
+                  <>
+                    <RefreshCw size={28} color="var(--primary)" style={{ animation: 'spin 1s linear infinite' }} />
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--primary)' }}>
+                      사업자등록증 Vision AI 정밀 분석 중...
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={28} color="var(--text-muted)" />
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      사업자등록증 파일 선택 (PDF 또는 이미지)
+                    </span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      PDF, JPG, JPEG, PNG 지원
+                    </span>
+                  </>
+                )}
+              </div>
+
+              {onboardingError && (
+                <div style={{
+                  padding: '10px 12px',
+                  backgroundColor: '#fee2e2',
+                  border: '1px solid #fecaca',
+                  borderRadius: '6px',
+                  color: '#991b1b',
+                  fontSize: '12px'
+                }}>
+                  {onboardingError}
+                </div>
+              )}
+
+              {/* 데모 샘플 입력 옵션 */}
+              <div style={{
+                padding: '12px 14px',
+                backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                borderRadius: '8px',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    샘플 사업자등록증 즉시 적용
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                    파일 없이 가상의 고소작업대 렌탈사 데이터로 테스트
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleDemoLicenseOnboarding}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--primary)',
+                    backgroundColor: 'var(--primary)',
+                    color: '#ffffff',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  데모 데이터 적용
+                </button>
+              </div>
+            </div>
+
+            {/* 모달 푸터 */}
+            <div style={{
+              padding: '12px 20px',
+              borderTop: '1px solid var(--border-color)',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              backgroundColor: 'var(--bg-app)'
+            }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOnboardingModalOpen(false);
+                  setOnboardingError('');
+                }}
+                className="btn btn-secondary"
+                style={{ padding: '6px 14px', fontSize: '12px', fontWeight: 700 }}
+              >
+                닫기
               </button>
             </div>
           </div>

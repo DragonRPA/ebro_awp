@@ -1,5 +1,28 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## 2026-10-04 20:55 (v1.13.0.Build.30 배포 완료)
+
+### [서브에이전트병렬분할개발성공/복합테넌트다중솔루션AWP·IT지원/상단헤더원클릭솔루션전환기/테넌트관리센터8번째서식관리탭/사업자등록증원클릭온보딩완결] 전문 서브에이전트 3기 동시 투입 병렬 분할 개발 성공, 테넌트 솔루션 업종(solutionType: AWP | IT | MULTI) 및 깃허브 타깃 레포지토리 연계 탑재, *.awp.ebro.run 및 *.it.ebro.run 2단계 멀티 서브도메인 라우팅 엔진 탑재, App.tsx 상단 네비게이션 헤더 바에 원클릭 솔루션 전환기(SolutionAppSwitcher) 연동, TenantManagementPage 내 8번째 모달 탭 '서식 관리(TEMPLATES)' 신설(표준 서식 4종, 실시간 HTML Iframe 미리보기, 다운로드/업로드/기본복원), 상단 액션 바 사업자등록증 OCR 원클릭 온보딩 모달 완성
+
+- **배경 및 사장님 지침**:
+  - "내가 만약에 새로운 테넌트와 계약을 하는데, 새 테넌트는 업종이 awp 가 아니고 it 여서 깃허브의 다른 레포지토리에 연결해야 한다면 어덯게 처리해?"
+  - "추가질문,. 새로운 테넌트 A 를 수주했는데 A 의 사업은 awp 도 있고, it 도 있어. 이럴땐 어떻게 연결해? a.awp.ebro.run , a.it.ebro.run 이렇게 작동 되는건가?"
+  - "우리는 설계 안 중에서 무엇을 구현하지 않았지?"
+  - "분할개발 승인. agent 를 더 많이 투입해도 좋아"
+
+- **서브에이전트 3기 병렬 분할 개발 파이프라인 (총 소요시간 단축 실증)**:
+  1. **서브에이전트 1 (도메인 라우팅 & 시드 데이터)**: `SEED_TENANTS`에 AWP, IT, MULTI 솔루션 업종 부여, `getMultiSolutionTenantUrls`, `detectActiveSolution` 라우팅 엔진 구축.
+  2. **서브에이전트 2 (테넌트관리센터 & 서식 관리 UI)**: `TenantManagementPage.tsx` 8번째 '서식 관리(TEMPLATES)' 탭 신설, `solutionType` 드롭다운, `targetRepo` 입력, 테이블 배지 컬럼, '사업자등록증 온보딩' 모달 완성.
+  3. **서브에이전트 3 (헤더 솔루션 전환기 App Switcher)**: `SolutionAppSwitcher.tsx` 신설 및 `src/App.tsx` 상단 네비게이션 헤더 바 통합.
+
+- **기술 조치 내역**:
+  1. `src/services/db.ts`: `SolutionType = 'AWP' | 'IT' | 'MULTI'` 정의, `Tenant.solutionType`, `Tenant.targetRepo` 필드 추가, `SEED_TENANTS` 갱신 (`GIYEONLIFT`/`HANSOL`/`SAMWOO` = AWP, `TECHONE` = IT, `ACE_GROUP` = MULTI).
+  2. `src/utils/domainRouter.ts`: `getMultiSolutionTenantUrls(subdomain)` 및 `detectActiveSolution()` 엔진 구현.
+  3. `src/services/universalTemplateEngine.ts`: 표준 업무 서식 4종(`CONTRACT`, `STATEMENT`, `QUOTATION`, `RECEIPT`) 메타데이터, 표준 기본 HTML 템플릿, `renderTemplateToHtml`, `resetTenantTemplate` 엔진 탑재.
+  4. `src/pages/TenantManagementPage.tsx`: 8번째 서식 관리 탭(실시간 Iframe 렌더링, 서식 다운로드/업로드/초기화), 솔루션 업종 선택기, 서브도메인 듀얼 배지, 테넌트 목록 테이블 솔루션 배지 컬럼, 사업자등록증 OCR 원클릭 온보딩 모달 완성.
+  5. `src/components/SolutionAppSwitcher.tsx` & `src/App.tsx`: 상단 헤더 원클릭 AWP ↔ IT 솔루션 전환기 버튼 및 프로덕션/로컬 동적 스위칭 탑재.
+  6. `npm.cmd run build`: TypeScript 및 Vite 프로덕션 빌드 0 오류 검증 통과 (1.04s).
+
 ## 2026-10-04 20:35 (v1.13.0.Build.29 배포 완료)
 
 ### [테넌트관리센터eBroAIAgent런타임ON/OFF제어탑재/단일바이너리무재컴파일유지/SilentCore무음인쇄·문서모드완벽분리/FullAIStudio개방선택형아키텍처완결] 테넌트 관리 센터(TenantManagementPage) 내 eBro AI Agent 런타임 ON/OFF 스위치 신설, 단일 바이너리(eBroAgent.exe) 재컴파일 없이 테넌트별 동적 정책(tenant_policy.json 및 /api/policy/sync) 주입, AI 기능 비활성화(OFF) 시 텔레그램 명령 및 브라우저 확장 제어를 잠그고 시스템 트레이에서 복합기·라벨 인쇄 큐 관리 및 엑셀 계약서/명세서 번들 생성만 백그라운드로 안전 수행하는 Silent Core 모드 완비, AI 기능 활성화(ON) 시 텔레그램 모바일 원격 명령 큐 및 브라우저 제어·데스크톱 AI Studio 전면 개방
