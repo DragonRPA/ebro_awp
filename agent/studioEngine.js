@@ -1,5 +1,5 @@
 // agent/studioEngine.js
-// 🏢 e-Bro ERP — AI Agent 독립 데스크톱 스튜디오 & 자연어 업무 지시 큐 엔진
+//  e-Bro ERP — AI Agent 독립 데스크톱 스튜디오 & 자연어 업무 지시 큐 엔진
 // 전사 개발 표준 헌장 (카테고리 I, III, V) 완벽 준수
 
 const fs = require('fs');
@@ -15,6 +15,33 @@ let taskQueue = [];
 let isWorkerRunning = false;
 let sseClients = new Set();
 let ollamaStatusCache = { available: false, model: 'none', checkedAt: 0 };
+
+// 실시간 스튜디오 로그 버퍼
+const MAX_LOG_HISTORY = 200;
+const studioLogHistory = [
+  `[${new Date().toTimeString().slice(0, 8)}] [SYSTEM] eBro AI Agent 데스크톱 스튜디오 엔진 초기화 완료`
+];
+
+function stripEmojis(str) {
+  if (typeof str !== 'string') str = String(str || '');
+  return str.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1FA00}-\u{1FAFF}\u{FE00}-\u{FE0F}]/gu, '').trim();
+}
+
+// 실시간 스튜디오 로그 브로드캐스트 (이모지 100% 배제, [TYPE] 형식 강제)
+function broadcastStudioLog(type, message) {
+  const cleanType = String(type || 'INFO').toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+  const cleanMsg = stripEmojis(message);
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+  const logLine = `[${timeStr}] [${cleanType}] ${cleanMsg}`;
+
+  studioLogHistory.push(logLine);
+  if (studioLogHistory.length > MAX_LOG_HISTORY) {
+    studioLogHistory.shift();
+  }
+
+  broadcastEvent('LOG_APPEND', { log: logLine });
+}
 
 // 큐 파일 로드
 function loadQueue() {
@@ -56,14 +83,15 @@ function broadcastEvent(eventType, payload) {
 function appendTaskLog(task, message) {
   const now = new Date();
   const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-  const logLine = `[${timeStr}] ${message}`;
+  const cleanMsg = stripEmojis(message);
+  const logLine = `[${timeStr}] [TASK] ${cleanMsg}`;
   task.logs.push(logLine);
   if (task.logs.length > 50) task.logs.shift();
   broadcastEvent('LOG_APPEND', { taskId: task.id, log: logLine });
   saveQueue();
 }
 
-// ── 🧠 로컬 Ollama LLM 헬스체크 및 의도 파싱 ──
+// ──  로컬 Ollama LLM 헬스체크 및 의도 파싱 ──
 async function checkOllamaStatus() {
   const now = Date.now();
   if (now - ollamaStatusCache.checkedAt < 10000) {
@@ -152,7 +180,7 @@ async function parseInstructionIntent(instruction, requestedMode = 'AUTO') {
   };
 }
 
-// ── ⚙️ 작업 큐 등록 및 관리 ──
+// ──  작업 큐 등록 및 관리 ──
 async function addTask(instruction, requestedMode = 'AUTO') {
   if (!instruction || !instruction.trim()) {
     throw new Error('지시 내용을 입력해 주십시오.');
@@ -182,7 +210,7 @@ async function addTask(instruction, requestedMode = 'AUTO') {
   return task;
 }
 
-// ── 🏃 작업 큐 백그라운드 워커 ──
+// ──  작업 큐 백그라운드 워커 ──
 async function triggerWorker() {
   if (isWorkerRunning) return;
 
@@ -213,7 +241,7 @@ async function executeTask(task) {
       appendTaskLog(task, '보조 모니터 브라우저 화면 조작 시퀀스 개시 (UI 자동화)');
     } else if (task.mode === 'DIRECT_QUERY') {
       task.currentStep = '2단계: eBro ERP 도메인 스키마 및 DB 쿼리 파이프라인 매핑';
-      appendTaskLog(task, '화면 조작 우회 ➔ 고속 데이터베이스 직통 트랜잭션 수립');
+      appendTaskLog(task, '화면 조작 우회  고속 데이터베이스 직통 트랜잭션 수립');
     } else {
       task.currentStep = '2단계: 로컬 사이드카 시스템 리소스 파이프라인 가동';
       appendTaskLog(task, '로컬 인쇄 큐 / 파일시스템 / 보안 인증서 핸들러 연결');
@@ -234,22 +262,22 @@ async function executeTask(task) {
     task.currentStep = '완료 (100%)';
     task.result = {
       completedAt: new Date().toISOString(),
-      summary: `[${task.module}] ${task.instruction} ➔ 성공적으로 처리 완료.`
+      summary: `[${task.module}] ${task.instruction}  성공적으로 처리 완료.`
     };
-    appendTaskLog(task, '✅ 작업이 정상 완결되었습니다. 결과가 안전하게 보존되었습니다.');
+    appendTaskLog(task, '작업이 정상 완결되었습니다. 결과가 안전하게 보존되었습니다.');
     broadcastEvent('TASK_UPDATED', task);
     saveQueue();
   } catch (err) {
     task.status = 'FAILED';
     task.currentStep = `실패: ${err.message}`;
-    appendTaskLog(task, `❌ 처리 중 오류 발생: ${err.message}`);
+    appendTaskLog(task, `처리 중 오류 발생: ${err.message}`);
     broadcastEvent('TASK_UPDATED', task);
     saveQueue();
   }
 }
 
-// ── 🖥️ 독립 데스크톱 전용 창 실행 ──
-// ── 🖥️ 독립 데스크톱 전용 창 실행 ──
+// ──  독립 데스크톱 전용 창 실행 ──
+// ──  독립 데스크톱 전용 창 실행 ──
 function launchStudioWindow(port = 5175) {
   const url = `http://127.0.0.1:${port}/studio`;
   const browserCandidates = [
@@ -290,7 +318,7 @@ function launchStudioWindow(port = 5175) {
   }
 }
 
-// ── 🎨 고밀도 데스크톱 스튜디오 HTML 렌더링 ──
+// ──  고밀도 데스크톱 스튜디오 HTML 렌더링 ──
 function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1') {
   return `<!DOCTYPE html>
 <html lang="ko">
@@ -617,7 +645,7 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1') {
   <header>
     <div class="header-left">
       <div class="brand-title">
-        <span>🏢 eBro AI Agent 스튜디오</span>
+        <span> eBro AI Agent 스튜디오</span>
       </div>
       <span class="badge badge-primary">${version}</span>
       <span class="badge badge-success">포트 ${port}</span>
@@ -751,6 +779,17 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1') {
             tasks.unshift(updated);
           }
           renderQueueTable();
+        } catch (err) {}
+      });
+
+      evtSource.addEventListener('INIT_LOGS', (e) => {
+        try {
+          const payload = JSON.parse(e.data);
+          if (Array.isArray(payload.data) && payload.data.length > 0) {
+            const logContent = document.getElementById('logContent');
+            logContent.innerHTML = '';
+            payload.data.forEach(line => appendLogLine(line));
+          }
         } catch (err) {}
       });
 
@@ -909,7 +948,7 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1') {
 </html>`;
 }
 
-// ── 🌐 HTTP 핸들러 라우팅 연동 ──
+// ──  HTTP 핸들러 라우팅 연동 ──
 async function handleStudioRequest(req, res, pathname, searchParams, port = 5175, version = 'v2.0.0.Build.1') {
   // 1. 스튜디오 데스크톱 UI 서빙 (/studio, /ui)
   if (req.method === 'GET' && (pathname === '/studio' || pathname === '/ui')) {
@@ -1002,6 +1041,7 @@ async function handleStudioRequest(req, res, pathname, searchParams, port = 5175
 
     // 초기 상태 전송
     res.write(`event: INIT\ndata: ${JSON.stringify({ type: 'INIT', data: taskQueue })}\n\n`);
+    res.write(`event: INIT_LOGS\ndata: ${JSON.stringify({ type: 'INIT_LOGS', data: studioLogHistory })}\n\n`);
 
     sseClients.add(res);
     req.on('close', () => {
@@ -1025,5 +1065,6 @@ module.exports = {
   handleStudioRequest,
   launchStudioWindow,
   addTask,
-  checkOllamaStatus
+  checkOllamaStatus,
+  broadcastStudioLog
 };

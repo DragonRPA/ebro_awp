@@ -12,7 +12,7 @@ Write-Host "========================================================" -Foregroun
 
 # 0. 기존 실행 중인 프로세스 안전 종료
 Write-Host "0. Stopping existing eBroAgent processes..." -ForegroundColor Yellow
-Get-Process -Name "eBroAgent", "KiyeunAgent" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Get-Process -Name "eBroAgent" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 500
 
 # 1. esbuild 번들링

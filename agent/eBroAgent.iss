@@ -24,7 +24,7 @@
 [Setup]
 AppId={{#AppId}}
 AppName={#AppName}
-AppVersion=v2.0.0.Build.4
+AppVersion=v2.0.0.Build.5
 AppPublisher={#AppPublisher}
 AppPublisherURL=https://ebro.run
 AppSupportURL=https://ebro.run
@@ -60,7 +60,25 @@ Source: "trayIcon.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "eBroAgent_Root.cer"; DestDir: "{app}"; Flags: ignoreversion
 Source: "start-agent.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "kill-agent.bat"; DestDir: "{app}"; Flags: ignoreversion
-Source: "register-protocol.reg"; DestDir: "{app}"; Flags: ignoreversion
+
+[InstallDelete]
+; 🧹 구버전 소스코드 및 임시 파일 정리
+Type: files; Name: "{app}\agent.js"
+Type: files; Name: "{app}\BroAgent.js"
+Type: files; Name: "{app}\eBroAgent.js"
+Type: files; Name: "{app}\studioEngine.js"
+Type: files; Name: "{app}\package.json"
+Type: files; Name: "{app}\package-lock.json"
+Type: files; Name: "{app}\update_staging.exe"
+Type: files; Name: "{app}\eBroAgent_Setup_Update.exe"
+Type: files; Name: "{app}\register-protocol.reg"
+Type: files; Name: "{app}\등록-원클릭실행.bat"
+Type: files; Name: "{app}\test_*.ps1"
+Type: files; Name: "{app}\measure_*.ps1"
+Type: files; Name: "{app}\verify_*.ps1"
+Type: files; Name: "{app}\print_*.ps1"
+Type: filesandordirs; Name: "{app}\node_modules"
+Type: filesandordirs; Name: "{app}\temp_build_*"
 
 [Icons]
 Name: "{userdesktop}\eBro AI Agent"; Filename: "{app}\eBroAgent.exe"; WorkingDir: "{app}"
@@ -91,7 +109,7 @@ function InitializeSetup(): Boolean;
 var
   ResultCode: Integer;
 begin
-  Exec('taskkill.exe', '/F /IM eBroAgent.exe /IM KiyeunAgent.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill.exe', '/F /IM eBroAgent.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec('powershell.exe', '-NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like ''*trayIcon.ps1*'' } | Stop-Process -Force -ErrorAction SilentlyContinue"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := True;
 end;

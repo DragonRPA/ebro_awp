@@ -1,6 +1,6 @@
 /**
  * =========================================================================
- * 🏢 e-Bro ERP — 로컬 경량 사이드카 에이전트 (eBroAgent)
+ *  e-Bro ERP — 로컬 경량 사이드카 에이전트 (eBroAgent)
  * =========================================================================
  * - 역할: CF R2 파일 로컬 미러링, 로컬 문서고 아카이빙, 프런트 실시간 통신 대행
  * - 통신: 로컬 HTTP (http://127.0.0.1:5175)
@@ -14,17 +14,53 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { pipeline } = require('stream');
 const { spawn, execSync } = require('child_process');
-const { handleStudioRequest, launchStudioWindow } = require('./studioEngine');
+const { handleStudioRequest, launchStudioWindow, broadcastStudioLog } = require('./studioEngine');
 
-const VERSION = 'v2.0.0.Build.4';
+//  비정상 크래시 원천 차단: 처리되지 않은 예외/거부 포착 가드
+process.on('uncaughtException', (err) => {
+  agentLog('ERROR', '비정상 예외 포착: ' + (err ? (err.stack || err.message) : err));
+});
+process.on('unhandledRejection', (reason) => {
+  agentLog('ERROR', '비정상 거부 포착: ' + reason);
+});
+if (process.stdout && process.stdout.on) process.stdout.on('error', () => {});
+if (process.stderr && process.stderr.on) process.stderr.on('error', () => {});
+
+// ── 실시간 에이전트 로그 디스패처 (UI 스트림 및 표준출력 동시 브로드캐스트) ──
+function agentLog(type, message) {
+  const cleanType = String(type || 'INFO').toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+  const cleanMsg = String(message || '').replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1FA00}-\u{1FAFF}\u{FE00}-\u{FE0F}]/gu, '').trim();
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+  const formattedLine = `[${timeStr}] [${cleanType}] ${cleanMsg}`;
+
+  try {
+    if (typeof broadcastStudioLog === 'function') {
+      broadcastStudioLog(cleanType, cleanMsg);
+    }
+  } catch (e) {}
+
+  try {
+    if (cleanType === 'ERROR') {
+      console.error(formattedLine);
+    } else if (cleanType === 'WARN') {
+      console.warn(formattedLine);
+    } else {
+      console.log(formattedLine);
+    }
+  } catch (e) {}
+}
+
+
+const VERSION = 'v2.0.0.Build.5';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
 
-// 📁 전사 표준 절대경로: C:\eBroAgent\ 및 하위 문서고
+//  전사 표준 절대경로: C:\eBroAgent\ 및 하위 문서고
 const AGENT_HOME = 'C:\\eBroAgent';
-const LEGACY_AGENT_HOME = 'C:\\KiyeunAgent';
 const TARGET_EXE_PATH = path.join(AGENT_HOME, 'eBroAgent.exe');
 const ARCHIVE_ROOT = path.join(AGENT_HOME, '문서고');
 const DRIVE_MIRROR_DIR = path.join(AGENT_HOME, 'drive_mirror');
@@ -45,15 +81,16 @@ try {
 } catch (e) {}
 
 // =========================================================================
-// 🚀 [스마트 자가 자동 설치 & 구버전 자동 교체(Auto-Kill & Takeover) 엔진]
+//  [스마트 자가 자동 설치 & 구버전 자동 교체(Auto-Kill & Takeover) 엔진]
 // 사용자가 다운로드 폴더나 바탕화면에서 eBroAgent.exe를 실행한 경우,
-// 1) 기존에 돌고 있던 구버전 eBroAgent/KiyeunAgent 프로세스를 조용히 자동 종료!
+// 1) 기존에 돌고 있던 구버전 eBroAgent 프로세스를 조용히 자동 종료!
 // 2) C:\eBroAgent\eBroAgent.exe 를 최신 바이너리로 안전 덮어쓰기!
 // 3) 표준 위치에서 최신 에이전트를 백그라운드로 즉시 바통 터치 기동!
 // =========================================================================
 const currentExePath = process.execPath;
 const currentPid = process.pid;
 const isExe = currentExePath.toLowerCase().endsWith('.exe') && !currentExePath.toLowerCase().includes('node.exe');
+
 
 // 1. 다른 경로에서 실행된 경우 (설치/업그레이드 모드)
 if (isExe && path.resolve(currentExePath).toLowerCase() !== path.resolve(TARGET_EXE_PATH).toLowerCase()) {
@@ -62,18 +99,12 @@ if (isExe && path.resolve(currentExePath).toLowerCase() !== path.resolve(TARGET_
     if (!fs.existsSync(ARCHIVE_ROOT)) fs.mkdirSync(ARCHIVE_ROOT, { recursive: true });
     if (!fs.existsSync(DRIVE_MIRROR_DIR)) fs.mkdirSync(DRIVE_MIRROR_DIR, { recursive: true });
 
-    console.log('====================================================');
-    console.log(`📦 [eBroAgent] 에이전트 최신 버전(${VERSION}) 자가 교체/설치 진행`);
-    console.log(`📍 현재 실행 위치: ${currentExePath}`);
-    console.log(`🎯 표준 정착 경로: ${TARGET_EXE_PATH}`);
-
-    // 기존 구버전 프로세스 및 5175 포트 점유 프로세스 완벽 강제 종료 (설치 모드에서만)
+    agentLog('UPDATE', '에이전트 최신 버전(' + VERSION + ') 자가 교체/설치 진행');
     try {
-      console.log('🔄 기존 구버전 프로세스 자동 정리 중...');
-      execSync('powershell -NoProfile -Command "Get-Process -Name eBroAgent, KiyeunAgent -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne ' + currentPid + ' } | Stop-Process -Force"', { stdio: 'ignore', windowsHide: true });
+      agentLog('SYSTEM', '기존 구버전 프로세스 자동 정리');
+      execSync('powershell -NoProfile -Command "Get-Process -Name eBroAgent -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne ' + currentPid + ' } | Stop-Process -Force"', { stdio: 'ignore', windowsHide: true });
     } catch (kErr) {}
 
-    // 0.6초 대기 후 파일 복사
     setTimeout(() => {
       try {
         fs.copyFileSync(currentExePath, TARGET_EXE_PATH);
@@ -82,30 +113,20 @@ if (isExe && path.resolve(currentExePath).toLowerCase() !== path.resolve(TARGET_
         if (fs.existsSync(traySrc)) {
           try { fs.copyFileSync(traySrc, trayDest); } catch (e) {}
         }
-        console.log('✅ C:\\eBroAgent\\eBroAgent.exe 최신 버전으로 교체 완료!');
-        console.log('🚀 최신 엔진으로 백그라운드 기동합니다...');
-        console.log('====================================================');
-
-        const child = spawn(TARGET_EXE_PATH, [], {
-          detached: true,
-          stdio: 'ignore',
-          windowsHide: true
-        });
+        agentLog('UPDATE', '바이너리 교체 완료, 최신 엔진 기동');
+        const child = spawn(TARGET_EXE_PATH, [], { detached: true, stdio: 'ignore', windowsHide: true });
         child.unref();
-
-        console.log('🎉 업그레이드가 완료되었습니다. 이 창은 2초 후 자동으로 닫힙니다.');
+        agentLog('UPDATE', '업그레이드 완료');
         setTimeout(() => { process.exit(0); }, 2000);
       } catch (copyErr) {
-        console.error('⚠️ 파일 복사 실패 (현재 위치에서 실행 유지):', copyErr.message);
+        agentLog('ERROR', '파일 복사 실패: ' + copyErr.message);
       }
     }, 600);
     return;
   } catch (err) {
-    console.error('⚠️ 자가 설치 중 오류 발생:', err.message);
+    agentLog('ERROR', '자가 설치 오류: ' + err.message);
   }
 }
-
-
 
 // 디렉토리 자동 생성 (정식 위치 실행 시)
 try {
@@ -113,20 +134,21 @@ try {
   if (!fs.existsSync(ARCHIVE_ROOT)) fs.mkdirSync(ARCHIVE_ROOT, { recursive: true });
   if (!fs.existsSync(DRIVE_MIRROR_DIR)) fs.mkdirSync(DRIVE_MIRROR_DIR, { recursive: true });
 } catch (e) {
-  console.warn('디렉토리 생성 경고:', e.message);
+  agentLog('WARN', '디렉토리 생성 경고: ' + e.message);
 }
 
 console.log('====================================================');
-console.log(`🚀 [eBroAgent] 로컬 사이드카 에이전트 가동 (${VERSION})`);
-console.log(`📡 콜사인(Callsign): ${CALLSIGN}`);
-console.log(`💻 컴퓨터 이름: ${MACHINE_NAME}`);
-console.log(`📂 에이전트 홈 경로: ${AGENT_HOME}`);
-console.log(`📑 문서 영구 보관소: ${ARCHIVE_ROOT}`);
-console.log(`🌐 로컬 통신 포트: http://127.0.0.1:${PORT}`);
+console.log(` [eBroAgent] 로컬 사이드카 에이전트 가동 (${VERSION})`);
+console.log(` 콜사인(Callsign): ${CALLSIGN}`);
+console.log(` 컴퓨터 이름: ${MACHINE_NAME}`);
+console.log(` 에이전트 홈 경로: ${AGENT_HOME}`);
+console.log(` 문서 영구 보관소: ${ARCHIVE_ROOT}`);
+console.log(` 로컬 통신 포트: http://127.0.0.1:${PORT}`);
 console.log('====================================================');
 
-// ── 🌐 Cloudflare R2 기반 스마트 자가 업데이트 (Auto-Update) 엔진 ──
-const CF_R2_VERSION_URL = process.env.CF_R2_VERSION_URL || 'https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/downloads/version.json';
+// ──  글로벌 CDN 기반 스마트 자가 업데이트 (Auto-Update) 엔진 ──
+const PRIMARY_VERSION_URL = 'https://ebro.run/downloads/version.json';
+const FALLBACK_VERSION_URL = 'https://raw.githubusercontent.com/DragonRPA/ebro_awp/main/public/downloads/version.json';
 
 let updateState = {
   status: 'idle', // 'idle' | 'checking' | 'downloading' | 'installing' | 'completed' | 'error'
@@ -135,6 +157,137 @@ let updateState = {
   message: '',
   lastChecked: null
 };
+
+function fetchTextWithRedirects(url, maxRedirects = 5) {
+  return new Promise((resolve, reject) => {
+    function attempt(currentUrl, redirectsLeft) {
+      if (redirectsLeft < 0) return reject(new Error('리다이렉트 횟수 초과'));
+      const client = currentUrl.startsWith('https') ? https : http;
+      const req = client.get(currentUrl, { timeout: 8000 }, (res) => {
+        if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
+          const loc = res.headers.location;
+          if (!loc) return reject(new Error(`리다이렉트 주소 누락 HTTP ${res.statusCode}`));
+          res.resume();
+          const nextUrl = new URL(loc, currentUrl).href;
+          return attempt(nextUrl, redirectsLeft - 1);
+        }
+        if (res.statusCode !== 200) {
+          res.resume();
+          return resolve({ ok: false, statusCode: res.statusCode });
+        }
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => resolve({ ok: true, body: data }));
+      });
+      req.on('timeout', () => { req.destroy(); reject(new Error('버전 정보 조회 타임아웃')); });
+      req.on('error', reject);
+    }
+    attempt(url, maxRedirects);
+  });
+}
+
+function downloadFileWithRedirects(url, destPath, maxRedirects = 5) {
+  return new Promise((resolve, reject) => {
+    function attempt(currentUrl, redirectsLeft) {
+      if (redirectsLeft < 0) return reject(new Error('리다이렉트 횟수 초과'));
+      const client = currentUrl.startsWith('https') ? https : http;
+      const req = client.get(currentUrl, { timeout: 30000 }, (res) => {
+        if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) {
+          const loc = res.headers.location;
+          if (!loc) return reject(new Error(`리다이렉트 주소 누락 HTTP ${res.statusCode}`));
+          res.resume();
+          const nextUrl = new URL(loc, currentUrl).href;
+          return attempt(nextUrl, redirectsLeft - 1);
+        }
+        if (res.statusCode !== 200) {
+          res.resume();
+          return reject(new Error(`다운로드 실패 HTTP ${res.statusCode}`));
+        }
+        const fileStream = fs.createWriteStream(destPath);
+        pipeline(res, fileStream, (err) => {
+          if (err) {
+            try { if (fs.existsSync(destPath)) fs.unlinkSync(destPath); } catch (e) {}
+            return reject(err);
+          }
+          resolve();
+        });
+      });
+      req.on('timeout', () => {
+        req.destroy();
+        try { if (fs.existsSync(destPath)) fs.unlinkSync(destPath); } catch (e) {}
+        reject(new Error('다운로드 연결 타임아웃'));
+      });
+      req.on('error', (err) => {
+        try { if (fs.existsSync(destPath)) fs.unlinkSync(destPath); } catch (e) {}
+        reject(err);
+      });
+    }
+    attempt(url, maxRedirects);
+  });
+}
+
+function httpRequestJson(url, options = {}, postData = null) {
+  return new Promise((resolve, reject) => {
+    try {
+      const parsed = new URL(url);
+      const isHttps = parsed.protocol === 'https:';
+      const client = isHttps ? https : http;
+      const reqOptions = {
+        hostname: parsed.hostname,
+        port: parsed.port || (isHttps ? 443 : 80),
+        path: parsed.pathname + parsed.search,
+        method: options.method || 'GET',
+        headers: options.headers || {},
+        timeout: options.timeout || 5000
+      };
+
+      const req = client.request(reqOptions, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+          let json = null;
+          try { json = data ? JSON.parse(data) : null; } catch (e) {}
+          resolve({ status: res.statusCode, ok: res.statusCode >= 200 && res.statusCode < 300, data: json, raw: data });
+        });
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('네트워크 타임아웃'));
+      });
+
+      req.on('error', (err) => {
+        reject(err);
+      });
+
+      if (postData) {
+        req.write(typeof postData === 'string' ? postData : JSON.stringify(postData));
+      }
+      req.end();
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
+function parseVersion(verStr) {
+  if (!verStr) return [0, 0, 0, 0];
+  const cleaned = verStr.replace(/^v/, '');
+  const parts = cleaned.split('.Build.');
+  const semver = (parts[0] || '0').split('.').map(n => parseInt(n, 10) || 0);
+  const build = parts[1] ? (parseInt(parts[1], 10) || 0) : 0;
+  return [semver[0] || 0, semver[1] || 0, semver[2] || 0, build];
+}
+
+function isNewerVersion(remoteVer, currentVer) {
+  const r = parseVersion(remoteVer);
+  const c = parseVersion(currentVer);
+  for (let i = 0; i < 4; i++) {
+    if (r[i] > c[i]) return true;
+    if (r[i] < c[i]) return false;
+  }
+  return false;
+}
 
 async function checkAndApplyUpdate(force = false) {
   if (updateState.status === 'downloading' || updateState.status === 'installing') {
@@ -146,88 +299,73 @@ async function checkAndApplyUpdate(force = false) {
   updateState.lastChecked = new Date().toISOString();
 
   try {
-    const res = await new Promise((resolve, reject) => {
-      const clientReq = https.get(CF_R2_VERSION_URL, { timeout: 7000 }, (resp) => {
-        if (resp.statusCode !== 200) {
-          resolve({ ok: false, statusCode: resp.statusCode });
-          return;
-        }
-        let data = '';
-        resp.on('data', chunk => data += chunk);
-        resp.on('end', () => resolve({ ok: true, body: data }));
-      });
-      clientReq.on('error', reject);
-    });
+    let res = await fetchTextWithRedirects(PRIMARY_VERSION_URL).catch(() => null);
+    if (!res || !res.ok) {
+      res = await fetchTextWithRedirects(FALLBACK_VERSION_URL).catch(() => null);
+    }
 
-    if (res.ok && res.body) {
+    if (res && res.ok && res.body) {
       const info = JSON.parse(res.body);
       const remoteVersion = info.version;
-      const installerUrl = info.installerUrl || 'https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/downloads/eBroAgent_Setup.exe';
+      const installerUrl = info.installerUrl;
       const downloadUrl = info.downloadUrl;
 
       updateState.targetVersion = remoteVersion;
 
-      if (remoteVersion && (remoteVersion !== VERSION || force)) {
-        console.log(`🚀 [eBroAgent Auto-Update] 새 버전 감지: ${VERSION} ➔ ${remoteVersion}`);
+      const hasNewVersion = isNewerVersion(remoteVersion, VERSION);
+      if (remoteVersion && (hasNewVersion || force)) {
+        agentLog('UPDATE', `새 버전 감지: ${VERSION} -> ${remoteVersion}`);
         updateState.status = 'downloading';
         updateState.message = `새 버전(${remoteVersion}) 백그라운드 다운로드 중...`;
 
-        // Inno Setup 정식 인스톨러 무음 업데이트 지원
         const targetUrl = installerUrl || downloadUrl;
+        if (!targetUrl) {
+          updateState.status = 'error';
+          updateState.message = '다운로드 URL 정보 없음';
+          return { status: 'error', message: updateState.message };
+        }
+
         const isInstaller = targetUrl.toLowerCase().includes('setup');
         const updateFilePath = path.join(AGENT_HOME, isInstaller ? 'eBroAgent_Setup_Update.exe' : 'update_staging.exe');
-        const fileStream = fs.createWriteStream(updateFilePath);
 
-        https.get(targetUrl, (fileRes) => {
-          if (fileRes.statusCode !== 200) {
-            updateState.status = 'error';
-            updateState.message = `다운로드 실패 HTTP ${fileRes.statusCode}`;
-            console.warn(`⚠️ [eBroAgent Auto-Update] 다운로드 실패 HTTP ${fileRes.statusCode}`);
-            return;
-          }
-          fileRes.pipe(fileStream);
-          fileStream.on('finish', () => {
-            fileStream.close(() => {
-              // 🛡️ Windows 파일 핸들 해제 및 백신 검사 완료를 위한 1.2초 지연 (EBUSY 방지)
-              setTimeout(() => {
-                try {
-                  console.log(`✅ [eBroAgent Auto-Update] 다운로드 완료! 신규 엔진으로 교체 기동합니다...`);
-                  updateState.status = 'installing';
-                  updateState.message = '새 버전으로 백그라운드 무음 교체 기동 중...';
+        downloadFileWithRedirects(targetUrl, updateFilePath)
+          .then(() => {
+            setTimeout(() => {
+              try {
+                agentLog('UPDATE', '다운로드 완료: 신규 버전으로 교체 기동');
+                updateState.status = 'installing';
+                updateState.message = '새 버전으로 백그라운드 무음 교체 기동 중...';
 
-                  if (isInstaller) {
-                    // Inno Setup 완전 무음 설치: /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
-                    const child = spawn(updateFilePath, ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-'], {
-                      detached: true,
-                      stdio: 'ignore'
-                    });
-                    child.unref();
-                  } else {
-                    // 단일 바이너리 바통 터치
-                    const child = spawn(updateFilePath, [], {
-                      detached: true,
-                      stdio: 'ignore',
-                      windowsHide: true
-                    });
-                    child.unref();
-                  }
-
-                  setTimeout(() => {
-                    process.exit(0);
-                  }, 1500);
-                } catch (spawnErr) {
-                  console.error('⚠️ [eBroAgent Auto-Update] spawn 오류:', spawnErr.message);
-                  updateState.status = 'error';
-                  updateState.message = `실행 오류: ${spawnErr.message}`;
+                if (isInstaller) {
+                  const child = spawn(updateFilePath, ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/SP-'], {
+                    detached: true,
+                    stdio: 'ignore'
+                  });
+                  child.unref();
+                } else {
+                  const child = spawn(updateFilePath, [], {
+                    detached: true,
+                    stdio: 'ignore',
+                    windowsHide: true
+                  });
+                  child.unref();
                 }
-              }, 1200);
-            });
+
+                setTimeout(() => {
+                  process.exit(0);
+                }, 1500);
+              } catch (spawnErr) {
+                agentLog('ERROR', '업데이트 실행 오류: ' + spawnErr.message);
+                updateState.status = 'error';
+                updateState.message = `실행 오류: ${spawnErr.message}`;
+              }
+            }, 1200);
+          })
+          .catch((err) => {
+            updateState.status = 'error';
+            updateState.message = `다운로드 오류: ${err.message}`;
+            agentLog('WARN', '업데이트 다운로드 오류: ' + err.message);
           });
-        }).on('error', err => {
-          updateState.status = 'error';
-          updateState.message = `다운로드 오류: ${err.message}`;
-          console.warn('⚠️ [eBroAgent Auto-Update] 다운로드 스트림 오류:', err.message);
-        });
 
         return { status: 'updating', currentVersion: VERSION, targetVersion: remoteVersion };
       } else {
@@ -246,9 +384,9 @@ async function checkAndApplyUpdate(force = false) {
   }
 }
 
-// 윈도우 부팅 5초 후 첫 검사, 이후 10분마다 주기적 백그라운드 검사
-setTimeout(checkAndApplyUpdate, 5000);
-setInterval(checkAndApplyUpdate, 600000);
+// 백그라운드 자동 업데이트 점검 (기동 60초 후 1회, 이후 6시간 주기)
+setTimeout(() => { checkAndApplyUpdate().catch(() => {}); }, 60000);
+setInterval(() => { checkAndApplyUpdate().catch(() => {}); }, 12 * 3600 * 1000);
 
 // ── HTTP 요청 핸들러 ──
 let activeCallsign = CALLSIGN;
@@ -279,7 +417,7 @@ const server = http.createServer(async (req, res) => {
   const queryString = queryIndex !== -1 ? rawUrl.substring(queryIndex + 1) : '';
   const searchParams = new URLSearchParams(queryString);
 
-  // 🏢 eBro AI Agent 지시 스튜디오 및 큐 API 처리
+  //  eBro AI Agent 지시 스튜디오 및 큐 API 처리
   const isStudioHandled = await handleStudioRequest(req, res, pathname, searchParams, PORT, VERSION);
   if (isStudioHandled) return;
 
@@ -360,7 +498,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 3-2-1. 🏛️ 국세청 홈택스 매입세금계산서 로컬 자동 수집 API (/api/hometax/purchase-invoices)
+  // 3-2-1.  국세청 홈택스 매입세금계산서 로컬 자동 수집 API (/api/hometax/purchase-invoices)
   if (req.method === 'GET' && pathname === '/api/hometax/purchase-invoices') {
     try {
       if (!fs.existsSync(HOMETAX_INVOICES_DIR)) {
@@ -471,7 +609,7 @@ const server = http.createServer(async (req, res) => {
             }
           }
         } catch (excelErr) {
-          console.warn('[eBroAgent] Excel parse error in agent:', excelErr);
+          agentLog('WARN', '엑셀 파싱 오류: ' + (excelErr.message || excelErr));
         }
       }
 
@@ -483,14 +621,14 @@ const server = http.createServer(async (req, res) => {
         items
       }));
     } catch (err) {
-      console.error('[eBroAgent] Hometax collection error:', err);
+      agentLog('ERROR', '홈택스 수집 오류: ' + (err.message || err));
       res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ success: false, error: err.message }));
     }
     return;
   }
 
-  // 3-2-2. 📧 실시간 Gmail SMTP 이메일 발송 API (/api/send-email)
+  // 3-2-2.  실시간 Gmail SMTP 이메일 발송 API (/api/send-email)
   if (req.method === 'POST' && pathname === '/api/send-email') {
     let bodyData = '';
     req.on('data', chunk => { bodyData += chunk; });
@@ -544,7 +682,7 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ success: true, messageId: info.messageId, accepted: info.accepted }));
       } catch (err) {
-        console.error('Agent email send error:', err);
+        agentLog('ERROR', '메일 전송 오류: ' + (err.message || err));
         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ success: false, error: err.message || '이메일 발송에 실패했습니다.' }));
       }
@@ -552,7 +690,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 3-3. 🌟 정품 엑셀 원본 기반 7종 통합 계약 서류팩 PDF 생성 엔진 (Excel COM + pdf-lib)
+  // 3-3.  정품 엑셀 원본 기반 7종 통합 계약 서류팩 PDF 생성 엔진 (Excel COM + pdf-lib)
   if (req.method === 'POST' && pathname === '/api/generate-contract-bundle') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
@@ -827,10 +965,10 @@ $excel.Quit()
           pageCount,
           localPath: localSavePath,
           base64Content: b64,
-          message: `✅ 100% 정품 엑셀 기반 7종 통합 서류팩 생성 완료 (총 ${pageCount}페이지)`
+          message: ` 100% 정품 엑셀 기반 7종 통합 서류팩 생성 완료 (총 ${pageCount}페이지)`
         }));
       } catch (bundleErr) {
-        console.error('❌ 서류팩 생성 실패:', bundleErr);
+        agentLog('ERROR', '서류팩 생성 실패: ' + (bundleErr.message || bundleErr));
         try { fs.rmSync(tempBuildDir, { recursive: true, force: true }); } catch (e) {}
         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ success: false, error: bundleErr.message }));
@@ -839,7 +977,7 @@ $excel.Quit()
     return;
   }
 
-  // 3-4. 🌟 정품 엑셀 원본 기반 거래명세서 A4 PDF 생성 엔진 (Excel COM & 다중 페이지 자동 분할)
+  // 3-4.  정품 엑셀 원본 기반 거래명세서 A4 PDF 생성 엔진 (Excel COM & 다중 페이지 자동 분할)
   if (req.method === 'POST' && pathname === '/api/generate-statement') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
@@ -1058,7 +1196,7 @@ $excel.Quit()
         const safeSiteName = String(siteName || '현장').replace(/[\\/:*?"<>|]/g, '');
         const fileName = `[기연리프트]_거래명세서_${safeCustName}_${safeSiteName}_${yyyyMm}.pdf`;
 
-        // 🌟 [로컬 문서고 영구 아카이빙 - 헌장 1.2 & 매뉴얼 6.3]
+        //  [로컬 문서고 영구 아카이빙 - 헌장 1.2 & 매뉴얼 6.3]
         const archiveDir = path.join(ARCHIVE_ROOT, yyyyMm);
         if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
         const localSavePath = path.join(archiveDir, fileName);
@@ -1081,10 +1219,10 @@ $excel.Quit()
           localPath: localSavePath,
           pageCount: chunks.length || 1,
           base64Content: b64,
-          message: `✅ 100% 정품 엑셀 기반 거래명세서 PDF 생성 및 로컬 문서고 영구 아카이빙 완료`
+          message: ` 100% 정품 엑셀 기반 거래명세서 PDF 생성 및 로컬 문서고 영구 아카이빙 완료`
         }));
       } catch (statementErr) {
-        console.error('❌ 거래명세서 생성 실패:', statementErr);
+        agentLog('ERROR', '거래명세서 생성 실패: ' + (statementErr.message || statementErr));
         try { fs.rmSync(tempBuildDir, { recursive: true, force: true }); } catch (e) {}
         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ success: false, error: statementErr.message }));
@@ -1155,18 +1293,14 @@ $excel.Quit()
         const directUrl = searchParams.get('url') || (fileName ? `https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/${fileName.split('/').map(encodeURIComponent).join('/')}` : null);
         if (directUrl && directUrl.startsWith('http')) {
           try {
-            const fetchRes = await fetch(directUrl);
-            if (fetchRes.ok) {
-              const ab = await fetchRes.arrayBuffer();
-              if (ab.byteLength > 100) {
-                const targetDir = path.dirname(localFilePath);
-                if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
-                fs.writeFileSync(localFilePath, Buffer.from(ab));
-
-                res.writeHead(200, { 'Content-Type': contentType, 'X-Cache-Source': 'R2_URL_DOWNLOADED' });
-                res.end(Buffer.from(ab));
-                return;
-              }
+            const targetDir = path.dirname(localFilePath);
+            if (!fs.existsSync(targetDir)) fs.mkdirSync(targetDir, { recursive: true });
+            await downloadFileWithRedirects(directUrl, localFilePath);
+            if (fs.existsSync(localFilePath) && fs.statSync(localFilePath).size > 100) {
+              const fileBuf = fs.readFileSync(localFilePath);
+              res.writeHead(200, { 'Content-Type': contentType, 'X-Cache-Source': 'R2_URL_DOWNLOADED' });
+              res.end(fileBuf);
+              return;
             }
           } catch (urlErr) {}
         }
@@ -1174,7 +1308,7 @@ $excel.Quit()
         res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ success: false, error: `파일을 찾을 수 없습니다: ${fileName}` }));
       } catch (err) {
-        console.error('❌ /api/get-file 오류:', err);
+        agentLog('ERROR', '파일 요청 오류: ' + (err.message || err));
         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ success: false, error: err.message }));
       }
@@ -1188,7 +1322,7 @@ $excel.Quit()
     req.on('end', async () => {
       try {
         const payload = JSON.parse(body || '{}');
-        console.log(`📥 [작업 수신] ${payload.jobType || 'CONTRACT_BUNDLE'} (계약: ${payload.contractNo || 'N/A'}, 작업자: ${activeCallsign})`);
+        agentLog('JOB', `작업 수신: ${payload.jobType || 'CONTRACT_BUNDLE'} (계약: ${payload.contractNo || 'N/A'}, 작업자: ${activeCallsign})`);
 
         // 로컬 문서고에 날짜별 자동 분류 폴더 생성
         const today = new Date().toISOString().split('T')[0];
@@ -1210,10 +1344,10 @@ $excel.Quit()
           success: true,
           callsign: activeCallsign,
           localFilePath: localSavePath,
-          message: `✅ 로컬 에이전트(${activeCallsign})가 정품 문서를 생산하여 로컬 문서고(${localSavePath})에 안전 보관했습니다.`
+          message: ` 로컬 에이전트(${activeCallsign})가 정품 문서를 생산하여 로컬 문서고(${localSavePath})에 안전 보관했습니다.`
         }));
       } catch (err) {
-        console.error('❌ 작업 처리 실패:', err);
+        agentLog('ERROR', '작업 처리 실패: ' + (err.message || err));
         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ success: false, error: err.message }));
       }
@@ -1246,7 +1380,7 @@ $excel.Quit()
         count: printers.length
       }));
     } catch (err) {
-      console.error('❌ /api/printers 오류:', err);
+      agentLog('ERROR', '프린터 목록 조회 오류: ' + (err.message || err));
       res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ success: false, error: err.message, printers: [], defaultPrinter: '' }));
     }
@@ -1292,7 +1426,7 @@ $excel.Quit()
 </body>
 </html>`, 'utf8');
 
-        console.log(`🖨️ [다이렉트 인쇄] 대상 프린터: [${printerName}], 임시파일: ${tempPrintHtml}`);
+        agentLog('PRINT', `다이렉트 인쇄: 대상 [${printerName}]`);
 
         const printCmd = `Start-Process rundll32.exe -ArgumentList 'mshtml.dll,PrintHTML "${tempPrintHtml}" "${printerName}"' -NoNewWindow`;
         execSync(`powershell -NoProfile -Command "${printCmd}"`, { stdio: 'ignore' });
@@ -1306,10 +1440,10 @@ $excel.Quit()
         res.end(JSON.stringify({
           success: true,
           printer: printerName,
-          message: `✅ 전용 프린터 [${printerName}] 로 출고요청서가 즉시 전송되었습니다.`
+          message: ` 전용 프린터 [${printerName}] 로 출고요청서가 즉시 전송되었습니다.`
         }));
       } catch (err) {
-        console.error('❌ /api/print-dispatch 인쇄 오류:', err);
+        agentLog('ERROR', '인쇄 요청 오류: ' + (err.message || err));
         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ success: false, error: err.message }));
       }
@@ -1349,7 +1483,7 @@ $excel.Quit()
           updatedAt: new Date().toISOString()
         };
         fs.writeFileSync(STATION_CONFIG_FILE, JSON.stringify(activeStationConfig, null, 2), 'utf8');
-        console.log(`✅ [스테이션 설정 저장] ${activeStationConfig.stationName} (${activeStationConfig.stationId}) -> 로컬 프린터: [${activeStationConfig.localPrinterName}]`);
+        agentLog('SYSTEM', `스테이션 설정 저장: ${activeStationConfig.stationName} -> [${activeStationConfig.localPrinterName}]`);
 
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ success: true, config: activeStationConfig }));
@@ -1376,7 +1510,7 @@ function freePortIfOccupied(port) {
         const pidStr = parts[parts.length - 1];
         const targetPid = parseInt(pidStr, 10);
         if (targetPid && targetPid !== process.pid && targetPid !== 0 && targetPid !== 4) {
-          console.log(`⚠️ 포트 ${port} 점유 프로세스(PID: ${targetPid}) 강제 정리`);
+          agentLog('WARN', `포트 ${port} 점유 프로세스(PID: ${targetPid}) 강제 정리`);
           try { process.kill(targetPid, 'SIGKILL'); } catch (k) {
             try { execSync(`taskkill /F /PID ${targetPid}`, { stdio: 'ignore', windowsHide: true }); } catch (t) {}
           }
@@ -1393,7 +1527,8 @@ function startTrayWorker() {
 
   if (targetScript) {
     try {
-      const ps = spawn('powershell.exe', [
+      const psExe = process.env.SystemRoot ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'powershell.exe';
+      const ps = spawn(psExe, [
         '-STA',
         '-NoProfile',
         '-WindowStyle', 'Hidden',
@@ -1403,34 +1538,29 @@ function startTrayWorker() {
         String(PORT)
       ], {
         detached: true,
-        stdio: 'ignore',
-        windowsHide: true
+        stdio: 'ignore'
       });
       ps.unref();
-      console.log(`🔔 [시스템 트레이] Windows 알림 영역 트레이 아이콘 워커 기동 완료 (PID: ${process.pid})`);
+      agentLog('SYSTEM', `트레이 아이콘 워커 가동 완료 (PID: ${process.pid})`);
     } catch (e) {
-      console.warn('⚠️ 시스템 트레이 워커 실행 오류:', e.message);
+      agentLog('WARN', '트레이 아이콘 워커 실행 오류: ' + e.message);
     }
   }
 }
 
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
-    console.warn(`⚠️ 포트 ${PORT} 가 사용 중입니다. 이전 프로세스를 정리하고 1초 후 재시도합니다...`);
+    agentLog('WARN', `포트 ${PORT} 사용 중, 정리 후 재시도`);
     freePortIfOccupied(PORT);
     setTimeout(() => {
       try { server.close(); } catch (e) {}
       server.listen(PORT, '127.0.0.1', () => {
-        console.log(`🟢 로컬 에이전트 서비스 리스닝 시작: http://127.0.0.1:${PORT}`);
+        agentLog('INFO', `로컬 서비스 리스닝: http://127.0.0.1:${PORT}`);
         startTrayWorker();
-        const isDaemon = process.argv.includes('--daemon') || process.argv.includes('--silent');
-        if (!isDaemon) {
-          setTimeout(() => { launchStudioWindow(PORT); }, 500);
-        }
       });
     }, 1000);
   } else {
-    console.error('❌ 서버 에러:', err);
+    agentLog('ERROR', '서버 에러: ' + (err.message || err));
   }
 });
 
@@ -1521,12 +1651,12 @@ async function fetchR2BucketAllObjects() {
 }
 
 async function autoSyncFromCloudflare() {
-  console.log('🔄 [CF 실시간 동적 미러링] Cloudflare R2 원본 저장소 실시간 스캔 시작...');
+  agentLog('SYNC', 'Cloudflare R2 원본 저장소 동기화 시작');
   try {
     const objects = await fetchR2BucketAllObjects();
     const fileCount = objects.filter(o => !o.isDirectory).length;
     const folderCount = objects.filter(o => o.isDirectory).length;
-    console.log(`📦 [CF R2 버킷 파일 목록 확인] 파일 ${fileCount}개, 빈 폴더 ${folderCount}개 발견`);
+    agentLog('SYNC', `파일 목록 확인: 파일 ${fileCount}개, 폴더 ${folderCount}개`);
     let downloaded = 0;
     let skipped = 0;
     let foldersCreated = 0;
@@ -1537,7 +1667,7 @@ async function autoSyncFromCloudflare() {
         const targetDir = path.join(DRIVE_MIRROR_DIR, obj.key);
         if (!fs.existsSync(targetDir)) {
           fs.mkdirSync(targetDir, { recursive: true });
-          console.log(`📁 [CF 빈 폴더 생성] ${obj.key}`);
+          agentLog('SYNC', `빈 폴더 생성: ${obj.key}`);
           foldersCreated++;
         }
         continue;
@@ -1560,24 +1690,21 @@ async function autoSyncFromCloudflare() {
 
       try {
         const encKey = obj.key.split('/').map(encodeURIComponent).join('/');
-        const res = await fetch(`${CF_PUBLIC_URL}/${encKey}`, { signal: AbortSignal.timeout(15000) });
-        if (res.ok) {
-          const ab = await res.arrayBuffer();
-          if (ab.byteLength > 0) {
-            fs.writeFileSync(targetFile, Buffer.from(ab));
-            downloaded++;
-            console.log(`💾 [CF 동기화 완료] ${obj.key} (${ab.byteLength.toLocaleString()} bytes)`);
-          }
+        const dlUrl = `${CF_PUBLIC_URL}/${encKey}`;
+        await downloadFileWithRedirects(dlUrl, targetFile);
+        if (fs.existsSync(targetFile) && fs.statSync(targetFile).size > 0) {
+          downloaded++;
+          agentLog('SYNC', `파일 동기화 완료: ${obj.key}`);
         }
       } catch (dlErr) {
-        console.error(`❌ [다운로드 실패] ${obj.key}:`, dlErr.message);
+        agentLog('ERROR', `다운로드 실패: ${obj.key} (${dlErr.message})`);
       }
     }
 
     if (downloaded > 0 || foldersCreated > 0) {
-      console.log(`✅ [CF 동적 미러링 완료] 파일 갱신: ${downloaded}개, 폴더 생성: ${foldersCreated}개, 최신 유지: ${skipped}개`);
+      agentLog('SYNC', `동기화 완료: 갱신 ${downloaded}개, 생성 ${foldersCreated}개, 최신 ${skipped}개`);
     } else {
-      console.log(`✅ [CF 동적 미러링 완료] 모든 파일(${fileCount}개) 및 폴더가 이미 최신 상태로 로컬에 보존되어 있습니다.`);
+      agentLog('SYNC', `동기화 완료: 모든 파일(${fileCount}개) 최신 상태 유지`);
     }
 
     return {
@@ -1586,62 +1713,72 @@ async function autoSyncFromCloudflare() {
       skipped,
       foldersCreated,
       totalFiles: fileCount,
-      message: `✅ Cloudflare R2 동기화 완료 (갱신: ${downloaded}개, 최신 유지: ${skipped}개)`
+      message: ` Cloudflare R2 동기화 완료 (갱신: ${downloaded}개, 최신 유지: ${skipped}개)`
     };
   } catch (err) {
-    console.error('⚠️ CF R2 실시간 버킷 조회 오류:', err.message);
+    agentLog('ERROR', 'CF R2 버킷 조회 오류: ' + err.message);
     return {
       success: false,
       error: err.message,
-      message: `⚠️ Cloudflare R2 버킷 스캔 오류: ${err.message}`
+      message: ` Cloudflare R2 버킷 스캔 오류: ${err.message}`
     };
   }
 }
 
 // =========================================================================
-// 🖨️ [분산 원격 인쇄 큐 워커 엔진 (Headless Distributed Queue Worker)]
+//  [분산 원격 인쇄 큐 워커 엔진 (Headless Distributed Queue Worker)]
 // =========================================================================
 const SUPABASE_REST_URL = 'https://wywgkikkjgbnlljkkmnz.supabase.co/rest/v1';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5d2draWtramdibmxsamtrbW56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNjcxMzgsImV4cCI6MjA5OTk0MzEzOH0.gSftxhQjFmWUQzikx-Q5UsdgNKSZISZqJvUGeLBOCqU';
 
 let isQueueProcessing = false;
+let printQueuePollTimer = null;
+
+function scheduleNextPrintQueueCheck(delayMs) {
+  if (printQueuePollTimer) clearTimeout(printQueuePollTimer);
+  printQueuePollTimer = setTimeout(runPrintQueueLoop, delayMs);
+}
+
+async function runPrintQueueLoop() {
+  let delay = 3000;
+  try {
+    const processed = await checkAndProcessPrintQueue();
+    delay = processed ? 1000 : 3000;
+  } catch (e) {
+    delay = 30000;
+  }
+  scheduleNextPrintQueueCheck(delay);
+}
 
 async function checkAndProcessPrintQueue() {
-  if (isQueueProcessing) return;
-  if (!activeStationConfig || !activeStationConfig.stationId || !activeStationConfig.localPrinterName) return;
+  if (isQueueProcessing) return false;
+  if (!activeStationConfig || !activeStationConfig.stationId || !activeStationConfig.localPrinterName) return false;
 
   isQueueProcessing = true;
   try {
     const stationId = encodeURIComponent(activeStationConfig.stationId);
     const queryUrl = `${SUPABASE_REST_URL}/print_queue?stationId=eq.${stationId}&status=eq.PENDING&order=requestedAt.asc&limit=1`;
 
-    const res = await fetch(queryUrl, {
+    const res = await httpRequestJson(queryUrl, {
       method: 'GET',
       headers: {
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         'Content-Type': 'application/json'
       },
-      signal: AbortSignal.timeout(5000)
+      timeout: 5000
     });
 
-    if (!res.ok) {
-      isQueueProcessing = false;
-      return;
+    if (!res.ok || !Array.isArray(res.data) || res.data.length === 0) {
+      return false;
     }
 
-    const jobs = await res.json();
-    if (!Array.isArray(jobs) || jobs.length === 0) {
-      isQueueProcessing = false;
-      return;
-    }
-
-    const job = jobs[0];
-    console.log(`\n📥 [원격 인쇄 작업 수신] 스테이션: [${activeStationConfig.stationName}], 작업: [${job.id}] ${job.title}`);
+    const job = res.data[0];
+    agentLog('PRINT', `원격 인쇄 작업 수신: [${job.id}] ${job.title}`);
 
     // 1. 작업 상태를 PRINTING으로 선점 잠금 (중복 실행 방지)
     try {
-      await fetch(`${SUPABASE_REST_URL}/print_queue?id=eq.${encodeURIComponent(job.id)}`, {
+      await httpRequestJson(`${SUPABASE_REST_URL}/print_queue?id=eq.${encodeURIComponent(job.id)}`, {
         method: 'PATCH',
         headers: {
           'apikey': SUPABASE_ANON_KEY,
@@ -1649,9 +1786,8 @@ async function checkAndProcessPrintQueue() {
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal'
         },
-        body: JSON.stringify({ status: 'PRINTING', updatedAt: new Date().toISOString() }),
-        signal: AbortSignal.timeout(4000)
-      });
+        timeout: 4000
+      }, { status: 'PRINTING', updatedAt: new Date().toISOString() });
     } catch (lockErr) {}
 
     // 2. 인쇄용 임시 HTML 파일 작성 및 다이렉트 무인 출력 실행
@@ -1682,12 +1818,12 @@ async function checkAndProcessPrintQueue() {
 </body>
 </html>`, 'utf8');
 
-    console.log(`🖨️ [무인 다이렉트 출력 전송] 프린터: [${printerName}], 작업: ${job.id}`);
+    agentLog('PRINT', `출력 전송: 프린터 [${printerName}], 작업: ${job.id}`);
     const printCmd = `Start-Process rundll32.exe -ArgumentList 'mshtml.dll,PrintHTML "${tempPrintHtml}" "${printerName}"' -NoNewWindow`;
     execSync(`powershell -NoProfile -Command "${printCmd}"`, { stdio: 'ignore' });
 
     // 3. 완료 상태 업데이트
-    await fetch(`${SUPABASE_REST_URL}/print_queue?id=eq.${encodeURIComponent(job.id)}`, {
+    await httpRequestJson(`${SUPABASE_REST_URL}/print_queue?id=eq.${encodeURIComponent(job.id)}`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_ANON_KEY,
@@ -1695,22 +1831,23 @@ async function checkAndProcessPrintQueue() {
         'Content-Type': 'application/json',
         'Prefer': 'return=minimal'
       },
-      body: JSON.stringify({
-        status: 'COMPLETED',
-        printedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }),
-      signal: AbortSignal.timeout(4000)
+      timeout: 4000
+    }, {
+      status: 'COMPLETED',
+      printedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     });
 
-    console.log(`✅ [인쇄 완료 보고 완료] 작업: ${job.id}`);
+    agentLog('PRINT', `인쇄 완료 보고 완료: 작업 ${job.id}`);
 
     setTimeout(() => {
       try { if (fs.existsSync(tempPrintHtml)) fs.unlinkSync(tempPrintHtml); } catch (e) {}
     }, 15000);
 
+    return true;
   } catch (printErr) {
-    console.error('❌ 인쇄 큐 작업 처리 중 오류:', printErr.message);
+    // 인쇄 큐 조회 실패(일시적 네트워크 지연/타임아웃) 시 콘솔 에러 폭탄 방지 및 조용한 대기
+    return false;
   } finally {
     isQueueProcessing = false;
   }
@@ -1720,7 +1857,7 @@ async function sendStationHeartbeat() {
   if (!activeStationConfig || !activeStationConfig.stationId) return;
   try {
     const stationId = encodeURIComponent(activeStationConfig.stationId);
-    await fetch(`${SUPABASE_REST_URL}/print_stations?id=eq.${stationId}`, {
+    await httpRequestJson(`${SUPABASE_REST_URL}/print_stations?id=eq.${stationId}`, {
       method: 'PATCH',
       headers: {
         'apikey': SUPABASE_ANON_KEY,
@@ -1728,12 +1865,11 @@ async function sendStationHeartbeat() {
         'Content-Type': 'application/json',
         'Prefer': 'return=minimal'
       },
-      body: JSON.stringify({
-        status: 'ONLINE',
-        lastHeartbeat: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }),
-      signal: AbortSignal.timeout(3000)
+      timeout: 4000
+    }, {
+      status: 'ONLINE',
+      lastHeartbeat: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     });
   } catch (e) {}
 }
@@ -1742,28 +1878,18 @@ async function sendStationHeartbeat() {
 freePortIfOccupied(PORT);
 
 server.listen(PORT, '127.0.0.1', () => {
-  console.log(`🟢 로컬 에이전트 서비스 리스닝 시작: http://127.0.0.1:${PORT}`);
+  agentLog('INFO', `로컬 서비스 리스닝: http://127.0.0.1:${PORT}`);
 
-  // 🔔 윈도우 시스템 트레이(알림 영역) 아이콘 워커 즉시 가동 (상시 유지)
+  //  윈도우 시스템 트레이(알림 영역) 아이콘 워커 가동 (상시 유지)
   startTrayWorker();
 
-  // 기동 즉시 백그라운드에서 CF 실시간 동적 미러링 실행 (1회)
-  setTimeout(autoSyncFromCloudflare, 300);
-  // 이후 1시간마다 백그라운드 자가 점검 (3600000 ms)
-  setInterval(autoSyncFromCloudflare, 3600000);
-
-  // 🖨️ 분산 인쇄 큐 워커 타이머 (3초 주기)
-  setInterval(checkAndProcessPrintQueue, 3000);
-  // 🖨️ 스테이션 하트비트 (30초 주기)
-  setInterval(sendStationHeartbeat, 30000);
-
-  // 🖥️ 독립 데스크톱 스튜디오 창 실행 (데몬 모드가 아닐 때)
-  const isDaemon = process.argv.includes('--daemon') || process.argv.includes('--silent');
-  if (!isDaemon) {
-    setTimeout(() => {
-      launchStudioWindow(PORT);
-    }, 500);
+  //  분산 인쇄 큐 워커: station_config.json이 등록되어 있을 때만 대기 실행
+  if (activeStationConfig && activeStationConfig.stationId) {
+    scheduleNextPrintQueueCheck(5000);
+    setInterval(() => { sendStationHeartbeat().catch(() => {}); }, 30000);
   }
+
+  // 순수 시스템 트레이 데몬 모드 상주 (스튜디오 창 자동 팝업 배제, 트레이 조작 시에만 실행)
 });
 
 

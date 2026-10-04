@@ -13,42 +13,14 @@ const tenants = [
     publisher: '(주)기연리프트 / e-Bro ERP',
     appId: '{EBR0-ERP-AG3NT-GIYEUN-2026}',
     outFile: 'eBroAgent_Setup_GIYEUN'
-  },
-  {
-    code: 'HANSOL',
-    appName: 'eBro AI Agent (한솔리프트)',
-    publisher: '(주)한솔리프트 / e-Bro ERP',
-    appId: '{EBR0-ERP-AG3NT-HANSOL-2026}',
-    outFile: 'eBroAgent_Setup_HANSOL'
-  },
-  {
-    code: 'EBRO',
-    appName: 'eBro AI Agent',
-    publisher: 'e-Bro ERP System',
-    appId: '{EBR0-ERP-AG3NT-EBRO-2026}',
-    outFile: 'eBroAgent_Setup_EBRO'
-  },
-  {
-    code: 'DEMO',
-    appName: 'eBro AI Agent (체험판)',
-    publisher: 'e-Bro ERP Demo',
-    appId: '{EBR0-ERP-AG3NT-DEMO-2026}',
-    outFile: 'eBroAgent_Setup_DEMO'
-  },
-  {
-    code: 'DEFAULT',
-    appName: 'eBro AI Agent',
-    publisher: 'e-Bro ERP System',
-    appId: '{EBR0-ERP-AG3NT-DEFAULT-2026}',
-    outFile: 'eBroAgent_Setup'
   }
 ];
 
 for (const t of tenants) {
   console.log(`\n==========================================================`);
-  console.log(`🔨 Compiling Installer for: ${t.appName} [${t.code}]`);
-  console.log(`🏢 Publisher: ${t.publisher}`);
-  console.log(`📦 Output File: ${t.outFile}.exe`);
+  console.log(`[BUILD] Compiling Installer for: ${t.appName} [${t.code}]`);
+  console.log(`[INFO] Publisher: ${t.publisher}`);
+  console.log(`[INFO] Output File: ${t.outFile}.exe`);
   console.log(`==========================================================`);
 
   const args = [
@@ -62,11 +34,19 @@ for (const t of tenants) {
 
   try {
     execFileSync(iscc, args, { stdio: 'inherit' });
-    console.log(`✅ ${t.outFile}.exe successfully compiled!`);
+    console.log(`[SUCCESS] ${t.outFile}.exe successfully compiled!`);
   } catch (err) {
-    console.error(`❌ Compilation failed for ${t.code}:`, err.message);
+    console.error(`[ERROR] Compilation failed for ${t.code}:`, err.message);
     process.exit(1);
   }
 }
 
-console.log('\n🎉 All 5 tenant installers compiled successfully with distinct publisher & app info!');
+// 기본 인스톨러(eBroAgent_Setup.exe)로 동기화 복사
+const giyeunExe = path.join(__dirname, '..', 'public', 'downloads', 'eBroAgent_Setup_GIYEUN.exe');
+const defaultExe = path.join(__dirname, '..', 'public', 'downloads', 'eBroAgent_Setup.exe');
+if (fs.existsSync(giyeunExe)) {
+  fs.copyFileSync(giyeunExe, defaultExe);
+  console.log(`[SYNC] Synced eBroAgent_Setup_GIYEUN.exe -> eBroAgent_Setup.exe`);
+}
+
+console.log('\n[COMPLETE] Giyeun Lift installer compiled and synced successfully!');

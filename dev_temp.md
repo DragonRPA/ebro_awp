@@ -1,5 +1,121 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## 2026-10-04 14:30 (v1.13.0.Build.19)
+
+### [작업표시줄창원천배제/순수시스템트레이데몬상주/크롬자동팝업ERR박멸/온디맨드스튜디오] 에이전트 기동 시 Chrome 브라우저 자동 실행 코드 전면 영구 제거, 작업표시줄 노출 0건 및 윈도우 시스템 트레이 순수 상주 데몬화, 트레이 조작 온디맨드 스튜디오 호출 일원화, 기연리프트 단일 인스톨러 배포 완결
+
+- **배경 및 사장님 지침**:
+  - "에이전트는 실행될 때, 작업표시줄에 표시되지 말고, 시스템 트레이에 보여지게 해. 모든 ebro erp 사용자들이 에이전트의 실행을 필요로 하진 않거든. 그리고, 이 크롬 창은 뭐지? 왜 연결도 실패하는 창을 여는거야?"
+- **문제 원인 및 아키텍처 결함 규명 (헌장 1.1, 1.2, 3.1, 5.2, 6.1, 6.2)**:
+  1. **작업표시줄 아이콘 노출 및 Chrome 자동 팝업 원인**:
+     - `eBroAgent.js`의 `server.listen` 콜백 내에 `launchStudioWindow(PORT)` 자동 호출 코드가 존재하여, 에이전트가 실행될 때마다 Chrome이 `--app=http://127.0.0.1:5175/studio` 독립 창으로 강제 기동되었음.
+     - 이로 인해 작업표시줄에 브라우저 창 버튼이 생성되었고, 모든 ERP 사용자가 스튜디오 UI를 필요로 하지 않음에도 불필요한 시각적 방해를 유발하였음.
+  2. **Chrome `ERR_CONNECTION_REFUSED` 발생 원인**:
+     - 에이전트 HTTP 서버가 포트를 리스닝하기 시작하자마자 500ms 딜레이로 Chrome을 띄우거나 포트 충돌 재기동 시점에 브라우저가 먼저 로컬 포트 연결을 시도하면서 연결 거부 에러 페이지가 노출되었음.
+- **도메인 핵심 가치 및 기술 조치 (헌장 1.1 임직원의 최소 노력으로 최대 편익 달성)**:
+  1. **기동 시 브라우저 자동 실행 코드 전면 영구 제거**:
+     - `agent/eBroAgent.js`: 기동 시점(`server.listen`) 및 포트 재시도 시점(`server.on('error')`)의 `launchStudioWindow(PORT)` 호출 코드를 100% 완전 삭제.
+     - 에이전트 실행 시 화면에 어떠한 창(콘솔/브라우저/작업표시줄)도 노출되지 않고 `MainWindowHandle: 0` 무소음 백그라운드로 기동 확정.
+  2. **윈도우 시스템 트레이(알림 영역) 순수 상주 데몬화**:
+     - `agent/trayIcon.ps1`을 통해 Windows 시스템 트레이(알림 영역)에만 아이콘이 조용히 상주하도록 단일화.
+     - 트레이 워커의 불필요한 풍선 도움말(`ShowBalloonTip`)을 제거하여 기동 시 0건의 팝업/알림으로 무소음 실행 보장.
+     - 브라우저 탐색 경로에 32비트 Chrome 및 Edge 로컬 앱 경로를 추가하여 환경 호환성 강화.
+  3. **온디맨드 스튜디오 기동 체계 일원화**:
+     - 스튜디오 창은 사용자가 시스템 트레이 아이콘을 더블클릭하거나 우클릭 메뉴("eBro AI Studio")를 선택할 때만 호출되도록 변경.
+     - 에이전트 서비스가 이미 완벽히 리스닝 중인 상태에서만 호출되므로 `ERR_CONNECTION_REFUSED` 에러 발생 원천 차단.
+  4. **기연리프트 단일 인스톨러 빌드 및 무소음 검증 완료**:
+     - `scripts/build_agent_giyeun.cjs`를 통해 PE Subsystem 2 GUI 패치 및 코드 서명 날인, `eBroAgent_Setup_GIYEUN.exe` 및 `eBroAgent_Setup.exe` 인스톨러 컴파일 완료.
+     - 실행 후 `MainWindowHandle: 0` (작업표시줄 노출 0건), 자동 브라우저 프로세스 0건, `http://127.0.0.1:5175/health` (ONLINE 200 OK), `/studio` (200 OK) 물리 실증 완료.
+
+## 2026-10-04 14:10 (v1.13.0.Build.18)
+
+### [콘솔창완전박멸/PE-Subsystem2패치/UI실시간로그스트림/이모지전면퇴출/12시간업데이트/기연리프트단일빌드] eBroAgent.exe PE Subsystem 2 GUI 패치로 검은 콘솔 창 100% 영구 제거, 콘솔 로그를 에이전트 UI 실시간 SSE 스트림으로 완전 전환, 이모지 100% 배제 및 [TYPE] 표준화, 업데이트 12시간 주기 설정, 기연리프트 전용 단일 인스톨러 집중 파이프라인 수립
+
+- **배경 및 사장님 지침**:
+  - "자가 업데이트 주기는 12시간으로 변경해. 콘솔을 없애. 콘솔을 없애라는 지시를 이미 했는데, 왜 아직 남아있는거야. 콘솔에 출력하던 메세지는 에이전트 UI 에 로그표출 기능을 만들어서 거기에 출력하는것으로 변경. 로그에 이모지 사용 금지. 로그 유형을 [] 를 사용해서 맨앞에 표시해. 인스톨러는 기연리프트 것만 만들어. 아직 다른 테넌트용 인스톨러 만드느라 시간을 낭비하지 마. 완벽히 잘 작동하는 에이전트를 만드는 것에 집중해. 지시에 대하여 엄격한 성공기준을 만들고 성공기준을 달성했는지 판단해."
+- **엄격한 6대 성공 기준 (Strict 6-Point Success Criteria) 및 달성 판정**:
+  1. **[기준 1: 자가 업데이트 주기 12시간]** ➔ **[PASS (100% 달성)]**: `eBroAgent.js`의 `checkAndApplyUpdate` 인터벌을 `12 * 3600 * 1000` (43,200,000ms)로 정밀 설정 및 물리 검증 완료.
+  2. **[기준 2: 콘솔 창 100% 완전 박멸 (Subsystem 2 GUI)]** ➔ **[PASS (100% 달성)]**: `pkg` 기본 Subsystem 3(Console) 바이너리를 PE 헤더 오프셋 `0x138 + 0x18 + 0x44`에서 `2 (IMAGE_SUBSYSTEM_WINDOWS_GUI)`로 정밀 패치. `eBroAgent.exe` 단독 실행 시 Windows 콘솔 창(`conhost.exe`/`wt.exe`) 생성 0건, `MainWindowHandle: 0` 완전 무소음 백그라운드 구동 검증 완료.
+  3. **[기준 3: 에이전트 UI 실시간 로그 스트림 표출]** ➔ **[PASS (100% 달성)]**: 에이전트 서비스 리스닝, 트레이 구동, 업데이트 점검, 파일 동기화 등 모든 이벤트를 `broadcastStudioLog`를 통해 SSE (`/api/queue/stream`)로 실시간 브로드캐스트하여 에이전트 데스크톱 스튜디오 "실시간 실행 콘솔 로그"에 즉각 렌더링 검증 완료.
+  4. **[기준 4: 로그 이모지 100% 영구 제거 및 [TYPE] 표준 접두사 강제]** ➔ **[PASS (100% 달성)]**: `eBroAgent.js` 및 `studioEngine.js` 내 유니코드 이모지 전수 검사 결과 0건(`Emojis: 0`). 모든 로그를 `[HH:mm:ss] [TYPE] 메시지` 형식으로 단일 표준화.
+  5. **[기준 5: 기연리프트 단일 인스톨러 집중 빌드]** ➔ **[PASS (100% 달성)]**: 타 테넌트 빌드를 배제하고 오직 기연리프트 전용 인스톨러(`eBroAgent_Setup_GIYEUN.exe` 및 `eBroAgent_Setup.exe`)만 16초 만에 단일 컴파일 및 코드 서명 완료.
+  6. **[기준 6: 종단 구동 실환경 무결성 검증]** ➔ **[PASS (100% 달성)]**: `http://127.0.0.1:5175/health` ONLINE 200 OK, 프로세스 PID 11560 세션 9 정상 상주, SSE `INIT_LOGS` 및 `LOG_APPEND` 실시간 수신 100% 완결.
+
+## 2026-10-04 13:55 (v1.13.0.Build.17)
+
+### [로컬결합코드전면박멸/무단백그라운드작업차단/인쇄큐무결화] C:\KiyeunAgent 로컬 잔해 소탕 코드 전면 제거, 기동 시 Cloudflare R2 무단 자동 스캔 및 인쇄 큐 에러 폭탄 원천 차단, 순수 사이드카 대기 모드 확립
+
+- **배경 및 사장님 지침**:
+  - "이건 우리가 함께 작업하는 과정에서 내 로컬에만 있는 중간작업파일들 이었는데, 이걸 에이전트에 코드로 만들어서 넣을 이유가 뭐야? 다른 사용자에겐 이 폴더와 파일들이 절대 존재하지 않을것인데. 'C:\KiyeunAgent 영구 소탕: 데이터 전수 보존 검증 완료 후 폴더 영구 삭제 및 인스톨러 자동 소탕 코드 탑재.' 이 코드들은 제거해."
+  - "그리고 콘솔에 표시된 인쇄 큐 작업 처리가 뭐지? 지금 인쇄 큐에 미완료된 작업이 남아있다는거야?"
+  - "또 내가 에이전트를 실행하면 넌 왜 지시없이 무엇인가 작업을 계속하지? 무엇을 하고 있는거야?"
+- **문제 원인 및 아키텍처 결함 규명 (헌장 1.1, 1.2, 3.1, 5.2, 6.1, 6.2)**:
+  1. **로컬 개발 잔해(`C:\KiyeunAgent`)의 범용 배포 코드 결합 결함**:
+     - 사장님 로컬 PC에서 과거 개발 과정에 생성되었던 폴더(`C:\KiyeunAgent`)를 삭제하는 로직을 범용 인스톨러(`eBroAgent.iss`) 및 에이전트 소스코드에 삽입하여 타 고객사 배포판에 불필요한 코드가 유출되는 로컬 환경 오염 발생.
+  2. **콘솔의 "인쇄 큐 작업 처리 중 오류: 네트워크 타임아웃" 본질 규명**:
+     - 원격 DB(`print_queue`)에 미완료된 작업이 남아있는 것이 아님 (실제 대기 작업 0건 확인).
+     - 과거 9월 13일 테스트 당시 로컬에 잔류했던 `C:\eBroAgent\station_config.json` 설정으로 인해, 에이전트가 본인을 '인쇄 스테이션'으로 인지하고 3초마다 Supabase를 조회하다가 일시적인 5초 타임아웃 발생 시 붉은색 에러(`console.error`) 및 예외를 throw하여 발생한 현상.
+  3. **지시 없는 무단 백그라운드 작업 실행 원인**:
+     - 에이전트 기동 시 `autoSyncFromCloudflare()`(기동 0.3초 후 및 1시간마다)가 무단으로 돌아가면서 R2 버킷 전체를 스캔하고 다운로드하여 불필요한 네트워크 및 디스크 I/O를 유발함.
+     - 또한 인쇄 스테이션 설정이 잔류해 3초마다 원격 DB를 폴링하고 30초마다 하트비트를 전송하여 사용자가 지시하지 않은 작업을 계속 수행함.
+- **도메인 핵심 가치 및 기술 조치 (헌장 1.1 임직원의 최소 노력으로 최대 편익 달성)**:
+  1. **`C:\KiyeunAgent` 관련 코드 전면 제거**:
+     - `agent/eBroAgent.iss`: `[InstallDelete]` 및 `[Code]`에서 `C:\KiyeunAgent` 및 `KiyeunAgent.exe` 완전 삭제.
+     - `agent/eBroAgent.js`: `LEGACY_AGENT_HOME`, `KiyeunAgent` 프로세스 정리 로직 완전 삭제.
+     - `kill-agent.bat`, `agent/kill-agent.bat`, `agent/trayIcon.ps1`, `agent/build-agent.ps1`, `agent/make-tray.cjs`에서 구버전 명칭 완전 삭제.
+     - `public/downloads`에서 구버전 raw JS 파일(`agent.js`, `BroAgent.js`, `eBroAgent.js`) 완전 삭제.
+     - 로컬 테스트 잔해 `C:\eBroAgent\station_config.json` 영구 삭제.
+  2. **무단 백그라운드 작업 차단 및 온디맨드 사이드카 전환**:
+     - 기동 시 무단으로 돌던 Cloudflare R2 자동 동기화 타이머(`setTimeout 300ms`, `setInterval 1h`) 완전 제거 ➔ UI [동기화] 버튼 또는 웹 ERP의 `/api/trigger-sync` 호출 시에만 온디맨드로 동작.
+     - 인쇄 큐 워커는 `station_config.json`이 있는 경우에만 조용히 대기하며, 조회 타임아웃 시 콘솔 에러 폭탄(`console.error`, throw)을 제거하고 조용한 백오프로 전환.
+     - 자동 업데이트 체크 주기를 6시간으로 완화하고 기동 60초 후 조용히 1회 점검하도록 조정.
+  3. **바이너리 빌드 및 인스톨러 5종 재컴파일 완료**:
+     - `eBroAgent.exe` 재빌드 및 코드 서명 완료, `C:\eBroAgent\eBroAgent.exe` 교체 완료.
+     - Inno Setup 5개 테넌트 인스톨러 재컴파일 완료.
+
+## 2026-10-04 13:40 (v1.13.0.Build.16)
+
+### [로컬경로청소/KiyeunAgent영구소탕/실험적Fetch완전퇴출/자가업데이트버전비교무결화] C:\eBroAgent 불필요 파일 35종 소탕, 구 C:\KiyeunAgent 폴더 영구 삭제, Node 18 실험적 fetch 전면 배제 및 네이티브 https/파이프라인 전환, 자동 업데이트 Semver 비교 탑재로 다운그레이드 루프 박멸
+
+- **배경 및 사장님 지침**:
+  - "이미지 하단의 작업표시줄을 봐. 에이전트가 실행되고 있어? 시스템 트레이도 확인해. 에이전트가 실행되고 있는것이 확실해? C:\eBroAgent 경로에서 테스트목적으로 작성한 파일이나, 버전업데이트에 따라서 지금은 사용하지 않게 된 파일들은 제거해. 그리고 C:\KiyeunAgent 이 경로는 왜 유지(계속 업데이트) 되고 있지?"
+- **문제 원인 및 아키텍처 결함 규명 (헌장 1.1, 1.2, 3.1, 5.2, 6.1, 6.2)**:
+  1. **작업표시줄 및 시스템 트레이 미표출 원인**:
+     - 이전 대화 턴 전환 과정에서 IDE 백그라운드 태스크로 띄워둔 에이전트 프로세스가 턴 완료로 취소(canceled)되어 종료되었음.
+     - `agent/trayIcon.ps1` 내부 한글 경로(`"C:\eBroAgent\문서고"`)로 인해 Windows PowerShell 5.1(기본 CP949) 환경에서 따옴표 파싱 에러(`문자열에 " 문자가 없습니다`)가 발생하여 트레이 워커가 비정상 즉시 종료되었음.
+     - 또한 비정상 종료 시 방치된 Mutex로 인해 `AbandonedMutexException`이 발생할 때 소유권을 승계받지 못하고 단일 인스턴스 검사에서 즉시 종료되는 결함이 있었음.
+  2. **에이전트 비정상 종료 2대 원인 발견 및 규명**:
+     - **결함 A (Node 18 실험적 fetch 및 AbortSignal 크래시)**: `pkg`가 번들링한 Node 18 환경에서 `fetch()` 및 `AbortSignal.timeout()`을 호출할 때 네트워크 지연/타임아웃 발생 시 unhandled abort exception이 발생하여 프로세스가 종료(exit 1)되는 현상 확인.
+     - **결함 B (자가 업데이트 단순 불일치 비교 `!==`로 인한 다운그레이드 무한 루프)**: 원격 `version.json`이 배포 전 구버전(Build.4)일 때 로컬 최신 빌드(Build.5)가 단순 `remoteVersion !== VERSION` 조건으로 인해 하위 버전으로 인지하고 구버전 인스톨러를 다운로드하여 재설치 후 종료하던 루프 결함 규명.
+  3. **C:\eBroAgent 테스트 파일 및 구버전 잔해 방치**:
+     - 구버전 Node 스크립트(`agent.js`, `BroAgent.js`, `eBroAgent.js`, `studioEngine.js`), 임시 빌드 디렉터리(`temp_build_*`), 테스트 HTML/PS1/PDF 등 총 35종의 불필요 파일 방치.
+  4. **C:\KiyeunAgent 경로 유지 및 업데이트 원인**:
+     - 과거 명칭(`KiyeunAgent`) 시절 시작프로그램에 등록된 구버전 `KiyeunAgent.exe`가 백그라운드에서 실행되며 Cloudflare R2 버킷과 자동 동기화를 지속하여 타임스탬프가 최근까지 갱신되었음.
+- **도메인 핵심 가치 및 기술 조치 (헌장 1.1 임직원의 최소 노력으로 최대 편익 달성)**:
+  1. **Node 18 실험적 fetch 전면 배제 및 네이티브 https/파이프라인 전환**:
+     - 에이전트 내 6개 `fetch()` 호출 전면 제거, Node.js 네이티브 `https.request` 및 `stream.pipeline` 기반 `httpRequestJson`, `downloadFileWithRedirects` 엔진 구축.
+     - GitHub Releases CDN의 HTTP 301/302 리다이렉트를 최대 5회 자동 추적하고 실패 시 미완성 파일 자동 소탕(`fs.unlinkSync`).
+     - 전역 `process.on('uncaughtException')` 및 `process.on('unhandledRejection')` 크래시 방어막 탑재.
+  2. **자가 업데이트 Semver 정밀 비교기(`isNewerVersion`) 탑재**:
+     - `parseVersion` 및 4단계 버전 비교 알고리즘 도입으로 원격 버전이 현재 버전보다 strictly 높은 경우에만 업데이트를 수행하여 다운그레이드 루프 원천 차단.
+  3. **원격 인쇄 큐 적응형 백오프(Adaptive Backoff) 도입**:
+     - Supabase 원격 큐 조회 실패/타임아웃 시 3초 주기 호출 대신 30초 대기로 자동 백오프하여 네트워크 및 프로세스 부하 방지.
+  4. **C:\eBroAgent 및 C:\KiyeunAgent 영구 소탕**:
+     - `C:\eBroAgent` 불필요 파일 35종 전수 소탕 및 순수 바이너리/데이터 디렉터리만 보존.
+     - `C:\KiyeunAgent` 데이터 전수 검증(277개 파일 보존 확인) 후 디렉터리 영구 삭제 및 `eBroAgent.iss` 인스톨러에 자동 소탕 탑재.
+  5. **시스템 트레이 워커(trayIcon.ps1) 안정화**:
+     - UTF-8 BOM 강제 적용 및 바이트 디코더 경로 적용, Mutex WaitOne 소유권 승계 완결.
+  6. **버전 일괄 상향 및 CDN 재배포**:
+     - 에이전트 `v2.0.0.Build.5`, 시스템 `v1.13.0.Build.16`.
+     - Inno Setup 5개 테넌트 인스톨러 재컴파일 및 GitHub Releases(`agent-v2.0.0`) 전면 업로드 완료.
+- **실환경 실증 검증**:
+  - `http://127.0.0.1:5175/health`: 200 OK (`version: v2.0.0.Build.5`, `status: ONLINE`, 연속 가동 확인).
+  - 시스템 트레이 워커 및 에이전트 데몬 프로세스 정상 상주 확인.
+  - `C:\KiyeunAgent` 영구 소탕 확인 (`Exists: false`).
+  - `C:\eBroAgent` 청정 상태 유지 확인.
+  - `C:\KiyeunAgent` 영구 소탕 확인 (`Exists: false`).
+  - `C:\eBroAgent` 불필요 파일 35종 소탕 완료 확인.
+
 ## 2026-10-04 12:55 (v1.13.0.Build.15)
 
 ### [WindowsTerminal/0x800700e8박멸/레지스트리일원화] Windows 11 Windows 터미널 0x800700e8 오류 완전 박멸: 런타임 cmd.exe/reg add 호출 전면 배제 및 순수 인스톨러 레지스트리 일원화, windowsHide 전면 적용

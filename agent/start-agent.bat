@@ -10,21 +10,9 @@ cd /d "C:\eBroAgent"
 if exist "%~dp0trayIcon.ps1" (
     copy /y "%~dp0trayIcon.ps1" "C:\eBroAgent\trayIcon.ps1" >nul 2>&1
 )
-if exist "%USERPROFILE%\Downloads\BroAgent.js" (
-    copy /y "%USERPROFILE%\Downloads\BroAgent.js" "C:\eBroAgent\BroAgent.js" >nul 2>&1
-)
-if exist "%~dp0BroAgent.js" (
-    copy /y "%~dp0BroAgent.js" "C:\eBroAgent\BroAgent.js" >nul 2>&1
-)
 
 if exist "eBroAgent.exe" (
     start "" "eBroAgent.exe"
-) else if exist BroAgent.js (
-    node BroAgent.js
-) else if exist eBroAgent.js (
-    node eBroAgent.js
-) else if exist agent.js (
-    node agent.js
 ) else (
     echo [ERROR] eBroAgent.exe not found in C:\eBroAgent!
     echo Please install eBroAgent first.

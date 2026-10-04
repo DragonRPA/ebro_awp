@@ -1,6 +1,6 @@
 {
-  "version": "v2.0.0.Build.4",
-  "buildTime": "2026-10-04T12:55:00.000Z",
+  "version": "v2.0.0.Build.5",
+  "buildTime": "2026-10-04T13:12:00.000Z",
   "downloadUrl": "https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0/eBroAgent_Setup.exe",
   "installerUrl": "https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0/eBroAgent_Setup.exe",
   "certUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/downloads/eBroAgent_Root.cer",

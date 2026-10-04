@@ -67,7 +67,7 @@ $mExit = $menu.Items.Add("Exit eBro Agent")
 $mExit.add_Click({
     $notify.Visible = $false
     $notify.Dispose()
-    Get-Process -Name eBroAgent, KiyeunAgent -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    Get-Process -Name eBroAgent -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     $appContext.ExitThread()
 })
 
