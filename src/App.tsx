@@ -675,13 +675,13 @@ const App: React.FC = () => {
     const results: { groupName: string; id: string; name: string }[] = [];
     menuGroups.forEach(grp => {
       grp.items.forEach(item => {
-        if (item.name.toLowerCase().includes(q) || grp.name.toLowerCase().includes(q)) {
+        if (hasPermission(item.id, 'view') && (item.name.toLowerCase().includes(q) || grp.name.toLowerCase().includes(q))) {
           results.push({ groupName: grp.name, id: item.id, name: item.name });
         }
       });
     });
     return results;
-  }, [menuSearchQuery, menuGroups]);
+  }, [menuSearchQuery, menuGroups, hasPermission]);
 
   const searchResults = menuSearchResults();
 
@@ -1320,7 +1320,23 @@ const App: React.FC = () => {
             {/* 🏢 1열: 고객회사명(강조) + 만료상태 / 2열: e-Bro ERP System (작은 글씨) */}
             <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '18px', fontWeight: '900', color: 'var(--text-primary)', letterSpacing: '-0.5px', whiteSpace: 'nowrap', lineHeight: 1.15 }}>
+                <span 
+                  onClick={() => {
+                    if (hasPermission('tenant_management', 'view')) {
+                      setActiveTab('tenant_management');
+                    }
+                  }}
+                  style={{ 
+                    fontSize: '18px', 
+                    fontWeight: '900', 
+                    color: 'var(--text-primary)', 
+                    letterSpacing: '-0.5px', 
+                    whiteSpace: 'nowrap', 
+                    lineHeight: 1.15,
+                    cursor: hasPermission('tenant_management', 'view') ? 'pointer' : 'default'
+                  }}
+                  title={hasPermission('tenant_management', 'view') ? '클릭 시 테넌트 관리로 이동' : undefined}
+                >
                   {currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || (isDemoMode() ? '(주)e-Bro렌탈' : '기연리프트')}
                 </span>
                 {currentTenant && (() => {
@@ -1329,7 +1345,7 @@ const App: React.FC = () => {
                     return (
                       <span
                         title={`구독 만료일자: ${currentTenant.subscription?.endDate || ''} (클릭 시 테넌트 관리로 이동)`}
-                        onClick={() => setActiveTab('tenantManagement')}
+                        onClick={() => setActiveTab('tenant_management')}
                         style={{
                           padding: '1px 6px',
                           borderRadius: '10px',

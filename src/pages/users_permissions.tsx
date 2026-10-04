@@ -6,7 +6,10 @@ import {
   Shield, Check, Lock, Save, FolderKanban, ChevronDown, ChevronRight, 
   Download, Plus, Trash2, Key, Users, CheckSquare, Square, Eye, Edit3, AlertCircle, Info
 } from 'lucide-react';
-import { MenuPermission, User, CustomRole, RolePermission, createMenuPermission, db, Department } from '../services/db';
+import { 
+  MenuPermission, User, CustomRole, RolePermission, createMenuPermission, db, Department,
+  UNIVERSAL_FUNCTIONAL_ATTRIBUTES, getDepartmentFunctionalTags 
+} from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { SYSTEM_MENU_CONFIG, getAllSystemMenuIds, MenuGroupConfig, normalizeMenuId } from '../config/menu_config';
 
@@ -1228,7 +1231,45 @@ export const UsersPermissions: React.FC = () => {
                           {user.name}
                         </td>
                         <td style={{ padding: '8px 12px', color: 'var(--text-secondary, #475569)' }}>
-                          {deptName}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>{deptName}</span>
+                            {(() => {
+                              const deptObj = user.departmentId ? departmentObjMap.get(user.departmentId) : undefined;
+                              const tags = deptObj ? getDepartmentFunctionalTags(deptObj) : [];
+                              if (tags.length === 0) return null;
+                              return (
+                                <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
+                                  {tags.slice(0, 2).map(tagId => {
+                                    const attr = UNIVERSAL_FUNCTIONAL_ATTRIBUTES.find(a => a.id === tagId || a.code === tagId);
+                                    if (!attr) return null;
+                                    return (
+                                      <span
+                                        key={attr.id}
+                                        style={{
+                                          fontSize: '10px',
+                                          padding: '1px 5px',
+                                          borderRadius: '4px',
+                                          backgroundColor: attr.badgeBg,
+                                          color: attr.badgeText,
+                                          border: `1px solid ${attr.color}33`,
+                                          whiteSpace: 'nowrap',
+                                          fontWeight: 600
+                                        }}
+                                        title={attr.description}
+                                      >
+                                        {attr.label}
+                                      </span>
+                                    );
+                                  })}
+                                  {tags.length > 2 && (
+                                    <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                                      +{tags.length - 2}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </div>
                         </td>
                         <td style={{ padding: '8px 12px', color: 'var(--text-muted, #64748b)' }}>
                           {user.position || '-'}{user.duty ? ` (${user.duty})` : ''}

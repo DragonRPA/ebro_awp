@@ -836,7 +836,7 @@ $excel.Quit()
         }
 
         // 3순위: R2 공개 URL 또는 기본 CF R2 도메인에서 자동 다운로드 후 로컬 캐싱
-        const directUrl = searchParams.get('url') || (fileName ? `https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/${fileName.split('/').map(encodeURIComponent).join('/')}` : null);
+        const directUrl = searchParams.get('url') || (fileName ? `https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/${fileName.split('/').map(encodeURIComponent).join('/')}` : null);
         if (directUrl && directUrl.startsWith('http')) {
           try {
             const fetchRes = await fetch(directUrl);
@@ -1068,10 +1068,10 @@ server.on('error', (err) => {
 
 // ── 0. Cloudflare R2 실시간 버킷 동적 스캔 및 자동 미러링 엔진 (Zero-Dependency SigV4) ──
 const CF_ACCOUNT_ID = '35014a2514680107d74e1e68d96e6c32';
-const CF_BUCKET_NAME = 'kiyeun-storage';
+const CF_BUCKET_NAME = 'giyeon-storage';
 const CF_ACCESS_KEY = '03cdb7560d37242de608a5db2a976030';
 const CF_SECRET_KEY = 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986';
-const CF_PUBLIC_URL = 'https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev';
+const CF_PUBLIC_URL = 'https://pub-55a68547bdf24600b80d27782912c83e.r2.dev';
 
 function hmac(key, str) {
   return crypto.createHmac('sha256', key).update(str, 'utf8').digest();

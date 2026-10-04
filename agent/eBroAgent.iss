@@ -44,7 +44,8 @@ CloseApplications=force
 RestartApplications=no
 ArchitecturesInstallIn64BitMode=x64
 UninstallDisplayName={#AppName}
-UninstallDisplayIcon={app}\eBroAgent.exe
+UninstallDisplayIcon={app}\eBroAgent.ico
+SetupIconFile=eBroAgent.ico
 
 [Languages]
 Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
@@ -61,6 +62,11 @@ Source: "trayIcon.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "eBroAgent_Root.cer"; DestDir: "{app}"; Flags: ignoreversion
 Source: "start-agent.bat"; DestDir: "{app}"; Flags: ignoreversion
 Source: "kill-agent.bat"; DestDir: "{app}"; Flags: ignoreversion
+Source: "eBroAgent.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "eBroAgent.png"; DestDir: "{app}"; Flags: ignoreversion
+Source: "favicon.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "icon-32.png"; DestDir: "{app}"; Flags: ignoreversion
+Source: "icon-192.png"; DestDir: "{app}"; Flags: ignoreversion
 
 [InstallDelete]
 ; 🧹 구버전 소스코드 및 임시 파일 정리
@@ -82,8 +88,8 @@ Type: filesandordirs; Name: "{app}\node_modules"
 Type: filesandordirs; Name: "{app}\temp_build_*"
 
 [Icons]
-Name: "{userdesktop}\eBro AI Agent"; Filename: "{app}\eBroAgent.exe"; WorkingDir: "{app}"
-Name: "{userstartup}\eBroAgent"; Filename: "{app}\eBroAgent.exe"; Parameters: "--daemon"; WorkingDir: "{app}"
+Name: "{userdesktop}\eBro AI Agent"; Filename: "{app}\eBroAgent.exe"; IconFilename: "{app}\eBroAgent.ico"; WorkingDir: "{app}"
+Name: "{userstartup}\eBroAgent"; Filename: "{app}\eBroAgent.exe"; IconFilename: "{app}\eBroAgent.ico"; Parameters: "--daemon"; WorkingDir: "{app}"
 
 [Registry]
 ; 윈도우 시작 시 자동 실행 등록 (데몬 모드)
@@ -98,9 +104,9 @@ Root: HKCU; Subkey: "Software\Classes\broagent"; ValueType: string; ValueName: "
 Root: HKCU; Subkey: "Software\Classes\broagent\shell\open\command"; ValueType: string; ValueData: """{app}\eBroAgent.exe"""
 
 [Run]
-; 보안 인증서 자동 등록 (게시자 및 루트 저장소)
-Filename: "certutil.exe"; Parameters: "-user -addstore TrustedPublisher ""{app}\eBroAgent_Root.cer"""; Flags: runhidden; StatusMsg: "보안 게시자 인증서 등록 중..."
-Filename: "certutil.exe"; Parameters: "-user -addstore Root ""{app}\eBroAgent_Root.cer"""; Flags: runhidden; StatusMsg: "루트 인증 기관 등록 중..."
+; 보안 인증서 자동 등록 (게시자 및 루트 저장소 - 이미 설치된 경우 무소음 건너뜀)
+Filename: "certutil.exe"; Parameters: "-user -addstore TrustedPublisher ""{app}\eBroAgent_Root.cer"""; Flags: runhidden; StatusMsg: "보안 게시자 인증서 등록 중..."; Check: NeedInstallPublisherCert
+Filename: "certutil.exe"; Parameters: "-user -addstore Root ""{app}\eBroAgent_Root.cer"""; Flags: runhidden; StatusMsg: "루트 인증 기관 등록 중..."; Check: NeedInstallRootCert
 ; 에이전트 및 데스크톱 스튜디오 즉시 실행
 Filename: "{app}\eBroAgent.exe"; Flags: nowait
 
@@ -113,4 +119,26 @@ begin
   Exec('taskkill.exe', '/F /IM eBroAgent.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec('powershell.exe', '-NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like ''*trayIcon.ps1*'' } | Stop-Process -Force -ErrorAction SilentlyContinue"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Result := True;
+end;
+
+// 이미 Root 저장소에 인증서가 존재하는지 검사 (중복 팝업 원천 방지)
+function NeedInstallRootCert(): Boolean;
+var
+  ResultCode: Integer;
+begin
+  if Exec('certutil.exe', '-user -verifystore Root "04c57f22c736d98ca2919299d4da1a560619f5cb"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    Result := (ResultCode <> 0)
+  else
+    Result := True;
+end;
+
+// 이미 TrustedPublisher 저장소에 인증서가 존재하는지 검사
+function NeedInstallPublisherCert(): Boolean;
+var
+  ResultCode: Integer;
+begin
+  if Exec('certutil.exe', '-user -verifystore TrustedPublisher "04c57f22c736d98ca2919299d4da1a560619f5cb"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    Result := (ResultCode <> 0)
+  else
+    Result := True;
 end;

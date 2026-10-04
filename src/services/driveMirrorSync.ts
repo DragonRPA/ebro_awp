@@ -64,7 +64,7 @@ async function listR2AllFiles(config?: GoogleConfig): Promise<Array<{ key: strin
   const params = new URLSearchParams({
     action: 'list',
     accountId: config?.r2AccountId || '35014a2514680107d74e1e68d96e6c32',
-    bucketName: config?.r2BucketName || 'kiyeun-storage',
+    bucketName: config?.r2BucketName || 'giyeon-storage',
     accessKeyId: config?.r2AccessKeyId || '03cdb7560d37242de608a5db2a976030',
     secretAccessKey: config?.r2SecretAccessKey || 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986'
   });
@@ -95,7 +95,7 @@ async function downloadFromR2(publicDomain: string, key: string): Promise<ArrayB
   return null;
 }
 
-const DEFAULT_CF_PUBLIC_DOMAIN = 'https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev';
+const DEFAULT_CF_PUBLIC_DOMAIN = 'https://pub-55a68547bdf24600b80d27782912c83e.r2.dev';
 
 const CF_MANIFEST_FILES: Array<{ key: string; size: number }> = [
   { key: '00.거래명세서양식.xlsx', size: 65463 },
@@ -123,7 +123,7 @@ export async function executeDriveMirrorSync(
   onProgress?: (msg: string, current: number, total: number) => void
 ): Promise<MirrorSyncResult> {
   const publicDomain = config?.r2PublicDomain?.trim() || DEFAULT_CF_PUBLIC_DOMAIN;
-  const r2BucketName = config?.r2BucketName?.trim() || 'kiyeun-storage';
+  const r2BucketName = config?.r2BucketName?.trim() || 'giyeon-storage';
 
   // 🌟 1순위: 로컬 에이전트 자체 SigV4 동기화 엔진 직접 가동
   try {

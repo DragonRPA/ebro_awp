@@ -1637,6 +1637,17 @@ ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "privacyOfficerPosition" TEXT;
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "privacyOfficerDepartment" TEXT;
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "privacyOfficerPhone" TEXT;
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "privacyOfficerEmail" TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "allowedPages" JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "hiddenPages" JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "features" JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "subscription" JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "bankAccounts" JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "logoUrl" TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "ciUrl" TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "subdomain" TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "status" TEXT DEFAULT 'ACTIVE';
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "isDefault" BOOLEAN DEFAULT FALSE;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "allowCustomBillingStatement" BOOLEAN DEFAULT FALSE;
 
 -- ==============================================================================
 -- 📦 [도메인 4-9] 소모품 실사 및 고품 관리 (Stocktaking & Collected Parts)

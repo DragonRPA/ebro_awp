@@ -10,19 +10,15 @@ import {
   ApprovalTierConfig, 
   loadApprovalTierConfigs, 
   getStoredApprovalTierConfigs, 
-  getUserEffectiveTier 
+  getUserEffectiveTier,
+  Department,
+  UNIVERSAL_FUNCTIONAL_ATTRIBUTES,
+  FunctionalAttributeConfig,
+  getDepartmentFunctionalTags
 } from '../services/db';
 import { exportToExcel } from '../services/excel';
 
 // --- Type Definitions ---
-interface Department {
-  id: string;
-  name: string;
-  parentDepartmentId: string | null;
-  managerId?: string | null;
-  createdAt?: string;
-  updatedAt?: string;
-}
 
 interface UserNode {
   id: string;
@@ -241,7 +237,11 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
       // 로컬 스토리지 및 캐시 오염 필드(modelName, supplier 등) 정화
       const cleanDepts = departments.map(d => {
         const { modelName, supplier, ...rest } = (d as any);
-        return rest as Department;
+        return {
+          ...rest,
+          functional_tags: d.functional_tags || d.functionalTags || [],
+          functionalTags: d.functionalTags || d.functional_tags || []
+        } as Department;
       });
       // 🛡️ [테스터 배제] 테스터 계정이 DB로 유입되는 것을 원천 차단
       const isTester = (u: any) =>
@@ -286,6 +286,22 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
   };
 
   // --- Action Handlers ---
+  const handleToggleDeptFunctionalTag = (deptId: string, attrId: string) => {
+    if (!canEdit) return;
+    setDepartments(prev => prev.map(d => {
+      if (d.id !== deptId) return d;
+      const currentTags = getDepartmentFunctionalTags(d);
+      const exists = currentTags.includes(attrId);
+      const nextTags = exists ? currentTags.filter(t => t !== attrId) : [...currentTags, attrId];
+      return {
+        ...d,
+        functional_tags: nextTags,
+        functionalTags: nextTags,
+        updatedAt: new Date().toISOString()
+      };
+    }));
+  };
+
   const handleAddDept = () => {
     if (!canEdit) return;
     const nowIso = new Date().toISOString();
@@ -293,6 +309,8 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
       id: db.generateNextId('departments', departments),
       name: '',
       parentDepartmentId: selectedDeptId || null,
+      functional_tags: [],
+      functionalTags: [],
       createdAt: nowIso,
       updatedAt: nowIso
     };
@@ -602,6 +620,35 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
                     <span style={{ fontWeight: isSelected ? '600' : '400', flex: 1, color: dept.name ? 'inherit' : 'var(--text-muted)' }}>
                       {dept.name || '새 부서(명칭 미입력)'}
                     </span>
+                    <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
+                      {getDepartmentFunctionalTags(dept).slice(0, 3).map(tagId => {
+                        const attr = UNIVERSAL_FUNCTIONAL_ATTRIBUTES.find(a => a.id === tagId || a.code === tagId);
+                        if (!attr) return null;
+                        return (
+                          <span
+                            key={attr.id}
+                            style={{
+                              fontSize: '10px',
+                              padding: '1px 5px',
+                              borderRadius: '4px',
+                              backgroundColor: attr.badgeBg,
+                              color: attr.badgeText,
+                              border: `1px solid ${attr.color}33`,
+                              whiteSpace: 'nowrap',
+                              fontWeight: '600'
+                            }}
+                            title={attr.description}
+                          >
+                            {attr.label}
+                          </span>
+                        );
+                      })}
+                      {getDepartmentFunctionalTags(dept).length > 3 && (
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                          +{getDepartmentFunctionalTags(dept).length - 3}
+                        </span>
+                      )}
+                    </div>
                     <span style={{ fontSize: '11px', padding: '2px 6px', backgroundColor: 'var(--bg-card)', borderRadius: '10px', color: 'var(--text-secondary)' }}>
                       {userCount}명
                     </span>
@@ -813,6 +860,103 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
               </button>
             )}
           </div>
+
+          {/* 부서 보편 기능 속성 매핑 (Universal Functional Attributes) */}
+          {activeTab === 'DEPT' && selectedDeptId && (() => {
+            const currentSelectedDept = departments.find(d => d.id === selectedDeptId);
+            if (!currentSelectedDept) return null;
+            const currentDeptTags = getDepartmentFunctionalTags(currentSelectedDept);
+            
+            // 전사 미할당 기능 감지 (소규모 테넌트 전사 공유 ToDo 풀 대상)
+            const allAssignedTags = new Set(
+              departments.flatMap(d => getDepartmentFunctionalTags(d))
+            );
+            const unassignedCompanyAttributes = UNIVERSAL_FUNCTIONAL_ATTRIBUTES.filter(
+              attr => !allAssignedTags.has(attr.id) && !allAssignedTags.has(attr.code)
+            );
+
+            return (
+              <div style={{
+                marginBottom: '16px',
+                padding: '12px 14px',
+                backgroundColor: 'var(--bg-app)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-color)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>
+                      보편 조직 기능 매핑 (Universal Attributes)
+                    </span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      (복수 겸임 지원 • 직무별 ToDo 피드 자동 라우팅)
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                    할당 기능: <strong>{currentDeptTags.length}개</strong>
+                  </div>
+                </div>
+
+                {/* 9대 보편 기능 칩 버튼 목록 */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {UNIVERSAL_FUNCTIONAL_ATTRIBUTES.map(attr => {
+                    const isAssigned = currentDeptTags.includes(attr.id) || currentDeptTags.includes(attr.code);
+                    return (
+                      <button
+                        key={attr.id}
+                        type="button"
+                        disabled={!canEdit}
+                        onClick={() => handleToggleDeptFunctionalTag(currentSelectedDept.id, attr.id)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: isAssigned ? '700' : '500',
+                          backgroundColor: isAssigned ? attr.badgeBg : 'var(--bg-card)',
+                          color: isAssigned ? attr.badgeText : 'var(--text-secondary)',
+                          border: isAssigned ? `1.5px solid ${attr.color}` : '1px solid var(--border-color)',
+                          cursor: canEdit ? 'pointer' : 'default',
+                          transition: 'all 0.15s ease',
+                          whiteSpace: 'nowrap'
+                        }}
+                        title={`${attr.label}: ${attr.description}`}
+                      >
+                        <span style={{
+                          width: '7px',
+                          height: '7px',
+                          borderRadius: '50%',
+                          backgroundColor: isAssigned ? attr.color : 'var(--border-color)'
+                        }} />
+                        {attr.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* 미할당 기능 공용 큐 안내 (소규모 테넌트 예외 처리) */}
+                {unassignedCompanyAttributes.length > 0 && (
+                  <div style={{
+                    fontSize: '11px',
+                    color: 'var(--text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    paddingTop: '4px',
+                    borderTop: '1px dashed var(--border-color)'
+                  }}>
+                    <span>💡 전사 미할당 기능: {unassignedCompanyAttributes.map(a => a.label).join(', ')}</span>
+                    <span style={{ color: 'var(--primary)' }}>(전사 공용 공유 ToDo 풀로 자동 개방됨)</span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px', alignContent: 'start', overflowY: 'auto', flex: 1, padding: '4px' }}>
             {displayedUsers.length === 0 ? (

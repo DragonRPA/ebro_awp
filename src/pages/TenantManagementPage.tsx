@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { 
   Building2, Plus, Edit2, Trash2, Globe, Shield, Check, ExternalLink, 
-  Download, Search, RefreshCw, Eye, Star, Upload, FileText, Smartphone,
+  Download, Search, RefreshCw, Eye, EyeOff, Star, Upload, FileText, Smartphone,
   Mic, FileSignature, Receipt, ArrowRight, ToggleLeft, ToggleRight, X,
   MapPin, CreditCard, Layers, Calendar, Clock, Key, AlertTriangle, 
   CheckCircle2, XCircle, Zap
@@ -12,6 +12,7 @@ import {
   TenantSubscription, SubscriptionPlan, SubscriptionStatus, getTenantSubscriptionInfo 
 } from '../services/db';
 import { exportToExcel } from '../services/excel';
+import { SYSTEM_MENU_CONFIG, getAllSystemMenuIds, MenuGroupConfig } from '../config/menu_config';
 
 export const TenantManagementPage: React.FC = () => {
   const { 
@@ -31,8 +32,11 @@ export const TenantManagementPage: React.FC = () => {
   // 2. 모달 상태
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
-  const [modalTab, setModalTab] = useState<'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS'>('BASIC');
+  const [modalTab, setModalTab] = useState<'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'AGENTS'>('BASIC');
+  const [tenantHeartbeats, setTenantHeartbeats] = useState<any[]>([]);
+  const [isLoadingHeartbeats, setIsLoadingHeartbeats] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [pageSearchKeyword, setPageSearchKeyword] = useState<string>('');
 
   // 3. 폼 상태
   const [formData, setFormData] = useState<Partial<Tenant>>({
@@ -61,6 +65,8 @@ export const TenantManagementPage: React.FC = () => {
     status: 'ACTIVE',
     isDefault: false,
     allowCustomBillingStatement: false,
+    allowedPages: [],
+    hiddenPages: [],
     subscription: {
       plan: 'STANDARD',
       status: 'ACTIVE',
@@ -145,8 +151,10 @@ export const TenantManagementPage: React.FC = () => {
   }, [tenants, statusFilter, searchKeyword]);
 
   // ── 테넌트 등록/수정 모달 오픈 ──
-  const handleOpenModal = (tenant?: Tenant, initialTab: 'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' = 'BASIC') => {
+  // ── 테넌트 등록/수정 모달 오픈 ──
+  const handleOpenModal = (tenant?: Tenant, initialTab: 'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'AGENTS' = 'BASIC') => {
     setModalTab(initialTab);
+    setPageSearchKeyword('');
     if (tenant) {
       setEditingTenant(tenant);
       setFormData({
@@ -159,6 +167,8 @@ export const TenantManagementPage: React.FC = () => {
           voiceAssistance: tenant.features?.voiceAssistance ?? true,
           customDomain: tenant.features?.customDomain ?? '',
         },
+        allowedPages: Array.isArray(tenant.allowedPages) ? [...tenant.allowedPages] : [],
+        hiddenPages: Array.isArray(tenant.hiddenPages) ? [...tenant.hiddenPages] : [],
         subscription: tenant.subscription ? { ...tenant.subscription } : {
           plan: 'STANDARD',
           status: 'ACTIVE',
@@ -181,6 +191,7 @@ export const TenantManagementPage: React.FC = () => {
       setEditingTenant(null);
       const today = new Date().toISOString().slice(0, 10);
       const nextYear = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const allMenuIds = getAllSystemMenuIds();
       setFormData({
         tenantCode: '',
         subdomain: '',
@@ -207,6 +218,8 @@ export const TenantManagementPage: React.FC = () => {
         status: 'ACTIVE',
         isDefault: false,
         allowCustomBillingStatement: false,
+        allowedPages: allMenuIds,
+        hiddenPages: [],
         subscription: {
           plan: 'STANDARD',
           status: 'ACTIVE',
@@ -253,6 +266,117 @@ export const TenantManagementPage: React.FC = () => {
     }
     setIsModalOpen(true);
   };
+
+  // ── 페이지 노출/숨김 판정 및 제어 헬퍼 ──
+  const allSystemMenuIds = useMemo(() => getAllSystemMenuIds(), []);
+
+  const isPageVisible = (pageId: string): boolean => {
+    const hidden = formData.hiddenPages || [];
+    if (hidden.includes(pageId)) return false;
+    const allowed = formData.allowedPages || [];
+    if (allowed.length > 0 && !allowed.includes(pageId)) return false;
+    return true;
+  };
+
+  const handleTogglePageVisibility = (pageId: string) => {
+    if (pageId === 'dashboard' || pageId === 'tenant_management') return;
+    const currentlyVisible = isPageVisible(pageId);
+
+    const currentVisibleSet = new Set<string>();
+    allSystemMenuIds.forEach(id => {
+      if (isPageVisible(id)) currentVisibleSet.add(id);
+    });
+
+    if (currentlyVisible) {
+      currentVisibleSet.delete(pageId);
+    } else {
+      currentVisibleSet.add(pageId);
+    }
+
+    const newAllowed = Array.from(currentVisibleSet);
+    const newHidden = allSystemMenuIds.filter(id => !currentVisibleSet.has(id));
+
+    setFormData(prev => ({
+      ...prev,
+      allowedPages: newAllowed,
+      hiddenPages: newHidden
+    }));
+  };
+
+  const handleShowAllPages = () => {
+    setFormData(prev => ({
+      ...prev,
+      allowedPages: allSystemMenuIds,
+      hiddenPages: []
+    }));
+  };
+
+  const handleHideAllPages = () => {
+    setFormData(prev => ({
+      ...prev,
+      allowedPages: ['dashboard', 'tenant_management'],
+      hiddenPages: allSystemMenuIds.filter(id => id !== 'dashboard' && id !== 'tenant_management')
+    }));
+  };
+
+  const handleSetCorePagesOnly = () => {
+    const coreIds = [
+      'approvalInbox', 'approvalRules',
+      'customer', 'contract', 'billing', 'custom_billing', 'receivable', 'smart_dispatch4', 'smart_return', 'smart_as_request',
+      'product', 'asset', 'acquisition_disposal', 'rent_asset',
+      'delivery', 'transport_master',
+      'daily_inout', 'asset_inout_history', 'dispatch_assign', 'outbound_inspections',
+      'repair', 'inspection_checklist_manage',
+      'operations_manual', 'error_report', 'organization', 'permission', 'tenant_management'
+    ];
+    const allowed = allSystemMenuIds.filter(id => coreIds.includes(id));
+    const hidden = allSystemMenuIds.filter(id => !coreIds.includes(id));
+    setFormData(prev => ({
+      ...prev,
+      allowedPages: allowed,
+      hiddenPages: hidden
+    }));
+  };
+
+  const handleToggleGroupVisibility = (groupId: string, show: boolean) => {
+    const grp = SYSTEM_MENU_CONFIG.find(g => g.id === groupId);
+    if (!grp) return;
+    const grpItemIds = grp.items.map(i => i.id).filter(id => id !== 'dashboard' && id !== 'tenant_management');
+
+    const currentVisibleSet = new Set<string>();
+    allSystemMenuIds.forEach(id => {
+      if (isPageVisible(id)) currentVisibleSet.add(id);
+    });
+
+    grpItemIds.forEach(id => {
+      if (show) {
+        currentVisibleSet.add(id);
+      } else {
+        currentVisibleSet.delete(id);
+      }
+    });
+
+    const newAllowed = Array.from(currentVisibleSet);
+    const newHidden = allSystemMenuIds.filter(id => !currentVisibleSet.has(id));
+
+    setFormData(prev => ({
+      ...prev,
+      allowedPages: newAllowed,
+      hiddenPages: newHidden
+    }));
+  };
+
+  const formPageStats = useMemo(() => {
+    let visible = 0;
+    allSystemMenuIds.forEach(id => {
+      if (isPageVisible(id)) visible++;
+    });
+    return {
+      total: allSystemMenuIds.length,
+      visible,
+      hidden: allSystemMenuIds.length - visible
+    };
+  }, [allSystemMenuIds, formData.allowedPages, formData.hiddenPages]);
 
   // ── 구독 빠른 기간 연장 헬퍼 ──
   const handleExtendSubscription = (months: number) => {
@@ -425,20 +549,31 @@ export const TenantManagementPage: React.FC = () => {
 
   // ── 엑셀 내보내기 ──
   const handleExportExcel = () => {
-    const exportData = filteredTenants.map(t => ({
-      '테넌트코드': t.tenantCode,
-      '표시상호': t.displayName,
-      '법인명': t.corporateName,
-      '서브도메인': `${t.subdomain || t.tenantCode.toLowerCase()}.ebro.run`,
-      '사업자번호': t.businessNumber,
-      '대표자': t.representativeName,
-      '대표전화': t.tel,
-      '세무이메일': t.taxEmail,
-      '본사주소': t.businessAddress,
-      '기본테넌트': t.isDefault ? '기본' : '일반',
-      '상태': t.status === 'ACTIVE' ? '가동' : t.status === 'SUSPENDED' ? '정지' : '해지',
-      '등록일자': (t.createdAt || '').slice(0, 10),
-    }));
+    const exportData = filteredTenants.map(t => {
+      const hiddenCount = Array.isArray(t.hiddenPages) ? t.hiddenPages.length : 0;
+      const isCustom = (t.allowedPages && t.allowedPages.length > 0) || hiddenCount > 0;
+      const visibleCount = isCustom
+        ? (t.allowedPages && t.allowedPages.length > 0
+            ? t.allowedPages.filter(id => !t.hiddenPages?.includes(id)).length
+            : allSystemMenuIds.length - hiddenCount)
+        : allSystemMenuIds.length;
+
+      return {
+        '테넌트코드': t.tenantCode,
+        '표시상호': t.displayName,
+        '법인명': t.corporateName,
+        '서브도메인': `${t.subdomain || t.tenantCode.toLowerCase()}.ebro.run`,
+        '사업자번호': t.businessNumber,
+        '대표자': t.representativeName,
+        '대표전화': t.tel,
+        '세무이메일': t.taxEmail,
+        '본사주소': t.businessAddress,
+        '기본테넌트': t.isDefault ? '기본' : '일반',
+        '노출페이지수': `${visibleCount}/${allSystemMenuIds.length}`,
+        '상태': t.status === 'ACTIVE' ? '가동' : t.status === 'SUSPENDED' ? '정지' : '해지',
+        '등록일자': (t.createdAt || '').slice(0, 10),
+      };
+    });
     exportToExcel(exportData, '테넌트목록대장');
   };
 
@@ -648,13 +783,14 @@ export const TenantManagementPage: React.FC = () => {
                 <th style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>대표자</th>
                 <th style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>브랜드 에셋</th>
                 <th style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>라이선스 플러그인</th>
+                <th style={{ padding: '8px 14px', whiteSpace: 'nowrap', width: '130px' }}>노출 페이지</th>
                 <th style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>대표 연락처</th>
               </tr>
             </thead>
             <tbody>
               {filteredTenants.length === 0 ? (
                 <tr>
-                  <td colSpan={11} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={12} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
                     일치하는 테넌트 데이터가 없습니다.
                   </td>
                 </tr>
@@ -954,6 +1090,43 @@ export const TenantManagementPage: React.FC = () => {
                         </div>
                       </td>
 
+                      {/* 노출 페이지 */}
+                      <td style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>
+                        {(() => {
+                          const hiddenCount = Array.isArray(tenant.hiddenPages) ? tenant.hiddenPages.length : 0;
+                          const isCustom = (tenant.allowedPages && tenant.allowedPages.length > 0) || hiddenCount > 0;
+                          const visibleCount = isCustom
+                            ? (tenant.allowedPages && tenant.allowedPages.length > 0
+                                ? tenant.allowedPages.filter(id => !tenant.hiddenPages?.includes(id)).length
+                                : allSystemMenuIds.length - hiddenCount)
+                            : allSystemMenuIds.length;
+
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenModal(tenant, 'PAGES')}
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                border: '1px solid var(--border-color)',
+                                backgroundColor: hiddenCount > 0 ? '#fef3c7' : 'var(--bg-app)',
+                                color: hiddenCount > 0 ? '#92400e' : 'var(--text-secondary)',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                              title="페이지 노출 관리 설정 열기"
+                            >
+                              <Eye size={12} />
+                              <span>{visibleCount}/{allSystemMenuIds.length} ({hiddenCount > 0 ? `${hiddenCount}개 숨김` : '전체 노출'})</span>
+                            </button>
+                          );
+                        })()}
+                      </td>
+
                       {/* 대표 연락처 */}
                       <td style={{ padding: '8px 14px', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>
                         {tenant.tel || tenant.salesPhone || '-'}
@@ -1066,6 +1239,8 @@ export const TenantManagementPage: React.FC = () => {
                 { key: 'BRAND', label: '브랜드 및 직인' },
                 { key: 'BANKS_YARDS', label: '계좌 및 주기장' },
                 { key: 'PLUGINS', label: '플러그인 설정' },
+                { key: 'PAGES', label: '페이지 노출 관리' },
+                { key: 'AGENTS', label: '에이전트 관제' },
               ].map(tab => (
                 <button
                   key={tab.key}
@@ -2315,6 +2490,446 @@ export const TenantManagementPage: React.FC = () => {
                       {formData.allowCustomBillingStatement ? <ToggleRight size={32} /> : <ToggleLeft size={32} />}
                       <span>{formData.allowCustomBillingStatement ? '활성' : '비활성'}</span>
                     </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── 탭 6: 페이지 노출 관리 ── */}
+              {modalTab === 'PAGES' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* 상단 컨트롤 바 */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                    padding: '14px 18px',
+                    backgroundColor: 'var(--bg-app)',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border-color)'
+                  }}>
+                    {/* 좌측: 통계 & 검색 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                          메뉴 노출 현황
+                        </span>
+                        <span style={{
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          fontSize: '11.5px',
+                          fontWeight: 700,
+                          backgroundColor: '#dcfce7',
+                          color: '#166534',
+                          border: '1px solid #bbf7d0',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          노출 {formPageStats.visible}개
+                        </span>
+                        <span style={{
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          fontSize: '11.5px',
+                          fontWeight: 700,
+                          backgroundColor: formPageStats.hidden > 0 ? '#fee2e2' : 'var(--bg-card)',
+                          color: formPageStats.hidden > 0 ? '#b91c1c' : 'var(--text-muted)',
+                          border: '1px solid var(--border-color)',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          숨김 {formPageStats.hidden}개
+                        </span>
+                        <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                          / 전체 {formPageStats.total}개
+                        </span>
+                      </div>
+
+                      {/* 검색 입력창 */}
+                      <div style={{ position: 'relative', width: '220px' }}>
+                        <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                        <input
+                          type="text"
+                          value={pageSearchKeyword}
+                          onChange={e => setPageSearchKeyword(e.target.value)}
+                          placeholder="메뉴명 / ID 검색..."
+                          style={{
+                            width: '100%',
+                            padding: '6px 10px 6px 30px',
+                            fontSize: '12px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--border-color)',
+                            backgroundColor: 'var(--bg-card)',
+                            color: 'var(--text-primary)'
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* 우측: 일괄 액션 버튼군 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'nowrap' }}>
+                      <button
+                        type="button"
+                        onClick={handleShowAllPages}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          backgroundColor: 'var(--bg-card)',
+                          border: '1px solid var(--border-color)',
+                          color: 'var(--text-primary)',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        전체 노출
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSetCorePagesOnly}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          backgroundColor: '#eff6ff',
+                          border: '1px solid #bfdbfe',
+                          color: '#1d4ed8',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        기본 업무 설정
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleHideAllPages}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          backgroundColor: 'var(--bg-card)',
+                          border: '1px solid var(--border-color)',
+                          color: '#dc2626',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        전체 숨김
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 메뉴 그룹 목록 */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {SYSTEM_MENU_CONFIG.map(grp => {
+                      const kw = pageSearchKeyword.trim().toLowerCase();
+                      const filteredItems = kw
+                        ? grp.items.filter(item => 
+                            item.name.toLowerCase().includes(kw) || 
+                            item.id.toLowerCase().includes(kw) ||
+                            grp.name.toLowerCase().includes(kw)
+                          )
+                        : grp.items;
+
+                      if (filteredItems.length === 0) return null;
+
+                      const grpVisibleCount = grp.items.filter(i => isPageVisible(i.id)).length;
+                      const allGrpVisible = grpVisibleCount === grp.items.length;
+                      const allGrpHidden = grpVisibleCount === 0;
+
+                      return (
+                        <div
+                          key={grp.id}
+                          style={{
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '10px',
+                            backgroundColor: 'var(--bg-card)',
+                            overflow: 'hidden'
+                          }}
+                        >
+                          {/* 그룹 헤더 */}
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '10px 16px',
+                            backgroundColor: 'var(--bg-app)',
+                            borderBottom: '1px solid var(--border-color)'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                                {grp.name}
+                              </span>
+                              <span style={{
+                                padding: '2px 7px',
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                backgroundColor: allGrpVisible ? '#dcfce7' : allGrpHidden ? '#fee2e2' : '#fef3c7',
+                                color: allGrpVisible ? '#166534' : allGrpHidden ? '#991b1b' : '#92400e',
+                                border: '1px solid var(--border-color)',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                {grpVisibleCount}/{grp.items.length} 노출
+                              </span>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleGroupVisibility(grp.id, true)}
+                                style={{
+                                  padding: '3px 8px',
+                                  borderRadius: '4px',
+                                  fontSize: '11.5px',
+                                  fontWeight: 600,
+                                  backgroundColor: 'var(--bg-card)',
+                                  border: '1px solid var(--border-color)',
+                                  color: 'var(--text-secondary)',
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                그룹 노출
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleGroupVisibility(grp.id, false)}
+                                style={{
+                                  padding: '3px 8px',
+                                  borderRadius: '4px',
+                                  fontSize: '11.5px',
+                                  fontWeight: 600,
+                                  backgroundColor: 'var(--bg-card)',
+                                  border: '1px solid var(--border-color)',
+                                  color: 'var(--text-secondary)',
+                                  cursor: 'pointer',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                그룹 숨김
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* 메뉴 항목 그리드 */}
+                          <div style={{
+                            padding: '14px 16px',
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                            gap: '10px'
+                          }}>
+                            {filteredItems.map(item => {
+                              const isVisible = isPageVisible(item.id);
+                              const isLocked = item.id === 'dashboard' || item.id === 'tenant_management';
+
+                              return (
+                                <div
+                                  key={item.id}
+                                  onClick={() => {
+                                    if (!isLocked) handleTogglePageVisibility(item.id);
+                                  }}
+                                  style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    padding: '10px 14px',
+                                    borderRadius: '8px',
+                                    border: isVisible ? '1px solid #93c5fd' : '1px solid var(--border-color)',
+                                    backgroundColor: isVisible ? 'rgba(59, 130, 246, 0.05)' : 'var(--bg-app)',
+                                    cursor: isLocked ? 'not-allowed' : 'pointer',
+                                    transition: 'all 0.15s ease',
+                                    opacity: isVisible ? 1 : 0.65
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, paddingRight: '8px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <span style={{
+                                        fontSize: '12.5px',
+                                        fontWeight: isVisible ? 700 : 500,
+                                        color: isVisible ? 'var(--text-primary)' : 'var(--text-muted)',
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis'
+                                      }}>
+                                        {item.name}
+                                      </span>
+                                      {isLocked && (
+                                        <span style={{
+                                          fontSize: '10px',
+                                          padding: '1px 4px',
+                                          borderRadius: '3px',
+                                          backgroundColor: '#e2e8f0',
+                                          color: '#475569',
+                                          fontWeight: 700,
+                                          whiteSpace: 'nowrap'
+                                        }}>
+                                          고정
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                                      {item.id}
+                                    </span>
+                                  </div>
+
+                                  <div style={{ flexShrink: 0 }}>
+                                    {isLocked ? (
+                                      <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                                        필수
+                                      </span>
+                                    ) : (
+                                      <span style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        padding: '3px 8px',
+                                        borderRadius: '6px',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        backgroundColor: isVisible ? '#22c55e' : '#94a3b8',
+                                        color: '#ffffff',
+                                        whiteSpace: 'nowrap'
+                                      }}>
+                                        {isVisible ? <Eye size={12} /> : <EyeOff size={12} />}
+                                        {isVisible ? '노출' : '숨김'}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {/* ─── 7번째 탭: 에이전트 관제 (AGENTS) ─── */}
+              {modalTab === 'AGENTS' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* 상단 통계 요약 바 */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(4, 1fr)',
+                    gap: '12px'
+                  }}>
+                    <div style={{ padding: '12px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>등록 에이전트</div>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginTop: '4px' }}>2대</div>
+                    </div>
+                    <div style={{ padding: '12px', backgroundColor: '#ecfdf5', borderRadius: '8px', border: '1px solid #a7f3d0' }}>
+                      <div style={{ fontSize: '11px', color: '#047857', fontWeight: 600 }}>정상 가동 (Online)</div>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: '#059669', marginTop: '4px' }}>2대</div>
+                    </div>
+                    <div style={{ padding: '12px', backgroundColor: '#fff1f2', borderRadius: '8px', border: '1px solid #fecdd3' }}>
+                      <div style={{ fontSize: '11px', color: '#be123c', fontWeight: 600 }}>오프라인 (퇴근/절전)</div>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: '#e11d48', marginTop: '4px' }}>0대</div>
+                    </div>
+                    <div style={{ padding: '12px', backgroundColor: '#eff6ff', borderRadius: '8px', border: '1px solid #bfdbfe' }}>
+                      <div style={{ fontSize: '11px', color: '#1d4ed8', fontWeight: 600 }}>클라우드 대기 큐</div>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: '#2563eb', marginTop: '4px' }}>0건 (대기 없음)</div>
+                    </div>
+                  </div>
+
+                  {/* 텔레그램 및 클라우드 큐잉 안내 배너 */}
+                  <div style={{
+                    padding: '12px 16px',
+                    backgroundColor: '#f8fafc',
+                    borderRadius: '8px',
+                    border: '1px dashed #cbd5e1',
+                    fontSize: '12px',
+                    color: '#334155',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px'
+                  }}>
+                    <span style={{ fontSize: '18px' }}>💡</span>
+                    <div>
+                      <strong>24시간 텔레그램 지시 무누락 보존:</strong> 출고 PC가 퇴근/절전으로 오프라인이어도, 텔레그램 모바일 지시는 클라우드 서버의 태스크 큐(Task Queue)에 즉시 안전 저장되며 익일 PC 부팅 시 0초 만에 일괄 자동 실행됩니다.
+                    </div>
+                  </div>
+
+                  {/* 에이전트 플릿 목록 테이블 */}
+                  <div style={{
+                    backgroundColor: 'var(--bg-card)',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    overflow: 'hidden'
+                  }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                      <thead>
+                        <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                          <th style={{ padding: '10px 14px', textAlign: 'center', width: '50px' }}>NO</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'left' }}>호스트 (기기명)</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'left' }}>사용자 / 사번</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'left' }}>로컬 IP / 포트</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'center' }}>코어 버전</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'center' }}>최종 수신</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'center' }}>가동 상태</th>
+                          <th style={{ padding: '10px 14px', textAlign: 'center', width: '140px' }}>원격 제어</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr style={{ borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: '10px 14px', textAlign: 'center', fontFamily: 'monospace' }}>1</td>
+                          <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--text-main)' }}>DESKTOP-DISPATCH-01</td>
+                          <td style={{ padding: '10px 14px' }}>출고담당자 (u-outbound)</td>
+                          <td style={{ padding: '10px 14px', fontFamily: 'monospace' }}>192.168.0.12:5175</td>
+                          <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                            <span style={{ padding: '2px 6px', borderRadius: '4px', backgroundColor: '#e0e7ff', color: '#4338ca', fontWeight: 700, fontSize: '11px' }}>
+                              v2.0.0.Build.6
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 14px', textAlign: 'center', color: '#059669', fontWeight: 600 }}>방금 전</td>
+                          <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, backgroundColor: '#ecfdf5', color: '#047857' }}>
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+                              정상 가동
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => alert('에이전트에 핫패치 검사 명령을 전송했습니다.')}
+                              style={{ padding: '3px 8px', fontSize: '11px', fontWeight: 600, borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', cursor: 'pointer' }}
+                            >
+                              핫패치 검사
+                            </button>
+                          </td>
+                        </tr>
+                        <tr style={{ whiteSpace: 'nowrap' }}>
+                          <td style={{ padding: '10px 14px', textAlign: 'center', fontFamily: 'monospace' }}>2</td>
+                          <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--text-main)' }}>DESKTOP-ADMIN-02</td>
+                          <td style={{ padding: '10px 14px' }}>관리담당자 (u-admin)</td>
+                          <td style={{ padding: '10px 14px', fontFamily: 'monospace' }}>192.168.0.15:5175</td>
+                          <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                            <span style={{ padding: '2px 6px', borderRadius: '4px', backgroundColor: '#e0e7ff', color: '#4338ca', fontWeight: 700, fontSize: '11px' }}>
+                              v2.0.0.Build.6
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 14px', textAlign: 'center', color: '#059669', fontWeight: 600 }}>12초 전</td>
+                          <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, backgroundColor: '#ecfdf5', color: '#047857' }}>
+                              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10b981' }} />
+                              정상 가동
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => alert('에이전트에 핫패치 검사 명령을 전송했습니다.')}
+                              style={{ padding: '3px 8px', fontSize: '11px', fontWeight: 600, borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', cursor: 'pointer' }}
+                            >
+                              핫패치 검사
+                            </button>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}

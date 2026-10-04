@@ -63,10 +63,10 @@ export const Products: React.FC = () => {
     const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
     const config = googleConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs[0];
     const accountId = config?.r2AccountId || '35014a2514680107d74e1e68d96e6c32';
-    const bucketName = config?.r2BucketName || 'kiyeun-storage';
+    const bucketName = config?.r2BucketName || 'giyeon-storage';
     const accessKeyId = config?.r2AccessKeyId || '03cdb7560d37242de608a5db2a976030';
     const secretAccessKey = config?.r2SecretAccessKey || 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986';
-    const publicDomain = config?.r2PublicDomain || 'https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev';
+    const publicDomain = config?.r2PublicDomain || 'https://pub-55a68547bdf24600b80d27782912c83e.r2.dev';
 
     setLoadingR2Docs(true);
     try {
@@ -333,7 +333,7 @@ export const Products: React.FC = () => {
       const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
       const config = googleConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs[0];
       const accountId = config?.r2AccountId || '35014a2514680107d74e1e68d96e6c32';
-      const bucketName = config?.r2BucketName || 'kiyeun-storage';
+      const bucketName = config?.r2BucketName || 'giyeon-storage';
       const accessKeyId = config?.r2AccessKeyId || '03cdb7560d37242de608a5db2a976030';
       const secretAccessKey = config?.r2SecretAccessKey || 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986';
 
@@ -379,7 +379,7 @@ export const Products: React.FC = () => {
       const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
       const config = googleConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs[0];
       const accountId = config?.r2AccountId || '35014a2514680107d74e1e68d96e6c32';
-      const bucketName = config?.r2BucketName || 'kiyeun-storage';
+      const bucketName = config?.r2BucketName || 'giyeon-storage';
       const accessKeyId = config?.r2AccessKeyId || '03cdb7560d37242de608a5db2a976030';
       const secretAccessKey = config?.r2SecretAccessKey || 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986';
 

@@ -17,7 +17,7 @@
     "speed": "4.5 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/OPTIMUM%208/OPTIMUM%208%20%EC%A0%9C%EC%9B%90%ED%91%9C.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/OPTIMUM%208/OPTIMUM%208%20%EC%A0%9C%EC%9B%90%ED%91%9C.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -193,7 +193,7 @@
     "speed": "4.5 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/JCPT0807AC/4.%EC%A0%9C%EC%9B%90%ED%91%9C_JCPT0807AC.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/JCPT0807AC/4.%EC%A0%9C%EC%9B%90%ED%91%9C_JCPT0807AC.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -215,7 +215,7 @@
     "speed": null,
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS1930/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS%201930%20E-Drive.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS1930/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS%201930%20E-Drive.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -237,7 +237,7 @@
     "speed": null,
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS2646/4.%EC%A0%9C%EC%9B%90%ED%91%9C%20GS-2646%20E-Drive.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS2646/4.%EC%A0%9C%EC%9B%90%ED%91%9C%20GS-2646%20E-Drive.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -457,7 +457,7 @@
     "speed": null,
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/JCPT1614AC/4.%EC%A0%9C%EC%9B%90%ED%91%9C(JCPT1614ACZ).pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/JCPT1614AC/4.%EC%A0%9C%EC%9B%90%ED%91%9C(JCPT1614ACZ).pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -479,7 +479,7 @@
     "speed": "3.5 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-2646/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-2646.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-2646/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-2646.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -501,7 +501,7 @@
     "speed": "4 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GTJZ0608ME/4.%EC%A0%9C%EC%9B%90%ED%91%9C_GTJZ0608ME.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GTJZ0608ME/4.%EC%A0%9C%EC%9B%90%ED%91%9C_GTJZ0608ME.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -523,7 +523,7 @@
     "speed": "3.5 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/JCPT1412AC/4.%EC%A0%9C%EC%9B%90%ED%91%9CJCPT1412AC.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/JCPT1412AC/4.%EC%A0%9C%EC%9B%90%ED%91%9CJCPT1412AC.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -545,9 +545,9 @@
     "speed": "4 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/JCPT0607DCS/4.%EC%A0%9C%EC%9B%90%ED%91%9C_JCPT0607DCS.pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/JCPT0607DCS/5.%EC%9D%B8%EC%A6%9D%EC%84%9CJCPT0607DCS(2016%EB%85%844%EC%9B%9425%EC%9D%BC).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/JCPT0607DCS/6.0607%20%ED%95%98%EB%B6%80%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/JCPT0607DCS/4.%EC%A0%9C%EC%9B%90%ED%91%9C_JCPT0607DCS.pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/JCPT0607DCS/5.%EC%9D%B8%EC%A6%9D%EC%84%9CJCPT0607DCS(2016%EB%85%844%EC%9B%9425%EC%9D%BC).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/JCPT0607DCS/6.0607%20%ED%95%98%EB%B6%80%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
   },
   "GTJZ0808E": {
     "modelName": "GTJZ0808E",
@@ -567,7 +567,7 @@
     "speed": "4 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GTJZ0808E/4.%EC%A0%9C%EC%9B%90%ED%91%9C_GTJZ0808E.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GTJZ0808E/4.%EC%A0%9C%EC%9B%90%ED%91%9C_GTJZ0808E.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -589,7 +589,7 @@
     "speed": "3.5 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-3246%20E/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-3246%20E-Drive.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-3246%20E/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-3246%20E-Drive.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -611,7 +611,7 @@
     "speed": "4 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/1414E%20Plus/4.%EC%A0%9C%EC%9B%90%ED%91%9C(1414E%20Plus).pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/1414E%20Plus/4.%EC%A0%9C%EC%9B%90%ED%91%9C(1414E%20Plus).pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -633,7 +633,7 @@
     "speed": null,
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS4655/4.%EC%A0%9C%EC%9B%90%ED%91%9C(GS-4655).pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS4655/4.%EC%A0%9C%EC%9B%90%ED%91%9C(GS-4655).pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -655,7 +655,7 @@
     "speed": null,
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS4047/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-4047.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS4047/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-4047.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -677,7 +677,7 @@
     "speed": null,
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS3246/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-3246%20E-Drive.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS3246/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-3246%20E-Drive.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -699,7 +699,7 @@
     "speed": "3.5 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/JCPT1212AC/4.%EC%A0%9C%EC%9B%90%ED%91%9C(JCPT1212AC).pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/JCPT1212AC/4.%EC%A0%9C%EC%9B%90%ED%91%9C(JCPT1212AC).pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -721,9 +721,9 @@
     "speed": "5.5 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1614AC%2B/4.%EC%A0%9C%EC%9B%90%ED%91%9C(S1614AC%2B).pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1614AC%2B/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(S1614AC%2B)2025%EB%85%843%EC%9B%9413%EC%9D%BC.pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1614AC%2B/6.%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95(%EC%83%81%EB%B6%80).pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1614AC%2B/4.%EC%A0%9C%EC%9B%90%ED%91%9C(S1614AC%2B).pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1614AC%2B/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(S1614AC%2B)2025%EB%85%843%EC%9B%9413%EC%9D%BC.pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1614AC%2B/6.%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95(%EC%83%81%EB%B6%80).pdf"
   },
   "S1412AC+": {
     "modelName": "S1412AC+",
@@ -743,9 +743,9 @@
     "speed": "6.0 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1412AC%2B/4.%EC%A0%9C%EC%9B%90%ED%91%9C(S1412AC%2B).pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1412AC%2B/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(HS1401).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1412AC%2B/6.JCPT-%EC%83%81%EB%B6%80%ED%95%98%EB%B6%80-%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1412AC%2B/4.%EC%A0%9C%EC%9B%90%ED%91%9C(S1412AC%2B).pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1412AC%2B/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(HS1401).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1412AC%2B/6.JCPT-%EC%83%81%EB%B6%80%ED%95%98%EB%B6%80-%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
   },
   "ES2646": {
     "modelName": "ES2646",
@@ -765,9 +765,9 @@
     "speed": "3.2 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/ES2646/4.%EC%A0%9C%EC%9B%90%ED%91%9C(ES2646).pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/ES2646/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(2022%EB%85%846%EC%9B%9430%EC%9D%BC).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/ES2646/6.%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95%207.%EB%B9%84%EC%83%81%ED%95%98%EA%B0%95%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/ES2646/4.%EC%A0%9C%EC%9B%90%ED%91%9C(ES2646).pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/ES2646/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(2022%EB%85%846%EC%9B%9430%EC%9D%BC).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/ES2646/6.%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95%207.%EB%B9%84%EC%83%81%ED%95%98%EA%B0%95%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
   },
   "GS-1330m": {
     "modelName": "GS-1330m",
@@ -787,9 +787,9 @@
     "speed": "4 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-1330m/4.%20%EC%A0%9C%EC%9B%90%ED%91%9C%20GS-1330m.pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-1330m/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C%20GS-1330m(2019%EB%85%843%EC%9B%9419%EC%9D%BC).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-1330m/6.%EC%9E%A5%EB%B9%84%20%EC%9E%91%EB%8F%99%EB%B2%95%20(GS-1330).pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-1330m/4.%20%EC%A0%9C%EC%9B%90%ED%91%9C%20GS-1330m.pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-1330m/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C%20GS-1330m(2019%EB%85%843%EC%9B%9419%EC%9D%BC).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-1330m/6.%EC%9E%A5%EB%B9%84%20%EC%9E%91%EB%8F%99%EB%B2%95%20(GS-1330).pdf"
   },
   "GS-2632": {
     "modelName": "GS-2632",
@@ -809,7 +809,7 @@
     "speed": "3.5 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-2632/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-2632.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-2632/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-2632.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -831,9 +831,9 @@
     "speed": "7.2 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-4069DC/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS4069DC.pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-4069DC/5.%EC%9D%B8%EC%A6%9D%EC%84%9CGS4069DC(2013%EB%85%847%EC%9B%949%EC%9D%BC).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-4069DC/6.GS4069DC%20%ED%95%98%EB%B6%80%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-4069DC/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS4069DC.pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-4069DC/5.%EC%9D%B8%EC%A6%9D%EC%84%9CGS4069DC(2013%EB%85%847%EC%9B%949%EC%9D%BC).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-4069DC/6.GS4069DC%20%ED%95%98%EB%B6%80%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
   },
   "GS-5390RT": {
     "modelName": "GS-5390RT",
@@ -853,9 +853,9 @@
     "speed": "8 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-5390RT/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-5390RT.pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-5390RT/5.%EC%9D%B8%EC%A6%9D%EC%84%9CGS-5390(2010%EB%85%849%EC%9B%9429%EC%9D%BC).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-5390RT/6.%EC%9E%A5%EB%B9%84%20%EC%9E%91%EB%8F%99%EB%B2%95%20(GS-5390RT).pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-5390RT/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-5390RT.pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-5390RT/5.%EC%9D%B8%EC%A6%9D%EC%84%9CGS-5390(2010%EB%85%849%EC%9B%9429%EC%9D%BC).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-5390RT/6.%EC%9E%A5%EB%B9%84%20%EC%9E%91%EB%8F%99%EB%B2%95%20(GS-5390RT).pdf"
   },
   "4069LE": {
     "modelName": "4069LE",
@@ -875,7 +875,7 @@
     "speed": "4.8 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/4069LE/4.%EC%A0%9C%EC%9B%90%ED%91%9C_4069LE.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/4069LE/4.%EC%A0%9C%EC%9B%90%ED%91%9C_4069LE.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -897,9 +897,9 @@
     "speed": "4.8 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/1930ES/4.1930ES%20%EC%A0%9C%EC%9B%90%ED%91%9C.pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/1930ES/5.1930ES%20%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(2015%EB%85%8406%EC%9B%9410%EC%9D%BC).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/1930ES/6.1930ES%20%ED%95%98%EB%B6%80%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/1930ES/4.1930ES%20%EC%A0%9C%EC%9B%90%ED%91%9C.pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/1930ES/5.1930ES%20%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(2015%EB%85%8406%EC%9B%9410%EC%9D%BC).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/1930ES/6.1930ES%20%ED%95%98%EB%B6%80%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
   },
   "JCPT1614ACZ": {
     "modelName": "JCPT1614ACZ",
@@ -985,7 +985,7 @@
     "speed": "3.8 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/ES1330L/4.%EC%A0%9C%EC%9B%90%ED%91%9CES1330L.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/ES1330L/4.%EC%A0%9C%EC%9B%90%ED%91%9CES1330L.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -1007,7 +1007,7 @@
     "speed": "5 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/JCPT1008AC/4.%20%EC%A0%9C%EC%9B%90%ED%91%9CJCPT1008AC.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/JCPT1008AC/4.%20%EC%A0%9C%EC%9B%90%ED%91%9CJCPT1008AC.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -1029,9 +1029,9 @@
     "speed": "3.5 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1212E/4.%EC%A0%9C%EC%9B%90%ED%91%9C(S1212E).pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1212E/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(S1212E)2023%EB%85%8411%EC%9B%9414%EC%9D%BC.pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1212E/6.%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1212E/4.%EC%A0%9C%EC%9B%90%ED%91%9C(S1212E).pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1212E/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(S1212E)2023%EB%85%8411%EC%9B%9414%EC%9D%BC.pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1212E/6.%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
   },
   "MS10.4": {
     "modelName": "MS10.4",
@@ -1051,9 +1051,9 @@
     "speed": "-",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/MS10.4/4.%EC%A0%9C%EC%9B%90%ED%91%9C(MS-10.4).pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/MS10.4/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C_MS-10.4(2009%EB%85%846%EC%9B%943%EC%9D%BC).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/MS10.4/6.%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95(MS-10.4).pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/MS10.4/4.%EC%A0%9C%EC%9B%90%ED%91%9C(MS-10.4).pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/MS10.4/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C_MS-10.4(2009%EB%85%846%EC%9B%943%EC%9D%BC).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/MS10.4/6.%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95(MS-10.4).pdf"
   },
   "GTJZ1012E": {
     "modelName": "GTJZ1012E",
@@ -1073,7 +1073,7 @@
     "speed": "4 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GTJZ1012E/4.%EC%A0%9C%EC%9B%90%ED%91%9C(GTJZ1012E).pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GTJZ1012E/4.%EC%A0%9C%EC%9B%90%ED%91%9C(GTJZ1012E).pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -1117,9 +1117,9 @@
     "speed": "3 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S0812E/4.%EC%A0%9C%EC%9B%90%ED%91%9C(S0812E).pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S0812E/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(S0812E)23%EB%85%8412%EC%9B%9414%EC%9D%BC.pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S0812E/6.LGMG%20%EC%8B%9C%EC%A0%80%20%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S0812E/4.%EC%A0%9C%EC%9B%90%ED%91%9C(S0812E).pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S0812E/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(S0812E)23%EB%85%8412%EC%9B%9414%EC%9D%BC.pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S0812E/6.LGMG%20%EC%8B%9C%EC%A0%80%20%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
   },
   "JCPT1012AC": {
     "modelName": "JCPT1012AC",
@@ -1139,7 +1139,7 @@
     "speed": "5 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/JCPT1012AC/4.%EC%A0%9C%EC%9B%90%ED%91%9C(JCPT1012AC).pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/JCPT1012AC/4.%EC%A0%9C%EC%9B%90%ED%91%9C(JCPT1012AC).pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -1161,7 +1161,7 @@
     "speed": "4 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-1432/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-1432.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-1432/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-1432.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -1183,7 +1183,7 @@
     "speed": "4 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-1930/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-1930.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-1930/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-1930.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -1205,7 +1205,7 @@
     "speed": null,
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-2632%20%20E-Drive/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-2632%20E-Drive.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-2632%20%20E-Drive/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-2632%20E-Drive.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -1227,7 +1227,7 @@
     "speed": "3.2 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-3246/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-3246.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-3246/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-3246.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -1249,7 +1249,7 @@
     "speed": "3 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/JLG-E600JP/4.%EC%9E%A5%EB%B9%84%EC%A0%9C%EC%9B%90%ED%91%9C%20JLG%20E600JP.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/JLG-E600JP/4.%EC%9E%A5%EB%B9%84%EC%A0%9C%EC%9B%90%ED%91%9C%20JLG%20E600JP.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -1271,9 +1271,9 @@
     "speed": "3 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/R1532i/4.%EC%A0%9C%EC%9B%90%ED%91%9C(R1532i).pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/R1532i/5.%EC%9D%B8%EC%A6%9D%EC%84%9CR1532i(2020%EB%85%8411%EC%9B%9412%EC%9D%BC).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/R1532i/6.JLG_%EC%83%81%EB%B6%80%20%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/R1532i/4.%EC%A0%9C%EC%9B%90%ED%91%9C(R1532i).pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/R1532i/5.%EC%9D%B8%EC%A6%9D%EC%84%9CR1532i(2020%EB%85%8411%EC%9B%9412%EC%9D%BC).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/R1532i/6.JLG_%EC%83%81%EB%B6%80%20%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
   },
   "Z-45/25J": {
     "modelName": "Z-45/25J",
@@ -1293,9 +1293,9 @@
     "speed": "4.8 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/Z-45/25J/4.%EC%A0%9C%EC%9B%90%ED%91%9C_Z-4525J.pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/Z-45/25J/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C_Z-4525J(2009%EB%85%849%EC%9B%9414%EC%9D%BC).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/Z-45/25J/6.%EC%9E%A5%EB%B9%84%20%EC%9E%91%EB%8F%99%EB%B2%95_Z-4525J.pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/Z-45/25J/4.%EC%A0%9C%EC%9B%90%ED%91%9C_Z-4525J.pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/Z-45/25J/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C_Z-4525J(2009%EB%85%849%EC%9B%9414%EC%9D%BC).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/Z-45/25J/6.%EC%9E%A5%EB%B9%84%20%EC%9E%91%EB%8F%99%EB%B2%95_Z-4525J.pdf"
   },
   "GS-4046": {
     "modelName": "GS-4046",
@@ -1315,9 +1315,9 @@
     "speed": "3.2 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-4046/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-4046.pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-4046/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9CGS-4046(2021%EB%85%847%EC%9B%948%EC%9D%BC).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-4046/6.GENIE%20%EC%9E%A5%EB%B9%84%20%EC%9E%91%EB%8F%99%EB%B2%95%20(%EC%8B%A4%EC%99%B8%2C%EC%8B%A4%EB%82%B4)GS-4046.pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-4046/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-4046.pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-4046/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9CGS-4046(2021%EB%85%847%EC%9B%948%EC%9D%BC).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-4046/6.GENIE%20%EC%9E%A5%EB%B9%84%20%EC%9E%91%EB%8F%99%EB%B2%95%20(%EC%8B%A4%EC%99%B8%2C%EC%8B%A4%EB%82%B4)GS-4046.pdf"
   },
   "1532R": {
     "modelName": "1532R",
@@ -1337,9 +1337,9 @@
     "speed": "3 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/1532R/4.%EC%A0%9C%EC%9B%90%ED%91%9C1532R.pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/1532R/5.%EC%9D%B8%EC%A6%9D%EC%84%9C1532R(2018%EB%85%843%EC%9B%9430%EC%9D%BC).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/1532R/6.1532R%20%EC%A1%B0%EC%9E%91%EB%B2%95.pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/1532R/4.%EC%A0%9C%EC%9B%90%ED%91%9C1532R.pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/1532R/5.%EC%9D%B8%EC%A6%9D%EC%84%9C1532R(2018%EB%85%843%EC%9B%9430%EC%9D%BC).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/1532R/6.1532R%20%EC%A1%B0%EC%9E%91%EB%B2%95.pdf"
   },
   "GTJZ0812E": {
     "modelName": "GTJZ0812E",
@@ -1359,7 +1359,7 @@
     "speed": "4 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GTJZ0812E/4.%EC%A0%9C%EC%9B%90%ED%91%9C(GTJZ0812E).pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GTJZ0812E/4.%EC%A0%9C%EC%9B%90%ED%91%9C(GTJZ0812E).pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -1381,7 +1381,7 @@
     "speed": "4 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GTJZ1212E/4.%EC%A0%9C%EC%9B%90%ED%91%9C(GTJZ1212E).pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GTJZ1212E/4.%EC%A0%9C%EC%9B%90%ED%91%9C(GTJZ1212E).pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -1403,9 +1403,9 @@
     "speed": "6 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1008AC%2B/4.%EC%A0%9C%EC%9B%90%ED%91%9C_S1008AC%2B.pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1008AC%2B/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C_S1008AC%2B(2025%EB%85%844%EC%9B%9415%EC%9D%BC).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1008AC%2B/6.JCPT-%EC%83%81%EB%B6%80%ED%95%98%EB%B6%80-%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1008AC%2B/4.%EC%A0%9C%EC%9B%90%ED%91%9C_S1008AC%2B.pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1008AC%2B/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C_S1008AC%2B(2025%EB%85%844%EC%9B%9415%EC%9D%BC).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1008AC%2B/6.JCPT-%EC%83%81%EB%B6%80%ED%95%98%EB%B6%80-%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
   },
   "S1212AC+": {
     "modelName": "S1212AC+",
@@ -1425,9 +1425,9 @@
     "speed": "3 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1212AC%2B/4.%EC%A0%9C%EC%9B%90%ED%91%9C(S1212AC%2B).pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1212AC%2B/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(S1212AC%2B)25%EB%85%844%EC%9B%9415%EC%9D%BC.pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1212AC%2B/6.%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95(%EC%83%81%EB%B6%80).pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1212AC%2B/4.%EC%A0%9C%EC%9B%90%ED%91%9C(S1212AC%2B).pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1212AC%2B/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(S1212AC%2B)25%EB%85%844%EC%9B%9415%EC%9D%BC.pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1212AC%2B/6.%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95(%EC%83%81%EB%B6%80).pdf"
   },
   "S1612AC+": {
     "modelName": "S1612AC+",
@@ -1447,9 +1447,9 @@
     "speed": "6 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1612AC%2B/4.%EC%A0%9C%EC%9B%90%ED%91%9C.pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1612AC%2B/5.%EC%9D%B8%EC%A6%9D%EC%84%9CS1612AC%2B(2025%EB%85%844%EC%9B%9415%EC%9D%BC).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1612AC%2B/6.%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95(%EC%83%81%EB%B6%80).pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1612AC%2B/4.%EC%A0%9C%EC%9B%90%ED%91%9C.pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1612AC%2B/5.%EC%9D%B8%EC%A6%9D%EC%84%9CS1612AC%2B(2025%EB%85%844%EC%9B%9415%EC%9D%BC).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1612AC%2B/6.%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95(%EC%83%81%EB%B6%80).pdf"
   },
   "GS-4047": {
     "modelName": "GS-4047",
@@ -1469,7 +1469,7 @@
     "speed": "3.2 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/GS-4047/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-4047.pdf",
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/GS-4047/4.%EC%A0%9C%EC%9B%90%ED%91%9CGS-4047.pdf",
     "safetyCertUrl": null,
     "emergencyGuideUrl": null
   },
@@ -1491,9 +1491,9 @@
     "speed": "4.5 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/STAR-6/4.%EC%A0%9C%EC%9B%90%ED%91%9CSTAR-6.pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/STAR-6/5.%EC%9D%B8%EC%A6%9D%EC%84%9CSTAR-6(2017%EB%85%849%EC%9B%9421%EC%9D%BC).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/STAR-6/6.STAR6%20%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/STAR-6/4.%EC%A0%9C%EC%9B%90%ED%91%9CSTAR-6.pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/STAR-6/5.%EC%9D%B8%EC%A6%9D%EC%84%9CSTAR-6(2017%EB%85%849%EC%9B%9421%EC%9D%BC).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/STAR-6/6.STAR6%20%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
   },
   "SR1623E": {
     "modelName": "SR1623E",
@@ -1513,9 +1513,9 @@
     "speed": "변동 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/SR1623E/4.%EC%A0%9C%EC%9B%90%ED%91%9CSR1623E.pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/SR1623E/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9CSR1623E(2024.07.30).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/SR1623E/6.%EC%83%81%EB%B6%80%EC%9E%91%EB%8F%99%EB%B2%95(SR1623E).pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/SR1623E/4.%EC%A0%9C%EC%9B%90%ED%91%9CSR1623E.pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/SR1623E/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9CSR1623E(2024.07.30).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/SR1623E/6.%EC%83%81%EB%B6%80%EC%9E%91%EB%8F%99%EB%B2%95(SR1623E).pdf"
   },
   "S1413E": {
     "modelName": "S1413E",
@@ -1535,9 +1535,9 @@
     "speed": "4.5 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1413E/4.%EC%A0%9C%EC%9B%90%ED%91%9C(S1413E).pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1413E/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(S1413E).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1413E/6.%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1413E/4.%EC%A0%9C%EC%9B%90%ED%91%9C(S1413E).pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1413E/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(S1413E).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1413E/6.%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
   },
   "MS11.8": {
     "modelName": "MS11.8",
@@ -1557,9 +1557,9 @@
     "speed": "-",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/MS11.8/4.%EC%A0%9C%EC%9B%90%ED%91%9C(MS-11.8).pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/MS11.8/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(2014%EB%85%844%EC%9B%943%EC%9D%BC).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/MS11.8/6.%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95(MS-11.8).pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/MS11.8/4.%EC%A0%9C%EC%9B%90%ED%91%9C(MS-11.8).pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/MS11.8/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(2014%EB%85%844%EC%9B%943%EC%9D%BC).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/MS11.8/6.%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95(MS-11.8).pdf"
   },
   "1230ES": {
     "modelName": "1230ES",
@@ -1579,9 +1579,9 @@
     "speed": "3.2 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/1230ES/4.%EC%A0%9C%EC%9B%90%ED%91%9C_1230ES.pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/1230ES/5.%EC%95%88%EC%A0%84%EC%A0%90%EA%B2%80%EC%9D%B8%EC%A6%9D%EC%84%9C(%EA%B0%9C%EB%B3%84)_J0604.pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/1230ES/6.JLG_%EC%83%81%EB%B6%80%20%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/1230ES/4.%EC%A0%9C%EC%9B%90%ED%91%9C_1230ES.pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/1230ES/5.%EC%95%88%EC%A0%84%EC%A0%90%EA%B2%80%EC%9D%B8%EC%A6%9D%EC%84%9C(%EA%B0%9C%EB%B3%84)_J0604.pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/1230ES/6.JLG_%EC%83%81%EB%B6%80%20%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
   },
   "S1012AC+": {
     "modelName": "S1012AC+",
@@ -1601,9 +1601,9 @@
     "speed": "3 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1012AC%2B/4.%EC%A0%9C%EC%9B%90%ED%91%9CS1012AC%2B.pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1012AC%2B/5.%EC%9D%B8%EC%A6%9D%EC%84%9CS1012AC%2B%EC%9D%B8%EC%A6%9D%EC%84%9C(%ED%86%B5%ED%95%A9)(2025%EB%85%844%EC%9B%9415%EC%9D%BC).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1012AC%2B/6.JCPT-%EC%83%81%EB%B6%80%ED%95%98%EB%B6%80-%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1012AC%2B/4.%EC%A0%9C%EC%9B%90%ED%91%9CS1012AC%2B.pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1012AC%2B/5.%EC%9D%B8%EC%A6%9D%EC%84%9CS1012AC%2B%EC%9D%B8%EC%A6%9D%EC%84%9C(%ED%86%B5%ED%95%A9)(2025%EB%85%844%EC%9B%9415%EC%9D%BC).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1012AC%2B/6.JCPT-%EC%83%81%EB%B6%80%ED%95%98%EB%B6%80-%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
   },
   "S0808E": {
     "modelName": "S0808E",
@@ -1623,9 +1623,9 @@
     "speed": "변동 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S0808E/4.%EC%A0%9C%EC%9B%90%ED%91%9CLGMG(S0808E).pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S0808E/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(S0808E)2023%EB%85%8412%EC%9B%9414%EC%9D%BC.pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S0808E/6.LGMG%20%EC%8B%9C%EC%A0%80%20%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S0808E/4.%EC%A0%9C%EC%9B%90%ED%91%9CLGMG(S0808E).pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S0808E/5.%EC%95%88%EC%A0%84%EC%9D%B8%EC%A6%9D%EC%84%9C(S0808E)2023%EB%85%8412%EC%9B%9414%EC%9D%BC.pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S0808E/6.LGMG%20%EC%8B%9C%EC%A0%80%20%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
   },
   "S1012E": {
     "modelName": "S1012E",
@@ -1645,8 +1645,8 @@
     "speed": "3.5 Km/h",
     "asContact": "031-334-5296",
     "maxWindSpeed": "12.5 m/s 이내",
-    "specSheetUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1012E/4.%EC%A0%9C%EC%9B%90%ED%91%9C(S1012E).pdf",
-    "safetyCertUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1012E/4.%EC%9D%B8%EC%A6%9D%EC%84%9C(2023%EB%85%8411%EC%9B%9414%EC%9D%BC).pdf",
-    "emergencyGuideUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/Eq_doc/S1012E/6.%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
+    "specSheetUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1012E/4.%EC%A0%9C%EC%9B%90%ED%91%9C(S1012E).pdf",
+    "safetyCertUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1012E/4.%EC%9D%B8%EC%A6%9D%EC%84%9C(2023%EB%85%8411%EC%9B%9414%EC%9D%BC).pdf",
+    "emergencyGuideUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/Eq_doc/S1012E/6.%EC%9E%A5%EB%B9%84%EC%9E%91%EB%8F%99%EB%B2%95.pdf"
   }
 }

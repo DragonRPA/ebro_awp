@@ -5,10 +5,10 @@ const path = require('path');
 
 const config = {
   accountId: '35014a2514680107d74e1e68d96e6c32',
-  bucketName: 'kiyeun-storage',
+  bucketName: 'giyeon-storage',
   accessKeyId: '03cdb7560d37242de608a5db2a976030',
   secretAccessKey: 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986',
-  publicDomain: 'https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev'
+  publicDomain: 'https://pub-55a68547bdf24600b80d27782912c83e.r2.dev'
 };
 
 const s3 = new S3Client({

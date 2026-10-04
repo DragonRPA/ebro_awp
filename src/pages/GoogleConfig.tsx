@@ -197,17 +197,17 @@ export const GoogleConfig: React.FC = () => {
       setMaintenanceFolder(currentConfig.maintenanceFolder || '');
       setMirrorRecursive(currentConfig.mirrorRecursive !== undefined ? currentConfig.mirrorRecursive : true);
       setR2AccountId(currentConfig.r2AccountId || '35014a2514680107d74e1e68d96e6c32');
-      setR2BucketName(currentConfig.r2BucketName || 'kiyeun-storage');
+      setR2BucketName(currentConfig.r2BucketName === 'kiyeun-storage' ? 'giyeon-storage' : (currentConfig.r2BucketName || 'giyeon-storage'));
       setR2AccessKeyId(currentConfig.r2AccessKeyId || '03cdb7560d37242de608a5db2a976030');
       setR2SecretAccessKey(currentConfig.r2SecretAccessKey || 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986');
-      setR2PublicDomain(currentConfig.r2PublicDomain || 'https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev');
+      setR2PublicDomain(currentConfig.r2PublicDomain === 'https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev' ? 'https://pub-55a68547bdf24600b80d27782912c83e.r2.dev' : (currentConfig.r2PublicDomain || 'https://pub-55a68547bdf24600b80d27782912c83e.r2.dev'));
       setIsDevMode(currentConfig.isDevMode !== undefined ? currentConfig.isDevMode : true);
     } else {
       setR2AccountId('35014a2514680107d74e1e68d96e6c32');
-      setR2BucketName('kiyeun-storage');
+      setR2BucketName('giyeon-storage');
       setR2AccessKeyId('03cdb7560d37242de608a5db2a976030');
       setR2SecretAccessKey('b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986');
-      setR2PublicDomain('https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev');
+      setR2PublicDomain('https://pub-55a68547bdf24600b80d27782912c83e.r2.dev');
     }
   }, [currentConfig]);
 
@@ -835,7 +835,7 @@ export const GoogleConfig: React.FC = () => {
                   type="text"
                   value={r2BucketName}
                   onChange={e => setR2BucketName(e.target.value)}
-                  placeholder="예: kiyeun-storage"
+                  placeholder="예: giyeon-storage"
                   style={{ padding: '8px 10px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border)' }}
                 />
               </div>

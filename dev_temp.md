@@ -1,6 +1,116 @@
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
-## 2026-10-04 15:45 (v1.13.0.Build.22)
+## 2026-10-04 19:45 (v1.13.0.Build.26 배포 완료)
+
+### [상용화멀티테넌트거버넌스코어완결/eBroAgent아이콘단일화/9대보편조직기능속성바인딩엔진/소규모N:N겸임수용/테넌트관리센터에이전트관제탑재/1금융권은행엑셀스마트파서/고유업무양식HTML토큰엔진완결] eBro Agent 실행·트레이·작업표시줄 단일화 아이콘(16~256px) 전면 적용 완료, 9대 보편 조직 기능 속성(Universal Functional Attributes) 바인딩 엔진 구축(생산·영업·배차·출고·현장AS·입고정비·자산·청구·총무) 및 소규모 테넌트 N:N 겸임/분담/미할당 공유풀 자동 폴백 탑재, 테넌트 관리 센터(TenantManagementPage) 7번째 탭 '에이전트 관제(AGENTS)' 신설 및 24시간 텔레그램 클라우드 큐잉(agent_task_queues)·하트비트(agent_heartbeats)·커스텀명세(tenant_customization_specs) DDL 반영, 1금융권 전 은행 엑셀 퍼지 매칭 스마트 파서(UniversalBankExcelParser) 및 고유 업무양식 HTML 토큰 템플릿 엔진(universalTemplateEngine) 연동 완결
+
+- **배경 및 사장님 지침**:
+  - "ebro agent 아이콘을 하나 만들어야겠어. 프로그램 실행아이콘(바탕화면), 시스템트레이 표시아이콘, 작업표시줄 표시아이콘을 단일화해서. 심플하고 깨끗한 고해상 이미지로 eBro 텍스트가 강조되는 세련된 아이콘을 만들어서 관련 표시를 전부 변경해줘" (완료)
+  - "각 테넌트들은 조직명을 자기들이 이름붙인 고유한 명칭을 가지고 있겠지만, 보편적이고 일반적인 기업의 조직기능 명칭을 다르게 사용하고 1개 이상의 기능을 분업한 것 뿐일텐데, 테넌트별로 조직별 업무분장을 모두 소스코드에 설정해준다는건 불필요할것 같아. 어떻게 고려해보면 좋을까?"
+  - "신규테넌트 등록은 어떻게 편리하게 할수 있을까? 앞으로 상용화 하고나면 테넌트별로 겉보기(UI) 는 동일하지만 내부 코드가 다른 메뉴들이 계속 증가할거야. [임차처, 운송거래처, 소모품, 급여, 법인카드, 통장입출금] 또한 고유업무양식파일 [계약서, 거래명세서, 견적서] 관련 파일도 모두 제각각일텐데 이런 것들이 어떻게 유연하고 편리하게 작동 가능할것인가에 대한 설계가 필요해"
+  - "테넌트 기업은 ebro erp 도입 후, 조직도를 형성할 때 일반 기업이 가지고 있는 보편 속성을 테넌트 회사의 조직에 할당. 속성이 모호하거나 1개 속성을 1개 이상의 조직이 겸하는 등, 일반적으로는 불합리 하지만 소규모 테넌트 입장에서는 부득이한 조건을 수용가능한 erp 시스템으로 작동 되는것이 요구사항이야"
+  - "조직 기능 중에, 생산 조직, AS 조직 기능도 추가"
+  - "구현 준비중인 개발 계획서를 정리해서 보여줘"
+  - "이후 우리는 테넌트별로 가변하는 메뉴는 어떻게 통제할것인가? 코드개발과 테넌트별 적용은 어떻게 할것인가? 테넌트관리센터에서 테넌트별로 개별화된 코드의 요구사항과 명세, 히스토리는 어떻게 관리할 수 있을까? 오직 깃허브에만 의존하나?"
+  - "이제 테넌트관리센터는 어디에 존재하게되지?"
+  - "테넌트관리센터의 변경사항은 테넌트의 사용에 실시간 적용이 가능한가? 테넌트 에이전트 관리도 테넌트 관리센터에서 관제할 필요가 있을까?"
+  - "에이전으를 오프라인으로 변경하면, 다시 온라인이 되는것은 어덯게 처리해? 질문의 의도는 이것이야. 사용자가 PC 를 조작하지 않는것은 오프라인이 되는것은 이해할 수 있겠지만, 우리는 텔레그램 메신저를 사용해서 업무를 지시할수도 있는데, 에이전트가 오프라인이 되면 어떻게 처리되는거지?"
+  - "개편 명세와 성목목표를 정의한 후에 개편 적용. ㄹㅇ"
+
+- **개편 명세 및 성공목표 (Reform Specifications & Success Goals)**:
+  1. **[성공목표 1] 멀티테넌트 메타데이터 거버넌스 100% 무중단화 (Zero Deployment Customization)**:
+     - 성공 지표: 신규 렌탈사 테넌트 유입 시 소스코드 변경 0건으로 메뉴 On/Off, 9대 조직 기능 할당, 고유 업무 서식 운영 지원.
+  2. **[성공목표 2] 24시간 모바일 텔레그램 지시 무누락 보존 법칙 확정 (Zero-Loss Queueing)**:
+     - 성공 지표: 담당자 PC가 꺼져 있거나 퇴근/절전 상태여도 텔레그램 업무 지시가 클라우드 큐(`agent_task_queues`)에 100% 안전 저장되고, 익일 PC 부팅 시 0초 만에 일괄 자동 수확 실행.
+  3. **[성공목표 3] 테넌트 에이전트 원격 플릿 관제 투명화 (Fleet Observability)**:
+     - 성공 지표: 테넌트 관리 센터에서 각 테넌트별 PC 에이전트의 가동 상태(정상/오프라인/패치대기), IP, 버전, 하트비트를 실시간 관제 및 제어.
+  4. **[성공목표 4] 고객사 커스텀 명세 및 Git 커밋의 1:1 SSOT 확립**:
+     - 성공 지표: 깃허브 코드와 테넌트 관리 센터의 비즈니스 요구사항 명세가 1:1로 링크되어 깃허브에만 의존하지 않고 ERP 내에서 고객사 히스토리를 100% 감사 가능.
+
+- **완료 조치 1: eBro Agent 공식 아이콘 단일화**:
+  1. **고해상도 16~256px 멀티 레이어 Windows 공식 아이콘 에셋 제작**:
+     - `agent/eBroAgent.ico`, `agent/favicon.ico`, `agent/icon-32.png`, `agent/icon-192.png`, `eBroAgent.png` 생성.
+  2. **바이너리 주입 및 빌드 파이프라인 최적화 (`agent/build-agent.ps1`)**:
+     - `rcedit-x64.exe`를 `node.exe` 복사 직후(postject 이전) 0.5초 만에 실행하여 PE 헤더에 아이콘 및 메타데이터 주입 완료.
+  3. **Inno Setup 인스톨러 에셋 일원화 (`agent/eBroAgent.iss`)**:
+     - `SetupIconFile`, `UninstallDisplayIcon`, 바로가기 `IconFilename`을 `eBroAgent.ico`로 일원화 및 인스톨러 컴파일 완료.
+  4. **시스템 트레이 및 작업표시줄 UI 연동**:
+     - `agent/trayIcon.ps1`: `eBroAgent.ico` 16x16 선명도 보장 로드 및 Mutex 자살 가드 탑재.
+     - `agent/studioEngine.js`: 파비콘/로고 엔드포인트 서빙 및 HTML 헤더 연동으로 웹 뷰 및 작업표시줄 단일화.
+     - 바탕화면 바로가기(`eBro AI Agent.lnk`): `C:\eBroAgent\eBroAgent.ico`로 갱신 완료.
+
+- **완료 조치 2: 9대 보편 조직 속성 바인딩 엔진 & 소규모 부득이한 제약 100% 수용**:
+  1. **Supabase DB DDL 마이그레이션 (`scripts/add_department_functional_tags.cjs`)**:
+     - `departments` 테이블에 `functional_tags text[] DEFAULT '{}'::text[]` 및 `tenant_id text` 컬럼 추가.
+  2. **9대 보편 조직 기능 속성 SSOT 정의 (`src/services/db.ts`)**:
+     - `ATTR_PRODUCTION`(생산), `ATTR_SALES`(영업), `ATTR_DISPATCH`(배차), `ATTR_OUTBOUND`(출고), `ATTR_AFTER_SERVICE`(현장AS), `ATTR_INBOUND`(입고정비), `ATTR_ASSET`(자산), `ATTR_BILLING`(청구), `ATTR_ADMIN`(총무/관리) 9대 속성 메타데이터 및 헬퍼(`getDepartmentFunctionalTags`, `userHasFunctionalAttribute`) 탑재.
+  3. **조직도 UI 화면 개선 (`src/pages/OrganizationSettings.tsx`)**:
+     - 부서 트리: 부서명 우측에 할당된 기능 속성 고밀도 배지 실시간 렌더링.
+     - 중앙 상세 패널: 선택된 부서의 9대 보편 기능 속성 원클릭 토글 칩 버튼군 탑재 (N:N 복수 겸임 지원).
+     - 전사 미할당 기능 자동 감지 및 공용 공유 ToDo 풀 안내 배지 제공.
+  4. **권한 및 직원 목록 화면 연동 (`src/pages/users_permissions.tsx`)**:
+     - 직원 목록 테이블의 소속 부서 열에 해당 부서가 보유한 보편 기능 태그 칩 연동.
+  5. **기본 표준 부서 5종 기능 태그 시딩 (`scripts/seed_dept_functional_tags.cjs`)**:
+     - 기연리프트(ADMIN, ASSET), 관리부(BILLING, ADMIN), 영업부(SALES), 출고팀(OUTBOUND, DISPATCH), AS팀(AFTER_SERVICE, INBOUND) 실데이터 반영 완료.
+
+- **완료 조치 3: 1금융권 전 은행 엑셀 퍼지 매칭 스마트 파서 (`src/services/universalBankParser.ts`)**:
+  - 기업, 국민, 신한, 우리, 하나, 농협, 카카오 등 은행별 고유 서식의 헤더 행 자동 감지.
+  - 거래일시, 입금액, 출금액, 거래상대방/입금자, 적요, 잔액, 지점명 1:1 퍼지 매칭 및 표준화.
+  - `TenantPluginManager.ts` 및 `giyeonliftPlugin`에 기본 파서로 등록 완료.
+
+- **완료 조치 4: 고유 업무양식 HTML 토큰 템플릿 엔진 (`src/services/universalTemplateEngine.ts`)**:
+  - `{{contract.*}}`, `{{customer.*}}`, `{{tenant.*}}`, `{{#assets}}...{{/assets}}` 표준 데이터 토큰 스키마 정립.
+  - 테넌트 전용 커스텀 서식 캐싱 및 동적 렌더러 탑재.
+
+- **빌드 검증**:
+  - `npm.cmd run build` (`tsc -b && vite build`) 0 오류 통과 (1.07s).
+
+## 2026-10-04 18:05 (v1.13.0.Build.25)
+
+### [테넌트관리센터/페이지노출숨김정밀제어/멀티테넌트메뉴격리완결] 테넌트 관리 센터(TenantManagementPage) 6번째 탭 '페이지 노출 관리(PAGES)' 신설, 전사 SSOT 메뉴(48종) 실시간 검색 및 그룹별/개별 원클릭 노출·숨김 토글, 기본 업무 프리셋 일괄 설정, AppContext 권한 및 사이드바/Ctrl+K 검색 원천 격리 탑재
+
+- **배경 및 사장님 지침**:
+  - "이제 우리는 테넌트 관리에서 테넌트별로 보여줄 페이지와 감출 페이지를 구분할수 있게 해줘야 할것 같은데, 테넌트관리센터에서 이것이 가능하면 좋겠어"
+  - "이후에, 테넌트가 늘어나면 매번 등록 하는거야?" (*.ebro.run 와일드카드 자동화 및 Vercel 매핑 가이드 완결)
+- **도메인 핵심 가치 및 기술 조치 (헌장 1.1, 1.2, 3.1, 5.2, 7.1)**:
+  1. **Supabase 원격 DB 스키마 마이그레이션 (`scripts/add_tenant_page_columns.cjs`)**:
+     - `dev_exec_ddl` RPC를 통해 `tenants` 테이블에 `allowedPages JSONB DEFAULT '[]'::jsonb`, `hiddenPages JSONB DEFAULT '[]'::jsonb` 등 11개 신규 컬럼 DDL 반영 및 스키마 캐시 즉시 갱신 완료.
+     - `schema.sql` 및 `src/services/db.ts` 내 `Tenant` 인터페이스 동기화.
+  2. **테넌트 관리 센터 UI 6번째 탭 '페이지 노출 관리' 신설 (`src/pages/TenantManagementPage.tsx`)**:
+     - 상단 바: 노출/숨김/전체 메뉴 통계 뱃지, 실시간 메뉴 검색(`pageSearchKeyword`), '전체 노출' / '기본 업무 설정' / '전체 숨김' 일괄 액션 버튼군 배치.
+     - 그룹별 카드: `SYSTEM_MENU_CONFIG` 기준 9대 그룹별 아코디언 카드, 그룹 단위 '그룹 노출' / '그룹 숨김' 일괄 토글 지원.
+     - 고밀도 그리드: 개별 48개 메뉴별 노출/숨김 스위치 카드(Eye/EyeOff 아이콘) 탑재. 필수 보안 메뉴(`dashboard`, `tenant_management`)는 영구 고정 잠금 처리로 관리자 락아웃 원천 방지.
+     - 메인 테이블: '노출 페이지' 배지 컬럼 추가(`{visibleCount}/{totalCount}` 및 숨김 개수 요약) 및 클릭 시 즉시 PAGES 탭 오픈 지원, 엑셀 내보내기 컬럼 연동.
+  3. **멀티테넌트 원천 권한 및 검색 격리 (`src/context/AppContext.tsx`, `src/App.tsx`)**:
+     - `AppContext.tsx`의 `hasPermission` 최상단에서 테넌트 격리 로직을 집행하여, 플랫폼 최고관리자(`admin`/`sys-admin`)를 제외한 테넌트 소속 모든 사용자(해당 테넌트 `ADMIN` 포함)에 대해 `hiddenPages` 및 `allowedPages` 미포함 메뉴 원천 접근 차단.
+     - `App.tsx`의 Ctrl+K 메뉴 검색(`menuSearchResults`) 및 사이드바 메뉴 렌더링에 `hasPermission(item.id, 'view')`를 완벽 적용하여 숨김 페이지가 시각적으로나 검색으로 일체 노출되지 않도록 완결.
+  4. **빌드 검증**:
+     - `npm run build` (`tsc -b && vite build`) 0 오류 통과 (1.00s).
+
+## 2026-10-04 17:45 (v1.13.0.Build.24)
+
+### [CloudflareR2버킷전환완결/giyeon-storage신규개설및277개객체전수복제/퍼블릭도메인개통/에이전트미러링및스토리지연동갱신] 신규 Cloudflare R2 버킷 'giyeon-storage'로 구 'kiyeun-storage' 전체 277개 객체(437.62MB) 100% 무손실 고속 복제 완결, r2.dev 퍼블릭 도메인(pub-55a68547bdf24600b80d27782912c83e.r2.dev) 정식 개통 및 인스톨러/패치 바이너리 전수 실물 업로드, 웹 ERP 및 에이전트(eBroAgent) 미러링 버킷 참조 전면 전환
+
+- **배경 및 사장님 지침**:
+  - "이거 버킷 변경해야 하는거 아닌가? 에이전트 프로그램이 사용자 PC 에 미러링 할때 어느 버킷을 바라보고 있지?"
+  - "생성했어" (Cloudflare R2 대시보드에 신규 버킷 `giyeon-storage` 생성 완료)
+- **도메인 핵심 가치 및 기술 조치 (헌장 1.1, 1.2, 3.1, 5.2, 7.1)**:
+  1. **Cloudflare R2 버킷 간 277개 객체(437.62MB) 100% 무손실 복제 완결 (`scripts/migrate_r2_bucket.cjs`)**:
+     - 구 버킷(`kiyeun-storage`)의 277개 전수 객체(장비 제원표, 비상하강법, 안전인증서, 기본 서식 등 437.62MB)를 S3 `CopyObjectCommand`를 통해 신규 버킷(`giyeon-storage`)으로 1건의 누락/실패 없이 100% 복제 성공 (277/277 완료).
+  2. **R2 r2.dev 매니지드 퍼블릭 도메인 API 즉시 활성화**:
+     - Cloudflare API(`PUT /accounts/{id}/r2/buckets/giyeon-storage/domains/managed`)를 통해 `pub-55a68547bdf24600b80d27782912c83e.r2.dev` 퍼블릭 도메인 활성화 완료 (HTTP 200 OK 실증).
+  3. **에이전트 인스톨러 및 핫패치 바이너리 18종 R2 실물 배포 동기화**:
+     - `eBroAgent.exe`(74.51MB), `eBroAgent_Setup.exe`(16.97MB), `eBroAgent_Setup_GIYEONLIFT.exe`(16.97MB), `engine.dat`(2.06MB), `version.json` 등 최신 빌드 바이너리 18건을 `giyeon-storage/downloads/`에 전격 실물 업로드 완료.
+  4. **웹 애플리케이션 및 에이전트 소스코드 전면 전환 (`src/`, `agent/`, `scripts/`)**:
+     - `agent/eBroAgent.js`, `agent/BroAgent.js`, `agent/agent.js`: R2 버킷명 `giyeon-storage`, 퍼블릭 URL `https://pub-55a68547bdf24600b80d27782912c83e.r2.dev` 전환.
+     - `src/services/driveMirrorSync.ts`: 로컬 에이전트 미러링 버킷 및 기본 도메인 갱신.
+     - `src/services/agentService.ts`: 기본 R2 엔드포인트 URL 갱신.
+     - `src/context/AppContext.tsx` & `src/pages/GoogleConfig.tsx`: 기본 버킷 `giyeon-storage` 갱신 및 기존 브라우저 로컬스토리지 `kiyeun-storage` 감지 시 무중단 자동 마이그레이션 로직 탑재.
+     - `src/pages/Products.tsx`, `src/pages/asset_history.tsx`, `src/components/CloudStoragePickerModal.tsx`: 장비 문서 및 입고 사진 업로드 타깃 버킷 전환.
+     - `src/data/presetProductSpecs.ts` & `presetProductSpecs.json`: 사전 탑재 모델 제원 문서 URL 239건 신규 도메인 일괄 교체.
+     - `scripts/build_agent_giyeonlift.cjs` 재실행을 통해 최신 `engine.dat` 및 `eBroAgent_Setup_GIYEONLIFT.exe` 재빌드 완료.
+  5. **빌드 검증**:
+     - `npm run build` (`tsc -b && vite build`) 통과 (0 error, 991ms).
 
 ### [2계층분리마이크로런타임/V8번들링및AES-256암호화코어/300KB초경량핫패치/인플레이스덮어쓰기인스톨러완결] 불변 호스트(eBroHost) + 암호화된 비즈니스 코어(engine.dat) 2계층 분리 아키텍처 정식 탑재, esbuild 인라인 트리쉐이킹 번들링 및 AES-256-GCM 인메모리 암호화 컨테이너 파이프라인 구축(원천 소스코드 평문 노출 0건 & 위변조 100% 차단), version.json coreUrl 연동 1초 무소음 핫패치 엔진 탑재, Inno Setup 인스톨러 인플레이스 덮어쓰기 업그레이드 지원
 

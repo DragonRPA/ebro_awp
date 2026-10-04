@@ -5,7 +5,7 @@ export const EXPECTED_AGENT_VERSION = 'v2.0.0.Build.5';
 // 🚀 GitHub Releases 글로벌 초고속 CDN (Azure/Fastly 한국 PoP 8~10MB/s 3초 다운로드)
 export const DEFAULT_GITHUB_RELEASE_BASE_URL = 'https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0';
 // 🌐 Cloudflare R2 보조 엔드포인트 (Fallback)
-export const DEFAULT_CF_R2_BASE_URL = 'https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev';
+export const DEFAULT_CF_R2_BASE_URL = 'https://pub-55a68547bdf24600b80d27782912c83e.r2.dev';
 
 export const AGENT_INSTALLER_BASE_URL = `${DEFAULT_GITHUB_RELEASE_BASE_URL}/eBroAgent_Setup.exe`; // Inno Setup 16MB 초고속 정식 인스톨러
 export const AGENT_EXE_URL = AGENT_INSTALLER_BASE_URL; // 기본 초고속 인스톨러 다운로드 엔드포인트
@@ -43,7 +43,11 @@ export function getTenantAgentInstallerInfo(tenant?: {
   corporateName?: string;
   subdomain?: string;
 } | null): TenantAgentInstallerInfo {
-  const code = (tenant?.tenantCode || 'GIYEUN').toUpperCase();
+  let rawCode = (tenant?.tenantCode || 'GIYEONLIFT').toUpperCase();
+  if (rawCode === 'GIYEUN' || rawCode === 'GIYUEN' || rawCode === 'KIYUEN') {
+    rawCode = 'GIYEONLIFT';
+  }
+  const code = rawCode;
   const name = tenant?.displayName || tenant?.tradeName || tenant?.corporateName || '기연리프트';
   const sub = (tenant?.subdomain || code.toLowerCase());
   

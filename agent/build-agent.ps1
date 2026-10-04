@@ -15,6 +15,14 @@ Write-Host "0. Stopping existing eBroAgent processes..." -ForegroundColor Yellow
 Get-Process -Name "eBroAgent" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 500
 
+# 0-1. 암호화 비즈니스 코어(core/engine.dat) 컴파일
+Write-Host "0-1. Compiling encrypted business core (core/engine.dat)..." -ForegroundColor Yellow
+cmd /c "node `"$scriptDir\encrypt_core.cjs`""
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "❌ core/engine.dat 암호화 컴파일 실패!" -ForegroundColor Red
+    exit 1
+}
+
 # 1. esbuild 번들링
 Write-Host "1. Bundling with esbuild..." -ForegroundColor Yellow
 cmd /c "npx esbuild `"$scriptDir\eBroAgent.js`" --bundle --platform=node --outfile=`"$scriptDir\agent-bundle.js`""
@@ -38,7 +46,26 @@ Write-Host "3. Copying node.exe binary..." -ForegroundColor Yellow
 $nodeExe = (Get-Command node).Source
 $targetExe = Join-Path $scriptDir "eBroAgent.exe"
 Copy-Item $nodeExe $targetExe -Force
-Start-Sleep -Milliseconds 500
+Start-Sleep -Milliseconds 300
+
+# 3-1. 공식 eBro 아이콘 및 Windows 메타데이터 리소스 주입 (rcedit: 원본 PE 대상 0.5초 초고속 주입)
+Write-Host "3-1. Injecting official eBro icon and version resources with rcedit..." -ForegroundColor Yellow
+$rceditExe = Join-Path $scriptDir "node_modules\rcedit\bin\rcedit-x64.exe"
+$icoPath = Join-Path $scriptDir "eBroAgent.ico"
+if ((Test-Path $rceditExe) -and (Test-Path $icoPath)) {
+    & $rceditExe "$targetExe" `
+        --set-icon "$icoPath" `
+        --set-file-version "2.0.0.6" `
+        --set-product-version "2.0.0.6" `
+        --set-version-string "FileDescription" "eBro AI Agent" `
+        --set-version-string "ProductName" "eBro AI Agent" `
+        --set-version-string "CompanyName" "eBro ERP" `
+        --set-version-string "LegalCopyright" "(C) 2026 eBro ERP. All rights reserved."
+    Write-Host "✅ Official eBro icon & metadata successfully injected into eBroAgent.exe!" -ForegroundColor Green
+} else {
+    Write-Host "⚠️ rcedit or eBroAgent.ico not found, skipping icon resource injection" -ForegroundColor Yellow
+}
+Start-Sleep -Milliseconds 300
 
 # 4. postject SEA Blob 주입
 Write-Host "4. Injecting SEA blob with postject..." -ForegroundColor Yellow
@@ -47,7 +74,7 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ postject 주입 실패!" -ForegroundColor Red
     exit 1
 }
-Start-Sleep -Milliseconds 500
+Start-Sleep -Milliseconds 300
 
 # 4-1. 콘솔 창(검은 창) 완전 제거: PE Header Subsystem을 3(Console)에서 2(GUI)로 패치
 Write-Host "4-1. Patching PE Subsystem to GUI (Removing Console Window completely)..." -ForegroundColor Yellow
@@ -58,7 +85,7 @@ $bytes[$subsystemOffset] = 2  # IMAGE_SUBSYSTEM_WINDOWS_GUI
 $bytes[$subsystemOffset + 1] = 0
 [System.IO.File]::WriteAllBytes($targetExe, $bytes)
 Write-Host "✅ Subsystem successfully patched to Windows GUI (100% Windowless Background Service)!" -ForegroundColor Green
-Start-Sleep -Milliseconds 500
+Start-Sleep -Milliseconds 300
 
 # 5. 디지털 서명 및 public/downloads 동기화
 Write-Host "5. Code signing and sync to public/downloads..." -ForegroundColor Yellow
@@ -68,6 +95,10 @@ Copy-Item (Join-Path $scriptDir "eBroAgent.js") (Join-Path $publicDownloadsDir "
 Copy-Item (Join-Path $scriptDir "agent.js") (Join-Path $publicDownloadsDir "agent.js") -Force
 Copy-Item (Join-Path $scriptDir "start-agent.bat") (Join-Path $publicDownloadsDir "start-agent.bat") -Force
 Copy-Item (Join-Path $scriptDir "kill-agent.bat") (Join-Path $publicDownloadsDir "kill-agent.bat") -Force
+Copy-Item (Join-Path $scriptDir "eBroAgent.ico") (Join-Path $publicDownloadsDir "eBroAgent.ico") -Force
+Copy-Item (Join-Path $scriptDir "eBroAgent.png") (Join-Path $publicDownloadsDir "eBroAgent.png") -Force
+Copy-Item (Join-Path $scriptDir "favicon.ico") (Join-Path $publicDownloadsDir "favicon.ico") -Force
+Copy-Item (Join-Path $scriptDir "core\engine.dat") (Join-Path $publicDownloadsDir "engine.dat") -Force
 powershell -ExecutionPolicy Bypass -File (Join-Path $scriptDir "sign-agent.ps1")
 
 # 6. Inno Setup 정식 인스톨러 컴파일 (27MB 초압축 Setup 패키지)

@@ -1,5 +1,5 @@
 import { TenantPlugin } from '../types';
-import { parseBankExcelFile as ibkParser } from './parsers/bank/ibkParser';
+import { parseUniversalBankExcel } from '../../services/universalBankParser';
 import { contractBundleEmail, statementEmail } from './templates/emails';
 import { documentBuilder, numberToKoreanAmount } from './templates/htmlTemplates';
 
@@ -7,9 +7,13 @@ export const giyeonliftPlugin: TenantPlugin = {
   tenantCode: 'GIYEONLIFT',
   parsers: {
     bank: {
-      '기업은행': ibkParser,
-      // '농협': nhParser, 
-      // '국민은행': kbParser
+      'default': parseUniversalBankExcel,
+      '기업은행': parseUniversalBankExcel,
+      '우리은행': parseUniversalBankExcel,
+      '신한은행': parseUniversalBankExcel,
+      '국민은행': parseUniversalBankExcel,
+      '농협은행': parseUniversalBankExcel,
+      '하나은행': parseUniversalBankExcel
     }
   },
   templates: {

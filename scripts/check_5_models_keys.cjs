@@ -2,7 +2,7 @@ const { S3Client, ListObjectsV2Command } = require('@aws-sdk/client-s3');
 
 const config = {
   accountId: '35014a2514680107d74e1e68d96e6c32',
-  bucketName: 'kiyeun-storage',
+  bucketName: 'giyeon-storage',
   accessKeyId: '03cdb7560d37242de608a5db2a976030',
   secretAccessKey: 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986'
 };

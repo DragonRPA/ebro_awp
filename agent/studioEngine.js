@@ -335,6 +335,10 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>eBro AI Agent 스튜디오</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
   <style>
     :root {
       --bg-base: #0f172a;
@@ -654,7 +658,8 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
   <header>
     <div class="header-left">
       <div class="brand-title">
-        <span> eBro AI Agent 스튜디오</span>
+        <img src="/icon-32.png" width="22" height="22" style="border-radius:4px; vertical-align:middle; object-fit:contain; box-shadow: 0 0 6px rgba(56, 189, 248, 0.4);" alt="eBro">
+        <span>eBro AI Agent 스튜디오</span>
       </div>
       <span class="badge badge-primary">${version}</span>
       <span class="badge badge-success">포트 ${port}</span>
@@ -959,8 +964,35 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
 
 // ──  HTTP 핸들러 라우팅 연동 ──
 async function handleStudioRequest(req, res, pathname, searchParams, port = 5175, version = 'v2.0.0.Build.1', tenantCode = 'GIYEONLIFT') {
+  // 0. 스튜디오 파비콘 및 작업표시줄 아이콘 서빙
+  if (req.method === 'GET' && (pathname === '/favicon.ico' || pathname.startsWith('/icon') || pathname.startsWith('/eBroAgent'))) {
+    const rawName = pathname.replace(/^\//, '');
+    const iconCandidates = [
+      path.join(__dirname, rawName),
+      path.join('C:\\eBroAgent', rawName),
+      path.join(__dirname, 'icon-32.png'),
+      path.join(__dirname, 'favicon.ico'),
+      path.join(__dirname, 'eBroAgent.ico')
+    ];
+    const targetFile = iconCandidates.find(p => p && fs.existsSync(p));
+    if (targetFile) {
+      try {
+        const ext = path.extname(targetFile).toLowerCase();
+        const contentType = ext === '.ico' ? 'image/x-icon' : (ext === '.svg' ? 'image/svg+xml' : 'image/png');
+        const buf = fs.readFileSync(targetFile);
+        res.writeHead(200, {
+          'Content-Type': contentType,
+          'Content-Length': buf.length,
+          'Cache-Control': 'public, max-age=86400'
+        });
+        res.end(buf);
+        return true;
+      } catch (err) {}
+    }
+  }
+
   // 1. 스튜디오 데스크톱 UI 서빙 (/studio, /ui)
-  if (req.method === 'GET' && (pathname === '/studio' || pathname === '/ui')) {
+  if (req.method === 'GET' && (pathname === '/studio' || pathname === '/studio/' || pathname === '/ui' || pathname === '/ui/')) {
     const html = renderStudioHtml(port, version, tenantCode);
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',

@@ -13,10 +13,11 @@ export interface MenuGroupConfig {
 // 전사 전체 메뉴 그룹 및 항목 통합 관리 (Single Source of Truth)
 export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
   {
-    id: 'grp_dashboard',
-    name: 'ERP 대시보드',
+    id: 'grp_approval',
+    name: '결재 센터',
     items: [
-      { id: 'dashboard', name: 'ERP 대시보드 메인' }
+      { id: 'approvalInbox', name: '내 결재함 (수신)' },
+      { id: 'approvalRules', name: '결재선 규칙 설정' }
     ]
   },
   {
@@ -33,6 +34,7 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
       { id: 'smart_return', name: '회수 요청' },
       { id: 'smart_as_request', name: 'AS 요청' },
       { id: 'delinquency', name: '미수 채권 연체 관리' },
+      { id: 'official_mail', name: '공식 메일 발송' },
       { id: 'public_construction_permits', name: '인허가 건축공정 조회' }
     ]
   },
@@ -62,6 +64,7 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
       { id: 'asset_inout_history', name: '자산 입출고' },
       { id: 'dispatch_assign', name: '장비 할당 (매핑)' },
       { id: 'outbound_inspections', name: '출고 검수 관리' },
+      { id: 'consumable_stock', name: '주기장 소모품 재고' },
       { id: 'print_queue_monitor', name: '프린트 큐 모니터' }
     ]
   },
@@ -71,7 +74,6 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
     items: [
       { id: 'consumable_purchase', name: '소모품 구매' },
       { id: 'consumable_inout', name: '소모품 입출고' },
-      { id: 'consumable_stock', name: '소모품 재고' },
       { id: 'field_as', name: '현장 AS 관리' },
       { id: 'repair', name: '주기장 정비 관리' },
       { id: 'inspection_checklist_manage', name: '정비 항목 관리' }
@@ -90,8 +92,7 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
       { id: 'corporate_card', name: '법인카드 매입정산' },
       { id: 'cash_flow', name: '자금 흐름 분석' },
       { id: 'depreciation_execution', name: '감가상각 마감 실행' },
-      { id: 'regular_reports', name: '정기보고서 생성' },
-      { id: 'agent_badge', name: '계약 패키지 발행 관리' }
+      { id: 'regular_reports', name: '정기보고서 생성' }
     ]
   },
   {
@@ -100,6 +101,7 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
     items: [
       { id: 'organization', name: '조직/인사 관리' },
       { id: 'permission', name: '사용자 및 권한 설정' },
+      { id: 'tenant_management', name: '테넌트 관리' },
       { id: 'payroll', name: '급여 정산 (보안 강제)' },
       { id: 'leave_management', name: '연차관리' },
       { id: 'privacy_audit', name: '개인정보 접속 감사' }
@@ -215,7 +217,14 @@ export const CANONICAL_MENU_ALIASES: Record<string, string> = {
   'custom-billing': 'custom_billing',
   'custom_statement': 'custom_billing',
   'custom-statement': 'custom_billing',
-  '특수청구': 'custom_billing'
+  '특수청구': 'custom_billing',
+  'tenant': 'tenant_management',
+  'tenants': 'tenant_management',
+  'tenant_management': 'tenant_management',
+  'tenant-management': 'tenant_management',
+  'tenantmanagement': 'tenant_management',
+  '테넌트': 'tenant_management',
+  '테넌트관리': 'tenant_management'
 };
 
 export function normalizeMenuId(menuId: string): string {

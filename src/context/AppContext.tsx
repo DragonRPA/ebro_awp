@@ -839,6 +839,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'vendors':              ['vendors'],
     'organization':         ['users', 'departments'],
     'permission':           ['users', 'permissions', 'departments', 'customRoles', 'rolePermissions'],
+    'tenant_management':    ['tenants', 'users'],
     'payroll':              ['users', 'departments'],
     'corporate_card':       ['vendors', 'billings'],
     'cash_flow':            ['billings', 'payments', 'contracts', 'assets'],
@@ -906,10 +907,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             bankbookCopyUrl: '',
             transactionStatementTemplateUrl: 'templates/거래명세서_양식.html',
             r2AccountId: '35014a2514680107d74e1e68d96e6c32',
-            r2BucketName: 'kiyeun-storage',
+            r2BucketName: 'giyeon-storage',
             r2AccessKeyId: '03cdb7560d37242de608a5db2a976030',
             r2SecretAccessKey: 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986',
-            r2PublicDomain: 'https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev'
+            r2PublicDomain: 'https://pub-55a68547bdf24600b80d27782912c83e.r2.dev'
           };
 
           const mergedConfigs = configs.map(cfg => {
@@ -919,6 +920,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 newCfg[key] = value;
                 updated = true;
               }
+            }
+            if (newCfg.r2BucketName === 'kiyeun-storage') {
+              newCfg.r2BucketName = 'giyeon-storage';
+              newCfg.r2PublicDomain = 'https://pub-55a68547bdf24600b80d27782912c83e.r2.dev';
+              updated = true;
             }
             return newCfg;
           });
@@ -1214,11 +1220,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 0-1. 휴직(LEAVE_OF_ABSENCE) 계정은 변경/저장(save) 권한 원천 차단 (조회만 허용)
     if (currentUser.status === 'LEAVE_OF_ABSENCE' && action === 'save') return false;
 
-    // 1. 시스템 최고관리자 계정 및 ADMIN 역할 사용자는 모든 메뉴에 100% 무조건 권한 부여
-    if (currentUser.role === 'ADMIN' || currentUser.loginId === 'admin' || currentUser.id === 'sys-admin' || currentUser.id === 'u-1') return true;
-
     // 2. 단일 표준(SSOT) 단수형 메뉴 ID로 정규화
     const normMenuId = normalizeMenuId(menuId);
+
+    // 0-2. 🏢 [테넌트별 페이지 노출/숨김 격리 (Tenant-level Page Visibility)]
+    // 플랫폼 슈퍼관리자(loginId === 'admin' || id === 'sys-admin')를 제외하고,
+    // 현재 테넌트에서 숨김(hiddenPages) 처리되었거나 허용 목록(allowedPages)에 없는 페이지는 해당 테넌트 모든 사용자에게 원천 차단
+    const isPlatformAdmin = currentUser.loginId === 'admin' || currentUser.id === 'sys-admin';
+    if (!isPlatformAdmin && currentTenant) {
+      if (normMenuId !== 'dashboard' && normMenuId !== 'tenant_management') {
+        if (currentTenant.hiddenPages && currentTenant.hiddenPages.includes(normMenuId)) {
+          return false;
+        }
+        if (currentTenant.allowedPages && currentTenant.allowedPages.length > 0 && !currentTenant.allowedPages.includes(normMenuId)) {
+          return false;
+        }
+      }
+    }
+
+    // 1. 시스템 최고관리자 계정 및 ADMIN 역할 사용자는 모든 메뉴에 100% 무조건 권한 부여
+    if (currentUser.role === 'ADMIN' || currentUser.loginId === 'admin' || currentUser.id === 'sys-admin' || currentUser.id === 'u-1') return true;
 
     // 2-1. 연차신청, 매뉴얼 스튜디오, 업무매뉴얼 및 오류 신고는 권한 구분 없이 모든 임직원의 공통 기능으로 처리 (전원 상시 개방)
     if (normMenuId === 'leave_application' || normMenuId === 'manual_studio' || normMenuId === 'operations_manual' || normMenuId === 'error_report') {

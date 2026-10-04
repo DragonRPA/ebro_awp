@@ -314,6 +314,8 @@ export interface Tenant {
   updatedAt?: string;
   excelMappingRules?: TenantExcelMappingRules;
   allowCustomBillingStatement?: boolean; // 💡 특수 거래명세서(항목 임의수정 및 사유 기록) 기능 활성화 여부
+  allowedPages?: string[];               // 📄 테넌트별 노출 허용 페이지 ID 목록 (빈 배열/미지정 시 전체 노출)
+  hiddenPages?: string[];                // 🚫 테넌트별 숨김/비노출 페이지 ID 목록
 
   // 🛡️ 법정 개인정보 보호책임자 (CPO - Chief Privacy Officer)
   privacyOfficer?: TenantPrivacyOfficer;
@@ -713,8 +715,71 @@ export interface Department {
   name: string;
   parentDepartmentId: string | null;
   managerId?: string | null;
+  functionalTags?: string[];
+  functional_tags?: string[];
+  tenantId?: string | null;
+  tenant_id?: string | null;
   createdAt?: string;
   updatedAt?: string;
+}
+
+/** 9대 보편 조직 기능 속성 (Universal Functional Attributes) SSOT 정의 */
+export interface FunctionalAttributeConfig {
+  id: string; // e.g. 'ATTR_PRODUCTION'
+  code: string; // 'PRODUCTION'
+  label: string; // '생산'
+  description: string; // 기능 도메인 설명
+  color: string; // 배지 배경/테두리 색상
+  badgeBg: string;
+  badgeText: string;
+}
+
+export const UNIVERSAL_FUNCTIONAL_ATTRIBUTES: FunctionalAttributeConfig[] = [
+  { id: 'ATTR_PRODUCTION', code: 'PRODUCTION', label: '생산', description: '신규 장비 검수, 제작, 조립, 부품 볼팅, 초기 셋업', color: '#6366f1', badgeBg: '#eef2ff', badgeText: '#4338ca' },
+  { id: 'ATTR_SALES', code: 'SALES', label: '영업', description: '고객 견적, 계약 체결, 대차 요구 의뢰 발의', color: '#2563eb', badgeBg: '#eff6ff', badgeText: '#1d4ed8' },
+  { id: 'ATTR_DISPATCH', code: 'DISPATCH', label: '배차', description: '운송 차량 섭외, 배차 지시, 배차 대장 관리, 운송료 정산', color: '#d97706', badgeBg: '#fffbeb', badgeText: '#b45309' },
+  { id: 'ATTR_OUTBOUND', code: 'OUTBOUND', label: '출고', description: '출고 전 점검, 안전옵션 장착, 출고 검수 승인(RENTED)', color: '#059669', badgeBg: '#ecfdf5', badgeText: '#047857' },
+  { id: 'ATTR_AFTER_SERVICE', code: 'AFTER_SERVICE', label: '현장AS', description: '출동 수리, 긴급 고장 조치, 현장 경정비, 순회 점검', color: '#e11d48', badgeBg: '#fff1f2', badgeText: '#be123c' },
+  { id: 'ATTR_INBOUND', code: 'INBOUND', label: '입고정비', description: '반납 장비 입고 확인, 세척, 입고 검사, 공장 정비 및 부품 교체', color: '#0891b2', badgeBg: '#ecfeff', badgeText: '#0e7490' },
+  { id: 'ATTR_ASSET', code: 'ASSET', label: '자산', description: '장비 등록, 타사 임차(전대) 매핑, 장비 매각/폐기, 자산 현황', color: '#9333ea', badgeBg: '#faf5ff', badgeText: '#7e22ce' },
+  { id: 'ATTR_BILLING', code: 'BILLING', label: '청구', description: '월말 정산, 전자세금계산서 발행, 외상매출금 관리, 통장 대사', color: '#0d9488', badgeBg: '#f0fdfa', badgeText: '#0f766e' },
+  { id: 'ATTR_ADMIN', code: 'ADMIN', label: '총무/관리', description: '급여, 법인카드, 소모품, 일반 행정, 사용자/부서 관리', color: '#475569', badgeBg: '#f8fafc', badgeText: '#334155' },
+];
+
+/** 부서의 보편 기능 태그 목록 추출 (functionalTags 및 functional_tags 동시 지원) */
+export function getDepartmentFunctionalTags(dept: Department | null | undefined): string[] {
+  if (!dept) return [];
+  const tags = dept.functionalTags || dept.functional_tags || [];
+  return Array.isArray(tags) ? tags : [];
+}
+
+/** 직원의 소속 부서 기반 보편 기능 속성 보유 여부 검증 (소규모 테넌트의 미할당 공유풀 폴백 지원) */
+export function userHasFunctionalAttribute(
+  user: User | null | undefined, 
+  attributeIdOrCode: string,
+  departments: Department[] = []
+): boolean {
+  if (!user) return false;
+  // 최고 관리자는 모든 기능 접근 허용
+  if (user.id === 'u-1' || user.id === 'sys-admin' || user.role === 'ADMIN') return true;
+  
+  const normTarget = attributeIdOrCode.toUpperCase().replace(/^ATTR_/, '');
+  
+  // 1. 해당 속성이 전사 어느 부서에도 할당되지 않은 경우 (소규모 부득이한 조건) ➔ 공유 ToDo 풀로 전 직원 접근 허용
+  const anyDeptHasAttr = departments.some(d => {
+    const tags = getDepartmentFunctionalTags(d).map(t => t.toUpperCase().replace(/^ATTR_/, ''));
+    return tags.includes(normTarget);
+  });
+  if (!anyDeptHasAttr) {
+    return true; // 아무 부서도 없으면 전사 공유 풀 개방 (Fallback)
+  }
+
+  // 2. 사용자의 소속 부서가 해당 기능 태그를 보유하고 있는지 검증
+  if (!user.departmentId) return false;
+  const userDept = departments.find(d => d.id === user.departmentId);
+  if (!userDept) return false;
+  const userTags = getDepartmentFunctionalTags(userDept).map(t => t.toUpperCase().replace(/^ATTR_/, ''));
+  return userTags.includes(normTarget);
 }
 
 export interface MenuPermission {
@@ -2298,7 +2363,7 @@ export interface GoogleConfig {
   mirrorRecursive?: boolean; // 하위 폴더 재귀 미러링 여부
   // ── Cloudflare R2 클라우드 스토리지 설정 ──
   r2AccountId?: string;      // Cloudflare 32자리 Account ID
-  r2BucketName?: string;     // R2 버킷명 (예: kiyeun-storage)
+  r2BucketName?: string;     // R2 버킷명 (예: giyeon-storage)
   r2AccessKeyId?: string;    // R2 S3 Access Key ID
   r2SecretAccessKey?: string;// R2 S3 Secret Access Key
   r2PublicDomain?: string;   // R2 공개 URL (예: https://pub-xxxx.r2.dev)
@@ -5801,6 +5866,18 @@ class LocalDB {
       delete normalized.user_id;
     }
 
+    // functional_tags (functional_tags ➔ functionalTags 변환 및 동시 양방향 유지)
+    if (normalized.functional_tags !== undefined) {
+      if (!normalized.functionalTags) normalized.functionalTags = normalized.functional_tags;
+    } else if (normalized.functionalTags !== undefined) {
+      normalized.functional_tags = normalized.functionalTags;
+    }
+
+    // tenant_id (tenant_id ➔ tenantId 변환)
+    if (normalized.tenant_id !== undefined) {
+      if (!normalized.tenantId) normalized.tenantId = normalized.tenant_id;
+    }
+
     // shortName (short_name ➔ shortName 변환 후 snake_case 전면 파기)
     if (normalized.short_name !== undefined) {
       if (normalized.shortName === undefined) normalized.shortName = normalized.short_name;
@@ -6169,7 +6246,7 @@ class LocalDB {
         continue;
       }
       // departments 테이블 전용 허용 컬럼 방어벽
-      if (tableName === 'departments' && !['id', 'name', 'parentDepartmentId', 'managerId', 'createdAt', 'updatedAt'].includes(key)) {
+      if (tableName === 'departments' && !['id', 'name', 'parentDepartmentId', 'managerId', 'functionalTags', 'functional_tags', 'tenantId', 'tenant_id', 'createdAt', 'updatedAt'].includes(key)) {
         continue;
       }
       // users 테이블 전용 허용 컬럼 방어벽 (DB users 테이블에 존재하지 않는 department 컬럼 누출 차단)
@@ -6610,6 +6687,8 @@ class LocalDB {
             name: d.name,
             parentDepartmentId: d.parentDepartmentId || null,
             managerId: (d as any).managerId || null,
+            functional_tags: d.functional_tags || d.functionalTags || (d as any).functional_tags || [],
+            tenant_id: (d as any).tenant_id || (d as any).tenantId || null,
             createdAt: d.createdAt || nowIso,
             updatedAt: nowIso
           }));

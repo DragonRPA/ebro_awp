@@ -38,20 +38,41 @@ if (-not $hasMutex) {
     }
 }
 
+if (-not $hasMutex) {
+    # 이미 정상 인스턴스가 동작 중이므로 즉시 무음 정상 종료
+    exit 0
+}
+
 $notify = New-Object System.Windows.Forms.NotifyIcon
 
-# eBroAgent.exe에서 정식 앱 아이콘 추출 (실패 시 기본 아이콘 폴백)
-$exeCandidates = @(
-    "C:\eBroAgent\eBroAgent.exe",
-    (Join-Path $PSScriptRoot "eBroAgent.exe")
+# 1순위: 전용 eBroAgent.ico 직접 로드 (시스템 트레이 16x16 고해상도 최적화)
+$icoCandidates = @(
+    "C:\eBroAgent\eBroAgent.ico",
+    (Join-Path $PSScriptRoot "eBroAgent.ico")
 )
 $appIcon = $null
-foreach ($cand in $exeCandidates) {
+foreach ($cand in $icoCandidates) {
     if (Test-Path $cand) {
         try {
-            $appIcon = [System.Drawing.Icon]::ExtractAssociatedIcon($cand)
+            $appIcon = [System.Drawing.Icon]::new($cand)
             if ($appIcon) { break }
         } catch {}
+    }
+}
+
+# 2순위: eBroAgent.exe에서 앱 아이콘 추출
+if (-not $appIcon) {
+    $exeCandidates = @(
+        "C:\eBroAgent\eBroAgent.exe",
+        (Join-Path $PSScriptRoot "eBroAgent.exe")
+    )
+    foreach ($cand in $exeCandidates) {
+        if (Test-Path $cand) {
+            try {
+                $appIcon = [System.Drawing.Icon]::ExtractAssociatedIcon($cand)
+                if ($appIcon) { break }
+            } catch {}
+        }
     }
 }
 

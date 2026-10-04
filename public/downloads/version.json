@@ -4,7 +4,7 @@
   "coreUrl": "https://raw.githubusercontent.com/DragonRPA/ebro_awp/main/public/downloads/engine.dat",
   "downloadUrl": "https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0/eBroAgent_Setup.exe",
   "installerUrl": "https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0/eBroAgent_Setup.exe",
-  "certUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/downloads/eBroAgent_Root.cer",
+  "certUrl": "https://pub-55a68547bdf24600b80d27782912c83e.r2.dev/downloads/eBroAgent_Root.cer",
   "changelog": "2계층 분리 아키텍처 탑재: 호스트 런타임(eBroHost) + 암호화된 비즈니스 코어(engine.dat) 300KB 초경량 핫패치 지원",
   "minCompatibleVersion": "v2.0.0.Build.1",
   "fileSize": "2.1MB (core) / 45MB (installer)"
