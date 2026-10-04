@@ -58,7 +58,7 @@ function agentLog(type, message) {
 }
 
 
-const VERSION = 'v2.0.0.Build.5';
+const VERSION = 'v2.0.0.Build.6';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -312,6 +312,7 @@ async function checkAndApplyUpdate(force = false) {
     if (res && res.ok && res.body) {
       const info = JSON.parse(res.body);
       const remoteVersion = info.version;
+      const coreUrl = info.coreUrl;
       const installerUrl = info.installerUrl;
       const downloadUrl = info.downloadUrl;
 
@@ -323,6 +324,52 @@ async function checkAndApplyUpdate(force = false) {
         updateState.status = 'downloading';
         updateState.message = `새 버전(${remoteVersion}) 백그라운드 다운로드 중...`;
 
+        // 🚀 [1순위] 초경량 암호화 코어(engine.dat, ~1.5MB) 핫패치 다운로드
+        if (coreUrl) {
+          const coreDir = path.join(AGENT_HOME, 'core');
+          if (!fs.existsSync(coreDir)) fs.mkdirSync(coreDir, { recursive: true });
+          const coreDownloadPath = path.join(coreDir, 'engine.dat.download');
+          const coreFinalPath = path.join(coreDir, 'engine.dat');
+
+          downloadFileWithRedirects(coreUrl, coreDownloadPath)
+            .then(() => {
+              try {
+                const testBuf = fs.readFileSync(coreDownloadPath);
+                if (testBuf.length < 28) throw new Error('파일 크기 미달');
+                if (fs.existsSync(coreFinalPath)) {
+                  try { fs.unlinkSync(coreFinalPath); } catch (e) {}
+                }
+                fs.renameSync(coreDownloadPath, coreFinalPath);
+                agentLog('UPDATE', '초경량 코어(engine.dat) 핫패치 완료: 무소음 재기동');
+                updateState.status = 'installing';
+                updateState.message = '새 코어로 무소음 재기동 중...';
+
+                const hostExe = process.execPath;
+                const child = spawn(hostExe, process.argv.slice(1), {
+                  detached: true,
+                  stdio: 'ignore',
+                  windowsHide: true
+                });
+                child.unref();
+
+                setTimeout(() => { process.exit(0); }, 1200);
+              } catch (vErr) {
+                agentLog('ERROR', '코어 무결성 검증 실패: ' + vErr.message);
+                try { fs.unlinkSync(coreDownloadPath); } catch (e) {}
+                updateState.status = 'error';
+                updateState.message = `코어 검증 실패: ${vErr.message}`;
+              }
+            })
+            .catch((err) => {
+              updateState.status = 'error';
+              updateState.message = `코어 다운로드 오류: ${err.message}`;
+              agentLog('WARN', '코어 다운로드 오류: ' + err.message);
+            });
+
+          return { status: 'updating', currentVersion: VERSION, targetVersion: remoteVersion, mode: 'hotpatch' };
+        }
+
+        // 📦 [2순위] 호스트 인스톨러 전체 교체 (CoreUrl 미제공 시 Fallback)
         const targetUrl = installerUrl || downloadUrl;
         if (!targetUrl) {
           updateState.status = 'error';
@@ -423,7 +470,7 @@ const server = http.createServer(async (req, res) => {
   const searchParams = new URLSearchParams(queryString);
 
   //  eBro AI Agent 지시 스튜디오 및 큐 API 처리
-  const isStudioHandled = await handleStudioRequest(req, res, pathname, searchParams, PORT, VERSION);
+  const isStudioHandled = await handleStudioRequest(req, res, pathname, searchParams, PORT, VERSION, TENANT_CODE);
   if (isStudioHandled) return;
 
   // 1. 헬스체크 및 동적 콜사인 바인딩 API

@@ -24,7 +24,7 @@
 [Setup]
 AppId={{#AppId}}
 AppName={#AppName}
-AppVersion=v2.0.0.Build.5
+AppVersion=v2.0.0.Build.6
 AppPublisher={#AppPublisher}
 AppPublisherURL=https://ebro.run
 AppSupportURL=https://ebro.run
@@ -56,6 +56,7 @@ Name: "desktopicon"; Description: "바탕화면에 eBro AI Agent 바로가기 �
 ; 🛡️ 완벽한 소스코드 보호: eBroAgent.js / studioEngine.js 원본 소스코드 완전 배제!
 ; V8 바이트코드 및 패키징 완료된 eBroAgent.exe 단일 바이너리만 배포 (고객 PC 소스코드 노출 0%)
 Source: "eBroAgent.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "core\engine.dat"; DestDir: "{app}\core"; Flags: ignoreversion
 Source: "trayIcon.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "eBroAgent_Root.cer"; DestDir: "{app}"; Flags: ignoreversion
 Source: "start-agent.bat"; DestDir: "{app}"; Flags: ignoreversion

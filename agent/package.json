@@ -1,19 +1,18 @@
 {
   "name": "ebro-local-agent",
   "version": "2.0.0",
-  "description": "e-Bro ERP 로컬 사이드카 에이전트 (eBroAgent)",
-  "main": "eBroAgent.js",
-  "bin": "eBroAgent.js",
+  "description": "e-Bro ERP 로컬 사이드카 에이전트 호스트 (eBroHost)",
+  "main": "eBroHost.js",
+  "bin": "eBroHost.js",
   "pkg": {
-    "scripts": [
-      "studioEngine.js"
-    ],
+    "scripts": [],
     "targets": [
       "node18-win-x64"
     ]
   },
   "scripts": {
-    "start": "node eBroAgent.js",
+    "start": "node eBroHost.js",
+    "bundle:core": "node encrypt_core.cjs",
     "build:exe": "npx pkg . --output eBroAgent.exe"
   },
   "dependencies": {
