@@ -17,7 +17,7 @@ const os = require('os');
 const { spawn, execSync } = require('child_process');
 const { handleStudioRequest, launchStudioWindow } = require('./studioEngine');
 
-const VERSION = 'v2.0.0.Build.3';
+const VERSION = 'v2.0.0.Build.4';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
@@ -70,7 +70,7 @@ if (isExe && path.resolve(currentExePath).toLowerCase() !== path.resolve(TARGET_
     // 기존 구버전 프로세스 및 5175 포트 점유 프로세스 완벽 강제 종료 (설치 모드에서만)
     try {
       console.log('🔄 기존 구버전 프로세스 자동 정리 중...');
-      execSync('powershell -NoProfile -Command "Get-Process -Name eBroAgent, KiyeunAgent -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne ' + currentPid + ' } | Stop-Process -Force"', { stdio: 'ignore' });
+      execSync('powershell -NoProfile -Command "Get-Process -Name eBroAgent, KiyeunAgent -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne ' + currentPid + ' } | Stop-Process -Force"', { stdio: 'ignore', windowsHide: true });
     } catch (kErr) {}
 
     // 0.6초 대기 후 파일 복사
@@ -105,20 +105,7 @@ if (isExe && path.resolve(currentExePath).toLowerCase() !== path.resolve(TARGET_
   }
 }
 
-// 🔄 윈도우 시작 시 자동 실행(Auto-Startup) 및 브라우저 프로토콜(ebro://, broagent://) 레지스트리 자동 등록
-try {
-  execSync(`reg add "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "eBroAgent" /t REG_SZ /d "${TARGET_EXE_PATH}" /f`, { stdio: 'ignore' });
-  try { execSync('reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run" /v "KiyeunAgent" /f', { stdio: 'ignore' }); } catch (e) {}
 
-  // 브라우저 프로토콜 핸들러 등록
-  execSync(`reg add "HKCU\\Software\\Classes\\ebro" /ve /t REG_SZ /d "URL:eBro Protocol" /f`, { stdio: 'ignore' });
-  execSync(`reg add "HKCU\\Software\\Classes\\ebro" /v "URL Protocol" /t REG_SZ /d "" /f`, { stdio: 'ignore' });
-  execSync(`reg add "HKCU\\Software\\Classes\\ebro\\shell\\open\\command" /ve /t REG_SZ /d "\\"${TARGET_EXE_PATH}\\"" /f`, { stdio: 'ignore' });
-
-  execSync(`reg add "HKCU\\Software\\Classes\\broagent" /ve /t REG_SZ /d "URL:BroAgent Protocol" /f`, { stdio: 'ignore' });
-  execSync(`reg add "HKCU\\Software\\Classes\\broagent" /v "URL Protocol" /t REG_SZ /d "" /f`, { stdio: 'ignore' });
-  execSync(`reg add "HKCU\\Software\\Classes\\broagent\\shell\\open\\command" /ve /t REG_SZ /d "\\"${TARGET_EXE_PATH}\\"" /f`, { stdio: 'ignore' });
-} catch (e) {}
 
 // 디렉토리 자동 생성 (정식 위치 실행 시)
 try {
@@ -1381,7 +1368,7 @@ $excel.Quit()
 // ── 포트 선점 프로세스 강제 정리 및 Windows 시스템 트레이 워커 관리 ──
 function freePortIfOccupied(port) {
   try {
-    const netstatOut = execSync('netstat -ano -p tcp', { encoding: 'utf8' });
+    const netstatOut = execSync('netstat -ano -p tcp', { encoding: 'utf8', windowsHide: true });
     const lines = netstatOut.split('\n');
     for (const line of lines) {
       if (line.includes(`:${port}`) && (line.includes('LISTENING') || line.includes('듣는 중'))) {
@@ -1391,7 +1378,7 @@ function freePortIfOccupied(port) {
         if (targetPid && targetPid !== process.pid && targetPid !== 0 && targetPid !== 4) {
           console.log(`⚠️ 포트 ${port} 점유 프로세스(PID: ${targetPid}) 강제 정리`);
           try { process.kill(targetPid, 'SIGKILL'); } catch (k) {
-            try { execSync(`taskkill /F /PID ${targetPid}`, { stdio: 'ignore' }); } catch (t) {}
+            try { execSync(`taskkill /F /PID ${targetPid}`, { stdio: 'ignore', windowsHide: true }); } catch (t) {}
           }
         }
       }

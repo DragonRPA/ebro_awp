@@ -1,10 +1,10 @@
 {
-  "version": "v2.0.0.Build.3",
-  "buildTime": "2026-10-03T23:35:00.000Z",
+  "version": "v2.0.0.Build.4",
+  "buildTime": "2026-10-04T12:55:00.000Z",
   "downloadUrl": "https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0/eBroAgent_Setup.exe",
   "installerUrl": "https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0/eBroAgent_Setup.exe",
   "certUrl": "https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev/downloads/eBroAgent_Root.cer",
-  "changelog": "Windows 네이티브 시스템 트레이(알림 영역) 아이콘 상주, 1클릭 eBro AI 스튜디오 전용 창 기동 및 포트 선점 좀비 프로세스 자동 정돈 탑재",
+  "changelog": "Windows 11 Windows 터미널 0x800700e8 오류 완전 박멸: 런타임 cmd.exe/reg add 호출 전면 배제 및 순수 인스톨러 레지스트리 일원화",
   "minCompatibleVersion": "v2.0.0.Build.1",
   "fileSize": "16.1MB"
 }

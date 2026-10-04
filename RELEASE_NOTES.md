@@ -1,3 +1,33 @@
+## 2026-10-04 12:55 (v1.13.0.Build.15)
+
+### [WindowsTerminal/0x800700e8박멸/레지스트리일원화] Windows 11 Windows 터미널 0x800700e8 오류 완전 박멸: 런타임 cmd.exe/reg add 호출 전면 배제 및 순수 인스톨러 레지스트리 일원화, windowsHide 전면 적용
+
+- **배경 및 사장님 지침**:
+  - 사용자 스크린샷 제보: Windows 11 환경에서 Windows 터미널 검은 콘솔 오류 창 발생 (`['C:\WINDOWS\system32\cmd.exe /d /s /c "reg add "HKCU\Software\Classes\broagent" /ve /t REG_SZ /d "URL:BroAgent..." /f"' 시작 시 2147942632 (0x800700e8) 오류 발생]`)
+- **문제 원인 및 아키텍처 결함 규명 (헌장 1.1, 1.2, 3.1, 5.2, 6.1, 6.2)**:
+  1. **Node.js 런타임 reg add 호출과 Windows 11 Windows 터미널 충돌**:
+     - `agent/eBroAgent.js` 모듈 로드 시 최상단에서 윈도우 시작프로그램 및 브라우저 프로토콜 등록을 위해 `execSync('reg add ...')` 7개를 동기 실행함.
+     - Windows 11에서 "Windows 터미널(wt.exe)"이 기본 콘솔 호스트로 지정되어 있을 경우, Node.js가 내부적으로 호출하는 `cmd.exe /c`를 터미널이 가로채면서 새 탭/창을 띄우려 함.
+     - `cmd.exe`가 작업을 마치고 즉시 종료되자 Windows 터미널 파이프가 닫히며 오류 코드 `2147942632 (0x800700e8: ERROR_NO_DATA)` 팝업이 표출되어 사용자에게 불필요한 공포감을 조성함.
+  2. **Inno Setup 인스톨러 레지스트리와의 중복 결함**:
+     - Inno Setup (`agent/eBroAgent.iss`)의 `[Registry]` 섹션에서 이미 네이티브 Windows API를 통해 `Run` 자동 실행 및 `ebro://`, `broagent://` URL 프로토콜 핸들러를 콘솔 창 팝업 없이 100% 무결하게 등록하고 있었음.
+     - 따라서 런타임 실행 시마다 `cmd.exe /c reg add`를 반복 호출하는 것은 완전한 군더더기이자 유해한 코드였음.
+- **도메인 핵심 가치 및 기술 조치 (헌장 1.1 임직원의 최소 노력으로 최대 편익 달성)**:
+  1. **런타임 reg add 7개 호출 전면 영구 삭제 (`agent/eBroAgent.js`)**:
+     - 에이전트 실행 시 `reg add` 명령어를 일절 호출하지 않고, 레지스트리 등록 책임을 Inno Setup 인스톨러로 단일화하여 콘솔 창 가로채기 원인 원천 제거.
+  2. **잔존 서브프로세스 호출 `windowsHide: true` 강제 부여 (`agent/eBroAgent.js`)**:
+     - 포트 해제(`netstat`, `taskkill`) 및 구버전 프로세스 종료(`powershell`) 호출에 `{ windowsHide: true }` 옵션을 명시하여 일체의 콘솔/터미널 창 노출 원천 차단.
+  3. **버전 일괄 상향 (`v2.0.0.Build.4`, `v1.13.0.Build.15`)**:
+     - `agent/eBroAgent.js`, `src/services/agentService.ts`, `public/downloads/version.json`, `agent/eBroAgent.iss` 동기화.
+  4. **eBroAgent.exe 재컴파일, 코드사인 날인 및 Inno Setup 테넌트 5종 빌드/배포**:
+     - `pkg` V8 바이트코드 패키징 (90.2MB) ➔ `CN=eBro ERP Root CA (Kiyeun Lift)` 디지털 서명 날인.
+     - Inno Setup 5개 테넌트 인스톨러(`GIYEUN`, `HANSOL`, `EBRO`, `DEMO`, `DEFAULT`) 재컴파일 (16.11MB).
+     - GitHub Releases 글로벌 CDN(`agent-v2.0.0`) 전면 재업로드 완료.
+- **실환경 실증 검증**:
+  - GitHub Releases 5종 바이너리 업로드 완료 (HTTP 201 검증 통과).
+  - 로컬 `eBroAgent.exe` 구동 시 터미널 창 0개, 에러 팝업 0건, `http://127.0.0.1:5175/health` 200 OK (`version: v2.0.0.Build.4`) 확인.
+  - Windows 알림 영역 트레이 아이콘 정상 상주 및 `/studio` 앱 창 즉각 호출 확인.
+
 ## 2026-10-03 23:45 (v1.13.0.Build.14)
 
 ### [트레이아이콘/스튜디오창/좀비프로세스정리] Windows 네이티브 시스템 트레이(알림 영역) 아이콘 상주 엔진 구축, 1클릭 eBro AI 스튜디오 전용 앱 창 기동 및 5175 포트 선점 좀비 프로세스 자동 정리
