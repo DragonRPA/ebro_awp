@@ -502,9 +502,9 @@ export const MobileGemsAgentModal: React.FC<MobileGemsAgentModalProps> = ({
                         {msg.toolCall.name === 'submitReturnOrder' && <ArrowRight size={12} />}
                         {msg.toolCall.name === 'submitFieldAsIntake' && <Wrench size={12} />}
                         <span>
-                          {msg.toolCall.name === 'submitDispatchOrder' ? '출고의뢰서' : 
-                           msg.toolCall.name === 'submitExchangeOrder' ? '교환(대차)의뢰서' : 
-                           msg.toolCall.name === 'submitReturnOrder' ? '회수의뢰서' : '현장AS접수증'}
+                          {msg.toolCall.name === 'submitDispatchOrder' ? '출고요청서' : 
+                           msg.toolCall.name === 'submitExchangeOrder' ? '교환요청서' : 
+                           msg.toolCall.name === 'submitReturnOrder' ? '입고요청서' : '현장AS접수증'}
                         </span>
                       </span>
 

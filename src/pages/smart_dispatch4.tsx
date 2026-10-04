@@ -3978,7 +3978,7 @@ export const SmartDispatch4: React.FC = () => {
             </div>
           </div>
 
-          {/* 📄 [2] 정형화된 출고의뢰서 요약 (Dossier Preview) */}
+          {/* 📄 [2] 정형화된 출고요청서 요약 (Dossier Preview) */}
           <div data-mid="dispatch4-preview-dossier" className="bg-slate-900 border border-slate-700/80 rounded-xl p-3 shadow-lg select-text flex flex-col gap-2.5">
             {/* 서식 헤더 */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-2">

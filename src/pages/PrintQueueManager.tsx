@@ -231,7 +231,7 @@ export const PrintQueueManager: React.FC = () => {
       <tr><th>프린터 명칭</th><td data-mid="[data-mid=">${station.stationName}</td></tr>
       <tr><th>타겟 프린터</th><td>${station.localPrinterName}</td></tr>
       <tr><th>호스트 PC</th><td>${station.machineName || '-'}</td></tr>
-      <tr><th>기본 서식</th><td>${station.docTypeDefault === 'DISPATCH_ORDER' ? '출고요청서' : station.docTypeDefault === 'RETURN_ORDER' ? '회수요청서' : '공용'}</td></tr>
+      <tr><th>기본 서식</th><td>${station.docTypeDefault === 'DISPATCH_ORDER' ? '출고요청서' : station.docTypeDefault === 'RETURN_ORDER' ? '입고요청서' : '출고·입고 통합'}</td></tr>
       <tr><th>발행 시각</th><td>${new Date().toLocaleString('ko-KR')}</td></tr>
       <tr><th>발행자</th><td>${currentUser?.name || '시스템 관리자'}</td></tr>
       <tr><th>통신 상태</th><td>정상 작동 확인 완료</td></tr>
@@ -283,7 +283,7 @@ export const PrintQueueManager: React.FC = () => {
     printStations.forEach(st => stationMap.set(st.id, st.stationName));
 
     const exportRows = filteredQueue.map((item, idx) => {
-      const docTypeLabel = item.docType === 'DISPATCH_ORDER' ? '출고요청서' : item.docType === 'RETURN_ORDER' ? '회수요청서' : item.docType;
+      const docTypeLabel = item.docType === 'DISPATCH_ORDER' ? '출고요청서' : item.docType === 'RETURN_ORDER' ? '입고요청서' : item.docType;
       const statusLabel = 
         item.status === 'COMPLETED' ? '출력완료' :
         item.status === 'PRINTING' ? '출력중' :
@@ -320,7 +320,7 @@ export const PrintQueueManager: React.FC = () => {
       'No': idx + 1,
       '스테이션명': st.stationName,
       '연결프린터드라이버': st.localPrinterName,
-      '전담문서종류': st.docTypeDefault === 'DISPATCH_ORDER' ? '출고요청서 전담' : st.docTypeDefault === 'RETURN_ORDER' ? '회수요청서 전담' : '공용 복합기',
+      '전담문서종류': st.docTypeDefault === 'DISPATCH_ORDER' ? '출고 전용' : st.docTypeDefault === 'RETURN_ORDER' ? '입고 전용' : '출고·입고 통합',
       '설치PC식별자': st.machineName || '-',
       '온라인상태': isStationOnline(st) ? '온라인' : '오프라인',
       '최종통신시각': st.lastHeartbeat ? st.lastHeartbeat.replace('T', ' ').substring(0, 19) : '-',
@@ -656,9 +656,9 @@ export const PrintQueueManager: React.FC = () => {
                               border: '1px solid var(--border-color)'
                             }}
                           >
-                            {station.docTypeDefault === 'DISPATCH_ORDER' && '출고요청서 전용'}
-                            {station.docTypeDefault === 'RETURN_ORDER' && '회수요청서 전용'}
-                            {station.docTypeDefault === 'ALL' && '공용 서식'}
+                            {station.docTypeDefault === 'DISPATCH_ORDER' && '출고 전용'}
+                            {station.docTypeDefault === 'RETURN_ORDER' && '입고 전용'}
+                            {station.docTypeDefault === 'ALL' && '출고·입고 통합'}
                           </span>
                         </div>
 
@@ -841,15 +841,15 @@ export const PrintQueueManager: React.FC = () => {
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  출고요청서 전담
+                  출고 전용
                 </button>
 
                 <button
                   type="button"
                   onClick={() => {
-                    if (!editingStationId) setStationName(`회수장 프린터`);
+                    if (!editingStationId) setStationName(`입고장 프린터`);
                     setDocTypeDefault('RETURN_ORDER');
-                    setDescription('회수/입고 전담');
+                    setDescription('입고 전용');
                   }}
                   style={{
                     padding: '7px 6px',
@@ -863,7 +863,7 @@ export const PrintQueueManager: React.FC = () => {
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  회수요청서 전담
+                  입고 전용
                 </button>
 
                 <button
@@ -871,7 +871,7 @@ export const PrintQueueManager: React.FC = () => {
                   onClick={() => {
                     if (!editingStationId) setStationName(`사무실 복합기`);
                     setDocTypeDefault('ALL');
-                    setDescription('사무실 공용');
+                    setDescription('출고·입고 통합');
                   }}
                   style={{
                     padding: '7px 6px',
@@ -885,7 +885,7 @@ export const PrintQueueManager: React.FC = () => {
                     transition: 'all 0.15s ease'
                   }}
                 >
-                  공용 복합기
+                  출고·입고 통합
                 </button>
               </div>
             </div>
@@ -980,9 +980,9 @@ export const PrintQueueManager: React.FC = () => {
                   value={docTypeDefault}
                   onChange={e => setDocTypeDefault(e.target.value as any)}
                 >
-                  <option value="DISPATCH_ORDER">출고요청서 전용 (출고의뢰 발행 시 자동 라우팅)</option>
-                  <option value="RETURN_ORDER">회수요청서 전용 (회수의뢰 발행 시 자동 라우팅)</option>
-                  <option value="ALL">공용 (모든 문서 수신 허용)</option>
+                  <option value="DISPATCH_ORDER">출고 전용 (출고요청서 수신)</option>
+                  <option value="RETURN_ORDER">입고 전용 (입고요청서 수신)</option>
+                  <option value="ALL">출고·입고 통합 (모든 문서 수신)</option>
                 </select>
               </div>
 
@@ -1113,7 +1113,7 @@ export const PrintQueueManager: React.FC = () => {
                 >
                   <option value="ALL">전체 문서</option>
                   <option value="DISPATCH_ORDER">출고요청서</option>
-                  <option value="RETURN_ORDER">회수요청서</option>
+                  <option value="RETURN_ORDER">입고요청서</option>
                 </select>
               </div>
 

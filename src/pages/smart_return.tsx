@@ -1303,7 +1303,7 @@ export const SmartReturn: React.FC = () => {
 
                   {/* 중앙: 문서 타이틀 */}
                   <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
-                    <h1 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: 'var(--text-main)', letterSpacing: '2px', whiteSpace: 'nowrap' }}>{(currentTenant?.tradeName || '기연리프트')} 입고요청서 (회수확인서)</h1>
+                    <h1 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: 'var(--text-main)', letterSpacing: '2px', whiteSpace: 'nowrap' }}>{(currentTenant?.tradeName || '기연리프트')} 입고요청서</h1>
                   </div>
 
                   {/* 우측: 입고 등록자 날인란 */}

@@ -1908,7 +1908,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '7. 회수 예정일자 및 상차 시간대 설정',
       '8. 방문지 현장 인계 담당자명 및 연락처 확인',
       '9. 회수 의뢰 등록 확정 및 배차 대장 INBOUND 연동 (헌장 2.3)',
-      '10. A4 회수요청서 인쇄 및 출고 장착옵션 회수 대조표 점검'
+      '10. A4 입고요청서 인쇄 및 출고 장착옵션 회수 대조표 점검'
     ],
     auditResult: '회수 배차 의뢰 발행 및 자산 상태 추적(회수 대기 플래그) 연동',
     rulesCompliance: [
@@ -2014,8 +2014,8 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         seq: 10,
         selector: '[data-mid="smart_return-preview-print"]',
         type: 'stamp',
-        label: 'A4 회수요청서 인쇄 및 옵션 대조표',
-        description: '출고 시 부착되었던 안전옵션(철망/함석, 감지봉, 충전기 등)의 회수 체크리스트와 공인 A4 회수요청서를 미리보고 지정 프린터로 즉시 인쇄합니다.',
+        label: 'A4 입고요청서 인쇄 및 옵션 대조표',
+        description: '출고 시 부착되었던 안전옵션(철망/함석, 감지봉, 충전기 등)의 회수 체크리스트와 공인 A4 입고요청서를 미리보고 지정 프린터로 즉시 인쇄합니다.',
         badgeColor: '#4F46E5',
         positionHint: 'top',
         spotlight: false

@@ -327,7 +327,7 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
                 },
                 { 
                   key: 'exchangeRequested' as const,
-                  title: '대차·교환(EXCHANGE) 의뢰',
+                  title: '교환 의뢰',
                   desc: '현장 고장/규격 교체 1:1 왕복 배차 및 대체 장비 준비 알림',
                   icon: <ArrowLeftRight size={15} color="#7c3aed" />
                 },

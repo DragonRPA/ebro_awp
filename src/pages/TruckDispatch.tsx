@@ -335,7 +335,7 @@ export const TruckDispatch: React.FC = () => {
     const cargoItems = parseCargoItems(delivery);
     const returnAssets = getReturnAssets(delivery);
     const isOutbound = docType === 'OUTBOUND';
-    const title = isOutbound ? '출고요청서' : '입고요청서 (회수확인서)';
+    const title = isOutbound ? '출고요청서' : '입고요청서';
     const today = new Date().toISOString().split('T')[0];
 
     const unitList: { no: number; modelName: string; assetNo: string }[] = [];
@@ -2903,7 +2903,7 @@ export const TruckDispatch: React.FC = () => {
       const targetContract = contracts.find(ct => ct.id === manualContractId);
       jobNotificationService.triggerJobAlert({
         type: manualCategory === '교환' ? 'EXCHANGE_REQUESTED' : (manualCategory === '반납' ? 'INBOUND_RETURN' : 'OUTBOUND_REQUESTED'),
-        title: manualCategory === '교환' ? '대차·교환(EXCHANGE) 의뢰 발생' : (manualCategory === '반납' ? '입고·반납 장비 주기장 도착' : '신규 출고의뢰 접수 (출고요청서 발행)'),
+        title: manualCategory === '교환' ? '교환 의뢰 발생' : (manualCategory === '반납' ? '입고·반납 장비 주기장 도착' : '신규 출고의뢰 접수 (출고요청서 발행)'),
         customerName: targetCust?.name || '고객사',
         siteName: (targetContract as any)?.siteName || (targetContract?.siteId ? sites.find(s => s.id === targetContract.siteId)?.name : '') || manualDestination || '현장',
         modelName: manualCargos[0]?.modelName || '고소작업대',
@@ -6735,7 +6735,7 @@ export const TruckDispatch: React.FC = () => {
       <ExcelUploadModal
         isOpen={dispatchExcelModalOpen}
         onClose={() => setDispatchExcelModalOpen(false)}
-        title="배차 의뢰 엑셀 일괄 등록 (단일 EXCHANGE 및 왕복할인 자동 적용)"
+        title="배차 의뢰 엑셀 일괄 등록 (단일 교환 및 왕복할인 자동 적용)"
         templateFileName="배차의뢰_일괄등록"
         columns={dispatchExcelColumns}
         onUpload={handleBatchUploadDeliveries}
