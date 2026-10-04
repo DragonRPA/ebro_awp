@@ -15,7 +15,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { pipeline } = require('stream');
-const { spawn, execSync } = require('child_process');
+const { spawn, exec, execSync } = require('child_process');
 const { handleStudioRequest, launchStudioWindow, broadcastStudioLog } = require('./studioEngine');
 
 //  비정상 크래시 원천 차단: 처리되지 않은 예외/거부 포착 가드
@@ -51,6 +51,10 @@ function agentLog(type, message) {
       console.log(formattedLine);
     }
   } catch (e) {}
+
+  try {
+    fs.appendFileSync('C:\\eBroAgent\\agent.log', formattedLine + '\r\n', 'utf8');
+  } catch (e) {}
 }
 
 
@@ -58,6 +62,7 @@ const VERSION = 'v2.0.0.Build.5';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
+const TENANT_CODE = process.env.AGENT_TENANT || 'GIYEUN';
 
 //  전사 표준 절대경로: C:\eBroAgent\ 및 하위 문서고
 const AGENT_HOME = 'C:\\eBroAgent';
@@ -1499,8 +1504,30 @@ $excel.Quit()
   res.end('Not Found');
 });
 
+// ── 운영체제 기본 브라우저로 대상 URL 실행 (온디맨드/기동 시) ──
+function openDefaultBrowser(url) {
+  try {
+    if (process.platform === 'win32') {
+      const psCmd = `Start-Process '${url}'`;
+      exec(`powershell.exe -NoProfile -Command "${psCmd}"`, { windowsHide: true }, (err) => {
+        if (err) {
+          exec(`start "" "${url}"`, { windowsHide: true });
+        }
+      });
+    } else {
+      exec(`xdg-open "${url}"`);
+    }
+    agentLog('SYSTEM', `기본 브라우저 웹페이지 호출: ${url}`);
+  } catch (e) {
+    agentLog('WARN', '기본 브라우저 호출 오류: ' + e.message);
+  }
+}
+
 // ── 포트 선점 프로세스 강제 정리 및 Windows 시스템 트레이 워커 관리 ──
 function freePortIfOccupied(port) {
+  try {
+    execSync('powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like \'*trayIcon.ps1*\' } | Stop-Process -Force"', { stdio: 'ignore', windowsHide: true });
+  } catch (e) {}
   try {
     const netstatOut = execSync('netstat -ano -p tcp', { encoding: 'utf8', windowsHide: true });
     const lines = netstatOut.split('\n');
@@ -1527,6 +1554,10 @@ function startTrayWorker() {
 
   if (targetScript) {
     try {
+      try {
+        execSync('powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like \'*trayIcon.ps1*\' } | Stop-Process -Force"', { stdio: 'ignore', windowsHide: true });
+      } catch (kErr) {}
+
       const psExe = process.env.SystemRoot ? path.join(process.env.SystemRoot, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe') : 'powershell.exe';
       const ps = spawn(psExe, [
         '-STA',
@@ -1535,13 +1566,14 @@ function startTrayWorker() {
         '-ExecutionPolicy', 'Bypass',
         '-File', targetScript,
         String(process.pid),
-        String(PORT)
+        String(PORT),
+        String(TENANT_CODE)
       ], {
-        detached: true,
+        windowsHide: true,
         stdio: 'ignore'
       });
       ps.unref();
-      agentLog('SYSTEM', `트레이 아이콘 워커 가동 완료 (PID: ${process.pid})`);
+      agentLog('SYSTEM', `트레이 아이콘 워커 가동 완료 (PID: ${ps.pid})`);
     } catch (e) {
       agentLog('WARN', '트레이 아이콘 워커 실행 오류: ' + e.message);
     }
@@ -1890,6 +1922,14 @@ server.listen(PORT, '127.0.0.1', () => {
   }
 
   // 순수 시스템 트레이 데몬 모드 상주 (스튜디오 창 자동 팝업 배제, 트레이 조작 시에만 실행)
+  const isDaemon = process.argv.includes('--daemon') || process.argv.includes('--silent');
+  if (!isDaemon) {
+    setTimeout(() => {
+      const subdomain = TENANT_CODE.toLowerCase();
+      const loginUrl = `https://${subdomain}.ebro.run`;
+      openDefaultBrowser(loginUrl);
+    }, 600);
+  }
 });
 
 

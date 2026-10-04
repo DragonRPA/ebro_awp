@@ -1,3 +1,55 @@
+## 2026-10-04 15:20 (v1.13.0.Build.21)
+
+### [테넌트서브도메인정식전환/Vercel도메인및SSL발급완료/실시간로그인스토리지동기화/기연리프트단일빌드] Vercel ebro_awp 프로젝트에 giyeun.ebro.run 및 *.ebro.run 도메인 바인딩 및 Let's Encrypt SSL 발급 완료(HTTPS 200 OK 실증), 에이전트 및 트레이 호출 URL 서브도메인(https://giyeun.ebro.run) 정식 전환, 로그인 폼 실시간 로컬스토리지 동기화 탑재
+
+- **배경 및 사장님 지침**:
+  - "그러면, 앞으로는 https://ebro.run/?tenant={테넌트명} 이 된다는건가? 나는 https://{테넌트명}.ebro.run 로 작동하고 싶은데. 내 요구사항이 불합리하거나 단점이 있는가?"
+  - "Vercel 대시보드 ➔ 프로젝트 ➔ Settings ➔ Domains에 *.ebro.run (와일드카드) 등록. ㄹㅇ"
+- **문제 원인 및 아키텍처 결함 규명 (헌장 1.1, 1.2, 3.1, 5.2, 6.1, 6.2, 7.1)**:
+  1. **서브도메인 미발급으로 인한 SSL 핸드셰이크 차단**:
+     - Gabia 네임서버 상에 CNAME이 지정되어 있었으나, Vercel 프로젝트(`ebro_awp`)에 도메인이 정식 등록되지 않아 SSL 인증서 부재로 인해 `curl: (35) schannel: failed to receive handshake` 에러 발생.
+  2. **로그인 정보 미동기화 및 폼 입력 편의성 부족**:
+     - 로그인 정보가 성공 제출 시에만 저장되어, 체크박스를 체크한 상태에서 새 탭을 열거나 제출 전에는 로컬 스토리지에 반영되지 않던 결함 확인.
+- **도메인 핵심 가치 및 기술 조치 (헌장 1.1 임직원의 최소 노력으로 최대 편익 달성)**:
+  1. **Vercel CLI를 통한 서브도메인 등록 및 SSL 인증서 즉시 발급**:
+     - `vercel domains add giyeun.ebro.run ebro_awp --scope dragonrpa` 완료 (`ok: true`, `attached: true`, `verified: true`).
+     - `vercel certs issue giyeun.ebro.run --scope dragonrpa`를 통해 Let's Encrypt SSL 인증서 발급 완료.
+     - 물리 실증: `curl.exe -vI https://giyeun.ebro.run` ➔ `HTTP/1.1 200 OK` (Server: Vercel) 즉시 검증 완료.
+  2. **에이전트 및 시스템 트레이 URL 서브도메인 전면 단일화**:
+     - `agent/eBroAgent.js`: 기동 시 기본 브라우저 호출 URL을 `https://${TENANT_CODE.toLowerCase()}.ebro.run` (기연리프트: `https://giyeun.ebro.run`)으로 정식 전환.
+     - `agent/trayIcon.ps1`: 시스템 트레이 우클릭 메뉴 [e-Bro ERP] 클릭 시 `https://$($TenantCode.ToLower()).ebro.run` 호출로 연동.
+  3. **로그인 폼 실시간 스토리지 동기화 탑재 (`src/App.tsx`)**:
+     - 아이디/비밀번호 입력값 변경 및 '아이디 저장'/'비밀번호 저장' 체크박스 조작 즉시 `localStorage`에 실시간 쓰기/삭제 반영.
+     - 사용자 저장 성향(`remember_id_pref`, `remember_pw_pref`)을 보존하여 폼 재방문 시 자동 복원.
+  4. **기연리프트 전용 인스톨러 빌드 및 코드 서명 완료**:
+     - `scripts/build_agent_giyeun.cjs`를 통해 PE Subsystem 2 GUI 패치 및 코드 서명 날인, `eBroAgent_Setup_GIYEUN.exe` 및 `eBroAgent_Setup.exe` 컴파일 완료.
+
+## 2026-10-04 15:00 (v1.13.0.Build.20)
+
+### [트레이워커DETACHED크래시박멸/뮤텍스자가승계/기동시OS기본브라우저테넌트로그인자동호출/기연리프트단일빌드완결] powershell.exe DETACHED_PROCESS 콘솔 초기화 실패 크래시 수정, 시스템 트레이 Mutex 강제 승계(Takeover) 아키텍처 탑재, 에이전트 기동 시 OS 기본 브라우저 테넌트 로그인 페이지(https://ebro.run?tenant=GIYEUN) 자동 호출 및 ERP 0순위 테넌트 바인딩 완료
+
+- **배경 및 사장님 지침**:
+  - "eBroAgent.exe 를 실행했는데, 시스템 트레이에 아이콘이 안생겨. 실행이 되는게 맞아? 이 지시를 해결하기 위해서 너는 무슨 작업을 할것인지, 성공 목표응 무엇으로 설정한건지 말해봐"
+  - "에이전트가 실행되면 해당 에이전트에 맞는 로그인페이지를 운영체계 기본브라우저로 열어주는 것 까지 일괄 추가."
+- **문제 원인 및 아키텍처 결함 규명 (헌장 1.1, 1.2, 3.1, 5.2, 6.1, 6.2)**:
+  1. **트레이 워커 즉시 비정상 종료(Silent Crash) 원인**:
+     - `eBroAgent.js`의 `startTrayWorker`에서 `spawn(psExe, [...], { detached: true, stdio: 'ignore' })`을 사용함에 따라, Windows API `CreateProcessW`에 `DETACHED_PROCESS (0x8)` 플래그가 주입됨.
+     - `powershell.exe` 호스트 엔진이 콘솔 핸들을 획득하지 못하고 기동 0.01초 만에 내부 크래시(Exit Code -1073741510)를 일으키며 사망하여 트레이 아이콘이 등록되지 못함.
+  2. **트레이 단일 인스턴스 Mutex 자살(Deadlock) 결함**:
+     - 기존 `trayIcon.ps1`은 이전 세션의 프로세스가 뮤텍스를 점유하고 있거나 비정상 종료 후 해제되지 않았을 때 `if (-not $hasMutex) { exit }`로 즉시 자살하여, 재실행 시 트레이 아이콘이 영구히 재생성되지 않는 구조적 결함이 존재하였음.
+- **도메인 핵심 가치 및 기술 조치 (헌장 1.1 임직원의 최소 노력으로 최대 편익 달성)**:
+  1. **트레이 워커 크래시 수정 및 강제 승계(Takeover) 아키텍처 탑재**:
+     - `agent/eBroAgent.js`: `detached: true` 플래그를 영구 제거하고 `{ windowsHide: true, stdio: 'ignore' }`로 전환하여 `powershell.exe`가 윈도우 환경에서 콘솔 호스트 오류 없이 100% 정상 기동되도록 수정.
+     - `agent/trayIcon.ps1`: 뮤텍스 획득 실패 시 자살하지 않고, 기존 잔류 프로세스(`trayIcon.ps1`)를 감지하여 강제 종료(`Stop-Process -Force`)한 후 소유권을 즉시 재획득(Takeover)하는 자가 복구 메커니즘 탑재.
+     - `freePortIfOccupied()` 및 `startTrayWorker()`에서 기존 잔류 트레이 프로세스를 사전 소탕하도록 방어 로직 이중화.
+  2. **OS 기본 브라우저 테넌트 맞춤형 로그인 페이지 자동 호출**:
+     - `agent/eBroAgent.js`: `openDefaultBrowser(url)` 함수를 탑재하여 에이전트 리스닝 완료 시 운영체제 기본 웹 브라우저로 `https://ebro.run?tenant=GIYEUN` 페이지를 새 탭으로 자동 호출 (단, `--daemon`/`--silent` 백그라운드 기동 시에는 미호출).
+     - `src/services/db.ts`: `db.currentTenant`에 `[0순위] URL 쿼리 파라미터(?tenant=GIYEUN, ?t=GIYEUN)` 감지 로직을 추가하여 브라우저 진입 즉시 해당 테넌트 로고 및 명칭을 렌더링하고 `localStorage`에 자동 보존.
+     - `agent/trayIcon.ps1`: 트레이 우클릭 메뉴 [e-Bro ERP] 클릭 시 테넌트 파라미터(`https://ebro.run?tenant=$TenantCode`)가 포함된 URL로 직통 연결.
+  3. **기연리프트 전용 단일 빌드 및 무결성 실환경 검증**:
+     - `scripts/build_agent_giyeun.cjs`: PE Subsystem 2 GUI 패치 및 코드 서명 날인, `eBroAgent_Setup_GIYEUN.exe` 및 `eBroAgent_Setup.exe` 인스톨러 생성 완료.
+     - 실환경 기동 검증: 작업표시줄 노출 0건 (`MainWindowHandle: 0`), 콘솔 창 0건, `trayIcon.ps1` 시스템 트레이 100% 상주, 중복 실행 시 구버전 자동 정리 및 신규 인스턴스 Takeover 정상 확인.
+
 ## 2026-10-04 14:30 (v1.13.0.Build.19)
 
 ### [작업표시줄창원천배제/순수시스템트레이데몬상주/크롬자동팝업ERR박멸/온디맨드스튜디오] 에이전트 기동 시 Chrome 브라우저 자동 실행 코드 전면 영구 제거, 작업표시줄 노출 0건 및 윈도우 시스템 트레이 순수 상주 데몬화, 트레이 조작 온디맨드 스튜디오 호출 일원화, 기연리프트 단일 인스톨러 배포 완결

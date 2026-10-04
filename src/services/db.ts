@@ -5279,6 +5279,25 @@ class LocalDB {
   get currentTenant(): Tenant {
     const list = this.tenants;
 
+    // 🌐 [0순위] URL 쿼리 파라미터 기반 테넌트 매핑 (?tenant=GIYEUN 또는 ?t=GIYEUN)
+    if (typeof window !== 'undefined' && window.location?.search) {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const tParam = (params.get('tenant') || params.get('t') || '').toLowerCase();
+        if (tParam) {
+          const matched = list.find(t => {
+            const code = (t.tenantCode || '').toLowerCase();
+            const subField = (t.subdomain || '').toLowerCase();
+            return code === tParam || subField === tParam || t.id.toLowerCase() === tParam;
+          });
+          if (matched) {
+            try { localStorage.setItem('erp_current_tenant_id', matched.id); } catch (e) {}
+            return matched;
+          }
+        }
+      } catch (e) {}
+    }
+
     // 🌐 [1순위] 브라우저 접속 도메인의 서브도메인 기반 자동 테넌트 매핑 (*.ebro.run)
     if (typeof window !== 'undefined' && window.location?.hostname) {
       const hostname = window.location.hostname.toLowerCase();

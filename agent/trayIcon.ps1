@@ -2,26 +2,40 @@
 # eBro AI Agent Windows System Tray Icon Worker
 param(
     [int]$AgentPid = 0,
-    [int]$Port = 5175
+    [int]$Port = 5175,
+    [string]$TenantCode = "GIYEUN"
 )
 
+try {
+    Add-Content -Path "C:\eBroAgent\tray.log" -Value "[$([DateTime]::Now.ToString('HH:mm:ss'))] Tray worker invoked: PID=$PID, AgentPid=$AgentPid, Port=$Port, Tenant=$TenantCode"
+} catch {}
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
-# 단일 인스턴스 보장 (Mutex & AbandonedMutexException 소유권 승계)
+# 단일 인스턴스 보장 (기존 잔류 프로세스 강제 승계 Takeover & Mutex 확보)
 $mutex = [System.Threading.Mutex]::new($false, "Local\eBroAgentTrayMutex")
 $hasMutex = $false
 try {
-    $hasMutex = $mutex.WaitOne(500, $false)
+    $hasMutex = $mutex.WaitOne(300, $false)
 } catch [System.Threading.AbandonedMutexException] {
-    # 이전 프로세스가 비정상 종료된 경우 소유권 정상 승계
     $hasMutex = $true
 } catch {
     $hasMutex = $false
 }
 
 if (-not $hasMutex) {
-    exit
+    # 기존 잔류 trayIcon 프로세스 강제 정리 및 소유권 승계 (Takeover)
+    Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*trayIcon.ps1*' -and $_.ProcessId -ne $PID } | ForEach-Object {
+        Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Milliseconds 200
+    try {
+        $hasMutex = $mutex.WaitOne(1000, $false)
+    } catch [System.Threading.AbandonedMutexException] {
+        $hasMutex = $true
+    } catch {
+        $hasMutex = $false
+    }
 }
 
 $notify = New-Object System.Windows.Forms.NotifyIcon
@@ -76,7 +90,7 @@ $mStudio.Font = New-Object System.Drawing.Font($menu.Font, [System.Drawing.FontS
 $mStudio.add_Click({ Open-Studio })
 
 $mErp = $menu.Items.Add("e-Bro ERP")
-$mErp.add_Click({ Start-Process "https://ebro.run" })
+$mErp.add_Click({ Start-Process "https://$($TenantCode.ToLower()).ebro.run" })
 
 $mFolder = $menu.Items.Add("Local Archive")
 $mFolder.add_Click({

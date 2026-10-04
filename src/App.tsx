@@ -421,20 +421,28 @@ const App: React.FC = () => {
 
   // 컴포넌트 마운트 시 저장된 로그인 편의 정보 로드
   useEffect(() => {
-    const savedId = localStorage.getItem('remember_id');
-    const savedPw = localStorage.getItem('remember_pw');
-    if (savedId) {
-      setLoginId(savedId);
-      setRememberId(true);
-    }
-    if (savedPw) {
-      setPassword(savedPw);
-      setRememberPw(true);
-    }
-    const hasAuto = !!localStorage.getItem('auto_user');
-    if (hasAuto) {
-      setAutoLogin(true);
-    }
+    try {
+      const savedId = localStorage.getItem('remember_id');
+      const savedPw = localStorage.getItem('remember_pw');
+      const idPref = localStorage.getItem('remember_id_pref') === 'true';
+      const pwPref = localStorage.getItem('remember_pw_pref') === 'true';
+      if (savedId) {
+        setLoginId(savedId);
+        setRememberId(true);
+      } else if (idPref) {
+        setRememberId(true);
+      }
+      if (savedPw) {
+        setPassword(savedPw);
+        setRememberPw(true);
+      } else if (pwPref) {
+        setRememberPw(true);
+      }
+      const hasAuto = !!localStorage.getItem('auto_user');
+      if (hasAuto) {
+        setAutoLogin(true);
+      }
+    } catch (e) {}
   }, []);
 
   // 업무 알림 리스너 연동
@@ -901,7 +909,13 @@ const App: React.FC = () => {
               <input
                 type="text"
                 value={loginId}
-                onChange={e => setLoginId(e.target.value)}
+                onChange={e => {
+                  const val = e.target.value;
+                  setLoginId(val);
+                  if (rememberId) {
+                    try { localStorage.setItem('remember_id', val); } catch (err) {}
+                  }
+                }}
                 placeholder="아이디 입력 (admin)"
                 required
                 style={{ fontSize: '14px', padding: '8px 12px' }}
@@ -912,7 +926,13 @@ const App: React.FC = () => {
               <input
                 type="password"
                 value={password}
-                onChange={e => setPassword(e.target.value)}
+                onChange={e => {
+                  const val = e.target.value;
+                  setPassword(val);
+                  if (rememberPw) {
+                    try { localStorage.setItem('remember_pw', val); } catch (err) {}
+                  }
+                }}
                 placeholder="비밀번호 입력"
                 required
                 style={{ fontSize: '14px', padding: '8px 12px' }}
@@ -924,7 +944,19 @@ const App: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={rememberId}
-                  onChange={e => setRememberId(e.target.checked)}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    setRememberId(checked);
+                    try {
+                      if (checked) {
+                        localStorage.setItem('remember_id_pref', 'true');
+                        if (loginId) localStorage.setItem('remember_id', loginId);
+                      } else {
+                        localStorage.removeItem('remember_id_pref');
+                        localStorage.removeItem('remember_id');
+                      }
+                    } catch (err) {}
+                  }}
                 />
                 아이디 저장
               </label>
@@ -932,7 +964,19 @@ const App: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={rememberPw}
-                  onChange={e => setRememberPw(e.target.checked)}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    setRememberPw(checked);
+                    try {
+                      if (checked) {
+                        localStorage.setItem('remember_pw_pref', 'true');
+                        if (password) localStorage.setItem('remember_pw', password);
+                      } else {
+                        localStorage.removeItem('remember_pw_pref');
+                        localStorage.removeItem('remember_pw');
+                      }
+                    } catch (err) {}
+                  }}
                 />
                 비밀번호 저장
               </label>
@@ -940,7 +984,13 @@ const App: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={autoLogin}
-                  onChange={e => setAutoLogin(e.target.checked)}
+                  onChange={e => {
+                    const checked = e.target.checked;
+                    setAutoLogin(checked);
+                    if (!checked) {
+                      try { localStorage.removeItem('auto_user'); } catch (err) {}
+                    }
+                  }}
                 />
                 자동 로그인
               </label>
