@@ -18,7 +18,7 @@ Write-Host "========================================================" -Foregroun
 Write-Host "[1/4] 신규 코드 서명 인증서(10년 유효) 생성 중..." -ForegroundColor Yellow
 $cert = New-SelfSignedCertificate `
     -Type CodeSigningCert `
-    -Subject "CN=eBro ERP Root CA (Kiyeun Lift), O=Kiyeun Lift, OU=eBro System, C=KR" `
+    -Subject "CN=eBro ERP Root CA (Giyeon Lift), O=Giyeon Lift, OU=eBro System, C=KR" `
     -KeyUsage DigitalSignature `
     -KeyAlgorithm RSA `
     -KeyLength 2048 `

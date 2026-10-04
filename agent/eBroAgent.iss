@@ -2,11 +2,11 @@
 ; e-Bro ERP 로컬 사이드카 에이전트 정식 Inno Setup 인스톨러 스크립트 (테넌트별 동적 빌드 & 소스코드 보호 적용)
 
 #ifndef TenantCode
-  #define TenantCode "GIYEUN"
+  #define TenantCode "GIYEONLIFT"
 #endif
 
 #ifndef AppPublisher
-  #define AppPublisher "(주)기연리프트 / e-Bro ERP"
+  #define AppPublisher "(주)기연리프트 / eBro ERP"
 #endif
 
 #ifndef AppName
@@ -14,11 +14,11 @@
 #endif
 
 #ifndef AppId
-  #define AppId "{EBR0-ERP-AG3NT-GIYEUN-2026}"
+  #define AppId "{EBR0-ERP-AG3NT-GIYEONLIFT-2026}"
 #endif
 
 #ifndef OutputBaseFilename
-  #define OutputBaseFilename "eBroAgent_Setup_GIYEUN"
+  #define OutputBaseFilename "eBroAgent_Setup_GIYEONLIFT"
 #endif
 
 [Setup]

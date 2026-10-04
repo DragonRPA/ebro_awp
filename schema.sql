@@ -90,7 +90,7 @@ CREATE TABLE departments (
     "managerId"           TEXT, -- 부서장 users.id
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun',
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift',
     "domainUrls"          TEXT,
     "defaultPaymentMethod" TEXT
 );
@@ -119,7 +119,7 @@ CREATE TABLE users (
     "customRoleId"        TEXT, -- 사용자 정의 권한 명칭 (custom_roles.id)
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 1-3. 메뉴별 권한 마스터 (permissions)
@@ -133,7 +133,7 @@ CREATE TABLE permissions (
     "createdAt"           TEXT,
     "updatedAt"           TEXT,
     UNIQUE("userId", "menuId"),
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 1-3-1. 사용자 정의 권한 명칭 마스터 (custom_roles)
@@ -144,7 +144,7 @@ CREATE TABLE custom_roles (
     "isSystem"            BOOLEAN DEFAULT FALSE,
     "createdAt"           TIMESTAMPTZ DEFAULT now(),
     "updatedAt"           TIMESTAMPTZ DEFAULT now(),
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 1-3-2. 권한 명칭별 메뉴 접근 규칙 (role_permissions)
@@ -157,7 +157,7 @@ CREATE TABLE role_permissions (
     "createdAt"           TIMESTAMPTZ DEFAULT now(),
     "updatedAt"           TIMESTAMPTZ DEFAULT now(),
     UNIQUE("roleId", "menuId"),
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 1-4. 연차 생성 쿼터 (annual_leave_quotas)
@@ -177,7 +177,7 @@ CREATE TABLE annual_leave_quotas (
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
     UNIQUE("userId", year),
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 1-5. 휴가 사용 내역 (leave_usages)
@@ -194,7 +194,7 @@ CREATE TABLE leave_usages (
     "approvedAt"          TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 1-6. 연장/휴일 근로 기록 (overtime_records)
@@ -214,7 +214,7 @@ CREATE TABLE overtime_records (
     "approverId"          TEXT REFERENCES users(id) ON DELETE SET NULL,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 1-7. 월별 급여 대장 (payroll_closings)
@@ -243,7 +243,7 @@ CREATE TABLE payroll_closings (
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
     UNIQUE("payrollYm", "userId"),
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 
@@ -281,7 +281,7 @@ CREATE TABLE vendors (
     "lastStatusCheckDate" TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 2-2. 고객사 마스터 (customers)
@@ -322,7 +322,7 @@ CREATE TABLE customers (
     "specialNotes"        TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 2-3. 고객사 담당자 (customer_contacts)
@@ -338,7 +338,7 @@ CREATE TABLE customer_contacts (
     memo                  TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 2-4. 고객사 현장 (customer_sites)
@@ -361,7 +361,7 @@ CREATE TABLE customer_sites (
     "isActive"            BOOLEAN NOT NULL DEFAULT TRUE,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 
@@ -394,7 +394,7 @@ CREATE TABLE products (
     "isActive"            BOOLEAN NOT NULL DEFAULT TRUE,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 2-7. 자산 마스터 (assets) - 논리적 6단계 완전 정돈
@@ -457,7 +457,7 @@ CREATE TABLE assets (
     note                  TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 2-8. 소모품/부품 카탈로그 (consumables)
@@ -474,7 +474,7 @@ CREATE TABLE consumables (
     "vendorId"            TEXT REFERENCES vendors(id) ON DELETE SET NULL,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 2-8-1. 소모품 구매 요청 및 입고 관리 (consumable_purchases)
@@ -499,7 +499,7 @@ CREATE TABLE consumable_purchases (
     "actualReturnDate"    TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 2-9. 정비사 차량별 적재 부품 재고 (mechanic_consumable_stocks)
@@ -511,7 +511,7 @@ CREATE TABLE mechanic_consumable_stocks (
     "createdAt"           TEXT,
     "updatedAt"           TEXT NOT NULL,
     UNIQUE("mechanicId", "consumableId"),
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 2-10. 운송 거래처 (transport_companies)
@@ -526,7 +526,7 @@ CREATE TABLE transport_companies (
     memo                  TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 2-11. 운송 기사 (transport_drivers)
@@ -543,7 +543,7 @@ CREATE TABLE transport_drivers (
     address               TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 
@@ -583,7 +583,7 @@ CREATE TABLE contracts (
     "billingCount"        INTEGER NOT NULL DEFAULT 0,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 3-2. 체결 자산 목록 (contract_assets)
@@ -605,7 +605,7 @@ CREATE TABLE contract_assets (
     "actualReturnDate"    TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 3-2-1. 전대/외부 임차 장비 계약 대장 (external_leases)
@@ -625,7 +625,7 @@ CREATE TABLE external_leases (
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
     contract_id           TEXT,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 3-3. 계약 변경 이력 및 타임라인 (contract_history)
@@ -639,7 +639,7 @@ CREATE TABLE contract_history (
     "changeDate"          TEXT NOT NULL,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 3-4. 배차 및 화물 운송 대장 (deliveries) - 논리적 6단계 완전 정돈
@@ -712,7 +712,7 @@ CREATE TABLE deliveries (
     "closingMemo"         TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 3-5. 출고 검수 승인 대장 (outbound_inspections)
@@ -732,7 +732,7 @@ CREATE TABLE outbound_inspections (
     note                  TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 CREATE INDEX IF NOT EXISTS idx_outbound_inspections_contract_id ON outbound_inspections("contractId");
@@ -764,7 +764,7 @@ CREATE TABLE asset_inout_logs (
     date                  TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 하위 호환성 뷰
@@ -900,7 +900,7 @@ CREATE TABLE repairs (
     memo                  TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 ALTER TABLE outbound_inspections ADD CONSTRAINT fk_outbound_inspections_repair FOREIGN KEY ("repairId") REFERENCES repairs(id) ON DELETE SET NULL;
@@ -917,7 +917,7 @@ CREATE TABLE repair_consumables (
     cost                  DOUBLE PRECISION NOT NULL DEFAULT 0,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 4-4. 소모품 수불 로그 (consumable_logs)
@@ -939,7 +939,7 @@ CREATE TABLE consumable_logs (
     "actionDate"          TEXT NOT NULL,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 4-5. 검수 체크리스트 항목 (inspection_checklist_items)
@@ -957,7 +957,7 @@ CREATE TABLE IF NOT EXISTS standard_options (
     "sortOrder"           INTEGER DEFAULT 0,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 
@@ -981,7 +981,7 @@ CREATE TABLE billings (
     details               JSONB,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 5-2. 매출 청구 상세 (billing_details)
@@ -1000,7 +1000,7 @@ CREATE TABLE billing_details (
     description           TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 5-3. 통합 청구 인보이스 마스터 (billing_invoices)
@@ -1019,7 +1019,7 @@ CREATE TABLE billing_invoices (
     memo                  TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 ALTER TABLE billings ADD CONSTRAINT fk_billings_invoice FOREIGN KEY ("invoiceId") REFERENCES billing_invoices(id) ON DELETE SET NULL;
@@ -1042,7 +1042,7 @@ CREATE TABLE receivables (
     CONSTRAINT chk_billed_lte_total CHECK ("billedAmount" <= "totalAmount"),
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 5-5. 매출 수납 테이블 (payments)
@@ -1055,7 +1055,7 @@ CREATE TABLE payments (
     memo                  TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 5-6. 은행 입출금 거래 내역 (bank_transactions)
@@ -1079,7 +1079,7 @@ CREATE TABLE bank_transactions (
     memo                  TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 5-7. 수납-통장입금 N:N 매핑 링크 (payment_deposit_links)
@@ -1089,7 +1089,7 @@ CREATE TABLE payment_deposit_links (
     "bankTransactionId"   TEXT NOT NULL REFERENCES bank_transactions(id) ON DELETE CASCADE,
     "usedAmount"          DOUBLE PRECISION NOT NULL DEFAULT 0,
     "createdAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 5-8. 통장 대사 룰 매핑 (bank_matching_rules)
@@ -1099,7 +1099,7 @@ CREATE TABLE bank_matching_rules (
     "customerId"          TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 5-9. 통장 기초 잔액 (bank_account_initial_balances)
@@ -1111,7 +1111,7 @@ CREATE TABLE bank_initial_balances (
     "asOfDate"            TEXT,
     "createdAt"           TEXT,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 하위 호환성 뷰
@@ -1147,7 +1147,7 @@ CREATE TABLE purchase_settlements (
     "taxInvoiceBizNo"         TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 5-11. 월말 매입 정산 상세 (purchase_settlement_items)
@@ -1162,7 +1162,7 @@ CREATE TABLE purchase_settlement_items (
     amount                DOUBLE PRECISION NOT NULL DEFAULT 0,
     "evidenceFileUrl"     TEXT,
     "createdAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 5-12. 정산 지급 분할 이력 레코드 (settlement_payment_logs)
@@ -1176,7 +1176,7 @@ CREATE TABLE settlement_payment_logs (
     "bankAccount"         TEXT,
     memo                  TEXT,
     "createdAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 5-13. 자금 흐름 스냅샷 (cash_flow_snapshots)
@@ -1191,7 +1191,7 @@ CREATE TABLE cash_flow_snapshots (
     notes                 TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 5-14. 선급금 원장 (prepaid_transactions)
@@ -1209,7 +1209,7 @@ CREATE TABLE prepaid_transactions (
     description           TEXT,
     memo                  TEXT,
     "createdAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 5-15. 연체 채권 독촉 이력 (delinquency_action_logs)
@@ -1235,7 +1235,7 @@ CREATE TABLE delinquency_action_logs (
     "promisedDate"        TEXT,
     "promisedAmount"      DOUBLE PRECISION,
     "createdAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 5-16. 법적 최고/내용증명 발송 이력 (legal_notice_logs)
@@ -1258,7 +1258,7 @@ CREATE TABLE legal_notice_logs (
     status                TEXT DEFAULT 'SENT',
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 5-17. 내용증명 법적 서식 템플릿 (legal_notice_templates)
@@ -1283,7 +1283,7 @@ CREATE TABLE depreciation_logs (
     note                  TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 
@@ -1319,7 +1319,7 @@ CREATE TABLE todos (
     "completedByUserId"   TEXT REFERENCES users(id) ON DELETE SET NULL,
     "completedByName"     TEXT,
     "completionAction"    TEXT,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 
@@ -1394,7 +1394,7 @@ CREATE TABLE corporate_vehicles (
     memo                  TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 7-2. 차량운행일지 (vehicle_operation_logs - 국세청 업무용승용차 운행기록부 법정서식 연동)
@@ -1423,7 +1423,7 @@ CREATE TABLE vehicle_operation_logs (
     "confirmedAt"         TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- 7-3. 차량 주유 및 충전 영수증 기록부 (vehicle_fuel_logs)
@@ -1448,7 +1448,7 @@ CREATE TABLE vehicle_fuel_logs (
     memo                  TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 CREATE INDEX IF NOT EXISTS idx_vlog_vehicle_date ON vehicle_operation_logs("vehicleId", "operationDate");
@@ -1486,7 +1486,7 @@ CREATE TABLE IF NOT EXISTS equipment_manuals (
     "aiSummary"           TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 CREATE INDEX IF NOT EXISTS idx_manuals_model ON equipment_manuals("modelName");
@@ -1508,7 +1508,7 @@ CREATE TABLE IF NOT EXISTS print_stations (
     "lastHeartbeat"       TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 CREATE INDEX IF NOT EXISTS idx_print_stations_status ON print_stations(status);
@@ -1533,7 +1533,7 @@ CREATE TABLE IF NOT EXISTS print_queue (
     "retryCount"          INTEGER NOT NULL DEFAULT 0,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 CREATE INDEX IF NOT EXISTS idx_print_queue_station_status ON print_queue("stationId", status);
@@ -1556,7 +1556,7 @@ CREATE TABLE IF NOT EXISTS privacy_access_logs (
     "isMasked"            BOOLEAN DEFAULT TRUE,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 CREATE INDEX IF NOT EXISTS idx_privacy_access_logs_created ON privacy_access_logs("createdAt");
@@ -1663,7 +1663,7 @@ CREATE TABLE IF NOT EXISTS stocktaking_audits (
     "confirmedBy"         TEXT,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 CREATE TABLE IF NOT EXISTS stocktaking_audit_items (
@@ -1680,7 +1680,7 @@ CREATE TABLE IF NOT EXISTS stocktaking_audit_items (
     "diffReason"          TEXT CHECK ("diffReason" IN ('LOST', 'DAMAGED', 'UNRECORDED_USAGE', 'SURPLUS', 'OTHER')),
     note                  TEXT,
     "createdAt"           TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP::TEXT,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 CREATE TABLE IF NOT EXISTS collected_parts (
@@ -1698,7 +1698,7 @@ CREATE TABLE IF NOT EXISTS collected_parts (
     "actionMemo"          TEXT,
     memo                  TEXT,
     "createdAt"           TEXT NOT NULL,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeun'
+    "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
 );
 
 -- ==============================================================================
@@ -1784,7 +1784,7 @@ CREATE TABLE IF NOT EXISTS walkie_channels (
     "memberIds"           JSONB NOT NULL DEFAULT '[]'::jsonb,
     "createdAt"           TEXT NOT NULL,
     "isDefault"           BOOLEAN NOT NULL DEFAULT FALSE,
-    "tenant_id"           TEXT NOT NULL DEFAULT 'tenant-giyeun',
+    "tenant_id"           TEXT NOT NULL DEFAULT 'tenant-giyeonlift',
     "updatedAt"           TEXT NOT NULL
 );
 
@@ -1868,7 +1868,7 @@ ALTER TABLE walkie_channels ENABLE ROW LEVEL SECURITY;
 
 CREATE TABLE IF NOT EXISTS approval_rules (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id TEXT NOT NULL DEFAULT 'giyeun',
+    tenant_id TEXT NOT NULL DEFAULT 'giyeonlift',
     event_code TEXT NOT NULL,
     event_name TEXT NOT NULL,
     description TEXT,
@@ -1891,7 +1891,7 @@ CREATE TABLE IF NOT EXISTS rule_consensus (
 
 CREATE TABLE IF NOT EXISTS approval_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id TEXT NOT NULL DEFAULT 'giyeun',
+    tenant_id TEXT NOT NULL DEFAULT 'giyeonlift',
     rule_id UUID REFERENCES approval_rules(id) ON DELETE CASCADE,
     originator_id TEXT REFERENCES users(id) ON DELETE CASCADE,
     target_record_id TEXT NOT NULL,
@@ -1929,7 +1929,7 @@ CREATE TABLE IF NOT EXISTS delegation_records (
 
 CREATE TABLE IF NOT EXISTS approval_tier_configs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    tenant_id TEXT NOT NULL DEFAULT 'giyeun',
+    tenant_id TEXT NOT NULL DEFAULT 'giyeonlift',
     category TEXT NOT NULL CHECK (category IN ('POSITION', 'DUTY')),
     title TEXT NOT NULL,
     tier_level INT NOT NULL DEFAULT 0,

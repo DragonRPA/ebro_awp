@@ -319,14 +319,16 @@ function launchStudioWindow(port = 5175) {
 }
 
 // ──  고밀도 데스크톱 스튜디오 HTML 렌더링 ──
-function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 'GIYEUN') {
+function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 'GIYEONLIFT') {
   const TENANT_NAME_MAP = {
+    'GIYEONLIFT': '(주)기연리프트 전용',
+    'GIYEON': '(주)기연리프트 전용',
     'GIYEUN': '(주)기연리프트 전용',
     'HANSOL': '한솔렌탈 전용',
     'SAMWOO': '삼우렌탈 전용',
-    'EBRO': 'e-Bro ERP 표준'
+    'EBRO': 'eBro ERP 표준'
   };
-  const tenantLabel = TENANT_NAME_MAP[String(tenantCode || 'GIYEUN').toUpperCase()] || `${tenantCode} 전용`;
+  const tenantLabel = TENANT_NAME_MAP[String(tenantCode || 'GIYEONLIFT').toUpperCase()] || `${tenantCode} 전용`;
   return `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -956,7 +958,7 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
 }
 
 // ──  HTTP 핸들러 라우팅 연동 ──
-async function handleStudioRequest(req, res, pathname, searchParams, port = 5175, version = 'v2.0.0.Build.1', tenantCode = 'GIYEUN') {
+async function handleStudioRequest(req, res, pathname, searchParams, port = 5175, version = 'v2.0.0.Build.1', tenantCode = 'GIYEONLIFT') {
   // 1. 스튜디오 데스크톱 UI 서빙 (/studio, /ui)
   if (req.method === 'GET' && (pathname === '/studio' || pathname === '/ui')) {
     const html = renderStudioHtml(port, version, tenantCode);

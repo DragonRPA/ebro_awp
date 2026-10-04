@@ -3,8 +3,8 @@ import { parseBankExcelFile as ibkParser } from './parsers/bank/ibkParser';
 import { contractBundleEmail, statementEmail } from './templates/emails';
 import { documentBuilder, numberToKoreanAmount } from './templates/htmlTemplates';
 
-export const giyeunPlugin: TenantPlugin = {
-  tenantCode: 'GIYEUN',
+export const giyeonliftPlugin: TenantPlugin = {
+  tenantCode: 'GIYEONLIFT',
   parsers: {
     bank: {
       '기업은행': ibkParser,
@@ -23,3 +23,6 @@ export const giyeunPlugin: TenantPlugin = {
     }
   }
 };
+
+// 하위 호환성 별칭
+export const giyeunPlugin = giyeonliftPlugin;

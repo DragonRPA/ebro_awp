@@ -195,3 +195,33 @@
   4. 공통 UI 컴포넌트는 건드리지 않고, 플러그인 매니저가 이를 정상 반환하는지 TypeScript 컴파일(
 pm run build)을 통해 무결성을 검증한다.
 - 개발 및 확장 과정에서 테넌트별 엑셀/PDF 파싱 좌표 등의 메타데이터는 하드코딩을 최소화하고, 가급적 Web ERP 내의 excelMappingRules (JSON)를 참조하여 유연성을 극대화하는 방향(Solution 2)으로 설계한다.
+
+---
+
+## 💻 [카테고리 VIII] 데스크톱 에이전트(eBroAgent) 아키텍처 및 보안·배포 표준 (Desktop Agent Architecture & Hot-Patch Standard)
+
+### 8.1 불변 호스트 & 암호화 비즈니스 코어 2계층 분리 원칙 (Two-Tier Separation Standard)
+- 데스크톱 로컬 에이전트는 런타임 호스트(`eBroHost`)와 비즈니스 코어(`engine.dat`)의 2계층으로 물리 격리하여 빌드 및 배포한다:
+  1. **불변 런타임 호스트 (`eBroAgent.exe`)**: Node.js V8 런타임, PE Subsystem 2 GUI 백그라운드 무소음 상주 프로세스, 로컬 REST 포트(5175) 리스너, 시스템 트레이 관리만 전담하는 영구 불변 런처로 유지한다. 비즈니스 로직 수정으로 인한 재컴파일 및 대형 바이너리 재배포를 일절 금지한다.
+  2. **가변 비즈니스 코어 (`core/engine.dat`)**: 모든 비즈니스 로직, 프린트/PDF/엑셀 조작 엔진, 외부 라이브러리(`xlsx`, `pdf-lib`, `nodemailer` 등)를 단일 번들로 인라인 통합(Tree-Shaking)하고 암호화한 독립 파일(~2MB)로 유지한다.
+
+### 8.2 지적재산권(IP) 보호 및 디스크 평문 소스코드 0건 원칙 (Zero-Plaintext on Disk Standard)
+- 사용자 PC 디스크에 회사의 핵심 비즈니스 로직이나 평문 JavaScript 소스코드가 1바이트라도 노출되는 것을 엄격히 금지한다.
+- 빌드 파이프라인(`encrypt_core.cjs`)에서 생성된 `core/engine.dat`는 32바이트 SHA-256 키 및 12바이트 랜덤 IV 기반 **AES-256-GCM** 암호화 바이너리로만 배포된다.
+- `eBroHost`는 기동 시 `engine.dat`를 RAM으로 직접 읽어들여 인메모리에서 복호화한 후 Node.js V8 가상머신(`vm.runInThisContext`)에서 즉시 실행한다.
+- 디스크에 어떠한 임시 평문 파일도 생성하지 않으며, 암호화 인증 태그(Auth Tag) 검증을 통해 파일 변조 시 즉각 실행을 거부한다.
+
+### 8.3 무소음 초경량 백그라운드 핫패치 표준 (Zero-Interruption Hot-Patch Standard)
+- UI 디자인 변경, 비즈니스 로직 추가, 버그 패치 발생 시 90MB 대형 실행파일 전체를 재배포하지 않는다.
+- `version.json`의 `coreUrl`을 통해 **약 2MB 크기의 `engine.dat`만 0.5초 만에 백그라운드 스트리밍 수신**하여 덮어쓴 후, 1초 만에 무소음 백그라운드 재기동으로 핫패치를 완결한다. 사용자 작업 화면을 방해하는 콘솔 창이나 안내 팝업을 일절 띄우지 않는다.
+
+### 8.4 제어판 삭제 배제 및 인플레이스 업그레이드 원칙 (In-place Upgrade Standard)
+- 에이전트 업데이트 시 사용자에게 윈도우 제어판에서 기존 프로그램을 수동 삭제(Uninstall)하도록 요구하는 행위를 엄격히 금지한다.
+- 인스톨러(`eBroAgent_Setup.exe`)는 단일 `AppId`를 바탕으로 실행 중인 기존 프로세스를 백그라운드에서 안전하게 정리하고 동일 설치 경로(`C:\eBroAgent`)에 즉시 덮어쓰는 인플레이스(In-place) 업그레이드를 완결한다.
+
+### 8.5 온디바이스 AI 런타임 및 모델 배포 거버넌스 (On-Device AI Deployment Standard)
+- **부트스트랩(Bootstrap) 원칙**: 인스톨러는 로컬 PC의 Ollama 런타임 유무를 자동 감지하고, 미설치 시 무소음(`/VERYSILENT`) 자동 설치를 연계한다.
+- **순차적 백그라운드 스트리밍(Lazy Pull) 원칙**: 수 기가바이트(GB) 대형 모델을 인스톨러에 번들링하지 않고, 에이전트 기동 후 백그라운드에서 우선순위(1순위: 텍스트 LLM, 2순위: 음성 STT, 3순위: 비전 VLM)에 따라 스트리밍 다운로드한다.
+- **P2P 로컬 캐시 릴레이 영구 배제**: 사내 보안망, 방화벽, 포트 통제 환경과의 충돌 및 보안 솔루션 오탐지를 방지하기 위해 로컬 P2P 릴레이 방식은 전면 반려(금지)한다.
+- **사내 고유 모델(`ebro-qwen:3b`) 프라이빗 호스팅**: 당사 파인튜닝 지적재산권(IP) 보호를 위해 퍼블릭 Ollama 레지스트리를 배제하고, Egress 트래픽 비용이 0원인 **Cloudflare R2 프라이빗 버킷 + Presigned URL 파이프라인**을 전사 공식 표준으로 적용한다.
+

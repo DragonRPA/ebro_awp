@@ -1,4 +1,4 @@
-﻿name: Vercel Deployment Purge
+name: Vercel Deployment Purge
 
 on:
   push:
@@ -18,16 +18,16 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 
-      - name: Run purge (giyuen-lift - 최근 5개 보존)
+      - name: Run purge (ebro_awp - 최근 5개 보존)
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          echo "=== giyuen-lift 배포 목록 ==="
-          vercel list giyuen-lift --token $VERCEL_TOKEN --limit 100 || true
+          echo "=== ebro_awp 배포 목록 ==="
+          vercel list ebro_awp --token $VERCEL_TOKEN --limit 100 || true
           
           # 최근 5개 제외하고 나머지 삭제
-          URLS=$(vercel list giyuen-lift --token $VERCEL_TOKEN --limit 100 2>/dev/null \
-            | grep -oP 'https://giyuen-lift-[a-z0-9]+-dragonrpa\.vercel\.app' \
+          URLS=$(vercel list ebro_awp --token $VERCEL_TOKEN --limit 100 2>/dev/null \
+            | grep -oP 'https://(ebro|ebro_awp|giyeun-lift|giyuen-lift)-[a-z0-9]+-dragonrpa\.vercel\.app' \
             | tail -n +6)
           
           if [ -z "$URLS" ]; then

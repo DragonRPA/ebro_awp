@@ -8,11 +8,11 @@ const issPath = path.join(__dirname, 'eBroAgent.iss');
 
 const tenants = [
   {
-    code: 'GIYEUN',
+    code: 'GIYEONLIFT',
     appName: 'eBro AI Agent (기연리프트)',
-    publisher: '(주)기연리프트 / e-Bro ERP',
-    appId: '{EBR0-ERP-AG3NT-GIYEUN-2026}',
-    outFile: 'eBroAgent_Setup_GIYEUN'
+    publisher: '(주)기연리프트 / eBro ERP',
+    appId: '{EBR0-ERP-AG3NT-GIYEONLIFT-2026}',
+    outFile: 'eBroAgent_Setup_GIYEONLIFT'
   }
 ];
 

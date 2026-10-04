@@ -7324,3 +7324,44 @@ pm run build: **TypeScript 0 Error, 번들링 정상 완료 (uilt in 1.13s)**.
      - 전자결재 상신 및 결재선 자동 생성(`createApprovalRequest`) 시, 인사관리에서 설정한 최신 직책(`duty`)과 직급(`position`)을 온전히 병합하여 기안자 티어 및 직책/직급 기반 결재권자(Approver)를 100% 무오차로 자동 탐색/배정
   4. TypeScript 타입 검증(`tsc -b`) 및 Vite 프로덕션 빌드 성공 검증 완료 (0 Errors, 781ms)
 
+## [기록/스켈톤] 데스크톱 에이전트 2계층 분리, 코드보호, 핫패치 원칙 스켈톤 영구 등재 및 AI 모델 배포 전략 수립 (v1.13.0)
+- **요구사항**:
+  1. 에이전트 프로그램의 구성원칙, 코드보호, 경량업데이트에 대한 기준원칙을 문서로 작성하고 스켈톤에 남길 것.
+  2. Ollama 모델에 대해서는 제1안(부트스트랩) & 제2안(단계적 백그라운드 스트리밍) 채택, 제3안(사내 P2P)은 보안 통제 환경 고려하여 영구 반려.
+  3. 사내 파인튜닝 모델 `ebro-qwen:3b` 호스팅 및 배포 저장소 선정 질의.
+- **조치 내역**:
+  1. **스켈톤 영구 기록 (`000.skelton`)**:
+     - `000.skelton/경험/2026-10_데스크톱_에이전트_2계층_분리_코드보호_및_초경량_핫패치_원칙.md` 작성 및 커밋 완료 (`a23089d`).
+     - 불변 호스트(`eBroHost.exe`)와 암호화 코어(`engine.dat`)의 2계층 분리, AES-256-GCM 메모리 직접 실행을 통한 디스크 평문 소스코드 0 Byte 노출, 2MB 바이너리 0.5초 수신 기반 무소음 핫패치, 인플레이스 업그레이드 4대 원칙 정립.
+  2. **전사 시스템 개발 표준 헌장 (`.agents/AGENTS.md`) 등재**:
+     - `💻 [카테고리 VIII] 데스크톱 에이전트(eBroAgent) 아키텍처 및 보안·배포 표준` 신설 (8.1~8.5조).
+  3. **온디바이스 AI 모델 배포 거버넌스 확정**:
+     - 제1안(인스톨러 부트스트랩) & 제2안(백그라운드 Lazy Stream) 정식 채택.
+     - 제3안(사내 P2P / 로컬 캐시 릴레이)은 기업 보안망/포트 차단/오탐지 방지를 위해 영구 반려.
+  4. **사내 파인튜닝 모델(`ebro-qwen:3b`) 호스팅 저장소 확정**:
+     - **Cloudflare R2 Object Storage (Private Bucket) + Presigned URL 스트리밍** 표준 지정 (Egress 비용 0원, IP 유출 원천 차단, 30분 유효 서명 다운로드).
+
+## [완료] 전사 사명 영문 표기 전면 정정 ('giyeonlift') 및 솔루션 브랜드 'eBro' 확정 반영 (v1.13.0.Build.23)
+- **요구사항**:
+  - "기연리프트 명칭으로 진행하던 프로젝트 내의 영어표기를 일단 전부 변경해야겠어. 내 실수이긴 한데, 처음에는 영어 표기가 'kiyuen' 인줄로 잘못 알았어. 그 후에는 'giyuen' 인줄 알고 사용했어. 최종 확인은 'giyeon' 이었어. 최종이 맞아. 그래서 나는 이제부터 기연리프트는 'giyeonlift' 로 변경 할것이고, 이 프로젝트 명칭은 'eBro' 로 변경할거야."
+- **조치 내역**:
+  1. **Supabase 원격 DB 테넌트 식별자 마이그레이션**:
+     - `tenants` 테이블: `tenantCode: 'GIYEONLIFT'`, `websiteUrl: 'http://www.giyeonlift.co.kr'`, `systemName: 'eBro System'` 갱신 완료.
+     - 전체 64개 DB 테이블(`assets` 1,510건, `repairs` 4,814건, `contracts` 227건, `deliveries` 510건, `users` 19건, `customers` 409건 등)의 `tenant_id` 값을 청크 분할 UPDATE로 `giyeonlift`로 마이그레이션 완료 (검증 쿼리: 구 명칭 잔여 0건 확인).
+     - `schema.sql` 기본값 `DEFAULT 'GIYEONLIFT'` 동기화.
+  2. **프론트엔드 테넌트 플러그인 및 도메인 라우터 정비 (`src/`)**:
+     - `src/integrations/giyeonlift/` 신설 및 `giyeonliftPlugin` (`tenantCode: 'GIYEONLIFT'`) 수출.
+     - `TenantPluginManager.ts`: `GIYEONLIFT` 메인 매핑 및 구 표기(`GIYEUN`, `GIYUEN`, `KIYUEN`) 자동 폴백 안전망 탑재.
+     - `src/services/db.ts`: 기본 테넌트 `GIYEONLIFT`, 도메인 감지(`giyeon.ebro.run`, `giyeonlift.ebro.run`), 로고 경로(`/images/ci/giyeonlift_ci.png`) 연동.
+     - `index.html`: `<title>eBro ERP | 고소작업대 렌탈 관리 시스템</title>` 브랜딩 일원화.
+  3. **데스크톱 에이전트 인스톨러 및 핫패치 바이너리 재컴파일 (`agent/`, `scripts/`)**:
+     - `agent/build-tenants.cjs` 및 `agent/eBroAgent.iss`: `AppId: {EBR0-ERP-AG3NT-GIYEONLIFT-2026}`, `eBroAgent_Setup_GIYEONLIFT.exe` 컴파일 및 코드 서명 완료.
+     - 범용 `eBroAgent_Setup.exe` 및 하위 호환 `eBroAgent_Setup_GIYEUN.exe` 동시 동기화.
+     - 암호화 코어 `engine.dat` 최신 테넌트 설정 번들링 완료.
+  4. **외부 서비스 연동 및 배포 무결성 검증**:
+     - Vercel `giyeon.ebro.run` 프로덕션 바인딩 및 SSL 인증서 발급 완료 (`Status: 200 OK` 라이브 확인).
+     - `.vercel/project.json` 및 `.github/workflows/vercel-purge.yml` 프로젝트명 `ebro_awp` 동기화.
+     - `npm run build` (`tsc -b && vite build`) 0 Type Error 무결성 검증 통과 (978ms).
+
+
+

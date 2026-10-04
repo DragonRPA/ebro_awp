@@ -62,7 +62,7 @@ const VERSION = 'v2.0.0.Build.6';
 const PORT = process.env.PORT || 5175;
 const CALLSIGN = process.env.AGENT_CALLSIGN || 'admin';
 const MACHINE_NAME = os.hostname();
-const TENANT_CODE = process.env.AGENT_TENANT || 'GIYEUN';
+const TENANT_CODE = process.env.AGENT_TENANT || 'GIYEONLIFT';
 
 //  전사 표준 절대경로: C:\eBroAgent\ 및 하위 문서고
 const AGENT_HOME = 'C:\\eBroAgent';
@@ -1972,7 +1972,7 @@ server.listen(PORT, '127.0.0.1', () => {
   const isDaemon = process.argv.includes('--daemon') || process.argv.includes('--silent');
   if (!isDaemon) {
     setTimeout(() => {
-      const subdomain = TENANT_CODE.toLowerCase();
+      const subdomain = (TENANT_CODE === 'GIYEONLIFT' || TENANT_CODE === 'GIYEUN') ? 'giyeon' : TENANT_CODE.toLowerCase();
       const loginUrl = `https://${subdomain}.ebro.run`;
       openDefaultBrowser(loginUrl);
     }, 600);

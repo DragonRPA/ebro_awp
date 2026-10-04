@@ -4022,8 +4022,8 @@ const mockDataCont = generateMockContracts(mockDataCust.customers, mockDataCust.
 export const SEED_TENANTS: Tenant[] = [
   {
     id: 'tenant-1',
-    tenantCode: 'GIYEUN',
-    systemName: 'e-Bro System',
+    tenantCode: 'GIYEONLIFT',
+    systemName: 'eBro System',
     displayName: '기연리프트',
     corporateName: '주식회사 기연리프트',
     tradeName: '(주)기연리프트',
@@ -4136,9 +4136,9 @@ export const SEED_TENANTS: Tenant[] = [
         isDefault: false,
       },
     ],
-    logoUrl: '/images/ci/giyeun_ci.png',
-    ciUrl: '/images/ci/giyeun_ci.png',
-    subdomain: 'giyeun',
+    logoUrl: '/images/ci/giyeonlift_ci.png',
+    ciUrl: '/images/ci/giyeonlift_ci.png',
+    subdomain: 'giyeonlift',
     features: {
       telegramBot: true,
       callRecordingStt: true,
@@ -4157,7 +4157,7 @@ export const SEED_TENANTS: Tenant[] = [
       autoRenew: true,
       maxAssets: 0,
       maxUsers: 0,
-      licenseKey: 'EBR-GIYEUN-20271231-X9K2',
+      licenseKey: 'EBR-GIYEONLIFT-20271231-X9K2',
       memo: '전사 무제한 엔터프라이즈 라이선스 (본점 및 전 지점 통합)',
     },
     stampImageUrl: OFFICIAL_STAMP_BASE64,
@@ -5244,9 +5244,9 @@ class LocalDB {
       let logo = t.logoUrl;
       let sub = t.subdomain;
       let feat = t.features;
-      if ((!ci || !logo) && (t.id === 'tenant-1' || t.tenantCode === 'GIYEUN' || t.isDefault)) {
-        ci = ci || '/images/ci/giyeun_ci.png';
-        logo = logo || '/images/ci/giyeun_ci.png';
+      if ((!ci || !logo) && (t.id === 'tenant-1' || t.id === 'tenant-giyeonlift' || t.tenantCode === 'GIYEONLIFT' || t.tenantCode === 'GIYEUN' || t.isDefault)) {
+        ci = ci || '/images/ci/giyeonlift_ci.png';
+        logo = logo || '/images/ci/giyeonlift_ci.png';
         changed = true;
       }
       if (!sub && t.tenantCode) {
@@ -5301,7 +5301,7 @@ class LocalDB {
     // 🌐 [1순위] 브라우저 접속 도메인의 서브도메인 기반 자동 테넌트 매핑 (*.ebro.run)
     if (typeof window !== 'undefined' && window.location?.hostname) {
       const hostname = window.location.hostname.toLowerCase();
-      // 예: giyuenlift.ebro.run, giyeun.ebro.run, hansol.ebro.run
+      // 예: giyeonlift.ebro.run, giyeon.ebro.run, giyeun.ebro.run, hansol.ebro.run
       const parts = hostname.split('.');
       if (parts.length >= 3 && hostname.endsWith('ebro.run')) {
         const sub = parts[0].toLowerCase();
@@ -5313,9 +5313,11 @@ class LocalDB {
                  code === sub ||
                  sub.startsWith(code) ||
                  code.startsWith(sub) ||
-                 (sub.includes('giyuen') && code === 'giyeun') ||
-                 (sub.includes('giyeun') && code === 'giyeun') ||
-                 (sub.includes('lift') && (code === 'giyeun' || dName.includes('기연')));
+                 (sub.includes('giyeon') && (code === 'giyeonlift' || code === 'giyeon')) ||
+                 (sub.includes('giyeonlift') && (code === 'giyeonlift' || code === 'giyeon')) ||
+                 (sub.includes('giyeun') && (code === 'giyeonlift' || code === 'giyeun')) ||
+                 (sub.includes('giyuen') && (code === 'giyeonlift' || code === 'giyeun')) ||
+                 (sub.includes('lift') && (code === 'giyeonlift' || dName.includes('기연')));
         });
         if (matched) return matched;
       }
