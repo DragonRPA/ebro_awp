@@ -82,7 +82,7 @@ export const InitialDbUploader: React.FC = () => {
   const customerSites = sites || appCustomerSites || db.sites || [];
 
   // 상태 관리
-  const [activeTab, setActiveTab] = useState<'INGEST' | 'CLEANUP' | 'BACKUP' | 'RESET'>('INGEST');
+  const [activeTab, setActiveTab] = useState<'INGEST' | 'CLEANUP' | 'BACKUP' | 'RESTORE' | 'RESET'>('INGEST');
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [backupResult, setBackupResult] = useState<{ filename: string; count: number } | null>(null);
 
@@ -1420,6 +1420,26 @@ export const InitialDbUploader: React.FC = () => {
           >
             <Download size={16} />
             DB 백업
+          </button>
+
+          <button
+            onClick={() => setActiveTab('RESTORE')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              border: activeTab === 'RESTORE' ? '1px solid #059669' : '1px solid var(--border-color)',
+              backgroundColor: activeTab === 'RESTORE' ? 'rgba(5, 150, 105, 0.15)' : 'var(--bg-card)',
+              color: activeTab === 'RESTORE' ? '#059669' : 'var(--text-secondary)',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <RotateCcw size={16} />
+            DB 복원
           </button>
 
           <button
@@ -2918,85 +2938,138 @@ export const InitialDbUploader: React.FC = () => {
         <OrphanDataCleanupStudio />
       )}
 
-      {/* ── TAB 2: DB 전체 백업 및 원상 복구 (Disaster Recovery) ── */}
+      {/* ── TAB 2: DB 전체 백업 내보내기 ── */}
       {activeTab === 'BACKUP' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* ── CARD 1: 전체 DB 백업 다운로드 ── */}
-          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '24px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                전체 데이터베이스 백업 내보내기 (Export)
-              </h3>
-              <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                현재 Supabase / 중앙 플랫폼 DB에 적재된 모든 76개 테이블(중앙 지식DB 및 비즈니스 원장 전수)의 데이터를 JSON 파일로 다운로드하여 영구 보관합니다.
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <button
-                onClick={handleBackup}
-                disabled={isBackingUp}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '12px 24px',
-                  backgroundColor: 'var(--primary)',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontWeight: 600,
-                  fontSize: '14px',
-                  cursor: isBackingUp ? 'not-allowed' : 'pointer',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {isBackingUp ? <RefreshCw size={18} className="animate-spin" /> : <Download size={18} />}
-                전체 DB 백업 파일 다운로드 (.json)
-              </button>
-
-              {backupResult && (
-                <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                  ✓ {backupResult.filename} 다운로드 완료 ({backupResult.count.toLocaleString()}건)
-                </span>
-              )}
-            </div>
+        <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '24px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+              전체 데이터베이스 백업 내보내기 (Export)
+            </h3>
+            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+              현재 Supabase / 중앙 플랫폼 DB에 적재된 모든 76개 테이블(중앙 지식DB 및 비즈니스 원장 전수)의 데이터를 JSON 파일로 다운로드하여 영구 보관합니다.
+            </span>
           </div>
 
-          {/* ── CARD 2: 백업 파일로 원상 복구 (Disaster Recovery) ── */}
-          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '24px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <RotateCcw size={20} color="var(--primary)" />
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                  데이터베이스 백업 원상 복구 (Disaster Recovery / Restore)
-                </h3>
-              </div>
-              <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                다운로드해 둔 전체 DB 백업 JSON 파일을 업로드하여, 외래키(FK) 토폴로지 의존성 순서에 따라 1건의 유실도 없이 완벽히 원상 복구합니다.
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <button
+              onClick={handleBackup}
+              disabled={isBackingUp}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 24px',
+                backgroundColor: 'var(--primary)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                fontWeight: 600,
+                fontSize: '14px',
+                cursor: isBackingUp ? 'not-allowed' : 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {isBackingUp ? <RefreshCw size={18} className="animate-spin" /> : <Download size={18} />}
+              전체 DB 백업 파일 다운로드 (.json)
+            </button>
+
+            {backupResult && (
+              <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                ✓ {backupResult.filename} 다운로드 완료 ({backupResult.count.toLocaleString()}건)
+              </span>
+            )}
+          </div>
+
+          {/* 복원 화면 바로가기 링크 배너 */}
+          <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <RotateCcw size={16} color="#059669" />
+              <span style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: 600 }}>
+                보관 중인 백업 파일을 이용해 데이터베이스를 원상 복구하시겠습니까?
               </span>
             </div>
+            <button
+              onClick={() => setActiveTab('RESTORE')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 16px',
+                backgroundColor: '#059669',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                fontWeight: 600,
+                fontSize: '13px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <RotateCcw size={14} />
+              DB 복원 화면으로 이동 ➔
+            </button>
+          </div>
+        </div>
+      )}
 
-            <input
-              type="file"
-              ref={restoreFileInputRef}
-              onChange={handleRestoreFileSelect}
-              accept=".json"
-              style={{ display: 'none' }}
-            />
+      {/* ── TAB 3: DB 백업 원상 복구 (Disaster Recovery / Restore) ── */}
+      {activeTab === 'RESTORE' && (
+        <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '24px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <RotateCcw size={22} color="#059669" />
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                데이터베이스 백업 원상 복구 (Disaster Recovery / Restore)
+              </h3>
+            </div>
+            <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+              보관해 둔 전체 DB 백업 JSON 파일(`.json`)을 업로드하여, 외래키(FK) 토폴로지 의존성 순서에 따라 1건의 유실도 없이 완벽히 원상 복구합니다.
+            </span>
+          </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <input
+            type="file"
+            ref={restoreFileInputRef}
+            onChange={handleRestoreFileSelect}
+            accept=".json"
+            style={{ display: 'none' }}
+          />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => restoreFileInputRef.current?.click()}
+              disabled={isRestoring}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 24px',
+                backgroundColor: 'var(--bg-card)',
+                color: 'var(--text-main)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+                fontWeight: 600,
+                fontSize: '14px',
+                cursor: isRestoring ? 'not-allowed' : 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Upload size={18} />
+              {restoreFile ? `선택된 파일: ${restoreFile.name}` : '복구용 백업 JSON 파일 선택 (.json)'}
+            </button>
+
+            {restoreSummary && (
               <button
-                onClick={() => restoreFileInputRef.current?.click()}
+                onClick={handleRestoreExecute}
                 disabled={isRestoring}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
                   padding: '12px 24px',
-                  backgroundColor: 'var(--bg-card)',
-                  color: 'var(--text-main)',
-                  border: '1px solid var(--border-color)',
+                  backgroundColor: isRestoring ? '#94a3b8' : '#059669',
+                  color: '#ffffff',
+                  border: 'none',
                   borderRadius: '6px',
                   fontWeight: 600,
                   fontSize: '14px',
@@ -3004,77 +3077,53 @@ export const InitialDbUploader: React.FC = () => {
                   whiteSpace: 'nowrap'
                 }}
               >
-                <Upload size={18} />
-                {restoreFile ? `선택된 파일: ${restoreFile.name}` : '복구용 백업 JSON 파일 선택'}
+                {isRestoring ? <RefreshCw size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
+                {isRestoring ? 'DB 원상 복원 실행 중...' : `검증 완료: ${restoreSummary.totalRows.toLocaleString()}건 전체 복원 실행`}
               </button>
-
-              {restoreSummary && (
-                <button
-                  onClick={handleRestoreExecute}
-                  disabled={isRestoring}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '12px 24px',
-                    backgroundColor: isRestoring ? '#94a3b8' : '#059669',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontWeight: 600,
-                    fontSize: '14px',
-                    cursor: isRestoring ? 'not-allowed' : 'pointer',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {isRestoring ? <RefreshCw size={18} className="animate-spin" /> : <ShieldCheck size={18} />}
-                  {isRestoring ? 'DB 원상 복원 실행 중...' : `검증 완료: ${restoreSummary.totalRows.toLocaleString()}건 전체 복원 실행`}
-                </button>
-              )}
-            </div>
-
-            {/* 복원 진행 상황 프로그레스 바 */}
-            {restoreProgress && (
-              <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'rgba(5, 150, 105, 0.08)', borderRadius: '6px', border: '1px solid rgba(5, 150, 105, 0.25)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 600, color: '#059669', marginBottom: '6px' }}>
-                  <span>{restoreProgress.message}</span>
-                  <span>{Math.round((restoreProgress.step / Math.max(1, restoreProgress.total)) * 100)}%</span>
-                </div>
-                <div style={{ width: '100%', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div
-                    style={{
-                      width: `${Math.round((restoreProgress.step / Math.max(1, restoreProgress.total)) * 100)}%`,
-                      height: '100%',
-                      backgroundColor: '#059669',
-                      transition: 'width 0.2s ease'
-                    }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* 사전 검증 요약 테이블 */}
-            {restoreSummary && !isRestoring && (
-              <div style={{ marginTop: '20px', padding: '16px', backgroundColor: 'var(--bg-main)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>
-                    📋 백업 파일 내 포함 테이블 현황 (총 {restoreSummary.totalTables}개 테이블, {restoreSummary.totalRows.toLocaleString()}건)
-                  </span>
-                  <span style={{ fontSize: '12px', color: 'var(--success)', fontWeight: 600 }}>
-                    ✓ 데이터 무결성 검증 통과 (FK 역순 복원 준비 완료)
-                  </span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px', maxHeight: '200px', overflowY: 'auto' }}>
-                  {restoreSummary.tables.map(t => (
-                    <div key={t.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', backgroundColor: 'var(--bg-card)', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '12px' }}>
-                      <span style={{ fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
-                      <span style={{ color: 'var(--primary)', fontWeight: 700 }}>{t.count.toLocaleString()}건</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
             )}
           </div>
+
+          {/* 복원 진행 상황 프로그레스 바 */}
+          {restoreProgress && (
+            <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'rgba(5, 150, 105, 0.08)', borderRadius: '6px', border: '1px solid rgba(5, 150, 105, 0.25)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', fontWeight: 600, color: '#059669', marginBottom: '6px' }}>
+                <span>{restoreProgress.message}</span>
+                <span>{Math.round((restoreProgress.step / Math.max(1, restoreProgress.total)) * 100)}%</span>
+              </div>
+              <div style={{ width: '100%', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                <div
+                  style={{
+                    width: `${Math.round((restoreProgress.step / Math.max(1, restoreProgress.total)) * 100)}%`,
+                    height: '100%',
+                    backgroundColor: '#059669',
+                    transition: 'width 0.2s ease'
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 사전 검증 요약 테이블 */}
+          {restoreSummary && !isRestoring && (
+            <div style={{ marginTop: '20px', padding: '16px', backgroundColor: 'var(--bg-main)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)' }}>
+                  📋 백업 파일 내 포함 테이블 현황 (총 {restoreSummary.totalTables}개 테이블, {restoreSummary.totalRows.toLocaleString()}건)
+                </span>
+                <span style={{ fontSize: '12px', color: 'var(--success)', fontWeight: 600 }}>
+                  ✓ 데이터 무결성 검증 통과 (FK 역순 복원 준비 완료)
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px', maxHeight: '240px', overflowY: 'auto' }}>
+                {restoreSummary.tables.map(t => (
+                  <div key={t.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', backgroundColor: 'var(--bg-card)', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '12px' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.name}</span>
+                    <span style={{ color: '#059669', fontWeight: 700 }}>{t.count.toLocaleString()}건</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
