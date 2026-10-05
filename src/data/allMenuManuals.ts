@@ -504,6 +504,34 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "positionHint": "left"
           }
         ]
+      },
+      {
+        "processId": "register_site_options_sync",
+        "title": "현장 등록 및 옵션 속성 동기화",
+        "description": "고객사의 신규 현장을 등록하거나 수정할 때, 현장별 옵션관리에 등록된 현장 중 검색하여 유상/보양/사양 속성을 1클릭 복사하고 일치시킵니다.",
+        "steps": [
+          {
+            "seq": 1,
+            "selector": "[data-mid='btn-new-site'], button:contains('현장 추가')",
+            "type": "click_ripple",
+            "label": "현장 등록 버튼",
+            "description": "현장 추가 버튼을 클릭하여 현장 등록·수정 모달을 엽니다."
+          },
+          {
+            "seq": 2,
+            "selector": "[data-mid='site-option-ref-search-box']",
+            "type": "callout",
+            "label": "옵션 참조 현장 검색 및 복사",
+            "description": "현장별 옵션관리에 등록된 현장을 검색·선택한 뒤 [옵션 속성 복사] 버튼을 눌러 유상옵션, 보양작업, 요구사양을 즉시 일치시킵니다."
+          },
+          {
+            "seq": 3,
+            "selector": "button[type='submit']",
+            "type": "click_ripple",
+            "label": "현장 정보 저장",
+            "description": "복사 및 조정한 옵션 속성과 현장 기본 정보를 데이터베이스에 저장합니다."
+          }
+        ]
       }
     ],
     "groupId": "grp_sales",
@@ -519,7 +547,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "4. 선택 고객사 360도 마스터 상세 도시에 검토 (사업자정보, 대표연락처, 청구조건)",
       "5. 사업자등록증 AI OCR 자동 등록 및 정보 보완 (이미지/PDF 기반 상호/대표자 자동 파싱)",
       "6. 국세청 홈택스 사업자 휴폐업 전수 점검 및 여신 리스크 방어",
-      "7. 신규 고객 등록 및 신규 현장·담당자 매핑 (계약 체결 가용화)"
+      "7. 신규 고객 등록 및 신규 현장·담당자 매핑 (현장별 옵션관리 기등록 현장 옵션 속성 검색 및 1클릭 복사 일치로 계약 체결 가용화)"
     ],
     "subTabs": [
       {
@@ -538,6 +566,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "purpose": "거래처별 납품/작업 현장 주소 및 현장 소장/안전담당자 관리",
         "keyActions": [
           "현장 추가",
+          "현장별 옵션관리 등록 현장 검색 및 옵션 속성 복사",
           "현장 고유 출고 안전 옵션 지정",
           "현장 지도 위치 확인"
         ]
@@ -552,6 +581,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
           "상호 및 대표자",
           "세금계산서 전용 이메일",
           "현장 주소 및 담당자 연락처",
+          "옵션 참조 현장 검색 (현장별 옵션관리 등록 현장 속성 복사)",
           "기본 안전 옵션"
         ],
         "terminalAction": "[거래처/현장 저장]",
@@ -560,6 +590,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "auditResult": "고객 마스터 등록 완결 및 신규 계약 체결 시 자동 완성 데이터 원천 구축",
     "rulesCompliance": [
+      "헌장 1.1 [최대 편익 달성]: 현장별 옵션관리에 등록된 현장의 유상옵션·보양작업·요구사양 속성을 검색하여 1클릭 복사 일치시킴으로써 수기 입력 번복을 원천 차단하고 임직원 편익 극대화",
       "헌장 3.2 [줄바꿈 방지 원칙]: 거래처명, 사업자번호, 대표자 셀에 `white-space: nowrap` 적용",
       "헌장 3.4 [상하 스택 배치]: 등록 모달 폼의 모든 레이블-입력창 상하 세로 스택 준수"
     ],
@@ -648,7 +679,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupName": "영업관리",
     "department": "영업부 / 출고부",
     "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
-    "objective": "고소작업대 렌탈 현장별 유상옵션, 보양작업, 요구사양을 옵션품목마스터로부터 100% 자동 상속받고 현장 특약 단가를 오버라이드하여 계약/출고/배차 파이프라인과 완벽 연동",
+    "objective": "고소작업대 렌탈 현장별 유상옵션, 보양작업, 요구사양을 옵션품목마스터로부터 100% 자동 상속받고 현장 특약 단가를 오버라이드하여 계약/출고/배차 파이프라인과 연동하며, 고객 관리 신규 현장 등록/수정 시 본 메뉴의 등록 현장 옵션 속성을 검색하여 1클릭 복사할 수 있도록 표준 데이터 제공",
     "scopeInfo": "고객사 필터, 현장 검색어, 선택된 현장, 옵션품목마스터(StandardOption) 품목군(유상/보양/사양), 현장 특약단가, 필수 장착 여부, 현장 메모",
     "cognitiveSequence": [
       "1. 좌상단 고객사 필터 및 현장 검색창을 통해 대상 현장 스코핑",
@@ -662,7 +693,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "auditResult": "총 옵션 항목수 = 활성 옵션수 + 비활성 옵션수 | 월 유상옵션 총액 = Σ(활성 유상옵션별 현장 특약단가)",
     "rulesCompliance": [
-      "헌장 1.1: 임직원 최소 노력으로 마스터 옵션을 1클릭 상속받아 현장 옵션값을 즉시 구축하는 최대 편익 달성",
+      "헌장 1.1: 임직원 최소 노력으로 마스터 옵션을 1클릭 상속받아 현장 옵션값을 즉시 구축하며, 고객 관리 메뉴 현장 등록/수정 시 기등록 현장의 옵션 속성을 실시간 검색하여 1클릭 복사 일치시키는 최대 편익 달성",
       "헌장 2.2: 옵션품목마스터 기준단가 및 고객사 기본 옵션 속성 100% 자동 상속 원칙 완결",
       "헌장 3.1: 감성적 수식어 배제 및 건조한 명사·동사 UI 단일 표준 준수",
       "헌장 3.2: 테이블 셀 white-space: nowrap 적용으로 줄바꿈 방지",

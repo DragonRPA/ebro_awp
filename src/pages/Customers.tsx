@@ -7,7 +7,7 @@ import {
   CreditCard, ShieldCheck, Zap, Sparkles, CheckCircle2, AlertCircle, 
   X, Edit2, Trash2, RefreshCw, Layers, Check, Building2, Circle,
   Sliders, Tag, Settings, CheckSquare, Square, ChevronDown, ChevronUp, FileText, FolderOpen,
-  ShieldAlert, FileSpreadsheet, SlidersHorizontal
+  ShieldAlert, FileSpreadsheet, SlidersHorizontal, Copy
 } from 'lucide-react';
 import { db, Customer, CustomerContact, CustomerSite, CustomerBankAccount, StandardOption, logPrivacyAccess, SiteContactPerson, SiteContactType, SITE_CONTACT_TYPE_CONFIG, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, CustomerTransactionStatus, isCustomerRestricted, isCustomerTotalBlocked, getCustomerTransactionStatusLabel } from '../services/db';
 import { exportToExcel } from '../services/excel';
@@ -179,7 +179,12 @@ export const Customers: React.FC = () => {
   const [siteOptionForm, setSiteOptionForm] = useState<{
     paidOptions: string;
     protection: string;
-  }>({ paidOptions: '', protection: '' });
+    checkedSpecs?: Record<string, boolean>;
+  }>({ paidOptions: '', protection: '', checkedSpecs: {} });
+
+  // 🔍 현장별 옵션관리 기등록 현장 참조 검색 및 옵션 복사 상태
+  const [siteOptionRefSearch, setSiteOptionRefSearch] = useState('');
+  const [selectedRefSiteId, setSelectedRefSiteId] = useState('');
 
   // 외부 네비게이션 연동
   useEffect(() => {
@@ -205,6 +210,60 @@ export const Customers: React.FC = () => {
   const activeCustomer = useMemo(() => {
     return customers.find(c => c.id === selectedCustomerId) || null;
   }, [customers, selectedCustomerId]);
+
+  // 🏢 고객사 ID ➔ 고객사 매핑 맵
+  const customerMap = useMemo(() => {
+    const map = new Map<string, Customer>();
+    (customers || []).forEach(c => map.set(c.id, c));
+    return map;
+  }, [customers]);
+
+  // 🎯 현장별 옵션관리 등록 현장 중 옵션 참조 대상 목록 (검색 필터 및 옵션 보유 현장 상위 정렬)
+  const optionReferenceSites = useMemo(() => {
+    return (sites || []).filter(s => {
+      if (editingSite?.id && s.id === editingSite.id) return false;
+      if (editingSiteOption?.id && s.id === editingSiteOption.id) return false;
+
+      if (siteOptionRefSearch.trim()) {
+        const kw = siteOptionRefSearch.trim().toLowerCase();
+        const cName = customerMap.get(s.customerId)?.name || '';
+        const sName = s.name || '';
+        const sAddr = s.address || '';
+        const sOpts = (s.paidOptions || '') + ' ' + (s.protection || '');
+        return (
+          sName.toLowerCase().includes(kw) ||
+          cName.toLowerCase().includes(kw) ||
+          sAddr.toLowerCase().includes(kw) ||
+          sOpts.toLowerCase().includes(kw)
+        );
+      }
+      return true;
+    }).sort((a, b) => {
+      const aHasOpts = Boolean(a.paidOptions || a.protection || (a.checkedSpecs && Object.keys(a.checkedSpecs).length > 0));
+      const bHasOpts = Boolean(b.paidOptions || b.protection || (b.checkedSpecs && Object.keys(b.checkedSpecs).length > 0));
+      if (aHasOpts && !bHasOpts) return -1;
+      if (!aHasOpts && bHasOpts) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  }, [sites, customerMap, editingSite?.id, editingSiteOption?.id, siteOptionRefSearch]);
+
+  const selectedRefSite = useMemo(() => {
+    if (!selectedRefSiteId) return null;
+    return (sites || []).find(s => s.id === selectedRefSiteId) || null;
+  }, [sites, selectedRefSiteId]);
+
+  const selectedRefCustomer = useMemo(() => {
+    if (!selectedRefSite) return null;
+    return customerMap.get(selectedRefSite.customerId) || null;
+  }, [customerMap, selectedRefSite]);
+
+  const refCheckedSpecsSummary = useMemo(() => {
+    if (!selectedRefSite?.checkedSpecs) return '';
+    const activeSpecNames = (standardOptions || [])
+      .filter(o => o.category === 'SPEC' && selectedRefSite.checkedSpecs?.[o.id])
+      .map(o => o.name);
+    return activeSpecNames.length > 0 ? activeSpecNames.join(', ') : '';
+  }, [selectedRefSite, standardOptions]);
 
   const customerContacts = useMemo(() => {
     return contacts
@@ -549,9 +608,14 @@ export const Customers: React.FC = () => {
       statementClosingDay: parentCust?.defaultStatementClosingDay || 25,
       billingDay: parentCust?.defaultBillingDay || 30,
       paymentDueMonthOffset: parentCust?.paymentDueMonthOffset ?? 1,
-      paymentDueDay: parentCust?.paymentDueDay || 25
+      paymentDueDay: parentCust?.paymentDueDay || 25,
+      paidOptions: parentCust?.defaultPaidOptions || '',
+      protection: parentCust?.defaultProtection || '',
+      checkedSpecs: parentCust?.defaultCheckedSpecs ? { ...parentCust.defaultCheckedSpecs } : {}
     });
     setShowSiteSpecs(false);
+    setSiteOptionRefSearch('');
+    setSelectedRefSiteId('');
     setShowSiteModal(true);
   };
 
@@ -663,6 +727,8 @@ export const Customers: React.FC = () => {
       contacts: contactsList
     });
     setShowSiteSpecs(false);
+    setSiteOptionRefSearch('');
+    setSelectedRefSiteId('');
     setShowSiteModal(true);
   };
 
@@ -865,9 +931,12 @@ export const Customers: React.FC = () => {
   // 🏗️ 현장 전용 옵션 모달 핸들러
   const handleOpenSiteOptionModal = (cs: CustomerSite) => {
     setEditingSiteOption(cs);
+    setSiteOptionRefSearch('');
+    setSelectedRefSiteId('');
     setSiteOptionForm({
       paidOptions: normalizeOptionString(cs.paidOptions),
-      protection: normalizeOptionString(cs.protection)
+      protection: normalizeOptionString(cs.protection),
+      checkedSpecs: cs.checkedSpecs ? { ...cs.checkedSpecs } : {}
     });
     setShowSiteOptionModal(true);
   };
@@ -878,6 +947,7 @@ export const Customers: React.FC = () => {
       db.updateRow<CustomerSite>('sites', editingSiteOption.id, {
         paidOptions: siteOptionForm.paidOptions,
         protection: siteOptionForm.protection,
+        checkedSpecs: siteOptionForm.checkedSpecs || {},
         updatedAt: new Date().toISOString()
       });
       await db.awaitPendingWrites();
@@ -890,11 +960,47 @@ export const Customers: React.FC = () => {
     }
   };
 
+  // 📋 현장별 옵션관리 등록 현장 옵션 속성 복사 (SiteModal)
+  const handleApplyRefSiteOptionsToEditingSite = () => {
+    if (!selectedRefSite) {
+      showToast('옵션을 복사할 참조 현장을 먼저 선택하세요.', 'error');
+      return;
+    }
+    setEditingSite(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        paidOptions: selectedRefSite.paidOptions || '',
+        protection: selectedRefSite.protection || '',
+        checkedSpecs: selectedRefSite.checkedSpecs ? { ...selectedRefSite.checkedSpecs } : {}
+      };
+    });
+    const cName = selectedRefCustomer?.name || '고객사';
+    showToast(`[${cName} - ${selectedRefSite.name}] 현장의 옵션 속성을 적용했습니다.`);
+  };
+
+  // 📋 현장별 옵션관리 등록 현장 옵션 속성 복사 (SiteOptionModal)
+  const handleApplyRefSiteOptionsToOptionForm = () => {
+    if (!selectedRefSite) {
+      showToast('옵션을 복사할 참조 현장을 먼저 선택하세요.', 'error');
+      return;
+    }
+    setSiteOptionForm(prev => ({
+      ...prev,
+      paidOptions: selectedRefSite.paidOptions || '',
+      protection: selectedRefSite.protection || '',
+      checkedSpecs: selectedRefSite.checkedSpecs ? { ...selectedRefSite.checkedSpecs } : {}
+    }));
+    const cName = selectedRefCustomer?.name || '고객사';
+    showToast(`[${cName} - ${selectedRefSite.name}] 현장의 옵션 속성을 적용했습니다.`);
+  };
+
   const handleCopyDefaultsToSiteOptionForm = () => {
     if (!activeCustomer) return;
     setSiteOptionForm({
       paidOptions: normalizeOptionString(activeCustomer.defaultPaidOptions),
-      protection: normalizeOptionString(activeCustomer.defaultProtection)
+      protection: normalizeOptionString(activeCustomer.defaultProtection),
+      checkedSpecs: activeCustomer.defaultCheckedSpecs ? { ...activeCustomer.defaultCheckedSpecs } : {}
     });
     showToast(`고객사 기본 옵션을 불러왔습니다.`);
   };
@@ -2983,6 +3089,124 @@ export const Customers: React.FC = () => {
                   </div>
                 </div>
 
+                {/* 🔍 현장별 옵션관리 등록 현장 검색 및 옵션 속성 복사 (참조 동기화) */}
+                <div 
+                  data-mid="site-option-ref-search-box"
+                  style={{
+                    backgroundColor: 'var(--bg-app)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '6px',
+                    padding: '8px 10px',
+                    marginBottom: '10px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ ...labelStyle, fontSize: '11px', fontWeight: 700, color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Search size={12} color="var(--primary)" />
+                      현장별 옵션관리 등록 현장 검색 (옵션 속성 복사)
+                    </label>
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      기등록 현장의 유상/보양/사양 속성 즉시 일치
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr auto', gap: '6px', alignItems: 'center' }}>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type="text"
+                        style={{ ...inputStyle, paddingLeft: '22px', fontSize: '11px', height: '28px' }}
+                        placeholder="현장명/고객사 검색"
+                        value={siteOptionRefSearch}
+                        onChange={e => setSiteOptionRefSearch(e.target.value)}
+                      />
+                      <Search size={11} style={{ position: 'absolute', left: '7px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                    </div>
+
+                    <select
+                      style={{ ...inputStyle, fontSize: '11px', height: '28px' }}
+                      value={selectedRefSiteId}
+                      onChange={e => setSelectedRefSiteId(e.target.value)}
+                    >
+                      <option value="">-- 옵션 참조 현장 선택 ({optionReferenceSites.length}개) --</option>
+                      {optionReferenceSites.map(s => {
+                        const custName = customerMap.get(s.customerId)?.name || '고객사 미지정';
+                        const optSummary = [s.paidOptions, s.protection].filter(Boolean).join(' | ');
+                        return (
+                          <option key={s.id} value={s.id}>
+                            [{custName}] {s.name} {optSummary ? `(${optSummary})` : '(옵션 미설정)'}
+                          </option>
+                        );
+                      })}
+                    </select>
+
+                    <button
+                      type="button"
+                      onClick={handleApplyRefSiteOptionsToEditingSite}
+                      disabled={!selectedRefSiteId}
+                      style={{
+                        padding: '0 10px',
+                        height: '28px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        backgroundColor: selectedRefSiteId ? '#2563eb' : 'var(--bg-card)',
+                        color: selectedRefSiteId ? '#ffffff' : 'var(--text-muted)',
+                        border: selectedRefSiteId ? '1px solid #1d4ed8' : '1px solid var(--border-color)',
+                        borderRadius: '4px',
+                        cursor: selectedRefSiteId ? 'pointer' : 'not-allowed',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        whiteSpace: 'nowrap'
+                      }}
+                      title="선택한 등록 현장의 옵션 속성을 현재 현장에 복사 적용"
+                    >
+                      <Copy size={12} />
+                      옵션 속성 복사
+                    </button>
+                  </div>
+
+                  {selectedRefSite && (
+                    <div 
+                      style={{
+                        marginTop: '2px',
+                        padding: '6px 8px',
+                        backgroundColor: 'rgba(37, 99, 235, 0.05)',
+                        border: '1px dashed rgba(37, 99, 235, 0.3)',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '3px',
+                        fontSize: '10.5px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 700, color: '#1d4ed8', whiteSpace: 'nowrap' }}>
+                          참조 대상: [{selectedRefCustomer?.name || '고객사'}] {selectedRefSite.name}
+                        </span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '10px', whiteSpace: 'nowrap' }}>
+                          {selectedRefSite.address || '주소 없음'}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', color: 'var(--text-main)', marginTop: '2px' }}>
+                        <span>
+                          <strong>유상옵션:</strong> {selectedRefSite.paidOptions || '없음'}
+                        </span>
+                        <span>•</span>
+                        <span>
+                          <strong>보양작업:</strong> {selectedRefSite.protection || '없음'}
+                        </span>
+                        <span>•</span>
+                        <span>
+                          <strong>요구사양:</strong> {refCheckedSpecsSummary || '없음'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div>
                     <label style={labelStyle}>현장 전용 유상옵션 (표준 항목 클릭 선택 또는 직접 입력)</label>
@@ -3054,6 +3278,39 @@ export const Customers: React.FC = () => {
                       onChange={e => setEditingSite({ ...editingSite, protection: e.target.value })}
                       placeholder="비어있으면 기본값 상속, 또는 직접 입력"
                     />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>현장 전용 요구사양 (안전 규격 및 인증 사양)</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                      {standardOptions.filter(o => o.category === 'SPEC' && o.isActive).map(opt => {
+                        const isSelected = Boolean(editingSite.checkedSpecs && editingSite.checkedSpecs[opt.id]);
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            onClick={() => {
+                              const updated = {
+                                ...(editingSite.checkedSpecs || {}),
+                                [opt.id]: !isSelected
+                              };
+                              setEditingSite({ ...editingSite, checkedSpecs: updated });
+                            }}
+                            style={{
+                              padding: '2px 6px',
+                              fontSize: '10px',
+                              borderRadius: '3px',
+                              border: isSelected ? '1px solid #d97706' : '1px solid var(--border-color)',
+                              backgroundColor: isSelected ? 'rgba(217, 119, 6, 0.15)' : 'var(--bg-app)',
+                              color: isSelected ? '#b45309' : 'var(--text-secondary)',
+                              fontWeight: isSelected ? 700 : 400,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {opt.name} {isSelected ? '✓' : ''}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -3401,6 +3658,123 @@ export const Customers: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '12px' }}>
+              {/* 🔍 현장별 옵션관리 등록 현장 검색 및 옵션 속성 복사 (참조 동기화) */}
+              <div 
+                data-mid="site-option-ref-search-box-modal"
+                style={{
+                  backgroundColor: 'var(--bg-app)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  padding: '8px 10px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ ...labelStyle, fontSize: '11px', fontWeight: 700, color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Search size={12} color="var(--primary)" />
+                    현장별 옵션관리 등록 현장 검색 (옵션 속성 복사)
+                  </label>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    기등록 현장의 유상/보양/사양 속성 즉시 일치
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr auto', gap: '6px', alignItems: 'center' }}>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      style={{ ...inputStyle, paddingLeft: '22px', fontSize: '11px', height: '28px' }}
+                      placeholder="현장명/고객사 검색"
+                      value={siteOptionRefSearch}
+                      onChange={e => setSiteOptionRefSearch(e.target.value)}
+                    />
+                    <Search size={11} style={{ position: 'absolute', left: '7px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                  </div>
+
+                  <select
+                    style={{ ...inputStyle, fontSize: '11px', height: '28px' }}
+                    value={selectedRefSiteId}
+                    onChange={e => setSelectedRefSiteId(e.target.value)}
+                  >
+                    <option value="">-- 옵션 참조 현장 선택 ({optionReferenceSites.length}개) --</option>
+                    {optionReferenceSites.map(s => {
+                      const custName = customerMap.get(s.customerId)?.name || '고객사 미지정';
+                      const optSummary = [s.paidOptions, s.protection].filter(Boolean).join(' | ');
+                      return (
+                        <option key={s.id} value={s.id}>
+                          [{custName}] {s.name} {optSummary ? `(${optSummary})` : '(옵션 미설정)'}
+                        </option>
+                      );
+                    })}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={handleApplyRefSiteOptionsToOptionForm}
+                    disabled={!selectedRefSiteId}
+                    style={{
+                      padding: '0 10px',
+                      height: '28px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      backgroundColor: selectedRefSiteId ? '#2563eb' : 'var(--bg-card)',
+                      color: selectedRefSiteId ? '#ffffff' : 'var(--text-muted)',
+                      border: selectedRefSiteId ? '1px solid #1d4ed8' : '1px solid var(--border-color)',
+                      borderRadius: '4px',
+                      cursor: selectedRefSiteId ? 'pointer' : 'not-allowed',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      whiteSpace: 'nowrap'
+                    }}
+                    title="선택한 등록 현장의 옵션 속성을 현재 현장에 복사 적용"
+                  >
+                    <Copy size={12} />
+                    옵션 속성 복사
+                  </button>
+                </div>
+
+                {selectedRefSite && (
+                  <div 
+                    style={{
+                      marginTop: '2px',
+                      padding: '6px 8px',
+                      backgroundColor: 'rgba(37, 99, 235, 0.05)',
+                      border: '1px dashed rgba(37, 99, 235, 0.3)',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '3px',
+                      fontSize: '10.5px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 700, color: '#1d4ed8', whiteSpace: 'nowrap' }}>
+                        참조 대상: [{selectedRefCustomer?.name || '고객사'}] {selectedRefSite.name}
+                      </span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '10px', whiteSpace: 'nowrap' }}>
+                        {selectedRefSite.address || '주소 없음'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', color: 'var(--text-main)', marginTop: '2px' }}>
+                      <span>
+                        <strong>유상옵션:</strong> {selectedRefSite.paidOptions || '없음'}
+                      </span>
+                      <span>•</span>
+                      <span>
+                        <strong>보양작업:</strong> {selectedRefSite.protection || '없음'}
+                      </span>
+                      <span>•</span>
+                      <span>
+                        <strong>요구사양:</strong> {refCheckedSpecsSummary || '없음'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* 1. 현장 전용 유상옵션 */}
               <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px 12px', backgroundColor: 'var(--bg-app)' }}>
                 <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
@@ -3478,6 +3852,43 @@ export const Customers: React.FC = () => {
                   onChange={e => setSiteOptionForm({ ...siteOptionForm, protection: e.target.value })}
                   placeholder="비어있으면 고객사 기본값 상속"
                 />
+              </div>
+
+              {/* 3. 현장 전용 요구사양 (SPEC) */}
+              <div style={{ border: '1px solid var(--border-color)', borderRadius: '6px', padding: '10px 12px', backgroundColor: 'var(--bg-app)' }}>
+                <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '6px' }}>
+                  현장 전용 요구사양 (안전 규격 및 인증 사양)
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  {standardOptions.filter(o => o.category === 'SPEC' && o.isActive).map(opt => {
+                    const isSelected = Boolean(siteOptionForm.checkedSpecs && siteOptionForm.checkedSpecs[opt.id]);
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => {
+                          const updated = {
+                            ...(siteOptionForm.checkedSpecs || {}),
+                            [opt.id]: !isSelected
+                          };
+                          setSiteOptionForm({ ...siteOptionForm, checkedSpecs: updated });
+                        }}
+                        style={{
+                          padding: '2px 7px',
+                          fontSize: '10.5px',
+                          borderRadius: '4px',
+                          border: isSelected ? '1px solid #d97706' : '1px solid var(--border-color)',
+                          backgroundColor: isSelected ? 'rgba(217, 119, 6, 0.15)' : 'var(--bg-card)',
+                          color: isSelected ? '#b45309' : 'var(--text-main)',
+                          fontWeight: isSelected ? 700 : 500,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {opt.name} {isSelected ? '✓' : ''}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
