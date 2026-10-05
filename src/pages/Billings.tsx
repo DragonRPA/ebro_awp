@@ -74,7 +74,12 @@ export const Billings: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'LIST' | 'GENERATE' | 'WIZARD' | 'INVOICE' | 'WAIVER'>('LIST');
 
   // --- 청구 조회 필터 상태 ---
-  const initialYm = new Date().toISOString().slice(0, 7);
+  const initialYm = (() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+  })();
   const [tempSearchTerm, setTempSearchTerm] = useState('');
   const [tempContractNoFilter, setTempContractNoFilter] = useState('');
   const [tempStartBillingYmFilter, setTempStartBillingYmFilter] = useState(initialYm);
@@ -426,21 +431,18 @@ export const Billings: React.FC = () => {
     }).map(b => b.id);
   };
 
-  // 최초 1회 초기 필터 조건으로 조회 스냅샷 생성
+  // 최초 1회 초기 필터 조건(당월)으로 조회 스냅샷 생성
   useEffect(() => {
     if (searchedBillingIds === null && billings.length > 0) {
-      let effectiveStartYm = startBillingYmFilter;
-      let effectiveEndYm = endBillingYmFilter;
-      // 당월 청구 데이터가 없고 과거 청구 내역이 있는 경우 가장 최신 청구월로 자동 포커스
-      if (!billings.some(b => b.billingYm === initialYm) && billingMonths.length > 0) {
-        effectiveStartYm = billingMonths[0];
-        effectiveEndYm = billingMonths[0];
-        setTempStartBillingYmFilter(effectiveStartYm);
-        setTempEndBillingYmFilter(effectiveEndYm);
-        setStartBillingYmFilter(effectiveStartYm);
-        setEndBillingYmFilter(effectiveEndYm);
-      }
-      const ids = computeMatchedBillingIds(searchTerm, contractNoFilter, effectiveStartYm, effectiveEndYm, paymentFilter, mailSentFilter, invoiceFilter);
+      const ids = computeMatchedBillingIds(
+        searchTerm,
+        contractNoFilter,
+        startBillingYmFilter,
+        endBillingYmFilter,
+        paymentFilter,
+        mailSentFilter,
+        invoiceFilter
+      );
       setSearchedBillingIds(ids);
     }
   }, [billings.length]);
@@ -468,7 +470,7 @@ export const Billings: React.FC = () => {
   };
 
   const handleResetFilters = () => {
-    const defaultYm = billings.some(b => b.billingYm === initialYm) ? initialYm : (billingMonths[0] || initialYm);
+    const defaultYm = initialYm;
     setTempSearchTerm('');
     setTempContractNoFilter('');
     setTempStartBillingYmFilter(defaultYm);
@@ -491,7 +493,7 @@ export const Billings: React.FC = () => {
 
   // ◀ 전월 / 당월 / 다음달 ▶ 기간 이동 핸들러
   const shiftMonth = (baseYm: string, deltaMonths: number): string => {
-    const ym = baseYm || new Date().toISOString().slice(0, 7);
+    const ym = baseYm || initialYm;
     const [yStr, mStr] = ym.split('-');
     const date = new Date(Number(yStr), Number(mStr) - 1 + deltaMonths, 1);
     const y = date.getFullYear();
@@ -500,7 +502,7 @@ export const Billings: React.FC = () => {
   };
 
   const handlePrevMonth = () => {
-    const curYm = tempStartBillingYmFilter || tempEndBillingYmFilter || new Date().toISOString().slice(0, 7);
+    const curYm = tempStartBillingYmFilter || tempEndBillingYmFilter || initialYm;
     const nextYm = shiftMonth(curYm, -1);
     setTempStartBillingYmFilter(nextYm);
     setTempEndBillingYmFilter(nextYm);
@@ -510,12 +512,12 @@ export const Billings: React.FC = () => {
     setContractNoFilter(tempContractNoFilter);
     setPaymentFilter(tempPaymentFilter);
     setMailSentFilter(tempMailSentFilter);
-    const matched = computeMatchedBillingIds(tempSearchTerm, tempContractNoFilter, nextYm, nextYm, tempPaymentFilter, tempMailSentFilter);
+    const matched = computeMatchedBillingIds(tempSearchTerm, tempContractNoFilter, nextYm, nextYm, tempPaymentFilter, tempMailSentFilter, tempInvoiceFilter);
     setSearchedBillingIds(matched);
   };
 
   const handleCurrentMonth = () => {
-    const nowYm = new Date().toISOString().slice(0, 7);
+    const nowYm = initialYm;
     setTempStartBillingYmFilter(nowYm);
     setTempEndBillingYmFilter(nowYm);
     setStartBillingYmFilter(nowYm);
@@ -524,12 +526,12 @@ export const Billings: React.FC = () => {
     setContractNoFilter(tempContractNoFilter);
     setPaymentFilter(tempPaymentFilter);
     setMailSentFilter(tempMailSentFilter);
-    const matched = computeMatchedBillingIds(tempSearchTerm, tempContractNoFilter, nowYm, nowYm, tempPaymentFilter, tempMailSentFilter);
+    const matched = computeMatchedBillingIds(tempSearchTerm, tempContractNoFilter, nowYm, nowYm, tempPaymentFilter, tempMailSentFilter, tempInvoiceFilter);
     setSearchedBillingIds(matched);
   };
 
   const handleNextMonth = () => {
-    const curYm = tempEndBillingYmFilter || tempStartBillingYmFilter || new Date().toISOString().slice(0, 7);
+    const curYm = tempEndBillingYmFilter || tempStartBillingYmFilter || initialYm;
     const nextYm = shiftMonth(curYm, 1);
     setTempStartBillingYmFilter(nextYm);
     setTempEndBillingYmFilter(nextYm);
@@ -539,7 +541,7 @@ export const Billings: React.FC = () => {
     setContractNoFilter(tempContractNoFilter);
     setPaymentFilter(tempPaymentFilter);
     setMailSentFilter(tempMailSentFilter);
-    const matched = computeMatchedBillingIds(tempSearchTerm, tempContractNoFilter, nextYm, nextYm, tempPaymentFilter, tempMailSentFilter);
+    const matched = computeMatchedBillingIds(tempSearchTerm, tempContractNoFilter, nextYm, nextYm, tempPaymentFilter, tempMailSentFilter, tempInvoiceFilter);
     setSearchedBillingIds(matched);
   };
 
