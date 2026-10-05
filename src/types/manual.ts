@@ -26,11 +26,25 @@ export interface ManualAnnotationItem {
   autoExtracted?: string;    // DOM textContent / placeholder / aria-label 자동 추출
 }
 
+export interface ManualProcessStep extends ManualAnnotationItem {
+  actionRequired?: 'click' | 'input' | 'none'; // ?ㅼ쓬 ?⑥젙?쇰줈 ?섎어가湲??꾪빐 ?꾩슂???≫뀡
+}
+
+export interface ManualProcessFlow {
+  processId: string;
+  title: string;
+  description: string;
+  steps: ManualProcessStep[];
+}
+
 export interface ManualPage {
   pageId: string;
   pageTitle: string;
   version: number;
-  items: ManualAnnotationItem[];
+  // 2-Tier ?꾩궎?띿쿂
+  basicGuide: ManualAnnotationItem[]; // 湲곗큹 ?덈궡 (?붾㈃ 媛쒓큵)
+  processes: ManualProcessFlow[];     // ?낅Т ?먮쫫 ?뚰겕?ㅻ（ (?곗감??
+  items?: ManualAnnotationItem[];     // 媛€??諛붿씤??(Backward compatibility)
 }
 
 // DB row shape
