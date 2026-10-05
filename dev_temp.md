@@ -11,6 +11,32 @@
 
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## 2026-10-06 00:22 (v1.13.0.Build.34 배포 완료 - 인앱 히스토리 네비게이션 및 다크/라이트 배색 전면 개선)
+- **요구사항**: 
+  1. 인앱 뒤로가기/앞으로가기 네비게이션 구현 (Alt+←/→ 단축키 및 마우스 뒤로가기 버튼 연동, 최대 30단계 스택 보존, 서브탭 세션 메모리 보존).
+  2. 다크모드에서 검은색 글씨가 보이지 않던 이슈 해결 (src/index.css 스코핑 교정).
+  3. 출고 장비 규격 모델 칩 및 가용수량 배지(`가용 0대 (임차필요)`)의 자극적인 노란색을 눈이 편안한 파스텔/다크앰버 톤으로 전면 교체.
+  4. 라이트 모드 전체 배경색을 완전 흰색에서 눈이 편안한 옅은 아이보리 웜톤(`--bg-app: #f7f5f0`)으로 전면 전환.
+  5. 계약 관리 화면 내 `[ ] 출고진행현황` 컬럼 표시/숨김 토글 체크박스 탑재.
+- **기술 조치 내역**:
+  1. `src/context/AppContext.tsx`: `historyStack`, `historyIndex`, `canGoBack`, `canGoForward`, `goBack`, `goForward` 구현, popstate 및 `Alt+ArrowLeft/Right` 전역 리스너 탑재.
+  2. `src/App.tsx`: 헤더 좌측에 `[ < ]`, `[ > ]` 미니멀 버튼 배치 (호버 툴팁 안내), `ChevronLeft` 아이콘 임포트.
+  3. `src/index.css`: 라이트 모드 토큰을 아이보리 톤(`--bg-app: #f7f5f0`, `--bg-card: #fdfcf9`, `--bg-sidebar: #faf8f3`, `--bg-header: #faf8f3`)으로 변경, `:root` 블랙 강제 규칙을 `[data-theme='light']`로 엄격 제한하고 다크 모드 고대비 텍스트 규칙 추가.
+  4. `src/pages/smart_dispatch4.css` & `src/pages/smart_dispatch4.tsx`: `dispatch4-model-chip`, `dispatch4-qty-badge` 클래스 도입, 자극적인 쨍한 노란색/블랙 조합 제거 및 아이/나이트 컴포트 배색 적용, 블록 2 빈 안내창 CSS 변수 연동.
+  5. `src/pages/TruckDispatch.tsx`, `src/pages/Billings.tsx`, `src/pages/smart_dispatch4.tsx`: 서브탭 변경 시 세션 스토리지 기억으로 화면 복귀 시 서브탭 100% 유지.
+- **검증**: `npm run build` (`tsc -b && vite build`) 무결성 통과 (0 errors).
+
+## 2026-10-06 00:00 (계약 관리 출고진행현황 컬럼 표시/숨김 토글 체크박스 추가)
+- **요구사항**: 출고진행현황을 v 표시한 위치(계약기간 좌측)에 체크박스로 표시하거나 숨기거나 변경할 수 있게 해주고 기본값은 false 로 적용
+- **기술 조치 내역**:
+  1. `src/pages/Contracts.tsx`:
+     - `showOutboundProgressCol` 상태 추가 (기본값 `false`).
+     - 컬럼 토글 영역 최좌측(계약기간 앞)에 `출고진행현황` 체크박스 배치.
+     - 테이블 헤더(`thead`)의 `출고 진행 현황` `th`를 `showOutboundProgressCol`에 따라 조건부 렌더링.
+     - 테이블 본문(`tbody`)의 마일스톤 배지 `td`를 `showOutboundProgressCol`에 따라 조건부 렌더링.
+     - 빈 테이블 안내 메시지의 `colSpan`을 10 + 선택된 컬럼 수로 동적 계산되도록 보정.
+- **검증**: `npm run build` (`tsc -b && vite build`) 무결성 통과 (0 errors).
+
 ## 2026-10-05 23:55 (v1.13.0.Build.33 배포 완료)
 
 ### [정비점검항목마스터초기DB엑셀업로드신설/DB초기화테넌트소탕무결성확립/OneDrive자동업로드폴더백업및중복정리완결] 정비 점검항목 마스터 엑셀 표준 서식 다운로드 및 파싱·일괄 적재 엔진(exportInspectionChecklistExcelTemplate, parseInspectionChecklistExcel, ingestInspectionChecklistToDatabase) 신설, InitialDbUploader.tsx 내 정비 점검항목 엑셀 업로드 전용 카드(미리보기 통계 그리드, Z-패턴 완결 버튼) 탑재, inspection_checklist_items 테이블 tenant_id DDL 추가 및 TABLE_COLUMNS 화이트리스트 정합성 등록, resetAllDatabaseTables 시 테넌트 정비 항목 및 레거시 미지정(NULL) 항목 100% 완전 소탕 보장, D:\OneDrive\Desktop\기연리프트자료_\자동업로드 폴더에 정비 항목 25건 엑셀/JSON 영구 백업 완료 및 중복 2건 삭제 정리

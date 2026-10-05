@@ -4,19 +4,19 @@
 
 :root,
 [data-theme='light'] {
-  /* 라이트 테마 토큰 */
-  --bg-app: #f4f6fa;
-  --bg-sidebar: #ffffff;
-  --bg-card: #ffffff;
-  --bg-header: #ffffff;
-  --border-color: #94a3b8;         /* Slate-400 - 카드/입력창/버튼 테두리 시인성 강화 */
-  --table-border-color: #94a3b8;
-  --table-row-border: #94a3b8; /* 어둡고 짙은 파란/슬레이트 가로선 */
+  /* 🌟 라이트 테마 토큰: 부드럽고 눈이 편안한 옅은 아이보리 웜톤 표준 */
+  --bg-app: #f7f5f0;              /* 부드러운 웜 아이보리 배경 */
+  --bg-sidebar: #faf8f3;          /* 크리미 아이보리 사이드바 */
+  --bg-card: #fdfcf9;             /* 은은한 웜화이트/아이보리 카드 */
+  --bg-header: #faf8f3;           /* 웜 아이보리 상단 헤더 */
+  --border-color: #cbd5e1;        /* 부드럽고 정돈된 경계선 */
+  --table-border-color: #cbd5e1;
+  --table-row-border: #e2e8f0;    /* 차분한 행 구분선 */
   
-  --scrollbar-track: #cbd5e1;
-  --scrollbar-thumb: #475569; /* 짙은 도드라진 썸 */
-  --scrollbar-thumb-hover: #1d4ed8; /* 짙은 블루 호버 */
-  --scrollbar-thumb-border: #ffffff;
+  --scrollbar-track: #e2e8f0;
+  --scrollbar-thumb: #94a3b8;     /* 썸 */
+  --scrollbar-thumb-hover: #475569;
+  --scrollbar-thumb-border: #f7f5f0;
   
   --primary: #4f46e5;
   --primary-hover: #4338ca;
@@ -54,21 +54,21 @@
   --transition-fast: 0.15s ease;
   --transition-normal: 0.25s ease;
 
-  /* 🎨 호환성 및 전사 통일 별칭 토큰 (라이트 테마) */
+  /* 🎨 호환성 및 전사 통일 별칭 토큰 (라이트 테마: 옅은 아이보리 계열) */
   --text-primary: #000000;
-  --border: #94a3b8;
-  --bg-body: #f4f6fa;
-  --bg-main: #f4f6fa;
-  --bg-secondary: #e2e8f0;
-  --bg-surface: #ffffff;
-  --card-bg: #ffffff;
-  --body-bg: #f4f6fa;
-  --bg-card-header: #f8fafc;
-  --bg-active: #e0e7ff;
+  --border: #cbd5e1;
+  --bg-body: #f7f5f0;
+  --bg-main: #f7f5f0;
+  --bg-secondary: #eeeae1;
+  --bg-surface: #fdfcf9;
+  --card-bg: #fdfcf9;
+  --body-bg: #f7f5f0;
+  --bg-card-header: #f2efe7;
+  --bg-active: #eeebff;
   --primary-rgb: 79, 70, 229;
   --primary-border: #818cf8;
   --accent: #4f46e5;
-  --accent-bg: #e0e7ff;
+  --accent-bg: #eeebff;
   --accent-border: #818cf8;
 }
 
@@ -396,42 +396,90 @@ label {
   color: var(--text-secondary);
 }
 
-/* 🌟 라이트 모드 고시인성 완전 블랙 표준: 회색 글씨 전면 제거 */
-:root label, [data-theme='light'] label {
+/* 🌟 라이트 모드 고시인성 완전 블랙 표준: 회색 글씨 라이트 모드에서만 블랙 변환 (다크 모드 침범 방지) */
+[data-theme='light'] label,
+:root:not([data-theme='dark']) label {
   color: #000000 !important;
 }
 
-:root th, [data-theme='light'] th {
+[data-theme='light'] th,
+:root:not([data-theme='dark']) th {
   color: #000000 !important;
 }
 
-:root .text-muted, [data-theme='light'] .text-muted,
-:root .text-secondary, [data-theme='light'] .text-secondary,
-:root .text-slate-300, [data-theme='light'] .text-slate-300,
-:root .text-slate-400, [data-theme='light'] .text-slate-400,
-:root .text-slate-500, [data-theme='light'] .text-slate-500,
-:root .text-slate-600, [data-theme='light'] .text-slate-600,
-:root .text-gray-300, [data-theme='light'] .text-gray-300,
-:root .text-gray-400, [data-theme='light'] .text-gray-400,
-:root .text-gray-500, [data-theme='light'] .text-gray-500,
-:root .text-gray-600, [data-theme='light'] .text-gray-600 {
+[data-theme='light'] .text-muted,
+:root:not([data-theme='dark']) .text-muted,
+[data-theme='light'] .text-secondary,
+:root:not([data-theme='dark']) .text-secondary,
+[data-theme='light'] .text-slate-300,
+:root:not([data-theme='dark']) .text-slate-300,
+[data-theme='light'] .text-slate-400,
+:root:not([data-theme='dark']) .text-slate-400,
+[data-theme='light'] .text-slate-500,
+:root:not([data-theme='dark']) .text-slate-500,
+[data-theme='light'] .text-slate-600,
+:root:not([data-theme='dark']) .text-slate-600,
+[data-theme='light'] .text-gray-300,
+:root:not([data-theme='dark']) .text-gray-300,
+[data-theme='light'] .text-gray-400,
+:root:not([data-theme='dark']) .text-gray-400,
+[data-theme='light'] .text-gray-500,
+:root:not([data-theme='dark']) .text-gray-500,
+[data-theme='light'] .text-gray-600,
+:root:not([data-theme='dark']) .text-gray-600 {
   color: #000000 !important;
 }
 
-/* 인라인 스타일로 지정된 흐린 회색 글씨 라이트 모드 강제 블랙 변환 */
-:root [style*="color: #64748b"], [data-theme='light'] [style*="color: #64748b"],
-:root [style*="color: #475569"], [data-theme='light'] [style*="color: #475569"],
-:root [style*="color: #94a3b8"], [data-theme='light'] [style*="color: #94a3b8"],
-:root [style*="color: #334155"], [data-theme='light'] [style*="color: #334155"],
-:root [style*="color: #6b7280"], [data-theme='light'] [style*="color: #6b7280"],
-:root [style*="color: #9ca3af"], [data-theme='light'] [style*="color: #9ca3af"],
-:root [style*="color: rgb(100, 116, 139)"], [data-theme='light'] [style*="color: rgb(100, 116, 139)"],
-:root [style*="color: rgb(71, 85, 105)"], [data-theme='light'] [style*="color: rgb(71, 85, 105)"],
-:root [style*="color: rgb(148, 163, 184)"], [data-theme='light'] [style*="color: rgb(148, 163, 184)"],
-:root [style*="color: rgb(51, 65, 85)"], [data-theme='light'] [style*="color: rgb(51, 65, 85)"],
-:root [style*="color: rgb(107, 114, 128)"], [data-theme='light'] [style*="color: rgb(107, 114, 128)"],
-:root [style*="color: rgb(156, 163, 175)"], [data-theme='light'] [style*="color: rgb(156, 163, 175)"] {
+/* 인라인 스타일로 지정된 흐린 회색 글씨: 오직 라이트 모드에서만 블랙 변환 */
+[data-theme='light'] [style*="color: #64748b"],
+[data-theme='light'] [style*="color: #475569"],
+[data-theme='light'] [style*="color: #94a3b8"],
+[data-theme='light'] [style*="color: #334155"],
+[data-theme='light'] [style*="color: #6b7280"],
+[data-theme='light'] [style*="color: #9ca3af"],
+[data-theme='light'] [style*="color: rgb(100, 116, 139)"],
+[data-theme='light'] [style*="color: rgb(71, 85, 105)"],
+[data-theme='light'] [style*="color: rgb(148, 163, 184)"],
+[data-theme='light'] [style*="color: rgb(51, 65, 85)"],
+[data-theme='light'] [style*="color: rgb(107, 114, 128)"],
+[data-theme='light'] [style*="color: rgb(156, 163, 175)"] {
   color: #000000 !important;
+}
+
+/* 🌙 다크 모드 고시인성 보장: 검은 글씨 오염 방지 및 명확한 라이트 슬레이트 가독성 */
+[data-theme='dark'] label {
+  color: #f1f5f9 !important;
+}
+
+[data-theme='dark'] th {
+  color: #f8fafc !important;
+}
+
+[data-theme='dark'] .text-slate-100,
+[data-theme='dark'] .text-gray-100 {
+  color: #f8fafc !important;
+}
+
+[data-theme='dark'] .text-slate-200,
+[data-theme='dark'] .text-gray-200 {
+  color: #e2e8f0 !important;
+}
+
+[data-theme='dark'] .text-slate-300,
+[data-theme='dark'] .text-gray-300,
+[data-theme='dark'] .text-secondary {
+  color: #cbd5e1 !important;
+}
+
+[data-theme='dark'] .text-slate-400,
+[data-theme='dark'] .text-gray-400,
+[data-theme='dark'] .text-muted {
+  color: #94a3b8 !important;
+}
+
+[data-theme='dark'] .text-slate-500,
+[data-theme='dark'] .text-gray-500 {
+  color: #64748b !important;
 }
 
 

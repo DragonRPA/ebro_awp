@@ -232,8 +232,20 @@ export const SmartDispatch4: React.FC = () => {
   }
   const [successModalInfo, setSuccessModalInfo] = useState<DispatchSuccessInfo | null>(null);
 
-  // ── 탭 ──────────────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<ActiveTab>('NEW');
+  // ── 탭 (세션 기억으로 복귀 시 탭 유지) ──────────────────────────────────────
+  const [activeTab, setActiveTabState] = useState<ActiveTab>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('smart_dispatch4_active_tab') as ActiveTab;
+      if (saved === 'NEW' || saved === 'QUEUE') return saved;
+    }
+    return 'NEW';
+  });
+  const setActiveTab = (tab: ActiveTab) => {
+    setActiveTabState(tab);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('smart_dispatch4_active_tab', tab);
+    }
+  };
   const [audioUploadOpen, setAudioUploadOpen] = useState(false);
 
   // ── 토스트 ────────────────────────────────────────────────────────────────
@@ -2861,10 +2873,13 @@ export const SmartDispatch4: React.FC = () => {
                   </div>
                 ) : !selectedCustomer ? (
                   /* 2. 고객사 미선택 시 안내 */
-                  <div className="p-6 bg-slate-900 border-2 border-slate-700/80 rounded-xl text-center flex flex-col items-center justify-center gap-2 text-sm text-slate-200 shadow-sm">
-                    <MapPin className="w-6 h-6 text-blue-400" />
-                    <span className="font-black text-white text-sm tracking-tight">고객사를 먼저 선택하십시오</span>
-                    <span className="text-xs text-slate-300 font-medium">1. 거래처 블록에서 거래처(고객사)를 지정하면 해당 고객사의 등록 현장 목록이 표시됩니다.</span>
+                  <div
+                    className="p-6 rounded-xl text-center flex flex-col items-center justify-center gap-2 text-sm shadow-sm"
+                    style={{ backgroundColor: 'var(--bg-app)', border: '1.5px dashed var(--border-color)' }}
+                  >
+                    <MapPin className="w-6 h-6 text-blue-500" />
+                    <span className="font-black text-sm tracking-tight" style={{ color: 'var(--text-main)' }}>고객사를 먼저 선택하십시오</span>
+                    <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>1. 거래처 블록에서 거래처(고객사)를 지정하면 해당 고객사의 등록 현장 목록이 표시됩니다.</span>
                   </div>
                 ) : isRegisteringNewSite ? (
                   /* 3. 신규 현장 등록 모드 (퀵카드/버튼 클릭 시) */
@@ -3264,21 +3279,15 @@ export const SmartDispatch4: React.FC = () => {
                         key={m.modelName}
                         onClick={() => addModel(m.modelName)}
                         title={`${m.modelName} (${m.manufacturer || ''}) | 당사 가용재고: ${m.availableCount}대 ${m.availableCount === 0 ? '(외부 임차/전대 필요)' : '(자사 출고 가능)'}`}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition border flex items-center gap-2 ${
-                          isPicked
-                            ? 'bg-blue-600 border-blue-400 text-white shadow-md ring-2 ring-blue-400/50'
-                            : m.availableCount > 0
-                              ? 'bg-slate-800/95 border-slate-600 text-white hover:bg-slate-700 hover:border-slate-400 shadow-sm'
-                              : 'bg-slate-800/95 border-amber-600/70 text-white hover:bg-slate-700 hover:border-amber-400 shadow-sm'
-                        }`}
+                        className={`dispatch4-model-chip ${isPicked ? 'selected' : ''}`}
                       >
                         <span className="whitespace-nowrap font-black">+ {m.modelName}</span>
                         {m.availableCount > 0 ? (
-                          <span className="text-[11px] px-1.5 py-0.5 rounded bg-emerald-600 text-white font-mono font-black whitespace-nowrap flex-shrink-0 shadow-sm">
+                          <span className="dispatch4-qty-badge available">
                             가용 {m.availableCount}대
                           </span>
                         ) : (
-                          <span className="text-[11px] px-1.5 py-0.5 rounded bg-amber-500 text-slate-950 font-mono font-black whitespace-nowrap flex-shrink-0 shadow-sm">
+                          <span className="dispatch4-qty-badge shortage">
                             가용 0대 (임차필요)
                           </span>
                         )}
@@ -3294,7 +3303,10 @@ export const SmartDispatch4: React.FC = () => {
 
                 <div data-mid="dispatch4-equipment-list">
                 {equipments.length > 0 ? (
-                  <div className="mt-1 flex flex-col gap-1.5 p-2 bg-slate-950 rounded-lg border border-slate-800">
+                  <div
+                    className="mt-1 flex flex-col gap-1.5 p-2 rounded-lg border"
+                    style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
+                  >
                     {(() => {
                       const totalAvailShortage = equipments.reduce((acc, eq) => {
                         const spec = catalogModels.find(s => s.modelName === eq.modelName);
@@ -3304,16 +3316,16 @@ export const SmartDispatch4: React.FC = () => {
 
                       return (
                         <div className="flex items-center justify-between px-1 flex-wrap gap-1">
-                          <span className="text-xs font-black text-slate-200">
+                          <span className="text-xs font-black" style={{ color: 'var(--text-main)' }}>
                             선택된 출고 장비 목록 ({equipments.length}종 / 총 {totalQty}대):
                           </span>
                           {totalAvailShortage > 0 ? (
-                            <span className="text-xs font-black px-2 py-0.5 rounded bg-amber-500 text-slate-950 flex items-center gap-1 font-mono whitespace-nowrap shadow-sm">
+                            <span className="dispatch4-qty-badge shortage text-xs font-black px-2 py-0.5 shadow-sm">
                               <span>⚠️ 외부 임차 {totalAvailShortage}대 필요</span>
                               <span className="font-bold">(가용 초과)</span>
                             </span>
                           ) : (
-                            <span className="text-xs font-black px-2 py-0.5 rounded bg-emerald-600 text-white flex items-center gap-1 font-mono whitespace-nowrap shadow-sm">
+                            <span className="dispatch4-qty-badge available text-xs font-black px-2 py-0.5 shadow-sm">
                               <span>✓ 전량 자사 가용재고 출고 가능</span>
                             </span>
                           )}
@@ -3330,35 +3342,39 @@ export const SmartDispatch4: React.FC = () => {
                       return (
                         <div
                           key={idx}
-                          className="flex items-center justify-between bg-slate-900 hover:bg-slate-850 px-3 py-2.5 rounded-lg border border-slate-700 shadow-sm transition-colors gap-2"
+                          className="flex items-center justify-between px-3 py-2.5 rounded-lg border shadow-sm transition-colors gap-2"
+                          style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
                         >
                           {/* 좌측: 장비 모델명, 제원 힌트 배지(ft, 제조사), 가용/임차 배지 */}
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                            <div className="w-7 h-7 rounded bg-emerald-950 border border-emerald-500/60 flex items-center justify-center flex-shrink-0">
-                              <Package size={15} className="text-emerald-400" style={{ width: 15, height: 15, display: 'block' }} />
+                            <div className="w-7 h-7 rounded flex items-center justify-center flex-shrink-0"
+                                 style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.35)' }}>
+                              <Package size={15} style={{ width: 15, height: 15, display: 'block', color: 'var(--success)' }} />
                             </div>
                             <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                              <span className="text-sm font-black text-white tracking-tight truncate">{eq.modelName}</span>
+                              <span className="text-sm font-black tracking-tight truncate" style={{ color: 'var(--text-main)' }}>{eq.modelName}</span>
                               {ftLabel && (
-                                <span className="text-xs font-black px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 border border-slate-600 flex-shrink-0 whitespace-nowrap">
+                                <span className="text-xs font-black px-1.5 py-0.5 rounded flex-shrink-0 whitespace-nowrap"
+                                      style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}>
                                   {ftLabel}
                                 </span>
                               )}
                               {spec?.manufacturer && (
-                                <span className="text-xs font-bold text-slate-300 px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 flex-shrink-0 whitespace-nowrap">
+                                <span className="text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0 whitespace-nowrap"
+                                      style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }}>
                                   {spec.manufacturer}
                                 </span>
                               )}
                               {/* 🌟 가용재고 vs 신청수량 대조 상태 배지 */}
                               {isShortage ? (
-                                <span className="text-xs font-black px-2 py-0.5 rounded bg-amber-500 text-slate-950 flex items-center gap-1 font-mono whitespace-nowrap flex-shrink-0 shadow-sm">
+                                <span className="dispatch4-qty-badge shortage">
                                   <span>가용 {availCount}대</span>
                                   <span className="underline underline-offset-2 font-bold">
                                     ({availCount === 0 ? '전량' : `${shortage}대`} 임차 필요)
                                   </span>
                                 </span>
                               ) : (
-                                <span className="text-xs font-black px-2 py-0.5 rounded bg-emerald-600 text-white flex items-center gap-1 font-mono whitespace-nowrap flex-shrink-0 shadow-sm">
+                                <span className="dispatch4-qty-badge available">
                                   <span>가용 {availCount}대</span>
                                   <span className="font-medium">(자사 출고 가능)</span>
                                 </span>

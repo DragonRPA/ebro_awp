@@ -71,7 +71,19 @@ export const Billings: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const [activeTab, setActiveTab] = useState<'LIST' | 'GENERATE' | 'WIZARD' | 'INVOICE' | 'WAIVER'>('LIST');
+  const [activeTab, setActiveTabState] = useState<'LIST' | 'GENERATE' | 'WIZARD' | 'INVOICE' | 'WAIVER'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('billings_active_tab') as any;
+      if (['LIST', 'GENERATE', 'WIZARD', 'INVOICE', 'WAIVER'].includes(saved)) return saved;
+    }
+    return 'LIST';
+  });
+  const setActiveTab = (tab: 'LIST' | 'GENERATE' | 'WIZARD' | 'INVOICE' | 'WAIVER') => {
+    setActiveTabState(tab);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('billings_active_tab', tab);
+    }
+  };
 
   // --- 청구 조회 필터 상태 ---
   const initialYm = (() => {

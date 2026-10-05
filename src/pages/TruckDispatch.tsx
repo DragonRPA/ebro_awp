@@ -558,7 +558,19 @@ export const TruckDispatch: React.FC = () => {
     return str;
   };
 
-  const [activeTab, setActiveTab] = useState<'DISPATCH' | 'NEGOTIATION' | 'RECONCILIATION'>('DISPATCH');
+  const [activeTab, setActiveTabState] = useState<'DISPATCH' | 'NEGOTIATION' | 'RECONCILIATION'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('truck_dispatch_active_tab') as any;
+      if (saved === 'DISPATCH' || saved === 'NEGOTIATION' || saved === 'RECONCILIATION') return saved;
+    }
+    return 'DISPATCH';
+  });
+  const setActiveTab = (tab: 'DISPATCH' | 'NEGOTIATION' | 'RECONCILIATION') => {
+    setActiveTabState(tab);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('truck_dispatch_active_tab', tab);
+    }
+  };
 
   // 엑셀 일괄 배차 등록 모달 상태
   const [dispatchExcelModalOpen, setDispatchExcelModalOpen] = useState(false);

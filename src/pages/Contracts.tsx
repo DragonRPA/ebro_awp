@@ -116,6 +116,7 @@ export const Contracts: React.FC = () => {
   const [paymentDueMonthOffset, setPaymentDueMonthOffset] = useState(1);
 
   // 컬럼 표시 여부 토글 상태
+  const [showOutboundProgressCol, setShowOutboundProgressCol] = useState(false);
   const [showPeriodCol, setShowPeriodCol] = useState(true);
   const [showLastBilledCol, setShowLastBilledCol] = useState(false);
   const [showBillingCountCol, setShowBillingCountCol] = useState(false);
@@ -1757,6 +1758,10 @@ export const Contracts: React.FC = () => {
               
               <div style={{ display: 'flex', gap: '16px', marginLeft: 'auto', alignItems: 'center' }}>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11.5px', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 600 }}>
+                  <input type="checkbox" checked={showOutboundProgressCol} onChange={e => setShowOutboundProgressCol(e.target.checked)} />
+                  출고진행현황
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11.5px', color: 'var(--text-main)', cursor: 'pointer', fontWeight: 600 }}>
                   <input type="checkbox" checked={showPeriodCol} onChange={e => setShowPeriodCol(e.target.checked)} />
                   계약기간
                 </label>
@@ -1782,7 +1787,7 @@ export const Contracts: React.FC = () => {
                     <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('contractNo')}>계약번호{sortConfig?.key === 'contractNo' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                     <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('customer')}>고객사명{sortConfig?.key === 'customer' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                     <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('site')}>현장명{sortConfig?.key === 'site' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
-                    <th style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>출고 진행 현황</th>
+                    {showOutboundProgressCol && <th style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>출고 진행 현황</th>}
                     <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('assets')}>체결 자산{sortConfig?.key === 'assets' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                     <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('rentalFee')}>월 렌탈료{sortConfig?.key === 'rentalFee' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
                     {showPeriodCol && <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('period')}>계약 기간{sortConfig?.key === 'period' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>}
@@ -1797,7 +1802,7 @@ export const Contracts: React.FC = () => {
                 <tbody style={{ whiteSpace: 'nowrap' }}>
                   {sortedContracts.length === 0 ? (
                     <tr>
-                      <td colSpan={11 + (showPeriodCol ? 1 : 0) + (showLastBilledCol ? 1 : 0) + (showBillingCountCol ? 1 : 0)} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
+                      <td colSpan={10 + (showOutboundProgressCol ? 1 : 0) + (showPeriodCol ? 1 : 0) + (showLastBilledCol ? 1 : 0) + (showBillingCountCol ? 1 : 0)} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)', fontSize: '13px' }}>
                         조회 결과가 없습니다.
                       </td>
                     </tr>
@@ -1874,12 +1879,14 @@ export const Contracts: React.FC = () => {
                             </div>
                           </td>
                           <td style={{ whiteSpace: 'nowrap' }}>{getSiteName(c.siteId)}</td>
-                          <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
-                            {renderMilestoneBadges(c, (cid) => {
-                              setBundleTargetContractId(cid);
-                              setShowBundleModal(true);
-                            })}
-                          </td>
+                          {showOutboundProgressCol && (
+                            <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
+                              {renderMilestoneBadges(c, (cid) => {
+                                setBundleTargetContractId(cid);
+                                setShowBundleModal(true);
+                              })}
+                            </td>
+                          )}
                           <td style={{ whiteSpace: 'nowrap' }}>
                             <div 
                               style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}

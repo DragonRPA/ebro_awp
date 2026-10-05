@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { db, supabase, PAYMENT_REVERSAL_ENABLED, isActivePayment, isActiveDepositLink, Tenant, TenantWorkplace, TenantYard, TenantBusinessType, TenantBankAccount, OFFICIAL_STAMP_BASE64, User, MenuPermission, createMenuPermission, CustomRole, RolePermission, Customer, CustomerContact, CustomerSite, Product, Asset, Consumable, ConsumableLog, ConsumableLot, ConsumablePurchaseRequest, MechanicConsumableStock, Contract, ContractAsset, ContractHistory, Delivery, Billing, BillingType, BillingDetail, CustomStatementItem, Receivable, Payment, PaymentDepositLink, Repair, RepairConsumable, Todo, BankTransaction, BankMatchingRule, BankAccountInitialBalance, AssetInOutLog, GoogleConfig, Vendor, CashFlowSnapshot, OutboundInspection, TransportCompany, TransportDriver, TransportNegotiation, SubleaseNegotiation, DepreciationLog, PurchaseSettlement, PurchaseSettlementItem, SettlementPaymentLog, ExternalLease, PurchaseSettlementType, PurchaseSettlementStatus, findCustomerByNormalizedName, AnnualLeaveQuota, LeaveUsage, OvertimeRecord, PayrollClosing, InspectionChecklistItem, EquipmentManual, StandardOption, InboundDefectDetail, PrepaidTransaction, DelinquencyActionLog, LegalNoticeLog, LegalNoticeTemplate, calculateAssetDepreciation, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, CorporateVehicle, VehicleOperationLog, VehicleFuelLog, RepairPartUsed, RepairCollectedPart, SaleContractTerms, StocktakingAudit, StocktakingAuditItem, CollectedPart, PrintStation, PrintQueueItem, logPrivacyAccess, ErrorReport, ErrorReportAttachment, ErrorReportStatus, ErrorReportSeverity, ErrorReportCategory } from '../services/db';
 import { enqueuePrintJob as serviceEnqueuePrintJob, registerPrintStation as serviceRegisterPrintStation, deletePrintStation as serviceDeletePrintStation, retryPrintJob as serviceRetryPrintJob, cancelPrintJob as serviceCancelPrintJob } from '../services/printQueueService';
 import { ErrorModal } from '../components/ErrorModal';
@@ -474,11 +474,17 @@ interface AppContextType {
   reopenErrorReport: (id: string) => Promise<void>;
   deleteErrorReport: (id: string) => Promise<void>;
 
-  // Navigation states (cross-page routing)
+  // Navigation states (cross-page routing & in-app history)
   activeTab: string;
-  setActiveTab: (tab: string) => void;
+  setActiveTab: (tab: string, payload?: any) => void;
   navigationPayload: any;
   setNavigationPayload: (payload: any) => void;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  goBack: () => void;
+  goForward: () => void;
+  historyStack: Array<{ tab: string; payload?: any }>;
+  historyIndex: number;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -688,11 +694,118 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [errorReports, setErrorReports] = useState<ErrorReport[]>(() => db.errorReports || []);
 
 
-  // Navigation / Routing states
-  const [activeTab, setActiveTab] = useState<string>(() => {
-    return (typeof window !== 'undefined' && getDomainMode() === 'ADMIN') ? 'tenant_management' : 'dashboard';
-  });
+  // Navigation / Routing states with In-App History (최대 30단계 뒤로/앞으로가기)
+  const initialNavTab = (typeof window !== 'undefined' && getDomainMode() === 'ADMIN') ? 'tenant_management' : 'dashboard';
+  const [activeTab, setActiveTabState] = useState<string>(initialNavTab);
   const [navigationPayload, setNavigationPayload] = useState<any>(null);
+
+  const MAX_HISTORY = 30;
+  const [historyStack, setHistoryStack] = useState<Array<{ tab: string; payload?: any }>>([
+    { tab: initialNavTab, payload: null }
+  ]);
+  const [historyIndex, setHistoryIndex] = useState<number>(0);
+  const isNavigatingHistoryRef = useRef(false);
+
+  const setActiveTab = useCallback((tab: string, payload?: any) => {
+    setActiveTabState(prevTab => {
+      if (prevTab === tab && payload === undefined) return prevTab;
+
+      if (!isNavigatingHistoryRef.current) {
+        setHistoryStack(prevStack => {
+          const newStack = prevStack.slice(0, historyIndex + 1);
+          newStack.push({ tab, payload: payload ?? null });
+          if (newStack.length > MAX_HISTORY) {
+            newStack.shift();
+          }
+          return newStack;
+        });
+        setHistoryIndex(prevIdx => Math.min(prevIdx + 1, MAX_HISTORY - 1));
+
+        if (typeof window !== 'undefined' && window.history) {
+          window.history.pushState({ tab, payload, ebroNav: true }, '', '');
+        }
+      }
+      return tab;
+    });
+
+    if (payload !== undefined) {
+      setNavigationPayload(payload);
+    }
+  }, [historyIndex]);
+
+  const goBack = useCallback(() => {
+    if (historyIndex > 0) {
+      const prevIdx = historyIndex - 1;
+      const target = historyStack[prevIdx];
+      if (target) {
+        isNavigatingHistoryRef.current = true;
+        setHistoryIndex(prevIdx);
+        setActiveTabState(target.tab);
+        setNavigationPayload(target.payload ?? null);
+        if (typeof window !== 'undefined' && window.history) {
+          window.history.pushState({ tab: target.tab, payload: target.payload, ebroNav: true }, '', '');
+        }
+        setTimeout(() => {
+          isNavigatingHistoryRef.current = false;
+        }, 50);
+      }
+    }
+  }, [historyIndex, historyStack]);
+
+  const goForward = useCallback(() => {
+    if (historyIndex < historyStack.length - 1) {
+      const nextIdx = historyIndex + 1;
+      const target = historyStack[nextIdx];
+      if (target) {
+        isNavigatingHistoryRef.current = true;
+        setHistoryIndex(nextIdx);
+        setActiveTabState(target.tab);
+        setNavigationPayload(target.payload ?? null);
+        if (typeof window !== 'undefined' && window.history) {
+          window.history.pushState({ tab: target.tab, payload: target.payload, ebroNav: true }, '', '');
+        }
+        setTimeout(() => {
+          isNavigatingHistoryRef.current = false;
+        }, 50);
+      }
+    }
+  }, [historyIndex, historyStack]);
+
+  // 브라우저 popstate 이벤트 리스너 (브라우저 뒤로가기 / 마우스 뒤로가기 버튼)
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      if (e.state && e.state.ebroNav && e.state.tab) {
+        isNavigatingHistoryRef.current = true;
+        setActiveTabState(e.state.tab);
+        if (e.state.payload !== undefined) {
+          setNavigationPayload(e.state.payload);
+        }
+        setTimeout(() => {
+          isNavigatingHistoryRef.current = false;
+        }, 50);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Alt + ArrowLeft / Alt + ArrowRight 전역 단축키 리스너
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && e.key === 'ArrowLeft') {
+        e.preventDefault();
+        goBack();
+      } else if (e.altKey && e.key === 'ArrowRight') {
+        e.preventDefault();
+        goForward();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [goBack, goForward]);
+
+  const canGoBack = historyIndex > 0;
+  const canGoForward = historyIndex < historyStack.length - 1;
 
   // 글로벌 커스텀 에러 모달 상태
   const [errorModal, setErrorModal] = useState<{ isOpen: boolean; title?: string; message: string }>({
@@ -10535,7 +10648,13 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       activeTab,
       setActiveTab,
       navigationPayload,
-      setNavigationPayload
+      setNavigationPayload,
+      canGoBack,
+      canGoForward,
+      goBack,
+      goForward,
+      historyStack,
+      historyIndex
     }}>
       {children}
       <ErrorModal

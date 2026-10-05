@@ -5,7 +5,7 @@ import { useApp } from './context/AppContext';
 import {
   LayoutDashboard, Users, UserCheck, Package, Layers, PlusCircle,
   Truck, Wrench, Shield, ShoppingBag, CreditCard, LogOut, Sun, Moon, Menu, X, Zap, Settings, Database as DatabaseIcon,
-  TrendingUp, Clock, AlertTriangle, Building2, ChevronDown, ChevronRight, Briefcase, Box, FolderKanban, ShieldAlert, Terminal, ArrowLeftRight, CheckSquare,
+  TrendingUp, Clock, AlertTriangle, Building2, ChevronDown, ChevronRight, ChevronLeft, Briefcase, Box, FolderKanban, ShieldAlert, Terminal, ArrowLeftRight, CheckSquare,
   Smartphone, Monitor, Car, FileText, Search, Printer, PackagePlus, Boxes, Calendar, Camera, BookOpen,
   FileCheck, ShieldCheck, Bot, Download, Bell
 , CheckCircle, Settings as SettingsIcon, SlidersHorizontal, Mail } from 'lucide-react';
@@ -313,7 +313,7 @@ const App: React.FC = () => {
   if (typeof window !== 'undefined') {
     (window as any).__APP_CONTEXT__ = context;
   }
-  const { currentUser, users, switchUser, login, logout, theme, toggleTheme, hasPermission, activeTab, setActiveTab, loadTablesForMenu, currentTenant } = context;
+  const { currentUser, users, switchUser, login, logout, theme, toggleTheme, hasPermission, activeTab, setActiveTab, loadTablesForMenu, currentTenant, canGoBack, canGoForward, goBack, goForward, historyStack, historyIndex } = context;
   const { mode: manualMode, setMode: setManualMode, loadPage: loadManualPage, setBaseMenu } = useManualContext();
   useGridWheel(activeTab); // Shift+Wheel 횡스크롤: 그리드 컨테이너에만 적용
 
@@ -1414,6 +1414,16 @@ const App: React.FC = () => {
     );
   }
 
+  const getMenuTitle = useCallback((tabId?: string) => {
+    if (!tabId) return '';
+    if (tabId === 'dashboard') return 'ERP 대시보드';
+    const item = menuGroups.flatMap(g => g.items).find(i => i.id === tabId);
+    return item?.name || tabId;
+  }, [menuGroups]);
+
+  const prevMenuTitle = canGoBack && historyStack[historyIndex - 1] ? getMenuTitle(historyStack[historyIndex - 1]?.tab) : '';
+  const nextMenuTitle = canGoForward && historyStack[historyIndex + 1] ? getMenuTitle(historyStack[historyIndex + 1]?.tab) : '';
+
   const userHasViewPerm = hasPermission(activeTab, 'view');
 
   return (
@@ -1601,6 +1611,56 @@ const App: React.FC = () => {
 
           {/* 헤더 좌측 현장 날씨 정보 위젯 */}
           <WeatherWidget />
+
+          {/* ─── 인앱 히스토리 네비게이션: 뒤로가기 / 앞으로가기 ─── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+            <button
+              onClick={goBack}
+              disabled={!canGoBack}
+              style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-card)',
+                color: canGoBack ? 'var(--text-main)' : 'var(--text-muted)',
+                opacity: canGoBack ? 1 : 0.35,
+                cursor: canGoBack ? 'pointer' : 'not-allowed',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+                transition: 'all 0.15s ease',
+                boxShadow: canGoBack ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
+              }}
+              title={canGoBack ? `이전: ${prevMenuTitle} (Alt+←)` : '이전 화면 없음 (Alt+←)'}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              onClick={goForward}
+              disabled={!canGoForward}
+              style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-card)',
+                color: canGoForward ? 'var(--text-main)' : 'var(--text-muted)',
+                opacity: canGoForward ? 1 : 0.35,
+                cursor: canGoForward ? 'pointer' : 'not-allowed',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+                transition: 'all 0.15s ease',
+                boxShadow: canGoForward ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
+              }}
+              title={canGoForward ? `다음: ${nextMenuTitle} (Alt+→)` : '다음 화면 없음 (Alt+→)'}
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
         </div>
 
         {/* ─── 헤더 중앙: 메뉴 검색 네비게이터 ─── */}
