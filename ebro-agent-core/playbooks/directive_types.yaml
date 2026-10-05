@@ -1,0 +1,208 @@
+# 업무지시 유형 정의서 (directive_types.yaml)
+# 버전: 2026-10-04 v1 (초안, 사장님 확인 대기)
+# 단일 원천(SSOT): 학습 데이터 생성, 평가셋 라벨, 런타임 실행이 이 파일을 참조한다.
+# 규칙:
+#   - 슬롯 값은 지시 원문의 연속 부분 문자열이다. 정규화는 코드가 한다.
+#   - 슬롯 키는 아래 정의된 키만 쓴다. 필수 슬롯 중 원문에 없는 항목은 missing에 넣는다.
+#   - 역할 코드: CEO(직할), SALES(영업부), DISPATCH(출고팀), AS(AS팀), ACCOUNTING(관리부)
+#   - group: QUERY | REQUEST | CHANNEL_FORBIDDEN | OUT_OF_SCOPE
+#   - confirm: none | required (required는 코드가 확인 버튼을 띄운 뒤에만 실행)
+#   - menuId는 권한관리.md의 메뉴 ID
+
+roles: [CEO, SALES, DISPATCH, AS, ACCOUNTING]
+
+types:
+  # ---------------- QUERY ----------------
+  - type: ASSET_STATUS_QUERY
+    label: 자산 상태 조회
+    group: QUERY
+    menuId: asset
+    allowedRoles: [CEO, SALES, DISPATCH, AS, ACCOUNTING]
+    slots:
+      assetHint: {required: false, label: 장비}
+      modelHint: {required: false, label: 모델}
+    requireAnyOf: [assetHint, modelHint]
+    confirm: none
+
+  - type: CONTRACT_QUERY
+    label: 계약 조회
+    group: QUERY
+    menuId: contract
+    allowedRoles: [CEO, SALES, ACCOUNTING]
+    slots:
+      customerHint: {required: false, label: 고객}
+      siteHint:     {required: false, label: 현장}
+    requireAnyOf: [customerHint, siteHint]
+    confirm: none
+
+  - type: DISPATCH_STATUS_QUERY
+    label: 배차 현황 조회
+    group: QUERY
+    menuId: delivery
+    allowedRoles: [CEO, DISPATCH, ACCOUNTING]
+    slots:
+      dateHint: {required: false, label: 일자}
+      siteHint: {required: false, label: 현장}
+    confirm: none
+
+  - type: RECEIVABLE_QUERY
+    label: 미수금 조회
+    group: QUERY
+    menuId: receivable
+    allowedRoles: [CEO, SALES, ACCOUNTING]
+    slots:
+      customerHint: {required: true, label: 고객}
+    confirm: none
+
+  - type: MENU_GUIDE
+    label: 메뉴 사용법 안내
+    group: QUERY
+    menuId: dashboard
+    allowedRoles: [CEO, SALES, DISPATCH, AS, ACCOUNTING]
+    slots:
+      menuHint: {required: true, label: 메뉴}
+    confirm: none
+
+  # ---------------- REQUEST ----------------
+  - type: OUTBOUND_REQUEST
+    label: 출고 의뢰
+    group: REQUEST
+    menuId: smart_dispatch
+    allowedRoles: [CEO, SALES]
+    slots:
+      customerHint: {required: true, label: 고객}
+      siteHint:     {required: true, label: 현장}
+      modelHint:    {required: true, label: 모델}
+      quantity:     {required: true, label: 수량}
+      requestDate:  {required: true, label: 희망일}
+    forbiddenSlots: [assetId]          # 영업의 자산번호 지정 금지 (헌장 2.1)
+    confirm: required
+
+  - type: EXCHANGE_REQUEST
+    label: 교환 의뢰
+    group: REQUEST
+    menuId: smart_dispatch
+    allowedRoles: [CEO, SALES]
+    slots:
+      siteHint:    {required: true, label: 현장}
+      assetHint:   {required: true, label: 교환 대상 장비}
+      reason:      {required: true, label: 교환 사유}
+      requestDate: {required: true, label: 희망일}
+    forbiddenSlots: [newAssetId]       # 영업의 자산 지정 금지 (헌장 2.1)
+    notes: 교환 1건은 EXCHANGE 배차 1건으로 발행 (헌장 2.3), 계약 속성 상속 (헌장 2.2), 이력 changeType EXCHANGE (헌장 4.2)
+    confirm: required
+
+  - type: RETURN_REQUEST
+    label: 반납 의뢰
+    group: REQUEST
+    menuId: smart_return
+    allowedRoles: [CEO, SALES]
+    slots:
+      siteHint:    {required: true, label: 현장}
+      assetHint:   {required: false, label: 장비}
+      requestDate: {required: true, label: 희망일}
+    confirm: required
+
+  - type: CONTRACT_EXTEND
+    label: 계약 연장
+    group: REQUEST
+    menuId: contract
+    allowedRoles: [CEO, SALES]
+    slots:
+      contractHint: {required: true, label: 계약}
+      extendUntil:  {required: true, label: 연장 기한}
+    confirm: required
+
+  - type: CONTRACT_SHORTEN
+    label: 계약 단축
+    group: REQUEST
+    menuId: contract
+    allowedRoles: [CEO, SALES]
+    slots:
+      contractHint: {required: true, label: 계약}
+      endDate:      {required: true, label: 종료일}
+    confirm: required
+
+  - type: AS_REQUEST
+    label: AS 접수
+    group: REQUEST
+    menuId: smart_as_request
+    allowedRoles: [CEO, SALES, AS]
+    slots:
+      siteHint:   {required: true, label: 현장}
+      assetHint:  {required: false, label: 장비}
+      symptom:    {required: true, label: 증상}
+    confirm: required
+
+  - type: DRIVER_ASSIGN
+    label: 배차 기사 배정
+    group: REQUEST
+    menuId: delivery
+    allowedRoles: [CEO, DISPATCH]
+    slots:
+      deliveryHint: {required: true, label: 배차}
+      driver:       {required: true, label: 기사}
+      fee:          {required: false, label: 운송비}
+    confirm: required
+
+  - type: REPAIR_LOG
+    label: 정비 기록
+    group: REQUEST
+    menuId: repair
+    allowedRoles: [CEO, AS]
+    slots:
+      assetHint: {required: true, label: 장비}
+      action:    {required: true, label: 조치}
+      parts:     {required: false, label: 부품}
+    confirm: required
+
+  - type: CONSUMABLE_OUT
+    label: 소모품 출고
+    group: REQUEST
+    menuId: consumable
+    allowedRoles: [CEO, AS]
+    slots:
+      item:      {required: true, label: 품목}
+      quantity:  {required: true, label: 수량}
+      assetHint: {required: false, label: 장비}
+    confirm: required
+
+  - type: LEAVE_APPLICATION
+    label: 휴가 신청
+    group: REQUEST
+    menuId: leave_ot
+    allowedRoles: [CEO, SALES, DISPATCH, AS, ACCOUNTING]
+    slots:
+      startDate: {required: true, label: 시작일}
+      endDate:   {required: false, label: 종료일}
+      leaveType: {required: false, label: 휴가 종류}
+    confirm: required
+
+  # ---------------- 거절 ----------------
+  - type: CHANNEL_FORBIDDEN
+    label: 텔레그램 실행 불가
+    group: CHANNEL_FORBIDDEN
+    allowedRoles: [CEO, SALES, DISPATCH, AS, ACCOUNTING]
+    slots:
+      targetAction: {required: true, label: 대상 업무}
+    targetActionValues:
+      - OUTBOUND_INSPECTION_APPROVE    # 출고 검수 승인 (RENTED 전환, 현장 물리 검수 필요)
+      - BILLING_CONFIRM                # 청구 확정, 마감
+      - PAYROLL                        # 급여
+      - PERMISSION_CHANGE              # 권한 변경
+      - DEPRECIATION_EXECUTE           # 감가상각 실행
+      - INITIAL_DB_UPLOAD              # 초기 DB 업로드
+      - ASSET_DISPOSAL_APPROVE         # 자산 매각, 폐기 승인
+    confirm: none
+
+  - type: OUT_OF_SCOPE
+    label: 범위 밖
+    group: OUT_OF_SCOPE
+    allowedRoles: [CEO, SALES, DISPATCH, AS, ACCOUNTING]
+    slots:
+      targetAction: {required: false, label: 대상 업무}
+    confirm: none
+
+# 통화 녹취 분석(T3) 업무 코드. 위 types와 동일한 코드를 쓴다 (헌장 1.4).
+# 기존 DISPATCH_REQUEST는 OUTBOUND_REQUEST, DISPATCH_ASSIGN은 DRIVER_ASSIGN, GENERAL_INQUIRY는 OUT_OF_SCOPE로 통일.
+callWorkflows: [OUTBOUND_REQUEST, EXCHANGE_REQUEST, RETURN_REQUEST, CONTRACT_EXTEND, CONTRACT_SHORTEN, AS_REQUEST, DRIVER_ASSIGN, OUT_OF_SCOPE]

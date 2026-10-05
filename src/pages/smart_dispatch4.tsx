@@ -1833,8 +1833,13 @@ export const SmartDispatch4: React.FC = () => {
 
   // ── 🌟 [WTT 결함 해결 2] 출고 확정 시 실제 배차 대장(deliveries) 생성 ──
   const handleSubmitDraft = async (draft: DraftOrder) => {
-    if (draft.isNewCustomer && !draft.customerRegistered) {
-      showToast('신규 고객 정식 등록 전 배차 차단 — 관리부 등록 완료 후 처리 가능합니다.', 'error');
+    // 신규 고객 차단 해제 조건: 고객 마스터(고객 관리)에 동일 상호가 등록되어 있을 것.
+    // customerRegistered 플래그는 초안 생성 시점에만 설정되고 이후 갱신 경로가 없으므로, 마스터 등록 여부를 직접 조회한다.
+    const normalizeCustName = (n: string) => (n || '').replace(/\(주\)|㈜|주식회사|\s+/g, '').toLowerCase();
+    const draftCustNameKey = normalizeCustName(draft.customerName.value);
+    const registeredInMaster = !!draftCustNameKey && customers.some(c => !c.isClosed && normalizeCustName(c.name) === draftCustNameKey);
+    if (draft.isNewCustomer && !draft.customerRegistered && !registeredInMaster) {
+      showToast('신규 고객 정식 등록 전 배차 차단 — 고객 관리에 해당 고객을 등록하면 해제됩니다.', 'error');
       return;
     }
 

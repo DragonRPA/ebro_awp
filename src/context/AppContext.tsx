@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { db, supabase, Tenant, TenantWorkplace, TenantYard, TenantBusinessType, TenantBankAccount, OFFICIAL_STAMP_BASE64, User, MenuPermission, createMenuPermission, CustomRole, RolePermission, Customer, CustomerContact, CustomerSite, Product, Asset, Consumable, ConsumableLog, ConsumableLot, ConsumablePurchaseRequest, MechanicConsumableStock, Contract, ContractAsset, ContractHistory, Delivery, Billing, BillingType, BillingDetail, CustomStatementItem, Receivable, Payment, PaymentDepositLink, Repair, RepairConsumable, Todo, BankTransaction, BankMatchingRule, BankAccountInitialBalance, AssetInOutLog, GoogleConfig, Vendor, CashFlowSnapshot, OutboundInspection, TransportCompany, TransportDriver, TransportNegotiation, SubleaseNegotiation, DepreciationLog, PurchaseSettlement, PurchaseSettlementItem, SettlementPaymentLog, ExternalLease, PurchaseSettlementType, PurchaseSettlementStatus, findCustomerByNormalizedName, AnnualLeaveQuota, LeaveUsage, OvertimeRecord, PayrollClosing, InspectionChecklistItem, EquipmentManual, StandardOption, InboundDefectDetail, PrepaidTransaction, DelinquencyActionLog, LegalNoticeLog, LegalNoticeTemplate, calculateAssetDepreciation, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, CorporateVehicle, VehicleOperationLog, VehicleFuelLog, RepairPartUsed, RepairCollectedPart, SaleContractTerms, StocktakingAudit, StocktakingAuditItem, CollectedPart, PrintStation, PrintQueueItem, logPrivacyAccess, ErrorReport, ErrorReportAttachment, ErrorReportStatus, ErrorReportSeverity, ErrorReportCategory } from '../services/db';
+import { db, supabase, PAYMENT_REVERSAL_ENABLED, isActivePayment, isActiveDepositLink, Tenant, TenantWorkplace, TenantYard, TenantBusinessType, TenantBankAccount, OFFICIAL_STAMP_BASE64, User, MenuPermission, createMenuPermission, CustomRole, RolePermission, Customer, CustomerContact, CustomerSite, Product, Asset, Consumable, ConsumableLog, ConsumableLot, ConsumablePurchaseRequest, MechanicConsumableStock, Contract, ContractAsset, ContractHistory, Delivery, Billing, BillingType, BillingDetail, CustomStatementItem, Receivable, Payment, PaymentDepositLink, Repair, RepairConsumable, Todo, BankTransaction, BankMatchingRule, BankAccountInitialBalance, AssetInOutLog, GoogleConfig, Vendor, CashFlowSnapshot, OutboundInspection, TransportCompany, TransportDriver, TransportNegotiation, SubleaseNegotiation, DepreciationLog, PurchaseSettlement, PurchaseSettlementItem, SettlementPaymentLog, ExternalLease, PurchaseSettlementType, PurchaseSettlementStatus, findCustomerByNormalizedName, AnnualLeaveQuota, LeaveUsage, OvertimeRecord, PayrollClosing, InspectionChecklistItem, EquipmentManual, StandardOption, InboundDefectDetail, PrepaidTransaction, DelinquencyActionLog, LegalNoticeLog, LegalNoticeTemplate, calculateAssetDepreciation, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, CorporateVehicle, VehicleOperationLog, VehicleFuelLog, RepairPartUsed, RepairCollectedPart, SaleContractTerms, StocktakingAudit, StocktakingAuditItem, CollectedPart, PrintStation, PrintQueueItem, logPrivacyAccess, ErrorReport, ErrorReportAttachment, ErrorReportStatus, ErrorReportSeverity, ErrorReportCategory } from '../services/db';
 import { enqueuePrintJob as serviceEnqueuePrintJob, registerPrintStation as serviceRegisterPrintStation, deletePrintStation as serviceDeletePrintStation, retryPrintJob as serviceRetryPrintJob, cancelPrintJob as serviceCancelPrintJob } from '../services/printQueueService';
 import { ErrorModal } from '../components/ErrorModal';
 import { getAllSystemMenuIds, normalizeMenuId } from '../config/menu_config';
@@ -6567,6 +6567,57 @@ ${currentTenant?.corporateName || tenantCorp} 배상
   // 청구 취소 (J-1, J-2 원칙)
   // refund=true: 수납 취소 + 입금잔액 소멸 (환불 케이스)
   // refund=false: 청구만 취소, 수납·입금잔액 잔류 (비환불 케이스 → 새 청구에 연결)
+  /**
+   * 수납 1건 전체 취소 처리 (단일 경로).
+   * - PAYMENT_REVERSAL_ENABLED=false: 기존 동작. 연결 행과 수납 행 삭제.
+   * - true: 원 행을 보존하고 음수 상계 행을 추가한다. 원 수납 행과 연결 행에는 reversedBy 를 기록하고,
+   *   유효 합계 조회는 isActivePayment / isActiveDepositLink 로 상계 쌍을 제외한다.
+   * billingId 가 없는 선수금 수납 행은 FK(billings) 제약상 상계 행을 만들 수 없어 기존 삭제 동작을 유지한다.
+   */
+  const reversePaymentRecord = (payment: Payment, links: PaymentDepositLink[], reason: string) => {
+    if (!PAYMENT_REVERSAL_ENABLED || !payment.billingId) {
+      links.forEach(l => db.deleteRow('paymentDepositLinks', l.id));
+      db.deleteRow('payments', payment.id);
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    const revId = `pay-reversal-${payment.id}`;
+    const actor = currentUser?.name || '미식별';
+    db.insertRow<Payment>('payments', {
+      id: revId,
+      billingId: payment.billingId,
+      paymentDate: nowIso.split('T')[0],
+      amount: -payment.amount,
+      method: payment.method,
+      memo: `[상계] ${reason} (원 수납 ${payment.id})`,
+      reversalOf: payment.id,
+      reversalReason: reason,
+      reversedByUser: actor,
+      reversedAt: nowIso,
+      createdAt: nowIso,
+      updatedAt: nowIso
+    } as Payment);
+    links.forEach(l => {
+      const negId = `pdl-reversal-${l.id}`;
+      db.insertRow<PaymentDepositLink>('paymentDepositLinks', {
+        id: negId,
+        paymentId: revId,
+        bankTransactionId: l.bankTransactionId,
+        usedAmount: -l.usedAmount,
+        reversalOf: l.id,
+        createdAt: nowIso
+      } as PaymentDepositLink);
+      db.updateRow<PaymentDepositLink>('paymentDepositLinks', l.id, { reversedBy: negId } as any);
+    });
+    db.updateRow<Payment>('payments', payment.id, {
+      reversedBy: revId,
+      reversalReason: reason,
+      reversedByUser: actor,
+      reversedAt: nowIso,
+      updatedAt: nowIso
+    } as any);
+  };
+
   const cancelBilling = async (billingId: string, refund: boolean = false) => {
     const billing = db.billings.find(b => b.id === billingId);
     if (!billing) return;
@@ -6612,12 +6663,23 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
     if (refund) {
       // 환불 케이스: 수납 취소 + payment_deposit_links 해제
-      const linkedPayments = db.payments.filter(p => p.billingId === billingId);
+      const linkedPayments = db.payments.filter(p => p.billingId === billingId && isActivePayment(p));
       linkedPayments.forEach(p => {
-        db.paymentDepositLinks
-          .filter(l => l.paymentId === p.id)
-          .forEach(l => db.deleteRow('paymentDepositLinks', l.id));
-        db.deleteRow('payments', p.id);
+        const links = db.paymentDepositLinks.filter(l => l.paymentId === p.id && isActiveDepositLink(l));
+        // 상계/삭제 전 감사 이력 기록
+        if (billing.contractId) {
+          const linkSummary = links.length > 0
+            ? links.map(l => `${l.bankTransactionId}:${l.usedAmount.toLocaleString()}원`).join(', ')
+            : '입금 연결 없음';
+          db.insertRow<ContractHistory>('contractHistory', {
+            contractId: billing.contractId,
+            changeType: 'PAYMENT_CANCELLED',
+            changeDate: new Date().toISOString().split('T')[0],
+            description: `청구 취소(환불) 수납 ${PAYMENT_REVERSAL_ENABLED ? '상계' : '삭제'}: ${billing.billingYm} 청구 ${billingId} / 수납 ${p.id} ${p.amount.toLocaleString()}원 (${p.paymentDate}, ${p.method}) / 입금 연결: ${linkSummary}`,
+            createdAt: new Date().toISOString()
+          });
+        }
+        reversePaymentRecord(p, links, `청구 취소(환불) ${billingId}`);
       });
     }
     // 비환불 케이스: 수납·입금잔액 그대로 유지 → 새 청구 생성 시 FIFO로 자동 연결
@@ -7462,13 +7524,10 @@ ${currentTenant?.corporateName || tenantCorp} 배상
   // 수납 취소: Payment 삭제 + 연결된 PDL 전체 삭제 + Billing.paidAmount 롤백 + 선수금 환원 + 계약 이력 보존
   const cancelPayment = async (paymentId: string) => {
     const payment = db.payments.find(p => p.id === paymentId);
-    if (!payment) return;
+    if (!payment || !isActivePayment(payment)) return;
 
-    // 1. 연결된 PDL 모두 삭제 (통장 입금잔액 자동 복원)
-    const linkedLinks = db.paymentDepositLinks.filter(l => l.paymentId === paymentId);
-    for (const link of linkedLinks) {
-      db.deleteRow('paymentDepositLinks', link.id);
-    }
+    // 1. 연결된 유효 PDL 수집 (통장 입금잔액 자동 복원은 3단계 상계/삭제에서 처리)
+    const linkedLinks = db.paymentDepositLinks.filter(l => l.paymentId === paymentId && isActiveDepositLink(l));
 
     // 2. 선수금 상계 수납 건인 경우 고객 선수금 잔액 자동 환원
     const billing = db.billings.find(b => b.id === payment.billingId);
@@ -7482,8 +7541,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       }
     }
 
-    // 3. Payment 삭제
-    db.deleteRow('payments', paymentId);
+    // 3. Payment 및 연결 행 상계(또는 기존 방식 삭제)
+    reversePaymentRecord(payment, linkedLinks, '수납 취소');
 
     // 4. Billing paidAmount 및 상태 롤백
     if (billing) {
@@ -7491,8 +7550,10 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       const bSupply = billing.totalAmount || 0;
       const bGrand = bSupply + Math.round(bSupply * 0.1);
       let newStatus: Billing['status'] = 'UNPAID';
-      if (newPaid >= bGrand) newStatus = 'PAID';
-      else if (newPaid > 0) newStatus = 'PARTIAL';
+        const wasRequested = db.contractHistory.some(h => h.changeType === 'BILLING_SENT' && h.description.includes(billing.id));
+        if (newPaid >= bGrand) newStatus = 'PAID';
+        else if (newPaid > 0) newStatus = 'PARTIAL';
+        else if (wasRequested) newStatus = 'REQUESTED';
 
       db.updateRow<Billing>('billings', billing.id, {
         paidAmount: newPaid,
@@ -7518,7 +7579,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
   // 특정 청구서의 모든 수납 내역 일괄 취소 및 완전 롤백
   const cancelAllPaymentsForBilling = async (billingId: string) => {
-    const targetPayments = db.payments.filter(p => p.billingId === billingId);
+    const targetPayments = db.payments.filter(p => p.billingId === billingId && isActivePayment(p));
     for (const p of targetPayments) {
       await cancelPayment(p.id);
     }
@@ -7537,12 +7598,12 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
   // 통장입금 삭제 (연결된 PaymentDepositLink가 있으면 차단)
   const deleteBankDeposit = (txId: string) => {
-    const linked = db.paymentDepositLinks.filter(l => l.bankTransactionId === txId);
+    const linked = db.paymentDepositLinks.filter(l => l.bankTransactionId === txId && isActiveDepositLink(l));
     if (linked.length > 0) {
       throw new Error(`이 입금건에 연결된 수납 내역 ${linked.length}건이 존재합니다.\n수납을 먼저 취소한 후 삭제하세요.`);
     }
     // ✅ 고아 레코드 방지: 레거시 패턴 수납 레코드 존재 시 삭제 차단
-    const legacyPayments = db.payments.filter(p => p.id.startsWith(`pay-matching-${txId}`));
+    const legacyPayments = db.payments.filter(p => p.id.startsWith(`pay-matching-${txId}`) && isActivePayment(p));
     if (legacyPayments.length > 0) {
       throw new Error(`이 입금건에 연결된 레거시 수납 기록 ${legacyPayments.length}건이 존재합니다.\n수납을 먼저 취소한 후 삭제하세요.`);
     }
@@ -7672,7 +7733,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     } else {
       // 🌟 [CASCADE 모드]: 과거 미수부터 순차 충당 (수수료 감액 옵션 포함)
       const activeBillings = db.billings
-        .filter(b => b.customerId === customerId && (b.status === 'UNPAID' || b.status === 'PARTIAL'))
+        .filter(b => b.customerId === customerId && (b.status === 'UNPAID' || b.status === 'PARTIAL' || b.status === 'REQUESTED'))
         .sort((a, b) => a.billingYm.localeCompare(b.billingYm));
 
       if (!activeBillings.some(x => x.id === billingId)) {
@@ -7793,7 +7854,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     if (rule) {
       const activeBillings = db.billings.filter(b => 
         b.customerId === rule.customerId && 
-        (b.status === 'UNPAID' || b.status === 'PARTIAL')
+        (b.status === 'UNPAID' || b.status === 'PARTIAL' || b.status === 'REQUESTED')
       );
       if (activeBillings.length > 0) {
         let target = activeBillings.find(b => (getBillingGrand(b) - (b.paidAmount || 0)) === tx.depositAmount);
@@ -7812,7 +7873,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     if (matchedCustomer) {
       const activeBillings = db.billings.filter(b => 
         b.customerId === matchedCustomer.id && 
-        (b.status === 'UNPAID' || b.status === 'PARTIAL')
+        (b.status === 'UNPAID' || b.status === 'PARTIAL' || b.status === 'REQUESTED')
       );
       if (activeBillings.length > 0) {
         let target = activeBillings.find(b => (getBillingGrand(b) - (b.paidAmount || 0)) === tx.depositAmount);
@@ -7894,7 +7955,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     if (!tx) return;
 
     // customerId 식별 (청구서, 매칭규칙, 거래처 역추적)
-    const linkedLinks = db.paymentDepositLinks.filter(l => l.bankTransactionId === txId);
+    const linkedLinks = db.paymentDepositLinks.filter(l => l.bankTransactionId === txId && isActiveDepositLink(l));
     let customerId: string | undefined;
     for (const link of linkedLinks) {
       const p = db.payments.find(x => x.id === link.paymentId);
@@ -7921,8 +7982,13 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       })?.id;
     }
 
+    // 해제 추적 기록 (수납 행/연결 행은 삭제되므로 원 입금 거래 메모에 영구 보존)
+    const unmatchTrace: string[] = [];
+
     // 1. paymentDepositLinks 기반 롤백 (신규 체계)
+    const handledPayIds = new Set<string>();
     linkedLinks.forEach(link => {
+      let linkHandled = false;
       const pay = db.payments.find(p => p.id === link.paymentId);
       if (pay) {
         if (pay.billingId) {
@@ -7938,6 +8004,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
               status: nextStatus,
               updatedAt: new Date().toISOString()
             });
+            unmatchTrace.push(`${billing.billingYm} 청구(${billing.id}) ${link.usedAmount.toLocaleString()}원 수납 해제 (잔여 ${nextPaid.toLocaleString()}원, ${nextStatus})`);
 
             if (billing.contractId) {
               db.insertRow<ContractHistory>('contractHistory', {
@@ -7951,6 +8018,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           }
         } else if (pay.id.endsWith('-prepaid') || !pay.billingId) {
           // 초과 선수금 환원 차감
+          unmatchTrace.push(`선수금 ${pay.amount.toLocaleString()}원 환원 차감${customerId ? ` (고객 ${customerId})` : ' (고객 식별 불가)'}`);
           if (customerId) {
             const customer = db.customers.find(c => c.id === customerId);
             if (customer) {
@@ -7962,23 +8030,32 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           }
         }
 
+        // 수납 행/연결 행 처리: 전체 취소 대상은 상계(또는 기존 방식 삭제), 부분 소진 감액은 금액 차감 + 연결 행 삭제
         if (pay.id.startsWith(`pay-matching-${txId}`)) {
-          db.deleteRow('payments', pay.id);
+          if (!handledPayIds.has(pay.id)) {
+            handledPayIds.add(pay.id);
+            reversePaymentRecord(pay, linkedLinks.filter(l => l.paymentId === pay.id), `매칭 해제 ${txId}`);
+          }
+          linkHandled = true;
         } else {
           const newAmount = Math.max(0, pay.amount - link.usedAmount);
           if (newAmount === 0) {
-            db.deleteRow('payments', pay.id);
+            if (!handledPayIds.has(pay.id)) {
+              handledPayIds.add(pay.id);
+              reversePaymentRecord(pay, linkedLinks.filter(l => l.paymentId === pay.id), `매칭 해제 ${txId}`);
+            }
+            linkHandled = true;
           } else {
             db.updateRow<Payment>('payments', pay.id, { amount: newAmount, updatedAt: new Date().toISOString() });
           }
         }
       }
-      db.deleteRow('paymentDepositLinks', link.id);
+      if (!linkHandled) db.deleteRow('paymentDepositLinks', link.id);
     });
 
     // 2. 레거시 ID 패턴(`pay-matching-${txId}`)으로 잔존하는 수납 전표 검색 및 롤백
     const matchPrefix = `pay-matching-${txId}`;
-    const associatedPayments = db.payments.filter(p => p.id.startsWith(matchPrefix));
+    const associatedPayments = db.payments.filter(p => p.id.startsWith(matchPrefix) && isActivePayment(p));
 
     associatedPayments.forEach(pay => {
       if (pay.billingId) {
@@ -7994,6 +8071,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
             status: nextStatus,
             updatedAt: new Date().toISOString()
           });
+          unmatchTrace.push(`${billing.billingYm} 청구(${billing.id}) ${pay.amount.toLocaleString()}원 수납 해제 레거시 (잔여 ${nextPaid.toLocaleString()}원, ${nextStatus})`);
 
           if (billing.contractId) {
             db.insertRow<ContractHistory>('contractHistory', {
@@ -8006,6 +8084,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           }
         }
       } else if (customerId) {
+        unmatchTrace.push(`선수금 ${pay.amount.toLocaleString()}원 환원 차감 레거시 (고객 ${customerId})`);
         const customer = db.customers.find(c => c.id === customerId);
         if (customer) {
           db.updateRow<Customer>('customers', customerId, {
@@ -8014,14 +8093,18 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           } as any);
         }
       }
-      db.deleteRow('payments', pay.id);
+      reversePaymentRecord(pay, [], `매칭 해제 ${txId} 레거시`);
     });
 
-    // 3. 거래 정보 복구
+    // 3. 거래 정보 복구 + 해제 이력 영구 보존
+    // 수납 행과 연결 행은 삭제되므로, 입금 거래 메모에 [해제 일시 / 수행자 / 해제 내역]을 덧붙여 계약 이력이 없는 선수금 경로까지 추적 가능하게 한다.
+    const nowIso = new Date().toISOString();
+    const unmatchStamp = `[매칭 해제 ${nowIso.replace('T', ' ').slice(0, 16)} / ${currentUser?.name || '미식별'}] ${unmatchTrace.length > 0 ? unmatchTrace.join(' | ') : '해제 대상 수납 내역 없음'}`;
     db.updateRow<BankTransaction>('bankTransactions', txId, {
       matchedBillingId: '',
       matchingType: undefined,
-      updatedAt: new Date().toISOString()
+      memo: tx.memo ? `${tx.memo}\n${unmatchStamp}` : unmatchStamp,
+      updatedAt: nowIso
     } as any);
 
     await db.awaitPendingWrites();

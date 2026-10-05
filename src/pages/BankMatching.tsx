@@ -8,7 +8,7 @@ import {
   Printer, Zap
 } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
-import { db, BankTransaction } from '../services/db';
+import { db, BankTransaction, isActivePayment, isActiveDepositLink } from '../services/db';
 import { getTenantPlugin } from '../integrations/TenantPluginManager';
 import { matchHangul, sortCustomersByName } from '../utils/hangulSearch';
 
@@ -170,11 +170,11 @@ export const BankMatching: React.FC = () => {
   const getMatchedTransactionInfo = (tx: BankTransaction) => {
     if (tx.isDeposit || tx.depositAmount > 0) {
       // 1) 신규 체계: paymentDepositLinks 1:N 매핑
-      const linkedLinks = (paymentDepositLinks || []).filter(l => l.bankTransactionId === tx.id && l.usedAmount > 0);
+      const linkedLinks = (paymentDepositLinks || []).filter(l => l.bankTransactionId === tx.id && l.usedAmount > 0 && isActiveDepositLink(l));
       
       // 2) 레거시 호환 체계
       const matchPrefix = `pay-matching-${tx.id}`;
-      const txPayments = payments.filter(p => p.id.startsWith(matchPrefix));
+      const txPayments = payments.filter(p => p.id.startsWith(matchPrefix) && isActivePayment(p));
       
       if (linkedLinks.length === 0 && txPayments.length === 0) {
         return <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>미수납 (가용 {tx.depositAmount.toLocaleString()}원)</span>;
@@ -312,7 +312,7 @@ export const BankMatching: React.FC = () => {
       .filter(l => l.bankTransactionId === txId)
       .reduce((s, l) => s + l.usedAmount, 0);
     const legacyUsed = (payments || [])
-      .filter(p => p.id.startsWith(`pay-matching-${txId}`) && !linkedPaymentIds.has(p.id))
+      .filter(p => p.id.startsWith(`pay-matching-${txId}`) && isActivePayment(p) && !linkedPaymentIds.has(p.id))
       .reduce((s, p) => s + p.amount, 0);
     return linkUsed + legacyUsed;
   };
@@ -329,7 +329,7 @@ export const BankMatching: React.FC = () => {
   const totalDepositAvailAmountSum = Math.max(0, totalDepositAmountSum - totalDepositUsedAmountSum);
 
   const matchedDepositCount = deposits.filter(t => {
-    const hasLink = (paymentDepositLinks || []).some(l => l.bankTransactionId === t.id && l.usedAmount > 0);
+    const hasLink = (paymentDepositLinks || []).some(l => l.bankTransactionId === t.id && l.usedAmount > 0 && isActiveDepositLink(l));
     const remBal = getDepositBalance(t.id);
     return !!t.matchedBillingId || hasLink || remBal <= 0;
   }).length;
@@ -411,9 +411,9 @@ export const BankMatching: React.FC = () => {
   // 5. 엑셀 다운로드
   const handleExport = () => {
     const excelData = filteredTransactions.map((t, idx) => {
-      const linkedLinks = (paymentDepositLinks || []).filter(l => l.bankTransactionId === t.id && l.usedAmount > 0);
+      const linkedLinks = (paymentDepositLinks || []).filter(l => l.bankTransactionId === t.id && l.usedAmount > 0 && isActiveDepositLink(l));
       const matchPrefix = `pay-matching-${t.id}`;
-      const txPayments = payments.filter(p => p.id.startsWith(matchPrefix));
+      const txPayments = payments.filter(p => p.id.startsWith(matchPrefix) && isActivePayment(p));
 
       const infoParts: string[] = [];
       linkedLinks.forEach(link => {
@@ -519,7 +519,7 @@ export const BankMatching: React.FC = () => {
     if (appliedTypeFilter === 'WITHDRAW' && (t.depositAmount > 0 && t.withdrawAmount === 0)) return false;
 
     // 2) 지급 / 수납 매치 완료 여부 상태 필터 (appliedStatusFilter)
-    const linkedLinks = (paymentDepositLinks || []).filter(l => l.bankTransactionId === t.id && l.usedAmount > 0);
+    const linkedLinks = (paymentDepositLinks || []).filter(l => l.bankTransactionId === t.id && l.usedAmount > 0 && isActiveDepositLink(l));
     const remBal = getDepositBalance(t.id);
     const isMatchedDeposit = !!t.matchedBillingId || linkedLinks.length > 0 || (t.depositAmount > 0 && remBal <= 0);
     const isMatchedWithdraw = purchaseSettlements.some(s => s.bankTransactionId === t.id);
@@ -552,13 +552,13 @@ export const BankMatching: React.FC = () => {
     unallocated.forEach(tx => {
       const rule = bankMatchingRules.find(r => r.senderName === tx.senderName);
       if (rule) {
-        const hasUnpaid = billings.some(b => b.customerId === rule.customerId && (b.status === 'UNPAID' || b.status === 'PARTIAL'));
+        const hasUnpaid = billings.some(b => b.customerId === rule.customerId && (b.status === 'UNPAID' || b.status === 'PARTIAL' || b.status === 'REQUESTED'));
         if (hasUnpaid) count++;
         return;
       }
       const cust = customers.find(c => tx.senderName.includes(c.name) || c.name.includes(tx.senderName));
       if (cust) {
-        const hasUnpaid = billings.some(b => b.customerId === cust.id && (b.status === 'UNPAID' || b.status === 'PARTIAL'));
+        const hasUnpaid = billings.some(b => b.customerId === cust.id && (b.status === 'UNPAID' || b.status === 'PARTIAL' || b.status === 'REQUESTED'));
         if (hasUnpaid) count++;
       }
     });
@@ -1158,7 +1158,7 @@ export const BankMatching: React.FC = () => {
                   </tr>
                 ) : (
                   filteredTransactions.map((tx) => {
-                    const linkedLinks = (paymentDepositLinks || []).filter(l => l.bankTransactionId === tx.id && l.usedAmount > 0);
+                    const linkedLinks = (paymentDepositLinks || []).filter(l => l.bankTransactionId === tx.id && l.usedAmount > 0 && isActiveDepositLink(l));
                     const remBal = getDepositBalance(tx.id);
                     const usedDeposit = getDepositUsedAmount(tx.id);
                     const matchedWithdrawAmt = getWithdrawMatchedAmount(tx.id);

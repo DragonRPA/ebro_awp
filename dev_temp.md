@@ -1,3 +1,14 @@
+## [반영완료] 결함(G-25, G-26, G-28, G-29, G-30, G-31) 심층 추적 수정 및 상계 처리 스크립트 준비
+- **조치 내역**:
+  1. G-25: 자산 매각 시 ASSIGNED(출고대기) 상태 장비 오매각 원천 방어 (AssetAcquisitionDisposal.tsx)
+  2. G-26: 기존 계약에 자산 추가 시 ACTIVE 즉시 우회 방지, ASSIGNED 전환 및 출고 PDI 태스크 정상 발행 (Contracts.tsx)
+  3. G-28: 출고 검수 승인 시 중복 OUTBOUND 이력 생성 방지 가드레일 추가 (outbound_inspections.tsx)
+  4. G-29: 자산 상세(Assets.tsx) 폼에서 상태 및 소유권 강제 조작(disabled) 차단으로 생애주기 우회 방지
+  5. G-30: 수납 취소(cancelPayment) 시 발송 완료된 청구서가 UNPAID로 회귀하는 버그 수정, contractHistory 기반 REQUESTED 복원 (AppContext.tsx)
+  6. G-31: 자동/일괄 수납 매칭이 발송완료(REQUESTED) 상태 청구를 건너뛰는 버그 수정 (BankMatching.tsx)
+  7. 매트릭스(AWP_ERP_Process_Matrix.md): 누락된 '출고 검수 중 장비 교체(대차)' 행 복구 및 정정 완료
+  8. G-10/G-22 수납 취소 및 상계를 위한 DB 마이그레이션 준비 (patch_payment_reversal.sql)
+
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
 ## 2026-10-04 21:05 (v1.13.0.Build.31 배포 완료)
@@ -7615,3 +7626,4 @@ pm run build: **TypeScript 0 Error, 번들링 정상 완료 (uilt in 1.13s)**.
 
 
 
+- 로컬 AI 모델 로딩 시 사용자에게 예상 소요시간 안내 UI 추가 (지루함 방지 목적)

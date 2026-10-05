@@ -1,3 +1,14 @@
+## v1.13.0.Build.24 (2026-10-05 13:40)
+- **자산 라이프사이클 무결성 강화**:
+  - 자산 매각 시 출고 대기 중(ASSIGNED)인 장비가 잘못 포함되지 않도록 원천 차단 조치.
+  - 기존 계약에 자산 추가 시 즉시 대여중(ACTIVE)으로 우회되지 않도록 출고 검수(PDI) 및 배차 태스크 정상 발행되도록 변경.
+  - 출고 검수 승인 시 OUTBOUND 이력이 중복으로 기록되는 증상 방어.
+  - 자산 정보 수정(폼)에서 상태 및 소유구분 필드를 비활성화(disabled)하여 생애주기 강제 조작 차단.
+- **회계/정산 모순 결함 픽스**:
+  - 수납 취소(cancelPayment) 시 발송 완료되었던 청구서(REQUESTED)가 미발송(UNPAID)으로 롤백되는 현상 수정.
+  - 통장 자동/일괄 매칭 필터에 발송 완료(REQUESTED)된 청구서도 포함되어 정상적으로 매칭되도록 픽스.
+  - 수납 상계 처리를 위한 사전 DB 마이그레이션 파일 추가 (patch_payment_reversal.sql).
+
 ## 2026-10-04 21:05 (v1.13.0.Build.31)
 
 ### [초기DB엑셀업로드전사멀티테넌트격리대개편/전역삭제폭탄영구제거/targetTenantId강제바인딩/테넌트관리센터9번째초기DB업로드탭/표준엑셀3대서식다운로드탑재완결] 기존 전역 TRUNCATE(.neq('id', '____IMPOSSIBLE____')) 및 tenant_id 누락으로 인한 타 테넌트 데이터 전멸 위험 원천 박멸, 모든 초기 적재(ingestExcelInitialData) 및 초기화(resetAllDatabaseTables)에 targetTenantId 강제 주입 및 .eq('tenant_id', scopeId) 격리 안전 삭제 전환, filterRecordBySchema에 tenant_id 무조건 보존 규칙 적용, 표준 엑셀 3대 시트(장비자산목록, 고객사거래처, 현재계약대여) 다운로드 엔진(exportInitialDataExcelTemplate) 신설, TenantManagementPage 내 9번째 모달 탭 '초기 DB 업로드(INITIAL_DB)' 신설(테넌트별 자산·고객·계약 프리뷰, 프로그레스 바, 전용 안전 주입/초기화) 및 목록 테이블 '초기DB' 바로가기 버튼 탑재, InitialDbUploader.tsx 상단 멀티테넌트 격리 배너 및 currentTenant 자동 바인딩 완료

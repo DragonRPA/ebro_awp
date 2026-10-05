@@ -1091,7 +1091,7 @@ export const Assets: React.FC = () => {
                     <div><label style={labelStyle}>제조년도</label><input style={inputStyle} value={editForm.manufactureYear || ''} onChange={ef('manufactureYear')} /></div>
                     <div>
                       <label style={labelStyle}>소유구분</label>
-                      <select style={inputStyle} value={editForm.ownerType || 'OWNED'} onChange={ef('ownerType')}>
+                      <select style={inputStyle} value={editForm.ownerType || 'OWNED'} onChange={ef('ownerType')} disabled>
                         <option value="OWNED">당사자산</option>
                         <option value="RENTED">임차자산</option>
                       </select>
@@ -1107,8 +1107,8 @@ export const Assets: React.FC = () => {
                       </div>
                     )}
                     <div>
-                      <label style={labelStyle}>상태</label>
-                      <select style={inputStyle} value={editForm.status || 'AVAILABLE'} onChange={ef('status')}>
+                      <label style={labelStyle}>상태 (자동 변경)</label>
+                      <select style={inputStyle} value={editForm.status || 'AVAILABLE'} onChange={ef('status')} disabled>
                         {Object.values(ASSET_STATUS_SSOT).map(st => (
                           <option key={st.code} value={st.code}>{st.label}</option>
                         ))}

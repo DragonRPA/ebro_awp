@@ -677,6 +677,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
       if (a.ownerType !== 'OWNED') return false; // 당사자산만 매각 가능
       if (a.status === 'SOLD') return false; // 이미 매각된 자산 배제
       if (a.status === 'RENTED') return false; // 현장 대여중 오매각 원천 차단 (헌장 1.2/1.3)
+      if (a.status === 'ASSIGNED') return false; // 출고 대기 중 장비 매각 금지
       if (!includeRepairing && a.status === 'REPAIRING') return false;
       return true;
     });

@@ -528,6 +528,8 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       );
 
       // 4. 계약 변경 이력(contract_history)에 감사 로그 DB 저장 (3-yes)
+      // 메일은 이미 발송되어 철회 불가. 이력 저장 실패 시 무음 처리하지 않고 오류 모달로 표출한다.
+      let historySaved = true;
       try {
         const historyId = db.generateNextId('contractHistory', db.contractHistory);
         const recipientSummary = recipients.map(r => `${r.name ? `${r.name}(${r.email})` : r.email}`).join(', ');
@@ -559,12 +561,14 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         });
 
         await db.awaitPendingWrites();
-      } catch (histErr) {
-        console.warn('감사 로그 저장 중 경고:', histErr);
+      } catch (histErr: any) {
+        historySaved = false;
+        console.error('발송 이력 저장 실패:', histErr);
+        showErrorModal?.(`계약서패키지 이메일은 발송되었으나 발송 이력 DB 저장에 실패했습니다.\n계약 변경 이력과 발송 상태가 기록되지 않았습니다.\n${histErr?.message || histErr}`);
       }
 
       setEmailSentSuccess(true);
-      alert(`✅ 계약서패키지 이메일이 성공적으로 발송되었습니다!\n\n• 수신인(TO): ${primaryRecipient}\n${ccRecipients ? `• 참조(CC): ${ccRecipients}\n` : ''}• 제목: ${emailSubject}\n• 첨부: ${pdf.fileName} (${pdf.pageCount}p)\n• 계약 변경 이력(Audit Log) DB 기록 완료`);
+      alert(`✅ 계약서패키지 이메일이 성공적으로 발송되었습니다!\n\n• 수신인(TO): ${primaryRecipient}\n${ccRecipients ? `• 참조(CC): ${ccRecipients}\n` : ''}• 제목: ${emailSubject}\n• 첨부: ${pdf.fileName} (${pdf.pageCount}p)${historySaved ? '\n• 계약 변경 이력(Audit Log) DB 기록 완료' : '\n• 발송 이력 DB 기록 실패'}`);
     } catch (err: any) {
       console.error('이메일 발송 실패:', err);
       showErrorModal?.(`이메일 발송 실패:\n${err.message || err}`);

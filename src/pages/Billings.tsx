@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSortableData } from '../hooks/useSortableData';
 import { SortableTh } from '../components/SortableTh';
 import { useApp } from '../context/AppContext';
-import { db, Asset, Billing, BillingDetail, ContractHistory, normalizeEndDate, formatContractEndDate, CustomStatementItem, ApprovalPayload } from '../services/db';
+import { db, isActivePayment, Asset, Billing, BillingDetail, ContractHistory, normalizeEndDate, formatContractEndDate, CustomStatementItem, ApprovalPayload } from '../services/db';
 import { Plus, Download, Mail, CheckCircle, Search, DollarSign, Calendar, FileText, Send, Edit3, RotateCcw, AlertTriangle, Check, Layers, Sliders, Settings } from 'lucide-react';
 import { emailService } from '../services/email';
 import { exportToExcel, exportTransactionStatementExcel, exportTransactionStatementExcelBuffer, calcServicePeriod, formatStatementItemName } from '../services/excel';
@@ -768,7 +768,7 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
       .filter(l => l.bankTransactionId === txId)
       .reduce((s, l) => s + l.usedAmount, 0);
     const legacyUsed = (payments || [])
-      .filter(p => p.id.startsWith(`pay-matching-${txId}`) && !linkedPaymentIds.has(p.id))
+      .filter(p => p.id.startsWith(`pay-matching-${txId}`) && isActivePayment(p) && !linkedPaymentIds.has(p.id))
       .reduce((s, p) => s + p.amount, 0);
     return Math.max(0, (tx.depositAmount || 0) - (linkUsed + legacyUsed));
   };
@@ -3445,7 +3445,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
                   {/* 💰 수납 및 결제 이력 (Payment History & 수납 취소) */}
                   {(() => {
-                    const billingPayments = payments.filter(p => p.billingId === activeBilling.id);
+                    const billingPayments = payments.filter(p => p.billingId === activeBilling.id && isActivePayment(p));
                     if (billingPayments.length === 0) return null;
 
                     return (

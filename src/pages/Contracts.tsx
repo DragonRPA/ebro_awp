@@ -8,7 +8,7 @@ import {
   Building2, ArrowLeftRight, Receipt, FolderOpen, AlertCircle, ExternalLink, Copy, AlertTriangle, FileText,
   Truck, CheckCircle2
 } from 'lucide-react';
-import { Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, isCustomerRestricted, isCustomerTotalBlocked, ApprovalPayload } from '../services/db';
+import { Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, OutboundInspection, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, isCustomerRestricted, isCustomerTotalBlocked, ApprovalPayload } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
 import { matchHangul, sortCustomersByName, compareCustomerNames } from '../utils/hangulSearch';
@@ -1275,8 +1275,9 @@ export const Contracts: React.FC = () => {
     if (!duplicateContractModal || !pendingContractPayload) return;
     const contractId = duplicateContractModal.id;
     try {
+      const nowIso = new Date().toISOString();
       for (const item of pendingContractPayload.basket) {
-        db.insertRow<ContractAsset>('contractAssets', {
+        const insertedCA = db.insertRow<ContractAsset>('contractAssets', {
           contractId,
           assetId: item.assetId,
           expectedModel: item.expectedModel,
@@ -1284,9 +1285,38 @@ export const Contracts: React.FC = () => {
           dailyRentalFee: item.dailyRentalFee,
           startDate: pendingContractPayload.startDate,
           endDate: pendingContractPayload.endDate,
-          status: 'ACTIVE',
-          createdAt: new Date().toISOString()
+          createdAt: nowIso
         });
+
+        if (item.assetId) {
+          db.updateRow<Asset>('assets', item.assetId, {
+            status: 'ASSIGNED',
+            currentCustomerId: pendingContractPayload.customerId,
+            currentSiteId: pendingContractPayload.siteId,
+            contractStart: pendingContractPayload.startDate,
+            contractEnd: pendingContractPayload.endDate,
+            monthlyRentalFee: item.monthlyRentalFee,
+            dailyRentalFee: item.dailyRentalFee,
+            updatedAt: nowIso
+          });
+
+          db.insertRow<OutboundInspection>('outboundInspections', {
+            contractId: contractId,
+            contractAssetId: insertedCA.id,
+            assetId: item.assetId,
+            status: 'PENDING',
+            createdAt: nowIso,
+            updatedAt: nowIso
+          });
+
+          db.insertRow<ContractHistory>('contractHistory', {
+            contractId: contractId,
+            changeType: 'ADD_ASSET',
+            changeDate: pendingContractPayload.startDate,
+            description: `기존 계약 자산 추가 (출고대기): ${item.expectedModel} (자산번호: ${item.assetId})`,
+            createdAt: nowIso
+          });
+        }
       }
       await db.awaitPendingWrites();
       refreshAllData();

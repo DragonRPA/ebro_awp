@@ -1680,6 +1680,12 @@ export interface Payment {
   feeAdjustment?: number; // 송금수수료 등 차액 자동 감액 상계액 (500원/1,000원 등)
   createdAt: string;
   updatedAt?: string;
+  // 상계(역분개) 필드: 취소 시 원 행을 삭제하지 않고 음수 상계 행을 추가한다 (G-10)
+  reversalOf?: string;      // 이 행이 상계 행이면 원 수납 행 ID
+  reversedBy?: string;      // 이 행이 상계된 경우 상계 행 ID
+  reversalReason?: string;
+  reversedByUser?: string;
+  reversedAt?: string;
 }
 
 /** 통장입금-수납 마늤투마니 연결 테이블 (1건 수납 : N건 입금건) */
@@ -1689,7 +1695,21 @@ export interface PaymentDepositLink {
   bankTransactionId: string;   // FK → BankTransaction (isDeposit=true)
   usedAmount: number;          // 이 수납에서 해당 입금건에서 소진한 금액
   createdAt: string;
+  reversalOf?: string;         // 상계 연결 행이면 원 연결 행 ID
+  reversedBy?: string;         // 상계된 연결 행이면 상계 연결 행 ID
 }
+
+/**
+ * 수납 상계 사용 여부. scripts/patch_payment_reversal.sql 적용 후 true 로 전환한다.
+ * false 인 동안은 기존 동작(수납 행/연결 행 삭제)을 유지한다.
+ */
+export const PAYMENT_REVERSAL_ENABLED = false;
+
+/** 유효 수납: 상계되지 않았고 상계 행도 아닌 수납 행 */
+export const isActivePayment = (p: Pick<Payment, 'reversedBy' | 'reversalOf'>): boolean => !p.reversedBy && !p.reversalOf;
+
+/** 유효 입금 연결: 상계되지 않았고 상계 행도 아닌 연결 행 */
+export const isActiveDepositLink = (l: Pick<PaymentDepositLink, 'reversedBy' | 'reversalOf'>): boolean => !l.reversedBy && !l.reversalOf;
 
 export type DeliveryStatus = 'PENDING' | 'DISPATCHED' | 'DELIVERED' | 'CANCELLED' | 'REQUESTED' | 'COMPLETED';
 
