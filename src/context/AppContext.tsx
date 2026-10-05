@@ -10131,6 +10131,10 @@ ${currentTenant?.corporateName || tenantCorp} 배상
   };
 
   const deleteVehicleOperationLog = async (id: string): Promise<void> => {
+      const log = db.vehicleOperationLogs.find(l => l.id === id);
+      if (log && log.status === 'CONFIRMED') {
+        throw new Error('승인 완료된 운행일지는 삭제할 수 없습니다.');
+      }
     db.deleteRow('vehicleOperationLogs', id);
     await db.awaitPendingWrites();
     refreshAllData();
