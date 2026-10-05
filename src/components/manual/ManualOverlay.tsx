@@ -589,6 +589,7 @@ export const ManualOverlay: React.FC = () => {
   const [elements, setElements] = useState<Record<number, HTMLElement | null>>({});
   const [rects, setRects] = useState<Record<number, Rect | null>>({});
   const [expandedSeq, setExpandedSeq] = useState<number | null>(null);
+    const [activeProcessId, setActiveProcessId] = useState<string | null>(null);
   const lastPageIdRef = useRef<string | null>(null);
   const rafRef = useRef<number>(0);
   const trackingLoopRef = useRef<number | null>(null);
@@ -598,7 +599,13 @@ export const ManualOverlay: React.FC = () => {
   const modalZIndex = activeModal ? (parseInt(window.getComputedStyle(activeModal.modalEl).zIndex, 10) || 0) : 0;
   const baseZIndex = isModal ? Math.max(200000, modalZIndex + 10) : 100000;
 
-  const recalcTargets = useCallback(() => {
+  const activeItems = React.useMemo(() => {
+      return (activeProcessId 
+        ? page?.processes?.find(p => p.processId === activeProcessId)?.steps 
+        : page?.basicGuide) || page?.items || [];
+    }, [page, activeProcessId]);
+
+    const recalcTargets = useCallback(() => {
     if (!page) return;
     const isModalActive = Boolean(page.pageId?.startsWith('modal_'));
     const modalInfo = isModalActive ? detectActiveModalElement() : null;
@@ -614,7 +621,7 @@ export const ManualOverlay: React.FC = () => {
     const nextEls: Record<number, HTMLElement | null> = {};
     const nextRects: Record<number, Rect | null> = {};
 
-    page.items.forEach(item => {
+    activeItems.forEach(item => {
       const el = resolveTargetElement(item, rootEl, isModalActive);
       nextEls[item.seq] = el;
       nextRects[item.seq] = getRect(el);
@@ -622,7 +629,7 @@ export const ManualOverlay: React.FC = () => {
 
     setElements(nextEls);
     setRects(nextRects);
-  }, [page, setMode]);
+  }, [page, setMode, activeItems]);
 
   // 스크롤 이동 중 뱃지 및 파동이 실시간으로 엘리먼트를 밀착 추적하는 rAF 루프
   const startTrackingLoop = useCallback((durationMs = 800) => {
@@ -650,8 +657,8 @@ export const ManualOverlay: React.FC = () => {
       setExpandedSeq(1);
 
       const timer = setTimeout(() => {
-        if (page.items[0]) {
-          const el = resolveTargetElement(page.items[0], null, isModal);
+        if (activeItems[0]) {
+          const el = resolveTargetElement(activeItems[0], null, isModal);
           if (el) {
             scrollTargetIntoView(el);
             startTrackingLoop(800);
@@ -724,7 +731,7 @@ export const ManualOverlay: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown, true);
 
     // 5. 기본으로 첫 번째 1단계 자동 포커스 (최초 1회 안내)
-    if (page && page.items.length > 0 && expandedSeq === null) {
+    if (page && activeItems.length > 0 && expandedSeq === null) {
       setExpandedSeq(1);
     }
 
@@ -865,8 +872,8 @@ export const ManualOverlay: React.FC = () => {
     setExpandedSeq(seq);
 
     // 💡 [사용자 선택 시 아코디언 블록 안전 전개] 접힌 블록이 있다면 1회 전개
-    if (page && page.items) {
-      const item = page.items.find(i => i.seq === seq);
+    if (page && activeItems) {
+      const item = activeItems.find(i => i.seq === seq);
       if (item && item.selector) {
         const sel = item.selector;
         let blockHeader: HTMLElement | null = null;
@@ -895,7 +902,7 @@ export const ManualOverlay: React.FC = () => {
     // 대상 요소 획득
     let el = elements[seq];
     if (!el && page) {
-      const item = page.items.find(i => i.seq === seq);
+      const item = activeItems.find(i => i.seq === seq);
       if (item) {
         el = resolveTargetElement(item, null, isModal);
       }
@@ -921,22 +928,22 @@ export const ManualOverlay: React.FC = () => {
   }, [expandedSeq, elements, page, isModal, recalcTargets, startTrackingLoop]);
 
   const handlePrev = useCallback(() => {
-    if (!page || page.items.length === 0) return;
+    if (!page || activeItems.length === 0) return;
     const cur = expandedSeq || 1;
-    const nextSeq = cur > 1 ? cur - 1 : page.items.length;
+    const nextSeq = cur > 1 ? cur - 1 : activeItems.length;
     handleSelectSeq(nextSeq);
   }, [page, expandedSeq, handleSelectSeq]);
 
   const handleNext = useCallback(() => {
-    if (!page || page.items.length === 0) return;
+    if (!page || activeItems.length === 0) return;
     const cur = expandedSeq || 0;
-    const nextSeq = cur < page.items.length ? cur + 1 : 1;
+    const nextSeq = cur < activeItems.length ? cur + 1 : 1;
     handleSelectSeq(nextSeq);
   }, [page, expandedSeq, handleSelectSeq]);
 
   if (mode !== 'viewing' || !page) return null;
 
-  const items = page.items;
+  const items = activeItems;
   const activeItem = expandedSeq !== null ? items.find(i => i.seq === expandedSeq) : null;
   const activeRect = activeItem ? rects[activeItem.seq] : null;
 
