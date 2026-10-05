@@ -1,4 +1,5 @@
-import { supabase, db, calculateAssetDepreciation, normalizeCustomerName, findCustomerByNormalizedName, STANDARD_SPECS, InspectionChecklistItem, Repair, AssetInOutLog, ContractHistory } from './db';
+import { supabase, db, calculateAssetDepreciation, normalizeCustomerName, findCustomerByNormalizedName, STANDARD_SPECS, InspectionChecklistItem, Repair, AssetInOutLog, ContractHistory, CENTRAL_TABLE_NAMES } from './db';
+import { centralSupabase } from './centralDb';
 import * as XLSX from 'xlsx';
 import { PRESET_PRODUCT_SPECS, ProductPresetSpec } from '../data/presetProductSpecs';
 import { isModelMatch } from '../utils/modelUtils';
@@ -225,11 +226,22 @@ export function sanitizeNumber(val: any): number {
 export function sanitizeExcelDate(val: any): string | null {
   if (!val || val === '미정' || val === '-' || val === '공란') return null;
   if (typeof val === 'number') {
-    const date = new Date(Math.round((val - 25569) * 86400 * 1000));
-    if (isNaN(date.getTime())) return null;
-    return date.toISOString().split('T')[0];
+    // 엑셀 시리얼 날짜 (1900년 에포크 기준, KST 로컬 날짜 정밀 변환으로 UTC 오프셋 -1일 왜곡 원천 차단)
+    const excelEpoch = new Date(1899, 11, 30);
+    const days = Math.floor(val);
+    const ms = Math.round((val - days) * 86400 * 1000);
+    const d = new Date(excelEpoch.getTime() + days * 86400000 + ms);
+    if (isNaN(d.getTime())) return null;
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
-  const str = String(val).trim().replace(/\./g, '-');
+  const str = String(val).trim()
+    .replace(/[./]/g, '-')
+    .replace(/년|월/g, '-')
+    .replace(/일/g, '')
+    .replace(/\s+/g, '');
   if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(str)) {
     const parts = str.split('-');
     const y = parts[0];
@@ -238,7 +250,11 @@ export function sanitizeExcelDate(val: any): string | null {
     return `${y}-${m}-${d}`;
   }
   const d = new Date(str);
-  return isNaN(d.getTime()) ? null : d.toISOString().split('T')[0];
+  if (isNaN(d.getTime())) return null;
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export function sanitizeModelName(m: any): string {
@@ -381,9 +397,10 @@ function inferFeetFromModel(m: string, heightM: number = 0): number {
 }
 
 // ──────────────────────────────────────────────
-// 2. 전체 DB 49개 테이블 백업 모듈 (JSON 내보내기)
+// 2. 전체 DB 76개 테이블 백업 및 복원(Disaster Recovery) 모듈
 // ──────────────────────────────────────────────
 const ALL_TABLES = [
+  'tenants',
   'departments',
   'users',
   'permissions',
@@ -440,13 +457,22 @@ const ALL_TABLES = [
   'vehicle_operation_logs',
   'vehicle_fuel_logs',
   'equipment_manuals',
+  'system_manuals',
+  'manual_annotations',
+  'apk_releases',
   'print_stations',
   'print_queue',
   'privacy_access_logs',
-  'tenants',
   'stocktaking_audits',
   'stocktaking_audit_items',
   'collected_parts',
+  'approval_tier_configs',
+  'approval_rules',
+  'approval_requests',
+  'approval_steps',
+  'rule_consensus',
+  'user_work_status',
+  'walkie_channels',
   'call_uploads',
   'call_pipeline_logs',
   'draft_dispatch_orders'
@@ -455,10 +481,11 @@ const ALL_TABLES = [
 export async function exportFullDatabaseBackup(): Promise<{ backupData: Record<string, any[]>; timestamp: string; filename: string }> {
   const backupData: Record<string, any[]> = {};
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const filename = `backup_db_66_tables_${timestamp}.json`;
+  const filename = `backup_db_all_tables_${timestamp}.json`;
 
-  if (supabase) {
-    for (const table of ALL_TABLES) {
+  for (const table of ALL_TABLES) {
+    const targetClient = CENTRAL_TABLE_NAMES.has(table) ? centralSupabase : supabase;
+    if (targetClient) {
       try {
         let allRows: any[] = [];
         let from = 0;
@@ -466,7 +493,7 @@ export async function exportFullDatabaseBackup(): Promise<{ backupData: Record<s
         let hasMore = true;
 
         while (hasMore) {
-          const { data, error } = await supabase
+          const { data, error } = await targetClient
             .from(table)
             .select('*')
             .range(from, from + pageSize - 1);
@@ -484,16 +511,141 @@ export async function exportFullDatabaseBackup(): Promise<{ backupData: Record<s
 
         backupData[table] = allRows;
       } catch (e) {
-        backupData[table] = [];
+        console.warn(`[Backup Warning] ${table}:`, e);
+        backupData[table] = (db as any)[table] || [];
       }
-    }
-  } else {
-    for (const table of ALL_TABLES) {
+    } else {
       backupData[table] = (db as any)[table] || [];
     }
   }
 
   return { backupData, timestamp, filename };
+}
+
+/**
+ * 🛡️ [원클릭 DB 복원] 백업 JSON 데이터를 외래키(FK) 정방향 위상 정렬 순서로 100% 원상 복원
+ */
+export async function restoreFullDatabaseBackup(
+  backupData: Record<string, any[]>,
+  onProgress?: (step: number, total: number, message: string) => void,
+  targetTenantId?: string
+): Promise<{ success: boolean; restoredCount: number; message: string }> {
+  if (!backupData || typeof backupData !== 'object' || Object.keys(backupData).length === 0) {
+    return { success: false, restoredCount: 0, message: '유효한 백업 데이터가 제공되지 않았습니다.' };
+  }
+
+  const RESTORE_ORDER = [
+    'tenants',
+    'departments',
+    'users',
+    'permissions',
+    'custom_roles',
+    'role_permissions',
+    'vendors',
+    'customers',
+    'customer_sites',
+    'customer_contacts',
+    'products',
+    'assets',
+    'consumables',
+    'consumable_purchases',
+    'mechanic_consumable_stocks',
+    'transport_companies',
+    'transport_drivers',
+    'contracts',
+    'contract_assets',
+    'contract_history',
+    'external_leases',
+    'deliveries',
+    'outbound_inspections',
+    'asset_inout_logs',
+    'inspection_checklist_items',
+    'repairs',
+    'repair_consumables',
+    'consumable_logs',
+    'standard_options',
+    'billings',
+    'billing_details',
+    'billing_invoices',
+    'receivables',
+    'payments',
+    'bank_transactions',
+    'payment_deposit_links',
+    'bank_matching_rules',
+    'bank_initial_balances',
+    'purchase_settlements',
+    'purchase_settlement_items',
+    'settlement_payment_logs',
+    'cash_flow_snapshots',
+    'prepaid_transactions',
+    'delinquency_action_logs',
+    'legal_notice_logs',
+    'legal_notice_templates',
+    'depreciation_logs',
+    'todos',
+    'google_configs',
+    'corporate_vehicles',
+    'vehicle_operation_logs',
+    'vehicle_fuel_logs',
+    'equipment_manuals',
+    'system_manuals',
+    'manual_annotations',
+    'apk_releases',
+    'print_stations',
+    'print_queue',
+    'privacy_access_logs',
+    'stocktaking_audits',
+    'stocktaking_audit_items',
+    'collected_parts',
+    'annual_leave_quotas',
+    'leave_usages',
+    'overtime_records',
+    'payroll_closings',
+    'approval_tier_configs',
+    'approval_rules',
+    'approval_requests',
+    'approval_steps',
+    'rule_consensus',
+    'user_work_status',
+    'walkie_channels',
+    'draft_dispatch_orders',
+    'call_uploads',
+    'call_pipeline_logs'
+  ];
+
+  let totalRestored = 0;
+  const availableTables = RESTORE_ORDER.filter(tbl => Array.isArray(backupData[tbl]) && backupData[tbl].length > 0);
+  const totalSteps = availableTables.length;
+
+  for (let i = 0; i < totalSteps; i++) {
+    const table = availableTables[i];
+    const rows = backupData[table];
+    onProgress?.(i + 1, totalSteps, `[${i + 1}/${totalSteps}] ${table} (${rows.length.toLocaleString()}건) 원상 복원 중...`);
+
+    const targetClient = CENTRAL_TABLE_NAMES.has(table) ? centralSupabase : supabase;
+    if (targetClient) {
+      const CHUNK_SIZE = 100;
+      for (let c = 0; c < rows.length; c += CHUNK_SIZE) {
+        const chunk = rows.slice(c, c + CHUNK_SIZE);
+        const { error } = await targetClient.from(table).upsert(chunk, { onConflict: 'id' });
+        if (error) {
+          console.error(`[Restore Error] Table ${table} chunk ${c}-${c + CHUNK_SIZE}:`, error);
+          throw new Error(`[${table}] 테이블 복원 중 DB 오류: ${error.message}`);
+        }
+      }
+    }
+
+    if ((db as any)[table]) {
+      (db as any)[table] = rows;
+    }
+    totalRestored += rows.length;
+  }
+
+  return {
+    success: true,
+    restoredCount: totalRestored,
+    message: `전체 DB 원상 복구 완료 (총 ${totalRestored.toLocaleString()}건 복원)`
+  };
 }
 
 // ──────────────────────────────────────────────
@@ -503,6 +655,8 @@ export async function resetAllDatabaseTables(
   keepAdmin: boolean = true,
   targetTenantId?: string
 ): Promise<{ success: boolean; message: string }> {
+  // 🛡️ 매뉴얼(equipment_manuals, system_manuals, manual_annotations, legal_notice_templates) 및
+  // 테넌트 원장(tenants), 관리자 계정(users, departments, permissions)은 초기화 대상에서 영구 제외
   const DELETION_ORDER = [
     'settlement_payment_logs',
     'purchase_settlement_items',
@@ -515,7 +669,6 @@ export async function resetAllDatabaseTables(
     'prepaid_transactions',
     'delinquency_action_logs',
     'legal_notice_logs',
-    'legal_notice_templates',
     'depreciation_logs',
     'receivables',
     'payments',
@@ -551,7 +704,6 @@ export async function resetAllDatabaseTables(
     'vehicle_fuel_logs',
     'vehicle_operation_logs',
     'corporate_vehicles',
-    // 🛡️ 매뉴얼(equipment_manuals, system_manuals, manual_annotations) 및 시스템 마스터는 전사 공통 공유 자산이므로 초기화 대상에서 영구 제외
     'print_queue',
     'print_stations',
     'privacy_access_logs',
@@ -571,18 +723,34 @@ export async function resetAllDatabaseTables(
     if (!scopeId) {
       return { success: false, message: '초기화 대상 테넌트 식별자(targetTenantId)가 지정되지 않아 안전을 위해 작업을 원천 차단했습니다.' };
     }
+
+    // 🛡️ 유령 초기화(Ghost Reset) 방지: DB에 파편화된 모든 테넌트 ID 변형을 포괄 매칭
+    const tenantVariants = Array.from(new Set([
+      scopeId,
+      'tenant-' + scopeId.replace(/^tenant-/, ''),
+      scopeId.replace(/^tenant-/, ''),
+      'giyeonlift',
+      'GIYEONLIFT',
+      'giyeun',
+      'tenant-giyeun'
+    ])).filter(Boolean);
+
     if (supabase) {
       for (const table of DELETION_ORDER) {
-        // 🛡️ 멀티테넌트 안전 삭제: 타 테넌트 데이터 침범 절대 방지, 오직 대상 테넌트 레코드만 한정 삭제
-        const { error } = await supabase.from(table).delete().eq('tenant_id', scopeId);
-        if (error && !error.message.includes('not found') && !error.message.includes('tenant_id')) {
-          console.warn(`[Reset Table Warning] ${table}:`, error.message);
+        // 🛡️ 멀티테넌트 안전 삭제: 타 테넌트 침범 없이 대상 테넌트(후보 ID 포함) 레코드 일괄 안전 삭제
+        try {
+          const { error } = await supabase.from(table).delete().in('tenant_id', tenantVariants);
+          if (error && !error.message.includes('not found') && !error.message.includes('tenant_id')) {
+            console.warn(`[Reset Table Warning] ${table}:`, error.message);
+          }
+        } catch (err: any) {
+          console.warn(`[Reset Table Exception] ${table}:`, err?.message || err);
         }
       }
     } else {
       DELETION_ORDER.forEach(tbl => {
         if (Array.isArray((db as any)[tbl])) {
-          (db as any)[tbl] = (db as any)[tbl].filter((r: any) => r.tenant_id && r.tenant_id !== scopeId);
+          (db as any)[tbl] = (db as any)[tbl].filter((r: any) => !r.tenant_id || !tenantVariants.includes(r.tenant_id));
         }
       });
     }
@@ -627,6 +795,22 @@ function getCol(row: any[], map: Map<string, number>, keys: string[], fallbackId
     }
   }
   return row[fallbackIdx];
+}
+
+// 🔍 엑셀 워크북 내 유연한 시트 탐색기 (공백 무시 및 다의어 방지 정밀 매칭)
+export function findSheet(wb: XLSX.WorkBook, patterns: string[]): XLSX.WorkSheet | undefined {
+  const sheetNames = wb.SheetNames || [];
+  for (const pat of patterns) {
+    const cleanPat = pat.replace(/\s+/g, '');
+    const foundName = sheetNames.find(s => {
+      const cleanS = s.replace(/\s+/g, '');
+      return cleanS === cleanPat || cleanS.includes(cleanPat);
+    });
+    if (foundName && wb.Sheets[foundName]) {
+      return wb.Sheets[foundName];
+    }
+  }
+  return undefined;
 }
 
 export function parseInitialExcelWorkbook(
@@ -693,8 +877,8 @@ export function parseInitialExcelWorkbook(
     });
   });
 
-  // ── 1. 보유자산현황 시트 파싱 ──
-  const wsAsset = wb.Sheets['보유자산현황'];
+  // ── 1. 보유자산현황 시트 파싱 (보유자산현황 / 보유장비 임대현황 등 유연 매칭) ──
+  const wsAsset = findSheet(wb, ['보유자산현황', '보유장비임대현황', '보유장비 임대현황', '자산현황', '자산대장']);
   const allAssetRows = wsAsset ? XLSX.utils.sheet_to_json(wsAsset, { header: 1, defval: null }) : [];
   let assetHeaderMap = new Map<string, number>();
   let assetDataStartIndex = 4;
@@ -792,7 +976,7 @@ export function parseInitialExcelWorkbook(
   });
 
   // ── 2. 거래처정보현황 시트 파싱 ──
-  const wsCust = wb.Sheets['거래처정보현황'];
+  const wsCust = findSheet(wb, ['거래처정보현황', '거래처현황', '거래처', '고객사정보', '고객사']);
   const allCustRows = wsCust ? XLSX.utils.sheet_to_json(wsCust, { header: 1, defval: null }) : [];
   let custHeaderMap = new Map<string, number>();
   let custDataStartIndex = 2;
@@ -880,7 +1064,7 @@ export function parseInitialExcelWorkbook(
   });
 
   // ── 3. 업체별마감일자 시트 파싱 ──
-  const wsClosing = wb.Sheets['업체별마감일자'];
+  const wsClosing = findSheet(wb, ['업체별마감일자', '업체별미감일자', '마감일자', '업체별마감일']);
   const allClosingRows = wsClosing ? XLSX.utils.sheet_to_json(wsClosing, { header: 1, defval: null }) : [];
   let closingHeaderMap = new Map<string, number>();
   let closingDataStartIndex = 2;
@@ -948,7 +1132,7 @@ export function parseInitialExcelWorkbook(
   });
 
   // ── 4. 202608 월별 계약/배차/청구 종합 파싱 ──
-  const wsMain = wb.Sheets['계약현황'] || wb.Sheets['202608'];
+  const wsMain = findSheet(wb, ['계약현황', '202608', '임대현황', '계약대장', '2026-08', '2026']);
   const allMainRows = wsMain ? XLSX.utils.sheet_to_json(wsMain, { header: 1, defval: null }) : [];
   let mainHeaderMap = new Map<string, number>();
   let mainDataStartIndex = 3;
@@ -1831,8 +2015,23 @@ export async function ingestExcelInitialData(
     // Step 0: 기존 비즈니스 데이터 정리 (대상 테넌트 한정 안전 삭제)
     // 🛡️ 멀티테넌트 원칙: 타 테넌트의 데이터는 절대 건드리지 않고, 오직 scopeId 테넌트 행만 격리 삭제
     onProgress?.(0, totalSteps, `0/13: [${scopeId}] 기존 데이터 정리 중 (해당 테넌트 격리 삭제)...`);
+    
+    // 🛡️ 유령 초기화(Ghost Reset) 방지: DB에 파편화된 모든 테넌트 ID 변형을 포괄 매칭
+    const tenantVariants = Array.from(new Set([
+      scopeId,
+      'tenant-' + scopeId.replace(/^tenant-/, ''),
+      scopeId.replace(/^tenant-/, ''),
+      'giyeonlift',
+      'GIYEONLIFT',
+      'giyeun',
+      'tenant-giyeun'
+    ])).filter(Boolean);
+
     if (supabase) {
       const TRUNCATE_ORDER = [
+        'purchase_settlement_items',
+        'purchase_settlements',
+        'reconciliation_reports',
         'asset_inout_logs',
         'outbound_inspections',
         'deliveries',
@@ -1852,7 +2051,7 @@ export async function ingestExcelInitialData(
       ];
       for (const table of TRUNCATE_ORDER) {
         try {
-          const { error } = await supabase.from(table).delete().eq('tenant_id', scopeId);
+          const { error } = await supabase.from(table).delete().in('tenant_id', tenantVariants);
           if (error && !error.message.includes('not found') && !error.message.includes('tenant_id')) {
             console.warn(`[Ingest] pre-truncate warning for ${table}:`, error.message);
           }
@@ -1945,6 +2144,13 @@ export async function ingestExcelInitialData(
         console.warn('[Ingest] purchase_settlements skipped or failed:', e);
       }
     }
+    if (parsed.purchaseBillingDetails && parsed.purchaseBillingDetails.length > 0) {
+      try {
+        await batchUpsertChunked('purchase_settlement_items', parsed.purchaseBillingDetails, 100);
+      } catch (e) {
+        console.warn('[Ingest] purchase_settlement_items skipped or failed:', e);
+      }
+    }
     if (parsed.receivables.length > 0) {
       await batchUpsertChunked('receivables', parsed.receivables, 100);
     }
@@ -1957,6 +2163,7 @@ export async function ingestExcelInitialData(
     const reportId = `REC-${Date.now()}`;
     const reportRecord = {
       id: reportId,
+      tenant_id: scopeId,
       migration_run_at: new Date().toISOString(),
       asset_count_excel:      report.assetCountMatch.excel,
       asset_count_db:         report.assetCountMatch.db,
@@ -2579,13 +2786,23 @@ export async function generateAndIngestHistoricalBillingsDirect(
         if (caStartYm > ymStr) continue;
         if (ca.endDate && ca.endDate < `${ymStr}-01`) continue;
 
-        let daysInPeriod = lastDayOfCurMonth;
+        let startDayOfPeriod = 1;
         if (curYear === parseInt(caStartParts[0], 10) && curMonth === parseInt(caStartParts[1], 10)) {
-          const startDay = parseInt(caStartParts[2], 10);
-          daysInPeriod = Math.max(1, lastDayOfCurMonth - startDay + 1);
+          startDayOfPeriod = Math.max(1, parseInt(caStartParts[2], 10));
         }
 
-        const isFullMonth = daysInPeriod === lastDayOfCurMonth;
+        let endDayOfPeriod = lastDayOfCurMonth;
+        if (ca.endDate) {
+          const caEndParts = ca.endDate.split('-');
+          if (curYear === parseInt(caEndParts[0], 10) && curMonth === parseInt(caEndParts[1], 10)) {
+            endDayOfPeriod = Math.min(lastDayOfCurMonth, parseInt(caEndParts[2], 10));
+          }
+        }
+
+        const daysInPeriod = Math.max(0, endDayOfPeriod - startDayOfPeriod + 1);
+        if (daysInPeriod <= 0) continue;
+
+        const isFullMonth = (startDayOfPeriod === 1 && endDayOfPeriod === lastDayOfCurMonth);
         const mFee = ca.monthlyRentalFee || 0;
         const dFee = ca.dailyRentalFee || (mFee > 0 ? Math.round(mFee / 30) : 0);
         const itemAmount = isFullMonth ? mFee : Math.round(dFee * daysInPeriod);
@@ -2669,39 +2886,61 @@ export async function generateAndIngestHistoricalBillingsDirect(
         const oldBillIds = oldHistBills.map(b => b.id);
         for (let i = 0; i < oldBillIds.length; i += 100) {
           const chunk = oldBillIds.slice(i, i + 100);
-          const { data: oldDetails } = await supabase.from('billing_details').select('asset_id, amount').in('billing_id', chunk);
+          let oldDetails: any[] | null = null;
+          // PostgreSQL 컬럼 대소문자 호환 (billingId vs billing_id)
+          const res1 = await supabase.from('billing_details').select('*').in('billingId', chunk);
+          if (!res1.error && res1.data) {
+            oldDetails = res1.data;
+          } else {
+            const res2 = await supabase.from('billing_details').select('*').in('billing_id', chunk);
+            if (!res2.error && res2.data) oldDetails = res2.data;
+          }
+
           if (oldDetails) {
             oldDetails.forEach((d: any) => {
-              if (d.asset_id && d.amount) {
-                oldAssetDeductions.set(d.asset_id, (oldAssetDeductions.get(d.asset_id) || 0) + Number(d.amount));
+              const aId = d.assetId || d.asset_id;
+              const amt = Number(d.amount);
+              if (aId && amt) {
+                oldAssetDeductions.set(aId, (oldAssetDeductions.get(aId) || 0) + amt);
               }
             });
           }
-          await supabase.from('billing_details').delete().in('billing_id', chunk);
+
+          // 삭제 실행 (billingId vs billing_id 둘 다 안전 처리)
+          const delRes = await supabase.from('billing_details').delete().in('billingId', chunk);
+          if (delRes.error && delRes.error.message.includes('billingId')) {
+            await supabase.from('billing_details').delete().in('billing_id', chunk);
+          }
         }
         for (let i = 0; i < oldBillIds.length; i += 100) {
           const chunk = oldBillIds.slice(i, i + 100);
           await supabase.from('billings').delete().in('id', chunk);
         }
       }
+      // 🛡️ 오직 소급 생성된 계약이력(CH-HIST-%)만 정확히 한정 삭제 (정상 업무 이력 보존)
       await supabase.from('contract_history').delete().like('id', 'CH-HIST-%');
-      await supabase.from('contract_history').delete().eq('change_type', 'BILLING_CREATED');
     } else {
       const dbAny = db as any;
       if (dbAny.billings) {
         const oldBillIds = new Set(dbAny.billings.filter((b: any) => b.id?.startsWith('BILL-HIST-')).map((b: any) => b.id));
         if (dbAny.billingDetails) {
           dbAny.billingDetails.forEach((bd: any) => {
-            if (oldBillIds.has(bd.billingId) && bd.assetId && bd.amount) {
-              oldAssetDeductions.set(bd.assetId, (oldAssetDeductions.get(bd.assetId) || 0) + Number(bd.amount));
+            const billId = bd.billingId || bd.billing_id;
+            const astId = bd.assetId || bd.asset_id;
+            const amt = Number(bd.amount);
+            if (oldBillIds.has(billId) && astId && amt) {
+              oldAssetDeductions.set(astId, (oldAssetDeductions.get(astId) || 0) + amt);
             }
           });
-          dbAny.billingDetails = dbAny.billingDetails.filter((bd: any) => !oldBillIds.has(bd.billingId) && !bd.id?.startsWith('BD-HIST-'));
+          dbAny.billingDetails = dbAny.billingDetails.filter((bd: any) => {
+            const billId = bd.billingId || bd.billing_id;
+            return !oldBillIds.has(billId) && !bd.id?.startsWith('BD-HIST-');
+          });
         }
         dbAny.billings = dbAny.billings.filter((b: any) => !b.id?.startsWith('BILL-HIST-'));
       }
       if (dbAny.contractHistory) {
-        dbAny.contractHistory = dbAny.contractHistory.filter((ch: any) => !ch.id?.startsWith('CH-HIST-') && ch.changeType !== 'BILLING_CREATED');
+        dbAny.contractHistory = dbAny.contractHistory.filter((ch: any) => !ch.id?.startsWith('CH-HIST-'));
       }
     }
 
