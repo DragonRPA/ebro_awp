@@ -230,7 +230,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     rulesCompliance: [
       '헌장 1.2 [이벤트 기록 무누락 DB 저장]: 승인/반려 시각, 결재자 식별자, 결재 의견 DB 완벽 저장',
       '헌장 3.1 [무수식어 건조 UI 표준]: 건조한 명사/동사([승인], [반려], [결재선]) 구조 준수',
-      '헌장 3.5 [Z-패턴 동선]: 좌상단 대기목록 ➔ 중앙 본문 내용 검토 ➔ 우하단 [승인/반려] 액션'
+      '헌장 3.5 [Z-패턴 동선]: 좌상단 대기목록  중앙 본문 내용 검토  우하단 [승인/반려] 액션'
     ],
     precautions: [
       '직무 대결(Delegation) 설정 기간 중에는 대결자의 승인도 본인 승인과 동일한 법적/회계적 효력을 가짐',
@@ -598,7 +598,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '헌장 2.2: 옵션품목마스터 기준단가 및 고객사 기본 옵션 속성 100% 자동 상속 원칙 완결',
       '헌장 3.1: 감성적 수식어 배제 및 건조한 명사·동사 UI 단일 표준 준수',
       '헌장 3.2: 테이블 셀 white-space: nowrap 적용으로 줄바꿈 방지',
-      '헌장 3.5: 좌측 현장 스코프 ➔ 우측 상속 작업대 ➔ 우하단 월 옵션 총액 및 최종 저장 4단계 Gutenberg Z-패턴 동선 확립'
+      '헌장 3.5: 좌측 현장 스코프  우측 상속 작업대  우하단 월 옵션 총액 및 최종 저장 4단계 Gutenberg Z-패턴 동선 확립'
     ],
     precautions: [
       '현장별 옵션은 반드시 옵션품목마스터(StandardOption)의 품목 체계를 상속받아 구성되어야 합니다.',
@@ -703,7 +703,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '2. 계약 운용 실시간 KPI 지표 검토 (총 계약건수, 진행/연장, 만료임박, 월 렌탈료 합계)',
       '3. 통합 빠른 검색 및 계약 유형 전환 (렌탈 계약 ↔ 매각 계약 1클릭 전환)',
       '4. 고밀도 계약 대장 그리드 1:1 대사 (출고 마일스톤, 투입 장비 모델/수량, 마감일 검증)',
-      '5. 계약 상세 조회 및 라이프사이클 조치 ([상세 ➔] 클릭: 기간변경, 단가조정, EXCHANGE 대차)',
+      '5. 계약 상세 조회 및 라이프사이클 조치 ([상세 ] 클릭: 기간변경, 단가조정, EXCHANGE 대차)',
       '6. 계약서 패키지 통합 발행 및 엑셀 대장 출력 (계약서·작업지시서·안전옵션 PDF 및 엑셀)',
       '7. 신규 계약 작성 및 전자 체결 ([+ 신규 계약 등록] 클릭: 고객/현장 매핑 및 장비 단가 체결)'
     ],
@@ -798,7 +798,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "button[data-mid=\"contract-detail-action\"]",
         "type": "click_ripple",
         "label": "계약 상세 진입",
-        "description": "진행 중인 계약 목록에서 '상세 ➔' 버튼을 클릭합니다."
+        "description": "진행 중인 계약 목록에서 '상세 ' 버튼을 클릭합니다."
       },
       {
         "seq": 2,
@@ -833,7 +833,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "button[data-mid=\"contract-detail-action\"]",
         "type": "click_ripple",
         "label": "계약 상세 진입",
-        "description": "진행 중인 계약 목록에서 '상세 ➔' 버튼을 클릭합니다."
+        "description": "진행 중인 계약 목록에서 '상세 ' 버튼을 클릭합니다."
       },
       {
         "seq": 2,
@@ -908,7 +908,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     rulesCompliance: [
       '헌장 2.1 [부서 R&R 엄격 분리]: 영업부서는 계약 관점 대차 요구 발행만 담당, 개별 자산번호 직접 선택 금지',
       '헌장 2.2 [계약 속성 100% 자동 상속]: 대차 장비는 최초 계약 단가/마감일/현장속성 자동 상속',
-      '헌장 4.1 [자산별 매출 기여액 정밀 일할 집계]: 전자산 전일 마감 ➔ 후장비 당일 승계 완벽 일치',
+      '헌장 4.1 [자산별 매출 기여액 정밀 일할 집계]: 전자산 전일 마감  후장비 당일 승계 완벽 일치',
       '헌장 4.2 [대차 교체 1:1 완벽 추적성]: contractHistory에 CHANGE_TYPE=EXCHANGE 무누락 보존'
     ],
     precautions: [
@@ -961,7 +961,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         selector: '[data-mid="contract-detail-action"], button:contains("상세")',
         type: 'click_ripple',
         label: '계약 상세 및 변경 조치',
-        description: '[상세 ➔]를 클릭하여 체결 자산 상세, 기간 연장/단축, 단가 변경, EXCHANGE 대차 의뢰를 조치합니다.',
+        description: '[상세 ]를 클릭하여 체결 자산 상세, 기간 연장/단축, 단가 변경, EXCHANGE 대차 의뢰를 조치합니다.',
         badgeColor: '#2563EB',
         positionHint: 'right',
         spotlight: true,
@@ -1111,10 +1111,10 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '8. 청구·수납 6대 종합 집계 (공급가, 세액, 총액, 수납액, 미수금, 통장잔액) 확인',
       '9. 청구 대장 전체 데이터 엑셀(XLSX) 양식 다운로드',
       '10. 월별 청구 대장 그리드에서 청구서 목록 조망 및 개별 행 클릭',
-      '11. 미납 청구서 [수납] 클릭 ➔ 통장 입금 내역 1:1 매칭 및 영수 등록',
-      '12. [발송] 클릭 ➔ 거래처 담당자에게 거래명세서 이메일 즉시 전송',
+      '11. 미납 청구서 [수납] 클릭  통장 입금 내역 1:1 매칭 및 영수 등록',
+      '12. [발송] 클릭  거래처 담당자에게 거래명세서 이메일 즉시 전송',
       '13. 고객사 이의제기 시 [취소/재생성]으로 청구 취소 및 계약 직전 상태 롤백',
-      '14. 우측 명세서 스튜디오에서 장비별 일할 렌탈료 대조, [청구 분할 ✂️], 정품 PDF/엑셀 출력',
+      '14. 우측 명세서 스튜디오에서 장비별 일할 렌탈료 대조, [청구 분할 ️], 정품 PDF/엑셀 출력',
       '15. 하단 회계 대차대조식 검증 바(청구총액 = 수납액 + 미수잔액) 무결성 확정 (Audit Result)'
     ],
     subTabs: [
@@ -1176,7 +1176,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     auditResult: '청구 총액과 기수납액, 미수 잔액의 합이 100% 일치(대차 차액 ₩0)하여 외상매출금 원장과 무결하게 연계됨',
     rulesCompliance: [
       '헌장 3.1 [무수식어 건조 UI 표준]: 과장된 수식어 전면 배제 및 건조한 명사·동사 단일 체계 준수',
-      '헌장 3.5 [Gutenberg Z-패턴 표준]: 좌상단(1~7) ➔ 우상단(8~9) ➔ 중앙(10~14) ➔ 우하단(15) 실무 동선 일치',
+      '헌장 3.5 [Gutenberg Z-패턴 표준]: 좌상단(1~7)  우상단(8~9)  중앙(10~14)  우하단(15) 실무 동선 일치',
       '헌장 4.1 [정밀 일할 집계 정책]: 청구서별 장비 일할 렌탈료 및 추가비용 1:1 대사 검증'
     ],
     precautions: [
@@ -1319,7 +1319,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         selector: '[data-mid="billing-detail-studio"]',
         type: 'stamp',
         label: '청구 명세서 및 정품 서식 출력',
-        description: '선택된 청구서의 장비별 일할 렌탈료(역일 일수 대사) 및 부대비용을 1:1 대조하고, [청구월 수정], [청구 분할 ✂️], MS Excel COM 엔진 기반 정품 A4 거래명세서 PDF/엑셀을 다운로드합니다.',
+        description: '선택된 청구서의 장비별 일할 렌탈료(역일 일수 대사) 및 부대비용을 1:1 대조하고, [청구월 수정], [청구 분할 ️], MS Excel COM 엔진 기반 정품 A4 거래명세서 PDF/엑셀을 다운로드합니다.',
         badgeColor: '#6366F1',
         positionHint: 'left',
         spotlight: false,
@@ -1467,7 +1467,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     auditResult: '복수 개별 청구서가 단일 통합 인보이스(INV-XXXX)로 무결하게 묶여 세금계산서 1장과 1:1 대사 일치',
     rulesCompliance: [
       '헌장 3.1 [무수식어 건조 UI 표준]: 과장된 수식어 전면 배제 및 건조한 명사·동사 단일 체계 준수',
-      '헌장 3.5 [Gutenberg Z-패턴 표준]: 좌상단 Scope(1~4) ➔ Pipeline(5~7) ➔ Inspection(8~12) ➔ Terminal Action(13~15)',
+      '헌장 3.5 [Gutenberg Z-패턴 표준]: 좌상단 Scope(1~4)  Pipeline(5~7)  Inspection(8~12)  Terminal Action(13~15)',
       '헌장 4.1 [정밀 일할 집계 정책]: 개별 청구 공급가액과 부가세액의 합산이 통합 거래명세서와 1원도 오차 없이 일치'
     ],
     precautions: [
@@ -1651,7 +1651,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     auditResult: '총 유료비용 발생액이 정상 청구액과 영업 면제액의 합과 정확히 일치(대차 차액 ₩0)하여 손실 원장 무결성 보장',
     rulesCompliance: [
       '헌장 3.1 [무수식어 건조 UI 표준]: 과장된 수식어 전면 배제 및 건조한 명사·동사 단일 체계 준수',
-      '헌장 3.5 [Gutenberg Z-패턴 표준]: 좌상단 Scope(1~3) ➔ 우상단 Pipeline(4) ➔ 본문 Inspection(5~8) ➔ 우하단 Terminal Audit(9)',
+      '헌장 3.5 [Gutenberg Z-패턴 표준]: 좌상단 Scope(1~3)  우상단 Pipeline(4)  본문 Inspection(5~8)  우하단 Terminal Audit(9)',
       '헌장 4.1 [정밀 일할 집계 정책]: 원발생비용과 면제금액의 1원 단위 일치 여부 정밀 대사'
     ],
     precautions: [
@@ -1916,7 +1916,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '6. 4. 출고 및 하차 일정 블록에서 상차 희망일시(ASAP/지정시간) 및 현장 도착일정 지정',
       '7. 5. 안전옵션 블록에서 필수 안전장치(난간대, 감지봉 등) 체크 및 진입로 특이 메모 기재',
       '8. 우측 [필수 정보 검증 & 방어 차단] 9대 항목 충족 확인 (미충족 시 발행 자동 차단)',
-      '9. 우하단 [출고 요청 발행] 클릭 ➔ 배차/출고 대기열(TruckDispatch)로 공식 전송'
+      '9. 우하단 [출고 요청 발행] 클릭  배차/출고 대기열(TruckDispatch)로 공식 전송'
     ],
     subTabs: [
       {
@@ -1945,7 +1945,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     rulesCompliance: [
       '헌장 2.1 [영업-출고 R&R 엄격 분리]: 영업부서는 모델 규격 요구만 의뢰하며, 특정 자산번호 강제 지정 절대 금지',
       '헌장 1.2 [이벤트 기록 무누락 DB 저장]: 요청 발행 일시, 영업담당자, 고객/현장 속성 100% 영구 보존',
-      '헌장 3.5 [Gutenberg Z-Pattern]: 좌상단 텍스트 파싱 ➔ 중앙 5단계 서식 ➔ 우측 실시간 검증 ➔ 우하단 출고 요청 최종 발행'
+      '헌장 3.5 [Gutenberg Z-Pattern]: 좌상단 텍스트 파싱  중앙 5단계 서식  우측 실시간 검증  우하단 출고 요청 최종 발행'
     ],
     precautions: [
       '현장 상세주소 및 현장 인수자(성명/휴대폰) 미입력 시 출고 요청 발행이 시스템에 의해 자동 방어 차단됩니다.',
@@ -2335,7 +2335,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     auditResult: '부실 채권 조기 회수 조치 완결 및 추가 부실 출고 원천 차단',
     rulesCompliance: [
       '헌장 3.1 [건조한 UI 표기]: 과장된 경고 문구 배제, 사실에 기반한 연체 일수와 금액만 직관 표기',
-      '헌장 3.5 [Z-패턴 동선]: 좌상단 연체구간 ➔ 중앙 대상 감사 ➔ 우하단 조치 확정'
+      '헌장 3.5 [Z-패턴 동선]: 좌상단 연체구간  중앙 대상 감사  우하단 조치 확정'
     ],
     precautions: [
       '출고 보류 지정 시 영업 담당자에게 즉시 사유가 통보되며 신규 계약 체결이 자동 제한됨',
@@ -3311,7 +3311,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '헌장 3.1: 감성적 수식어 배제 및 건조한 명사·동사 UI 단일 표준 준수',
       '헌장 3.2: 캘린더 칩 및 테이블 셀 white-space: nowrap 적용으로 줄바꿈 방지',
       '헌장 3.4: 필터 패널 레이블-입력 상하 스택(vertical column) 레이아웃 준수',
-      '헌장 3.5: 좌상단 스코프 ➔ 우상단 파이프라인 ➔ 중앙 본문 ➔ 우하단 대차대조 4단계 Gutenberg Z-패턴 동선 확립'
+      '헌장 3.5: 좌상단 스코프  우상단 파이프라인  중앙 본문  우하단 대차대조 4단계 Gutenberg Z-패턴 동선 확립'
     ],
     precautions: [
       '출고 및 입고 수량은 단일 표준 표기인 [모델명 * 수량] 규칙을 준수해야 합니다.',
@@ -3415,7 +3415,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '1. 조회 기간 및 입출고 유형(출고, 반납, 대차교체, 주기장이동) 스코핑',
       '2. 자산 번호별 생애주기 입출고 타임라인 1:1 인과율 전수 검수 (헌장 5.6)',
       '3. 출고 검수 승인 시점의 RENTED 대여중 상태 전환 로그 확인 (헌장 1.3)',
-      '4. 대차 교체(EXCHANGE) 시 전자산 회수 ➔ 후장비 승계 연결 관계 추적 (헌장 4.2)',
+      '4. 대차 교체(EXCHANGE) 시 전자산 회수  후장비 승계 연결 관계 추적 (헌장 4.2)',
       '5. 운송 기사 및 배차 번호 매핑 검증',
       '6. 주기장 입고 시 반납 검수 판정(정상/파손/오염) 기록 확인',
       '7. 자산 입출고 감사 이력 무누락 보존 확정 및 엑셀 내보내기'
@@ -3650,7 +3650,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '4. 배터리 완충 전압(25.4V 이상) 및 충전기 동작 상태 정밀 측정',
       '5. 현장 맞춤 안전옵션(협착방지대, 경광등, 안전벨트 걸이구) 볼팅 체결 확인',
       '6. 검수 체크리스트 전수 서명 및 출고 전 장비 전/후/좌/우 실물 사진 등록',
-      '7. 최종 [출고 검수 승인] 실행 ➔ 자산 상태 즉시 RENTED 대여중 자동 전환 (헌장 1.3)'
+      '7. 최종 [출고 검수 승인] 실행  자산 상태 즉시 RENTED 대여중 자동 전환 (헌장 1.3)'
     ],
         modalWorkflows: [
           {
@@ -3771,7 +3771,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(2) button.btn-primary + button",
         "type": "click_ripple",
         "label": "요청 반려 클릭",
-        "description": "하단의 '🚫 요청 반려' 버튼을 클릭하여 반려 사유 입력 창을 엽니다.",
+        "description": "하단의 ' 요청 반려' 버튼을 클릭하여 반려 사유 입력 창을 엽니다.",
         "positionHint": "top"
       },
       {
@@ -4563,7 +4563,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '4. 정비 조치 작업 수행 (판금, 도색, 부품 교체, 배선 결선)',
       '5. 정비 완료 후 기능/하중 테스트 및 안전 센서 100% 정상 작동 검증',
       '6. 정비 투입 공수(시간) 및 부품 원가 집계 마감',
-      '7. [정비 완료 확정] 실행 ➔ 자산 상태 AVAILABLE (임대가능) 복원 (헌장 1.2)'
+      '7. [정비 완료 확정] 실행  자산 상태 AVAILABLE (임대가능) 복원 (헌장 1.2)'
     ],
         subTabs: [
           {
@@ -4719,7 +4719,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     precautions: [
       '법정 필수 항목(과상승 방지봉, 비상정지 스위치)은 [필수 점검] 해제 금지',
-      '항목 순서 변경 시 현장 검수 동선(하부 ➔ 상부 ➔ 조작부)과 일치하도록 정렬'
+      '항목 순서 변경 시 현장 검수 동선(하부  상부  조작부)과 일치하도록 정렬'
     ],
     annotations: [
       {
@@ -4890,7 +4890,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     auditResult: '근로기준법 52시간 준수 모니터링 및 정확한 법정 가산 수당 확정',
     rulesCompliance: [
       '헌장 5.1 [수학적 수식 검증]: 통상시급 × OT시간 × 1.5 가산율 수학적 산식 준수',
-      '헌장 3.5 [Z-패턴 동선]: 좌상단(월/부서) ➔ 중앙(시간대사) ➔ 우하단([승인마감])'
+      '헌장 3.5 [Z-패턴 동선]: 좌상단(월/부서)  중앙(시간대사)  우하단([승인마감])'
     ],
     precautions: [
       '주간 총 근로시간이 52시간을 초과하지 않도록 사전 경고 알림 확인 필수',
@@ -5101,7 +5101,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     auditResult: '전사 매입 채무 확정 및 이체 펌뱅킹 데이터 생성 완료 (차액 ₩0 무결성 보장)',
     rulesCompliance: [
-      '헌장 3.5 [Gutenberg Z-패턴 표준]: 좌상단 ➔ 우상단 ➔ 중앙 본문 ➔ 우하단 완결 동선 엄격 이행',
+      '헌장 3.5 [Gutenberg Z-패턴 표준]: 좌상단  우상단  중앙 본문  우하단 완결 동선 엄격 이행',
       '헌장 3.6 [유형 B 고밀도 그리드]: 80~85% 세로 영역 확보로 수백 건 인라인 일괄 마감'
     ],
     precautions: [
@@ -5298,7 +5298,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '3. 입금자명, 입금액, 입금 일자 기반 미수금 원장 자동 추천 매칭',
       '4. 동명칭/상호 불일치 건 수동 거래처 탐색 및 1:1 강제 매칭',
       '5. 복수 청구서 일괄 입금 건 분할 대사 및 차액(수수료 등) 처리',
-      '6. 수납 확정 실행 ➔ 외상매출금(미수금) 원장 실시간 차감 반영 (Audit Result)',
+      '6. 수납 확정 실행  외상매출금(미수금) 원장 실시간 차감 반영 (Audit Result)',
       '7. 통장 대사 합계 검증식(통장 총입금액 = 수납 확정액 | 차액 ₩0) 무결성 확정 (헌장 3.5)'
     ],
         subTabs: [
@@ -5903,7 +5903,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       '4. 직책(Duty) 선택: 직책 설정(팀장, 센터장, 본부장 등) 지정 및 실시간 티어 확인',
       '5. 임직원 실효 결재 권한 티어(직책 우선 판정) 인포 박스 검증',
       '6. 비밀번호 초기화 및 모바일 현장 권한 부여',
-      '7. 인사 정보 최종 저장 ➔ 전자결재 승인선 및 조직도 실시간 동기화 확정'
+      '7. 인사 정보 최종 저장  전자결재 승인선 및 조직도 실시간 동기화 확정'
     ],
         subTabs: [
           {
@@ -6949,7 +6949,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     scopeInfo: '전사 청구서 엑셀, 계약 원장 일할 단가, 운송사 세금계산서, 은행 계좌 거래 내역',
     cognitiveSequence: [
       '1. 월말 정산 오토파일럿 대상 거래처 및 정산 연월 스코핑',
-      '2. 통장 입금 내역 ➔ 미수금 원장 자동 1:1 대사 실행 (인공지능 매칭율 98% 이상)',
+      '2. 통장 입금 내역  미수금 원장 자동 1:1 대사 실행 (인공지능 매칭율 98% 이상)',
       '3. 자산별 정밀 일할 매출 기여액 자동 집계 및 대차 교체 승계 검증 (헌장 4.1)',
       '4. 전자세금계산서 청구서 자동 팩킹 및 국세청 전송 큐 생성',
       '5. 운송료 및 부품 매입 채무 자동 대차대조 검증 (청구 = 확정 + 반려)',
@@ -6958,7 +6958,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     auditResult: '월말 정산 소요 시간 90% 단축 및 휴먼 에러로 인한 오지급 0건 실현',
     rulesCompliance: [
-      '헌장 3.5 질문 4 [Audit Result]: 📄 청구총액 = 🟢 확정액 + 🚫 반려액 | ⚖️ 대차 차액 ₩0 엄격 확정',
+      '헌장 3.5 질문 4 [Audit Result]:  청구총액 = 🟢 확정액 +  반려액 | ️ 대차 차액 ₩0 엄격 확정',
       '헌장 4.1 [정밀 일할 집계]: 일할 계산 오차를 사전에 1원도 없이 전수 스캔'
     ],
     precautions: [
@@ -7059,7 +7059,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     objective: '개별 고소작업대별 누적 매출 기여도, 고장 빈도, 정비 비용, 잔존 장부가액을 실시간 추적하여 최적 매각/정비 타이밍을 제시하는 자산 AI 관제탑',
     scopeInfo: '자산 마스터, 계약별 누적 매출 기여액(헌장 4.1), 정비비 투입 누계, 가동일수/유휴일수',
     cognitiveSequence: [
-      '1. 전사 고소작업대 자산 생애주기(취득 ➔ 운용 ➔ 정비 ➔ 매각) 스코핑',
+      '1. 전사 고소작업대 자산 생애주기(취득  운용  정비  매각) 스코핑',
       '2. 장비별 가동 시간(Hour Meter) 및 정비 점수 기반 이상 징후 예지 보전 감지',
       '3. 출고 검수 승인 즉시 RENTED 전환 및 반납 시 정비 큐 자동 라우팅 (헌장 1.3)',
       '4. 렌탈료 누적 매출 기여액 대비 총 정비 비용 분석 (자산별 순수익성 산출)',
