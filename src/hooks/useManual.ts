@@ -91,12 +91,14 @@ export function useManual() {
             return seed;
           }
 
-          if (ann.items && ann.items.length > 0) {
+          if (ann) {
             return {
               pageId,
               pageTitle: data.page_title || ann?.pageTitle || pageTitle || pageId,
               version: dbVersion,
-              items: ann.items,
+              basicGuide: ann.basicGuide || ann.items || seed.basicGuide || seed.items || [],
+              processes: ann.processes || seed.processes || [],
+              items: ann.items || seed.items || [],
             };
           }
         }

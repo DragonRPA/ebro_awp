@@ -1,7 +1,7 @@
 // @ts-nocheck
 // src/data/allMenuManuals.ts
 // 전사 모든 메뉴 기능의 본질적 업무 목적 및 표준 매뉴얼 데이터 (SSOT)
-import type { ManualPage, ManualAnnotationItem } from '../types/manual';
+import type { ManualPage, ManualAnnotationItem, ManualProcessFlow } from '../types/manual';
 
 export interface MenuSubTabDetail {
   tabId: string;
@@ -35,6 +35,8 @@ export interface MenuManualDetail {
   precautions: string[];      // 현장 물리적 마찰 방지 및 WTT 주의사항
   version?: number;           // 매뉴얼 버전 (DB 갱신 비교용)
   annotations: ManualAnnotationItem[]; // 인앱 오버레이 단계 가이드
+  basicGuide?: ManualAnnotationItem[]; // 2-Tier 기초 안내 (화면 개요)
+  processes?: ManualProcessFlow[];     // 2-Tier 단위업무 흐름 워크플로우 (절차형)
   manualUrl?: string;         // 중앙 DB 연동 원문 매뉴얼 URL
 }
 
@@ -15401,6 +15403,8 @@ export function getManualPageForMenu(menuId: string, customTitle?: string): Manu
     pageId: manual.menuId,
     pageTitle: manual.menuName,
     version: manual.version || 1,
+    basicGuide: manual.basicGuide || manual.annotations || [],
+    processes: manual.processes || [],
     items: manual.annotations,
   };
 }

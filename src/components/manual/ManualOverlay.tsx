@@ -389,13 +389,14 @@ const ClickRipple: React.FC<{ rect: Rect; color: string; zIndex?: number }> = ({
 const BottomDossierCard: React.FC<{
   item: ManualAnnotationItem;
   totalCount: number;
+  processTitle?: string;
   onPrev: () => void;
   onNext: () => void;
   onClose: () => void;
   hasTarget: boolean;
   targetRect?: Rect | null;
   zIndex?: number;
-}> = ({ item, totalCount, onPrev, onNext, onClose, hasTarget, targetRect, zIndex = 200003 }) => {
+}> = ({ item, totalCount, processTitle, onPrev, onNext, onClose, hasTarget, targetRect, zIndex = 200003 }) => {
   const handleCardWheel = (e: React.WheelEvent) => {
     const scrollTarget = document.querySelector('.dispatch4-left-pane') ||
                          document.querySelector('.table-container') ||
@@ -517,7 +518,12 @@ const BottomDossierCard: React.FC<{
           </span>
           <div>
             <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              {item.label}
+              {processTitle && (
+                <span style={{ color: '#2563EB', fontWeight: 800 }}>
+                  [단위업무: {processTitle}]
+                </span>
+              )}
+              <span>{item.label}</span>
               {!hasTarget && (
                 <span style={{ fontSize: '11px', fontWeight: 600, color: '#D97706', backgroundColor: '#FEF3C7', padding: '1px 6px', borderRadius: '4px' }}>
                   화면 전반
@@ -553,7 +559,7 @@ const BottomDossierCard: React.FC<{
       {/* 카드 하단 네비게이션 컨트롤 */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
         <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>
-          {item.seq} / {totalCount} 단계
+          {processTitle ? `[${processTitle}] ` : ''}{item.seq} / {totalCount} 단계
         </span>
         <div style={{ display: 'flex', gap: '6px' }}>
           <button
@@ -655,6 +661,7 @@ export const ManualOverlay: React.FC = () => {
   useEffect(() => {
     if (page?.pageId && page.pageId !== lastPageIdRef.current) {
       lastPageIdRef.current = page.pageId;
+      setActiveProcessId(null);
       setExpandedSeq(1);
 
       const timer = setTimeout(() => {
@@ -958,8 +965,18 @@ export const ManualOverlay: React.FC = () => {
         pageId={page.pageId}
         pageTitle={page.pageTitle}
         isModal={isModal}
+        activeProcessId={activeProcessId}
+        onSelectProcess={(procId) => {
+          setActiveProcessId(procId);
+          setExpandedSeq(1);
+          setTimeout(() => {
+            recalcTargets();
+            startTrackingLoop(800);
+          }, 100);
+        }}
         onSelectSeq={handleSelectSeq}
         onOpenSpecDoc={() => openDocModal(page.pageId, page.pageTitle)}
+        onClose={() => setMode('off')}
         zIndex={baseZIndex + 4}
       />
 
@@ -1034,6 +1051,7 @@ export const ManualOverlay: React.FC = () => {
         <BottomDossierCard
           item={activeItem}
           totalCount={items.length}
+          processTitle={activeProcessId ? page?.processes?.find(p => p.processId === activeProcessId)?.title : undefined}
           onPrev={handlePrev}
           onNext={handleNext}
           onClose={() => setExpandedSeq(null)}

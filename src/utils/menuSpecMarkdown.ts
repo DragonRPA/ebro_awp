@@ -7,6 +7,14 @@ import { MODAL_MANUAL_REGISTRY } from '../data/modalManuals';
 
 const TENANT_ID = 'default';
 
+export interface ProcessSummary {
+  processId: string;
+  title: string;
+  description: string;
+  stepCount: number;
+  steps: { seq: number; label: string; description: string; type: string }[];
+}
+
 export interface MenuBriefingSummary {
   menuId: string;
   title: string;
@@ -16,6 +24,7 @@ export interface MenuBriefingSummary {
   buttons: { seq: number; label: string; color: string }[];
   subTabs: string[];
   modals: string[];
+  processes: ProcessSummary[];
 }
 
 /**
@@ -35,6 +44,7 @@ export function getMenuBriefingSummary(menuId: string): MenuBriefingSummary | nu
       buttons: modalDef.annotations.map(a => ({ seq: a.seq, label: a.label, color: a.badgeColor })),
       subTabs: [],
       modals: [],
+      processes: [],
     };
   }
 
@@ -49,6 +59,7 @@ export function getMenuBriefingSummary(menuId: string): MenuBriefingSummary | nu
       buttons: [],
       subTabs: [],
       modals: [],
+      processes: [],
     };
   }
 
@@ -61,6 +72,18 @@ export function getMenuBriefingSummary(menuId: string): MenuBriefingSummary | nu
     buttons: manual.annotations.map(a => ({ seq: a.seq, label: a.label, color: a.badgeColor })),
     subTabs: (manual.subTabs || []).map(t => t.tabName),
     modals: (manual.modalWorkflows || []).map(m => m.modalName),
+    processes: ((manual as any).processes || []).map((p: any) => ({
+      processId: p.processId,
+      title: p.title,
+      description: p.description,
+      stepCount: (p.steps || []).length,
+      steps: (p.steps || []).map((s: any) => ({
+        seq: s.seq,
+        label: s.label,
+        description: s.description,
+        type: s.type
+      }))
+    })),
   };
 }
 
@@ -126,6 +149,18 @@ ${buttonList}
         .join('\n\n')
     : '- 연동된 전용 모달 워크플로우가 없습니다.';
 
+  // 단위업무 Flow (Business Process Flows)
+  const processesSection = (manual as any).processes && (manual as any).processes.length > 0
+    ? (manual as any).processes
+        .map((p: any) => {
+          const stepList = (p.steps || [])
+            .map((s: any) => `  ${s.seq}. **${s.label}**: ${s.description}`)
+            .join('\n');
+          return `### 🔄 단위업무 Flow: ${p.title} (\`${p.processId}\`)\n- **업무 목적**: ${p.description}\n- **수행 절차 (${p.steps?.length || 0}단계)**:\n${stepList}`;
+        })
+        .join('\n\n')
+    : '- 등록된 별도 단위업무 절차형 프로세스가 없습니다.';
+
   // 인지 및 조작 시퀀스
   const seqSection = manual.cognitiveSequence.map(s => `- ${s}`).join('\n');
 
@@ -149,13 +184,16 @@ ${buttonList}
 ### 📋 시작 전제 조건 및 스코핑 정보 (Scope)
 ${manual.scopeInfo}
 
-## 3. 화면 주요 버튼 및 기능 목록 (Actions & Controls)
+## 3. 단위업무 Flow (Business Process Flows)
+${processesSection}
+
+## 4. 화면 주요 버튼 및 기능 목록 (Actions & Controls)
 ${buttonsSection}
 
-## 4. 하위 탭 구성 및 상세 역할 (Tabs & Sub-views)
+## 5. 하위 탭 구성 및 상세 역할 (Tabs & Sub-views)
 ${subTabsSection}
 
-## 5. 연동 모달 및 팝업 기능 (Modals & Dialogs)
+## 6. 연동 모달 및 팝업 기능 (Modals & Dialogs)
 ${modalsSection}
 
 ## 6. 인지 및 조작 1-Way 시퀀스 (Cognitive Sequence)

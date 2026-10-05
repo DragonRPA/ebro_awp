@@ -5,7 +5,7 @@ import {
   Printer, BookOpen, Building2, Truck, Wrench, Briefcase, Search,
   CheckCircle2, AlertCircle, ChevronRight, ChevronDown, ZoomIn, ZoomOut,
   RotateCcw, Shield, Layers, TrendingUp, Settings, Terminal, CheckSquare,
-  Sparkles, ExternalLink, Filter, HelpCircle, ArrowRight, CornerDownRight
+  Sparkles, ExternalLink, Filter, HelpCircle, ArrowRight, CornerDownRight, Workflow
 } from 'lucide-react';
 import { ALL_MENU_MANUALS, MenuManualDetail } from '../data/allMenuManuals';
 import { useManual } from '../hooks/useManual';
@@ -147,7 +147,12 @@ export const OperationManualPage: React.FC = () => {
         const matchDept = m.department.toLowerCase().includes(q);
         const matchSeq = m.cognitiveSequence.some(s => s.toLowerCase().includes(q));
         const matchRules = m.rulesCompliance.some(r => r.toLowerCase().includes(q));
-        return matchTitle || matchObjective || matchDept || matchSeq || matchRules;
+        const matchProcesses = (m.processes || []).some(p =>
+          p.title.toLowerCase().includes(q) ||
+          p.description.toLowerCase().includes(q) ||
+          (p.steps || []).some(s => s.label.toLowerCase().includes(q) || s.description.toLowerCase().includes(q))
+        );
+        return matchTitle || matchObjective || matchDept || matchSeq || matchRules || matchProcesses;
       }
 
       return true;
@@ -633,6 +638,105 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
           ))}
         </div>
       </div>
+
+      {/* ── 단위업무 Flow (Business Process Flows - 184개 단위업무 표준 절차) ── */}
+      {item.processes && item.processes.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Workflow size={15} color="#2563EB" />
+            <span>단위업무 Flow ({item.processes.length}개 단위업무 표준 프로세스)</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {item.processes.map((proc, pIdx) => (
+              <div
+                key={proc.processId || pIdx}
+                style={{
+                  padding: '14px 16px',
+                  borderRadius: '10px',
+                  backgroundColor: '#F8FAFC',
+                  border: '1.5px solid #CBD5E1',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: '#2563EB', color: '#fff', fontSize: '11px', fontWeight: 800 }}>
+                      단위업무 #{pIdx + 1}
+                    </span>
+                    <span style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B' }}>
+                      {proc.title}
+                    </span>
+                    <span style={{ fontSize: '11px', padding: '1px 6px', borderRadius: '4px', backgroundColor: '#EFF6FF', color: '#2563EB', fontWeight: 700, fontFamily: 'monospace' }}>
+                      {proc.processId}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>
+                    총 {proc.steps?.length || 0}단계 절차
+                  </span>
+                </div>
+
+                <div style={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.5, fontWeight: 500 }}>
+                  {proc.description}
+                </div>
+
+                {/* 단계별 절차 리스트 */}
+                {proc.steps && proc.steps.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748B' }}>수행 절차 체크리스트:</span>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '8px' }}>
+                      {proc.steps.map((st, sIdx) => (
+                        <div
+                          key={st.seq || sIdx}
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: '6px',
+                            backgroundColor: '#FFFFFF',
+                            border: '1px solid #E2E8F0',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{
+                              width: '18px',
+                              height: '18px',
+                              borderRadius: '50%',
+                              backgroundColor: st.badgeColor || '#2563EB',
+                              color: '#fff',
+                              fontSize: '10.5px',
+                              fontWeight: 900,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}>
+                              {st.seq}
+                            </span>
+                            <span style={{ fontSize: '12px', fontWeight: 800, color: '#1E293B' }}>
+                              {st.label}
+                            </span>
+                            {st.type && (
+                              <span style={{ marginLeft: 'auto', fontSize: '10px', color: '#94A3B8' }}>
+                                {st.type}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '11.5px', color: '#475569', lineHeight: 1.45 }}>
+                            {st.description}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── 메뉴 내부 하위 탭 구성 및 역할 ── */}
       {item.subTabs && item.subTabs.length > 0 && (
