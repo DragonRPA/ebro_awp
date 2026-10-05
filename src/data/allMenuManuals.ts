@@ -692,6 +692,447 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     menuId: 'contract',
     version: 5,
     menuName: '계약 관리',
+  basicGuide: [
+  {
+    "seq": 1,
+    "selector": "div[data-mid=\"contract-detailed-filters\"]",
+    "type": "highlight",
+    "label": "상세 검색 필터",
+    "description": "다양한 검색 조건을 활용해 고객사, 현장 등의 계약을 조회할 수 있습니다.",
+    "positionHint": "bottom"
+  },
+  {
+    "seq": 2,
+    "selector": "div[data-mid=\"contract-table\"]",
+    "type": "highlight",
+    "label": "계약 목록 그리드",
+    "description": "조회된 계약의 요약 정보를 확인하며, 행을 클릭해 상세 뷰로 진입할 수 있습니다.",
+    "positionHint": "top"
+  },
+  {
+    "seq": 3,
+    "selector": "div[data-mid=\"contract-filter-panel\"] > div:nth-child(3)",
+    "type": "highlight",
+    "label": "상태별 퀵 필터",
+    "description": "진행, 만료 임박, 종결 등 상태 칩을 클릭해 조건에 맞는 계약을 빠르게 필터링합니다.",
+    "positionHint": "bottom"
+  }
+],
+  processes: [
+  {
+    "processId": "process_contract_register",
+    "title": "신규 계약 등록",
+    "description": "새로운 렌탈 계약을 등록하고 자산을 할당하는 절차입니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "button[data-mid=\"btn-new-contract\"]",
+        "type": "click_ripple",
+        "label": "신규 등록 탭 진입",
+        "description": "'신규 계약 등록' 버튼을 클릭하여 입력 폼을 엽니다."
+      },
+      {
+        "seq": 2,
+        "selector": "div[data-mid=\"create-contract-cust\"] select",
+        "type": "callout",
+        "label": "고객사 선택",
+        "description": "계약을 체결할 고객사를 검색하고 선택합니다."
+      },
+      {
+        "seq": 3,
+        "selector": "div[data-mid=\"create-contract-start-date\"] input",
+        "type": "callout",
+        "label": "계약 시작일 지정",
+        "description": "렌탈이 시작되는 계약 시작일을 입력합니다."
+      },
+      {
+        "seq": 4,
+        "selector": "div[data-mid=\"create-contract-basket-picker\"] button.btn-primary",
+        "type": "click_ripple",
+        "label": "자산 바스켓 추가",
+        "description": "제품 모델과 렌탈료를 설정한 뒤 '+ 추가' 버튼을 눌러 바스켓에 담습니다."
+      },
+      {
+        "seq": 5,
+        "selector": "button[data-mid=\"create-contract-submit\"]",
+        "type": "click_ripple",
+        "label": "계약 등록 완료",
+        "description": "모든 정보를 확인한 뒤 '계약 등록' 버튼을 클릭하여 완료합니다."
+      }
+    ]
+  },
+  {
+    "processId": "process_contract_extend",
+    "title": "계약 연장 및 단축",
+    "description": "진행 중인 계약의 기간을 변경(연장/단축)하는 절차입니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "button[data-mid=\"contract-detail-action\"]",
+        "type": "click_ripple",
+        "label": "계약 상세 진입",
+        "description": "진행 중인 계약 목록에서 '상세 ' 버튼을 클릭합니다."
+      },
+      {
+        "seq": 2,
+        "selector": "div[data-subview=\"contract_detail\"] > div.card:first-child button.btn-primary",
+        "type": "click_ripple",
+        "label": "기간 연장/단축 실행",
+        "description": "화면 상단의 '기간 연장/단축' 버튼을 클릭하여 모달을 엽니다."
+      },
+      {
+        "seq": 3,
+        "selector": "div[style*=\"z-index: 1000\"] form.card input[type=\"date\"]",
+        "type": "callout",
+        "label": "종료일 변경",
+        "description": "새롭게 변경할 만료일(종료일)을 지정합니다."
+      },
+      {
+        "seq": 4,
+        "selector": "div[style*=\"z-index: 1000\"] form.card button[type=\"submit\"]",
+        "type": "click_ripple",
+        "label": "변경 내용 저장",
+        "description": "사유를 기재한 후 '저장' 버튼을 클릭해 반영합니다."
+      }
+    ]
+  },
+  {
+    "processId": "process_contract_exchange",
+    "title": "대차(EXCHANGE) 출고 의뢰",
+    "description": "운용 중인 장비의 고장 등으로 인해 자산을 교체/대차하는 절차입니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "button[data-mid=\"contract-detail-action\"]",
+        "type": "click_ripple",
+        "label": "계약 상세 진입",
+        "description": "진행 중인 계약 목록에서 '상세 ' 버튼을 클릭합니다."
+      },
+      {
+        "seq": 2,
+        "selector": "div[data-subview=\"contract_detail\"] > div:nth-child(3) > div:nth-child(2) > div:first-child button.btn-secondary",
+        "type": "click_ripple",
+        "label": "대차 의뢰 실행",
+        "description": "체결 자산 목록 우측 상단의 '자산 교체/대차 의뢰' 버튼을 클릭합니다."
+      },
+      {
+        "seq": 3,
+        "selector": "div[style*=\"z-index: 1000\"] form.card select:first-of-type",
+        "type": "callout",
+        "label": "회수 자산 선택",
+        "description": "회수할 기존 자산 번호 혹은 모델을 선택합니다."
+      },
+      {
+        "seq": 4,
+        "selector": "div[style*=\"z-index: 1000\"] form.card input[type=\"text\"]",
+        "type": "callout",
+        "label": "사유 입력",
+        "description": "대차가 필요한 사유 및 현장 상황을 기재합니다."
+      },
+      {
+        "seq": 5,
+        "selector": "div[style*=\"z-index: 1000\"] form.card button[type=\"submit\"]",
+        "type": "click_ripple",
+        "label": "대차 의뢰 완료",
+        "description": "'대차 의뢰 접수' 버튼을 클릭하여 출고와 회수 배차를 동시 발행합니다."
+      }
+    ]
+  }
+],
+  basicGuide: [
+  {
+    "seq": 1,
+    "selector": "div[data-mid=\"contract-detailed-filters\"]",
+    "type": "highlight",
+    "label": "상세 검색 필터",
+    "description": "다양한 검색 조건을 활용해 고객사, 현장 등의 계약을 조회할 수 있습니다.",
+    "positionHint": "bottom"
+  },
+  {
+    "seq": 2,
+    "selector": "div[data-mid=\"contract-table\"]",
+    "type": "highlight",
+    "label": "계약 목록 그리드",
+    "description": "조회된 계약의 요약 정보를 확인하며, 행을 클릭해 상세 뷰로 진입할 수 있습니다.",
+    "positionHint": "top"
+  },
+  {
+    "seq": 3,
+    "selector": "div[data-mid=\"contract-filter-panel\"] > div:nth-child(3)",
+    "type": "highlight",
+    "label": "상태별 퀵 필터",
+    "description": "진행, 만료 임박, 종결 등 상태 칩을 클릭해 조건에 맞는 계약을 빠르게 필터링합니다.",
+    "positionHint": "bottom"
+  }
+],
+  processes: [
+  {
+    "processId": "process_contract_register",
+    "title": "신규 계약 등록",
+    "description": "새로운 렌탈 계약을 등록하고 자산을 할당하는 절차입니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "button[data-mid=\"btn-new-contract\"]",
+        "type": "click_ripple",
+        "label": "신규 등록 탭 진입",
+        "description": "'신규 계약 등록' 버튼을 클릭하여 입력 폼을 엽니다."
+      },
+      {
+        "seq": 2,
+        "selector": "div[data-mid=\"create-contract-cust\"] select",
+        "type": "callout",
+        "label": "고객사 선택",
+        "description": "계약을 체결할 고객사를 검색하고 선택합니다."
+      },
+      {
+        "seq": 3,
+        "selector": "div[data-mid=\"create-contract-start-date\"] input",
+        "type": "callout",
+        "label": "계약 시작일 지정",
+        "description": "렌탈이 시작되는 계약 시작일을 입력합니다."
+      },
+      {
+        "seq": 4,
+        "selector": "div[data-mid=\"create-contract-basket-picker\"] button.btn-primary",
+        "type": "click_ripple",
+        "label": "자산 바스켓 추가",
+        "description": "제품 모델과 렌탈료를 설정한 뒤 '+ 추가' 버튼을 눌러 바스켓에 담습니다."
+      },
+      {
+        "seq": 5,
+        "selector": "button[data-mid=\"create-contract-submit\"]",
+        "type": "click_ripple",
+        "label": "계약 등록 완료",
+        "description": "모든 정보를 확인한 뒤 '계약 등록' 버튼을 클릭하여 완료합니다."
+      }
+    ]
+  },
+  {
+    "processId": "process_contract_extend",
+    "title": "계약 연장 및 단축",
+    "description": "진행 중인 계약의 기간을 변경(연장/단축)하는 절차입니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "button[data-mid=\"contract-detail-action\"]",
+        "type": "click_ripple",
+        "label": "계약 상세 진입",
+        "description": "진행 중인 계약 목록에서 '상세 ' 버튼을 클릭합니다."
+      },
+      {
+        "seq": 2,
+        "selector": "div[data-subview=\"contract_detail\"] > div.card:first-child button.btn-primary",
+        "type": "click_ripple",
+        "label": "기간 연장/단축 실행",
+        "description": "화면 상단의 '기간 연장/단축' 버튼을 클릭하여 모달을 엽니다."
+      },
+      {
+        "seq": 3,
+        "selector": "div[style*=\"z-index: 1000\"] form.card input[type=\"date\"]",
+        "type": "callout",
+        "label": "종료일 변경",
+        "description": "새롭게 변경할 만료일(종료일)을 지정합니다."
+      },
+      {
+        "seq": 4,
+        "selector": "div[style*=\"z-index: 1000\"] form.card button[type=\"submit\"]",
+        "type": "click_ripple",
+        "label": "변경 내용 저장",
+        "description": "사유를 기재한 후 '저장' 버튼을 클릭해 반영합니다."
+      }
+    ]
+  },
+  {
+    "processId": "process_contract_exchange",
+    "title": "대차(EXCHANGE) 출고 의뢰",
+    "description": "운용 중인 장비의 고장 등으로 인해 자산을 교체/대차하는 절차입니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "button[data-mid=\"contract-detail-action\"]",
+        "type": "click_ripple",
+        "label": "계약 상세 진입",
+        "description": "진행 중인 계약 목록에서 '상세 ' 버튼을 클릭합니다."
+      },
+      {
+        "seq": 2,
+        "selector": "div[data-subview=\"contract_detail\"] > div:nth-child(3) > div:nth-child(2) > div:first-child button.btn-secondary",
+        "type": "click_ripple",
+        "label": "대차 의뢰 실행",
+        "description": "체결 자산 목록 우측 상단의 '자산 교체/대차 의뢰' 버튼을 클릭합니다."
+      },
+      {
+        "seq": 3,
+        "selector": "div[style*=\"z-index: 1000\"] form.card select:first-of-type",
+        "type": "callout",
+        "label": "회수 자산 선택",
+        "description": "회수할 기존 자산 번호 혹은 모델을 선택합니다."
+      },
+      {
+        "seq": 4,
+        "selector": "div[style*=\"z-index: 1000\"] form.card input[type=\"text\"]",
+        "type": "callout",
+        "label": "사유 입력",
+        "description": "대차가 필요한 사유 및 현장 상황을 기재합니다."
+      },
+      {
+        "seq": 5,
+        "selector": "div[style*=\"z-index: 1000\"] form.card button[type=\"submit\"]",
+        "type": "click_ripple",
+        "label": "대차 의뢰 완료",
+        "description": "'대차 의뢰 접수' 버튼을 클릭하여 출고와 회수 배차를 동시 발행합니다."
+      }
+    ]
+  }
+],
+  basicGuide: [
+  {
+    "seq": 1,
+    "selector": "div[data-mid=\"contract-detailed-filters\"]",
+    "type": "highlight",
+    "label": "상세 검색 필터",
+    "description": "다양한 검색 조건을 활용해 고객사, 현장 등의 계약을 조회할 수 있습니다.",
+    "positionHint": "bottom"
+  },
+  {
+    "seq": 2,
+    "selector": "div[data-mid=\"contract-table\"]",
+    "type": "highlight",
+    "label": "계약 목록 그리드",
+    "description": "조회된 계약의 요약 정보를 확인하며, 행을 클릭해 상세 뷰로 진입할 수 있습니다.",
+    "positionHint": "top"
+  },
+  {
+    "seq": 3,
+    "selector": "div[data-mid=\"contract-filter-panel\"] > div:nth-child(3)",
+    "type": "highlight",
+    "label": "상태별 퀵 필터",
+    "description": "진행, 만료 임박, 종결 등 상태 칩을 클릭해 조건에 맞는 계약을 빠르게 필터링합니다.",
+    "positionHint": "bottom"
+  }
+],
+  processes: [
+  {
+    "processId": "process_contract_register",
+    "title": "신규 계약 등록",
+    "description": "새로운 렌탈 계약을 등록하고 자산을 할당하는 절차입니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "button[data-mid=\"btn-new-contract\"]",
+        "type": "click_ripple",
+        "label": "신규 등록 탭 진입",
+        "description": "'신규 계약 등록' 버튼을 클릭하여 입력 폼을 엽니다."
+      },
+      {
+        "seq": 2,
+        "selector": "div[data-mid=\"create-contract-cust\"] select",
+        "type": "callout",
+        "label": "고객사 선택",
+        "description": "계약을 체결할 고객사를 검색하고 선택합니다."
+      },
+      {
+        "seq": 3,
+        "selector": "div[data-mid=\"create-contract-start-date\"] input",
+        "type": "callout",
+        "label": "계약 시작일 지정",
+        "description": "렌탈이 시작되는 계약 시작일을 입력합니다."
+      },
+      {
+        "seq": 4,
+        "selector": "div[data-mid=\"create-contract-basket-picker\"] button.btn-primary",
+        "type": "click_ripple",
+        "label": "자산 바스켓 추가",
+        "description": "제품 모델과 렌탈료를 설정한 뒤 '+ 추가' 버튼을 눌러 바스켓에 담습니다."
+      },
+      {
+        "seq": 5,
+        "selector": "button[data-mid=\"create-contract-submit\"]",
+        "type": "click_ripple",
+        "label": "계약 등록 완료",
+        "description": "모든 정보를 확인한 뒤 '계약 등록' 버튼을 클릭하여 완료합니다."
+      }
+    ]
+  },
+  {
+    "processId": "process_contract_extend",
+    "title": "계약 연장 및 단축",
+    "description": "진행 중인 계약의 기간을 변경(연장/단축)하는 절차입니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "button[data-mid=\"contract-detail-action\"]",
+        "type": "click_ripple",
+        "label": "계약 상세 진입",
+        "description": "진행 중인 계약 목록에서 '상세 ' 버튼을 클릭합니다."
+      },
+      {
+        "seq": 2,
+        "selector": "div[data-subview=\"contract_detail\"] > div.card:first-child button.btn-primary",
+        "type": "click_ripple",
+        "label": "기간 연장/단축 실행",
+        "description": "화면 상단의 '기간 연장/단축' 버튼을 클릭하여 모달을 엽니다."
+      },
+      {
+        "seq": 3,
+        "selector": "div[style*=\"z-index: 1000\"] form.card input[type=\"date\"]",
+        "type": "callout",
+        "label": "종료일 변경",
+        "description": "새롭게 변경할 만료일(종료일)을 지정합니다."
+      },
+      {
+        "seq": 4,
+        "selector": "div[style*=\"z-index: 1000\"] form.card button[type=\"submit\"]",
+        "type": "click_ripple",
+        "label": "변경 내용 저장",
+        "description": "사유를 기재한 후 '저장' 버튼을 클릭해 반영합니다."
+      }
+    ]
+  },
+  {
+    "processId": "process_contract_exchange",
+    "title": "대차(EXCHANGE) 출고 의뢰",
+    "description": "운용 중인 장비의 고장 등으로 인해 자산을 교체/대차하는 절차입니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "button[data-mid=\"contract-detail-action\"]",
+        "type": "click_ripple",
+        "label": "계약 상세 진입",
+        "description": "진행 중인 계약 목록에서 '상세 ' 버튼을 클릭합니다."
+      },
+      {
+        "seq": 2,
+        "selector": "div[data-subview=\"contract_detail\"] > div:nth-child(3) > div:nth-child(2) > div:first-child button.btn-secondary",
+        "type": "click_ripple",
+        "label": "대차 의뢰 실행",
+        "description": "체결 자산 목록 우측 상단의 '자산 교체/대차 의뢰' 버튼을 클릭합니다."
+      },
+      {
+        "seq": 3,
+        "selector": "div[style*=\"z-index: 1000\"] form.card select:first-of-type",
+        "type": "callout",
+        "label": "회수 자산 선택",
+        "description": "회수할 기존 자산 번호 혹은 모델을 선택합니다."
+      },
+      {
+        "seq": 4,
+        "selector": "div[style*=\"z-index: 1000\"] form.card input[type=\"text\"]",
+        "type": "callout",
+        "label": "사유 입력",
+        "description": "대차가 필요한 사유 및 현장 상황을 기재합니다."
+      },
+      {
+        "seq": 5,
+        "selector": "div[style*=\"z-index: 1000\"] form.card button[type=\"submit\"]",
+        "type": "click_ripple",
+        "label": "대차 의뢰 완료",
+        "description": "'대차 의뢰 접수' 버튼을 클릭하여 출고와 회수 배차를 동시 발행합니다."
+      }
+    ]
+  }
+],
     groupId: 'grp_sales',
     groupName: '영업관리',
     department: '영업부',
@@ -1094,6 +1535,108 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     menuId: 'billing',
     version: 5,
     menuName: '청구 / 수납 관리',
+  basicGuide: [
+  {
+    "seq": 1,
+    "selector": "h2 + div > button:nth-child(1)",
+    "type": "callout",
+    "label": "WIZARD 탭 (미청구 정산)",
+    "description": "정산 대상 계약을 확인하고 청구서를 신규로 생성하는 기능 탭입니다."
+  },
+  {
+    "seq": 2,
+    "selector": "h2 + div > button:nth-child(2)",
+    "type": "callout",
+    "label": "LIST 탭 (청구 대장)",
+    "description": "생성된 청구서를 조회하고 이메일 발송, 취소, 분할 등의 관리를 수행하는 탭입니다."
+  }
+],
+  processes: [
+  {
+    "processId": "bulk-billing-generate",
+    "title": "일괄 청구서 생성",
+    "description": "정산 기간을 선택하여 다수의 계약에 대한 청구서를 한 번에 생성합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "h2 + div > button:nth-child(1)",
+        "type": "click_ripple",
+        "label": "WIZARD 탭 이동",
+        "description": "청구서를 생성하기 위해 미청구 정산 탭으로 이동합니다."
+      },
+      {
+        "seq": 2,
+        "selector": "[data-mid=\"wizard-period-scope\"] button:nth-child(2)",
+        "type": "click_ripple",
+        "label": "조회 기간 설정",
+        "description": "마감일 기준 검색 기간에서 당월을 선택합니다."
+      },
+      {
+        "seq": 3,
+        "selector": "[data-mid=\"wizard-bulk-generate-btn\"]",
+        "type": "click_ripple",
+        "label": "일괄 청구 생성",
+        "description": "외상미수금이 없는 일반 계약들을 대상으로 일괄 청구서를 생성합니다."
+      }
+    ]
+  },
+  {
+    "processId": "email-statement",
+    "title": "청구서 이메일 발송",
+    "description": "발행된 청구서의 거래명세서를 고객의 이메일로 전송합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "h2 + div > button:nth-child(2)",
+        "type": "click_ripple",
+        "label": "LIST 탭 이동",
+        "description": "청구 내역을 확인하기 위해 청구 대장 탭으로 이동합니다."
+      },
+      {
+        "seq": 2,
+        "selector": "[data-mid=\"billing-mail-btn\"]:first-of-type",
+        "type": "click_ripple",
+        "label": "이메일 발송 버튼 클릭",
+        "description": "목록에서 대상 청구건의 발송 버튼을 클릭하여 거래명세서를 전송합니다."
+      }
+    ]
+  },
+  {
+    "processId": "cancel-split-billing",
+    "title": "청구 취소 및 분할",
+    "description": "기존 청구서를 취소하여 롤백하거나 금액 기준으로 분할합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "h2 + div > button:nth-child(2)",
+        "type": "click_ripple",
+        "label": "LIST 탭 이동",
+        "description": "청구 대장 탭으로 이동합니다."
+      },
+      {
+        "seq": 2,
+        "selector": "[data-subview=\"billing\"] tbody > tr:first-child",
+        "type": "click_ripple",
+        "label": "청구서 선택",
+        "description": "목록에서 취소 또는 분할할 청구서를 클릭하여 상세 내역을 엽니다."
+      },
+      {
+        "seq": 3,
+        "selector": "button[title*=\"롤백합니다\"]",
+        "type": "callout",
+        "label": "청구 취소 (롤백)",
+        "description": "이 버튼을 클릭하면 해당 청구서를 취소하고 최근 청구 정보를 직전 유효 상태로 되돌립니다."
+      },
+      {
+        "seq": 4,
+        "selector": "button[title*=\"분할합니다\"]",
+        "type": "callout",
+        "label": "청구 분할",
+        "description": "이 버튼을 통해 하나의 청구서를 금액 기준으로 두 개의 청구서로 나눌 수 있습니다."
+      }
+    ]
+  }
+],
     groupId: 'grp_sales',
     groupName: '영업관리',
     department: '영업/재무팀',
@@ -2521,6 +3064,252 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     menuId: 'asset',
     version: 5,
     menuName: '자산 관리 (대장)',
+  basicGuide: [
+  {
+    "seq": 1,
+    "selector": "[data-mid=\"btn-new-asset\"]",
+    "type": "highlight",
+    "label": "자산 취득 및 매각",
+    "description": "신규 자산을 등록하거나 기존 자산을 매각 처리할 수 있는 페이지로 이동합니다.",
+    "positionHint": "bottom"
+  },
+  {
+    "seq": 2,
+    "selector": "[data-mid=\"asset-header-actions\"] button.btn-primary",
+    "type": "highlight",
+    "label": "임차자산 관리",
+    "description": "임차자산의 현황을 관리하고 반납 처리 등을 수행하는 페이지로 이동합니다.",
+    "positionHint": "bottom"
+  },
+  {
+    "seq": 3,
+    "selector": "[data-mid=\"asset-filter-bar\"]",
+    "type": "highlight",
+    "label": "자산 검색 및 필터",
+    "description": "관리번호, 모델명 등의 키워드 검색과 소유구분, 장비 상태 등의 조건으로 자산을 필터링합니다.",
+    "positionHint": "bottom"
+  }
+],
+  processes: [
+  {
+    "processId": "asset_edit",
+    "title": "자산 상세 조회 및 수정",
+    "description": "선택한 자산의 상세 명세서를 조회하고 필요 시 정보를 수정합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"asset-detail-action\"]",
+        "type": "click_ripple",
+        "label": "자산 선택",
+        "description": "목록에서 자산의 보기 버튼을 클릭하여 상세 명세서를 엽니다.",
+        "positionHint": "right"
+      },
+      {
+        "seq": 2,
+        "selector": "div[style*=\"z-index: 1000\"] > div:nth-child(1) .btn-primary",
+        "type": "click_ripple",
+        "label": "수정 버튼 클릭",
+        "description": "상세 창 상단의 수정 버튼을 클릭하여 편집 모드로 전환합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 3,
+        "selector": "div[style*=\"z-index: 1000\"] > div:nth-child(2)",
+        "type": "highlight",
+        "label": "자산 정보 수정",
+        "description": "장비 물리 제원, 운용 현황 등의 정보를 수정한 후 저장 버튼을 클릭하여 반영합니다.",
+        "positionHint": "left"
+      }
+    ]
+  },
+  {
+    "processId": "asset_history_export",
+    "title": "자산 이력 다운로드",
+    "description": "특정 자산의 정비 및 감사 이력을 엑셀 파일로 다운로드합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"asset-detail-action\"]",
+        "type": "click_ripple",
+        "label": "자산 선택",
+        "description": "목록에서 자산의 보기 버튼을 클릭하여 상세 명세서를 엽니다.",
+        "positionHint": "right"
+      },
+      {
+        "seq": 2,
+        "selector": "div[style*=\"z-index: 1000\"] > div:nth-child(2) .btn-secondary",
+        "type": "click_ripple",
+        "label": "이력 엑셀 다운로드",
+        "description": "정비 및 감사 이력 현황 항목의 이력 엑셀 버튼을 클릭하여 다운로드합니다.",
+        "positionHint": "top"
+      }
+    ]
+  }
+],
+  basicGuide: [
+  {
+    "seq": 1,
+    "selector": "[data-mid=\"btn-new-asset\"]",
+    "type": "highlight",
+    "label": "자산 취득 및 매각",
+    "description": "신규 자산을 등록하거나 기존 자산을 매각 처리할 수 있는 페이지로 이동합니다.",
+    "positionHint": "bottom"
+  },
+  {
+    "seq": 2,
+    "selector": "[data-mid=\"asset-header-actions\"] button.btn-primary",
+    "type": "highlight",
+    "label": "임차자산 관리",
+    "description": "임차자산의 현황을 관리하고 반납 처리 등을 수행하는 페이지로 이동합니다.",
+    "positionHint": "bottom"
+  },
+  {
+    "seq": 3,
+    "selector": "[data-mid=\"asset-filter-bar\"]",
+    "type": "highlight",
+    "label": "자산 검색 및 필터",
+    "description": "관리번호, 모델명 등의 키워드 검색과 소유구분, 장비 상태 등의 조건으로 자산을 필터링합니다.",
+    "positionHint": "bottom"
+  }
+],
+  processes: [
+  {
+    "processId": "asset_edit",
+    "title": "자산 상세 조회 및 수정",
+    "description": "선택한 자산의 상세 명세서를 조회하고 필요 시 정보를 수정합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"asset-detail-action\"]",
+        "type": "click_ripple",
+        "label": "자산 선택",
+        "description": "목록에서 자산의 보기 버튼을 클릭하여 상세 명세서를 엽니다.",
+        "positionHint": "right"
+      },
+      {
+        "seq": 2,
+        "selector": "div[style*=\"z-index: 1000\"] > div:nth-child(1) .btn-primary",
+        "type": "click_ripple",
+        "label": "수정 버튼 클릭",
+        "description": "상세 창 상단의 수정 버튼을 클릭하여 편집 모드로 전환합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 3,
+        "selector": "div[style*=\"z-index: 1000\"] > div:nth-child(2)",
+        "type": "highlight",
+        "label": "자산 정보 수정",
+        "description": "장비 물리 제원, 운용 현황 등의 정보를 수정한 후 저장 버튼을 클릭하여 반영합니다.",
+        "positionHint": "left"
+      }
+    ]
+  },
+  {
+    "processId": "asset_history_export",
+    "title": "자산 이력 다운로드",
+    "description": "특정 자산의 정비 및 감사 이력을 엑셀 파일로 다운로드합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"asset-detail-action\"]",
+        "type": "click_ripple",
+        "label": "자산 선택",
+        "description": "목록에서 자산의 보기 버튼을 클릭하여 상세 명세서를 엽니다.",
+        "positionHint": "right"
+      },
+      {
+        "seq": 2,
+        "selector": "div[style*=\"z-index: 1000\"] > div:nth-child(2) .btn-secondary",
+        "type": "click_ripple",
+        "label": "이력 엑셀 다운로드",
+        "description": "정비 및 감사 이력 현황 항목의 이력 엑셀 버튼을 클릭하여 다운로드합니다.",
+        "positionHint": "top"
+      }
+    ]
+  }
+],
+  basicGuide: [
+  {
+    "seq": 1,
+    "selector": "[data-mid=\"btn-new-asset\"]",
+    "type": "highlight",
+    "label": "자산 취득 및 매각",
+    "description": "신규 자산을 등록하거나 기존 자산을 매각 처리할 수 있는 페이지로 이동합니다.",
+    "positionHint": "bottom"
+  },
+  {
+    "seq": 2,
+    "selector": "[data-mid=\"asset-header-actions\"] button.btn-primary",
+    "type": "highlight",
+    "label": "임차자산 관리",
+    "description": "임차자산의 현황을 관리하고 반납 처리 등을 수행하는 페이지로 이동합니다.",
+    "positionHint": "bottom"
+  },
+  {
+    "seq": 3,
+    "selector": "[data-mid=\"asset-filter-bar\"]",
+    "type": "highlight",
+    "label": "자산 검색 및 필터",
+    "description": "관리번호, 모델명 등의 키워드 검색과 소유구분, 장비 상태 등의 조건으로 자산을 필터링합니다.",
+    "positionHint": "bottom"
+  }
+],
+  processes: [
+  {
+    "processId": "asset_edit",
+    "title": "자산 상세 조회 및 수정",
+    "description": "선택한 자산의 상세 명세서를 조회하고 필요 시 정보를 수정합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"asset-detail-action\"]",
+        "type": "click_ripple",
+        "label": "자산 선택",
+        "description": "목록에서 자산의 보기 버튼을 클릭하여 상세 명세서를 엽니다.",
+        "positionHint": "right"
+      },
+      {
+        "seq": 2,
+        "selector": "div[style*=\"z-index: 1000\"] > div:nth-child(1) .btn-primary",
+        "type": "click_ripple",
+        "label": "수정 버튼 클릭",
+        "description": "상세 창 상단의 수정 버튼을 클릭하여 편집 모드로 전환합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 3,
+        "selector": "div[style*=\"z-index: 1000\"] > div:nth-child(2)",
+        "type": "highlight",
+        "label": "자산 정보 수정",
+        "description": "장비 물리 제원, 운용 현황 등의 정보를 수정한 후 저장 버튼을 클릭하여 반영합니다.",
+        "positionHint": "left"
+      }
+    ]
+  },
+  {
+    "processId": "asset_history_export",
+    "title": "자산 이력 다운로드",
+    "description": "특정 자산의 정비 및 감사 이력을 엑셀 파일로 다운로드합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"asset-detail-action\"]",
+        "type": "click_ripple",
+        "label": "자산 선택",
+        "description": "목록에서 자산의 보기 버튼을 클릭하여 상세 명세서를 엽니다.",
+        "positionHint": "right"
+      },
+      {
+        "seq": 2,
+        "selector": "div[style*=\"z-index: 1000\"] > div:nth-child(2) .btn-secondary",
+        "type": "click_ripple",
+        "label": "이력 엑셀 다운로드",
+        "description": "정비 및 감사 이력 현황 항목의 이력 엑셀 버튼을 클릭하여 다운로드합니다.",
+        "positionHint": "top"
+      }
+    ]
+  }
+],
     groupId: 'grp_product_asset',
     groupName: '제품 / 자산관리',
     department: '자산/주기장팀',
@@ -2913,6 +3702,339 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     menuId: 'delivery',
     version: 5,
     menuName: '배차 / 운송 관리',
+  basicGuide: [
+  {
+    "seq": 1,
+    "selector": "div[data-mid='dispatch-mode-tabs']",
+    "type": "highlight",
+    "label": "업무 탭 (배차/대사)",
+    "description": "'배차 관리'와 '운송료 대사' 탭을 전환하여 업무를 수행합니다."
+  },
+  {
+    "seq": 2,
+    "selector": "div[data-mid='dispatch-status-tabs']",
+    "type": "highlight",
+    "label": "배차 상태 필터",
+    "description": "배차 대기, 배차 완료, 이동 완료 등 상태별로 필터링할 수 있습니다."
+  }
+],
+  processes: [
+  {
+    "processId": "dispatch-outbound",
+    "title": "출고 배차 처리",
+    "description": "출고 대기 건에 대해 배차 정보를 입력하고 배차를 완료합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "div[data-mid='dispatch-status-tabs'] button:nth-child(2)",
+        "type": "click_ripple",
+        "label": "배차 대기 탭 선택",
+        "description": "대기 중인 배차 건을 확인합니다."
+      },
+      {
+        "seq": 2,
+        "selector": "div[style*='border-radius: 10px'][style*='cursor: pointer']",
+        "type": "click_ripple",
+        "label": "배차 대기 건 선택",
+        "description": "리스트에서 배차할 항목을 클릭합니다."
+      },
+      {
+        "seq": 3,
+        "selector": "select",
+        "type": "callout",
+        "label": "운송 정보 입력",
+        "description": "기사 이름과 연락처, 차량번호를 선택하거나 입력합니다.",
+        "positionHint": "left"
+      },
+      {
+        "seq": 4,
+        "selector": "button.btn-primary",
+        "type": "click_ripple",
+        "label": "배차 완료 버튼 클릭",
+        "description": "배정된 정보를 저장하고 상태를 '배차 완료'로 변경합니다."
+      }
+    ]
+  },
+  {
+    "processId": "dispatch-inbound",
+    "title": "회수(반납) 배차 처리",
+    "description": "입고/회수 대기 건에 대해 배차 정보를 입력하고 완료합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "div[data-mid='dispatch-status-tabs'] button:nth-child(2)",
+        "type": "click_ripple",
+        "label": "배차 대기 탭 선택",
+        "description": "대기 중인 배차 건을 확인합니다."
+      },
+      {
+        "seq": 2,
+        "selector": "div[style*='border-radius: 10px'][style*='cursor: pointer']",
+        "type": "click_ripple",
+        "label": "회수 배차 건 선택",
+        "description": "리스트에서 [입고] 또는 [회수] 태그가 있는 건을 클릭합니다."
+      },
+      {
+        "seq": 3,
+        "selector": "select",
+        "type": "callout",
+        "label": "운송 정보 입력",
+        "description": "회수 차량 및 기사 정보를 입력합니다.",
+        "positionHint": "left"
+      },
+      {
+        "seq": 4,
+        "selector": "button.btn-primary",
+        "type": "click_ripple",
+        "label": "배차 완료 버튼 클릭",
+        "description": "배정된 정보를 저장하고 회수 배차를 완료합니다."
+      }
+    ]
+  },
+  {
+    "processId": "dispatch-reconciliation",
+    "title": "운송비 월말 대사",
+    "description": "배차가 완료된 건들의 운송비를 검증하고 대사합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "div[data-mid='dispatch-mode-tabs'] button:nth-child(2)",
+        "type": "click_ripple",
+        "label": "운송료 대사 탭 이동",
+        "description": "상단의 '운송료 대사' 탭을 클릭합니다."
+      },
+      {
+        "seq": 2,
+        "selector": "table",
+        "type": "highlight",
+        "label": "운송비 검증",
+        "description": "예상 운송비와 최종 청구 운송비 금액이 일치하는지 확인합니다."
+      }
+    ]
+  }
+],
+  basicGuide: [
+  {
+    "seq": 1,
+    "selector": "div[data-mid='dispatch-mode-tabs']",
+    "type": "highlight",
+    "label": "업무 탭 (배차/대사)",
+    "description": "'배차 관리'와 '운송료 대사' 탭을 전환하여 업무를 수행합니다."
+  },
+  {
+    "seq": 2,
+    "selector": "div[data-mid='dispatch-status-tabs']",
+    "type": "highlight",
+    "label": "배차 상태 필터",
+    "description": "배차 대기, 배차 완료, 이동 완료 등 상태별로 필터링할 수 있습니다."
+  }
+],
+  processes: [
+  {
+    "processId": "dispatch-outbound",
+    "title": "출고 배차 처리",
+    "description": "출고 대기 건에 대해 배차 정보를 입력하고 배차를 완료합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "div[data-mid='dispatch-status-tabs'] button:nth-child(2)",
+        "type": "click_ripple",
+        "label": "배차 대기 탭 선택",
+        "description": "대기 중인 배차 건을 확인합니다."
+      },
+      {
+        "seq": 2,
+        "selector": "div[style*='border-radius: 10px'][style*='cursor: pointer']",
+        "type": "click_ripple",
+        "label": "배차 대기 건 선택",
+        "description": "리스트에서 배차할 항목을 클릭합니다."
+      },
+      {
+        "seq": 3,
+        "selector": "select",
+        "type": "callout",
+        "label": "운송 정보 입력",
+        "description": "기사 이름과 연락처, 차량번호를 선택하거나 입력합니다.",
+        "positionHint": "left"
+      },
+      {
+        "seq": 4,
+        "selector": "button.btn-primary",
+        "type": "click_ripple",
+        "label": "배차 완료 버튼 클릭",
+        "description": "배정된 정보를 저장하고 상태를 '배차 완료'로 변경합니다."
+      }
+    ]
+  },
+  {
+    "processId": "dispatch-inbound",
+    "title": "회수(반납) 배차 처리",
+    "description": "입고/회수 대기 건에 대해 배차 정보를 입력하고 완료합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "div[data-mid='dispatch-status-tabs'] button:nth-child(2)",
+        "type": "click_ripple",
+        "label": "배차 대기 탭 선택",
+        "description": "대기 중인 배차 건을 확인합니다."
+      },
+      {
+        "seq": 2,
+        "selector": "div[style*='border-radius: 10px'][style*='cursor: pointer']",
+        "type": "click_ripple",
+        "label": "회수 배차 건 선택",
+        "description": "리스트에서 [입고] 또는 [회수] 태그가 있는 건을 클릭합니다."
+      },
+      {
+        "seq": 3,
+        "selector": "select",
+        "type": "callout",
+        "label": "운송 정보 입력",
+        "description": "회수 차량 및 기사 정보를 입력합니다.",
+        "positionHint": "left"
+      },
+      {
+        "seq": 4,
+        "selector": "button.btn-primary",
+        "type": "click_ripple",
+        "label": "배차 완료 버튼 클릭",
+        "description": "배정된 정보를 저장하고 회수 배차를 완료합니다."
+      }
+    ]
+  },
+  {
+    "processId": "dispatch-reconciliation",
+    "title": "운송비 월말 대사",
+    "description": "배차가 완료된 건들의 운송비를 검증하고 대사합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "div[data-mid='dispatch-mode-tabs'] button:nth-child(2)",
+        "type": "click_ripple",
+        "label": "운송료 대사 탭 이동",
+        "description": "상단의 '운송료 대사' 탭을 클릭합니다."
+      },
+      {
+        "seq": 2,
+        "selector": "table",
+        "type": "highlight",
+        "label": "운송비 검증",
+        "description": "예상 운송비와 최종 청구 운송비 금액이 일치하는지 확인합니다."
+      }
+    ]
+  }
+],
+  basicGuide: [
+  {
+    "seq": 1,
+    "selector": "div[data-mid='dispatch-mode-tabs']",
+    "type": "highlight",
+    "label": "업무 탭 (배차/대사)",
+    "description": "'배차 관리'와 '운송료 대사' 탭을 전환하여 업무를 수행합니다."
+  },
+  {
+    "seq": 2,
+    "selector": "div[data-mid='dispatch-status-tabs']",
+    "type": "highlight",
+    "label": "배차 상태 필터",
+    "description": "배차 대기, 배차 완료, 이동 완료 등 상태별로 필터링할 수 있습니다."
+  }
+],
+  processes: [
+  {
+    "processId": "dispatch-outbound",
+    "title": "출고 배차 처리",
+    "description": "출고 대기 건에 대해 배차 정보를 입력하고 배차를 완료합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "div[data-mid='dispatch-status-tabs'] button:nth-child(2)",
+        "type": "click_ripple",
+        "label": "배차 대기 탭 선택",
+        "description": "대기 중인 배차 건을 확인합니다."
+      },
+      {
+        "seq": 2,
+        "selector": "div[style*='border-radius: 10px'][style*='cursor: pointer']",
+        "type": "click_ripple",
+        "label": "배차 대기 건 선택",
+        "description": "리스트에서 배차할 항목을 클릭합니다."
+      },
+      {
+        "seq": 3,
+        "selector": "select",
+        "type": "callout",
+        "label": "운송 정보 입력",
+        "description": "기사 이름과 연락처, 차량번호를 선택하거나 입력합니다.",
+        "positionHint": "left"
+      },
+      {
+        "seq": 4,
+        "selector": "button.btn-primary",
+        "type": "click_ripple",
+        "label": "배차 완료 버튼 클릭",
+        "description": "배정된 정보를 저장하고 상태를 '배차 완료'로 변경합니다."
+      }
+    ]
+  },
+  {
+    "processId": "dispatch-inbound",
+    "title": "회수(반납) 배차 처리",
+    "description": "입고/회수 대기 건에 대해 배차 정보를 입력하고 완료합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "div[data-mid='dispatch-status-tabs'] button:nth-child(2)",
+        "type": "click_ripple",
+        "label": "배차 대기 탭 선택",
+        "description": "대기 중인 배차 건을 확인합니다."
+      },
+      {
+        "seq": 2,
+        "selector": "div[style*='border-radius: 10px'][style*='cursor: pointer']",
+        "type": "click_ripple",
+        "label": "회수 배차 건 선택",
+        "description": "리스트에서 [입고] 또는 [회수] 태그가 있는 건을 클릭합니다."
+      },
+      {
+        "seq": 3,
+        "selector": "select",
+        "type": "callout",
+        "label": "운송 정보 입력",
+        "description": "회수 차량 및 기사 정보를 입력합니다.",
+        "positionHint": "left"
+      },
+      {
+        "seq": 4,
+        "selector": "button.btn-primary",
+        "type": "click_ripple",
+        "label": "배차 완료 버튼 클릭",
+        "description": "배정된 정보를 저장하고 회수 배차를 완료합니다."
+      }
+    ]
+  },
+  {
+    "processId": "dispatch-reconciliation",
+    "title": "운송비 월말 대사",
+    "description": "배차가 완료된 건들의 운송비를 검증하고 대사합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "div[data-mid='dispatch-mode-tabs'] button:nth-child(2)",
+        "type": "click_ripple",
+        "label": "운송료 대사 탭 이동",
+        "description": "상단의 '운송료 대사' 탭을 클릭합니다."
+      },
+      {
+        "seq": 2,
+        "selector": "table",
+        "type": "highlight",
+        "label": "운송비 검증",
+        "description": "예상 운송비와 최종 청구 운송비 금액이 일치하는지 확인합니다."
+      }
+    ]
+  }
+],
     groupId: 'grp_logistics',
     groupName: '배차 / 운송관리',
     department: '배차/물류팀',
@@ -3637,6 +4759,348 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     menuId: 'outbound_inspections',
     version: 5,
     menuName: '출고 검수 관리',
+  basicGuide: [
+  {
+    "seq": 1,
+    "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(2) > button:nth-child(2)",
+    "type": "highlight",
+    "label": "접수 대기 상태",
+    "description": "아직 엔지니어가 검수를 시작하지 않은 대기 상태의 요청들입니다.",
+    "positionHint": "bottom"
+  },
+  {
+    "seq": 2,
+    "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(2) > button:nth-child(3)",
+    "type": "highlight",
+    "label": "검수 진행중 상태",
+    "description": "접수되어 현재 점검 및 검수가 진행 중인 요청들입니다.",
+    "positionHint": "bottom"
+  },
+  {
+    "seq": 3,
+    "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(1)",
+    "type": "callout",
+    "label": "출고 요청 대기열",
+    "description": "상차일자 및 고객사 기준으로 그룹화된 출고 검수 요청 목록입니다.",
+    "positionHint": "right"
+  }
+],
+  processes: [
+  {
+    "processId": "process_outbound_approve",
+    "title": "출고 검수 승인",
+    "description": "출고 요청 건을 접수하고 점검 항목을 확인한 뒤 최종 승인합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(1) > div:nth-child(3) > div:first-child",
+        "type": "click_ripple",
+        "label": "의뢰 선택",
+        "description": "검수 대기 중인 요청 카드를 클릭하여 우측에 상세 정보를 표시합니다.",
+        "positionHint": "right"
+      },
+      {
+        "seq": 2,
+        "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(1) > div:nth-child(3) > div:first-child button",
+        "type": "click_ripple",
+        "label": "작업 접수",
+        "description": "'▶ 작업 접수 실행' 버튼을 클릭하여 검수를 시작합니다.",
+        "positionHint": "top"
+      },
+      {
+        "seq": 3,
+        "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(2) button.btn-secondary",
+        "type": "click_ripple",
+        "label": "항목 일괄 확인",
+        "description": "'전체 선택/해제' 버튼을 눌러 점검 항목을 일괄 체크합니다. (개별 체크도 가능)",
+        "positionHint": "left"
+      },
+      {
+        "seq": 4,
+        "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(2) button.btn-primary",
+        "type": "stamp",
+        "label": "최종 출고 승인",
+        "description": "'[🟢 최종 출고 승인 마감]' 버튼을 클릭합니다. 자산 상태가 RENTED로 전환됩니다.",
+        "positionHint": "top"
+      }
+    ]
+  },
+  {
+    "processId": "process_outbound_reject",
+    "title": "출고 검수 반려",
+    "description": "불량 등의 사유로 출고가 불가능할 때 요청을 반려하고 수리를 등록합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(1) > div:nth-child(3) > div:first-child",
+        "type": "click_ripple",
+        "label": "의뢰 선택",
+        "description": "검수 대기 또는 진행 중인 요청 카드를 클릭합니다.",
+        "positionHint": "right"
+      },
+      {
+        "seq": 2,
+        "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(2) button.btn-primary + button",
+        "type": "click_ripple",
+        "label": "요청 반려 클릭",
+        "description": "하단의 ' 요청 반려' 버튼을 클릭하여 반려 사유 입력 창을 엽니다.",
+        "positionHint": "top"
+      },
+      {
+        "seq": 3,
+        "selector": "textarea[placeholder*=\"반려 사유 입력\"]",
+        "type": "callout",
+        "label": "반려 사유 작성",
+        "description": "타이어 마모, 배터리 불량 등 구체적인 출고 반려 사유를 입력합니다.",
+        "positionHint": "top"
+      },
+      {
+        "seq": 4,
+        "selector": "div[style*=\"z-index: 99999\"] > div > div:nth-child(3) > :last-child",
+        "type": "click_ripple",
+        "label": "수리정비중 전환",
+        "description": "해당 장비를 긴급 수리 상태로 전환하려면 토글을 켭니다.",
+        "positionHint": "left"
+      },
+      {
+        "seq": 5,
+        "selector": "div[style*=\"z-index: 99999\"] > div > div:last-child > button:last-child",
+        "type": "stamp",
+        "label": "반려 처리 실행",
+        "description": "'반려 처리 실행' 버튼을 눌러 반려를 확정합니다.",
+        "positionHint": "top"
+      }
+    ]
+  }
+],
+  basicGuide: [
+  {
+    "seq": 1,
+    "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(2) > button:nth-child(2)",
+    "type": "highlight",
+    "label": "접수 대기 상태",
+    "description": "아직 엔지니어가 검수를 시작하지 않은 대기 상태의 요청들입니다.",
+    "positionHint": "bottom"
+  },
+  {
+    "seq": 2,
+    "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(2) > button:nth-child(3)",
+    "type": "highlight",
+    "label": "검수 진행중 상태",
+    "description": "접수되어 현재 점검 및 검수가 진행 중인 요청들입니다.",
+    "positionHint": "bottom"
+  },
+  {
+    "seq": 3,
+    "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(1)",
+    "type": "callout",
+    "label": "출고 요청 대기열",
+    "description": "상차일자 및 고객사 기준으로 그룹화된 출고 검수 요청 목록입니다.",
+    "positionHint": "right"
+  }
+],
+  processes: [
+  {
+    "processId": "process_outbound_approve",
+    "title": "출고 검수 승인",
+    "description": "출고 요청 건을 접수하고 점검 항목을 확인한 뒤 최종 승인합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(1) > div:nth-child(3) > div:first-child",
+        "type": "click_ripple",
+        "label": "의뢰 선택",
+        "description": "검수 대기 중인 요청 카드를 클릭하여 우측에 상세 정보를 표시합니다.",
+        "positionHint": "right"
+      },
+      {
+        "seq": 2,
+        "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(1) > div:nth-child(3) > div:first-child button",
+        "type": "click_ripple",
+        "label": "작업 접수",
+        "description": "'▶ 작업 접수 실행' 버튼을 클릭하여 검수를 시작합니다.",
+        "positionHint": "top"
+      },
+      {
+        "seq": 3,
+        "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(2) button.btn-secondary",
+        "type": "click_ripple",
+        "label": "항목 일괄 확인",
+        "description": "'전체 선택/해제' 버튼을 눌러 점검 항목을 일괄 체크합니다. (개별 체크도 가능)",
+        "positionHint": "left"
+      },
+      {
+        "seq": 4,
+        "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(2) button.btn-primary",
+        "type": "stamp",
+        "label": "최종 출고 승인",
+        "description": "'[🟢 최종 출고 승인 마감]' 버튼을 클릭합니다. 자산 상태가 RENTED로 전환됩니다.",
+        "positionHint": "top"
+      }
+    ]
+  },
+  {
+    "processId": "process_outbound_reject",
+    "title": "출고 검수 반려",
+    "description": "불량 등의 사유로 출고가 불가능할 때 요청을 반려하고 수리를 등록합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(1) > div:nth-child(3) > div:first-child",
+        "type": "click_ripple",
+        "label": "의뢰 선택",
+        "description": "검수 대기 또는 진행 중인 요청 카드를 클릭합니다.",
+        "positionHint": "right"
+      },
+      {
+        "seq": 2,
+        "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(2) button.btn-primary + button",
+        "type": "click_ripple",
+        "label": "요청 반려 클릭",
+        "description": "하단의 ' 요청 반려' 버튼을 클릭하여 반려 사유 입력 창을 엽니다.",
+        "positionHint": "top"
+      },
+      {
+        "seq": 3,
+        "selector": "textarea[placeholder*=\"반려 사유 입력\"]",
+        "type": "callout",
+        "label": "반려 사유 작성",
+        "description": "타이어 마모, 배터리 불량 등 구체적인 출고 반려 사유를 입력합니다.",
+        "positionHint": "top"
+      },
+      {
+        "seq": 4,
+        "selector": "div[style*=\"z-index: 99999\"] > div > div:nth-child(3) > :last-child",
+        "type": "click_ripple",
+        "label": "수리정비중 전환",
+        "description": "해당 장비를 긴급 수리 상태로 전환하려면 토글을 켭니다.",
+        "positionHint": "left"
+      },
+      {
+        "seq": 5,
+        "selector": "div[style*=\"z-index: 99999\"] > div > div:last-child > button:last-child",
+        "type": "stamp",
+        "label": "반려 처리 실행",
+        "description": "'반려 처리 실행' 버튼을 눌러 반려를 확정합니다.",
+        "positionHint": "top"
+      }
+    ]
+  }
+],
+  basicGuide: [
+  {
+    "seq": 1,
+    "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(2) > button:nth-child(2)",
+    "type": "highlight",
+    "label": "접수 대기 상태",
+    "description": "아직 엔지니어가 검수를 시작하지 않은 대기 상태의 요청들입니다.",
+    "positionHint": "bottom"
+  },
+  {
+    "seq": 2,
+    "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(2) > button:nth-child(3)",
+    "type": "highlight",
+    "label": "검수 진행중 상태",
+    "description": "접수되어 현재 점검 및 검수가 진행 중인 요청들입니다.",
+    "positionHint": "bottom"
+  },
+  {
+    "seq": 3,
+    "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(1)",
+    "type": "callout",
+    "label": "출고 요청 대기열",
+    "description": "상차일자 및 고객사 기준으로 그룹화된 출고 검수 요청 목록입니다.",
+    "positionHint": "right"
+  }
+],
+  processes: [
+  {
+    "processId": "process_outbound_approve",
+    "title": "출고 검수 승인",
+    "description": "출고 요청 건을 접수하고 점검 항목을 확인한 뒤 최종 승인합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(1) > div:nth-child(3) > div:first-child",
+        "type": "click_ripple",
+        "label": "의뢰 선택",
+        "description": "검수 대기 중인 요청 카드를 클릭하여 우측에 상세 정보를 표시합니다.",
+        "positionHint": "right"
+      },
+      {
+        "seq": 2,
+        "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(1) > div:nth-child(3) > div:first-child button",
+        "type": "click_ripple",
+        "label": "작업 접수",
+        "description": "'▶ 작업 접수 실행' 버튼을 클릭하여 검수를 시작합니다.",
+        "positionHint": "top"
+      },
+      {
+        "seq": 3,
+        "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(2) button.btn-secondary",
+        "type": "click_ripple",
+        "label": "항목 일괄 확인",
+        "description": "'전체 선택/해제' 버튼을 눌러 점검 항목을 일괄 체크합니다. (개별 체크도 가능)",
+        "positionHint": "left"
+      },
+      {
+        "seq": 4,
+        "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(2) button.btn-primary",
+        "type": "stamp",
+        "label": "최종 출고 승인",
+        "description": "'[🟢 최종 출고 승인 마감]' 버튼을 클릭합니다. 자산 상태가 RENTED로 전환됩니다.",
+        "positionHint": "top"
+      }
+    ]
+  },
+  {
+    "processId": "process_outbound_reject",
+    "title": "출고 검수 반려",
+    "description": "불량 등의 사유로 출고가 불가능할 때 요청을 반려하고 수리를 등록합니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(1) > div:nth-child(3) > div:first-child",
+        "type": "click_ripple",
+        "label": "의뢰 선택",
+        "description": "검수 대기 또는 진행 중인 요청 카드를 클릭합니다.",
+        "positionHint": "right"
+      },
+      {
+        "seq": 2,
+        "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(2) button.btn-primary + button",
+        "type": "click_ripple",
+        "label": "요청 반려 클릭",
+        "description": "하단의 ' 요청 반려' 버튼을 클릭하여 반려 사유 입력 창을 엽니다.",
+        "positionHint": "top"
+      },
+      {
+        "seq": 3,
+        "selector": "textarea[placeholder*=\"반려 사유 입력\"]",
+        "type": "callout",
+        "label": "반려 사유 작성",
+        "description": "타이어 마모, 배터리 불량 등 구체적인 출고 반려 사유를 입력합니다.",
+        "positionHint": "top"
+      },
+      {
+        "seq": 4,
+        "selector": "div[style*=\"z-index: 99999\"] > div > div:nth-child(3) > :last-child",
+        "type": "click_ripple",
+        "label": "수리정비중 전환",
+        "description": "해당 장비를 긴급 수리 상태로 전환하려면 토글을 켭니다.",
+        "positionHint": "left"
+      },
+      {
+        "seq": 5,
+        "selector": "div[style*=\"z-index: 99999\"] > div > div:last-child > button:last-child",
+        "type": "stamp",
+        "label": "반려 처리 실행",
+        "description": "'반려 처리 실행' 버튼을 눌러 반려를 확정합니다.",
+        "positionHint": "top"
+      }
+    ]
+  }
+],
     groupId: 'grp_inout',
     groupName: '입출고관리',
     department: '출고검수팀',
@@ -4550,6 +6014,276 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     menuId: 'repair',
     version: 5,
     menuName: '주기장 정비 관리',
+  basicGuide: [
+  {
+    "seq": 1,
+    "selector": ".card:first-child",
+    "type": "highlight",
+    "label": "정비 대기 자산 큐",
+    "description": "입고 결함, 출고 불량, 수리 중인 자산 목록을 우선순위에 따라 조회하고 선택할 수 있습니다.",
+    "positionHint": "right"
+  },
+  {
+    "seq": 2,
+    "selector": ".card:nth-child(2)",
+    "type": "highlight",
+    "label": "정비 스튜디오",
+    "description": "선택한 자산에 대한 정비 조치 내역, 소모품 투입, 외주 위탁 등을 처리하는 워크벤치입니다.",
+    "positionHint": "left"
+  }
+],
+  processes: [
+  {
+    "processId": "process_internal_repair",
+    "title": "자체 정비 완료 처리",
+    "description": "주기장 내에서 직접 자산을 점검하고 수리를 완료하는 절차입니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": ".card:first-child > div:nth-child(4) > div:first-child",
+        "type": "click_ripple",
+        "label": "정비 대상 선택",
+        "description": "좌측 목록에서 수리할 자산을 클릭하여 선택합니다.",
+        "positionHint": "right"
+      },
+      {
+        "seq": 2,
+        "selector": "textarea",
+        "type": "callout",
+        "label": "정비 상세 내역 입력",
+        "description": "점검 결과 및 수리 조치 사항, 교체된 부품 내역을 상세히 기재합니다.",
+        "positionHint": "top"
+      },
+      {
+        "seq": 3,
+        "selector": "button.btn-primary",
+        "type": "click_ripple",
+        "label": "정비 완료",
+        "description": "작성된 정비 내역을 저장하고 해당 자산을 '임대가능' 상태로 복원합니다.",
+        "positionHint": "top"
+      }
+    ]
+  },
+  {
+    "processId": "process_external_repair",
+    "title": "외주 위탁 처리",
+    "description": "자체 수리가 불가한 자산을 외부 공업사에 위탁하여 수리하는 절차입니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": ".card:first-child > div:nth-child(4) > div:first-child",
+        "type": "click_ripple",
+        "label": "정비 대상 선택",
+        "description": "외주 위탁할 자산을 목록에서 선택합니다.",
+        "positionHint": "right"
+      },
+      {
+        "seq": 2,
+        "selector": ".card:nth-child(2) select",
+        "type": "click_ripple",
+        "label": "정비 구분 변경",
+        "description": "정비 구분을 '외주공업사 위탁'으로 변경하여 외주 정보 입력란을 활성화합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 3,
+        "selector": "div[style*=\"139, 92, 246\"] select",
+        "type": "callout",
+        "label": "외주 업체 선택",
+        "description": "정비를 위탁할 협력업체를 선택합니다.",
+        "positionHint": "top"
+      },
+      {
+        "seq": 4,
+        "selector": "button.btn-primary",
+        "type": "click_ripple",
+        "label": "외주 위탁 등록",
+        "description": "외주 위탁 내역을 등록하고 자산 상태를 '정비중(외주)'로 변경합니다.",
+        "positionHint": "top"
+      }
+    ]
+  }
+],
+  basicGuide: [
+  {
+    "seq": 1,
+    "selector": ".card:first-child",
+    "type": "highlight",
+    "label": "정비 대기 자산 큐",
+    "description": "입고 결함, 출고 불량, 수리 중인 자산 목록을 우선순위에 따라 조회하고 선택할 수 있습니다.",
+    "positionHint": "right"
+  },
+  {
+    "seq": 2,
+    "selector": ".card:nth-child(2)",
+    "type": "highlight",
+    "label": "정비 스튜디오",
+    "description": "선택한 자산에 대한 정비 조치 내역, 소모품 투입, 외주 위탁 등을 처리하는 워크벤치입니다.",
+    "positionHint": "left"
+  }
+],
+  processes: [
+  {
+    "processId": "process_internal_repair",
+    "title": "자체 정비 완료 처리",
+    "description": "주기장 내에서 직접 자산을 점검하고 수리를 완료하는 절차입니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": ".card:first-child > div:nth-child(4) > div:first-child",
+        "type": "click_ripple",
+        "label": "정비 대상 선택",
+        "description": "좌측 목록에서 수리할 자산을 클릭하여 선택합니다.",
+        "positionHint": "right"
+      },
+      {
+        "seq": 2,
+        "selector": "textarea",
+        "type": "callout",
+        "label": "정비 상세 내역 입력",
+        "description": "점검 결과 및 수리 조치 사항, 교체된 부품 내역을 상세히 기재합니다.",
+        "positionHint": "top"
+      },
+      {
+        "seq": 3,
+        "selector": "button.btn-primary",
+        "type": "click_ripple",
+        "label": "정비 완료",
+        "description": "작성된 정비 내역을 저장하고 해당 자산을 '임대가능' 상태로 복원합니다.",
+        "positionHint": "top"
+      }
+    ]
+  },
+  {
+    "processId": "process_external_repair",
+    "title": "외주 위탁 처리",
+    "description": "자체 수리가 불가한 자산을 외부 공업사에 위탁하여 수리하는 절차입니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": ".card:first-child > div:nth-child(4) > div:first-child",
+        "type": "click_ripple",
+        "label": "정비 대상 선택",
+        "description": "외주 위탁할 자산을 목록에서 선택합니다.",
+        "positionHint": "right"
+      },
+      {
+        "seq": 2,
+        "selector": ".card:nth-child(2) select",
+        "type": "click_ripple",
+        "label": "정비 구분 변경",
+        "description": "정비 구분을 '외주공업사 위탁'으로 변경하여 외주 정보 입력란을 활성화합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 3,
+        "selector": "div[style*=\"139, 92, 246\"] select",
+        "type": "callout",
+        "label": "외주 업체 선택",
+        "description": "정비를 위탁할 협력업체를 선택합니다.",
+        "positionHint": "top"
+      },
+      {
+        "seq": 4,
+        "selector": "button.btn-primary",
+        "type": "click_ripple",
+        "label": "외주 위탁 등록",
+        "description": "외주 위탁 내역을 등록하고 자산 상태를 '정비중(외주)'로 변경합니다.",
+        "positionHint": "top"
+      }
+    ]
+  }
+],
+  basicGuide: [
+  {
+    "seq": 1,
+    "selector": ".card:first-child",
+    "type": "highlight",
+    "label": "정비 대기 자산 큐",
+    "description": "입고 결함, 출고 불량, 수리 중인 자산 목록을 우선순위에 따라 조회하고 선택할 수 있습니다.",
+    "positionHint": "right"
+  },
+  {
+    "seq": 2,
+    "selector": ".card:nth-child(2)",
+    "type": "highlight",
+    "label": "정비 스튜디오",
+    "description": "선택한 자산에 대한 정비 조치 내역, 소모품 투입, 외주 위탁 등을 처리하는 워크벤치입니다.",
+    "positionHint": "left"
+  }
+],
+  processes: [
+  {
+    "processId": "process_internal_repair",
+    "title": "자체 정비 완료 처리",
+    "description": "주기장 내에서 직접 자산을 점검하고 수리를 완료하는 절차입니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": ".card:first-child > div:nth-child(4) > div:first-child",
+        "type": "click_ripple",
+        "label": "정비 대상 선택",
+        "description": "좌측 목록에서 수리할 자산을 클릭하여 선택합니다.",
+        "positionHint": "right"
+      },
+      {
+        "seq": 2,
+        "selector": "textarea",
+        "type": "callout",
+        "label": "정비 상세 내역 입력",
+        "description": "점검 결과 및 수리 조치 사항, 교체된 부품 내역을 상세히 기재합니다.",
+        "positionHint": "top"
+      },
+      {
+        "seq": 3,
+        "selector": "button.btn-primary",
+        "type": "click_ripple",
+        "label": "정비 완료",
+        "description": "작성된 정비 내역을 저장하고 해당 자산을 '임대가능' 상태로 복원합니다.",
+        "positionHint": "top"
+      }
+    ]
+  },
+  {
+    "processId": "process_external_repair",
+    "title": "외주 위탁 처리",
+    "description": "자체 수리가 불가한 자산을 외부 공업사에 위탁하여 수리하는 절차입니다.",
+    "steps": [
+      {
+        "seq": 1,
+        "selector": ".card:first-child > div:nth-child(4) > div:first-child",
+        "type": "click_ripple",
+        "label": "정비 대상 선택",
+        "description": "외주 위탁할 자산을 목록에서 선택합니다.",
+        "positionHint": "right"
+      },
+      {
+        "seq": 2,
+        "selector": ".card:nth-child(2) select",
+        "type": "click_ripple",
+        "label": "정비 구분 변경",
+        "description": "정비 구분을 '외주공업사 위탁'으로 변경하여 외주 정보 입력란을 활성화합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 3,
+        "selector": "div[style*=\"139, 92, 246\"] select",
+        "type": "callout",
+        "label": "외주 업체 선택",
+        "description": "정비를 위탁할 협력업체를 선택합니다.",
+        "positionHint": "top"
+      },
+      {
+        "seq": 4,
+        "selector": "button.btn-primary",
+        "type": "click_ripple",
+        "label": "외주 위탁 등록",
+        "description": "외주 위탁 내역을 등록하고 자산 상태를 '정비중(외주)'로 변경합니다.",
+        "positionHint": "top"
+      }
+    ]
+  }
+],
     groupId: 'grp_maintenance',
     groupName: '정비 / 소모품관리',
     department: '정비팀',
