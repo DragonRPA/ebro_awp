@@ -490,7 +490,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // React state of database tables
   const [tenants, setTenants] = useState<Tenant[]>(() => db.tenants || []);
   const [currentTenantId, setCurrentTenantIdState] = useState<string>(() => {
-    return (typeof window !== 'undefined' ? localStorage.getItem('erp_current_tenant_id') : null) || db.currentTenant?.id || 'tenant-1';
+    return (typeof window !== 'undefined' ? localStorage.getItem('erp_current_tenant_id') : null) || db.currentTenant?.id || 'tenant-giyeonlift';
   });
 
   const currentTenant = (tenants && tenants.length > 0 ? (tenants.find(t => t.id === currentTenantId || t.tenantCode === currentTenantId) || tenants.find(t => t.isDefault) || tenants[0]) : null) || db.currentTenant;
@@ -830,19 +830,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     }
 
-    // 🌐 [중앙 DB SSOT 동기화] 테넌트 원장 및 공통 장비 매뉴얼 라이브러리 동기화
+    // 🌐 [중앙 DB SSOT 동기화] 테넌트 원장 동기화 (중앙 DB가 SSOT이므로 중앙 데이터로 100% 동기화하여 로컬 가짜 시드 소탕)
     try {
       const centralTenants = await fetchCentralTenants();
       if (centralTenants && centralTenants.length > 0) {
-        centralTenants.forEach(ct => {
-          const exists = db.tenants.find(t => t.id === ct.id);
-          if (exists) {
-            db.updateRow('tenants', ct.id, ct);
-          } else {
-            db.insertRow('tenants', ct);
-          }
-        });
-        setTenants([...db.tenants]);
+        db.tenants = centralTenants;
+        setTenants([...centralTenants]);
+
+        const currentValid = centralTenants.find(t => t.id === currentTenantId || t.tenantCode === currentTenantId);
+        if (!currentValid) {
+          const def = centralTenants.find(t => t.isDefault) || centralTenants[0];
+          if (def) setCurrentTenantId(def.id);
+        }
       }
     } catch (err) {
       console.warn('[Central DB Sync] Failed to fetch central tenants:', err);

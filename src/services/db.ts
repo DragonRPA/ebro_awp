@@ -4136,9 +4136,9 @@ const mockDataAssets = generateMockAssets(mockDataProducts);
 const mockDataCont = generateMockContracts(mockDataCust.customers, mockDataCust.contacts, mockDataCust.sites, mockDataAssets);
 export const SEED_TENANTS: Tenant[] = [
   {
-    id: 'tenant-1',
+    id: 'tenant-giyeonlift',
     tenantCode: 'GIYEONLIFT',
-    solutionType: 'MULTI',
+    solutionType: 'AWP',
     systemName: 'eBro System',
     displayName: '기연리프트',
     corporateName: '주식회사 기연리프트',
@@ -4304,362 +4304,6 @@ export const SEED_TENANTS: Tenant[] = [
       statementPrintAreaBase: "A1:J",
       statementPrintAreaStartRow: 1
     }
-  },
-  {
-    id: 'tenant-2',
-    tenantCode: 'HANSOL',
-    subdomain: 'hansol',
-    solutionType: 'AWP',
-    targetRepo: 'DragonRPA/ebro_awp',
-    features: {
-      telegramBot: true,
-      callRecordingStt: true,
-      kakaoContract: false,
-      autoTaxInvoice: true,
-      voiceAssistance: false,
-      agentAiEnabled: false,
-    },
-    subscription: {
-      plan: 'STANDARD',
-      status: 'ACTIVE',
-      startDate: '2025-06-15',
-      endDate: '2026-10-15',
-      gracePeriodDays: 7,
-      billingCycle: 'MONTHLY',
-      monthlyFee: 500000,
-      autoRenew: false,
-      maxAssets: 150,
-      maxUsers: 10,
-      licenseKey: 'EBR-HANSOL-20261015-B7D4',
-      memo: '월간 갱신 플랜 (만료 14일 전 결제 갱신 알림 대상)',
-    },
-    systemName: 'e-Bro System',
-    displayName: '한솔렌탈',
-    corporateName: '주식회사 한솔렌탈',
-    tradeName: '(주)한솔렌탈',
-    businessNumber: '214-88-91204',
-    corporateRegistrationNumber: '110111-5829103',
-    representativeName: '한태수',
-    openingDate: '2017-06-15',
-    businessAddress: '충청남도 천안시 서북구 직산읍 직산로 105',
-    headOfficeAddress: '충청남도 천안시 서북구 직산읍 직산로 105',
-    businessCategory: '사업지원및임대서비스업',
-    businessItem: '고소작업대임대',
-    businessTypes: [
-      { bizType: '사업지원및임대서비스업', bizItem: '고소작업대임대' },
-      { bizType: '건설기계임대', bizItem: '중장비수리업' }
-    ],
-    isUnitTaxation: false,
-    taxEmail: 'hansol_tax@hansolrental.co.kr',
-    taxOffice: '천안세무서장',
-    certificateIssueDate: '2025-10-12',
-    tel: '041-558-1204',
-    fax: '041-558-1205',
-    salesPhone: '010-8821-1204',
-    email: 'contact@hansolrental.co.kr',
-    websiteUrl: '',
-    privacyOfficer: {
-      name: '한태수',
-      position: '대표이사',
-      department: '경영지원팀',
-      phone: '041-558-1204',
-      email: 'privacy@hansolrental.co.kr',
-      updatedAt: '2026-01-01T00:00:00.000Z'
-    },
-    privacyOfficerName: '한태수',
-    privacyOfficerPosition: '대표이사',
-    privacyOfficerDepartment: '경영지원팀',
-    privacyOfficerPhone: '041-558-1204',
-    privacyOfficerEmail: 'privacy@hansolrental.co.kr',
-    workplaces: [
-      {
-        id: 'wp-hansol-01',
-        workplaceCode: 'HQ',
-        name: '천안 본사',
-        isHeadquarter: true,
-        businessNumber: '214-88-91204',
-        address: '충청남도 천안시 서북구 직산읍 직산로 105',
-        tel: '041-558-1204',
-        managerName: '한태수',
-        createdAt: '2017-06-15T00:00:00.000Z',
-      }
-    ],
-    yards: [
-      {
-        id: 'yard-hansol-01',
-        yardCode: 'YARD-CHEONAN',
-        name: '한솔 천안 직산 주기장',
-        isDefault: true,
-        address: '충청남도 천안시 서북구 직산읍 직산로 105',
-        operatingCapacity: 120,
-        managerName: '관리팀',
-        managerPhone: '041-558-1204',
-        tel: '041-558-1204',
-        createdAt: '2017-06-15T00:00:00.000Z',
-      }
-    ],
-    mainYardAddress: '한솔 천안 직산 주기장',
-    bankAccounts: [
-      {
-        bankName: '국민은행',
-        accountNumber: '421801-04-192837',
-        accountHolder: '주식회사 한솔렌탈',
-        isDefault: true,
-      }
-    ],
-    logoUrl: '/images/ci/ebro_rental_ci.svg',
-    ciUrl: '/images/ci/ebro_rental_ci.svg',
-    stampImageUrl: OFFICIAL_STAMP_BASE64,
-    status: 'ACTIVE',
-    isDefault: false,
-    createdAt: '2017-06-15T00:00:00.000Z',
-    updatedAt: new Date().toISOString(),
-    allowCustomBillingStatement: false,
-  },
-  {
-    id: 'tenant-3',
-    tenantCode: 'SAMWOO',
-    subdomain: 'samwoo',
-    solutionType: 'AWP',
-    targetRepo: 'DragonRPA/ebro_awp',
-    features: {
-      telegramBot: true,
-      callRecordingStt: false,
-      kakaoContract: false,
-      autoTaxInvoice: false,
-      voiceAssistance: false,
-      agentAiEnabled: false,
-    },
-    subscription: {
-      plan: 'TRIAL',
-      status: 'EXPIRED',
-      startDate: '2026-09-01',
-      endDate: '2026-09-15',
-      gracePeriodDays: 7,
-      billingCycle: 'CUSTOM',
-      monthlyFee: 0,
-      autoRenew: false,
-      maxAssets: 30,
-      maxUsers: 3,
-      licenseKey: 'EBR-SAMWOO-20260915-TRIAL',
-      memo: '14일 무료 체험판 종료 후 정식 계약 대기 (만료 상태)',
-    },
-    systemName: 'e-Bro System',
-    displayName: '삼우렌탈',
-    corporateName: '주식회사 삼우렌탈',
-    tradeName: '(주)삼우렌탈',
-    businessNumber: '129-86-45120',
-    corporateRegistrationNumber: '134111-0982314',
-    representativeName: '박삼우',
-    openingDate: '2020-03-10',
-    businessAddress: '경기도 평택시 고덕면 고덕로 200',
-    headOfficeAddress: '경기도 평택시 고덕면 고덕로 200',
-    businessCategory: '사업지원및임대서비스업',
-    businessItem: '고소작업대임대',
-    isUnitTaxation: false,
-    taxEmail: 'tax@samwoorental.com',
-    taxOffice: '평택세무서장',
-    tel: '031-665-3341',
-    fax: '031-665-3342',
-    salesPhone: '010-3341-8890',
-    email: 'contact@samwoorental.com',
-    workplaces: [],
-    yards: [],
-    mainYardAddress: '경기도 평택시 고덕면 고덕로 200',
-    bankAccounts: [
-      {
-        bankName: '우리은행',
-        accountNumber: '1002-881-992014',
-        accountHolder: '주식회사 삼우렌탈',
-        isDefault: true,
-      }
-    ],
-    logoUrl: '',
-    ciUrl: '',
-    stampImageUrl: OFFICIAL_STAMP_BASE64,
-    status: 'EXPIRED',
-    isDefault: false,
-    createdAt: '2026-09-01T00:00:00.000Z',
-    updatedAt: new Date().toISOString(),
-    allowCustomBillingStatement: false,
-  },
-  {
-    id: 'tenant-4',
-    tenantCode: 'TECHONE',
-    subdomain: 'techone',
-    solutionType: 'IT',
-    targetRepo: 'DragonRPA/ebro_it',
-    features: {
-      telegramBot: true,
-      callRecordingStt: true,
-      kakaoContract: true,
-      autoTaxInvoice: true,
-      voiceAssistance: true,
-      agentAiEnabled: true,
-    },
-    subscription: {
-      plan: 'PRO',
-      status: 'ACTIVE',
-      startDate: '2025-01-01',
-      endDate: '2027-12-31',
-      gracePeriodDays: 14,
-      billingCycle: 'YEARLY',
-      monthlyFee: 1200000,
-      autoRenew: true,
-      maxAssets: 500,
-      maxUsers: 25,
-      licenseKey: 'EBR-TECHONE-20271231-IT99',
-      memo: 'IT 인프라 및 서버 렌탈 전용 솔루션',
-    },
-    systemName: 'e-Bro IT Solution',
-    displayName: '테크원네트웍스',
-    corporateName: '주식회사 테크원네트웍스',
-    tradeName: '(주)테크원',
-    businessNumber: '107-87-12345',
-    corporateRegistrationNumber: '110111-4567890',
-    representativeName: '김테크',
-    openingDate: '2021-05-10',
-    businessAddress: '서울특별시 구로구 디지털로 300, 11층',
-    headOfficeAddress: '서울특별시 구로구 디지털로 300, 11층',
-    businessCategory: '정보통신업',
-    businessItem: '컴퓨터 및 서버 임대·유지보수',
-    businessTypes: [
-      { bizType: '정보통신업', bizItem: '소프트웨어 개발 및 IT인프라 임대' },
-      { bizType: '도매및소매업', bizItem: '컴퓨터 및 주변장치' }
-    ],
-    isUnitTaxation: false,
-    taxEmail: 'tax@techone.co.kr',
-    taxOffice: '구로세무서장',
-    tel: '02-850-1234',
-    fax: '02-850-1235',
-    salesPhone: '02-850-1230',
-    email: 'contact@techone.co.kr',
-    workplaces: [
-      {
-        id: 'wp-techone-01',
-        workplaceCode: 'HQ',
-        name: '구로 본사 IDC 센터',
-        isHeadquarter: true,
-        businessNumber: '107-87-12345',
-        address: '서울특별시 구로구 디지털로 300, 11층',
-        tel: '02-850-1234',
-        managerName: '김테크',
-        createdAt: '2021-05-10T00:00:00.000Z',
-      }
-    ],
-    yards: [],
-    bankAccounts: [
-      {
-        bankName: '신한은행',
-        accountNumber: '110-382-990112',
-        accountHolder: '주식회사 테크원네트웍스',
-        isDefault: true,
-      }
-    ],
-    logoUrl: '/images/ci/ebro_rental_ci.svg',
-    ciUrl: '/images/ci/ebro_rental_ci.svg',
-    stampImageUrl: OFFICIAL_STAMP_BASE64,
-    status: 'ACTIVE',
-    isDefault: false,
-    createdAt: '2021-05-10T00:00:00.000Z',
-    updatedAt: new Date().toISOString(),
-    allowCustomBillingStatement: false,
-  },
-  {
-    id: 'tenant-5',
-    tenantCode: 'ACE_GROUP',
-    subdomain: 'ace',
-    solutionType: 'MULTI',
-    targetRepo: 'DragonRPA/ebro_awp,DragonRPA/ebro_it',
-    features: {
-      telegramBot: true,
-      callRecordingStt: true,
-      kakaoContract: true,
-      autoTaxInvoice: true,
-      voiceAssistance: true,
-      agentAiEnabled: true,
-    },
-    subscription: {
-      plan: 'ENTERPRISE',
-      status: 'ACTIVE',
-      startDate: '2024-01-01',
-      endDate: '2028-12-31',
-      gracePeriodDays: 30,
-      billingCycle: 'YEARLY',
-      monthlyFee: 2500000,
-      autoRenew: true,
-      maxAssets: 0,
-      maxUsers: 0,
-      licenseKey: 'EBR-ACEGROUP-20281231-MULTI',
-      memo: 'AWP + IT 복합 멀티 솔루션 그룹 엔터프라이즈 라이선스',
-    },
-    systemName: 'e-Bro Multi Hub',
-    displayName: '에이스종합렌탈그룹',
-    corporateName: '주식회사 에이스그룹',
-    tradeName: '(주)에이스그룹',
-    businessNumber: '220-88-99887',
-    corporateRegistrationNumber: '110111-9876543',
-    representativeName: '박에이스',
-    openingDate: '2019-08-20',
-    businessAddress: '경기도 수원시 영통구 광교중앙로 170',
-    headOfficeAddress: '경기도 수원시 영통구 광교중앙로 170',
-    businessCategory: '종합임대서비스업',
-    businessItem: '고소장비 및 IT 인프라 통합 렌탈',
-    businessTypes: [
-      { bizType: '사업지원및임대서비스업', bizItem: '건설기계 및 고소장비 임대' },
-      { bizType: '정보통신업', bizItem: '컴퓨터 및 IT 장비 임대' }
-    ],
-    isUnitTaxation: false,
-    taxEmail: 'tax@acegroup.co.kr',
-    taxOffice: '동수원세무서장',
-    tel: '031-210-9000',
-    fax: '031-210-9001',
-    salesPhone: '010-9988-7766',
-    email: 'contact@acegroup.co.kr',
-    workplaces: [
-      {
-        id: 'wp-ace-01',
-        workplaceCode: 'HQ',
-        name: '수원 광교 본사',
-        isHeadquarter: true,
-        businessNumber: '220-88-99887',
-        address: '경기도 수원시 영통구 광교중앙로 170',
-        tel: '031-210-9000',
-        managerName: '박에이스',
-        createdAt: '2019-08-20T00:00:00.000Z',
-      }
-    ],
-    yards: [
-      {
-        id: 'yard-ace-01',
-        yardCode: 'YARD-SUWON',
-        name: '에이스 수원 종합 주기장',
-        isDefault: true,
-        address: '경기도 수원시 권선구 고색동 100',
-        operatingCapacity: 250,
-        managerName: '물류운영팀',
-        managerPhone: '031-210-9000',
-        tel: '031-210-9000',
-        createdAt: '2019-08-20T00:00:00.000Z',
-      }
-    ],
-    mainYardAddress: '에이스 수원 종합 주기장',
-    bankAccounts: [
-      {
-        bankName: '하나은행',
-        accountNumber: '355-910022-81705',
-        accountHolder: '주식회사 에이스그룹',
-        isDefault: true,
-      }
-    ],
-    logoUrl: '/images/ci/ebro_rental_ci.svg',
-    ciUrl: '/images/ci/ebro_rental_ci.svg',
-    stampImageUrl: OFFICIAL_STAMP_BASE64,
-    status: 'ACTIVE',
-    isDefault: false,
-    createdAt: '2019-08-20T00:00:00.000Z',
-    updatedAt: new Date().toISOString(),
-    allowCustomBillingStatement: true,
   }
 ];
 
@@ -5532,15 +5176,31 @@ class LocalDB {
   }
 
   get tenants() { 
-    const list = this.get<Tenant>('tenants', SEED_TENANTS);
+    let list = this.get<Tenant>('tenants', SEED_TENANTS);
     let modified = false;
-    // SEED_TENANTS 중 로컬에 아직 없는 테넌트 자동 병합
-    SEED_TENANTS.forEach(seed => {
-      if (!list.some(t => t.id === seed.id || t.tenantCode === seed.tenantCode)) {
-        list.push(seed);
+
+    // 🧹 [가짜 시드 테넌트 자동 소탕] 과거 데모용 mock 테넌트(tenant-2 ~ tenant-5, HANSOL, SAMWOO, TECHONE, ACE_GROUP) 제거
+    const MOCK_CODES = new Set(['HANSOL', 'SAMWOO', 'TECHONE', 'ACE_GROUP']);
+    const MOCK_IDS = new Set(['tenant-2', 'tenant-3', 'tenant-4', 'tenant-5']);
+    const filtered = list.filter(t => !MOCK_CODES.has(t.tenantCode) && !MOCK_IDS.has(t.id));
+    if (filtered.length !== list.length) {
+      list = filtered;
+      modified = true;
+    }
+
+    // tenant-1 레거시 ID가 있으면 tenant-giyeonlift로 정규화
+    list = list.map(t => {
+      if (t.id === 'tenant-1') {
         modified = true;
+        return { ...t, id: 'tenant-giyeonlift', isDefault: true };
       }
+      return t;
     });
+
+    if (list.length === 0) {
+      list = [...SEED_TENANTS];
+      modified = true;
+    }
     const patched = list.map(t => {
       let changed = false;
       let ci = t.ciUrl;
