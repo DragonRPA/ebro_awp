@@ -1349,7 +1349,7 @@ export const ManualOverlay: React.FC = () => {
           {isPlayingAutoTour ? '⏹ 안내 정지' : '▶ 자동 순차 안내'}
         </button>
 
-        {/* 📖 기능 정의서 (.md) 열기 버튼 */}
+        {/* 📖 기능 정의서 열기 버튼 */}
         <button
           onClick={() => openDocModal(page.pageId, page.pageTitle)}
           style={{
@@ -1359,9 +1359,9 @@ export const ManualOverlay: React.FC = () => {
             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
             whiteSpace: 'nowrap', flexShrink: 0
           }}
-          title="현재 메뉴의 마크다운 기능 정의서 열람 및 편집"
+          title="현재 메뉴의 기능 정의서 열람 및 편집"
         >
-          📖 기능 정의서 (.md)
+          📖 기능 정의서
         </button>
 
         {/* 닫기 버튼 */}

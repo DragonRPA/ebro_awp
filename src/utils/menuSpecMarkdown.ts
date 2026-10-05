@@ -39,7 +39,7 @@ export function getMenuBriefingSummary(menuId: string): MenuBriefingSummary | nu
       menuId,
       title: modalDef.modalName,
       dept: modalDef.category,
-      archetype: '팝업 / 다이얼로그 (Modal Studio)',
+      archetype: '팝업 / 다이얼로그 (전용 팝업 창구)',
       objective: `${modalDef.modalName} 팝업은 특정 비즈니스 이벤트 발생 시 세부 제원 입력 및 즉시 승인/검증을 완결하는 전용 창구입니다.`,
       buttons: modalDef.annotations.map(a => ({ seq: a.seq, label: a.label, color: a.badgeColor })),
       subTabs: [],
@@ -116,7 +116,7 @@ ${modalDef.modalName}은 시스템 업무 흐름 중 특정 이벤트가 발생�
 ## 2. 화면 주요 컨트롤 및 입력/검증 필드
 ${buttonList}
 
-## 3. MCP (Model Context Protocol) 에이전트 자율 연동 가이드
+## 3. 인공지능 에이전트 자율 연동 가이드
 - **작동 원칙**: 모달이 DOM 상에 활성화(\`detectActiveModalElement\`)된 상태에서만 조작이 가능합니다.
 - **방어 차단**: 필수 입력값이 미충족되었거나 검증이 실패한 경우 최종 완결 버튼이 비활성화되거나 경고 모달이 표출됩니다.
 - **사후 상태 전이**: 완결 버튼 클릭 시 모달이 닫히며 상위 원장 및 이력 DB에 즉시 동기화 적재됩니다.
@@ -150,14 +150,14 @@ ${buttonList}
         .join('\n\n')
     : '- 연동된 전용 모달 워크플로우가 없습니다.';
 
-  // 단위업무 Flow (Business Process Flows)
+  // 단위업무 절차
   const processesSection = (manual as any).processes && (manual as any).processes.length > 0
     ? (manual as any).processes
         .map((p: any) => {
           const stepList = (p.steps || [])
             .map((s: any) => `  ${s.seq}. **${s.label}**: ${s.description}`)
             .join('\n');
-          return `### 🔄 단위업무 Flow: ${p.title} (\`${p.processId}\`)\n- **업무 목적**: ${p.description}\n- **수행 절차 (${p.steps?.length || 0}단계)**:\n${stepList}`;
+          return `### 🔄 단위업무: ${p.title} (\`${p.processId}\`)\n- **업무 목적**: ${p.description}\n- **수행 절차 (${p.steps?.length || 0}단계)**:\n${stepList}`;
         })
         .join('\n\n')
     : '- 등록된 별도 단위업무 절차형 프로세스가 없습니다.';
@@ -179,38 +179,38 @@ ${buttonList}
 - **담당 부서**: ${manual.department}
 - **UI 아키타입**: ${manual.archetype}
 
-## 2. 업무 기능 목적 (Terminal Objective)
+## 2. 업무 기능 목적
 > **"${manual.objective}"**
 
-### 📋 시작 전제 조건 및 스코핑 정보 (Scope)
+### 📋 시작 전제 조건 및 범위 정보
 ${manual.scopeInfo}
 
-## 3. 단위업무 Flow (Business Process Flows)
+## 3. 단위업무 절차
 ${processesSection}
 
-## 4. 화면 주요 버튼 및 기능 목록 (Actions & Controls)
+## 4. 화면 주요 버튼 및 기능 목록
 ${buttonsSection}
 
-## 5. 하위 탭 구성 및 상세 역할 (Tabs & Sub-views)
+## 5. 하위 탭 구성 및 상세 역할
 ${subTabsSection}
 
-## 6. 연동 모달 및 팝업 기능 (Modals & Dialogs)
+## 6. 연동 팝업 및 창구 기능
 ${modalsSection}
 
-## 6. 인지 및 조작 1-Way 시퀀스 (Cognitive Sequence)
+## 7. 인지 및 조작 순서 (1-Way 동선)
 ${seqSection}
 
-## 7. 최종 완결 확정 결과 (Audit Result)
+## 8. 최종 완결 확정 결과
 - ${manual.auditResult}
 
-## 8. 전사 시스템 개발 표준 헌장 준수 (System Standards)
+## 9. 전사 시스템 개발 표준 헌장 준수
 ${rulesSection}
 
-## 9. 현장 물리적 마찰 방지 및 주의사항 (Precautions)
+## 10. 현장 물리적 마찰 방지 및 주의사항
 ${precautionsSection}
 
-## 10. MCP (Model Context Protocol) 에이전트 자율 연동 가이드
-- **에이전트 역할 권장**: 본 메뉴의 작업을 대리 수행하는 AI 에이전트는 본 명세서의 **[2. 업무 기능 목적]**과 **[8. 헌장 준수]**를 절대적 제약조건으로 준수해야 합니다.
+## 11. 인공지능 에이전트 자율 연동 가이드
+- **에이전트 역할 권장**: 본 메뉴의 작업을 대리 수행하는 AI 에이전트는 본 명세서의 **[2. 업무 기능 목적]**과 **[9. 헌장 준수]**를 절대적 제약조건으로 준수해야 합니다.
 - **R&R 엄격 준수**: 타 부서 권한(예: 영업사원의 자산번호 강제 지정, 배차담당자의 계약 단가 조작 등) 침해 액션을 절대 발행하지 않습니다.
 - **보존 법칙 확인**: 날짜 보존, 수지 보존, 상태 보존의 3대 법칙을 확인한 후 종단 완결 버튼을 호출해야 합니다.
 `;

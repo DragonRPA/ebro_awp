@@ -119,10 +119,10 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
             fontWeight: 700,
             cursor: 'pointer',
           }}
-          title="기능 정의서 (.md) 열람/편집"
+          title="기능 정의서 열람 및 편집"
         >
           <FileText size={12} />
-          <span>MD</span>
+          <span>정의서</span>
         </button>
         <button
           onClick={() => setIsMinimized(false)}
@@ -236,10 +236,10 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
               cursor: 'pointer',
               whiteSpace: 'nowrap',
             }}
-            title="마크다운 기능 정의서 열람 및 실시간 편집"
+            title="기능 정의서 열람 및 실시간 편집"
           >
             <FileText size={12} />
-            <span>기능 정의서 (.md)</span>
+            <span>기능 정의서</span>
           </button>
           <button
             onClick={() => setIsMinimized(true)}
@@ -668,10 +668,10 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
               cursor: 'pointer',
               padding: 0,
             }}
-            title="마크다운 기능 정의서 열람 및 실시간 편집"
+            title="기능 정의서 열람 및 실시간 편집"
           >
             <FileText size={13} />
-            <span>기능 정의서 (.md)</span>
+            <span>기능 정의서</span>
           </button>
         </div>
 

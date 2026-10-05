@@ -24,7 +24,7 @@ export interface MenuManualDetail {
   groupId: string;
   groupName: string;
   department: string;
-  archetype: '유형 A: 요청 처리형 (Card Dossier)' | '유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)' | '유형 C: 대시보드 및 지식 포털 (Dashboard / Portal)';
+  archetype: '유형 A: 요청 처리형 (카드형 상세)' | '유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)' | '유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)';
   objective: string;          // 최종 목표 (Terminal Objective - Gutenberg 질문 1)
   scopeInfo: string;          // 시작 정보 및 전제 조건 (Scope - 질문 2)
   cognitiveSequence: string[]; // 인지 및 조작 순서 1-Way 동선 (Cognitive Sequence - 질문 3)
@@ -48,7 +48,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_top",
     "groupName": "메인",
     "department": "전사 공통",
-    "archetype": "유형 C: 대시보드 및 지식 포털 (Dashboard / Portal)",
+    "archetype": "유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)",
     "objective": "로그인한 임직원의 직무에 특화된 실시간 당면 과제(ToDo 피드) 파악 및 전사 가동/출고/정비/배차 자산 상태를 한눈에 모니터링하여 즉시 대응 조치 착수",
     "scopeInfo": "로그인 사용자 직무 권한(영업, 배차, 주기장, 정비, 관리)에 따른 맞춤형 ToDo 피드 및 당일 주기장 날씨/작업 환경 데이터",
     "cognitiveSequence": [
@@ -62,7 +62,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "업무 지시 및 공지 팝업 (Directive Modal)",
+        "modalName": "업무 지시 및 공지 팝업",
         "triggerButton": "[긴급 업무 지시 등록]",
         "keyFields": [
           "수신 부서/담당자",
@@ -87,7 +87,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 1,
         "selector": "[data-mid=\"dashboard-sales-feed\"]",
         "type": "stamp",
-        "label": "영업 수주 ToDo 피드",
+        "label": "영업 수주 할일 피드",
         "description": "영업팀에서 접수된 신규 수주 및 출고 의뢰 현황을 피드로 확인합니다.",
         "badgeColor": "#10b981",
         "positionHint": "bottom",
@@ -172,7 +172,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_approval",
     "groupName": "결재 센터",
     "department": "전사 관리자/임원",
-    "archetype": "유형 A: 요청 처리형 (Card Dossier)",
+    "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "본인에게 상신된 결재 건(계약 체결, 대차 교체, 단가 할인, 운송비 예외, 연차/OT 등)의 전후 맥락을 검토하여 원클릭 승인 또는 사유 기재 반려 처리",
     "scopeInfo": "로그인 사용자의 직급 티어(Tier 1~7) 및 위임(Delegation) 권한에 따라 도달한 [대기] 상태 결재 문서 목록",
     "cognitiveSequence": [
@@ -216,7 +216,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "결재 합의 및 승인/반려 다이얼로그 (Approval Action Modal)",
+        "modalName": "결재 합의 및 승인/반려 다이얼로그",
         "triggerButton": "[승인] 또는 [반려]",
         "keyFields": [
           "전결 규정 티어 부합 여부",
@@ -327,7 +327,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_approval",
     "groupName": "결재 센터",
     "department": "경영지원/시스템관리",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "테넌트별 7단계 직급 티어(Tier 1~7) 매핑, 문서 카테고리별 필수 결재선/합의(Consensus) 조건, 금액별 전결 한도 규칙 정의 및 직무 대결 관리",
     "scopeInfo": "테넌트 식별자, 등록된 직급/직책 체계, 문서 카테고리(계약, 배차, 할인, 비용, 인사) 목록",
     "cognitiveSequence": [
@@ -442,15 +442,15 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 1,
         "selector": "[data-mid='customer-search-filter']",
         "type": "highlight",
-        "label": "Filter Area",
-        "description": "Use this area to filter the customer list by search term, transaction status, or missing documents."
+        "label": "검색 및 필터 영역",
+        "description": "검색어, 거래 상태 또는 필수 서류 누락 여부로 고객사 목록을 필터링합니다."
       },
       {
         "seq": 2,
         "selector": "[data-mid='customer-list-panel']",
         "type": "highlight",
-        "label": "Customer List",
-        "description": "Displays the list of registered customers. Select a customer to view their details.",
+        "label": "고객사 목록",
+        "description": "등록된 고객사 목록을 표시하며, 클릭하여 상세 제원을 조회합니다.",
         "positionHint": "right"
       }
     ],
@@ -458,49 +458,49 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       {
         "processId": "register_customer",
         "title": "고객 등록",
-        "description": "Register a new customer by entering their details.",
+        "description": "신규 고객사의 기본 정보를 입력하여 정식 등록합니다.",
         "steps": [
           {
             "seq": 1,
             "selector": "[data-mid='btn-new-customer']",
             "type": "click_ripple",
-            "label": "Click New Customer",
-            "description": "Click the button to open the new customer registration modal."
+            "label": "신규 고객 등록 버튼",
+            "description": "신규 고객 등록 버튼을 클릭하여 입력 팝업 창을 엽니다."
           },
           {
             "seq": 2,
             "selector": "[data-mid='input-customer-name']",
             "type": "callout",
-            "label": "Customer Name",
-            "description": "Enter the name of the new customer."
+            "label": "고객사명",
+            "description": "등록할 신규 고객사의 공식 상호명을 입력합니다."
           },
           {
             "seq": 3,
             "selector": "[data-mid='input-biz-no']",
             "type": "callout",
-            "label": "Business Registration Number",
-            "description": "Enter the business registration number."
+            "label": "사업자등록번호",
+            "description": "국세청 사업자등록번호 10자리를 입력합니다."
           }
         ]
       },
       {
         "processId": "view_customer_details",
         "title": "고객 상세 조회",
-        "description": "View detailed information of a specific customer.",
+        "description": "선택한 고객사의 상세 정보, 현장 내역, 담당자 연락처를 조회합니다.",
         "steps": [
           {
             "seq": 1,
             "selector": "[data-mid='customer-grid-item']",
             "type": "click_ripple",
-            "label": "Select a Customer",
-            "description": "Click on a customer row in the list to view details."
+            "label": "고객사 선택",
+            "description": "목록에서 고객사 행을 클릭하여 상세 정보를 화면에 불러옵니다."
           },
           {
             "seq": 2,
             "selector": "[data-mid='customer-detail-dossier']",
             "type": "highlight",
-            "label": "Customer Detail Dossier",
-            "description": "Review the detailed information, sites, and contacts of the selected customer.",
+            "label": "고객사 상세 정보",
+            "description": "선택한 고객사의 상세 제원, 소속 현장 목록, 계약 이력을 정밀 검토합니다.",
             "positionHint": "left"
           }
         ]
@@ -509,7 +509,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_sales",
     "groupName": "영업관리",
     "department": "영업부",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "고객사(원청, 전문건설사, 발주처)의 기본 정보, 사업자등록증, 현장 담당자 연락망, 신용 한도 및 미수 채권 상태 통합 관리",
     "scopeInfo": "사업자등록번호, 상호명, 대표자, 업태/종목, 전자세금계산서 발행 이메일, 현장 담당자 정보",
     "cognitiveSequence": [
@@ -545,7 +545,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "거래처 및 현장 등록/홈택스 검증 팝업 (Customer & Site Modal)",
+        "modalName": "거래처 및 현장 등록/홈택스 검증 팝업",
         "triggerButton": "[신규 거래처 등록] 또는 [현장 추가]",
         "keyFields": [
           "사업자등록번호 (국세청 API 실시간 유효성 검증)",
@@ -612,7 +612,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 5,
         "selector": "[data-mid=\"btn-ocr-biz-license\"], button:contains(\"사업자등록증\")",
         "type": "click_ripple",
-        "label": "사업자등록증 AI 보완",
+        "label": "사업자등록증 인공지능 보완",
         "description": "사업자등록증 이미지를 올려 상호, 대표자, 등록번호를 자동 파싱합니다.",
         "badgeColor": "#2563EB",
         "positionHint": "bottom",
@@ -647,7 +647,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_sales",
     "groupName": "영업관리",
     "department": "영업부 / 출고부",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "고소작업대 렌탈 현장별 유상옵션, 보양작업, 요구사양을 옵션품목마스터로부터 100% 자동 상속받고 현장 특약 단가를 오버라이드하여 계약/출고/배차 파이프라인과 완벽 연동",
     "scopeInfo": "고객사 필터, 현장 검색어, 선택된 현장, 옵션품목마스터(StandardOption) 품목군(유상/보양/사양), 현장 특약단가, 필수 장착 여부, 현장 메모",
     "cognitiveSequence": [
@@ -678,7 +678,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 1,
         "selector": "[data-mid=\"filter-panel\"]",
         "type": "stamp",
-        "label": "조회 조건 패널 (Scope)",
+        "label": "조회 조건 패널",
         "description": "고객사 필터 및 현장 검색창을 통해 대상 현장을 스코핑합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -688,7 +688,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 2,
         "selector": "[data-mid=\"tab-toggle\"]",
         "type": "stamp",
-        "label": "탭 전환 (Tab Toggle)",
+        "label": "탭 전환",
         "description": "현장별 옵션 관리 작업대와 옵션 품목 마스터 간 화면을 전환합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -698,7 +698,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 3,
         "selector": "[data-mid=\"panel-site-scope\"]",
         "type": "stamp",
-        "label": "현장 선택 (Site Scope)",
+        "label": "현장 선택",
         "description": "옵션을 설정할 고객 현장을 목록에서 클릭 선택합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "right",
@@ -708,7 +708,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 4,
         "selector": "[data-mid=\"btn-inherit-master\"]",
         "type": "stamp",
-        "label": "마스터 상속 (Inherit Master)",
+        "label": "마스터 상속",
         "description": "옵션품목마스터의 모든 표준 품목 및 기준단가를 1클릭 상속받습니다.",
         "badgeColor": "#10B981",
         "positionHint": "bottom",
@@ -718,7 +718,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 5,
         "selector": "[data-mid=\"table-paid-options\"]",
         "type": "stamp",
-        "label": "유상 옵션 (Paid Options)",
+        "label": "유상 옵션",
         "description": "현장에 투입될 유상옵션 적용 여부와 현장 특약단가를 인라인 입력합니다.",
         "badgeColor": "#2563EB",
         "positionHint": "top",
@@ -728,7 +728,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 6,
         "selector": "[data-mid=\"card-protection-options\"]",
         "type": "stamp",
-        "label": "보양 작업 (Protection)",
+        "label": "보양 작업",
         "description": "현장 환경에 부합하는 보호 완충/함석 보양 규격을 1종 선택합니다.",
         "badgeColor": "#059669",
         "positionHint": "top",
@@ -738,7 +738,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 7,
         "selector": "[data-mid=\"summary-monthly-fee\"]",
         "type": "stamp",
-        "label": "월 옵션 총액 (Summary)",
+        "label": "월 옵션 총액",
         "description": "적용 유상옵션 건수, 보양작업 및 월 청구 옵션 총액을 검증합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "top",
@@ -748,7 +748,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 8,
         "selector": "[data-mid=\"btn-save-site-options\"]",
         "type": "stamp",
-        "label": "설정 저장 (Terminal Action)",
+        "label": "설정 저장",
         "description": "작업대에서 구성한 옵션값을 해당 현장의 DB 레코드에 최종 저장합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "top",
@@ -925,7 +925,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       },
       {
         "processId": "process_contract_exchange",
-        "title": "대차(EXCHANGE) 출고 의뢰",
+        "title": "대차 출고 의뢰",
         "description": "운용 중인 장비의 고장 등으로 인해 자산을 교체/대차하는 절차입니다.",
         "steps": [
           {
@@ -969,7 +969,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_sales",
     "groupName": "영업관리",
     "department": "영업부",
-    "archetype": "유형 A: 요청 처리형 (Card Dossier)",
+    "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "고소작업대 렌탈 임대차 계약 체결, 계약 기간, 대여 자산 기여액 일할 집계(헌장 4.1), 대차/교체 시 계약 속성 100% 자동 상속(헌장 2.2), 계약 변경 이력 무누락 보존",
     "scopeInfo": "고객사, 현장 주소, 요구 장비 규격/수량, 임대 시작/종료일, 월 렌탈료 단가, 청구 마감일 조건",
     "cognitiveSequence": [
@@ -1098,7 +1098,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
           },
           {
             "processId": "process_contract_exchange",
-            "title": "대차(EXCHANGE) 출고 의뢰",
+            "title": "대차 출고 의뢰",
             "description": "운용 중인 장비의 고장 등으로 인해 자산을 교체/대차하는 절차입니다.",
             "steps": [
               {
@@ -1154,7 +1154,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "EXCHANGE 대차 교체 의뢰 팝업 (Exchange Order Modal)",
+        "modalName": "대차 교체 의뢰 팝업",
         "triggerButton": "체결 자산 행의 [대차/교체]",
         "keyFields": [
           "회수 대상 전자산 번호",
@@ -1166,7 +1166,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "afterStateTransition": "단일 EXCHANGE 배차 의뢰 1건 발행(헌장 2.3), 계약 속성 100% 자동 상속(헌장 2.2), 타임라인 1:1 연결 기록(헌장 4.2)"
       },
       {
-        "modalName": "계약 변경(기간 연장 / 단가 변경) 팝업 (Contract Amendment Modal)",
+        "modalName": "계약 변경(기간 연장 / 단가 변경) 팝업",
         "triggerButton": "[기간 연장] 또는 [단가 변경]",
         "keyFields": [
           "신규 만료일자",
@@ -1269,7 +1269,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_sales",
     "groupName": "영업관리",
     "department": "영업부",
-    "archetype": "유형 A: 요청 처리형 (Card Dossier)",
+    "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "신규 고객사/현장 매핑, 영업담당 지정, 계약 기간 및 청구/결제 조건 설정, 장비 모델 및 단가 체결 완료",
     "scopeInfo": "고객사(거래처), 영업담당자, 계약 시작일, 만료일(또는 상시대여), 청구 마감일, 명세서 마감일, 약정 결제일, 투입 자산 모델 및 월 렌탈료",
     "cognitiveSequence": [
@@ -1432,14 +1432,14 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 1,
         "selector": "[data-mid='tab-billing-wizard']",
         "type": "callout",
-        "label": "WIZARD 탭 (미청구 정산)",
+        "label": "정산 마법사 탭",
         "description": "정산 대상 계약을 확인하고 청구서를 신규로 생성하는 기능 탭입니다."
       },
       {
         "seq": 2,
         "selector": "[data-mid='tab-billing-list']",
         "type": "callout",
-        "label": "LIST 탭 (청구 대장)",
+        "label": "청구 대장 목록 탭",
         "description": "생성된 청구서를 조회하고 이메일 발송, 취소, 분할 등의 관리를 수행하는 탭입니다."
       }
     ],
@@ -1453,7 +1453,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "seq": 1,
             "selector": "[data-mid='tab-billing-wizard']",
             "type": "click_ripple",
-            "label": "WIZARD 탭 이동",
+            "label": "정산 마법사 탭 이동",
             "description": "청구서를 생성하기 위해 미청구 정산 탭으로 이동합니다."
           },
           {
@@ -1481,7 +1481,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "seq": 1,
             "selector": "[data-mid='tab-billing-list']",
             "type": "click_ripple",
-            "label": "LIST 탭 이동",
+            "label": "청구 대장 목록 탭 이동",
             "description": "청구 내역을 확인하기 위해 청구 대장 탭으로 이동합니다."
           },
           {
@@ -1502,7 +1502,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "seq": 1,
             "selector": "[data-mid='tab-billing-list']",
             "type": "click_ripple",
-            "label": "LIST 탭 이동",
+            "label": "청구 대장 목록 탭 이동",
             "description": "청구 대장 탭으로 이동합니다."
           },
           {
@@ -1532,7 +1532,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_sales",
     "groupName": "영업관리",
     "department": "영업/재무팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "월별 청구 대장 조회, 다중 조건 필터링, 수납 등록 및 미수금 관리, 전자명세서 발송, 정품 거래명세서 서식 출력, 회계 대차대조식 검증",
     "scopeInfo": "청구 귀속월(YYYY-MM), 고객사 초성/상호, 계약번호, 수납 상태(완납/미납), 메일 발송 여부, 통합 인보이스 구분",
     "cognitiveSequence": [
@@ -1597,7 +1597,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "수납 등록 팝업 (Receipt Modal)",
+        "modalName": "수납 등록 팝업",
         "triggerButton": "[수납]",
         "keyFields": [
           "수납 일자 및 입금 계좌",
@@ -1778,7 +1778,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_sales",
     "groupName": "영업관리",
     "department": "영업/재무팀",
-    "archetype": "유형 A: 요청 처리형 (Card Dossier)",
+    "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "마감 도래 계약의 기간별 일할 매출 정산, 고객부담 운송료/수리비 및 외상미수금 연계 정산, 청구서 생성 및 최종 확정",
     "scopeInfo": "정산 대상 기간, 청구 대상 계약 목록, 자산별 일할 가동일수 및 단가, 미청구 부대비용 및 연계 외상미수금",
     "cognitiveSequence": [
@@ -1922,7 +1922,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_sales",
     "groupName": "영업관리",
     "department": "영업/재무팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "동일 고객사 다수 현장의 미통합 청구서 일괄 합산, 고객/현장 단위 통합 인보이스 생성, 공식 A4 거래명세서 11행 싱크 및 정품 엑셀/PDF 서식 출력, 이메일 발송 및 최종 발행 마감",
     "scopeInfo": "청구 귀속연월(YYYY-MM), 고객사 상호/초성, 통합 단위(고객/현장), 품목 카테고리(렌탈/수리/운반), 인보이스 납기일자 및 통합 비고",
     "cognitiveSequence": [
@@ -2057,7 +2057,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 11,
         "selector": "[data-mid=\"invoice-statement-canvas\"]",
         "type": "stamp",
-        "label": "공식 거래명세서 A4 싱크 캔버스",
+        "label": "공식 거래명세서 A4 규격 캔버스",
         "description": "공급자(기연리프트)와 공급받는자(고객사), 한글 금액 표기, 11행 정규 품목·규격·단가·공급가액·세액이 실시간 바인딩된 정품 양식을 대사 검증합니다.",
         "badgeColor": "#6366F1",
         "positionHint": "left",
@@ -2155,7 +2155,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_sales",
     "groupName": "영업관리",
     "department": "영업/재무팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "우천, 파업, 고장 대차 등 특약에 의해 청구 면제 처리된 수리비 및 운송비 감사 원장 조회, 사유별/영업담당별 집계 분석 및 원상 롤백(면제 취소)",
     "scopeInfo": "면제 연월 범위, 항목 구분(현장AS/입고정비/화물운송료), 거래처/계약번호/담당자/사유 검색어",
     "cognitiveSequence": [
@@ -2316,71 +2316,71 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 1,
         "selector": ".table-container",
         "type": "highlight",
-        "label": "Receivables Registry Grid",
-        "description": "View and manage all outstanding receivables, including unbilled and partially billed amounts."
+        "label": "미수금 관리 그리드",
+        "description": "미청구 및 부분 청구 잔액을 포함한 모든 외상미수금 내역을 조회·관리합니다."
       },
       {
         "seq": 2,
         "selector": ".card:first-of-type",
         "type": "highlight",
-        "label": "Filters Panel",
-        "description": "Filter records by customer, cost type, billing status, and date range."
+        "label": "검색 및 필터 패널",
+        "description": "고객사, 비용 유형, 청구 상태, 기간 범위를 지정하여 미수금을 조회합니다."
       }
     ],
     "processes": [
       {
         "processId": "register_receivable",
-        "title": "Register New Receivable",
-        "description": "Register a new unbilled receivable such as repair or transport costs.",
+        "title": "신규 미수금 등록",
+        "description": "수리비, 운송비 등 발생된 신규 미청구 채권을 등록합니다.",
         "steps": [
           {
             "seq": 1,
             "selector": "button.btn-primary",
             "type": "click_ripple",
-            "label": "Click Register Button",
-            "description": "Click the primary button to open the receivable registration modal."
+            "label": "신규 미수금 등록 버튼",
+            "description": "등록 버튼을 클릭하여 외상미수금 입력 팝업 창을 엽니다."
           },
           {
             "seq": 2,
             "selector": "[data-mid='rec-modal-cost-type'] select",
             "type": "callout",
-            "label": "Select Cost Type",
-            "description": "Select the appropriate cost category from the dropdown menu."
+            "label": "비용 유형 선택",
+            "description": "발생한 비용의 적합한 항목(수리비, 운송비, 자재비 등)을 선택합니다."
           },
           {
             "seq": 3,
             "selector": "[data-mid='rec-modal-total-amount'] input",
             "type": "callout",
-            "label": "Enter Total Amount",
-            "description": "Input the total receivable amount."
+            "label": "청구 총액 입력",
+            "description": "청구할 외상미수금 총액을 입력합니다."
           },
           {
             "seq": 4,
             "selector": "[data-mid='rec-modal-submit-btn']",
             "type": "click_ripple",
-            "label": "Submit Registration",
-            "description": "Click the submit button to save the new record."
+            "label": "미수금 등록 확정",
+            "description": "등록 완료 버튼을 클릭하여 신규 미수금 채권을 DB에 저장합니다."
           }
         ]
       },
       {
         "processId": "standalone_billing",
-        "title": "Issue Standalone Billing",
-        "description": "Issue an immediate standalone invoice for a specific receivable.",
+        "title": "단독 청구서 발행",
+        "description": "특정 외상 항목에 대해 즉시 단독 청구서를 발행합니다.",
         "steps": [
           {
             "seq": 1,
             "selector": "table tbody tr:first-child button.btn-secondary",
             "type": "click_ripple",
-            "label": "Select Standalone Billing",
-            "description": "Click the standalone billing button on a pending receivable row."
+            "label": "단독 청구 선택",
+            "description": "미결 미수금 행의 단독 청구 버튼을 클릭합니다."
           },
           {
             "seq": 2,
             "selector": "body",
             "type": "callout",
-            "label": "Enter Reason Prompt",
-            "description": "A browser prompt will appear. Enter the reason for the standalone billing to proceed."
+            "label": "청구 사유 입력",
+            "description": "입력 창에 단독 청구 사유를 기재하여 발행을 진행합니다."
           }
         ]
       }
@@ -2388,7 +2388,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_sales",
     "groupName": "영업관리",
     "department": "영업/재무팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "거래처별 누적 외상 매출금 잔액 추적, 수금 완료/미수금 잔액 대사, 연체 월령 분석 및 수금 독촉 관리",
     "scopeInfo": "거래처 마스터, 월별 청구 확정액, 통장 입금 수납액",
     "cognitiveSequence": [
@@ -2433,7 +2433,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "외상매출금 수기 수납 처리 팝업 (Receivable Receipt Modal)",
+        "modalName": "외상매출금 수기 수납 처리 팝업",
         "triggerButton": "[수납 등록]",
         "keyFields": [
           "수납 일자",
@@ -2535,50 +2535,50 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 1,
         "selector": "[data-mid=\"dispatch4-block-customer\"]",
         "type": "highlight",
-        "label": "Customer Selection",
-        "description": "Select the customer for this dispatch."
+        "label": "고객사 선택",
+        "description": "출고를 진행할 대상 고객사를 선택합니다."
       },
       {
         "seq": 2,
         "selector": "[data-mid=\"dispatch4-block-equipments\"]",
         "type": "highlight",
-        "label": "Asset Mapping",
-        "description": "Map the requested assets or equipment to the order."
+        "label": "장비 매핑",
+        "description": "출고 요청된 모델 및 수량을 배차 주문에 매핑합니다."
       }
     ],
     "processes": [
       {
         "processId": "create_dispatch_order",
         "title": "출고 의뢰 등록",
-        "description": "Register a new dispatch or delivery request.",
+        "description": "신규 배차 및 출고 운송 의뢰를 등록합니다.",
         "steps": [
           {
             "seq": 1,
             "selector": "[data-mid=\"dispatch4-customer-search\"]",
             "type": "callout",
-            "label": "Select Customer",
-            "description": "Search and select a customer."
+            "label": "고객사 검색 및 선택",
+            "description": "출고 대상 고객사를 검색하여 선택합니다."
           },
           {
             "seq": 2,
             "selector": "[data-mid=\"dispatch4-model-chips\"]",
             "type": "callout",
-            "label": "Add Assets",
-            "description": "Select the equipment models."
+            "label": "요청 장비 추가",
+            "description": "출고할 고소작업대 모델을 선택합니다."
           },
           {
             "seq": 3,
             "selector": "[data-mid=\"dispatch4-block-site\"]",
             "type": "callout",
-            "label": "Enter Request Details",
-            "description": "Fill in the site information and schedule."
+            "label": "현장 정보 및 일정 입력",
+            "description": "반입 현장 주소, 담당자 연락처 및 상하차 일정을 입력합니다."
           },
           {
             "seq": 4,
             "selector": "[data-mid=\"dispatch4-btn-submit\"]",
             "type": "click_ripple",
-            "label": "Submit Request",
-            "description": "Click to register the dispatch request."
+            "label": "출고 의뢰 접수",
+            "description": "버튼을 클릭하여 출고 배차 의뢰를 최종 접수합니다."
           }
         ]
       }
@@ -2587,7 +2587,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_sales",
     "groupName": "영업관리",
     "department": "영업부",
-    "archetype": "유형 A: 요청 처리형 (Card Dossier)",
+    "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "영업담당자가 고객사로부터 접수한 렌탈 출고요청을 자연어 파싱 및 5단계 표준 서식으로 정형화하고, 9대 필수 스키마 실시간 검증을 거쳐 배차·출고 부서로 공식 출고 의뢰를 발행하는 전사 출고 파이프라인의 출발점 (헌장 2.1)",
     "scopeInfo": "고객사/현장 마스터, 자연어 카톡/문자 원문, 모델 규격별 수량, 상하차 희망 일시, 현장 인수자 연락처, 필수 안전옵션, 9대 방어차단 규칙",
     "cognitiveSequence": [
@@ -2784,7 +2784,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_sales",
     "groupName": "영업관리",
     "department": "영업부",
-    "archetype": "유형 A: 요청 처리형 (Card Dossier)",
+    "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "현장 공사 완료 또는 임대 만료에 따라 현장에 투입된 장비의 회수(반납) 의뢰를 배차 부서에 정식 발행",
     "scopeInfo": "대여 중인 계약, 회수 대상 자산번호, 반출 희망 일시, 현장 상차지 주소 및 상차 가능 여건",
     "cognitiveSequence": [
@@ -2918,7 +2918,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_sales",
     "groupName": "영업관리",
     "department": "영업부 / 고객센터",
-    "archetype": "유형 A: 요청 처리형 (Card Dossier)",
+    "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "현장 가동 중 고장, 이상 경보, 파손 발생 시 긴급 AS 출동 및 정비 조치 의뢰 발행 (필요 시 즉시 대차 교체 연계)",
     "scopeInfo": "고객사, 현장 주소, 고장 자산번호, 고장 증상(상승불가, 주행불능, 에러코드), 현장 사진 증빙",
     "cognitiveSequence": [
@@ -3054,7 +3054,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_sales",
     "groupName": "영업관리",
     "department": "영업/재무팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "30일/60일/90일 이상 장기 연체 채권 집중 모니터링, 신용 거래 제한(출고 정지), 최고장 발송 및 법적 조치 단계 관리",
     "scopeInfo": "연체 일수 기준, 거래처별 누적 연체금, 담보 여부, 현장 가동 장비 목록",
     "cognitiveSequence": [
@@ -3097,7 +3097,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "독촉장 및 최고장 발송 팝업 (Delinquency Notice Modal)",
+        "modalName": "독촉장 및 최고장 발송 팝업",
         "triggerButton": "[독촉장 발송] 또는 [최고장 발송]",
         "keyFields": [
           "수신 거래처 및 대표자",
@@ -3241,7 +3241,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_product_asset",
     "groupName": "제품 / 자산관리",
     "department": "자산/품질관리팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "고소작업대 표준 모델 카탈로그(제조사, 모델명, 작업높이, 적재중량, 전폭, 차체중량, 배터리사양) 및 표준 렌탈 요율 마스터 관리",
     "scopeInfo": "제조사(스카이잭, 지니, 딩리, 시노붐 등), 모델 규격, 플랫폼 확장 제원, 전력 사양",
     "cognitiveSequence": [
@@ -3317,7 +3317,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 6,
         "selector": "[data-mid=\"product-bom-mapping\"], .bom-box",
         "type": "callout",
-        "label": "소모품 BOM 매핑",
+        "label": "소모품 부품목록 매핑",
         "description": "해당 기종에 투입되는 정품 배터리 규격과 유압 부품을 연결합니다.",
         "badgeColor": "#4F46E5",
         "positionHint": "left",
@@ -3424,7 +3424,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_product_asset",
     "groupName": "제품 / 자산관리",
     "department": "자산/주기장팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "당사 보유 및 관리 중인 모든 개별 자산의 라이프사이클(AVAILABLE/RENTED/REPAIRING 등) 상태, 장비 일련번호, 바코드, 누적 매출 기여액 추적 관리 (헌장 1.2 핵심가치 1)",
     "scopeInfo": "자산번호(Barcode), 제품 모델, 시리얼 넘버, 소유 구분(당사 자산/외부 임차), 현재 상태, 현재 위치(주기장/고객현장)",
     "cognitiveSequence": [
@@ -3526,7 +3526,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_product_asset",
     "groupName": "제품 / 자산관리",
     "department": "자산/재무팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "신규 고소작업대 도입 시 취득원가/취득일 등록 및 노후 장비 매각/폐기 프로세스를 회계적/물리적으로 확정 처리",
     "scopeInfo": "취득일, 취득가액, 구입처, 모델명, 제조년월, 매각일, 매각처, 매각가액, 처분손익",
     "cognitiveSequence": [
@@ -3562,7 +3562,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "신규 자산 취득 등록 팝업 (Asset Acquisition Modal)",
+        "modalName": "신규 자산 취득 등록 팝업",
         "triggerButton": "[신규 자산 취득 등록]",
         "keyFields": [
           "제조사 및 모델명",
@@ -3589,7 +3589,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 1,
         "selector": "[data-mid=\"acquisition_disposal-scope\"]",
         "type": "stamp",
-        "label": "필터 및 검색 (Scope)",
+        "label": "필터 및 검색",
         "description": "취득/매각 내역을 필터링합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -3599,7 +3599,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 2,
         "selector": "[data-mid=\"acquisition_disposal-pipeline-add\"]",
         "type": "stamp",
-        "label": "신규 등록 (Pipeline)",
+        "label": "신규 등록",
         "description": "새로운 취득/매각 건을 등록합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -3609,7 +3609,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 3,
         "selector": "[data-mid=\"acquisition_disposal-inspection-grid\"]",
         "type": "stamp",
-        "label": "내역 목록 (Grid)",
+        "label": "내역 목록",
         "description": "취득/매각 내역 데이터 그리드입니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -3619,7 +3619,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 4,
         "selector": "[data-mid=\"acquisition_disposal-detail-form\"]",
         "type": "stamp",
-        "label": "상세 폼 (Detail)",
+        "label": "상세 폼",
         "description": "항목의 세부 내용을 조회하고 수정합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -3629,7 +3629,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 5,
         "selector": "[data-mid=\"acquisition_disposal-financial\"]",
         "type": "stamp",
-        "label": "재무 정보 (Financial)",
+        "label": "재무 정보",
         "description": "금액 및 결제 정보를 확인합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -3639,7 +3639,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 6,
         "selector": "[data-mid=\"acquisition_disposal-terminal-audit\"]",
         "type": "stamp",
-        "label": "이력/로그 (Audit)",
+        "label": "이력/로그",
         "description": "처리 이력 및 감사 로그입니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -3649,7 +3649,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 7,
         "selector": "[data-mid=\"acquisition_disposal-actions\"]",
         "type": "stamp",
-        "label": "작업 버튼 (Actions)",
+        "label": "작업 버튼",
         "description": "저장, 삭제 등 주요 액션 버튼입니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -3699,7 +3699,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_product_asset",
     "groupName": "제품 / 자산관리",
     "department": "자산/구매팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "당사 보유 자산 부족 시 외부 타사(원사)로부터 임차(전대)해온 장비의 계약 조건, 원가 정산, 가동 현황 관리 (헌장 2.1)",
     "scopeInfo": "임차 공급처(원사), 외부 장비번호, 임차 시작/종료일, 월 임차료 원가, 당사 현장 재임대 매핑 정보",
     "cognitiveSequence": [
@@ -3923,14 +3923,14 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       },
       {
         "processId": "process_exchange_dispatch",
-        "title": "헌장 2.3 EXCHANGE(대차) 단일 왕복 배차 발행",
+        "title": "헌장 2.3 교환(대차) 단일 왕복 배차 발행",
         "description": "대차 교체 발생 시 출고/회수를 분할하지 않고 EXCHANGE 1건으로 통합하여 왕복 운송비를 정산 관리합니다.",
         "steps": [
           {
             "seq": 1,
             "selector": "[data-mid=\"dispatch-exchange-badge\"], [data-mid=\"dispatch-request-card\"]",
             "type": "highlight",
-            "label": "교환(EXCHANGE) 의뢰 확인",
+            "label": "교환 의뢰 확인",
             "description": "대차 교체용 출고 장비와 회수 대상 장비의 1:1 체인을 검토합니다.",
             "positionHint": "right"
           },
@@ -3948,7 +3948,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_logistics",
     "groupName": "배차 / 운송관리",
     "department": "배차/물류팀",
-    "archetype": "유형 A: 요청 처리형 (Card Dossier)",
+    "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "출고/회수/EXCHANGE 단일 배차 의뢰(헌장 2.3)에 대한 차량/기사 배정, 6대 신규 셀프 차종 매핑, 단가/일정 수정, 취소건 복원 및 월말 운송료 1:1 대사 완결 (헌장 3.6 탭별 이원화)",
     "scopeInfo": "배차 의뢰 목록(출고/회수/교환), 운송 거래처 마스터, 기사 연락처, 배차 차종(1.2T~8.5T 셀프 등), 운송료 단가, 상하차 일시",
     "cognitiveSequence": [
@@ -4106,7 +4106,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "배차 수정 및 재배정 스튜디오 (Dispatch Edit Modal)",
+        "modalName": "배차 수정 및 재배정 스튜디오",
         "triggerButton": "배차 카드 행의 [수정] 버튼",
         "keyFields": [
           "운송거래처(협력 운송사) 변경",
@@ -4120,7 +4120,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "afterStateTransition": "배차 레코드 실시간 동기화, 취소 건 재활성화, 월말 운송료 대사 원장 자동 갱신"
       },
       {
-        "modalName": "월말 운송료 대사 차액 승인 팝업 (Delivery Reconciliation Modal)",
+        "modalName": "월말 운송료 대사 차액 승인 팝업",
         "triggerButton": "대사 그리드 행의 [차액 승인]",
         "keyFields": [
           "청구 운임 vs 시스템 운임 비교",
@@ -4221,7 +4221,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_logistics",
     "groupName": "배차 / 운송관리",
     "department": "배차/물류팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "외주 운송사 및 지입/직속 화물 기사 마스터, 보유 차종(1.2T~8.5T 셀프), 계좌 정보, 구간별 표준 운송 요율표 관리",
     "scopeInfo": "운송사 상호, 사업자번호, 기사 성명, 연락처, 차량 번호, 차종/톤수, 지급 계좌",
     "cognitiveSequence": [
@@ -4365,7 +4365,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_inout",
     "groupName": "입출고관리",
     "department": "출고팀 / 주기장팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "고소작업대 렌탈 현장의 매일 발생하는 장비 출고와 입고 현황을 일자별·기종별로 파악하고 주기장 실물 재고의 순유입/유출 추이를 직관적으로 모니터링",
     "scopeInfo": "조회 기준 연월, 입출 구분(입고/출고), 진행 상태(실적/배차예정), 모델명(기종), 거래처 및 현장 정보",
     "cognitiveSequence": [
@@ -4396,7 +4396,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 1,
         "selector": "[data-mid=\"filter-panel\"]",
         "type": "stamp",
-        "label": "조회 조건 패널 (Scope)",
+        "label": "조회 조건 패널",
         "description": "조회 연월 이동 및 입출구분, 진행상태, 모델 필터를 설정합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -4406,7 +4406,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 2,
         "selector": "[data-mid=\"view-mode-toggle\"]",
         "type": "stamp",
-        "label": "보기 전환 (View Mode)",
+        "label": "보기 전환",
         "description": "캘린더 형태 보기와 고밀도 표 형태 보기 간 전환합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -4416,7 +4416,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 3,
         "selector": "[data-mid=\"btn-export-excel\"]",
         "type": "stamp",
-        "label": "엑셀 내보내기 (Export)",
+        "label": "엑셀 내보내기",
         "description": "조회 조건에 부합하는 일일 입출고 대장을 엑셀 파일로 다운로드합니다.",
         "badgeColor": "#10B981",
         "positionHint": "bottom",
@@ -4426,7 +4426,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 4,
         "selector": "[data-mid=\"calendar-grid-card\"]",
         "type": "stamp",
-        "label": "월간 캘린더 (Calendar Grid)",
+        "label": "월간 캘린더",
         "description": "월간 7열 달력 상에서 일자별 입고/출고 칩과 순유동을 확인합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -4436,7 +4436,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 5,
         "selector": "[data-mid=\"chip-inbound\"]",
         "type": "stamp",
-        "label": "입고 칩 (Inbound)",
+        "label": "입고 칩",
         "description": "청색 계열 입고 칩에서 일일 입고 총수량 및 모델별 수량을 확인합니다.",
         "badgeColor": "#2563EB",
         "positionHint": "bottom",
@@ -4446,7 +4446,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 6,
         "selector": "[data-mid=\"chip-outbound\"]",
         "type": "stamp",
-        "label": "출고 칩 (Outbound)",
+        "label": "출고 칩",
         "description": "적색 계열 출고 칩에서 일일 출고 총수량 및 모델별 수량을 확인합니다.",
         "badgeColor": "#DC2626",
         "positionHint": "bottom",
@@ -4456,7 +4456,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 7,
         "selector": "[data-mid=\"daily-detail-panel\"]",
         "type": "stamp",
-        "label": "일자 상세 내역 (Detail)",
+        "label": "일자 상세 내역",
         "description": "선택된 일자의 입고/출고 건별 거래처, 현장, 자산번호, 배차상태를 실사합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "top",
@@ -4466,7 +4466,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 8,
         "selector": "[data-mid=\"audit-summary-bar\"]",
         "type": "stamp",
-        "label": "대차대조 집계 바 (Audit Summary)",
+        "label": "대차대조 집계 바",
         "description": "당월 총 입고, 총 출고 및 주기장 실물 순유동 대차 차액을 최종 검증합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "top",
@@ -4481,7 +4481,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_inout",
     "groupName": "입출고관리",
     "department": "주기장팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "주기장 게이트를 통과하는 모든 장비의 물리적 입출고 시간, 운송차량, 상하차 기사, 작업자 기록을 무누락 시계열 DB 보존 (헌장 1.2 핵심가치 2)",
     "scopeInfo": "게이트 통과 일시, 입출고 구분(IN/OUT), 자산번호, 운송 차량번호, 담당 기사, 연계 계약/배차 번호",
     "cognitiveSequence": [
@@ -4537,7 +4537,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 1,
         "selector": "[data-mid=\"asset_inout_history-scope\"]",
         "type": "stamp",
-        "label": "검색 및 필터 (Scope)",
+        "label": "검색 및 필터",
         "description": "입출고 이력을 검색합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -4547,7 +4547,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 2,
         "selector": "[data-mid=\"asset_inout_history-pipeline\"]",
         "type": "stamp",
-        "label": "입출고 등록 (Pipeline)",
+        "label": "입출고 등록",
         "description": "수동으로 입출고 이력을 등록합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -4557,7 +4557,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 3,
         "selector": "[data-mid=\"asset_inout_history-inspection-grid\"]",
         "type": "stamp",
-        "label": "이력 목록 (Grid)",
+        "label": "이력 목록",
         "description": "입출고 이력 데이터 그리드입니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -4567,7 +4567,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 4,
         "selector": "[data-mid=\"asset_inout_history-detail\"]",
         "type": "stamp",
-        "label": "상세 정보 (Detail)",
+        "label": "상세 정보",
         "description": "선택한 이력의 상세 정보입니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -4577,7 +4577,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 5,
         "selector": "[data-mid=\"asset_inout_history-chart\"]",
         "type": "stamp",
-        "label": "통계/차트 (Chart)",
+        "label": "통계/차트",
         "description": "입출고 통계를 시각적으로 확인합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -4587,7 +4587,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 6,
         "selector": "[data-mid=\"asset_inout_history-terminal-audit\"]",
         "type": "stamp",
-        "label": "감사 로그 (Audit)",
+        "label": "감사 로그",
         "description": "입출고 관련된 시스템 로그입니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -4597,7 +4597,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 7,
         "selector": "[data-mid=\"asset_inout_history-actions\"]",
         "type": "stamp",
-        "label": "작업 버튼 (Actions)",
+        "label": "작업 버튼",
         "description": "엑셀 다운로드 등 부가 작업입니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -4639,7 +4639,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_inout",
     "groupName": "입출고관리",
     "department": "출고/자산관리팀",
-    "archetype": "유형 A: 요청 처리형 (Card Dossier)",
+    "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "영업부서의 출고 요청에 대해 주기장의 적격 가용 자산(AVAILABLE) 또는 외부 타사 임차 장비를 실제 실물 자산번호와 매핑하여 검수 대기열로 인계 (헌장 2.1)",
     "scopeInfo": "미할당 출고 요청 목록, 요구 모델/사양, 주기장 내 임대가능(AVAILABLE) 자산 목록",
     "cognitiveSequence": [
@@ -4881,7 +4881,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_inout",
     "groupName": "입출고관리",
     "department": "출고검수팀",
-    "archetype": "유형 A: 요청 처리형 (Card Dossier)",
+    "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "현장 출고 직전 20대 법정 안전 옵션(과상승 방지, 리미트 센서, 비상하강) 및 배터리/유압 작동 전수 검수, 승인 마감 시 자산 상태 RENTED(대여중) 자동 전환 (헌장 1.3)",
     "scopeInfo": "할당 완료된 출고 대기 장비, 출고 체크리스트 템플릿, 현장 요구 옵션 내역, 검수 사진",
     "cognitiveSequence": [
@@ -4895,7 +4895,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "출고 검수 승인 팝업 (Outbound Inspection Modal)",
+        "modalName": "출고 검수 승인 팝업",
         "triggerButton": "출고 대기 자산 행의 [검수 승인]",
         "keyFields": [
           "배터리 전압 및 충전 상태",
@@ -4922,7 +4922,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 1,
         "selector": "[data-mid=\"outbound_inspections-scope\"]",
         "type": "stamp",
-        "label": "필터 및 검색 (Scope)",
+        "label": "필터 및 검색",
         "description": "검수 목록을 필터링합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -5046,7 +5046,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 2,
         "selector": "[data-mid=\"outbound_inspections-pipeline-add\"]",
         "type": "stamp",
-        "label": "새 검수 등록 (Pipeline)",
+        "label": "새 검수 등록",
         "description": "새로운 검수 건을 등록합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -5056,7 +5056,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 3,
         "selector": "[data-mid=\"outbound_inspections-inspection-grid\"]",
         "type": "stamp",
-        "label": "검수 목록 (Grid)",
+        "label": "검수 목록",
         "description": "출고 검수 목록입니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -5066,7 +5066,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 4,
         "selector": "[data-mid=\"outbound_inspections-detail-form\"]",
         "type": "stamp",
-        "label": "검수 상세 (Detail)",
+        "label": "검수 상세",
         "description": "검수 상세 정보 입력 폼입니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -5076,7 +5076,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 5,
         "selector": "[data-mid=\"outbound_inspections-checklist\"]",
         "type": "stamp",
-        "label": "체크리스트 (Inspection)",
+        "label": "체크리스트",
         "description": "검수 항목을 체크합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -5086,7 +5086,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 6,
         "selector": "[data-mid=\"outbound_inspections-terminal-audit\"]",
         "type": "stamp",
-        "label": "이력 및 감사 (Audit)",
+        "label": "이력 및 감사",
         "description": "검수 이력을 확인합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -5096,7 +5096,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 7,
         "selector": "[data-mid=\"outbound_inspections-actions\"]",
         "type": "stamp",
-        "label": "작업 버튼 (Actions)",
+        "label": "작업 버튼",
         "description": "검수 완료 및 기타 작업을 수행합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -5111,7 +5111,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_inout",
     "groupName": "입출고관리",
     "department": "주기장/자재팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "주기장 정비 및 출고 시 소모되는 부품(배터리, 충전기, 작동유, 조이스틱, 타이어 등)의 실시간 수불 관리 및 적정 안전 재고 유지",
     "scopeInfo": "부품 코드, 품명, 규격, 적정 재고량, 현재고량, 입고/출고 수불 내역, 보관 위치(창고/선반)",
     "cognitiveSequence": [
@@ -5165,7 +5165,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "부품 재고 이동 및 차량 불출 팝업 (Stock Transfer Modal)",
+        "modalName": "부품 재고 이동 및 차량 불출 팝업",
         "triggerButton": "[재고 이동] 또는 [차량 불출]",
         "keyFields": [
           "출고 창고 (메인 창고)",
@@ -5319,7 +5319,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_inout",
     "groupName": "입출고관리",
     "department": "주기장/출고팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "자산 방수 바코드 및 부품 QR 라벨 ZPL/PDF 인쇄 큐 상태 실시간 감시, 인쇄 위치 오프셋 보정, 실패 큐 재전송 (헌장 3.1)",
     "scopeInfo": "프린터 네트워크 IP, 포트(9100), 라벨 규격(100x75 등), 대기/성공/오류 큐 목록, ZPL 원문 코드",
     "cognitiveSequence": [
@@ -5441,7 +5441,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_maintenance",
     "groupName": "정비 / 소모품관리",
     "department": "정비/자재팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "정비 및 주기장 유지보수에 필요한 부품/소모품 발주서 작성, 매입 단가 승인 및 입고 대사",
     "scopeInfo": "공급 업체(Vendor), 부품 품목, 발주 수량, 단가, 납기 예정일, 승인 결재선",
     "cognitiveSequence": [
@@ -5624,7 +5624,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_maintenance",
     "groupName": "정비 / 소모품관리",
     "department": "주기장/자재팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "구매 입고된 부품의 창고 적재 및 정비 작업으로 인한 부품 출고 불출 내역 기록",
     "scopeInfo": "입출고 일시, 구분(입고/출고/폐기), 부품 코드, 수량, 관련 정비 작업 번호, 불출 작업자",
     "cognitiveSequence": [
@@ -5818,7 +5818,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_maintenance",
     "groupName": "정비 / 소모품관리",
     "department": "AS정비팀",
-    "archetype": "유형 A: 요청 처리형 (Card Dossier)",
+    "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "현장에 출동한 순회 정비 기사의 이동 경로, 고장 부위 조치 내역, 유/무상 정비 판정, 투입 부품 기록 및 고객 서명 수령",
     "scopeInfo": "접수된 AS 티켓, 현장 위치, 기사 배정, 도착 일시, 수리 완료 일시, 유상 수리 청구 금액, 고객 서명",
     "cognitiveSequence": [
@@ -5832,7 +5832,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "현장 AS 접수 및 출동 지시 팝업 (Field AS Dispatch Modal)",
+        "modalName": "현장 AS 접수 및 출동 지시 팝업",
         "triggerButton": "[신규 AS 접수]",
         "keyFields": [
           "고객사 및 현장명",
@@ -5845,7 +5845,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "afterStateTransition": "AS 상태 PENDING에서 DISPATCHED 전환, 기사 스마트폰 ToDo 연동"
       },
       {
-        "modalName": "현장 AS 조치 완료 보고 팝업 (Field AS Complete Modal)",
+        "modalName": "현장 AS 조치 완료 보고 팝업",
         "triggerButton": "[조치 완료 보고]",
         "keyFields": [
           "현장 원인 분석",
@@ -6013,7 +6013,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_maintenance",
     "groupName": "정비 / 소모품관리",
     "department": "정비팀",
-    "archetype": "유형 A: 요청 처리형 (Card Dossier)",
+    "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "회수 입고된 고소작업대의 세척, 도색, 분해 수리, 안전 점검 및 정비 조치 (정비 완료 시 자산 상태 AVAILABLE(임대가능) 복원)",
     "scopeInfo": "입고된 정비 대상 장비, 회수 점검표, 투입 부품 내역, 정비 공수(시간), 정비 완료 승인자",
     "cognitiveSequence": [
@@ -6049,7 +6049,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "정비 조치 및 부품 투입 팝업 (Repair Execution Modal)",
+        "modalName": "정비 조치 및 부품 투입 팝업",
         "triggerButton": "[정비 조치 / 부품 투입]",
         "keyFields": [
           "고장 증상 및 정비 내용",
@@ -6130,7 +6130,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_maintenance",
     "groupName": "정비 / 소모품관리",
     "department": "정비/품질관리팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "장비 기종별/작업유형별(출고검수, 정기점검, 입고정비) 법정 안전점검 체크리스트 표준 템플릿 관리",
     "scopeInfo": "점검 유형, 기종 분류, 점검 항목명, 판정 기준, 필수 점검 여부, 과태료/안전 기준 연계",
     "cognitiveSequence": [
@@ -6334,7 +6334,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_management",
     "groupName": "경영관리",
     "department": "전사 임직원",
-    "archetype": "유형 A: 요청 처리형 (Card Dossier)",
+    "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "임직원의 법정 연차, 반차, 병가, 경조 휴가 신청서 작성 및 상위 결재선 자동 상신",
     "scopeInfo": "신청자 정보, 잔여 연차 일수, 휴가 유형, 시작일/종료일, 사용 일수, 직무 대결자, 사유",
     "cognitiveSequence": [
@@ -6405,7 +6405,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_management",
     "groupName": "경영관리",
     "department": "인사/총무팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "야간/주말 특근 및 연장 근무(OT) 사전 신청 및 사후 승인, 급여 정산 연동 수당 산출",
     "scopeInfo": "근무자, OT 일자, 시작/종료 시간, 연장 시간, 야간/휴일 구분, 근무 사유, 승인 여부",
     "cognitiveSequence": [
@@ -6452,7 +6452,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 1,
         "selector": "[data-mid=\"ot_management-terminal-audit\"]",
         "type": "stamp",
-        "label": "OT 현황 요약",
+        "label": "연장근무 현황 요약",
         "description": "총 승인 시간, 당월 OT 시간 등 전체적인 현황을 요약하여 보여줍니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -6462,7 +6462,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 2,
         "selector": "[data-mid=\"ot_management-pipeline-add\"]",
         "type": "stamp",
-        "label": "OT 연장근무 등록",
+        "label": "연장근무 등록",
         "description": "다중 인원 선택 및 일자, 시간을 지정하여 OT를 등록할 수 있습니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -6472,7 +6472,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 3,
         "selector": "[data-mid=\"ot_management-inspection-grid\"]",
         "type": "stamp",
-        "label": "OT 목록 조회",
+        "label": "연장근무 목록 조회",
         "description": "과거 및 현재 등록된 전체 OT 기록을 테이블 형태로 조회할 수 있습니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -6482,7 +6482,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 4,
         "selector": "[data-mid=\"ot_management-analytics-grid\"]",
         "type": "stamp",
-        "label": "OT 캘린더 뷰",
+        "label": "연장근무 캘린더 뷰",
         "description": "월별 OT 내역을 캘린더 형태로 확인하고 일별 상세 조회에 접근합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -6497,7 +6497,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_management",
     "groupName": "경영관리",
     "department": "총무/운행자",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "회사 업무용 차량(순회 AS차, 현장 영업차 등)의 운행 일지(주행거리, 목적지) 및 주유/하이패스 영수증 관리",
     "scopeInfo": "차량 번호, 운행 일자, 운행자, 출발/도착지, 주행거리(시작/종료), 주유량/금액, 정기검사일",
     "cognitiveSequence": [
@@ -6637,7 +6637,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_management",
     "groupName": "경영관리",
     "department": "재무/회계팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "전사 외주 운송비, 부품 구매비, 외부 임차료 등 월말 매입 채무 1:1 대사, 세금계산서 수취 검증 및 최종 지급 결재 (헌장 3.5 Z-패턴 4단계 완결)",
     "scopeInfo": "정산 연월, 매입처(운송사/부품사/임차원사), 청구서 수령액, 시스템 집계액, 차액 승인 내역",
     "cognitiveSequence": [
@@ -6765,7 +6765,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_management",
     "groupName": "경영관리",
     "department": "구매/회계팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "부품 공급사, 외주 정비업체, 장비 임대 원사 등 협력업체 마스터, 결제 계좌, 세금계산서 수신처 관리",
     "scopeInfo": "사업자등록번호, 상호명, 대표자, 업태/종목, 주거래 품목, 결제 은행/계좌번호, 담당자 연락처",
     "cognitiveSequence": [
@@ -6959,7 +6959,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_management",
     "groupName": "경영관리",
     "department": "재무/회계팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "실시간 은행 계좌 스크래핑/엑셀 거래 내역과 매출 청구(수납) 및 매입 지급 건 1:1 대사 매칭 (헌장 3.6 유형 B)",
     "scopeInfo": "통장 거래 일시, 입금액/출금액, 적요(입금자명), 잔액, 시스템 매칭 대상 매출/매입 채권",
     "cognitiveSequence": [
@@ -6994,7 +6994,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "통장 입금 1:1 수기 대사 매칭 팝업 (Bank Matching Modal)",
+        "modalName": "통장 입금 1:1 수기 대사 매칭 팝업",
         "triggerButton": "통장 내역 행의 [수기 매칭]",
         "keyFields": [
           "입금 내역(일자, 입금자명, 입금액)",
@@ -7094,7 +7094,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_management",
     "groupName": "경영관리",
     "department": "재무/회계팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "법인카드 승인 내역 연동, 카드 사용자별 영수증 증빙 첨부 확인 및 회계 계정과목(복리후생, 유류비 등) 분류 확정",
     "scopeInfo": "카드 번호, 승인 일시, 가맹점명, 승인 금액, 부가세, 사용자, 회계 계정과목, 영수증 이미지",
     "cognitiveSequence": [
@@ -7244,7 +7244,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_management",
     "groupName": "경영관리",
     "department": "경영진/재무팀",
-    "archetype": "유형 C: 대시보드 및 지식 포털 (Dashboard / Portal)",
+    "archetype": "유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)",
     "objective": "매출 수납액과 매입 지출액 기반 일일/월별/분기별 현금 유동성 추이 분석 및 차기 자금 집행 예측",
     "scopeInfo": "현금/보통예금 잔액, 당월 수금 예정액, 확정 매입 지급액, 고정비(급여/임차료), 여유 자금 지표",
     "cognitiveSequence": [
@@ -7411,7 +7411,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_management",
     "groupName": "경영관리",
     "department": "회계팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "보유 고소작업대 자산의 정액법 월별 감가상각비 자동 계산, 장부가액 갱신 및 월말 회계 마감 확정",
     "scopeInfo": "취득 자산 목록, 취득원가, 내용연수(5년/60개월), 잔존가치, 상각방법, 기 상각누계액",
     "cognitiveSequence": [
@@ -7541,16 +7541,16 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 1,
         "selector": "select",
         "type": "highlight",
-        "label": "Report List Selection",
-        "description": "Select the target year and month to view the corresponding report.",
+        "label": "리포트 목록 선택",
+        "description": "조회할 대상 연월을 선택하여 해당 월의 결산 보고서를 불러옵니다.",
         "positionHint": "bottom"
       },
       {
         "seq": 2,
         "selector": "button.btn-primary",
         "type": "callout",
-        "label": "Confirmation Actions",
-        "description": "Use the primary buttons to save directives or download the finalized official report.",
+        "label": "보고서 확정 및 다운로드",
+        "description": "지시 사항을 저장하거나 최종 확정된 공식 보고서를 다운로드합니다.",
         "positionHint": "bottom"
       }
     ],
@@ -7558,30 +7558,30 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       {
         "processId": "보고서 확인 및 결재",
         "title": "보고서 확인 및 결재",
-        "description": "Select a pending report, review its contents, and proceed to confirm or approve.",
+        "description": "결재 대기 중인 보고서를 선택하고 내용을 검토한 뒤 최종 승인합니다.",
         "steps": [
           {
             "seq": 1,
             "selector": "select",
             "type": "click_ripple",
-            "label": "Select a pending report",
-            "description": "Choose the target month for the pending report from the dropdown list.",
+            "label": "대기 보고서 선택",
+            "description": "드롭다운 목록에서 결재할 대상 연월의 보고서를 선택합니다.",
             "positionHint": "right"
           },
           {
             "seq": 2,
             "selector": "[data-mid='reports-grid']",
             "type": "highlight",
-            "label": "Review contents",
-            "description": "Review the detailed metrics, charts, and departmental comments in the report body.",
+            "label": "보고서 내용 검토",
+            "description": "보고서 본문의 상세 지표, 차트, 부서별 의견을 정밀 검토합니다.",
             "positionHint": "top"
           },
           {
             "seq": 3,
             "selector": "button.btn-primary",
             "type": "stamp",
-            "label": "Click Confirm or Approve",
-            "description": "Click the confirmation button to finalize the report and mark it as approved.",
+            "label": "승인 및 결재 확정",
+            "description": "확인 버튼을 클릭하여 보고서를 최종 승인 상태로 확정 마감합니다.",
             "positionHint": "bottom"
           }
         ]
@@ -7590,7 +7590,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_management",
     "groupName": "경영관리",
     "department": "경영기획/경영진",
-    "archetype": "유형 C: 대시보드 및 지식 포털 (Dashboard / Portal)",
+    "archetype": "유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)",
     "objective": "전사 자산 가동률, 모델별 매출 기여도(헌장 4.1), 부서별 KPI, 손익 집계 등 경영진 브리핑용 정기보고서 자동 생성 및 엑셀 다운로드 (헌장 5.1 2단계 검증 적용)",
     "scopeInfo": "보고 기간(월간/분기/연간), 집계 지표(가동률, 총매출, 운송비율, 정비비용, 연체율)",
     "cognitiveSequence": [
@@ -7691,7 +7691,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_management_special",
     "groupName": "경영관리 - 특수",
     "department": "인사/총무팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "본사/지사/주기장 조직도 트리 구조, 부서 및 직급 체계 정의, 테넌트 정보보호 책임자 설정 및 메타데이터 관리",
     "scopeInfo": "상위 부서, 하위 부서, 직급/직책 코드, 테넌트 정보보호 책임자 성명/연락처, 사업장 소재지",
     "cognitiveSequence": [
@@ -7960,7 +7960,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_management_special",
     "groupName": "경영관리 - 특수",
     "department": "시스템관리자",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "임직원 계정 생성, 소속 부서/직급 매핑, 직급 티어(Tier 1~7) 부여 및 메뉴별 읽기/쓰기/삭제 RBAC 권한 제어",
     "scopeInfo": "로그인 ID, 사원 성명, 소속 부서, 직급, 티어 레벨(0~7), 메뉴별 권한 매트릭스(view, edit, delete, export)",
     "cognitiveSequence": [
@@ -8142,7 +8142,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "seq": 3,
             "selector": "[data-mid=\"payroll-terminal-audit-close\"], button.btn-success",
             "type": "click_ripple",
-            "label": "결재 마감 승인 Lock",
+            "label": "결재 마감 승인 잠금",
             "description": "급여 대장을 최종 확정하고 수정을 잠급니다.",
             "positionHint": "bottom"
           }
@@ -8152,7 +8152,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_management_special",
     "groupName": "경영관리 - 특수",
     "department": "인사/급여팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "기본급, OT 수당, 식대, 4대보험 공제액 및 소득세를 반영한 월별 급여 명세서 자동 산출, 급여 이체 데이터 확정 및 명세서 발송",
     "scopeInfo": "급여 연월, 임직원 기본급 테이블, 당월 OT 승인 시간, 4대보험 요율, 부양가족 수",
     "cognitiveSequence": [
@@ -8253,7 +8253,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_management_special",
     "groupName": "경영관리 - 특수",
     "department": "인사팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "전사 임직원의 입사일 기준 법정 연차 일수 자동 부여, 사용 일수 차감 집계, 연차 유급휴가 사용 촉진 통보 관리",
     "scopeInfo": "임직원 입사일자, 근속 연수, 법정 발생 연차, 회계연도 기준 사용 연차, 잔여 일수, 촉진 통보 이력",
     "cognitiveSequence": [
@@ -8427,7 +8427,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_management_special",
     "groupName": "경영관리 - 특수",
     "department": "개인정보보호책임자",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "개인정보보호법에 따른 주민등록번호, 연락처, 계좌번호 등 고유식별정보의 열람/수정/다운로드 접속 기록 무누락 감사 및 침해사고 예방",
     "scopeInfo": "접속 일시, 접속자 ID/성명, 접속자 IP, 열람 대상 정보 주체, 수행 액션(READ/EXPORT/UPDATE), 법적 정당 사유",
     "cognitiveSequence": [
@@ -8600,7 +8600,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_tools",
     "groupName": "도구 및 다운로드",
     "department": "전사 임직원",
-    "archetype": "유형 C: 대시보드 및 지식 포털 (Dashboard / Portal)",
+    "archetype": "유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)",
     "objective": "전사 모든 부서 및 메뉴의 업무 프로세스, 조작 동선, 표준 헌장 준수 수칙을 전수 검색/열람하고 실무 지침서로 활용",
     "scopeInfo": "전사 51개 메뉴별 상세 매뉴얼, 부서별 퀵 네비게이션, 검색 키워드, A4 인쇄 서식",
     "cognitiveSequence": [
@@ -8701,7 +8701,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_tools",
     "groupName": "도구 및 다운로드",
     "department": "전사 임직원",
-    "archetype": "유형 A: 요청 처리형 (Card Dossier)",
+    "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "시스템 버그, 데이터 불일치, 화면 멈춤 등 장애 발생 시 화면 캡처와 브라우저 로그를 첨부하여 개발팀에 즉각 접수 (신속 핫픽스 큐 연동)",
     "scopeInfo": "발생 메뉴, 오류 현상 설명, 재현 경로, 스크린샷 이미지, 사용자 브라우저/OS 정보, 콘솔 로그",
     "cognitiveSequence": [
@@ -8715,7 +8715,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "시스템 오류 등록 팝업 (Error Register Modal)",
+        "modalName": "시스템 오류 등록 팝업",
         "triggerButton": "[오류 등록]",
         "keyFields": [
           "오류 발생 메뉴",
@@ -8816,7 +8816,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_system_dev",
     "groupName": "시스템관리 - 개발자",
     "department": "개발/기획팀",
-    "archetype": "유형 C: 대시보드 및 지식 포털 (Dashboard / Portal)",
+    "archetype": "유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)",
     "objective": "멀티에이전트 자율 의사결정 모델, 고소작업대 MRO 도메인 지식 파이프라인, 프롬프트 테스트 및 자율 최적화 연구",
     "scopeInfo": "에이전트 모델(LLaMA 3.3, Gemini Flash), 도메인 지식 사전, 테스트 프롬프트, 추론 지연시간/비용",
     "cognitiveSequence": [
@@ -8882,7 +8882,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 5,
         "selector": "[data-mid=\"agentic_ai_lab-metrics\"]",
         "type": "stamp",
-        "label": "효익 정량 비교 HUD",
+        "label": "효익 정량 비교 현황판",
         "description": "수동 작업 대비 AI가 절감한 시간, 조작 횟수 및 무결성 결과를 확인합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -8892,7 +8892,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 6,
         "selector": "[data-mid=\"agentic_ai_lab-timeline\"]",
         "type": "stamp",
-        "label": "ReAct 추론 타임라인",
+        "label": "인공지능 추론 타임라인",
         "description": "AI 에이전트의 단계별 사고 과정(Thought) 및 도구 호출(Action) 내역을 모니터링합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -8922,7 +8922,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 2,
         "selector": "[data-mid=\"agentic_ai_lab-timeline\"]",
         "type": "highlight",
-        "label": "ReAct 추론 타임라인",
+        "label": "인공지능 추론 타임라인",
         "description": "AI 에이전트의 단계별 생각(Thought), 표준 도구 호출(Tool Call) 및 관찰(Observation)을 실시간 모니터링합니다.",
         "positionHint": "top"
       }
@@ -8945,7 +8945,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "seq": 2,
             "selector": "[data-mid=\"agentic_ai_lab-pipeline-run\"]",
             "type": "click_ripple",
-            "label": "에이전틱 AI 실행 클릭",
+            "label": "인공지능 자동 실행 클릭",
             "description": "상단 [에이전틱 AI 실행] 버튼을 눌러 ReAct 추론 루프를 가동합니다.",
             "positionHint": "bottom"
           },
@@ -8968,7 +8968,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_system_dev",
     "groupName": "시스템관리 - 개발자",
     "department": "개발/배차팀",
-    "archetype": "유형 C: 대시보드 및 지식 포털 (Dashboard / Portal)",
+    "archetype": "유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)",
     "objective": "차량 위치 기반 최적 배차 경로, 실시간 교통 상황, 셀프 톤수별 적재율을 AI가 자율 시뮬레이션하고 최적 기사를 자동 추천하는 관제탑",
     "scopeInfo": "미배정 배차 건수, 등록 운송 기사 위치 데이터, 지오코딩 좌표, 차종별 표준 요율표",
     "cognitiveSequence": [
@@ -8994,7 +8994,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 1,
         "selector": "[data-mid=\"agentic_dispatch_studio-metrics\"]",
         "type": "stamp",
-        "label": "AI 배차 효율성 HUD",
+        "label": "인공지능 배차 효율성 현황판",
         "description": "수동 배차 대비 단축된 시간, 절감된 클릭 수 및 헌장 준수 현황을 실시간으로 확인합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
@@ -9066,7 +9066,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 1,
         "selector": "[data-mid=\"kpi-exchange-compliance\"]",
         "type": "highlight",
-        "label": "헌장 2.3 EXCHANGE 준수율 HUD",
+        "label": "헌장 2.3 교환 준수율 현황판",
         "description": "대차 단일 왕복 배차 및 헌장 1.3 출고 승인 전 상태 비조작 준수율을 실시간 검증합니다.",
         "positionHint": "bottom"
       }
@@ -9104,7 +9104,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_system_dev",
     "groupName": "시스템관리 - 개발자",
     "department": "개발/회계팀",
-    "archetype": "유형 C: 대시보드 및 지식 포털 (Dashboard / Portal)",
+    "archetype": "유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)",
     "objective": "수백 건의 운송료, 부품 매입, 렌탈 매출 데이터를 AI 정산 엔진이 1원 단위로 사전 대사하고 이상치/단가 위반을 자율 적발하는 무인 정산기",
     "scopeInfo": "전사 청구서 엑셀, 계약 원장 일할 단가, 운송사 세금계산서, 은행 계좌 거래 내역",
     "cognitiveSequence": [
@@ -9215,7 +9215,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_system_dev",
     "groupName": "시스템관리 - 개발자",
     "department": "개발/자산관리팀",
-    "archetype": "유형 C: 대시보드 및 지식 포털 (Dashboard / Portal)",
+    "archetype": "유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)",
     "objective": "개별 고소작업대별 누적 매출 기여도, 고장 빈도, 정비 비용, 잔존 장부가액을 실시간 추적하여 최적 매각/정비 타이밍을 제시하는 자산 AI 관제탑",
     "scopeInfo": "자산 마스터, 계약별 누적 매출 기여액(헌장 4.1), 정비비 투입 누계, 가동일수/유휴일수",
     "cognitiveSequence": [
@@ -9326,7 +9326,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_system_dev",
     "groupName": "시스템관리 - 개발자",
     "department": "시스템관리자",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "신규 테넌트 구축 또는 과거 레거시 시스템 이관 시 고객, 장비, 자산 원장 엑셀 파일의 정합성을 검증하고 원자적(Atomic) 초기 적재",
     "scopeInfo": "엑셀 템플릿(고객사, 자산대장, 단가표), 데이터 유효성 검증 규칙, 테넌트 ID",
     "cognitiveSequence": [
@@ -9530,7 +9530,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_system_dev",
     "groupName": "시스템관리 - 개발자",
     "department": "시스템관리자",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "Google Workspace, Drive, Cloud OCR API 및 OAuth 인증 키 환경설정 관리",
     "scopeInfo": "Google Client ID, Client Secret, 서비스 계정 JSON 키, Drive 공유 폴더 ID, OCR 엔드포인트",
     "cognitiveSequence": [
@@ -9544,7 +9544,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "modalWorkflows": [
       {
-        "modalName": "클라우드 파일 업로드/관리 팝업 (Cloud Storage Modal)",
+        "modalName": "클라우드 파일 업로드/관리 팝업",
         "triggerButton": "[스토리지 파일 관리]",
         "keyFields": [
           "버킷 선택",
@@ -9644,7 +9644,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_system_dev",
     "groupName": "시스템관리 - 개발자",
     "department": "개발자 전용",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "개발 및 WTT 스트레스 테스트를 위한 고밀도 합성 시나리오 데이터 주입 및 데이터베이스 마이그레이션 도구",
     "scopeInfo": "테스트 배치 ID(test_batch_id), 테스트 계약/배차/자산 건수, 스트레스 주입 축(공간/물리/시간/비용/수량)",
     "cognitiveSequence": [
@@ -9730,7 +9730,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 7,
         "selector": "[data-mid=\"schema-ready-status\"], .ready-status",
         "type": "click_ripple",
-        "label": "시스템 Ready 상태 확정",
+        "label": "시스템 준비 완료 확정",
         "description": "스키마 캐시를 갱신하고 ERP 시스템 Ready 신호를 전사에 공표합니다.",
         "badgeColor": "#10B981",
         "positionHint": "bottom",
@@ -9745,7 +9745,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_sales",
     "groupName": "영업관리",
     "department": "영업부 / 고객센터",
-    "archetype": "유형 A: 요청 처리형 (Card Dossier)",
+    "archetype": "유형 A: 요청 처리형 (카드형 상세)",
     "objective": "회사 공식 계정 기반 고객사 대상 견적서, 회사소개서, 장비제원표, 계약서류 패키지 표준 발송 및 이력 추적",
     "scopeInfo": "고객사, 담당자 이메일, 현장명, 견적 템플릿(장비기종, 임대료, 운송비)",
     "cognitiveSequence": [
@@ -9836,7 +9836,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_sales",
     "groupName": "영업관리",
     "department": "영업부 / 전략기획팀",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "국토교통부 공공 인허가 건축 데이터와 도로망·CSI 안전 데이터를 결합하여 고소작업대 투입 적기(골든타임) 현장 사전 포섭 및 영업 리드 등록",
     "scopeInfo": "전국 17개 시도/시군구 인허가 공정 데이터, 도로폭(V-World), CSI 안전계획 의무 여부",
     "cognitiveSequence": [
@@ -9865,7 +9865,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 2,
         "selector": "[data-mid=\"permits-dossier-panel\"]",
         "type": "highlight",
-        "label": "AI 공정 역산 스튜디오",
+        "label": "인공지능 공정 역산 작업대",
         "description": "선택 현장의 고소작업대 적기 투입 시점 및 추천 기종을 분석합니다.",
         "positionHint": "left"
       }
@@ -9925,7 +9925,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "groupId": "grp_management_special",
     "groupName": "경영관리 - 특수",
     "department": "최고관리자",
-    "archetype": "유형 B: 기간 조회 및 정산/정리형 (High-Density Grid)",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
     "objective": "멀티 테넌트 SaaS 환경에서 고객사별 테넌트 라이프사이클(생성, 구독 만료, 권한 통제, 브랜드 커스텀, 온보딩)을 중앙 관제하고 원자적으로 관리",
     "scopeInfo": "테넌트 영문 코드, 표시 상호, 사업자번호, 구독 플랜, 만료일자",
     "cognitiveSequence": [

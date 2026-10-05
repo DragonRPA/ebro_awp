@@ -89,7 +89,7 @@ export const OperationManualPage: React.FC = () => {
           groupId: 'grp_tools',
           groupName: '시스템/도구',
           department: '전사 공통',
-          archetype: '유형 C: 대시보드 및 지식 포털 (Dashboard / Portal)',
+          archetype: '유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)',
           objective: c.description || '중앙 플랫폼 등록 메뉴 매뉴얼입니다.',
           scopeInfo: '중앙 SSOT 시스템 매뉴얼',
           cognitiveSequence: ['1. 화면 접속 및 기본 안내 확인', '2. 업무 처리 및 결과 저장'],
