@@ -287,14 +287,15 @@ export const Customers: React.FC = () => {
       });
   }, [sites, selectedCustomerId]);
 
-  // 📄 사업자등록증 누락 여부 판정 (사업자번호가 없거나 '미상'인 경우)
+  // 📄 사업자등록증 원본 파일 누락 여부 판정 (실제 파일 첨부/등록 여부)
   const isMissingBizCert = (c: Customer) => {
-    return !c.bizRegNo || c.bizRegNo.trim() === '' || c.bizRegNo === '미상';
+    return !c.businessCertFileUrl || c.businessCertFileUrl.trim() === '';
   };
 
-  // 필수 기본정보 누락 판정 (상호, 사업자번호, 대표자명, 주소 중 핵심 식별정보 결손 여부)
+  // 필수 기본정보 누락 판정 (등록증 파일, 사업자번호, 대표자명, 주소 중 핵심 식별정보 결손 여부)
   const isIncompleteCustomer = (c: Customer) => {
     return isMissingBizCert(c) ||
+           !c.bizRegNo || c.bizRegNo.trim() === '' || c.bizRegNo === '미상' ||
            !c.representative || c.representative === '미상' ||
            !c.address || c.address === '미상';
   };
@@ -1355,7 +1356,7 @@ export const Customers: React.FC = () => {
               onChange={e => setShowOnlyIncomplete(e.target.checked)}
               style={{ margin: 0, cursor: 'pointer' }}
             />
-            ⚠️ 등록증 미등록 고객사만 필터
+            ⚠️ 등록증 미첨부 고객사만 필터
           </label>
         </div>
 
@@ -1473,8 +1474,8 @@ export const Customers: React.FC = () => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         {isMissingBizCert(cust) ? (
                           <>
-                            <span style={{ fontSize: '9.5px', color: 'var(--danger)', backgroundColor: 'rgba(239,68,68,0.08)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700 }}>
-                              등록증 미등록
+                            <span style={{ fontSize: '9.5px', color: 'var(--danger)', backgroundColor: 'rgba(239,68,68,0.08)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                              등록증 미첨부
                             </span>
                             {canSave && (
                               <button
@@ -1496,7 +1497,8 @@ export const Customers: React.FC = () => {
                                   fontWeight: 700,
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: '2px'
+                                  gap: '2px',
+                                  whiteSpace: 'nowrap'
                                 }}
                               >
                                 <FileText size={10} /> 등록증 첨부
@@ -1504,8 +1506,8 @@ export const Customers: React.FC = () => {
                             )}
                           </>
                         ) : (
-                          <span style={{ fontSize: '9.5px', color: 'var(--success)', backgroundColor: 'rgba(5,150,105,0.08)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '2px' }}>
-                            <Check size={10} /> 등록증 인증
+                          <span style={{ fontSize: '9.5px', color: 'var(--success)', backgroundColor: 'rgba(5,150,105,0.08)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>
+                            <Check size={10} /> 등록증 첨부
                           </span>
                         )}
                         {cust.isClosed ? (

@@ -624,7 +624,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"customer-list-panel\"], .customer-list-box",
         "type": "stamp",
         "label": "고객사 대장 목록",
-        "description": "등록된 전체 거래처와 등록증 미등록 상태를 실시간 탐색합니다.",
+        "description": "등록된 전체 거래처와 등록증 미첨부 상태를 실시간 탐색합니다.",
         "badgeColor": "#7C3AED",
         "positionHint": "right",
         "spotlight": false
