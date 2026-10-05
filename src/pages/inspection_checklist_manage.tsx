@@ -1079,8 +1079,8 @@ export const InspectionChecklistManage: React.FC = () => {
       {/* ═════════════════════════════════════════════════════════════ */}
       {activeTab === 'MASTER' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {/* 상단 4대 요약 카드 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+          {/* 상단 4대 요약 카드 (전사 표준 헌장 3.2 줄바꿈 방지) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
             <div
               style={{
                 padding: '10px 14px',
@@ -1089,11 +1089,12 @@ export const InspectionChecklistManage: React.FC = () => {
                 border: '1px solid var(--border-color)',
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center'
+                alignItems: 'center',
+                whiteSpace: 'nowrap'
               }}
             >
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>관리 분류</span>
-              <strong style={{ fontSize: '15px', color: 'var(--primary)' }}>{masterAuditSummary.categoryCount}개 카테고리</strong>
+              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, flexShrink: 0 }}>정비 분류</span>
+              <strong style={{ fontSize: '15px', color: 'var(--primary)', flexShrink: 0 }}>{masterAuditSummary.categoryCount}개 카테고리</strong>
             </div>
             <div
               style={{
@@ -1103,11 +1104,12 @@ export const InspectionChecklistManage: React.FC = () => {
                 border: '1px solid var(--border-color)',
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center'
+                alignItems: 'center',
+                whiteSpace: 'nowrap'
               }}
             >
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>총 점검항목</span>
-              <strong style={{ fontSize: '15px', color: 'var(--success)' }}>{masterAuditSummary.totalCount}개</strong>
+              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, flexShrink: 0 }}>총 점검항목</span>
+              <strong style={{ fontSize: '15px', color: 'var(--success)', flexShrink: 0 }}>{masterAuditSummary.totalCount}개</strong>
             </div>
             <div
               style={{
@@ -1117,11 +1119,12 @@ export const InspectionChecklistManage: React.FC = () => {
                 border: '1px solid var(--border-color)',
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center'
+                alignItems: 'center',
+                whiteSpace: 'nowrap'
               }}
             >
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>평균 정비배점</span>
-              <strong style={{ fontSize: '15px', color: 'var(--warning)' }}>{masterAuditSummary.avgScore}점</strong>
+              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, flexShrink: 0 }}>평균 정비배점</span>
+              <strong style={{ fontSize: '15px', color: 'var(--warning)', flexShrink: 0 }}>{masterAuditSummary.avgScore}점</strong>
             </div>
             <div
               style={{
@@ -1131,11 +1134,12 @@ export const InspectionChecklistManage: React.FC = () => {
                 border: '1px solid var(--border-color)',
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center'
+                alignItems: 'center',
+                whiteSpace: 'nowrap'
               }}
             >
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>부품연계 항목</span>
-              <strong style={{ fontSize: '15px', color: 'var(--primary)' }}>
+              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, flexShrink: 0 }}>부품연계 항목</span>
+              <strong style={{ fontSize: '15px', color: 'var(--primary)', flexShrink: 0 }}>
                 {masterAuditSummary.linkedPartsCount}개 ({masterAuditSummary.totalCount > 0 ? ((masterAuditSummary.linkedPartsCount / masterAuditSummary.totalCount) * 100).toFixed(0) : 0}%)
               </strong>
             </div>
@@ -1220,25 +1224,387 @@ export const InspectionChecklistManage: React.FC = () => {
             </div>
           </div>
 
-          {/* 중앙 고밀도 데이터 그리드 (헌장 3.2: 줄바꿈 방지) */}
+          {/* 중앙 고밀도 데이터 그리드: 정비 항목 마스터 대장 (헌장 3.2: 줄바꿈 방지) */}
           <div className="card" style={{ padding: '14px' }}>
             <div className="table-container" style={{ maxHeight: 'calc(100vh - 340px)', overflowY: 'auto' }}>
               <table>
                 <thead>
                   <tr>
-                      <th style={{ whiteSpace: 'nowrap', width: '50px' }}>No</th>
-                      <SortableTh label="카테고리" sortKey="category" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '90px' }} />
-                      <SortableTh label="항목 코드" sortKey="itemCode" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '105px' }} />
-                      <SortableTh label="정비 항목명" sortKey="itemName" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', minWidth: '160px' }} />
-                      <SortableTh label="발생 건수" sortKey="count" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '80px' }} align="right" />
-                      <SortableTh label="소요 공수" sortKey="totalManHours" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '90px' }} align="right" />
-                      <SortableTh label="전체 소모품비" sortKey="partCost" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '100px' }} align="right" />
-                      <SortableTh label="외주 정비비" sortKey="externalCost" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '100px' }} align="right" />
-                      <SortableTh label="정비 총비용" sortKey="totalCost" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '110px' }} align="right" />
-                      <SortableTh label="고객 청구액" sortKey="billableAmount" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '100px' }} align="right" />
-                      <SortableTh label="당사 부담금" sortKey="companyCost" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '100px' }} align="right" />
-                      <th style={{ whiteSpace: 'nowrap', width: '90px', textAlign: 'right' }}>비용 비중</th>
+                    <th style={{ whiteSpace: 'nowrap', width: '50px' }}>No</th>
+                    <SortableTh label="카테고리" sortKey="category" currentSort={sortConfigMaster} onSort={requestSortMaster} style={{ whiteSpace: 'nowrap', width: '90px' }} />
+                    <SortableTh label="항목 코드" sortKey="code" currentSort={sortConfigMaster} onSort={requestSortMaster} style={{ whiteSpace: 'nowrap', width: '105px' }} />
+                    <SortableTh label="정비 점검항목명" sortKey="name" currentSort={sortConfigMaster} onSort={requestSortMaster} style={{ whiteSpace: 'nowrap', minWidth: '160px' }} />
+                    <SortableTh label="배점" sortKey="score" currentSort={sortConfigMaster} onSort={requestSortMaster} style={{ whiteSpace: 'nowrap', width: '80px' }} align="center" />
+                    <SortableTh label="표준 공수" sortKey="standardManHours" currentSort={sortConfigMaster} onSort={requestSortMaster} style={{ whiteSpace: 'nowrap', width: '90px' }} align="center" />
+                    <th style={{ whiteSpace: 'nowrap', minWidth: '160px' }}>추천 소모품 / 부품</th>
+                    <SortableTh label="누적 정비 건수" sortKey="_statCount" currentSort={sortConfigMaster} onSort={requestSortMaster} style={{ whiteSpace: 'nowrap', width: '105px' }} align="right" />
+                    <th style={{ minWidth: '220px' }}>표준 조치 절차</th>
+                    <th style={{ whiteSpace: 'nowrap', width: '180px', textAlign: 'center' }}>관리</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedMasterItems.length === 0 ? (
+                    <tr>
+                      <td colSpan={10} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)' }}>
+                        조회 조건에 해당하는 정비 점검 항목이 없습니다.
+                      </td>
                     </tr>
+                  ) : (
+                    sortedMasterItems.map((item, idx) => {
+                      const stat = repairMappingStats[item.code] || repairMappingStats[item.id] || { count: 0 };
+                      const recommendedParts = (item.recommendedConsumableIds || []).map(cid => consumableMap.get(cid)).filter(Boolean);
+
+                      return (
+                        <tr key={item.id}>
+                          <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>{idx + 1}</td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            <span className="badge badge-info">{item.category}</span>
+                          </td>
+                          <td style={{ whiteSpace: 'nowrap', fontSize: '11.5px', color: 'var(--text-muted)' }}>{item.code}</td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <strong style={{ fontSize: '13px' }}>{item.name}</strong>
+                              {item.isDefectSymptom && (
+                                <span style={{ padding: '2px 6px', fontSize: '10px', backgroundColor: '#fee2e2', color: '#dc2626', borderRadius: '4px', fontWeight: 600 }}>
+                                  불량증상 칩
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
+                            <span
+                              className="badge badge-warning"
+                              style={{ fontSize: '11.5px', fontWeight: 'bold', padding: '2px 7px' }}
+                            >
+                              +{item.score}점
+                            </span>
+                          </td>
+                          <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>
+                              {item.standardManHours || 0.5} M/H
+                            </span>
+                          </td>
+                          <td>
+                            {recommendedParts.length > 0 ? (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                {recommendedParts.map(part => (
+                                  <span
+                                    key={part!.id}
+                                    style={{
+                                      fontSize: '11px',
+                                      padding: '2px 6px',
+                                      borderRadius: '4px',
+                                      backgroundColor: 'rgba(59, 130, 246, 0.12)',
+                                      color: 'var(--primary)',
+                                      border: '1px solid rgba(59, 130, 246, 0.25)',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                    title={`단가: ₩${(part!.unitPrice || 0).toLocaleString()} | 현재재고: ${part!.stockQty}개`}
+                                  >
+                                    {part!.modelName}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>-</span>
+                            )}
+                          </td>
+                          <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
+                            {stat.count > 0 ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', alignItems: 'flex-end' }}>
+                                <span style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--primary)' }}>
+                                  {stat.count.toLocaleString()}건
+                                </span>
+                                {stat.lastOccurred && (
+                                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>최근 {stat.lastOccurred}</span>
+                                )}
+                              </div>
+                            ) : (
+                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>0건</span>
+                            )}
+                          </td>
+                          <td style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                            {item.actionGuide || item.description || '-'}
+                          </td>
+                          <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                              <button
+                                type="button"
+                                className="btn-secondary"
+                                onClick={() => handleToggleDefectSymptom(item)}
+                                style={{ padding: '3px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '3px', color: item.isDefectSymptom ? 'var(--text-muted)' : 'var(--primary)' }}
+                                title="불량증상 칩 노출 여부를 즉시 전환합니다."
+                              >
+                                {item.isDefectSymptom ? '프리셋 해제' : '프리셋 지정'}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-secondary"
+                                onClick={() => handleOpenEditItemModal(item)}
+                                style={{ padding: '3px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '3px' }}
+                              >
+                                <Edit2 size={12} /> 수정
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-secondary"
+                                onClick={() => handleDeleteItem(item)}
+                                style={{ padding: '3px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '3px', color: 'var(--danger)' }}
+                              >
+                                <Trash2 size={12} /> 삭제
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═════════════════════════════════════════════════════════════ */}
+      {/* ─── [탭 2: 조직역량 & 비용 분석 (ANALYTICS)] ─── */}
+      {/* ═════════════════════════════════════════════════════════════ */}
+      {activeTab === 'ANALYTICS' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {/* 기간 선택 및 스코핑 컨트롤 바 */}
+          <div
+            className="card"
+            style={{
+              padding: '12px 16px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px'
+            }}
+          >
+            {/* 좌상단: Scope (기간 및 카테고리) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Calendar size={15} style={{ color: 'var(--primary)' }} />
+                <span style={{ fontSize: '12px', fontWeight: 700 }}>분석 기간</span>
+                <input
+                  type="date"
+                  value={analyticsStartDate}
+                  onChange={e => setAnalyticsStartDate(e.target.value)}
+                  style={{ padding: '4px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                />
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>~</span>
+                <input
+                  type="date"
+                  value={analyticsEndDate}
+                  onChange={e => setAnalyticsEndDate(e.target.value)}
+                  style={{ padding: '4px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                />
+              </div>
+
+              {/* 기간 퀵 프리셋 버튼 */}
+              <div style={{ display: 'flex', gap: '4px' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setPeriodPreset('THIS_MONTH')}
+                  style={{ padding: '3px 8px', fontSize: '11px' }}
+                >
+                  당월
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setPeriodPreset('LAST_MONTH')}
+                  style={{ padding: '3px 8px', fontSize: '11px' }}
+                >
+                  전월
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setPeriodPreset('LAST_3_MONTHS')}
+                  style={{ padding: '3px 8px', fontSize: '11px' }}
+                >
+                  최근 3개월
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setPeriodPreset('ALL')}
+                  style={{ padding: '3px 8px', fontSize: '11px' }}
+                >
+                  전체
+                </button>
+              </div>
+
+              {/* 카테고리 필터 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Filter size={13} style={{ color: 'var(--text-muted)' }} />
+                <select
+                  value={analyticsCategoryFilter}
+                  onChange={e => setAnalyticsCategoryFilter(e.target.value)}
+                  style={{ padding: '4px 8px', fontSize: '12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}
+                >
+                  <option value="전체">전체 카테고리</option>
+                  <option value="외관/바디">외관/바디</option>
+                  <option value="유압/동력">유압/동력</option>
+                  <option value="전기/배터리">전기/배터리</option>
+                  <option value="주행/타이어">주행/타이어</option>
+                  <option value="기타/검수">기타/검수</option>
+                </select>
+              </div>
+            </div>
+
+            {/* 우상단: Pipeline (엑셀 내보내기) */}
+            <div>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={exportAnalyticsToExcel}
+                style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '12px' }}
+              >
+                <FileDown size={14} /> 정산 분석 엑셀 내보내기
+              </button>
+            </div>
+          </div>
+
+          {/* 상단 5대 핵심 KPI 카드 (조직역량 Throughput & 비용) */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px' }}>
+            <div
+              style={{
+                padding: '12px 14px',
+                backgroundColor: 'var(--bg-card)',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>정비 완료 총량</span>
+                <Clock size={15} style={{ color: 'var(--primary)' }} />
+              </div>
+              <strong style={{ fontSize: '18px', color: 'var(--primary)' }}>
+                {analyticsData.totalRepairCount.toLocaleString()}건
+              </strong>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                실제 {analyticsData.grandTotalManHours} M/H (표준 {analyticsData.grandTotalStandardManHours} M/H)
+              </span>
+            </div>
+
+            <div
+              style={{
+                padding: '12px 14px',
+                backgroundColor: 'var(--bg-card)',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>정비 소요 총비용</span>
+                <Wrench size={15} style={{ color: 'var(--warning)' }} />
+              </div>
+              <strong style={{ fontSize: '18px', color: 'var(--warning)' }}>
+                ₩{analyticsData.grandTotalCost.toLocaleString()}
+              </strong>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                소모품비 + 외주비 합계
+              </span>
+            </div>
+
+            <div
+              style={{
+                padding: '12px 14px',
+                backgroundColor: 'var(--bg-card)',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>자체 소모품비</span>
+                <span style={{ fontSize: '12px', color: 'var(--success)', fontWeight: 700 }}>소모품</span>
+              </div>
+              <strong style={{ fontSize: '18px', color: 'var(--success)' }}>
+                ₩{analyticsData.grandPartCost.toLocaleString()}
+              </strong>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                비중: {analyticsData.grandTotalCost > 0 ? ((analyticsData.grandPartCost / analyticsData.grandTotalCost) * 100).toFixed(1) : 0}%
+              </span>
+            </div>
+
+            <div
+              style={{
+                padding: '12px 14px',
+                backgroundColor: 'var(--bg-card)',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>고객 유상 청구액</span>
+                <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: 700 }}>청구</span>
+              </div>
+              <strong style={{ fontSize: '18px', color: 'var(--primary)' }}>
+                ₩{analyticsData.grandBillableAmount.toLocaleString()}
+              </strong>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>고객 과실/파손 청구</span>
+            </div>
+
+            <div
+              style={{
+                padding: '12px 14px',
+                backgroundColor: 'var(--bg-card)',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>당사 순부담 원가</span>
+                <span style={{ fontSize: '12px', color: 'var(--danger)', fontWeight: 700 }}>순원가</span>
+              </div>
+              <strong style={{ fontSize: '18px', color: 'var(--danger)' }}>
+                ₩{analyticsData.grandCompanyCost.toLocaleString()}
+              </strong>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                총비용 - 고객청구액
+              </span>
+            </div>
+          </div>
+
+          {/* 중앙 고밀도 항목별 역량 및 비용 대사 그리드 (Inspection) */}
+          <div className="card" style={{ padding: '14px' }}>
+            <div className="table-container" style={{ maxHeight: 'calc(100vh - 380px)', overflowY: 'auto' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th style={{ whiteSpace: 'nowrap', width: '50px' }}>No</th>
+                    <SortableTh label="카테고리" sortKey="category" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '90px' }} />
+                    <SortableTh label="항목 코드" sortKey="itemCode" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '105px' }} />
+                    <SortableTh label="정비 항목명" sortKey="itemName" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', minWidth: '160px' }} />
+                    <SortableTh label="발생 건수" sortKey="count" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '80px' }} align="right" />
+                    <SortableTh label="소요 공수" sortKey="totalManHours" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '90px' }} align="right" />
+                    <SortableTh label="전체 소모품비" sortKey="partCost" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '100px' }} align="right" />
+                    <SortableTh label="외주 정비비" sortKey="externalCost" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '100px' }} align="right" />
+                    <SortableTh label="정비 총비용" sortKey="totalCost" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '110px' }} align="right" />
+                    <SortableTh label="고객 청구액" sortKey="billableAmount" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '100px' }} align="right" />
+                    <SortableTh label="당사 부담금" sortKey="companyCost" currentSort={sortConfigAnalytics} onSort={requestSortAnalytics} style={{ whiteSpace: 'nowrap', width: '100px' }} align="right" />
+                    <th style={{ whiteSpace: 'nowrap', width: '90px', textAlign: 'right' }}>비용 비중</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {analyticsData.items.length === 0 ? (

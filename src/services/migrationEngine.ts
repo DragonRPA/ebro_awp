@@ -1518,20 +1518,29 @@ export function parseInitialExcelWorkbook(
       });
     }
 
-    const caId = `CA-${String(caSeq++).padStart(7, '0')}`;
-    contractAssets.push({
-      id: caId,
-      contractId: contractId,
-      assetId: matchedAsset ? matchedAsset.id : null,
-      expectedModel: targetModel,
-      monthlyRentalFee: rowMonthlyFee,
-      dailyRentalFee: rowDailyFee,
-      startDate: rowStartDate,
-      endDate: rowEndDate,
-      firstStartDate: firstStartDate,
-      createdAt: nowIso,
-      updatedAt: nowIso
-    });
+    // 🌟 [방어 가드]: 실물 장비 식별자(ownAssetNo, leaseAssetNo, rawModel)가 전무한 행은
+    // 유상수리비, 안전옵션/부품비, 운송비, 전월 미수금 등 단순 부대비용/정산 청구 행임.
+    // ➔ contract_assets(장비 슬롯)를 생성하지 않고, 청구서(billing_details)로만 직행시켜
+    //    장비 할당 대기 화면 잔류 및 소급 청구 왜곡을 원천 차단함.
+    const isRealAssetRow = Boolean(ownAssetNo || leaseAssetNo || rawModel);
+    let caId: string | null = null;
+
+    if (isRealAssetRow) {
+      caId = `CA-${String(caSeq++).padStart(7, '0')}`;
+      contractAssets.push({
+        id: caId,
+        contractId: contractId,
+        assetId: matchedAsset ? matchedAsset.id : null,
+        expectedModel: targetModel,
+        monthlyRentalFee: rowMonthlyFee,
+        dailyRentalFee: rowDailyFee,
+        startDate: rowStartDate,
+        endDate: rowEndDate,
+        firstStartDate: firstStartDate,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      });
+    }
 
     // [A-01 fix] 전대 자산인 경우: leaseEntity.contractId를 이제 확정된 contractId로 주입
     if (leaseAssetNo) {
@@ -1654,6 +1663,19 @@ export function parseInitialExcelWorkbook(
             internalDescription: `현장: ${cleanSiteName}`
           });
         }
+      } else if (!isRealAssetRow) {
+        // 🌟 실물 장비가 아닌 단독 부대비용 행 (수리비, 미수금, 옵션비 등)
+        custBill.details.push({
+          contractAssetId: null,
+          assetId: null,
+          itemName: otherMemo || '기타 부대비용',
+          itemType: 'OTHER',
+          quantity: 1,
+          unitPrice: rowBillingTotal,
+          amount: rowBillingTotal,
+          description: otherMemo || '기타 부대비용',
+          internalDescription: `현장: ${cleanSiteName}`
+        });
       } else {
         custBill.details.push({
           contractAssetId: caId,

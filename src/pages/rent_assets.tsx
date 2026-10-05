@@ -3233,7 +3233,7 @@ export const RentAssets: React.FC = () => {
                       <th style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>임차처</th>
                       <th style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>임차 계약기간</th>
                       <th style={{ padding: '7px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>월 임차료</th>
-                      <th style={{ padding: '7px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>실제 반납일</th>
+                      <th style={{ padding: '7px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>임차처 반납일</th>
                       <th style={{ padding: '7px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>운용 상태</th>
                       <th style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>투입 현장 / 고객사</th>
                     </tr>
@@ -3384,14 +3384,22 @@ export const RentAssets: React.FC = () => {
                               ₩{(a.monthlyRentFee || 0).toLocaleString()}
                             </td>
 
-                            {/* 실제 반납일 */}
+                            {/* 임차처 반납일 */}
                             <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                               {a.actualRentReturnDate ? (
                                 <span style={{ color: 'var(--success)', fontWeight: 600, fontSize: '11px' }}>
                                   {a.actualRentReturnDate} (반납)
                                 </span>
+                              ) : isReturned ? (
+                                <span style={{ color: 'var(--success)', fontWeight: 600, fontSize: '11px' }}>
+                                  반납완료
+                                </span>
+                              ) : (a.status === 'RENTED' || a.currentCustomerId) ? (
+                                <span style={{ color: 'var(--text-secondary)', fontSize: '10.5px' }}>
+                                  임차중(현장가동)
+                                </span>
                               ) : (
-                                <span style={{ color: 'var(--text-muted)', fontSize: '10.5px' }}>미반납</span>
+                                <span style={{ color: 'var(--text-muted)', fontSize: '10.5px' }}>미반납(보관중)</span>
                               )}
                             </td>
 

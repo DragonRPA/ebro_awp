@@ -532,7 +532,7 @@ export const AssetHistory: React.FC = () => {
 
                 <div style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
                   gap: '6px',
                   marginTop: '4px',
                   maxHeight: '400px',
@@ -559,22 +559,23 @@ export const AssetHistory: React.FC = () => {
                           transition: 'all 0.15s ease'
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '6px' }}>
                           <label
-                            style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '12px', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                            style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', cursor: 'pointer', fontSize: '12px', margin: 0, flex: 1, minWidth: 0 }}
                             onClick={e => e.stopPropagation()}
+                            title={item.name}
                           >
                             <input
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => toggleChecklistItem(item.id)}
-                              style={{ width: '14px', height: '14px', accentColor: 'var(--primary)', cursor: 'pointer', flexShrink: 0 }}
+                              style={{ width: '14px', height: '14px', accentColor: 'var(--primary)', cursor: 'pointer', flexShrink: 0, marginTop: '2px' }}
                             />
-                            <span style={{ fontWeight: isChecked ? 'bold' : 'normal', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <span style={{ fontWeight: isChecked ? 'bold' : 'normal', lineHeight: 1.3, wordBreak: 'keep-all', color: 'var(--text-main)' }}>
                               {item.name}
                             </span>
                           </label>
-                          <span style={{ fontSize: '11px', color: isChecked ? 'var(--primary)' : 'var(--warning)', fontWeight: 'bold', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                          <span style={{ fontSize: '11px', color: isChecked ? 'var(--primary)' : 'var(--warning)', fontWeight: 'bold', whiteSpace: 'nowrap', flexShrink: 0, marginTop: '1px' }}>
                             +{item.score}점
                           </span>
                         </div>

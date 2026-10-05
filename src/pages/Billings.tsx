@@ -547,14 +547,22 @@ export const Billings: React.FC = () => {
 
   // 🌟 조회 버튼으로 고정된 스냅샷에 해당하는 청구서만 렌더링 (수납 처리 시 자동 재조회/행 삭제 없이 안정적으로 유지)
   const filteredBillings = useMemo(() => {
-    if (searchedBillingIds === null) {
-      return billings.filter(b => b.status !== 'REJECTED');
-    }
+    // 최초 렌더링 시 searchedBillingIds가 null이더라도 전체 데이터를 노출하지 않고,
+    // 초기 필터(기본값: 당월 initialYm)를 즉시 적용하여 메뉴 전환 시 깜빡임(Flicker) 원천 차단
+    const effectiveIds = searchedBillingIds ?? computeMatchedBillingIds(
+      searchTerm,
+      contractNoFilter,
+      startBillingYmFilter,
+      endBillingYmFilter,
+      paymentFilter,
+      mailSentFilter,
+      invoiceFilter
+    );
     const billingMap = new Map(billings.map(b => [b.id, b]));
-    return searchedBillingIds
+    return effectiveIds
       .map(id => billingMap.get(id))
       .filter((b): b is Billing => !!b && b.status !== 'REJECTED');
-  }, [searchedBillingIds, billings]);
+  }, [searchedBillingIds, billings, searchTerm, contractNoFilter, startBillingYmFilter, endBillingYmFilter, paymentFilter, mailSentFilter, invoiceFilter]);
 
   const enrichedBillings = useMemo(() => {
     return filteredBillings.map(b => {

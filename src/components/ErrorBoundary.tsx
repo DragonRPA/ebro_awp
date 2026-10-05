@@ -22,6 +22,29 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   public static getDerivedStateFromError(error: Error): Partial<State> {
+    const msg = error?.message || String(error);
+    const isChunkLoadError =
+      msg.includes('Failed to fetch dynamically imported module') ||
+      msg.includes('Importing a module script failed') ||
+      msg.includes('error loading dynamically imported module') ||
+      msg.includes('Failed to load module script');
+
+    if (isChunkLoadError) {
+      try {
+        const lastReloadKey = 'ebro_last_chunk_reload_ts';
+        const lastReload = sessionStorage.getItem(lastReloadKey);
+        const now = Date.now();
+        // 10초 이내에 자동 재시도한 적이 없다면 최신 배포 청크를 받기 위해 즉시 1회 자동 새로고침
+        if (!lastReload || now - Number(lastReload) > 10000) {
+          sessionStorage.setItem(lastReloadKey, String(now));
+          window.location.reload();
+          return { hasError: false, error: null };
+        }
+      } catch (e) {
+        console.error('Dynamic module auto reload failed:', e);
+      }
+    }
+
     return { hasError: true, error };
   }
 
@@ -113,6 +136,8 @@ export class ErrorBoundary extends Component<Props, State> {
                 decodedNote = ' [진단: React Hook 조건부 호출 오류]';
               } else if (rawMsg.includes('185')) {
                 decodedNote = ' [진단: 무한 재렌더링 루프 (Maximum update depth exceeded)]';
+              } else if (rawMsg.includes('dynamically imported module') || rawMsg.includes('module script')) {
+                decodedNote = ' [진단: 신규 배포에 따른 페이지 모듈 캐시 불일치. 최신 버전 자동 동기화 실패]';
               }
 
               return (
