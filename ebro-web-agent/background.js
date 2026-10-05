@@ -273,3 +273,8 @@ setInterval(() => {
     connectToPcAgent();
   }
 }, 5000);
+
+// 확장 프로그램 아이콘 클릭 시 팝업 대신 사이드 패널 열기
+if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch((error) => console.error(error));
+}

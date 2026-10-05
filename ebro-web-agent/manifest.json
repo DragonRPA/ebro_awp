@@ -34,11 +34,15 @@
       "run_at": "document_idle"
     }
   ],
+  "side_panel": {
+    "default_path": "popup.html"
+  },
   "permissions": [
     "activeTab",
     "scripting",
     "storage",
-    "tabs"
+    "tabs",
+    "sidePanel"
   ],
   "host_permissions": [
     "https://*.ebro.run/*",

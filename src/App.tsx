@@ -1362,6 +1362,58 @@ const App: React.FC = () => {
   }
 
   // 3. 로그인 상태: 메인 ERP 대시보드 렌더링
+  
+  // 🛡️ [특급 보안] 어드민 모드 독립 격리 레이아웃 (정보보호서약 완벽 준수)
+  if (domainMode === 'ADMIN') {
+    return (
+      <div style={{ display: 'flex', height: '100dvh', maxHeight: '100dvh', flexDirection: 'column', overflow: 'hidden' }}>
+        <header style={{ height: '64px', flexShrink: 0, backgroundColor: '#1e1b4b', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', zIndex: 50, borderBottom: '1px solid #312e81' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <span style={{ color: '#fff', fontSize: '16px', fontWeight: '900' }}>eB</span>
+            </div>
+            <div>
+              <div style={{ fontSize: '18px', fontWeight: '900', letterSpacing: '-0.5px' }}>eBro 플랫폼 통합 관제탑</div>
+              <div style={{ fontSize: '11.5px', color: '#a5b4fc', marginTop: '2px', fontWeight: '600' }}>admin.ebro.run (정보보호서약 완벽 준수 아키텍처)</div>
+            </div>
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '13px', fontWeight: '700' }}>{currentUser.name || '개발자 (시스템)'}</div>
+              <div style={{ fontSize: '11px', color: '#818cf8' }}>플랫폼 최고관리자</div>
+            </div>
+            <button onClick={logout} style={{ padding: '7px 14px', borderRadius: '6px', backgroundColor: 'rgba(255, 255, 255, 0.1)', color: '#fff', fontSize: '12px', fontWeight: '700', border: '1px solid rgba(255, 255, 255, 0.2)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <LogOut size={14} /> 로그아웃
+            </button>
+          </div>
+        </header>
+
+        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+          <aside style={{ width: '260px', backgroundColor: '#f8fafc', borderRight: '1px solid #e2e8f0', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <button style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderRadius: '8px', backgroundColor: '#eef2ff', color: '#4f46e5', fontWeight: '800', fontSize: '14.5px', border: '1px solid #c7d2fe', cursor: 'pointer', boxShadow: '0 2px 4px rgba(79, 70, 229, 0.05)' }}>
+              <Building2 size={18} /> 테넌트 인프라 관리
+            </button>
+            <div style={{ marginTop: 'auto', padding: '16px', backgroundColor: '#fff', borderRadius: '8px', border: '1px dashed #cbd5e1', fontSize: '12px', color: '#64748b', lineHeight: '1.6' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#0f172a', fontWeight: '800', marginBottom: '8px' }}>
+                <ShieldAlert size={16} color="#ef4444" />
+                접근 통제 및 보안 알림
+              </div>
+              데이터 프라이버시(NDA) 보호 규정에 따라, 최고관리자라 하더라도 <strong>개별 고객사(테넌트)의 비즈니스 데이터 및 ERP 화면에는 원천적으로 접근할 수 없도록 격리</strong>되어 있습니다.<br/><br/>
+              본 관제탑에서는 오직 인프라 할당, 계정 상태, 구독 설정만을 제어합니다.
+            </div>
+          </aside>
+          
+          <main className="main-content-area" style={{ flex: 1, overflowY: 'auto', backgroundColor: '#f1f5f9', padding: '24px' }}>
+            <ErrorBoundary>
+               <TenantManagementPage />
+            </ErrorBoundary>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
   const userHasViewPerm = hasPermission(activeTab, 'view');
 
   return (
