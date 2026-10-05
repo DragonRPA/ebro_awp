@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { db, Todo, DelinquencyActionLog, Customer, Billing, calculatePaymentDueDate, formatPaymentDueCondition, CustomerTransactionStatus, isCustomerRestricted, isCustomerTotalBlocked, getCustomerTransactionStatusLabel } from '../services/db';
 import { exportToExcel } from '../services/excel';
+import { fetchCentralLegalNoticeTemplates, saveCentralLegalNoticeTemplate } from '../services/centralDb';
 import { 
   AlertTriangle, PhoneCall, Mail, CheckCircle, 
   Clock, Plus, Upload, Trash2, ArrowRight, UserCheck, ShieldAlert,
@@ -390,7 +391,7 @@ export const DelinquencyPage: React.FC = () => {
   };
 
   // 📜 내용증명 작성 스튜디오 오픈
-  const handleOpenNoticeModal = (del: CalculatedDelinquency) => {
+  const handleOpenNoticeModal = async (del: CalculatedDelinquency) => {
     if (!isExecutive) {
       showToast('내용증명 작성 및 발송은 경영진 고유 권한입니다.', 'error');
       return;
@@ -398,24 +399,54 @@ export const DelinquencyPage: React.FC = () => {
     const customer = customers.find(c => c.id === del.customerId);
     setNoticeTargetDel(del);
 
-    // 저장된 커스텀 템플릿이 있으면 적용, 없으면 기본 템플릿 로드
-    const customTemplate = legalNoticeTemplates && legalNoticeTemplates[0];
-    if (customTemplate) {
-      setNoticeTitle(customTemplate.title || '고소작업대 임대료 미납에 따른 대금 변제 최고 및 계약 해지·장비 회수 예고 통보서');
-      setNoticeDeadlineDays(customTemplate.deadlineDays || 7);
-      setNoticeCustomContent(customTemplate.content
-        .replace(/{{customerName}}/g, del.customerName)
-        .replace(/{{overdueAmount}}/g, del.totalOverdueAmount.toLocaleString())
-        .replace(/{{overdueDays}}/g, String(del.overdueDays))
-        .replace(/{{deadlineDays}}/g, String(customTemplate.deadlineDays || 7))
-        .replace(/{{paymentDueConditionText}}/g, del.paymentDueConditionText)
-      );
-    } else {
-      setNoticeTitle('고소작업대 임대료 미납에 따른 대금 변제 최고 및 계약 해지·장비 회수 예고 통보서');
-      setNoticeDeadlineDays(7);
-      setNoticeCustomContent(generateDefaultNoticeText(del, customer, 7));
+    // 🌐 [중앙 DB 연동 SSOT] 중앙 표준 서식을 우선 적용하고, 로컬 폴백을 안전망으로 유지
+    let templateTitle = '고소작업대 임대료 미납에 따른 대금 변제 최고 및 계약 해지·장비 회수 예고 통보서';
+    let templateDeadlineDays = 7;
+    let templateContent = '';
+
+    try {
+      const centralList = await fetchCentralLegalNoticeTemplates('AWP');
+      if (centralList && centralList.length > 0) {
+        const top = centralList[0];
+        templateTitle = top.template_name || top.title || templateTitle;
+        templateDeadlineDays = top.deadlineDays || 7;
+        const rawContent = top.content_template || top.content || '';
+        if (rawContent) {
+          templateContent = rawContent
+            .replace(/{{customerName}}/g, del.customerName)
+            .replace(/{{overdueAmount}}/g, del.totalOverdueAmount.toLocaleString())
+            .replace(/{{overdueDays}}/g, String(del.overdueDays))
+            .replace(/{{deadlineDays}}/g, String(templateDeadlineDays))
+            .replace(/{{paymentDueConditionText}}/g, del.paymentDueConditionText);
+        }
+      }
+    } catch (err) {
+      console.warn('[DelinquencyPage] Central legal notice template fetch warning:', err);
     }
 
+    // 중앙 DB 서식이 없거나 빈 경우, 기존 로컬 저장 템플릿 적용
+    if (!templateContent) {
+      const customTemplate = legalNoticeTemplates && legalNoticeTemplates[0];
+      if (customTemplate) {
+        templateTitle = customTemplate.title || templateTitle;
+        templateDeadlineDays = customTemplate.deadlineDays || 7;
+        templateContent = customTemplate.content
+          .replace(/{{customerName}}/g, del.customerName)
+          .replace(/{{overdueAmount}}/g, del.totalOverdueAmount.toLocaleString())
+          .replace(/{{overdueDays}}/g, String(del.overdueDays))
+          .replace(/{{deadlineDays}}/g, String(customTemplate.deadlineDays || 7))
+          .replace(/{{paymentDueConditionText}}/g, del.paymentDueConditionText);
+      } else {
+        // 최후의 안전망: 하드코딩 기본 서식 생성기 (폴백)
+        templateTitle = '고소작업대 임대료 미납에 따른 대금 변제 최고 및 계약 해지·장비 회수 예고 통보서';
+        templateDeadlineDays = 7;
+        templateContent = generateDefaultNoticeText(del, customer, 7);
+      }
+    }
+
+    setNoticeTitle(templateTitle);
+    setNoticeDeadlineDays(templateDeadlineDays);
+    setNoticeCustomContent(templateContent);
     setNoticeTrackingNo('');
     setShowNoticeModal(true);
   };
@@ -424,12 +455,25 @@ export const DelinquencyPage: React.FC = () => {
   const handleSaveNoticeTemplate = async () => {
     if (!isExecutive) return;
     try {
+      // 1. 테넌트 로컬 DB 저장
       await saveLegalNoticeTemplate({
         title: noticeTitle,
         content: noticeCustomContent,
         deadlineDays: noticeDeadlineDays
       });
-      showToast('현재 편집 내용이 향후 작성용 [기본 서식]으로 저장되었습니다.');
+
+      // 2. 🌐 [중앙 DB 연동 SSOT] ebro-platform-core 중앙 표준 서식 동기 저장
+      await saveCentralLegalNoticeTemplate({
+        id: 'STD-NOTICE-AWP-01',
+        template_code: 'STD_DELINQUENCY_NOTICE_AWP',
+        template_name: noticeTitle,
+        solution_type: 'AWP',
+        content_template: noticeCustomContent,
+        deadlineDays: noticeDeadlineDays,
+        is_active: true
+      });
+
+      showToast('현재 편집 내용이 향후 작성용 [기본 서식]으로 중앙 DB 및 로컬에 저장되었습니다.');
     } catch (err: any) {
       showErrorModal(`서식 저장 오류: ${err?.message || err}`);
     }

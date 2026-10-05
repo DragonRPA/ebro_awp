@@ -10,7 +10,7 @@ import { resolveSiteDetailedAddress } from '../utils/nativeLauncher';
 import { emailService } from '../services/email';
 import { sortCustomersByName } from '../utils/hangulSearch';
 import { getDomainMode } from '../utils/domainRouter';
-import { saveCentralTenant } from '../services/centralDb';
+import { fetchCentralTenants, saveCentralTenant, deleteCentralTenant, fetchCentralEquipmentManuals } from '../services/centralDb';
 
 export interface AssetSaleItem {
   assetId: string;
@@ -512,11 +512,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await db.awaitPendingWrites();
     setTenants([...db.tenants]);
     
-    // 🌐 [중앙 플랫폼 SSOT 동기화] ebro-platform-core 프로젝트에 실시간 복제
+    // 🌐 [중앙 플랫폼 SSOT 동기화] ebro-platform-core 프로젝트에 실시간 복제 완결 대기 (헌장 5.2)
     if (saved && saved.id) {
-      saveCentralTenant(saved).catch(err => {
-        console.warn('[Central DB Sync Warning]:', err);
-      });
+      try {
+        await saveCentralTenant(saved);
+      } catch (err: any) {
+        console.error('[Central DB Sync Error]:', err);
+      }
     }
 
     return saved;
@@ -533,6 +535,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     db.deleteRow('tenants', tenantId);
     await db.awaitPendingWrites();
+
+    // 🌐 [중앙 플랫폼 SSOT 동기화] ebro-platform-core 중앙 DB 삭제 완결 대기
+    try {
+      await deleteCentralTenant(tenantId);
+    } catch (err: any) {
+      console.error('[Central DB Delete Error]:', err);
+    }
+
     setTenants([...db.tenants]);
     if (currentTenantId === tenantId) {
       const remaining = db.tenants.find(t => t.isDefault) || db.tenants[0];
@@ -819,6 +829,61 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.error("Failed to sync from Supabase:", err);
       }
     }
+
+    // 🌐 [중앙 DB SSOT 동기화] 테넌트 원장 및 공통 장비 매뉴얼 라이브러리 동기화
+    try {
+      const centralTenants = await fetchCentralTenants();
+      if (centralTenants && centralTenants.length > 0) {
+        centralTenants.forEach(ct => {
+          const exists = db.tenants.find(t => t.id === ct.id);
+          if (exists) {
+            db.updateRow('tenants', ct.id, ct);
+          } else {
+            db.insertRow('tenants', ct);
+          }
+        });
+        setTenants([...db.tenants]);
+      }
+    } catch (err) {
+      console.warn('[Central DB Sync] Failed to fetch central tenants:', err);
+    }
+
+    try {
+      const centralManuals = await fetchCentralEquipmentManuals('AWP');
+      if (centralManuals && centralManuals.length > 0) {
+        centralManuals.forEach(cm => {
+          const exists = db.equipmentManuals.find(m => m.id === cm.id);
+          const mapped: EquipmentManual = {
+            id: cm.id,
+            modelName: cm.modelName || '공통',
+            manufacturer: cm.manufacturer || '기타',
+            category: (cm.category as any) || 'PARTS_BOOK',
+            title: cm.title || `${cm.modelName || ''} 매뉴얼`,
+            fileUrl: cm.manualUrl || cm.fileUrl || cm.circuitDiagramUrl || cm.partsCatalogUrl || '',
+            fileName: cm.fileName || `${cm.modelName || 'manual'}.pdf`,
+            fileSize: (cm as any).fileSize || 0,
+            version: (cm as any).version || '1.0',
+            uploadDate: (cm as any).uploadDate || new Date().toISOString().slice(0, 10),
+            uploadedBy: (cm as any).uploadedBy || 'CENTRAL_SSOT',
+            memo: (cm as any).memo || cm.aiSummary || '',
+            inspectionItemCodes: (cm as any).inspectionItemCodes,
+            mediaType: (cm as any).mediaType || 'PDF',
+            aiProcessed: Boolean(cm.aiProcessed),
+            createdAt: (cm as any).created_at || (cm as any).createdAt || new Date().toISOString(),
+            updatedAt: (cm as any).updated_at || (cm as any).updatedAt || new Date().toISOString()
+          };
+          if (exists) {
+            db.updateRow('equipmentManuals', cm.id, mapped);
+          } else {
+            db.insertRow('equipmentManuals', mapped);
+          }
+        });
+        setEquipmentManuals([...db.equipmentManuals]);
+      }
+    } catch (err) {
+      console.warn('[Central DB Sync] Failed to fetch central equipment manuals:', err);
+    }
+
     refreshAllData();
   };
 

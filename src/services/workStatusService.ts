@@ -4,6 +4,7 @@
 // 웹앱 ↔ APK 동기화 (Supabase Realtime + LocalStorage Fallback)
 // ============================================================
 import { supabase } from './db';
+import { centralSupabase } from './centralDb';
 
 export interface WorkStatus {
   userId:        string;
@@ -216,28 +217,71 @@ export function subscribeWorkStatus(
 
 // ─── APK 최신 릴리즈 조회 ────────────────────────────────
 export async function getLatestApkRelease(): Promise<ApkRelease> {
+  // 1) 🌐 [중앙 SSOT DB 우선 조회] ebro-platform-core centralSupabase
+  if (centralSupabase) {
+    try {
+      const { data, error } = await centralSupabase
+        .from('apk_releases')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && data) {
+        let downloadUrl = data.download_url;
+        if (!downloadUrl && data.storage_path) {
+          try {
+            const { data: urlData } = centralSupabase.storage
+              .from('apk-releases')
+              .getPublicUrl(data.storage_path);
+            downloadUrl = urlData?.publicUrl;
+          } catch (_) {}
+        }
+
+        return {
+          id:          data.id,
+          version:     data.version_name || data.version || FALLBACK_APK_RELEASE.version,
+          storagePath: data.storage_path || '',
+          fileSize:    data.file_size || FALLBACK_APK_RELEASE.fileSize,
+          releaseNote: data.release_notes || data.release_note || FALLBACK_APK_RELEASE.releaseNote,
+          isLatest:    data.is_latest ?? true,
+          createdAt:   data.created_at || new Date().toISOString(),
+          downloadUrl: downloadUrl || FALLBACK_APK_RELEASE.downloadUrl,
+        };
+      }
+    } catch (_) {}
+  }
+
+  // 2) 레거시 로컬 테넌트 DB 폴백
   if (supabase) {
     try {
       const { data, error } = await supabase
         .from('apk_releases')
         .select('*')
-        .eq('is_latest', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (!error && data) {
-        const { data: urlData } = supabase.storage
-          .from('apk-releases')
-          .getPublicUrl(data.storage_path);
+        let downloadUrl = data.download_url;
+        if (!downloadUrl && data.storage_path) {
+          try {
+            const { data: urlData } = supabase.storage
+              .from('apk-releases')
+              .getPublicUrl(data.storage_path);
+            downloadUrl = urlData?.publicUrl;
+          } catch (_) {}
+        }
 
         return {
           id:          data.id,
-          version:     data.version || FALLBACK_APK_RELEASE.version,
-          storagePath: data.storage_path,
+          version:     data.version_name || data.version || FALLBACK_APK_RELEASE.version,
+          storagePath: data.storage_path || '',
           fileSize:    data.file_size || FALLBACK_APK_RELEASE.fileSize,
-          releaseNote: data.release_note || FALLBACK_APK_RELEASE.releaseNote,
-          isLatest:    data.is_latest,
-          createdAt:   data.created_at,
-          downloadUrl: urlData?.publicUrl || FALLBACK_APK_RELEASE.downloadUrl,
+          releaseNote: data.release_notes || data.release_note || FALLBACK_APK_RELEASE.releaseNote,
+          isLatest:    data.is_latest ?? true,
+          createdAt:   data.created_at || new Date().toISOString(),
+          downloadUrl: downloadUrl || FALLBACK_APK_RELEASE.downloadUrl,
         };
       }
     } catch (_) {}

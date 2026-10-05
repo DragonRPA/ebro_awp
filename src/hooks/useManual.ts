@@ -1,7 +1,7 @@
 // @ts-nocheck
 // src/hooks/useManual.ts
 import { useState, useCallback } from 'react';
-import { supabase } from '../services/db';
+import { centralSupabase } from '../services/centralDb';
 import type { ManualPage, ManualAnnotationItem } from '../types/manual';
 import { ALL_MENU_MANUALS, getManualPageForMenu, getMenuManual } from '../data/allMenuManuals';
 import { MODAL_MANUAL_REGISTRY, getModalManualPage } from '../data/modalManuals';
@@ -14,7 +14,7 @@ export function useManual() {
 
   /** 전체 ManualPage를 upsert 저장 */
   const savePage = useCallback(async (page: ManualPage, updatedBy?: string): Promise<boolean> => {
-    if (!supabase) return false;
+    if (!centralSupabase) return false;
     setSaving(true);
     setError(null);
 
@@ -25,30 +25,35 @@ export function useManual() {
       version: (page.version || 0) + 1,
     };
 
-    let { error: e } = await supabase
+    // 중앙 DB manual_annotations에서 기존 레코드 확인 (page_id 기준)
+    const { data: existing } = await centralSupabase
       .from('manual_annotations')
-      .upsert({
-        tenant_id: TENANT_ID,
-        page_id: page.pageId,
-        page_title: page.pageTitle,
-        version: reindexed.version,
-        annotations: reindexed,
-        updated_by: updatedBy || null,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'tenant_id,page_id' });
+      .select('id')
+      .eq('page_id', page.pageId)
+      .maybeSingle();
 
-    if (e && (e.message?.includes('updated_at') || e.message?.includes('column'))) {
-      const retry = await supabase
+    const payload = {
+      page_id: page.pageId,
+      page_title: page.pageTitle,
+      version: reindexed.version,
+      annotations: reindexed,
+      solution_type: 'ALL',
+      updated_by: updatedBy || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    let e = null;
+    if (existing?.id) {
+      const res = await centralSupabase
         .from('manual_annotations')
-        .upsert({
-          tenant_id: TENANT_ID,
-          page_id: page.pageId,
-          page_title: page.pageTitle,
-          version: reindexed.version,
-          annotations: reindexed,
-          updated_by: updatedBy || null,
-        }, { onConflict: 'tenant_id,page_id' });
-      e = retry.error;
+        .update(payload)
+        .eq('id', existing.id);
+      e = res.error;
+    } else {
+      const res = await centralSupabase
+        .from('manual_annotations')
+        .insert(payload);
+      e = res.error;
     }
 
     if (e) {
@@ -67,14 +72,13 @@ export function useManual() {
       ? getModalManualPage(pageId, pageTitle)
       : getManualPageForMenu(pageId, pageTitle);
 
-    if (supabase) {
+    if (centralSupabase) {
       try {
-        const { data, error: e } = await supabase
+        const { data, error: e } = await centralSupabase
           .from('manual_annotations')
           .select('annotations, page_title, version')
-          .eq('tenant_id', TENANT_ID)
           .eq('page_id', pageId)
-          .single();
+          .maybeSingle();
 
         if (!e && data && data.annotations) {
           const ann = data.annotations as ManualPage;
@@ -97,13 +101,13 @@ export function useManual() {
           }
         }
       } catch (err) {
-        console.warn('[useManual] Failed to fetch from DB, falling back to SSOT seed', err);
+        console.warn('[useManual] Failed to fetch from Central DB, falling back to SSOT seed', err);
       }
     }
 
     // DB에 없거나 비어있는 경우 SSOT 시드 매뉴얼 반환 및 정규 메뉴/모달인 경우에만 백그라운드 저장
     const isKnownMenu = Boolean(getMenuManual(pageId)) || pageId.startsWith('modal_');
-    if (supabase && isKnownMenu) {
+    if (centralSupabase && isKnownMenu) {
       savePage(seed).catch(err => console.warn('[useManual] Auto-seed background write failed:', err));
     }
 
@@ -112,7 +116,7 @@ export function useManual() {
 
   /** 전사 51개 모든 메뉴 및 20개 모달 팝업의 표준 매뉴얼을 DB에 일괄 주입(Batch Seed) */
   const seedAllManuals = useCallback(async (updatedBy?: string): Promise<{ success: number; failed: number }> => {
-    if (!supabase) return { success: 0, failed: 0 };
+    if (!centralSupabase) return { success: 0, failed: 0 };
     setSaving(true);
     let success = 0;
     let failed = 0;
@@ -122,7 +126,7 @@ export function useManual() {
       const pageData: ManualPage = {
         pageId: menu.menuId,
         pageTitle: menu.menuName,
-        version: 1,
+        version: menu.version || 1,
         items: menu.annotations.map((item, i) => ({ ...item, seq: i + 1 })),
       };
 

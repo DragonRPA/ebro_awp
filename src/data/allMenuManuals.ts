@@ -35,6 +35,7 @@ export interface MenuManualDetail {
   precautions: string[];      // 현장 물리적 마찰 방지 및 WTT 주의사항
   version?: number;           // 매뉴얼 버전 (DB 갱신 비교용)
   annotations: ManualAnnotationItem[]; // 인앱 오버레이 단계 가이드
+  manualUrl?: string;         // 중앙 DB 연동 원문 매뉴얼 URL
 }
 
 export const ALL_MENU_MANUALS: MenuManualDetail[] = [

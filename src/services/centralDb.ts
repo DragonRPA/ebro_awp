@@ -20,7 +20,7 @@ export const centralSupabase: SupabaseClient = createClient(
 );
 
 // ──────────────────────────────────────────────
-// 1. 테넌트 마스터 원장 중앙 SSOT 조회 & 저장
+// 1. 테넌트 마스터 원장 중앙 SSOT 조회 & 저장 & 삭제
 // ──────────────────────────────────────────────
 
 /**
@@ -74,6 +74,28 @@ export async function saveCentralTenant(tenant: Partial<Tenant> & { id: string }
     return true;
   } catch (err: any) {
     console.error('[Central DB] Exception saving central tenant:', err.message);
+    return false;
+  }
+}
+
+/**
+ * 중앙 플랫폼 DB에서 테넌트 삭제
+ */
+export async function deleteCentralTenant(tenantId: string): Promise<boolean> {
+  try {
+    const { error } = await centralSupabase
+      .from('tenants')
+      .delete()
+      .eq('id', tenantId);
+
+    if (error) {
+      console.error('[Central DB] Failed to delete tenant from central:', error.message);
+      return false;
+    }
+
+    return true;
+  } catch (err: any) {
+    console.error('[Central DB] Exception deleting central tenant:', err.message);
     return false;
   }
 }
@@ -145,3 +167,182 @@ export async function fetchCentralManualAnnotations(solutionType: 'AWP' | 'IT' =
     return [];
   }
 }
+
+// ──────────────────────────────────────────────
+// 4. 시스템 화면 메뉴별 공통 매뉴얼 (system_manuals)
+// ──────────────────────────────────────────────
+
+export interface SystemManualItem {
+  id?: string;
+  menu_id: string;
+  solution_type?: 'AWP' | 'IT' | 'ALL';
+  manual_url: string;
+  title?: string;
+  description?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/**
+ * 중앙 플랫폼 DB에서 모든 시스템 메뉴 매뉴얼 목록 조회
+ */
+export async function fetchCentralSystemManuals(): Promise<any[]> {
+  try {
+    const { data, error } = await centralSupabase
+      .from('system_manuals')
+      .select('*')
+      .order('menu_id', { ascending: true });
+
+    if (error) {
+      console.warn('[Central DB] Failed to fetch system manuals:', error.message);
+      return [];
+    }
+
+    return data || [];
+  } catch (err: any) {
+    console.error('[Central DB] Exception fetching system manuals:', err.message);
+    return [];
+  }
+}
+
+/**
+ * 중앙 플랫폼 DB에 시스템 메뉴 매뉴얼 저장 또는 갱신
+ */
+export async function saveCentralSystemManual(manual: any): Promise<boolean> {
+  try {
+    const payload = {
+      ...manual,
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await centralSupabase
+      .from('system_manuals')
+      .upsert([payload]);
+
+    if (error) {
+      console.error('[Central DB] Failed to save system manual to central:', error.message);
+      return false;
+    }
+
+    return true;
+  } catch (err: any) {
+    console.error('[Central DB] Exception saving system manual:', err.message);
+    return false;
+  }
+}
+
+// ──────────────────────────────────────────────
+// 5. 법적 통고문 / 내용증명 표준 서식 (legal_notice_templates)
+// ──────────────────────────────────────────────
+
+export interface LegalNoticeTemplateItem {
+  id: string;
+  template_code: string;
+  template_name: string;
+  solution_type: 'AWP' | 'IT' | 'ALL';
+  content_template: string;
+  title?: string;
+  content?: string;
+  deadlineDays?: number;
+  variables?: any[];
+  is_active?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+/**
+ * 중앙 플랫폼 DB에서 법적 통고문 / 내용증명 서식 목록 조회
+ */
+export async function fetchCentralLegalNoticeTemplates(solutionType: string = 'AWP'): Promise<LegalNoticeTemplateItem[]> {
+  try {
+    const { data, error } = await centralSupabase
+      .from('legal_notice_templates')
+      .select('*')
+      .or(`solution_type.eq.${solutionType},solution_type.eq.ALL`)
+      .order('template_code', { ascending: true });
+
+    if (error) {
+      console.warn('[Central DB] Failed to fetch legal notice templates:', error.message);
+      return [];
+    }
+
+    return (data || []).map(row => ({
+      ...row,
+      title: row.template_name || row.title || '',
+      content: row.content_template || row.content || ''
+    })) as LegalNoticeTemplateItem[];
+  } catch (err: any) {
+    console.error('[Central DB] Exception fetching legal notice templates:', err.message);
+    return [];
+  }
+}
+
+/**
+ * 중앙 플랫폼 DB에 법적 통고문 / 내용증명 서식 저장 또는 갱신
+ */
+export async function saveCentralLegalNoticeTemplate(template: any): Promise<boolean> {
+  try {
+    const payload = {
+      id: template.id || `NOTICE-${Date.now()}`,
+      template_code: template.template_code || `NOTICE_${Date.now()}`,
+      template_name: template.template_name || template.title || '표준 통고서',
+      solution_type: template.solution_type || 'AWP',
+      content_template: template.content_template || template.content || '',
+      variables: template.variables || [],
+      is_active: template.is_active ?? true,
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await centralSupabase
+      .from('legal_notice_templates')
+      .upsert([payload], { onConflict: 'id' });
+
+    if (error) {
+      console.error('[Central DB] Failed to save legal notice template:', error.message);
+      return false;
+    }
+
+    return true;
+  } catch (err: any) {
+    console.error('[Central DB] Exception saving legal notice template:', err.message);
+    return false;
+  }
+}
+
+// ──────────────────────────────────────────────
+// 6. 모바일 앱(APK) 공식 배포 버전 원장 (apk_releases)
+// ──────────────────────────────────────────────
+
+export interface ApkReleaseItem {
+  id: string;
+  version_name: string;
+  version_code: number;
+  app_target: 'AWP_DRIVER' | 'IT_FIELD_ENGINEER' | 'ALL';
+  download_url: string;
+  release_notes?: string;
+  is_mandatory?: boolean;
+  created_at?: string;
+}
+
+/**
+ * 최신 공식 모바일 앱(APK) 배포 버전 조회
+ */
+export async function fetchCentralLatestApk(): Promise<any> {
+  try {
+    const { data, error } = await centralSupabase
+      .from('apk_releases')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.warn('[Central DB] Failed to fetch latest apk release:', error.message);
+      return null;
+    }
+
+    return data;
+  } catch (err: any) {
+    console.error('[Central DB] Exception fetching latest apk release:', err.message);
+    return null;
+  }
+}
+

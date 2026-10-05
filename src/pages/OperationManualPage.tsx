@@ -1,6 +1,6 @@
 // src/pages/OperationManualPage.tsx
 // 전사 업무매뉴얼 — 존재하는 모든 메뉴 기능(51개)의 본질적 업무 목적 및 표준 업무 편람
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   Printer, BookOpen, Building2, Truck, Wrench, Briefcase, Search,
   CheckCircle2, AlertCircle, ChevronRight, ChevronDown, ZoomIn, ZoomOut,
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { ALL_MENU_MANUALS, MenuManualDetail } from '../data/allMenuManuals';
 import { useManual } from '../hooks/useManual';
+import { fetchCentralSystemManuals, SystemManualItem } from '../services/centralDb';
 
 type DeptFilter = 'all' | 'sales' | 'inout' | 'maintenance' | 'logistics' | 'management' | 'special' | 'dev';
 
@@ -35,6 +36,74 @@ export const OperationManualPage: React.FC = () => {
   const { seedAllManuals, saving } = useManual();
   const [seedingSuccess, setSeedingSuccess] = useState<string | null>(null);
 
+  // 중앙 DB system_manuals 동적 로드 상태
+  const [centralManuals, setCentralManuals] = useState<SystemManualItem[]>([]);
+  const [loadingCentral, setLoadingCentral] = useState<boolean>(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchCentralSystemManuals().then(items => {
+      if (isMounted && items && items.length > 0) {
+        setCentralManuals(items);
+      }
+    }).catch(err => {
+      console.warn('[OperationManualPage] Failed to load central system manuals:', err);
+    }).finally(() => {
+      if (isMounted) setLoadingCentral(false);
+    });
+    return () => { isMounted = false; };
+  }, []);
+
+  // 중앙 DB system_manuals 우선 적용 + ALL_MENU_MANUALS 폴백 병합
+  const allManuals = useMemo<MenuManualDetail[]>(() => {
+    if (!centralManuals || centralManuals.length === 0) {
+      return ALL_MENU_MANUALS;
+    }
+
+    const centralMap = new Map<string, SystemManualItem>();
+    centralManuals.forEach(item => {
+      centralMap.set(item.menu_id, item);
+    });
+
+    // 1. 기존 ALL_MENU_MANUALS의 항목에 중앙 DB 데이터 우선 적용
+    const merged = ALL_MENU_MANUALS.map(m => {
+      const c = centralMap.get(m.menuId);
+      if (!c) return m;
+      return {
+        ...m,
+        menuName: c.title || m.menuName,
+        objective: c.description || m.objective,
+        manualUrl: c.manual_url || m.manualUrl,
+      };
+    });
+
+    // 2. 중앙 DB에만 존재하는 신규 dynamic 메뉴 매뉴얼 추가
+    centralManuals.forEach(c => {
+      const exists = ALL_MENU_MANUALS.some(m => m.menuId === c.menu_id);
+      if (!exists) {
+        merged.push({
+          menuId: c.menu_id,
+          menuName: c.title || c.menu_id,
+          groupId: 'grp_tools',
+          groupName: '시스템/도구',
+          department: '전사 공통',
+          archetype: '유형 C: 대시보드 및 지식 포털 (Dashboard / Portal)',
+          objective: c.description || '중앙 플랫폼 등록 메뉴 매뉴얼입니다.',
+          scopeInfo: '중앙 SSOT 시스템 매뉴얼',
+          cognitiveSequence: ['1. 화면 접속 및 기본 안내 확인', '2. 업무 처리 및 결과 저장'],
+          auditResult: '정상 처리 및 이력 보존',
+          rulesCompliance: ['전사 시스템 개발 표준 헌장 준수'],
+          precautions: ['작업 전 데이터 검증 필수'],
+          version: 1,
+          annotations: [],
+          manualUrl: c.manual_url,
+        });
+      }
+    });
+
+    return merged;
+  }, [centralManuals]);
+
   const handlePrint = () => {
     window.print();
   };
@@ -52,7 +121,7 @@ export const OperationManualPage: React.FC = () => {
   };
 
   const handleBatchSeed = async () => {
-    if (!window.confirm('전사 51개 모든 메뉴의 표준 매뉴얼을 DB에 일괄 주입(동기화)하시겠습니까?')) return;
+    if (!window.confirm('전사 모든 메뉴의 표준 매뉴얼을 DB에 일괄 주입(동기화)하시겠습니까?')) return;
     const res = await seedAllManuals();
     setSeedingSuccess(`전사 매뉴얼 주입 완료! (성공: ${res.success}건, 실패: ${res.failed}건)`);
     setTimeout(() => setSeedingSuccess(null), 5000);
@@ -60,7 +129,7 @@ export const OperationManualPage: React.FC = () => {
 
   // 부서 매핑 필터
   const filteredManuals = useMemo(() => {
-    return ALL_MENU_MANUALS.filter(m => {
+    return allManuals.filter(m => {
       // 1. 부서 필터
       if (deptFilter === 'sales' && !m.groupId.includes('sales')) return false;
       if (deptFilter === 'inout' && !m.groupId.includes('inout') && !m.groupId.includes('product_asset')) return false;
@@ -83,7 +152,7 @@ export const OperationManualPage: React.FC = () => {
 
       return true;
     });
-  }, [deptFilter, searchQuery]);
+  }, [allManuals, deptFilter, searchQuery]);
 
   // 그룹별 묶음 계산
   const groupedMenus = useMemo(() => {
@@ -101,8 +170,8 @@ export const OperationManualPage: React.FC = () => {
 
   // 현재 선택된 메뉴 상세
   const activeManual = useMemo(() => {
-    return ALL_MENU_MANUALS.find(m => m.menuId === selectedMenuId) || ALL_MENU_MANUALS[0];
-  }, [selectedMenuId]);
+    return allManuals.find(m => m.menuId === selectedMenuId) || allManuals[0];
+  }, [allManuals, selectedMenuId]);
 
   return (
     <div data-subview="operations_manual" data-subview-title="Generated" className="manual-page-root" style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', overflow: 'hidden' }}>
@@ -168,7 +237,7 @@ export const OperationManualPage: React.FC = () => {
             </div>
             <div>
               <span style={{ fontSize: '15px', fontWeight: '900', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>전사 업무매뉴얼</span>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', whiteSpace: 'nowrap' }}>E-Bro ERP 실무 표준 가이드 (총 {ALL_MENU_MANUALS.length}개 메뉴)</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', whiteSpace: 'nowrap' }}>E-Bro ERP 실무 표준 가이드 (총 {allManuals.length}개 메뉴)</span>
             </div>
           </div>
 
@@ -491,6 +560,30 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
           <span style={{ padding: '3px 8px', borderRadius: '4px', backgroundColor: '#FEF3C7', color: '#92400E', fontSize: '11.5px', fontWeight: 700 }}>
             {item.archetype}
           </span>
+          {item.manualUrl && (
+            <a
+              href={item.manualUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '3px 8px',
+                borderRadius: '4px',
+                backgroundColor: '#EFF6FF',
+                color: '#2563EB',
+                border: '1px solid #BFDBFE',
+                fontSize: '11.5px',
+                fontWeight: 700,
+                textDecoration: 'none'
+              }}
+              title="중앙 DB 연동 원문 매뉴얼 웹페이지 열기"
+            >
+              <ExternalLink size={12} />
+              <span>원문 매뉴얼</span>
+            </a>
+          )}
           <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
             menuId: {item.menuId}
           </span>
