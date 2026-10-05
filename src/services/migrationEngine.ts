@@ -193,6 +193,12 @@ export const TABLE_COLUMNS: Record<string, string[]> = {
   ],
   transport_companies: [
     'id', 'name', 'businessNo', 'contact', 'bankName', 'bankAccount', 'bankHolder', 'memo', 'createdAt', 'updatedAt'
+  ],
+  inspection_checklist_items: [
+    'id', 'code', 'category', 'name', 'maintenanceScore', 'score',
+    'standardManHours', 'manHours', 'isDefectSymptom', 'actionGuide',
+    'description', 'relatedManualIds', 'recommendedConsumables',
+    'tenant_id', 'createdAt', 'updatedAt'
   ]
 };
 
@@ -743,14 +749,21 @@ export async function resetAllDatabaseTables(
           if (error && !error.message.includes('not found') && !error.message.includes('tenant_id')) {
             console.warn(`[Reset Table Warning] ${table}:`, error.message);
           }
+          // 🛡️ inspection_checklist_items: 테넌트 미지정(NULL) 레거시 항목도 함께 안전 소탕
+          if (table === 'inspection_checklist_items') {
+            await supabase.from(table).delete().is('tenant_id', null);
+          }
         } catch (err: any) {
           console.warn(`[Reset Table Exception] ${table}:`, err?.message || err);
         }
       }
     } else {
       DELETION_ORDER.forEach(tbl => {
-        if (Array.isArray((db as any)[tbl])) {
-          (db as any)[tbl] = (db as any)[tbl].filter((r: any) => !r.tenant_id || !tenantVariants.includes(r.tenant_id));
+        const camelKey = tbl === 'inspection_checklist_items' ? 'inspectionChecklistItems' : tbl;
+        if (Array.isArray((db as any)[camelKey])) {
+          (db as any)[camelKey] = (db as any)[camelKey].filter((r: any) => r.tenant_id && !tenantVariants.includes(r.tenant_id));
+        } else if (Array.isArray((db as any)[tbl])) {
+          (db as any)[tbl] = (db as any)[tbl].filter((r: any) => r.tenant_id && !tenantVariants.includes(r.tenant_id));
         }
       });
     }
@@ -5309,4 +5322,180 @@ export function exportInitialDataExcelTemplate(tenantName: string = '신규테�
   const safeName = tenantName.replace(/[^가-힣a-zA-Z0-9_-]/g, '_');
   const fileName = `eBro_초기데이터_업로드_표준양식_${safeName}.xlsx`;
   XLSX.writeFile(wb, fileName);
+}
+
+/**
+ * 🛠️ 정비 점검항목 마스터 엑셀 표준 템플릿 생성 및 브라우저 다운로드
+ */
+export function exportInspectionChecklistExcelTemplate(tenantName: string = '기연리프트'): void {
+  const wb = XLSX.utils.book_new();
+
+  const headers = [
+    'NO', '카테고리*', '항목코드', '정비점검항목명*', '배점*', '표준공수(MH)', '불량증상여부(Y/N)', '표준조치절차', '설명/비고'
+  ];
+  const sampleItems = [
+    [1, '전기/배터리', 'CHK-0000001', '작동안됨', 10, 0.8, 'Y', '비상정지 스위치, 풋스위치, 상하부 전환 스위치 전원 루프 점검 및 에러코드 진단', '기본 전원 계통 고장'],
+    [2, '전기/배터리', 'CHK-0000002', '방지봉 단선', 10, 0.5, 'Y', '접촉 감지 센서 와이어링 단선 부위 점검 및 슬리브 결선/방수 수축튜브 마감', '상단 방지봉 센서 단선'],
+    [3, '기타/검수', 'CHK-0000003', '점검 및 정비 요청', 5, 0.5, 'Y', '장비 전반 외관, 유압 누유, 배터리 비중, 안전장치 작동 상태 종합 점검', '일반 종합 점검 요청'],
+    [4, '유압/동력', 'CHK-0000004', '상승안됨', 15, 1.0, 'Y', '상승 솔레노이드 밸브 코일 전원 인가 확인 및 스풀 청소/교체, 유압 릴리프 압력 측정', '유압 상승 계통 불량'],
+    [5, '외관/바디', 'CHK-0000005', '방지봉 불량', 15, 1.0, 'Y', '상단 안전 난간 및 협착방지봉 브라켓 휨 교정 또는 파손봉 신품 교체 볼팅', '기구부 난간 파손'],
+    [6, '주행/타이어', 'CHK-0000012', '주행안됨', 20, 1.5, 'Y', '구동 모터 전원 공급선 및 브레이크 릴리즈 확인, 모터 카본브러시/엔코더 점검', '주행 불량']
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleItems]);
+  XLSX.utils.book_append_sheet(wb, ws, '정비점검항목마스터');
+
+  const safeName = tenantName.replace(/[^가-힣a-zA-Z0-9_-]/g, '_');
+  const fileName = `eBro_정비점검항목_업로드_표준양식_${safeName}.xlsx`;
+  XLSX.writeFile(wb, fileName);
+}
+
+export interface ParsedInspectionChecklistData {
+  items: Array<{
+    id: string;
+    code: string;
+    category: string;
+    name: string;
+    maintenanceScore: number;
+    score: number;
+    standardManHours: number;
+    manHours: number;
+    isDefectSymptom: boolean;
+    actionGuide: string;
+    description: string;
+    tenant_id?: string;
+  }>;
+  stats: {
+    total: number;
+    categories: string[];
+    defectSymptomsCount: number;
+    avgScore: number;
+  };
+}
+
+export function parseInspectionChecklistExcel(wb: XLSX.WorkBook): ParsedInspectionChecklistData {
+  const sheetName = wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+  const rows: any[] = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+  if (rows.length < 2) {
+    throw new Error('엑셀 시트에 데이터가 없거나 헤더만 존재합니다.');
+  }
+
+  const headerRow = (rows[0] || []) as string[];
+  const findCol = (keywords: string[]): number => {
+    return headerRow.findIndex(h => h && keywords.some(k => String(h).trim().includes(k)));
+  };
+
+  const catIdx = findCol(['카테고리', '구분', '분류']);
+  const codeIdx = findCol(['항목코드', '코드']);
+  const nameIdx = findCol(['정비점검항목명', '항목명', '점검항목', '증상']);
+  const scoreIdx = findCol(['배점', '점비배점', '점수']);
+  const mhIdx = findCol(['표준공수', '공수', 'MH', 'M/H']);
+  const defectIdx = findCol(['불량증상', '프리셋']);
+  const guideIdx = findCol(['표준조치절차', '조치절차', '가이드', '절차']);
+  const descIdx = findCol(['설명', '비고']);
+
+  if (nameIdx === -1) {
+    throw new Error('정비 점검항목명(또는 항목명) 컬럼을 찾을 수 없습니다.');
+  }
+
+  const items: any[] = [];
+  const categoriesSet = new Set<string>();
+  let totalScore = 0;
+  let defectCount = 0;
+  let seq = 1;
+
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.length === 0) continue;
+    const name = r[nameIdx] ? String(r[nameIdx]).trim() : '';
+    if (!name) continue;
+
+    const category = (catIdx !== -1 && r[catIdx]) ? String(r[catIdx]).trim() : '기타/검수';
+    categoriesSet.add(category);
+
+    const code = (codeIdx !== -1 && r[codeIdx]) ? String(r[codeIdx]).trim() : `CHK-${String(seq).padStart(7, '0')}`;
+    const scoreVal = (scoreIdx !== -1 && r[scoreIdx]) ? Number(r[scoreIdx]) : 10;
+    const score = isNaN(scoreVal) ? 10 : scoreVal;
+    totalScore += score;
+
+    const mhVal = (mhIdx !== -1 && r[mhIdx]) ? Number(r[mhIdx]) : 0.5;
+    const manHours = isNaN(mhVal) ? 0.5 : mhVal;
+
+    let isDefect = true;
+    if (defectIdx !== -1 && r[defectIdx]) {
+      const dStr = String(r[defectIdx]).trim().toUpperCase();
+      isDefect = dStr === 'Y' || dStr === 'TRUE' || dStr === '예';
+    }
+    if (isDefect) defectCount++;
+
+    const actionGuide = (guideIdx !== -1 && r[guideIdx]) ? String(r[guideIdx]).trim() : '';
+    const description = (descIdx !== -1 && r[descIdx]) ? String(r[descIdx]).trim() : '';
+
+    items.push({
+      id: `chk-custom-${String(seq++).padStart(7, '0')}`,
+      code,
+      category,
+      name,
+      maintenanceScore: score,
+      score,
+      standardManHours: manHours,
+      manHours,
+      isDefectSymptom: isDefect,
+      actionGuide,
+      description
+    });
+  }
+
+  return {
+    items,
+    stats: {
+      total: items.length,
+      categories: Array.from(categoriesSet),
+      defectSymptomsCount: defectCount,
+      avgScore: items.length > 0 ? Math.round((totalScore / items.length) * 10) / 10 : 0
+    }
+  };
+}
+
+export async function ingestInspectionChecklistToDatabase(
+  parsed: ParsedInspectionChecklistData,
+  onProgress?: (step: number, total: number, msg: string) => void,
+  targetTenantId?: string
+): Promise<{ success: boolean; message: string; count: number }> {
+  try {
+    const scopeId = targetTenantId || 'tenant-giyeonlift';
+    const nowIso = new Date().toISOString();
+
+    const entities = parsed.items.map(item => ({
+      ...item,
+      tenant_id: scopeId,
+      createdAt: nowIso,
+      updatedAt: nowIso
+    }));
+
+    onProgress?.(1, 2, `정비 항목 ${entities.length}건 DB 적재 준비 중...`);
+
+    if (supabase) {
+      await supabase.from('inspection_checklist_items').delete().eq('tenant_id', scopeId);
+      await batchUpsertChunked('inspection_checklist_items', entities, 50, (msg) => {
+        onProgress?.(2, 2, msg);
+      });
+    }
+
+    db.inspectionChecklistItems = entities as any;
+
+    return {
+      success: true,
+      message: `정비 점검항목 마스터 ${entities.length}건이 성공적으로 등록되었습니다.`,
+      count: entities.length
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: `정비 항목 등록 실패: ${err.message || err}`,
+      count: 0
+    };
+  }
 }

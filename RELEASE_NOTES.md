@@ -1,3 +1,15 @@
+## v1.13.0.Build.33 (2026-10-05 23:55)
+- **정비 점검항목 마스터 초기 DB 엑셀 업로드 신설**:
+  - `InitialDbUploader.tsx`에 '정비 점검항목 마스터 엑셀 업로드' 카드 및 파서/일괄 적재 엔진 탑재.
+  - 정비 점검항목 표준 엑셀 양식 다운로드(`exportInspectionChecklistExcelTemplate`) 지원.
+  - `D:\OneDrive\Desktop\기연리프트자료_\자동업로드` 폴더에 정비 항목 25건 엑셀/JSON 영구 백업 완료.
+- **정비 항목 DB 초기화(Reset) 및 테넌트 격리 무결성 확립**:
+  - `inspection_checklist_items` 테이블에 `tenant_id` DDL 추가 및 기연리프트 테넌트 정식 바인딩.
+  - `TABLE_COLUMNS` 화이트리스트에 `inspection_checklist_items` 정합성 등록.
+  - `resetAllDatabaseTables` 실행 시 테넌트 정비 항목 및 레거시 미지정(NULL) 항목까지 100% 완전 초기화 보장.
+- **정비 항목 마스터 중복 정리**:
+  - 출고 검수(OUTBOUND) 연동 테스트 당시 중복 등록되었던 2건 안전 삭제 정리 완료 (27건 ➔ 25건).
+
 ## v1.13.0.Build.24 (2026-10-05 13:40)
 - **자산 라이프사이클 무결성 강화**:
   - 자산 매각 시 출고 대기 중(ASSIGNED)인 장비가 잘못 포함되지 않도록 원천 차단 조치.

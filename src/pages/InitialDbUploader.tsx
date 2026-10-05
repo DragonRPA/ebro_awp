@@ -27,7 +27,11 @@ import {
   syncInspectionChecklistFromBandRepairs,
   BandAsAnalysisResult,
   ParsedBandAsRecord,
-  exportInitialDataExcelTemplate
+  exportInitialDataExcelTemplate,
+  exportInspectionChecklistExcelTemplate,
+  parseInspectionChecklistExcel,
+  ingestInspectionChecklistToDatabase,
+  ParsedInspectionChecklistData
 } from '../services/migrationEngine';
 import {
   parseConsumableInventoryText,
@@ -165,6 +169,73 @@ export const InitialDbUploader: React.FC = () => {
   const [isConsumableParsing, setIsConsumableParsing] = useState(false);
   const [isConsumableIngesting, setIsConsumableIngesting] = useState(false);
   const consumableFileInputRef = useRef<HTMLInputElement>(null);
+
+  // 🛠️ 정비 점검항목 마스터 엑셀 업로드 상태
+  const [inspectionFileName, setInspectionFileName] = useState<string>('');
+  const [parsedInspectionData, setParsedInspectionData] = useState<ParsedInspectionChecklistData | null>(null);
+  const [isInspectionParsing, setIsInspectionParsing] = useState(false);
+  const [isInspectionIngesting, setIsInspectionIngesting] = useState(false);
+  const [inspectionProgressMsg, setInspectionProgressMsg] = useState('');
+  const inspectionFileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── 정비 점검항목 엑셀 선택 핸들러 ──
+  const handleInspectionFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    setInspectionFileName(file.name);
+    setIsInspectionParsing(true);
+    setInspectionProgressMsg('정비 점검항목 엑셀 분석 중...');
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: 'array' });
+        const parsed = parseInspectionChecklistExcel(wb);
+        setParsedInspectionData(parsed);
+        showSuccessToast?.(`정비 점검항목 파싱 완료: 총 ${parsed.stats.total}개 항목 (${parsed.stats.categories.length}개 카테고리)`);
+      } catch (err: any) {
+        showErrorModal?.(`정비 점검항목 파싱 오류: ${err.message || err}`);
+      } finally {
+        setIsInspectionParsing(false);
+        setInspectionProgressMsg('');
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  // ── 정비 점검항목 DB 일괄 동기화 ──
+  const handleInspectionIngest = async () => {
+    if (!parsedInspectionData || parsedInspectionData.items.length === 0) {
+      showErrorModal?.('동기화할 정비 점검항목 데이터가 없습니다.');
+      return;
+    }
+
+    const targetTenantId = currentTenant?.id || currentTenant?.tenantCode || 'tenant-giyeonlift';
+    setIsInspectionIngesting(true);
+    setInspectionProgressMsg('정비 점검항목 DB 일괄 적재 시작...');
+
+    try {
+      const res = await ingestInspectionChecklistToDatabase(
+        parsedInspectionData,
+        (step, total, msg) => setInspectionProgressMsg(msg),
+        targetTenantId
+      );
+
+      if (res.success) {
+        showSuccessToast?.(res.message);
+        await fullRefreshFromServer();
+      } else {
+        showErrorModal?.(res.message);
+      }
+    } catch (err: any) {
+      showErrorModal?.(`정비 항목 DB 적재 오류: ${err.message || err}`);
+    } finally {
+      setIsInspectionIngesting(false);
+      setInspectionProgressMsg('');
+    }
+  };
 
   // 🔐 임직원 권한 마스터 업로드 상태
   const [permFileName, setPermFileName] = useState<string>('');
@@ -2459,7 +2530,175 @@ export const InitialDbUploader: React.FC = () => {
             )}
           </div>
 
-          {/* ⑦ 임직원 권한 마스터 업로드 카드 */}
+          {/* ⑦ 정비 점검항목 마스터 엑셀 업로드 카드 */}
+          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Wrench size={18} color="#059669" />
+                  <label style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                    정비 점검항목 마스터 엑셀 업로드
+                  </label>
+                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '9999px', backgroundColor: 'var(--success-light)', color: 'var(--success)', fontWeight: 600 }}>
+                    표준 엑셀 서식
+                  </span>
+                </div>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                  정비 항목, 카테고리, 배점, 표준 공수 및 표준 조치 절차를 엑셀 파일에서 읽어와 정비 항목 마스터 DB에 일괄 등록합니다.
+                </span>
+              </div>
+
+              {/* 우상단 템플릿 다운로드 버튼 */}
+              <button
+                type="button"
+                onClick={() => exportInspectionChecklistExcelTemplate(currentTenant?.displayName || '기연리프트')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '7px 12px', borderRadius: '6px',
+                  backgroundColor: 'var(--bg-main)', color: 'var(--text-main)',
+                  border: '1px solid var(--border-color)', fontSize: '12px', fontWeight: 600,
+                  cursor: 'pointer', whiteSpace: 'nowrap'
+                }}
+              >
+                <Download size={13} />
+                표준 양식 다운로드 (.xlsx)
+              </button>
+            </div>
+
+            {/* 파일 업로드 바 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', backgroundColor: 'var(--bg-main)', borderRadius: '6px', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
+              <input
+                ref={inspectionFileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleInspectionFileSelect}
+                style={{ display: 'none' }}
+              />
+              <button
+                type="button"
+                onClick={() => inspectionFileInputRef.current?.click()}
+                disabled={isInspectionParsing}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '7px 14px', borderRadius: '6px',
+                  backgroundColor: '#059669', color: 'white',
+                  border: 'none', fontSize: '13px', fontWeight: 600,
+                  cursor: isInspectionParsing ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {isInspectionParsing ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
+                파일 선택 (.xlsx)
+              </button>
+
+              <span style={{ fontSize: '13px', color: inspectionFileName ? 'var(--text-main)' : 'var(--text-muted)', fontWeight: inspectionFileName ? 600 : 400 }}>
+                {inspectionFileName || '선택된 파일 없음 (.xlsx / .xls)'}
+              </span>
+            </div>
+
+            {/* 파싱 결과 고밀도 테이블 및 최종 반영 버튼 */}
+            {parsedInspectionData && parsedInspectionData.items.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)' }}>
+                    파싱 결과 목록 ({parsedInspectionData.items.length}건)
+                  </span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    카테고리 {parsedInspectionData.stats.categories.length}개 / 불량증상 {parsedInspectionData.stats.defectSymptomsCount}건
+                  </span>
+                </div>
+
+                <div style={{ maxHeight: '340px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+                    <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-card)', zIndex: 1, borderBottom: '1px solid var(--border-color)' }}>
+                      <tr style={{ color: 'var(--text-muted)' }}>
+                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '40px' }}>No</th>
+                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>카테고리</th>
+                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>항목코드</th>
+                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>정비 점검항목명</th>
+                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', textAlign: 'center' }}>정비배점</th>
+                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', textAlign: 'center' }}>표준공수</th>
+                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', textAlign: 'center' }}>불량증상</th>
+                        <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>표준 조치 절차</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parsedInspectionData.items.map((item, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.015)' }}>
+                          <td style={{ padding: '7px 12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{idx + 1}</td>
+                          <td style={{ padding: '7px 12px', whiteSpace: 'nowrap' }}>
+                            <span style={{ padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(5, 150, 105, 0.1)', color: '#059669', fontSize: '11px', fontWeight: 600 }}>
+                              {item.category}
+                            </span>
+                          </td>
+                          <td style={{ padding: '7px 12px', whiteSpace: 'nowrap', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{item.code}</td>
+                          <td style={{ padding: '7px 12px', whiteSpace: 'nowrap', fontWeight: 600, color: 'var(--text-main)' }}>{item.name}</td>
+                          <td style={{ padding: '7px 12px', textAlign: 'center', whiteSpace: 'nowrap', fontWeight: 700, color: '#f59e0b' }}>
+                            +{item.maintenanceScore}점
+                          </td>
+                          <td style={{ padding: '7px 12px', textAlign: 'center', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>
+                            {item.standardManHours} M/H
+                          </td>
+                          <td style={{ padding: '7px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            <span style={{ padding: '2px 6px', borderRadius: '4px', backgroundColor: item.isDefectSymptom ? 'var(--info-light)' : 'var(--bg-main)', color: item.isDefectSymptom ? 'var(--info)' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>
+                              {item.isDefectSymptom ? '프리셋 지정' : '일반'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '7px 12px', whiteSpace: 'nowrap', color: 'var(--text-secondary)', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {item.actionGuide || item.description || '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Gutenberg Z-패턴: 요약 검증식 & 최종 적재 완결 버튼 */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', padding: '12px 16px', backgroundColor: 'var(--bg-main)', borderRadius: '6px', border: '1px solid var(--border-color)', marginTop: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', fontSize: '13px' }}>
+                    <span style={{ whiteSpace: 'nowrap' }}>
+                      총 점검항목: <strong style={{ color: 'var(--text-main)' }}>{parsedInspectionData.items.length}개</strong>
+                    </span>
+                    <span style={{ color: 'var(--border-color)' }}>|</span>
+                    <span style={{ whiteSpace: 'nowrap' }}>
+                      분류: <strong style={{ color: '#059669' }}>{parsedInspectionData.stats.categories.length}개 카테고리</strong>
+                    </span>
+                    <span style={{ color: 'var(--border-color)' }}>|</span>
+                    <span style={{ whiteSpace: 'nowrap' }}>
+                      불량증상 프리셋: <strong style={{ color: 'var(--info)' }}>{parsedInspectionData.stats.defectSymptomsCount}건</strong>
+                    </span>
+                    <span style={{ color: 'var(--border-color)' }}>|</span>
+                    <span style={{ whiteSpace: 'nowrap' }}>
+                      평균 정비배점: <strong style={{ color: '#f59e0b' }}>{parsedInspectionData.stats.avgScore}점</strong>
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleInspectionIngest}
+                    disabled={isInspectionIngesting}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                      padding: '10px 20px', borderRadius: '6px',
+                      backgroundColor: isInspectionIngesting ? '#94a3b8' : '#059669',
+                      color: 'white', border: 'none',
+                      fontSize: '14px', fontWeight: 600,
+                      cursor: isInspectionIngesting ? 'not-allowed' : 'pointer',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {isInspectionIngesting ? (
+                      <><RefreshCw size={15} className="animate-spin" /> DB 반영 중...</>
+                    ) : (
+                      <><Upload size={15} /> 정비 점검항목 DB 반영 ({parsedInspectionData.items.length}건)</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ⑧ 임직원 권한 마스터 업로드 카드 */}
           <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

@@ -11,6 +11,29 @@
 
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## 2026-10-05 23:55 (v1.13.0.Build.33 배포 완료)
+
+### [정비점검항목마스터초기DB엑셀업로드신설/DB초기화테넌트소탕무결성확립/OneDrive자동업로드폴더백업및중복정리완결] 정비 점검항목 마스터 엑셀 표준 서식 다운로드 및 파싱·일괄 적재 엔진(exportInspectionChecklistExcelTemplate, parseInspectionChecklistExcel, ingestInspectionChecklistToDatabase) 신설, InitialDbUploader.tsx 내 정비 점검항목 엑셀 업로드 전용 카드(미리보기 통계 그리드, Z-패턴 완결 버튼) 탑재, inspection_checklist_items 테이블 tenant_id DDL 추가 및 TABLE_COLUMNS 화이트리스트 정합성 등록, resetAllDatabaseTables 시 테넌트 정비 항목 및 레거시 미지정(NULL) 항목 100% 완전 소탕 보장, D:\OneDrive\Desktop\기연리프트자료_\자동업로드 폴더에 정비 항목 25건 엑셀/JSON 영구 백업 완료 및 중복 2건 삭제 정리
+
+- **배경 및 사장님 지침**:
+  - "중복항목을 먼저 제거. D:\OneDrive\Desktop\기연리프트자료_\자동업로드 폴더에 데이터를 백업해두고, 이후에는 DB 초기화 때 함께 초기화 되도록 코드 변경. 초기 DB업로드 메뉴에 정비항목 업로드 기능 추가. ㄹㅇ"
+
+- **기술 조치 내역**:
+  1. `Supabase DB`:
+     - 중복 등록 테스트 항목 2건(`test-chk-1789218182123`, `test-chk-1789218229030`) 안전 삭제 완료 (27건 ➔ 25건).
+     - `ALTER TABLE inspection_checklist_items ADD COLUMN IF NOT EXISTS "tenant_id" TEXT;` DDL 실행.
+     - 기존 유효 25건에 대해 `UPDATE inspection_checklist_items SET tenant_id = 'tenant-giyeonlift'` 바인딩 완료.
+  2. `D:\OneDrive\Desktop\기연리프트자료_\자동업로드` 폴더 백업:
+     - `정비점검항목_마스터_20261005.xlsx`: 표준 엑셀 업로드 서식과 1:1 호환되는 양식으로 영구 백업.
+     - `정비점검항목_마스터_20261005.json`: 원본 JSON 풀 데이터 백업.
+  3. `src/services/migrationEngine.ts`:
+     - `TABLE_COLUMNS.inspection_checklist_items`: 스키마 화이트리스트 등록.
+     - `resetAllDatabaseTables`: `inspection_checklist_items`의 테넌트 항목 및 `tenant_id is null` 레거시 항목까지 완벽 소탕되도록 삭제 로직 보강.
+     - `exportInspectionChecklistExcelTemplate`, `parseInspectionChecklistExcel`, `ingestInspectionChecklistToDatabase`: 정비 점검항목 표준 서식 다운로드/파싱/적재 3대 엔진 탑재.
+  4. `src/pages/InitialDbUploader.tsx`:
+     - 정비 점검항목 마스터 엑셀 업로드 카드 UI(Wrench 아이콘, 서식 다운로드, 엑셀 파일 파서, 카테고리/불량증상 미리보기 그리드, Gutenberg Z-패턴 일괄 적재 완결 버튼) 구현.
+  5. `npm run build`: `tsc -b && vite build` 0 오류 통과 (1.10s).
+
 ## 2026-10-04 21:05 (v1.13.0.Build.31 배포 완료)
 
 ### [초기DB엑셀업로드전사멀티테넌트격리대개편/전역삭제폭탄영구제거/targetTenantId강제바인딩/테넌트관리센터9번째초기DB업로드탭/표준엑셀3대서식다운로드탑재완결] 기존 전역 TRUNCATE(.neq('id', '____IMPOSSIBLE____')) 및 tenant_id 누락으로 인한 타 테넌트 데이터 전멸 위험 원천 박멸, 모든 초기 적재(ingestExcelInitialData) 및 초기화(resetAllDatabaseTables)에 targetTenantId 강제 주입 및 .eq('tenant_id', scopeId) 격리 안전 삭제 전환, filterRecordBySchema에 tenant_id 무조건 보존 규칙 적용, 표준 엑셀 3대 시트(장비자산목록, 고객사거래처, 현재계약대여) 다운로드 엔진(exportInitialDataExcelTemplate) 신설, TenantManagementPage 내 9번째 모달 탭 '초기 DB 업로드(INITIAL_DB)' 신설(테넌트별 자산·고객·계약 프리뷰, 프로그레스 바, 전용 안전 주입/초기화) 및 목록 테이블 '초기DB' 바로가기 버튼 탑재, InitialDbUploader.tsx 상단 멀티테넌트 격리 배너 및 currentTenant 자동 바인딩 완료
