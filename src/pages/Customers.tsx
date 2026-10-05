@@ -1427,7 +1427,7 @@ export const Customers: React.FC = () => {
                   <div
                     key={cust.id}
                     id={`customer-item-${cust.id}`}
-                    onClick={() => setSelectedCustomerId(cust.id)}
+                    data-mid='customer-grid-item' onClick={() => setSelectedCustomerId(cust.id)}
                     style={{
                       padding: '8px 10px',
                       borderRadius: '5px',
@@ -2169,7 +2169,7 @@ export const Customers: React.FC = () => {
                   style={inputStyle}
                   value={editingCust.name || ''}
                   onChange={e => setEditingCust({ ...editingCust, name: e.target.value })}
-                  placeholder="예: (주)한라건설"
+                  data-mid="input-customer-name" placeholder="예: (주)한라건설"
                   required
                 />
               </div>
@@ -2182,7 +2182,7 @@ export const Customers: React.FC = () => {
                     style={inputStyle}
                     value={editingCust.bizRegNo || ''}
                     onChange={e => setEditingCust({ ...editingCust, bizRegNo: e.target.value })}
-                    placeholder="000-00-00000"
+                    data-mid="input-biz-no" placeholder="000-00-00000"
                   />
                 </div>
                 <div>

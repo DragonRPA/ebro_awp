@@ -1039,7 +1039,7 @@ export const Assets: React.FC = () => {
                 {canEdit && !isEditing && (
                   <button
                     className="btn-primary"
-                    onClick={handleStartEdit}
+                    data-mid='asset-edit-section' data-mid='asset-edit-section' onClick={handleStartEdit}
                     style={{ padding: '3px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
                   >
                     <Edit2 size={12} /> 수정
@@ -1249,7 +1249,7 @@ export const Assets: React.FC = () => {
                   <button
                     type="button"
                     className="btn-secondary"
-                    onClick={() => handleExportAssetHistoryExcel(selectedAsset)}
+                    data-mid='btn-export-asset-history' onClick={() => handleExportAssetHistoryExcel(selectedAsset)}
                     style={{ padding: '2px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
                   >
                     <Download size={11} /> 이력 엑셀

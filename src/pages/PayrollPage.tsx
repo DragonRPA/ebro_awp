@@ -466,7 +466,7 @@ export const PayrollPage: React.FC = () => {
             <div>
               <label style={{ fontSize: '13px', fontWeight: '600', marginBottom: '6px', display: 'block' }}>대상 귀속 월 선택</label>
               <input 
-                type="month" 
+                data-mid='payroll-month-input' type="month" data-mid='payroll-month-input' 
                 value={selectedMonth} 
                 onChange={(e) => setSelectedMonth(e.target.value)}
                 disabled={payrollStatus === 'APPROVED'}

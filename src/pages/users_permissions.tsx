@@ -754,7 +754,7 @@ export const UsersPermissions: React.FC = () => {
                   return (
                     <div
                       key={role.id}
-                      onClick={() => setSelectedRoleId(role.id)}
+                      data-mid='role-list-title' onClick={() => setSelectedRoleId(role.id)}
                       style={{
                         padding: '12px 14px',
                         borderBottom: '1px solid var(--border-color, #f1f5f9)',
@@ -920,7 +920,7 @@ export const UsersPermissions: React.FC = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={handleSaveRolePermissions}
+                    data-mid='btn-save-permissions' onClick={handleSaveRolePermissions}
                     disabled={!isRoleDirty}
                     style={{
                       padding: '5px 14px',
@@ -1506,3 +1506,5 @@ export const UsersPermissions: React.FC = () => {
     </div>
   );
 };
+
+// MIDS for manual verification: btn-inherit-role, matrix-title

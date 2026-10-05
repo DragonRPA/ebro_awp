@@ -342,7 +342,7 @@ export const LeaveApplicationPage: React.FC = () => {
             연차 / 반차 소진 등록
           </h3>
 
-          <form onSubmit={handleLeaveUsageSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <form data-mid='leave-form' data-mid="leave-form" onSubmit={handleLeaveUsageSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             
             {/* 임직원 선택 (admin만 타 임직원 대리신청 가능, 일반 임직원은 본인 고정 및 변경 불가) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -390,7 +390,7 @@ export const LeaveApplicationPage: React.FC = () => {
                 휴가 구분 (차감 일수):
               </label>
               <select
-                value={leaveType}
+                data-mid='leave-type-select' value={leaveType} data-mid="leave-type-select"
                 onChange={(e: any) => setLeaveType(e.target.value)}
                 className="form-control"
                 style={{ fontSize: '13px' }}
@@ -407,7 +407,7 @@ export const LeaveApplicationPage: React.FC = () => {
                 시작 일자:
               </label>
               <input
-                type="date"
+                data-mid='leave-date-input' type="date" data-mid="leave-date-input"
                 required
                 value={leaveStartDate}
                 onChange={(e) => {
@@ -426,7 +426,7 @@ export const LeaveApplicationPage: React.FC = () => {
                   종료 일자:
                 </label>
                 <input
-                  type="date"
+                  data-mid='leave-date-input' type="date" data-mid="leave-date-input"
                   required
                   min={leaveStartDate}
                   value={leaveEndDate}
@@ -459,7 +459,7 @@ export const LeaveApplicationPage: React.FC = () => {
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                 휴가 사유:
               </label>
-              <textarea
+              <textarea data-mid="leave-reason-input"
                 required
                 rows={3}
                 placeholder="연차 / 반차 사유를 기입하세요"
@@ -471,7 +471,7 @@ export const LeaveApplicationPage: React.FC = () => {
             </div>
 
             <button
-              type="submit"
+              data-mid='leave-submit-btn' type="submit" data-mid="leave-submit-btn"
               className="btn btn-primary"
               style={{ fontSize: '13px', marginTop: '6px' }}
               disabled={requestedDays <= 0 || requestedDays > mySummary.remainingDays}
@@ -521,7 +521,7 @@ export const LeaveApplicationPage: React.FC = () => {
 
           {/* 이력 테이블 */}
           <div style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto' }}>
-            <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+            <table data-mid='leave-history-table' data-mid="leave-history-table" style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
               <thead>
                 <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
                   {isSystemAdmin && <th style={{ padding: '10px 14px', whiteSpace: 'nowrap', width: '70px', textAlign: 'center' }}>취소</th>}

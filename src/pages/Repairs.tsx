@@ -1213,7 +1213,7 @@ export const Repairs: React.FC = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <label style={{ fontSize: '11px', fontWeight: '700', color: '#7c3aed', whiteSpace: 'nowrap' }}>외주 정비 거래처 *</label>
                       <select
-                        value={selectedVendorId}
+                        value={selectedVendorId} data-mid="repair-vendor-select"
                         onChange={e => setSelectedVendorId(e.target.value)}
                         style={{ padding: '6px 8px', fontSize: '12.5px' }}
                       >

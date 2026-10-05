@@ -788,7 +788,7 @@ export const BankMatching: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {canSave && (
             <button
-              onClick={handleBatchAutoMatch}
+              data-mid='btn-batch-match' onClick={handleBatchAutoMatch}
               disabled={isBatchMatchingProcessing || autoMatchableCount === 0}
               className="btn btn-primary"
               style={{
@@ -1210,7 +1210,7 @@ export const BankMatching: React.FC = () => {
                                     onClick={() => handleUnmatch(tx.id)}
                                     className="btn btn-secondary"
                                     style={{ fontSize: '10px', padding: '2px 5px', color: 'var(--danger)', borderColor: '#fca5a5', fontWeight: 600 }}
-                                    title="수납 매칭 해제 (원복)"
+                                    data-mid="btn-unmatch" data-mid='btn-unmatch' title="수납 매칭 해제 (원복)"
                                   >
                                     해제
                                   </button>
@@ -1244,7 +1244,7 @@ export const BankMatching: React.FC = () => {
                                     onClick={() => handleUnmatch(tx.id)}
                                     className="btn btn-secondary"
                                     style={{ fontSize: '10px', padding: '2px 5px', color: 'var(--danger)', borderColor: '#fca5a5', fontWeight: 600 }}
-                                    title="수납 매칭 해제 (원복)"
+                                    data-mid="btn-unmatch" data-mid='btn-unmatch' title="수납 매칭 해제 (원복)"
                                   >
                                     해제
                                   </button>
@@ -1693,11 +1693,7 @@ export const BankMatching: React.FC = () => {
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             {matchingMode === 'MULTI' ? (
-                              <input
-                                type="checkbox"
-                                value={b.id}
-                                checked={selectedMultiBillingIds.includes(b.id)}
-                                onChange={(e) => {
+                              <input data-mid="input-matching-billing" type="checkbox" onChange={(e) => {
                                   if (e.target.checked) {
                                     setSelectedMultiBillingIds(prev => [...prev, b.id]);
                                     setMultiAllocations(prev => ({ ...prev, [b.id]: unpaidAmt }));

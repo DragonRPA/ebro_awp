@@ -3313,7 +3313,7 @@ export const TruckDispatch: React.FC = () => {
                     return (
                       <div 
                         key={d.id}
-                        onClick={() => handleSelectDelivery(d)}
+                        data-mid='delivery-queue-item' onClick={() => handleSelectDelivery(d)}
                         style={{
                           padding: '14px',
                           borderRadius: '10px',

@@ -374,7 +374,7 @@ export const RegularReportsPage: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
             {/* 1. KPI 바 — 전사 표준 소형 칩 그리드 */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '6px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '6px' }} data-mid="reports-grid">
               <div style={S.kpiChip}>
                 <span style={S.sectionLabel}>총 매출 청구액</span>
                 <strong style={{ fontSize: '14px', color: 'var(--primary)', whiteSpace: 'nowrap' }}>₩{kpis.totalRevenue.toLocaleString()}</strong>

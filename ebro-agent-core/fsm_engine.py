@@ -37,6 +37,17 @@ class FsmEngine:
             if not actions and "tool" in parsed_plan:
                 actions = [{"tool": parsed_plan["tool"], "params": parsed_plan.get("params", {})}]
 
+            from drg_registry import drg_registry
+            expanded_actions = []
+            for act in actions:
+                t_name = act.get("tool")
+                if drg_registry.get_manual(t_name):
+                    drg_steps = drg_registry.resolve_steps(t_name, act.get("params", {}))
+                    expanded_actions.extend(drg_steps)
+                else:
+                    expanded_actions.append(act)
+            actions = expanded_actions
+
             ctx["parsed_plan"] = parsed_plan
             ctx["actions"] = actions
             ctx["executed_results"] = []

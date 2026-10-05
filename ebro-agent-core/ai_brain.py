@@ -460,6 +460,13 @@ class AiBrain:
         menu_knowledge_chunk = get_menu_context_prompt(cur_menu, prompt)
         full_system_prompt = f"{SYSTEM_PROMPT}\n{menu_knowledge_chunk}" if menu_knowledge_chunk else SYSTEM_PROMPT
 
+        from drg_registry import drg_registry
+        drg_tools = drg_registry.get_tool_definitions()
+        if drg_tools:
+            full_system_prompt += "\n\n[등록된 매뉴얼(DRG) 도구]\n"
+            for idx, t in enumerate(drg_tools, start=9):
+                full_system_prompt += f"{idx}. {t}\n"
+
         context_str = f"\n[현재 화면 컨텍스트]\n{json.dumps(context or {}, ensure_ascii=False)}" if context else ""
         payload = {
             "model": self.preferred_model,

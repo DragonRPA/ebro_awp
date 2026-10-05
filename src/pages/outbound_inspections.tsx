@@ -877,7 +877,7 @@ export const OutboundInspections: React.FC = () => {
         ].map(tab => (
           <button
             key={tab.key}
-            onClick={() => setActiveTabStatus(tab.key)}
+            data-mid={`tab-${tab.key.toLowerCase()}`} onClick={() => setActiveTabStatus(tab.key)}
             style={{
               padding: '8px 16px',
               borderRadius: '8px',
@@ -1045,7 +1045,7 @@ export const OutboundInspections: React.FC = () => {
                 return (
                   <div
                     key={group.groupId}
-                    onClick={() => handleSelectGroup(group)}
+                    data-mid='outbound-queue-item' onClick={() => handleSelectGroup(group)}
                     style={{
                       padding: '14px',
                       borderRadius: '10px',
@@ -1113,7 +1113,7 @@ export const OutboundInspections: React.FC = () => {
                     {group.status === 'PENDING' && canEdit && (
                       <div style={{ marginTop: '10px', textAlign: 'right' }}>
                         <button
-                          onClick={(e) => { e.stopPropagation(); handleAcceptGroup(group); }}
+                          data-mid='btn-accept-job' onClick={(e) => { e.stopPropagation(); handleAcceptGroup(group); }}
                           disabled={isProcessing}
                           style={{
                             padding: '6px 12px',
@@ -1443,13 +1443,13 @@ export const OutboundInspections: React.FC = () => {
                 </div>
               </div>
               <ToggleSwitch
-                checked={rejectToRepairing}
+                data-mid='switch-maintenance' checked={rejectToRepairing}
                 onChange={setRejectToRepairing}
               />
             </div>
 
             <textarea
-              placeholder="반려 사유 입력 (예: 타이어 마모 심함, 배터리 충전 불량...)"
+              data-mid='reject-reason-input' placeholder="반려 사유 입력 (예: 타이어 마모 심함, 배터리 충전 불량...)"
               value={rejectReason}
               onChange={e => setRejectReason(e.target.value)}
               style={{ width: '100%', height: '90px', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', boxSizing: 'border-box', marginBottom: '20px' }}
@@ -1457,7 +1457,7 @@ export const OutboundInspections: React.FC = () => {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button onClick={() => setShowRejectModal(false)} className="btn-secondary">취소</button>
-              <button onClick={handleConfirmReject} style={{ padding: '8px 16px', borderRadius: '8px', backgroundColor: 'var(--danger)', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer' }}>
+              <button data-mid='btn-reject-confirm' onClick={handleConfirmReject} style={{ padding: '8px 16px', borderRadius: '8px', backgroundColor: 'var(--danger)', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer' }}>
                 반려 처리 실행
               </button>
             </div>
@@ -1886,3 +1886,5 @@ export const OutboundInspections: React.FC = () => {
     </div>
   );
 };
+
+// MIDS for manual verification: tab-pending, tab-in-progress, outbound-queue-list

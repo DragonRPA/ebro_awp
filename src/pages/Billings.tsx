@@ -2286,7 +2286,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       {/* 탭 */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
         {canSave && (
-          <button className={activeTab === 'WIZARD' ? 'btn-primary' : 'btn-secondary'} onClick={() => setActiveTab('WIZARD')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <button className={activeTab === 'WIZARD' ? 'btn-primary' : 'btn-secondary'} data-mid="tab-billing-wizard" data-mid='tab-billing-wizard' onClick={() => setActiveTab('WIZARD')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
             <Calendar size={14} /> 미청구 정산
             {todayStatementDueContracts.length > 0 && (
               <span style={{ padding: '1px 6px', fontSize: '10.5px', fontWeight: 800, borderRadius: '10px', backgroundColor: '#dc2626', color: '#ffffff', lineHeight: '1.2' }}>
@@ -2295,7 +2295,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
             )}
           </button>
         )}
-        <button className={activeTab === 'LIST' ? 'btn-primary' : 'btn-secondary'} onClick={() => setActiveTab('LIST')}>
+        <button className={activeTab === 'LIST' ? 'btn-primary' : 'btn-secondary'} data-mid="tab-billing-list" data-mid='tab-billing-list' onClick={() => setActiveTab('LIST')}>
           청구 대장
         </button>
         <button
@@ -2681,7 +2681,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                           backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.08)' : undefined,
                           fontWeight: isSelected ? 600 : undefined
                         }} 
-                        onClick={() => setSelectedBillingId(b.id)}
+                        data-mid='billing-list-item' onClick={() => setSelectedBillingId(b.id)}
                       >
                         <td onClick={e => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
                           <div data-mid="billing-row-actions" style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
@@ -2732,7 +2732,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                               <button 
                                 type="button" 
                                 className="btn-danger" 
-                                onClick={(e) => handleCancel(b.id, e)} 
+                                data-mid='btn-rollback-billing' onClick={(e) => handleCancel(b.id, e)} 
                                 style={{ padding: '3px 6px', fontSize: '11px', whiteSpace: 'nowrap' }}
                                 title="청구 취소"
                               >
@@ -2900,7 +2900,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                         <button
                           type="button"
                           className="btn-secondary"
-                          onClick={() => { setSplitTargetId(activeBilling.id); setSplitModalOpen(true); }}
+                          data-mid='btn-split-billing' onClick={() => { setSplitTargetId(activeBilling.id); setSplitModalOpen(true); }}
                           style={{ padding: '5px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }}
                           title="이 청구서를 금액 기준으로 2개의 청구서로 분할합니다."
                         >
