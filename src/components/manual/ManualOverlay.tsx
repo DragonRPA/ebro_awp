@@ -8,6 +8,9 @@ import type { ManualAnnotationItem, AnnotationType } from '../../types/manual';
 import { useManualContext } from './ManualContext';
 import { detectActiveModalElement, detectCurrentContext } from '../../data/modalManuals';
 import { MenuBriefingBox } from './MenuBriefingBox';
+import { getStepBadgeColor, getStampBadgeShadow, STEP_PALETTE } from './manualPalette';
+
+export { getStepBadgeColor, getStampBadgeShadow, STEP_PALETTE };
 
 /* ── 리플(파동) 및 펄스 애니메이션 CSS ────────────────────────── */
 const RIPPLE_CSS = `
@@ -445,12 +448,12 @@ const HighlightBox: React.FC<{
     position: 'fixed',
     top: rect.top - 4, left: rect.left - 4,
     width: rect.width + 8, height: rect.height + 8,
-    border: isActive ? `3px solid ${color}` : `1.5px dashed ${color}66`,
+    border: isActive ? `3.5px solid ${color}` : `2px dashed ${color}99`,
     borderRadius: '8px',
-    backgroundColor: isActive ? color + '22' : 'transparent',
+    backgroundColor: isActive ? `${color}25` : 'transparent',
     pointerEvents: 'none',
     zIndex,
-    boxShadow: isActive ? `0 0 20px ${color}88, inset 0 0 10px ${color}22` : 'none',
+    boxShadow: isActive ? `0 0 0 2px rgba(255,255,255,0.85), 0 0 24px ${color}aa, inset 0 0 12px ${color}25` : 'none',
     transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
   }} />
 );
@@ -465,9 +468,10 @@ const ClickRipple: React.FC<{ rect: Rect; color: string; zIndex?: number }> = ({
       {[0, 250, 500].map(delay => (
         <div key={delay} style={{
           position: 'fixed', left: cx, top: cy,
-          width: '50px', height: '50px',
+          width: '56px', height: '56px',
           borderRadius: '50%',
-          border: `2.5px solid ${color}`,
+          border: `3px solid ${color}`,
+          boxShadow: `0 0 14px ${color}, inset 0 0 8px ${color}`,
           animation: `manual-ripple 1.5s ${delay}ms ease-out infinite`,
           pointerEvents: 'none', zIndex,
         }} />
@@ -475,11 +479,12 @@ const ClickRipple: React.FC<{ rect: Rect; color: string; zIndex?: number }> = ({
 
       {/* 2. 중심부 펄스 닷 코어 */}
       <div style={{
-        position: 'fixed', left: cx - 10, top: cy - 10,
-        width: '20px', height: '20px',
+        position: 'fixed', left: cx - 12, top: cy - 12,
+        width: '24px', height: '24px',
         borderRadius: '50%',
         background: color,
-        boxShadow: `0 0 12px ${color}, 0 0 24px ${color}88`,
+        border: '2.5px solid #FFFFFF',
+        boxShadow: `0 0 0 2px ${color}, 0 0 20px ${color}, 0 4px 10px rgba(0,0,0,0.5)`,
         animation: 'manual-pulse 1.4s ease-in-out infinite',
         pointerEvents: 'none', zIndex: zIndex + 1,
       }} />
@@ -492,7 +497,8 @@ const ClickRipple: React.FC<{ rect: Rect; color: string; zIndex?: number }> = ({
         width: rect.width + 12,
         height: rect.height + 12,
         borderRadius: '10px',
-        border: `2px solid ${color}`,
+        border: `3px solid ${color}`,
+        boxShadow: `0 0 16px ${color}88`,
         animation: 'manual-box-ripple 1.8s ease-out infinite',
         pointerEvents: 'none',
         zIndex,
@@ -513,6 +519,8 @@ const BottomDossierCard: React.FC<{
   targetRect?: Rect | null;
   zIndex?: number;
 }> = ({ item, totalCount, processTitle, onPrev, onNext, onClose, hasTarget, targetRect, zIndex = 200003 }) => {
+  const bColor = getStepBadgeColor(item.seq, item.badgeColor);
+
   const handleCardWheel = (e: React.WheelEvent) => {
     const scrollTarget = document.querySelector('.dispatch4-left-pane') ||
                          document.querySelector('.table-container') ||
@@ -610,10 +618,10 @@ const BottomDossierCard: React.FC<{
         width: '520px',
         maxWidth: 'calc(100vw - 32px)',
         background: 'var(--bg-card)',
-        border: `2px solid ${item.badgeColor}`,
+        border: `2.5px solid ${bColor}`,
         borderRadius: '14px',
         padding: '16px 20px',
-        boxShadow: '0 12px 36px rgba(0,0,0,0.35)',
+        boxShadow: `0 16px 44px rgba(0,0,0,0.45), 0 0 20px ${bColor}33`,
         zIndex,
         pointerEvents: 'all',
         animation: 'manual-card-in 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
@@ -624,24 +632,25 @@ const BottomDossierCard: React.FC<{
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span style={{
-            width: '28px', height: '28px', borderRadius: '50%',
-            background: item.badgeColor, color: '#fff',
+            width: '32px', height: '32px', borderRadius: '50%',
+            background: bColor, color: '#FFFFFF',
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '13px', fontWeight: 900, flexShrink: 0,
-            boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+            fontSize: '14px', fontWeight: 900, flexShrink: 0,
+            border: '2px solid #FFFFFF',
+            boxShadow: `0 0 0 1.5px ${bColor}, 0 3px 8px rgba(0,0,0,0.35)`
           }}>
             {item.seq}
           </span>
           <div>
             <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               {processTitle && (
-                <span style={{ color: '#2563EB', fontWeight: 800 }}>
+                <span style={{ color: bColor, fontWeight: 800 }}>
                   [단위업무: {processTitle}]
                 </span>
               )}
               <span>{item.label}</span>
               {!hasTarget && (
-                <span style={{ fontSize: '11px', fontWeight: 600, color: '#D97706', backgroundColor: '#FEF3C7', padding: '1px 6px', borderRadius: '4px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: '#D97706', backgroundColor: 'rgba(217,119,6,0.15)', border: '1px solid rgba(217,119,6,0.35)', padding: '1px 7px', borderRadius: '4px' }}>
                   화면 전반
                 </span>
               )}
@@ -681,8 +690,8 @@ const BottomDossierCard: React.FC<{
           <button
             onClick={onPrev}
             style={{
-              padding: '5px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 700,
-              background: 'var(--bg-secondary)', color: 'var(--text-main)', border: '1px solid var(--border-color)',
+              padding: '6px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 700,
+              background: 'var(--bg-secondary)', color: 'var(--text-main)', border: '1.5px solid var(--border-color)',
               cursor: 'pointer'
             }}
           >
@@ -691,8 +700,9 @@ const BottomDossierCard: React.FC<{
           <button
             onClick={onNext}
             style={{
-              padding: '5px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 700,
-              background: item.badgeColor, color: '#fff', border: 'none',
+              padding: '6px 14px', borderRadius: '6px', fontSize: '12px', fontWeight: 800,
+              background: bColor, color: '#FFFFFF', border: '1.5px solid rgba(255,255,255,0.25)',
+              boxShadow: `0 3px 12px ${bColor}88`,
               cursor: 'pointer'
             }}
           >
@@ -1165,7 +1175,11 @@ export const ManualOverlay: React.FC = () => {
 
       {/* ① Spotlight (활성 항목이 존재하고 위치를 찾은 경우) */}
       {activeItem && activeRect && (
-        <Spotlight rect={activeRect} color={activeItem.badgeColor} zIndex={baseZIndex} />
+        <Spotlight
+          rect={activeRect}
+          color={getStepBadgeColor(activeItem.seq, activeItem.badgeColor)}
+          zIndex={baseZIndex}
+        />
       )}
 
       {/* ② 화면 요소 위 단계 뱃지 & 하이라이트 렌더링 */}
@@ -1173,13 +1187,14 @@ export const ManualOverlay: React.FC = () => {
         const rect = rects[item.seq];
         if (!rect) return null;
         const isExpanded = expandedSeq === item.seq;
+        const bColor = getStepBadgeColor(item.seq, item.badgeColor);
 
         return (
           <React.Fragment key={item.seq}>
             {/* HighlightBox: 현재 보고 있는 단계는 선명하게, 비활성 단계는 은은한 점선 테두리로 구분 */}
             <HighlightBox
               rect={rect}
-              color={item.badgeColor}
+              color={bColor}
               isActive={isExpanded}
               zIndex={isExpanded ? baseZIndex + 2 : baseZIndex + 1}
             />
@@ -1190,7 +1205,7 @@ export const ManualOverlay: React.FC = () => {
             {isExpanded && (
               <ClickRipple
                 rect={rect}
-                color={item.badgeColor}
+                color={bColor}
                 zIndex={baseZIndex + 2}
               />
             )}
@@ -1201,22 +1216,20 @@ export const ManualOverlay: React.FC = () => {
               onClick={() => handleSelectSeq(item.seq)}
               style={{
                 position: 'fixed',
-                top: Math.max(10, rect.top - 16),
-                left: Math.max(10, rect.left + rect.width / 2 - 16),
-                width: isExpanded ? '36px' : '30px',
-                height: isExpanded ? '36px' : '30px',
+                top: Math.max(10, rect.top - 18),
+                left: Math.max(10, rect.left + rect.width / 2 - 18),
+                width: isExpanded ? '38px' : '32px',
+                height: isExpanded ? '38px' : '32px',
                 borderRadius: '50%',
-                background: item.badgeColor,
-                color: '#fff',
+                background: bColor,
+                color: '#FFFFFF',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: isExpanded ? '15px' : '13px',
+                fontSize: isExpanded ? '16px' : '13px',
                 fontWeight: 900,
-                boxShadow: isExpanded
-                  ? `0 0 16px ${item.badgeColor}, 0 6px 16px rgba(0,0,0,0.4)`
-                  : '0 3px 8px rgba(0,0,0,0.3)',
+                boxShadow: getStampBadgeShadow(bColor, isExpanded),
                 cursor: 'pointer',
                 zIndex: isExpanded ? baseZIndex + 3 : baseZIndex + 2,
-                border: isExpanded ? '3px solid #fff' : '2px solid rgba(255,255,255,0.85)',
+                border: '2.5px solid #FFFFFF',
                 transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
                 transform: isExpanded ? 'scale(1.2)' : 'scale(1)',
                 userSelect: 'none',
@@ -1283,20 +1296,23 @@ export const ManualOverlay: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
           {items.map(item => {
             const isSelected = expandedSeq === item.seq;
+            const bColor = getStepBadgeColor(item.seq, item.badgeColor);
             return (
               <button
                 key={item.seq}
                 onClick={() => handleSelectSeq(item.seq)}
                 style={{
-                  width: '28px', height: '28px', borderRadius: '50%',
-                  background: isSelected ? item.badgeColor : 'var(--bg-secondary)',
-                  color: isSelected ? '#fff' : 'var(--text-main)',
-                  border: `2px solid ${item.badgeColor}`,
-                  fontSize: '12px', fontWeight: 800, cursor: 'pointer',
+                  width: '30px', height: '30px', borderRadius: '50%',
+                  background: isSelected ? bColor : 'var(--bg-card)',
+                  color: isSelected ? '#FFFFFF' : bColor,
+                  border: isSelected ? '2px solid #FFFFFF' : `2px solid ${bColor}`,
+                  fontSize: '12.5px', fontWeight: 900, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: isSelected ? `0 0 10px ${item.badgeColor}88` : 'none',
+                  boxShadow: isSelected
+                    ? `0 0 0 2px ${bColor}, 0 0 14px ${bColor}`
+                    : '0 2px 6px rgba(0,0,0,0.15)',
                   transition: 'all 0.15s ease',
-                  transform: isSelected ? 'scale(1.15)' : 'scale(1)',
+                  transform: isSelected ? 'scale(1.2)' : 'scale(1)',
                   flexShrink: 0
                 }}
                 title={`${item.seq}. ${item.label}`}

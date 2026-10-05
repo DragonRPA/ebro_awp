@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { FileText, ChevronDown, ChevronUp, X, Sparkles, Layers, ExternalLink, Workflow, BookOpen } from 'lucide-react';
 import { getMenuBriefingSummary, type MenuBriefingSummary } from '../../utils/menuSpecMarkdown';
+import { getStepBadgeColor } from './manualPalette';
 
 export interface MenuBriefingBoxProps {
   pageId: string;
@@ -329,9 +330,9 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
                   style={{
                     padding: '3px 8px',
                     borderRadius: '12px',
-                    border: isSelected ? '1.5px solid #2563EB' : '1px solid var(--border-color)',
-                    backgroundColor: isSelected ? '#EFF6FF' : 'var(--bg-card)',
-                    color: isSelected ? '#1D4ED8' : 'var(--text-secondary)',
+                    border: isSelected ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
+                    backgroundColor: isSelected ? 'rgba(59,130,246,0.18)' : 'var(--bg-card)',
+                    color: isSelected ? 'var(--primary)' : 'var(--text-secondary)',
                     fontSize: '11px',
                     fontWeight: isSelected ? 800 : 600,
                     cursor: 'pointer',
@@ -348,7 +349,7 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
                     fontSize: '9.5px',
                     padding: '1px 5px',
                     borderRadius: '8px',
-                    backgroundColor: isSelected ? '#2563EB' : 'var(--bg-app)',
+                    backgroundColor: isSelected ? 'var(--primary)' : 'var(--bg-app)',
                     color: isSelected ? '#FFFFFF' : 'var(--text-muted)',
                     fontWeight: 700,
                   }}>
@@ -379,24 +380,25 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
               <div style={{
                 fontSize: '11px',
                 fontWeight: 800,
-                color: '#1D4ED8',
+                color: 'var(--primary)',
                 marginBottom: '4px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
               }}>
-                <Workflow size={12} color="#2563EB" />
+                <Workflow size={12} color="var(--primary)" />
                 <span>단위업무 절차: {activeProcess.title}</span>
               </div>
               <div style={{
-                backgroundColor: '#EFF6FF',
-                borderLeft: '3.5px solid #2563EB',
+                backgroundColor: 'var(--bg-app)',
+                border: '1px solid var(--border-color)',
+                borderLeft: '4px solid #2563EB',
                 padding: '8px 10px',
-                borderRadius: '4px',
+                borderRadius: '6px',
                 fontSize: '12px',
-                color: '#1E293B',
+                color: 'var(--text-main)',
                 fontWeight: 600,
-                lineHeight: 1.45,
+                lineHeight: 1.5,
               }}>
                 {activeProcess.description}
               </div>
@@ -411,46 +413,52 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
               }}>
                 수행 단계 ({activeProcess.steps.length}단계) · 클릭 시 화면 내 위치 강조
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                {activeProcess.steps.map(s => (
-                  <button
-                    key={s.seq}
-                    onClick={() => onSelectSeq(s.seq)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      padding: '3px 8px',
-                      borderRadius: '12px',
-                      border: '1px solid var(--border-color)',
-                      backgroundColor: 'var(--bg-app)',
-                      color: 'var(--text-main)',
-                      fontSize: '11.5px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      transition: 'all 0.15s ease',
-                    }}
-                    title={`[${s.seq}단계] ${s.label}: ${s.description}`}
-                  >
-                    <span style={{
-                      width: '16px',
-                      height: '16px',
-                      borderRadius: '50%',
-                      backgroundColor: '#2563EB',
-                      color: '#fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '10px',
-                      fontWeight: 900,
-                      flexShrink: 0,
-                    }}>
-                      {s.seq}
-                    </span>
-                    <span>{s.label}</span>
-                  </button>
-                ))}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {activeProcess.steps.map(s => {
+                  const sColor = getStepBadgeColor(s.seq, s.badgeColor);
+                  return (
+                    <button
+                      key={s.seq}
+                      onClick={() => onSelectSeq(s.seq)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '4px 10px',
+                        borderRadius: '12px',
+                        border: `1.5px solid ${sColor}`,
+                        backgroundColor: 'var(--bg-card)',
+                        color: 'var(--text-main)',
+                        fontSize: '11.5px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.15s ease',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+                      }}
+                      title={`[${s.seq}단계] ${s.label}: ${s.description}`}
+                    >
+                      <span style={{
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        backgroundColor: sColor,
+                        color: '#FFFFFF',
+                        border: '1.5px solid #FFFFFF',
+                        boxShadow: `0 0 0 1px ${sColor}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '10.5px',
+                        fontWeight: 900,
+                        flexShrink: 0,
+                      }}>
+                        {s.seq}
+                      </span>
+                      <span>{s.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </>
@@ -500,46 +508,52 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
                 }}>
                   화면 구성 요소 ({summary.buttons.length}개) · 클릭 시 화면 내 위치 강조
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
-                  {summary.buttons.map(b => (
-                    <button
-                      key={b.seq}
-                      onClick={() => onSelectSeq(b.seq)}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        padding: '3px 8px',
-                        borderRadius: '12px',
-                        border: '1px solid var(--border-color)',
-                        backgroundColor: 'var(--bg-app)',
-                        color: 'var(--text-main)',
-                        fontSize: '11.5px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                        transition: 'all 0.15s ease',
-                      }}
-                      title={`[${b.seq}단계] ${b.label} 화면 위치로 이동 및 상세 보기`}
-                    >
-                      <span style={{
-                        width: '16px',
-                        height: '16px',
-                        borderRadius: '50%',
-                        backgroundColor: b.color || 'var(--primary)',
-                        color: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '10px',
-                        fontWeight: 900,
-                        flexShrink: 0,
-                      }}>
-                        {b.seq}
-                      </span>
-                      <span>{b.label}</span>
-                    </button>
-                  ))}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {summary.buttons.map(b => {
+                    const bColor = getStepBadgeColor(b.seq, b.color);
+                    return (
+                      <button
+                        key={b.seq}
+                        onClick={() => onSelectSeq(b.seq)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '4px 10px',
+                          borderRadius: '12px',
+                          border: `1.5px solid ${bColor}`,
+                          backgroundColor: 'var(--bg-card)',
+                          color: 'var(--text-main)',
+                          fontSize: '11.5px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          transition: 'all 0.15s ease',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+                        }}
+                        title={`[${b.seq}단계] ${b.label} 화면 위치로 이동 및 상세 보기`}
+                      >
+                        <span style={{
+                          width: '18px',
+                          height: '18px',
+                          borderRadius: '50%',
+                          backgroundColor: bColor,
+                          color: '#FFFFFF',
+                          border: '1.5px solid #FFFFFF',
+                          boxShadow: `0 0 0 1px ${bColor}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '10.5px',
+                          fontWeight: 900,
+                          flexShrink: 0,
+                        }}>
+                          {b.seq}
+                        </span>
+                        <span>{b.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

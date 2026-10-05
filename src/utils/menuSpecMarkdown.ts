@@ -12,7 +12,7 @@ export interface ProcessSummary {
   title: string;
   description: string;
   stepCount: number;
-  steps: { seq: number; label: string; description: string; type: string }[];
+  steps: { seq: number; label: string; description: string; type: string; badgeColor?: string }[];
 }
 
 export interface MenuBriefingSummary {
@@ -81,7 +81,8 @@ export function getMenuBriefingSummary(menuId: string): MenuBriefingSummary | nu
         seq: s.seq,
         label: s.label,
         description: s.description,
-        type: s.type
+        type: s.type,
+        badgeColor: s.badgeColor,
       }))
     })),
   };
