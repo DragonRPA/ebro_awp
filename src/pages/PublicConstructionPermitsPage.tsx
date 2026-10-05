@@ -304,9 +304,10 @@ export const PublicConstructionPermitsPage: React.FC = () => {
           whiteSpace: 'nowrap',
           cursor: 'pointer',
           userSelect: 'none',
-          backgroundColor: isCurrent ? '#eff6ff' : undefined,
-          color: isCurrent ? '#1d4ed8' : '#334155',
-          borderBottom: isCurrent ? '2px solid #2563eb' : undefined,
+          backgroundColor: isCurrent ? 'var(--primary-light)' : 'var(--bg-header)',
+          color: isCurrent ? 'var(--primary)' : 'var(--text-secondary)',
+          borderBottom: isCurrent ? '2px solid var(--primary)' : '2px solid var(--border-color)',
+          borderRight: '1px solid var(--border-color)',
           transition: 'all 0.15s ease',
           ...extraStyle
         }}
@@ -322,7 +323,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
           <span>{label}</span>
           <span style={{
             fontSize: '10px',
-            color: isCurrent ? '#2563eb' : '#94a3b8',
+            color: isCurrent ? 'var(--primary)' : 'var(--text-muted)',
             opacity: isCurrent ? 1 : 0.6,
             fontWeight: isCurrent ? 800 : 400
           }}>
@@ -339,10 +340,10 @@ export const PublicConstructionPermitsPage: React.FC = () => {
       return (
         <span style={{
           padding: '2px 7px', borderRadius: '4px', fontSize: '11px', fontWeight: 600,
-          background: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca',
+          background: 'rgba(239, 68, 68, 0.12)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.35)',
           display: 'inline-flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap'
         }} title={`도로폭 ${road.roadWidth}m (폭원 4m 미만)`}>
-          <AlertTriangle size={12} color="#b91c1c" />
+          <AlertTriangle size={12} color="var(--danger)" />
           {road.roadWidth}m
         </span>
       );
@@ -350,7 +351,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
     return (
       <span style={{
         padding: '2px 7px', borderRadius: '4px', fontSize: '11px', fontWeight: 600,
-        background: '#f8fafc', color: '#334155', border: '1px solid #cbd5e1',
+        background: 'var(--bg-app)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)',
         display: 'inline-flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap'
       }} title={`도로폭 ${road.roadWidth}m`}>
         {road.roadWidth}m
@@ -364,10 +365,10 @@ export const PublicConstructionPermitsPage: React.FC = () => {
       return (
         <span style={{
           padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 600,
-          background: '#fffbeb', color: '#92400e', border: '1px solid #fde68a',
+          background: 'rgba(217, 119, 6, 0.15)', color: 'var(--warning)', border: '1px solid rgba(217, 119, 6, 0.4)',
           display: 'inline-flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap'
         }}>
-          <ShieldAlert size={12} color="#d97706" />
+          <ShieldAlert size={12} color="var(--warning)" />
           CSI 법정의무
         </span>
       );
@@ -375,7 +376,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
     return (
       <span style={{
         padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 500,
-        background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0', whiteSpace: 'nowrap'
+        background: 'var(--bg-app)', color: 'var(--text-muted)', border: '1px solid var(--border-color)', whiteSpace: 'nowrap'
       }}>
         일반
       </span>
@@ -386,26 +387,26 @@ export const PublicConstructionPermitsPage: React.FC = () => {
   const renderStageBadge = (stage: ConstructionPermitItem['progressStage'], golden: boolean) => {
     switch (stage) {
       case 'PERMITTED':
-        return <span style={{ padding: '2px 7px', borderRadius: '4px', fontSize: '11px', fontWeight: 500, background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0' }}>착공준비</span>;
+        return <span style={{ padding: '2px 7px', borderRadius: '4px', fontSize: '11px', fontWeight: 500, background: 'var(--bg-app)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}>착공준비</span>;
       case 'FOUNDATION':
-        return <span style={{ padding: '2px 7px', borderRadius: '4px', fontSize: '11px', fontWeight: 500, background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0' }}>기초·토공</span>;
+        return <span style={{ padding: '2px 7px', borderRadius: '4px', fontSize: '11px', fontWeight: 500, background: 'var(--bg-app)', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }}>기초·토공</span>;
       case 'STRUCTURE':
-        return <span style={{ padding: '2px 7px', borderRadius: '4px', fontSize: '11px', fontWeight: 500, background: '#f0f9ff', color: '#0369a1', border: '1px solid #bae6fd' }}>골조공사</span>;
+        return <span style={{ padding: '2px 7px', borderRadius: '4px', fontSize: '11px', fontWeight: 500, background: 'rgba(37, 99, 235, 0.12)', color: 'var(--primary)', border: '1px solid rgba(37, 99, 235, 0.35)' }}>골조공사</span>;
       case 'FINISHING':
         return (
           <span style={{ 
             padding: '2px 7px', borderRadius: '4px', fontSize: '11px', fontWeight: 600, 
-            background: golden ? '#f0fdf4' : '#f8fafc', 
-            color: golden ? '#166534' : '#334155',
-            border: golden ? '1px solid #bbf7d0' : '1px solid #e2e8f0',
+            background: golden ? 'rgba(16, 185, 129, 0.15)' : 'var(--bg-app)', 
+            color: golden ? 'var(--success)' : 'var(--text-secondary)',
+            border: golden ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid var(--border-color)',
             display: 'inline-flex', alignItems: 'center', gap: '4px'
           }}>
-            {golden && <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#16a34a', display: 'inline-block' }} />}
+            {golden && <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} />}
             마감·설비
           </span>
         );
       case 'COMPLETED':
-        return <span style={{ padding: '2px 7px', borderRadius: '4px', fontSize: '11px', fontWeight: 500, background: '#f8fafc', color: '#64748b', border: '1px solid #e2e8f0' }}>준공임박</span>;
+        return <span style={{ padding: '2px 7px', borderRadius: '4px', fontSize: '11px', fontWeight: 500, background: 'var(--bg-app)', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }}>준공임박</span>;
       default:
         return null;
     }
@@ -415,23 +416,23 @@ export const PublicConstructionPermitsPage: React.FC = () => {
   const renderAwpScoreBadge = (score: ConstructionPermitItem['awpRecommendationScore'], units: number) => {
     if (score === 'HIGH') {
       return (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#1e40af', fontWeight: 600, fontSize: '12px' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', fontWeight: 600, fontSize: '12px' }}>
           <span>★★★</span>
-          <span style={{ fontSize: '11px', background: '#eff6ff', color: '#1e40af', padding: '1px 5px', borderRadius: '3px', border: '1px solid #dbeafe' }}>A급({units}대)</span>
+          <span style={{ fontSize: '11px', background: 'var(--primary-light)', color: 'var(--primary)', padding: '1px 5px', borderRadius: '3px', border: '1px solid rgba(79, 70, 229, 0.3)' }}>A급({units}대)</span>
         </span>
       );
     } else if (score === 'MID') {
       return (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#475569', fontWeight: 500, fontSize: '12px' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '12px' }}>
           <span>★★☆</span>
-          <span style={{ fontSize: '11px', background: '#f8fafc', color: '#475569', padding: '1px 5px', borderRadius: '3px', border: '1px solid #e2e8f0' }}>B급({units}대)</span>
+          <span style={{ fontSize: '11px', background: 'var(--bg-app)', color: 'var(--text-secondary)', padding: '1px 5px', borderRadius: '3px', border: '1px solid var(--border-color)' }}>B급({units}대)</span>
         </span>
       );
     }
     return (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#64748b', fontSize: '12px' }}>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--text-muted)', fontSize: '12px' }}>
         <span>★☆☆</span>
-        <span style={{ fontSize: '11px', color: '#64748b' }}>일반({units}대)</span>
+        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>일반({units}대)</span>
       </span>
     );
   };
@@ -719,30 +720,30 @@ export const PublicConstructionPermitsPage: React.FC = () => {
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
-      backgroundColor: '#f8fafc',
-      color: '#0f172a',
+      backgroundColor: 'var(--bg-app)',
+      color: 'var(--text-main)',
       fontFamily: 'Pretendard, -apple-system, sans-serif',
       overflow: 'hidden'
     }}>
       {/* ── [헤더] 좌상단 Scope & 우상단 Pipeline (전사 표준 헌장 3.1 & 3.5) ── */}
       <div style={{
         padding: '12px 18px',
-        backgroundColor: '#ffffff',
-        borderBottom: '1px solid #e2e8f0',
+        backgroundColor: 'var(--bg-header)',
+        borderBottom: '1px solid var(--border-color)',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         flexShrink: 0
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Building2 size={20} color="#2563eb" />
-          <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, whiteSpace: 'nowrap' }}>
+          <Building2 size={20} color="var(--primary)" />
+          <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, whiteSpace: 'nowrap', color: 'var(--text-main)' }}>
             인허가 건축공정 조회
           </h2>
           <span style={{ 
             fontSize: '11px', padding: '2px 8px', borderRadius: '4px', 
-            background: '#f1f5f9', color: '#475569', fontWeight: 600,
-            border: '1px solid #e2e8f0', whiteSpace: 'nowrap'
+            background: 'var(--bg-app)', color: 'var(--text-secondary)', fontWeight: 600,
+            border: '1px solid var(--border-color)', whiteSpace: 'nowrap'
           }}>
             공공인허가 · 도로망 · 안전관리
           </span>
@@ -757,13 +758,13 @@ export const PublicConstructionPermitsPage: React.FC = () => {
               display: 'inline-flex', alignItems: 'center', gap: '5px',
               padding: '6px 12px', borderRadius: '5px',
               fontSize: '12px', fontWeight: 600,
-              backgroundColor: '#f8fafc',
-              border: '1px solid #cbd5e1',
-              color: '#334155',
+              backgroundColor: 'var(--bg-app)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-main)',
               cursor: 'pointer', whiteSpace: 'nowrap'
             }}
           >
-            <Calculator size={14} color="#2563eb" />
+            <Calculator size={14} color="var(--primary)" />
             공정·장비 산출 공식
           </button>
 
@@ -776,7 +777,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
               display: 'inline-flex', alignItems: 'center', gap: '5px',
               padding: '6px 12px', borderRadius: '5px',
               fontSize: '12px', fontWeight: 600,
-              backgroundColor: '#2563eb', color: '#ffffff',
+              backgroundColor: 'var(--primary)', color: '#ffffff',
               border: 'none', cursor: isLiveApiFetching ? 'not-allowed' : 'pointer',
               whiteSpace: 'nowrap'
             }}
@@ -792,13 +793,13 @@ export const PublicConstructionPermitsPage: React.FC = () => {
               display: 'inline-flex', alignItems: 'center', gap: '5px',
               padding: '6px 12px', borderRadius: '5px',
               fontSize: '12px', fontWeight: 600,
-              backgroundColor: '#ffffff',
-              border: '1px solid #cbd5e1',
-              color: '#0f172a',
+              backgroundColor: 'var(--bg-app)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-main)',
               cursor: 'pointer', whiteSpace: 'nowrap'
             }}
           >
-            <FileSpreadsheet size={14} color="#16a34a" />
+            <FileSpreadsheet size={14} color="var(--success)" />
             엑셀 내보내기
           </button>
         </div>
@@ -807,8 +808,8 @@ export const PublicConstructionPermitsPage: React.FC = () => {
       {/* ── [필터 패널] 상하 세로 스택 구조 준수 (전사 표준 헌장 3.4) ── */}
       <div style={{
         padding: '12px 18px',
-        backgroundColor: '#f8fafc',
-        borderBottom: '1px solid #e2e8f0',
+        backgroundColor: 'var(--bg-card)',
+        borderBottom: '1px solid var(--border-color)',
         display: 'flex',
         flexWrap: 'wrap',
         gap: '12px',
@@ -817,14 +818,14 @@ export const PublicConstructionPermitsPage: React.FC = () => {
       }}>
         {/* 지역 필터 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '105px' }}>
-          <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>시·도</label>
+          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>시·도</label>
           <select
             value={sidoFilter}
             onChange={e => { setSidoFilter(e.target.value); setSigunguFilter('전체'); }}
             style={{
               padding: '6px 8px', borderRadius: '4px', fontSize: '12px',
-              backgroundColor: '#ffffff', border: '1px solid #cbd5e1',
-              color: '#0f172a', whiteSpace: 'nowrap'
+              backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)',
+              color: 'var(--text-main)', whiteSpace: 'nowrap'
             }}
           >
             {KOREA_SIDO_LIST.map(s => (
@@ -834,14 +835,14 @@ export const PublicConstructionPermitsPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '110px' }}>
-          <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>시·군·구</label>
+          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>시·군·구</label>
           <select
             value={sigunguFilter}
             onChange={e => setSigunguFilter(e.target.value)}
             style={{
               padding: '6px 8px', borderRadius: '4px', fontSize: '12px',
-              backgroundColor: '#ffffff', border: '1px solid #cbd5e1',
-              color: '#0f172a', whiteSpace: 'nowrap'
+              backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)',
+              color: 'var(--text-main)', whiteSpace: 'nowrap'
             }}
           >
             {availableSigunguList.map(sg => (
@@ -851,7 +852,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '100px' }}>
-          <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>읍·면·동</label>
+          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>읍·면·동</label>
           <input
             type="text"
             placeholder="동/리 입력"
@@ -859,22 +860,22 @@ export const PublicConstructionPermitsPage: React.FC = () => {
             onChange={e => setBjdongKeyword(e.target.value)}
             style={{
               padding: '6px 8px', borderRadius: '4px', fontSize: '12px',
-              backgroundColor: '#ffffff', border: '1px solid #cbd5e1',
-              color: '#0f172a', whiteSpace: 'nowrap', width: '110px'
+              backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)',
+              color: 'var(--text-main)', whiteSpace: 'nowrap', width: '110px'
             }}
           />
         </div>
 
         {/* 주용도 필터 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '105px' }}>
-          <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>주용도</label>
+          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>주용도</label>
           <select
             value={useFilter}
             onChange={e => setUseFilter(e.target.value)}
             style={{
               padding: '6px 8px', borderRadius: '4px', fontSize: '12px',
-              backgroundColor: '#ffffff', border: '1px solid #cbd5e1',
-              color: '#0f172a', whiteSpace: 'nowrap'
+              backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)',
+              color: 'var(--text-main)', whiteSpace: 'nowrap'
             }}
           >
             <option value="전체">전체 주용도</option>
@@ -888,14 +889,14 @@ export const PublicConstructionPermitsPage: React.FC = () => {
 
         {/* 공사 규모(연면적) 필터 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '115px' }}>
-          <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>공사 규모 (연면적)</label>
+          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>공사 규모 (연면적)</label>
           <select
             value={scaleFilter}
             onChange={e => setScaleFilter(e.target.value)}
             style={{
               padding: '6px 8px', borderRadius: '4px', fontSize: '12px',
-              backgroundColor: '#ffffff', border: '1px solid #cbd5e1',
-              color: '#0f172a', whiteSpace: 'nowrap'
+              backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)',
+              color: 'var(--text-main)', whiteSpace: 'nowrap'
             }}
           >
             <option value="전체">전체 규모</option>
@@ -908,14 +909,14 @@ export const PublicConstructionPermitsPage: React.FC = () => {
 
         {/* 공정 단계 필터 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '100px' }}>
-          <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>공정 단계</label>
+          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>공정 단계</label>
           <select
             value={stageFilter}
             onChange={e => setStageFilter(e.target.value)}
             style={{
               padding: '6px 8px', borderRadius: '4px', fontSize: '12px',
-              backgroundColor: '#ffffff', border: '1px solid #cbd5e1',
-              color: '#0f172a', whiteSpace: 'nowrap'
+              backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)',
+              color: 'var(--text-main)', whiteSpace: 'nowrap'
             }}
           >
             <option value="전체">전체 단계</option>
@@ -929,8 +930,8 @@ export const PublicConstructionPermitsPage: React.FC = () => {
 
         {/* V-World 도로망 필터 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '115px' }}>
-          <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px' }}>
-            <Navigation size={11} color="#64748b" />
+          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px' }}>
+            <Navigation size={11} color="var(--text-muted)" />
             도로폭
           </label>
           <select
@@ -938,8 +939,8 @@ export const PublicConstructionPermitsPage: React.FC = () => {
             onChange={e => setRoadFilter(e.target.value as any)}
             style={{
               padding: '6px 8px', borderRadius: '4px', fontSize: '12px',
-              backgroundColor: '#ffffff', border: '1px solid #cbd5e1',
-              color: '#0f172a', whiteSpace: 'nowrap', fontWeight: 500
+              backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)',
+              color: 'var(--text-main)', whiteSpace: 'nowrap', fontWeight: 500
             }}
           >
             <option value="ALL">전체 도로폭</option>
@@ -950,8 +951,8 @@ export const PublicConstructionPermitsPage: React.FC = () => {
 
         {/* CSI 안전관리 필터 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '115px' }}>
-          <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px' }}>
-            <Shield size={11} color="#64748b" />
+          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px' }}>
+            <Shield size={11} color="var(--text-muted)" />
             안전관리 (CSI)
           </label>
           <select
@@ -959,8 +960,8 @@ export const PublicConstructionPermitsPage: React.FC = () => {
             onChange={e => setCsiFilter(e.target.value as any)}
             style={{
               padding: '6px 8px', borderRadius: '4px', fontSize: '12px',
-              backgroundColor: '#ffffff', border: '1px solid #cbd5e1',
-              color: '#0f172a', whiteSpace: 'nowrap', fontWeight: 500
+              backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)',
+              color: 'var(--text-main)', whiteSpace: 'nowrap', fontWeight: 500
             }}
           >
             <option value="ALL">전체 현장</option>
@@ -970,25 +971,25 @@ export const PublicConstructionPermitsPage: React.FC = () => {
 
         {/* 고소작업대 골든타임 전용 스위치 토글 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <label style={{ fontSize: '11px', fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>영업 타겟팅</label>
+          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>영업 타겟팅</label>
           <button
             onClick={() => setGoldenTimeOnly(prev => !prev)}
             style={{
               padding: '5px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: 600,
-              backgroundColor: goldenTimeOnly ? '#2563eb' : '#ffffff',
-              border: `1px solid ${goldenTimeOnly ? '#1d4ed8' : '#cbd5e1'}`,
-              color: goldenTimeOnly ? '#ffffff' : '#334155',
+              backgroundColor: goldenTimeOnly ? 'var(--primary)' : 'var(--bg-app)',
+              border: `1px solid ${goldenTimeOnly ? 'var(--primary)' : 'var(--border-color)'}`,
+              color: goldenTimeOnly ? '#ffffff' : 'var(--text-secondary)',
               cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap'
             }}
           >
-            {goldenTimeOnly ? <Check size={13} color="#ffffff" /> : <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#94a3b8' }} />}
+            {goldenTimeOnly ? <Check size={13} color="#ffffff" /> : <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--text-muted)' }} />}
             골든타임 현장만 보기
           </button>
         </div>
 
         {/* 통합 검색어 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: '150px' }}>
-          <label style={{ fontSize: '11px', fontWeight: 600, color: '#64748b', whiteSpace: 'nowrap' }}>검색어</label>
+          <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>검색어</label>
           <div style={{ position: 'relative' }}>
             <input
               type="text"
@@ -997,10 +998,11 @@ export const PublicConstructionPermitsPage: React.FC = () => {
               onChange={e => setSearchKeyword(e.target.value)}
               style={{
                 width: '100%', padding: '6px 8px 6px 28px', borderRadius: '4px', fontSize: '12px',
-                backgroundColor: '#ffffff', border: '1px solid #cbd5e1', color: '#0f172a'
+                backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)',
+                boxSizing: 'border-box'
               }}
             />
-            <Search size={14} color="#94a3b8" style={{ position: 'absolute', left: '8px', top: '8px' }} />
+            <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: '8px', top: '8px' }} />
           </div>
         </div>
       </div>
@@ -1012,33 +1014,34 @@ export const PublicConstructionPermitsPage: React.FC = () => {
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          borderRight: '1px solid #e2e8f0',
+          borderRight: '1px solid var(--border-color)',
           overflow: 'hidden'
         }}>
           {/* 테이블 정보 바 */}
           <div style={{
             padding: '8px 18px',
-            backgroundColor: '#f1f5f9',
-            borderBottom: '1px solid #e2e8f0',
+            backgroundColor: 'var(--bg-app)',
+            borderBottom: '1px solid var(--border-color)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
             fontSize: '12px',
             flexShrink: 0
           }}>
-            <span style={{ fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>조회 결과: <b style={{ color: '#0f172a' }}>{sortedItems.length}</b>건</span>
+            <span style={{ fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>조회 결과: <b style={{ color: 'var(--text-main)' }}>{sortedItems.length}</b>건</span>
               {sortConfig.field && sortConfig.direction !== 'NONE' && (
                 <span style={{ 
-                  color: '#0284c7', 
-                  backgroundColor: '#e0f2fe', 
+                  color: 'var(--primary)', 
+                  backgroundColor: 'var(--primary-light)', 
                   padding: '2px 8px', 
                   borderRadius: '4px',
                   fontWeight: 600,
                   fontSize: '11px',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '4px'
+                  gap: '4px',
+                  border: '1px solid rgba(79, 70, 229, 0.3)'
                 }}>
                   정렬: {getSortFieldLabel(sortConfig.field)} {sortConfig.direction === 'ASC' ? '▲ 오름차순' : '▼ 내림차순'}
                   <button
@@ -1050,7 +1053,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                       background: 'none',
                       border: 'none',
                       cursor: 'pointer',
-                      color: '#0369a1',
+                      color: 'var(--primary)',
                       padding: 0,
                       marginLeft: '2px',
                       fontSize: '12px',
@@ -1062,13 +1065,13 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                   </button>
                 </span>
               )}
-              {goldenTimeOnly && <span style={{ color: '#16a34a', marginLeft: '6px' }}>(장비투입 골든타임 필터링 중)</span>}
-              {roadFilter !== 'ALL' && <span style={{ color: '#2563eb', marginLeft: '6px' }}>(도로망 필터 적용)</span>}
-              {csiFilter !== 'ALL' && <span style={{ color: '#b45309', marginLeft: '6px' }}>(CSI 안전의무 필터 적용)</span>}
+              {goldenTimeOnly && <span style={{ color: 'var(--success)', marginLeft: '6px' }}>(장비투입 골든타임 필터링 중)</span>}
+              {roadFilter !== 'ALL' && <span style={{ color: 'var(--primary)', marginLeft: '6px' }}>(도로망 필터 적용)</span>}
+              {csiFilter !== 'ALL' && <span style={{ color: 'var(--warning)', marginLeft: '6px' }}>(CSI 안전의무 필터 적용)</span>}
             </span>
-            <span style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#0284c7' }} />
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)' }} />
                 공공데이터포털 실시간 수신 가능
               </span>
               | 컬럼 클릭 시 오름/내림/해제 정렬 | 행 클릭 시 상세 패널
@@ -1087,12 +1090,12 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                 <tr style={{
                   position: 'sticky',
                   top: 0,
-                  backgroundColor: '#f8fafc',
-                  borderBottom: '2px solid #cbd5e1',
+                  backgroundColor: 'var(--bg-header)',
+                  borderBottom: '2px solid var(--border-color)',
                   zIndex: 2,
                   whiteSpace: 'nowrap'
                 }}>
-                  <th style={{ padding: '8px 10px', width: '50px', textAlign: 'center', whiteSpace: 'nowrap' }}>상세</th>
+                  <th style={{ padding: '8px 10px', width: '50px', textAlign: 'center', whiteSpace: 'nowrap', backgroundColor: 'var(--bg-header)', color: 'var(--text-secondary)', borderRight: '1px solid var(--border-color)', borderBottom: '2px solid var(--border-color)' }}>상세</th>
                   {renderSortTh('dataSource', '출처', 'left')}
                   {renderSortTh('progressStage', '공정 단계', 'left')}
                   {renderSortTh('totArea', '연면적(㎡)', 'right')}
@@ -1111,7 +1114,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
               <tbody>
                 {sortedItems.length === 0 ? (
                   <tr>
-                    <td colSpan={14} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                    <td colSpan={14} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
                       설정한 조건에 부합하는 데이터가 없습니다. 상단 [공공데이터 실시간 수신] 버튼을 눌러보세요.
                     </td>
                   </tr>
@@ -1124,23 +1127,23 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                         onClick={() => setSelectedItem(item)}
                         style={{
                           height: '38px',
-                          borderBottom: '1px solid #f1f5f9',
+                          borderBottom: '1px solid var(--border-color)',
                           backgroundColor: isSelected
-                            ? '#eff6ff'
-                            : (item.awpGoldenTime ? '#f0fdf4' : 'transparent'),
+                            ? 'var(--primary-light)'
+                            : (item.awpGoldenTime ? 'rgba(16, 185, 129, 0.08)' : 'transparent'),
                           cursor: 'pointer',
                           transition: 'background-color 0.15s'
                         }}
                       >
                         {/* 1. 액션 열: 전사 표준 헌장 3.2에 따라 테이블 최좌측 배치 */}
-                        <td style={{ padding: '6px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '6px 10px', textAlign: 'center', whiteSpace: 'nowrap', borderRight: '1px solid var(--border-color)' }}>
                           <button
                             onClick={(e) => { e.stopPropagation(); setSelectedItem(item); }}
                             style={{
                               padding: '2px 6px', fontSize: '11px', borderRadius: '3px',
-                              backgroundColor: isSelected ? '#2563eb' : '#e2e8f0',
-                              color: isSelected ? '#ffffff' : '#334155',
-                              border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 600
+                              backgroundColor: isSelected ? 'var(--primary)' : 'var(--bg-card)',
+                              color: isSelected ? '#ffffff' : 'var(--text-main)',
+                              border: '1px solid var(--border-color)', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 600
                             }}
                           >
                             상세 ➔
@@ -1148,75 +1151,75 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                         </td>
 
                         {/* 출처 */}
-                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', borderRight: '1px solid var(--border-color)' }}>
                           {item.dataSource === 'PUBLIC_API_REALTIME' ? (
-                            <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: '#e0f2fe', color: '#0369a1', fontWeight: 600 }}>
+                            <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 600, border: '1px solid rgba(79, 70, 229, 0.3)' }}>
                               실시간API
                             </span>
                           ) : (
-                            <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: '#f1f5f9', color: '#64748b' }}>
+                            <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: 'var(--bg-app)', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }}>
                               기본제공
                             </span>
                           )}
                         </td>
 
                         {/* 공정 단계 */}
-                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', borderRight: '1px solid var(--border-color)' }}>
                           {renderStageBadge(item.progressStage, item.awpGoldenTime)}
                         </td>
 
                         {/* 공식 연면적 */}
-                        <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', borderRight: '1px solid var(--border-color)' }}>
                           {item.totArea.toLocaleString()} ㎡
                         </td>
 
                         {/* 규모 */}
-                        <td style={{ padding: '6px 8px', textAlign: 'center', color: '#475569', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '6px 8px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '11px', whiteSpace: 'nowrap', borderRight: '1px solid var(--border-color)' }}>
                           {item.underFloors > 0 ? `지하${item.underFloors}/` : ''}지상{item.groundFloors}층
                         </td>
 
                         {/* 주용도 */}
-                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', borderRight: '1px solid var(--border-color)' }}>
                           <span style={{
                             padding: '2px 6px', borderRadius: '3px', fontSize: '11px',
-                            background: '#f1f5f9', color: '#475569'
+                            background: 'var(--bg-app)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)'
                           }}>
                             {item.mainUse}
                           </span>
                         </td>
 
                         {/* V-World 도로 진입성 */}
-                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', borderRight: '1px solid var(--border-color)' }}>
                           {renderRoadBadge(item.roadAccess)}
                         </td>
 
                         {/* 착공일 */}
-                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', color: '#64748b' }}>
+                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', color: 'var(--text-muted)', borderRight: '1px solid var(--border-color)' }}>
                           {item.actualStartDate || item.startPlanDate || '-'}
                         </td>
 
                         {/* 준공예정 */}
-                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', color: '#64748b' }}>
+                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', color: 'var(--text-muted)', borderRight: '1px solid var(--border-color)' }}>
                           {item.expectedEndDate}
                         </td>
 
                         {/* CSI 안전망 */}
-                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', borderRight: '1px solid var(--border-color)' }}>
                           {renderCsiBadge(item.csiSafety)}
                         </td>
 
                         {/* 사업명 / 건물명 */}
-                        <td style={{ padding: '6px 12px', fontWeight: 600, color: isSelected ? '#2563eb' : 'inherit', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '6px 12px', fontWeight: 600, color: isSelected ? 'var(--primary)' : 'var(--text-main)', whiteSpace: 'nowrap', borderRight: '1px solid var(--border-color)' }}>
                           {item.projectName}
                         </td>
 
                         {/* 대지위치 */}
-                        <td style={{ padding: '6px 12px', color: '#475569', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '6px 12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', borderRight: '1px solid var(--border-color)' }}>
                           {item.siteRoadAddress || item.siteAddress}
                         </td>
 
                         {/* 시공사 */}
-                        <td style={{ padding: '6px 12px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '6px 12px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', borderRight: '1px solid var(--border-color)' }}>
                           {item.builderName}
                         </td>
 
@@ -1225,7 +1228,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                           {item.leadStatus === 'REGISTERED' ? (
                             <span style={{ 
                               display: 'inline-flex', alignItems: 'center', gap: '3px',
-                              fontSize: '11px', color: '#16a34a', fontWeight: 600
+                              fontSize: '11px', color: 'var(--success)', fontWeight: 600
                             }}>
                               <CheckCircle2 size={13} />
                               등록됨
@@ -1235,7 +1238,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                               onClick={(e) => handleRegisterLead(item, e)}
                               style={{
                                 padding: '3px 8px', fontSize: '11px', borderRadius: '4px',
-                                backgroundColor: '#2563eb', color: '#ffffff',
+                                backgroundColor: 'var(--primary)', color: '#ffffff',
                                 border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: 600
                               }}
                             >
@@ -1255,7 +1258,8 @@ export const PublicConstructionPermitsPage: React.FC = () => {
         {/* ── 우측: AI 공정 역산 스튜디오 & 영업 파이프라인 패널 (Dossier) ── */}
         <div data-mid="permits-dossier-panel" style={{
           width: '440px',
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--bg-card)',
+          borderLeft: '1px solid var(--border-color)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
@@ -1266,28 +1270,28 @@ export const PublicConstructionPermitsPage: React.FC = () => {
               {/* 패널 헤더 */}
               <div style={{
                 padding: '14px 18px',
-                borderBottom: '1px solid #e2e8f0',
-                backgroundColor: '#f8fafc',
+                borderBottom: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-header)',
                 flexShrink: 0
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
                     PK: {selectedItem.mgmtNo}
                   </span>
                   {selectedItem.leadStatus === 'REGISTERED' && (
                     <span style={{
                       fontSize: '11px', padding: '2px 8px', borderRadius: '10px',
-                      background: '#dcfce7', color: '#15803d', fontWeight: 700
+                      background: 'rgba(34, 197, 94, 0.15)', color: 'var(--success, #22c55e)', border: '1px solid rgba(34, 197, 94, 0.3)', fontWeight: 700
                     }}>
                       고객·현장 등록 완료
                     </span>
                   )}
                 </div>
-                <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, lineHeight: 1.4 }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, lineHeight: 1.4, color: 'var(--text-main)' }}>
                   {selectedItem.projectName}
                 </h3>
-                <p style={{ fontSize: '12px', color: '#64748b', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <MapPin size={13} color="#2563eb" />
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <MapPin size={13} color="var(--primary)" />
                   {selectedItem.siteRoadAddress || selectedItem.siteAddress}
                 </p>
               </div>
@@ -1298,24 +1302,24 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                 {/* 1. V-World 도로망 & 탁송 트럭 진입성 분석 카드 */}
                 <div style={{
                   padding: '12px 14px', borderRadius: '8px',
-                  backgroundColor: '#ffffff',
-                  border: `1px solid ${selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? '#fecaca' : '#e2e8f0'}`,
+                  backgroundColor: 'var(--bg-card)',
+                  border: `1px solid ${selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? 'rgba(239, 68, 68, 0.4)' : 'var(--border-color)'}`,
                   boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <span style={{
                       fontSize: '12px', fontWeight: 700,
-                      color: selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? '#991b1b' : '#1e293b',
+                      color: selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? '#ef4444' : 'var(--text-main)',
                       display: 'flex', alignItems: 'center', gap: '5px'
                     }}>
-                      <Navigation size={14} color={selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? '#dc2626' : '#2563eb'} />
+                      <Navigation size={14} color={selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? '#ef4444' : 'var(--primary)'} />
                       접면 도로 정보 (V-World)
                     </span>
                     <span style={{
                       fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px',
-                      background: selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? '#fef2f2' : '#f8fafc',
-                      color: selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? '#991b1b' : '#334155',
-                      border: `1px solid ${selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? '#fecaca' : '#cbd5e1'}`
+                      background: selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? 'rgba(239, 68, 68, 0.15)' : 'var(--bg-app)',
+                      color: selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? '#ef4444' : 'var(--text-secondary)',
+                      border: `1px solid ${selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? 'rgba(239, 68, 68, 0.3)' : 'var(--border-color)'}`
                     }}>
                       {selectedItem.roadAccess.roadWidth >= 8 ? '8m 이상' :
                        selectedItem.roadAccess.roadWidth >= 4 ? '4m~8m' : '4m 미만 (협소)'}
@@ -1323,17 +1327,17 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', fontSize: '11px', marginBottom: '8px' }}>
-                    <div style={{ background: '#f8fafc', padding: '6px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
-                      <span style={{ color: '#64748b' }}>접면 도로폭</span>
-                      <div style={{ fontWeight: 600, fontSize: '12px', marginTop: '2px', color: '#0f172a' }}>{selectedItem.roadAccess.roadWidth}m ({selectedItem.roadAccess.lanes}차로)</div>
+                    <div style={{ background: 'var(--bg-app)', padding: '6px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>접면 도로폭</span>
+                      <div style={{ fontWeight: 600, fontSize: '12px', marginTop: '2px', color: 'var(--text-main)' }}>{selectedItem.roadAccess.roadWidth}m ({selectedItem.roadAccess.lanes}차로)</div>
                     </div>
-                    <div style={{ background: '#f8fafc', padding: '6px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
-                      <span style={{ color: '#64748b' }}>도로 등급</span>
-                      <div style={{ fontWeight: 600, fontSize: '12px', marginTop: '2px', color: '#0f172a' }}>{selectedItem.roadAccess.roadRank}</div>
+                    <div style={{ background: 'var(--bg-app)', padding: '6px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>도로 등급</span>
+                      <div style={{ fontWeight: 600, fontSize: '12px', marginTop: '2px', color: 'var(--text-main)' }}>{selectedItem.roadAccess.roadRank}</div>
                     </div>
-                    <div style={{ background: '#f8fafc', padding: '6px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
-                      <span style={{ color: '#64748b' }}>회차 공간</span>
-                      <div style={{ fontWeight: 600, fontSize: '12px', marginTop: '2px', color: selectedItem.roadAccess.turnaroundSpace ? '#166534' : '#991b1b' }}>
+                    <div style={{ background: 'var(--bg-app)', padding: '6px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>회차 공간</span>
+                      <div style={{ fontWeight: 600, fontSize: '12px', marginTop: '2px', color: selectedItem.roadAccess.turnaroundSpace ? 'var(--success, #22c55e)' : '#ef4444' }}>
                         {selectedItem.roadAccess.turnaroundSpace ? '공간 확보' : '회차 협소'}
                       </div>
                     </div>
@@ -1341,7 +1345,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
 
                   <p style={{
                     fontSize: '11px', margin: 0, lineHeight: 1.5,
-                    color: selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? '#991b1b' : '#475569',
+                    color: selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? '#ef4444' : 'var(--text-secondary)',
                     fontWeight: 500
                   }}>
                     {selectedItem.roadAccess.warningMessage}
@@ -1351,50 +1355,50 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                 {/* 2. CSI 안전관리망 & 필수 안전옵션 연계 카드 */}
                 <div style={{
                   padding: '12px 14px', borderRadius: '8px',
-                  backgroundColor: '#ffffff',
-                  border: `1px solid ${selectedItem.csiSafety.safetyPlanRequired ? '#fde68a' : '#e2e8f0'}`,
+                  backgroundColor: 'var(--bg-card)',
+                  border: `1px solid ${selectedItem.csiSafety.safetyPlanRequired ? 'rgba(245, 158, 11, 0.4)' : 'var(--border-color)'}`,
                   boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <span style={{
                       fontSize: '12px', fontWeight: 700,
-                      color: selectedItem.csiSafety.safetyPlanRequired ? '#92400e' : '#1e293b',
+                      color: selectedItem.csiSafety.safetyPlanRequired ? '#f59e0b' : 'var(--text-main)',
                       display: 'flex', alignItems: 'center', gap: '5px'
                     }}>
-                      <ShieldAlert size={14} color={selectedItem.csiSafety.safetyPlanRequired ? '#d97706' : '#64748b'} />
+                      <ShieldAlert size={14} color={selectedItem.csiSafety.safetyPlanRequired ? '#f59e0b' : 'var(--text-muted)'} />
                       안전관리망 현장 요건 (CSI)
                     </span>
                     <span style={{
                       fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px',
-                      background: selectedItem.csiSafety.safetyPlanRequired ? '#fffbeb' : '#f8fafc',
-                      color: selectedItem.csiSafety.safetyPlanRequired ? '#92400e' : '#64748b',
-                      border: `1px solid ${selectedItem.csiSafety.safetyPlanRequired ? '#fde68a' : '#e2e8f0'}`
+                      background: selectedItem.csiSafety.safetyPlanRequired ? 'rgba(245, 158, 11, 0.15)' : 'var(--bg-app)',
+                      color: selectedItem.csiSafety.safetyPlanRequired ? '#f59e0b' : 'var(--text-secondary)',
+                      border: `1px solid ${selectedItem.csiSafety.safetyPlanRequired ? 'rgba(245, 158, 11, 0.3)' : 'var(--border-color)'}`
                     }}>
                       {selectedItem.csiSafety.safetyPlanRequired ? 'CSI 법정계획 의무' : '일반 현장'}
                     </span>
                   </div>
 
-                  <div style={{ fontSize: '11px', color: '#475569', marginBottom: '6px', fontWeight: 500 }}>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '6px', fontWeight: 500 }}>
                     고소작업대 투입 시 필수 요구 안전장치:
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' }}>
                     {selectedItem.csiSafety.requiredSafetyOptions.map((opt, idx) => (
                       <span key={idx} style={{
                         fontSize: '11px', padding: '2px 7px', borderRadius: '4px',
-                        background: '#f8fafc', border: '1px solid #cbd5e1',
-                        color: '#0f172a', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '3px'
+                        background: 'var(--bg-app)', border: '1px solid var(--border-color)',
+                        color: 'var(--text-main)', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '3px'
                       }}>
-                        <Check size={11} color="#2563eb" />
+                        <Check size={11} color="var(--primary)" />
                         {opt}
                       </span>
                     ))}
                   </div>
 
                   {/* 안전서류 및 상속 상태 (찌그러짐 방지 분리 레이아웃) */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', color: '#64748b', borderTop: '1px dashed #e2e8f0', paddingTop: '6px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', color: 'var(--text-muted)', borderTop: '1px dashed var(--border-color)', paddingTop: '6px' }}>
                     <div>현장 제출 서류: {selectedItem.csiSafety.documentRequirements.join(', ')}</div>
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                      <span style={{ fontSize: '10px', color: '#64748b', background: '#f1f5f9', padding: '2px 6px', borderRadius: '3px', border: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)', background: 'var(--bg-app)', padding: '2px 6px', borderRadius: '3px', border: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
                         안전옵션 상속: 비활성화 (수동 등록)
                       </span>
                     </div>
@@ -1404,48 +1408,48 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                 {/* 3. 고소작업대 투입 골든타임 진단 카드 */}
                 <div style={{
                   padding: '12px 14px', borderRadius: '8px',
-                  backgroundColor: '#ffffff',
-                  border: `1px solid ${selectedItem.awpGoldenTime ? '#bbf7d0' : '#e2e8f0'}`,
+                  backgroundColor: 'var(--bg-card)',
+                  border: `1px solid ${selectedItem.awpGoldenTime ? 'rgba(34, 197, 94, 0.4)' : 'var(--border-color)'}`,
                   boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <span style={{
                       fontSize: '12px', fontWeight: 700,
-                      color: selectedItem.awpGoldenTime ? '#166534' : '#1e293b',
+                      color: selectedItem.awpGoldenTime ? 'var(--success, #22c55e)' : 'var(--text-main)',
                       display: 'flex', alignItems: 'center', gap: '5px'
                     }}>
-                      <HardHat size={14} color={selectedItem.awpGoldenTime ? '#16a34a' : '#64748b'} />
+                      <HardHat size={14} color={selectedItem.awpGoldenTime ? 'var(--success, #22c55e)' : 'var(--text-muted)'} />
                       고소작업대 투입 적기 진단
                     </span>
                     <span style={{
                       fontSize: '11px', fontWeight: 600,
                       padding: '2px 8px', borderRadius: '4px',
-                      backgroundColor: selectedItem.awpGoldenTime ? '#f0fdf4' : '#f8fafc',
-                      color: selectedItem.awpGoldenTime ? '#166534' : '#64748b',
-                      border: `1px solid ${selectedItem.awpGoldenTime ? '#bbf7d0' : '#cbd5e1'}`
+                      backgroundColor: selectedItem.awpGoldenTime ? 'rgba(34, 197, 94, 0.15)' : 'var(--bg-app)',
+                      color: selectedItem.awpGoldenTime ? 'var(--success, #22c55e)' : 'var(--text-secondary)',
+                      border: `1px solid ${selectedItem.awpGoldenTime ? 'rgba(34, 197, 94, 0.3)' : 'var(--border-color)'}`
                     }}>
                       {selectedItem.awpGoldenTime ? '지금 즉시 제안 (골든타임)' : '진입 시기 모니터링'}
                     </span>
                   </div>
 
-                  <p style={{ fontSize: '11px', margin: '0 0 8px 0', lineHeight: 1.5, color: '#334155' }}>
+                  <p style={{ fontSize: '11px', margin: '0 0 8px 0', lineHeight: 1.5, color: 'var(--text-secondary)' }}>
                     {selectedItem.awpGoldenTime ? (
-                      <b>골조 상량 후 외벽 판넬·소방 배관 마감 공정 구간입니다. 지금 시공사 공무팀에 제안서를 전달하면 독점 선계약이 가능합니다.</b>
+                      <b style={{ color: 'var(--text-main)' }}>골조 상량 후 외벽 판넬·소방 배관 마감 공정 구간입니다. 지금 시공사 공무팀에 제안서를 전달하면 독점 선계약이 가능합니다.</b>
                     ) : (
                       <span>현재 골조 또는 기초 공사 단계입니다. 착공 후 90~120일 경과 시점에 제안서 발송을 추천합니다.</span>
                     )}
                   </p>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', fontSize: '11px' }}>
-                    <div style={{ padding: '6px 8px', background: '#f8fafc', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
-                      <div style={{ fontSize: '10px', color: '#64748b' }}>공식 연면적</div>
-                      <div style={{ fontSize: '12px', fontWeight: 700, color: '#0f172a', marginTop: '2px' }}>
-                        {selectedItem.totArea.toLocaleString()} ㎡ <span style={{ fontSize: '10px', fontWeight: 500, color: '#64748b' }}>({Math.round(selectedItem.totArea / 3.3).toLocaleString()}평)</span>
+                    <div style={{ padding: '6px 8px', background: 'var(--bg-app)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>공식 연면적</div>
+                      <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', marginTop: '2px' }}>
+                        {selectedItem.totArea.toLocaleString()} ㎡ <span style={{ fontSize: '10px', fontWeight: 500, color: 'var(--text-muted)' }}>({Math.round(selectedItem.totArea / 3.3).toLocaleString()}평)</span>
                       </div>
                     </div>
-                    <div style={{ padding: '6px 8px', background: '#f8fafc', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
-                      <div style={{ fontSize: '10px', color: '#64748b' }}>건축 층수 규모</div>
-                      <div style={{ fontSize: '12px', fontWeight: 600, marginTop: '2px', color: '#0f172a' }}>
+                    <div style={{ padding: '6px 8px', background: 'var(--bg-app)', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>건축 층수 규모</div>
+                      <div style={{ fontSize: '12px', fontWeight: 600, marginTop: '2px', color: 'var(--text-main)' }}>
                         {selectedItem.underFloors > 0 ? `지하 ${selectedItem.underFloors}층 / ` : ''}지상 {selectedItem.groundFloors}층
                       </div>
                     </div>
@@ -1455,24 +1459,24 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                 {/* 4. AI 공정 역산 시뮬레이션 타임라인 */}
                 <div style={{
                   padding: '12px 14px', borderRadius: '8px',
-                  backgroundColor: '#ffffff', border: '1px solid #e2e8f0',
+                  backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)',
                   boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <TrendingUp size={14} color="#2563eb" />
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <TrendingUp size={14} color="var(--primary)" />
                       AI 공정 역산 진척도
                     </span>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#2563eb' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary)' }}>
                       진척률 {selectedItem.progressRate}%
                     </span>
                   </div>
 
-                  <div style={{ height: '6px', background: '#f1f5f9', borderRadius: '3px', overflow: 'hidden', marginBottom: '10px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ height: '6px', background: 'var(--bg-app)', borderRadius: '3px', overflow: 'hidden', marginBottom: '10px', border: '1px solid var(--border-color)' }}>
                     <div style={{
                       height: '100%',
                       width: `${selectedItem.progressRate}%`,
-                      backgroundColor: selectedItem.awpGoldenTime ? '#16a34a' : '#2563eb',
+                      backgroundColor: selectedItem.awpGoldenTime ? 'var(--success, #22c55e)' : 'var(--primary)',
                       borderRadius: '3px'
                     }} />
                   </div>
@@ -1480,43 +1484,43 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px', fontSize: '10px', textAlign: 'center' }}>
                     <div style={{
                       padding: '5px 2px', borderRadius: '4px',
-                      background: selectedItem.progressStage === 'FOUNDATION' ? '#f8fafc' : '#ffffff',
-                      color: selectedItem.progressStage === 'FOUNDATION' ? '#0f172a' : '#64748b',
+                      background: selectedItem.progressStage === 'FOUNDATION' ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-app)',
+                      color: selectedItem.progressStage === 'FOUNDATION' ? 'var(--primary)' : 'var(--text-muted)',
                       fontWeight: selectedItem.progressStage === 'FOUNDATION' ? 700 : 500,
-                      border: `1px solid ${selectedItem.progressStage === 'FOUNDATION' ? '#94a3b8' : '#e2e8f0'}`
+                      border: `1px solid ${selectedItem.progressStage === 'FOUNDATION' ? 'var(--primary)' : 'var(--border-color)'}`
                     }}>
                       1.기초·토공
                     </div>
                     <div style={{
                       padding: '5px 2px', borderRadius: '4px',
-                      background: selectedItem.progressStage === 'STRUCTURE' ? '#eff6ff' : '#ffffff',
-                      color: selectedItem.progressStage === 'STRUCTURE' ? '#1e40af' : '#64748b',
+                      background: selectedItem.progressStage === 'STRUCTURE' ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-app)',
+                      color: selectedItem.progressStage === 'STRUCTURE' ? 'var(--primary)' : 'var(--text-muted)',
                       fontWeight: selectedItem.progressStage === 'STRUCTURE' ? 700 : 500,
-                      border: `1px solid ${selectedItem.progressStage === 'STRUCTURE' ? '#93c5fd' : '#e2e8f0'}`
+                      border: `1px solid ${selectedItem.progressStage === 'STRUCTURE' ? 'var(--primary)' : 'var(--border-color)'}`
                     }}>
                       2.골조공사
                     </div>
                     <div style={{
                       padding: '5px 2px', borderRadius: '4px',
-                      background: selectedItem.progressStage === 'FINISHING' ? '#f0fdf4' : '#ffffff',
-                      color: selectedItem.progressStage === 'FINISHING' ? '#166534' : '#64748b',
+                      background: selectedItem.progressStage === 'FINISHING' ? 'rgba(34, 197, 94, 0.15)' : 'var(--bg-app)',
+                      color: selectedItem.progressStage === 'FINISHING' ? 'var(--success, #22c55e)' : 'var(--text-muted)',
                       fontWeight: selectedItem.progressStage === 'FINISHING' ? 700 : 500,
-                      border: `1px solid ${selectedItem.progressStage === 'FINISHING' ? '#86efac' : '#e2e8f0'}`
+                      border: `1px solid ${selectedItem.progressStage === 'FINISHING' ? 'var(--success, #22c55e)' : 'var(--border-color)'}`
                     }}>
                       3.마감·설비 ★
                     </div>
                     <div style={{
                       padding: '5px 2px', borderRadius: '4px',
-                      background: selectedItem.progressStage === 'COMPLETED' ? '#f8fafc' : '#ffffff',
-                      color: selectedItem.progressStage === 'COMPLETED' ? '#0f172a' : '#64748b',
+                      background: selectedItem.progressStage === 'COMPLETED' ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-app)',
+                      color: selectedItem.progressStage === 'COMPLETED' ? 'var(--primary)' : 'var(--text-muted)',
                       fontWeight: selectedItem.progressStage === 'COMPLETED' ? 700 : 500,
-                      border: `1px solid ${selectedItem.progressStage === 'COMPLETED' ? '#94a3b8' : '#e2e8f0'}`
+                      border: `1px solid ${selectedItem.progressStage === 'COMPLETED' ? 'var(--primary)' : 'var(--border-color)'}`
                     }}>
                       4.준공
                     </div>
                   </div>
 
-                  <div style={{ marginTop: '8px', fontSize: '10px', color: '#64748b', display: 'flex', justifyContent: 'space-between' }}>
+                  <div style={{ marginTop: '8px', fontSize: '10px', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
                     <span>착공: {selectedItem.actualStartDate || selectedItem.startPlanDate} ({selectedItem.elapsedDays}일 경과)</span>
                     <span>준공: {selectedItem.expectedEndDate} (총 {selectedItem.totalDays}일)</span>
                   </div>
@@ -1525,38 +1529,38 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                 {/* 5. 공사 및 참여업체 스펙 */}
                 <div style={{
                   padding: '12px 14px', borderRadius: '8px',
-                  backgroundColor: '#ffffff', border: '1px solid #e2e8f0', fontSize: '11px',
+                  backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', fontSize: '11px',
                   boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
                 }}>
-                  <div style={{ fontWeight: 700, marginBottom: '8px', color: '#0f172a' }}>
+                  <div style={{ fontWeight: 700, marginBottom: '8px', color: 'var(--text-main)' }}>
                     건축 제원 및 참여업체 정보
                   </div>
 
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <tbody>
-                      <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '5px 0', color: '#64748b', width: '75px' }}>시공사</td>
-                        <td style={{ padding: '5px 0', fontWeight: 600 }}>{selectedItem.builderName}</td>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '5px 0', color: 'var(--text-muted)', width: '75px' }}>시공사</td>
+                        <td style={{ padding: '5px 0', fontWeight: 600, color: 'var(--text-main)' }}>{selectedItem.builderName}</td>
                       </tr>
-                      <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '5px 0', color: '#64748b' }}>현장연락처</td>
-                        <td style={{ padding: '5px 0', color: '#2563eb', fontWeight: 600 }}>{selectedItem.builderPhone || '미기재'}</td>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '5px 0', color: 'var(--text-muted)' }}>현장연락처</td>
+                        <td style={{ padding: '5px 0', color: 'var(--primary)', fontWeight: 600 }}>{selectedItem.builderPhone || '미기재'}</td>
                       </tr>
-                      <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '5px 0', color: '#64748b' }}>건축주</td>
-                        <td style={{ padding: '5px 0' }}>{selectedItem.clientName}</td>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '5px 0', color: 'var(--text-muted)' }}>건축주</td>
+                        <td style={{ padding: '5px 0', color: 'var(--text-main)' }}>{selectedItem.clientName}</td>
                       </tr>
-                      <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '5px 0', color: '#64748b' }}>주용도/구조</td>
-                        <td style={{ padding: '5px 0' }}>{selectedItem.mainUse} · {selectedItem.structure}</td>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '5px 0', color: 'var(--text-muted)' }}>주용도/구조</td>
+                        <td style={{ padding: '5px 0', color: 'var(--text-main)' }}>{selectedItem.mainUse} · {selectedItem.structure}</td>
                       </tr>
-                      <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '5px 0', color: '#64748b' }}>연면적/규모</td>
-                        <td style={{ padding: '5px 0' }}>{selectedItem.totArea.toLocaleString()}㎡ (지상{selectedItem.groundFloors}층)</td>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '5px 0', color: 'var(--text-muted)' }}>연면적/규모</td>
+                        <td style={{ padding: '5px 0', color: 'var(--text-main)' }}>{selectedItem.totArea.toLocaleString()}㎡ (지상{selectedItem.groundFloors}층)</td>
                       </tr>
                       <tr>
-                        <td style={{ padding: '5px 0', color: '#64748b' }}>허가일자</td>
-                        <td style={{ padding: '5px 0' }}>{selectedItem.permitDate}</td>
+                        <td style={{ padding: '5px 0', color: 'var(--text-muted)' }}>허가일자</td>
+                        <td style={{ padding: '5px 0', color: 'var(--text-main)' }}>{selectedItem.permitDate}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -1565,31 +1569,31 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                 {/* 6. 경영 판단 및 영업 지시 가이드 카드 */}
                 <div style={{
                   padding: '12px 14px', borderRadius: '8px',
-                  backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', fontSize: '11px',
+                  backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', fontSize: '11px',
                   boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <Briefcase size={14} color="#0284c7" />
+                    <span style={{ fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Briefcase size={14} color="var(--primary)" />
                       경영 판단 및 영업 지시
                     </span>
                     <span style={{
                       fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px',
-                      background: selectedItem.awpGoldenTime ? '#dcfce7' : '#eff6ff',
-                      color: selectedItem.awpGoldenTime ? '#15803d' : '#1d4ed8',
-                      border: `1px solid ${selectedItem.awpGoldenTime ? '#86efac' : '#bfdbfe'}`
+                      background: selectedItem.awpGoldenTime ? 'rgba(34, 197, 94, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                      color: selectedItem.awpGoldenTime ? 'var(--success, #22c55e)' : 'var(--primary)',
+                      border: `1px solid ${selectedItem.awpGoldenTime ? 'rgba(34, 197, 94, 0.3)' : 'rgba(59, 130, 246, 0.3)'}`
                     }}>
                       예상 {selectedItem.estimatedAwpUnits}대 규모
                     </span>
                   </div>
 
                   <div style={{ marginBottom: '8px' }}>
-                    <div style={{ color: '#64748b', marginBottom: '4px', fontWeight: 500 }}>추천 고소작업대 기종:</div>
+                    <div style={{ color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 500 }}>추천 고소작업대 기종:</div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                       {selectedItem.recommendedEquipment.map((eq, idx) => (
                         <span key={idx} style={{
                           fontSize: '11px', padding: '2px 6px', borderRadius: '4px',
-                          background: '#ffffff', border: '1px solid #cbd5e1', color: '#0f172a', fontWeight: 600
+                          background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', fontWeight: 600
                         }}>
                           {eq}
                         </span>
@@ -1599,25 +1603,25 @@ export const PublicConstructionPermitsPage: React.FC = () => {
 
                   <div style={{
                     padding: '8px 10px', borderRadius: '6px',
-                    backgroundColor: '#ffffff', border: '1px solid #e2e8f0',
+                    backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)',
                     display: 'flex', flexDirection: 'column', gap: '4px'
                   }}>
-                    <div style={{ fontWeight: 600, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <CheckCircle2 size={13} color="#2563eb" />
+                    <div style={{ fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <CheckCircle2 size={13} color="var(--primary)" />
                       영업 지시 핵심 체크포인트:
                     </div>
-                    <div style={{ color: '#475569', lineHeight: 1.5, fontSize: '11px' }}>
+                    <div style={{ color: 'var(--text-secondary)', lineHeight: 1.5, fontSize: '11px' }}>
                       {selectedItem.awpGoldenTime
                         ? '• [골든타임] 마감·설비 공정 진입 중. 시공사 공무팀 방문 및 대규모 일괄 견적 즉시 전달 필요.'
                         : '• [착공 관리] 골조 공사 단계. 착공 후 90일 시점에 시저리프트 패키지 사전 영업 착수.'}
                     </div>
-                    <div style={{ color: '#475569', lineHeight: 1.5, fontSize: '11px' }}>
+                    <div style={{ color: 'var(--text-secondary)', lineHeight: 1.5, fontSize: '11px' }}>
                       {selectedItem.csiSafety.safetyPlanRequired
                         ? '• [안전 우위] CSI 법정관리 현장이므로 비파괴검사성적서 및 상부센서 완비 장비로 안전 강조 제안.'
                         : '• [표준 납품] 일반 관리 현장으로 표준 안전사양 장비 신속 배차 가능.'}
                     </div>
                     {selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' && (
-                      <div style={{ color: '#b91c1c', fontWeight: 600, lineHeight: 1.5, fontSize: '11px' }}>
+                      <div style={{ color: '#ef4444', fontWeight: 600, lineHeight: 1.5, fontSize: '11px' }}>
                         • [배차 주의] 진입로 폭 4m 미만 협소. 대형 카고 진입 불가, 1톤 분할 배차 사전 안내 필수.
                       </div>
                     )}
@@ -1628,8 +1632,8 @@ export const PublicConstructionPermitsPage: React.FC = () => {
               {/* 패널 푸터 (Terminal Action: 전사 표준 헌장 3.5 Z-패턴 완결) */}
               <div style={{
                 padding: '12px 18px',
-                borderTop: '1px solid #e2e8f0',
-                backgroundColor: '#ffffff',
+                borderTop: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-header)',
                 display: 'flex', gap: '8px', flexShrink: 0
               }}>
                 <button
@@ -1638,7 +1642,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                   style={{
                     flex: 1, padding: '10px 14px', borderRadius: '6px',
                     fontSize: '13px', fontWeight: 600,
-                    backgroundColor: selectedItem.leadStatus === 'REGISTERED' ? '#94a3b8' : '#2563eb',
+                    backgroundColor: selectedItem.leadStatus === 'REGISTERED' ? 'var(--text-muted)' : 'var(--primary)',
                     color: '#ffffff', border: 'none', cursor: selectedItem.leadStatus === 'REGISTERED' ? 'not-allowed' : 'pointer',
                     display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px'
                   }}
@@ -1649,7 +1653,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#94a3b8' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'var(--text-muted)' }}>
               공사를 선택하면 도로망 및 안전 분석이 표출됩니다.
             </div>
           )}
@@ -1660,35 +1664,36 @@ export const PublicConstructionPermitsPage: React.FC = () => {
       {isFormulaModalOpen && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: 'rgba(0, 0, 0, 0.65)',
           display: 'flex', justifyContent: 'center', alignItems: 'center',
           zIndex: 9999
         }}>
           <div style={{
             width: '780px',
             maxHeight: '85vh',
-            backgroundColor: '#ffffff',
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
             borderRadius: '10px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)',
             overflow: 'hidden',
             display: 'flex', flexDirection: 'column'
           }}>
             {/* 모달 헤더 */}
             <div style={{
               padding: '14px 20px',
-              borderBottom: '1px solid #e2e8f0',
+              borderBottom: '1px solid var(--border-color)',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              backgroundColor: '#f8fafc'
+              backgroundColor: 'var(--bg-header)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Calculator size={18} color="#2563eb" />
-                <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#0f172a' }}>
+                <Calculator size={18} color="var(--primary)" />
+                <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
                   AI 공정 단계 추론 및 추천 장비 산출 메커니즘
                 </h3>
               </div>
               <button
                 onClick={() => setIsFormulaModalOpen(false)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
               >
                 <X size={18} />
               </button>
@@ -1700,17 +1705,17 @@ export const PublicConstructionPermitsPage: React.FC = () => {
               {/* 섹션 1: 공정 단계 및 진척률 추론식 */}
               <div style={{
                 padding: '14px', borderRadius: '8px',
-                backgroundColor: '#ffffff', border: '1px solid #e2e8f0',
+                backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)',
                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
               }}>
-                <div style={{ fontWeight: 700, fontSize: '13px', color: '#1e40af', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <TrendingUp size={16} />
                   1. AI 공정 단계 및 실시간 진척도 역산 모델
                 </div>
-                <div style={{ color: '#334155', lineHeight: 1.6 }}>
+                <div style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                   세움터(건축행정시스템)의 행정 이벤트 타임스탬프를 기반으로 공학적 진도 곡선(S-Curve)을 역산하여 현재 시점의 공정 단계를 자동 추론합니다:
                 </div>
-                <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: '6px', margin: '8px 0', border: '1px solid #e2e8f0', fontFamily: 'monospace', fontSize: '11px' }}>
+                <div style={{ background: 'var(--bg-app)', padding: '10px 14px', borderRadius: '6px', margin: '8px 0', border: '1px solid var(--border-color)', fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-main)' }}>
                   • 총 예정공기(Total Days): T_total = 사용승인예정일(useAprDay) - 실제착공일(realStcnsDay)<br />
                   • 경과일수(Elapsed Days): T_elapsed = 현재일자(Today) - 실제착공일(realStcnsDay)<br />
                   • <b>추정 공정 진척률(Progress Rate)</b>: P(t) = (T_elapsed / T_total) × 100 (%) [최소 5% ~ 최대 100%]
@@ -1718,7 +1723,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                 
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', marginTop: '8px' }}>
                   <thead>
-                    <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #cbd5e1' }}>
+                    <tr style={{ background: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-main)' }}>
                       <th style={{ padding: '6px 8px', textAlign: 'left' }}>공정 단계</th>
                       <th style={{ padding: '6px 8px', textAlign: 'left' }}>진척률 구간</th>
                       <th style={{ padding: '6px 8px', textAlign: 'left' }}>현장 물리적 작업 내용</th>
@@ -1726,29 +1731,29 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                      <td style={{ padding: '6px 8px', fontWeight: 600 }}>1단계 기초·토공</td>
-                      <td style={{ padding: '6px 8px' }}>0% ~ 24%</td>
-                      <td style={{ padding: '6px 8px', color: '#64748b' }}>터파기, 흙막이 가시설, 지반 개량, 파일 항타</td>
-                      <td style={{ padding: '6px 8px', color: '#64748b' }}>대기 (착공 90일 전)</td>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '6px 8px', fontWeight: 600, color: 'var(--text-main)' }}>1단계 기초·토공</td>
+                      <td style={{ padding: '6px 8px', color: 'var(--text-secondary)' }}>0% ~ 24%</td>
+                      <td style={{ padding: '6px 8px', color: 'var(--text-muted)' }}>터파기, 흙막이 가시설, 지반 개량, 파일 항타</td>
+                      <td style={{ padding: '6px 8px', color: 'var(--text-muted)' }}>대기 (착공 90일 전)</td>
                     </tr>
-                    <tr style={{ borderBottom: '1px solid #e2e8f0' }}>
-                      <td style={{ padding: '6px 8px', fontWeight: 600 }}>2단계 골조공사</td>
-                      <td style={{ padding: '6px 8px' }}>25% ~ 54%</td>
-                      <td style={{ padding: '6px 8px', color: '#64748b' }}>지하/지상 철근콘크리트 타설, 철골 기둥·보 건립</td>
-                      <td style={{ padding: '6px 8px', color: '#0369a1' }}>사전 영업 제안기</td>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '6px 8px', fontWeight: 600, color: 'var(--text-main)' }}>2단계 골조공사</td>
+                      <td style={{ padding: '6px 8px', color: 'var(--text-secondary)' }}>25% ~ 54%</td>
+                      <td style={{ padding: '6px 8px', color: 'var(--text-muted)' }}>지하/지상 철근콘크리트 타설, 철골 기둥·보 건립</td>
+                      <td style={{ padding: '6px 8px', color: 'var(--primary)' }}>사전 영업 제안기</td>
                     </tr>
-                    <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f0fdf4' }}>
-                      <td style={{ padding: '6px 8px', fontWeight: 700, color: '#166534' }}>3단계 마감·설비 ★</td>
-                      <td style={{ padding: '6px 8px', fontWeight: 700, color: '#166534' }}>55% ~ 89%</td>
-                      <td style={{ padding: '6px 8px', color: '#166534' }}>외벽 판넬, 창호 유리, 소방 배관, 전기/덕트 설비</td>
-                      <td style={{ padding: '6px 8px', fontWeight: 700, color: '#166534' }}>★ 최고 집중 투입기</td>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(34, 197, 94, 0.1)' }}>
+                      <td style={{ padding: '6px 8px', fontWeight: 700, color: 'var(--success, #22c55e)' }}>3단계 마감·설비 ★</td>
+                      <td style={{ padding: '6px 8px', fontWeight: 700, color: 'var(--success, #22c55e)' }}>55% ~ 89%</td>
+                      <td style={{ padding: '6px 8px', color: 'var(--success, #22c55e)' }}>외벽 판넬, 창호 유리, 소방 배관, 전기/덕트 설비</td>
+                      <td style={{ padding: '6px 8px', fontWeight: 700, color: 'var(--success, #22c55e)' }}>★ 최고 집중 투입기</td>
                     </tr>
                     <tr>
-                      <td style={{ padding: '6px 8px', fontWeight: 600 }}>4단계 준공검사</td>
-                      <td style={{ padding: '6px 8px' }}>90% ~ 100%</td>
-                      <td style={{ padding: '6px 8px', color: '#64748b' }}>인테리어 마감, 조경, 바닥 에폭시, 사용승인 검사</td>
-                      <td style={{ padding: '6px 8px', color: '#64748b' }}>단기 점검용 장비</td>
+                      <td style={{ padding: '6px 8px', fontWeight: 600, color: 'var(--text-main)' }}>4단계 준공검사</td>
+                      <td style={{ padding: '6px 8px', color: 'var(--text-secondary)' }}>90% ~ 100%</td>
+                      <td style={{ padding: '6px 8px', color: 'var(--text-muted)' }}>인테리어 마감, 조경, 바닥 에폭시, 사용승인 검사</td>
+                      <td style={{ padding: '6px 8px', color: 'var(--text-muted)' }}>단기 점검용 장비</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1757,18 +1762,18 @@ export const PublicConstructionPermitsPage: React.FC = () => {
               {/* 섹션 2: 추천 장비 및 필요 대수 산출 공식 */}
               <div style={{
                 padding: '14px', borderRadius: '8px',
-                backgroundColor: '#ffffff', border: '1px solid #e2e8f0',
+                backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)',
                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
               }}>
-                <div style={{ fontWeight: 700, fontSize: '13px', color: '#1e40af', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <HardHat size={16} />
                   2. 추천 장비군 및 고소작업대 소요 대수(Fleet Sizing) 산정 수학식
                 </div>
-                <div style={{ color: '#334155', lineHeight: 1.6 }}>
+                <div style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                   건물의 연면적(TotArea, ㎡), 지상 층수, 주용도(물류창고/공장/지식산업센터 등) 제원을 매핑하여 최적 규격과 대수를 자동 계산합니다:
                 </div>
 
-                <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: '6px', margin: '8px 0', border: '1px solid #e2e8f0', fontFamily: 'monospace', fontSize: '11px' }}>
+                <div style={{ background: 'var(--bg-app)', padding: '10px 14px', borderRadius: '6px', margin: '8px 0', border: '1px solid var(--border-color)', fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-main)' }}>
                   • <b>대형 산업시설 (연면적 ≥ 10,000㎡ 또는 물류센터/공장/지식산업센터)</b><br />
                   &nbsp;&nbsp;- 규모 분류: <b>대형 (연면적 3,000평 이상)</b><br />
                   &nbsp;&nbsp;- 적용 장비군: 대형 시저리프트 (10m·12m·14m, 판넬/소방배관용 광폭 플랫폼), 굴절렌탈 15m<br />
@@ -1784,26 +1789,26 @@ export const PublicConstructionPermitsPage: React.FC = () => {
               {/* 섹션 3: V-World 도로망 & CSI 안전망 판정 기준 */}
               <div style={{
                 padding: '14px', borderRadius: '8px',
-                backgroundColor: '#ffffff', border: '1px solid #e2e8f0',
+                backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)',
                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
               }}>
-                <div style={{ fontWeight: 700, fontSize: '13px', color: '#1e40af', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Navigation size={16} />
                   3. V-World 도로망 및 CSI 안전관리 법정 요건 판정 기준
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: '4px' }}>🚛 V-World 도로망 (국토부 표준노드링크)</div>
-                    <ul style={{ margin: 0, paddingLeft: '16px', color: '#475569', lineHeight: 1.5, fontSize: '11px' }}>
+                  <div style={{ background: 'var(--bg-app)', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>🚛 V-World 도로망 (국토부 표준노드링크)</div>
+                    <ul style={{ margin: 0, paddingLeft: '16px', color: 'var(--text-secondary)', lineHeight: 1.5, fontSize: '11px' }}>
                       <li><b>도로폭 ≥ 12m</b>: 광폭 대로변, 폭원 및 회차 공간 충분</li>
                       <li><b>도로폭 6m ~ 12m</b>: 5톤/11톤 트럭 진입 가능</li>
                       <li><b>도로폭 &lt; 4m</b>: 🔴 <b>폭원 협소 경고</b> (사전 진입로 폭원 확인 필수)</li>
                     </ul>
                   </div>
 
-                  <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: '4px' }}>🛡️ CSI 안전관리망 (건설기술진흥법 제62조)</div>
-                    <ul style={{ margin: 0, paddingLeft: '16px', color: '#475569', lineHeight: 1.5, fontSize: '11px' }}>
+                  <div style={{ background: 'var(--bg-app)', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>🛡️ CSI 안전관리망 (건설기술진흥법 제62조)</div>
+                    <ul style={{ margin: 0, paddingLeft: '16px', color: 'var(--text-secondary)', lineHeight: 1.5, fontSize: '11px' }}>
                       <li><b>법정 의무 현장</b>: 10층 이상 또는 지하 10m 이상 굴착 현장</li>
                       <li><b>필수 안전옵션</b>: 협착방지봉(안전가드), 과부하방지기, 상부충돌방지센서</li>
                       <li><b>안전옵션 상속 정책</b>: 사전 강제 주입을 배제하고 실무자 <b>수동 지정 원칙</b> 준수</li>
@@ -1817,15 +1822,15 @@ export const PublicConstructionPermitsPage: React.FC = () => {
             {/* 모달 푸터 */}
             <div style={{
               padding: '12px 20px',
-              borderTop: '1px solid #e2e8f0',
-              backgroundColor: '#f8fafc',
+              borderTop: '1px solid var(--border-color)',
+              backgroundColor: 'var(--bg-header)',
               display: 'flex', justifyContent: 'flex-end'
             }}>
               <button
                 onClick={() => setIsFormulaModalOpen(false)}
                 style={{
                   padding: '6px 18px', borderRadius: '4px', fontSize: '12px', fontWeight: 600,
-                  backgroundColor: '#2563eb', color: '#ffffff', border: 'none', cursor: 'pointer'
+                  backgroundColor: 'var(--primary)', color: '#ffffff', border: 'none', cursor: 'pointer'
                 }}
               >
                 확인 완료
