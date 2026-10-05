@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { createClient } from '@supabase/supabase-js';
 import { isDemoMode, DEMO_SUPABASE_CONFIG } from './demoMode';
+import { centralSupabase } from './centralDb';
 
 const isDemo = isDemoMode();
 const supabaseUrl = isDemo ? DEMO_SUPABASE_CONFIG.url : import.meta.env?.VITE_SUPABASE_URL;
@@ -9,6 +10,16 @@ const supabaseAnonKey = isDemo ? DEMO_SUPABASE_CONFIG.anonKey : import.meta.env?
 export const supabase = supabaseUrl && supabaseAnonKey
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
+
+// 🌐 중앙 플랫폼 DB(ebro-platform-core) 직통 라우팅 대상 테이블 목록
+export const CENTRAL_TABLE_NAMES = new Set([
+  'tenants',
+  'equipment_manuals',
+  'system_manuals',
+  'manual_annotations',
+  'legal_notice_templates',
+  'apk_releases'
+]);
 
 // 법인 표기어 및 공백 제거 정규화 파서
 export function normalizeCustomerName(name: string): string {
@@ -5781,7 +5792,7 @@ class LocalDB {
   }
 
   isSupabaseConnected(): boolean {
-    return !!supabase;
+    return !!supabase || !!centralSupabase;
   }
 
   private normalizePayloadKeys(item: any, tableName?: string): any {
@@ -5939,15 +5950,17 @@ class LocalDB {
   // 단일 테이블만 Supabase에서 pull (메뉴 전환 시 관련 테이블만 선택적 로딩용)
   /**
    * Supabase PostgREST 기본 1,000건 제한을 극복하여 대용량 테이블(billing_details 등)의 전체 레코드를 무누락 전수 로드합니다.
+   * 중앙 플랫폼 테이블(tenants 등)은 centralSupabase(ebro-platform-core)에서 직접 조회합니다.
    */
   private async fetchAllRowsFromSupabase(tableName: string): Promise<any[] | null> {
-    if (!supabase) return null;
+    const targetClient = CENTRAL_TABLE_NAMES.has(tableName) ? centralSupabase : supabase;
+    if (!targetClient) return null;
     const PAGE_SIZE = 1000;
     let allRows: any[] = [];
     let from = 0;
 
     while (true) {
-      const { data, error } = await supabase
+      const { data, error } = await targetClient
         .from(tableName)
         .select('*')
         .range(from, from + PAGE_SIZE - 1);
@@ -5970,9 +5983,10 @@ class LocalDB {
 
   // 단일 테이블만 Supabase에서 pull (메뉴 전환 시 관련 테이블만 선택적 로딩용)
   async pullTableFromSupabase(key: string): Promise<any[] | null> {
-    if (!supabase) return null;
+    const tableName = this.mapToSupabaseTable(key);
+    const targetClient = CENTRAL_TABLE_NAMES.has(tableName) ? centralSupabase : supabase;
+    if (!targetClient) return null;
     try {
-      const tableName = this.mapToSupabaseTable(key);
       const data = await this.fetchAllRowsFromSupabase(tableName);
       if (data !== null) {
         let normalizedData = this.normalizePayloadKeys(data, tableName);
@@ -5993,7 +6007,7 @@ class LocalDB {
 
 
   async pullFromSupabase(): Promise<void> {
-    if (!supabase) return;
+    if (!supabase && !centralSupabase) return;
 
     // 대기 중인 모든 로컬 백그라운드 쓰기(insert/update/delete)가 완료될 때까지 대기
     if (this.pendingWrites.length > 0) {
@@ -6353,11 +6367,12 @@ class LocalDB {
     list.push(newRow);
     this.set(tableKey, list);
 
-    if (supabase) {
-      const tableName = this.mapToSupabaseTable(tableKey as string);
+    const tableName = this.mapToSupabaseTable(tableKey as string);
+    const targetClient = CENTRAL_TABLE_NAMES.has(tableName) ? centralSupabase : supabase;
+    if (targetClient) {
       const payloadForSupabase = this.sanitizeSupabasePayload(newRow, tableName);
       // upsert(onConflict: 'id'): 동일 id가 이미 존재하면 update로 대체 — PK 중복 오류 방지
-      const promise = supabase
+      const promise = targetClient
         .from(tableName)
         .upsert([payloadForSupabase], { onConflict: 'id' })
         .then(async ({ data, error }) => {
@@ -6377,7 +6392,7 @@ class LocalDB {
                   const applied = await autoApplyTenantsDdl();
                   if (applied) {
                     await new Promise(r => setTimeout(r, 200));
-                    const retryRes = await supabase.from(tableName).upsert([payloadForSupabase], { onConflict: 'id' });
+                    const retryRes = await targetClient.from(tableName).upsert([payloadForSupabase], { onConflict: 'id' });
                     if (!retryRes.error) {
                       console.log(`[tenants DDL 자동 반영 성공] ${tableName} upsert 정상 완료`);
                       return retryRes.data;
@@ -6418,7 +6433,7 @@ class LocalDB {
                 }
               }
 
-              return supabase.from(tableName).upsert([fallbackPayload], { onConflict: 'id' }).then(({ data: d2, error: e2 }) => {
+              return targetClient.from(tableName).upsert([fallbackPayload], { onConflict: 'id' }).then(({ data: d2, error: e2 }) => {
                 if (e2) {
                   console.error(`Supabase fallback upsert failed for ${tableName}:`, e2);
                   throw new Error(`[Supabase DB 저장 실패] ${tableName} (ID: ${newId})\n\n사유: ${e2.message || String(e2)}`);
@@ -6451,8 +6466,9 @@ class LocalDB {
     list[index] = updated;
     this.set(tableKey, list);
 
-    if (supabase) {
-      const tableName = this.mapToSupabaseTable(tableKey as string);
+    const tableName = this.mapToSupabaseTable(tableKey as string);
+    const targetClient = CENTRAL_TABLE_NAMES.has(tableName) ? centralSupabase : supabase;
+    if (targetClient) {
       let payloadForSupabase = this.sanitizeSupabasePayload(updatedPayload, tableName);
 
       // 💡 [NULL 컬럼 갱신 보장]: updates에 명시적으로 전달된 undefined/null 필드를 Supabase null로 정확히 반영
@@ -6475,7 +6491,7 @@ class LocalDB {
         }
       }
 
-      const promise = supabase
+      const promise = targetClient
         .from(tableName)
         .update(payloadForSupabase as any)
         .eq('id', id)
@@ -6495,7 +6511,7 @@ class LocalDB {
                   const applied = await autoApplyTenantsDdl();
                   if (applied) {
                     await new Promise(r => setTimeout(r, 200));
-                    const retryRes = await supabase.from(tableName).update(payloadForSupabase as any).eq('id', id);
+                    const retryRes = await targetClient.from(tableName).update(payloadForSupabase as any).eq('id', id);
                     if (!retryRes.error) {
                       console.log(`[tenants DDL 자동 반영 성공] ${tableName} update 정상 완료`);
                       return retryRes.data;
@@ -6535,7 +6551,7 @@ class LocalDB {
                 }
               }
 
-              return supabase.from(tableName).update(fallbackPayload as any).eq('id', id).then(({ data: d2, error: e2 }) => {
+              return targetClient.from(tableName).update(fallbackPayload as any).eq('id', id).then(({ data: d2, error: e2 }) => {
                 if (e2) {
                   console.error(`Supabase fallback update failed for ${tableName}:`, e2);
                   throw new Error(`[Supabase DB 수정 실패] ${tableName} (ID: ${id})\n\n사유: ${e2.message || String(e2)}`);
@@ -6566,9 +6582,10 @@ class LocalDB {
     if (filtered.length === list.length) return false;
     this.set(tableKey, filtered);
 
-    if (supabase) {
-      const tableName = this.mapToSupabaseTable(tableKey as string);
-      const promise = supabase
+    const tableName = this.mapToSupabaseTable(tableKey as string);
+    const targetClient = CENTRAL_TABLE_NAMES.has(tableName) ? centralSupabase : supabase;
+    if (targetClient) {
+      const promise = targetClient
         .from(tableName)
         .delete()
         .eq('id', id)
@@ -6604,10 +6621,11 @@ class LocalDB {
     });
     this.set(tableKey, list);
 
-    if (supabase) {
-      const tableName = this.mapToSupabaseTable(tableKey as string);
+    const tableName = this.mapToSupabaseTable(tableKey as string);
+    const targetClient = CENTRAL_TABLE_NAMES.has(tableName) ? centralSupabase : supabase;
+    if (targetClient) {
       const sanitizedRows = rows.map(r => this.sanitizeSupabasePayload(r, tableName));
-      const promise = supabase
+      const promise = targetClient
         .from(tableName)
         .upsert(sanitizedRows, { onConflict: 'id' })
         .then(async ({ error }) => {
@@ -6625,7 +6643,7 @@ class LocalDB {
                   const applied = await autoApplyTenantsDdl();
                   if (applied) {
                     await new Promise(r => setTimeout(r, 200));
-                    const retry = await supabase.from(tableName).upsert(sanitizedRows, { onConflict: 'id' });
+                    const retry = await targetClient.from(tableName).upsert(sanitizedRows, { onConflict: 'id' });
                     if (!retry.error) return retry.data;
                   }
                 } catch (ddlErr) {
@@ -6641,7 +6659,7 @@ class LocalDB {
                   }
                   return fb;
                 });
-                const retryFb = await supabase.from(tableName).upsert(fallbackRows, { onConflict: 'id' });
+                const retryFb = await targetClient.from(tableName).upsert(fallbackRows, { onConflict: 'id' });
                 if (!retryFb.error) return retryFb.data;
               }
               console.warn(`[Supabase upsertRows graceful fallback] ${tableName} column mismatch:`, msg);
@@ -6657,13 +6675,15 @@ class LocalDB {
 
   // Bulk upload all tables to Supabase
   async uploadAllTables(): Promise<void> {
-    if (!supabase) return;
+    if (!supabase && !centralSupabase) return;
     const tables = ALL_DB_KEYS;
     await Promise.all(tables.map(async (key) => {
       const data = (this as any)[key] as any[];
       const tableName = this.mapToSupabaseTable(key);
+      const targetClient = CENTRAL_TABLE_NAMES.has(tableName) ? centralSupabase : supabase;
+      if (!targetClient) return;
       const sanitizedData = Array.isArray(data) ? data.map(item => this.sanitizeSupabasePayload(item, tableName)) : [];
-      let { error } = await supabase.from(tableName).upsert(sanitizedData, { onConflict: 'id' });
+      let { error } = await targetClient.from(tableName).upsert(sanitizedData, { onConflict: 'id' });
       if (error) {
         console.error(`Bulk upsert error for ${tableName}:`, error);
         if (tableName === 'tenants') {
@@ -6671,7 +6691,7 @@ class LocalDB {
             const applied = await autoApplyTenantsDdl();
             if (applied) {
               await new Promise(r => setTimeout(r, 200));
-              const retry = await supabase.from(tableName).upsert(sanitizedData, { onConflict: 'id' });
+              const retry = await targetClient.from(tableName).upsert(sanitizedData, { onConflict: 'id' });
               if (!retry.error) return;
             }
           } catch (e) {}
@@ -6685,7 +6705,7 @@ class LocalDB {
             }
             return fb;
           });
-          const { error: e2 } = await supabase.from(tableName).upsert(fallbackData, { onConflict: 'id' });
+          const { error: e2 } = await targetClient.from(tableName).upsert(fallbackData, { onConflict: 'id' });
           if (!e2) return;
         }
       }

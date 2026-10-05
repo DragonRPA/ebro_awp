@@ -3,7 +3,7 @@
 // Tier 1: Control Plane & Global Knowledge Base SSOT
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Tenant } from './db';
+import type { Tenant } from './db';
 
 const CENTRAL_SUPABASE_URL = import.meta.env.VITE_CENTRAL_SUPABASE_URL || 'https://nyfashwbdcepncpdwpdb.supabase.co';
 const CENTRAL_SUPABASE_ANON_KEY = import.meta.env.VITE_CENTRAL_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55ZmFzaHdiZGNlcG5jcGR3cGRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExOTUwMjgsImV4cCI6MjEwNjc3MTAyOH0.xw2XKKzjPj_HjQzPJDMKkkbaO7htojYioIMGt4l8VLM';

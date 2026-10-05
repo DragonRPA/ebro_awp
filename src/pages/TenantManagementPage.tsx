@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Building2, Database, Plus, Edit2, Trash2, Globe, Shield, Check, ExternalLink, 
   Download, Search, RefreshCw, Eye, EyeOff, Star, Upload, FileText, Smartphone,
@@ -44,8 +44,16 @@ export const TenantManagementPage: React.FC = () => {
     saveTenant, 
     deleteTenant, 
     currentUser, 
-    showErrorModal 
+    showErrorModal,
+    loadTablesForMenu
   } = useApp();
+
+  useEffect(() => {
+    // 🌐 중앙 플랫폼 DB(ebro-platform-core)의 최신 테넌트 원장 실시간 동기화
+    if (loadTablesForMenu) {
+      loadTablesForMenu('tenant_management');
+    }
+  }, []);
 
   // 1. 검색 및 필터 상태 (좌상단 스코프)
   const [searchKeyword, setSearchKeyword] = useState<string>('');
