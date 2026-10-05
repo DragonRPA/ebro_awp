@@ -385,3 +385,15 @@ span.bg-blue-600, span.bg-red-600, span.bg-emerald-600, span.bg-indigo-600 { col
 .text-purple-400 { color: #9333ea; }
 .border-slate-750\/60 { border-color: var(--border-color); }
 .border-blue-800\/30 { border-color: var(--primary); }
+.text-gray-100 { color: var(--text-main); }
+.text-gray-200 { color: var(--text-main); }
+.text-gray-300 { color: var(--text-muted); }
+.text-gray-400 { color: var(--text-secondary); }
+.text-gray-500 { color: var(--text-secondary); }
+.text-gray-600 { color: var(--text-secondary); }
+.text-gray-700 { color: var(--text-main); }
+.text-zinc-400 { color: var(--text-secondary); }
+.text-zinc-500 { color: var(--text-secondary); }
+.text-neutral-400 { color: var(--text-secondary); }
+.text-neutral-500 { color: var(--text-secondary); }
+

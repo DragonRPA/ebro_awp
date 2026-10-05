@@ -88,32 +88,32 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
       <div style={{
         width: '520px',
         maxHeight: '90vh',
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--bg-card)',
         borderRadius: '10px',
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.25)',
+        boxShadow: 'var(--shadow-lg)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        border: '1px solid #cbd5e1'
+        border: '1px solid var(--border-color)'
       }}>
         {/* 모달 헤더: 전사 표준 헌장 3.1 무수식어 건조 표준 */}
         <div style={{
           padding: '14px 18px',
-          backgroundColor: '#f8fafc',
-          borderBottom: '1px solid #e2e8f0',
+          backgroundColor: 'var(--bg-header)',
+          borderBottom: '1px solid var(--border-color)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Bell size={18} color="#2563eb" />
-            <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#0f172a' }}>
+            <Bell size={18} color="var(--primary)" />
+            <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
               업무 알림 설정
             </h3>
           </div>
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
           >
             <X size={18} />
           </button>
@@ -130,7 +130,7 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
         }}>
           {/* 1. 직무별 기본 설정 (원클릭 프리셋) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>
+            <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
               직무별 기본 설정
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
@@ -149,9 +149,9 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     style={{
                       padding: '8px 4px',
                       borderRadius: '6px',
-                      border: `1px solid ${isSelected ? '#2563eb' : '#cbd5e1'}`,
-                      backgroundColor: isSelected ? '#eff6ff' : '#ffffff',
-                      color: isSelected ? '#1e40af' : '#334155',
+                      border: `1px solid ${isSelected ? 'var(--primary)' : 'var(--border-color)'}`,
+                      backgroundColor: isSelected ? 'var(--primary-light)' : 'var(--bg-card)',
+                      color: isSelected ? 'var(--primary)' : 'var(--text-main)',
                       cursor: 'pointer',
                       display: 'flex',
                       flexDirection: 'column',
@@ -162,7 +162,7 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     }}
                   >
                     <span>{item.label}</span>
-                    <span style={{ fontSize: '9.5px', color: isSelected ? '#2563eb' : '#64748b' }}>
+                    <span style={{ fontSize: '9.5px', color: isSelected ? 'var(--primary)' : 'var(--text-muted)' }}>
                       {item.desc}
                     </span>
                   </button>
@@ -175,8 +175,8 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
           <div style={{
             padding: '12px 14px',
             borderRadius: '8px',
-            backgroundColor: '#f8fafc',
-            border: '1px solid #e2e8f0',
+            backgroundColor: 'var(--bg-app)',
+            border: '1px solid var(--border-color)',
             display: 'flex',
             flexDirection: 'column',
             gap: '12px'
@@ -184,10 +184,10 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
             {/* 소리 (차임벨) 토글 */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {settings.soundEnabled ? <Volume2 size={16} color="#2563eb" /> : <VolumeX size={16} color="#94a3b8" />}
+                {settings.soundEnabled ? <Volume2 size={16} color="var(--primary)" /> : <VolumeX size={16} color="var(--text-muted)" />}
                 <div>
-                  <div style={{ fontWeight: 700, color: '#0f172a' }}>소리 (차임벨)</div>
-                  <div style={{ fontSize: '11px', color: '#64748b' }}>주기장/공장 현장 소음 청취용 스피커 알림음</div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>소리 (차임벨)</div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>주기장/공장 현장 소음 청취용 스피커 알림음</div>
                 </div>
               </div>
               <button
@@ -199,7 +199,7 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   border: 'none',
                   fontSize: '11px',
                   fontWeight: 700,
-                  backgroundColor: settings.soundEnabled ? '#2563eb' : '#cbd5e1',
+                  backgroundColor: settings.soundEnabled ? 'var(--primary)' : 'var(--border-color)',
                   color: '#ffffff',
                   cursor: 'pointer'
                 }}
@@ -212,7 +212,7 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
             {settings.soundEnabled && (
               <div style={{
                 paddingTop: '10px',
-                borderTop: '1px dashed #cbd5e1',
+                borderTop: '1px dashed var(--border-color)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '10px'
@@ -232,9 +232,9 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
                           padding: '4px 10px',
                           borderRadius: '4px',
                           fontSize: '11px',
-                          border: `1px solid ${settings.chimeTone === tone.key ? '#2563eb' : '#cbd5e1'}`,
-                          backgroundColor: settings.chimeTone === tone.key ? '#eff6ff' : '#ffffff',
-                          color: settings.chimeTone === tone.key ? '#1e40af' : '#334155',
+                          border: `1px solid ${settings.chimeTone === tone.key ? 'var(--primary)' : 'var(--border-color)'}`,
+                          backgroundColor: settings.chimeTone === tone.key ? 'var(--primary-light)' : 'var(--bg-card)',
+                          color: settings.chimeTone === tone.key ? 'var(--primary)' : 'var(--text-main)',
                           fontWeight: settings.chimeTone === tone.key ? 700 : 500,
                           cursor: 'pointer'
                         }}
@@ -251,9 +251,9 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
                       padding: '4px 10px',
                       borderRadius: '4px',
                       fontSize: '11px',
-                      border: '1px solid #cbd5e1',
-                      backgroundColor: '#ffffff',
-                      color: '#0f172a',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-card)',
+                      color: 'var(--text-main)',
                       cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -261,13 +261,13 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
                       fontWeight: 600
                     }}
                   >
-                    <Play size={12} color="#16a34a" />
+                    <Play size={12} color="var(--success)" />
                     소리 테스트
                   </button>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>음량 ({settings.volume}%)</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>음량 ({settings.volume}%)</span>
                   <input
                     type="range"
                     min="20"
@@ -283,14 +283,14 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
             {/* 안내 팝업 토스트 (확인 버튼) 토글 */}
             <div style={{
               paddingTop: '10px',
-              borderTop: '1px solid #e2e8f0',
+              borderTop: '1px solid var(--border-color)',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
               <div>
-                <div style={{ fontWeight: 700, color: '#0f172a' }}>안내 팝업 토스트 (확인 버튼)</div>
-                <div style={{ fontSize: '11px', color: '#64748b' }}>확인 버튼을 누를 때까지 화면에 고정 노출 (자동 소멸 차단)</div>
+                <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>안내 팝업 토스트 (확인 버튼)</div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>확인 버튼을 누를 때까지 화면에 고정 노출 (자동 소멸 차단)</div>
               </div>
               <button
                 type="button"
@@ -301,7 +301,7 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   border: 'none',
                   fontSize: '11px',
                   fontWeight: 700,
-                  backgroundColor: settings.popupEnabled ? '#2563eb' : '#cbd5e1',
+                  backgroundColor: settings.popupEnabled ? 'var(--primary)' : 'var(--border-color)',
                   color: '#ffffff',
                   cursor: 'pointer'
                 }}
@@ -313,7 +313,7 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
           {/* 3. 업무 이벤트별 개별 수신 여부 (체크리스트) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <label style={{ fontSize: '11px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>
+            <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
               알림 수신 업무 선택
             </label>
 
@@ -323,31 +323,31 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
                   key: 'outboundRequested' as const,
                   title: '신규 출고의뢰 (출고요청서 발행)',
                   desc: '영업부 출고요청 접수 즉시 알림 (주기장 출고검수 및 장비 점검 착수)',
-                  icon: <PackageCheck size={15} color="#2563eb" />
+                  icon: <PackageCheck size={15} color="var(--primary)" />
                 },
                 { 
                   key: 'exchangeRequested' as const,
                   title: '교환 의뢰',
                   desc: '현장 고장/규격 교체 1:1 왕복 배차 및 대체 장비 준비 알림',
-                  icon: <ArrowLeftRight size={15} color="#7c3aed" />
+                  icon: <ArrowLeftRight size={15} color="var(--primary)" />
                 },
                 { 
                   key: 'inboundReturn' as const,
                   title: '입고·반납 장비 주기장 도착',
                   desc: '현장 임대 종료 후 반납 장비 하차 및 입고 검수 착수 알림',
-                  icon: <Truck size={15} color="#16a34a" />
+                  icon: <Truck size={15} color="var(--success)" />
                 },
                 { 
                   key: 'repairRequested' as const,
                   title: '정비·수리 의뢰 접수',
                   desc: '검수 불량 장비 또는 현장 긴급 AS 입고 수리 지시 알림',
-                  icon: <Wrench size={15} color="#d97706" />
+                  icon: <Wrench size={15} color="var(--warning)" />
                 },
                 { 
                   key: 'dispatchAssigned' as const,
                   title: '배차 기사 배정 완료',
                   desc: '탁송 트럭 배정 완료 및 상차 준비 알림',
-                  icon: <UserCheck size={15} color="#0891b2" />
+                  icon: <UserCheck size={15} color="var(--primary)" />
                 },
               ].map(evt => {
                 const checked = settings.events[evt.key];
@@ -358,8 +358,8 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     style={{
                       padding: '8px 12px',
                       borderRadius: '6px',
-                      border: `1px solid ${checked ? '#93c5fd' : '#e2e8f0'}`,
-                      backgroundColor: checked ? '#eff6ff' : '#ffffff',
+                      border: `1px solid ${checked ? 'var(--primary)' : 'var(--border-color)'}`,
+                      backgroundColor: checked ? 'var(--primary-light)' : 'var(--bg-card)',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -370,10 +370,10 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       {evt.icon}
                       <div>
-                        <div style={{ fontWeight: 600, color: checked ? '#0f172a' : '#64748b' }}>
+                        <div style={{ fontWeight: 600, color: checked ? 'var(--primary)' : 'var(--text-main)' }}>
                           {evt.title}
                         </div>
-                        <div style={{ fontSize: '10.5px', color: '#64748b', marginTop: '1px' }}>
+                        <div style={{ fontSize: '10.5px', color: checked ? 'var(--primary)' : 'var(--text-muted)', marginTop: '1px' }}>
                           {evt.desc}
                         </div>
                       </div>
@@ -395,8 +395,8 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
         {/* 모달 푸터 */}
         <div style={{
           padding: '12px 18px',
-          backgroundColor: '#f8fafc',
-          borderTop: '1px solid #e2e8f0',
+          backgroundColor: 'var(--bg-header)',
+          borderTop: '1px solid var(--border-color)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
@@ -419,9 +419,9 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
             style={{
               padding: '6px 12px',
               borderRadius: '5px',
-              border: '1px solid #cbd5e1',
-              backgroundColor: '#ffffff',
-              color: '#334155',
+              border: '1px solid var(--border-color)',
+              backgroundColor: 'var(--bg-card)',
+              color: 'var(--text-main)',
               fontSize: '11.5px',
               fontWeight: 600,
               cursor: 'pointer',
@@ -430,7 +430,7 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
               gap: '5px'
             }}
           >
-            <Bell size={13} color="#2563eb" />
+            <Bell size={13} color="var(--primary)" />
             현장 알림 테스트 발생
           </button>
 
@@ -441,7 +441,7 @@ export const JobAlertModal: React.FC<Props> = ({ isOpen, onClose }) => {
               padding: '6px 16px',
               borderRadius: '5px',
               border: 'none',
-              backgroundColor: '#2563eb',
+              backgroundColor: 'var(--primary)',
               color: '#ffffff',
               fontSize: '12px',
               fontWeight: 600,

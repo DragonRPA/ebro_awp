@@ -2,7 +2,8 @@
 /* d:\Kiyeun_Lift\src\index.css */
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
 
-:root {
+:root,
+[data-theme='light'] {
   /* 라이트 테마 토큰 */
   --bg-app: #f4f6fa;
   --bg-sidebar: #ffffff;
@@ -36,9 +37,9 @@
   --info: #06b6d4;
   --info-light: #ecfeff;
   
-  --text-main: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
+  --text-main: #000000;
+  --text-secondary: #000000;
+  --text-muted: #000000;
   --text-on-primary: #ffffff;
   
   --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.10), 0 1px 2px -1px rgba(0, 0, 0, 0.08);
@@ -54,7 +55,7 @@
   --transition-normal: 0.25s ease;
 
   /* 🎨 호환성 및 전사 통일 별칭 토큰 (라이트 테마) */
-  --text-primary: #0f172a;
+  --text-primary: #000000;
   --border: #94a3b8;
   --bg-body: #f4f6fa;
   --bg-main: #f4f6fa;
@@ -394,6 +395,45 @@ label {
   font-weight: 500;
   color: var(--text-secondary);
 }
+
+/* 🌟 라이트 모드 고시인성 완전 블랙 표준: 회색 글씨 전면 제거 */
+:root label, [data-theme='light'] label {
+  color: #000000 !important;
+}
+
+:root th, [data-theme='light'] th {
+  color: #000000 !important;
+}
+
+:root .text-muted, [data-theme='light'] .text-muted,
+:root .text-secondary, [data-theme='light'] .text-secondary,
+:root .text-slate-300, [data-theme='light'] .text-slate-300,
+:root .text-slate-400, [data-theme='light'] .text-slate-400,
+:root .text-slate-500, [data-theme='light'] .text-slate-500,
+:root .text-slate-600, [data-theme='light'] .text-slate-600,
+:root .text-gray-300, [data-theme='light'] .text-gray-300,
+:root .text-gray-400, [data-theme='light'] .text-gray-400,
+:root .text-gray-500, [data-theme='light'] .text-gray-500,
+:root .text-gray-600, [data-theme='light'] .text-gray-600 {
+  color: #000000 !important;
+}
+
+/* 인라인 스타일로 지정된 흐린 회색 글씨 라이트 모드 강제 블랙 변환 */
+:root [style*="color: #64748b"], [data-theme='light'] [style*="color: #64748b"],
+:root [style*="color: #475569"], [data-theme='light'] [style*="color: #475569"],
+:root [style*="color: #94a3b8"], [data-theme='light'] [style*="color: #94a3b8"],
+:root [style*="color: #334155"], [data-theme='light'] [style*="color: #334155"],
+:root [style*="color: #6b7280"], [data-theme='light'] [style*="color: #6b7280"],
+:root [style*="color: #9ca3af"], [data-theme='light'] [style*="color: #9ca3af"],
+:root [style*="color: rgb(100, 116, 139)"], [data-theme='light'] [style*="color: rgb(100, 116, 139)"],
+:root [style*="color: rgb(71, 85, 105)"], [data-theme='light'] [style*="color: rgb(71, 85, 105)"],
+:root [style*="color: rgb(148, 163, 184)"], [data-theme='light'] [style*="color: rgb(148, 163, 184)"],
+:root [style*="color: rgb(51, 65, 85)"], [data-theme='light'] [style*="color: rgb(51, 65, 85)"],
+:root [style*="color: rgb(107, 114, 128)"], [data-theme='light'] [style*="color: rgb(107, 114, 128)"],
+:root [style*="color: rgb(156, 163, 175)"], [data-theme='light'] [style*="color: rgb(156, 163, 175)"] {
+  color: #000000 !important;
+}
+
 
 /* 버튼 스타일 */
 button {
