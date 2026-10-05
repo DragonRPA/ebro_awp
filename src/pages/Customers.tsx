@@ -995,16 +995,6 @@ export const Customers: React.FC = () => {
     showToast(`[${cName} - ${selectedRefSite.name}] 현장의 옵션 속성을 적용했습니다.`);
   };
 
-  const handleCopyDefaultsToSiteOptionForm = () => {
-    if (!activeCustomer) return;
-    setSiteOptionForm({
-      paidOptions: normalizeOptionString(activeCustomer.defaultPaidOptions),
-      protection: normalizeOptionString(activeCustomer.defaultProtection),
-      checkedSpecs: activeCustomer.defaultCheckedSpecs ? { ...activeCustomer.defaultCheckedSpecs } : {}
-    });
-    showToast(`고객사 기본 옵션을 불러왔습니다.`);
-  };
-
   // 🏷️ 전사 표준 옵션 마스터 핸들러
   const handleOpenAddOption = (category: 'PAID' | 'PROTECTION' = 'PAID') => {
     setEditingOption({
@@ -1043,52 +1033,6 @@ export const Customers: React.FC = () => {
     } catch (err: any) {
       showToast(`옵션 삭제 실패: ${err.message}`, 'error');
     }
-  };
-
-  // 고객사 기본 옵션/보양 현장 일괄 전파
-  const handlePropagateDefaultsToAllSites = async (cust: Partial<Customer>) => {
-    if (!cust.id) return;
-    const targetSites = sites.filter(s => s.customerId === cust.id);
-    if (targetSites.length === 0) {
-      showToast(`'${cust.name}' 고객사에 등록된 현장이 없습니다.`, 'error');
-      return;
-    }
-
-    try {
-      for (const s of targetSites) {
-        db.updateRow<CustomerSite>('sites', s.id, {
-          paidOptions: cust.defaultPaidOptions || s.paidOptions,
-          protection: cust.defaultProtection || s.protection
-        });
-      }
-      await db.awaitPendingWrites();
-      await refreshAllData();
-      showToast(`'${cust.name}'의 ${targetSites.length}개 현장에 기본 옵션/보양이 일괄 적용되었습니다.`);
-    } catch (err: any) {
-      showToast(`일괄 전파 실패: ${err.message}`, 'error');
-    }
-  };
-
-  const handleCopyCustomerDefaultsToSite = () => {
-    if (!activeCustomer) return;
-    setEditingSite(prev => ({
-      ...prev,
-      paidOptions: activeCustomer.defaultPaidOptions || '',
-      protection: activeCustomer.defaultProtection || ''
-    }));
-    showToast(`고객사 기본 옵션 및 보양작업을 불러왔습니다.`);
-  };
-
-  // 🏷️ 옵션품목마스터 전체 상속 핸들러
-  const handleInheritFromOptionMaster = () => {
-    const paidOpts = standardOptions.filter(o => o.category === 'PAID' && o.isActive).map(o => o.name).join(', ');
-    const firstProt = standardOptions.find(o => o.category === 'PROTECTION' && o.isActive)?.name || '';
-    setEditingSite(prev => ({
-      ...prev,
-      paidOptions: paidOpts,
-      protection: firstProt
-    }));
-    showToast('옵션품목마스터의 표준 품목을 일괄 상속받았습니다.');
   };
 
   // 🧭 현장별 옵션 관리 전용 메뉴 바로가기
@@ -1218,30 +1162,6 @@ export const Customers: React.FC = () => {
           >
             <Download size={13} /> 엑셀 다운로드
           </button>
-          {canSave && (
-            <button
-              type="button"
-              onClick={() => { setShowOptionMasterModal(true); setEditingOption(null); }}
-              style={{
-                padding: '5px 12px',
-                fontSize: '12px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                whiteSpace: 'nowrap',
-                backgroundColor: 'var(--primary)',
-                color: '#ffffff',
-                border: '1px solid #0369a1',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.15)'
-              }}
-              title="전사 유상옵션 및 보양작업 표준 품목/단가 관리"
-            >
-              <Sliders size={13} color="#ffffff" /> 옵션 품목 마스터
-            </button>
-          )}
           {canSave && (
             <button
               onClick={() => {
@@ -1739,65 +1659,6 @@ export const Customers: React.FC = () => {
                       >
                         <FileText size={12} /> 등록증 사본 열람 ↗
                       </a>
-                    </div>
-                  )}
-                </div>
-
-                {/* 🌟 기본 옵션/보양 마스터 바 */}
-                <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11.5px', flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 700, color: '#0070C0', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <ShieldCheck size={13} /> 현장 기본상속 설정:
-                    </span>
-                    <span className="badge badge-secondary" style={{ fontSize: '10px' }}>
-                      유상옵션: {activeCustomer.defaultPaidOptions || '(없음)'}
-                    </span>
-                    <span className="badge badge-secondary" style={{ fontSize: '10px' }}>
-                      보양작업: {activeCustomer.defaultProtection || '(없음)'}
-                    </span>
-                  </div>
-
-                  {canSave && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenCustOptionModal(activeCustomer)}
-                        style={{
-                          padding: '3px 9px',
-                          fontSize: '11px',
-                          borderRadius: '4px',
-                          border: '1px solid #0284c7',
-                          backgroundColor: 'rgba(2, 132, 199, 0.15)',
-                          color: 'var(--info)',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}
-                        title="고객사 기본 유상옵션 및 보양작업 설정"
-                      >
-                        <Sliders size={12} color="#38bdf8" /> 기본 옵션 설정
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handlePropagateDefaultsToAllSites(activeCustomer)}
-                        style={{
-                          padding: '2px 8px',
-                          fontSize: '11px',
-                          borderRadius: '4px',
-                          border: '1px solid var(--primary)',
-                          backgroundColor: 'var(--primary-light)',
-                          color: 'var(--primary)',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}
-                      >
-                        <Zap size={12} /> 전체 현장에 기본값 일괄 전파
-                      </button>
                     </div>
                   )}
                 </div>
@@ -3054,25 +2915,6 @@ export const Customers: React.FC = () => {
                     현장 옵션 및 보양 설정
                   </span>
                   <div style={{ display: 'flex', gap: '5px', alignItems: 'center', flexWrap: 'nowrap' }}>
-                    <button
-                      type="button"
-                      onClick={handleInheritFromOptionMaster}
-                      style={{ padding: '2px 8px', fontSize: '10.5px', border: '1px solid var(--border-color)', borderRadius: '3px', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
-                      title="옵션품목마스터의 모든 표준 품목을 일괄 상속"
-                    >
-                      <SlidersHorizontal size={11} />
-                      마스터 상속
-                    </button>
-                    {activeCustomer && (
-                      <button
-                        type="button"
-                        onClick={handleCopyCustomerDefaultsToSite}
-                        style={{ padding: '2px 8px', fontSize: '10.5px', border: '1px solid var(--border-color)', borderRadius: '3px', backgroundColor: 'transparent', color: 'var(--primary)', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                        title="해당 고객사의 기본 옵션값 상속"
-                      >
-                        고객사 기본값 상속
-                      </button>
-                    )}
                     {editingSite.id && (
                       <button
                         type="button"
@@ -3612,27 +3454,6 @@ export const Customers: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px', marginBottom: '8px', alignItems: 'center' }}>
-              {activeCustomer && (
-                <button
-                  type="button"
-                  onClick={handleCopyDefaultsToSiteOptionForm}
-                  style={{
-                    padding: '3px 8px',
-                    fontSize: '11px',
-                    borderRadius: '4px',
-                    border: '1px solid #0284c7',
-                    backgroundColor: 'rgba(2, 132, 199, 0.15)',
-                    color: 'var(--info)',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                >
-                  <ShieldCheck size={12} /> 고객사 기본값 상속
-                </button>
-              )}
               <button
                 type="button"
                 onClick={() => {

@@ -684,7 +684,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "cognitiveSequence": [
       "1. 좌상단 고객사 필터 및 현장 검색창을 통해 대상 현장 스코핑",
       "2. 좌측 등록 현장 목록에서 옵션을 설정할 특정 현장 선택",
-      "3. 우측 상속 작업대 상단에서 [마스터 초기화] 또는 [고객사 기본값 상속] 클릭으로 1클릭 상속 실행",
+      "3. 우측 작업대 상단에서 대상 현장의 옵션 품목을 점검하고 표준 유상/보양/사양 항목 설정 진행",
       "4. 중앙 1. 유상 옵션 그리드에서 적용할 옵션 체크박스 활성화 및 현장 특약단가(₩) 오버라이드 입력",
       "5. 2. 보양 작업 카드에서 해당 현장 환경에 부합하는 보양 규격 1종 선택",
       "6. 3. 현장 요구 사양에서 안전인증, 경광등, 센서 연동 등 필수 점검 항목 체크",
@@ -693,11 +693,11 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     ],
     "auditResult": "총 옵션 항목수 = 활성 옵션수 + 비활성 옵션수 | 월 유상옵션 총액 = Σ(활성 유상옵션별 현장 특약단가)",
     "rulesCompliance": [
-      "헌장 1.1: 임직원 최소 노력으로 마스터 옵션을 1클릭 상속받아 현장 옵션값을 즉시 구축하며, 고객 관리 메뉴 현장 등록/수정 시 기등록 현장의 옵션 속성을 실시간 검색하여 1클릭 복사 일치시키는 최대 편익 달성",
-      "헌장 2.2: 옵션품목마스터 기준단가 및 고객사 기본 옵션 속성 100% 자동 상속 원칙 완결",
+      "헌장 1.1: 임직원 최소 노력으로 마스터 옵션을 활용하여 현장 옵션값을 구축하며, 고객 관리 메뉴 현장 등록/수정 시 기등록 현장의 옵션 속성을 실시간 검색하여 1클릭 복사 일치시키는 최대 편익 달성",
+      "헌장 2.2: 옵션품목마스터 기준단가 기반 현장별 옵션 속성 관리 및 계약/출고 자동 연동 원칙 준수",
       "헌장 3.1: 감성적 수식어 배제 및 건조한 명사·동사 UI 단일 표준 준수",
       "헌장 3.2: 테이블 셀 white-space: nowrap 적용으로 줄바꿈 방지",
-      "헌장 3.5: 좌측 현장 스코프  우측 상속 작업대  우하단 월 옵션 총액 및 최종 저장 4단계 Gutenberg Z-패턴 동선 확립"
+      "헌장 3.5: 좌측 현장 스코프 ➔ 우측 작업대 ➔ 우하단 월 옵션 총액 및 최종 저장 4단계 Gutenberg Z-패턴 동선 확립"
     ],
     "precautions": [
       "현장별 옵션은 반드시 옵션품목마스터(StandardOption)의 품목 체계를 상속받아 구성되어야 합니다.",
@@ -737,11 +737,11 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       },
       {
         "seq": 4,
-        "selector": "[data-mid=\"btn-inherit-master\"]",
-        "type": "stamp",
-        "label": "마스터 상속",
-        "description": "옵션품목마스터의 모든 표준 품목 및 기준단가를 1클릭 상속받습니다.",
-        "badgeColor": "#10B981",
+        "selector": "[data-mid=\"btn-option-master-manage\"]",
+        "type": "click_ripple",
+        "label": "옵션 품목 마스터",
+        "description": "전사 유상옵션 및 보양작업 표준 품목과 기준단가를 관리하는 마스터 화면으로 전환합니다.",
+        "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
         "spotlight": false
       },
@@ -789,15 +789,15 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "basicGuide": [
       {
         "seq": 1,
-        "selector": "[data-mid=\"scope-site-search\"]",
+        "selector": "[data-mid=\"panel-site-scope\"]",
         "type": "callout",
         "label": "현장 검색 및 선택",
-        "description": "옵션 단가를 설정하거나 상속받을 대상 현장을 검색합니다.",
+        "description": "옵션 단가를 설정할 대상 현장을 검색하고 선택합니다.",
         "positionHint": "bottom"
       },
       {
         "seq": 2,
-        "selector": "[data-mid=\"inspection-options-grid\"]",
+        "selector": "[data-mid=\"table-paid-options\"]",
         "type": "highlight",
         "label": "현장 안전옵션 매트릭스",
         "description": "해당 현장의 유상옵션 및 법정 안전사양 단가를 실시간 조망합니다.",
@@ -807,36 +807,36 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "processes": [
       {
         "processId": "process_site_options_sync",
-        "title": "현장별 안전옵션 특약 설정 및 상속 동기화",
-        "description": "현장 특성에 맞는 안전옵션을 지정하고 계약 및 배차 파이프라인으로 100% 자동 상속합니다.",
+        "title": "현장별 안전옵션 특약 설정 및 저장",
+        "description": "현장 특성에 맞는 안전옵션을 지정하고 계약 및 배차 파이프라인으로 100% 자동 연동합니다.",
         "steps": [
           {
             "seq": 1,
-            "selector": "[data-mid=\"scope-site-search\"]",
+            "selector": "[data-mid=\"panel-site-scope\"]",
             "type": "callout",
             "label": "관리 대상 현장 선택",
-            "description": "좌측 현장 목록에서 옵션을 커스텀할 공사 현장을 선택합니다.",
+            "description": "좌측 현장 목록에서 옵션을 설정할 공사 현장을 선택합니다.",
             "positionHint": "right"
           },
           {
             "seq": 2,
-            "selector": "[data-mid=\"pipeline-inherit-master\"]",
+            "selector": "[data-mid=\"table-paid-options\"]",
             "type": "click_ripple",
-            "label": "표준 옵션 상속",
-            "description": "표준 옵션 마스터로부터 기본 안전 규격을 100% 자동 상속받습니다.",
+            "label": "유상 옵션 항목 설정",
+            "description": "현장에 투입될 유상옵션 적용 여부와 특약단가를 설정합니다.",
             "positionHint": "bottom"
           },
           {
             "seq": 3,
-            "selector": "[data-mid=\"inspection-options-grid\"]",
+            "selector": "[data-mid=\"card-protection-options\"]",
             "type": "highlight",
-            "label": "현장 특약 단가 조정",
-            "description": "협의된 특약 단가를 인라인으로 입력하여 표준 단가를 오버라이드합니다.",
+            "label": "보양 작업 규격 선택",
+            "description": "현장 환경에 부합하는 보호 완충/함석 보양 규격을 선택합니다.",
             "positionHint": "top"
           },
           {
             "seq": 4,
-            "selector": "[data-mid=\"terminal-save-options\"]",
+            "selector": "[data-mid=\"btn-save-site-options\"]",
             "type": "click_ripple",
             "label": "옵션 설정 확정 저장",
             "description": "변경된 현장 안전옵션 구성을 DB에 영구 저장합니다.",

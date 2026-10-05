@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { 
   Shield, Check, Plus, Trash2, Edit3, Search, RefreshCw, 
   ArrowRight, Copy, CheckSquare, Layers, Download, Building2, 
-  MapPin, AlertCircle, FileText, CheckCircle2, ChevronRight
+  MapPin, AlertCircle, FileText, CheckCircle2, ChevronRight, Sliders
 } from 'lucide-react';
 import { StandardOption, CustomerSite, Customer } from '../services/db';
 import { SiteOptionItem, inheritOptionsFromMaster } from '../types/siteOption';
@@ -161,37 +161,6 @@ export const SiteOptionManage: React.FC = () => {
       }
       return item;
     }));
-  };
-
-  // ── 🔄 마스터 기본값 100% 초기화 / 동기화 ──
-  const handleResetToMaster = () => {
-    if (!activeSite) return;
-    const inherited = inheritOptionsFromMaster(
-      activeSite.id,
-      standardOptions || [],
-      '',
-      '',
-      {}
-    );
-    setWorkingOptionItems(inherited);
-    showToast('옵션품목마스터 기본값으로 초기화되었습니다.');
-  };
-
-  // ── 📋 고객사 기본값 상속 ──
-  const handleInheritFromCustomer = () => {
-    if (!activeSite) return;
-    const cust = customerMap.get(activeSite.customerId);
-    if (!cust) return;
-
-    const inherited = inheritOptionsFromMaster(
-      activeSite.id,
-      standardOptions || [],
-      cust.defaultPaidOptions,
-      cust.defaultProtection,
-      cust.defaultCheckedSpecs
-    );
-    setWorkingOptionItems(inherited);
-    showToast(`고객사 [${cust.name}] 기본 옵션값이 상속되었습니다.`);
   };
 
   // ── 📊 월 유상옵션 총액 합계 계산 ──
@@ -478,6 +447,33 @@ export const SiteOptionManage: React.FC = () => {
             <Download size={13} />
             엑셀 내보내기
           </button>
+
+          {/* 옵션 품목 마스터 버튼 (고객관리에서 이동배치) */}
+          <button
+            type="button"
+            data-mid="btn-option-master-manage"
+            onClick={() => setActiveTab('MASTER_OPTIONS')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              height: '34px',
+              padding: '0 12px',
+              borderRadius: '6px',
+              border: '1px solid #0369a1',
+              backgroundColor: activeTab === 'MASTER_OPTIONS' ? 'var(--primary)' : '#0284c7',
+              color: '#ffffff',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.15)'
+            }}
+            title="전사 유상옵션 및 보양작업 표준 품목/단가 관리"
+          >
+            <Sliders size={13} color="#ffffff" />
+            옵션 품목 마스터
+          </button>
         </div>
       </div>
 
@@ -634,52 +630,6 @@ export const SiteOptionManage: React.FC = () => {
                     <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <MapPin size={12} /> {activeSite.address || '주소 미등록'} | 담당: {activeSite.contactName || '-'} ({activeSite.contact || '-'})
                     </div>
-                  </div>
-
-                  {/* 마스터 및 고객사 상속 액션 버튼군 */}
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <button
-                      type="button"
-                      data-mid="btn-inherit-master"
-                      onClick={handleResetToMaster}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border-color)',
-                        backgroundColor: 'var(--bg-card)',
-                        color: 'var(--text-secondary)',
-                        fontSize: '11.5px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
-                      title="옵션품목마스터 기준 기본값으로 초기화"
-                    >
-                      <RefreshCw size={12} /> 마스터 초기화
-                    </button>
-                    <button
-                      type="button"
-                      data-mid="btn-inherit-customer"
-                      onClick={handleInheritFromCustomer}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: '6px',
-                        border: '1px solid #3b82f6',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        color: '#2563eb',
-                        fontSize: '11.5px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
-                      title="고객사 마스터에 등록된 기본 옵션값 상속"
-                    >
-                      <Copy size={12} /> 고객사 기본값 상속
-                    </button>
                   </div>
                 </div>
 
