@@ -846,10 +846,17 @@ export function parseInitialExcelWorkbook(
   const contactMap = new Map<string, any>();
 
   // 🌟 [보강 1] 내장된 표준 제원 마스터(PRESET_PRODUCT_SPECS)를 선제 등록하여 제원표/안전문서 자동 연결
+  let productSeqCounter = 1000;
+  const generateUniqueProductId = () => {
+    return `PROD-${String(++productSeqCounter).padStart(7, '0')}`;
+  };
+
   Object.values(PRESET_PRODUCT_SPECS).forEach(spec => {
-    productMap.set(spec.modelName, {
-      id: spec.id || `PROD-${String(productMap.size + 1).padStart(7, '0')}`,
-      modelName: spec.modelName,
+    const cleanModel = sanitizeModelName(spec.modelName);
+    if (!cleanModel) return;
+    productMap.set(cleanModel, {
+      id: spec.id || generateUniqueProductId(),
+      modelName: cleanModel,
       feet: spec.feet || 19,
       spec: spec.spec || `${spec.feet || 19}ft 고소작업대`,
       manufacturer: spec.manufacturer || '기타제조사',
@@ -878,7 +885,10 @@ export function parseInitialExcelWorkbook(
   });
 
   // ── 1. 보유자산현황 시트 파싱 (보유자산현황 / 보유장비 임대현황 등 유연 매칭) ──
-  const wsAsset = findSheet(wb, ['보유자산현황', '보유장비임대현황', '보유장비 임대현황', '자산현황', '자산대장']);
+  const wsAsset = findSheet(wb, [
+    '보유자산현황', '보유장비임대현황', '보유장비 임대현황', '자산현황', '자산대장',
+    '장비_자산목록', '자산_장비목록', '장비자산목록', '자산목록', '장비목록'
+  ]);
   const allAssetRows = wsAsset ? XLSX.utils.sheet_to_json(wsAsset, { header: 1, defval: null }) : [];
   let assetHeaderMap = new Map<string, number>();
   let assetDataStartIndex = 4;
@@ -914,7 +924,7 @@ export function parseInitialExcelWorkbook(
 
     if (!productMap.has(modelName)) {
       productMap.set(modelName, {
-        id: `PROD-${String(productMap.size + 1).padStart(7, '0')}`,
+        id: generateUniqueProductId(),
         modelName: modelName,
         feet: feet,
         spec: `${heightM}M (${feet}ft)`,
@@ -976,7 +986,10 @@ export function parseInitialExcelWorkbook(
   });
 
   // ── 2. 거래처정보현황 시트 파싱 ──
-  const wsCust = findSheet(wb, ['거래처정보현황', '거래처현황', '거래처', '고객사정보', '고객사']);
+  const wsCust = findSheet(wb, [
+    '거래처정보현황', '거래처현황', '거래처', '고객사정보', '고객사',
+    '고객사_거래처목록', '고객사거래처목록', '거래처목록', '고객사목록'
+  ]);
   const allCustRows = wsCust ? XLSX.utils.sheet_to_json(wsCust, { header: 1, defval: null }) : [];
   let custHeaderMap = new Map<string, number>();
   let custDataStartIndex = 2;
@@ -1132,7 +1145,10 @@ export function parseInitialExcelWorkbook(
   });
 
   // ── 4. 202608 월별 계약/배차/청구 종합 파싱 ──
-  const wsMain = findSheet(wb, ['계약현황', '202608', '임대현황', '계약대장', '2026-08', '2026']);
+  const wsMain = findSheet(wb, [
+    '계약현황', '202608', '임대현황', '계약대장', '2026-08', '2026',
+    '현재계약_대여현황', '현재계약대여현황', '현재계약', '대여현황', '계약목록'
+  ]);
   const allMainRows = wsMain ? XLSX.utils.sheet_to_json(wsMain, { header: 1, defval: null }) : [];
   let mainHeaderMap = new Map<string, number>();
   let mainDataStartIndex = 3;
@@ -1247,7 +1263,7 @@ export function parseInitialExcelWorkbook(
 
     if (!productMap.has(targetModel)) {
       productMap.set(targetModel, {
-        id: `PROD-${String(productMap.size + 1).padStart(7, '0')}`,
+        id: generateUniqueProductId(),
         modelName: targetModel,
         feet: feet,
         spec: `${heightM}M (${feet}ft)`,
@@ -1967,25 +1983,36 @@ export function parseInitialExcelWorkbook(
 // ──────────────────────────────────────────────
 // 5. 청킹(Chunking) 일괄 DB 인서트 파이프라인 (스키마 화이트리스트 필터링 필수 적용)
 // ──────────────────────────────────────────────
-async function batchUpsertChunked(table: string, records: any[], chunkSize: number = 200, onProgress?: (msg: string) => void) {
+async function batchUpsertChunked(
+  table: string,
+  records: any[],
+  chunkSize: number = 200,
+  onProgress?: (msg: string) => void,
+  customConflictKey?: string
+) {
   if (!records || records.length === 0) return;
 
   // 🌟 스키마 화이트리스트로 불필요한 클라이언트 가상 필드 사전 정제
   const sanitizedRecords = records.map(r => filterRecordBySchema(table, r));
 
-  // 🔒 id 기준 중복 제거 — 동일 id가 두 번 이상 존재하면 PostgreSQL UPSERT에서
+  // 🔒 충돌 타겟 키 결정 (products는 UNIQUE(modelName)을 우선 충돌 키로 설정)
+  const conflictKey = customConflictKey || (table === 'products' ? 'modelName' : 'id');
+
+  // 🔒 conflictKey 기준 중복 제거 — 동일 키가 두 번 이상 존재하면 PostgreSQL UPSERT에서
   // "ON CONFLICT DO UPDATE command cannot affect row a second time" 에러 발생
   const dedupMap = new Map<string, any>();
   for (const r of sanitizedRecords) {
-    if (r.id) dedupMap.set(r.id, r);
-    else dedupMap.set(JSON.stringify(r), r); // id 없는 행은 전체 내용으로 키 설정
+    const key = (conflictKey && r[conflictKey] !== undefined && r[conflictKey] !== null)
+      ? String(r[conflictKey]).trim()
+      : (r.id || JSON.stringify(r));
+    dedupMap.set(key, r);
   }
   const dedupedRecords = Array.from(dedupMap.values());
 
   if (supabase) {
     for (let i = 0; i < dedupedRecords.length; i += chunkSize) {
       const chunk = dedupedRecords.slice(i, i + chunkSize);
-      const { error } = await supabase.from(table).upsert(chunk, { onConflict: 'id' });
+      const { error } = await supabase.from(table).upsert(chunk, { onConflict: conflictKey });
       if (error) {
         console.error(`[Ingest Error] ${table} chunk ${i / chunkSize + 1} failed:`, error.message);
         throw new Error(`${table} 저장 실패: ${error.message}`);
@@ -1996,8 +2023,9 @@ async function batchUpsertChunked(table: string, records: any[], chunkSize: numb
     }
   } else {
     const tableArr = (db as any)[table] || [];
-    const map = new Map(tableArr.map((item: any) => [item.id, item]));
-    dedupedRecords.forEach(r => map.set(r.id, r));
+    const idKey = conflictKey || 'id';
+    const map = new Map(tableArr.map((item: any) => [item[idKey] || item.id, item]));
+    dedupedRecords.forEach(r => map.set(r[idKey] || r.id, r));
     (db as any)[table] = Array.from(map.values());
   }
 }
@@ -2029,6 +2057,10 @@ export async function ingestExcelInitialData(
 
     if (supabase) {
       const TRUNCATE_ORDER = [
+        'repair_consumables',
+        'repairs',
+        'inspection_checklist_items',
+        'draft_dispatch_orders',
         'purchase_settlement_items',
         'purchase_settlements',
         'reconciliation_reports',
@@ -2092,7 +2124,7 @@ export async function ingestExcelInitialData(
 
     // Step 1: Products & R2 Docs
     onProgress?.(1, totalSteps, `1/13: 장비 모델 마스터 (${parsed.products.length}종 & R2 제원표 연동) 적재 중...`);
-    await batchUpsertChunked('products', parsed.products, 100);
+    await batchUpsertChunked('products', parsed.products, 100, undefined, 'modelName');
 
     // Step 2: Vendors
     onProgress?.(2, totalSteps, `2/13: 매입 및 임대 거래처 (${parsed.vendors.length}개사) 적재 중...`);
@@ -2106,6 +2138,82 @@ export async function ingestExcelInitialData(
     onProgress?.(4, totalSteps, `4/13: 고객 현장 (${parsed.customerSites.length}개) 및 담당자 적재 중...`);
     await batchUpsertChunked('customer_sites', parsed.customerSites, 100);
     await batchUpsertChunked('customer_contacts', parsed.customerContacts, 100);
+
+    // Step 4.9: 🛡️ [무결성 절대 보장] assets -> products 외래키(assets_new_modelName_fkey) 100% 선행 검증 및 자동 등록
+    onProgress?.(4.9, totalSteps, `자산 모델 외래키 무결성 선행 검증 및 누락 모델 자동 등록 중...`);
+
+    // 1) parsed.assets 전수 모델명 정규화
+    parsed.assets.forEach(asset => {
+      const clean = asset.modelName ? sanitizeModelName(asset.modelName) : '';
+      asset.modelName = clean || 'ES1330L';
+    });
+
+    // 2) Supabase products 테이블에 실존하는 modelName 목록 조회
+    const existingDbModels = new Set<string>();
+    if (supabase) {
+      try {
+        const { data: dbProds, error: pErr } = await supabase.from('products').select('modelName');
+        if (!pErr && Array.isArray(dbProds)) {
+          dbProds.forEach((p: any) => {
+            if (p.modelName) existingDbModels.add(p.modelName.trim());
+          });
+        }
+      } catch (e) {
+        console.warn('[Ingest] products 사전 조회 실패, 로컬 products 목록 사용:', e);
+      }
+    }
+    parsed.products.forEach(p => {
+      if (p.modelName) existingDbModels.add(p.modelName.trim());
+    });
+
+    // 3) parsed.assets에서 참조하는 모든 고유 modelName 검사
+    const missingProductModels = new Set<string>();
+    parsed.assets.forEach(a => {
+      if (!existingDbModels.has(a.modelName)) {
+        missingProductModels.add(a.modelName);
+      }
+    });
+
+    // 4) 누락된 모델이 있다면 즉시 자동 생성하여 products 테이블에 선행 적재
+    if (missingProductModels.size > 0) {
+      const autoNewProducts: any[] = [];
+      const nowIsoStr = new Date().toISOString();
+      let seq = 1;
+      for (const mName of missingProductModels) {
+        const feet = inferFeetFromModel(mName, 0);
+        const heightM = feet > 0 ? (feet * 0.3048).toFixed(1) : '5.8';
+        const newProduct = {
+          id: `PROD-AUTO-${Date.now()}-${String(seq++).padStart(4, '0')}`,
+          modelName: mName,
+          feet: feet || 19,
+          spec: `${heightM}M (${feet || 19}ft)`,
+          manufacturer: inferMakerFromModel(mName),
+          powerSource: '배터리',
+          workingHeight: `${heightM} M`,
+          platformHeight: `${(parseFloat(heightM) - 2).toFixed(1)} M`,
+          asContact: '031-334-5296',
+          maxWindSpeed: '12.5 m/s 이내',
+          capacityPreExt: '230 kg',
+          isActive: true,
+          tenant_id: scopeId,
+          createdAt: nowIsoStr,
+          updatedAt: nowIsoStr
+        };
+        autoNewProducts.push(newProduct);
+        existingDbModels.add(mName);
+      }
+      parsed.products.push(...autoNewProducts);
+      console.log(`[Ingest] 외래키 무결성을 위해 ${autoNewProducts.length}개 누락 모델 선제 자동 등록:`, autoNewProducts.map(p => p.modelName));
+      await batchUpsertChunked('products', autoNewProducts, 100, undefined, 'modelName');
+    }
+
+    // 5) 최종 방어선: 혹시라도 여전히 DB에 없는 모델을 가진 자산은 표준 모델 'ES1330L'로 자동 안전 매핑
+    parsed.assets.forEach(asset => {
+      if (!existingDbModels.has(asset.modelName)) {
+        console.warn(`[Ingest] 미등록 모델 감지: ${asset.modelName} -> ES1330L로 안전 매핑`);
+        asset.modelName = 'ES1330L';
+      }
+    });
 
     // Step 5: Assets (양방향 계약정보 & 누적매출액 동기화)
     onProgress?.(5, totalSteps, `5/13: 자산 대장 (${parsed.assets.length}대 & 계약연동 100%) 적재 중...`);

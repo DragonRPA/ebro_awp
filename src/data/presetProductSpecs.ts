@@ -1511,9 +1511,9 @@ export const PRESET_PRODUCT_SPECS: Record<string, ProductPresetSpec> = {
     "maxHeightCapacity": null,
     "safetyCertDate": null
   },
-  "GS-1330m": {
+  "GS-1330M": {
     "id": "PROD-0000054",
-    "modelName": "GS-1330m",
+    "modelName": "GS-1330M",
     "feet": 13,
     "spec": "배터리, 5.7 M, 적재 227 kg",
     "manufacturer": "GENIE",

@@ -2992,7 +2992,7 @@ const generateMockProducts = (): Product[] => {
     },
     {
         "id": "prod-014",
-        "modelName": "GS-1330m",
+        "modelName": "GS-1330M",
         "feet": 13,
         "spec": "배터리, 5.7 M, 적재 227 kg",
         "manufacturer": "GENIE",
