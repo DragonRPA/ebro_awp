@@ -1187,11 +1187,15 @@ export const DevDataUploader: React.FC = () => {
 
         const permMigrateStmts = [
           `ALTER TABLE "permissions" ADD COLUMN IF NOT EXISTS "userId" TEXT;`,
+          `ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "targetRepo" TEXT;`,
+          `ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "solutionType" TEXT;`,
+          `ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "stampImageUrl" TEXT;`,
+          `ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "stampBase64" TEXT;`,
           `DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='permissions' AND column_name='user_id') THEN UPDATE "permissions" SET "userId" = user_id WHERE "userId" IS NULL AND user_id IS NOT NULL; END IF; END $$;`,
           `UPDATE consumable_purchases SET "consumableId" = NULL WHERE "consumableId" IS NOT NULL AND "consumableId" NOT IN (SELECT id FROM consumables);`
         ];
         stmts.push(...permMigrateStmts);
-        sqlPatchDisplay += `-- [보완] permissions "userId" 이관 및 consumable_purchases 레거시 FK 클리닝\n${permMigrateStmts.join('\n')}\n\n`;
+        sqlPatchDisplay += `-- [보완] permissions "userId" 이관 및 tenants 신규 컬럼, consumable_purchases 레거시 FK 클리닝\n${permMigrateStmts.join('\n')}\n\n`;
         sqlPatchDisplay += `\n-- ✅ PostgREST 스키마 캐시 즉시 갱신 (dev_exec_ddl 자동 실행)\nNOTIFY pgrst, 'reload schema';\n`;
       }
 

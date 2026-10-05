@@ -593,7 +593,9 @@ export function buildDispatchKakaoTalkText(params: DispatchKakaoParams): string 
   // 1. 기본 주기장 및 당사 담당자 정보
   const defaultYard = db.currentTenant?.yards?.find(y => y.isDefault) || db.currentTenant?.yards?.[0];
   const defaultYardAddress = defaultYard?.address || db.currentTenant?.mainYardAddress || db.currentTenant?.businessAddress || '경기 용인시 처인구 모현읍 갈담리 176-1';
-  const defaultYardContact = params.hqYardContactPerson || '김원진부장 010-5403-0117';
+  const defaultYardContact = params.hqYardContactPerson 
+    ? (params.hqYardPhone ? `${params.hqYardContactPerson} ${params.hqYardPhone}` : params.hqYardContactPerson)
+    : (defaultYard?.managerName ? `${defaultYard.managerName} ${defaultYard.managerPhone || defaultYard.tel || ''}`.trim() : (db.currentTenant?.tel || '주기장 관리팀'));
 
   const hqAddress = params.hqYardAddress || defaultYardAddress;
   const hqContact = params.hqYardPhone 

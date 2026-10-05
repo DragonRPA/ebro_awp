@@ -166,10 +166,22 @@ export const CANONICAL_MENU_ALIASES: Record<string, string> = {
   'truck_dispatch': 'delivery',
   'truck-dispatch': 'delivery',
   'delivery-dispatch': 'delivery',
-  'smart-dispatch': 'smart_dispatch',
+  'approvalinbox': 'approvalInbox',
+  'approval-inbox': 'approvalInbox',
+  'approval_inbox': 'approvalInbox',
+  'approvalInbox': 'approvalInbox',
+  'approvalrules': 'approvalRules',
+  'approval-rules': 'approvalRules',
+  'approval_rules': 'approvalRules',
+  'approvalRules': 'approvalRules',
+  'smart-dispatch': 'smart_dispatch4',
+  'smart_dispatch': 'smart_dispatch4',
   'smart-dispatch4': 'smart_dispatch4',
+  'smart_dispatch4': 'smart_dispatch4',
   'smart-return': 'smart_return',
+  'smart_return': 'smart_return',
   'smart-as-request': 'smart_as_request',
+  'smart_as_request': 'smart_as_request',
   'smart_as': 'smart_as_request',
   'purchase_settlements': 'purchase_settlement',
   'payrolls': 'payroll',
@@ -229,8 +241,9 @@ export const CANONICAL_MENU_ALIASES: Record<string, string> = {
 
 export function normalizeMenuId(menuId: string): string {
   if (!menuId) return '';
-  const trimmed = menuId.trim().toLowerCase();
-  return CANONICAL_MENU_ALIASES[trimmed] || trimmed;
+  const trimmed = menuId.trim();
+  const lower = trimmed.toLowerCase();
+  return CANONICAL_MENU_ALIASES[lower] || CANONICAL_MENU_ALIASES[trimmed] || (lower === 'approvalinbox' ? 'approvalInbox' : lower === 'approvalrules' ? 'approvalRules' : lower);
 }
 
 // menuId로 메뉴 한글 명칭 검색 도우미

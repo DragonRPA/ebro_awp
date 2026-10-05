@@ -1621,6 +1621,9 @@ CREATE TABLE IF NOT EXISTS tenants (
     yards                 JSONB DEFAULT '[]'::jsonb,
     "mainYardAddress"     TEXT,
     "stampBase64"         TEXT,
+    "stampImageUrl"       TEXT,
+    "targetRepo"          TEXT,
+    "solutionType"        TEXT,
     "privacyOfficer"      JSONB DEFAULT '{}'::jsonb,
     "privacyOfficerName"  TEXT,
     "privacyOfficerPosition" TEXT,
@@ -1631,6 +1634,10 @@ CREATE TABLE IF NOT EXISTS tenants (
     "updatedAt"           TEXT NOT NULL
 );
 
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "targetRepo" TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "solutionType" TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "stampImageUrl" TEXT;
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "stampBase64" TEXT;
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "privacyOfficer" JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "privacyOfficerName" TEXT;
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS "privacyOfficerPosition" TEXT;

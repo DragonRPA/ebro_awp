@@ -2500,7 +2500,7 @@ export const TruckDispatch: React.FC = () => {
 
     const defaultYard = currentTenant?.yards?.find(y => y.isDefault) || currentTenant?.yards?.[0];
     const hqYardAddress = defaultYard?.address || currentTenant?.mainYardAddress || currentTenant?.businessAddress || '본사 주기장';
-    const hqYardPhone = currentTenant?.tel || '배차/출고팀';
+    const hqYardPhone = defaultYard?.managerPhone || defaultYard?.tel || currentTenant?.tel || '배차/출고팀';
     const companyName = currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || '기연리프트';
 
     const smsBody = buildDispatchSmsText({
@@ -2535,6 +2535,12 @@ export const TruckDispatch: React.FC = () => {
 
   // 💬 카카오톡 배차 안내 메시지 생성 및 클립보드 복사 핸들러 (유형별 단일 표준 양식)
   const handleCopyKakaoDispatchMessage = async (targetDelivery: Delivery) => {
+    // 🔒 [기능 플래그 가드] kakaoContract 비활성화 시 발송 차단 및 안내
+    if (currentTenant?.features?.kakaoContract === false) {
+      showToast('해당 기능(카카오 알림톡)은 현재 플랜에서 비활성화되어 있습니다. 관리자에게 문의하세요.', 'warning');
+      return;
+    }
+
     const targetContract = targetDelivery.contractId ? contracts.find(c => c.id === targetDelivery.contractId) : null;
     const customer = targetContract ? customers.find(c => c.id === targetContract.customerId) : null;
     const site = targetContract ? sites.find(s => s.id === targetContract.siteId) : null;
@@ -2577,8 +2583,8 @@ export const TruckDispatch: React.FC = () => {
 
     const defaultYard = currentTenant?.yards?.find(y => y.isDefault) || currentTenant?.yards?.[0];
     const hqYardAddress = defaultYard?.address || currentTenant?.mainYardAddress || currentTenant?.businessAddress || '경기 용인시 처인구 모현읍 갈담리 176-1';
-    const hqYardPhone = currentTenant?.tel || '010-5403-0117';
-    const hqYardContactPerson = '김원진부장';
+    const hqYardContactPerson = defaultYard?.managerName || currentTenant?.representativeName || (currentTenant as any)?.representative || '주기장 담당자';
+    const hqYardPhone = defaultYard?.managerPhone || defaultYard?.tel || currentTenant?.tel || '';
 
     // 현장 담당자
     const actContacts = (site?.contacts || []).filter(c => c.isActive !== false);
@@ -3547,13 +3553,19 @@ export const TruckDispatch: React.FC = () => {
                       {/* 💬 카카오톡 배차 안내 메시지 생성 및 클립보드 복사 버튼 */}
                       <button
                         type="button"
-                        onClick={() => handleCopyKakaoDispatchMessage(selectedDelivery)}
+                        onClick={() => {
+                          if (currentTenant?.features?.kakaoContract === false) {
+                            showToast('해당 기능(카카오 알림톡)은 현재 플랜에서 비활성화되어 있습니다. 관리자에게 문의하세요.', 'warning');
+                            return;
+                          }
+                          handleCopyKakaoDispatchMessage(selectedDelivery);
+                        }}
                         style={{
                           padding: '6px 12px',
                           borderRadius: '7px',
-                          backgroundColor: '#FEE500',
-                          color: '#191919',
-                          border: '1px solid #E6CF00',
+                          backgroundColor: currentTenant?.features?.kakaoContract === false ? '#f3f4f6' : '#FEE500',
+                          color: currentTenant?.features?.kakaoContract === false ? '#9ca3af' : '#191919',
+                          border: currentTenant?.features?.kakaoContract === false ? '1px solid #d1d5db' : '1px solid #E6CF00',
                           fontSize: '12px',
                           fontWeight: 800,
                           cursor: 'pointer',
@@ -3562,9 +3574,9 @@ export const TruckDispatch: React.FC = () => {
                           gap: '5px',
                           boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
                         }}
-                        title="영업사원 및 배차 기사용 카카오톡 배차 메시지 생성 및 클립보드 복사"
+                        title={currentTenant?.features?.kakaoContract === false ? '해당 기능(카카오 알림톡)은 현재 플랜에서 비활성화되어 있습니다. 관리자에게 문의하세요.' : '영업사원 및 배차 기사용 카카오톡 배차 메시지 생성 및 클립보드 복사'}
                       >
-                        <MessageSquare size={13} color="#191919" />
+                        <MessageSquare size={13} color={currentTenant?.features?.kakaoContract === false ? '#9ca3af' : '#191919'} />
                         카톡 메시지 복사
                       </button>
 
@@ -6616,6 +6628,26 @@ export const TruckDispatch: React.FC = () => {
 
             {/* 모달 본문 */}
             <div style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {currentTenant?.features?.kakaoContract === false && (
+                <div
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    color: '#b91c1c',
+                    fontSize: '12.5px',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <AlertTriangle size={15} color="#dc2626" />
+                  해당 기능(카카오 알림톡)은 현재 플랜에서 비활성화되어 있습니다. 관리자에게 문의하세요.
+                </div>
+              )}
+
               {isKakaoCopied && (
                 <div
                   style={{
@@ -6695,6 +6727,10 @@ export const TruckDispatch: React.FC = () => {
               <button
                 type="button"
                 onClick={async () => {
+                  if (currentTenant?.features?.kakaoContract === false) {
+                    showToast('해당 기능(카카오 알림톡)은 현재 플랜에서 비활성화되어 있습니다. 관리자에게 문의하세요.', 'warning');
+                    return;
+                  }
                   await copyToClipboard(kakaoText);
                   setIsKakaoCopied(true);
                   showToast('클립보드에 다시 복사되었습니다.');
@@ -6702,9 +6738,9 @@ export const TruckDispatch: React.FC = () => {
                 style={{
                   padding: '8px 18px',
                   borderRadius: '7px',
-                  backgroundColor: '#FEE500',
-                  color: '#191919',
-                  border: '1px solid #E6CF00',
+                  backgroundColor: currentTenant?.features?.kakaoContract === false ? '#f3f4f6' : '#FEE500',
+                  color: currentTenant?.features?.kakaoContract === false ? '#9ca3af' : '#191919',
+                  border: currentTenant?.features?.kakaoContract === false ? '1px solid #d1d5db' : '1px solid #E6CF00',
                   fontSize: '12.5px',
                   fontWeight: 800,
                   cursor: 'pointer',

@@ -341,6 +341,31 @@ export interface TenantPrivacyOfficer {
   updatedAt?: string;  // 지정/수정 일시
 }
 
+/** 🏢 tenants 테이블 전사용 최신 DDL 패치 구문 (targetRepo, solutionType, stampImageUrl, stampBase64 보장) */
+export const TENANTS_DDL_STATEMENTS: string[] = [
+  'ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "targetRepo" TEXT;',
+  'ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "solutionType" TEXT;',
+  'ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "stampImageUrl" TEXT;',
+  'ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "stampBase64" TEXT;',
+  `NOTIFY pgrst, 'reload schema';`
+];
+
+/** 🏢 tenants 테이블 신규 컬럼 DDL 및 PostgREST 스키마 캐시 자동 반영 헬퍼 */
+export async function autoApplyTenantsDdl(): Promise<boolean> {
+  if (!supabase) return false;
+  try {
+    const { data, error } = await supabase.rpc('dev_exec_ddl', { statements: TENANTS_DDL_STATEMENTS });
+    if (!error) {
+      console.log('[autoApplyTenantsDdl] tenants DDL 실행 및 PostgREST 스키마 캐시 갱신 성공:', data);
+      return true;
+    }
+    console.warn('[autoApplyTenantsDdl] dev_exec_ddl RPC 실행 실패 (Fallback 전환):', error?.message || error);
+    return false;
+  } catch (e: any) {
+    console.warn('[autoApplyTenantsDdl] dev_exec_ddl RPC 호출 예외 (Fallback 전환):', e?.message || e);
+    return false;
+  }
+}
 
 export interface ApprovalRule {
   id?: string;
@@ -5524,6 +5549,7 @@ class LocalDB {
       let feat = t.features;
       let sol = t.solutionType;
       let repo = t.targetRepo;
+      let stamp = t.stampImageUrl || (t as any).stampBase64;
       const seedMatch = SEED_TENANTS.find(s => s.id === t.id || s.tenantCode === t.tenantCode);
       if (!sol && seedMatch?.solutionType) {
         sol = seedMatch.solutionType;
@@ -5531,6 +5557,17 @@ class LocalDB {
       }
       if (!repo && seedMatch?.targetRepo) {
         repo = seedMatch.targetRepo;
+        changed = true;
+      }
+      if (!stamp && seedMatch?.stampImageUrl) {
+        stamp = seedMatch.stampImageUrl;
+        changed = true;
+      }
+      if (!stamp && (t.id === 'tenant-1' || t.id === 'tenant-giyeonlift' || t.tenantCode === 'GIYEONLIFT' || t.tenantCode === 'GIYEUN' || t.isDefault)) {
+        stamp = OFFICIAL_STAMP_BASE64;
+        changed = true;
+      }
+      if (stamp && (!t.stampImageUrl || !(t as any).stampBase64)) {
         changed = true;
       }
       if ((!ci || !logo) && (t.id === 'tenant-1' || t.id === 'tenant-giyeonlift' || t.tenantCode === 'GIYEONLIFT' || t.tenantCode === 'GIYEUN' || t.isDefault)) {
@@ -5554,7 +5591,17 @@ class LocalDB {
       }
       if (changed) {
         modified = true;
-        return { ...t, ciUrl: ci, logoUrl: logo, subdomain: sub, features: feat, solutionType: sol, targetRepo: repo };
+        return { 
+          ...t, 
+          ciUrl: ci, 
+          logoUrl: logo, 
+          subdomain: sub, 
+          features: feat, 
+          solutionType: sol, 
+          targetRepo: repo,
+          stampImageUrl: stamp,
+          stampBase64: stamp
+        };
       }
       return t;
     });
@@ -6217,6 +6264,15 @@ class LocalDB {
       }
     }
 
+    // 🏢 [tenants 직인 상호 복원] DB의 stampBase64 ↔ 프론트엔드의 stampImageUrl 자동 복원
+    if (tableName === 'tenants' || normalized.stampBase64 !== undefined || normalized.stampImageUrl !== undefined) {
+      const stampVal = normalized.stampBase64 || normalized.stampImageUrl;
+      if (stampVal) {
+        if (!normalized.stampImageUrl) normalized.stampImageUrl = stampVal;
+        if (!normalized.stampBase64) normalized.stampBase64 = stampVal;
+      }
+    }
+
     return normalized;
   }
 
@@ -6528,6 +6584,27 @@ class LocalDB {
       // 원격 DB 컬럼에 없을 수 있는 blockType 안전 격리
       delete sanitized.blockType;
     }
+
+    // 🏢 tenants 테이블 전용 데이터 정제 및 컬럼 매핑 (targetRepo, solutionType, 직인 호환)
+    if (tableName === 'tenants') {
+      // 1. 프론트엔드 stampImageUrl ↔ DB stampBase64 완벽 호환 (직인 컬럼 불일치 해결)
+      if (obj.stampImageUrl !== undefined && obj.stampImageUrl !== null) {
+        sanitized.stampBase64 = obj.stampImageUrl;
+        sanitized.stampImageUrl = obj.stampImageUrl;
+      } else if (obj.stampBase64 !== undefined && obj.stampBase64 !== null) {
+        sanitized.stampImageUrl = obj.stampBase64;
+        sanitized.stampBase64 = obj.stampBase64;
+      }
+
+      // 2. targetRepo 및 solutionType 누락 방지 및 안전 저장 보존
+      if (obj.targetRepo !== undefined) {
+        sanitized.targetRepo = obj.targetRepo || null;
+      }
+      if (obj.solutionType !== undefined) {
+        sanitized.solutionType = obj.solutionType || 'AWP';
+      }
+    }
+
     return sanitized;
   }
 
@@ -6623,7 +6700,7 @@ class LocalDB {
       const promise = supabase
         .from(tableName)
         .upsert([payloadForSupabase], { onConflict: 'id' })
-        .then(({ data, error }) => {
+        .then(async ({ data, error }) => {
           if (error) {
             console.error(`Supabase upsert failed for ${tableName}:`, error);
             const msg = error.message || String(error);
@@ -6634,6 +6711,24 @@ class LocalDB {
             }
             // 신규 미반영 컬럼 에러 시 2차 Fallback (주요 기본 컬럼만 전송하여 100% 저장 성공 보장)
             if (msg.includes('column') || msg.includes('Could not find') || error.code === 'PGRST200' || error.code === '42703' || error.code === 'PGRST204') {
+              // 💡 [tenants 테이블 스키마 자동 반영 시도]
+              if (tableName === 'tenants' && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column'))) {
+                try {
+                  const applied = await autoApplyTenantsDdl();
+                  if (applied) {
+                    await new Promise(r => setTimeout(r, 200));
+                    const retryRes = await supabase.from(tableName).upsert([payloadForSupabase], { onConflict: 'id' });
+                    if (!retryRes.error) {
+                      console.log(`[tenants DDL 자동 반영 성공] ${tableName} upsert 정상 완료`);
+                      return retryRes.data;
+                    }
+                    console.warn(`[tenants DDL 재시도 실패, Fallback 페이로드 진행]:`, retryRes.error?.message);
+                  }
+                } catch (ddlErr) {
+                  console.warn(`[tenants DDL 자동 실행 예외]:`, ddlErr);
+                }
+              }
+
               const fallbackPayload = { ...payloadForSupabase };
               delete fallbackPayload.defectsJson;
               delete fallbackPayload.inboundNo;
@@ -6649,6 +6744,18 @@ class LocalDB {
               const colMatch = msg.match(/Could not find the '([^']+)' column/) || msg.match(/column "?([^"\s]+)"? of relation/);
               if (colMatch && colMatch[1]) {
                 delete fallbackPayload[colMatch[1]];
+              }
+
+              // 🛡️ [tenants 전용 Fallback 방어벽] PostgREST 캐시 불일치 컬럼 안전 제거 및 직인 보존
+              if (tableName === 'tenants') {
+                if (msg.includes('targetRepo') || msg.includes('column')) delete fallbackPayload.targetRepo;
+                if (msg.includes('solutionType') || msg.includes('column')) delete fallbackPayload.solutionType;
+                if (msg.includes('stampImageUrl') || msg.includes('column')) {
+                  delete fallbackPayload.stampImageUrl;
+                  if (!fallbackPayload.stampBase64 && payloadForSupabase.stampImageUrl) {
+                    fallbackPayload.stampBase64 = payloadForSupabase.stampImageUrl;
+                  }
+                }
               }
 
               return supabase.from(tableName).upsert([fallbackPayload], { onConflict: 'id' }).then(({ data: d2, error: e2 }) => {
@@ -6712,7 +6819,7 @@ class LocalDB {
         .from(tableName)
         .update(payloadForSupabase as any)
         .eq('id', id)
-        .then(({ data, error }) => {
+        .then(async ({ data, error }) => {
           if (error) {
             console.error(`Supabase update failed for ${tableName}:`, error);
             const msg = error.message || String(error);
@@ -6722,6 +6829,24 @@ class LocalDB {
               return null;
             }
             if (msg.includes('column') || msg.includes('Could not find') || error.code === 'PGRST200' || error.code === '42703' || error.code === 'PGRST204') {
+              // 💡 [tenants 테이블 스키마 자동 반영 시도]
+              if (tableName === 'tenants' && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column'))) {
+                try {
+                  const applied = await autoApplyTenantsDdl();
+                  if (applied) {
+                    await new Promise(r => setTimeout(r, 200));
+                    const retryRes = await supabase.from(tableName).update(payloadForSupabase as any).eq('id', id);
+                    if (!retryRes.error) {
+                      console.log(`[tenants DDL 자동 반영 성공] ${tableName} update 정상 완료`);
+                      return retryRes.data;
+                    }
+                    console.warn(`[tenants DDL 재시도 실패, Fallback 페이로드 진행]:`, retryRes.error?.message);
+                  }
+                } catch (ddlErr) {
+                  console.warn(`[tenants DDL 자동 실행 예외]:`, ddlErr);
+                }
+              }
+
               const fallbackPayload = { ...payloadForSupabase };
               delete fallbackPayload.defectsJson;
               delete fallbackPayload.inboundNo;
@@ -6736,6 +6861,18 @@ class LocalDB {
               const colMatch = msg.match(/Could not find the '([^']+)' column/) || msg.match(/column "?([^"\s]+)"? of relation/);
               if (colMatch && colMatch[1]) {
                 delete fallbackPayload[colMatch[1]];
+              }
+
+              // 🛡️ [tenants 전용 Fallback 방어벽] PostgREST 캐시 불일치 컬럼 안전 제거 및 직인 보존
+              if (tableName === 'tenants') {
+                if (msg.includes('targetRepo') || msg.includes('column')) delete fallbackPayload.targetRepo;
+                if (msg.includes('solutionType') || msg.includes('column')) delete fallbackPayload.solutionType;
+                if (msg.includes('stampImageUrl') || msg.includes('column')) {
+                  delete fallbackPayload.stampImageUrl;
+                  if (!fallbackPayload.stampBase64 && (payloadForSupabase as any).stampImageUrl) {
+                    fallbackPayload.stampBase64 = (payloadForSupabase as any).stampImageUrl;
+                  }
+                }
               }
 
               return supabase.from(tableName).update(fallbackPayload as any).eq('id', id).then(({ data: d2, error: e2 }) => {
@@ -6813,7 +6950,7 @@ class LocalDB {
       const promise = supabase
         .from(tableName)
         .upsert(sanitizedRows, { onConflict: 'id' })
-        .then(({ error }) => {
+        .then(async ({ error }) => {
           if (error) {
             console.error(`Supabase upsertRows failed for ${tableName}:`, error);
             const msg = error.message || String(error);
@@ -6823,6 +6960,30 @@ class LocalDB {
               return null;
             }
             if (msg.includes('column') || msg.includes('Could not find') || error.code === 'PGRST200' || error.code === '42703' || error.code === 'PGRST204') {
+              if (tableName === 'tenants') {
+                try {
+                  const applied = await autoApplyTenantsDdl();
+                  if (applied) {
+                    await new Promise(r => setTimeout(r, 200));
+                    const retry = await supabase.from(tableName).upsert(sanitizedRows, { onConflict: 'id' });
+                    if (!retry.error) return retry.data;
+                  }
+                } catch (ddlErr) {
+                  console.warn(`[tenants upsertRows DDL 예외]:`, ddlErr);
+                }
+                const fallbackRows = sanitizedRows.map(r => {
+                  const fb = { ...r };
+                  delete fb.targetRepo;
+                  delete fb.solutionType;
+                  delete fb.stampImageUrl;
+                  if (!fb.stampBase64 && (r as any).stampImageUrl) {
+                    fb.stampBase64 = (r as any).stampImageUrl;
+                  }
+                  return fb;
+                });
+                const retryFb = await supabase.from(tableName).upsert(fallbackRows, { onConflict: 'id' });
+                if (!retryFb.error) return retryFb.data;
+              }
               console.warn(`[Supabase upsertRows graceful fallback] ${tableName} column mismatch:`, msg);
               return null;
             }
@@ -6842,8 +7003,32 @@ class LocalDB {
       const data = (this as any)[key] as any[];
       const tableName = this.mapToSupabaseTable(key);
       const sanitizedData = Array.isArray(data) ? data.map(item => this.sanitizeSupabasePayload(item, tableName)) : [];
-      const { error } = await supabase.from(tableName).upsert(sanitizedData, { onConflict: 'id' });
-      if (error) console.error(`Bulk upsert error for ${tableName}:`, error);
+      let { error } = await supabase.from(tableName).upsert(sanitizedData, { onConflict: 'id' });
+      if (error) {
+        console.error(`Bulk upsert error for ${tableName}:`, error);
+        if (tableName === 'tenants') {
+          try {
+            const applied = await autoApplyTenantsDdl();
+            if (applied) {
+              await new Promise(r => setTimeout(r, 200));
+              const retry = await supabase.from(tableName).upsert(sanitizedData, { onConflict: 'id' });
+              if (!retry.error) return;
+            }
+          } catch (e) {}
+          const fallbackData = sanitizedData.map((item: any) => {
+            const fb = { ...item };
+            delete fb.targetRepo;
+            delete fb.solutionType;
+            delete fb.stampImageUrl;
+            if (!fb.stampBase64 && item.stampImageUrl) {
+              fb.stampBase64 = item.stampImageUrl;
+            }
+            return fb;
+          });
+          const { error: e2 } = await supabase.from(tableName).upsert(fallbackData, { onConflict: 'id' });
+          if (!e2) return;
+        }
+      }
     }));
   }
 

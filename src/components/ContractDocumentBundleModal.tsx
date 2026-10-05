@@ -28,7 +28,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
   const { 
     contracts, customers, contacts, sites, assets, 
     contractAssets, deliveries, products, googleConfigs, currentUser,
-    currentTenant, showErrorModal, hasPermission
+    currentTenant, showErrorModal, hasPermission, users
   } = useApp();
 
   const canGeneratePackage = hasPermission('agent_badge', 'view');  // 계약서 패키지 생성 권한
@@ -365,11 +365,34 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
       const config = googleConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs[0];
 
-      const tenantCorp = currentTenant?.tradeName || currentTenant?.corporateName || currentTenant?.displayName || '(주)기연리프트';
+      const tenantCorp = currentTenant?.corporateName || currentTenant?.tradeName || currentTenant?.displayName || '(주)기연리프트';
+
+      // 💡 영업담당자 동적 산출 (1순위: 계약 배정 영업사원, 2순위: 현재 로그인 사용자, 3순위: 테넌트 대표/기본값)
+      const salesUser = (selectedContract?.salespersonId ? users?.find(u => u.id === selectedContract.salespersonId) : null) || currentUser;
+      const salesDuty = salesUser?.duty || salesUser?.position || '';
+      const dynamicSalesRepName = salesUser?.name
+        ? (salesDuty ? `${salesUser.name} ${salesDuty}` : salesUser.name)
+        : (currentTenant?.representativeName ? `${currentTenant.representativeName} 대표` : '영업담당자');
+      const dynamicSalesRepPhone = salesUser?.phone || currentTenant?.salesPhone || currentTenant?.tel || '010-0000-0000';
+
+      // 💡 테넌트 주거래 입금계좌 포맷팅
+      const primaryAccount = currentTenant?.bankAccounts?.[0];
+      const bankAccountText = primaryAccount
+        ? `${primaryAccount.bankName} ${primaryAccount.accountNumber} (${primaryAccount.accountHolder})`
+        : '';
 
       const bundleOptions = {
         customerName: custName,
         tenantName: tenantCorp,
+        corporateName: currentTenant?.corporateName || tenantCorp,
+        businessNumber: currentTenant?.businessNumber || '138-81-83251',
+        representativeName: currentTenant?.representativeName || '이수용',
+        stampImageUrl: currentTenant?.stampImageUrl || '',
+        bankAccount: bankAccountText,
+        bankAccounts: currentTenant?.bankAccounts || [],
+        bankName: primaryAccount?.bankName || '',
+        accountNumber: primaryAccount?.accountNumber || '',
+        accountHolder: primaryAccount?.accountHolder || '',
         bizRegNo: customer?.bizRegNo || '118-81-00241',
         ceoName: customer?.representative || '대표자',
         contractDate: selectedContract.startDate,
@@ -396,8 +419,8 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
           }
           return site?.contact || '010-0000-0000';
         })(),
-        salesRepName: '김동우 팀장',
-        salesRepPhone: '010-9402-5296',
+        salesRepName: dynamicSalesRepName,
+        salesRepPhone: dynamicSalesRepPhone,
         optionsText: (selectedContract as any).optionsText || (selectedContract as any).remarks || '옵션 협착난간대, 튜브소화기 외',
         assets: mappedAssets.length > 0 ? mappedAssets : undefined,
         r2Config: config ? {

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSortableData } from '../hooks/useSortableData';
 import { SortableTh } from '../components/SortableTh';
 import { useApp } from '../context/AppContext';
-import { db, isActivePayment, Asset, Billing, BillingDetail, ContractHistory, normalizeEndDate, formatContractEndDate, CustomStatementItem, ApprovalPayload } from '../services/db';
+import { db, isActivePayment, Asset, Billing, BillingDetail, ContractHistory, normalizeEndDate, formatContractEndDate, CustomStatementItem, ApprovalPayload, TenantBankAccount, Tenant } from '../services/db';
 import { Plus, Download, Mail, CheckCircle, Search, DollarSign, Calendar, FileText, Send, Edit3, RotateCcw, AlertTriangle, Check, Layers, Sliders, Settings } from 'lucide-react';
 import { emailService } from '../services/email';
 import { exportToExcel, exportTransactionStatementExcel, exportTransactionStatementExcelBuffer, calcServicePeriod, formatStatementItemName } from '../services/excel';
@@ -12,6 +12,37 @@ import { BillingInvoiceTab } from '../components/BillingInvoiceTab';
 import { matchHangul } from '../utils/hangulSearch';
 import { useApproval } from '../hooks/useApproval';
 
+// 🏦 테넌트 주거래 입금 계좌 조회 및 동적 포맷팅 헬퍼 (헌장 1.4: SSOT 표준화)
+export const getTenantPrimaryBankAccount = (tenant?: Tenant | null): TenantBankAccount | null => {
+  if (!tenant?.bankAccounts || !Array.isArray(tenant.bankAccounts) || tenant.bankAccounts.length === 0) {
+    return null;
+  }
+  return tenant.bankAccounts.find(a => a.isDefault) || tenant.bankAccounts[0];
+};
+
+export const formatTenantBankAccountForStatement = (tenant?: Tenant | null): string => {
+  const acc = getTenantPrimaryBankAccount(tenant);
+  if (!acc) {
+    return '(등록된 주거래 입금 계좌 정보가 없습니다. 관리자에게 문의하세요)';
+  }
+  return `${acc.bankName} ${acc.accountNumber} , ${acc.accountHolder}`;
+};
+
+export const formatTenantBankAccountsForEmail = (tenant?: Tenant | null): string => {
+  if (!tenant?.bankAccounts || !Array.isArray(tenant.bankAccounts) || tenant.bankAccounts.length === 0) {
+    return '(등록된 주거래 입금 계좌 정보가 없습니다. 회사 관리팀에 문의 바랍니다.)';
+  }
+  const primaryAcc = tenant.bankAccounts.find(a => a.isDefault) || tenant.bankAccounts[0];
+  const otherAccounts = tenant.bankAccounts.filter(a => a !== primaryAcc);
+
+  const lines = [
+    `${primaryAcc.bankName} ${primaryAcc.accountNumber} ${primaryAcc.accountHolder}${tenant.bankAccounts.length > 1 ? ' [주거래]' : ''}`
+  ];
+  otherAccounts.forEach(a => {
+    lines.push(`${a.bankName} ${a.accountNumber} ${a.accountHolder}`);
+  });
+  return lines.join('\n- ');
+};
 
 export const Billings: React.FC = () => {
   const {
@@ -1042,7 +1073,7 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
         custBillingManagerPhone: (customer as any)?.billingManagerPhone || (customer as any)?.phone || '-',
         custBillingEmail: (customer as any)?.billingEmail || (customer as any)?.email || '-',
         siteName: site?.name || '-',
-        bankAccount: currentTenant?.bankAccounts?.[0] ? `${currentTenant.bankAccounts[0].bankName} ${currentTenant.bankAccounts[0].accountNumber} , ${currentTenant.bankAccounts[0].accountHolder}` : '',
+        bankAccount: formatTenantBankAccountForStatement(currentTenant),
 
         items,
         totalSupply,
@@ -1174,7 +1205,7 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
         custBillingManagerPhone: (customer as any)?.billingManagerPhone || (customer as any)?.phone || '-',
         custBillingEmail: (customer as any)?.billingEmail || (customer as any)?.email || '-',
         siteName: site?.name || '-',
-        bankAccount: currentTenant?.bankAccounts?.[0] ? `${currentTenant.bankAccounts[0].bankName} ${currentTenant.bankAccounts[0].accountNumber} , ${currentTenant.bankAccounts[0].accountHolder}` : '',
+        bankAccount: formatTenantBankAccountForStatement(currentTenant),
 
         items,
         totalSupply,
@@ -1326,7 +1357,7 @@ ${items.map((item, idx) => {
 - 최종 청구 총액: ${(totalSupply + totalVat).toLocaleString()}원 (기수금: ${(billing?.paidAmount || 0).toLocaleString()}원 / 미수잔액: ${(totalSupply + totalVat - (billing?.paidAmount || 0)).toLocaleString()}원)
 
 [5. 입금 계좌 안내]
-- ${currentTenant?.bankAccounts?.[0] ? `${currentTenant.bankAccounts[0].bankName} ${currentTenant.bankAccounts[0].accountNumber} ${currentTenant.bankAccounts[0].accountHolder}` : '-'}
+- ${formatTenantBankAccountsForEmail(currentTenant)}
 
 [6. 첨부 파일 안내]
 - 본 이메일에는 공식 전자 거래명세서(.pdf) 파일이 자동 첨부되었습니다.
@@ -1371,7 +1402,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
           custBillingManagerPhone: billingManagerPhone,
           custBillingEmail: billingEmail,
           siteName: site?.name || '-',
-          bankAccount: currentTenant?.bankAccounts?.[0] ? `${currentTenant.bankAccounts[0].bankName} ${currentTenant.bankAccounts[0].accountNumber} , ${currentTenant.bankAccounts[0].accountHolder}` : '',
+          bankAccount: formatTenantBankAccountForStatement(currentTenant),
 
           items,
           totalSupply,
@@ -5907,9 +5938,24 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                   />
                 </div>
 
-                <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', padding: '12px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px dashed var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', padding: '12px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px dashed var(--border-color)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <span style={{ fontWeight: '600' }}>💡 거래명세서 메일 자동 생성 안내</span>
                   <span>- 발송 시 표준 거래명세서 양식(공급자/공급받는자 정보, 세부 품목별 날짜/적용단가/공급가액/부가세)이 메일 본문에 100% 자동 생성되어 전달됩니다.</span>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '2px', lineHeight: '1.5' }}>
+                    <span style={{ fontWeight: 600, flexShrink: 0 }}>- 입금 계좌:</span>
+                    {(() => {
+                      const pri = getTenantPrimaryBankAccount(currentTenant);
+                      if (!pri) {
+                        return <span style={{ color: '#ef4444', fontWeight: 600 }}>⚠️ 등록된 주거래 입금 계좌 정보가 없습니다. (테넌트 설정에서 계좌를 등록해 주세요)</span>;
+                      }
+                      return (
+                        <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                          {pri.bankName} {pri.accountNumber} ({pri.accountHolder})
+                          {currentTenant?.bankAccounts && currentTenant.bankAccounts.length > 1 && ` 외 ${currentTenant.bankAccounts.length - 1}개 계좌 등록됨`}
+                        </span>
+                      );
+                    })()}
+                  </div>
                 </div>
               </div>
 

@@ -32,6 +32,14 @@ export interface TenantAgentInstallerInfo {
 }
 
 /**
+ * 📦 깃허브 레포지토리 기반 에이전트 다운로드 URL 생성 헬퍼
+ */
+export function getAgentDownloadUrl(targetRepo?: string, fileName: string = 'eBroAgent_Setup.exe'): string {
+  const repo = (targetRepo?.split(',')[0].trim()) || 'DragonRPA/ebro_awp';
+  return `https://github.com/${repo}/releases/download/agent-v2.0.0/${fileName}`;
+}
+
+/**
  * 📦 접속 URL 및 테넌트 기준 맞춤형 eBroAgent 설치 프로그램 메타데이터 생성
  * 각 고객사(테넌트)별 서브도메인 및 상호가 바인딩된 전용 설치 파일명 및 초고속 CDN 다운로드 링크를 제공합니다.
  */
@@ -41,6 +49,7 @@ export function getTenantAgentInstallerInfo(tenant?: {
   tradeName?: string;
   corporateName?: string;
   subdomain?: string;
+  targetRepo?: string;
 } | null): TenantAgentInstallerInfo {
   let rawCode = (tenant?.tenantCode || 'GIYEONLIFT').toUpperCase();
   if (rawCode === 'GIYEUN' || rawCode === 'GIYUEN' || rawCode === 'KIYUEN') {
@@ -54,7 +63,9 @@ export function getTenantAgentInstallerInfo(tenant?: {
   const fileName = `eBroAgent_Setup_${code}.exe`;
   
   // 🚀 GitHub Releases 글로벌 초고속 CDN 기반 (8~10MB/s, 16MB를 3초 만에 다운로드 완료)
-  const downloadUrl = `${DEFAULT_GITHUB_RELEASE_BASE_URL}/${fileName}`;
+  // currentTenant?.targetRepo가 존재하면 해당 레포지토리 동적 사용 (미지정 시 DragonRPA/ebro_awp 기본값)
+  const targetRepo = (tenant?.targetRepo?.split(',')[0].trim()) || 'DragonRPA/ebro_awp';
+  const downloadUrl = `https://github.com/${targetRepo}/releases/download/agent-v2.0.0/${fileName}`;
   // Cloudflare R2 보조 엔드포인트 URL
   const fallbackUrl = `${DEFAULT_CF_R2_BASE_URL}/downloads/${fileName}`;
 
@@ -78,6 +89,7 @@ export function triggerTenantAgentDownload(tenant?: {
   tradeName?: string;
   corporateName?: string;
   subdomain?: string;
+  targetRepo?: string;
 } | null): void {
   const info = getTenantAgentInstallerInfo(tenant);
   const a = document.createElement('a');

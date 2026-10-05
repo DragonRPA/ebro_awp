@@ -83,7 +83,7 @@ interface AppContextType {
   currentUser: User | null;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
-  login: (loginId: string, passwordHash: string, keepLoggedIn?: boolean) => Promise<{ success: boolean; reason?: string }>;
+  login: (loginId: string, passwordHash: string, keepLoggedIn?: boolean) => Promise<{ success: boolean; reason?: string; error?: string }>;
   logout: () => void;
   switchUser: (userId: string) => void;
   hasPermission: (menuId: string, action: 'view' | 'save') => boolean;
@@ -989,7 +989,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     loginId: string, 
     passwordHash: string, 
     keepLoggedIn?: boolean
-  ): Promise<{ success: boolean; reason?: string }> => {
+  ): Promise<{ success: boolean; reason?: string; error?: string }> => {
     const cleanId = (loginId || '').trim();
     const cleanPw = (passwordHash || '').trim();
 
@@ -1031,124 +1031,169 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    // 2. 개발 전용 테스트 계정 보장 (manager, user, mechanic)
+    // 2. 개발 전용 테스트 계정 보장 (manager, user, mechanic) 또는 로컬/원격 DB 사용자 검색
+    let user: User | undefined;
+
     if (cleanId.toLowerCase() === 'manager' && cleanPw === 'mgr123') {
-      const fallbackManager: User = {
+      user = {
         id: 'USR-MGR-TEST', loginId: 'manager', passwordHash: 'mgr123',
         name: '영업관리자', department: '영업관리', departmentId: 'DEPT-0000003', role: 'MANAGER', customRoleId: 'role_sales', createdAt: new Date().toISOString()
       };
-      setCurrentUser(fallbackManager);
-      sessionStorage.setItem('user', JSON.stringify(fallbackManager));
-      if (keepLoggedIn) localStorage.setItem('auto_user', JSON.stringify(fallbackManager));
-      return { success: true };
-    }
-    if (cleanId.toLowerCase() === 'user' && cleanPw === 'user123') {
-      const fallbackUser: User = {
+    } else if (cleanId.toLowerCase() === 'user' && cleanPw === 'user123') {
+      user = {
         id: 'USR-USER-TEST', loginId: 'user', passwordHash: 'user123',
         name: '일반영업', department: '영업부', departmentId: 'DEPT-0000003', role: 'USER', customRoleId: 'role_sales', createdAt: new Date().toISOString()
       };
-      setCurrentUser(fallbackUser);
-      sessionStorage.setItem('user', JSON.stringify(fallbackUser));
-      if (keepLoggedIn) localStorage.setItem('auto_user', JSON.stringify(fallbackUser));
-      return { success: true };
-    }
-    if (cleanId.toLowerCase() === 'mechanic' && cleanPw === 'mech123') {
-      const fallbackMech: User = {
+    } else if (cleanId.toLowerCase() === 'mechanic' && cleanPw === 'mech123') {
+      user = {
         id: 'USR-MECH-TEST', loginId: 'mechanic', passwordHash: 'mech123',
         name: '정비기사', department: '정비부', departmentId: 'DEPT-0000005', role: 'MECHANIC', customRoleId: 'role_mechanic', createdAt: new Date().toISOString()
       };
-      setCurrentUser(fallbackMech);
-      sessionStorage.setItem('user', JSON.stringify(fallbackMech));
-      if (keepLoggedIn) localStorage.setItem('auto_user', JSON.stringify(fallbackMech));
-      return { success: true };
-    }
+    } else {
+      // 3. 로컬 캐시 사용자 검색 (아이디, 사원명, 사번, 전화번호, 이메일 다각도 매칭)
+      const normInput = cleanId.toLowerCase();
+      const phoneInput = cleanId.replace(/[^0-9]/g, '');
 
-    // 3. 로컬 캐시 사용자 검색 (아이디, 사원명, 사번, 전화번호, 이메일 다각도 매칭)
-    const normInput = cleanId.toLowerCase();
-    const phoneInput = cleanId.replace(/[^0-9]/g, '');
+      const matchUser = (u: User) => {
+        const uLogin = (u.loginId || '').trim().toLowerCase();
+        const uName = (u.name || '').trim().toLowerCase();
+        const uId = (u.id || '').trim().toLowerCase();
+        const uPhone = (u.phone || '').replace(/[^0-9]/g, '');
+        const uEmail = (u.email || '').trim().toLowerCase();
+        return uLogin === normInput || 
+               uName === normInput || 
+               uId === normInput ||
+               (uEmail.length > 0 && uEmail === normInput) || 
+               (phoneInput.length >= 8 && uPhone.length >= 8 && uPhone === phoneInput);
+      };
 
-    const matchUser = (u: User) => {
-      const uLogin = (u.loginId || '').trim().toLowerCase();
-      const uName = (u.name || '').trim().toLowerCase();
-      const uId = (u.id || '').trim().toLowerCase();
-      const uPhone = (u.phone || '').replace(/[^0-9]/g, '');
-      const uEmail = (u.email || '').trim().toLowerCase();
-      return uLogin === normInput || 
-             uName === normInput || 
-             uId === normInput ||
-             (uEmail.length > 0 && uEmail === normInput) || 
-             (phoneInput.length >= 8 && uPhone.length >= 8 && uPhone === phoneInput);
-    };
+      user = db.users.find(matchUser);
 
-    let user = db.users.find(matchUser);
-
-    // 4. 로컬 캐시에 없는 경우 (초기 로딩 전 또는 캐시 미반영), Supabase 원격 DB 직접 단건 조회 (Zero Race Condition)
-    if (!user && db.isSupabaseConnected() && supabase) {
-      try {
-        const { data: suUsers } = await supabase
-          .from('users')
-          .select('*')
-          .or(`loginId.ilike.${cleanId},name.ilike.${cleanId},id.ilike.${cleanId}`);
-        if (suUsers && suUsers.length > 0 && suUsers[0]) {
-          const foundUser = suUsers[0] as User;
-          user = foundUser;
-          // 로컬 캐시에 즉시 보강 저장
-          const currentList = db.users;
-          if (!currentList.some(u => u.id === foundUser.id)) {
-            db.users = [...currentList, foundUser];
+      // 4. 로컬 캐시에 없는 경우 (초기 로딩 전 또는 캐시 미반영), Supabase 원격 DB 직접 단건 조회 (Zero Race Condition)
+      if (!user && db.isSupabaseConnected() && supabase) {
+        try {
+          const { data: suUsers } = await supabase
+            .from('users')
+            .select('*')
+            .or(`loginId.ilike.${cleanId},name.ilike.${cleanId},id.ilike.${cleanId}`);
+          if (suUsers && suUsers.length > 0 && suUsers[0]) {
+            const foundUser = suUsers[0] as User;
+            user = foundUser;
+            // 로컬 캐시에 즉시 보강 저장
+            const currentList = db.users;
+            if (!currentList.some(u => u.id === foundUser.id)) {
+              db.users = [...currentList, foundUser];
+            }
           }
+        } catch (suErr) {
+          console.warn('원격 DB 직접 사용자 인증 조회 오류:', suErr);
         }
-      } catch (suErr) {
-        console.warn('원격 DB 직접 사용자 인증 조회 오류:', suErr);
+      }
+
+      // 5. 사용자를 찾을 수 없는 경우 (등록되지 않은 사원)
+      if (!user) {
+        logPrivacyAccess('LOGIN', 'login', `로그인 거부: 미등록 계정 시도 ('${cleanId}')`, {
+          userId: cleanId,
+          userName: '미식별'
+        }).catch(console.error);
+        return { 
+          success: false, 
+          reason: `등록되지 않은 사원 계정입니다. ('${cleanId}')\n사원명(예: 김동우, 이수용 등) 또는 사번을 정확히 입력해 주십시오.` 
+        };
+      }
+
+      // 6. 계정 상태 검증 (재직, 휴직, 퇴사)
+      if (user.status === 'RETIRED') {
+        logPrivacyAccess('LOGIN', 'login', `로그인 거부: 퇴사자 계정 접속 차단 (${user.name})`, {
+          userId: user.loginId || user.id,
+          userName: user.name
+        }).catch(console.error);
+        return { 
+          success: false, 
+          reason: `퇴사 처리된 계정입니다. (${user.name} 님)\n로그인이 제한되오니 인사담당자에게 문의해 주십시오.` 
+        };
+      }
+
+      if (user.status === 'LEAVE_OF_ABSENCE') {
+        logPrivacyAccess('LOGIN', 'login', `로그인 거부: 휴직자 계정 접속 차단 (${user.name})`, {
+          userId: user.loginId || user.id,
+          userName: user.name
+        }).catch(console.error);
+        return { 
+          success: false, 
+          reason: `현재 휴직 상태로 설정된 계정입니다. (${user.name} 님)\n관리자에게 업무 복귀 승인을 요청해 주십시오.` 
+        };
+      }
+
+      // 7. 비밀번호 검증 (미설정 사원은 사내 기본 비밀번호 1111 적용)
+      const expectedPassword = user.passwordHash || '1111';
+      if (expectedPassword !== cleanPw) {
+        logPrivacyAccess('LOGIN', 'login', `로그인 거부: 비밀번호 불일치 (${user.name})`, {
+          userId: user.loginId || user.id,
+          userName: user.name
+        }).catch(console.error);
+        return { 
+          success: false, 
+          reason: `비밀번호가 일치하지 않습니다. (${user.name} 님)\n사원 초기 비밀번호는 '1111'입니다. 비밀번호를 다시 확인해 주십시오.` 
+        };
       }
     }
 
-    // 5. 사용자를 찾을 수 없는 경우 (등록되지 않은 사원)
-    if (!user) {
-      logPrivacyAccess('LOGIN', 'login', `로그인 거부: 미등록 계정 시도 ('${cleanId}')`, {
-        userId: cleanId,
-        userName: '미식별'
-      }).catch(console.error);
-      return { 
-        success: false, 
-        reason: `등록되지 않은 사원 계정입니다. ('${cleanId}')\n사원명(예: 김동우, 이수용 등) 또는 사번을 정확히 입력해 주십시오.` 
-      };
-    }
+    // 7-1. 🏢 [테넌트 구독 만료 및 정지 가드 (Tenant Subscription / Suspension Guard)]
+    // 테넌트 상태가 SUSPENDED이거나 구독이 만료(EXPIRED)되고 유예기간(gracePeriodDays)이 지난 경우,
+    // 일반 직원의 로그인을 차단하고 명확한 안내 에러 메시지 반환
+    const targetTenant = (user as any).tenantId 
+      ? (tenants.find(t => t.id === (user as any).tenantId) || currentTenant)
+      : currentTenant;
 
-    // 6. 계정 상태 검증 (재직, 휴직, 퇴사)
-    if (user.status === 'RETIRED') {
-      logPrivacyAccess('LOGIN', 'login', `로그인 거부: 퇴사자 계정 접속 차단 (${user.name})`, {
-        userId: user.loginId || user.id,
-        userName: user.name
-      }).catch(console.error);
-      return { 
-        success: false, 
-        reason: `퇴사 처리된 계정입니다. (${user.name} 님)\n로그인이 제한되오니 인사담당자에게 문의해 주십시오.` 
-      };
-    }
+    if (targetTenant) {
+      const isStaff = user.role !== 'ADMIN' && user.loginId !== 'admin' && user.id !== 'sys-admin';
+      if (isStaff) {
+        let isSuspended = targetTenant.status === 'SUSPENDED' || targetTenant.subscription?.status === 'SUSPENDED';
+        let isExpiredPastGrace = targetTenant.status === 'EXPIRED';
 
-    if (user.status === 'LEAVE_OF_ABSENCE') {
-      logPrivacyAccess('LOGIN', 'login', `로그인 거부: 휴직자 계정 접속 차단 (${user.name})`, {
-        userId: user.loginId || user.id,
-        userName: user.name
-      }).catch(console.error);
-      return { 
-        success: false, 
-        reason: `현재 휴직 상태로 설정된 계정입니다. (${user.name} 님)\n관리자에게 업무 복귀 승인을 요청해 주십시오.` 
-      };
-    }
+        const sub = targetTenant.subscription;
+        if (sub) {
+          const graceDays = typeof sub.gracePeriodDays === 'number' ? sub.gracePeriodDays : 7;
+          const todayStr = new Date().toISOString().slice(0, 10);
+          const endStr = sub.endDate || todayStr;
+          const today = new Date(todayStr).getTime();
+          const end = new Date(endStr).getTime();
+          const diffDays = Math.round((end - today) / (1000 * 60 * 60 * 24));
 
-    // 7. 비밀번호 검증 (미설정 사원은 사내 기본 비밀번호 1111 적용)
-    const expectedPassword = user.passwordHash || '1111';
-    if (expectedPassword !== cleanPw) {
-      logPrivacyAccess('LOGIN', 'login', `로그인 거부: 비밀번호 불일치 (${user.name})`, {
-        userId: user.loginId || user.id,
-        userName: user.name
-      }).catch(console.error);
-      return { 
-        success: false, 
-        reason: `비밀번호가 일치하지 않습니다. (${user.name} 님)\n사원 초기 비밀번호는 '1111'입니다. 비밀번호를 다시 확인해 주십시오.` 
-      };
+          if (diffDays < 0) {
+            const overdueDays = Math.abs(diffDays);
+            if (overdueDays > graceDays) {
+              isExpiredPastGrace = true;
+            }
+          }
+
+          if (sub.status === 'EXPIRED') {
+            if (!sub.endDate) {
+              isExpiredPastGrace = true;
+            } else {
+              const overdueDays = Math.abs(diffDays);
+              if (diffDays < 0 && overdueDays > graceDays) {
+                isExpiredPastGrace = true;
+              }
+            }
+          }
+        }
+
+        if (isSuspended || isExpiredPastGrace) {
+          logPrivacyAccess('LOGIN', 'login', `로그인 거부: 테넌트 이용 기간 만료/정지 (${targetTenant.displayName || targetTenant.tradeName || targetTenant.corporateName}) - 사용자: ${user.name}`, {
+            userId: user.loginId || user.id,
+            userName: user.name
+          }).catch(console.error);
+
+          const errorMsg = '해당 테넌트의 이용 기간이 만료되었습니다. 관리자에게 문의하세요.';
+          return { 
+            success: false, 
+            reason: errorMsg,
+            error: errorMsg
+          };
+        }
+      }
     }
 
     // 8. 권한 상속 롤 누락 시 부서 기반 자동 상속 보강
@@ -1237,23 +1282,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 2. 단일 표준(SSOT) 단수형 메뉴 ID로 정규화
     const normMenuId = normalizeMenuId(menuId);
 
+    // 최고관리자(플랫폼/시스템 최고관리자 및 ADMIN 역할) 여부 판정
+    const isSuperAdmin = currentUser.role === 'ADMIN' || currentUser.loginId === 'admin' || currentUser.id === 'sys-admin' || currentUser.id === 'u-1';
+
     // 0-2. 🏢 [테넌트별 페이지 노출/숨김 격리 (Tenant-level Page Visibility)]
-    // 플랫폼 슈퍼관리자(loginId === 'admin' || id === 'sys-admin')를 제외하고,
-    // 현재 테넌트에서 숨김(hiddenPages) 처리되었거나 허용 목록(allowedPages)에 없는 페이지는 해당 테넌트 모든 사용자에게 원천 차단
-    const isPlatformAdmin = currentUser.loginId === 'admin' || currentUser.id === 'sys-admin';
-    if (!isPlatformAdmin && currentTenant) {
-      if (normMenuId !== 'dashboard' && normMenuId !== 'tenant_management') {
-        if (currentTenant.hiddenPages && currentTenant.hiddenPages.includes(normMenuId)) {
-          return false;
-        }
-        if (currentTenant.allowedPages && currentTenant.allowedPages.length > 0 && !currentTenant.allowedPages.includes(normMenuId)) {
-          return false;
-        }
+    // 관리자(currentUser.loginId === 'admin' || currentUser.id === 'sys-admin' || currentUser.role === 'ADMIN')라 할지라도
+    // 테넌트 모드(개별 테넌트 화면)에서는 테넌트의 hiddenPages에 포함된 메뉴는 사이드바, 검색(Ctrl+K), 라우팅에서 100% 숨겨지고 차단된다.
+    // 단, 최고관리자가 '테넌트 관리'(tenant_management) 메뉴에 접근할 때만 예외 허용.
+    if (currentTenant) {
+      if (normMenuId === 'tenant_management') {
+        return isSuperAdmin;
+      }
+
+      const rawHidden = Array.isArray(currentTenant.hiddenPages) ? currentTenant.hiddenPages : [];
+      const rawAllowed = Array.isArray(currentTenant.allowedPages) ? currentTenant.allowedPages : [];
+
+      const normHiddenPages = rawHidden.map(p => normalizeMenuId(p));
+      const normAllowedPages = rawAllowed.map(p => normalizeMenuId(p));
+
+      // 1) hiddenPages에 포함된 메뉴는 관리자(admin/sys-admin/ADMIN)를 포함한 전원 100% 원천 차단
+      if (normHiddenPages.includes(normMenuId)) {
+        return false;
+      }
+
+      // 2) allowedPages가 지정되어 있는 경우, 허용 목록에 없는 메뉴는 원천 차단 (대시보드는 기본 허용 유지)
+      if (normAllowedPages.length > 0 && normMenuId !== 'dashboard' && !normAllowedPages.includes(normMenuId)) {
+        return false;
       }
     }
 
-    // 1. 시스템 최고관리자 계정 및 ADMIN 역할 사용자는 모든 메뉴에 100% 무조건 권한 부여
-    if (currentUser.role === 'ADMIN' || currentUser.loginId === 'admin' || currentUser.id === 'sys-admin' || currentUser.id === 'u-1') return true;
+    // 1. 시스템 최고관리자 계정 및 ADMIN 역할 사용자는 모든 메뉴에 100% 무조건 권한 부여 (테넌트 숨김 가드 통과 후)
+    if (isSuperAdmin) return true;
 
     // 2-1. 연차신청, 매뉴얼 스튜디오, 업무매뉴얼 및 오류 신고는 권한 구분 없이 모든 임직원의 공통 기능으로 처리 (전원 상시 개방)
     if (normMenuId === 'leave_application' || normMenuId === 'manual_studio' || normMenuId === 'operations_manual' || normMenuId === 'error_report') {
@@ -1267,7 +1326,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 2-3. 테넌트 관리는 최고 관리자(ADMIN, admin, sys-admin) 전용 보안 메뉴
     if (normMenuId === 'tenant_management') {
-      return currentUser.role === 'ADMIN' || currentUser.loginId === 'admin' || currentUser.id === 'sys-admin';
+      return isSuperAdmin;
     }
 
     // 3. 사용자 정의 권한 명칭(CustomRole) 상속 판정 (역할 기반 자동 상속 최우선)
@@ -1551,6 +1610,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (userData.id) {
       db.updateRow<User>('users', userData.id, userData);
     } else {
+      // 🛡️ [수량 한도 제한 인터셉터]
+      const maxUsers = currentTenant?.subscription?.maxUsers;
+      if (typeof maxUsers === 'number' && maxUsers > 0) {
+        if (users.length >= maxUsers) {
+          const errMsg = `최대 사용자 등록 한도(${maxUsers}명)를 초과했습니다.`;
+          showErrorModal(errMsg, '구독 한도 초과');
+          throw new Error(errMsg);
+        }
+      }
+
       // 신규 임직원 생성
       const newUser = db.insertRow<User>('users', { ...userData, createdAt: new Date().toISOString() });
       
@@ -1816,6 +1885,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (asset.id) {
       result = db.updateRow<Asset>('assets', asset.id, asset as Asset);
     } else {
+      // 🛡️ [수량 한도 제한 인터셉터]
+      const maxAssets = currentTenant?.subscription?.maxAssets;
+      if (typeof maxAssets === 'number' && maxAssets > 0) {
+        if (assets.length >= maxAssets) {
+          const errMsg = `최대 장비 등록 한도(${maxAssets}대)를 초과했습니다.`;
+          showErrorModal(errMsg, '구독 한도 초과');
+          throw new Error(errMsg);
+        }
+      }
+
       result = db.insertRow<Asset>('assets', {
         ...asset,
         createdAt: new Date().toISOString(),

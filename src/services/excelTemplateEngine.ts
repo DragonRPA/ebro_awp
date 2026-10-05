@@ -468,6 +468,8 @@ export interface TransactionStatementPdfData {
   billingManagerName?: string;
   billingManagerPhone?: string;
   lessorEmail?: string;
+  stampImageUrl?: string;
+  stampBase64?: string;
 
   // 공급받는 자 (고객사)
   customerBizNo?: string;

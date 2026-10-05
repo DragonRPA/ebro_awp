@@ -123,7 +123,7 @@ function numberToKoreanAmount(num: number): string {
 export const BillingInvoiceTab: React.FC = () => {
   const {
     showSuccessToast, showErrorModal, customers, billings, billingDetails,
-    contracts, sites, receivables
+    contracts, sites, receivables, currentTenant
   } = useApp();
 
   // ── 뷰 모드: STUDIO(2분할 워크벤치) vs HISTORY(발행 이력 대장) ──
@@ -545,15 +545,17 @@ export const BillingInvoiceTab: React.FC = () => {
       billingDate: new Date().toISOString().split('T')[0],
       billingYm: selectedYm || initialYm,
       contractNo: selectedBillingsData[0]?.contract?.contractNo || '',
-      lessorBizNo: '138-81-83251',
-      lessorName: '주식회사 기연리프트',
-      lessorCeo: '이수용',
-      lessorAddress: '경기도 용인시 처인구 포곡읍 곡현로 254-3',
+      lessorBizNo: currentTenant?.businessNumber || '138-81-83251',
+      lessorName: currentTenant?.corporateName || currentTenant?.displayName || '주식회사 기연리프트',
+      lessorCeo: currentTenant?.representativeName || '이수용',
+      lessorAddress: currentTenant?.businessAddress || '경기도 용인시 처인구 포곡읍 곡현로 254-3',
       salespersonName: '영업부',
-      salespersonPhone: '031-334-5296',
+      salespersonPhone: currentTenant?.salesPhone || currentTenant?.tel || '031-334-5296',
       billingManagerName: '정수아',
-      billingManagerPhone: '031-334-5295',
-      lessorEmail: 'giyeonlift@naver.com',
+      billingManagerPhone: currentTenant?.tel || '031-334-5295',
+      lessorEmail: currentTenant?.taxEmail || 'giyeonlift@naver.com',
+      stampImageUrl: currentTenant?.stampImageUrl || (currentTenant as any)?.stampBase64,
+      stampBase64: (currentTenant as any)?.stampBase64 || currentTenant?.stampImageUrl,
       customerBizNo: selectedCustomer?.businessNumber || '',
       customerName: selectedCustomer?.name || '',
       customerCeo: selectedCustomer?.representativeName || '',
@@ -561,7 +563,9 @@ export const BillingInvoiceTab: React.FC = () => {
       customerBizType: selectedCustomer?.bizType || '',
       customerBizItem: selectedCustomer?.bizItem || '',
       siteName: firstSiteName,
-      bankAccount: '신한은행 140-010-007060 (주식회사 기연리프트)',
+      bankAccount: currentTenant?.bankAccounts?.[0]
+        ? `${currentTenant.bankAccounts[0].bankName} ${currentTenant.bankAccounts[0].accountNumber} (${currentTenant.bankAccounts[0].accountHolder || currentTenant?.corporateName || currentTenant?.displayName || '주식회사 기연리프트'})`
+        : '신한은행 140-010-007060 (주식회사 기연리프트)',
       items,
       totalSupply: accountingSummary.supplyAmount,
       totalVat: accountingSummary.vatAmount,
@@ -645,6 +649,13 @@ export const BillingInvoiceTab: React.FC = () => {
     setIsSendingEmail(true);
     try {
       const data = buildStatementData();
+      const tenantDisplay = currentTenant?.displayName || '기연리프트';
+      const tenantCorp = currentTenant?.corporateName || currentTenant?.displayName || '(주)기연리프트';
+      const tenantBank = currentTenant?.bankAccounts?.[0];
+      const bankAccountStr = tenantBank
+        ? `${tenantBank.bankName} ${tenantBank.accountNumber} (${tenantBank.accountHolder || tenantCorp})`
+        : '신한은행 140-010-007060 (주식회사 기연리프트)';
+
       const attachments: { filename: string; content: string }[] = [];
       try {
         const pdfBytes = await generateTransactionStatementPdf(data);
@@ -653,7 +664,7 @@ export const BillingInvoiceTab: React.FC = () => {
           binary += String.fromCharCode(pdfBytes[i]);
         }
         attachments.push({
-          filename: `[기연리프트]_통합거래명세서_${custName}_${selectedYm}.pdf`,
+          filename: `[${tenantDisplay}]_통합거래명세서_${custName}_${selectedYm}.pdf`,
           content: window.btoa(binary)
         });
       } catch (attachErr) {
@@ -663,8 +674,8 @@ export const BillingInvoiceTab: React.FC = () => {
 
       await emailService.sendEmail(
         recipient.trim(),
-        `[기연리프트] ${custName} 귀하 ${selectedYm} 통합 거래명세서 및 청구서 발송 안내`,
-        `${custName} 담당자님께,\n\n(주)기연리프트 ${selectedYm} 통합 거래명세서 및 청구서를 첨부와 같이 발송해 드립니다.\n\n- 공급가액: ${fmtAmt(accountingSummary.supplyAmount)}\n- 세액: ${fmtAmt(accountingSummary.vatAmount)}\n- 청구총액: ${fmtAmt(accountingSummary.grandTotal)}\n- 입금계좌: 신한은행 140-010-007060 (주식회사 기연리프트)\n- 납기일: ${invoiceDueDate || '당월말'}\n\n감사합니다.\n(주)기연리프트 드림`,
+        `[${tenantDisplay}] ${custName} 귀하 ${selectedYm} 통합 거래명세서 및 청구서 발송 안내`,
+        `${custName} 담당자님께,\n\n${tenantCorp} ${selectedYm} 통합 거래명세서 및 청구서를 첨부와 같이 발송해 드립니다.\n\n- 공급가액: ${fmtAmt(accountingSummary.supplyAmount)}\n- 세액: ${fmtAmt(accountingSummary.vatAmount)}\n- 청구총액: ${fmtAmt(accountingSummary.grandTotal)}\n- 입금계좌: ${bankAccountStr}\n- 납기일: ${invoiceDueDate || '당월말'}\n\n감사합니다.\n${tenantCorp} 드림`,
         attachments
       );
 
@@ -724,15 +735,17 @@ export const BillingInvoiceTab: React.FC = () => {
       billingDate: inv.createdAt ? inv.createdAt.slice(0, 10) : new Date().toISOString().split('T')[0],
       billingYm: inv.billingYm,
       contractNo: childBillings[0]?.contract?.contractNo || '',
-      lessorBizNo: '138-81-83251',
-      lessorName: '주식회사 기연리프트',
-      lessorCeo: '이수용',
-      lessorAddress: '경기도 용인시 처인구 포곡읍 곡현로 254-3',
+      lessorBizNo: currentTenant?.businessNumber || '138-81-83251',
+      lessorName: currentTenant?.corporateName || currentTenant?.displayName || '주식회사 기연리프트',
+      lessorCeo: currentTenant?.representativeName || '이수용',
+      lessorAddress: currentTenant?.businessAddress || '경기도 용인시 처인구 포곡읍 곡현로 254-3',
       salespersonName: '영업부',
-      salespersonPhone: '031-334-5296',
+      salespersonPhone: currentTenant?.salesPhone || currentTenant?.tel || '031-334-5296',
       billingManagerName: '정수아',
-      billingManagerPhone: '031-334-5295',
-      lessorEmail: 'giyeonlift@naver.com',
+      billingManagerPhone: currentTenant?.tel || '031-334-5295',
+      lessorEmail: currentTenant?.taxEmail || 'giyeonlift@naver.com',
+      stampImageUrl: currentTenant?.stampImageUrl || (currentTenant as any)?.stampBase64,
+      stampBase64: (currentTenant as any)?.stampBase64 || currentTenant?.stampImageUrl,
       customerBizNo: cust?.businessNumber || '',
       customerName: cust?.name || '',
       customerCeo: cust?.representativeName || '',
@@ -740,7 +753,9 @@ export const BillingInvoiceTab: React.FC = () => {
       customerBizType: cust?.bizType || '',
       customerBizItem: cust?.bizItem || '',
       siteName: firstSite,
-      bankAccount: '신한은행 140-010-007060 (주식회사 기연리프트)',
+      bankAccount: currentTenant?.bankAccounts?.[0]
+        ? `${currentTenant.bankAccounts[0].bankName} ${currentTenant.bankAccounts[0].accountNumber} (${currentTenant.bankAccounts[0].accountHolder || currentTenant?.corporateName || currentTenant?.displayName || '주식회사 기연리프트'})`
+        : '신한은행 140-010-007060 (주식회사 기연리프트)',
       items,
       totalSupply: inv.totalAmount,
       totalVat: inv.vatAmount,
@@ -1294,7 +1309,7 @@ export const BillingInvoiceTab: React.FC = () => {
 
               {/* 공급자 & 공급받는자 2열 테이블 */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
-                {/* 공급자 (주식회사 기연리프트 SSOT) */}
+                {/* 공급자 (${currentTenant?.displayName || '기연리프트'} SSOT) */}
                 <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #9ca3af', fontSize: '10px', backgroundColor: 'var(--bg-card)' }}>
                   <tbody>
                     <tr>
@@ -1302,22 +1317,48 @@ export const BillingInvoiceTab: React.FC = () => {
                         공<br/>급<br/>자
                       </td>
                       <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb', width: '55px', fontWeight: 600 }}>등록번호</td>
-                      <td colSpan={3} style={{ padding: '3px 4px', borderBottom: '1px solid #e5e7eb', fontWeight: 700, color: 'var(--text-main)' }}>138-81-83251</td>
+                      <td colSpan={3} style={{ padding: '3px 4px', borderBottom: '1px solid #e5e7eb', fontWeight: 700, color: 'var(--text-main)' }}>
+                        {currentTenant?.businessNumber || '138-81-83251'}
+                      </td>
                     </tr>
                     <tr>
                       <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb', fontWeight: 600 }}>상호</td>
-                      <td style={{ padding: '3px 4px', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb', fontWeight: 700, color: 'var(--text-main)' }}>주식회사 기연리프트</td>
+                      <td style={{ padding: '3px 4px', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb', fontWeight: 700, color: 'var(--text-main)' }}>
+                        {currentTenant?.corporateName || currentTenant?.displayName || '주식회사 기연리프트'}
+                      </td>
                       <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb', width: '35px', fontWeight: 600 }}>성명</td>
-                      <td style={{ padding: '3px 4px', borderBottom: '1px solid #e5e7eb', color: 'var(--text-main)' }}>이수용</td>
+                      <td style={{ padding: '3px 4px', borderBottom: '1px solid #e5e7eb', color: 'var(--text-main)' }}>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '20px' }}>
+                          <span>{currentTenant?.representativeName || '이수용'}</span>
+                          {(currentTenant?.stampImageUrl || (currentTenant as any)?.stampBase64) && (
+                            <img
+                              src={currentTenant?.stampImageUrl || (currentTenant as any)?.stampBase64}
+                              alt="직인"
+                              style={{
+                                width: '26px',
+                                height: '26px',
+                                objectFit: 'contain',
+                                marginLeft: '4px'
+                              }}
+                            />
+                          )}
+                        </div>
+                      </td>
                     </tr>
                     <tr>
                       <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb', fontWeight: 600 }}>사업장</td>
-                      <td colSpan={3} style={{ padding: '3px 4px', borderBottom: '1px solid #e5e7eb', color: 'var(--text-main)' }}>경기도 용인시 처인구 포곡읍 곡현로 254-3</td>
+                      <td colSpan={3} style={{ padding: '3px 4px', borderBottom: '1px solid #e5e7eb', color: 'var(--text-main)' }}>
+                        {currentTenant?.businessAddress || '경기도 용인시 처인구 포곡읍 곡현로 254-3'}
+                      </td>
                     </tr>
                     <tr>
                       <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid #e5e7eb', fontWeight: 600 }}>업태/종목</td>
-                      <td style={{ padding: '3px 4px', borderRight: '1px solid #e5e7eb', color: 'var(--text-main)' }}>임대업</td>
-                      <td colSpan={2} style={{ padding: '3px 4px', color: 'var(--text-main)' }}>건설기계임대</td>
+                      <td style={{ padding: '3px 4px', borderRight: '1px solid #e5e7eb', color: 'var(--text-main)' }}>
+                        {currentTenant?.businessCategory || '임대업'}
+                      </td>
+                      <td colSpan={2} style={{ padding: '3px 4px', color: 'var(--text-main)' }}>
+                        {currentTenant?.businessItem || '건설기계임대'}
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -1441,7 +1482,12 @@ export const BillingInvoiceTab: React.FC = () => {
 
               {/* 하단 입금계좌 및 안내 */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', fontSize: '10px', color: 'var(--text-main)' }}>
-                <div><strong>입금계좌:</strong> 신한은행 140-010-007060 (예금주: 주식회사 기연리프트)</div>
+                <div>
+                  <strong>입금계좌:</strong>{' '}
+                  {currentTenant?.bankAccounts?.[0]
+                    ? `${currentTenant.bankAccounts[0].bankName} ${currentTenant.bankAccounts[0].accountNumber} (예금주: ${currentTenant.bankAccounts[0].accountHolder || currentTenant?.corporateName || currentTenant?.displayName || '주식회사 기연리프트'})`
+                    : '신한은행 140-010-007060 (예금주: 주식회사 기연리프트)'}
+                </div>
                 <div><strong>납기일:</strong> {invoiceDueDate || '협의 (당월말)'}</div>
               </div>
             </div>
