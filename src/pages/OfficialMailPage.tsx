@@ -302,61 +302,94 @@ export const OfficialMailPage: React.FC = () => {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-[1600px] mx-auto text-slate-800 dark:text-slate-100">
+    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1600px', margin: '0 auto', color: 'var(--text-main)' }}>
       {/* 화면 헤더 (무수식어 건조 표준) */}
-      <div className="flex items-center justify-between border-b pb-4 border-slate-200 dark:border-slate-800">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-blue-600/10 text-blue-600 dark:text-blue-400 rounded-lg">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ padding: '10px', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', borderRadius: '8px' }}>
             <Mail size={22} />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight">공식 메일 발송</h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>공식 메일 발송</h1>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '4px 0 0' }}>
               회사 공식 구글 계정({senderEmail}) 기반 견적서·회사소개서·제원표·서식 발송 센터
             </p>
           </div>
         </div>
 
         {/* 발신 계정 상태 배지 */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span className="text-slate-500">발신 계정:</span>
-          <span className="font-semibold text-slate-800 dark:text-slate-200">{senderEmail}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: 500, backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }}></span>
+          <span style={{ color: 'var(--text-muted)' }}>발신 계정:</span>
+          <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{senderEmail}</span>
         </div>
       </div>
 
       {/* 발송 결과 피드백 배너 */}
       {sendResultMsg && (
-        <div className={`p-4 rounded-lg flex items-center justify-between text-sm ${sendResultMsg.success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800' : 'bg-rose-50 text-rose-800 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'}`}>
-          <div className="flex items-center gap-2">
+        <div style={{
+          padding: '14px 16px',
+          borderRadius: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '13px',
+          backgroundColor: sendResultMsg.success ? 'var(--success-light)' : 'var(--danger-light)',
+          color: sendResultMsg.success ? 'var(--success)' : 'var(--danger)',
+          border: `1px solid ${sendResultMsg.success ? 'var(--success)' : 'var(--danger)'}`
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {sendResultMsg.success ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-            <span className="font-medium">{sendResultMsg.text}</span>
+            <span style={{ fontWeight: 600 }}>{sendResultMsg.text}</span>
           </div>
-          <button onClick={() => setSendResultMsg(null)} className="text-xs opacity-70 hover:opacity-100">
+          <button onClick={() => setSendResultMsg(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', opacity: 0.7 }}>
             <X size={16} />
           </button>
         </div>
       )}
 
-      {/* 메인 3분할 Z-패턴 작업 영역 */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* 메인 작업 영역: 좌측 Scope (거래처 및 수신자) + 우측 Pipeline/Inspection (서식 및 본문) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))', gap: '20px' }}>
 
         {/* 좌측 패널: ① 좌상단 Scope (거래처 및 수신자 설정) */}
-        <div data-mid="mail-recipient-panel" className="lg:col-span-4 space-y-5 bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-          <div className="flex items-center gap-2 font-semibold text-sm border-b pb-2 border-slate-100 dark:border-slate-800">
-            <Building2 size={16} className="text-blue-500" />
+        <div
+          data-mid="mail-recipient-panel"
+          style={{
+            gridColumn: 'span 4',
+            backgroundColor: 'var(--bg-card)',
+            padding: '20px',
+            borderRadius: '12px',
+            border: '1px solid var(--border-color)',
+            boxShadow: 'var(--shadow-sm)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', color: 'var(--text-main)' }}>
+            <Building2 size={16} color="var(--primary)" />
             <span>수신 대상 지정</span>
           </div>
 
           {/* 거래처 선택 */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
               거래처 선택
             </label>
             <select
               value={selectedCustomerId}
               onChange={(e) => handleCustomerChange(e.target.value)}
-              className="w-full h-9 px-2.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500"
+              style={{
+                width: '100%',
+                height: '36px',
+                padding: '0 10px',
+                fontSize: '12px',
+                backgroundColor: 'var(--bg-app)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+                color: 'var(--text-main)',
+                outline: 'none'
+              }}
             >
               <option value="">-- 거래처 선택 (직접 입력 가능) --</option>
               {customers.map((c: Customer) => (
@@ -366,15 +399,26 @@ export const OfficialMailPage: React.FC = () => {
           </div>
 
           {/* 담당자 선택 (거래처 등록 담당자) */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
               담당자 선택
             </label>
             <select
               value={selectedContactId}
               onChange={(e) => handleContactChange(e.target.value)}
               disabled={relatedContacts.length === 0}
-              className="w-full h-9 px-2.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+              style={{
+                width: '100%',
+                height: '36px',
+                padding: '0 10px',
+                fontSize: '12px',
+                backgroundColor: 'var(--bg-app)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+                color: 'var(--text-main)',
+                outline: 'none',
+                opacity: relatedContacts.length === 0 ? 0.6 : 1
+              }}
             >
               <option value="">-- 담당자 선택 {relatedContacts.length === 0 ? '(등록된 담당자 없음)' : ''} --</option>
               {relatedContacts.map(cnt => (
@@ -386,15 +430,26 @@ export const OfficialMailPage: React.FC = () => {
           </div>
 
           {/* 현장 선택 */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
               관련 현장 선택
             </label>
             <select
               value={selectedSiteId}
               onChange={(e) => setSelectedSiteId(e.target.value)}
               disabled={relatedSites.length === 0}
-              className="w-full h-9 px-2.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+              style={{
+                width: '100%',
+                height: '36px',
+                padding: '0 10px',
+                fontSize: '12px',
+                backgroundColor: 'var(--bg-app)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+                color: 'var(--text-main)',
+                outline: 'none',
+                opacity: relatedSites.length === 0 ? 0.6 : 1
+              }}
             >
               <option value="">-- 현장 선택 {relatedSites.length === 0 ? '(등록된 현장 없음)' : ''} --</option>
               {relatedSites.map(s => (
@@ -403,10 +458,10 @@ export const OfficialMailPage: React.FC = () => {
             </select>
           </div>
 
-          <div className="border-t pt-4 border-slate-100 dark:border-slate-800 space-y-3">
+          <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {/* 수신자명 */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                 수신자 호칭 / 성명
               </label>
               <input
@@ -414,27 +469,47 @@ export const OfficialMailPage: React.FC = () => {
                 value={recipientName}
                 onChange={(e) => setRecipientName(e.target.value)}
                 placeholder="예: 에이치엔아이씨 김소장"
-                className="w-full h-9 px-2.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500"
+                style={{
+                  width: '100%',
+                  height: '36px',
+                  padding: '0 10px',
+                  fontSize: '12px',
+                  backgroundColor: 'var(--bg-app)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  color: 'var(--text-main)',
+                  outline: 'none'
+                }}
               />
             </div>
 
             {/* 수신 이메일 (필수) */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap flex items-center justify-between">
-                <span>수신 이메일 주소 <span className="text-rose-500">*</span></span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>수신 이메일 주소 <span style={{ color: 'var(--danger)' }}>*</span></span>
               </label>
               <input
                 type="email"
                 value={recipientEmail}
                 onChange={(e) => setRecipientEmail(e.target.value)}
                 placeholder="recipient@company.com"
-                className="w-full h-9 px-2.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500"
+                style={{
+                  width: '100%',
+                  height: '36px',
+                  padding: '0 10px',
+                  fontSize: '12px',
+                  backgroundColor: 'var(--bg-app)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  color: 'var(--text-main)',
+                  outline: 'none'
+                }}
               />
             </div>
 
             {/* 참조 (CC) */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                 참조 (CC) 이메일
               </label>
               <input
@@ -442,50 +517,104 @@ export const OfficialMailPage: React.FC = () => {
                 value={ccEmail}
                 onChange={(e) => setCcEmail(e.target.value)}
                 placeholder="cc@company.com (선택 사항)"
-                className="w-full h-9 px-2.5 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500"
+                style={{
+                  width: '100%',
+                  height: '36px',
+                  padding: '0 10px',
+                  fontSize: '12px',
+                  backgroundColor: 'var(--bg-app)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  color: 'var(--text-main)',
+                  outline: 'none'
+                }}
               />
             </div>
           </div>
         </div>
 
         {/* 우측 상단 & 중앙 패널: ② Pipeline (템플릿) & ③ Inspection (본문/첨부) */}
-        <div className="lg:col-span-8 space-y-5 bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col justify-between">
-          
-          <div className="space-y-4">
+        <div
+          data-mid="mail-composer-panel"
+          style={{
+            gridColumn: 'span 8',
+            backgroundColor: 'var(--bg-card)',
+            padding: '20px',
+            borderRadius: '12px',
+            border: '1px solid var(--border-color)',
+            boxShadow: 'var(--shadow-sm)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            gap: '20px'
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* 템플릿 선택 탭 바 (무수식어 건조 표준) */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                 발송 서식 템플릿 선택
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: '8px' }}>
                 {[
                   { key: 'QUOTE', label: '견적서' },
                   { key: 'COMPANY_PROFILE', label: '회사소개서' },
                   { key: 'CATALOG_SPEC', label: '제원표/카탈로그' },
                   { key: 'CONTRACT_BUNDLE', label: '계약서식 세트' },
                   { key: 'CUSTOM', label: '직접 작성' },
-                ].map(item => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => setTemplateType(item.key as TemplateType)}
-                    className={`h-9 px-3 text-xs font-medium rounded-lg border transition-all whitespace-nowrap ${templateType === item.key ? 'bg-blue-600 text-white border-blue-600 shadow-sm' : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
+                ].map(item => {
+                  const isActive = templateType === item.key;
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => setTemplateType(item.key as TemplateType)}
+                      style={{
+                        height: '36px',
+                        padding: '0 10px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        borderRadius: '6px',
+                        border: isActive ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                        backgroundColor: isActive ? 'var(--primary)' : 'var(--bg-app)',
+                        color: isActive ? '#ffffff' : 'var(--text-secondary)',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {item.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
             {/* 견적서 선택 시 전용 파라미터 입력 블록 */}
             {templateType === 'QUOTE' && (
-              <div className="p-3.5 bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/50 rounded-lg grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">장비 기종</label>
+              <div style={{
+                padding: '14px',
+                backgroundColor: 'var(--bg-app)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>장비 기종</label>
                   <select
                     value={quoteModel}
                     onChange={(e) => setQuoteModel(e.target.value)}
-                    className="h-8 px-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-blue-500"
+                    style={{
+                      height: '32px',
+                      padding: '0 8px',
+                      fontSize: '11.5px',
+                      backgroundColor: 'var(--bg-card)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '4px',
+                      color: 'var(--text-main)'
+                    }}
                   >
                     <option value="GS-1930">GS-1930 (6m 시저)</option>
                     <option value="GS-3246">GS-3246 (10m 시저)</option>
@@ -496,36 +625,60 @@ export const OfficialMailPage: React.FC = () => {
                   </select>
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">수량 (대)</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>수량 (대)</label>
                   <input
                     type="number"
                     min="1"
                     value={quoteQuantity}
                     onChange={(e) => setQuoteQuantity(Number(e.target.value) || 1)}
-                    className="h-8 px-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-blue-500"
+                    style={{
+                      height: '32px',
+                      padding: '0 8px',
+                      fontSize: '11.5px',
+                      backgroundColor: 'var(--bg-card)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '4px',
+                      color: 'var(--text-main)'
+                    }}
                   />
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">월 단가 (원)</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>월 단가 (원)</label>
                   <input
                     type="number"
                     step="10000"
                     value={quoteMonthlyRate}
                     onChange={(e) => setQuoteMonthlyRate(Number(e.target.value) || 0)}
-                    className="h-8 px-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-blue-500"
+                    style={{
+                      height: '32px',
+                      padding: '0 8px',
+                      fontSize: '11.5px',
+                      backgroundColor: 'var(--bg-card)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '4px',
+                      color: 'var(--text-main)'
+                    }}
                   />
                 </div>
 
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">예상 사용기간</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>예상 사용기간</label>
                   <input
                     type="text"
                     value={quotePeriod}
                     onChange={(e) => setQuotePeriod(e.target.value)}
                     placeholder="예: 3개월"
-                    className="h-8 px-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-blue-500"
+                    style={{
+                      height: '32px',
+                      padding: '0 8px',
+                      fontSize: '11.5px',
+                      backgroundColor: 'var(--bg-card)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '4px',
+                      color: 'var(--text-main)'
+                    }}
                   />
                 </div>
               </div>
@@ -533,12 +686,29 @@ export const OfficialMailPage: React.FC = () => {
 
             {/* 제원표 선택 시 기종 선택 */}
             {templateType === 'CATALOG_SPEC' && (
-              <div className="p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-lg flex items-center gap-4">
-                <span className="text-xs font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap">대상 모델 선택:</span>
+              <div style={{
+                padding: '12px',
+                backgroundColor: 'var(--bg-app)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>대상 모델 선택:</span>
                 <select
                   value={specModel}
                   onChange={(e) => setSpecModel(e.target.value)}
-                  className="h-8 px-3 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-blue-500 max-w-xs"
+                  style={{
+                    height: '32px',
+                    padding: '0 10px',
+                    fontSize: '12px',
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '4px',
+                    color: 'var(--text-main)',
+                    maxWidth: '300px'
+                  }}
                 >
                   <option value="GS-1930">Genie GS-1930 (6m 작업높이 7.8m)</option>
                   <option value="GS-3246">Genie GS-3246 (10m 작업높이 11.7m)</option>
@@ -549,8 +719,8 @@ export const OfficialMailPage: React.FC = () => {
             )}
 
             {/* 이메일 제목 */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                 메일 제목
               </label>
               <input
@@ -558,54 +728,110 @@ export const OfficialMailPage: React.FC = () => {
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 placeholder="메일 제목을 입력하세요"
-                className="w-full h-9 px-3 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500 font-medium"
+                style={{
+                  width: '100%',
+                  height: '36px',
+                  padding: '0 10px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  backgroundColor: 'var(--bg-app)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  color: 'var(--text-main)',
+                  outline: 'none'
+                }}
               />
             </div>
 
             {/* 이메일 본문 */}
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap flex items-center justify-between">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span>메일 본문</span>
-                <span className="text-[11px] text-slate-400 font-normal">정중한 비즈니스 서식 자동 생성</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 400 }}>정중한 비즈니스 서식 자동 생성</span>
               </label>
               <textarea
                 rows={9}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                className="w-full p-3 text-xs font-mono bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-blue-500 leading-relaxed resize-none"
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  fontSize: '12px',
+                  fontFamily: 'monospace',
+                  lineHeight: '1.6',
+                  backgroundColor: 'var(--bg-app)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  color: 'var(--text-main)',
+                  outline: 'none',
+                  resize: 'none'
+                }}
               />
             </div>
 
             {/* 첨부 파일 패널 */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-slate-600 dark:text-slate-400 whitespace-nowrap flex items-center gap-1.5">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <Paperclip size={14} />
                   <span>첨부 파일 ({attachments.length}개)</span>
-                  {isAttaching && <span className="text-[11px] text-blue-500 font-normal animate-pulse">서식 로딩 중...</span>}
+                  {isAttaching && <span style={{ fontSize: '11px', color: 'var(--primary)' }}>서식 로딩 중...</span>}
                 </label>
-                <label className="cursor-pointer px-2.5 py-1 text-xs font-medium rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200">
+                <label style={{
+                  cursor: 'pointer',
+                  padding: '4px 10px',
+                  fontSize: '11.5px',
+                  fontWeight: 600,
+                  borderRadius: '4px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-app)',
+                  color: 'var(--text-main)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
                   + PC 파일 추가
-                  <input type="file" multiple onChange={handleUserFileUpload} className="hidden" />
+                  <input type="file" multiple onChange={handleUserFileUpload} style={{ display: 'none' }} />
                 </label>
               </div>
 
-              <div className="min-h-[50px] p-2 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-lg flex flex-wrap gap-2 items-center">
+              <div style={{
+                minHeight: '50px',
+                padding: '8px',
+                backgroundColor: 'var(--bg-app)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '8px',
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '8px',
+                alignItems: 'center'
+              }}>
                 {attachments.length === 0 ? (
-                  <span className="text-xs text-slate-400 px-2">첨부된 파일이 없습니다.</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '0 8px' }}>첨부된 파일이 없습니다.</span>
                 ) : (
                   attachments.map((att, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-xs shadow-sm"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '4px 10px',
+                        backgroundColor: 'var(--bg-card)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '4px',
+                        fontSize: '12px',
+                        boxShadow: 'var(--shadow-sm)',
+                        color: 'var(--text-main)'
+                      }}
                     >
-                      <FileText size={13} className="text-blue-500" />
-                      <span className="font-medium max-w-[200px] truncate" title={att.filename}>{att.filename}</span>
-                      {att.size && <span className="text-[10px] text-slate-400">({Math.round(att.size / 1024)}KB)</span>}
+                      <FileText size={13} color="var(--primary)" />
+                      <span style={{ fontWeight: 600, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={att.filename}>{att.filename}</span>
+                      {att.size && <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>({Math.round(att.size / 1024)}KB)</span>}
                       <button
                         type="button"
                         onClick={() => removeAttachment(idx)}
-                        className="ml-1 text-slate-400 hover:text-rose-500"
+                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center' }}
                       >
                         <X size={13} />
                       </button>
@@ -617,10 +843,10 @@ export const OfficialMailPage: React.FC = () => {
           </div>
 
           {/* ④ 우하단 Terminal Action (최종 발송 완결 바) */}
-          <div className="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-            <div className="text-xs text-slate-500">
-              수신: <span className="font-semibold text-slate-700 dark:text-slate-300">{recipientEmail || '(미지정)'}</span> | 
-              발신: <span className="font-semibold text-slate-700 dark:text-slate-300">{senderBrand}</span>
+          <div style={{ paddingTop: '16px', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+              수신: <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{recipientEmail || '(미지정)'}</span> | 
+              발신: <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{senderBrand}</span>
             </div>
 
             <button
@@ -628,7 +854,22 @@ export const OfficialMailPage: React.FC = () => {
               type="button"
               onClick={handleSendEmail}
               disabled={isSending || !recipientEmail}
-              className="h-10 px-6 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg shadow transition-all flex items-center gap-2"
+              style={{
+                height: '40px',
+                padding: '0 24px',
+                backgroundColor: 'var(--primary)',
+                color: '#ffffff',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                borderRadius: '8px',
+                border: 'none',
+                cursor: (isSending || !recipientEmail) ? 'not-allowed' : 'pointer',
+                opacity: (isSending || !recipientEmail) ? 0.5 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: 'var(--shadow-sm)'
+              }}
             >
               {isSending ? (
                 <>
@@ -648,55 +889,89 @@ export const OfficialMailPage: React.FC = () => {
       </div>
 
       {/* 하단 패널: 최근 발송 내역 (헌장 1.2 무누락 DB 보존) */}
-      <div className="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-3">
-        <div className="flex items-center justify-between border-b pb-2 border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-2 font-semibold text-sm">
-            <CheckCircle2 size={16} className="text-emerald-500" />
+      <div style={{
+        backgroundColor: 'var(--bg-card)',
+        padding: '20px',
+        borderRadius: '12px',
+        border: '1px solid var(--border-color)',
+        boxShadow: 'var(--shadow-sm)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, fontSize: '14px', color: 'var(--text-main)' }}>
+            <CheckCircle2 size={16} color="var(--success)" />
             <span>최근 공식 메일 발송 이력</span>
           </div>
           <button
             onClick={loadHistory}
-            className="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1"
+            style={{
+              background: 'none',
+              border: 'none',
+              fontSize: '12px',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
           >
             <RefreshCw size={12} />
             <span>새로고침</span>
           </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs text-left border-collapse">
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', fontSize: '12px', textAlign: 'left', borderCollapse: 'collapse' }}>
             <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-500">
-                <th className="py-2 px-3 whitespace-nowrap">발송 일시</th>
-                <th className="py-2 px-3 whitespace-nowrap">수신자</th>
-                <th className="py-2 px-3 whitespace-nowrap">메일 제목</th>
-                <th className="py-2 px-3 whitespace-nowrap">상태</th>
+              <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>발송 일시</th>
+                <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>수신자</th>
+                <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>메일 제목</th>
+                <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>상태</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+            <tbody>
               {sentHistory.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-6 text-center text-slate-400">발송 이력이 없습니다.</td>
+                  <td colSpan={4} style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-muted)' }}>발송 이력이 없습니다.</td>
                 </tr>
               ) : (
                 sentHistory.slice(0, 5).map((mail) => (
-                  <tr key={mail.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                    <td className="py-2 px-3 whitespace-nowrap text-slate-500">
+                  <tr key={mail.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                    <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
                       {new Date(mail.sentAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}
                     </td>
-                    <td className="py-2 px-3 whitespace-nowrap font-medium text-slate-700 dark:text-slate-300">
+                    <td style={{ padding: '10px 12px', whiteSpace: 'nowrap', fontWeight: 600, color: 'var(--text-main)' }}>
                       {mail.to}
                     </td>
-                    <td className="py-2 px-3 truncate max-w-[400px] text-slate-600 dark:text-slate-400">
+                    <td style={{ padding: '10px 12px', maxWidth: '400px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>
                       {mail.subject}
                     </td>
-                    <td className="py-2 px-3 whitespace-nowrap">
+                    <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                       {mail.success ? (
-                        <span className="px-2 py-0.5 rounded text-[11px] bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        <span style={{
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          backgroundColor: 'var(--success-light)',
+                          color: 'var(--success)',
+                          border: '1px solid var(--success)'
+                        }}>
                           발송 완료
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded text-[11px] bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
+                        <span style={{
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          backgroundColor: 'var(--danger-light)',
+                          color: 'var(--danger)',
+                          border: '1px solid var(--danger)'
+                        }}>
                           실패
                         </span>
                       )}
