@@ -10,6 +10,7 @@ import { resolveSiteDetailedAddress } from '../utils/nativeLauncher';
 import { emailService } from '../services/email';
 import { sortCustomersByName } from '../utils/hangulSearch';
 import { getDomainMode } from '../utils/domainRouter';
+import { saveCentralTenant } from '../services/centralDb';
 
 export interface AssetSaleItem {
   assetId: string;
@@ -510,6 +511,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     await db.awaitPendingWrites();
     setTenants([...db.tenants]);
+    
+    // 🌐 [중앙 플랫폼 SSOT 동기화] ebro-platform-core 프로젝트에 실시간 복제
+    if (saved && saved.id) {
+      saveCentralTenant(saved).catch(err => {
+        console.warn('[Central DB Sync Warning]:', err);
+      });
+    }
+
     return saved;
   };
 

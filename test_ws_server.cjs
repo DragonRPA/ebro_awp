@@ -1,0 +1,1 @@
+const http=require('http'); const {WebSocketServer}=require('ws'); const server=http.createServer((req,res)=>{res.writeHead(404);res.end('Not Found');}); const wss=new WebSocketServer({server}); wss.on('connection',ws=>{console.log('connected');ws.send('hello');process.exit(0);}); server.listen(5176,()=>console.log('ready'));

@@ -7,7 +7,9 @@
     "dev": "vite --port 5174",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "devops:central-migrate": "node scripts/devops/migrate_data_to_central.cjs",
+    "devops:tenants-inspect": "node scripts/devops/sync_tenant_schemas.cjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1112.0",
