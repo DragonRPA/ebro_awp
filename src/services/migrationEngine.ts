@@ -551,7 +551,7 @@ export async function resetAllDatabaseTables(
     'vehicle_fuel_logs',
     'vehicle_operation_logs',
     'corporate_vehicles',
-    'equipment_manuals',
+    // 🛡️ 매뉴얼(equipment_manuals, system_manuals, manual_annotations) 및 시스템 마스터는 전사 공통 공유 자산이므로 초기화 대상에서 영구 제외
     'print_queue',
     'print_stations',
     'privacy_access_logs',
@@ -567,7 +567,10 @@ export async function resetAllDatabaseTables(
   ];
 
   try {
-    const scopeId = targetTenantId || 'giyeonlift';
+    const scopeId = targetTenantId;
+    if (!scopeId) {
+      return { success: false, message: '초기화 대상 테넌트 식별자(targetTenantId)가 지정되지 않아 안전을 위해 작업을 원천 차단했습니다.' };
+    }
     if (supabase) {
       for (const table of DELETION_ORDER) {
         // 🛡️ 멀티테넌트 안전 삭제: 타 테넌트 데이터 침범 절대 방지, 오직 대상 테넌트 레코드만 한정 삭제

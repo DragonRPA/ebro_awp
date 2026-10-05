@@ -410,13 +410,26 @@ export const InitialDbUploader: React.FC = () => {
 
   // ── 2. DB 초기화 실행 ──
   const handleReset = async () => {
-    if (!window.confirm('기존의 모든 자산, 고객사, 계약, 배차, 청구 대장을 삭제하고 초기화하시겠습니까?')) {
+    const targetTenantId = currentTenant?.id || currentTenant?.tenantCode;
+    const targetTenantName = currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || targetTenantId || '현재 테넌트';
+
+    if (!targetTenantId) {
+      showErrorModal?.('활성 테넌트(고객사) 식별 정보를 확인할 수 없습니다. 안전을 위해 초기화 작업을 원천 차단합니다.');
+      return;
+    }
+
+    const confirmMsg = `⚠️ [${targetTenantName}] 테넌트의 비즈니스 데이터(고객, 계약, 자산, 배차, 청구 등)만 초기화합니다.\n\n` +
+      `🛡️ [보존 안내]\n` +
+      `- 전사 공통 장비/시스템 매뉴얼 지식 DB는 100% 안전하게 보존됩니다.\n` +
+      `- 타 고객사(테넌트) 데이터는 1건도 영향받지 않습니다.\n\n` +
+      `정말 [${targetTenantName}] 비즈니스 데이터를 초기화하시겠습니까?`;
+
+    if (!window.confirm(confirmMsg)) {
       return;
     }
 
     setIsResetting(true);
     try {
-      const targetTenantId = currentTenant?.id || 'giyeonlift';
       const res = await resetAllDatabaseTables(keepAdminUser, targetTenantId);
       if (res.success) {
         showSuccessToast?.(res.message);
@@ -1206,7 +1219,11 @@ export const InitialDbUploader: React.FC = () => {
     setProgressInfo({ step: 0, total: 13, message: '초기 DB 적재 파이프라인 시작...' });
 
     try {
-      const targetTenantId = currentTenant?.id || 'giyeonlift';
+      const targetTenantId = currentTenant?.id || currentTenant?.tenantCode;
+      if (!targetTenantId) {
+        showErrorModal?.('활성 테넌트(고객사) 식별 정보를 확인할 수 없습니다. 안전을 위해 엑셀 적재를 차단합니다.');
+        return;
+      }
       const result = await ingestExcelInitialData(parsedData, (step, total, message) => {
         setProgressInfo({ step, total, message });
       }, targetTenantId);

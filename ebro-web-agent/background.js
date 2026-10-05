@@ -9,7 +9,7 @@
  * 4. Popup UI 상태 동기화
  */
 
-const PC_AGENT_WS_URL = 'ws://127.0.0.1:9001';
+const PC_AGENT_WS_URL = 'ws://127.0.0.1:5175';
 let socket = null;
 let isConnected = false;
 let reconnectTimer = null;
