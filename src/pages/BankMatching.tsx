@@ -1210,7 +1210,7 @@ export const BankMatching: React.FC = () => {
                                     onClick={() => handleUnmatch(tx.id)}
                                     className="btn btn-secondary"
                                     style={{ fontSize: '10px', padding: '2px 5px', color: 'var(--danger)', borderColor: '#fca5a5', fontWeight: 600 }}
-                                    data-mid="btn-unmatch" data-mid='btn-unmatch' title="수납 매칭 해제 (원복)"
+                                    data-mid='btn-unmatch' title="수납 매칭 해제 (원복)"
                                   >
                                     해제
                                   </button>
@@ -1244,7 +1244,7 @@ export const BankMatching: React.FC = () => {
                                     onClick={() => handleUnmatch(tx.id)}
                                     className="btn btn-secondary"
                                     style={{ fontSize: '10px', padding: '2px 5px', color: 'var(--danger)', borderColor: '#fca5a5', fontWeight: 600 }}
-                                    data-mid="btn-unmatch" data-mid='btn-unmatch' title="수납 매칭 해제 (원복)"
+                                    data-mid='btn-unmatch' title="수납 매칭 해제 (원복)"
                                   >
                                     해제
                                   </button>

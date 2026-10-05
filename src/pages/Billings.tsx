@@ -2286,7 +2286,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       {/* 탭 */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
         {canSave && (
-          <button className={activeTab === 'WIZARD' ? 'btn-primary' : 'btn-secondary'} data-mid="tab-billing-wizard" data-mid='tab-billing-wizard' onClick={() => setActiveTab('WIZARD')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <button className={activeTab === 'WIZARD' ? 'btn-primary' : 'btn-secondary'} data-mid='tab-billing-wizard' onClick={() => setActiveTab('WIZARD')} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
             <Calendar size={14} /> 미청구 정산
             {todayStatementDueContracts.length > 0 && (
               <span style={{ padding: '1px 6px', fontSize: '10.5px', fontWeight: 800, borderRadius: '10px', backgroundColor: '#dc2626', color: '#ffffff', lineHeight: '1.2' }}>
@@ -2295,7 +2295,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
             )}
           </button>
         )}
-        <button className={activeTab === 'LIST' ? 'btn-primary' : 'btn-secondary'} data-mid="tab-billing-list" data-mid='tab-billing-list' onClick={() => setActiveTab('LIST')}>
+        <button className={activeTab === 'LIST' ? 'btn-primary' : 'btn-secondary'} data-mid='tab-billing-list' onClick={() => setActiveTab('LIST')}>
           청구 대장
         </button>
         <button
