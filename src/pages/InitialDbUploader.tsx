@@ -73,7 +73,7 @@ import {
   Boxes,
   Package,
   ShieldAlert
-} from 'lucide-react';
+, Book } from 'lucide-react';
 import { OrphanDataCleanupStudio } from '../components/OrphanDataCleanupStudio';
 
 export const InitialDbUploader: React.FC = () => {
@@ -224,6 +224,28 @@ export const InitialDbUploader: React.FC = () => {
     } finally {
       setIsPermIngesting(false);
       setPermProgressMsg('');
+    }
+  };
+
+  
+  // ── 전사 매뉴얼 마스터 JSON 백업 다운로드 ──
+  const handleExportManuals = () => {
+    try {
+      const payload = ALL_MENU_MANUALS || [];
+      const jsonStr = JSON.stringify(payload, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const nowStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      a.download = `전사_매뉴얼_마스터_${nowStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showSuccessToast?.(`전사 매뉴얼 백업 다운로드 완료 (총 ${payload.length}개 메뉴)`);
+    } catch (err: any) {
+      showErrorModal?.(`매뉴얼 백업 중 오류: ${err.message}`);
     }
   };
 
