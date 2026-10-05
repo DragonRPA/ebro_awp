@@ -922,7 +922,7 @@ export const DelinquencyPage: React.FC = () => {
             </h3>
 
             {/* 필터 칩 */}
-            <div style={{ display: 'flex', gap: '5px' }}>
+            <div data-mid="delinquency-scope-period" style={{ display: 'flex', gap: '5px' }}>
               <button 
                 className={statusFilter === 'ALL' ? 'btn-primary' : 'btn-secondary'} 
                 onClick={() => setStatusFilter('ALL')}
@@ -989,7 +989,7 @@ export const DelinquencyPage: React.FC = () => {
           </div>
 
           {/* 고밀도 슬림 테이블 (행 높이 38~42px) */}
-          <div style={{ overflowX: 'auto', flex: 1, minHeight: 0 }}>
+          <div data-mid="delinquency-inspection-grid" style={{ overflowX: 'auto', flex: 1, minHeight: 0 }}>
             <table className="data-table" style={{ width: '100%', fontSize: '11.5px', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-color)' }}>

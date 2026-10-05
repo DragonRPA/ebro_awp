@@ -751,6 +751,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           {/* 산출 공식 및 추론 알고리즘 안내 모달 버튼 */}
           <button
+            data-mid="permits-pipeline-formula"
             onClick={() => setIsFormulaModalOpen(true)}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '5px',
@@ -768,6 +769,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
 
           {/* 실시간 공공데이터포털 수신 버튼 */}
           <button
+            data-mid="permits-pipeline-fetch"
             onClick={fetchLivePublicData}
             disabled={isLiveApiFetching}
             style={{
@@ -784,6 +786,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
           </button>
           
           <button
+            data-mid="permits-pipeline-excel"
             onClick={handleExportExcel}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '5px',
@@ -1005,7 +1008,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
       {/* ── [본문 2단 분할 레이아웃] 좌: 고밀도 그리드, 우: AI 공정 상세 패널 ── */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* 좌측: 고밀도 그리드 테이블 (전사 표준 헌장 3.2 줄바꿈 방지 & 3.6 유형 B) */}
-        <div style={{
+        <div data-mid="permits-inspection-grid" style={{
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
@@ -1250,7 +1253,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
         </div>
 
         {/* ── 우측: AI 공정 역산 스튜디오 & 영업 파이프라인 패널 (Dossier) ── */}
-        <div style={{
+        <div data-mid="permits-dossier-panel" style={{
           width: '440px',
           backgroundColor: '#ffffff',
           display: 'flex',

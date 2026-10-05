@@ -228,7 +228,7 @@ export const PrintQueueManager: React.FC = () => {
   <div class="box">
     <h1>기연리프트 분산 인쇄 테스트</h1>
     <table>
-      <tr><th>프린터 명칭</th><td data-mid="[data-mid=">${station.stationName}</td></tr>
+      <tr><th>프린터 명칭</th><td data-mid="td-station-name">${station.stationName}</td></tr>
       <tr><th>타겟 프린터</th><td>${station.localPrinterName}</td></tr>
       <tr><th>호스트 PC</th><td>${station.machineName || '-'}</td></tr>
       <tr><th>기본 서식</th><td>${station.docTypeDefault === 'DISPATCH_ORDER' ? '출고요청서' : station.docTypeDefault === 'RETURN_ORDER' ? '입고요청서' : '출고·입고 통합'}</td></tr>

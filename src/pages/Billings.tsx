@@ -2331,6 +2331,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
         </button>
         <button
           className={activeTab === 'INVOICE' ? 'btn-primary' : 'btn-secondary'}
+          data-mid='tab-billing-invoice'
           onClick={() => setActiveTab('INVOICE')}
           style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
         >
@@ -2338,6 +2339,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
         </button>
         <button
           className={activeTab === 'WAIVER' ? 'btn-primary' : 'btn-secondary'}
+          data-mid='tab-billing-waiver'
           onClick={() => setActiveTab('WAIVER')}
           style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
         >

@@ -736,7 +736,7 @@ export const Vendors: React.FC = () => {
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>전사 매입 누적거래액</span>
               <strong style={{ fontSize: '15px', color: 'var(--success)', whiteSpace: 'nowrap' }}>₩{totalPurchaseSum.toLocaleString()}</strong>
             </div>
-            <div data-mid="[data-mid=" style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>거래 개시처</span>
               <strong style={{ fontSize: '15px', color: '#8b5cf6', whiteSpace: 'nowrap' }}>{startedVendorsCount}개사</strong>
             </div>

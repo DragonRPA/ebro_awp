@@ -453,7 +453,7 @@ export const VehicleOperationLogPage: React.FC = () => {
         {/* 상단 퀵 액션 버튼군 */}
         <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
           {activeTab === 'OPERATION_LOG' && (
-            <button data-mid="[data-mid="
+            <button
               onClick={handleExportNtsExcel}
               style={{
                 display: 'flex',

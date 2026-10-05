@@ -387,7 +387,7 @@ export const ConsumableInOutPage: React.FC = () => {
       )}
 
       {/* ─── [Z-패턴 1단계: 헤더 & 탭 네비게이션] ─── */}
-      <div data-mid="[data-mid=" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+      <div data-mid="consumable_inout-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
             소모품 입출고 관리

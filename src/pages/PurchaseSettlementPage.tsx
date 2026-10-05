@@ -296,7 +296,7 @@ export const PurchaseSettlementPage: React.FC = () => {
           </select>
         </div>
 
-        <button data-mid="[data-mid="
+        <button data-mid="purchase_settlement-pipeline-generate"
           onClick={handleGenerate}
           disabled={isGenerating}
           style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '36px', padding: '0 16px', background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: '700', fontSize: '13.5px', cursor: isGenerating ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}

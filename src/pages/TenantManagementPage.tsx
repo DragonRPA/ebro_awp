@@ -799,6 +799,7 @@ export const TenantManagementPage: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ position: 'relative' }}>
               <input
+                data-mid="tenant-scope-search"
                 type="text"
                 value={searchKeyword}
                 onChange={e => setSearchKeyword(e.target.value)}
@@ -816,7 +817,7 @@ export const TenantManagementPage: React.FC = () => {
               <Search size={15} style={{ position: 'absolute', left: '10px', top: '9px', color: 'var(--text-muted)' }} />
             </div>
 
-            <div style={{ display: 'flex', backgroundColor: 'var(--bg-app)', borderRadius: '8px', padding: '3px', border: '1px solid var(--border-color)' }}>
+            <div data-mid="tenant-scope-status" style={{ display: 'flex', backgroundColor: 'var(--bg-app)', borderRadius: '8px', padding: '3px', border: '1px solid var(--border-color)' }}>
               <button
                 type="button"
                 onClick={() => setStatusFilter('ALL')}
@@ -909,6 +910,7 @@ export const TenantManagementPage: React.FC = () => {
         {/* 우상단: 데이터 유입 및 완결 액션 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
+            data-mid="tenant-pipeline-excel"
             type="button"
             onClick={handleExportExcel}
             className="btn btn-secondary"
@@ -927,6 +929,7 @@ export const TenantManagementPage: React.FC = () => {
           </button>
 
           <button
+            data-mid="tenant-pipeline-onboard"
             type="button"
             onClick={() => setIsOnboardingModalOpen(true)}
             className="btn btn-secondary"
@@ -948,6 +951,7 @@ export const TenantManagementPage: React.FC = () => {
           </button>
 
           <button
+            data-mid="tenant-pipeline-add"
             type="button"
             onClick={() => handleOpenModal()}
             className="btn btn-primary"
@@ -968,7 +972,7 @@ export const TenantManagementPage: React.FC = () => {
       </div>
 
       {/* ── 2. 중앙 본문: 고밀도 그리드 테이블 (Inspection) ── */}
-      <div style={{
+      <div data-mid="tenant-inspection-grid" style={{
         flex: 1,
         backgroundColor: 'var(--bg-card)',
         borderRadius: '12px',

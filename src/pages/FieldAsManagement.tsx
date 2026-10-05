@@ -930,7 +930,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
           animation: 'fadeIn 0.2s ease-in-out'
         }}>
           {toastMessage.type === 'success' ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
-          <span data-mid="[data-mid=">{toastMessage.text}</span>
+          <span>{toastMessage.text}</span>
         </div>
       )}
       

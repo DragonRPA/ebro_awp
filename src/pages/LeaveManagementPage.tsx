@@ -431,7 +431,7 @@ export const LeaveManagementPage: React.FC = () => {
                         <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', fontWeight: 'bold', color: 'var(--text-main)' }}>
                           {u.name}
                         </td>
-                        <td data-mid="[data-mid=" style={{ padding: '10px 14px', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
+                        <td data-mid="leave-dept-cell" style={{ padding: '10px 14px', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>
                           {u.department || '미지정'} / {u.position || '직원'}
                         </td>
                         <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', color: 'var(--text-main)' }}>

@@ -3,9 +3,11 @@ import React, { useState, useMemo } from 'react';
 import { ALL_MENU_MANUALS } from '../data/allMenuManuals';
 import { Search, BookOpen, Layers, CheckCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useManualContext } from '../components/manual/ManualContext';
 
 export const ManualDictionaryPage: React.FC = () => {
-  const { setActiveTab,  } = useApp();
+  const { setActiveTab } = useApp();
+  const { startGuidedTour } = useManualContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMenu, setSelectedMenu] = useState<string>('ALL');
 
@@ -43,12 +45,12 @@ export const ManualDictionaryPage: React.FC = () => {
     });
   }, [allProcesses, searchQuery, selectedMenu]);
 
-  const handleStartProcess = (menuId: string) => {
-    // Navigate to the target menu
-    // The actual manual popup can be opened using Ctrl+M on that page,
-    // or by expanding the context logic if we had access to openManual(pageId).
-    // For now, we simply navigate to the menu tab where the user can initiate the task.
-    setActiveTab(menuId);
+  const handleStartProcess = (menuId: string, processId?: string, menuName?: string) => {
+    if (typeof startGuidedTour === 'function') {
+      startGuidedTour(menuId, processId, menuName);
+    } else {
+      setActiveTab(menuId);
+    }
   };
 
   return (
@@ -114,10 +116,23 @@ export const ManualDictionaryPage: React.FC = () => {
                 </div>
                 <button 
                   className="btn-primary"
-                  onClick={() => handleStartProcess(proc.menuId)}
-                  style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  onClick={() => handleStartProcess(proc.menuId, proc.processId, proc.menuName)}
+                  style={{ 
+                    whiteSpace: 'nowrap', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px',
+                    padding: '8px 16px',
+                    fontSize: '13px',
+                    fontWeight: '800',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)',
+                    transition: 'all 0.2s ease',
+                    flexShrink: 0
+                  }}
                 >
-                  해당 메뉴로 이동
+                  🚀 실무 화면 이동 및 파동 가이드 시작
                 </button>
               </div>
               <div style={{ padding: '16px' }}>

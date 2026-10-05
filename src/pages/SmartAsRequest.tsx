@@ -422,7 +422,7 @@ export const SmartAsRequest: React.FC = () => {
             접수번호: <strong>{submitSuccessTicket.ticketNo}</strong> (현장: {submitSuccessTicket.siteName} / 장비: {submitSuccessTicket.assetNo})
           </p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
-            <button data-mid="[data-mid="
+            <button data-mid="btn-new-ticket"
               onClick={handleReset}
               style={{
                 padding: '10px 20px',
@@ -648,7 +648,7 @@ export const SmartAsRequest: React.FC = () => {
               )}
             </div>
 
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <form data-mid="smart_as-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* 1. 현장 및 대상 장비 스코핑 카드 */}
           <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '20px', boxShadow: 'var(--shadow-sm)' }}>
             <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: 'var(--text-main)', margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>

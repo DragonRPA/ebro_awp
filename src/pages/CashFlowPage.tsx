@@ -616,7 +616,7 @@ export const CashFlowPage: React.FC = () => {
             <h1 style={{ fontSize: '20px', fontWeight: '800', margin: 0, whiteSpace: 'nowrap' }}>
               자금 흐름 분석
             </h1>
-            <span data-mid="[data-mid=" style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
               직접법(Direct Method) 실데이터 1:1 대사 및 유동성 전망
             </span>
           </div>

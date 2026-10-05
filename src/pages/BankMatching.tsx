@@ -191,7 +191,7 @@ export const BankMatching: React.FC = () => {
 
         if (!payObj.billingId || payObj.id.endsWith('-prepaid')) {
           elements.push(
-            <div data-mid="[data-mid=" key={link.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--success)', fontSize: '12px', whiteSpace: 'nowrap' }}>
+            <div key={link.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--success)', fontSize: '12px', whiteSpace: 'nowrap' }}>
               <span>• 초과 선수금 적립 (+{link.usedAmount.toLocaleString()}원)</span>
             </div>
           );

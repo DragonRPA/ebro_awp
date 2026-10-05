@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import type { ManualMode, ManualPage, ManualAnnotationItem } from '../../types/manual';
 import { useManual } from '../../hooks/useManual';
 import { MenuSpecDocModal } from './MenuSpecDocModal';
+import { getAppTabForMenu } from '../../utils/menuNavigator';
 
 interface ManualContextValue {
   mode: ManualMode;
@@ -26,6 +27,9 @@ interface ManualContextValue {
   docModalState: { isOpen: boolean; menuId: string; menuTitle: string };
   openDocModal: (menuId?: string, menuTitle?: string) => void;
   closeDocModal: () => void;
+  activeProcessId: string | null;
+  setActiveProcessId: (id: string | null) => void;
+  startGuidedTour: (targetMenuId: string, processId?: string | null, targetMenuTitle?: string) => Promise<void>;
 }
 
 const ManualCtx = createContext<ManualContextValue | null>(null);
@@ -43,6 +47,7 @@ export const ManualProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [currentPageId, setCurrentPageId] = useState('');
   const [currentPageTitle, setCurrentPageTitle] = useState('');
   const [page, setPage] = useState<ManualPage | null>(null);
+  const [activeProcessId, setActiveProcessId] = useState<string | null>(null);
 
   const setBaseMenu = useCallback((id: string, title?: string) => {
     setBaseMenuId(id);
@@ -104,6 +109,42 @@ export const ManualProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     await dbSave(updated);
   }, [page, dbSave]);
 
+  const startGuidedTour = useCallback(async (
+    targetMenuId: string,
+    processId?: string | null,
+    targetMenuTitle?: string
+  ): Promise<void> => {
+    const nav = getAppTabForMenu(targetMenuId);
+    const targetTab = nav.tabId;
+
+    // 1. 실제 화면 전환
+    if (typeof window !== 'undefined' && (window as any).__APP_CONTEXT__?.setActiveTab) {
+      (window as any).__APP_CONTEXT__.setActiveTab(targetTab);
+    }
+
+    // 2. Base Menu 동기화
+    setBaseMenu(targetTab, targetMenuTitle || targetTab);
+
+    // 3. 매뉴얼 페이지 로드
+    await loadPage(targetMenuId, targetMenuTitle);
+
+    // 4. 활성 프로세스 설정
+    setActiveProcessId(processId || null);
+
+    // 5. 보기 모드 켜기
+    setMode('viewing');
+
+    // 6. subTabTrigger가 있으면 150ms 후 document.querySelector(subTabTrigger).click() 호출하여 탭/폼 자동 전개!
+    if (nav.subTabTrigger && typeof document !== 'undefined') {
+      setTimeout(() => {
+        const triggerEl = document.querySelector<HTMLElement>(nav.subTabTrigger!);
+        if (triggerEl) {
+          triggerEl.click();
+        }
+      }, 150);
+    }
+  }, [loadPage, setBaseMenu]);
+
   return (
     <ManualCtx.Provider value={{
       mode, setMode,
@@ -118,6 +159,9 @@ export const ManualProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       docModalState,
       openDocModal,
       closeDocModal,
+      activeProcessId,
+      setActiveProcessId,
+      startGuidedTour,
     }}>
       {children}
       {docModalState.isOpen && (

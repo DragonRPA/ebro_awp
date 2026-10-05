@@ -616,7 +616,7 @@ export const OtManagementPage: React.FC = () => {
           <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>총 승인 OT 시간</span>
           <strong style={{ fontSize: '15px', color: 'var(--warning)' }}>{totalOtHours.toFixed(1)}시간</strong>
         </div>
-        <div data-mid="[data-mid=" style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>당월 OT 시간</span>
           <strong style={{ fontSize: '15px', color: 'var(--primary)' }}>{thisMonthOtHours.toFixed(1)}시간</strong>
         </div>

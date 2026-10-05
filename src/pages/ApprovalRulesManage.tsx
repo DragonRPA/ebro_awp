@@ -444,7 +444,7 @@ const ApprovalRulesManage: React.FC = () => {
     const finalCategory = category || '기타';
     const colors = CATEGORY_COLORS[finalCategory] || { bg: '#475569', color: '#e2e8f0' };
     return (
-      <span data-mid="[data-mid=" style={{
+      <span style={{
         fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '10px',
         background: colors.bg, color: colors.color, whiteSpace: 'nowrap', display: 'inline-block',
       }}>

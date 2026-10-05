@@ -279,7 +279,7 @@ export const LeaveApplicationPage: React.FC = () => {
       </div>
 
       {/* 📊 본인 연차 현황 카드 */}
-      <div data-mid="[data-mid=" style={{
+      <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
         gap: '12px',

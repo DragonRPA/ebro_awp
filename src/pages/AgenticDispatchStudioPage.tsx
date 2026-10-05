@@ -141,7 +141,7 @@ export const AgenticDispatchStudioPage: React.FC = () => {
 
         <div className="card" style={{ padding: '12px 16px', borderLeft: '4px solid #f59e0b' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>헌장 2.3 EXCHANGE 단일화</div>
-          <div data-mid="[data-mid=" style={{ fontSize: '18px', fontWeight: '900', color: '#f59e0b', marginTop: '4px' }}>100% 준수</div>
+          <div data-mid="kpi-exchange-compliance" style={{ fontSize: '18px', fontWeight: '900', color: '#f59e0b', marginTop: '4px' }}>100% 준수</div>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>왕복할인 ₩60,000 자동 차감</div>
         </div>
 

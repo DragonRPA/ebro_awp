@@ -342,7 +342,7 @@ export const OfficialMailPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
         {/* 좌측 패널: ① 좌상단 Scope (거래처 및 수신자 설정) */}
-        <div className="lg:col-span-4 space-y-5 bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div data-mid="mail-recipient-panel" className="lg:col-span-4 space-y-5 bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
           <div className="flex items-center gap-2 font-semibold text-sm border-b pb-2 border-slate-100 dark:border-slate-800">
             <Building2 size={16} className="text-blue-500" />
             <span>수신 대상 지정</span>
@@ -624,6 +624,7 @@ export const OfficialMailPage: React.FC = () => {
             </div>
 
             <button
+              data-mid="mail-terminal-send"
               type="button"
               onClick={handleSendEmail}
               disabled={isSending || !recipientEmail}

@@ -347,7 +347,7 @@ export const PayrollPage: React.FC = () => {
     <div data-subview="payroll" data-subview-title="Generated" style={{ position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
-        <div data-mid="[data-mid=" style={{
+        <div data-mid="payroll-toast" style={{
           position: 'fixed',
           top: '20px',
           right: '20px',

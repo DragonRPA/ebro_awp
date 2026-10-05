@@ -176,7 +176,7 @@ export const RegularReportsPage: React.FC = () => {
             {/* 코멘트 작성자 + 텍스트 */}
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-bold text-slate-400">작성자</label>
-              <input data-mid="[data-mid="
+              <input
                 type="text"
                 value={tc.authorName}
                 onChange={e => updateTeamComment(teamKey, 'authorName', e.target.value)}

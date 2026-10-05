@@ -105,7 +105,7 @@ export const AgenticSettlementAutopilotPage: React.FC = () => {
   return (
     <div data-subview="agentic_settlement_autopilot" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', minHeight: 0 }} data-uia="agentic-settlement-autopilot-container">
       {/* 상단 헤더 바 (헌장 3.1 무수식어 건조 표준) */}
-      <div data-mid="[data-mid=" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-color)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <TrendingUp size={20} color="var(--primary)" />
           <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>에이전틱 월말 대사 정산 오토파일럿</h2>

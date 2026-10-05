@@ -676,7 +676,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
   const renderUserCard = (user: UserNode) => {
     const eff = getUserEffectiveTier(user, dutyConfigs, positionConfigs);
     return (
-      <div data-mid="[data-mid=" 
+      <div data-mid="org-user-card" 
         key={user.id}
         draggable={canEdit}
         onDragStart={(e) => handleDragStart(e, user.id)}

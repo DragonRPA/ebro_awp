@@ -537,7 +537,7 @@ export const UsersPermissions: React.FC = () => {
     <div data-subview="permission" data-subview-title="Generated" style={{ padding: '0 4px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* 🔔 인앱 토스트 */}
       {toastMessage && (
-        <div data-mid="[data-mid=" style={{
+        <div data-mid="permission-toast" style={{
           position: 'fixed',
           top: '20px',
           right: '20px',

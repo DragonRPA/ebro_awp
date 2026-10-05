@@ -374,7 +374,7 @@ export const CorporateCardPage: React.FC = () => {
           >
             월별 매입정산 & 누락 검증
           </button>
-          <button data-mid="[data-mid="
+          <button
             onClick={() => setActiveSubTab('settings')}
             style={{
               padding: '6px 16px', borderRadius: '6px', fontSize: '13px', border: 'none', cursor: 'pointer',

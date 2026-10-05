@@ -270,7 +270,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
 
       {/* ── 1. 화면 헤더 (무수식어 건조 표준 3.1) ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-        <div data-mid="[data-mid=">
+        <div data-mid="consumable_purchase-header">
           <h2 style={{ fontWeight: '800', margin: 0, fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <ShoppingCart size={22} color="var(--primary)" />
             <span>소모품 구매</span>

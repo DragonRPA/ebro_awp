@@ -928,7 +928,7 @@ export const OutboundInspections: React.FC = () => {
                   { label: '1개월', type: 'MONTH' },
                   { label: '전체', type: 'ALL' }
                 ].map(b => (
-                  <button data-mid="[data-mid="
+                  <button data-mid="btn-date-range"
                     key={b.type}
                     onClick={() => handleSetDateRange(b.type as any)}
                     style={{

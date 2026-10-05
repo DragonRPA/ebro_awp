@@ -391,7 +391,7 @@ export const ErrorReportPage: React.FC = () => {
       case 'REGISTERED':
         return <span style={{ padding: '3px 10px', borderRadius: '4px', backgroundColor: 'var(--warning-light)', color: 'var(--warning)', fontWeight: 700, fontSize: '12px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Clock size={12} /> 신고등록</span>;
       case 'IN_PROGRESS':
-        return <span data-mid="[data-mid=" style={{ padding: '3px 10px', borderRadius: '4px', backgroundColor: 'var(--info-light)', color: 'var(--primary)', fontWeight: 700, fontSize: '12px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><RefreshCw size={12} /> 접수처리</span>;
+        return <span style={{ padding: '3px 10px', borderRadius: '4px', backgroundColor: 'var(--info-light)', color: 'var(--primary)', fontWeight: 700, fontSize: '12px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><RefreshCw size={12} /> 접수처리</span>;
       case 'COMPLETED':
         return <span style={{ padding: '3px 10px', borderRadius: '4px', backgroundColor: 'var(--success-light)', color: 'var(--success)', fontWeight: 700, fontSize: '12px', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><CheckCircle2 size={12} /> 완료</span>;
       case 'CANCELLED':

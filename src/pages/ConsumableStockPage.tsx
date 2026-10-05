@@ -526,7 +526,7 @@ export const ConsumableStockPage: React.FC = () => {
     <div data-subview="consumable_stock" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px', maxWidth: '1440px', margin: '0 auto' }}>
       {/* ─── 토스트 알림 ─── */}
       {toastMessage && (
-        <div data-mid="[data-mid=" style={{
+        <div style={{
           position: 'fixed', top: '20px', right: '20px', zIndex: 9999,
           padding: '12px 20px', borderRadius: '8px',
           backgroundColor: toastMessage.type === 'success' ? '#059669' : '#dc2626',

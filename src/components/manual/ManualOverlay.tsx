@@ -54,23 +54,101 @@ function safeQueryAll<T extends Element = HTMLElement>(root: ParentNode | null |
 }
 
 /**
- * 스마트 DOM 앵커 탐색기 (모달 팝업 내부 우선 탐색 지원):
- * 1) 콤마 구분 selector 매칭 (rootContainer 우선)
- * 2) label / 키워드 기반 DOM 텍스트 매칭
- * 3) 모달 내부 입력폼 순서 또는 화면 3대 영역 지능형 폴백
+ * 숨겨진 탭 또는 폼 컨테이너를 능동적으로 전개/활성화:
+ * 1) 계약 생성 폼: 대상 요소가 create-contract-* 인데 폼이 닫혀있다면 [data-mid="btn-new-contract"] 클릭하여 전개
+ * 2) 청구/수납 관리 탭:
+ *    - 대상이 wizard-* 또는 tab-billing-wizard 라면 [data-mid="tab-billing-wizard"] 활성화
+ *    - 대상이 invoice-* 또는 tab-billing-invoice 라면 [data-mid="tab-billing-invoice"] 활성화
+ *    - 대상이 waiver-* 또는 tab-billing-waiver 라면 [data-mid="tab-billing-waiver"] 활성화
+ * 3) 배차 서식 아코디언 블록 전개
  */
-export function resolveTargetElement(
-  item: ManualAnnotationItem,
-  rootContainer?: HTMLElement | null,
-  isModalContext?: boolean
-): HTMLElement | null {
-  // 모달 매뉴얼 모드인데 모달 엘리먼트가 없으면 탐색하지 않음 (일반 화면 요소로 폴백 방지)
-  if (isModalContext && !rootContainer) {
-    return null;
+export function ensureContainerUnfolded(item: ManualAnnotationItem, root: ParentNode = document): boolean {
+  if (!item) return false;
+  const sel = item.selector || '';
+  const lbl = item.label || '';
+  let didUnfold = false;
+
+  // 1. 계약 등록 폼 (create-contract-*)
+  if (sel.includes('create-contract-') || lbl.includes('신규 계약') || lbl.includes('계약 등록') || lbl.includes('계약서 작성')) {
+    let alreadyVisible = false;
+    if (sel) {
+      const parts = sel.split(',').map(s => s.trim()).filter(Boolean);
+      for (const p of parts) {
+        if (!p.includes(':contains')) {
+          const el = safeQuery(root, p);
+          if (el && (el as HTMLElement).offsetParent !== null) {
+            alreadyVisible = true;
+            break;
+          }
+        }
+      }
+    }
+    if (!alreadyVisible) {
+      const newContractBtn = safeQuery<HTMLButtonElement>(root, '[data-mid="btn-new-contract"]') ||
+                             safeQueryAll<HTMLButtonElement>(root, 'button').find(b => b.innerText && (b.innerText.includes('신규 계약') || b.innerText.includes('계약 등록')));
+      if (newContractBtn && newContractBtn.click) {
+        newContractBtn.click();
+        didUnfold = true;
+      }
+    }
   }
 
-  const root = rootContainer || document;
+  // 2. 청구 관리 탭 (tab-billing-wizard, tab-billing-invoice, tab-billing-waiver)
+  if (sel.includes('wizard-') || sel.includes('tab-billing-wizard') || lbl.includes('미청구') || lbl.includes('정산 마법사')) {
+    const wizardTab = safeQuery<HTMLButtonElement>(root, '[data-mid="tab-billing-wizard"]') ||
+                      safeQueryAll<HTMLButtonElement>(root, 'button').find(b => b.innerText && b.innerText.includes('미청구 정산'));
+    if (wizardTab && !wizardTab.className.includes('btn-primary')) {
+      wizardTab.click();
+      didUnfold = true;
+    }
+  } else if (sel.includes('invoice-') || sel.includes('tab-billing-invoice') || lbl.includes('청구서통합')) {
+    const invoiceTab = safeQuery<HTMLButtonElement>(root, '[data-mid="tab-billing-invoice"]') ||
+                       safeQueryAll<HTMLButtonElement>(root, 'button').find(b => b.innerText && b.innerText.includes('청구서통합'));
+    if (invoiceTab && !invoiceTab.className.includes('btn-primary')) {
+      invoiceTab.click();
+      didUnfold = true;
+    }
+  } else if (sel.includes('waiver-') || sel.includes('tab-billing-waiver') || lbl.includes('청구 면제')) {
+    const waiverTab = safeQuery<HTMLButtonElement>(root, '[data-mid="tab-billing-waiver"]') ||
+                      safeQueryAll<HTMLButtonElement>(root, 'button').find(b => b.innerText && b.innerText.includes('청구 면제'));
+    if (waiverTab && !waiverTab.className.includes('btn-primary')) {
+      waiverTab.click();
+      didUnfold = true;
+    }
+  }
 
+  // 3. 배차 서식 아코디언 블록들
+  let blockHeader: HTMLElement | null = null;
+  let blockBodySelector = '';
+  if (sel.includes('dispatch4-site-')) {
+    blockHeader = safeQuery(root, '[data-mid="dispatch4-block-site"] .dispatch4-block-header');
+    blockBodySelector = '[data-mid="dispatch4-block-site"] .dispatch4-block-body';
+  } else if (sel.includes('dispatch4-ft-') || sel.includes('dispatch4-model-') || sel.includes('dispatch4-equipment-')) {
+    blockHeader = safeQuery(root, '[data-mid="dispatch4-block-equipments"] .dispatch4-block-header');
+    blockBodySelector = '[data-mid="dispatch4-block-equipments"] .dispatch4-block-body';
+  } else if (sel.includes('dispatch4-loading-') || sel.includes('dispatch4-unloading-')) {
+    blockHeader = safeQuery(root, '[data-mid="dispatch4-block-schedule"] .dispatch4-block-header');
+    blockBodySelector = '[data-mid="dispatch4-block-schedule"] .dispatch4-block-body';
+  } else if (sel.includes('dispatch4-exchange-') || sel.includes('dispatch4-safety-')) {
+    blockHeader = safeQuery(root, '[data-mid="dispatch4-block-safety"] .dispatch4-block-header');
+    blockBodySelector = '[data-mid="dispatch4-block-safety"] .dispatch4-block-body';
+  }
+
+  if (blockHeader && (!blockBodySelector || !safeQuery(root, blockBodySelector))) {
+    blockHeader.click();
+    didUnfold = true;
+  }
+
+  return didUnfold;
+}
+
+/**
+ * 주어진 selector 및 label을 기반으로 DOM에서 요소를 직접 조회
+ */
+function queryElementBySelectorAndLabel(
+  item: ManualAnnotationItem,
+  root: ParentNode
+): HTMLElement | null {
   // 1. selector 파싱 (콤마 구분 시도 및 :contains 지원, root 내부 우선)
   if (item.selector) {
     const parts = item.selector.split(',').map(s => s.trim()).filter(Boolean);
@@ -95,20 +173,6 @@ export function resolveTargetElement(
           if (el) {
             return el as HTMLElement;
           }
-          // 셀렉터에 해당하는 아코디언 블록 헤더 폴백 (DOM 조작 없이 안전 조회)
-          if (sel.includes('dispatch4-site-')) {
-            const b = safeQuery(root, '[data-mid="dispatch4-block-site"]');
-            if (b) return b;
-          } else if (sel.includes('dispatch4-ft-') || sel.includes('dispatch4-model-') || sel.includes('dispatch4-equipment-')) {
-            const b = safeQuery(root, '[data-mid="dispatch4-block-equipments"]');
-            if (b) return b;
-          } else if (sel.includes('dispatch4-loading-') || sel.includes('dispatch4-unloading-')) {
-            const b = safeQuery(root, '[data-mid="dispatch4-block-schedule"]');
-            if (b) return b;
-          } else if (sel.includes('dispatch4-exchange-') || sel.includes('dispatch4-safety-')) {
-            const b = safeQuery(root, '[data-mid="dispatch4-block-safety"]');
-            if (b) return b;
-          }
         }
       } catch { /* ignore invalid selector */ }
     }
@@ -126,6 +190,58 @@ export function resolveTargetElement(
     if (lbl && lbl.offsetParent !== null) {
       const siblingInput = safeQuery(lbl.parentElement, 'input, select, textarea');
       return (siblingInput || lbl) as HTMLElement;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * 스마트 DOM 앵커 탐색기 (모달 팝업 내부 우선 탐색 지원 및 숨겨진 폼/탭 자동 전개 후 재탐색):
+ * 1) selector / label 직접 탐색
+ * 2) 미탐색 시 숨겨진 컨테이너(계약서 작성 폼, 청구 탭 등) 자동 전개 후 재탐색
+ * 3) 모달 내부 순번 또는 화면 Gutenberg Z-패턴 지능형 폴백
+ */
+export function resolveTargetElement(
+  item: ManualAnnotationItem,
+  rootContainer?: HTMLElement | null,
+  isModalContext?: boolean
+): HTMLElement | null {
+  // 모달 매뉴얼 모드인데 모달 엘리먼트가 없으면 탐색하지 않음 (일반 화면 요소로 폴백 방지)
+  if (isModalContext && !rootContainer) {
+    return null;
+  }
+
+  const root = rootContainer || document;
+
+  // 1. selector 및 label 직접 탐색 (1차 시도)
+  let foundEl = queryElementBySelectorAndLabel(item, root);
+  if (foundEl) return foundEl;
+
+  // 2. 요소를 찾지 못했고 모달 컨텍스트가 아니라면 숨겨진 폼/탭 전개 후 즉시 재탐색!
+  if (!isModalContext) {
+    const didUnfold = ensureContainerUnfolded(item, root);
+    if (didUnfold) {
+      foundEl = queryElementBySelectorAndLabel(item, root);
+      if (foundEl) return foundEl;
+    }
+  }
+
+  // 3. 셀렉터에 해당하는 아코디언 블록 헤더 폴백 (DOM 조작 없이 안전 조회)
+  if (item.selector) {
+    const sel = item.selector;
+    if (sel.includes('dispatch4-site-')) {
+      const b = safeQuery(root, '[data-mid="dispatch4-block-site"]');
+      if (b) return b;
+    } else if (sel.includes('dispatch4-ft-') || sel.includes('dispatch4-model-') || sel.includes('dispatch4-equipment-')) {
+      const b = safeQuery(root, '[data-mid="dispatch4-block-equipments"]');
+      if (b) return b;
+    } else if (sel.includes('dispatch4-loading-') || sel.includes('dispatch4-unloading-')) {
+      const b = safeQuery(root, '[data-mid="dispatch4-block-schedule"]');
+      if (b) return b;
+    } else if (sel.includes('dispatch4-exchange-') || sel.includes('dispatch4-safety-')) {
+      const b = safeQuery(root, '[data-mid="dispatch4-block-safety"]');
+      if (b) return b;
     }
   }
 
@@ -592,14 +708,32 @@ const BottomDossierCard: React.FC<{
    메인 오버레이 컴포넌트
 ══════════════════════════════════════════════════════════════ */
 export const ManualOverlay: React.FC = () => {
-  const { mode, setMode, page, openDocModal, loadPage, baseMenuId, baseMenuTitle } = useManualContext();
+  const {
+    mode,
+    setMode,
+    page,
+    openDocModal,
+    loadPage,
+    baseMenuId,
+    baseMenuTitle,
+    activeProcessId,
+    setActiveProcessId,
+  } = useManualContext();
   const [elements, setElements] = useState<Record<number, HTMLElement | null>>({});
   const [rects, setRects] = useState<Record<number, Rect | null>>({});
   const [expandedSeq, setExpandedSeq] = useState<number | null>(null);
-    const [activeProcessId, setActiveProcessId] = useState<string | null>(null);
+  const [isPlayingAutoTour, setIsPlayingAutoTour] = useState(false);
+  const autoTourTimerRef = useRef<number | null>(null);
+  const expandedSeqRef = useRef<number | null>(expandedSeq);
+  const prevModeRef = useRef<string>('off');
+  const prevProcessIdRef = useRef<string | null>(null);
   const lastPageIdRef = useRef<string | null>(null);
   const rafRef = useRef<number>(0);
   const trackingLoopRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    expandedSeqRef.current = expandedSeq;
+  }, [expandedSeq]);
 
   const isModal = Boolean(page?.pageId?.startsWith('modal_'));
   const activeModal = isModal ? detectActiveModalElement() : null;
@@ -639,7 +773,7 @@ export const ManualOverlay: React.FC = () => {
   }, [page, setMode, activeItems]);
 
   // 스크롤 이동 중 뱃지 및 파동이 실시간으로 엘리먼트를 밀착 추적하는 rAF 루프
-  const startTrackingLoop = useCallback((durationMs = 800) => {
+  const startTrackingLoop = useCallback((durationMs = 1000) => {
     const startTime = performance.now();
     if (trackingLoopRef.current) {
       cancelAnimationFrame(trackingLoopRef.current);
@@ -661,7 +795,9 @@ export const ManualOverlay: React.FC = () => {
   useEffect(() => {
     if (page?.pageId && page.pageId !== lastPageIdRef.current) {
       lastPageIdRef.current = page.pageId;
-      setActiveProcessId(null);
+      if (activeProcessId && !page.processes?.some(p => p.processId === activeProcessId)) {
+        setActiveProcessId(null);
+      }
       setExpandedSeq(1);
 
       const timer = setTimeout(() => {
@@ -669,7 +805,7 @@ export const ManualOverlay: React.FC = () => {
           const el = resolveTargetElement(activeItems[0], null, isModal);
           if (el) {
             scrollTargetIntoView(el);
-            startTrackingLoop(800);
+            startTrackingLoop(1000);
           }
         }
       }, 150);
@@ -786,8 +922,8 @@ export const ManualOverlay: React.FC = () => {
         return;
       }
 
-      // 3. 서식 아코디언 토글 헤더 및 폼 입력 요소 클릭 시에는 매뉴얼 닫지 않음
-      if (target.closest('.dispatch4-block-header, .dispatch4-block, [data-mid*="dispatch4-block-"], input, select, textarea, label, option')) {
+      // 3. 서식 아코디언 토글 헤더, 신규 계약 버튼, 청구 탭, 폼 입력 요소 클릭 시에는 매뉴얼 닫지 않음
+      if (target.closest('.dispatch4-block-header, .dispatch4-block, [data-mid*="dispatch4-block-"], [data-mid="btn-new-contract"], [data-mid^="tab-billing-"], [data-mid*="create-contract-"], [data-mid*="wizard-"], [data-mid*="waiver-"], input, select, textarea, label, option')) {
         return;
       }
 
@@ -879,61 +1015,43 @@ export const ManualOverlay: React.FC = () => {
     }
     setExpandedSeq(seq);
 
-    // 💡 [사용자 선택 시 아코디언 블록 안전 전개] 접힌 블록이 있다면 1회 전개
-    if (page && activeItems) {
-      const item = activeItems.find(i => i.seq === seq);
-      if (item && item.selector) {
-        const sel = item.selector;
-        let blockHeader: HTMLElement | null = null;
-        let blockBodySelector = '';
+    const item = activeItems?.find(i => i.seq === seq);
+    if (!item) return;
 
-        if (sel.includes('dispatch4-site-')) {
-          blockHeader = safeQuery(document, '[data-mid="dispatch4-block-site"] .dispatch4-block-header');
-          blockBodySelector = '[data-mid="dispatch4-block-site"] .dispatch4-block-body';
-        } else if (sel.includes('dispatch4-ft-') || sel.includes('dispatch4-model-') || sel.includes('dispatch4-equipment-')) {
-          blockHeader = safeQuery(document, '[data-mid="dispatch4-block-equipments"] .dispatch4-block-header');
-          blockBodySelector = '[data-mid="dispatch4-block-equipments"] .dispatch4-block-body';
-        } else if (sel.includes('dispatch4-loading-') || sel.includes('dispatch4-unloading-')) {
-          blockHeader = safeQuery(document, '[data-mid="dispatch4-block-schedule"] .dispatch4-block-header');
-          blockBodySelector = '[data-mid="dispatch4-block-schedule"] .dispatch4-block-body';
-        } else if (sel.includes('dispatch4-exchange-') || sel.includes('dispatch4-safety-')) {
-          blockHeader = safeQuery(document, '[data-mid="dispatch4-block-safety"] .dispatch4-block-header');
-          blockBodySelector = '[data-mid="dispatch4-block-safety"] .dispatch4-block-body';
-        }
+    // 💡 [숨겨진 폼/탭(계약 등록 폼, 청구 마법사/통합/면제 탭 등) 능동 전개 및 재탐색]
+    const didUnfold = ensureContainerUnfolded(item, document);
 
-        if (blockHeader && (!blockBodySelector || !safeQuery(document, blockBodySelector))) {
-          blockHeader.click();
+    if (didUnfold) {
+      // 폼/탭이 DOM에 마운트되는 시간을 확보한 뒤 재탐색 및 스크롤/트래킹 루프
+      setTimeout(() => {
+        recalcTargets();
+        const targetEl = resolveTargetElement(item, null, isModal);
+        if (targetEl) {
+          scrollTargetIntoView(targetEl);
+          startTrackingLoop(1000);
         }
-      }
+      }, 120);
+      return;
     }
 
     // 대상 요소 획득
-    let el = elements[seq];
-    if (!el && page) {
-      const item = activeItems.find(i => i.seq === seq);
-      if (item) {
-        el = resolveTargetElement(item, null, isModal);
-      }
-    }
+    let el = elements[seq] || resolveTargetElement(item, null, isModal);
 
     if (el) {
       scrollTargetIntoView(el);
-      startTrackingLoop(800);
+      startTrackingLoop(1000);
     } else {
-      // 아코디언 블록 전개 대기 후 2차 스크롤 시도
+      // 2차 재탐색 시도
       setTimeout(() => {
         recalcTargets();
-        const retryItem = page?.items.find(i => i.seq === seq);
-        if (retryItem) {
-          const retryEl = resolveTargetElement(retryItem, null, isModal);
-          if (retryEl) {
-            scrollTargetIntoView(retryEl);
-            startTrackingLoop(800);
-          }
+        const retryEl = resolveTargetElement(item, null, isModal);
+        if (retryEl) {
+          scrollTargetIntoView(retryEl);
+          startTrackingLoop(1000);
         }
       }, 150);
     }
-  }, [expandedSeq, elements, page, isModal, recalcTargets, startTrackingLoop]);
+  }, [expandedSeq, elements, activeItems, isModal, recalcTargets, startTrackingLoop]);
 
   const handlePrev = useCallback(() => {
     if (!page || activeItems.length === 0) return;
@@ -948,6 +1066,71 @@ export const ManualOverlay: React.FC = () => {
     const nextSeq = cur < activeItems.length ? cur + 1 : 1;
     handleSelectSeq(nextSeq);
   }, [page, expandedSeq, handleSelectSeq]);
+
+  const toggleAutoTour = useCallback(() => {
+    setIsPlayingAutoTour(prev => !prev);
+  }, []);
+
+  // 💡 [자동 순차 안내] 2.5초 간격으로 다음 단계(seq 1 -> 2 -> 3...)로 자동 전진하며 파동 효과 순회 표출
+  useEffect(() => {
+    if (!isPlayingAutoTour || mode !== 'viewing' || activeItems.length === 0) {
+      if (autoTourTimerRef.current) {
+        clearInterval(autoTourTimerRef.current);
+        autoTourTimerRef.current = null;
+      }
+      return;
+    }
+
+    // 순차 안내 시작 시 현재 선택된 단계가 없다면 1단계부터 시작
+    if (expandedSeqRef.current === null) {
+      handleSelectSeq(1);
+    }
+
+    autoTourTimerRef.current = window.setInterval(() => {
+      const cur = expandedSeqRef.current || 1;
+      const nextSeq = cur < activeItems.length ? cur + 1 : 1;
+      handleSelectSeq(nextSeq);
+    }, 2500);
+
+    return () => {
+      if (autoTourTimerRef.current) {
+        clearInterval(autoTourTimerRef.current);
+        autoTourTimerRef.current = null;
+      }
+    };
+  }, [isPlayingAutoTour, mode, activeItems.length, handleSelectSeq]);
+
+  // 매뉴얼 닫힘 시 자동 순차 안내 상태 초기화
+  useEffect(() => {
+    if (mode !== 'viewing') {
+      setIsPlayingAutoTour(false);
+    }
+  }, [mode]);
+
+  // 💡 [외부 트리거 및 모드 진입 보장] startGuidedTour 등으로 mode === 'viewing'이 시작되었거나 단위업무(activeProcessId) 전환 시:
+  // 1단계(seq 1) 자동 포커스 및 startTrackingLoop(1000) 트리거 보장!
+  useEffect(() => {
+    if (mode === 'viewing') {
+      const modeJustStarted = prevModeRef.current !== 'viewing';
+      const processChanged = activeProcessId !== prevProcessIdRef.current;
+
+      if (modeJustStarted || processChanged) {
+        prevModeRef.current = mode;
+        prevProcessIdRef.current = activeProcessId;
+
+        setExpandedSeq(1);
+        const timer = setTimeout(() => {
+          recalcTargets();
+          handleSelectSeq(1);
+          startTrackingLoop(1000);
+        }, 120);
+        return () => clearTimeout(timer);
+      }
+    } else {
+      prevModeRef.current = mode;
+      prevProcessIdRef.current = null;
+    }
+  }, [mode, activeProcessId, handleSelectSeq, recalcTargets, startTrackingLoop]);
 
   if (mode !== 'viewing' || !page) return null;
 
@@ -971,7 +1154,7 @@ export const ManualOverlay: React.FC = () => {
           setExpandedSeq(1);
           setTimeout(() => {
             recalcTargets();
-            startTrackingLoop(800);
+            startTrackingLoop(1000);
           }, 100);
         }}
         onSelectSeq={handleSelectSeq}
@@ -1123,6 +1306,32 @@ export const ManualOverlay: React.FC = () => {
             );
           })}
         </div>
+
+        {/* ▶ 자동 순차 안내 버튼 (2.5초 간격으로 다음 단계로 자동 전진하며 순회) */}
+        <button
+          type="button"
+          onClick={toggleAutoTour}
+          style={{
+            marginLeft: '6px',
+            padding: '4px 12px',
+            borderRadius: '14px',
+            border: isPlayingAutoTour ? '1.5px solid #10b981' : '1px solid var(--primary)',
+            background: isPlayingAutoTour ? '#10b981' : 'rgba(59,130,246,0.1)',
+            fontSize: '11.5px',
+            fontWeight: 800,
+            color: isPlayingAutoTour ? '#ffffff' : 'var(--primary)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+            transition: 'all 0.2s ease',
+          }}
+          title={isPlayingAutoTour ? '자동 순차 안내 정지' : '2.5초 간격으로 단계를 자동 순회 안내합니다'}
+        >
+          {isPlayingAutoTour ? '⏹ 안내 정지' : '▶ 자동 순차 안내'}
+        </button>
 
         {/* 📖 기능 정의서 (.md) 열기 버튼 */}
         <button

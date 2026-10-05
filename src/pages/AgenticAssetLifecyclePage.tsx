@@ -114,7 +114,7 @@ export const AgenticAssetLifecyclePage: React.FC = () => {
     <div data-subview="agentic_asset_lifecycle" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', minHeight: 0 }} data-uia="agentic-asset-lifecycle-container">
       {/* 상단 헤더 바 (헌장 3.1 무수식어 건조 표준) */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-color)' }}>
-        <div data-mid="[data-mid=" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Layers size={20} color="var(--primary)" />
           <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>에이전틱 자산 라이프사이클 관제</h2>
           <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--primary)', fontWeight: '700' }} data-uia="badge-guard-rented">

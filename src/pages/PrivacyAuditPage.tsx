@@ -298,7 +298,7 @@ export const PrivacyAuditPage: React.FC = () => {
             gap: '12px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              <div data-mid="[data-mid=" style={{
+              <div data-mid="privacy-cpo-badge" style={{
                 padding: '4px 8px',
                 borderRadius: '6px',
                 backgroundColor: 'rgba(79, 70, 229, 0.12)',

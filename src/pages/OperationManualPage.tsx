@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { ALL_MENU_MANUALS, MenuManualDetail } from '../data/allMenuManuals';
 import { useManual } from '../hooks/useManual';
+import { useManualContext } from '../components/manual/ManualContext';
 import { fetchCentralSystemManuals, SystemManualItem } from '../services/centralDb';
 
 type DeptFilter = 'all' | 'sales' | 'inout' | 'maintenance' | 'logistics' | 'management' | 'special' | 'dev';
@@ -34,6 +35,7 @@ export const OperationManualPage: React.FC = () => {
   });
 
   const { seedAllManuals, saving } = useManual();
+  const { startGuidedTour } = useManualContext();
   const [seedingSuccess, setSeedingSuccess] = useState<string | null>(null);
 
   // 중앙 DB system_manuals 동적 로드 상태
@@ -235,7 +237,7 @@ export const OperationManualPage: React.FC = () => {
         zIndex: 20
       }}>
         {/* 타이틀 및 부서 필터 */}
-        <div data-mid="[data-mid=" style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <BookOpen size={18} />
@@ -462,36 +464,82 @@ export const OperationManualPage: React.FC = () => {
                     {grp.items.map(item => {
                       const isActive = item.menuId === selectedMenuId;
                       return (
-                        <button
+                        <div
                           key={item.menuId}
-                          onClick={() => {
-                            setSelectedMenuId(item.menuId);
-                            if (viewMode === 'all') {
-                              const el = document.getElementById(`manual-${item.menuId}`);
-                              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                            }
-                          }}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '6px',
-                            padding: '6px 8px',
+                            justifyContent: 'space-between',
                             borderRadius: '5px',
-                            border: 'none',
-                            fontSize: '12px',
-                            fontWeight: isActive ? 700 : 500,
-                            cursor: 'pointer',
-                            textAlign: 'left',
                             backgroundColor: isActive ? 'rgba(37,99,235,0.1)' : 'transparent',
-                            color: isActive ? '#2563EB' : 'var(--text-main)',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
+                            transition: 'background-color 0.15s ease',
                           }}
                         >
-                          <span style={{ fontSize: '11px', opacity: 0.7 }}>•</span>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.menuName}</span>
-                        </button>
+                          <button
+                            onClick={() => {
+                              setSelectedMenuId(item.menuId);
+                              if (viewMode === 'all') {
+                                const el = document.getElementById(`manual-${item.menuId}`);
+                                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                              }
+                            }}
+                            style={{
+                              flex: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '6px 8px',
+                              borderRadius: '5px',
+                              border: 'none',
+                              fontSize: '12px',
+                              fontWeight: isActive ? 700 : 500,
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                              backgroundColor: 'transparent',
+                              color: isActive ? '#2563EB' : 'var(--text-main)',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}
+                            title={item.menuName}
+                          >
+                            <span style={{ fontSize: '11px', opacity: 0.7 }}>•</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.menuName}</span>
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              (startGuidedTour as any)?.(item.menuId, null, item.menuName);
+                            }}
+                            style={{
+                              border: 'none',
+                              background: 'transparent',
+                              cursor: 'pointer',
+                              padding: '4px 6px',
+                              marginRight: '2px',
+                              borderRadius: '4px',
+                              fontSize: '11px',
+                              color: '#2563EB',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              opacity: isActive ? 1 : 0.65,
+                              flexShrink: 0,
+                              transition: 'opacity 0.15s ease, transform 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              (e.currentTarget as HTMLElement).style.opacity = '1';
+                              (e.currentTarget as HTMLElement).style.transform = 'scale(1.15)';
+                            }}
+                            onMouseLeave={(e) => {
+                              (e.currentTarget as HTMLElement).style.opacity = isActive ? '1' : '0.65';
+                              (e.currentTarget as HTMLElement).style.transform = 'scale(1)';
+                            }}
+                            title={`[${item.menuName}] 실무 화면으로 이동하여 가이드 시작`}
+                          >
+                            🚀
+                          </button>
+                        </div>
                       );
                     })}
                   </div>
@@ -550,6 +598,8 @@ export const OperationManualPage: React.FC = () => {
  * 개별 메뉴 매뉴얼 상세 렌더링 카드 컴포넌트
  */
 const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
+  const { startGuidedTour } = useManualContext();
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
       
@@ -593,9 +643,35 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
             menuId: {item.menuId}
           </span>
         </div>
-        <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.3px' }}>
-          {item.menuName} 표준 업무 매뉴얼
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+          <h2 style={{ margin: 0, fontSize: '22px', fontWeight: 900, color: 'var(--text-main)', letterSpacing: '-0.3px' }}>
+            {item.menuName} 표준 업무 매뉴얼
+          </h2>
+          <button
+            className="no-print"
+            onClick={() => (startGuidedTour as any)?.(item.menuId, null, item.menuName)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 18px',
+              borderRadius: '8px',
+              background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+              color: '#FFFFFF',
+              border: 'none',
+              fontSize: '13.5px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              boxShadow: '0 2px 10px rgba(37,99,235,0.3)',
+              whiteSpace: 'nowrap',
+              transition: 'all 0.15s ease',
+            }}
+            title={`${item.menuName} 실무 화면으로 이동하여 가이드 시작`}
+          >
+            <span style={{ fontSize: '15px' }}>🚀</span>
+            <span>실무 화면으로 이동하여 가이드 시작</span>
+          </button>
+        </div>
       </div>
 
       {/* ── 1. 최종 업무 목표 (Terminal Objective - Gutenberg 질문 1) ── */}
@@ -661,7 +737,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <span style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: '#2563EB', color: '#fff', fontSize: '11px', fontWeight: 800 }}>
                       단위업무 #{pIdx + 1}
                     </span>
@@ -672,9 +748,35 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
                       {proc.processId}
                     </span>
                   </div>
-                  <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>
-                    총 {proc.steps?.length || 0}단계 절차
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '11px', color: '#64748B', fontWeight: 600 }}>
+                      총 {proc.steps?.length || 0}단계 절차
+                    </span>
+                    <button
+                      className="no-print"
+                      onClick={() => (startGuidedTour as any)?.(item.menuId, proc.processId, item.menuName)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '5px 12px',
+                        borderRadius: '6px',
+                        backgroundColor: '#2563EB',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        fontSize: '12px',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        boxShadow: '0 1px 4px rgba(37,99,235,0.25)',
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.15s ease',
+                      }}
+                      title={`[${proc.title}] 실무 화면으로 이동하여 단계별 파동 가이드 실행`}
+                    >
+                      <span style={{ fontSize: '10px' }}>▶</span>
+                      <span>이 단위업무 실무 화면으로 이동하여 단계별 파동 가이드 실행</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.5, fontWeight: 500 }}>

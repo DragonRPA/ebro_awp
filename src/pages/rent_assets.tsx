@@ -1601,7 +1601,7 @@ export const RentAssets: React.FC = () => {
               <strong style={{ fontSize: '15px', color: 'var(--danger)' }}>₩{totalMonthlyRentCost.toLocaleString()}원</strong>
             </div>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span data-mid="[data-mid=" style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>반납 완료 장비</span>
+              <span data-mid="stat-returned-assets" style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>반납 완료 장비</span>
               <strong style={{ fontSize: '15px', color: 'var(--text-muted)' }}>{returnedList.length}대</strong>
             </div>
           </div>
