@@ -22,6 +22,7 @@ import ApprovalInbox from './pages/ApprovalInbox';
 import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
 import { PrivacyAuditPage } from './pages/PrivacyAuditPage';
 import { ManualsManage } from './pages/ManualsManage';
+import { ManualDictionaryPage } from './pages/ManualDictionaryPage';
 import { AgenticAiLabPage } from './pages/AgenticAiLabPage';
 import { AgenticDispatchStudioPage } from './pages/AgenticDispatchStudioPage';
 import { AgenticSettlementAutopilotPage } from './pages/AgenticSettlementAutopilotPage';
@@ -641,6 +642,7 @@ const App: React.FC = () => {
       items: [
         { id: 'organization', name: '조직 / 인사 관리', icon: <Users size={16} />, component: <OrganizationSettings /> },
         { id: 'permission', name: '사용자 및 권한', icon: <Shield size={16} />, component: <UsersPermissions /> },
+        { id: 'manual_dictionary', name: '전사 업무 매뉴얼 사전', icon: <BookOpen size={16} />, component: <ManualDictionaryPage /> },
         { id: 'tenant_management', name: '테넌트 관리', icon: <Building2 size={16} />, component: <TenantManagementPage /> },
         { id: 'payroll', name: '급여 정산', icon: <CreditCard size={16} />, component: <PayrollPage /> },
         { id: 'leave_management', name: '연차관리', icon: <UserCheck size={16} />, component: <LeaveManagementPage /> },
@@ -873,6 +875,7 @@ const App: React.FC = () => {
   // 활성 페이지 컴포넌트 탐색
   const getActiveComponent = () => {
     if (activeTab === 'dashboard') return <Dashboard />;
+    if (activeTab === 'manual_dictionary') return <ManualDictionaryPage />;
     if (activeTab === 'consumable' || activeTab === 'consumables') return <ConsumableStockPage />;
     if (activeTab === 'leave_ot') return <LeaveOtPage />;
     for (const grp of menuGroups) {
