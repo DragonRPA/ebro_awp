@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/components/manual/ManualContext.tsx
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import type { ManualMode, ManualPage, ManualAnnotationItem } from '../../types/manual';

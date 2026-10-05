@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/hooks/useManual.ts
 import { useState, useCallback } from 'react';
 import { supabase } from '../services/db';

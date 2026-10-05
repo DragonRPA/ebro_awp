@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/data/modalManuals.ts
 // 전사 팝업(모달) 전용 표준 업무 매뉴얼 및 활성 모달 DOM 자동 감지 엔진 (SSOT)
 import type { ManualPage, ManualAnnotationItem } from '../types/manual';

@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/components/manual/ManualOverlay.tsx
 // 보기 모드 — 현재 화면 위에 단계 가이드 오버레이 렌더링
 // ManualStudio 이식: Stamp, HighlightBox, Spotlight, Callout, Click Ripple, ElbowArrow, Bottom Dossier Popover

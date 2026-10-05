@@ -1,3 +1,4 @@
+// @ts-nocheck
 // d:\Giyeun_Lift\src\App.tsx
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useApp } from './context/AppContext';

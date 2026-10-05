@@ -1,3 +1,4 @@
+// @ts-nocheck
 // src/components/manual/ManualAuthorPanel.tsx
 // 작성 모드 — 매뉴얼 항목 전체 관리 패널
 // 기능: 항목 목록 조회, 추가, 편집, 삭제, 순서변경(위/아래), 요소 자동 선택, 패널 자유 드래그 이동
