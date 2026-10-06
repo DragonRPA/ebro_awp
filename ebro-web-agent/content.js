@@ -19,6 +19,79 @@
   let elementMap = new Map(); // agentId -> HTMLElement
   let idCounter = 1;
 
+  // 🌐 웹 페이지(ERP)와 확장 프로그램 간 프록시 통신 브리지 활성화
+  document.documentElement.setAttribute('data-ebro-extension-ready', 'true');
+
+  function updatePageAgentStatus(isConnected) {
+    document.documentElement.setAttribute('data-ebro-agent-status', isConnected ? 'online' : 'offline');
+    window.dispatchEvent(new CustomEvent('ebro:extension_agent_status', {
+      detail: { isConnected: Boolean(isConnected) }
+    }));
+    window.postMessage({
+      source: 'EBRO_EXTENSION',
+      type: 'AGENT_STATUS_UPDATE',
+      isConnected: Boolean(isConnected)
+    }, '*');
+  }
+
+  // 초기 로컬 에이전트 연결 상태 조회
+  try {
+    chrome.runtime.sendMessage({ type: 'GET_AGENT_STATUS' }, (res) => {
+      if (res && typeof res.isConnected === 'boolean') {
+        updatePageAgentStatus(res.isConnected);
+      }
+    });
+  } catch (e) {}
+
+  // 웹 페이지(window.postMessage) ➔ 확장 프로그램 Background 프록시 라우터
+  window.addEventListener('message', (event) => {
+    if (event.source !== window || !event.data || event.data.source !== 'EBRO_WEB_PAGE') return;
+
+    if (event.data.type === 'PROXY_FETCH') {
+      const { requestId, url, options } = event.data;
+      try {
+        chrome.runtime.sendMessage({
+          type: 'PROXY_FETCH',
+          url,
+          options
+        }, (res) => {
+          window.postMessage({
+            source: 'EBRO_EXTENSION',
+            type: 'PROXY_FETCH_RESPONSE',
+            requestId,
+            response: res || { success: false, ok: false, error: '확장 프로그램 응답 없음' }
+          }, '*');
+        });
+      } catch (err) {
+        window.postMessage({
+          source: 'EBRO_EXTENSION',
+          type: 'PROXY_FETCH_RESPONSE',
+          requestId,
+          response: { success: false, ok: false, error: err.message }
+        }, '*');
+      }
+    } else if (event.data.type === 'GET_AGENT_STATUS') {
+      const { requestId } = event.data;
+      try {
+        chrome.runtime.sendMessage({ type: 'GET_AGENT_STATUS' }, (res) => {
+          window.postMessage({
+            source: 'EBRO_EXTENSION',
+            type: 'GET_AGENT_STATUS_RESPONSE',
+            requestId,
+            response: res || { success: false, isConnected: false }
+          }, '*');
+        });
+      } catch (err) {
+        window.postMessage({
+          source: 'EBRO_EXTENSION',
+          type: 'GET_AGENT_STATUS_RESPONSE',
+          requestId,
+          response: { success: false, isConnected: false }
+        }, '*');
+      }
+    }
+  });
+
   /**
    * 요소가 화면에 시각적으로 노출되어 있는지 판별
    */
@@ -865,6 +938,13 @@
   // Chrome Background / Popup 메시지 리스너
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const { action, params } = message;
+
+    if (action === 'AGENT_STATUS_UPDATE') {
+      updatePageAgentStatus(message.isConnected);
+      sendResponse({ success: true });
+      return true;
+    }
+
     if (actions[action]) {
       try {
         const result = actions[action](params || {});

@@ -200,10 +200,172 @@ export function getAgentBaseUrl(): string {
   return activeAgentBaseUrl;
 }
 
+// ── 🌐 전역 에이전트 상태 버스 및 실시간 동기화 ──
+let lastKnownAgentOnline: boolean = false;
+let lastKnownAgentInfo: AgentHealthInfo | null = null;
+const agentStatusListeners = new Set<(online: boolean, info: AgentHealthInfo | null) => void>();
+
+export function isAgentOnlineGlobal(): boolean {
+  if (lastKnownAgentOnline) return true;
+  if (typeof document !== 'undefined') {
+    return document.documentElement.getAttribute('data-ebro-agent-status') === 'online';
+  }
+  return false;
+}
+
+export function subscribeAgentStatus(listener: (online: boolean, info: AgentHealthInfo | null) => void): () => void {
+  agentStatusListeners.add(listener);
+  try {
+    listener(isAgentOnlineGlobal(), lastKnownAgentInfo);
+  } catch (e) {}
+  return () => { agentStatusListeners.delete(listener); };
+}
+
+export function setGlobalAgentStatus(online: boolean, info?: AgentHealthInfo | null): void {
+  lastKnownAgentOnline = online;
+  if (info !== undefined) lastKnownAgentInfo = info;
+  agentStatusListeners.forEach(cb => {
+    try { cb(online, lastKnownAgentInfo); } catch (e) {}
+  });
+}
+
+// 브라우저 런타임 이벤트 리스너 (확장 프로그램 ➔ ERP 실시간 수신)
+if (typeof window !== 'undefined') {
+  window.addEventListener('message', (event: MessageEvent) => {
+    if (event.source !== window || !event.data || event.data.source !== 'EBRO_EXTENSION') return;
+    if (event.data.type === 'AGENT_STATUS_UPDATE') {
+      const isOnline = Boolean(event.data.isConnected);
+      setGlobalAgentStatus(isOnline);
+    }
+  });
+
+  window.addEventListener('ebro:extension_agent_status', ((e: CustomEvent) => {
+    if (e.detail && typeof e.detail.isConnected === 'boolean') {
+      setGlobalAgentStatus(e.detail.isConnected);
+    }
+  }) as EventListener);
+}
+
 /**
- * 로컬 에이전트 통신 헬퍼 (127.0.0.1 및 localhost 상호 폴백 지원)
+ * 🌐 브라우저 확장 프로그램(ebro web agent) 존재 여부 감지
+ */
+export function isExtensionBridgeAvailable(): boolean {
+  if (typeof document === 'undefined') return false;
+  return document.documentElement.getAttribute('data-ebro-extension-ready') === 'true' ||
+         document.documentElement.getAttribute('data-ebro-agent-status') !== null;
+}
+
+/**
+ * 🌐 브라우저 확장 프로그램(ebro web agent) 프록시를 통한 에이전트 통신
+ * Chrome Private Network Access (PNA) 및 Mixed Content 제약을 우회하여 로컬 에이전트와 완벽 통신
+ */
+export async function fetchViaExtensionBridge(pathOrUrl: string, init?: RequestInit): Promise<Response> {
+  const url = pathOrUrl.startsWith('http') ? pathOrUrl : `${activeAgentBaseUrl}${pathOrUrl}`;
+  return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined') {
+      return reject(new Error('Window context not available'));
+    }
+
+    const requestId = 'req_' + Math.random().toString(36).substring(2, 10);
+    const timeoutMs = (init as any)?.timeout || 120000;
+
+    let timer: any = null;
+
+    const handler = (event: MessageEvent) => {
+      if (event.source !== window || !event.data || event.data.source !== 'EBRO_EXTENSION') return;
+      if (event.data.type === 'PROXY_FETCH_RESPONSE' && event.data.requestId === requestId) {
+        window.removeEventListener('message', handler);
+        clearTimeout(timer);
+
+        const res = event.data.response;
+        if (!res || !res.success) {
+          return reject(new Error(res?.error || '확장 프로그램 프록시 통신 실패'));
+        }
+
+        const rawData = res.data;
+        const bodyStr = typeof rawData === 'string' ? rawData : (rawData !== null && rawData !== undefined ? JSON.stringify(rawData) : '');
+
+        const responseObj = new Response(bodyStr, {
+          status: res.status || 200,
+          statusText: res.statusText || 'OK',
+          headers: new Headers(res.headers || {})
+        });
+
+        if (typeof rawData === 'object' && rawData !== null) {
+          responseObj.json = async () => rawData;
+        }
+
+        resolve(responseObj);
+      }
+    };
+
+    window.addEventListener('message', handler);
+
+    timer = setTimeout(() => {
+      window.removeEventListener('message', handler);
+      reject(new Error('확장 프로그램 프록시 응답 시간 초과'));
+    }, timeoutMs);
+
+    if (init?.signal) {
+      if (init.signal.aborted) {
+        window.removeEventListener('message', handler);
+        clearTimeout(timer);
+        return reject(new DOMException('The user aborted a request.', 'AbortError'));
+      }
+      init.signal.addEventListener('abort', () => {
+        window.removeEventListener('message', handler);
+        clearTimeout(timer);
+        reject(new DOMException('The user aborted a request.', 'AbortError'));
+      }, { once: true });
+    }
+
+    let headerObj: Record<string, string> = {};
+    if (init?.headers) {
+      if (init.headers instanceof Headers) {
+        init.headers.forEach((v, k) => { headerObj[k] = v; });
+      } else if (Array.isArray(init.headers)) {
+        init.headers.forEach(([k, v]) => { headerObj[k] = v; });
+      } else {
+        headerObj = { ...init.headers } as Record<string, string>;
+      }
+    }
+
+    window.postMessage({
+      source: 'EBRO_WEB_PAGE',
+      type: 'PROXY_FETCH',
+      requestId,
+      url,
+      options: {
+        method: init?.method || 'GET',
+        headers: headerObj,
+        body: typeof init?.body === 'string' ? init.body : undefined,
+        timeout: timeoutMs
+      }
+    }, '*');
+  });
+}
+
+/**
+ * 로컬 에이전트 통신 헬퍼 (확장 프로그램 프록시 ➔ 루프백 fetch 상호 폴백 지원)
  */
 export async function fetchWithAgentFallback(path: string, init?: RequestInit): Promise<Response> {
+  const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:' && !window.location.hostname.includes('localhost');
+
+  // HTTPS 환경에서는 브라우저의 PNA/LNA(Local Network Access) 차단 정책으로 인해
+  // Chrome 확장 프로그램(ebro-web-agent) 프록시를 1순위로 시도
+  if (isHttps) {
+    try {
+      const extRes = await fetchViaExtensionBridge(path, init);
+      if (extRes.ok || extRes.status < 500) {
+        setGlobalAgentStatus(true);
+        return extRes;
+      }
+    } catch (extErr) {
+      // 확장 프로그램 미응답 시 직접 루프백 fetch 시도로 폴백
+    }
+  }
+
+  // 직접 루프백 fetch 시도 (127.0.0.1 및 localhost)
   const candidateHosts = [
     activeAgentBaseUrl,
     activeAgentBaseUrl.includes('127.0.0.1') ? 'http://localhost:5175' : 'http://127.0.0.1:5175'
@@ -220,12 +382,26 @@ export async function fetchWithAgentFallback(path: string, init?: RequestInit): 
       const res = await fetch(`${host}${path}`, mergedInit);
       if (res.ok || res.status < 500) {
         activeAgentBaseUrl = host;
+        setGlobalAgentStatus(true);
         return res;
       }
     } catch (e) {
       lastErr = e;
     }
   }
+
+  // 만약 직접 fetch가 실패했고(HTTP 개발 환경이거나 PNA 차단 시),
+  // 아직 확장 프로그램 프록시를 안 거쳤다면 3순위로 확장 프로그램 프록시 시도
+  if (!isHttps) {
+    try {
+      const extRes = await fetchViaExtensionBridge(path, init);
+      if (extRes.ok || extRes.status < 500) {
+        setGlobalAgentStatus(true);
+        return extRes;
+      }
+    } catch (e) {}
+  }
+
   throw lastErr || new Error('로컬 에이전트 연결 실패');
 }
 
@@ -236,12 +412,12 @@ export async function checkLocalAgentHealth(callsign: string = 'admin'): Promise
   try {
     const res = await fetchWithAgentFallback(`/health?callsign=${encodeURIComponent(callsign)}`, {
       method: 'GET',
-      signal: AbortSignal.timeout(1500),
+      signal: AbortSignal.timeout(2000),
       cache: 'no-store'
     });
     if (res.ok) {
       const data = await res.json();
-      return {
+      const info: AgentHealthInfo = {
         status: 'ONLINE',
         version: data.version || 'v1.0.0',
         callsign: data.callsign || callsign,
@@ -250,12 +426,17 @@ export async function checkLocalAgentHealth(callsign: string = 'admin'): Promise
         driveMirrorDir: data.driveMirrorDir,
         uptimeSeconds: data.uptimeSeconds,
         updateState: data.updateState,
+        policy: data.policy,
+        isAiEnabled: data.isAiEnabled,
         timestamp: data.timestamp
       };
+      setGlobalAgentStatus(true, info);
+      return info;
     }
   } catch (err) {
     // 오프라인
   }
+  setGlobalAgentStatus(false);
   return { status: 'OFFLINE' };
 }
 

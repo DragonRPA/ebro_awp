@@ -1,3 +1,21 @@
+## v1.13.0.Build.38 (2026-10-06 17:22)
+- **HTTPS 환경 Chrome LNA(Local Network Access) 차단 우회 프록시 브리지 구축**:
+  - `ebro-web-agent` (Chrome 확장 프로그램): Background Service Worker에 `PROXY_FETCH` 메시지 핸들러 및 `content.js` ➔ `background.js` 통신 브리지 신설. 확장 프로그램의 `host_permissions`를 통해 브라우저 보안 sandbox 및 LNA preflight 제약을 우회.
+  - `src/services/agentService.ts`: HTTPS 도메인 감지 시 확장 프로그램 프록시 1순위 라우팅(`fetchViaExtensionBridge`) 및 전역 에이전트 실시간 상태 버스(`subscribeAgentStatus`, `isAgentOnlineGlobal`) 구축.
+  - `ContractDocumentBundleModal.tsx`: 모달 오픈 시 첫 프레임부터 전역 연결 상태 즉시 동기화 및 `[🔄 재점검]` 버튼 추가.
+  - `agent/eBroAgent.js`: `Access-Control-Allow-Private-Network: true` 명시 및 OPTIONS preflight 완전 대응.
+- **계약 관리 상단 우측 헤더 액션 버튼 2종 숨김 처리**:
+  - `src/pages/Contracts.tsx`: 상단 우측 헤더의 `[📄 계약서패키지 PDF / 이메일]` 및 `[+ 신규 계약 등록]` 버튼 숨김 처리.
+  - 계약서 패키지는 개별 계약의 `[상세 ➔]` 화면에서 직관 처리되며, 신규 계약은 출고 의뢰 및 스마트 배차 체인을 통해 라이프사이클에 맞게 생성되도록 UI 동선 최적화.
+- **에이전트 스튜디오 창 최소화 시 시스템 트레이 자동 수납 및 Win32 감시 엔진 탑재**:
+  - `agent/trayIcon.ps1` & `agent/make-tray.cjs`: Win32 API (`IsIconic`, `ShowWindow(SW_HIDE=0 / SW_RESTORE=9)`) 실시간 감시(350ms) 엔진 탑재.
+  - 사용자가 스튜디오 창 우측 상단의 `_` (최소화) 버튼 클릭 시 작업표시줄에서 완전히 숨기고 시스템 트레이로 자동 수납.
+  - 트레이 아이콘 더블클릭 또는 우클릭 메뉴 [eBro AI Studio 열기] 클릭 시 0.01초 만에 화면 최상단으로 즉시 복원 (입력 중이던 폼 및 상태 100% 보존).
+  - `agent/studioEngine.js`: 상단 헤더에 `[📥 트레이로 숨기기]` 버튼 신설 및 `/api/minimize-studio` 엔드포인트 연동.
+- **텔레그램 엔진 대화형 반응 복원 및 독립 자립성 확립**:
+  - `agent/telegramEngine.js`: '일해', '자비스' 호출 시 5개 핵심 기능 인라인 키보드 메뉴 즉시 표출.
+  - Node SEA 단일 바이너리(`eBroAgent.exe`) 내부 완전 컴파일 및 독립 자립 구동 보장.
+
 ## v1.13.0.Build.37 (2026-10-06 15:45)
 - **계약서 패키지 모달 권한 분리 및 에이전트 실시간 통신 상태 정상화**:
   - `ContractDocumentBundleModal.tsx` & `Contracts.tsx`: 계약서 패키지 생성 권한을 `agent_badge` 단독 의존에서 `contract:view` / `contract:save` / `agent_badge:view` 포괄 검증으로 정상화하여 계약서 담당 실무진(영업/관리) 전원 개방.

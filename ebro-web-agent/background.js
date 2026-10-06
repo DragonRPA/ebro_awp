@@ -236,29 +236,91 @@ async function captureTabScreenshot() {
 }
 
 /**
- * 팝업 UI 상태 전송
+ * 팝업 UI 및 웹 페이지 상태 전송
  */
 function broadcastStatus() {
-  chrome.runtime.sendMessage({
+  const statusPayload = {
     type: 'STATUS_UPDATE',
     isConnected: isConnected,
     port: getWsPort(currentWsUrl),
     wsUrl: currentWsUrl
+  };
+
+  chrome.runtime.sendMessage(statusPayload).catch(() => {});
+
+  // 모든 열린 ERP 탭의 Content Script에도 실시간 상태 전달
+  chrome.tabs.query({}).then((tabs) => {
+    for (const tab of tabs) {
+      if (tab.id) {
+        chrome.tabs.sendMessage(tab.id, {
+          action: 'AGENT_STATUS_UPDATE',
+          isConnected: isConnected,
+          port: getWsPort(currentWsUrl),
+          wsUrl: currentWsUrl
+        }).catch(() => {});
+      }
+    }
   }).catch(() => {});
 }
 
-// 팝업 및 내부 메시지 수신 리스너
+// 팝업, Content Script 및 내부 메시지 수신 리스너
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.type === 'GET_STATUS') {
+  if (request.type === 'GET_STATUS' || request.type === 'GET_AGENT_STATUS') {
     if (!isConnected) {
       connectToPcAgent();
     }
     sendResponse({
+      success: true,
       isConnected: isConnected,
       port: getWsPort(currentWsUrl),
       wsUrl: currentWsUrl,
       activeTabId: activeErpTabId
     });
+    return true;
+  } else if (request.type === 'PROXY_FETCH') {
+    // 🌐 웹 페이지(HTTPS) ➔ PC 로컬 에이전트(HTTP 127.0.0.1) PNA/CORS 우회 프록시
+    const { url, options } = request;
+    (async () => {
+      try {
+        const timeoutMs = options?.timeout || 120000;
+        const fetchOptions = {
+          method: options?.method || 'GET',
+          headers: options?.headers || {},
+          signal: AbortSignal.timeout(timeoutMs)
+        };
+        if (options?.body) {
+          fetchOptions.body = options.body;
+        }
+
+        const resp = await fetch(url, fetchOptions);
+        const contentType = resp.headers.get('content-type') || '';
+        let bodyData = null;
+        if (contentType.includes('application/json')) {
+          bodyData = await resp.json().catch(() => null);
+        } else {
+          bodyData = await resp.text().catch(() => '');
+        }
+
+        const headersObj = {};
+        resp.headers.forEach((v, k) => { headersObj[k] = v; });
+
+        sendResponse({
+          success: true,
+          ok: resp.ok,
+          status: resp.status,
+          statusText: resp.statusText,
+          headers: headersObj,
+          data: bodyData
+        });
+      } catch (err) {
+        sendResponse({
+          success: false,
+          ok: false,
+          error: err.message || 'Fetch error'
+        });
+      }
+    })();
+    return true; // 비동기 응답 채널 유지
   } else if (request.type === 'SEND_NATURAL_COMMAND') {
     // 팝업에서 자연어 명령을 PC 에이전트에 전달
     if (socket && isConnected) {

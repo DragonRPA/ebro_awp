@@ -131,7 +131,12 @@ const server = http.createServer(async (req, res) => {
   }
   res.setHeader('Access-Control-Allow-Private-Network', 'true');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Range, Accept, Origin, Cache-Control, Pragma, *');
+  const reqHeaders = req.headers['access-control-request-headers'];
+  if (reqHeaders) {
+    res.setHeader('Access-Control-Allow-Headers', `${reqHeaders}, Content-Type, Authorization, X-Requested-With, Range, Accept, Origin, Cache-Control, Pragma, Access-Control-Request-Private-Network, *`);
+  } else {
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Range, Accept, Origin, Cache-Control, Pragma, Access-Control-Request-Private-Network, *');
+  }
   res.setHeader('Access-Control-Max-Age', '86400');
 
   if (req.method === 'OPTIONS') {

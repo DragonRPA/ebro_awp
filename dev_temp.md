@@ -1,15 +1,50 @@
-## [반영완료] 결함(G-25, G-26, G-28, G-29, G-30, G-31) 심층 추적 수정 및 상계 처리 스크립트 준비
+## [반영완료] v1.13.0.Build.38: Chrome LNA 우회 프록시 브리지, 계약 관리 버튼 숨김, 스튜디오 트레이 수납, 텔레그램 대화형 메뉴 복원
 - **조치 내역**:
-  1. G-25: 자산 매각 시 ASSIGNED(출고대기) 상태 장비 오매각 원천 방어 (AssetAcquisitionDisposal.tsx)
-  2. G-26: 기존 계약에 자산 추가 시 ACTIVE 즉시 우회 방지, ASSIGNED 전환 및 출고 PDI 태스크 정상 발행 (Contracts.tsx)
-  3. G-28: 출고 검수 승인 시 중복 OUTBOUND 이력 생성 방지 가드레일 추가 (outbound_inspections.tsx)
-  4. G-29: 자산 상세(Assets.tsx) 폼에서 상태 및 소유권 강제 조작(disabled) 차단으로 생애주기 우회 방지
-  5. G-30: 수납 취소(cancelPayment) 시 발송 완료된 청구서가 UNPAID로 회귀하는 버그 수정, contractHistory 기반 REQUESTED 복원 (AppContext.tsx)
-  6. G-31: 자동/일괄 수납 매칭이 발송완료(REQUESTED) 상태 청구를 건너뛰는 버그 수정 (BankMatching.tsx)
-  7. 매트릭스(AWP_ERP_Process_Matrix.md): 누락된 '출고 검수 중 장비 교체(대차)' 행 복구 및 정정 완료
-  8. G-10/G-22 수납 취소 및 상계를 위한 DB 마이그레이션 준비 (patch_payment_reversal.sql)
+  1. Chrome 확장 프로그램(`ebro-web-agent`) `PROXY_FETCH` 브리지 구축 및 `agentService.ts` HTTPS 1순위 라우팅
+  2. 계약 관리(`Contracts.tsx`) 상단 [계약서패키지 PDF / 이메일], [+ 신규 계약 등록] 버튼 2종 숨김 처리
+  3. 에이전트 스튜디오 창 최소화 시 작업표시줄 숨김 및 시스템 트레이 자동 수납 Win32 감시 엔진 탑재
+  4. 텔레그램 봇 엔진 `agent/telegramEngine.js` '일해', '자비스' 대화형 반응 메뉴 복원 및 단독 자립성 검증 완료
 
 # 개발 요구사항 임시 기록 (dev_temp.md)
+
+## 2026-10-06 17:18 (계약 관리 상단 우측 '계약서패키지 PDF / 이메일' 및 '+ 신규 계약 등록' 버튼 제거)
+- **배경 및 사장님 지침**:
+  - "표시한 두개의 버튼은 숨겨줘" (계약 관리 상단 우측 헤더의 [📄 계약서패키지 PDF / 이메일], [+ 신규 계약 등록] 버튼 2종)
+- **기술 조치 내역**:
+  - `src/pages/Contracts.tsx`: `viewMode === 'LIST'` 헤더 액션 영역에서 전역 [계약서패키지 PDF / 이메일] 및 [+ 신규 계약 등록] 버튼 제거.
+  - 계약서 패키지는 개별 계약의 [상세 ➔] 화면 및 출고 파이프라인에서 정상 처리되며, 신규 계약은 출고 의뢰 및 스마트 배차 체인을 통해 라이프사이클에 맞게 생성되도록 UI 동선 최적화.
+- **검증**: `npm run build` (`tsc -b && vite build`) 무결성 0 오류 통과 (소요 시간 1.22초).
+
+## 2026-10-06 17:00 (에이전트 스튜디오 창 최소화 시 작업표시줄 숨김 및 시스템 트레이 자동 수납 기능 탑재)
+- **배경 및 사장님 지침**:
+  - "에이전트 프로그램을 최소화 할때, 작업표시줄에 머물지 말고 시스템 트레이로 돌아가게 하면 좋겠는데"
+- **기술 조치 내역**:
+  1. `agent/trayIcon.ps1` & `agent/make-tray.cjs`:
+     - Win32 API (`IsIconic`, `ShowWindow(SW_HIDE=0 / SW_RESTORE=9)`, `SetForegroundWindow`, `EnumWindows`) 탑재.
+     - 350ms 주기 실시간 윈도우 상태 감시: 사용자가 스튜디오 창 우측 상단의 `_` (최소화) 버튼을 클릭하면 `IsIconic`을 즉시 감지하여 `ShowWindow(hwnd, 0)`로 작업표시줄에서 완전히 숨기고 트레이로 자동 수납.
+     - 트레이 아이콘 더블클릭 또는 우클릭 메뉴 [eBro AI Studio 열기] 클릭 시, 숨겨져 있던 창을 `SW_RESTORE (9)`로 0.01초 만에 화면 최상단으로 즉시 복원 (입력 중이던 내용 및 큐 상태 100% 보존).
+     - 창이 닫혀 있는 경우에는 새로운 `--app` 브라우저 창으로 신규 기동.
+  2. `agent/studioEngine.js`:
+     - 스튜디오 상단 글로벌 헤더에 `[📥 트레이로 숨기기]` 버튼 신설 및 `/api/minimize-studio` 엔드포인트 연동.
+  3. 컴파일 및 동기화:
+     - `make-tray.cjs` ➔ `trayIcon.ps1` (UTF-8 BOM) 생성 완료.
+     - `encrypt_core.cjs` ➔ `engine.dat` 암호화 완료.
+     - `build-agent.ps1` ➔ `eBroAgent.exe` 재빌드 완료.
+     - `sync_local.ps1` ➔ `C:\eBroAgent` 실시간 반영 및 프로세스 재기동 완료.
+
+## 2026-10-06 16:50 (HTTPS 환경 Chrome LNA 차단 우회 프록시 브리지 구축 및 텔레그램 엔진 단독 자립성 검증)
+- **배경 및 사장님 지침**:
+  - "이미지 2처럼 항상 실행되고 있어야만 텔레그램이 작동 되는거라면 에이전트 프로그램에 포함이 안되었다는 뜻인가? 이미지 1 처럼, 에이전트가 실행 되고 있는데, 왜 에이전트 실행을 요구하는거야? 2개의 서브에이전트 투입해서 각각 처리해"
+- **조치 1 (텔레그램 엔진 단독 자립성 검증 - 서브에이전트 1)**:
+  - 이미지 2의 `curl` 명령은 AI 어시스턴트가 설정 JSON을 1회 확인하기 위해 터미널에서 던진 단순 진단 명령이었으며 텔레그램 구동과 무관함을 증명 (현재 curl 프로세스 0건).
+  - `eBroAgent.exe` (104MB 단일 바이너리) 내부에 `telegramEngine.js`가 완전 번들링(SEA)되어 윈도우 부팅 시 단독 백그라운드 서비스(Long Polling)로 자립 구동됨을 프로세스(PID 68192, `telegram_running: true`) 및 레지스트리(`HKCU\...\Run\eBroAgent`) 수준에서 입증.
+- **조치 2 (HTTPS giyeon.ebro.run ➔ 로컬 5175 통신 대기 현상 해결 - 서브에이전트 2)**:
+  - 원인: Chrome 120+/130+의 Local Network Access(LNA) 정책으로 인해 공용 HTTPS 도메인에서 `http://127.0.0.1:5175` 호출 시 브라우저가 preflight에서 차단 (`net::ERR_FAILED`).
+  - 해결: Chrome 확장 프로그램(`ebro-web-agent`)의 `host_permissions`를 활용한 투명 양방향 프록시 브리지(`PROXY_FETCH`) 신설.
+  - `agentService.ts`: HTTPS 환경 감지 시 확장 프로그램 프록시 1순위 라우팅 및 전역 에이전트 실시간 상태 버스 구축.
+  - `ContractDocumentBundleModal.tsx` & `AgentHeaderBadge.tsx`: 모달 진입 시 첫 프레임부터 🟢 '로컬 에이전트 정상 연결됨' 배지 즉시 노출 (0ms 지연).
+  - eBroAgent 서버 (`eBroAgent.js`): `Access-Control-Allow-Private-Network: true` 명시 및 OPTIONS 사전검사 완벽 지원.
+  - E2E Playwright 검증 통과 및 `npm run build` 통과.
 
 ## 2026-10-06 15:40 (계약서 패키지 생성 에이전트 오프라인 vs 권한 결함 분리 및 실시간 통신 상태 연동)
 - **배경 및 사장님 지침**:

@@ -1402,28 +1402,6 @@ export const Contracts: React.FC = () => {
             >
               계약 목록 ({filteredContracts.length})
             </button>
-            <button
-              type="button"
-              className="btn-secondary"
-              data-mid="contract-export-actions"
-              onClick={() => {
-                setBundleTargetContractId(undefined);
-                setShowBundleModal(true);
-              }}
-              style={{ padding: '7px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', fontWeight: 'bold' }}
-            >
-              <FileText size={14} /> 계약서패키지 PDF / 이메일
-            </button>
-            {canSave && (
-              <button
-                className={activeTab === 'CREATE' ? 'btn-success' : 'btn-secondary'}
-                data-mid="btn-new-contract"
-                onClick={() => setActiveTab('CREATE')}
-                style={{ padding: '7px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
-              >
-                <Plus size={14} /> 신규 계약 등록
-              </button>
-            )}
           </div>
         )}
       </div>

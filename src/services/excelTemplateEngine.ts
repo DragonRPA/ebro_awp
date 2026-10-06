@@ -4,6 +4,7 @@
 
 import ExcelJS from 'exceljs';
 import { db } from './db';
+import { fetchWithAgentFallback } from './agentService';
 
 export interface ExcelCellInjection {
   cell: string; // 예: 'C4', 'D14', 'H7'
@@ -505,7 +506,7 @@ export async function generateTransactionStatementPdf(data: TransactionStatement
       excelMappingRules: db.currentTenant?.excelMappingRules
     };
     
-    const agentResp = await fetch('http://127.0.0.1:5175/api/generate-statement', {
+    const agentResp = await fetchWithAgentFallback('/api/generate-statement', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)

@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { Monitor, X, RefreshCw, Download, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { triggerTenantAgentDownload } from '../services/agentService';
+import { triggerTenantAgentDownload, fetchWithAgentFallback } from '../services/agentService';
 import { useApp } from '../context/AppContext';
 
 interface Props {
@@ -34,7 +34,7 @@ export const AgentRequiredModal: React.FC<Props> = ({
     setRetryResult(null);
     try {
       // 로컬 에이전트 헬스체크 핑 (5175 포트)
-      const res = await fetch('http://127.0.0.1:5175/api/status', { method: 'GET' }).catch(() => null);
+      const res = await fetchWithAgentFallback('/health', { method: 'GET', signal: AbortSignal.timeout(2000) }).catch(() => null);
       if (res && res.ok) {
         setRetryResult('SUCCESS');
         if (onRetry) {

@@ -9,7 +9,7 @@ import {
 import { emailService } from '../services/email';
 import { db, formatContractEndDate } from '../services/db';
 import { clearHandoverTasks } from '../utils/taskHandoverPipeline';
-import { fetchWithAgentFallback, launchLocalAgentFromBrowser } from '../services/agentService';
+import { fetchWithAgentFallback, launchLocalAgentFromBrowser, isAgentOnlineGlobal, subscribeAgentStatus, setGlobalAgentStatus } from '../services/agentService';
 
 interface Props {
   isOpen: boolean;
@@ -35,38 +35,53 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
   // 계약서 패키지 생성 권한: 계약 저장/열람 권한 또는 에이전트 권한 보유자
   const canGeneratePackage = hasPermission('contract', 'view') || hasPermission('contract', 'save') || hasPermission('agent_badge', 'view');
 
-  // 로컬 에이전트(포트 5175) 실시간 통신 상태 점검
-  const [isAgentOnline, setIsAgentOnline] = useState<boolean | null>(null);
-  const [agentChecking, setAgentChecking] = useState<boolean>(true);
+  // 로컬 에이전트(포트 5175) 실시간 통신 상태 점검 (확장 프로그램 및 전역 동기화 즉시 바인딩)
+  const [isAgentOnline, setIsAgentOnline] = useState<boolean | null>(() => isAgentOnlineGlobal());
+  const [agentChecking, setAgentChecking] = useState<boolean>(() => !isAgentOnlineGlobal());
 
   useEffect(() => {
     let isMounted = true;
+
+    // 전역 상태 실시간 구독 (확장 프로그램 및 헤더 배지 연동)
+    const unsubscribe = subscribeAgentStatus((online) => {
+      if (isMounted && online) {
+        setIsAgentOnline(true);
+        setAgentChecking(false);
+      }
+    });
+
     const checkAgent = async () => {
       try {
         const res = await fetchWithAgentFallback('/health', {
           method: 'GET',
-          signal: AbortSignal.timeout(2000),
+          signal: AbortSignal.timeout(2500),
           cache: 'no-store'
         });
         if (isMounted) {
           setIsAgentOnline(res.ok);
           setAgentChecking(false);
+          setGlobalAgentStatus(res.ok);
         }
       } catch (e) {
         if (isMounted) {
-          setIsAgentOnline(false);
+          if (!isAgentOnlineGlobal()) {
+            setIsAgentOnline(false);
+          }
           setAgentChecking(false);
         }
       }
     };
 
     if (isOpen) {
-      setAgentChecking(true);
+      if (!isAgentOnlineGlobal()) {
+        setAgentChecking(true);
+      }
       checkAgent();
     }
 
     return () => {
       isMounted = false;
+      unsubscribe();
     };
   }, [isOpen]);
 
@@ -718,22 +733,48 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
           {!agentChecking && isAgentOnline === false && (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '12px 16px', backgroundColor: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: '8px', color: 'var(--warning)', fontSize: '13px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <AlertCircle size={18} />
+                <AlertCircle size={18} style={{ flexShrink: 0 }} />
                 <div>
                   <strong>로컬 에이전트(eBroAgent, 포트 5175) 통신 대기</strong>
                   <span style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
                     엑셀 COM 엔진을 통한 계약서 번들 PDF 생성을 위해 PC에서 eBroAgent가 가동 중이어야 합니다.
+                    {typeof window !== 'undefined' && window.location.protocol === 'https:' && (
+                      <span style={{ display: 'block', marginTop: '3px', color: '#ea580c' }}>
+                        * HTTPS 보안 정책 안내: ebro web agent 확장 프로그램 활성화 또는 주소창 좌측 사이트 설정 ➔ '기기에서 호스팅되는 앱' 허용 필요
+                      </span>
+                    )}
                   </span>
                 </div>
               </div>
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => launchLocalAgentFromBrowser()}
-                style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
-              >
-                <Play size={13} /> 에이전트 실행
-              </button>
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={async () => {
+                    setAgentChecking(true);
+                    try {
+                      const res = await fetchWithAgentFallback('/health', { method: 'GET', signal: AbortSignal.timeout(2500) });
+                      setIsAgentOnline(res.ok);
+                      setGlobalAgentStatus(res.ok);
+                    } catch (e) {
+                      setIsAgentOnline(false);
+                    } finally {
+                      setAgentChecking(false);
+                    }
+                  }}
+                  style={{ padding: '6px 10px', fontSize: '12px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <RefreshCw size={13} /> 재점검
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => launchLocalAgentFromBrowser()}
+                  style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <Play size={13} /> 에이전트 실행
+                </button>
+              </div>
             </div>
           )}
 

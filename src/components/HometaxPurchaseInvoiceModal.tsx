@@ -8,6 +8,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { PurchaseSettlement, db } from '../services/db';
 import { parseHometaxInvoiceFile, HometaxPurchaseInvoiceItem, HometaxParseResult } from '../services/hometaxTaxInvoiceParser';
+import { fetchWithAgentFallback } from '../services/agentService';
 
 interface HometaxPurchaseInvoiceModalProps {
   isOpen: boolean;
@@ -146,7 +147,7 @@ export const HometaxPurchaseInvoiceModal: React.FC<HometaxPurchaseInvoiceModalPr
   const handleCollectLocal = async () => {
     setIsCollectingLocal(true);
     try {
-      const res = await fetch('http://127.0.0.1:5175/api/hometax/purchase-invoices', {
+      const res = await fetchWithAgentFallback('/api/hometax/purchase-invoices', {
         method: 'GET',
         headers: { 'Accept': 'application/json' }
       });

@@ -9,6 +9,8 @@ declare global {
   interface Window { google?: any; }
 }
 
+import { fetchWithAgentFallback } from './agentService';
+
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const DRIVE_API   = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API  = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink';
@@ -307,9 +309,9 @@ export async function backupToGoogleDrive(
 // 2f. 파일 캐시 확인 및 구글 드라이브 다운로드 (브라우저/에이전트 캐시 우선 헬퍼) ───
 // ─────────────────────────────────────────────────────────────────────────────
 export async function fetchDriveFileCacheFirst(fileId: string, fileName: string): Promise<ArrayBuffer> {
-  // 1. 로컬 에이전트(http://127.0.0.1:5175/api/get-file) 캐시 우선 요청 (팝업 0회)
+  // 1. 로컬 에이전트 캐시 우선 요청 (확장 프로그램/루프백 폴백 지원)
   try {
-    const res = await fetch(`http://127.0.0.1:5175/api/get-file?fileId=${encodeURIComponent(fileId)}&fileName=${encodeURIComponent(fileName)}`, {
+    const res = await fetchWithAgentFallback(`/api/get-file?fileId=${encodeURIComponent(fileId)}&fileName=${encodeURIComponent(fileName)}`, {
       signal: AbortSignal.timeout(3000)
     });
     if (res.ok) {

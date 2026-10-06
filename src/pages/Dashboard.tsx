@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Activity, ShieldAlert, Users, Layers, ShieldCheck, Wrench, Truck, CreditCard, CheckCircle, Bell, AlertTriangle, ArrowRight, Cloud, AlertCircle, Download, FileText, Bot, Shield, CheckSquare, Calendar, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
-import { EXPECTED_AGENT_VERSION, AGENT_DOWNLOAD_URL, AGENT_CERT_URL, AGENT_INSTALL_BAT_URL, AGENT_KILL_BAT_URL, AGENT_EXE_URL } from '../services/agentService';
+import { EXPECTED_AGENT_VERSION, AGENT_DOWNLOAD_URL, AGENT_CERT_URL, AGENT_INSTALL_BAT_URL, AGENT_KILL_BAT_URL, AGENT_EXE_URL, fetchWithAgentFallback, isAgentOnlineGlobal, subscribeAgentStatus } from '../services/agentService';
 import { findActiveTasksForUser } from '../utils/taskHandoverPipeline';
 import { ExecutiveDirectiveModal } from '../components/ExecutiveDirectiveModal';
 import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
@@ -25,7 +25,7 @@ export const Dashboard: React.FC = () => {
   const [showBundleModal, setShowBundleModal] = useState(false);
   const [bundleTargetContractId, setBundleTargetContractId] = useState<string | undefined>(undefined);
 
-  const [agentStatus, setAgentStatus] = useState<'ONLINE' | 'OFFLINE'>('OFFLINE');
+  const [agentStatus, setAgentStatus] = useState<'ONLINE' | 'OFFLINE'>(() => isAgentOnlineGlobal() ? 'ONLINE' : 'OFFLINE');
   const [agentCallsign, setAgentCallsign] = useState<string>('');
   const [agentVersion, setAgentVersion] = useState<string>('');
   const [isDownloadingAgent, setIsDownloadingAgent] = useState(false);
@@ -33,11 +33,21 @@ export const Dashboard: React.FC = () => {
   const [showAgentGuideModal, setShowAgentGuideModal] = useState(false);
 
   useEffect(() => {
+    return subscribeAgentStatus((online, info) => {
+      if (online) {
+        setAgentStatus('ONLINE');
+        if (info?.version) setAgentVersion(info.version);
+        if (info?.callsign) setAgentCallsign(info.callsign);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
     let isMounted = true;
     const checkAgent = async () => {
       try {
         const userCallsign = currentUser?.loginId || currentUser?.name || 'admin';
-        const res = await fetch(`http://127.0.0.1:5175/health?callsign=${encodeURIComponent(userCallsign)}`, { method: 'GET', signal: AbortSignal.timeout(1500) });
+        const res = await fetchWithAgentFallback(`/health?callsign=${encodeURIComponent(userCallsign)}`, { method: 'GET', signal: AbortSignal.timeout(2000) });
         if (res.ok) {
           const data = await res.json();
           if (isMounted) {
@@ -48,7 +58,7 @@ export const Dashboard: React.FC = () => {
           return;
         }
       } catch (e) {}
-      if (isMounted) {
+      if (isMounted && !isAgentOnlineGlobal()) {
         setAgentStatus('OFFLINE');
         setAgentCallsign('');
         setAgentVersion('');

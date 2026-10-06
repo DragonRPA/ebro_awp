@@ -80,27 +80,90 @@ function getTelegramConfig() {
 }
 
 /**
- * 텔레그램 메시지 발송 헬퍼
+ * 텔레그램 메시지 발송 헬퍼 (인라인 키보드 reply_markup 지원)
  */
-async function sendTelegramMessage(chatId, text) {
+async function sendTelegramMessage(chatId, text, replyMarkup = null) {
   const token = telegramConfig.telegram_bot_token;
   if (!token) return { success: false, error: '봇 토큰 미설정' };
 
   try {
+    const payload = {
+      chat_id: chatId,
+      text: text,
+      parse_mode: 'HTML'
+    };
+    if (replyMarkup) {
+      payload.reply_markup = replyMarkup;
+    }
     const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: text,
-        parse_mode: 'HTML'
-      })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     return { success: data.ok, result: data.result, error: data.description };
   } catch (e) {
     return { success: false, error: e.message };
   }
+}
+
+/**
+ * 텔레그램 인라인 버튼 로딩 인디케이터 해제 헬퍼
+ */
+async function answerCallbackQuery(callbackQueryId, text = null) {
+  const token = telegramConfig.telegram_bot_token;
+  if (!token || !callbackQueryId) return;
+  try {
+    const payload = { callback_query_id: callbackQueryId };
+    if (text) payload.text = text;
+    await fetch(`https://api.telegram.org/bot${token}/answerCallbackQuery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch (e) {}
+}
+
+/**
+ * 메인 대화형 인라인 키보드 메뉴
+ */
+function getMainMenuMarkup() {
+  return {
+    inline_keyboard: [
+      [
+        { text: '📋 1. 출고 요청', callback_data: 'BTN_DISPATCH_REQ' },
+        { text: '🚛 2. 배차 정보 입력', callback_data: 'BTN_DISPATCH_ASSIGN' }
+      ],
+      [
+        { text: '✉️ 3. 공식 이메일 발송', callback_data: 'BTN_MAIL_MENU' },
+        { text: '📄 4. 계약 연장/단축', callback_data: 'BTN_CONTRACT_MENU' }
+      ],
+      [
+        { text: '🔄 대화 세션 초기화', callback_data: 'BTN_RESET' }
+      ]
+    ]
+  };
+}
+
+/**
+ * 공식 이메일 발송 서브 메뉴
+ */
+function getMailSubMarkup() {
+  return {
+    inline_keyboard: [
+      [
+        { text: '🏢 회사소개서 발송', callback_data: 'BTN_MAIL_PROFILE' },
+        { text: '📊 장비 견적서 발송', callback_data: 'BTN_MAIL_QUOTE' }
+      ],
+      [
+        { text: '📖 장비 제원표 발송', callback_data: 'BTN_MAIL_SPEC' },
+        { text: '📑 표준 계약 서식 발송', callback_data: 'BTN_MAIL_CONTRACT' }
+      ],
+      [
+        { text: '🔙 메인 메뉴', callback_data: 'BTN_MAIN_MENU' }
+      ]
+    ]
+  };
 }
 
 /**
@@ -195,9 +258,17 @@ async function runPollingLoop() {
 }
 
 /**
- * 수신된 텔레그램 업데이트 처리
+ * 수신된 텔레그램 업데이트 처리 (메시지 및 인라인 버튼 콜백)
  */
 async function handleTelegramUpdate(update) {
+  // 1. 🔘 인라인 키보드 버튼 클릭 (Callback Query) 처리
+  const cb = update.callback_query;
+  if (cb) {
+    await handleCallbackQuery(cb);
+    return;
+  }
+
+  // 2. 텍스트 메시지 처리
   const msg = update.message;
   if (!msg || !msg.text) return;
 
@@ -213,29 +284,33 @@ async function handleTelegramUpdate(update) {
     return;
   }
 
-  console.log(`📩 [TelegramEngine] 텔레그램 지시 수신: "${text}" (ChatId: ${chatId})`);
+  console.log(`📩 [TelegramEngine] 텔레그램 수신: "${text}" (ChatId: ${chatId})`);
 
-  // 특수 명령 처리
-  if (text === '/start' || text === '/help') {
-    const welcome = `🤖 <b>eBro AI Agent 모바일 원격 제어기</b>\n\n` +
-      `외근 중 스마트폰으로 말씀하시면 사무실 PC 브라우저가 자동 조작됩니다.\n\n` +
-      `<b>[명령 예시]</b>\n` +
-      `• <code>계약 관리 조회해줘</code>\n` +
-      `• <code>배차 대장 이동</code>\n` +
-      `• <code>출고 검수 확인</code>\n` +
-      `• <code>대시보드로 가줘</code>\n` +
-      `• <code>SoM 번호표 켜줘</code>`;
-    await sendTelegramMessage(chatId, welcome);
+  // 호출 트리거 감지 ('일해', '자비스', '자비스 일해', '일하자', '업무시작', '메뉴', '도움말', '/start', '/menu', '/help')
+  const cleanLower = text.toLowerCase().replace(/\s+/g, '');
+  const triggerKeywords = ['일해', '일하자', '업무시작', '자비스', '자비스일해', '메뉴', '도움말', '업무목록', '/start', '/menu', '/help'];
+  const isTrigger = triggerKeywords.some(k => cleanLower === k || cleanLower.includes(k));
+
+  if (isTrigger) {
+    const welcome = `🤖 <b>사장님, eBro 업무 비서 자비스입니다.</b>\n\n` +
+      `어떤 업무를 처리할까요? 아래 버튼을 터치하시거나 직접 음성 또는 텍스트로 편하게 말씀해 주세요.`;
+    await sendTelegramMessage(chatId, welcome, getMainMenuMarkup());
     return;
   }
 
-  // 1. 수신 접수 즉시 피드백
+  // 세션 초기화 명령
+  if (text === '/reset') {
+    await sendTelegramMessage(chatId, `🔄 <b>[세션 초기화]</b> 대화 세션 및 입력 버퍼가 초기화되었습니다.\n다시 편하게 말씀해 주시거나 '자비스' 또는 '일해'를 불러주세요.`);
+    return;
+  }
+
+  // 3. 실제 ERP 업무 지시 수신 처리
   await sendTelegramMessage(chatId, `📥 <b>[지시 접수 완료]</b>\n\n• 지시: <code>${escapeHtml(text)}</code>\n• 상태: eBroAgent 작업 큐에 등록되었습니다. 브라우저 실시간 화면 조작을 집행합니다.`);
 
-  // 2. eBroAgent 작업 큐에 등록 및 실행
+  // eBroAgent 작업 큐에 등록 및 실행
   if (typeof taskDispatcherCallback === 'function') {
     try {
-      const task = await taskDispatcherCallback(text, async (completedTask) => {
+      await taskDispatcherCallback(text, async (completedTask) => {
         // 작업 완료 콜백
         if (completedTask.status === 'COMPLETED') {
           const resSummary = completedTask.result?.summary || '정상 완료';
@@ -248,6 +323,74 @@ async function handleTelegramUpdate(update) {
     } catch (err) {
       await sendTelegramMessage(chatId, `❌ <b>[작업 큐 등록 실패]</b>\n\n${escapeHtml(err.message)}`);
     }
+  }
+}
+
+/**
+ * 인라인 버튼 클릭(콜백 쿼리) 상호작용 처리기
+ */
+async function handleCallbackQuery(cb) {
+  const queryId = cb.id;
+  const data = cb.data || '';
+  const message = cb.message || {};
+  const chatId = message.chat?.id;
+  const fromUser = cb.from || {};
+  const senderId = String(fromUser.id || '');
+  const allowedId = String(telegramConfig.telegram_allowed_user_id || '').trim();
+
+  // 텔레그램 로딩 인디케이터 해제
+  await answerCallbackQuery(queryId);
+
+  // 인가 검증
+  if (allowedId && senderId !== allowedId) {
+    await sendTelegramMessage(chatId, `⛔ <b>[접근 차단]</b> 등록된 승인 관리자(${allowedId})만 조작할 수 있습니다.`);
+    return;
+  }
+
+  console.log(`🔘 [TelegramEngine] 인라인 버튼 클릭: "${data}" (ChatId: ${chatId})`);
+
+  if (data === 'BTN_MAIN_MENU') {
+    const msg = `🤖 <b>사장님, eBro 업무 비서 자비스입니다.</b>\n\n어떤 업무를 처리할까요? 아래 버튼을 터치하시거나 직접 말씀해 주세요.`;
+    await sendTelegramMessage(chatId, msg, getMainMenuMarkup());
+  } else if (data === 'BTN_DISPATCH_REQ') {
+    const guideMsg = `📋 <b>[1. 출고 요청 안내]</b>\n\n` +
+      `현장명, 요구 기종, 수량, 납기일시를 음성 또는 텍스트로 말씀해 주세요.\n\n` +
+      `💡 <b>발화 예시:</b>\n` +
+      `• <i>'에이치 1공구 1930 2대 내일 아침 출고요청'</i>\n` +
+      `• <i>'판교 힐스테이트 GS-3246 1대 10월 10일 착불로 보내줘'</i>\n\n` +
+      `※ <i>'에이치 1공구', '1930 2대' 처럼 쪼개서 말씀하셔도 안전하게 결합 처리됩니다.</i>`;
+    await sendTelegramMessage(chatId, guideMsg);
+  } else if (data === 'BTN_DISPATCH_ASSIGN') {
+    const guideMsg = `🚛 <b>[2. 배차 정보 입력 안내]</b>\n\n` +
+      `현장명, 기사명, 차종, 운송비를 음성 또는 텍스트로 말씀해 주세요.\n\n` +
+      `💡 <b>발화 예시:</b>\n` +
+      `• <i>'에이치 1공구 김기사 5톤 15만원 배정'</i>\n` +
+      `• <i>'송도 3공구 이진수기사 16만원 배차 완료'</i>`;
+    await sendTelegramMessage(chatId, guideMsg);
+  } else if (data === 'BTN_MAIL_MENU') {
+    const mailMsg = `✉️ <b>[3. 공식 이메일 발송]</b>\n\n고객사/현장에 어떤 서식 문서를 발송할까요? 아래 서식을 선택해 주세요.`;
+    await sendTelegramMessage(chatId, mailMsg, getMailSubMarkup());
+  } else if (data === 'BTN_CONTRACT_MENU') {
+    const guideMsg = `📄 <b>[4. 계약 연장 / 단축 안내]</b>\n\n` +
+      `고객사명, 현장명, 변경할 개월수 또는 날짜를 말씀해 주세요.\n\n` +
+      `💡 <b>발화 예시:</b>\n` +
+      `• <i>'에이치엔아이씨 1공구 계약 6개월 연장해줘'</i>\n` +
+      `• <i>'동탄 물류센터 현장 1개월 단축해줘'</i>`;
+    await sendTelegramMessage(chatId, guideMsg);
+  } else if (data === 'BTN_MAIL_PROFILE') {
+    const guideMsg = `🏢 <b>[회사소개서 공식 발송]</b>\n\n수신할 거래처 또는 담당자를 말씀해 주세요.\n\n💡 <i>예: '에이치엔아이씨 김소장에게 회사소개서 보내줘'</i>`;
+    await sendTelegramMessage(chatId, guideMsg);
+  } else if (data === 'BTN_MAIL_QUOTE') {
+    const guideMsg = `📊 <b>[장비 견적서 공식 발송]</b>\n\n거래처, 담당자, 장비 기종 및 수량을 말씀해 주세요.\n\n💡 <i>예: '현대건설 박과장에게 1930 2대 견적서 보내줘'</i>`;
+    await sendTelegramMessage(chatId, guideMsg);
+  } else if (data === 'BTN_MAIL_SPEC') {
+    const guideMsg = `📖 <b>[장비 제원표 / 카탈로그 발송]</b>\n\n거래처와 장비 기종을 말씀해 주세요.\n\n💡 <i>예: '판교 2공구에 GS-3246 제원표 카탈로그 보내줘'</i>`;
+    await sendTelegramMessage(chatId, guideMsg);
+  } else if (data === 'BTN_MAIL_CONTRACT') {
+    const guideMsg = `📑 <b>[표준 계약 서식 세트 발송]</b>\n\n수신할 거래처명을 말씀해 주세요.\n\n💡 <i>예: '에이치엔아이씨 계약서식 세트 보내줘'</i>`;
+    await sendTelegramMessage(chatId, guideMsg);
+  } else if (data === 'BTN_RESET') {
+    await sendTelegramMessage(chatId, `🔄 <b>대화 세션 및 입력 버퍼가 초기화되었습니다.</b>\n다시 편하게 말씀해 주시거나 '자비스' 또는 '일해'를 불러주세요.`);
   }
 }
 

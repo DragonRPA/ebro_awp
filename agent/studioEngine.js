@@ -1107,6 +1107,7 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       </div>
       <button class="btn-action" onclick="openConfigModal()">⚙️ 환경설정</button>
       <button class="btn-action" onclick="refreshQueue()">새로고침</button>
+      <button class="btn-action" onclick="minimizeToTray()" title="작업표시줄을 비우고 시스템 트레이로 숨깁니다">📥 트레이로 숨기기</button>
     </div>
   </header>
 
@@ -1567,6 +1568,15 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       }
     }
 
+    async function minimizeToTray() {
+      try {
+        await fetch('/api/minimize-studio', { method: 'POST' });
+      } catch (e) {}
+      try {
+        window.close();
+      } catch (e) {}
+    }
+
     initSSE();
     checkOllama();
     setInterval(checkOllama, 10000);
@@ -2024,6 +2034,17 @@ async function handleStudioRequest(req, res, pathname, searchParams, port = 5175
     const testResult = await sendTestTelegramMessage();
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify(testResult));
+    return true;
+  }
+
+  // 10. 스튜디오 창 트레이로 숨기기 (/api/minimize-studio)
+  if (req.method === 'POST' && pathname === '/api/minimize-studio') {
+    try {
+      const psCmd = `powershell -NoProfile -Command "Add-Type -TypeDefinition 'using System; using System.Text; using System.Runtime.InteropServices; public class W { [DllImport(\\\"user32.dll\\\")] public static extern bool ShowWindow(IntPtr h, int c); [DllImport(\\\"user32.dll\\\", CharSet = CharSet.Auto)] public static extern int GetWindowText(IntPtr h, StringBuilder s, int m); [DllImport(\\\"user32.dll\\\")] public static extern bool EnumWindows(Func<IntPtr, int, bool> f, int l); public static void Hide() { EnumWindows((h, l) => { StringBuilder s = new StringBuilder(256); GetWindowText(h, s, 256); if (s.ToString().Contains(\\\"eBro AI Agent\\\") || s.ToString().Contains(\\\"eBro Agent\\\")) { ShowWindow(h, 0); return false; } return true; }, 0); } }'; [W]::Hide()"`;
+      exec(psCmd);
+    } catch (e) {}
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ success: true }));
     return true;
   }
 

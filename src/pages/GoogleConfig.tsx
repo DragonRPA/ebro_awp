@@ -13,7 +13,7 @@ import {
 } from '../services/excelTemplateEngine';
 import { PDFDocument } from 'pdf-lib';
 import JSZip from 'jszip';
-import { EXPECTED_AGENT_VERSION, AGENT_CERT_URL, AGENT_INSTALL_BAT_URL, AGENT_EXE_URL } from '../services/agentService';
+import { EXPECTED_AGENT_VERSION, AGENT_CERT_URL, AGENT_INSTALL_BAT_URL, AGENT_EXE_URL, fetchWithAgentFallback, isAgentOnlineGlobal, subscribeAgentStatus } from '../services/agentService';
 import { executeR2MirrorSync, testR2Connection } from '../services/r2MirrorSync';
 
 export const GoogleConfig: React.FC = () => {
@@ -63,12 +63,22 @@ export const GoogleConfig: React.FC = () => {
   const [isLoadingR2Files, setIsLoadingR2Files] = useState(false);
 
   // 로컬 사이드카 에이전트 모니터링 상태
-  const [agentStatus, setAgentStatus] = useState<'ONLINE' | 'OFFLINE'>('OFFLINE');
+  const [agentStatus, setAgentStatus] = useState<'ONLINE' | 'OFFLINE'>(() => isAgentOnlineGlobal() ? 'ONLINE' : 'OFFLINE');
   const [agentCallsign, setAgentCallsign] = useState<string>('');
   const [agentInfo, setAgentInfo] = useState<any>(null);
   const [showAgentGuideModal, setShowAgentGuideModal] = useState(false);
 
   const [isRestartingAgent, setIsRestartingAgent] = useState(false);
+
+  useEffect(() => {
+    return subscribeAgentStatus((online, info) => {
+      if (online) {
+        setAgentStatus('ONLINE');
+        if (info) setAgentInfo(info);
+        if (info?.callsign) setAgentCallsign(info.callsign);
+      }
+    });
+  }, []);
 
   // 로컬 에이전트 헬스체크 및 콜사인 동기화 (3초 주기)
   useEffect(() => {
@@ -76,7 +86,7 @@ export const GoogleConfig: React.FC = () => {
     const checkAgent = async () => {
       try {
         const userCallsign = currentUser?.loginId || currentUser?.name || 'admin';
-        const res = await fetch(`http://127.0.0.1:5175/health?callsign=${encodeURIComponent(userCallsign)}`, { method: 'GET', signal: AbortSignal.timeout(1500) });
+        const res = await fetchWithAgentFallback(`/health?callsign=${encodeURIComponent(userCallsign)}`, { method: 'GET', signal: AbortSignal.timeout(2000) });
         if (res.ok) {
           const data = await res.json();
           if (isMounted) {
@@ -89,7 +99,7 @@ export const GoogleConfig: React.FC = () => {
       } catch (e) {
         // 미연결
       }
-      if (isMounted) {
+      if (isMounted && !isAgentOnlineGlobal()) {
         setAgentStatus('OFFLINE');
         setAgentCallsign('');
         setAgentInfo(null);

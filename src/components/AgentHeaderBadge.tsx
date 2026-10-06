@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bot, Download, RefreshCw, Shield, ChevronDown, CheckCircle2, AlertTriangle, X, Cloud, FolderCheck, HardDrive, Play } from 'lucide-react';
-import { EXPECTED_AGENT_VERSION, AGENT_DOWNLOAD_URL, AGENT_BRO_JS_URL, AGENT_REG_BAT_URL, AGENT_LAUNCHER_URL, AGENT_CERT_URL, AGENT_INSTALL_BAT_URL, NODEJS_INSTALL_URL, launchLocalAgentFromBrowser, restartLocalAgent, fetchWithAgentFallback, openAgentStudio, triggerAgentSelfUpdate } from '../services/agentService';
+import { EXPECTED_AGENT_VERSION, AGENT_DOWNLOAD_URL, AGENT_BRO_JS_URL, AGENT_REG_BAT_URL, AGENT_LAUNCHER_URL, AGENT_CERT_URL, AGENT_INSTALL_BAT_URL, NODEJS_INSTALL_URL, launchLocalAgentFromBrowser, restartLocalAgent, fetchWithAgentFallback, openAgentStudio, triggerAgentSelfUpdate, subscribeAgentStatus, setGlobalAgentStatus, isAgentOnlineGlobal } from '../services/agentService';
 import { executeDriveMirrorSync, getLocalMirrorStatus, subscribeMirrorProgress, MirrorProgressState } from '../services/driveMirrorSync';
 import { useApp } from '../context/AppContext';
 
@@ -13,7 +13,7 @@ interface Props {
 
 export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
   const { googleConfigs, hasPermission } = useApp();
-  const [agentStatus, setAgentStatus] = useState<'ONLINE' | 'OFFLINE'>('OFFLINE');
+  const [agentStatus, setAgentStatus] = useState<'ONLINE' | 'OFFLINE'>(() => isAgentOnlineGlobal() ? 'ONLINE' : 'OFFLINE');
   const [agentVersion, setAgentVersion] = useState<string>('');
   const [agentCallsign, setAgentCallsign] = useState<string>('');
   const [isRestarting, setIsRestarting] = useState(false);
@@ -47,6 +47,17 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
     return subscribeMirrorProgress(setMirrorProgress);
   }, []);
 
+  // 에이전트 전역 상태 구독 (확장 프로그램 실시간 연동)
+  useEffect(() => {
+    return subscribeAgentStatus((online, info) => {
+      if (online) {
+        setAgentStatus('ONLINE');
+        if (info?.version) setAgentVersion(info.version);
+        if (info?.callsign) setAgentCallsign(info.callsign);
+      }
+    });
+  }, []);
+
   // 3초 주기 헬스체크 및 콜사인 바인딩
   useEffect(() => {
     let isMounted = true;
@@ -55,7 +66,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
         const userCallsign = currentUser?.loginId || currentUser?.name || 'admin';
         const res = await fetchWithAgentFallback(`/health?callsign=${encodeURIComponent(userCallsign)}`, {
           method: 'GET',
-          signal: AbortSignal.timeout(1500),
+          signal: AbortSignal.timeout(2000),
           cache: 'no-store'
         });
         if (res.ok) {
@@ -64,6 +75,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
             setAgentStatus('ONLINE');
             setAgentVersion(data.version || '');
             setAgentCallsign(data.callsign || userCallsign);
+            setGlobalAgentStatus(true, data);
           }
 
           // 로컬 미러링 현황 경량 조회 (0.01초 로컬 질의)

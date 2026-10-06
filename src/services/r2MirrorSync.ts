@@ -3,6 +3,7 @@
 
 import { GoogleConfig } from './db';
 import { subscribeMirrorProgress, MirrorProgressState, MirrorSyncResult } from './driveMirrorSync';
+import { fetchWithAgentFallback } from './agentService';
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
@@ -189,7 +190,7 @@ export async function executeR2MirrorSync(
       message: `로컬 PC (C:\\eBroAgent\\drive_mirror\\)에 ${payloadFiles.length}개 파일 저장 중...`
     });
 
-    const agentRes = await fetch('http://127.0.0.1:5175/api/sync-drive', {
+    const agentRes = await fetchWithAgentFallback('/api/sync-drive', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ files: payloadFiles })

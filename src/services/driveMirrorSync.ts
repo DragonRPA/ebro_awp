@@ -3,6 +3,7 @@
 // 원칙: CF R2가 유일한 마스터 원본(SSOT), 로컬 drive_mirror는 항상 CF R2를 따라가는 읽기 전용 사본
 
 import { GoogleConfig } from './db';
+import { fetchWithAgentFallback } from './agentService';
 
 export interface MirrorSyncResult {
   success: boolean;
@@ -138,7 +139,7 @@ export async function executeDriveMirrorSync(
     });
     onProgress?.('로컬 에이전트 버킷 스캔 및 다운로드 요청 중...', 0, 0);
 
-    const agentRes = await fetch('http://127.0.0.1:5175/api/trigger-sync', {
+    const agentRes = await fetchWithAgentFallback('/api/trigger-sync', {
       method: 'POST',
       signal: AbortSignal.timeout(20000)
     });
@@ -252,7 +253,7 @@ export async function executeDriveMirrorSync(
   });
 
   try {
-    const agentRes = await fetch('http://127.0.0.1:5175/api/sync-drive', {
+    const agentRes = await fetchWithAgentFallback('/api/sync-drive', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ files: payloadFiles })
@@ -303,7 +304,7 @@ export async function executeDriveMirrorSync(
  */
 export async function getLocalMirrorStatus(): Promise<{ success: boolean; files: Array<{ name: string; size: number; modifiedTime: string }>; mirrorPath?: string }> {
   try {
-    const res = await fetch('http://127.0.0.1:5175/api/mirror-status', {
+    const res = await fetchWithAgentFallback('/api/mirror-status', {
       method: 'GET',
       signal: AbortSignal.timeout(1500)
     });

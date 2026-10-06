@@ -1,6 +1,7 @@
 // d:\Kiyeun_Lift\src\services\email.ts
 // 실 구글 연동 계정 (googleEmail + gmailAppPassword) 기반 real Gmail SMTP 발송 서비스 (로컬 에이전트 1순위 + Vercel 폴백)
 import { db } from './db';
+import { fetchWithAgentFallback } from './agentService';
 
 export interface SentEmail {
   id: string;
@@ -121,7 +122,7 @@ class RealGmailService {
 
     // 2-1. 로컬 에이전트 시도
     try {
-      const localResp = await fetch('http://127.0.0.1:5175/api/send-email', {
+      const localResp = await fetchWithAgentFallback('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(emailPayload)
