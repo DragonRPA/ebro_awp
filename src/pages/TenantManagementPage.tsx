@@ -62,7 +62,7 @@ export const TenantManagementPage: React.FC = () => {
   // 2. 모달 상태
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
-  const [modalTab, setModalTab] = useState<'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'AGENTS' | 'TEMPLATES' | 'INITIAL_DB'>('BASIC');
+  const [modalTab, setModalTab] = useState<'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'AGENTS' | 'TEMPLATES' | 'INITIAL_DB' | 'STORAGE'>('BASIC');
   const [tenantHeartbeats, setTenantHeartbeats] = useState<any[]>([]);
   const [isLoadingHeartbeats, setIsLoadingHeartbeats] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);

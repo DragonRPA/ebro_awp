@@ -505,35 +505,6 @@ export const GoogleConfig: React.FC = () => {
               </div>
             </div>
           </div>
-
-              <div style={{ position: 'relative' }}>
-                <label>Gmail 발송용 앱 비밀번호 (App Password) *</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type={showAppPassword ? 'text' : 'password'}
-                    value={gmailAppPassword}
-                    onChange={e => setGmailAppPassword(e.target.value)}
-                    placeholder="16자리 Gmail SMTP 앱 비밀번호"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowAppPassword(!showAppPassword)}
-                    style={{ position: 'absolute', right: '10px', top: '10px', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
-                  >
-                    {showAppPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                <small style={{ display: 'block', marginTop: '4px', color: 'var(--text-muted)', fontSize: '11px' }}>
-                  ※ 구글 계정 2단계 인증 설정 후 발급받은 16자리 SMTP 전용 보안 키값을 입력하세요.
-                </small>
-              </div>
-            </div>
-          </div>
-
-
-          </div>
-
           {/* 개발모드 / 실무모드 제어 스위치 */}
           <div className="card" style={{ margin: 0, padding: '24px', border: isDevMode ? '1px solid var(--warning)' : '1px solid var(--border)' }}>
             <h3 style={{ fontSize: '15px', fontWeight: '700', borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -573,22 +544,6 @@ export const GoogleConfig: React.FC = () => {
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-
-
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                R2 공개 도메인 URL (Public Domain URL)
-              </label>
-              <input
-                type="text"
-                value={r2PublicDomain}
-                onChange={e => setR2PublicDomain(e.target.value)}
-                placeholder="예: https://pub-xxxx.r2.dev 또는 커스텀 도메인 (버킷 Public Access 활성화 시 발급)"
-                style={{ padding: '8px 10px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border)' }}
-              />
             </div>
           </div>
 
@@ -738,82 +693,6 @@ export const GoogleConfig: React.FC = () => {
           </div>
         )}
 
-        {/* Cloudflare R2 파일 목록 탐색 모달 */}
-        {showR2FileModal && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
-            <div className="card" style={{ maxWidth: '800px', width: '100%', maxHeight: '85vh', display: 'flex', flexDirection: 'column', padding: 0, borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.3)' }}>
-              <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-app)' }}>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Cloud size={18} style={{ color: 'var(--primary)' }} /> Cloudflare R2 버킷 파일 목록 ({r2FilesList.length}개)
-                </h3>
-                <button
-                  type="button"
-                  onClick={() => setShowR2FileModal(false)}
-                  style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--text-muted)' }}
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div style={{ padding: '16px 24px', flex: 1, overflowY: 'auto' }}>
-                {isLoadingR2Files ? (
-                  <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
-                    <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 12px auto' }} />
-                    <p style={{ margin: 0, fontSize: '13px' }}>Cloudflare R2 버킷 파일 목록을 불러오는 중...</p>
-                  </div>
-                ) : r2FilesList.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
-                    <FolderOpen size={32} style={{ margin: '0 auto 12px auto', opacity: 0.5 }} />
-                    <p style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>버킷에 파일이 존재하지 않습니다.</p>
-                    <p style={{ margin: '4px 0 0 0', fontSize: '12px' }}>R2 버킷에 서식 또는 증빙 파일을 업로드해 주세요.</p>
-                  </div>
-                ) : (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left', backgroundColor: 'var(--bg-app)' }}>
-                        <th style={{ padding: '8px 12px', fontWeight: '700', whiteSpace: 'nowrap' }}>파일 경로</th>
-                        <th style={{ padding: '8px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '100px' }}>크기</th>
-                        <th style={{ padding: '8px 12px', fontWeight: '700', whiteSpace: 'nowrap', width: '160px' }}>최종 수정일</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {r2FilesList.map((file, idx) => (
-                        <tr key={idx} style={{ borderBottom: '1px solid var(--border)' }}>
-                          <td style={{ padding: '8px 12px', fontWeight: '600', whiteSpace: 'nowrap' }}>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                              <FileText size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-                              {file.key}
-                            </span>
-                          </td>
-                          <td style={{ padding: '8px 12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                            {(file.size / 1024).toFixed(1)} KB
-                          </td>
-                          <td style={{ padding: '8px 12px', color: 'var(--text-secondary)', fontSize: '12px', whiteSpace: 'nowrap' }}>
-                            {file.lastModified ? file.lastModified.replace('T', ' ').substring(0, 19) : '-'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-
-              <div style={{ padding: '12px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-app)' }}>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  총 {r2FilesList.length}개 항목
-                </span>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  onClick={() => setShowR2FileModal(false)}
-                  style={{ padding: '6px 16px', fontSize: '12px', fontWeight: '700' }}
-                >
-                  닫기
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
       </div>
     </div>

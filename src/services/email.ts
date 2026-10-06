@@ -110,7 +110,7 @@ class RealGmailService {
     }
 
     // 2. 이메일 발송 실행: 로컬 에이전트(http://127.0.0.1:5175/api/send-email) 우선 ➔ 실패 시 Vercel (/api/send-email) 폴백
-    let processedAttachments = [...attachments];
+    let processedAttachments: any[] = [...attachments];
     const totalContentLength = attachments.reduce((sum, att) => sum + (att.content?.length || 0), 0);
     
     // Vercel 4.5MB 페이로드 초과 방지: 3MB 이상이면 Supabase Storage에 임시 업로드하여 URL로 전달
