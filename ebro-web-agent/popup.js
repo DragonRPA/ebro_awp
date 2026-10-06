@@ -106,6 +106,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 2. 諛깃렇?쇱슫?쒕줈遺???곹깭 蹂寃??섏떊
   chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type === 'ERP_DOM_CHANGED') {
+      syncErpStatus();
+    } else 
     if (msg.type === 'STATUS_UPDATE') {
       updatePcStatus(msg.isConnected);
     } else if (msg.type === 'COMMAND_COMPLETED') {
