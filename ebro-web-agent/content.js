@@ -902,5 +902,30 @@
   window.addEventListener('resize', () => { if (somEnabled) renderSoM(); }, { passive: true });
   window.addEventListener('scroll', () => { if (somEnabled) renderSoM(); }, { passive: true });
 
-  console.log('🤖 [ebro web agent] Content Script 주입 완료.');
+  
+
+  // --- 이벤트 기반 상태 갱신 ---
+  function notifyDomChanged() {
+    try {
+      chrome.runtime.sendMessage({ type: 'ERP_DOM_CHANGED' });
+    } catch(e) {}
+  }
+  
+  window.addEventListener('click', () => setTimeout(notifyDomChanged, 200), { passive: true });
+  window.addEventListener('keyup', (e) => {
+    if(e.key === 'Enter' || e.key === 'Escape' || e.key === 'Tab') {
+       setTimeout(notifyDomChanged, 200);
+    }
+  }, { passive: true });
+
+  const observer = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      if (m.type === 'attributes' && m.attributeName === 'data-erp-menu') {
+        notifyDomChanged();
+        break;
+      }
+    }
+  });
+  observer.observe(document.body, { attributes: true, attributeFilter: ['data-erp-menu'] });
+  // -------------------------
 })();
