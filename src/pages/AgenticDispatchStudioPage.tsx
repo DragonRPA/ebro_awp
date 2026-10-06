@@ -64,7 +64,7 @@ export const AgenticDispatchStudioPage: React.FC = () => {
   const handleRunAiDispatch = async () => {
     if (!prompt.trim()) return;
     setLoading(true);
-    setStatusMessage('에이전틱 AI가 배차 의뢰를 분석하고 헌장 2.3 가드레일을 검증 중입니다...');
+    setStatusMessage('에이전틱 AI가 배차 의뢰를 분석하고 헌장 2.3 가드레일을 검증 중입니다... (최초 로딩 시 모델을 불러오기 위해 5~15초 가량 소요될 수 있습니다)');
 
     try {
       const res = await executeAgenticPrompt(prompt);

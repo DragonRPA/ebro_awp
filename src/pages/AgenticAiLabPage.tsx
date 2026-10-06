@@ -127,7 +127,7 @@ export const AgenticAiLabPage: React.FC = () => {
             style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '7px 18px', fontWeight: '700' }}
           >
             {isRunning ? <RefreshCw size={14} className="spin" /> : <Play size={14} />}
-            <span>에이전틱 AI 실행</span>
+            <span>{isRunning ? '로딩 및 분석 중 (최초 5~15초 소요)' : '에이전틱 AI 실행'}</span>
           </button>
         </div>
       </div>

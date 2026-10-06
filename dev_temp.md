@@ -11,7 +11,16 @@
 
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
-## 2026-10-06 00:22 (v1.13.0.Build.34 배포 완료 - 인앱 히스토리 네비게이션 및 다크/라이트 배색 전면 개선)
+## 2026-10-06 13:35 (v1.13.0.Build.35 배포 완료 - React Error #310 Hook 순서 불일치 픽스)
+- **요구사항 / 장애 현상**:
+  - 프로덕션 런타임 오류 발생: `Minified React error #310; visit https://react.dev/errors/310 for the full message or use the non-minified dev environment for full errors and additional helpful warnings. [진단: React Hook 호출 순서/개수 불일치 오류]`
+  - 스택: `at OS (index-C7GPIKa1.js)` -> `App.tsx` 내 React Hook 호출 불일치.
+- **원인 분석**:
+  - `src/App.tsx` 내 네비게이션 뒤로가기/앞으로가기 메뉴 타이틀 조회를 위해 작성된 `const getMenuTitle = useCallback(...)`가 컴포넌트의 조기 반환(`if (!currentUser)`, `if (isMobileView)`, `if (domainMode === 'ADMIN')`) 블록 **뒤(Line 1417)**에 배치됨.
+  - 비로그인(로그인 화면) 렌더링 시에는 호출되지 않다가, 로그인 성공 후 또는 데스크톱 뷰 진입 시 `useCallback`이 추가로 호출되어 React의 "렌더링 간 Hook 호출 개수 일치 규칙"을 위반함.
+- **기술 조치 내역**:
+  - `src/App.tsx`: `getMenuTitle`을 React Hook(`useCallback`)에서 순수 자바스크립트 화살표 함수(`const getMenuTitle = (tabId?: string) => ...`)로 전환하여 조건문 이후 Hook 호출 원천 제거.
+- **검증**: `npm run build` (`tsc -b && vite build`) 무결성 통과 (0 errors).
 - **요구사항**: 
   1. 인앱 뒤로가기/앞으로가기 네비게이션 구현 (Alt+←/→ 단축키 및 마우스 뒤로가기 버튼 연동, 최대 30단계 스택 보존, 서브탭 세션 메모리 보존).
   2. 다크모드에서 검은색 글씨가 보이지 않던 이슈 해결 (src/index.css 스코핑 교정).

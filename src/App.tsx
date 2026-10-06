@@ -1414,12 +1414,12 @@ const App: React.FC = () => {
     );
   }
 
-  const getMenuTitle = useCallback((tabId?: string) => {
+  const getMenuTitle = (tabId?: string) => {
     if (!tabId) return '';
     if (tabId === 'dashboard') return 'ERP 대시보드';
     const item = menuGroups.flatMap(g => g.items).find(i => i.id === tabId);
     return item?.name || tabId;
-  }, [menuGroups]);
+  };
 
   const prevMenuTitle = canGoBack && historyStack[historyIndex - 1] ? getMenuTitle(historyStack[historyIndex - 1]?.tab) : '';
   const nextMenuTitle = canGoForward && historyStack[historyIndex + 1] ? getMenuTitle(historyStack[historyIndex + 1]?.tab) : '';
