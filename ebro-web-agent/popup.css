@@ -104,6 +104,24 @@ body {
   background-color: #ef4444;
 }
 
+.port-tag {
+  font-family: monospace;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.2);
+  color: #cbd5e1;
+  letter-spacing: -0.2px;
+}
+.status-online .port-tag {
+  background: rgba(34, 197, 94, 0.25);
+  color: #bbf7d0;
+}
+.status-offline .port-tag {
+  background: rgba(239, 68, 68, 0.25);
+  color: #fecaca;
+}
+
 /* 2. 정보 카드 */
 .info-card {
   background-color: var(--bg-card);

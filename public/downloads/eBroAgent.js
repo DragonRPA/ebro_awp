@@ -16,7 +16,7 @@ const path = require('path');
 const os = require('os');
 const { pipeline } = require('stream');
 const { spawn, exec, execSync } = require('child_process');
-const { handleStudioRequest, launchStudioWindow, broadcastStudioLog, getAgentPolicy, isAiEnabled } = require('./studioEngine');
+const { handleStudioRequest, launchStudioWindow, broadcastStudioLog, getAgentPolicy, isAiEnabled, handleWebSocketConnection } = require('./studioEngine');
 const { WebSocketServer } = require('ws');
 const AdmZip = require('adm-zip');
 
@@ -1579,45 +1579,8 @@ server.on('upgrade', (request, socket, head) => {
   });
 });
 
-wss.on('connection', (ws) => {
-  ws.on('message', (message) => {
-    try {
-      const payload = JSON.parse(message);
-      let zip;
-      if (payload.drgPath) {
-        zip = new AdmZip(payload.drgPath);
-      } else if (payload.drgContent) {
-        const buffer = Buffer.from(payload.drgContent, 'base64');
-        zip = new AdmZip(buffer);
-      } else {
-        ws.send(JSON.stringify({ type: 'ERROR', message: 'No DRG path or content provided' }));
-        return;
-      }
-      
-      const manifestEntry = zip.getEntries().find(e => e.entryName === 'manifest.json');
-      if (!manifestEntry) {
-        ws.send(JSON.stringify({ type: 'ERROR', message: 'manifest.json not found in DRG' }));
-        return;
-      }
-      
-      let manifestString = manifestEntry.getData().toString('utf8');
-      if (payload.parameters) {
-        for (const [key, value] of Object.entries(payload.parameters)) {
-          const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-          manifestString = manifestString.replace(regex, String(value));
-        }
-      }
-      
-      const manifest = JSON.parse(manifestString);
-      const steps = manifest.steps || manifest.tools || [];
-      for (const step of steps) {
-        ws.send(JSON.stringify({ type: 'EXECUTE_TOOL', tool: step }));
-      }
-      ws.send(JSON.stringify({ type: 'DONE' }));
-    } catch (err) {
-      ws.send(JSON.stringify({ type: 'ERROR', message: err.message }));
-    }
-  });
+wss.on('connection', (ws, request) => {
+  handleWebSocketConnection(ws, request);
 });
 
 // ── 운영체제 기본 브라우저로 대상 URL 실행 (온디맨드/기동 시) ──

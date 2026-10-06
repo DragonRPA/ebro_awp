@@ -4,11 +4,12 @@ import { getTenantPlugin } from '../integrations/TenantPluginManager';
 import { useApp } from '../context/AppContext';
 import { 
   X, FileText, Download, Eye, CheckCircle2, AlertCircle, 
-  RefreshCw, FileCheck, Mail, Send, Plus, Users, Check
+  RefreshCw, FileCheck, Mail, Send, Plus, Users, Check, Play
 } from 'lucide-react';
 import { emailService } from '../services/email';
 import { db, formatContractEndDate } from '../services/db';
 import { clearHandoverTasks } from '../utils/taskHandoverPipeline';
+import { fetchWithAgentFallback, launchLocalAgentFromBrowser } from '../services/agentService';
 
 interface Props {
   isOpen: boolean;
@@ -31,7 +32,43 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     currentTenant, showErrorModal, hasPermission, users
   } = useApp();
 
-  const canGeneratePackage = hasPermission('agent_badge', 'view');  // 계약서 패키지 생성 권한
+  // 계약서 패키지 생성 권한: 계약 저장/열람 권한 또는 에이전트 권한 보유자
+  const canGeneratePackage = hasPermission('contract', 'view') || hasPermission('contract', 'save') || hasPermission('agent_badge', 'view');
+
+  // 로컬 에이전트(포트 5175) 실시간 통신 상태 점검
+  const [isAgentOnline, setIsAgentOnline] = useState<boolean | null>(null);
+  const [agentChecking, setAgentChecking] = useState<boolean>(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    const checkAgent = async () => {
+      try {
+        const res = await fetchWithAgentFallback('/health', {
+          method: 'GET',
+          signal: AbortSignal.timeout(2000),
+          cache: 'no-store'
+        });
+        if (isMounted) {
+          setIsAgentOnline(res.ok);
+          setAgentChecking(false);
+        }
+      } catch (e) {
+        if (isMounted) {
+          setIsAgentOnline(false);
+          setAgentChecking(false);
+        }
+      }
+    };
+
+    if (isOpen) {
+      setAgentChecking(true);
+      checkAgent();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]);
 
   const [selectedContractId, setSelectedContractId] = useState<string>(
     initialContractId || contracts[0]?.id || ''
@@ -436,7 +473,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       setProgressText('로컬 에이전트 정품 엑셀 엔진 가동 중...');
       setProgressPercent(40);
 
-      const agentResp = await fetch('http://127.0.0.1:5175/api/generate-contract-bundle', {
+      const agentResp = await fetchWithAgentFallback('/api/generate-contract-bundle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bundleOptions)
@@ -664,16 +701,47 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         {/* 모달 본문 */}
         <div style={{ padding: '20px 22px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-          {/* 권한 없음 경고 배너 */}
+          {/* 1. 권한 없음 경고 배너 */}
           {!canGeneratePackage && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', backgroundColor: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.35)', borderRadius: '8px', color: 'var(--danger)', fontSize: '13px' }}>
               <AlertCircle size={18} />
               <div>
-                <strong>계약서 패키지 생성 + 의뢰서 프린터 통제</strong> 권한이 없습니다.
+                <strong>계약서 패키지 생성 권한 없음</strong>
                 <span style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  이 PC에 로컬 에이전트가 설치되어 있지 않거나 해당 권한이 부여되지 않았습니다. 권한 담당자에게 문의하세요.
+                  현재 사용자 계정에 계약서 패키지 생성 권한이 부여되지 않았습니다. 관리자에게 문의하세요.
                 </span>
               </div>
+            </div>
+          )}
+
+          {/* 2. 에이전트 오프라인 경고 배너 */}
+          {!agentChecking && isAgentOnline === false && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '12px 16px', backgroundColor: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.35)', borderRadius: '8px', color: 'var(--warning)', fontSize: '13px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <AlertCircle size={18} />
+                <div>
+                  <strong>로컬 에이전트(eBroAgent, 포트 5175) 통신 대기</strong>
+                  <span style={{ display: 'block', fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    엑셀 COM 엔진을 통한 계약서 번들 PDF 생성을 위해 PC에서 eBroAgent가 가동 중이어야 합니다.
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => launchLocalAgentFromBrowser()}
+                style={{ padding: '6px 12px', fontSize: '12px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                <Play size={13} /> 에이전트 실행
+              </button>
+            </div>
+          )}
+
+          {/* 3. 에이전트 정상 온라인 상태 배너 */}
+          {!agentChecking && isAgentOnline === true && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px', backgroundColor: 'rgba(34, 197, 94, 0.08)', border: '1px solid rgba(34, 197, 94, 0.25)', borderRadius: '6px', color: 'var(--success)', fontSize: '12px' }}>
+              <CheckCircle2 size={15} />
+              <span>로컬 에이전트 정상 연결됨 (포트 5175, 엑셀 COM 자동화 및 PDF 생성 준비 완료)</span>
             </div>
           )}
 
@@ -1205,20 +1273,20 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
             <button
               type="button"
               onClick={handleDownloadPdf}
-              disabled={isGenerating || isSendingEmail || !canGeneratePackage}
+              disabled={isGenerating || isSendingEmail || !canGeneratePackage || isAgentOnline === false}
               style={{
                 padding: '8px 16px',
                 borderRadius: '6px',
                 border: '1px solid var(--primary)',
-                backgroundColor: !canGeneratePackage ? 'var(--bg-card)' : 'var(--primary-light)',
-                color: !canGeneratePackage ? 'var(--text-muted)' : 'var(--primary)',
+                backgroundColor: (!canGeneratePackage || isAgentOnline === false) ? 'var(--bg-card)' : 'var(--primary-light)',
+                color: (!canGeneratePackage || isAgentOnline === false) ? 'var(--text-muted)' : 'var(--primary)',
                 fontSize: '13px',
                 fontWeight: 700,
-                cursor: (isGenerating || !canGeneratePackage) ? 'not-allowed' : 'pointer',
+                cursor: (isGenerating || !canGeneratePackage || isAgentOnline === false) ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                opacity: !canGeneratePackage ? 0.5 : 1
+                opacity: (!canGeneratePackage || isAgentOnline === false) ? 0.5 : 1
               }}
             >
               {isGenerating ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
@@ -1229,21 +1297,21 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
             <button
               type="button"
               onClick={handleSendPackageEmail}
-              disabled={isGenerating || isSendingEmail || recipients.length === 0 || !canGeneratePackage}
+              disabled={isGenerating || isSendingEmail || recipients.length === 0 || !canGeneratePackage || isAgentOnline === false}
               style={{
                 padding: '8px 18px',
                 borderRadius: '6px',
                 border: 'none',
-                backgroundColor: (!canGeneratePackage || recipients.length === 0) ? 'var(--text-muted)' : 'var(--primary)',
+                backgroundColor: (!canGeneratePackage || recipients.length === 0 || isAgentOnline === false) ? 'var(--text-muted)' : 'var(--primary)',
                 color: '#ffffff',
                 fontSize: '13px',
                 fontWeight: 700,
-                cursor: (isGenerating || isSendingEmail || recipients.length === 0 || !canGeneratePackage) ? 'not-allowed' : 'pointer',
+                cursor: (isGenerating || isSendingEmail || recipients.length === 0 || !canGeneratePackage || isAgentOnline === false) ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                boxShadow: (canGeneratePackage && recipients.length > 0) ? '0 2px 6px rgba(0, 0, 0, 0.2)' : 'none',
-                opacity: !canGeneratePackage ? 0.5 : 1
+                boxShadow: (canGeneratePackage && recipients.length > 0 && isAgentOnline !== false) ? '0 2px 6px rgba(0, 0, 0, 0.2)' : 'none',
+                opacity: (!canGeneratePackage || isAgentOnline === false) ? 0.5 : 1
               }}
             >
               {isSendingEmail ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}

@@ -1,3 +1,14 @@
+## v1.13.0.Build.37 (2026-10-06 15:45)
+- **계약서 패키지 모달 권한 분리 및 에이전트 실시간 통신 상태 정상화**:
+  - `ContractDocumentBundleModal.tsx` & `Contracts.tsx`: 계약서 패키지 생성 권한을 `agent_badge` 단독 의존에서 `contract:view` / `contract:save` / `agent_badge:view` 포괄 검증으로 정상화하여 계약서 담당 실무진(영업/관리) 전원 개방.
+  - `role_templates.ts`: `BASE_COMMON_PERMISSIONS`, `ACCOUNTING_TEMPLATE`, `SALES_TEMPLATE`에 `agent_badge: { canView: true, canSave: false }` 기본 부여.
+  - 에이전트 통신 상태와 권한 판정 분리: 실시간 헬스체크(`fetchWithAgentFallback('/health')`)를 통해 ① 권한 없음, ② 에이전트 오프라인(실행 버튼 안내), ③ 에이전트 정상 연결(초록 배지) 3단계로 명확히 표시.
+  - W3C Local Network Access(LNA) 표준 통신 헬퍼(`fetchWithAgentFallback`)를 번들 생성 API 호출부에 전면 적용하여 브라우저 CORS 및 127.0.0.1/localhost 상호 폴백 100% 보장.
+- **eBroAgent 텔레그램 봇 엔진 통합 및 웹 에이전트 환경설정 R&R 재정립**:
+  - `eBroAgent.exe` (포트 5175) 단일 바이너리로 텔레그램 봇 엔진(`agent/telegramEngine.js`) 완전 내장 및 올인원 일원화.
+  - `ebro-web-agent` (Chrome 확장 프로그램)에서 텔레그램 및 AI 모델 설정 폼을 제거하고 오직 PC 에이전트 주소(IP:Port)만 관리하도록 경량화.
+  - `eBro AI Agent 스튜디오` (로컬 PC 프로그램) 글로벌 헤더에 `[⚙️ 환경설정]` 모달을 신설하여 텔레그램 토큰, 관리자 ID, 테스트 발송, Ollama 모델 설정을 통합 관리하도록 이전.
+
 ## v1.13.0.Build.36 (2026-10-06 14:05)
 - **테넌트 사이트 내 '테넌트 관리' 메뉴 원천 제거 및 플랫폼 최고관리자 완전 격리**:
   - `src/App.tsx`: 테넌트 ERP 사이드바 메뉴그룹(`grp_management_special`, 경영관리-특수)에서 `tenant_management` 항목 영구 제거.

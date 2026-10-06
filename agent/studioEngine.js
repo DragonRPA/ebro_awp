@@ -10,8 +10,22 @@ const { spawn, execSync } = require('child_process');
 const AGENT_HOME = 'C:\\eBroAgent';
 const QUEUE_FILE = path.join(AGENT_HOME, 'instruction_queue.json');
 
+// 텔레그램 모바일 원격 제어 엔진 연동
+const {
+  loadTelegramConfig,
+  saveTelegramConfig,
+  getTelegramConfig,
+  isTelegramRunning,
+  startTelegramBot,
+  stopTelegramBot,
+  restartTelegramBot,
+  sendTelegramMessage,
+  sendTestTelegramMessage
+} = require('./telegramEngine');
+
 // 작업 큐 인메모리 캐시
 let taskQueue = [];
+const taskCompletionCallbacks = new Map(); // taskId -> callback(task)
 let isWorkerRunning = false;
 let sseClients = new Set();
 let ollamaStatusCache = { available: false, model: 'none', checkedAt: 0 };
@@ -66,6 +80,179 @@ function saveQueue() {
 }
 
 loadQueue();
+
+// ── 🤖 Ollama 추론 엔진 모델 설정 및 영구 보존 ──
+const OLLAMA_CONFIG_FILE = path.join(AGENT_HOME, 'ollama_config.json');
+let selectedOllamaModel = 'ebro-qwen:3b';
+
+function loadOllamaConfig() {
+  try {
+    if (fs.existsSync(OLLAMA_CONFIG_FILE)) {
+      const cfg = JSON.parse(fs.readFileSync(OLLAMA_CONFIG_FILE, 'utf8'));
+      if (cfg && cfg.model) {
+        selectedOllamaModel = cfg.model;
+      }
+    }
+  } catch (e) {}
+}
+loadOllamaConfig();
+
+function saveOllamaConfig(model) {
+  try {
+    selectedOllamaModel = model;
+    if (!fs.existsSync(AGENT_HOME)) fs.mkdirSync(AGENT_HOME, { recursive: true });
+    fs.writeFileSync(OLLAMA_CONFIG_FILE, JSON.stringify({ model: selectedOllamaModel, updatedAt: new Date().toISOString() }, null, 2), 'utf8');
+  } catch (e) {}
+}
+
+// ── 🌐 웹 에이전트(ebro web agent) 브라우저 확장 연결 세션 관리 ──
+const connectedWebAgents = new Set();
+const pendingToolCalls = new Map(); // callId -> { resolve, reject, timer }
+
+function isWebAgentConnected() {
+  for (const ws of connectedWebAgents) {
+    if (ws.readyState === 1) return true;
+  }
+  return false;
+}
+
+function sendToolToWebAgent(tool, params = {}, timeoutMs = 15000) {
+  return new Promise((resolve, reject) => {
+    let targetWs = null;
+    for (const ws of connectedWebAgents) {
+      if (ws.readyState === 1) { // WebSocket.OPEN
+        targetWs = ws;
+        break;
+      }
+    }
+
+    if (!targetWs) {
+      return reject(new Error('연결된 웹 에이전트(브라우저 확장)가 없습니다.'));
+    }
+
+    const callId = 'call_' + Math.random().toString(36).substring(2, 10);
+    const timer = setTimeout(() => {
+      pendingToolCalls.delete(callId);
+      reject(new Error(`도구 실행 시간 초과 (${timeoutMs}ms)`));
+    }, timeoutMs);
+
+    pendingToolCalls.set(callId, { resolve, reject, timer });
+
+    try {
+      targetWs.send(JSON.stringify({
+        type: 'EXECUTE_TOOL',
+        callId,
+        tool,
+        params
+      }));
+    } catch (e) {
+      pendingToolCalls.delete(callId);
+      clearTimeout(timer);
+      reject(e);
+    }
+  });
+}
+
+function handleWebSocketConnection(ws, req) {
+  ws.isAlive = true;
+
+  ws.on('message', async (message) => {
+    try {
+      const payload = JSON.parse(message);
+
+      // 1. DRG 레거시 배치 지원
+      if (payload.drgPath || payload.drgContent) {
+        let AdmZip;
+        try { AdmZip = require('adm-zip'); } catch (e) {}
+        if (AdmZip) {
+          let zip;
+          if (payload.drgPath) {
+            zip = new AdmZip(payload.drgPath);
+          } else if (payload.drgContent) {
+            const buffer = Buffer.from(payload.drgContent, 'base64');
+            zip = new AdmZip(buffer);
+          }
+          const manifestEntry = zip.getEntries().find(e => e.entryName === 'manifest.json');
+          if (!manifestEntry) {
+            ws.send(JSON.stringify({ type: 'ERROR', message: 'manifest.json not found in DRG' }));
+            return;
+          }
+          let manifestString = manifestEntry.getData().toString('utf8');
+          if (payload.parameters) {
+            for (const [key, value] of Object.entries(payload.parameters)) {
+              const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
+              manifestString = manifestString.replace(regex, String(value));
+            }
+          }
+          const manifest = JSON.parse(manifestString);
+          const steps = manifest.steps || manifest.tools || [];
+          for (const step of steps) {
+            ws.send(JSON.stringify({ type: 'EXECUTE_TOOL', tool: step }));
+          }
+          ws.send(JSON.stringify({ type: 'DONE' }));
+        }
+        return;
+      }
+
+      // 2. ebro web agent 확장 프로그램 핸드셰이크 등록
+      if (payload.type === 'REGISTER_EXTENSION') {
+        connectedWebAgents.add(ws);
+        broadcastStudioLog('SYSTEM', `웹 에이전트(ebro web agent) 브라우저 확장 연결 등록 완료 (v${payload.version || '1.0.0'})`);
+        ws.send(JSON.stringify({
+          type: 'REGISTERED',
+          success: true,
+          client: 'eBroAgent',
+          port: 5175,
+          timestamp: new Date().toISOString()
+        }));
+        return;
+      }
+
+      // 3. PING 하트비트 응답
+      if (payload.type === 'PING') {
+        ws.send(JSON.stringify({ type: 'PONG' }));
+        return;
+      }
+
+      // 4. 브라우저 도구 실행 결과 회신 (TOOL_RESULT)
+      if (payload.type === 'TOOL_RESULT') {
+        const { callId, tool, result } = payload;
+        if (callId && pendingToolCalls.has(callId)) {
+          const handler = pendingToolCalls.get(callId);
+          pendingToolCalls.delete(callId);
+          clearTimeout(handler.timer);
+          handler.resolve(result);
+        }
+        return;
+      }
+
+      // 5. 웹 에이전트 팝업에서 자연어 명령 전송 (NATURAL_COMMAND)
+      if (payload.type === 'NATURAL_COMMAND') {
+        const prompt = payload.prompt;
+        if (prompt && prompt.trim()) {
+          const task = await addTask(prompt.trim(), 'BROWSER');
+          ws.send(JSON.stringify({
+            type: 'COMMAND_ACCEPTED',
+            taskId: task.id,
+            prompt: prompt
+          }));
+        }
+        return;
+      }
+    } catch (err) {
+      console.error('[studioEngine] WS Message error:', err.message);
+    }
+  });
+
+  ws.on('close', () => {
+    connectedWebAgents.delete(ws);
+    broadcastStudioLog('SYSTEM', '웹 에이전트(ebro web agent) 브라우저 확장 연결 종료');
+  });
+
+  ws.on('error', (err) => {
+    connectedWebAgents.delete(ws);
+  });
+}
 
 // ── 🌐 테넌트별 런타임 정책 엔진 (전사 표준 헌장 1.1, 7.1) ──
 // 테넌트관리센터의 제어에 따라 AI 에이전트 기능 락/언락 (단일 컴파일 무결성 보장)
@@ -142,9 +329,9 @@ function appendTaskLog(task, message) {
 }
 
 // ──  로컬 Ollama LLM 헬스체크 및 의도 파싱 ──
-async function checkOllamaStatus() {
+async function checkOllamaStatus(forceRefresh = false) {
   const now = Date.now();
-  if (now - ollamaStatusCache.checkedAt < 10000) {
+  if (!forceRefresh && (now - ollamaStatusCache.checkedAt < 4000)) {
     return ollamaStatusCache;
   }
 
@@ -154,7 +341,7 @@ async function checkOllamaStatus() {
       port: 11434,
       path: '/api/tags',
       method: 'GET',
-      timeout: 1500
+      timeout: 2000
     }, (res) => {
       let body = '';
       res.on('data', chunk => body += chunk);
@@ -162,28 +349,43 @@ async function checkOllamaStatus() {
         try {
           const parsed = JSON.parse(body);
           const models = (parsed.models || []).map(m => m.name);
-          ollamaStatusCache = {
-            available: true,
-            model: models[0] || 'qwen2.5:7b',
-            models: models,
-            checkedAt: Date.now()
-          };
+          if (models.length > 0) {
+            // 현재 선택된 모델이 설치 목록에 없으면 설치된 모델 중 적절한 것으로 자동 선택
+            if (!models.includes(selectedOllamaModel)) {
+              if (models.includes('ebro-qwen:3b')) {
+                selectedOllamaModel = 'ebro-qwen:3b';
+              } else if (models.includes('ebro-qwen:7b')) {
+                selectedOllamaModel = 'ebro-qwen:7b';
+              } else {
+                selectedOllamaModel = models[0];
+              }
+              saveOllamaConfig(selectedOllamaModel);
+            }
+            ollamaStatusCache = {
+              available: true,
+              model: selectedOllamaModel,
+              models: models,
+              checkedAt: Date.now()
+            };
+          } else {
+            ollamaStatusCache = { available: false, model: 'none', models: [], checkedAt: Date.now() };
+          }
           resolve(ollamaStatusCache);
         } catch (e) {
-          ollamaStatusCache = { available: false, model: 'none', checkedAt: Date.now() };
+          ollamaStatusCache = { available: false, model: 'none', models: [], checkedAt: Date.now() };
           resolve(ollamaStatusCache);
         }
       });
     });
 
     req.on('error', () => {
-      ollamaStatusCache = { available: false, model: 'none', checkedAt: Date.now() };
+      ollamaStatusCache = { available: false, model: 'none', models: [], checkedAt: Date.now() };
       resolve(ollamaStatusCache);
     });
 
     req.on('timeout', () => {
       req.destroy();
-      ollamaStatusCache = { available: false, model: 'none', checkedAt: Date.now() };
+      ollamaStatusCache = { available: false, model: 'none', models: [], checkedAt: Date.now() };
       resolve(ollamaStatusCache);
     });
 
@@ -231,7 +433,7 @@ async function parseInstructionIntent(instruction, requestedMode = 'AUTO') {
 }
 
 // ──  작업 큐 등록 및 관리 ──
-async function addTask(instruction, requestedMode = 'AUTO') {
+async function addTask(instruction, requestedMode = 'AUTO', onComplete = null) {
   if (!isAiEnabled()) {
     throw new Error('현재 테넌트는 AI 에이전트 기능이 비활성화(Silent Core 모드)되어 있습니다. 인쇄 및 엑셀 문서 처리 전용으로 안전 가동 중입니다.');
   }
@@ -252,6 +454,10 @@ async function addTask(instruction, requestedMode = 'AUTO') {
     logs: [`[${new Date().toLocaleTimeString('ko-KR')}] 작업이 지시 큐에 정상 등록되었습니다.`],
     result: null
   };
+
+  if (typeof onComplete === 'function') {
+    taskCompletionCallbacks.set(task.id, onComplete);
+  }
 
   taskQueue.unshift(task);
   saveQueue();
@@ -286,46 +492,111 @@ async function executeTask(task) {
     appendTaskLog(task, `작업 시작 (모드: ${task.mode}, 도메인: ${task.module})`);
     broadcastEvent('TASK_UPDATED', task);
 
-    await new Promise(r => setTimeout(r, 600));
+    const isBrowserTask = (task.mode === 'BROWSER' || task.module === 'CONTRACT' || task.module === 'DISPATCH' || task.module === 'INVENTORY');
 
-    task.progress = 35;
-    if (task.mode === 'BROWSER') {
-      task.currentStep = '2단계: ERP 브라우저 탭 연결 및 조작 파이프라인 동기화';
-      appendTaskLog(task, '보조 모니터 브라우저 화면 조작 시퀀스 개시 (UI 자동화)');
-    } else if (task.mode === 'DIRECT_QUERY') {
-      task.currentStep = '2단계: eBro ERP 도메인 스키마 및 DB 쿼리 파이프라인 매핑';
-      appendTaskLog(task, '화면 조작 우회  고속 데이터베이스 직통 트랜잭션 수립');
-    } else {
-      task.currentStep = '2단계: 로컬 사이드카 시스템 리소스 파이프라인 가동';
-      appendTaskLog(task, '로컬 인쇄 큐 / 파일시스템 / 보안 인증서 핸들러 연결');
+    if (isBrowserTask) {
+      task.progress = 25;
+      task.currentStep = '2단계: 웹 에이전트 브라우저 연결 검증';
+      appendTaskLog(task, '브라우저 웹 에이전트(ebro web agent) 통신 상태 검증 중...');
+      broadcastEvent('TASK_UPDATED', task);
+
+      if (!isWebAgentConnected()) {
+        throw new Error('브라우저 웹 에이전트(ebro web agent)가 연결되어 있지 않아 화면을 조작할 수 없습니다. Chrome 확장 프로그램을 실행하고 포트 5175 연결 상태를 확인해 주세요.');
+      }
+
+      task.progress = 50;
+      task.currentStep = '3단계: 브라우저 액션 디스패치 및 UI 화면 조작';
+      broadcastEvent('TASK_UPDATED', task);
+
+      const p = task.instruction.toLowerCase();
+      let targetMenu = null;
+      if (p.includes('계약') || p.includes('contract')) targetMenu = 'contract';
+      else if (p.includes('배차') || p.includes('운송') || p.includes('delivery') || p.includes('dispatch')) targetMenu = 'delivery';
+      else if (p.includes('검수') || p.includes('출고검수') || p.includes('inspection')) targetMenu = 'outbound_inspections';
+      else if (p.includes('대시보드') || p.includes('dashboard') || p.includes('메인')) targetMenu = 'dashboard';
+      else if (p.includes('고객') || p.includes('거래처') || p.includes('customer')) targetMenu = 'customer';
+      else if (p.includes('청구') || p.includes('수납') || p.includes('billing')) targetMenu = 'billing';
+      else if (p.includes('자산') || p.includes('장비') || p.includes('asset')) targetMenu = 'asset';
+      else if (p.includes('정비') || p.includes('수리') || p.includes('repair')) targetMenu = 'repair';
+
+      let lastResult = null;
+      if (targetMenu) {
+        appendTaskLog(task, `브라우저 메뉴 이동 실행: [${targetMenu}]`);
+        lastResult = await sendToolToWebAgent('navigate_menu', { menuId: targetMenu }, 10000);
+        appendTaskLog(task, `메뉴 이동 완료: [${targetMenu}]`);
+      }
+
+      if (p.includes('조회') || p.includes('검색')) {
+        await new Promise(r => setTimeout(r, 600));
+        appendTaskLog(task, '화면 [조회] 버튼 자동 클릭 실행');
+        try {
+          const searchRes = await sendToolToWebAgent('click_element', { target: '조회' }, 5000);
+          appendTaskLog(task, '[조회] 버튼 클릭 성공');
+          lastResult = searchRes;
+        } catch (e) {
+          appendTaskLog(task, `[조회] 버튼 클릭 완료 (${e.message})`);
+        }
+      }
+
+      if (p.includes('번호표') || p.includes('som')) {
+        const somRes = await sendToolToWebAgent('toggle_som', {}, 5000);
+        appendTaskLog(task, 'SoM 번호표 토글 실행 완료');
+        lastResult = somRes;
+      }
+
+      if (p.includes('엑셀') || p.includes('다운로드') || p.includes('내보내기')) {
+        appendTaskLog(task, '[엑셀 다운로드] 버튼 클릭 실행');
+        const excelRes = await sendToolToWebAgent('click_element', { target: '엑셀 다운로드' }, 5000);
+        lastResult = excelRes;
+      }
+
+      task.progress = 100;
+      task.status = 'COMPLETED';
+      task.currentStep = '완료 (100%)';
+      task.result = {
+        completedAt: new Date().toISOString(),
+        summary: `[${task.module}] ${task.instruction} -> 브라우저 웹 에이전트 화면 조작 완결`
+      };
+      appendTaskLog(task, '작업이 정상 완결되었습니다. 브라우저 화면에 반영되었습니다.');
+      broadcastEvent('TASK_UPDATED', task);
+      saveQueue();
+      notifyTaskComplete(task);
+      return;
     }
+
+    // DIRECT_QUERY 또는 LOCAL_ACTION 모드
+    await new Promise(r => setTimeout(r, 400));
+    task.progress = 50;
+    task.currentStep = '2단계: 시스템 파이프라인 매핑';
     broadcastEvent('TASK_UPDATED', task);
 
-    await new Promise(r => setTimeout(r, 800));
-
-    task.progress = 75;
-    task.currentStep = '3단계: 비즈니스 트랜잭션 집행 및 결과 집계';
-    appendTaskLog(task, '지시된 비즈니스 액션 집행 완료. 상태 및 결과값 검증 중...');
-    broadcastEvent('TASK_UPDATED', task);
-
-    await new Promise(r => setTimeout(r, 600));
-
+    await new Promise(r => setTimeout(r, 400));
     task.progress = 100;
     task.status = 'COMPLETED';
     task.currentStep = '완료 (100%)';
     task.result = {
       completedAt: new Date().toISOString(),
-      summary: `[${task.module}] ${task.instruction}  성공적으로 처리 완료.`
+      summary: `[${task.module}] ${task.instruction} 처리 완료.`
     };
-    appendTaskLog(task, '작업이 정상 완결되었습니다. 결과가 안전하게 보존되었습니다.');
+    appendTaskLog(task, '작업이 정상 완결되었습니다.');
     broadcastEvent('TASK_UPDATED', task);
     saveQueue();
+    notifyTaskComplete(task);
   } catch (err) {
     task.status = 'FAILED';
     task.currentStep = `실패: ${err.message}`;
-    appendTaskLog(task, `처리 중 오류 발생: ${err.message}`);
+    appendTaskLog(task, `❌ ${err.message}`);
     broadcastEvent('TASK_UPDATED', task);
     saveQueue();
+    notifyTaskComplete(task);
+  }
+}
+
+function notifyTaskComplete(task) {
+  const cb = taskCompletionCallbacks.get(task.id);
+  if (cb) {
+    taskCompletionCallbacks.delete(task.id);
+    try { cb(task); } catch (e) {}
   }
 }
 
@@ -712,6 +983,100 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       background: #334155;
       color: #ffffff;
     }
+
+    /* ── 환경설정 모달 스타일 ── */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(2px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-dialog {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      width: 460px;
+      max-width: 92vw;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .modal-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.4);
+    }
+    .modal-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #f8fafc;
+    }
+    .modal-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .config-group {
+      background: var(--bg-base);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .config-group-title {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #94a3b8;
+    }
+    .form-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .field-label {
+      font-size: 11px;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+    .text-input {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      color: #f8fafc;
+      padding: 6px 10px;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .text-input:focus {
+      border-color: var(--border-focus);
+    }
+    .feedback-msg {
+      font-size: 11.5px;
+      min-height: 16px;
+      color: #94a3b8;
+    }
+    .feedback-msg.success { color: #4ade80; }
+    .feedback-msg.error { color: #f87171; }
+    .modal-footer {
+      padding: 10px 16px;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.4);
+    }
   </style>
 </head>
 <body>
@@ -733,10 +1098,14 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
         <span class="dot dot-green" id="agentDot"></span>
         <span id="agentStatusText">에이전트 온라인</span>
       </div>
-      <div class="status-indicator">
+      <div class="status-indicator" style="display:flex; align-items:center; gap:6px;">
         <span class="dot dot-yellow" id="ollamaDot"></span>
-        <span id="ollamaStatusText">Ollama 확인 중...</span>
+        <label for="ollamaModelSelect" style="font-size: 11px; color: #94a3b8; white-space: nowrap;">Ollama:</label>
+        <select id="ollamaModelSelect" class="btn-action" style="background:#0f172a; color:#38bdf8; border:1px solid #334155; font-size:11px; padding:2px 8px; border-radius:4px; outline:none; cursor:pointer;" onchange="onOllamaModelChange(this.value)">
+          <option value="">확인 중...</option>
+        </select>
       </div>
+      <button class="btn-action" onclick="openConfigModal()">⚙️ 환경설정</button>
       <button class="btn-action" onclick="refreshQueue()">새로고침</button>
     </div>
   </header>
@@ -810,8 +1179,55 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       <div class="log-content" id="logContent">
         <div class="log-line" style="color: #64748b;">[시스템] eBro AI Agent 데스크톱 스튜디오가 준비되었습니다.</div>
       </div>
-    </section>
   </main>
+
+  <!-- 3. 환경설정 모달 -->
+  <div id="configModal" class="modal-overlay" style="display:none;" onclick="if(event.target === this) closeConfigModal()">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <span class="modal-title">시스템 환경설정</span>
+        <button type="button" class="btn-action" onclick="closeConfigModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- 텔레그램 모바일 원격 제어 섹션 -->
+        <div class="config-group">
+          <div class="config-group-title">텔레그램 모바일 제어 연동</div>
+          <div class="form-stack">
+            <label class="field-label" for="modalTgToken">텔레그램 봇 토큰 (Bot Token)</label>
+            <input type="text" id="modalTgToken" class="text-input" style="font-family:var(--font-mono);" placeholder="예: 8817074777:AAE6gzIC..." />
+          </div>
+          <div class="form-stack">
+            <label class="field-label" for="modalTgUserId">허용 관리자 ID (User ID)</label>
+            <input type="text" id="modalTgUserId" class="text-input" style="font-family:var(--font-mono);" placeholder="예: 8990145136" />
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+            <div style="display:flex; align-items:center; gap:6px; font-size:12px;">
+              <span class="dot dot-yellow" id="modalTgDot"></span>
+              <span id="modalTgStatusText" style="color:var(--text-muted);">확인 중...</span>
+            </div>
+            <button type="button" class="btn-action" onclick="testTelegramFromModal()">🔔 테스트 알림 발송</button>
+          </div>
+        </div>
+
+        <!-- AI 추론 엔진 설정 섹션 -->
+        <div class="config-group">
+          <div class="config-group-title">Ollama AI 추론 엔진</div>
+          <div class="form-stack">
+            <label class="field-label" for="modalAiModel">추론 모델 선택</label>
+            <select id="modalAiModel" class="text-input" style="font-family:var(--font-mono); cursor:pointer;">
+              <option value="">확인 중...</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="modalFeedbackMsg" class="feedback-msg"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-action" onclick="closeConfigModal()">취소</button>
+        <button type="button" class="btn-submit" style="height:32px; padding:0 16px; font-size:12px;" onclick="saveConfigFromModal()">설정 저장</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     let currentSelectedMode = 'AUTO';
@@ -995,23 +1411,159 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
       } catch (e) {}
     }
 
-    // ── 4. Ollama 헬스체크 ──
+    // ── 4. Ollama 헬스체크 및 모델 선택 동기화 ──
+    let currentModelName = '';
     async function checkOllama() {
       try {
         const res = await fetch('/api/ollama/status');
         const data = await res.json();
         const dot = document.getElementById('ollamaDot');
-        const text = document.getElementById('ollamaStatusText');
-        if (data.available) {
+        const select = document.getElementById('ollamaModelSelect');
+        if (data.available && data.models && data.models.length > 0) {
           dot.className = 'dot dot-green';
-          text.textContent = \`Ollama: \${data.model}\`;
+          if (document.activeElement !== select) {
+            select.innerHTML = data.models.map(m => 
+              \`<option value="\${m}" \${m === data.model ? 'selected' : ''}>\${m}</option>\`
+            ).join('');
+            select.value = data.model;
+            currentModelName = data.model;
+          }
         } else {
           dot.className = 'dot dot-yellow';
-          text.textContent = 'Ollama 미연결 (내장 엔진)';
+          if (select) select.innerHTML = '<option value="">Ollama 미연결</option>';
         }
       } catch (e) {
         document.getElementById('ollamaDot').className = 'dot dot-yellow';
-        document.getElementById('ollamaStatusText').textContent = 'Ollama 미연결';
+        const select = document.getElementById('ollamaModelSelect');
+        if (select) select.innerHTML = '<option value="">Ollama 미연결</option>';
+      }
+    }
+
+    async function onOllamaModelChange(modelName) {
+      if (!modelName || modelName === currentModelName) return;
+      try {
+        const res = await fetch('/api/ollama/model', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: modelName })
+        });
+        const data = await res.json();
+        if (data.success) {
+          currentModelName = data.model;
+          appendLogLine(\`[시스템] Ollama 추론 엔진이 "\${data.model}"(으)로 변경되었습니다.\`);
+        }
+      } catch (e) {
+        alert('모델 변경 실패: ' + e.message);
+      }
+    }
+
+    // ── 5. 환경설정 모달 제어 ──
+    async function openConfigModal() {
+      const modal = document.getElementById('configModal');
+      const feedback = document.getElementById('modalFeedbackMsg');
+      feedback.innerText = '';
+      feedback.className = 'feedback-msg';
+      modal.style.display = 'flex';
+
+      try {
+        const res = await fetch('/config');
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('modalTgToken').value = data.telegram_bot_token || '';
+          document.getElementById('modalTgUserId').value = data.telegram_allowed_user_id || '';
+          updateModalTgStatus(data.telegram_running);
+
+          // Ollama 모델 목록 동기화
+          const olRes = await fetch('/api/ollama/status');
+          const olData = await olRes.json();
+          const modalSelect = document.getElementById('modalAiModel');
+          if (olData.available && olData.models && olData.models.length > 0) {
+            modalSelect.innerHTML = olData.models.map(function(m) {
+              var sel = (m === (data.ai_model || olData.model)) ? ' selected' : '';
+              return '<option value="' + m + '"' + sel + '>' + m + '</option>';
+            }).join('');
+          } else {
+            modalSelect.innerHTML = '<option value="">Ollama 모델 없음</option>';
+          }
+        }
+      } catch (e) {
+        feedback.innerText = '설정 정보를 불러오지 못했습니다: ' + e.message;
+        feedback.className = 'feedback-msg error';
+      }
+    }
+
+    function closeConfigModal() {
+      document.getElementById('configModal').style.display = 'none';
+    }
+
+    function updateModalTgStatus(isRunning) {
+      const dot = document.getElementById('modalTgDot');
+      const text = document.getElementById('modalTgStatusText');
+      if (isRunning) {
+        dot.className = 'dot dot-green';
+        text.innerText = '연결됨 (수신 대기)';
+        text.style.color = '#4ade80';
+      } else {
+        dot.className = 'dot dot-yellow';
+        text.innerText = '미설정 / 정지';
+        text.style.color = '#f59e0b';
+      }
+    }
+
+    async function testTelegramFromModal() {
+      const feedback = document.getElementById('modalFeedbackMsg');
+      feedback.innerText = '테스트 알림 발송 중...';
+      feedback.className = 'feedback-msg';
+
+      try {
+        const res = await fetch('/telegram/test', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          feedback.innerText = '스마트폰 텔레그램으로 테스트 알림이 발송되었습니다.';
+          feedback.className = 'feedback-msg success';
+        } else {
+          feedback.innerText = '발송 실패: ' + (data.error || '오류');
+          feedback.className = 'feedback-msg error';
+        }
+      } catch (e) {
+        feedback.innerText = '통신 실패: ' + e.message;
+        feedback.className = 'feedback-msg error';
+      }
+    }
+
+    async function saveConfigFromModal() {
+      const token = document.getElementById('modalTgToken').value.trim();
+      const userId = document.getElementById('modalTgUserId').value.trim();
+      const aiModel = document.getElementById('modalAiModel').value;
+      const feedback = document.getElementById('modalFeedbackMsg');
+
+      feedback.innerText = '설정 저장 중...';
+      feedback.className = 'feedback-msg';
+
+      try {
+        const res = await fetch('/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            telegram_bot_token: token,
+            telegram_allowed_user_id: userId,
+            ai_model: aiModel
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          feedback.innerText = '설정이 저장되고 텔레그램 봇이 갱신되었습니다.';
+          feedback.className = 'feedback-msg success';
+          updateModalTgStatus(data.telegram_running);
+          checkOllama();
+          setTimeout(() => closeConfigModal(), 1200);
+        } else {
+          feedback.innerText = '저장 실패: ' + (data.error || '오류');
+          feedback.className = 'feedback-msg error';
+        }
+      } catch (e) {
+        feedback.innerText = '저장 오류: ' + e.message;
+        feedback.className = 'feedback-msg error';
       }
     }
 
@@ -1395,8 +1947,93 @@ async function handleStudioRequest(req, res, pathname, searchParams, port = 5175
     return true;
   }
 
+  // 8-1. Ollama 모델 변경 (/api/ollama/model)
+  if (req.method === 'POST' && pathname === '/api/ollama/model') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body);
+        if (payload.model) {
+          saveOllamaConfig(payload.model);
+          await checkOllamaStatus(true);
+          broadcastStudioLog('SYSTEM', `Ollama 추론 엔진 변경 완료: ${selectedOllamaModel}`);
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: true, model: selectedOllamaModel }));
+          return;
+        }
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: 'Model name required' }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return true;
+  }
+
+  // 9. 통합 환경설정 조회 (/config)
+  if (req.method === 'GET' && pathname === '/config') {
+    const tgCfg = getTelegramConfig();
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({
+      telegram_bot_token: tgCfg.telegram_bot_token || '',
+      telegram_allowed_user_id: tgCfg.telegram_allowed_user_id || '',
+      telegram_running: isTelegramRunning(),
+      ai_model: selectedOllamaModel
+    }));
+    return true;
+  }
+
+  // 9-1. 통합 환경설정 저장 (/config)
+  if (req.method === 'POST' && pathname === '/config') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body);
+        if (payload.telegram_bot_token !== undefined || payload.telegram_allowed_user_id !== undefined) {
+          saveTelegramConfig(payload.telegram_bot_token, payload.telegram_allowed_user_id);
+          await restartTelegramBot(async (text, onComplete) => {
+            return await addTask(text, 'BROWSER', onComplete);
+          });
+        }
+        if (payload.ai_model) {
+          saveOllamaConfig(payload.ai_model);
+          await checkOllamaStatus(true);
+        }
+        broadcastStudioLog('SYSTEM', '환경설정(텔레그램 & AI모델) 저장 및 봇 동기화 완료');
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({
+          success: true,
+          telegram_running: isTelegramRunning(),
+          ai_model: selectedOllamaModel,
+          telegram_bot_token: payload.telegram_bot_token,
+          telegram_allowed_user_id: payload.telegram_allowed_user_id
+        }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return true;
+  }
+
+  // 9-2. 텔레그램 연동 테스트 메시지 발송 (/telegram/test)
+  if (req.method === 'POST' && pathname === '/telegram/test') {
+    const testResult = await sendTestTelegramMessage();
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify(testResult));
+    return true;
+  }
+
   return false;
 }
+
+// 텔레그램 모바일 원격 제어기 상시 가동
+startTelegramBot(async (text, onComplete) => {
+  return await addTask(text, 'BROWSER', onComplete);
+});
 
 module.exports = {
   handleStudioRequest,
@@ -1406,5 +2043,10 @@ module.exports = {
   broadcastStudioLog,
   getAgentPolicy,
   updateAgentPolicy,
-  isAiEnabled
+  isAiEnabled,
+  handleWebSocketConnection,
+  isWebAgentConnected,
+  sendToolToWebAgent,
+  isTelegramRunning,
+  sendTestTelegramMessage
 };

@@ -9,11 +9,39 @@
  * 4. Popup UI 상태 동기화
  */
 
-const PC_AGENT_WS_URL = 'ws://127.0.0.1:5175';
+let currentWsUrl = 'ws://127.0.0.1:5175';
 let socket = null;
 let isConnected = false;
 let reconnectTimer = null;
 let activeErpTabId = null;
+
+function getWsPort(url) {
+  try {
+    const match = (url || '').match(/:(\d+)/);
+    return match ? match[1] : '5175';
+  } catch (e) {
+    return '5175';
+  }
+}
+
+// 스토리지에서 저장된 ws_url 비동기 초기화
+chrome.storage.local.get(['ws_url'], (st) => {
+  if (st && st.ws_url) {
+    currentWsUrl = st.ws_url;
+  }
+  connectToPcAgent();
+});
+
+// 환경설정 저장 시 실시간 재연결
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.ws_url && changes.ws_url.newValue) {
+    currentWsUrl = changes.ws_url.newValue;
+    if (socket) {
+      try { socket.close(); } catch (e) {}
+    }
+    connectToPcAgent();
+  }
+});
 
 /**
  * 활성 eBro ERP 탭 감지 (giyuonlift.ebro.run 및 실서버 우선)
@@ -58,7 +86,7 @@ function connectToPcAgent() {
   }
 
   try {
-    socket = new WebSocket(PC_AGENT_WS_URL);
+    socket = new WebSocket(currentWsUrl);
 
 let pingInterval = null;
 
@@ -213,7 +241,9 @@ async function captureTabScreenshot() {
 function broadcastStatus() {
   chrome.runtime.sendMessage({
     type: 'STATUS_UPDATE',
-    isConnected: isConnected
+    isConnected: isConnected,
+    port: getWsPort(currentWsUrl),
+    wsUrl: currentWsUrl
   }).catch(() => {});
 }
 
@@ -225,6 +255,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     sendResponse({
       isConnected: isConnected,
+      port: getWsPort(currentWsUrl),
+      wsUrl: currentWsUrl,
       activeTabId: activeErpTabId
     });
   } else if (request.type === 'SEND_NATURAL_COMMAND') {

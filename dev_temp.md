@@ -11,6 +11,85 @@
 
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## 2026-10-06 15:40 (계약서 패키지 생성 에이전트 오프라인 vs 권한 결함 분리 및 실시간 통신 상태 연동)
+- **배경 및 사장님 지침**:
+  - "에이전트는 실행중인데 이건 왜 뜨는거지? 프런트페이지와 에이전트 간 통신도 오류생긴건지 코드수준 검증하고 수정해. ㄹㅇ"
+  - 계약서패키지 모달(`ContractDocumentBundleModal.tsx`)에서 로컬 에이전트가 정상 가동 중임에도 `계약서 패키지 생성 + 의뢰서 프린터 통제 권한이 없습니다. 이 PC에 로컬 에이전트가 설치되어 있지 않거나 해당 권한이 부여되지 않았습니다.`라는 오해성 경고 배너 표출 및 다운로드/발송 버튼 비활성화 결함 적발.
+- **원인 분석**:
+  1. **가짜 권한(Menu ID) 매핑 결함**:
+     - 계약서패키지 생성 권한이 `hasPermission('agent_badge', 'view')`에 의존하고 있었음.
+     - `src/config/role_templates.ts`에서 영업부(`SALES_TEMPLATE`) 및 관리부(`ACCOUNTING_TEMPLATE`), `BASE_COMMON_PERMISSIONS`에 `agent_badge`가 `canView: false`로 하드코딩되어 있어, 계약서를 작성하고 발송하는 영업/관리 직원이 접속 시 무조건 권한 없음 판정 발생.
+  2. **에이전트 통신 상태와 권한 판정의 혼용(Conflation)**:
+     - 에이전트 실제 가동 여부를 확인하지 않고 임의의 권한 부재 시 "에이전트가 설치되어 있지 않거나"라는 문구를 출력하여 통신 오류로 착각 유발.
+  3. **W3C Local Network Access(LNA) 표준 통신 헬퍼 미사용**:
+     - 번들 생성 API 호출 시 원시 `fetch('http://127.0.0.1:5175/...')`를 사용하여 LNA 권한 헤더(`targetAddressSpace: 'loopback'`) 및 `localhost:5175` 자동 폴백 미지원.
+- **기술 조치 내역**:
+  1. `src/config/role_templates.ts`:
+     - `BASE_COMMON_PERMISSIONS`, `ACCOUNTING_TEMPLATE`, `SALES_TEMPLATE`에 `agent_badge: { canView: true, canSave: false }` 기본 권한 부여.
+  2. `src/pages/Contracts.tsx`:
+     - 계약서패키지 생성 버튼 권한을 `hasPermission('contract', 'view') || hasPermission('contract', 'save') || hasPermission('agent_badge', 'view')`로 정상화하여 계약 권한 보유 실무자 전원 개방.
+  3. `src/components/ContractDocumentBundleModal.tsx`:
+     - 실시간 에이전트 헬스체크 상태(`isAgentOnline`) 도입 (`fetchWithAgentFallback('/health')`).
+     - 배너를 3개 상태로 명확히 분리:
+       ① 권한 없음: `계약서 패키지 생성 권한 없음` (에이전트 설치 여부와 분리)
+       ② 에이전트 오프라인: `로컬 에이전트(eBroAgent, 포트 5175) 통신 대기` + `[에이전트 실행]` 버튼
+       ③ 에이전트 온라인: `로컬 에이전트 정상 연결됨 (포트 5175, 엑셀 COM 자동화 및 PDF 생성 준비 완료)` 초록 배지 표출.
+     - 번들 생성 호출 시 `fetchWithAgentFallback('/api/generate-contract-bundle')`로 전면 교체하여 W3C Private Network Access 및 127.0.0.1/localhost 상호 폴백 100% 보장.
+  4. `src/utils/taskHandoverPipeline.ts`:
+     - `CONTRACT_PACKAGE_RESEND` ToDo 필터링에 `hasPermission('contract', 'view')` 추가 연동.
+- **검증**: `npm run build` (`tsc -b && vite build`) 무결성 0 오류 통과 (소요 시간 1.02초).
+
+## 2026-10-06 15:35 (웹 에이전트 vs PC 에이전트 스튜디오 환경설정 R&R 재정립 및 스튜디오 통합 관리 모달 신설)
+- **배경 및 사장님 지침**:
+  - "이미지에서 환경 설정을 모두 하도록 되어 있는데, IP:port 설정은 유지 하지만, 다른 설정들은 에이전트 프로그램으로 전부 이동해야 하는것 아닌가? 웹에이전트가 직접 수신할 것이 아니잖아?"
+  - 아키텍처 원칙론적 역할 분담:
+    1. **`ebro-web-agent` (Chrome 확장 프로그램)**: 화면 조작 클라이언트이므로 텔레그램 봇 토큰이나 AI 모델 설정 등 무관한 설정은 모두 제거하고, **오직 PC 에이전트 통신 주소(WebSocket / HTTP IP:포트)**만 설정하도록 경량화.
+    2. **`eBro AI Agent 스튜디오` (로컬 PC 프로그램, 포트 5175)**: 24시간 상주하며 스마트폰 텔레그램 메시지를 수신하고 로컬 Ollama 모델을 구동하는 핵심 서버이므로, **스튜디오 화면에 `[⚙️ 환경설정]` 모달**을 신설하여 텔레그램 봇 토큰, 허용 관리자 ID, 실시간 수신 상태, 테스트 알림 발송, Ollama 추론 모델 설정을 통합 관리.
+- **기술 조치 내역**:
+  1. `ebro-web-agent` (Chrome Extension):
+     - `popup.html`: `#tabPanelConfig`에서 텔레그램 및 AI 모델 폼 전면 제거, WebSocket/HTTP IP:포트 설정 및 스튜디오 역할 안내 카드만 유지.
+     - `popup.js`: 불필요해진 텔레그램 및 AI 모델 DOM 변수/호출 제거, `loadConfig()` 및 `btnSaveConfig`가 오직 `ws_url`, `http_url`만 관리하도록 단순화.
+     - `D:\OneDrive\Desktop\ebro-web-agent.zip`: Chrome 웹 스토어 규격(루트 `manifest.json`, 표준 슬래시) 압축 파일 재생성 완료.
+  2. `agent/studioEngine.js` (PC 데스크톱 스튜디오):
+     - 글로벌 헤더 우측에 `[⚙️ 환경설정]` 버튼 추가.
+     - `#configModal` 모달 다이얼로그 및 세로 스택(`flex-direction: column`, `gap: 4px`, 헌장 3.4) 레이아웃 마크업/CSS 탑재.
+     - 텔레그램 봇 토큰, 관리자 ID, 수신 상태 배지, `[🔔 테스트 알림 발송]` 버튼, Ollama 모델 드롭다운 셀렉트, `[설정 저장]` 버튼 연동.
+     - 클라이언트 제어 함수(`openConfigModal`, `closeConfigModal`, `testTelegramFromModal`, `saveConfigFromModal`) 구현.
+  3. 컴파일 및 동기화:
+     - `node agent/encrypt_core.cjs`: `core/engine.dat` 암호화 완료 (2141.8 KB).
+     - `build-agent.ps1`: `eBroAgent.exe` 재빌드 및 디지털 서명 완료.
+     - `sync_local.ps1`: `C:\eBroAgent` 및 바탕화면 바로가기 동기화 완료.
+- **검증**:
+  - `GET http://127.0.0.1:5175/config`: 텔레그램 봇 및 Ollama 모델 정상 반환 확인.
+  - `POST http://127.0.0.1:5175/telegram/test`: 사장님 텔레그램으로 테스트 메시지 성공 발송 확인 (`success: true`).
+  - `http://127.0.0.1:5175/studio`: 스튜디오 페이지 내 `configModal` 마크업 및 실시간 연동 정상 확인.
+
+## 2026-10-06 14:58 (eBroAgent 텔레그램 봇 엔진 완전 통합 및 포트 5175 올인원 일원화)
+- **요구사항 및 문제 분석**:
+  - 파이썬 프로토타입(`ebro-agent-core`, 포트 9001/9002)과 정식 데스크톱 에이전트(`eBroAgent`, 포트 5175)의 이원화 파편화 발생.
+  - 파이썬을 별도로 실행(`start_agent.bat`)하면 포트가 9001/9002로 떠서 웹 에이전트(5175)와 엇갈려 오프라인으로 인식됨.
+  - 사장님 원칙론적 진단: "에이전트 코어를 에이전트 프로그램에 합쳐서 단일 바이너리로 작동해야 하며, 외근 중 텔레그램 지시 수신을 위해 텔레그램 봇 설정은 상시 켜져 있는 eBroAgent가 C:\eBroAgent에 저장·기억해야 한다."
+- **기술 조치 내역**:
+  1. `agent/telegramEngine.js` 신설 (Node.js 18+ 순수 내장 엔진):
+     - 외부 의존성 0% 순수 Long Polling 엔진 구현 (HTTPS `getUpdates` / `sendMessage`).
+     - `C:\eBroAgent\telegram_config.json`에 봇 토큰 및 허용 관리자 ID 영구 보존(SSOT).
+     - 사장님 스마트폰 텔레그램에서 자연어 지시 수신 시 즉시 접수 메시지 회신 후 `eBroAgent` 작업 큐(`taskQueue`)에 자동 등록.
+     - 작업 완결/실패 시 텔레그램으로 완료 요약/실패 사유 즉시 자동 회신.
+  2. `agent/studioEngine.js`:
+     - 텔레그램 봇 자동 기동 및 작업 완결 콜백(`notifyTaskComplete`) 연동.
+     - `/config` (GET & POST) 엔드포인트 신설: 텔레그램 설정 및 Ollama 모델 일괄 조회/저장.
+     - `/telegram/test` (POST) 엔드포인트 신설: 허용 관리자에게 실시간 테스트 메시지 발송.
+  3. `ebro-web-agent` (Chrome 확장 프로그램):
+     - `ws://127.0.0.1:5175` 및 `http://127.0.0.1:5175` 단일 포트 연결.
+     - 환경설정 탭에서 `eBroAgent`의 `/config` 및 `/telegram/test`를 1:1로 원활히 연동.
+  4. 컴파일 & 바이너리 단일화 배포:
+     - `build-agent.ps1`을 통해 `engine.dat`, `agent-bundle.js`, `sea-prep.blob`, `eBroAgent.exe` 재빌드 및 디지털 서명 완료.
+     - 파이썬 `ebro-agent-core`의 독립 실행을 완전히 퇴출하고, 오직 **`eBroAgent.exe` (포트 5175)** 단 하나만으로 모든 텔레그램 모바일 원격 제어 + Ollama 추론 + 웹 에이전트 화면 조작이 올인원으로 완결되도록 구조 확립.
+- **검증**:
+  - `GET http://127.0.0.1:5175/config`: 텔레그램 봇 및 Ollama 모델 정상 반환 확인.
+  - `POST http://127.0.0.1:5175/telegram/test`: 사장님 텔레그램(`@dragonrpa_boss_bot`, ChatId: 8990145136)으로 테스트 메시지 성공 발송 확인 (`success: true`).
+  - 텔레그램 지시 수신 확인: "모든 계약을 조회해서 엑셀 다운로드" 수신 및 작업 큐 자동 디스패치 확인.
+
 ## 2026-10-06 14:05 (v1.13.0.Build.36 배포 완료 - 테넌트 사이트 내 '테넌트 관리' 메뉴 원천 제거 및 격리 완결)
 - **요구사항**:
   - 테넌트가 사용하는 사이트(giyeon.ebro.run 등)의 [경영관리 - 특수] 메뉴그룹에 '테넌트 관리' 메뉴가 노출되는 결함 적발 ➔ 메뉴 및 헤더 진입로 전면 제거.

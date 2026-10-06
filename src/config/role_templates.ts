@@ -16,8 +16,8 @@ const BASE_COMMON_PERMISSIONS: PermissionRuleMap = {
   vehicle_log: { canView: true, canSave: true },
   ot_management: { canView: false, canSave: false },   // OT 관리: 권한관리에서 통제
   leave_management: { canView: false, canSave: false }, // 연차관리: 급여 권한자 전용
-  // 에이전트 배지: 기본 비노출 (프린터·파일변환 직무만 ON)
-  agent_badge: { canView: false, canSave: false },
+  // 에이전트 배지: 기본 노출 (로컬 프린터/계약서/드라이브 연동)
+  agent_badge: { canView: true, canSave: false },
   // 개인정보 접속 감사: 관리부 및 최고관리자 전용
   privacy_audit: { canView: false, canSave: false }
 };
@@ -54,8 +54,8 @@ export const ACCOUNTING_TEMPLATE: PermissionRuleMap = {
   consumable_inout: { canView: true, canSave: true },
   consumable_stock: { canView: true, canSave: true },
   consumable: { canView: true, canSave: true },
-  // 에이전트 배지: 관리부는 로컬 출력 없음 → 비노출
-  agent_badge: { canView: false, canSave: false }
+  // 에이전트 배지: 관리부 로컬 출력 및 전자문서 연동 허용
+  agent_badge: { canView: true, canSave: false }
 };
 
 // 3. 영업부 (고객 / 계약 / 출고의뢰 / AS의뢰) - DEPT-0000003
@@ -77,8 +77,8 @@ export const SALES_TEMPLATE: PermissionRuleMap = {
   product: { canView: true, canSave: false },
   asset: { canView: true, canSave: false },
   rent_asset: { canView: true, canSave: false },
-  // 에이전트 배지: 영업부는 로컬 출력 없음 → 비노출
-  agent_badge: { canView: false, canSave: false }
+  // 에이전트 배지: 영업부 계약서 패키지 생성 및 로컬 에이전트 연동 허용
+  agent_badge: { canView: true, canSave: false }
 };
 
 // 4. 출고팀 (배차 / 운송 / 출고검수) - DEPT-0000004

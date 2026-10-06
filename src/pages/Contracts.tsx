@@ -23,7 +23,7 @@ export const Contracts: React.FC = () => {
   } = useApp();
 
   const canSave = hasPermission('contract', 'save');
-  const canGeneratePackage = hasPermission('agent_badge', 'view');  // 계약서 패키지 생성 권한 = agent_badge
+  const canGeneratePackage = hasPermission('contract', 'view') || hasPermission('contract', 'save') || hasPermission('agent_badge', 'view');  // 계약서 패키지 생성 권한
   const { fetchRuleForEvent, createApprovalRequest } = useApproval();
 
   // 토스트 알림 상태 (헌장 5.2: 브라우저 alert 전면 퇴출)

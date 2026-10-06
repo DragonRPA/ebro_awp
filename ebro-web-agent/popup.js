@@ -1,10 +1,10 @@
-﻿/**
+/**
  * ebro-web-agent/popup.js
- * eBro Web Agent ?앹뾽 ?명꽣?섏씠??而⑦듃濡ㅻ윭
+ * eBro Web Agent 팝업 인터페이스 컨트롤러
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // DOM ?붿냼 李몄“
+  // DOM 요소 참조
   const pcStatusBadge = document.getElementById('pcStatusBadge');
   const pcStatusText = document.getElementById('pcStatusText');
   const erpStatusValue = document.getElementById('erpStatusValue');
@@ -20,24 +20,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   const logViewer = document.getElementById('logViewer');
   const btnClearLog = document.getElementById('btnClearLog');
 
-  // ??諛??섍꼍?ㅼ젙 ?붿냼 李몄“
+  // 탭 및 환경설정 요소 참조
   const tabBtnControl = document.getElementById('tabBtnControl');
   const tabBtnConfig = document.getElementById('tabBtnConfig');
   const tabPanelControl = document.getElementById('tabPanelControl');
   const tabPanelConfig = document.getElementById('tabPanelConfig');
 
-  const cfgTelegramToken = document.getElementById('cfgTelegramToken');
-  const cfgTelegramUserId = document.getElementById('cfgTelegramUserId');
-  const telegramLiveStatus = document.getElementById('telegramLiveStatus');
   const cfgWsUrl = document.getElementById('cfgWsUrl');
   const cfgHttpUrl = document.getElementById('cfgHttpUrl');
-  const cfgAiModel = document.getElementById('cfgAiModel');
   const btnSaveConfig = document.getElementById('btnSaveConfig');
-  const btnTestTelegram = document.getElementById('btnTestTelegram');
   const configFeedbackMsg = document.getElementById('configFeedbackMsg');
 
   /**
-   * 濡쒓렇 酉곗뼱??硫붿떆吏 異붽?
+   * 로그 뷰어에 메시지 추가
    */
   function appendLog(text, type = 'info') {
     const time = new Date().toLocaleTimeString('ko-KR', { hour12: false });
@@ -49,20 +44,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /**
-   * PC ?먯씠?꾪듃 ?곌껐 ?곹깭 媛깆떊
+   * PC 에이전트 연결 상태 갱신
    */
   function updatePcStatus(isConnected) {
     if (isConnected) {
       pcStatusBadge.className = 'status-badge status-online';
-      pcStatusText.innerText = 'PC ?먯씠?꾪듃 ?곌껐??;
+      pcStatusText.innerText = 'PC 에이전트 연결됨';
     } else {
       pcStatusBadge.className = 'status-badge status-offline';
-      pcStatusText.innerText = 'PC ?먯씠?꾪듃 ?ㅽ봽?쇱씤';
+      pcStatusText.innerText = 'PC 에이전트 오프라인';
     }
   }
 
   /**
-   * 諛깃렇?쇱슫?쒖뿉 釉뚮씪?곗? ?꾧뎄 吏곸젒 ?ㅽ뻾 ?붿껌
+   * 백그라운드에 브라우저 도구 직접 실행 요청
    */
   async function callDirectTool(action, params = {}) {
     return new Promise((resolve) => {
@@ -73,138 +68,134 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   /**
-   * ?꾩옱 ERP ?쒖뒪???곹깭 諛??쒖꽦 ???뺣낫 ?숆린??
+   * 현재 ERP 시스템 상태 및 활성 탭 정보 동기화
    */
   async function syncErpStatus() {
-    // 1. PC ?먯씠?꾪듃 ?곌껐 ?곹깭 ?뺤씤
+    // 1. PC 에이전트 연결 상태 확인
     chrome.runtime.sendMessage({ type: 'GET_STATUS' }, (res) => {
       if (res) {
         updatePcStatus(res.isConnected);
       }
     });
 
-    // 2. ?꾩옱 ??쓽 ERP ?곹깭 ?뺤씤
+    // 2. 현재 탭의 ERP 상태 확인
     try {
       const res = await callDirectTool('check_readiness');
       if (res && res.success) {
-        erpStatusValue.innerText = res.isReady ? '?뺤긽 ?묐룞 (READY)' : '珥덇린??以?;
+        erpStatusValue.innerText = res.isReady ? '정상 작동 (READY)' : '초기화 중';
         erpStatusValue.style.color = res.isReady ? '#4ade80' : '#facc15';
         erpMenuValue.innerText = res.activeMenu || '-';
       } else {
-        erpStatusValue.innerText = 'ERP 誘멸컧吏';
+        erpStatusValue.innerText = 'ERP 미감지';
         erpStatusValue.style.color = '#94a3b8';
         erpMenuValue.innerText = '-';
       }
     } catch (e) {
-      erpStatusValue.innerText = '?곌껐 ?湲?;
+      erpStatusValue.innerText = '연결 대기';
     }
   }
 
-  // 1. 珥덇린 ?곹깭 ?숆린??
+  // 1. 초기 상태 동기화
   syncErpStatus();
-  setInterval(syncErpStatus, 1000);
 
-  // 2. 諛깃렇?쇱슫?쒕줈遺???곹깭 蹂寃??섏떊
+  // 2. 백그라운드로부터 상태 변경 수신
   chrome.runtime.onMessage.addListener((msg) => {
-    if (msg.type === 'ERP_DOM_CHANGED') {
-      syncErpStatus();
-    } else 
     if (msg.type === 'STATUS_UPDATE') {
       updatePcStatus(msg.isConnected);
     } else if (msg.type === 'COMMAND_COMPLETED') {
       const res = msg.result;
       if (res && res.success) {
-        appendLog(`[PC FSM] ?묒뾽 ?꾧껐 (珥?${res.total_steps || 1}?④퀎, ${res.latency_ms || 0}ms)`, 'success');
+        appendLog(`[PC FSM] 작업 완결 (총 ${res.total_steps || 1}단계, ${res.latency_ms || 0}ms)`, 'success');
         if (res.steps && res.steps.length > 0) {
           res.steps.forEach(s => {
-            appendLog(` ??[${s.step}?④퀎] ${s.tool}: ${JSON.stringify(s.params)}`, 'info');
+            appendLog(` ↳ [${s.step}단계] ${s.tool}: ${JSON.stringify(s.params)}`, 'info');
           });
         }
         syncErpStatus();
       } else {
-        appendLog(`[PC FSM] ?곹깭: ${res?.status || '?ㅻ쪟'} (${res?.error || ''})`, 'error');
+        appendLog(`[PC FSM] 상태: ${res?.status || '오류'} (${res?.error || ''})`, 'error');
       }
     }
   });
 
-  // 3. ?먯뿰??吏???ㅽ뻾 ?몃뱾??
+  // 3. 자연어 지시 실행 핸들러
   async function handleSendCommand() {
     const text = commandInput.value.trim();
     if (!text) return;
 
-    appendLog(`紐낅졊 ?꾩넚: "${text}"`, 'action');
+    appendLog(`명령 전송: "${text}"`, 'action');
     commandInput.value = '';
 
-    // 諛깃렇?쇱슫?쒕? ?듯빐 PC ?먯씠?꾪듃???먯뿰??紐낅졊 ?꾨떖
+    // 백그라운드를 통해 PC 에이전트에 자연어 명령 전달
     chrome.runtime.sendMessage({ type: 'SEND_NATURAL_COMMAND', prompt: text }, async (res) => {
       if (res && res.success) {
-        appendLog('PC ?먯씠?꾪듃(Ollama FSM) 遺꾩꽍 諛??ㅽ뻾 ?붿껌??, 'success');
+        appendLog('PC 에이전트(Ollama FSM) 분석 및 실행 요청됨', 'success');
       } else {
-        // PC ?먯씠?꾪듃媛 ?ㅽ봽?쇱씤??寃쎌슦 釉뚮씪?곗? ?댁옣 猷??뚯꽌濡?利됱떆 ?대갚 ?ㅽ뻾
-        appendLog('PC ?먯씠?꾪듃 ?ㅽ봽?쇱씤. ?댁옣 猷??붿쭊?쇰줈 ?ㅻ떒怨??ㅽ뻾 ?쒕룄', 'info');
+        // PC 에이전트가 오프라인인 경우 브라우저 내장 룰 파서로 즉시 폴백 실행
+        appendLog('PC 에이전트 오프라인. 내장 룰 엔진으로 다단계 실행 시도', 'info');
         await executeBuiltInFallback(text);
       }
     });
   }
 
   /**
-   * 釉뚮씪?곗? ?댁옣 ?대갚 ?ㅽ뻾湲?(PC ?먯씠?꾪듃 遺???쒖뿉???ㅻ떒怨??곗냽 ?쒖뼱 蹂댁옣)
+   * 브라우저 내장 폴백 실행기 (PC 에이전트 부재 시에도 다단계 연속 제어 보장)
    */
   async function executeBuiltInFallback(prompt) {
     const p = prompt.toLowerCase();
     
-    // 1. 硫붾돱 ?대룞 ?먮퀎
+    // 1. 메뉴 이동 판별
     let targetMenu = null;
-    if (p.includes('怨꾩빟') || p.includes('contract')) targetMenu = 'contract';
-    else if (p.includes('諛곗감') || p.includes('?댁넚') || p.includes('dispatch') || p.includes('delivery')) targetMenu = 'delivery';
-    else if (p.includes('寃??) || p.includes('異쒓퀬寃??) || p.includes('inspection')) targetMenu = 'outbound_inspections';
-    else if (p.includes('??쒕낫??) || p.includes('硫붿씤') || p.includes('dashboard')) targetMenu = 'dashboard';
-    else if (p.includes('怨좉컼') || p.includes('嫄곕옒泥?)) targetMenu = 'customer';
-    else if (p.includes('泥?뎄') || p.includes('?섎궔')) targetMenu = 'billing';
-    else if (p.includes('?먯궛') || p.includes('?λ퉬')) targetMenu = 'asset';
-    else if (p.includes('?뺣퉬') || p.includes('?섎━')) targetMenu = 'repair';
+    if (p.includes('계약') || p.includes('contract')) targetMenu = 'contract';
+    else if (p.includes('배차') || p.includes('운송') || p.includes('dispatch') || p.includes('delivery')) targetMenu = 'delivery';
+    else if (p.includes('검수') || p.includes('출고검수') || p.includes('inspection')) targetMenu = 'outbound_inspections';
+    else if (p.includes('대시보드') || p.includes('메인') || p.includes('dashboard')) targetMenu = 'dashboard';
+    else if (p.includes('고객') || p.includes('거래처')) targetMenu = 'customer';
+    else if (p.includes('청구') || p.includes('수납')) targetMenu = 'billing';
+    else if (p.includes('자산') || p.includes('장비')) targetMenu = 'asset';
+    else if (p.includes('정비') || p.includes('수리')) targetMenu = 'repair';
 
     if (targetMenu) {
-      appendLog(`硫붾돱 ?대룞 ?쒕룄: [${targetMenu}]`, 'action');
+      appendLog(`메뉴 이동 시도: [${targetMenu}]`, 'action');
       await callDirectTool('navigate_menu', { menuId: targetMenu });
-      appendLog(`[${targetMenu}] ?붾㈃?쇰줈 ?대룞 ?꾨즺`, 'success');
+      appendLog(`[${targetMenu}] 화면으로 이동 완료`, 'success');
       syncErpStatus();
       await new Promise(r => setTimeout(r, 1000));
     }
 
-    // 2. 議고쉶 ?먮퀎
-    if (p.includes('議고쉶') || p.includes('寃??) || p.includes('?꾨? 議고쉶')) {
-      appendLog('議고쉶 踰꾪듉 ?대┃ ?쒕룄', 'action');
-      const searchRes = await callDirectTool('click_element', { target: '議고쉶' });
+    // 2. 조회 판별
+    if (p.includes('조회') || p.includes('검색') || p.includes('전부 조회')) {
+      appendLog('조회 버튼 클릭 시도', 'action');
+      const searchRes = await callDirectTool('click_element', { target: '조회' });
       if (searchRes && searchRes.success) {
-        appendLog('[議고쉶] 踰꾪듉 ?대┃ ?깃났', 'success');
+        appendLog('[조회] 버튼 클릭 성공', 'success');
       } else {
-        appendLog(`[議고쉶] 踰꾪듉 ?먯깋 ?ㅽ뙣: ${searchRes?.error}`, 'error');
+        appendLog(`[조회] 버튼 탐색 실패: ${searchRes?.error}`, 'error');
       }
       await new Promise(r => setTimeout(r, 600));
     }
 
-    // 3. ?묒? ?ㅼ슫濡쒕뱶 ?먮퀎
-    if (p.includes('?묒?') || p.includes('?ㅼ슫濡쒕뱶') || p.includes('?ㅼ슫') || p.includes('?대낫?닿린')) {
-      appendLog('?묒? ?ㅼ슫濡쒕뱶 踰꾪듉 ?대┃ ?쒕룄', 'action');
-      const excelRes = await callDirectTool('click_element', { target: '?묒? ?ㅼ슫濡쒕뱶' });
+    // 3. 엑셀 다운로드 판별
+    if (p.includes('엑셀') || p.includes('다운로드') || p.includes('다운') || p.includes('내보내기')) {
+      appendLog('엑셀 다운로드 버튼 클릭 시도', 'action');
+      const excelRes = await callDirectTool('click_element', { target: '엑셀 다운로드' });
       if (excelRes && excelRes.success) {
-        appendLog('[?묒? ?ㅼ슫濡쒕뱶] 踰꾪듉 ?대┃ ?깃났 -> ?뚯씪 ?ㅼ슫濡쒕뱶 媛쒖떆', 'success');
+        appendLog('[엑셀 다운로드] 버튼 클릭 성공 -> 파일 다운로드 개시', 'success');
       } else {
-        appendLog(`[?묒? ?ㅼ슫濡쒕뱶] 踰꾪듉 ?먯깋 ?ㅽ뙣: ${excelRes?.error}`, 'error');
+        appendLog(`[엑셀 다운로드] 버튼 탐색 실패: ${excelRes?.error}`, 'error');
       }
       return;
     }
 
-    // 4. 湲고? ?⑥씪 ?꾧뎄
-    if (p.includes('踰덊샇??) || p.includes('som') || p.includes('留덊겕')) {
+    // 4. 기타 단일 도구
+    if (p.includes('번호표') || p.includes('som') || p.includes('마크')) {
       const res = await callDirectTool('toggle_som');
-      appendLog(`SoM 踰덊샇?? ${res?.somEnabled ? '耳쒖쭚' : '爰쇱쭚'}`, 'success');
-    } else if (p.includes('?쎄린') || p.includes('dom') || p.includes('?곹깭 ?뺤씤')) {
+      appendLog(`SoM 번호표: ${res?.somEnabled ? '켜짐' : '꺼짐'}`, 'success');
+    } else if (p.includes('읽기') || p.includes('dom') || p.includes('상태 확인')) {
       const res = await callDirectTool('get_page_content');
-      appendLog(`?섏씠吏 遺꾩꽍: ?붿냼 ${res?.interactiveElementsCount || 0}媛?媛먯???, 'success');
+      appendLog(`페이지 분석: 요소 ${res?.interactiveElementsCount || 0}개 감지됨`, 'success');
     } else {
-      appendLog(`紐낅졊 ?댁꽍 ?꾨즺: "${prompt}"`, 'info');
+      appendLog(`명령 해석 완료: "${prompt}"`, 'info');
     }
   }
 
@@ -213,43 +204,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (e.key === 'Enter') handleSendCommand();
   });
 
-  // 4. ???쒖뼱 踰꾪듉援??대깽??
+  // 4. 퀵 제어 버튼군 이벤트
   btnToggleSom.addEventListener('click', async () => {
-    appendLog('SoM 踰덊샇???좉? ?ㅽ뻾', 'action');
+    appendLog('SoM 번호표 토글 실행', 'action');
     const res = await callDirectTool('toggle_som');
-    appendLog(`SoM 踰덊샇???곹깭: ${res?.somEnabled ? '?쒖꽦?? : '鍮꾪솢?깊솕'}`, 'success');
+    appendLog(`SoM 번호표 상태: ${res?.somEnabled ? '활성화' : '비활성화'}`, 'success');
   });
 
   btnReadDom.addEventListener('click', async () => {
-    appendLog('?붾㈃ DOM ?뺣낫 異붿텧 以?..', 'action');
+    appendLog('화면 DOM 정보 추출 중...', 'action');
     const res = await callDirectTool('get_page_content');
     if (res && res.success) {
-      appendLog(`硫붾돱: ${res.currentMenu}, ?붿냼 ?? ${res.interactiveElementsCount}媛?, 'success');
+      appendLog(`메뉴: ${res.currentMenu}, 요소 수: ${res.interactiveElementsCount}개`, 'success');
     } else {
-      appendLog('DOM ?뺣낫 異붿텧 ?ㅽ뙣', 'error');
+      appendLog('DOM 정보 추출 실패', 'error');
     }
   });
 
   btnNavContract.addEventListener('click', async () => {
-    appendLog('怨꾩빟 愿由??대룞', 'action');
+    appendLog('계약 관리 이동', 'action');
     await callDirectTool('navigate_menu', { menuId: 'contract' });
     syncErpStatus();
   });
 
   btnNavDispatch.addEventListener('click', async () => {
-    appendLog('諛곗감 愿由??대룞', 'action');
+    appendLog('배차 관리 이동', 'action');
     await callDirectTool('navigate_menu', { menuId: 'delivery' });
     syncErpStatus();
   });
 
   btnNavInspection.addEventListener('click', async () => {
-    appendLog('異쒓퀬 寃???대룞', 'action');
+    appendLog('출고 검수 이동', 'action');
     await callDirectTool('navigate_menu', { menuId: 'outbound_inspections' });
     syncErpStatus();
   });
 
   btnNavDashboard.addEventListener('click', async () => {
-    appendLog('??쒕낫???대룞', 'action');
+    appendLog('대시보드 이동', 'action');
     await callDirectTool('navigate_menu', { menuId: 'dashboard' });
     syncErpStatus();
   });
@@ -258,7 +249,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     logViewer.innerHTML = '';
   });
 
-  // 5. ???꾪솚 ?쒖뼱
+  // 5. 탭 전환 제어
   tabBtnControl.addEventListener('click', () => {
     tabBtnControl.classList.add('active');
     tabBtnConfig.classList.remove('active');
@@ -274,119 +265,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadConfig();
   });
 
-  // ?섍꼍?ㅼ젙 遺덈윭?ㅺ린
+  // 환경설정 불러오기
   async function loadConfig() {
     configFeedbackMsg.innerText = '';
     configFeedbackMsg.className = 'feedback-msg';
 
-    // 1. 釉뚮씪?곗? ??μ냼 ?곗꽑 濡쒕뱶
-    chrome.storage.local.get(['telegram_token', 'telegram_user_id', 'ws_url', 'http_url', 'ai_model'], (st) => {
-      if (st.telegram_token) cfgTelegramToken.value = st.telegram_token;
-      if (st.telegram_user_id) cfgTelegramUserId.value = st.telegram_user_id;
+    // 브라우저 저장소에서 로드
+    chrome.storage.local.get(['ws_url', 'http_url'], (st) => {
       if (st.ws_url) cfgWsUrl.value = st.ws_url;
       if (st.http_url) cfgHttpUrl.value = st.http_url;
-      if (st.ai_model) cfgAiModel.value = st.ai_model;
     });
-
-    // 2. PC ?먯씠?꾪듃 ?ㅼ떆媛??ㅼ젙 議고쉶 (/config)
-    const httpBase = cfgHttpUrl.value.trim() || 'http://127.0.0.1:9002';
-    try {
-      const res = await fetch(`${httpBase}/config`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.telegram_bot_token && !cfgTelegramToken.value) {
-          cfgTelegramToken.value = data.telegram_bot_token;
-        }
-        if (data.telegram_allowed_user_id && !cfgTelegramUserId.value) {
-          cfgTelegramUserId.value = data.telegram_allowed_user_id;
-        }
-        if (data.ai_model) {
-          cfgAiModel.value = data.ai_model;
-        }
-        telegramLiveStatus.innerText = data.telegram_running ? '?곌껐??(?섏떊 ?湲?' : '誘몄꽕??/ ?뺤?';
-        telegramLiveStatus.style.color = data.telegram_running ? '#4ade80' : '#f87171';
-      }
-    } catch (e) {
-      telegramLiveStatus.innerText = 'PC ?먯씠?꾪듃 誘몄쓳??;
-      telegramLiveStatus.style.color = '#94a3b8';
-    }
   }
 
-  // 6. ?섍꼍?ㅼ젙 ???
+  // 6. 환경설정 저장
   btnSaveConfig.addEventListener('click', async () => {
-    const token = cfgTelegramToken.value.trim();
-    const userId = cfgTelegramUserId.value.trim();
-    const wsUrl = cfgWsUrl.value.trim() || 'ws://127.0.0.1:9001';
-    const httpUrl = cfgHttpUrl.value.trim() || 'http://127.0.0.1:9002';
-    const aiModel = cfgAiModel.value;
+    const wsUrl = cfgWsUrl.value.trim() || 'ws://127.0.0.1:5175';
+    const httpUrl = cfgHttpUrl.value.trim() || 'http://127.0.0.1:5175';
 
-    configFeedbackMsg.innerText = '???諛?媛깆떊 以?..';
+    configFeedbackMsg.innerText = '저장 중...';
     configFeedbackMsg.className = 'feedback-msg';
 
-    // 1. 釉뚮씪?곗? 濡쒖뺄 ???
+    // 브라우저 로컬 저장
     chrome.storage.local.set({
-      telegram_token: token,
-      telegram_user_id: userId,
       ws_url: wsUrl,
-      http_url: httpUrl,
-      ai_model: aiModel
+      http_url: httpUrl
+    }, () => {
+      configFeedbackMsg.innerText = '연결 주소가 저장되었습니다.';
+      configFeedbackMsg.className = 'feedback-msg success';
+      appendLog('PC 에이전트 연결 주소 설정 완료', 'success');
+      syncErpStatus();
     });
-
-    // 2. PC ?먯씠?꾪듃 ?숆린??
-    try {
-      const res = await fetch(`${httpUrl}/config`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          telegram_bot_token: token,
-          telegram_allowed_user_id: userId,
-          ai_model: aiModel
-        })
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        configFeedbackMsg.innerText = '?ㅼ젙????λ릺怨??붾젅洹몃옩 遊뉗씠 媛깆떊?섏뿀?듬땲??';
-        configFeedbackMsg.className = 'feedback-msg success';
-        telegramLiveStatus.innerText = data.telegram_running ? '?곌껐??(?섏떊 ?湲?' : '誘몄꽕??/ ?뺤?';
-        telegramLiveStatus.style.color = data.telegram_running ? '#4ade80' : '#f87171';
-        appendLog('?섍꼍?ㅼ젙 ???諛?PC ?먯씠?꾪듃 ?숆린???꾨즺', 'success');
-      } else {
-        configFeedbackMsg.innerText = 'PC ?먯씠?꾪듃 ????묐떟 ?ㅻ쪟';
-        configFeedbackMsg.className = 'feedback-msg error';
-      }
-    } catch (err) {
-      configFeedbackMsg.innerText = '釉뚮씪?곗? ??μ? ?꾨즺?섏뿀?쇰굹 PC ?먯씠?꾪듃媛 ?ㅽ봽?쇱씤?낅땲??';
-      configFeedbackMsg.className = 'feedback-msg error';
-    }
-  });
-
-  // 7. ?붾젅洹몃옩 ?곌껐 ?뚯뒪??
-  btnTestTelegram.addEventListener('click', async () => {
-    const httpUrl = cfgHttpUrl.value.trim() || 'http://127.0.0.1:9002';
-    configFeedbackMsg.innerText = '?뚯뒪??硫붿떆吏 諛쒖넚 以?..';
-    configFeedbackMsg.className = 'feedback-msg';
-
-    try {
-      const res = await fetch(`${httpUrl}/telegram/test`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await res.json();
-      if (data.success) {
-        configFeedbackMsg.innerText = '?ㅻ쭏?명룿 ?붾젅洹몃옩?쇰줈 ?뚯뒪???뚮┝??諛쒖넚?섏뿀?듬땲??';
-        configFeedbackMsg.className = 'feedback-msg success';
-        appendLog('?붾젅洹몃옩 ?뚯뒪??硫붿떆吏 諛쒖넚 ?꾨즺', 'success');
-      } else {
-        configFeedbackMsg.innerText = `諛쒖넚 ?ㅽ뙣: ${data.error}`;
-        configFeedbackMsg.className = 'feedback-msg error';
-        appendLog(`?붾젅洹몃옩 ?뚯뒪???ㅽ뙣: ${data.error}`, 'error');
-      }
-    } catch (err) {
-      configFeedbackMsg.innerText = 'PC ?먯씠?꾪듃 ?듭떊 ?ㅽ뙣';
-      configFeedbackMsg.className = 'feedback-msg error';
-    }
   });
 });
-
-

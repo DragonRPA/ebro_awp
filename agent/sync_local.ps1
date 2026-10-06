@@ -9,7 +9,8 @@ Start-Sleep -Milliseconds 600
 $agentHome = 'C:\eBroAgent'
 if (-not (Test-Path $agentHome)) { New-Item -ItemType Directory -Path $agentHome -Force | Out-Null }
 
-$srcDir = 'D:\01.AntiGravity\Giyuen_Lift\agent'
+$srcDir = $PSScriptRoot
+if (-not $srcDir) { $srcDir = 'D:\01.AntiGravity\eBro\agent' }
 $files = @(
     'eBroAgent.exe',
     'eBroAgent.ico',

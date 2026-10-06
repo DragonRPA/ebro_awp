@@ -186,7 +186,7 @@ export function findActiveTasksForUser(
 
     // 5. 🌟 계약서패키지 재발송 ToDo: 발송 권한 보유자 또는 영업/출고 부서원 매칭
     if (t.taskCategory === 'CONTRACT_PACKAGE_RESEND') {
-      if (hasPermission && hasPermission('agent_badge', 'view')) return true;
+      if (hasPermission && (hasPermission('contract', 'view') || hasPermission('agent_badge', 'view'))) return true;
       if (t.assignedUserId && t.assignedUserId === currentUser.id) return true;
       if (uDept.includes('SALES') || uDept.includes('영업') || uRole.includes('SALES')) return true;
       if (uDept.includes('출고') || uDept.includes('배차') || uRole.includes('LOGISTICS')) return true;

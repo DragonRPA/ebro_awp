@@ -17,6 +17,7 @@
       <div id="pcStatusBadge" class="status-badge status-offline">
         <span class="status-dot"></span>
         <span id="pcStatusText">PC 오프라인</span>
+        <span id="pcPortTag" class="port-tag">포트 5175</span>
       </div>
     </header>
 
@@ -33,6 +34,10 @@
         <div class="info-row">
           <span class="info-label">ERP 시스템 상태</span>
           <span id="erpStatusValue" class="info-value">확인 중...</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">에이전트 연결 포트</span>
+          <span id="pcPortValue" class="info-value font-mono">포트 5175 (확인 중)</span>
         </div>
         <div class="info-row">
           <span class="info-label">활성 메뉴</span>
@@ -80,45 +85,13 @@
       </section>
     </main>
 
-    <!-- 탭 2: 환경설정 패널 -->
+    <!-- 탭 2: 환경설정 패널 (PC 에이전트 IP:포트 연결 설정 전용) -->
     <main id="tabPanelConfig" class="tab-panel">
-      <!-- 텔레그램 모바일 연동 설정 -->
-      <section class="config-section">
-        <div class="config-title">텔레그램 모바일 연동</div>
-        <div class="form-stack">
-          <label for="cfgTelegramToken" class="field-label">텔레그램 봇 토큰 (Bot Token)</label>
-          <input 
-            type="password" 
-            id="cfgTelegramToken" 
-            class="text-input" 
-            placeholder="@BotFather 발급 토큰" 
-            autocomplete="off"
-          />
-        </div>
-        <div class="form-stack">
-          <label for="cfgTelegramUserId" class="field-label">텔레그램 사용자 ID (User ID)</label>
-          <input 
-            type="text" 
-            id="cfgTelegramUserId" 
-            class="text-input" 
-            placeholder="@userinfobot 확인 숫자 ID" 
-            autocomplete="off"
-          />
-        </div>
-        <div class="info-row" style="margin-top: 2px;">
-          <span class="info-label">모바일 수신 대기 상태</span>
-          <span id="telegramLiveStatus" class="info-value font-mono">확인 중</span>
-        </div>
-        <button type="button" id="btnTestTelegram" class="btn btn-outline" style="width: 100%; margin-top: 4px;">
-          테스트 메시지 발송
-        </button>
-      </section>
-
       <!-- PC 에이전트 통신 주소 설정 -->
       <section class="config-section">
-        <div class="config-title">PC 에이전트 주소</div>
+        <div class="config-title">PC 에이전트 연결 주소</div>
         <div class="form-stack">
-          <label for="cfgWsUrl" class="field-label">WebSocket 주소</label>
+          <label for="cfgWsUrl" class="field-label">WebSocket 주소 (IP:포트)</label>
           <input 
             type="text" 
             id="cfgWsUrl" 
@@ -127,33 +100,24 @@
           />
         </div>
         <div class="form-stack">
-          <label for="cfgHttpUrl" class="field-label">HTTP API 주소</label>
+          <label for="cfgHttpUrl" class="field-label">HTTP API 주소 (IP:포트)</label>
           <input 
             type="text" 
             id="cfgHttpUrl" 
             class="text-input font-mono" 
-            value="http://127.0.0.1:9002" 
+            value="http://127.0.0.1:5175" 
           />
         </div>
       </section>
 
-      <!-- AI 엔진 모델 설정 -->
-      <section class="config-section">
-        <div class="config-title">AI 엔진 모델</div>
-        <div class="form-stack">
-          <label for="cfgAiModel" class="field-label">기본 추론 모델</label>
-          <select id="cfgAiModel" class="text-input">
-            <option value="ebro-qwen:3b">ebro-qwen:3b (기능정의서 튜닝 모델)</option>
-            <option value="qwen2.5-3b-tuned_v1">qwen2.5-3b-tuned_v1</option>
-            <option value="qwen2.5:0.5b">qwen2.5:0.5b (초경량 모델)</option>
-            <option value="RULE_ONLY">내장 룰 엔진 단독 (Ollama 미사용)</option>
-          </select>
-        </div>
+      <!-- 아키텍처 역할 안내 카드 -->
+      <section class="info-card" style="margin-top: 4px; font-size: 11.5px; color: var(--text-muted); line-height: 1.5;">
+        <div>ℹ️ 텔레그램 모바일 원격 제어 및 Ollama AI 추론 엔진 설정은 24시간 백그라운드로 구동되는 <b>eBro AI Agent 스튜디오</b>에서 통합 관리됩니다.</div>
       </section>
 
       <!-- 설정 저장 액션 -->
-      <button type="button" id="btnSaveConfig" class="btn btn-primary" style="width: 100%; padding: 8px;">
-        설정 저장
+      <button type="button" id="btnSaveConfig" class="btn btn-primary" style="width: 100%; padding: 8px; margin-top: 6px;">
+        연결 주소 저장
       </button>
       <div id="configFeedbackMsg" class="feedback-msg"></div>
     </main>
