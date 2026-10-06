@@ -2410,6 +2410,9 @@ export interface GoogleConfig {
   googleEmail: string;
   googlePassword?: string;
   gmailAppPassword?: string;
+  smtpProvider?: 'GMAIL' | 'NAVER' | 'DAUM' | 'CUSTOM';
+  smtpHost?: string;
+  smtpPort?: number;
   contractFolder: string;
   consumableFolder: string;
   deliveryFolder: string;

@@ -30,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { to, cc, subject, body, html, googleEmail, gmailAppPassword, attachments, tenantCorp, tenantBrand, fromName } = req.body || {};
+  const { to, cc, subject, body, html, googleEmail, gmailAppPassword, smtpHost, smtpPort, attachments, tenantCorp, tenantBrand, fromName } = req.body || {};
 
   if (!to || !subject || !body) {
     return res.status(400).json({ error: '수신자(to), 제목(subject), 본문(body)은 필수 항목입니다.' });
@@ -46,10 +46,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const cleanEmail = String(googleEmail).trim();
     const cleanPass  = String(gmailAppPassword).replace(/\s+/g, '').trim();
 
-    // Gmail SMTP 클라이언트 트랜스포터 생성
+    // SMTP 클라이언트 트랜스포터 생성
     const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
+      host: smtpHost || 'smtp.gmail.com',
+      port: smtpPort || 465,
       secure: true, // SSL (port 465)
       auth: {
         user: cleanEmail,

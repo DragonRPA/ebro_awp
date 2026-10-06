@@ -93,15 +93,19 @@ class RealGmailService {
       ''
     ).replace(/\s+/g, '').trim();
 
+    const smtpProvider = dbConfig?.smtpProvider || lsConfig?.smtpProvider || 'GMAIL';
+    const smtpHost = dbConfig?.smtpHost || lsConfig?.smtpHost || '';
+    const smtpPort = dbConfig?.smtpPort || lsConfig?.smtpPort || 0;
+
     if (!googleEmail) {
       throw new Error(
-        '⚠️ 발송용 구글 계정이 설정되어 있지 않습니다. [시스템 설정 > 구글 및 클라우드 연계 설정] 메뉴에서 구글 계정 이메일을 먼저 등록해 주세요.'
+        '⚠️ 발송용 구글 계정이 설정되어 있지 않습니다. [시스템 설정 > 공식 메일 연동 설정] 메뉴에서 구글 계정 이메일을 먼저 등록해 주세요.'
       );
     }
 
     if (!gmailAppPassword || gmailAppPassword.includes('•')) {
       throw new Error(
-        `⚠️ 구글 연동 계정(${googleEmail})의 16자리 Gmail 발송용 앱 비밀번호가 설정되지 않았거나 마스킹 상태입니다.\n\n[시스템 설정 > 구글 및 클라우드 연계 설정] 메뉴에서 구글 계정 2단계 인증 후 발급받으신 16자리 앱 비밀번호(App Password)를 직접 입력하고 [구글 연동 설정 저장]을 눌러 주세요.`
+        `⚠️ 구글 연동 계정(${googleEmail})의 16자리 Gmail 발송용 앱 비밀번호가 설정되지 않았거나 마스킹 상태입니다.\n\n[시스템 설정 > 공식 메일 연동 설정] 메뉴에서 구글 계정 2단계 인증 후 발급받으신 16자리 앱 비밀번호(App Password)를 직접 입력하고 [구글 연동 설정 저장]을 눌러 주세요.`
       );
     }
 
@@ -145,6 +149,9 @@ class RealGmailService {
       body,
       googleEmail,
       gmailAppPassword,
+      smtpProvider,
+      smtpHost,
+      smtpPort,
       attachments: processedAttachments,
       fromName: fromName || '(주)기연리프트'
     };

@@ -10,7 +10,7 @@ import { useApp } from '../context/AppContext';
 import { 
   Tenant, TenantFeatures, TenantBankAccount, TenantYard, OFFICIAL_STAMP_BASE64,
   TenantSubscription, SubscriptionPlan, SubscriptionStatus, getTenantSubscriptionInfo,
-  SolutionType 
+  SolutionType, db, GoogleConfig 
 } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { SYSTEM_MENU_CONFIG, getAllSystemMenuIds, MenuGroupConfig } from '../config/menu_config';
@@ -148,6 +148,14 @@ export const TenantManagementPage: React.FC = () => {
     workplaces: [],
   });
 
+  const [r2Config, setR2Config] = useState<Partial<GoogleConfig>>({
+    r2AccountId: '',
+    r2BucketName: '',
+    r2AccessKeyId: '',
+    r2SecretAccessKey: '',
+    r2PublicDomain: '',
+  });
+
   // 파일 업로드 참조
   const ciFileInputRef = useRef<HTMLInputElement>(null);
   const stampFileInputRef = useRef<HTMLInputElement>(null);
@@ -206,10 +214,18 @@ export const TenantManagementPage: React.FC = () => {
 
   // ── 테넌트 등록/수정 모달 오픈 ──
   // ── 테넌트 등록/수정 모달 오픈 ──
-  const handleOpenModal = (tenant?: Tenant, initialTab: 'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'AGENTS' | 'TEMPLATES' | 'INITIAL_DB' = 'BASIC') => {
+  const handleOpenModal = (tenant?: Tenant, initialTab: 'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'AGENTS' | 'TEMPLATES' | 'INITIAL_DB' | 'STORAGE' = 'BASIC') => {
     setModalTab(initialTab);
     setPageSearchKeyword('');
     if (tenant) {
+      const gConfig = db.googleConfigs.find(c => c.tenantId === tenant.id);
+      setR2Config({
+        r2AccountId: gConfig?.r2AccountId || '',
+        r2BucketName: gConfig?.r2BucketName || '',
+        r2AccessKeyId: gConfig?.r2AccessKeyId || '',
+        r2SecretAccessKey: gConfig?.r2SecretAccessKey || '',
+        r2PublicDomain: gConfig?.r2PublicDomain || '',
+      });
       setEditingTenant(tenant);
       setFormData({
         ...tenant,
@@ -245,6 +261,13 @@ export const TenantManagementPage: React.FC = () => {
         workplaces: tenant.workplaces ? [...tenant.workplaces] : [],
       });
     } else {
+      setR2Config({
+        r2AccountId: '',
+        r2BucketName: '',
+        r2AccessKeyId: '',
+        r2SecretAccessKey: '',
+        r2PublicDomain: '',
+      });
       setEditingTenant(null);
       const today = new Date().toISOString().slice(0, 10);
       const nextYear = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -694,6 +717,32 @@ export const TenantManagementPage: React.FC = () => {
       }
 
       await saveTenant(tenantToSave);
+
+      // GoogleConfig에 R2 설정 저장/업데이트
+      const targetTenantId = tenantToSave.id!;
+      const existingConfig = db.googleConfigs.find(c => c.tenantId === targetTenantId);
+      if (existingConfig) {
+        db.updateRow<GoogleConfig>('googleConfigs', existingConfig.id, {
+          ...r2Config,
+          updatedAt: new Date().toISOString()
+        });
+      } else {
+        db.insertRow<GoogleConfig>('googleConfigs', {
+          id: db.generateNextId('googleConfigs', db.googleConfigs),
+          tenantId: targetTenantId,
+          googleEmail: '',
+          contractFolder: '',
+          consumableFolder: '',
+          deliveryFolder: '',
+          maintenanceFolder: '',
+          isDevMode: false,
+          ...r2Config,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      }
+      await db.awaitPendingWrites();
+
       setIsModalOpen(false);
       setEditingTenant(null);
     } catch (err: any) {
@@ -1503,6 +1552,7 @@ export const TenantManagementPage: React.FC = () => {
                 { key: 'AGENTS', label: '에이전트 관제' },
                 { key: 'TEMPLATES', label: '서식 관리' },
                 { key: 'INITIAL_DB', label: '초기 DB 업로드' },
+                { key: 'STORAGE', label: '스토리지 설정' },
               ].map(tab => (
                 <button
                   key={tab.key}
@@ -3588,6 +3638,80 @@ export const TenantManagementPage: React.FC = () => {
                 </div>
               )}
             </div>
+
+              {modalTab === 'STORAGE' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Database size={15} color="var(--primary)" />
+                      Cloudflare R2 스토리지 설정 (GoogleConfig 연동)
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      테넌트의 사진 및 파일 저장을 위한 Cloudflare R2 스토리지 연결 정보를 입력합니다.
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', backgroundColor: 'var(--bg-app)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>R2 Account ID</label>
+                      <input
+                        type="text"
+                        value={r2Config.r2AccountId}
+                        onChange={e => setR2Config({ ...r2Config, r2AccountId: e.target.value })}
+                        placeholder="예: 32자리 문자열"
+                        className="input-field"
+                        style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '13px' }}
+                      />
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>R2 Bucket Name</label>
+                      <input
+                        type="text"
+                        value={r2Config.r2BucketName}
+                        onChange={e => setR2Config({ ...r2Config, r2BucketName: e.target.value })}
+                        placeholder="예: giyeon-storage"
+                        className="input-field"
+                        style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '13px' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>R2 Access Key ID</label>
+                      <input
+                        type="text"
+                        value={r2Config.r2AccessKeyId}
+                        onChange={e => setR2Config({ ...r2Config, r2AccessKeyId: e.target.value })}
+                        className="input-field"
+                        style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '13px' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>R2 Secret Access Key</label>
+                      <input
+                        type="password"
+                        value={r2Config.r2SecretAccessKey}
+                        onChange={e => setR2Config({ ...r2Config, r2SecretAccessKey: e.target.value })}
+                        className="input-field"
+                        style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '13px' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>R2 Public Domain</label>
+                      <input
+                        type="text"
+                        value={r2Config.r2PublicDomain}
+                        onChange={e => setR2Config({ ...r2Config, r2PublicDomain: e.target.value })}
+                        placeholder="예: https://pub-xxxx.r2.dev"
+                        className="input-field"
+                        style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '13px' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
             {/* 모달 푸터 */}
             <div style={{

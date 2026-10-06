@@ -3,7 +3,6 @@ import { useApp } from '../context/AppContext';
 import { Settings, Mail, FolderOpen, RefreshCw, CheckCircle2, Lock, Eye, EyeOff, ShieldCheck, HelpCircle, AlertTriangle, ExternalLink, Key, Search, Cloud, Folder, File, ArrowLeft, Download, HardDrive, FileText, Shield, Save } from 'lucide-react';
 import { GoogleConfig as GoogleConfigType } from '../services/db';
 import { CloudStoragePickerModal } from '../components/CloudStoragePickerModal';
-import { downloadEvidenceAsZip, deleteStorageFiles } from '../services/supabaseStorage';
 import { backupToGoogleDrive, getDriveReadToken, extractDriveFileId, extractDriveFolderId, listFilesInDriveFolder } from '../services/googleDriveBackup';
 import { 
   generateContractPdf, 
@@ -14,7 +13,6 @@ import {
 import { PDFDocument } from 'pdf-lib';
 import JSZip from 'jszip';
 import { EXPECTED_AGENT_VERSION, AGENT_CERT_URL, AGENT_INSTALL_BAT_URL, AGENT_EXE_URL, fetchWithAgentFallback, isAgentOnlineGlobal, subscribeAgentStatus } from '../services/agentService';
-import { executeR2MirrorSync, testR2Connection } from '../services/r2MirrorSync';
 
 export const GoogleConfig: React.FC = () => {
   const { 
@@ -40,6 +38,26 @@ export const GoogleConfig: React.FC = () => {
   const [googleEmail, setGoogleEmail] = useState('');
   const [googlePassword, setGooglePassword] = useState('');
   const [gmailAppPassword, setGmailAppPassword] = useState('');
+  const [smtpProvider, setSmtpProvider] = useState<'GMAIL' | 'NAVER' | 'DAUM' | 'CUSTOM'>('GMAIL');
+  const [smtpHost, setSmtpHost] = useState('');
+  const [smtpPort, setSmtpPort] = useState<number>(465);
+
+  const handleProviderChange = (provider: 'GMAIL' | 'NAVER' | 'DAUM' | 'CUSTOM') => {
+    setSmtpProvider(provider);
+    if (provider === 'GMAIL') {
+      setSmtpHost('smtp.gmail.com');
+      setSmtpPort(465);
+    } else if (provider === 'NAVER') {
+      setSmtpHost('smtp.naver.com');
+      setSmtpPort(465);
+    } else if (provider === 'DAUM') {
+      setSmtpHost('smtp.daum.net');
+      setSmtpPort(465);
+    } else {
+      setSmtpHost('');
+      setSmtpPort(465);
+    }
+  };
   
   const [contractFolder, setContractFolder] = useState('');
   const [consumableFolder, setConsumableFolder] = useState('');
@@ -49,18 +67,6 @@ export const GoogleConfig: React.FC = () => {
   // 신설 필드 상태
   const [mirrorRecursive, setMirrorRecursive] = useState(true);
 
-  // ── Cloudflare R2 클라우드 스토리지 상태 ──
-  const [r2AccountId, setR2AccountId] = useState('');
-  const [r2BucketName, setR2BucketName] = useState('');
-  const [r2AccessKeyId, setR2AccessKeyId] = useState('');
-  const [r2SecretAccessKey, setR2SecretAccessKey] = useState('');
-  const [r2PublicDomain, setR2PublicDomain] = useState('');
-  const [showR2SecretKey, setShowR2SecretKey] = useState(false);
-  const [isTestingR2, setIsTestingR2] = useState(false);
-  const [isSyncingR2, setIsSyncingR2] = useState(false);
-  const [r2FilesList, setR2FilesList] = useState<any[]>([]);
-  const [showR2FileModal, setShowR2FileModal] = useState(false);
-  const [isLoadingR2Files, setIsLoadingR2Files] = useState(false);
 
   // 로컬 사이드카 에이전트 모니터링 상태
   const [agentStatus, setAgentStatus] = useState<'ONLINE' | 'OFFLINE'>(() => isAgentOnlineGlobal() ? 'ONLINE' : 'OFFLINE');
@@ -201,23 +207,16 @@ export const GoogleConfig: React.FC = () => {
       setGoogleEmail(currentConfig.googleEmail || '');
       setGooglePassword(currentConfig.googlePassword || '');
       setGmailAppPassword(currentConfig.gmailAppPassword || '');
+      setSmtpProvider(currentConfig.smtpProvider || 'GMAIL');
+      setSmtpHost(currentConfig.smtpHost || '');
+      setSmtpPort(currentConfig.smtpPort || 465);
       setContractFolder(currentConfig.contractFolder || '');
       setConsumableFolder(currentConfig.consumableFolder || '');
       setDeliveryFolder(currentConfig.deliveryFolder || '');
       setMaintenanceFolder(currentConfig.maintenanceFolder || '');
       setMirrorRecursive(currentConfig.mirrorRecursive !== undefined ? currentConfig.mirrorRecursive : true);
-      setR2AccountId(currentConfig.r2AccountId || '35014a2514680107d74e1e68d96e6c32');
-      setR2BucketName(currentConfig.r2BucketName === 'kiyeun-storage' ? 'giyeon-storage' : (currentConfig.r2BucketName || 'giyeon-storage'));
-      setR2AccessKeyId(currentConfig.r2AccessKeyId || '03cdb7560d37242de608a5db2a976030');
-      setR2SecretAccessKey(currentConfig.r2SecretAccessKey || 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986');
-      setR2PublicDomain(currentConfig.r2PublicDomain === 'https://pub-a2fd3c2ae0cc450b8ebe34baf1b051e1.r2.dev' ? 'https://pub-55a68547bdf24600b80d27782912c83e.r2.dev' : (currentConfig.r2PublicDomain || 'https://pub-55a68547bdf24600b80d27782912c83e.r2.dev'));
       setIsDevMode(currentConfig.isDevMode !== undefined ? currentConfig.isDevMode : true);
     } else {
-      setR2AccountId('35014a2514680107d74e1e68d96e6c32');
-      setR2BucketName('giyeon-storage');
-      setR2AccessKeyId('03cdb7560d37242de608a5db2a976030');
-      setR2SecretAccessKey('b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986');
-      setR2PublicDomain('https://pub-55a68547bdf24600b80d27782912c83e.r2.dev');
     }
   }, [currentConfig]);
 
@@ -283,17 +282,15 @@ export const GoogleConfig: React.FC = () => {
         googleEmail,
         googlePassword: finalPassword,
         gmailAppPassword: finalAppPassword,
+        smtpProvider,
+        smtpHost,
+        smtpPort,
         contractFolder,
         consumableFolder,
         deliveryFolder,
         maintenanceFolder,
         isDevMode,
         mirrorRecursive,
-        r2AccountId,
-        r2BucketName,
-        r2AccessKeyId,
-        r2SecretAccessKey,
-        r2PublicDomain,
         updatedAt: new Date().toISOString()
       };
 
@@ -301,108 +298,6 @@ export const GoogleConfig: React.FC = () => {
       alert('클라우드 스토리지 및 Cloudflare R2 설정 정보가 안전하게 저장되었습니다.');
     } catch (err: any) {
       showErrorModal(`⚠️ 설정 원격 DB 저장 실패:\n\n${err?.message || err}`, '스토리지 설정 저장 오류');
-    }
-  };
-
-  const handleTestR2Connection = async () => {
-    if (!r2AccountId || !r2BucketName || !r2AccessKeyId || !r2SecretAccessKey) {
-      alert('⚠️ Cloudflare R2 필수 설정값(Account ID, Bucket Name, Access Key, Secret Key)을 모두 입력해 주세요.');
-      return;
-    }
-    setIsTestingR2(true);
-    try {
-      const res = await testR2Connection({
-        id: currentConfig?.id || 'default',
-        googleEmail: googleEmail || '',
-        contractFolder: '',
-        consumableFolder: '',
-        deliveryFolder: '',
-        maintenanceFolder: '',
-        isDevMode: true,
-        r2AccountId,
-        r2BucketName,
-        r2AccessKeyId,
-        r2SecretAccessKey,
-        r2PublicDomain,
-        updatedAt: new Date().toISOString()
-      });
-      if (res.success) {
-        alert(`🎉 ${res.message || 'Cloudflare R2 버킷 연결에 성공했습니다!'}`);
-      } else {
-        alert(`❌ Cloudflare R2 연결 실패:\n${res.message || '자격증명 또는 버킷명을 확인해 주세요.'}`);
-      }
-    } catch (err: any) {
-      alert(`❌ 연결 테스트 중 오류 발생:\n${err?.message || err}`);
-    } finally {
-      setIsTestingR2(false);
-    }
-  };
-
-  const handleSyncR2ToLocal = async () => {
-    if (!r2AccountId || !r2BucketName || !r2AccessKeyId || !r2SecretAccessKey) {
-      alert('⚠️ Cloudflare R2 설정을 먼저 완료하고 저장해 주세요.');
-      return;
-    }
-    setIsSyncingR2(true);
-    try {
-      const res = await executeR2MirrorSync({
-        id: currentConfig?.id || 'default',
-        googleEmail: googleEmail || '',
-        contractFolder: '',
-        consumableFolder: '',
-        deliveryFolder: '',
-        maintenanceFolder: '',
-        isDevMode: true,
-        r2AccountId,
-        r2BucketName,
-        r2AccessKeyId,
-        r2SecretAccessKey,
-        r2PublicDomain,
-        updatedAt: new Date().toISOString()
-      });
-      if (res.success) {
-        alert(res.message);
-      } else {
-        alert(`⚠️ R2 동기화 실패:\n${res.message}`);
-      }
-    } catch (err: any) {
-      alert(`⚠️ R2 동기화 중 오류:\n${err?.message || err}`);
-    } finally {
-      setIsSyncingR2(false);
-    }
-  };
-
-  const handleOpenR2FileList = async () => {
-    if (!r2AccountId || !r2BucketName || !r2AccessKeyId || !r2SecretAccessKey) {
-      alert('⚠️ Cloudflare R2 설정을 먼저 입력해 주세요.');
-      return;
-    }
-    setIsLoadingR2Files(true);
-    setShowR2FileModal(true);
-    try {
-      const res = await fetch('/api/r2', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'list',
-          accountId: r2AccountId,
-          bucketName: r2BucketName,
-          accessKeyId: r2AccessKeyId,
-          secretAccessKey: r2SecretAccessKey
-        })
-      });
-      const data = await res.json();
-      if (data.success && Array.isArray(data.files)) {
-        setR2FilesList(data.files);
-      } else {
-        setR2FilesList([]);
-        alert(`파일 목록 조회 실패: ${data.error || '목록을 가져올 수 없습니다.'}`);
-      }
-    } catch (e: any) {
-      alert(`파일 목록 조회 오류: ${e?.message || e}`);
-      setR2FilesList([]);
-    } finally {
-      setIsLoadingR2Files(false);
     }
   };
 
@@ -498,9 +393,9 @@ export const GoogleConfig: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px' }}>
         <Settings size={26} color="var(--primary)" />
         <div>
-          <h2 style={{ fontSize: '22px', fontWeight: '800', margin: 0 }}>구글 및 클라우드 연계 설정</h2>
+          <h2 style={{ fontSize: '22px', fontWeight: '800', margin: 0 }}>공식 이메일(SMTP) 연동 설정</h2>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-            e-Bro ERP와 구글 드라이브 및 Gmail SMTP 발송 서버 간의 크레덴셜 정보를 편집합니다.
+            e-Bro ERP와 공식 이메일(SMTP) 발송 서버 간의 크레덴셜 정보를 편집합니다.
           </p>
         </div>
       </div>
@@ -511,32 +406,70 @@ export const GoogleConfig: React.FC = () => {
         {/* 영역: 전체 설정 폼 (바둑판식 2열 배열) */}
         <form onSubmit={handleSave} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(550px, 1fr))', gap: '24px', alignItems: 'start', width: '100%' }}>
           
-          {/* 구글 서비스 계정 인증 */}
+          {/* 범용 SMTP 서버 설정 */}
           <div className="card" style={{ margin: 0, padding: '24px' }}>
             <h3 style={{ fontSize: '15px', fontWeight: '700', borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Mail size={16} style={{ color: 'var(--primary)' }} /> 구글 연동 서비스 계정 및 이메일 인증
+              <Mail size={16} style={{ color: 'var(--primary)' }} /> 범용 SMTP 서버 설정
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div style={{ gridColumn: 'span 2' }}>
-                <label>구글 서비스 계정 이메일 (G-Suite / Workspace) *</label>
+                <label>이메일 공급자 *</label>
+                <select
+                  value={smtpProvider}
+                  onChange={e => handleProviderChange(e.target.value as any)}
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border)' }}
+                >
+                  <option value="GMAIL">Gmail</option>
+                  <option value="NAVER">Naver</option>
+                  <option value="DAUM">Daum</option>
+                  <option value="CUSTOM">직접 입력</option>
+                </select>
+              </div>
+
+              <div>
+                <label>SMTP 서버 주소 *</label>
+                <input
+                  type="text"
+                  value={smtpHost}
+                  onChange={e => setSmtpHost(e.target.value)}
+                  placeholder="예: smtp.gmail.com"
+                  disabled={smtpProvider !== 'CUSTOM'}
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border)', backgroundColor: smtpProvider !== 'CUSTOM' ? 'var(--bg-app)' : 'white' }}
+                />
+              </div>
+
+              <div>
+                <label>SMTP 포트 *</label>
+                <input
+                  type="number"
+                  value={smtpPort}
+                  onChange={e => setSmtpPort(Number(e.target.value))}
+                  placeholder="465"
+                  disabled={smtpProvider !== 'CUSTOM'}
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border)', backgroundColor: smtpProvider !== 'CUSTOM' ? 'var(--bg-app)' : 'white' }}
+                />
+              </div>
+
+              <div style={{ gridColumn: 'span 2' }}>
+                <label>이메일 계정 (발신자 표시명 포함) *</label>
                 <input
                   type="email"
                   value={googleEmail}
                   onChange={e => setGoogleEmail(e.target.value)}
-                  placeholder="예: giyeunlift@gmail.com"
+                  placeholder="예: admin@example.com"
                   required
                 />
               </div>
 
               <div style={{ position: 'relative' }}>
-                <label>구글 계정 패스워드 *</label>
+                <label>계정 패스워드 *</label>
                 <div style={{ position: 'relative' }}>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={googlePassword}
                     onChange={e => setGooglePassword(e.target.value)}
-                    placeholder="구글 비밀번호 입력"
+                    placeholder="비밀번호 입력"
                     required
                   />
                   <button
@@ -548,6 +481,30 @@ export const GoogleConfig: React.FC = () => {
                   </button>
                 </div>
               </div>
+
+              <div style={{ position: 'relative' }}>
+                <label>앱 비밀번호 (선택사항)</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showAppPassword ? 'text' : 'password'}
+                    value={gmailAppPassword}
+                    onChange={e => setGmailAppPassword(e.target.value)}
+                    placeholder="앱 비밀번호 (필요시)"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAppPassword(!showAppPassword)}
+                    style={{ position: 'absolute', right: '10px', top: '10px', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+                  >
+                    {showAppPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <small style={{ display: 'block', marginTop: '4px', color: 'var(--text-muted)', fontSize: '11px' }}>
+                  ※ 구글/네이버 등 2단계 인증 사용 시 발급받은 앱 비밀번호를 입력하세요.
+                </small>
+              </div>
+            </div>
+          </div>
 
               <div style={{ position: 'relative' }}>
                 <label>Gmail 발송용 앱 비밀번호 (App Password) *</label>
@@ -574,156 +531,7 @@ export const GoogleConfig: React.FC = () => {
             </div>
           </div>
 
-          {/* ☁️ Supabase Storage 증빙 파일 저장소 안내 */}
-          <div className="card" style={{ margin: 0, padding: '24px', border: '1px solid #10B981', backgroundColor: 'var(--bg-card)' }}>
-            <h3 style={{ fontSize: '15.5px', fontWeight: '800', borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Cloud size={18} style={{ color: '#10B981' }} /> Supabase Storage 증빙 파일 저장소
-              </span>
-              <span style={{ fontSize: '11.5px', fontWeight: '700', padding: '3px 10px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', whiteSpace: 'nowrap' }}>
-                ✅ 연동 완료 (별도 설정 없음)
-              </span>
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: '8px', padding: '14px', fontSize: '12.5px', lineHeight: '1.7', color: 'var(--text-secondary)' }}>
-                <strong style={{ color: '#10B981', display: 'block', marginBottom: '6px' }}>☁️ 저장 방식</strong>
-                소모품 입고 처리 시 거래명세서/증빙 사진이 <strong style={{ color: 'var(--text-primary)' }}>Supabase Storage 버킷 'evidence/consumables/'</strong>에 자동 저장됩니다.<br />
-                구글 로그인 팝업 없이 ERP 계정만으로 즉시 업로드됩니다.
-              </div>
-              <div style={{ background: 'var(--bg-app)', border: '1px solid var(--border)', borderRadius: '8px', padding: '14px', fontSize: '12.5px', lineHeight: '1.7', color: 'var(--text-secondary)' }}>
-                <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '6px' }}>📦 로컬 백업 방법</strong>
-                [소모품 관리] → [구매신청 내역] 탭 → <strong style={{ color: 'var(--text-primary)' }}>[증빙파일 ZIP 백업]</strong> 버튼 클릭<br />
-                저장된 모든 증빙 파일을 ZIP으로 PC에 다운로드합니다.
-              </div>
-              <div style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '8px', padding: '14px', fontSize: '12.5px', lineHeight: '1.7', color: 'var(--text-secondary)' }}>
-                <strong style={{ color: 'var(--primary)', display: 'block', marginBottom: '6px' }}>⚙️ 최초 1회 설정 필요 (Supabase 대시보드)</strong>
-                <ol style={{ margin: 0, paddingLeft: '18px' }}>
-                  <li><a href="https://app.supabase.com" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', fontWeight: 'bold' }}>app.supabase.com</a> 접속 → 프로젝트 선택</li>
-                  <li>왼쪽 메뉴 <strong>Storage</strong> → <strong>[New Bucket]</strong> 클릭</li>
-                  <li>이름: <code style={{ background: 'rgba(0,0,0,0.1)', padding: '1px 6px', borderRadius: '3px', fontFamily: 'monospace' }}>evidence</code>, <strong>Public 토글 ON</strong> → [Save]</li>
-                </ol>
-                이후 별도 설정 없이 자동으로 동작합니다.
-              </div>
 
-              {/* ─── 백업 버튼 영역 ─── */}
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <strong style={{ fontSize: '13px', color: 'var(--text-primary)' }}>📦 증빙 파일 백업</strong>
-
-                {/* 백업 진행 상황 */}
-                {backupProgress && (
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)', padding: '8px 12px', background: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                    {backupProgress}
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                  {/* 로컬 ZIP 백업 */}
-                  <button
-                    type="button"
-                    disabled={isZipBackingUp || isDriveBackingUp}
-                    onClick={async () => {
-                      const targets = consumablePurchases.filter(p => p.statementFileUrl?.startsWith('http'));
-                      if (!targets.length) { alert('백업할 증빙 파일이 없습니다.\n(Supabase Storage에 저장된 파일만 가능)'); return; }
-                      setIsZipBackingUp(true);
-                      setBackupProgress(`ZIP 생성 중... (총 ${targets.length}건)`);
-                      try {
-                        const today = new Date().toISOString().split('T')[0];
-                        const items = targets.map(p => ({
-                          fileName: `${p.id.toUpperCase()}_${p.sellerName}_${p.completedDate || today}.${p.statementFileUrl!.split('.').pop()?.split('?')[0] || 'pdf'}`,
-                          fileUrl: p.statementFileUrl!
-                        }));
-                        await downloadEvidenceAsZip(items, `소모품_증빙파일_백업_${today}.zip`);
-                        setBackupProgress(`✅ ZIP 다운로드 완료 (${items.length}건) — 없애려면 삭제 버튼 실행`);
-                        // 커스텀 삭제 확인 모달
-                        setDeleteModal({
-                          open: true,
-                          count: items.length,
-                          onConfirm: async () => {
-                            setBackupProgress('Storage 파일 삭제 중...');
-                            await deleteStorageFiles(items.map(i => i.fileUrl));
-                            // DB에서 statementFileUrl 을 센티널 값으로 표시
-                            await updateEvidenceFileUrls(targets.map(p => ({ id: p.id, url: 'DELETED_AFTER_BACKUP' })));
-                            setBackupProgress(`✅ 삭제 완료 (${items.length}건) — ERP 목록에 '백업 후 삭제됨' 표시`);
-                            setTimeout(() => setBackupProgress(''), 5000);
-                          }
-                        });
-                        setTimeout(() => setBackupProgress(''), 8000);
-                      } catch (err: any) {
-                        showErrorModal(err?.message, '로컬 백업 오류');
-                        setBackupProgress('');
-                      } finally { setIsZipBackingUp(false); }
-                    }}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 18px', borderRadius: '7px', border: '1px solid var(--border)', background: 'var(--bg-app)', color: 'var(--text-primary)', fontWeight: '700', fontSize: '13px', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                  >
-                    <Download size={15} /> {isZipBackingUp ? 'ZIP 생성 중...' : '로컬 백업 (ZIP)'}
-                  </button>
-
-                  {/* 구글 드라이브 백업 */}
-                  <button
-                    type="button"
-                    disabled={isZipBackingUp || isDriveBackingUp}
-                    onClick={async () => {
-                      const targets = consumablePurchases.filter(p => p.statementFileUrl?.startsWith('http'));
-                      if (!targets.length) { alert('백업할 증빙 파일이 없습니다.'); return; }
-                      const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
-                      const config = googleConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs[0];
-                      const clientId = '';
-                      const folder = config?.consumableFolder || '소모품납품';
-                      setIsDriveBackingUp(true);
-                      setBackupProgress('구글 계정 인증 중...');
-                      try {
-                        const today = new Date().toISOString().split('T')[0];
-                        const items = targets.map(p => ({
-                          fileName: `${p.id.toUpperCase()}_${p.sellerName}_${p.completedDate || today}.${p.statementFileUrl!.split('.').pop()?.split('?')[0] || 'pdf'}`,
-                          fileUrl: p.statementFileUrl!
-                        }));
-                        const result = await backupToGoogleDrive(
-                          items, clientId, folder,
-                          (done, total) => setBackupProgress(`구글 드라이브 업로드 중... (${done}/${total}건)`)
-                        );
-                        // 성공한 파일 URL만 추립
-                        const successUrls = items
-                          .filter(it => !result.failedFiles.includes(it.fileName))
-                          .map(it => it.fileUrl);
-                        const resultMsg = result.fail > 0
-                          ? `완료: 성공 ${result.success}건, 실패 ${result.fail}건`
-                          : `구글 드라이브 백업 완료 (${result.success}건)`;
-                        setBackupProgress(`✅ ${resultMsg}`);
-                        // 성공 파일에 대해서만 삭제 확인 모달
-                        if (successUrls.length > 0) {
-                          setDeleteModal({
-                            open: true,
-                            count: successUrls.length,
-                            onConfirm: async () => {
-                              setBackupProgress('Storage 파일 삭제 중...');
-                              await deleteStorageFiles(successUrls);
-                              // DB의 statementFileUrl 을 Drive URL로 교체
-                              const updates = targets
-                                .filter(p => result.successUrlMap.has(p.statementFileUrl!))
-                                .map(p => ({
-                                  id: p.id,
-                                  url: result.successUrlMap.get(p.statementFileUrl!)!
-                                }));
-                              await updateEvidenceFileUrls(updates);
-                              setBackupProgress(`✅ 삭제 완료 (${successUrls.length}건) — ERP 증빙보기 링크가 구글드라이브로 변경됨`);
-                              setTimeout(() => setBackupProgress(''), 5000);
-                            }
-                          });
-                        }
-                        setTimeout(() => setBackupProgress(''), 10000);
-                      } catch (err: any) {
-                        showErrorModal(err?.message, '구글 드라이브 백업 오류');
-                        setBackupProgress('');
-                      } finally { setIsDriveBackingUp(false); }
-                    }}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 18px', borderRadius: '7px', border: '1px solid rgba(16,185,129,0.4)', background: 'rgba(16,185,129,0.08)', color: '#10B981', fontWeight: '700', fontSize: '13px', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                  >
-                    <HardDrive size={15} /> {isDriveBackingUp ? '업로드 중...' : '구글 드라이브에 백업'}
-                  </button>
-                </div>
-
-              </div>
-            </div>
           </div>
 
           {/* 개발모드 / 실무모드 제어 스위치 */}
@@ -768,123 +576,7 @@ export const GoogleConfig: React.FC = () => {
             </div>
           </div>
 
-          {/* Cloudflare R2 스토리지 설정 패널 */}
-          <div className="card" style={{ margin: 0, padding: '24px', border: '1px solid var(--primary)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '16px' }}>
-              <h3 style={{ fontSize: '15px', fontWeight: '700', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                <Cloud size={18} style={{ color: 'var(--primary)' }} /> Cloudflare R2 스토리지 설정
-              </h3>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={handleTestR2Connection}
-                  disabled={isTestingR2}
-                  style={{ padding: '6px 12px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
-                >
-                  <ShieldCheck size={14} /> {isTestingR2 ? '검증 중...' : 'R2 연결 검증'}
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={handleOpenR2FileList}
-                  style={{ padding: '6px 12px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
-                >
-                  <FolderOpen size={14} /> R2 파일 목록
-                </button>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  onClick={handleSyncR2ToLocal}
-                  disabled={isSyncingR2}
-                  style={{ padding: '6px 14px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
-                >
-                  <RefreshCw size={14} className={isSyncingR2 ? "animate-spin" : ""} /> {isSyncingR2 ? '미러링 진행 중...' : '로컬 에이전트 동기화'}
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => {
-                    const accountId = r2AccountId?.trim();
-                    const bucketName = r2BucketName?.trim();
-                    if (!accountId || !bucketName) {
-                      alert('계정 ID와 버킷명을 먼저 입력하세요.');
-                      return;
-                    }
-                    window.open(
-                      `https://dash.cloudflare.com/${accountId}/r2/default/buckets/${bucketName}`,
-                      '_blank'
-                    );
-                  }}
-                  style={{ padding: '6px 12px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
-                >
-                  <ExternalLink size={14} /> 내 버킷 열기
-                </button>
-              </div>
-            </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                  Cloudflare 계정 ID (Account ID) *
-                </label>
-                <input
-                  type="text"
-                  value={r2AccountId}
-                  onChange={e => setR2AccountId(e.target.value)}
-                  placeholder="예: 32자리 Cloudflare Account ID"
-                  style={{ padding: '8px 10px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border)' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                  R2 버킷명 (Bucket Name) *
-                </label>
-                <input
-                  type="text"
-                  value={r2BucketName}
-                  onChange={e => setR2BucketName(e.target.value)}
-                  placeholder="예: giyeon-storage"
-                  style={{ padding: '8px 10px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border)' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                  R2 액세스 키 ID (Access Key ID) *
-                </label>
-                <input
-                  type="text"
-                  value={r2AccessKeyId}
-                  onChange={e => setR2AccessKeyId(e.target.value)}
-                  placeholder="예: S3 호환 R2 Access Key ID"
-                  style={{ padding: '8px 10px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border)' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                  R2 비밀 액세스 키 (Secret Access Key) *
-                </label>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <input
-                    type={showR2SecretKey ? 'text' : 'password'}
-                    value={r2SecretAccessKey}
-                    onChange={e => setR2SecretAccessKey(e.target.value)}
-                    placeholder="S3 호환 R2 Secret Access Key"
-                    style={{ width: '100%', padding: '8px 36px 8px 10px', fontSize: '13px', borderRadius: '6px', border: '1px solid var(--border)' }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowR2SecretKey(!showR2SecretKey)}
-                    style={{ position: 'absolute', right: '8px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
-                  >
-                    {showR2SecretKey ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-              </div>
-            </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
