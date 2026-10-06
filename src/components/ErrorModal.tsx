@@ -372,13 +372,13 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
               padding: '14px',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#60a5fa' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--primary, #2563eb)' }}>
                   🌐 원격 DB 네트워크 통신 장애 안내
                 </span>
               </div>
-              <p style={{ fontSize: '12px', color: '#cbd5e1', margin: 0, lineHeight: 1.6 }}>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted, #475569)', margin: 0, lineHeight: 1.6 }}>
                 • 브라우저의 인터넷 연결이 단락되었거나, 원격 Supabase 서버 연결이 지연되었습니다.<br />
-                • <b>로컬 데이터베이스에는 변경 사항이 안전하게 반영되었습니다.</b> 네트워크 연결 복구 후 작업을 재시도하시거나 페이지를 새로고침(F5)하여 주십시오.
+                • <b style={{ color: 'var(--text-primary, #1e293b)' }}>로컬 데이터베이스에는 변경 사항이 안전하게 반영되었습니다.</b> 네트워크 연결 복구 후 작업을 재시도하시거나 페이지를 새로고침(F5)하여 주십시오.
               </p>
             </div>
           )}

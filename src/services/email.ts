@@ -106,6 +106,38 @@ class RealGmailService {
     }
 
     // 2. 이메일 발송 실행: 로컬 에이전트(http://127.0.0.1:5175/api/send-email) 우선 ➔ 실패 시 Vercel (/api/send-email) 폴백
+    let processedAttachments = [...attachments];
+    const totalContentLength = attachments.reduce((sum, att) => sum + (att.content?.length || 0), 0);
+    
+    // Vercel 4.5MB 페이로드 초과 방지: 3MB 이상이면 Supabase Storage에 임시 업로드하여 URL로 전달
+    if (totalContentLength > 3 * 1024 * 1024) {
+      try {
+        const { uploadToSupabaseStorage } = await import('./supabaseStorage');
+        processedAttachments = await Promise.all(attachments.map(async (att) => {
+          if (!att.content || att.content.length < 100) return att;
+          
+          const base64Data = att.content.replace(/^data:.*?;base64,/, '');
+          const binaryStr = atob(base64Data);
+          const bytes = new Uint8Array(binaryStr.length);
+          for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+          const file = new File([bytes.buffer], att.filename || 'attachment.pdf', { type: 'application/pdf' });
+          
+          const uploadRes = await uploadToSupabaseStorage({
+            file,
+            fileName: `email_${Date.now()}_${Math.random().toString(36).substring(2, 7)}_${att.filename || 'file.pdf'}`,
+            folder: 'temp_emails'
+          });
+          
+          if (uploadRes.success) {
+            return { filename: att.filename, url: uploadRes.fileUrl }; // URL로 대체하여 페이로드 극소화
+          }
+          return att;
+        }));
+      } catch (err) {
+        console.warn('첨부파일 스토리지 임시 업로드 실패:', err);
+      }
+    }
+
     const emailPayload = {
       to,
       cc,
@@ -113,7 +145,7 @@ class RealGmailService {
       body,
       googleEmail,
       gmailAppPassword,
-      attachments,
+      attachments: processedAttachments,
       fromName: fromName || '(주)기연리프트'
     };
 

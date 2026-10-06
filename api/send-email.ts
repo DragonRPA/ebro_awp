@@ -57,14 +57,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     });
 
-    const parsedAttachments = Array.isArray(attachments) ? attachments.map((att: any) => {
-      const base64Data = String(att.content || '').replace(/^data:.*?;base64,/, '');
-      return {
-        filename: att.filename || '거래명세서.pdf',
-        content: Buffer.from(base64Data, 'base64'),
-        contentType: att.contentType || 'application/pdf'
-      };
-    }) : undefined;
+    const parsedAttachments = [];
+    if (Array.isArray(attachments)) {
+      for (const att of attachments) {
+        if (att.url) {
+          try {
+            const resp = await fetch(att.url);
+            if (resp.ok) {
+              const arrayBuffer = await resp.arrayBuffer();
+              parsedAttachments.push({
+                filename: att.filename || '첨부파일.pdf',
+                content: Buffer.from(arrayBuffer),
+                contentType: att.contentType || 'application/pdf'
+              });
+            } else {
+              console.error(`Failed to download attachment from ${att.url}: ${resp.status}`);
+            }
+          } catch (e) {
+            console.error(`Error downloading attachment from ${att.url}`, e);
+          }
+        } else if (att.content) {
+          const base64Data = String(att.content).replace(/^data:.*?;base64,/, '');
+          parsedAttachments.push({
+            filename: att.filename || '첨부파일.pdf',
+            content: Buffer.from(base64Data, 'base64'),
+            contentType: att.contentType || 'application/pdf'
+          });
+        }
+      }
+    }
 
     const senderBrand = fromName || tenantCorp || tenantBrand || '(주)기연리프트';
 
