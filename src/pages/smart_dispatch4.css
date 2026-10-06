@@ -574,12 +574,12 @@
    출고 장비 모델 칩 및 가용수량 배지 고시인성/눈부심 방지 테마 배색 표준
    ───────────────────────────────────────────────────────────────────────────── */
 
-/* 모델 선택 칩 */
+/* 모델 선택 칩 (무볼드 표준 준수: font-weight 500) */
 .dispatch4-model-chip {
   padding: 6px 12px;
   border-radius: 8px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   transition: all 0.15s ease;
   border: 1px solid var(--border-color);
   display: flex;
@@ -603,13 +603,13 @@
   box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3) !important;
 }
 
-/* 장비 가용 수량 배지: 눈부심 방지 & 다크/라이트 모드 최적 배색 */
+/* 장비 가용 수량 배지: 눈부심 방지 & 다크/라이트 모드 최적 배색 (무볼드 표준) */
 .dispatch4-qty-badge {
   font-size: 11px;
   padding: 2px 7px;
   border-radius: 4px;
-  font-family: monospace;
-  font-weight: 800;
+  font-family: inherit;
+  font-weight: 500;
   white-space: nowrap;
   flex-shrink: 0;
   display: inline-flex;
@@ -646,17 +646,104 @@
   border: 1px solid rgba(217, 119, 6, 0.45);
 }
 
-/* 선택된 칩 내부 배지 톤 다운 */
-.dispatch4-model-chip.selected .dispatch4-qty-badge.available {
-  background-color: rgba(255, 255, 255, 0.25);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.4);
+/* 선택된 칩 내부 배지: 순백 캡슐 & 짙은 텍스트로 최고 시인성 확보 */
+.dispatch4-model-chip.selected .dispatch4-qty-badge.available,
+.dispatch4-model-chip.selected .dispatch4-qty-badge.shortage {
+  background-color: #ffffff !important;
+  color: #1e1b4b !important;
+  border: 1px solid rgba(255, 255, 255, 0.9) !important;
+  font-weight: 500 !important;
 }
 
-.dispatch4-model-chip.selected .dispatch4-qty-badge.shortage {
-  background-color: rgba(255, 255, 255, 0.25);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.4);
+/* ─────────────────────────────────────────────────────────────────────────────
+   3. 출고 장비 규격 블록 전용: 볼드 전면 배제 (Zero-Bold Font Standard)
+   ───────────────────────────────────────────────────────────────────────────── */
+[data-mid="dispatch4-block-equipments"],
+[data-mid="dispatch4-block-equipments"] * {
+  font-weight: 400 !important;
+}
+
+[data-mid="dispatch4-block-equipments"] .dispatch4-block-header span,
+[data-mid="dispatch4-block-equipments"] .dispatch4-ft-tab,
+[data-mid="dispatch4-block-equipments"] .dispatch4-ft-name,
+[data-mid="dispatch4-block-equipments"] .dispatch4-ft-count,
+[data-mid="dispatch4-block-equipments"] .dispatch4-model-chip,
+[data-mid="dispatch4-block-equipments"] .dispatch4-qty-badge {
+  font-weight: 500 !important;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   출고 장비 규격 피트 탭 및 수량 배지 (고시인성 색대비 & 무볼드 표준)
+   ───────────────────────────────────────────────────────────────────────────── */
+.dispatch4-ft-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  flex: 1;
+}
+
+.dispatch4-ft-tab {
+  padding: 5px 12px !important;
+  border-radius: 8px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  transition: all 0.15s ease !important;
+  white-space: nowrap !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  cursor: pointer !important;
+  border: 1px solid var(--border-color) !important;
+  background-color: var(--bg-card) !important;
+  color: var(--text-main) !important;
+}
+
+.dispatch4-ft-tab:hover {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+}
+
+.dispatch4-ft-tab .dispatch4-ft-name {
+  color: var(--text-main) !important;
+  font-weight: 500 !important;
+}
+
+.dispatch4-ft-tab .dispatch4-ft-count {
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  padding: 1px 7px !important;
+  border-radius: 9999px !important;
+  background-color: var(--bg-app) !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1.2 !important;
+}
+
+/* 🌟 활성(선택) 피트 탭: 보라/블루 바탕에서 최고 대비를 보장하는 화이트 텍스트 & 화이트 캡슐 배지 */
+.dispatch4-ft-tab.active {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.25) !important;
+}
+
+.dispatch4-ft-tab.active .dispatch4-ft-name {
+  color: #ffffff !important;
+  font-weight: 500 !important;
+}
+
+.dispatch4-ft-tab.active .dispatch4-ft-count {
+  /* 보라색 바탕 속에서 검은 글자가 묻히는 문제를 완벽 해결:
+     배경은 순백색(#ffffff), 숫자는 진한 네이비/인디고(#1e1b4b)로 대비비 14:1 극대화 */
+  background-color: #ffffff !important;
+  color: #1e1b4b !important;
+  border: 1px solid rgba(255, 255, 255, 0.95) !important;
+  font-weight: 500 !important;
 }
 
 

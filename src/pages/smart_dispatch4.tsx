@@ -3198,11 +3198,11 @@ export const SmartDispatch4: React.FC = () => {
               }`}
               onClick={() => toggleBlock('EQUIPMENT')}
             >
-              <div className="flex items-center gap-2 text-sm font-black text-white">
+              <div className="flex items-center gap-2 text-sm font-normal text-white">
                 <Package className="w-4 h-4 text-emerald-400" />
                 <span>3. 출고 장비 규격</span>
                 {totalQty > 0 && (
-                  <span className="text-xs font-black text-emerald-300 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/50">
+                  <span className="text-xs font-normal text-emerald-300 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-500/50">
                     ✓ 총 {totalQty}대 선택됨
                   </span>
                 )}
@@ -3215,25 +3215,19 @@ export const SmartDispatch4: React.FC = () => {
                 {/* 상단: 피트 탭 및 검색 */}
                 <div className="flex flex-col gap-2 pb-2 border-b border-slate-800">
                   <div className="flex items-center justify-between gap-2">
-                    <div data-mid="dispatch4-ft-tabs" className="flex gap-1.5 overflow-x-auto pb-0.5 flex-1">
+                    <div data-mid="dispatch4-ft-tabs" className="dispatch4-ft-tabs flex gap-1.5 overflow-x-auto pb-0.5 flex-1">
                       {FT_GROUPS.map(ft => {
                         const count = getFtCount(ft);
+                        const isActive = activeFt === ft;
                         return (
                           <button
                             key={ft}
+                            type="button"
                             onClick={() => setActiveFt(ft)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-black transition whitespace-nowrap flex items-center gap-1.5 ${
-                              activeFt === ft
-                                ? 'bg-blue-600 text-white shadow-md'
-                                : 'bg-slate-800 text-slate-200 hover:text-white hover:bg-slate-700 border border-slate-700'
-                            }`}
+                            className={`dispatch4-ft-tab ${isActive ? 'active' : ''}`}
                           >
-                            <span>{ft}</span>
-                            <span className={`text-[11px] font-black px-1.5 py-0.5 rounded-full ${
-                              activeFt === ft ? 'bg-blue-800 text-white' : 'bg-slate-700 text-slate-200'
-                            }`}>
-                              {count}
-                            </span>
+                            <span className="dispatch4-ft-name">{ft}</span>
+                            <span className="dispatch4-ft-count">{count}</span>
                           </button>
                         );
                       })}
@@ -3245,7 +3239,13 @@ export const SmartDispatch4: React.FC = () => {
                         placeholder="모델 검색..."
                         value={modelSearchQuery}
                         onChange={e => setModelSearchQuery(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                        className="w-full rounded-lg px-2.5 py-1.5 text-xs focus:outline-none"
+                        style={{
+                          backgroundColor: 'var(--bg-app)',
+                          border: '1px solid var(--border-color)',
+                          color: 'var(--text-main)',
+                          fontWeight: 400
+                        }}
                       />
                       {modelSearchQuery && (
                         <button
@@ -3260,11 +3260,11 @@ export const SmartDispatch4: React.FC = () => {
                   </div>
 
                   {/* 가용재고 안내 바 (헌장 2.1 준수) */}
-                  <div className="flex items-center justify-between text-xs text-slate-300 font-bold px-1">
+                  <div className="flex items-center justify-between text-xs px-1" style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>
                     <span>
                       {activeFt} {modelSearchQuery ? `(검색결과 ${displayedModels.length}건)` : `(${displayedModels.length}개 모델)`}
                     </span>
-                    <span className="text-xs text-amber-300/90 font-bold">
+                    <span className="text-xs" style={{ color: 'var(--warning)', fontWeight: 400 }}>
                       * 가용 0대 모델도 출고 요청 가능 (출고/자산 부서에서 외부 임차 장비 매핑 지원)
                     </span>
                   </div>
@@ -3281,7 +3281,7 @@ export const SmartDispatch4: React.FC = () => {
                         title={`${m.modelName} (${m.manufacturer || ''}) | 당사 가용재고: ${m.availableCount}대 ${m.availableCount === 0 ? '(외부 임차/전대 필요)' : '(자사 출고 가능)'}`}
                         className={`dispatch4-model-chip ${isPicked ? 'selected' : ''}`}
                       >
-                        <span className="whitespace-nowrap font-black">+ {m.modelName}</span>
+                        <span className="whitespace-nowrap font-normal">+ {m.modelName}</span>
                         {m.availableCount > 0 ? (
                           <span className="dispatch4-qty-badge available">
                             가용 {m.availableCount}대
@@ -3295,7 +3295,7 @@ export const SmartDispatch4: React.FC = () => {
                     );
                   })}
                   {displayedModels.length === 0 && (
-                    <div className="w-full py-4 text-center text-xs text-slate-400 font-bold">
+                    <div className="w-full py-4 text-center text-xs text-slate-400 font-normal">
                       일치하는 모델이 없습니다.
                     </div>
                   )}
@@ -3316,16 +3316,16 @@ export const SmartDispatch4: React.FC = () => {
 
                       return (
                         <div className="flex items-center justify-between px-1 flex-wrap gap-1">
-                          <span className="text-xs font-black" style={{ color: 'var(--text-main)' }}>
+                          <span className="text-xs font-normal" style={{ color: 'var(--text-main)' }}>
                             선택된 출고 장비 목록 ({equipments.length}종 / 총 {totalQty}대):
                           </span>
                           {totalAvailShortage > 0 ? (
-                            <span className="dispatch4-qty-badge shortage text-xs font-black px-2 py-0.5 shadow-sm">
+                            <span className="dispatch4-qty-badge shortage text-xs font-normal px-2 py-0.5 shadow-sm">
                               <span>⚠️ 외부 임차 {totalAvailShortage}대 필요</span>
-                              <span className="font-bold">(가용 초과)</span>
+                              <span className="font-normal">(가용 초과)</span>
                             </span>
                           ) : (
-                            <span className="dispatch4-qty-badge available text-xs font-black px-2 py-0.5 shadow-sm">
+                            <span className="dispatch4-qty-badge available text-xs font-normal px-2 py-0.5 shadow-sm">
                               <span>✓ 전량 자사 가용재고 출고 가능</span>
                             </span>
                           )}
@@ -3352,15 +3352,15 @@ export const SmartDispatch4: React.FC = () => {
                               <Package size={15} style={{ width: 15, height: 15, display: 'block', color: 'var(--success)' }} />
                             </div>
                             <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                              <span className="text-sm font-black tracking-tight truncate" style={{ color: 'var(--text-main)' }}>{eq.modelName}</span>
+                              <span className="text-sm font-normal tracking-tight truncate" style={{ color: 'var(--text-main)' }}>{eq.modelName}</span>
                               {ftLabel && (
-                                <span className="text-xs font-black px-1.5 py-0.5 rounded flex-shrink-0 whitespace-nowrap"
+                                <span className="text-xs font-normal px-1.5 py-0.5 rounded flex-shrink-0 whitespace-nowrap"
                                       style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}>
                                   {ftLabel}
                                 </span>
                               )}
                               {spec?.manufacturer && (
-                                <span className="text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0 whitespace-nowrap"
+                                <span className="text-xs font-normal px-1.5 py-0.5 rounded flex-shrink-0 whitespace-nowrap"
                                       style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }}>
                                   {spec.manufacturer}
                                 </span>
@@ -3369,14 +3369,14 @@ export const SmartDispatch4: React.FC = () => {
                               {isShortage ? (
                                 <span className="dispatch4-qty-badge shortage">
                                   <span>가용 {availCount}대</span>
-                                  <span className="underline underline-offset-2 font-bold">
+                                  <span className="underline underline-offset-2 font-normal">
                                     ({availCount === 0 ? '전량' : `${shortage}대`} 임차 필요)
                                   </span>
                                 </span>
                               ) : (
                                 <span className="dispatch4-qty-badge available">
                                   <span>가용 {availCount}대</span>
-                                  <span className="font-medium">(자사 출고 가능)</span>
+                                  <span className="font-normal">(자사 출고 가능)</span>
                                 </span>
                               )}
                             </div>
@@ -3388,25 +3388,25 @@ export const SmartDispatch4: React.FC = () => {
                             {hasFinancialAccess && (
                               <div className="flex items-center gap-2 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800 shadow-inner">
                                 <div className="flex items-center gap-1">
-                                  <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">월단가</span>
+                                  <span className="text-[10px] text-slate-400 font-normal whitespace-nowrap">월단가</span>
                                   <input
                                     type="number"
                                     placeholder="월단가"
                                     value={eq.monthlyRate ?? ''}
                                     onChange={e => setModelRate(idx, 'monthlyRate', Number(e.target.value) || 0)}
-                                    className="w-20 px-1.5 py-0.5 bg-slate-900 border border-slate-700 rounded text-right text-xs font-mono font-bold text-amber-300 focus:outline-none focus:border-amber-400"
+                                    className="w-20 px-1.5 py-0.5 bg-slate-900 border border-slate-700 rounded text-right text-xs font-mono font-normal text-amber-300 focus:outline-none focus:border-amber-400"
                                     title="월 렌탈료 단가 (영업사원/청구담당자 전용)"
                                   />
                                   <span className="text-[10px] text-slate-500">원</span>
                                 </div>
                                 <div className="flex items-center gap-1">
-                                  <span className="text-[10px] text-slate-400 font-bold whitespace-nowrap">일단가</span>
+                                  <span className="text-[10px] text-slate-400 font-normal whitespace-nowrap">일단가</span>
                                   <input
                                     type="number"
                                     placeholder="일단가"
                                     value={eq.dailyRate ?? ''}
                                     onChange={e => setModelRate(idx, 'dailyRate', Number(e.target.value) || 0)}
-                                    className="w-16 px-1.5 py-0.5 bg-slate-900 border border-slate-700 rounded text-right text-xs font-mono font-bold text-emerald-300 focus:outline-none focus:border-emerald-400"
+                                    className="w-16 px-1.5 py-0.5 bg-slate-900 border border-slate-700 rounded text-right text-xs font-mono font-normal text-emerald-300 focus:outline-none focus:border-emerald-400"
                                     title="일할 단가 (영업사원/청구담당자 전용)"
                                   />
                                   <span className="text-[10px] text-slate-500">원</span>
@@ -3424,7 +3424,7 @@ export const SmartDispatch4: React.FC = () => {
                                 title={eq.qty <= 1 ? "최소 수량은 1대입니다 (삭제는 우측 휴지통)" : "수량 1대 감소"}
                                 aria-label="수량 1대 감소"
                               >
-                                <Minus size={14} strokeWidth={2.5} color="currentColor" style={{ width: 14, height: 14, display: 'block' }} />
+                                <Minus size={14} strokeWidth={2} color="currentColor" style={{ width: 14, height: 14, display: 'block' }} />
                               </button>
 
                               {/* 수량 직접 입력 및 '대' 단위 */}
@@ -3435,11 +3435,11 @@ export const SmartDispatch4: React.FC = () => {
                                   max={999}
                                   value={eq.qty}
                                   onChange={e => setModelQty(idx, parseInt(e.target.value) || 1)}
-                                  className="dispatch4-qty-input"
+                                  className="dispatch4-qty-input font-normal"
                                   title="수량 직접 입력"
                                   aria-label={`${eq.modelName} 수량`}
                                 />
-                                <span className="text-[11px] text-slate-400 font-bold ml-1 select-none">대</span>
+                                <span className="text-[11px] text-slate-400 font-normal ml-1 select-none">대</span>
                               </div>
 
                               {/* 가산 버튼 [+] */}
@@ -3450,7 +3450,7 @@ export const SmartDispatch4: React.FC = () => {
                                 title="수량 1대 증가"
                                 aria-label="수량 1대 증가"
                               >
-                                <Plus size={14} strokeWidth={2.5} color="currentColor" style={{ width: 14, height: 14, display: 'block' }} />
+                                <Plus size={14} strokeWidth={2} color="currentColor" style={{ width: 14, height: 14, display: 'block' }} />
                               </button>
 
                               {/* 세로 구분선 */}
@@ -3464,7 +3464,7 @@ export const SmartDispatch4: React.FC = () => {
                                 title={`${eq.modelName} 출고 목록에서 삭제`}
                                 aria-label={`${eq.modelName} 삭제`}
                               >
-                                <Trash2 size={14} strokeWidth={2.2} color="currentColor" style={{ width: 14, height: 14, display: 'block' }} className="transition-colors group-hover:text-red-400" />
+                                <Trash2 size={14} strokeWidth={2} color="currentColor" style={{ width: 14, height: 14, display: 'block' }} className="transition-colors group-hover:text-red-400" />
                               </button>
                             </div>
                           </div>

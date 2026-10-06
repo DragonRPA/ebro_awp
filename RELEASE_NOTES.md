@@ -1,3 +1,13 @@
+## v1.13.0.Build.36 (2026-10-06 14:05)
+- **테넌트 사이트 내 '테넌트 관리' 메뉴 원천 제거 및 플랫폼 최고관리자 완전 격리**:
+  - `src/App.tsx`: 테넌트 ERP 사이드바 메뉴그룹(`grp_management_special`, 경영관리-특수)에서 `tenant_management` 항목 영구 제거.
+  - `src/App.tsx`: 상단 헤더의 테넌트 회사명 및 구독 만료 배지 클릭 시 `tenant_management`로 이동하던 잔존 링크 완전 제거.
+  - `src/config/menu_config.ts`: 테넌트 역할/권한 설정 메타데이터에서 `tenant_management` 체크박스 노출 방지 제거.
+  - `src/context/AppContext.tsx`: `hasPermission` 검증 시 `getDomainMode() === 'ADMIN' && isSuperAdmin`인 경우에만 허용하고, 일반 테넌트 사이트에서는 100% 차단(false).
+- **출고의뢰 통합스튜디오 - 출고 장비 규격 무볼드 표준화 및 피트 탭 고대비 배색 개선**:
+  - 섹션 3 표시영역 전역 무볼드(`font-weight: 400~500`) 표준화 완료 (`font-black`, `font-bold` 일체 제거).
+  - 피트 탭 전용 클래스(`.dispatch4-ft-tab`, `.dispatch4-ft-count`) 신설: 활성 탭 바탕 보라색 위에서 순백 캡슐(`#ffffff`) + 진한 네이비(`#1e1b4b`) 폰트로 14:1 극대화 명도 대비비 구현 (검은 글자 식별 불가 문제 해결).
+
 ## v1.13.0.Build.35 (2026-10-06 13:35)
 - **React Error #310 (Hook 순서/호출 개수 불일치 오류) 핫픽스**:
   - `App.tsx` 내 네비게이션 뒤로/앞으로 버튼 툴팁용 `getMenuTitle` 함수를 `useCallback` 훅에서 순수 함수로 전환.

@@ -1474,11 +1474,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 0-2. 🏢 [테넌트별 페이지 노출/숨김 격리 (Tenant-level Page Visibility)]
     // 관리자(currentUser.loginId === 'admin' || currentUser.id === 'sys-admin' || currentUser.role === 'ADMIN')라 할지라도
     // 테넌트 모드(개별 테넌트 화면)에서는 테넌트의 hiddenPages에 포함된 메뉴는 사이드바, 검색(Ctrl+K), 라우팅에서 100% 숨겨지고 차단된다.
-    // 단, 최고관리자가 '테넌트 관리'(tenant_management) 메뉴에 접근할 때만 예외 허용.
+    // 🛡️ [특급 보안] 테넌트가 사용하는 사이트(giyeon.ebro.run 등)에서는 테넌트 관리 메뉴 원천 차단 (오직 admin.ebro.run 전용)
+    if (normMenuId === 'tenant_management') {
+      return getDomainMode() === 'ADMIN' && isSuperAdmin;
+    }
+
     if (currentTenant) {
-      if (normMenuId === 'tenant_management') {
-        return isSuperAdmin;
-      }
 
       const rawHidden = Array.isArray(currentTenant.hiddenPages) ? currentTenant.hiddenPages : [];
       const rawAllowed = Array.isArray(currentTenant.allowedPages) ? currentTenant.allowedPages : [];
@@ -1510,9 +1511,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return hasPermission('payroll', action);
     }
 
-    // 2-3. 테넌트 관리는 최고 관리자(ADMIN, admin, sys-admin) 전용 보안 메뉴
+    // 2-3. 테넌트 관리는 최고 관리자(ADMIN, admin, sys-admin) 전용 보안 메뉴 (admin.ebro.run 전용)
     if (normMenuId === 'tenant_management') {
-      return isSuperAdmin;
+      return getDomainMode() === 'ADMIN' && isSuperAdmin;
     }
 
     // 3. 사용자 정의 권한 명칭(CustomRole) 상속 판정 (역할 기반 자동 상속 최우선)

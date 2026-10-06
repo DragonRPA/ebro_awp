@@ -643,7 +643,6 @@ const App: React.FC = () => {
         { id: 'organization', name: '조직 / 인사 관리', icon: <Users size={16} />, component: <OrganizationSettings /> },
         { id: 'permission', name: '사용자 및 권한', icon: <Shield size={16} />, component: <UsersPermissions /> },
         { id: 'manual_dictionary', name: '전사 업무 매뉴얼 사전', icon: <BookOpen size={16} />, component: <ManualDictionaryPage /> },
-        { id: 'tenant_management', name: '테넌트 관리', icon: <Building2 size={16} />, component: <TenantManagementPage /> },
         { id: 'payroll', name: '급여 정산', icon: <CreditCard size={16} />, component: <PayrollPage /> },
         { id: 'leave_management', name: '연차관리', icon: <UserCheck size={16} />, component: <LeaveManagementPage /> },
         { id: 'privacy_audit', name: '개인정보 접속 감사', icon: <FileCheck size={16} />, component: <PrivacyAuditPage /> },
@@ -1555,11 +1554,6 @@ const App: React.FC = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span 
-                      onClick={() => {
-                        if (hasPermission('tenant_management', 'view')) {
-                          setActiveTab('tenant_management');
-                        }
-                      }}
                       style={{ 
                         fontSize: '18px', 
                         fontWeight: '900', 
@@ -1567,9 +1561,7 @@ const App: React.FC = () => {
                         letterSpacing: '-0.5px', 
                         whiteSpace: 'nowrap', 
                         lineHeight: 1.15,
-                        cursor: hasPermission('tenant_management', 'view') ? 'pointer' : 'default'
                       }}
-                      title={hasPermission('tenant_management', 'view') ? '클릭 시 테넌트 관리로 이동' : undefined}
                     >
                       {currentTenant?.displayName || currentTenant?.tradeName || currentTenant?.corporateName || (isDemoMode() ? '(주)e-Bro렌탈' : '기연리프트')}
                     </span>
@@ -1578,8 +1570,7 @@ const App: React.FC = () => {
                       if (subInfo.isExpiringSoon || subInfo.isExpired || subInfo.isGracePeriod) {
                         return (
                           <span
-                            title={`구독 만료일자: ${currentTenant.subscription?.endDate || ''} (클릭 시 테넌트 관리로 이동)`}
-                            onClick={() => setActiveTab('tenant_management')}
+                            title={`구독 만료일자: ${currentTenant.subscription?.endDate || ''}`}
                             style={{
                               padding: '1px 6px',
                               borderRadius: '10px',
@@ -1588,13 +1579,9 @@ const App: React.FC = () => {
                               backgroundColor: subInfo.badgeBg,
                               color: subInfo.badgeColor,
                               border: '1px solid rgba(0,0,0,0.08)',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '3px'
                             }}
                           >
-                            {subInfo.label}
+                            {subInfo.badgeLabel || subInfo.label}
                           </span>
                         );
                       }

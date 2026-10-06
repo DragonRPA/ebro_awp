@@ -11,6 +11,38 @@
 
 # 개발 요구사항 임시 기록 (dev_temp.md)
 
+## 2026-10-06 14:05 (v1.13.0.Build.36 배포 완료 - 테넌트 사이트 내 '테넌트 관리' 메뉴 원천 제거 및 격리 완결)
+- **요구사항**:
+  - 테넌트가 사용하는 사이트(giyeon.ebro.run 등)의 [경영관리 - 특수] 메뉴그룹에 '테넌트 관리' 메뉴가 노출되는 결함 적발 ➔ 메뉴 및 헤더 진입로 전면 제거.
+- **원인 분석**:
+  - `src/App.tsx`의 `menuGroups` 내 `grp_management_special`과 `src/config/menu_config.ts`의 메타데이터에 `tenant_management`가 기본 포함되어 있어, 테넌트 관리자 권한을 가진 사용자의 사이드바에 '테넌트 관리'가 노출됨.
+  - 테넌트 헤더 회사명 및 구독 만료 배지에도 `tenant_management`로 이동하는 클릭 핸들러가 잔존함.
+- **기술 조치 내역**:
+  - `src/App.tsx`: `grp_management_special` 항목에서 `tenant_management` 제거. 테넌트 헤더 회사명 및 구독 만료 배지의 `onClick` 진입로 제거.
+  - `src/config/menu_config.ts`: `grp_management_special` 메타데이터에서 `tenant_management` 제거 (테넌트 권한 설정 체크박스 노출 방지).
+  - `src/context/AppContext.tsx`: `hasPermission`에서 `normMenuId === 'tenant_management'` 요청 시 `getDomainMode() === 'ADMIN' && isSuperAdmin`인 경우에만 허용하고, 일반 테넌트 사이트에서는 `false`로 100% 원천 차단.
+- **검증**: `npm run build` (`tsc -b && vite build`) 무결성 0 오류 통과 (소요 시간 1.40초).
+
+## 2026-10-06 13:50 (출고의뢰 통합스튜디오 - 출고 장비 규격 무볼드 폰트 표준화 및 피트 탭 고대비 배색 개선)
+- **요구사항**:
+  1. 출고 장비 규격(섹션 3) 표시영역 내 과도한 볼드(Bold/font-black/font-bold) 글꼴 일체 배제 (일반/레귤러 폰트 400~500 표준화).
+  2. 장비 리스트 피트별 수량 표시 배지가 보라색 바탕 위에서 검은색 글자로 표시되어 색대비가 낮고 식별이 어려운 현상 해결.
+- **원인 분석**:
+  1. 피트 탭 버튼이 `bg-blue-600`(보라/인디고 `var(--primary)`) 활성 상태일 때 내부 카운트 배지의 `.text-white`가 `tailwind_polyfill.css`의 `.text-white { color: var(--text-main); }` 규칙에 의해 라이트 모드에서 검은색(`#000000`)으로 강제 치환되어 보라색 바탕 위 검은 글자 발생.
+  2. 모델명(`font-black`), 피트 탭(`font-black`), 블록 헤더(`font-black`), 배지(`font-weight: 800`) 등 섹션 3 전반에 무거운 볼드체가 산재하여 시각적 피로도 유발.
+- **기술 조치 내역**:
+  1. `src/pages/smart_dispatch4.css`:
+     - `[data-mid="dispatch4-block-equipments"]` 전역에 `font-weight: 400 !important;` 및 헤더/칩 `font-weight: 500 !important;` 적용으로 볼드 글꼴 완벽 제거.
+     - `.dispatch4-model-chip` 폰트 두께 700 ➔ 500 축소.
+     - `.dispatch4-qty-badge` 폰트 두께 800 ➔ 500 축소.
+     - 신규 전용 탭 클래스 `.dispatch4-ft-tab`, `.dispatch4-ft-name`, `.dispatch4-ft-count` 신설.
+     - 활성 탭(`.dispatch4-ft-tab.active`): 보라색 바탕 위 순백색(#ffffff) 텍스트와 함께 카운트 배지를 순백색 캡슐(`#ffffff`) + 진한 네이비/인디고(`#1e1b4b`) 폰트로 구성하여 명도 대비비 14:1 극대화.
+  2. `src/pages/smart_dispatch4.tsx`:
+     - 섹션 3 헤더, 피트 탭, 검색 인풋, 모델명 칩, 가용수량 배지, 선택 장비 목록 내 `font-black`/`font-bold`를 모두 `font-normal` 및 스타일 토큰으로 교체.
+  3. `src/tailwind_polyfill.css`:
+     - `.bg-blue-600 .text-white`, `.bg-blue-800 .text-white`, `button.bg-blue-600 span` 규칙을 보강하여 파란/보라 바탕 컨테이너 내부의 화이트 텍스트가 라이트 모드에서 검은색으로 역변하지 않도록 차단.
+- **검증**: `npm run build` (`tsc -b && vite build`) 무결성 0 오류 통과 (소요 시간 1.28초).
+
 ## 2026-10-06 13:35 (v1.13.0.Build.35 배포 완료 - React Error #310 Hook 순서 불일치 픽스)
 - **요구사항 / 장애 현상**:
   - 프로덕션 런타임 오류 발생: `Minified React error #310; visit https://react.dev/errors/310 for the full message or use the non-minified dev environment for full errors and additional helpful warnings. [진단: React Hook 호출 순서/개수 불일치 오류]`

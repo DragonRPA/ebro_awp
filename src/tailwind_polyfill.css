@@ -146,8 +146,11 @@
 .bg-black\/60 { background-color: rgba(0, 0, 0, 0.6); }
 .text-white { color: var(--text-main); }
 .bg-blue-600.text-white, .bg-red-600.text-white, .bg-rose-600.text-white, .bg-emerald-600.text-white, .bg-indigo-600.text-white,
-button.bg-blue-600, button.bg-red-600, button.bg-emerald-600, button.bg-indigo-600,
-span.bg-blue-600, span.bg-red-600, span.bg-emerald-600, span.bg-indigo-600 { color: #ffffff !important; }
+.bg-blue-800, .bg-blue-800.text-white,
+button.bg-blue-600, button.bg-blue-800, button.bg-red-600, button.bg-emerald-600, button.bg-indigo-600,
+span.bg-blue-600, span.bg-blue-800, span.bg-red-600, span.bg-emerald-600, span.bg-indigo-600,
+.bg-blue-600 .text-white, .bg-blue-800 .text-white,
+button.bg-blue-600 span, button.bg-blue-800 span { color: #ffffff !important; }
 .bg-black\/40 { background-color: rgba(0, 0, 0, 0.4); }
 .bg-slate-950\/70 { background-color: var(--bg-header); }
 .bg-slate-900\/90 { background-color: var(--bg-header); }
