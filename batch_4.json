@@ -1,0 +1,172 @@
+[
+  {
+    "file": "ApprovalInbox.tsx",
+    "observe": [
+      "approvalinbox"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\ApprovalInbox.tsx"
+  },
+  {
+    "file": "Billings.tsx",
+    "observe": [
+      "billings"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete",
+      "Process",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\Billings.tsx"
+  },
+  {
+    "file": "Contracts.tsx",
+    "observe": [
+      "contracts"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Process",
+      "Register",
+      "Apply"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\Contracts.tsx"
+  },
+  {
+    "file": "DelinquencyPage.tsx",
+    "observe": [
+      "delinquencypage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\DelinquencyPage.tsx"
+  },
+  {
+    "file": "GoogleConfig.tsx",
+    "observe": [
+      "googleconfig"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete",
+      "Confirm"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\GoogleConfig.tsx"
+  },
+  {
+    "file": "ManualDictionaryPage.tsx",
+    "observe": [
+      "manualdictionarypage"
+    ],
+    "scope": [],
+    "trigger": [],
+    "currentSection": "observe",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\ManualDictionaryPage.tsx"
+  },
+  {
+    "file": "OtManagementPage.tsx",
+    "observe": [
+      "otmanagementpage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\OtManagementPage.tsx"
+  },
+  {
+    "file": "PublicConstructionPermitsPage.tsx",
+    "observe": [
+      "publicconstructionpermitspage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Confirm",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\PublicConstructionPermitsPage.tsx"
+  },
+  {
+    "file": "SiteOptionManage.tsx",
+    "observe": [
+      "siteoptionmanage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\SiteOptionManage.tsx"
+  },
+  {
+    "file": "VehicleOperationLogPage.tsx",
+    "observe": [
+      "vehicleoperationlogpage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Confirm",
+      "Delete",
+      "Register",
+      "Save"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\VehicleOperationLogPage.tsx"
+  },
+  {
+    "file": "hindsightTracker.ts",
+    "observe": [],
+    "scope": [
+      "${scopeName}"
+    ],
+    "trigger": [],
+    "currentSection": "scope",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\utils\\hindsightTracker.ts"
+  },
+  {
+    "file": "smart_dispatch2.tsx",
+    "observe": [
+      "smart_dispatch2"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\smart_dispatch2.tsx"
+  },
+  {
+    "file": "voice_dispatch.tsx",
+    "observe": [
+      "voice_dispatch"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete",
+      "Register",
+      "Apply"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\voice_dispatch.tsx"
+  }
+]

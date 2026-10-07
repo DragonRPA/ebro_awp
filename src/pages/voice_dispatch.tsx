@@ -233,13 +233,7 @@ export const VoiceDispatch: React.FC = () => {
   const [successModalInfo, setSuccessModalInfo] = useState<DispatchSuccessInfo | null>(null);
 
   // ── 탭 (세션 기억으로 복귀 시 탭 유지) ──────────────────────────────────────
-  const [activeTab, setActiveTabState] = useState<ActiveTab>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = sessionStorage.getItem('voice_dispatch_active_tab') as ActiveTab;
-      if (saved === 'NEW' || saved === 'QUEUE') return saved;
-    }
-    return 'NEW';
-  });
+  const [activeTab, setActiveTabState] = useState<ActiveTab>('QUEUE');
   const setActiveTab = (tab: ActiveTab) => {
     setActiveTabState(tab);
     if (typeof window !== 'undefined') {
@@ -4856,30 +4850,7 @@ export const VoiceDispatch: React.FC = () => {
       {/* 최상단 컴팩트 툴바 (타이틀 + 탭 + 녹음 업로드 1줄 인라인) */}
       <div className="dispatch4-toolbar">
         <div className="dispatch4-toolbar-left">
-          <h2 className="dispatch4-title">출고 요청</h2>
-          <div className="dispatch4-tab-group">
-            <button
-              data-mid="dispatch4-tab-new"
-              type="button"
-              onClick={() => setActiveTab('NEW')}
-              className={`dispatch4-tab-btn ${activeTab === 'NEW' ? 'active' : ''}`}
-            >
-              출고 요청 작성
-            </button>
-            <button
-              data-mid="dispatch4-tab-queue"
-              type="button"
-              onClick={() => setActiveTab('QUEUE')}
-              className={`dispatch4-tab-btn ${activeTab === 'QUEUE' ? 'active' : ''}`}
-            >
-              <span>임시 보관함</span>
-              {(pendingCount > 0 || callUploads.length > 0) && (
-                <span className="px-1.5 py-0.2 rounded-full bg-blue-600 text-white text-[10px] font-mono">
-                  {callUploads.length > 0 ? `통화 ${callUploads.length} · 초안 ${pendingCount}` : pendingCount}
-                </span>
-              )}
-            </button>
-          </div>
+          <h2 className="dispatch4-title">음성 출고지시</h2>
         </div>
 
         <div className="flex items-center gap-2">
@@ -4927,7 +4898,7 @@ export const VoiceDispatch: React.FC = () => {
       </div>
 
       {/* 본문 탭 전환 */}
-      {activeTab === 'NEW' ? renderNewTab() : renderQueueTab()}
+      {renderQueueTab()}
 
       {/* 통화 녹음 업로드 모달 */}
       <CallAudioUploadModal

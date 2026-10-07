@@ -1,0 +1,838 @@
+[
+  {
+    "file": "AgenticAiLabPage.tsx",
+    "observe": [
+      "agenticailabpage"
+    ],
+    "scope": [],
+    "trigger": [],
+    "currentSection": "observe",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\AgenticAiLabPage.tsx"
+  },
+  {
+    "file": "AgenticAssetLifecyclePage.tsx",
+    "observe": [
+      "agenticassetlifecyclepage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\AgenticAssetLifecyclePage.tsx"
+  },
+  {
+    "file": "AgenticDispatchStudioPage.tsx",
+    "observe": [
+      "agenticdispatchstudiopage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\AgenticDispatchStudioPage.tsx"
+  },
+  {
+    "file": "AgenticSettlementAutopilotPage.tsx",
+    "observe": [
+      "agenticsettlementautopilotpage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\AgenticSettlementAutopilotPage.tsx"
+  },
+  {
+    "file": "ApprovalInbox.tsx",
+    "observe": [
+      "approvalinbox"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\ApprovalInbox.tsx"
+  },
+  {
+    "file": "ApprovalRulesManage.tsx",
+    "observe": [
+      "approvalrulesmanage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve",
+      "Delete"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\ApprovalRulesManage.tsx"
+  },
+  {
+    "file": "AssetAcquisitionDisposal.tsx",
+    "observe": [
+      "assetacquisitiondisposal"
+    ],
+    "scope": [],
+    "trigger": [
+      "Delete",
+      "Register",
+      "Apply"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\AssetAcquisitionDisposal.tsx"
+  },
+  {
+    "file": "Assets.tsx",
+    "observe": [
+      "assets"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\Assets.tsx"
+  },
+  {
+    "file": "BankMatching.tsx",
+    "observe": [
+      "bankmatching"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve",
+      "Save",
+      "Process",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\BankMatching.tsx"
+  },
+  {
+    "file": "Billings.tsx",
+    "observe": [
+      "billings"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete",
+      "Process",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\Billings.tsx"
+  },
+  {
+    "file": "CashFlowPage.tsx",
+    "observe": [
+      "cashflowpage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Confirm",
+      "Delete",
+      "Save"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\CashFlowPage.tsx"
+  },
+  {
+    "file": "ConsumableInOutPage.tsx",
+    "observe": [
+      "consumableinoutpage"
+    ],
+    "scope": [],
+    "trigger": [],
+    "currentSection": "observe",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\ConsumableInOutPage.tsx"
+  },
+  {
+    "file": "ConsumablePurchasesPage.tsx",
+    "observe": [
+      "consumablepurchasespage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve",
+      "Confirm",
+      "Register",
+      "Save",
+      "Delete"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\ConsumablePurchasesPage.tsx"
+  },
+  {
+    "file": "ConsumableStockPage.tsx",
+    "observe": [
+      "consumablestockpage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\ConsumableStockPage.tsx"
+  },
+  {
+    "file": "Contracts.tsx",
+    "observe": [
+      "contracts"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Process",
+      "Register",
+      "Apply"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\Contracts.tsx"
+  },
+  {
+    "file": "CorporateCardPage.tsx",
+    "observe": [
+      "corporatecardpage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\CorporateCardPage.tsx"
+  },
+  {
+    "file": "Customers.tsx",
+    "observe": [
+      "customers"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\Customers.tsx"
+  },
+  {
+    "file": "DailyInOutStatus.tsx",
+    "observe": [
+      "dailyinoutstatus"
+    ],
+    "scope": [],
+    "trigger": [],
+    "currentSection": "observe",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\DailyInOutStatus.tsx"
+  },
+  {
+    "file": "Dashboard.tsx",
+    "observe": [
+      "dashboard"
+    ],
+    "scope": [],
+    "trigger": [
+      "Process"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\Dashboard.tsx"
+  },
+  {
+    "file": "DelinquencyPage.tsx",
+    "observe": [
+      "delinquencypage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\DelinquencyPage.tsx"
+  },
+  {
+    "file": "Deliveries.tsx",
+    "observe": [
+      "deliveries"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve",
+      "Process",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\Deliveries.tsx"
+  },
+  {
+    "file": "DevDataUploader.tsx",
+    "observe": [
+      "devdatauploader"
+    ],
+    "scope": [],
+    "trigger": [
+      "Delete",
+      "Apply"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\DevDataUploader.tsx"
+  },
+  {
+    "file": "ErrorReportPage.tsx",
+    "observe": [
+      "errorreportpage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Delete",
+      "Process",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\ErrorReportPage.tsx"
+  },
+  {
+    "file": "FieldAsManagement.tsx",
+    "observe": [
+      "fieldasmanagement"
+    ],
+    "scope": [],
+    "trigger": [
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\FieldAsManagement.tsx"
+  },
+  {
+    "file": "GoogleConfig.tsx",
+    "observe": [
+      "googleconfig"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete",
+      "Confirm"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\GoogleConfig.tsx"
+  },
+  {
+    "file": "InitialDbUploader.tsx",
+    "observe": [
+      "initialdbuploader"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete",
+      "Confirm"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\InitialDbUploader.tsx"
+  },
+  {
+    "file": "LandingPage.tsx",
+    "observe": [
+      "landingpage"
+    ],
+    "scope": [],
+    "trigger": [],
+    "currentSection": "observe",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\LandingPage.tsx"
+  },
+  {
+    "file": "LeaveApplicationPage.tsx",
+    "observe": [
+      "leaveapplicationpage"
+    ],
+    "scope": [],
+    "trigger": [],
+    "currentSection": "observe",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\LeaveApplicationPage.tsx"
+  },
+  {
+    "file": "LeaveManagementPage.tsx",
+    "observe": [
+      "leavemanagementpage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\LeaveManagementPage.tsx"
+  },
+  {
+    "file": "ManualDictionaryPage.tsx",
+    "observe": [
+      "manualdictionarypage"
+    ],
+    "scope": [],
+    "trigger": [],
+    "currentSection": "observe",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\ManualDictionaryPage.tsx"
+  },
+  {
+    "file": "ManualsManage.tsx",
+    "observe": [
+      "manualsmanage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\ManualsManage.tsx"
+  },
+  {
+    "file": "OfficialMailPage.tsx",
+    "observe": [
+      "officialmailpage"
+    ],
+    "scope": [],
+    "trigger": [],
+    "currentSection": "observe",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\OfficialMailPage.tsx"
+  },
+  {
+    "file": "OperationManualPage.tsx",
+    "observe": [
+      "operationmanualpage"
+    ],
+    "scope": [],
+    "trigger": [],
+    "currentSection": "observe",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\OperationManualPage.tsx"
+  },
+  {
+    "file": "OrganizationSettings.tsx",
+    "observe": [
+      "organizationsettings"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete",
+      "Confirm",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\OrganizationSettings.tsx"
+  },
+  {
+    "file": "OtManagementPage.tsx",
+    "observe": [
+      "otmanagementpage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\OtManagementPage.tsx"
+  },
+  {
+    "file": "PayrollPage.tsx",
+    "observe": [
+      "payrollpage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve",
+      "Save"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\PayrollPage.tsx"
+  },
+  {
+    "file": "PrintQueueManager.tsx",
+    "observe": [
+      "printqueuemanager"
+    ],
+    "scope": [],
+    "trigger": [
+      "Delete",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\PrintQueueManager.tsx"
+  },
+  {
+    "file": "PrivacyAuditPage.tsx",
+    "observe": [
+      "privacyauditpage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve",
+      "Confirm",
+      "Process"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\PrivacyAuditPage.tsx"
+  },
+  {
+    "file": "Products.tsx",
+    "observe": [
+      "products"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\Products.tsx"
+  },
+  {
+    "file": "PublicConstructionPermitsPage.tsx",
+    "observe": [
+      "publicconstructionpermitspage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Confirm",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\PublicConstructionPermitsPage.tsx"
+  },
+  {
+    "file": "PurchaseSettlementPage.tsx",
+    "observe": [
+      "purchasesettlementpage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve",
+      "Save",
+      "Process"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\PurchaseSettlementPage.tsx"
+  },
+  {
+    "file": "Receivables.tsx",
+    "observe": [
+      "receivables"
+    ],
+    "scope": [],
+    "trigger": [
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\Receivables.tsx"
+  },
+  {
+    "file": "RegularReportsPage.tsx",
+    "observe": [
+      "regularreportspage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\RegularReportsPage.tsx"
+  },
+  {
+    "file": "Repairs.tsx",
+    "observe": [
+      "repairs"
+    ],
+    "scope": [],
+    "trigger": [
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\Repairs.tsx"
+  },
+  {
+    "file": "SiteOptionManage.tsx",
+    "observe": [
+      "siteoptionmanage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\SiteOptionManage.tsx"
+  },
+  {
+    "file": "SmartAsRequest.tsx",
+    "observe": [
+      "smartasrequest"
+    ],
+    "scope": [],
+    "trigger": [],
+    "currentSection": "observe",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\SmartAsRequest.tsx"
+  },
+  {
+    "file": "TenantManagementPage.tsx",
+    "observe": [
+      "tenantmanagementpage"
+    ],
+    "scope": [
+      "tenant_edit_form"
+    ],
+    "trigger": [
+      "Register",
+      "Save",
+      "Delete",
+      "Process",
+      "Apply"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\TenantManagementPage.tsx"
+  },
+  {
+    "file": "TransportMaster.tsx",
+    "observe": [
+      "transportmaster"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\TransportMaster.tsx"
+  },
+  {
+    "file": "TruckDispatch.tsx",
+    "observe": [
+      "truckdispatch"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve",
+      "Confirm",
+      "Register",
+      "Save",
+      "Delete",
+      "Process"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\TruckDispatch.tsx"
+  },
+  {
+    "file": "VehicleOperationLogPage.tsx",
+    "observe": [
+      "vehicleoperationlogpage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Confirm",
+      "Delete",
+      "Register",
+      "Save"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\VehicleOperationLogPage.tsx"
+  },
+  {
+    "file": "Vendors.tsx",
+    "observe": [
+      "vendors"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\Vendors.tsx"
+  },
+  {
+    "file": "asset_assignment.tsx",
+    "observe": [
+      "asset_assignment"
+    ],
+    "scope": [],
+    "trigger": [
+      "Process"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\asset_assignment.tsx"
+  },
+  {
+    "file": "asset_history.tsx",
+    "observe": [
+      "asset_history"
+    ],
+    "scope": [],
+    "trigger": [
+      "Delete",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\asset_history.tsx"
+  },
+  {
+    "file": "depreciation_execution.tsx",
+    "observe": [
+      "depreciation_execution"
+    ],
+    "scope": [],
+    "trigger": [
+      "Process"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\depreciation_execution.tsx"
+  },
+  {
+    "file": "hindsightTracker.ts",
+    "observe": [],
+    "scope": [
+      "${scopeName}"
+    ],
+    "trigger": [],
+    "currentSection": "scope",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\utils\\hindsightTracker.ts"
+  },
+  {
+    "file": "inspection_checklist_manage.tsx",
+    "observe": [
+      "inspection_checklist_manage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete",
+      "Process",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\inspection_checklist_manage.tsx"
+  },
+  {
+    "file": "outbound_inspections.tsx",
+    "observe": [
+      "outbound_inspections"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve",
+      "Process"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\outbound_inspections.tsx"
+  },
+  {
+    "file": "rent_assets.tsx",
+    "observe": [
+      "rent_assets"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve",
+      "Save",
+      "Process",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\rent_assets.tsx"
+  },
+  {
+    "file": "smart_dispatch.tsx",
+    "observe": [
+      "smart_dispatch"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Confirm"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\smart_dispatch.tsx"
+  },
+  {
+    "file": "smart_dispatch2.tsx",
+    "observe": [
+      "smart_dispatch2"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\smart_dispatch2.tsx"
+  },
+  {
+    "file": "smart_dispatch3.tsx",
+    "observe": [
+      "smart_dispatch3"
+    ],
+    "scope": [],
+    "trigger": [],
+    "currentSection": "observe",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\smart_dispatch3.tsx"
+  },
+  {
+    "file": "smart_dispatch4.tsx",
+    "observe": [
+      "smart_dispatch4"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete",
+      "Register",
+      "Apply"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\smart_dispatch4.tsx"
+  },
+  {
+    "file": "smart_return.tsx",
+    "observe": [
+      "smart_return"
+    ],
+    "scope": [],
+    "trigger": [
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\smart_return.tsx"
+  },
+  {
+    "file": "users_permissions.tsx",
+    "observe": [
+      "users_permissions"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\users_permissions.tsx"
+  },
+  {
+    "file": "voice_dispatch.tsx",
+    "observe": [
+      "voice_dispatch"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete",
+      "Register",
+      "Apply"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\voice_dispatch.tsx"
+  }
+]

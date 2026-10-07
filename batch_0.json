@@ -1,0 +1,168 @@
+[
+  {
+    "file": "AgenticAiLabPage.tsx",
+    "observe": [
+      "agenticailabpage"
+    ],
+    "scope": [],
+    "trigger": [],
+    "currentSection": "observe",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\AgenticAiLabPage.tsx"
+  },
+  {
+    "file": "ApprovalRulesManage.tsx",
+    "observe": [
+      "approvalrulesmanage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve",
+      "Delete"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\ApprovalRulesManage.tsx"
+  },
+  {
+    "file": "CashFlowPage.tsx",
+    "observe": [
+      "cashflowpage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Confirm",
+      "Delete",
+      "Save"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\CashFlowPage.tsx"
+  },
+  {
+    "file": "CorporateCardPage.tsx",
+    "observe": [
+      "corporatecardpage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\CorporateCardPage.tsx"
+  },
+  {
+    "file": "Deliveries.tsx",
+    "observe": [
+      "deliveries"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve",
+      "Process",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\Deliveries.tsx"
+  },
+  {
+    "file": "InitialDbUploader.tsx",
+    "observe": [
+      "initialdbuploader"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete",
+      "Confirm"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\InitialDbUploader.tsx"
+  },
+  {
+    "file": "ManualsManage.tsx",
+    "observe": [
+      "manualsmanage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\ManualsManage.tsx"
+  },
+  {
+    "file": "PayrollPage.tsx",
+    "observe": [
+      "payrollpage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve",
+      "Save"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\PayrollPage.tsx"
+  },
+  {
+    "file": "PurchaseSettlementPage.tsx",
+    "observe": [
+      "purchasesettlementpage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve",
+      "Save",
+      "Process"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\PurchaseSettlementPage.tsx"
+  },
+  {
+    "file": "SmartAsRequest.tsx",
+    "observe": [
+      "smartasrequest"
+    ],
+    "scope": [],
+    "trigger": [],
+    "currentSection": "observe",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\SmartAsRequest.tsx"
+  },
+  {
+    "file": "Vendors.tsx",
+    "observe": [
+      "vendors"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\Vendors.tsx"
+  },
+  {
+    "file": "inspection_checklist_manage.tsx",
+    "observe": [
+      "inspection_checklist_manage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Delete",
+      "Process",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\inspection_checklist_manage.tsx"
+  },
+  {
+    "file": "smart_dispatch3.tsx",
+    "observe": [
+      "smart_dispatch3"
+    ],
+    "scope": [],
+    "trigger": [],
+    "currentSection": "observe",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\smart_dispatch3.tsx"
+  }
+]

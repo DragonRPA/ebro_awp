@@ -1,0 +1,165 @@
+[
+  {
+    "file": "AgenticDispatchStudioPage.tsx",
+    "observe": [
+      "agenticdispatchstudiopage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\AgenticDispatchStudioPage.tsx"
+  },
+  {
+    "file": "Assets.tsx",
+    "observe": [
+      "assets"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\Assets.tsx"
+  },
+  {
+    "file": "ConsumablePurchasesPage.tsx",
+    "observe": [
+      "consumablepurchasespage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve",
+      "Confirm",
+      "Register",
+      "Save",
+      "Delete"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\ConsumablePurchasesPage.tsx"
+  },
+  {
+    "file": "DailyInOutStatus.tsx",
+    "observe": [
+      "dailyinoutstatus"
+    ],
+    "scope": [],
+    "trigger": [],
+    "currentSection": "observe",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\DailyInOutStatus.tsx"
+  },
+  {
+    "file": "ErrorReportPage.tsx",
+    "observe": [
+      "errorreportpage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Delete",
+      "Process",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\ErrorReportPage.tsx"
+  },
+  {
+    "file": "LeaveApplicationPage.tsx",
+    "observe": [
+      "leaveapplicationpage"
+    ],
+    "scope": [],
+    "trigger": [],
+    "currentSection": "observe",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\LeaveApplicationPage.tsx"
+  },
+  {
+    "file": "OperationManualPage.tsx",
+    "observe": [
+      "operationmanualpage"
+    ],
+    "scope": [],
+    "trigger": [],
+    "currentSection": "observe",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\OperationManualPage.tsx"
+  },
+  {
+    "file": "PrivacyAuditPage.tsx",
+    "observe": [
+      "privacyauditpage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve",
+      "Confirm",
+      "Process"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\PrivacyAuditPage.tsx"
+  },
+  {
+    "file": "RegularReportsPage.tsx",
+    "observe": [
+      "regularreportspage"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\RegularReportsPage.tsx"
+  },
+  {
+    "file": "TransportMaster.tsx",
+    "observe": [
+      "transportmaster"
+    ],
+    "scope": [],
+    "trigger": [
+      "Save",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\TransportMaster.tsx"
+  },
+  {
+    "file": "asset_history.tsx",
+    "observe": [
+      "asset_history"
+    ],
+    "scope": [],
+    "trigger": [
+      "Delete",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\asset_history.tsx"
+  },
+  {
+    "file": "rent_assets.tsx",
+    "observe": [
+      "rent_assets"
+    ],
+    "scope": [],
+    "trigger": [
+      "Approve",
+      "Save",
+      "Process",
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\rent_assets.tsx"
+  },
+  {
+    "file": "smart_return.tsx",
+    "observe": [
+      "smart_return"
+    ],
+    "scope": [],
+    "trigger": [
+      "Register"
+    ],
+    "currentSection": "trigger",
+    "fullPath": "D:\\01.AntiGravity\\eBro\\src\\pages\\smart_return.tsx"
+  }
+]
