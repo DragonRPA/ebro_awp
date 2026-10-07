@@ -537,6 +537,36 @@ export const Customers: React.FC = () => {
     }
   };
 
+  const handleDeleteCustomer = async (custId: string, custName: string) => {
+    const input = window.prompt(`고객사를 삭제하시려면 아래에 정확히 입력해주세요:\n"${custName} 삭제"`);
+    if (input !== `${custName} 삭제`) {
+      if (input !== null) {
+        showToast('입력한 텍스트가 일치하지 않아 삭제가 취소되었습니다.', 'error');
+      }
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from('customers').delete().eq('id', custId);
+      if (error) throw error;
+      
+      showToast(`고객사 [${custName}] 데이터가 삭제되었습니다.`);
+      setShowCustModal(false);
+      
+      // if selected customer is deleted, clear it
+      if (selectedCustomerId === custId) {
+        setSelectedCustomerId(null);
+      }
+      await refreshAllData();
+    } catch (err: any) {
+      if (err?.code === '23503') {
+        showToast('이 고객사와 연결된 하위 데이터(현장, 계약 등)가 존재하여 삭제할 수 없습니다.', 'error');
+      } else {
+        showToast(`삭제 실패: ${err?.message || err}`, 'error');
+      }
+    }
+  };
+
   const handleDeleteContact = async (contactId: string, contactName: string) => {
     if (!window.confirm(`정말로 담당자 [${contactName}] 정보를 삭제하시겠습니까?`)) return;
     try {
