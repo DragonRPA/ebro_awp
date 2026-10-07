@@ -1,12 +1,12 @@
-import { centralSupabase } from '../services/centralDb';
+﻿import { centralSupabase } from '../services/centralDb';
 // src/utils/hindsightTracker.ts
 
 /**
- * eBro AI Hindsight Tracker (스텔스 메모리 번들링)
+ * eBro AI Hindsight Tracker (?ㅽ뀛??硫붾え由?踰덈뱾留?
  * 
- * - 화면의 `data-hs-observe` 속성을 가진 값들을 추적합니다.
- * - `data-hs-trigger` 속성을 가진 엘리먼트가 클릭되면 번들링을 시작합니다.
- * - 네트워크 성공 신호(예: Toast 성공 메시지나 Fetch 인터셉트) 이후에 로컬 에이전트로 전송합니다.
+ * - ?붾㈃??`data-hs-observe` ?띿꽦??媛吏?媛믩뱾??異붿쟻?⑸땲??
+ * - `data-hs-trigger` ?띿꽦??媛吏??섎━癒쇳듃媛 ?대┃?섎㈃ 踰덈뱾留곸쓣 ?쒖옉?⑸땲??
+ * - ?ㅽ듃?뚰겕 ?깃났 ?좏샇(?? Toast ?깃났 硫붿떆吏??Fetch ?명꽣?됲듃) ?댄썑??濡쒖뺄 ?먯씠?꾪듃濡??꾩넚?⑸땲??
  */
 
 interface HindsightMemoryBundle {
@@ -19,14 +19,14 @@ const LOCAL_AGENT_URL = 'http://127.0.0.1:5175/api/hindsight/retain';
 export function initializeHindsightTracker() {
   if (typeof document === 'undefined') return;
 
-  // 이미 리스너가 등록되어 있다면 중복 등록 방지
+  // ?대? 由ъ뒪?덇? ?깅줉?섏뼱 ?덈떎硫?以묐났 ?깅줉 諛⑹?
   if ((window as any).__HS_TRACKER_INITIALIZED__) return;
   (window as any).__HS_TRACKER_INITIALIZED__ = true;
 
   document.addEventListener('click', (e) => {
     const target = e.target as HTMLElement;
     
-    // 트리거 엘리먼트 찾기 (버튼 내부의 span이나 svg를 클릭했을 수 있으므로 closest 사용)
+    // ?몃━嫄??섎━癒쇳듃 李얘린 (踰꾪듉 ?대???span?대굹 svg瑜??대┃?덉쓣 ???덉쑝誘濡?closest ?ъ슜)
     const triggerEl = target.closest('[data-hs-trigger]') as HTMLElement;
     
     if (triggerEl) {
@@ -35,15 +35,15 @@ export function initializeHindsightTracker() {
       
       let scopeEl: HTMLElement | null = null;
       if (scopeName) {
-        // scopeName이 지정되어 있다면 해당 scope를 찾음
+        // scopeName??吏?뺣릺???덈떎硫??대떦 scope瑜?李얠쓬
         scopeEl = document.querySelector(`[data-hs-scope="${scopeName}"]`) as HTMLElement;
       } 
       
-      // scopeEl을 못찾았거나 지정되지 않았다면 전체 document를 대상으로 하거나, triggerEl의 가장 가까운 form/container를 찾을 수 있음.
-      // 여기서는 심플하게 body 또는 주어진 scope 내부의 observe 요소들을 찾음.
+      // scopeEl??紐살갼?섍굅??吏?뺣릺吏 ?딆븯?ㅻ㈃ ?꾩껜 document瑜???곸쑝濡??섍굅?? triggerEl??媛??媛源뚯슫 form/container瑜?李얠쓣 ???덉쓬.
+      // ?ш린?쒕뒗 ?ы뵆?섍쾶 body ?먮뒗 二쇱뼱吏?scope ?대???observe ?붿냼?ㅼ쓣 李얠쓬.
       const searchRoot = scopeEl || document.body;
       
-            // DOM ������ �����ϸ� ��� ��ȣ�ۿ� ��ҿ� ���� ��Ҹ� �ܾ����
+            // DOM 순서 유지
       const elements = searchRoot.querySelectorAll('input, select, textarea, button, [data-hs-observe]');
       const uiContextBundle: Array<any> = [];
       const processed = new Set();
@@ -115,84 +115,11 @@ export function initializeHindsightTracker() {
       const payload: HindsightMemoryBundle = {
         action_name: actionName,
         ui_context_bundle: uiContextBundle
-      };es/centralDb';
-// src/utils/hindsightTracker.ts
-
-/**
- * eBro AI Hindsight Tracker (스텔스 메모리 번들링)
- * 
- * - 화면의 `data-hs-observe` 속성을 가진 값들을 추적합니다.
- * - `data-hs-trigger` 속성을 가진 엘리먼트가 클릭되면 번들링을 시작합니다.
- * - 네트워크 성공 신호(예: Toast 성공 메시지나 Fetch 인터셉트) 이후에 로컬 에이전트로 전송합니다.
- */
-
-interface HindsightMemoryBundle {
-  action_name: string;
-  ui_context_bundle: Array<any>;
-}
-
-const LOCAL_AGENT_URL = 'http://127.0.0.1:5175/api/hindsight/retain';
-
-export function initializeHindsightTracker() {
-  if (typeof document === 'undefined') return;
-
-  // 이미 리스너가 등록되어 있다면 중복 등록 방지
-  if ((window as any).__HS_TRACKER_INITIALIZED__) return;
-  (window as any).__HS_TRACKER_INITIALIZED__ = true;
-
-  document.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement;
-    
-    // 트리거 엘리먼트 찾기 (버튼 내부의 span이나 svg를 클릭했을 수 있으므로 closest 사용)
-    const triggerEl = target.closest('[data-hs-trigger]') as HTMLElement;
-    
-    if (triggerEl) {
-      const actionName = triggerEl.getAttribute('data-hs-trigger') || 'UNKNOWN_ACTION';
-      const scopeName = triggerEl.getAttribute('data-hs-scope');
-      
-      let scopeEl: HTMLElement | null = null;
-      if (scopeName) {
-        // scopeName이 지정되어 있다면 해당 scope를 찾음
-        scopeEl = document.querySelector(`[data-hs-scope="${scopeName}"]`) as HTMLElement;
-      } 
-      
-      // scopeEl을 못찾았거나 지정되지 않았다면 전체 document를 대상으로 하거나, triggerEl의 가장 가까운 form/container를 찾을 수 있음.
-      // 여기서는 심플하게 body 또는 주어진 scope 내부의 observe 요소들을 찾음.
-      const searchRoot = scopeEl || document.body;
-      
-      const observeEls = searchRoot.querySelectorAll('[data-hs-observe]');
-      const uiContextBundle: Record<string, any> = {};
-
-      observeEls.forEach((el) => {
-        const key = el.getAttribute('data-hs-observe');
-        if (!key) return;
-
-        let value: any = null;
-        if (el instanceof HTMLInputElement) {
-          if (el.type === 'checkbox' || el.type === 'radio') {
-            value = el.checked;
-          } else {
-            value = el.value;
-          }
-        } else if (el instanceof HTMLSelectElement) {
-          value = el.value;
-        } else if (el instanceof HTMLTextAreaElement) {
-          value = el.value;
-        } else {
-          value = el.textContent || '';
-        }
-        
-        uiContextBundle[key] = value;
-      });
-
-      const payload: HindsightMemoryBundle = {
-        action_name: actionName,
-        ui_context_bundle: uiContextBundle
       };
 
-      // TODO: 완벽한 구현을 위해서는 Fetch/XHR 인터셉터를 통해 
-      // Supabase 쿼리가 200/201로 성공했는지 확인한 뒤 쏘는 것이 좋음.
-      // PoC 목적으로는 1초 뒤에 조용히 전송(Silent Swallow)하여 DB 성공 후라고 가정.
+      // TODO: 완벽한 구현을 위해서는 Fetch/XHR 인터셉터를 통해
+      // Supabase 쿼리가 200/201로 성공했는지 확인해주면 좋습니다.
+      // PoC 목적으로는 1초 뒤에 조용히 전송(Silent Swallow)하여 DB 성공 여부와 무관하게 가동
       setTimeout(() => {
         sendToHindsightAgent(payload);
       }, 1000);
@@ -215,7 +142,7 @@ async function sendToHindsightAgent(payload: HindsightMemoryBundle) {
     const tenantId = localStorage.getItem('tenant_id') || localStorage.getItem('tenantId') || 'unknown';
     const solution = (localStorage.getItem('ebro_current_solution') || 'AWP').toUpperCase();
     const tableName = solution === 'IT' ? 'it_shared_memories' : 'awp_shared_memories';
-    
+
     await centralSupabase.from(tableName).insert({
       tenant_id: tenantId,
       action_name: payload.action_name,
@@ -226,3 +153,4 @@ async function sendToHindsightAgent(payload: HindsightMemoryBundle) {
     console.warn('[HINDSIGHT] Failed to save central memory:', err);
   }
 }
+
