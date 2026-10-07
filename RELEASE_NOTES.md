@@ -1,3 +1,9 @@
+## [v1.14.1.Build.45] - 2026-10-07 17:56
+### ✨ 주요 업데이트
+- **중앙 연합 학습(Central Federated Learning) 아키텍처 도입**
+  - Hindsight 스텔스 수집 통신 브릿지의 타겟을 개별 테넌트 DB에서 **중앙 관제 DB (Central Supabase)**로 변경했습니다.
+  - 업종별로 공용 기억 테이블(`awp_shared_memories`, `it_shared_memories`)을 분리 적재하여, AI가 동종 업계의 공통 업무 방식과 베스트 프랙티스를 범용적으로 학습할 수 있는 기반을 마련했습니다.
+
 ## [v1.14.1.Build.44] - 2026-10-07 17:06
 ### ✨ 주요 업데이트
 - **에이전트 관제 화면(Agent Monitoring) 실시간 하트비트 연동 완료**
