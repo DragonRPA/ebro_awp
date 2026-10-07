@@ -598,9 +598,18 @@ export const SiteOptionManage: React.FC = () => {
                       <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Shield size={15} color="#2563eb" /> 1. 유상 옵션 (PAID) - 옵션품목마스터 상속
                       </span>
-                      <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                        * 체크 시 현장 적용, 단가 오버라이드 가능
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('MASTER_OPTIONS')}
+                          style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '4px', border: '1px solid var(--primary)', color: 'var(--primary)', backgroundColor: 'transparent', cursor: 'pointer', fontWeight: 700 }}
+                        >
+                          + 신규 품목 마스터 등록
+                        </button>
+                        <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                          * 체크 시 현장 적용, 단가 오버라이드 가능
+                        </span>
+                      </div>
                     </div>
 
                     <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
@@ -619,8 +628,19 @@ export const SiteOptionManage: React.FC = () => {
 {workingOptionItems.filter(item => item.category === 'PAID').length === 0 && (
   <tr>
     <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-      <AlertCircle size={16} style={{ display: 'inline-block', marginBottom: '-3px', marginRight: '4px' }} />
-      등록된 유상 옵션 마스터가 없습니다. 상단 [옵션 품목 마스터]에서 항목을 추가해주세요.
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+        <div>
+          <AlertCircle size={16} style={{ display: 'inline-block', marginBottom: '-3px', marginRight: '4px' }} />
+          등록된 유상 옵션 마스터가 없습니다. 품목을 먼저 등록해야 현장에 적용할 수 있습니다.
+        </div>
+        <button 
+          type="button" 
+          onClick={() => setActiveTab('MASTER_OPTIONS')}
+          style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--primary)', backgroundColor: 'transparent', color: 'var(--primary)', fontWeight: 700, cursor: 'pointer', fontSize: '12px' }}
+        >
+          + 옵션 품목 마스터 등록하기
+        </button>
+      </div>
     </td>
   </tr>
 )}
@@ -718,7 +738,16 @@ export const SiteOptionManage: React.FC = () => {
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
 {workingOptionItems.filter(item => item.category === 'PROTECTION').length === 0 && (
   <div style={{ padding: '16px', textAlign: 'center', width: '100%', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: '6px', fontSize: '12px' }}>
-    등록된 보양 작업 마스터가 없습니다. 상단 [옵션 품목 마스터]에서 항목을 추가해주세요.
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+      <span>등록된 보양 작업 마스터가 없습니다. 작업을 먼저 등록해야 현장에 적용할 수 있습니다.</span>
+      <button 
+        type="button" 
+        onClick={() => setActiveTab('MASTER_OPTIONS')}
+        style={{ padding: '4px 12px', borderRadius: '4px', border: '1px solid var(--primary)', backgroundColor: 'transparent', color: 'var(--primary)', fontWeight: 700, cursor: 'pointer', fontSize: '11px' }}
+      >
+        + 보양 작업 마스터 등록하기
+      </button>
+    </div>
   </div>
 )}
                       {workingOptionItems.filter(item => item.category === 'PROTECTION').map(item => {
@@ -763,15 +792,33 @@ export const SiteOptionManage: React.FC = () => {
                       <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <CheckSquare size={15} color="#d97706" /> 3. 현장 요구 사양 (SPEC)
                       </span>
-                      <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                        * 안전인증, 경광등, 센서 연동 필수 사양 점검
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('MASTER_OPTIONS')}
+                          style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '4px', border: '1px solid var(--primary)', color: 'var(--primary)', backgroundColor: 'transparent', cursor: 'pointer', fontWeight: 700 }}
+                        >
+                          + 신규 사양 마스터 등록
+                        </button>
+                        <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                          * 안전인증, 경광등, 센서 연동 필수 사양 점검
+                        </span>
+                      </div>
                     </div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
 {workingOptionItems.filter(item => item.category === 'SPEC').length === 0 && (
   <div style={{ padding: '16px', textAlign: 'center', width: '100%', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: '6px', fontSize: '12px' }}>
-    등록된 현장 요구 사양 마스터가 없습니다. 상단 [옵션 품목 마스터]에서 항목을 추가해주세요.
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+      <span>등록된 현장 요구 사양 마스터가 없습니다. 사양을 먼저 등록해야 현장에 적용할 수 있습니다.</span>
+      <button 
+        type="button" 
+        onClick={() => setActiveTab('MASTER_OPTIONS')}
+        style={{ padding: '4px 12px', borderRadius: '4px', border: '1px solid var(--primary)', backgroundColor: 'transparent', color: 'var(--primary)', fontWeight: 700, cursor: 'pointer', fontSize: '11px' }}
+      >
+        + 요구 사양 마스터 등록하기
+      </button>
+    </div>
   </div>
 )}
                       {workingOptionItems.filter(item => item.category === 'SPEC').map(item => {
