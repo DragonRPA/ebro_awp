@@ -118,6 +118,31 @@ export function initializeHindsightTracker() {
     document.addEventListener('change', recordInteraction, true);
     document.addEventListener('click', recordInteraction, true);
     isHistoryListenerAttached = true;
+
+  let lastPathname = window.location.pathname;
+
+  const resetHistoryIfMenuChanged = () => {
+    if (window.location.pathname !== lastPathname) {
+      lastPathname = window.location.pathname;
+      interactionHistory.length = 0;
+      console.log('[HINDSIGHT] Menu changed. Interaction history cleared.');
+    }
+  };
+
+  const originalPushState = history.pushState;
+  history.pushState = function() {
+    originalPushState.apply(this, arguments as any);
+    resetHistoryIfMenuChanged();
+  };
+
+  const originalReplaceState = history.replaceState;
+  history.replaceState = function() {
+    originalReplaceState.apply(this, arguments as any);
+    resetHistoryIfMenuChanged();
+  };
+
+  window.addEventListener('popstate', resetHistoryIfMenuChanged);
+
   }
 
 
