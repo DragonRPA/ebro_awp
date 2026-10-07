@@ -2328,7 +2328,7 @@ export const TenantManagementPage: React.FC = () => {
 
               {/* ── 탭 2: 브랜드 및 직인 ── */}
               {modalTab === 'BRAND' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div data-hs-scope="tenant_edit_form" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   {/* CI 로고 등록 */}
                   <div style={{
                     border: '1px solid var(--border-color)',
@@ -2560,7 +2560,7 @@ export const TenantManagementPage: React.FC = () => {
 
               {/* ── 탭 3: 계좌 및 주기장 ── */}
               {modalTab === 'BANKS_YARDS' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div data-hs-scope="tenant_edit_form" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   {/* 주거래 입금 계좌 */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -3640,7 +3640,7 @@ export const TenantManagementPage: React.FC = () => {
             </div>
 
               {modalTab === 'STORAGE' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div data-hs-scope="tenant_edit_form" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <Database size={15} color="var(--primary)" />
