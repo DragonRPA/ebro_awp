@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 // src/data/allMenuManuals.ts
 // 전사 모든 메뉴 기능의 본질적 업무 목적 및 표준 매뉴얼 데이터 (SSOT)
 import type { ManualPage, ManualAnnotationItem, ManualProcessFlow } from '../types/manual';
@@ -522,7 +522,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='site-option-ref-search-box']",
             "type": "callout",
             "label": "옵션 참조 현장 검색 및 복사",
-            "description": "현장별 옵션관리에 등록된 현장을 검색·선택한 뒤 [옵션 속성 복사] 버튼을 눌러 유상옵션, 보양작업, 요구사양을 즉시 일치시킵니다."
+            "description": "초성 검색을 통해 현장별 옵션관리에 등록된 현장을 검색·선택한 뒤 [옵션 속성 복사] 버튼을 눌러 유상옵션, 보양작업, 요구사양을 즉시 일치시킵니다."
           },
           {
             "seq": 3,
@@ -545,9 +545,8 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "2. 고객 및 현장 운용 KPI 실시간 집계 검토 (총 고객사, 정상사, 거래제한/폐업, 현장수)",
       "3. 고객사 대장 목록 탐색 및 선택 (등록증 미등록 업체 및 결손 정보 즉시 파악)",
       "4. 선택 고객사 360도 마스터 상세 도시에 검토 (사업자정보, 대표연락처, 청구조건)",
-      "5. 사업자등록증 AI OCR 자동 등록 및 정보 보완 (이미지/PDF 기반 상호/대표자 자동 파싱)",
-      "6. 국세청 홈택스 사업자 휴폐업 전수 점검 및 여신 리스크 방어",
-      "7. 신규 고객 등록 및 신규 현장·담당자 매핑 (현장별 옵션관리 기등록 현장 옵션 속성 검색 및 1클릭 복사 일치로 계약 체결 가용화)"
+      "5. 국세청 홈택스 사업자 휴폐업 전수 점검 및 여신 리스크 방어",
+      "6. 신규 고객 등록 및 신규 현장·담당자 매핑 (현장별 옵션관리 기등록 현장 옵션 속성 검색 및 1클릭 복사 일치로 계약 체결 가용화)"
     ],
     "subTabs": [
       {
@@ -641,16 +640,6 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       },
       {
         "seq": 5,
-        "selector": "[data-mid=\"btn-ocr-biz-license\"], button:contains(\"사업자등록증\")",
-        "type": "click_ripple",
-        "label": "사업자등록증 인공지능 보완",
-        "description": "사업자등록증 이미지를 올려 상호, 대표자, 등록번호를 자동 파싱합니다.",
-        "badgeColor": "#2563EB",
-        "positionHint": "bottom",
-        "spotlight": true
-      },
-      {
-        "seq": 6,
         "selector": "[data-mid=\"btn-nts-audit\"], button:contains(\"국세청\")",
         "type": "callout",
         "label": "국세청 휴폐업 점검",
@@ -660,7 +649,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "spotlight": true
       },
       {
-        "seq": 7,
+        "seq": 6,
         "selector": "[data-mid=\"btn-new-customer\"], button:contains(\"신규 고객 등록\")",
         "type": "click_ripple",
         "label": "신규 고객 등록",
@@ -717,17 +706,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       },
       {
         "seq": 2,
-        "selector": "[data-mid=\"tab-toggle\"]",
-        "type": "stamp",
-        "label": "탭 전환",
-        "description": "현장별 옵션 관리 작업대와 옵션 품목 마스터 간 화면을 전환합니다.",
-        "badgeColor": "#1D4ED8",
-        "positionHint": "bottom",
-        "spotlight": false
-      },
-      {
-        "seq": 3,
-        "selector": "[data-mid=\"panel-site-scope\"]",
+          "selector": "[data-mid=\"panel-site-scope\"]",
         "type": "stamp",
         "label": "현장 선택",
         "description": "옵션을 설정할 고객 현장을 목록에서 클릭 선택합니다.",
@@ -736,8 +715,8 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "spotlight": true
       },
       {
-        "seq": 4,
-        "selector": "[data-mid=\"btn-option-master-manage\"]",
+        "seq": 3,
+          "selector": "[data-mid=\"btn-option-master-manage\"]",
         "type": "click_ripple",
         "label": "옵션 품목 마스터",
         "description": "전사 유상옵션 및 보양작업 표준 품목과 기준단가를 관리하는 마스터 화면으로 전환합니다.",
@@ -746,8 +725,8 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "spotlight": false
       },
       {
-        "seq": 5,
-        "selector": "[data-mid=\"table-paid-options\"]",
+        "seq": 4,
+          "selector": "[data-mid=\"table-paid-options\"]",
         "type": "stamp",
         "label": "유상 옵션",
         "description": "현장에 투입될 유상옵션 적용 여부와 현장 특약단가를 인라인 입력합니다.",
@@ -756,8 +735,8 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "spotlight": false
       },
       {
-        "seq": 6,
-        "selector": "[data-mid=\"card-protection-options\"]",
+        "seq": 5,
+          "selector": "[data-mid=\"card-protection-options\"]",
         "type": "stamp",
         "label": "보양 작업",
         "description": "현장 환경에 부합하는 보호 완충/함석 보양 규격을 1종 선택합니다.",
@@ -776,8 +755,8 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "spotlight": false
       },
       {
-        "seq": 8,
-        "selector": "[data-mid=\"btn-save-site-options\"]",
+        "seq": 6,
+          "selector": "[data-mid=\"btn-save-site-options\"]",
         "type": "stamp",
         "label": "설정 저장",
         "description": "작업대에서 구성한 옵션값을 해당 현장의 DB 레코드에 최종 저장합니다.",
@@ -10091,3 +10070,8 @@ export function getManualPageForMenu(menuId: string, customTitle?: string): Manu
     items: manual.annotations,
   };
 }
+
+
+
+
+

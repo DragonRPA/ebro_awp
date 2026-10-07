@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 // src/data/modalManuals.ts
 // 전사 팝업(모달) 전용 표준 업무 매뉴얼 및 활성 모달 DOM 자동 감지 엔진 (SSOT)
 import type { ManualPage, ManualAnnotationItem } from '../types/manual';
@@ -56,7 +56,7 @@ export const MODAL_MANUAL_REGISTRY: Record<string, {
         selector: '[data-mid="site-option-ref-search-box"]',
         type: 'callout',
         label: '현장별 옵션관리 등록 현장 검색 및 옵션 복사',
-        description: '현장별 옵션관리에 등록된 현장을 검색·선택하여 유상옵션, 보양작업, 요구사양 속성을 1클릭 복사하고 동일하게 맞춥니다.',
+        description: '현장명 및 고객사의 초성 검색을 통해 현장별 옵션관리에 등록된 현장을 쉽게 검색·선택하여 유상옵션, 보양작업, 요구사양 속성을 1클릭 복사하고 동일하게 맞춥니다.',
         badgeColor: '#0284C7',
         positionHint: 'bottom',
         spotlight: true,
@@ -1296,3 +1296,4 @@ export function detectCurrentContext(baseMenuId: string, defaultTitle?: string):
     rootEl: null,
   };
 }
+

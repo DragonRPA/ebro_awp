@@ -1,4 +1,4 @@
-/**
+﻿/**
  * =========================================================================
  *  e-Bro ERP — 로컬 경량 사이드카 에이전트 (eBroAgent)
  * =========================================================================
@@ -738,10 +738,21 @@ const server = http.createServer(async (req, res) => {
           auth: { user: cleanEmail, pass: cleanPass }
         });
 
-        const parsedAttachments = Array.isArray(attachments) ? attachments.map((att) => {
+                const parsedAttachments = Array.isArray(attachments) ? attachments.map((att) => {
+          if (att.localPath) {
+            const fs = require('fs');
+            const path = require('path');
+            if (fs.existsSync(att.localPath)) {
+              return {
+                filename: att.filename || path.basename(att.localPath),
+                path: att.localPath,
+                contentType: att.contentType || 'application/pdf'
+              };
+            }
+          }
           const base64Data = String(att.content || '').replace(/^data:.*?;base64,/, '');
           return {
-            filename: att.filename || '계약서류팩.pdf',
+            filename: att.filename || '계약서.pdf',
             content: Buffer.from(base64Data, 'base64'),
             contentType: att.contentType || 'application/pdf'
           };
@@ -776,6 +787,7 @@ const server = http.createServer(async (req, res) => {
       try {
         const payload = JSON.parse(body || '{}');
         if (!fs.existsSync(tempBuildDir)) fs.mkdirSync(tempBuildDir, { recursive: true });
+        const tenantName = payload.tenantName || payload.corporateName || '기연리프트';
 
         const custName = payload.customerName || '고객사';
         const bizRegNo = payload.bizRegNo || '등록번호미지정';
@@ -976,7 +988,7 @@ $excel.Quit()
         fs.writeFileSync(psFile, psScript, 'utf8');
 
         // Excel 변환 동기 실행
-        execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, { encoding: 'utf8' });
+        execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, { cwd: tempBuildDir, encoding: 'utf8', timeout: 60000, windowsHide: true });
 
         // PDF 병합 (pdf-lib)
         const { PDFDocument } = require('pdf-lib');
@@ -2045,5 +2057,6 @@ server.listen(PORT, '127.0.0.1', () => {
     }, 600);
   }
 });
+
 
 

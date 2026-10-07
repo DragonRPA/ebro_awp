@@ -1,4 +1,4 @@
-// src/pages/Customers.tsx - 전사 표준 헌장 준수 거래처 고객사 및 현장/담당자 마스터 스튜디오
+﻿// src/pages/Customers.tsx - 전사 표준 헌장 준수 거래처 고객사 및 현장/담당자 마스터 스튜디오
 import { useApproval } from '../hooks/useApproval';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
@@ -12,7 +12,7 @@ import {
 import { db, Customer, CustomerContact, CustomerSite, CustomerBankAccount, StandardOption, logPrivacyAccess, SiteContactPerson, SiteContactType, SITE_CONTACT_TYPE_CONFIG, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, CustomerTransactionStatus, isCustomerRestricted, isCustomerTotalBlocked, getCustomerTransactionStatusLabel } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { isPrivilegedPrivacyUser, maskPhoneNumber, maskEmail, maskName, maskAddress } from '../utils/privacyMasking';
-import { matchHangul, matchesChosungFilter, sortCustomersByName } from '../utils/hangulSearch';
+import { matchHangul, matchesChosungFilter, sortCustomersByName, createHangulMatcher } from '../utils/hangulSearch';
 import { ChosungFilterBar } from '../components/ChosungFilterBar';
 import { BusinessLicenseModal } from '../components/BusinessLicenseModal';
 import { BatchBusinessLicenseModal } from '../components/BatchBusinessLicenseModal';
@@ -220,22 +220,17 @@ export const Customers: React.FC = () => {
 
   // 🎯 현장별 옵션관리 등록 현장 중 옵션 참조 대상 목록 (검색 필터 및 옵션 보유 현장 상위 정렬)
   const optionReferenceSites = useMemo(() => {
+    const matcher = createHangulMatcher(siteOptionRefSearch);
     return (sites || []).filter(s => {
       if (editingSite?.id && s.id === editingSite.id) return false;
       if (editingSiteOption?.id && s.id === editingSiteOption.id) return false;
 
       if (siteOptionRefSearch.trim()) {
-        const kw = siteOptionRefSearch.trim().toLowerCase();
-        const cName = customerMap.get(s.customerId)?.name || '';
+        const cName = customerMap.get(s.customerId || '')?.name || '';
         const sName = s.name || '';
         const sAddr = s.address || '';
         const sOpts = (s.paidOptions || '') + ' ' + (s.protection || '');
-        return (
-          sName.toLowerCase().includes(kw) ||
-          cName.toLowerCase().includes(kw) ||
-          sAddr.toLowerCase().includes(kw) ||
-          sOpts.toLowerCase().includes(kw)
-        );
+        return matcher.testAny([cName, sName, sAddr, sOpts]);
       }
       return true;
     }).sort((a, b) => {
@@ -254,7 +249,7 @@ export const Customers: React.FC = () => {
 
   const selectedRefCustomer = useMemo(() => {
     if (!selectedRefSite) return null;
-    return customerMap.get(selectedRefSite.customerId) || null;
+    return customerMap.get(selectedRefSite.customerId || '') || null;
   }, [customerMap, selectedRefSite]);
 
   const refCheckedSpecsSummary = useMemo(() => {
@@ -718,7 +713,7 @@ export const Customers: React.FC = () => {
       ];
     }
 
-    const parentCust = customers.find(c => c.id === cs.customerId);
+    const parentCust = customers.find(c => c.id === (cs.customerId || ''));
     setEditingSite({
       ...cs,
       statementClosingDay: cs.statementClosingDay || parentCust?.defaultStatementClosingDay || 25,
@@ -1163,33 +1158,6 @@ export const Customers: React.FC = () => {
           >
             <Download size={13} /> 엑셀 다운로드
           </button>
-          {canSave && (
-            <button
-              onClick={() => {
-                setTargetBizLicenseCustId(undefined);
-                setShowBizLicenseModal(true);
-              }}
-              style={{
-                padding: '5px 12px',
-                fontSize: '12px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                whiteSpace: 'nowrap',
-                backgroundColor: 'var(--success)',
-                color: '#ffffff',
-                border: '1px solid #047857',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.15)'
-              }}
-              data-mid="btn-ocr-biz-license"
-              title="사업자등록증 이미지/PDF 업로드 기반 AI 신규 등록 및 정보 보완"
-            >
-              <FileText size={13} color="#ffffff" /> 사업자등록증 AI 등록/보완
-            </button>
-          )}
           {canSave && (
             <button
               onClick={() => setShowBatchLicenseModal(true)}
@@ -2962,7 +2930,7 @@ export const Customers: React.FC = () => {
                       <input
                         type="text"
                         style={{ ...inputStyle, paddingLeft: '22px', fontSize: '11px', height: '28px' }}
-                        placeholder="현장명/고객사 검색"
+                        placeholder="현장명/고객사 검색 (초성검색 지원)"
                         value={siteOptionRefSearch}
                         onChange={e => setSiteOptionRefSearch(e.target.value)}
                       />
@@ -2976,7 +2944,7 @@ export const Customers: React.FC = () => {
                     >
                       <option value="">-- 옵션 참조 현장 선택 ({optionReferenceSites.length}개) --</option>
                       {optionReferenceSites.map(s => {
-                        const custName = customerMap.get(s.customerId)?.name || '고객사 미지정';
+                        const custName = customerMap.get(s.customerId || '')?.name || '고객사 미지정';
                         const optSummary = [s.paidOptions, s.protection].filter(Boolean).join(' | ');
                         return (
                           <option key={s.id} value={s.id}>
@@ -3509,7 +3477,7 @@ export const Customers: React.FC = () => {
                     <input
                       type="text"
                       style={{ ...inputStyle, paddingLeft: '22px', fontSize: '11px', height: '28px' }}
-                      placeholder="현장명/고객사 검색"
+                      placeholder="현장명/고객사 검색 (초성검색 지원)"
                       value={siteOptionRefSearch}
                       onChange={e => setSiteOptionRefSearch(e.target.value)}
                     />
@@ -3523,7 +3491,7 @@ export const Customers: React.FC = () => {
                   >
                     <option value="">-- 옵션 참조 현장 선택 ({optionReferenceSites.length}개) --</option>
                     {optionReferenceSites.map(s => {
-                      const custName = customerMap.get(s.customerId)?.name || '고객사 미지정';
+                      const custName = customerMap.get(s.customerId || '')?.name || '고객사 미지정';
                       const optSummary = [s.paidOptions, s.protection].filter(Boolean).join(' | ');
                       return (
                         <option key={s.id} value={s.id}>
@@ -4000,3 +3968,6 @@ const inputStyle: React.CSSProperties = {
   color: 'var(--text-main)',
   boxSizing: 'border-box',
 };
+
+
+

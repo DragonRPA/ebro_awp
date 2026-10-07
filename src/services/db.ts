@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import { createClient } from '@supabase/supabase-js';
 import { isDemoMode, DEMO_SUPABASE_CONFIG } from './demoMode';
 import { centralSupabase } from './centralDb';
@@ -1122,7 +1122,7 @@ export interface CustomerContact {
 
 export interface CustomerSite {
   id: string;
-  customerId: string;
+  customerId?: string;
   name: string;
   address: string;
   contactName: string;
@@ -6911,3 +6911,7 @@ export async function logPrivacyAccess(
 
 
 if (typeof window !== 'undefined') (window as any).__DB__ = db;
+
+
+
+

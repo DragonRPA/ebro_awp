@@ -12,7 +12,7 @@ import { exportToExcel } from '../services/excel';
 
 export const SiteOptionManage: React.FC = () => {
   const { 
-    customers, sites, standardOptions, saveStandardOption, 
+    sites, standardOptions, saveStandardOption, 
     saveSite, showErrorModal, fullRefreshFromServer,
     navigationPayload, setNavigationPayload
   } = useApp();
@@ -21,7 +21,6 @@ export const SiteOptionManage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'SITE_OPTIONS' | 'MASTER_OPTIONS'>('SITE_OPTIONS');
 
   // 2. 검색 및 필터 상태
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('ALL');
   const [searchSiteKeyword, setSearchSiteKeyword] = useState<string>('');
   const [selectedSiteId, setSelectedSiteId] = useState<string>('');
 
@@ -32,10 +31,8 @@ export const SiteOptionManage: React.FC = () => {
         setSelectedSiteId(navigationPayload.siteId);
         const targetSite = (sites || []).find(s => s.id === navigationPayload.siteId);
         if (targetSite) {
-          setSelectedCustomerId(targetSite.customerId);
         }
       } else if (navigationPayload.customerId) {
-        setSelectedCustomerId(navigationPayload.customerId);
       }
       if (navigationPayload.tab === 'MASTER_OPTIONS') {
         setActiveTab('MASTER_OPTIONS');
@@ -60,27 +57,19 @@ export const SiteOptionManage: React.FC = () => {
   const [editingMasterOption, setEditingMasterOption] = useState<Partial<StandardOption> | null>(null);
 
   // ── 🏢 고객사 ID ➔ 고객사명 매핑 맵 ──
-  const customerMap = useMemo(() => {
-    const map = new Map<string, Customer>();
-    (customers || []).forEach(c => map.set(c.id, c));
-    return map;
-  }, [customers]);
 
   // ── 🎯 필터링된 고객 현장 목록 ──
   const filteredSites = useMemo(() => {
     return (sites || []).filter(s => {
-      if (selectedCustomerId !== 'ALL' && s.customerId !== selectedCustomerId) return false;
       if (searchSiteKeyword.trim()) {
         const kw = searchSiteKeyword.trim().toLowerCase();
-        const custName = customerMap.get(s.customerId)?.name || '';
-        const matchName = (s.name || '').toLowerCase().includes(kw);
-        const matchAddr = (s.address || '').toLowerCase().includes(kw);
-        const matchCust = custName.toLowerCase().includes(kw);
-        if (!matchName && !matchAddr && !matchCust) return false;
+        const matchName = (s.name || "").toLowerCase().includes(kw);
+        const matchAddr = (s.address || "").toLowerCase().includes(kw);
+        if (!matchName && !matchAddr) return false;
       }
       return true;
     });
-  }, [sites, selectedCustomerId, searchSiteKeyword, customerMap]);
+  }, [sites, searchSiteKeyword]);
 
   // 첫 번째 현장 자동 선택
   useEffect(() => {
@@ -213,11 +202,9 @@ export const SiteOptionManage: React.FC = () => {
 
   // ── 📥 엑셀 내보내기 ──
   const handleExportExcel = () => {
-    const rows = filteredSites.map(s => {
-      const cust = customerMap.get(s.customerId);
-      return {
-        '현장명': s.name,
-        '고객사명': cust?.name || '-',
+      const rows = filteredSites.map(s => {
+        return {
+          "현장명": s.name,
         '현장주소': s.address || '-',
         '유상옵션': s.paidOptions || '미지정',
         '보양작업': s.protection || 'NONE',
@@ -314,8 +301,6 @@ export const SiteOptionManage: React.FC = () => {
               고객사 필터
             </span>
             <select
-              value={selectedCustomerId}
-              onChange={e => setSelectedCustomerId(e.target.value)}
               style={{
                 height: '34px',
                 padding: '0 10px',
@@ -329,10 +314,6 @@ export const SiteOptionManage: React.FC = () => {
                 minWidth: '150px'
               }}
             >
-              <option value="ALL">전체 고객사 ({customers?.length || 0})</option>
-              {(customers || []).map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
             </select>
           </div>
 
@@ -400,53 +381,7 @@ export const SiteOptionManage: React.FC = () => {
               <Building2 size={13} />
               현장별 옵션 관리
             </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('MASTER_OPTIONS')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '5px 14px',
-                borderRadius: '6px',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '12.5px',
-                fontWeight: 700,
-                backgroundColor: activeTab === 'MASTER_OPTIONS' ? 'var(--primary)' : 'transparent',
-                color: activeTab === 'MASTER_OPTIONS' ? '#ffffff' : 'var(--text-secondary)',
-                transition: 'all 0.15s ease',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              <Shield size={13} />
-              옵션 품목 마스터 ({standardOptions?.length || 0})
-            </button>
           </div>
-
-          {/* 엑셀 내보내기 버튼 */}
-          <button
-            type="button"
-            onClick={handleExportExcel}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              height: '34px',
-              padding: '0 12px',
-              borderRadius: '6px',
-              border: '1px solid #10b981',
-              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-              color: '#059669',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            <Download size={13} />
-            엑셀 내보내기
-          </button>
 
           {/* 옵션 품목 마스터 버튼 (고객관리에서 이동배치) */}
           <button
@@ -473,6 +408,30 @@ export const SiteOptionManage: React.FC = () => {
           >
             <Sliders size={13} color="#ffffff" />
             옵션 품목 마스터
+          </button>
+
+          {/* 엑셀 내보내기 버튼 */}
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              height: '34px',
+              padding: '0 12px',
+              borderRadius: '6px',
+              border: '1px solid #10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              color: '#059669',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <Download size={13} />
+            엑셀 내보내기
           </button>
         </div>
       </div>
@@ -522,7 +481,6 @@ export const SiteOptionManage: React.FC = () => {
               ) : (
                 filteredSites.map(site => {
                   const isSelected = site.id === selectedSiteId;
-                  const cust = customerMap.get(site.customerId);
                   const paidCount = (site.paidOptions || '').split(',').filter(Boolean).length;
                   const hasProt = Boolean(site.protection && site.protection !== 'NONE');
 
@@ -557,7 +515,6 @@ export const SiteOptionManage: React.FC = () => {
                       </div>
 
                       <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                        {cust?.name || '고객사 미지정'}
                       </div>
 
                       <div style={{ display: 'flex', gap: '6px', marginTop: '2px', alignItems: 'center' }}>
@@ -624,7 +581,6 @@ export const SiteOptionManage: React.FC = () => {
                         {activeSite.name}
                       </h3>
                       <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>
-                        ({customerMap.get(activeSite.customerId)?.name || '고객사'})
                       </span>
                     </div>
                     <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -660,6 +616,14 @@ export const SiteOptionManage: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody>
+{workingOptionItems.filter(item => item.category === 'PAID').length === 0 && (
+  <tr>
+    <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+      <AlertCircle size={16} style={{ display: 'inline-block', marginBottom: '-3px', marginRight: '4px' }} />
+      등록된 유상 옵션 마스터가 없습니다. 상단 [옵션 품목 마스터]에서 항목을 추가해주세요.
+    </td>
+  </tr>
+)}
                           {workingOptionItems.filter(item => item.category === 'PAID').map(item => {
                             return (
                               <tr 
@@ -752,6 +716,11 @@ export const SiteOptionManage: React.FC = () => {
                     </div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+{workingOptionItems.filter(item => item.category === 'PROTECTION').length === 0 && (
+  <div style={{ padding: '16px', textAlign: 'center', width: '100%', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: '6px', fontSize: '12px' }}>
+    등록된 보양 작업 마스터가 없습니다. 상단 [옵션 품목 마스터]에서 항목을 추가해주세요.
+  </div>
+)}
                       {workingOptionItems.filter(item => item.category === 'PROTECTION').map(item => {
                         const isSelected = item.isEnabled;
                         return (
@@ -800,6 +769,11 @@ export const SiteOptionManage: React.FC = () => {
                     </div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+{workingOptionItems.filter(item => item.category === 'SPEC').length === 0 && (
+  <div style={{ padding: '16px', textAlign: 'center', width: '100%', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: '6px', fontSize: '12px' }}>
+    등록된 현장 요구 사양 마스터가 없습니다. 상단 [옵션 품목 마스터]에서 항목을 추가해주세요.
+  </div>
+)}
                       {workingOptionItems.filter(item => item.category === 'SPEC').map(item => {
                         const isSelected = item.isEnabled;
                         return (

@@ -1,4 +1,7 @@
-v1.14.1.Build.42
+﻿with open('RELEASE_NOTES.md', 'r', encoding='utf-16') as f:
+    old_content = f.read()
+
+new_notes = f"""v1.14.1.Build.42
 2026-10-07 13:30
 1. [도메인 정책] 현장(Site) 독립성 보장을 위한 스키마 및 UI/UX 개편
    - 현장은 특정 고객사의 소유가 아니라는 전사 도메인 원칙에 따라 CustomerSite 스키마에서 customerId 종속성을 분리(선택 속성화).
@@ -9,16 +12,7 @@ v1.14.1.Build.42
 3. [UX 개선] 로컬 AI 모델 로딩 지연에 대한 시각적 피드백(프로그레스 뷰) 추가
    - ebro-qwen:3b 등 로컬 온디바이스 모델의 최초 Wake-up 시간(5~15초) 동안 지루함을 방지하고 상태를 직관적으로 전달하는 <LocalAiLoadingIndicator /> 컴포넌트 신규 구축 및 AI 메뉴(에이전틱 배차 스튜디오, AI 연구소) 전면 적용.
 
-v1.14.0.Build.41
-2026-10-07 04:25
-1. GoogleConfig 및 TenantManagementPage 화면의 빌드 실패(Vercel 배포 에러) 원인이었던 닫히지 않은 JSX 태그 및 TypeScript 타입 충돌 문제 해결
+"""
 
-v1.14.0.Build.40
-2026-10-06 18:13
-1. 테넌트 통합 메일 및 클라우드 연계 설정 전면 개편
-   - '구글 및 클라우드 연계 설정' 메뉴를 '공식 메일 연동 설정'으로 변경
-   - 구글(Gmail) 외에도 네이버(Naver), 다음(Daum), 사내 구축 메일 서버(Custom) 등 모든 이메일 서비스와 연동할 수 있는 범용 SMTP 동적 라우팅 아키텍처 도입
-   - 설정 화면에서 메일 공급자(Provider) 선택 시 호스트 및 포트 자동 프리셋 기능 추가
-2. 인프라 스토리지 설정 폼 테넌트 관리 센터로 독립 이전
-   - 일반 사용자가 접근할 수 없도록 Cloudflare R2 스토리지 연동 폼을 최고관리자 전용 '테넌트 관리 센터'의 모달 내 [STORAGE] 탭으로 이관
-
+with open('RELEASE_NOTES.md', 'w', encoding='utf-8') as f:
+    f.write(new_notes + old_content)

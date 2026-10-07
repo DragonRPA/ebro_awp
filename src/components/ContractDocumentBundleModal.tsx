@@ -1,4 +1,4 @@
-// src/components/ContractDocumentBundleModal.tsx
+﻿// src/components/ContractDocumentBundleModal.tsx
 import React, { useState, useMemo, useEffect } from 'react';
 import { getTenantPlugin } from '../integrations/TenantPluginManager';
 import { useApp } from '../context/AppContext';
@@ -89,16 +89,21 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     initialContractId || contracts[0]?.id || ''
   );
 
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedContractId(initialContractId || contracts[0]?.id || '');
+    }
+  }, [isOpen, initialContractId, contracts]);
+
   // 생성 진행 상태
   const [isGenerating, setIsGenerating] = useState(false);
   const [progressPercent, setProgressPercent] = useState(0);
   const [progressText, setProgressText] = useState('');
   const [generatedResult, setGeneratedResult] = useState<{ 
-    url: string; 
+    filePath: string; 
     fileName: string; 
     pageCount: number; 
-    blob?: Blob;
-    base64Content?: string;
+    url: string;
   } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -399,8 +404,8 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
   };
 
   // ── 💡 핵심 PDF 조립 헬퍼 (로컬 에이전트 COM 엔진 가동) ──
-  const buildBundlePdf = async (): Promise<{ url: string; fileName: string; pageCount: number; blob?: Blob; base64Content?: string }> => {
-    if (generatedResult?.blob && generatedResult?.base64Content) {
+  const buildBundlePdf = async (): Promise<{ filePath: string; fileName: string; pageCount: number; url: string; }> => {
+    if (generatedResult?.filePath) {
       return generatedResult;
     }
 
@@ -500,26 +505,19 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       }
 
       const agentRes = await agentResp.json();
-      if (!agentRes.success || !agentRes.base64Content) {
-        throw new Error(agentRes.error || '에이전트에서 PDF 생성에 실패했습니다.');
+      const returnedPath = agentRes.localPath || agentRes.filePath || agentRes.localFilePath;
+      if (!agentRes.success || !returnedPath) {
+        throw new Error(agentRes.error || '에이전트에서 PDF 생성 및 문서고 저장에 실패했습니다. (경로가 반환되지 않았습니다.)');
       }
 
       setProgressPercent(90);
-      const binaryStr = atob(agentRes.base64Content);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-      }
-      const blob = new Blob([bytes.buffer], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
 
       const tenantBrand = currentTenant?.displayName || currentTenant?.tradeName || 'e-Bro Lift';
       const finalRes = {
-        url,
+        url: '', // 더 이상 Blob URL을 사용하지 않음
+        filePath: returnedPath,
         fileName: agentRes.fileName || `[${tenantBrand}]_계약서패키지_${custName}_${siteName}(${agentRes.pageCount || 37}p).pdf`,
-        pageCount: agentRes.pageCount || 37,
-        blob,
-        base64Content: agentRes.base64Content
+        pageCount: agentRes.pageCount || 37
       };
 
       setProgressPercent(100);
@@ -539,30 +537,22 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     }
   };
 
-  // ── [액션 1] PDF 다운로드 핸들러 ──
-  const handleDownloadPdf = async () => {
+  // ── [액션 1, 2 공통] 로컬 파일 열기 핸들러 ──
+  const handleOpenLocalFile = async () => {
     try {
       const pdf = await buildBundlePdf();
-      const link = document.createElement('a');
-      link.href = pdf.url;
-      link.download = pdf.fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      await fetchWithAgentFallback('/api/open-local-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath: pdf.filePath })
+      });
     } catch (err: any) {
-      showErrorModal?.(`PDF 다운로드 실패:\n${err.message || err}`);
+      showErrorModal?.(`파일 열기 실패:\n${err.message || err}`);
     }
   };
 
-  // ── [액션 2] 새 창 미리보기 핸들러 ──
-  const handlePreviewPdf = async () => {
-    try {
-      const pdf = await buildBundlePdf();
-      window.open(pdf.url, '_blank');
-    } catch (err: any) {
-      showErrorModal?.(`PDF 미리보기 실패:\n${err.message || err}`);
-    }
-  };
+  const handleDownloadPdf = handleOpenLocalFile;
+  const handlePreviewPdf = handleOpenLocalFile;
 
   // ── [액션 3] 계약서패키지 이메일 발송 핸들러 (1-A, 2-A, 3-yes 완벽 적용) ──
   const handleSendPackageEmail = async () => {
@@ -575,7 +565,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     try {
       // 1. PDF가 아직 없으면 논스톱 자동 조립 실행 (2-A)
       let pdf = generatedResult;
-      if (!pdf || !pdf.base64Content) {
+      if (!pdf || !pdf.filePath) {
         pdf = await buildBundlePdf();
       }
 
@@ -583,11 +573,11 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       const primaryRecipient = recipients[0].email;
       const ccRecipients = recipients.slice(1).map(r => r.email).join(', ');
 
-      if (!pdf || !pdf.base64Content) {
-        throw new Error('[증빙 부재 발송 차단] 계약서패키지 실물 PDF 생성이 완료되지 않아 발송을 중단합니다. (증빙 없는 계약서 발송 금지)');
+      if (!pdf || !pdf.filePath) {
+        throw new Error('[증빙 부재 발송 차단] 계약서패키지 실물 PDF 조립 및 저장이 완료되지 않아 발송을 중단합니다. (증빙 없는 계약서 발송 금지)');
       }
 
-      const attachments = [{ filename: pdf.fileName, content: pdf.base64Content }];
+      const attachments = [{ filename: pdf.fileName, localPath: pdf.filePath }];
 
       const tenantBrand = currentTenant?.displayName || currentTenant?.tradeName || 'e-Bro Lift';
       const tenantCorp = currentTenant?.tradeName || currentTenant?.corporateName || tenantBrand || '(주)기연리프트';
@@ -1364,3 +1354,4 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     </div>
   );
 };
+

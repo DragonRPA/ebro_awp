@@ -3558,23 +3558,31 @@ ManualStudio(999.매뉴얼) 프로젝트의 어노테이션 철학을 웹 DOM �
      - **원인 1: 매입 정산 마스터 DB 레코드 누락**: 기존 handleExecuteBundlePaymentRequest 로직에서 deliveries 테이블의 econciliationStatus만 'PAYMENT_REQUESTED'로 변경하고 실제 회계 원장인 purchaseSettlements 및 1:1 명세인 purchaseSettlementItems 테이블에 레코드를 전혀 INSERT하지 않아, [월말 매입 정산] 대장에 지급요청서가 실제로 생성되지 않았음.
      - **원인 2: Supabase 컬럼 미존재로 인한 비동기 저장 실패**: deliveries.paymentRequestedAt 컬럼이 원격 DB 스키마에 존재하지 않아 PostgreSQL 에러(42703)가 발생하면서 deliveries 업데이트가 원격 DB에 실패하고, 새로고침/재조회 시 원격 데이터로 덮어써져 상태가 UNRECONCILED로 롤백되는 침묵 실패 발생.
      - **원인 3: 재조회 시 대사 대기 하드코딩 및 필터 단절**:
-       - 운송료 대사 탭에서 [조회] 시 econPairs가 초기화([])되는데, econPairs.length === 0일 때의 테이블 렌더링에서 상태 뱃지를 무조건 ⚪ 대기로 하드코딩 표출하고 있었음.
-       - 상단 대사 통계(econStats)에서도 isPairMode === false일 때 paymentRequestedCount를 0으로 고정하여 상단 배지에 지급요청 완료 (0)으로 표출됨.
+       - 운송료 대사 탭에서 [조회] 시 
+econPairs가 초기화([])되는데, 
+econPairs.length === 0일 때의 테이블 렌더링에서 상태 뱃지를 무조건 ⚪ 대기로 하드코딩 표출하고 있었음.
+       - 상단 대사 통계(
+econStats)에서도 isPairMode === false일 때 paymentRequestedCount를 0으로 고정하여 상단 배지에 지급요청 완료 (0)으로 표출됨.
        - 지급 상태 기본 필터가 UNPAID(미완료)로 되어 있어, 정상 요청된 건이 기본 조회 화면에서 사라져 사용자가 "지급요청이 안 생겼다"고 오인함.
   2. **개편 및 방어벽 구축**:
-     - **DB 스키마 보강**: Supabase DDL 실행을 통해 deliveries 테이블에 paymentRequestedAt, paymentCompletedAt, econciledAt, statementFileUrl, illableToCustomer 컬럼 정상 추가 및 schema.sql CHECK 제약조건 최신화.
+     - **DB 스키마 보강**: Supabase DDL 실행을 통해 deliveries 테이블에 paymentRequestedAt, paymentCompletedAt, 
+econciledAt, statementFileUrl, illableToCustomer 컬럼 정상 추가 및 schema.sql CHECK 제약조건 최신화.
      - **통합 지급요청 마스터/상세 동시 생성 (TruckDispatch.tsx)**:
        - db.insertRow<PurchaseSettlement>('purchaseSettlements', ...)를 호출하여 settlementType: 'TRANSPORT', status: 'CONFIRMED', confirmedAt, itemCount, 	otalAmount를 갖춘 정산 마스터 레코드 정상 등록.
        - 각 대사 배차 건별 db.insertRow<PurchaseSettlementItem>('purchaseSettlementItems', ...)를 호출하여 1:1 감사 추적 상세 아이템 저장.
-       - 각 배차의 econciliationStatus: 'PAYMENT_REQUESTED', paymentRequestedAt, deliveryCostConfirmed, inalCost, purchaseBillId 동시 갱신 및 wait db.awaitPendingWrites() 동기 검증.
-     - **지급요청 완료 즉시 화면 필터 자동 전환**: 지급요청 생성 완료 시 econPaymentFilter를 자동으로 'PAID'로 전환하여 방금 요청한 건들이 화면에 즉시 보이도록 개선.
+       - 각 배차의 
+econciliationStatus: 'PAYMENT_REQUESTED', paymentRequestedAt, deliveryCostConfirmed, inalCost, purchaseBillId 동시 갱신 및 wait db.awaitPendingWrites() 동기 검증.
+     - **지급요청 완료 즉시 화면 필터 자동 전환**: 지급요청 생성 완료 시 
+econPaymentFilter를 자동으로 'PAID'로 전환하여 방금 요청한 건들이 화면에 즉시 보이도록 개선.
      - **재조회 원장 모드 UI/UX 전면 개편**:
-       - econPairs.length === 0일 때도 completedDeliveriesForRecon의 실제 상태(PAYMENT_REQUESTED ➔ 🔵 지급요청, PAID ➔ 🟢 지급완료, MATCHED ➔ 🟢 대사일치)를 정확한 뱃지와 함께 표출.
+       - 
+econPairs.length === 0일 때도 completedDeliveriesForRecon의 실제 상태(PAYMENT_REQUESTED ➔ 🔵 지급요청, PAID ➔ 🟢 지급완료, MATCHED ➔ 🟢 대사일치)를 정확한 뱃지와 함께 표출.
        - 청구정보 컬럼에 [지급요청] PAY-BUNDLE-xxx | 확정 운송료 ₩xxx원 (월말 매입 정산 대장 등록됨) 명확히 표출.
        - 상단 통계 칩의 지급요청 완료 카운트가 completedDeliveriesForRecon을 실시간 집계하여 정확한 건수 표출.
        - 좌상단 [지급 상태] 필터 버튼에 실시간 건수(미완료 (N건), 지급요청/완료 (N건), 전체 (N건)) 표기.
 - **주요 변경 파일**:
-  - src/pages/TruckDispatch.tsx [MODIFY]: PurchaseSettlement/PurchaseSettlementItem 임포트, handleExecuteBundlePaymentRequest 실물 DB 생성 연계, econStats 실시간 집계 보정, 비-엑셀 모드 테이블 및 필터 뱃지 정상 표출.
+  - src/pages/TruckDispatch.tsx [MODIFY]: PurchaseSettlement/PurchaseSettlementItem 임포트, handleExecuteBundlePaymentRequest 실물 DB 생성 연계, 
+econStats 실시간 집계 보정, 비-엑셀 모드 테이블 및 필터 뱃지 정상 표출.
   - schema.sql [MODIFY]: purchase_settlements.status CHECK 제약조건에 'CONFIRMED' 추가.
 - **검증 결과**:
   - 
@@ -7830,4 +7838,3 @@ pm run build: **TypeScript 0 Error, 번들링 정상 완료 (uilt in 1.13s)**.
 
 
 
-- 로컬 AI 모델 로딩 시 사용자에게 예상 소요시간 안내 UI 추가 (지루함 방지 목적)
