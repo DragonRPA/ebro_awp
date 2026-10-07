@@ -1,10 +1,10 @@
-// src/pages/SiteOptionManage.tsx
+﻿// src/pages/SiteOptionManage.tsx
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   Shield, Check, Plus, Trash2, Edit3, Search, RefreshCw, 
   ArrowRight, Copy, CheckSquare, Layers, Download, Building2, 
-  MapPin, AlertCircle, FileText, CheckCircle2, ChevronRight, Sliders
+  MapPin, AlertCircle, FileText, CheckCircle2, ChevronRight, Sliders, X
 } from 'lucide-react';
 import { StandardOption, CustomerSite, Customer } from '../services/db';
 import { SiteOptionItem, inheritOptionsFromMaster } from '../types/siteOption';
@@ -598,25 +598,34 @@ export const SiteOptionManage: React.FC = () => {
                       <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Shield size={15} color="#2563eb" /> 1. 유상 옵션 (PAID) - 옵션품목마스터 상속
                       </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab('MASTER_OPTIONS')}
-                          style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '4px', border: '1px solid var(--primary)', color: 'var(--primary)', backgroundColor: 'transparent', cursor: 'pointer', fontWeight: 700 }}
-                        >
-                          + 신규 품목 마스터 등록
-                        </button>
-                        <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                          * 체크 시 현장 적용, 단가 오버라이드 가능
-                        </span>
-                      </div>
+                      <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                        * 추가된 현장 특약 단가 오버라이드 가능
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value) handleToggleOption(e.target.value);
+                        }}
+                        style={{ height: '30px', padding: '0 8px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '12px', minWidth: '220px', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+                      >
+                        <option value="" disabled>+ 현장에 추가할 옵션 마스터 선택...</option>
+                        {workingOptionItems.filter(item => item.category === 'PAID' && !item.isEnabled).map(item => (
+                          <option key={item.optionId} value={item.optionId}>{item.name}</option>
+                        ))}
+                      </select>
+                      <button type="button" onClick={() => setActiveTab('MASTER_OPTIONS')} style={{ fontSize: '11px', padding: '0 10px', height: '30px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 700 }}>
+                        마스터 품목 관리
+                      </button>
                     </div>
 
                     <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                       <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
                         <thead>
                           <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                            <th style={{ padding: '8px 10px', width: '50px', textAlign: 'center' }}>적용</th>
+                            <th style={{ padding: '8px 10px', width: '60px', textAlign: 'center' }}>적용 해제</th>
                             <th style={{ padding: '8px 10px', width: '200px' }}>옵션 품목명</th>
                             <th style={{ padding: '8px 10px', width: '90px' }}>기준단가</th>
                             <th style={{ padding: '8px 10px', width: '130px' }}>현장 특약단가 (₩)</th>
@@ -625,107 +634,95 @@ export const SiteOptionManage: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody>
-{workingOptionItems.filter(item => item.category === 'PAID').length === 0 && (
+{workingOptionItems.filter(item => item.category === 'PAID' && item.isEnabled).length === 0 ? (
   <tr>
     <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
         <div>
-          <AlertCircle size={16} style={{ display: 'inline-block', marginBottom: '-3px', marginRight: '4px' }} />
-          등록된 유상 옵션 마스터가 없습니다. 품목을 먼저 등록해야 현장에 적용할 수 있습니다.
+          현장에 추가된 유상 옵션이 없습니다. 상단의 드롭다운에서 등록된 마스터 품목을 선택하여 추가해주세요.
         </div>
-        <button 
-          type="button" 
-          onClick={() => setActiveTab('MASTER_OPTIONS')}
-          style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid var(--primary)', backgroundColor: 'transparent', color: 'var(--primary)', fontWeight: 700, cursor: 'pointer', fontSize: '12px' }}
-        >
-          + 옵션 품목 마스터 등록하기
-        </button>
       </div>
     </td>
   </tr>
+) : (
+  workingOptionItems.filter(item => item.category === 'PAID' && item.isEnabled).map(item => {
+    return (
+      <tr 
+        key={item.id}
+        style={{
+          borderBottom: '1px solid var(--border-color)',
+          backgroundColor: 'rgba(37, 99, 235, 0.03)'
+        }}
+      >
+        <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+          <button
+            type="button"
+            onClick={() => handleToggleOption(item.optionId)}
+            style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', border: '1px solid #fca5a5', backgroundColor: '#fef2f2', color: '#ef4444', cursor: 'pointer', fontWeight: 600 }}
+          >
+            제외
+          </button>
+        </td>
+        <td style={{ padding: '8px 10px', fontWeight: 700, color: '#1d4ed8' }}>
+          {item.name}
+        </td>
+        <td style={{ padding: '8px 10px', color: 'var(--text-muted)' }}>
+          ₩{(item.defaultPrice || 0).toLocaleString()}
+        </td>
+        <td style={{ padding: '8px 10px' }}>
+          <input
+            type="number"
+            value={item.appliedPrice}
+            onChange={e => handlePriceChange(item.optionId, Number(e.target.value))}
+            style={{
+              width: '100px',
+              height: '28px',
+              padding: '0 8px',
+              borderRadius: '4px',
+              border: '1px solid var(--border-color)',
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              fontSize: '11.5px'
+            }}
+          />
+        </td>
+        <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+          <input
+            type="checkbox"
+            checked={item.isRequired}
+            onChange={() => handleToggleRequired(item.optionId)}
+            style={{ cursor: 'pointer', width: '15px', height: '15px' }}
+          />
+        </td>
+        <td style={{ padding: '8px 10px' }}>
+          <input
+            type="text"
+            placeholder="현장 특이사항"
+            value={item.note || ''}
+            onChange={e => handleNoteChange(item.optionId, e.target.value)}
+            style={{
+              width: '100%',
+              height: '28px',
+              padding: '0 8px',
+              borderRadius: '4px',
+              border: '1px solid var(--border-color)',
+              backgroundColor: 'var(--bg-surface)',
+              color: 'var(--text-primary)',
+              fontSize: '11.5px'
+            }}
+          />
+        </td>
+      </tr>
+    );
+  })
 )}
-                          {workingOptionItems.filter(item => item.category === 'PAID').map(item => {
-                            return (
-                              <tr 
-                                key={item.id}
-                                style={{
-                                  borderBottom: '1px solid var(--border-color)',
-                                  backgroundColor: item.isEnabled ? 'rgba(37, 99, 235, 0.03)' : 'transparent'
-                                }}
-                              >
-                                <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={item.isEnabled}
-                                    onChange={() => handleToggleOption(item.optionId)}
-                                    style={{ cursor: 'pointer', width: '15px', height: '15px' }}
-                                  />
-                                </td>
-                                <td style={{ padding: '8px 10px', fontWeight: 700, color: item.isEnabled ? '#1d4ed8' : 'var(--text-primary)' }}>
-                                  {item.name}
-                                </td>
-                                <td style={{ padding: '8px 10px', color: 'var(--text-muted)' }}>
-                                  ₩{(item.defaultPrice || 0).toLocaleString()}
-                                </td>
-                                <td style={{ padding: '8px 10px' }}>
-                                  <input
-                                    type="number"
-                                    disabled={!item.isEnabled}
-                                    value={item.appliedPrice}
-                                    onChange={e => handlePriceChange(item.optionId, Number(e.target.value))}
-                                    style={{
-                                      width: '100px',
-                                      height: '28px',
-                                      padding: '0 8px',
-                                      borderRadius: '4px',
-                                      border: '1px solid var(--border-color)',
-                                      backgroundColor: item.isEnabled ? 'var(--bg-surface)' : 'var(--bg-secondary)',
-                                      color: 'var(--text-primary)',
-                                      fontSize: '12px',
-                                      fontWeight: 700,
-                                      textAlign: 'right'
-                                    }}
-                                  />
-                                </td>
-                                <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                                  <input
-                                    type="checkbox"
-                                    disabled={!item.isEnabled}
-                                    checked={item.isRequired}
-                                    onChange={() => handleToggleRequired(item.optionId)}
-                                    title="해당 현장 필수 장착 옵션 여부"
-                                    style={{ cursor: item.isEnabled ? 'pointer' : 'not-allowed' }}
-                                  />
-                                </td>
-                                <td style={{ padding: '8px 10px' }}>
-                                  <input
-                                    type="text"
-                                    disabled={!item.isEnabled}
-                                    placeholder="현장 특이사항"
-                                    value={item.note || ''}
-                                    onChange={e => handleNoteChange(item.optionId, e.target.value)}
-                                    style={{
-                                      width: '100%',
-                                      height: '28px',
-                                      padding: '0 8px',
-                                      borderRadius: '4px',
-                                      border: '1px solid var(--border-color)',
-                                      backgroundColor: item.isEnabled ? 'var(--bg-surface)' : 'var(--bg-secondary)',
-                                      color: 'var(--text-primary)',
-                                      fontSize: '11.5px'
-                                    }}
-                                  />
-                                </td>
-                              </tr>
-                            );
-                          })}
                         </tbody>
                       </table>
                     </div>
                   </div>
 
                   {/* 2. 보양 작업 (PROTECTION) 섹션 */}
-                  <div data-mid="card-protection-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div data-mid="card-protection-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Shield size={15} color="#059669" /> 2. 보양 작업 (PROTECTION) - 1종 선택
@@ -735,117 +732,89 @@ export const SiteOptionManage: React.FC = () => {
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-{workingOptionItems.filter(item => item.category === 'PROTECTION').length === 0 && (
-  <div style={{ padding: '16px', textAlign: 'center', width: '100%', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: '6px', fontSize: '12px' }}>
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-      <span>등록된 보양 작업 마스터가 없습니다. 작업을 먼저 등록해야 현장에 적용할 수 있습니다.</span>
-      <button 
-        type="button" 
-        onClick={() => setActiveTab('MASTER_OPTIONS')}
-        style={{ padding: '4px 12px', borderRadius: '4px', border: '1px solid var(--primary)', backgroundColor: 'transparent', color: 'var(--primary)', fontWeight: 700, cursor: 'pointer', fontSize: '11px' }}
-      >
-        + 보양 작업 마스터 등록하기
-      </button>
-    </div>
-  </div>
-)}
-                      {workingOptionItems.filter(item => item.category === 'PROTECTION').map(item => {
-                        const isSelected = item.isEnabled;
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => handleSelectProtection(item.optionId)}
-                            style={{
-                              padding: '8px 14px',
-                              borderRadius: '8px',
-                              border: isSelected ? '1.5px solid #059669' : '1px solid var(--border-color)',
-                              backgroundColor: isSelected ? 'rgba(5, 150, 105, 0.12)' : 'var(--bg-card)',
-                              color: isSelected ? '#047857' : 'var(--text-primary)',
-                              fontSize: '12px',
-                              fontWeight: isSelected ? 800 : 500,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            <span style={{
-                              width: '14px',
-                              height: '14px',
-                              borderRadius: '50%',
-                              border: isSelected ? '4px solid #059669' : '1px solid var(--border-color)',
-                              display: 'inline-block'
-                            }} />
-                            {item.name}
-                          </button>
-                        );
-                      })}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <select
+                        value={workingOptionItems.find(i => i.category === 'PROTECTION' && i.isEnabled)?.optionId || ""}
+                        onChange={(e) => handleSelectProtection(e.target.value)}
+                        style={{ height: '30px', padding: '0 8px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '12px', minWidth: '220px', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+                      >
+                        <option value="" disabled>현장에 적용할 보양 작업 마스터 선택...</option>
+                        {workingOptionItems.filter(item => item.category === 'PROTECTION').map(item => (
+                          <option key={item.optionId} value={item.optionId}>{item.name}</option>
+                        ))}
+                      </select>
+                      <button type="button" onClick={() => handleSelectProtection('')} style={{ fontSize: '11px', padding: '0 10px', height: '30px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 700 }}>
+                        적용 해제
+                      </button>
+                      <button type="button" onClick={() => setActiveTab('MASTER_OPTIONS')} style={{ fontSize: '11px', padding: '0 10px', height: '30px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 700 }}>
+                        마스터 품목 관리
+                      </button>
                     </div>
                   </div>
 
                   {/* 3. 현장 요구 사양 (SPEC) 섹션 */}
-                  <div data-mid="table-spec-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div data-mid="card-spec-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <CheckSquare size={15} color="#d97706" /> 3. 현장 요구 사양 (SPEC)
                       </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <button
-                          type="button"
-                          onClick={() => setActiveTab('MASTER_OPTIONS')}
-                          style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '4px', border: '1px solid var(--primary)', color: 'var(--primary)', backgroundColor: 'transparent', cursor: 'pointer', fontWeight: 700 }}
-                        >
-                          + 신규 사양 마스터 등록
-                        </button>
-                        <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                          * 안전인증, 경광등, 센서 연동 필수 사양 점검
-                        </span>
-                      </div>
+                      <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                        * 안전인증, 경광등, 센서 연동 등 필수 사양 점검
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value) handleToggleOption(e.target.value);
+                        }}
+                        style={{ height: '30px', padding: '0 8px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '12px', minWidth: '220px', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
+                      >
+                        <option value="" disabled>+ 현장에 추가할 사양 마스터 선택...</option>
+                        {workingOptionItems.filter(item => item.category === 'SPEC' && !item.isEnabled).map(item => (
+                          <option key={item.optionId} value={item.optionId}>{item.name}</option>
+                        ))}
+                      </select>
+                      <button type="button" onClick={() => setActiveTab('MASTER_OPTIONS')} style={{ fontSize: '11px', padding: '0 10px', height: '30px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 700 }}>
+                        마스터 품목 관리
+                      </button>
                     </div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-{workingOptionItems.filter(item => item.category === 'SPEC').length === 0 && (
+{workingOptionItems.filter(item => item.category === 'SPEC' && item.isEnabled).length === 0 ? (
   <div style={{ padding: '16px', textAlign: 'center', width: '100%', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: '6px', fontSize: '12px' }}>
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-      <span>등록된 현장 요구 사양 마스터가 없습니다. 사양을 먼저 등록해야 현장에 적용할 수 있습니다.</span>
-      <button 
-        type="button" 
-        onClick={() => setActiveTab('MASTER_OPTIONS')}
-        style={{ padding: '4px 12px', borderRadius: '4px', border: '1px solid var(--primary)', backgroundColor: 'transparent', color: 'var(--primary)', fontWeight: 700, cursor: 'pointer', fontSize: '11px' }}
-      >
-        + 요구 사양 마스터 등록하기
-      </button>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+      <span>현장에 적용된 요구 사양이 없습니다. 상단의 드롭다운에서 등록된 마스터 품목을 선택하여 추가해주세요.</span>
     </div>
   </div>
+) : (
+  workingOptionItems.filter(item => item.category === 'SPEC' && item.isEnabled).map(item => {
+    return (
+      <div
+        key={item.id}
+        style={{
+          display: 'flex', alignItems: 'center', gap: '6px',
+          padding: '6px 10px 6px 6px', borderRadius: '8px',
+          border: '1.5px solid #d97706',
+          backgroundColor: 'rgba(217, 119, 6, 0.08)',
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => handleToggleOption(item.optionId)}
+          style={{ cursor: 'pointer', border: 'none', background: 'transparent', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2px' }}
+          title="사양 제외"
+        >
+          <X size={14} strokeWidth={3} />
+        </button>
+        <span style={{ fontSize: '12px', fontWeight: 700, color: '#b45309' }}>
+          {item.name}
+        </span>
+      </div>
+    );
+  })
 )}
-                      {workingOptionItems.filter(item => item.category === 'SPEC').map(item => {
-                        const isSelected = item.isEnabled;
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => handleToggleOption(item.optionId)}
-                            style={{
-                              padding: '6px 12px',
-                              borderRadius: '6px',
-                              border: isSelected ? '1.5px solid #d97706' : '1px solid var(--border-color)',
-                              backgroundColor: isSelected ? 'rgba(217, 119, 6, 0.12)' : 'var(--bg-card)',
-                              color: isSelected ? '#b45309' : 'var(--text-primary)',
-                              fontSize: '12px',
-                              fontWeight: isSelected ? 800 : 500,
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                          >
-                            {isSelected ? '☑' : '☐'} {item.name}
-                          </button>
-                        );
-                      })}
                     </div>
                   </div>
 
