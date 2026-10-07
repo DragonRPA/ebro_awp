@@ -222,7 +222,7 @@ async function sendToHindsightAgent(payload: HindsightMemoryBundle) {
   }).catch(() => {});
 
   try {
-    const tenantId = localStorage.getItem('tenant_id') || localStorage.getItem('tenantId') || 'unknown';
+    const tenantId = localStorage.getItem('erp_current_tenant_id') || 'unknown';
     const solution = (localStorage.getItem('ebro_current_solution') || 'AWP').toUpperCase();
     const tableName = solution === 'IT' ? 'it_shared_memories' : 'awp_shared_memories';
 
@@ -242,4 +242,5 @@ async function sendToHindsightAgent(payload: HindsightMemoryBundle) {
     console.warn('[HINDSIGHT] Failed to save central memory:', err);
   }
 }
+
 
