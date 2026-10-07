@@ -71,6 +71,8 @@ import { SmartDispatch } from './pages/smart_dispatch';
 import { SmartDispatch2 } from './pages/smart_dispatch2';
 import { SmartDispatch3 } from './pages/smart_dispatch3';
 import { SmartDispatch4 } from './pages/smart_dispatch4';
+import { VoiceDispatch } from './pages/voice_dispatch';
+
 import { SmartReturn } from './pages/smart_return';
 import { DevDataUploader } from './pages/DevDataUploader';
 

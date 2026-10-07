@@ -158,7 +158,7 @@ const makeScoredField = (value: string, source: ScoredField['source'] = 'MANUAL'
 // ─────────────────────────────────────────────────────────────────────────────
 // 메인 컴포넌트
 // ─────────────────────────────────────────────────────────────────────────────
-export const SmartDispatch4: React.FC = () => {
+export const VoiceDispatch: React.FC = () => {
   const {
     hasPermission, customers, sites, contacts, currentUser, currentTenant,
     saveSmartDispatch, assets, deliveries, standardOptions,
@@ -235,12 +235,17 @@ export const SmartDispatch4: React.FC = () => {
   // ── 탭 (세션 기억으로 복귀 시 탭 유지) ──────────────────────────────────────
   const [activeTab, setActiveTabState] = useState<ActiveTab>(() => {
     if (typeof window !== 'undefined') {
-      const saved = sessionStorage.getItem('smart_dispatch4_active_tab') as ActiveTab;
+      const saved = sessionStorage.getItem('voice_dispatch_active_tab') as ActiveTab;
       if (saved === 'NEW' || saved === 'QUEUE') return saved;
     }
     return 'NEW';
   });
-  
+  const setActiveTab = (tab: ActiveTab) => {
+    setActiveTabState(tab);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('voice_dispatch_active_tab', tab);
+    }
+  };
   const [audioUploadOpen, setAudioUploadOpen] = useState(false);
 
   // ── 토스트 ────────────────────────────────────────────────────────────────
@@ -1685,7 +1690,7 @@ export const SmartDispatch4: React.FC = () => {
       await loadDrafts();
       resetForm();
       showToast('초안이 임시 보관함에 저장되었습니다.', 'info');
-      
+      setActiveTab('QUEUE');
     } catch (e: any) {
       showToast(`초안 저장 오류: ${e?.message}`, 'error');
     }
@@ -1795,7 +1800,7 @@ export const SmartDispatch4: React.FC = () => {
     if (draft.statementClosingDay) setStatementClosingDay(draft.statementClosingDay);
     if (draft.paymentDueDay) setPaymentDueDay(draft.paymentDueDay);
 
-    
+    setActiveTab('NEW');
     setOpenBlock('EQUIPMENT');
     showToast(`'${draft.customerName.value || '선택 요청'}' 데이터를 새 요청 작성으로 가져왔습니다.`, 'info');
   };
@@ -1978,7 +1983,7 @@ export const SmartDispatch4: React.FC = () => {
     setNote(fileMemo);
 
     // 4. 탭 전환
-    
+    setActiveTab('NEW');
     setOpenBlock('CUSTOMER');
     showToast(`통화 파일(${upload.fileName}) 데이터를 새 요청 폼으로 로드했습니다.`, 'info');
   };
@@ -4856,7 +4861,7 @@ export const SmartDispatch4: React.FC = () => {
             <button
               data-mid="dispatch4-tab-new"
               type="button"
-              
+              onClick={() => setActiveTab('NEW')}
               className={`dispatch4-tab-btn ${activeTab === 'NEW' ? 'active' : ''}`}
             >
               출고 요청 작성
@@ -4864,7 +4869,7 @@ export const SmartDispatch4: React.FC = () => {
             <button
               data-mid="dispatch4-tab-queue"
               type="button"
-              
+              onClick={() => setActiveTab('QUEUE')}
               className={`dispatch4-tab-btn ${activeTab === 'QUEUE' ? 'active' : ''}`}
             >
               <span>임시 보관함</span>
@@ -4909,7 +4914,15 @@ export const SmartDispatch4: React.FC = () => {
             <span>{isAgentPrinting ? '인쇄 전송중...' : '출고요청서 인쇄'}</span>
           </button>
 
-          
+          <button
+            data-mid="dispatch4-btn-audio-upload"
+            type="button"
+            onClick={() => setAudioUploadOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-900/40 hover:bg-blue-900/60 border border-blue-500/50 text-blue-200 text-xs font-bold transition shadow-sm whitespace-nowrap flex-shrink-0 cursor-pointer"
+          >
+            <UploadCloud className="w-3.5 h-3.5 text-blue-400" />
+            <span>녹음 파일 등록</span>
+          </button>
         </div>
       </div>
 
@@ -4917,7 +4930,16 @@ export const SmartDispatch4: React.FC = () => {
       {activeTab === 'NEW' ? renderNewTab() : renderQueueTab()}
 
       {/* 통화 녹음 업로드 모달 */}
-      
+      <CallAudioUploadModal
+        isOpen={audioUploadOpen}
+        onClose={() => setAudioUploadOpen(false)}
+        onSuccess={() => {
+          loadDrafts();
+          loadUploadsAndLogs();
+          setActiveTab('QUEUE');
+          showToast('통화 녹음 업로드 완료 — 처리 대기 큐 및 이벤트 로그에 등록되었습니다.');
+        }}
+      />
 
       {/* 🌟 [추가출고 현장 옵션 첨삭 저장 확인 모달] */}
       {optionConfirmModalOpen && (
@@ -5128,4 +5150,4 @@ export const SmartDispatch4: React.FC = () => {
   );
 };
 
-export default SmartDispatch4;
+export default VoiceDispatch;
