@@ -69,7 +69,7 @@ function recordInteraction(e: Event) {
   if (!target) return;
 
   // 모달을 여는 <a>, <button>, [role="button"], [role="menuitem"] 등 모든 상호작용 가능한 요소를 추적 (클릭한 아이콘/span도 closest로 잡아냄)
-  const interactiveTarget = target.closest('button, a, input, select, textarea, [role="button"], [role="menuitem"], [data-hs-observe]') as HTMLElement;
+  const interactiveTarget = target.closest('button, a, input, select, textarea, [role="button"], [role="menuitem"], [role="tab"], [data-hs-observe]') as HTMLElement;
   if (!interactiveTarget) return;
   target = interactiveTarget;
 
