@@ -1082,7 +1082,34 @@ export const Customers: React.FC = () => {
     setShowAccountModal(true);
   };
 
-  const handleDeleteAccount = async (accId: string) => {
+  
+  // --- Keyboard Shortcuts (Harden) ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape to close modals
+      if (e.key === 'Escape') {
+        if (editingCust) setEditingCust(null);
+        if (editingContact) setEditingContact(null);
+        if (editingSite) { setEditingSite(null); setShowSiteModal(false); }
+        if (editingAccount) setEditingAccount(null);
+        if (showSiteOptionModal) setShowSiteOptionModal(false);
+      }
+      // Ctrl+S to save
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        const mockEvent = { preventDefault: () => {} } as React.FormEvent;
+        if (editingCust) { e.preventDefault(); handleSaveCustSubmit(mockEvent); }
+        else if (editingContact) { e.preventDefault(); handleSaveContactSubmit(mockEvent); }
+        else if (editingSite) { e.preventDefault(); handleSaveSiteSubmit(mockEvent); }
+        else if (editingAccount) { e.preventDefault(); handleSaveAccountSubmit(mockEvent); }
+        else if (showSiteOptionModal) { e.preventDefault(); handleSaveSiteOptions(); }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editingCust, editingContact, editingSite, editingAccount, showSiteOptionModal, handleSaveCustSubmit, handleSaveContactSubmit, handleSaveSiteSubmit, handleSaveAccountSubmit, handleSaveSiteOptions]);
+  // -----------------------------------
+
+const handleDeleteAccount = async (accId: string) => {
     if (!activeCustomer) return;
     const nextAccounts = (activeCustomer.bankAccounts || []).filter(a => a.id !== accId);
     try {
@@ -1296,7 +1323,7 @@ export const Customers: React.FC = () => {
         flexShrink: 0
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: '1', minWidth: '180px' }}>
-          <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>통합 검색</label>
+          <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>통합 검색</label>
           <div style={{ position: 'relative' }}>
             <Search size={13} style={{ position: 'absolute', left: '8px', top: '7px', color: 'var(--text-muted)' }} />
             <input
@@ -1318,7 +1345,7 @@ export const Customers: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-          <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>거래 상태</label>
+          <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>거래 상태</label>
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value as any)}
@@ -1532,7 +1559,7 @@ export const Customers: React.FC = () => {
                       <span>등록번호: {cust.bizRegNo || '-'}</span>
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px', fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px', fontSize: '11.5px', color: 'var(--text-muted)' }}>
                       <span>현장 {custSitesCount}개소 · 담당 {custContactsCount}명</span>
                       {canSave && (
                         <button
@@ -1540,7 +1567,7 @@ export const Customers: React.FC = () => {
                           onClick={(e) => { e.stopPropagation(); handleOpenEditCust(cust); }}
                           style={{
                             padding: '1px 5px',
-                            fontSize: '10.5px',
+                            fontSize: '11.5px',
                             border: '1px solid var(--border-color)',
                             borderRadius: '3px',
                             backgroundColor: 'transparent',
@@ -1581,19 +1608,19 @@ export const Customers: React.FC = () => {
                       {activeCustomer.name}
                     </h3>
                     {activeCustomer.transactionStatus === 'RESTRICT_NEW' ? (
-                      <span className="badge" style={{ fontSize: '10px', backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #f59e0b' }}>
+                      <span className="badge" style={{ fontSize: '11px', backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #f59e0b' }}>
                         추가계약금지
                       </span>
                     ) : isCustomerTotalBlocked(activeCustomer.transactionStatus) ? (
-                      <span className="badge badge-danger" style={{ fontSize: '10px' }}>
+                      <span className="badge badge-danger" style={{ fontSize: '11px' }}>
                         전면차단(장비회수)
                       </span>
                     ) : (
-                      <span className="badge badge-success" style={{ fontSize: '10px' }}>
+                      <span className="badge badge-success" style={{ fontSize: '11px' }}>
                         거래가능
                       </span>
                     )}
-                    {activeCustomer.isClosed && <span className="badge badge-danger" style={{ fontSize: '10px' }}>폐업</span>}
+                    {activeCustomer.isClosed && <span className="badge badge-danger" style={{ fontSize: '11px' }}>폐업</span>}
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1727,7 +1754,7 @@ export const Customers: React.FC = () => {
                               <td style={{ padding: '5px 6px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <Circle size={10} fill={hasActiveContracts ? '#22c55e' : '#eab308'} strokeWidth={0} />
                                 {cs.name}
-                                <span style={{fontSize: '10px', color: 'var(--text-muted)', fontWeight: 400}}>
+                                <span style={{fontSize: '11px', color: 'var(--text-muted)', fontWeight: 400}}>
                                   (계약 {activeContracts.length}건 / {activeAssetCount}대)
                                 </span>
                               </td>
@@ -1738,7 +1765,7 @@ export const Customers: React.FC = () => {
                                       type="button"
                                       className="btn-secondary"
                                       onClick={() => handleOpenEditSite(cs)}
-                                      style={{ padding: '1px 5px', fontSize: '10.5px' }}
+                                      style={{ padding: '1px 5px', fontSize: '11.5px' }}
                                     >
                                       수정
                                     </button>
@@ -1759,7 +1786,7 @@ export const Customers: React.FC = () => {
                                           </span>
                                         )}
                                         <span style={{ fontWeight: 600 }}>{c.name || '-'}</span>
-                                        {c.position && <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>({c.position})</span>}
+                                        {c.position && <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>({c.position})</span>}
                                         {c.isPrimary && <span className="badge badge-primary" style={{ fontSize: '9px', padding: '0 3px' }}>대표</span>}
                                       </div>
                                     );
@@ -1775,7 +1802,7 @@ export const Customers: React.FC = () => {
                                   {cs.contacts.filter(c => c.isActive !== false).map((c, cIdx) => (
                                     <div key={c.id || cIdx} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
                                       <span>{c.contact || '-'}</span>
-                                      {c.email && <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>&lt;{c.email}&gt;</span>}
+                                      {c.email && <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>&lt;{c.email}&gt;</span>}
                                     </div>
                                   ))}
                                 </div>
@@ -1784,7 +1811,7 @@ export const Customers: React.FC = () => {
                               )}
                             </td>
                             <td style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                              <span style={{ fontSize: '10.5px', fontWeight: 600, color: cs.statementClosingDay ? 'var(--primary)' : 'var(--text-muted)' }}>
+                              <span style={{ fontSize: '11.5px', fontWeight: 600, color: cs.statementClosingDay ? 'var(--primary)' : 'var(--text-muted)' }}>
                                 매월 {cs.statementClosingDay === 31 ? '말일' : `${cs.statementClosingDay || activeCustomer?.defaultStatementClosingDay || 25}일`}
                               </span>
                             </td>
@@ -1806,7 +1833,7 @@ export const Customers: React.FC = () => {
                                   const hasProt = Boolean(protStr && protStr !== 'NONE' && protStr !== '-' && protStr !== '없음');
                                   if (!hasPaid && !hasProt) {
                                     return (
-                                      <span style={{ padding: '1px 6px', fontSize: '10px', borderRadius: '3px', backgroundColor: 'var(--bg-app)', color: 'var(--text-muted)', border: '1px dashed var(--border-color)' }}>
+                                      <span style={{ padding: '1px 6px', fontSize: '11px', borderRadius: '3px', backgroundColor: 'var(--bg-app)', color: 'var(--text-muted)', border: '1px dashed var(--border-color)' }}>
                                         (기본상속)
                                       </span>
                                     );
@@ -1925,7 +1952,7 @@ export const Customers: React.FC = () => {
                                   type="button"
                                   className="btn-secondary"
                                   onClick={() => handleOpenEditContact(cc)}
-                                  style={{ padding: '1px 5px', fontSize: '10.5px' }}
+                                  style={{ padding: '1px 5px', fontSize: '11.5px' }}
                                 >
                                   수정
                                 </button>
@@ -1990,7 +2017,7 @@ export const Customers: React.FC = () => {
                                     type="button"
                                     className="btn-secondary"
                                     onClick={() => handleOpenEditAccount(acc)}
-                                    style={{ padding: '1px 5px', fontSize: '10.5px' }}
+                                    style={{ padding: '1px 5px', fontSize: '11.5px' }}
                                   >
                                     수정
                                   </button>
@@ -1998,7 +2025,7 @@ export const Customers: React.FC = () => {
                                     type="button"
                                     className="btn-secondary"
                                     onClick={() => handleDeleteAccount(acc.id)}
-                                    style={{ padding: '1px 5px', fontSize: '10.5px', color: 'var(--danger)' }}
+                                    style={{ padding: '1px 5px', fontSize: '11.5px', color: 'var(--danger)' }}
                                   >
                                     삭제
                                   </button>
@@ -2581,7 +2608,7 @@ export const Customers: React.FC = () => {
                             >
                               {cfg.label}
                             </span>
-                            <span style={{ fontSize: '10.5px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                            <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                               ({cfg.subLabel})
                             </span>
 
@@ -2590,7 +2617,7 @@ export const Customers: React.FC = () => {
                               value={cType}
                               onChange={e => handleUpdateSiteContact(scIdx, 'contactType', e.target.value as SiteContactType)}
                               style={{
-                                fontSize: '10.5px',
+                                fontSize: '11.5px',
                                 padding: '1px 4px',
                                 borderRadius: '3px',
                                 border: '1px solid var(--border-color)',
@@ -2615,7 +2642,7 @@ export const Customers: React.FC = () => {
                                 onClick={() => handleSetPrimarySiteContact(scIdx)}
                                 style={{
                                   padding: '1px 5px',
-                                  fontSize: '10px',
+                                  fontSize: '11px',
                                   border: '1px solid var(--border-color)',
                                   borderRadius: '3px',
                                   background: 'transparent',
@@ -2636,7 +2663,7 @@ export const Customers: React.FC = () => {
                               onClick={() => handleToggleSiteContactActive(scIdx)}
                               style={{
                                 padding: '2px 8px',
-                                fontSize: '10.5px',
+                                fontSize: '11.5px',
                                 fontWeight: 600,
                                 border: `1px solid ${!isInactive ? 'rgba(16, 185, 129, 0.4)' : 'rgba(156, 163, 175, 0.4)'}`,
                                 borderRadius: '4px',
@@ -2725,7 +2752,7 @@ export const Customers: React.FC = () => {
                           </div>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                             <label style={{ ...labelStyle, whiteSpace: 'nowrap' }}>
-                              이메일주소 {cType === 'CLOSING' && <span style={{ fontSize: '10px', color: '#059669', fontWeight: 600 }}>[명세서/계산서]</span>}
+                              이메일주소 {cType === 'CLOSING' && <span style={{ fontSize: '11px', color: '#059669', fontWeight: 600 }}>[명세서/계산서]</span>}
                             </label>
                             <input
                               type="email"
@@ -2749,7 +2776,7 @@ export const Customers: React.FC = () => {
                   <div>
                     <label style={{ ...labelStyle, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <span>거래명세서 마감일</span>
-                      <span style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: 700 }}>*청구생성 연동</span>
+                      <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 700 }}>*청구생성 연동</span>
                     </label>
                     <select
                       style={inputStyle}
@@ -2834,7 +2861,7 @@ export const Customers: React.FC = () => {
                           setShowSiteModal(false);
                           handleNavigateToSiteOptionManage(editingSite.id);
                         }}
-                        style={{ padding: '2px 8px', fontSize: '10.5px', border: '1px solid #2563eb', borderRadius: '3px', backgroundColor: 'rgba(37, 99, 235, 0.08)', color: '#1d4ed8', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        style={{ padding: '2px 8px', fontSize: '11.5px', border: '1px solid #2563eb', borderRadius: '3px', backgroundColor: 'rgba(37, 99, 235, 0.08)', color: '#1d4ed8', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
                         title="현장별 옵션 관리 상세 화면으로 이동"
                       >
                         현장별 옵션 관리 ➔
@@ -2862,7 +2889,7 @@ export const Customers: React.FC = () => {
                       <Search size={12} color="var(--primary)" />
                       현장별 옵션관리 등록 현장 검색 (옵션 속성 복사)
                     </label>
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                       기등록 현장의 유상/보양/사양 속성 즉시 일치
                     </span>
                   </div>
@@ -2933,14 +2960,14 @@ export const Customers: React.FC = () => {
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '3px',
-                        fontSize: '10.5px'
+                        fontSize: '11.5px'
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontWeight: 700, color: '#1d4ed8', whiteSpace: 'nowrap' }}>
                           참조 대상: [{selectedRefCustomer?.name || '고객사'}] {selectedRefSite.name}
                         </span>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '10px', whiteSpace: 'nowrap' }}>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '11px', whiteSpace: 'nowrap' }}>
                           {selectedRefSite.address || '주소 없음'}
                         </span>
                       </div>
@@ -2977,7 +3004,7 @@ export const Customers: React.FC = () => {
                             }}
                             style={{
                               padding: '2px 6px',
-                              fontSize: '10px',
+                              fontSize: '11px',
                               borderRadius: '3px',
                               border: isSelected ? '1px solid #2563eb' : '1px solid var(--border-color)',
                               backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.15)' : 'var(--bg-app)',
@@ -3011,7 +3038,7 @@ export const Customers: React.FC = () => {
                             onClick={() => setEditingSite({ ...editingSite, protection: opt.name })}
                             style={{
                               padding: '2px 6px',
-                              fontSize: '10px',
+                              fontSize: '11px',
                               borderRadius: '3px',
                               border: isSelected ? '1px solid #059669' : '1px solid var(--border-color)',
                               backgroundColor: isSelected ? 'rgba(5, 150, 105, 0.15)' : 'var(--bg-app)',
@@ -3051,7 +3078,7 @@ export const Customers: React.FC = () => {
                             }}
                             style={{
                               padding: '2px 6px',
-                              fontSize: '10px',
+                              fontSize: '11px',
                               borderRadius: '3px',
                               border: isSelected ? '1px solid #d97706' : '1px solid var(--border-color)',
                               backgroundColor: isSelected ? 'rgba(217, 119, 6, 0.15)' : 'var(--bg-app)',
@@ -3199,7 +3226,7 @@ export const Customers: React.FC = () => {
                   <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
                     기본 유상옵션 (표준 항목 토글 및 직접 입력)
                   </label>
-                  <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                  <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
                     선택: {splitOptions(custOptionForm.defaultPaidOptions).length}개
                   </span>
                 </div>
@@ -3232,7 +3259,7 @@ export const Customers: React.FC = () => {
                       >
                         <span>{opt.name}</span>
                         {opt.defaultPrice ? (
-                          <span style={{ fontSize: '10px', color: isSelected ? '#2563eb' : 'var(--text-muted)' }}>
+                          <span style={{ fontSize: '11px', color: isSelected ? '#2563eb' : 'var(--text-muted)' }}>
                             ({opt.defaultPrice.toLocaleString()}원)
                           </span>
                         ) : null}
@@ -3260,7 +3287,7 @@ export const Customers: React.FC = () => {
                   <label style={{ ...labelStyle, fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
                     기본 보양작업
                   </label>
-                  <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>
+                  <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
                     현재: {custOptionForm.defaultProtection || '미지정'}
                   </span>
                 </div>
@@ -3409,7 +3436,7 @@ export const Customers: React.FC = () => {
                     <Search size={12} color="var(--primary)" />
                     현장별 옵션관리 등록 현장 검색 (옵션 속성 복사)
                   </label>
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                     기등록 현장의 유상/보양/사양 속성 즉시 일치
                   </span>
                 </div>
@@ -3480,14 +3507,14 @@ export const Customers: React.FC = () => {
                       display: 'flex',
                       flexDirection: 'column',
                       gap: '3px',
-                      fontSize: '10.5px'
+                      fontSize: '11.5px'
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 700, color: '#1d4ed8', whiteSpace: 'nowrap' }}>
                         참조 대상: [{selectedRefCustomer?.name || '고객사'}] {selectedRefSite.name}
                       </span>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '10px', whiteSpace: 'nowrap' }}>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '11px', whiteSpace: 'nowrap' }}>
                         {selectedRefSite.address || '주소 없음'}
                       </span>
                     </div>
@@ -3526,7 +3553,7 @@ export const Customers: React.FC = () => {
                         }}
                         style={{
                           padding: '2px 7px',
-                          fontSize: '10.5px',
+                          fontSize: '11.5px',
                           borderRadius: '4px',
                           border: isSelected ? '1px solid #2563eb' : '1px solid var(--border-color)',
                           backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.15)' : 'var(--bg-card)',
@@ -3564,7 +3591,7 @@ export const Customers: React.FC = () => {
                         onClick={() => setSiteOptionForm({ ...siteOptionForm, protection: opt.name })}
                         style={{
                           padding: '2px 7px',
-                          fontSize: '10.5px',
+                          fontSize: '11.5px',
                           borderRadius: '4px',
                           border: isSelected ? '1px solid #059669' : '1px solid var(--border-color)',
                           backgroundColor: isSelected ? 'rgba(5, 150, 105, 0.15)' : 'var(--bg-card)',
@@ -3608,7 +3635,7 @@ export const Customers: React.FC = () => {
                         }}
                         style={{
                           padding: '2px 7px',
-                          fontSize: '10.5px',
+                          fontSize: '11.5px',
                           borderRadius: '4px',
                           border: isSelected ? '1px solid #d97706' : '1px solid var(--border-color)',
                           backgroundColor: isSelected ? 'rgba(217, 119, 6, 0.15)' : 'var(--bg-card)',
@@ -3808,7 +3835,7 @@ export const Customers: React.FC = () => {
                           <span style={{
                             padding: '1px 6px',
                             borderRadius: '3px',
-                            fontSize: '10px',
+                            fontSize: '11px',
                             fontWeight: 700,
                             backgroundColor: opt.category === 'PAID' ? 'rgba(59, 130, 246, 0.12)' : 'rgba(16, 185, 129, 0.12)',
                             color: opt.category === 'PAID' ? '#2563eb' : '#059669',
@@ -3840,14 +3867,14 @@ export const Customers: React.FC = () => {
                               type="button"
                               className="btn-secondary"
                               onClick={() => handleOpenEditOption(opt)}
-                              style={{ padding: '1px 5px', fontSize: '10.5px' }}
+                              style={{ padding: '1px 5px', fontSize: '11.5px' }}
                             >
                               수정
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDeleteOption(opt)}
-                              style={{ padding: '1px 5px', fontSize: '10.5px', border: '1px solid var(--border-color)', borderRadius: '3px', backgroundColor: 'transparent', color: 'var(--danger)', cursor: 'pointer' }}
+                              style={{ padding: '1px 5px', fontSize: '11.5px', border: '1px solid var(--border-color)', borderRadius: '3px', backgroundColor: 'transparent', color: 'var(--danger)', cursor: 'pointer' }}
                             >
                               삭제
                             </button>
