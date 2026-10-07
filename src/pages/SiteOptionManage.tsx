@@ -499,7 +499,7 @@ export const SiteOptionManage: React.FC = () => {
 
       {/* ── [탭 1: 현장별 옵션 관리 마스터-디테일 스튜디오] ── */}
       {activeTab === 'SITE_OPTIONS' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '14px', minHeight: '620px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '14px', height: 'calc(100vh - 180px)', minHeight: '500px' }}>
           
           {/* 좌측: 고객 현장 목록 패널 (320px) */}
           <div 
@@ -612,7 +612,7 @@ export const SiteOptionManage: React.FC = () => {
             border: '1px solid var(--border-color)',
             display: 'flex',
             flexDirection: 'column',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden'
           }}>
             {!activeSite ? (
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
@@ -1009,12 +1009,12 @@ export const SiteOptionManage: React.FC = () => {
             <table style={{ width: '100%', minWidth: '750px', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
               <thead>
                 <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                  <th style={{ padding: '9px 12px', width: '80px' }}>분류</th>
-                  <th style={{ padding: '9px 12px', width: '220px' }}>옵션 품목명</th>
-                  <th style={{ padding: '9px 12px', width: '110px' }}>기준단가</th>
-                  <th style={{ padding: '9px 12px', width: '70px' }}>단위</th>
-                  <th style={{ padding: '9px 12px' }}>설명</th>
-                  <th style={{ padding: '9px 12px', width: '80px', textAlign: 'center' }}>상태</th>
+                  <th onClick={() => handleMasterSort('category')} style={{ padding: '9px 12px', width: '80px', cursor: 'pointer' }}>분류{masterSortConfig.key === 'category' ? (masterSortConfig.direction === 'asc' ? ' ▲' : masterSortConfig.direction === 'desc' ? ' ▼' : '') : ''}</th>
+                  <th onClick={() => handleMasterSort('name')} style={{ padding: '9px 12px', width: '220px', cursor: 'pointer' }}>옵션 품목명{masterSortConfig.key === 'name' ? (masterSortConfig.direction === 'asc' ? ' ▲' : masterSortConfig.direction === 'desc' ? ' ▼' : '') : ''}</th>
+                  <th onClick={() => handleMasterSort('defaultPrice')} style={{ padding: '9px 12px', width: '110px', cursor: 'pointer' }}>기준단가{masterSortConfig.key === 'defaultPrice' ? (masterSortConfig.direction === 'asc' ? ' ▲' : masterSortConfig.direction === 'desc' ? ' ▼' : '') : ''}</th>
+                  <th onClick={() => handleMasterSort('unit')} style={{ padding: '9px 12px', width: '70px', cursor: 'pointer' }}>단위{masterSortConfig.key === 'unit' ? (masterSortConfig.direction === 'asc' ? ' ▲' : masterSortConfig.direction === 'desc' ? ' ▼' : '') : ''}</th>
+                  <th onClick={() => handleMasterSort('description')} style={{ padding: '9px 12px', cursor: 'pointer' }}>설명{masterSortConfig.key === 'description' ? (masterSortConfig.direction === 'asc' ? ' ▲' : masterSortConfig.direction === 'desc' ? ' ▼' : '') : ''}</th>
+                  <th onClick={() => handleMasterSort('isActive')} style={{ padding: '9px 12px', width: '80px', textAlign: 'center', cursor: 'pointer' }}>상태{masterSortConfig.key === 'isActive' ? (masterSortConfig.direction === 'asc' ? ' ▲' : masterSortConfig.direction === 'desc' ? ' ▼' : '') : ''}</th>
                   <th style={{ padding: '9px 12px', width: '80px', textAlign: 'center' }}>수정</th>
                 </tr>
               </thead>
@@ -1248,13 +1248,40 @@ export const SiteOptionManage: React.FC = () => {
             </div>
 
             {/* 버튼군 */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowMasterModal(false);
-                  setEditingMasterOption(null);
-                }}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+                <div>
+                  {editingMasterOption.id && (
+                    <button
+                      type="button"
+                      data-hs-trigger="Delete"
+                      onClick={async () => {
+                        if (confirm('이 옵션 품목 마스터를 삭제하시겠습니까?')) {
+                          try {
+                            await deleteStandardOption(editingMasterOption.id!);
+                            setShowMasterModal(false);
+                            setEditingMasterOption(null);
+                            await fullRefreshFromServer();
+                          } catch (err: any) {
+                            showErrorModal(`삭제 실패: ${err.message}`);
+                          }
+                        }
+                      }}
+                      style={{
+                        padding: '7px 14px', borderRadius: '6px', border: '1px solid #ef4444', 
+                        color: '#ef4444', backgroundColor: 'transparent', fontSize: '12.5px', cursor: 'pointer'
+                      }}
+                    >
+                      삭제
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMasterModal(false);
+                    setEditingMasterOption(null);
+                  }}
                 style={{
                   padding: '7px 14px',
                   borderRadius: '6px',
@@ -1281,9 +1308,7 @@ export const SiteOptionManage: React.FC = () => {
                 }}
               >
                 저장
-              </button>
-            </div>
-          </form>
+              </button></div></div></form>
         </div>
       )}
     </div>
