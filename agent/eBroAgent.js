@@ -1982,6 +1982,51 @@ async function checkAndProcessPrintQueue() {
   }
 }
 
+async function sendAgentHeartbeat() {
+  try {
+    const pcName = os.hostname();
+    const deviceId = `DEV-${pcName}`;
+    const tenantId = (TENANT_CODE === 'GIYEONLIFT' || TENANT_CODE === 'GIYEUN') ? 'giyeun' : TENANT_CODE.toLowerCase();
+    const id = `HEARTBEAT-${tenantId}-${deviceId}`;
+    
+    const netInterfaces = os.networkInterfaces();
+    let ipAddress = '127.0.0.1';
+    for (const dev of Object.keys(netInterfaces)) {
+      for (const details of netInterfaces[dev]) {
+        if (details.family === 'IPv4' && !details.internal) {
+          ipAddress = details.address;
+          break;
+        }
+      }
+    }
+    
+    const payload = {
+      id: id,
+      tenant_id: tenantId,
+      device_id: deviceId,
+      pc_name: pcName,
+      user_id: CALLSIGN,
+      user_name: '사용자',
+      ip_address: ipAddress,
+      engine_version: VERSION,
+      status: 'ONLINE',
+      last_seen_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    await httpRequestJson(`${SUPABASE_REST_URL}/agent_heartbeats`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      timeout: 4000
+    }, payload);
+  } catch (e) {}
+}
+
 async function sendStationHeartbeat() {
   if (!activeStationConfig || !activeStationConfig.stationId) return;
   try {
@@ -2047,6 +2092,9 @@ server.listen(PORT, '127.0.0.1', () => {
     scheduleNextPrintQueueCheck(5000);
     setInterval(() => { sendStationHeartbeat().catch(() => {}); }, 30000);
   }
+  
+  setInterval(() => { sendAgentHeartbeat().catch(() => {}); }, 15000);
+  sendAgentHeartbeat();
 
   // 순수 시스템 트레이 데몬 모드 상주 (스튜디오 창 자동 팝업 배제, 트레이 조작 시에만 실행)
   const isDaemon = process.argv.includes('--daemon') || process.argv.includes('--silent');

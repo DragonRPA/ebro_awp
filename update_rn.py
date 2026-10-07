@@ -1,19 +1,33 @@
-﻿import datetime
-with open('RELEASE_NOTES.md', 'r', encoding='utf-8') as f:
-    text = f.read()
+﻿import os
+from datetime import datetime
 
-now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-new_entry = f'''v1.14.1.Build.43
-{now}
-1. [버그 수정] 매뉴얼 화면 기본안내(basicGuide)와 기능정의(annotations) 표시 갯수 불일치 오류 수정
-   - 화면 오버레이에 그려지는 요소 갯수와 우측 브리핑 모달이 출력하는 요소 갯수가 서로 다른 소스에서 기인하던 버그 수정.
-2. [UI 개편] 현장별 옵션관리 메뉴 기능 단순화
-   - 사용자 요청에 따라 '새로운 옵션 등록 기능'을 숨김 처리하고, 이미 등록된 옵션을 현장에 매핑하는 본연의 기능에 집중하도록 UI 단순화.
-3. [문서 업데이트] 현장별 옵션관리 UI 개편에 따른 매뉴얼 최신화
-   - 없어진 옵션 마스터 관리 버튼을 매뉴얼 데이터(basicGuide/annotations)에서 삭제 후 DB 동기화 완료.
-4. [에이전트 배포] eBroAgent 2.0 최신 기능(WebSocket 통신, 시스템 트레이, UI 설정) 반영 버전 CDN 재배포 완료
+filepath = 'RELEASE_NOTES.md'
+with open(filepath, 'r', encoding='utf-8') as f:
+    content = f.read()
 
-'''
+# find current version
+# e.g., ## [v1.14.1.Build.43] - 2026-10-07 16:16
+import re
+match = re.search(r'## \[v(\d+)\.(\d+)\.(\d+)\.Build\.(\d+)\]', content)
+if match:
+    v1, v2, v3, b = match.groups()
+    new_version = f"v{v1}.{v2}.{v3}.Build.{int(b)+1}"
+else:
+    new_version = "v1.14.1.Build.44"
 
-with open('RELEASE_NOTES.md', 'w', encoding='utf-8') as f:
-    f.write(new_entry + text)
+now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+new_release = f"""## [{new_version}] - {now_str}
+### ✨ 주요 업데이트
+- **에이전트 관제 화면(Agent Monitoring) 실시간 하트비트 연동 완료**
+  - 가짜(하드코딩) 관제 데이터 UI를 제거하고, 실제 로컬망에서 `print_stations` 통신 외에 글로벌 에이전트 관제망(`agent_heartbeats` DB 테이블)으로 직접 15초 단위 하트비트를 송신하도록 연동했습니다.
+  - 이제 테넌트 관제 화면에서 실제 설치 및 가동 중인 로컬 에이전트 대수, PC 이름(호스트), 접속 IP, 버전 상태, 그리고 **마지막 접속 경과 시간**을 실시간으로 추적하여 표시합니다.
+  - **오프라인/온라인 상태 감지 로직 적용:** 1분(60초) 이상 하트비트가 끊기면 즉각 빨간색(오프라인) 상태로 전환되며, 대기 큐로 통신이 이관되는 상태를 정확하게 표시합니다.
+
+"""
+
+content = new_release + content
+
+with open(filepath, 'w', encoding='utf-8') as f:
+    f.write(content)
+print(f"Updated RELEASE_NOTES.md to {new_version}")
