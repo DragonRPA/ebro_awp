@@ -872,6 +872,7 @@ const App: React.FC = () => {
     const currentItem = allItems.find(item => item.id === activeTab);
     const title = currentItem?.name || (activeTab === 'dashboard' ? '대시보드' : activeTab);
     setBaseMenu(activeTab, title);
+    document.body.setAttribute('data-active-menu', title);
   }, [activeTab, menuGroups, setBaseMenu]);
 
   // 활성 페이지 컴포넌트 탐색

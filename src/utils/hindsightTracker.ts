@@ -119,11 +119,24 @@ function setupFetchInterceptor() {
           try { bodyParsed = JSON.parse(options.body); } catch(e) {}
         }
         
+        let pseudo_sql = '';
+        try {
+          if (url.includes('/rest/v1/')) {
+            const table = url.split('/rest/v1/')[1].split('?')[0];
+            const qs = url.split('?')[1] || '';
+            if (method === 'POST') pseudo_sql = `INSERT INTO ${table} ${bodyParsed ? JSON.stringify(bodyParsed) : ''}`;
+            else if (method === 'PATCH') pseudo_sql = `UPDATE ${table} SET ${bodyParsed ? JSON.stringify(bodyParsed) : ''} WHERE ${qs}`;
+            else if (method === 'DELETE') pseudo_sql = `DELETE FROM ${table} WHERE ${qs}`;
+            else pseudo_sql = `${method} ${table} ${qs}`;
+          }
+        } catch(e) {}
+
         lastOutgoingQuery = {
           timestamp: new Date().toISOString(),
           method: method,
           url: url,
-          payload: bodyParsed
+          payload: bodyParsed,
+          pseudo_sql: pseudo_sql
         };
       }
     }
@@ -197,7 +210,7 @@ export function initializeHindsightTracker() {
 
       const payload: HindsightMemoryBundle = {
         action_name: actionName,
-        menu_path: window.location.pathname + window.location.search,
+        menu_path: document.body.getAttribute('data-active-menu') || window.location.pathname + window.location.search,
         trigger_element: triggerDetails,
         interaction_history: [...interactionHistory],
         final_query: lastOutgoingQuery
@@ -222,7 +235,7 @@ async function sendToHindsightAgent(payload: HindsightMemoryBundle) {
   }).catch(() => {});
 
   try {
-    const tenantId = localStorage.getItem('erp_current_tenant_id') || 'unknown';
+    const tenantId = localStorage.getItem('erp_current_tenant_id') || (typeof window !== 'undefined' && (window as any).__APP_CONTEXT__?.currentTenant?.id) || 'unknown';
     const solution = (localStorage.getItem('ebro_current_solution') || 'AWP').toUpperCase();
     const tableName = solution === 'IT' ? 'it_shared_memories' : 'awp_shared_memories';
 
