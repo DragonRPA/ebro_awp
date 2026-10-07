@@ -10,6 +10,7 @@
  */
 
 interface HindsightMemoryBundle {
+  interaction_history: Array<any>;
   menu_path: string;
   trigger_element: any;
   action_name: string;
@@ -59,12 +60,55 @@ function getFullCssPath(el: Element): string {
   return path.join(' > ');
 }
 
+
+const interactionHistory: Array<any> = [];
+let isHistoryListenerAttached = false;
+
+function recordInteraction(e: Event) {
+  const target = e.target as HTMLElement;
+  if (!target) return;
+  
+  // Only record inputs, selects, textareas, or explicitly observed elements
+  if (target.tagName !== 'INPUT' && target.tagName !== 'SELECT' && target.tagName !== 'TEXTAREA' && !target.hasAttribute('data-hs-observe')) {
+    if (target.tagName !== 'BUTTON' || target.hasAttribute('data-hs-trigger')) return;
+  }
+
+  let val = '';
+  if (target instanceof HTMLInputElement) {
+    val = (target.type === 'checkbox' || target.type === 'radio') ? String(target.checked) : target.value;
+  } else if (target instanceof HTMLSelectElement) {
+    const selected = target.options[target.selectedIndex];
+    val = selected ? selected.textContent || target.value : target.value;
+  } else if (target instanceof HTMLTextAreaElement) {
+    val = target.value;
+  } else if (target instanceof HTMLButtonElement) {
+    val = target.textContent?.trim() || '';
+  }
+
+  interactionHistory.push({
+    timestamp: new Date().toISOString(),
+    event_type: e.type,
+    tag: target.tagName.toLowerCase(),
+    id: target.id || '',
+    classes: typeof target.className === 'string' ? target.className : (target.getAttribute('class') || ''),
+    cssPath: getFullCssPath(target),
+    value_at_time: val
+  });
+}
+
 export function initializeHindsightTracker() {
   if (typeof document === 'undefined') return;
 
   // ?대? 由ъ뒪?덇? ?깅줉?섏뼱 ?덈떎硫?以묐났 ?깅줉 諛⑹?
   if ((window as any).__HS_TRACKER_INITIALIZED__) return;
   (window as any).__HS_TRACKER_INITIALIZED__ = true;
+
+  if (!isHistoryListenerAttached) {
+    document.addEventListener('change', recordInteraction, true);
+    document.addEventListener('click', recordInteraction, true);
+    isHistoryListenerAttached = true;
+  }
+
 
   document.addEventListener('click', (e) => {
     const target = e.target as HTMLElement;
@@ -170,8 +214,12 @@ export function initializeHindsightTracker() {
         action_name: actionName,
         menu_path: window.location.pathname + window.location.search,
         trigger_element: triggerDetails,
+        interaction_history: [...interactionHistory],
         ui_context_bundle: uiContextBundle
       };
+      
+      interactionHistory.length = 0;
+
 
       // TODO: 완벽한 구현을 위해서는 Fetch/XHR 인터셉터를 통해
       // Supabase 쿼리가 200/201로 성공했는지 확인해주면 좋습니다.
@@ -205,6 +253,7 @@ async function sendToHindsightAgent(payload: HindsightMemoryBundle) {
       ui_context_bundle: {
         menu_path: payload.menu_path,
         trigger_element: payload.trigger_element,
+        interaction_history: payload.interaction_history,
         elements: payload.ui_context_bundle
       }
     });
