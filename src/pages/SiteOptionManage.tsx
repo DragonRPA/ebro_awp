@@ -61,26 +61,6 @@ export const SiteOptionManage: React.FC = () => {
   // ── 🎯 필터링된 고객 현장 목록 ──
   const filteredSites = useMemo(() => {
     
-  // --- Keyboard Shortcuts (Harden) ---
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (showMasterModal) setShowMasterModal(false);
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        if (showMasterModal) {
-          const mockEvent = { preventDefault: () => {} } as React.FormEvent;
-          handleSaveMasterOption(mockEvent);
-        } else {
-          handleSaveSiteOptions();
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showMasterModal, handleSaveMasterOption, handleSaveSiteOptions]);
-  // -----------------------------------
 
   return (sites || []).filter(s => {
       if (searchSiteKeyword.trim()) {
@@ -986,7 +966,28 @@ export const SiteOptionManage: React.FC = () => {
               <tbody>
                 {(standardOptions || []).map(opt => {
                   const isPaid = opt.category === 'PAID';
-                  return (
+                  // --- Keyboard Shortcuts (Harden) ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showMasterModal) setShowMasterModal(false);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (showMasterModal) {
+          const mockEvent = { preventDefault: () => {} } as React.FormEvent;
+          handleSaveMasterOption(mockEvent);
+        } else {
+          handleSaveSiteOptions();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showMasterModal, handleSaveMasterOption, handleSaveSiteOptions]);
+  // -----------------------------------
+
+  return (
                     <tr key={opt.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                       <td style={{ padding: '9px 12px' }}>
                         <span style={{

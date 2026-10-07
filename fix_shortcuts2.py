@@ -1,0 +1,28 @@
+﻿import re
+
+filepath = 'src/pages/SiteOptionManage.tsx'
+with open(filepath, 'r', encoding='utf-8') as f:
+    content = f.read()
+
+start_idx = content.find("  // --- Keyboard Shortcuts (Harden) ---")
+if start_idx != -1:
+    end_idx = content.find("  // -----------------------------------", start_idx)
+    if end_idx != -1:
+        end_idx += len("  // -----------------------------------\n")
+        
+        block = content[start_idx:end_idx]
+        content = content[:start_idx] + content[end_idx:]
+        
+        main_return_idx = content.rfind("  return (")
+        if main_return_idx != -1:
+            content = content[:main_return_idx] + block + "\n" + content[main_return_idx:]
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(content)
+            print("Moved Keyboard Shortcuts")
+        else:
+            print("Could not find main return")
+    else:
+        print("Could not find end of block")
+else:
+    print("Could not find start of block")
+
