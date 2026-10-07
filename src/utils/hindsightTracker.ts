@@ -8,6 +8,7 @@ interface HindsightMemoryBundle {
   menu_path: string;
   trigger_element: any;
   interaction_history: Array<any>;
+  final_query?: any;
 }
 
 let isHistoryListenerAttached = false;
@@ -95,10 +96,47 @@ function recordInteraction(e: Event) {
   });
 }
 
+
+let isFetchMonkeyPatched = false;
+let lastOutgoingQuery: any = null;
+
+function setupFetchInterceptor() {
+  if (isFetchMonkeyPatched) return;
+  const originalFetch = window.fetch;
+  window.fetch = async function(...args) {
+    const resource = args[0];
+    const options = args[1] || {};
+    const method = (options.method || 'GET').toUpperCase();
+
+    // POST, PUT, PATCH, DELETE 쿼리만 캡처
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      const url = typeof resource === 'string' ? resource : (resource instanceof Request ? resource.url : '');
+      
+      // 우리 자신의 Hindsight 로깅 요청은 캡처하지 않음
+      if (url && !url.includes('shared_memories') && !url.includes('/api/hindsight')) {
+        let bodyParsed = options.body;
+        if (typeof options.body === 'string') {
+          try { bodyParsed = JSON.parse(options.body); } catch(e) {}
+        }
+        
+        lastOutgoingQuery = {
+          timestamp: new Date().toISOString(),
+          method: method,
+          url: url,
+          payload: bodyParsed
+        };
+      }
+    }
+    return originalFetch.apply(this, args as any);
+  };
+  isFetchMonkeyPatched = true;
+}
+
 export function initializeHindsightTracker() {
   if (typeof document === 'undefined') return;
 
   if ((window as any).__HS_TRACKER_INITIALIZED__) return;
+  setupFetchInterceptor();
   (window as any).__HS_TRACKER_INITIALIZED__ = true;
 
   if (!isHistoryListenerAttached) {
@@ -161,7 +199,8 @@ export function initializeHindsightTracker() {
         action_name: actionName,
         menu_path: window.location.pathname + window.location.search,
         trigger_element: triggerDetails,
-        interaction_history: [...interactionHistory]
+        interaction_history: [...interactionHistory],
+        final_query: lastOutgoingQuery
       };
       
       interactionHistory.length = 0;
@@ -192,6 +231,7 @@ async function sendToHindsightAgent(payload: HindsightMemoryBundle) {
       tenant_id: tenantId,
       action_name: payload.action_name,
       menu_path: payload.menu_path,
+      final_query: payload.final_query || {},
       ui_context_bundle: {
         trigger_element: payload.trigger_element,
         interaction_history: payload.interaction_history
