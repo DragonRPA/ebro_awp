@@ -1,4 +1,4 @@
-﻿import { centralSupabase } from '../services/centralDb';
+import { centralSupabase } from '../services/centralDb';
 
 // Local Agent URL (if running locally)
 const LOCAL_AGENT_URL = 'http://127.0.0.1:5175/api/hindsight/retain';
@@ -209,7 +209,7 @@ export function initializeHindsightTracker() {
         sendToHindsightAgent(payload);
       }, 1000);
     }
-  });
+  }, true);
 }
 
 async function sendToHindsightAgent(payload: HindsightMemoryBundle) {
