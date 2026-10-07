@@ -10065,7 +10065,7 @@ export function getManualPageForMenu(menuId: string, customTitle?: string): Manu
     pageId: manual.menuId,
     pageTitle: manual.menuName,
     version: manual.version || 1,
-    basicGuide: manual.basicGuide || manual.annotations || [],
+    basicGuide: manual.annotations || manual.basicGuide || [],
     processes: manual.processes || [],
     items: manual.annotations,
   };
