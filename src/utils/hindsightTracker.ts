@@ -10,11 +10,54 @@
  */
 
 interface HindsightMemoryBundle {
+  menu_path: string;
+  trigger_element: any;
   action_name: string;
   ui_context_bundle: Array<any>;
 }
 
 const LOCAL_AGENT_URL = 'http://127.0.0.1:5175/api/hindsight/retain';
+
+
+function getCssSelector(el: Element): string {
+  if (el.tagName.toLowerCase() == 'html') return 'html';
+  let str = el.tagName.toLowerCase();
+  str += (el.id !== '') ? '#' + el.id : '';
+  if (el.className) {
+    let classes = '';
+    if (typeof el.className === 'string') {
+      classes = el.className;
+    } else if (el.getAttribute) {
+      classes = el.getAttribute('class') || '';
+    }
+    const classList = classes.split(/\s+/).filter(c => c && !c.includes(':') && !c.includes('/')); 
+    if (classList.length > 0) {
+      str += '.' + classList.join('.');
+    }
+  }
+  return str;
+}
+function getFullCssPath(el: Element): string {
+  const path = [];
+  let current: Element | null = el;
+  while (current && current.nodeType === Node.ELEMENT_NODE) {
+    let selector = current.tagName.toLowerCase();
+    if (current.id) {
+      selector += '#' + current.id;
+      path.unshift(selector);
+      break;
+    } else {
+      let sib: Element | null = current, nth = 1;
+      while (sib = sib.previousElementSibling) {
+        if (sib.tagName.toLowerCase() == selector) nth++;
+      }
+      if (nth != 1) selector += ":nth-of-type("+nth+")";
+    }
+    path.unshift(selector);
+    current = current.parentNode as Element | null;
+  }
+  return path.join(' > ');
+}
 
 export function initializeHindsightTracker() {
   if (typeof document === 'undefined') return;
@@ -44,6 +87,15 @@ export function initializeHindsightTracker() {
       const searchRoot = scopeEl || document.body;
       
             // DOM 순서 유지
+      
+      const triggerDetails = {
+        tag: triggerEl.tagName.toLowerCase(),
+        id: triggerEl.id || '',
+        classes: triggerEl.className || triggerEl.getAttribute('class') || '',
+        text: triggerEl.textContent?.trim() || '',
+        cssPath: getFullCssPath(triggerEl)
+      };
+
       const elements = searchRoot.querySelectorAll('input, select, textarea, button, [data-hs-observe]');
       const uiContextBundle: Array<any> = [];
       const processed = new Set();
@@ -106,6 +158,8 @@ export function initializeHindsightTracker() {
           tag: el.tagName.toLowerCase(),
           type: elementType,
           id: el.id || '',
+          classes: el.className || el.getAttribute('class') || '',
+          cssPath: getFullCssPath(el),
           name: (el as any).name || el.getAttribute('data-hs-observe') || '',
           label: labelStr.trim().replace(/\s+/g, ' ').substring(0, 50),
           value: value
@@ -114,6 +168,8 @@ export function initializeHindsightTracker() {
 
       const payload: HindsightMemoryBundle = {
         action_name: actionName,
+        menu_path: window.location.pathname + window.location.search,
+        trigger_element: triggerDetails,
         ui_context_bundle: uiContextBundle
       };
 
@@ -146,11 +202,17 @@ async function sendToHindsightAgent(payload: HindsightMemoryBundle) {
     await centralSupabase.from(tableName).insert({
       tenant_id: tenantId,
       action_name: payload.action_name,
-      ui_context_bundle: payload.ui_context_bundle
+      ui_context_bundle: {
+        menu_path: payload.menu_path,
+        trigger_element: payload.trigger_element,
+        elements: payload.ui_context_bundle
+      }
     });
     console.log('[HINDSIGHT] Saved memory to ' + tableName);
   } catch (err) {
     console.warn('[HINDSIGHT] Failed to save central memory:', err);
   }
 }
+
+
 
