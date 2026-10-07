@@ -1448,7 +1448,7 @@ $excel.Quit()
   if (req.method === 'GET' && pathname === '/api/printers') {
     try {
       const psCmd = 'Get-CimInstance -ClassName Win32_Printer | Select-Object Name, Default | ConvertTo-Json';
-      const output = execSync(`powershell -NoProfile -Command "${psCmd}"`, { encoding: 'utf8' }).trim();
+      const output = execSync(`powershell -NoProfile -Command "${psCmd}"`, { encoding: 'utf8', windowsHide: true }).trim();
       let printerData = [];
       try {
         const parsed = JSON.parse(output || '[]');
@@ -1518,7 +1518,7 @@ $excel.Quit()
         agentLog('PRINT', `다이렉트 인쇄: 대상 [${printerName}]`);
 
         const printCmd = `Start-Process rundll32.exe -ArgumentList 'mshtml.dll,PrintHTML "${tempPrintHtml}" "${printerName}"' -NoNewWindow`;
-        execSync(`powershell -NoProfile -Command "${printCmd}"`, { stdio: 'ignore' });
+        execSync(`powershell -NoProfile -Command "${printCmd}"`, { stdio: 'ignore', windowsHide: true });
 
         // 10초 후 임시 파일 자동 정리
         setTimeout(() => {
@@ -1948,7 +1948,7 @@ async function checkAndProcessPrintQueue() {
 
     agentLog('PRINT', `출력 전송: 프린터 [${printerName}], 작업: ${job.id}`);
     const printCmd = `Start-Process rundll32.exe -ArgumentList 'mshtml.dll,PrintHTML "${tempPrintHtml}" "${printerName}"' -NoNewWindow`;
-    execSync(`powershell -NoProfile -Command "${printCmd}"`, { stdio: 'ignore' });
+    execSync(`powershell -NoProfile -Command "${printCmd}"`, { stdio: 'ignore', windowsHide: true });
 
     // 3. 완료 상태 업데이트
     await httpRequestJson(`${SUPABASE_REST_URL}/print_queue?id=eq.${encodeURIComponent(job.id)}`, {
