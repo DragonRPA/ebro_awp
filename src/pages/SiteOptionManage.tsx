@@ -248,6 +248,27 @@ export const SiteOptionManage: React.FC = () => {
     }
   };
 
+  // --- Keyboard Shortcuts (Harden) ---
+  useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+  if (e.key === 'Escape') {
+  if (showMasterModal) setShowMasterModal(false);
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+  e.preventDefault();
+  if (showMasterModal) {
+  const mockEvent = { preventDefault: () => {} } as React.FormEvent;
+  handleSaveMasterOption(mockEvent);
+  } else {
+  handleSaveSiteOptions();
+  }
+  }
+  };
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showMasterModal, handleSaveMasterOption, handleSaveSiteOptions]);
+  // -----------------------------------
+
   return (
     <div data-hs-observe="siteoptionmanage" 
       data-subview="site_options" 
@@ -966,26 +987,6 @@ export const SiteOptionManage: React.FC = () => {
               <tbody>
                 {(standardOptions || []).map(opt => {
                   const isPaid = opt.category === 'PAID';
-                  // --- Keyboard Shortcuts (Harden) ---
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        if (showMasterModal) setShowMasterModal(false);
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        if (showMasterModal) {
-          const mockEvent = { preventDefault: () => {} } as React.FormEvent;
-          handleSaveMasterOption(mockEvent);
-        } else {
-          handleSaveSiteOptions();
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showMasterModal, handleSaveMasterOption, handleSaveSiteOptions]);
-  // -----------------------------------
 
   return (
                     <tr key={opt.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
