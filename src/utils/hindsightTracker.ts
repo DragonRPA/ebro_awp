@@ -150,10 +150,22 @@ export function initializeHindsightTracker() {
     const target = e.target as HTMLElement;
     
     // ?몃━嫄??섎━癒쇳듃 李얘린 (踰꾪듉 ?대???span?대굹 svg瑜??대┃?덉쓣 ???덉쑝誘濡?closest ?ъ슜)
-    const triggerEl = target.closest('[data-hs-trigger]') as HTMLElement;
-    
+        let triggerEl = target.closest('[data-hs-trigger]') as HTMLElement;
+    let actionName = triggerEl ? triggerEl.getAttribute('data-hs-trigger') || 'UNKNOWN_ACTION' : '';
+
+    if (!triggerEl) {
+      const btn = target.closest('button, [role="button"]') as HTMLElement;
+      if (btn) {
+        const text = btn.textContent?.trim() || '';
+        const triggerKeywords = ['저장', '등록', '생성', '완료', '결제', '배차', '승인', '출고', '적용', '발행', '마감', '확정', '추가'];
+        if (text.length <= 15 && triggerKeywords.some(keyword => text.includes(keyword))) {
+          triggerEl = btn;
+          actionName = text;
+        }
+      }
+    }
+
     if (triggerEl) {
-      const actionName = triggerEl.getAttribute('data-hs-trigger') || 'UNKNOWN_ACTION';
       const scopeName = triggerEl.getAttribute('data-hs-scope');
       
       let scopeEl: HTMLElement | null = null;
