@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Cpu } from 'lucide-react';
 
 interface LocalAiLoadingIndicatorProps {
@@ -42,7 +42,7 @@ export const LocalAiLoadingIndicator: React.FC<LocalAiLoadingIndicatorProps> = (
       
       <div style={{ width: '100%', height: '6px', backgroundColor: '#d1fae5', borderRadius: '4px', overflow: 'hidden' }}>
         <div style={{
-          height: '100%', width: \%, backgroundColor: '#10b981',
+          height: '100%', width: `${progress}%`, backgroundColor: '#10b981',
           transition: 'width 1s linear'
         }} />
       </div>
