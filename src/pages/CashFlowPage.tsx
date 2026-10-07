@@ -748,7 +748,7 @@ export const CashFlowPage: React.FC = () => {
                   style={{ height: '32px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
                   title="전사 실데이터 새로고침"
                 >
-                  <RefreshCw size={13} /> 동기화
+                  <RefreshCw size={13} /> 조회
                 </button>
 
                 {canSave && (

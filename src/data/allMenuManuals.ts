@@ -386,7 +386,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"approvalRules-sync\"]",
         "type": "stamp",
         "label": "표준 규칙 동기화",
-        "description": "시스템의 표준 결재 이벤트 목록을 동기화하여 가져옵니다.",
+        "description": "시스템의 표준 결재 이벤트 목록을 조회하여 가져옵니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
         "spotlight": false
@@ -6831,7 +6831,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"vendors-pipeline-sync\"]",
         "type": "stamp",
         "label": "누적거래액 전체 동기화",
-        "description": "당사자산 취득 및 매입정산 대장을 스캔하여 전체 매입처의 누적거래액을 동기화합니다.",
+        "description": "당사자산 취득 및 매입정산 대장을 스캔하여 전체 매입처의 누적거래액을 조회합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
         "spotlight": false
@@ -7108,7 +7108,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "scopeInfo": "카드 번호, 승인 일시, 가맹점명, 승인 금액, 부가세, 사용자, 회계 계정과목, 영수증 이미지",
     "cognitiveSequence": [
       "1. 정산 연월 및 법인카드 번호/소지 임직원별 스코핑",
-      "2. 카드사 승인 내역 엑셀 업로드 또는 스크래핑 데이터 동기화",
+      "2. 카드사 승인 내역 엑셀 업로드 또는 스크래핑 데이터 조회",
       "3. 승인 건별 사용 목적(유류비, 식대, 소모품, 출장비) 계정과목 분류",
       "4. 간이영수증 및 카드 전표 사진 첨부 실사",
       "5. 개인 사용 또는 규정 위반(심야/주말) 건 소명 요구 및 환수 처리",
@@ -7308,8 +7308,8 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "seq": 2,
         "selector": "[data-mid=\"cash_flow-pipeline-sync\"]",
         "type": "stamp",
-        "label": "실데이터 동기화",
-        "description": "최신 전사 실데이터를 즉시 동기화합니다.",
+        "label": "실데이터 조회",
+        "description": "최신 전사 실데이터를 즉시 조회합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
         "spotlight": false
@@ -8656,7 +8656,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"operations_manual-pipeline-db\"]",
         "type": "stamp",
         "label": "DB 일괄 주입",
-        "description": "모든 표준 매뉴얼을 DB에 영구 주입 및 동기화합니다.",
+        "description": "모든 표준 매뉴얼을 DB에 영구 주입 및 조회합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
         "spotlight": false
@@ -9442,7 +9442,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"initial_db_upload-dispatch-import\"]",
         "type": "stamp",
         "label": "배차 이력 업로드",
-        "description": "과거 출고 및 회수 배차 내역을 엑셀로 업로드하여 데이터베이스를 동기화합니다.",
+        "description": "과거 출고 및 회수 배차 내역을 엑셀로 업로드하여 데이터베이스를 조회합니다.",
         "badgeColor": "#3b82f6",
         "positionHint": "top",
         "spotlight": false
@@ -9663,7 +9663,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "4. RLS(Row Level Security) 정책 멱등성 DROP/CREATE DDL 생성",
       "5. 마이그레이션 안전성 검증 및 백업 스냅샷 확인",
       "6. DDL 실행 및 테이블 스키마 캐시 리프레시",
-      "7. DB 스키마 동기화 완료 및 전사 시스템 Ready 상태 확정"
+      "7. DB 스키마 조회 완료 및 전사 시스템 Ready 상태 확정"
     ],
     "auditResult": "실환경 검증(RWTT)을 위한 날조 불가능한 물리적 테스트 레코드 생성 완료",
     "rulesCompliance": [
