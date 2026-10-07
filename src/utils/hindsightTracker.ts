@@ -175,7 +175,7 @@ export function initializeHindsightTracker() {
     let actionName = triggerEl ? triggerEl.getAttribute('data-hs-trigger') || 'UNKNOWN_ACTION' : '';
 
     if (!triggerEl) {
-      const btn = target.closest('button, [role="button"]') as HTMLElement;
+      const btn = target.closest('button, [role="button"], a, input[type="submit"]') as HTMLElement;
       if (btn) {
         const text = btn.textContent?.trim() || '';
         const triggerKeywords = ['저장', '등록', '생성', '완료', '결제', '배차', '승인', '출고', '적용', '발행', '마감', '확정', '추가'];
@@ -242,5 +242,6 @@ async function sendToHindsightAgent(payload: HindsightMemoryBundle) {
     console.warn('[HINDSIGHT] Failed to save central memory:', err);
   }
 }
+
 
 
