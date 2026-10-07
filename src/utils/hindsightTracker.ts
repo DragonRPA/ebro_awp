@@ -178,7 +178,7 @@ export function initializeHindsightTracker() {
       const btn = target.closest('button, [role="button"], a, input[type="submit"]') as HTMLElement;
       if (btn) {
         const text = btn.textContent?.trim() || '';
-        const triggerKeywords = ['저장', '등록', '생성', '완료', '결제', '배차', '승인', '출고', '적용', '발행', '마감', '확정', '추가'];
+        const triggerKeywords = ['저장', '등록', '생성', '완료', '결제', '배차', '승인', '출고', '적용', '발행', '마감', '확정', '추가', '확인'];
         if (text.length <= 15 && triggerKeywords.some(keyword => text.includes(keyword))) {
           triggerEl = btn;
           actionName = text;
@@ -242,6 +242,7 @@ async function sendToHindsightAgent(payload: HindsightMemoryBundle) {
     console.warn('[HINDSIGHT] Failed to save central memory:', err);
   }
 }
+
 
 
 
