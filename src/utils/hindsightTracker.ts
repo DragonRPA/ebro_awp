@@ -65,13 +65,16 @@ const interactionHistory: Array<any> = [];
 let isHistoryListenerAttached = false;
 
 function recordInteraction(e: Event) {
-  const target = e.target as HTMLElement;
+  let target = e.target as HTMLElement;
   if (!target) return;
-  
-  // Only record inputs, selects, textareas, or explicitly observed elements
-  if (target.tagName !== 'INPUT' && target.tagName !== 'SELECT' && target.tagName !== 'TEXTAREA' && !target.hasAttribute('data-hs-observe')) {
-    if (target.tagName !== 'BUTTON' || target.hasAttribute('data-hs-trigger')) return;
-  }
+
+  // 모달을 여는 <a>, <button>, [role="button"], [role="menuitem"] 등 모든 상호작용 가능한 요소를 추적 (클릭한 아이콘/span도 closest로 잡아냄)
+  const interactiveTarget = target.closest('button, a, input, select, textarea, [role="button"], [role="menuitem"], [data-hs-observe]') as HTMLElement;
+  if (!interactiveTarget) return;
+  target = interactiveTarget;
+
+  // [저장] 버튼 자체의 클릭은 트리거(최종) 요소로 별도 저장되므로 타임라인 중복 방지
+  if (target.hasAttribute('data-hs-trigger') && e.type === 'click') return;
 
   let val = '';
   if (target instanceof HTMLInputElement) {
@@ -83,6 +86,14 @@ function recordInteraction(e: Event) {
     val = target.value;
   } else if (target instanceof HTMLButtonElement) {
     val = target.textContent?.trim() || '';
+  } else if (target instanceof HTMLAnchorElement) {
+    val = target.textContent?.trim() || target.href;
+  } else {
+    val = target.textContent?.trim() || '';
+  }
+
+  if (val && val.length > 100) {
+    val = val.substring(0, 100) + '...';
   }
 
   interactionHistory.push({
