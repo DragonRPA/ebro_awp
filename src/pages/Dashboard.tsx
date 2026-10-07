@@ -75,7 +75,7 @@ export const Dashboard: React.FC = () => {
   const activeTasks = useMemo(() => findActiveTasksForUser(todos, currentUser, hasPermission), [todos, currentUser, hasPermission]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div data-hs-observe="dashboard" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
       
       {activeTasks.length > 0 && (
@@ -185,7 +185,7 @@ export const Dashboard: React.FC = () => {
                           )}
 
                           {task.actionUrl && task.actionUrl !== '/' && (
-                            <button
+                            <button data-hs-trigger="Process"
                               className="btn-primary"
                               onClick={() => {
                                 const tabMap: Record<string, string> = {
@@ -230,7 +230,7 @@ export const Dashboard: React.FC = () => {
                               <CheckSquare size={13} /> 조치 결과 보고 & 완료
                             </button>
                           ) : (
-                            <button
+                            <button data-hs-trigger="Process"
                               onClick={() => completeTodo(task.id)}
                               style={{
                                 fontSize: '12px', padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)',

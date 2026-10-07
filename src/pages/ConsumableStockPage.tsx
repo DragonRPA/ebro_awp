@@ -523,7 +523,7 @@ export const ConsumableStockPage: React.FC = () => {
   };
 
   return (
-    <div data-subview="consumable_stock" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px', maxWidth: '1440px', margin: '0 auto' }}>
+    <div data-hs-observe="consumablestockpage" data-subview="consumable_stock" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px', maxWidth: '1440px', margin: '0 auto' }}>
       {/* ─── 토스트 알림 ─── */}
       {toastMessage && (
         <div style={{
@@ -656,7 +656,7 @@ export const ConsumableStockPage: React.FC = () => {
                   <Download size={14} /> 엑셀 내보내기
                 </button>
                 {canSave && (
-                  <button
+                  <button data-hs-trigger="Register"
                     type="button"
                     className="btn-primary"
                     onClick={openCreateMaster}
@@ -1752,7 +1752,7 @@ export const ConsumableStockPage: React.FC = () => {
                 <button type="button" className="btn-secondary" onClick={() => setShowMasterModal(false)} style={{ flex: 1, padding: '10px' }}>
                   취소
                 </button>
-                <button type="submit" className="btn-primary" style={{ flex: 1, padding: '10px' }}>
+                <button data-hs-trigger="Register" type="submit" className="btn-primary" style={{ flex: 1, padding: '10px' }}>
                   {masterEditingId ? '수정 완료' : '등록 완료'}
                 </button>
               </div>

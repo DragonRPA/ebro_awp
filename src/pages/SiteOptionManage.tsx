@@ -269,7 +269,7 @@ export const SiteOptionManage: React.FC = () => {
   };
 
   return (
-    <div 
+    <div data-hs-observe="siteoptionmanage" 
       data-subview="site_options" 
       data-subview-title="현장별 옵션 관리"
       style={{ display: 'flex', flexDirection: 'column', gap: '14px', paddingBottom: '30px' }}
@@ -884,7 +884,7 @@ export const SiteOptionManage: React.FC = () => {
                     </span>
                   </div>
 
-                  <button
+                  <button data-hs-trigger="Save"
                     type="button"
                     data-mid="btn-save-site-options"
                     disabled={isSaving}
@@ -936,7 +936,7 @@ export const SiteOptionManage: React.FC = () => {
               </p>
             </div>
 
-            <button
+            <button data-hs-trigger="Register"
               type="button"
               onClick={() => {
                 setEditingMasterOption({
@@ -1231,7 +1231,7 @@ export const SiteOptionManage: React.FC = () => {
               >
                 취소
               </button>
-              <button
+              <button data-hs-trigger="Save"
                 type="submit"
                 style={{
                   padding: '7px 18px',

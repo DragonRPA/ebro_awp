@@ -553,7 +553,7 @@ export const OtManagementPage: React.FC = () => {
   }, [isDateDetailModalOpen]);
 
   return (
-    <div data-subview="ot_management" data-subview-title="Generated" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div data-hs-observe="otmanagementpage" data-subview="ot_management" data-subview-title="Generated" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
       {/* 헤더 타이틀 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
@@ -565,7 +565,7 @@ export const OtManagementPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'nowrap' }}>
-          <button
+          <button data-hs-trigger="Approve"
             onClick={() => setIsApprovalDocModalOpen(true)}
             className="btn btn-primary"
             style={{
@@ -1235,7 +1235,7 @@ export const OtManagementPage: React.FC = () => {
             </div>
 
             {/* 7. 저장 */}
-            <button
+            <button data-hs-trigger="Register"
               type="submit"
               className="btn btn-primary"
               style={{
@@ -1300,7 +1300,7 @@ export const OtManagementPage: React.FC = () => {
 
             {/* 우측: 등록창 토글 & 뷰 모드(목록/캘린더) 세그먼트 */}
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
-              <button
+              <button data-hs-trigger="Register"
                 type="button"
                 onClick={() => setIsFormCollapsed(prev => !prev)}
                 className="btn btn-secondary"
@@ -1761,7 +1761,7 @@ export const OtManagementPage: React.FC = () => {
                       </span>
                     </div>
 
-                    <button
+                    <button data-hs-trigger="Register"
                       type="button"
                       onClick={() => {
                         setOtDate(selectedCalDate);
@@ -2103,7 +2103,7 @@ export const OtManagementPage: React.FC = () => {
               alignItems: 'center',
               backgroundColor: 'var(--bg-main)'
             }}>
-              <button
+              <button data-hs-trigger="Register"
                 type="button"
                 onClick={() => {
                   setOtDate(activeDetailDate);

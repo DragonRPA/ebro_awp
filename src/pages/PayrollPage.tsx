@@ -344,7 +344,7 @@ export const PayrollPage: React.FC = () => {
   };
 
   return (
-    <div data-subview="payroll" data-subview-title="Generated" style={{ position: 'relative' }}>
+    <div data-hs-observe="payrollpage" data-subview="payroll" data-subview-title="Generated" style={{ position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div data-mid="payroll-toast" style={{
@@ -372,7 +372,7 @@ export const PayrollPage: React.FC = () => {
         
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           {payrollStatus === 'DRAFT' ? (
-            <button 
+            <button data-hs-trigger="Approve" 
               className="btn-success" 
               onClick={handleApprovePayroll}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '13px', fontWeight: 'bold' }}
@@ -597,7 +597,7 @@ export const PayrollPage: React.FC = () => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span style={{ fontWeight: 'bold' }}>{p.baseSalary.toLocaleString()}원</span>
                         {canSave && (
-                          <button
+                          <button data-hs-trigger="Save"
                             type="button"
                             className="btn btn-secondary"
                             onClick={() => handleOpenSalaryModal(p.employeeId, p.baseSalary)}
@@ -730,7 +730,7 @@ export const PayrollPage: React.FC = () => {
                     <button type="button" className="btn btn-secondary" onClick={() => setEditingEmpId(null)}>
                       취소
                     </button>
-                    <button type="submit" className="btn btn-primary">
+                    <button data-hs-trigger="Save" type="submit" className="btn btn-primary">
                       기본급 저장
                     </button>
                   </div>

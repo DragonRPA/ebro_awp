@@ -534,7 +534,7 @@ export const UsersPermissions: React.FC = () => {
   };
 
   return (
-    <div data-subview="permission" data-subview-title="Generated" style={{ padding: '0 4px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div data-hs-observe="users_permissions" data-subview="permission" data-subview-title="Generated" style={{ padding: '0 4px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* 🔔 인앱 토스트 */}
       {toastMessage && (
         <div data-mid="permission-toast" style={{
@@ -783,7 +783,7 @@ export const UsersPermissions: React.FC = () => {
                             {count}명 상속
                           </span>
                           {!role.isSystem && canSave && count === 0 && (
-                            <button
+                            <button data-hs-trigger="Delete"
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -884,7 +884,7 @@ export const UsersPermissions: React.FC = () => {
                   >
                     전체 조회 ON
                   </button>
-                  <button
+                  <button data-hs-trigger="Save"
                     type="button"
                     onClick={() => handleAllMenusBulkToggle('save')}
                     style={{
@@ -918,7 +918,7 @@ export const UsersPermissions: React.FC = () => {
                   >
                     전체 OFF
                   </button>
-                  <button
+                  <button data-hs-trigger="Save"
                     type="button"
                     data-mid='btn-save-permissions' onClick={handleSaveRolePermissions}
                     disabled={!isRoleDirty}

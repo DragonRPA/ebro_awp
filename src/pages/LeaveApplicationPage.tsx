@@ -257,7 +257,7 @@ export const LeaveApplicationPage: React.FC = () => {
   });
 
   return (
-    <div data-subview="leave_application" data-subview-title="Generated" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div data-hs-observe="leaveapplicationpage" data-subview="leave_application" data-subview-title="Generated" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
       {/* 헤더 타이틀 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>

@@ -103,7 +103,7 @@ export const AgenticSettlementAutopilotPage: React.FC = () => {
   };
 
   return (
-    <div data-subview="agentic_settlement_autopilot" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', minHeight: 0 }} data-uia="agentic-settlement-autopilot-container">
+    <div data-hs-observe="agenticsettlementautopilotpage" data-subview="agentic_settlement_autopilot" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', minHeight: 0 }} data-uia="agentic-settlement-autopilot-container">
       {/* 상단 헤더 바 (헌장 3.1 무수식어 건조 표준) */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -254,7 +254,7 @@ export const AgenticSettlementAutopilotPage: React.FC = () => {
           </span>
         </div>
 
-        <button
+        <button data-hs-trigger="Approve"
           className="btn-primary"
           onClick={() => {
             setReconcileList(prev => prev.map(item => ({ ...item, status: 'CONFIRMED' })));

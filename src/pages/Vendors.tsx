@@ -663,7 +663,7 @@ export const Vendors: React.FC = () => {
   };
 
   return (
-    <div data-subview="vendors" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '10px' }}>
+    <div data-hs-observe="vendors" data-subview="vendors" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '10px' }}>
       <div className="card-header" style={{ marginBottom: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
         <div>
           <h2 style={{ fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -690,7 +690,7 @@ export const Vendors: React.FC = () => {
             {isSyncing ? '동기화 중...' : '누적거래액 전체 동기화'}
           </button>
           {canSave && (
-            <button 
+            <button data-hs-trigger="Register" 
               className="btn-secondary" 
               onClick={() => setShowBatchLicenseModal(true)} 
               style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', backgroundColor: 'var(--primary)', color: '#ffffff', borderColor: 'var(--info)' }}
@@ -710,7 +710,7 @@ export const Vendors: React.FC = () => {
             </button>
           )}
           {canSave && (
-            <button className="btn-primary" onClick={handleOpenAddModal} style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
+            <button data-hs-trigger="Register" className="btn-primary" onClick={handleOpenAddModal} style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
               <Plus size={16} /> 신규 매입처 등록
             </button>
           )}
@@ -981,7 +981,7 @@ export const Vendors: React.FC = () => {
                               </span>
                             )}
                             {canSave && (
-                              <button
+                              <button data-hs-trigger="Register"
                                 type="button"
                                 onClick={() => handleRemoveVendorBizCert(v)}
                                 style={{
@@ -1050,7 +1050,7 @@ export const Vendors: React.FC = () => {
                               <FileText size={11} /> 사본 열람 ↗
                             </a>
                             {canSave && (
-                              <button
+                              <button data-hs-trigger="Delete"
                                 type="button"
                                 onClick={() => handleRemoveVendorPassbook(v)}
                                 style={{
@@ -1111,7 +1111,7 @@ export const Vendors: React.FC = () => {
                             <button className="btn-secondary" onClick={() => handleOpenEditModal(v)} style={{ padding: '3px 5px' }} title="수정">
                               <Edit2 size={12} />
                             </button>
-                            <button className="btn-danger" onClick={() => handleDelete(v.id, v.name)} style={{ padding: '3px 5px' }} title="삭제">
+                            <button data-hs-trigger="Delete" className="btn-danger" onClick={() => handleDelete(v.id, v.name)} style={{ padding: '3px 5px' }} title="삭제">
                               <Trash2 size={12} />
                             </button>
                           </div>
@@ -1554,7 +1554,7 @@ export const Vendors: React.FC = () => {
                                   }}
                                 />
                               </label>
-                              <button
+                              <button data-hs-trigger="Delete"
                                 type="button"
                                 onClick={() => setEditingVendor({ ...editingVendor, businessCertFileUrl: undefined, businessCertFileName: undefined })}
                                 style={{
@@ -1675,7 +1675,7 @@ export const Vendors: React.FC = () => {
                                   }}
                                 />
                               </label>
-                              <button
+                              <button data-hs-trigger="Delete"
                                 type="button"
                                 onClick={() => setEditingVendor({ ...editingVendor, passbookFileUrl: undefined, passbookFileName: undefined })}
                                 style={{
@@ -1737,7 +1737,7 @@ export const Vendors: React.FC = () => {
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
                 <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>취소</button>
-                <button type="submit" className="btn-primary">저장 (적용)</button>
+                <button data-hs-trigger="Save" type="submit" className="btn-primary">저장 (적용)</button>
               </div>
             </form>
           </div>

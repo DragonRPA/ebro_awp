@@ -168,7 +168,7 @@ export const PrivacyAuditPage: React.FC = () => {
   };
 
   return (
-    <div data-subview="privacy_audit" data-subview-title="Generated" style={{ padding: '0 4px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+    <div data-hs-observe="privacyauditpage" data-subview="privacy_audit" data-subview-title="Generated" style={{ padding: '0 4px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
       {/* 🔔 인앱 토스트 */}
       {toastMessage && (
         <div style={{
@@ -228,7 +228,7 @@ export const PrivacyAuditPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
+          <button data-hs-trigger="Process"
             type="button"
             onClick={() => setShowPolicyModal(true)}
             style={{
@@ -323,7 +323,7 @@ export const PrivacyAuditPage: React.FC = () => {
               </div>
             </div>
 
-            <button
+            <button data-hs-trigger="Confirm"
               type="button"
               onClick={() => setShowPolicyModal(true)}
               className="btn btn-secondary"
@@ -673,7 +673,7 @@ export const PrivacyAuditPage: React.FC = () => {
             </div>
           )}
           {canAudit && (
-            <button
+            <button data-hs-trigger="Approve"
               type="button"
               onClick={handleConfirmAuditCheck}
               style={{

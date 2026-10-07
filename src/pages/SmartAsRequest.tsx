@@ -363,7 +363,7 @@ export const SmartAsRequest: React.FC = () => {
   };
 
   return (
-    <div data-subview="smart_as_request" data-subview-title="Generated" style={{ padding: '20px 24px', maxWidth: '1440px', margin: '0 auto', position: 'relative' }}>
+    <div data-hs-observe="smartasrequest" data-subview="smart_as_request" data-subview-title="Generated" style={{ padding: '20px 24px', maxWidth: '1440px', margin: '0 auto', position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div style={{

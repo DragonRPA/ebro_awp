@@ -571,7 +571,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
     if (children.length === 0) return null;
 
     return (
-    <div data-subview="organization" data-subview-title="Generated" style={{ marginLeft: depth > 0 ? '20px' : '0' }}>
+    <div data-hs-observe="organizationsettings" data-subview="organization" data-subview-title="Generated" style={{ marginLeft: depth > 0 ? '20px' : '0' }}>
         {children.map(dept => {
           const isSelected = selectedDeptId === dept.id;
           const userCount = users.filter(u => u.departmentId === dept.id).length;
@@ -657,7 +657,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
                         <button onClick={(e) => startEditDept(e, dept)} style={{ padding: '4px', background: 'transparent', color: 'var(--text-muted)' }} title="부서명 수정">
                           <Edit2 size={14} />
                         </button>
-                        <button onClick={(e) => handleDeleteDept(e, dept.id)} style={{ padding: '4px', background: 'transparent', color: 'var(--danger)' }} title="부서 삭제">
+                        <button data-hs-trigger="Delete" onClick={(e) => handleDeleteDept(e, dept.id)} style={{ padding: '4px', background: 'transparent', color: 'var(--danger)' }} title="부서 삭제">
                           <Trash2 size={14} />
                         </button>
                       </div>
@@ -771,7 +771,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
           </button>
           {/* Global Save Button */}
           {canEdit && (
-            <button 
+            <button data-hs-trigger="Save" 
               className={`btn-primary ${isDirty ? 'pulse-animation' : ''}`} 
               onClick={handleSaveAll} 
               style={{ 
@@ -855,7 +855,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
                 : `미배정 대기 임직원 (${displayedUsers.length}명)`}
             </h3>
             {canEdit && (
-              <button className="btn-secondary" onClick={handleAddUser} style={{ padding: '6px 12px', fontSize: '13px' }}>
+              <button data-hs-trigger="Register" className="btn-secondary" onClick={handleAddUser} style={{ padding: '6px 12px', fontSize: '13px' }}>
                 <Plus size={14} style={{ marginRight: '4px' }} /> 신규 직원 등록
               </button>
             )}
@@ -993,7 +993,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
                     <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '12px' }} onClick={() => setSelectedProfile(null)}>
                       취소
                     </button>
-                    <button className="btn-primary" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={applyProfileChanges}>
+                    <button data-hs-trigger="Save" className="btn-primary" style={{ padding: '4px 10px', fontSize: '12px' }} onClick={applyProfileChanges}>
                       <CheckCircle size={13} style={{ marginRight: '3px' }} /> 저장 (적용)
                     </button>
                   </>
@@ -1258,7 +1258,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
 
             <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button className="btn-secondary" onClick={() => setShowHandoffModal(null)}>취소</button>
-              <button className="btn-primary" style={{ backgroundColor: 'var(--danger)' }} onClick={confirmRetirement}>
+              <button data-hs-trigger="Confirm" className="btn-primary" style={{ backgroundColor: 'var(--danger)' }} onClick={confirmRetirement}>
                 확인 및 이관 실행
               </button>
             </div>
@@ -1285,7 +1285,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
 
             <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button className="btn-secondary" onClick={() => setDeptToDelete(null)}>취소</button>
-              <button className="btn-primary" style={{ backgroundColor: 'var(--danger)' }} onClick={confirmDeleteDept}>
+              <button data-hs-trigger="Delete" className="btn-primary" style={{ backgroundColor: 'var(--danger)' }} onClick={confirmDeleteDept}>
                 부서 삭제 실행
               </button>
             </div>

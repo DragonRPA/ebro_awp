@@ -335,7 +335,7 @@ export const CorporateCardPage: React.FC = () => {
   const totalTaxInvoicesReceived = 60020000; // 수취 세금계산서 고정값
 
   return (
-    <div data-subview="corporate_card" data-subview-title="Generated" style={{ position: 'relative' }}>
+    <div data-hs-observe="corporatecardpage" data-subview="corporate_card" data-subview-title="Generated" style={{ position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -699,7 +699,7 @@ export const CorporateCardPage: React.FC = () => {
                 <label htmlFor="req-proof" style={{ fontSize: '12.5px', cursor: 'pointer' }}>적격 매입 세금계산서 증빙 필수</label>
               </div>
 
-              <button 
+              <button data-hs-trigger="Register" 
                 className="btn-primary" 
                 onClick={handleAddCategory}
                 disabled={!canSave}

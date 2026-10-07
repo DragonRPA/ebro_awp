@@ -2333,7 +2333,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
   };
 
   return (
-    <div>
+    <div data-hs-observe="billings">
       <h2 style={{ marginBottom: '18px', fontWeight: '700' }}>매출 청구 관리</h2>
 
       {/* 탭 */}
@@ -2742,7 +2742,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                           <div data-mid="billing-row-actions" style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                             {/* 1. 수납 버튼: 미납 잔액이 있는 상태 (UNPAID, REQUESTED, PARTIAL) */}
                             {canSave && !isPaid && unpaid > 0 && b.status !== 'REJECTED' && (
-                              <button 
+                              <button data-hs-trigger="Register" 
                                 type="button"
                                 className="btn-success" 
                                 data-mid="billing-pay-btn"
@@ -4700,7 +4700,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                           </span>
 
                           {/* 삭제 버튼 */}
-                          <button
+                          <button data-hs-trigger="Delete"
                             type="button"
                             onClick={() => {
                               const newCharges = extraCharges.filter(item => item.id !== ec.id);
@@ -5504,7 +5504,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                   >
                     닫기
                   </button>
-                  <button
+                  <button data-hs-trigger="Save"
                     type="button"
                     className="btn-primary"
                     onClick={handleSaveCustomStatementDraft}
@@ -5886,7 +5886,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               {/* 푸터 액션 버튼 */}
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
                 <button type="button" className="btn-secondary" onClick={() => setShowPayModal(false)}>취소</button>
-                <button 
+                <button data-hs-trigger="Process" 
                   ref={paySubmitBtnRef}
                   type="submit" 
                   className="btn-primary"
@@ -6190,7 +6190,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                           {(det.amount || ((det.quantity || 1) * (det.unitPrice || 0))).toLocaleString()}원
                         </strong>
                       </div>
-                      <button
+                      <button data-hs-trigger="Delete"
                         type="button"
                         onClick={() => {
                           setRegenDetails(regenDetails.filter((_, i) => i !== idx));
@@ -6220,7 +6220,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 <button type="button" className="btn-secondary" onClick={() => setShowRegenerateModal(false)}>
                   취소
                 </button>
-                <button type="submit" className="btn-primary" disabled={isRegenerating || regenDetails.length === 0} style={{ fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <button data-hs-trigger="Process" type="submit" className="btn-primary" disabled={isRegenerating || regenDetails.length === 0} style={{ fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <RotateCcw size={14} />
                   {isRegenerating ? '재생성 처리 중...' : '수정사항 반영 청구서 재생성'}
                 </button>
@@ -6390,7 +6390,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               >
                 취소
               </button>
-              <button
+              <button data-hs-trigger="Process"
                 type="button"
                 className="btn-primary"
                 onClick={handleConfirmWaiverModal}

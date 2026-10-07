@@ -3009,7 +3009,7 @@ export const TruckDispatch: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', color: 'var(--text-primary)', position: 'relative' }}>
+    <div data-hs-observe="truckdispatch" style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', color: 'var(--text-primary)', position: 'relative' }}>
       {/* 알림 토스트 배너 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -3042,7 +3042,7 @@ export const TruckDispatch: React.FC = () => {
         </div>
         {activeTab === 'DISPATCH' && canSave && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
+            <button data-hs-trigger="Register"
               className="btn-secondary"
               onClick={() => setDispatchExcelModalOpen(true)}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontWeight: 700, fontSize: '13px' }}
@@ -3433,7 +3433,7 @@ export const TruckDispatch: React.FC = () => {
                           <div style={{ marginTop: '6px', fontSize: '11.5px', fontWeight: 700, color: 'var(--success)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span>🚛 기사: {d.driverName} ({d.vehicleNo || '차량번호미상'})</span>
                             {normStatus === 'DISPATCHED' && canSave && (
-                              <button
+                              <button data-hs-trigger="Process"
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -3620,7 +3620,7 @@ export const TruckDispatch: React.FC = () => {
                             </button>
                           ) : getNormalizedDeliveryStatus(selectedDelivery) === 'DISPATCHED' ? (
                             <>
-                              <button
+                              <button data-hs-trigger="Save"
                                 type="button"
                                 onClick={handleSaveDispatch}
                                 className="btn-primary"
@@ -3643,7 +3643,7 @@ export const TruckDispatch: React.FC = () => {
                                 <Save size={14} /> 배차 정보 수정 저장
                               </button>
 
-                              <button
+                              <button data-hs-trigger="Process"
                                 type="button"
                                 onClick={() => handleCompleteDeliveryStatus(selectedDelivery.id)}
                                 style={{ padding: '6px 14px', backgroundColor: 'var(--success)', color: '#fff', border: 'none', borderRadius: '7px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 6px rgba(22,163,74,0.25)' }}
@@ -3683,7 +3683,7 @@ export const TruckDispatch: React.FC = () => {
                                 <RotateCcw size={13} /> 배차 정보 수정 해제
                               </button>
                             ) : (
-                              <button
+                              <button data-hs-trigger="Save"
                                 type="button"
                                 onClick={handleSaveDispatch}
                                 className="btn-primary"
@@ -4142,7 +4142,7 @@ export const TruckDispatch: React.FC = () => {
                               🚫 배차 취소
                             </button>
 
-                            <button
+                            <button data-hs-trigger="Process"
                               type="button"
                               onClick={() => handleCompleteDeliveryStatus(selectedDelivery.id)}
                               style={{ padding: '7px 14px', backgroundColor: 'var(--success)', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
@@ -4152,7 +4152,7 @@ export const TruckDispatch: React.FC = () => {
                               {(selectedDelivery.type === 'OUTBOUND' || selectedDelivery.type === 'EXCHANGE' || selectedDelivery.dispatchCategory === '출고' || selectedDelivery.dispatchCategory === '교환') ? '상차완료' : '입고완료'}
                             </button>
 
-                            <button
+                            <button data-hs-trigger="Save"
                               type="button"
                               onClick={handleSaveDispatch}
                               className="btn-primary"
@@ -4196,7 +4196,7 @@ export const TruckDispatch: React.FC = () => {
                               <RotateCcw size={14} /> 배차 정보 수정 해제
                             </button>
                           ) : (
-                            <button
+                            <button data-hs-trigger="Save"
                               type="button"
                               onClick={handleSaveDispatch}
                               className="btn-primary"
@@ -4403,7 +4403,7 @@ export const TruckDispatch: React.FC = () => {
                           <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
                             {item.durationSec ? `${item.durationSec}초` : ''}
                           </span>
-                          <button
+                          <button data-hs-trigger="Delete"
                             type="button"
                             onClick={e => handleDeleteCallQueueItem(item.id, e)}
                             style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px', display: 'flex' }}
@@ -4952,7 +4952,7 @@ export const TruckDispatch: React.FC = () => {
 
                         {/* 우하단 등록 및 1클릭 배차 확정 버튼군 */}
                         <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px', marginTop: '4px' }}>
-                          <button
+                          <button data-hs-trigger="Save"
                             type="button"
                             className="btn-secondary"
                             onClick={handleSaveNegotiation}
@@ -5373,7 +5373,7 @@ export const TruckDispatch: React.FC = () => {
 
                 {/* 금액 불일치 / 할증 건 일괄 승인 버튼 */}
                 {reconStats.mismatchCount > 0 && (
-                  <button
+                  <button data-hs-trigger="Approve"
                     onClick={handleApproveAllMismatches}
                     style={{
                       padding: '4px 12px',
@@ -5704,7 +5704,7 @@ export const TruckDispatch: React.FC = () => {
                             <td style={{ padding: '6px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                               <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center' }}>
                                 {isMismatch && (
-                                  <button
+                                  <button data-hs-trigger="Approve"
                                     onClick={() => handleApproveMismatch(pair.pairId)}
                                     title="청구 금액으로 확정하고 대사 완료 처리"
                                     style={{ padding: '3px 8px', fontSize: '11px', fontWeight: 800, borderRadius: '4px', border: '1px solid #ca8a04', backgroundColor: 'rgba(234,179,8,0.15)', color: '#a16207', cursor: 'pointer' }}
@@ -5897,7 +5897,7 @@ export const TruckDispatch: React.FC = () => {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px' }}>
               <button onClick={() => setShowManualModal(false)} className="btn-secondary">취소</button>
-              <button onClick={handleSaveManualDispatch} className="btn-primary" style={{ fontWeight: 800 }}>배차 생성 저장</button>
+              <button data-hs-trigger="Save" onClick={handleSaveManualDispatch} className="btn-primary" style={{ fontWeight: 800 }}>배차 생성 저장</button>
             </div>
           </div>
         </div>
@@ -5957,7 +5957,7 @@ export const TruckDispatch: React.FC = () => {
               >
                 취소
               </button>
-              <button
+              <button data-hs-trigger="Save"
                 onClick={handleSaveDeliveryCost}
                 style={{ padding: '8px 18px', borderRadius: '7px', border: 'none', backgroundColor: 'var(--primary)', color: '#fff', cursor: 'pointer', fontWeight: 900, fontSize: '13px', boxShadow: '0 2px 8px rgba(37,99,235,0.3)' }}
               >
@@ -6251,7 +6251,7 @@ export const TruckDispatch: React.FC = () => {
                 <div style={{ display: 'flex', gap: '8px' }}>
                   {isMismatch && (
                     <>
-                      <button
+                      <button data-hs-trigger="Approve"
                         onClick={async () => {
                           await handleApproveMismatch(pair.pairId);
                           setSelectedReconDetailPair(null);
@@ -6537,7 +6537,7 @@ export const TruckDispatch: React.FC = () => {
                 {isBundleCopied ? <Check size={14} style={{ color: '#10b981' }} /> : <Copy size={14} />}
                 {isBundleCopied ? '복사됨' : '요청번호 복사'}
               </button>
-              <button
+              <button data-hs-trigger="Confirm"
                 type="button"
                 onClick={() => setPaymentSuccessInfo(null)}
                 className="btn-primary"

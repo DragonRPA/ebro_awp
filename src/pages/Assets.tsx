@@ -381,7 +381,7 @@ export const Assets: React.FC = () => {
   };
 
   return (
-    <div style={{
+    <div data-hs-observe="assets" style={{
       display: 'flex',
       flexDirection: 'column',
       height: 'calc(100dvh - 85px)',
@@ -1047,7 +1047,7 @@ export const Assets: React.FC = () => {
                 )}
                 {isEditing && (
                   <>
-                    <button
+                    <button data-hs-trigger="Save"
                       className="btn-success"
                       onClick={handleSaveEdit}
                       style={{ padding: '3px 10px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}

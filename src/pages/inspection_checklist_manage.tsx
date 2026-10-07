@@ -963,7 +963,7 @@ export const InspectionChecklistManage: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
+    <div data-hs-observe="inspection_checklist_manage" style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div
@@ -1213,7 +1213,7 @@ export const InspectionChecklistManage: React.FC = () => {
               >
                 <FileDown size={14} /> 엑셀 내보내기
               </button>
-              <button
+              <button data-hs-trigger="Register"
                 type="button"
                 className="btn-primary"
                 onClick={handleOpenAddItemModal}
@@ -1345,7 +1345,7 @@ export const InspectionChecklistManage: React.FC = () => {
                               >
                                 <Edit2 size={12} /> 수정
                               </button>
-                              <button
+                              <button data-hs-trigger="Delete"
                                 type="button"
                                 className="btn-secondary"
                                 onClick={() => handleDeleteItem(item)}
@@ -1896,7 +1896,7 @@ export const InspectionChecklistManage: React.FC = () => {
             {/* 우상단: Pipeline 액션 */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {/* 일괄 AI 색인 버튼 */}
-              <button
+              <button data-hs-trigger="Process"
                 type="button"
                 className="btn-secondary"
                 onClick={handleBatchIndexAI}
@@ -1928,7 +1928,7 @@ export const InspectionChecklistManage: React.FC = () => {
                 <Download size={14} /> 엑셀 내보내기
               </button>
 
-              <button
+              <button data-hs-trigger="Register"
                 type="button"
                 className="btn-primary"
                 onClick={handleOpenAddManualModal}
@@ -2456,7 +2456,7 @@ export const InspectionChecklistManage: React.FC = () => {
                       >
                         <Tag size={12} /> 태그
                       </button>
-                      <button
+                      <button data-hs-trigger="Delete"
                         type="button"
                         className="btn-secondary"
                         onClick={() => handleDeleteManual(manual)}
@@ -2824,7 +2824,7 @@ export const InspectionChecklistManage: React.FC = () => {
                 >
                   취소
                 </button>
-                <button
+                <button data-hs-trigger="Save"
                   type="submit"
                   className="btn-primary"
                   style={{ flex: 1, padding: '8px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}
@@ -3205,7 +3205,7 @@ export const InspectionChecklistManage: React.FC = () => {
                 >
                   취소
                 </button>
-                <button
+                <button data-hs-trigger="Register"
                   type="submit"
                   className="btn-primary"
                   style={{ flex: 1, padding: '8px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}
@@ -3696,7 +3696,7 @@ export const InspectionChecklistManage: React.FC = () => {
                   >
                     취소
                   </button>
-                  <button
+                  <button data-hs-trigger="Save"
                     type="submit"
                     className="btn-primary"
                     style={{ padding: '6px 16px', fontSize: '12px' }}

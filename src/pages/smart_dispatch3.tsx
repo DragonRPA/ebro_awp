@@ -533,7 +533,7 @@ export const SmartDispatch3: React.FC = () => {
 
   // ── 렌더 ─────────────────────────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '860px' }}>
+    <div data-hs-observe="smart_dispatch3" style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '860px' }}>
 
       {/* 토스트 */}
       {toast && (

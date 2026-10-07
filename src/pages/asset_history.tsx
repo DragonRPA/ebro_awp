@@ -366,7 +366,7 @@ export const AssetHistory: React.FC = () => {
   };
 
   return (
-    <div data-subview="asset_inout_history" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div data-hs-observe="asset_history" data-subview="asset_inout_history" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
       {/* 1. 페이지 헤더 (헌장 3.1: 무수식어 건조 표준) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -402,7 +402,7 @@ export const AssetHistory: React.FC = () => {
 
       {/* 2. 3대 탭 메뉴 (입고등록, 입고조회, 출고조회) */}
       <div style={{ display: 'flex', gap: '10px', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px' }}>
-        <button
+        <button data-hs-trigger="Register"
           type="button"
           onClick={() => setActiveTab('INBOUND_REGISTER')}
           className={activeTab === 'INBOUND_REGISTER' ? 'btn-primary' : 'btn-secondary'}
@@ -632,7 +632,7 @@ export const AssetHistory: React.FC = () => {
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
                                 <img src={photo} alt="파손 사진" style={{ width: '26px', height: '26px', objectFit: 'cover', borderRadius: '3px', border: '1px solid var(--border-color)' }} />
                                 <span style={{ fontSize: '10px', color: 'var(--success)', fontWeight: 'bold' }}>✅ 첨부됨</span>
-                                <button
+                                <button data-hs-trigger="Delete"
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -676,7 +676,7 @@ export const AssetHistory: React.FC = () => {
                 />
               </div>
 
-              <button
+              <button data-hs-trigger="Register"
                 type="button"
                 onClick={() => handleSubmitInbound()}
                 className="btn-primary"

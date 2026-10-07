@@ -300,7 +300,7 @@ const ApprovalInbox: React.FC = () => {
      렌더
   ════════════════════════════════════════════════════ */
   return (
-    <div data-mid="approvalInboxMain" data-subview="approvalInbox" style={{ padding: '20px 24px', maxWidth: '1100px', margin: '0 auto' }}>
+    <div data-hs-observe="approvalinbox" data-mid="approvalInboxMain" data-subview="approvalInbox" style={{ padding: '20px 24px', maxWidth: '1100px', margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
         <div>
           <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main, #1e293b)', margin: 0 }}>결재함 (수신)</h2>
@@ -489,7 +489,7 @@ const ApprovalInbox: React.FC = () => {
 
                 {/* 결재 단계 로드 버튼 */}
                 {allSteps.length === 0 && (
-                  <button
+                  <button data-hs-trigger="Approve"
                     onClick={() => fetchAllSteps(req.id)}
                     style={{ fontSize: '12px', color: 'var(--text-muted, #64748b)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 10px', textDecoration: 'underline' }}
                   >
@@ -543,7 +543,7 @@ const ApprovalInbox: React.FC = () => {
                       >
                         반려
                       </button>
-                      <button
+                      <button data-hs-trigger="Approve"
                         onClick={() => handleAction(s.id, req.id, 'APPROVED')}
                         disabled={loading}
                         style={{ padding: '7px 20px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}

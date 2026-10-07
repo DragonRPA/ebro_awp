@@ -231,7 +231,7 @@ export const DepreciationExecution: React.FC = () => {
   };
 
   return (
-    <div data-subview="depreciation_execution" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontSize: '13px', position: 'relative' }}>
+    <div data-hs-observe="depreciation_execution" data-subview="depreciation_execution" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontSize: '13px', position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -342,7 +342,7 @@ export const DepreciationExecution: React.FC = () => {
           </div>
 
           {/* 마감 실행 버튼 */}
-          <button
+          <button data-hs-trigger="Process"
             className="btn-primary"
             onClick={handleExecute}
             disabled={!canExecute || isAlreadyExecuted || isProcessing}

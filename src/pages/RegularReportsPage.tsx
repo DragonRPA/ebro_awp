@@ -141,10 +141,10 @@ export const RegularReportsPage: React.FC = () => {
     const hasContent = tc.comment.trim() || tc.links.some(l => l.url.trim());
 
     return (
-    <div data-subview="regular_reports" data-subview-title="Generated" className="mt-3 rounded-lg border border-dashed transition-all"
+    <div data-hs-observe="regularreportspage" data-subview="regular_reports" data-subview-title="Generated" className="mt-3 rounded-lg border border-dashed transition-all"
         style={{ borderColor: hasContent ? 'rgba(99,102,241,0.5)' : 'var(--border-color)', backgroundColor: hasContent ? 'rgba(99,102,241,0.04)' : 'transparent' }}>
         {/* 헤더 토글 */}
-        <button
+        <button data-hs-trigger="Save"
           onClick={() => setCommentPanelOpen(prev => ({ ...prev, [teamKey]: !prev[teamKey] }))}
           className="w-full flex items-center justify-between px-4 py-2.5 text-left rounded-lg"
         >
@@ -243,7 +243,7 @@ export const RegularReportsPage: React.FC = () => {
 
             {/* 저장 버튼 */}
             <div className="flex justify-end">
-              <button
+              <button data-hs-trigger="Save"
                 onClick={() => handleSaveTeamComment(teamKey)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold shadow transition-all active:scale-98"
               >
@@ -749,7 +749,7 @@ export const RegularReportsPage: React.FC = () => {
                   <Sparkles size={15} style={{ color: 'var(--primary)' }} />
                   <strong style={S.subTitle}>6. 경영진 종합 진단 및 차월 중점 지시사항</strong>
                 </div>
-                <button
+                <button data-hs-trigger="Save"
                   className="btn-primary"
                   onClick={handleSaveDirective}
                   style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', fontSize: '12px' }}

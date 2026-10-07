@@ -1135,7 +1135,7 @@ export const InitialDbUploader: React.FC = () => {
     '</div>' +
     '<div style="margin-bottom:12px;font-size:11px;color:#cbd5e1;line-height:1.4;max-height:42px;overflow:hidden;text-overflow:ellipsis;" id="hud_info">게시글 본문(txtBody) 읽는 중...</div>' +
     '<div style="display:flex;gap:8px;">' +
-      '<button id="hud_btn_stop" style="flex:1;padding:8px 10px;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px;">중단 및 저장</button>' +
+      '<button data-hs-trigger="Save" id="hud_btn_stop" style="flex:1;padding:8px 10px;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px;">중단 및 저장</button>' +
       '<button id="hud_btn_save" style="flex:1;padding:8px 10px;background:#10b981;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px;">지금 다운로드</button>' +
     '</div>';
   document.body.appendChild(hud);
@@ -1418,7 +1418,7 @@ export const InitialDbUploader: React.FC = () => {
   };
 
   return (
-    <div data-subview="initial_db_upload" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div data-hs-observe="initialdbuploader" data-subview="initial_db_upload" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
       {/* 상단 타이틀 헤더 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1701,7 +1701,7 @@ export const InitialDbUploader: React.FC = () => {
 
               {/* 우측 배차 이력 롤백 버튼 */}
               {uploadedDispatchCount > 0 && (
-                <button
+                <button data-hs-trigger="Delete"
                   type="button"
                   onClick={handleDispatchRollback}
                   disabled={isDispatchRollingBack || isDispatchIngesting}
@@ -1872,7 +1872,7 @@ export const InitialDbUploader: React.FC = () => {
                 )}
 
                 {uploadedBandAsCount > 0 && (
-                  <button
+                  <button data-hs-trigger="Delete"
                     type="button"
                     onClick={handleBandRollback}
                     disabled={isBandRollingBack || isBandIngesting || isReconcilingAs || isSyncingInspectionItems}
@@ -2307,7 +2307,7 @@ export const InitialDbUploader: React.FC = () => {
                     <span style={{ color: 'var(--text-muted)' }}>
                       🚫 과거 종료 거래처 / 계약 미보유 건 <strong>{dispatchAnalysisResult.ignoredPosts.length}건</strong>은 대장 오염 방지 원칙에 따라 안전하게 제외되었습니다.
                     </span>
-                    <button
+                    <button data-hs-trigger="Confirm"
                       onClick={() => setShowIgnoredPostsModal(!showIgnoredPostsModal)}
                       style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline', fontSize: '12px', fontWeight: 600 }}
                     >

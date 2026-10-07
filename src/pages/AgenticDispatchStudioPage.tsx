@@ -107,7 +107,7 @@ export const AgenticDispatchStudioPage: React.FC = () => {
   };
 
   return (
-    <div data-subview="agentic_dispatch_studio" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: '100%', minHeight: 0 }} data-uia="agentic-dispatch-studio-container">
+    <div data-hs-observe="agenticdispatchstudiopage" data-subview="agentic_dispatch_studio" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: '100%', minHeight: 0 }} data-uia="agentic-dispatch-studio-container">
       {/* 상단 타이틀 바 (헌장 3.1 무수식어 건조 명사 표준) */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -229,7 +229,7 @@ export const AgenticDispatchStudioPage: React.FC = () => {
                   {item.status === 'CONFIRMED' ? '배차 확정' : 'AI 기사 자동 배정'}
                 </span>
                 {item.status !== 'CONFIRMED' && (
-                  <button
+                  <button data-hs-trigger="Approve"
                     className="btn-secondary"
                     onClick={() => handleConfirmDispatch(item.id)}
                     style={{ padding: '4px 10px', fontSize: '12px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}

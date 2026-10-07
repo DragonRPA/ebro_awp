@@ -19,7 +19,7 @@ export const LandingPage: React.FC = () => {
   const [contactModalOpen, setContactModalOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-white text-slate-900 flex flex-col font-sans selection:bg-[#FF5200] selection:text-white">
+    <div data-hs-observe="landingpage" className="min-h-screen bg-white text-slate-900 flex flex-col font-sans selection:bg-[#FF5200] selection:text-white">
       {/* ── 1. 메인 내비게이션 바 ── */}
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">

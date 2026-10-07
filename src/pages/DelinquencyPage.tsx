@@ -824,7 +824,7 @@ export const DelinquencyPage: React.FC = () => {
   }, [delinquencyActionLogs, todayStr]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '8px', position: 'relative' }}>
+    <div data-hs-observe="delinquencypage" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '8px', position: 'relative' }}>
       
       {/* 알림 토스트 배너 (헌장 5.2) */}
       {toastMessage && (
@@ -1344,7 +1344,7 @@ export const DelinquencyPage: React.FC = () => {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
-                <button 
+                <button data-hs-trigger="Save" 
                   type="button" 
                   className="btn-primary" 
                   onClick={handleRegisterAction}
@@ -1559,7 +1559,7 @@ export const DelinquencyPage: React.FC = () => {
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
                       <label style={{ fontSize: '11.5px', fontWeight: 700 }}>내용증명 본문 (자유 편집 가능)</label>
-                      <button
+                      <button data-hs-trigger="Save"
                         type="button"
                         className="btn-secondary"
                         onClick={handleSaveNoticeTemplate}
@@ -1665,7 +1665,7 @@ export const DelinquencyPage: React.FC = () => {
                   <button type="button" className="btn-secondary" onClick={() => setShowNoticeModal(false)} style={{ padding: '6px 14px', fontSize: '12px' }}>
                     취소
                   </button>
-                  <button type="button" className="btn-primary" onClick={handleSubmitLegalNotice} style={{ padding: '6px 16px', fontSize: '12px', backgroundColor: '#7e22ce', borderColor: '#7e22ce' }}>
+                  <button data-hs-trigger="Save" type="button" className="btn-primary" onClick={handleSubmitLegalNotice} style={{ padding: '6px 16px', fontSize: '12px', backgroundColor: '#7e22ce', borderColor: '#7e22ce' }}>
                     내용증명 발송 승인 및 이력 저장
                   </button>
                 </div>

@@ -332,7 +332,7 @@ export const PrintQueueManager: React.FC = () => {
   };
 
   return (
-    <div data-subview="print_queue_monitor" data-subview-title="Generated"
+    <div data-hs-observe="printqueuemanager" data-subview="print_queue_monitor" data-subview-title="Generated"
       style={{
         padding: '24px',
         backgroundColor: 'var(--bg-app)',
@@ -526,7 +526,7 @@ export const PrintQueueManager: React.FC = () => {
                   <Download size={13} />
                   <span>엑셀 내보내기</span>
                 </button>
-                <button
+                <button data-hs-trigger="Register"
                   type="button"
                   className="btn-primary"
                   onClick={handleResetFormForNew}
@@ -696,7 +696,7 @@ export const PrintQueueManager: React.FC = () => {
                             <span>수정</span>
                           </button>
 
-                          <button
+                          <button data-hs-trigger="Delete"
                             type="button"
                             onClick={() => handleDeleteStation(station)}
                             style={{
@@ -1037,7 +1037,7 @@ export const PrintQueueManager: React.FC = () => {
               )}
 
               {/* 저장 제출 버튼 (Gutenberg 우하단 터미널 액션) */}
-              <button
+              <button data-hs-trigger="Register"
                 type="submit"
                 className="btn-primary"
                 style={{

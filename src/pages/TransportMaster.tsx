@@ -270,7 +270,7 @@ export const TransportMaster: React.FC = () => {
   };
 
   return (
-    <div data-subview="transport_master" data-subview-title="Generated">
+    <div data-hs-observe="transportmaster" data-subview="transport_master" data-subview-title="Generated">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h2 style={{ fontWeight: '700', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Settings size={22} color="var(--primary)" /> 운송 거래처 관리
@@ -306,7 +306,7 @@ export const TransportMaster: React.FC = () => {
                 <Download size={13} /> 엑셀 내보내기
               </button>
               {canSave && (
-                <button className="btn-primary" onClick={() => handleOpenCompanyModal()} style={{ padding: '4px 8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                <button data-hs-trigger="Register" className="btn-primary" onClick={() => handleOpenCompanyModal()} style={{ padding: '4px 8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                   <Plus size={14} /> 신규 등록
                 </button>
               )}
@@ -394,7 +394,7 @@ export const TransportMaster: React.FC = () => {
                 <Download size={13} /> 엑셀 내보내기
               </button>
               {canSave && (
-                <button className="btn-primary" onClick={() => handleOpenDriverModal()} style={{ padding: '4px 8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                <button data-hs-trigger="Register" className="btn-primary" onClick={() => handleOpenDriverModal()} style={{ padding: '4px 8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                   <Plus size={14} /> 기사 신규 등록
                 </button>
               )}
@@ -511,7 +511,7 @@ export const TransportMaster: React.FC = () => {
 
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button type="button" className="btn-secondary" onClick={() => setShowCompanyModal(false)}>취소</button>
-              <button type="submit" className="btn-primary">저장</button>
+              <button data-hs-trigger="Save" type="submit" className="btn-primary">저장</button>
             </div>
           </form>
         </div>
@@ -581,7 +581,7 @@ export const TransportMaster: React.FC = () => {
 
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button type="button" className="btn-secondary" onClick={() => setShowDriverModal(false)}>취소</button>
-              <button type="submit" className="btn-primary">저장</button>
+              <button data-hs-trigger="Save" type="submit" className="btn-primary">저장</button>
             </div>
           </form>
         </div>

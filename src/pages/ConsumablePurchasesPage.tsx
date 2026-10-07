@@ -248,7 +248,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
   };
 
   return (
-    <div data-subview="consumable_purchase" data-subview-title="Generated" style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div data-hs-observe="consumablepurchasespage" data-subview="consumable_purchase" data-subview-title="Generated" style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* 🔔 인앱 토스트 알림 */}
       {toastMessage && (
         <div style={{
@@ -292,7 +292,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
             </button>
           )}
           {canSave && (
-            <button
+            <button data-hs-trigger="Register"
               className="btn-primary"
               onClick={() => setExcelModalOpen(true)}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 14px' }}
@@ -350,7 +350,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
         </button>
 
         {canSave && (
-          <button
+          <button data-hs-trigger="Register"
             className={activeTab === 'REQ_WRITE' ? 'btn-primary' : 'btn-secondary'}
             onClick={() => setActiveTab('REQ_WRITE')}
             style={{ padding: '8px 16px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700' }}
@@ -481,7 +481,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
                                 onChange={e => setEditPriceValue(Number(e.target.value))}
                                 style={{ width: '80px', padding: '2px 4px', fontSize: '11px' }}
                               />
-                              <button onClick={() => handleSavePrice(p.id)} className="btn-primary" style={{ padding: '2px 6px', fontSize: '11px' }}>저장</button>
+                              <button data-hs-trigger="Save" onClick={() => handleSavePrice(p.id)} className="btn-primary" style={{ padding: '2px 6px', fontSize: '11px' }}>저장</button>
                               <button onClick={() => setEditingPriceId(null)} className="btn-secondary" style={{ padding: '2px 6px', fontSize: '11px' }}>취소</button>
                             </div>
                           ) : (
@@ -568,7 +568,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
                         <td style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                           {/* 1. 신청대기: 승인 버튼 */}
                           {p.status === 'REQUESTED' && canSave && (
-                            <button
+                            <button data-hs-trigger="Approve"
                               type="button"
                               className="btn-primary"
                               onClick={() => handleAccept(p.id, p.modelName)}
@@ -580,7 +580,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
 
                           {/* 2. 승인접수 및 실물입고됨: 구매신청자의 최종 완결 및 지급요청 버튼 */}
                           {p.status === 'ACCEPTED' && isInbounded && (
-                            <button
+                            <button data-hs-trigger="Confirm"
                               type="button"
                               className="btn-primary"
                               onClick={() => handleCompleteAndRequestPayment(p)}
@@ -667,7 +667,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>품목 #{index + 1}</span>
                   {reqItems.length > 1 && (
-                    <button
+                    <button data-hs-trigger="Delete"
                       type="button"
                       onClick={() => setReqItems(prev => prev.filter((_, i) => i !== index))}
                       style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '12px', cursor: 'pointer', padding: 0 }}

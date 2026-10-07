@@ -810,7 +810,7 @@ export const OutboundInspections: React.FC = () => {
   };
 
   return (
-    <div data-subview="outbound_inspections" data-subview-title="Generated" style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', color: 'var(--text-primary)' }}>
+    <div data-hs-observe="outbound_inspections" data-subview="outbound_inspections" data-subview-title="Generated" style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', color: 'var(--text-primary)' }}>
       {/* 헤더 영역 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
@@ -1331,7 +1331,7 @@ export const OutboundInspections: React.FC = () => {
               {/* 하단 최종 출고 승인 및 반려 버튼 */}
               {canEdit && (
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <button
+                  <button data-hs-trigger="Approve"
                     onClick={handleApproveGroup}
                     disabled={isProcessing}
                     className="btn-primary"
@@ -1457,7 +1457,7 @@ export const OutboundInspections: React.FC = () => {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button onClick={() => setShowRejectModal(false)} className="btn-secondary">취소</button>
-              <button data-mid='btn-reject-confirm' onClick={handleConfirmReject} style={{ padding: '8px 16px', borderRadius: '8px', backgroundColor: 'var(--danger)', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer' }}>
+              <button data-hs-trigger="Process" data-mid='btn-reject-confirm' onClick={handleConfirmReject} style={{ padding: '8px 16px', borderRadius: '8px', backgroundColor: 'var(--danger)', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer' }}>
                 반려 처리 실행
               </button>
             </div>

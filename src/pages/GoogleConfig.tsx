@@ -244,7 +244,7 @@ export const GoogleConfig: React.FC = () => {
 
   if (!isAdmin) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+      <div data-hs-observe="googleconfig" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
         <div className="card" style={{ maxWidth: '500px', width: '100%', textAlign: 'center', padding: '40px 30px', border: '1px solid var(--danger-light)' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'var(--danger-light)', color: 'var(--danger)', marginBottom: '20px' }}>
             <Lock size={32} />
@@ -367,7 +367,7 @@ export const GoogleConfig: React.FC = () => {
                 >
                   취소
                 </button>
-                <button
+                <button data-hs-trigger="Delete"
                   type="button"
                   disabled={isDeleting}
                   onClick={async () => {
@@ -616,7 +616,7 @@ export const GoogleConfig: React.FC = () => {
         </div>
           {/* 저장 버튼 (바둑판 전체 폭 차지) */}
           <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
-            <button
+            <button data-hs-trigger="Save"
               type="submit"
               className="btn-primary"
               style={{ padding: '12px 32px', fontSize: '15px', fontWeight: '800', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)' }}
@@ -680,7 +680,7 @@ export const GoogleConfig: React.FC = () => {
               </div>
 
               <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', backgroundColor: 'var(--bg-app)', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px' }}>
-                <button
+                <button data-hs-trigger="Confirm"
                   type="button"
                   className="btn-primary"
                   onClick={() => setShowAgentGuideModal(false)}

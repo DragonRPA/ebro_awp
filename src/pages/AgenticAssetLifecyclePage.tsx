@@ -111,7 +111,7 @@ export const AgenticAssetLifecyclePage: React.FC = () => {
   };
 
   return (
-    <div data-subview="agentic_asset_lifecycle" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', minHeight: 0 }} data-uia="agentic-asset-lifecycle-container">
+    <div data-hs-observe="agenticassetlifecyclepage" data-subview="agentic_asset_lifecycle" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', minHeight: 0 }} data-uia="agentic-asset-lifecycle-container">
       {/* 상단 헤더 바 (헌장 3.1 무수식어 건조 표준) */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -194,7 +194,7 @@ export const AgenticAssetLifecyclePage: React.FC = () => {
                 </span>
 
                 {asset.status === 'WAITING_OUTBOUND' && (
-                  <button
+                  <button data-hs-trigger="Approve"
                     className="btn-primary"
                     onClick={() => handleApproveOutbound(asset.id)}
                     disabled={loading}

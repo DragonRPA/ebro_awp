@@ -400,7 +400,7 @@ export const ErrorReportPage: React.FC = () => {
   };
 
   return (
-    <div data-subview="error_report" data-subview-title="Generated" style={{ padding: '20px', width: '100%', boxSizing: 'border-box' }}>
+    <div data-hs-observe="errorreportpage" data-subview="error_report" data-subview-title="Generated" style={{ padding: '20px', width: '100%', boxSizing: 'border-box' }}>
       {/* ─── 토스트 알림 ─── */}
       {toastMessage && (
         <div style={{
@@ -512,7 +512,7 @@ export const ErrorReportPage: React.FC = () => {
             <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>단계 구분</label>
             <div style={{ display: 'flex', borderRadius: '6px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
               {(['ALL', 'REGISTERED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] as const).map(st => (
-                <button
+                <button data-hs-trigger="Register"
                   key={st}
                   onClick={() => setStageFilter(st)}
                   style={{
@@ -634,7 +634,7 @@ export const ErrorReportPage: React.FC = () => {
             엑셀 내보내기
           </button>
 
-          <button
+          <button data-hs-trigger="Register"
             onClick={() => setIsRegisterModalOpen(true)}
             style={{
               height: '36px',
@@ -760,7 +760,7 @@ export const ErrorReportPage: React.FC = () => {
                     {r.assigneeName || '미배정'}
                   </td>
                   <td style={{ padding: '0 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                    <button
+                    <button data-hs-trigger="Delete"
                       onClick={() => handleDeleteSubmit(r.id)}
                       style={{
                         background: 'none',
@@ -1090,7 +1090,7 @@ export const ErrorReportPage: React.FC = () => {
                 >
                   취소
                 </button>
-                <button
+                <button data-hs-trigger="Register"
                   type="submit"
                   style={{
                     height: '36px',
@@ -1359,7 +1359,7 @@ export const ErrorReportPage: React.FC = () => {
 
                 {selectedReport.status === 'REGISTERED' && (
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
-                    <button
+                    <button data-hs-trigger="Process"
                       type="button"
                       onClick={handleReceiveSubmit}
                       style={{
@@ -1461,7 +1461,7 @@ export const ErrorReportPage: React.FC = () => {
 
                 {selectedReport.status !== 'COMPLETED' && (
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
-                    <button
+                    <button data-hs-trigger="Process"
                       type="button"
                       onClick={handleCompleteSubmit}
                       style={{

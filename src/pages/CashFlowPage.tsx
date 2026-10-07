@@ -587,7 +587,7 @@ export const CashFlowPage: React.FC = () => {
   };
 
   return (
-    <div data-subview="cash_flow" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: '1080px', paddingBottom: '60px' }}>
+    <div data-hs-observe="cashflowpage" data-subview="cash_flow" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '16px', minWidth: '1080px', paddingBottom: '60px' }}>
       
       {/* ─── 토스트 알림 ─── */}
       {toastMessage && (
@@ -1244,7 +1244,7 @@ export const CashFlowPage: React.FC = () => {
                         {snap.notes || '-'}
                       </td>
                       <td style={{ textAlign: 'center', whiteSpace: 'nowrap', padding: '0 8px' }}>
-                        <button
+                        <button data-hs-trigger="Delete"
                           className="btn-secondary"
                           onClick={async () => {
                             await deleteCashFlowSnapshot(snap.id);
@@ -1391,7 +1391,7 @@ export const CashFlowPage: React.FC = () => {
 
             {/* 드로어 푸터 */}
             <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
-              <button
+              <button data-hs-trigger="Confirm"
                 className="btn-primary"
                 onClick={() => setSelectedDetailDate(null)}
                 style={{ padding: '6px 18px', fontSize: '12px' }}
@@ -1464,7 +1464,7 @@ export const CashFlowPage: React.FC = () => {
               >
                 취소
               </button>
-              <button
+              <button data-hs-trigger="Save"
                 type="submit"
                 className="btn-primary"
                 style={{ padding: '6px 16px', fontSize: '12px' }}

@@ -1475,7 +1475,7 @@ export const RentAssets: React.FC = () => {
   };
 
   return (
-    <div data-subview="rent_asset" data-subview-title="Generated" style={{ padding: '14px 20px', maxWidth: '1600px', margin: '0 auto' }}>
+    <div data-hs-observe="rent_assets" data-subview="rent_asset" data-subview-title="Generated" style={{ padding: '14px 20px', maxWidth: '1600px', margin: '0 auto' }}>
       
       {/* 1. 상단 메뉴 헤더 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
@@ -1486,7 +1486,7 @@ export const RentAssets: React.FC = () => {
         </div>
 
         {activeTab === 'CURRENT' && canSave && (
-          <button className="btn-primary" onClick={handleOpenAdd} style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button data-hs-trigger="Register" className="btn-primary" onClick={handleOpenAdd} style={{ padding: '8px 14px', fontSize: '12px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Plus size={15} /> 임차자산 신규 등록
           </button>
         )}
@@ -2196,7 +2196,7 @@ export const RentAssets: React.FC = () => {
 
                                 {/* [임차등록] 버튼 (미등록 청구) */}
                                 {stmt && item.status === 'UNREGISTERED' && (
-                                  <button
+                                  <button data-hs-trigger="Register"
                                     type="button"
                                     onClick={() => {
                                       setMatchingItem(item);
@@ -2285,7 +2285,7 @@ export const RentAssets: React.FC = () => {
 
                                 {/* [기간승인] 버튼 */}
                                 {stmt && item.status === 'PERIOD_MISMATCH' && !isChecked && (
-                                  <button
+                                  <button data-hs-trigger="Approve"
                                     type="button"
                                     onClick={() => handleApprovePriceMismatch(stmt.id)}
                                     style={{
@@ -2299,7 +2299,7 @@ export const RentAssets: React.FC = () => {
 
                                 {/* [차액승인] 버튼 */}
                                 {stmt && item.status === 'PRICE_MISMATCH' && !isChecked && (
-                                  <button
+                                  <button data-hs-trigger="Approve"
                                     type="button"
                                     onClick={() => handleApprovePriceMismatch(stmt.id)}
                                     style={{
@@ -2358,7 +2358,7 @@ export const RentAssets: React.FC = () => {
 
                                 {/* [구상등록] 버튼 */}
                                 {canSave && (item.statementRow?.itemType === 'REPAIR' || item.statementRow?.itemType === 'OTHER_FEE' || item.status === 'UNREGISTERED' || item.priceDiff > 0) && (
-                                  <button
+                                  <button data-hs-trigger="Register"
                                     type="button"
                                     onClick={() => handleOpenClaimModal(item)}
                                     style={{
@@ -2631,7 +2631,7 @@ export const RentAssets: React.FC = () => {
 
                   {!isContracted && (
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
-                      <button
+                      <button data-hs-trigger="Register"
                         className="btn-primary"
                         onClick={() => handleConvertSubleaseToAsset(selectedItem)}
                         style={{ padding: '8px 16px', fontSize: '12px', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
@@ -2834,7 +2834,7 @@ export const RentAssets: React.FC = () => {
 
               {/* 완결 버튼 */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
-                <button
+                <button data-hs-trigger="Register"
                   className="btn-primary"
                   onClick={handleSaveSubleaseNegotiation}
                   style={{ padding: '8px 20px', fontSize: '12.5px', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
@@ -3805,7 +3805,7 @@ export const RentAssets: React.FC = () => {
                 >
                   취소
                 </button>
-                <button
+                <button data-hs-trigger="Save"
                   type="submit"
                   className="btn-primary"
                   style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold' }}
@@ -3948,7 +3948,7 @@ export const RentAssets: React.FC = () => {
                 >
                   취소
                 </button>
-                <button
+                <button data-hs-trigger="Process"
                   onClick={handleConfirmReturn}
                   style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--danger)', color: '#fff', border: 'none', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}
                 >
@@ -4397,7 +4397,7 @@ export const RentAssets: React.FC = () => {
                 >
                   취소
                 </button>
-                <button
+                <button data-hs-trigger="Register"
                   type="submit"
                   style={{ padding: '8px 18px', borderRadius: '6px', border: 'none', backgroundColor: 'var(--warning)', color: '#ffffff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
                 >
@@ -4449,7 +4449,7 @@ export const RentAssets: React.FC = () => {
             <div style={{ padding: '14px', backgroundColor: 'rgba(59, 130, 246, 0.06)', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.25)', marginBottom: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <strong style={{ fontSize: '12.5px', color: 'var(--primary)' }}>신규 임차자산으로 바로 등록</strong>
-                <button
+                <button data-hs-trigger="Register"
                   type="button"
                   onClick={handleQuickRegisterNewAsset}
                   style={{

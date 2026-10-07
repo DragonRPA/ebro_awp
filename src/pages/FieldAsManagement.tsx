@@ -909,7 +909,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
   }, [fieldAsTickets, historyModalAssetNo]);
 
   return (
-    <div data-subview="field_as" data-subview-title="Generated" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', boxSizing: 'border-box', position: 'relative' }}>
+    <div data-hs-observe="fieldasmanagement" data-subview="field_as" data-subview-title="Generated" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', boxSizing: 'border-box', position: 'relative' }}>
       {/* 알림 토스트 배너 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -1063,7 +1063,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
             영업 AS 의뢰 작성
           </button>
 
-          <button
+          <button data-hs-trigger="Register"
             onClick={() => setActiveTab('initial_db_upload')}
             style={{
               display: 'flex',
@@ -1085,7 +1085,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
             과거 이력 등록
           </button>
 
-          <button
+          <button data-hs-trigger="Register"
             onClick={() => setShowCreateModal(true)}
             style={{
               display: 'flex',
@@ -2433,7 +2433,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                       <option value="YARD_RETURNED">주기장 반납</option>
                       <option value="DISPOSED">현장 폐기</option>
                     </select>
-                    <button
+                    <button data-hs-trigger="Register"
                       type="button"
                       onClick={handleAddCollectedPart}
                       style={{ padding: '8px', backgroundColor: 'var(--text-secondary)', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 700, color: '#ffffff', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
@@ -2856,7 +2856,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                   📋 {selectedCalDate} 방문 건 ({selectedDateTickets.length}건)
                 </h4>
                 {canSave && (
-                  <button
+                  <button data-hs-trigger="Register"
                     type="button"
                     className="btn-primary"
                     onClick={() => {
@@ -2876,7 +2876,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                   <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--text-muted)', fontSize: '13px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                     <span>해당 일자에 배정된 AS 방문 일정이 없습니다.</span>
                     {canSave && (
-                      <button
+                      <button data-hs-trigger="Register"
                         type="button"
                         className="btn-secondary"
                         onClick={() => {
@@ -3610,7 +3610,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
             <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
               🚚 AS 담당자별 차량 소모품 적재 현황
             </h2>
-            <button
+            <button data-hs-trigger="Register"
               onClick={() => setShowTransferModal(true)}
               style={{
                 display: 'flex',
@@ -4210,7 +4210,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                     현장 도로명 주소 (T맵 연동)
                   </label>
                   {newSiteName.trim() && (
-                    <button
+                    <button data-hs-trigger="Register"
                       type="button"
                       onClick={() => {
                         const s = (db.customerSites || []).find(cs => cs.name.includes(newSiteName.trim()) || newSiteName.trim().includes(cs.name));
@@ -4370,7 +4370,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                 >
                   취소
                 </button>
-                <button
+                <button data-hs-trigger="Register"
                   type="submit"
                   style={{ padding: '8px 20px', backgroundColor: 'var(--primary)', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 700, color: '#ffffff', cursor: 'pointer' }}
                 >
@@ -4560,7 +4560,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                 >
                   취소
                 </button>
-                <button
+                <button data-hs-trigger="Register"
                   type="button"
                   onClick={async () => {
                     if (!transferTargetMechId || !transferConsumableId) {

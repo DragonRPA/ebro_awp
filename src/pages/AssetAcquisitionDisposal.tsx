@@ -1100,7 +1100,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
   };
 
   return (
-    <div data-subview="acquisition_disposal" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
+    <div data-hs-observe="assetacquisitiondisposal" data-subview="acquisition_disposal" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
       
       {/* 토스트 메시지 표출 */}
       {toastMessage && (
@@ -1182,7 +1182,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
           
           {/* 모드 전환: 단건 등록 vs 엑셀 일괄 등록 */}
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <button
+            <button data-hs-trigger="Register"
               type="button"
               onClick={() => setAcqMode('SINGLE')}
               style={{
@@ -1198,7 +1198,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
             >
               단건 즉시 등록
             </button>
-            <button
+            <button data-hs-trigger="Register"
               type="button"
               onClick={() => setAcqMode('EXCEL')}
               style={{
@@ -1690,7 +1690,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
 
                         {/* 6. 삭제 버튼 */}
                         <div style={{ textAlign: 'center' }}>
-                          <button
+                          <button data-hs-trigger="Delete"
                             type="button"
                             onClick={() => handleRemoveSlot(slot.id)}
                             title="슬롯 삭제"
@@ -1716,7 +1716,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
 
               {/* 우하단 Gutenberg Z-패턴 터미널 완결 버튼 */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
-                <button
+                <button data-hs-trigger="Register"
                   type="submit"
                   className="btn-primary"
                   disabled={isSubmittingAcq}
@@ -1840,7 +1840,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '10px' }}>
-                    <button
+                    <button data-hs-trigger="Register"
                       type="button"
                       className="btn-primary"
                       disabled={isProcessingExcel || excelValidationErrors.length > 0}
@@ -2391,7 +2391,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                       >
                         <Download size={11} /> 엑셀 내보내기
                       </button>
-                      <button
+                      <button data-hs-trigger="Apply"
                         type="button"
                         onClick={handleResetBasketPriceToBookValue}
                         className="btn-secondary"
@@ -2531,7 +2531,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                     >
                       고객사/딜러 조회
                     </button>
-                    <button
+                    <button data-hs-trigger="Register"
                       type="button"
                       onClick={() => setBuyerMode('NEW')}
                       style={{

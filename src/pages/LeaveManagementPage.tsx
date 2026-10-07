@@ -294,7 +294,7 @@ export const LeaveManagementPage: React.FC = () => {
   });
 
   return (
-    <div data-subview="leave_management" data-subview-title="Generated" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div data-hs-observe="leavemanagementpage" data-subview="leave_management" data-subview-title="Generated" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
       {/* 헤더 타이틀 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
@@ -552,7 +552,7 @@ export const LeaveManagementPage: React.FC = () => {
                 />
               </div>
 
-              <button
+              <button data-hs-trigger="Register"
                 type="submit"
                 className="btn btn-primary"
                 style={{ fontSize: '13px', marginTop: '6px' }}

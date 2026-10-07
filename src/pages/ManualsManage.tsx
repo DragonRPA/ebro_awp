@@ -94,7 +94,7 @@ export const ManualsManage: React.FC = () => {
   };
 
   return (
-    <div style={{ paddingBottom: '40px' }}>
+    <div data-hs-observe="manualsmanage" style={{ paddingBottom: '40px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <h2 style={{ margin: 0, fontWeight: '700', fontSize: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <BookOpen size={20} color="#0ea5e9" />
@@ -158,8 +158,8 @@ export const ManualsManage: React.FC = () => {
                   </td>
                   <td style={{ textAlign: 'center' }}>
                     <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                      <button onClick={() => saveRow(idx)} className="btn-icon" title="저장" style={{ color: '#10b981' }}><Save size={16} /></button>
-                      <button onClick={() => deleteRow(idx)} className="btn-icon" title="삭제" style={{ color: '#ef4444' }}><Trash2 size={16} /></button>
+                      <button data-hs-trigger="Save" onClick={() => saveRow(idx)} className="btn-icon" title="저장" style={{ color: '#10b981' }}><Save size={16} /></button>
+                      <button data-hs-trigger="Delete" onClick={() => deleteRow(idx)} className="btn-icon" title="삭제" style={{ color: '#ef4444' }}><Trash2 size={16} /></button>
                     </div>
                   </td>
                 </tr>

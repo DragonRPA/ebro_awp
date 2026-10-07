@@ -640,7 +640,7 @@ export const SmartReturn: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', position: 'relative' }}>
+    <div data-hs-observe="smart_return" style={{ display: 'flex', flexDirection: 'column', gap: '14px', position: 'relative' }}>
       {/* 알림 토스트 배너 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -1178,7 +1178,7 @@ export const SmartReturn: React.FC = () => {
                   />
                 </div>
 
-                <button
+                <button data-hs-trigger="Register"
                   data-mid="smart_return-submit-btn"
                   type="submit"
                   className="btn-success"

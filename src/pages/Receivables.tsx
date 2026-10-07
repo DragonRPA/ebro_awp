@@ -465,7 +465,7 @@ export const Receivables: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+    <div data-hs-observe="receivables" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       
       {/* ── 1. 상단 헤더 & 슬림 인라인 요약 바 (거대 카드 4개 대체 및 중복 제거) ── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
@@ -509,7 +509,7 @@ export const Receivables: React.FC = () => {
             <Download size={14} /> 엑셀 다운로드
           </button>
           {canWrite && (
-            <button className="btn-primary" onClick={() => setShowAddModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 14px' }}>
+            <button data-hs-trigger="Register" className="btn-primary" onClick={() => setShowAddModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 14px' }}>
               <Plus size={14} /> 신규 외상 등록
             </button>
           )}
@@ -790,7 +790,7 @@ export const Receivables: React.FC = () => {
         </div>
         <div>
           {canWrite && (
-            <button
+            <button data-hs-trigger="Register"
               type="button"
               className="btn-primary"
               onClick={() => setShowAddModal(true)}
@@ -1116,7 +1116,7 @@ export const Receivables: React.FC = () => {
                 >
                   닫기
                 </button>
-                <button
+                <button data-hs-trigger="Register"
                   data-mid="rec-modal-submit-btn"
                   type="submit"
                   className="btn-primary"

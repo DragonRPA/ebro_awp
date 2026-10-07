@@ -449,7 +449,7 @@ export const Products: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '8px', position: 'relative' }}>
+    <div data-hs-observe="products" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '8px', position: 'relative' }}>
       
       {/* 알림 토스트 배너 */}
       {toastMessage && (
@@ -513,7 +513,7 @@ export const Products: React.FC = () => {
             <Download size={13} /> 엑셀 다운로드
           </button>
           {canSave && (
-            <button
+            <button data-hs-trigger="Register"
               className="btn-primary"
               onClick={handleOpenAddModal}
               style={{ padding: '5px 12px', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
@@ -1037,7 +1037,7 @@ export const Products: React.FC = () => {
                         >
                           <ExternalLink size={11} /> {doc.name}
                         </a>
-                        <button
+                        <button data-hs-trigger="Delete"
                           type="button"
                           onClick={() => handleDeleteDoc(doc.key)}
                           style={{ border: 'none', backgroundColor: 'transparent', cursor: 'pointer', color: 'var(--danger)', padding: '2px' }}
@@ -1080,7 +1080,7 @@ export const Products: React.FC = () => {
                     )}
                     {isEditing && (
                       <>
-                        <button
+                        <button data-hs-trigger="Save"
                           type="button"
                           className="btn-success"
                           onClick={handleSaveEdit}
@@ -1213,7 +1213,7 @@ export const Products: React.FC = () => {
 
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '16px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
               <button type="button" className="btn-secondary" onClick={() => setShowAddModal(false)} style={{ padding: '6px 14px', fontSize: '12px' }}>취소</button>
-              <button type="submit" className="btn-primary" style={{ padding: '6px 16px', fontSize: '12px' }}>등록 완료</button>
+              <button data-hs-trigger="Register" type="submit" className="btn-primary" style={{ padding: '6px 16px', fontSize: '12px' }}>등록 완료</button>
             </div>
           </form>
         </div>

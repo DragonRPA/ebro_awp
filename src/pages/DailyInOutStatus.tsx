@@ -449,7 +449,7 @@ export const DailyInOutStatus: React.FC = () => {
   };
 
   return (
-    <div 
+    <div data-hs-observe="dailyinoutstatus" 
       data-subview="daily_inout" 
       data-subview-title="일일 입출고 조회" 
       style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '30px' }}

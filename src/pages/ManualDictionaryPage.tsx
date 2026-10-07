@@ -54,7 +54,7 @@ export const ManualDictionaryPage: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px' }}>
+    <div data-hs-observe="manualdictionarypage" style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <BookOpen size={20} color="var(--primary)" />

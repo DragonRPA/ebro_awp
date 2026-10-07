@@ -665,7 +665,7 @@ export const SmartDispatch2: React.FC = () => {
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div data-hs-observe="smart_dispatch2" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
       {/* ─── 토스트 ─────────────────────────────────────────────────────── */}
       {toastMessage && (
@@ -1156,7 +1156,7 @@ export const SmartDispatch2: React.FC = () => {
           초기화
         </button>
         {canSave && (
-          <button type="button" className="btn-primary" onClick={handleSave} disabled={isSubmitting}
+          <button data-hs-trigger="Save" type="button" className="btn-primary" onClick={handleSave} disabled={isSubmitting}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 20px', fontSize: '13px', fontWeight: 800 }}>
             <Zap size={15} /> 출고 지시 (자동 생성 및 저장)
           </button>

@@ -821,7 +821,7 @@ export const TenantManagementPage: React.FC = () => {
   };
 
   return (
-    <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '100%', gap: '16px', overflowY: 'auto' }}>
+    <div data-hs-observe="tenantmanagementpage" style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '100%', gap: '16px', overflowY: 'auto' }}>
       
       {/* ── 1. 상단 바: 좌상단 스코프 & 우상단 파이프라인 (Gutenberg Z-Pattern) ── */}
       <div style={{ 
@@ -977,7 +977,7 @@ export const TenantManagementPage: React.FC = () => {
             <span>엑셀 내보내기</span>
           </button>
 
-          <button
+          <button data-hs-trigger="Register"
             data-mid="tenant-pipeline-onboard"
             type="button"
             onClick={() => setIsOnboardingModalOpen(true)}
@@ -999,7 +999,7 @@ export const TenantManagementPage: React.FC = () => {
             <span>사업자등록증 온보딩</span>
           </button>
 
-          <button
+          <button data-hs-trigger="Register"
             data-mid="tenant-pipeline-add"
             type="button"
             onClick={() => handleOpenModal()}
@@ -1128,7 +1128,7 @@ export const TenantManagementPage: React.FC = () => {
                           </button>
 
                           {!tenant.isDefault && (
-                            <button
+                            <button data-hs-trigger="Delete"
                               type="button"
                               onClick={() => handleDelete(tenant)}
                               title="테넌트 삭제"
@@ -2245,7 +2245,7 @@ export const TenantManagementPage: React.FC = () => {
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <button
+                      <button data-hs-trigger="Process"
                         type="button"
                         onClick={() => {
                           const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -3731,7 +3731,7 @@ export const TenantManagementPage: React.FC = () => {
                 취소
               </button>
 
-              <button
+              <button data-hs-trigger="Save"
                 type="button"
                 onClick={handleSave}
                 disabled={isSaving}
@@ -3882,7 +3882,7 @@ export const TenantManagementPage: React.FC = () => {
                     파일 없이 가상의 고소작업대 렌탈사 데이터로 테스트
                   </span>
                 </div>
-                <button
+                <button data-hs-trigger="Apply"
                   type="button"
                   onClick={handleDemoLicenseOnboarding}
                   style={{

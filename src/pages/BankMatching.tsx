@@ -254,7 +254,7 @@ export const BankMatching: React.FC = () => {
       const matchedSettlement = purchaseSettlements.find(s => s.bankTransactionId === tx.id);
       if (!matchedSettlement) return <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>-</span>;
       return (
-    <div data-subview="bank_matching" data-subview-title="Generated" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--text-main)', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
+    <div data-hs-observe="bankmatching" data-subview="bank_matching" data-subview-title="Generated" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--text-main)', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
           <LinkIcon size={10} style={{ color: 'var(--primary)', flexShrink: 0 }} />
           <span>[{matchedSettlement.vendorName}] {matchedSettlement.settlementYm} 매입정산 대사됨</span>
         </div>
@@ -787,7 +787,7 @@ export const BankMatching: React.FC = () => {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {canSave && (
-            <button
+            <button data-hs-trigger="Process"
               data-mid='btn-batch-match' onClick={handleBatchAutoMatch}
               disabled={isBatchMatchingProcessing || autoMatchableCount === 0}
               className="btn btn-primary"
@@ -1473,7 +1473,7 @@ export const BankMatching: React.FC = () => {
             </div>
 
             {canSave && (
-              <button
+              <button data-hs-trigger="Register"
                 onClick={() => setIsRuleModalOpen(false)}
                 className="btn btn-primary"
                 style={{ fontSize: '13px', whiteSpace: 'nowrap' }}
@@ -1775,7 +1775,7 @@ export const BankMatching: React.FC = () => {
                       <div style={{ fontSize: '12px', color: 'var(--warning)' }}>
                         💡 <strong>타행 이체 수수료 차액(₩{diff.toLocaleString()}) 감지</strong>: 입금액이 청구 잔액보다 ₩{diff.toLocaleString()}원 부족합니다.
                       </div>
-                      <button
+                      <button data-hs-trigger="Process"
                         type="button"
                         onClick={() => setFeeAdjustment(feeAdjustment > 0 ? 0 : diff)}
                         className={`btn ${feeAdjustment > 0 ? 'btn-primary' : 'btn-secondary'}`}
@@ -1810,7 +1810,7 @@ export const BankMatching: React.FC = () => {
                 >
                   취소
                 </button>
-                <button
+                <button data-hs-trigger="Approve"
                   type="submit"
                   className="btn btn-primary"
                   disabled={matchingMode !== 'MULTI' ? !matchingBillingId : selectedMultiBillingIds.length === 0}
@@ -2085,7 +2085,7 @@ export const BankMatching: React.FC = () => {
                 >
                   취소
                 </button>
-                <button
+                <button data-hs-trigger="Approve"
                   type="submit"
                   className="btn btn-primary"
                   disabled={!matchingSettlementId}
@@ -2188,7 +2188,7 @@ export const BankMatching: React.FC = () => {
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setIsInitBalanceModalOpen(false)}>취소</button>
-                <button type="submit" className="btn btn-primary">잔액 설정 저장</button>
+                <button data-hs-trigger="Save" type="submit" className="btn btn-primary">잔액 설정 저장</button>
               </div>
             </form>
           </div>
@@ -2257,7 +2257,7 @@ export const BankMatching: React.FC = () => {
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
                 <button type="button" className="btn btn-secondary" onClick={() => setIsRuleModalOpen(false)}>취소</button>
-                <button type="submit" className="btn btn-primary">규칙 저장</button>
+                <button data-hs-trigger="Save" type="submit" className="btn btn-primary">규칙 저장</button>
               </div>
             </form>
           </div>

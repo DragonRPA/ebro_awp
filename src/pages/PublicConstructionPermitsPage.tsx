@@ -716,7 +716,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
 
   
   return (
-    <div style={{
+    <div data-hs-observe="publicconstructionpermitspage" style={{
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
@@ -1234,7 +1234,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                               등록됨
                             </span>
                           ) : (
-                            <button
+                            <button data-hs-trigger="Register"
                               onClick={(e) => handleRegisterLead(item, e)}
                               style={{
                                 padding: '3px 8px', fontSize: '11px', borderRadius: '4px',
@@ -1636,7 +1636,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                 backgroundColor: 'var(--bg-header)',
                 display: 'flex', gap: '8px', flexShrink: 0
               }}>
-                <button
+                <button data-hs-trigger="Register"
                   onClick={() => handleRegisterLead(selectedItem)}
                   disabled={selectedItem.leadStatus === 'REGISTERED'}
                   style={{
@@ -1826,7 +1826,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
               backgroundColor: 'var(--bg-header)',
               display: 'flex', justifyContent: 'flex-end'
             }}>
-              <button
+              <button data-hs-trigger="Confirm"
                 onClick={() => setIsFormulaModalOpen(false)}
                 style={{
                   padding: '6px 18px', borderRadius: '4px', fontSize: '12px', fontWeight: 600,

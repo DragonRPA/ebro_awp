@@ -469,7 +469,7 @@ export const Deliveries: React.FC = () => {
   const deliverySiteOptions = sites?.filter(s => contracts.some(c => c.siteId === s.id && deliveries.some(d => d.contractId === c.id))) || [];
 
   return (
-    <div>
+    <div data-hs-observe="deliveries">
       <div className="card-header" style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2 style={{ fontWeight: '700', margin: 0 }}>배차 및 운송 정산 관리</h2>
@@ -728,7 +728,7 @@ export const Deliveries: React.FC = () => {
                           </span>
                         )}
                         {canSave && d.status === 'DISPATCHED' && (
-                          <button
+                          <button data-hs-trigger="Approve"
                             className="btn-success"
                             onClick={async () => {
                               if (d.type === 'INBOUND' || d.type === 'EXCHANGE' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납' || d.dispatchCategory === '교환') {
@@ -826,7 +826,7 @@ export const Deliveries: React.FC = () => {
                         d.isCostSettled ? (
                           <span style={{ color: 'var(--success)', fontWeight: '700', fontSize: '12px' }}>정산완료(마감)</span>
                         ) : (
-                          <button
+                          <button data-hs-trigger="Register"
                             className="btn-primary"
                             onClick={() => handleOpenSettleModal(d)}
                             style={{ padding: '2px 8px', fontSize: '11.5px', fontWeight: 'bold' }}
@@ -986,7 +986,7 @@ export const Deliveries: React.FC = () => {
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <button type="button" className="btn-secondary" onClick={() => setShowSettleModal(false)}>취소</button>
-              <button type="submit" className="btn-success" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }}>
+              <button data-hs-trigger="Process" type="submit" className="btn-success" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }}>
                 <CheckCircle size={14} /> 정산 마감 처리 완료
               </button>
             </div>
@@ -1111,7 +1111,7 @@ export const Deliveries: React.FC = () => {
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <button type="button" className="btn-secondary" onClick={() => setShowInboundModal(false)}>취소</button>
-              <button type="submit" className="btn-success" disabled={reviews.length === 0 || reviews.some(r => r.status === 'REPAIRING' && !r.faultImageUrl)}>입고 등록 완료</button>
+              <button data-hs-trigger="Register" type="submit" className="btn-success" disabled={reviews.length === 0 || reviews.some(r => r.status === 'REPAIRING' && !r.faultImageUrl)}>입고 등록 완료</button>
             </div>
           </form>
         </div>

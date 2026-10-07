@@ -1154,7 +1154,7 @@ const handleDeleteAccount = async (accId: string) => {
   // -----------------------------------
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '8px', position: 'relative' }}>
+    <div data-hs-observe="customers" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '8px', position: 'relative' }}>
       
       {/* 알림 토스트 배너 */}
       {toastMessage && (
@@ -1218,7 +1218,7 @@ const handleDeleteAccount = async (accId: string) => {
             <Download size={13} /> 엑셀 다운로드
           </button>
           {canSave && isDeveloper && (
-            <button
+            <button data-hs-trigger="Register"
               onClick={() => setShowBatchLicenseModal(true)}
               style={{
                 padding: '5px 12px',
@@ -1265,7 +1265,7 @@ const handleDeleteAccount = async (accId: string) => {
             </button>
           )}
           {canSave && isDeveloper && (
-            <button
+            <button data-hs-trigger="Register"
               className="btn-secondary"
               onClick={() => setCustExcelModalOpen(true)}
               style={{ padding: '5px 12px', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
@@ -1274,7 +1274,7 @@ const handleDeleteAccount = async (accId: string) => {
             </button>
           )}
           {canSave && (
-            <button
+            <button data-hs-trigger="Register"
               className="btn-primary"
               data-mid="btn-new-customer"
               onClick={handleOpenAddCust}
@@ -1505,7 +1505,7 @@ const handleDeleteAccount = async (accId: string) => {
                               등록증 미첨부
                             </span>
                             {canSave && (
-                              <button
+                              <button data-hs-trigger="Register"
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -1627,7 +1627,7 @@ const handleDeleteAccount = async (accId: string) => {
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {canSave && (
-                      <button
+                      <button data-hs-trigger="Register"
                         type="button"
                         onClick={() => {
                           setTargetBizLicenseCustId(activeCustomer.id);
@@ -2023,7 +2023,7 @@ const handleDeleteAccount = async (accId: string) => {
                                   >
                                     수정
                                   </button>
-                                  <button
+                                  <button data-hs-trigger="Delete"
                                     type="button"
                                     className="btn-secondary"
                                     onClick={() => handleDeleteAccount(acc.id)}
@@ -2320,7 +2320,7 @@ const handleDeleteAccount = async (accId: string) => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
               <div>
                 {editingCust.id && (
-                  <button 
+                  <button data-hs-trigger="Delete" 
                     type="button" 
                     onClick={() => handleDeleteCustomer(editingCust.id!, editingCust.name || '')} 
                     style={{ padding: '5px 14px', fontSize: '12px', backgroundColor: 'transparent', border: '1px solid #ef4444', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}
@@ -2331,7 +2331,7 @@ const handleDeleteAccount = async (accId: string) => {
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button type="button" className="btn-secondary" onClick={() => setShowCustModal(false)} style={{ padding: '5px 14px', fontSize: '12px' }}>취소</button>
-                <button type="submit" className="btn-primary" style={{ padding: '5px 16px', fontSize: '12px' }}>저장</button>
+                <button data-hs-trigger="Save" type="submit" className="btn-primary" style={{ padding: '5px 16px', fontSize: '12px' }}>저장</button>
               </div>
             </div>
           </form>
@@ -2443,7 +2443,7 @@ const handleDeleteAccount = async (accId: string) => {
 
             <div style={{ display: 'flex', gap: '8px', justifyContent: editingContact.id ? 'space-between' : 'flex-end', marginTop: '14px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
               {editingContact.id && (
-                <button
+                <button data-hs-trigger="Delete"
                   type="button"
                   onClick={() => handleDeleteContact(editingContact.id!, editingContact.name || '')}
                   style={{ padding: '5px 14px', fontSize: '12px', backgroundColor: 'var(--danger-color, #ef4444)', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
@@ -2453,7 +2453,7 @@ const handleDeleteAccount = async (accId: string) => {
               )}
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button type="button" className="btn-secondary" onClick={() => setShowContactModal(false)} style={{ padding: '5px 14px', fontSize: '12px' }}>취소</button>
-                <button type="submit" className="btn-primary" style={{ padding: '5px 16px', fontSize: '12px' }}>저장</button>
+                <button data-hs-trigger="Save" type="submit" className="btn-primary" style={{ padding: '5px 16px', fontSize: '12px' }}>저장</button>
               </div>
             </div>
           </form>
@@ -2691,7 +2691,7 @@ const handleDeleteAccount = async (accId: string) => {
                             </button>
 
                             {(editingSite.contacts || []).length > 1 && (
-                              <button
+                              <button data-hs-trigger="Delete"
                                 type="button"
                                 onClick={() => handleRemoveSiteContact(scIdx)}
                                 style={{
@@ -3102,7 +3102,7 @@ const handleDeleteAccount = async (accId: string) => {
 
             <div style={{ display: 'flex', gap: '8px', justifyContent: (editingSite.id && canSave) ? 'space-between' : 'flex-end', marginTop: '14px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
               {editingSite.id && canSave && (
-                <button
+                <button data-hs-trigger="Delete"
                   type="button"
                   onClick={() => handleDeleteSite(editingSite.id!, editingSite.name || '')}
                   style={{
@@ -3124,7 +3124,7 @@ const handleDeleteAccount = async (accId: string) => {
               )}
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button type="button" className="btn-secondary" onClick={() => setShowSiteModal(false)} style={{ padding: '5px 14px', fontSize: '12px' }}>취소</button>
-                <button type="submit" className="btn-primary" style={{ padding: '5px 16px', fontSize: '12px' }}>저장</button>
+                <button data-hs-trigger="Save" type="submit" className="btn-primary" style={{ padding: '5px 16px', fontSize: '12px' }}>저장</button>
               </div>
             </div>
           </form>
@@ -3197,7 +3197,7 @@ const handleDeleteAccount = async (accId: string) => {
 
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '14px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
               <button type="button" className="btn-secondary" onClick={() => setShowAccountModal(false)} style={{ padding: '5px 14px', fontSize: '12px' }}>취소</button>
-              <button type="submit" className="btn-primary" style={{ padding: '5px 16px', fontSize: '12px' }}>저장</button>
+              <button data-hs-trigger="Save" type="submit" className="btn-primary" style={{ padding: '5px 16px', fontSize: '12px' }}>저장</button>
             </div>
           </form>
         </div>
@@ -3351,7 +3351,7 @@ const handleDeleteAccount = async (accId: string) => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
               <button type="button" className="btn-secondary" onClick={() => setShowCustOptionModal(false)} style={{ padding: '6px 14px', fontSize: '12px' }}>취소</button>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button
+                <button data-hs-trigger="Save"
                   type="button"
                   onClick={() => handleSaveCustOptions(false)}
                   className="btn-secondary"
@@ -3359,7 +3359,7 @@ const handleDeleteAccount = async (accId: string) => {
                 >
                   고객사 기본값만 저장
                 </button>
-                <button
+                <button data-hs-trigger="Save"
                   type="button"
                   onClick={() => handleSaveCustOptions(true)}
                   className="btn-primary"
@@ -3656,7 +3656,7 @@ const handleDeleteAccount = async (accId: string) => {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '14px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
               <button type="button" className="btn-secondary" onClick={() => setShowSiteOptionModal(false)} style={{ padding: '5px 14px', fontSize: '12px' }}>취소</button>
-              <button type="button" onClick={handleSaveSiteOptions} className="btn-primary" style={{ padding: '5px 18px', fontSize: '12px' }}>현장 옵션 저장</button>
+              <button data-hs-trigger="Save" type="button" onClick={handleSaveSiteOptions} className="btn-primary" style={{ padding: '5px 18px', fontSize: '12px' }}>현장 옵션 저장</button>
             </div>
           </div>
         </div>
@@ -3706,7 +3706,7 @@ const handleDeleteAccount = async (accId: string) => {
 
               {editingOption === null && (
                 <div style={{ display: 'flex', gap: '6px' }}>
-                  <button
+                  <button data-hs-trigger="Register"
                     type="button"
                     onClick={() => handleOpenAddOption('PAID')}
                     className="btn-primary"
@@ -3714,7 +3714,7 @@ const handleDeleteAccount = async (accId: string) => {
                   >
                     <Plus size={12} /> 유상옵션 등록
                   </button>
-                  <button
+                  <button data-hs-trigger="Register"
                     type="button"
                     onClick={() => handleOpenAddOption('PROTECTION')}
                     className="btn-secondary"
@@ -3809,7 +3809,7 @@ const handleDeleteAccount = async (accId: string) => {
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
                   <button type="button" className="btn-secondary" onClick={() => setEditingOption(null)} style={{ padding: '4px 12px', fontSize: '11.5px' }}>취소</button>
-                  <button type="submit" className="btn-primary" style={{ padding: '4px 16px', fontSize: '11.5px' }}>저장</button>
+                  <button data-hs-trigger="Save" type="submit" className="btn-primary" style={{ padding: '4px 16px', fontSize: '11.5px' }}>저장</button>
                 </div>
               </form>
             )}
@@ -3873,7 +3873,7 @@ const handleDeleteAccount = async (accId: string) => {
                             >
                               수정
                             </button>
-                            <button
+                            <button data-hs-trigger="Delete"
                               type="button"
                               onClick={() => handleDeleteOption(opt)}
                               style={{ padding: '1px 5px', fontSize: '11.5px', border: '1px solid var(--border-color)', borderRadius: '3px', backgroundColor: 'transparent', color: 'var(--danger)', cursor: 'pointer' }}

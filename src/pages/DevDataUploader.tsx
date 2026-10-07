@@ -1250,7 +1250,7 @@ export const DevDataUploader: React.FC = () => {
 
   if (!isAdmin) {
     return (
-      <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+      <div data-hs-observe="devdatauploader" style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
         <AlertTriangle size={40} style={{ margin: '0 auto 16px' }} />
         <h3>접근 권한 없음</h3>
         <p>이 메뉴는 ADMIN 역할만 접근 가능합니다.</p>
@@ -1359,7 +1359,7 @@ export const DevDataUploader: React.FC = () => {
               </button>
 
               {/* 신규 버튼: 전체 데이터 삭제 */}
-              <button onClick={handleClearTable} className="btn-danger" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button data-hs-trigger="Delete" onClick={handleClearTable} className="btn-danger" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Trash2 size={15} /> 전체 데이터 삭제
               </button>
             </div>
@@ -1813,7 +1813,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;`}
                     ⚠️ {patchStatements.length}개 DDL 구문 패치 필요 — 자동 적용 또는 수동 복사
                   </h4>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <button
+                    <button data-hs-trigger="Apply"
                       onClick={handleApplyPatch}
                       disabled={applyingPatch}
                       style={{

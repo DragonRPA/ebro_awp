@@ -691,7 +691,7 @@ export const Repairs: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%' }}>
+    <div data-hs-observe="repairs" style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%' }}>
       {/* ─── 상단 헤더 & 탭 네비게이션 (무수식어 건조 표준) ─── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
         <div>
@@ -1503,7 +1503,7 @@ export const Repairs: React.FC = () => {
                   </div>
 
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
+                    <button data-hs-trigger="Register"
                       type="button"
                       className="btn-secondary"
                       onClick={handleHoldRepair}
@@ -1525,7 +1525,7 @@ export const Repairs: React.FC = () => {
                           <CheckCircle size={15} /> 외주 정비 완료 (임대가능 복원)
                         </button>
                       ) : (
-                        <button
+                        <button data-hs-trigger="Register"
                           type="button"
                           className="btn-primary"
                           onClick={handleOutsourceRepair}
@@ -1857,7 +1857,7 @@ export const Repairs: React.FC = () => {
                 <button type="button" className="btn-secondary" onClick={() => setShowUnresolvedModal(false)} style={{ padding: '6px 12px', fontSize: '12px' }}>
                   취소
                 </button>
-                <button type="button" className="btn-primary" onClick={handleConfirmHoldRepair} style={{ padding: '6px 14px', fontSize: '12px', backgroundColor: 'var(--danger)', borderColor: 'var(--danger)' }}>
+                <button data-hs-trigger="Register" type="button" className="btn-primary" onClick={handleConfirmHoldRepair} style={{ padding: '6px 14px', fontSize: '12px', backgroundColor: 'var(--danger)', borderColor: 'var(--danger)' }}>
                   정비중 유지 등록
                 </button>
               </div>

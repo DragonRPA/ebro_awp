@@ -420,7 +420,7 @@ export const VehicleOperationLogPage: React.FC = () => {
   };
 
   return (
-    <div data-subview="vehicle_log" data-subview-title="Generated" style={{
+    <div data-hs-observe="vehicleoperationlogpage" data-subview="vehicle_log" data-subview-title="Generated" style={{
       display: 'flex',
       flexDirection: 'column',
       height: 'calc(100dvh - 85px)',
@@ -477,7 +477,7 @@ export const VehicleOperationLogPage: React.FC = () => {
 
           {activeTab === 'FUEL_LOG' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button
+              <button data-hs-trigger="Register"
                 onClick={() => setFuelExcelModalOpen(true)}
                 className="btn-secondary"
                 style={{
@@ -519,7 +519,7 @@ export const VehicleOperationLogPage: React.FC = () => {
           )}
 
           {activeTab === 'FLEET_MASTER' && (
-            <button
+            <button data-hs-trigger="Register"
               onClick={() => {
                 setEditingVehicle(null);
                 setVehicleForm({
@@ -936,7 +936,7 @@ export const VehicleOperationLogPage: React.FC = () => {
                           </span>
                         </td>
                         <td style={{ padding: '6px 10px', textAlign: 'center' }}>
-                          <button
+                          <button data-hs-trigger="Delete"
                             onClick={() => setDeleteConfirm({
                               isOpen: true,
                               type: 'OPERATION_LOG',
@@ -1096,7 +1096,7 @@ export const VehicleOperationLogPage: React.FC = () => {
                         </td>
                         <td style={{ padding: '6px 10px', textAlign: 'center' }}>
                           {fuel.receiptPhotoUrl ? (
-                            <button
+                            <button data-hs-trigger="Confirm"
                               onClick={() => setPhotoModal({ isOpen: true, title: `${fuel.vehicleNo} 주유 영수증 (₩${fuel.fuelAmount.toLocaleString()})`, url: fuel.receiptPhotoUrl || '' })}
                               style={{
                                 padding: '2px 8px',
@@ -1127,7 +1127,7 @@ export const VehicleOperationLogPage: React.FC = () => {
                           {fuel.cardLast4 ? ` (${fuel.cardLast4})` : ''}
                         </td>
                         <td style={{ padding: '6px 10px', textAlign: 'center' }}>
-                          <button
+                          <button data-hs-trigger="Delete"
                             onClick={() => setDeleteConfirm({
                               isOpen: true,
                               type: 'FUEL_LOG',
@@ -1332,7 +1332,7 @@ export const VehicleOperationLogPage: React.FC = () => {
                             <Edit2 size={12} />
                             <span>수정</span>
                           </button>
-                          <button
+                          <button data-hs-trigger="Delete"
                             onClick={() => setDeleteConfirm({
                               isOpen: true,
                               type: 'VEHICLE',
@@ -1689,7 +1689,7 @@ export const VehicleOperationLogPage: React.FC = () => {
                 >
                   취소
                 </button>
-                <button
+                <button data-hs-trigger="Save"
                   type="submit"
                   style={{
                     padding: '8px 18px',
@@ -1765,7 +1765,7 @@ export const VehicleOperationLogPage: React.FC = () => {
               >
                 취소
               </button>
-              <button
+              <button data-hs-trigger="Delete"
                 onClick={handleExecuteDelete}
                 style={{
                   padding: '8px 16px',

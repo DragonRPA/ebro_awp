@@ -259,7 +259,7 @@ export const PurchaseSettlementPage: React.FC = () => {
   };
 
   return (
-    <div data-subview="purchase_settlement" data-subview-title="Generated" style={{ padding: '20px 24px', maxWidth: '1100px', position: 'relative' }}>
+    <div data-hs-observe="purchasesettlementpage" data-subview="purchase_settlement" data-subview-title="Generated" style={{ padding: '20px 24px', maxWidth: '1100px', position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -636,7 +636,7 @@ export const PurchaseSettlementPage: React.FC = () => {
                             placeholder="비고 입력"
                             style={{ flex: 1, height: '34px', fontSize: '13px', padding: '0 10px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
                           />
-                          <button onClick={() => handleMemoSave(p.id)} style={{ padding: '6px 12px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', cursor: 'pointer' }}>저장</button>
+                          <button data-hs-trigger="Save" onClick={() => handleMemoSave(p.id)} style={{ padding: '6px 12px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', cursor: 'pointer' }}>저장</button>
                           <button onClick={() => setMemoEditId(null)} style={{ padding: '6px 8px', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer' }}><X size={14} /></button>
                         </div>
                       ) : (
@@ -658,7 +658,7 @@ export const PurchaseSettlementPage: React.FC = () => {
                         </button>
                       )}
                       {(p.status === 'CONFIRMED' || (p.status === 'PAID' && p.paidAmount < p.totalAmount)) && remaining > 0 && (
-                        <button
+                        <button data-hs-trigger="Process"
                           onClick={() => {
                             setSelectedBankTxId(null);
                             setPaymentModal({ id: p.id, totalAmount: p.totalAmount, paidAmount: p.paidAmount, vendorName: p.vendorName });
@@ -890,7 +890,7 @@ export const PurchaseSettlementPage: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-              <button
+              <button data-hs-trigger="Approve"
                 onClick={handlePaymentSubmit}
                 disabled={isSubmittingPayment}
                 style={{ flex: 1, height: '40px', background: isSubmittingPayment ? 'var(--text-muted)' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '800', fontSize: '14px', cursor: isSubmittingPayment ? 'not-allowed' : 'pointer' }}

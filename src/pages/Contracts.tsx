@@ -281,7 +281,7 @@ export const Contracts: React.FC = () => {
 
     if (m.isDelivered) {
       return (
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+        <div data-hs-observe="contracts" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0 }}>
           <span className="badge badge-success" style={{ fontSize: '11px', padding: '2px 7px', whiteSpace: 'nowrap', flexShrink: 0 }}>
             운송완료
           </span>
@@ -2842,7 +2842,7 @@ export const Contracts: React.FC = () => {
             </div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button type="button" className="btn-secondary" onClick={() => setShowFeeModal(false)}>취소</button>
-              <button type="submit" className="btn-primary">저장</button>
+              <button data-hs-trigger="Save" type="submit" className="btn-primary">저장</button>
             </div>
           </form>
         </div>
@@ -2873,7 +2873,7 @@ export const Contracts: React.FC = () => {
                     <label style={{ fontSize: '12px', fontWeight: 700, margin: 0 }}>
                       적용 대상 자산 ({selectedExtendAssetIds.size === 0 ? `전체 ${activeContractAssets.length}대` : `${selectedExtendAssetIds.size}대 선택`})
                     </label>
-                    <button
+                    <button data-hs-trigger="Apply"
                       type="button"
                       onClick={() => setSelectedExtendAssetIds(new Set())}
                       style={{ border: 'none', background: 'none', color: 'var(--primary)', fontSize: '11px', cursor: 'pointer', padding: 0 }}
@@ -2927,7 +2927,7 @@ export const Contracts: React.FC = () => {
             </div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button type="button" className="btn-secondary" onClick={() => setShowExtendModal(false)}>취소</button>
-              <button type="submit" className="btn-primary">저장</button>
+              <button data-hs-trigger="Save" type="submit" className="btn-primary">저장</button>
             </div>
           </form>
         </div>
@@ -3089,7 +3089,7 @@ export const Contracts: React.FC = () => {
             </div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button type="button" className="btn-secondary" onClick={() => setShowTransferModal(false)}>취소</button>
-              <button type="submit" className="btn-primary" disabled={!succCustId}>승계 처리</button>
+              <button data-hs-trigger="Process" type="submit" className="btn-primary" disabled={!succCustId}>승계 처리</button>
             </div>
           </form>
         </div>
@@ -3421,7 +3421,7 @@ export const Contracts: React.FC = () => {
 
           <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
             <button type="button" className="btn-secondary" onClick={() => setActiveTab('ALL_LIST')}>취소</button>
-            <button type="submit" data-mid="create-contract-submit" className="btn-success">계약 등록</button>
+            <button data-hs-trigger="Register" type="submit" data-mid="create-contract-submit" className="btn-success">계약 등록</button>
           </div>
         </form>
       )}
@@ -3454,7 +3454,7 @@ export const Contracts: React.FC = () => {
               >
                 ✅ 기존 계약에 장비 추가 <span style={{ fontSize: '12px', fontWeight: 400, opacity: 0.85 }}>(권장 — 단일 계약 원칙 준수)</span>
               </button>
-              <button
+              <button data-hs-trigger="Register"
                 onClick={handleForceCreateNewContract}
                 style={{ padding: '12px 16px', backgroundColor: 'var(--bg-muted)', color: 'var(--text-primary)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
               >
@@ -3521,7 +3521,7 @@ export const Contracts: React.FC = () => {
               >
                 취소
               </button>
-              <button
+              <button data-hs-trigger="Save"
                 type="button"
                 className="btn-primary"
                 disabled={!caPeriodStart || !caPeriodEnd || caPeriodEnd < caPeriodStart}

@@ -2479,7 +2479,7 @@ export const SmartDispatch4: React.FC = () => {
         : (selectedSiteAddress || selectedSite?.address || '(주소 미등록)');
 
     return (
-      <div className="dispatch4-studio-row">
+      <div data-hs-observe="smart_dispatch4" className="dispatch4-studio-row">
         {/* ── 좌측 입력 섹션 (57% 마스터 스트림 / 독자 상하 스크롤) ────────────────── */}
         <div className="dispatch4-left-pane dispatch4-scrollbar">
 
@@ -3136,7 +3136,7 @@ export const SmartDispatch4: React.FC = () => {
                         />
                         <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
                       </div>
-                      <button
+                      <button data-hs-trigger="Register"
                         type="button"
                         onClick={() => {
                           setIsRegisteringNewSite(true);
@@ -3411,7 +3411,7 @@ export const SmartDispatch4: React.FC = () => {
 
                             <div className="flex items-center gap-1.5 bg-slate-950 px-2 py-1 rounded-lg border border-slate-800 shadow-inner">
                               {/* 감산 버튼 [-] */}
-                              <button
+                              <button data-hs-trigger="Delete"
                                 type="button"
                                 onClick={() => changeQty(idx, -1)}
                                 disabled={eq.qty <= 1}
@@ -3452,7 +3452,7 @@ export const SmartDispatch4: React.FC = () => {
                               <div className="w-[1px] h-4 bg-slate-700/80 mx-0.5 flex-shrink-0" />
 
                               {/* 삭제 버튼 [휴지통] */}
-                              <button
+                              <button data-hs-trigger="Delete"
                                 type="button"
                                 onClick={() => removeEquipment(idx)}
                                 className="dispatch4-delete-btn group"
@@ -3751,7 +3751,7 @@ export const SmartDispatch4: React.FC = () => {
                         <RefreshCw className="w-3 h-3 text-cyan-400" />
                         <span>현장옵션 불러오기</span>
                       </button>
-                      <button
+                      <button data-hs-trigger="Save"
                         type="button"
                         onClick={handleSaveOptionsToCurrentSite}
                         disabled={!selectedSite}
@@ -3773,7 +3773,7 @@ export const SmartDispatch4: React.FC = () => {
                           className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold bg-amber-950/70 border border-amber-500/60 text-amber-200"
                         >
                           <span>{opt}</span>
-                          <button
+                          <button data-hs-trigger="Delete"
                             type="button"
                             onClick={() => handleRemoveOption(opt)}
                             className="text-amber-400/80 hover:text-red-400 transition"
@@ -3898,7 +3898,7 @@ export const SmartDispatch4: React.FC = () => {
               )}
             </div>
             <div className="flex items-center gap-1.5">
-              <button
+              <button data-hs-trigger="Save"
                 type="button"
                 onClick={handleSaveToQueueOnly}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-850 hover:bg-slate-750 text-slate-300 hover:text-white transition border border-slate-750 cursor-pointer"
@@ -4216,7 +4216,7 @@ export const SmartDispatch4: React.FC = () => {
               <Printer className="w-4 h-4" />
               <span className="whitespace-nowrap">{isAgentPrinting ? '인쇄 전송중...' : '출고요청서 인쇄'}</span>
             </button>
-            <button
+            <button data-hs-trigger="Register"
               data-mid="dispatch4-btn-submit"
               type="button"
               onClick={handleSaveDraft}
@@ -4331,7 +4331,7 @@ export const SmartDispatch4: React.FC = () => {
               <RefreshCw className="w-3.5 h-3.5 text-blue-400" />
               <span>새로고침</span>
             </button>
-            <button
+            <button data-hs-trigger="Register"
               type="button"
               onClick={() => setAudioUploadOpen(true)}
               className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
@@ -4462,7 +4462,7 @@ export const SmartDispatch4: React.FC = () => {
                               </button>
                             </td>
                             <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-                              <button
+                              <button data-hs-trigger="Delete"
                                 type="button"
                                 onClick={() => handleDeleteUpload(upload)}
                                 className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-rose-950/60 transition"
@@ -4532,7 +4532,7 @@ export const SmartDispatch4: React.FC = () => {
                   )}
 
                   <div className="flex items-center justify-between pt-1">
-                    <button
+                    <button data-hs-trigger="Delete"
                       type="button"
                       onClick={() => handleDeleteUpload(selectedUpload)}
                       className="px-2.5 py-1 rounded text-[11px] font-bold text-rose-300 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/60 transition flex items-center gap-1"
@@ -4809,7 +4809,7 @@ export const SmartDispatch4: React.FC = () => {
                         <ArrowRight className="w-3.5 h-3.5" />
                         <span>{selectedDraft.context.includes('ADDITIONAL') ? '추가출고 작성 ➔' : selectedDraft.context.includes('EXCHANGE') ? '대차 요청 작성 ➔' : '출고 요청 작성 ➔'}</span>
                       </button>
-                      <button
+                      <button data-hs-trigger="Register"
                         type="button"
                         onClick={() => handleSubmitDraft(selectedDraft)}
                         className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-300 text-[11px] font-bold border border-slate-700 transition flex items-center gap-1 whitespace-nowrap cursor-pointer"
@@ -4957,14 +4957,14 @@ export const SmartDispatch4: React.FC = () => {
             </div>
 
             <div className="flex flex-col gap-2 pt-2">
-              <button
+              <button data-hs-trigger="Save"
                 type="button"
                 onClick={() => executeSaveDraft(true)}
                 className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow flex items-center justify-center gap-1.5"
               >
                 <span>현장 기본값으로 갱신 저장</span>
               </button>
-              <button
+              <button data-hs-trigger="Apply"
                 type="button"
                 onClick={() => executeSaveDraft(false)}
                 className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 hover:text-white font-bold text-xs transition flex items-center justify-center gap-1.5"

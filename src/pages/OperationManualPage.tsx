@@ -181,7 +181,7 @@ export const OperationManualPage: React.FC = () => {
   }, [allManuals, selectedMenuId]);
 
   return (
-    <div data-subview="operations_manual" data-subview-title="Generated" className="manual-page-root" style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', overflow: 'hidden' }}>
+    <div data-hs-observe="operationmanualpage" data-subview="operations_manual" data-subview-title="Generated" className="manual-page-root" style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', overflow: 'hidden' }}>
       
       {/* ── 인쇄 전용 글로벌 스타일 ── */}
       <style>{`

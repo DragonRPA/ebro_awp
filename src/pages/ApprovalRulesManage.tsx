@@ -511,12 +511,12 @@ const ApprovalRulesManage: React.FC = () => {
      렌더
   ════════════════════════════════════════════════════════════ */
   return (
-    <div data-subview="approvalRules" data-subview-title="Generated" style={{ padding: '20px 24px', maxWidth: '1280px', margin: '0 auto' }}>
+    <div data-hs-observe="approvalrulesmanage" data-subview="approvalRules" data-subview-title="Generated" style={{ padding: '20px 24px', maxWidth: '1280px', margin: '0 auto' }}>
 
       {/* ── 상단 탭 내비게이션 ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', borderBottom: '2px solid var(--border-color)', paddingBottom: '12px' }}>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button
+          <button data-hs-trigger="Approve"
             onClick={() => setActiveTab('RULES')}
             style={{
               padding: '9px 18px',
@@ -767,7 +767,7 @@ const ApprovalRulesManage: React.FC = () => {
 
                         {/* 삭제 */}
                         <td style={{ ...tdBase, textAlign: 'center', padding: '9px 6px' }}>
-                          <button
+                          <button data-hs-trigger="Delete"
                             onClick={() => handleDeleteRule(r.id!, r.event_name)}
                             title="규칙 삭제"
                             style={{
@@ -863,7 +863,7 @@ const ApprovalRulesManage: React.FC = () => {
                                           </button>
                                         </td>
                                         <td style={{ padding: '7px 10px', textAlign: 'center' }}>
-                                          <button
+                                          <button data-hs-trigger="Delete"
                                             onClick={() => handleDeleteConsensus(c.id!, r.id!)}
                                             style={{ padding: '4px 10px', background: 'var(--danger-light)', color: 'var(--danger)', border: 'none', borderRadius: '5px', fontSize: '12px', cursor: 'pointer' }}
                                           >
@@ -1167,7 +1167,7 @@ const ApprovalRulesManage: React.FC = () => {
                           />
                         </td>
                         <td style={{ ...tdBase, textAlign: 'center', padding: '6px' }}>
-                          <button
+                          <button data-hs-trigger="Delete"
                             onClick={() => handleDeleteDuty(idx)}
                             style={{
                               background: 'none',
@@ -1309,7 +1309,7 @@ const ApprovalRulesManage: React.FC = () => {
                           />
                         </td>
                         <td style={{ ...tdBase, textAlign: 'center', padding: '6px' }}>
-                          <button
+                          <button data-hs-trigger="Delete"
                             onClick={() => handleDeletePosition(idx)}
                             style={{
                               background: 'none',

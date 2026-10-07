@@ -1057,7 +1057,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
+    <div data-hs-observe="smart_dispatch" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
       
       {/* 타이틀 바 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
@@ -1155,7 +1155,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                 초기화
               </button>
               {canSave && (
-                <button type="button" className="btn-primary" onClick={handleSave} style={{ padding: '6px 12px', fontSize: '13px', fontWeight: 'bold' }}>
+                <button data-hs-trigger="Save" type="button" className="btn-primary" onClick={handleSave} style={{ padding: '6px 12px', fontSize: '13px', fontWeight: 'bold' }}>
                   출고 지시 (자동 생성 및 저장)
                 </button>
               )}
@@ -1717,7 +1717,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                   [배차 관리] 담당자가 배차 차량 및 고유 장비 번호를 매핑할 예정입니다.
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button
+                  <button data-hs-trigger="Confirm"
                     type="button"
                     className="btn-primary"
                     onClick={() => setIsProcessingModalOpen(false)}
