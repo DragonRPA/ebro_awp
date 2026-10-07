@@ -113,8 +113,8 @@ class RealGmailService {
     let processedAttachments: any[] = [...attachments];
     const totalContentLength = attachments.reduce((sum, att) => sum + (att.content?.length || 0), 0);
     
-    // Vercel 4.5MB 페이로드 초과 방지: 3MB 이상이면 Supabase Storage에 임시 업로드하여 URL로 전달
-    if (totalContentLength > 3 * 1024 * 1024) {
+    // Vercel 4.5MB 페이로드 초과 방지: 1.5MB 이상이면 Supabase Storage에 임시 업로드하여 URL로 전달
+    if (totalContentLength > 1.5 * 1024 * 1024) {
       try {
         const { uploadToSupabaseStorage } = await import('./supabaseStorage');
         processedAttachments = await Promise.all(attachments.map(async (att) => {
@@ -135,10 +135,11 @@ class RealGmailService {
           if (uploadRes.success) {
             return { filename: att.filename, url: uploadRes.fileUrl }; // URL로 대체하여 페이로드 극소화
           }
-          return att;
+          throw new Error('Supabase Storage 업로드에 실패하여 URL을 확보하지 못했습니다.');
         }));
-      } catch (err) {
+      } catch (err: any) {
         console.warn('첨부파일 스토리지 임시 업로드 실패:', err);
+        throw new Error(`대용량 첨부파일 처리 중 오류가 발생했습니다: ${err.message || err}`);
       }
     }
 
