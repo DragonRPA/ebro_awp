@@ -1083,31 +1083,6 @@ export const Customers: React.FC = () => {
   };
 
   
-  // --- Keyboard Shortcuts (Harden) ---
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Escape to close modals
-      if (e.key === 'Escape') {
-        if (editingCust) setEditingCust(null);
-        if (editingContact) setEditingContact(null);
-        if (editingSite) { setEditingSite(null); setShowSiteModal(false); }
-        if (editingAccount) setEditingAccount(null);
-        if (showSiteOptionModal) setShowSiteOptionModal(false);
-      }
-      // Ctrl+S to save
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        const mockEvent = { preventDefault: () => {} } as React.FormEvent;
-        if (editingCust) { e.preventDefault(); handleSaveCustSubmit(mockEvent); }
-        else if (editingContact) { e.preventDefault(); handleSaveContactSubmit(mockEvent); }
-        else if (editingSite) { e.preventDefault(); handleSaveSiteSubmit(mockEvent); }
-        else if (editingAccount) { e.preventDefault(); handleSaveAccountSubmit(mockEvent); }
-        else if (showSiteOptionModal) { e.preventDefault(); handleSaveSiteOptions(); }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [editingCust, editingContact, editingSite, editingAccount, showSiteOptionModal, handleSaveCustSubmit, handleSaveContactSubmit, handleSaveSiteSubmit, handleSaveAccountSubmit, handleSaveSiteOptions]);
-  // -----------------------------------
 
 const handleDeleteAccount = async (accId: string) => {
     if (!activeCustomer) return;
@@ -1150,6 +1125,32 @@ const handleDeleteAccount = async (accId: string) => {
       showToast(`입금 계좌 저장 실패: ${err.message}`, 'error');
     }
   };
+
+    // --- Keyboard Shortcuts (Harden) ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape to close modals
+      if (e.key === 'Escape') {
+        if (editingCust) setEditingCust(null);
+        if (editingContact) setEditingContact(null);
+        if (editingSite) { setEditingSite(null); setShowSiteModal(false); }
+        if (editingAccount) setEditingAccount(null);
+        if (showSiteOptionModal) setShowSiteOptionModal(false);
+      }
+      // Ctrl+S to save
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        const mockEvent = { preventDefault: () => {} } as React.FormEvent;
+        if (editingCust) { e.preventDefault(); handleSaveCustSubmit(mockEvent); }
+        else if (editingContact) { e.preventDefault(); handleSaveContactSubmit(mockEvent); }
+        else if (editingSite) { e.preventDefault(); handleSaveSiteSubmit(mockEvent); }
+        else if (editingAccount) { e.preventDefault(); handleSaveAccountSubmit(mockEvent); }
+        else if (showSiteOptionModal) { e.preventDefault(); handleSaveSiteOptions(); }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editingCust, editingContact, editingSite, editingAccount, showSiteOptionModal, handleSaveCustSubmit, handleSaveContactSubmit, handleSaveSiteSubmit, handleSaveAccountSubmit, handleSaveSiteOptions]);
+  // -----------------------------------
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '8px', position: 'relative' }}>
