@@ -773,6 +773,36 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       }
     ],
     "processes": [
+        {
+          "processId": "process_site_master_options",
+          "title": "옵션 품목 마스터 정렬 및 삭제",
+          "description": "전사 기준 풀에 등록된 옵션 품목들을 헤더를 클릭하여 정렬하고, 불필요한 마스터 옵션은 수정 모달에서 삭제합니다.",
+          "steps": [
+            {
+              "seq": 1,
+              "selector": "th:contains('분류'), th:contains('옵션 품목명'), th:contains('기준단가'), th:contains('단위'), th:contains('설명'), th:contains('상태')",
+              "type": "click_ripple",
+              "label": "헤더 클릭 정렬",
+              "description": "테이블 헤더를 클릭하여 오름차순, 내림차순, 정렬 안 함 순으로 목록을 정렬합니다.",
+              "positionHint": "bottom"
+            },
+            {
+              "seq": 2,
+              "selector": "td button:contains('수정')",
+              "type": "click_ripple",
+              "label": "옵션 수정 버튼",
+              "description": "수정할 옵션의 우측 수정 버튼을 클릭하여 수정 모달을 엽니다."
+            },
+            {
+              "seq": 3,
+              "selector": "button:contains('삭제')",
+              "type": "highlight",
+              "label": "옵션 마스터 삭제",
+              "description": "수정 모달 하단의 삭제 버튼을 눌러 불필요한 옵션 마스터를 전사 풀에서 제거합니다.",
+              "positionHint": "top"
+            }
+          ]
+        },
       {
         "processId": "process_site_options_sync",
         "title": "현장별 안전옵션 특약 설정 및 저장",

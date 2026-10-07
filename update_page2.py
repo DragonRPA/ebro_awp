@@ -4,11 +4,9 @@ filepath = 'src/pages/SiteOptionManage.tsx'
 with open(filepath, 'r', encoding='utf-8') as f:
     content = f.read()
 
-# 1. Add deleteStandardOption to useApp destructuring
 if 'deleteStandardOption,' not in content:
     content = content.replace('saveStandardOption,', 'saveStandardOption, deleteStandardOption,')
 
-# 2. Inject masterSortConfig and sortedStandardOptions
 if 'masterSortConfig' not in content:
     state_injection = """
   // --- Master Option Sort ---
@@ -47,39 +45,8 @@ if 'masterSortConfig' not in content:
     search_str = "const [searchSiteKeyword, setSearchSiteKeyword] = useState<string>('');"
     content = content.replace(search_str, search_str + "\n" + state_injection)
 
-# 3. Modify standardOptions map loop
 content = content.replace("{(standardOptions || []).map(opt => {", "{sortedStandardOptions.map(opt => {")
 
-# 4. Modify the thead th tags to include onClick sorting
-def make_th(label, key, width):
-    sort_indicator = f"""{{masterSortConfig.key === '{key}' ? (masterSortConfig.direction === 'asc' ? ' ' : masterSortConfig.direction === 'desc' ? ' ' : '') : ''}}"""
-    return f"""<th onClick={{() => handleMasterSort('{key}')}} style={{ padding: '12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-color)', width: '{width}', cursor: 'pointer' }}>{label}{sort_indicator}</th>"""
-
-# I will replace the raw thead with the modified one.
-# Note: encoding issues with ' ', so let's use Unicode for arrow up/down: ' \u2191' ' \u2193'
-def replace_th(content):
-    def rep(match):
-        label = match.group(1)
-        width = match.group(2)
-        key = ''
-        if '분류' in label: key = 'category'
-        elif '옵션 품목명' in label: key = 'name'
-        elif '기준단가' in label: key = 'defaultPrice'
-        elif '단위' in label: key = 'unit'
-        elif '설명' in label: key = 'description'
-        elif '상태' in label: key = 'isActive'
-        
-        if key:
-            # We must output literal React expressions for the arrows
-            # \u25b2 is Up Triangle, \u25bc is Down Triangle
-            return f"""<th onClick={{() => handleMasterSort('{key}')}} style={{ padding: '12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-color)', width: '{width}', cursor: 'pointer' }}>{label}{{masterSortConfig.key === '{key}' ? (masterSortConfig.direction === 'asc' ? ' \u25b2' : masterSortConfig.direction === 'desc' ? ' \u25bc' : '') : ''}}</th>"""
-        return match.group(0)
-
-    # find all th in the standardOptions table
-    # It's after `// 1. 활성 탭` -> `activeTab === 'MASTER_OPTIONS'` -> `<thead>`
-    return re.sub(r'<th style={{[^}]*width: \'([^']+)\'[^}]*}}>([^<]+)</th>', lambda m: rep(m), content) # this regex is bad, let's just do exact string replacements
-
-# Manual replace for table headers
 content = content.replace(
     "<th style={{ padding: '12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-color)', width: '12%' }}>분류</th>",
     "<th onClick={() => handleMasterSort('category')} style={{ padding: '12px', textAlign: 'left', fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-color)', width: '12%', cursor: 'pointer' }}>분류{masterSortConfig.key === 'category' ? (masterSortConfig.direction === 'asc' ? ' \u25b2' : masterSortConfig.direction === 'desc' ? ' \u25bc' : '') : ''}</th>"
@@ -105,8 +72,6 @@ content = content.replace(
     "<th onClick={() => handleMasterSort('isActive')} style={{ padding: '12px', textAlign: 'center', fontWeight: 600, color: 'var(--text-secondary)', borderBottom: '2px solid var(--border-color)', width: '8%', cursor: 'pointer' }}>상태{masterSortConfig.key === 'isActive' ? (masterSortConfig.direction === 'asc' ? ' \u25b2' : masterSortConfig.direction === 'desc' ? ' \u25bc' : '') : ''}</th>"
 )
 
-
-# 5. Inject Delete button
 old_buttons = """              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
                 <button
                   type="button"
@@ -151,7 +116,6 @@ new_buttons = """              <div style={{ display: 'flex', justifyContent: 's
                   }}"""
 content = content.replace(old_buttons, new_buttons)
 
-# 6. Add closing div for the new wrapper
 old_close = """                </button>
               </div>
             </form>"""
@@ -164,4 +128,3 @@ content = content.replace(old_close, new_close)
 with open(filepath, 'w', encoding='utf-8') as f:
     f.write(content)
 print("Updated SiteOptionManage.tsx")
-

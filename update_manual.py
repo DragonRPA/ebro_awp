@@ -1,55 +1,53 @@
-﻿import sys
-import io
+﻿import re
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+filepath = 'src/data/allMenuManuals.ts'
+with open(filepath, 'r', encoding='utf-8') as f:
+    content = f.read()
 
-with open('docs/e_Bro_Manual.md', 'r', encoding='utf-8') as f:
-    text = f.read()
+new_process = """        {
+          "processId": "process_site_master_options",
+          "title": "옵션 품목 마스터 정렬 및 삭제",
+          "description": "전사 기준 풀에 등록된 옵션 품목들을 헤더를 클릭하여 정렬하고, 불필요한 마스터 옵션은 수정 모달에서 삭제합니다.",
+          "steps": [
+            {
+              "seq": 1,
+              "selector": "th:contains('분류'), th:contains('옵션 품목명'), th:contains('기준단가'), th:contains('단위'), th:contains('설명'), th:contains('상태')",
+              "type": "click_ripple",
+              "label": "헤더 클릭 정렬",
+              "description": "테이블 헤더를 클릭하여 오름차순, 내림차순, 정렬 안 함 순으로 목록을 정렬합니다.",
+              "positionHint": "bottom"
+            },
+            {
+              "seq": 2,
+              "selector": "td button:contains('수정')",
+              "type": "click_ripple",
+              "label": "옵션 수정 버튼",
+              "description": "수정할 옵션의 우측 수정 버튼을 클릭하여 수정 모달을 엽니다."
+            },
+            {
+              "seq": 3,
+              "selector": "button:contains('삭제')",
+              "type": "highlight",
+              "label": "옵션 마스터 삭제",
+              "description": "수정 모달 하단의 삭제 버튼을 눌러 불필요한 옵션 마스터를 전사 풀에서 제거합니다.",
+              "positionHint": "top"
+            }
+          ]
+        },
+"""
 
-# 1. Update Dispatch to mention 초성검색 and remove AI Voice mentioning
-old_dispatch = '''### 🎙️ [M-06] 스마트 발주 (src/components/smart_dispatch.tsx)
-- **화면 목적**: 카톡으로 받은 복잡한 요청 문장을 복사해 붙여넣거나 음성으로 말해 1초 만에 발주를 등록합니다.
-- **UI 아키타입**: 마스터 스튜디오 (유형 A)
-- **14세 눈높이 조작 순서 (Z-동선)**:
-  1. **① 왼쪽 위**: 입력창에 카톡 문장을 그대로 붙여넣거나 마이크 버튼을 누르고 말합니다.
-  2. **② 오른쪽 위**: [자연어 구문 분석]을 누르면 날짜, 현장명, 기계 모델, 수량이 저절로 쪼개져 칸에 들어갑니다.
-  3. **③ 가운데 넓은 곳**: 자동으로 채워진 현장 주소, 하차 방식(셀프로더), 인수자 전화번호가 맞는지 눈으로 확인합니다.
-  4. **④ 오른쪽 아래**: **[스마트 발주 확정]** 버튼을 누르면 계약서와 배차의뢰서, 검수요청서가 한 번에 완성됩니다!'''
+# Find the processes array for site_options
+site_options_idx = content.find('"menuId": "site_options",')
+if site_options_idx != -1:
+    processes_idx = content.find('"processes": [', site_options_idx)
+    if processes_idx != -1:
+        insert_idx = processes_idx + len('"processes": [\n')
+        content = content[:insert_idx] + new_process + content[insert_idx:]
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(content)
+        print("Updated manual")
+    else:
+        print("Could not find processes array")
+else:
+    print("Could not find site_options")
 
-new_dispatch = '''### 🚜 [M-06] 스마트 발주 / 출고 의뢰 (src/components/smart_dispatch4.tsx)
-- **화면 목적**: 현장으로 기계를 보내기 위해 필요한 계약서, 배차의뢰서, 검수요청서를 한 번에 발행합니다.
-- **UI 아키타입**: 마스터 스튜디오 (유형 A)
-- **14세 눈높이 조작 순서 (Z-동선)**:
-  1. **① 왼쪽 위**: 기계를 보낼 현장 이름을 고릅니다. (전체 목록을 뒤질 필요 없이 **초성 검색** 기능으로 빠르게 찾을 수 있습니다!) 중복 버튼을 최소화하여 화면이 직관적입니다.
-  2. **② 오른쪽 위**: 필요한 기계 모델과 수량을 고릅니다.
-  3. **③ 가운데 넓은 곳**: 현장 주소, 하차 방식(셀프로더), 인수자 전화번호가 맞는지 눈으로 확인합니다.
-  4. **④ 오른쪽 아래**: **[스마트 발주 확정]** 버튼을 누르면 계약서와 배차의뢰서, 검수요청서가 한 번에 완성됩니다!
-
-### 🎙️ [M-06-A] AI 통화음성 출고 (개발중) (src/components/voice_dispatch.tsx)
-- **화면 목적**: 통화 녹음 파일이나 음성을 올려서 AI가 내용을 알아듣고 알아서 출고 의뢰서를 작성해 주는 자동화 메뉴입니다.
-- **상태**: 현재 한창 개발 중이므로, 완성될 때까지 일반 직원들의 눈에 띄지 않도록 따로 숨겨서 관리합니다.'''
-
-text = text.replace(old_dispatch, new_dispatch)
-
-# 2. Add SiteOptionManage around where contracts or customers are, maybe under section 2.
-# Let's insert it after [M-03] 계약 대장
-contract_end = '''  4. **④ 오른쪽 아래**: **[계약 승계]**나 **[기간 연장]** 버튼을 눌러 계약 내용을 바꿀 수 있습니다.'''
-
-site_option_manual = '''
-
-### 🛠️ [M-03-A] 현장별 옵션 관리 (src/pages/SiteOptionManage.tsx)
-- **화면 목적**: 각 현장에 기계가 들어갈 때 꼭 필요한 유상 옵션, 보양 작업, 특수 요구 사양을 미리 지정해 둡니다.
-- **핵심 정책**: 이 옵션들은 고객(건설사 등)이 아니라 **오로지 "현장"에 묶입니다**. 한 현장에 여러 협력사가 들어오더라도 현장 규칙은 똑같기 때문입니다.
-- **UI 아키타입**: 마스터 스튜디오 (유형 A)
-- **14세 눈높이 조작 순서 (Z-동선)**:
-  1. **① 왼쪽 위**: 왼쪽에 뜬 현장 목록에서 옵션을 설정할 현장을 하나 고릅니다.
-  2. **② 오른쪽 위**: 유상 옵션이나 요구 사양 섹션 상단에 있는 **드롭다운(셀렉터)**을 누릅니다.
-  3. **③ 가운데 넓은 곳**: 등록된 "마스터 품목" 리스트가 쭈욱 뜨면, 그중 현장에 필요한 걸 골라 **쏙 추가**합니다. 수백 개 체크박스에 시달릴 필요 없이, 추가된 옵션만 깔끔하게 보입니다. 단가나 메모를 수정할 수 있고, 잘못 추가했으면 [제외] 버튼으로 뺍니다.
-  4. **④ 오른쪽 아래**: 추가된 옵션들로 계산된 총액을 확인하고 **[저장]** 버튼을 누릅니다.'''
-
-text = text.replace(contract_end, contract_end + site_option_manual)
-
-with open('docs/e_Bro_Manual.md', 'w', encoding='utf-8') as f:
-    f.write(text)
-
-print("Manual updated!")

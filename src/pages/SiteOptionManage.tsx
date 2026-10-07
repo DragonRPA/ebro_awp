@@ -12,7 +12,7 @@ import { exportToExcel } from '../services/excel';
 
 export const SiteOptionManage: React.FC = () => {
   const { 
-    sites, standardOptions, saveStandardOption, 
+    sites, standardOptions, saveStandardOption, deleteStandardOption, 
     saveSite, showErrorModal, fullRefreshFromServer,
     navigationPayload, setNavigationPayload
   } = useApp();
@@ -22,6 +22,40 @@ export const SiteOptionManage: React.FC = () => {
 
   // 2. 검색 및 필터 상태
   const [searchSiteKeyword, setSearchSiteKeyword] = useState<string>('');
+
+  // --- Master Option Sort ---
+  type SortKey = keyof StandardOption;
+  const [masterSortConfig, setMasterSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' | null }>({ key: 'sortOrder', direction: null });
+
+  const sortedStandardOptions = useMemo(() => {
+    let sorted = [...(standardOptions || [])];
+    if (masterSortConfig.direction !== null) {
+      sorted.sort((a, b) => {
+        let valA: any = a[masterSortConfig.key];
+        let valB: any = b[masterSortConfig.key];
+        
+        if (typeof valA === 'string') valA = valA.toLowerCase();
+        if (typeof valB === 'string') valB = valB.toLowerCase();
+        
+        if (valA < valB) return masterSortConfig.direction === 'asc' ? -1 : 1;
+        if (valA > valB) return masterSortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    return sorted;
+  }, [standardOptions, masterSortConfig]);
+
+  const handleMasterSort = (key: SortKey) => {
+    let direction: 'asc' | 'desc' | null = 'asc';
+    if (masterSortConfig.key === key && masterSortConfig.direction === 'asc') {
+      direction = 'desc';
+    } else if (masterSortConfig.key === key && masterSortConfig.direction === 'desc') {
+      direction = null;
+    }
+    setMasterSortConfig({ key, direction });
+  };
+  // --------------------------
+
   const [selectedSiteId, setSelectedSiteId] = useState<string>('');
 
   // ── 🧭 외부 네비게이션 페이로드 수신 처리 ──
@@ -985,7 +1019,7 @@ export const SiteOptionManage: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {(standardOptions || []).map(opt => {
+                {sortedStandardOptions.map(opt => {
                   const isPaid = opt.category === 'PAID';
 
   return (
