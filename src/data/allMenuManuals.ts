@@ -714,18 +714,9 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "positionHint": "right",
         "spotlight": true
       },
+      
       {
         "seq": 3,
-          "selector": "[data-mid=\"btn-option-master-manage\"]",
-        "type": "click_ripple",
-        "label": "옵션 품목 마스터",
-        "description": "전사 유상옵션 및 보양작업 표준 품목과 기준단가를 관리하는 마스터 화면으로 전환합니다.",
-        "badgeColor": "#1D4ED8",
-        "positionHint": "bottom",
-        "spotlight": false
-      },
-      {
-        "seq": 4,
           "selector": "[data-mid=\"table-paid-options\"]",
         "type": "stamp",
         "label": "유상 옵션",
@@ -735,7 +726,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "spotlight": false
       },
       {
-        "seq": 5,
+        "seq": 4,
           "selector": "[data-mid=\"card-protection-options\"]",
         "type": "stamp",
         "label": "보양 작업",
@@ -745,7 +736,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "spotlight": false
       },
       {
-        "seq": 7,
+        "seq": 5,
         "selector": "[data-mid=\"summary-monthly-fee\"]",
         "type": "stamp",
         "label": "월 옵션 총액",

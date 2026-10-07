@@ -69,7 +69,7 @@ export function getMenuBriefingSummary(menuId: string): MenuBriefingSummary | nu
     dept: `${manual.groupName} · ${manual.department}`,
     archetype: manual.archetype,
     objective: manual.objective,
-    buttons: manual.annotations.map(a => ({ seq: a.seq, label: a.label, color: a.badgeColor })),
+    buttons: (manual.basicGuide || manual.annotations || []).map(a => ({ seq: a.seq, label: a.label, color: a.badgeColor })),
     subTabs: (manual.subTabs || []).map(t => t.tabName),
     modals: (manual.modalWorkflows || []).map(m => m.modalName),
     processes: ((manual as any).processes || []).map((p: any) => ({

@@ -616,9 +616,7 @@ export const SiteOptionManage: React.FC = () => {
                           <option key={item.optionId} value={item.optionId}>{item.name}</option>
                         ))}
                       </select>
-                      <button type="button" onClick={() => setActiveTab('MASTER_OPTIONS')} style={{ fontSize: '11px', padding: '0 10px', height: '30px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 700 }}>
-                        마스터 품목 관리
-                      </button>
+                      
                     </div>
 
                     <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
@@ -746,9 +744,7 @@ export const SiteOptionManage: React.FC = () => {
                       <button type="button" onClick={() => handleSelectProtection('')} style={{ fontSize: '11px', padding: '0 10px', height: '30px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 700 }}>
                         적용 해제
                       </button>
-                      <button type="button" onClick={() => setActiveTab('MASTER_OPTIONS')} style={{ fontSize: '11px', padding: '0 10px', height: '30px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 700 }}>
-                        마스터 품목 관리
-                      </button>
+                      
                     </div>
                   </div>
 
@@ -776,9 +772,7 @@ export const SiteOptionManage: React.FC = () => {
                           <option key={item.optionId} value={item.optionId}>{item.name}</option>
                         ))}
                       </select>
-                      <button type="button" onClick={() => setActiveTab('MASTER_OPTIONS')} style={{ fontSize: '11px', padding: '0 10px', height: '30px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 700 }}>
-                        마스터 품목 관리
-                      </button>
+                      
                     </div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
