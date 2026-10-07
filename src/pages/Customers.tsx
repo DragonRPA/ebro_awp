@@ -1208,7 +1208,7 @@ const handleDeleteAccount = async (accId: string) => {
             disabled={refreshing}
             style={{ padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
           >
-            <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} /> 동기화
+            <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} /> 조회
           </button>
           <button
             className="btn-secondary"

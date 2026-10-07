@@ -507,7 +507,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       },
       {
         "processId": "register_site_options_sync",
-        "title": "현장 등록 및 옵션 속성 동기화",
+        "title": "현장 등록 및 옵션 속성 조회",
         "description": "고객사의 신규 현장을 등록하거나 수정할 때, 현장별 옵션관리에 등록된 현장 중 검색하여 유상/보양/사양 속성을 1클릭 복사하고 일치시킵니다.",
         "steps": [
           {
