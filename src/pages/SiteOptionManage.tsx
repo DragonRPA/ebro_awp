@@ -225,8 +225,8 @@ export const SiteOptionManage: React.FC = () => {
       return;
     }
     try {
-      const optionToSave: StandardOption = {
-        id: editingMasterOption.id || `opt_${Date.now()}`,
+      const optionToSave: any = {
+        ...(editingMasterOption.id ? { id: editingMasterOption.id } : {}),
         category: editingMasterOption.category || 'PAID',
         name: editingMasterOption.name.trim(),
         defaultPrice: Number(editingMasterOption.defaultPrice || 0),
