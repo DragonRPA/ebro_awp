@@ -86,23 +86,23 @@
     <div class="max-w-7xl mx-auto px-4 flex gap-1 border-t border-slate-800/80 overflow-x-auto text-xs font-bold">
       <button onclick="switchTab('overview')" id="tab-overview" class="tab-btn active px-4 py-2.5 transition text-slate-300 hover:text-white flex items-center gap-1.5 whitespace-nowrap">
         <span>📈 종합 개요</span>
-        <span class="text-[10px] bg-slate-800 px-1.5 py-0.2 rounded font-mono">3대 유형</span>
+        <span class="text-[10px]  font-mono">3대 유형</span>
       </button>
       <button onclick="switchTab('dispatch')" id="tab-dispatch" class="tab-btn px-4 py-2.5 transition text-slate-300 hover:text-white flex items-center gap-1.5 whitespace-nowrap">
         <span>🚚 출고요청 분석</span>
-        <span class="text-[10px] bg-blue-900/60 text-blue-300 border border-blue-700/50 px-1.5 py-0.2 rounded font-mono">940건</span>
+        <span class="text-[10px] text-blue-400 font-mono">940건</span>
       </button>
       <button onclick="switchTab('as')" id="tab-as" class="tab-btn px-4 py-2.5 transition text-slate-300 hover:text-white flex items-center gap-1.5 whitespace-nowrap">
         <span>🔧 AS·정비 접수 분석</span>
-        <span class="text-[10px] bg-amber-900/60 text-amber-300 border border-amber-700/50 px-1.5 py-0.2 rounded font-mono">5,633건</span>
+        <span class="text-[10px] text-amber-400 font-mono">5,633건</span>
       </button>
       <button onclick="switchTab('lease')" id="tab-lease" class="tab-btn px-4 py-2.5 transition text-slate-300 hover:text-white flex items-center gap-1.5 whitespace-nowrap">
         <span>🤝 임차자산 입출고 분석</span>
-        <span class="text-[10px] bg-purple-900/60 text-purple-300 border border-purple-700/50 px-1.5 py-0.2 rounded font-mono">548건</span>
+        <span class="text-[10px] text-purple-400 font-mono">548건</span>
       </button>
       <button onclick="switchTab('search')" id="tab-search" class="tab-btn px-4 py-2.5 transition text-slate-300 hover:text-white flex items-center gap-1.5 whitespace-nowrap">
         <span>🔍 무압축 전수 검색기</span>
-        <span class="text-[10px] bg-emerald-900/60 text-emerald-300 border border-emerald-700/50 px-1.5 py-0.2 rounded font-mono">Live Search</span>
+        <span class="text-[10px] text-emerald-400 font-mono">Live Search</span>
       </button>
     </div>
   </header>
@@ -112,7 +112,7 @@
 
     <!-- 🌟 최상단 4대 핵심 요약 카드 -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm relative overflow-hidden">
+      <div class="bg-transparent p-4 shadow-sm relative overflow-hidden">
         <div class="absolute right-3 top-3 text-2xl opacity-20">📦</div>
         <span class="text-xs font-bold text-slate-400">총 분석 게시글</span>
         <div class="text-2xl font-black text-white font-mono mt-1">7,121<span class="text-sm font-normal text-slate-400 ml-1">건</span></div>
@@ -121,7 +121,7 @@
         </div>
       </div>
 
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm relative overflow-hidden">
+      <div class="bg-transparent p-4 shadow-sm relative overflow-hidden">
         <div class="absolute right-3 top-3 text-2xl opacity-20">🏢</div>
         <span class="text-xs font-bold text-slate-400">식별된 거래처 및 현장</span>
         <div class="text-2xl font-black text-emerald-400 font-mono mt-1">208<span class="text-sm font-normal text-slate-400 ml-1">개사</span> / 231<span class="text-sm font-normal text-slate-400 ml-1">개소</span></div>
@@ -130,7 +130,7 @@
         </div>
       </div>
 
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm relative overflow-hidden">
+      <div class="bg-transparent p-4 shadow-sm relative overflow-hidden">
         <div class="absolute right-3 top-3 text-2xl opacity-20">⚙️</div>
         <span class="text-xs font-bold text-slate-400">옵션 및 작업 요구사항</span>
         <div class="text-2xl font-black text-cyan-400 font-mono mt-1">297<span class="text-sm font-normal text-slate-400 ml-1">종</span> / 25<span class="text-sm font-normal text-slate-400 ml-1">개 불릿</span></div>
@@ -139,7 +139,7 @@
         </div>
       </div>
 
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm relative overflow-hidden">
+      <div class="bg-transparent p-4 shadow-sm relative overflow-hidden">
         <div class="absolute right-3 top-3 text-2xl opacity-20">🛠️</div>
         <span class="text-xs font-bold text-slate-400">AS 고장 증상 및 관리장비</span>
         <div class="text-2xl font-black text-amber-400 font-mono mt-1">2,267<span class="text-sm font-normal text-slate-400 ml-1">종</span> / 2,160<span class="text-sm font-normal text-slate-400 ml-1">대</span></div>
@@ -157,27 +157,27 @@
       <!-- 상단 차트 2열 -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Chart 1: 3대 원천 데이터 비중 -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm flex flex-col">
+        <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm flex flex-col">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <h2 class="text-sm font-bold text-white flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
               <span>3대 원천 데이터 구성 비중</span>
-            </h3>
+            </h2>
             <span class="text-xs text-slate-400 font-mono">총 7,121건</span>
           </div>
           <div class="relative flex-1 flex items-center justify-center min-h-[260px]">
             <canvas id="chartDataRatio"></canvas>
           </div>
           <div class="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-slate-800 text-center text-xs">
-            <div class="p-2 rounded bg-slate-950/60 border border-slate-800/80">
+            <div class="py-1 ">
               <span class="text-slate-400 block text-[11px]">출고요청</span>
               <strong class="text-blue-400 font-mono">940건 (13.2%)</strong>
             </div>
-            <div class="p-2 rounded bg-slate-950/60 border border-slate-800/80">
+            <div class="py-1 ">
               <span class="text-slate-400 block text-[11px]">AS/정비</span>
               <strong class="text-amber-400 font-mono">5,633건 (79.1%)</strong>
             </div>
-            <div class="p-2 rounded bg-slate-950/60 border border-slate-800/80">
+            <div class="py-1 ">
               <span class="text-slate-400 block text-[11px]">임차입출고</span>
               <strong class="text-purple-400 font-mono">548건 (7.7%)</strong>
             </div>
@@ -185,12 +185,12 @@
         </div>
 
         <!-- Chart 2: AS 상위 고장증상 Top 10 -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm flex flex-col">
+        <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm flex flex-col">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <h2 class="text-sm font-bold text-white flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
               <span>AS 주요 고장 증상 Top 10</span>
-            </h3>
+            </h2>
             <span class="text-xs text-slate-400 font-mono">빈도 순</span>
           </div>
           <div class="relative flex-1 min-h-[260px]">
@@ -202,12 +202,12 @@
       <!-- 하단 차트 2열 -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Chart 3: 임차 협력사별 점유율 -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm flex flex-col">
+        <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm flex flex-col">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <h2 class="text-sm font-bold text-white flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
               <span>외부 임차 협력사(원 임대사) 점유율</span>
-            </h3>
+            </h2>
             <span class="text-xs text-slate-400 font-mono">548건 전수</span>
           </div>
           <div class="relative flex-1 flex items-center justify-center min-h-[260px]">
@@ -219,12 +219,12 @@
         </div>
 
         <!-- Chart 4: 주요 거래처별 AS 발생 빈도 Top 10 -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm flex flex-col">
+        <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm flex flex-col">
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <h2 class="text-sm font-bold text-white flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
               <span>거래처별 AS 접수 빈도 Top 10</span>
-            </h3>
+            </h2>
             <span class="text-xs text-slate-400 font-mono">단위: 건</span>
           </div>
           <div class="relative flex-1 min-h-[260px]">
@@ -234,10 +234,10 @@
       </div>
 
       <!-- 도메인 핵심 시사점 카드 -->
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
-        <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+      <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm">
+        <h2 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
           <span>📋 밴드 데이터 3대 도메인 인사이트</span>
-        </h3>
+        </h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
           <div class="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-1.5">
             <span class="font-black text-blue-400 block text-xs">1. 출고요청 옵션의 다변화</span>
@@ -270,12 +270,12 @@
       <!-- 상단 2열 그리드: 유상옵션 vs 무상옵션/부착물 -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- 유상옵션 랭킹 -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
+        <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm">
           <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
-            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <h2 class="text-sm font-bold text-white flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
               <span>유상 옵션 요구사항 Top 15 (Paid Options)</span>
-            </h3>
+            </h2>
             <span class="text-xs text-slate-400 font-mono">단위: 건</span>
           </div>
           <div class="overflow-x-auto table-nowrap custom-scrollbar">
@@ -401,12 +401,12 @@
         </div>
 
         <!-- 무상옵션 랭킹 -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
+        <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm">
           <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
-            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <h2 class="text-sm font-bold text-white flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-blue-400"></span>
               <span>무상 옵션 요구사항 Top 15 (Free Options)</span>
-            </h3>
+            </h2>
             <span class="text-xs text-slate-400 font-mono">단위: 건</span>
           </div>
           <div class="overflow-x-auto table-nowrap custom-scrollbar">
@@ -535,12 +535,12 @@
       <!-- 중단 2열 그리드: 보양작업 vs 출고서류/부착물 -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- 보양작업 요구사항 -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
+        <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm">
           <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
-            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <h2 class="text-sm font-bold text-white flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-amber-400"></span>
               <span>현장 보양 요구사항 Top 10 (Protection)</span>
-            </h3>
+            </h2>
             <span class="text-xs text-slate-400 font-mono">단위: 건</span>
           </div>
           <div class="overflow-x-auto table-nowrap custom-scrollbar">
@@ -620,12 +620,12 @@
         </div>
 
         <!-- 출고서류 요구사항 -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
+        <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm">
           <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
-            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <h2 class="text-sm font-bold text-white flex items-center gap-2">
               <span class="w-2 h-2 rounded-full bg-purple-400"></span>
               <span>출고 서류 및 직인 요구사항 Top 10 (Documents)</span>
-            </h3>
+            </h2>
             <span class="text-xs text-slate-400 font-mono">단위: 건</span>
           </div>
           <div class="overflow-x-auto table-nowrap custom-scrollbar">
@@ -694,13 +694,13 @@
       </div>
 
       <!-- 🌟 무압축 고객 요구사항 25개 커스텀 불릿 전수 대장 -->
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
+      <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm">
         <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2">
           <div>
-            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <h2 class="text-sm font-bold text-white flex items-center gap-2">
               <span class="text-amber-400">⚡</span>
               <span>현장 무압축 전수 보존 세부 불릿 요구사항 (25종 전수)</span>
-            </h3>
+            </h2>
             <p class="text-xs text-slate-400 mt-0.5">
               요약/압축하지 않고 고객 요구사항 있는 그대로 마스터 DB 및 배차 의뢰에 100% 저장되는 정밀 불릿 항목
             </p>
@@ -851,10 +851,10 @@
 
       <!-- 출고 상위 고객사 및 현장 2열 -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
-          <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+        <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm">
+          <h2 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
             <span>🏢 출고요청 최다 거래처 Top 10</span>
-          </h3>
+          </h2>
           <div class="overflow-x-auto table-nowrap custom-scrollbar">
             <table class="w-full text-xs text-left">
               <thead class="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
@@ -931,10 +931,10 @@
           </div>
         </div>
 
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
-          <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+        <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm">
+          <h2 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
             <span>📍 출고요청 최다 현장 Top 10</span>
-          </h3>
+          </h2>
           <div class="overflow-x-auto table-nowrap custom-scrollbar">
             <table class="w-full text-xs text-left">
               <thead class="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
@@ -1020,13 +1020,13 @@
     <div id="section-as" class="hidden space-y-6">
 
       <!-- 고장 증상 랭킹 그리드 -->
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
+      <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm">
         <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-2">
           <div>
-            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <h2 class="text-sm font-bold text-white flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
               <span>고장 증상별 접수 빈도 Top 30 (5,633건 중 전수 분석)</span>
-            </h3>
+            </h2>
             <p class="text-xs text-slate-400 mt-0.5">센서 단선, 유압 누유, 전기 계통 불량이 3대 핵심 고장 유형</p>
           </div>
           <span class="text-xs font-mono text-slate-400">총 2,267종 고유 증상</span>
@@ -1532,10 +1532,10 @@
       <!-- 다발 고장 장비 번호 & 현장 위치 2열 -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- 다발 접수 장비 번호 -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
-          <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+        <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm">
+          <h2 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
             <span>🏷️ AS 최다 접수 장비 번호 Top 15</span>
-          </h3>
+          </h2>
           <div class="overflow-x-auto table-nowrap custom-scrollbar">
             <table class="w-full text-xs text-left">
               <thead class="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
@@ -1643,10 +1643,10 @@
         </div>
 
         <!-- 현장 내 장비 위치 / 층수 -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
-          <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+        <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm">
+          <h2 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
             <span>🏢 현장 내 작업 층수 및 위치 분포 Top 15</span>
-          </h3>
+          </h2>
           <div class="overflow-x-auto table-nowrap custom-scrollbar">
             <table class="w-full text-xs text-left">
               <thead class="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
@@ -1764,10 +1764,10 @@
       <!-- 협력사별 점유율 & 이벤트 분류 카드 -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- 협력사 리스트 -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
-          <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+        <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm">
+          <h2 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
             <span>🏢 외부 원 임대사(협력사) 현황</span>
-          </h3>
+          </h2>
           <div class="overflow-x-auto table-nowrap custom-scrollbar">
             <table class="w-full text-xs text-left">
               <thead class="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
@@ -1849,10 +1849,10 @@
         </div>
 
         <!-- 주요 임차 모델 -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
-          <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+        <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm">
+          <h2 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
             <span>🚜 주요 외부 임차 조달 모델 Top 10</span>
-          </h3>
+          </h2>
           <div class="overflow-x-auto table-nowrap custom-scrollbar">
             <table class="w-full text-xs text-left">
               <thead class="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
@@ -1933,10 +1933,10 @@
       <!-- 상차지 vs 하차지 물류 거점 2열 -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- 상차지 -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
-          <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+        <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm">
+          <h2 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
             <span>🚚 주요 상차지 물류 허브 Top 10</span>
-          </h3>
+          </h2>
           <div class="overflow-x-auto table-nowrap custom-scrollbar">
             <table class="w-full text-xs text-left">
               <thead class="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
@@ -2014,10 +2014,10 @@
         </div>
 
         <!-- 하차지 -->
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
-          <h3 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
+        <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm">
+          <h2 class="text-sm font-bold text-white mb-3 flex items-center gap-2">
             <span>📍 주요 하차지 (반납/입고 거점) Top 10</span>
-          </h3>
+          </h2>
           <div class="overflow-x-auto table-nowrap custom-scrollbar">
             <table class="w-full text-xs text-left">
               <thead class="bg-slate-950 text-slate-400 font-semibold border-b border-slate-800">
@@ -2102,13 +2102,13 @@
     <!-- ───────────────────────────────────────────────────────────── -->
     <div id="section-search" class="hidden space-y-6">
 
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-sm">
+      <div class="bg-transparent border-t border-slate-800 py-5 shadow-sm">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
           <div>
-            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <h2 class="text-sm font-bold text-white flex items-center gap-2">
               <span class="text-emerald-400">🔍</span>
               <span>원천 데이터 전수 인스펙터 & 실시간 필터</span>
-            </h3>
+            </h2>
             <p class="text-xs text-slate-400 mt-0.5">
               3개 밴드 파일에서 추출된 모든 옵션, 고장증상, 고객사, 현장, 협력사를 키워드로 실시간 검색
             </p>
