@@ -60,7 +60,29 @@ export const SiteOptionManage: React.FC = () => {
 
   // ── 🎯 필터링된 고객 현장 목록 ──
   const filteredSites = useMemo(() => {
-    return (sites || []).filter(s => {
+    
+  // --- Keyboard Shortcuts (Harden) ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showMasterModal) setShowMasterModal(false);
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (showMasterModal) {
+          const mockEvent = { preventDefault: () => {} } as React.FormEvent;
+          handleSaveMasterOption(mockEvent);
+        } else {
+          handleSaveSiteOptions();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showMasterModal, handleSaveMasterOption, handleSaveSiteOptions]);
+  // -----------------------------------
+
+  return (sites || []).filter(s => {
       if (searchSiteKeyword.trim()) {
         const kw = searchSiteKeyword.trim().toLowerCase();
         const matchName = (s.name || "").toLowerCase().includes(kw);
@@ -519,7 +541,7 @@ export const SiteOptionManage: React.FC = () => {
 
                       <div style={{ display: 'flex', gap: '6px', marginTop: '2px', alignItems: 'center' }}>
                         <span style={{
-                          fontSize: '10.5px',
+                          fontSize: '11.5px',
                           fontWeight: 700,
                           padding: '1px 6px',
                           borderRadius: '4px',
@@ -530,7 +552,7 @@ export const SiteOptionManage: React.FC = () => {
                         </span>
                         {hasProt && (
                           <span style={{
-                            fontSize: '10.5px',
+                            fontSize: '11.5px',
                             fontWeight: 700,
                             padding: '1px 6px',
                             borderRadius: '4px',
@@ -603,21 +625,28 @@ export const SiteOptionManage: React.FC = () => {
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                      <select
-                        value=""
-                        onChange={(e) => {
-                          if (e.target.value) handleToggleOption(e.target.value);
-                        }}
-                        style={{ height: '30px', padding: '0 8px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '12px', minWidth: '220px', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
-                      >
-                        <option value="" disabled>+ 현장에 추가할 옵션 마스터 선택...</option>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
                         {workingOptionItems.filter(item => item.category === 'PAID' && !item.isEnabled).map(item => (
-                          <option key={item.optionId} value={item.optionId}>{item.name}</option>
+                          <button
+                            key={item.optionId}
+                            type="button"
+                            onClick={() => handleToggleOption(item.optionId)}
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: '12px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border-color)',
+                              backgroundColor: 'var(--bg-surface)',
+                              color: 'var(--text-primary)',
+                              cursor: 'pointer',
+                              fontWeight: 500,
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                            }}
+                          >
+                            + {item.name}
+                          </button>
                         ))}
-                      </select>
-                      
-                    </div>
+                      </div>
 
                     <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                       <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
@@ -730,22 +759,28 @@ export const SiteOptionManage: React.FC = () => {
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                      <select
-                        value={workingOptionItems.find(i => i.category === 'PROTECTION' && i.isEnabled)?.optionId || ""}
-                        onChange={(e) => handleSelectProtection(e.target.value)}
-                        style={{ height: '30px', padding: '0 8px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '12px', minWidth: '220px', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
-                      >
-                        <option value="" disabled>현장에 적용할 보양 작업 마스터 선택...</option>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
                         {workingOptionItems.filter(item => item.category === 'PROTECTION').map(item => (
-                          <option key={item.optionId} value={item.optionId}>{item.name}</option>
+                          <button
+                            key={item.optionId}
+                            type="button"
+                            onClick={() => handleSelectProtection(item.isEnabled ? '' : item.optionId)}
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: '12px',
+                              borderRadius: '6px',
+                              border: item.isEnabled ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                              backgroundColor: item.isEnabled ? 'rgba(37, 99, 235, 0.1)' : 'var(--bg-surface)',
+                              color: item.isEnabled ? 'var(--primary)' : 'var(--text-primary)',
+                              cursor: 'pointer',
+                              fontWeight: item.isEnabled ? 700 : 500,
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                            }}
+                          >
+                            {item.name}
+                          </button>
                         ))}
-                      </select>
-                      <button type="button" onClick={() => handleSelectProtection('')} style={{ fontSize: '11px', padding: '0 10px', height: '30px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 700 }}>
-                        적용 해제
-                      </button>
-                      
-                    </div>
+                      </div>
                   </div>
 
                   {/* 3. 현장 요구 사양 (SPEC) 섹션 */}
@@ -759,21 +794,28 @@ export const SiteOptionManage: React.FC = () => {
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                      <select
-                        value=""
-                        onChange={(e) => {
-                          if (e.target.value) handleToggleOption(e.target.value);
-                        }}
-                        style={{ height: '30px', padding: '0 8px', borderRadius: '4px', border: '1px solid var(--border-color)', fontSize: '12px', minWidth: '220px', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)' }}
-                      >
-                        <option value="" disabled>+ 현장에 추가할 사양 마스터 선택...</option>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
                         {workingOptionItems.filter(item => item.category === 'SPEC' && !item.isEnabled).map(item => (
-                          <option key={item.optionId} value={item.optionId}>{item.name}</option>
+                          <button
+                            key={item.optionId}
+                            type="button"
+                            onClick={() => handleToggleOption(item.optionId)}
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: '12px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border-color)',
+                              backgroundColor: 'var(--bg-surface)',
+                              color: 'var(--text-primary)',
+                              cursor: 'pointer',
+                              fontWeight: 500,
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                            }}
+                          >
+                            + {item.name}
+                          </button>
                         ))}
-                      </select>
-                      
-                    </div>
+                      </div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
 {workingOptionItems.filter(item => item.category === 'SPEC' && item.isEnabled).length === 0 ? (
