@@ -28,6 +28,7 @@ export const Customers: React.FC = () => {
   } = useApp();
 
   const canSave = hasPermission('customer', 'save');
+  const isDeveloper = currentUser?.id === 'sys-admin' || currentUser?.id === 'u-1' || currentUser?.loginId === 'admin' || currentUser?.position === 'D.RPA' || currentUser?.department?.includes('개발');
 
   // 토스트 알림 상태
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -1216,7 +1217,7 @@ const handleDeleteAccount = async (accId: string) => {
           >
             <Download size={13} /> 엑셀 다운로드
           </button>
-          {canSave && (
+          {canSave && isDeveloper && (
             <button
               onClick={() => setShowBatchLicenseModal(true)}
               style={{
@@ -1263,7 +1264,7 @@ const handleDeleteAccount = async (accId: string) => {
               <ShieldAlert size={13} color="#ffffff" /> 국세청 휴폐업 점검
             </button>
           )}
-          {canSave && (
+          {canSave && isDeveloper && (
             <button
               className="btn-secondary"
               onClick={() => setCustExcelModalOpen(true)}

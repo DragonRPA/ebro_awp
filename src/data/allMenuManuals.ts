@@ -5504,16 +5504,6 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "spotlight": false
       },
       {
-        "seq": 3,
-        "selector": "[data-mid=\"consumable_purchase-pipeline-batch\"]",
-        "type": "stamp",
-        "label": "엑셀 일괄 등록",
-        "description": "엑셀 템플릿을 사용하여 여러 구매 신청을 일괄 등록합니다.",
-        "badgeColor": "#1D4ED8",
-        "positionHint": "bottom",
-        "spotlight": false
-      },
-      {
         "seq": 4,
         "selector": "[data-mid=\"consumable_purchase-pipeline-excel\"]",
         "type": "stamp",
@@ -6812,16 +6802,6 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "type": "stamp",
         "label": "누적거래액 전체 동기화",
         "description": "당사자산 취득 및 매입정산 대장을 스캔하여 전체 매입처의 누적거래액을 동기화합니다.",
-        "badgeColor": "#1D4ED8",
-        "positionHint": "bottom",
-        "spotlight": false
-      },
-      {
-        "seq": 4,
-        "selector": "[data-mid=\"vendors-pipeline-batch\"]",
-        "type": "stamp",
-        "label": "폴더 일괄 등록",
-        "description": "사업자등록증 폴더를 지정하여 다수의 매입처 정보를 한 번에 등록합니다.",
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
         "spotlight": false
