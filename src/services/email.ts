@@ -109,41 +109,11 @@ class RealGmailService {
       );
     }
 
-    // 2. 이메일 발송 실행: 로컬 에이전트(http://127.0.0.1:5175/api/send-email) 우선 ➔ 실패 시 Vercel (/api/send-email) 폴백
-    let processedAttachments: any[] = [...attachments];
-    const totalContentLength = attachments.reduce((sum, att) => sum + (att.content?.length || 0), 0);
-    
-    // Vercel 4.5MB 페이로드 초과 방지: 1.5MB 이상이면 Supabase Storage에 임시 업로드하여 URL로 전달
-    if (totalContentLength > 1.5 * 1024 * 1024) {
-      try {
-        const { uploadToSupabaseStorage } = await import('./supabaseStorage');
-        processedAttachments = await Promise.all(attachments.map(async (att) => {
-          if (!att.content || att.content.length < 100) return att;
-          
-          const base64Data = att.content.replace(/^data:.*?;base64,/, '');
-          const binaryStr = atob(base64Data);
-          const bytes = new Uint8Array(binaryStr.length);
-          for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-          const file = new File([bytes.buffer], att.filename || 'attachment.pdf', { type: 'application/pdf' });
-          
-          const uploadRes = await uploadToSupabaseStorage({
-            file,
-            fileName: `email_${Date.now()}_${Math.random().toString(36).substring(2, 7)}_${att.filename || 'file.pdf'}`,
-            folder: 'temp_emails'
-          });
-          
-          if (uploadRes.success) {
-            return { filename: att.filename, url: uploadRes.fileUrl }; // URL로 대체하여 페이로드 극소화
-          }
-          throw new Error('Supabase Storage 업로드에 실패하여 URL을 확보하지 못했습니다.');
-        }));
-      } catch (err: any) {
-        console.warn('첨부파일 스토리지 임시 업로드 실패:', err);
-        throw new Error(`대용량 첨부파일 처리 중 오류가 발생했습니다: ${err.message || err}`);
-      }
-    }
+    // 2. 이메일 발송 실행: 로컬 에이전트(http://127.0.0.1:5175/api/send-email) 우선 (원본 Base64 그대로 전달)
+    let sendSuccess = false;
+    let lastError = '';
 
-    const emailPayload = {
+    const localPayload = {
       to,
       cc,
       subject,
@@ -153,19 +123,16 @@ class RealGmailService {
       smtpProvider,
       smtpHost,
       smtpPort,
-      attachments: processedAttachments,
+      attachments: attachments, // Supabase 업로드 없이 원본 그대로 에이전트에 전달
       fromName: fromName || '(주)기연리프트'
     };
-
-    let sendSuccess = false;
-    let lastError = '';
 
     // 2-1. 로컬 에이전트 시도
     try {
       const localResp = await fetchWithAgentFallback('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(emailPayload)
+        body: JSON.stringify(localPayload)
       });
       if (localResp.ok) {
         const localRes = await localResp.json();
@@ -179,13 +146,60 @@ class RealGmailService {
       // 로컬 에이전트 미구동 시 조용히 Vercel로 폴백
     }
 
-    // 2-2. 로컬 에이전트 미성공 시 Vercel 서버리스 API 호출
+    // 2-2. 에이전트 발송 실패(또는 미구동) 시 -> Supabase 임시 업로드 및 Vercel 서버리스 폴백
     if (!sendSuccess) {
+      let processedAttachments: any[] = [...attachments];
+      const totalContentLength = attachments.reduce((sum, att) => sum + (att.content?.length || 0), 0);
+      
+      // Vercel 4.5MB 페이로드 초과 방지: 1.5MB 이상이면 Supabase Storage에 임시 업로드하여 URL로 전달
+      if (totalContentLength > 1.5 * 1024 * 1024) {
+        try {
+          const { uploadToSupabaseStorage } = await import('./supabaseStorage');
+          processedAttachments = await Promise.all(attachments.map(async (att) => {
+            if (!att.content || att.content.length < 100) return att;
+            
+            const base64Data = att.content.replace(/^data:.*?;base64,/, '');
+            const binaryStr = atob(base64Data);
+            const bytes = new Uint8Array(binaryStr.length);
+            for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+            const file = new File([bytes.buffer], att.filename || 'attachment.pdf', { type: 'application/pdf' });
+            
+            const uploadRes = await uploadToSupabaseStorage({
+              file,
+              fileName: `email_${Date.now()}_${Math.random().toString(36).substring(2, 7)}_${att.filename || 'file.pdf'}`,
+              folder: 'temp_emails'
+            });
+            
+            if (uploadRes.success) {
+              return { filename: att.filename, url: uploadRes.fileUrl }; // URL로 대체하여 페이로드 극소화
+            }
+            throw new Error('Supabase Storage 업로드에 실패하여 URL을 확보하지 못했습니다.');
+          }));
+        } catch (err: any) {
+          console.warn('첨부파일 스토리지 임시 업로드 실패:', err);
+          throw new Error(`대용량 첨부파일 처리 중 오류가 발생했습니다: ${err.message || err}`);
+        }
+      }
+
+      const vercelPayload = {
+        to,
+        cc,
+        subject,
+        body,
+        googleEmail,
+        gmailAppPassword,
+        smtpProvider,
+        smtpHost,
+        smtpPort,
+        attachments: processedAttachments,
+        fromName: fromName || '(주)기연리프트'
+      };
+
       try {
         const resp = await fetch('/api/send-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(emailPayload)
+          body: JSON.stringify(vercelPayload)
         });
 
         const rawText = await resp.text();
