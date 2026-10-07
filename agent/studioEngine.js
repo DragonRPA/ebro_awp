@@ -301,6 +301,19 @@ function updateAgentPolicy(newPolicy) {
     savePolicy();
     broadcastStudioLog('POLICY', `테넌트 정책 동기화 완료: AI기능=${agentPolicy.agentAiEnabled ? '활성화(FULL_AI)' : '비활성화(SILENT_CORE)'}, 테넌트=${agentPolicy.tenantCode || '-'}`);
   }
+    if (!agentPolicy.agentAiEnabled) {
+      if (typeof stopTelegramBot === 'function') {
+        stopTelegramBot();
+        broadcastStudioLog('SYSTEM', 'Silent Core 모드 전환에 따라 텔레그램 수신을 일시정지합니다.');
+      }
+    } else {
+      if (typeof restartTelegramBot === 'function') {
+        restartTelegramBot(async (text, onComplete) => {
+          return await addTask(text, 'BROWSER', onComplete);
+        }).catch(() => {});
+        broadcastStudioLog('SYSTEM', 'Full AI Studio 모드 전환에 따라 텔레그램 수신을 재개합니다.');
+      }
+    }
   return agentPolicy;
 }
 
@@ -2052,9 +2065,11 @@ async function handleStudioRequest(req, res, pathname, searchParams, port = 5175
 }
 
 // 텔레그램 모바일 원격 제어기 상시 가동
-startTelegramBot(async (text, onComplete) => {
-  return await addTask(text, 'BROWSER', onComplete);
-});
+if (isAiEnabled()) {
+  startTelegramBot(async (text, onComplete) => {
+    return await addTask(text, 'BROWSER', onComplete);
+  });
+}
 
 module.exports = {
   handleStudioRequest,
