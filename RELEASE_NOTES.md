@@ -1,3 +1,9 @@
+## [v1.14.1.Build.46] - 2026-10-07 20:45
+### 🐛 버그 수정 및 개선
+- **Hindsight Tracker 중앙 기억소재(Shared Memories) 누락 버그 픽스**
+  - 화면에서 수집된 지식(ui_context_bundle)이 로컬 에이전트(eBroAgent.exe)로 전송된 후 묵음 처리되어 실제 중앙 DB(\wp_shared_memories\)에 적재되지 않던 문제를 해결했습니다.
+  - 프론트엔드에서 직접 \centralSupabase\에 연결하여 INSERT 하도록 이중화 안전망을 구축하여 지식 유실을 원천 차단했습니다.
+
 ## [v1.14.1.Build.45] - 2026-10-07 17:56
 ### ✨ 주요 업데이트
 - **중앙 연합 학습(Central Federated Learning) 아키텍처 도입**
