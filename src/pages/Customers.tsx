@@ -1737,29 +1737,10 @@ export const Customers: React.FC = () => {
                                     <button
                                       type="button"
                                       className="btn-secondary"
-                                      onClick={() => handleNavigateToSiteOptionManage(cs.id)}
-                                      style={{ padding: '1px 6px', fontSize: '10.5px', color: '#0070C0', border: '1px solid rgba(0, 112, 192, 0.3)', display: 'flex', alignItems: 'center', gap: '3px' }}
-                                      title="현장별 옵션 관리 화면으로 이동하여 옵션값 상속 및 단가 설정"
-                                    >
-                                      <SlidersHorizontal size={10} />
-                                      옵션
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="btn-secondary"
                                       onClick={() => handleOpenEditSite(cs)}
                                       style={{ padding: '1px 5px', fontSize: '10.5px' }}
                                     >
                                       수정
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="btn-secondary"
-                                      onClick={() => handleDeleteSite(cs.id, cs.name)}
-                                      style={{ padding: '1px 5px', fontSize: '10.5px', color: 'var(--danger-color, #ef4444)' }}
-                                      title="현장 삭제"
-                                    >
-                                      삭제
                                     </button>
                                   </div>
                                 )}
