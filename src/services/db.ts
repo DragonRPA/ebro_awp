@@ -6194,6 +6194,7 @@ class LocalDB {
       if (tableName === 'repairs' && (key === 'siteAddress')) {
         continue;
       }
+        if (tableName === 'customer_sites' && ['billingContactName', 'billingContactPhone', 'billingContactEmail', 'safetyContactName', 'safetyContactPhone', 'safetyContactEmail'].includes(key)) { continue; }
       // modelName 컬럼이 존재하지 않는 테이블로의 modelName 누출 원천 방지 (departments, users, customers 등)
       if (key === 'modelName' && !['products', 'assets', 'product_specs', 'product_spec_items', 'contract_assets', 'contract_history', 'inspection_checklist_items', 'equipment_manuals', 'consumable_purchases', 'asset_inout_logs'].includes(tableName || '')) {
         continue;
