@@ -8878,25 +8878,26 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     });
 
         // 2. 계약 자산 반납 갱신 (청구 연동: actualReturnDate는 실제 입고일, inRegisteredAt은 전산 등록일시)
-    if (activeCAs.length > 0) {
-      activeCAs.forEach(targetCa => {
-        db.updateRow<ContractAsset>('contractAssets', targetCa.id, {
+    if (activeCAs.length > 0 || ca) {
+      if (activeCAs.length > 0) {
+        activeCAs.forEach(targetCa => {
+          db.updateRow<ContractAsset>('contractAssets', targetCa.id, {
+            status: 'RETURNED',
+            endDate: data.returnDate,
+            actualReturnDate: data.returnDate,
+            inRegisteredAt: registeredAt,
+            updatedAt: registeredAt
+          });
+        });
+      } else if (ca && ca.status === 'RENTED') {
+        db.updateRow<ContractAsset>('contractAssets', ca.id, {
           status: 'RETURNED',
-          endDate: data.returnDate, // 💡 사장님 지시: 영업사원 처리 여부(연장/단축)와 무관하게 자산의 계약 종료일자를 입고일 기준으로 자동 동기화(연장/단축)
-          actualReturnDate: data.returnDate, // 실제 입고일 (청구 및 일할 정산 기준)
-          inRegisteredAt: registeredAt,     // 💡 실제 전산 입고 등록 일시 (행위 감사 기록)
+          endDate: data.returnDate,
+          actualReturnDate: data.returnDate,
+          inRegisteredAt: registeredAt,
           updatedAt: registeredAt
         });
-      });
-    } else if (ca && ca.status === 'RENTED') {
-      db.updateRow<ContractAsset>('contractAssets', ca.id, {
-        status: 'RETURNED',
-        endDate: data.returnDate,
-        actualReturnDate: data.returnDate,
-        inRegisteredAt: registeredAt,
-        updatedAt: registeredAt
-      });
-    }
+      }
 
       // 마스터 계약(Contract)의 종료일자도 가장 늦은 자산 반납일 기준으로 후행 연장 (단축은 제외, 연장만)
       if (contract && data.returnDate > contract.endDate) {
