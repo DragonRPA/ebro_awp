@@ -1,4 +1,4 @@
-﻿// src/pages/Customers.tsx - 전사 표준 헌장 준수 거래처 고객사 및 현장/담당자 마스터 스튜디오
+// src/pages/Customers.tsx - 전사 표준 헌장 준수 거래처 고객사 및 현장/담당자 마스터 스튜디오
 import { useApproval } from '../hooks/useApproval';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
@@ -21,6 +21,7 @@ import { NtsStatusAuditModal } from '../components/NtsStatusAuditModal';
 import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal';
 
 export const Customers: React.FC = () => {
+  
   const {
     customers, contacts, sites, contracts, contractAssets, saveCustomer, saveContact, deleteContact, saveSite, deleteSite, hasPermission,
     navigationPayload, setNavigationPayload, currentUser, refreshAllData, legalNoticeLogs,
@@ -55,6 +56,7 @@ export const Customers: React.FC = () => {
   // 📄 사업자등록증 AI 모달 상태
   const [showBizLicenseModal, setShowBizLicenseModal] = useState(false);
   const [targetBizLicenseCustId, setTargetBizLicenseCustId] = useState<string | undefined>(undefined);
+  console.log("[DEBUG] Customers Render! selectedCustomerId:", selectedCustomerId, "targetBizLicenseCustId:", targetBizLicenseCustId);
   const [showBatchLicenseModal, setShowBatchLicenseModal] = useState(false);
   const [showNtsAuditModal, setShowNtsAuditModal] = useState(false);
 

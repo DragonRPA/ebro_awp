@@ -1402,6 +1402,13 @@ export const Contracts: React.FC = () => {
             >
               계약 목록 ({filteredContracts.length})
             </button>
+            <button
+              className={activeTab === 'CREATE' ? 'btn-primary' : 'btn-secondary'}
+              onClick={() => setActiveTab('CREATE')}
+              style={{ padding: '7px 14px', fontSize: '12px' }}
+            >
+              신규 계약 등록
+            </button>
           </div>
         )}
       </div>

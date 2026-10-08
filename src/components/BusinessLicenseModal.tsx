@@ -24,6 +24,7 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
   onSuccess,
   targetCustomerId
 }) => {
+  console.log('[DEBUG] BusinessLicenseModal Render!', { isOpen, targetCustomerId });
   const { customers, saveCustomer, showErrorModal } = useApp();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -71,6 +72,7 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
 
   // 모달 초기화
   useEffect(() => {
+    console.log('[DEBUG] BusinessLicenseModal useEffect ran!', { isOpen, targetCustomerId });
     if (isOpen) {
       setStep('UPLOAD');
       setSelectedFile(null);
@@ -85,7 +87,8 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
         if (found) setMatchedCustomer(found);
       }
     }
-  }, [isOpen, targetCustomerId, customers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, targetCustomerId]);
 
   if (!isOpen) return null;
 
@@ -839,6 +842,7 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
             {step === 'RESULT' && (
               <button
                 type="button"
+                data-hs-trigger="Save"
                 onClick={handleSave}
                 disabled={isSaving}
                 className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-white text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${

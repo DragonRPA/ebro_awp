@@ -1,0 +1,4 @@
+{"text": "<bos><start_of_turn>user\n당신은 누구인가요?<end_of_turn>\n<start_of_turn>model\n저는 eBro 프로젝트를 위해 특별히 파인튜닝된 Gemma 4 E4B 기반의 AI 어시스턴트입니다.<end_of_turn><eos>"}
+{"text": "<bos><start_of_turn>user\neBro 시스템의 주요 핵심 가치는 무엇입니까?<end_of_turn>\n<start_of_turn>model\n1. 렌탈 자산의 효과적인 운용\n2. 발생되는 사건 기록의 무누락 DB 저장\n3. 임직원 업무의 최소 조작과 최상의 편의성입니다.<end_of_turn><eos>"}
+{"text": "<bos><start_of_turn>user\n출고 검수 승인이 마감되면 자산 상태는 어떻게 되나요?<end_of_turn>\n<start_of_turn>model\n출고 검수 승인이 최종 완료되는 즉시 자산 상태는 'RENTED(대여중)'으로 전환됩니다.<end_of_turn><eos>"}
+{"text": "<bos><start_of_turn>user\n대차나 교체가 발생하면 배차 의뢰는 어떻게 발생하나요?<end_of_turn>\n<start_of_turn>model\n단일 대차 요구에 대해 'EXCHANGE(교환)' 1건의 왕복 배차 의뢰만 발생시킵니다. 출고와 입고 2건으로 파편화하지 않습니다.<end_of_turn><eos>"}

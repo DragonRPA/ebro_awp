@@ -113,7 +113,7 @@ function setupFetchInterceptor() {
       const url = typeof resource === 'string' ? resource : (resource instanceof Request ? resource.url : '');
       
       // 우리 자신의 Hindsight 로깅 요청은 캡처하지 않음
-      if (url && !url.includes('shared_memories') && !url.includes('/api/hindsight')) {
+      if (url && url.includes('/rest/v1/') && !url.includes('shared_memories')) {
         let bodyParsed = options.body;
         if (typeof options.body === 'string') {
           try { bodyParsed = JSON.parse(options.body); } catch(e) {}

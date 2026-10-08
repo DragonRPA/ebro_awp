@@ -6347,241 +6347,11 @@ class LocalDB {
   getRow<T extends { id: string }>(key: keyof LocalDB | string, id: string): T | null {
     const tableKey = this.normalizeKey(key as string);
     const list = ((this[tableKey] || []) as unknown) as T[];
-    if (!Array.isArray(list)) return null;
-    return list.find(item => item && item.id === id) || null;
-  }
-
-  // 헬퍼 메소드들 - CRUD 시뮬레이션 및 백그라운드 Supabase 업로드
-  addRow<T extends { id: string }>(key: keyof LocalDB | string, row: Omit<T, 'id'> & { id?: string }): T {
-    return this.insertRow<T>(key, row);
-  }
-
-  insertRow<T extends { id: string }>(key: keyof LocalDB | string, row: Omit<T, 'id'> & { id?: string }): T {
-    const tableKey = this.normalizeKey(key as string);
-    const list = ((this[tableKey] || []) as unknown) as T[];
-    const newId = row.id || this.generateNextId(tableKey as string, list as any, row);
-    const nowIso = new Date().toISOString();
-    const formattedRow = {
-      createdAt: nowIso,
-      updatedAt: nowIso,
-      ...(row as any),
-      id: newId
-    };
-    const newRow = formattedRow as unknown as T;
-    list.push(newRow);
-    this.set(tableKey, list);
-
-    const tableName = this.mapToSupabaseTable(tableKey as string);
-    const targetClient = CENTRAL_TABLE_NAMES.has(tableName) ? centralSupabase : supabase;
-    if (targetClient) {
-      const payloadForSupabase = this.sanitizeSupabasePayload(newRow, tableName);
-      // upsert(onConflict: 'id'): 동일 id가 이미 존재하면 update로 대체 — PK 중복 오류 방지
-      const promise = targetClient
-        .from(tableName)
-        .upsert([payloadForSupabase], { onConflict: 'id' })
-        .then(async ({ data, error }) => {
-          if (error) {
-            console.error(`Supabase upsert failed for ${tableName}:`, error);
-            const msg = error.message || String(error);
-            const isTableMissing = msg.includes('Could not find the table') || (error.code === 'PGRST204' && msg.includes('table')) || error.code === '42P01';
-            if (isTableMissing) {
-              console.warn(`[Graceful Isolation] 원격 Supabase DB에 ${tableName} 테이블이 존재하지 않습니다. 로컬 저장을 완결합니다.`);
-              return null;
-            }
-            // 신규 미반영 컬럼 에러 시 2차 Fallback (주요 기본 컬럼만 전송하여 100% 저장 성공 보장)
-            if (msg.includes('column') || msg.includes('Could not find') || error.code === 'PGRST200' || error.code === '42703' || error.code === 'PGRST204') {
-              // 💡 [tenants 테이블 스키마 자동 반영 시도]
-              if (tableName === 'tenants' && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column'))) {
-                try {
-                  const applied = await autoApplyTenantsDdl();
-                  if (applied) {
-                    await new Promise(r => setTimeout(r, 200));
-                    const retryRes = await targetClient.from(tableName).upsert([payloadForSupabase], { onConflict: 'id' });
-                    if (!retryRes.error) {
-                      console.log(`[tenants DDL 자동 반영 성공] ${tableName} upsert 정상 완료`);
-                      return retryRes.data;
-                    }
-                    console.warn(`[tenants DDL 재시도 실패, Fallback 페이로드 진행]:`, retryRes.error?.message);
-                  }
-                } catch (ddlErr) {
-                  console.warn(`[tenants DDL 자동 실행 예외]:`, ddlErr);
-                }
-              }
-
-              const fallbackPayload = { ...payloadForSupabase };
-              delete fallbackPayload.defectsJson;
-              delete fallbackPayload.inboundNo;
-              delete fallbackPayload.maintenanceScore;
-              delete fallbackPayload.supplier;
-              delete fallbackPayload.category;
-              delete fallbackPayload.note;
-              delete fallbackPayload.repairingQty;
-              delete fallbackPayload.bankTransactionId;
-              delete fallbackPayload.department;
-
-              // 💡 미반영 컬럼 동적 감지 및 즉각 제거 후 재시도
-              const colMatch = msg.match(/Could not find the '([^']+)' column/) || msg.match(/column "?([^"\s]+)"? of relation/);
-              if (colMatch && colMatch[1]) {
-                delete fallbackPayload[colMatch[1]];
-              }
-
-              // 🛡️ [tenants 전용 Fallback 방어벽] PostgREST 캐시 불일치 컬럼 안전 제거 및 직인 보존
-              if (tableName === 'tenants') {
-                if (msg.includes('targetRepo') || msg.includes('column')) delete fallbackPayload.targetRepo;
-                if (msg.includes('solutionType') || msg.includes('column')) delete fallbackPayload.solutionType;
-                if (msg.includes('stampImageUrl') || msg.includes('column')) {
-                  delete fallbackPayload.stampImageUrl;
-                  if (!fallbackPayload.stampBase64 && payloadForSupabase.stampImageUrl) {
-                    fallbackPayload.stampBase64 = payloadForSupabase.stampImageUrl;
-                  }
-                }
-              }
-
-              return targetClient.from(tableName).upsert([fallbackPayload], { onConflict: 'id' }).then(({ data: d2, error: e2 }) => {
-                if (e2) {
-                  console.error(`Supabase fallback upsert failed for ${tableName}:`, e2);
-                  throw new Error(`[Supabase DB 저장 실패] ${tableName} (ID: ${newId})\n\n사유: ${e2.message || String(e2)}`);
-                }
-                return d2;
-              });
-            }
-            throw new Error(`[Supabase DB 저장 실패] ${tableName} (ID: ${newId})\n\n사유: ${msg}`);
-          }
-          return data;
-        });
-      this.pendingWrites.push(promise);
-    }
-
-    return newRow;
-  }
-
-  updateRow<T extends { id: string }>(key: keyof LocalDB | string, id: string, updates: Partial<T>): T | null {
-    const tableKey = this.normalizeKey(key as string);
-    const list = ((this[tableKey] || []) as unknown) as T[];
-    if (!Array.isArray(list)) return null;
-    const index = list.findIndex(item => item && item.id === id);
-    if (index === -1) return null;
-    const nowIso = new Date().toISOString();
-    const updatedPayload = {
-      ...updates,
-      updatedAt: nowIso
-    };
-    const updated = { ...list[index], ...updatedPayload } as unknown as T;
-    list[index] = updated;
-    this.set(tableKey, list);
-
-    const tableName = this.mapToSupabaseTable(tableKey as string);
-    const targetClient = CENTRAL_TABLE_NAMES.has(tableName) ? centralSupabase : supabase;
-    if (targetClient) {
-      let payloadForSupabase = this.sanitizeSupabasePayload(updatedPayload, tableName);
-
-      // 💡 [NULL 컬럼 갱신 보장]: updates에 명시적으로 전달된 undefined/null 필드를 Supabase null로 정확히 반영
-      for (const updateKey in updates) {
-        if (updates[updateKey] === undefined || updates[updateKey] === null) {
-          payloadForSupabase[updateKey] = null;
-        }
-      }
-
-      // 🛡️ [FK 위반 원천 차단] consumable_purchases 테이블 업데이트 시,
-      // 기존 레코드에 남아있는 consumableId가 유효하지 않으면 consumableId = null을 명시하여 Supabase FK 오류를 완벽하게 예방
-      if (tableName === 'consumable_purchases') {
-        const targetConsumableId = ('consumableId' in payloadForSupabase) ? payloadForSupabase.consumableId : (list[index] as any)?.consumableId;
-        const isValid = typeof targetConsumableId === 'string' && targetConsumableId.trim() !== '' && this.consumables.some(c => c.id === targetConsumableId);
-        if (!isValid) {
-          payloadForSupabase = {
-            ...payloadForSupabase,
-            consumableId: null
-          };
-        }
-      }
-
-      const promise = targetClient
-        .from(tableName)
-        .update(payloadForSupabase as any)
-        .eq('id', id)
-        .then(async ({ data, error }) => {
-          if (error) {
-            console.error(`Supabase update failed for ${tableName}:`, error);
-            const msg = error.message || String(error);
-            const isTableMissing = msg.includes('Could not find the table') || (error.code === 'PGRST204' && msg.includes('table')) || error.code === '42P01';
-            if (isTableMissing) {
-              console.warn(`[Graceful Isolation] 원격 Supabase DB에 ${tableName} 테이블이 존재하지 않습니다. 로컬 저장을 완결합니다.`);
-              return null;
-            }
-            if (msg.includes('column') || msg.includes('Could not find') || error.code === 'PGRST200' || error.code === '42703' || error.code === 'PGRST204') {
-              // 💡 [tenants 테이블 스키마 자동 반영 시도]
-              if (tableName === 'tenants' && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column'))) {
-                try {
-                  const applied = await autoApplyTenantsDdl();
-                  if (applied) {
-                    await new Promise(r => setTimeout(r, 200));
-                    const retryRes = await targetClient.from(tableName).update(payloadForSupabase as any).eq('id', id);
-                    if (!retryRes.error) {
-                      console.log(`[tenants DDL 자동 반영 성공] ${tableName} update 정상 완료`);
-                      return retryRes.data;
-                    }
-                    console.warn(`[tenants DDL 재시도 실패, Fallback 페이로드 진행]:`, retryRes.error?.message);
-                  }
-                } catch (ddlErr) {
-                  console.warn(`[tenants DDL 자동 실행 예외]:`, ddlErr);
-                }
-              }
-
-              const fallbackPayload = { ...payloadForSupabase };
-              delete fallbackPayload.defectsJson;
-              delete fallbackPayload.inboundNo;
-              delete fallbackPayload.maintenanceScore;
-              delete fallbackPayload.supplier;
-              delete fallbackPayload.category;
-              delete fallbackPayload.note;
-              delete fallbackPayload.repairingQty;
-              delete fallbackPayload.bankTransactionId;
-
-              // 💡 미반영 컬럼 동적 감지 및 즉각 제거 후 재시도
-              const colMatch = msg.match(/Could not find the '([^']+)' column/) || msg.match(/column "?([^"\s]+)"? of relation/);
-              if (colMatch && colMatch[1]) {
-                delete fallbackPayload[colMatch[1]];
-              }
-
-              // 🛡️ [tenants 전용 Fallback 방어벽] PostgREST 캐시 불일치 컬럼 안전 제거 및 직인 보존
-              if (tableName === 'tenants') {
-                if (msg.includes('targetRepo') || msg.includes('column')) delete fallbackPayload.targetRepo;
-                if (msg.includes('solutionType') || msg.includes('column')) delete fallbackPayload.solutionType;
-                if (msg.includes('stampImageUrl') || msg.includes('column')) {
-                  delete fallbackPayload.stampImageUrl;
-                  if (!fallbackPayload.stampBase64 && (payloadForSupabase as any).stampImageUrl) {
-                    fallbackPayload.stampBase64 = (payloadForSupabase as any).stampImageUrl;
-                  }
-                }
-              }
-
-              return targetClient.from(tableName).update(fallbackPayload as any).eq('id', id).then(({ data: d2, error: e2 }) => {
-                if (e2) {
-                  console.error(`Supabase fallback update failed for ${tableName}:`, e2);
-                  throw new Error(`[Supabase DB 수정 실패] ${tableName} (ID: ${id})\n\n사유: ${e2.message || String(e2)}`);
-                }
-                return d2;
-              });
-            }
-            throw new Error(`[Supabase DB 수정 실패] ${tableName} (ID: ${id})\n\n사유: ${msg}`);
-          }
-          return data;
-        });
-      this.pendingWrites.push(promise);
-    }
-
-    return updated;
-  }
-
-  deleteRow<T extends { id: string }>(key: keyof LocalDB | string, id: string): boolean {
-    const tableKey = this.normalizeKey(key as string);
-    // 최고관리자 계정 절대 보호
-    if (tableKey === 'users' && (id === 'u-1' || id === 'sys-admin')) {
-      console.warn('Cannot delete system administrator account.');
-      return false;
-    }
-    const list = ((this[tableKey] || []) as unknown) as T[];
     if (!Array.isArray(list)) return false;
+    
+    // 롤백을 위해 원본 아이템 저장
+    const originalItem = list.find(item => item && item.id === id);
+    
     const filtered = list.filter(item => item && item.id !== id);
     if (filtered.length === list.length) return false;
     this.set(tableKey, filtered);
@@ -6595,13 +6365,24 @@ class LocalDB {
         .eq('id', id)
         .then(({ error }) => {
           if (error) {
+            // 에러 시 프론트엔드 메모리 롤백
+            if (originalItem) {
+              const currentList = ((this[tableKey] || []) as unknown) as T[];
+              if (!currentList.some(item => item && item.id === id)) {
+                this.set(tableKey, [...currentList, originalItem]);
+              }
+            }
             console.error(`Supabase delete failed for ${tableName}:`, error);
             const msg = error.message || String(error);
             if (msg.includes('Could not find the table') || error.code === 'PGRST204' || error.code === '42P01') {
-              console.warn(`[Graceful Isolation] 원격 Supabase DB에 ${tableName} 테이블이 존재하지 않습니다. 로컬 저장을 완결합니다.`);
+              console.warn(`[Graceful Isolation] 로컬 Supabase DB에 ${tableName} 테이블이 존재하지 않습니다. 쓰기 요청을 스킵합니다.`);
               return null;
             }
-            throw new Error(`[Supabase DB 삭제 실패] ${tableName} (ID: ${id})\n\n사유: ${msg}`);
+            
+            // 원본 에러 코드 보존
+            const customError = new Error(`[Supabase DB 삭제 실패] ${tableName} (ID: ${id})\n\n사유: ${msg}`);
+            (customError as any).code = error.code;
+            throw customError;
           }
         });
       this.pendingWrites.push(promise);

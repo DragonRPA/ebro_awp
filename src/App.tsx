@@ -311,6 +311,7 @@ const ContextualManualButton: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  console.log("[DEBUG] App Render!");
   const context = useApp();
   if (typeof window !== 'undefined') {
     (window as any).__APP_CONTEXT__ = context;
@@ -546,7 +547,7 @@ const App: React.FC = () => {
   };
 
   // 계층형 상위-하위 아코디언 메뉴 구조 정의 (유저 지정 규격)
-  const menuGroups: MenuGroup[] = [
+  const menuGroups: MenuGroup[] = React.useMemo(() => [
     {
       id: 'grp_approval',
       name: '결재 센터',
@@ -601,7 +602,7 @@ const App: React.FC = () => {
       icon: <ArrowLeftRight size={17} />,
       items: [
         { id: 'daily_inout', name: '일일 입출고 조회', icon: <Calendar size={16} />, component: <DailyInOutStatus /> },
-        { id: 'asset_inout_history', name: '자산 입출고', icon: <Clock size={16} />, component: <AssetHistory /> },
+        { id: 'asset_inout_history', name: '입고등록/입출고조회', icon: <Clock size={16} />, component: <AssetHistory /> },
         { id: 'dispatch_assign', name: '장비 할당 / 매핑', icon: <Layers size={16} />, component: <AssetAssignment /> },
         { id: 'outbound_inspections', name: '출고 검수 관리', icon: <CheckSquare size={16} />, component: <OutboundInspections /> },
         { id: 'consumable_stock', name: '주기장 소모품 재고', icon: <Boxes size={16} />, component: <ConsumableStockPage /> },
@@ -674,7 +675,7 @@ const App: React.FC = () => {
         { id: 'dev_uploader', name: '[개발] DB 데이터 업로더', icon: <DatabaseIcon size={16} />, component: <DevDataUploader /> },
       ]
     }
-  ];
+  ], []);
 
   // 상위 그룹 아코디언 접힘/펼침 상태
 
@@ -865,7 +866,7 @@ const App: React.FC = () => {
   useEffect(() => {
     menuGroups.forEach(grp => {
       if (grp.items.some(item => item.id === activeTab)) {
-        setExpandedGroups(prev => ({ ...prev, [grp.id]: true }));
+        setExpandedGroups(prev => prev[grp.id] ? prev : { ...prev, [grp.id]: true });
       }
     });
     const allItems = menuGroups.flatMap(g => g.items);
