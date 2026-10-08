@@ -4,7 +4,7 @@ import { getTenantPlugin } from '../integrations/TenantPluginManager';
 import { useApp } from '../context/AppContext';
 import { 
   X, FileText, Download, Eye, CheckCircle2, AlertCircle, 
-  RefreshCw, FileCheck, Mail, Send, Plus, Users, Check, Play
+  RefreshCw, FileCheck, Mail, Send, Plus, Users, Check, Play, Filter
 } from 'lucide-react';
 import { emailService } from '../services/email';
 import { db, formatContractEndDate } from '../services/db';
@@ -89,6 +89,20 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     initialContractId || contracts[0]?.id || ''
   );
 
+  const [filterDate, setFilterDate] = useState<string>('ALL');
+
+  const availableStartDates = useMemo(() => {
+    if (!selectedContractId) return [];
+    const caList = contractAssets.filter(ca => ca.contractId === selectedContractId);
+    const dates = Array.from(new Set(caList.map(ca => ca.startDate).filter(Boolean)));
+    return dates.sort();
+  }, [selectedContractId, contractAssets]);
+  
+  useEffect(() => {
+    // Reset filter when contract changes
+    setFilterDate('ALL');
+  }, [selectedContractId]);
+
   useEffect(() => {
     if (isOpen) {
       setSelectedContractId(initialContractId || contracts[0]?.id || '');
@@ -161,7 +175,12 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
 
   const mappedAssets = useMemo(() => {
     if (!selectedContract) return [];
-    const caList = contractAssets.filter(ca => ca.contractId === selectedContract.id);
+    let caList = contractAssets.filter(ca => ca.contractId === selectedContract.id);
+    
+    if (filterDate !== 'ALL') {
+      caList = caList.filter(ca => ca.startDate === filterDate);
+    }
+    
     return caList.map(ca => {
       const a = assets.find(ast => ast.id === ca.assetId);
       const model = a?.modelName || ca.expectedModel || 'GS-2646';
@@ -810,7 +829,36 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
             </select>
           </div>
 
-          {/* 2. 선택된 계약 요약 카드 */}
+          {/* 투입일 기준 분할 출력 필터 */}
+            {availableStartDates.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px', padding: '12px', backgroundColor: 'var(--bg-body)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <label style={{ fontSize: '12px', color: 'var(--text-main)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Filter size={14} color="var(--primary)" /> 계약서 패키지 분할 발행 (대상 장비 그룹화)
+                </label>
+                <select
+                  className="form-input"
+                  value={filterDate}
+                  onChange={(e) => setFilterDate(e.target.value)}
+                  style={{ width: '100%', fontSize: '13px' }}
+                  disabled={isGenerating || emailSentSuccess}
+                >
+                  <option value="ALL">전체 투입 장비 일괄 생성 ({contractAssets.filter(ca => ca.contractId === selectedContractId).length}대)</option>
+                  {availableStartDates.map(date => {
+                    const count = contractAssets.filter(ca => ca.contractId === selectedContractId && ca.startDate === date).length;
+                    return (
+                      <option key={date} value={date}>
+                        {date} 단일 투입건 분리 생성 ({count}대)
+                      </option>
+                    );
+                  })}
+                </select>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  * 단일 현장에 여러 날짜에 걸쳐 출고된 경우, 투입일자별로 서류를 분리하여 생성하고 개별 서명을 받을 수 있습니다.
+                </span>
+              </div>
+            )}
+            
+            {/* 2. 선택된 계약 요약 카드 */}
           {selectedContract && (
             <div
               style={{
