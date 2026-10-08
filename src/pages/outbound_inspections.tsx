@@ -431,8 +431,19 @@ export const OutboundInspections: React.FC = () => {
         if (item.assetId) {
           db.updateRow<Asset>('assets', item.assetId, {
             status: 'RENTED',
+            currentCustomerId: contract?.customerId || '',
+            currentSiteId: contract?.siteId || '',
+            contractStart: contract?.startDate || '',
+            contractEnd: contract?.endDate || '',
             updatedAt: nowIso
           });
+          
+          if (item.contractAssetId) {
+            db.updateRow<ContractAsset>('contractAssets', item.contractAssetId, {
+              status: 'RENTED',
+              updatedAt: nowIso
+            });
+          }
 
           // 🟢 [헌장 1.2] 발생 사건 무누락 DB 저장: 출고 검수 승인 시 자산 입출고 이력 1:1 정규화 저장
           const targetAsset = db.assets.find(a => a.id === item.assetId);

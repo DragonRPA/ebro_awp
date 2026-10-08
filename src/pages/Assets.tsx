@@ -58,15 +58,38 @@ export const Assets: React.FC = () => {
 
   // 계약번호 O(1) 사전 인덱싱 (기존 380만 번 반복 순회 제거)
   const contractMap = useMemo(() => {
-    const map = new Map<string, { contractNo: string; contractId: string }>();
+    const map = new Map<string, { contractNo: string; contractId: string; status?: string }>();
     if (!contractAssets || !contracts) return map;
     const contractsById = new Map<string, any>((contracts || []).map(c => [c.id, c]));
     for (const ca of contractAssets) {
       if (!ca.assetId) continue;
       const c = contractsById.get(ca.contractId);
       if (c) {
-        if (c.status === 'ACTIVE' || !map.has(ca.assetId)) {
-          map.set(ca.assetId, { contractNo: c.contractNo, contractId: c.id });
+        // 우선순위 1: 현재 RENTED 상태인 계약자산이 가장 최우선 (실제 대여중)
+        // 우선순위 2: ASSIGNED 상태
+        // 우선순위 3: 계약 상태가 ACTIVE
+        const existing = map.get(ca.assetId);
+        
+        let shouldUpdate = false;
+        if (!existing) {
+          shouldUpdate = true;
+        } else {
+          // 이미 값이 있다면 상태 우선순위 비교 (RENTED > ASSIGNED > 그외)
+          if (ca.status === 'RENTED') {
+            shouldUpdate = true;
+          } else if (ca.status === 'ASSIGNED' && existing.status !== 'RENTED') {
+            shouldUpdate = true;
+          } else if (c.status === 'ACTIVE' && existing.status !== 'RENTED' && existing.status !== 'ASSIGNED') {
+            shouldUpdate = true;
+          }
+        }
+        
+        if (shouldUpdate) {
+          map.set(ca.assetId, { 
+            contractNo: c.contractNo, 
+            contractId: c.id,
+            status: ca.status // for priority tracking
+          });
         }
       }
     }
