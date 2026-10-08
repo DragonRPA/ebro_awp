@@ -304,7 +304,7 @@ export const AssetInboundStaging: React.FC = () => {
       )}
 
       {/* 1. 바코드 입력창 및 입고일 설정 (상단) */}
-      <div className="card" style={{ padding: '20px', display: 'flex', gap: '20px', alignItems: 'center' }}>
+      <div className="card" style={{ padding: '20px', display: 'flex', gap: '20px', alignItems: 'flex-end' }}>
         <div style={{ flex: 1 }}>
           <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
             입고 장비 관리번호 연속 입력 (바코드 스캔) *
@@ -332,6 +332,17 @@ export const AssetInboundStaging: React.FC = () => {
             onChange={(e) => setInboundDate(e.target.value)}
             style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '14px', backgroundColor: 'var(--bg-main)' }}
           />
+        </div>
+        <div>
+          <button 
+            type="button"
+            className="btn-primary"
+            onClick={handleSubmitBulk}
+            disabled={stagedAssets.length === 0 || isSubmitting}
+            style={{ padding: '8px 30px', fontSize: '14px', fontWeight: 'bold', height: '37.6px', whiteSpace: 'nowrap' }}
+          >
+            {isSubmitting ? '처리 중...' : `총 ${stagedAssets.length}대 일괄 입고 확정`}
+          </button>
         </div>
       </div>
 
@@ -392,17 +403,7 @@ export const AssetInboundStaging: React.FC = () => {
             </tbody>
           </table>
         </div>
-        <div style={{ padding: '16px 20px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
-          <button 
-            type="button"
-            className="btn-primary"
-            onClick={handleSubmitBulk}
-            disabled={stagedAssets.length === 0 || isSubmitting}
-            style={{ padding: '12px 30px', fontSize: '15px', fontWeight: 'bold' }}
-          >
-            {isSubmitting ? '처리 중...' : `총 ${stagedAssets.length}대 일괄 입고 확정`}
-          </button>
-        </div>
+        
       </div>
 
       {/* 3. 개별 검수 모달 */}
