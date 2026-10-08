@@ -8808,12 +8808,43 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           !(ca.assetId && reviewedAssetIds.includes(ca.assetId)) && ca.status !== 'RETURNED'
         );
 
-        // 모든 장비가 회수 완료되었을 때만 계약을 COMPLETED로 종료
+        // 💡 [단일 진실의 원천]: 모든 장비가 회수 완료되었을 때 마스터 계약을 COMPLETED로 종료하고 종료일(endDate)을 입고일로 덮어쓰기
         if (remainingActiveAssets.length === 0) {
-          db.updateRow<Contract>('contracts', delivery.contractId, {
-            status: 'COMPLETED',
-            updatedAt: new Date().toISOString()
-          });
+          const contract = db.contracts.find(c => c.id === delivery.contractId);
+          if (contract) {
+            db.updateRow<Contract>('contracts', delivery.contractId, {
+              status: 'COMPLETED',
+              endDate: actualReturnDate, // 💡 마지막 자산의 입고일로 동기화
+              updatedAt: registeredAt
+            });
+            db.insertRow<ContractHistory>('contractHistory', {
+              contractId: contract.id,
+              changeType: 'TERMINATE',
+              changeDate: actualReturnDate,
+              prevEndDate: contract.endDate,
+              newEndDate: actualReturnDate,
+              description: `[자동 마감] 마지막 자산 배차 반납(입고일: ${actualReturnDate})에 따른 마스터 계약 마감 및 종료일 동기화`,
+              createdAt: registeredAt
+            });
+          }
+        } else {
+          // 잔여 장비가 남아있지만 이번 반납일이 마스터 계약 종료일보다 늦은 경우 후행 연장
+          const contract = db.contracts.find(c => c.id === delivery.contractId);
+          if (contract && actualReturnDate > contract.endDate) {
+            db.updateRow<Contract>('contracts', delivery.contractId, {
+              endDate: actualReturnDate,
+              updatedAt: registeredAt
+            });
+            db.insertRow<ContractHistory>('contractHistory', {
+              contractId: contract.id,
+              changeType: 'EXTEND',
+              changeDate: actualReturnDate,
+              prevEndDate: contract.endDate,
+              newEndDate: actualReturnDate,
+              description: `[자동 연장] 자산 배차 반납(입고일: ${actualReturnDate})에 따른 마스터 계약 강제 연장 동기화`,
+              createdAt: registeredAt
+            });
+          }
         }
       }
     }
@@ -8899,21 +8930,49 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         });
       }
 
-      // 마스터 계약(Contract)의 종료일자도 가장 늦은 자산 반납일 기준으로 후행 연장 (단축은 제외, 연장만)
-      if (contract && data.returnDate > contract.endDate) {
-        db.updateRow<Contract>('contracts', contract.id, {
-          endDate: data.returnDate,
-          updatedAt: registeredAt
-        });
-        db.insertRow<ContractHistory>('contractHistory', {
-          contractId: contract.id,
-          changeType: 'EXTEND',
-          changeDate: data.returnDate,
-          prevEndDate: contract.endDate,
-          newEndDate: data.returnDate,
-          description: `[자동 연장] 입고 처리(입고일: ${data.returnDate})에 따른 계약 강제 연장 동기화`,
-          createdAt: registeredAt
-        });
+      // 💡 [단일 진실의 원천]: 해당 계약의 잔여 장비가 0대가 되었는지 확인하고 마감 처리 (동기화)
+      if (contract) {
+        const updatedCaIds = activeCAs.map(c => c.id);
+        if (ca && !updatedCaIds.includes(ca.id)) updatedCaIds.push(ca.id);
+        
+        const remainingAssets = db.contractAssets.filter(c => 
+          c.contractId === contract.id && 
+          c.status !== 'RETURNED' && 
+          !updatedCaIds.includes(c.id)
+        );
+
+        if (remainingAssets.length === 0) {
+          // 마지막 장비 반납 -> 계약 완전 마감 (종료일 덮어쓰기)
+          db.updateRow<Contract>('contracts', contract.id, {
+            status: 'COMPLETED',
+            endDate: data.returnDate, // 마지막 자산 반납일로 완전 동기화 (단축/연장 모두 포함)
+            updatedAt: registeredAt
+          });
+          db.insertRow<ContractHistory>('contractHistory', {
+            contractId: contract.id,
+            changeType: 'TERMINATE',
+            changeDate: data.returnDate,
+            prevEndDate: contract.endDate,
+            newEndDate: data.returnDate,
+            description: `[자동 마감] 마지막 자산 반납(입고일: ${data.returnDate})에 따른 마스터 계약 마감 및 종료일 동기화`,
+            createdAt: registeredAt
+          });
+        } else if (data.returnDate > contract.endDate) {
+          // 잔여 장비가 남아있지만, 이번 장비가 지연 반납된 경우 -> 계약 연장만
+          db.updateRow<Contract>('contracts', contract.id, {
+            endDate: data.returnDate,
+            updatedAt: registeredAt
+          });
+          db.insertRow<ContractHistory>('contractHistory', {
+            contractId: contract.id,
+            changeType: 'EXTEND',
+            changeDate: data.returnDate,
+            prevEndDate: contract.endDate,
+            newEndDate: data.returnDate,
+            description: `[자동 연장] 입고 처리(입고일: ${data.returnDate})에 따른 마스터 계약 강제 연장 동기화`,
+            createdAt: registeredAt
+          });
+        }
       }
     }
 
