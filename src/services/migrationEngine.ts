@@ -1176,7 +1176,7 @@ export function parseInitialExcelWorkbook(
   const rawMainRows = allMainRows.slice(mainDataStartIndex);
 
   const contracts: any[] = [];
-  const contractAssets: any[] = [];
+  let contractAssets: any[] = [];
   const externalLeases: any[] = [];
   const deliveries: any[] = [];
   const outboundInspections: any[] = [];
@@ -1962,6 +1962,65 @@ export function parseInitialExcelWorkbook(
   const histBills = billings.filter(b => b.billingYm !== '2026-08');
   const outboundDelivs = deliveries.filter(d => d.type === 'OUTBOUND');
   const inboundDelivs = deliveries.filter(d => d.type === 'INBOUND');
+
+
+  // ────────────────────────────────────────────────────────────────
+  // 🌟 [방어 가드 - SSOT] ContractAsset 슬롯 병합 로직 (중복 행 제거)
+  // 초기 엑셀 데이터가 청구 목적으로 8, 9월 등으로 나뉘어 있어도, 
+  // 물리적 투입 이력인 ContractAsset은 동일 계약 + 동일 장비에 대해 단일 슬롯으로 통합(Merge)되어야 함.
+  // ────────────────────────────────────────────────────────────────
+  const mergedCaMap = new Map<string, any>();
+  const caIdRemap = new Map<string, string>(); // 구 ca.id -> 신규(통합) ca.id
+
+  for (const ca of contractAssets) {
+    // 식별키: 자산이 있으면 (계약+자산), 없으면 (계약+모델+시작일) 등
+    const key = ca.assetId ? `${ca.contractId}_${ca.assetId}` : `${ca.contractId}_${ca.expectedModel}_${ca.id}`; // asset이 없으면 일단 합치지 않음(안전을 위해 id를 포함)
+    
+    const existing = mergedCaMap.get(key);
+    if (!existing) {
+      mergedCaMap.set(key, { ...ca });
+      caIdRemap.set(ca.id, ca.id);
+    } else {
+      // 이미 같은 계약에 같은 자산이 배정된 슬롯이 존재함 (중복 쪼개짐)
+      caIdRemap.set(ca.id, existing.id); // 이후 청구서 등은 병합된 슬롯 ID를 바라보도록 매핑
+
+      // 날짜 확장 (StartDate는 더 이른 날짜로)
+      if (ca.startDate && ca.startDate < existing.startDate) {
+        existing.startDate = ca.startDate;
+        if (ca.firstStartDate && (!existing.firstStartDate || ca.firstStartDate < existing.firstStartDate)) {
+          existing.firstStartDate = ca.firstStartDate;
+        }
+      }
+      
+      // 날짜 확장 (EndDate는 더 늦은 날짜로)
+      // null은 무한대를 의미하므로, existing.endDate가 null이면 그대로 둠.
+      if (existing.endDate !== null) {
+        if (ca.endDate === null || ca.endDate > existing.endDate) {
+          existing.endDate = ca.endDate;
+        }
+      }
+    }
+  }
+
+  // 병합된 단일 슬롯들로 교체
+  contractAssets = Array.from(mergedCaMap.values());
+
+  // 연관된 하위 엔티티들(billingDetails 등)의 contractAssetId를 병합된 대표 ID로 치환
+  for (const bd of billingDetails) {
+    if (bd.contractAssetId && caIdRemap.has(bd.contractAssetId)) {
+      bd.contractAssetId = caIdRemap.get(bd.contractAssetId);
+    }
+  }
+  for (const pbd of purchaseBillingDetails) {
+    if (pbd.contractAssetId && caIdRemap.has(pbd.contractAssetId)) {
+      pbd.contractAssetId = caIdRemap.get(pbd.contractAssetId);
+    }
+  }
+  for (const el of externalLeases) {
+    if (el.contractAssetId && caIdRemap.has(el.contractAssetId)) {
+      el.contractAssetId = caIdRemap.get(el.contractAssetId);
+    }
+  }
 
   const stats: MigrationStats = {
     productsCount: parsedProducts.length,
