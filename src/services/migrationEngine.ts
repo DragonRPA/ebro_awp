@@ -1550,6 +1550,8 @@ export function parseInitialExcelWorkbook(
         startDate: rowStartDate,
         endDate: rowEndDate,
         firstStartDate: firstStartDate,
+        status: isCompleted || leaseReturnDate ? 'RETURNED' : 'RENTED',
+        actualReturnDate: isCompleted || leaseReturnDate ? (leaseReturnDate || rowEndDate || nowIso.split('T')[0]) : null,
         createdAt: nowIso,
         updatedAt: nowIso
       });
