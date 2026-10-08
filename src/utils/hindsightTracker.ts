@@ -9,6 +9,7 @@ interface HindsightMemoryBundle {
   trigger_element: any;
   interaction_history: Array<any>;
   final_query?: any;
+  raw_sql?: string;
 }
 
 let isHistoryListenerAttached = false;
@@ -135,7 +136,7 @@ function buildPseudoSql(method: string, table: string, qs: string, bodyParsed: a
 }
 
 let isFetchMonkeyPatched = false;
-let lastOutgoingQuery: any = null;
+let outgoingQueriesBuffer: any[] = [];
 
 function setupFetchInterceptor() {
   if (isFetchMonkeyPatched) return;
@@ -165,13 +166,13 @@ function setupFetchInterceptor() {
           }
         } catch(e) {}
 
-        lastOutgoingQuery = {
+        outgoingQueriesBuffer.push({
           timestamp: new Date().toISOString(),
           method: method,
           url: url,
           payload: bodyParsed,
           pseudo_sql: pseudo_sql
-        };
+        });
       }
     }
     return originalFetch.apply(this, args as any);
@@ -242,19 +243,28 @@ export function initializeHindsightTracker() {
         cssPath: getFullCssPath(triggerEl)
       };
 
-      const payload: HindsightMemoryBundle = {
-        action_name: actionName,
-        menu_path: document.body.getAttribute('data-active-menu') || window.location.pathname + window.location.search,
-        trigger_element: triggerDetails,
-        interaction_history: [...interactionHistory],
-        final_query: lastOutgoingQuery
-      };
+            const menu_path = document.body.getAttribute('data-active-menu') || window.location.pathname + window.location.search;
+      const history_copy = [...interactionHistory];
       
       interactionHistory.length = 0;
+      outgoingQueriesBuffer = []; // 클릭 발생 시점의 버퍼 초기화 (이후 발생하는 Fetch들을 수집하기 위함)
 
       setTimeout(() => {
+        const capturedQueries = [...outgoingQueriesBuffer];
+        let finalQueryPayload = capturedQueries.length === 1 ? capturedQueries[0] : (capturedQueries.length > 0 ? capturedQueries : null);
+        let combinedRawSql = capturedQueries.map(q => q.pseudo_sql).filter(Boolean).join('\n');
+
+        const payload: HindsightMemoryBundle = {
+          action_name: actionName,
+          menu_path: menu_path,
+          trigger_element: triggerDetails,
+          interaction_history: history_copy,
+          final_query: finalQueryPayload,
+          raw_sql: combinedRawSql || undefined
+        };
+        
         sendToHindsightAgent(payload);
-      }, 1000);
+      }, 1500); // 일괄 처리 로직이 모두 Fetch를 보낼 수 있도록 1.5초 대기 후 수집
     }
   }, true);
 }
@@ -278,7 +288,7 @@ async function sendToHindsightAgent(payload: HindsightMemoryBundle) {
       tenant_id: tenantId,
       action_name: payload.action_name,
       menu_path: payload.menu_path,
-      raw_sql: payload.final_query?.pseudo_sql || null,
+      raw_sql: payload.raw_sql || payload.final_query?.pseudo_sql || null,
       final_query: payload.final_query || {},
       ui_context_bundle: {
         trigger_element: payload.trigger_element,
