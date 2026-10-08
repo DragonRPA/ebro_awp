@@ -38,6 +38,7 @@ export const AssetInboundStaging: React.FC = () => {
 
   // 모달 상태
   const [inspectionModalAssetId, setInspectionModalAssetId] = useState<string | null>(null);
+  const [invalidAssets, setInvalidAssets] = useState<{ assetNo: string; status: string }[]>([]);
 
   // 스캔 처리 로직 (콤마, 공백, 엔터 분리)
   const handleScanInput = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -58,6 +59,7 @@ export const AssetInboundStaging: React.FC = () => {
     if (tokens.length === 0) return;
 
     const newAssets: StagedAsset[] = [];
+    const newInvalids: { assetNo: string; status: string }[] = [];
     
     tokens.forEach(token => {
       // 이미 목록에 있는지 확인
@@ -73,7 +75,7 @@ export const AssetInboundStaging: React.FC = () => {
       }
 
       if (asset.status !== 'RENTED' && asset.status !== 'ASSIGNED') {
-        showToast(`관리번호 ${token} 자산은 대여/출고 상태가 아닙니다. (${asset.status})`, 'error');
+        newInvalids.push({ assetNo: asset.assetNo, status: asset.status });
         return;
       }
 
@@ -118,6 +120,9 @@ export const AssetInboundStaging: React.FC = () => {
     if (newAssets.length > 0) {
       setStagedAssets(prev => [...prev, ...newAssets]);
       showToast(`${newAssets.length}대 자산이 입고 대기 목록에 추가되었습니다.`);
+    }
+    if (newInvalids.length > 0) {
+      setInvalidAssets(newInvalids);
     }
     setScanInput(''); // 입력창 초기화
   };
@@ -437,6 +442,42 @@ export const AssetInboundStaging: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* 입고 불가 자산 알림 모달 */}
+      {invalidAssets.length > 0 && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="modal-content" style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '8px', minWidth: '400px', maxWidth: '500px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700, color: '#dc2626', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertTriangle size={18} /> 입고 처리 불가 자산
+            </h3>
+            <div style={{ fontSize: '13px', color: '#4b5563', marginBottom: '16px', lineHeight: '1.5' }}>
+              다음 자산은 대여/출고 상태가 아니므로 입고 처리가 불가합니다.<br/>전산상 출고 누락 여부를 확인하십시오.
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+              <thead>
+                <tr>
+                  <th style={{ padding: '8px', border: '1px solid #e5e7eb', backgroundColor: '#f9fafb', fontSize: '12px', textAlign: 'left', fontWeight: 600 }}>관리번호</th>
+                  <th style={{ padding: '8px', border: '1px solid #e5e7eb', backgroundColor: '#f9fafb', fontSize: '12px', textAlign: 'left', fontWeight: 600 }}>현재 상태</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invalidAssets.map(inv => (
+                  <tr key={inv.assetNo}>
+                    <td style={{ padding: '8px', border: '1px solid #e5e7eb', fontSize: '12px', fontWeight: 600 }}>{inv.assetNo}</td>
+                    <td style={{ padding: '8px', border: '1px solid #e5e7eb', fontSize: '12px', color: '#dc2626' }}>{inv.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn-secondary" onClick={() => setInvalidAssets([])} style={{ padding: '6px 16px' }}>
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
