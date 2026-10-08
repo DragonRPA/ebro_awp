@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Search, AlertTriangle, CheckCircle2, ShieldCheck, X, Camera } from 'lucide-react';
 import { compressImageFile } from '../utils/imageCompressor';
@@ -35,6 +35,18 @@ export const AssetInboundStaging: React.FC = () => {
   const [scanInput, setScanInput] = useState('');
   const [stagedAssets, setStagedAssets] = useState<StagedAsset[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [progressState, setProgressState] = useState({ active: false, current: 0, total: 0, message: '' });
+
+  // 화면 이탈 방지 (브라우저 닫기/새로고침 방어)
+  useEffect(() => {
+    if (!progressState.active) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [progressState.active]);
 
   // 모달 상태
   const [inspectionModalAssetId, setInspectionModalAssetId] = useState<string | null>(null);
@@ -178,6 +190,7 @@ export const AssetInboundStaging: React.FC = () => {
     if (stagedAssets.length === 0) return;
     try {
       setIsSubmitting(true);
+      setProgressState({ active: true, current: 0, total: stagedAssets.length, message: '업로드 준비 중...' });
       
       const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
       const config = googleConfigs.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs[0];
@@ -186,7 +199,9 @@ export const AssetInboundStaging: React.FC = () => {
       const accessKeyId = config?.r2AccessKeyId || '03cdb7560d37242de608a5db2a976030';
       const secretAccessKey = config?.r2SecretAccessKey || 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986';
 
-      for (const item of stagedAssets) {
+      for (let i = 0; i < stagedAssets.length; i++) {
+        const item = stagedAssets[i];
+        setProgressState({ active: true, current: i, total: stagedAssets.length, message: `[${item.assetNo}] 동기화 진행 중...` });
         const uploadedPhotoUrls: Record<string, string> = {};
         
         for (const checkId of item.selectedChecklistIds) {
@@ -239,11 +254,43 @@ export const AssetInboundStaging: React.FC = () => {
       showErrorModal(`일괄 입고 처리 중 오류가 발생했습니다: ${err?.message || err}`);
     } finally {
       setIsSubmitting(false);
+      setProgressState({ active: false, current: 0, total: 0, message: '' });
     }
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* 화면 이탈 방지용 진행바 오버레이 */}
+      {progressState.active && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          zIndex: 99999,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          backdropFilter: 'blur(3px)'
+        }}>
+          <div className="card" style={{ width: '400px', padding: '30px', textAlign: 'center', backgroundColor: '#ffffff', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+            <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', fontWeight: 600, color: 'var(--text-main)' }}>일괄 처리 진행 중</h3>
+            <p style={{ color: '#ef4444', fontSize: '13.5px', marginBottom: '24px', fontWeight: 500 }}>
+              ⚠️ 데이터 동기화 중입니다.<br/>화면을 닫거나 다른 탭으로 이동하지 마세요.
+            </p>
+            
+            <div style={{ width: '100%', backgroundColor: 'var(--bg-main)', height: '14px', borderRadius: '7px', overflow: 'hidden', marginBottom: '12px', border: '1px solid var(--border-color)' }}>
+              <div style={{ 
+                height: '100%', 
+                backgroundColor: 'var(--primary)', 
+                width: `${Math.max(5, (progressState.current / Math.max(1, progressState.total)) * 100)}%`,
+                transition: 'width 0.3s ease'
+              }} />
+            </div>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)' }}>
+              <span>{progressState.message}</span>
+              <span style={{ fontWeight: 600, color: 'var(--primary)' }}>{progressState.current} / {progressState.total}대</span>
+            </div>
+          </div>
+        </div>
+      )}
       {toastMessage && (
         <div style={{
           position: 'fixed', top: '20px', right: '20px', zIndex: 9999,
