@@ -1,3 +1,4 @@
+import { AssetInboundStaging } from '../components/AssetInboundStaging';
 // src/pages/asset_history.tsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';

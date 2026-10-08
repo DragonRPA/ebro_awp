@@ -7,7 +7,7 @@ import { InboundDefectDetail } from '../services/db';
 interface StagedAsset {
   assetId: string;
   assetNo: string;
-  model: string;
+  modelName: string;
   customerName: string;
   siteName: string;
   contractId: string;
@@ -72,7 +72,7 @@ export const AssetInboundStaging: React.FC = () => {
         return;
       }
 
-      if (asset.status !== 'RENTED' && asset.status !== 'DISPATCHED') {
+      if (asset.status !== 'RENTED' && asset.status !== 'ASSIGNED') {
         showToast(`관리번호 ${token} 자산은 대여/출고 상태가 아닙니다. (${asset.status})`, 'error');
         return;
       }
@@ -99,7 +99,7 @@ export const AssetInboundStaging: React.FC = () => {
       newAssets.push({
         assetId: asset.id,
         assetNo: asset.assetNo,
-        model: asset.model,
+        modelName: asset.modelName,
         customerName,
         siteName,
         contractId,
@@ -213,7 +213,14 @@ export const AssetInboundStaging: React.FC = () => {
           ? `[정비 항목: ${selectedChecklistSummary}] ${item.memo}`.trim()
           : (item.memo.trim() || '양호');
 
-        await registerInboundAsset(item.assetId, inboundDate, item.penaltyScore, finalMemo, defectDetails);
+        await registerInboundAsset({
+          assetId: item.assetId,
+          returnDate: inboundDate,
+          maintenanceScore: Math.max(0, item.penaltyScore),
+          defects: defectDetails,
+          photos: Object.values(uploadedPhotoUrls).filter(Boolean),
+          memo: finalMemo
+        });
       }
 
       showToast(`총 ${stagedAssets.length}대의 자산이 성공적으로 입고되었습니다.`);
@@ -299,7 +306,7 @@ export const AssetInboundStaging: React.FC = () => {
                 stagedAssets.map(asset => (
                   <tr key={asset.assetId} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '12px 20px', fontWeight: 'bold' }}>{asset.assetNo}</td>
-                    <td style={{ padding: '12px 20px' }}>{asset.model}</td>
+                    <td style={{ padding: '12px 20px' }}>{asset.modelName}</td>
                     <td style={{ padding: '12px 20px' }}>{asset.siteName} <span style={{ color: 'var(--text-muted)' }}>({asset.customerName})</span></td>
                     <td style={{ padding: '12px 20px', textAlign: 'center' }}>
                       <button 
@@ -346,7 +353,7 @@ export const AssetInboundStaging: React.FC = () => {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div className="card" style={{ width: '600px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto', padding: '0' }}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-main)' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>개별 검수: {activeInspectionItem.assetNo} ({activeInspectionItem.model})</h3>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>개별 검수: {activeInspectionItem.assetNo} ({activeInspectionItem.modelName})</h3>
               <button onClick={() => setInspectionModalAssetId(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
             </div>
             
