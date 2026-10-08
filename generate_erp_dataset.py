@@ -1,38 +1,9 @@
 import json
 import random
 
-# eBro ERP 38개 메뉴 중 핵심 5대 메뉴의 Tool Calling 스키마 및 발화 패턴 (예시)
-# 실제 본 훈련 시에는 38개 전체 메뉴의 스키마를 이 리스트에 추가합니다.
-MENU_SCHEMAS = {
-    "dispatch_create_order": {
-        "description": "배차 의뢰 생성 (대차/교체, 출고, 입고 등)",
-        "parameters": {
-            "type": ["EXCHANGE", "OUTBOUND", "INBOUND"],
-            "transportCompany": "string",
-            "destinationAddress": "string",
-            "deliveryCost": "number",
-            "memo": "string"
-        },
-        "utterances": [
-            "{destinationAddress} 현장에 {transportCompany} 기사님 배차해줘. 단가는 {deliveryCost}원이고 {type} 건이야.",
-            "{transportCompany} 불러서 {destinationAddress}로 장비 보내. {type}이고 운송비는 {deliveryCost}원으로 맞춰줘.",
-            "메모: {memo}. {destinationAddress}로 {deliveryCost}원 배차 등록해. 작업 타입은 {type}."
-        ]
-    },
-    "customer_create": {
-        "description": "신규 고객사 및 현장 등록",
-        "parameters": {
-            "name": "string",
-            "bizRegNo": "string",
-            "representative": "string",
-            "address": "string"
-        },
-        "utterances": [
-            "신규 거래처 등록해줘. 상호는 {name}, 대표자 {representative}이고, 주소는 {address}. 사업자번호는 {bizRegNo}야.",
-            "고객사 {name} 추가해. 사업자번호 {bizRegNo}, 대표 {representative}, 본사 {address}로 입력해 줘."
-        ]
-    }
-}
+# eBro ERP 핵심 액션 스키마 로드
+with open("ebro_core_actions.json", "r", encoding="utf-8") as f:
+    MENU_SCHEMAS = json.load(f)
 
 # 랜덤 데이터 생성용 더미 사전
 DUMMY_DATA = {
@@ -44,7 +15,33 @@ DUMMY_DATA = {
     "name": ["(주)가나건설", "에이텍엔지니어링", "비젼테크"],
     "bizRegNo": ["123-45-67890", "234-56-78901", "345-67-89012"],
     "representative": ["김대표", "이사장", "박소장"],
-    "address": ["서울시 강남구 테헤란로 123", "경기도 성남시 분당구"]
+    "address": ["서울시 강남구 테헤란로 123", "경기도 성남시 분당구"],
+    "customerName": ["(주)가나건설", "에이텍엔지니어링"],
+    "siteName": ["수원현장", "이천공장", "판교현장"],
+    "options": ["협착방지대", "안전센서", "무논마스킹", "방폭작업"],
+    "model": ["SJ-3219", "GS-1930", "S-45", "Z-45"],
+    "quantity": [1, 2, 5, 10],
+    "unitPrice": [30000, 45000, 150000],
+    "startDate": ["2026-10-10", "2026-10-15", "다음주 월요일"],
+    "endDate": ["2026-11-10", "1개월 뒤", "종료일 미정"],
+    "billingMonth": ["10", "11", "9"],
+    "amount": [1500000, 3000000, 450000],
+    "orderId": ["ORD-2610-001", "ORD-2610-002"],
+    "driverName": ["김철수", "박기사", "최운송"],
+    "driverPhone": ["010-1234-5678", "010-9876-5432"],
+    "truckNumber": ["경기80바1234", "서울99사9876"],
+    "assetNumber": ["G-1001", "G-1002", "S-45-001"],
+    "inspectorName": ["이대리", "김과장"],
+    "isPassed": ["true", "false"],
+    "mechanicName": ["정비팀장", "박주임"],
+    "repairDetails": ["모터 소손 교체", "유압 호스 누유 수리", "배터리 방전 교체"],
+    "partsUsed": ["컨트롤러 Assy", "24V 딥사이클 배터리", "O링"],
+    "keyword": ["SJ-3219", "G-1001", "가나건설"],
+    "status": ["임대가능", "대여중", "수리중"],
+    "query": ["가나건설", "123-45", "김대표"],
+    "employeeName": ["김철수", "박영희", "이과장", "최사원"],
+    "vacationType": ["연차", "오전반차", "오후반차", "경조휴가"],
+    "reason": ["개인 사정", "집안 행사", "병원 진료", "가족 여행"]
 }
 
 def generate_synthetic_data(num_samples=100):

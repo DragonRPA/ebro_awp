@@ -1,0 +1,143 @@
+{
+  "customer_create": {
+    "description": "신규 고객사 및 현장 등록",
+    "parameters": {
+      "name": "string",
+      "bizRegNo": "string",
+      "representative": "string",
+      "address": "string"
+    },
+    "utterances": [
+      "신규 거래처 등록해줘. 상호는 {name}, 대표자 {representative}이고, 주소는 {address}. 사업자번호는 {bizRegNo}야.",
+      "고객사 {name} 추가해. 사업자번호 {bizRegNo}, 대표 {representative}, 본사 {address}로 입력해 줘."
+    ]
+  },
+  "customer_search": {
+    "description": "고객사 및 거래처 정보 검색",
+    "parameters": {
+      "query": "string"
+    },
+    "utterances": [
+      "{query} 거래처 정보 좀 찾아봐.",
+      "고객사 목록에서 {query} 검색해줘."
+    ]
+  },
+  "site_option_update": {
+    "description": "현장별 옵션 및 안전요구사항 업데이트",
+    "parameters": {
+      "customerName": "string",
+      "siteName": "string",
+      "options": "string"
+    },
+    "utterances": [
+      "{customerName} {siteName} 현장에 {options} 옵션 필수 장착으로 업데이트해.",
+      "{siteName} 현장 요구사항에 {options} 추가해줘."
+    ]
+  },
+  "contract_create": {
+    "description": "신규 임대차 계약 생성",
+    "parameters": {
+      "customerName": "string",
+      "siteName": "string",
+      "model": "string",
+      "quantity": "number",
+      "unitPrice": "number",
+      "startDate": "string",
+      "endDate": "string"
+    },
+    "utterances": [
+      "{customerName} {siteName}에 {model} {quantity}대, 단가 {unitPrice}원으로 {startDate}부터 {endDate}까지 계약 넣어줘.",
+      "신규 계약건. 현장은 {siteName}, 장비는 {model} {quantity}대. {startDate}에 출고할거고 단가는 {unitPrice}원이야."
+    ]
+  },
+  "billing_request_create": {
+    "description": "월말 매출 청구서 발행 요청",
+    "parameters": {
+      "billingMonth": "string",
+      "customerName": "string",
+      "amount": "number"
+    },
+    "utterances": [
+      "{customerName} {billingMonth}월 청구서 {amount}원으로 마감해서 발행해.",
+      "{billingMonth}월분 {customerName}한테 {amount}원 청구서 보내줘."
+    ]
+  },
+  "dispatch_create_order": {
+    "description": "배차 의뢰 생성 (대차/교체, 출고, 입고 등)",
+    "parameters": {
+      "type": ["EXCHANGE", "OUTBOUND", "INBOUND"],
+      "transportCompany": "string",
+      "destinationAddress": "string",
+      "deliveryCost": "number",
+      "memo": "string"
+    },
+    "utterances": [
+      "{destinationAddress} 현장에 {transportCompany} 기사님 배차해줘. 단가는 {deliveryCost}원이고 {type} 건이야.",
+      "{transportCompany} 불러서 {destinationAddress}로 장비 보내. {type}이고 운송비는 {deliveryCost}원으로 맞춰줘.",
+      "메모: {memo}. {destinationAddress}로 {deliveryCost}원 배차 등록해. 작업 타입은 {type}."
+    ]
+  },
+  "dispatch_assign_driver": {
+    "description": "배차 의뢰건에 실제 운송 기사 할당",
+    "parameters": {
+      "orderId": "string",
+      "driverName": "string",
+      "driverPhone": "string",
+      "truckNumber": "string"
+    },
+    "utterances": [
+      "배차번호 {orderId}에 {driverName} 기사님 배정해. 폰번호 {driverPhone}, 차량번호 {truckNumber}야.",
+      "{driverName} 기사님이 {truckNumber} 끌고 간대. {orderId} 건에 할당해."
+    ]
+  },
+  "pdi_approve": {
+    "description": "출고 전 장비 검수(PDI) 최종 승인 및 상태 전환(RENTED)",
+    "parameters": {
+      "assetNumber": "string",
+      "inspectorName": "string",
+      "isPassed": "boolean"
+    },
+    "utterances": [
+      "장비 {assetNumber} PDI 검수 완료했어. {inspectorName} 이름으로 승인 처리해줘.",
+      "{assetNumber} 출고 검수 통과({isPassed}) 처리해. 검수자는 {inspectorName}."
+    ]
+  },
+  "maintenance_create": {
+    "description": "주기장 장비 입고 및 정비(수리) 내역 등록",
+    "parameters": {
+      "assetNumber": "string",
+      "mechanicName": "string",
+      "repairDetails": "string",
+      "partsUsed": "string"
+    },
+    "utterances": [
+      "장비 {assetNumber} 수리 등록해. 담당자는 {mechanicName}이고, 내역은 {repairDetails}. 부품은 {partsUsed} 썼어.",
+      "{mechanicName} 주임이 {assetNumber} 고쳤음. {repairDetails} 작업했고 {partsUsed} 교체완료."
+    ]
+  },
+  "asset_search": {
+    "description": "자산 번호 및 모델명으로 장비 검색",
+    "parameters": {
+      "keyword": "string",
+      "status": ["임대가능", "대여중", "수리중"]
+    },
+    "utterances": [
+      "{status} 상태인 {keyword} 장비 찾아줘.",
+      "현재 {status}인 {keyword} 모델 목록 띄워봐."
+    ]
+  },
+  "vacation_create": {
+    "description": "경영관리 - 연차/반차 신청",
+    "parameters": {
+      "employeeName": "string",
+      "vacationType": ["연차", "오전반차", "오후반차", "경조휴가"],
+      "startDate": "string",
+      "endDate": "string",
+      "reason": "string"
+    },
+    "utterances": [
+      "{employeeName} 대리, {startDate}부터 {endDate}까지 {vacationType} 신청할게. 사유는 {reason}이야.",
+      "나 {employeeName}인데, {startDate}에 {vacationType} 쓸거야. {reason} 때문임. 기안 올려줘."
+    ]
+  }
+}

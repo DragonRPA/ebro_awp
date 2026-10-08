@@ -78,22 +78,27 @@ export const AssetInboundStaging: React.FC = () => {
       }
 
       // 렌탈 중인 계약 찾기 (contract_assets + contracts)
-      const ca = contractAssets.find(c => c.assetId === asset.id && c.status === 'ACTIVE');
       let customerName = '-';
       let siteName = '-';
       let contractId = '';
+
+      if (asset.currentCustomerId) {
+        customerName = customers.find(c => c.id === asset.currentCustomerId)?.name || '-';
+      }
+      if (asset.currentSiteId) {
+        siteName = sites.find(s => s.id === asset.currentSiteId)?.name || '-';
+      }
+
+      const ca = contractAssets.find(c => c.assetId === asset.id && (c.status === 'ACTIVE' || c.status === 'SCHEDULED'));
       if (ca) {
         contractId = ca.contractId;
-        const contract = contracts.find(c => c.id === ca.contractId);
-        if (contract) {
-          const cust = customers.find(c => c.id === contract.customerId);
-          const site = sites.find(s => s.id === contract.siteId);
-          customerName = cust?.name || '-';
-          siteName = site?.name || '-';
+        if (customerName === '-') {
+           const contract = contracts.find(c => c.id === ca.contractId);
+           if (contract) {
+              customerName = customers.find(c => c.id === contract.customerId)?.name || '-';
+              siteName = sites.find(s => s.id === contract.siteId)?.name || '-';
+           }
         }
-      } else {
-         // DISPATCHED 인 경우 (배차중) - 엄밀히는 contracts 에 ACTIVE ca 가 없을수도 있음 (출고전)
-         // 하지만 도메인 원칙상 출고 승인시 RENTED로 변경됨
       }
 
       newAssets.push({
@@ -239,7 +244,7 @@ export const AssetInboundStaging: React.FC = () => {
           position: 'fixed', top: '20px', right: '20px', zIndex: 9999,
           backgroundColor: toastMessage.type === 'error' ? '#fee2e2' : 'var(--bg-card)',
           color: toastMessage.type === 'error' ? '#ef4444' : 'var(--text-primary)',
-          padding: '12px 20px', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          padding: '6px 12px', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
           borderLeft: `4px solid ${toastMessage.type === 'error' ? '#ef4444' : 'var(--primary)'}`
         }}>
           {toastMessage.text}
@@ -288,27 +293,27 @@ export const AssetInboundStaging: React.FC = () => {
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-card)', borderBottom: '2px solid var(--border-color)' }}>
-                <th style={{ padding: '12px 20px', fontWeight: 600, color: 'var(--text-secondary)' }}>관리번호</th>
-                <th style={{ padding: '12px 20px', fontWeight: 600, color: 'var(--text-secondary)' }}>모델명</th>
-                <th style={{ padding: '12px 20px', fontWeight: 600, color: 'var(--text-secondary)' }}>반납 현장(고객사)</th>
-                <th style={{ padding: '12px 20px', fontWeight: 600, color: 'var(--text-secondary)', textAlign: 'center' }}>검수 상태 (클릭하여 변경)</th>
-                <th style={{ padding: '12px 20px', fontWeight: 600, color: 'var(--text-secondary)', textAlign: 'center' }}>삭제</th>
+                <th style={{ padding: '6px 12px', fontWeight: 600, color: 'var(--text-secondary)' }}>관리번호</th>
+                <th style={{ padding: '6px 12px', fontWeight: 600, color: 'var(--text-secondary)' }}>모델명</th>
+                <th style={{ padding: '6px 12px', fontWeight: 600, color: 'var(--text-secondary)' }}>반납 현장(고객사)</th>
+                <th style={{ padding: '6px 12px', fontWeight: 600, color: 'var(--text-secondary)', textAlign: 'center' }}>검수 상태 (클릭하여 변경)</th>
+                <th style={{ padding: '6px 12px', fontWeight: 600, color: 'var(--text-secondary)', textAlign: 'center' }}>삭제</th>
               </tr>
             </thead>
             <tbody>
               {stagedAssets.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '40px 20px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  <td colSpan={5} style={{ padding: '20px 12px', textAlign: 'center', color: 'var(--text-muted)' }}>
                     바코드를 스캔하여 입고 처리할 자산을 대기열에 추가하세요.
                   </td>
                 </tr>
               ) : (
                 stagedAssets.map(asset => (
                   <tr key={asset.assetId} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '12px 20px', fontWeight: 'bold' }}>{asset.assetNo}</td>
-                    <td style={{ padding: '12px 20px' }}>{asset.modelName}</td>
-                    <td style={{ padding: '12px 20px' }}>{asset.siteName} <span style={{ color: 'var(--text-muted)' }}>({asset.customerName})</span></td>
-                    <td style={{ padding: '12px 20px', textAlign: 'center' }}>
+                    <td style={{ padding: '6px 12px', fontWeight: 'bold' }}>{asset.assetNo}</td>
+                    <td style={{ padding: '6px 12px' }}>{asset.modelName}</td>
+                    <td style={{ padding: '6px 12px' }}>{asset.siteName} <span style={{ color: 'var(--text-muted)' }}>({asset.customerName})</span></td>
+                    <td style={{ padding: '6px 12px', textAlign: 'center' }}>
                       <button 
                         type="button"
                         onClick={() => setInspectionModalAssetId(asset.assetId)}
@@ -324,7 +329,7 @@ export const AssetInboundStaging: React.FC = () => {
                         {asset.penaltyScore === 0 ? '정상 (양호)' : `수리필요 (+${asset.penaltyScore}점)`}
                       </button>
                     </td>
-                    <td style={{ padding: '12px 20px', textAlign: 'center' }}>
+                    <td style={{ padding: '6px 12px', textAlign: 'center' }}>
                       <button type="button" onClick={() => handleRemoveStaged(asset.assetId)} style={{ color: 'var(--text-muted)', cursor: 'pointer', background: 'none', border: 'none' }}>
                         <X size={16} />
                       </button>

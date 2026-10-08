@@ -13,7 +13,7 @@ from trl import SFTTrainer
 def main():
     # 1. 모델 ID 설정 (Hugging Face 리포지토리 기준)
     model_id = "google/gemma-4-E4B-it"  # Instruct 모델 기준 (필요시 "google/gemma-4-E4B"로 변경)
-    dataset_path = "uia_training_dataset.jsonl"
+    dataset_path = "ebro_38menu_dataset.jsonl"
     output_dir = "./gemma-4-e4b-qlora-results"
     adapter_dir = "./gemma-4-e4b-qlora-adapter"
 
