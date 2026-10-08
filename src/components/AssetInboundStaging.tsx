@@ -294,15 +294,15 @@ export const AssetInboundStaging: React.FC = () => {
           <h3 style={{ fontSize: '14px', fontWeight: 600, margin: 0 }}>입고 대기 리스트 (총 {stagedAssets.length}대)</h3>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>양호한 장비는 그대로 두고, 파손/수리 필요 장비만 [검수 상태] 버튼을 눌러 개별 검수하세요.</span>
         </div>
-        <div style={{ overflowX: 'auto' }}>
+        <div style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 330px)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-            <thead>
+            <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
               <tr style={{ backgroundColor: 'var(--bg-card)', borderBottom: '2px solid var(--border-color)' }}>
-                <th style={{ padding: '6px 12px', fontWeight: 600, color: 'var(--text-secondary)' }}>관리번호</th>
-                <th style={{ padding: '6px 12px', fontWeight: 600, color: 'var(--text-secondary)' }}>모델명</th>
-                <th style={{ padding: '6px 12px', fontWeight: 600, color: 'var(--text-secondary)' }}>반납 현장(고객사)</th>
-                <th style={{ padding: '6px 12px', fontWeight: 600, color: 'var(--text-secondary)', textAlign: 'center' }}>검수 상태 (클릭하여 변경)</th>
-                <th style={{ padding: '6px 12px', fontWeight: 600, color: 'var(--text-secondary)', textAlign: 'center' }}>삭제</th>
+                <th style={{ padding: '6px 12px', fontWeight: 600, color: 'var(--text-secondary)', backgroundColor: 'var(--bg-card)', borderBottom: '2px solid var(--border-color)' }}>관리번호</th>
+                <th style={{ padding: '6px 12px', fontWeight: 600, color: 'var(--text-secondary)', backgroundColor: 'var(--bg-card)', borderBottom: '2px solid var(--border-color)' }}>모델명</th>
+                <th style={{ padding: '6px 12px', fontWeight: 600, color: 'var(--text-secondary)', backgroundColor: 'var(--bg-card)', borderBottom: '2px solid var(--border-color)' }}>반납 현장(고객사)</th>
+                <th style={{ padding: '6px 12px', fontWeight: 600, color: 'var(--text-secondary)', textAlign: 'center', backgroundColor: 'var(--bg-card)', borderBottom: '2px solid var(--border-color)' }}>검수 상태 (클릭하여 변경)</th>
+                <th style={{ padding: '6px 12px', fontWeight: 600, color: 'var(--text-secondary)', textAlign: 'center', backgroundColor: 'var(--bg-card)', borderBottom: '2px solid var(--border-color)' }}>삭제</th>
               </tr>
             </thead>
             <tbody>
