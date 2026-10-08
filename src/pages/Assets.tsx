@@ -34,7 +34,7 @@ export const Assets: React.FC = () => {
   const [customerFilter, setCustomerFilter] = useState('ALL');
 
   // 정렬 상태
-  type AssetSortField = 'assetNo' | 'modelName' | 'ownerType' | 'status' | 'currentCustomerId' | 'acquisitionDate' | 'manufacturer';
+  type AssetSortField = 'assetNo' | 'modelName' | 'ownerType' | 'status' | 'currentCustomerId' | 'currentSiteId' | 'contractNo' | 'renterName' | 'acquisitionDate' | 'manufacturer';
   const [sortField, setSortField] = useState<AssetSortField>('assetNo');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
@@ -293,8 +293,12 @@ export const Assets: React.FC = () => {
 
       return matchesSearch && matchesStatus && matchesOwner && matchesManufacturer && matchesCustomer;
     }).sort((a, b) => {
-      let aVal: any = sortField === 'currentCustomerId' ? getCustomerName(a.currentCustomerId) : a[sortField as keyof Asset];
-      let bVal: any = sortField === 'currentCustomerId' ? getCustomerName(b.currentCustomerId) : b[sortField as keyof Asset];
+      let aVal: any = a[sortField as keyof Asset];
+      let bVal: any = b[sortField as keyof Asset];
+      if (sortField === 'currentCustomerId') { aVal = getCustomerName(a.currentCustomerId); bVal = getCustomerName(b.currentCustomerId); }
+      else if (sortField === 'currentSiteId') { aVal = getSiteName(a.currentSiteId); bVal = getSiteName(b.currentSiteId); }
+      else if (sortField === 'contractNo') { aVal = getAssetContractInfo(a.id)?.contractNo; bVal = getAssetContractInfo(b.id)?.contractNo; }
+      else if (sortField === 'renterName') { aVal = getAssetRenterName(a); bVal = getAssetRenterName(b); }
       if (aVal === undefined || aVal === null) aVal = '';
       if (bVal === undefined || bVal === null) bVal = '';
       const cmp = String(aVal).localeCompare(String(bVal), 'ko', { numeric: true });
@@ -318,7 +322,11 @@ export const Assets: React.FC = () => {
 
   const handleSort = (field: AssetSortField) => {
     if (sortField === field) {
-      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
+      if (sortDirection === 'asc') setSortDirection('desc');
+      else {
+        setSortField('assetNo');
+        setSortDirection('asc');
+      }
     } else {
       setSortField(field);
       setSortDirection('asc');
@@ -692,9 +700,9 @@ export const Assets: React.FC = () => {
                   현재 고객사{renderSortArrow('currentCustomerId')}
                 </th>
                 {/* 11. 사용 현장 */}
-                <th style={{ padding: '7px 8px', width: '150px', whiteSpace: 'nowrap' }}>사용 현장</th>
+                <th onClick={() => handleSort('currentSiteId')} style={{ padding: '7px 8px', width: '150px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>사용 현장{renderSortArrow('currentSiteId')}</th>
                 {/* 12. 계약번호 */}
-                <th style={{ padding: '7px 8px', width: '105px', textAlign: 'center', whiteSpace: 'nowrap' }}>계약번호</th>
+                <th onClick={() => handleSort('contractNo')} style={{ padding: '7px 8px', width: '105px', cursor: 'pointer', userSelect: 'none', textAlign: 'center', whiteSpace: 'nowrap' }}>계약번호{renderSortArrow('contractNo')}</th>
                 {/* 13. 계약기간 */}
                 <th style={{ padding: '7px 8px', width: '160px', textAlign: 'center', whiteSpace: 'nowrap' }}>계약기간</th>
                 {/* 14. 청구일 */}
@@ -704,7 +712,7 @@ export const Assets: React.FC = () => {
                   <th style={{ padding: '7px 8px', width: '95px', textAlign: 'right', whiteSpace: 'nowrap' }}>월 렌탈료</th>
                 )}
                 {/* 16. 임차처 */}
-                <th style={{ padding: '7px 8px', width: '120px', whiteSpace: 'nowrap' }}>임차처</th>
+                <th onClick={() => handleSort('renterName')} style={{ padding: '7px 8px', width: '120px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>임차처{renderSortArrow('renterName')}</th>
                 {/* 17. 구입/공급처 */}
                 <th style={{ padding: '7px 8px', width: '120px', whiteSpace: 'nowrap' }}>구입/공급처</th>
                 {/* 18. 취득/개시일 */}
