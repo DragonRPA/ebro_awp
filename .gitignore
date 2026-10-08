@@ -65,3 +65,7 @@ __pycache__/
 *.pt
 *.pth
 Modelfile
+*.zip
+llama-bin/
+merge_adapter.py
+start_ebro_agent.bat
