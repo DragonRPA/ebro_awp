@@ -97,6 +97,43 @@ function recordInteraction(e: Event) {
 }
 
 
+
+function buildPseudoSql(method: string, table: string, qs: string, bodyParsed: any): string {
+  let sql = '';
+  try {
+    const parseValue = (val: any) => {
+      if (typeof val === 'string') return "'" + val.replace(/'/g, "''") + "'";
+      if (val === null) return 'NULL';
+      if (typeof val === 'object') return "'" + JSON.stringify(val).replace(/'/g, "''") + "'";
+      return String(val);
+    };
+
+    if (method === 'POST' && bodyParsed) {
+      if (Array.isArray(bodyParsed) && bodyParsed.length > 0) {
+        const keys = Object.keys(bodyParsed[0]);
+        const vals = bodyParsed.map((item: any) => '(' + keys.map(k => parseValue(item[k])).join(', ') + ')').join(', ');
+        sql = `INSERT INTO ${table} (${keys.join(', ')}) VALUES ${vals}`;
+      } else if (typeof bodyParsed === 'object' && !Array.isArray(bodyParsed)) {
+        const keys = Object.keys(bodyParsed);
+        const vals = keys.map(k => parseValue(bodyParsed[k]));
+        sql = `INSERT INTO ${table} (${keys.join(', ')}) VALUES (${vals.join(', ')})`;
+      }
+    } else if (method === 'PATCH' && bodyParsed && typeof bodyParsed === 'object') {
+      const updates = Object.keys(bodyParsed).map(k => `${k}=${parseValue(bodyParsed[k])}`).join(', ');
+      const where = qs ? ' WHERE ' + decodeURIComponent(qs).replace(/eq\./g, '=').replace(/&/g, ' AND ') : '';
+      sql = `UPDATE ${table} SET ${updates}${where}`;
+    } else if (method === 'DELETE') {
+      const where = qs ? ' WHERE ' + decodeURIComponent(qs).replace(/eq\./g, '=').replace(/&/g, ' AND ') : '';
+      sql = `DELETE FROM ${table}${where}`;
+    } else {
+      sql = `-- ${method} ${table} ${qs}`;
+    }
+  } catch (e) {
+    sql = '-- SQL PARSE ERROR';
+  }
+  return sql ? sql + ';' : '';
+}
+
 let isFetchMonkeyPatched = false;
 let lastOutgoingQuery: any = null;
 
@@ -124,10 +161,7 @@ function setupFetchInterceptor() {
           if (url.includes('/rest/v1/')) {
             const table = url.split('/rest/v1/')[1].split('?')[0];
             const qs = url.split('?')[1] || '';
-            if (method === 'POST') pseudo_sql = `INSERT INTO ${table} ${bodyParsed ? JSON.stringify(bodyParsed) : ''}`;
-            else if (method === 'PATCH') pseudo_sql = `UPDATE ${table} SET ${bodyParsed ? JSON.stringify(bodyParsed) : ''} WHERE ${qs}`;
-            else if (method === 'DELETE') pseudo_sql = `DELETE FROM ${table} WHERE ${qs}`;
-            else pseudo_sql = `${method} ${table} ${qs}`;
+            pseudo_sql = buildPseudoSql(method, table, qs, bodyParsed);
           }
         } catch(e) {}
 
@@ -244,6 +278,7 @@ async function sendToHindsightAgent(payload: HindsightMemoryBundle) {
       tenant_id: tenantId,
       action_name: payload.action_name,
       menu_path: payload.menu_path,
+      raw_sql: payload.final_query?.pseudo_sql || null,
       final_query: payload.final_query || {},
       ui_context_bundle: {
         trigger_element: payload.trigger_element,

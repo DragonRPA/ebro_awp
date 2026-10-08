@@ -56,3 +56,12 @@ ebro-agent-core/.env
 ebro-agent-core/ebro_audit.db
 __pycache__/
 *.pyc
+/gemma-4-e4b-qlora-results/
+/ebro-gemma4-merged/
+/llama.cpp/
+*.gguf
+*.safetensors
+*.bin
+*.pt
+*.pth
+Modelfile
