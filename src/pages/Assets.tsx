@@ -62,7 +62,7 @@ export const Assets: React.FC = () => {
     if (!contractAssets || !contracts) return map;
     const contractsById = new Map<string, any>((contracts || []).map(c => [c.id, c]));
     for (const ca of contractAssets) {
-      if (!ca.assetId) continue;
+      if (!ca.assetId || ca.status === 'RETURNED' || ca.actualReturnDate) continue;
       const c = contractsById.get(ca.contractId);
       if (c) {
         // 우선순위 1: 현재 RENTED 상태인 계약자산이 가장 최우선 (실제 대여중)
@@ -737,12 +737,13 @@ export const Assets: React.FC = () => {
                 </tr>
               ) : (
                 visibleAssets.map((a, idx) => {
-                  const ci = getAssetContractInfo(a.id);
+const isAvailableOrDisposed = a.status === 'AVAILABLE' || a.status === 'SOLD' || a.status === 'DISPOSED' || a.status === 'DISCARDED';
+                  const ci = isAvailableOrDisposed ? null : getAssetContractInfo(a.id);
                   const isReturned = Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED';
                   const renterName = getAssetRenterName(a);
                   const supplierName = getAssetSupplierName(a);
-                  const custName = getCustomerName(a.currentCustomerId);
-                  const siteName = getSiteName(a.currentSiteId);
+                  const custName = isAvailableOrDisposed ? '-' : getCustomerName(a.currentCustomerId);
+                  const siteName = isAvailableOrDisposed ? '-' : getSiteName(a.currentSiteId);
                   const netProfit = (a.cumRentalFee || 0) - (a.cumRepairCost || 0);
                   const accumDepn = a.ownerType === 'OWNED' ? (a.accumDepreciation || 0) : 0;
                   const bookVal = a.ownerType === 'OWNED' ? (a.bookValue ?? Math.max(0, (a.acquisitionPrice || 0) - accumDepn)) : 0;
