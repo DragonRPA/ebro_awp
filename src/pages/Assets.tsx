@@ -236,15 +236,28 @@ export const Assets: React.FC = () => {
       const isReturned = Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED';
       
       const assetProduct = products?.find(p => p.modelName === a.modelName);
-      const matchesSearch =
-        !searchTerm ||
-        a.assetNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        a.modelName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (assetProduct?.shortName && assetProduct.shortName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (a.serialNo && a.serialNo.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (a.manufacturer && a.manufacturer.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        renterName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        supplierName.toLowerCase().includes(searchTerm.toLowerCase());
+      const searchTokens = searchTerm.split(/[\s,\n\t]+/).map(t => t.trim().toLowerCase()).filter(Boolean);
+
+      const matchesSearch = searchTokens.length === 0 || (() => {
+        // [1] Bulk 다중 검색 (OR 조건): 엑셀 복붙 등에서 정확한 자산/시리얼 번호가 1개라도 일치하면 포함
+        const isExactOrMatch = searchTokens.some(token => 
+          a.assetNo.toLowerCase() === token || 
+          (a.serialNo && a.serialNo.toLowerCase() === token)
+        );
+        if (isExactOrMatch) return true;
+
+        // [2] 복합어 부분 검색 (AND 조건): 모든 토큰이 자산의 속성 어딘가에 각각 포함되어야 함
+        const isAndMatch = searchTokens.every(token => 
+          a.assetNo.toLowerCase().includes(token) ||
+          a.modelName.toLowerCase().includes(token) ||
+          (assetProduct?.shortName && assetProduct.shortName.toLowerCase().includes(token)) ||
+          (a.serialNo && a.serialNo.toLowerCase().includes(token)) ||
+          (a.manufacturer && a.manufacturer.toLowerCase().includes(token)) ||
+          renterName.toLowerCase().includes(token) ||
+          supplierName.toLowerCase().includes(token)
+        );
+        return isAndMatch;
+      })();
 
       const matchesStatus = statusFilter === 'ALL' ? true :
                             statusFilter === 'RENTED_RETURNED' ? isReturned :
