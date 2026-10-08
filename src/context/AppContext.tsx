@@ -8765,11 +8765,15 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         // 회수 검수된 장비 슬롯만 RETURNED 처리 (대차로 투입된 장비는 계속 RENTED 유지)
         cAssets.forEach(ca => {
           if (ca.assetId && reviewedAssetIds.includes(ca.assetId)) {
-            db.updateRow<ContractAsset>('contractAssets', ca.id, {
-              status: 'RETURNED',
-              actualReturnDate: ca.actualReturnDate || actualReturnDate,
-              inRegisteredAt: ca.inRegisteredAt || registeredAt,
-              updatedAt: registeredAt
+            // 💡 [단일 진실의 원천]: 해당 자산의 '모든' 미반납 ContractAsset 슬롯 청소 (찌꺼기 원천 봉쇄)
+            const allActiveSlots = db.contractAssets.filter(c => c.assetId === ca.assetId && c.status !== 'RETURNED');
+            allActiveSlots.forEach(targetCa => {
+              db.updateRow<ContractAsset>('contractAssets', targetCa.id, {
+                status: 'RETURNED',
+                actualReturnDate: targetCa.actualReturnDate || actualReturnDate,
+                inRegisteredAt: targetCa.inRegisteredAt || registeredAt,
+                updatedAt: registeredAt
+              });
             });
           }
         });
@@ -8777,12 +8781,25 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         // 일반 입고/반납 배차: 검수된 자산 슬롯 RETURNED 처리
         cAssets.forEach(ca => {
           if (reviewedAssetIds.length === 0 || (ca.assetId && reviewedAssetIds.includes(ca.assetId))) {
-            db.updateRow<ContractAsset>('contractAssets', ca.id, {
-              status: 'RETURNED',
-              actualReturnDate: ca.actualReturnDate || actualReturnDate,
-              inRegisteredAt: ca.inRegisteredAt || registeredAt,
-              updatedAt: registeredAt
-            });
+            const assetToClean = ca.assetId;
+            if (assetToClean) {
+              const allActiveSlots = db.contractAssets.filter(c => c.assetId === assetToClean && c.status !== 'RETURNED');
+              allActiveSlots.forEach(targetCa => {
+                db.updateRow<ContractAsset>('contractAssets', targetCa.id, {
+                  status: 'RETURNED',
+                  actualReturnDate: targetCa.actualReturnDate || actualReturnDate,
+                  inRegisteredAt: targetCa.inRegisteredAt || registeredAt,
+                  updatedAt: registeredAt
+                });
+              });
+            } else {
+              db.updateRow<ContractAsset>('contractAssets', ca.id, {
+                status: 'RETURNED',
+                actualReturnDate: ca.actualReturnDate || actualReturnDate,
+                inRegisteredAt: ca.inRegisteredAt || registeredAt,
+                updatedAt: registeredAt
+              });
+            }
           }
         });
 
@@ -8820,10 +8837,10 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const asset = db.assets.find(a => a.id === data.assetId);
     if (!asset) throw new Error('해당 자산을 찾을 수 없습니다.');
 
-    // 대여 중인 계약 자산 탐색 (유연 매칭: RENTED 우선 탐색 후 미반납 체결 계약 포괄 탐색)
-    const ca = db.contractAssets.find(c => c.assetId === data.assetId && c.status === 'RENTED') ||
-               db.contractAssets.find(c => c.assetId === data.assetId && c.status !== 'RETURNED') ||
-               db.contractAssets.find(c => c.assetId === data.assetId);
+    // 💡 [단일 진실의 원천 완결]: 자산이 입고(물리적 회수)되었으므로, 해당 자산을 점유하고 있는 *모든* 활성 ContractAsset 슬롯을 탐색하여 청소합니다.
+    const activeCAs = db.contractAssets.filter(c => c.assetId === data.assetId && c.status !== 'RETURNED');
+    const ca = activeCAs.length > 0 ? activeCAs[0] : db.contractAssets.find(c => c.assetId === data.assetId);
+    
     const contract = ca ? db.contracts.find(ct => ct.id === ca.contractId) : null;
     const customer = contract ? db.customers.find(cu => cu.id === contract.customerId) : null;
     const site = contract ? db.sites.find(s => s.id === contract.siteId) : null;
@@ -8860,16 +8877,27 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       updatedAt: registeredAt
     });
 
-    // 2. 계약 자산 반납 갱신 (청구 연동: actualReturnDate는 실제 입고일, inRegisteredAt은 전산 등록일시)
-    if (ca) {
+        // 2. 계약 자산 반납 갱신 (청구 연동: actualReturnDate는 실제 입고일, inRegisteredAt은 전산 등록일시)
+    if (activeCAs.length > 0) {
+      activeCAs.forEach(targetCa => {
+        db.updateRow<ContractAsset>('contractAssets', targetCa.id, {
+          status: 'RETURNED',
+          endDate: data.returnDate, // 💡 사장님 지시: 영업사원 처리 여부(연장/단축)와 무관하게 자산의 계약 종료일자를 입고일 기준으로 자동 동기화(연장/단축)
+          actualReturnDate: data.returnDate, // 실제 입고일 (청구 및 일할 정산 기준)
+          inRegisteredAt: registeredAt,     // 💡 실제 전산 입고 등록 일시 (행위 감사 기록)
+          updatedAt: registeredAt
+        });
+      });
+    } else if (ca && ca.status === 'RENTED') {
       db.updateRow<ContractAsset>('contractAssets', ca.id, {
         status: 'RETURNED',
-        endDate: data.returnDate, // 💡 사장님 지시: 영업사원 처리 여부(연장/단축)와 무관하게 자산의 계약 종료일자를 입고일 기준으로 자동 동기화(연장/단축)
-        actualReturnDate: data.returnDate, // 실제 입고일 (청구 및 일할 정산 기준)
-        inRegisteredAt: registeredAt,     // 💡 실제 전산 입고 등록 일시 (행위 감사 기록)
+        endDate: data.returnDate,
+        actualReturnDate: data.returnDate,
+        inRegisteredAt: registeredAt,
         updatedAt: registeredAt
       });
-      
+    }
+
       // 마스터 계약(Contract)의 종료일자도 가장 늦은 자산 반납일 기준으로 후행 연장 (단축은 제외, 연장만)
       if (contract && data.returnDate > contract.endDate) {
         db.updateRow<Contract>('contracts', contract.id, {
