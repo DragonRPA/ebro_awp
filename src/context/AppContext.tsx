@@ -8864,10 +8864,28 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     if (ca) {
       db.updateRow<ContractAsset>('contractAssets', ca.id, {
         status: 'RETURNED',
+        endDate: data.returnDate, // 💡 사장님 지시: 영업사원 처리 여부(연장/단축)와 무관하게 자산의 계약 종료일자를 입고일 기준으로 자동 동기화(연장/단축)
         actualReturnDate: data.returnDate, // 실제 입고일 (청구 및 일할 정산 기준)
         inRegisteredAt: registeredAt,     // 💡 실제 전산 입고 등록 일시 (행위 감사 기록)
         updatedAt: registeredAt
       });
+      
+      // 마스터 계약(Contract)의 종료일자도 가장 늦은 자산 반납일 기준으로 후행 연장 (단축은 제외, 연장만)
+      if (contract && data.returnDate > contract.endDate) {
+        db.updateRow<Contract>('contracts', contract.id, {
+          endDate: data.returnDate,
+          updatedAt: registeredAt
+        });
+        db.insertRow<ContractHistory>('contractHistory', {
+          contractId: contract.id,
+          changeType: 'EXTEND',
+          changeDate: data.returnDate,
+          prevEndDate: contract.endDate,
+          newEndDate: data.returnDate,
+          description: `[자동 연장] 입고 처리(입고일: ${data.returnDate})에 따른 계약 강제 연장 동기화`,
+          createdAt: registeredAt
+        });
+      }
     }
 
     // 3. 자산 정비수리 대장 연동 (결함 발생 시 자동 PENDING 정비 건 발행)
