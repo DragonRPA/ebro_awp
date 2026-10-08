@@ -3371,26 +3371,18 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "basicGuide": [
       {
         "seq": 1,
-        "selector": "[data-mid=\"btn-new-asset\"]",
-        "type": "highlight",
-        "label": "자산 취득 및 매각",
-        "description": "신규 자산을 등록하거나 기존 자산을 매각 처리할 수 있는 페이지로 이동합니다.",
-        "positionHint": "bottom"
-      },
-      {
-        "seq": 2,
-        "selector": "[data-mid=\"asset-header-actions\"] button.btn-primary",
-        "type": "highlight",
-        "label": "임차자산 관리",
-        "description": "임차자산의 현황을 관리하고 반납 처리 등을 수행하는 페이지로 이동합니다.",
-        "positionHint": "bottom"
-      },
-      {
-        "seq": 3,
         "selector": "[data-mid=\"asset-filter-bar\"]",
         "type": "highlight",
         "label": "자산 검색 및 필터",
         "description": "관리번호, 모델명 등의 키워드 검색과 소유구분, 장비 상태 등의 조건으로 자산을 필터링합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 2,
+        "selector": "[data-mid=\"btn-asset-search\"]",
+        "type": "highlight",
+        "label": "조회",
+        "description": "입력된 조건으로 자산을 조회합니다.",
         "positionHint": "bottom"
       }
     ],

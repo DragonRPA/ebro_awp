@@ -452,27 +452,20 @@ export const Assets: React.FC = () => {
         {/* 우상단 파이프라인 버튼군 */}
         <div data-mid="asset-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <button
+            className="btn-primary"
+            data-mid="btn-asset-search"
+            onClick={() => showToast('조회되었습니다.', 'success')}
+            style={{ padding: '5px 12px', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
+          >
+            <Search size={13} /> 조회
+          </button>
+          <button
             className="btn-secondary"
             data-mid="btn-asset-export"
             onClick={handleExport}
             style={{ padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
           >
             <Download size={13} /> 엑셀 다운로드
-          </button>
-          <button
-            className="btn-secondary"
-            data-mid="btn-new-asset"
-            onClick={() => setGlobalActiveTab('acquisition_disposal')}
-            style={{ padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
-          >
-            <PlusCircle size={13} /> 자산 취득 / 매각
-          </button>
-          <button
-            className="btn-primary"
-            onClick={() => setGlobalActiveTab('rent_asset')}
-            style={{ padding: '5px 12px', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
-          >
-            <ShoppingBag size={13} /> 임차자산 관리
           </button>
         </div>
       </div>
