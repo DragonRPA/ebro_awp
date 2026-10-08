@@ -737,13 +737,14 @@ export const Assets: React.FC = () => {
                 </tr>
               ) : (
                 visibleAssets.map((a, idx) => {
-const isAvailableOrDisposed = a.status === 'AVAILABLE' || a.status === 'SOLD';
-                  const ci = isAvailableOrDisposed ? null : getAssetContractInfo(a.id);
-                  const isReturned = Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED';
+const isReturnedToLessor = Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED';
+                  const isInactive = a.status === 'AVAILABLE' || a.status === 'SOLD' || isReturnedToLessor;
+                  const ci = isInactive ? null : getAssetContractInfo(a.id);
+                  const isReturned = isReturnedToLessor;
                   const renterName = getAssetRenterName(a);
                   const supplierName = getAssetSupplierName(a);
-                  const custName = isAvailableOrDisposed ? '-' : getCustomerName(a.currentCustomerId);
-                  const siteName = isAvailableOrDisposed ? '-' : getSiteName(a.currentSiteId);
+                  const custName = isInactive ? '-' : getCustomerName(a.currentCustomerId);
+                  const siteName = isInactive ? '-' : getSiteName(a.currentSiteId);
                   const netProfit = (a.cumRentalFee || 0) - (a.cumRepairCost || 0);
                   const accumDepn = a.ownerType === 'OWNED' ? (a.accumDepreciation || 0) : 0;
                   const bookVal = a.ownerType === 'OWNED' ? (a.bookValue ?? Math.max(0, (a.acquisitionPrice || 0) - accumDepn)) : 0;
