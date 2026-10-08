@@ -737,7 +737,7 @@ export const Assets: React.FC = () => {
                 </tr>
               ) : (
                 visibleAssets.map((a, idx) => {
-const isAvailableOrDisposed = a.status === 'AVAILABLE' || a.status === 'SOLD' || a.status === 'DISPOSED' || a.status === 'DISCARDED';
+const isAvailableOrDisposed = a.status === 'AVAILABLE' || a.status === 'SOLD';
                   const ci = isAvailableOrDisposed ? null : getAssetContractInfo(a.id);
                   const isReturned = Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED';
                   const renterName = getAssetRenterName(a);
