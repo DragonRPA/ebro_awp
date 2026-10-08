@@ -2423,7 +2423,7 @@ export const Contracts: React.FC = () => {
                 )}
               </div>
 
-              <div className="table-container" style={{ border: 'none', boxShadow: 'none' }}>
+              <div className="table-container" style={{ border: 'none', boxShadow: 'none', maxHeight: '350px', overflowY: 'auto' }}>
                 <table>
                   <thead>
                     {activeContract.contractType === 'SALE' ? (
@@ -2567,7 +2567,7 @@ export const Contracts: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="table-container" style={{ border: 'none', maxHeight: '320px', overflowY: 'auto' }}>
+                    <div className="table-container" style={{ border: 'none', maxHeight: '240px', overflowY: 'auto' }}>
                       {contractBillings.length === 0 ? (
                         <div style={{ color: 'var(--danger)', textAlign: 'center', padding: '30px 0', fontSize: '12.5px', fontWeight: 600 }}>
                           ⚠️ 발행된 청구 내역이 없습니다. (미청구 계약)
@@ -2629,7 +2629,7 @@ export const Contracts: React.FC = () => {
                 <Clock size={16} color="var(--primary)" /> 계약 변경 및 이력 ({activeTimeline.length}건)
               </h3>
 
-              <div style={{ maxHeight: '320px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
+              <div style={{ maxHeight: '240px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
                 {activeTimeline.length === 0 ? (
                   <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '20px' }}>기록된 이력이 없습니다.</div>
                 ) : (
