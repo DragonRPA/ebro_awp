@@ -1251,7 +1251,6 @@ export const Contracts: React.FC = () => {
         contactName: newSiteContactName || '미상',
         contact: newSiteContactPhone || '미상',
         email: newSiteContactEmail || '미상',
-        isActive: true,
         createdAt: new Date().toISOString()
       });
       finalSiteId = newSite.id;

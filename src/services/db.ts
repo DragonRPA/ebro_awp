@@ -1142,7 +1142,6 @@ export interface CustomerSite {
   contactName: string;
   contact: string;
   email: string;
-  isActive?: boolean; // 사용/미사용 (공사 완공 시 미사용)
   contacts?: SiteContactPerson[]; // 👥 실제 동시 2명 이상 현장 담당자 목록 (장비, 마감, 안전)
   billingContactName?: string;    // 마감담당자 성명
   billingContactPhone?: string;   // 마감담당자 전화번호

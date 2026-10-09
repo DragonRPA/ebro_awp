@@ -278,12 +278,14 @@ export const Customers: React.FC = () => {
     return sites
       .filter(cs => cs.customerId === selectedCustomerId)
       .sort((a, b) => {
-        const aActive = a.isActive !== false;
-        const bActive = b.isActive !== false;
+        const aMaster = siteMasters.find(sm => sm.id === a.siteMasterId);
+        const bMaster = siteMasters.find(sm => sm.id === b.siteMasterId);
+        const aActive = aMaster?.isActive !== false;
+        const bActive = bMaster?.isActive !== false;
         if (aActive !== bActive) return aActive ? -1 : 1;
         return a.name.localeCompare(b.name, 'ko');
       });
-  }, [sites, selectedCustomerId]);
+  }, [sites, siteMasters, selectedCustomerId]);
 
   // 📄 사업자등록증 원본 파일 누락 여부 판정 (실제 파일 첨부/등록 여부)
   const isMissingBizCert = (c: Customer) => {
@@ -343,11 +345,11 @@ export const Customers: React.FC = () => {
     const blockedCust = customers.filter(c => isCustomerRestricted(c.transactionStatus)).length;
     const closedCust = customers.filter(c => c.isClosed).length;
     const totalSites = sites.length;
-    const activeSites = sites.filter(s => s.isActive !== false).length;
+    const activeSites = sites.filter(s => siteMasters.find(sm => sm.id === s.siteMasterId)?.isActive !== false).length;
     const totalContacts = contacts.length;
 
     return { totalCust, activeCust, blockedCust, closedCust, totalSites, activeSites, totalContacts };
-  }, [customers, sites, contacts]);
+  }, [customers, sites, siteMasters, contacts]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -441,7 +443,7 @@ export const Customers: React.FC = () => {
       })(),
       '유상옵션': normalizeOptionString(cs.paidOptions) || normalizeOptionString(activeCustomer.defaultPaidOptions) || '-',
       '보양작업': normalizeOptionString(cs.protection) || normalizeOptionString(activeCustomer.defaultProtection) || '-',
-      '사용여부': cs.isActive !== false ? '사용' : '종료',
+      '사용여부': siteMasters.find(sm => sm.id === cs.siteMasterId)?.isActive !== false ? '사용' : '종료',
       '등록 일시': cs.createdAt?.substring(0, 10) || '-'
     }));
     exportToExcel(excelData, `현장목록_${activeCustomer.name}_${new Date().toISOString().split('T')[0]}`, '현장리스트');
@@ -1752,7 +1754,7 @@ const handleDeleteAccount = async (accId: string) => {
                           const hasActiveContracts = activeContracts.length > 0;
 
                           return (
-                            <tr key={cs.id} style={{ borderBottom: '1px solid var(--border-color)', opacity: cs.isActive !== false ? 1 : 0.6 }}>
+                            <tr key={cs.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                               <td style={{ padding: '5px 6px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <Circle size={10} fill={hasActiveContracts ? '#22c55e' : '#eab308'} strokeWidth={0} />
                                 
@@ -1821,9 +1823,7 @@ const handleDeleteAccount = async (accId: string) => {
                               </span>
                             </td>
                             <td style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                              <span className={`badge ${cs.isActive !== false ? 'badge-success' : 'badge-secondary'}`} style={{ fontSize: '9.5px' }}>
-                                {cs.isActive !== false ? '가동' : '종료'}
-                              </span>
+                              
                             </td>
                             <td style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>
                               <div 
@@ -2950,17 +2950,7 @@ const handleDeleteAccount = async (accId: string) => {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', backgroundColor: 'var(--bg-app)', borderRadius: '4px' }}>
-                <input
-                  type="checkbox"
-                  id="siteActiveCheck"
-                  checked={editingSite.isActive !== false}
-                  onChange={e => setEditingSite({ ...editingSite, isActive: e.target.checked })}
-                />
-                <label htmlFor="siteActiveCheck" style={{ fontSize: '12px', cursor: 'pointer', margin: 0 }}>
-                  가동 현장 (공사 완공 시 체크 해제)
-                </label>
-              </div>
+
 
               </div>
 
