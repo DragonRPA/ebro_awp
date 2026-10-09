@@ -1293,10 +1293,12 @@ export function parseInitialExcelWorkbook(
       });
     }
 
-    const leaseVendorName = getCol(r, mainHeaderMap, ['임차업체', '매입처'], 15) ? String(getCol(r, mainHeaderMap, ['임차업체', '매입처'], 15)).trim() : '';
-    const leasePrice = sanitizeNumber(getCol(r, mainHeaderMap, ['임차단가', '매입단가'], 16));
-    const leaseStartDate = sanitizeExcelDate(getCol(r, mainHeaderMap, ['전대개시일', '임차개시일'], 18));
-    const leaseReturnDate = sanitizeExcelDate(getCol(r, mainHeaderMap, ['전대반납일', '반납일'], 19));
+    // 💡 [단일 진실의 원천]: '반납일'이라는 범용 명칭과 하드코딩된 컬럼 인덱스(19)가 '고객사 현장 반납일'과 충돌하여 
+    // 멀쩡한 임차 자산을 '임차처 반납완료(RENTED_RETURNED)'로 오인하게 만드는 치명적 버그 수정.
+    const leaseVendorName = getCol(r, mainHeaderMap, ['임차업체', '매입처', '임차처'], -1) ? String(getCol(r, mainHeaderMap, ['임차업체', '매입처', '임차처'], -1)).trim() : '';
+    const leasePrice = sanitizeNumber(getCol(r, mainHeaderMap, ['임차단가', '매입단가'], -1));
+    const leaseStartDate = sanitizeExcelDate(getCol(r, mainHeaderMap, ['전대개시일', '임차개시일', '임차시작일', '매입일'], -1));
+    const leaseReturnDate = sanitizeExcelDate(getCol(r, mainHeaderMap, ['전대반납일', '임차반납일', '임차처반납일', '매입반납일'], -1));
 
     let matchedAsset: any = null;
 
