@@ -12,7 +12,7 @@ import { exportToExcel } from '../services/excel';
 
 export const SiteOptionManage: React.FC = () => {
   const { 
-    sites, standardOptions, saveStandardOption, deleteStandardOption, 
+    customers, sites, standardOptions, saveStandardOption, deleteStandardOption, 
     saveSite, showErrorModal, fullRefreshFromServer,
     navigationPayload, setNavigationPayload
   } = useApp();
@@ -566,7 +566,7 @@ export const SiteOptionManage: React.FC = () => {
                           textOverflow: 'ellipsis',
                           overflow: 'hidden'
                         }}>
-                          {(() => { const cust = db.customers.find(c => c.id === site.customerId); return cust ? `[${cust.name}] ${site.name}` : site.name; })()}
+                          {(() => { const cust = (customers || []).find((c: Customer) => c.id === site.customerId); return cust ? `[${cust.name}] ${site.name}` : site.name; })()}
                         </span>
                         <ChevronRight size={14} color={isSelected ? 'var(--primary)' : 'var(--text-muted)'} />
                       </div>
