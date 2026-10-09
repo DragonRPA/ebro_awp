@@ -69,7 +69,7 @@ const DeveloperSiteMergeModal: React.FC<{
           <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>현장 A 선택</label>
           <select className="select-primary" value={sourceId} onChange={e => setSourceId(e.target.value)}>
             <option value="">-- 현장 A 선택 --</option>
-            {masters.map((m: SiteMaster) => <option key={m.id} value={m.id}>{m.name} ({m.address})</option>)}
+            {[...masters].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko')).map((m: SiteMaster) => <option key={m.id} value={m.id}>{m.name} ({m.address})</option>)}
           </select>
         </div>
 
@@ -77,7 +77,7 @@ const DeveloperSiteMergeModal: React.FC<{
           <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>현장 B 선택</label>
           <select className="select-primary" value={targetId} onChange={e => setTargetId(e.target.value)}>
             <option value="">-- 현장 B 선택 --</option>
-            {masters.map((m: SiteMaster) => <option key={m.id} value={m.id}>{m.name} ({m.address})</option>)}
+            {[...masters].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko')).map((m: SiteMaster) => <option key={m.id} value={m.id}>{m.name} ({m.address})</option>)}
           </select>
         </div>
 
