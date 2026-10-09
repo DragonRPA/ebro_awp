@@ -108,6 +108,8 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   
   const createSalesOrder = async (customerId: string, items: {productId: string, qty: number, unitPrice: number}[]) => {
     // [RWTT 1~10 적발] 재고 부족 및 단종 상품 판매 원천 차단
+    if (!customerId || customerId.trim() === '') throw new Error('고객사 정보가 누락되었습니다.');
+    if (items.length === 0) throw new Error('수주 품목이 1개 이상 존재해야 합니다.');
     for (const i of items) {
        const prod = products.find(p => p.id === i.productId);
        if (!prod) throw new Error("상품 마스터가 존재하지 않습니다.");
