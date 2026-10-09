@@ -1926,9 +1926,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else {
       db.insertRow('siteMasters', { ...s, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as any);
     }
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const saveSite = async (site: Omit<CustomerSite, 'id' | 'createdAt'> & { id?: string }) => {
     // 1. SiteMaster (독립 현장 마스터) 저장/업데이트
@@ -1965,6 +1963,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       masterId = newMaster.id;
     }
 
+    // 🚀 [Critical Fix] SiteMaster가 원격 DB에 먼저 저장되어야만 CustomerSite 삽입 시 FK 제약조건을 통과함
+    await db.awaitPendingWrites();
+
     // 2. CustomerSiteLink (고객-현장 조인 테이블) 저장/업데이트
     const linkPayload = {
       ...site,
@@ -1979,10 +1980,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     delete (linkPayload as any).contact;
     delete (linkPayload as any).email;
 
+    let resultSite: CustomerSite;
     if (site.id) {
-      db.updateRow<CustomerSite>('sites', site.id, linkPayload as CustomerSite);
+      resultSite = db.updateRow<CustomerSite>('sites', site.id, linkPayload as CustomerSite) as CustomerSite;
     } else {
-      db.insertRow<CustomerSite>('sites', {
+      resultSite = db.insertRow<CustomerSite>('sites', {
         ...linkPayload,
         createdAt: new Date().toISOString()
       } as Omit<CustomerSite, 'id'>);
@@ -1999,6 +2001,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     refreshAllData();
+    return resultSite;
   };
 
   const deleteSite = async (id: string) => {
@@ -2065,15 +2068,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createdAt: new Date().toISOString()
       });
     }
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const deleteInspectionChecklistItem = async (id: string) => {
     db.deleteRow('inspectionChecklistItems', id);
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const saveEquipmentManual = async (manualData: Omit<EquipmentManual, 'id' | 'createdAt'> & { id?: string }) => {
     if (manualData.id) {
@@ -2090,15 +2089,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updatedAt: new Date().toISOString()
       });
     }
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const deleteEquipmentManual = async (id: string) => {
     db.deleteRow('equipmentManuals', id);
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   // 🏷️ 전사 표준 옵션 마스터 CUD
   const saveStandardOption = async (optionData: Omit<StandardOption, 'id' | 'createdAt'> & { id?: string }): Promise<StandardOption> => {
@@ -2124,9 +2119,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const deleteStandardOption = async (id: string): Promise<void> => {
     db.deleteRow('standardOptions', id);
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const saveAsset = async (asset: Omit<Asset, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => {
     let result;
@@ -3007,9 +3000,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: nowIso
     });
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const cancelExecutiveDirective = async (todoId: string) => {
     const targetTodo = db.todos.find(t => t.id === todoId);
@@ -3025,9 +3016,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedAt: nowIso
     });
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   // 💡 매입처 거래액 및 거래개시일 자동 트리거 갱신 헬퍼
   const triggerVendorPurchaseMetric = (vendorIdOrName: string, purchaseAmount: number, tradeDate?: string) => {
@@ -3691,9 +3680,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       createdAt: new Date().toISOString()
     });
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const useConsumable = async (data: { consumableId: string; quantity: number; targetAssetId: string; description: string }) => {
     try {
@@ -5200,18 +5187,14 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       senderName: currentUser?.name
     });
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const updatePurchaseUnitPrice = async (id: string, newUnitPrice: number) => {
     db.updateRow<ConsumablePurchaseRequest>('consumablePurchases', id, {
       unitPrice: newUnitPrice,
       updatedAt: new Date().toISOString()
     });
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const acceptConsumablePurchase = async (id: string) => {
     const validUserId = getValidUserId(currentUser?.id);
@@ -5233,9 +5216,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       completionAction: 'PURCHASE_ACCEPTED'
     });
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const completeConsumablePurchase = async (id: string) => {
     const req = db.consumablePurchases.find(p => p.id === id);
@@ -5289,9 +5270,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       updatedAt: nowIso
     });
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const inboundConsumablePurchase = async (id: string, qty: number, statementFileUrl: string) => {
     const req = db.consumablePurchases.find(p => p.id === id);
@@ -5368,27 +5347,21 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       createdAt: new Date().toISOString()
     });
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   // 증빙 파일 Storage 삭제 후 DB URL 초기화
   const clearEvidenceFileUrls = async (ids: string[]): Promise<void> => {
     for (const id of ids) {
       db.updateRow<ConsumablePurchaseRequest>('consumablePurchases', id, { statementFileUrl: '' });
     }
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   // Storage 삭제 후 Drive URL로 교체
   const updateEvidenceFileUrls = async (updates: { id: string; url: string }[]): Promise<void> => {
     for (const { id, url } of updates) {
       db.updateRow<ConsumablePurchaseRequest>('consumablePurchases', id, { statementFileUrl: url });
     }
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const ensureCustomerContactExists = (customerId: string, contactId: string | undefined) => {
     if (contactId && contactId.startsWith('SC-')) {
@@ -5511,9 +5484,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       updatedAt: new Date().toISOString()
     });
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const extendContract = async (contractId: string, newEndDate: string, description: string) => {
     const contract = db.contracts.find(c => c.id === contractId);
@@ -5559,9 +5530,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       createdAt: new Date().toISOString()
     });
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const shortenContract = async (contractId: string, newEndDate: string, description: string) => {
     const contract = db.contracts.find(c => c.id === contractId);
@@ -5620,9 +5589,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       updatedAt: new Date().toISOString()
     });
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const succeedContract = async (contractId: string, successorCustomerId: string, successorContactId: string, successorSiteId: string, successionDate: string, description: string, selectedAssetIds?: string[]) => {
     const oldContract = db.contracts.find(c => c.id === contractId);
@@ -5751,6 +5718,10 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     }
 
+    // ⚠️ 외래키 제약조건 방지
+    await db.awaitPendingWrites();
+
+
     // 전체 승계 시 원 계약의 장비가 0대가 되므로 상태를 COMPLETED로 종결 처리
     // (부분 승계 시 원 계약 ACTIVE 유지)
     if (assetsToRetain.length === 0) {
@@ -5809,9 +5780,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       createdAt: new Date().toISOString()
     });
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); };
 
   // Feature 6) 동일 고객 현장간 장비 이동 (Site Transfer / Relocation)
   const relocateContractAsset = async (params: {
@@ -6023,9 +5992,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     }
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   /**
    * [헌장 1.2 & 2.2] 수리 완료 장비 동일 계약 재투입 (회수 후 수리 재출고)
@@ -6163,9 +6130,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     }
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   // Feature 4) 개별 ContractAsset 기간 수정 (부분 연장 / 부분 단축)
   const updateContractAssetPeriod = async (caId: string, startDate: string, endDate: string, reason: string) => {
@@ -6226,9 +6191,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       createdAt: new Date().toISOString()
     });
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const assignAssetToContract = async (contractAssetId: string, assetId: string) => {
     // 💡 1. 롤백용 원본 스냅샷 백업
@@ -6925,9 +6888,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         });
       }
     }
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   // 청구 취소 (J-1, J-2 원칙)
   // refund=true: 수납 취소 + 입금잔액 소멸 (환불 케이스)
@@ -7069,9 +7030,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       syncContractBillingMilestones(billing.contractId);
     }
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   // ─── 외상미수금 CRUD (4단계) ──────────────────────────────────────────────
 
@@ -7138,9 +7097,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     }
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   /** K-2: 외상미수금 단독 청구서 발행 (수금 기동성 및 진상고객 방어) */
   const generateStandaloneBillingForReceivable = async (receivableId: string, reason: string): Promise<string> => {
@@ -7781,9 +7738,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       updatedAt: now
     });
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   // 💡 특수 거래명세서 해제 (원래 정상 청구 양식으로 원복)
   const removeCustomStatementForBilling = async (billingId: string) => {
@@ -7801,9 +7756,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       updatedAt: now
     });
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   // 💡 테넌트별 특수 거래명세서 기능 활성화/비활성화 제어
   const toggleTenantCustomBillingStatement = async (tenantId: string, enabled: boolean) => {
@@ -7882,9 +7835,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     }
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   // 수납 취소: Payment 삭제 + 연결된 PDL 전체 삭제 + Billing.paidAmount 롤백 + 선수금 환원 + 계약 이력 보존
   const cancelPayment = async (paymentId: string) => {
@@ -8311,9 +8262,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         });
       }
     }
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const unmatchTransaction = async (txId: string) => {
     const tx = db.bankTransactions.find(t => t.id === txId);
@@ -8472,9 +8421,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       updatedAt: nowIso
     } as any);
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const saveMatchingRule = (senderName: string, customerId: string) => {
     const existing = db.bankMatchingRules.find(r => r.senderName.toLowerCase() === senderName.toLowerCase());
@@ -8516,9 +8463,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         updatedAt: new Date().toISOString()
       } as any);
     }
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const updateAnnualLeaveQuota = async (userId: string, periodStart: string, periodEnd: string, grantedDays: number, memo?: string) => {
     const existing = db.annualLeaveQuotas.find(q => q.userId === userId && q.periodStart === periodStart);
@@ -8538,9 +8483,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         createdAt: new Date().toISOString()
       } as any);
     }
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const addLeaveUsage = async (usage: Omit<LeaveUsage, 'id' | 'createdAt'>) => {
     const newLeave = db.insertRow<LeaveUsage>('leaveUsages', {
@@ -8563,9 +8506,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       senderName: currentUser?.name
     });
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const deleteLeaveUsage = async (id: string) => {
     db.deleteRow('leaveUsages', id);
@@ -8574,9 +8515,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       entityId: id,
       completionAction: 'LEAVE_DELETED'
     });
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const addOvertimeRecord = async (record: Omit<OvertimeRecord, 'id' | 'createdAt'>) => {
     const newOt = db.insertRow<OvertimeRecord>('overtimeRecords', {
@@ -8598,9 +8537,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       senderName: currentUser?.name
     });
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const deleteOvertimeRecord = async (id: string) => {
     db.deleteRow('overtimeRecords', id);
@@ -8609,9 +8546,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       entityId: id,
       completionAction: 'OT_DELETED'
     });
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const setPayrollClosingStatus = async (month: string, status: 'DRAFT' | 'APPROVED', approvedBy?: string) => {
     const existing = db.payrollClosings.find(p => p.month === month);
@@ -8631,9 +8566,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         createdAt: new Date().toISOString()
       } as any);
     }
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const dispatchDelivery = (
     deliveryId: string, 
@@ -8781,9 +8714,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       }
     }
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const completeInboundDelivery = async (
     deliveryId: string,
@@ -8947,9 +8878,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       }
     }
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   // 💡 [사장님 지시] 입고 등록 (입고번호, 하위번호 INB-XXXX-01, 증상별 사진 및 자산정비수리 자동연동, 불량 시 REPAIRING 전환)
   const registerInboundAsset = async (data: {
@@ -9163,9 +9092,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       createdAt: registeredAt
     });
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   // 💡 [사장님 지시] 입고 취소 롤백 (휴먼에러 복원 및 INBOUND_CANCEL 히스토리 무누락 저장)
   const cancelInboundAsset = async (logId: string, cancelReason?: string) => {
@@ -9206,9 +9133,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     }
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const registerRepair = async (repairData: Partial<Repair>, usedConsumables: { consumableId: string; quantity: number }[]) => {
     const repairId = repairData.id || db.generateNextId('repairs', db.repairs);
@@ -9434,9 +9359,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     }
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const updateRepairStatus = async (
     repairId: string, 
@@ -9481,9 +9404,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       }
     }
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const saveTransportDataOnFly = (companyName: string, driverName: string, contact: string, vehicleNo: string, vehicleType: string) => {
     if (!companyName && !driverName) return;
@@ -10002,9 +9923,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         settlement.paymentDate || (settlement.settlementYm ? `${settlement.settlementYm}-01` : undefined)
       );
     }
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const recordPurchaseSettlementPayment = async (
     id: string,
@@ -10051,9 +9970,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     }
 
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const savePurchaseSettlement = async (settlement: Partial<PurchaseSettlement>): Promise<void> => {
     if (!settlement.id) return;
@@ -10061,9 +9978,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       ...settlement,
       updatedAt: new Date().toISOString()
     });
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   // ── 월말 감가상각 결산 취소 (롤백) ──
   const cancelMonthlyDepreciation = async (depreciationYm: string): Promise<void> => {
@@ -10553,9 +10468,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       ...updates,
       updatedAt: new Date().toISOString()
     });
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const deleteCorporateVehicle = async (id: string): Promise<void> => {
     // ✅ 고아 레코드 방지: 차량 삭제 시 연관 운행일지, 주유 기록 cascade 삭제
@@ -10564,9 +10477,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const linkedFuelLogs = db.vehicleFuelLogs.filter(l => l.vehicleId === id);
     linkedFuelLogs.forEach(l => db.deleteRow('vehicleFuelLogs', l.id));
     db.deleteRow('corporateVehicles', id);
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const registerVehicleOperationLog = async (logData: Omit<VehicleOperationLog, 'id' | 'createdAt' | 'updatedAt'>): Promise<VehicleOperationLog> => {
     const now = new Date().toISOString();
@@ -10597,9 +10508,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       ...updates,
       updatedAt: new Date().toISOString()
     });
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const deleteVehicleOperationLog = async (id: string): Promise<void> => {
       const log = db.vehicleOperationLogs.find(l => l.id === id);
@@ -10607,9 +10516,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         throw new Error('승인 완료된 운행일지는 삭제할 수 없습니다.');
       }
     db.deleteRow('vehicleOperationLogs', id);
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   const registerVehicleFuelLog = async (fuelData: Omit<VehicleFuelLog, 'id' | 'createdAt' | 'updatedAt'>): Promise<VehicleFuelLog> => {
     const now = new Date().toISOString();
@@ -10651,9 +10558,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
   const deleteVehicleFuelLog = async (id: string): Promise<void> => {
     db.deleteRow('vehicleFuelLogs', id);
-    await db.awaitPendingWrites();
-    refreshAllData();
-  };
+    await db.awaitPendingWrites(); refreshAllData(); return contract; };
 
   // 分散 인쇄 큐 & 스테이션 관리 액션
   const enqueuePrintJobAction = async (params: {

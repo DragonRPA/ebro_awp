@@ -1,3 +1,9 @@
+## [v1.16.1.Build.1] - 2026-10-09 23:13
+### 🐛 계약 승계/단축/연장 논리 충돌 및 FK 레이스 컨디션 해결 (RWTT 검증 완료)
+- **외래키(FK) Race Condition 원천 차단**: `createContract`, `succeedContract`, `saveSite` 함수 내에서 Supabase 원격 DB로 상위 레코드(계약, 현장 마스터)가 100% 삽입되기 전에 하위 레코드(체결 자산, 현장 링크)를 비동기로 생성하려다 발생하던 `foreign key constraint` 에러를 `await db.awaitPendingWrites()` 동기 대기를 통해 완벽히 해결했습니다.
+- **반환 객체 참조 무결성 수정**: `saveSite`, `createContract` 등이 동기화 완료 후 새로 생성된 객체를 `return`하도록 시그니처를 수정하여, 후행 로직에서 안전하게 ID를 참조할 수 있도록 보강했습니다.
+- **RWTT 관통 스트레스 테스트 20회 반복 성공**: Playwright 기반의 `run_rwtt_contracts.cjs` 자동화 스크립트를 통해 생성 ➔ 연장 ➔ 단축 ➔ 승계 사이클을 연속 20회 타격하여 논리 충돌 무결성을 최종 검증 완료했습니다.
+
 ## [v1.16.0.Build.1] - 2026-10-09 22:45
 ### ✨ 현장 마스터(M) 중심의 N:M 아키텍처 대개편 및 UI/UX 동기화
 - **논리적 모순 제거 (역정규화 영구 금지)**: 고객-현장 조인 테이블(`CustomerSite`)에 잘못 보관되던 물리적 현장(M) 고유의 속성들(`isActive`, `paidOptions`, `protection`, `checkedSpecs`)을 스키마에서 완전히 삭제했습니다.
