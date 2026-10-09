@@ -1,6 +1,107 @@
 ﻿// src/pages/SiteOptionManage.tsx
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { supabase, db, SiteMaster } from '../services/db';
+
+// 🛠️ 개발자 전용 현장 마스터 병합 모달
+const DeveloperSiteMergeModal: React.FC<{
+  onClose: () => void;
+}> = ({ onClose }) => {
+  const { showErrorModal, refreshAllData } = useApp();
+  const [sourceId, setSourceId] = useState('');
+  const [targetId, setTargetId] = useState('');
+  const [survivor, setSurvivor] = useState<'A'|'B'>('A');
+
+  const masters = db.siteMasters || [];
+
+  const handleMerge = async () => {
+    if (!sourceId || !targetId) return showErrorModal('병합할 두 현장을 선택하세요.');
+    if (sourceId === targetId) return showErrorModal('서로 다른 현장을 선택하세요.');
+
+    const masterA = masters.find((m: SiteMaster) => m.id === sourceId);
+    const masterB = masters.find((m: SiteMaster) => m.id === targetId);
+    if (!masterA || !masterB) return;
+
+    const survivingId = survivor === 'A' ? masterA.id : masterB.id;
+    const discardedId = survivor === 'A' ? masterB.id : masterA.id;
+    const survivingName = survivor === 'A' ? masterA.name : masterB.name;
+    const discardedName = survivor === 'A' ? masterB.name : masterA.name;
+
+    const confirmed = window.confirm(`[${discardedName}] 현장을 폐기하고, 모든 연결을 [ ${survivingName} ](으)로 이동시킵니다.\n진행하시겠습니까?`);
+    if (!confirmed) return;
+
+    // 1. Update all CustomerSiteLinks
+    let updatedCount = 0;
+    const allSites = db.sites;
+    for (const link of allSites) {
+      if (link.siteMasterId === discardedId) {
+        db.updateRow('sites', link.id, { ...link, siteMasterId: survivingId, updatedAt: new Date().toISOString() });
+        updatedCount++;
+      }
+    }
+
+    // 2. Delete discarded Master
+    if (supabase) {
+      const { error } = await supabase.from('site_masters').delete().eq('id', discardedId);
+      if (error) {
+        console.warn('Supabase delete master error:', error);
+      }
+    }
+    // Also remove locally
+    db.siteMasters = db.siteMasters.filter((m: SiteMaster) => m.id !== discardedId);
+
+    if (db.isSupabaseConnected() && db.pendingWrites.length > 0) {
+      await Promise.all(db.pendingWrites);
+      db.pendingWrites = [];
+    }
+
+    refreshAllData();
+    showErrorModal(`병합 완료! ${updatedCount}개의 계약/링크가 [${survivingName}] 현장으로 옯겨졌습니다.`, '병합 성공');
+    onClose();
+  };
+
+  return (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ background: 'var(--bg-app)', padding: '24px', borderRadius: '12px', width: '500px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>🛠️ 개발자 전용 현장 마스터 강제 병합</h3>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>현장 A 선택</label>
+          <select className="select-primary" value={sourceId} onChange={e => setSourceId(e.target.value)}>
+            <option value="">-- 현장 A 선택 --</option>
+            {masters.map((m: SiteMaster) => <option key={m.id} value={m.id}>{m.name} ({m.address})</option>)}
+          </select>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>현장 B 선택</label>
+          <select className="select-primary" value={targetId} onChange={e => setTargetId(e.target.value)}>
+            <option value="">-- 현장 B 선택 --</option>
+            {masters.map((m: SiteMaster) => <option key={m.id} value={m.id}>{m.name} ({m.address})</option>)}
+          </select>
+        </div>
+
+        <div style={{ background: 'var(--bg-panel)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600 }}>어느 현장명으로 병합하여 살리시겠습니까?</div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
+            <input type="radio" name="survivor" checked={survivor === 'A'} onChange={() => setSurvivor('A')} />
+            A 살리기 (B 폐기 후 A로 이동)
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' }}>
+            <input type="radio" name="survivor" checked={survivor === 'B'} onChange={() => setSurvivor('B')} />
+            B 살리기 (A 폐기 후 B로 이동)
+          </label>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '12px' }}>
+          <button type="button" className="btn-secondary" onClick={onClose}>취소</button>
+          <button type="button" className="btn-danger" onClick={handleMerge} style={{ background: '#ef4444', color: '#fff', border: 'none' }}>강제 병합 실행</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 import { 
   Shield, Check, Plus, Trash2, Edit3, Search, RefreshCw, 
   ArrowRight, Copy, CheckSquare, Layers, Download, Building2, 
@@ -11,6 +112,9 @@ import { SiteOptionItem, inheritOptionsFromMaster } from '../types/siteOption';
 import { exportToExcel } from '../services/excel';
 
 export const SiteOptionManage: React.FC = () => {
+  const { currentUser } = useApp();
+  const isDeveloper = currentUser?.id === 'sys-admin' || currentUser?.id === 'u-1' || currentUser?.loginId === 'admin' || currentUser?.position === 'D.RPA' || currentUser?.department?.includes('개발');
+  const [showDevMergeModal, setShowDevMergeModal] = React.useState(false);
   const { 
     customers, sites, standardOptions, saveStandardOption, deleteStandardOption, 
     saveSite, showErrorModal, fullRefreshFromServer,
@@ -357,6 +461,11 @@ export const SiteOptionManage: React.FC = () => {
     >
       
       {/* 신규 현장 빠른 등록 모달 */}
+      
+      {showDevMergeModal && (
+        <DeveloperSiteMergeModal onClose={() => setShowDevMergeModal(false)} />
+      )}
+
       {showQuickSiteModal && (
         <div className="modal-overlay" onClick={() => setShowQuickSiteModal(false)} style={{ zIndex: 10000 }}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', padding: 0, overflow: 'hidden' }}>
