@@ -27,7 +27,7 @@ const DeveloperSiteMergeModal: React.FC<{
     const survivingName = survivor === 'A' ? masterA.name : masterB.name;
     const discardedName = survivor === 'A' ? masterB.name : masterA.name;
 
-    const confirmed = window.confirm(`[${discardedName}] 현장을 폐기하고, 모든 연결을 [ ${survivingName} ](으)로 이동시킵니다.\n진행하시겠습니까?`);
+    const confirmed = window.confirm(`[${discardedName}] 현장을 폐기하고, 모든 연결을 [ ${survivingName} ](으)로 이동시킵니다.n진행하시겠습니까?`);
     if (!confirmed) return;
 
     // 1. Update all CustomerSiteLinks
@@ -139,7 +139,7 @@ export const SiteOptionManage: React.FC = () => {
     }
     
     const rawName = quickSiteForm.name;
-    const normalizedName = rawName.replace(/\s+/g, '');
+    const normalizedName = rawName.replace(/s+/g, '');
     const duplicate = (sites || []).find(s => 
       (s.name || '').replace(/\s+/g, '') === normalizedName
     );

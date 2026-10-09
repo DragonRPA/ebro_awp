@@ -110,7 +110,6 @@ CREATE TABLE users (
     department            TEXT, -- 부서명 (레거시/표시용)
     "baseSalary"          DOUBLE PRECISION NOT NULL DEFAULT 0, -- 기본급 (급여 정산 권한자 전용)
     phone                 TEXT,
-    email                 TEXT,
     address               TEXT,
     "birthDate"           TEXT,
     "joinDate"            TEXT,
@@ -259,8 +258,6 @@ CREATE TABLE vendors (
     types                 TEXT, -- 다중 업종 콤마 구분
     "bizRegNo"            TEXT,
     representative        TEXT,
-    "contactName"         TEXT,
-    contact               TEXT,
     email                 TEXT,
     address               TEXT,
     "bankAccount"         TEXT,
@@ -369,7 +366,6 @@ CREATE TABLE customer_sites (
     "statementClosingDay" INTEGER,
     "paymentDueDay"       INTEGER,
     "paymentDueMonthOffset" INTEGER DEFAULT 1,
-    "contacts"            JSONB DEFAULT '[]'::jsonb,
     "isActive"            BOOLEAN NOT NULL DEFAULT TRUE,
     "createdAt"           TEXT NOT NULL,
     "updatedAt"           TEXT NOT NULL,
