@@ -1091,12 +1091,6 @@ contact: siteBillingContact.includes('010') ? siteBillingContact : '',
           customerId: custEntity.id,
           name: cleanSiteName,
           address: getCol(r, custHeaderMap, ['연락처', '현장주소', '비고'], 8) ? String(getCol(r, custHeaderMap, ['연락처', '현장주소', '비고'], 8)).trim() : '',
-          // @ts-ignore
-contactName: siteContactName,
-          // @ts-ignore
-contact: siteBillingContact,
-          email: siteEmail,
-          contacts: contactsArr,
           createdAt: nowIso,
           updatedAt: nowIso
         });
@@ -1310,11 +1304,6 @@ contact: getCol(r, custHeaderMap, ['청구담당자'], 10) ? String(getCol(r, cu
         customerId: customer.id,
         name: cleanSiteName,
         address: customer.address || '',
-        // @ts-ignore
-contactName: '',
-        // @ts-ignore
-contact: '',
-        email: '',
         createdAt: nowIso,
         updatedAt: nowIso
       };
@@ -3845,12 +3834,7 @@ export function analyzeDispatchHistoryForCustomerDefaults(
           siteAddress: p.siteAddress || matchedSite?.address,
           paidOptions: normalizeOptionList(p.paidOptions || defaultPaidOptions),
           protection: p.protection || defaultProtection,
-          checkedSpecs: Object.keys(p.matchedSpecs || {}).length > 0 ? p.matchedSpecs : aggregatedSpecs,
-          // @ts-ignore
-contactName: p.siteContactName || matchedSite?.contactName,
-          // @ts-ignore
-contact: p.siteContactPhone || matchedSite?.contact,
-          email: p.siteContactEmail || matchedSite?.email
+          checkedSpecs: Object.keys(p.matchedSpecs || {}).length > 0 ? p.matchedSpecs : aggregatedSpecs
         });
         matchedSitesCount++;
       }
@@ -3866,12 +3850,7 @@ contact: p.siteContactPhone || matchedSite?.contact,
           siteAddress: s.address,
           paidOptions: defaultPaidOptions,
           protection: defaultProtection,
-          checkedSpecs: aggregatedSpecs,
-          // @ts-ignore
-contactName: (s as any).contactName,
-          // @ts-ignore
-contact: (s as any).contact,
-          email: (s as any).email
+          checkedSpecs: aggregatedSpecs
         });
         matchedSitesCount++;
       }
@@ -4029,12 +4008,6 @@ export async function ingestCustomerDefaultsFromDispatchHistory(
           }
           if ((!existingSite.address || existingSite.address === '미상') && siteItem.siteAddress) {
             siteUpdates.address = siteItem.siteAddress;
-          }
-          if ((!(existingSite as any).contactName || (existingSite as any).contactName === '미상') && (siteItem as any).contactName) {
-            (siteUpdates as any).contactName = (siteItem as any).contactName;
-          }
-          if ((!(existingSite as any).contact || (existingSite as any).contact === '미상') && (siteItem as any).contact) {
-            (siteUpdates as any).contact = (siteItem as any).contact;
           }
           if (Object.keys(siteUpdates).length > 0) {
             db.updateRow('customer_sites', siteItem.siteId, siteUpdates);
