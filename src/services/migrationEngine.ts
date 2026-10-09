@@ -116,7 +116,8 @@ export const TABLE_COLUMNS: Record<string, string[]> = {
   ],
   contract_assets: [
     'id', 'contractId', 'assetId', 'expectedModel', 'monthlyRentalFee',
-    'dailyRentalFee', 'startDate', 'endDate', 'createdAt', 'updatedAt'
+    'dailyRentalFee', 'startDate', 'endDate', 'firstStartDate', 'status', 'actualReturnDate',
+    'createdAt', 'updatedAt'
   ],
   external_leases: [
     'id', 'vendorId', 'contractId', 'contractAssetId', 'assetDescription',
