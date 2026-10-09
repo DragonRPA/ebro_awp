@@ -1947,19 +1947,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updatedMaster.address = site.address;
         shouldUpdateMaster = true;
       }
-      if (site.paidOptions !== undefined) {
-        updatedMaster.paidOptions = site.paidOptions;
-        shouldUpdateMaster = true;
-      }
-      if (site.protection !== undefined) {
-        updatedMaster.protection = site.protection;
-        shouldUpdateMaster = true;
-      }
-      if (site.checkedSpecs !== undefined) {
-        updatedMaster.checkedSpecs = site.checkedSpecs;
-        shouldUpdateMaster = true;
-      }
-
       if (shouldUpdateMaster) {
         updatedMaster.updatedAt = new Date().toISOString();
         db.updateRow('siteMasters', masterId, updatedMaster);

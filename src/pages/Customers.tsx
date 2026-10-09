@@ -1005,23 +1005,6 @@ export const Customers: React.FC = () => {
   };
 
   // 📋 현장별 옵션관리 등록 현장 옵션 속성 복사 (SiteModal)
-  const handleApplyRefSiteOptionsToEditingSite = () => {
-    if (!selectedRefSite) {
-      showToast('옵션을 복사할 참조 현장을 먼저 선택하세요.', 'error');
-      return;
-    }
-    setEditingSite(prev => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        paidOptions: selectedRefSite.paidOptions || '',
-        protection: selectedRefSite.protection || '',
-        checkedSpecs: selectedRefSite.checkedSpecs ? { ...selectedRefSite.checkedSpecs } : {}
-      };
-    });
-    const cName = selectedRefCustomer?.name || '고객사';
-    showToast(`[${cName} - ${selectedRefSite.name}] 현장의 옵션 속성을 적용했습니다.`);
-  };
 
   // 📋 현장별 옵션관리 등록 현장 옵션 속성 복사 (SiteOptionModal)
   const handleApplyRefSiteOptionsToOptionForm = () => {
@@ -2541,11 +2524,9 @@ const handleDeleteAccount = async (accId: string) => {
                         if (refSite) {
                           setEditingSite(prev => ({
                             ...prev,
+                            siteMasterId: refSite.id,
                             name: prev?.name || refSite.name,
-                            address: prev?.address || refSite.address,
-                            paidOptions: refSite.paidOptions || '',
-                            protection: refSite.protection || '',
-                            checkedSpecs: refSite.checkedSpecs ? { ...refSite.checkedSpecs } : {}
+                            address: prev?.address || refSite.address
                           }));
                         }
                       }
@@ -2564,30 +2545,6 @@ const handleDeleteAccount = async (accId: string) => {
                       })}
                     </select>
 
-                    <button
-                      type="button"
-                      onClick={handleApplyRefSiteOptionsToEditingSite}
-                      disabled={!selectedRefSiteId}
-                      style={{
-                        padding: '0 10px',
-                        height: '28px',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        backgroundColor: selectedRefSiteId ? '#2563eb' : 'var(--bg-card)',
-                        color: selectedRefSiteId ? '#ffffff' : 'var(--text-muted)',
-                        border: selectedRefSiteId ? '1px solid #1d4ed8' : '1px solid var(--border-color)',
-                        borderRadius: '4px',
-                        cursor: selectedRefSiteId ? 'pointer' : 'not-allowed',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        whiteSpace: 'nowrap'
-                      }}
-                      title="선택한 등록 현장의 옵션 속성을 현재 현장에 복사 적용"
-                    >
-                      <Copy size={12} />
-                      옵션 속성 복사
-                    </button>
                   </div>
 
                   {selectedRefSite && (
@@ -3005,134 +2962,6 @@ const handleDeleteAccount = async (accId: string) => {
                 </label>
               </div>
 
-              {/* 현장 전용 옵션/보양 설정 */}
-              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '6px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                    현장 옵션 및 보양 설정
-                  </span>
-                  <div style={{ display: 'flex', gap: '5px', alignItems: 'center', flexWrap: 'nowrap' }}>
-                    {editingSite.id && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowSiteModal(false);
-                          handleNavigateToSiteOptionManage(editingSite.id);
-                        }}
-                        style={{ padding: '2px 8px', fontSize: '11.5px', border: '1px solid #2563eb', borderRadius: '3px', backgroundColor: 'rgba(37, 99, 235, 0.08)', color: '#1d4ed8', cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}
-                        title="현장별 옵션 관리 상세 화면으로 이동"
-                      >
-                        현장별 옵션 관리 ➔
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                  <div>
-                    <label style={labelStyle}>현장 전용 유상옵션 (표준 항목 클릭 선택 또는 직접 입력)</label>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '4px' }}>
-                      {standardOptions.filter(o => o.category === 'PAID' && o.isActive).map(opt => {
-                        const isSelected = splitOptions(editingSite.paidOptions).includes(opt.name);
-                        return (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => {
-                              const updated = toggleOptionInString(editingSite.paidOptions || '', opt.name);
-                              setEditingSite({ ...editingSite, paidOptions: updated });
-                            }}
-                            style={{
-                              padding: '2px 6px',
-                              fontSize: '11px',
-                              borderRadius: '3px',
-                              border: isSelected ? '1px solid #2563eb' : '1px solid var(--border-color)',
-                              backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.15)' : 'var(--bg-app)',
-                              color: isSelected ? '#1d4ed8' : 'var(--text-secondary)',
-                              fontWeight: isSelected ? 700 : 400,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {opt.name} {isSelected ? '✓' : ''}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <input
-                      type="text"
-                      style={inputStyle}
-                      value={editingSite.paidOptions || ''}
-                      onChange={e => setEditingSite({ ...editingSite, paidOptions: e.target.value })}
-                      placeholder="비어있으면 기본값 상속, 또는 직접 입력"
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>현장 전용 보양작업</label>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '4px' }}>
-                      {standardOptions.filter(o => o.category === 'PROTECTION' && o.isActive).map(opt => {
-                        const isSelected = editingSite.protection === opt.name;
-                        return (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => setEditingSite({ ...editingSite, protection: opt.name })}
-                            style={{
-                              padding: '2px 6px',
-                              fontSize: '11px',
-                              borderRadius: '3px',
-                              border: isSelected ? '1px solid #059669' : '1px solid var(--border-color)',
-                              backgroundColor: isSelected ? 'rgba(5, 150, 105, 0.15)' : 'var(--bg-app)',
-                              color: isSelected ? '#047857' : 'var(--text-secondary)',
-                              fontWeight: isSelected ? 700 : 400,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {opt.name} {isSelected ? '✓' : ''}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <input
-                      type="text"
-                      style={inputStyle}
-                      value={editingSite.protection || ''}
-                      onChange={e => setEditingSite({ ...editingSite, protection: e.target.value })}
-                      placeholder="비어있으면 기본값 상속, 또는 직접 입력"
-                    />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>현장 전용 요구사양 (안전 규격 및 인증 사양)</label>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                      {standardOptions.filter(o => o.category === 'SPEC' && o.isActive).map(opt => {
-                        const isSelected = Boolean(editingSite.checkedSpecs && editingSite.checkedSpecs[opt.id]);
-                        return (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => {
-                              const updated = {
-                                ...(editingSite.checkedSpecs || {}),
-                                [opt.id]: !isSelected
-                              };
-                              setEditingSite({ ...editingSite, checkedSpecs: updated });
-                            }}
-                            style={{
-                              padding: '2px 6px',
-                              fontSize: '11px',
-                              borderRadius: '3px',
-                              border: isSelected ? '1px solid #d97706' : '1px solid var(--border-color)',
-                              backgroundColor: isSelected ? 'rgba(217, 119, 6, 0.15)' : 'var(--bg-app)',
-                              color: isSelected ? '#b45309' : 'var(--text-secondary)',
-                              fontWeight: isSelected ? 700 : 400,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            {opt.name} {isSelected ? '✓' : ''}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
               </div>
 
             </div>
