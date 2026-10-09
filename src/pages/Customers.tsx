@@ -2536,10 +2536,12 @@ const handleDeleteAccount = async (accId: string) => {
                       <option value="">-- [선택] 복사해 올 기존 현장 선택 ({optionReferenceSites.length}개) --</option>
                       {optionReferenceSites.map(s => {
                         const custName = customerMap.get(s.customerId || '')?.name || '고객사 미지정';
-                        const optSummary = [s.paidOptions, s.protection].filter(Boolean).join(' | ');
+                        const paid = s.paidOptions ? s.paidOptions : '';
+                        const prot = (s.protection && s.protection !== 'NONE') ? s.protection : '';
+                        const optSummary = [paid, prot].filter(Boolean).join(' | ');
                         return (
                           <option key={s.id} value={s.id}>
-                            [{custName}] {s.name} {optSummary ? `(${optSummary})` : '(옵션 미설정)'}
+                            {s.name} {optSummary ? `(${optSummary})` : ''}
                           </option>
                         );
                       })}
@@ -3481,12 +3483,14 @@ const handleDeleteAccount = async (accId: string) => {
                     <option value="">-- [선택] 기존 현장 담당자/옵션 정보 복사해오기 ({optionReferenceSites.length}개) --</option>
                     {optionReferenceSites.map(s => {
                       const custName = customerMap.get(s.customerId || '')?.name || '고객사 미지정';
-                      const optSummary = [s.paidOptions, s.protection].filter(Boolean).join(' | ');
-                      return (
-                        <option key={s.id} value={s.id}>
-                          [{custName}] {s.name} {optSummary ? `(${optSummary})` : '(옵션 미설정)'}
-                        </option>
-                      );
+                      const paid = s.paidOptions ? s.paidOptions : '';
+                        const prot = (s.protection && s.protection !== 'NONE') ? s.protection : '';
+                        const optSummary = [paid, prot].filter(Boolean).join(' | ');
+                        return (
+                          <option key={s.id} value={s.id}>
+                            {s.name} {optSummary ? `(${optSummary})` : ''}
+                          </option>
+                        );
                     })}
                   </select>
 
