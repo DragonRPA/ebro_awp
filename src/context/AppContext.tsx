@@ -3445,9 +3445,10 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     } else {
       result = db.insertRow<Asset>('assets', {
         modelName: assetData.modelName || '',
-        assetNo: assetData.assetNo || '',
-        vendorAssetNo: assetData.vendorAssetNo || '',
-        serialNo: assetData.serialNo || '',
+          assetNo: assetData.assetNo || '',
+          vendorId: assetData.vendorId || '',
+          vendorAssetNo: assetData.vendorAssetNo || '',
+          serialNo: assetData.serialNo || '',
         manufacturer: assetData.manufacturer || '',
         ownerType: 'RENTED',
         antiEntrapmentOwnership: resolvedOwnership,
@@ -9461,19 +9462,20 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     refreshAllData();
   };
 
-  const saveVendor = async (vendor: Vendor): Promise<void> => {
+  const saveVendor = async (vendor: Vendor): Promise<Vendor> => {
+    let result: Vendor;
     try {
       const existing = db.vendors.find(v => v.id === vendor.id);
       if (existing) {
-        db.updateRow('vendors', vendor.id, vendor);
+        result = db.updateRow('vendors', vendor.id!, vendor);
       } else {
-        db.insertRow('vendors', vendor);
+        result = db.insertRow('vendors', vendor);
       }
-      // Supabase 비동기 쓰기 큐 완료 대기 및 에러 전파
       if (db.pendingWrites.length > 0) {
         await db.awaitPendingWrites();
       }
       refreshAllData();
+      return result;
     } catch (err: any) {
       console.error('saveVendor error:', err);
       throw err;
@@ -9764,6 +9766,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         });
       }
 
+      // ⚠️ 외래키 제약조건 방지
+      await db.awaitPendingWrites();
+
       items.forEach(p => {
         db.insertRow<PurchaseSettlementItem>('purchaseSettlementItems', {
           settlementId: settlement.id,
@@ -9781,7 +9786,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     }
 
     // ③ 임차자산(ownerType === 'RENTED') 임차료 집계 및 자동 정산 생성
+    console.log('Generating settlements for ym:', ym);
     const rentedAssetsOfMonth = db.assets.filter(a => {
+      console.log('Checking asset:', a.assetNo, 'ownerType:', a.ownerType, 'vendorId:', a.vendorId, 'fee:', a.monthlyRentFee);
       if (a.ownerType !== 'RENTED' || !a.monthlyRentFee || a.monthlyRentFee <= 0) return false;
       const vId = a.vendorId;
       if (!vId) return false;
@@ -9819,6 +9826,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         createdAt: nowIso,
         updatedAt: nowIso
       });
+
+      // ⚠️ 외래키 제약조건 방지 (PurchaseSettlement 먼저 생성 대기)
+      await db.awaitPendingWrites();
 
       aList.forEach(a => {
         db.insertRow<PurchaseSettlementItem>('purchaseSettlementItems', {
@@ -9875,6 +9885,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         itemCount: rList.length,
         createdAt: nowIso
       });
+
+      // ⚠️ 외래키 제약조건 방지
+      await db.awaitPendingWrites();
 
       rList.forEach(r => {
         const asset = db.assets.find(a => a.id === r.assetId);

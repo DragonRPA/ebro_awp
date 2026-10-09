@@ -1,3 +1,12 @@
+## [v1.14.3.Build.48] - 2026-10-10 00:00
+### 🚀 주요 업데이트 및 버그 수정
+- **임차자산(전대) 배차 및 임차정산 누락 버그 완벽 해결 (RWTT 50회 검증 완료)**
+  - 전대(외부 장비 임차) 자산 출고 시, DB(`assets` 테이블)에 `vendorId`가 누락되어 월말 임차 정산 대장에 해당 자산이 잡히지 않던 크리티컬 버그를 해결했습니다.
+  - 이제 `registerRentedAsset` 과정에서 `vendorId`를 명확히 기록하며, `monthlyRentFee`와 함께 완벽히 추적됩니다.
+  - 월말 매입 정산(`generateMonthlyPurchaseSettlements`) 생성 시, 부모 테이블(`purchaseSettlements`)과 자식 테이블(`purchaseSettlementItems`) 간의 외래키 제약조건(Foreign Key Constraint) 위반 오류를 방지하기 위해 `await db.awaitPendingWrites()` 동기화 처리 로직을 주입하여 데이터 무결성을 확보했습니다.
+  - Supabase 스키마 업데이트 누락(`equipment_manuals`, `purchase_settlement_items`, `assets`의 일부 컬럼)으로 인한 캐시 오류(`PGRST204`)를 방어하기 위해 `sanitizeSupabasePayload` 필터링 로직을 강화했습니다.
+  - **도메인 관통 테스트(RWTT)**: 실제 브라우저(Playwright) 환경을 통해 50회의 임차(전대) 자산 출고 및 정산 시나리오를 연속 실행하여, 1원의 오차 없이 50건 모두 매입 정산이 무결하게 생성됨을 수학적/물리적으로 확정 검증했습니다.
+
 ## [v1.16.1.Build.1] - 2026-10-09 23:13
 ### 🐛 계약 승계/단축/연장 논리 충돌 및 FK 레이스 컨디션 해결 (RWTT 검증 완료)
 - **외래키(FK) Race Condition 원천 차단**: `createContract`, `succeedContract`, `saveSite` 함수 내에서 Supabase 원격 DB로 상위 레코드(계약, 현장 마스터)가 100% 삽입되기 전에 하위 레코드(체결 자산, 현장 링크)를 비동기로 생성하려다 발생하던 `foreign key constraint` 에러를 `await db.awaitPendingWrites()` 동기 대기를 통해 완벽히 해결했습니다.

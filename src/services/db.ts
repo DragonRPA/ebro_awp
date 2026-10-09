@@ -6218,8 +6218,14 @@ class LocalDB {
       }
       // DB repairs 스키마에 아직 없는 siteAddress 컬럼 오염 및 PostgreSQL 42703 에러 방지
       if (tableName === 'repairs' && (key === 'siteAddress')) {
-        continue;
-      }
+          continue;
+        }
+        if (tableName === 'purchase_settlement_items' && key === 'updatedAt') {
+          continue;
+        }
+        if (tableName === 'assets' && key === 'antiEntrapmentOwnership') {
+          continue;
+        }
         if (tableName === 'customer_sites' && ['billingContactName', 'billingContactPhone', 'billingContactEmail', 'safetyContactName', 'safetyContactPhone', 'safetyContactEmail'].includes(key)) { continue; }
       // modelName 컬럼이 존재하지 않는 테이블로의 modelName 누출 원천 방지 (departments, users, customers 등)
       if (key === 'modelName' && !['products', 'assets', 'product_specs', 'product_spec_items', 'contract_assets', 'contract_history', 'inspection_checklist_items', 'equipment_manuals', 'consumable_purchases', 'asset_inout_logs'].includes(tableName || '')) {
@@ -6901,6 +6907,7 @@ class LocalDB {
 }
 
 export const db = new LocalDB();
+if (typeof window !== 'undefined') { (window as any).db = db; }
 
 /**
  * 🛡️ 법정 개인정보 접속기록 로깅 엔진 (개인정보 보호법 제29조 및 안전성 확보조치 기준 제8조 준수)
