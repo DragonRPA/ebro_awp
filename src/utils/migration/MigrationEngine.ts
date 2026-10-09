@@ -16,7 +16,7 @@ export const MIGRATION_SCHEMAS: Record<TargetEntity, FieldDefinition[]> = {
     { key: 'bizRegNo', label: '사업자번호', required: false, type: 'string', aliases: ['사업자등록번호', '등록번호', '사업자번호'] },
     { key: 'representative', label: '대표자명', required: false, type: 'string', aliases: ['대표자', '대표명', '대표'] },
     { key: 'address', label: '주소', required: false, type: 'string', aliases: ['사업장주소', '본사주소', '소재지'] },
-    { key: 'repContact', label: '대표연락처', required: false, type: 'string', aliases: ['연락처', '전화번호', '대표전화'] },
+    { key: 'repContact', label: '대표연락처', required: false, type: 'string', aliases: ['연락처', '전화번호', '대표전화', '연락처1'] },
   ],
   ASSET: [
     { key: 'assetNo', label: '관리번호(호기)', required: true, type: 'string', aliases: ['장비번호', '자산번호', '호기', '차량번호', '기기번호'] },
@@ -46,28 +46,34 @@ export interface GapAnalysisReport {
 
 export function autoMapHeaders(headers: string[], entity: TargetEntity): Record<string, string> {
   const schema = MIGRATION_SCHEMAS[entity];
-  const mapping: Record<string, string> = {}; // { originalHeader: schemaKey }
+  const mapping: Record<string, string> = {};
 
   headers.forEach(header => {
     const normalized = header.replace(/\s+/g, '').toLowerCase();
-    
-    // 1. Exact or Alias match
     const matchedField = schema.find(f => 
       f.key.toLowerCase() === normalized || 
       f.label.replace(/\s+/g, '').toLowerCase() === normalized ||
       f.aliases.some(a => a.replace(/\s+/g, '').toLowerCase() === normalized) ||
       normalized.includes(f.label.replace(/\s+/g, '').toLowerCase())
     );
-
-    if (matchedField) {
-      mapping[header] = matchedField.key;
-    }
+    if (matchedField) mapping[header] = matchedField.key;
   });
-
   return mapping;
 }
 
-export function analyzeGaps(rawData: any[], mapping: Record<string, string>, entity: TargetEntity): GapAnalysisReport[] {
+export function generateTemplateAoA(entity: TargetEntity): any[][] {
+  const schema = MIGRATION_SCHEMAS[entity];
+  const headers = schema.map(f => `${f.label}${f.required ? ' (필수)' : ''}`);
+  const helpTexts = schema.map(f => {
+    let help = f.type;
+    if (f.enumValues) help += ` [${f.enumValues.join(', ')}]`;
+    if (f.defaultValue) help += ` (기본값: ${f.defaultValue})`;
+    return help;
+  });
+  return [headers, helpTexts];
+}
+
+export function analyzeGaps(rawData: any[], mapping: Record<string, string>, fixedValues: Record<string, any>, entity: TargetEntity): GapAnalysisReport[] {
   const schema = MIGRATION_SCHEMAS[entity];
   const reports: GapAnalysisReport[] = [];
 
@@ -76,15 +82,21 @@ export function analyzeGaps(rawData: any[], mapping: Record<string, string>, ent
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Map data
+    // Map data from Excel
     Object.keys(row).forEach(header => {
       const key = mapping[header];
-      if (key) {
-        mapped[key] = row[header];
+      if (key) mapped[key] = row[header];
+    });
+
+    // Apply fixed values explicitly provided by user (overrides empty or mapped values)
+    Object.keys(fixedValues).forEach(key => {
+      if (fixedValues[key] !== undefined && fixedValues[key] !== '') {
+        mapped[key] = fixedValues[key];
+        warnings.push(`[${schema.find(s=>s.key===key)?.label || key}] 일괄 고정값 할당됨`);
       }
     });
 
-    // Check schema requirements and formats
+    // Validation
     schema.forEach(field => {
       let val = mapped[field.key];
 
@@ -92,34 +104,40 @@ export function analyzeGaps(rawData: any[], mapping: Record<string, string>, ent
         if (field.defaultValue !== undefined) {
           val = field.defaultValue;
           mapped[field.key] = val;
-          warnings.push(`[${field.label}] 누락되어 기본값(${val}) 적용됨`);
+          warnings.push(`[${field.label}] 누락되어 시스템 기본값(${val}) 적용됨`);
         } else if (field.required) {
-          errors.push(`[${field.label}] 필수 항목이 누락되었습니다.`);
+          errors.push(`[${field.label}] 필수 항목 누락`);
         }
       } else {
-        // Type casting & validation
         if (field.type === 'number') {
           const num = Number(val);
-          if (isNaN(num)) errors.push(`[${field.label}] 숫자 형식이 아닙니다: ${val}`);
+          if (isNaN(num)) errors.push(`[${field.label}] 숫자 형식 오류: ${val}`);
           else mapped[field.key] = num;
         } else if (field.type === 'date') {
-          const dt = new Date(val);
-          if (isNaN(dt.getTime())) errors.push(`[${field.label}] 날짜 형식이 아닙니다: ${val}`);
+          // Normalize excel numeric dates or string dates
+          let dt: Date;
+          if (typeof val === 'number') {
+             // Excel serial date to JS date
+             dt = new Date(Math.round((val - 25569) * 86400 * 1000));
+          } else {
+             dt = new Date(String(val).replace(/\./g, '-').replace(/\//g, '-'));
+          }
+          
+          if (isNaN(dt.getTime())) errors.push(`[${field.label}] 날짜 형식 오류: ${val}`);
           else mapped[field.key] = dt.toISOString().split('T')[0];
         } else if (field.type === 'enum' && field.enumValues) {
-           // Basic mapping logic for OwnerType / Status (Korean to English)
            const sVal = String(val).trim();
            if (field.key === 'ownerType') {
-             if (sVal.includes('자사') || sVal.includes('당사') || sVal.includes('OWN')) mapped[field.key] = 'OWNED';
+             if (sVal.includes('자사') || sVal.includes('OWN')) mapped[field.key] = 'OWNED';
              else if (sVal.includes('전대') || sVal.includes('임차') || sVal.includes('타사')) mapped[field.key] = 'RENTED';
-             else errors.push(`[${field.label}] 알 수 없는 열거형 값: ${val}`);
+             else if (!field.enumValues.includes(sVal)) errors.push(`[${field.label}] 알 수 없는 열거형 값: ${val}`);
            } else if (field.key === 'status') {
              if (sVal.includes('대여') || sVal.includes('출고')) mapped[field.key] = 'RENTED';
              else if (sVal.includes('대기') || sVal.includes('가용')) mapped[field.key] = 'AVAILABLE';
              else if (sVal.includes('수리') || sVal.includes('정비')) mapped[field.key] = 'REPAIRING';
              else if (sVal.includes('매각')) mapped[field.key] = 'SOLD';
              else if (sVal.includes('폐기')) mapped[field.key] = 'DISPOSED';
-             else errors.push(`[${field.label}] 알 수 없는 열거형 값: ${val}`);
+             else if (!field.enumValues.includes(sVal)) errors.push(`[${field.label}] 알 수 없는 열거형 값: ${val}`);
            }
         }
       }
