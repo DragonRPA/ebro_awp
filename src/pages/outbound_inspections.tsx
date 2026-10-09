@@ -44,7 +44,8 @@ function getGroupCheckpoints(
   groupAssets: Asset[],
   contract: Contract | undefined,
   customer: Customer | null | undefined,
-  site: Site | null | undefined
+  site: Site | null | undefined,
+  siteMaster: any
 ): { checkpoints: CheckPoint[]; specialNote: string } {
   const checkpoints: CheckPoint[] = [];
 
@@ -70,7 +71,7 @@ function getGroupCheckpoints(
   // 2. STANDARD_SPECS 중 site.checkedSpecs 또는 customer.defaultCheckedSpecs에서 true인 항목만
   const specMap: Record<string, boolean> = {
     ...(customer?.defaultCheckedSpecs || {}),
-    ...(site?.checkedSpecs || {})
+    ...(siteMaster?.checkedSpecs || {})
   };
   STANDARD_SPECS.forEach(spec => {
     if (specMap[spec.id] === true) {
@@ -79,7 +80,7 @@ function getGroupCheckpoints(
   });
 
   // 3. 유상옵션 (site.paidOptions 또는 customer.defaultPaidOptions)
-  const paidOpts = site?.paidOptions || customer?.defaultPaidOptions || '';
+  const paidOpts = siteMaster?.paidOptions || customer?.defaultPaidOptions || '';
   if (typeof paidOpts === 'string' && paidOpts.trim()) {
     paidOpts.split(/[,，、\\n]/).map(o => o.trim()).filter(Boolean).forEach((opt, i) => {
       checkpoints.push({ id: `paid_${i}`, label: `[옵션] ${opt} 장착 확인`, type: 'OPTION' });
@@ -117,6 +118,7 @@ export const OutboundInspections: React.FC = () => {
     assets,
     customers,
     sites,
+    siteMasters,
     deliveries,
     currentUser,
     refreshAllData,
@@ -252,7 +254,7 @@ export const OutboundInspections: React.FC = () => {
       const rawText = delivery?.rawText || delivery?.memo || (contract as any)?.memo || firstItem.note || '';
       const memoText = `${rawText} ${delivery?.closingMemo || ''} ${firstItem.note || ''}`.toLowerCase();
 
-      const { checkpoints, specialNote } = getGroupCheckpoints(items, groupAssets, contract, customer, site);
+      const { checkpoints, specialNote } = getGroupCheckpoints(items, groupAssets, contract, customer, site, contract ? siteMasters.find(sm => sm.id === site?.siteMasterId) : null);
 
       let groupStatus: OutboundInspectionStatus = 'PENDING';
       if (items.every(i => i.status === 'COMPLETED')) {
@@ -285,7 +287,7 @@ export const OutboundInspections: React.FC = () => {
     });
 
     return groups.sort((a, b) => a.loadingDate.localeCompare(b.loadingDate));
-  }, [outboundInspections, contracts, customers, sites, assets, deliveries]);
+  }, [outboundInspections, contracts, customers, sites, siteMasters, assets, deliveries]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // 2-A. 날짜+검색만 적용 (상태 필터 제외) → 탭 카운트용
