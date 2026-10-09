@@ -19,7 +19,7 @@ export const Contracts: React.FC = () => {
     contracts, contractAssets, contractHistory, customers, contacts, sites, assets, users, currentUser,
     createContract, extendContract, shortenContract, succeedContract, exchangeAsset, hasPermission,
     products, refreshAllData, deliveries, repairs, outboundInspections, billings, billingDetails, receivables,
-    navigationPayload, setNavigationPayload, updateContractAssetPeriod, relocateContractAsset
+    navigationPayload, setNavigationPayload, updateContractAssetPeriod, relocateContractAsset, showErrorModal
   } = useApp();
 
   const canSave = hasPermission('contract', 'save');
@@ -3928,6 +3928,26 @@ export const Contracts: React.FC = () => {
           background-color: #f1f5f9 !important;
         }
       `}</style>
+      {toastMessage && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          backgroundColor: toastMessage.type === 'success' ? '#10b981' : '#ef4444',
+          color: 'white',
+          padding: '12px 20px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          fontSize: '14px',
+          fontWeight: 600
+        }}>
+          {toastMessage.type === 'success' ? '✅' : '⚠️'} {toastMessage.text}
+        </div>
+      )}
     </div>
   );
 };

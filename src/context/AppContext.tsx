@@ -5327,6 +5327,34 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     refreshAllData();
   };
 
+  const ensureCustomerContactExists = (customerId: string, contactId: string | undefined) => {
+    if (contactId && contactId.startsWith('SC-')) {
+      const existing = db.customerContacts.find(c => c.id === contactId);
+      if (!existing) {
+        let siteContact;
+        for (const s of db.sites) {
+          if (s.contacts) {
+            siteContact = s.contacts.find(c => c.id === contactId);
+            if (siteContact) break;
+          }
+        }
+        if (siteContact) {
+          db.insertRow<any>('customer_contacts', {
+            id: siteContact.id,
+            customerId: customerId,
+            name: siteContact.name,
+            contact: siteContact.contact,
+            email: siteContact.email,
+            position: siteContact.contactType,
+            isPrimary: false,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+        }
+      }
+    }
+  };
   const createContract = async (contractData: Omit<Contract, 'id' | 'createdAt' | 'updatedAt' | 'contractNo'>, assetsList: { assetId?: string; expectedModel?: string; monthlyRentalFee: number; dailyRentalFee: number }[]) => {
     const customer = db.customers.find(c => c.id === contractData.customerId);
     if (customer && customer.transactionStatus === 'BLOCKED') {
@@ -5335,6 +5363,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     }
 
     const contractNo = generateNextContractNo(contractData.startDate);
+    ensureCustomerContactExists(contractData.customerId, contractData.contactId);
     
     const contract = db.insertRow<Contract>('contracts', {
       ...contractData,
@@ -5631,6 +5660,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       }
     } else {
       const newContractNo = generateNextContractNo(nextDay);
+      ensureCustomerContactExists(successorCustomerId, successorContactId);
       targetContract = db.insertRow<Contract>('contracts', {
         contractNo: newContractNo,
         customerId: successorCustomerId,

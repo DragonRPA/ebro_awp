@@ -2913,7 +2913,23 @@ const handleDeleteAccount = async (accId: string) => {
                     <select
                       style={{ ...inputStyle, fontSize: '11px', height: '28px' }}
                       value={selectedRefSiteId}
-                      onChange={e => setSelectedRefSiteId(e.target.value)}
+                      onChange={e => {
+                      const val = e.target.value;
+                      setSelectedRefSiteId(val);
+                      if (val) {
+                        const refSite = optionReferenceSites.find(s => s.id === val);
+                        if (refSite) {
+                          setEditingSite(prev => ({
+                            ...prev,
+                            name: prev?.name || refSite.name,
+                            address: prev?.address || refSite.address,
+                            paidOptions: refSite.paidOptions || '',
+                            protection: refSite.protection || '',
+                            checkedSpecs: refSite.checkedSpecs ? { ...refSite.checkedSpecs } : {}
+                          }));
+                        }
+                      }
+                    }}
                     >
                       <option value="">-- 옵션 참조 현장 선택 ({optionReferenceSites.length}개) --</option>
                       {optionReferenceSites.map(s => {
