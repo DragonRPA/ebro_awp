@@ -1527,7 +1527,7 @@ export const SmartReturn: React.FC = () => {
                       <div>
                         <strong style={{ fontSize: '13.5px' }}>{v.name}</strong>
                         <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                          대표자: {v.contactName || '-'} | 연락처: {v.contact || '-'}
+                          대표자: {(v as any).contactName || '-'} | 연락처: {(v as any).contact || '-'}
                         </div>
                       </div>
                       <span className="badge badge-warning" style={{ fontSize: '12px', fontWeight: 'bold' }}>

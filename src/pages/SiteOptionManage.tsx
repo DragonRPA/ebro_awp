@@ -394,9 +394,7 @@ export const SiteOptionManage: React.FC = () => {
         '현장주소': s.address || '-',
         '유상옵션': s.paidOptions || '미지정',
         '보양작업': s.protection || 'NONE',
-        '현장담당자': s.contactName || '-',
-        '연락처': s.contact || '-'
-      };
+                      };
     });
     exportToExcel(rows, `현장별옵션대장_${new Date().toISOString().split('T')[0]}`);
   };
@@ -878,7 +876,7 @@ export const SiteOptionManage: React.FC = () => {
                       </span>
                     </div>
                     <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <MapPin size={12} /> {activeSite.address || '주소 미등록'} | 담당: {activeSite.contactName || '-'} ({activeSite.contact || '-'})
+                      <MapPin size={12} /> {activeSite.address || '주소 미등록'}
                     </div>
                   </div>
                 </div>

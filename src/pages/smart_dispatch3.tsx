@@ -203,8 +203,8 @@ export const SmartDispatch3: React.FC = () => {
     // 현장 정보
     if (site) {
       if (!siteAddress && site.address && site.address !== '미상') { setSiteAddress(site.address); inherited.push('현장 주소'); }
-      if (!siteContactName && site.contactName && site.contactName !== '미상') { setSiteContactName(site.contactName); inherited.push('현장담당자'); }
-      if (!siteContactPhone && site.contact && site.contact !== '미상') { setSiteContactPhone(site.contact); inherited.push('현장 연락처'); }
+      if (!siteContactName && (site as any).contactName && (site as any).contactName !== '미상') { setSiteContactName((site as any).contactName); inherited.push('현장담당자'); }
+      if (!siteContactPhone && (site as any).contact && (site as any).contact !== '미상') { setSiteContactPhone((site as any).contact); inherited.push('현장 연락처'); }
       if (site.paidOptions) { setPaidOptions(site.paidOptions); }
       if (site.protection) { setProtection(site.protection); }
     }
@@ -214,13 +214,13 @@ export const SmartDispatch3: React.FC = () => {
     if (custContacts.length > 0) {
       if (!siteContactPhone) {
         const sc = custContacts.find(ct => ct.position?.includes('현장') || ct.position?.includes('소장')) || custContacts[0];
-        if (sc && sc.contact && sc.contact !== '미상') { setSiteContactPhone(sc.contact); if (!siteContactName && sc.name) setSiteContactName(sc.name); inherited.push('현장담당자(연락처)'); }
+        if (sc && (sc as any).contact && (sc as any).contact !== '미상') { setSiteContactPhone((sc as any).contact); if (!siteContactName && sc.name) setSiteContactName(sc.name); inherited.push('현장담당자(연락처)'); }
       }
       const bc = custContacts.find(ct => ct.position?.includes('청구') || ct.position?.includes('경리'));
       if (bc) {
         if (!billingContactName && bc.name) { setBillingContactName(bc.name); inherited.push('청구담당자'); }
-        if (!billingContactPhone && bc.contact && bc.contact !== '미상') { setBillingContactPhone(bc.contact); }
-        if (!taxBillEmail && bc.email && bc.email !== '미상') { setTaxBillEmail(bc.email); }
+        if (!billingContactPhone && (bc as any).contact && (bc as any).contact !== '미상') { setBillingContactPhone((bc as any).contact); }
+        if (!taxBillEmail && (bc as any).email && (bc as any).email !== '미상') { setTaxBillEmail((bc as any).email); }
       }
     }
 

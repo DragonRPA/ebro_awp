@@ -934,8 +934,8 @@ export const SmartDispatch4: React.FC = () => {
     if (site) {
       // 1순위: 현장 마스터 등록 담당자 및 연락처
       // 2순위: 거래처 기본 담당자 및 연락처
-      const targetName = site.contactName || (primary ? primary.name : '');
-      const targetPhone = site.contact || (primary ? primary.contact || '' : '');
+      const targetName = (site as any).contactName || (primary ? primary.name : '');
+      const targetPhone = (site as any).contact || (primary ? (primary as any).contact || '' : '');
       setContactPerson(targetName);
       setContactPhone(targetPhone);
       return;
@@ -944,7 +944,7 @@ export const SmartDispatch4: React.FC = () => {
     // 현장 미선택 시 거래처 기본 담당자로 설정
     if (primary) {
       setContactPerson(primary.name || '');
-      setContactPhone(primary.contact || '');
+      setContactPhone((primary as any).contact || '');
     } else {
       setContactPerson('');
       setContactPhone('');

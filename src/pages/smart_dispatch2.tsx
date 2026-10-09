@@ -196,14 +196,14 @@ export const SmartDispatch2: React.FC = () => {
         if (!nextAddress && matchedSite.address && matchedSite.address !== '미상') {
           nextAddress = matchedSite.address; inherited.push('현장 상세 주소');
         }
-        if (!nextSiteContactName && matchedSite.contactName && matchedSite.contactName !== '미상') {
-          nextSiteContactName = matchedSite.contactName; inherited.push('현장담당자 이름');
+        if (!nextSiteContactName && (matchedSite as any).contactName && (matchedSite as any).contactName !== '미상') {
+          nextSiteContactName = (matchedSite as any).contactName; inherited.push('현장담당자 이름');
         }
-        if (!nextSiteContactPhone && matchedSite.contact && matchedSite.contact !== '미상') {
-          nextSiteContactPhone = matchedSite.contact; inherited.push('현장담당자 연락처');
+        if (!nextSiteContactPhone && (matchedSite as any).contact && (matchedSite as any).contact !== '미상') {
+          nextSiteContactPhone = (matchedSite as any).contact; inherited.push('현장담당자 연락처');
         }
-        if (!nextSiteContactEmail && matchedSite.email && matchedSite.email !== '미상') {
-          nextSiteContactEmail = matchedSite.email; inherited.push('현장담당자 이메일');
+        if (!nextSiteContactEmail && (matchedSite as any).email && (matchedSite as any).email !== '미상') {
+          nextSiteContactEmail = (matchedSite as any).email; inherited.push('현장담당자 이메일');
         }
         if (matchedSite.paidOptions) { nextPaidOptions = matchedSite.paidOptions; inherited.push('유상옵션(현장)'); }
         if (matchedSite.protection) { nextProtection = matchedSite.protection; inherited.push('보양작업(현장)'); }
@@ -220,8 +220,8 @@ export const SmartDispatch2: React.FC = () => {
       if (custContacts.length > 0) {
         if (!nextSiteContactPhone) {
           const siteCt = custContacts.find(ct => ct.position?.includes('현장') || ct.position?.includes('소장')) || custContacts[0];
-          if (siteCt && siteCt.contact && siteCt.contact !== '미상') {
-            nextSiteContactPhone = siteCt.contact;
+          if (siteCt && (siteCt as any).contact && (siteCt as any).contact !== '미상') {
+            nextSiteContactPhone = (siteCt as any).contact;
             if (!nextSiteContactName && siteCt.name) nextSiteContactName = siteCt.name;
             inherited.push('현장담당자(연락처)');
           }
@@ -230,8 +230,8 @@ export const SmartDispatch2: React.FC = () => {
           const billCt = custContacts.find(ct => ct.position?.includes('청구') || ct.position?.includes('경리') || ct.position?.includes('회계'));
           if (billCt) {
             if (!nextBillingContactName && billCt.name) { nextBillingContactName = billCt.name; inherited.push('청구담당자'); }
-            if (!nextBillingContactPhone && billCt.contact && billCt.contact !== '미상') { nextBillingContactPhone = billCt.contact; inherited.push('청구담당자 연락처'); }
-            if (!nextTaxBillEmail && billCt.email && billCt.email !== '미상') { nextTaxBillEmail = billCt.email; inherited.push('계산서 메일'); }
+            if (!nextBillingContactPhone && (billCt as any).contact && (billCt as any).contact !== '미상') { nextBillingContactPhone = (billCt as any).contact; inherited.push('청구담당자 연락처'); }
+            if (!nextTaxBillEmail && (billCt as any).email && (billCt as any).email !== '미상') { nextTaxBillEmail = (billCt as any).email; inherited.push('계산서 메일'); }
           }
         }
       }

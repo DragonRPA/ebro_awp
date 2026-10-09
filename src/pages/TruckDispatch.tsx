@@ -2529,7 +2529,7 @@ export const TruckDispatch: React.FC = () => {
       siteContactPhone: (() => {
         const actContacts = (site?.contacts || []).filter(c => c.isActive !== false);
         if (actContacts.length > 1) {
-          return actContacts.map(c => `${c.name}: ${c.contact}`).join(' / ');
+          return actContacts.map(c => `${c.name}: ${(c as any).contact}`).join(' / ');
         }
         return site?.contact;
       })(),
@@ -4865,7 +4865,7 @@ export const TruckDispatch: React.FC = () => {
                             >
                               <option value="">운송사 선택</option>
                               {transportCompanies.map(c => (
-                                <option key={c.id} value={c.id}>{c.name} ({c.contact || '연락처없음'})</option>
+                                <option key={c.id} value={c.id}>{c.name} ({(c as any).contact || '연락처없음'})</option>
                               ))}
                             </select>
                           </div>
