@@ -562,6 +562,7 @@ export async function generateTransactionStatementExcel(data: TransactionStateme
   }
   if (chunks.length === 0) chunks.push([]);
   const totalPages = chunks.length;
+  const pristineModel = JSON.stringify(baseWs.model); // 💡 원본 서식 상태 보존 (다중 페이지 템플릿 태그 유실 방지)
 
   for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
     const chunk = chunks[pageIdx];
@@ -575,9 +576,9 @@ export async function generateTransactionStatementExcel(data: TransactionStateme
       ws = baseWs;
       ws.name = totalPages > 1 ? `거래명세서_1` : '거래명세서';
     } else {
-      // 시트 복제 및 서식 유지 (또는 신규 시트에 복사)
+      // 시트 복제 및 서식 유지 (💡 원본 보존 모델 사용)
       ws = workbook.addWorksheet(`거래명세서_${pageNum}`);
-      ws.model = JSON.parse(JSON.stringify(baseWs.model));
+      ws.model = JSON.parse(pristineModel);
       ws.name = `거래명세서_${pageNum}`;
     }
 
