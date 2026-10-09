@@ -83,8 +83,21 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setPurchaseItems(prev => [...prev, ...newItems]);
   };
 
+  
   const confirmInbound = async (purchaseId: string, received: {productId: string, qty: number}[]) => {
+    // [RWTT 41-50] 초과 입고 금지 가드
+    const purchase = purchases.find(p => p.id === purchaseId);
+    if (!purchase) throw new Error("발주 내역을 찾을 수 없습니다.");
+    
+    received.forEach(rec => {
+       const pItem = purchaseItems.find(pi => pi.purchaseId === purchaseId && pi.productId === rec.productId);
+       if (pItem && (pItem.receivedQty + rec.qty) > pItem.orderQty) {
+          throw new Error("발주 수량(Order Qty)을 초과하여 입고할 수 없습니다.");
+       }
+    });
+
     setPurchases(prev => prev.map(p => p.id === purchaseId ? { ...p, status: 'RECEIVED', updatedAt: new Date().toISOString() } : p));
+
     
     const newLots: TradeInventoryLot[] = [];
     setPurchaseItems(prev => prev.map(pi => {
