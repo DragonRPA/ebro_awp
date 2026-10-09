@@ -73,6 +73,9 @@ export interface ParsedInitialData {
 // DB 스키마 화이트리스트 정의 (PostgREST 컬럼 불일치 원천 방어)
 // ──────────────────────────────────────────────
 export const TABLE_COLUMNS: Record<string, string[]> = {
+  site_masters: [
+    'id', 'name', 'address', 'paidOptions', 'protection', 'checkedSpecs', 'isActive', 'createdAt', 'updatedAt'
+  ],
   products: [
     'id', 'modelName', 'feet', 'spec', 'manufacturer', 'powerSource',
     'workingHeight', 'platformHeight', 'weight', 'capacityPreExt',
@@ -91,7 +94,7 @@ export const TABLE_COLUMNS: Record<string, string[]> = {
     'bankAccounts', 'driveFolderId', 'prepaidBalance', 'isClosed', 'createdAt', 'updatedAt'
   ],
   customer_sites: [
-    'id', 'customerId', 'name', 'address', 'contactName', 'contact', 'email', 'createdAt', 'updatedAt'
+    'id', 'siteMasterId', 'customerId', 'name', 'address', 'isActive', 'createdAt', 'updatedAt'
   ],
   customer_contacts: [
     'id', 'customerId', 'name', 'position', 'contact', 'email', 'isPrimary', 'createdAt', 'updatedAt'
@@ -2247,6 +2250,7 @@ export async function ingestExcelInitialData(
     injectTenantId(parsed.vendors);
     injectTenantId(parsed.customers);
     injectTenantId(parsed.customerSites);
+    if (parsed.siteMasters) injectTenantId(parsed.siteMasters);
     injectTenantId(parsed.customerContacts);
     injectTenantId(parsed.assets);
     injectTenantId(parsed.contracts);
