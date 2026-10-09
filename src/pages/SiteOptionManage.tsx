@@ -22,6 +22,7 @@ export const SiteOptionManage: React.FC = () => {
 
   // 2. 검색 및 필터 상태
   const [searchSiteKeyword, setSearchSiteKeyword] = useState<string>('');
+  const [siteStatusFilter, setSiteStatusFilter] = useState<'ACTIVE' | 'COMPLETED' | 'ALL'>('ACTIVE');
 
   // --- Master Option Sort ---
   type SortKey = keyof StandardOption;
@@ -97,6 +98,9 @@ export const SiteOptionManage: React.FC = () => {
     
 
   return (sites || []).filter(s => {
+      const sActive = s.isActive !== false;
+      if (siteStatusFilter === 'ACTIVE' && !sActive) return false;
+      if (siteStatusFilter === 'COMPLETED' && sActive) return false;
       if (searchSiteKeyword.trim()) {
         const kw = searchSiteKeyword.trim().toLowerCase();
         const matchName = (s.name || "").toLowerCase().includes(kw);
@@ -352,6 +356,34 @@ export const SiteOptionManage: React.FC = () => {
       >
         {/* ① 좌상단 (Start / Scope): 고객사 필터 & 현장 검색 */}
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', flexWrap: 'wrap' }}>
+
+          
+          {/* 현장 상태 필터 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+              상태 필터
+            </span>
+            <select
+              value={siteStatusFilter}
+              onChange={e => setSiteStatusFilter(e.target.value as any)}
+              style={{
+                height: '34px',
+                padding: '0 10px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                outline: 'none',
+                minWidth: '100px'
+              }}
+            >
+              <option value="ACTIVE">진행중 현장</option>
+              <option value="COMPLETED">완공/종료 현장</option>
+              <option value="ALL">전체 현장</option>
+            </select>
+          </div>
 
           {/* 현장 검색창 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

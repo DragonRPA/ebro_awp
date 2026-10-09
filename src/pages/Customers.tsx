@@ -821,6 +821,18 @@ export const Customers: React.FC = () => {
     e.preventDefault();
     if (!editingSite || !editingSite.name || !editingSite.customerId) return;
 
+    const rawName = editingSite.name || '';
+    const normalizedName = rawName.replace(/\s+/g, '');
+    const duplicate = (sites || []).find(s => 
+      s.id !== editingSite.id && 
+      (s.name || '').replace(/\s+/g, '') === normalizedName
+    );
+    if (duplicate) {
+      showErrorModal(`동일한 이름의 현장이 이미 등록되어 있습니다.\n\n입력: [${rawName}]\n기존: [${duplicate.name}]\n소속 고객사: [${customerMap.get(duplicate.customerId || '')?.name || '알 수 없음'}]\n\n띄어쓰기 등 휴먼 에러로 인한 중복 생성을 방지하기 위해 등록이 엄격히 금지됩니다. 기존에 등록된 현장을 활용해 주세요.`);
+      return;
+    }
+
+
     try {
       // 👥 3대 담당자 (장비 / 마감 / 안전) 정규화 및 플랫 필드 동기화
       const rawContacts = editingSite.contacts || [];
