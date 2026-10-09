@@ -567,6 +567,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ...workplaceData,
       id: newId,
       createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
     };
     const updatedWorkplaces = [...(targetTenant.workplaces || []), newWorkplace];
     return saveTenant({ id: targetTenant.id, workplaces: updatedWorkplaces });
@@ -4071,16 +4072,14 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         vehicleNo = corpVehicle?.vehicleNo || (mech as any)?.vehicleNo || '';
       }
 
-      // 1. 실사 마스터 생성
       const newAuditId = `stk-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
       
-      // 2. 당시 전산 재고 스냅샷 생성
       const itemsToInsert: StocktakingAuditItem[] = [];
       let totalSystemQty = 0;
       let totalSystemAmount = 0;
 
       if (targetType === 'HQ') {
-        // 주기장 재고: 전체 consumable 목록 스냅샷
+        // 1. 소모품 스냅샷
         db.consumables.forEach(c => {
           const sysQty = c.stockQty || 0;
           const uPrice = c.unitPrice || 0;
@@ -4088,11 +4087,12 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           totalSystemAmount += sysQty * uPrice;
 
           itemsToInsert.push({
-            id: `stki-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            id: `sti-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
             auditId: newAuditId,
+            itemType: 'CONSUMABLE',
             consumableId: c.id,
             modelName: c.modelName,
-            unit: c.unit || '개',
+            unit: c.unit,
             unitPrice: uPrice,
             systemQty: sysQty,
             actualQty: sysQty,
@@ -4100,24 +4100,23 @@ ${currentTenant?.corporateName || tenantCorp} 배상
             diffAmount: 0
           });
         });
-      } else {
-        // 특정 정비사 차량: 해당 정비사의 보유 부품 또는 전사 부품 스냅샷
-        const mechStocks = db.mechanicConsumableStocks.filter(s => s.mechanicId === mechanicId);
-        const stockMap = new Map<string, number>();
-        mechStocks.forEach(s => stockMap.set(s.consumableId, s.stockQty || 0));
 
-        db.consumables.forEach(c => {
-          const sysQty = stockMap.get(c.id) || 0;
-          const uPrice = c.unitPrice || 0;
+        // 2. 비가동 장비 스냅샷
+        const nonOpAssets = db.assets.filter(a => ['AVAILABLE', 'REPAIRING', 'RENTED_RETURNED'].includes(a.status));
+        nonOpAssets.forEach(a => {
+          const sysQty = 1;
+          const uPrice = 0;
           totalSystemQty += sysQty;
           totalSystemAmount += sysQty * uPrice;
 
           itemsToInsert.push({
-            id: `stki-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            id: `sti-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
             auditId: newAuditId,
-            consumableId: c.id,
-            modelName: c.modelName,
-            unit: c.unit || '개',
+            itemType: 'ASSET',
+            assetId: a.id,
+            assetNo: a.assetNo,
+            modelName: a.modelName,
+            unit: '대',
             unitPrice: uPrice,
             systemQty: sysQty,
             actualQty: sysQty,
@@ -4125,6 +4124,41 @@ ${currentTenant?.corporateName || tenantCorp} 배상
             diffAmount: 0
           });
         });
+
+      } else if (targetType === 'VEHICLE' && mechanicId) {
+        const mechStocks = db.mechanicConsumableStocks.filter(s => s.mechanicId === mechanicId && s.stockQty > 0);
+        const grouped = mechStocks.reduce((acc, s) => {
+          if (!acc[s.consumableId]) acc[s.consumableId] = 0;
+          acc[s.consumableId] += s.stockQty;
+          return acc;
+        }, {} as Record<string, number>);
+
+        Object.keys(grouped).forEach(cId => {
+          const sysQty = grouped[cId];
+          const consumable = db.consumables.find(c => c.id === cId);
+          if (!consumable) return;
+          const uPrice = consumable.unitPrice || 0;
+          totalSystemQty += sysQty;
+          totalSystemAmount += sysQty * uPrice;
+
+          itemsToInsert.push({
+            id: `sti-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            auditId: newAuditId,
+            itemType: 'CONSUMABLE',
+            consumableId: consumable.id,
+            modelName: consumable.modelName,
+            unit: consumable.unit,
+            unitPrice: uPrice,
+            systemQty: sysQty,
+            actualQty: sysQty,
+            diffQty: 0,
+            diffAmount: 0
+          });
+        });
+      }
+
+      if (itemsToInsert.length === 0) {
+        throw new Error('실사 대상 품목/장비가 없습니다.');
       }
 
       const newAudit: StocktakingAudit = {
@@ -4135,8 +4169,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         mechanicName,
         vehicleNo,
         auditDate: dateStr,
-        auditorId: currentUser?.id || 'admin',
-        auditorName: currentUser?.name || '실사담당자',
+        auditorId: currentUser?.id || '',
+        auditorName: currentUser?.name || '시스템',
         status: 'DRAFT',
         totalSystemQty,
         totalActualQty: totalSystemQty,
@@ -4144,18 +4178,16 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         totalSystemAmount,
         totalActualAmount: totalSystemAmount,
         totalDiffAmount: 0,
-        memo,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
 
       db.insertRow<StocktakingAudit>('stocktakingAudits', newAudit);
-      itemsToInsert.forEach(item => {
-        db.insertRow<StocktakingAuditItem>('stocktakingAuditItems', item);
-      });
+      itemsToInsert.forEach(i => db.insertRow<StocktakingAuditItem>('stocktakingAuditItems', i));
 
       await db.awaitPendingWrites();
       refreshAllData();
+      
       return newAudit;
     } catch (err: any) {
       showErrorModal(`⚠️ 실사 전표 생성 실패:\n${err?.message || err}`);
@@ -4225,83 +4257,124 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
       items.forEach(item => {
         if (item.diffQty !== 0) {
-          if (audit.targetType === 'HQ') {
-            const c = db.consumables.find(con => con.id === item.consumableId);
-            if (c) {
-              db.updateRow<Consumable>('consumables', c.id, {
-                stockQty: item.actualQty,
+          if (item.itemType === 'ASSET' && item.assetId) {
+            if (item.diffQty < 0) {
+              db.updateRow<Asset>('assets', item.assetId, {
+                status: 'LOST',
                 updatedAt: new Date().toISOString()
               });
-              let diff = item.diffQty; 
-              const lots = db.consumableLots
-                .filter(l => l.consumableId === item.consumableId)
-                .sort((a, b) => new Date(a.inboundDate).getTime() - new Date(b.inboundDate).getTime());
-                
-              if (diff < 0) {
+              
+              const reasonText = item.diffReason === 'LOST' ? '망실/도난' 
+              : item.diffReason === 'DAMAGED' ? '파손/폐기'
+              : '실사누락(망실)';
+
+              db.insertRow<AssetInOutLog>('assetInOutLogs', {
+                id: `aio-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+                assetId: item.assetId,
+                assetNo: item.assetNo || '',
+                modelName: item.modelName,
+                type: 'DISPOSAL',
+                eventDate: new Date().toISOString().split('T')[0],
+                memo: `[자산 증발] 실사결과 없음. 처리사유: ${reasonText}`,
+                createdAt: new Date().toISOString()
+              });
+            } else if (item.diffQty > 0) {
+              db.updateRow<Asset>('assets', item.assetId, {
+                status: 'AVAILABLE',
+                updatedAt: new Date().toISOString()
+              });
+              
+              db.insertRow<AssetInOutLog>('assetInOutLogs', {
+                id: `aio-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+                assetId: item.assetId,
+                assetNo: item.assetNo || '',
+                modelName: item.modelName,
+                type: 'INBOUND',
+                eventDate: new Date().toISOString().split('T')[0],
+                memo: `[자산 잉여 발견] 실사결과 존재함 (가동대기 복구).`,
+                createdAt: new Date().toISOString()
+              });
+            }
+          } else if (item.consumableId) {
+            // 소모품 처리
+            if (audit.targetType === 'HQ') {
+              const c = db.consumables.find(con => con.id === item.consumableId);
+              if (c) {
+                db.updateRow<Consumable>('consumables', c.id, {
+                  stockQty: item.actualQty,
+                  updatedAt: new Date().toISOString()
+                });
+                let diff = item.diffQty; 
+                const lots = db.consumableLots
+                  .filter(l => l.consumableId === item.consumableId)
+                  .sort((a, b) => new Date(a.inboundDate).getTime() - new Date(b.inboundDate).getTime());
+                  
+                if (diff < 0) {
+                  let toDeduct = Math.abs(diff);
+                  for (const lot of lots.filter(l => l.currentQty > 0)) {
+                    if (toDeduct <= 0) break;
+                    const deduct = Math.min(lot.currentQty, toDeduct);
+                    db.updateRow<ConsumableLot>('consumableLots', lot.id, { currentQty: lot.currentQty - deduct, updatedAt: new Date().toISOString() });
+                    toDeduct -= deduct;
+                  }
+                } else if (diff > 0 && lots.length > 0) {
+                  const newestLot = lots[lots.length - 1];
+                  db.updateRow<ConsumableLot>('consumableLots', newestLot.id, { currentQty: newestLot.currentQty + diff, updatedAt: new Date().toISOString() });
+                }
+              }
+            } else {
+              const mechStocks = db.mechanicConsumableStocks
+                .filter(s => s.mechanicId === audit.mechanicId && s.consumableId === item.consumableId)
+                .sort((a, b) => {
+                  const lotA = db.consumableLots.find(l => l.id === a.lotId);
+                  const lotB = db.consumableLots.find(l => l.id === b.lotId);
+                  return new Date(lotA?.inboundDate || 0).getTime() - new Date(lotB?.inboundDate || 0).getTime();
+                });
+
+              let diff = item.diffQty;
+              if (mechStocks.length === 0) {
+                const newestLot = db.consumableLots.filter(l => l.consumableId === item.consumableId).sort((a, b) => new Date(b.inboundDate).getTime() - new Date(a.inboundDate).getTime())[0];
+                db.insertRow<MechanicConsumableStock>('mechanicConsumableStocks', {
+                  id: `mcs-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+                  mechanicId: audit.mechanicId!,
+                  consumableId: item.consumableId,
+                  lotId: newestLot?.id || '',
+                  stockQty: item.actualQty,
+                  updatedAt: new Date().toISOString()
+                });
+              } else if (diff < 0) {
                 let toDeduct = Math.abs(diff);
-                for (const lot of lots.filter(l => l.currentQty > 0)) {
+                for (const stock of mechStocks.filter(s => s.stockQty > 0)) {
                   if (toDeduct <= 0) break;
-                  const deduct = Math.min(lot.currentQty, toDeduct);
-                  db.updateRow<ConsumableLot>('consumableLots', lot.id, { currentQty: lot.currentQty - deduct, updatedAt: new Date().toISOString() });
+                  const deduct = Math.min(stock.stockQty, toDeduct);
+                  db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', stock.id, { stockQty: stock.stockQty - deduct, updatedAt: new Date().toISOString() });
                   toDeduct -= deduct;
                 }
-              } else if (diff > 0 && lots.length > 0) {
-                const newestLot = lots[lots.length - 1];
-                db.updateRow<ConsumableLot>('consumableLots', newestLot.id, { currentQty: newestLot.currentQty + diff, updatedAt: new Date().toISOString() });
+              } else if (diff > 0) {
+                const newestStock = mechStocks[mechStocks.length - 1];
+                db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', newestStock.id, { stockQty: newestStock.stockQty + diff, updatedAt: new Date().toISOString() });
               }
             }
-          } else {
-            const mechStocks = db.mechanicConsumableStocks
-              .filter(s => s.mechanicId === audit.mechanicId && s.consumableId === item.consumableId)
-              .sort((a, b) => {
-                const lotA = db.consumableLots.find(l => l.id === a.lotId);
-                const lotB = db.consumableLots.find(l => l.id === b.lotId);
-                return new Date(lotA?.inboundDate || 0).getTime() - new Date(lotB?.inboundDate || 0).getTime();
-              });
 
-            let diff = item.diffQty;
-            if (mechStocks.length === 0) {
-              const newestLot = db.consumableLots.filter(l => l.consumableId === item.consumableId).sort((a, b) => new Date(b.inboundDate).getTime() - new Date(a.inboundDate).getTime())[0];
-              db.insertRow<MechanicConsumableStock>('mechanicConsumableStocks', {
-                id: `mcs-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
-                mechanicId: audit.mechanicId!,
-                consumableId: item.consumableId,
-                lotId: newestLot?.id || '',
-                stockQty: item.actualQty,
-                updatedAt: new Date().toISOString()
-              });
-            } else if (diff < 0) {
-              let toDeduct = Math.abs(diff);
-              for (const stock of mechStocks.filter(s => s.stockQty > 0)) {
-                if (toDeduct <= 0) break;
-                const deduct = Math.min(stock.stockQty, toDeduct);
-                db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', stock.id, { stockQty: stock.stockQty - deduct, updatedAt: new Date().toISOString() });
-                toDeduct -= deduct;
-              }
-            } else if (diff > 0) {
-              const newestStock = mechStocks[mechStocks.length - 1];
-              db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', newestStock.id, { stockQty: newestStock.stockQty + diff, updatedAt: new Date().toISOString() });
-            }
+            const reasonText = item.diffReason === 'LOST' ? '망실/도난' 
+              : item.diffReason === 'DAMAGED' ? '파손/폐기'
+              : item.diffReason === 'UNRECORDED_USAGE' ? '미기록현장소모'
+              : item.diffReason === 'SURPLUS' ? '미등록잉여' : '기타사유';
+
+            db.insertRow<ConsumableLog>('consumableLogs', {
+              consumableId: item.consumableId,
+              type: 'ADJUST',
+              quantity: Math.abs(item.diffQty),
+              unitPrice: item.unitPrice,
+              userId: currentUser?.id,
+              mechanicId: audit.mechanicId,
+              fromLocation: targetLocation,
+              toLocation: item.diffQty < 0 ? `실사 손실 (${reasonText})` : targetLocation,
+              actionDate: new Date().toISOString().split('T')[0],
+              description: `[실사 보정] ${targetLocation} (${item.diffQty > 0 ? '+' : ''}${item.diffQty}개, ${reasonText})`,
+              createdAt: new Date().toISOString()
+            });
           }
-
-          const reasonText = item.diffReason === 'LOST' ? '망실/도난' 
-            : item.diffReason === 'DAMAGED' ? '파손/폐기'
-            : item.diffReason === 'UNRECORDED_USAGE' ? '미기록현장소모'
-            : item.diffReason === 'SURPLUS' ? '미등록잉여' : '기타사유';
-
-          db.insertRow<ConsumableLog>('consumableLogs', {
-            consumableId: item.consumableId,
-            type: 'ADJUST',
-            quantity: Math.abs(item.diffQty),
-            unitPrice: item.unitPrice,
-            userId: currentUser?.id,
-            mechanicId: audit.mechanicId,
-            fromLocation: targetLocation,
-            toLocation: item.diffQty < 0 ? `실사 손실 (${reasonText})` : targetLocation,
-            actionDate: new Date().toISOString().split('T')[0],
-            description: `[실사 보정] ${targetLocation} (${item.diffQty > 0 ? '+' : ''}${item.diffQty}개, ${reasonText})`,
-            createdAt: new Date().toISOString()
-          });
         }
       });
 

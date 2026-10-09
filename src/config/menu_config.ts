@@ -65,6 +65,7 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
       { id: 'dispatch_assign', name: '장비 할당 (매핑)' },
       { id: 'outbound_inspections', name: '출고 검수 관리' },
       { id: 'consumable_stock', name: '주기장 소모품 재고' },
+        { id: 'stocktaking', name: '재고/자산 실사' },
       { id: 'print_queue_monitor', name: '프린트 큐 모니터' }
     ]
   },

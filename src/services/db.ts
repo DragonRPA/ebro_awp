@@ -1252,7 +1252,7 @@ export interface Asset {
   manufactureYear?: string; // 제조년도 (예: 2023)
   ownerType: 'OWNED' | 'RENTED'; // 당사자산 / 임차자산
   antiEntrapmentOwnership?: AntiEntrapmentOwnership; // 협착방지봉 소유권 ('VENDOR': 임차처 소유, 'OURS': 당사 소유, 'NONE': 미장착)
-  status: 'AVAILABLE' | 'ASSIGNED' | 'RENTED' | 'REPAIRING' | 'RENTED_RETURNED' | 'SOLD';
+  status: 'AVAILABLE' | 'ASSIGNED' | 'RENTED' | 'REPAIRING' | 'RENTED_RETURNED' | 'SOLD' | 'LOST' | 'DISPOSED';
   
   maintenanceScore?: number; // 정비 소요 점수 (0이 최상 상태)
 
@@ -1483,10 +1483,13 @@ export interface StocktakingAudit {
 export interface StocktakingAuditItem {
   id: string;
   auditId: string;
-  consumableId: string;
+  itemType: 'CONSUMABLE' | 'ASSET'; // 신규 추가
+  consumableId?: string; // 옵셔널로 변경
+  assetId?: string; // 신규 추가 (장비인 경우)
+  assetNo?: string; // 신규 추가
   modelName: string;
   unit: string;
-  unitPrice: number;
+  unitPrice: number; // 장비인 경우 장부잔존가액(Net Book Value) 또는 취득원가
   systemQty: number;
   actualQty: number;
   diffQty: number; // actualQty - systemQty
