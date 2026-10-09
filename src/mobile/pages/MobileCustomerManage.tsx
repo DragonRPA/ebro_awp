@@ -18,7 +18,7 @@ interface MobileCustomerManageProps {
 
 export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNavigateToOrder }) => {
   const { 
-    customers, contacts, sites, assets, contracts, billings, currentUser,
+    customers, contacts, sites, siteMasters, assets, contracts, billings, currentUser,
     saveCustomer, refreshAllData, showErrorModal 
   } = useApp();
   
@@ -75,7 +75,7 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
       const rentedAssetCount = assets.filter(a => a.currentCustomerId === c.id && a.status === 'RENTED').length;
       
       // 2. 유효 현장 수
-      const custSites = sites.filter(s => s.customerId === c.id && s.isActive !== false);
+      const custSites = sites.filter(s => s.customerId === c.id && siteMasters.find(sm => sm.id === s.siteMasterId)?.isActive !== false);
       
       // 3. 미수금 총액
       const custBillings = billings.filter(b => b.customerId === c.id && b.status !== 'REJECTED' && b.status !== 'PAID');

@@ -476,7 +476,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
         contactName: '현장소장/공무팀',
         contact: item.builderPhone || '',
         email: '',
-        isActive: true,
+        
         // 안전옵션 자동 상속 비활성화 (정책 미정, 향후 수동 등록 원칙)
         protection: `[영업지시] 도로폭 ${item.roadAccess.roadWidth}m(${item.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? '1톤분할' : '대형가능'}) | CSI:${item.csiSafety.safetyPlanRequired ? '법정의무' : '일반'} | 추천:${item.recommendedEquipment.join('/')}(${item.estimatedAwpUnits}대) | 공정:${item.progressStage}`,
         checkedSpecs: {},

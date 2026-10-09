@@ -105,7 +105,7 @@ const DeveloperSiteMergeModal: React.FC<{
 import { 
   Shield, Check, Plus, Trash2, Edit3, Search, RefreshCw, 
   ArrowRight, Copy, CheckSquare, Layers, Download, Building2, 
-  MapPin, AlertCircle, FileText, CheckCircle2, ChevronRight, Sliders, X
+  MapPin, AlertCircle, FileText, CheckCircle2, ChevronRight, Sliders, X, PowerOff, Power
 } from 'lucide-react';
 import { StandardOption, CustomerSite, Customer } from '../services/db';
 import { SiteOptionItem, inheritOptionsFromMaster } from '../types/siteOption';
@@ -131,6 +131,16 @@ export const SiteOptionManage: React.FC = () => {
   const [showQuickSiteModal, setShowQuickSiteModal] = useState(false);
   const [showEditSiteMasterModal, setShowEditSiteMasterModal] = useState(false);
   const [editSiteMasterForm, setEditSiteMasterForm] = useState({ id: '', name: '', address: '' });
+
+  const handleToggleSiteStatus = async (site: any, targetStatus: boolean) => {
+    if (!window.confirm(`[${site.name}] 현장을 ${targetStatus ? '가동(진행중)' : '종료(완공)'} 상태로 변경하시겠습니까?\n\n※ 종료 시, 계약 등록 및 배차 화면의 현장 선택 목록에서 제외됩니다.`)) return;
+    try {
+      await saveSiteMaster({ id: site.id, isActive: targetStatus });
+      showToast(`[${site.name}] 현장이 ${targetStatus ? '가동중' : '완공/종료'} 상태로 변경되었습니다.`);
+    } catch (err: any) {
+      showErrorModal('상태 변경 실패: ' + err.message);
+    }
+  };
   const handleOpenEditMaster = (site: any) => {
     setEditSiteMasterForm({ id: site.id, name: site.name || '', address: site.address || '' });
     setShowEditSiteMasterModal(true);

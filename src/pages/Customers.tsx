@@ -634,7 +634,6 @@ export const Customers: React.FC = () => {
       contactName: '',
       contact: '',
       email: '',
-      isActive: true,
       contacts: initialContacts,
       statementClosingDay: parentCust?.defaultStatementClosingDay || 25,
       billingDay: parentCust?.defaultBillingDay || 30,

@@ -1984,7 +1984,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } else {
       db.insertRow<CustomerSite>('sites', {
         ...linkPayload,
-        isActive: site.isActive !== undefined ? site.isActive : true,
         createdAt: new Date().toISOString()
       } as Omit<CustomerSite, 'id'>);
     }
