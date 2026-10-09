@@ -425,7 +425,6 @@ const ALL_TABLES = [
   'customers',
   'customer_contacts',
   'customer_sites',
-        'site_masters',
       'site_masters',
   'products',
   'assets',
@@ -557,7 +556,6 @@ export async function restoreFullDatabaseBackup(
     'vendors',
     'customers',
     'customer_sites',
-        'site_masters',
     'customer_contacts',
     'products',
     'assets',
@@ -713,7 +711,6 @@ export async function resetAllDatabaseTables(
     'products',
     'customer_contacts',
     'customer_sites',
-        'site_masters',
     'customers',
     'vendors',
     'vehicle_fuel_logs',
@@ -2225,7 +2222,6 @@ export async function ingestExcelInitialData(
         'vendors',
         'customer_contacts',
         'customer_sites',
-        'site_masters',
         'customers',
       ];
       for (const table of TRUNCATE_ORDER) {
@@ -2288,8 +2284,7 @@ export async function ingestExcelInitialData(
     if (parsed.siteMasters && parsed.siteMasters.length > 0) {
       await batchUpsertChunked('site_masters', parsed.siteMasters, 100);
     }
-    await batchUpsertChunked('customer_sites',
-        'site_masters', parsed.customerSites, 100);
+    await batchUpsertChunked('customer_sites', parsed.customerSites, 100);
     await batchUpsertChunked('customer_contacts', parsed.customerContacts, 100);
 
     // Step 4.9: 🛡️ [무결성 절대 보장] assets -> products 외래키(assets_new_modelName_fkey) 100% 선행 검증 및 자동 등록
@@ -3990,8 +3985,7 @@ export async function ingestCustomerDefaultsFromDispatchHistory(
     // 2. 현장 마스터 빈칸 안전 보완
     for (const siteItem of item.sites) {
       if (siteItem.siteId) {
-        let existingSite = db.getRow<any>('customer_sites',
-        'site_masters', siteItem.siteId);
+        let existingSite = db.getRow<any>('customer_sites', siteItem.siteId);
         if (!existingSite && supabase) {
           try {
             const { data } = await supabase.from('customer_sites').select('*').eq('id', siteItem.siteId).maybeSingle();
@@ -4020,8 +4014,7 @@ export async function ingestCustomerDefaultsFromDispatchHistory(
             siteUpdates.address = siteItem.siteAddress;
           }
           if (Object.keys(siteUpdates).length > 0) {
-            db.updateRow('customer_sites',
-        'site_masters', siteItem.siteId, siteUpdates);
+            db.updateRow('customer_sites', siteItem.siteId, siteUpdates);
             if (supabase) {
               try { await supabase.from('customer_sites').update(siteUpdates).eq('id', siteItem.siteId); } catch (e) {}
             }
