@@ -54,7 +54,7 @@ export interface BatchProcessOptions {
   delayBetweenMs?: number;
   abortSignal?: AbortSignal;
   saveCustomer: (cust: Omit<Customer, 'id' | 'createdAt'> & { id?: string }) => Promise<Customer>;
-  saveVendor: (vendor: Vendor) => Promise<void>;
+  saveVendor: (vendor: Vendor) => Promise<Vendor>;
   existingCustomers: Customer[];
   existingVendors: Vendor[];
   onProgress?: (stats: BatchProgressStats, currentItem: BatchItemResult) => void;

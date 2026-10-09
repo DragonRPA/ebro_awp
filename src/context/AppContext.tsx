@@ -7551,7 +7551,6 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           }
         }
       }
-      // 💡 [Gap 4 방어] 외상미수금 청구액 롤백
       if (bd.receivableId) {
         const rcv = db.receivables.find(r => r.id === bd.receivableId);
         if (rcv) {
@@ -7565,11 +7564,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       }
     });
 
-    // 기존 연결 수리비 해제
     const linkedRepairs = db.repairs.filter(r => r.billingId === billingId);
-    linkedRepairs.forEach(r => {
-      db.updateRow<Repair>('repairs', r.id, { billingId: undefined });
-    });
+    const linkedDeliveries = db.deliveries.filter(d => d.billingId === billingId);
 
     // 기존 청구서 REJECTED 처리 (감사 추적성 보존)
     db.updateRow<Billing>('billings', billingId, {
@@ -7582,16 +7578,12 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const newYm = options?.billingYm || oldBilling.billingYm;
     const newDate = options?.billingDate || oldBilling.billingDate || new Date().toISOString().split('T')[0];
 
-    const finalDetails = customDetails && customDetails.length > 0 ? customDetails : oldDetails.map(od => ({
-      contractAssetId: od.contractAssetId,
-      itemName: od.itemName,
-      quantity: od.quantity,
-      unitPrice: od.unitPrice,
-      amount: od.amount,
-      description: od.description
-    }));
+    const finalDetails = customDetails && customDetails.length > 0 ? customDetails : oldDetails.map(od => {
+      const { id, billingId, createdAt, updatedAt, ...rest } = od;
+      return rest;
+    });
 
-    const newTotalAmount = finalDetails.reduce((sum, d) => sum + (d.amount || (d.quantity * d.unitPrice)), 0);
+    const newTotalAmount = finalDetails.reduce((sum, d) => sum + (d.amount || (d.quantity * (d.unitPrice || 0))), 0);
 
     const newBilling = db.insertRow<Billing>('billings', {
       customerId: oldBilling.customerId,
@@ -7612,6 +7604,16 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         createdAt: new Date().toISOString()
       });
 
+      if (det.itemName === '선수금(예치금) 차감 반영') {
+        const cust = db.customers.find(c => c.id === oldBilling.customerId);
+        if (cust) {
+          db.updateRow<Customer>('customers', cust.id, {
+            prepaidBalance: Math.max(0, (cust.prepaidBalance || 0) - Math.abs(det.amount)),
+            updatedAt: new Date().toISOString()
+          } as any);
+        }
+      }
+
       if (det.contractAssetId) {
         const ca = db.contractAssets.find(x => x.id === det.contractAssetId);
         if (ca) {
@@ -7624,9 +7626,27 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           }
         }
       }
+
+      if (det.receivableId) {
+        const rcv = db.receivables.find(r => r.id === det.receivableId);
+        if (rcv) {
+          const newBilled = rcv.billedAmount + (det.amount || 0);
+          db.updateRow<Receivable>('receivables', rcv.id, {
+            billedAmount: newBilled,
+            status: newBilled >= rcv.totalAmount ? 'CLEARED' : 'PARTIAL',
+            updatedAt: new Date().toISOString()
+          });
+        }
+      }
     });
 
-    // 계약이력 기록 (재생성)
+    linkedRepairs.forEach(r => {
+      db.updateRow<Repair>('repairs', r.id, { billingId: newBilling.id });
+    });
+    linkedDeliveries.forEach(d => {
+      db.updateRow<Delivery>('deliveries', d.id, { billingId: newBilling.id });
+    });
+
     if (oldBilling.contractId) {
       db.insertRow<ContractHistory>('contractHistory', {
         contractId: oldBilling.contractId,

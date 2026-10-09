@@ -699,8 +699,7 @@ export const Billings: React.FC = () => {
     setRegenBillingDate(targetB.billingDate || new Date().toISOString().split('T')[0]);
     setRegenMemo('담당자 검토 후 단가/항목 수정 재생성');
     setRegenDetails(targetDetails.map(td => ({
-      contractAssetId: td.contractAssetId,
-      itemName: td.itemName,
+      ...td,
       quantity: td.quantity || 1,
       unitPrice: td.unitPrice || 0,
       amount: td.amount || ((td.quantity || 1) * (td.unitPrice || 0)),
