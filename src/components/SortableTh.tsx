@@ -2,7 +2,7 @@ import React from 'react';
 import { SortConfig } from '../hooks/useSortableData';
 
 interface SortableThProps {
-  label: string;
+  label: React.ReactNode;
   sortKey: string;
   currentSort: SortConfig | null;
   onSort: (key: string) => void;

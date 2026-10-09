@@ -53,7 +53,7 @@ export const Contracts: React.FC = () => {
   // --- 계약 조회 필터 상태 ---
   const [searchTerm, setSearchTerm] = useState('');
   const [contractTypeFilter, setContractTypeFilter] = useState<'ALL' | 'RENTAL' | 'SALE'>('RENTAL');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ACTIVE');
   const [customerFilter, setCustomerFilter] = useState('ALL');
   const [customerInputText, setCustomerInputText] = useState('');
   const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false);
@@ -415,7 +415,13 @@ export const Contracts: React.FC = () => {
         matchHangul(assetNos, q);
 
       const matchesType = contractTypeFilter === 'ALL' || (c.contractType || 'RENTAL') === contractTypeFilter;
-      const matchesStatus = statusFilter === 'ALL' || c.status === statusFilter;
+      
+      let matchesStatus = true;
+      if (statusFilter !== 'ALL') {
+        if (statusFilter === 'ACTIVE') matchesStatus = c.status === 'ACTIVE' || c.status === 'EXTENDED';
+        else matchesStatus = c.status === statusFilter;
+      }
+      
       const matchesCustomer = customerFilter === 'ALL' || c.customerId === customerFilter;
       const matchesSite = siteFilter === 'ALL' || c.siteId === siteFilter;
       const matchesStartDate = !startDateFilter || (c.startDate && c.startDate >= startDateFilter);
@@ -553,6 +559,25 @@ export const Contracts: React.FC = () => {
   const activeContract = contracts.find(c => c.id === selectedContractId);
   const activeContractHistory = contractHistory.filter(h => h.contractId === selectedContractId);
   const activeContractAssets = contractAssets.filter(ca => ca.contractId === selectedContractId);
+
+  const { items: sortedActiveContractAssets, requestSort: requestCaSort, sortConfig: caSortConfig } = useSortableData(
+    activeContractAssets, 
+    null,
+    (ca, key) => {
+      const asset = assets.find(a => a.id === ca.assetId);
+      if (key === 'asset') return asset?.assetNo || '';
+      if (key === 'statusPeriod') {
+        const statusScore = ca.status === 'RETURNED' ? 1 : 0; // 운용중(0)이 반납완료(1)보다 위에 오도록
+        return `${statusScore}_${ca.startDate || ''}`;
+      }
+      if (key === 'price') return ca.monthlyRentalFee || 0;
+      if (key === 'accrual') {
+        return (billingDetails || []).filter(bd => bd.contractAssetId === ca.id).reduce((sum, bd) => sum + (bd.amount || 0), 0);
+      }
+      if (key === 'scheduled') return ca.status === 'RETURNED' ? -1 : (ca.monthlyRentalFee || 0);
+      return '';
+    }
+  );
 
   // 🔍 양수 고객사 초성 검색 필터링 목록
   const filteredSuccCustomers = useMemo(() => {
@@ -1648,7 +1673,23 @@ export const Contracts: React.FC = () => {
                 />
               </div>
 
-              {/* 🌟 [조회] 버튼 (사용자 지정 위치: 계약 종료일 바로 우측) */}
+              {/* 계약 상태 필터 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
+                <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>상태</label>
+                <select
+                  value={statusFilter}
+                  onChange={e => setStatusFilter(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') handleSearchClick(); }}
+                  style={{ padding: '5px 8px', borderRadius: '6px', fontSize: '12px', border: '1px solid var(--border-color)', outline: 'none', backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                >
+                  <option value="ALL">전체 상태</option>
+                  <option value="ACTIVE">진행중</option>
+                  <option value="COMPLETED">종료</option>
+                  <option value="SUCCEEDED">승계됨</option>
+                </select>
+              </div>
+
+              {/* 🌟 [조회] 버튼 (사용자 지정 위치: 상태 필터 바로 우측) */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
                 <label style={{ fontSize: '11px', fontWeight: 700, visibility: 'hidden', whiteSpace: 'nowrap', userSelect: 'none' }}>조회</label>
                 <button
@@ -1676,12 +1717,13 @@ export const Contracts: React.FC = () => {
               </div>
 
               {/* 필터 초기화 버튼 */}
-              {(customerFilter !== 'ALL' || siteFilter !== 'ALL' || startDateFilter || endDateFilter || searchTerm) && (
+              {(statusFilter !== 'ACTIVE' || customerFilter !== 'ALL' || siteFilter !== 'ALL' || startDateFilter || endDateFilter || searchTerm) && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flexShrink: 0 }}>
                   <label style={{ fontSize: '11px', fontWeight: 700, visibility: 'hidden', whiteSpace: 'nowrap', userSelect: 'none' }}>초기화</label>
                   <button
                     type="button"
                     onClick={() => {
+                      setStatusFilter('ACTIVE');
                       setCustomerFilter('ALL');
                       setCustomerInputText('');
                       setSiteFilter('ALL');
@@ -2437,17 +2479,17 @@ export const Contracts: React.FC = () => {
                       </tr>
                     ) : (
                       <tr style={{ backgroundColor: 'var(--bg-app)' }}>
-                        <th style={{ whiteSpace: 'nowrap' }}>자산 정보</th>
-                        <th style={{ whiteSpace: 'nowrap' }}>상태 및 기간</th>
-                        <th style={{ whiteSpace: 'nowrap' }}>단가 (월/일)</th>
-                        <th style={{ whiteSpace: 'nowrap' }}>기여액 <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 400 }}>(기수)</span></th>
-                        <th style={{ whiteSpace: 'nowrap' }}>청구 예정 <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 400 }}>(미수)</span></th>
+                        <SortableTh label="자산 정보" sortKey="asset" currentSort={caSortConfig} onSort={requestCaSort} style={{ whiteSpace: 'nowrap' }} />
+                        <SortableTh label="상태 및 기간" sortKey="statusPeriod" currentSort={caSortConfig} onSort={requestCaSort} style={{ whiteSpace: 'nowrap' }} />
+                        <SortableTh label="단가 (월/일)" sortKey="price" currentSort={caSortConfig} onSort={requestCaSort} style={{ whiteSpace: 'nowrap' }} />
+                        <SortableTh label={<>기여액 <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 400 }}>(기수)</span></>} sortKey="accrual" currentSort={caSortConfig} onSort={requestCaSort} style={{ whiteSpace: 'nowrap' }} />
+                        <SortableTh label={<>청구 예정 <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 400 }}>(미수)</span></>} sortKey="scheduled" currentSort={caSortConfig} onSort={requestCaSort} style={{ whiteSpace: 'nowrap' }} />
                         <th style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>관리 액션</th>
                       </tr>
                     )}
                   </thead>
                   <tbody>
-                    {activeContractAssets.map(ca => {
+                    {sortedActiveContractAssets.map(ca => {
                       const asset = assets.find(a => a.id === ca.assetId);
                       if (activeContract.contractType === 'SALE') {
                         const price = ca.salePrice || 0;
