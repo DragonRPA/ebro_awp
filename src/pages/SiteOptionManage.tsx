@@ -104,7 +104,7 @@ export const SiteOptionManage: React.FC = () => {
         if (!matchName && !matchAddr) return false;
       }
       return true;
-    });
+    }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [sites, searchSiteKeyword]);
 
   // 첫 번째 현장 자동 선택
@@ -352,27 +352,6 @@ export const SiteOptionManage: React.FC = () => {
       >
         {/* ① 좌상단 (Start / Scope): 고객사 필터 & 현장 검색 */}
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '12px', flexWrap: 'wrap' }}>
-          {/* 고객사 선택 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-              고객사 필터
-            </span>
-            <select
-              style={{
-                height: '34px',
-                padding: '0 10px',
-                borderRadius: '6px',
-                border: '1px solid var(--border-color)',
-                backgroundColor: 'var(--bg-surface)',
-                color: 'var(--text-primary)',
-                fontSize: '12.5px',
-                fontWeight: 600,
-                outline: 'none',
-                minWidth: '150px'
-              }}
-            >
-            </select>
-          </div>
 
           {/* 현장 검색창 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
