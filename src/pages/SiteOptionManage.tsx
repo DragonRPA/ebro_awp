@@ -129,6 +129,26 @@ export const SiteOptionManage: React.FC = () => {
   const [siteStatusFilter, setSiteStatusFilter] = useState<'ACTIVE' | 'COMPLETED' | 'ALL'>('ACTIVE');
 
   const [showQuickSiteModal, setShowQuickSiteModal] = useState(false);
+  const [showEditSiteMasterModal, setShowEditSiteMasterModal] = useState(false);
+  const [editSiteMasterForm, setEditSiteMasterForm] = useState({ id: '', name: '', address: '' });
+  const handleOpenEditMaster = (site: any) => {
+    setEditSiteMasterForm({ id: site.id, name: site.name || '', address: site.address || '' });
+    setShowEditSiteMasterModal(true);
+  };
+  const handleSaveEditMaster = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editSiteMasterForm.name) {
+      showErrorModal('현장명을 입력해주세요.');
+      return;
+    }
+    try {
+      await saveSiteMaster({ id: editSiteMasterForm.id, name: editSiteMasterForm.name.trim(), address: editSiteMasterForm.address.trim() });
+      setShowEditSiteMasterModal(false);
+      showToast('현장 마스터 정보가 수정되었습니다.');
+    } catch (err: any) {
+      showErrorModal('저장 실패: ' + err.message);
+    }
+  };
   const [quickSiteForm, setQuickSiteForm] = useState({ customerId: '', name: '', address: '' });
 
   const handleSaveQuickSite = async (e: React.FormEvent) => {
@@ -459,7 +479,74 @@ export const SiteOptionManage: React.FC = () => {
     >
       
       {/* 신규 현장 빠른 등록 모달 */}
+      {showEditSiteMasterModal && (
+        <div className="modal-overlay" onClick={() => setShowEditSiteMasterModal(false)} style={{ zIndex: 10000 }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', padding: 0, overflow: 'hidden' }}>
+            <div style={{ backgroundColor: 'var(--bg-card)', padding: '16px 20px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Edit3 size={16} />
+                현장 마스터 전역 수정 (개발자)
+              </h3>
+              <button type="button" onClick={() => setShowEditSiteMasterModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <X size={18} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSaveEditMaster} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ fontSize: '12px', color: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', padding: '10px', borderRadius: '6px', fontWeight: 600 }}>
+                주의: 이 마스터 정보를 수정하면, 이 현장을 참조하는 모든 고객사 및 계약서의 주소록까지 전역 변경됩니다.
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>현장명 *</label>
+                <input required type="text" value={editSiteMasterForm.name} onChange={e => setEditSiteMasterForm({ ...editSiteMasterForm, name: e.target.value })} style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '13px' }} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>기본 현장 주소</label>
+                <input type="text" value={editSiteMasterForm.address} onChange={e => setEditSiteMasterForm({ ...editSiteMasterForm, address: e.target.value })} style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '13px' }} />
+              </div>
+              <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button type="button" onClick={() => setShowEditSiteMasterModal(false)} style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>취소</button>
+                <button type="submit" style={{ padding: '8px 16px', borderRadius: '6px', backgroundColor: '#f59e0b', border: '1px solid #f59e0b', color: '#ffffff', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '12px 20px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <h2 style={{ margin: 0, fontWeight: '700', fontSize: '17px', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+            현장별 옵션 관리
+          </h2>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            총 <strong>{siteMasters?.length || 0}</strong>개소 (조회 <strong>{filteredSites.length}</strong>개소)
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {isDeveloper && (
+            <>
+              {selectedSiteId && (
+                 <button
+                   className="btn-secondary"
+                   onClick={() => handleOpenEditMaster((siteMasters || []).find((s: any) => s.id === selectedSiteId))}
+                   style={{ background: '#f59e0b', color: '#fff', border: 'none', padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}
+                 >
+                   🛠️ 선택 현장 마스터 수정
+                 </button>
+              )}
+              <button
+                className="btn-secondary"
+                onClick={() => setShowDevMergeModal(true)}
+                style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', borderRadius: '6px', cursor: 'pointer', fontWeight: 700 }}
+              >
+                🛠️ 중복 현장 병합
+              </button>
+            </>
+          )}
+          
+        </div>
+      </div>
+
       {showDevMergeModal && (
         <DeveloperSiteMergeModal onClose={() => setShowDevMergeModal(false)} />
       )}
