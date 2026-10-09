@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext';
 import {
   Plus, Calendar, Search, Download, Edit3, Repeat, Clock, Wrench, ChevronLeft,
   Building2, ArrowLeftRight, Receipt, FolderOpen, AlertCircle, ExternalLink, Copy, AlertTriangle, FileText,
-  Truck, CheckCircle2
+  Truck, CheckCircle2, Network
 } from 'lucide-react';
 import { Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, OutboundInspection, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, isCustomerRestricted, isCustomerTotalBlocked, ApprovalPayload } from '../services/db';
 import { exportToExcel } from '../services/excel';
@@ -62,7 +62,7 @@ export const Contracts: React.FC = () => {
   const [siteDropdownOpen, setSiteDropdownOpen] = useState(false);
   const [startDateFilter, setStartDateFilter] = useState<string>('');
   const [endDateFilter, setEndDateFilter] = useState<string>('');
-  const [quickChipFilter, setQuickChipFilter] = useState<'ALL' | 'PENDING_DELIVERY' | 'ACTIVE' | 'ASSIGNED' | 'D3' | 'ZERO_FEE' | 'SUCCEEDED' | 'COMPLETED'>('ALL');
+  const [quickChipFilter, setQuickChipFilter] = useState<'ALL' | 'PENDING_DELIVERY' | 'ACTIVE' | 'ASSIGNED' | 'D3' | 'ZERO_FEE' | 'COMPLETED'>('ALL');
 
   // 선택된 계약 ID
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
@@ -439,8 +439,9 @@ export const Contracts: React.FC = () => {
         matchesChip = dday.isWarning;
       } else if (quickChipFilter === 'ZERO_FEE') {
         matchesChip = cas.some(ca => ca.monthlyRentalFee === 0);
-      } else if (quickChipFilter === 'SUCCEEDED') matchesChip = c.status === 'SUCCEEDED';
-      else if (quickChipFilter === 'COMPLETED') matchesChip = c.status === 'COMPLETED';
+      } else if (quickChipFilter === 'COMPLETED') {
+        matchesChip = c.status === 'COMPLETED';
+      }
 
       return matchesType && matchesSearch && matchesStatus && matchesCustomer && matchesSite && matchesStartDate && matchesEndDate && matchesChip;
     });
@@ -1685,8 +1686,7 @@ export const Contracts: React.FC = () => {
                   <option value="ALL">전체 상태</option>
                   <option value="ACTIVE">진행중</option>
                   <option value="COMPLETED">종료</option>
-                  <option value="SUCCEEDED">승계됨</option>
-                </select>
+                  </select>
               </div>
 
               {/* 🌟 [조회] 버튼 (사용자 지정 위치: 상태 필터 바로 우측) */}
@@ -1763,7 +1763,6 @@ export const Contracts: React.FC = () => {
                 { id: 'ACTIVE', label: `진행중 (${contracts.filter(c => c.status === 'ACTIVE' || c.status === 'EXTENDED').length})` },
                 { id: 'D3', label: `만료 임박 (${contracts.filter(c => getDDayText(c.endDate).isWarning).length})` },
                 { id: 'ZERO_FEE', label: `렌탈료 0원 (${contracts.filter(c => contractAssets.filter(ca => ca.contractId === c.id).some(ca => ca.monthlyRentalFee === 0)).length})` },
-                { id: 'SUCCEEDED', label: `승계건 (${contracts.filter(c => c.status === 'SUCCEEDED').length})` },
                 { id: 'COMPLETED', label: `종결건 (${contracts.filter(c => c.status === 'COMPLETED').length})` }
               ].map(chip => (
                 <button
@@ -1985,9 +1984,9 @@ export const Contracts: React.FC = () => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                               <span className={
                                 c.status === 'ACTIVE' || c.status === 'EXTENDED' ? 'badge badge-success' :
-                                c.status === 'SUCCEEDED' ? 'badge badge-info' : 'badge badge-secondary'
+                                'badge badge-secondary'
                               }>
-                                {c.status === 'ACTIVE' ? '진행중' : c.status === 'EXTENDED' ? '연장됨' : c.status === 'SUCCEEDED' ? '승계됨' : '종료'}
+                                {c.status === 'ACTIVE' ? '진행중' : c.status === 'EXTENDED' ? '연장됨' : '종료'}
                               </span>
                               {c.approvalStatus === 'PENDING' && (
                                 <span style={{ fontSize: '10.5px', padding: '1px 6px', borderRadius: '4px', background: '#fef3c7', color: '#b45309', fontWeight: 700 }}>
@@ -2035,11 +2034,48 @@ export const Contracts: React.FC = () => {
       {viewMode === 'DETAIL' && activeContract && (
         <div data-subview="contract_detail" data-subview-title="계약 상세" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           
+          {/* 연관 계약 (족보) 패널 */}
+          {(() => {
+            const parentContract = activeContract.predecessorContractId ? contracts.find(c => c.id === activeContract.predecessorContractId) : null;
+            const childContracts = contracts.filter(c => c.predecessorContractId === activeContract.id);
+            if (!parentContract && childContracts.length === 0) return null;
+            
+            return (
+              <div className="card" style={{ padding: '12px 18px', margin: 0, backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <strong style={{ fontSize: '13px', color: '#166534', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Network size={16} /> 연관 계약 (족보)
+                </strong>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {parentContract && (
+                    <div style={{ fontSize: '12px', color: '#15803d', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontWeight: 700 }}>⬆️ 부모 계약 (이전):</span>
+                      <a href="#" onClick={(e) => { e.preventDefault(); handleSelectContract(parentContract.id); }} style={{ color: '#16a34a', textDecoration: 'underline', fontWeight: 700 }}>
+                        {parentContract.contractNo} ({customers.find(cust => cust.id === parentContract.customerId)?.name} / {db.sites.find(s => s.id === parentContract.siteId)?.name})
+                      </a>
+                    </div>
+                  )}
+                  {childContracts.length > 0 && (
+                    <div style={{ fontSize: '12px', color: '#15803d', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <span style={{ fontWeight: 700 }}>⬇️ 파생 계약 (이후):</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginLeft: '12px' }}>
+                        {childContracts.map(child => (
+                          <a key={child.id} href="#" onClick={(e) => { e.preventDefault(); handleSelectContract(child.id); }} style={{ color: '#16a34a', textDecoration: 'underline', fontWeight: 700 }}>
+                            ↳ {child.contractNo} ({customers.find(cust => cust.id === child.customerId)?.name} / {db.sites.find(s => s.id === child.siteId)?.name}) - {child.status === 'COMPLETED' ? '종료' : '진행중'}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* 상단 컨트롤 바 */}
           <div className="card" style={{ padding: '12px 18px', margin: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span className="badge badge-success" style={{ fontSize: '12px' }}>
-                {activeContract.status === 'ACTIVE' ? '진행중' : activeContract.status === 'EXTENDED' ? '연장됨' : activeContract.status === 'SUCCEEDED' ? '승계됨' : '종료'}
+                {activeContract.status === 'ACTIVE' ? '진행중' : activeContract.status === 'EXTENDED' ? '연장됨' : '종료'}
               </span>
               {activeContract.approvalStatus === 'PENDING' && (
                 <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', background: '#fef3c7', color: '#b45309', fontWeight: 800 }}>

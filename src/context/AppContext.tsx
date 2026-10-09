@@ -5654,15 +5654,11 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     }
 
-    // 전체 승계 시에만 원 계약을 SUCCEEDED로 mark (부분 승계 시 원 계약 ACTIVE 유지)
+    // 전체 승계 시 원 계약의 장비가 0대가 되므로 상태를 COMPLETED로 종결 처리
+    // (부분 승계 시 원 계약 ACTIVE 유지)
     if (assetsToRetain.length === 0) {
       db.updateRow<Contract>('contracts', contractId, {
-        successorContractId: targetContract.id,
-        status: 'SUCCEEDED'
-      });
-    } else {
-      db.updateRow<Contract>('contracts', contractId, {
-        successorContractId: targetContract.id
+        status: 'COMPLETED'
       });
     }
 
