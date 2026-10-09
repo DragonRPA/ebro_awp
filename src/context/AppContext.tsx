@@ -6949,6 +6949,23 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const billing = db.billings.find(b => b.id === billingId);
     if (!billing) return;
 
+    if (billing.parentBillingId) {
+      throw new Error('분할 생성된 청구서는 단독으로 취소할 수 없습니다. 원본 청구서를 취소하면 일괄 취소됩니다.');
+    }
+
+    const children = db.billings.filter(b => b.parentBillingId === billingId && b.status !== 'REJECTED');
+    if (children.length > 0) {
+      if (children.some(c => c.status === 'PAID' || c.status === 'PARTIAL')) {
+        throw new Error('분할된 청구서 중 수납이 진행된 건이 있어 원본을 취소할 수 없습니다. 수납을 먼저 취소해주세요.');
+      }
+      for (const c of children) {
+        db.updateRow<Billing>('billings', c.id, {
+          status: 'REJECTED',
+          rejectReason: '원본 청구서 취소에 따른 분할 청구 일괄 취소',
+          updatedAt: new Date().toISOString()
+        });
+      }
+    }
     const details = db.billingDetails.filter(bd => bd.billingId === billingId);
 
     // 선수금·누적렌탈료 롤백
@@ -7526,6 +7543,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
   ): Promise<string> => {
     const oldBilling = db.billings.find(b => b.id === billingId);
     if (!oldBilling) throw new Error('청구서를 찾을 수 없습니다.');
+    if (oldBilling.parentBillingId) throw new Error('분할 생성된 청구서는 수정/재생성할 수 없습니다. 취소 후 재발행해 주세요.');
+    const regenChildren = db.billings.filter(b => b.parentBillingId === billingId && b.status !== 'REJECTED');
+    if (regenChildren.length > 0) throw new Error('이미 분할된 원본 청구서는 수정/재생성할 수 없습니다. 취소 후 재발행해 주세요.');
 
     // 1. 기존 청구서 롤백 & 상태 REJECTED 마감
     const oldDetails = db.billingDetails.filter(bd => bd.billingId === billingId);
@@ -7666,6 +7686,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const origBilling = db.billings.find(b => b.id === billingId);
     if (!origBilling) throw new Error("원본 청구를 찾을 수 없습니다.");
     if (origBilling.status === 'PAID') throw new Error("이미 수납이 완료된 청구서는 분할할 수 없습니다.");
+    if (origBilling.invoiceId) throw new Error('이미 통합 명세서로 발행된 청구서는 분할할 수 없습니다. 먼저 통합 인보이스를 취소해 주세요.');
     if (splitAmount <= 0 || splitAmount >= origBilling.totalAmount) throw new Error("분할 금액이 유효하지 않습니다.");
     
     const now = new Date().toISOString();
@@ -7736,6 +7757,15 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       approvalRequestId?: string;
     }
   ) => {
+    const billingForRegen = db.billings.find(b => b.id === billingId);
+    if (billingForRegen?.parentBillingId) {
+      throw new Error('분할 생성된 청구서는 수정/재생성할 수 없습니다. 원본 청구서를 취소 후 재발행해 주세요.');
+    }
+    const regenChildren = db.billings.filter(b => b.parentBillingId === billingId && b.status !== 'REJECTED');
+    if (regenChildren.length > 0) {
+      throw new Error('이미 분할된 원본 청구서는 수정/재생성할 수 없습니다. 취소 후 재발행해 주세요.');
+    }
+
     const billing = db.billings.find(b => b.id === billingId);
     if (!billing) throw new Error('청구서를 찾을 수 없습니다.');
 
