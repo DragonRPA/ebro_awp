@@ -7,7 +7,7 @@ export const TradeProfitabilityPage: React.FC = () => {
   const totalRev = salesOrders.reduce((sum, o) => sum + o.totalSalesAmount, 0);
   const totalCogs = salesOrders.reduce((sum, o) => sum + o.totalCogsAmount, 0); // Simplified
   const margin = totalRev - totalCogs;
-  const marginPct = totalRev === 0 ? 0 : (margin / totalRev) * 100;
+  const marginPct = totalRev === 0 ? 0 : Number(((margin / totalRev) * 100).toFixed(2));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: '#f9fafb' }}>

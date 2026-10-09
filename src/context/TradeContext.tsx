@@ -143,8 +143,8 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
          }
        }
 
-       const unitCogs = i.qty > 0 ? (lineCogsTotal / i.qty) : 0;
-       totalCogsAmount += lineCogsTotal;
+       const unitCogs = Math.round(i.qty > 0 ? (lineCogsTotal / i.qty) : 0);
+       totalCogsAmount += Math.round(lineCogsTotal);
 
        const line: TradeSalesOrderLine = { id: uuidv4(), orderId: oId, productId: i.productId, qty: i.qty, unitPrice: i.unitPrice, unitCogs, createdAt: new Date().toISOString() };
        newLines.push(line);
