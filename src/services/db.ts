@@ -6184,6 +6184,9 @@ class LocalDB {
       if (val === undefined) {
         continue;
       }
+      // contracts 테이블 프론트엔드 전용 상태 필드 격리
+      if (tableName === 'contracts' && ['packageSentAt', 'approvalStatus', 'approvalRequestId', 'stagedExtend', 'saleTerms'].includes(key)) { continue; }
+      if (tableName === 'contract_history' && ['approvalStatus', 'approvalRequestId'].includes(key)) { continue; }
       // DB consumables 스키마에 없는 supplier, category, note, repairingQty 컬럼 오염 방지
       if (tableName === 'consumables' && (key === 'supplier' || key === 'category' || key === 'note' || key === 'repairingQty')) {
         continue;
