@@ -5617,7 +5617,11 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
     const oldCAssets = assetsToSucceed;
     oldCAssets.forEach(ca => {
-      db.updateRow<ContractAsset>('contractAssets', ca.id, { endDate: successionDate });
+      db.updateRow<ContractAsset>('contractAssets', ca.id, { 
+        endDate: successionDate,
+        status: 'RETURNED',
+        actualReturnDate: successionDate
+      });
     });
 
     db.insertRow<ContractHistory>('contractHistory', {
@@ -5701,6 +5705,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         dailyRentalFee: ca.dailyRentalFee,
         startDate: nextDay,
         endDate: oldEndDate,
+        status: ca.status,
         predecessorContractId: contractId,
         predecessorContractAssetId: ca.id,
         createdAt: nowIsoSucceed

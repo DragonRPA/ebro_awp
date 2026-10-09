@@ -421,7 +421,7 @@ async function parseInstructionIntent(instruction, requestedMode = 'AUTO') {
       messages: [
         {
           role: "system",
-          content: "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해."
+          content: "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도. 반드시 다음 중 하나만 선택해: [asset_search, billing_request_create, click_element, contract_create, customer_create, customer_search, dispatch_assign_driver, dispatch_create_order, maintenance_create, navigate_menu, pdi_approve, site_option_update, vacation_create]\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해."
         },
         {
           role: "user",
