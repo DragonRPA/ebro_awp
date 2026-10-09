@@ -1,7 +1,10 @@
 const fs = require('fs');
-let code = fs.readFileSync('D:/01.AntiGravity/eBro/src/pages/Customers.tsx', 'utf8');
-code = code.replace(
-  /{editingCustomer\\.id \\? '¼öÁ¤ »çÇ× ÀúÀå' : '°í°´»ç µî·Ï ¿Ï·á'}/g,
-  "{editingCustomer.id ? '¼öÁ¤ »çÇ× ÀúÀå' : '°í°´»ç µî·Ï ¿Ï·á'}"
+let c = fs.readFileSync('src/pages/Customers.tsx', 'utf8');
+
+c = c.replace(
+  /<option value="">-- ì˜µì…˜ ì°¸ì¡° í˜„ì¥ ì„ íƒ \(\{optionReferenceSites\.length\}ê°œ\) --<\/option>/g,
+  `<option value="">-- [ì„ íƒ] ê¸°ì¡´ í˜„ì¥ ë‹´ë‹¹ì/ì˜µì…˜ ì •ë³´ ë³µì‚¬í•´ì˜¤ê¸° ({optionReferenceSites.length}ê°œ) --</option>`
 );
-fs.writeFileSync('D:/01.AntiGravity/eBro/src/pages/Customers.tsx', code, 'utf8');
+
+fs.writeFileSync('src/pages/Customers.tsx', c);
+console.log('Fixed Customers.tsx');

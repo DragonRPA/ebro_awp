@@ -1,848 +1,792 @@
 {
   "total": 1100,
-  "correct": 124,
-  "incorrect": 976,
+  "correct": 1023,
+  "incorrect": 77,
   "errors": 0,
-  "accuracy": 11.272727272727273,
-  "total_time_seconds": 3400.1777522563934,
+  "accuracy": 93.0,
+  "total_time_seconds": 3201.452932357788,
   "failed_cases": [
     {
-      "index": 31,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n현재 임대가능인 G-1001 모델 목록 띄워봐.",
-      "expected": "ASSET_SEARCH",
-      "actual": "MODEL_LIST_SEARCH",
+      "index": 625,
+      "prompt": "OT 관리의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: ot_management",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
       "parsed_json": {
-        "intent": "model_list_search",
+        "intent": "navigate_menu",
         "parameters": {
-          "model_id": "G-1001",
-          "status": "available"
+          "menu_id": "ot_management"
         }
       },
       "is_correct": false,
-      "latency": 9.544154405593872,
+      "latency": 11.150302648544312,
       "error": null
     },
     {
-      "index": 151,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n(주)가나건설 수원현장 현장에 안전센서 옵션 필수 장착으로 업데이트해.",
-      "expected": "SITE_OPTION_UPDATE",
-      "actual": "SITE_UPDATE",
+      "index": 626,
+      "prompt": "초기DB 업로드의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: initial_db_upload",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
       "parsed_json": {
-        "intent": "site_update",
+        "intent": "navigate_menu",
         "parameters": {
-          "site_name": "(주)가나건설 수원현장",
-          "option_name": "안전센서",
-          "is_mandatory": true
+          "menu_id": "initial_db_upload"
         }
       },
       "is_correct": false,
-      "latency": 13.82485818862915,
+      "latency": 13.50291109085083,
       "error": null
     },
     {
-      "index": 391,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n나 이과장인데, 2026-10-10에 오후반차 쓸거야. 병원 진료 때문임. 기안 올려줘.",
-      "expected": "VACATION_CREATE",
-      "actual": "LEAVE_REQUEST",
-      "parsed_json": {
-        "intent": "leave_request",
-        "parameters": {
-          "requester_name": "이과장",
-          "date": "2026-10-10",
-          "leave_type": "오후반차",
-          "reason": "병원 진료"
-        }
-      },
-      "is_correct": false,
-      "latency": 14.578969955444336,
-      "error": null
-    },
-    {
-      "index": 271,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n메모: S-45 고장 대차. 판교 카카오 신사옥로 140000원 배차 등록해. 작업 타입은 EXCHANGE.",
+      "index": 926,
+      "prompt": "SK하이닉스 이천공장 현장에 기연직영트럭 기사님 배차해줘. 단가는 60000원이고 OUTBOUND 건이야.",
       "expected": "DISPATCH_CREATE_ORDER",
-      "actual": "DISPATCH_REGISTER",
+      "actual": "DISPATCH_ASSIGN_DRIVER",
       "parsed_json": {
-        "intent": "dispatch_register",
+        "intent": "dispatch_assign_driver",
         "parameters": {
-          "vehicle_id": "S-45",
-          "destination": "판교 카카오 신사옥",
-          "cost": 140000,
-          "work_type": "EXCHANGE",
-          "reason": "고장 대차"
+          "현장명": "SK하이닉스 이천공장",
+          "차량유형": "기연직영트럭",
+          "단가": "60000원",
+          "작업구분": "OUTBOUND"
         }
       },
       "is_correct": false,
-      "latency": 17.325213193893433,
+      "latency": 15.484603643417358,
+      "error": null
+    },
+    {
+      "index": 927,
+      "prompt": "삼성전기 수원현장 현장에 전국24시콜화물 기사님 배차해줘. 단가는 200000원이고 EXCHANGE 건이야.",
+      "expected": "DISPATCH_CREATE_ORDER",
+      "actual": "DISPATCH_ASSIGN_DRIVER",
+      "parsed_json": {
+        "intent": "dispatch_assign_driver",
+        "parameters": {
+          "site_name": "삼성전기 수원현장",
+          "driver_type": "전국24시콜화물",
+          "unit_price": 200000,
+          "job_type": "EXCHANGE"
+        }
+      },
+      "is_correct": false,
+      "latency": 14.816354513168335,
+      "error": null
+    },
+    {
+      "index": 268,
+      "prompt": "SK하이닉스 이천공장 현장에 로지스틱스K 기사님 배차해줘. 단가는 60000원이고 EXCHANGE 건이야.",
+      "expected": "DISPATCH_CREATE_ORDER",
+      "actual": "DISPATCH_ASSIGN_DRIVER",
+      "parsed_json": {
+        "intent": "dispatch_assign_driver",
+        "parameters": {
+          "현장명": "SK하이닉스 이천공장",
+          "배차_기사": "로지스틱스K",
+          "단가": 60000,
+          "작업_유형": "EXCHANGE"
+        }
+      },
+      "is_correct": false,
+      "latency": 17.041760444641113,
+      "error": null
+    },
+    {
+      "index": 389,
+      "prompt": "SK하이닉스 이천공장 현장에 로지스틱스K 기사님 배차해줘. 단가는 150000원이고 OUTBOUND 건이야.",
+      "expected": "DISPATCH_CREATE_ORDER",
+      "actual": "DISPATCH_ASSIGN_DRIVER",
+      "parsed_json": {
+        "intent": "dispatch_assign_driver",
+        "parameters": {
+          "현장명": "SK하이닉스 이천공장",
+          "배차_기사": "로지스틱스K",
+          "단가": 150000,
+          "작업_유형": "OUTBOUND"
+        }
+      },
+      "is_correct": false,
+      "latency": 16.571449279785156,
+      "error": null
+    },
+    {
+      "index": 510,
+      "prompt": "회수 요청의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: smart_return",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
+      "parsed_json": {
+        "intent": "navigate_menu",
+        "parameters": {
+          "menu_identifier": "smart_return"
+        }
+      },
+      "is_correct": false,
+      "latency": 9.83547830581665,
       "error": null
     },
     {
       "index": 511,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\nAS 요청의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: smart_as_request",
+      "prompt": "AS 요청의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: smart_as_request",
       "expected": "",
-      "actual": "QUERY_OPERATION_DETAILS",
+      "actual": "NAVIGATE_MENU",
       "parsed_json": {
-        "intent": "query_operation_details",
+        "intent": "navigate_menu",
         "parameters": {
-          "menu_identifier": "smart_as_request"
+          "menu_id": "smart_as_request"
         }
       },
       "is_correct": false,
-      "latency": 9.06023621559143,
-      "error": null
-    },
-    {
-      "index": 811,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n10월분 (주)가나건설한테 3000000원 청구서 보내줘.",
-      "expected": "BILLING_REQUEST_CREATE",
-      "actual": "INVOICE_CREATE",
-      "parsed_json": {
-        "intent": "invoice_create",
-        "parameters": {
-          "amount": 3000000,
-          "billing_period": "10월",
-          "recipient": "(주)가나건설"
-        }
-      },
-      "is_correct": false,
-      "latency": 8.829429149627686,
-      "error": null
-    },
-    {
-      "index": 931,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n수리중 상태인 G-1001 장비 찾아줘.",
-      "expected": "ASSET_SEARCH",
-      "actual": "EQUIPMENT_SEARCH",
-      "parsed_json": {
-        "intent": "equipment_search",
-        "parameters": {
-          "equipment_id": "G-1001",
-          "status": "수리중"
-        }
-      },
-      "is_correct": false,
-      "latency": 8.532498359680176,
-      "error": null
-    },
-    {
-      "index": 631,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n청구 / 수납 관리에서 청구 대장 탭 열어줘. 현재 위치: 청구 / 수납 관리 (billing), 하위 탭: 청구 대장, 미청구 정산, 청구서통합, 청구 면제 대장",
-      "expected": "CLICK_ELEMENT",
-      "actual": "NAVIGATE",
-      "parsed_json": {
-        "intent": "navigate",
-        "parameters": {
-          "module": "청구 / 수납 관리",
-          "tab_name": "청구 대장"
-        }
-      },
-      "is_correct": false,
-      "latency": 12.980781555175781,
-      "error": null
-    },
-    {
-      "index": 1051,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n에이텍엔지니어링 수원현장 현장에 무논마스킹 옵션 필수 장착으로 업데이트해.",
-      "expected": "SITE_OPTION_UPDATE",
-      "actual": "SITE_SPECIFICATION_UPDATE",
-      "parsed_json": {
-        "intent": "site_specification_update",
-        "parameters": {
-          "site_name": "에이텍엔지니어링 수원현장",
-          "option_name": "무논마스킹",
-          "requirement_status": "필수"
-        }
-      },
-      "is_correct": false,
-      "latency": 12.915709495544434,
-      "error": null
-    },
-    {
-      "index": 32,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n전국24시콜화물 불러서 판교 카카오 신사옥로 장비 보내. EXCHANGE이고 운송비는 200000원으로 맞춰줘.",
-      "expected": "DISPATCH_CREATE_ORDER",
-      "actual": "SHIPMENT_CREATE",
-      "parsed_json": {
-        "intent": "shipment_create",
-        "parameters": {
-          "carrier": "전국24시콜화물",
-          "destination": "판교 카카오 신사옥",
-          "cargo_type": "장비",
-          "shipment_type": "EXCHANGE",
-          "shipping_cost": 200000
-        }
-      },
-      "is_correct": false,
-      "latency": 14.524864912033081,
-      "error": null
-    },
-    {
-      "index": 272,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n나 김철수인데, 2026-10-10에 경조휴가 쓸거야. 집안 행사 때문임. 기안 올려줘.",
-      "expected": "VACATION_CREATE",
-      "actual": "LEAVE_REQUEST",
-      "parsed_json": {
-        "intent": "leave_request",
-        "parameters": {
-          "employee_name": "김철수",
-          "leave_date": "2026-10-10",
-          "leave_type": "경조휴가",
-          "reason": "집안 행사"
-        }
-      },
-      "is_correct": false,
-      "latency": 12.931413412094116,
-      "error": null
-    },
-    {
-      "index": 392,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\nG-1002 출고 검수 통과(false) 처리해. 검수자는 이대리.",
-      "expected": "PDI_APPROVE",
-      "actual": "INSPECTION_RESULT_UPDATE",
-      "parsed_json": {
-        "intent": "inspection_result_update",
-        "parameters": {
-          "item_id": "G-1002",
-          "is_passed": false,
-          "inspector_name": "이대리"
-        }
-      },
-      "is_correct": false,
-      "latency": 11.972167253494263,
-      "error": null
-    },
-    {
-      "index": 632,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n가나건설 거래처 정보 좀 찾아봐.",
-      "expected": "CUSTOMER_SEARCH",
-      "actual": "SEARCH_VENDOR_INFO",
-      "parsed_json": {
-        "intent": "search_vendor_info",
-        "parameters": {
-          "vendor_name": "가나건설"
-        }
-      },
-      "is_correct": false,
-      "latency": 8.5213942527771,
-      "error": null
-    },
-    {
-      "index": 512,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\nS-45-001 출고 검수 통과(true) 처리해. 검수자는 김과장.",
-      "expected": "PDI_APPROVE",
-      "actual": "SHIPMENT_INSPECTION_PASS",
-      "parsed_json": {
-        "intent": "shipment_inspection_pass",
-        "parameters": {
-          "item_id": "S-45-001",
-          "is_passed": true,
-          "inspector_name": "김과장"
-        }
-      },
-      "is_correct": false,
-      "latency": 13.265472412109375,
-      "error": null
-    },
-    {
-      "index": 812,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n법인카드 매입정산에서 법인카드 전표 정산 탭 열어줘. 현재 위치: 법인카드 매입정산 (corporate_card), 하위 탭: 법인카드 전표 정산, 카드 및 한도 관리",
-      "expected": "CLICK_ELEMENT",
-      "actual": "NAVIGATE_TO_TAB",
-      "parsed_json": {
-        "intent": "navigate_to_tab",
-        "parameters": {
-          "parent_module": "법인카드 매입정산",
-          "target_tab": "법인카드 전표 정산"
-        }
-      },
-      "is_correct": false,
-      "latency": 12.12965178489685,
-      "error": null
-    },
-    {
-      "index": 932,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n에이텍엔지니어링 판교현장 현장에 방폭작업 옵션 필수 장착으로 업데이트해.",
-      "expected": "SITE_OPTION_UPDATE",
-      "actual": "SITE_CONFIG_UPDATE",
-      "parsed_json": {
-        "intent": "site_config_update",
-        "parameters": {
-          "site_name": "에이텍엔지니어링 판교현장",
-          "option_name": "방폭작업",
-          "is_mandatory": true
-        }
-      },
-      "is_correct": false,
-      "latency": 13.283152103424072,
+      "latency": 10.156970500946045,
       "error": null
     },
     {
       "index": 1052,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n에이전틱 배차 관제 스튜디오의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: agentic_dispatch_studio",
+      "prompt": "에이전틱 배차 관제 스튜디오의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: agentic_dispatch_studio",
       "expected": "",
-      "actual": "INFORMATION_QUERY",
+      "actual": "NAVIGATE_MENU",
       "parsed_json": {
-        "intent": "information_query",
+        "intent": "navigate_menu",
         "parameters": {
-          "menu_identifier": "agentic_dispatch_studio"
+          "menu_id": "agentic_dispatch_studio"
         }
       },
       "is_correct": false,
-      "latency": 12.19935154914856,
-      "error": null
-    },
-    {
-      "index": 33,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n박기사 기사님이 경기80바1234 끌고 간대. ORD-2610-002 건에 할당해.",
-      "expected": "DISPATCH_ASSIGN_DRIVER",
-      "actual": "VEHICLE_ASSIGNMENT",
-      "parsed_json": {
-        "intent": "vehicle_assignment",
-        "parameters": {
-          "driver_name": "박기사",
-          "vehicle_number": "경기80바1234",
-          "order_id": "ORD-2610-002"
-        }
-      },
-      "is_correct": false,
-      "latency": 11.198014974594116,
-      "error": null
-    },
-    {
-      "index": 153,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n박주임 주임이 G-1001 고쳤음. 유압 호스 누유 수리 작업했고 O링 교체완료.",
-      "expected": "MAINTENANCE_CREATE",
-      "actual": "MAINTENANCE_REPORT",
-      "parsed_json": {
-        "intent": "maintenance_report",
-        "parameters": {
-          "worker_name": "박주임",
-          "equipment_id": "G-1001",
-          "issue_description": "유압 호스 누유",
-          "repair_details": "O링 교체 완료"
-        }
-      },
-      "is_correct": false,
-      "latency": 13.409953355789185,
+      "latency": 10.506681680679321,
       "error": null
     },
     {
       "index": 273,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n출고 요청의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: smart_dispatch4",
+      "prompt": "출고 요청의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: smart_dispatch4",
       "expected": "",
-      "actual": "INFO_REQUEST",
+      "actual": "DISPATCH_CREATE_ORDER",
       "parsed_json": {
-        "intent": "info_request",
+        "intent": "dispatch_create_order",
         "parameters": {
-          "menu_id": "smart_dispatch4",
-          "process_name": "출고 요청"
+          "menu_identifier": "smart_dispatch4"
         }
       },
       "is_correct": false,
-      "latency": 12.433834552764893,
-      "error": null
-    },
-    {
-      "index": 393,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n이천공장 현장 요구사항에 무논마스킹 추가해줘.",
-      "expected": "SITE_OPTION_UPDATE",
-      "actual": "REQUIREMENT_UPDATE",
-      "parsed_json": {
-        "intent": "requirement_update",
-        "parameters": {
-          "대상_공장": "이천공장",
-          "대상_문서": "현장 요구사항",
-          "추가_요구사항": "무논마스킹"
-        }
-      },
-      "is_correct": false,
-      "latency": 12.905502080917358,
-      "error": null
-    },
-    {
-      "index": 633,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n로지스틱스K 불러서 판교 카카오 신사옥로 장비 보내. OUTBOUND이고 운송비는 140000원으로 맞춰줘.",
-      "expected": "DISPATCH_CREATE_ORDER",
-      "actual": "SHIPMENT_CREATE",
-      "parsed_json": {
-        "intent": "shipment_create",
-        "parameters": {
-          "carrier": "로지스틱스K",
-          "destination": "판교 카카오 신사옥",
-          "item": "장비",
-          "shipment_type": "OUTBOUND",
-          "shipping_cost": 140000
-        }
-      },
-      "is_correct": false,
-      "latency": 12.603473424911499,
-      "error": null
-    },
-    {
-      "index": 813,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n나 이과장인데, 다음주 월요일에 오전반차 쓸거야. 개인 사정 때문임. 기안 올려줘.",
-      "expected": "VACATION_CREATE",
-      "actual": "LEAVE_REQUEST",
-      "parsed_json": {
-        "intent": "leave_request",
-        "parameters": {
-          "requester_name": "이과장",
-          "leave_type": "반차",
-          "start_date": "다음주 월요일",
-          "start_time": "오전",
-          "reason": "개인 사정"
-        }
-      },
-      "is_correct": false,
-      "latency": 15.194946527481079,
-      "error": null
-    },
-    {
-      "index": 1053,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n장비 G-1002 PDI 검수 완료했어. 김과장 이름으로 승인 처리해줘.",
-      "expected": "PDI_APPROVE",
-      "actual": "PDI_APPROVAL",
-      "parsed_json": {
-        "intent": "pdi_approval",
-        "parameters": {
-          "장비명": "G-1002",
-          "승인자_이름": "김과장"
-        }
-      },
-      "is_correct": false,
-      "latency": 12.429957628250122,
+      "latency": 9.959370136260986,
       "error": null
     },
     {
       "index": 34,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n주기장 정비 관리의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: repair",
+      "prompt": "주기장 정비 관리의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: repair",
       "expected": "",
-      "actual": "INFO_QUERY",
+      "actual": "NAVIGATE_MENU",
       "parsed_json": {
-        "intent": "info_query",
+        "intent": "navigate_menu",
         "parameters": {
           "menu_id": "repair"
         }
       },
       "is_correct": false,
-      "latency": 12.286003112792969,
-      "error": null
-    },
-    {
-      "index": 154,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n신규 거래처 등록해줘. 상호는 (주)가나건설, 대표자 이사장이고, 주소는 서울시 강남구 테헤란로 123. 사업자번호는 123-45-67890야.",
-      "expected": "CUSTOMER_CREATE",
-      "actual": "VENDOR_CREATE",
-      "parsed_json": {
-        "intent": "vendor_create",
-        "parameters": {
-          "company_name": "(주)가나건설",
-          "representative_name": "이사장",
-          "address": "서울시 강남구 테헤란로 123",
-          "business_number": "123-45-67890"
-        }
-      },
-      "is_correct": false,
-      "latency": 11.3833327293396,
-      "error": null
-    },
-    {
-      "index": 274,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n에이텍엔지니어링 10월 청구서 3000000원으로 마감해서 발행해.",
-      "expected": "BILLING_REQUEST_CREATE",
-      "actual": "INVOICE_CREATE",
-      "parsed_json": {
-        "intent": "invoice_create",
-        "parameters": {
-          "client_name": "에이텍엔지니어링",
-          "billing_month": "10월",
-          "amount": "3000000"
-        }
-      },
-      "is_correct": false,
-      "latency": 11.740624904632568,
-      "error": null
-    },
-    {
-      "index": 394,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n개인정보 접속 감사 화면으로 이동해줘. 현재 위치: 대시보드 (dashboard)",
-      "expected": "NAVIGATE_MENU",
-      "actual": "NAVIGATE_TO_SCREEN",
-      "parsed_json": {
-        "intent": "navigate_to_screen",
-        "parameters": {
-          "target_screen": "개인정보 접속 감사 화면"
-        }
-      },
-      "is_correct": false,
-      "latency": 9.740618705749512,
-      "error": null
-    },
-    {
-      "index": 514,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n10월분 에이텍엔지니어링한테 3000000원 청구서 보내줘.",
-      "expected": "BILLING_REQUEST_CREATE",
-      "actual": "INVOICE_CREATE",
-      "parsed_json": {
-        "intent": "invoice_create",
-        "parameters": {
-          "client_name": "에이텍엔지니어링",
-          "amount": "3000000원",
-          "billing_period": "10월"
-        }
-      },
-      "is_correct": false,
-      "latency": 8.528737306594849,
-      "error": null
-    },
-    {
-      "index": 934,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n평택 고덕 2공장 현장에 호남고속화물 기사님 배차해줘. 단가는 150000원이고 EXCHANGE 건이야.",
-      "expected": "DISPATCH_CREATE_ORDER",
-      "actual": "DRIVER_DISPATCH",
-      "parsed_json": {
-        "intent": "driver_dispatch",
-        "parameters": {
-          "site_name": "평택 고덕 2공장 현장",
-          "driver_name": "호남고속화물 기사님",
-          "unit_price": "150000원",
-          "job_type": "EXCHANGE"
-        }
-      },
-      "is_correct": false,
-      "latency": 9.903470993041992,
+      "latency": 14.41936182975769,
       "error": null
     },
     {
       "index": 814,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n당사자산 취득 / 매각의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: acquisition_disposal",
+      "prompt": "당사자산 취득 / 매각의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: acquisition_disposal",
       "expected": "",
-      "actual": "PROCESS_INFO_QUERY",
+      "actual": "NAVIGATE_MENU",
       "parsed_json": {
-        "intent": "process_info_query",
+        "intent": "navigate_menu",
         "parameters": {
           "menu_id": "acquisition_disposal"
         }
       },
       "is_correct": false,
-      "latency": 11.379857540130615,
+      "latency": 8.565095663070679,
       "error": null
     },
     {
-      "index": 1054,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n장비 S-45-001 PDI 검수 완료했어. 김과장 이름으로 승인 처리해줘.",
-      "expected": "PDI_APPROVE",
-      "actual": "INSPECTION_APPROVAL",
+      "index": 934,
+      "prompt": "평택 고덕 2공장 현장에 호남고속화물 기사님 배차해줘. 단가는 150000원이고 EXCHANGE 건이야.",
+      "expected": "DISPATCH_CREATE_ORDER",
+      "actual": "DISPATCH_ASSIGN_DRIVER",
       "parsed_json": {
-        "intent": "inspection_approval",
+        "intent": "dispatch_assign_driver",
         "parameters": {
-          "equipment_id": "S-45-001",
-          "inspection_type": "PDI",
-          "approver_name": "김과장"
+          "site_name": "평택 고덕 2공장",
+          "driver_company": "호남고속화물",
+          "unit_price": 150000,
+          "job_type": "EXCHANGE"
         }
       },
       "is_correct": false,
-      "latency": 11.025278806686401,
+      "latency": 13.099005937576294,
       "error": null
     },
     {
-      "index": 35,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n11월분 에이텍엔지니어링한테 450000원 청구서 보내줘.",
-      "expected": "BILLING_REQUEST_CREATE",
-      "actual": "INVOICE_CREATE",
+      "index": 517,
+      "prompt": "연차관리의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: leave_management",
+      "expected": "",
+      "actual": "VACATION_CREATE",
       "parsed_json": {
-        "intent": "invoice_create",
+        "intent": "vacation_create",
         "parameters": {
-          "amount": 450000,
-          "recipient": "에이텍엔지니어링",
-          "period": "11월"
+          "menu_id": "leave_management"
         }
       },
       "is_correct": false,
-      "latency": 10.738925457000732,
+      "latency": 11.256347417831421,
       "error": null
     },
     {
-      "index": 155,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n장비 G-1001 수리 등록해. 담당자는 정비팀장이고, 내역은 유압 호스 누유 수리. 부품은 컨트롤러 Assy 썼어.",
-      "expected": "MAINTENANCE_CREATE",
-      "actual": "REPAIR_REGISTER",
+      "index": 159,
+      "prompt": "정기보고서 생성의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: regular_reports",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
       "parsed_json": {
-        "intent": "repair_register",
+        "intent": "navigate_menu",
         "parameters": {
-          "equipment_id": "G-1001",
-          "responsible_person": "정비팀장",
-          "repair_description": "유압 호스 누유 수리",
-          "parts_used": "컨트롤러 Assy"
+          "menu_id": "regular_reports"
         }
       },
       "is_correct": false,
-      "latency": 11.152954339981079,
+      "latency": 8.272510051727295,
       "error": null
     },
     {
-      "index": 515,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n김대표 거래처 정보 좀 찾아봐.",
-      "expected": "CUSTOMER_SEARCH",
-      "actual": "SEARCH_CLIENT_INFO",
+      "index": 1058,
+      "prompt": "감가상각 마감 실행의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: depreciation_execution",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
       "parsed_json": {
-        "intent": "search_client_info",
+        "intent": "navigate_menu",
         "parameters": {
-          "client_name": "김대표"
+          "menu_id": "depreciation_execution"
         }
       },
       "is_correct": false,
-      "latency": 6.570415496826172,
+      "latency": 16.841851472854614,
       "error": null
     },
     {
-      "index": 275,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n박주임 주임이 G-1002 고쳤음. 모터 소손 교체 작업했고 24V 딥사이클 배터리 교체완료.",
-      "expected": "MAINTENANCE_CREATE",
-      "actual": "MAINTENANCE_REPORT",
+      "index": 279,
+      "prompt": "평택 고덕 2공장 현장에 호남고속화물 기사님 배차해줘. 단가는 60000원이고 OUTBOUND 건이야.",
+      "expected": "DISPATCH_CREATE_ORDER",
+      "actual": "DISPATCH_ASSIGN_DRIVER",
       "parsed_json": {
-        "intent": "maintenance_report",
+        "intent": "dispatch_assign_driver",
         "parameters": {
-          "담당자": "박주임",
-          "장비_ID": "G-1002",
-          "수리_내용": [
-            "모터 소손 교체",
-            "24V 딥사이클 배터리 교체"
-          ]
+          "site_name": "평택 고덕 2공장",
+          "driver_name": "호남고속화물",
+          "unit_price": 60000,
+          "job_type": "OUTBOUND"
         }
       },
       "is_correct": false,
-      "latency": 15.598283767700195,
+      "latency": 15.873643636703491,
       "error": null
     },
     {
-      "index": 635,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n나 이과장인데, 2026-10-10에 경조휴가 쓸거야. 개인 사정 때문임. 기안 올려줘.",
-      "expected": "VACATION_CREATE",
-      "actual": "LEAVE_CREATE",
+      "index": 819,
+      "prompt": "오류 신고의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: error_report",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
       "parsed_json": {
-        "intent": "leave_create",
+        "intent": "navigate_menu",
         "parameters": {
-          "employee_name": "이과장",
-          "leave_date": "2026-10-10",
-          "leave_type": "경조휴가",
-          "reason": "개인 사정"
+          "menu_identifier": "error_report"
         }
       },
       "is_correct": false,
-      "latency": 13.3312828540802,
+      "latency": 10.539091110229492,
       "error": null
     },
     {
-      "index": 815,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n(주)가나건설 10월 청구서 450000원으로 마감해서 발행해.",
-      "expected": "BILLING_REQUEST_CREATE",
-      "actual": "INVOICE_CREATE",
-      "parsed_json": {
-        "intent": "invoice_create",
-        "parameters": {
-          "client_name": "(주)가나건설",
-          "billing_period": "10월",
-          "amount": "450000"
-        }
-      },
-      "is_correct": false,
-      "latency": 13.62857961654663,
-      "error": null
-    },
-    {
-      "index": 935,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n(주)가나건설 판교현장 현장에 방폭작업 옵션 필수 장착으로 업데이트해.",
-      "expected": "SITE_OPTION_UPDATE",
-      "actual": "SITE_UPDATE",
-      "parsed_json": {
-        "intent": "site_update",
-        "parameters": {
-          "site_name": "(주)가나건설 판교현장",
-          "option_name": "방폭작업",
-          "option_status": "필수"
-        }
-      },
-      "is_correct": false,
-      "latency": 13.321675300598145,
-      "error": null
-    },
-    {
-      "index": 36,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n가나건설 거래처 정보 좀 찾아봐.",
-      "expected": "CUSTOMER_SEARCH",
-      "actual": "SEARCH_VENDOR_INFO",
-      "parsed_json": {
-        "intent": "search_vendor_info",
-        "parameters": {
-          "company_name": "가나건설"
-        }
-      },
-      "is_correct": false,
-      "latency": 7.441882133483887,
-      "error": null
-    },
-    {
-      "index": 1055,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\nG-1001 출고 검수 통과(false) 처리해. 검수자는 이대리.",
-      "expected": "PDI_APPROVE",
-      "actual": "SHIPMENT_INSPECTION_UPDATE",
-      "parsed_json": {
-        "intent": "shipment_inspection_update",
-        "parameters": {
-          "item_id": "G-1001",
-          "inspection_result": false,
-          "inspector_name": "이대리"
-        }
-      },
-      "is_correct": false,
-      "latency": 14.97295093536377,
-      "error": null
-    },
-    {
-      "index": 276,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n판교현장 현장 요구사항에 방폭작업 추가해줘.",
-      "expected": "SITE_OPTION_UPDATE",
-      "actual": "REQUIREMENT_UPDATE",
-      "parsed_json": {
-        "intent": "requirement_update",
-        "parameters": {
-          "site_name": "판교현장",
-          "added_requirement": "방폭작업"
-        }
-      },
-      "is_correct": false,
-      "latency": 9.799131870269775,
-      "error": null
-    },
-    {
-      "index": 156,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n장비 G-1002 수리 등록해. 담당자는 박주임이고, 내역은 유압 호스 누유 수리. 부품은 24V 딥사이클 배터리 썼어.",
-      "expected": "MAINTENANCE_CREATE",
-      "actual": "REPAIR_REGISTER",
-      "parsed_json": {
-        "intent": "repair_register",
-        "parameters": {
-          "equipment_id": "G-1002",
-          "responsible_person": "박주임",
-          "repair_description": "유압 호스 누유 수리",
-          "parts_used": "24V 딥사이클 배터리"
-        }
-      },
-      "is_correct": false,
-      "latency": 12.890835285186768,
-      "error": null
-    },
-    {
-      "index": 396,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n신규 거래처 등록해줘. 상호는 (주)가나건설, 대표자 박소장이고, 주소는 경기도 성남시 분당구. 사업자번호는 123-45-67890야.",
-      "expected": "CUSTOMER_CREATE",
-      "actual": "VENDOR_CREATE",
-      "parsed_json": {
-        "intent": "vendor_create",
-        "parameters": {
-          "company_name": "(주)가나건설",
-          "representative_name": "박소장",
-          "address": "경기도 성남시 분당구",
-          "business_number": "123-45-67890"
-        }
-      },
-      "is_correct": false,
-      "latency": 10.975293397903442,
-      "error": null
-    },
-    {
-      "index": 516,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n정기보고서 생성에서 보고서 기준 연월 설정 버튼 눌러줘. 현재 위치: 정기보고서 생성 (regular_reports), 노출 버튼: [보고서 기준 연월 설정, 최신 실적 집계 갱신, 보고서 출력 인쇄, 공식 PDF 내보내기, 경영 핵심 지표 요약]",
+      "index": 161,
+      "prompt": "정비 항목 관리에서 점검 항목 마스터 탭 열어줘. 현재 위치: 정비 항목 관리 (inspection_checklist_manage), 하위 탭: 점검 항목 마스터, 장비군별 점검표 템플릿, 점검표 개정 이력",
       "expected": "CLICK_ELEMENT",
-      "actual": "UI_ACTION",
+      "actual": "NAVIGATE_MENU",
       "parsed_json": {
-        "intent": "ui_action",
+        "intent": "navigate_menu",
         "parameters": {
-          "current_location": "정기보고서 생성",
-          "target_button": "보고서 기준 연월 설정"
+          "target_tab": "점검 항목 마스터"
         }
       },
       "is_correct": false,
-      "latency": 11.235965013504028,
+      "latency": 13.207359790802002,
       "error": null
     },
     {
-      "index": 816,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n현재 대여중인 G-1001 모델 목록 띄워봐.",
-      "expected": "ASSET_SEARCH",
-      "actual": "LIST_RENTED_ITEMS",
+      "index": 941,
+      "prompt": "결재선 규칙 설정의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: approvalRules",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
       "parsed_json": {
-        "intent": "list_rented_items",
+        "intent": "navigate_menu",
         "parameters": {
-          "model_id": "G-1001"
+          "menu_identifier": "approvalRules"
         }
       },
       "is_correct": false,
-      "latency": 9.044195652008057,
+      "latency": 10.88788366317749,
       "error": null
     },
     {
-      "index": 636,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n장비 G-1002 PDI 검수 완료했어. 이대리 이름으로 승인 처리해줘.",
-      "expected": "PDI_APPROVE",
-      "actual": "INSPECTION_APPROVAL",
+      "index": 287,
+      "prompt": "신규 계약 등록의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: contract_create",
+      "expected": "",
+      "actual": "CONTRACT_CREATE",
       "parsed_json": {
-        "intent": "inspection_approval",
-        "parameters": {
-          "equipment_id": "G-1002",
-          "approver_name": "이대리"
-        }
+        "intent": "contract_create",
+        "parameters": {}
       },
       "is_correct": false,
-      "latency": 11.384912014007568,
+      "latency": 8.469866752624512,
       "error": null
     },
     {
-      "index": 37,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n수리중 상태인 SJ-3219 장비 찾아줘.",
-      "expected": "ASSET_SEARCH",
-      "actual": "EQUIPMENT_SEARCH",
+      "index": 288,
+      "prompt": "일일 입출고 조회의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: daily_inout",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
       "parsed_json": {
-        "intent": "equipment_search",
+        "intent": "navigate_menu",
         "parameters": {
-          "equipment_id": "SJ-3219",
-          "status": "수리중"
+          "menu_id": "daily_inout"
         }
       },
       "is_correct": false,
-      "latency": 8.58720064163208,
+      "latency": 12.01335859298706,
       "error": null
     },
     {
-      "index": 157,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n고객사 목록에서 가나건설 검색해줘.",
-      "expected": "CUSTOMER_SEARCH",
-      "actual": "CLIENT_SEARCH",
+      "index": 289,
+      "prompt": "조직 / 인사 관리의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: organization",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
       "parsed_json": {
-        "intent": "client_search",
+        "intent": "navigate_menu",
         "parameters": {
-          "client_name": "가나건설"
+          "menu_identifier": "organization"
         }
       },
       "is_correct": false,
-      "latency": 8.222533702850342,
+      "latency": 10.494253158569336,
       "error": null
     },
     {
-      "index": 637,
-      "prompt": "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.\n\n대여중 상태인 SJ-3219 장비 찾아줘.",
-      "expected": "ASSET_SEARCH",
-      "actual": "EQUIPMENT_SEARCH",
+      "index": 950,
+      "prompt": "외상미수금 대장에서 미수금 / 부분입금 현황 탭 열어줘. 현재 위치: 외상미수금 대장 (receivable), 하위 탭: 미수금 / 부분입금 현황, 수납 완결 대장, 연체 채권 관리",
+      "expected": "CLICK_ELEMENT",
+      "actual": "NAVIGATE_MENU",
       "parsed_json": {
-        "intent": "equipment_search",
+        "intent": "navigate_menu",
         "parameters": {
-          "equipment_id": "SJ-3219",
-          "status": "대여중"
+          "target_tab": "미수금 / 부분입금 현황"
         }
       },
       "is_correct": false,
-      "latency": 8.20657753944397,
+      "latency": 12.521821737289429,
+      "error": null
+    },
+    {
+      "index": 413,
+      "prompt": "법인카드 매입정산의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: corporate_card",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
+      "parsed_json": {
+        "intent": "navigate_menu",
+        "parameters": {
+          "menu_identifier": "corporate_card"
+        }
+      },
+      "is_correct": false,
+      "latency": 11.025813341140747,
+      "error": null
+    },
+    {
+      "index": 54,
+      "prompt": "운송 거래처 관리의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: transport_master",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
+      "parsed_json": {
+        "intent": "navigate_menu",
+        "parameters": {
+          "menu_id": "transport_master"
+        }
+      },
+      "is_correct": false,
+      "latency": 11.521569728851318,
+      "error": null
+    },
+    {
+      "index": 56,
+      "prompt": "주기장 소모품 재고의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: consumable_stock",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
+      "parsed_json": {
+        "intent": "navigate_menu",
+        "parameters": {
+          "menu_id": "consumable_stock"
+        }
+      },
+      "is_correct": false,
+      "latency": 15.013454675674438,
+      "error": null
+    },
+    {
+      "index": 57,
+      "prompt": "청구 면제 대장의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: billing_waiver",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
+      "parsed_json": {
+        "intent": "navigate_menu",
+        "parameters": {
+          "menu_id": "billing_waiver"
+        }
+      },
+      "is_correct": false,
+      "latency": 15.413793087005615,
+      "error": null
+    },
+    {
+      "index": 177,
+      "prompt": "삼성전기 수원현장 현장에 로지스틱스K 기사님 배차해줘. 단가는 200000원이고 EXCHANGE 건이야.",
+      "expected": "DISPATCH_CREATE_ORDER",
+      "actual": "DISPATCH_ASSIGN_DRIVER",
+      "parsed_json": {
+        "intent": "dispatch_assign_driver",
+        "parameters": {
+          "현장명": "삼성전기 수원현장",
+          "기사명": "로지스틱스K",
+          "단가": 200000,
+          "건종류": "EXCHANGE"
+        }
+      },
+      "is_correct": false,
+      "latency": 15.95451831817627,
+      "error": null
+    },
+    {
+      "index": 537,
+      "prompt": "청구 / 수납 관리의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: billing",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
+      "parsed_json": {
+        "intent": "navigate_menu",
+        "parameters": {
+          "menu_id": "billing"
+        }
+      },
+      "is_correct": false,
+      "latency": 10.686689138412476,
+      "error": null
+    },
+    {
+      "index": 838,
+      "prompt": "판교 카카오 신사옥 현장에 전국24시콜화물 기사님 배차해줘. 단가는 150000원이고 EXCHANGE 건이야.",
+      "expected": "DISPATCH_CREATE_ORDER",
+      "actual": "DISPATCH_ASSIGN_DRIVER",
+      "parsed_json": {
+        "intent": "dispatch_assign_driver",
+        "parameters": {
+          "site_name": "판교 카카오 신사옥",
+          "unit_price": 150000,
+          "job_type": "EXCHANGE"
+        }
+      },
+      "is_correct": false,
+      "latency": 14.294196367263794,
+      "error": null
+    },
+    {
+      "index": 539,
+      "prompt": "장비 할당 / 매핑의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: dispatch_assign",
+      "expected": "",
+      "actual": "DISPATCH_ASSIGN_DRIVER",
+      "parsed_json": {
+        "intent": "dispatch_assign_driver",
+        "parameters": {
+          "menu_identifier": "dispatch_assign"
+        }
+      },
+      "is_correct": false,
+      "latency": 11.474748611450195,
+      "error": null
+    },
+    {
+      "index": 1083,
+      "prompt": "현장별 옵션 관리의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: site_options",
+      "expected": "",
+      "actual": "SITE_OPTION_UPDATE",
+      "parsed_json": {
+        "intent": "site_option_update",
+        "parameters": {
+          "menu_identifier": "site_options"
+        }
+      },
+      "is_correct": false,
+      "latency": 11.665537595748901,
+      "error": null
+    },
+    {
+      "index": 425,
+      "prompt": "청구서통합의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: billing_invoice",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
+      "parsed_json": {
+        "intent": "navigate_menu",
+        "parameters": {
+          "menu_id": "billing_invoice"
+        }
+      },
+      "is_correct": false,
+      "latency": 11.166188955307007,
+      "error": null
+    },
+    {
+      "index": 545,
+      "prompt": "미청구 정산의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: billing_wizard",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
+      "parsed_json": {
+        "intent": "navigate_menu",
+        "parameters": {
+          "menu_id": "billing_wizard"
+        }
+      },
+      "is_correct": false,
+      "latency": 12.523825645446777,
+      "error": null
+    },
+    {
+      "index": 69,
+      "prompt": "은행 입출금 대장의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: bank_matching",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
+      "parsed_json": {
+        "intent": "navigate_menu",
+        "parameters": {
+          "menu_id": "bank_matching"
+        }
+      },
+      "is_correct": false,
+      "latency": 11.231945037841797,
+      "error": null
+    },
+    {
+      "index": 70,
+      "prompt": "자금 흐름 분석의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: cash_flow",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
+      "parsed_json": {
+        "intent": "navigate_menu",
+        "parameters": {
+          "menu_id": "cash_flow"
+        }
+      },
+      "is_correct": false,
+      "latency": 9.921955585479736,
+      "error": null
+    },
+    {
+      "index": 670,
+      "prompt": "ERP 대시보드의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: dashboard",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
+      "parsed_json": {
+        "intent": "navigate_menu",
+        "parameters": {
+          "menu_id": "dashboard"
+        }
+      },
+      "is_correct": false,
+      "latency": 7.954612493515015,
+      "error": null
+    },
+    {
+      "index": 550,
+      "prompt": "소모품 구매의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: consumable_purchase",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
+      "parsed_json": {
+        "intent": "navigate_menu",
+        "parameters": {
+          "menu_id": "consumable_purchase"
+        }
+      },
+      "is_correct": false,
+      "latency": 11.788129568099976,
+      "error": null
+    },
+    {
+      "index": 970,
+      "prompt": "급여 정산의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: payroll",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
+      "parsed_json": {
+        "intent": "navigate_menu",
+        "parameters": {
+          "menu_id": "payroll"
+        }
+      },
+      "is_correct": false,
+      "latency": 17.146059036254883,
+      "error": null
+    },
+    {
+      "index": 191,
+      "prompt": "평택 고덕 2공장 현장에 전국24시콜화물 기사님 배차해줘. 단가는 150000원이고 EXCHANGE 건이야.",
+      "expected": "DISPATCH_CREATE_ORDER",
+      "actual": "DISPATCH_ASSIGN_DRIVER",
+      "parsed_json": {
+        "intent": "dispatch_assign_driver",
+        "parameters": {
+          "현장명": "평택 고덕 2공장",
+          "배차_요청_유형": "전국24시콜화물",
+          "단가": 150000,
+          "작업_유형": "EXCHANGE"
+        }
+      },
+      "is_correct": false,
+      "latency": 16.982800006866455,
+      "error": null
+    },
+    {
+      "index": 313,
+      "prompt": "매입처 (공급자 / 외주처) 관리의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: vendors",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
+      "parsed_json": {
+        "intent": "navigate_menu",
+        "parameters": {
+          "menu_id": "vendors"
+        }
+      },
+      "is_correct": false,
+      "latency": 13.993611812591553,
+      "error": null
+    },
+    {
+      "index": 14,
+      "prompt": "소모품 입출고의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: consumable_inout",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
+      "parsed_json": {
+        "intent": "navigate_menu",
+        "parameters": {
+          "menu_id": "consumable_inout"
+        }
+      },
+      "is_correct": false,
+      "latency": 12.456254959106445,
+      "error": null
+    },
+    {
+      "index": 558,
+      "prompt": "외상미수금 대장의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: receivable",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
+      "parsed_json": {
+        "intent": "navigate_menu",
+        "parameters": {
+          "menu_id": "receivable"
+        }
+      },
+      "is_correct": false,
+      "latency": 11.825841903686523,
+      "error": null
+    },
+    {
+      "index": 439,
+      "prompt": "평택 고덕 2공장 현장에 로지스틱스K 기사님 배차해줘. 단가는 60000원이고 EXCHANGE 건이야.",
+      "expected": "DISPATCH_CREATE_ORDER",
+      "actual": "DISPATCH_ASSIGN_DRIVER",
+      "parsed_json": {
+        "intent": "dispatch_assign_driver",
+        "parameters": {
+          "site_name": "평택 고덕 2공장",
+          "driver_name": "로지스틱스K",
+          "unit_price": 60000,
+          "job_type": "EXCHANGE"
+        }
+      },
+      "is_correct": false,
+      "latency": 14.253068685531616,
+      "error": null
+    },
+    {
+      "index": 680,
+      "prompt": "고객 관리의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: customer",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
+      "parsed_json": {
+        "intent": "navigate_menu",
+        "parameters": {
+          "menu_identifier": "customer"
+        }
+      },
+      "is_correct": false,
+      "latency": 10.52857756614685,
+      "error": null
+    },
+    {
+      "index": 203,
+      "prompt": "판교 카카오 신사옥 현장에 로지스틱스K 기사님 배차해줘. 단가는 150000원이고 OUTBOUND 건이야.",
+      "expected": "DISPATCH_CREATE_ORDER",
+      "actual": "DISPATCH_ASSIGN_DRIVER",
+      "parsed_json": {
+        "intent": "dispatch_assign_driver",
+        "parameters": {
+          "site_name": "판교 카카오 신사옥",
+          "driver_company": "로지스틱스K",
+          "unit_price": 150000,
+          "job_type": "OUTBOUND"
+        }
+      },
+      "is_correct": false,
+      "latency": 12.003432512283325,
+      "error": null
+    },
+    {
+      "index": 325,
+      "prompt": "에이전틱 자산 라이프사이클 관제의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: agentic_asset_lifecycle",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
+      "parsed_json": {
+        "intent": "navigate_menu",
+        "parameters": {
+          "menu_id": "agentic_asset_lifecycle"
+        }
+      },
+      "is_correct": false,
+      "latency": 12.38409686088562,
+      "error": null
+    },
+    {
+      "index": 689,
+      "prompt": "현장 AS 관리의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: field_as",
+      "expected": "",
+      "actual": "NAVIGATE_MENU",
+      "parsed_json": {
+        "intent": "navigate_menu",
+        "parameters": {
+          "menu_id": "field_as"
+        }
+      },
+      "is_correct": false,
+      "latency": 17.933188438415527,
+      "error": null
+    },
+    {
+      "index": 91,
+      "prompt": "판교 카카오 신사옥 현장에 호남고속화물 기사님 배차해줘. 단가는 200000원이고 OUTBOUND 건이야.",
+      "expected": "DISPATCH_CREATE_ORDER",
+      "actual": "DISPATCH_ASSIGN_DRIVER",
+      "parsed_json": {
+        "intent": "dispatch_assign_driver",
+        "parameters": {
+          "site_name": "판교 카카오 신사옥",
+          "driver_company": "호남고속화물",
+          "unit_price": 200000,
+          "job_type": "OUTBOUND"
+        }
+      },
+      "is_correct": false,
+      "latency": 14.292548894882202,
       "error": null
     }
   ]

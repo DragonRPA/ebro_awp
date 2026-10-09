@@ -566,7 +566,7 @@ export const SiteOptionManage: React.FC = () => {
                           textOverflow: 'ellipsis',
                           overflow: 'hidden'
                         }}>
-                          {site.name}
+                          {(() => { const cust = db.customers.find(c => c.id === site.customerId); return cust ? `[${cust.name}] ${site.name}` : site.name; })()}
                         </span>
                         <ChevronRight size={14} color={isSelected ? 'var(--primary)' : 'var(--text-muted)'} />
                       </div>

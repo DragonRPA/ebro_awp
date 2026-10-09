@@ -2931,7 +2931,7 @@ const handleDeleteAccount = async (accId: string) => {
                       }
                     }}
                     >
-                      <option value="">-- 옵션 참조 현장 선택 ({optionReferenceSites.length}개) --</option>
+                      <option value="">-- [선택] 기존 현장 담당자/옵션 정보 복사해오기 ({optionReferenceSites.length}개) --</option>
                       {optionReferenceSites.map(s => {
                         const custName = customerMap.get(s.customerId || '')?.name || '고객사 미지정';
                         const optSummary = [s.paidOptions, s.protection].filter(Boolean).join(' | ');
@@ -3478,7 +3478,7 @@ const handleDeleteAccount = async (accId: string) => {
                     value={selectedRefSiteId}
                     onChange={e => setSelectedRefSiteId(e.target.value)}
                   >
-                    <option value="">-- 옵션 참조 현장 선택 ({optionReferenceSites.length}개) --</option>
+                    <option value="">-- [선택] 기존 현장 담당자/옵션 정보 복사해오기 ({optionReferenceSites.length}개) --</option>
                     {optionReferenceSites.map(s => {
                       const custName = customerMap.get(s.customerId || '')?.name || '고객사 미지정';
                       const optSummary = [s.paidOptions, s.protection].filter(Boolean).join(' | ');
