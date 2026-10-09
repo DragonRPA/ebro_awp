@@ -1,1 +1,0 @@
-const http=require('http'); const req=http.request({port:5175, headers:{'Connection':'Upgrade','Upgrade':'websocket'}}); req.on('response', res=>console.log(res.statusCode)); req.on('upgrade', (res, socket, head)=>console.log('UPGRADED')); req.end();

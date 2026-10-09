@@ -20,8 +20,6 @@ export interface SiteOptionProfile {
   id: string;
   siteId: string;
   customerId: string;
-  siteName: string;
-  customerName: string;
   paidOptionsSummary: string;       // 유상옵션 문자열 요약 (예: "협착방지봉 / 상부센서 (4EA), 4면 철망 설치")
   protectionSummary: string;        // 보양작업 문자열 요약 (예: "4면 철망 보양")
   checkedSpecs: Record<string, boolean>; // 요구사양 체크 맵
