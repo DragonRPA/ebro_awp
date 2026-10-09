@@ -1,3 +1,7 @@
+## [v1.15.3.Build.24] - 2026-10-09 17:26
+### 🐛 승계 처리 시 DB 누락 컬럼 에러 핫픽스
+- **스키마 동기화**: contract_assets 테이블에 N:1 승계 족보 추적을 위한 핵심 컬럼(predecessorContractId, predecessorContractAssetId, inRegisteredAt)이 누락되어 승계 저장이 실패하던 현상을 원격 DB DDL 강제 반영을 통해 영구 해결했습니다.
+
 ## [v1.15.3.Build.23] - 2026-10-09 17:22
 ### 🐛 DB 스키마 동기화 충돌 에러(저장 실패) 핫픽스
 - **프론트엔드 전용 필드 격리**: 계약 연장/단축 시 pprovalStatus, stagedExtend 등 프론트엔드 UI용 보조 필드가 원격 DB로 전송되어 Unknown column 에러를 유발하던 현상을 해결했습니다. (db.ts 전송 전 필터링 계층 강화)
