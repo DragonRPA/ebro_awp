@@ -966,7 +966,7 @@ export const Vendors: React.FC = () => {
                               }}
                               title={v.businessCertFileName || '사업자등록증 열람'}
                             >
-                              <FileText size={11} /> 사본 열람 ↗
+                              <FileText size={11} /> 사업자등록증 보기 ↗
                             </a>
                             {v.businessStatus && (
                               <span style={{
@@ -1047,7 +1047,7 @@ export const Vendors: React.FC = () => {
                               }}
                               title={v.passbookFileName || '통장사본 열람'}
                             >
-                              <FileText size={11} /> 사본 열람 ↗
+                              <FileText size={11} /> 통장사본 보기 ↗
                             </a>
                             {canSave && (
                               <button data-hs-trigger="Delete"
@@ -1529,7 +1529,7 @@ export const Vendors: React.FC = () => {
                               }}
                               title={editingVendor.businessCertFileName || '사업자등록증 열람'}
                             >
-                              <FileText size={12} /> {editingVendor.businessCertFileName || '등록증 열람'} ↗
+                              <FileText size={12} /> 사업자등록증 보기 ↗
                             </a>
                             <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                               <label style={{
@@ -1650,7 +1650,7 @@ export const Vendors: React.FC = () => {
                               }}
                               title={editingVendor.passbookFileName || '통장사본 열람'}
                             >
-                              <FileText size={12} /> {editingVendor.passbookFileName || '통장사본 열람'} ↗
+                              <FileText size={12} /> 통장사본 보기 ↗
                             </a>
                             <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                               <label style={{
