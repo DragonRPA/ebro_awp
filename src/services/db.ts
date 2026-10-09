@@ -118,28 +118,7 @@ export interface TenantYard {
 /** 🌟 전사 공식 법인 직인 Base64 데이터 */
 export const OFFICIAL_STAMP_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyCAYAAAAeP4ixAAAAAXNSR0IArs4c6QAAAAlwSFlzAAALEwAACxMBAJqcGAAAAadJREFUaEPtmWFOwzAMhW/uA+4/90HACUgIEoc0ad26/lhq1STN19hOqN9SJfFjO/4e3pI3S5F3fFw8bFp97dZz8/G2abfB2wZ7D6/J+69bWJ6L52P7mHy+Xz8+Lx+fr6v6Xv5m9fP69Vrfy//2Wl/L217ra/s5t4/J91+vybE9bHl9TNu3vVbeXsszW/k59pq2r3up1+TYHk2Ove61/e01ObaHLa+PyWvbq63PseW5eE2OpvXl1XNl9dxyZe7/7M9V33t7eW/sPbfvjXXeW8u5+PzcXq7P5er293v7b8u5+O/rZ/bZ+97bf1vXz+yzz/f+3FauXN6eKz/n8q51/cw+++zzvT+3lSuXt+fKz7m8a10/s88++3zvz23lyuXtufJzLu9a18/ss88++3zvz23lyuXtufJzLu9a18/ss88++3zvz23lyuXtufJzLu9a18/ss88++3zvz23lyuXtufJzLu9a18/ss88++3zvz23lyuXtufJzLu9a18/ss88++3zvz23lyuXtufJzLu9a/wdzK+i+0EagAAAAABJRU5ErkJggg==';
 
-export interface TenantExcelMappingRules {
-  // 계약서 패키지 엑셀 매핑 규칙
-  contractAssetsStartRow: number;
-  contractModelCol: number;
-  contractQtyCol: number;
-  contractSnCol: number;
-  contractFeeCol: number;
-  contractAmountCol: number;
-  contractPrintAreaBase: string; // e.g. "A26:K" (the end row will be appended)
-  contractPrintAreaStartRow: number; // e.g. 26
-  
-  // 거래명세서 엑셀 매핑 규칙
-  statementAssetsStartRow: number;
-  statementModelCol: number;
-  statementSnCol: number;
-  statementPeriodCol: number;
-  statementQtyCol: number;
-  statementPriceCol: number;
-  statementAmountCol: number;
-  statementPrintAreaBase: string; // e.g. "A1:J"
-  statementPrintAreaStartRow: number; // e.g. 1
-}
+
 
 /** ⚡ 테넌트별 라이선스 및 기능 플러그인 설정 */
 export interface TenantFeatures {
@@ -439,15 +418,7 @@ export interface ApprovalStep {
   created_at?: string;
 }
 
-export interface DelegationRecord {
-  id?: string;
-  delegator_id: string;
-  delegate_id: string;
-  valid_from: string;
-  valid_until: string;
-  reason?: string;
-  created_at?: string;
-}
+
 
 export interface ApprovalTierConfig {
   id?: string;
@@ -2108,15 +2079,7 @@ export interface Repair {
   updatedAt: string;
 }
 
-export interface RepairTimelineEvent {
-  id: string;
-  eventType: 'CALL_MADE' | 'TRANSIT_START' | 'ARRIVED' | 'COMPLETED';
-  label: string;
-  mechanicId: string;
-  mechanicName: string;
-  detail?: string;
-  timestamp: string;
-}
+
 
 // 💡 호환용 타입 알리아스 (단일 물리 테이블: repairs)
 export type FieldAsTicket = Repair;
@@ -2612,33 +2575,10 @@ export interface ExternalLease {
 }
 
 /** 로컬 사이드카 에이전트 레지스트리 */
-export interface AgentRegistryItem {
-  callsign: string;                    // 고유 콜사인 (로그인 아이디)
-  userId?: string;                     // 연동 사용자 ID
-  machineName?: string;                // 컴퓨터 이름
-  isMaster?: boolean;                  // 마스터 대행 여부
-  status: 'ONLINE' | 'BUSY' | 'OFFLINE';
-  lastHeartbeat: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
+
 
 /** 문서 생산 작업 큐 */
-export interface DocumentJob {
-  id: string;                          // JOB-YYMMDD-0001
-  jobType: 'CONTRACT_BUNDLE' | 'CHECKLIST' | 'SAFETY_INSPECTION' | 'ZIP_BACKUP';
-  contractId?: string;
-  targetCallsign?: string;             // 우선 처리 대상 콜사인
-  assignedCallsign?: string;           // 실제 락 획득 에이전트
-  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
-  payload: any;                        // 작업 상세 페이로드
-  resultUrl?: string;                  // 클라우드 완성본 URL
-  localFilePath?: string;              // 로컬 문서고 저장 경로
-  errorMessage?: string;
-  createdAt: string;
-  lockedAt?: string;
-  completedAt?: string;
-}
+
 
 // ============================================================
 // 7. 법인 차량 및 차량운행일지/주유 영수증 관리 (Corporate Fleet & Logs)
