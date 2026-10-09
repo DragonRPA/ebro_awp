@@ -1120,8 +1120,19 @@ export interface CustomerContact {
   updatedAt?: string;
 }
 
+
+export interface SiteMaster {
+  id: string;
+  name: string;
+  address: string;
+  isActive?: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface CustomerSite {
   id: string;
+  siteMasterId?: string;
   customerId?: string;
   name: string;
   address: string;
@@ -5128,7 +5139,7 @@ export const SEED_ERROR_REPORTS: ErrorReport[] = [
 ];
 
 export const ALL_DB_KEYS = [
-  'tenants', 'users', 'departments', 'permissions', 'customers', 'contacts', 'sites', 
+  'tenants', 'users', 'departments', 'permissions', 'customers', 'contacts', 'siteMasters', 'sites', 
   'products', 'assets', 'consumables', 'consumableLots', 'consumableLogs', 'consumablePurchases',
   'contracts', 'contractAssets', 'contractHistory', 'deliveries', 
   'transportCompanies', 'transportDrivers', 'vendors',
@@ -5436,38 +5447,45 @@ class LocalDB {
   get customerContacts() { return this.contacts; }
   set customerContacts(val: CustomerContact[]) { this.contacts = val; }
 
-  get sites() { 
+  get siteMasters() { return this.get<SiteMaster>('siteMasters', []); }
+  set siteMasters(val: SiteMaster[]) { this.set('siteMasters', val); }
+
+  
+  get sites() {
     const raw = this.get<CustomerSite>('sites', SEED_SITES);
+    const masters = this.siteMasters;
+    
     return raw.map(s => {
       if (!s) return s;
+      
       let changed = false;
+      let masterName = s.name;
+      let masterAddress = s.address;
+      
+      if (s.siteMasterId) {
+        const master = masters.find(m => m.id === s.siteMasterId);
+        if (master) {
+          masterName = master.name;
+          masterAddress = master.address;
+        }
+      }
+      
       let paid = s.paidOptions;
       if (Array.isArray(paid)) {
         paid = (paid as any[]).flat().map(v => String(v).trim()).filter(Boolean).join(', ');
         changed = true;
       } else if (paid !== undefined && paid !== null && typeof paid !== 'string') {
-        paid = String(paid).trim();
+        paid = String(paid);
         changed = true;
       }
-      let prot = s.protection;
-      if (Array.isArray(prot)) {
-        prot = (prot as any[]).flat().map(v => String(v).trim()).filter(Boolean).join(', ');
-        changed = true;
-      } else if (prot !== undefined && prot !== null && typeof prot !== 'string') {
-        prot = String(prot).trim();
-        changed = true;
-      }
-      let dueMonthOffset = s.paymentDueMonthOffset !== undefined && s.paymentDueMonthOffset !== null ? s.paymentDueMonthOffset : 1;
-      let contacts = s.contacts && Array.isArray(s.contacts) ? s.contacts : [];
-      if (s.paymentDueMonthOffset !== dueMonthOffset || !s.contacts) {
-        changed = true;
-      }
-      if (changed) {
-        return { ...s, paidOptions: paid, protection: prot, paymentDueMonthOffset: dueMonthOffset, contacts };
+
+      if (changed || masterName !== s.name || masterAddress !== s.address) {
+        return { ...s, name: masterName, address: masterAddress, paidOptions: paid };
       }
       return s;
     });
   }
+
   set sites(val: CustomerSite[]) { this.set('sites', val); }
   get customerSites() { return this.sites; }
   set customerSites(val: CustomerSite[]) { this.sites = val; }
@@ -5724,6 +5742,7 @@ class LocalDB {
       rolePermissions: 'role_permissions',
       customers: 'customers',
       contacts: 'customer_contacts',
+      siteMasters: 'site_masters',
       sites: 'customer_sites',
       products: 'products',
       assets: 'assets',

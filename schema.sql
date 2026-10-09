@@ -328,7 +328,8 @@ CREATE TABLE customers (
 -- 2-3. 고객사 담당자 (customer_contacts)
 CREATE TABLE customer_contacts (
     id                    TEXT PRIMARY KEY,
-    "customerId"          TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    "siteMasterId"        TEXT REFERENCES site_masters(id) ON DELETE CASCADE,
+  "customerId"          TEXT REFERENCES customers(id) ON DELETE CASCADE,
     name                  TEXT NOT NULL,
     position              TEXT,
     contact               TEXT,
@@ -342,6 +343,17 @@ CREATE TABLE customer_contacts (
 );
 
 -- 2-4. 고객사 현장 (customer_sites)
+
+CREATE TABLE site_masters (
+  id                    TEXT PRIMARY KEY,
+  name                  TEXT NOT NULL,
+  address               TEXT,
+  "isActive"            BOOLEAN NOT NULL DEFAULT TRUE,
+  "createdAt"           TEXT NOT NULL,
+  "updatedAt"           TEXT NOT NULL,
+  "tenant_id"           TEXT NOT NULL DEFAULT 'giyeonlift'
+);
+
 CREATE TABLE customer_sites (
     id                    TEXT PRIMARY KEY,
     "customerId"          TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,

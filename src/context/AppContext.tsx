@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { db, supabase, PAYMENT_REVERSAL_ENABLED, isActivePayment, isActiveDepositLink, Tenant, TenantWorkplace, TenantYard, TenantBusinessType, TenantBankAccount, OFFICIAL_STAMP_BASE64, User, MenuPermission, createMenuPermission, CustomRole, RolePermission, Customer, CustomerContact, CustomerSite, Product, Asset, Consumable, ConsumableLog, ConsumableLot, ConsumablePurchaseRequest, MechanicConsumableStock, Contract, ContractAsset, ContractHistory, Delivery, Billing, BillingType, BillingDetail, CustomStatementItem, Receivable, Payment, PaymentDepositLink, Repair, RepairConsumable, Todo, BankTransaction, BankMatchingRule, BankAccountInitialBalance, AssetInOutLog, GoogleConfig, Vendor, CashFlowSnapshot, OutboundInspection, TransportCompany, TransportDriver, TransportNegotiation, SubleaseNegotiation, DepreciationLog, PurchaseSettlement, PurchaseSettlementItem, SettlementPaymentLog, ExternalLease, PurchaseSettlementType, PurchaseSettlementStatus, findCustomerByNormalizedName, AnnualLeaveQuota, LeaveUsage, OvertimeRecord, PayrollClosing, InspectionChecklistItem, EquipmentManual, StandardOption, InboundDefectDetail, PrepaidTransaction, DelinquencyActionLog, LegalNoticeLog, LegalNoticeTemplate, calculateAssetDepreciation, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, CorporateVehicle, VehicleOperationLog, VehicleFuelLog, RepairPartUsed, RepairCollectedPart, SaleContractTerms, StocktakingAudit, StocktakingAuditItem, CollectedPart, PrintStation, PrintQueueItem, logPrivacyAccess, ErrorReport, ErrorReportAttachment, ErrorReportStatus, ErrorReportSeverity, ErrorReportCategory } from '../services/db';
+import { db, supabase, PAYMENT_REVERSAL_ENABLED, isActivePayment, isActiveDepositLink, Tenant, TenantWorkplace, TenantYard, TenantBusinessType, TenantBankAccount, OFFICIAL_STAMP_BASE64, User, MenuPermission, createMenuPermission, CustomRole, RolePermission, Customer, CustomerContact, CustomerSite, SiteMaster, Product, Asset, Consumable, ConsumableLog, ConsumableLot, ConsumablePurchaseRequest, MechanicConsumableStock, Contract, ContractAsset, ContractHistory, Delivery, Billing, BillingType, BillingDetail, CustomStatementItem, Receivable, Payment, PaymentDepositLink, Repair, RepairConsumable, Todo, BankTransaction, BankMatchingRule, BankAccountInitialBalance, AssetInOutLog, GoogleConfig, Vendor, CashFlowSnapshot, OutboundInspection, TransportCompany, TransportDriver, TransportNegotiation, SubleaseNegotiation, DepreciationLog, PurchaseSettlement, PurchaseSettlementItem, SettlementPaymentLog, ExternalLease, PurchaseSettlementType, PurchaseSettlementStatus, findCustomerByNormalizedName, AnnualLeaveQuota, LeaveUsage, OvertimeRecord, PayrollClosing, InspectionChecklistItem, EquipmentManual, StandardOption, InboundDefectDetail, PrepaidTransaction, DelinquencyActionLog, LegalNoticeLog, LegalNoticeTemplate, calculateAssetDepreciation, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, CorporateVehicle, VehicleOperationLog, VehicleFuelLog, RepairPartUsed, RepairCollectedPart, SaleContractTerms, StocktakingAudit, StocktakingAuditItem, CollectedPart, PrintStation, PrintQueueItem, logPrivacyAccess, ErrorReport, ErrorReportAttachment, ErrorReportStatus, ErrorReportSeverity, ErrorReportCategory } from '../services/db';
 import { enqueuePrintJob as serviceEnqueuePrintJob, registerPrintStation as serviceRegisterPrintStation, deletePrintStation as serviceDeletePrintStation, retryPrintJob as serviceRetryPrintJob, cancelPrintJob as serviceCancelPrintJob } from '../services/printQueueService';
 import { ErrorModal } from '../components/ErrorModal';
 import { getAllSystemMenuIds, normalizeMenuId } from '../config/menu_config';
@@ -1915,12 +1915,45 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     refreshAllData();
   };
 
+  
   const saveSite = async (site: Omit<CustomerSite, 'id' | 'createdAt'> & { id?: string }) => {
+    // 1. SiteMaster (독립 현장 마스터) 저장/업데이트
+    let masterId = site.siteMasterId;
+    const rawName = site.name.trim();
+    const normalizedName = rawName.replace(/\s+/g, '');
+    
+    let existingMaster = db.siteMasters.find(m => m.name.replace(/\s+/g, '') === normalizedName);
+    
+    if (existingMaster) {
+      masterId = existingMaster.id;
+      // 주소가 변경되었으면 마스터 업데이트
+      if (site.address && site.address !== existingMaster.address) {
+        existingMaster = { ...existingMaster, address: site.address, updatedAt: new Date().toISOString() };
+        db.updateRow('siteMasters', masterId, existingMaster);
+      }
+    } else {
+      // 신규 마스터 생성
+      const newMaster = db.insertRow<SiteMaster>('siteMasters', {
+        name: rawName,
+        address: site.address || '',
+        isActive: true,
+        createdAt: new Date().toISOString()
+      });
+      masterId = newMaster.id;
+    }
+
+    // 2. CustomerSiteLink (고객-현장 조인 테이블) 저장/업데이트
+    const linkPayload = {
+      ...site,
+      siteMasterId: masterId,
+      // name, address는 link 테이블에서 제외할 수도 있지만 하위 호환성을 위해 유지하거나 그대로 덮어씀
+    };
+
     if (site.id) {
-      db.updateRow<CustomerSite>('sites', site.id, site as CustomerSite);
+      db.updateRow<CustomerSite>('sites', site.id, linkPayload as CustomerSite);
     } else {
       db.insertRow<CustomerSite>('sites', {
-        ...site,
+        ...linkPayload,
         isActive: site.isActive !== undefined ? site.isActive : true,
         createdAt: new Date().toISOString()
       } as Omit<CustomerSite, 'id'>);
@@ -1928,7 +1961,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (db.isSupabaseConnected() && db.pendingWrites.length > 0) {
       try {
-        await db.pendingWrites[db.pendingWrites.length - 1];
+        await Promise.all(db.pendingWrites);
+        db.pendingWrites = [];
       } catch (err) {
         console.error("Supabase write await error:", err);
         throw err;
