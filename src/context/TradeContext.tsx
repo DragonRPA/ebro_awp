@@ -105,13 +105,25 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   
+  
   const createSalesOrder = async (customerId: string, items: {productId: string, qty: number, unitPrice: number}[]) => {
+    // [RWTT 1~10 적발] 재고 부족 및 단종 상품 판매 원천 차단
+    for (const i of items) {
+       const prod = products.find(p => p.id === i.productId);
+       if (!prod) throw new Error("상품 마스터가 존재하지 않습니다.");
+       if (prod.status === 'DISCONTINUED') throw new Error(`[${prod.name}] 상품은 단종되어 수주할 수 없습니다.`);
+       
+       const availableQty = inventoryLots.filter(l => l.productId === i.productId).reduce((sum, l) => sum + l.remainingQty, 0);
+       if (availableQty < i.qty) {
+         throw new Error(`[${prod.name}] 가용 재고(${availableQty}개)가 부족하여 ${i.qty}개를 수주할 수 없습니다. (재고 보존 법칙 위배)`);
+       }
+    }
+
     const oId = uuidv4();
     let totalSalesAmount = 0;
     let totalCogsAmount = 0;
     const newLines: TradeSalesOrderLine[] = [];
     
-    // Create a copy of lots to simulate FIFO deduction
     let currentLots = [...inventoryLots].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     const updatedLots = [...inventoryLots];
 
@@ -122,7 +134,6 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
        let remainingToFulfill = i.qty;
        let lineCogsTotal = 0;
 
-       // FIFO calculation
        for (let lot of updatedLots) {
          if (lot.productId === i.productId && lot.remainingQty > 0 && remainingToFulfill > 0) {
            const deduct = Math.min(lot.remainingQty, remainingToFulfill);
@@ -130,11 +141,6 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
            remainingToFulfill -= deduct;
            lineCogsTotal += (deduct * lot.unitCost);
          }
-       }
-
-       if (remainingToFulfill > 0) {
-          // Negative inventory scenario or insufficient stock. Allow it but warn in real app.
-          // For now, assume unitCost = 0 for the missing part to prevent NaN.
        }
 
        const unitCogs = i.qty > 0 ? (lineCogsTotal / i.qty) : 0;

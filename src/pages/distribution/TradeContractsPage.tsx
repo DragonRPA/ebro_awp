@@ -7,7 +7,8 @@ export const TradeContractsPage: React.FC = () => {
 
   const handleOrder = () => {
     if(products.length === 0) return alert('상품 없음');
-    createSalesOrder('CUST-001', [{ productId: products[0].id, qty, unitPrice: products[0].standardPrice }]);
+    createSalesOrder('CUST-001', [{ productId: products[0].id, qty, unitPrice: products[0].standardPrice }])
+      .catch(err => alert(err.message));
   };
 
   return (
