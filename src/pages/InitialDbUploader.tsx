@@ -1417,6 +1417,43 @@ export const InitialDbUploader: React.FC = () => {
     }
   };
 
+  const handleAuditContractAssets = () => {
+    try {
+      const activeContractAssets = db.contractAssets.filter(ca => ca.status !== 'RETURNED');
+      
+      const discrepancies: string[] = [];
+      const errorDetails: string[] = [];
+
+      activeContractAssets.forEach(ca => {
+        const asset = db.assets.find(a => a.id === ca.assetId);
+        if (!asset) {
+          errorDetails.push(`[존재하지 않는 자산] 계약 ${ca.contractId}에 매핑된 자산 ID ${ca.assetId}가 존재하지 않음.`);
+        } else if (asset.status !== 'RENTED') {
+          errorDetails.push(`[상태 불일치] 계약 ${ca.contractId}은 자산 ${asset.assetNo}를 점유중이나, 자산 마스터 상태는 ${asset.status}임.`);
+          if (!discrepancies.includes(asset.assetNo)) discrepancies.push(asset.assetNo);
+        }
+      });
+
+      const rentedAssets = db.assets.filter(a => a.status === 'RENTED');
+      rentedAssets.forEach(asset => {
+        const hasActiveCA = activeContractAssets.some(ca => ca.assetId === asset.id);
+        if (!hasActiveCA) {
+          errorDetails.push(`[유령 자산] 자산 ${asset.assetNo}는 RENTED 상태이나, 점유 중인 활성 계약(ContractAsset)이 없음.`);
+          if (!discrepancies.includes(asset.assetNo)) discrepancies.push(asset.assetNo);
+        }
+      });
+
+      if (discrepancies.length === 0) {
+        showSuccessToast?.('무결성 대사 통과: 모든 계약-자산 상태가 100% 일치합니다.');
+      } else {
+        const msg = `총 ${discrepancies.length}개의 불일치 자산 관리번호 발견!\n\n[불일치 관리번호 목록]\n${discrepancies.join(', ')}\n\n[세부 사유]\n${errorDetails.join('\n')}`;
+        showErrorModal?.(msg);
+      }
+    } catch (e: any) {
+      showErrorModal?.(`무결성 대사 오류: ${e.message}`);
+    }
+  };
+
   return (
     <div data-hs-observe="initialdbuploader" data-subview="initial_db_upload" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
       {/* 상단 타이틀 헤더 */}
@@ -1433,6 +1470,25 @@ export const InitialDbUploader: React.FC = () => {
 
         {/* 탭 네비게이션 */}
         <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={handleAuditContractAssets}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              borderRadius: '6px',
+              border: '1px solid #ef4444',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              color: '#ef4444',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <Database size={16} /> {/* Temporary icon */}
+            계약-자산 무결성 대사
+          </button>
           <button
             onClick={() => setActiveTab('INGEST')}
             style={{
@@ -2034,7 +2090,44 @@ export const InitialDbUploader: React.FC = () => {
                     return matchesSearch && matchesStatus && matchesContract;
                   });
 
-                  return (
+                  const handleAuditContractAssets = () => {
+    try {
+      const activeContractAssets = db.contractAssets.filter(ca => ca.status !== 'RETURNED');
+      
+      const discrepancies: string[] = [];
+      const errorDetails: string[] = [];
+
+      activeContractAssets.forEach(ca => {
+        const asset = db.assets.find(a => a.id === ca.assetId);
+        if (!asset) {
+          errorDetails.push(`[존재하지 않는 자산] 계약 ${ca.contractId}에 매핑된 자산 ID ${ca.assetId}가 존재하지 않음.`);
+        } else if (asset.status !== 'RENTED') {
+          errorDetails.push(`[상태 불일치] 계약 ${ca.contractId}은 자산 ${asset.assetNo}를 점유중이나, 자산 마스터 상태는 ${asset.status}임.`);
+          if (!discrepancies.includes(asset.assetNo)) discrepancies.push(asset.assetNo);
+        }
+      });
+
+      const rentedAssets = db.assets.filter(a => a.status === 'RENTED');
+      rentedAssets.forEach(asset => {
+        const hasActiveCA = activeContractAssets.some(ca => ca.assetId === asset.id);
+        if (!hasActiveCA) {
+          errorDetails.push(`[유령 자산] 자산 ${asset.assetNo}는 RENTED 상태이나, 점유 중인 활성 계약(ContractAsset)이 없음.`);
+          if (!discrepancies.includes(asset.assetNo)) discrepancies.push(asset.assetNo);
+        }
+      });
+
+      if (discrepancies.length === 0) {
+        showSuccessToast?.('무결성 대사 통과: 모든 계약-자산 상태가 100% 일치합니다.');
+      } else {
+        const msg = `총 ${discrepancies.length}개의 불일치 자산 관리번호 발견!\n\n[불일치 관리번호 목록]\n${discrepancies.join(', ')}\n\n[세부 사유]\n${errorDetails.join('\n')}`;
+        showErrorModal?.(msg);
+      }
+    } catch (e: any) {
+      showErrorModal?.(`무결성 대사 오류: ${e.message}`);
+    }
+  };
+
+  return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
                         <span>필터링된 건수: <strong>{filteredRecords.length.toLocaleString()}건</strong> / 총 {bandAnalysisResult.totalCount.toLocaleString()}건</span>
@@ -2267,7 +2360,44 @@ export const InitialDbUploader: React.FC = () => {
                       </thead>
                       <tbody>
                         {dispatchAnalysisResult.matchedEnrichments.map(item => {
-                          return (
+                          const handleAuditContractAssets = () => {
+    try {
+      const activeContractAssets = db.contractAssets.filter(ca => ca.status !== 'RETURNED');
+      
+      const discrepancies: string[] = [];
+      const errorDetails: string[] = [];
+
+      activeContractAssets.forEach(ca => {
+        const asset = db.assets.find(a => a.id === ca.assetId);
+        if (!asset) {
+          errorDetails.push(`[존재하지 않는 자산] 계약 ${ca.contractId}에 매핑된 자산 ID ${ca.assetId}가 존재하지 않음.`);
+        } else if (asset.status !== 'RENTED') {
+          errorDetails.push(`[상태 불일치] 계약 ${ca.contractId}은 자산 ${asset.assetNo}를 점유중이나, 자산 마스터 상태는 ${asset.status}임.`);
+          if (!discrepancies.includes(asset.assetNo)) discrepancies.push(asset.assetNo);
+        }
+      });
+
+      const rentedAssets = db.assets.filter(a => a.status === 'RENTED');
+      rentedAssets.forEach(asset => {
+        const hasActiveCA = activeContractAssets.some(ca => ca.assetId === asset.id);
+        if (!hasActiveCA) {
+          errorDetails.push(`[유령 자산] 자산 ${asset.assetNo}는 RENTED 상태이나, 점유 중인 활성 계약(ContractAsset)이 없음.`);
+          if (!discrepancies.includes(asset.assetNo)) discrepancies.push(asset.assetNo);
+        }
+      });
+
+      if (discrepancies.length === 0) {
+        showSuccessToast?.('무결성 대사 통과: 모든 계약-자산 상태가 100% 일치합니다.');
+      } else {
+        const msg = `총 ${discrepancies.length}개의 불일치 자산 관리번호 발견!\n\n[불일치 관리번호 목록]\n${discrepancies.join(', ')}\n\n[세부 사유]\n${errorDetails.join('\n')}`;
+        showErrorModal?.(msg);
+      }
+    } catch (e: any) {
+      showErrorModal?.(`무결성 대사 오류: ${e.message}`);
+    }
+  };
+
+  return (
                             <tr key={item.customerId} style={{ borderBottom: '1px solid #f1f5f9' }}>
                               <td style={{ padding: '8px 10px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
                                 {item.customerName}
@@ -2450,7 +2580,44 @@ export const InitialDbUploader: React.FC = () => {
                     <tbody>
                       {parsedConsumables.map((item, idx) => {
                         const totalItemVal = item.stockQty * (item.unitPrice || 0);
-                        return (
+                        const handleAuditContractAssets = () => {
+    try {
+      const activeContractAssets = db.contractAssets.filter(ca => ca.status !== 'RETURNED');
+      
+      const discrepancies: string[] = [];
+      const errorDetails: string[] = [];
+
+      activeContractAssets.forEach(ca => {
+        const asset = db.assets.find(a => a.id === ca.assetId);
+        if (!asset) {
+          errorDetails.push(`[존재하지 않는 자산] 계약 ${ca.contractId}에 매핑된 자산 ID ${ca.assetId}가 존재하지 않음.`);
+        } else if (asset.status !== 'RENTED') {
+          errorDetails.push(`[상태 불일치] 계약 ${ca.contractId}은 자산 ${asset.assetNo}를 점유중이나, 자산 마스터 상태는 ${asset.status}임.`);
+          if (!discrepancies.includes(asset.assetNo)) discrepancies.push(asset.assetNo);
+        }
+      });
+
+      const rentedAssets = db.assets.filter(a => a.status === 'RENTED');
+      rentedAssets.forEach(asset => {
+        const hasActiveCA = activeContractAssets.some(ca => ca.assetId === asset.id);
+        if (!hasActiveCA) {
+          errorDetails.push(`[유령 자산] 자산 ${asset.assetNo}는 RENTED 상태이나, 점유 중인 활성 계약(ContractAsset)이 없음.`);
+          if (!discrepancies.includes(asset.assetNo)) discrepancies.push(asset.assetNo);
+        }
+      });
+
+      if (discrepancies.length === 0) {
+        showSuccessToast?.('무결성 대사 통과: 모든 계약-자산 상태가 100% 일치합니다.');
+      } else {
+        const msg = `총 ${discrepancies.length}개의 불일치 자산 관리번호 발견!\n\n[불일치 관리번호 목록]\n${discrepancies.join(', ')}\n\n[세부 사유]\n${errorDetails.join('\n')}`;
+        showErrorModal?.(msg);
+      }
+    } catch (e: any) {
+      showErrorModal?.(`무결성 대사 오류: ${e.message}`);
+    }
+  };
+
+  return (
                           <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(0,0,0,0.015)' }}>
                             <td style={{ padding: '7px 12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{idx + 1}</td>
                             <td style={{ padding: '7px 12px', whiteSpace: 'nowrap' }}>
