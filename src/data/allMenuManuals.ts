@@ -11195,6 +11195,483 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       }
     ]
   }
+  ,{
+  "menuId": "trade_products",
+  "menuName": "상품 등록 및 관리",
+  "groupId": "grp_distribution",
+  "groupName": "영업-유통",
+  "department": "유통 영업",
+  "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
+  "objective": "유통(판매)용 상품 마스터 정보를 등록하고, 단종/판매중 상태 및 기본 판매 단가를 일괄 관리",
+  "scopeInfo": "분류 카테고리, 판매 상태(단종/진행) 및 재고 현황",
+  "cognitiveSequence": [
+    "1. 좌상단 검색 필터에서 상품군 및 상태 선택",
+    "2. 우상단 '신규 등록' 또는 '엑셀 업로드'로 상품 마스터 유입",
+    "3. 중앙 고밀도 그리드에서 품목명, 단가, 원가 산정방식 확인 및 인라인 수정",
+    "4. 우하단 '변경 저장' 버튼으로 상품 정보 원장 갱신 마감"
+  ],
+  "auditResult": "상품 마스터 원장에 무결성 갱신 완료",
+  "rulesCompliance": [
+    "3.1 무수식어 건조한 표기 원칙 준수",
+    "3.6 고밀도 그리드 아키타입 적용"
+  ],
+  "precautions": [
+    "렌탈 장비(Assets)와 상품(TradeGoods) 마스터가 섞이지 않도록 ItemType 엄격 격리"
+  ],
+  "annotations": [],
+  "basicGuide": [
+    {
+      "id": "tp_bg_1",
+      "title": "검색 필터",
+      "text": "좌상단의 카테고리와 판매 상태 드롭다운을 통해 관리할 상품을 좁힙니다.",
+      "elementSelector": ".filter-group"
+    },
+    {
+      "id": "tp_bg_2",
+      "title": "상품 그리드",
+      "text": "중앙 표에서 상품의 단가와 이동평균원가(COGS) 방식을 한눈에 확인합니다.",
+      "elementSelector": ".grid-container"
+    }
+  ],
+  "processes": [
+    {
+      "id": "tp_proc_1",
+      "title": "신규 상품 등록 흐름",
+      "steps": [
+        {
+          "text": "우상단 [신규 등록] 버튼을 클릭하세요.",
+          "selector": ".btn-new"
+        },
+        {
+          "text": "입력창에 [상품명]과 [표준 판매가]를 입력하세요.",
+          "selector": "input[name='itemName']"
+        },
+        {
+          "text": "우하단의 [변경 저장]을 눌러 상품 원장에 등록을 완결하세요.",
+          "selector": ".btn-save"
+        }
+      ]
+    }
+  ]
+},
+  {
+  "menuId": "trade_purchases",
+  "menuName": "구매 및 입고",
+  "groupId": "grp_distribution",
+  "groupName": "영업-유통",
+  "department": "유통 물류/구매",
+  "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
+  "objective": "공급사(Vendor)로부터 상품을 매입(PO)하고, 실제 주기장 입고 검수를 거쳐 물리적 재고(On-hand) 가산 및 이동평균원가 갱신",
+  "scopeInfo": "입고 대기 중인 발주서 내역 및 입고 예정일자",
+  "cognitiveSequence": [
+    "1. 좌상단에서 매입처와 입고 연월을 스코핑",
+    "2. 우상단 '발주서 업로드'로 구매 내역 파이프라인 유입",
+    "3. 중앙 그리드에서 입고 예정 수량과 실제 하차/검수 수량을 1:1 대사",
+    "4. 우하단 '입고 일괄 확정' 버튼으로 가용 재고 가산 및 매입채무 발생 확정"
+  ],
+  "auditResult": "기초 재고 + 입고 수량 = 현재 가용 재고로 수량 보존 확정 및 단가 Lock-in",
+  "rulesCompliance": [
+    "5.2 무음 실패 방지 (입고 트랜잭션 동기화)",
+    "수량 보존 법칙"
+  ],
+  "precautions": [
+    "부분 입고(Partial Received) 시 잔여 수량 관리 주의",
+    "단가 변동 시 기존 재고 가치 희석 방지(LOT 기반 추적)"
+  ],
+  "annotations": [],
+  "basicGuide": [
+    {
+      "id": "tpu_bg_1",
+      "title": "입고 대기 목록",
+      "text": "좌상단의 필터를 통해 입고 처리가 필요한 발주 건들을 화면에 호출합니다.",
+      "elementSelector": ".filter-group"
+    },
+    {
+      "id": "tpu_bg_2",
+      "title": "수량 대사 그리드",
+      "text": "발주서 수량과 현장 검수 수량의 차액을 중앙 테이블에서 직접 확인합니다.",
+      "elementSelector": ".grid-container"
+    }
+  ],
+  "processes": [
+    {
+      "id": "tpu_proc_1",
+      "title": "상품 입고 검수 및 확정",
+      "steps": [
+        {
+          "text": "중앙 그리드에서 [실제 입고 수량] 셀을 클릭하고 숫자를 입력하세요.",
+          "selector": ".qty-input"
+        },
+        {
+          "text": "수량 불일치 시 우측 셀의 [사유] 드롭다운에서 파손/오배송을 선택하세요.",
+          "selector": ".reason-select"
+        },
+        {
+          "text": "우하단의 [입고 일괄 확정] 버튼을 눌러 재고 수불부에 더하세요.",
+          "selector": ".btn-confirm"
+        }
+      ]
+    }
+  ]
+},
+  {
+  "menuId": "trade_contracts",
+  "menuName": "유통 수주(계약)",
+  "groupId": "grp_distribution",
+  "groupName": "영업-유통",
+  "department": "유통 영업",
+  "archetype": "유형 A: 요청 처리형 (카드형 상세)",
+  "objective": "고객사의 상품 매매 요청을 접수하고 납기, 단가, 결제 조건을 확정하여 출고를 위한 수주 원장(Sales Order) 발행",
+  "scopeInfo": "고객 마스터 정보 및 가용 재고(Available Qty) 현황",
+  "cognitiveSequence": [
+    "1. 좌상단 고객사 정보 세팅",
+    "2. 우상단 에이전트 [초안 작성] 호출 또는 상품 직접 검색 유입",
+    "3. 중앙 카드에서 품목별 수량, 단가, 할인율, 인도 조건(특약) 세부 컨텍스트 조율",
+    "4. 우하단 '수주 체결 승인' 버튼으로 거래 명세 확정 및 물류 부서로 출고 지시 하달"
+  ],
+  "auditResult": "가용 재고 할당(차감) 예약 및 영업 원장 생성",
+  "rulesCompliance": [
+    "3.6 마스터-디테일 카드형 설계",
+    "3.7 AI 에이전트 Slop 방지 (건조한 버튼 적용)"
+  ],
+  "precautions": [
+    "마진율 미달 시 시스템 알림 및 관리자 승인 대기(Hard Lock)"
+  ],
+  "annotations": [],
+  "basicGuide": [
+    {
+      "id": "tc_bg_1",
+      "title": "수주 기본 정보",
+      "text": "상단에서 고객사명과 납기 예정일, 결제 조건 등 계약의 기본 골격을 확인합니다.",
+      "elementSelector": ".header-info"
+    },
+    {
+      "id": "tc_bg_2",
+      "title": "품목 상세 카드",
+      "text": "중앙 영역에서 어떤 상품을 얼마에 몇 개 판매할지 상세 조건을 입력합니다.",
+      "elementSelector": ".card-container"
+    }
+  ],
+  "processes": [
+    {
+      "id": "tc_proc_1",
+      "title": "신규 수주 체결 흐름",
+      "steps": [
+        {
+          "text": "좌상단의 [고객사 검색] 창에 기업명을 입력하여 대상을 지정하세요.",
+          "selector": ".customer-search"
+        },
+        {
+          "text": "우상단의 [양식 자동 채우기] 버튼을 누르거나 중앙의 [품목 추가]를 통해 판매할 상품을 나열하세요.",
+          "selector": ".btn-add-item"
+        },
+        {
+          "text": "각 상품별 [수량] 및 [단가] 입력칸에 숫자를 기입하고 이윤율을 확인하세요.",
+          "selector": ".item-qty-input"
+        },
+        {
+          "text": "우하단의 [수주 체결 승인] 버튼을 클릭해 물류팀으로 출고 지시를 넘기세요.",
+          "selector": ".btn-submit"
+        }
+      ]
+    }
+  ]
+},
+  {
+  "menuId": "trade_outbounds",
+  "menuName": "출고 요청",
+  "groupId": "grp_distribution",
+  "groupName": "영업-유통",
+  "department": "유통 물류/구매",
+  "archetype": "유형 A: 요청 처리형 (카드형 상세)",
+  "objective": "영업부가 체결한 수주 내역을 물류팀이 접수하여 실물 재고를 할당하고 패킹 및 운송 대기 상태로 전이",
+  "scopeInfo": "승인된 수주 내역(Sales Order) 및 창고별 물리적 재고(On-hand Qty) 상황",
+  "cognitiveSequence": [
+    "1. 좌상단 출고 요청 번호 및 납기일 확인",
+    "2. 우상단 '재고 할당' 실행을 통해 가용 창고 매핑",
+    "3. 중앙 카드에서 출고 검수 내역, 합포장 여부, 현장 특이사항 메모 확인",
+    "4. 우하단 '출고 승인' 버튼으로 물리 재고 차감 및 송장 출력 대기 전이"
+  ],
+  "auditResult": "물리 재고(On-hand) 차감 확정 및 FIFO 기반 원가(COGS) Lock-in",
+  "rulesCompliance": [
+    "1.4 전사 단일 의미 표준화 (배차 vs 출고 구분)",
+    "Z-Pattern 시선 흐름"
+  ],
+  "precautions": [
+    "재고 부족 시 무음 실패 방지 (에러 모달 표출 및 할당 보류)"
+  ],
+  "annotations": [],
+  "basicGuide": [
+    {
+      "id": "to_bg_1",
+      "title": "출고 지시 요약",
+      "text": "상단에서 언제 어디로 보내야 하는지 수주 지시 원문을 확인합니다.",
+      "elementSelector": ".request-summary"
+    },
+    {
+      "id": "to_bg_2",
+      "title": "피킹/패킹 작업대",
+      "text": "중앙 카드에서 실제 창고의 어느 구역에서 물건을 꺼낼지(피킹) 할당 상태를 봅니다.",
+      "elementSelector": ".picking-card"
+    }
+  ],
+  "processes": [
+    {
+      "id": "to_proc_1",
+      "title": "재고 할당 및 출고 승인",
+      "steps": [
+        {
+          "text": "우상단의 [재고 할당] 버튼을 눌러 부족한 재고가 없는지 시스템 연산을 실행하세요.",
+          "selector": ".btn-allocate"
+        },
+        {
+          "text": "중앙의 현장 특이사항(포장 주의 등) 텍스트를 읽고 검수 체크박스를 틱(V) 하세요.",
+          "selector": ".checkbox-inspect"
+        },
+        {
+          "text": "우하단의 [출고 승인] 버튼을 눌러 재고를 완전히 차감하고 배송 파트너에게 넘기세요.",
+          "selector": ".btn-approve"
+        }
+      ]
+    }
+  ]
+},
+  {
+  "menuId": "courier_dispatch",
+  "menuName": "택배 배송 관리",
+  "groupId": "grp_distribution",
+  "groupName": "영업-유통",
+  "department": "유통 물류/구매",
+  "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
+  "objective": "출고 승인된 대량의 박스/화물 건에 대해 운송장(택배/화물)을 일괄 출력하고, 스캔을 통해 배송 중(IN_TRANSIT) 상태로 일괄 마감",
+  "scopeInfo": "당일 출고 승인(PACKED)된 전체 유통 주문 건",
+  "cognitiveSequence": [
+    "1. 좌상단 배송 희망일 및 택배사(로젠/경동 등) 필터 적용",
+    "2. 우상단 '운송장 일괄 다운로드'로 택배사 연동 파이프라인 유입",
+    "3. 중앙 고밀도 그리드에서 운송장 번호 부여 상태 및 주소지 인라인 대사",
+    "4. 우하단 '배송 일괄 마감' 버튼으로 고객에게 송장 문자 발송 및 마감"
+  ],
+  "auditResult": "수주 상태가 SHIPPED 로 전환되며 배송 추적 번호 확정",
+  "rulesCompliance": [
+    "3.1 무수식어 원칙 (배송 vs 배차 의미 분리 적용)",
+    "3.2 셀 줄바꿈 방지(nowrap)"
+  ],
+  "precautions": [
+    "렌탈 화물 배차(TruckDispatch)와 달리 중량/제원보다 주소 및 송장 번호 정확도 최우선"
+  ],
+  "annotations": [],
+  "basicGuide": [
+    {
+      "id": "cd_bg_1",
+      "title": "발송 목록 필터",
+      "text": "좌상단에서 오늘 발송해야 할 택배사별 물량을 좁혀서 조회합니다.",
+      "elementSelector": ".filter-group"
+    },
+    {
+      "id": "cd_bg_2",
+      "title": "송장 맵핑 그리드",
+      "text": "중앙 표에서 고객 주소와 부여된 택배 운송장 번호가 올바르게 매칭되었는지 확인합니다.",
+      "elementSelector": ".grid-container"
+    }
+  ],
+  "processes": [
+    {
+      "id": "cd_proc_1",
+      "title": "송장 부여 및 배송 마감",
+      "steps": [
+        {
+          "text": "우상단 [엑셀 송장 업로드] 버튼을 클릭해 택배사에서 받은 운송장 번호 파일을 업로드하세요.",
+          "selector": ".btn-upload-invoice"
+        },
+        {
+          "text": "중앙 그리드의 [운송장 번호] 칸에 빈칸이 없는지 시각적으로 확인하세요.",
+          "selector": ".invoice-cell"
+        },
+        {
+          "text": "우하단의 [배송 일괄 마감] 버튼을 클릭해 고객에게 발송 알림을 보내세요.",
+          "selector": ".btn-dispatch"
+        }
+      ]
+    }
+  ]
+},
+  {
+  "menuId": "trade_billing",
+  "menuName": "유통 청구 및 명세",
+  "groupId": "grp_distribution",
+  "groupName": "영업-유통",
+  "department": "경영 지원",
+  "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
+  "objective": "배송이 완료된 유통 매출 건들을 집계하여 거래처별 세금계산서를 발행하고 청구 대장(AR) 원장을 확정",
+  "scopeInfo": "정산 연월, 고객사별 출고 완료(SHIPPED/DELIVERED) 매출 건",
+  "cognitiveSequence": [
+    "1. 좌상단 정산 연월(마감월) 및 수금 조건 필터",
+    "2. 우상단 '데이터 불러오기'를 통해 미청구 매출 건 파이프라인 유입",
+    "3. 중앙 고밀도 그리드에서 거래처별 누적 매출액, 기청구액, 잔액 인라인 차액 분석",
+    "4. 우하단 `청구총액 = 확정액 | 차액 ₩0` 수식 확인 후 '명세서 일괄 발행' 완결"
+  ],
+  "auditResult": "유통 청구액 원장 확정 및 홈택스 계산서 발행 연동",
+  "rulesCompliance": [
+    "3.5 Z-Pattern 목적 지향 설계 질문 준수",
+    "대차대조 완결(₩0 오차) 강제"
+  ],
+  "precautions": [
+    "렌탈의 일할 계산과 달리, 유통은 수량*단가의 일시 확정 청구임을 주의"
+  ],
+  "annotations": [],
+  "basicGuide": [
+    {
+      "id": "tb_bg_1",
+      "title": "청구 대상 스코프",
+      "text": "좌상단 달력에서 마감할 월을 선택하여 미청구된 유통 판매 내역을 부릅니다.",
+      "elementSelector": ".filter-month"
+    },
+    {
+      "id": "tb_bg_2",
+      "title": "대차대조 및 차액 검증",
+      "text": "중앙 표와 우하단 요약 영역에서 받을 돈과 발행할 명세서 금액의 차이가 ₩0 인지 검증합니다.",
+      "elementSelector": ".audit-summary"
+    }
+  ],
+  "processes": [
+    {
+      "id": "tb_proc_1",
+      "title": "매출 마감 및 명세서 발행",
+      "steps": [
+        {
+          "text": "우상단 [미청구액 불러오기] 버튼을 눌러 지난달 판매액을 모두 끌어오세요.",
+          "selector": ".btn-fetch"
+        },
+        {
+          "text": "중앙 그리드에서 청구 대상 거래처 좌측의 [체크박스]를 모두 선택하세요.",
+          "selector": ".row-checkbox"
+        },
+        {
+          "text": "우하단의 [명세서 일괄 발행] 버튼을 클릭하여 청구서를 확정하세요.",
+          "selector": ".btn-issue"
+        }
+      ]
+    }
+  ]
+},
+  {
+  "menuId": "trade_returns",
+  "menuName": "환입 및 반품",
+  "groupId": "grp_distribution",
+  "groupName": "영업-유통",
+  "department": "유통 물류/구매",
+  "archetype": "유형 A: 요청 처리형 (카드형 상세)",
+  "objective": "고객으로부터 반환(Sales Return)된 상품을 검수하여, 정상(Sellable) 재고 복구 또는 불량(Defective) 폐기/Vendor 반품으로 분리 판정",
+  "scopeInfo": "고객 반환 접수 건 및 원본 수주 계약(Sales Order) 내역",
+  "cognitiveSequence": [
+    "1. 좌상단 반품 접수 번호 스코핑",
+    "2. 우상단 '원계약 조회'로 과거 출고 단가 및 LOT 이력 유입",
+    "3. 중앙 폼에서 육안 검수 사진 첨부 및 양품/불량 판정 사유 기입",
+    "4. 우하단 '환입 완료' 버튼으로 가용 재고 가산(양품) 또는 손실/RMA 원장 기록(불량)"
+  ],
+  "auditResult": "재고 수량 보존 법칙 유지 및 반환 환불(Credit) 원장 생성",
+  "rulesCompliance": [
+    "재고 임의 조작 영구 엄단 (상태 기반 논리 전이)",
+    "3.4 레이블-입력 필드 상하 스택 배치"
+  ],
+  "precautions": [
+    "반환 시 최초 출고되었던 동일 LOT 원가로 환원해야 회계 마진이 왜곡되지 않음"
+  ],
+  "annotations": [],
+  "basicGuide": [
+    {
+      "id": "tr_bg_1",
+      "title": "반품 원계약 추적",
+      "text": "상단에서 고객이 언제, 얼마에 사간 물건인지 원본 판매 이력을 대조합니다.",
+      "elementSelector": ".original-contract-info"
+    },
+    {
+      "id": "tr_bg_2",
+      "title": "검수 및 판정 영역",
+      "text": "중앙 화면에서 박스 개봉 사진을 첨부하고 다시 팔 수 있는지 없는지를 기록합니다.",
+      "elementSelector": ".inspection-form"
+    }
+  ],
+  "processes": [
+    {
+      "id": "tr_proc_1",
+      "title": "상품 반환 검수 및 환입",
+      "steps": [
+        {
+          "text": "우상단 [원계약 조회] 버튼을 눌러 과거 판매 기록을 팝업으로 띄워 확인하세요.",
+          "selector": ".btn-view-origin"
+        },
+        {
+          "text": "중앙 폼의 [검수 상태] 드롭다운에서 '정상(재판매)' 또는 '불량(수리/폐기)'을 정확히 선택하세요.",
+          "selector": "select[name='condition']"
+        },
+        {
+          "text": "우하단의 [환입 완료] 버튼을 눌러 재고와 회계 원장에 반품을 확정하세요.",
+          "selector": ".btn-return"
+        }
+      ]
+    }
+  ]
+},
+  {
+  "menuId": "trade_profitability",
+  "menuName": "수익성 관리",
+  "groupId": "grp_distribution",
+  "groupName": "영업-유통",
+  "department": "경영 지원",
+  "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
+  "objective": "선입선출(FIFO) 기반으로 매칭된 매출(Revenue)과 원가(COGS)를 대조하여, 품목별/거래처별 순마진율(Gross Margin)을 결산 및 통제",
+  "scopeInfo": "분석 기간 및 특정 상품군, 거래처 필터",
+  "cognitiveSequence": [
+    "1. 좌상단 조회 연월 및 상품군 조건 지정",
+    "2. 우상단 '분석 실행'으로 DB 원장(Ledger) 실시간 연산 유입",
+    "3. 중앙 고밀도 그리드에서 품목별 총매출, 매출원가, 순수익, 마진율 차액 대조",
+    "4. 우하단 총합 마진율 수식 확인 후 '마감' 또는 '엑셀 내보내기' 완결"
+  ],
+  "auditResult": "DB SUM 기반 동적 산출로 날조 불가능한 최종 수익성 리포트 확정",
+  "rulesCompliance": [
+    "5.1 2단계 검증(스키마 기반 수학적 정합성) 준수",
+    "AI Slop 방어 (그래프/차트 떡칠 배제하고 고밀도 숫자 그리드 유지)"
+  ],
+  "precautions": [
+    "화면 UI상의 단순 뺄셈이 아닌, TradeCogsLedger DB 원장 합산값만을 노출할 것"
+  ],
+  "annotations": [],
+  "basicGuide": [
+    {
+      "id": "tprof_bg_1",
+      "title": "마진 분석 스코프",
+      "text": "좌상단 필터에서 이번 달 어떤 품목이 얼마나 남았는지 분석할 범위를 정합니다.",
+      "elementSelector": ".filter-group"
+    },
+    {
+      "id": "tprof_bg_2",
+      "title": "이익률 대차대조표",
+      "text": "중앙 표에서 매출액에서 매입원가를 뺀 실제 마진율(%)을 상품별로 건조하게 직관적으로 확인합니다.",
+      "elementSelector": ".grid-container"
+    }
+  ],
+  "processes": [
+    {
+      "id": "tprof_proc_1",
+      "title": "월간 유통 수익성 결산",
+      "steps": [
+        {
+          "text": "좌상단 [분석 기간] 달력을 눌러 지난달 1일부터 말일까지로 세팅하세요.",
+          "selector": ".date-picker"
+        },
+        {
+          "text": "우상단 [분석 실행] 버튼을 눌러 DB에 저장된 확정 원가와 매출액을 계산해 오세요.",
+          "selector": ".btn-analyze"
+        },
+        {
+          "text": "우하단의 [총 마진율 %]를 확인하고, 보고서 제출을 위해 [엑셀 내보내기]를 누르세요.",
+          "selector": ".btn-export"
+        }
+      ]
+    }
+  ]
+}
 ];
 
 /**
