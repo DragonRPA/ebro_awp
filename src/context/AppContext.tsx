@@ -873,6 +873,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCustomers(sortCustomersByName([...db.customers]));
     setContacts([...db.contacts]);
     setSites([...db.sites]);
+    setSiteMasters([...db.siteMasters]);
     setProducts([...db.products]);
     setAssets([...db.assets]);
     setConsumables([...db.consumables]);
