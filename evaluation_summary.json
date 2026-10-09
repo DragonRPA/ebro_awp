@@ -1,0 +1,862 @@
+{
+  "total": 1100,
+  "correct": 118,
+  "incorrect": 982,
+  "errors": 0,
+  "accuracy": 10.727272727272727,
+  "total_time_seconds": 2680.738243818283,
+  "failed_cases": [
+    {
+      "index": 270,
+      "prompt": "장비 G-1001 수리 등록해. 담당자는 박주임이고, 내역은 모터 소손 교체. 부품은 O링 썼어.",
+      "expected": "MAINTENANCE_CREATE",
+      "actual": "REPAIR_CREATE",
+      "parsed_json": {
+        "intent": "repair_create",
+        "parameters": {
+          "equipment_id": "G-1001",
+          "responsible_person": "박주임",
+          "repair_details": "모터 소손 교체",
+          "parts_used": "O링"
+        }
+      },
+      "is_correct": false,
+      "latency": 10.04982328414917,
+      "error": null
+    },
+    {
+      "index": 150,
+      "prompt": "정비팀장 주임이 G-1001 고쳤음. 유압 호스 누유 수리 작업했고 O링 교체완료.",
+      "expected": "MAINTENANCE_CREATE",
+      "actual": "MAINTENANCE_REPORT",
+      "parsed_json": {
+        "intent": "maintenance_report",
+        "parameters": {
+          "작업자": "정비팀장 주임",
+          "장비_ID": "G-1001",
+          "수리_내용": "유압 호스 누유 수리 및 O링 교체"
+        }
+      },
+      "is_correct": false,
+      "latency": 12.036925554275513,
+      "error": null
+    },
+    {
+      "index": 30,
+      "prompt": "정비팀장 주임이 G-1001 고쳤음. 모터 소손 교체 작업했고 O링 교체완료.",
+      "expected": "MAINTENANCE_CREATE",
+      "actual": "MAINTENANCE_REPORT",
+      "parsed_json": {
+        "intent": "maintenance_report",
+        "parameters": {
+          "worker": "정비팀장 주임",
+          "equipment_id": "G-1001",
+          "repair_details": [
+            "모터 소손 교체",
+            "O링 교체"
+          ]
+        }
+      },
+      "is_correct": false,
+      "latency": 15.379904985427856,
+      "error": null
+    },
+    {
+      "index": 510,
+      "prompt": "김대표 거래처 정보 좀 찾아봐.",
+      "expected": "CUSTOMER_SEARCH",
+      "actual": "SEARCH_ENTITY_INFO",
+      "parsed_json": {
+        "intent": "search_entity_info",
+        "parameters": {
+          "entity_name": "김대표"
+        }
+      },
+      "is_correct": false,
+      "latency": 9.32309079170227,
+      "error": null
+    },
+    {
+      "index": 390,
+      "prompt": "박영희 대리, 다음주 월요일부터 2026-11-10까지 오후반차 신청할게. 사유는 가족 여행이야.",
+      "expected": "VACATION_CREATE",
+      "actual": "API_ERROR",
+      "parsed_json": null,
+      "is_correct": false,
+      "latency": 20.261233806610107,
+      "error": ""
+    },
+    {
+      "index": 810,
+      "prompt": "S-45-001 출고 검수 통과(true) 처리해. 검수자는 김과장.",
+      "expected": "PDI_APPROVE",
+      "actual": "INSPECTION_PASS",
+      "parsed_json": {
+        "intent": "inspection_pass",
+        "parameters": {
+          "product_id": "S-45-001",
+          "status": "true",
+          "inspector_name": "김과장"
+        }
+      },
+      "is_correct": false,
+      "latency": 9.713287591934204,
+      "error": null
+    },
+    {
+      "index": 930,
+      "prompt": "신규 거래처 등록해줘. 상호는 비젼테크, 대표자 이사장이고, 주소는 서울시 강남구 테헤란로 123. 사업자번호는 345-67-89012야.",
+      "expected": "CUSTOMER_CREATE",
+      "actual": "VENDOR_CREATE",
+      "parsed_json": {
+        "intent": "vendor_create",
+        "parameters": {
+          "vendor_name": "비젼테크",
+          "representative_name": "이사장",
+          "address": "서울시 강남구 테헤란로 123",
+          "business_registration_number": "345-67-89012"
+        }
+      },
+      "is_correct": false,
+      "latency": 9.50809645652771,
+      "error": null
+    },
+    {
+      "index": 1050,
+      "prompt": "AS 요청의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: smart_as_request",
+      "expected": "",
+      "actual": "PROCESS_GUIDE_QUERY",
+      "parsed_json": {
+        "intent": "process_guide_query",
+        "parameters": {
+          "menu_identifier": "smart_as_request",
+          "query_type": "process_flow"
+        }
+      },
+      "is_correct": false,
+      "latency": 9.360718965530396,
+      "error": null
+    },
+    {
+      "index": 630,
+      "prompt": "이과장 대리, 다음주 월요일부터 2026-11-10까지 경조휴가 신청할게. 사유는 개인 사정이야.",
+      "expected": "VACATION_CREATE",
+      "actual": "LEAVE_CREATE",
+      "parsed_json": {
+        "intent": "leave_create",
+        "parameters": {
+          "leave_type": "경조휴가",
+          "start_date": "다음주 월요일",
+          "end_date": "2026-11-10",
+          "reason": "개인 사정"
+        }
+      },
+      "is_correct": false,
+      "latency": 18.553765058517456,
+      "error": null
+    },
+    {
+      "index": 31,
+      "prompt": "배차번호 ORD-2610-001에 김철수 기사님 배정해. 폰번호 010-9876-5432, 차량번호 경기80바1234야.",
+      "expected": "DISPATCH_ASSIGN_DRIVER",
+      "actual": "DRIVER_ASSIGN",
+      "parsed_json": {
+        "intent": "driver_assign",
+        "parameters": {
+          "배차번호": "ORD-2610-001",
+          "기사명": "김철수",
+          "기사폰번호": "010-9876-5432",
+          "차량번호": "경기80바1234"
+        }
+      },
+      "is_correct": false,
+      "latency": 10.738045692443848,
+      "error": null
+    },
+    {
+      "index": 271,
+      "prompt": "S-45-001 출고 검수 통과(true) 처리해. 검수자는 이대리.",
+      "expected": "PDI_APPROVE",
+      "actual": "INSPECTION_PASS",
+      "parsed_json": {
+        "intent": "inspection_pass",
+        "parameters": {
+          "item_id": "S-45-001",
+          "status": "true",
+          "inspector": "이대리"
+        }
+      },
+      "is_correct": false,
+      "latency": 7.911181449890137,
+      "error": null
+    },
+    {
+      "index": 391,
+      "prompt": "10월분 에이텍엔지니어링한테 3000000원 청구서 보내줘.",
+      "expected": "BILLING_REQUEST_CREATE",
+      "actual": "INVOICE_CREATE",
+      "parsed_json": {
+        "intent": "invoice_create",
+        "parameters": {
+          "client_name": "에이텍엔지니어링",
+          "amount": 3000000,
+          "billing_period": "10월"
+        }
+      },
+      "is_correct": false,
+      "latency": 7.745251655578613,
+      "error": null
+    },
+    {
+      "index": 151,
+      "prompt": "삼성전기 수원현장 현장에 로지스틱스K 기사님 배차해줘. 단가는 140000원이고 EXCHANGE 건이야.",
+      "expected": "DISPATCH_CREATE_ORDER",
+      "actual": "DISPATCH_REQUEST",
+      "parsed_json": {
+        "intent": "dispatch_request",
+        "parameters": {
+          "location": "삼성전기 수원현장",
+          "service_provider": "로지스틱스K",
+          "unit_price": 140000,
+          "job_type": "EXCHANGE"
+        }
+      },
+      "is_correct": false,
+      "latency": 12.31323504447937,
+      "error": null
+    },
+    {
+      "index": 811,
+      "prompt": "고객사 목록에서 123-45 검색해줘.",
+      "expected": "CUSTOMER_SEARCH",
+      "actual": "SEARCH_CLIENT",
+      "parsed_json": {
+        "intent": "search_client",
+        "parameters": {
+          "client_code": "123-45"
+        }
+      },
+      "is_correct": false,
+      "latency": 6.650234937667847,
+      "error": null
+    },
+    {
+      "index": 511,
+      "prompt": "수원현장 현장 요구사항에 협착방지대 추가해줘.",
+      "expected": "SITE_OPTION_UPDATE",
+      "actual": "EQUIPMENT_ADDITION",
+      "parsed_json": {
+        "intent": "equipment_addition",
+        "parameters": {
+          "현장명": "수원현장",
+          "추가_장비": "협착방지대",
+          "요청_유형": "현장 요구사항"
+        }
+      },
+      "is_correct": false,
+      "latency": 11.074172496795654,
+      "error": null
+    },
+    {
+      "index": 631,
+      "prompt": "신규 거래처 등록해줘. 상호는 (주)가나건설, 대표자 이사장이고, 주소는 서울시 강남구 테헤란로 123. 사업자번호는 345-67-89012야.",
+      "expected": "CUSTOMER_CREATE",
+      "actual": "VENDOR_CREATE",
+      "parsed_json": {
+        "intent": "vendor_create",
+        "parameters": {
+          "vendor_name": "(주)가나건설",
+          "representative_name": "이사장",
+          "address": "서울시 강남구 테헤란로 123",
+          "business_registration_number": "345-67-89012"
+        }
+      },
+      "is_correct": false,
+      "latency": 9.931960821151733,
+      "error": null
+    },
+    {
+      "index": 931,
+      "prompt": "장비 G-1002 PDI 검수 완료했어. 김과장 이름으로 승인 처리해줘.",
+      "expected": "PDI_APPROVE",
+      "actual": "INSPECTION_APPROVAL",
+      "parsed_json": {
+        "intent": "inspection_approval",
+        "parameters": {
+          "equipment_id": "G-1002",
+          "inspection_type": "PDI",
+          "approver_name": "김과장"
+        }
+      },
+      "is_correct": false,
+      "latency": 10.287243127822876,
+      "error": null
+    },
+    {
+      "index": 1051,
+      "prompt": "AS 요청에서 AS 접수 버튼 눌러줘. 현재 위치: AS 요청 (smart_as_request), 노출 버튼: [AS 접수, 고객/장비 선택, 현장 정보, 고장 증상, 현장 접수자, AS 접수 등록, 전화 접수 AS 대기]",
+      "expected": "CLICK_ELEMENT",
+      "actual": "AS_SUBMIT",
+      "parsed_json": {
+        "intent": "as_submit",
+        "parameters": {
+          "screen_name": "smart_as_request",
+          "button_action": "AS 접수"
+        }
+      },
+      "is_correct": false,
+      "latency": 10.666717529296875,
+      "error": null
+    },
+    {
+      "index": 152,
+      "prompt": "로지스틱스K 불러서 삼성전기 수원현장로 장비 보내. EXCHANGE이고 운송비는 150000원으로 맞춰줘.",
+      "expected": "DISPATCH_CREATE_ORDER",
+      "actual": "EQUIPMENT_SHIPMENT",
+      "parsed_json": {
+        "intent": "equipment_shipment",
+        "parameters": {
+          "source": "로지스틱스K",
+          "destination": "삼성전기 수원현장로",
+          "item": "EXCHANGE",
+          "shipping_cost": "150000원"
+        }
+      },
+      "is_correct": false,
+      "latency": 9.11607050895691,
+      "error": null
+    },
+    {
+      "index": 392,
+      "prompt": "배차번호 ORD-2610-001에 최운송 기사님 배정해. 폰번호 010-9876-5432, 차량번호 서울99사9876야.",
+      "expected": "DISPATCH_ASSIGN_DRIVER",
+      "actual": "DRIVER_ASSIGN",
+      "parsed_json": {
+        "intent": "driver_assign",
+        "parameters": {
+          "dispatch_number": "ORD-2610-001",
+          "driver_name": "최운송",
+          "phone_number": "010-9876-5432",
+          "vehicle_number": "서울99사9876"
+        }
+      },
+      "is_correct": false,
+      "latency": 9.29239797592163,
+      "error": null
+    },
+    {
+      "index": 512,
+      "prompt": "11월분 에이텍엔지니어링한테 1500000원 청구서 보내줘.",
+      "expected": "BILLING_REQUEST_CREATE",
+      "actual": "INVOICE_CREATE",
+      "parsed_json": {
+        "intent": "invoice_create",
+        "parameters": {
+          "client_name": "에이텍엔지니어링",
+          "amount": "1500000",
+          "billing_period": "11월"
+        }
+      },
+      "is_correct": false,
+      "latency": 8.974625825881958,
+      "error": null
+    },
+    {
+      "index": 272,
+      "prompt": "나 이과장인데, 2026-10-15에 오전반차 쓸거야. 개인 사정 때문임. 기안 올려줘.",
+      "expected": "VACATION_CREATE",
+      "actual": "LEAVE_REQUEST_CREATE",
+      "parsed_json": {
+        "intent": "leave_request_create",
+        "parameters": {
+          "leave_date": "2026-10-15",
+          "leave_type": "오전반차",
+          "requester_name": "이과장"
+        }
+      },
+      "is_correct": false,
+      "latency": 14.637748003005981,
+      "error": null
+    },
+    {
+      "index": 632,
+      "prompt": "신규 거래처 등록해줘. 상호는 비젼테크, 대표자 박소장이고, 주소는 서울시 강남구 테헤란로 123. 사업자번호는 345-67-89012야.",
+      "expected": "CUSTOMER_CREATE",
+      "actual": "VENDOR_CREATE",
+      "parsed_json": {
+        "intent": "vendor_create",
+        "parameters": {
+          "vendor_name": "비젼테크",
+          "representative_name": "박소장",
+          "address": "서울시 강남구 테헤란로 123",
+          "business_registration_number": "345-67-89012"
+        }
+      },
+      "is_correct": false,
+      "latency": 9.638782978057861,
+      "error": null
+    },
+    {
+      "index": 812,
+      "prompt": "박영희 대리, 다음주 월요일부터 1개월 뒤까지 오전반차 신청할게. 사유는 집안 행사이야.",
+      "expected": "VACATION_CREATE",
+      "actual": "LEAVE_REQUEST",
+      "parsed_json": {
+        "intent": "leave_request",
+        "parameters": {
+          "leave_type": "오전반차",
+          "start_date": "다음주 월요일",
+          "end_date": "1개월 뒤",
+          "reason": "집안 행사"
+        }
+      },
+      "is_correct": false,
+      "latency": 8.57272481918335,
+      "error": null
+    },
+    {
+      "index": 1052,
+      "prompt": "미수 채권 연체 관리 화면으로 이동해줘. 현재 위치: 대시보드 (dashboard)",
+      "expected": "NAVIGATE_MENU",
+      "actual": "SCREEN_NAVIGATE",
+      "parsed_json": {
+        "intent": "screen_navigate",
+        "parameters": {
+          "target_screen": "미수 채권 연체 관리"
+        }
+      },
+      "is_correct": false,
+      "latency": 7.721664905548096,
+      "error": null
+    },
+    {
+      "index": 932,
+      "prompt": "에이텍엔지니어링 9월 청구서 3000000원으로 마감해서 발행해.",
+      "expected": "BILLING_REQUEST_CREATE",
+      "actual": "INVOICE_CREATE",
+      "parsed_json": {
+        "intent": "invoice_create",
+        "parameters": {
+          "client_name": "에이텍엔지니어링",
+          "billing_period": "9월",
+          "amount": "3000000"
+        }
+      },
+      "is_correct": false,
+      "latency": 10.125816822052002,
+      "error": null
+    },
+    {
+      "index": 153,
+      "prompt": "신규 거래처 등록해줘. 상호는 비젼테크, 대표자 김대표이고, 주소는 경기도 성남시 분당구. 사업자번호는 123-45-67890야.",
+      "expected": "CUSTOMER_CREATE",
+      "actual": "VENDOR_CREATE",
+      "parsed_json": {
+        "intent": "vendor_create",
+        "parameters": {
+          "상호": "비젼테크",
+          "대표자": "김대표",
+          "주소": "경기도 성남시 분당구",
+          "사업자번호": "123-45-67890"
+        }
+      },
+      "is_correct": false,
+      "latency": 8.816760063171387,
+      "error": null
+    },
+    {
+      "index": 273,
+      "prompt": "에이텍엔지니어링 10월 청구서 450000원으로 마감해서 발행해.",
+      "expected": "BILLING_REQUEST_CREATE",
+      "actual": "INVOICE_ISSUE",
+      "parsed_json": {
+        "intent": "invoice_issue",
+        "parameters": {
+          "client_name": "에이텍엔지니어링",
+          "billing_period": "10월",
+          "amount": 450000
+        }
+      },
+      "is_correct": false,
+      "latency": 10.05193042755127,
+      "error": null
+    },
+    {
+      "index": 33,
+      "prompt": "박영희 대리, 다음주 월요일부터 2026-11-10까지 오후반차 신청할게. 사유는 개인 사정이야.",
+      "expected": "VACATION_CREATE",
+      "actual": "LEAVE_APPLY",
+      "parsed_json": {
+        "intent": "leave_apply",
+        "parameters": {
+          "leave_type": "오후반차",
+          "start_date": "다음주 월요일",
+          "end_date": "2026-11-10",
+          "reason": "개인 사정"
+        }
+      },
+      "is_correct": false,
+      "latency": 16.659401178359985,
+      "error": null
+    },
+    {
+      "index": 393,
+      "prompt": "신규 거래처 등록해줘. 상호는 (주)가나건설, 대표자 이사장이고, 주소는 서울시 강남구 테헤란로 123. 사업자번호는 345-67-89012야.",
+      "expected": "CUSTOMER_CREATE",
+      "actual": "VENDOR_CREATE",
+      "parsed_json": {
+        "intent": "vendor_create",
+        "parameters": {
+          "vendor_name": "(주)가나건설",
+          "representative_name": "이사장",
+          "address": "서울시 강남구 테헤란로 123",
+          "business_registration_number": "345-67-89012"
+        }
+      },
+      "is_correct": false,
+      "latency": 11.30219030380249,
+      "error": null
+    },
+    {
+      "index": 933,
+      "prompt": "수리중 상태인 SJ-3219 장비 찾아줘.",
+      "expected": "ASSET_SEARCH",
+      "actual": "EQUIPMENT_SEARCH",
+      "parsed_json": {
+        "intent": "equipment_search",
+        "parameters": {
+          "equipment_id": "SJ-3219",
+          "status": "수리중"
+        }
+      },
+      "is_correct": false,
+      "latency": 5.402619361877441,
+      "error": null
+    },
+    {
+      "index": 513,
+      "prompt": "나 박영희인데, 2026-10-15에 오전반차 쓸거야. 집안 행사 때문임. 기안 올려줘.",
+      "expected": "VACATION_CREATE",
+      "actual": "LEAVE_REQUEST",
+      "parsed_json": {
+        "intent": "leave_request",
+        "parameters": {
+          "employee_name": "박영희",
+          "leave_date": "2026-10-15",
+          "leave_type": "오전반차",
+          "reason": "집안 행사"
+        }
+      },
+      "is_correct": false,
+      "latency": 11.537663221359253,
+      "error": null
+    },
+    {
+      "index": 813,
+      "prompt": "(주)가나건설 이천공장 현장에 안전센서 옵션 필수 장착으로 업데이트해.",
+      "expected": "SITE_OPTION_UPDATE",
+      "actual": "SPECIFICATION_UPDATE",
+      "parsed_json": {
+        "intent": "specification_update",
+        "parameters": {
+          "회사명": "(주)가나건설",
+          "현장명": "이천공장",
+          "업데이트_내용": "안전센서 옵션 필수 장착"
+        }
+      },
+      "is_correct": false,
+      "latency": 10.353609800338745,
+      "error": null
+    },
+    {
+      "index": 633,
+      "prompt": "SK하이닉스 이천공장 현장에 로지스틱스K 기사님 배차해줘. 단가는 200000원이고 EXCHANGE 건이야.",
+      "expected": "DISPATCH_CREATE_ORDER",
+      "actual": "DISPATCH_REQUEST",
+      "parsed_json": {
+        "intent": "dispatch_request",
+        "parameters": {
+          "resource": "로지스틱스K 기사님",
+          "location": "SK하이닉스 이천공장 현장",
+          "job_type": "EXCHANGE",
+          "unit_price": "200000원"
+        }
+      },
+      "is_correct": false,
+      "latency": 13.587824583053589,
+      "error": null
+    },
+    {
+      "index": 1053,
+      "prompt": "미수 채권 연체 관리의 업무 목적과 기본 조작 순서는 어떻게 됩니까? 메뉴 식별자: delinquency",
+      "expected": "",
+      "actual": "PROCESS_INFO_REQUEST",
+      "parsed_json": {
+        "intent": "process_info_request",
+        "parameters": {
+          "menu_identifier": "delinquency"
+        }
+      },
+      "is_correct": false,
+      "latency": 9.338667154312134,
+      "error": null
+    },
+    {
+      "index": 34,
+      "prompt": "배차번호 ORD-2610-002에 박기사 기사님 배정해. 폰번호 010-9876-5432, 차량번호 서울99사9876야.",
+      "expected": "DISPATCH_ASSIGN_DRIVER",
+      "actual": "DRIVER_ASSIGN",
+      "parsed_json": {
+        "intent": "driver_assign",
+        "parameters": {
+          "dispatch_number": "ORD-2610-002",
+          "driver_name": "박기사",
+          "driver_phone": "010-9876-5432",
+          "vehicle_number": "서울99사9876"
+        }
+      },
+      "is_correct": false,
+      "latency": 9.329040288925171,
+      "error": null
+    },
+    {
+      "index": 274,
+      "prompt": "신규 거래처 등록해줘. 상호는 에이텍엔지니어링, 대표자 김대표이고, 주소는 서울시 강남구 테헤란로 123. 사업자번호는 345-67-89012야.",
+      "expected": "CUSTOMER_CREATE",
+      "actual": "VENDOR_CREATE",
+      "parsed_json": {
+        "intent": "vendor_create",
+        "parameters": {
+          "vendor_name": "에이텍엔지니어링",
+          "representative_name": "김대표",
+          "address": "서울시 강남구 테헤란로 123",
+          "business_registration_number": "345-67-89012"
+        }
+      },
+      "is_correct": false,
+      "latency": 9.465237379074097,
+      "error": null
+    },
+    {
+      "index": 154,
+      "prompt": "정비팀장 주임이 S-45-001 고쳤음. 배터리 방전 교체 작업했고 O링 교체완료.",
+      "expected": "MAINTENANCE_CREATE",
+      "actual": "REPAIR_REPORT",
+      "parsed_json": {
+        "intent": "repair_report",
+        "parameters": {
+          "작업자": "정비팀장 주임",
+          "장비_ID": "S-45-001",
+          "작업_내용": [
+            "배터리 방전 교체",
+            "O링 교체"
+          ]
+        }
+      },
+      "is_correct": false,
+      "latency": 14.037595272064209,
+      "error": null
+    },
+    {
+      "index": 394,
+      "prompt": "고객사 목록에서 김대표 검색해줘.",
+      "expected": "CUSTOMER_SEARCH",
+      "actual": "SEARCH_CLIENT_LIST",
+      "parsed_json": {
+        "intent": "search_client_list",
+        "parameters": {
+          "search_field": "대표자명",
+          "search_value": "김대표"
+        }
+      },
+      "is_correct": false,
+      "latency": 7.956908464431763,
+      "error": null
+    },
+    {
+      "index": 514,
+      "prompt": "고객사 목록에서 123-45 검색해줘.",
+      "expected": "CUSTOMER_SEARCH",
+      "actual": "SEARCH_CLIENT_LIST",
+      "parsed_json": {
+        "intent": "search_client_list",
+        "parameters": {
+          "search_query": "123-45"
+        }
+      },
+      "is_correct": false,
+      "latency": 7.14766001701355,
+      "error": null
+    },
+    {
+      "index": 814,
+      "prompt": "S-45-001 출고 검수 통과(true) 처리해. 검수자는 이대리.",
+      "expected": "PDI_APPROVE",
+      "actual": "OUTGOING_INSPECTION_PASS",
+      "parsed_json": {
+        "intent": "outgoing_inspection_pass",
+        "parameters": {
+          "product_code": "S-45-001",
+          "pass_status": true,
+          "inspector_name": "이대리"
+        }
+      },
+      "is_correct": false,
+      "latency": 6.878540277481079,
+      "error": null
+    },
+    {
+      "index": 934,
+      "prompt": "장비 G-1001 수리 등록해. 담당자는 박주임이고, 내역은 유압 호스 누유 수리. 부품은 O링 썼어.",
+      "expected": "MAINTENANCE_CREATE",
+      "actual": "REPAIR_REGISTER",
+      "parsed_json": {
+        "intent": "repair_register",
+        "parameters": {
+          "equipment_id": "G-1001",
+          "responsible_person": "박주임",
+          "repair_details": "유압 호스 누유 수리",
+          "parts_used": "O링"
+        }
+      },
+      "is_correct": false,
+      "latency": 6.881496906280518,
+      "error": null
+    },
+    {
+      "index": 1054,
+      "prompt": "미수 채권 연체 관리에서 연체 기간 스코프 버튼 눌러줘. 현재 위치: 미수 채권 연체 관리 (delinquency), 노출 버튼: [연체 기간 스코프, 연체 원금 및 이자, 독촉 및 면담 이력, 장비 가동 정지 경고, 법적 최고장 PDF 생성, 연체 탕감 결재 상신, 채권 마감 및 법적 이관]",
+      "expected": "CLICK_ELEMENT",
+      "actual": "SCOPE_SELECT",
+      "parsed_json": {
+        "intent": "scope_select",
+        "parameters": {
+          "module": "미수 채권 연체 관리",
+          "scope_button": "연체 기간 스코프"
+        }
+      },
+      "is_correct": false,
+      "latency": 8.132209777832031,
+      "error": null
+    },
+    {
+      "index": 634,
+      "prompt": "나 박영희인데, 2026-10-10에 오후반차 쓸거야. 집안 행사 때문임. 기안 올려줘.",
+      "expected": "VACATION_CREATE",
+      "actual": "LEAVE_REQUEST",
+      "parsed_json": {
+        "intent": "leave_request",
+        "parameters": {
+          "requester_name": "박영희",
+          "leave_date": "2026-10-10",
+          "leave_type": "오후반차",
+          "reason": "집안 행사"
+        }
+      },
+      "is_correct": false,
+      "latency": 12.688427448272705,
+      "error": null
+    },
+    {
+      "index": 35,
+      "prompt": "장비 G-1002 수리 등록해. 담당자는 정비팀장이고, 내역은 배터리 방전 교체. 부품은 O링 썼어.",
+      "expected": "MAINTENANCE_CREATE",
+      "actual": "REPAIR_CREATE",
+      "parsed_json": {
+        "intent": "repair_create",
+        "parameters": {
+          "equipment_id": "G-1002",
+          "assigned_to": "정비팀장",
+          "repair_details": "배터리 방전 교체",
+          "parts_used": "O링"
+        }
+      },
+      "is_correct": false,
+      "latency": 7.072185039520264,
+      "error": null
+    },
+    {
+      "index": 155,
+      "prompt": "S-45-001 출고 검수 통과(false) 처리해. 검수자는 김과장.",
+      "expected": "PDI_APPROVE",
+      "actual": "INSPECTION_STATUS_UPDATE",
+      "parsed_json": {
+        "intent": "inspection_status_update",
+        "parameters": {
+          "item_id": "S-45-001",
+          "is_passed": "false",
+          "inspector_name": "김과장"
+        }
+      },
+      "is_correct": false,
+      "latency": 8.942074060440063,
+      "error": null
+    },
+    {
+      "index": 275,
+      "prompt": "메모: 신규 출고건. SK하이닉스 이천공장로 200000원 배차 등록해. 작업 타입은 OUTBOUND.",
+      "expected": "DISPATCH_CREATE_ORDER",
+      "actual": "DISPATCH_CREATE",
+      "parsed_json": {
+        "intent": "dispatch_create",
+        "parameters": {
+          "client_name": "SK하이닉스 이천공장",
+          "amount": "200000원",
+          "operation_type": "OUTBOUND"
+        }
+      },
+      "is_correct": false,
+      "latency": 8.308311223983765,
+      "error": null
+    },
+    {
+      "index": 515,
+      "prompt": "수리중 상태인 G-1001 장비 찾아줘.",
+      "expected": "ASSET_SEARCH",
+      "actual": "EQUIPMENT_SEARCH",
+      "parsed_json": {
+        "intent": "equipment_search",
+        "parameters": {
+          "equipment_id": "G-1001",
+          "status": "수리중"
+        }
+      },
+      "is_correct": false,
+      "latency": 6.090531826019287,
+      "error": null
+    },
+    {
+      "index": 395,
+      "prompt": "이천공장 현장 요구사항에 방폭작업 추가해줘.",
+      "expected": "SITE_OPTION_UPDATE",
+      "actual": "REQUIREMENT_UPDATE",
+      "parsed_json": {
+        "intent": "requirement_update",
+        "parameters": {
+          "site_name": "이천공장",
+          "requirement_to_add": "방폭작업"
+        }
+      },
+      "is_correct": false,
+      "latency": 9.21342420578003,
+      "error": null
+    },
+    {
+      "index": 635,
+      "prompt": "G-1002 출고 검수 통과(false) 처리해. 검수자는 김과장.",
+      "expected": "PDI_APPROVE",
+      "actual": "INSPECTION_UPDATE",
+      "parsed_json": {
+        "intent": "inspection_update",
+        "parameters": {
+          "item_id": "G-1002",
+          "inspection_passed": false,
+          "inspector": "김과장"
+        }
+      },
+      "is_correct": false,
+      "latency": 9.562008619308472,
+      "error": null
+    }
+  ]
+}

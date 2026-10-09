@@ -351,8 +351,8 @@ async function checkOllamaStatus(forceRefresh = false) {
   return new Promise((resolve) => {
     const req = http.request({
       hostname: '127.0.0.1',
-      port: 11434,
-      path: '/api/tags',
+      port: 8080,
+      path: '/v1/models',
       method: 'GET',
       timeout: 2000
     }, (res) => {
@@ -361,7 +361,8 @@ async function checkOllamaStatus(forceRefresh = false) {
       res.on('end', () => {
         try {
           const parsed = JSON.parse(body);
-          const models = (parsed.models || []).map(m => m.name);
+          const modelsList = parsed.models || parsed.data || [];
+          const models = modelsList.map(m => m.name || m.id);
           if (models.length > 0) {
             // 현재 선택된 모델이 설치 목록에 없으면 설치된 모델 중 적절한 것으로 자동 선택
             if (!models.includes(selectedOllamaModel)) {
@@ -408,40 +409,68 @@ async function checkOllamaStatus(forceRefresh = false) {
 
 // 자연어 의도 파싱 (Ollama 연동 또는 내장 도메인 규칙 엔진 폴백)
 async function parseInstructionIntent(instruction, requestedMode = 'AUTO') {
-  const ollama = await checkOllamaStatus();
-  
-  // 기본 키워드 기반 규칙 엔진
   let detectedModule = 'GENERAL';
   let suggestedMode = requestedMode;
   let actionSummary = instruction;
+  let ollamaUsed = false;
+  let parameters = {};
 
-  if (/(배차|운송|기사|용차|화물|차량|상차|하차)/.test(instruction)) {
-    detectedModule = 'DISPATCH';
-    if (suggestedMode === 'AUTO') suggestedMode = 'BROWSER';
-  } else if (/(청구|세금계산서|계산서|미수금|수납|입금|대사|매출)/.test(instruction)) {
-    detectedModule = 'BILLING';
-    if (suggestedMode === 'AUTO') suggestedMode = 'DIRECT_QUERY';
-  } else if (/(입고|출고|검수|반납|자산|장비|재고|보유)/.test(instruction)) {
-    detectedModule = 'INVENTORY';
-    if (suggestedMode === 'AUTO') suggestedMode = 'DIRECT_QUERY';
-  } else if (/(계약|임대|대차|연장|해지|단가)/.test(instruction)) {
-    detectedModule = 'CONTRACT';
-    if (suggestedMode === 'AUTO') suggestedMode = 'BROWSER';
-  } else if (/(인쇄|라벨|프린트|출력|바코드|qr)/i.test(instruction)) {
-    detectedModule = 'LOCAL_ACTION';
-    if (suggestedMode === 'AUTO') suggestedMode = 'LOCAL_ACTION';
-  } else if (/(보고서|현황|통계|집계|분석)/.test(instruction)) {
-    detectedModule = 'REPORT';
-    if (suggestedMode === 'AUTO') suggestedMode = 'DIRECT_QUERY';
-  } else {
-    if (suggestedMode === 'AUTO') suggestedMode = 'DIRECT_QUERY';
+  try {
+    const payload = {
+      model: 'ebro-agent',
+      messages: [
+        {
+          role: "system",
+          content: "너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.\n사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:\n{\n  \"intent\": \"파악된 업무 의도 (예: vacation_create, contract_create 등)\",\n  \"parameters\": {\n    \"추출된_변수명\": \"값\"\n  }\n}\n일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해."
+        },
+        {
+          role: "user",
+          content: instruction
+        }
+      ],
+      response_format: { type: "json_object" },
+      temperature: 0.1
+    };
+    
+    broadcastStudioLog('INFO', `LLM 호출 준비 완료: ${instruction}`);
+    
+    const response = await fetch('http://127.0.0.1:8080/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    
+    if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+    }
+    
+    const res = await response.json();
+    broadcastStudioLog('INFO', `LLM 응답 수신 완료`);
+
+    if (res && res.choices && res.choices.length > 0) {
+      const content = res.choices[0].message.content;
+      broadcastStudioLog('INFO', `LLM 원본 응답: ${content}`);
+      
+      const parsed = JSON.parse(content);
+      if (parsed.intent) {
+        detectedModule = parsed.intent.toUpperCase();
+        parameters = parsed.parameters || {};
+        ollamaUsed = true;
+        actionSummary = `[AI 분석됨] 의도: ${parsed.intent}, 파라미터: ${JSON.stringify(parameters)}`;
+        if (suggestedMode === 'AUTO') suggestedMode = 'DIRECT_QUERY';
+      }
+    }
+  } catch (e) {
+    console.error('LLM Inference Error:', e);
+    broadcastStudioLog('ERROR', `LLM 추론 실패: ${e.message}`);
   }
 
   return {
     module: detectedModule,
     mode: suggestedMode,
     summary: actionSummary,
-    ollamaUsed: false
+    ollamaUsed: ollamaUsed,
+      parameters: parameters
   };
 }
 
@@ -500,9 +529,16 @@ async function triggerWorker() {
 async function executeTask(task) {
   try {
     task.status = 'RUNNING';
-    task.progress = 10;
-    task.currentStep = '1단계: 자연어 업무 의도 분석 및 도메인 엔티티 식별';
-    appendTaskLog(task, `작업 시작 (모드: ${task.mode}, 도메인: ${task.module})`);
+      task.progress = 10;
+      task.currentStep = '1단계: 자연어 업무 의도 분석 및 도메인 엔티티 식별';
+      
+      const intentResult = await parseInstructionIntent(task.instruction, task.mode);
+      task.module = intentResult.module;
+      
+      appendTaskLog(task, `작업 시작 (모드: ${task.mode}, 도메인/의도: ${task.module})`);
+      if (intentResult.parameters && Object.keys(intentResult.parameters).length > 0) {
+        appendTaskLog(task, `[AI 추출 파라미터] ${JSON.stringify(intentResult.parameters)}`);
+      }
     broadcastEvent('TASK_UPDATED', task);
 
     const isBrowserTask = (task.mode === 'BROWSER' || task.module === 'CONTRACT' || task.module === 'DISPATCH' || task.module === 'INVENTORY');

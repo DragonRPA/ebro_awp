@@ -69,8 +69,8 @@ def main():
         logging_steps=10,
         learning_rate=2e-4,
         weight_decay=0.001,
-        fp16=False,
-        bf16=True, # GPU가 지원하지 않으면 fp16=True, bf16=False 로 변경
+        fp16=True,
+        bf16=False, # GPU가 지원하지 않으면 fp16=True, bf16=False 로 변경
         max_grad_norm=0.3,
         max_steps=-1,
         # warmup_ratio=0.03,

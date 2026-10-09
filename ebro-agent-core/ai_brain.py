@@ -17,8 +17,8 @@ if sys.platform == 'win32':
     except Exception:
         pass
 
-OLLAMA_API_URL = "http://127.0.0.1:11434/api/chat"
-DEFAULT_MODEL = "ebro-qwen:3b"
+OLLAMA_API_URL = "http://127.0.0.1:8080/v1/chat/completions"
+DEFAULT_MODEL = "ebro-agent-q4_k_m.gguf"
 FALLBACK_MODEL = "qwen2.5:0.5b"
 
 # eBro ERP 메뉴 매핑 사전 (SSOT)
@@ -389,7 +389,7 @@ class AiBrain:
 
     async def check_ollama_available(self) -> bool:
         try:
-            res = await self.http_client.get("http://127.0.0.1:11434/api/tags")
+            res = await self.http_client.get("http://127.0.0.1:8080/v1/models")
             return res.status_code == 200
         except Exception:
             return False
@@ -475,16 +475,14 @@ class AiBrain:
                 {"role": "user", "content": f"{prompt}{context_str}"}
             ],
             "stream": False,
-            "format": "json",
-            "options": {
-                "temperature": 0.1,
-                "num_predict": 256
-            }
+            "response_format": {"type": "json_object"},
+            "temperature": 0.1,
+            "max_tokens": 256
         }
 
-        res = await self.http_client.post(OLLAMA_API_URL, json=payload)
+        res = await self.http_client.post(OLLAMA_API_URL, json=payload, timeout=15.0)
         if res.status_code == 200:
-            content = res.json().get("message", {}).get("content", "").strip()
+            content = res.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
             match = re.search(r'\{.*\}', content, re.DOTALL)
             if match:
                 return json.loads(match.group(0))
@@ -601,12 +599,13 @@ class AiBrain:
                         {"role": "user", "content": f"[통화 녹취록]\n{text}"}
                     ],
                     "stream": False,
-                    "format": "json",
-                    "options": {"temperature": 0.1, "num_predict": 300}
+                    "response_format": {"type": "json_object"},
+                    "temperature": 0.1,
+                    "max_tokens": 300
                 }
                 res = await self.http_client.post(OLLAMA_API_URL, json=payload, timeout=15.0)
                 if res.status_code == 200:
-                    content = res.json().get("message", {}).get("content", "").strip()
+                    content = res.json().get("choices", [{}])[0].get("message", {}).get("content", "").strip()
                     match = re.search(r'\{.*\}', content, re.DOTALL)
                     if match:
                         parsed = json.loads(match.group(0))

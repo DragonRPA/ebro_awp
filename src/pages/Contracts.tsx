@@ -2412,7 +2412,7 @@ export const Contracts: React.FC = () => {
             <div className="card" style={{ margin: 0, height: '100%' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <h3 className="card-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Wrench size={16} /> 체결 자산 목록 ({activeContractAssets.length}대)
+                  <Wrench size={16} /> 체결 자산 (운용 {activeContractAssets.filter(ca => ca.status !== 'RETURNED').length}대 / 누적 {activeContractAssets.length}대)
                 </h3>
                 {canSave && canModifyContract(activeContract) && activeContract.status !== 'COMPLETED' && (
                   <div style={{ display: 'flex', gap: '6px' }}>
@@ -2437,13 +2437,12 @@ export const Contracts: React.FC = () => {
                       </tr>
                     ) : (
                       <tr style={{ backgroundColor: 'var(--bg-app)' }}>
-                        <th style={{ whiteSpace: 'nowrap' }}>자산번호</th>
-                        <th style={{ whiteSpace: 'nowrap' }}>모델명</th>
-                        <th style={{ whiteSpace: 'nowrap' }}>월 렌탈료</th>
-                        <th style={{ whiteSpace: 'nowrap' }}>일 렌탈료</th>
+                        <th style={{ whiteSpace: 'nowrap' }}>자산 정보</th>
+                        <th style={{ whiteSpace: 'nowrap' }}>상태 및 기간</th>
+                        <th style={{ whiteSpace: 'nowrap' }}>단가 (월/일)</th>
                         <th style={{ whiteSpace: 'nowrap' }}>기여액 <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 400 }}>(기수)</span></th>
-                        <th style={{ whiteSpace: 'nowrap' }}>월 청구 예정 <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 400 }}>(미수)</span></th>
-                        <th style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>수정</th>
+                        <th style={{ whiteSpace: 'nowrap' }}>청구 예정 <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 400 }}>(미수)</span></th>
+                        <th style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>관리 액션</th>
                       </tr>
                     )}
                   </thead>
@@ -2479,17 +2478,35 @@ export const Contracts: React.FC = () => {
                       const monthlyScheduled = ca.monthlyRentalFee || 0;
 
                       return (
-                        <tr key={ca.id}>
-                          <td style={{ whiteSpace: 'nowrap' }}><strong style={{ color: 'var(--primary)' }}>{asset?.assetNo || '미지정'}</strong></td>
-                          <td style={{ whiteSpace: 'nowrap' }}>{asset?.modelName || ca.expectedModel}</td>
+                        <tr key={ca.id} style={{ opacity: ca.status === 'RETURNED' ? 0.6 : 1 }}>
                           <td style={{ whiteSpace: 'nowrap' }}>
-                            {isZero ? (
-                              <span style={{ color: 'var(--danger)', fontWeight: 700 }}>0원 (미입력)</span>
-                            ) : (
-                              <span>{ca.monthlyRentalFee.toLocaleString()}원</span>
-                            )}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <strong style={{ color: 'var(--primary)' }}>{asset?.assetNo || '미지정'}</strong>
+                              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{asset?.modelName || ca.expectedModel}</span>
+                            </div>
                           </td>
-                          <td style={{ whiteSpace: 'nowrap' }}>{(ca.dailyRentalFee || 0).toLocaleString()}원</td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                              {ca.status === 'RETURNED' ? (
+                                <span style={{ backgroundColor: '#e5e7eb', color: '#374151', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>🚫 반납완료</span>
+                              ) : (
+                                <span style={{ backgroundColor: '#dcfce3', color: '#166534', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>🟢 운용중</span>
+                              )}
+                              <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+                                {ca.startDate ? ca.startDate.slice(2).replace(/-/g, '.') : ''} ~ {ca.status === 'RETURNED' ? (ca.actualReturnDate ? ca.actualReturnDate.slice(2).replace(/-/g, '.') : (ca.endDate ? ca.endDate.slice(2).replace(/-/g, '.') : '미상')) : (ca.endDate ? ca.endDate.slice(2).replace(/-/g, '.') : '미정')}
+                              </span>
+                            </div>
+                          </td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              {isZero ? (
+                                <span style={{ color: 'var(--danger)', fontWeight: 700 }}>0원 (미입력)</span>
+                              ) : (
+                                <strong style={{ color: 'var(--text-primary)' }}>{ca.monthlyRentalFee.toLocaleString()}원</strong>
+                              )}
+                              <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>일 {(ca.dailyRentalFee || 0).toLocaleString()}원</span>
+                            </div>
+                          </td>
                           <td style={{ whiteSpace: 'nowrap' }}>
                             {/* 기수: 실발행 청구 누계 — 이것만이 기여로 인정되는 확정 성과 */}
                             {accrualContribution > 0 ? (
@@ -2500,29 +2517,37 @@ export const Contracts: React.FC = () => {
                           </td>
                           <td style={{ whiteSpace: 'nowrap' }}>
                             {/* 미수: 계획된 정기 청구 예정액 — 기여 아님, 단순 약정 참고 */}
-                            <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-                              {monthlyScheduled > 0 ? `${monthlyScheduled.toLocaleString()}원` : '-'}
-                            </span>
+                            {ca.status === 'RETURNED' ? (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>청구 종결</span>
+                            ) : (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+                                {monthlyScheduled > 0 ? `${monthlyScheduled.toLocaleString()}원` : '-'}
+                              </span>
+                            )}
                           </td>
                           <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                            {canSave && canModifyContract(activeContract) && (
-                              <div style={{ display: 'flex', gap: '4px' }}>
-                                <button className="btn-secondary" onClick={() => handleOpenFeeModal(ca)} style={{ padding: '2px 6px', fontSize: '10.5px' }}>
-                                  <Edit3 size={11} /> 렌탈료 수정
-                                </button>
-                                <button className="btn-secondary" onClick={() => {
-                                  setEditCaForPeriod(ca);
-                                  setCaPeriodStart(ca.startDate || '');
-                                  setCaPeriodEnd(ca.endDate || '');
-                                  setCaPeriodReason('');
-                                  setShowCaPeriodModal(true);
-                                }} style={{ padding: '2px 6px', fontSize: '10.5px' }}>
-                                  <Edit3 size={11} /> 기간 수정
-                                </button>
-                                <button className="btn-secondary" onClick={() => handleOpenRelocateModal(ca)} style={{ padding: '2px 6px', fontSize: '10.5px' }} title="동일 고객 타 현장으로 장비 이동">
-                                  <Truck size={11} /> 현장 이동
-                                </button>
-                              </div>
+                            {ca.status === 'RETURNED' ? (
+                              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>조작불가</span>
+                            ) : (
+                              canSave && canModifyContract(activeContract) && (
+                                <div style={{ display: 'flex', gap: '4px' }}>
+                                  <button className="btn-secondary" onClick={() => handleOpenFeeModal(ca)} style={{ padding: '2px 6px', fontSize: '10.5px' }}>
+                                    <Edit3 size={11} /> 렌탈료 수정
+                                  </button>
+                                  <button className="btn-secondary" onClick={() => {
+                                    setEditCaForPeriod(ca);
+                                    setCaPeriodStart(ca.startDate || '');
+                                    setCaPeriodEnd(ca.endDate || '');
+                                    setCaPeriodReason('');
+                                    setShowCaPeriodModal(true);
+                                  }} style={{ padding: '2px 6px', fontSize: '10.5px' }}>
+                                    <Edit3 size={11} /> 기간 수정
+                                  </button>
+                                  <button className="btn-secondary" onClick={() => handleOpenRelocateModal(ca)} style={{ padding: '2px 6px', fontSize: '10.5px' }} title="동일 고객 타 현장으로 장비 이동">
+                                    <Truck size={11} /> 현장 이동
+                                  </button>
+                                </div>
+                              )
                             )}
                           </td>
                         </tr>
