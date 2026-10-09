@@ -649,28 +649,7 @@ export const Customers: React.FC = () => {
   };
 
   
-  const handleForceEditMasterName = async (cs: CustomerSite) => {
-    if (!cs.siteMasterId) {
-      showErrorModal('구조 업데이트 전 데이터입니다. 초기 DB 세팅을 다시 실행하거나 데이터를 확인하세요.');
-      return;
-    }
-    const currentMaster = db.siteMasters.find(m => m.id === cs.siteMasterId);
-    if (!currentMaster) return;
-
-    const newName = window.prompt(`[개발자/관리자 전용]\n현재 모든 고객사 및 계약에 표시되는 원본 현장명(${currentMaster.name})을 글로벌하게 수정하시겠습니까?\n(주문/명세서의 주소록까지 싹 바뀝니다)`, currentMaster.name);
-    if (newName && newName.trim() && newName.trim() !== currentMaster.name) {
-      const confirmed = window.confirm(`진짜로 [ ${newName.trim()} ](으)로 덮어쓰시겠습니까?\n이 현장을 참조하는 모든 계약서의 현장명이 일괄 변경됩니다.`);
-      if (confirmed) {
-        db.updateRow<SiteMaster>('siteMasters', cs.siteMasterId, { name: newName.trim(), updatedAt: new Date().toISOString() });
-        if (db.isSupabaseConnected()) {
-           await Promise.all(db.pendingWrites);
-           db.pendingWrites = [];
-        }
-        refreshAllData();
-      }
-    }
-  };
-
+  
   const handleOpenEditSite = (cs: CustomerSite) => {
 
     let contactsList: SiteContactPerson[] = [];
@@ -1795,16 +1774,7 @@ const handleDeleteAccount = async (accId: string) => {
                                 <Circle size={10} fill={hasActiveContracts ? '#22c55e' : '#eab308'} strokeWidth={0} />
                                 
                                 {cs.name}
-                                {isDeveloper && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleForceEditMasterName(cs)}
-                                    style={{ background: '#f59e0b', color: '#fff', border: 'none', borderRadius: '4px', padding: '1px 4px', fontSize: '10px', cursor: 'pointer', marginLeft: '4px' }}
-                                    title="개발자 전용: 마스터 이름 글로벌 수정 (모든 연관 계약 일괄 변경)"
-                                  >
-                                    🛠️ 마스터 수정
-                                  </button>
-                                )}
+                                
 
                                 <span style={{fontSize: '11px', color: 'var(--text-muted)', fontWeight: 400}}>
                                   (계약 {activeContracts.length}건 / {activeAssetCount}대)
