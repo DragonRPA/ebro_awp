@@ -13,6 +13,21 @@ export interface MenuGroupConfig {
 // 전사 전체 메뉴 그룹 및 항목 통합 관리 (Single Source of Truth)
 export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
   {
+    id: 'grp_distribution',
+    name: '영업-유통',
+    items: [
+      { id: 'trade_products', name: '상품 등록 및 관리' },
+      { id: 'trade_purchases', name: '구매 및 입고' },
+      { id: 'trade_contracts', name: '유통 수주(계약)' },
+      { id: 'trade_outbounds', name: '출고 요청' },
+      { id: 'courier_dispatch', name: '택배 배송 관리' },
+      { id: 'trade_billing', name: '유통 청구 및 명세' },
+      { id: 'trade_returns', name: '환입 및 반품' },
+      { id: 'trade_profitability', name: '수익성 관리' }
+    ]
+  },
+
+  {
     id: 'grp_approval',
     name: '결재 센터',
     items: [

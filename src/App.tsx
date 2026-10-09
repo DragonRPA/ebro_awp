@@ -37,6 +37,14 @@ import { LandingPage } from './pages/LandingPage';
 
 // 페이지 컴포넌트 임포트 (SSOT 언더바 파일명 통일)
 import { Dashboard } from './pages/Dashboard';
+import { TradeProductsPage } from './pages/distribution/TradeProductsPage';
+import { TradePurchasesPage } from './pages/distribution/TradePurchasesPage';
+import { TradeContractsPage } from './pages/distribution/TradeContractsPage';
+import { TradeOutboundPage } from './pages/distribution/TradeOutboundPage';
+import { CourierDispatchPage } from './pages/distribution/CourierDispatchPage';
+import { TradeBillingPage } from './pages/distribution/TradeBillingPage';
+import { TradeReturnsPage } from './pages/distribution/TradeReturnsPage';
+import { TradeProfitabilityPage } from './pages/distribution/TradeProfitabilityPage';
 import { PrintQueueManager } from './pages/PrintQueueManager';
 import { UsersPermissions } from './pages/users_permissions';
 import { Customers } from './pages/Customers';
