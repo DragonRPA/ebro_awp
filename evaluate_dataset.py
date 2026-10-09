@@ -8,7 +8,7 @@ import re
 SYSTEM_PROMPT = """너는 eBro 시스템의 업무 의도 파악 및 파라미터 추출 에이전트야.
 사용자의 자연어 요청을 분석해서 아래 JSON 형식으로만 응답해:
 {
-  "intent": "파악된 업무 의도 (예: vacation_create, contract_create 등)",
+  "intent": "파악된 업무 의도. 반드시 다음 중 하나만 선택해: [asset_search, billing_request_create, click_element, contract_create, customer_create, customer_search, dispatch_assign_driver, dispatch_create_order, maintenance_create, navigate_menu, pdi_approve, site_option_update, vacation_create]",
   "parameters": {
     "추출된_변수명": "값"
   }
@@ -19,7 +19,8 @@ async def send_request(session, prompt, expected_intent, index):
     payload = {
         'model': 'ebro-agent',
         'messages': [
-            {'role': 'user', 'content': f'{SYSTEM_PROMPT}\n\n{prompt}'}
+            {'role': 'system', 'content': SYSTEM_PROMPT},
+            {'role': 'user', 'content': prompt}
         ],
         'response_format': {'type': 'json_object'},
         'temperature': 0.1
@@ -89,6 +90,8 @@ async def main():
                 user_match = re.search(r'<start_of_turn>user\n(.*?)<end_of_turn>', text, re.DOTALL)
                 if not user_match: continue
                 prompt = user_match.group(1).strip()
+                if '일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.' in prompt:
+                    prompt = prompt.split('일반적인 대화나 설명은 일절 출력하지 말고 오직 JSON만 반환해.')[-1].strip()
                 
                 # Extract expected JSON
                 json_match = re.search(r'```json\n(.*?)\n```', text, re.DOTALL)

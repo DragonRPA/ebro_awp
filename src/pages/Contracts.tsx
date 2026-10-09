@@ -2247,19 +2247,7 @@ export const Contracts: React.FC = () => {
                     <div style={{ fontSize: '12.5px', color: 'var(--text-main)', fontWeight: 600 }}>
                       {m.isPackageSent ? '고객사 이메일 발송 완료' : '고객사 서류 미발송 (발송 필요)'}
                     </div>
-                    {!m.isPackageSent && (
-                      <button
-                        type="button"
-                        className="btn-primary"
-                        onClick={() => {
-                          setBundleTargetContractId(activeContract.id);
-                          setShowBundleModal(true);
-                        }}
-                        style={{ padding: '4px 8px', fontSize: '11px', marginTop: '2px', alignSelf: 'flex-start' }}
-                      >
-                        계약서패키지 지금 발송 ➔
-                      </button>
-                    )}
+                    
                   </div>
                 </div>
               </div>
@@ -3008,9 +2996,31 @@ export const Contracts: React.FC = () => {
               </label>
 
               {!modIsOpen && (
-                <div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <label>변경 만료일 *</label>
-                  <input type="date" value={modNewEndDate} onChange={e => setModNewEndDate(e.target.value)} required style={{ width: '100%', padding: '8px' }} />
+                  <input type="date" value={modNewEndDate} onChange={e => setModNewEndDate(e.target.value)} required style={{ width: '100%', padding: '8px', border: '1px solid var(--border-color)', borderRadius: '4px' }} />
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button type="button" onClick={() => {
+                      const d = new Date(modNewEndDate || new Date().toISOString().split('T')[0]);
+                      d.setMonth(d.getMonth() - 2);
+                      setModNewEndDate(d.toISOString().split('T')[0]);
+                    }} style={{ flex: 1, padding: '4px', fontSize: '11px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer' }}>-2개월</button>
+                    <button type="button" onClick={() => {
+                      const d = new Date(modNewEndDate || new Date().toISOString().split('T')[0]);
+                      d.setMonth(d.getMonth() - 1);
+                      setModNewEndDate(d.toISOString().split('T')[0]);
+                    }} style={{ flex: 1, padding: '4px', fontSize: '11px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer' }}>-1개월</button>
+                    <button type="button" onClick={() => {
+                      const d = new Date(modNewEndDate || new Date().toISOString().split('T')[0]);
+                      d.setMonth(d.getMonth() + 1);
+                      setModNewEndDate(d.toISOString().split('T')[0]);
+                    }} style={{ flex: 1, padding: '4px', fontSize: '11px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer' }}>+1개월</button>
+                    <button type="button" onClick={() => {
+                      const d = new Date(modNewEndDate || new Date().toISOString().split('T')[0]);
+                      d.setMonth(d.getMonth() + 2);
+                      setModNewEndDate(d.toISOString().split('T')[0]);
+                    }} style={{ flex: 1, padding: '4px', fontSize: '11px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '4px', cursor: 'pointer' }}>+2개월</button>
+                  </div>
                 </div>
               )}
 
