@@ -4,6 +4,7 @@ import './index.css'
 import App from './App.tsx'
 import { initializeHindsightTracker } from './utils/hindsightTracker'
 import { AppProvider } from './context/AppContext.tsx'
+import { TradeProvider } from './context/TradeContext.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
 import { db } from './services/db'
 
@@ -13,7 +14,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary fallbackTitle="?쒖뒪???쇱떆 ?ㅻ쪟 蹂듦뎄">
       <AppProvider>
-        <App />
+        <TradeProvider><App /></TradeProvider>
       </AppProvider>
     </ErrorBoundary>
   </StrictMode>,

@@ -6981,3 +6981,117 @@ if (typeof window !== 'undefined') (window as any).__DB__ = db;
 
 
 
+
+
+// ==========================================
+// 유통 영업 (Trade & Distribution) 스키마
+// ==========================================
+
+export interface TradeProduct {
+  id: string;
+  skuCode: string;
+  name: string;
+  category: string;
+  status: 'ACTIVE' | 'DISCONTINUED';
+  standardPrice: number;
+  cogsMethod: 'FIFO' | 'MOVING_AVG';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TradePurchase {
+  id: string;
+  vendorId: string;
+  orderDate: string;
+  status: 'ORDERED' | 'PARTIAL_RECEIVED' | 'RECEIVED';
+  totalAmount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TradePurchaseItem {
+  id: string;
+  purchaseId: string;
+  productId: string;
+  orderQty: number;
+  receivedQty: number;
+  unitCost: number;
+}
+
+export interface TradeInventoryLot {
+  id: string;
+  purchaseId: string;
+  productId: string;
+  initialQty: number;
+  remainingQty: number;
+  unitCost: number;
+  createdAt: string;
+}
+
+export interface TradeSalesOrder {
+  id: string;
+  customerId: string;
+  orderDate: string;
+  status: 'PENDING' | 'SHIPPED' | 'DELIVERED' | 'RETURNED';
+  totalSalesAmount: number;
+  totalCogsAmount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TradeSalesOrderLine {
+  id: string;
+  orderId: string;
+  productId: string;
+  qty: number;
+  unitPrice: number;
+  unitCogs: number;
+  createdAt: string;
+}
+
+export interface TradeOutbound {
+  id: string;
+  orderId: string;
+  status: 'REQUESTED' | 'ALLOCATED' | 'PACKED' | 'SHIPPED';
+  courierName?: string;
+  trackingNumber?: string;
+  shippedAt?: string;
+  createdAt: string;
+}
+
+export interface TradeBilling {
+  id: string;
+  customerId: string;
+  billingMonth: string;
+  totalAmount: number;
+  status: 'DRAFT' | 'ISSUED' | 'PAID';
+  createdAt: string;
+}
+
+export interface TradeReturn {
+  id: string;
+  orderLineId: string;
+  returnDate: string;
+  qty: number;
+  condition: 'SELLABLE' | 'DEFECTIVE';
+  refundAmount: number;
+  createdAt: string;
+}
+
+export interface TradeCogsLedger {
+  id: string;
+  orderLineId: string;
+  lotId: string;
+  deductedQty: number;
+  cogsAmount: number;
+  createdAt: string;
+}
+
+export interface TradeInventoryAdjustment {
+  id: string;
+  productId: string;
+  warehouseId: string;
+  adjustQty: number;
+  reason: string;
+  createdAt: string;
+}
