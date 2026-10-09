@@ -10034,7 +10034,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         const dDate = d.loadingDate || d.scheduledDate || d.requestDate || d.createdAt.split('T')[0];
         const matchYm = dDate.startsWith(settlementYm);
         const matchStatus = d.reconciliationStatus === 'RECONCILED' || d.reconciliationStatus === 'MATCHED';
-        const matchComp = !transportCompanyId || d.transportCompany === transportCompanyId;
+        const tcObj = transportCompanyId ? db.transportCompanies.find(c => c.id === transportCompanyId) : null;
+        const matchComp = !transportCompanyId || d.transportCompany === tcObj?.name || d.transportCompany === transportCompanyId; // 💡 FIX: d.transportCompany가 name이거나 id일 수 있으므로 모두 허용 (논리 충돌 버그 수정)
         return matchYm && matchStatus;
       });
 
