@@ -3166,6 +3166,59 @@ export const Contracts: React.FC = () => {
                   ))}
                 </select>
               </div>
+              {/* 양수 현장 및 담당자 선택 영역 추가 */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>양수 현장 선택 *</label>
+                  <select
+                    value={succSiteId}
+                    onChange={e => setSuccSiteId(e.target.value)}
+                    required
+                    disabled={!succCustId}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      fontSize: '12.5px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: succCustId ? 'var(--bg-input, var(--bg-card))' : 'var(--bg-app)',
+                      color: succCustId ? 'var(--text-primary)' : 'var(--text-muted)'
+                    }}
+                  >
+                    <option value="">{!succCustId ? '고객사를 먼저 선택하세요' : '-- 양수 현장 선택 --'}</option>
+                    {db.sites.filter(s => s.customerId === succCustId).map(s => (
+                      <option key={s.id} value={s.id}>{s.name} ({s.address || '주소 미기재'})</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>양수 현장 담당자</label>
+                  <select
+                    value={succContactId}
+                    onChange={e => setSuccContactId(e.target.value)}
+                    disabled={!succSiteId && !succCustId}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      fontSize: '12.5px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: (succSiteId || succCustId) ? 'var(--bg-input, var(--bg-card))' : 'var(--bg-app)',
+                      color: (succSiteId || succCustId) ? 'var(--text-primary)' : 'var(--text-muted)'
+                    }}
+                  >
+                    <option value="">-- 미지정 --</option>
+                    {db.contacts
+                      .filter(c => c.customerId === succCustId)
+                      .map(c => (
+                        <option key={c.id} value={c.id}>{c.name} ({c.position || '직책미상'})</option>
+                      ))
+                    }
+                  </select>
+                </div>
+              </div>
+
 
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>승계 자산 선택 (미선택 시 전체 승계)</label>

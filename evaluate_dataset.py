@@ -19,8 +19,7 @@ async def send_request(session, prompt, expected_intent, index):
     payload = {
         'model': 'ebro-agent',
         'messages': [
-            {'role': 'system', 'content': SYSTEM_PROMPT},
-            {'role': 'user', 'content': prompt}
+            {'role': 'user', 'content': f'{SYSTEM_PROMPT}\n\n{prompt}'}
         ],
         'response_format': {'type': 'json_object'},
         'temperature': 0.1
