@@ -116,8 +116,8 @@ export const SiteOptionManage: React.FC = () => {
   const isDeveloper = currentUser?.id === 'sys-admin' || currentUser?.id === 'u-1' || currentUser?.loginId === 'admin' || currentUser?.position === 'D.RPA' || currentUser?.department?.includes('개발');
   const [showDevMergeModal, setShowDevMergeModal] = React.useState(false);
   const { 
-    customers, sites, standardOptions, saveStandardOption, deleteStandardOption, 
-    saveSite, showErrorModal, fullRefreshFromServer,
+    customers, siteMasters, standardOptions, saveStandardOption, deleteStandardOption, 
+    saveSiteMaster, showErrorModal, fullRefreshFromServer,
     navigationPayload, setNavigationPayload
   } = useApp();
 
@@ -140,11 +140,11 @@ export const SiteOptionManage: React.FC = () => {
     
     const rawName = quickSiteForm.name;
     const normalizedName = rawName.replace(/s+/g, '');
-    const duplicate = (sites || []).find(s => 
+    const duplicate = (siteMasters || []).find((s: any) => 
       (s.name || '').replace(/\s+/g, '') === normalizedName
     );
     if (duplicate) {
-      const cust = (customers || []).find(c => c.id === duplicate.customerId);
+      const cust = (customers || []).find(c => c.id === (duplicate as any).customerId);
       showErrorModal(`동일한 이름의 현장이 이미 등록되어 있습니다.\n\n입력: [${rawName}]\n기존: [${duplicate.name}]\n소속 고객사: [${cust?.name || '알 수 없음'}]\n\n띄어쓰기 등 휴먼 에러로 인한 중복 생성을 방지하기 위해 등록이 금지됩니다. 기존에 등록된 현장을 검색하여 활용해 주세요.`);
       return;
     }
@@ -159,7 +159,7 @@ export const SiteOptionManage: React.FC = () => {
         email: '',
         isActive: true
       };
-      await saveSite(newSite);
+      await saveSiteMaster(newSite);
       // alert user via showToast
       setShowQuickSiteModal(false);
       setQuickSiteForm({ customerId: '', name: '', address: '' });
@@ -177,7 +177,7 @@ export const SiteOptionManage: React.FC = () => {
   const sortedStandardOptions = useMemo(() => {
     let sorted = [...(standardOptions || [])];
     if (masterSortConfig.direction !== null) {
-      sorted.sort((a, b) => {
+      sorted.sort((a: any, b: any) => {
         let valA: any = a[masterSortConfig.key];
         let valB: any = b[masterSortConfig.key];
         
@@ -210,7 +210,7 @@ export const SiteOptionManage: React.FC = () => {
     if (navigationPayload) {
       if (navigationPayload.siteId) {
         setSelectedSiteId(navigationPayload.siteId);
-        const targetSite = (sites || []).find(s => s.id === navigationPayload.siteId);
+        const targetSite = (siteMasters || []).find((s: any) => s.id === navigationPayload.siteId);
         if (targetSite) {
         }
       } else if (navigationPayload.customerId) {
@@ -220,7 +220,7 @@ export const SiteOptionManage: React.FC = () => {
       }
       setNavigationPayload(null);
     }
-  }, [navigationPayload, sites, setNavigationPayload]);
+  }, [navigationPayload, siteMasters, setNavigationPayload]);
 
   // 3. 토스트 알림
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -243,7 +243,7 @@ export const SiteOptionManage: React.FC = () => {
   const filteredSites = useMemo(() => {
     
 
-  return (sites || []).filter(s => {
+  return (siteMasters || []).filter((s: any) => {
       const sActive = s.isActive !== false;
       if (siteStatusFilter === 'ACTIVE' && !sActive) return false;
       if (siteStatusFilter === 'COMPLETED' && sActive) return false;
@@ -255,7 +255,7 @@ export const SiteOptionManage: React.FC = () => {
       }
       return true;
     }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [sites, searchSiteKeyword]);
+  }, [siteMasters, searchSiteKeyword]);
 
   // 첫 번째 현장 자동 선택
   useEffect(() => {
@@ -266,8 +266,8 @@ export const SiteOptionManage: React.FC = () => {
 
   // 선택된 현장 객체
   const activeSite = useMemo(() => {
-    return (sites || []).find(s => s.id === selectedSiteId) || null;
-  }, [sites, selectedSiteId]);
+    return (siteMasters || []).find((s: any) => s.id === selectedSiteId) || null;
+  }, [siteMasters, selectedSiteId]);
 
   // ── 🔄 현장 선택 시 옵션품목마스터에서 옵션값 상속 동기화 ──
   useEffect(() => {
@@ -369,7 +369,7 @@ export const SiteOptionManage: React.FC = () => {
         });
 
       // CustomerSite 객체에 옵션값 100% 동기화 저장
-      await saveSite({
+      await saveSiteMaster({
         ...activeSite,
         paidOptions: paidNames,
         protection: protName,

@@ -108,6 +108,8 @@ interface AppContextType {
   customers: Customer[];
   contacts: CustomerContact[];
   sites: CustomerSite[];
+  siteMasters: SiteMaster[];
+  saveSiteMaster: (s: Partial<SiteMaster>) => Promise<void>;
   products: Product[];
   assets: Asset[];
   consumables: Consumable[];
@@ -638,6 +640,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [contacts, setContacts] = useState<CustomerContact[]>([]);
   const [sites, setSites] = useState<CustomerSite[]>([]);
+  const [siteMasters, setSiteMasters] = useState<SiteMaster[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [consumables, setConsumables] = useState<Consumable[]>([]);
@@ -1916,6 +1919,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   
+  const saveSiteMaster = async (s: Partial<SiteMaster>) => {
+    if (s.id) {
+      db.updateRow('siteMasters', s.id, { ...s, updatedAt: new Date().toISOString() } as any);
+    } else {
+      db.insertRow('siteMasters', { ...s, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as any);
+    }
+    await db.awaitPendingWrites();
+    refreshAllData();
+  };
+
   const saveSite = async (site: Omit<CustomerSite, 'id' | 'createdAt'> & { id?: string }) => {
     // 1. SiteMaster (독립 현장 마스터) 저장/업데이트
     let masterId = site.siteMasterId;
@@ -10776,7 +10789,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       addTenantWorkplace, updateTenantWorkplace, deleteTenantWorkplace,
       addTenantYard, updateTenantYard, deleteTenantYard, setDefaultYard,
       errorReports, addErrorReport, receiveErrorReport, completeErrorReport, cancelErrorReport, reopenErrorReport, deleteErrorReport,
-      users, permissions, customers, contacts, sites, products, assets, consumables, consumableLots: db.consumableLots, consumableLogs, consumablePurchases, mechanicConsumableStocks, contracts, contractAssets, contractHistory, deliveries, billings, billingDetails, payments, paymentDepositLinks, repairs, repairConsumables, transportCompanies, transportDrivers, transportNegotiations, subleaseNegotiations, todos,
+      users, permissions, customers, contacts, sites, siteMasters, saveSiteMaster, products, assets, consumables, consumableLots: db.consumableLots, consumableLogs, consumablePurchases, mechanicConsumableStocks, contracts, contractAssets, contractHistory, deliveries, billings, billingDetails, payments, paymentDepositLinks, repairs, repairConsumables, transportCompanies, transportDrivers, transportNegotiations, subleaseNegotiations, todos,
       stocktakingAudits, stocktakingAuditItems, collectedParts,
       bankTransactions, bankMatchingRules, bankInitialBalances, assetInOutLogs, vendors, googleConfigs, cashFlowSnapshots, outboundInspections, depreciationLogs,
       purchaseSettlements, purchaseSettlementItems, settlementPaymentLogs: db.settlementPaymentLogs, externalLeases, inspectionChecklistItems,

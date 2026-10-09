@@ -111,6 +111,9 @@ CREATE TABLE users (
     "baseSalary"          DOUBLE PRECISION NOT NULL DEFAULT 0, -- 기본급 (급여 정산 권한자 전용)
     phone                 TEXT,
     address               TEXT,
+  "paidOptions"         TEXT,
+  "protection"          TEXT,
+  "checkedSpecs"        JSONB,
     "birthDate"           TEXT,
     "joinDate"            TEXT,
     "retireDate"          TEXT,

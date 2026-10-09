@@ -1125,6 +1125,9 @@ export interface SiteMaster {
   id: string;
   name: string;
   address: string;
+  paidOptions?: string;
+  protection?: string;
+  checkedSpecs?: Record<string, any>;
   isActive?: boolean;
   createdAt: string;
   updatedAt?: string;
