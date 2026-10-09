@@ -25,7 +25,7 @@ export const Customers: React.FC = () => {
   const {
     customers, contacts, sites, contracts, contractAssets, saveCustomer, saveContact, deleteContact, saveSite, deleteSite, hasPermission,
     navigationPayload, setNavigationPayload, currentUser, refreshAllData, legalNoticeLogs,
-    standardOptions, saveStandardOption, deleteStandardOption, setActiveTab
+    standardOptions, saveStandardOption, deleteStandardOption, setActiveTab, showErrorModal
   } = useApp();
 
   const canSave = hasPermission('customer', 'save');
