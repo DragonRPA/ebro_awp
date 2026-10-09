@@ -20,6 +20,12 @@
 
 ---
 
+
+### 1.5 N:M 객체 지향 데이터 정규화 및 역정규화 영구 금지 (Strict N:M Normalization & Anti-Denormalization Rule)
+- **현장과 고객의 완전한 독립(N:M)**: 시스템 내에서 '고객(Customer)'과 '물리 현장(SiteMaster)'은 완전히 독립된 마스터 엔티티로 존재하며, 둘의 관계는 오직 조인 링크 테이블(`customer_sites`)을 통해서만 결합된다.
+- **이름 중복 저장(역정규화) 영구 금지**: 옵션 관리 스키마(`SiteOptionProfile`), 계약, 배차 이력 등 하위 종속 데이터에서 **`customerName`, `siteName` 같은 명칭 필드를 편의상 복사해서 쥐고 있는(역정규화) 행위를 영구히 엄단**한다.
+- **디버깅 헌장**: 향후 프론트엔드나 백엔드에서 이름이 출력되지 않는 버그가 발생하더라도, **절대로 삭제된 `customerName` / `siteName` 필드를 스키마에 부활시켜서 해결하는 꼼수를 쓰지 않는다.** 모든 이름 정보는 오직 `customerId`와 `siteMasterId`를 통해 원본 마스터를 메모리 조인(Virtual View)하여 실시간으로 추적·표기하는 정공법 설계 원칙만을 100% 준수하여 디버깅한다.
+
 ## 👔 [카테고리 II] 부서 간 권한 및 업무 책임 (Domain R&R Policy)
 
 ### 2.1 영업 부서와 출고/자산 부서 간 R&R 엄격 분리
