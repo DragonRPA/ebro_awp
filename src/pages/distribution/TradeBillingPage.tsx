@@ -24,7 +24,7 @@ export const TradeBillingPage: React.FC = () => {
                 <td style={{ padding: '10px', fontSize: '14px' }}>{o.id.substring(0,8)}</td>
                 <td style={{ padding: '10px', fontSize: '14px', textAlign: 'right' }}>{o.totalSalesAmount.toLocaleString()}원</td>
                 <td style={{ padding: '10px', fontSize: '14px', textAlign: 'center' }}>
-                  <button onClick={() => issueBilling(o.customerId, '2026-10')} style={{ padding: '4px 8px', backgroundColor: '#4f46e5', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>명세서 일괄 발행</button>
+                  <button onClick={() => issueBilling(o.customerId, '2026-10').catch(err => alert(err.message))} style={{ padding: '4px 8px', backgroundColor: '#4f46e5', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>명세서 일괄 발행</button>
                 </td>
               </tr>
             ))}

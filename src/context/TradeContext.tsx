@@ -161,16 +161,30 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setOutbounds(prev => [...prev, { id: outbId, orderId: oId, status: 'REQUESTED', createdAt: new Date().toISOString() }]);
   };
 
+  
   const allocateOutbound = async (outboundId: string) => {
+    const ob = outbounds.find(o => o.id === outboundId);
+    if (!ob) throw new Error("출고 요청이 존재하지 않습니다.");
+    if (ob.status !== 'REQUESTED') throw new Error("요청 상태에서만 할당 가능합니다.");
     setOutbounds(prev => prev.map(o => o.id === outboundId ? { ...o, status: 'ALLOCATED' } : o));
   };
 
   const dispatchOutbound = async (outboundId: string, courierName: string, trackingNumber: string) => {
+    const ob = outbounds.find(o => o.id === outboundId);
+    if (!ob) throw new Error("출고 요청이 존재하지 않습니다.");
+    if (ob.status !== 'ALLOCATED') throw new Error("할당 완료 상태에서만 배송 마감이 가능합니다.");
+    
     setOutbounds(prev => prev.map(o => o.id === outboundId ? { ...o, status: 'SHIPPED', courierName, trackingNumber, shippedAt: new Date().toISOString() } : o));
+    
+    // 연계: 수주 원장도 SHIPPED 로 변경
+    setSalesOrders(prev => prev.map(so => so.id === ob.orderId ? { ...so, status: 'SHIPPED', updatedAt: new Date().toISOString() } : so));
   };
 
   const processReturn = async (orderLineId: string, qty: number, condition: 'SELLABLE' | 'DEFECTIVE', refundAmount: number) => {
-    const ret: TradeReturn = { id: uuidv4(), orderLineId, returnDate: new Date().toISOString().split('T')[0], qty, condition, refundAmount, createdAt: new Date().toISOString() };
+    // [RWTT 11-20] 환입 반품 시 중복 접수 방지
+    const existing = returns.find(r => r.orderLineId === orderLineId);
+    if (existing) throw new Error("이미 반품 처리된 라인입니다.");
+const ret: TradeReturn = { id: uuidv4(), orderLineId, returnDate: new Date().toISOString().split('T')[0], qty, condition, refundAmount, createdAt: new Date().toISOString() };
     setReturns(prev => [...prev, ret]);
 
     // If SELLABLE, restore to inventory as a new lot based on original COGS
@@ -197,8 +211,12 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  
   const issueBilling = async (customerId: string, month: string) => {
-    // mock logic
+    // [RWTT 11-20] 중복 발행 방지
+    const existing = billings.find(b => b.customerId === customerId && b.billingMonth === month && b.status === 'ISSUED');
+    if (existing) throw new Error("해당 월에 이미 발행된 명세서가 존재합니다.");
+
     const b: TradeBilling = { id: uuidv4(), customerId, billingMonth: month, totalAmount: 0, status: 'ISSUED', createdAt: new Date().toISOString() };
     setBillings(prev => [...prev, b]);
   };

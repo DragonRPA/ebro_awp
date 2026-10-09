@@ -25,7 +25,7 @@ export const CourierDispatchPage: React.FC = () => {
                 <td style={{ padding: '10px', fontSize: '14px', textAlign: 'center' }}>{o.status}</td>
                 <td style={{ padding: '10px', fontSize: '14px', textAlign: 'center' }}>
                   {o.status === 'ALLOCATED' ? (
-                    <button onClick={() => dispatchOutbound(o.id, 'CJ대한통운', '1234567890')} style={{ padding: '4px 8px', backgroundColor: '#f59e0b', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>송장 발급 및 출고 마감</button>
+                    <button onClick={() => dispatchOutbound(o.id, 'CJ대한통운', '1234567890').catch(err => alert(err.message))} style={{ padding: '4px 8px', backgroundColor: '#f59e0b', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>송장 발급 및 출고 마감</button>
                   ) : (
                     <span style={{ color: '#059669', fontSize: '13px' }}>{o.courierName} {o.trackingNumber}</span>
                   )}
