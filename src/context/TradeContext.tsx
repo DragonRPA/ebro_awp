@@ -104,19 +104,47 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  
   const createSalesOrder = async (customerId: string, items: {productId: string, qty: number, unitPrice: number}[]) => {
     const oId = uuidv4();
-    const totalSalesAmount = items.reduce((sum, i) => sum + (i.qty * i.unitPrice), 0);
-    
-    // Simplistic FIFO COGS calculation
+    let totalSalesAmount = 0;
     let totalCogsAmount = 0;
     const newLines: TradeSalesOrderLine[] = [];
     
-    // In a real DB we would do a transaction, here we just do mock calculation
+    // Create a copy of lots to simulate FIFO deduction
+    let currentLots = [...inventoryLots].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    const updatedLots = [...inventoryLots];
+
     items.forEach(i => {
-       const line: TradeSalesOrderLine = { id: uuidv4(), orderId: oId, productId: i.productId, qty: i.qty, unitPrice: i.unitPrice, unitCogs: 0, createdAt: new Date().toISOString() };
+       const lineAmount = i.qty * i.unitPrice;
+       totalSalesAmount += lineAmount;
+
+       let remainingToFulfill = i.qty;
+       let lineCogsTotal = 0;
+
+       // FIFO calculation
+       for (let lot of updatedLots) {
+         if (lot.productId === i.productId && lot.remainingQty > 0 && remainingToFulfill > 0) {
+           const deduct = Math.min(lot.remainingQty, remainingToFulfill);
+           lot.remainingQty -= deduct;
+           remainingToFulfill -= deduct;
+           lineCogsTotal += (deduct * lot.unitCost);
+         }
+       }
+
+       if (remainingToFulfill > 0) {
+          // Negative inventory scenario or insufficient stock. Allow it but warn in real app.
+          // For now, assume unitCost = 0 for the missing part to prevent NaN.
+       }
+
+       const unitCogs = i.qty > 0 ? (lineCogsTotal / i.qty) : 0;
+       totalCogsAmount += lineCogsTotal;
+
+       const line: TradeSalesOrderLine = { id: uuidv4(), orderId: oId, productId: i.productId, qty: i.qty, unitPrice: i.unitPrice, unitCogs, createdAt: new Date().toISOString() };
        newLines.push(line);
     });
+
+    setInventoryLots(updatedLots);
 
     const newOrder: TradeSalesOrder = { id: oId, customerId, orderDate: new Date().toISOString().split('T')[0], status: 'PENDING', totalSalesAmount, totalCogsAmount, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
     
@@ -138,6 +166,29 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const processReturn = async (orderLineId: string, qty: number, condition: 'SELLABLE' | 'DEFECTIVE', refundAmount: number) => {
     const ret: TradeReturn = { id: uuidv4(), orderLineId, returnDate: new Date().toISOString().split('T')[0], qty, condition, refundAmount, createdAt: new Date().toISOString() };
     setReturns(prev => [...prev, ret]);
+
+    // If SELLABLE, restore to inventory as a new lot based on original COGS
+    if (condition === 'SELLABLE') {
+      const line = salesOrderLines.find(l => l.id === orderLineId);
+      if (line) {
+         const restoredLot: TradeInventoryLot = {
+           id: uuidv4(), purchaseId: 'RETURN_RESTORE', productId: line.productId, initialQty: qty, remainingQty: qty, unitCost: line.unitCogs, createdAt: new Date().toISOString()
+         };
+         setInventoryLots(prev => [...prev, restoredLot]);
+         
+         // Fix order total by reversing the COGS and Sales
+         setSalesOrders(prev => prev.map(o => {
+            if(o.id === line.orderId) {
+               return {
+                 ...o,
+                 totalSalesAmount: o.totalSalesAmount - refundAmount,
+                 totalCogsAmount: o.totalCogsAmount - (qty * line.unitCogs)
+               };
+            }
+            return o;
+         }));
+      }
+    }
   };
 
   const issueBilling = async (customerId: string, month: string) => {
