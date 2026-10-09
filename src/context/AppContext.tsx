@@ -4223,38 +4223,67 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       const items = db.stocktakingAuditItems.filter(i => i.auditId === auditId);
       const targetLocation = audit.targetType === 'HQ' ? '주기장 재고' : `${audit.mechanicName || '정비사'} 차량`;
 
-      // 1. 차이가 있는 품목들에 대해 전산 재고 강제 보정 & ADJUST 수불 로그 발행
       items.forEach(item => {
         if (item.diffQty !== 0) {
           if (audit.targetType === 'HQ') {
-            // 본사 창고 전산재고 강제 보정
             const c = db.consumables.find(con => con.id === item.consumableId);
             if (c) {
               db.updateRow<Consumable>('consumables', c.id, {
                 stockQty: item.actualQty,
                 updatedAt: new Date().toISOString()
               });
+              let diff = item.diffQty; 
+              const lots = db.consumableLots
+                .filter(l => l.consumableId === item.consumableId)
+                .sort((a, b) => new Date(a.inboundDate).getTime() - new Date(b.inboundDate).getTime());
+                
+              if (diff < 0) {
+                let toDeduct = Math.abs(diff);
+                for (const lot of lots.filter(l => l.currentQty > 0)) {
+                  if (toDeduct <= 0) break;
+                  const deduct = Math.min(lot.currentQty, toDeduct);
+                  db.updateRow<ConsumableLot>('consumableLots', lot.id, { currentQty: lot.currentQty - deduct, updatedAt: new Date().toISOString() });
+                  toDeduct -= deduct;
+                }
+              } else if (diff > 0 && lots.length > 0) {
+                const newestLot = lots[lots.length - 1];
+                db.updateRow<ConsumableLot>('consumableLots', newestLot.id, { currentQty: newestLot.currentQty + diff, updatedAt: new Date().toISOString() });
+              }
             }
           } else {
-            // 특정 정비사 차량 전산재고 강제 보정
-            const mStock = db.mechanicConsumableStocks.find(s => s.mechanicId === audit.mechanicId && s.consumableId === item.consumableId);
-            if (mStock) {
-              db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', mStock.id, {
-                stockQty: item.actualQty,
-                updatedAt: new Date().toISOString()
+            const mechStocks = db.mechanicConsumableStocks
+              .filter(s => s.mechanicId === audit.mechanicId && s.consumableId === item.consumableId)
+              .sort((a, b) => {
+                const lotA = db.consumableLots.find(l => l.id === a.lotId);
+                const lotB = db.consumableLots.find(l => l.id === b.lotId);
+                return new Date(lotA?.inboundDate || 0).getTime() - new Date(lotB?.inboundDate || 0).getTime();
               });
-            } else {
+
+            let diff = item.diffQty;
+            if (mechStocks.length === 0) {
+              const newestLot = db.consumableLots.filter(l => l.consumableId === item.consumableId).sort((a, b) => new Date(b.inboundDate).getTime() - new Date(a.inboundDate).getTime())[0];
               db.insertRow<MechanicConsumableStock>('mechanicConsumableStocks', {
                 id: `mcs-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
                 mechanicId: audit.mechanicId!,
                 consumableId: item.consumableId,
+                lotId: newestLot?.id || '',
                 stockQty: item.actualQty,
                 updatedAt: new Date().toISOString()
               });
+            } else if (diff < 0) {
+              let toDeduct = Math.abs(diff);
+              for (const stock of mechStocks.filter(s => s.stockQty > 0)) {
+                if (toDeduct <= 0) break;
+                const deduct = Math.min(stock.stockQty, toDeduct);
+                db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', stock.id, { stockQty: stock.stockQty - deduct, updatedAt: new Date().toISOString() });
+                toDeduct -= deduct;
+              }
+            } else if (diff > 0) {
+              const newestStock = mechStocks[mechStocks.length - 1];
+              db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', newestStock.id, { stockQty: newestStock.stockQty + diff, updatedAt: new Date().toISOString() });
             }
           }
 
-          // ADJUST 감사 로그 자동 적재
           const reasonText = item.diffReason === 'LOST' ? '망실/도난' 
             : item.diffReason === 'DAMAGED' ? '파손/폐기'
             : item.diffReason === 'UNRECORDED_USAGE' ? '미기록현장소모'
@@ -4268,19 +4297,18 @@ ${currentTenant?.corporateName || tenantCorp} 배상
             userId: currentUser?.id,
             mechanicId: audit.mechanicId,
             fromLocation: targetLocation,
-            toLocation: targetLocation,
-            actionDate: audit.auditDate,
-            description: `[실사 ${item.diffQty > 0 ? '잉여' : '감모'}] ${audit.auditNo} | ${item.modelName} ${item.diffQty > 0 ? `+${item.diffQty}` : item.diffQty}개 보정 (${reasonText}${item.note ? `: ${item.note}` : ''})`,
+            toLocation: item.diffQty < 0 ? `실사 손실 (${reasonText})` : targetLocation,
+            actionDate: new Date().toISOString().split('T')[0],
+            description: `[실사 보정] ${targetLocation} (${item.diffQty > 0 ? '+' : ''}${item.diffQty}개, ${reasonText})`,
             createdAt: new Date().toISOString()
           });
         }
       });
 
-      // 2. 실사 전표 확정 완료 처리
-      db.updateRow<StocktakingAudit>('stocktakingAudits', auditId, {
+      db.updateRow<StocktakingAudit>('stocktakingAudits', audit.id, {
         status: 'CONFIRMED',
         confirmedAt: new Date().toISOString(),
-        confirmedBy: currentUser?.name || '관리자',
+        confirmedBy: currentUser?.name || '시스템',
         updatedAt: new Date().toISOString()
       });
 
@@ -9272,52 +9300,89 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       const consumable = db.consumables.find(c => c.id === uc.consumableId);
       if (!consumable) return;
 
-      const mechanicStock = (!isYardDepotRepair && effectiveMechanicId)
-        ? db.mechanicConsumableStocks.find(s => s.mechanicId === effectiveMechanicId && s.consumableId === uc.consumableId)
-        : null;
+      let remainingToDeduct = uc.quantity;
+      let hqDeducted = 0;
 
-      if (mechanicStock && mechanicStock.stockQty >= uc.quantity) {
+      if (!isYardDepotRepair && effectiveMechanicId) {
         // 1. 기사 차량 재고에서 차감 (현장 출장 AS인 경우)
-        db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', mechanicStock.id, {
-          stockQty: mechanicStock.stockQty - uc.quantity,
-          updatedAt: new Date().toISOString()
-        });
+        const mechStocks = db.mechanicConsumableStocks
+          .filter(s => s.mechanicId === effectiveMechanicId && s.consumableId === uc.consumableId && s.stockQty > 0)
+          .sort((a, b) => {
+            const lotA = db.consumableLots.find(l => l.id === a.lotId);
+            const lotB = db.consumableLots.find(l => l.id === b.lotId);
+            return new Date(lotA?.inboundDate || 0).getTime() - new Date(lotB?.inboundDate || 0).getTime();
+          });
 
-        db.insertRow<ConsumableLog>('consumableLogs', {
-          consumableId: consumable.id,
-          type: 'OUTBOUND',
-          quantity: uc.quantity,
-          unitPrice: consumable.unitPrice,
-          targetAssetId: repairData.assetId,
-          userId: currentUser?.id,
-          mechanicId: effectiveMechanicId,
-          fromLocation: `${mechanicName} 차량`,
-          toLocation: `현장 장비(${targetAsset?.assetNo || 'N/A'})`,
-          actionDate: repairData.repairDate || new Date().toISOString().split('T')[0],
-          description: `[차량재고 소진] 정비(${repairId}) ${mechanicName} 차량에서 현장 투입`,
-          createdAt: new Date().toISOString()
-        });
-      } else {
-        // 2. 주기장 재고에서 차감 (주기장 정비 또는 본사 불출)
-        const nextQty = Math.max(0, (consumable.stockQty || 0) - uc.quantity);
-        db.updateRow<Consumable>('consumables', consumable.id, {
-          stockQty: nextQty,
-          updatedAt: new Date().toISOString()
-        });
+        for (const stock of mechStocks) {
+          if (remainingToDeduct <= 0) break;
+          const deduct = Math.min(stock.stockQty, remainingToDeduct);
+          
+          db.updateRow<MechanicConsumableStock>('mechanicConsumableStocks', stock.id, {
+            stockQty: stock.stockQty - deduct,
+            updatedAt: new Date().toISOString()
+          });
 
-        db.insertRow<ConsumableLog>('consumableLogs', {
-          consumableId: consumable.id,
-          type: 'OUTBOUND',
-          quantity: uc.quantity,
-          unitPrice: consumable.unitPrice,
-          targetAssetId: repairData.assetId,
-          userId: currentUser?.id,
-          fromLocation: '주기장 재고',
-          toLocation: `주기장 장비(${targetAsset?.assetNo || 'N/A'})`,
-          actionDate: repairData.repairDate || new Date().toISOString().split('T')[0],
-          description: `[주기장 재고 투입] 정비(${repairId}) 주기장 수리 부품 투입`,
-          createdAt: new Date().toISOString()
-        });
+          db.insertRow<ConsumableLog>('consumableLogs', {
+            consumableId: consumable.id,
+            lotId: stock.lotId,
+            type: 'OUTBOUND',
+            quantity: deduct,
+            unitPrice: consumable.unitPrice,
+            targetAssetId: repairData.assetId,
+            userId: currentUser?.id,
+            mechanicId: effectiveMechanicId,
+            fromLocation: `${mechanicName} 차량`,
+            toLocation: `현장 장비(${targetAsset?.assetNo || 'N/A'})`,
+            actionDate: repairData.repairDate || new Date().toISOString().split('T')[0],
+            description: `[차량재고 소진] 정비(${repairId}) ${mechanicName} 차량에서 현장 투입`,
+            createdAt: new Date().toISOString()
+          });
+
+          remainingToDeduct -= deduct;
+        }
+      }
+
+      if (remainingToDeduct > 0) {
+        hqDeducted = remainingToDeduct;
+        // 2. 주기장 재고에서 차감 (주기장 정비 또는 차량 재고 부족분)
+        const lots = db.consumableLots
+          .filter(l => l.consumableId === consumable.id && l.currentQty > 0)
+          .sort((a, b) => new Date(a.inboundDate).getTime() - new Date(b.inboundDate).getTime());
+
+        for (const lot of lots) {
+          if (remainingToDeduct <= 0) break;
+          const deduct = Math.min(lot.currentQty, remainingToDeduct);
+          
+          db.updateRow<ConsumableLot>('consumableLots', lot.id, {
+            currentQty: lot.currentQty - deduct,
+            updatedAt: new Date().toISOString()
+          });
+
+          db.insertRow<ConsumableLog>('consumableLogs', {
+            consumableId: consumable.id,
+            lotId: lot.id,
+            type: 'OUTBOUND',
+            quantity: deduct,
+            unitPrice: lot.unitPrice,
+            targetAssetId: repairData.assetId,
+            userId: currentUser?.id,
+            fromLocation: '주기장 재고',
+            toLocation: `장비(${targetAsset?.assetNo || 'N/A'})`,
+            actionDate: repairData.repairDate || new Date().toISOString().split('T')[0],
+            description: `[주기장 재고 투입] 정비(${repairId}) 주기장 부품 투입`,
+            createdAt: new Date().toISOString()
+          });
+
+          remainingToDeduct -= deduct;
+        }
+
+        if (hqDeducted > 0) {
+          const nextQty = Math.max(0, (consumable.stockQty || 0) - hqDeducted);
+          db.updateRow<Consumable>('consumables', consumable.id, {
+            stockQty: nextQty,
+            updatedAt: new Date().toISOString()
+          });
+        }
       }
 
       db.insertRow<RepairConsumable>('repairConsumables', {
@@ -9329,88 +9394,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     });
 
-    // 🏛️ 자산 상태 라이프사이클 무왜곡 정합성 보장 (헌장 카테고리 1.2, 1.3)
-    if (targetAsset) {
-      const isRentedAsset = targetAsset.status === 'RENTED';
-      const isFieldAS = maintenanceType === 'EMERGENCY_AS' || maintenanceType === 'PREVENTIVE';
-
-      let nextAssetStatus: Asset['status'] = targetAsset.status;
-      let nextMaintenanceScore = targetAsset.maintenanceScore || 0;
-
-      if (isRentedAsset && isFieldAS) {
-        // 🚨 임대중 현장 출장정비: 장비는 현장에 계속 있으므로 'RENTED' 상태 100% 보존!
-        nextAssetStatus = 'RENTED';
-        if (repairStatus === 'COMPLETED') {
-          nextMaintenanceScore = 0; // 정비 완료 시 이상무 리셋
-        }
-      } else if (repairData.targetAssetStatus) {
-        // 🌟 주기장 정비 판정 명시적 전이 (AVAILABLE, REPAIRING 등)
-        nextAssetStatus = repairData.targetAssetStatus;
-        if (nextAssetStatus === 'AVAILABLE') {
-          nextMaintenanceScore = 0; // 임대가능 복귀 시 정비점수 초기화
-        }
-      } else if (repairStatus === 'COMPLETED' && (targetAsset.status === 'REPAIRING' || targetAsset.status === 'RENTED_RETURNED')) {
-        // 기본값: 입고검수/수리중 장비의 정비 완료 시 AVAILABLE로 자동 전이
-        nextAssetStatus = 'AVAILABLE';
-        nextMaintenanceScore = 0;
-      }
-
-      let nextNote = targetAsset.note;
-      if (repairStatus === 'COMPLETED' && nextAssetStatus === 'AVAILABLE') {
-        const dateTag = repairData.repairDate || new Date().toISOString().split('T')[0];
-        const detailSnippet = repairData.details ? repairData.details.slice(0, 30) : '점검 완료';
-        nextNote = `[정비완료 ${dateTag}] ${detailSnippet}`;
-      }
-
-      db.updateRow<Asset>('assets', targetAsset.id, {
-        status: nextAssetStatus,
-        maintenanceScore: nextMaintenanceScore,
-        cumRepairCost: (targetAsset.cumRepairCost || 0) + totalRepairCost,
-        note: nextNote,
-        updatedAt: new Date().toISOString()
-      });
-
-      // 정비 수리 이력 로그 (AssetInOutLog) 무누락 기록
-      const typeLabel = maintenanceType === 'EMERGENCY_AS' ? '긴급출장정비' :
-        maintenanceType === 'PREVENTIVE' ? '정기예방정비' :
-        maintenanceType === 'EXTERNAL' ? '외주정비' : '야적장자사정비';
-
-      let memoText = `[${typeLabel}] `;
-      if (repairStatus === 'COMPLETED') {
-        memoText += `정비 완료 (비용: ${totalRepairCost.toLocaleString()}원) ➔ 자산상태 [${nextAssetStatus}] 전이: ${repairData.details || ''}`;
-      } else if (repairStatus === 'UNRESOLVED') {
-        memoText += `미완료 (${repairData.unresolvedReason || '사유미기재'}, 후속: ${repairData.nextAction || '없음'}): ${repairData.details || ''}`;
-      } else {
-        memoText += `정비 진행중 (스케줄: ${repairData.scheduleDate || repairData.requestDate}): ${repairData.details || ''}`;
-      }
-
-      db.insertRow<AssetInOutLog>('assetInOutLogs', {
-        assetId: targetAsset.id,
-        assetNo: targetAsset.assetNo,
-        modelName: targetAsset.modelName,
-        type: 'REPAIR',
-        eventDate: repairData.repairDate || repairData.requestDate || new Date().toISOString().split('T')[0],
-        repairId: repairId,
-        inboundNo: repairData.inboundNo,
-        maintenanceScore: nextMaintenanceScore,
-        memo: memoText,
-        createdAt: new Date().toISOString()
-      });
-    }
-
-    // 📜 계약 이력(ContractHistory) 무누락 타임라인 자동 연동
-    if (resolvedContractId && repairStatus === 'COMPLETED') {
-      db.insertRow<ContractHistory>('contract_history', {
-        id: `ch-rep-${repairId}-${Date.now()}`,
-        contractId: resolvedContractId,
-        changeType: 'AS_SERVICE',
-        changeDate: repairData.repairDate || repairData.requestDate || new Date().toISOString().split('T')[0],
-        description: `[현장 정비/AS 완료] ${repairData.details || '정비 완료'} (${targetAsset ? `장비: ${targetAsset.assetNo}` : '현장확인'}${mechanicName ? `, 정비사: ${mechanicName}` : ''}${totalRepairCost > 0 ? `, 비용: ₩${totalRepairCost.toLocaleString()}` : ''})`,
-        createdAt: new Date().toISOString()
-      });
-    }
-
-    await db.awaitPendingWrites(); refreshAllData(); };
+    await db.awaitPendingWrites();
+    refreshAllData();
+  };
 
   const updateRepairStatus = async (
     repairId: string, 
