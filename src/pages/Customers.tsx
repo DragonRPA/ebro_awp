@@ -224,36 +224,36 @@ export const Customers: React.FC = () => {
   // 🎯 현장별 옵션관리 등록 현장 중 옵션 참조 대상 목록 (검색 필터 및 옵션 보유 현장 상위 정렬)
   const optionReferenceSites = useMemo(() => {
     const matcher = createHangulMatcher(siteOptionRefSearch);
-    return (sites || []).filter(s => {
-      if (editingSite?.id && s.id === editingSite.id) return false;
-      if (editingSiteOption?.id && s.id === editingSiteOption.id) return false;
+    return (siteMasters || []).filter(s => {
+      if (editingSite?.siteMasterId && s.id === editingSite.siteMasterId) return false;
+      if (editingSiteOption?.siteMasterId && s.id === editingSiteOption.siteMasterId) return false;
 
       if (siteOptionRefSearch.trim()) {
-        const cName = customerMap.get(s.customerId || '')?.name || '';
         const sName = s.name || '';
         const sAddr = s.address || '';
         const sOpts = (s.paidOptions || '') + ' ' + (s.protection || '');
-        return matcher.testAny([cName, sName, sAddr, sOpts]);
+        return matcher.testAny([sName, sAddr, sOpts]);
       }
       return true;
     }).sort((a, b) => {
-      const aHasOpts = Boolean(a.paidOptions || a.protection || (a.checkedSpecs && Object.keys(a.checkedSpecs).length > 0));
-      const bHasOpts = Boolean(b.paidOptions || b.protection || (b.checkedSpecs && Object.keys(b.checkedSpecs).length > 0));
+      const aHasOpts = Boolean(a.paidOptions || (a.protection && a.protection !== 'NONE') || (a.checkedSpecs && Object.keys(a.checkedSpecs).length > 0));
+      const bHasOpts = Boolean(b.paidOptions || (b.protection && b.protection !== 'NONE') || (b.checkedSpecs && Object.keys(b.checkedSpecs).length > 0));
       if (aHasOpts && !bHasOpts) return -1;
       if (!aHasOpts && bHasOpts) return 1;
       return (a.name || '').localeCompare(b.name || '');
     });
-  }, [sites, customerMap, editingSite?.id, editingSiteOption?.id, siteOptionRefSearch]);
+  }, [siteMasters, editingSite?.siteMasterId, editingSiteOption?.siteMasterId, siteOptionRefSearch]);
 
   const selectedRefSite = useMemo(() => {
     if (!selectedRefSiteId) return null;
-    return (sites || []).find(s => s.id === selectedRefSiteId) || null;
-  }, [sites, selectedRefSiteId]);
+    return (siteMasters || []).find(s => s.id === selectedRefSiteId) || null;
+  }, [siteMasters, selectedRefSiteId]);
 
   const selectedRefCustomer = useMemo(() => {
     if (!selectedRefSite) return null;
-    return customerMap.get(selectedRefSite.customerId || '') || null;
-  }, [customerMap, selectedRefSite]);
+    const linkedCustSite = (sites || []).find(s => s.siteMasterId === selectedRefSite.id);
+    return customerMap.get(linkedCustSite?.customerId || '') || null;
+  }, [sites, customerMap, selectedRefSite]);
 
   const refCheckedSpecsSummary = useMemo(() => {
     if (!selectedRefSite?.checkedSpecs) return '';
@@ -2553,7 +2553,6 @@ const handleDeleteAccount = async (accId: string) => {
                     >
                       <option value="">-- [선택] 복사해 올 기존 현장 선택 ({optionReferenceSites.length}개) --</option>
                       {optionReferenceSites.map(s => {
-                        const custName = customerMap.get(s.customerId || '')?.name || '고객사 미지정';
                         const paid = s.paidOptions ? s.paidOptions : '';
                         const prot = (s.protection && s.protection !== 'NONE') ? s.protection : '';
                         const optSummary = [paid, prot].filter(Boolean).join(' | ');
@@ -3500,7 +3499,6 @@ const handleDeleteAccount = async (accId: string) => {
                   >
                     <option value="">-- [선택] 기존 현장 담당자/옵션 정보 복사해오기 ({optionReferenceSites.length}개) --</option>
                     {optionReferenceSites.map(s => {
-                      const custName = customerMap.get(s.customerId || '')?.name || '고객사 미지정';
                       const paid = s.paidOptions ? s.paidOptions : '';
                         const prot = (s.protection && s.protection !== 'NONE') ? s.protection : '';
                         const optSummary = [paid, prot].filter(Boolean).join(' | ');
