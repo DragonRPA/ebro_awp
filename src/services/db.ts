@@ -1513,6 +1513,8 @@ export interface ContractAsset {
   salePrice?: number; // 💡 자산 매각 계약 시 매각 공급가액
   startDate: string;
   endDate: string;
+  predecessorContractId?: string;
+  predecessorContractAssetId?: string;
   createdAt: string;
   updatedAt?: string;
 }

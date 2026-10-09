@@ -5671,6 +5671,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         dailyRentalFee: ca.dailyRentalFee,
         startDate: nextDay,
         endDate: oldEndDate,
+        predecessorContractId: contractId,
+        predecessorContractAssetId: ca.id,
         createdAt: nowIsoSucceed
       });
 
@@ -5860,6 +5862,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       dailyRentalFee: sourceCA.dailyRentalFee,
       startDate: relocationStartDate,
       endDate: oldEndDate,
+      predecessorContractId: sourceContract.id,
+      predecessorContractAssetId: sourceCA.id,
       createdAt: nowIso
     });
 
