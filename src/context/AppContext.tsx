@@ -1939,16 +1939,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     if (existingMaster) {
       masterId = existingMaster.id;
-      // 주소가 변경되었으면 마스터 업데이트
+      let shouldUpdateMaster = false;
+      let updatedMaster = { ...existingMaster };
+      
       if (site.address && site.address !== existingMaster.address) {
-        existingMaster = { ...existingMaster, address: site.address, updatedAt: new Date().toISOString() };
-        db.updateRow('siteMasters', masterId, existingMaster);
+        updatedMaster.address = site.address;
+        shouldUpdateMaster = true;
+      }
+      if (site.paidOptions !== undefined) {
+        updatedMaster.paidOptions = site.paidOptions;
+        shouldUpdateMaster = true;
+      }
+      if (site.protection !== undefined) {
+        updatedMaster.protection = site.protection;
+        shouldUpdateMaster = true;
+      }
+      if (site.checkedSpecs !== undefined) {
+        updatedMaster.checkedSpecs = site.checkedSpecs;
+        shouldUpdateMaster = true;
+      }
+
+      if (shouldUpdateMaster) {
+        updatedMaster.updatedAt = new Date().toISOString();
+        db.updateRow('siteMasters', masterId, updatedMaster);
       }
     } else {
       // 신규 마스터 생성
       const newMaster = db.insertRow<SiteMaster>('siteMasters', {
         name: rawName,
         address: site.address || '',
+        paidOptions: site.paidOptions,
+        protection: site.protection,
+        checkedSpecs: site.checkedSpecs,
         isActive: true,
         createdAt: new Date().toISOString()
       });
@@ -1959,8 +1981,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const linkPayload = {
       ...site,
       siteMasterId: masterId,
-      // name, address는 link 테이블에서 제외할 수도 있지만 하위 호환성을 위해 유지하거나 그대로 덮어씀
     };
+    
+    // 강제 격리 (NM 역정규화 방지): 현장 고유 속성은 링크 테이블에 저장하지 않는다.
+    delete (linkPayload as any).paidOptions;
+    delete (linkPayload as any).protection;
+    delete (linkPayload as any).checkedSpecs;
+    delete (linkPayload as any).contactName;
+    delete (linkPayload as any).contact;
+    delete (linkPayload as any).email;
 
     if (site.id) {
       db.updateRow<CustomerSite>('sites', site.id, linkPayload as CustomerSite);

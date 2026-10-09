@@ -23,7 +23,7 @@ import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal
 export const Customers: React.FC = () => {
   
   const {
-    customers, contacts, sites, contracts, contractAssets, saveCustomer, saveContact, deleteContact, saveSite, deleteSite, hasPermission,
+    customers, contacts, sites, siteMasters, contracts, contractAssets, saveCustomer, saveContact, deleteContact, saveSite, deleteSite, hasPermission,
     navigationPayload, setNavigationPayload, currentUser, refreshAllData, legalNoticeLogs,
     standardOptions, saveStandardOption, deleteStandardOption, setActiveTab, showErrorModal
   } = useApp();
