@@ -163,6 +163,97 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "positionHint": "top",
         "spotlight": true
       }
+    ],
+    "basicGuide": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"dashboard-sales-feed\"]",
+        "type": "highlight",
+        "label": "영업 수주 할일 피드",
+        "description": "[영업 수주 할일 피드] 화면 영역입니다. 영업팀에서 접수된 신규 수주 및 출고 의뢰 현황을 피드로 확인하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 2,
+        "selector": "[data-mid=\"dashboard-dispatch-today\"]",
+        "type": "highlight",
+        "label": "당일 배차 현황",
+        "description": "[당일 배차 현황] 화면 영역입니다. 당일 처리해야 할 상차/도착 배차 일정을 실시간으로 확인하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      }
+    ],
+    "processes": [
+      {
+        "processId": "main_process",
+        "title": "핵심 단위 업무 조작 흐름",
+        "description": "ERP 대시보드의 주요 기능 조작 절차입니다.",
+        "steps": [
+          {
+            "seq": 1,
+            "selector": "[data-mid=\"dashboard-sales-feed\"]",
+            "type": "click_ripple",
+            "label": "영업 수주 할일 피드",
+            "description": "[영업 수주 할일 피드] UI 요소를 확인합니다. 영업팀에서 접수된 신규 수주 및 출고 의뢰 현황을 피드로 확인하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 2,
+            "selector": "[data-mid=\"dashboard-dispatch-today\"]",
+            "type": "click_ripple",
+            "label": "당일 배차 현황",
+            "description": "[당일 배차 현황] UI 요소를 확인합니다. 당일 처리해야 할 상차/도착 배차 일정을 실시간으로 확인하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 3,
+            "selector": "[data-mid=\"dashboard-outbound-today\"]",
+            "type": "click_ripple",
+            "label": "출고 검수 완료",
+            "description": "[출고 검수 완료] UI 요소를 확인합니다. 당일 주기장 출고 검수가 완료된 장비 목록을 확인하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 4,
+            "selector": "[data-mid=\"dashboard-bad-debt\"]",
+            "type": "click_ripple",
+            "label": "부실 채권 경보",
+            "description": "[부실 채권 경보] UI 요소를 확인합니다. 미수금액 연체 기한을 초과한 부실 채권 거래처를 확인하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 5,
+            "selector": "[data-mid=\"dashboard-weather-status\"]",
+            "type": "click_ripple",
+            "label": "기상 환경 모니터",
+            "description": "[기상 환경 모니터] UI 요소를 확인합니다. 주기장 및 현장의 강풍/강우 등 기상 상태를 실시간 확인하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 6,
+            "selector": "[data-mid=\"dashboard-stat-summary\"]",
+            "type": "click_ripple",
+            "label": "자산 가동 지표",
+            "description": "[자산 가동 지표] UI 요소를 확인합니다. 임대가능, 대여중, 정비중 등 핵심 자산 가동 지표를 조회하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 7,
+            "selector": "[data-mid=\"dashboard-quick-actions\"]",
+            "type": "click_ripple",
+            "label": "업무 바로가기",
+            "description": "[업무 바로가기] UI 요소에 값을 입력하거나 조작합니다. 직무별 전담 화면으로 즉시 이동하여 당일 업무를 시작하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 8,
+            "selector": "[data-mid=\"dashboard-terminal-todo\"]",
+            "type": "click_ripple",
+            "label": "당면 과제 완결",
+            "description": "[당면 과제 완결] UI 요소에 값을 입력하거나 조작합니다. ToDo 피드 숫자가 0이 될 때까지 당일 담당 업무를 완결하십시오.",
+            "positionHint": "top"
+          }
+        ]
+      }
     ]
   },
   {
@@ -318,6 +409,97 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "positionHint": "top",
         "spotlight": false
       }
+    ],
+    "basicGuide": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"approvalInbox-header\"]",
+        "type": "highlight",
+        "label": "결재함 헤더",
+        "description": "[결재함 헤더] 화면 영역입니다. 대기 중인 전체 결재 건수를 확인하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 2,
+        "selector": "[data-mid=\"approvalInbox-refresh\"]",
+        "type": "highlight",
+        "label": "결재함 새로고침",
+        "description": "[결재함 새로고침] 화면 영역입니다. 최신 결재 요청 목록을 다시 불러옵니다.",
+        "positionHint": "bottom"
+      }
+    ],
+    "processes": [
+      {
+        "processId": "main_process",
+        "title": "핵심 단위 업무 조작 흐름",
+        "description": "내 결재함 (수신)의 주요 기능 조작 절차입니다.",
+        "steps": [
+          {
+            "seq": 1,
+            "selector": "[data-mid=\"approvalInbox-header\"]",
+            "type": "click_ripple",
+            "label": "결재함 헤더",
+            "description": "[결재함 헤더] UI 요소를 확인합니다. 대기 중인 전체 결재 건수를 확인하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 2,
+            "selector": "[data-mid=\"approvalInbox-refresh\"]",
+            "type": "click_ripple",
+            "label": "결재함 새로고침",
+            "description": "[결재함 새로고침] UI 요소에 값을 입력하거나 조작합니다. 최신 결재 요청 목록을 다시 불러옵니다.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 3,
+            "selector": "[data-mid=\"approvalInbox-list-container\"]",
+            "type": "click_ripple",
+            "label": "결재 대기 목록",
+            "description": "[결재 대기 목록] UI 요소에 값을 입력하거나 조작합니다. 승인이나 반려 처리가 필요한 결재 건들의 목록입니다.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 4,
+            "selector": "[data-mid=\"approvalInbox-card\"]",
+            "type": "click_ripple",
+            "label": "개별 결재 카드",
+            "description": "[개별 결재 카드] UI 요소에 값을 입력하거나 조작합니다. 각 결재 요청 건의 상세 정보와 액션 버튼을 포함하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 5,
+            "selector": "[data-mid=\"approvalInbox-card-header\"]",
+            "type": "click_ripple",
+            "label": "결재 유형 및 티어",
+            "description": "[결재 유형 및 티어] UI 요소에 값을 입력하거나 조작합니다. 결재 규칙, 합의/결재 여부 및 최소 필요 티어 정보를 표시하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 6,
+            "selector": "[data-mid=\"approvalInbox-card-summary\"]",
+            "type": "click_ripple",
+            "label": "대상 건 요약",
+            "description": "[대상 건 요약] UI 요소를 확인합니다. 결재 요청의 대상 테이블 및 관련 요약 정보를 확인하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 7,
+            "selector": "[data-mid=\"approvalInbox-card-progress\"]",
+            "type": "click_ripple",
+            "label": "결재 진행 현황",
+            "description": "[결재 진행 현황] UI 요소에 값을 입력하거나 조작합니다. 결재 프로세스의 전체 단계 및 현재 상태를 나타냅니다.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 8,
+            "selector": "[data-mid=\"approvalInbox-card-action\"]",
+            "type": "click_ripple",
+            "label": "승인 / 반려 처리",
+            "description": "[승인 / 반려 처리] UI 요소에 값을 입력하거나 조작합니다. 해당 결재 건을 승인하거나 사유를 작성하여 반려하십시오.",
+            "positionHint": "top"
+          }
+        ]
+      }
     ]
   },
   {
@@ -431,6 +613,81 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "positionHint": "top",
         "spotlight": false
       }
+    ],
+    "basicGuide": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"approvalRules-tabs\"]",
+        "type": "highlight",
+        "label": "메뉴 탭 전환",
+        "description": "[메뉴 탭 전환] 화면 영역입니다. 결재선 규칙과 직급·직책 티어 설정 간 화면을 전환하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 2,
+        "selector": "[data-mid=\"approvalRules-sync\"]",
+        "type": "highlight",
+        "label": "표준 규칙 동기화",
+        "description": "[표준 규칙 동기화] 화면 영역입니다. 시스템의 표준 결재 이벤트 목록을 조회하여 가져옵니다.",
+        "positionHint": "bottom"
+      }
+    ],
+    "processes": [
+      {
+        "processId": "main_process",
+        "title": "핵심 단위 업무 조작 흐름",
+        "description": "결재선 규칙 설정의 주요 기능 조작 절차입니다.",
+        "steps": [
+          {
+            "seq": 1,
+            "selector": "[data-mid=\"approvalRules-tabs\"]",
+            "type": "click_ripple",
+            "label": "메뉴 탭 전환",
+            "description": "[메뉴 탭 전환] UI 요소에 값을 입력하거나 조작합니다. 결재선 규칙과 직급·직책 티어 설정 간 화면을 전환하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 2,
+            "selector": "[data-mid=\"approvalRules-sync\"]",
+            "type": "click_ripple",
+            "label": "표준 규칙 동기화",
+            "description": "[표준 규칙 동기화] UI 요소를 확인합니다. 시스템의 표준 결재 이벤트 목록을 조회하여 가져옵니다.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 3,
+            "selector": "[data-mid=\"approvalRules-rules-grid\"]",
+            "type": "click_ripple",
+            "label": "결재선 규칙 목록",
+            "description": "[결재선 규칙 목록] UI 요소에 값을 입력하거나 조작합니다. 이벤트별 전결 티어, 합의선 및 사용 여부를 설정하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 4,
+            "selector": "[data-mid=\"approvalRules-tier-simulator\"]",
+            "type": "click_ripple",
+            "label": "유효 티어 판정 시뮬레이터",
+            "description": "[유효 티어 판정 시뮬레이터] UI 요소에 값을 입력하거나 조작합니다. 설정한 직책과 직급의 조합에 따른 최종 결재 권한 티어를 시뮬레이션하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 5,
+            "selector": "[data-mid=\"approvalRules-duty-config\"]",
+            "type": "click_ripple",
+            "label": "직책별 티어 관리",
+            "description": "[직책별 티어 관리] UI 요소에 값을 입력하거나 조작합니다. 단위 조직 책임자의 직책 티어를 설정합니다. (직급보다 우선 적용됨",
+            "positionHint": "top"
+          },
+          {
+            "seq": 6,
+            "selector": "[data-mid=\"approvalRules-position-config\"]",
+            "type": "click_ripple",
+            "label": "직급별 티어 관리",
+            "description": "[직급별 티어 관리] UI 요소에 값을 입력하거나 조작합니다. 일반 사원 및 소규모 조직에 자동 적용될 직급 티어를 설정하십시오.",
+            "positionHint": "top"
+          }
+        ]
+      }
     ]
   },
   {
@@ -443,14 +700,14 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid='customer-search-filter']",
         "type": "highlight",
         "label": "검색 및 필터 영역",
-        "description": "검색어, 거래 상태 또는 필수 서류 누락 여부로 고객사 목록을 필터링합니다."
+        "description": "[검색 및 필터 영역] 화면 영역입니다. 검색어, 거래 상태 또는 필수 서류 누락 여부로 고객사 목록을 필터링하는 기본 기능을 제공합니다."
       },
       {
         "seq": 2,
         "selector": "[data-mid='customer-list-panel']",
         "type": "highlight",
         "label": "고객사 목록",
-        "description": "등록된 고객사 목록을 표시하며, 클릭하여 상세 제원을 조회합니다.",
+        "description": "[고객사 목록] 화면 영역입니다. 등록된 고객사 목록을 표시하며, 클릭하여 상세 제원을 조회하는 기본 기능을 제공합니다.",
         "positionHint": "right"
       }
     ],
@@ -465,21 +722,21 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='btn-new-customer']",
             "type": "click_ripple",
             "label": "신규 고객 등록 버튼",
-            "description": "신규 고객 등록 버튼을 클릭하여 입력 팝업 창을 엽니다."
+            "description": "[신규 고객 등록 버튼] UI 요소를 조작합니다. 신규 고객 등록 버튼을 클릭하여 입력 팝업 창을 엽니다."
           },
           {
             "seq": 2,
             "selector": "[data-mid='input-customer-name']",
             "type": "callout",
             "label": "고객사명",
-            "description": "등록할 신규 고객사의 공식 상호명을 입력합니다."
+            "description": "[고객사명] UI 요소를 조작합니다. 등록할 신규 고객사의 공식 상호명을 입력하십시오."
           },
           {
             "seq": 3,
             "selector": "[data-mid='input-biz-no']",
             "type": "callout",
             "label": "사업자등록번호",
-            "description": "국세청 사업자등록번호 10자리를 입력합니다."
+            "description": "[사업자등록번호] UI 요소를 조작합니다. 국세청 사업자등록번호 10자리를 입력하십시오."
           }
         ]
       },
@@ -493,14 +750,14 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='customer-grid-item']",
             "type": "click_ripple",
             "label": "고객사 선택",
-            "description": "목록에서 고객사 행을 클릭하여 상세 정보를 화면에 불러옵니다."
+            "description": "[고객사 선택] UI 요소를 조작합니다. 목록에서 고객사 행을 클릭하여 상세 정보를 화면에 불러옵니다."
           },
           {
             "seq": 2,
             "selector": "[data-mid='customer-detail-dossier']",
             "type": "highlight",
             "label": "고객사 상세 정보",
-            "description": "선택한 고객사의 상세 제원, 소속 현장 목록, 계약 이력을 정밀 검토합니다.",
+            "description": "[고객사 상세 정보] UI 요소를 조작합니다. 선택한 고객사의 상세 제원, 소속 현장 목록, 계약 이력을 정밀 검토하십시오.",
             "positionHint": "left"
           }
         ]
@@ -515,21 +772,21 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='btn-new-site'], button:contains('현장 추가')",
             "type": "click_ripple",
             "label": "현장 등록 버튼",
-            "description": "현장 추가 버튼을 클릭하여 현장 등록·수정 모달을 엽니다."
+            "description": "[현장 등록 버튼] UI 요소를 조작합니다. 현장 추가 버튼을 클릭하여 현장 등록·수정 모달을 엽니다."
           },
           {
             "seq": 2,
             "selector": "[data-mid='site-option-ref-search-box']",
             "type": "callout",
             "label": "옵션 참조 현장 검색 및 복사",
-            "description": "초성 검색을 통해 현장별 옵션관리에 등록된 현장을 검색·선택한 뒤 [옵션 속성 복사] 버튼을 눌러 유상옵션, 보양작업, 요구사양을 즉시 일치시킵니다."
+            "description": "[옵션 참조 현장 검색 및 복사] UI 요소를 조작합니다. 초성 검색을 통해 현장별 옵션관리에 등록된 현장을 검색·선택한 뒤 [옵션 속성 복사] 버튼을 눌러 유상옵션, 보양작업, 요구사양을 즉시 일치시킵니다."
           },
           {
             "seq": 3,
             "selector": "button[type='submit']",
             "type": "click_ripple",
             "label": "현장 정보 저장",
-            "description": "복사 및 조정한 옵션 속성과 현장 기본 정보를 데이터베이스에 저장합니다."
+            "description": "[현장 정보 저장] UI 요소에 값을 입력하거나 조작합니다. 복사 및 조정한 옵션 속성과 현장 기본 정보를 데이터베이스에 저장하십시오."
           }
         ]
       }
@@ -545,7 +802,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       "2. 고객 및 현장 운용 KPI 실시간 집계 검토 (총 고객사, 정상사, 거래제한/폐업, 현장수)",
       "3. 고객사 대장 목록 탐색 및 선택 (등록증 미등록 업체 및 결손 정보 즉시 파악)",
       "4. 선택 고객사 360도 마스터 상세 도시에 검토 (사업자정보, 대표연락처, 청구조건)",
-      "5. 국세청 홈택스 사업자 휴폐업 전수 점검 및 여신 리스크 방어",
+      "5. 국세청 홈택스 사업자 휴폐업 전수 점검 및 여신 리스크 방어"
     ],
     "subTabs": [
       {
@@ -704,7 +961,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       },
       {
         "seq": 2,
-          "selector": "[data-mid=\"panel-site-scope\"]",
+        "selector": "[data-mid=\"panel-site-scope\"]",
         "type": "stamp",
         "label": "현장 선택",
         "description": "옵션을 설정할 고객 현장을 목록에서 클릭 선택합니다.",
@@ -712,10 +969,9 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "positionHint": "right",
         "spotlight": true
       },
-      
       {
         "seq": 3,
-          "selector": "[data-mid=\"table-paid-options\"]",
+        "selector": "[data-mid=\"table-paid-options\"]",
         "type": "stamp",
         "label": "유상 옵션",
         "description": "현장에 투입될 유상옵션 적용 여부와 현장 특약단가를 인라인 입력합니다.",
@@ -725,7 +981,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       },
       {
         "seq": 4,
-          "selector": "[data-mid=\"card-protection-options\"]",
+        "selector": "[data-mid=\"card-protection-options\"]",
         "type": "stamp",
         "label": "보양 작업",
         "description": "현장 환경에 부합하는 보호 완충/함석 보양 규격을 1종 선택합니다.",
@@ -745,7 +1001,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
       },
       {
         "seq": 6,
-          "selector": "[data-mid=\"btn-save-site-options\"]",
+        "selector": "[data-mid=\"btn-save-site-options\"]",
         "type": "stamp",
         "label": "설정 저장",
         "description": "작업대에서 구성한 옵션값을 해당 현장의 DB 레코드에 최종 저장합니다.",
@@ -760,7 +1016,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"panel-site-scope\"]",
         "type": "callout",
         "label": "현장 검색 및 선택",
-        "description": "옵션 단가를 설정할 대상 현장을 검색하고 선택합니다.",
+        "description": "[현장 검색 및 선택] 화면 영역입니다. 옵션 단가를 설정할 대상 현장을 검색하고 선택하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       },
       {
@@ -768,41 +1024,41 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"table-paid-options\"]",
         "type": "highlight",
         "label": "현장 안전옵션 매트릭스",
-        "description": "해당 현장의 유상옵션 및 법정 안전사양 단가를 실시간 조망합니다.",
+        "description": "[현장 안전옵션 매트릭스] 화면 영역입니다. 해당 현장의 유상옵션 및 법정 안전사양 단가를 실시간 조망하는 기본 기능을 제공합니다.",
         "positionHint": "top"
       }
     ],
     "processes": [
-        {
-          "processId": "process_site_master_options",
-          "title": "옵션 품목 마스터 정렬 및 삭제",
-          "description": "전사 기준 풀에 등록된 옵션 품목들을 헤더를 클릭하여 정렬하고, 불필요한 마스터 옵션은 수정 모달에서 삭제합니다.",
-          "steps": [
-            {
-              "seq": 1,
-              "selector": "th:contains('분류'), th:contains('옵션 품목명'), th:contains('기준단가'), th:contains('단위'), th:contains('설명'), th:contains('상태')",
-              "type": "click_ripple",
-              "label": "헤더 클릭 정렬",
-              "description": "테이블 헤더를 클릭하여 오름차순, 내림차순, 정렬 안 함 순으로 목록을 정렬합니다.",
-              "positionHint": "bottom"
-            },
-            {
-              "seq": 2,
-              "selector": "td button:contains('수정')",
-              "type": "click_ripple",
-              "label": "옵션 수정 버튼",
-              "description": "수정할 옵션의 우측 수정 버튼을 클릭하여 수정 모달을 엽니다."
-            },
-            {
-              "seq": 3,
-              "selector": "button:contains('삭제')",
-              "type": "highlight",
-              "label": "옵션 마스터 삭제",
-              "description": "수정 모달 하단의 삭제 버튼을 눌러 불필요한 옵션 마스터를 전사 풀에서 제거합니다.",
-              "positionHint": "top"
-            }
-          ]
-        },
+      {
+        "processId": "process_site_master_options",
+        "title": "옵션 품목 마스터 정렬 및 삭제",
+        "description": "전사 기준 풀에 등록된 옵션 품목들을 헤더를 클릭하여 정렬하고, 불필요한 마스터 옵션은 수정 모달에서 삭제합니다.",
+        "steps": [
+          {
+            "seq": 1,
+            "selector": "th:contains('분류'), th:contains('옵션 품목명'), th:contains('기준단가'), th:contains('단위'), th:contains('설명'), th:contains('상태')",
+            "type": "click_ripple",
+            "label": "헤더 클릭 정렬",
+            "description": "[헤더 클릭 정렬] UI 요소를 조작합니다. 테이블 헤더를 클릭하여 오름차순, 내림차순, 정렬 안 함 순으로 목록을 정렬하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 2,
+            "selector": "td button:contains('수정')",
+            "type": "click_ripple",
+            "label": "옵션 수정 버튼",
+            "description": "[옵션 수정 버튼] UI 요소를 조작합니다. 수정할 옵션의 우측 수정 버튼을 클릭하여 수정 모달을 엽니다."
+          },
+          {
+            "seq": 3,
+            "selector": "button:contains('삭제')",
+            "type": "highlight",
+            "label": "옵션 마스터 삭제",
+            "description": "[옵션 마스터 삭제] UI 요소에 값을 입력하거나 조작합니다. 수정 모달 하단의 삭제 버튼을 눌러 불필요한 옵션 마스터를 전사 풀에서 제거하십시오.",
+            "positionHint": "top"
+          }
+        ]
+      },
       {
         "processId": "process_site_options_sync",
         "title": "현장별 안전옵션 특약 설정 및 저장",
@@ -813,7 +1069,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"panel-site-scope\"]",
             "type": "callout",
             "label": "관리 대상 현장 선택",
-            "description": "좌측 현장 목록에서 옵션을 설정할 공사 현장을 선택합니다.",
+            "description": "[관리 대상 현장 선택] UI 요소를 조작합니다. 좌측 현장 목록에서 옵션을 설정할 공사 현장을 선택하십시오.",
             "positionHint": "right"
           },
           {
@@ -821,7 +1077,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"table-paid-options\"]",
             "type": "click_ripple",
             "label": "유상 옵션 항목 설정",
-            "description": "현장에 투입될 유상옵션 적용 여부와 특약단가를 설정합니다.",
+            "description": "[유상 옵션 항목 설정] UI 요소에 값을 입력하거나 조작합니다. 현장에 투입될 유상옵션 적용 여부와 특약단가를 설정하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -829,7 +1085,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"card-protection-options\"]",
             "type": "highlight",
             "label": "보양 작업 규격 선택",
-            "description": "현장 환경에 부합하는 보호 완충/함석 보양 규격을 선택합니다.",
+            "description": "[보양 작업 규격 선택] UI 요소를 조작합니다. 현장 환경에 부합하는 보호 완충/함석 보양 규격을 선택하십시오.",
             "positionHint": "top"
           },
           {
@@ -837,7 +1093,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"btn-save-site-options\"]",
             "type": "click_ripple",
             "label": "옵션 설정 확정 저장",
-            "description": "변경된 현장 안전옵션 구성을 DB에 영구 저장합니다.",
+            "description": "[옵션 설정 확정 저장] UI 요소에 값을 입력하거나 조작합니다. 변경된 현장 안전옵션 구성을 DB에 영구 저장하십시오.",
             "positionHint": "bottom"
           }
         ]
@@ -854,7 +1110,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "div[data-mid=\"contract-detailed-filters\"]",
         "type": "highlight",
         "label": "상세 검색 필터",
-        "description": "다양한 검색 조건을 활용해 고객사, 현장 등의 계약을 조회할 수 있습니다.",
+        "description": "[상세 검색 필터] 화면 영역입니다. 다양한 검색 조건을 활용해 고객사, 현장 등의 계약을 조회할 수 있습니다.",
         "positionHint": "bottom"
       },
       {
@@ -862,7 +1118,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "div[data-mid=\"contract-table\"]",
         "type": "highlight",
         "label": "계약 목록 그리드",
-        "description": "조회된 계약의 요약 정보를 확인하며, 행을 클릭해 상세 뷰로 진입할 수 있습니다.",
+        "description": "[계약 목록 그리드] 화면 영역입니다. 조회된 계약의 요약 정보를 확인하며, 행을 클릭해 상세 뷰로 진입할 수 있습니다.",
         "positionHint": "top"
       },
       {
@@ -870,7 +1126,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "div[data-mid=\"contract-filter-panel\"] > div:nth-child(3)",
         "type": "highlight",
         "label": "상태별 퀵 필터",
-        "description": "진행, 만료 임박, 종결 등 상태 칩을 클릭해 조건에 맞는 계약을 빠르게 필터링합니다.",
+        "description": "[상태별 퀵 필터] 화면 영역입니다. 진행, 만료 임박, 종결 등 상태 칩을 클릭해 조건에 맞는 계약을 빠르게 필터링하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       }
     ],
@@ -885,35 +1141,35 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "button[data-mid=\"btn-new-contract\"]",
             "type": "click_ripple",
             "label": "신규 등록 탭 진입",
-            "description": "'신규 계약 등록' 버튼을 클릭하여 입력 폼을 엽니다."
+            "description": "[신규 등록 탭 진입] UI 요소를 조작합니다. '신규 계약 등록' 버튼을 클릭하여 입력 폼을 엽니다."
           },
           {
             "seq": 2,
             "selector": "div[data-mid=\"create-contract-cust\"] select",
             "type": "callout",
             "label": "고객사 선택",
-            "description": "계약을 체결할 고객사를 검색하고 선택합니다."
+            "description": "[고객사 선택] UI 요소를 조작합니다. 계약을 체결할 고객사를 검색하고 선택하십시오."
           },
           {
             "seq": 3,
             "selector": "div[data-mid=\"create-contract-start-date\"] input",
             "type": "callout",
             "label": "계약 시작일 지정",
-            "description": "렌탈이 시작되는 계약 시작일을 입력합니다."
+            "description": "[계약 시작일 지정] UI 요소를 조작합니다. 렌탈이 시작되는 계약 시작일을 입력하십시오."
           },
           {
             "seq": 4,
             "selector": "div[data-mid=\"create-contract-basket-picker\"] button.btn-primary",
             "type": "click_ripple",
             "label": "자산 바스켓 추가",
-            "description": "제품 모델과 렌탈료를 설정한 뒤 '+ 추가' 버튼을 눌러 바스켓에 담습니다."
+            "description": "[자산 바스켓 추가] UI 요소에 값을 입력하거나 조작합니다. 제품 모델과 렌탈료를 설정한 뒤 '+ 추가' 버튼을 눌러 바스켓에 담습니다."
           },
           {
             "seq": 5,
             "selector": "button[data-mid=\"create-contract-submit\"]",
             "type": "click_ripple",
             "label": "계약 등록 완료",
-            "description": "모든 정보를 확인한 뒤 '계약 등록' 버튼을 클릭하여 완료합니다."
+            "description": "[계약 등록 완료] UI 요소를 조작합니다. 모든 정보를 확인한 뒤 '계약 등록' 버튼을 클릭하여 완료하십시오."
           }
         ]
       },
@@ -927,28 +1183,28 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "button[data-mid=\"contract-detail-action\"]",
             "type": "click_ripple",
             "label": "계약 상세 진입",
-            "description": "진행 중인 계약 목록에서 '상세 ' 버튼을 클릭합니다."
+            "description": "[계약 상세 진입] UI 요소를 조작합니다. 진행 중인 계약 목록에서 '상세 ' 버튼을 클릭하십시오."
           },
           {
             "seq": 2,
             "selector": "div[data-subview=\"contract_detail\"] > div.card:first-child button.btn-primary",
             "type": "click_ripple",
             "label": "기간 연장/단축 실행",
-            "description": "화면 상단의 '기간 연장/단축' 버튼을 클릭하여 모달을 엽니다."
+            "description": "[기간 연장/단축 실행] UI 요소를 조작합니다. 화면 상단의 '기간 연장/단축' 버튼을 클릭하여 모달을 엽니다."
           },
           {
             "seq": 3,
             "selector": "div[style*=\"z-index: 1000\"] form.card input[type=\"date\"]",
             "type": "callout",
             "label": "종료일 변경",
-            "description": "새롭게 변경할 만료일(종료일)을 지정합니다."
+            "description": "[종료일 변경] UI 요소를 조작합니다. 새롭게 변경할 만료일(종료일)을 지정하십시오."
           },
           {
             "seq": 4,
             "selector": "div[style*=\"z-index: 1000\"] form.card button[type=\"submit\"]",
             "type": "click_ripple",
             "label": "변경 내용 저장",
-            "description": "사유를 기재한 후 '저장' 버튼을 클릭해 반영합니다."
+            "description": "[변경 내용 저장] UI 요소를 조작합니다. 사유를 기재한 후 '저장' 버튼을 클릭해 반영하십시오."
           }
         ]
       },
@@ -962,35 +1218,35 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "button[data-mid=\"contract-detail-action\"]",
             "type": "click_ripple",
             "label": "계약 상세 진입",
-            "description": "진행 중인 계약 목록에서 '상세 ' 버튼을 클릭합니다."
+            "description": "[계약 상세 진입] UI 요소를 조작합니다. 진행 중인 계약 목록에서 '상세 ' 버튼을 클릭하십시오."
           },
           {
             "seq": 2,
             "selector": "div[data-subview=\"contract_detail\"] > div:nth-child(3) > div:nth-child(2) > div:first-child button.btn-secondary",
             "type": "click_ripple",
             "label": "대차 의뢰 실행",
-            "description": "체결 자산 목록 우측 상단의 '자산 교체/대차 의뢰' 버튼을 클릭합니다."
+            "description": "[대차 의뢰 실행] UI 요소를 조작합니다. 체결 자산 목록 우측 상단의 '자산 교체/대차 의뢰' 버튼을 클릭하십시오."
           },
           {
             "seq": 3,
             "selector": "div[style*=\"z-index: 1000\"] form.card select:first-of-type",
             "type": "callout",
             "label": "회수 자산 선택",
-            "description": "회수할 기존 자산 번호 혹은 모델을 선택합니다."
+            "description": "[회수 자산 선택] UI 요소를 조작합니다. 회수할 기존 자산 번호 혹은 모델을 선택하십시오."
           },
           {
             "seq": 4,
             "selector": "div[style*=\"z-index: 1000\"] form.card input[type=\"text\"]",
             "type": "callout",
             "label": "사유 입력",
-            "description": "대차가 필요한 사유 및 현장 상황을 기재합니다."
+            "description": "[사유 입력] UI 요소에 값을 입력하거나 조작합니다. 대차가 필요한 사유 및 현장 상황을 기재하십시오."
           },
           {
             "seq": 5,
             "selector": "div[style*=\"z-index: 1000\"] form.card button[type=\"submit\"]",
             "type": "click_ripple",
             "label": "대차 의뢰 완료",
-            "description": "'대차 의뢰 접수' 버튼을 클릭하여 출고와 회수 배차를 동시 발행합니다."
+            "description": "[대차 의뢰 완료] UI 요소를 조작합니다. '대차 의뢰 접수' 버튼을 클릭하여 출고와 회수 배차를 동시 발행하십시오."
           }
         ]
       }
@@ -1398,7 +1654,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"create-contract-customer\"]",
         "type": "callout",
         "label": "계약 거래처 선택",
-        "description": "임대 계약을 체결할 고객사를 검색하고 선택합니다.",
+        "description": "[계약 거래처 선택] 화면 영역입니다. 임대 계약을 체결할 고객사를 검색하고 선택하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       },
       {
@@ -1406,7 +1662,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"create-contract-submit\"]",
         "type": "click_ripple",
         "label": "계약 체결 저장",
-        "description": "모든 계약 속성을 검증하고 신규 계약서를 확정 등록합니다.",
+        "description": "[계약 체결 저장] 화면 영역입니다. 모든 계약 속성을 검증하고 신규 계약서를 확정 등록하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       }
     ],
@@ -1421,7 +1677,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"create-contract-customer\"]",
             "type": "callout",
             "label": "거래처 및 현장 지정",
-            "description": "계약 대상 고객사와 장비가 반입될 건설 현장을 선택합니다.",
+            "description": "[거래처 및 현장 지정] UI 요소를 조작합니다. 계약 대상 고객사와 장비가 반입될 건설 현장을 선택하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -1429,7 +1685,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"create-contract-start-date\"]",
             "type": "callout",
             "label": "계약 시작일 설정",
-            "description": "장비 인도 및 과금이 공식 개시되는 기준일을 지정합니다.",
+            "description": "[계약 시작일 설정] UI 요소를 조작합니다. 장비 인도 및 과금이 공식 개시되는 기준일을 지정하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -1437,7 +1693,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"create-contract-rate\"]",
             "type": "callout",
             "label": "월 렌탈료 단가 입력",
-            "description": "고소작업대 월 임대료 및 일할 계산 기준 단가를 입력합니다.",
+            "description": "[월 렌탈료 단가 입력] UI 요소를 조작합니다. 고소작업대 월 임대료 및 일할 계산 기준 단가를 입력하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -1445,7 +1701,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"create-contract-submit\"]",
             "type": "click_ripple",
             "label": "계약서 최종 등록 완결",
-            "description": "등록 버튼을 눌러 계약서를 발행하고 출고 의뢰 대기 상태로 전이합니다.",
+            "description": "[계약서 최종 등록 완결] UI 요소에 값을 입력하거나 조작합니다. 등록 버튼을 눌러 계약서를 발행하고 출고 의뢰 대기 상태로 전이하십시오.",
             "positionHint": "top"
           }
         ]
@@ -1462,14 +1718,14 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid='tab-billing-wizard']",
         "type": "callout",
         "label": "정산 마법사 탭",
-        "description": "정산 대상 계약을 확인하고 청구서를 신규로 생성하는 기능 탭입니다."
+        "description": "[정산 마법사 탭] 화면 영역입니다. 정산 대상 계약을 확인하고 청구서를 신규로 생성하는 기능 탭입니다."
       },
       {
         "seq": 2,
         "selector": "[data-mid='tab-billing-list']",
         "type": "callout",
         "label": "청구 대장 목록 탭",
-        "description": "생성된 청구서를 조회하고 이메일 발송, 취소, 분할 등의 관리를 수행하는 탭입니다."
+        "description": "[청구 대장 목록 탭] 화면 영역입니다. 생성된 청구서를 조회하고 이메일 발송, 취소, 분할 등의 관리를 수행하는 탭입니다."
       }
     ],
     "processes": [
@@ -1483,21 +1739,21 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='tab-billing-wizard']",
             "type": "click_ripple",
             "label": "정산 마법사 탭 이동",
-            "description": "청구서를 생성하기 위해 미청구 정산 탭으로 이동합니다."
+            "description": "[정산 마법사 탭 이동] UI 요소에 값을 입력하거나 조작합니다. 청구서를 생성하기 위해 미청구 정산 탭으로 이동하십시오."
           },
           {
             "seq": 2,
             "selector": "[data-mid=\"wizard-period-scope\"] button:nth-child(2)",
             "type": "click_ripple",
             "label": "조회 기간 설정",
-            "description": "마감일 기준 검색 기간에서 당월을 선택합니다."
+            "description": "[조회 기간 설정] UI 요소를 조작합니다. 마감일 기준 검색 기간에서 당월을 선택하십시오."
           },
           {
             "seq": 3,
             "selector": "[data-mid=\"wizard-bulk-generate-btn\"]",
             "type": "click_ripple",
             "label": "일괄 청구 생성",
-            "description": "외상미수금이 없는 일반 계약들을 대상으로 일괄 청구서를 생성합니다."
+            "description": "[일괄 청구 생성] UI 요소에 값을 입력하거나 조작합니다. 외상미수금이 없는 일반 계약들을 대상으로 일괄 청구서를 생성하십시오."
           }
         ]
       },
@@ -1511,14 +1767,14 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='tab-billing-list']",
             "type": "click_ripple",
             "label": "청구 대장 목록 탭 이동",
-            "description": "청구 내역을 확인하기 위해 청구 대장 탭으로 이동합니다."
+            "description": "[청구 대장 목록 탭 이동] UI 요소를 확인합니다. 청구 내역을 확인하기 위해 청구 대장 탭으로 이동하십시오."
           },
           {
             "seq": 2,
             "selector": "[data-mid=\"billing-mail-btn\"]:first-of-type",
             "type": "click_ripple",
             "label": "이메일 발송 버튼 클릭",
-            "description": "목록에서 대상 청구건의 발송 버튼을 클릭하여 거래명세서를 전송합니다."
+            "description": "[이메일 발송 버튼 클릭] UI 요소를 조작합니다. 목록에서 대상 청구건의 발송 버튼을 클릭하여 거래명세서를 전송하십시오."
           }
         ]
       },
@@ -1532,28 +1788,28 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='tab-billing-list']",
             "type": "click_ripple",
             "label": "청구 대장 목록 탭 이동",
-            "description": "청구 대장 탭으로 이동합니다."
+            "description": "[청구 대장 목록 탭 이동] UI 요소에 값을 입력하거나 조작합니다. 청구 대장 탭으로 이동하십시오."
           },
           {
             "seq": 2,
             "selector": "[data-mid='billing-list-item']",
             "type": "click_ripple",
             "label": "청구서 선택",
-            "description": "목록에서 취소 또는 분할할 청구서를 클릭하여 상세 내역을 엽니다."
+            "description": "[청구서 선택] UI 요소를 조작합니다. 목록에서 취소 또는 분할할 청구서를 클릭하여 상세 내역을 엽니다."
           },
           {
             "seq": 3,
             "selector": "[data-mid='btn-rollback-billing']",
             "type": "callout",
             "label": "청구 취소 (롤백)",
-            "description": "이 버튼을 클릭하면 해당 청구서를 취소하고 최근 청구 정보를 직전 유효 상태로 되돌립니다."
+            "description": "[청구 취소 (롤백)] UI 요소를 조작합니다. 이 버튼을 클릭하면 해당 청구서를 취소하고 최근 청구 정보를 직전 유효 상태로 되돌립니다."
           },
           {
             "seq": 4,
             "selector": "[data-mid='btn-split-billing']",
             "type": "callout",
             "label": "청구 분할",
-            "description": "이 버튼을 통해 하나의 청구서를 금액 기준으로 두 개의 청구서로 나눌 수 있습니다."
+            "description": "[청구 분할] UI 요소에 값을 입력하거나 조작합니다. 이 버튼을 통해 하나의 청구서를 금액 기준으로 두 개의 청구서로 나눌 수 있습니다."
           }
         ]
       }
@@ -1906,7 +2162,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"wizard-period-scope\"]",
         "type": "callout",
         "label": "정산 대상 월 선택",
-        "description": "과거 미청구 또는 당월 청구 대상 기간을 설정합니다.",
+        "description": "[정산 대상 월 선택] 화면 영역입니다. 과거 미청구 또는 당월 청구 대상 기간을 설정하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       },
       {
@@ -1914,7 +2170,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"wizard-contract-card-list\"]",
         "type": "highlight",
         "label": "미청구 계약 목록",
-        "description": "청구서가 아직 발행되지 않은 가동 계약 건들을 조망합니다.",
+        "description": "[미청구 계약 목록] 화면 영역입니다. 청구서가 아직 발행되지 않은 가동 계약 건들을 조망하는 기본 기능을 제공합니다.",
         "positionHint": "top"
       }
     ],
@@ -1929,7 +2185,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"wizard-period-scope\"]",
             "type": "callout",
             "label": "정산 기간 선택",
-            "description": "과거 정산 대상 월을 클릭합니다.",
+            "description": "[정산 기간 선택] UI 요소를 조작합니다. 과거 정산 대상 월을 클릭하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -1937,7 +2193,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"wizard-bulk-generate-btn\"]",
             "type": "click_ripple",
             "label": "일괄 청구서 생성",
-            "description": "모든 미청구 계약의 일할 계산 청구서를 일괄 생성합니다.",
+            "description": "[일괄 청구서 생성] UI 요소에 값을 입력하거나 조작합니다. 모든 미청구 계약의 일할 계산 청구서를 일괄 생성하십시오.",
             "positionHint": "bottom"
           }
         ]
@@ -2139,7 +2395,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"invoice-period-ym\"]",
         "type": "callout",
         "label": "청구 연월 선택",
-        "description": "통합 인보이스를 발행할 기준 년월을 선택합니다.",
+        "description": "[청구 연월 선택] 화면 영역입니다. 통합 인보이스를 발행할 기준 년월을 선택하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       },
       {
@@ -2147,7 +2403,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"invoice-unbilled-table\"]",
         "type": "highlight",
         "label": "미발행 거래명세 목록",
-        "description": "고객사 및 현장별 미발행 청구 내역을 확인합니다.",
+        "description": "[미발행 거래명세 목록] 화면 영역입니다. 고객사 및 현장별 미발행 청구 내역을 확인하는 기본 기능을 제공합니다.",
         "positionHint": "top"
       }
     ],
@@ -2162,7 +2418,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"invoice-period-ym\"]",
             "type": "callout",
             "label": "청구 연월 선택",
-            "description": "발행할 청구 년월을 지정합니다.",
+            "description": "[청구 연월 선택] UI 요소를 조작합니다. 발행할 청구 년월을 지정하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -2170,7 +2426,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"invoice-batch-consolidate-btn\"]",
             "type": "click_ripple",
             "label": "통합 인보이스 생성",
-            "description": "현장별 청구 내역을 거래처 단위로 합산 발행합니다.",
+            "description": "[통합 인보이스 생성] UI 요소에 값을 입력하거나 조작합니다. 현장별 청구 내역을 거래처 단위로 합산 발행하십시오.",
             "positionHint": "bottom"
           }
         ]
@@ -2306,7 +2562,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"waiver-period-scope\"]",
         "type": "callout",
         "label": "면제 조회 기간",
-        "description": "청구 면제 또는 감면 처리된 기간을 조회합니다.",
+        "description": "[면제 조회 기간] 화면 영역입니다. 청구 면제 또는 감면 처리된 기간을 조회하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       },
       {
@@ -2314,7 +2570,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"waiver-list-table\"]",
         "type": "highlight",
         "label": "청구 면제 대장",
-        "description": "우천, 파업, 설비 고장 등으로 청구 면제 처리된 상세 내역을 실사합니다.",
+        "description": "[청구 면제 대장] 화면 영역입니다. 우천, 파업, 설비 고장 등으로 청구 면제 처리된 상세 내역을 실사하는 기본 기능을 제공합니다.",
         "positionHint": "top"
       }
     ],
@@ -2329,7 +2585,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"waiver-list-table\"]",
             "type": "highlight",
             "label": "면제 대상 확인",
-            "description": "취소할 면제 건을 확인합니다.",
+            "description": "[면제 대상 확인] UI 요소를 확인합니다. 취소할 면제 건을 확인하십시오.",
             "positionHint": "top"
           }
         ]
@@ -2346,14 +2602,14 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": ".table-container",
         "type": "highlight",
         "label": "미수금 관리 그리드",
-        "description": "미청구 및 부분 청구 잔액을 포함한 모든 외상미수금 내역을 조회·관리합니다."
+        "description": "[미수금 관리 그리드] 화면 영역입니다. 미청구 및 부분 청구 잔액을 포함한 모든 외상미수금 내역을 조회·관리하는 기본 기능을 제공합니다."
       },
       {
         "seq": 2,
         "selector": ".card:first-of-type",
         "type": "highlight",
         "label": "검색 및 필터 패널",
-        "description": "고객사, 비용 유형, 청구 상태, 기간 범위를 지정하여 미수금을 조회합니다."
+        "description": "[검색 및 필터 패널] 화면 영역입니다. 고객사, 비용 유형, 청구 상태, 기간 범위를 지정하여 미수금을 조회하는 기본 기능을 제공합니다."
       }
     ],
     "processes": [
@@ -2367,28 +2623,28 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "button.btn-primary",
             "type": "click_ripple",
             "label": "신규 미수금 등록 버튼",
-            "description": "등록 버튼을 클릭하여 외상미수금 입력 팝업 창을 엽니다."
+            "description": "[신규 미수금 등록 버튼] UI 요소를 조작합니다. 등록 버튼을 클릭하여 외상미수금 입력 팝업 창을 엽니다."
           },
           {
             "seq": 2,
             "selector": "[data-mid='rec-modal-cost-type'] select",
             "type": "callout",
             "label": "비용 유형 선택",
-            "description": "발생한 비용의 적합한 항목(수리비, 운송비, 자재비 등)을 선택합니다."
+            "description": "[비용 유형 선택] UI 요소를 조작합니다. 발생한 비용의 적합한 항목(수리비, 운송비, 자재비 등)을 선택하십시오."
           },
           {
             "seq": 3,
             "selector": "[data-mid='rec-modal-total-amount'] input",
             "type": "callout",
             "label": "청구 총액 입력",
-            "description": "청구할 외상미수금 총액을 입력합니다."
+            "description": "[청구 총액 입력] UI 요소를 조작합니다. 청구할 외상미수금 총액을 입력하십시오."
           },
           {
             "seq": 4,
             "selector": "[data-mid='rec-modal-submit-btn']",
             "type": "click_ripple",
             "label": "미수금 등록 확정",
-            "description": "등록 완료 버튼을 클릭하여 신규 미수금 채권을 DB에 저장합니다."
+            "description": "[미수금 등록 확정] UI 요소를 조작합니다. 등록 완료 버튼을 클릭하여 신규 미수금 채권을 DB에 저장하십시오."
           }
         ]
       },
@@ -2402,14 +2658,14 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "table tbody tr:first-child button.btn-secondary",
             "type": "click_ripple",
             "label": "단독 청구 선택",
-            "description": "미결 미수금 행의 단독 청구 버튼을 클릭합니다."
+            "description": "[단독 청구 선택] UI 요소를 조작합니다. 미결 미수금 행의 단독 청구 버튼을 클릭하십시오."
           },
           {
             "seq": 2,
             "selector": "body",
             "type": "callout",
             "label": "청구 사유 입력",
-            "description": "입력 창에 단독 청구 사유를 기재하여 발행을 진행합니다."
+            "description": "[청구 사유 입력] UI 요소를 조작합니다. 입력 창에 단독 청구 사유를 기재하여 발행을 진행하십시오."
           }
         ]
       }
@@ -2565,14 +2821,14 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"dispatch4-block-customer\"]",
         "type": "highlight",
         "label": "고객사 선택",
-        "description": "출고를 진행할 대상 고객사를 선택합니다."
+        "description": "[고객사 선택] 화면 영역입니다. 출고를 진행할 대상 고객사를 선택하는 기본 기능을 제공합니다."
       },
       {
         "seq": 2,
         "selector": "[data-mid=\"dispatch4-block-equipments\"]",
         "type": "highlight",
         "label": "장비 매핑",
-        "description": "출고 요청된 모델 및 수량을 배차 주문에 매핑합니다."
+        "description": "[장비 매핑] 화면 영역입니다. 출고 요청된 모델 및 수량을 배차 주문에 매핑하는 기본 기능을 제공합니다."
       }
     ],
     "processes": [
@@ -2586,28 +2842,28 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"dispatch4-customer-search\"]",
             "type": "callout",
             "label": "고객사 검색 및 선택",
-            "description": "출고 대상 고객사를 검색하여 선택합니다."
+            "description": "[고객사 검색 및 선택] UI 요소를 조작합니다. 출고 대상 고객사를 검색하여 선택하십시오."
           },
           {
             "seq": 2,
             "selector": "[data-mid=\"dispatch4-model-chips\"]",
             "type": "callout",
             "label": "요청 장비 추가",
-            "description": "출고할 고소작업대 모델을 선택합니다."
+            "description": "[요청 장비 추가] UI 요소를 조작합니다. 출고할 고소작업대 모델을 선택하십시오."
           },
           {
             "seq": 3,
             "selector": "[data-mid=\"dispatch4-block-site\"]",
             "type": "callout",
             "label": "현장 정보 및 일정 입력",
-            "description": "반입 현장 주소, 담당자 연락처 및 상하차 일정을 입력합니다."
+            "description": "[현장 정보 및 일정 입력] UI 요소를 조작합니다. 반입 현장 주소, 담당자 연락처 및 상하차 일정을 입력하십시오."
           },
           {
             "seq": 4,
             "selector": "[data-mid=\"dispatch4-btn-submit\"]",
             "type": "click_ripple",
             "label": "출고 의뢰 접수",
-            "description": "버튼을 클릭하여 출고 배차 의뢰를 최종 접수합니다."
+            "description": "[출고 의뢰 접수] UI 요소를 조작합니다. 버튼을 클릭하여 출고 배차 의뢰를 최종 접수하십시오."
           }
         ]
       }
@@ -2757,7 +3013,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"smart_return-mode-tabs\"]",
         "type": "callout",
         "label": "모드 선택",
-        "description": "영업 임대 계약 회수 또는 정비 수리완료 회수 모드를 선택하여 진행할 수 있습니다.",
+        "description": "[모드 선택] 화면 영역입니다. 영업 임대 계약 회수 또는 정비 수리완료 회수 모드를 선택하여 진행할 수 있습니다.",
         "positionHint": "bottom"
       },
       {
@@ -2765,7 +3021,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"smart_return-summary\"]",
         "type": "highlight",
         "label": "회수 현황 요약",
-        "description": "현재 대여중인 장비 및 만료 예정 계약 현황을 확인할 수 있습니다.",
+        "description": "[회수 현황 요약] 화면 영역입니다. 현재 대여중인 장비 및 만료 예정 계약 현황을 확인할 수 있습니다.",
         "positionHint": "bottom"
       }
     ],
@@ -2780,7 +3036,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"smart_return-contract-list\"]",
             "type": "click_ripple",
             "label": "계약 선택",
-            "description": "목록에서 회수 대상 계약을 찾아 클릭합니다.",
+            "description": "[계약 선택] UI 요소를 조작합니다. 목록에서 회수 대상 계약을 찾아 클릭하십시오.",
             "positionHint": "right"
           },
           {
@@ -2788,7 +3044,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"smart_return-asset-select\"]",
             "type": "highlight",
             "label": "자산 선택",
-            "description": "회수할 장비를 체크하여 선택합니다.",
+            "description": "[자산 선택] UI 요소를 조작합니다. 회수할 장비를 체크하여 선택하십시오.",
             "positionHint": "left"
           },
           {
@@ -2796,7 +3052,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"smart_return-schedule\"]",
             "type": "callout",
             "label": "회수 일정 입력",
-            "description": "회수 예정일자 및 희망 시간을 지정합니다.",
+            "description": "[회수 일정 입력] UI 요소를 조작합니다. 회수 예정일자 및 희망 시간을 지정하십시오.",
             "positionHint": "top"
           },
           {
@@ -2804,7 +3060,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"smart_return-submit-btn\"]",
             "type": "click_ripple",
             "label": "등록 확정",
-            "description": "회수 의뢰 등록 확정 버튼을 눌러 작업을 완료합니다.",
+            "description": "[등록 확정] UI 요소에 값을 입력하거나 조작합니다. 회수 의뢰 등록 확정 버튼을 눌러 작업을 완료하십시오.",
             "positionHint": "top"
           }
         ]
@@ -3046,7 +3302,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"smart_as-form\"]",
         "type": "highlight",
         "label": "긴급 AS 접수 폼",
-        "description": "현장 장비 고장 접수 및 긴급 출동 의뢰를 작성합니다.",
+        "description": "[긴급 AS 접수 폼] 화면 영역입니다. 현장 장비 고장 접수 및 긴급 출동 의뢰를 작성하는 기본 기능을 제공합니다.",
         "positionHint": "top"
       }
     ],
@@ -3061,7 +3317,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"smart_as-form\"]",
             "type": "highlight",
             "label": "고장 현장 및 증상 입력",
-            "description": "현장 위치, 장비 관리번호, 고장 증상 및 사진을 등록합니다.",
+            "description": "[고장 현장 및 증상 입력] UI 요소에 값을 입력하거나 조작합니다. 현장 위치, 장비 관리번호, 고장 증상 및 사진을 등록하십시오.",
             "positionHint": "top"
           },
           {
@@ -3069,7 +3325,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"btn-new-ticket\"], button[type=\"submit\"]",
             "type": "click_ripple",
             "label": "AS 접수 완료",
-            "description": "의뢰를 확정하고 정비 큐에 긴급 티켓을 발행합니다.",
+            "description": "[AS 접수 완료] UI 요소에 값을 입력하거나 조작합니다. 의뢰를 확정하고 정비 큐에 긴급 티켓을 발행하십시오.",
             "positionHint": "bottom"
           }
         ]
@@ -3225,7 +3481,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"delinquency-scope-period\"]",
         "type": "callout",
         "label": "연체 위험도 필터",
-        "description": "고위험, 지시방치, 30일/60일/90일 이상 연체 채권을 필터링합니다.",
+        "description": "[연체 위험도 필터] 화면 영역입니다. 고위험, 지시방치, 30일/60일/90일 이상 연체 채권을 필터링하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       },
       {
@@ -3233,7 +3489,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"delinquency-inspection-grid\"]",
         "type": "highlight",
         "label": "연체 채권 관리 대장",
-        "description": "거래처별 누적 연체액, 최종 약속일, 지시 현황을 1:1 대조 실사합니다.",
+        "description": "[연체 채권 관리 대장] 화면 영역입니다. 거래처별 누적 연체액, 최종 약속일, 지시 현황을 1:1 대조 실사하는 기본 기능을 제공합니다.",
         "positionHint": "top"
       }
     ],
@@ -3248,7 +3504,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"delinquency-scope-period\"]",
             "type": "click_ripple",
             "label": "고위험 연체 스코핑",
-            "description": "상단의 [고위험] 또는 [지시방치] 필터 버튼을 클릭합니다.",
+            "description": "[고위험 연체 스코핑] UI 요소를 조작합니다. 상단의 [고위험] 또는 [지시방치] 필터 버튼을 클릭하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -3256,7 +3512,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"delinquency-inspection-grid\"]",
             "type": "highlight",
             "label": "대상 거래처 실사",
-            "description": "연체 총액과 최종 독촉 이력을 검토합니다.",
+            "description": "[대상 거래처 실사] UI 요소에 값을 입력하거나 조작합니다. 연체 총액과 최종 독촉 이력을 검토하십시오.",
             "positionHint": "top"
           }
         ]
@@ -3362,6 +3618,89 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "positionHint": "bottom",
         "spotlight": true
       }
+    ],
+    "basicGuide": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"product-type-filter\"], .type-filter-bar",
+        "type": "highlight",
+        "label": "장비 기종 분류",
+        "description": "[장비 기종 분류] 화면 영역입니다. 시저형, 굴절형, 직진형 등 장비 메커니즘별로 목록을 스코핑하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 2,
+        "selector": "[data-mid=\"product-model-input\"], .model-input-group",
+        "type": "highlight",
+        "label": "모델명 및 작업 높이",
+        "description": "[모델명 및 작업 높이] 화면 영역입니다. 제조사와 모델명, 최대 플랫폼 작업 가능 높이(m)를 등록하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      }
+    ],
+    "processes": [
+      {
+        "processId": "main_process",
+        "title": "핵심 단위 업무 조작 흐름",
+        "description": "제품 관리의 주요 기능 조작 절차입니다.",
+        "steps": [
+          {
+            "seq": 1,
+            "selector": "[data-mid=\"product-type-filter\"], .type-filter-bar",
+            "type": "click_ripple",
+            "label": "장비 기종 분류",
+            "description": "[장비 기종 분류] UI 요소에 값을 입력하거나 조작합니다. 시저형, 굴절형, 직진형 등 장비 메커니즘별로 목록을 스코핑하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 2,
+            "selector": "[data-mid=\"product-model-input\"], .model-input-group",
+            "type": "click_ripple",
+            "label": "모델명 및 작업 높이",
+            "description": "[모델명 및 작업 높이] UI 요소에 값을 입력하거나 조작합니다. 제조사와 모델명, 최대 플랫폼 작업 가능 높이(m)를 등록하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 3,
+            "selector": "[data-mid=\"product-specs-card\"], .specs-card",
+            "type": "click_ripple",
+            "label": "적재 하중 및 자체 중량",
+            "description": "[적재 하중 및 자체 중량] UI 요소에 값을 입력하거나 조작합니다. 정격 적재 하중(kg), 탑승 인원, 장비 자체 중량 제원을 검증하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 4,
+            "selector": "[data-mid=\"product-pricing-card\"], .pricing-card",
+            "type": "click_ripple",
+            "label": "표준 렌탈 단가표",
+            "description": "[표준 렌탈 단가표] UI 요소를 조작합니다. 표준 월 렌탈 단가와 일할 계산 단가 기준을 입력하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 5,
+            "selector": "[data-mid=\"product-safety-cert\"], .safety-cert-box",
+            "type": "click_ripple",
+            "label": "법정 안전인증 기준",
+            "description": "[법정 안전인증 기준] UI 요소에 값을 입력하거나 조작합니다. 안전보건공단 안전인증(KCs) 및 비파괴 검사 만료 주기를 설정하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 6,
+            "selector": "[data-mid=\"product-bom-mapping\"], .bom-box",
+            "type": "click_ripple",
+            "label": "소모품 부품목록 매핑",
+            "description": "[소모품 부품목록 매핑] UI 요소에 값을 입력하거나 조작합니다. 해당 기종에 투입되는 정품 배터리 규격과 유압 부품을 연결하십시오.",
+            "positionHint": "left"
+          },
+          {
+            "seq": 7,
+            "selector": "[data-mid=\"btn-save-product\"], button:contains(\"모델 저장\")",
+            "type": "click_ripple",
+            "label": "모델 마스터 확정",
+            "description": "[모델 마스터 확정] UI 요소에 값을 입력하거나 조작합니다. 모델 제원을 최종 저장하고 실물 자산 취득 및 계약에 가용화하십시오.",
+            "positionHint": "bottom"
+          }
+        ]
+      }
     ]
   },
   {
@@ -3374,7 +3713,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"asset-filter-bar\"]",
         "type": "highlight",
         "label": "자산 검색 및 필터",
-        "description": "관리번호, 모델명 등의 키워드 검색과 소유구분, 장비 상태 등의 조건으로 자산을 필터링합니다.",
+        "description": "[자산 검색 및 필터] 화면 영역입니다. 관리번호, 모델명 등의 키워드 검색과 소유구분, 장비 상태 등의 조건으로 자산을 필터링하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       },
       {
@@ -3382,7 +3721,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"btn-asset-search\"]",
         "type": "highlight",
         "label": "조회",
-        "description": "입력된 조건으로 자산을 조회합니다.",
+        "description": "[조회] 화면 영역입니다. 입력된 조건으로 자산을 조회하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       }
     ],
@@ -3397,7 +3736,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"asset-detail-action\"]",
             "type": "click_ripple",
             "label": "자산 선택",
-            "description": "목록에서 자산의 보기 버튼을 클릭하여 상세 명세서를 엽니다.",
+            "description": "[자산 선택] UI 요소를 조작합니다. 목록에서 자산의 보기 버튼을 클릭하여 상세 명세서를 엽니다.",
             "positionHint": "right"
           },
           {
@@ -3405,7 +3744,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "div[style*=\"z-index: 1000\"] > div:nth-child(1) .btn-primary",
             "type": "click_ripple",
             "label": "수정 버튼 클릭",
-            "description": "상세 창 상단의 수정 버튼을 클릭하여 편집 모드로 전환합니다.",
+            "description": "[수정 버튼 클릭] UI 요소를 조작합니다. 상세 창 상단의 수정 버튼을 클릭하여 편집 모드로 전환하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -3413,7 +3752,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='asset-edit-section']",
             "type": "highlight",
             "label": "자산 정보 수정",
-            "description": "장비 물리 제원, 운용 현황 등의 정보를 수정한 후 저장 버튼을 클릭하여 반영합니다.",
+            "description": "[자산 정보 수정] UI 요소를 조작합니다. 장비 물리 제원, 운용 현황 등의 정보를 수정한 후 저장 버튼을 클릭하여 반영하십시오.",
             "positionHint": "left"
           }
         ]
@@ -3428,7 +3767,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"asset-detail-action\"]",
             "type": "click_ripple",
             "label": "자산 선택",
-            "description": "목록에서 자산의 보기 버튼을 클릭하여 상세 명세서를 엽니다.",
+            "description": "[자산 선택] UI 요소를 조작합니다. 목록에서 자산의 보기 버튼을 클릭하여 상세 명세서를 엽니다.",
             "positionHint": "right"
           },
           {
@@ -3436,7 +3775,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='asset-edit-section'] .btn-secondary",
             "type": "click_ripple",
             "label": "이력 엑셀 다운로드",
-            "description": "정비 및 감사 이력 현황 항목의 이력 엑셀 버튼을 클릭하여 다운로드합니다.",
+            "description": "[이력 엑셀 다운로드] UI 요소를 조작합니다. 정비 및 감사 이력 현황 항목의 이력 엑셀 버튼을 클릭하여 다운로드하십시오.",
             "positionHint": "top"
           }
         ]
@@ -3683,7 +4022,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"acq-single-form-header\"]",
         "type": "highlight",
         "label": "신규 자산 취득 정보 폼",
-        "description": "고소작업대 신규 도입 시 시리얼, 제조사, 취득가액, 감가상각 연수를 등록합니다.",
+        "description": "[신규 자산 취득 정보 폼] 화면 영역입니다. 고소작업대 신규 도입 시 시리얼, 제조사, 취득가액, 감가상각 연수를 등록하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       }
     ],
@@ -3698,7 +4037,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"acq-single-form-header\"]",
             "type": "highlight",
             "label": "취득 정보 입력",
-            "description": "장비 모델, 시리얼번호, 제조년월 및 매입처를 입력합니다.",
+            "description": "[취득 정보 입력] UI 요소를 조작합니다. 장비 모델, 시리얼번호, 제조년월 및 매입처를 입력하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -3706,7 +4045,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "button[type=\"submit\"], button.btn-primary",
             "type": "click_ripple",
             "label": "자산 등재 확정",
-            "description": "신규 자산번호를 발급받고 AVAILABLE(임대가능) 상태로 초기화합니다.",
+            "description": "[자산 등재 확정] UI 요소에 값을 입력하거나 조작합니다. 신규 자산번호를 발급받고 AVAILABLE(임대가능) 상태로 초기화하십시오.",
             "positionHint": "top"
           }
         ]
@@ -3868,7 +4207,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"stat-returned-assets\"]",
         "type": "highlight",
         "label": "타사 임차 장비 가동 현황",
-        "description": "외부 전대/임차 장비의 가동 대수 및 월 총 지출 임차료를 확인합니다.",
+        "description": "[타사 임차 장비 가동 현황] 화면 영역입니다. 외부 전대/임차 장비의 가동 대수 및 월 총 지출 임차료를 확인하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       }
     ],
@@ -3883,7 +4222,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"stat-returned-assets\"]",
             "type": "highlight",
             "label": "가동 및 반납 대수 확인",
-            "description": "현장에 투입 중인 외부 임차 장비 목록을 조회합니다.",
+            "description": "[가동 및 반납 대수 확인] UI 요소를 확인합니다. 현장에 투입 중인 외부 임차 장비 목록을 조회하십시오.",
             "positionHint": "bottom"
           }
         ]
@@ -3900,14 +4239,14 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "div[data-mid='dispatch-mode-tabs']",
         "type": "highlight",
         "label": "업무 탭 (배차/대사)",
-        "description": "'배차 관리'와 '운송료 대사' 탭을 전환하여 업무를 수행합니다."
+        "description": "[업무 탭 (배차/대사)] 화면 영역입니다. '배차 관리'와 '운송료 대사' 탭을 전환하여 업무를 수행하는 기본 기능을 제공합니다."
       },
       {
         "seq": 2,
         "selector": "div[data-mid='dispatch-status-tabs']",
         "type": "highlight",
         "label": "배차 상태 필터",
-        "description": "배차 대기, 배차 완료, 이동 완료 등 상태별로 필터링할 수 있습니다."
+        "description": "[배차 상태 필터] 화면 영역입니다. 배차 대기, 배차 완료, 이동 완료 등 상태별로 필터링할 수 있습니다."
       }
     ],
     "processes": [
@@ -3921,7 +4260,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"dispatch-request-card\"], .card",
             "type": "click_ripple",
             "label": "배차 의뢰 접수",
-            "description": "출고 또는 회수 요청 카드를 선택합니다.",
+            "description": "[배차 의뢰 접수] UI 요소를 조작합니다. 출고 또는 회수 요청 카드를 선택하십시오.",
             "positionHint": "right"
           },
           {
@@ -3929,7 +4268,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"driver-select-box\"], select",
             "type": "callout",
             "label": "운송 기사 지정",
-            "description": "장비 제원(운송중량)에 적합한 카고/셀프로더 운송기사를 선택합니다.",
+            "description": "[운송 기사 지정] UI 요소를 조작합니다. 장비 제원(운송중량)에 적합한 카고/셀프로더 운송기사를 선택하십시오.",
             "positionHint": "top"
           },
           {
@@ -3937,7 +4276,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"btn-confirm-dispatch\"], button.btn-primary",
             "type": "click_ripple",
             "label": "배차 확정 및 배차지시서 전송",
-            "description": "기사에게 상하차지 주소 및 운송 지시를 모바일로 전송합니다.",
+            "description": "[배차 확정 및 배차지시서 전송] UI 요소에 값을 입력하거나 조작합니다. 기사에게 상하차지 주소 및 운송 지시를 모바일로 전송하십시오.",
             "positionHint": "bottom"
           }
         ]
@@ -3952,7 +4291,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"dispatch-exchange-badge\"], [data-mid=\"dispatch-request-card\"]",
             "type": "highlight",
             "label": "교환 의뢰 확인",
-            "description": "대차 교체용 출고 장비와 회수 대상 장비의 1:1 체인을 검토합니다.",
+            "description": "[교환 의뢰 확인] UI 요소에 값을 입력하거나 조작합니다. 대차 교체용 출고 장비와 회수 대상 장비의 1:1 체인을 검토하십시오.",
             "positionHint": "right"
           },
           {
@@ -3960,7 +4299,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"btn-confirm-dispatch\"], button.btn-primary",
             "type": "click_ripple",
             "label": "단일 왕복 배차 승인",
-            "description": "왕복 운송비 할인이 적용된 1건의 교환 배차를 최종 확정합니다.",
+            "description": "[단일 왕복 배차 승인] UI 요소에 값을 입력하거나 조작합니다. 왕복 운송비 할인이 적용된 1건의 교환 배차를 최종 확정하십시오.",
             "positionHint": "bottom"
           }
         ]
@@ -4341,7 +4680,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"stat-transport-company\"]",
         "type": "highlight",
         "label": "운송사 및 기사 현황",
-        "description": "등록된 협력 운송사와 전속 운송 기사 등록 현황을 조망합니다.",
+        "description": "[운송사 및 기사 현황] 화면 영역입니다. 등록된 협력 운송사와 전속 운송 기사 등록 현황을 조망하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       },
       {
@@ -4349,7 +4688,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"transport-company-table\"], table",
         "type": "highlight",
         "label": "운송 협력사 원장",
-        "description": "운송사별 사업자정보, 기본 운임 요율표, 정산 계좌를 관리합니다.",
+        "description": "[운송 협력사 원장] 화면 영역입니다. 운송사별 사업자정보, 기본 운임 요율표, 정산 계좌를 관리하는 기본 기능을 제공합니다.",
         "positionHint": "top"
       }
     ],
@@ -4364,7 +4703,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"stat-transport-company\"]",
             "type": "highlight",
             "label": "운송사 선택",
-            "description": "소속 운송 거래처를 지정합니다.",
+            "description": "[운송사 선택] UI 요소를 조작합니다. 소속 운송 거래처를 지정하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -4372,7 +4711,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "button.btn-primary",
             "type": "click_ripple",
             "label": "기사 등록 완료",
-            "description": "기사 연락처와 차량 등록증을 저장합니다.",
+            "description": "[기사 등록 완료] UI 요소에 값을 입력하거나 조작합니다. 기사 연락처와 차량 등록증을 저장하십시오.",
             "positionHint": "top"
           }
         ]
@@ -4492,6 +4831,97 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "badgeColor": "#1D4ED8",
         "positionHint": "top",
         "spotlight": false
+      }
+    ],
+    "basicGuide": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"filter-panel\"]",
+        "type": "highlight",
+        "label": "조회 조건 패널",
+        "description": "[조회 조건 패널] 화면 영역입니다. 조회 연월 이동 및 입출구분, 진행상태, 모델 필터를 설정하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 2,
+        "selector": "[data-mid=\"view-mode-toggle\"]",
+        "type": "highlight",
+        "label": "보기 전환",
+        "description": "[보기 전환] 화면 영역입니다. 캘린더 형태 보기와 고밀도 표 형태 보기 간 전환하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      }
+    ],
+    "processes": [
+      {
+        "processId": "main_process",
+        "title": "핵심 단위 업무 조작 흐름",
+        "description": "일일 입출고 조회의 주요 기능 조작 절차입니다.",
+        "steps": [
+          {
+            "seq": 1,
+            "selector": "[data-mid=\"filter-panel\"]",
+            "type": "click_ripple",
+            "label": "조회 조건 패널",
+            "description": "[조회 조건 패널] UI 요소를 확인합니다. 조회 연월 이동 및 입출구분, 진행상태, 모델 필터를 설정하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 2,
+            "selector": "[data-mid=\"view-mode-toggle\"]",
+            "type": "click_ripple",
+            "label": "보기 전환",
+            "description": "[보기 전환] UI 요소에 값을 입력하거나 조작합니다. 캘린더 형태 보기와 고밀도 표 형태 보기 간 전환하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 3,
+            "selector": "[data-mid=\"btn-export-excel\"]",
+            "type": "click_ripple",
+            "label": "엑셀 내보내기",
+            "description": "[엑셀 내보내기] UI 요소를 확인합니다. 조회 조건에 부합하는 일일 입출고 대장을 엑셀 파일로 다운로드하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 4,
+            "selector": "[data-mid=\"calendar-grid-card\"]",
+            "type": "click_ripple",
+            "label": "월간 캘린더",
+            "description": "[월간 캘린더] UI 요소를 확인합니다. 월간 7열 달력 상에서 일자별 입고/출고 칩과 순유동을 확인하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 5,
+            "selector": "[data-mid=\"chip-inbound\"]",
+            "type": "click_ripple",
+            "label": "입고 칩",
+            "description": "[입고 칩] UI 요소를 확인합니다. 청색 계열 입고 칩에서 일일 입고 총수량 및 모델별 수량을 확인하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 6,
+            "selector": "[data-mid=\"chip-outbound\"]",
+            "type": "click_ripple",
+            "label": "출고 칩",
+            "description": "[출고 칩] UI 요소를 확인합니다. 적색 계열 출고 칩에서 일일 출고 총수량 및 모델별 수량을 확인하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 7,
+            "selector": "[data-mid=\"daily-detail-panel\"]",
+            "type": "click_ripple",
+            "label": "일자 상세 내역",
+            "description": "[일자 상세 내역] UI 요소를 조작합니다. 선택된 일자의 입고/출고 건별 거래처, 현장, 자산번호, 배차상태를 실사하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 8,
+            "selector": "[data-mid=\"audit-summary-bar\"]",
+            "type": "click_ripple",
+            "label": "대차대조 집계 바",
+            "description": "[대차대조 집계 바] UI 요소에 값을 입력하거나 조작합니다. 당월 총 입고, 총 출고 및 주기장 실물 순유동 대차 차액을 최종 검증하십시오.",
+            "positionHint": "top"
+          }
+        ]
       }
     ]
   },
@@ -4631,7 +5061,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"stat-inout-returns\"]",
         "type": "highlight",
         "label": "입출고 통합 이력 지표",
-        "description": "전체 출고 및 반납 입고 누적 이력과 회수율을 조회합니다.",
+        "description": "[입출고 통합 이력 지표] 화면 영역입니다. 전체 출고 및 반납 입고 누적 이력과 회수율을 조회하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       }
     ],
@@ -4646,7 +5076,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"stat-inout-returns\"]",
             "type": "highlight",
             "label": "입출고 이력 대장 조회",
-            "description": "조회 조건별 출납 이력을 대조합니다.",
+            "description": "[입출고 이력 대장 조회] UI 요소를 확인합니다. 조회 조건별 출납 이력을 대조하십시오.",
             "positionHint": "top"
           }
         ]
@@ -4759,7 +5189,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"dispatch-assign-root\"]",
         "type": "highlight",
         "label": "출고 의뢰별 장비 할당 워크벤치",
-        "description": "계약된 규격에 부합하는 주기장 내 임대가능 장비 또는 외부 임차 장비를 1:1 매핑합니다.",
+        "description": "[출고 의뢰별 장비 할당 워크벤치] 화면 영역입니다. 계약된 규격에 부합하는 주기장 내 임대가능 장비 또는 외부 임차 장비를 1:1 매핑하는 기본 기능을 제공합니다.",
         "positionHint": "top"
       }
     ],
@@ -4774,7 +5204,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"dispatch-assign-root\"]",
             "type": "highlight",
             "label": "출고 의뢰 선택",
-            "description": "할당 대기 중인 계약 건을 선택합니다.",
+            "description": "[출고 의뢰 선택] UI 요소를 조작합니다. 할당 대기 중인 계약 건을 선택하십시오.",
             "positionHint": "top"
           }
         ]
@@ -4791,7 +5221,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "div[data-mid='tab-pending']",
         "type": "highlight",
         "label": "접수 대기 상태",
-        "description": "아직 엔지니어가 검수를 시작하지 않은 대기 상태의 요청들입니다.",
+        "description": "[접수 대기 상태] 화면 영역입니다. 아직 엔지니어가 검수를 시작하지 않은 대기 상태의 요청들입니다.",
         "positionHint": "bottom"
       },
       {
@@ -4799,7 +5229,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "div[data-mid='tab-in-progress']",
         "type": "highlight",
         "label": "검수 진행중 상태",
-        "description": "접수되어 현재 점검 및 검수가 진행 중인 요청들입니다.",
+        "description": "[검수 진행중 상태] 화면 영역입니다. 접수되어 현재 점검 및 검수가 진행 중인 요청들입니다.",
         "positionHint": "bottom"
       },
       {
@@ -4807,7 +5237,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "div[data-mid='outbound-queue-list']",
         "type": "callout",
         "label": "출고 요청 대기열",
-        "description": "상차일자 및 고객사 기준으로 그룹화된 출고 검수 요청 목록입니다.",
+        "description": "[출고 요청 대기열] 화면 영역입니다. 상차일자 및 고객사 기준으로 그룹화된 출고 검수 요청 목록입니다.",
         "positionHint": "right"
       }
     ],
@@ -4822,7 +5252,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "div[data-mid='outbound-queue-item']",
             "type": "click_ripple",
             "label": "의뢰 선택",
-            "description": "검수 대기 중인 요청 카드를 클릭하여 우측에 상세 정보를 표시합니다.",
+            "description": "[의뢰 선택] UI 요소를 조작합니다. 검수 대기 중인 요청 카드를 클릭하여 우측에 상세 정보를 표시하십시오.",
             "positionHint": "right"
           },
           {
@@ -4830,7 +5260,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "div[data-mid='btn-accept-job']",
             "type": "click_ripple",
             "label": "작업 접수",
-            "description": "'▶ 작업 접수 실행' 버튼을 클릭하여 검수를 시작합니다.",
+            "description": "[작업 접수] UI 요소를 조작합니다. '▶ 작업 접수 실행' 버튼을 클릭하여 검수를 시작하십시오.",
             "positionHint": "top"
           },
           {
@@ -4838,7 +5268,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(2) button.btn-secondary",
             "type": "click_ripple",
             "label": "항목 일괄 확인",
-            "description": "'전체 선택/해제' 버튼을 눌러 점검 항목을 일괄 체크합니다. (개별 체크도 가능)",
+            "description": "[항목 일괄 확인] UI 요소를 조작합니다. '전체 선택/해제' 버튼을 눌러 점검 항목을 일괄 체크합니다. (개별 체크도 가능",
             "positionHint": "left"
           },
           {
@@ -4846,7 +5276,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(2) button.btn-primary",
             "type": "stamp",
             "label": "최종 출고 승인",
-            "description": "'[🟢 최종 출고 승인 마감]' 버튼을 클릭합니다. 자산 상태가 RENTED로 전환됩니다.",
+            "description": "[최종 출고 승인] UI 요소를 조작합니다. '[🟢 최종 출고 승인 마감]' 버튼을 클릭합니다. 자산 상태가 RENTED로 전환되는지 확인하십시오.",
             "positionHint": "top"
           }
         ]
@@ -4861,7 +5291,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "div[data-mid='outbound-queue-item']",
             "type": "click_ripple",
             "label": "의뢰 선택",
-            "description": "검수 대기 또는 진행 중인 요청 카드를 클릭합니다.",
+            "description": "[의뢰 선택] UI 요소를 조작합니다. 검수 대기 또는 진행 중인 요청 카드를 클릭하십시오.",
             "positionHint": "right"
           },
           {
@@ -4869,7 +5299,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "div[data-subview=\"outbound_inspections\"] > div:nth-child(3) > div:nth-child(2) button.btn-primary + button",
             "type": "click_ripple",
             "label": "요청 반려 클릭",
-            "description": "하단의 ' 요청 반려' 버튼을 클릭하여 반려 사유 입력 창을 엽니다.",
+            "description": "[요청 반려 클릭] UI 요소를 조작합니다. 하단의 ' 요청 반려' 버튼을 클릭하여 반려 사유 입력 창을 엽니다.",
             "positionHint": "top"
           },
           {
@@ -4877,7 +5307,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='reject-reason-input']",
             "type": "callout",
             "label": "반려 사유 작성",
-            "description": "타이어 마모, 배터리 불량 등 구체적인 출고 반려 사유를 입력합니다.",
+            "description": "[반려 사유 작성] UI 요소를 조작합니다. 타이어 마모, 배터리 불량 등 구체적인 출고 반려 사유를 입력하십시오.",
             "positionHint": "top"
           },
           {
@@ -4885,7 +5315,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='switch-maintenance']",
             "type": "click_ripple",
             "label": "수리정비중 전환",
-            "description": "해당 장비를 긴급 수리 상태로 전환하려면 토글을 켭니다.",
+            "description": "[수리정비중 전환] UI 요소에 값을 입력하거나 조작합니다. 해당 장비를 긴급 수리 상태로 전환하려면 토글을 켭니다.",
             "positionHint": "left"
           },
           {
@@ -4893,7 +5323,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='btn-reject-confirm']",
             "type": "stamp",
             "label": "반려 처리 실행",
-            "description": "'반려 처리 실행' 버튼을 눌러 반려를 확정합니다.",
+            "description": "[반려 처리 실행] UI 요소에 값을 입력하거나 조작합니다. '반려 처리 실행' 버튼을 눌러 반려를 확정하십시오.",
             "positionHint": "top"
           }
         ]
@@ -5295,7 +5725,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"consumable_stock-tab-nav\"]",
         "type": "highlight",
         "label": "재고 영역 전환",
-        "description": "주기장 창고 재고, 이동 정비차량 재고, 고품 관리, 실사 재고 탭을 전환합니다.",
+        "description": "[재고 영역 전환] 화면 영역입니다. 주기장 창고 재고, 이동 정비차량 재고, 고품 관리, 실사 재고 탭을 전환하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       },
       {
@@ -5303,7 +5733,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"consumable_stock-kpi-stats\"]",
         "type": "highlight",
         "label": "소모품 현황 요약",
-        "description": "관리 품목 수, 주기장 보유 수량, 평가액 지표를 확인합니다.",
+        "description": "[소모품 현황 요약] 화면 영역입니다. 관리 품목 수, 주기장 보유 수량, 평가액 지표를 확인하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       }
     ],
@@ -5318,7 +5748,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"consumable_stock-tab-nav\"]",
             "type": "click_ripple",
             "label": "주기장 재고 탭 선택",
-            "description": "메인 창고 현재고 조회 화면을 선택합니다.",
+            "description": "[주기장 재고 탭 선택] UI 요소를 조작합니다. 메인 창고 현재고 조회 화면을 선택하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -5326,7 +5756,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"consumable_stock-inspection-grid\"]",
             "type": "highlight",
             "label": "재고 대장 확인",
-            "description": "부품별 주기장 재고와 차량 재고 수량을 확인하고 정보를 관리합니다.",
+            "description": "[재고 대장 확인] UI 요소를 확인합니다. 부품별 주기장 재고와 차량 재고 수량을 확인하고 정보를 관리하십시오.",
             "positionHint": "top"
           }
         ]
@@ -5452,6 +5882,89 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "badgeColor": "#1D4ED8",
         "positionHint": "top",
         "spotlight": false
+      }
+    ],
+    "basicGuide": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"print_queue_monitor-header\"]",
+        "type": "highlight",
+        "label": "프린트 큐 모니터",
+        "description": "[프린트 큐 모니터] 화면 영역입니다. 프린트 큐 모니터 및 프린터 스테이션을 관리하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 2,
+        "selector": "[data-mid=\"print_queue_monitor-agent-status\"]",
+        "type": "highlight",
+        "label": "에이전트 상태",
+        "description": "[에이전트 상태] 화면 영역입니다. 로컬 프린터 에이전트 연결 상태를 확인하고 재탐색하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      }
+    ],
+    "processes": [
+      {
+        "processId": "main_process",
+        "title": "핵심 단위 업무 조작 흐름",
+        "description": "프린트 큐 모니터의 주요 기능 조작 절차입니다.",
+        "steps": [
+          {
+            "seq": 1,
+            "selector": "[data-mid=\"print_queue_monitor-header\"]",
+            "type": "click_ripple",
+            "label": "프린트 큐 모니터",
+            "description": "[프린트 큐 모니터] UI 요소에 값을 입력하거나 조작합니다. 프린트 큐 모니터 및 프린터 스테이션을 관리하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 2,
+            "selector": "[data-mid=\"print_queue_monitor-agent-status\"]",
+            "type": "click_ripple",
+            "label": "에이전트 상태",
+            "description": "[에이전트 상태] UI 요소를 확인합니다. 로컬 프린터 에이전트 연결 상태를 확인하고 재탐색하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 3,
+            "selector": "[data-mid=\"print_queue_monitor-tabs\"]",
+            "type": "click_ripple",
+            "label": "탭 메뉴",
+            "description": "[탭 메뉴] UI 요소에 값을 입력하거나 조작합니다. 프린터 스테이션 관리와 인쇄 대기 대장 탭을 전환하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 4,
+            "selector": "[data-mid=\"print_queue_monitor-station-list\"]",
+            "type": "click_ripple",
+            "label": "등록 프린터 목록",
+            "description": "[등록 프린터 목록] UI 요소에 값을 입력하거나 조작합니다. 시스템에 등록된 프린터 스테이션 목록입니다.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 5,
+            "selector": "[data-mid=\"print_queue_monitor-station-form\"]",
+            "type": "click_ripple",
+            "label": "프린터 설정",
+            "description": "[프린터 설정] UI 요소에 값을 입력하거나 조작합니다. 새 프린터를 등록하거나 기존 프린터 설정을 수정하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 6,
+            "selector": "[data-mid=\"print_queue_monitor-queue-filter\"]",
+            "type": "click_ripple",
+            "label": "큐 필터",
+            "description": "[큐 필터] UI 요소에 값을 입력하거나 조작합니다. 상태, 문서, 스테이션별로 인쇄 대기열을 필터링하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 7,
+            "selector": "[data-mid=\"print_queue_monitor-queue-grid\"]",
+            "type": "click_ripple",
+            "label": "인쇄 대기 대장",
+            "description": "[인쇄 대기 대장] UI 요소를 확인합니다. 인쇄 큐에 쌓인 문서들의 상태를 조회하고 관리하십시오.",
+            "positionHint": "top"
+          }
+        ]
       }
     ]
   },
@@ -5582,7 +6095,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"consumable_purchase-scope\"]",
         "type": "highlight",
         "label": "조회 필터 바",
-        "description": "상태(신청/승인/입고), 기간, 검색어로 구매 신청 목록을 필터링합니다.",
+        "description": "[조회 필터 바] 화면 영역입니다. 상태(신청/승인/입고), 기간, 검색어로 구매 신청 목록을 필터링하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       },
       {
@@ -5590,7 +6103,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"consumable_purchase-inspection-grid\"]",
         "type": "highlight",
         "label": "구매 신청 대장",
-        "description": "신청된 소모품 내역, 단가, 승인 현황 및 입고 여부를 조회합니다.",
+        "description": "[구매 신청 대장] 화면 영역입니다. 신청된 소모품 내역, 단가, 승인 현황 및 입고 여부를 조회하는 기본 기능을 제공합니다.",
         "positionHint": "top"
       }
     ],
@@ -5605,7 +6118,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"consumable_purchase-pipeline-add\"]",
             "type": "click_ripple",
             "label": "구매신청등록 탭 선택",
-            "description": "상단의 구매신청등록 탭을 클릭하여 작성 폼을 활성화합니다.",
+            "description": "[구매신청등록 탭 선택] UI 요소를 조작합니다. 상단의 구매신청등록 탭을 클릭하여 작성 폼을 활성화하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -5613,7 +6126,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"consumable_purchase-inspection-form\"]",
             "type": "callout",
             "label": "품목 및 수량 입력",
-            "description": "품목명, 신청 수량, 예상 단가, 공급처를 기재합니다.",
+            "description": "[품목 및 수량 입력] UI 요소에 값을 입력하거나 조작합니다. 품목명, 신청 수량, 예상 단가, 공급처를 기재하십시오.",
             "positionHint": "top"
           },
           {
@@ -5621,7 +6134,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"consumable_purchase-terminal-submit\"]",
             "type": "click_ripple",
             "label": "구매 신청서 제출",
-            "description": "총 예상 금액을 확인하고 구매 신청서를 최종 제출합니다.",
+            "description": "[구매 신청서 제출] UI 요소를 확인합니다. 총 예상 금액을 확인하고 구매 신청서를 최종 제출하십시오.",
             "positionHint": "left"
           }
         ]
@@ -5784,7 +6297,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"consumable_inout-pipeline-inbound-tab\"]",
         "type": "highlight",
         "label": "소모품 입고 탭",
-        "description": "구매 승인된 소모품의 실물 입고 검수 및 창고 입고를 처리합니다.",
+        "description": "[소모품 입고 탭] 화면 영역입니다. 구매 승인된 소모품의 실물 입고 검수 및 창고 입고를 처리하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       },
       {
@@ -5792,7 +6305,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"consumable_inout-pipeline-outbound-tab\"]",
         "type": "highlight",
         "label": "소모품 출고 탭",
-        "description": "자산 정비 및 현장 AS용 부품을 출고 등록합니다.",
+        "description": "[소모품 출고 탭] 화면 영역입니다. 자산 정비 및 현장 AS용 부품을 출고 등록하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       }
     ],
@@ -5807,7 +6320,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"consumable_inout-pipeline-inbound-tab\"]",
             "type": "click_ripple",
             "label": "소모품 입고 선택",
-            "description": "입고 관리 화면을 활성화합니다.",
+            "description": "[소모품 입고 선택] UI 요소에 값을 입력하거나 조작합니다. 입고 관리 화면을 활성화하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -5815,7 +6328,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"consumable_inout-inspection-inbound-list\"]",
             "type": "highlight",
             "label": "입고 대상 선택",
-            "description": "입고 대기 구매신청 목록에서 실물이 도착한 항목을 선택합니다.",
+            "description": "[입고 대상 선택] UI 요소를 조작합니다. 입고 대기 구매신청 목록에서 실물이 도착한 항목을 선택하십시오.",
             "positionHint": "right"
           }
         ]
@@ -5936,7 +6449,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"field_as-scope\"]",
         "type": "highlight",
         "label": "AS 탭 전환",
-        "description": "출동 스튜디오, 캘린더, 분석, 관리 대장 간 탭을 전환합니다.",
+        "description": "[AS 탭 전환] 화면 영역입니다. 출동 스튜디오, 캘린더, 분석, 관리 대장 간 탭을 전환하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       },
       {
@@ -5944,7 +6457,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"field_as-filter\"]",
         "type": "highlight",
         "label": "AS 검색 필터",
-        "description": "기간, 진행 상태(접수대기/방문예정/재방문/완료)별로 필터링합니다.",
+        "description": "[AS 검색 필터] 화면 영역입니다. 기간, 진행 상태(접수대기/방문예정/재방문/완료)별로 필터링하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       }
     ],
@@ -5959,7 +6472,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"field_as-pipeline-add\"]",
             "type": "click_ripple",
             "label": "신규 AS 등록 버튼 클릭",
-            "description": "새로운 현장 AS 접수 모달을 엽니다.",
+            "description": "[신규 AS 등록 버튼 클릭] UI 요소에 값을 입력하거나 조작합니다. 새로운 현장 AS 접수 모달을 엽니다.",
             "positionHint": "bottom"
           }
         ]
@@ -5976,7 +6489,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"repair-inspection-grid\"]",
         "type": "highlight",
         "label": "정비 대기 자산 큐",
-        "description": "입고 결함, 출고 불량, 수리 중인 자산 목록을 우선순위에 따라 조회하고 선택할 수 있습니다.",
+        "description": "[정비 대기 자산 큐] 화면 영역입니다. 입고 결함, 출고 불량, 수리 중인 자산 목록을 우선순위에 따라 조회하고 선택할 수 있습니다.",
         "positionHint": "right"
       },
       {
@@ -5984,7 +6497,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"repair-studio-workbench\"]",
         "type": "highlight",
         "label": "정비 스튜디오 워크벤치",
-        "description": "선택한 자산에 대한 정비 조치 내역, 소모품 투입, 외주 위탁 등을 처리하는 작업 공간입니다.",
+        "description": "[정비 스튜디오 워크벤치] 화면 영역입니다. 선택한 자산에 대한 정비 조치 내역, 소모품 투입, 외주 위탁 등을 처리하는 작업 공간입니다.",
         "positionHint": "left"
       }
     ],
@@ -5999,7 +6512,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"repair-inspection-grid\"]",
             "type": "click_ripple",
             "label": "정비 대상 선택",
-            "description": "좌측 목록에서 수리할 자산을 클릭하여 선택합니다.",
+            "description": "[정비 대상 선택] UI 요소를 조작합니다. 좌측 목록에서 수리할 자산을 클릭하여 선택하십시오.",
             "positionHint": "right"
           },
           {
@@ -6007,7 +6520,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"repair-details-input\"], textarea",
             "type": "callout",
             "label": "정비 상세 내역 입력",
-            "description": "점검 결과 및 수리 조치 사항, 교체된 부품 내역을 상세히 기재합니다.",
+            "description": "[정비 상세 내역 입력] UI 요소에 값을 입력하거나 조작합니다. 점검 결과 및 수리 조치 사항, 교체된 부품 내역을 상세히 기재하십시오.",
             "positionHint": "top"
           },
           {
@@ -6015,7 +6528,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"repair-pipeline-add\"], button.btn-primary",
             "type": "click_ripple",
             "label": "정비 완료 확정",
-            "description": "작성된 정비 내역을 저장하고 해당 자산을 AVAILABLE(임대가능) 상태로 복원합니다.",
+            "description": "[정비 완료 확정] UI 요소에 값을 입력하거나 조작합니다. 작성된 정비 내역을 저장하고 해당 자산을 AVAILABLE(임대가능) 상태로 복원하십시오.",
             "positionHint": "top"
           }
         ]
@@ -6249,7 +6762,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"inspection_checklist_manage-scope\"]",
         "type": "highlight",
         "label": "탭 메뉴",
-        "description": "점검 항목 마스터, 조직 역량 분석, 장비 매뉴얼 라이브러리 간 탭 전환을 수행합니다.",
+        "description": "[탭 메뉴] 화면 영역입니다. 점검 항목 마스터, 조직 역량 분석, 장비 매뉴얼 라이브러리 간 탭 전환을 수행하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       },
       {
@@ -6257,7 +6770,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"inspection_checklist_manage-terminal-audit\"]",
         "type": "highlight",
         "label": "정비 요약 통계",
-        "description": "관리 분류, 총 점검항목, 평균 배점, 부품연계율 통계를 표시합니다.",
+        "description": "[정비 요약 통계] 화면 영역입니다. 관리 분류, 총 점검항목, 평균 배점, 부품연계율 통계를 표시하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       }
     ],
@@ -6272,7 +6785,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"inspection_checklist_manage-pipeline-add\"]",
             "type": "click_ripple",
             "label": "신규 정비 항목 등록 버튼 클릭",
-            "description": "정비 항목 등록 팝업 모달을 호출합니다.",
+            "description": "[신규 정비 항목 등록 버튼 클릭] UI 요소에 값을 입력하거나 조작합니다. 정비 항목 등록 팝업 모달을 호출하십시오.",
             "positionHint": "bottom"
           }
         ]
@@ -6289,7 +6802,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid='leave-form']",
         "type": "callout",
         "label": "연차/반차 신청 폼",
-        "description": "휴가 구분, 일자 및 사유를 입력하여 연차 또는 반차를 신청하는 영역입니다.",
+        "description": "[연차/반차 신청 폼] 화면 영역입니다. 휴가 구분, 일자 및 사유를 입력하여 연차 또는 반차를 신청하는 영역입니다.",
         "positionHint": "right"
       },
       {
@@ -6297,7 +6810,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid='leave-history-table']",
         "type": "callout",
         "label": "신청 내역 리스트",
-        "description": "과거 연차 및 반차 신청 내역과 사용 기간, 차감 일수를 확인할 수 있는 이력 테이블입니다.",
+        "description": "[신청 내역 리스트] 화면 영역입니다. 과거 연차 및 반차 신청 내역과 사용 기간, 차감 일수를 확인할 수 있는 이력 테이블입니다.",
         "positionHint": "left"
       }
     ],
@@ -6312,7 +6825,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='leave-type-select']",
             "type": "highlight",
             "label": "휴가 구분 선택",
-            "description": "연차, 오전반차, 또는 오후반차 중 원하는 휴가 구분을 선택합니다.",
+            "description": "[휴가 구분 선택] UI 요소를 조작합니다. 연차, 오전반차, 또는 오후반차 중 원하는 휴가 구분을 선택하십시오.",
             "positionHint": "right"
           },
           {
@@ -6320,7 +6833,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='leave-date-input']",
             "type": "highlight",
             "label": "휴가 일자 입력",
-            "description": "휴가의 시작 일자와 종료 일자를 지정합니다.",
+            "description": "[휴가 일자 입력] UI 요소를 조작합니다. 휴가의 시작 일자와 종료 일자를 지정하십시오.",
             "positionHint": "right"
           },
           {
@@ -6328,7 +6841,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='leave-reason-input']",
             "type": "highlight",
             "label": "사유 입력",
-            "description": "휴가를 신청하는 사유를 간략히 입력합니다.",
+            "description": "[사유 입력] UI 요소를 조작합니다. 휴가를 신청하는 사유를 간략히 입력하십시오.",
             "positionHint": "right"
           },
           {
@@ -6336,7 +6849,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='leave-submit-btn']",
             "type": "click_ripple",
             "label": "신청 버튼 클릭",
-            "description": "입력한 정보를 바탕으로 휴가를 최종 신청합니다.",
+            "description": "[신청 버튼 클릭] UI 요소를 조작합니다. 입력한 정보를 바탕으로 휴가를 최종 신청하십시오.",
             "positionHint": "right"
           }
         ]
@@ -6499,6 +7012,65 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "positionHint": "bottom",
         "spotlight": false
       }
+    ],
+    "basicGuide": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"ot_management-terminal-audit\"]",
+        "type": "highlight",
+        "label": "연장근무 현황 요약",
+        "description": "[연장근무 현황 요약] 화면 영역입니다. 총 승인 시간, 당월 OT 시간 등 전체적인 현황을 요약하여 보여줍니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 2,
+        "selector": "[data-mid=\"ot_management-pipeline-add\"]",
+        "type": "highlight",
+        "label": "연장근무 등록",
+        "description": "[연장근무 등록] 화면 영역입니다. 다중 인원 선택 및 일자, 시간을 지정하여 OT를 등록할 수 있습니다.",
+        "positionHint": "bottom"
+      }
+    ],
+    "processes": [
+      {
+        "processId": "main_process",
+        "title": "핵심 단위 업무 조작 흐름",
+        "description": "OT 관리의 주요 기능 조작 절차입니다.",
+        "steps": [
+          {
+            "seq": 1,
+            "selector": "[data-mid=\"ot_management-terminal-audit\"]",
+            "type": "click_ripple",
+            "label": "연장근무 현황 요약",
+            "description": "[연장근무 현황 요약] UI 요소에 값을 입력하거나 조작합니다. 총 승인 시간, 당월 OT 시간 등 전체적인 현황을 요약하여 보여줍니다.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 2,
+            "selector": "[data-mid=\"ot_management-pipeline-add\"]",
+            "type": "click_ripple",
+            "label": "연장근무 등록",
+            "description": "[연장근무 등록] UI 요소를 조작합니다. 다중 인원 선택 및 일자, 시간을 지정하여 OT를 등록할 수 있습니다.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 3,
+            "selector": "[data-mid=\"ot_management-inspection-grid\"]",
+            "type": "click_ripple",
+            "label": "연장근무 목록 조회",
+            "description": "[연장근무 목록 조회] UI 요소를 확인합니다. 과거 및 현재 등록된 전체 OT 기록을 테이블 형태로 조회할 수 있습니다.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 4,
+            "selector": "[data-mid=\"ot_management-analytics-grid\"]",
+            "type": "click_ripple",
+            "label": "연장근무 캘린더 뷰",
+            "description": "[연장근무 캘린더 뷰] UI 요소를 확인합니다. 월별 OT 내역을 캘린더 형태로 확인하고 일별 상세 조회에 접근하십시오.",
+            "positionHint": "bottom"
+          }
+        ]
+      }
     ]
   },
   {
@@ -6639,6 +7211,97 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "positionHint": "bottom",
         "spotlight": false
       }
+    ],
+    "basicGuide": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"vehicle_log-header\"]",
+        "type": "highlight",
+        "label": "차량 운용 현황 요약",
+        "description": "[차량 운용 현황 요약] 화면 영역입니다. 보유 차량 수, 당월 총 주행거리, 총 주유비, 유류대 정산 현황을 모니터링하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 2,
+        "selector": "[data-mid=\"vehicle_log-export-nts\"]",
+        "type": "highlight",
+        "label": "국세청 양식 내보내기",
+        "description": "[국세청 양식 내보내기] 화면 영역입니다. 국세청 업무용 승용차 운행기록부 법정 서식으로 엑셀을 즉시 내려받습니다.",
+        "positionHint": "bottom"
+      }
+    ],
+    "processes": [
+      {
+        "processId": "main_process",
+        "title": "핵심 단위 업무 조작 흐름",
+        "description": "차량 / 주유관리의 주요 기능 조작 절차입니다.",
+        "steps": [
+          {
+            "seq": 1,
+            "selector": "[data-mid=\"vehicle_log-header\"]",
+            "type": "click_ripple",
+            "label": "차량 운용 현황 요약",
+            "description": "[차량 운용 현황 요약] UI 요소에 값을 입력하거나 조작합니다. 보유 차량 수, 당월 총 주행거리, 총 주유비, 유류대 정산 현황을 모니터링하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 2,
+            "selector": "[data-mid=\"vehicle_log-export-nts\"]",
+            "type": "click_ripple",
+            "label": "국세청 양식 내보내기",
+            "description": "[국세청 양식 내보내기] UI 요소에 값을 입력하거나 조작합니다. 국세청 업무용 승용차 운행기록부 법정 서식으로 엑셀을 즉시 내려받습니다.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 3,
+            "selector": "[data-mid=\"vehicle_log-upload-excel\"]",
+            "type": "click_ripple",
+            "label": "주유 내역 엑셀 업로드",
+            "description": "[주유 내역 엑셀 업로드] UI 요소에 값을 입력하거나 조작합니다. 법인카드 주유 전표 및 전자세금계산서 주유 데이터를 일괄 업로드하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 4,
+            "selector": "[data-mid=\"vehicle_log-export-fuel\"]",
+            "type": "click_ripple",
+            "label": "주유 대장 내보내기",
+            "description": "[주유 대장 내보내기] UI 요소에 값을 입력하거나 조작합니다. 기간별 차량 주유 집계 및 정산 내역을 엑셀로 다운로드하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 5,
+            "selector": "[data-mid=\"vehicle_log-tab-fuel\"]",
+            "type": "click_ripple",
+            "label": "주유 정산 대장 탭",
+            "description": "[주유 정산 대장 탭] UI 요소에 값을 입력하거나 조작합니다. 차량별 주유 일자, 주유량(L), 금액, 주유소를 1:1 대사하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 6,
+            "selector": "[data-mid=\"vehicle_log-tab-fleet\"]",
+            "type": "click_ripple",
+            "label": "차량 마스터 관리 탭",
+            "description": "[차량 마스터 관리 탭] UI 요소에 값을 입력하거나 조작합니다. 회사 보유 차량 번호, 차종, 배정 임직원, 보험 만기일을 관리하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 7,
+            "selector": "[data-mid=\"vehicle_log-filter\"]",
+            "type": "click_ripple",
+            "label": "운행 기록 검색 조건",
+            "description": "[운행 기록 검색 조건] UI 요소를 확인합니다. 조회 기간, 차량 번호, 운전자, 업무용/비업무용 구분별로 필터링하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 8,
+            "selector": "[data-mid=\"vehicle_log-grid-fuel\"]",
+            "type": "click_ripple",
+            "label": "운행 및 주유 데이터 대장",
+            "description": "[운행 및 주유 데이터 대장] UI 요소에 값을 입력하거나 조작합니다. 일자별 출발/도착지, 주행거리, 유류대 실지출 내역을 검토 및 수정하십시오.",
+            "positionHint": "bottom"
+          }
+        ]
+      }
     ]
   },
   {
@@ -6747,7 +7410,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"purchase_settlement-pipeline-generate\"]",
         "type": "click_ripple",
         "label": "매입 정산 자동 집계",
-        "description": "당월 발생한 부품 매입, 외주 정비, 운송비 지출을 자동 집계합니다.",
+        "description": "[매입 정산 자동 집계] 화면 영역입니다. 당월 발생한 부품 매입, 외주 정비, 운송비 지출을 자동 집계하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       }
     ],
@@ -6762,7 +7425,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"purchase_settlement-pipeline-generate\"]",
             "type": "click_ripple",
             "label": "매입 정산 집계",
-            "description": "당월 매입 내역을 집계합니다.",
+            "description": "[매입 정산 집계] UI 요소에 값을 입력하거나 조작합니다. 당월 매입 내역을 집계하십시오.",
             "positionHint": "bottom"
           }
         ]
@@ -6865,7 +7528,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "table, .table-container",
         "type": "highlight",
         "label": "매입처 대장",
-        "description": "부품사, 운송사, 정비공업사 등 협력 매입처 원장을 관리합니다.",
+        "description": "[매입처 대장] 화면 영역입니다. 부품사, 운송사, 정비공업사 등 협력 매입처 원장을 관리하는 기본 기능을 제공합니다.",
         "positionHint": "top"
       }
     ],
@@ -6880,7 +7543,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "button.btn-primary",
             "type": "click_ripple",
             "label": "매입처 등록",
-            "description": "신규 매입처 정보를 입력 저장합니다.",
+            "description": "[매입처 등록] UI 요소를 조작합니다. 신규 매입처 정보를 입력 저장하십시오.",
             "positionHint": "bottom"
           }
         ]
@@ -6897,7 +7560,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "table",
         "type": "callout",
         "label": "분할 화면 레이아웃",
-        "description": "화면은 분할 구조로 이루어져 있으며, 좌측에는 입금 내역(Deposits), 우측에는 청구 내역(Billings) 정보가 표시되어 수납 대사를 효율적으로 진행할 수 있습니다.",
+        "description": "[분할 화면 레이아웃] 화면 영역입니다. 화면은 분할 구조로 이루어져 있으며, 좌측에는 입금 내역(Deposits), 우측에는 청구 내역(Billings) 정보가 표시되어 수납 대사를 효율적으로 진행할 수 있습니다.",
         "positionHint": "bottom"
       },
       {
@@ -6905,7 +7568,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid='btn-batch-match'], [data-mid='btn-auto-match']",
         "type": "highlight",
         "label": "일괄 자동 매칭",
-        "description": "상호 및 금액이 일치하는 입금 건과 청구 건을 시스템이 자동으로 찾아 일괄 매칭 및 수납 처리합니다.",
+        "description": "[일괄 자동 매칭] 화면 영역입니다. 상호 및 금액이 일치하는 입금 건과 청구 건을 시스템이 자동으로 찾아 일괄 매칭 및 수납 처리하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       }
     ],
@@ -6920,7 +7583,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "table tbody tr td button.btn-primary",
             "type": "click_ripple",
             "label": "입금 건 선택",
-            "description": "아직 매칭되지 않은 입금 내역 우측의 수납/매칭 버튼을 클릭하여 대상 입금 건을 선택합니다.",
+            "description": "[입금 건 선택] UI 요소를 조작합니다. 아직 매칭되지 않은 입금 내역 우측의 수납/매칭 버튼을 클릭하여 대상 입금 건을 선택하십시오.",
             "positionHint": "right"
           },
           {
@@ -6928,7 +7591,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='input-matching-billing']",
             "type": "click_ripple",
             "label": "청구서 선택",
-            "description": "활성화된 모달창에서 수납을 적용할 대상 청구서의 라디오 버튼을 선택합니다.",
+            "description": "[청구서 선택] UI 요소를 조작합니다. 활성화된 모달창에서 수납을 적용할 대상 청구서의 라디오 버튼을 선택하십시오.",
             "positionHint": "right"
           },
           {
@@ -6936,7 +7599,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "form button[type='submit'].btn-primary",
             "type": "click_ripple",
             "label": "수납 승인",
-            "description": "수납 승인 완료 버튼을 클릭하여 수납 처리를 확정합니다.",
+            "description": "[수납 승인] UI 요소를 조작합니다. 수납 승인 완료 버튼을 클릭하여 수납 처리를 확정하십시오.",
             "positionHint": "bottom"
           }
         ]
@@ -6951,7 +7614,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='btn-unmatch']",
             "type": "click_ripple",
             "label": "매칭 해제 실행",
-            "description": "매칭이 완료된 목록의 행에서 해제 버튼을 클릭하여 수납 매칭 롤백을 수행합니다.",
+            "description": "[매칭 해제 실행] UI 요소를 조작합니다. 매칭이 완료된 목록의 행에서 해제 버튼을 클릭하여 수납 매칭 롤백을 수행하십시오.",
             "positionHint": "right"
           }
         ]
@@ -7216,7 +7879,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "table, .table-container",
         "type": "highlight",
         "label": "법인카드 승인 내역",
-        "description": "카드사 승인 내역과 ERP 지출 품의를 1:1 매칭합니다.",
+        "description": "[법인카드 승인 내역] 화면 영역입니다. 카드사 승인 내역과 ERP 지출 품의를 1:1 매칭하는 기본 기능을 제공합니다.",
         "positionHint": "top"
       }
     ],
@@ -7231,7 +7894,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "button.btn-primary",
             "type": "click_ripple",
             "label": "카드 명세 로드",
-            "description": "승인 내역을 업로드합니다.",
+            "description": "[카드 명세 로드] UI 요소에 값을 입력하거나 조작합니다. 승인 내역을 업로드하십시오.",
             "positionHint": "bottom"
           }
         ]
@@ -7383,7 +8046,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "div[style*=\"grid-template-columns\"]",
         "type": "highlight",
         "label": "자금 수지 지표",
-        "description": "당월 매출 입금액과 매입/급여/운송 지출액의 순유동성을 실시간 조망합니다.",
+        "description": "[자금 수지 지표] 화면 영역입니다. 당월 매출 입금액과 매입/급여/운송 지출액의 순유동성을 실시간 조망하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       }
     ],
@@ -7398,7 +8061,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "div[style*=\"grid-template-columns\"]",
             "type": "highlight",
             "label": "자금 수지 조망",
-            "description": "총 유입액과 총 유출액을 확인합니다.",
+            "description": "[자금 수지 조망] UI 요소를 확인합니다. 총 유입액과 총 유출액을 확인하십시오.",
             "positionHint": "bottom"
           }
         ]
@@ -7511,7 +8174,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"dep-status-banner\"]",
         "type": "highlight",
         "label": "감가상각 마감 상태",
-        "description": "당월 감가상각비 계상 및 장부가액 감액 상태를 확인합니다.",
+        "description": "[감가상각 마감 상태] 화면 영역입니다. 당월 감가상각비 계상 및 장부가액 감액 상태를 확인하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       }
     ],
@@ -7526,7 +8189,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"dep-status-banner\"]",
             "type": "highlight",
             "label": "상각 상태 확인",
-            "description": "당월 상각 실행 대기 자산 목록을 확인합니다.",
+            "description": "[상각 상태 확인] UI 요소를 확인합니다. 당월 상각 실행 대기 자산 목록을 확인하십시오.",
             "positionHint": "bottom"
           }
         ]
@@ -7543,7 +8206,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "select",
         "type": "highlight",
         "label": "리포트 목록 선택",
-        "description": "조회할 대상 연월을 선택하여 해당 월의 결산 보고서를 불러옵니다.",
+        "description": "[리포트 목록 선택] 화면 영역입니다. 조회할 대상 연월을 선택하여 해당 월의 결산 보고서를 불러옵니다.",
         "positionHint": "bottom"
       },
       {
@@ -7551,7 +8214,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "button.btn-primary",
         "type": "callout",
         "label": "보고서 확정 및 다운로드",
-        "description": "지시 사항을 저장하거나 최종 확정된 공식 보고서를 다운로드합니다.",
+        "description": "[보고서 확정 및 다운로드] 화면 영역입니다. 지시 사항을 저장하거나 최종 확정된 공식 보고서를 다운로드하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       }
     ],
@@ -7566,7 +8229,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "select",
             "type": "click_ripple",
             "label": "대기 보고서 선택",
-            "description": "드롭다운 목록에서 결재할 대상 연월의 보고서를 선택합니다.",
+            "description": "[대기 보고서 선택] UI 요소를 조작합니다. 드롭다운 목록에서 결재할 대상 연월의 보고서를 선택하십시오.",
             "positionHint": "right"
           },
           {
@@ -7574,7 +8237,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='reports-grid']",
             "type": "highlight",
             "label": "보고서 내용 검토",
-            "description": "보고서 본문의 상세 지표, 차트, 부서별 의견을 정밀 검토합니다.",
+            "description": "[보고서 내용 검토] UI 요소에 값을 입력하거나 조작합니다. 보고서 본문의 상세 지표, 차트, 부서별 의견을 정밀 검토하십시오.",
             "positionHint": "top"
           },
           {
@@ -7582,7 +8245,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "button.btn-primary",
             "type": "stamp",
             "label": "승인 및 결재 확정",
-            "description": "확인 버튼을 클릭하여 보고서를 최종 승인 상태로 확정 마감합니다.",
+            "description": "[승인 및 결재 확정] UI 요소를 조작합니다. 확인 버튼을 클릭하여 보고서를 최종 승인 상태로 확정 마감하십시오.",
             "positionHint": "bottom"
           }
         ]
@@ -7811,7 +8474,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"org-tree-panel\"]",
         "type": "highlight",
         "label": "부서 조직 구조도",
-        "description": "본사/지사/주기장 및 팀별 계층 구조를 조망하고 하위 부서를 신설·배치합니다.",
+        "description": "[부서 조직 구조도] 화면 영역입니다. 본사/지사/주기장 및 팀별 계층 구조를 조망하고 하위 부서를 신설·배치하는 기본 기능을 제공합니다.",
         "positionHint": "right"
       },
       {
@@ -7819,7 +8482,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"org-users-panel\"]",
         "type": "highlight",
         "label": "부서원 명부 대장",
-        "description": "선택 부서에 소속된 임직원의 직급, 직책, 결재선 티어 및 계정 상태를 관리합니다.",
+        "description": "[부서원 명부 대장] 화면 영역입니다. 선택 부서에 소속된 임직원의 직급, 직책, 결재선 티어 및 계정 상태를 관리하는 기본 기능을 제공합니다.",
         "positionHint": "left"
       }
     ],
@@ -7834,7 +8497,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"org-tree-panel\"]",
             "type": "highlight",
             "label": "상위 부서 선택",
-            "description": "조직도 트리에서 신설할 부서의 상위 조직 또는 본부를 클릭합니다.",
+            "description": "[상위 부서 선택] UI 요소를 조작합니다. 조직도 트리에서 신설할 부서의 상위 조직 또는 본부를 클릭하십시오.",
             "positionHint": "right"
           },
           {
@@ -7842,7 +8505,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"org-btn-add-dept\"]",
             "type": "click_ripple",
             "label": "하위 부서 추가 클릭",
-            "description": "조직 트리 상단의 [+] 버튼을 클릭하여 새 부서 노드를 생성합니다.",
+            "description": "[하위 부서 추가 클릭] UI 요소를 조작합니다. 조직 트리 상단의 [+] 버튼을 클릭하여 새 부서 노드를 생성하십시오.",
             "positionHint": "bottom"
           }
         ]
@@ -7857,7 +8520,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"org-btn-add-user\"]",
             "type": "click_ripple",
             "label": "신규 직원 등록 버튼 클릭",
-            "description": "명부 상단의 [신규 직원 등록] 버튼을 클릭하여 입력 모달을 엽니다.",
+            "description": "[신규 직원 등록 버튼 클릭] UI 요소를 조작합니다. 명부 상단의 [신규 직원 등록] 버튼을 클릭하여 입력 모달을 엽니다.",
             "positionHint": "bottom"
           },
           {
@@ -7865,7 +8528,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"org-users-panel\"]",
             "type": "highlight",
             "label": "배치 결과 확인",
-            "description": "등록된 직원이 부서원 명부에 정상 반영되고 직책 티어가 산정되었는지 확인합니다.",
+            "description": "[배치 결과 확인] UI 요소를 확인합니다. 등록된 직원이 부서원 명부에 정상 반영되고 직책 티어가 산정되었는지 확인하십시오.",
             "positionHint": "left"
           }
         ]
@@ -7882,7 +8545,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid='btn-inherit-role']",
         "type": "highlight",
         "label": "사용자 그리드",
-        "description": "개별 직원 목록을 조회하고 시스템 등급 및 권한 명칭을 부여할 수 있는 사용자 그리드 탭입니다.",
+        "description": "[사용자 그리드] 화면 영역입니다. 개별 직원 목록을 조회하고 시스템 등급 및 권한 명칭을 부여할 수 있는 사용자 그리드 탭입니다.",
         "positionHint": "bottom"
       },
       {
@@ -7890,7 +8553,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid='matrix-title']",
         "type": "callout",
         "label": "권한 설정 매트릭스",
-        "description": "선택한 역할(Role)에 대해 각 메뉴별 조회 및 저장 권한을 상세하게 제어할 수 있는 영역입니다.",
+        "description": "[권한 설정 매트릭스] 화면 영역입니다. 선택한 역할(Role)에 대해 각 메뉴별 조회 및 저장 권한을 상세하게 제어할 수 있는 영역입니다.",
         "positionHint": "left"
       }
     ],
@@ -7905,7 +8568,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='role-list-title']",
             "type": "click_ripple",
             "label": "대상 선택",
-            "description": "좌측 목록에서 권한을 수정할 대상을 클릭하여 선택합니다.",
+            "description": "[대상 선택] UI 요소를 조작합니다. 좌측 목록에서 권한을 수정할 대상을 클릭하여 선택하십시오.",
             "positionHint": "right"
           },
           {
@@ -7913,7 +8576,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='permission-matrix-grid'], [data-mid='matrix-title']",
             "type": "highlight",
             "label": "권한 토글",
-            "description": "우측 매트릭스에서 부여할 특정 메뉴의 조회 또는 저장 권한 체크박스를 클릭하여 변경합니다.",
+            "description": "[권한 토글] UI 요소를 조작합니다. 우측 매트릭스에서 부여할 특정 메뉴의 조회 또는 저장 권한 체크박스를 클릭하여 변경하십시오.",
             "positionHint": "top"
           },
           {
@@ -7921,7 +8584,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='btn-save-permissions']",
             "type": "click_ripple",
             "label": "설정 저장",
-            "description": "변경 사항을 시스템에 반영하기 위해 상단의 저장 버튼을 클릭합니다.",
+            "description": "[설정 저장] UI 요소를 조작합니다. 변경 사항을 시스템에 반영하기 위해 상단의 저장 버튼을 클릭하십시오.",
             "positionHint": "bottom"
           }
         ]
@@ -7936,7 +8599,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='btn-inherit-role']",
             "type": "click_ripple",
             "label": "직원 권한 배정 탭 진입",
-            "description": "상단 탭 바에서 [직원 권한 상속 배정] 탭을 클릭하여 전환합니다.",
+            "description": "[직원 권한 배정 탭 진입] UI 요소를 조작합니다. 상단 탭 바에서 [직원 권한 상속 배정] 탭을 클릭하여 전환하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -7944,7 +8607,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='permission-user-filter']",
             "type": "callout",
             "label": "임직원 검색 및 필터",
-            "description": "성명, 부서, 직급 조건을 입력하여 권한을 배정할 직원을 검색합니다.",
+            "description": "[임직원 검색 및 필터] UI 요소를 조작합니다. 성명, 부서, 직급 조건을 입력하여 권한을 배정할 직원을 검색하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -7952,7 +8615,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid='permission-user-grid']",
             "type": "highlight",
             "label": "권한 역할 드롭다운 선택",
-            "description": "해당 직원 행의 권한 명칭 드롭다운에서 부여할 역할을 선택하여 즉시 매핑합니다.",
+            "description": "[권한 역할 드롭다운 선택] UI 요소를 조작합니다. 해당 직원 행의 권한 명칭 드롭다운에서 부여할 역할을 선택하여 즉시 매핑하십시오.",
             "positionHint": "top"
           }
         ]
@@ -8105,7 +8768,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"payroll-month-input\"], [data-mid=\"payroll-scope-month\"]",
         "type": "callout",
         "label": "정산 대상 연월 선택",
-        "description": "급여를 정산할 대상 년월을 지정합니다.",
+        "description": "[정산 대상 연월 선택] 화면 영역입니다. 급여를 정산할 대상 년월을 지정하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       },
       {
@@ -8113,7 +8776,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"payroll-inspection-grid\"]",
         "type": "highlight",
         "label": "급여 정산 대장",
-        "description": "임직원별 기본급, 수당, 공제 항목, 실지급액을 대사합니다.",
+        "description": "[급여 정산 대장] 화면 영역입니다. 임직원별 기본급, 수당, 공제 항목, 실지급액을 대사하는 기본 기능을 제공합니다.",
         "positionHint": "top"
       }
     ],
@@ -8128,7 +8791,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"payroll-month-input\"], [data-mid=\"payroll-scope-month\"]",
             "type": "callout",
             "label": "정산 대상 연월 선택",
-            "description": "급여를 정산할 대상 년월을 지정합니다.",
+            "description": "[정산 대상 연월 선택] UI 요소를 조작합니다. 급여를 정산할 대상 년월을 지정하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -8136,7 +8799,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"payroll-inspection-grid\"]",
             "type": "highlight",
             "label": "급여 대장 실사",
-            "description": "직원별 산정 급여와 공제 내역을 1:1 대사합니다.",
+            "description": "[급여 대장 실사] UI 요소에 값을 입력하거나 조작합니다. 직원별 산정 급여와 공제 내역을 1:1 대사하십시오.",
             "positionHint": "top"
           },
           {
@@ -8144,7 +8807,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"payroll-terminal-audit-close\"], button.btn-success",
             "type": "click_ripple",
             "label": "결재 마감 승인 잠금",
-            "description": "급여 대장을 최종 확정하고 수정을 잠급니다.",
+            "description": "[결재 마감 승인 잠금] UI 요소에 값을 입력하거나 조작합니다. 급여 대장을 최종 확정하고 수정을 잠급니다.",
             "positionHint": "bottom"
           }
         ]
@@ -8383,7 +9046,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"leave-scope-emp\"]",
         "type": "callout",
         "label": "임직원 연차 검색",
-        "description": "성명 또는 부서를 입력하여 대상 임직원의 연차 현황을 신속히 스코핑합니다.",
+        "description": "[임직원 연차 검색] 화면 영역입니다. 성명 또는 부서를 입력하여 대상 임직원의 연차 현황을 신속히 스코핑하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       },
       {
@@ -8391,7 +9054,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"leave-inspection-quota-grid\"], [data-mid=\"leave-inspection-usage-grid\"]",
         "type": "highlight",
         "label": "연차 관리 대장",
-        "description": "근속연수별 법정 발생 연차, 기사용 일수, 잔여 일수를 1:1 대조 실사합니다.",
+        "description": "[연차 관리 대장] 화면 영역입니다. 근속연수별 법정 발생 연차, 기사용 일수, 잔여 일수를 1:1 대조 실사하는 기본 기능을 제공합니다.",
         "positionHint": "top"
       }
     ],
@@ -8406,7 +9069,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"leave-tab-quota\"]",
             "type": "click_ripple",
             "label": "연차 현황 대장 탭 선택",
-            "description": "상단에서 [임직원 연차 갱신/현황 대장] 탭을 클릭합니다.",
+            "description": "[연차 현황 대장 탭 선택] UI 요소를 조작합니다. 상단에서 [임직원 연차 갱신/현황 대장] 탭을 클릭하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -8414,7 +9077,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"leave-scope-emp\"]",
             "type": "callout",
             "label": "대상 임직원 검색",
-            "description": "검색창에 사원명을 입력하여 연차 한도를 수정할 직원을 찾습니다.",
+            "description": "[대상 임직원 검색] UI 요소를 조작합니다. 검색창에 사원명을 입력하여 연차 한도를 수정할 직원을 찾습니다.",
             "positionHint": "bottom"
           }
         ]
@@ -8556,7 +9219,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"privacy-scope-header\"]",
         "type": "highlight",
         "label": "개인정보 보호책임자 현황",
-        "description": "법정 개인정보 보호책임자(CPO) 지정 정보 및 전사 처리방침 규정을 확인합니다.",
+        "description": "[개인정보 보호책임자 현황] 화면 영역입니다. 법정 개인정보 보호책임자(CPO) 지정 정보 및 전사 처리방침 규정을 확인하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       },
       {
@@ -8564,7 +9227,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"privacy-inspection-grid\"]",
         "type": "highlight",
         "label": "개인정보 접속 감사 대장",
-        "description": "열람 일시, 접속자 IP, 대상 고객/임직원 식별정보, 접근 사유를 전수 실사합니다.",
+        "description": "[개인정보 접속 감사 대장] 화면 영역입니다. 열람 일시, 접속자 IP, 대상 고객/임직원 식별정보, 접근 사유를 전수 실사하는 기본 기능을 제공합니다.",
         "positionHint": "top"
       }
     ],
@@ -8579,7 +9242,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"privacy-scope-date\"]",
             "type": "callout",
             "label": "감사 기간 범위 설정",
-            "description": "조회 시작일과 종료일을 지정하여 감사 대상 범위를 확정합니다.",
+            "description": "[감사 기간 범위 설정] UI 요소를 조작합니다. 조회 시작일과 종료일을 지정하여 감사 대상 범위를 확정하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -8587,7 +9250,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"privacy-inspection-grid\"]",
             "type": "highlight",
             "label": "접속 로그 대조 실사",
-            "description": "비정상 시간대 접속이나 대량 조회가 발생했는지 로그를 검토합니다.",
+            "description": "[접속 로그 대조 실사] UI 요소를 확인합니다. 비정상 시간대 접속이나 대량 조회가 발생했는지 로그를 검토하십시오.",
             "positionHint": "top"
           }
         ]
@@ -8692,6 +9355,89 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "badgeColor": "#1D4ED8",
         "positionHint": "bottom",
         "spotlight": false
+      }
+    ],
+    "basicGuide": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"operations_manual-scope\"]",
+        "type": "highlight",
+        "label": "매뉴얼 검색 스코프",
+        "description": "[매뉴얼 검색 스코프] 화면 영역입니다. 메뉴, 목표, 헌장 등 전체 매뉴얼 컨텐츠를 검색하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 2,
+        "selector": "[data-mid=\"operations_manual-filter\"]",
+        "type": "highlight",
+        "label": "부서 필터링",
+        "description": "[부서 필터링] 화면 영역입니다. 담당 부서별로 매뉴얼을 필터링하여 조회하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      }
+    ],
+    "processes": [
+      {
+        "processId": "main_process",
+        "title": "핵심 단위 업무 조작 흐름",
+        "description": "업무매뉴얼의 주요 기능 조작 절차입니다.",
+        "steps": [
+          {
+            "seq": 1,
+            "selector": "[data-mid=\"operations_manual-scope\"]",
+            "type": "click_ripple",
+            "label": "매뉴얼 검색 스코프",
+            "description": "[매뉴얼 검색 스코프] UI 요소에 값을 입력하거나 조작합니다. 메뉴, 목표, 헌장 등 전체 매뉴얼 컨텐츠를 검색하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 2,
+            "selector": "[data-mid=\"operations_manual-filter\"]",
+            "type": "click_ripple",
+            "label": "부서 필터링",
+            "description": "[부서 필터링] UI 요소를 확인합니다. 담당 부서별로 매뉴얼을 필터링하여 조회하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 3,
+            "selector": "[data-mid=\"operations_manual-pipeline-db\"]",
+            "type": "click_ripple",
+            "label": "DB 일괄 주입",
+            "description": "[DB 일괄 주입] UI 요소를 확인합니다. 모든 표준 매뉴얼을 DB에 영구 주입 및 조회하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 4,
+            "selector": "[data-mid=\"operations_manual-pipeline-print\"]",
+            "type": "click_ripple",
+            "label": "A4 인쇄",
+            "description": "[A4 인쇄] UI 요소를 조작합니다. 선택된 매뉴얼 또는 전체 매뉴얼을 A4 규격으로 인쇄하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 5,
+            "selector": "[data-mid=\"operations_manual-inspection-nav\"]",
+            "type": "click_ripple",
+            "label": "메뉴 목록 네비게이션",
+            "description": "[메뉴 목록 네비게이션] UI 요소를 조작합니다. 그룹화된 메뉴 목록에서 상세 조회할 매뉴얼을 선택하십시오.",
+            "positionHint": "right"
+          },
+          {
+            "seq": 6,
+            "selector": "[data-mid=\"operations_manual-terminal-detail\"]",
+            "type": "click_ripple",
+            "label": "매뉴얼 상세 컨텐츠",
+            "description": "[매뉴얼 상세 컨텐츠] UI 요소를 조작합니다. 선택된 메뉴의 Z-패턴 조작 동선 및 감사 결과를 포함한 전체 매뉴얼을 확인하십시오.",
+            "positionHint": "left"
+          },
+          {
+            "seq": 7,
+            "selector": "[data-mid=\"operations_manual-inspection-card\"]",
+            "type": "click_ripple",
+            "label": "매뉴얼 요약 정보",
+            "description": "[매뉴얼 요약 정보] UI 요소를 확인합니다. 해당 메뉴의 소속 부서, 아키타입, 메뉴ID 등의 핵심 요약을 확인하십시오.",
+            "positionHint": "bottom"
+          }
+        ]
       }
     ]
   },
@@ -8808,6 +9554,89 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "positionHint": "top",
         "spotlight": false
       }
+    ],
+    "basicGuide": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"error_report-scope-status\"]",
+        "type": "highlight",
+        "label": "단계별 오류 현황",
+        "description": "[단계별 오류 현황] 화면 영역입니다. 신고등록, 접수처리, 완료 등 3대 단계별 오류 신고 현황을 한눈에 확인하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 2,
+        "selector": "[data-mid=\"error_report-scope-filters\"]",
+        "type": "highlight",
+        "label": "신고 내역 검색 필터",
+        "description": "[신고 내역 검색 필터] 화면 영역입니다. 단계, 발생 메뉴, 중요도, 검색어 등을 통해 오류 신고 내역을 필터링하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      }
+    ],
+    "processes": [
+      {
+        "processId": "main_process",
+        "title": "핵심 단위 업무 조작 흐름",
+        "description": "오류 신고의 주요 기능 조작 절차입니다.",
+        "steps": [
+          {
+            "seq": 1,
+            "selector": "[data-mid=\"error_report-scope-status\"]",
+            "type": "click_ripple",
+            "label": "단계별 오류 현황",
+            "description": "[단계별 오류 현황] UI 요소를 확인합니다. 신고등록, 접수처리, 완료 등 3대 단계별 오류 신고 현황을 한눈에 확인하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 2,
+            "selector": "[data-mid=\"error_report-scope-filters\"]",
+            "type": "click_ripple",
+            "label": "신고 내역 검색 필터",
+            "description": "[신고 내역 검색 필터] UI 요소에 값을 입력하거나 조작합니다. 단계, 발생 메뉴, 중요도, 검색어 등을 통해 오류 신고 내역을 필터링하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 3,
+            "selector": "[data-mid=\"error_report-pipeline-export\"]",
+            "type": "click_ripple",
+            "label": "엑셀 내보내기",
+            "description": "[엑셀 내보내기] UI 요소에 값을 입력하거나 조작합니다. 현재 필터링된 오류 신고 내역을 엑셀 파일로 다운로드하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 4,
+            "selector": "[data-mid=\"error_report-pipeline-register\"]",
+            "type": "click_ripple",
+            "label": "신규 신고 등록",
+            "description": "[신규 신고 등록] UI 요소에 값을 입력하거나 조작합니다. 새로운 시스템 오류, 버그, 또는 개선 요청을 등록하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 5,
+            "selector": "[data-mid=\"error_report-inspection-grid\"]",
+            "type": "click_ripple",
+            "label": "오류 신고 대장 그리드",
+            "description": "[오류 신고 대장 그리드] UI 요소를 확인합니다. 등록된 오류 신고의 처리 상태, 중요도, 신고자 및 담당자를 목록에서 확인하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 6,
+            "selector": "[data-mid=\"error_report-modal-register\"]",
+            "type": "click_ripple",
+            "label": "신고 등록 모달",
+            "description": "[신고 등록 모달] UI 요소에 값을 입력하거나 조작합니다. 발생 메뉴, 오류 유형, 상세 내용 및 증빙 화면 캡처 등을 첨부하여 신고를 접수하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 7,
+            "selector": "[data-mid=\"error_report-modal-detail\"]",
+            "type": "click_ripple",
+            "label": "신고 상세 및 처리 모달",
+            "description": "[신고 상세 및 처리 모달] UI 요소를 확인합니다. 신고 상세 내역을 확인하고, 담당자 배정(접수) 및 조치 완료 처리를 수행하십시오.",
+            "positionHint": "top"
+          }
+        ]
+      }
     ]
   },
   {
@@ -8916,7 +9745,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"agentic_ai_lab-scope\"]",
         "type": "highlight",
         "label": "시나리오 프리셋 선택",
-        "description": "출고 의뢰, 배차 추천, 계약 대차 등 사전 정의된 고난도 ERP 시나리오를 선택합니다.",
+        "description": "[시나리오 프리셋 선택] 화면 영역입니다. 출고 의뢰, 배차 추천, 계약 대차 등 사전 정의된 고난도 ERP 시나리오를 선택하는 기본 기능을 제공합니다.",
         "positionHint": "right"
       },
       {
@@ -8924,7 +9753,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"agentic_ai_lab-timeline\"]",
         "type": "highlight",
         "label": "인공지능 추론 타임라인",
-        "description": "AI 에이전트의 단계별 생각(Thought), 표준 도구 호출(Tool Call) 및 관찰(Observation)을 실시간 모니터링합니다.",
+        "description": "[인공지능 추론 타임라인] 화면 영역입니다. AI 에이전트의 단계별 생각(Thought), 표준 도구 호출(Tool Call) 및 관찰(Observation)을 실시간 모니터링하는 기본 기능을 제공합니다.",
         "positionHint": "top"
       }
     ],
@@ -8939,7 +9768,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"agentic_ai_lab-scope\"]",
             "type": "click_ripple",
             "label": "시나리오 프리셋 선택",
-            "description": "테스트할 비즈니스 시나리오를 클릭하여 프롬프트 콘솔에 로드합니다.",
+            "description": "[시나리오 프리셋 선택] UI 요소를 조작합니다. 테스트할 비즈니스 시나리오를 클릭하여 프롬프트 콘솔에 로드하십시오.",
             "positionHint": "right"
           },
           {
@@ -8947,7 +9776,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"agentic_ai_lab-pipeline-run\"]",
             "type": "click_ripple",
             "label": "인공지능 자동 실행 클릭",
-            "description": "상단 [에이전틱 AI 실행] 버튼을 눌러 ReAct 추론 루프를 가동합니다.",
+            "description": "[인공지능 자동 실행 클릭] UI 요소에 값을 입력하거나 조작합니다. 상단 [에이전틱 AI 실행] 버튼을 눌러 ReAct 추론 루프를 가동하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -8955,7 +9784,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"agentic_ai_lab-timeline\"]",
             "type": "highlight",
             "label": "추론 및 툴 호출 모니터링",
-            "description": "에이전트가 헌장 가드레일을 준수하며 정확한 DB 도구를 실행하는지 확인합니다.",
+            "description": "[추론 및 툴 호출 모니터링] UI 요소를 확인합니다. 에이전트가 헌장 가드레일을 준수하며 정확한 DB 도구를 실행하는지 확인하십시오.",
             "positionHint": "top"
           }
         ]
@@ -9068,7 +9897,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"kpi-exchange-compliance\"]",
         "type": "highlight",
         "label": "헌장 2.3 교환 준수율 현황판",
-        "description": "대차 단일 왕복 배차 및 헌장 1.3 출고 승인 전 상태 비조작 준수율을 실시간 검증합니다.",
+        "description": "[헌장 2.3 교환 준수율 현황판] 화면 영역입니다. 대차 단일 왕복 배차 및 헌장 1.3 출고 승인 전 상태 비조작 준수율을 실시간 검증하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       }
     ],
@@ -9083,7 +9912,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"kpi-exchange-compliance\"]",
             "type": "highlight",
             "label": "배차 헌장 지표 확인",
-            "description": "단일 EXCHANGE 발행 및 왕복할인 차감 여부를 확인합니다.",
+            "description": "[배차 헌장 지표 확인] UI 요소를 확인합니다. 단일 EXCHANGE 발행 및 왕복할인 차감 여부를 확인하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -9091,7 +9920,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "input[type=\"text\"], textarea",
             "type": "callout",
             "label": "자연어 배차 지시 입력",
-            "description": "예: \"내일 아침 8시 화성 향남 현장 GS-1930 2대 5톤 셀프로더로 배차해줘\"",
+            "description": "[자연어 배차 지시 입력] UI 요소에 값을 입력하거나 조작합니다. 예: \"내일 아침 8시 화성 향남 현장 GS-1930 2대 5톤 셀프로더로 배차해줘\"",
             "positionHint": "top"
           }
         ]
@@ -9207,6 +10036,97 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "positionHint": "top",
         "spotlight": true
       }
+    ],
+    "basicGuide": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"agentic_settlement_autopilot-header\"]",
+        "type": "highlight",
+        "label": "에이전틱 정산오토파일럿 헤더",
+        "description": "[에이전틱 정산오토파일럿 헤더] 화면 영역입니다. 헌장 4.1 일할 매출 기여액 정산 오토파일럿 상태와 개요를 표시하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 2,
+        "selector": "[data-mid=\"agentic_settlement_autopilot-scope\"]",
+        "type": "highlight",
+        "label": "정산 대상 및 기준 설정",
+        "description": "[정산 대상 및 기준 설정] 화면 영역입니다. 대사를 수행할 정산 연월, 대상 거래처, 지급 기준을 설정하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      }
+    ],
+    "processes": [
+      {
+        "processId": "main_process",
+        "title": "핵심 단위 업무 조작 흐름",
+        "description": "에이전틱 월말 대사 정산 오토파일럿의 주요 기능 조작 절차입니다.",
+        "steps": [
+          {
+            "seq": 1,
+            "selector": "[data-mid=\"agentic_settlement_autopilot-header\"]",
+            "type": "click_ripple",
+            "label": "에이전틱 정산오토파일럿 헤더",
+            "description": "[에이전틱 정산오토파일럿 헤더] UI 요소에 값을 입력하거나 조작합니다. 헌장 4.1 일할 매출 기여액 정산 오토파일럿 상태와 개요를 표시하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 2,
+            "selector": "[data-mid=\"agentic_settlement_autopilot-scope\"]",
+            "type": "click_ripple",
+            "label": "정산 대상 및 기준 설정",
+            "description": "[정산 대상 및 기준 설정] UI 요소에 값을 입력하거나 조작합니다. 대사를 수행할 정산 연월, 대상 거래처, 지급 기준을 설정하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 3,
+            "selector": "[data-mid=\"agentic_settlement_autopilot-scope-month\"]",
+            "type": "click_ripple",
+            "label": "정산 연월 선택",
+            "description": "[정산 연월 선택] UI 요소를 조작합니다. 정산하고자 하는 대상 연월을 정확히 선택하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 4,
+            "selector": "[data-mid=\"agentic_settlement_autopilot-pipeline-run\"]",
+            "type": "click_ripple",
+            "label": "정산오토파일럿 실행",
+            "description": "[정산오토파일럿 실행] UI 요소에 값을 입력하거나 조작합니다. 에이전틱 AI가 입금 대사 및 일할 정산 대차대조 검증을 자동 수행하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 5,
+            "selector": "[data-mid=\"agentic_settlement_autopilot-status\"]",
+            "type": "click_ripple",
+            "label": "실행 상태 안내",
+            "description": "[실행 상태 안내] UI 요소에 값을 입력하거나 조작합니다. 정산 AI의 실행 진행 상황 및 완료 상태를 실시간 안내하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 6,
+            "selector": "[data-mid=\"agentic_settlement_autopilot-inspection-grid\"]",
+            "type": "click_ripple",
+            "label": "대차대조 검증 그리드",
+            "description": "[대차대조 검증 그리드] UI 요소에 값을 입력하거나 조작합니다. 계약자산별 1원 오차 없는 정밀 일할 매출 기여액 내역을 표시하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 7,
+            "selector": "[data-mid=\"agentic_settlement_autopilot-terminal-summary\"]",
+            "type": "click_ripple",
+            "label": "정산 합계 및 대차 검증",
+            "description": "[정산 합계 및 대차 검증] UI 요소에 값을 입력하거나 조작합니다. 청구총액, 확정액, 반려액 합계를 통한 대차대조 무결성을 판정하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 8,
+            "selector": "[data-mid=\"agentic_settlement_autopilot-terminal-commit\"]",
+            "type": "click_ripple",
+            "label": "정산 확정 및 결과 반영",
+            "description": "[정산 확정 및 결과 반영] UI 요소에 값을 입력하거나 조작합니다. 대차 검증이 완료된 월말 정산 내역을 최종 확정 처리하십시오.",
+            "positionHint": "top"
+          }
+        ]
+      }
     ]
   },
   {
@@ -9317,6 +10237,97 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "badgeColor": "#ef4444",
         "positionHint": "top",
         "spotlight": true
+      }
+    ],
+    "basicGuide": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"agentic_asset_lifecycle-header\"]",
+        "type": "highlight",
+        "label": "자산 생애주기 에이전트 헤더",
+        "description": "[자산 생애주기 에이전트 헤더] 화면 영역입니다. 취득, 출고, 입고, 정비, 매각의 전 생애주기 에이전트 현황을 표시하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 2,
+        "selector": "[data-mid=\"agentic_asset_lifecycle-scope\"]",
+        "type": "highlight",
+        "label": "자산 조회 스코프",
+        "description": "[자산 조회 스코프] 화면 영역입니다. 생애주기 추적 대상 자산의 관리번호, 모델명, 소유구분을 설정하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      }
+    ],
+    "processes": [
+      {
+        "processId": "main_process",
+        "title": "핵심 단위 업무 조작 흐름",
+        "description": "에이전틱 자산 라이프사이클 관제의 주요 기능 조작 절차입니다.",
+        "steps": [
+          {
+            "seq": 1,
+            "selector": "[data-mid=\"agentic_asset_lifecycle-header\"]",
+            "type": "click_ripple",
+            "label": "자산 생애주기 에이전트 헤더",
+            "description": "[자산 생애주기 에이전트 헤더] UI 요소에 값을 입력하거나 조작합니다. 취득, 출고, 입고, 정비, 매각의 전 생애주기 에이전트 현황을 표시하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 2,
+            "selector": "[data-mid=\"agentic_asset_lifecycle-scope\"]",
+            "type": "click_ripple",
+            "label": "자산 조회 스코프",
+            "description": "[자산 조회 스코프] UI 요소에 값을 입력하거나 조작합니다. 생애주기 추적 대상 자산의 관리번호, 모델명, 소유구분을 설정하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 3,
+            "selector": "[data-mid=\"agentic_asset_lifecycle-pipeline-filter\"]",
+            "type": "click_ripple",
+            "label": "생애주기 단계 필터",
+            "description": "[생애주기 단계 필터] UI 요소에 값을 입력하거나 조작합니다. 출고대기, 대여중, 주기장입고, 정비중 등 단계별 자산을 선별하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 4,
+            "selector": "[data-mid=\"agentic_asset_lifecycle-timeline\"]",
+            "type": "click_ripple",
+            "label": "자산 생애주기 타임라인",
+            "description": "[자산 생애주기 타임라인] UI 요소를 확인합니다. 취득부터 현재까지 발생한 모든 입출고·정비 사건의 시계열 이력을 조회하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 5,
+            "selector": "[data-mid=\"agentic_asset_lifecycle-exchange-trace\"]",
+            "type": "click_ripple",
+            "label": "대차 교체 연결 추적",
+            "description": "[대차 교체 연결 추적] UI 요소에 값을 입력하거나 조작합니다. 헌장 4.2 준수: 전자산 회수 및 후장비 투입 1:1 연결 관계를 검증하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 6,
+            "selector": "[data-mid=\"agentic_asset_lifecycle-inspection-details\"]",
+            "type": "click_ripple",
+            "label": "입출고 검수 상세 내역",
+            "description": "[입출고 검수 상세 내역] UI 요소를 확인합니다. 출고 PDI 및 입고 정비 점검표, 파손/오염 증빙 사진을 확인하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 7,
+            "selector": "[data-mid=\"agentic_asset_lifecycle-maintenance-score\"]",
+            "type": "click_ripple",
+            "label": "자산 정비 감가 수치",
+            "description": "[자산 정비 감가 수치] UI 요소를 확인합니다. 가동시간, 정비점수, 안전검사 유효기간 등 자산 건전성 지표를 확인하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 8,
+            "selector": "[data-mid=\"agentic_asset_lifecycle-terminal-audit\"]",
+            "type": "click_ripple",
+            "label": "상태 전환 확정",
+            "description": "[상태 전환 확정] UI 요소에 값을 입력하거나 조작합니다. 출고 검수 승인 또는 입고 정비 완료 조치를 검증하여 자산 상태를 확정하십시오.",
+            "positionHint": "top"
+          }
+        ]
       }
     ]
   },
@@ -9486,7 +10497,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"initial_db_upload-header\"]",
         "type": "highlight",
         "label": "초기 DB 적재 가이드",
-        "description": "신규 테넌트 구축 및 레거시 데이터 이관 시 기준정보를 원자적으로 적재합니다.",
+        "description": "[초기 DB 적재 가이드] 화면 영역입니다. 신규 테넌트 구축 및 레거시 데이터 이관 시 기준정보를 원자적으로 적재하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       },
       {
@@ -9494,7 +10505,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"initial_db_upload-tabs\"]",
         "type": "highlight",
         "label": "작업 모드 탭 바",
-        "description": "엑셀 데이터 적재, 정제/중복 제거, 전체 백업, 테넌트 초기화 모드를 선택합니다.",
+        "description": "[작업 모드 탭 바] 화면 영역입니다. 엑셀 데이터 적재, 정제/중복 제거, 전체 백업, 테넌트 초기화 모드를 선택하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       }
     ],
@@ -9509,7 +10520,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"initial_db_upload-tabs\"]",
             "type": "click_ripple",
             "label": "데이터 적재 탭 선택",
-            "description": "상단 탭에서 [엑셀 데이터 적재 (INGEST)] 모드를 클릭합니다.",
+            "description": "[데이터 적재 탭 선택] UI 요소를 조작합니다. 상단 탭에서 [엑셀 데이터 적재 (INGEST)] 모드를 클릭하십시오.",
             "positionHint": "bottom"
           },
           {
@@ -9517,7 +10528,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"initial_db_upload-excel-import\"]",
             "type": "highlight",
             "label": "엑셀 파일 선택 및 파싱",
-            "description": "작성된 표준 양식 엑셀을 드래그 앤 드롭하여 유효성을 사전 검증합니다.",
+            "description": "[엑셀 파일 선택 및 파싱] UI 요소에 값을 입력하거나 조작합니다. 작성된 표준 양식 엑셀을 드래그 앤 드롭하여 유효성을 사전 검증하십시오.",
             "positionHint": "top"
           }
         ]
@@ -9636,6 +10647,89 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "positionHint": "top",
         "spotlight": true
       }
+    ],
+    "basicGuide": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"google_config-header\"]",
+        "type": "highlight",
+        "label": "구글 및 클라우드 연동 헤더",
+        "description": "[구글 및 클라우드 연동 헤더] 화면 영역입니다. 클라우드 인프라 및 구글 계정 연동 화면의 상태를 안내하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 2,
+        "selector": "[data-mid=\"google_config-auth\"]",
+        "type": "highlight",
+        "label": "구글 인증 계정 설정",
+        "description": "[구글 인증 계정 설정] 화면 영역입니다. 시스템 알림 발송 및 드라이브 백업에 사용할 구글 인증 계정을 설정하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      }
+    ],
+    "processes": [
+      {
+        "processId": "main_process",
+        "title": "핵심 단위 업무 조작 흐름",
+        "description": "구글 관리자 설정의 주요 기능 조작 절차입니다.",
+        "steps": [
+          {
+            "seq": 1,
+            "selector": "[data-mid=\"google_config-header\"]",
+            "type": "click_ripple",
+            "label": "구글 및 클라우드 연동 헤더",
+            "description": "[구글 및 클라우드 연동 헤더] UI 요소에 값을 입력하거나 조작합니다. 클라우드 인프라 및 구글 계정 연동 화면의 상태를 안내하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 2,
+            "selector": "[data-mid=\"google_config-auth\"]",
+            "type": "click_ripple",
+            "label": "구글 인증 계정 설정",
+            "description": "[구글 인증 계정 설정] UI 요소에 값을 입력하거나 조작합니다. 시스템 알림 발송 및 드라이브 백업에 사용할 구글 인증 계정을 설정하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 3,
+            "selector": "[data-mid=\"google_config-storage\"]",
+            "type": "click_ripple",
+            "label": "Supabase 스토리지 버킷 설정",
+            "description": "[Supabase 스토리지 버킷 설정] UI 요소에 값을 입력하거나 조작합니다. 사진 및 검수 증빙 파일을 저장할 클라우드 스토리지 버킷 및 보안 정책을 관리하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 4,
+            "selector": "[data-mid=\"google_config-mode\"]",
+            "type": "click_ripple",
+            "label": "시스템 운영 모드 설정",
+            "description": "[시스템 운영 모드 설정] UI 요소에 값을 입력하거나 조작합니다. 테스트용 로컬 모드와 클라우드 원격 운영을 위한 실무 모드를 전환하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 5,
+            "selector": "[data-mid=\"google_config-r2\"]",
+            "type": "click_ripple",
+            "label": "Cloudflare R2 스토리지 설정",
+            "description": "[Cloudflare R2 스토리지 설정] UI 요소에 값을 입력하거나 조작합니다. 대용량 미디어 및 백업 데이터를 저장할 Cloudflare R2 버킷 정보를 설정하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 6,
+            "selector": "[data-mid=\"google_config-folders\"]",
+            "type": "click_ripple",
+            "label": "구글 드라이브 폴더 매핑",
+            "description": "[구글 드라이브 폴더 매핑] UI 요소를 조작합니다. 계약서, 거래명세서 등 각종 문서를 백업할 구글 드라이브 전용 폴더 ID를 지정하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 7,
+            "selector": "[data-mid=\"google_config-save\"]",
+            "type": "click_ripple",
+            "label": "클라우드 환경설정 영구 저장",
+            "description": "[클라우드 환경설정 영구 저장] UI 요소를 조작합니다. 입력된 모든 클라우드 인프라 및 연동 설정을 DB에 영구 반영하십시오.",
+            "positionHint": "top"
+          }
+        ]
+      }
     ]
   },
   {
@@ -9737,6 +10831,89 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "positionHint": "bottom",
         "spotlight": true
       }
+    ],
+    "basicGuide": [
+      {
+        "seq": 1,
+        "selector": "[data-mid=\"schema-mode-tabs\"], .schema-tabs",
+        "type": "highlight",
+        "label": "스키마 DDL 모드",
+        "description": "[스키마 DDL 모드] 화면 영역입니다. 테이블 정의, 인덱스 생성, RLS 보안 정책 모드를 스코핑하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 2,
+        "selector": "[data-mid=\"btn-validate-schema-ssot\"], button:contains(\"정합성 검증\")",
+        "type": "highlight",
+        "label": "SSOT 스키마 정합성 검증",
+        "description": "[SSOT 스키마 정합성 검증] 화면 영역입니다. 로컬 schema.sql과 원격 DB 간 컬럼 누락 여부를 자동 대조하는 기본 기능을 제공합니다.",
+        "positionHint": "bottom"
+      }
+    ],
+    "processes": [
+      {
+        "processId": "main_process",
+        "title": "핵심 단위 업무 조작 흐름",
+        "description": "[개발] DB 데이터 업로더의 주요 기능 조작 절차입니다.",
+        "steps": [
+          {
+            "seq": 1,
+            "selector": "[data-mid=\"schema-mode-tabs\"], .schema-tabs",
+            "type": "click_ripple",
+            "label": "스키마 DDL 모드",
+            "description": "[스키마 DDL 모드] UI 요소에 값을 입력하거나 조작합니다. 테이블 정의, 인덱스 생성, RLS 보안 정책 모드를 스코핑하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 2,
+            "selector": "[data-mid=\"btn-validate-schema-ssot\"], button:contains(\"정합성 검증\")",
+            "type": "click_ripple",
+            "label": "SSOT 스키마 정합성 검증",
+            "description": "[SSOT 스키마 정합성 검증] UI 요소에 값을 입력하거나 조작합니다. 로컬 schema.sql과 원격 DB 간 컬럼 누락 여부를 자동 대조하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 3,
+            "selector": "[data-mid=\"ddl-editor-textarea\"], textarea.ddl-editor",
+            "type": "click_ripple",
+            "label": "DDL 스크립트 에디터",
+            "description": "[DDL 스크립트 에디터] UI 요소를 확인합니다. 실행될 CREATE/ALTER TABLE DDL SQL 구문을 확인하고 편집하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 4,
+            "selector": "[data-mid=\"btn-generate-rls-ddl\"], button:contains(\"RLS DDL 생성\")",
+            "type": "click_ripple",
+            "label": "RLS 멱등성 DDL 생성",
+            "description": "[RLS 멱등성 DDL 생성] UI 요소에 값을 입력하거나 조작합니다. DROP IF EXISTS를 선행하는 멱등성 보안 정책 DDL을 동적 생성하십시오.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 5,
+            "selector": "[data-mid=\"safety-backup-checkbox\"], .safety-check",
+            "type": "click_ripple",
+            "label": "안전 스냅샷 확인",
+            "description": "[안전 스냅샷 확인] UI 요소를 확인합니다. 스키마 수정 전 데이터 손실 방지를 위한 백업 스냅샷을 확인하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 6,
+            "selector": "[data-mid=\"btn-execute-ddl\"], button:contains(\"DDL 실행\")",
+            "type": "click_ripple",
+            "label": "원격 DDL 적용 실행",
+            "description": "[원격 DDL 적용 실행] UI 요소에 값을 입력하거나 조작합니다. 원격 Supabase DB에 DDL을 즉각 실행하여 스키마를 업데이트하십시오.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 7,
+            "selector": "[data-mid=\"schema-ready-status\"], .ready-status",
+            "type": "click_ripple",
+            "label": "시스템 준비 완료 확정",
+            "description": "[시스템 준비 완료 확정] UI 요소에 값을 입력하거나 조작합니다. 스키마 캐시를 갱신하고 ERP 시스템 Ready 신호를 전사에 공표하십시오.",
+            "positionHint": "bottom"
+          }
+        ]
+      }
     ]
   },
   {
@@ -9770,7 +10947,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"mail-recipient-panel\"]",
         "type": "highlight",
         "label": "수신 대상 지정",
-        "description": "고객사, 현장, 담당자 및 수신 이메일 주소를 선택합니다.",
+        "description": "[수신 대상 지정] 화면 영역입니다. 고객사, 현장, 담당자 및 수신 이메일 주소를 선택하는 기본 기능을 제공합니다.",
         "positionHint": "right"
       },
       {
@@ -9778,7 +10955,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"mail-terminal-send\"]",
         "type": "click_ripple",
         "label": "공식 메일 발송",
-        "description": "작성된 본문과 첨부 파일을 회사 공식 계정으로 전송합니다.",
+        "description": "[공식 메일 발송] 화면 영역입니다. 작성된 본문과 첨부 파일을 회사 공식 계정으로 전송하는 기본 기능을 제공합니다.",
         "positionHint": "top"
       }
     ],
@@ -9793,7 +10970,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"mail-recipient-panel\"]",
             "type": "highlight",
             "label": "수신 거래처 지정",
-            "description": "견적서를 수신할 고객사와 담당자를 선택합니다.",
+            "description": "[수신 거래처 지정] UI 요소를 조작합니다. 견적서를 수신할 고객사와 담당자를 선택하십시오.",
             "positionHint": "right"
           },
           {
@@ -9801,7 +10978,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"mail-terminal-send\"]",
             "type": "click_ripple",
             "label": "견적 메일 발송",
-            "description": "[이메일 발송] 버튼을 눌러 공식 견적서를 전송합니다.",
+            "description": "[견적 메일 발송] UI 요소에 값을 입력하거나 조작합니다. 버튼을 눌러 공식 견적서를 전송하십시오.",
             "positionHint": "top"
           }
         ]
@@ -9859,7 +11036,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"permits-inspection-grid\"]",
         "type": "highlight",
         "label": "인허가 건축공정 대장",
-        "description": "전국 공공 건축 허가 및 착공 현황을 실시간 조망합니다.",
+        "description": "[인허가 건축공정 대장] 화면 영역입니다. 전국 공공 건축 허가 및 착공 현황을 실시간 조망하는 기본 기능을 제공합니다.",
         "positionHint": "right"
       },
       {
@@ -9867,7 +11044,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"permits-dossier-panel\"]",
         "type": "highlight",
         "label": "인공지능 공정 역산 작업대",
-        "description": "선택 현장의 고소작업대 적기 투입 시점 및 추천 기종을 분석합니다.",
+        "description": "[인공지능 공정 역산 작업대] 화면 영역입니다. 선택 현장의 고소작업대 적기 투입 시점 및 추천 기종을 분석하는 기본 기능을 제공합니다.",
         "positionHint": "left"
       }
     ],
@@ -9882,7 +11059,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"permits-inspection-grid\"]",
             "type": "highlight",
             "label": "건축 현장 선택",
-            "description": "골든타임 표식이 붙은 A급 추천 현장을 클릭합니다.",
+            "description": "[건축 현장 선택] UI 요소를 조작합니다. 골든타임 표식이 붙은 A급 추천 현장을 클릭하십시오.",
             "positionHint": "right"
           },
           {
@@ -9890,7 +11067,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"permits-dossier-panel\"]",
             "type": "highlight",
             "label": "장비 제원 분석",
-            "description": "추천 장비 기종(GS-1930 등)과 필요 대수를 확인합니다.",
+            "description": "[장비 제원 분석] UI 요소를 확인합니다. 추천 장비 기종(GS-1930 등)과 필요 대수를 확인하십시오.",
             "positionHint": "left"
           }
         ]
@@ -9948,7 +11125,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"tenant-scope-search\"]",
         "type": "callout",
         "label": "테넌트 검색 및 필터",
-        "description": "상호명, 테넌트 코드, 사업자등록번호를 입력하여 관리 대상을 신속 검색합니다.",
+        "description": "[테넌트 검색 및 필터] 화면 영역입니다. 상호명, 테넌트 코드, 사업자등록번호를 입력하여 관리 대상을 신속 검색하는 기본 기능을 제공합니다.",
         "positionHint": "bottom"
       },
       {
@@ -9956,7 +11133,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
         "selector": "[data-mid=\"tenant-inspection-grid\"]",
         "type": "highlight",
         "label": "테넌트 마스터 대장",
-        "description": "가동 상태, 구독 플랜, 만료일자, 대표자 및 브랜드 에셋을 한눈에 조망합니다.",
+        "description": "[테넌트 마스터 대장] 화면 영역입니다. 가동 상태, 구독 플랜, 만료일자, 대표자 및 브랜드 에셋을 한눈에 조망하는 기본 기능을 제공합니다.",
         "positionHint": "top"
       }
     ],
@@ -9971,7 +11148,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"tenant-pipeline-add\"]",
             "type": "click_ripple",
             "label": "테넌트 등록 버튼 클릭",
-            "description": "우상단의 [테넌트 등록] 버튼을 클릭하여 설정 모달을 엽니다.",
+            "description": "[테넌트 등록 버튼 클릭] UI 요소를 조작합니다. 우상단의 [테넌트 등록] 버튼을 클릭하여 설정 모달을 엽니다.",
             "positionHint": "bottom"
           },
           {
@@ -9979,7 +11156,7 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
             "selector": "[data-mid=\"tenant-inspection-grid\"]",
             "type": "highlight",
             "label": "등록 결과 확인",
-            "description": "그리드 대장에서 신규 생성된 테넌트의 가동 상태와 구독 만료일을 확인합니다.",
+            "description": "[등록 결과 확인] UI 요소를 확인합니다. 그리드 대장에서 신규 생성된 테넌트의 가동 상태와 구독 만료일을 확인하십시오.",
             "positionHint": "top"
           }
         ]
@@ -10056,7 +11233,7 @@ export function getManualPageForMenu(menuId: string, customTitle?: string): Manu
     pageId: manual.menuId,
     pageTitle: manual.menuName,
     version: manual.version || 1,
-    basicGuide: manual.annotations || manual.basicGuide || [],
+    basicGuide: manual.basicGuide || manual.annotations || [],
     processes: manual.processes || [],
     items: manual.annotations,
   };
