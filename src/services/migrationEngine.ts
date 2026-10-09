@@ -46,6 +46,7 @@ export interface ReconciliationReport {
 }
 
 export interface ParsedInitialData {
+  siteMasters: any[];
   products: any[];
   vendors: any[];
   customers: any[];
@@ -421,6 +422,7 @@ const ALL_TABLES = [
   'customers',
   'customer_contacts',
   'customer_sites',
+      'site_masters',
   'products',
   'assets',
   'consumables',
@@ -856,6 +858,7 @@ export function parseInitialExcelWorkbook(
   const productMap = new Map<string, any>();
   const vendorMap = new Map<string, any>();
   const customerMap = new Map<string, any>();
+  const siteMasterMap = new Map<string, any>();
   const siteMap = new Map<string, any>();
   const contactMap = new Map<string, any>();
 
@@ -1279,11 +1282,26 @@ export function parseInitialExcelWorkbook(
 
     const rawSite = getCol(r, mainHeaderMap, ['현장명'], 2) ? String(getCol(r, mainHeaderMap, ['현장명'], 2)).trim() : '';
     const { cleanSiteName, dispatchMemo } = extractSiteNameAndMemo(rawSite);
+    const normalizedName = cleanSiteName.replace(/\s+/g, '');
+    let siteMaster = siteMasterMap.get(normalizedName);
+    if (!siteMaster) {
+      siteMaster = {
+        id: `sitemaster-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        name: cleanSiteName,
+        address: customer.address || '',
+        isActive: true,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      };
+      siteMasterMap.set(normalizedName, siteMaster);
+    }
+
     const siteKey = `${customer.id}_${cleanSiteName}`;
     let site = siteMap.get(siteKey);
     if (!site) {
       site = {
         id: `SITE-${String(siteSeq++).padStart(7, '0')}`,
+        siteMasterId: siteMaster.id,
         customerId: customer.id,
         name: cleanSiteName,
         address: customer.address || '',
@@ -2082,6 +2100,7 @@ export function parseInitialExcelWorkbook(
   };
 
   return {
+    siteMasters: [],
     products: parsedProducts,
     vendors: parsedVendors,
     customers: parsedCustomers,
@@ -2261,6 +2280,10 @@ export async function ingestExcelInitialData(
 
     // Step 4: Customer Sites & Contacts
     onProgress?.(4, totalSteps, `4/13: 고객 현장 (${parsed.customerSites.length}개) 및 담당자 적재 중...`);
+    onProgress?.(3.5, totalSteps, `3.5/13: 물리 현장 마스터 (${parsed.siteMasters?.length || 0}개소) 적재 중...`);
+    if (parsed.siteMasters && parsed.siteMasters.length > 0) {
+      await batchUpsertChunked('site_masters', parsed.siteMasters, 100);
+    }
     await batchUpsertChunked('customer_sites', parsed.customerSites, 100);
     await batchUpsertChunked('customer_contacts', parsed.customerContacts, 100);
 
