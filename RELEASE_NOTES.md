@@ -1,3 +1,11 @@
+## [v1.4.1.Build.6] - 2026-10-09 15:47
+### 📊 자금 흐름 모니터링 & 정기보고서 전면 재설계 (Executive Zero-Friction Dashboard)
+- **적대적 워크숍 기반 기획 (CFO vs UX vs Auditor)**: 경영자가 '진짜 알고 싶은 지표(가용현금, 월간Net, 출혈지수, 런웨이)'만을 남기고, 모든 보여주기식 그래픽과 원형 차트를 전면 폐기했습니다.
+- **Auditor 종단 보존 법칙 적용**: `useCashFlowReport.ts` 훅을 신설하여 `billings`, `bankTransactions`, `receivables`, `purchaseSettlements` 등 4대 핵심 원장 데이터 간의 수학적 대차대조(무결성 100%)를 검증한 후 렌더링하도록 강제했습니다.
+- **무마찰(Zero-Friction) UX**:
+  - **CashFlowPage**: Z-Pattern(좌상단 핵심KPI ➔ 중앙 고밀도 그리드 ➔ 우하단 디테일)을 완벽히 준수하는 임원진 특화 1-페이지 대시보드로 재개발했습니다.
+  - **RegularReportsPage**: 복잡한 설정 없이 경영자가 즉시 '악성 미수 채권 Top 5'와 '비용 누수(마이너스 수익) 깡통 장비'를 0-클릭으로 조망하고, PDF 결재로 상신할 수 있도록 통합 개편했습니다.
+
 ## [v1.4.1.Build.5] - 2026-10-09 15:39
 ### 📚 전사 ERP 60개 전 메뉴 온보딩 매뉴얼(2-Tier) 체계 전면 개편 및 빈 매뉴얼 완수
 - **기본기능 및 단위업무 분리 정립**: 전사 ERP 60개 메뉴에 대해 기존 통합 어노테이션 방식의 매뉴얼을 `basicGuide(메뉴별 기본기능)`와 `processes(단위업무 조작 흐름)`의 2-Tier 구조로 완벽히 분할 재구축했습니다.
