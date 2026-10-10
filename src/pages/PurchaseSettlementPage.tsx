@@ -15,8 +15,8 @@ import { HometaxPurchaseInvoiceModal } from '../components/HometaxPurchaseInvoic
 const SETTLEMENT_TYPES: { id: PurchaseSettlementType | 'ALL'; label: string; icon: React.ReactNode }[] = [
   { id: 'ALL',              label: '전체',            icon: <FileText size={15} /> },
   { id: 'TRANSPORT',        label: '운송료',           icon: <Truck size={15} /> },
-  { id: 'CONSUMABLE',       label: '소모품 매입',       icon: <ShoppingBag size={15} /> },
   { id: 'EQUIPMENT_LEASE',  label: '임차료 (전대장비)', icon: <Building2 size={15} /> },
+  { id: 'CONSUMABLE',       label: '소모품 매입',       icon: <ShoppingBag size={15} /> },
   { id: 'EXTERNAL_REPAIR',   label: '외주 정비비',      icon: <Wrench size={15} /> },
 ];
 
@@ -1163,14 +1163,16 @@ export const PurchaseSettlementPage: React.FC = () => {
       <div style={{ height: '80px' }} aria-hidden="true" />
 
       {/* 🏛️ 국세청 매입세금계산서 대사 & 업데이트 모달 */}
-      <HometaxPurchaseInvoiceModal
-        isOpen={isHometaxModalOpen}
-        onClose={() => setIsHometaxModalOpen(false)}
-        selectedYm={selectedYm}
-        onSuccess={() => {
-          showToast(`국세청 매입세금계산서 승인번호가 ${selectedYm} 정산 대장에 성공적으로 반영되었습니다.`);
-        }}
-      />
+      {isHometaxModalOpen && (
+        <HometaxPurchaseInvoiceModal
+          isOpen={isHometaxModalOpen}
+          onClose={() => setIsHometaxModalOpen(false)}
+          selectedYm={selectedYm}
+          onSuccess={() => {
+            showToast(`국세청 매입세금계산서 승인번호가 ${selectedYm} 정산 대장에 성공적으로 반영되었습니다.`);
+          }}
+        />
+      )}
     </div>
   );
 };

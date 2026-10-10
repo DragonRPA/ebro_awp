@@ -48,8 +48,6 @@ export const HometaxPurchaseInvoiceModal: React.FC<HometaxPurchaseInvoiceModalPr
     return purchaseSettlements.filter(s => s.settlementYm === selectedYm);
   }, [purchaseSettlements, selectedYm]);
 
-  if (!isOpen) return null;
-
   // 사업자등록번호 및 상호명 기반 1:1 정밀 매칭 엔진
   const reconcileInvoicesWithSettlements = (invoices: HometaxPurchaseInvoiceItem[]): ReconciliationMatchRow[] => {
     const rows: ReconciliationMatchRow[] = [];
@@ -276,6 +274,8 @@ export const HometaxPurchaseInvoiceModal: React.FC<HometaxPurchaseInvoiceModalPr
       setIsApplying(false);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-xs">
