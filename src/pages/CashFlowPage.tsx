@@ -110,14 +110,20 @@ export const CashFlowPage: React.FC = () => {
   // ─── 자금 스냅샷 저장 ───
   const handleSaveSnapshot = () => {
     const todayStr = new Date().toISOString().split('T')[0];
+    const safeStarting = Math.round(report.totalBankBalance || 0);
+    const safeInflow = Math.round(report.inflowBreakdown.totalExpectedInflow || 0);
+    const safeOpex = Math.round(report.outflowBreakdown.totalExpectedOutflow || 0);
+    const safeCapex = Math.round(report.outflowBreakdown.capexTotal || 0);
+    const safeFinal = Math.round((report.totalBankBalance || 0) + (report.expectedMonthlyNet || 0));
+
     app.saveCashFlowSnapshot({
       snapshotDate: todayStr,
-      startingBalance: report.totalBankBalance,
-      projectedInflow: report.inflowBreakdown.totalExpectedInflow,
-      projectedOpex: report.outflowBreakdown.totalExpectedOutflow,
-      projectedCapex: report.outflowBreakdown.capexTotal,
-      projectedFinalBalance: report.totalBankBalance + report.expectedMonthlyNet,
-      notes: `${targetMonth}월 자금수지 진단 스냅샷 (런웨이: ${report.cashRunway}개월, 순흐름: ₩${report.expectedMonthlyNet.toLocaleString()}원)`
+      startingBalance: safeStarting,
+      projectedInflow: safeInflow,
+      projectedOpex: safeOpex,
+      projectedCapex: safeCapex,
+      projectedFinalBalance: safeFinal,
+      notes: `${targetMonth}월 자금수지 진단 스냅샷 (런웨이: ${report.cashRunway}개월, 순흐름: ₩${Math.round(report.expectedMonthlyNet || 0).toLocaleString()}원)`
     });
     showToast(`[${todayStr}] 기준 자금 스냅샷이 DB에 성공적으로 저장되었습니다.`);
   };
@@ -180,6 +186,7 @@ export const CashFlowPage: React.FC = () => {
           </div>
 
           <button
+            data-mid="cash_flow-btn-snapshot"
             type="button"
             className="btn-secondary"
             onClick={handleSaveSnapshot}
@@ -290,6 +297,7 @@ export const CashFlowPage: React.FC = () => {
         flexWrap: 'wrap'
       }}>
         <button
+          data-mid="cash_flow-tab-statement"
           type="button"
           onClick={() => setActiveTab('STATEMENT')}
           style={{
@@ -311,6 +319,7 @@ export const CashFlowPage: React.FC = () => {
         </button>
 
         <button
+          data-mid="cash_flow-tab-daily"
           type="button"
           onClick={() => setActiveTab('DAILY')}
           style={{
@@ -332,6 +341,7 @@ export const CashFlowPage: React.FC = () => {
         </button>
 
         <button
+          data-mid="cash_flow-tab-risk"
           type="button"
           onClick={() => setActiveTab('RISK')}
           style={{
@@ -353,6 +363,7 @@ export const CashFlowPage: React.FC = () => {
         </button>
 
         <button
+          data-mid="cash_flow-tab-snapshots"
           type="button"
           onClick={() => setActiveTab('SNAPSHOTS')}
           style={{
@@ -444,6 +455,7 @@ export const CashFlowPage: React.FC = () => {
                       return (
                         <tr
                           key={idx}
+                          data-mid={`cash_flow-activity-row-${idx}`}
                           onClick={() => setSelectedRowIndex(idx)}
                           style={{
                             borderBottom: '1px solid var(--border-color)',
@@ -766,7 +778,7 @@ export const CashFlowPage: React.FC = () => {
       </main>
 
       {/* ─── 5. 우하단 Gutenberg Z-패턴 4단계 종단 대차대조식 검증 바 (헌장 3.5) ─── */}
-      <footer style={{
+      <footer data-mid="cash_flow-terminal-audit-bar" style={{
         backgroundColor: 'var(--bg-card)',
         borderTop: '2px solid var(--success)',
         padding: '10px 18px',

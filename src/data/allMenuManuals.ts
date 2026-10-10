@@ -6048,81 +6048,151 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "cash_flow",
-    "version": 12,
-    "menuName": "자금 흐름 분석",
+    "version": 13,
+    "menuName": "유동자금 관리",
     "groupId": "grp_management",
     "groupName": "경영관리",
     "department": "경영진/재무팀",
-    "archetype": "유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)",
-    "objective": "월별 매출 입금, 매입 지급, 고정비 지출 분석 및 미래 유동성 예측",
-    "scopeInfo": "현금/보통예금 잔액, 당월 수금 예정액, 확정 매입 지급액, 고정비(급여/임차료), 여유 자금 지표",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 업무 (고밀도 그리드형)",
+    "objective": "통장 실물 잔액 기반 전사 영업/투자/재무 현금흐름 대사, 일별 자금 스케줄러, 출혈 리스크(악성채권/적자자산) 조기 경보 및 자금 스냅샷 보존",
+    "scopeInfo": "금융기관별 보통예금 실물 잔액, 당월 확정 매출 수금액, 매입 정산 실지급액, 전사 임직원 급여/수당, 법인차량 유류비, 자산 취득/처분 실적, D+7 단기 지출액",
     "cognitiveSequence": [
-      "1. 기준 일자 및 금융 계좌별 실시간 잔액 스코핑",
-      "2. 당일 현금 유입(렌탈료 수납, 매각 대금) 실적 집계",
-      "3. 당일 현금 유출(운송료 지급, 부품 매입, 급여, 임차료) 실적 집계",
-      "4. 향후 7일/30일간 자금 수지 예측 (청구 예정액 vs 지급 예정액)",
-      "5. 자금 부족 예상일 사전 경보 및 단기 유동성 확보 계획 수립",
-      "6. 계좌별 이체 한도 및 잔액 증명 대차대조 검증",
-      "7. 일일 자금일보 마감 확정 및 대표이사/경영진 보고서 발행"
+      "1. 좌상단 (Scope): 기준 연월(YYYY-MM) 선택 및 5대 핵심 KPI(통장 실물 총잔액, D+7 지출 예정액, 순 가용 자금, 당월 순현금흐름, 현금 런웨이) 조망",
+      "2. 우상단 (Pipeline): [스냅샷 보존]으로 현재 진단 상태 DB 영구 박제 및 [엑셀 내보내기]로 4대 시트 통합 파일 다운로드",
+      "3. 탭 1 [종합 현금흐름표]: 은행별 실시간 통장 잔액 카드 확인 및 영업/투자/재무 활동별 행 클릭하여 인라인 거래처/전표 원장 상세 드릴다운 검증",
+      "4. 탭 2 [일별 자금 스케줄러]: 1일부터 말일까지 일자별 입금/출금/순흐름/예상잔액 추이 및 피크 결제일(10일 정기 수납, 25일 급여/매입 지급) 자금 바닥 여부 사전 경보",
+      "5. 탭 3 [출혈 리스크]: 90일 이상 미회수 악성 미수채권 Top 5 및 누적 수리비가 렌탈 매출을 초과한 비용 누수 자산 Top 5 즉시 조치",
+      "6. 탭 4 [자금 스냅샷 이력]: 과거 저장된 월별 자금 진단 스냅샷 목록 대조 및 이력 관리",
+      "7. 우하단 (Terminal Action): 대차대조식 검증 바(통장 총잔액 = 기초잔액 + 총입금 - 총출금 | 대차 정합 ₩0) 무결성 확정"
     ],
     "subTabs": [
       {
-        "tabId": "FORECAST",
-        "tabName": "자금 수지 예측",
-        "purpose": "향후 30일/60일/90일간 예정된 매출 수납액과 운송료, 임차료, 급여 지출 예측",
+        "tabId": "STATEMENT",
+        "tabName": "종합 현금흐름표 & 계좌 잔고",
+        "purpose": "실물 보통예금 통장 카드 그리드 및 3대 활동 표준 현금흐름표, 항목별 인라인 거래처/전표 원장 실시간 드릴다운",
         "keyActions": [
-          "일자별 예상 잔액 확인",
-          "자금 부족 위험 구간 경보"
+          "은행별 계좌 실시간 잔액 대사",
+          "항목별 인라인 원장 드릴다운 조회",
+          "영업/투자/재무 순현금흐름 검증"
         ]
       },
       {
-        "tabId": "HISTORY",
-        "tabName": "입출금 실적 내역",
-        "purpose": "실제 통장 입출금 실적과 예측치 간 편차 분석 및 감사 로그",
+        "tabId": "DAILY",
+        "tabName": "일별 자금 스케줄러",
+        "purpose": "1일부터 말일까지 일자별 입금·출금 및 추정 잔고 타임라인, 10일/25일 피크 결제일 집중 모니터링",
         "keyActions": [
-          "실적 대비 편차율 검토"
+          "일자별 순현금흐름 추적",
+          "피크 결제일 자금 유출 사전 방어"
+        ]
+      },
+      {
+        "tabId": "RISK",
+        "tabName": "출혈 리스크 (악성 채권 & 비용 누수 장비)",
+        "purpose": "회수 불능 위기 90일+ 악성 미수금 Top 5 및 수리비가 매출을 초과하여 적자를 유발하는 자산 Top 5 조기 적발",
+        "keyActions": [
+          "악성 미수채권 강제 회수 조치",
+          "비용 누수 적자 장비 매각/폐기 판단"
+        ]
+      },
+      {
+        "tabId": "SNAPSHOTS",
+        "tabName": "자금 스냅샷 이력",
+        "purpose": "경영진 정기 보고용 월별 자금 상태 박제 보존 및 과거 진단 이력 대조",
+        "keyActions": [
+          "자금 스냅샷 조회 및 복원 확인",
+          "불필요 스냅샷 삭제 관리"
         ]
       }
     ],
-    "auditResult": "기말 잔액 = 기초 잔액 + 수납 유입 - 지출 유출 | 자금 수지 보존",
+    "auditResult": "통장 실물 총잔액 = 기초잔액 + 총입금 - 총출금 | ⚖️ 대차 정합 ₩0 (종단 보존 무결성 확정)",
     "rulesCompliance": [
-      "헌장 5.1 [리포트 2단계 검증]: 기말 현금 = 기초 현금 + 수납액 - 지출액 수학적 수식 정합성 충족",
-      "헌장 3.1 [건조한 표기]: 감성적 지표 배제, 실제 통장 입출금 기반 통계만 표시"
+      "헌장 5.1 [리포트 2단계 검증]: 수학적/논리적 산식 정립 및 DB 스키마 1:1 실데이터 연동 (난수/상수 전면 배제)",
+      "헌장 5.6 [날조 영구 엄단]: 가짜 Math.random() 완전 제거, 실제 ERP 거래처 원장 드릴다운 보존",
+      "헌장 3.1 [무수식어 건조 표준]: 감성적 수식어 전면 배제 및 건조한 명사형 버튼 강제",
+      "헌장 3.5 [구텐베르크 Z-패턴 4단계]: 1단계 스코프 ➔ 2단계 파이프라인 ➔ 3단계 4-탭 워크스페이스 ➔ 4단계 대차대조 검증 바"
     ],
     "precautions": [
-      "미수 채권 연체율 증가 시 현금 유입 예측치에 할인율을 반영하여 보수적 분석 권장",
-      "특정 일자(급여일 10일/25일 등)에 자금 유출 집중 여부 점검"
+      "D+7 지출 예정액은 단기 만기 매입정산 및 도래 급여 합산이므로 안전자금 확보에 유의할 것",
+      "자금 스냅샷 저장은 결산 또는 주요 의사결정 시점에 [스냅샷 보존] 버튼을 클릭하여 확정 보존할 것"
     ],
     "annotations": [
       {
         "seq": 1,
         "selector": "[data-mid=\"cash_flow-header\"]",
-        "label": "자금 흐름 헤더",
-        "description": "월별 매출 입금, 매입 지급, 유동성 예측",
+        "label": "유동자금 관리 헤더",
+        "description": "통장 실시간 잔고 기반 현금 유출입 추정 및 유동성 가용 기간 모니터링 헤더입니다.",
         "colorToken": "BLUE",
         "type": "STAMP"
       },
       {
         "seq": 2,
         "selector": "[data-mid=\"cash_flow-month-input\"]",
-        "label": "분석 기준월",
-        "description": "자금 수지 분석 연월 선택",
+        "label": "귀속 기준월",
+        "description": "자금 수지 분석 연월(YYYY-MM)을 선택합니다.",
         "colorToken": "PURPLE",
         "type": "CALLOUT"
       },
       {
         "seq": 3,
-        "selector": "[data-mid=\"cash_flow-btn-export\"]",
-        "label": "자금 흐름 엑셀",
-        "description": "현금 흐름 표 엑셀 다운로드",
-        "colorToken": "AMBER",
-        "type": "CALLOUT"
+        "selector": "[data-mid=\"cash_flow-btn-snapshot\"]",
+        "label": "스냅샷 보존",
+        "description": "현재 시점의 자금 진단 상태를 DB에 영구 박제 보존합니다.",
+        "colorToken": "GREEN",
+        "type": "CLICK_RIPPLE"
       },
       {
         "seq": 4,
-        "selector": "[data-mid=\"cash_flow-inspection-grid\"]",
-        "label": "자금 수지 그리드",
-        "description": "유입, 유출, 순현금흐름 대차대조 대장",
+        "selector": "[data-mid=\"cash_flow-btn-export\"]",
+        "label": "엑셀 내보내기",
+        "description": "종합 현금흐름표, 계좌 잔고, 일별 스케줄, 악성 채권을 엑셀 파일로 다운로드합니다.",
+        "colorToken": "GREEN",
+        "type": "CALLOUT"
+      },
+      {
+        "seq": 5,
+        "selector": "[data-mid=\"cash_flow-kpi\"]",
+        "label": "5대 핵심 KPI 바",
+        "description": "통장 실물 잔액, D+7 지출액, 순 가용 자금, 당월 순현금흐름, 현금 런웨이 지표입니다.",
+        "colorToken": "BLUE",
+        "type": "HIGHLIGHT_BOX"
+      },
+      {
+        "seq": 6,
+        "selector": "[data-mid=\"cash_flow-tab-statement\"]",
+        "label": "종합 현금흐름표 탭",
+        "description": "계좌별 잔고 카드 및 3대 활동 표준 현금흐름표를 조회합니다.",
+        "colorToken": "PURPLE",
+        "type": "CLICK_RIPPLE"
+      },
+      {
+        "seq": 7,
+        "selector": "[data-mid=\"cash_flow-tab-daily\"]",
+        "label": "일별 자금 스케줄러 탭",
+        "description": "1일~말일 일자별 순현금흐름 및 피크 결제일 마커를 확인합니다.",
+        "colorToken": "PURPLE",
+        "type": "CLICK_RIPPLE"
+      },
+      {
+        "seq": 8,
+        "selector": "[data-mid=\"cash_flow-tab-risk\"]",
+        "label": "출혈 리스크 탭",
+        "description": "90일+ 악성 채권 및 수리비 적자 자산 Top 5를 모니터링합니다.",
+        "colorToken": "AMBER",
+        "type": "CLICK_RIPPLE"
+      },
+      {
+        "seq": 9,
+        "selector": "[data-mid=\"cash_flow-tab-snapshots\"]",
+        "label": "자금 스냅샷 이력 탭",
+        "description": "과거 보존된 월별 자금 진단 스냅샷 이력을 조회 및 관리합니다.",
+        "colorToken": "PURPLE",
+        "type": "CLICK_RIPPLE"
+      },
+      {
+        "seq": 10,
+        "selector": "[data-mid=\"cash_flow-terminal-audit-bar\"]",
+        "label": "종단 대차대조식 검증 바",
+        "description": "통장 총잔액 = 기초잔액 + 총입금 - 총출금 대차 정합 ₩0 무결성을 확정합니다.",
         "colorToken": "GREEN",
         "type": "HIGHLIGHT_BOX"
       }
@@ -6130,26 +6200,90 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     "basicGuide": [
       {
         "seq": 1,
-        "selector": "div[style*=\"grid-template-columns\"]",
+        "selector": "[data-mid=\"cash_flow-kpi\"]",
         "type": "highlight",
-        "label": "자금 수지 지표",
-        "description": "[자금 수지 지표] 화면 영역입니다. 당월 매출 입금액과 매입/급여/운송 지출액의 순유동성을 실시간 조망하는 기본 기능을 제공합니다.",
+        "label": "5대 핵심 유동성 지표",
+        "description": "통장 총잔액, D+7 지출액, 가용 안전자금, 순흐름, 런웨이를 실시간 조망합니다.",
+        "positionHint": "bottom"
+      },
+      {
+        "seq": 2,
+        "selector": "[data-mid=\"cash_flow-tab-statement\"]",
+        "type": "callout",
+        "label": "인라인 원장 드릴다운",
+        "description": "현금흐름표 행을 클릭하면 우측에 실제 거래처 및 전표 상세 내역이 즉시 노출됩니다.",
         "positionHint": "bottom"
       }
     ],
     "processes": [
       {
-        "processId": "cash-flow-liquidity-audit",
-        "title": "자금 수지 및 유동성 대차대조 검증",
-        "description": "월간 현금 유입과 유출을 비교하여 수지 보존 무결성을 확정합니다.",
+        "processId": "cash_flow_liquidity_audit_flow",
+        "title": "유동자금 관리 및 대차대조식 검증 절차",
+        "description": "기준 연월 선택부터 KPI 진단, 인라인 원장 확인, 스냅샷 박제 보존 및 엑셀 다운로드까지의 표준 절차입니다.",
         "steps": [
           {
             "seq": 1,
-            "selector": "div[style*=\"grid-template-columns\"]",
-            "type": "highlight",
-            "label": "자금 수지 조망",
-            "description": "[자금 수지 조망] UI 요소를 확인합니다. 총 유입액과 총 유출액을 확인하십시오.",
+            "selector": "[data-mid=\"cash_flow-month-input\"]",
+            "type": "click_ripple",
+            "label": "기준 연월 설정",
+            "description": "진단할 분석 연월(YYYY-MM)을 선택합니다.",
             "positionHint": "bottom"
+          },
+          {
+            "seq": 2,
+            "selector": "[data-mid=\"cash_flow-kpi\"]",
+            "type": "highlight",
+            "label": "5대 유동성 KPI 진단",
+            "description": "가용 자금 및 현금 런웨이(소진율)를 확인합니다.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 3,
+            "selector": "[data-mid=\"cash_flow-tab-statement\"]",
+            "type": "click_ripple",
+            "label": "종합 현금흐름표 원장 드릴다운",
+            "description": "활동 항목을 클릭하여 거래처별 실물 전표를 검토합니다.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 4,
+            "selector": "[data-mid=\"cash_flow-tab-daily\"]",
+            "type": "click_ripple",
+            "label": "일별 스케줄러 점검",
+            "description": "10일 수납 및 25일 결제 집중일의 자금 유출입을 대조합니다.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 5,
+            "selector": "[data-mid=\"cash_flow-tab-risk\"]",
+            "type": "click_ripple",
+            "label": "출혈 리스크 조기 경보",
+            "description": "90일+ 악성 채권 및 수리비 적자 자산을 식별하여 조치합니다.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 6,
+            "selector": "[data-mid=\"cash_flow-btn-snapshot\"]",
+            "type": "click_ripple",
+            "label": "자금 진단 스냅샷 영구 보존",
+            "description": "현재 자금 상태를 DB에 영구 박제 저장합니다.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 7,
+            "selector": "[data-mid=\"cash_flow-btn-export\"]",
+            "type": "click_ripple",
+            "label": "엑셀 다운로드",
+            "description": "다중 시트가 포함된 표준 XLSX 파일을 다운로드합니다.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 8,
+            "selector": "[data-mid=\"cash_flow-terminal-audit-bar\"]",
+            "type": "highlight",
+            "label": "대차대조식 무결성 확정",
+            "description": "통장 총잔액과 기초/입출금 간 ₩0 정합을 최종 검증합니다.",
+            "positionHint": "top"
           }
         ]
       }

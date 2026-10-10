@@ -130,8 +130,8 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
       }
 
       const acc = bankAccountMap[bName];
-      acc.totalDeposits += (tx.depositAmount || 0);
-      acc.totalWithdrawals += (tx.withdrawAmount || 0);
+      acc.totalDeposits += Number(tx.depositAmount || 0);
+      acc.totalWithdrawals += Number(tx.withdrawAmount || 0);
       if (tx.transactionDate && (acc.latestDate === '-' || tx.transactionDate > acc.latestDate)) {
         acc.latestDate = tx.transactionDate;
       }
@@ -162,9 +162,9 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
 
     (app.billings || []).forEach(b => {
       if (b.billingYm === targetMonthYyyyMm && b.status !== 'REJECTED') {
-        currentMonthRentalBilled += b.totalAmount;
-        if (b.paidAmount && b.paidAmount > 0) {
-          currentMonthRentalCollected += b.paidAmount;
+        currentMonthRentalBilled += Number(b.totalAmount || 0);
+        if (b.paidAmount && Number(b.paidAmount) > 0) {
+          currentMonthRentalCollected += Number(b.paidAmount);
           const cust = (app.customers || []).find(c => c.id === b.customerId);
           rentalInflowItems.push({
             id: `bill-${b.id}`,
@@ -172,7 +172,7 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
             category: '1. 영업활동 현금흐름',
             subCategory: '렌탈료 매출 입금',
             counterparty: cust?.name || '고객사',
-            amount: b.paidAmount,
+            amount: Number(b.paidAmount),
             direction: 'INFLOW',
             memo: `청구 ${b.id} 수납`,
             status: b.status,
@@ -191,7 +191,7 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
             category: '1. 영업활동 현금흐름',
             subCategory: '통장 일반 입금 및 수납',
             counterparty: tx.counterparty || tx.senderName || '거래처',
-            amount: tx.depositAmount,
+            amount: Number(tx.depositAmount || 0),
             direction: 'INFLOW',
             memo: tx.summary || tx.memo || '입금',
             referenceId: tx.id
@@ -212,8 +212,8 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
 
     (app.purchaseSettlements || []).forEach(ps => {
       if (ps.settlementYm === targetMonthYyyyMm) {
-        currentMonthSettlementsTotal += ps.totalAmount;
-        currentMonthSettlementsPaid += (ps.paidAmount || 0);
+        currentMonthSettlementsTotal += Number(ps.totalAmount || 0);
+        currentMonthSettlementsPaid += Number(ps.paidAmount || 0);
 
         const typeLabel = 
           ps.settlementType === 'EQUIPMENT_LEASE' ? '장비 임차료' :
@@ -227,7 +227,7 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
           category: '1. 영업활동 현금흐름',
           subCategory: `매입 정산: ${typeLabel}`,
           counterparty: ps.vendorName,
-          amount: ps.paidAmount || ps.totalAmount,
+          amount: Number(ps.paidAmount || ps.totalAmount || 0),
           direction: 'OUTFLOW',
           memo: `매입번호 ${ps.id} (${ps.status})`,
           status: ps.status,
@@ -238,14 +238,14 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
 
     // (b) 인건비 및 급여 지급액
     const activeStaff = (app.users || []).filter(u => u.status === 'ACTIVE' && u.loginId !== 'admin');
-    const baseSalariesTotal = activeStaff.reduce((sum, u) => sum + (u.baseSalary || 2800000), 0);
+    const baseSalariesTotal = activeStaff.reduce((sum, u) => sum + Number(u.baseSalary || 2800000), 0);
 
     let monthlyOvertimePay = 0;
     (app.overtimeRecords || []).forEach(ot => {
       if (ot.startDateTime && ot.startDateTime.startsWith(targetMonthYyyyMm) && ot.status === 'APPROVED') {
         const u = activeStaff.find(usr => usr.id === ot.userId);
-        const hourly = Math.round((u?.baseSalary || 2800000) / 209);
-        monthlyOvertimePay += Math.round((ot.hours || 0) * hourly * 1.5);
+        const hourly = Math.round(Number(u?.baseSalary || 2800000) / 209);
+        monthlyOvertimePay += Math.round(Number(ot.hours || 0) * hourly * 1.5);
       }
     });
 
@@ -267,14 +267,14 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
     const fuelItems: CashFlowActivityDetailItem[] = [];
     (app.vehicleFuelLogs || []).forEach(fl => {
       if (fl.fuelDate && fl.fuelDate.startsWith(targetMonthYyyyMm)) {
-        fuelCostsTotal += (fl.fuelAmount || 0);
+        fuelCostsTotal += Number(fl.fuelAmount || 0);
         fuelItems.push({
           id: `fuel-${fl.id}`,
           date: fl.fuelDate.split(' ')[0],
           category: '1. 영업활동 현금흐름',
           subCategory: '차량 유류비 및 경상운영비',
           counterparty: fl.driverName ? `기사: ${fl.driverName}` : '주유소',
-          amount: fl.fuelAmount,
+          amount: Number(fl.fuelAmount || 0),
           direction: 'OUTFLOW',
           memo: `${fl.fuelVolume ? fl.fuelVolume + 'L 주유' : '유류대'}`,
           referenceId: fl.id
@@ -289,14 +289,14 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
     const capexItems: CashFlowActivityDetailItem[] = [];
     (app.assets || []).forEach(a => {
       if (a.acquisitionDate && a.acquisitionDate.startsWith(targetMonthYyyyMm) && a.acquisitionPrice) {
-        capexTotal += a.acquisitionPrice;
+        capexTotal += Number(a.acquisitionPrice || 0);
         capexItems.push({
           id: `acq-${a.id}`,
           date: a.acquisitionDate,
           category: '2. 투자활동 현금흐름',
           subCategory: '신규 장비 취득 투자 (CAPEX)',
           counterparty: a.supplier || '제조사/공급사',
-          amount: a.acquisitionPrice,
+          amount: Number(a.acquisitionPrice || 0),
           direction: 'OUTFLOW',
           memo: `자산 ${a.assetNo} (${a.modelName || ''}) 취득`,
           referenceId: a.id
@@ -308,14 +308,14 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
     const disposalItems: CashFlowActivityDetailItem[] = [];
     (app.assets || []).forEach(a => {
       if (a.disposalDate && a.disposalDate.startsWith(targetMonthYyyyMm) && a.disposalPrice) {
-        disposalTotal += a.disposalPrice;
+        disposalTotal += Number(a.disposalPrice || 0);
         disposalItems.push({
           id: `disp-${a.id}`,
           date: a.disposalDate,
           category: '2. 투자활동 현금흐름',
           subCategory: '불용 자산 매각 대금 회수',
           counterparty: a.buyer || '매각처',
-          amount: a.disposalPrice,
+          amount: Number(a.disposalPrice || 0),
           direction: 'INFLOW',
           memo: `자산 ${a.assetNo} (${a.modelName || ''}) 매각`,
           referenceId: a.id
@@ -335,7 +335,7 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
       if (ps.status === 'CONFIRMED' || ps.status === 'PENDING') {
         const dueDate = ps.paymentDate || `${ps.settlementYm}-25`;
         if (dueDate >= today && dueDate <= dPlus7Str) {
-          upcomingPayablesD7 += Math.max(0, ps.totalAmount - (ps.paidAmount || 0));
+          upcomingPayablesD7 += Math.max(0, Number(ps.totalAmount || 0) - Number(ps.paidAmount || 0));
         }
       }
     });
@@ -465,8 +465,8 @@ export const useCashFlowReport = (targetMonthYyyyMm: string) => {
 
       (app.bankTransactions || []).forEach(tx => {
         if (tx.transactionDate && tx.transactionDate.startsWith(dateStr)) {
-          dayInflow += (tx.depositAmount || 0);
-          dayOutflow += (tx.withdrawAmount || 0);
+          dayInflow += Number(tx.depositAmount || 0);
+          dayOutflow += Number(tx.withdrawAmount || 0);
         }
       });
 

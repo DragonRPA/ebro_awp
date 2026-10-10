@@ -1581,15 +1581,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const normHiddenPages = rawHidden.map(p => normalizeMenuId(p));
       const normAllowedPages = rawAllowed.map(p => normalizeMenuId(p));
 
-      // 1) hiddenPages에 포함된 메뉴는 원천 차단 (단, 시스템 개발자 및 유통 신규 모듈은 최고관리자 isSuperAdmin에게 상시 개방)
-      const isSystemDevOrDistributionMenu = [
-        'agentic_ai_lab', 'agentic_dispatch_studio', 'agentic_settlement_autopilot', 'agentic_asset_lifecycle',
-        'initial_db_upload', 'data_formation', 'google_config', 'dev_uploader',
-        'trade_products', 'trade_purchases', 'trade_contracts', 'trade_outbounds',
-        'courier_dispatch', 'trade_billing', 'trade_returns', 'trade_profitability'
-      ].includes(normMenuId) || normMenuId.startsWith('trade_');
-
-      if (normHiddenPages.includes(normMenuId) && !(isSuperAdmin && isSystemDevOrDistributionMenu)) {
+      // 1) hiddenPages에 포함된 메뉴는 일반 사용자에게 원천 차단 (단, 시스템 개발자/최고관리자 isSuperAdmin에게는 전면 상시 개방)
+      if (normHiddenPages.includes(normMenuId) && !isSuperAdmin) {
         return false;
       }
 
