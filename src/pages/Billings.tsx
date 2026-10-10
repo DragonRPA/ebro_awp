@@ -5889,10 +5889,10 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                   ref={paySubmitBtnRef}
                   type="submit" 
                   className="btn-primary"
-                  disabled={payAmount <= 0 || (payMode === 'DEPOSIT' && isOverMatch) || (payMode === 'CARD' && !cardApprovalNo.trim())}
+                  disabled={payAmount <= 0 || (payMode === 'CARD' && !cardApprovalNo.trim())}
                   style={{ fontWeight: 'bold' }}
                 >
-                  {isExactMatch ? '완납 처리 완료' : isPartialMatch ? '부분 수납 처리' : '수납 완료 처리'}
+                  {isOverMatch ? `초과 수납 승인 (선수금 ₩${(payAmount - unpaid).toLocaleString()} 자동 적립)` : isExactMatch ? '완납 처리 완료' : isPartialMatch ? '부분 수납 처리' : '수납 완료 처리'}
                 </button>
               </div>
             </form>

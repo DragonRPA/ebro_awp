@@ -6,7 +6,7 @@ import { fetchMyDrafts, DraftDispatchOrder, discardDraft } from '../services/cal
 import { matchHangul, compareCustomerNames } from '../utils/hangulSearch';
 
 export const SmartReturn: React.FC = () => {
-  const { hasPermission, saveSmartReturn, contracts, customers, sites, contacts, deliveries, contractAssets, assets, repairs, vendors, currentUser, users, currentTenant, printStations, enqueuePrintJob, showPrintSuccessModal } = useApp();
+  const { hasPermission, saveSmartReturn, contracts, customers, sites, siteMasters, contacts, deliveries, contractAssets, assets, repairs, vendors, currentUser, users, currentTenant, printStations, enqueuePrintJob, showPrintSuccessModal } = useApp();
   const canSave = hasPermission('delivery', 'save');
 
   // 토스트 알림 상태 (헌장 5.2: 브라우저 alert 전면 퇴출)
@@ -67,7 +67,9 @@ export const SmartReturn: React.FC = () => {
     if (!contractId) return [];
     const outboundDel = (deliveries || []).find((d: any) => d.contractId === contractId && d.type === 'OUTBOUND');
     const contract = contracts.find(c => c.id === contractId);
-    const text = `${outboundDel?.rawText || ''} ${outboundDel?.memo || ''} ${outboundDel?.closingMemo || ''} ${(contract as any)?.memo || ''}`.toLowerCase();
+    const site = sites.find(s => s.id === contract?.siteId);
+    const siteMaster = siteMasters?.find(sm => sm.id === site?.siteMasterId);
+    const text = `${outboundDel?.rawText || ''} ${outboundDel?.memo || ''} ${outboundDel?.closingMemo || ''} ${(contract as any)?.memo || ''} ${siteMaster?.paidOptions || ''} ${siteMaster?.protection || ''} ${siteMaster?.checkedSpecs ? JSON.stringify(siteMaster.checkedSpecs) : ''}`.toLowerCase();
     
     return RETURN_CHECK_SPECS.filter(s => s.keywords.some(kw => text.includes(kw.toLowerCase())));
   };
@@ -901,11 +903,34 @@ export const SmartReturn: React.FC = () => {
                     const c = contracts.find(con => con.id === selectedContractId);
                     const cust = customers.find(cust => cust.id === c?.customerId);
                     const site = sites.find(s => s.id === c?.siteId);
+                    const siteMaster = siteMasters?.find(sm => sm.id === site?.siteMasterId);
+                    const outboundDel = deliveries.find(d => d.contractId === c?.id && d.type === 'OUTBOUND');
+
+                    const inheritedSpecs = getInheritedOutboundSpecs(selectedContractId);
+                    const optMatch = outboundDel?.closingMemo?.match(/유상옵션:\s*([^\|]+)/) || outboundDel?.memo?.match(/\[(?:회수)?옵션\]\s*([^\|]+)/);
+                    const protMatch = outboundDel?.closingMemo?.match(/보양:\s*([^\|]+)/) || outboundDel?.memo?.match(/\[보양작업\]\s*([^\|]+)/);
+
+                    const displayOpt = siteMaster?.paidOptions || (optMatch ? optMatch[1].trim() : '') || '없음';
+                    const displayProt = siteMaster?.protection || (protMatch ? protMatch[1].trim() : '') || 'NONE';
+
                     return (
                       <>
                         <div style={{ marginBottom: '4px' }}><strong>계약번호:</strong> {c?.contractNo}</div>
                         <div style={{ marginBottom: '4px' }}><strong>고객사:</strong> {cust?.name}</div>
                         <div><strong>현장명:</strong> {site?.name} ({site?.address || '-'})</div>
+                        <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px dashed var(--border-color)', fontSize: '12px' }}>
+                          <span style={{ fontWeight: 'bold', color: 'var(--primary-color, #2563eb)' }}>출고 장착 옵션/보양:</span>{' '}
+                          <span>유상옵션: {displayOpt} | 보양: {displayProt}</span>
+                          {inheritedSpecs.length > 0 && (
+                            <div style={{ marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {inheritedSpecs.map(s => (
+                                <span key={s.id} style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '1px 6px', borderRadius: '4px', fontSize: '11px' }}>
+                                  회수대상: {s.label}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </>
                     );
                   })()}

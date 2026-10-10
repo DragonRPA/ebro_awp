@@ -19,7 +19,7 @@ interface StagedAsset {
 
 export const AssetInboundStaging: React.FC = () => {
   const { 
-    assets, contracts, contractAssets, customers, sites,
+    assets, contracts, contractAssets, customers, sites, siteMasters, deliveries,
     inspectionChecklistItems, outboundInspections, registerInboundAsset, googleConfigs, showErrorModal
   } = useApp();
 
@@ -436,27 +436,55 @@ export const AssetInboundStaging: React.FC = () => {
 
             <div style={{ padding: '20px' }}>
               {/* 💡 출고 당시 장착 옵션 내역 표시 */}
-              {outboundOptionsData && outboundOptionsData.checkpoints && outboundOptionsData.checkpoints.length > 0 && (
-                <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                    <ShieldCheck size={16} color="#0284c7" />
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#0369a1' }}>출고 시 검수/장착 옵션 정보</span>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
-                    {outboundOptionsData.checkpoints.filter((cp: any) => cp.type === 'OPTION' || cp.type === 'SPEC').map((cp: any) => (
-                      <div key={cp.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#0f172a' }}>
-                        <CheckCircle2 size={12} color="#16a34a" />
-                        <span>{cp.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {outboundOptionsData.inspectionNote && (
-                    <div style={{ marginTop: '8px', padding: '6px 8px', backgroundColor: 'rgba(255,255,255,0.6)', borderRadius: '4px', fontSize: '12px', color: '#475569' }}>
-                      <strong>출고 특이사항:</strong> {outboundOptionsData.inspectionNote}
+              {(() => {
+                const optItems = outboundOptionsData?.checkpoints?.filter((cp: any) => cp.type === 'OPTION' || cp.type === 'SPEC' || cp.id?.startsWith('opt_') || cp.label?.includes('[옵션]') || cp.label?.includes('보양')) || [];
+                
+                const activeContract = contracts.find(c => c.id === activeInspectionItem.contractId);
+                const activeSite = sites.find(s => s.id === activeContract?.siteId);
+                const activeSiteMaster = siteMasters?.find(sm => sm.id === activeSite?.siteMasterId);
+                const activeDelivery = deliveries?.find(d => d.contractId === activeInspectionItem.contractId && d.type === 'OUTBOUND');
+
+                const optMatch = activeDelivery?.closingMemo?.match(/유상옵션:\s*([^\|]+)/) || activeDelivery?.memo?.match(/\[(?:회수)?옵션\]\s*([^\|]+)/);
+                const protMatch = activeDelivery?.closingMemo?.match(/보양:\s*([^\|]+)/) || activeDelivery?.memo?.match(/\[보양작업\]\s*([^\|]+)/);
+
+                const paidOpt = activeSiteMaster?.paidOptions || (optMatch ? optMatch[1].trim() : '');
+                const prot = activeSiteMaster?.protection || (protMatch ? protMatch[1].trim() : '');
+
+                const hasPaidOpt = paidOpt && paidOpt !== '없음' && paidOpt !== 'NONE';
+                const hasProt = prot && prot !== '없음' && prot !== 'NONE';
+
+                if (optItems.length === 0 && !hasPaidOpt && !hasProt) return null;
+
+                return (
+                  <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                      <ShieldCheck size={16} color="#0284c7" />
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#0369a1' }}>회수/탈거 대상 출고 옵션 및 보양 정보</span>
                     </div>
-                  )}
-                </div>
-              )}
+                    {optItems.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px', marginBottom: (hasPaidOpt || hasProt) ? '8px' : '0' }}>
+                        {optItems.map((cp: any) => (
+                          <div key={cp.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#0f172a' }}>
+                            <CheckCircle2 size={12} color="#16a34a" />
+                            <span>{cp.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {(hasPaidOpt || hasProt) && (
+                      <div style={{ fontSize: '12px', color: '#1e3a8a', padding: '4px 8px', backgroundColor: '#e0f2fe', borderRadius: '4px' }}>
+                        {hasPaidOpt && <div>• 유상옵션: <strong>{paidOpt}</strong></div>}
+                        {hasProt && <div>• 보양작업: <strong>{prot}</strong></div>}
+                      </div>
+                    )}
+                    {outboundOptionsData?.inspectionNote && (
+                      <div style={{ marginTop: '8px', padding: '6px 8px', backgroundColor: 'rgba(255,255,255,0.6)', borderRadius: '4px', fontSize: '12px', color: '#475569' }}>
+                        <strong>출고 특이사항:</strong> {outboundOptionsData.inspectionNote}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div style={{ marginBottom: '16px' }}>
 

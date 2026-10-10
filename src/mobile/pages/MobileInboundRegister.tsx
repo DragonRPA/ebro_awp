@@ -14,7 +14,8 @@ import {
   MapPin, 
   Wrench,
   ChevronDown,
-  RotateCcw
+  RotateCcw,
+  ShieldCheck
 } from 'lucide-react';
 
 interface DefectOption {
@@ -55,6 +56,8 @@ export const MobileInboundRegister: React.FC<MobileInboundRegisterProps> = ({
     contracts, 
     customers, 
     sites, 
+    siteMasters,
+    deliveries,
     inspectionChecklistItems,
     registerInboundAsset, 
     showErrorModal 
@@ -154,6 +157,41 @@ export const MobileInboundRegister: React.FC<MobileInboundRegisterProps> = ({
   const currentAsset = useMemo(() => {
     return candidateAssets.find(a => a.id === selectedAssetId);
   }, [candidateAssets, selectedAssetId]);
+
+  // 출고 시 장착 옵션 및 보양 정보 상속
+  const currentContract = useMemo(() => {
+    if (!currentAsset) return null;
+    const ca = contractAssets.find(c => c.assetId === currentAsset.id && c.status !== 'RETURNED');
+    return ca ? contracts.find(ct => ct.id === ca.contractId) : null;
+  }, [currentAsset, contractAssets, contracts]);
+
+  const currentOutboundDelivery = useMemo(() => {
+    if (!currentContract) return null;
+    return deliveries.find(d => d.contractId === currentContract.id && d.type === 'OUTBOUND');
+  }, [currentContract, deliveries]);
+
+  const currentSiteMaster = useMemo(() => {
+    if (!currentContract) return null;
+    const site = sites.find(s => s.id === currentContract.siteId);
+    return siteMasters.find(sm => sm.id === site?.siteMasterId);
+  }, [currentContract, sites, siteMasters]);
+
+  const inheritedOptionsInfo = useMemo(() => {
+    if (!currentAsset) return null;
+    const optMatch = currentOutboundDelivery?.closingMemo?.match(/유상옵션:\s*([^\|]+)/) || currentOutboundDelivery?.memo?.match(/\[(?:회수)?옵션\]\s*([^\|]+)/);
+    const protMatch = currentOutboundDelivery?.closingMemo?.match(/보양:\s*([^\|]+)/) || currentOutboundDelivery?.memo?.match(/\[보양작업\]\s*([^\|]+)/);
+    const rawOpt = currentSiteMaster?.paidOptions || (optMatch ? optMatch[1].trim() : '') || '';
+    const rawProt = currentSiteMaster?.protection || (protMatch ? protMatch[1].trim() : '') || 'NONE';
+
+    const cleanOpt = (rawOpt && rawOpt !== '없음' && rawOpt !== 'NONE') ? rawOpt : '';
+    const cleanProt = (rawProt && rawProt !== '없음' && rawProt !== 'NONE') ? rawProt : '';
+
+    return {
+      paidOptions: cleanOpt,
+      protection: cleanProt,
+      hasOptions: !!(cleanOpt || cleanProt)
+    };
+  }, [currentAsset, currentOutboundDelivery, currentSiteMaster]);
 
   // 불량 증상 다중 선택 토글
   const handleToggleDefect = (defectId: string) => {
@@ -339,6 +377,20 @@ export const MobileInboundRegister: React.FC<MobileInboundRegisterProps> = ({
           )}
           <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0 ml-2" />
         </button>
+
+        {/* 출고 시 장착 옵션 및 보양 회수 확인 카드 */}
+        {inheritedOptionsInfo?.hasOptions && (
+          <div className="p-3 bg-blue-950/40 border border-blue-800/60 rounded-xl flex flex-col gap-1 text-xs">
+            <div className="flex items-center gap-1.5 font-bold text-blue-300">
+              <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+              <span>회수/탈거 대상 출고 옵션</span>
+            </div>
+            <div className="text-slate-300 pl-5">
+              {inheritedOptionsInfo.paidOptions && <div>• 유상옵션: <span className="font-semibold text-emerald-400">{inheritedOptionsInfo.paidOptions}</span></div>}
+              {inheritedOptionsInfo.protection && <div>• 보양작업: <span className="font-semibold text-blue-400">{inheritedOptionsInfo.protection}</span></div>}
+            </div>
+          </div>
+        )}
 
         {/* 입고 일자 */}
         <div className="flex flex-col gap-1 pt-1">

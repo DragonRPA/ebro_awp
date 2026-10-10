@@ -2892,6 +2892,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const saveSmartReturn = async (data: SmartReturnData) => {
     try {
+      let resultDeliveryId = '';
       if (data.contractId) {
         const contract = db.contracts.find(c => c.id === data.contractId);
         if (!contract) return { success: false, errorMessage: '계약 정보를 찾을 수 없습니다.' };
@@ -2930,12 +2931,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           : '';
         const cust = db.customers.find(c => c.id === contract.customerId);
         const site = db.sites.find(s => s.id === contract.siteId);
+        const siteMaster = site?.siteMasterId
+          ? db.siteMasters.find(sm => sm.id === site.siteMasterId)
+          : db.siteMasters.find(sm => sm.name && site?.name && sm.name.replace(/\s+/g, '') === site.name.replace(/\s+/g, ''));
         const returnAssets = db.assets.filter(a => data.assetIds.includes(a.id));
         const modelCountsMap: Record<string, number> = {};
         returnAssets.forEach(a => {
           modelCountsMap[a.modelName] = (modelCountsMap[a.modelName] || 0) + 1;
         });
         const cargoItems = JSON.stringify(Object.entries(modelCountsMap).map(([modelName, count]) => ({ modelName, count })));
+
+        // 🌟 [전사 표준 헌장 2.2 자동 상속 및 무누락/무잡음 원칙] 출고 시 장착 옵션 및 보양 정확 상속
+        const outboundDelivery = db.deliveries.find(d => d.contractId === contract.id && d.type === 'OUTBOUND');
+
+        let rawPaidOptions = (data as any).paidOptions;
+        if (rawPaidOptions === undefined) {
+          rawPaidOptions = siteMaster?.paidOptions || site?.paidOptions;
+          if (!rawPaidOptions && outboundDelivery?.closingMemo) {
+            const m = outboundDelivery.closingMemo.match(/유상옵션:\s*([^\|]+)/);
+            if (m && m[1]?.trim() && m[1].trim() !== '없음') rawPaidOptions = m[1].trim();
+          }
+        }
+        const cleanPaidOptions = (rawPaidOptions && rawPaidOptions !== '없음' && rawPaidOptions !== 'NONE') ? String(rawPaidOptions).trim() : '';
+
+        let rawProtection = (data as any).protection;
+        if (rawProtection === undefined) {
+          rawProtection = siteMaster?.protection || site?.protection;
+          if (!rawProtection && outboundDelivery?.closingMemo) {
+            const m = outboundDelivery.closingMemo.match(/보양:\s*([^\|]+)/);
+            if (m && m[1]?.trim() && m[1].trim() !== '없음' && m[1].trim() !== 'NONE') rawProtection = m[1].trim();
+          }
+        }
+        const cleanProtection = (rawProtection && rawProtection !== '없음' && rawProtection !== 'NONE') ? String(rawProtection).trim() : 'NONE';
+
+        // 잡음(Cruft) 방지: 불필요한 옵션이 없으면 해당 태그 자체를 생성하지 않음
+        const optionMemoParts: string[] = [];
+        if (cleanPaidOptions) {
+          optionMemoParts.push(`[회수옵션] ${cleanPaidOptions}`);
+        }
+        if (cleanProtection !== 'NONE') {
+          optionMemoParts.push(`[보양작업] ${cleanProtection}`);
+        }
+        const optionMemoStr = optionMemoParts.length > 0 ? `${optionMemoParts.join(' | ')} | ` : '';
 
         const createdReturnDelivery = db.insertRow<Delivery>('deliveries', {
           contractId: data.contractId,
@@ -2962,7 +2999,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           reconciliationStatus: 'PENDING',
           cargoItems,
           isCostSettled: false,
-          memo: `${contactInfoMemo}${data.note || ''}`,
+          memo: `${contactInfoMemo}${optionMemoStr}${data.note || ''}`.trim(),
+          closingMemo: `[회수조건] 유상옵션: ${cleanPaidOptions || '없음'} | 보양: ${cleanProtection}`,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });
@@ -2981,6 +3019,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           senderId: currentUser?.id,
           senderName: currentUser?.name
         });
+        resultDeliveryId = createdReturnDelivery.id;
       } else {
         // Case 4: 외주정비 회수
         const createdRepairReturnDelivery = db.insertRow<Delivery>('deliveries', {
@@ -3020,12 +3059,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           senderId: currentUser?.id,
           senderName: currentUser?.name
         });
+        resultDeliveryId = createdRepairReturnDelivery.id;
       }
 
       await db.awaitPendingWrites();
       refreshAllData();
 
-      return { success: true };
+      return { success: true, deliveryId: resultDeliveryId };
     } catch (err: any) {
       console.error('saveSmartReturn error:', err);
       showErrorModal(`회수 의뢰 저장 실패:\n${err?.message || err}`);
@@ -8042,34 +8082,79 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       return;
     }
 
-    // Payment 1건 생성
-    const newPayment = db.insertRow<Payment>('payments', {
-      billingId,
-      paymentDate: data.paymentDate,
-      amount: data.amount,
-      method: data.method,
-      memo: data.memo,
-      createdAt: new Date().toISOString()
-    });
+    const supply = billing.totalAmount || 0;
+    const grandTotal = supply + Math.round(supply * 0.1);
+    const unpaidAmount = Math.max(0, grandTotal - (billing.paidAmount || 0));
+    const appliedToBilling = Math.min(unpaidAmount, data.amount);
+    const overAmount = Math.max(0, data.amount - appliedToBilling);
 
-    // PaymentDepositLinks N건 생성 (통장입금 연동 시)
+    // 1. 청구서 충당 Payment 생성 (appliedToBilling 분만큼)
+    let newPayment: Payment | null = null;
+    if (appliedToBilling > 0 || overAmount === 0) {
+      newPayment = db.insertRow<Payment>('payments', {
+        billingId,
+        paymentDate: data.paymentDate,
+        amount: appliedToBilling,
+        method: data.method,
+        memo: data.memo,
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    // 2. 초과분 선수금 적립 및 가상 수납 전표 발행 (overAmount > 0)
+    let prepaidPayment: Payment | null = null;
+    if (overAmount > 0) {
+      const customer = db.customers.find(c => c.id === billing.customerId);
+      if (customer) {
+        const prevPrepaid = customer.prepaidBalance || 0;
+        db.updateRow<Customer>('customers', customer.id, {
+          prepaidBalance: prevPrepaid + overAmount,
+          updatedAt: new Date().toISOString()
+        } as any);
+      }
+
+      prepaidPayment = db.insertRow<Payment>('payments', {
+        billingId: null,
+        paymentDate: data.paymentDate,
+        amount: overAmount,
+        method: data.method,
+        memo: `초과 수납 선수금 자동 적립 (${billing.billingYm} 청구분 초과 ₩${overAmount.toLocaleString()})`,
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    // 3. PaymentDepositLinks 생성 (통장입금 연동 시 청구 충당분과 선수금 분할 매핑)
     if (data.depositLinks && data.depositLinks.length > 0) {
+      let remainingBillingCoverage = appliedToBilling;
       for (const link of data.depositLinks) {
-        if (link.usedAmount > 0) {
+        if (link.usedAmount <= 0) continue;
+
+        const useForBilling = Math.min(link.usedAmount, remainingBillingCoverage);
+        const useForPrepaid = link.usedAmount - useForBilling;
+        remainingBillingCoverage = Math.max(0, remainingBillingCoverage - useForBilling);
+
+        if (useForBilling > 0 && newPayment) {
           db.insertRow<PaymentDepositLink>('paymentDepositLinks', {
             paymentId: newPayment.id,
             bankTransactionId: link.bankTransactionId,
-            usedAmount: link.usedAmount,
+            usedAmount: useForBilling,
+            createdAt: new Date().toISOString()
+          });
+        }
+
+        if (useForPrepaid > 0 && prepaidPayment) {
+          db.insertRow<PaymentDepositLink>('paymentDepositLinks', {
+            paymentId: prepaidPayment.id,
+            bankTransactionId: link.bankTransactionId,
+            usedAmount: useForPrepaid,
             createdAt: new Date().toISOString()
           });
         }
       }
     }
 
-    // Billing.paidAmount / status 자동 갱신 (VAT 포함 총액 기준)
-    const nextPaid = billing.paidAmount + data.amount;
-    const supply = billing.totalAmount || 0;
-    const grandTotal = supply + Math.round(supply * 0.1);
+    // 4. Billing.paidAmount / status 자동 갱신 (VAT 포함 총액 기준 캡 적용)
+    const nextPaid = (billing.paidAmount || 0) + appliedToBilling;
     let nextStatus: Billing['status'] = 'UNPAID';
     if (nextPaid >= grandTotal) {
       nextStatus = 'PAID';
@@ -8083,18 +8168,20 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       updatedAt: new Date().toISOString()
     });
 
-    // 계약이력 기록
+    // 5. 계약이력 기록
     if (billing.contractId) {
       db.insertRow<ContractHistory>('contractHistory', {
         contractId: billing.contractId,
         changeType: 'PAYMENT_RECEIVED',
         changeDate: data.paymentDate,
-        description: `수납 처리: ${billing.billingYm} / ${data.amount.toLocaleString()}원 수납 (누적: ${nextPaid.toLocaleString()}/${grandTotal.toLocaleString()}원, 상태: ${nextStatus})`,
+        description: `수납 처리: ${billing.billingYm} / ${appliedToBilling.toLocaleString()}원 수납 (누적: ${nextPaid.toLocaleString()}/${grandTotal.toLocaleString()}원, 상태: ${nextStatus})${overAmount > 0 ? ` [초과금 ₩${overAmount.toLocaleString()} 선수금 적립]` : ''}`,
         createdAt: new Date().toISOString()
       });
     }
 
-    await db.awaitPendingWrites(); refreshAllData(); };
+    await db.awaitPendingWrites();
+    refreshAllData();
+  };
 
   // 수납 취소: Payment 삭제 + 연결된 PDL 전체 삭제 + Billing.paidAmount 롤백 + 선수금 환원 + 계약 이력 보존
   const cancelPayment = async (paymentId: string) => {
@@ -8390,7 +8477,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         // 선수금 가상 수납 전표 등록
         db.insertRow<Payment>('payments', {
           id: prepaidPayId,
-          billingId: '',
+          billingId: null,
           paymentDate: tx.transactionDate.split(' ')[0],
           amount: remainingDeposit,
           method: 'BANK_TRANSFER',
@@ -8410,6 +8497,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
     // 3. 거래 내역 상태 변경
     db.updateRow<BankTransaction>('bankTransactions', txId, {
+      customerId: customerId,
       matchedBillingId: matchedBillingIds.length > 0 ? matchedBillingIds[0] : billingId,
       matchingType,
       updatedAt: new Date().toISOString()
@@ -9311,7 +9399,30 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       });
     }
 
-    // 🟢 회수 배차 및 관련 선행 ToDo 자동 상계
+    // 🟢 회수 배차 및 관련 선행 ToDo 자동 상계 & 회수 배차 상태 DELIVERED 완결
+    const matchedReturnDelivery = db.deliveries.find(d => 
+      (d.type === 'INBOUND' || d.type === 'RETURN') &&
+      d.status !== 'CANCELLED' &&
+      (d.contractId === contract?.id || (d.assetIds && d.assetIds.split(',').includes(asset.id)))
+    );
+
+    if (matchedReturnDelivery) {
+      const delAssetIds = matchedReturnDelivery.assetIds ? matchedReturnDelivery.assetIds.split(',').filter(Boolean) : [];
+      const allDelAssetsInbound = delAssetIds.length === 0 || delAssetIds.every(id => {
+        if (id === asset.id) return true;
+        const otherAsset = db.assets.find(a => a.id === id);
+        return otherAsset && otherAsset.status !== 'RENTED';
+      });
+
+      if (allDelAssetsInbound && matchedReturnDelivery.status !== 'DELIVERED') {
+        db.updateRow<Delivery>('deliveries', matchedReturnDelivery.id, {
+          status: 'DELIVERED',
+          unloadingCompletedAt: registeredAt,
+          updatedAt: registeredAt
+        });
+      }
+    }
+
     await clearHandoverTasks({
       entityId: asset.id,
       completionAction: 'INBOUND_REGISTERED'
@@ -9337,6 +9448,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       modelName: asset.modelName,
       type: 'INBOUND',
       inboundNo: assignedInboundNo,
+      deliveryId: matchedReturnDelivery?.id || (data as any).deliveryId || undefined,
       eventDate: data.returnDate,        // 기준 일자 (실제 입고일)
       inDate: data.returnDate,           // 💡 실제 현장 입고일 (YYYY-MM-DD, 청구 및 가동일수 정산 기준)
       inRegisteredAt: registeredAt,     // 💡 실제 전산 입고 등록 일시 (ISO String, 행위 발생 감사 기준)

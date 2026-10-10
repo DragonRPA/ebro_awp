@@ -499,8 +499,8 @@ export const TruckDispatch: React.FC = () => {
         addOption(`보양: ${protMatch[1].trim()}`);
       }
     }
-    if (delivery.memo && delivery.memo.includes('[옵션]')) {
-      const optMatch = delivery.memo.match(/\[옵션\]\s*([^\|]+)/);
+    if (delivery.memo && (delivery.memo.includes('[옵션]') || delivery.memo.includes('[회수옵션]'))) {
+      const optMatch = delivery.memo.match(/\[(?:회수)?옵션\]\s*([^\|]+)/);
       if (optMatch && optMatch[1]?.trim()) {
         optMatch[1].split(',').forEach(s => addOption(s));
       }
@@ -678,7 +678,7 @@ export const TruckDispatch: React.FC = () => {
       </tbody>
     </table>
 
-    <div class="sec-title">4. 장비 출하 스펙 요구사항 (현장 요청 검수 항목)</div>
+    <div class="sec-title">4. ${isOutbound ? '장비 출하 스펙 요구사항 (현장 요청 검수 항목)' : '회수 대상 장비 장착 옵션 및 보양 회수/탈거 항목'}</div>
     <div style="padding: 4px 8px; border: 1px solid #000000; margin-bottom: 3px; background-color: #ffffff; box-sizing: border-box;">
       ${safetyOptions.length > 0 ? `
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font-size: 8pt;">
@@ -691,7 +691,7 @@ export const TruckDispatch: React.FC = () => {
         </div>
       ` : `
         <div style="font-size: 8pt; color: #333333; padding: 1px 0;">
-          • 별도 특수 요청 스펙 없음 (기본 출하 표준 검수 적용)
+          • ${isOutbound ? '별도 특수 요청 스펙 없음 (기본 출하 표준 검수 적용)' : '별도 회수 대상 특수 옵션 없음 (기본 회수 검수 적용)'}
         </div>
       `}
     </div>
