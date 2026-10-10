@@ -185,20 +185,20 @@ export const SmartDispatch4: React.FC = () => {
 
   const defaultStationId = useMemo(() => {
     const saved = localStorage.getItem(PREFERRED_DISPATCH_STATION_KEY);
-    if (saved) {
-      if (saved === 'BROWSER_DIRECT') return 'BROWSER_DIRECT';
-      if (printStations.some(s => s.id === saved)) return saved;
+    if (saved && saved !== 'BROWSER_DIRECT' && printStations.some(s => s.id === saved)) {
+      return saved;
     }
     const matchDocType = printStations.find(s => s.docTypeDefault === 'DISPATCH_ORDER');
     if (matchDocType) return matchDocType.id;
-    const matchName = printStations.find(s => s.stationName.includes('프린터1') || s.stationName.includes('출고'));
+    const matchName = printStations.find(s => s.stationName.includes('출고') || s.stationName.includes('프린터1'));
     if (matchName) return matchName.id;
     if (printStations.length > 0) return printStations[0].id;
-    return 'BROWSER_DIRECT';
+    return '';
   }, [printStations]);
 
   const [targetStationId, setTargetStationId] = useState<string>(() => {
-    return localStorage.getItem(PREFERRED_DISPATCH_STATION_KEY) || '';
+    const saved = localStorage.getItem(PREFERRED_DISPATCH_STATION_KEY);
+    return (saved && saved !== 'BROWSER_DIRECT') ? saved : '';
   });
 
   useEffect(() => {
@@ -210,7 +210,9 @@ export const SmartDispatch4: React.FC = () => {
 
   const handleStationChange = (newStationId: string) => {
     setTargetStationId(newStationId);
-    localStorage.setItem(PREFERRED_DISPATCH_STATION_KEY, newStationId);
+    if (newStationId && newStationId !== 'BROWSER_DIRECT') {
+      localStorage.setItem(PREFERRED_DISPATCH_STATION_KEY, newStationId);
+    }
   };
 
   // 🚀 [출고의뢰 정식 생성 및 초안 연계 상태]
@@ -2400,8 +2402,13 @@ export const SmartDispatch4: React.FC = () => {
   const handleRemoteQueuePrint = useCallback(async (htmlDoc: string, custName: string, sName: string) => {
     try {
       setIsAgentPrinting(true);
-      const st = printStations.find(s => s.id === targetStationId);
-      const stationName = st?.stationName || '프린터1';
+      let st = printStations.find(s => s.id === targetStationId);
+      if (!st) {
+        st = printStations.find(s => s.docTypeDefault === 'DISPATCH_ORDER')
+          || printStations.find(s => s.stationName.includes('출고') || s.stationName.includes('프린터1'))
+          || printStations[0];
+      }
+      const stationName = st?.stationName || '출고장 프린터';
       await enqueuePrintJob({
         stationId: st?.id,
         docType: 'DISPATCH_ORDER',
@@ -2419,7 +2426,7 @@ export const SmartDispatch4: React.FC = () => {
     }
   }, [printStations, targetStationId, enqueuePrintJob, currentUser, showToast]);
 
-  // 🖨️ 통합 1-클릭 인쇄 실행 핸들러 (원격 큐 또는 브라우저 직접 인쇄)
+  // 🖨️ 통합 1-클릭 인쇄 실행 핸들러 (원격 인쇄 큐 전송)
   const handlePrintAction = useCallback(async (targetDraft?: DraftOrder | null) => {
     let draftToPrint: DraftOrder | null = null;
     if (targetDraft) {
@@ -2444,16 +2451,11 @@ export const SmartDispatch4: React.FC = () => {
     }
 
     const { html, customerName, siteName } = generateDispatchOrderHtml(draftToPrint);
-
-    if (targetStationId === 'BROWSER_DIRECT') {
-      handlePrint(html);
-      return;
-    }
     await handleRemoteQueuePrint(html, customerName, siteName);
   }, [
     activeTab, selectedDraft, queue, isNewCustomerMode, newCustomerName,
     selectedCustomer, equipments.length, generateDispatchOrderHtml,
-    targetStationId, handlePrint, handleRemoteQueuePrint, showToast
+    handleRemoteQueuePrint, showToast
   ]);
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -4829,7 +4831,7 @@ export const SmartDispatch4: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* 🖨️ 출력 프린터 1회 지정 & 출고요청서 인쇄 */}
+          {/* 🖨️ 출력 프린터 지정 & 출고요청서 인쇄 */}
           <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 flex-shrink-0">
             <span className="text-[11px] font-bold text-slate-400 whitespace-nowrap">출력 프린터</span>
             <select
@@ -4838,14 +4840,17 @@ export const SmartDispatch4: React.FC = () => {
               className="bg-transparent text-slate-200 text-xs font-semibold focus:outline-none cursor-pointer"
               style={{ whiteSpace: 'nowrap' }}
             >
-              {printStations.map(st => (
-                <option key={st.id} value={st.id} className="bg-slate-900 text-slate-200">
-                  {st.stationName} ({st.localPrinterName})
+              {printStations.length > 0 ? (
+                printStations.map(st => (
+                  <option key={st.id} value={st.id} className="bg-slate-900 text-slate-200">
+                    {st.stationName} ({st.localPrinterName})
+                  </option>
+                ))
+              ) : (
+                <option value="" className="bg-slate-900 text-slate-400">
+                  등록된 프린터 없음
                 </option>
-              ))}
-              <option value="BROWSER_DIRECT" className="bg-slate-900 text-slate-200">
-                사무실 직접 인쇄 (브라우저)
-              </option>
+              )}
             </select>
           </div>
 
@@ -5022,11 +5027,7 @@ export const SmartDispatch4: React.FC = () => {
                 type="button"
                 onClick={() => {
                   if (successModalInfo.generatedHtml) {
-                    if (targetStationId === 'BROWSER_DIRECT') {
-                      handlePrint(successModalInfo.generatedHtml);
-                    } else if (targetStationId) {
-                      handleRemoteQueuePrint(successModalInfo.generatedHtml, successModalInfo.customerName, successModalInfo.siteName);
-                    }
+                    handleRemoteQueuePrint(successModalInfo.generatedHtml, successModalInfo.customerName, successModalInfo.siteName);
                   } else {
                     handlePrintAction();
                   }

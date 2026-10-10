@@ -327,7 +327,7 @@ export const TruckDispatch: React.FC = () => {
     return [];
   };
 
-  // 🖨️ 출고/입고요청서 서식 생성기 (100% 흑백 / 4컬럼 50:50 대칭 그리드 - SN 컬럼 배제)
+  // 🖨️ 출고/입고요청서 서식 생성기 (100% 전사 표준 5섹션 규격)
   const buildDispatchDocHtml = (delivery: Delivery, docType: 'OUTBOUND' | 'INBOUND') => {
     const contract = getContract(delivery.contractId);
     const customer = contract ? getCustomer(contract.customerId) : null;
@@ -336,8 +336,43 @@ export const TruckDispatch: React.FC = () => {
     const returnAssets = getReturnAssets(delivery);
     const isOutbound = docType === 'OUTBOUND';
     const title = isOutbound ? '출고요청서' : '입고요청서';
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const y = now.getFullYear();
+    const mo = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mi = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    const printTimeStr = `${y}.${mo}.${d} ${hh}:${mi}:${ss}`;
 
+    const salesRep = contract?.salespersonId ? users?.find(u => u.id === contract.salespersonId) : null;
+    const salesRepDisplay = salesRep ? `${salesRep.name} ${salesRep.phone ? `(${salesRep.phone})` : ''}` : `${currentUser?.name || '본사 담당자'} ${currentUser?.phone ? `(${currentUser.phone})` : ''}`;
+
+    // 현장담당자 추출 (site 마스터 우선, 없으면 delivery.memo 파싱)
+    let siteContactName = site?.contactName || '';
+    let siteContactPhone = site?.contact || '';
+    if (!siteContactName && delivery.memo) {
+      const match = delivery.memo.match(/현장담당:\s*([^\(\s\|]+)(?:\s*\(([^\)]+)\))?/);
+      if (match) {
+        siteContactName = match[1] || '';
+        siteContactPhone = match[2] || '';
+      }
+    }
+
+    // 주소 결정
+    const destAddr = delivery.destinationAddress || site?.address || '-';
+
+    // 스케줄
+    const loadTimeStr = delivery.loadingTimeSlot ? `[${delivery.loadingTimeSlot}]` : '';
+    const loadingSchedule = delivery.loadingDate ? `${delivery.loadingDate} ${loadTimeStr}`.trim() : (delivery.requestDate || '-');
+    const unloadTimeStr = delivery.unloadingTimeSlot ? `[${delivery.unloadingTimeSlot}]` : '';
+    const unloadingSchedule = delivery.unloadingDate ? `${delivery.unloadingDate} ${unloadTimeStr}`.trim() : (delivery.scheduledDate || loadingSchedule);
+
+    // 운임/차종
+    const vehicleTypeStr = delivery.vehicleType || '5T';
+    const paidByLabel = delivery.billableToCustomer ? '고객사 부담' : (delivery.memo?.includes('당사부담') ? '당사 부담' : '기본 운임');
+
+    // 수량 및 장비 목록 (50:50 대칭 균형 그리드)
     const unitList: { no: number; modelName: string; assetNo: string }[] = [];
     let uNo = 1;
     if (isOutbound) {
@@ -352,6 +387,7 @@ export const TruckDispatch: React.FC = () => {
         unitList.push({ no: uNo++, modelName: a.modelName || '-', assetNo: a.assetNo || '' });
       }
     }
+    const totalCount = unitList.length;
 
     const halfCount = Math.max(1, Math.ceil(unitList.length / 2));
     let assetRowsHtml = '';
@@ -371,14 +407,46 @@ export const TruckDispatch: React.FC = () => {
       </tr>`;
     }
 
-    const fromLabel = isOutbound ? '상차지 (출발)' : '상차지 (회수지)';
-    const toLabel   = isOutbound ? '하차지 (현장)' : '하차지 (반납지)';
-    const fromAddr  = delivery.pickupVendorName 
-      ? `[타사 직출고] ${delivery.pickupVendorName} (${delivery.originAddress || '-'})` 
-      : (isOutbound ? (delivery.originAddress || '당사 보관소') : (delivery.destinationAddress || site?.address || '-'));
-    const toAddr    = delivery.viaDropoffName 
-      ? `[혼적 경유] 1차: ${delivery.viaDropoffName} (${delivery.viaDropoffAddress || '본사'}) ➔ 2차: ${delivery.destinationAddress || '임차처 보관소'}` 
-      : (isOutbound ? (delivery.destinationAddress || site?.address || '-') : (delivery.originAddress || '당사 보관소'));
+    // 옵션 항목 추출 (Section 4)
+    const safetyOptions: string[] = [];
+    if (site?.paidOptions) safetyOptions.push(`유상옵션: ${site.paidOptions}`);
+    if (site?.protection) safetyOptions.push(`보양: ${site.protection}`);
+    if (site?.checkedSpecs && typeof site.checkedSpecs === 'object') {
+      Object.entries(site.checkedSpecs).forEach(([key, val]) => {
+        if (val && !safetyOptions.includes(key)) safetyOptions.push(key);
+      });
+    }
+    if (delivery.closingMemo) {
+      const optMatch = delivery.closingMemo.match(/유상옵션:\s*([^\|]+)/);
+      if (optMatch && optMatch[1]?.trim() && optMatch[1].trim() !== '없음') {
+        const val = optMatch[1].trim();
+        if (!safetyOptions.includes(val)) safetyOptions.push(val);
+      }
+      const protMatch = delivery.closingMemo.match(/보양:\s*([^\|]+)/);
+      if (protMatch && protMatch[1]?.trim() && protMatch[1].trim() !== '없음') {
+        const val = protMatch[1].trim();
+        if (!safetyOptions.includes(val)) safetyOptions.push(val);
+      }
+    }
+    if (delivery.memo && delivery.memo.includes('[옵션]')) {
+      const optMatch = delivery.memo.match(/\[옵션\]\s*([^\|]+)/);
+      if (optMatch && optMatch[1]?.trim()) {
+        const opts = optMatch[1].split(',').map(s => s.trim()).filter(Boolean);
+        opts.forEach(o => { if (!safetyOptions.includes(o)) safetyOptions.push(o); });
+      }
+    }
+
+    // 특이사항 (Section 5)
+    let staggeredMemo = '';
+    if (delivery.memo && delivery.memo.includes('[시차출고]')) {
+      const stMatch = delivery.memo.match(/\[시차출고\]\s*([^\|]+)/);
+      if (stMatch) staggeredMemo = stMatch[1].trim();
+    }
+    let retrievalMemo = '';
+    if (delivery.memo && delivery.memo.includes('[대차회수대상]')) {
+      const retMatch = delivery.memo.match(/\[대차회수대상\]\s*([^\|]+)/);
+      if (retMatch) retrievalMemo = retMatch[1].trim();
+    }
 
     return `<!DOCTYPE html>
 <html lang="ko">
@@ -410,7 +478,7 @@ export const TruckDispatch: React.FC = () => {
       <tr>
         <td style="width: 25%; text-align: left; font-size: 7.5pt; color: #333333;">
           문서: ${delivery.id}<br>
-          발행: ${today}
+          일시: ${printTimeStr}
         </td>
         <td style="width: 55%; text-align: center; font-size: 15pt; font-weight: 800; letter-spacing: 2px; color: #000000;">
           ${(currentTenant?.displayName || currentTenant?.tradeName || '기연리프트').toUpperCase()} ${title}
@@ -427,20 +495,34 @@ export const TruckDispatch: React.FC = () => {
     <div class="sec-title">1. 고객사 및 현장 정보</div>
     <table>
       <colgroup><col style="width: 12%;"><col style="width: 38%;"><col style="width: 12%;"><col style="width: 38%;"></colgroup>
-      <tr><th>고객사명</th><td><strong>${customer?.name || '-'}</strong></td><th>현장명</th><td><strong>${site?.name || '-'}</strong></td></tr>
-      <tr><th>계약번호</th><td><strong>${contract?.contractNo || '-'}</strong></td><th>배차구분</th><td>${delivery.dispatchCategory || (isOutbound ? '출고' : '입고')}</td></tr>
-      <tr><th>${fromLabel}</th><td colspan="3">${fromAddr}</td></tr>
-      <tr><th>${toLabel}</th><td colspan="3">${toAddr}</td></tr>
+      <tr>
+        <th>고객사명</th><td style="font-weight: 700;">${customer?.name || '-'}</td>
+        <th>${isOutbound ? '투입현장' : '현장명'}</th><td style="font-weight: 700;">${site?.name || '-'}</td>
+      </tr>
+      <tr>
+        <th>${isOutbound ? '납품주소' : '회수지(상차)'}</th><td colspan="3">${destAddr}</td>
+      </tr>
+      <tr>
+        <th>영업담당</th><td>${salesRepDisplay}</td>
+        <th>현장담당</th><td>${siteContactName || '-'} ${siteContactPhone ? `(${siteContactPhone})` : ''}</td>
+      </tr>
     </table>
 
-    <div class="sec-title">2. 배차 및 운송 정보</div>
+    <div class="sec-title">2. 배송 배차 및 운송 정보</div>
     <table>
       <colgroup><col style="width: 12%;"><col style="width: 38%;"><col style="width: 12%;"><col style="width: 38%;"></colgroup>
-      <tr><th>요청일</th><td>${delivery.requestDate || '-'}</td><th>배차일</th><td>${delivery.loadingDate || '-'}</td></tr>
-      <tr><th>운송기사</th><td>${delivery.driverName || '(미배정)'}</td><th>차량번호</th><td>${delivery.vehicleNo || '-'}</td></tr>
+      <tr>
+        <th>상차스케줄</th><td style="font-weight: 700;">${loadingSchedule}</td>
+        <th>하차스케줄</th><td style="font-weight: 700;">${unloadingSchedule}</td>
+      </tr>
+      <tr>
+        <th>운송차종 / 운임</th><td>${vehicleTypeStr} (${paidByLabel})</td>
+        <th>신청 총수량</th><td style="font-weight: 700;">총 ${totalCount}대</td>
+      </tr>
+      ${delivery.driverName ? `<tr><th>운송기사</th><td>${delivery.driverName} (${delivery.vehicleNo || '-'})</td><th>기사연락처</th><td>${delivery.driverContact || '-'}</td></tr>` : ''}
     </table>
 
-    <div class="sec-title">3. ${isOutbound ? '출고' : '회수'} 대상 장비 목록 (총 ${unitList.length}대)</div>
+    <div class="sec-title">3. ${isOutbound ? `출고 대상 장비 목록 (총 ${totalCount}대 의뢰 - 주기장 실물 매핑용)` : `회수 대상 장비 목록 (총 ${unitList.length}대)`}</div>
     <table>
       <thead>
         <tr>
@@ -455,31 +537,39 @@ export const TruckDispatch: React.FC = () => {
         </tr>
       </thead>
       <tbody>
-        ${assetRowsHtml || '<tr><td colspan="8" style="text-align:center; padding: 10px 0;">장비 정보 없음</td></tr>'}
+        ${assetRowsHtml || '<tr><td colspan="8" style="text-align:center; padding: 10px 0;">의뢰된 장비 목록이 없습니다.</td></tr>'}
       </tbody>
     </table>
 
-    <div class="sec-title">4. 특이사항 및 작업 지시</div>
+    <div class="sec-title">4. 장비 출하 스펙 요구사항 (현장 요청 검수 항목)</div>
+    <div style="padding: 4px 8px; border: 1px solid #000000; margin-bottom: 3px; background-color: #ffffff; box-sizing: border-box;">
+      ${safetyOptions.length > 0 ? `
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font-size: 8pt;">
+          ${safetyOptions.map((opt, idx) => `
+            <div style="display: flex; align-items: center; gap: 4px; font-weight: 700; color: #000000;">
+              <span style="font-size: 8pt;">[v]</span>
+              <span>${idx + 1}. ${opt}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : `
+        <div style="font-size: 8pt; color: #333333; padding: 1px 0;">
+          • 별도 특수 요청 스펙 없음 (기본 출하 표준 검수 적용)
+        </div>
+      `}
+    </div>
+
+    <div class="sec-title">5. 현장 특이사항 및 작업 지시</div>
     <table>
       <colgroup><col style="width: 12%;"><col style="width: 88%;"></colgroup>
+      ${staggeredMemo ? `<tr><th>시차출고</th><td style="font-weight: 700;">${staggeredMemo}</td></tr>` : ''}
+      ${retrievalMemo ? `<tr><th>대차 회수대상</th><td style="font-weight: 700;">${retrievalMemo}</td></tr>` : ''}
       <tr><th>지시사항</th><td>${delivery.memo || '특이사항 없음'}</td></tr>
-      ${(site?.paidOptions || site?.protection) ? `<tr><th>현장 옵션</th><td style="font-weight: 700; color: #d32f2f;">${[site?.paidOptions ? `유상옵션: ${site.paidOptions}` : null, site?.protection ? `보양: ${site.protection}` : null].filter(Boolean).join(' | ')}</td></tr>` : ''}
       ${!isOutbound && returnAssets.some(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR') ? `<tr><th style="color: #dc2626; font-weight: 800;">옵션 주의</th><td style="color: #dc2626; font-weight: 800; background-color: #fee2e2;">🚨 [임차처 소유 협착방지봉 탈거 절대 금지] ${returnAssets.filter(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR').map(a => `${a.assetNo}(${a.modelName})`).join(', ')} 장비는 임차거래처 소유 협착방지봉이 장착되어 있으므로 주기장 입고 시 절대 탈거(제거)하지 마십시오!</td></tr>` : ''}
     </table>
   </div>
 </body>
 </html>`;
-  };
-
-  // 🖨️ 인쇄 미리보기 및 브라우저 인쇄
-  const handlePrintDispatchRequest = (delivery: Delivery, docType: 'OUTBOUND' | 'INBOUND') => {
-    const html = buildDispatchDocHtml(delivery, docType);
-    const w = window.open('', '_blank', 'width=800,height=900');
-    if (w) {
-      w.document.write(html);
-      w.document.close();
-      setTimeout(() => { w.focus(); w.print(); }, 250);
-    }
   };
 
   // 🖨️ 원격 분산 인쇄 큐 전송 (출고: 프린터1, 입고: 프린터2 자동 라우팅 무인 출력)
@@ -497,8 +587,8 @@ export const TruckDispatch: React.FC = () => {
     const targetStation = (savedStationId && savedStationId !== 'BROWSER_DIRECT' && printStations.find(s => s.id === savedStationId)) ||
       printStations.find(s => s.docTypeDefault === targetDocType) ||
       (isOutbound
-        ? printStations.find(s => s.stationName.includes('프린터1') || s.stationName.includes('출고'))
-        : printStations.find(s => s.stationName.includes('프린터2') || s.stationName.includes('입고'))) ||
+        ? printStations.find(s => s.stationName.includes('출고') || s.stationName.includes('프린터1'))
+        : printStations.find(s => s.stationName.includes('입고') || s.stationName.includes('프린터2'))) ||
       printStations[0];
 
     try {
@@ -506,17 +596,16 @@ export const TruckDispatch: React.FC = () => {
         stationId: targetStation?.id,
         docType: targetDocType,
         docNo: contract?.contractNo || delivery.id,
-        title: `${title}_${customer?.name || '고객사'}_${delivery.id}`,
+        title: `${title}_${customer?.name || '고객사'}_${site?.name || delivery.id}`,
         documentHtml: html,
         requestedById: currentUser?.id,
         requestedByName: currentUser?.name
       });
-      alert(`[${targetStation?.stationName || (isOutbound ? '프린터1' : '프린터2')}] 인쇄 큐 전송 완료`);
+      showToast(`[${targetStation?.stationName || (isOutbound ? '출고장 프린터' : '입고장 프린터')}] 인쇄 큐 전송 완료`);
     } catch (err: any) {
-      alert(`원격 인쇄 큐 전송 실패: ${err.message || err}`);
+      showToast(`원격 인쇄 큐 전송 실패: ${err.message || err}`, 'error');
     }
   };
-
 
   // 엑셀 날짜(시리얼 숫자 46174 등 또는 포맷팅 텍스트)를 YYYY-MM-DD로 변환하는 정규화 헬퍼
   const formatExcelDateStr = (rawVal: any): string => {
@@ -3377,31 +3466,57 @@ export const TruckDispatch: React.FC = () => {
                           <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                             📍 {d.destinationAddress || '목적지 미지정'}
                           </div>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleOpenDestWeatherForDelivery(d);
-                            }}
-                            style={{
-                              padding: '2px 6px',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              borderRadius: '4px',
-                              border: '1px solid rgba(59, 130, 246, 0.4)',
-                              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                              color: 'var(--primary)',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '3px',
-                              flexShrink: 0,
-                              marginLeft: '6px'
-                            }}
-                            title="해당 하차지 날씨 및 주간 예보 보기"
-                          >
-                            <Sun size={11} color="#F59E0B" /> 날씨
-                          </button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, marginLeft: '6px' }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenDestWeatherForDelivery(d);
+                              }}
+                              style={{
+                                padding: '2px 6px',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                borderRadius: '4px',
+                                border: '1px solid rgba(59, 130, 246, 0.4)',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                color: 'var(--primary)',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                flexShrink: 0
+                              }}
+                              title="해당 하차지 날씨 및 주간 예보 보기"
+                            >
+                              <Sun size={11} color="#F59E0B" /> 날씨
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const isInbound = d.type === 'INBOUND' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납';
+                                handleRemoteQueuePrintDispatchRequest(d, isInbound ? 'INBOUND' : 'OUTBOUND');
+                              }}
+                              style={{
+                                padding: '2px 7px',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                borderRadius: '4px',
+                                border: '1px solid rgba(99, 102, 241, 0.4)',
+                                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                                color: '#6366f1',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                flexShrink: 0
+                              }}
+                              title={(d.type === 'INBOUND' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납') ? '입고요청서 인쇄 큐 전송' : '출고요청서 인쇄 큐 전송'}
+                            >
+                              <Printer size={11} /> {(d.type === 'INBOUND' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납') ? '입고요청서' : '출고요청서'}
+                            </button>
+                          </div>
                         </div>
 
                         {/* 화물/자산 정보 표시 */}
@@ -3516,28 +3631,7 @@ export const TruckDispatch: React.FC = () => {
                         {(selectedDelivery.type === 'INBOUND' || selectedDelivery.dispatchCategory === '입고' || selectedDelivery.dispatchCategory === '반납') ? '입고요청서 인쇄' : '출고요청서 인쇄'}
                       </button>
 
-                      {/* 🖨️ 브라우저 직접 인쇄 버튼 */}
-                      <button
-                        type="button"
-                        onClick={() => handlePrintDispatchRequest(selectedDelivery, (selectedDelivery.type === 'INBOUND' || selectedDelivery.dispatchCategory === '입고' || selectedDelivery.dispatchCategory === '반납') ? 'INBOUND' : 'OUTBOUND')}
-                        style={{
-                          padding: '6px 12px',
-                          borderRadius: '7px',
-                          backgroundColor: 'var(--bg-app)',
-                          color: 'var(--text-primary)',
-                          border: '1px solid var(--border-color)',
-                          fontSize: '12px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '5px',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                        }}
-                        title="사무실 현재 컴퓨터 브라우저에서 직접 인쇄"
-                      >
-                        직접 인쇄
-                      </button>
+                      
 
                       {/* 📲 기사 배차 안내 문자 발송 / 클립보드 복사 버튼 */}
                       <button
