@@ -985,7 +985,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             uploadedBy: (cm as any).uploadedBy || 'CENTRAL_SSOT',
             memo: (cm as any).memo || cm.aiSummary || '',
             inspectionItemCodes: (cm as any).inspectionItemCodes,
-            mediaType: (cm as any).mediaType || 'PDF',
+            mediaType: (cm as any).mediaType || (cm as any).media_type || 'PDF',
             aiProcessed: Boolean(cm.aiProcessed),
             createdAt: (cm as any).created_at || (cm as any).createdAt || new Date().toISOString(),
             updatedAt: (cm as any).updated_at || (cm as any).updatedAt || new Date().toISOString()

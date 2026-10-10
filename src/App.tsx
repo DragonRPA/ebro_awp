@@ -7,7 +7,7 @@ import {
   Truck, Wrench, Shield, ShoppingBag, CreditCard, LogOut, Sun, Moon, Menu, X, Zap, Settings, Database as DatabaseIcon,
   TrendingUp, Clock, AlertTriangle, Building2, ChevronDown, ChevronRight, ChevronLeft, Briefcase, Box, FolderKanban, ShieldAlert, Terminal, ArrowLeftRight, CheckSquare,
   Smartphone, Monitor, Car, FileText, Search, Printer, PackagePlus, Boxes, Calendar, Camera, BookOpen,
-  FileCheck, ShieldCheck, Bot, Download, Bell
+  FileCheck, ShieldCheck, Bot, Download, Bell, ClipboardList
 , CheckCircle, Settings as SettingsIcon, SlidersHorizontal, Mail, Mic } from 'lucide-react';
 const OfficialMailPage = React.lazy(() => import('./pages/OfficialMailPage').then(module => ({ default: module.OfficialMailPage })));
 import { getTenantAgentInstallerInfo, triggerTenantAgentDownload, AGENT_CERT_URL, syncTenantPolicyToAgent } from './services/agentService';
@@ -619,7 +619,7 @@ const App: React.FC = () => {
         { id: 'dispatch_assign', name: '장비 할당 / 매핑', icon: <Layers size={16} />, component: <AssetAssignment /> },
         { id: 'outbound_inspections', name: '출고 검수 관리', icon: <CheckSquare size={16} />, component: <OutboundInspections /> },
         { id: 'consumable_stock', name: '주기장 소모품 재고', icon: <Boxes size={16} />, component: <ConsumableStockPage /> },
-          { id: 'stocktaking', name: '재고/자산 실사', icon: <Clipboard size={16} />, component: <StocktakingPage /> },
+          { id: 'stocktaking', name: '재고/자산 실사', icon: <ClipboardList size={16} />, component: <StocktakingPage /> },
         { id: 'print_queue_monitor', name: '프린트 큐 모니터', icon: <Printer size={16} />, component: <PrintQueueManager /> },
       ]
     },

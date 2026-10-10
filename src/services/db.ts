@@ -5871,8 +5871,14 @@ class LocalDB {
       collectedParts: 'collected_parts',
       equipmentManuals: 'equipment_manuals',
       standardOptions: 'standard_options',
+      approvalRules: 'approval_rules',
+      ruleConsensus: 'rule_consensus',
+      approvalRequests: 'approval_requests',
+      approvalSteps: 'approval_steps',
+      delegationRecords: 'delegation_records',
     };
-    return mapping[key] || key;
+    if (mapping[key]) return mapping[key];
+    return key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
   }
 
   // 비동기 쓰기 큐
@@ -5995,6 +6001,12 @@ class LocalDB {
     if (normalized.asset_id) {
       if (!normalized.assetId) normalized.assetId = normalized.asset_id;
       delete normalized.asset_id;
+    }
+
+    // mediaType (media_type ➔ mediaType 변환 후 snake_case 전면 파기)
+    if (normalized.media_type) {
+      if (!normalized.mediaType) normalized.mediaType = normalized.media_type;
+      delete normalized.media_type;
     }
 
     // consumables 호환 (name ➔ modelName, supplier 추론) - 반드시 consumables 테이블에만 한정 적용
@@ -6313,6 +6325,11 @@ class LocalDB {
         continue;
       }
       if (resolvedTable === 'customer_sites' && ['billingContactName', 'billingContactPhone', 'billingContactEmail', 'safetyContactName', 'safetyContactPhone', 'safetyContactEmail'].includes(key)) { continue; }
+      // equipment_manuals mediaType -> media_type 정제
+      if (resolvedTable === 'equipment_manuals' && key === 'mediaType') {
+        sanitized['media_type'] = val;
+        continue;
+      }
       // modelName 컬럼이 존재하지 않는 테이블로의 modelName 누출 원천 방지 (departments, users, customers 등)
       if (key === 'modelName' && !['products', 'assets', 'product_specs', 'product_spec_items', 'contract_assets', 'contract_history', 'inspection_checklist_items', 'equipment_manuals', 'consumable_purchases', 'asset_inout_logs'].includes(resolvedTable || '')) {
         continue;
