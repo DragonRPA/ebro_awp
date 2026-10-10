@@ -571,7 +571,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
     if (children.length === 0) return null;
 
     return (
-    <div data-hs-observe="organizationsettings" data-subview="organization" data-subview-title="Generated" style={{ marginLeft: depth > 0 ? '20px' : '0' }}>
+    <div data-hs-observe="organizationsettings" data-subview="organization" data-subview-title="Generated" style={{ marginLeft: depth > 0 ? '16px' : '0' }}>
         {children.map(dept => {
           const isSelected = selectedDeptId === dept.id;
           const userCount = users.filter(u => u.departmentId === dept.id).length;
@@ -589,19 +589,22 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
                 }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '8px',
-                  padding: '10px 12px',
-                  margin: '4px 0',
+                  padding: '9px 12px',
+                  margin: '3px 0',
                   borderRadius: 'var(--radius-sm)',
                   backgroundColor: isSelected ? 'var(--primary-light)' : 'transparent',
                   color: isSelected ? 'var(--primary)' : 'var(--text-main)',
                   border: isSelected ? '1px solid var(--primary-border)' : '1px solid transparent',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
-                  borderStyle: draggedUserId ? 'dashed' : 'solid'
+                  borderStyle: draggedUserId ? 'dashed' : 'solid',
+                  whiteSpace: 'nowrap'
                 }}
                 className={draggedUserId ? 'drop-target-active' : ''}
               >
-                {departments.some(d => d.parentDepartmentId === dept.id) ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                <span style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', color: isSelected ? 'var(--primary)' : 'var(--text-muted)' }}>
+                  {departments.some(d => d.parentDepartmentId === dept.id) ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </span>
                 
                 {editingDeptId === dept.id ? (
                   <input 
@@ -613,14 +616,27 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
                     onKeyDown={handleDeptKeyDown}
                     autoFocus
                     onClick={(e) => e.stopPropagation()}
-                    style={{ flex: 1, padding: '2px 6px', fontSize: '14px', height: 'auto' }}
+                    style={{ flex: 1, padding: '2px 6px', fontSize: '13.5px', height: 'auto' }}
                   />
                 ) : (
                   <>
-                    <span style={{ fontWeight: isSelected ? '600' : '400', flex: 1, color: dept.name ? 'inherit' : 'var(--text-muted)' }}>
+                    <span 
+                      style={{ 
+                        fontWeight: isSelected ? '600' : '500', 
+                        flex: '1 1 auto', 
+                        minWidth: 0, 
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        color: dept.name ? 'inherit' : 'var(--text-muted)',
+                        fontSize: '13.5px'
+                      }}
+                      title={dept.name || '새 부서(명칭 미입력)'}
+                    >
                       {dept.name || '새 부서(명칭 미입력)'}
                     </span>
-                    <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
+
+                    <div style={{ display: 'flex', gap: '3px', alignItems: 'center', flexShrink: 0, whiteSpace: 'nowrap' }}>
                       {getDepartmentFunctionalTags(dept).slice(0, 3).map(tagId => {
                         const attr = UNIVERSAL_FUNCTIONAL_ATTRIBUTES.find(a => a.id === tagId || a.code === tagId);
                         if (!attr) return null;
@@ -628,14 +644,15 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
                           <span
                             key={attr.id}
                             style={{
-                              fontSize: '10px',
-                              padding: '1px 5px',
+                              fontSize: '10.5px',
+                              padding: '1px 6px',
                               borderRadius: '4px',
                               backgroundColor: attr.badgeBg,
                               color: attr.badgeText,
                               border: `1px solid ${attr.color}33`,
                               whiteSpace: 'nowrap',
-                              fontWeight: '600'
+                              fontWeight: '600',
+                              flexShrink: 0
                             }}
                             title={attr.description}
                           >
@@ -644,16 +661,27 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
                         );
                       })}
                       {getDepartmentFunctionalTags(dept).length > 3 && (
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', flexShrink: 0, whiteSpace: 'nowrap' }}>
                           +{getDepartmentFunctionalTags(dept).length - 3}
                         </span>
                       )}
                     </div>
-                    <span style={{ fontSize: '11px', padding: '2px 6px', backgroundColor: 'var(--bg-card)', borderRadius: '10px', color: 'var(--text-secondary)' }}>
+
+                    <span style={{ 
+                      fontSize: '11px', 
+                      padding: '2px 8px', 
+                      backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-card)', 
+                      borderRadius: '10px', 
+                      color: isSelected ? 'var(--primary)' : 'var(--text-secondary)',
+                      whiteSpace: 'nowrap',
+                      flexShrink: 0,
+                      fontWeight: 600
+                    }}>
                       {userCount}명
                     </span>
+
                     {canEdit && isSelected && (
-                      <div style={{ display: 'flex', gap: '4px' }}>
+                      <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
                         <button onClick={(e) => startEditDept(e, dept)} style={{ padding: '4px', background: 'transparent', color: 'var(--text-muted)' }} title="부서명 수정">
                           <Edit2 size={14} />
                         </button>
@@ -814,7 +842,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
       <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
         
         {/* 좌측: 조직 트리 */}
-        <div className="card" style={{ width: '280px', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+        <div className="card" style={{ width: '420px', minWidth: '380px', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
             <h3 style={{ fontSize: '15px', fontWeight: '700' }}>조직 구조도</h3>
             {canEdit && (
@@ -823,7 +851,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
               </button>
             )}
           </div>
-          <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
+          <div style={{ minHeight: '440px', maxHeight: 'calc(100vh - 340px)', overflowY: 'auto', overflowX: 'auto', paddingRight: '4px' }}>
             {renderDeptTree(null)}
           </div>
           
@@ -847,7 +875,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
         </div>
 
         {/* 중앙: 직원 리스트 뷰 */}
-        <div className="card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <div className="card" style={{ flex: 1, minWidth: '460px', display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
             <h3 style={{ fontSize: '16px', fontWeight: '700' }}>
               {activeTab === 'DEPT' 
