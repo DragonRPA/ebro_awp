@@ -281,22 +281,23 @@ export function generateReceiptHtml(
             <thead>
               <tr style="background: #f0f0f0; height: 26px;">
                 <th style="border: 1px solid #000000; width: 45px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">No.</th>
-                <th style="border: 1px solid #000000; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">품목 (장비 모델명)</th>
+                <th style="border: 1px solid #000000; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">품목 (상품명 / 모델명)</th>
                 <th style="border: 1px solid #000000; width: 65px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">수량</th>
                 <th style="border: 1px solid #000000; width: 45px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">단위</th>
-                <th style="border: 1px solid #000000; width: 170px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">하차지 (현장명)</th>
+                <th style="border: 1px solid #000000; width: 170px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">하차지 (현장 / 납품처)</th>
                 <th style="border: 1px solid #000000; width: 110px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">비고</th>
               </tr>
             </thead>
             <tbody>
               ${displayRows.map((item, idx) => {
                 if (item) {
+                  const itemUnit = item.unit || (item.modelName?.includes('장비') || item.modelName?.includes('리프트') ? '대' : '개');
                   return `
                     <tr style="height: 25px;">
                       <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: 10.5px; color: #000000;">${rowOffset + idx + 1}</td>
-                      <td style="border: 1px solid #000000; padding: 2px 8px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">${item.modelName || '고소작업대'}</td>
+                      <td style="border: 1px solid #000000; padding: 2px 8px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">${item.modelName || '납품 물품'}</td>
                       <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">${item.count || 1}</td>
-                      <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: 10.5px; color: #000000;">대</td>
+                      <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: 10.5px; color: #000000;">${itemUnit}</td>
                       <td style="border: 1px solid #000000; padding: 2px 8px; text-align: center; font-size: 10.5px; color: #000000;">${siteName}</td>
                       <td style="border: 1px solid #000000; padding: 2px 8px; text-align: center; font-size: 10px; color: #000000;">${item.note || '정상 납품'}</td>
                     </tr>
@@ -318,7 +319,7 @@ export function generateReceiptHtml(
               ${isLastPage ? `
                 <tr style="height: 25px; background: #f0f0f0;">
                   <td colspan="6" style="border: 1px solid #000000; padding: 3px 12px; text-align: center; font-size: 11px; font-weight: 700; color: #000000;">
-                    합 계 : &nbsp; 총 ${itemCount}개 품목 &nbsp; / &nbsp; ${totalCount}대
+                    합 계 : &nbsp; 총 ${itemCount}개 품목 &nbsp; / &nbsp; ${totalCount}개(대)
                   </td>
                 </tr>
               ` : `
@@ -333,7 +334,7 @@ export function generateReceiptHtml(
 
           ${isLastPage && specialNotes ? `
             <div style="margin-bottom: 6px; padding: 4px 8px; background: #f0f0f0; border: 1px solid #000000; font-size: 10px; color: #000000; font-weight: 700;">
-              ※ 장비 옵션 및 요청사항 : ${specialNotes}
+              ※ 특이사항 및 요청사항 : ${specialNotes}
             </div>
           ` : ''}
 
@@ -346,7 +347,7 @@ export function generateReceiptHtml(
                 <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; padding-right: 14px;">
                   <div>
                     <div style="font-size: 13.5px; font-weight: 800; color: #000000; letter-spacing: -0.2px; line-height: 1.4;">
-                      상기 장비를 이상 없이 정히 납품 (인수) 하였음을 상호 확인합니다.
+                      상기 물품/장비를 이상 없이 정히 납품 (인수) 하였음을 상호 확인합니다.
                     </div>
                     <div style="margin-top: 4px; font-size: 11.5px; font-weight: 700; color: #000000;">
                       ${signDateFormatted}

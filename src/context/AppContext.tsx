@@ -1560,14 +1560,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const normHiddenPages = rawHidden.map(p => normalizeMenuId(p));
       const normAllowedPages = rawAllowed.map(p => normalizeMenuId(p));
 
-      // 1) hiddenPages에 포함된 메뉴는 원천 차단 (단, 시스템 개발자 grp_system_dev 메뉴는 최고관리자 isSuperAdmin에게 상시 개방)
-      const isSystemDevMenu = ['agentic_ai_lab', 'agentic_dispatch_studio', 'agentic_settlement_autopilot', 'agentic_asset_lifecycle', 'initial_db_upload', 'data_formation', 'google_config', 'dev_uploader'].includes(normMenuId);
-      if (normHiddenPages.includes(normMenuId) && !(isSuperAdmin && isSystemDevMenu)) {
+      // 1) hiddenPages에 포함된 메뉴는 원천 차단 (단, 시스템 개발자 및 유통 신규 모듈은 최고관리자 isSuperAdmin에게 상시 개방)
+      const isSystemDevOrDistributionMenu = [
+        'agentic_ai_lab', 'agentic_dispatch_studio', 'agentic_settlement_autopilot', 'agentic_asset_lifecycle',
+        'initial_db_upload', 'data_formation', 'google_config', 'dev_uploader',
+        'trade_products', 'trade_purchases', 'trade_contracts', 'trade_outbounds',
+        'courier_dispatch', 'trade_billing', 'trade_returns', 'trade_profitability'
+      ].includes(normMenuId) || normMenuId.startsWith('trade_');
+
+      if (normHiddenPages.includes(normMenuId) && !(isSuperAdmin && isSystemDevOrDistributionMenu)) {
         return false;
       }
 
-      // 2) allowedPages가 지정되어 있는 경우, 허용 목록에 없는 메뉴는 원천 차단 (대시보드는 기본 허용 유지, 개발자 메뉴는 isSuperAdmin 예외 허용)
-      if (normAllowedPages.length > 0 && normMenuId !== 'dashboard' && !normAllowedPages.includes(normMenuId) && !(isSuperAdmin && isSystemDevMenu)) {
+      // 2) allowedPages가 지정되어 있는 경우, 허용 목록에 없는 메뉴는 원천 차단 (단, 최고관리자는 모든 메뉴 접근 허용, 개발/유통 모듈은 isSuperAdmin 예외 허용)
+      if (!isSuperAdmin && normAllowedPages.length > 0 && normMenuId !== 'dashboard' && !normAllowedPages.includes(normMenuId)) {
         return false;
       }
     }

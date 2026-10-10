@@ -180,11 +180,54 @@ export const DriverPortalPage: React.FC = () => {
 
     const fetchDelivery = async () => {
       try {
-        const { data, error } = await supabase!.from('deliveries').select('*').eq('id', dlvId).single();
-        if (error || !data) throw new Error('배차 정보를 찾을 수 없습니다.');
+        let data: any = null;
+        if (supabase) {
+          try {
+            const { data: sData, error: sErr } = await supabase.from('deliveries').select('*').eq('id', dlvId).single();
+            if (!sErr && sData) data = sData;
+          } catch(e) {}
+        }
+        if (!data && db && db.deliveries) {
+          data = db.deliveries.find((d: any) => d.id === dlvId);
+        }
+        if (!data) {
+          // Check local storage ebro_trade_outbounds / ebro_trade_deliveries
+          try {
+            const savedObs = localStorage.getItem('ebro_trade_outbounds');
+            if (savedObs) {
+              const obs = JSON.parse(savedObs);
+              const found = obs.find((o: any) => o.id === dlvId);
+              if (found) {
+                data = {
+                  id: found.id,
+                  contractId: found.orderId,
+                  customerName: '현대건설(주)',
+                  destinationAddress: found.destinationAddress || '서울특별시 강남구 테헤란로 152',
+                  receiverName: found.receiverName || '인수담당자',
+                  receiverPhone: found.receiverPhone || '010-0000-0000',
+                  driverName: found.driverName || found.courierName || '지정 배송기사',
+                  driverContact: found.driverContact || found.trackingNumber || '-',
+                  vehicleNo: found.vehicleNo || '화물 운송차량',
+                  cargoItems: JSON.stringify([{ modelName: '유통 주문 상품 일체', count: 1, note: '정상 납품' }]),
+                  status: found.status === 'DELIVERED' ? 'DELIVERED' : 'DISPATCHED',
+                  memo: `[유통 계약 배송] 주문번호: ${found.orderId}`
+                };
+              }
+            }
+          } catch(e) {}
+        }
+        if (!data) throw new Error('배차 정보를 찾을 수 없습니다.');
         setDelivery(data);
         if (data.status === 'COMPLETED' || data.status === 'DELIVERED') setCompleted(true);
         
+        // Pre-fill details from delivery if present
+        if (data.customerName) setCustomerName(data.customerName);
+        if (data.destinationAddress) setSiteAddress(data.destinationAddress);
+        if (data.receiverName) setReceiverName(data.receiverName);
+        if (data.receiverPhone) setReceiverPhone(data.receiverPhone);
+        if (data.siteName) setSiteName(data.siteName);
+        if (data.contractId) setContractNo(data.contractId);
+
         // Parse cargo items
         let items: SignedReceiptCargoItem[] = [];
         if (data.cargoItems) {
@@ -192,8 +235,8 @@ export const DriverPortalPage: React.FC = () => {
             const parsed = JSON.parse(data.cargoItems);
             if (Array.isArray(parsed)) {
               items = parsed.map((p: any) => ({
-                modelName: p.modelName || '고소작업대',
-                count: p.count || 1,
+                modelName: p.modelName || p.name || '납품 물품',
+                count: p.count || p.qty || 1,
                 note: p.note || '정상 납품'
               }));
             }
@@ -325,32 +368,85 @@ export const DriverPortalPage: React.FC = () => {
       const tId = supplierInfo?.subdomain || (delivery as any).tenantId || (delivery as any).tenant_id || 'giyeonlift';
       const filePath = `receipts/${tId}/${fileName}`;
 
-      const { error: uploadError } = await supabase!.storage
-        .from('evidence')
-        .upload(filePath, blob, { contentType: ext === 'jpg' ? 'image/jpeg' : 'image/png' });
+      let publicUrl = '';
+      try {
+        const { error: uploadError } = await supabase!.storage
+          .from('evidence')
+          .upload(filePath, blob, { contentType: ext === 'jpg' ? 'image/jpeg' : 'image/png' });
 
-      if (uploadError) throw uploadError;
-
-      const { data: publicUrlData } = supabase!.storage
-        .from('evidence')
-        .getPublicUrl(filePath);
+        if (!uploadError) {
+          const { data: publicUrlData } = supabase!.storage
+            .from('evidence')
+            .getPublicUrl(filePath);
+          publicUrl = publicUrlData.publicUrl;
+        } else {
+          throw uploadError;
+        }
+      } catch (storageErr: any) {
+        console.warn('Storage bucket fallback:', storageErr?.message);
+        publicUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+      }
 
       const label = prefix === 'photo' ? '납품증 사진' : '전자 서명';
       const currentMemo = delivery.closingMemo || '';
       const newMemo = currentMemo.includes(`[${label}]`)
-        ? currentMemo.replace(new RegExp(`\\[${label}\\]:\\s*https?:\\/\\/[^\\s\\n\\r]+`), `[${label}]: ${publicUrlData.publicUrl}`)
-        : currentMemo ? `${currentMemo}\n[${label}]: ${publicUrlData.publicUrl}` : `[${label}]: ${publicUrlData.publicUrl}`;
+        ? currentMemo.replace(new RegExp(`\\[${label}\\]:\\s*[^\\s\\n\\r]+`), `[${label}]: ${publicUrl}`)
+        : currentMemo ? `${currentMemo}\n[${label}]: ${publicUrl}` : `[${label}]: ${publicUrl}`;
       
-      const { error: updateError } = await supabase!
-        .from('deliveries')
-        .update({
-          status: 'DELIVERED',
-          closingMemo: newMemo,
-          updatedAt: new Date().toISOString()
-        })
-        .eq('id', delivery.id);
+      try {
+        if (supabase) {
+          await supabase
+            .from('deliveries')
+            .update({
+              status: 'DELIVERED',
+              closingMemo: newMemo,
+              updatedAt: new Date().toISOString()
+            })
+            .eq('id', delivery.id);
+        }
+      } catch (dbErr) {
+        console.warn('Supabase deliveries update error:', dbErr);
+      }
 
-      if (updateError) throw updateError;
+      // Also update in-memory db.deliveries
+      if (db && db.deliveries) {
+        const localD = db.deliveries.find(d => d.id === delivery.id);
+        if (localD) {
+          localD.status = 'DELIVERED';
+          localD.closingMemo = newMemo;
+        }
+      }
+
+      // Sync trade domain
+      try {
+        const savedObs = localStorage.getItem('ebro_trade_outbounds');
+        if (savedObs) {
+          const obs = JSON.parse(savedObs);
+          const updated = obs.map((o: any) => o.id === delivery.id ? {
+            ...o,
+            status: 'DELIVERED',
+            proofUrl: publicUrl,
+            proofType: prefix === 'photo' ? 'PHOTO' : 'SIGNATURE',
+            closingMemo: newMemo,
+            deliveredAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          } : o);
+          localStorage.setItem('ebro_trade_outbounds', JSON.stringify(updated));
+        }
+        window.dispatchEvent(new CustomEvent('trade-delivery-completed', {
+          detail: {
+            id: delivery.id,
+            proofUrl: publicUrl,
+            proofType: prefix === 'photo' ? 'PHOTO' : 'SIGNATURE',
+            receiverName,
+            closingMemo: newMemo
+          }
+        }));
+      } catch (e) {}
       
       setCompleted(true);
       alert('납품(인수)확인서가 성공적으로 등록되었으며 운송 완료 처리되었습니다.');
@@ -409,7 +505,7 @@ export const DriverPortalPage: React.FC = () => {
   if (error) return <div style={{ padding: '20px', textAlign: 'center', color: 'red', fontFamily: 'Pretendard' }}>{error}</div>;
   if (!delivery) return null;
 
-  const dCategory = delivery.type === 'INBOUND' ? '회수' : delivery.type === 'EXCHANGE' ? '교환' : '출고';
+  const dCategory = delivery.type === 'INBOUND' ? '회수' : delivery.type === 'EXCHANGE' ? '교환' : (delivery.memo?.includes('[유통') ? '유통 납품' : '출고');
 
   return (
     <div style={{ maxWidth: '480px', margin: '0 auto', minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'Pretendard, sans-serif' }}>

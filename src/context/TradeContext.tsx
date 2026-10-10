@@ -5,7 +5,8 @@ import { useApp } from './AppContext';
 import { 
   TradeProduct, TradePurchase, TradePurchaseItem, TradeInventoryLot,
   TradeSalesOrder, TradeSalesOrderLine, TradeOutbound, TradeBilling,
-  TradeReturn, TradeCogsLedger, TradeInventoryAdjustment
+  TradeReturn, TradeCogsLedger, TradeInventoryAdjustment,
+  db, supabase, Delivery
 } from '../services/db';
 
 export interface TradeContextType {
@@ -31,6 +32,8 @@ export interface TradeContextType {
   createSalesOrder: (customerId: string, items: {productId: string, qty: number, unitPrice: number}[]) => Promise<void>;
   allocateOutbound: (outboundId: string) => Promise<void>;
   dispatchOutbound: (outboundId: string, courierName: string, trackingNumber: string) => Promise<void>;
+  dispatchDirectTradeDelivery: (outboundId: string, driverInfo: { driverName: string; driverContact?: string; vehicleNo?: string; destinationAddress?: string; receiverName?: string; receiverPhone?: string }) => Promise<void>;
+  completeTradeDeliveryWithProof: (outboundId: string, proofUrl: string, proofType: 'SIGNATURE' | 'PHOTO', receiverName?: string, closingMemo?: string) => Promise<void>;
 
   // Returns
   processReturn: (orderLineId: string, qty: number, condition: 'SELLABLE' | 'DEFECTIVE', refundAmount: number) => Promise<void>;
@@ -45,12 +48,81 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [products, setProducts] = useState<TradeProduct[]>([]);
   const [purchases, setPurchases] = useState<TradePurchase[]>([]);
   const [purchaseItems, setPurchaseItems] = useState<TradePurchaseItem[]>([]);
-  const [inventoryLots, setInventoryLots] = useState<TradeInventoryLot[]>([]);
-  const [salesOrders, setSalesOrders] = useState<TradeSalesOrder[]>([]);
-  const [salesOrderLines, setSalesOrderLines] = useState<TradeSalesOrderLine[]>([]);
-  const [outbounds, setOutbounds] = useState<TradeOutbound[]>([]);
+  const [inventoryLots, setInventoryLots] = useState<TradeInventoryLot[]>(() => {
+    try {
+      const saved = localStorage.getItem('ebro_trade_inventory');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch(e) {}
+    return [
+      { id: 'lot-init-1', purchaseId: 'PO-INIT-1', productId: 'p1', initialQty: 1000, remainingQty: 1000, unitCost: 1000, createdAt: new Date().toISOString() },
+      { id: 'lot-init-2', purchaseId: 'PO-INIT-2', productId: 'p2', initialQty: 500, remainingQty: 500, unitCost: 3500, createdAt: new Date().toISOString() }
+    ];
+  });
+  const [salesOrders, setSalesOrders] = useState<TradeSalesOrder[]>(() => {
+    try {
+      const saved = localStorage.getItem('ebro_trade_orders');
+      if (saved) return JSON.parse(saved);
+    } catch(e) {}
+    return [];
+  });
+  const [salesOrderLines, setSalesOrderLines] = useState<TradeSalesOrderLine[]>(() => {
+    try {
+      const saved = localStorage.getItem('ebro_trade_lines');
+      if (saved) return JSON.parse(saved);
+    } catch(e) {}
+    return [];
+  });
+  const [outbounds, setOutbounds] = useState<TradeOutbound[]>(() => {
+    try {
+      const saved = localStorage.getItem('ebro_trade_outbounds');
+      if (saved) return JSON.parse(saved);
+    } catch(e) {}
+    return [];
+  });
   const [billings, setBillings] = useState<TradeBilling[]>([]);
   const [returns, setReturns] = useState<TradeReturn[]>([]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('ebro_trade_orders', JSON.stringify(salesOrders));
+      localStorage.setItem('ebro_trade_outbounds', JSON.stringify(outbounds));
+      localStorage.setItem('ebro_trade_lines', JSON.stringify(salesOrderLines));
+      localStorage.setItem('ebro_trade_inventory', JSON.stringify(inventoryLots));
+    } catch (e) {}
+  }, [salesOrders, outbounds, salesOrderLines, inventoryLots]);
+
+  // 🔄 탭 간 실시간 동기화 (기사 포털 등 별도 탭에서 납품 완료 시 즉각 반영)
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'ebro_trade_outbounds' && e.newValue) {
+        try {
+          setOutbounds(JSON.parse(e.newValue));
+        } catch (err) {}
+      }
+      if (e.key === 'ebro_trade_orders' && e.newValue) {
+        try {
+          setSalesOrders(JSON.parse(e.newValue));
+        } catch (err) {}
+      }
+    };
+    const handleFocus = () => {
+      try {
+        const savedObs = localStorage.getItem('ebro_trade_outbounds');
+        if (savedObs) setOutbounds(JSON.parse(savedObs));
+        const savedOrders = localStorage.getItem('ebro_trade_orders');
+        if (savedOrders) setSalesOrders(JSON.parse(savedOrders));
+      } catch (err) {}
+    };
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
 
   // Load mocks for now (In real app, fetch from Supabase)
   useEffect(() => {
@@ -117,8 +189,6 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  
-  
   const createSalesOrder = async (customerId: string, items: {productId: string, qty: number, unitPrice: number}[]) => {
     // [RWTT 1~10 적발] 재고 부족 및 단종 상품 판매 원천 차단
     if (!customerId || customerId.trim() === '') throw new Error('고객사 정보가 누락되었습니다.');
@@ -134,7 +204,7 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
        }
     }
 
-    const oId = uuidv4();
+    const oId = `SO-${uuidv4()}`;
     let totalSalesAmount = 0;
     let totalCogsAmount = 0;
     const newLines: TradeSalesOrderLine[] = [];
@@ -172,11 +242,10 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setSalesOrders(prev => [...prev, newOrder]);
     setSalesOrderLines(prev => [...prev, ...newLines]);
     
-    const outbId = uuidv4();
+    const outbId = `TOUT-${uuidv4()}`;
     setOutbounds(prev => [...prev, { id: outbId, orderId: oId, status: 'REQUESTED', createdAt: new Date().toISOString() }]);
   };
 
-  
   const allocateOutbound = async (outboundId: string) => {
     const ob = outbounds.find(o => o.id === outboundId);
     if (!ob) throw new Error("출고 요청이 존재하지 않습니다.");
@@ -184,22 +253,195 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setOutbounds(prev => prev.map(o => o.id === outboundId ? { ...o, status: 'ALLOCATED' } : o));
   };
 
+  const syncTradeDeliveryToDatabase = async (ob: TradeOutbound, extra: any) => {
+    const order = salesOrders.find(so => so.id === ob.orderId);
+    const lines = salesOrderLines.filter(l => l.orderId === ob.orderId);
+    const customer = db.customers?.find(c => c.id === order?.customerId) || { name: '현대건설(주)', representative: '김인수', phone: '010-3333-4444' };
+
+    const cargoItems = lines.map(line => {
+      const prod = products.find(p => p.id === line.productId);
+      return {
+        modelName: `[${prod?.skuCode || 'SKU'}] ${prod?.name || '유통상품'}`,
+        count: line.qty,
+        note: `${line.unitPrice?.toLocaleString()}원 (정상 납품)`
+      };
+    });
+
+    const deliveryRecord: any = {
+      id: ob.id,
+      contractId: ob.orderId,
+      type: 'OUTBOUND',
+      dispatchCategory: '출고',
+      status: 'DISPATCHED',
+      requestDate: new Date().toISOString().split('T')[0],
+      customerName: customer?.name || '현대건설(주)',
+      destinationAddress: extra.destinationAddress || (customer as any)?.address || '서울특별시 강남구 테헤란로 152',
+      receiverName: extra.receiverName || customer?.representative || '인수담당자',
+      receiverPhone: extra.receiverPhone || (customer as any)?.phone || (customer as any)?.repContact || '010-0000-0000',
+      driverName: extra.driverName || extra.courierName || '지정 배송기사',
+      driverContact: extra.driverContact || extra.trackingNumber || '-',
+      vehicleNo: extra.vehicleNo || (extra.courierName ? `${extra.courierName} (${extra.trackingNumber})` : '화물 운송차량'),
+      cargoItems: JSON.stringify(cargoItems.length > 0 ? cargoItems : [{ modelName: '유통 납품 물품 일체', count: 1, note: '정상 납품' }]),
+      memo: `[유통 계약 배송] 주문번호: ${ob.orderId}`
+    };
+
+    if (db && db.deliveries) {
+      const idx = db.deliveries.findIndex(d => d.id === ob.id);
+      if (idx >= 0) db.deliveries[idx] = { ...db.deliveries[idx], ...deliveryRecord };
+      else db.deliveries.push(deliveryRecord);
+    }
+
+    try {
+      if (supabase) {
+        await supabase.from('deliveries').upsert(deliveryRecord);
+      }
+    } catch (e) {
+      console.warn('Supabase deliveries upsert error:', e);
+    }
+  };
+
   const dispatchOutbound = async (outboundId: string, courierName: string, trackingNumber: string) => {
     const ob = outbounds.find(o => o.id === outboundId);
     if (!ob) throw new Error("출고 요청이 존재하지 않습니다.");
     if (ob.status !== 'ALLOCATED') throw new Error("할당 완료 상태에서만 배송 마감이 가능합니다.");
     
-    setOutbounds(prev => prev.map(o => o.id === outboundId ? { ...o, status: 'SHIPPED', courierName, trackingNumber, shippedAt: new Date().toISOString() } : o));
+    const now = new Date().toISOString();
+    setOutbounds(prev => prev.map(o => o.id === outboundId ? {
+      ...o,
+      status: 'SHIPPED',
+      deliveryType: 'COURIER',
+      courierName,
+      trackingNumber,
+      shippedAt: now,
+      updatedAt: now
+    } : o));
     
     // 연계: 수주 원장도 SHIPPED 로 변경
-    setSalesOrders(prev => prev.map(so => so.id === ob.orderId ? { ...so, status: 'SHIPPED', updatedAt: new Date().toISOString() } : so));
+    setSalesOrders(prev => prev.map(so => so.id === ob.orderId ? { ...so, status: 'SHIPPED', updatedAt: now } : so));
+
+    await syncTradeDeliveryToDatabase(ob, {
+      deliveryType: 'COURIER',
+      courierName,
+      trackingNumber
+    });
   };
+
+  const dispatchDirectTradeDelivery = async (
+    outboundId: string,
+    driverInfo: {
+      driverName: string;
+      driverContact?: string;
+      vehicleNo?: string;
+      destinationAddress?: string;
+      receiverName?: string;
+      receiverPhone?: string;
+    }
+  ) => {
+    const ob = outbounds.find(o => o.id === outboundId);
+    if (!ob) throw new Error("출고 요청이 존재하지 않습니다.");
+    if (ob.status !== 'ALLOCATED') throw new Error("할당 완료 상태에서만 배차 및 출고 마감이 가능합니다.");
+
+    const now = new Date().toISOString();
+    setOutbounds(prev => prev.map(o => o.id === outboundId ? {
+      ...o,
+      status: 'SHIPPED',
+      deliveryType: 'DIRECT',
+      driverName: driverInfo.driverName,
+      driverContact: driverInfo.driverContact || '-',
+      vehicleNo: driverInfo.vehicleNo || '화물차량',
+      destinationAddress: driverInfo.destinationAddress,
+      receiverName: driverInfo.receiverName,
+      receiverPhone: driverInfo.receiverPhone,
+      shippedAt: now,
+      updatedAt: now
+    } : o));
+
+    setSalesOrders(prev => prev.map(so => so.id === ob.orderId ? { ...so, status: 'SHIPPED', updatedAt: now } : so));
+
+    await syncTradeDeliveryToDatabase(ob, {
+      deliveryType: 'DIRECT',
+      driverName: driverInfo.driverName,
+      driverContact: driverInfo.driverContact,
+      vehicleNo: driverInfo.vehicleNo,
+      destinationAddress: driverInfo.destinationAddress,
+      receiverName: driverInfo.receiverName,
+      receiverPhone: driverInfo.receiverPhone
+    });
+  };
+
+  const completeTradeDeliveryWithProof = async (
+    outboundId: string,
+    proofUrl: string,
+    proofType: 'SIGNATURE' | 'PHOTO',
+    receiverName?: string,
+    closingMemo?: string
+  ) => {
+    const ob = outbounds.find(o => o.id === outboundId);
+    if (!ob) return;
+
+    const now = new Date().toISOString();
+    const memo = closingMemo || `[${proofType === 'PHOTO' ? '납품증 사진' : '전자 서명'}]: ${proofUrl}`;
+
+    setOutbounds(prev => prev.map(o => o.id === outboundId ? {
+      ...o,
+      status: 'DELIVERED',
+      proofUrl,
+      proofType,
+      receiverName: receiverName || o.receiverName,
+      closingMemo: memo,
+      deliveredAt: now,
+      updatedAt: now
+    } : o));
+
+    setSalesOrders(prev => prev.map(so => so.id === ob.orderId ? {
+      ...so,
+      status: 'DELIVERED',
+      updatedAt: now
+    } : so));
+
+    if (db && db.deliveries) {
+      const d = db.deliveries.find(item => item.id === outboundId);
+      if (d) {
+        d.status = 'DELIVERED';
+        d.closingMemo = memo;
+      }
+    }
+
+    try {
+      if (supabase) {
+        await supabase.from('deliveries').update({
+          status: 'DELIVERED',
+          closingMemo: memo,
+          updatedAt: now
+        }).eq('id', outboundId);
+      }
+    } catch (e) {
+      console.warn('Failed to update delivery in Supabase:', e);
+    }
+  };
+
+  useEffect(() => {
+    const handleTradeDelivered = (e: any) => {
+      const detail = e.detail;
+      if (detail && detail.id) {
+        completeTradeDeliveryWithProof(
+          detail.id,
+          detail.proofUrl,
+          detail.proofType || 'SIGNATURE',
+          detail.receiverName,
+          detail.closingMemo
+        );
+      }
+    };
+    window.addEventListener('trade-delivery-completed', handleTradeDelivered);
+    return () => window.removeEventListener('trade-delivery-completed', handleTradeDelivered);
+  }, [outbounds, salesOrders]);
 
   const processReturn = async (orderLineId: string, qty: number, condition: 'SELLABLE' | 'DEFECTIVE', refundAmount: number) => {
     // [RWTT 11-20] 환입 반품 시 중복 접수 방지
     const existing = returns.find(r => r.orderLineId === orderLineId);
     if (existing) throw new Error("이미 반품 처리된 라인입니다.");
-const ret: TradeReturn = { id: uuidv4(), orderLineId, returnDate: new Date().toISOString().split('T')[0], qty, condition, refundAmount, createdAt: new Date().toISOString() };
+    const ret: TradeReturn = { id: uuidv4(), orderLineId, returnDate: new Date().toISOString().split('T')[0], qty, condition, refundAmount, createdAt: new Date().toISOString() };
     setReturns(prev => [...prev, ret]);
 
     // If SELLABLE, restore to inventory as a new lot based on original COGS
@@ -226,7 +468,6 @@ const ret: TradeReturn = { id: uuidv4(), orderLineId, returnDate: new Date().toI
     }
   };
 
-  
   const issueBilling = async (customerId: string, month: string) => {
     // [RWTT 11-20] 중복 발행 방지
     const existing = billings.find(b => b.customerId === customerId && b.billingMonth === month && b.status === 'ISSUED');
@@ -239,7 +480,8 @@ const ret: TradeReturn = { id: uuidv4(), orderLineId, returnDate: new Date().toI
   return (
     <TradeContext.Provider value={{
       products, purchases, purchaseItems, inventoryLots, salesOrders, salesOrderLines, outbounds, billings, returns,
-      addProduct, updateProduct, createPurchase, confirmInbound, createSalesOrder, allocateOutbound, dispatchOutbound, processReturn, issueBilling
+      addProduct, updateProduct, createPurchase, confirmInbound, createSalesOrder, allocateOutbound, dispatchOutbound,
+      dispatchDirectTradeDelivery, completeTradeDeliveryWithProof, processReturn, issueBilling
     }}>
       {children}
     </TradeContext.Provider>

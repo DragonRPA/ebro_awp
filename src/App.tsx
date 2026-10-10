@@ -563,6 +563,21 @@ const App: React.FC = () => {
   // 계층형 상위-하위 아코디언 메뉴 구조 정의 (유저 지정 규격)
   const menuGroups: MenuGroup[] = React.useMemo(() => [
     {
+      id: 'grp_distribution',
+      name: '영업-유통',
+      icon: <ShoppingBag size={18} />,
+      items: [
+        { id: 'trade_products', name: '상품 등록 및 관리', icon: <Package size={16} />, component: <TradeProductsPage /> },
+        { id: 'trade_purchases', name: '구매 및 입고', icon: <Layers size={16} />, component: <TradePurchasesPage /> },
+        { id: 'trade_contracts', name: '유통 수주(계약)', icon: <UserCheck size={16} />, component: <TradeContractsPage /> },
+        { id: 'trade_outbounds', name: '출고 요청', icon: <Zap size={16} />, component: <TradeOutboundPage /> },
+        { id: 'courier_dispatch', name: '택배 배송 관리', icon: <Truck size={16} />, component: <CourierDispatchPage /> },
+        { id: 'trade_billing', name: '유통 청구 및 명세', icon: <CreditCard size={16} />, component: <TradeBillingPage /> },
+        { id: 'trade_returns', name: '환입 및 반품', icon: <ArrowLeftRight size={16} />, component: <TradeReturnsPage /> },
+        { id: 'trade_profitability', name: '수익성 관리', icon: <TrendingUp size={16} />, component: <TradeProfitabilityPage /> }
+      ]
+    },
+    {
       id: 'grp_approval',
       name: '결재 센터',
       icon: <CheckCircle size={18} />,
@@ -898,6 +913,14 @@ const App: React.FC = () => {
     if (activeTab === 'manual_dictionary') return <ManualDictionaryPage />;
     if (activeTab === 'consumable' || activeTab === 'consumables') return <ConsumableStockPage />;
     if (activeTab === 'leave_ot') return <LeaveOtPage />;
+    if (activeTab === 'trade_products') return <TradeProductsPage />;
+    if (activeTab === 'trade_purchases') return <TradePurchasesPage />;
+    if (activeTab === 'trade_contracts') return <TradeContractsPage />;
+    if (activeTab === 'trade_outbounds') return <TradeOutboundPage />;
+    if (activeTab === 'courier_dispatch') return <CourierDispatchPage />;
+    if (activeTab === 'trade_billing') return <TradeBillingPage />;
+    if (activeTab === 'trade_returns') return <TradeReturnsPage />;
+    if (activeTab === 'trade_profitability') return <TradeProfitabilityPage />;
     for (const grp of menuGroups) {
       const found = grp.items.find(item => item.id === activeTab);
       if (found) return found.component;
@@ -913,7 +936,7 @@ const App: React.FC = () => {
   }
 
   // 🌐 [1.5단계: 스마트 운송 포털 (기사용 모바일 웹) - 로그인 우회]
-  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/driver-portal/')) {
+  if (typeof window !== 'undefined' && (window.location.pathname.startsWith('/driver-portal/') || window.location.pathname.startsWith('/driver/'))) {
     return (
       <React.Suspense fallback={<div style={{ padding: '20px', textAlign: 'center' }}>로딩 중...</div>}>
         <DriverPortalPage />

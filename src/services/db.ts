@@ -7293,11 +7293,23 @@ export interface TradeSalesOrderLine {
 export interface TradeOutbound {
   id: string;
   orderId: string;
-  status: 'REQUESTED' | 'ALLOCATED' | 'PACKED' | 'SHIPPED';
+  status: 'REQUESTED' | 'ALLOCATED' | 'PACKED' | 'SHIPPED' | 'DELIVERED';
+  deliveryType?: 'COURIER' | 'DIRECT';
   courierName?: string;
   trackingNumber?: string;
+  driverName?: string;
+  driverContact?: string;
+  vehicleNo?: string;
+  destinationAddress?: string;
+  receiverName?: string;
+  receiverPhone?: string;
+  proofUrl?: string;
+  proofType?: 'SIGNATURE' | 'PHOTO';
   shippedAt?: string;
+  deliveredAt?: string;
+  closingMemo?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface TradeBilling {
