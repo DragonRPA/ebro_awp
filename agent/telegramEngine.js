@@ -18,8 +18,8 @@ const TELEGRAM_CONFIG_FILE = path.join(AGENT_HOME, 'telegram_config.json');
 
 // 기본 설정 로드 (레거시 .env 폴백 지원)
 let telegramConfig = {
-  telegram_bot_token: '8817074777:AAE6gzIC9gCM0iK6zZHAThLAlW5itaQ-WMA',
-  telegram_allowed_user_id: '8990145136',
+  telegram_bot_token: process.env.TELEGRAM_BOT_TOKEN || '',
+  telegram_allowed_user_id: process.env.TELEGRAM_ALLOWED_USER_ID || '8990145136',
   updatedAt: new Date().toISOString()
 };
 
