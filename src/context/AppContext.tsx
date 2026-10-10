@@ -90,7 +90,8 @@ interface AppContextType {
   logout: () => void;
   switchUser: (userId: string) => void;
   hasPermission: (menuId: string, action: 'view' | 'save') => boolean;
-  showErrorModal: (message: string, title?: string) => void;
+  showErrorModal: (message: string, title?: string, type?: 'system' | 'business') => void;
+  showNoticeModal: (message: string, title?: string) => void;
   showPrintSuccessModal: (params: {
     docType?: string;
     docTitle: string;
@@ -840,18 +841,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const canGoBack = historyIndex > 0;
   const canGoForward = historyIndex < historyStack.length - 1;
 
-  // 글로벌 커스텀 에러 모달 상태
-  const [errorModal, setErrorModal] = useState<{ isOpen: boolean; title?: string; message: string }>({
+  // 글로벌 커스텀 에러 및 업무 진행 안내 모달 상태
+  const [errorModal, setErrorModal] = useState<{
+    isOpen: boolean;
+    title?: string;
+    message: string;
+    type?: 'system' | 'business';
+  }>({
     isOpen: false,
     title: '시스템 오류 발생',
-    message: ''
+    message: '',
+    type: undefined
   });
 
-  const showErrorModal = (message: string, title: string = '시스템 오류 발생') => {
+  const showErrorModal = (message: string, title?: string, type?: 'system' | 'business') => {
+    setErrorModal({
+      isOpen: true,
+      title: title || (type === 'business' ? '업무 진행 안내' : '시스템 오류 발생'),
+      message,
+      type
+    });
+  };
+
+  const showNoticeModal = (message: string, title: string = '업무 진행 안내') => {
     setErrorModal({
       isOpen: true,
       title,
-      message
+      message,
+      type: 'business'
     });
   };
 
@@ -11093,7 +11110,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     createApprovalRequest,
     processApprovalStep,
     receivables: db.receivables as any[], refreshReceivables: () => {}, 
-      currentUser, theme, toggleTheme, login, logout, switchUser, hasPermission, showErrorModal, showPrintSuccessModal,
+      currentUser, theme, toggleTheme, login, logout, switchUser, hasPermission, showErrorModal, showNoticeModal, showPrintSuccessModal,
       tenants, currentTenant, setCurrentTenantId, saveTenant, deleteTenant,
       addTenantWorkplace, updateTenantWorkplace, deleteTenantWorkplace,
       addTenantYard, updateTenantYard, deleteTenantYard, setDefaultYard,
@@ -11168,6 +11185,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         isOpen={errorModal.isOpen}
         title={errorModal.title}
         message={errorModal.message}
+        type={errorModal.type}
         onClose={() => setErrorModal(prev => ({ ...prev, isOpen: false }))}
       />
       <PrintSuccessModal
