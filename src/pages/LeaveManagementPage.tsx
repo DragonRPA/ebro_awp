@@ -476,6 +476,27 @@ export const LeaveManagementPage: React.FC = () => {
               연차 / 반차 소진 등록
             </h3>
 
+            {/* 주말·법정공휴일 자동 제외 및 임시공휴일 미제외 상신자 사전 안내 */}
+            <div style={{
+              padding: '9px 12px',
+              borderRadius: '6px',
+              backgroundColor: 'var(--bg-main)',
+              border: '1px solid var(--border-color)',
+              fontSize: '11.5px',
+              lineHeight: '1.5',
+              color: 'var(--text-muted)',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '8px'
+            }}>
+              <Info size={15} style={{ color: 'var(--primary)', flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <span style={{ fontWeight: 'bold', color: 'var(--text-main)' }}>안내: </span>
+                주말(토/일) 및 법정공휴일은 연차 소진 일수에서 <strong>자동 제외</strong>됩니다. 
+                정부 수시 지정 <strong>임시공휴일은 자동 제외되지 않으므로</strong>, 해당 일자 등록 시 확인 바랍니다.
+              </div>
+            </div>
+
             <form onSubmit={handleAdminLeaveUsageSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -548,7 +569,7 @@ export const LeaveManagementPage: React.FC = () => {
 
               {/* 소진 일수 안내 배너 */}
               <div style={{
-                padding: '10px 14px',
+                padding: '12px 14px',
                 borderRadius: '6px',
                 backgroundColor: !adminCalcResult.isValid 
                   ? 'rgba(239, 68, 68, 0.1)' 
@@ -563,7 +584,7 @@ export const LeaveManagementPage: React.FC = () => {
                 fontSize: '12px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '6px'
+                gap: '8px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                   <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
@@ -583,28 +604,72 @@ export const LeaveManagementPage: React.FC = () => {
                   </strong>
                 </div>
 
-                {/* 주말 및 공휴일 차감(제외) 안내문 */}
-                {adminCalcResult.isValid && adminCalcResult.excludedDays > 0 && (
-                  <div style={{ 
-                    fontSize: '11px', 
-                    color: '#2563eb', 
-                    borderTop: '1px dashed rgba(59, 130, 246, 0.3)', 
-                    paddingTop: '6px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '2px'
+                {/* 주말 및 법정공휴일 포함 여부 표시 뱃지 */}
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '6px',
+                  fontSize: '11px',
+                  fontWeight: 600
+                }}>
+                  <span style={{
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    backgroundColor: adminCalcResult.hasWeekend ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg-app)',
+                    color: adminCalcResult.hasWeekend ? 'var(--primary)' : 'var(--text-muted)',
+                    border: `1px solid ${adminCalcResult.hasWeekend ? 'rgba(59, 130, 246, 0.3)' : 'var(--border-color)'}`,
+                    whiteSpace: 'nowrap'
                   }}>
-                    <div>
-                      총 {adminCalcResult.totalCalendarDays}일 중 <strong>주말 {adminCalcResult.weekendDays}일</strong>
-                      {adminCalcResult.holidayDays > 0 && <>, <strong>공휴일 {adminCalcResult.holidayDays}일</strong></>}
-                      {' '}제외 ➔ <strong>실제 소정근로 {adminCalcResult.workingDays}일만 차감</strong>
-                    </div>
-                    {adminCalcResult.excludedBreakdownText && (
-                      <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                        {adminCalcResult.excludedBreakdownText}
+                    주말: {adminCalcResult.hasWeekend ? `포함 (${adminCalcResult.weekendDays}일)` : '미포함'}
+                  </span>
+
+                  <span style={{
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    backgroundColor: adminCalcResult.hasHoliday ? 'rgba(239, 68, 68, 0.12)' : 'var(--bg-app)',
+                    color: adminCalcResult.hasHoliday ? '#dc2626' : 'var(--text-muted)',
+                    border: `1px solid ${adminCalcResult.hasHoliday ? 'rgba(239, 68, 68, 0.3)' : 'var(--border-color)'}`,
+                    whiteSpace: 'nowrap'
+                  }}>
+                    법정공휴일: {adminCalcResult.hasHoliday 
+                      ? `포함 (${adminCalcResult.holidayDays}일: ${adminCalcResult.holidayNamesList.join(', ')})` 
+                      : '미포함'}
+                  </span>
+                </div>
+
+                {/* 주말 및 공휴일 차감(제외) 상세 안내문 */}
+                {adminCalcResult.isValid && (
+                  adminCalcResult.excludedDays > 0 ? (
+                    <div style={{ 
+                      fontSize: '11px', 
+                      color: '#2563eb', 
+                      borderTop: '1px dashed rgba(59, 130, 246, 0.3)', 
+                      paddingTop: '6px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px'
+                    }}>
+                      <div>
+                        총 {adminCalcResult.totalCalendarDays}일 중 <strong>주말 {adminCalcResult.weekendDays}일</strong>
+                        {adminCalcResult.holidayDays > 0 && <>, <strong>법정공휴일 {adminCalcResult.holidayDays}일</strong></>}
+                        {' '}제외 ➔ <strong>실제 소정근로 {adminCalcResult.workingDays}일만 차감</strong>
                       </div>
-                    )}
-                  </div>
+                      {adminCalcResult.excludedBreakdownText && (
+                        <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                          {adminCalcResult.excludedBreakdownText}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ 
+                      fontSize: '11px', 
+                      color: 'var(--text-muted)', 
+                      borderTop: '1px dashed var(--border-color)', 
+                      paddingTop: '4px' 
+                    }}>
+                      주말 및 법정공휴일이 포함되지 않아 신청 기간 전일({adminCalcResult.deductedDays}일)이 소진됩니다.
+                    </div>
+                  )
                 )}
               </div>
 

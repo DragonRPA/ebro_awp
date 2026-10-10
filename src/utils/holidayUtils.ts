@@ -254,6 +254,10 @@ export interface LeaveCalculationResult {
   holidayDays: number;       // 기간 내 포함된 공휴일 일수 (주말과 겹치지 않는 평일 공휴일)
   excludedDays: number;      // 차감(제외)된 비근무일 합계 (주말 + 평일 공휴일)
   deductedDays: number;      // 실제 연차 잔여 한도에서 차감될 수치 (반차 0.5일, 연차는 workingDays)
+  hasWeekend: boolean;       // 기간 내 주말 포함 여부
+  hasHoliday: boolean;       // 기간 내 법정공휴일 포함 여부
+  holidayNamesList: string[];// 기간 내 포함된 법정공휴일 명칭 목록
+  inclusionStatusText: string;// 기간 내 주말/법정공휴일 포함 여부 표시 텍스트
   isValid: boolean;          // 신청 가능 여부
   errorMessage?: string;     // 신청 불가 사유 (예: 근무일 0일, 주말 반차 신청 등)
   summaryText: string;       // UI 표기용 요약 텍스트
@@ -312,6 +316,10 @@ export function calculateLeaveDaysInfo(
       holidayDays: 0,
       excludedDays: 0,
       deductedDays: 0,
+      hasWeekend: false,
+      hasHoliday: false,
+      holidayNamesList: [],
+      inclusionStatusText: '-',
       isValid: false,
       errorMessage: '시작 일자를 선택해 주십시오.',
       summaryText: '-',
@@ -337,6 +345,10 @@ export function calculateLeaveDaysInfo(
       holidayDays: 0,
       excludedDays: 0,
       deductedDays: 0,
+      hasWeekend: false,
+      hasHoliday: false,
+      holidayNamesList: [],
+      inclusionStatusText: '날짜 오류',
       isValid: false,
       errorMessage: '종료 일자는 시작 일자보다 빠를 수 없습니다.',
       summaryText: '날짜 오류',
@@ -376,6 +388,22 @@ export function calculateLeaveDaysInfo(
   }
 
   const excludedDays = weekendDays + holidayDays;
+  const hasWeekend = weekendDays > 0;
+  const hasHoliday = holidayDays > 0;
+  const holidayNamesList = Array.from(new Set(
+    days.filter(d => !d.isWeekend && d.holidayName).map(d => d.holidayName as string)
+  ));
+
+  let inclusionStatusText = '';
+  if (hasWeekend && hasHoliday) {
+    inclusionStatusText = `주말 포함 (${weekendDays}일) · 법정공휴일 포함 (${holidayDays}일: ${holidayNamesList.join(', ')})`;
+  } else if (hasWeekend) {
+    inclusionStatusText = `주말 포함 (${weekendDays}일) · 법정공휴일 미포함`;
+  } else if (hasHoliday) {
+    inclusionStatusText = `주말 미포함 · 법정공휴일 포함 (${holidayDays}일: ${holidayNamesList.join(', ')})`;
+  } else {
+    inclusionStatusText = '주말 및 법정공휴일 미포함 (평일 소정근로일)';
+  }
 
   // 1. 반차 처리
   if (leaveType === 'HALF_AM' || leaveType === 'HALF_PM') {
@@ -394,6 +422,10 @@ export function calculateLeaveDaysInfo(
         holidayDays,
         excludedDays: 1,
         deductedDays: 0,
+        hasWeekend: singleDay.isWeekend,
+        hasHoliday: !singleDay.isWeekend && !!singleDay.holidayName,
+        holidayNamesList: singleDay.holidayName ? [singleDay.holidayName] : [],
+        inclusionStatusText: singleDay.isWeekend ? '주말 포함 (신청 불가)' : `법정공휴일 포함 (${singleDay.holidayName}, 신청 불가)`,
         isValid: false,
         errorMessage: `선택하신 일자는 ${offReason}이므로 반차를 신청할 수 없습니다.`,
         summaryText: `${typeLabel} 불가 (${offReason})`,
@@ -412,6 +444,10 @@ export function calculateLeaveDaysInfo(
       holidayDays: 0,
       excludedDays: 0,
       deductedDays: 0.5,
+      hasWeekend: false,
+      hasHoliday: false,
+      holidayNamesList: [],
+      inclusionStatusText: '주말 및 법정공휴일 미포함 (평일 소정근로일)',
       isValid: true,
       summaryText: `${typeLabel} (0.5일 차감)`,
       excludedBreakdownText: '',
@@ -431,6 +467,10 @@ export function calculateLeaveDaysInfo(
       holidayDays,
       excludedDays,
       deductedDays: 0,
+      hasWeekend,
+      hasHoliday,
+      holidayNamesList,
+      inclusionStatusText: `전일 비근무일 (${inclusionStatusText})`,
       isValid: false,
       errorMessage: `선택하신 기간(${totalCalendarDays}일)에 소정근로일(평일)이 없습니다. 주말과 공휴일은 연차가 소진되지 않습니다.`,
       summaryText: `신청 불가 (비근무일 ${excludedDays}일)`,
@@ -466,6 +506,10 @@ export function calculateLeaveDaysInfo(
     holidayDays,
     excludedDays,
     deductedDays,
+    hasWeekend,
+    hasHoliday,
+    holidayNamesList,
+    inclusionStatusText,
     isValid: true,
     summaryText,
     excludedBreakdownText,
