@@ -1,113 +1,378 @@
 import { db, SEED_TENANTS } from '../services/db';
 
-export function generateReceiptHtml(delivery: any, contract: any, customer: any, site: any, tenant: any): string {
-  const dateStr = new Date().toLocaleDateString('ko-KR');
-  const dTypeStr = delivery?.type === 'OUTBOUND' ? '출고' : delivery?.type === 'INBOUND' ? '회수' : '교환';
-  
-  const receiverName = site?.contactName || customer?.representative || '인수담당자';
-  const receiverPhone = site?.contactPhone || customer?.phone || site?.safetyContactPhone || '-';
-  const contractNoStr = contract?.contractNo || contract?.id || delivery?.contractId || '-';
-  
+export function generateReceiptHtml(
+  delivery: any,
+  contract: any,
+  customer: any,
+  site: any,
+  tenant: any,
+  options?: { signatureUrl?: string }
+): string {
+  const defaultSupplier = SEED_TENANTS[0];
+  const effectiveTenant = tenant || db?.currentTenant || defaultSupplier;
+
+  const sCorpName = effectiveTenant?.tradeName || 
+                    effectiveTenant?.corporateName || 
+                    effectiveTenant?.displayName || 
+                    defaultSupplier.tradeName;
+
+  const sRep = effectiveTenant?.representativeName || 
+               effectiveTenant?.representative || 
+               defaultSupplier.representativeName;
+
+  const sBizNo = effectiveTenant?.businessNumber || 
+                 effectiveTenant?.bizRegNo || 
+                 defaultSupplier.businessNumber;
+
+  const sAddr = effectiveTenant?.headOfficeAddress || 
+                effectiveTenant?.businessAddress || 
+                effectiveTenant?.address || 
+                defaultSupplier.headOfficeAddress;
+
+  const sTel = effectiveTenant?.tel || 
+               effectiveTenant?.phone || 
+               defaultSupplier.tel;
+
+  const sFax = effectiveTenant?.fax || 
+               defaultSupplier.fax;
+
+  const sWebsite = effectiveTenant?.websiteUrl || 
+                   defaultSupplier.websiteUrl || '';
+
+  const contractNo = contract?.contractNo || contract?.id || delivery?.contractId || '-';
+  const customerName = customer?.name || (delivery as any)?.customerName || '미확인';
+  const siteName = site?.name || (delivery as any)?.siteName || '미확인';
+  const siteAddress = site?.address || delivery?.destinationAddress || '-';
+
+  let receiverName = site?.contactName || customer?.representative || '인수담당자';
+  let receiverPhone = site?.contactPhone || customer?.phone || customer?.repContact || site?.safetyContactPhone || '-';
+  let specialNotes = '';
+
+  if (delivery?.memo) {
+    const optMatch = delivery.memo.match(/\[옵션\]\s*([^|]+)/);
+    if (optMatch) specialNotes = optMatch[1].trim();
+
+    const contactMatch = delivery.memo.match(/현장담당:\s*([^\s(]+)(?:\s*\(([^)]+)\))?/);
+    if (contactMatch) {
+      if (contactMatch[1]) receiverName = contactMatch[1].trim();
+      if (contactMatch[2]) receiverPhone = contactMatch[2].trim();
+    }
+  }
+
+  const dType = delivery?.type === 'OUTBOUND' ? '출고 (OUTBOUND)' : delivery?.type === 'INBOUND' ? '회수 (INBOUND)' : delivery?.type === 'EXCHANGE' ? '교환 (EXCHANGE)' : '출고';
+  const signDate = new Date().toISOString().split('T')[0];
+  const dDate = delivery?.unloadingDate || delivery?.loadingDate || delivery?.requestDate || signDate;
+  const dVehicle = delivery?.vehicleNumber || '화물 운송차량';
+  const dDriver = delivery?.driverName ? `${delivery.driverName} (${delivery.driverContact || '-'})` : '지정 기사';
+
   let parsedCargos: any[] = [];
   if (delivery?.cargoItems) {
     try {
       const parsed = JSON.parse(delivery.cargoItems);
       if (Array.isArray(parsed)) {
         parsedCargos = parsed;
+      } else {
+        parsedCargos = [{ modelName: delivery.cargoItems, count: 1, note: '정상 납품' }];
       }
-    } catch(e) {}
+    } catch (e) {
+      parsedCargos = [{ modelName: delivery.cargoItems, count: 1, note: '정상 납품' }];
+    }
   }
-  
-  // 비고 컬럼은 요구사항에 따라 항상 공백으로 출력
-  const cargoHtml = parsedCargos.length > 0 
-    ? parsedCargos.map(p => `
-      <tr>
-        <td style="border: 1px solid #000; padding: 10px; text-align: center;">${p.modelName || '장비'}</td>
-        <td style="border: 1px solid #000; padding: 10px; text-align: center;">${p.count || 1}대</td>
-        <td style="border: 1px solid #000; padding: 10px; text-align: center;">${site?.address || delivery?.destinationAddress || '-'}</td>
-        <td style="border: 1px solid #000; padding: 10px; text-align: center;">&nbsp;</td>
-      </tr>
-    `).join('')
-    : `
-      <tr>
-        <td style="border: 1px solid #000; padding: 10px; text-align: center;">${delivery?.cargoItems || '고소작업대 (장비 미지정)'}</td>
-        <td style="border: 1px solid #000; padding: 10px; text-align: center;">1대</td>
-        <td style="border: 1px solid #000; padding: 10px; text-align: center;">${site?.address || delivery?.destinationAddress || '-'}</td>
-        <td style="border: 1px solid #000; padding: 10px; text-align: center;">&nbsp;</td>
-      </tr>
-    `;
+  if (parsedCargos.length === 0) {
+    parsedCargos = [{ modelName: '고소작업대 (장비 미지정)', count: 1, note: '정상 납품' }];
+  }
 
-  const defaultSupplier = SEED_TENANTS[0];
-  const effectiveTenant = tenant || db?.currentTenant || defaultSupplier;
-  const tTradeName = effectiveTenant?.tradeName || effectiveTenant?.corporateName || effectiveTenant?.displayName || defaultSupplier.tradeName;
+  const minRows = 4;
+  const displayRows: any[] = [...parsedCargos];
+  while (displayRows.length < minRows) {
+    displayRows.push(null);
+  }
+
+  const totalCount = parsedCargos.reduce((acc, c) => acc + (Number(c.count) || 1), 0);
+  const itemCount = parsedCargos.length;
+
+  let signatureUrl = options?.signatureUrl;
+  if (!signatureUrl && delivery?.closingMemo) {
+    const match = delivery.closingMemo.match(/\[(전자 서명|납품증 사진)\]:\s*(https?:\/\/[^\s\n\r]+)/);
+    if (match) {
+      signatureUrl = match[2];
+    }
+  }
+
+  const signDateFormatted = signDate.replace(/(\d{4})-(\d{2})-(\d{2})/, '$1년  $2월  $3일');
 
   return `
-    <div style="font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 24px; max-width: 800px; margin: 0 auto; color: #000; background-color: #fff;">
-      <h1 style="text-align: center; font-size: 28px; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 20px; letter-spacing: 2px;">납품(인수)증</h1>
-      
-      <div style="display: flex; justify-content: space-between; margin-top: 16px;">
-        <div style="width: 49%;">
-          <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
-            <tr>
-              <th style="border: 1px solid #000; padding: 8px; background: #f0f0f0; width: 32%; text-align: center;">계약번호</th>
-              <td style="border: 1px solid #000; padding: 8px; font-weight: 700;">${contractNoStr}</td>
-            </tr>
-            <tr>
-              <th style="border: 1px solid #000; padding: 8px; background: #f0f0f0; width: 32%; text-align: center;">고객/현장</th>
-              <td style="border: 1px solid #000; padding: 8px;">${customer?.name || '미확인'} / ${site?.name || '미확인'}</td>
-            </tr>
-            <tr>
-              <th style="border: 1px solid #000; padding: 8px; background: #f0f0f0; width: 32%; text-align: center;">하차지 주소</th>
-              <td style="border: 1px solid #000; padding: 8px; font-size: 13px;">${site?.address || delivery?.destinationAddress || '-'}</td>
-            </tr>
-            <tr>
-              <th style="border: 1px solid #000; padding: 8px; background: #f0f0f0; width: 32%; text-align: center;">인수자</th>
-              <td style="border: 1px solid #000; padding: 8px;">${receiverName}</td>
-            </tr>
-          </table>
+    <style>
+      @page {
+        size: A4 portrait;
+        margin: 10mm;
+      }
+      @media print {
+        body {
+          margin: 0;
+          padding: 0;
+          background: #fff !important;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        .receipt-container {
+          border: 2px solid #1e293b !important;
+          box-shadow: none !important;
+          margin: 0 auto !important;
+          max-width: 100% !important;
+          page-break-inside: avoid;
+        }
+      }
+    </style>
+    <div class="receipt-container" style="box-sizing: border-box; font-family: 'Malgun Gothic', Pretendard, 'Apple SD Gothic Neo', sans-serif; width: 100%; max-width: 760px; margin: 0 auto; color: #000; background-color: #fff; border: 2.5px solid #1e293b; padding: 4px;">
+      <div style="border: 1px solid #94a3b8; padding: 18px 24px; box-sizing: border-box;">
+        
+        <!-- 1. Header Title -->
+        <h1 style="text-align: center; font-size: 24px; font-weight: 800; color: #0f172a; margin: 10px 0 6px; letter-spacing: 4px;">
+          납 &nbsp; 품 &nbsp; (인 &nbsp; 수) &nbsp; 확 &nbsp; 인 &nbsp; 서
+        </h1>
+        <div style="width: 360px; margin: 0 auto 12px auto;">
+          <div style="height: 2px; background: #0f172a; margin-bottom: 2px;"></div>
+          <div style="height: 1px; background: #64748b;"></div>
         </div>
-        <div style="width: 49%;">
-          <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
-            <tr>
-              <th style="border: 1px solid #000; padding: 8px; background: #f0f0f0; width: 32%; text-align: center;">공급자</th>
-              <td style="border: 1px solid #000; padding: 8px; font-weight: 700;">${tTradeName}</td>
-            </tr>
-            <tr>
-              <th style="border: 1px solid #000; padding: 8px; background: #f0f0f0; width: 32%; text-align: center;">납품일</th>
-              <td style="border: 1px solid #000; padding: 8px;">${delivery?.loadingDate || delivery?.requestDate || dateStr}</td>
-            </tr>
-            <tr>
-              <th style="border: 1px solid #000; padding: 8px; background: #f0f0f0; width: 32%; text-align: center;">배차구분</th>
-              <td style="border: 1px solid #000; padding: 8px;">${dTypeStr}</td>
-            </tr>
-            <tr>
-              <th style="border: 1px solid #000; padding: 8px; background: #f0f0f0; width: 32%; text-align: center;">연락처</th>
-              <td style="border: 1px solid #000; padding: 8px;">${receiverPhone}</td>
-            </tr>
-          </table>
-        </div>
-      </div>
 
-      <div style="margin-top: 24px;">
-        <h3 style="margin-bottom: 10px; font-size: 16px; font-weight: 700;">납품장비 리스트</h3>
-        <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; text-align: center;">
+        <!-- 2. Metadata Bar -->
+        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #475569; margin-bottom: 8px;">
+          <span>배차번호 : ${delivery?.id || '-'}</span>
+          <span>계약번호 : ${contractNo}</span>
+          <span>발행일자 : ${signDate}</span>
+        </div>
+
+        <!-- 3. Top Boxes: 공급자 vs 공급받는자 -->
+        <div style="display: flex; gap: 10px; margin-bottom: 8px;">
+          <!-- Left: 공급자 -->
+          <div style="flex: 1; border: 1.5px solid #334155; box-sizing: border-box;">
+            <div style="background: #f1f5f9; border-bottom: 1.5px solid #334155; padding: 5px; text-align: center; font-size: 12.5px; font-weight: 700; color: #0f172a;">
+              공 &nbsp; &nbsp; 급 &nbsp; &nbsp; 자
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+              <tr style="border-bottom: 1px solid #cbd5e1; height: 24px;">
+                <td style="width: 95px; background: #f8fafc; border-right: 1px solid #cbd5e1; text-align: center; font-weight: 700; color: #334155; padding: 2px 4px;">상호(법인명)</td>
+                <td style="padding: 2px 8px; color: #0f172a; font-weight: 700;">${sCorpName}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #cbd5e1; height: 24px;">
+                <td style="background: #f8fafc; border-right: 1px solid #cbd5e1; text-align: center; font-weight: 700; color: #334155; padding: 2px 4px;">대표자 성명</td>
+                <td style="padding: 2px 8px; color: #0f172a;">${sRep ? `${sRep} (직인생략)` : '(직인생략)'}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #cbd5e1; height: 24px;">
+                <td style="background: #f8fafc; border-right: 1px solid #cbd5e1; text-align: center; font-weight: 700; color: #334155; padding: 2px 4px;">사업자등록번호</td>
+                <td style="padding: 2px 8px; color: #0f172a;">${sBizNo}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #cbd5e1; height: 24px;">
+                <td style="background: #f8fafc; border-right: 1px solid #cbd5e1; text-align: center; font-weight: 700; color: #334155; padding: 2px 4px;">사업장 소재지</td>
+                <td style="padding: 2px 8px; color: #0f172a; font-size: 10.5px;">${sAddr}</td>
+              </tr>
+              <tr style="height: 24px;">
+                <td style="background: #f8fafc; border-right: 1px solid #cbd5e1; text-align: center; font-weight: 700; color: #334155; padding: 2px 4px;">대표전화/FAX</td>
+                <td style="padding: 2px 8px; color: #0f172a;">${sFax && sFax !== '-' ? `${sTel} / ${sFax}` : sTel}</td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Right: 공급받는자 -->
+          <div style="flex: 1; border: 1.5px solid #334155; box-sizing: border-box;">
+            <div style="background: #f1f5f9; border-bottom: 1.5px solid #334155; padding: 5px; text-align: center; font-size: 12.5px; font-weight: 700; color: #0f172a;">
+              공 &nbsp; 급 &nbsp; 받 &nbsp; 는 &nbsp; 자 &nbsp; (인 &nbsp; 수 &nbsp; 처)
+            </div>
+            <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+              <tr style="border-bottom: 1px solid #cbd5e1; height: 24px;">
+                <td style="width: 95px; background: #f8fafc; border-right: 1px solid #cbd5e1; text-align: center; font-weight: 700; color: #334155; padding: 2px 4px;">고객사 (상호)</td>
+                <td style="padding: 2px 8px; color: #0f172a; font-weight: 700;">${customerName}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #cbd5e1; height: 24px;">
+                <td style="background: #f8fafc; border-right: 1px solid #cbd5e1; text-align: center; font-weight: 700; color: #334155; padding: 2px 4px;">현 &nbsp; &nbsp;장 &nbsp; &nbsp;명</td>
+                <td style="padding: 2px 8px; color: #0f172a;">${siteName}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #cbd5e1; height: 24px;">
+                <td style="background: #f8fafc; border-right: 1px solid #cbd5e1; text-align: center; font-weight: 700; color: #334155; padding: 2px 4px;">하차지 주소</td>
+                <td style="padding: 2px 8px; color: #0f172a; font-size: 10.5px;">${siteAddress}</td>
+              </tr>
+              <tr style="border-bottom: 1px solid #cbd5e1; height: 24px;">
+                <td style="background: #f8fafc; border-right: 1px solid #cbd5e1; text-align: center; font-weight: 700; color: #334155; padding: 2px 4px;">인수 담당자</td>
+                <td style="padding: 2px 8px; color: #0f172a; font-weight: 700;">${receiverName}</td>
+              </tr>
+              <tr style="height: 24px;">
+                <td style="background: #f8fafc; border-right: 1px solid #cbd5e1; text-align: center; font-weight: 700; color: #334155; padding: 2px 4px;">인수자 연락처</td>
+                <td style="padding: 2px 8px; color: #2563eb; font-weight: 700;">${receiverPhone}</td>
+              </tr>
+            </table>
+          </div>
+        </div>
+
+        <!-- 4. Delivery Details Bar -->
+        <div style="border: 1.5px solid #334155; display: flex; font-size: 11px; margin-bottom: 10px;">
+          <div style="flex: 1; display: flex; border-right: 1px solid #cbd5e1;">
+            <div style="width: 65px; background: #f8fafc; border-right: 1px solid #cbd5e1; font-weight: 700; color: #475569; text-align: center; padding: 5px 2px;">배차구분</div>
+            <div style="flex: 1; padding: 5px 6px; text-align: center; font-weight: 700; color: #0f172a;">${dType}</div>
+          </div>
+          <div style="flex: 1; display: flex; border-right: 1px solid #cbd5e1;">
+            <div style="width: 65px; background: #f8fafc; border-right: 1px solid #cbd5e1; font-weight: 700; color: #475569; text-align: center; padding: 5px 2px;">납품일자</div>
+            <div style="flex: 1; padding: 5px 6px; text-align: center; color: #0f172a;">${dDate}</div>
+          </div>
+          <div style="flex: 1.2; display: flex; border-right: 1px solid #cbd5e1;">
+            <div style="width: 65px; background: #f8fafc; border-right: 1px solid #cbd5e1; font-weight: 700; color: #475569; text-align: center; padding: 5px 2px;">운송차량</div>
+            <div style="flex: 1; padding: 5px 6px; text-align: center; color: #0f172a;">${dVehicle}</div>
+          </div>
+          <div style="flex: 1.4; display: flex;">
+            <div style="width: 65px; background: #f8fafc; border-right: 1px solid #cbd5e1; font-weight: 700; color: #475569; text-align: center; padding: 5px 2px;">운송기사</div>
+            <div style="flex: 1; padding: 5px 6px; text-align: center; color: #0f172a;">${dDriver}</div>
+          </div>
+        </div>
+
+        <!-- 5. Equipment List Table -->
+        <div style="font-size: 13px; font-weight: 700; color: #0f172a; margin: 8px 0 4px;">
+          ■ 납품 장비 목록
+        </div>
+        <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #334155; margin-bottom: 8px;">
           <thead>
-            <tr>
-              <th style="border: 1px solid #000; padding: 10px; background: #f0f0f0; width: 40%;">품목(장비종류)</th>
-              <th style="border: 1px solid #000; padding: 10px; background: #f0f0f0; width: 12%;">수량</th>
-              <th style="border: 1px solid #000; padding: 10px; background: #f0f0f0; width: 28%;">하차지</th>
-              <th style="border: 1px solid #000; padding: 10px; background: #f0f0f0; width: 20%;">비고</th>
+            <tr style="background: #f1f5f9; height: 28px;">
+              <th style="border: 1px solid #94a3b8; width: 45px; text-align: center; font-size: 11px; font-weight: 700; color: #1e293b;">No.</th>
+              <th style="border: 1px solid #94a3b8; text-align: center; font-size: 11px; font-weight: 700; color: #1e293b;">품목 (장비 모델명)</th>
+              <th style="border: 1px solid #94a3b8; width: 65px; text-align: center; font-size: 11px; font-weight: 700; color: #1e293b;">수량</th>
+              <th style="border: 1px solid #94a3b8; width: 45px; text-align: center; font-size: 11px; font-weight: 700; color: #1e293b;">단위</th>
+              <th style="border: 1px solid #94a3b8; width: 170px; text-align: center; font-size: 11px; font-weight: 700; color: #1e293b;">하차지 (현장명)</th>
+              <th style="border: 1px solid #94a3b8; width: 110px; text-align: center; font-size: 11px; font-weight: 700; color: #1e293b;">비고</th>
             </tr>
           </thead>
           <tbody>
-            ${cargoHtml}
+            ${displayRows.map((item, idx) => {
+              if (item) {
+                return `
+                  <tr style="height: 28px;">
+                    <td style="border: 1px solid #cbd5e1; padding: 4px; text-align: center; font-size: 11px; color: #0f172a;">${idx + 1}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 4px 8px; text-align: center; font-size: 11px; font-weight: 700; color: #0f172a;">${item.modelName || '고소작업대'}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 4px; text-align: center; font-size: 11px; font-weight: 700; color: #2563eb;">${item.count || 1}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 4px; text-align: center; font-size: 11px; color: #0f172a;">대</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 4px 8px; text-align: center; font-size: 11px; color: #0f172a;">${siteName}</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 4px 8px; text-align: center; font-size: 10.5px; color: #64748b;">${item.note || '정상 납품'}</td>
+                  </tr>
+                `;
+              } else {
+                return `
+                  <tr style="height: 28px;">
+                    <td style="border: 1px solid #cbd5e1; padding: 4px; text-align: center; font-size: 11px;">&nbsp;</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 4px 8px; text-align: center; font-size: 11px;">&nbsp;</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 4px; text-align: center; font-size: 11px;">&nbsp;</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 4px; text-align: center; font-size: 11px;">&nbsp;</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 4px 8px; text-align: center; font-size: 11px;">&nbsp;</td>
+                    <td style="border: 1px solid #cbd5e1; padding: 4px 8px; text-align: center; font-size: 10.5px;">&nbsp;</td>
+                  </tr>
+                `;
+              }
+            }).join('')}
+            <tr style="height: 28px; background: #f8fafc;">
+              <td colspan="6" style="border: 1.5px solid #334155; padding: 5px 12px; text-align: center; font-size: 12px; font-weight: 700; color: #0f172a;">
+                합 계 : &nbsp; 총 ${itemCount}개 품목 &nbsp; / &nbsp; ${totalCount}대
+              </td>
+            </tr>
           </tbody>
         </table>
-      </div>
-      
-      <div style="margin-top: 40px; text-align: right; font-size: 15px; line-height: 1.8;">
-        위 장비를 이상 없이 정히 인수(반납) 하였음을 확인합니다.<br/><br/>
-        <strong>인수자 (서명): </strong> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+
+        ${specialNotes ? `
+          <div style="margin-bottom: 8px; padding: 5px 10px; background: #fffbeb; border: 1px solid #e2e8f0; font-size: 10.5px; color: #92400e; font-weight: 700;">
+            ※ 장비 옵션 및 요청사항 : ${specialNotes}
+          </div>
+        ` : ''}
+
+        <!-- 6. Confirmation Statement -->
+        <div style="margin: 14px 0 10px; text-align: center;">
+          <div style="font-size: 15px; font-weight: 800; color: #0f172a; letter-spacing: 0.5px;">
+            상기 장비를 이상 없이 정히 납품 (인수) 하였음을 상호 확인합니다.
+          </div>
+          <div style="margin-top: 5px; font-size: 12.5px; font-weight: 700; color: #334155;">
+            ${signDateFormatted}
+          </div>
+        </div>
+
+        <!-- 7. Signatures Cards (Left: Supplier Stamp / Right: Receiver Signature) -->
+        <div style="display: flex; gap: 12px; margin-bottom: 10px;">
+          <!-- Left: 공급자 확인 -->
+          <div style="flex: 1; border: 1.5px solid #cbd5e1; border-radius: 4px; overflow: hidden; background: #fff;">
+            <div style="background: #f8fafc; border-bottom: 1px solid #cbd5e1; padding: 5px; text-align: center; font-size: 11.5px; font-weight: 700; color: #334155;">
+              공 &nbsp; 급 &nbsp; 자 &nbsp; 확 &nbsp; 인 &nbsp; (출 &nbsp; 고)
+            </div>
+            <div style="padding: 8px 12px; font-size: 10.5px; color: #475569; line-height: 1.5;">
+              <table style="width: 100%; border-collapse: collapse; margin-bottom: 6px;">
+                <tr>
+                  <td style="width: 65px; color: #475569; font-weight: 700; padding: 1px 0;">상 &nbsp; &nbsp; &nbsp; 호 :</td>
+                  <td style="color: #0f172a;">${sCorpName}</td>
+                </tr>
+                <tr>
+                  <td style="color: #475569; font-weight: 700; padding: 1px 0;">대 &nbsp; 표 &nbsp; 자 :</td>
+                  <td style="color: #0f172a;">${sRep} (직인생략)</td>
+                </tr>
+                <tr>
+                  <td style="color: #475569; font-weight: 700; padding: 1px 0;">사업자번호 :</td>
+                  <td style="color: #0f172a;">${sBizNo}</td>
+                </tr>
+                <tr>
+                  <td style="color: #475569; font-weight: 700; vertical-align: top; padding: 1px 0;">소 &nbsp; 재 &nbsp; 지 :</td>
+                  <td style="color: #0f172a; font-size: 10px;">${sAddr}</td>
+                </tr>
+              </table>
+              
+              <div style="width: 140px; height: 44px; border: 1.5px dashed #94a3b8; background: #f8fafc; margin: 8px auto 6px; display: flex; align-items: center; justify-content: center;">
+                <span style="font-size: 13px; font-weight: 800; color: #64748b; letter-spacing: 2px;">[ 직 인 생 략 ]</span>
+              </div>
+              
+              <div style="text-align: center; font-size: 10.5px; font-weight: 700; color: #475569; margin-top: 4px;">
+                ${sCorpName} 대표이사 ${sRep} (직인생략)
+              </div>
+              <div style="text-align: center; font-size: 9px; color: #94a3b8; margin-top: 2px;">
+                ※ 전자문서법에 의거 당사 직인을 생략하여 발행함
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: 인수자 확인 및 자필 서명 -->
+          <div style="flex: 1; border: 2px solid #2563eb; border-radius: 4px; overflow: hidden; background: #fff;">
+            <div style="background: #eff6ff; border-bottom: 1px solid #bfdbfe; padding: 5px; text-align: center; font-size: 11.5px; font-weight: 700; color: #1e40af;">
+              인 &nbsp; 수 &nbsp; 자 &nbsp; 확 &nbsp; 인 &nbsp; 및 &nbsp; 자 &nbsp; 필 &nbsp; 서 &nbsp; 명
+            </div>
+            <div style="padding: 8px 12px;">
+              <div style="font-size: 11px; font-weight: 700; color: #334155; margin-bottom: 2px;">
+                인수자(담당자) : <span style="color: #0f172a;">${receiverName}</span>
+              </div>
+              <div style="font-size: 11px; font-weight: 700; color: #2563eb; margin-bottom: 6px;">
+                인수자 연락처 : <span>${receiverPhone}</span>
+              </div>
+              
+              <div style="height: 84px; border: 1.5px solid #0f172a; background: #f8fafc; border-radius: 3px; display: flex; align-items: center; justify-content: center; position: relative;">
+                ${signatureUrl ? `
+                  <img src="${signatureUrl}" style="max-height: 76px; max-width: 90%; object-fit: contain;" alt="인수자 서명" />
+                ` : `
+                  <div style="text-align: center;">
+                    <div style="color: #94a3b8; font-size: 12px; font-weight: 700; letter-spacing: 1px;">(인수자 서명 또는 날인)</div>
+                  </div>
+                `}
+              </div>
+              
+              <div style="text-align: center; margin-top: 5px;">
+                ${signatureUrl ? `
+                  <span style="color: #15803d; font-size: 9.5px; font-weight: 700;">✓ 모바일 전자 자필 서명 확인 완료</span>
+                ` : `
+                  <span style="color: #64748b; font-size: 9.5px;">✓ 모바일 전자 자필 서명 또는 현장 수기 서명</span>
+                `}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 8. Footer Legal & Brand Notice -->
+        <div style="border-top: 1px solid #cbd5e1; padding-top: 6px; text-align: center;">
+          <div style="font-size: 9.5px; color: #64748b;">
+            ※ 본 확인서는 모바일 전자서명 시스템 및 현장 납품 확인 표준 서식에 의거 발행된 정식 납품확인서입니다.
+          </div>
+          <div style="font-size: 9px; color: #94a3b8; margin-top: 2px;">
+            ${effectiveTenant?.systemName || defaultSupplier.systemName || 'eBro Management System'} &nbsp;|&nbsp; ${sCorpName} &nbsp;|&nbsp; 고객센터: ${sTel} &nbsp;|&nbsp; ${sWebsite ? sWebsite.replace(/^https?:\/\//, '') : defaultSupplier.websiteUrl?.replace(/^https?:\/\//, '')}
+          </div>
+        </div>
+
       </div>
     </div>
   `;

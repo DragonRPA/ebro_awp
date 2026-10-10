@@ -763,14 +763,35 @@ export const OutboundInspections: React.FC = () => {
           <!DOCTYPE html>
           <html>
           <head>
-            <title>납품증 미리보기 - ${selectedGroup.customerName}</title>
+            <meta charset="utf-8">
+            <title>납품확인서 미리보기 - ${selectedGroup.customerName}</title>
             <style>
-              body { margin: 0; background: #f8fafc; padding: 24px; }
-              .preview-card { background: #fff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-radius: 8px; max-width: 820px; margin: 0 auto; overflow: hidden; }
+              body { margin: 0; background: #f1f5f9; padding: 20px 10px; font-family: 'Malgun Gothic', Pretendard, sans-serif; }
+              .preview-toolbar { max-width: 760px; margin: 0 auto 12px; display: flex; justify-content: space-between; align-items: center; }
+              .toolbar-title { font-size: 14px; font-weight: 700; color: #334155; }
+              .btn-group { display: flex; gap: 8px; }
+              .btn { border: none; padding: 7px 16px; font-size: 13px; font-weight: 700; border-radius: 4px; cursor: pointer; }
+              .btn-print { background: #2563eb; color: #fff; }
+              .btn-print:hover { background: #1d4ed8; }
+              .btn-close { background: #64748b; color: #fff; }
+              .btn-close:hover { background: #475569; }
+              .preview-wrapper { max-width: 760px; margin: 0 auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+              @media print {
+                body { background: #fff !important; padding: 0 !important; }
+                .preview-toolbar { display: none !important; }
+                .preview-wrapper { box-shadow: none !important; margin: 0 !important; max-width: 100% !important; }
+              }
             </style>
           </head>
           <body>
-            <div class="preview-card">
+            <div class="preview-toolbar">
+              <div class="toolbar-title">납품확인서 미리보기</div>
+              <div class="btn-group">
+                <button class="btn btn-print" onclick="window.print()">인쇄</button>
+                <button class="btn btn-close" onclick="window.close()">닫기</button>
+              </div>
+            </div>
+            <div class="preview-wrapper">
               ${receiptHtml}
             </div>
           </body>
