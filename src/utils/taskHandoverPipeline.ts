@@ -73,7 +73,7 @@ export async function issueHandoverTask(params: IssueHandoverTaskParams): Promis
     entityType: params.entityType,
     entityId: params.entityId,
     relatedEntityId: params.entityId,
-    senderId: params.senderId,
+    senderId: params.senderId && !['sys-admin', 'u-1', 'usr-admin'].includes(params.senderId) ? params.senderId : undefined,
     senderName: params.senderName,
     isCompleted: false,
     createdAt: nowIso,
