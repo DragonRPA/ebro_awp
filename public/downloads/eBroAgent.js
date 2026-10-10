@@ -507,10 +507,30 @@ function sendHtmlToPhysicalPrinter(htmlContent, printerName, title = '기연리�
   }
 
   agentLog('PRINT', `문서 렌더링 시작: 대상 프린터 [${printerName}], 제목: ${title}`);
-  const edgeCmd = `"${edgePath}" --headless --disable-gpu --run-all-compositor-stages-before-draw --print-to-pdf="${tempPrintPdf}" "${tempPrintHtml}"`;
-  execSync(edgeCmd, { windowsHide: true, timeout: 20000 });
+  const userProfDir = path.join(AGENT_HOME, 'edge_prof');
+  if (!fs.existsSync(userProfDir)) {
+    try { fs.mkdirSync(userProfDir, { recursive: true }); } catch (e) {}
+  }
 
-  if (!fs.existsSync(tempPrintPdf) || fs.statSync(tempPrintPdf).size === 0) {
+  const edgeCmd = `"${edgePath}" --headless --disable-gpu --no-sandbox --no-pdf-header-footer --user-data-dir="${userProfDir}" --run-all-compositor-stages-before-draw --print-to-pdf="${tempPrintPdf}" "${tempPrintHtml}"`;
+  try {
+    execSync(edgeCmd, { windowsHide: true, timeout: 20000 });
+  } catch (cmdErr) {
+    agentLog('WARN', 'Edge 변환 프로세스 경고 (비동기 완료 대기 진입): ' + cmdErr.message);
+  }
+
+  // PDF 파일 생성 및 디스크 기록 완결 대기 (최대 12초 폴링)
+  const startWait = Date.now();
+  let pdfReady = false;
+  while (Date.now() - startWait < 12000) {
+    if (fs.existsSync(tempPrintPdf) && fs.statSync(tempPrintPdf).size > 0) {
+      pdfReady = true;
+      break;
+    }
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 150);
+  }
+
+  if (!pdfReady || !fs.existsSync(tempPrintPdf) || fs.statSync(tempPrintPdf).size === 0) {
     throw new Error('PDF 변환 실패: 임시 인쇄 파일 생성 불가');
   }
 
