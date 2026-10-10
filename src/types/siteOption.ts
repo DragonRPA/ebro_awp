@@ -16,18 +16,6 @@ export interface SiteOptionItem {
   updatedAt?: string;
 }
 
-export interface SiteOptionProfile {
-  id: string;
-  siteId: string;
-  customerId: string;
-  paidOptionsSummary: string;       // 유상옵션 문자열 요약 (예: "협착방지봉 / 상부센서 (4EA), 4면 철망 설치")
-  protectionSummary: string;        // 보양작업 문자열 요약 (예: "4면 철망 보양")
-  checkedSpecs: Record<string, boolean>; // 요구사양 체크 맵
-  items: SiteOptionItem[];          // 옵션품목마스터와 1:1 매핑된 상세 옵션 목록
-  totalMonthlyOptionFee: number;    // 월 유상옵션 총액 합계
-  updatedAt: string;
-}
-
 /**
  * 옵션품목마스터(StandardOption) 풀을 기반으로 특정 현장의 기본 SiteOptionItem[] 생성 (100% 상속)
  */

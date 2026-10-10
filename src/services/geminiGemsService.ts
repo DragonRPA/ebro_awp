@@ -1,8 +1,6 @@
 // src/services/geminiGemsService.ts
 // e-Bro ERP Google Gemini GEMS 기반 4대 업무서식(출고·회수·교환·AS) 자동완성·교차검증 AI 서비스
 
-export type GemsWorkType = 'DISPATCH' | 'RETURN' | 'EXCHANGE' | 'FIELD_AS' | 'UNKNOWN';
-
 export interface GemsMessage {
   id: string;
   role: 'user' | 'model' | 'system';

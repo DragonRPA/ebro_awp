@@ -32,8 +32,6 @@ export const KOREA_SIDO_LIST = [
   '제주특별자치도'
 ] as const;
 
-export type KoreaSido = typeof KOREA_SIDO_LIST[number];
-
 // 전국 17개 시도별 시·군·구 및 5자리 행정표준코드 맵
 export const KOREA_SIGUNGU_MAP: Record<string, SigunguItem[]> = {
   '경기도': [

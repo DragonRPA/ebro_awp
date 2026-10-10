@@ -47,19 +47,6 @@ export interface ManualPage {
   items?: ManualAnnotationItem[];     // 媛€??諛붿씤??(Backward compatibility)
 }
 
-// DB row shape
-export interface ManualAnnotationRow {
-  id?: string;
-  tenant_id: string;
-  page_id: string;
-  page_title: string;
-  version: number;
-  annotations: ManualPage;
-  updated_by?: string | null;
-  updated_at?: string;
-  created_at?: string;
-}
-
 export const DEFAULT_BADGE_COLORS = [
   '#E53935', '#1D4ED8', '#059669', '#D97706',
   '#7C3AED', '#DB2777', '#0891B2', '#374151',

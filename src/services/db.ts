@@ -651,8 +651,6 @@ export const APPROVAL_EVENT_REGISTRY = [
   { code: 'STOCK_AUDIT_REPORT',          name: '재고실사보고',     targetTable: 'consumables',         category: '보고' },
 ] as const;
 
-export type ApprovalEventCode = typeof APPROVAL_EVENT_REGISTRY[number]['code'];
-
 export interface User {
   id: string;
   loginId?: string;
@@ -1757,8 +1755,6 @@ export const VEHICLE_TYPE_OPTIONS: string[] = [
   '5T장축 셀프',
   '8.5T 셀프'
 ];
-
-export type VehicleType = string;
 
 export interface Delivery {
   id: string;

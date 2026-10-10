@@ -38,8 +38,6 @@ type BlockId = 'WHO' | 'WHERE' | 'WHAT' | 'WHEN' | 'DETAILS';
 // 입력 출처 추적 (신뢰도 배지용)
 type FieldSource = 'user' | 'db' | 'parsed' | 'voice';
 
-interface FieldValue<T = string> { value: T; source: FieldSource; }
-
 // ─────────────────────────────────────────────────────────────────────────────
 // 공통 스타일 헬퍼
 // ─────────────────────────────────────────────────────────────────────────────

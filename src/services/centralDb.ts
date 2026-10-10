@@ -311,17 +311,6 @@ export async function saveCentralLegalNoticeTemplate(template: any): Promise<boo
 // 6. 모바일 앱(APK) 공식 배포 버전 원장 (apk_releases)
 // ──────────────────────────────────────────────
 
-export interface ApkReleaseItem {
-  id: string;
-  version_name: string;
-  version_code: number;
-  app_target: 'AWP_DRIVER' | 'IT_FIELD_ENGINEER' | 'ALL';
-  download_url: string;
-  release_notes?: string;
-  is_mandatory?: boolean;
-  created_at?: string;
-}
-
 /**
  * 최신 공식 모바일 앱(APK) 배포 버전 조회
  */
