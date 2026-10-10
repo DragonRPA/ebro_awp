@@ -284,16 +284,20 @@ export const DriverPortalPage: React.FC = () => {
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '14px' }}>
             <div style={{ display: 'flex' }}>
-              <span style={{ width: '70px', color: '#64748b', fontWeight: 600 }}>상차지</span>
-              <span style={{ flex: 1, fontWeight: 700 }}>{delivery.originAddress || '확인요망'}</span>
+              <span style={{ width: '90px', color: '#64748b', fontWeight: 600 }}>현장명</span>
+              <span style={{ flex: 1, fontWeight: 700 }}>{customerName ? `${customerName}_${siteName}` : (siteName || '확인요망')}</span>
             </div>
             <div style={{ display: 'flex' }}>
-              <span style={{ width: '70px', color: '#64748b', fontWeight: 600 }}>하차지</span>
-              <span style={{ flex: 1, fontWeight: 700, color: '#2563eb' }}>{delivery.destinationAddress || '확인요망'}</span>
+              <span style={{ width: '90px', color: '#64748b', fontWeight: 600 }}>하차지 주소</span>
+              <span style={{ flex: 1, fontWeight: 700, color: '#2563eb' }}>{delivery.destinationAddress || siteAddress || '확인요망'}</span>
             </div>
             <div style={{ display: 'flex' }}>
-              <span style={{ width: '70px', color: '#64748b', fontWeight: 600 }}>장비종류</span>
-              <span style={{ flex: 1, fontWeight: 700 }}>{delivery.cargoItems || '고소작업대'}</span>
+              <span style={{ width: '90px', color: '#64748b', fontWeight: 600 }}>납품장비</span>
+              <span style={{ flex: 1, fontWeight: 700 }}>{formatCargo(delivery.cargoItems)}</span>
+            </div>
+            <div style={{ display: 'flex' }}>
+              <span style={{ width: '90px', color: '#64748b', fontWeight: 600 }}>납품일</span>
+              <span style={{ flex: 1, fontWeight: 700 }}>{delivery.unloadingDate || delivery.requestDate}</span>
             </div>
           </div>
         </div>
