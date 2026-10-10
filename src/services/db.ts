@@ -2605,6 +2605,80 @@ export interface ExternalLease {
   updatedAt: string;
 }
 
+/** 📊 월간 결산 손익계산서 엔티티 (Financial Income Statement) */
+export interface MonthlyIncomeStatement {
+  id: string; // e.g. 'IS-2026-08'
+  targetYm: string; // 'YYYY-MM'
+  status: 'DRAFT' | 'ISSUED' | 'CONFIRMED';
+  issuedAt?: string;
+  issuedBy?: string;
+  issuedByName?: string;
+
+  // I. 매출
+  rentalRevenue: number;         // 순 렌탈료 매출
+  distributionRevenue: number;   // 유통매출
+  otherRevenue: {                // 기타 청구
+    transport: number;           // 운송비 청구
+    repair: number;              // 수리/AS비 청구
+    parts: number;               // 소모품/부품 청구
+    misc: number;                // 기타 청구
+    total: number;
+  };
+  totalRevenue: number;
+
+  // II. 매출원가
+  rentalCost: {                  // 렌탈료 원가
+    depreciation: number;        // 감가상각비
+    subleasePayment: number;     // 임차렌탈료 지급액
+    total: number;
+  };
+  pureRentalProfit: number;      // 순 렌탈료 이익 (순 렌탈료 매출 - 렌탈료 원가)
+  rentalMarginRate: number;      // 순 렌탈료 이익률 (%)
+
+  distributionCost: number;      // 유통 원가
+  pureDistributionProfit: number;// 순 유통 이익 (유통 매출 - 유통 원가)
+  distributionMarginRate: number;// 순 유통 이익률 (%)
+
+  otherCost: {                   // 기타 청구 원가 (당월 지급정산액)
+    transport: number;           // 운송비 정산지급액
+    repair: number;              // 외주수리비 정산지급액
+    parts: number;               // 소모품/부품 정산지급액
+    misc: number;                // 기타 정산지급액
+    total: number;
+  };
+  otherNetProfit: number;        // 기타 청구 차액 (기타 청구액 - 기타 정산지급액)
+
+  totalCostOfSales: number;      // 매출원가 합계
+  grossProfit: number;           // 매출총이익 (순 렌탈이익 + 순 유통이익 + 기타청구 차액)
+  grossMarginRate: number;       // 매출총이익률 (%)
+
+  // III. 판매비와 일반관리비
+  sgaExpenses: {
+    payroll: number;             // 임직원 급여 (기본급 + 연장수당 등)
+    fuelAndVehicle: number;      // 법인차량 유지/유류비
+    generalAdmin: number;        // 일반 관리비용
+    total: number;
+  };
+
+  // IV. 영업이익 및 예상 순이익
+  operatingProfit: number;       // 영업이익 (매출총이익 - 판관비)
+  operatingMarginRate: number;   // 영업이익률 (%)
+  estimatedTax: number;          // 추정 법인세 등
+  projectedNetProfit: number;    // 예상 순이익
+  netMarginRate: number;         // 순이익률 (%)
+
+  // 발행 상태 및 검증 메타데이터
+  settlementClosingStatus?: {
+    billingsClosed: boolean;
+    purchaseSettlementsClosed: boolean;
+    payrollClosed: boolean;
+    depreciationExecuted: boolean;
+  };
+  memo?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 /** 로컬 사이드카 에이전트 레지스트리 */
 
 
@@ -5144,7 +5218,8 @@ export const ALL_DB_KEYS = [
   'corporateVehicles', 'vehicleOperationLogs', 'vehicleFuelLogs',
   'approvalRules', 'ruleConsensus', 'approvalRequests', 'approvalSteps', 'delegationRecords',
   'stocktakingAudits', 'stocktakingAuditItems', 'collectedParts', 'equipmentManuals', 'standardOptions',
-  'printStations', 'printQueue', 'customRoles', 'rolePermissions', 'privacyAccessLogs', 'errorReports'
+  'printStations', 'printQueue', 'customRoles', 'rolePermissions', 'privacyAccessLogs', 'errorReports',
+  'monthlyIncomeStatements'
 ];
 
 // 🛡️ [전사 외래키(Foreign Key) 참조 무결성 룰 SSOT]: schema.sql 전수 파싱 기반
@@ -5835,9 +5910,13 @@ class LocalDB {
   get errorReports() { return this.get<ErrorReport>('errorReports', SEED_ERROR_REPORTS); }
   set errorReports(val: ErrorReport[]) { this.set('errorReports', val); }
 
+  get monthlyIncomeStatements() { return this.get<MonthlyIncomeStatement>('monthlyIncomeStatements', []); }
+  set monthlyIncomeStatements(val: MonthlyIncomeStatement[]) { this.set('monthlyIncomeStatements', val); }
+
   // Supabase 테이블 맵핑
   private mapToSupabaseTable(key: string): string {
     const mapping: Record<string, string> = {
+      monthlyIncomeStatements: 'monthly_income_statements',
       errorReports: 'error_reports',
       privacyAccessLogs: 'privacy_access_logs',
       printStations: 'print_stations',
@@ -6291,6 +6370,7 @@ class LocalDB {
       case 'purchaseSettlementItems': prefix = 'PSI-'; break;
       case 'privacyAccessLogs':   prefix = 'PLOG-';   break;
       case 'errorReports':        prefix = 'ERR-';    break;
+      case 'monthlyIncomeStatements': prefix = 'IS-'; break;
       default:
         prefix = key.slice(0, 4).toUpperCase() + '-';
     }
@@ -6579,6 +6659,8 @@ class LocalDB {
       privacyAccessLogs: 'privacyAccessLogs',
       error_reports: 'errorReports',
       errorReports: 'errorReports',
+      monthly_income_statements: 'monthlyIncomeStatements',
+      monthlyIncomeStatements: 'monthlyIncomeStatements',
     };
     return (reverseMapping[key] || key) as keyof LocalDB;
   }
