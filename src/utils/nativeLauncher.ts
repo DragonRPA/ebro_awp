@@ -459,7 +459,17 @@ export function buildDispatchSmsText(params: DispatchSmsParams): string {
 
   lines.push(``, `※ 현장 도착 30분 전 인수자에게 사전 연락 부탁드립니다.`);
 
+  
+  // 기사용 모바일 포털 링크 추가
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://giyoon.ebro.run';
+  lines.push('');
+  lines.push('──────────────');
+  lines.push('▶ 기사용 스마트 운송/납품 완료 ◀');
+  lines.push('아래 링크를 눌러 납품증 사진을 찍으면 운송완료 처리됩니다.');
+  lines.push(`${baseUrl}/driver-portal/${delivery.id}`);
+
   return lines.join('\n');
+
 }
 
 /**
@@ -729,7 +739,17 @@ export function buildDispatchKakaoTalkText(params: DispatchKakaoParams): string 
     lines.push(`담당자 : ${siteContactFull}`);
   }
 
+  
+  // 기사용 모바일 포털 링크 추가
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://giyoon.ebro.run';
+  lines.push('');
+  lines.push('──────────────');
+  lines.push('▶ 기사용 스마트 운송/납품 완료 ◀');
+  lines.push('아래 링크를 눌러 납품증 사진을 찍으면 운송완료 처리됩니다.');
+  lines.push(`${baseUrl}/driver-portal/${delivery.id}`);
+
   return lines.join('\n');
+
 }
 
 

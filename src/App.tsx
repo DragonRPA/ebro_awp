@@ -28,6 +28,7 @@ const AgenticDispatchStudioPage = React.lazy(() => import('./pages/AgenticDispat
 const AgenticSettlementAutopilotPage = React.lazy(() => import('./pages/AgenticSettlementAutopilotPage').then(module => ({ default: module.AgenticSettlementAutopilotPage })));
 const AgenticAssetLifecyclePage = React.lazy(() => import('./pages/AgenticAssetLifecyclePage').then(module => ({ default: module.AgenticAssetLifecyclePage })));
 import { markErpReady, markErpStatus } from './services/appReadySignal';
+const DriverPortalPage = React.lazy(() => import('./pages/DriverPortalPage').then(module => ({ default: module.DriverPortalPage })));
 import { DemoModeBanner } from './components/DemoModeBanner';
 import { isDemoMode, enterDemoMode } from './services/demoMode';
 import { SidebarCustomizationModal } from './components/SidebarCustomizationModal';
