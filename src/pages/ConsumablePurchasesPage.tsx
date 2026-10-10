@@ -34,7 +34,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
 
   // 엑셀 일괄 업로드 컬럼 정의
   const consumableExcelColumns: ExcelColumnDef[] = [
-    { key: 'modelName', label: '품목명', required: true, sample: '유압작동유 (ISO VG 46)' },
+    { key: 'modelName', label: '품목명', required: true, sample: '유압작동유 46' },
     { key: 'requestedQty', label: '신청수량', required: true, type: 'number', sample: 10 },
     { key: 'unitPrice', label: '예상단가', required: true, type: 'number', sample: 45000 },
     { key: 'sellerName', label: '공급처/구매처', required: true, sample: '삼화윤활유' },

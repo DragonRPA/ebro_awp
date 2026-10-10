@@ -1271,7 +1271,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
 
                 {/* 3. 일련번호 (S/N) */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)' }}>제조번호 (Serial No)</label>
+                  <label style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-secondary)' }}>제조번호</label>
                   <input
                     type="text"
                     value={singleSerialNo}
@@ -1574,7 +1574,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                       <span>순번</span>
                       <span>채번 관리번호</span>
                       <span>등록 모델</span>
-                      <span>제조번호 (Serial No)</span>
+                      <span>제조번호</span>
                       <span>제조년도</span>
                       <span>취득원가 (원)</span>
                       <span style={{ textAlign: 'center' }}>삭제</span>
@@ -1802,7 +1802,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                           <th style={{ whiteSpace: 'nowrap' }}>행</th>
                           <th style={{ whiteSpace: 'nowrap' }}>관리번호</th>
                           <th style={{ whiteSpace: 'nowrap' }}>모델명</th>
-                          <th style={{ whiteSpace: 'nowrap' }}>제조번호(S/N)</th>
+                          <th style={{ whiteSpace: 'nowrap' }}>제조번호</th>
                           <th style={{ whiteSpace: 'nowrap' }}>제조사</th>
                           <th style={{ whiteSpace: 'nowrap' }}>취득일자</th>
                           <th style={{ whiteSpace: 'nowrap' }}>취득원가</th>

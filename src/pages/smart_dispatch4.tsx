@@ -1395,7 +1395,7 @@ export const SmartDispatch4: React.FC = () => {
         currentVal: retrievalAssetIds.length > 0
           ? (isUnknownRetrieval ? '모름 (현장 확인 후 회수)' : `자산 #${retrievalAssetIds.join(', #')} (총 ${retrievalAssetIds.length}대)`)
           : '(회수 대상 미지정)',
-        hint: '대차(EXCHANGE) 시 회수할 전자산 (관리번호 모를 시 "모름" 선택 가능)',
+        hint: '교환 시 회수할 전자산 (관리번호 모를 시 "모름" 선택 가능)',
       });
     }
 
@@ -1776,7 +1776,7 @@ export const SmartDispatch4: React.FC = () => {
       setSelectedSafetyOptions(new Set(draft.safetyOptions));
     } else {
       const parsedOpts = new Set<string>();
-      if (noteText.includes('협착방지봉') || noteText.includes('상부센서')) parsedOpts.add('협착방지봉 / 상부센서 (4EA)');
+      if (noteText.includes('협착방지봉') || noteText.includes('상부센서')) parsedOpts.add('협착방지봉 / 상부센서');
       if (noteText.includes('소화기')) parsedOpts.add('소화기함 / 분말소화기');
       if (noteText.includes('철망')) parsedOpts.add('4면 철망 (안전 낙하방지망)');
       if (noteText.includes('인버터')) parsedOpts.add('인버터 설치');
@@ -1907,7 +1907,7 @@ export const SmartDispatch4: React.FC = () => {
         // 초안 상태 업데이트
         await submitDraft(draft.id);
         await loadDrafts();
-        showToast(`배차 대장(TruckDispatch) 및 계약에 정식 배차 1건이 등록되었습니다!`, 'success');
+        showToast(`배차 대장 및 계약에 정식 배차 1건이 등록되었습니다!`, 'success');
       } else {
         showToast(res?.errorMessage || '배차 등록 실패', 'error');
       }

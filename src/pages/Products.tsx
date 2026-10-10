@@ -415,7 +415,7 @@ export const Products: React.FC = () => {
       return {
         '번호': idx + 1,
         '모델명': p.modelName,
-        '피트(Feet)': p.feet ? `${p.feet} ft` : '-',
+        '피트': p.feet ? `${p.feet} ft` : '-',
         '동력': p.powerSource || '-',
         '작업높이': p.workingHeight || '-',
         '발판높이': p.platformHeight || '-',
@@ -686,7 +686,7 @@ export const Products: React.FC = () => {
                   축약명
                 </th>
                 <th onClick={() => handleSort('feet')} style={{ padding: '7px 8px', cursor: 'pointer', userSelect: 'none', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                  피트(Feet){renderSortArrow('feet')}
+                  피트{renderSortArrow('feet')}
                 </th>
                 <th onClick={() => handleSort('assetCount')} style={{ padding: '7px 8px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
                   실물자산 (당사/임차){renderSortArrow('assetCount')}
@@ -978,7 +978,7 @@ export const Products: React.FC = () => {
               <div style={{ padding: '10px 12px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <div style={{ fontWeight: 600, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Folder size={14} style={{ color: '#0070C0' }} /> R2 클라우드 문서함 (drcf)
+                    <Folder size={14} style={{ color: '#0070C0' }} /> R2 클라우드 문서함
                   </div>
                   
                   {/* 파일 업로드 버튼 */}

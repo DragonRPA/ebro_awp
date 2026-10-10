@@ -137,7 +137,7 @@ export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavi
         customerId: cust.id,
         actionDate: new Date().toISOString().slice(0, 10),
         actionType: nextStatus === 'BLOCKED' ? 'LEGAL' : 'CALL',
-        actionDetails: `경영진 모바일 홈 직권 상태 변경: ${nextStatus === 'BLOCKED' ? '신규 장비 출고금지(BLOCKED)' : '정상거래(ALLOWED) 허용'}`,
+        actionDetails: `경영진 모바일 홈 직권 상태 변경: ${nextStatus === 'BLOCKED' ? '신규 장비 출고금지' : '정상거래 허용'}`,
         recordedBy: currentUser?.name || '대표이사',
         mandateType: 'CEO_AUTO_MANDATE',
         promiseContactPerson: cust.representative || '대표자',
@@ -205,7 +205,7 @@ export const MobileExecutiveHome: React.FC<MobileExecutiveHomeProps> = ({ onNavi
           category: 'PAYROLL',
           categoryLabel: '급여마감',
           title: `${pc.month} 정기 급여 마감 승인`,
-          subText: `상태: 임시 저장(DRAFT) • 경영진 최종 승인 필요`,
+          subText: `상태: 임시 저장 • 경영진 최종 승인 필요`,
           createdAt: pc.createdAt,
           rawItem: pc,
         });

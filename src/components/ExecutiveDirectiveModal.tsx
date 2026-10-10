@@ -21,7 +21,7 @@ const DEPT_OPTIONS = [
 const ACTION_URL_PRESETS = [
   { label: '선택 안함 (메인 대시보드)', url: '/' },
   { label: '배차 / 운송 관리', url: '/admin/dispatch' },
-  { label: '출고 검수 (PDI)', url: '/admin/outbound_inspections' },
+  { label: '출고 검수', url: '/admin/outbound_inspections' },
   { label: '계약 관리 대장', url: '/admin/contract' },
   { label: '장비 정비 / 현장 AS', url: '/admin/repairs' },
   { label: '매출 청구 대장', url: '/admin/billings' },

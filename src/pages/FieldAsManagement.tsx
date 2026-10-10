@@ -2139,11 +2139,11 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                           ))
                         ) : (
                           <>
-                            <option value="CHK-000001">외관/바디 (CHK-000001)</option>
-                            <option value="CHK-000002">유압/동력 (CHK-000002)</option>
-                            <option value="CHK-000003">전기/배터리 (CHK-000003)</option>
-                            <option value="CHK-000004">주행/타이어 (CHK-000004)</option>
-                            <option value="CHK-000005">기타/접수 (CHK-000005)</option>
+                            <option value="CHK-000001">외관/바디</option>
+                            <option value="CHK-000002">유압/동력</option>
+                            <option value="CHK-000003">전기/배터리</option>
+                            <option value="CHK-000004">주행/타이어</option>
+                            <option value="CHK-000005">기타/접수</option>
                           </>
                         )}
                       </select>

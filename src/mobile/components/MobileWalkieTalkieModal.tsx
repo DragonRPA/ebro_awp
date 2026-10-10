@@ -1218,7 +1218,7 @@ export const MobileWalkieTalkieModal: React.FC<MobileWalkieTalkieModalProps> = (
                     </div>
                   ) : (
                     <span style={{ fontSize: '11px', color: '#38bdf8' }}>
-                      한국어 실시간 인식 중... (말씀하세요)
+                      한국어 음성 인식 중... (말씀하세요)
                     </span>
                   )}
                 </div>
@@ -1433,7 +1433,7 @@ export const MobileWalkieTalkieModal: React.FC<MobileWalkieTalkieModalProps> = (
                   <MessageSquare size={28} color="#334155" style={{ margin: '0 auto 8px' }} />
                   <div>이 채널의 무전 대화 기록이 없습니다.</div>
                   <div style={{ fontSize: '11px', color: '#475569', marginTop: '4px' }}>
-                    무전으로 말한 내용은 음성과 함께 실시간 텍스트로 자동 기록됩니다.
+                    무전으로 말한 내용은 음성과 함께 텍스트로 자동 기록됩니다.
                   </div>
                 </div>
               ) : (

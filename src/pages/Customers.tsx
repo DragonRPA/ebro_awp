@@ -2211,7 +2211,7 @@ const handleDeleteAccount = async (accId: string) => {
                     value={editingCust.transactionStatus || 'ALLOWED'}
                     onChange={e => setEditingCust({ ...editingCust, transactionStatus: e.target.value as CustomerTransactionStatus })}
                   >
-                    <option value="ALLOWED">정상 거래 (ALLOWED)</option>
+                    <option value="ALLOWED">정상 거래</option>
                     <option value="RESTRICT_NEW">추가계약 금지 (기존계약 유지)</option>
                     <option value="BLOCKED_ALL">전면 차단 (기존장비 회수)</option>
                   </select>

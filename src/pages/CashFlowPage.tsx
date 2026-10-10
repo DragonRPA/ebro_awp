@@ -15,7 +15,7 @@ export const CashFlowPage: React.FC = () => {
   if (!report.integrity.isValid) {
     return (
       <div style={{ padding: '24px', color: 'var(--danger)' }}>
-        <h2>⚠️ 데이터 무결성 오류 (Auditor Exception)</h2>
+        <h2>⚠️ 데이터 무결성 오류</h2>
         <p>DB의 누적 청구액과 수납액, 미수잔액의 대차대조 합계가 일치하지 않습니다.</p>
         <p>차액: {report.integrity.diff.toLocaleString()}원</p>
         <p>무음 실패 방지 원칙에 따라 보고서 렌더링을 중단합니다. 관리자에게 문의하세요.</p>
@@ -48,7 +48,7 @@ export const CashFlowPage: React.FC = () => {
           </span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>런웨이 (Runway)</span>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>운영 가능 기간</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: report.cashRunway < 3 ? 'var(--danger)' : 'var(--text-primary)' }}>
             {report.cashRunway} 개월
           </span>

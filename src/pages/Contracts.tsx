@@ -1501,7 +1501,7 @@ export const Contracts: React.FC = () => {
             <strong style={{ fontSize: '14px', color: 'var(--success)', whiteSpace: 'nowrap' }}>{contractKpiStats.activeCount}건</strong>
           </div>
           <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>만료 임박 (D-3)</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>만료 임박</span>
             <strong style={{ fontSize: '14px', color: contractKpiStats.d3Count > 0 ? 'var(--danger)' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>{contractKpiStats.d3Count}건</strong>
           </div>
           <div style={{ padding: '7px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

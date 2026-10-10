@@ -16,7 +16,7 @@ export const RegularReportsPage: React.FC = () => {
   return (
     <main style={{ padding: '24px', backgroundColor: 'var(--bg-app)', height: '100%', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 800 }}>경영진 정기보고서 (Executive Dossier)</h1>
+        <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 800 }}>경영진 정기보고서</h1>
         <div style={{ display: 'flex', gap: '12px' }}>
           <input 
             type="month" 
@@ -38,7 +38,7 @@ export const RegularReportsPage: React.FC = () => {
           </span>
         </div>
         <div className="card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>월간 예상 순현금(Net)</span>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>월간 예상 순현금</span>
           <span style={{ fontSize: '24px', fontWeight: 800, color: cfReport.expectedMonthlyNet < 0 ? 'var(--danger)' : 'var(--success)' }}>
             {cfReport.expectedMonthlyNet > 0 ? '+' : ''}{cfReport.expectedMonthlyNet.toLocaleString()}
           </span>
@@ -91,7 +91,7 @@ export const RegularReportsPage: React.FC = () => {
                 <th style={{ padding: '12px', textAlign: 'left' }}>장비 번호</th>
                 <th style={{ padding: '12px', textAlign: 'right' }}>월 렌탈 수익</th>
                 <th style={{ padding: '12px', textAlign: 'right' }}>당월 수리비용</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>순손실(Net)</th>
+                <th style={{ padding: '12px', textAlign: 'right' }}>순손실</th>
               </tr>
             </thead>
             <tbody>

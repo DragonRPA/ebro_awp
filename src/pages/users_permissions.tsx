@@ -44,7 +44,7 @@ export const UsersPermissions: React.FC = () => {
   const [isRoleDirty, setIsRoleDirty] = useState(false);
   const [collapsedRoleGroups, setCollapsedRoleGroups] = useState<Record<string, boolean>>({});
 
-  // ─── [탭 2: 직원 권한 상속 배정 (User Mapping)] 상태 ───
+  // ─── [탭 2: 직원 권한 상속 배정] 상태 ───
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDept, setFilterDept] = useState('ALL');
   const [filterRole, setFilterRole] = useState('ALL');
@@ -643,7 +643,7 @@ export const UsersPermissions: React.FC = () => {
       </div>
 
       {/* ═════════════════════════════════════════════════════════════════
-          탭 1: 권한 명칭 관리 (Master Studio)
+          탭 1: 권한 명칭 관리
           ═════════════════════════════════════════════════════════════════ */}
       {activeTab === 'ROLES' && (
         <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '16px', alignItems: 'start' }}>
@@ -1064,7 +1064,7 @@ export const UsersPermissions: React.FC = () => {
       )}
 
       {/* ═════════════════════════════════════════════════════════════════
-          탭 2: 직원 권한 상속 배정 (User Mapping)
+          탭 2: 직원 권한 상속 배정
           ═════════════════════════════════════════════════════════════════ */}
       {activeTab === 'USERS' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -1433,7 +1433,7 @@ export const UsersPermissions: React.FC = () => {
             <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px' }}>
               {previewUser.role === 'ADMIN' ? (
                 <div style={{ padding: '20px', textAlign: 'center', color: 'var(--success)', fontWeight: 700 }}>
-                  최고 관리자(ADMIN) 등급으로 전사 모든 메뉴에 대해 조회 및 저장 권한이 상시 허용되어 있습니다.
+                  최고 관리자 등급으로 전사 모든 메뉴에 대해 조회 및 저장 권한이 상시 허용되어 있습니다.
                 </div>
               ) : !previewUser.customRoleId ? (
                 <div style={{ padding: '20px', textAlign: 'center', color: 'var(--warning)' }}>

@@ -302,7 +302,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
       time: isAsap ? 'ASAP' : timeStr,
       isAsap,
       confirmQuestion: '',
-      displayText: isAsap ? `${dateStr} [긴급 최우선 배차(ASAP)]` : `${dateStr} ${timeStr}`
+      displayText: isAsap ? `${dateStr} [긴급 최우선 배차]` : `${dateStr} ${timeStr}`
     };
     setDateTimeResult(dtResult);
     setRecognizedText(dtResult.displayText);
@@ -778,7 +778,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
             time: 'ASAP',
             isAsap: true,
             confirmQuestion: '',
-            displayText: `${pendingAsapDate} [긴급 최우선 배차(ASAP)]`
+            displayText: `${pendingAsapDate} [긴급 최우선 배차]`
           };
           setDateTimeResult(dtResult);
           setIsAwaitingAsapConfirmation(false);
@@ -883,7 +883,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
     const finalContactPhone = siteContactPhone || selectedSite?.contact || selectedCustomer.repContact || '';
 
     const combinedNotes = [
-      dateTimeResult?.isAsap ? '[긴급 최우선 배차(ASAP)]' : '',
+      dateTimeResult?.isAsap ? '[긴급 최우선 배차]' : '',
       equipmentResult?.matchedItem ? `${equipmentResult.matchedItem.manufacturer} ${equipmentResult.order.modelName}` : '',
       specialMemo ? `[현장특이사항] ${specialMemo}` : '',
       paidOptions ? `[유상옵션: ${paidOptions}]` : '',
@@ -1005,7 +1005,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
                 fontWeight: '700',
                 cursor: 'pointer'
               }}
-              title="음성 안내(TTS) 켜기/끄기"
+              title="음성 안내 켜기/끄기"
             >
               {ttsEnabled ? <Volume2 size={13} color="#60a5fa" /> : <VolumeX size={13} color="#94a3b8" />}
               <span>{ttsEnabled ? '소리 ON' : '소리 OFF'}</span>
@@ -1610,11 +1610,11 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
               {[
                 { ft: '19ft', model: 'GS-1930', label: '19ft (GS-1930)' },
-                { ft: '26ft', model: 'SJ-3219', label: '26ft 협폭 (3219)' },
-                { ft: '26ft', model: 'GS-2646', label: '26ft 광폭 (2646)' },
+                { ft: '26ft', model: 'SJ-3219', label: '26ft 협폭' },
+                { ft: '26ft', model: 'GS-2646', label: '26ft 광폭' },
                 { ft: '32ft', model: 'SJ-3246', label: '32ft (3246)' },
                 { ft: '40ft', model: 'GS-4047', label: '40ft (4047)' },
-                { ft: '53ft', model: 'S1614AC+', label: '53ft 대형 (Dingli)' },
+                { ft: '53ft', model: 'S1614AC+', label: '53ft 대형' },
               ].map(item => {
                 const isSelected = touchEquipmentFt === item.ft && touchEquipmentModel === item.model;
                 return (

@@ -448,7 +448,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
   const handleStatusChange = async (userId: string, newStatus: UserNode['status']) => {
     const targetUser = users.find(u => u.id === userId);
     if (targetUser && (targetUser.loginId === 'admin' || targetUser.id === 'u-1' || targetUser.id === 'sys-admin')) {
-      showErrorModal('개발자(admin) 계정은 재직 상태를 변경(퇴사/휴직 처리)할 수 없습니다.', '상태 변경 불가');
+      showErrorModal('관리자 계정은 재직 상태를 변경(퇴사/휴직 처리)할 수 없습니다.', '상태 변경 불가');
       return;
     }
     
@@ -499,7 +499,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
         return;
       }
       if (selectedProfile.role === 'ADMIN' && !isSuperAdmin) {
-        showErrorModal('ADMIN 시스템 역할은 개발자(admin) 계정만 부여할 수 있습니다.', '권한 부여 제한');
+        showErrorModal('ADMIN 시스템 역할은 관리자 계정만 부여할 수 있습니다.', '권한 부여 제한');
         return;
       }
       const eff = getUserEffectiveTier(
@@ -523,7 +523,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
       
       setUsers(updated);
       setSelectedProfile(null);
-      showToast('임직원 프로필 및 시스템 역할(role) 설정이 성공적으로 저장되었습니다.');
+      showToast('임직원 프로필 및 시스템 역할 설정이 성공적으로 저장되었습니다.');
     }
   };
 
@@ -869,7 +869,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
             }}
             className={draggedUserId ? 'drop-target-active' : ''}
           >
-            미배정 인력 풀 (Pool)
+            미배정 인력 목록
             <div style={{ fontSize: '11.5px', color: 'var(--danger)', marginTop: '2px' }}>{unassignedCount}명 대기 중</div>
           </div>
         </div>
@@ -917,7 +917,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)' }}>
-                      보편 조직 기능 매핑 (Universal Attributes)
+                      조직 기능 매핑
                     </span>
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
                       (복수 겸임 지원 • 직무별 ToDo 피드 자동 라우팅)
@@ -1275,7 +1275,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
           <div className="card" style={{ width: '450px', padding: '24px' }}>
             <div style={{ display: 'flex', gap: '12px', color: 'var(--danger)', marginBottom: '16px' }}>
               <AlertCircle size={28} />
-              <h3 style={{ fontSize: '18px', fontWeight: '700', marginTop: '2px' }}>퇴사 처리 및 업무 이관 (Hand-off)</h3>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', marginTop: '2px' }}>퇴사 처리 및 업무 이관</h3>
             </div>
             
             <p style={{ fontSize: '14px', color: 'var(--text-main)', lineHeight: '1.5' }}>

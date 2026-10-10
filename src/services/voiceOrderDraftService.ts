@@ -521,8 +521,8 @@ export function parseOptionsAndSpecsVoiceInput(text: string): ParsedOptionsSpecs
   // 3. 요구 사양 키워드 매핑
   if (/감지봉|방지봉|협착\s*방지|협착\s*센서|상단감지|상부\s*협착/i.test(clean)) {
     checkedSpecs['spec3'] = true;
-    paidOpts.push('상단 협착감지봉(4EA)');
-    modifiedFields.push('협착감지봉(4EA)');
+    paidOpts.push('상단 협착감지봉');
+    modifiedFields.push('협착감지봉');
   }
   if (/원판|원판설치/i.test(clean)) {
     checkedSpecs['spec4'] = true;
@@ -688,7 +688,7 @@ export function parseAsCallTranscript(
   // 1. 긴급도 판별
   if (/급해|당장|중단|작업\s*못해|사고|위험|빨리/i.test(cleanText)) {
     priority = 'URGENT';
-    modifiedFields.push('우선순위: 긴급(URGENT)');
+    modifiedFields.push('우선순위: 긴급');
   }
 
   // 2. 카테고리 매핑
@@ -1225,7 +1225,7 @@ export function parseDateTimeVoiceInput(text: string, baseDate: Date = new Date(
 
   if (isAsap) {
     confirmQuestion = `${dateDisplay}, 시간 무관하게 가장 빨리(최우선 배차)로 접수할까요?`;
-    displayText = `${dateDisplay} [긴급 최우선 배차(ASAP)]`;
+    displayText = `${dateDisplay} [긴급 최우선 배차]`;
   } else {
     confirmQuestion = `${dateDisplay} ${targetTime} 도착으로 지정할까요?`;
     displayText = `${dateDisplay} ${targetTime}`;

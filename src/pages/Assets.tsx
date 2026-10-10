@@ -406,7 +406,7 @@ export const Assets: React.FC = () => {
         '모델명': a.modelName || '-',
         '규격(피트)': getAssetFeet(a),
         '제조사': a.manufacturer || '-',
-        '제조번호(S/N)': a.serialNo || '-',
+        '제조번호': a.serialNo || '-',
         '연식': a.manufactureYear || '-',
         '소유구분': a.ownerType === 'OWNED' ? '당사자산' : '외부임차',
         '상태': isReturned ? '임차처 반납완료' : getAssetStatusLabel(a.status),
@@ -699,8 +699,8 @@ export const Assets: React.FC = () => {
                 <th onClick={() => handleSort('manufacturer')} style={{ padding: '7px 8px', width: '90px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
                   제조사{renderSortArrow('manufacturer')}
                 </th>
-                {/* 6. 제조번호(S/N) */}
-                <th style={{ padding: '7px 8px', width: '100px', whiteSpace: 'nowrap' }}>제조번호(S/N)</th>
+                {/* 6. 제조번호 */}
+                <th style={{ padding: '7px 8px', width: '100px', whiteSpace: 'nowrap' }}>제조번호</th>
                 {/* 7. 연식 */}
                 <th style={{ padding: '7px 8px', width: '70px', textAlign: 'center', whiteSpace: 'nowrap' }}>연식</th>
                 {/* 8. 소유구분 */}
@@ -1140,7 +1140,7 @@ export const Assets: React.FC = () => {
                       <input style={inputStyle} value={editForm.modelName || ''} onChange={ef('modelName')} />
                       {(() => { const mp = products?.find(p => p.modelName === editForm.modelName); return mp?.shortName ? <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>축약명: {mp.shortName}</div> : null; })()}
                     </div>
-                    <div><label style={labelStyle}>제조번호 (S/N)</label><input style={inputStyle} value={editForm.serialNo || ''} onChange={ef('serialNo')} /></div>
+                    <div><label style={labelStyle}>제조번호</label><input style={inputStyle} value={editForm.serialNo || ''} onChange={ef('serialNo')} /></div>
                     <div><label style={labelStyle}>제조사</label><input style={inputStyle} value={editForm.manufacturer || ''} onChange={ef('manufacturer')} /></div>
                     <div><label style={labelStyle}>제조년도</label><input style={inputStyle} value={editForm.manufactureYear || ''} onChange={ef('manufactureYear')} /></div>
                     <div>

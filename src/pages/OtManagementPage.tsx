@@ -955,7 +955,7 @@ export const OtManagementPage: React.FC = () => {
                     backgroundColor: 'var(--bg-main)',
                     border: '1px solid var(--border-color)'
                   }}
-                  title="30분 빼기 (-30m)"
+                  title="30분 차감"
                 >
                   <ChevronLeft size={16} />
                 </button>

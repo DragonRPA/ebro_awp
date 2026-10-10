@@ -877,7 +877,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
 
     const matchedCust = findCustomerByNormalizedName(customers, customerName);
     if (matchedCust?.transactionStatus === 'BLOCKED') {
-      showToast('🚫 경영진 처분으로 인해 거래 불가(BLOCKED) 상태인 거래처입니다. 신규 출고의뢰 발행이 차단됩니다.', 'error');
+      showToast('🚫 경영진 처분으로 인해 거래 불가 상태인 거래처입니다. 신규 출고의뢰 발행이 차단됩니다.', 'error');
       return;
     }
     if (matchedCustOverdue && matchedCustOverdue.overdueSum > 0 && !dispatchOverdueAcknowledged) {
@@ -1207,11 +1207,11 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                 <div style={{ padding: '10px 14px', borderRadius: '6px', backgroundColor: matchedCustOverdue.isBlocked ? '#fef2f2' : '#fffbeb', border: `1px solid ${matchedCustOverdue.isBlocked ? '#f87171' : '#fcd34d'}`, color: matchedCustOverdue.isBlocked ? '#991b1b' : '#92400e', marginBottom: '12px', fontSize: '12px' }}>
                   <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                     <AlertTriangle size={15} color={matchedCustOverdue.isBlocked ? '#dc2626' : '#d97706'} />
-                    {matchedCustOverdue.isBlocked ? '🚫 [경영진 처분] 거래 불가 (BLOCKED)' : '⚠️ [연체 채권 경각심 통제 경보]'}
+                    {matchedCustOverdue.isBlocked ? '🚫 [경영진 처분] 거래 불가' : '⚠️ [연체 채권 경각심 통제 경보]'}
                   </div>
                   <div>
                     {matchedCustOverdue.isBlocked
-                      ? '해당 고객사는 경영진의 출고금지(BLOCKED) 처분으로 신규 출고의뢰 발행이 전면 차단되어 있습니다.'
+                      ? '해당 고객사는 경영진의 출고금지 처분으로 신규 출고의뢰 발행이 전면 차단되어 있습니다.'
                       : `해당 거래처는 약정 납기일이 도과된 미납 청구서 ${matchedCustOverdue.count}건 (총 ₩${matchedCustOverdue.overdueSum.toLocaleString()}원)이 존재합니다.`
                     }
                   </div>

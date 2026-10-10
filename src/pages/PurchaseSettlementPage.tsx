@@ -676,7 +676,7 @@ export const PurchaseSettlementPage: React.FC = () => {
                           </div>
                           {p.bankTransactionId && (
                             <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)', fontWeight: 'bold' }}>
-                              🏦 통장 출금 증빙 연결됨 (Audit)
+                              🏦 통장 출금 증빙 연결됨
                             </span>
                           )}
                         </div>
@@ -716,7 +716,7 @@ export const PurchaseSettlementPage: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
               <h3 style={{ fontWeight: '800', fontSize: '17px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
                 <CreditCard size={18} style={{ color: 'var(--primary)' }} />
-                월말 매입 정산 지급 처리 & 통장 출금 대사 (Audit)
+                월말 매입 정산 지급 처리 및 통장 출금 대사
               </h3>
               <button onClick={() => { setPaymentModal(null); setSelectedBankTxId(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
                 <X size={20} />
@@ -1000,7 +1000,7 @@ export const PurchaseSettlementPage: React.FC = () => {
                     <div>
                       <h3 style={{ fontSize: '17px', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
                         <FileText size={18} color="var(--primary)" />
-                        지급 대사 이력 상세 명세서 (Audit Trail)
+                        지급 대사 이력 상세 명세서
                       </h3>
                       <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                         매입처: <strong>{targetSettlement.vendorName}</strong> | 정산 연월: {targetSettlement.settlementYm}
@@ -1030,7 +1030,7 @@ export const PurchaseSettlementPage: React.FC = () => {
                     {bankTx && (
                       <div style={{ padding: '12px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.3)', fontSize: '13px' }}>
                         <div style={{ fontWeight: 'bold', color: '#10B981', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>🏦 연결된 통장 출금 증빙 (Audit Log)</span>
+                          <span>🏦 연결된 통장 출금 증빙</span>
                         </div>
                         <div><strong>출금 은행/상호:</strong> [{bankTx.bankName || '은행'}] {bankTx.counterparty || bankTx.senderName || '-'}</div>
                         <div><strong>출금 일시:</strong> {bankTx.transactionDate} | <strong>출금액:</strong> -{bankTx.withdrawAmount.toLocaleString()}원</div>

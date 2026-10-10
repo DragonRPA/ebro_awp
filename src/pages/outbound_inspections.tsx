@@ -427,7 +427,7 @@ export const OutboundInspections: React.FC = () => {
     const contract = db.contracts.find(c => c.id === selectedGroup.contractId);
     const customer = contract ? db.customers.find(c => c.id === contract.customerId) : undefined;
     if (customer && isCustomerRestricted(customer.transactionStatus)) {
-      showErrorModal(`⚠️ [출고제한 가드] 연체 및 거래차단(BLOCKED) 상태인 고객사(${customer.name})의 장비는 출고 승인할 수 없습니다.\n관리부 채권 확인 및 거래 제한 해제 후 진행해 주십시오.`);
+      showErrorModal(`⚠️ [출고제한 가드] 연체 및 거래차단 상태인 고객사(${customer.name})의 장비는 출고 승인할 수 없습니다.\n관리부 채권 확인 및 거래 제한 해제 후 진행해 주십시오.`);
       return;
     }
 
@@ -1819,10 +1819,10 @@ export const OutboundInspections: React.FC = () => {
             <div style={{ marginBottom: '16px', padding: '10px 14px', backgroundColor: 'var(--bg-body)', borderRadius: '10px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  🛠️ 반려 대상 장비를 [수리정비중 (REPAIRING)]으로 전환
+                  🛠️ 반려 대상 장비를 ['수리정비중']으로 전환
                 </div>
                 <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                  꺼짐(OFF) 선택 시 임대가능(AVAILABLE) 재고 상태로 원복됩니다.
+                  해제 선택 시 '임대가능' 재고 상태로 원복됩니다.
                 </div>
               </div>
               <ToggleSwitch
@@ -1909,10 +1909,10 @@ export const OutboundInspections: React.FC = () => {
             <div style={{ marginBottom: '16px', padding: '10px 14px', backgroundColor: 'var(--bg-body)', borderRadius: '10px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  🛠️ 기존 교체 대상 장비 {exchangeModalAsset.assetNo}를 [수리정비중 (REPAIRING)]으로 전환
+                  🛠️ 기존 교체 대상 장비 {exchangeModalAsset.assetNo}를 ['수리정비중']으로 전환
                 </div>
                 <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                  꺼짐(OFF) 선택 시 임대가능(AVAILABLE) 재고 상태로 유지됩니다.
+                  해제 선택 시 '임대가능' 재고 상태로 유지됩니다.
                 </div>
               </div>
               <ToggleSwitch

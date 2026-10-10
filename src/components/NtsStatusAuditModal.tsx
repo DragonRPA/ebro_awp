@@ -243,7 +243,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
           customerId: cust.id,
           actionDate: new Date().toISOString().slice(0, 10),
           actionType: 'LEGAL',
-          actionDetails: `[국세청 전수점검] 폐업 확인(폐업일: ${closedDt})에 따른 직권 출고제한(BLOCKED) 조치 발효`,
+          actionDetails: `[국세청 전수점검] 폐업 확인(폐업일: ${closedDt})에 따른 직권 출고제한 조치 발효`,
           recordedBy: currentUser?.name || '시스템',
           mandateType: 'CEO_AUTO_MANDATE',
           createdAt: new Date().toISOString()
@@ -308,7 +308,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
       '거래처명': item.name,
       '사업자등록번호': formatBizNo(item.cleanNo),
       '대표자': item.representative || '-',
-      '국세청상태': item.nts?.statusLabel || (item.isClosed ? '폐업자(ERP)' : '계속사업자'),
+      '국세청상태': item.nts?.statusLabel || (item.isClosed ? '폐업자' : '계속사업자'),
       '과세유형': item.nts?.taxType || item.taxType || '-',
       '폐업일자': item.nts?.closedDate || item.closedDate || '-',
       'ERP거래상태': item.transactionStatus === 'BLOCKED' ? '출고제한' : '정상거래',
@@ -914,7 +914,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                             color: 'var(--text-muted, #94a3b8)',
                             backgroundColor: 'var(--bg-secondary, #f1f5f9)'
                           }}>
-                            {item.isClosed ? '폐업(ERP)' : '미조회'}
+                            {item.isClosed ? '폐업' : '미조회'}
                           </span>
                         )}
                       </td>
@@ -1138,7 +1138,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main, #0f172a)', whiteSpace: 'nowrap' }}>
-                  공공데이터포털 일반 인증키 (ServiceKey)
+                  공공데이터포털 일반 인증키
                 </label>
                 <input
                   type="text"

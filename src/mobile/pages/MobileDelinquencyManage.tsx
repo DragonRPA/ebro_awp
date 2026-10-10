@@ -229,7 +229,7 @@ export const MobileDelinquencyManage: React.FC = () => {
   // 헌장 1.2 & 5.2 준수: 직권 출고금지 / 해제 처분 트랜잭션 (경영진/관리자 전용)
   const handleToggleBlock = async (item: CalculatedDelinquency) => {
     if (!isExecutive) {
-      showErrorModal('신규계약 및 출고금지(BLOCKED) 처분은 경영진/관리자 고유 권한입니다.', '권한 없음');
+      showErrorModal('신규계약 및 출고금지 처분은 경영진/관리자 고유 권한입니다.', '권한 없음');
       return;
     }
     const cust = customers.find(c => c.id === item.customerId);
@@ -241,7 +241,7 @@ export const MobileDelinquencyManage: React.FC = () => {
 
       // 사법 감사 판정 준수: delinquencyActionLogs 영구 불변 기록
       const memo = nextStatus === 'BLOCKED_ALL'
-        ? '[경영진 직권 처분] 신규 장비 출고 및 배차 전면 금지(BLOCKED_ALL) 조치 발효'
+        ? '[경영진 직권 처분] 신규 장비 출고 및 배차 전면 금지 조치 발효'
         : '[경영진 직권 처분] 대금 변제/확약 확인에 따른 출고금지 해제 (정상거래 환원)';
       db.insertRow<DelinquencyActionLog>('delinquencyActionLogs', {
         customerId: cust.id,

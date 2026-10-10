@@ -802,7 +802,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
           {/* 좌측: 문서 타이틀 및 메타 */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 900, letterSpacing: '-0.5px', color: 'var(--text-main)' }}>
-              초과근무(OT) 확인 및 결재신청서
+              연장근무 확인 및 결재신청서
             </h1>
             <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>
               ※ 본 문서는 임직원 초과근무 시간 확인 및 결재용이며, 개인별 시급·급여 금액은 표기되지 않습니다.
@@ -931,7 +931,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
               {employeeSummaries.length === 0 ? (
                 <tr>
                   <td colSpan={8} style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)' }}>
-                    해당 연월({targetMonth})의 초과근무(OT) 등록 내역이 없습니다.
+                    해당 연월({targetMonth})의 연장근무 등록 내역이 없습니다.
                   </td>
                 </tr>
               ) : (

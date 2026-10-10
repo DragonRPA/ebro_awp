@@ -1133,7 +1133,7 @@ export const InitialDbUploader: React.FC = () => {
       '<div style="font-size:11px;color:#94a3b8;">현재 수집된 일시 / 작성자:</div>' +
       '<div id="hud_current_date" style="color:#facc15;font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">대기 중...</div>' +
     '</div>' +
-    '<div style="margin-bottom:12px;font-size:11px;color:#cbd5e1;line-height:1.4;max-height:42px;overflow:hidden;text-overflow:ellipsis;" id="hud_info">게시글 본문(txtBody) 읽는 중...</div>' +
+    '<div style="margin-bottom:12px;font-size:11px;color:#cbd5e1;line-height:1.4;max-height:42px;overflow:hidden;text-overflow:ellipsis;" id="hud_info">게시글 본문 읽는 중...</div>' +
     '<div style="display:flex;gap:8px;">' +
       '<button data-hs-trigger="Save" id="hud_btn_stop" style="flex:1;padding:8px 10px;background:#ef4444;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px;">중단 및 저장</button>' +
       '<button id="hud_btn_save" style="flex:1;padding:8px 10px;background:#10b981;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:700;font-size:12px;">지금 다운로드</button>' +
@@ -1821,7 +1821,7 @@ export const InitialDbUploader: React.FC = () => {
                   {[
                     { label: '총 배차건', value: `${dispatchParsedData.stats.total}건`, color: 'var(--text-main)' },
                     { label: '완료', value: `${dispatchParsedData.stats.completed}건`, color: 'var(--success)' },
-                    { label: '왕복(EXCHANGE)', value: `${dispatchParsedData.stats.exchangeCount}건`, color: '#7c3aed' },
+                    { label: '교환', value: `${dispatchParsedData.stats.exchangeCount}건`, color: '#7c3aed' },
                     { label: '2026 운송사', value: `${dispatchParsedData.stats.transportCompaniesCount}개사`, color: '#0284c7' },
                     { label: '고객 미매핑', value: `${dispatchParsedData.stats.customerUnmatched}건`, color: dispatchParsedData.stats.customerUnmatched > 0 ? '#dc2626' : '#059669' },
                     { label: '계약 미매핑', value: `${dispatchParsedData.stats.contractUnmatched}건`, color: dispatchParsedData.stats.contractUnmatched > 0 ? '#d97706' : '#059669' },
@@ -3087,7 +3087,7 @@ export const InitialDbUploader: React.FC = () => {
                   라이프사이클 이벤트 체인 및 회계 데이터 분석 현황
                 </h3>
                 <span style={{ fontSize: '13px', color: 'var(--success)', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                  ✓ 스키마 및 외래키(FK) 무결성 100% 검증 완료
+                  ✓ 스키마 및 외래키 무결성 검증 완료
                 </span>
               </div>
 
@@ -3096,7 +3096,7 @@ export const InitialDbUploader: React.FC = () => {
                 {/* 1. 마스터 자산 */}
                 <div style={{ backgroundColor: 'var(--bg-app)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Layers size={14} /> 자산 대장 (assets)
+                    <Layers size={14} /> 자산 대장
                   </div>
                   <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-main)', marginTop: '4px' }}>
                     {parsedData.stats.assetsCount} 대
@@ -3109,7 +3109,7 @@ export const InitialDbUploader: React.FC = () => {
                 {/* 2. 장비 모델 & 제원문서 */}
                 <div style={{ backgroundColor: '#f0fdfa', padding: '14px', borderRadius: '8px', border: '1px solid #ccfbf1' }}>
                   <div style={{ fontSize: '12px', color: '#0f766e', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <FileText size={14} /> 모델 & 실물 제원표 (products)
+                    <FileText size={14} /> 모델 및 제원표
                   </div>
                   <div style={{ fontSize: '20px', fontWeight: 700, color: '#115e59', marginTop: '4px' }}>
                     {parsedData.stats.productsCount} 종
@@ -3122,7 +3122,7 @@ export const InitialDbUploader: React.FC = () => {
                 {/* 3. 렌탈 계약 */}
                 <div style={{ backgroundColor: 'var(--bg-app)', padding: '14px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <FileCheck size={14} /> 렌탈 계약 (contracts)
+                    <FileCheck size={14} /> 렌탈 계약
                   </div>
                   <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-main)', marginTop: '4px' }}>
                     {parsedData.stats.contractsCount} 건
@@ -3133,7 +3133,7 @@ export const InitialDbUploader: React.FC = () => {
                 {/* 4. 출고 배차 체인 */}
                 <div style={{ backgroundColor: 'rgba(37, 99, 235, 0.12)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
                   <div style={{ fontSize: '12px', color: 'var(--primary)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Truck size={14} /> 출고 배차 (deliveries)
+                    <Truck size={14} /> 출고 배차
                   </div>
                   <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-main)', marginTop: '4px' }}>
                     {parsedData.stats.outboundDeliveriesCount} 건
@@ -3144,7 +3144,7 @@ export const InitialDbUploader: React.FC = () => {
                 {/* 5. 회수 배차 체인 */}
                 <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.12)', padding: '14px', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
                   <div style={{ fontSize: '12px', color: '#10b981', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <RotateCcw size={14} /> 회수 배차 (deliveries)
+                    <RotateCcw size={14} /> 회수 배차
                   </div>
                   <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-main)', marginTop: '4px' }}>
                     {parsedData.stats.inboundDeliveriesCount} 건
@@ -3155,7 +3155,7 @@ export const InitialDbUploader: React.FC = () => {
                 {/* 6. 과거 소급 청구서 */}
                 <div style={{ backgroundColor: '#faf5ff', padding: '14px', borderRadius: '8px', border: '1px solid #e9d5ff' }}>
                   <div style={{ fontSize: '12px', color: '#7e22ce', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <History size={14} /> 과거 소급 청구서 (billings)
+                    <History size={14} /> 과거 소급 청구서
                   </div>
                   <div style={{ fontSize: '20px', fontWeight: 700, color: '#6b21a8', marginTop: '4px' }}>
                     {parsedData.stats.historicalBillingsCount} 건
@@ -3251,7 +3251,7 @@ export const InitialDbUploader: React.FC = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
                 <ShieldCheck size={24} color="#059669" />
                 <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                  4대 대차대조(Reconciliation) 무결성 검증 증명서
+                  4대 대차대조 무결성 검증 증명서
                 </h3>
                 <span
                   style={{
@@ -3349,7 +3349,7 @@ export const InitialDbUploader: React.FC = () => {
         <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '24px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
             <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-              전체 데이터베이스 백업 내보내기 (Export)
+              전체 데이터베이스 백업 내보내기
             </h3>
             <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
               현재 Supabase / 중앙 플랫폼 DB에 적재된 모든 76개 테이블(중앙 지식DB 및 비즈니스 원장 전수)의 데이터를 JSON 파일로 다운로드하여 영구 보관합니다.
@@ -3425,11 +3425,11 @@ export const InitialDbUploader: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <RotateCcw size={22} color="#059669" />
               <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                데이터베이스 백업 원상 복구 (Disaster Recovery / Restore)
+                데이터베이스 백업 원상 복구
               </h3>
             </div>
             <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-              보관해 둔 전체 DB 백업 JSON 파일(`.json`)을 업로드하여, 외래키(FK) 토폴로지 의존성 순서에 따라 1건의 유실도 없이 완벽히 원상 복구합니다.
+              보관해 둔 전체 DB 백업 JSON 파일(`.json`)을 업로드하여, 외래키 토폴로지 의존성 순서에 따라 1건의 유실도 없이 완벽히 원상 복구합니다.
             </span>
           </div>
 
@@ -3555,7 +3555,7 @@ export const InitialDbUploader: React.FC = () => {
                 checked={keepAdminUser}
                 onChange={(e) => setKeepAdminUser(e.target.checked)}
               />
-              시스템 관리자 계정(admin/users/departments)은 보존
+              시스템 관리자 계정은 보존
             </label>
 
             <button

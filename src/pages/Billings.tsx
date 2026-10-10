@@ -5948,7 +5948,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
                 <div>
                   <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>
-                    수신인 이메일 (To) * <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 'normal' }}>(고객대표 및 담당자 이메일 자동 채움 / 자유 수정 및 쉼표 추가 가능)</span>
+                    수신인 이메일 * <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 'normal' }}>(고객대표 및 담당자 이메일 자동 채움 / 자유 수정 및 쉼표 추가 가능)</span>
                   </label>
                   <input
                     type="text"
@@ -5962,7 +5962,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
                 <div>
                   <label style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)' }}>
-                    참조인 이메일 (CC) <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal' }}>(선택 입력 / 쉼표로 다수 지정 가능)</span>
+                    참조인 이메일 <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal' }}>(선택 입력 / 쉼표로 다수 지정 가능)</span>
                   </label>
                   <input
                     type="text"
@@ -6082,7 +6082,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               {/* 청구 연월 및 발행일자 수정 패널 */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: '12px', padding: '12px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)' }}>청구귀속월 (YYYY-MM)</label>
+                  <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-secondary)' }}>청구귀속월</label>
                   <input
                     type="month"
                     value={regenBillingYm}

@@ -422,7 +422,7 @@ export const SmartDispatch3: React.FC = () => {
     if (!canSave) { showToast('저장 권한이 없습니다.', 'error'); return; }
     if (!selectedCustomer) { showToast('고객사를 선택하세요.', 'error'); setOpenBlock('WHO'); return; }
     if (!selectedSite && !siteAddress) { showToast('현장을 선택하거나 주소를 입력하세요.', 'error'); setOpenBlock('WHERE'); return; }
-    if (selectedCustomer.transactionStatus === 'BLOCKED') { showToast('🚫 거래 불가(BLOCKED) 거래처입니다.', 'error'); return; }
+    if (selectedCustomer.transactionStatus === 'BLOCKED') { showToast('🚫 거래 불가 거래처입니다.', 'error'); return; }
     if (matchedOverdue && matchedOverdue.sum > 0 && !overdueAck) { showToast('연체 확인 체크박스에 동의하세요.', 'error'); return; }
     if (!siteAddress.trim()) { showToast('현장 주소를 입력하세요.', 'error'); setOpenBlock('DETAILS'); return; }
     if (!siteContactPhone.trim()) { showToast('현장 담당자 연락처를 입력하세요.', 'error'); setOpenBlock('DETAILS'); return; }
@@ -578,7 +578,7 @@ export const SmartDispatch3: React.FC = () => {
         }}>
           <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
             <AlertTriangle size={14} />
-            {matchedOverdue.isBlocked ? '🚫 거래 불가 (BLOCKED)' : '⚠️ 연체 채권 경고'}
+            {matchedOverdue.isBlocked ? '🚫 거래 불가' : '⚠️ 연체 채권 경고'}
           </div>
           {!matchedOverdue.isBlocked && (
             <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontWeight: 700, marginTop: '4px' }}>
@@ -843,7 +843,7 @@ export const SmartDispatch3: React.FC = () => {
             </div>
             {/* 직접 입력 */}
             <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-              <input type="text" list="sd3-models" id="sd3-manual" placeholder="직접 모델명 입력 (Enter)"
+              <input type="text" list="sd3-models" id="sd3-manual" placeholder="직접 모델명 입력"
                 style={{ flex: 1 }}
                 onKeyDown={e => {
                   if (e.key === 'Enter') {

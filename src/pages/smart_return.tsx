@@ -56,7 +56,7 @@ export const SmartReturn: React.FC = () => {
   const RETURN_CHECK_SPECS = [
     { id: 'spec1', label: '철망 / 함석 설치 부속품 (판넬/볼트)', keywords: ['철망', '함석', '사면철망', '1면', '2면', '3면', '4면', '5면', '망'] },
     { id: 'spec2', label: '확장대 철망 / 함석 부속품', keywords: ['확장대 철망', '확장대 함석', '확장대철망', '확장대함석'] },
-    { id: 'spec3', label: '상단 감지봉 / 협착 방지 센서 (4EA)', keywords: ['감지봉', '감지봉 4ea', '상단감지', '협착', '센서', '4ea', '감지봉4ea'] },
+    { id: 'spec3', label: '상단 감지봉 / 협착 방지 센서', keywords: ['감지봉', '감지봉 4ea', '상단감지', '협착', '센서', '4ea', '감지봉4ea'] },
     { id: 'spec4', label: '원판 부착물', keywords: ['원판설치', '원판'] },
     { id: 'spec9', label: '소화기함 및 거치대 / 소화기', keywords: ['소화기함', '기타 스티커물', '소화기'] },
     { id: 'spec10', label: '조이스틱 보호 커버', keywords: ['조이스틱 커버', '커버 연장'] },
@@ -315,7 +315,7 @@ export const SmartReturn: React.FC = () => {
         }
       }
 
-      showToast('회수 의뢰 등록이 완료되었습니다. 배차 대기열에 회수(INBOUND) 건이 추가되었습니다.');
+      showToast('회수 의뢰 등록이 완료되었습니다. 배차 대기열에 회수 의뢰 건이 추가되었습니다.');
       setSelectedContractId('');
       setSelectedAssetIds([]);
       setReturnDate(getTodayString());
@@ -578,7 +578,7 @@ export const SmartReturn: React.FC = () => {
         <div>
           <h2 style={{ fontWeight: '700', marginBottom: '4px' }}>회수 의뢰 관리</h2>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-            영업 계약 만료/단축/고장 및 외주정비업체 수리 완료 건에 대한 회수 의뢰(INBOUND) 프로세스를 등록합니다.
+            영업 계약 만료/단축/고장 및 외주정비업체 수리 완료 건에 대한 회수 의뢰 프로세스를 등록합니다.
           </p>
         </div>
       </div>

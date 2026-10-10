@@ -80,7 +80,7 @@ export const CameraUploader: React.FC<CameraUploaderProps> = ({
               <ImageIcon className="w-5 h-5 text-blue-400 shrink-0" />
             )}
             <span className="text-xs font-bold whitespace-nowrap">사진 첨부 (앨범/파일)</span>
-            <span className="text-[10px] text-slate-400 whitespace-nowrap">스마트폰 저장 사진 선택</span>
+            <span className="text-[10px] text-slate-400 whitespace-nowrap">사진 선택</span>
           </button>
 
           {/* 2. 카메라 촬영 (현장 직접 촬영) */}

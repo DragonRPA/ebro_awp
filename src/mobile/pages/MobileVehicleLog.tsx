@@ -311,7 +311,7 @@ export const MobileVehicleLog: React.FC<MobileVehicleLogProps> = ({ onBack }) =>
       return;
     }
     if (!mileage || mileage <= 0) {
-      showErrorModal('주유 시점의 계기판 주행거리(km)를 입력해 주십시오.');
+      showErrorModal('주유 시점의 계기판 주행거리를 입력해 주십시오.');
       return;
     }
     if (receiptPhotos.length === 0) {
@@ -526,7 +526,7 @@ export const MobileVehicleLog: React.FC<MobileVehicleLogProps> = ({ onBack }) =>
           <div className="border-b border-slate-800 pb-2 flex items-center justify-between">
             <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
               <Fuel size={15} />
-              <span>주유 시점 실시간 입력 (영수증 촬영 필수)</span>
+              <span>주유 내역 입력</span>
             </span>
             <span className="text-[11px] text-slate-500">
               운행자: {currentUser?.name || '기본'}
@@ -602,7 +602,7 @@ export const MobileVehicleLog: React.FC<MobileVehicleLogProps> = ({ onBack }) =>
           {/* 주유 시점 계기판 주행거리 (km) */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
-              <span>계기판 주행거리 (km) *</span>
+              <span>계기판 주행거리 *</span>
               {isAnalyzingFuelOdo ? (
                 <span className="text-[11px] text-amber-400 flex items-center gap-1">
                   <Loader2 size={12} className="animate-spin" />
@@ -855,7 +855,7 @@ export const MobileVehicleLog: React.FC<MobileVehicleLogProps> = ({ onBack }) =>
           <div className="grid grid-cols-2 gap-2.5">
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
-                <span>출발 시 계기판(km) *</span>
+                <span>출발 계기판 *</span>
                 {isAnalyzingStartOdo ? (
                   <span className="text-[10px] text-blue-400 flex items-center gap-1">
                     <Loader2 size={11} className="animate-spin" />
@@ -879,7 +879,7 @@ export const MobileVehicleLog: React.FC<MobileVehicleLogProps> = ({ onBack }) =>
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
-                <span>도착 시 계기판(km) *</span>
+                <span>도착 계기판 *</span>
                 {isAnalyzingEndOdo ? (
                   <span className="text-[10px] text-blue-400 flex items-center gap-1">
                     <Loader2 size={11} className="animate-spin" />

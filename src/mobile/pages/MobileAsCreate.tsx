@@ -440,7 +440,7 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
               ? 'bg-blue-600/20 border-blue-500 text-blue-400'
               : 'bg-slate-900 border-slate-800 text-slate-400'
           }`}
-          title="음성 안내(TTS) 켜기/끄기"
+          title="음성 안내 켜기/끄기"
         >
           {ttsEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
           <span>{ttsEnabled ? '소리 ON' : '소리 OFF'}</span>
@@ -674,7 +674,7 @@ export const MobileAsCreate: React.FC<MobileAsCreateProps> = ({
                     : 'bg-slate-800 text-slate-400 border-slate-700'
                 }`}
               >
-                {priority === 'URGENT' ? '🚨 긴급(URGENT)' : '일반'}
+                {priority === 'URGENT' ? '🚨 긴급' : '일반'}
               </button>
             </div>
           </div>

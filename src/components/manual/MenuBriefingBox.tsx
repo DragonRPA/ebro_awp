@@ -236,7 +236,7 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
               cursor: 'pointer',
               whiteSpace: 'nowrap',
             }}
-            title="기능 정의서 열람 및 실시간 편집"
+            title="기능 정의서 열람 및 편집"
           >
             <FileText size={12} />
             <span>기능 정의서</span>
@@ -668,7 +668,7 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
               cursor: 'pointer',
               padding: 0,
             }}
-            title="기능 정의서 열람 및 실시간 편집"
+            title="기능 정의서 열람 및 편집"
           >
             <FileText size={13} />
             <span>기능 정의서</span>

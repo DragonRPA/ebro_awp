@@ -104,7 +104,7 @@ export const TradeOutboundPage: React.FC = () => {
             출고 요청 및 재고 할당
           </h2>
           <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '4px' }}>
-            유통 수주에 대한 물류 창고 재고 할당(ALLOCATE), 납품증 출력 및 배송 완료 증빙 확인
+            유통 수주 물류 창고 재고 할당, 납품증 출력 및 배송 증빙 확인
           </div>
         </div>
 
@@ -210,7 +210,7 @@ export const TradeOutboundPage: React.FC = () => {
                         fontWeight: 700
                       }}
                     >
-                      재고 할당 (ALLOCATE)
+                      재고 할당
                     </button>
                   ) : (
                     <div style={{ display: 'flex', gap: '6px' }}>

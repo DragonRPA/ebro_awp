@@ -106,7 +106,7 @@ export const LandingPage: React.FC = () => {
             <div>
               <div className="text-5xl font-bold text-slate-900 tracking-tight mb-4">21<span className="text-[#FF5200] text-3xl">대</span></div>
               <div className="text-lg font-bold text-slate-900 mb-2">안전스펙 전수 검수</div>
-              <p className="text-slate-500">과상승방지봉 등 법정 안전 필수 옵션을 스마트폰으로 전수 승인.</p>
+              <p className="text-slate-500">과상승방지봉 등 법정 안전 필수 옵션을 모바일 기기로 전수 승인.</p>
             </div>
             <div>
               <div className="text-5xl font-bold text-slate-900 tracking-tight mb-4">₩0<span className="text-[#FF5200] text-3xl">원</span></div>
@@ -127,12 +127,12 @@ export const LandingPage: React.FC = () => {
               <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center mb-6">
                 <Truck className="w-6 h-6 text-[#FF5200]" />
               </div>
-              <h2 className="text-3xl font-bold text-slate-900 mb-6">스마트 배차 & 원격 인쇄</h2>
+              <h2 className="text-3xl font-bold text-slate-900 mb-6">배차 및 원격 인쇄</h2>
               <p className="text-lg text-slate-500 leading-relaxed mb-8">
                 영업팀이 배차를 의뢰하는 즉시, 현장 컨테이너의 네트워크 프린터로 출고요청서가 자동 출력됩니다. 담당자가 수기로 작성할 필요 없이 지연 없는 0초 배차를 실현합니다.
               </p>
               <ul className="space-y-4">
-                {['단일 1건 왕복 할인 배차(EXCHANGE) 정규 체인 관리', '현장 컨테이너 네트워크 프린터 0초 자동 백그라운드 스풀링', '화물 지입 기사 및 운송사 실시간 배정 & 단가 대사'].map((item, i) => (
+                {['단일 1건 왕복 교환 배차 정규 체인 관리', '현장 컨테이너 네트워크 프린터 0초 자동 백그라운드 스풀링', '화물 지입 기사 및 운송사 실시간 배정 & 단가 대사'].map((item, i) => (
                   <li key={i} className="flex items-start gap-3 text-slate-700 font-medium">
                     <CheckCircle2 className="w-6 h-6 text-[#FF5200] shrink-0" />
                     <span>{item}</span>
@@ -158,10 +158,10 @@ export const LandingPage: React.FC = () => {
               </div>
               <h2 className="text-3xl font-bold text-slate-900 mb-6">모바일 현장 검수 & RENTED 전환</h2>
               <p className="text-lg text-slate-500 leading-relaxed mb-8">
-                스마트폰 하나로 외관 4면을 촬영하고, 기사 서명을 받는 즉시 자산 상태가 '대여중(RENTED)'으로 자동 전환됩니다. 분실하기 쉬운 종이 인수증 대신 전자 계약서로 영구 보존하세요.
+                스마트폰 하나로 외관 4면을 촬영하고, 기사 서명을 받는 즉시 자산 상태가 '대여중'으로 자동 전환됩니다. 분실하기 쉬운 종이 인수증 대신 전자 계약서로 영구 보존하세요.
               </p>
               <ul className="space-y-4">
-                {['스마트폰 고화질 촬영 & 하자 즉시 보존', '21대 법정 안전장치 전수 검수', '검수 승인 마감 시 자산 상태 RENTED 자동 전환'].map((item, i) => (
+                {['모바일 고화질 촬영 및 하자 보존', '21대 법정 안전장치 전수 검수', '검수 승인 마감 시 자산 상태 RENTED 자동 전환'].map((item, i) => (
                   <li key={i} className="flex items-start gap-3 text-slate-700 font-medium">
                     <CheckCircle2 className="w-6 h-6 text-[#FF5200] shrink-0" />
                     <span>{item}</span>
@@ -190,7 +190,7 @@ export const LandingPage: React.FC = () => {
                 퇴근 후나 이동 중 텔레그램으로 지시문만 남기세요. "평택 삼성 35호기 교환해줘"라는 자연어 한마디로 계약 조건을 100% 자동 상속받는 배차가 즉시 생성됩니다.
               </p>
               <ul className="space-y-4">
-                {['소형 경량 AI가 지시문 핵심 요소 정밀 추출', '영업부의 불필요한 자산번호 직접 지정 원천 방지', '단일 의미 전사 표준화(Zero-Synonym) 준수'].map((item, i) => (
+                {['소형 경량 AI가 지시문 핵심 요소 정밀 추출', '영업부의 불필요한 자산번호 직접 지정 원천 방지', '단일 의미 전사 표준화 준수'].map((item, i) => (
                   <li key={i} className="flex items-start gap-3 text-slate-700 font-medium">
                     <CheckCircle2 className="w-6 h-6 text-[#FF5200] shrink-0" />
                     <span>{item}</span>
@@ -216,10 +216,10 @@ export const LandingPage: React.FC = () => {
               </div>
               <h2 className="text-3xl font-bold text-slate-900 mb-6">은행 통장 1:1 자동 대사</h2>
               <p className="text-lg text-slate-500 leading-relaxed mb-8">
-                주요 1금융권 통장 엑셀을 업로드하면 스마트 파서가 입금자명과 고객사 상호를 매칭하여 대차 차액 0원의 완벽한 회계 무결성을 제공합니다.
+                주요 1금융권 통장 엑셀을 업로드하면 자동 매칭 엔진이 입금자명과 고객사 상호를 매칭하여 대차 차액 0원의 완벽한 회계 무결성을 제공합니다.
               </p>
               <ul className="space-y-4">
-                {['주요 은행 통장 엑셀 원클릭 파싱 & 스마트 매칭', '외상매출금 및 운송료 1원 단위 검증', '자산별 누적 매출 기여액 정밀 집계'].map((item, i) => (
+                {['주요 은행 통장 엑셀 파싱 및 자동 매칭', '외상매출금 및 운송료 1원 단위 검증', '자산별 누적 매출 기여액 정밀 집계'].map((item, i) => (
                   <li key={i} className="flex items-start gap-3 text-slate-700 font-medium">
                     <CheckCircle2 className="w-6 h-6 text-[#FF5200] shrink-0" />
                     <span>{item}</span>

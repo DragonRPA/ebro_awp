@@ -652,7 +652,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       }
 
       setEmailSentSuccess(true);
-      alert(`✅ 계약서패키지 이메일이 성공적으로 발송되었습니다!\n\n• 수신인(TO): ${primaryRecipient}\n${ccRecipients ? `• 참조(CC): ${ccRecipients}\n` : ''}• 제목: ${emailSubject}\n• 첨부: ${pdf.fileName} (${pdf.pageCount}p)${historySaved ? '\n• 계약 변경 이력(Audit Log) DB 기록 완료' : '\n• 발송 이력 DB 기록 실패'}`);
+      alert(`✅ 계약서패키지 이메일이 성공적으로 발송되었습니다!\n\n• 수신인: ${primaryRecipient}\n${ccRecipients ? `• 참조: ${ccRecipients}\n` : ''}• 제목: ${emailSubject}\n• 첨부: ${pdf.fileName} (${pdf.pageCount}p)${historySaved ? '\n• 계약 변경 이력 DB 기록 완료' : '\n• 발송 이력 DB 기록 실패'}`);
     } catch (err: any) {
       console.error('이메일 발송 실패:', err);
       showErrorModal?.(`이메일 발송 실패:\n${err.message || err}`);
@@ -1235,7 +1235,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <CheckCircle2 size={14} color="var(--primary)" />
-                <span><strong>5. 생산물배상책임(PL)보험증권</strong> (계약기간 보증)</span>
+                <span><strong>5. 생산물배상책임 보험증권</strong></span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <CheckCircle2 size={14} color="var(--primary)" />

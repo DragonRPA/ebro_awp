@@ -101,7 +101,7 @@ export const AgenticAiLabPage: React.FC = () => {
         <div>
           <h2 style={{ fontWeight: '800', margin: 0, fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Bot size={22} color="var(--primary)" />
-            <span>에이전틱 AI 샌드박스 랩</span>
+            <span>AI 샌드박스 랩</span>
           </h2>
           <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '3px' }}>
             AI 에이전트 자율 업무 수행 검증 및 전사 표준 헌장 가드레일 테스트베드
@@ -127,7 +127,7 @@ export const AgenticAiLabPage: React.FC = () => {
             style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '7px 18px', fontWeight: '700' }}
           >
             {isRunning ? <RefreshCw size={14} className="spin" /> : <Play size={14} />}
-            <span>{isRunning ? '로딩 및 분석 중 (최초 5~15초 소요)' : '에이전틱 AI 실행'}</span>
+            <span>{isRunning ? '로딩 및 분석 중 (최초 5~15초 소요)' : 'AI 분석 실행'}</span>
           </button>
         </div>
       </div>
@@ -192,7 +192,7 @@ export const AgenticAiLabPage: React.FC = () => {
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--text-muted)' }}>
             <span>* 에이전트는 기계 가독형 매니페스트를 기반으로 ReAct 추론을 수행합니다.</span>
-            <span>엔터 또는 상단 [에이전틱 AI 실행] 버튼 클릭</span>
+            <span>엔터 또는 상단 [AI 분석 실행] 버튼 클릭</span>
           </div>
         </div>
 

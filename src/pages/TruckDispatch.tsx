@@ -821,9 +821,9 @@ export const TruckDispatch: React.FC = () => {
     { key: 'startAddress', label: '상차지주소', required: true, sample: '충북 청주시 흥덕구 직지대로 436' },
     { key: 'endAddress', label: '하차지주소', required: true, sample: '경기 성남시 분당구 판교역로 166' },
     { key: 'requestDate', label: '희망일시', required: true, type: 'date', sample: '2026-09-15' },
-    { key: 'modelName', label: '장비모델명', sample: 'S-0808 (8m)' },
+    { key: 'modelName', label: '장비모델명', sample: 'S-0808' },
     { key: 'deliveryCost', label: '운송비', type: 'number', sample: 120000 },
-    { key: 'billableToCustomer', label: '고객청구여부(Y/N)', sample: 'Y' },
+    { key: 'billableToCustomer', label: '고객청구여부', sample: 'Y' },
     { key: 'memo', label: '비고및특이사항', sample: '현장 진입로 협소' },
   ];
 
@@ -2474,7 +2474,7 @@ export const TruckDispatch: React.FC = () => {
     if (rejectedCount > 0) {
       showErrorModal(`⚠️ 선택한 항목 중 ${rejectedCount}건은 좌/우 금액이 상이하여 대사 처리가 거절되었습니다.\n\n(금액이 일치하는 ${successCount}건만 대사 완료 처리되었습니다.)`);
     } else if (successCount > 0) {
-      setReconNotificationMsg(`✅ 선택한 Pair 항목 ${successCount}건이 대사 완료(MATCHED)로 전환되었습니다.`);
+      setReconNotificationMsg(`✅ 선택한 Pair 항목 ${successCount}건이 '대사 완료'로 전환되었습니다.`);
     }
   };
 
@@ -2491,7 +2491,7 @@ export const TruckDispatch: React.FC = () => {
       return p;
     }));
     setSelectedPairIds(new Set());
-    setReconNotificationMsg(`↩️ 선택한 Pair 항목들이 대사 대기(PENDING) 상태로 원복되었습니다.`);
+    setReconNotificationMsg(`↩️ 선택한 Pair 항목들이 '대사 대기' 상태로 원복되었습니다.`);
   };
 
   // 엑셀 업로드 시 시스템 미등록 청구 항목 배열
@@ -4468,7 +4468,7 @@ export const TruckDispatch: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <FileAudio size={18} style={{ color: 'var(--primary)' }} />
                   <span style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                    배차 협의 통화 큐 (Call Queue)
+                    배차 협의 통화 큐
                   </span>
                   <span style={{
                     padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 800,

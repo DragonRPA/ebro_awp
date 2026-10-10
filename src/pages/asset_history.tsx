@@ -594,7 +594,7 @@ export const AssetHistory: React.FC = () => {
             <div style={{ backgroundColor: 'var(--bg-app)', padding: '14px', borderRadius: '8px', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px', border: '1px solid var(--border-color)' }}>
               <div><strong>관리번호:</strong> <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{selectedAsset.assetNo}</span></div>
               <div><strong>모델명:</strong> {selectedAsset.modelName}</div>
-              <div><strong>제조번호 (SN):</strong> {selectedAsset.serialNo || '-'}</div>
+              <div><strong>제조번호:</strong> {selectedAsset.serialNo || '-'}</div>
               <div><strong>소유 형태:</strong> {selectedAsset.ownerType === 'OWNED' ? '자사자산' : `외부임차장비 (${selectedAsset.renter || '임차처'})`}</div>
               {selectedAsset.ownerType === 'RENTED' && (
                 <div>
@@ -813,7 +813,7 @@ export const AssetHistory: React.FC = () => {
           <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '10px', padding: '20px', maxWidth: '440px', width: '90%', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
             <h4 style={{ margin: '0 0 10px 0', fontSize: '15px', color: 'var(--danger)' }}>입고 취소 롤백</h4>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-              자산번호 <strong>{cancelModal.log.assetNo}</strong> 입고 건을 취소하고 자산 상태를 대여중(RENTED)으로 복원하시겠습니까?
+              자산번호 <strong>{cancelModal.log.assetNo}</strong> 입고 건을 취소하고 자산 상태를 '대여중' 상태로 복원하시겠습니까?
             </p>
             <div style={{ marginBottom: '16px' }}>
               <label style={{ fontSize: '11.5px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>취소 사유</label>

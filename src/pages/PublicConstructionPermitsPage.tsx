@@ -276,7 +276,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
       case 'roadWidth': return '도로폭';
       case 'actualStartDate': return '착공일';
       case 'expectedEndDate': return '준공예정';
-      case 'csiSafety': return '안전망(CSI)';
+      case 'csiSafety': return '안전망';
       case 'projectName': return '사업명';
       case 'siteAddress': return '대지위치';
       case 'builderName': return '시공사';
@@ -539,7 +539,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
       시공사명: item.builderName,
       시공사연락처: item.builderPhone || '',
       건축주명: item.clientName,
-      데이터출처: item.dataSource === 'PUBLIC_API_REALTIME' ? '공공데이터포털(실시간)' : '기본제공데이터',
+      데이터출처: item.dataSource === 'PUBLIC_API_REALTIME' ? '공공데이터포털' : '기본제공데이터',
       리드등록상태: item.leadStatus === 'REGISTERED' ? '등록완료' : '미등록'
     }));
 
@@ -706,7 +706,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
         setSelectedItem(parsedItems[0]);
       }
 
-      showToast(`[성공] 건축HUB 실시간 ${parsedItems.length}건 수신 및 V-World 도로/CSI 안전 분석 완료`);
+      showToast(`[성공] 건축HUB ${parsedItems.length}건 수신 및 V-World 도로/CSI 안전 분석 완료`);
     } catch (err: any) {
       alert(`공공데이터포털 연동 안내: ${err?.message || err}\n내장된 실측 시뮬레이션 데이터를 유지합니다.`);
     } finally {
@@ -783,7 +783,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
             }}
           >
             {isLiveApiFetching ? <RefreshCw size={14} className="animate-spin" /> : <Globe size={14} />}
-            공공데이터 실시간 수신
+            공공데이터 수신
           </button>
           
           <button
@@ -953,7 +953,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '115px' }}>
           <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px' }}>
             <Shield size={11} color="var(--text-muted)" />
-            안전관리 (CSI)
+            안전관리
           </label>
           <select
             value={csiFilter}
@@ -1072,7 +1072,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--primary)' }} />
-                공공데이터포털 실시간 수신 가능
+                공공데이터포털 수신 가능
               </span>
               | 컬럼 클릭 시 오름/내림/해제 정렬 | 행 클릭 시 상세 패널
             </span>
@@ -1104,7 +1104,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                   {renderSortTh('roadWidth', '도로폭', 'left')}
                   {renderSortTh('actualStartDate', '착공일', 'left')}
                   {renderSortTh('expectedEndDate', '준공예정', 'left')}
-                  {renderSortTh('csiSafety', '안전망(CSI)', 'left')}
+                  {renderSortTh('csiSafety', '안전망', 'left')}
                   {renderSortTh('projectName', '사업명 / 건물명', 'left', { padding: '8px 12px' })}
                   {renderSortTh('siteAddress', '대지위치', 'left', { padding: '8px 12px' })}
                   {renderSortTh('builderName', '시공사(건설사)', 'left', { padding: '8px 12px' })}
@@ -1115,7 +1115,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                 {sortedItems.length === 0 ? (
                   <tr>
                     <td colSpan={14} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      설정한 조건에 부합하는 데이터가 없습니다. 상단 [공공데이터 실시간 수신] 버튼을 눌러보세요.
+                      설정한 조건에 부합하는 데이터가 없습니다. 상단 [공공데이터 수신] 버튼을 눌러보세요.
                     </td>
                   </tr>
                 ) : (
@@ -1154,7 +1154,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                         <td style={{ padding: '6px 10px', whiteSpace: 'nowrap', borderRight: '1px solid var(--border-color)' }}>
                           {item.dataSource === 'PUBLIC_API_REALTIME' ? (
                             <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 600, border: '1px solid rgba(79, 70, 229, 0.3)' }}>
-                              실시간API
+                              공공API
                             </span>
                           ) : (
                             <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '3px', background: 'var(--bg-app)', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }}>
@@ -1313,7 +1313,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                       display: 'flex', alignItems: 'center', gap: '5px'
                     }}>
                       <Navigation size={14} color={selectedItem.roadAccess.truckFeasibility === 'SMALL_ONLY_WARNING' ? '#ef4444' : 'var(--primary)'} />
-                      접면 도로 정보 (V-World)
+                      접면 도로 정보
                     </span>
                     <span style={{
                       fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px',
@@ -1366,7 +1366,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                       display: 'flex', alignItems: 'center', gap: '5px'
                     }}>
                       <ShieldAlert size={14} color={selectedItem.csiSafety.safetyPlanRequired ? '#f59e0b' : 'var(--text-muted)'} />
-                      안전관리망 현장 요건 (CSI)
+                      안전관리망 현장 요건
                     </span>
                     <span style={{
                       fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px',
@@ -1710,15 +1710,15 @@ export const PublicConstructionPermitsPage: React.FC = () => {
               }}>
                 <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <TrendingUp size={16} />
-                  1. AI 공정 단계 및 실시간 진척도 역산 모델
+                  1. AI 공정 단계 및 진척도 역산 모델
                 </div>
                 <div style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  세움터(건축행정시스템)의 행정 이벤트 타임스탬프를 기반으로 공학적 진도 곡선(S-Curve)을 역산하여 현재 시점의 공정 단계를 자동 추론합니다:
+                  세움터(건축행정시스템)의 행정 이벤트 타임스탬프를 기반으로 공학적 진도 곡선을 역산하여 현재 시점의 공정 단계를 자동 추론합니다:
                 </div>
                 <div style={{ background: 'var(--bg-app)', padding: '10px 14px', borderRadius: '6px', margin: '8px 0', border: '1px solid var(--border-color)', fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-main)' }}>
-                  • 총 예정공기(Total Days): T_total = 사용승인예정일(useAprDay) - 실제착공일(realStcnsDay)<br />
-                  • 경과일수(Elapsed Days): T_elapsed = 현재일자(Today) - 실제착공일(realStcnsDay)<br />
-                  • <b>추정 공정 진척률(Progress Rate)</b>: P(t) = (T_elapsed / T_total) × 100 (%) [최소 5% ~ 최대 100%]
+                  • 총 예정공기: T_total = 사용승인예정일 - 실제착공일<br />
+                  • 경과일수: T_elapsed = 현재일자 - 실제착공일<br />
+                  • <b>추정 공정 진척률</b>: P(t) = (T_elapsed / T_total) × 100 (%) [최소 5% ~ 최대 100%]
                 </div>
                 
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', marginTop: '8px' }}>
@@ -1767,7 +1767,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
               }}>
                 <div style={{ fontWeight: 700, fontSize: '13px', color: 'var(--primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <HardHat size={16} />
-                  2. 추천 장비군 및 고소작업대 소요 대수(Fleet Sizing) 산정 수학식
+                  2. 추천 장비군 및 고소작업대 소요 대수 산정 수학식
                 </div>
                 <div style={{ color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                   건물의 연면적(TotArea, ㎡), 지상 층수, 주용도(물류창고/공장/지식산업센터 등) 제원을 매핑하여 최적 규격과 대수를 자동 계산합니다:

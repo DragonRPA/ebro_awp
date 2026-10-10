@@ -14,11 +14,11 @@ export interface MenuGroupConfig {
 export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
   {
     id: 'grp_distribution',
-    name: '영업-유통',
+    name: '유통관리',
     items: [
       { id: 'trade_products', name: '상품 등록 및 관리' },
       { id: 'trade_purchases', name: '구매 및 입고' },
-      { id: 'trade_contracts', name: '유통 수주(계약)' },
+      { id: 'trade_contracts', name: '유통 수주' },
       { id: 'trade_outbounds', name: '출고 요청' },
       { id: 'courier_dispatch', name: '택배 배송 관리' },
       { id: 'trade_billing', name: '유통 청구 및 명세' },
@@ -31,7 +31,7 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
     id: 'grp_approval',
     name: '결재 센터',
     items: [
-      { id: 'approvalInbox', name: '내 결재함 (수신)' },
+      { id: 'approvalInbox', name: '내 결재함' },
       { id: 'approvalRules', name: '결재선 규칙 설정' }
     ]
   },
@@ -39,11 +39,11 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
     id: 'grp_sales',
     name: '영업관리',
     items: [
-      { id: 'customer', name: '고객 관리 (담당자/현장)' },
+      { id: 'customer', name: '고객 관리' },
       { id: 'site_options', name: '현장별 옵션 관리' },
       { id: 'contract', name: '계약 관리' },
-      { id: 'billing', name: '청구/수납 관리' },
-      { id: 'custom_billing', name: '특수 거래명세서 (특수청구) 작성' },
+      { id: 'billing', name: '청구 수납 관리' },
+      { id: 'custom_billing', name: '특수 거래명세서 작성' },
       { id: 'receivable', name: '외상미수금 대장' },
       { id: 'smart_dispatch4', name: '출고 요청' },
       { id: 'smart_return', name: '회수 요청' },
@@ -55,19 +55,19 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
   },
   {
     id: 'grp_product_asset',
-    name: '제품 / 자산관리',
+    name: '자산관리',
     items: [
       { id: 'product', name: '제품 관리' },
-      { id: 'asset', name: '자산 관리 (대장)' },
-      { id: 'acquisition_disposal', name: '당사자산 취득/매각' },
+      { id: 'asset', name: '자산 관리' },
+      { id: 'acquisition_disposal', name: '자산 취득 매각' },
       { id: 'rent_asset', name: '임차 장비 관리' }
     ]
   },
   {
     id: 'grp_logistics',
-    name: '배차 / 운송관리',
+    name: '배차 운송관리',
     items: [
-      { id: 'delivery', name: '배차/운송 관리 (비용정산)' },
+      { id: 'delivery', name: '배차 운송 관리' },
       { id: 'transport_master', name: '운송 거래처 관리' }
     ]
   },
@@ -76,17 +76,17 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
     name: '입출고관리',
     items: [
       { id: 'daily_inout', name: '일일 입출고 조회' },
-      { id: 'asset_inout_history', name: '입고등록/입출고조회' },
-      { id: 'dispatch_assign', name: '장비 할당 (매핑)' },
+      { id: 'asset_inout_history', name: '입출고 조회' },
+      { id: 'dispatch_assign', name: '장비 할당' },
       { id: 'outbound_inspections', name: '출고 검수 관리' },
       { id: 'consumable_stock', name: '주기장 소모품 재고' },
-        { id: 'stocktaking', name: '재고/자산 실사' },
+        { id: 'stocktaking', name: '재고 실사' },
       { id: 'print_queue_monitor', name: '프린트 큐 모니터' }
     ]
   },
   {
     id: 'grp_maintenance',
-    name: '정비 / 소모품관리',
+    name: '정비 소모품관리',
     items: [
       { id: 'consumable_purchase', name: '소모품 구매' },
       { id: 'consumable_inout', name: '소모품 입출고' },
@@ -100,10 +100,10 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
     name: '경영관리',
     items: [
       { id: 'leave_application', name: '연차신청' },
-      { id: 'ot_management', name: 'OT 관리' },
-      { id: 'vehicle_log', name: '차량 / 주유관리' },
+      { id: 'ot_management', name: '연장근무 관리' },
+      { id: 'vehicle_log', name: '차량 주유관리' },
       { id: 'purchase_settlement', name: '월말 매입 정산' },
-      { id: 'vendors', name: '매입처 (공급자/외주처) 관리' },
+      { id: 'vendors', name: '매입처 관리' },
       { id: 'bank_matching', name: '은행 입출금 대장' },
       { id: 'corporate_card', name: '법인카드 매입정산' },
       { id: 'cash_flow', name: '자금 흐름 분석' },
@@ -115,9 +115,9 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
     id: 'grp_management_special',
     name: '경영관리 - 특수',
     items: [
-      { id: 'organization', name: '조직/인사 관리' },
+      { id: 'organization', name: '조직 인사 관리' },
       { id: 'permission', name: '사용자 및 권한 설정' },
-      { id: 'payroll', name: '급여 정산 (보안 강제)' },
+      { id: 'payroll', name: '급여 정산' },
       { id: 'leave_management', name: '연차관리' },
       { id: 'privacy_audit', name: '개인정보 접속 감사' }
     ]
@@ -134,14 +134,14 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
     id: 'grp_system_dev',
     name: '시스템관리 - 개발자',
     items: [
-      { id: 'agentic_ai_lab', name: '에이전틱 AI 샌드박스 랩' },
-      { id: 'agentic_dispatch_studio', name: '에이전틱 배차 관제 스튜디오' },
-      { id: 'agentic_settlement_autopilot', name: '에이전틱 월말 대사 정산 오토파일럿' },
-      { id: 'agentic_asset_lifecycle', name: '에이전틱 자산 라이프사이클 관제' },
+      { id: 'agentic_ai_lab', name: 'AI 샌드박스 랩' },
+      { id: 'agentic_dispatch_studio', name: '배차 관제 스튜디오' },
+      { id: 'agentic_settlement_autopilot', name: '월말 대사 정산' },
+      { id: 'agentic_asset_lifecycle', name: '자산 라이프사이클 관제' },
       { id: 'initial_db_upload', name: '초기DB 업로드' },
       { id: 'data_formation', name: '초기자료형성' },
       { id: 'google_config', name: '구글 관리자 설정' },
-      { id: 'dev_uploader', name: '[개발] DB 데이터 업로더' }
+      { id: 'dev_uploader', name: 'DB 데이터 업로더' }
     ]
   }
 ];

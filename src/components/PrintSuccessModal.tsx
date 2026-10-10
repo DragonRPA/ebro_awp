@@ -187,7 +187,7 @@ export const PrintSuccessModal: React.FC<PrintSuccessModalProps> = ({
           )}
 
           <div style={{ fontSize: '11px', color: '#64748b', padding: '0 4px', lineHeight: '1.4' }}>
-            현장 스테이션 PC의 eBroAgent가 큐를 실시간 감지하여 자동 출력을 진행합니다.
+            현장 스테이션 PC의 eBroAgent가 큐를 감지하여 자동 출력을 진행합니다.
           </div>
         </div>
 

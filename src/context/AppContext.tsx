@@ -2288,7 +2288,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         modelName: targetAsset.modelName || '',
         type: (newStatus === 'RENTED' || newStatus === 'ASSIGNED') ? 'OUTBOUND' : 'INBOUND',
         eventDate: new Date().toISOString().split('T')[0],
-        memo: `[자산상태 실시간 변동] ${targetAsset.status || 'AVAILABLE'} ➔ ${newStatus}`,
+        memo: `[자산상태 변동] ${targetAsset.status || 'AVAILABLE'} ➔ ${newStatus}`,
         createdAt: new Date().toISOString()
       });
 
@@ -2444,7 +2444,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         await db.awaitPendingWrites();
       } catch (err: any) {
         console.error('Supabase new customer sync error:', err);
-        showErrorModal(`⚠️ 신규 고객 DB 저장 중 오류:\n${err.message || JSON.stringify(err)}`, '스마트 출고 오류');
+        showErrorModal(`⚠️ 신규 고객 DB 저장 중 오류:\n${err.message || JSON.stringify(err)}`, '출고 오류');
         return { success: false, errorMessage: err.message };
       }
 
@@ -2642,7 +2642,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userId: currentUser.id,
         type: 'MISSING_INFO',
         title: `신규 고객/현장 정보 보완 (${data.customerName})`,
-        content: `스마트 출고 요청 시 사업자등록번호 등 미상으로 처리된 필수 항목을 채워주세요.`,
+        content: `출고 요청 시 사업자등록번호 등 미상으로 처리된 필수 항목을 채워주세요.`,
         isCompleted: false,
         relatedEntityId: finalCustomer.id,
         createdAt: new Date().toISOString()
@@ -2656,7 +2656,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await db.awaitPendingWrites();
     } catch (err: any) {
       console.error('Supabase site sync error before contract creation:', err);
-      showErrorModal(`⚠️ 신규 현장 DB 동기화 오류가 발생했습니다:\n${err.message || JSON.stringify(err)}`, '스마트 출고 오류');
+      showErrorModal(`⚠️ 신규 현장 DB 동기화 오류가 발생했습니다:\n${err.message || JSON.stringify(err)}`, '출고 오류');
       return { success: false, errorMessage: err.message };
     }
 
@@ -2698,7 +2698,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // 2) 기존 계약이 없을 경우: 최초 발생월(YYMM) 기준 채번하여 신규 계약 생성
       const nextContractNo = generateNextContractNo(targetStartDate);
 
-      await notify(`📄 [3/5 계약 생성] 스마트 임대차 계약서 작성 중 (${nextContractNo})...`, 55);
+      await notify(`📄 [3/5 계약 생성] 임대차 계약서 작성 중 (${nextContractNo})...`, 55);
 
       const contractLateInterestRate = (rawData.lateInterestRate !== undefined && rawData.lateInterestRate !== '') ? (Number(rawData.lateInterestRate) || 0) : ((finalCustomer as any).defaultLateInterestRate || 0);
 
@@ -2727,7 +2727,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (contract?.id) {
           db.deleteRow('contracts', contract.id);
         }
-        showErrorModal(`⚠️ 스마트 출고 계약 생성 중 DB 동기화 오류가 발생했습니다:\n${err.message || err.details || JSON.stringify(err)}`, '스마트 출고 DB 동기화 오류');
+        showErrorModal(`⚠️ 출고 계약 생성 중 DB 동기화 오류가 발생했습니다:\n${err.message || err.details || JSON.stringify(err)}`, '스마트 출고 DB 동기화 오류');
         return { success: false, errorMessage: err.message || err.details };
       }
 
@@ -2887,7 +2887,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       refreshAllData();
 
       const errorMsg = `⚠️ Supabase 데이터베이스 동기화 중 오류가 발생했습니다:\n\n■ [안내]: 저장 실패로 인해 생성 시도했던 데이터가 안전하게 자동 롤백 원복되었습니다.\n\n${err.message || err.details || JSON.stringify(err)}`;
-      showErrorModal(errorMsg, '스마트 출고 DB 동기화 오류 (자동 원복 완료)');
+      showErrorModal(errorMsg, '출고 DB 동기화 오류 (자동 원복 완료)');
       return { 
         success: false, 
         errorMessage: errorMsg
@@ -2948,7 +2948,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           changeDate: new Date().toISOString().split('T')[0],
           prevEndDate: contract.endDate,
           newEndDate: data.returnDate,
-          description: `스마트 회수 의뢰 접수 (회수 대상: ${data.assetIds.length}대, 희망일: ${data.returnDate})`,
+          description: `회수 의뢰 접수 (회수 대상: ${data.assetIds.length}대, 희망일: ${data.returnDate})`,
           createdAt: new Date().toISOString()
         });
 
@@ -5751,8 +5751,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       unloadingTimeSlot: '오전',
       deliveryCost: 0,
       isCostSettled: false,
-      memo: '신규 계약 체결에 따른 스마트 출고 의뢰',
-      closingMemo: '스마트 출고 파이프라인 자동 지시건',
+      memo: '신규 계약 체결에 따른 출고 의뢰',
+      closingMemo: '출고 파이프라인 자동 지시건',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
@@ -9157,7 +9157,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       if (review.status === 'REPAIRING') {
         db.insertRow<Repair>('repairs', {
           assetId: asset.id,
-          details: `스마트 입고 검수 시 등록됨: ${review.memo}`,
+          details: `입고 검수 시 등록됨: ${review.memo}`,
           status: 'PENDING',
           requestDate: actualReturnDate,
           totalCost: 0,
@@ -9539,7 +9539,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         contractId: ca.contractId,
         changeType: 'TERMINATE',
         changeDate: new Date().toISOString().split('T')[0],
-        description: `[입고 취소 롤백] 자산(${asset.assetNo}) 오등록 입고 취소 ➔ 대여중(RENTED) 복원 (사유: ${cancelReason || '사용자 휴먼에러 입고 취소'})`,
+        description: `[입고 취소 롤백] 자산(${asset.assetNo}) 오등록 입고 취소 ➔ '대여중' 복원 (사유: ${cancelReason || '사용자 휴먼에러 입고 취소'})`,
         createdAt: new Date().toISOString()
       });
     }

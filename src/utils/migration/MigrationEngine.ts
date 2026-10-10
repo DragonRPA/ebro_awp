@@ -21,7 +21,7 @@ export const MIGRATION_SCHEMAS: Record<TargetEntity, FieldDefinition[]> = {
   ASSET: [
     { key: 'assetNo', label: '관리번호(호기)', required: true, type: 'string', aliases: ['장비번호', '자산번호', '호기', '차량번호', '기기번호'] },
     { key: 'modelName', label: '모델명', required: true, type: 'string', aliases: ['장비명', '모델', '기종', '차종'] },
-    { key: 'serialNo', label: '제조번호(S/N)', required: false, type: 'string', aliases: ['시리얼', 'S/N', '차대번호', '제조번호'] },
+    { key: 'serialNo', label: '제조번호', required: false, type: 'string', aliases: ['시리얼', 'S/N', '차대번호', '제조번호'] },
     { key: 'ownerType', label: '소유형태', required: true, type: 'enum', enumValues: ['OWNED', 'RENTED'], aliases: ['소유구분', '자산구분', '자사/전대'], defaultValue: 'OWNED' },
     { key: 'status', label: '현재상태', required: true, type: 'enum', enumValues: ['AVAILABLE', 'RENTED', 'REPAIRING', 'SOLD', 'DISPOSED'], aliases: ['상태', '장비상태'], defaultValue: 'AVAILABLE' },
     { key: 'manufactureYear', label: '제조년도', required: false, type: 'string', aliases: ['연식', '제조년월', '연도'] },

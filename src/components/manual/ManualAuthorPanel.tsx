@@ -394,7 +394,7 @@ export const ManualAuthorPanel: React.FC = () => {
                 fontSize: '12px', fontWeight: 700, cursor: 'pointer',
               }}
             >
-              취소 (ESC)
+              취소
             </button>
           </div>
         </>

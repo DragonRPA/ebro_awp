@@ -1450,7 +1450,7 @@ export const SmartDispatchConversationalStudio: React.FC<SmartDispatchConversati
               {[
                 { label: '내일 08:00', date: defaultTomorrowStr, time: '08:00', asap: false },
                 { label: '내일 07:00 (조기)', date: defaultTomorrowStr, time: '07:00', asap: false },
-                { label: '오늘 긴급 (ASAP)', date: new Date().toISOString().split('T')[0], time: 'ASAP', asap: true },
+                { label: '오늘 긴급', date: new Date().toISOString().split('T')[0], time: 'ASAP', asap: true },
                 { label: '모레 08:00', date: (() => { const d = new Date(); d.setDate(d.getDate() + 2); return d.toISOString().split('T')[0]; })(), time: '08:00', asap: false }
               ].map(chip => (
                 <button

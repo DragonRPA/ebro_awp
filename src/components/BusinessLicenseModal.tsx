@@ -533,7 +533,7 @@ export const BusinessLicenseModal: React.FC<BusinessLicenseModalProps> = ({
                       </div>
                       <p className="text-[11px] opacity-80 leading-normal">
                         과세유형: {ntsResult?.taxType || '일반과세자'} • {ntsValidation?.validMessage || '국세청 진위확인 완료'}
-                        {ntsResult?.status === 'CLOSED' && ' • 자동 출고제한(BLOCKED) 적용 대상'}
+                        {ntsResult?.status === 'CLOSED' && ' • 자동 출고제한 적용 대상'}
                       </p>
                     </div>
                   </div>

@@ -160,7 +160,7 @@ export const MobileApkMonitorModal: React.FC<MobileApkMonitorModalProps> = ({
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">지원 환경</span>
-                <span className="text-white">Android 8.0 이상 (ARM64/x86)</span>
+                <span className="text-white">Android 8.0 이상</span>
               </div>
             </div>
 

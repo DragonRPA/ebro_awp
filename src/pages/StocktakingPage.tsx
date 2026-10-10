@@ -112,7 +112,7 @@ export const StocktakingPage: React.FC = () => {
   if (!activeAudit) {
     return (
       <div style={{ padding: '20px' }}>
-        <h2>재고/자산 실사 (Stocktaking) 시작</h2>
+        <h2>재고 실사 시작</h2>
         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
           <select data-mid="stocktaking-area-select" value={selectedArea} onChange={e => setSelectedArea(e.target.value)} style={{ padding: '8px' }}>
             <option value="HQ">본사 주기장 (비가동 장비 및 소모품)</option>

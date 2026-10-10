@@ -383,7 +383,7 @@ export const MobileGemsAgentModal: React.FC<MobileGemsAgentModalProps> = ({
                   backgroundColor: hasApiKey ? '#064e3b' : '#1e3a8a',
                   color: hasApiKey ? '#a7f3d0' : '#93c5fd'
                 }}>
-                  {hasApiKey ? 'Gemini 1.5' : '스마트 룰 엔진'}
+                  {hasApiKey ? 'Gemini 1.5' : '규칙 엔진'}
                 </span>
               </div>
               <div style={{ fontSize: '10px', color: '#94a3b8' }}>출고·회수·교환·AS 음성 자동완성</div>
@@ -634,7 +634,7 @@ export const MobileGemsAgentModal: React.FC<MobileGemsAgentModalProps> = ({
                 </div>
               ) : (
                 <span style={{ fontSize: '11.5px', color: '#38bdf8' }}>
-                  🎙️ 실시간 음성 듣는 중... (말씀하신 후 버튼을 다시 터치하세요)
+                  🎙️ 음성 듣는 중... (말씀 후 버튼 터치)
                 </span>
               )}
             </div>

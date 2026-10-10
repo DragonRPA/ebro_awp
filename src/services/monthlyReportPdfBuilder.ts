@@ -104,7 +104,7 @@ export async function downloadExecutiveReportPdf(data: ExecutiveMonthlyReport): 
     let curY = 145;
     ctx.fillStyle = '#1E293B';
     ctx.font = 'bold ' + (12 * scale) + 'px "Malgun Gothic", sans-serif';
-    ctx.fillText('1. 경영 종합 성과 지표 (Executive KPIs)', 40 * scale, curY * scale);
+    ctx.fillText('1. 경영 종합 성과 지표', 40 * scale, curY * scale);
 
     const cardW = 120;
     const cardH = 62;
@@ -143,7 +143,7 @@ export async function downloadExecutiveReportPdf(data: ExecutiveMonthlyReport): 
     curY = 240;
     ctx.fillStyle = '#1E293B';
     ctx.font = 'bold ' + (12 * scale) + 'px "Malgun Gothic", sans-serif';
-    ctx.fillText('2. 렌탈 자산 플릿(Fleet) 가동 현황', 40 * scale, curY * scale);
+    ctx.fillText('2. 렌탈 자산 가동 현황', 40 * scale, curY * scale);
 
     // 테이블 헤더
     const tableY = curY + 10;
@@ -362,7 +362,7 @@ export async function downloadExecutiveReportPdf(data: ExecutiveMonthlyReport): 
     ctx.fillStyle = '#334155';
     ctx.font = '600 ' + (9 * scale) + 'px "Malgun Gothic", sans-serif';
     ctx.fillText(`• 당월 완료 정비: 총 ${operations.maintenanceByType.total}건 (현장 AS ${operations.maintenanceByType.fieldAs} / 오버홀 ${operations.maintenanceByType.overhaul})`, 50 * scale, (maintBoxY + 19) * scale);
-    ctx.fillText(`• 평균 복구시간(MTTR): ${kpis.avgMttrHours} 시간  |  출고 7일내 조기고장: ${kpis.earlyFailuresCount}건`, 310 * scale, (maintBoxY + 19) * scale);
+    ctx.fillText(`• 평균 복구시간: ${kpis.avgMttrHours} 시간  |  출고 7일내 조기고장: ${kpis.earlyFailuresCount}건`, 310 * scale, (maintBoxY + 19) * scale);
 
     // 2페이지 하단 페이지 번호
     ctx.fillStyle = '#94A3B8';
@@ -392,7 +392,7 @@ export async function downloadExecutiveReportPdf(data: ExecutiveMonthlyReport): 
     ctx.fillStyle = '#1E293B';
     ctx.font = 'bold ' + (12 * scale) + 'px "Malgun Gothic", sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('6. 미수 채권 연체 에이징(Aging) 분석', 40 * scale, curY * scale);
+    ctx.fillText('6. 미수 채권 연체 분석', 40 * scale, curY * scale);
 
     const agingBoxY = curY + 10;
     const agW = (a4W - 80 - 36) / 4;
@@ -424,7 +424,7 @@ export async function downloadExecutiveReportPdf(data: ExecutiveMonthlyReport): 
     curY = agingBoxY + 65;
     ctx.fillStyle = '#1E293B';
     ctx.font = 'bold ' + (12 * scale) + 'px "Malgun Gothic", sans-serif';
-    ctx.fillText('7. 영업 청구 면제(Waiver) 손실 투명성 보고', 40 * scale, curY * scale);
+    ctx.fillText('7. 영업 청구 면제 손실 보고', 40 * scale, curY * scale);
 
     const waiverHdrY = curY + 10;
     ctx.fillStyle = '#FEF2F2';
@@ -467,7 +467,7 @@ export async function downloadExecutiveReportPdf(data: ExecutiveMonthlyReport): 
     curY = waiverRowY + 25;
     ctx.fillStyle = '#1E293B';
     ctx.font = 'bold ' + (12 * scale) + 'px "Malgun Gothic", sans-serif';
-    ctx.fillText('8. 경영진 종합 진단 및 차월 중점 지시사항 (Executive Directives)', 40 * scale, curY * scale);
+    ctx.fillText('8. 경영진 종합 진단 및 차월 중점 지시사항', 40 * scale, curY * scale);
 
     const directiveBoxY = curY + 10;
     ctx.fillStyle = '#F8FAFC';

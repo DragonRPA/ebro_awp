@@ -618,14 +618,14 @@ const ApprovalInbox: React.FC = () => {
                     {(payload.actionType === 'CONTRACT_EXTEND' || payload.actionType === 'CONTRACT_SHORTEN') && (
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '12px', alignItems: 'center', background: 'var(--bg-card, #fff)', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border-color, #e2e8f0)' }}>
                         <div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted, #94a3b8)', fontWeight: 700 }}>현재 종료일 (As-Is)</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted, #94a3b8)', fontWeight: 700 }}>현재 종료일</div>
                           <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main, #334155)', marginTop: '2px' }}>
                             {payload.asIs?.endDate || '미정'}
                           </div>
                         </div>
                         <div style={{ fontSize: '18px', color: '#4f46e5', fontWeight: 800 }}>➔</div>
                         <div>
-                          <div style={{ fontSize: '11px', color: '#4f46e5', fontWeight: 700 }}>변경 요청 종료일 (To-Be)</div>
+                          <div style={{ fontSize: '11px', color: '#4f46e5', fontWeight: 700 }}>변경 요청 종료일</div>
                           <div style={{ fontSize: '14px', fontWeight: 800, color: '#4f46e5', marginTop: '2px' }}>
                             {payload.toBe?.endDate || '미정'}
                             <span style={{ fontSize: '11px', marginLeft: '6px', color: payload.actionType === 'CONTRACT_SHORTEN' ? '#dc2626' : '#16a34a' }}>

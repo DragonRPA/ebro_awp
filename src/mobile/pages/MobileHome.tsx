@@ -333,7 +333,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
                 </span>
               </div>
               <div className="text-[11px] text-slate-400 mt-0.5">
-                APK 미설치 단말 · 스마트폰 녹음 파일 선택 즉시 AI 분석
+                APK 미설치 단말 · 녹음 파일 선택 즉시 AI 분석
               </div>
             </div>
           </div>
@@ -580,7 +580,7 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
                   {(consumables || []).length}종
                 </span>
               </div>
-              <div className="text-xs text-slate-400">출고 부속품, 충전기, 안전용품 및 부품 가용 수량 실시간 조회</div>
+              <div className="text-xs text-slate-400">출고 부속품, 충전기, 안전용품 및 부품 가용 수량 조회</div>
             </div>
           </div>
           <ArrowRight className="w-5 h-5 text-amber-400" />

@@ -569,7 +569,7 @@ const App: React.FC = () => {
       items: [
         { id: 'trade_products', name: '상품 등록 및 관리', icon: <Package size={16} />, component: <TradeProductsPage /> },
         { id: 'trade_purchases', name: '구매 및 입고', icon: <Layers size={16} />, component: <TradePurchasesPage /> },
-        { id: 'trade_contracts', name: '유통 수주(계약)', icon: <UserCheck size={16} />, component: <TradeContractsPage /> },
+        { id: 'trade_contracts', name: '유통 수주', icon: <UserCheck size={16} />, component: <TradeContractsPage /> },
         { id: 'trade_outbounds', name: '출고 요청', icon: <Zap size={16} />, component: <TradeOutboundPage /> },
         { id: 'courier_dispatch', name: '택배 배송 관리', icon: <Truck size={16} />, component: <CourierDispatchPage /> },
         { id: 'trade_billing', name: '유통 청구 및 명세', icon: <CreditCard size={16} />, component: <TradeBillingPage /> },
@@ -582,7 +582,7 @@ const App: React.FC = () => {
       name: '결재 센터',
       icon: <CheckCircle size={18} />,
       items: [
-        { id: 'approvalInbox', name: '내 결재함 (수신)', icon: <CheckCircle size={16} />, component: <ApprovalInbox /> },
+        { id: 'approvalInbox', name: '내 결재함', icon: <CheckCircle size={16} />, component: <ApprovalInbox /> },
         { id: 'approvalRules', name: '결재선 규칙 설정', icon: <SettingsIcon size={16} />, component: <ApprovalRulesManage /> },
       ]
     },
@@ -594,7 +594,7 @@ const App: React.FC = () => {
         { id: 'customer', name: '고객 관리', icon: <Users size={16} />, component: <Customers /> },
         { id: 'site_options', name: '현장별 옵션 관리', icon: <SlidersHorizontal size={16} />, component: <SiteOptionManage /> },
         { id: 'contract', name: '계약 관리', icon: <UserCheck size={16} />, component: <Contracts /> },
-        { id: 'billing', name: '청구 / 수납 관리', icon: <CreditCard size={16} />, component: <Billings /> },
+        { id: 'billing', name: '청구 수납 관리', icon: <CreditCard size={16} />, component: <Billings /> },
         { id: 'receivable', name: '외상미수금 대장', icon: <CreditCard size={16} />, component: <Receivables /> },
         { id: 'smart_dispatch4', name: '출고 요청', icon: <Zap size={16} />, component: <SmartDispatch4 /> },
         { id: 'voice_dispatch', name: '음성 출고지시', icon: <Mic size={16} />, component: <VoiceDispatch /> },
@@ -607,21 +607,21 @@ const App: React.FC = () => {
     },
     {
       id: 'grp_product_asset',
-      name: '제품 / 자산관리',
+      name: '자산관리',
       icon: <Box size={17} />,
       items: [
         { id: 'product', name: '제품 관리', icon: <Package size={16} />, component: <Products /> },
-        { id: 'asset', name: '자산 관리 (대장)', icon: <Layers size={16} />, component: <Assets /> },
-        { id: 'acquisition_disposal', name: '당사자산 취득 / 매각', icon: <PlusCircle size={16} />, component: <AssetAcquisitionDisposal /> },
+        { id: 'asset', name: '자산 관리', icon: <Layers size={16} />, component: <Assets /> },
+        { id: 'acquisition_disposal', name: '자산 취득 매각', icon: <PlusCircle size={16} />, component: <AssetAcquisitionDisposal /> },
         { id: 'rent_asset', name: '임차 장비 관리', icon: <ShoppingBag size={16} />, component: <RentAssets /> },
       ]
     },
     {
       id: 'grp_logistics',
-      name: '배차 / 운송관리',
+      name: '배차 운송관리',
       icon: <Truck size={17} />,
       items: [
-        { id: 'delivery', name: '배차 / 운송 관리', icon: <Truck size={16} />, component: <TruckDispatch /> },
+        { id: 'delivery', name: '배차 운송 관리', icon: <Truck size={16} />, component: <TruckDispatch /> },
         { id: 'transport_master', name: '운송 거래처 관리', icon: <Settings size={16} />, component: <TransportMaster /> },
       ]
     },
@@ -631,17 +631,17 @@ const App: React.FC = () => {
       icon: <ArrowLeftRight size={17} />,
       items: [
         { id: 'daily_inout', name: '일일 입출고 조회', icon: <Calendar size={16} />, component: <DailyInOutStatus /> },
-        { id: 'asset_inout_history', name: '입고등록/입출고조회', icon: <Clock size={16} />, component: <AssetHistory /> },
-        { id: 'dispatch_assign', name: '장비 할당 / 매핑', icon: <Layers size={16} />, component: <AssetAssignment /> },
+        { id: 'asset_inout_history', name: '입출고 조회', icon: <Clock size={16} />, component: <AssetHistory /> },
+        { id: 'dispatch_assign', name: '장비 할당', icon: <Layers size={16} />, component: <AssetAssignment /> },
         { id: 'outbound_inspections', name: '출고 검수 관리', icon: <CheckSquare size={16} />, component: <OutboundInspections /> },
         { id: 'consumable_stock', name: '주기장 소모품 재고', icon: <Boxes size={16} />, component: <ConsumableStockPage /> },
-          { id: 'stocktaking', name: '재고/자산 실사', icon: <ClipboardList size={16} />, component: <StocktakingPage /> },
+          { id: 'stocktaking', name: '재고 실사', icon: <ClipboardList size={16} />, component: <StocktakingPage /> },
         { id: 'print_queue_monitor', name: '프린트 큐 모니터', icon: <Printer size={16} />, component: <PrintQueueManager /> },
       ]
     },
     {
       id: 'grp_maintenance',
-      name: '정비 / 소모품관리',
+      name: '정비 소모품관리',
       icon: <Wrench size={17} />,
       items: [
         { id: 'consumable_purchase', name: '소모품 구매', icon: <ShoppingBag size={16} />, component: <ConsumablePurchasesPage /> },
@@ -658,10 +658,10 @@ const App: React.FC = () => {
       icon: <FolderKanban size={17} />,
       items: [
         { id: 'leave_application', name: '연차신청', icon: <Calendar size={16} />, component: <LeaveApplicationPage /> },
-        { id: 'ot_management', name: 'OT 관리', icon: <Clock size={16} />, component: <OtManagementPage /> },
-        { id: 'vehicle_log', name: '차량 / 주유관리', icon: <Car size={16} />, component: <VehicleOperationLogPage /> },
+        { id: 'ot_management', name: '연장근무 관리', icon: <Clock size={16} />, component: <OtManagementPage /> },
+        { id: 'vehicle_log', name: '차량 주유관리', icon: <Car size={16} />, component: <VehicleOperationLogPage /> },
         { id: 'purchase_settlement', name: '월말 매입 정산', icon: <CreditCard size={16} />, component: <PurchaseSettlementPage /> },
-        { id: 'vendors', name: '매입처 (공급자 / 외주처) 관리', icon: <Building2 size={16} />, component: <Vendors /> },
+        { id: 'vendors', name: '매입처 관리', icon: <Building2 size={16} />, component: <Vendors /> },
         { id: 'bank_matching', name: '은행 입출금 대장', icon: <TrendingUp size={16} />, component: <BankMatching /> },
         { id: 'corporate_card', name: '법인카드 매입정산', icon: <CreditCard size={16} />, component: <CorporateCardPage /> },
         { id: 'cash_flow', name: '자금 흐름 분석', icon: <TrendingUp size={16} />, component: <CashFlowPage /> },
@@ -674,7 +674,7 @@ const App: React.FC = () => {
       name: '경영관리 - 특수',
       icon: <ShieldAlert size={17} />,
       items: [
-        { id: 'organization', name: '조직 / 인사 관리', icon: <Users size={16} />, component: <OrganizationSettings /> },
+        { id: 'organization', name: '조직 인사 관리', icon: <Users size={16} />, component: <OrganizationSettings /> },
         { id: 'permission', name: '사용자 및 권한', icon: <Shield size={16} />, component: <UsersPermissions /> },
         { id: 'manual_dictionary', name: '전사 업무 매뉴얼 사전', icon: <BookOpen size={16} />, component: <ManualDictionaryPage /> },
         { id: 'payroll', name: '급여 정산', icon: <CreditCard size={16} />, component: <PayrollPage /> },
@@ -696,14 +696,14 @@ const App: React.FC = () => {
       name: '시스템관리 - 개발자',
       icon: <Terminal size={17} />,
       items: [
-        { id: 'agentic_ai_lab', name: '에이전틱 AI 샌드박스 랩', icon: <Bot size={16} />, component: <AgenticAiLabPage /> },
-        { id: 'agentic_dispatch_studio', name: '에이전틱 배차 관제 스튜디오', icon: <Truck size={16} />, component: <AgenticDispatchStudioPage /> },
-        { id: 'agentic_settlement_autopilot', name: '에이전틱 월말 대사 정산 오토파일럿', icon: <TrendingUp size={16} />, component: <AgenticSettlementAutopilotPage /> },
-        { id: 'agentic_asset_lifecycle', name: '에이전틱 자산 라이프사이클 관제', icon: <Layers size={16} />, component: <AgenticAssetLifecyclePage /> },
+        { id: 'agentic_ai_lab', name: 'AI 샌드박스 랩', icon: <Bot size={16} />, component: <AgenticAiLabPage /> },
+        { id: 'agentic_dispatch_studio', name: '배차 관제 스튜디오', icon: <Truck size={16} />, component: <AgenticDispatchStudioPage /> },
+        { id: 'agentic_settlement_autopilot', name: '월말 대사 정산', icon: <TrendingUp size={16} />, component: <AgenticSettlementAutopilotPage /> },
+        { id: 'agentic_asset_lifecycle', name: '자산 라이프사이클 관제', icon: <Layers size={16} />, component: <AgenticAssetLifecyclePage /> },
         { id: 'initial_db_upload', name: '초기DB 업로드', icon: <DatabaseIcon size={16} />, component: <InitialDbUploader /> },
           { id: 'data_formation', name: '초기자료형성', icon: <DatabaseIcon size={16} />, component: <DataFormationStudio /> },
         { id: 'google_config', name: '공식 메일 연동 설정', icon: <Settings size={16} />, component: <GoogleConfig /> },
-        { id: 'dev_uploader', name: '[개발] DB 데이터 업로더', icon: <DatabaseIcon size={16} />, component: <DevDataUploader /> },
+        { id: 'dev_uploader', name: 'DB 데이터 업로더', icon: <DatabaseIcon size={16} />, component: <DevDataUploader /> },
       ]
     }
   ], []);
@@ -1017,7 +1017,7 @@ const App: React.FC = () => {
                     try { localStorage.setItem('remember_id', val); } catch (err) {}
                   }
                 }}
-                placeholder="아이디 입력 (admin)"
+                placeholder="아이디 입력"
                 required
                 style={{ fontSize: '14px', padding: '8px 12px' }}
               />
@@ -1344,7 +1344,7 @@ const App: React.FC = () => {
           }}>
             <div style={{ fontWeight: '700', color: '#60a5fa', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Smartphone size={14} />
-              <span>아이폰 · 아이패드 사파리(Safari) 지원</span>
+              <span>아이폰 · 아이패드 사파리 지원</span>
             </div>
             <div>• 사파리 브라우저 <strong>[공유]</strong> ➔ <strong>[홈 화면에 추가]</strong> 시 전체화면 단독 앱으로 즉시 실행됩니다.</div>
             <div>• 아이패드는 화면 회전 및 상단 모드 전환을 통해 모바일/PC 뷰를 선택할 수 있습니다.</div>
@@ -1451,7 +1451,7 @@ const App: React.FC = () => {
                 <ShieldAlert size={16} color="#ef4444" />
                 접근 통제 및 보안 알림
               </div>
-              데이터 프라이버시(NDA) 보호 규정에 따라, 최고관리자라 하더라도 <strong>개별 고객사(테넌트)의 비즈니스 데이터 및 ERP 화면에는 원천적으로 접근할 수 없도록 격리</strong>되어 있습니다.<br/><br/>
+              데이터 보호 규정에 따라, 최고관리자라 하더라도 <strong>개별 고객사(테넌트)의 비즈니스 데이터 및 ERP 화면에는 원천적으로 접근할 수 없도록 격리</strong>되어 있습니다.<br/><br/>
               본 관제탑에서는 오직 인프라 할당, 계정 상태, 구독 설정만을 제어합니다.
             </div>
           </aside>

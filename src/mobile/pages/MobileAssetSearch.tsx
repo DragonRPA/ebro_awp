@@ -240,7 +240,7 @@ export const MobileAssetSearch: React.FC<MobileAssetSearchProps> = ({ deptMode, 
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="특정 장비번호(K10001) 또는 모델명 검색..."
+            placeholder="장비번호 또는 모델명 검색..."
             className="w-full rounded-2xl py-2.5 pl-10 pr-4 text-xs placeholder-slate-500 focus:outline-none"
             style={{
               backgroundColor: '#090d16',

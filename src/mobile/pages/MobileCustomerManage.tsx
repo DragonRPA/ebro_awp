@@ -150,8 +150,8 @@ export const MobileCustomerManage: React.FC<MobileCustomerManageProps> = ({ onNa
         actionDate: new Date().toISOString().slice(0, 10),
         actionType: nextStatus === 'BLOCKED' ? 'LEGAL' : 'CALL',
         actionDetails: nextStatus === 'BLOCKED'
-          ? `[${roleLabel}] 신규 장비 출고 및 배차 전면 금지(BLOCKED) 조치 발효`
-          : `[${roleLabel}] 거래처 상태 정상(ALLOWED) 환원`,
+          ? `[${roleLabel}] 신규 장비 출고 및 배차 전면 금지 조치 발효`
+          : `[${roleLabel}] 거래처 상태 정상 환원`,
         recordedBy: currentUser?.name || '담당자',
         mandateType: 'CEO_AUTO_MANDATE',
         createdAt: new Date().toISOString()

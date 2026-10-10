@@ -1018,7 +1018,7 @@ export const PrintQueueManager: React.FC = () => {
                       <div style={{ color: 'var(--danger)', fontWeight: '700', marginBottom: '2px' }}>
                         💡 에이전트 창이 켜져 있는데 프린터 목록이 안 뜰 때:
                       </div>
-                      브라우저 주소창 좌측 <b>[설정/조정 아이콘]</b> ➔ <b>[기기의 앱 (Apps on device): 허용]</b>으로 변경 후 <b>[F5 새로고침]</b>하면 자동 감지됩니다. (콘솔 창 제목에 '선택'이 있으면 Enter 키를 누르세요)
+                      브라우저 주소창 좌측 <b>[설정/조정 아이콘]</b> ➔ <b>[기기의 앱: 허용]</b>으로 변경 후 <b>[새로고침]</b>하면 자동 감지됩니다. (콘솔 창 제목에 '선택'이 있으면 Enter 키를 누르세요)
                     </div>
                   </>
                 )}

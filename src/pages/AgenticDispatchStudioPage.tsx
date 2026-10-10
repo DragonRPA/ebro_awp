@@ -112,7 +112,7 @@ export const AgenticDispatchStudioPage: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Truck size={20} color="var(--primary)" />
-          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>에이전틱 배차 관제 스튜디오</h2>
+          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>배차 관제 스튜디오</h2>
           <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--primary)', fontWeight: '700' }}>
             헌장 2.3 단일 EXCHANGE 및 왕복할인 자동 적용
           </span>

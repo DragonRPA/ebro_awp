@@ -177,7 +177,7 @@ export async function executeR2MirrorSync(
     }
 
     if (payloadFiles.length === 0) {
-      throw new Error('R2 파일 수신에 실패했습니다. 공개 도메인(R2 Public Domain) 설정을 확인해 주세요.');
+      throw new Error('R2 파일 수신에 실패했습니다. 공개 도메인 설정을 확인해 주세요.');
     }
 
     // 3. 로컬 사이드카 에이전트(C:\eBroAgent\drive_mirror\)로 전송 및 하위 폴더 트리 자동 생성

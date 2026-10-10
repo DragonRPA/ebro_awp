@@ -223,14 +223,14 @@ export const PayrollPage: React.FC = () => {
 
     setConfirmModal({
       isOpen: true,
-      title: '급여 대장 최종 결재 승인 (마감 Lock)',
-      message: `[${selectedMonth}] 귀속월 급여 대장을 최종 마감 승인하시겠습니까?\n\n승인 시 해당 월의 급여 데이터가 수정 불가능한 읽기 전용 상태로 락(Lock) 설정됩니다.`,
+      title: '급여 대장 최종 결재 마감 승인',
+      message: `[${selectedMonth}] 귀속월 급여 대장을 최종 마감 승인하시겠습니까?\n\n승인 시 해당 월의 급여 데이터가 수정 불가능한 읽기 전용 상태로 설정됩니다.`,
       confirmText: '마감 승인',
       onConfirm: async () => {
         setConfirmModal(null);
         await setPayrollClosingStatus(selectedMonth, 'APPROVED', currentUser?.name);
         await db.awaitPendingWrites();
-        showToast(`[${selectedMonth}] 귀속월 급여 정산 대장이 최종 승인 마감(Lock)되었습니다.`);
+        showToast(`[${selectedMonth}] 귀속월 급여 정산 대장이 최종 승인 마감되었습니다.`);
       }
     });
   };
@@ -275,7 +275,7 @@ export const PayrollPage: React.FC = () => {
   // 급여명세서 이메일 일괄 전송
   const handleSendEmails = () => {
     if (payrollStatus !== 'APPROVED') {
-      showToast('개발자(ADMIN)의 최종 결재 승인(Lock) 완료 후에만 이메일 교부가 가능합니다.', 'error');
+      showToast('관리자의 최종 결재 승인 완료 후에만 이메일 교부가 가능합니다.', 'error');
       return;
     }
 
@@ -378,12 +378,12 @@ export const PayrollPage: React.FC = () => {
               style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '13px', fontWeight: 'bold' }}
               disabled={!canSave}
             >
-              <LockOpen size={16} /> [{selectedMonth}] 결재 마감 승인 (Lock)
+              <LockOpen size={16} /> [{selectedMonth}] 결재 마감 승인
             </button>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', backgroundColor: 'rgba(239, 68, 68, 0.15)', color: 'var(--danger)', borderRadius: '6px', border: '1px solid var(--danger)', fontSize: '13px', fontWeight: 'bold' }}>
-                <Lock size={15} color="var(--danger)" /> [{selectedMonth}] 결재 마감 완료 (Locked)
+                <Lock size={15} color="var(--danger)" /> [{selectedMonth}] 결재 마감 완료
               </div>
               {isAdmin && (
                 <button
@@ -448,7 +448,7 @@ export const PayrollPage: React.FC = () => {
               <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--warning)' }}>{totalOtHours}시간</div>
             </div>
             <div style={{ padding: '12px 16px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-              <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '4px' }}>실지급 총액 (Net Pay)</div>
+              <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '4px' }}>실지급 총액</div>
               <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--success)' }}>₩{totalNet.toLocaleString()}원</div>
             </div>
           </div>
@@ -524,7 +524,7 @@ export const PayrollPage: React.FC = () => {
           <div className="card-header">
             <h3 className="card-title">급여 정산 대장</h3>
             <span className={`badge ${payrollStatus === 'APPROVED' ? 'badge-danger' : 'badge-info'}`}>
-              {payrollStatus === 'APPROVED' ? '결재 완료 (Locked)' : '초안 작성 중 (Draft)'}
+              {payrollStatus === 'APPROVED' ? '결재 완료' : '초안 작성 중'}
             </span>
           </div>
 

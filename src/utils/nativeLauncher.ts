@@ -464,7 +464,7 @@ export function buildDispatchSmsText(params: DispatchSmsParams): string {
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://giyoon.ebro.run';
   lines.push('');
   lines.push('──────────────');
-  lines.push('▶ 기사용 스마트 운송/납품 완료 ◀');
+  lines.push('▶ 기사용 운송/납품 완료 ◀');
   lines.push('아래 링크를 눌러 납품증 사진을 찍으면 운송완료 처리됩니다.');
   lines.push(`${baseUrl}/driver-portal/${delivery.id}`);
 
@@ -744,7 +744,7 @@ export function buildDispatchKakaoTalkText(params: DispatchKakaoParams): string 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://giyoon.ebro.run';
   lines.push('');
   lines.push('──────────────');
-  lines.push('▶ 기사용 스마트 운송/납품 완료 ◀');
+  lines.push('▶ 기사용 운송/납품 완료 ◀');
   lines.push('아래 링크를 눌러 납품증 사진을 찍으면 운송완료 처리됩니다.');
   lines.push(`${baseUrl}/driver-portal/${delivery.id}`);
 

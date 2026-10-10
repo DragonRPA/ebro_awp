@@ -331,7 +331,7 @@ export const DataFormationStudio: React.FC = () => {
         {headers.length > 0 && (
           <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
             <div style={{ flex: '1 1 400px' }}>
-              <h4 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px' }}>자동 매핑 결과 (Mapping Configuration)</h4>
+              <h4 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px' }}>자동 매핑 결과</h4>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                 <thead>
                   <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)' }}>
@@ -362,7 +362,7 @@ export const DataFormationStudio: React.FC = () => {
                 </tbody>
               </table>
 
-              <h4 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginTop: '24px', marginBottom: '8px' }}>일괄 고정값 할당 (Fixed Value Injection)</h4>
+              <h4 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginTop: '24px', marginBottom: '8px' }}>일괄 고정값 할당</h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {schemaFields.filter(f => !Object.values(mapping).includes(f.key)).map(f => (
                   <div key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -380,7 +380,7 @@ export const DataFormationStudio: React.FC = () => {
             </div>
 
             <div style={{ flex: '1 1 300px' }}>
-              <h4 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px' }}>정규 템플릿 요구사항 (Pre-template)</h4>
+              <h4 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '8px' }}>정규 템플릿 요구사항</h4>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {schemaFields.map((f: any) => {
                   const isMapped = Object.values(mapping).includes(f.key) || !!fixedValues[f.key];

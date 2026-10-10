@@ -362,7 +362,7 @@ export const VoiceMemoDispatchStudioModal: React.FC<VoiceMemoDispatchStudioModal
                 핸즈프리
               </span>
             </div>
-            <div className="text-[10px] text-slate-400 whitespace-nowrap">순서 없이 자유롭게 음성을 남기세요</div>
+            <div className="text-[10px] text-slate-400 whitespace-nowrap">음성 녹음 입력</div>
           </div>
         </div>
 
@@ -423,7 +423,7 @@ export const VoiceMemoDispatchStudioModal: React.FC<VoiceMemoDispatchStudioModal
             </button>
 
             <span className="text-slate-400 font-mono text-[10px]">
-              {isListening ? '🎙️ 실시간 청취 중...' : '마이크 정지'}
+              {isListening ? '🎙️ 청취 중...' : '마이크 정지'}
             </span>
           </div>
 

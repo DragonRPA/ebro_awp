@@ -1019,7 +1019,7 @@ export const SiteOptionManage: React.FC = () => {
                   <div data-mid="table-paid-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Shield size={15} color="#2563eb" /> 1. 유상 옵션 (PAID) - 옵션품목마스터 상속
+                        <Shield size={15} color="#2563eb" /> 1. 유상 옵션 - 옵션품목마스터 상속
                       </span>
                       <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
                         * 추가된 현장 특약 단가 오버라이드 가능
@@ -1153,7 +1153,7 @@ export const SiteOptionManage: React.FC = () => {
                   <div data-mid="card-protection-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Shield size={15} color="#059669" /> 2. 보양 작업 (PROTECTION) - 1종 선택
+                        <Shield size={15} color="#059669" /> 2. 보양 작업 - 1종 선택
                       </span>
                       <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
                         * 현장 환경에 따른 보호 완충/함석 보양 규격 지정
@@ -1184,11 +1184,11 @@ export const SiteOptionManage: React.FC = () => {
                       </div>
                   </div>
 
-                  {/* 3. 현장 요구 사양 (SPEC) 섹션 */}
+                  {/* 3. 현장 요구 사양 섹션 */}
                   <div data-mid="card-spec-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <CheckSquare size={15} color="#d97706" /> 3. 현장 요구 사양 (SPEC)
+                        <CheckSquare size={15} color="#d97706" /> 3. 현장 요구 사양
                       </span>
                       <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
                         * 안전인증, 경광등, 센서 연동 등 필수 사양 점검
@@ -1501,9 +1501,9 @@ export const SiteOptionManage: React.FC = () => {
                   fontSize: '12.5px'
                 }}
               >
-                <option value="PAID">유상 옵션 (PAID)</option>
-                <option value="PROTECTION">보양 작업 (PROTECTION)</option>
-                <option value="SPEC">요구 사양 (SPEC)</option>
+                <option value="PAID">유상 옵션</option>
+                <option value="PROTECTION">보양 작업</option>
+                <option value="SPEC">요구 사양</option>
               </select>
             </div>
 
@@ -1515,7 +1515,7 @@ export const SiteOptionManage: React.FC = () => {
               <input
                 type="text"
                 required
-                placeholder="예: 협착방지봉 / 상부센서 (4EA)"
+                placeholder="예: 협착방지봉 / 상부센서"
                 value={editingMasterOption.name || ''}
                 onChange={e => setEditingMasterOption({ ...editingMasterOption, name: e.target.value })}
                 style={{

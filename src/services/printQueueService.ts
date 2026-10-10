@@ -46,7 +46,7 @@ export async function fetchLocalPrintersFromAgent(): Promise<LocalAgentPrintersR
     online: false,
     printers: [],
     defaultPrinter: '',
-    error: '로컬 에이전트(eBroAgent)가 가동 중이지 않거나 브라우저 보안에 의해 차단되었습니다.'
+    error: '로컬 에이전트가 가동 중이지 않거나 브라우저 보안에 의해 차단되었습니다.'
   };
 }
 

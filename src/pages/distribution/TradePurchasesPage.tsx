@@ -16,8 +16,8 @@ export const TradePurchasesPage: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: '#f9fafb' }}>
       <div style={{ padding: '16px', backgroundColor: '#fff', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between' }}>
-        <h2 data-mid="trade_purchases-header" style={{ fontSize: '18px', fontWeight: 600, margin: 0, color: '#111827' }}>구매 및 입고 (Inbound)</h2>
-        <button data-mid="trade_purchases-add-btn" onClick={handleNewPurchase} style={{ padding: '6px 12px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>테스트 발주 생성</button>
+        <h2 data-mid="trade_purchases-header" style={{ fontSize: '18px', fontWeight: 600, margin: 0, color: '#111827' }}>구매 및 입고</h2>
+        <button data-mid="trade_purchases-add-btn" onClick={handleNewPurchase} style={{ padding: '6px 12px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>발주 등록</button>
       </div>
       <div style={{ flex: 1, padding: '16px', overflow: 'auto' }}>
         <table data-mid="trade_purchases-table" style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#fff' }}>

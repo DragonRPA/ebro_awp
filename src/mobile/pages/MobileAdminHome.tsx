@@ -255,7 +255,7 @@ export const MobileAdminHome: React.FC<MobileAdminHomeProps> = ({ onNavigate }) 
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
             <Calendar className="w-4 h-4 text-sky-400" />
-            <span>마감 도래 거래처 (D-Day)</span>
+            <span>마감 도래 거래처</span>
           </h3>
           <span className="text-[11px] text-sky-400">발송 관제</span>
         </div>

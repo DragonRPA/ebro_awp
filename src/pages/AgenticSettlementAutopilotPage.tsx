@@ -108,7 +108,7 @@ export const AgenticSettlementAutopilotPage: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <TrendingUp size={20} color="var(--primary)" />
-          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>에이전틱 월말 대사 정산 오토파일럿</h2>
+          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>월말 대사 정산</h2>
           <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', fontWeight: '700' }}>
             헌장 4.1 일할 매출 기여액 1원 오차 검증
           </span>

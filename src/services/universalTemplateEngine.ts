@@ -160,7 +160,7 @@ const DEFAULT_CONTRACT_TEMPLATE = `<!DOCTYPE html>
       <tr>
         <th style="width: 40px;">No</th>
         <th>장비 모델명</th>
-        <th>장비 번호(S/N)</th>
+        <th>장비 번호</th>
         <th style="width: 80px;">작업높이</th>
         <th style="width: 100px;">월 임대료</th>
         <th style="width: 150px;">사용기간</th>
@@ -420,7 +420,7 @@ const DEFAULT_RECEIPT_TEMPLATE = `<!DOCTYPE html>
       <tr>
         <th style="width: 40px;">No</th>
         <th>인도 장비 모델명</th>
-        <th>장비 고유번호 (S/N)</th>
+        <th>장비 고유번호</th>
         <th style="width: 100px;">작업높이</th>
         <th>부속품 / 안전장치 상태</th>
       </tr>

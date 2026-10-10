@@ -196,7 +196,7 @@ export const LeaveApplicationPage: React.FC = () => {
   // 4. 신청 취소 (삭제) - ADMIN 권한만 가능
   const handleDelete = async (id: string, usedDays: number) => {
     if (!isSystemAdmin) {
-      showErrorModal('⚠️ 연차/반차 신청 취소는 관리자(ADMIN) 권한만 가능합니다.');
+      showErrorModal('⚠️ 연차/반차 신청 취소는 관리자 권한만 가능합니다.');
       return;
     }
     try {

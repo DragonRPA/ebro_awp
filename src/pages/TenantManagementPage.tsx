@@ -1860,9 +1860,9 @@ export const TenantManagementPage: React.FC = () => {
                       onChange={e => setFormData(prev => ({ ...prev, status: e.target.value as any }))}
                       style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)', fontSize: '13px' }}
                     >
-                      <option value="ACTIVE">가동 (ACTIVE)</option>
-                      <option value="SUSPENDED">정지 (SUSPENDED)</option>
-                      <option value="TERMINATED">해지 (TERMINATED)</option>
+                      <option value="ACTIVE">가동</option>
+                      <option value="SUSPENDED">정지</option>
+                      <option value="TERMINATED">해지</option>
                     </select>
                   </div>
 
@@ -2045,7 +2045,7 @@ export const TenantManagementPage: React.FC = () => {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                        구독 유효 기간 및 원클릭 연장
+                        구독 유효 기간 및 기간 연장
                       </span>
                       {/* 원클릭 연장 버튼군 */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -2101,7 +2101,7 @@ export const TenantManagementPage: React.FC = () => {
                       {/* 구독 만료일 */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                          구독 만료일자 (Expire Date) *
+                          구독 만료일자 *
                         </label>
                         <input
                           type="date"
@@ -2157,9 +2157,9 @@ export const TenantManagementPage: React.FC = () => {
                         }))}
                         style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)', fontSize: '13px' }}
                       >
-                        <option value="MONTHLY">월납 (Monthly)</option>
-                        <option value="YEARLY">연납 (Yearly)</option>
-                        <option value="CUSTOM">수시 계약 (Custom)</option>
+                        <option value="MONTHLY">월납</option>
+                        <option value="YEARLY">연납</option>
+                        <option value="CUSTOM">수시 계약</option>
                       </select>
                     </div>
 
@@ -2838,7 +2838,7 @@ export const TenantManagementPage: React.FC = () => {
                     backgroundColor: 'var(--bg-app)'
                   }}>
                     <label style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                      고객사 독립 도메인 매핑 (CNAME)
+                      고객사 독립 도메인 매핑
                     </label>
                     <input
                       type="text"
@@ -3300,7 +3300,7 @@ export const TenantManagementPage: React.FC = () => {
                       <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-main)', marginTop: '4px' }}>2대</div>
                     </div>
                     <div style={{ padding: '12px', backgroundColor: '#ecfdf5', borderRadius: '8px', border: '1px solid #a7f3d0' }}>
-                      <div style={{ fontSize: '11px', color: '#047857', fontWeight: 600 }}>정상 가동 (Online)</div>
+                      <div style={{ fontSize: '11px', color: '#047857', fontWeight: 600 }}>정상 가동</div>
                       <div style={{ fontSize: '20px', fontWeight: 800, color: '#059669', marginTop: '4px' }}>2대</div>
                     </div>
                     <div style={{ padding: '12px', backgroundColor: '#fff1f2', borderRadius: '8px', border: '1px solid #fecdd3' }}>
@@ -3327,7 +3327,7 @@ export const TenantManagementPage: React.FC = () => {
                   }}>
                     <span style={{ fontSize: '18px' }}>💡</span>
                     <div>
-                      <strong>24시간 텔레그램 지시 무누락 보존:</strong> 출고 PC가 퇴근/절전으로 오프라인이어도, 텔레그램 모바일 지시는 클라우드 서버의 태스크 큐(Task Queue)에 즉시 안전 저장되며 익일 PC 부팅 시 0초 만에 일괄 자동 실행됩니다.
+                      <strong>24시간 텔레그램 지시 무누락 보존:</strong> 출고 PC가 퇴근/절전으로 오프라인이어도, 텔레그램 모바일 지시는 클라우드 서버의 태스크 큐에 즉시 안전 저장되며 익일 PC 부팅 시 0초 만에 일괄 자동 실행됩니다.
                     </div>
                   </div>
 
@@ -3355,7 +3355,7 @@ export const TenantManagementPage: React.FC = () => {
                         <tr style={{ borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
                           <td style={{ padding: '10px 14px', textAlign: 'center', fontFamily: 'monospace' }}>1</td>
                           <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--text-main)' }}>DESKTOP-DISPATCH-01</td>
-                          <td style={{ padding: '10px 14px' }}>출고담당자 (u-outbound)</td>
+                          <td style={{ padding: '10px 14px' }}>출고담당자</td>
                           <td style={{ padding: '10px 14px', fontFamily: 'monospace' }}>192.168.0.12:5175</td>
                           <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                             <span style={{ padding: '2px 6px', borderRadius: '4px', backgroundColor: '#e0e7ff', color: '#4338ca', fontWeight: 700, fontSize: '11px' }}>
@@ -3382,7 +3382,7 @@ export const TenantManagementPage: React.FC = () => {
                         <tr style={{ whiteSpace: 'nowrap' }}>
                           <td style={{ padding: '10px 14px', textAlign: 'center', fontFamily: 'monospace' }}>2</td>
                           <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--text-main)' }}>DESKTOP-ADMIN-02</td>
-                          <td style={{ padding: '10px 14px' }}>관리담당자 (u-admin)</td>
+                          <td style={{ padding: '10px 14px' }}>관리담당자</td>
                           <td style={{ padding: '10px 14px', fontFamily: 'monospace' }}>192.168.0.15:5175</td>
                           <td style={{ padding: '10px 14px', textAlign: 'center' }}>
                             <span style={{ padding: '2px 6px', borderRadius: '4px', backgroundColor: '#e0e7ff', color: '#4338ca', fontWeight: 700, fontSize: '11px' }}>

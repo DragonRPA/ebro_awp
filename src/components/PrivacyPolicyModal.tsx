@@ -206,7 +206,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen =
                 주민등록번호 미수집 원칙 (개인정보 보호법 제24조의2 준수)
               </div>
               <p style={{ margin: 0, fontSize: '12px' }}>
-                당사는 법률·대통령령에 구체적 수집 근거가 없는 경우 주민등록번호를 일체 수집·보관하지 않으며, 운송기사 및 거래처의 본인 확인 시 <strong>생년월일(YYMMDD)</strong>만을 제한적으로 수집합니다.
+                당사는 법률·대통령령에 구체적 수집 근거가 없는 경우 주민등록번호를 일체 수집·보관하지 않으며, 운송기사 및 거래처의 본인 확인 시 <strong>생년월일</strong>만을 제한적으로 수집합니다.
               </p>
             </div>
             <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -225,7 +225,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen =
               당사는 개인정보의 분실·도난·유출·위조·변조 또는 훼손을 방지하기 위하여 다음 각 호의 기술적·관리적 보호조치를 이행하고 있습니다:
             </p>
             <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <li><strong>접근 권한 관리</strong>: 사용자 역할 및 직무별 세부 메뉴 권한 통제(RBAC) 적용</li>
+              <li><strong>접근 권한 관리</strong>: 사용자 역할 및 직무별 세부 메뉴 권한 통제 적용</li>
               <li><strong>비밀번호 일방향 암호화</strong>: 사용자 비밀번호는 복호화 불가능한 안전한 일방향 해시 함수로 암호화 보관</li>
               <li><strong>개인정보 마스킹 출력</strong>: 일반 직원의 엑셀 다운로드 및 화면 표출 시 전화번호, 이메일, 계좌번호 등 개인정보 자동 마스킹 적용 (경영진 및 개발자 전용 전체 정보 분리)</li>
               <li><strong>전송 구간 암호화</strong>: 전송 구간 SSL/TLS 보안 프로토콜 상시 적용</li>
@@ -240,8 +240,8 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen =
               당사는 개인정보취급자가 개인정보처리시스템에 접속하여 수행한 모든 업무 내역을 법정 기준에 따라 보관·관리합니다:
             </p>
             <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <li><strong>접속기록 항목</strong>: 접속자 계정(사번/성명), 접속일시, 접속지(IP), 수행업무(로그인/로그아웃, 조회, 수정, 삭제, 엑셀 다운로드), 대상 정보주체 식별정보, 마스킹 여부</li>
-              <li><strong>보관 기간</strong>: 개인정보 접속기록(Privacy Access Log)은 <strong>최소 1년 이상(고유식별정보 처리 시 2년 이상)</strong> 위·변조 방지 보관</li>
+              <li><strong>접속기록 항목</strong>: 접속자 계정(사번/성명), 접속일시, 접속지, 수행업무(로그인/로그아웃, 조회, 수정, 삭제, 엑셀 다운로드), 대상 정보주체 식별정보, 마스킹 여부</li>
+              <li><strong>보관 기간</strong>: 개인정보 접속기록은 <strong>최소 1년 이상(고유식별정보 처리 시 2년 이상)</strong> 위·변조 방지 보관</li>
               <li><strong>정기 점검</strong>: 개인정보 보호책임자는 <strong>반기별 1회 이상</strong> 접속기록을 점검하여 비인가 접근 및 개인정보 다운로드 사유를 감사·기록</li>
             </ul>
           </section>

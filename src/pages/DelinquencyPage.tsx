@@ -1901,7 +1901,7 @@ export const DelinquencyPage: React.FC = () => {
 
               {/* 처분 사유 및 조치 메모 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '11.5px', fontWeight: 700 }}>처분 사유 및 조치 상세 (감사 로그 영구 기록)</label>
+                <label style={{ fontSize: '11.5px', fontWeight: 700 }}>처분 사유 및 조치 상세</label>
                 <textarea
                   value={blockReasonMemo}
                   onChange={e => setBlockReasonMemo(e.target.value)}

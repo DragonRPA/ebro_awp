@@ -310,7 +310,7 @@ export const PrivacyAuditPage: React.FC = () => {
                 gap: '5px'
               }}>
                 <UserCheck size={14} />
-                [{companyName}] 법정 개인정보 보호책임자(CPO)
+                [{companyName}] 법정 개인정보 보호책임자
               </div>
               <div style={{ fontSize: '13px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 <span>성명: <strong>{officer.name}</strong></span>
@@ -337,7 +337,7 @@ export const PrivacyAuditPage: React.FC = () => {
       })()}
 
       {/* ─────────────────────────────────────────────────────────────
-          Z-패턴 ① 좌상단 (Scope) & ② 우상단 (Pipeline) 필터 패널
+          조회 범위 및 필터 패널
           ───────────────────────────────────────────────────────────── */}
       <div style={{
         backgroundColor: 'var(--bg-card, #ffffff)',
@@ -530,7 +530,7 @@ export const PrivacyAuditPage: React.FC = () => {
       </div>
 
       {/* ─────────────────────────────────────────────────────────────
-          Z-패턴 ③ 중앙 본문 (Inspection): 38px 슬림 고밀도 테이블
+          개인정보 접속 이력 대장
           ───────────────────────────────────────────────────────────── */}
       <div style={{
         backgroundColor: 'var(--bg-card, #ffffff)',
@@ -643,7 +643,7 @@ export const PrivacyAuditPage: React.FC = () => {
       </div>
 
       {/* ─────────────────────────────────────────────────────────────
-          Z-패턴 ④ 우하단 (Terminal Action): 통계 검증식 및 반기 감사 승인
+          통계 검증 및 반기 감사 승인
           ───────────────────────────────────────────────────────────── */}
       <div style={{
         backgroundColor: 'var(--bg-secondary, #f8fafc)',

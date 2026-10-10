@@ -164,7 +164,7 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     received.forEach(rec => {
        const pItem = purchaseItems.find(pi => pi.purchaseId === purchaseId && pi.productId === rec.productId);
        if (pItem && (pItem.receivedQty + rec.qty) > pItem.orderQty) {
-          throw new Error("발주 수량(Order Qty)을 초과하여 입고할 수 없습니다.");
+          throw new Error("발주 수량을 초과하여 입고할 수 없습니다.");
        }
     });
 

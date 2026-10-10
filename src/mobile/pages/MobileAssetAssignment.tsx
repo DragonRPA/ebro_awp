@@ -933,7 +933,7 @@ export const MobileAssetAssignment: React.FC<MobileAssetAssignmentProps> = ({
                               </span>
                             </div>
                             <span className="text-[11px] text-slate-400 font-mono">
-                              상태: 출고대기 (ASSIGNED)
+                              상태: 출고대기
                             </span>
                           </div>
                         </div>

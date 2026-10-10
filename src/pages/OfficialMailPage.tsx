@@ -510,7 +510,7 @@ export const OfficialMailPage: React.FC = () => {
             {/* 참조 (CC) */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                참조 (CC) 이메일
+                참조 이메일
               </label>
               <input
                 type="email"

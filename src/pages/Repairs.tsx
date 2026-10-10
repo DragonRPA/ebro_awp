@@ -555,7 +555,7 @@ export const Repairs: React.FC = () => {
 
       await registerRepair(payload, usedConsumables);
       await db.awaitPendingWrites();
-      showToast(`${selectedAsset.assetNo} 정비 완료: 임대가능(AVAILABLE) 복원 및 소모품 차감 완료`);
+      showToast(`${selectedAsset.assetNo} 정비 완료: '임대가능' 복원 및 소모품 차감 완료`);
 
       // 폼 초기화
       setSelectedAssetId('');
@@ -629,7 +629,7 @@ export const Repairs: React.FC = () => {
 
       await registerRepair(payload, usedConsumables);
       await db.awaitPendingWrites();
-      showToast(`${selectedAsset.assetNo} 장비가 수리정비중(REPAIRING) 상태로 보존되었습니다.`);
+      showToast(`${selectedAsset.assetNo} 장비가 '수리정비중' 상태로 보존되었습니다.`);
       setShowUnresolvedModal(false);
       setSelectedAssetId('');
       setSelectedRepairId('');
@@ -1025,7 +1025,7 @@ export const Repairs: React.FC = () => {
                     {repairs.some(r => r.assetId === selectedAsset.id && r.status === 'IN_PROGRESS' && r.maintenanceType === 'EXTERNAL') && (
                       <div style={{ marginTop: '6px', fontSize: '11.5px', color: '#6d28d9', backgroundColor: 'rgba(139, 92, 246, 0.1)', padding: '5px 10px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Truck size={14} />
-                        <strong>외주정비 위탁 진행 중:</strong> 협력업체 정비 완료 후 수리내역 확인 및 [외주 입고 검수 완료]를 실행하면 임대가능(AVAILABLE)으로 복원됩니다.
+                        <strong>외주정비 위탁 진행 중:</strong> 협력업체 정비 완료 후 수리내역 확인 및 [외주 입고 검수 완료]를 실행하면 '임대가능'으로 복원됩니다.
                       </div>
                     )}
                     {/* 소모품대기 안내 배너 */}
@@ -1173,18 +1173,18 @@ export const Repairs: React.FC = () => {
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' }}>정비 항목 코드 (Inspection Code)</label>
+                    <label style={{ fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' }}>정비 항목 코드</label>
                     <select
                       value={inspectionItemCode}
                       onChange={e => setInspectionItemCode(e.target.value)}
                       style={{ padding: '6px 8px', fontSize: '12.5px' }}
                     >
                       <option value="">분류 선택</option>
-                      <option value="CHK-000001">외관/바디 (CHK-000001)</option>
-                      <option value="CHK-000002">유압/동력 (CHK-000002)</option>
-                      <option value="CHK-000003">전기/배터리 (CHK-000003)</option>
-                      <option value="CHK-000004">주행/타이어 (CHK-000004)</option>
-                      <option value="CHK-000005">기타/접수 (CHK-000005)</option>
+                      <option value="CHK-000001">외관/바디</option>
+                      <option value="CHK-000002">유압/동력</option>
+                      <option value="CHK-000003">전기/배터리</option>
+                      <option value="CHK-000004">주행/타이어</option>
+                      <option value="CHK-000005">기타/접수</option>
                     </select>
                   </div>
 
@@ -1860,7 +1860,7 @@ export const Repairs: React.FC = () => {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-                <strong>{selectedAsset?.assetNo}</strong> 장비를 정비 완료하지 않고 '정비중(REPAIRING)' 상태로 유지합니다.
+                <strong>{selectedAsset?.assetNo}</strong> 장비를 정비 완료하지 않고 '정비중' 상태로 유지합니다.
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

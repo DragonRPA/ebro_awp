@@ -781,7 +781,7 @@ export const DevDataUploader: React.FC = () => {
     setUploading(false);
   };
 
-  // ──── 전체 테이블 일괄 관리 (Excel) 상태 및 핸들러 ────
+  // ──── 전체 테이블 일괄 관리 상태 및 핸들러 ────
   const [bulkParsedData, setBulkParsedData] = useState<Record<string, Record<string, string>[]>>({});
   const [bulkValidationErrors, setBulkValidationErrors] = useState<{ sheet: string; row: number; field: string; message: string }[]>([]);
   const [bulkValidationDone, setBulkValidationDone] = useState(false);
@@ -1433,9 +1433,9 @@ export const DevDataUploader: React.FC = () => {
 
           {/* STEP 3: 업로드 */}
           <div className="card" style={{ padding: '20px' }}>
-            <h3 style={{ fontWeight: '700', marginBottom: '12px', fontSize: '15px' }}>④ Supabase 업로드 (Upsert)</h3>
+            <h3 style={{ fontWeight: '700', marginBottom: '12px', fontSize: '15px' }}>④ DB 업로드</h3>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px' }}>
-              id가 이미 존재하면 <strong>수정(Update)</strong>, 없으면 <strong>신규 삽입(Insert)</strong>합니다.
+              id가 이미 존재하면 <strong>수정</strong>, 없으면 <strong>신규 삽입</strong>합니다.
             </p>
             <button
               data-mid="dev_uploader-upload-btn" onClick={handleUpload}
@@ -1494,7 +1494,7 @@ export const DevDataUploader: React.FC = () => {
       <div className="card" style={{ padding: '24px', backgroundColor: 'var(--bg-card)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
           <DatabaseIcon size={20} color="var(--primary)" />
-          <h3 style={{ fontWeight: '800', fontSize: '18px', margin: 0 }}>전체 테이블 일괄 관리 (Excel)</h3>
+          <h3 style={{ fontWeight: '800', fontSize: '18px', margin: 0 }}>전체 테이블 일괄 관리</h3>
         </div>
 
         <div style={{
@@ -1623,12 +1623,12 @@ export const DevDataUploader: React.FC = () => {
 
           {/* Zone 3: 위험 영역 */}
           <div className="card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <h4 style={{ fontWeight: '700', fontSize: '14px', margin: '0 0 6px 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', color: 'var(--danger)' }}>위험 영역 (Danger Zone)</h4>
+            <h4 style={{ fontWeight: '700', fontSize: '14px', margin: '0 0 6px 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', color: 'var(--danger)' }}>위험 영역</h4>
             <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: 0 }}>
               DB의 모든 테이블 데이터를 히 초기화합니다. 이 작업은 되돌릴 수 없습니다.
             </p>
             <button onClick={handleClearAllTables} className="btn-danger" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: 'auto' }}>
-              <Trash2 size={14} /> 전체 테이블 초기화 (Clear All)
+              <Trash2 size={14} /> 전체 테이블 초기화
             </button>
           </div>
         </div>

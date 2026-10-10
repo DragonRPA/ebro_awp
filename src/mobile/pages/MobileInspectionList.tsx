@@ -333,7 +333,7 @@ export const MobileInspectionList: React.FC = () => {
     );
 
     if (customer && (customer as any).transactionStatus === 'BLOCKED') {
-      showErrorModal(`[출고제한] 거래차단(BLOCKED) 고객사(${customer.name}) 장비는 출고 승인할 수 없습니다.`);
+      showErrorModal(`[출고제한] 거래차단 고객사(${customer.name}) 장비는 출고 승인할 수 없습니다.`);
       return;
     }
 
@@ -426,7 +426,7 @@ export const MobileInspectionList: React.FC = () => {
     const customer = contract ? customers.find(c => c.id === contract.customerId) : undefined;
     
     if (customer && (customer as any).transactionStatus === 'BLOCKED') {
-      showErrorModal(`[출고제한] 거래차단(BLOCKED) 고객사(${customer.name}) 장비는 일괄 승인할 수 없습니다.`);
+      showErrorModal(`[출고제한] 거래차단 고객사(${customer.name}) 장비는 일괄 승인할 수 없습니다.`);
       return;
     }
 
@@ -917,7 +917,7 @@ export const MobileInspectionList: React.FC = () => {
                   <div className="p-3 rounded-xl bg-red-950/60 border border-red-500/60 flex items-start gap-2 shadow">
                     <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                     <span className="text-xs text-red-200 font-bold leading-relaxed">
-                      거래차단(BLOCKED) 고객사입니다. 연체 미결 건 해제 전까지 출고 승인이 불가합니다.
+                      거래차단 고객사입니다. 연체 미결 건 해제 전까지 출고 승인이 불가합니다.
                     </span>
                   </div>
                 )}

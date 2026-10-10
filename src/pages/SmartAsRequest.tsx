@@ -11,7 +11,7 @@ const QUICK_ISSUE_PRESETS = [
   '과상승 감지봉 파손',
   '상승 / 하강 작동 불가',
   '배터리 충전 안됨 / 충전선 파손',
-  '에러코드 발생 (LD / U038)',
+  '에러코드 발생',
   '유압 오일 누유 / 작동유 부족',
   '키박스 / 키스위치 불량',
   '현장 배관 / 파이프 장비 걸림',
@@ -889,7 +889,7 @@ export const SmartAsRequest: React.FC = () => {
                   <option value="충전/전원">충전 불량 / 충전선 단선</option>
                   <option value="오일누유">유압 오일 누유</option>
                   <option value="키박스/스위치">키박스 / 키스위치 불량</option>
-                  <option value="에러코드">에러코드 점등 (LD / U038)</option>
+                  <option value="에러코드">에러코드 점등</option>
                   <option value="파이프걸림">현장 배관/파이프 걸림</option>
                   <option value="점검요청">정기 순회 점검</option>
                   <option value="기타">기타 고장</option>

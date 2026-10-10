@@ -310,7 +310,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
     );
 
     if (isReturnIntent) {
-      modifiedFields.unshift('의뢰유형: 회수의뢰(RETURN)');
+      modifiedFields.unshift('의뢰유형: 회수의뢰');
     }
 
     if (updatedDraft.customerId) setSelectedCustomerId(updatedDraft.customerId);
@@ -611,7 +611,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
     if (!selectedCust) return;
 
     if (selectedCust.transactionStatus === 'BLOCKED') {
-      showToast('경영진 처분으로 인해 거래 정지(BLOCKED)된 거래처입니다.', 'error');
+      showToast('경영진 처분으로 인해 거래 정지된 거래처입니다.', 'error');
       return;
     }
 
@@ -1059,7 +1059,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
                 </span>
               </div>
               <div className="text-[10px] text-blue-100 font-normal mt-0.5">
-                순서 없이 음성메모를 남기면 5대 핵심항목 실시간 충족 검증 후 즉시 접수
+                음성메모를 남기면 5대 핵심항목 검증 후 즉시 접수
               </div>
             </div>
           </div>
@@ -1093,7 +1093,7 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
         {/* 실시간 말풍선 */}
         {(isListening || interimText) && (
           <div className="bg-slate-950 border border-blue-500/40 rounded-xl p-2.5 text-xs text-blue-200 animate-in fade-in duration-150">
-            <div className="text-[10px] text-slate-400 mb-0.5">실시간 음성 전사:</div>
+            <div className="text-[10px] text-slate-400 mb-0.5">음성 전사:</div>
             <div className="font-mono">{interimText || '말씀하시면 텍스트가 표시됩니다...'}</div>
           </div>
         )}

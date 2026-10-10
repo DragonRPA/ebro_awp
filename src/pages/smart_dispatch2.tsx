@@ -541,7 +541,7 @@ export const SmartDispatch2: React.FC = () => {
 
     const matchedCust = findCustomerByNormalizedName(customers, customerName);
     if (matchedCust?.transactionStatus === 'BLOCKED') {
-      showToast('🚫 거래 불가(BLOCKED) 거래처입니다.', 'error'); return;
+      showToast('🚫 거래 불가 거래처입니다.', 'error'); return;
     }
     if (matchedCustOverdue && matchedCustOverdue.overdueSum > 0 && !dispatchOverdueAcknowledged) {
       showToast('⚠️ 연체 채권 확인 체크박스에 동의해야 합니다.', 'error'); return;
@@ -778,7 +778,7 @@ export const SmartDispatch2: React.FC = () => {
         }}>
           <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
             <AlertTriangle size={15} color={matchedCustOverdue.isBlocked ? '#dc2626' : '#d97706'} />
-            {matchedCustOverdue.isBlocked ? '🚫 [경영진 처분] 거래 불가 (BLOCKED)' : '⚠️ 연체 채권 경각심 통제 경보'}
+            {matchedCustOverdue.isBlocked ? '🚫 [경영진 처분] 거래 불가' : '⚠️ 연체 채권 경각심 통제 경보'}
           </div>
           {!matchedCustOverdue.isBlocked && (
             <>

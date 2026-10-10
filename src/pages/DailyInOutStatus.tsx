@@ -773,13 +773,13 @@ export const DailyInOutStatus: React.FC = () => {
               paddingBottom: '10px',
               borderBottom: '1px solid var(--border-color)'
             }}>
-              <div style={{ color: '#ef4444' }}>일 (Sun)</div>
-              <div style={{ color: 'var(--text-secondary)' }}>월 (Mon)</div>
-              <div style={{ color: 'var(--text-secondary)' }}>화 (Tue)</div>
-              <div style={{ color: 'var(--text-secondary)' }}>수 (Wed)</div>
-              <div style={{ color: 'var(--text-secondary)' }}>목 (Thu)</div>
-              <div style={{ color: 'var(--text-secondary)' }}>금 (Fri)</div>
-              <div style={{ color: '#3b82f6' }}>토 (Sat)</div>
+              <div style={{ color: '#ef4444' }}>일</div>
+              <div style={{ color: 'var(--text-secondary)' }}>월</div>
+              <div style={{ color: 'var(--text-secondary)' }}>화</div>
+              <div style={{ color: 'var(--text-secondary)' }}>수</div>
+              <div style={{ color: 'var(--text-secondary)' }}>목</div>
+              <div style={{ color: 'var(--text-secondary)' }}>금</div>
+              <div style={{ color: '#3b82f6' }}>토</div>
             </div>
 
             {/* 날짜 그리드 */}

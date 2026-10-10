@@ -333,7 +333,7 @@ export const MobileSubleaseManage: React.FC<MobileSubleaseManageProps> = ({
   // [액션 2] 임차처 반납 마감 바텀시트 오픈
   const handleOpenReturnModal = (asset: Asset) => {
     if (asset.status === 'RENTED' || (asset as any).isDeployedToCustomer) {
-      showErrorModal(`자산 ${asset.assetNo}은 현재 고객사 현장에 대여중(RENTED)입니다. 현장 회수 입고 전에는 임차처 반납이 불가합니다.`, '반납 차단');
+      showErrorModal(`자산 ${asset.assetNo}은 현재 고객사 현장에 '대여중'입니다. 현장 회수 입고 전에는 임차처 반납이 불가합니다.`, '반납 차단');
       return;
     }
     setTargetAssetForReturn(asset);
@@ -855,11 +855,11 @@ export const MobileSubleaseManage: React.FC<MobileSubleaseManageProps> = ({
                     onChange={(e) => setNewModelName(e.target.value)}
                     className="w-full py-2 px-3 rounded-xl bg-slate-950 border border-slate-700 text-white text-xs focus:outline-none focus:border-sky-500"
                   >
-                    <option value="GS-1930">GS-1930 (19ft)</option>
+                    <option value="GS-1930">GS-1930</option>
                     <option value="2646">2646 (26ft 광폭)</option>
-                    <option value="3246">3246 (32ft)</option>
-                    <option value="4047">4047 (40ft)</option>
-                    <option value="GS-1530">GS-1530 (15ft)</option>
+                    <option value="3246">3246</option>
+                    <option value="4047">4047</option>
+                    <option value="GS-1530">GS-1530</option>
                     <option value="GTJZ0608ME">GTJZ0608ME</option>
                   </select>
                 </div>

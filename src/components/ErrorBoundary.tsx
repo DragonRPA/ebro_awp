@@ -164,7 +164,7 @@ export class ErrorBoundary extends Component<Props, State> {
               } else if (rawMsg.includes('300')) {
                 decodedNote = ' [진단: React Hook 조건부 호출 오류]';
               } else if (rawMsg.includes('185')) {
-                decodedNote = ' [진단: 무한 재렌더링 루프 (Maximum update depth exceeded)]';
+                decodedNote = ' [진단: 무한 재렌더링 오류]';
               } else if (rawMsg.includes('dynamically imported module') || rawMsg.includes('module script')) {
                 decodedNote = ' [진단: 신규 배포에 따른 페이지 모듈 캐시 불일치. 최신 버전 자동 동기화 실패]';
               }

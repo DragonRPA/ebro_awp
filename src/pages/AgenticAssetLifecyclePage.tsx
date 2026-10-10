@@ -116,7 +116,7 @@ export const AgenticAssetLifecyclePage: React.FC = () => {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '10px', borderBottom: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Layers size={20} color="var(--primary)" />
-          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>에이전틱 자산 라이프사이클 관제</h2>
+          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '800' }}>자산 라이프사이클 관제</h2>
           <span style={{ fontSize: '12px', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--primary)', fontWeight: '700' }} data-uia="badge-guard-rented">
             헌장 1.3 출고 검수 마감 시 RENTED 전환 강제
           </span>

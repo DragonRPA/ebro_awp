@@ -844,12 +844,12 @@ export const InspectionChecklistManage: React.FC = () => {
     }
 
     if (manualFormMediaType === 'YOUTUBE' && !manualFormExternalUrl.trim()) {
-      showToast('유튜브 동영상 링크(URL)를 입력해 주세요.', 'error');
+      showToast('유튜브 동영상 링크를 입력해 주세요.', 'error');
       return;
     }
 
     if (manualFormMediaType === 'WEB_LINK' && !manualFormExternalUrl.trim()) {
-      showToast('웹 기술문서 링크(URL)를 입력해 주세요.', 'error');
+      showToast('웹 기술문서 링크를 입력해 주세요.', 'error');
       return;
     }
 
@@ -2626,7 +2626,7 @@ export const InspectionChecklistManage: React.FC = () => {
 
                 {/* 표준 작업 공수 */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>표준 작업 공수 (M/H) *</label>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>표준 작업 공수 *</label>
                   <input
                     type="number"
                     step="0.1"
@@ -3047,7 +3047,7 @@ export const InspectionChecklistManage: React.FC = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ fontSize: '12px', fontWeight: 'bold' }}>
-                      유튜브 동영상 링크 (YouTube URL) *
+                      유튜브 동영상 링크 *
                     </label>
                     <input
                       type="text"

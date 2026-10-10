@@ -239,12 +239,12 @@ export const VehicleOperationLogPage: React.FC = () => {
         C: '③사용자 성명',
         D: '④출발지',
         E: '⑤도착지',
-        F: '⑥주행 전 계기판(km)',
-        G: '⑦주행 후 계기판(km)',
-        H: '⑧총 주행거리(km)',
-        I: '⑨출퇴근용(km)',
-        J: '⑩일반업무용(km)',
-        K: '⑪업무용 사용거리(km)',
+        F: '⑥주행 전 계기판',
+        G: '⑦주행 후 계기판',
+        H: '⑧총 주행거리',
+        I: '⑨출퇴근용',
+        J: '⑩일반업무용',
+        K: '⑪업무용 사용거리',
         L: '⑫운행목적/비고'
       });
 
@@ -319,11 +319,11 @@ export const VehicleOperationLogPage: React.FC = () => {
         '주유량(L)': f.fuelVolume,
         '주유금액(원)': f.fuelAmount,
         '단가(원/L)': f.fuelUnitPrice || (f.fuelVolume > 0 ? Math.round(f.fuelAmount / f.fuelVolume) : 0),
-        '계기판(km)': f.currentMileage,
+        '계기판 거리': f.currentMileage,
         '주유소명': f.gasStationName || '',
         '결제수단': f.paymentMethod === 'CORPORATE_CARD' ? '법인카드' : '개인경비',
         '카드번호(끝4자리)': f.cardLast4 || '',
-        '계산연비(km/L)': f.fuelEfficiency || '',
+        '계산연비': f.fuelEfficiency || '',
         '영수증증빙여부': f.receiptPhotoUrl ? '증빙완료' : '미첨부',
         '비고': f.memo || ''
       }));
@@ -797,10 +797,10 @@ export const VehicleOperationLogPage: React.FC = () => {
                   <th style={{ padding: '8px 10px' }}>운행자(부서)</th>
                   <th style={{ padding: '8px 10px' }}>운행목적</th>
                   <th style={{ padding: '8px 10px' }}>출발지 ➔ 도착지</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>출발(km)</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>도착(km)</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800' }}>주행(km)</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>업무용(km)</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>출발 거리</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>도착 거리</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800' }}>주행 거리</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>업무용 거리</th>
                   <th style={{ padding: '8px 10px', textAlign: 'center' }}>계기판 증빙</th>
                   <th style={{ padding: '8px 10px', textAlign: 'center' }}>상태</th>
                   <th style={{ padding: '8px 10px', textAlign: 'center' }}>관리</th>
@@ -1014,7 +1014,7 @@ export const VehicleOperationLogPage: React.FC = () => {
                   <th style={{ padding: '8px 10px', textAlign: 'right' }}>주유량(L)</th>
                   <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800' }}>주유금액(원)</th>
                   <th style={{ padding: '8px 10px', textAlign: 'right' }}>리터단가(원/L)</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>계기판(km)</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>계기판 거리</th>
                   <th style={{ padding: '8px 10px', textAlign: 'center' }}>계기판 사진</th>
                   <th style={{ padding: '8px 10px', textAlign: 'center' }}>영수증 사진</th>
                   <th style={{ padding: '8px 10px' }}>주유소명</th>
@@ -1232,8 +1232,8 @@ export const VehicleOperationLogPage: React.FC = () => {
                   <th style={{ padding: '8px 10px' }}>기본유종</th>
                   <th style={{ padding: '8px 10px' }}>배정부서</th>
                   <th style={{ padding: '8px 10px' }}>주 운행자</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>최초거리(km)</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800' }}>현재누적(km)</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>최초 거리</th>
+                  <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800' }}>현재 누적 거리</th>
                   <th style={{ padding: '8px 10px' }}>보험만료일</th>
                   <th style={{ padding: '8px 10px', textAlign: 'center' }}>상태</th>
                   <th style={{ padding: '8px 10px', textAlign: 'center' }}>관리</th>
@@ -1604,7 +1604,7 @@ export const VehicleOperationLogPage: React.FC = () => {
               {/* 최초 주행거리 & 현재 누적 주행거리 */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)' }}>최초 등록 주행거리 (km)</label>
+                  <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)' }}>최초 등록 주행거리</label>
                   <input
                     type="number"
                     value={vehicleForm.initialMileage}
@@ -1614,7 +1614,7 @@ export const VehicleOperationLogPage: React.FC = () => {
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)' }}>현재 누적 주행거리 (km)</label>
+                  <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)' }}>현재 누적 주행거리</label>
                   <input
                     type="number"
                     value={vehicleForm.currentMileage}

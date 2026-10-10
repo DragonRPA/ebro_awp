@@ -545,7 +545,7 @@ contact: e.target.value })} placeholder="010-0000-0000" />
                   <input type="text" value={editingDriver.driverContact || ''} onChange={e => setEditingDriver({ ...editingDriver, driverContact: e.target.value })} placeholder="010-0000-0000" />
                 </div>
                 <div>
-                  <label>생년월일 (YYMMDD)</label>
+                  <label>생년월일</label>
                   <input 
                     type="text" 
                     value={editingDriver.birthDate || ''} 

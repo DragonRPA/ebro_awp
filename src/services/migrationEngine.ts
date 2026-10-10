@@ -5442,7 +5442,7 @@ export function exportInspectionChecklistExcelTemplate(tenantName: string = '기
   const wb = XLSX.utils.book_new();
 
   const headers = [
-    'NO', '카테고리*', '항목코드', '정비점검항목명*', '배점*', '표준공수(MH)', '불량증상여부(Y/N)', '표준조치절차', '설명/비고'
+    'NO', '카테고리*', '항목코드', '정비점검항목명*', '배점*', '표준공수', '불량증상여부', '표준조치절차', '설명/비고'
   ];
   const sampleItems = [
     [1, '전기/배터리', 'CHK-0000001', '작동안됨', 10, 0.8, 'Y', '비상정지 스위치, 풋스위치, 상하부 전환 스위치 전원 루프 점검 및 에러코드 진단', '기본 전원 계통 고장'],

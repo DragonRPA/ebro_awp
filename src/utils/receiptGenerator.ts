@@ -59,7 +59,7 @@ export function generateReceiptHtml(
     }
   }
 
-  const dType = delivery?.type === 'OUTBOUND' ? '출고 (OUTBOUND)' : delivery?.type === 'INBOUND' ? '회수 (INBOUND)' : delivery?.type === 'EXCHANGE' ? '교환 (EXCHANGE)' : '출고';
+  const dType = delivery?.type === 'OUTBOUND' ? '출고' : delivery?.type === 'INBOUND' ? '회수' : delivery?.type === 'EXCHANGE' ? '교환' : '출고';
   const signDate = new Date().toISOString().split('T')[0];
   const dDate = delivery?.unloadingDate || delivery?.loadingDate || delivery?.requestDate || signDate;
   const dVehicle = delivery?.vehicleNumber || '화물 운송차량';
@@ -683,7 +683,7 @@ export async function generateSignedReceiptCanvas(options: SignedReceiptOptions)
   ctx.strokeRect(65, delBarY, 1070, delBarH);
 
   const colW = 1070 / 4;
-  const dType = delivery?.type === 'OUTBOUND' ? '출고 (OUTBOUND)' : delivery?.type === 'INBOUND' ? '회수 (INBOUND)' : delivery?.type === 'EXCHANGE' ? '교환 (EXCHANGE)' : '출고';
+  const dType = delivery?.type === 'OUTBOUND' ? '출고' : delivery?.type === 'INBOUND' ? '회수' : delivery?.type === 'EXCHANGE' ? '교환' : '출고';
   const dDate = delivery?.unloadingDate || delivery?.requestDate || signDate;
   const dVehicle = delivery?.vehicleNumber || '화물 운송차량';
   const dDriver = delivery?.driverName ? `${delivery.driverName} (${delivery.driverContact || '-'})` : '지정 기사';

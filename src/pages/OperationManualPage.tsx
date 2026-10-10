@@ -378,7 +378,7 @@ export const OperationManualPage: React.FC = () => {
               gap: '5px',
               whiteSpace: 'nowrap'
             }}
-            title="51개 모든 메뉴의 표준 매뉴얼을 DB에 영구 일괄 주입"
+            title="51개 모든 메뉴의 표준 매뉴얼을 DB에 일괄 주입"
           >
             <Sparkles size={13} />
             <span>{saving ? 'DB 주입중…' : 'DB 일괄 주입'}</span>
@@ -679,7 +679,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
       {/* ── 1. 최종 업무 목표 (Terminal Objective - Gutenberg 질문 1) ── */}
       <div style={{ backgroundColor: '#F8FAFC', padding: '14px 18px', borderRadius: '8px', borderLeft: '4px solid #2563EB' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 900, color: '#1E40AF' }}>🎯 최종 업무 목표 (Terminal Objective)</span>
+          <span style={{ fontSize: '13px', fontWeight: 900, color: '#1E40AF' }}>🎯 최종 업무 목표</span>
         </div>
         <div style={{ fontSize: '13.5px', lineHeight: '1.6', color: '#1E293B', fontWeight: 600 }}>
           {item.objective}
@@ -690,7 +690,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
         <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#059669' }}></span>
-          <span>1단계: 조회 스코프 및 필수 사전 데이터 (Scope)</span>
+          <span>1단계: 조회 범위 및 필수 데이터</span>
         </div>
         <div style={{ padding: '10px 14px', borderRadius: '6px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
           {item.scopeInfo}
@@ -701,7 +701,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#2563EB' }}></span>
-          <span>2단계: Gutenberg Z-패턴 4단계 조작 동선 (Cognitive Sequence)</span>
+          <span>2단계: Z-패턴 4단계 조작 동선</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {item.cognitiveSequence.map((step, sIdx) => (
@@ -954,7 +954,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
 
                   {/* ③ 사후 상태 전이 */}
                   <div style={{ backgroundColor: '#fff', padding: '10px 12px', borderRadius: '6px', border: '1px solid #E9D5FF', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#059669' }}>③ 사후 자산/DB 상태 전이 (Transition)</span>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#059669' }}>③ 사후 자산/DB 상태 전이</span>
                     <div style={{ fontSize: '11.5px', color: '#065F46', lineHeight: '1.45', fontWeight: 600 }}>
                       {mw.afterStateTransition}
                     </div>
@@ -969,7 +969,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
       {/* ── 4. 최종 확정 및 대차대조 결과 (Audit Result - Gutenberg 질문 4) ── */}
       <div style={{ backgroundColor: '#F0FDF4', padding: '12px 16px', borderRadius: '8px', borderLeft: '4px solid #059669' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 900, color: '#065F46' }}>⚖️ 최종 감사 및 확정 결과 (Audit Result)</span>
+          <span style={{ fontSize: '13px', fontWeight: 900, color: '#065F46' }}>⚖️ 최종 감사 및 확정 결과</span>
         </div>
         <div style={{ fontSize: '13px', lineHeight: '1.6', color: '#064E3B', fontWeight: 600 }}>
           {item.auditResult}

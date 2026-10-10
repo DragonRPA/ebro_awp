@@ -404,7 +404,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-muted)' }}>연결 상태:</span>
               <span style={{ fontWeight: '800', color: agentStatus === 'ONLINE' ? '#16a34a' : '#dc2626' }}>
-                {agentStatus === 'ONLINE' ? '🟢 가동중 (ONLINE)' : '🔴 미실행 (OFFLINE)'}
+                {agentStatus === 'ONLINE' ? '🟢 가동중' : '🔴 미실행'}
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -472,7 +472,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
                 Chrome/Edge 로컬 루프백 보안 차단 또는 콘솔 일시정지 상태입니다:
                 <div style={{ marginTop: '5px', color: 'var(--text-main)', fontSize: '11px', background: 'var(--bg-card)', padding: '6px 8px', borderRadius: '5px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <div>
-                    <b>1.</b> 주소창 좌측 <b>[설정/조정 아이콘]</b> 클릭 ➔ <b>[기기의 앱 (Apps on device)]</b>을 <b>[허용(ON)]</b>으로 변경 (안 보이면 [사이트 설정] 클릭 후 허용)
+                    <b>1.</b> 주소창 좌측 <b>[설정/조정 아이콘]</b> 클릭 ➔ <b>[기기의 앱]</b>을 <b>[허용]</b>으로 변경 (안 보이면 [사이트 설정] 클릭 후 허용)
                   </div>
                   <div>
                     <b>2.</b> 검은색 콘솔 창 제목에 <b>'선택'</b> 글자가 있으면 마우스 클릭으로 일시정지된 상태입니다. 콘솔 창을 클릭 후 <b>[Enter]</b> 또는 <b>[Esc]</b>를 1회 누르세요.
@@ -703,7 +703,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
                   }}
                 >
                   <RefreshCw size={14} className={isUpdatingSelf ? 'animate-spin' : ''} />
-                  {isUpdatingSelf ? '무음 자동 업데이트 진행 중...' : `🚀 최신 버전(${EXPECTED_AGENT_VERSION}) 원클릭 자동 업데이트`}
+                  {isUpdatingSelf ? '무음 자동 업데이트 진행 중...' : `🚀 최신 버전(${EXPECTED_AGENT_VERSION}) 자동 업데이트`}
                 </button>
                 {updateMsg && (
                   <div style={{ fontSize: '11px', textAlign: 'center', color: updateMsg.includes('실패') ? '#dc2626' : '#16a34a', fontWeight: '700' }}>

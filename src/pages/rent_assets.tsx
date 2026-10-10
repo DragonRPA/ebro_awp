@@ -4189,7 +4189,7 @@ export const RentAssets: React.FC = () => {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                            임차처 입금 계좌번호 (Bank Account)
+                            임차처 입금 계좌번호
                           </label>
                           <input
                             type="text"
@@ -4202,7 +4202,7 @@ export const RentAssets: React.FC = () => {
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                            지급 희망 예정일 (Payment Due Date)
+                            지급 희망 예정일
                           </label>
                           <input
                             type="date"
@@ -4215,7 +4215,7 @@ export const RentAssets: React.FC = () => {
 
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                          결재 및 지급 요청 메모 (Memo)
+                          결재 및 지급 요청 메모
                         </label>
                         <input
                           type="text"

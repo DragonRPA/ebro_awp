@@ -916,7 +916,7 @@ export const MobileVehicleStock: React.FC = () => {
                           : 'bg-slate-800 text-slate-400 border-slate-700'
                       }`}
                     >
-                      재생 수리 대상 (RMA)
+                      재생 수리 대상
                     </button>
                     <button
                       type="button"
