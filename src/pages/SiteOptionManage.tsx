@@ -133,6 +133,18 @@ export const SiteOptionManage: React.FC = () => {
   const [editSiteMasterForm, setEditSiteMasterForm] = useState({ id: '', name: '', address: '' });
 
   const handleToggleSiteStatus = async (site: any, targetStatus: boolean) => {
+    if (targetStatus === false) {
+      const activeContracts = db.contracts.filter(c => 
+        c.siteId === site.id && 
+        (c.status === 'ACTIVE' || c.status === 'EXTENDED')
+      );
+      if (activeContracts.length > 0) {
+        showErrorModal(
+          `현장 완공(종료) 처리 불가:\n해당 현장에 아직 유효한(진행 중인) 계약이 ${activeContracts.length}건 존재합니다.\n(대표 계약: ${activeContracts[0].contractNo})\n\n모든 장비가 반납되고 관련 계약이 모두 종료된 후에만 현장을 완공 처리할 수 있습니다.`
+        );
+        return;
+      }
+    }
     if (!window.confirm(`[${site.name}] 현장을 ${targetStatus ? '가동(진행중)' : '종료(완공)'} 상태로 변경하시겠습니까?\n\n※ 종료 시, 계약 등록 및 배차 화면의 현장 선택 목록에서 제외됩니다.`)) return;
     try {
       await saveSiteMaster({ id: site.id, isActive: targetStatus });
