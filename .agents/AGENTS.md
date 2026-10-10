@@ -242,6 +242,16 @@ pm run build)을 통해 무결성을 검증한다.
 - **사내 고유 모델(`ebro-qwen:3b`) 프라이빗 호스팅**: 당사 파인튜닝 지적재산권(IP) 보호를 위해 퍼블릭 Ollama 레지스트리를 배제하고, Egress 트래픽 비용이 0원인 **Cloudflare R2 프라이빗 버킷 + Presigned URL 파이프라인**을 전사 공식 표준으로 적용한다.
 
 
+
+### 8.6 로컬 에이전트 상시 가동 환경 하 선행 상태 확인 및 조건부 기동·컴파일 표준 (Agent Liveness Pre-Check & Conditional Launch Standard)
+- **상시 가동 환경 전제**: 사용자는 로컬 PC에서 eBroAgent 프로그램을 상시 켜두고 업무를 수행하므로, 인쇄 큐, PDF 스풀, 로컬 API 등 에이전트 작동이 필요한 작업 시 **반드시 에이전트의 현재 가동 상태를 먼저 확인(Pre-Check)**해야 한다.
+- **선행 상태 질의 절차 (Liveness & Version Check)**:
+  1. `http://127.0.0.1:5175/health?callsign=admin` 엔드포인트를 호출하여 상태(`ONLINE`/`OFFLINE`) 및 가동 버전(`version`)을 확인한다.
+  2. **가동 중(ONLINE) & 최신 버전 일치 시**: 프로세스를 재시작하거나 중복 실행하지 않고, 현재 실행 중인 인스턴스를 100% 그대로 활용한다.
+  3. **비가동 중(OFFLINE) 시**: 에이전트가 꺼져 있는 경우에 한하여 `C:\eBroAgent\eBroAgent.exe`를 실행하여 기동한다.
+  4. **코드 변경 또는 버전 불일치 시 (Auto-Compile)**: 에이전트 소스코드(`eBroAgent.js` 등)가 변경되었거나 실행 버전이 코드의 `EXPECTED_AGENT_VERSION`과 불일치하는 경우에만 컴파일 스크립트(`scripts/build_agent_giyeonlift.cjs`)를 실행하여 `core/engine.dat` 및 바이너리를 갱신한 후 재기동한다.
+- **임의 종료 및 중복 기동 금지**: 정상 가동 중인 에이전트를 확인 절차 없이 임의로 `Stop-Process`하거나 중복 프로세스를 띄우는 행위를 엄격히 금지한다.
+
 ---
 
 ## 🤖 [카테고리 IX] AI 에이전트 자율 동작 및 학습 룰 (AI Agent Autonomous Rules)
