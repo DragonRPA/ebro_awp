@@ -1,5 +1,5 @@
 // public/sw.js
-const CACHE_NAME = 'ebro-lift-pwa-v1';
+const CACHE_NAME = 'ebro-lift-pwa-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -18,6 +18,12 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  const url = event.request.url || '';
+  // 빌드 청크(/assets/*), API 통신, 외부 호출은 서비스워커 개입 없이 100% 브라우저 직통 (청크 404 및 캐시 고착 원천 방지)
+  if (url.includes('/assets/') || url.includes('/api/') || url.includes('supabase') || event.request.method !== 'GET') {
+    return;
+  }
+
   // HTML 문서 탐색은 무조건 네트워크 우선 (캐시 우회)
   if (event.request.mode === 'navigate' || event.request.destination === 'document') {
     event.respondWith(
@@ -25,10 +31,6 @@ self.addEventListener('fetch', (event) => {
     );
     return;
   }
-
-  event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
-  );
 });
 
 // 🔔 PWA 푸시 알림 수신 이벤트 (잠금화면 및 백그라운드 수신)

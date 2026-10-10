@@ -22,6 +22,14 @@ export class ErrorBoundary extends Component<Props, State> {
   };
 
   public static getDerivedStateFromError(error: Error): Partial<State> {
+    return { hasError: true, error };
+  }
+
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('ErrorBoundary caught an unhandled error:', error, errorInfo);
+    this.setState({ errorInfo });
+
+    // 🛡️ [무한 새로고침 루프 방지 & 배포 청크 불일치 안전 복구]
     const msg = error?.message || String(error);
     const isChunkLoadError =
       msg.includes('Failed to fetch dynamically imported module') ||
@@ -31,30 +39,45 @@ export class ErrorBoundary extends Component<Props, State> {
 
     if (isChunkLoadError) {
       try {
-        const lastReloadKey = 'ebro_last_chunk_reload_ts';
-        const lastReload = sessionStorage.getItem(lastReloadKey);
-        const now = Date.now();
-        // 10초 이내에 자동 재시도한 적이 없다면 최신 배포 청크를 받기 위해 즉시 1회 자동 새로고침
-        if (!lastReload || now - Number(lastReload) > 10000) {
-          sessionStorage.setItem(lastReloadKey, String(now));
-          window.location.reload();
-          return { hasError: false, error: null };
+        const reloadKey = 'ebro_chunk_retry_attempted';
+        const alreadyRetried = sessionStorage.getItem(reloadKey);
+        // 단 1회만 캐시 삭제 후 안전 재접속 (반복 새로고침 루프 원천 봉쇄)
+        if (!alreadyRetried) {
+          sessionStorage.setItem(reloadKey, String(Date.now()));
+          if ('caches' in window) {
+            caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).catch(() => {});
+          }
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(regs => {
+              for (const reg of regs) reg.unregister();
+            }).catch(() => {});
+          }
+          const nextUrl = new URL(window.location.href);
+          nextUrl.searchParams.set('_v', String(Date.now()));
+          window.location.replace(nextUrl.toString());
+          return;
         }
       } catch (e) {
-        console.error('Dynamic module auto reload failed:', e);
+        console.error('Safe chunk reload attempt failed:', e);
       }
     }
-
-    return { hasError: true, error };
-  }
-
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught an unhandled error:', error, errorInfo);
-    this.setState({ errorInfo });
   }
 
   private handleReload = () => {
-    window.location.reload();
+    try {
+      sessionStorage.removeItem('ebro_chunk_retry_attempted');
+      if ('caches' in window) {
+        caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).catch(() => {});
+      }
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(regs => {
+          for (const reg of regs) reg.unregister();
+        }).catch(() => {});
+      }
+    } catch {}
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set('_t', String(Date.now()));
+    window.location.replace(nextUrl.toString());
   };
 
   private handleCloseModal = () => {
@@ -71,8 +94,14 @@ export class ErrorBoundary extends Component<Props, State> {
       localStorage.removeItem('walkie_channel');
       localStorage.removeItem('walkie_channels_v2');
       localStorage.removeItem('walkie_show_debug');
+      sessionStorage.removeItem('ebro_chunk_retry_attempted');
+      if ('caches' in window) {
+        caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).catch(() => {});
+      }
     } catch {}
-    window.location.reload();
+    const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set('_t', String(Date.now()));
+    window.location.replace(nextUrl.toString());
   };
 
   public render() {

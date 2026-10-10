@@ -1,4 +1,4 @@
-﻿import { StrictMode } from 'react'
+import { StrictMode, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
@@ -29,9 +29,9 @@ window.addEventListener('unhandledrejection', (event) => {
 initializeHindsightTracker();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ErrorBoundary fallbackTitle="?쒖뒪???쇱떆 ?ㅻ쪟 蹂듦뎄">
+    <ErrorBoundary fallbackTitle="시스템 일시 오류 복구">
       <AppProvider>
-        <TradeProvider><App /></TradeProvider>
+        <TradeProvider><Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#090d16', color: '#94a3b8' }}>시스템 로딩 중...</div>}><App /></Suspense></TradeProvider>
       </AppProvider>
     </ErrorBoundary>
   </StrictMode>,
