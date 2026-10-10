@@ -167,6 +167,7 @@ export const AgenticDispatchStudioPage: React.FC = () => {
             data-uia="agentic-dispatch-prompt"
           />
           <button
+            data-uia="btn-auto-match-driver"
             className="btn-primary"
             onClick={handleRunAiDispatch}
             disabled={loading}

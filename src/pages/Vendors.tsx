@@ -827,22 +827,22 @@ export const Vendors: React.FC = () => {
         <div className="table-container" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto', maxHeight: 'none', overscrollBehavior: 'contain' }}>
           <table className="table" style={{ width: '100%', margin: 0, tableLayout: 'auto' }}>
             <colgroup>
-              <col style={{ width: '135px' }} />{/* 상호명 */}
-              <col style={{ width: '120px' }} />{/* 매입/거래 속성 */}
-              <col style={{ width: '90px' }} /> {/* 거래개시일 */}
-              <col style={{ width: '120px' }} />{/* 거래기간 */}
-              <col style={{ width: '110px' }} />{/* 매입 누적거래액 */}
-              <col style={{ width: '105px' }} />{/* 사업자등록번호 */}
-              <col style={{ width: '75px' }} /> {/* 대표자명 */}
-              <col style={{ width: '80px' }} /> {/* 담당자 */}
-              <col style={{ width: '100px' }} />{/* 연락처 */}
-              <col style={{ width: '130px' }} />{/* 지급 계좌 */}
-              <col style={{ width: '105px' }} />{/* 사업자등록증 */}
-              <col style={{ width: '95px' }} /> {/* 통장사본 */}
-              <col style={{ width: '120px' }} />{/* 주소 */}
-              <col style={{ width: '120px' }} />{/* 이메일 */}
-              <col style={{ width: '55px' }} /> {/* 상태 */}
-              {canSave && <col style={{ width: '65px' }} />}{/* 관리 */}
+              <col style={{ width: '135px' }} />
+              <col style={{ width: '120px' }} />
+              <col style={{ width: '90px' }} />
+              <col style={{ width: '120px' }} />
+              <col style={{ width: '110px' }} />
+              <col style={{ width: '105px' }} />
+              <col style={{ width: '75px' }} />
+              <col style={{ width: '80px' }} />
+              <col style={{ width: '100px' }} />
+              <col style={{ width: '130px' }} />
+              <col style={{ width: '105px' }} />
+              <col style={{ width: '95px' }} />
+              <col style={{ width: '120px' }} />
+              <col style={{ width: '120px' }} />
+              <col style={{ width: '55px' }} />
+              {canSave && <col style={{ width: '65px' }} />}
             </colgroup>
             <thead>
               <tr>

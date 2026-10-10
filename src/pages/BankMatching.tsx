@@ -888,7 +888,9 @@ export const BankMatching: React.FC = () => {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {canSave && (
-            <button data-hs-trigger="Process"
+            <button
+              data-uia="btn-confirm-reconciliation"
+              data-hs-trigger="Process"
               data-mid='btn-batch-match' onClick={handleBatchAutoMatch}
               disabled={isBatchMatchingProcessing || autoMatchableCount === 0}
               className="btn btn-primary"
@@ -1076,7 +1078,10 @@ export const BankMatching: React.FC = () => {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                 <label style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>대사 상태</label>
-                <select value={statusFilter} onChange={(e: any) => setStatusFilter(e.target.value)} className="form-control" style={{ width: '160px', fontSize: '12px', padding: '4px 8px', height: '28px' }}>
+                <select
+                  data-uia="select-bank-scope"
+                  value={statusFilter}
+                  onChange={(e: any) => setStatusFilter(e.target.value)} className="form-control" style={{ width: '160px', fontSize: '12px', padding: '4px 8px', height: '28px' }}>
                   <option value="ALL">전체 매칭 상태</option>
                   <option value="UNMATCHED_ALL">⚠️ 전체 미대사건</option>
                   <option value="MATCHED_ALL">✅ 전체 대사완료건</option>
@@ -1224,6 +1229,7 @@ export const BankMatching: React.FC = () => {
 
               {/* 통장 엑셀 업로드 및 내보내기 */}
               <label 
+                data-uia="btn-bank-excel-upload"
                 style={{ 
                   fontSize: '11.5px', 
                   fontWeight: 700,
@@ -1252,6 +1258,7 @@ export const BankMatching: React.FC = () => {
                 <Upload size={13} color="#ffffff" style={{ flexShrink: 0 }} />
                 <span style={{ color: '#ffffff', fontWeight: 700 }}>통장 엑셀 업로드</span>
                 <input
+                  data-uia="btn-bank-excel-upload"
                   type="file"
                   accept=".xlsx, .xls, .csv"
                   style={{ display: 'none' }}
@@ -1284,7 +1291,7 @@ export const BankMatching: React.FC = () => {
 
           {/* 데이터 테이블 (헌장 3.6: 유형 B 고밀도 슬림 그리드, 38~42px 행, Col 0 Sticky 고정) */}
           <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto' }}>
-            <table style={{ width: '100%', minWidth: '1100px', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
+            <table data-uia="table-bank-matching-grid" style={{ width: '100%', minWidth: '1100px', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
               <thead>
                 <tr style={{ backgroundColor: 'var(--bg-card-header)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
                   <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', width: '150px', position: 'sticky', left: 0, zIndex: 2, backgroundColor: 'var(--bg-card-header)' }}>수납/지급 대사</th>

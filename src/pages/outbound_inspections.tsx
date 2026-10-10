@@ -246,9 +246,14 @@ export const OutboundInspections: React.FC = () => {
       const customer = contract ? customers.find(c => c.id === contract.customerId) : null;
       const site = contract ? sites.find(s => s.id === contract.siteId) : null;
 
-      const groupAssets = items
-        .map(i => assets.find(a => a.id === i.assetId))
-        .filter((a): a is Asset => !!a);
+      const groupAssets = Array.from(
+        new Map(
+          items
+            .map(i => assets.find(a => a.id === i.assetId))
+            .filter((a): a is Asset => !!a)
+            .map(a => [a.id, a])
+        ).values()
+      );
 
       const modelCounts: Record<string, number> = {};
       groupAssets.forEach(a => {
@@ -1317,7 +1322,7 @@ export const OutboundInspections: React.FC = () => {
           </div>
 
           {/* 카드리스트 */}
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '4px' }}>
+          <div data-uia="list-inspection-targets" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '4px' }}>
             {filteredGroups.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--text-muted)', fontSize: '13px' }}>
                 조건에 해당하는 출고 요청 건이 없습니다.
@@ -1374,8 +1379,8 @@ export const OutboundInspections: React.FC = () => {
                       {group.assets.length > 0 && (
                         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed var(--border-color)' }}>
                           <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontWeight: 600 }}>할당 장비:</span>
-                          {group.assets.map(a => (
-                            <span key={a.id} style={{ padding: '1px 5px', borderRadius: '4px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '10.5px', fontWeight: 700 }}>
+                          {group.assets.map((a, aIdx) => (
+                            <span key={`${a.id}-${aIdx}`} style={{ padding: '1px 5px', borderRadius: '4px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontSize: '10.5px', fontWeight: 700 }}>
                               {a.assetNo}
                             </span>
                           ))}
@@ -1476,8 +1481,8 @@ export const OutboundInspections: React.FC = () => {
                     <Wrench size={14} color="var(--primary)" /> 출고 장비 ({selectedGroup.assets.length}대)
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '10px' }}>
-                    {selectedGroup.assets.map(asset => (
-                      <div key={asset.id} style={{ padding: '10px 12px', borderRadius: '8px', backgroundColor: 'var(--bg-body)', border: '1px solid var(--border-color)', fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    {selectedGroup.assets.map((asset, aIdx) => (
+                      <div key={`${asset.id}-${aIdx}`} style={{ padding: '10px 12px', borderRadius: '8px', backgroundColor: 'var(--bg-body)', border: '1px solid var(--border-color)', fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                           <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>🏷️ {asset.assetNo}</div>
                           <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>모델: {asset.modelName} | 시리얼: {asset.serialNo || '-'}</div>
@@ -1548,6 +1553,7 @@ export const OutboundInspections: React.FC = () => {
                     const isChecked = !!checkedItems[cp.id];
                     return (
                       <div
+                        data-uia={`chk-inspection-item-${cp.id}`}
                         key={cp.id}
                         onClick={() => {
                           if (!canEdit) return;
@@ -1706,7 +1712,9 @@ export const OutboundInspections: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <button data-hs-trigger="Approve"
+                      <button
+                        data-uia="btn-approve-outbound"
+                        data-hs-trigger="Approve"
                         onClick={handleApproveGroup}
                         disabled={isProcessing}
                         className="btn-primary"

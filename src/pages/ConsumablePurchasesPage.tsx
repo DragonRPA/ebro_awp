@@ -292,7 +292,9 @@ export const ConsumablePurchasesPage: React.FC = () => {
             </button>
           )}
           {canSave && (
-            <button data-hs-trigger="Register"
+            <button
+              data-uia="btn-excel-upload-consumable"
+              data-hs-trigger="Register"
               className="btn-primary"
               onClick={() => setExcelModalOpen(true)}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 14px' }}
@@ -424,7 +426,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
 
           {/* 고밀도 대사 그리드 (3.6 유형 B) */}
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+            <table data-uia="table-consumable-purchases" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
               <thead>
                 <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
                   <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>신청번호</th>
@@ -568,7 +570,9 @@ export const ConsumablePurchasesPage: React.FC = () => {
                         <td style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                           {/* 1. 신청대기: 승인 버튼 */}
                           {p.status === 'REQUESTED' && canSave && (
-                            <button data-hs-trigger="Approve"
+                            <button
+                              data-uia={`btn-accept-purchase-${p.id}`}
+                              data-hs-trigger="Approve"
                               type="button"
                               className="btn-primary"
                               onClick={() => handleAccept(p.id, p.modelName)}

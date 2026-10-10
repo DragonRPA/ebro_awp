@@ -1169,7 +1169,7 @@ const handleDeleteAccount = async (accId: string) => {
   // -----------------------------------
 
   return (
-    <div data-hs-observe="customers" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '8px', position: 'relative' }}>
+    <div data-uia="customer-container" data-hs-observe="customers" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '8px', position: 'relative' }}>
       
       {/* 알림 토스트 배너 */}
       {toastMessage && (
@@ -1279,8 +1279,10 @@ const handleDeleteAccount = async (accId: string) => {
               <ShieldAlert size={13} color="#ffffff" /> 국세청 휴폐업 점검
             </button>
           )}
-          {canSave && isDeveloper && (
-            <button data-hs-trigger="Register"
+          {canSave && (
+            <button
+              data-uia="btn-excel-upload-customer"
+              data-hs-trigger="Register"
               className="btn-secondary"
               onClick={() => setCustExcelModalOpen(true)}
               style={{ padding: '5px 12px', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
@@ -1289,7 +1291,9 @@ const handleDeleteAccount = async (accId: string) => {
             </button>
           )}
           {canSave && (
-            <button data-hs-trigger="Register"
+            <button
+              data-uia="btn-add-customer"
+              data-hs-trigger="Register"
               className="btn-primary"
               data-mid="btn-new-customer"
               onClick={handleOpenAddCust}
@@ -1344,6 +1348,7 @@ const handleDeleteAccount = async (accId: string) => {
           <div style={{ position: 'relative' }}>
             <Search size={13} style={{ position: 'absolute', left: '8px', top: '7px', color: 'var(--text-muted)' }} />
             <input
+              data-uia="input-customer-search"
               type="text"
               placeholder="고객명/초성 (예: ㅅㅅ, ㅎㄷ), 사업자번호, 대표자명, 연락처 검색..."
               value={searchTerm}
@@ -1480,7 +1485,7 @@ const handleDeleteAccount = async (accId: string) => {
             <span>고객사 목록 ({filteredCustomers.length}건)</span>
           </div>
 
-          <div style={{ flex: 1, overflowY: 'auto', padding: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div data-uia="table-customer-list" style={{ flex: 1, overflowY: 'auto', padding: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {filteredCustomers.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)', fontSize: '12px' }}>
                 조회된 고객사가 없습니다.

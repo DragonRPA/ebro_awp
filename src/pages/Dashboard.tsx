@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Activity, ShieldAlert, Users, Layers, ShieldCheck, Wrench, Truck, CreditCard, CheckCircle, Bell, AlertTriangle, ArrowRight, Cloud, AlertCircle, Download, FileText, Bot, Shield, CheckSquare, Calendar, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Activity, ShieldAlert, Users, Layers, ShieldCheck, Wrench, Truck, CreditCard, CheckCircle, Bell, AlertTriangle, ArrowRight, Cloud, AlertCircle, Download, FileText, Bot, Shield, CheckSquare, Calendar, ArrowDownLeft, ArrowUpRight, RefreshCw } from 'lucide-react';
 import { EXPECTED_AGENT_VERSION, AGENT_DOWNLOAD_URL, AGENT_CERT_URL, AGENT_INSTALL_BAT_URL, AGENT_KILL_BAT_URL, AGENT_EXE_URL, fetchWithAgentFallback, isAgentOnlineGlobal, subscribeAgentStatus } from '../services/agentService';
 import { findActiveTasksForUser } from '../utils/taskHandoverPipeline';
 import { ExecutiveDirectiveModal } from '../components/ExecutiveDirectiveModal';
@@ -14,7 +14,8 @@ export const Dashboard: React.FC = () => {
     todos, 
     completeTodo, 
     resolveExecutiveDirective,
-    setActiveTab
+    setActiveTab,
+    refreshAllData
   } = useApp();
 
   const [showDirectiveModal, setShowDirectiveModal] = useState(false);
@@ -64,9 +65,20 @@ export const Dashboard: React.FC = () => {
                   <span style={{ fontSize: '12px', fontWeight: '800', color: '#6366f1', backgroundColor: 'rgba(99,102,241,0.1)', padding: '3px 9px', borderRadius: '4px' }}>
                     담당 업무
                   </span>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                    총 <strong>{activeTasks.length}건</strong> 대기
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      총 <strong>{activeTasks.length}건</strong> 대기
+                    </span>
+                    <button
+                      data-uia="btn-refresh-feed"
+                      type="button"
+                      className="btn-secondary"
+                      onClick={(e) => { e.stopPropagation(); refreshAllData?.(); }}
+                      style={{ padding: '3px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+                    >
+                      <RefreshCw size={11} /> 새로고침
+                    </button>
+                  </div>
                 </div>
                 <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Bell size={18} color="#6366f1" /> 업무 목록
@@ -233,9 +245,18 @@ export const Dashboard: React.FC = () => {
                   <CheckCircle size={36} />
                 </div>
                 <h3 style={{ fontSize: '18px', fontWeight: '800', margin: '0 0 8px 0' }}>처리 대기 과제 없음</h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: 0 }}>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', margin: '0 0 16px 0' }}>
                   권한 범위 내 처리 대기 항목 없음.
                 </p>
+                <button
+                  data-uia="btn-refresh-feed"
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => refreshAllData?.()}
+                  style={{ padding: '6px 14px', fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                >
+                  <RefreshCw size={13} /> 피드 새로고침
+                </button>
               </div>
             )}
 

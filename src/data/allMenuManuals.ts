@@ -11672,6 +11672,403 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
     }
   ]
 }
+,
+{
+  "menuId": "custom_billing",
+  "version": 1,
+  "menuName": "특수 거래명세서 (특수청구) 작성",
+  "groupId": "grp_sales",
+  "groupName": "영업관리",
+  "department": "영업관리팀 / 회계팀",
+  "archetype": "유형 A: 요청 처리형 (카드형 상세)",
+  "objective": "고객사 현장 회계 기준에 맞춘 특수 규격 거래명세서 작성 시, 원청구 총액과 특수 명세서 품목 합계의 완전 일치(차액 ₩0)를 보장하여 대외 청구 무결성을 확정함",
+  "scopeInfo": "원청구 전표(Billings) 데이터 및 고객사 요청 품목/단가/수량 변경 사유",
+  "cognitiveSequence": [
+    "1. 좌상단 원청구 기본 정보(고객사, 현장명, 원공급가액, 원부가세, 원합계금액) 검토",
+    "2. 특수 거래명세서 변환 사유 입력 (예: 건설 현장 기성 산출 내역서 양식 준용)",
+    "3. 중앙 명세서 품목 목록 행 추가 및 품목명, 규격, 수량, 단가, 공급가액 편집",
+    "4. 우하단 대차대조 검증 지표(원청구 합계 vs 특수명세서 품목 합계, 차액 ₩0) 실시간 확인",
+    "5. 차액 ₩0 검증 만족 시 [특수 거래명세서 품목 저장] 버튼을 클릭하여 확정 마감"
+  ],
+  "modalWorkflows": [
+    {
+      "modalName": "특수 거래명세서 작성 모달",
+      "triggerButton": "[특수명세서 작성]",
+      "keyFields": [
+        "변환 사유",
+        "품목 목록(품명/규격/수량/단가/공급가)",
+        "대차대조 차액"
+      ],
+      "terminalAction": "[특수 거래명세서 품목 저장]",
+      "afterStateTransition": "원청구 전표의 customStatementItems에 저장되며 특수 명세서 인쇄/발행 활성화"
+    }
+  ],
+  "auditResult": "원청구 금액 = 특수 거래명세서 품목 합계 (대차 차액 ₩0 보존) 무결성 확정",
+  "rulesCompliance": [
+    "헌장 4.1 [자산별 매출 기여액 정밀 집계 정책] 및 회계 보존 법칙 준수: 원청구 총액과 명세서 합계 1원도 불일치 불허 (차액 ₩0 필수)",
+    "헌장 3.5 [Gutenberg Z-패턴 표준] 준수: 좌상단 원정보 ➔ 중앙 품목 편집 ➔ 우하단 대차대조 합계 검증 및 확정"
+  ],
+  "precautions": [
+    "원청구 금액과 특수명세서 품목 합계에 단 1원의 오차라도 발생 시 저장 버튼이 비활성화됩니다.",
+    "변환 사유는 세무 조사 및 대금 정산 감사 시 증빙자료로 활용되므로 명확히 기재해야 합니다."
+  ],
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": ".modal-header",
+      "type": "stamp",
+      "label": "원청구 기준 정보",
+      "description": "변환 대상이 되는 원래 청구서의 총액과 고객사 정보를 확인합니다.",
+      "badgeColor": "#3b82f6",
+      "positionHint": "bottom",
+      "spotlight": true
+    },
+    {
+      "seq": 2,
+      "selector": ".custom-statement-table",
+      "type": "stamp",
+      "label": "특수 품목 그리드",
+      "description": "현장 요구사항에 맞는 품목명과 단가를 행 단위로 입력합니다.",
+      "badgeColor": "#8b5cf6",
+      "positionHint": "top",
+      "spotlight": true
+    },
+    {
+      "seq": 3,
+      "selector": ".btn-save-custom-statement",
+      "type": "stamp",
+      "label": "대차대조 완결 저장",
+      "description": "차액이 ₩0인 경우에만 활성화되며 클릭 시 특수 거래명세서가 확정됩니다.",
+      "badgeColor": "#10b981",
+      "positionHint": "top",
+      "spotlight": true
+    }
+  ],
+  "processes": [
+    {
+      "id": "custom_billing_proc_1",
+      "title": "특수 거래명세서 품목 구성 및 발행",
+      "steps": [
+        {
+          "text": "청구 대장에서 [특수명세서 작성] 버튼을 클릭하여 모달을 오픈하세요.",
+          "selector": ".btn-custom-statement"
+        },
+        {
+          "text": "변환 사유를 입력하고 품목 목록에 행을 추가하여 규격과 금액을 기재하세요.",
+          "selector": ".custom-statement-table"
+        },
+        {
+          "text": "우하단 대차 차액 ₩0 표시를 확인한 후 [특수 거래명세서 품목 저장]을 누르세요.",
+          "selector": ".btn-save-custom-statement"
+        }
+      ]
+    }
+  ]
+},
+{
+  "menuId": "stocktaking",
+  "version": 1,
+  "menuName": "재고/자산 실사",
+  "groupId": "grp_inout",
+  "groupName": "입출고관리",
+  "department": "주기장관리팀 / 정비팀",
+  "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
+  "objective": "주기장 및 이동 정비차량의 장비/소모품 실물 재고를 바코드 스캔으로 전수 실사하여 전산 재고와의 불일치를 0건으로 보정함",
+  "scopeInfo": "실사 구역(본사 주기장 HQ 또는 정비차량 VEHICLE), 담당 정비사, 실물 바코드/장비호기",
+  "cognitiveSequence": [
+    "1. 좌상단 실사 구역(본사 주기장 / 정비차량) 및 담당 정비사 선택 후 [실사 시작] 클릭",
+    "2. 상단 바코드 입력 필드에 장비 호기 또는 소모품 바코드 스캔/입력",
+    "3. 중앙 실사 그리드에서 전산 수량 대비 실물 스캔 수량 및 차이 수량 실시간 모니터링",
+    "4. 미확인 품목에 대한 물리적 탐색 및 추가 스캔 완료",
+    "5. 우하단 [실사 확정] 버튼 클릭을 통해 전산 재고와 실물 재고 동기화 완료"
+  ],
+  "modalWorkflows": [],
+  "auditResult": "전산 재고 수량 = 실물 전수 스캔 수량 (재고 불일치 오차 0건) 확정",
+  "rulesCompliance": [
+    "헌장 1.2 [렌탈 도메인 3대 핵심 가치] 준수: 실물 라이프사이클과 전산 재고의 완벽한 1:1 일치",
+    "헌장 5.2 [무음 실패 방지] 준수: 실사 확정 시 재고 변경 이력 DB 동기 저장 검증"
+  ],
+  "precautions": [
+    "실사 진행 중에는 해당 구역의 장비 출고 및 소모품 수불 등록을 일시 정지해야 합니다.",
+    "바코드가 손상된 장비는 호기 번호를 직접 수동 입력하여 누락을 방지합니다."
+  ],
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": ".audit-area-select",
+      "type": "stamp",
+      "label": "실사 대상 구역 선택",
+      "description": "실사를 수행할 주기장 구역 또는 이동 정비 차량을 지정합니다.",
+      "badgeColor": "#3b82f6",
+      "positionHint": "bottom",
+      "spotlight": true
+    },
+    {
+      "seq": 2,
+      "selector": "input[placeholder*='바코드']",
+      "type": "stamp",
+      "label": "바코드 고속 스캔",
+      "description": "핸드스캐너로 바코드를 연속 스캔하여 실물 카운트를 1씩 즉시 가산합니다.",
+      "badgeColor": "#8b5cf6",
+      "positionHint": "bottom",
+      "spotlight": true
+    },
+    {
+      "seq": 3,
+      "selector": ".btn-confirm-audit",
+      "type": "stamp",
+      "label": "실사 최종 확정",
+      "description": "실사 결과를 전산 재고에 최종 반영하고 오차를 영점으로 보정합니다.",
+      "badgeColor": "#10b981",
+      "positionHint": "top",
+      "spotlight": true
+    }
+  ],
+  "processes": [
+    {
+      "id": "stocktaking_proc_1",
+      "title": "주기장 및 차량 재고 실사 수행",
+      "steps": [
+        {
+          "text": "실사 구역을 선택하고 [실사 시작] 버튼을 누르세요.",
+          "selector": ".btn-start-audit"
+        },
+        {
+          "text": "바코드 입력창에 장비/부품 바코드를 연속 스캔하세요.",
+          "selector": "input[placeholder*='바코드']"
+        },
+        {
+          "text": "오차 품목을 재확인한 뒤 우하단 [실사 확정]을 눌러 재고를 동기화하세요.",
+          "selector": ".btn-confirm-audit"
+        }
+      ]
+    }
+  ]
+},
+{
+  "menuId": "data_formation",
+  "version": 1,
+  "menuName": "초기자료형성",
+  "groupId": "grp_system_dev",
+  "groupName": "시스템관리 - 개발자",
+  "department": "시스템운영팀 / DX추진팀",
+  "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
+  "objective": "신규 테넌트 런칭 및 레거시 데이터 이관 시, 비정형 엑셀 데이터를 ERP 표준 스키마로 매핑하고 갭(Gap) 분석 검증을 거쳐 클린 DB로 일괄 적재함",
+  "scopeInfo": "이관 대상 엔티티(고객사 CUSTOMER, 자산 ASSET, 계약 CONTRACT), 원본 엑셀 파일, 필수 컬럼 매핑 규칙",
+  "cognitiveSequence": [
+    "1. 상단 이관 대상 엔티티 탭(고객사 / 자산 / 계약) 선택",
+    "2. [엑셀 업로드] 또는 [샘플 데이터 로드]를 통해 원본 데이터 유입 및 원시 그리드 확인",
+    "3. 헤더 자동 매핑 결과 검토 및 미매핑 컬럼 수동 보정",
+    "4. [갭 분석 실행]을 클릭하여 필수값 누락, 데이터 타입 결함, 중복 검증 리포트 점검",
+    "5. 오류 0건 검증 확인 후 우하단 [DB 일괄 적재] 클릭을 통해 초기 데이터 생성 완료"
+  ],
+  "modalWorkflows": [],
+  "auditResult": "레거시 데이터 ➔ ERP 표준 DB 스키마 무손실 100% 이관 완료",
+  "rulesCompliance": [
+    "헌장 1.4 [1단어 1뜻 표준화] 준수: 레거시 용어를 ERP 전사 표준 엔티티/컬럼명으로 정규화",
+    "헌장 5.2 [무음 실패 방지] 준수: 갭 분석 실패 시 오류 행과 원인을 명확히 적발하여 적재 차단"
+  ],
+  "precautions": [
+    "자산(ASSET) 데이터 적재 전 고객사(CUSTOMER) 마스터가 먼저 생성되어 있어야 계약 연동이 가능합니다.",
+    "실제 운영 DB에 적재 시 기존 레코드 덮어쓰기 여부를 사전에 반드시 확인해야 합니다."
+  ],
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": ".entity-tab-group",
+      "type": "stamp",
+      "label": "이관 엔티티 선택",
+      "description": "고객사, 자산, 계약 중 초기 데이터를 형성할 도메인을 선택합니다.",
+      "badgeColor": "#3b82f6",
+      "positionHint": "bottom",
+      "spotlight": true
+    },
+    {
+      "seq": 2,
+      "selector": ".btn-gap-analysis",
+      "type": "stamp",
+      "label": "데이터 갭 분석",
+      "description": "필수값 결손, 형식 오류, 참조 무결성을 사전에 정밀 검증합니다.",
+      "badgeColor": "#8b5cf6",
+      "positionHint": "bottom",
+      "spotlight": true
+    },
+    {
+      "seq": 3,
+      "selector": ".btn-insert-db",
+      "type": "stamp",
+      "label": "DB 일괄 적재",
+      "description": "검증이 완료된 정상 데이터를 ERP 데이터베이스에 최종 생성합니다.",
+      "badgeColor": "#10b981",
+      "positionHint": "top",
+      "spotlight": true
+    }
+  ],
+  "processes": [
+    {
+      "id": "data_formation_proc_1",
+      "title": "초기 엑셀 데이터 이관 및 적재",
+      "steps": [
+        {
+          "text": "대상 엔티티를 선택하고 엑셀 파일을 업로드하세요.",
+          "selector": ".btn-upload-excel"
+        },
+        {
+          "text": "헤더 매핑을 확인하고 [갭 분석] 버튼을 눌러 오류를 검사하세요.",
+          "selector": ".btn-gap-analysis"
+        },
+        {
+          "text": "결함 0건 상태에서 [DB 일괄 적재]를 클릭하여 데이터를 형성하세요.",
+          "selector": ".btn-insert-db"
+        }
+      ]
+    }
+  ]
+},
+{
+  "menuId": "voice_dispatch",
+  "version": 1,
+  "menuName": "음성 출고지시",
+  "groupId": "grp_sales",
+  "groupName": "영업관리",
+  "department": "영업팀 / 현장영업",
+  "archetype": "유형 A: 요청 처리형 (카드형 상세)",
+  "objective": "외근 및 현장 이동 중인 영업사원이 음성 발화만으로 거래처, 현장, 모델, 출고일자를 자동 추출하여 출고요청서를 5초 만에 신속 발행함",
+  "scopeInfo": "마이크 입력 장치, 거래처/현장 마스터, 당사 가용 장비 모델 목록",
+  "cognitiveSequence": [
+    "1. 화면 중앙 [음성 녹음 시작] 마이크 버튼 클릭",
+    "2. 자연어 출고 지시 발화 (예: '대한건설 동탄현장에 3219 2대 내일 아침 8시 출고해줘')",
+    "3. 실시간 STT 텍스트 변환 결과 및 AI 엔티티(고객, 현장, 기종, 수량, 일시) 파싱 카드 확인",
+    "4. 누락 또는 오인식 항목 터치 수정",
+    "5. 우하단 [출고요청서 즉시 발행] 버튼 클릭으로 입출고/배차 부서로 의뢰 전송 완료"
+  ],
+  "modalWorkflows": [],
+  "auditResult": "자연어 음성 발화 ➔ 표준 출고요청서 전표 자동 생성 및 배차 대기열 등록 완료",
+  "rulesCompliance": [
+    "헌장 1.1 [최우선 개발 사명] 준수: 외근 영업사원의 최소 노력으로 최대 업무 효익 창출",
+    "헌장 2.1 [부서 R&R 엄격 분리] 준수: 영업사원은 출고 의뢰만 발행하며 개별 자산번호는 지정하지 않음"
+  ],
+  "precautions": [
+    "주변 소음이 심한 건설 현장에서는 블루투스 이어폰 마이크 사용을 권장합니다.",
+    "신규 현장인 경우 주소 오인식을 방지하기 위해 현장명을 또박또박 발음해야 합니다."
+  ],
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": ".btn-mic-record",
+      "type": "stamp",
+      "label": "음성 지시 녹음",
+      "description": "마이크 버튼을 눌러 자연어로 출고 요구사항을 말씀하세요.",
+      "badgeColor": "#ef4444",
+      "positionHint": "bottom",
+      "spotlight": true
+    },
+    {
+      "seq": 2,
+      "selector": ".parsed-entity-card",
+      "type": "stamp",
+      "label": "AI 엔티티 파싱 결과",
+      "description": "고객사, 현장명, 기종, 일시가 정확히 추출되었는지 확인합니다.",
+      "badgeColor": "#3b82f6",
+      "positionHint": "top",
+      "spotlight": true
+    },
+    {
+      "seq": 3,
+      "selector": ".btn-submit-voice-dispatch",
+      "type": "stamp",
+      "label": "출고요청서 전표 발행",
+      "description": "출고요청서를 정식 발행하여 배차 및 주기장 부서로 전송합니다.",
+      "badgeColor": "#10b981",
+      "positionHint": "top",
+      "spotlight": true
+    }
+  ],
+  "processes": [
+    {
+      "id": "voice_dispatch_proc_1",
+      "title": "음성을 통한 신속 출고 요청",
+      "steps": [
+        {
+          "text": "마이크 버튼을 클릭하고 출고 지시 내용을 음성으로 말씀하세요.",
+          "selector": ".btn-mic-record"
+        },
+        {
+          "text": "화면에 표시된 파싱 결과를 눈으로 확인하세요.",
+          "selector": ".parsed-entity-card"
+        },
+        {
+          "text": "[출고요청서 발행] 버튼을 눌러 접수를 완료하세요.",
+          "selector": ".btn-submit-voice-dispatch"
+        }
+      ]
+    }
+  ]
+},
+{
+  "menuId": "manual_dictionary",
+  "version": 1,
+  "menuName": "전사 업무 매뉴얼 사전",
+  "groupId": "grp_management_special",
+  "groupName": "경영관리 - 특수",
+  "department": "경영관리팀 / 감사실",
+  "archetype": "유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)",
+  "objective": "전사 1단어 1뜻 표준 용어 사전 및 전사 시스템 개발 표준 헌장의 조항을 전 임직원이 검색하고 학습하여 용어 파편화와 결함을 원천 방지함",
+  "scopeInfo": "전사 표준 용어집(SSOT), 헌장 조항(카테고리 I~VII), 부서별 표준 업무 절차",
+  "cognitiveSequence": [
+    "1. 상단 검색창에 용어 또는 헌장 번호(예: '1.3', 'EXCHANGE', 'RENTED') 입력",
+    "2. 좌측 조항/용어 목록에서 상세 정의 및 금지 안티패턴 확인",
+    "3. 우측 전사 적용 메뉴 및 관련 DB 스키마 1:1 관통 상태 조망",
+    "4. 표준 준수 자가 진단 체크리스트 확인"
+  ],
+  "modalWorkflows": [],
+  "auditResult": "전사 1단어 1뜻 단일 의미 표준화 및 헌장 가드레일 무결성 확정",
+  "rulesCompliance": [
+    "헌장 1.4 [1단어 1뜻 전사 단일 의미 표준화 원칙] 준수: 다의어 및 동의어 파편화 영구 퇴치",
+    "헌장 5.3 [단일 진실의 원천(SSOT) 준수] 의무화"
+  ],
+  "precautions": [
+    "신규 기능을 기획하거나 용어를 정의할 때는 반드시 본 사전의 등록 여부를 선행 검증해야 합니다."
+  ],
+  "annotations": [
+    {
+      "seq": 1,
+      "selector": "input[placeholder*='용어']",
+      "type": "stamp",
+      "label": "표준 용어 검색",
+      "description": "시스템 전사 표준 단어 및 헌장 조항을 검색합니다.",
+      "badgeColor": "#3b82f6",
+      "positionHint": "bottom",
+      "spotlight": true
+    },
+    {
+      "seq": 2,
+      "selector": ".dictionary-detail-card",
+      "type": "stamp",
+      "label": "표준 정의 및 안티패턴",
+      "description": "1단어 1뜻 엄격한 정의와 금지된 동의어 파편화 사례를 학습합니다.",
+      "badgeColor": "#10b981",
+      "positionHint": "top",
+      "spotlight": true
+    }
+  ],
+  "processes": [
+    {
+      "id": "manual_dictionary_proc_1",
+      "title": "전사 표준 용어 검색 및 검증",
+      "steps": [
+        {
+          "text": "검색창에 확인하고자 하는 비즈니스 용어를 입력하세요.",
+          "selector": "input[placeholder*='용어']"
+        },
+        {
+          "text": "정의 카드에서 1:1 표준 명칭과 적용 규칙을 확인하세요.",
+          "selector": ".dictionary-detail-card"
+        }
+      ]
+    }
+  ]
+}
 ];
 
 /**

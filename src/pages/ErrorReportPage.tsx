@@ -439,7 +439,7 @@ export const ErrorReportPage: React.FC = () => {
         </div>
 
         {/* 3대 단계 HUD 카드 */}
-        <div style={{ display: 'flex', gap: '12px', flexShrink: 0 }}>
+        <div data-uia="hud-stage-counts" style={{ display: 'flex', gap: '12px', flexShrink: 0 }}>
           <div 
             onClick={() => setStageFilter('REGISTERED')}
             style={{ 
@@ -614,6 +614,7 @@ export const ErrorReportPage: React.FC = () => {
         {/* ② 우상단: 데이터 유입 및 완결 액션 (Pipeline) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           <button
+            data-uia="btn-export-excel"
             onClick={handleExportExcel}
             style={{
               height: '36px',
@@ -635,7 +636,9 @@ export const ErrorReportPage: React.FC = () => {
             엑셀 내보내기
           </button>
 
-          <button data-hs-trigger="Register"
+          <button
+            data-uia="btn-open-report-modal"
+            data-hs-trigger="Register"
             onClick={() => setIsRegisterModalOpen(true)}
             style={{
               height: '36px',
@@ -668,7 +671,7 @@ export const ErrorReportPage: React.FC = () => {
         maxHeight: 'calc(100vh - 270px)',
         overflowY: 'auto'
       }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+        <table data-uia="table-error-reports" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
           <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
             <tr style={{ backgroundColor: 'var(--bg-card-header)', borderBottom: '1.5px solid var(--border-color)', height: '40px' }}>
               <th style={{ padding: '0 12px', whiteSpace: 'nowrap', width: '80px', flexShrink: 0 }}>처리</th>
@@ -965,6 +968,7 @@ export const ErrorReportPage: React.FC = () => {
 
                   {/* 드래그앤드롭 영역 */}
                   <div
+                    data-uia="dropzone-attachments"
                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                     onDragLeave={() => setIsDragging(false)}
                     onDrop={handleDrop}
@@ -1091,7 +1095,9 @@ export const ErrorReportPage: React.FC = () => {
                 >
                   취소
                 </button>
-                <button data-hs-trigger="Register"
+                <button
+                  data-uia="btn-submit-report"
+                  data-hs-trigger="Register"
                   type="submit"
                   style={{
                     height: '36px',
@@ -1360,7 +1366,9 @@ export const ErrorReportPage: React.FC = () => {
 
                 {selectedReport.status === 'REGISTERED' && (
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
-                    <button data-hs-trigger="Process"
+                    <button
+                      data-uia="btn-confirm-reception"
+                      data-hs-trigger="Process"
                       type="button"
                       onClick={handleReceiveSubmit}
                       style={{
@@ -1462,7 +1470,9 @@ export const ErrorReportPage: React.FC = () => {
 
                 {selectedReport.status !== 'COMPLETED' && (
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
-                    <button data-hs-trigger="Process"
+                    <button
+                      data-uia="btn-confirm-completion"
+                      data-hs-trigger="Process"
                       type="button"
                       onClick={handleCompleteSubmit}
                       style={{

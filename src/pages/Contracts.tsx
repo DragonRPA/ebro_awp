@@ -1439,7 +1439,7 @@ export const Contracts: React.FC = () => {
   }, [contracts, contractAssets]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '13px' }}>
+    <div data-uia="contract-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '13px' }}>
       
       {/* 최상단 헤더 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '14px 18px', borderRadius: '8px', border: '1px solid var(--border-color)', gap: '16px', flexWrap: 'wrap' }}>
@@ -1474,13 +1474,14 @@ export const Contracts: React.FC = () => {
             >
               계약 목록 ({filteredContracts.length})
             </button>
-            {/* <button
+            <button
+              data-uia="btn-new-contract"
               className={activeTab === 'CREATE' ? 'btn-primary' : 'btn-secondary'}
               onClick={() => setActiveTab('CREATE')}
               style={{ padding: '7px 14px', fontSize: '12px' }}
             >
               신규 계약 등록
-            </button> */}
+            </button>
           </div>
         )}
       </div>
@@ -2078,7 +2079,7 @@ export const Contracts: React.FC = () => {
       {/* 뷰 2: 계약 상세 뷰 (viewMode === 'DETAIL') */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {viewMode === 'DETAIL' && activeContract && (
-        <div data-subview="contract_detail" data-subview-title="계약 상세" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div data-uia="panel-contract-detail" data-subview="contract_detail" data-subview-title="계약 상세" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           
                     {/* 연관 계약 (족보) 패널 (N:M 족보 아키텍처 반영) */}
           {(() => {
@@ -3693,7 +3694,7 @@ export const Contracts: React.FC = () => {
                 <input type="number" value={customMonthly} onChange={e => setCustomMonthly(Number(e.target.value))} style={{ width: '120px', padding: '6px' }} />
               </div>
               
-              <button type="button" className="btn-primary" onClick={handleAddToBasket} style={{ padding: '7px 14px', height: '36px' }}>+ 추가</button>
+              <button type="button" data-uia="btn-add-contract-asset" className="btn-primary" onClick={handleAddToBasket} style={{ padding: '7px 14px', height: '36px' }}>+ 추가</button>
             </div>
 
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>

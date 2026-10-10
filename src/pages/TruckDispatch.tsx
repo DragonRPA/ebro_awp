@@ -3296,7 +3296,9 @@ export const TruckDispatch: React.FC = () => {
         </div>
         {activeTab === 'DISPATCH' && canSave && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button data-hs-trigger="Register"
+            <button
+              data-uia="btn-excel-upload-delivery"
+              data-hs-trigger="Register"
               className="btn-secondary"
               onClick={() => setDispatchExcelModalOpen(true)}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontWeight: 700, fontSize: '13px' }}
@@ -3314,6 +3316,7 @@ export const TruckDispatch: React.FC = () => {
       {/* 메인 탭 (헌장 3.1 무수식어 건조 표준: 배차 관리 / 운송료 대사 - 운송사 배차 협의는 임시 숨김) */}
       <div data-mid="dispatch-mode-tabs" style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', marginBottom: '20px' }}>
         <button
+          data-uia="tab-dispatch-ops"
           onClick={() => setActiveTab('DISPATCH')}
           style={{
             padding: '10px 18px', fontSize: '14px', fontWeight: 700, backgroundColor: 'transparent', border: 'none',
@@ -3327,6 +3330,7 @@ export const TruckDispatch: React.FC = () => {
         </button>
         {/* 운송사 배차 협의 메뉴는 사용자 요청으로 임시 숨김 처리 */}
         <button
+          data-uia="tab-dispatch-settle"
           onClick={() => setActiveTab('RECONCILIATION')}
           style={{
             padding: '10px 18px', fontSize: '14px', fontWeight: 700, backgroundColor: 'transparent', border: 'none',
@@ -3584,6 +3588,7 @@ export const TruckDispatch: React.FC = () => {
 
                     return (
                       <div 
+                        data-uia={`card-delivery-item-${d.id}`}
                         key={d.id}
                         data-mid='delivery-queue-item' onClick={() => handleSelectDelivery(d)}
                         style={{
@@ -4162,6 +4167,7 @@ export const TruckDispatch: React.FC = () => {
 
                                   {/* 5. 💰 예상 운송비 (필수) */}
                                   <input
+                                    data-uia="input-delivery-cost"
                                     type="number"
                                     min={0}
                                     placeholder="예상 운송비"
@@ -4380,6 +4386,7 @@ export const TruckDispatch: React.FC = () => {
                             </button>
 
                             <button
+                              data-uia="btn-assign-driver"
                               type="button"
                               onClick={handleSaveDispatch}
                               disabled={isSavingDispatch}

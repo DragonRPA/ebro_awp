@@ -270,13 +270,13 @@ export function initializeHindsightTracker() {
 }
 
 async function sendToHindsightAgent(payload: HindsightMemoryBundle) {
-  fetch(LOCAL_AGENT_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  }).then(res => {
-    if (!res.ok) console.warn('[HINDSIGHT] Local agent failed');
-  }).catch(() => {});
+  if (typeof window !== 'undefined' && (window as any).__HINDSIGHT_LOCAL_AGENT__) {
+    fetch(LOCAL_AGENT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).catch(() => {});
+  }
 
   try {
     const tenantId = localStorage.getItem('erp_current_tenant_id') || (typeof window !== 'undefined' && (window as any).__APP_CONTEXT__?.currentTenant?.id) || 'unknown';

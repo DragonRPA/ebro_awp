@@ -1541,13 +1541,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const normHiddenPages = rawHidden.map(p => normalizeMenuId(p));
       const normAllowedPages = rawAllowed.map(p => normalizeMenuId(p));
 
-      // 1) hiddenPages에 포함된 메뉴는 관리자(admin/sys-admin/ADMIN)를 포함한 전원 100% 원천 차단
-      if (normHiddenPages.includes(normMenuId)) {
+      // 1) hiddenPages에 포함된 메뉴는 원천 차단 (단, 시스템 개발자 grp_system_dev 메뉴는 최고관리자 isSuperAdmin에게 상시 개방)
+      const isSystemDevMenu = ['agentic_ai_lab', 'agentic_dispatch_studio', 'agentic_settlement_autopilot', 'agentic_asset_lifecycle', 'initial_db_upload', 'data_formation', 'google_config', 'dev_uploader'].includes(normMenuId);
+      if (normHiddenPages.includes(normMenuId) && !(isSuperAdmin && isSystemDevMenu)) {
         return false;
       }
 
-      // 2) allowedPages가 지정되어 있는 경우, 허용 목록에 없는 메뉴는 원천 차단 (대시보드는 기본 허용 유지)
-      if (normAllowedPages.length > 0 && normMenuId !== 'dashboard' && !normAllowedPages.includes(normMenuId)) {
+      // 2) allowedPages가 지정되어 있는 경우, 허용 목록에 없는 메뉴는 원천 차단 (대시보드는 기본 허용 유지, 개발자 메뉴는 isSuperAdmin 예외 허용)
+      if (normAllowedPages.length > 0 && normMenuId !== 'dashboard' && !normAllowedPages.includes(normMenuId) && !(isSuperAdmin && isSystemDevMenu)) {
         return false;
       }
     }

@@ -31,56 +31,73 @@
 
 ---
 
-## 🗺️ 2. 전사 9대 메뉴 그룹 및 38개 메뉴 UIA 매트릭스
+### 🗺️ 2. 전사 11대 메뉴 그룹 및 60개 메뉴 UIA 매트릭스
 
 ```
-┌───────────────────────────────┬──────────────────────┬─────────────┬───────────────────────────┐
-│ 메뉴 그룹                     │ 메뉴 ID              │ 아키텍처    │ 핵심 액션 트리거          │
-├───────────────────────────────┼──────────────────────┼─────────────┼───────────────────────────┤
-│ 1. 대시보드                   │ dashboard            │ 유형 A 마스터│ ToDo 피드 조치, 실시간 모니터│
-│ 2. 영업관리 (8개)             │ customer             │ 유형 B 그리드│ 고객/현장/담당자 일괄 등록 │
-│                               │ contract             │ 유형 A 카드 │ 계약 체결, 조건 갱신, 상속 │
-│                               │ billing              │ 유형 B 그리드│ 월말 청구 확정, 계산서 발행│
-│                               │ receivable           │ 유형 B 그리드│ 미수금 대사, 채권 상계     │
-│                               │ smart_dispatch4      │ 유형 A 카드 │ 출고 요청서 발행           │
-│                               │ smart_return         │ 유형 A 카드 │ 회수 요청서 발행           │
-│                               │ smart_as_request     │ 유형 A 카드 │ 긴급 AS 요청서 발행        │
-│                               │ delinquency          │ 유형 B 그리드│ 미수 연체 고객 출고 차단   │
-│ 3. 제품/자산관리 (4개)        │ product              │ 유형 B 그리드│ 장비 제원/스펙 마스터 관리 │
-│                               │ asset                │ 유형 B 그리드│ 자산 대장, 상태 변경       │
-│                               │ acquisition_disposal │ 유형 A 카드 │ 취득/매각 전표 처리        │
-│                               │ rent_asset           │ 유형 B 그리드│ 외부 타사 임차 장비 관리   │
-│ 4. 배차/운송관리 (2개)        │ delivery             │ 탭1:A / 탭2:B│ 배차 의뢰(단일 EXCHANGE)   │
-│                               │ transport_master     │ 유형 B 그리드│ 운송사 및 기사 마스터 관리 │
-│ 5. 입출고관리 (3개)           │ asset_inout_history  │ 유형 B 그리드│ 장비 입출고 타임라인 추적  │
-│                               │ dispatch_assign      │ 유형 A 카드 │ 장비 실물 번호 매핑(Choice)│
-│                               │ outbound_inspections │ 유형 A 카드 │ 출고 검수 승인(RENTED 전환)│
-│ 6. 정비/소모품관리 (6개)      │ consumable_purchase  │ 유형 B 그리드│ 소모품 대량 구매 엑셀 등록 │
-│                               │ consumable_inout     │ 유형 B 그리드│ 소모품 출고 및 수불 로그   │
-│                               │ consumable_stock     │ 유형 B 그리드│ 주기장 재고 실사 및 보정   │
-│                               │ field_as             │ 유형 A 카드 │ 현장 출동 AS 정비 조치     │
-│                               │ repair               │ 유형 A 카드 │ 주기장 입고 수리 및 점수 리셋│
-│                               │ inspection_checklist │ 유형 B 그리드│ 점검표 표준 항목 설정      │
-│ 7. 경영관리 (9개)             │ leave_application    │ 유형 A 카드 │ 휴가 신청서 제출           │
-│                               │ ot_management        │ 유형 B 그리드│ 시간외근무 승인/정산       │
-│                               │ vehicle_log          │ 유형 B 그리드│ 법인차량 주유 및 운행일지  │
-│                               │ vendors              │ 유형 B 그리드│ 매입처/외주처 마스터       │
-│                               │ bank_matching        │ 유형 B 그리드│ 통장 입출금 1:1 대사       │
-│                               │ corporate_card       │ 유형 B 그리드│ 법인카드 경비 전표 정산    │
-│                               │ cash_flow            │ 유형 B 그리드│ 자금 일계 및 흐름 분석     │
-│                               │ depreciation_exec    │ 유형 B 그리드│ 월말 감가상각 마감 실행    │
-│                               │ regular_reports      │ 유형 B 그리드│ 월간/연간 정기보고서 생성  │
-│ 8. 경영관리-특수 (4개)        │ organization         │ 유형 A 카드 │ 조직도 및 부서/직책 설정   │
-│                               │ permission           │ 유형 B 그리드│ 임직원 메뉴별 권한 매트릭스│
-│                               │ payroll              │ 유형 B 그리드│ 급여 대장 산출 (보안 강제) │
-│                               │ leave_management     │ 유형 B 그리드│ 연차 발생 및 잔여일수 관리 │
-│ 9. 시스템-에이전틱 랩 (4개)   │ agentic_ai_lab       │ 유형 A 스튜디오│ 자연어 ReAct 시뮬레이터    │
-│                               │ agentic_dispatch     │ 유형 A 스튜디오│ [신설] 배차 관제 스튜디오  │
-│                               │ agentic_settlement   │ 유형 B 그리드│ [신설] 월말 대사 오토파일럿│
-│                               │ agentic_asset_life   │ 유형 A 스튜디오│ [신설] 자산 수명 관제보드  │
-│ 10. 업무도구 (2개)            │ operations_manual    │ 유형 A 스튜디오│ 업무 매뉴얼 및 지침 검색   │
-│                               │ error_report         │ 유형 B 그리드│ 3단계 오류 신고 등록/처리  │
-└───────────────────────────────┴──────────────────────┴─────────────┴───────────────────────────┘
+┌───────────────────────────────┬───────────────────────────────┬─────────────┬───────────────────────────┐
+│ 메뉴 그룹                     │ 메뉴 ID                       │ 아키텍처    │ 핵심 액션 트리거          │
+├───────────────────────────────┼───────────────────────────────┼─────────────┼───────────────────────────┤
+│ 1. 대시보드                   │ dashboard                     │ 유형 A 마스터│ ToDo 피드 조치, 실시간 모니터│
+│ 2. 결재 센터 (2개)            │ approvalInbox                 │ 유형 A 카드 │ 결재 승인/반려            │
+│                               │ approvalRules                 │ 유형 B 그리드│ 결재 규칙 저장            │
+│ 3. 영업관리 (12개)            │ customer                      │ 유형 B 그리드│ 고객/현장/담당자 일괄 등록 │
+│                               │ site_options                  │ 유형 B 그리드│ 현장별 옵션/보양/가동 관리 │
+│                               │ contract                      │ 유형 A 카드 │ 계약 체결, 조건 갱신, 상속 │
+│                               │ billing                       │ 유형 B 그리드│ 월말 청구 확정, 계산서 발행│
+│                               │ custom_billing                │ 유형 A 카드 │ 특수 거래명세서 품목 저장  │
+│                               │ receivable                    │ 유형 B 그리드│ 미수금 대사, 채권 상계     │
+│                               │ smart_dispatch4               │ 유형 A 카드 │ 출고 요청서 발행           │
+│                               │ voice_dispatch                │ 유형 A 카드 │ 자연어 음성 출고지시 발행 │
+│                               │ smart_return                  │ 유형 A 카드 │ 회수 요청서 발행           │
+│                               │ smart_as_request              │ 유형 A 카드 │ 긴급 AS 요청서 발행        │
+│                               │ delinquency                   │ 유형 B 그리드│ 미수 연체 고객 출고 차단   │
+│                               │ official_mail                 │ 유형 A 카드 │ 공식 메일 발송             │
+│                               │ public_construction_permits   │ 유형 B 그리드│ 인허가 공정 검색           │
+│ 4. 제품/자산관리 (4개)        │ product                       │ 유형 B 그리드│ 장비 제원/스펙 마스터 관리 │
+│                               │ asset                         │ 유형 B 그리드│ 자산 대장, 상태 변경       │
+│                               │ acquisition_disposal          │ 유형 A 카드 │ 취득/매각 전표 처리        │
+│                               │ rent_asset                    │ 유형 B 그리드│ 외부 타사 임차 장비 관리   │
+│ 5. 배차/운송관리 (2개)        │ delivery                      │ 탭1:A / 탭2:B│ 배차 의뢰(단일 EXCHANGE)   │
+│                               │ transport_master              │ 유형 B 그리드│ 운송사 및 기사 마스터 관리 │
+│ 6. 입출고관리 (7개)           │ daily_inout                   │ 유형 B 그리드│ 당일 입출고 시간대별 조망  │
+│                               │ asset_inout_history           │ 유형 B 그리드│ 장비 입고등록 및 이력 추적 │
+│                               │ dispatch_assign               │ 유형 A 카드 │ 장비 실물 번호 매핑(Choice)│
+│                               │ outbound_inspections          │ 유형 A 카드 │ 출고 검수 승인(RENTED 전환)│
+│                               │ consumable_stock              │ 유형 B 그리드│ 주기장 부품 재고 관리      │
+│                               │ stocktaking                   │ 유형 B 그리드│ 바코드 스캔 전산 실사 확정 │
+│                               │ print_queue_monitor           │ 유형 A 카드 │ 프린트 큐 모니터링/재출력  │
+│ 7. 정비/소모품관리 (5개)      │ consumable_purchase           │ 유형 B 그리드│ 소모품 대량 구매 엑셀 등록 │
+│                               │ consumable_inout              │ 유형 B 그리드│ 소모품 출고 및 수불 로그   │
+│                               │ field_as                      │ 유형 A 카드 │ 현장 출동 AS 정비 조치     │
+│                               │ repair                        │ 유형 A 카드 │ 주기장 입고 수리 및 점수 리셋│
+│                               │ inspection_checklist_manage   │ 유형 B 그리드│ 점검표 표준 항목 설정      │
+│ 8. 경영관리 (10개)            │ leave_application             │ 유형 A 카드 │ 휴가 신청서 제출           │
+│                               │ ot_management                 │ 유형 B 그리드│ 시간외근무 승인/정산       │
+│                               │ vehicle_log                   │ 유형 B 그리드│ 법인차량 주유 및 운행일지  │
+│                               │ purchase_settlement           │ 유형 B 그리드│ 월말 매입 정산 및 홈택스대사│
+│                               │ vendors                       │ 유형 B 그리드│ 매입처/외주처 마스터       │
+│                               │ bank_matching                 │ 유형 B 그리드│ 통장 입출금 1:1 대사       │
+│                               │ corporate_card                │ 유형 B 그리드│ 법인카드 경비 전표 정산    │
+│                               │ cash_flow                     │ 유형 B 그리드│ 자금 일계 및 흐름 분석     │
+│                               │ depreciation_execution        │ 유형 B 그리드│ 월말 감가상각 마감 실행    │
+│                               │ regular_reports               │ 유형 B 그리드│ 월간/연간 정기보고서 생성  │
+│ 9. 경영관리-특수 (6개)        │ organization                  │ 유형 A 카드 │ 조직도 및 부서/직책 설정   │
+│                               │ permission                    │ 유형 B 그리드│ 임직원 메뉴별 권한 매트릭스│
+│                               │ manual_dictionary             │ 유형 C 포털 │ 1단어 1뜻 표준 용어 사전   │
+│                               │ payroll                       │ 유형 B 그리드│ 급여 대장 산출 (보안 강제) │
+│                               │ leave_management              │ 유형 B 그리드│ 연차 발생 및 잔여일수 관리 │
+│                               │ privacy_audit                 │ 유형 B 그리드│ 개인정보 접속 감사 로그    │
+│ 10. 도구 및 다운로드 (2개)    │ operations_manual             │ 유형 A 스튜디오│ 업무 매뉴얼 및 지침 검색   │
+│                               │ error_report                  │ 유형 B 그리드│ 3단계 오류 신고 등록/처리  │
+│ 11. 시스템-에이전틱 랩 (8개)  │ agentic_ai_lab                │ 유형 A 스튜디오│ 자연어 ReAct 시뮬레이터    │
+│                               │ agentic_dispatch_studio       │ 유형 A 스튜디오│ 배차 관제 스튜디오         │
+│                               │ agentic_settlement_autopilot  │ 유형 B 그리드│ 월말 대사 오토파일럿       │
+│                               │ agentic_asset_lifecycle       │ 유형 A 스튜디오│ 자산 수명 관제보드         │
+│                               │ initial_db_upload             │ 유형 B 그리드│ 초기DB 업로드              │
+│                               │ data_formation                │ 유형 B 그리드│ 레거시 갭 분석 및 일괄적재 │
+│                               │ google_config                 │ 유형 A 카드 │ 공식 메일 연동 설정        │
+│                               │ dev_uploader                  │ 유형 B 그리드│ DB 데이터 업로더           │
+└───────────────────────────────┴───────────────────────────────┴─────────────┴───────────────────────────┘
 ```
 
 ---

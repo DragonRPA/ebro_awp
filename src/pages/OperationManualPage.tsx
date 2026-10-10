@@ -144,15 +144,15 @@ export const OperationManualPage: React.FC = () => {
       // 2. 검색어 필터
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase();
-        const matchTitle = m.menuName.toLowerCase().includes(q);
-        const matchObjective = m.objective.toLowerCase().includes(q);
-        const matchDept = m.department.toLowerCase().includes(q);
-        const matchSeq = m.cognitiveSequence.some(s => s.toLowerCase().includes(q));
-        const matchRules = m.rulesCompliance.some(r => r.toLowerCase().includes(q));
+        const matchTitle = (m.menuName || '').toLowerCase().includes(q);
+        const matchObjective = (m.objective || '').toLowerCase().includes(q);
+        const matchDept = (m.department || '').toLowerCase().includes(q);
+        const matchSeq = (m.cognitiveSequence || []).some(s => typeof s === 'string' && s.toLowerCase().includes(q));
+        const matchRules = (m.rulesCompliance || []).some(r => typeof r === 'string' && r.toLowerCase().includes(q));
         const matchProcesses = (m.processes || []).some(p =>
-          p.title.toLowerCase().includes(q) ||
-          p.description.toLowerCase().includes(q) ||
-          (p.steps || []).some(s => s.label.toLowerCase().includes(q) || s.description.toLowerCase().includes(q))
+          (p?.title || '').toLowerCase().includes(q) ||
+          (p?.description || '').toLowerCase().includes(q) ||
+          (p?.steps || []).some(s => (s?.label || '').toLowerCase().includes(q) || (s?.description || '').toLowerCase().includes(q))
         );
         return matchTitle || matchObjective || matchDept || matchSeq || matchRules || matchProcesses;
       }
@@ -252,6 +252,7 @@ export const OperationManualPage: React.FC = () => {
           <div style={{ position: 'relative', width: '220px' }}>
             <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input
+              data-uia="input-search-manual"
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
@@ -290,6 +291,7 @@ export const OperationManualPage: React.FC = () => {
               { id: 'dev', label: '시스템/개발' },
             ].map(b => (
               <button
+                data-uia="btn-quick-clause"
                 key={b.id}
                 onClick={() => setDeptFilter(b.id as DeptFilter)}
                 style={{

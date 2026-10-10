@@ -477,7 +477,9 @@ export const VehicleOperationLogPage: React.FC = () => {
 
           {activeTab === 'FUEL_LOG' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button data-hs-trigger="Register"
+              <button
+                data-uia="btn-excel-upload-vehicle-fuel"
+                data-hs-trigger="Register"
                 onClick={() => setFuelExcelModalOpen(true)}
                 className="btn-secondary"
                 style={{
