@@ -1,4 +1,4 @@
-﻿export type TargetEntity = 'CUSTOMER' | 'ASSET' | 'CONTRACT';
+export type TargetEntity = 'CUSTOMER' | 'ASSET' | 'CONTRACT';
 
 export interface FieldDefinition {
   key: string;
@@ -110,9 +110,14 @@ export function analyzeGaps(rawData: any[], mapping: Record<string, string>, fix
         }
       } else {
         if (field.type === 'number') {
-          const num = Number(val);
-          if (isNaN(num)) errors.push(`[${field.label}] 숫자 형식 오류: ${val}`);
-          else mapped[field.key] = num;
+          const sVal = String(val).trim();
+          if (sVal.includes('말일') || sVal.includes('말')) {
+            mapped[field.key] = 31;
+          } else {
+            const num = Number(val);
+            if (isNaN(num)) errors.push(`[${field.label}] 숫자 형식 오류: ${val}`);
+            else mapped[field.key] = num;
+          }
         } else if (field.type === 'date') {
           // Normalize excel numeric dates or string dates
           let dt: Date;
