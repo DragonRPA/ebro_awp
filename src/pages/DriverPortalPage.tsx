@@ -153,7 +153,7 @@ export const DriverPortalPage: React.FC = () => {
 
   // Contract & Party Details
   const [contractNo, setContractNo] = useState<string>('');
-  const [supplierName, setSupplierName] = useState<string>('(주)기연리프트');
+  const [supplierName, setSupplierName] = useState<string>('공급자');
   const [supplierInfo, setSupplierInfo] = useState<any>(null);
   const [customerName, setCustomerName] = useState<string>('');
   const [siteName, setSiteName] = useState<string>('');
@@ -276,9 +276,14 @@ export const DriverPortalPage: React.FC = () => {
         }
 
         // 3. Supplier (Tenants)
-        const { data: tenantData } = await supabase!.from('tenants').select('*').limit(1).single();
+        const targetTenantId = (data as any).tenantId || (data as any).tenant_id;
+        let tenantQuery = supabase!.from('tenants').select('*');
+        if (targetTenantId) {
+          tenantQuery = tenantQuery.eq('id', targetTenantId);
+        }
+        const { data: tenantData } = await tenantQuery.limit(1).single();
         if (tenantData) {
-          setSupplierName(tenantData.tradeName || tenantData.displayName || '(주)기연리프트');
+          setSupplierName(tenantData.tradeName || tenantData.corporateName || tenantData.displayName || '공급자');
           setSupplierInfo(tenantData);
         }
       } catch (err: any) {
@@ -364,7 +369,7 @@ export const DriverPortalPage: React.FC = () => {
         siteAddress: delivery.destinationAddress || siteAddress || '-',
         receiverName: receiverName || '인수담당자',
         receiverPhone: receiverPhone || '-',
-        supplierName: supplierName || '(주)기연리프트',
+        supplierName: supplierName || supplierInfo?.tradeName || supplierInfo?.corporateName || supplierInfo?.displayName || '공급자',
         supplierInfo,
         cargoList,
         specialNotes,

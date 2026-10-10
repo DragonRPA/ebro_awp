@@ -64,7 +64,7 @@ export function generateReceiptHtml(delivery: any, contract: any, customer: any,
           <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
             <tr>
               <th style="border: 1px solid #000; padding: 8px; background: #f0f0f0; width: 32%; text-align: center;">공급자</th>
-              <td style="border: 1px solid #000; padding: 8px; font-weight: 700;">${tenant?.displayName || '기연리프트'}</td>
+              <td style="border: 1px solid #000; padding: 8px; font-weight: 700;">${tenant?.tradeName || tenant?.corporateName || tenant?.displayName || '공급자'}</td>
             </tr>
             <tr>
               <th style="border: 1px solid #000; padding: 8px; background: #f0f0f0; width: 32%; text-align: center;">납품일</th>
@@ -139,7 +139,7 @@ export async function generateSignedReceiptCanvas(options: SignedReceiptOptions)
     siteAddress = '-',
     receiverName = '인수담당자',
     receiverPhone = '-',
-    supplierName = '(주)기연리프트',
+    supplierName = '공급자',
     supplierInfo = null,
     cargoList = [],
     specialNotes = '',
@@ -261,19 +261,20 @@ export async function generateSignedReceiptCanvas(options: SignedReceiptOptions)
   const boxH = 215;
   const boxW = 525;
 
-  const sCorpName = supplierInfo?.corporateName || supplierInfo?.tradeName || supplierName;
-  const sRep = supplierInfo?.representativeName || '이수용';
-  const sBizNo = supplierInfo?.businessNumber || '138-81-83251';
-  const sAddr = supplierInfo?.headOfficeAddress || supplierInfo?.businessAddress || '경기도 용인시 처인구 백암면 고안로 51번길 33';
-  const sTel = supplierInfo?.tel || '031-334-5295';
-  const sFax = supplierInfo?.fax || '031-335-5297';
+  const sCorpName = supplierInfo?.tradeName || supplierInfo?.corporateName || supplierInfo?.displayName || supplierName || '공급자';
+  const sRep = supplierInfo?.representativeName || supplierInfo?.representative || '';
+  const sBizNo = supplierInfo?.businessNumber || supplierInfo?.bizRegNo || '-';
+  const sAddr = supplierInfo?.headOfficeAddress || supplierInfo?.businessAddress || supplierInfo?.address || '-';
+  const sTel = supplierInfo?.tel || supplierInfo?.phone || '-';
+  const sFax = supplierInfo?.fax || '-';
+  const sWebsite = supplierInfo?.websiteUrl || '';
 
   drawTableGrid(65, boxY, boxW, boxH, '공    급    자', [
     { label: '상호(법인명)', value: sCorpName },
-    { label: '대표자 성명', value: `${sRep} (직인생략)` },
+    { label: '대표자 성명', value: sRep ? `${sRep} (직인생략)` : '(직인생략)' },
     { label: '사업자등록번호', value: sBizNo },
     { label: '사업장 소재지', value: sAddr },
-    { label: '대표전화/FAX', value: `${sTel} / ${sFax}` }
+    { label: '대표전화/FAX', value: sFax && sFax !== '-' ? `${sTel} / ${sFax}` : sTel }
   ]);
 
   drawTableGrid(610, boxY, boxW, boxH, '공 급 받 는 자  (인 수 처)', [
@@ -534,7 +535,8 @@ export async function generateSignedReceiptCanvas(options: SignedReceiptOptions)
   ctx.fillStyle = '#475569';
   ctx.font = 'bold 14px "Malgun Gothic", Pretendard, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(`${sCorpName}  대표이사  ${sRep}  (직인생략)`, sealX, signCardY + 365);
+  const repTitle = sRep ? `대표이사  ${sRep} ` : '';
+  ctx.fillText(`${sCorpName}  ${repTitle}(직인생략)`, sealX, signCardY + 365);
 
   ctx.fillStyle = '#94a3b8';
   ctx.font = '12px "Malgun Gothic", Pretendard, sans-serif';
@@ -632,7 +634,15 @@ export async function generateSignedReceiptCanvas(options: SignedReceiptOptions)
 
   ctx.fillStyle = '#94a3b8';
   ctx.font = '12px "Malgun Gothic", Pretendard, sans-serif';
-  ctx.fillText(`eBro Management System  |  ${sCorpName}  |  고객센터: ${sTel}  |  www.giyeonlift.co.kr`, 600, footLineY + 48);
+  const footerContact = sTel && sTel !== '-' ? `고객센터: ${sTel}` : '';
+  const footerWeb = sWebsite ? sWebsite.replace(/^https?:\/\//, '') : '';
+  const footerText = [
+    supplierInfo?.systemName || 'eBro Management System',
+    sCorpName,
+    footerContact,
+    footerWeb
+  ].filter(Boolean).join('  |  ');
+  ctx.fillText(footerText, 600, footLineY + 48);
 
   return canvas;
 }
