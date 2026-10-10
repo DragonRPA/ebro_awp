@@ -225,6 +225,13 @@ export async function enqueuePrintJob(params: {
   const now = new Date().toISOString();
   const jobId = `PQ-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
+  // DB 외래키(print_queue_requestedById_fkey) 무결성 보장:
+  // db.users에 실제로 존재하는 유효한 사용자 ID인지 검증 (가상 관리자 id: 'sys-admin', 'usr-admin', 'u-1' 등은 FK 에러 방지를 위해 undefined로 설정)
+  const isRealUser = params.requestedById && 
+    !['sys-admin', 'u-1', 'usr-admin'].includes(params.requestedById) && 
+    db.users.some(u => u.id === params.requestedById);
+  const safeRequestedById = isRealUser ? params.requestedById : undefined;
+
   const jobItem: PrintQueueItem = {
     id: jobId,
     stationId: targetStation.id,
@@ -234,7 +241,7 @@ export async function enqueuePrintJob(params: {
     title: params.title,
     documentHtml: params.documentHtml,
     status: 'PENDING',
-    requestedById: params.requestedById,
+    requestedById: safeRequestedById,
     requestedByName: params.requestedByName || '사무직원',
     requestedAt: now,
     retryCount: 0,
