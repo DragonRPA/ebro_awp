@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { OutboundInspection, OutboundInspectionStatus, Asset, Contract, Customer, CustomerSite as Site, AssetInOutLog, Repair, ContractAsset, db, STANDARD_SPECS, isCustomerRestricted } from '../services/db';
@@ -29,8 +29,11 @@ import {
   MessageSquare,
   X,
   Download,
-  Boxes
+  Boxes,
+  Printer
 } from 'lucide-react';
+import { generateReceiptHtml } from '../utils/receiptGenerator';
+import { enqueuePrintJob, fetchLocalPrintersFromAgent, printDirectToLocalAgent } from '../services/printQueueService';
 import { exportToExcel } from '../services/excel';
 
 interface CheckPoint {
@@ -128,13 +131,16 @@ export const OutboundInspections: React.FC = () => {
     inspectionChecklistItems,
     consumables,
     mechanicConsumableStocks,
-    products
+    products,
+    currentTenant
   } = useApp();
 
   const canEdit = hasPermission('repair', 'save') || hasPermission('delivery', 'save') || hasPermission('contract', 'save');
 
   const [activeTabStatus, setActiveTabStatus] = useState<string>('PENDING');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showRollbackModal, setShowRollbackModal] = useState<boolean>(false);
+  const [rollbackReason, setRollbackReason] = useState<string>('');
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
 
   // 주기장 소모품 재고조회 모달 상태
@@ -318,6 +324,18 @@ export const OutboundInspections: React.FC = () => {
     return scopedGroups.filter(g => g.status === activeTabStatus);
   }, [scopedGroups, activeTabStatus]);
 
+  // 탭 변경 시 선택 항목 자동 동기화 (새 탭에 맞는 첫 번째 그룹 자동 선택)
+  useEffect(() => {
+    if (filteredGroups.length > 0) {
+      const exists = filteredGroups.some(g => g.groupId === selectedGroupId);
+      if (!exists) {
+        handleSelectGroup(filteredGroups[0]);
+      }
+    } else {
+      setSelectedGroupId(null);
+    }
+  }, [activeTabStatus, filteredGroups]);
+
 
   const selectedGroup = useMemo(() => {
     if (!selectedGroupId) return null;
@@ -327,13 +345,25 @@ export const OutboundInspections: React.FC = () => {
   const handleSelectGroup = (group: InspectionGroup) => {
     setSelectedGroupId(group.groupId);
 
-    // 초기 체크 상태 세팅 (기본값 false 미체크!)
     const initialMap: Record<string, boolean> = {};
-    group.checkpoints.forEach(cp => {
-      initialMap[cp.id] = false;
-    });
+    if (group.status === 'COMPLETED') {
+      group.checkpoints.forEach(cp => {
+        initialMap[cp.id] = true;
+      });
+      try {
+        const specs = JSON.parse(group.items[0]?.specsJson || '{}');
+        if (specs?.checkpoints && Array.isArray(specs.checkpoints)) {
+          specs.checkpoints.forEach((cp: any) => {
+            if (cp?.id) initialMap[cp.id] = cp.checked ?? true;
+          });
+        }
+      } catch (e) {}
+    } else {
+      group.checkpoints.forEach(cp => {
+        initialMap[cp.id] = false;
+      });
+    }
 
-    // 만약 이미 검수가 진행중이거나 완료된 경우 기존 note 파싱
     const sampleNote = group.items[0]?.note || '';
     setInspectionNote(sampleNote);
     setCheckedItems(initialMap);
@@ -524,6 +554,194 @@ export const OutboundInspections: React.FC = () => {
       setIsProcessing(false);
     }
   };
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 4-B. 출고 승인 취소 롤백 (COMPLETED ➔ IN_PROGRESS & 자산 RENTED ➔ RESERVED)
+  // ──────────────────────────────────────────────────────────────────────────
+  const handleConfirmRollback = async () => {
+    if (!selectedGroup || !canEdit || selectedGroup.status !== 'COMPLETED') return;
+    if (!rollbackReason.trim()) {
+      showErrorModal('출고 승인 취소(롤백) 사유를 입력해 주세요.');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const nowIso = new Date().toISOString();
+      const userName = currentUser?.name || '담당엔지니어';
+      const contract = db.contracts.find(c => c.id === selectedGroup.contractId);
+
+      // 1. 검수 레코드 원복 (COMPLETED ➔ IN_PROGRESS)
+      selectedGroup.items.forEach(item => {
+        db.updateRow<OutboundInspection>('outboundInspections', item.id, {
+          status: 'IN_PROGRESS',
+          approvedAt: undefined,
+          note: item.note ? `${item.note}\n[출고승인 취소 롤백] 사유: ${rollbackReason.trim()} (작업자: ${userName})` : `[출고승인 취소 롤백] 사유: ${rollbackReason.trim()}`,
+          updatedAt: nowIso
+        });
+
+        // 2. 자산 상태 롤백 (RENTED ➔ RESERVED 출고대기)
+        if (item.assetId) {
+          db.updateRow<Asset>('assets', item.assetId, {
+            status: 'ASSIGNED',
+            updatedAt: nowIso
+          });
+
+          if (item.contractAssetId) {
+            db.updateRow<ContractAsset>('contractAssets', item.contractAssetId, {
+              status: 'ASSIGNED',
+              updatedAt: nowIso
+            });
+          }
+
+          // 3. [헌장 1.2] 발생 사건 무누락 DB 저장: 출고 취소 롤백 이력 로깅
+          const targetAsset = db.assets.find(a => a.id === item.assetId);
+          db.insertRow<AssetInOutLog>('assetInOutLogs', {
+            assetId: item.assetId,
+            assetNo: targetAsset?.assetNo || '',
+            modelName: targetAsset?.modelName || '',
+            deliveryId: item.deliveryId || selectedGroup.deliveryId,
+            type: 'OUTBOUND',
+            eventDate: nowIso.split('T')[0],
+            customerId: contract?.customerId,
+            customerName: selectedGroup.customerName,
+            siteId: contract?.siteId,
+            siteName: selectedGroup.siteName,
+            memo: `[출고승인 취소 롤백] 출고 승인이 취소되고 검수 진행중(자산상태 ASSIGNED)으로 안전 롤백되었습니다. 사유: ${rollbackReason.trim()}`,
+            createdAt: nowIso
+          });
+        }
+      });
+
+      // 4. 출고 완료로 인해 발행되었던 상차출발 ToDo 취소 상계
+      if (selectedGroup.deliveryId) {
+        await clearHandoverTasks({
+          entityId: selectedGroup.deliveryId,
+          category: 'OUTBOUND_SHIPMENT_START',
+          completedByUserId: currentUser?.id,
+          completedByName: userName,
+          completionAction: 'CANCELLED'
+        });
+      }
+
+      await db.awaitPendingWrites();
+      refreshAllData();
+      showToast(`[${selectedGroup.customerName}] 건의 출고 승인이 취소되고 검수 진행중으로 롤백되었습니다. 장비 교체 및 재검수가 가능합니다.`);
+      setShowRollbackModal(false);
+      setRollbackReason('');
+      setActiveTabStatus('IN_PROGRESS');
+      handleSelectGroup({
+        ...selectedGroup,
+        status: 'IN_PROGRESS'
+      });
+    } catch (err: any) {
+      showErrorModal(`⚠️ 출고 승인 취소 롤백 실패: ${err?.message || err}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // 4-C. 납품증(인수증) 즉시 출력 핸들러
+  // ──────────────────────────────────────────────────────────────────────────
+  const handlePrintReceipt = async () => {
+    if (!selectedGroup) return;
+
+    try {
+      const contract = db.contracts.find(c => c.id === selectedGroup.contractId);
+      const customer = contract ? db.customers.find(c => c.id === contract.customerId) : undefined;
+      const site = contract ? db.sites.find(s => s.id === contract.siteId) : undefined;
+      let delivery = deliveries.find(d => d.contractId === selectedGroup.contractId && d.type === 'OUTBOUND');
+
+      if (!delivery) {
+        delivery = {
+          id: `DLV-VIRTUAL-${Date.now()}`,
+          contractId: selectedGroup.contractId,
+          type: 'OUTBOUND',
+          status: 'DELIVERED',
+          loadingDate: selectedGroup.loadingDate,
+          requestDate: selectedGroup.requestDate,
+          destinationAddress: site?.address || '',
+          cargoItems: JSON.stringify(selectedGroup.assets.map(a => ({
+            modelName: `${a.modelName} (${a.assetNo})`,
+            count: 1
+          }))),
+          memo: selectedGroup.rawText || ''
+        } as any;
+      } else {
+        if (selectedGroup.assets.length > 0) {
+          const enrichedCargos = selectedGroup.assets.map(a => ({
+            modelName: `${a.modelName} (${a.assetNo})`,
+            count: 1
+          }));
+          delivery = {
+            ...delivery,
+            cargoItems: JSON.stringify(enrichedCargos)
+          };
+        }
+      }
+
+      const receiptHtml = generateReceiptHtml(delivery, contract, customer, site, currentTenant);
+
+      // 1. 인쇄 대기열에 등록
+      await enqueuePrintJob({
+        docType: 'DISPATCH_ORDER',
+        docNo: selectedGroup.contractNo,
+        title: `[납품증] ${selectedGroup.customerName} - ${selectedGroup.siteName}`,
+        documentHtml: receiptHtml,
+        requestedById: currentUser?.id,
+        requestedByName: currentUser?.name
+      });
+
+      // 2. 로컬 에이전트 다이렉트 출력 전송
+      let directPrinted = false;
+      const agentCheck = await fetchLocalPrintersFromAgent();
+      if (agentCheck.online && (agentCheck.defaultPrinter || agentCheck.printers[0])) {
+        const printerName = agentCheck.defaultPrinter || agentCheck.printers[0];
+        directPrinted = await printDirectToLocalAgent({
+          printerName,
+          title: `[납품증] ${selectedGroup.customerName}`,
+          htmlContent: receiptHtml
+        });
+      }
+
+      // 3. 브라우저 인쇄 팝업 창
+      const printWindow = window.open('', '_blank', 'width=850,height=900');
+      if (printWindow) {
+        printWindow.document.write(`
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>납품증 출력 - ${selectedGroup.customerName}</title>
+            <style>
+              @media print {
+                @page { margin: 15mm; size: A4; }
+                body { margin: 0; }
+              }
+            </style>
+          </head>
+          <body>
+            ${receiptHtml}
+            <script>
+              window.onload = function() {
+                window.print();
+              };
+            </script>
+          </body>
+          </html>
+        `);
+        printWindow.document.close();
+      }
+
+      showToast(directPrinted 
+        ? `[${selectedGroup.customerName}] 납품증이 프린터(${agentCheck.defaultPrinter})로 전송되었습니다.`
+        : `[${selectedGroup.customerName}] 납품증 인쇄 창이 열렸습니다.`
+      );
+    } catch (err: any) {
+      showErrorModal(`납품증 출력 실패: ${err.message || err}`);
+    }
+  };
+
 
   // ──────────────────────────────────────────────────────────────────────────
   // 5. 출고 반려 처리 (REJECTED & 자산 status ➔ REPAIRING 로 불량 전환)
@@ -1173,6 +1391,22 @@ export const OutboundInspections: React.FC = () => {
                   {getStatusBadge(selectedGroup.status)}
                 </div>
 
+                {selectedGroup.status === 'COMPLETED' && (
+                  <div style={{
+                    marginTop: '12px', padding: '10px 14px',
+                    backgroundColor: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.3)',
+                    borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    flexWrap: 'wrap', gap: '8px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#15803d', fontSize: '13px', fontWeight: 700 }}>
+                      <CheckCircle size={16} /> 출고 승인 마감 완료 (자산 대여중 전환됨)
+                    </div>
+                    <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                      장비 변경이나 재검수가 필요한 경우 하단의 [출고 승인 취소 (검수 롤백)]를 진행하세요.
+                    </div>
+                  </div>
+                )}
+
                 {/* 포함 장비 다수 묶음 상세 표출 + 🔄 [장비 교체] 버튼 장착! */}
                 <div style={{ marginTop: '12px', padding: '12px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                   <div style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1261,7 +1495,7 @@ export const OutboundInspections: React.FC = () => {
                           borderRadius: '10px',
                           border: isChecked ? '1.5px solid #22c55e' : '1px solid var(--border-color)',
                           backgroundColor: isChecked ? 'rgba(34,197,94,0.06)' : 'var(--bg-body)',
-                          cursor: canEdit ? 'pointer' : 'default',
+                          cursor: canEdit && selectedGroup.status !== 'COMPLETED' ? 'pointer' : 'default',
                           display: 'flex',
                           alignItems: 'center',
                           gap: '10px',
@@ -1312,7 +1546,7 @@ export const OutboundInspections: React.FC = () => {
                   placeholder="예: 배터리 단자 정비 완료, 4면 망 완비 완료, 타이어 교체 등 특이사항 기록..."
                   value={inspectionNote}
                   onChange={e => setInspectionNote(e.target.value)}
-                  disabled={!canEdit}
+                  disabled={!canEdit || selectedGroup.status === 'COMPLETED'}
                   style={{
                     width: '100%',
                     height: '75px',
@@ -1341,47 +1575,91 @@ export const OutboundInspections: React.FC = () => {
                 </div>
               </div>
 
-              {/* 하단 최종 출고 승인 및 반려 버튼 */}
+              {/* 하단 최종 출고 승인 및 반려 버튼 / 완료 시 납품증 출력 및 롤백 */}
               {canEdit && (
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <button data-hs-trigger="Approve"
-                    onClick={handleApproveGroup}
-                    disabled={isProcessing}
-                    className="btn-primary"
-                    style={{
-                      flex: 1,
-                      padding: '12px 20px',
-                      fontWeight: 800,
-                      fontSize: '14px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px'
-                    }}
-                  >
-                    <ShieldCheck size={18} /> [🟢 최종 출고 승인 마감] (할당 완료)
-                  </button>
+                  {selectedGroup.status === 'COMPLETED' ? (
+                    <>
+                      <button data-mid="btn-print-receipt"
+                        onClick={handlePrintReceipt}
+                        disabled={isProcessing}
+                        className="btn-primary"
+                        style={{
+                          flex: 1,
+                          padding: '12px 20px',
+                          fontWeight: 800,
+                          fontSize: '14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          backgroundColor: '#2563eb'
+                        }}
+                      >
+                        <Printer size={18} /> 🖨️ 납품증(인수증) 출력
+                      </button>
 
-                  {selectedGroup.status !== 'COMPLETED' && (
-                    <button
-                      onClick={() => setShowRejectModal(true)}
-                      disabled={isProcessing}
-                      style={{
-                        padding: '12px 20px',
-                        borderRadius: '8px',
-                        backgroundColor: 'rgba(239,68,68,0.1)',
-                        color: 'var(--danger)',
-                        border: '1px solid rgba(239,68,68,0.3)',
-                        fontWeight: 800,
-                        fontSize: '13.5px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}
-                    >
-                      <XCircle size={16} /> 🚫 요청 반려 (수리정비중 전환)
-                    </button>
+                      <button data-mid="btn-rollback-approval"
+                        onClick={() => setShowRollbackModal(true)}
+                        disabled={isProcessing}
+                        style={{
+                          padding: '12px 20px',
+                          borderRadius: '8px',
+                          backgroundColor: 'rgba(239,68,68,0.08)',
+                          color: 'var(--danger)',
+                          border: '1.5px solid rgba(239,68,68,0.4)',
+                          fontWeight: 800,
+                          fontSize: '13.5px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        <RotateCcw size={16} /> ↩️ 출고 승인 취소 (검수 롤백)
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button data-hs-trigger="Approve"
+                        onClick={handleApproveGroup}
+                        disabled={isProcessing}
+                        className="btn-primary"
+                        style={{
+                          flex: 1,
+                          padding: '12px 20px',
+                          fontWeight: 800,
+                          fontSize: '14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <ShieldCheck size={18} /> [🟢 최종 출고 승인 마감] (할당 완료)
+                      </button>
+
+                      <button
+                        onClick={() => setShowRejectModal(true)}
+                        disabled={isProcessing}
+                        style={{
+                          padding: '12px 20px',
+                          borderRadius: '8px',
+                          backgroundColor: 'rgba(239,68,68,0.1)',
+                          color: 'var(--danger)',
+                          border: '1px solid rgba(239,68,68,0.3)',
+                          fontWeight: 800,
+                          fontSize: '13.5px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        <XCircle size={16} /> 🚫 요청 반려 (수리정비중 전환)
+                      </button>
+                    </>
                   )}
                 </div>
               )}
@@ -1472,6 +1750,52 @@ export const OutboundInspections: React.FC = () => {
               <button onClick={() => setShowRejectModal(false)} className="btn-secondary">취소</button>
               <button data-hs-trigger="Process" data-mid='btn-reject-confirm' onClick={handleConfirmReject} style={{ padding: '8px 16px', borderRadius: '8px', backgroundColor: 'var(--danger)', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer' }}>
                 반려 처리 실행
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      
+      {/* ↩️ 출고 승인 취소 (검수 롤백) 모달 */}
+      {showRollbackModal && selectedGroup && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px' }}>
+          <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '520px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 10px 0', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--danger)' }}>
+              <RotateCcw size={20} /> 출고 승인 취소 (검수 단계 롤백)
+            </h3>
+            <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.6', marginBottom: '14px' }}>
+              <strong>[{selectedGroup.customerName}] ({selectedGroup.siteName})</strong> 출고 검수를 완료 전 상태(검수 진행중)로 되돌립니다.
+            </p>
+
+            <div style={{ padding: '12px 14px', backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', fontSize: '12px', color: 'var(--danger)', marginBottom: '16px', lineHeight: '1.5' }}>
+              ⚠️ <strong>롤백 시 동작:</strong><br />
+              • 자산 상태가 <strong>RENTED(대여중)</strong>에서 <strong>ASSIGNED(출고배정)</strong>로 안전하게 원복됩니다.<br />
+              • 검수 항목 재확인 및 <strong>[🔁 장비 교체]</strong>를 다시 진행할 수 있습니다.
+            </div>
+
+            <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '6px', display: 'block', color: 'var(--text-primary)' }}>
+              취소(롤백) 사유 입력 (필수)
+            </label>
+            <textarea
+              data-mid='rollback-reason-input'
+              placeholder="예: 고객 요청으로 다른 모델 교체, 현장 일정 변경으로 인한 출고 대기 전환 등..."
+              value={rollbackReason}
+              onChange={e => setRollbackReason(e.target.value)}
+              style={{ width: '100%', height: '80px', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-body)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', boxSizing: 'border-box', marginBottom: '20px' }}
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button onClick={() => { setShowRollbackModal(false); setRollbackReason(''); }} className="btn-secondary">
+                취소
+              </button>
+              <button
+                data-mid='btn-rollback-confirm'
+                onClick={handleConfirmRollback}
+                disabled={isProcessing}
+                style={{ padding: '8px 18px', borderRadius: '8px', backgroundColor: 'var(--danger)', color: '#fff', border: 'none', fontWeight: 700, cursor: 'pointer' }}
+              >
+                출고 승인 취소 실행
               </button>
             </div>
           </div>
