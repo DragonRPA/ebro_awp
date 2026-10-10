@@ -1,4 +1,4 @@
-﻿/**
+/**
  * =========================================================================
  *  e-Bro ERP — 로컬 경량 사이드카 에이전트 (eBroAgent)
  * =========================================================================
@@ -1574,6 +1574,12 @@ $excel.Quit()
         };
         fs.writeFileSync(STATION_CONFIG_FILE, JSON.stringify(activeStationConfig, null, 2), 'utf8');
         agentLog('SYSTEM', `스테이션 설정 저장: ${activeStationConfig.stationName} -> [${activeStationConfig.localPrinterName}]`);
+
+        // 즉시 중앙 DB 하트비트 전송 및 인쇄 대기열 감시 활성화
+        if (activeStationConfig.stationId) {
+          sendStationHeartbeat().catch(() => {});
+          scheduleNextPrintQueueCheck(1000);
+        }
 
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ success: true, config: activeStationConfig }));

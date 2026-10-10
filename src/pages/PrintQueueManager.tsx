@@ -3,11 +3,12 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { PrintStation, PrintQueueItem } from '../services/db';
+import { db, PrintStation, PrintQueueItem } from '../services/db';
 import {
   fetchLocalPrintersFromAgent,
   fetchLocalStationConfigFromAgent,
   saveStationConfigToAgent,
+  printDirectToLocalAgent,
   LocalAgentPrintersResult
 } from '../services/printQueueService';
 import {
@@ -105,6 +106,21 @@ export const PrintQueueManager: React.FC = () => {
           if (localCfg.localPrinterName && !selectedPrinter) setSelectedPrinter(localCfg.localPrinterName);
           if (localCfg.docTypeDefault) setDocTypeDefault(localCfg.docTypeDefault);
         }
+
+        // 로컬 PC의 매칭 스테이션 상태 및 하트비트 즉시 온라인 갱신
+        const matchedStation = printStations.find(s =>
+          (localCfg?.stationId && s.id === localCfg.stationId) ||
+          (result.machineName && s.machineName === result.machineName) ||
+          (localCfg?.localPrinterName && s.localPrinterName === localCfg.localPrinterName)
+        ) || (printStations.length === 1 ? printStations[0] : null);
+
+        if (matchedStation) {
+          db.updateRow<PrintStation>('printStations', matchedStation.id, {
+            status: 'ONLINE',
+            lastHeartbeat: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+        }
       } else if (isManualClick) {
         notifyAgentRequired('로컬 프린터 목록 조회');
       }
@@ -120,11 +136,18 @@ export const PrintQueueManager: React.FC = () => {
 
   useEffect(() => {
     scanLocalAgent();
+    const handleConnected = () => {
+      scanLocalAgent(false);
+    };
+    window.addEventListener('ebro:agent_connected', handleConnected);
     // 10초마다 큐 및 스테이션 데이터 갱신
     const timer = setInterval(() => {
       refreshAllData();
     }, 10000);
-    return () => clearInterval(timer);
+    return () => {
+      window.removeEventListener('ebro:agent_connected', handleConnected);
+      clearInterval(timer);
+    };
   }, []);
 
   // 스테이션 저장 핸들러
@@ -204,10 +227,22 @@ export const PrintQueueManager: React.FC = () => {
     if (!confirm(`[${station.stationName}] (${station.localPrinterName})으로 테스트 인쇄를 발행하시겠습니까?`)) {
       return;
     }
-    if (!isStationOnline(station)) {
+
+    // 에이전트 실시간 연결 여부 검증
+    let online = isStationOnline(station);
+    if (!online) {
+      const liveCheck = await fetchLocalPrintersFromAgent();
+      if (liveCheck.online) {
+        setAgentStatus(liveCheck);
+        online = true;
+      }
+    }
+
+    if (!online) {
       notifyAgentRequired(`[${station.stationName}] 프린터 출력 (에이전트 미실행)`);
       return;
     }
+
     try {
       const testHtml = `
 <!DOCTYPE html>
@@ -240,6 +275,7 @@ export const PrintQueueManager: React.FC = () => {
 </body>
 </html>`;
 
+      // 1. 중앙 DB 인쇄 큐 등록 (이력 추적)
       await enqueuePrintJob({
         stationId: station.id,
         docType: station.docTypeDefault === 'RETURN_ORDER' ? 'RETURN_ORDER' : 'DISPATCH_ORDER',
@@ -249,17 +285,34 @@ export const PrintQueueManager: React.FC = () => {
         requestedById: currentUser?.id,
         requestedByName: currentUser?.name
       });
-      alert(`[${station.stationName}] 테스트 인쇄 큐가 발행되었습니다. 잠시 후 프린터에서 무인 출력됩니다.`);
+
+      // 2. 로컬 PC 연결 프린터인 경우 다이렉트 즉시 인쇄(/api/print-direct) 병행 전송
+      if (agentStatus.online || (!station.machineName || station.machineName === agentStatus.machineName)) {
+        await printDirectToLocalAgent({
+          printerName: station.localPrinterName,
+          title: `[테스트 인쇄] ${station.stationName}`,
+          htmlContent: testHtml
+        }).catch(() => null);
+      }
+
+      alert(`[${station.stationName}] 테스트 인쇄 요청이 완료되었습니다. 프린터(${station.localPrinterName})에서 출력을 확인해 주세요.`);
     } catch (err: any) {
       alert(`테스트 인쇄 발행 실패: ${err.message || err}`);
     }
   };
 
-  // 스테이션 온라인 여부 계산 (최근 60초 내 하트비트)
+  // 스테이션 온라인 여부 계산 (로컬 에이전트 실시간 연결 또는 최근 120초 내 하트비트)
   const isStationOnline = (st: PrintStation) => {
+    // 1) 현재 브라우저가 eBroAgent와 실시간 연결 중이면 로컬 스테이션은 즉시 온라인 인정
+    if (agentStatus.online) {
+      if (!st.machineName || !agentStatus.machineName || st.machineName === agentStatus.machineName) {
+        return true;
+      }
+    }
+    // 2) 원격 분산 스테이션: DB의 lastHeartbeat 확인 (최근 120초 이내)
     if (!st.lastHeartbeat) return false;
     const diffSec = (Date.now() - new Date(st.lastHeartbeat).getTime()) / 1000;
-    return diffSec <= 60;
+    return diffSec <= 120;
   };
 
   // 필터링된 대기열 목록

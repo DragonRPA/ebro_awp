@@ -69,6 +69,27 @@ export async function fetchLocalStationConfigFromAgent(): Promise<LocalStationCo
 }
 
 /**
+ * 로컬 에이전트(/api/print-direct)로 직접 즉시 인쇄 전송 (지연 없는 다이렉트 출력)
+ */
+export async function printDirectToLocalAgent(params: {
+  printerName: string;
+  title: string;
+  htmlContent: string;
+}): Promise<boolean> {
+  try {
+    const res = await fetchWithAgentFallback('/api/print-direct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+      signal: AbortSignal.timeout(10000)
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * 3. 로컬 에이전트에 스테이션 설정 저장 (C:\eBroAgent\station_config.json)
  */
 export async function saveStationConfigToAgent(config: LocalStationConfig): Promise<boolean> {

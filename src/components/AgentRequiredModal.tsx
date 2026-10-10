@@ -37,8 +37,11 @@ export const AgentRequiredModal: React.FC<Props> = ({
       const res = await fetchWithAgentFallback('/health', { method: 'GET', signal: AbortSignal.timeout(2000) }).catch(() => null);
       if (res && res.ok) {
         setRetryResult('SUCCESS');
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('ebro:agent_connected'));
+        }
         if (onRetry) {
-          await onRetry();
+          try { await onRetry(); } catch {}
         }
         setTimeout(() => {
           onClose();
@@ -96,71 +99,77 @@ export const AgentRequiredModal: React.FC<Props> = ({
 
         {/* 본문 */}
         <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '12px' }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '12px',
-            background: '#fffbeb',
-            border: '1px solid #fef3c7',
-            padding: '12px',
-            borderRadius: '6px'
-          }}>
-            <AlertTriangle size={20} color="#d97706" style={{ flexShrink: 0, marginTop: '2px' }} />
-            <div style={{ lineHeight: 1.5, color: '#92400e' }}>
-              <b>[{actionName}]</b>을(를) 처리하려면 PC에 <b>eBro 에이전트</b>가 실행 중이어야 합니다. 현재 로컬 에이전트의 응답이 없습니다.
-            </div>
-          </div>
-
-          <div style={{
-            padding: '12px',
-            background: '#f8fafc',
-            borderRadius: '6px',
-            border: '1px solid #e2e8f0',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px'
-          }}>
-            <div style={{ fontWeight: 600, color: '#0f172a' }}>조치 방법:</div>
-            <ol style={{ margin: 0, paddingLeft: '18px', color: '#475569', lineHeight: 1.6, fontSize: '11.5px' }}>
-              <li>PC 바탕화면 또는 시작프로그램의 <b>eBroAgent</b>를 실행해 주세요.</li>
-              <li>프로그램이 설치되어 있지 않다면 아래 <b>[설치 프로그램 다운로드]</b>를 진행해 주세요.</li>
-              <li>실행 후 아래 <b>[재연결 시도]</b> 버튼을 누르면 작업이 계속됩니다.</li>
-            </ol>
-          </div>
-
-          {retryResult === 'FAILED' && (
+          {retryResult === 'SUCCESS' ? (
             <div style={{
-              padding: '8px 12px',
-              borderRadius: '5px',
-              backgroundColor: '#fef2f2',
-              border: '1px solid #fecaca',
-              color: '#991b1b',
-              fontSize: '11px',
-              textAlign: 'center',
-              fontWeight: 600
-            }}>
-              아직 에이전트가 응답하지 않습니다. 프로그램을 실행한 후 다시 시도해 주세요.
-            </div>
-          )}
-
-          {retryResult === 'SUCCESS' && (
-            <div style={{
-              padding: '8px 12px',
-              borderRadius: '5px',
+              padding: '24px 16px',
+              borderRadius: '8px',
               backgroundColor: '#f0fdf4',
               border: '1px solid #bbf7d0',
               color: '#166534',
-              fontSize: '11px',
-              textAlign: 'center',
-              fontWeight: 600,
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '6px'
+              gap: '10px',
+              textAlign: 'center'
             }}>
-              <CheckCircle2 size={14} />
-              에이전트 연결 성공! 작업을 재개합니다.
+              <CheckCircle2 size={32} color="#16a34a" />
+              <div style={{ fontSize: '15px', fontWeight: 700, color: '#15803d' }}>
+                에이전트 연결 완료
+              </div>
+              <div style={{ fontSize: '12px', color: '#166534' }}>
+                로컬 에이전트(포트 5175)와 정상 연결되었습니다. 잠시 후 창이 닫힙니다.
+              </div>
             </div>
+          ) : (
+            <>
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '12px',
+                background: '#fffbeb',
+                border: '1px solid #fef3c7',
+                padding: '12px',
+                borderRadius: '6px'
+              }}>
+                <AlertTriangle size={20} color="#d97706" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div style={{ lineHeight: 1.5, color: '#92400e' }}>
+                  <b>[{actionName}]</b> 처리를 위해 PC의 <b>eBro 에이전트</b> 연결이 필요합니다. 에이전트가 실행 중인지 확인해 주세요.
+                </div>
+              </div>
+
+              <div style={{
+                padding: '12px',
+                background: '#f8fafc',
+                borderRadius: '6px',
+                border: '1px solid #e2e8f0',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
+              }}>
+                <div style={{ fontWeight: 600, color: '#0f172a' }}>조치 방법:</div>
+                <ol style={{ margin: 0, paddingLeft: '18px', color: '#475569', lineHeight: 1.6, fontSize: '11.5px' }}>
+                  <li>PC 바탕화면 또는 시작프로그램의 <b>eBroAgent</b>를 실행해 주세요.</li>
+                  <li>프로그램이 설치되어 있지 않다면 아래 <b>[설치 프로그램 다운로드]</b>를 진행해 주세요.</li>
+                  <li>실행 후 아래 <b>[재연결 시도]</b> 버튼을 누르면 작업이 계속됩니다.</li>
+                </ol>
+              </div>
+
+              {retryResult === 'FAILED' && (
+                <div style={{
+                  padding: '8px 12px',
+                  borderRadius: '5px',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#991b1b',
+                  fontSize: '11px',
+                  textAlign: 'center',
+                  fontWeight: 600
+                }}>
+                  아직 에이전트가 응답하지 않습니다. 프로그램을 실행한 후 다시 시도해 주세요.
+                </div>
+              )}
+            </>
           )}
         </div>
 
