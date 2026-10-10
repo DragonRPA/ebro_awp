@@ -613,7 +613,7 @@ export const Contracts: React.FC = () => {
   const activeTimeline = useMemo(() => {
     if (!activeContract) return [];
 
-    const timeline: { id: string; date: string; title: string; desc: string; category: 'CONTRACT' | 'INSPECTION' | 'TRUCK' }[] = [];
+    const timeline: { id: string; date: string; title: string; desc: string; category: 'CONTRACT' | 'INSPECTION' | 'TRUCK'; receiptUrl?: string; }[] = [];
 
     // 1. 계약 변경 및 대차 교체 이력
     activeContractHistory.forEach(h => {
@@ -669,12 +669,17 @@ export const Contracts: React.FC = () => {
     relDels.forEach(d => {
       const cost = d.finalCost || d.deliveryCostConfirmed || d.deliveryCost || d.expectedCost || 0;
       const dDate = d.loadingDate || d.scheduledDate || d.requestDate || (d.createdAt ? d.createdAt.split('T')[0] : '');
+      
+      const match = (d.closingMemo || '').match(/\[(납품증 사진|전자 서명)\]:\s*(https?:\/\/[^\s]+)/);
+      const receiptUrl = match ? match[2] : undefined;
+
       timeline.push({
         id: `d-${d.id}`,
         date: dDate,
-        title: `배차 (${d.type === 'OUTBOUND' ? '출고' : '회수'})`,
+        title: `배차 (${d.type === 'OUTBOUND' ? '출고' : d.type === 'INBOUND' ? '회수' : d.type === 'EXCHANGE' ? '교환' : '기타'})`,
         desc: `${d.driverName ? `기사: ${d.driverName} (${d.driverContact || ''})` : '배차 대기'} / 운반비: ${cost.toLocaleString()}원`,
-        category: 'TRUCK'
+        category: 'TRUCK',
+        receiptUrl
       });
     });
 
@@ -2780,7 +2785,18 @@ export const Contracts: React.FC = () => {
                         <span>{item.title}</span>
                         <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{item.date}</span>
                       </div>
-                      <div style={{ color: 'var(--text-secondary)' }}>{item.desc}</div>
+                      <div style={{ color: 'var(--text-secondary)' }}>
+                        {item.desc}
+                        {item.receiptUrl && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.open(item.receiptUrl, '_blank', 'noopener,noreferrer'); }}
+                            style={{ marginLeft: '8px', padding: '2px 6px', fontSize: '10.5px', fontWeight: 800, backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: '4px', cursor: 'pointer', verticalAlign: 'middle' }}
+                          >
+                            🧾 납품증 보기
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))
                 )}

@@ -4073,7 +4073,27 @@ export const TruckDispatch: React.FC = () => {
 
                         {/* 마감 비고 메모 */}
                         <div style={{ marginBottom: '16px' }}>
-                          <label style={{ fontSize: '12px', fontWeight: 700, marginBottom: '4px', display: 'block', color: 'var(--text-secondary)' }}>📝 배차 특이사항 및 마감 메모</label>
+                          
+<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>📝 배차 특이사항 및 마감 메모</label>
+  {(() => {
+    const match = closingMemo.match(/\[(납품증 사진|전자 서명)\]:\s*(https?:\/\/[^\s]+)/);
+    const receiptUrl = match ? match[2] : null;
+    if (receiptUrl) {
+      return (
+        <button
+          type="button"
+          onClick={(e) => { e.preventDefault(); window.open(receiptUrl, '_blank', 'noopener,noreferrer'); }}
+          style={{ padding: '4px 8px', fontSize: '11px', fontWeight: 800, backgroundColor: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+        >
+          🧾 납품증 보기
+        </button>
+      );
+    }
+    return null;
+  })()}
+</div>
+
                           <textarea
                             value={closingMemo}
                             disabled={isFormDisabled}
