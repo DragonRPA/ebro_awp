@@ -328,6 +328,7 @@ const App: React.FC = () => {
   const context = useApp();
   if (typeof window !== 'undefined') {
     (window as any).__APP_CONTEXT__ = context;
+    (window as any).__LOCAL_DB__ = db;
   }
   const { currentUser, users, switchUser, login, logout, theme, toggleTheme, hasPermission, activeTab, setActiveTab, loadTablesForMenu, currentTenant, canGoBack, canGoForward, goBack, goForward, historyStack, historyIndex } = context;
   const { mode: manualMode, setMode: setManualMode, loadPage: loadManualPage, setBaseMenu } = useManualContext();

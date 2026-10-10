@@ -44,11 +44,17 @@ export function inheritOptionsFromMaster(
   return (masterOptions || []).map((opt, idx) => {
     let isEnabled = false;
     if (opt.category === 'PAID') {
-      isEnabled = paidList.includes(opt.name);
+      const cleanOptName = opt.name.replace(/\s+/g, '');
+      isEnabled = paidList.some(p => {
+        const cleanP = p.replace(/\s+/g, '');
+        return cleanP === cleanOptName || (cleanP.length > 2 && (cleanOptName.includes(cleanP) || cleanP.includes(cleanOptName)));
+      });
     } else if (opt.category === 'PROTECTION') {
-      isEnabled = protName === opt.name;
+      const cleanProtName = protName.replace(/\s+/g, '');
+      const cleanOptName = opt.name.replace(/\s+/g, '');
+      isEnabled = cleanProtName === cleanOptName || (cleanProtName.length > 2 && cleanOptName.length > 2 && (cleanOptName.includes(cleanProtName) || cleanProtName.includes(cleanOptName)));
     } else if (opt.category === 'SPEC') {
-      isEnabled = Boolean(currentSpecs && currentSpecs[opt.id]);
+      isEnabled = Boolean(currentSpecs && (currentSpecs[opt.id] || currentSpecs[opt.name]));
     }
 
     return {

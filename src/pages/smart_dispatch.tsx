@@ -12,7 +12,7 @@ interface EquipmentItem {
 }
 
 export const SmartDispatch: React.FC = () => {
-  const { hasPermission, saveSmartDispatch, assets, products, showErrorModal, users, contracts, currentUser, customers, contacts, sites, billings, currentTenant } = useApp();
+  const { hasPermission, saveSmartDispatch, assets, products, showErrorModal, users, contracts, currentUser, customers, contacts, sites, siteMasters, billings, currentTenant } = useApp();
   const canSave = hasPermission('delivery', 'save');
 
   // 토스트 알림 상태 (헌장 5.2: 브라우저 alert/confirm 전면 퇴출)
@@ -271,6 +271,13 @@ export const SmartDispatch: React.FC = () => {
       );
 
       if (matchedSite) {
+        const matchedSiteMaster = (siteMasters || []).find(
+          m => m.id === matchedSite.siteMasterId || (m.name && matchedSite.name && m.name.replace(/\s/g, '') === matchedSite.name.replace(/\s/g, ''))
+        );
+        const effPaidOptions = matchedSiteMaster?.paidOptions || matchedSite.paidOptions;
+        const effProtection = matchedSiteMaster?.protection || matchedSite.protection;
+        const effCheckedSpecs = matchedSiteMaster?.checkedSpecs || matchedSite.checkedSpecs;
+
         if (!nextAddress && matchedSite.address && matchedSite.address !== '미상') {
           nextAddress = matchedSite.address;
           inherited.push('현장 상세 주소');
@@ -287,17 +294,17 @@ export const SmartDispatch: React.FC = () => {
           nextSiteContactEmail = matchedSite.email;
           inherited.push('현장담당자 이메일');
         }
-        if (matchedSite.paidOptions) {
-          nextPaidOptions = matchedSite.paidOptions;
+        if (effPaidOptions) {
+          nextPaidOptions = effPaidOptions;
           if (!inherited.includes('유상옵션(현장)')) inherited.push('유상옵션(현장)');
         }
-        if (matchedSite.protection) {
-          nextProtection = matchedSite.protection;
+        if (effProtection) {
+          nextProtection = effProtection;
           if (!inherited.includes('보양작업(현장)')) inherited.push('보양작업(현장)');
         }
-        if (matchedSite.checkedSpecs) {
+        if (effCheckedSpecs) {
           let anySiteSpecInherited = false;
-          Object.entries(matchedSite.checkedSpecs).forEach(([k, v]) => {
+          Object.entries(effCheckedSpecs).forEach(([k, v]) => {
             if (v && !nextCheckedSpecs[k]) {
               nextCheckedSpecs[k] = true;
               anySiteSpecInherited = true;

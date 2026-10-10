@@ -1881,8 +1881,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const saveCustomer = async (cust: Omit<Customer, 'id' | 'createdAt'> & { id?: string }): Promise<Customer> => {
     let res: Customer;
-    if (cust.id) {
-      res = db.updateRow<Customer>('customers', cust.id, cust) as Customer;
+    const existingCust = cust.id ? db.customers.find(c => c.id === cust.id) : null;
+    if (existingCust) {
+      res = db.updateRow<Customer>('customers', existingCust.id, cust) as Customer;
 
       // 고객 정보 보완 완료 시 관련 할 일(Todo) 자동 상계 처리
       const relatedTodos = db.todos.filter(
@@ -1921,8 +1922,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const saveContact = async (contact: Omit<CustomerContact, 'id' | 'createdAt'> & { id?: string }): Promise<CustomerContact> => {
     let savedObj: CustomerContact;
-    if (contact.id) {
-      const res = db.updateRow<CustomerContact>('contacts', contact.id, contact as CustomerContact);
+    const existingContact = contact.id ? db.contacts.find(c => c.id === contact.id) : null;
+    if (existingContact) {
+      const res = db.updateRow<CustomerContact>('contacts', existingContact.id, contact as CustomerContact);
       if (!res) throw new Error("Contact update failed (not found).");
       savedObj = res;
     } else {
@@ -1970,8 +1972,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   
   const saveSiteMaster = async (s: Partial<SiteMaster>) => {
-    if (s.id) {
-      db.updateRow('siteMasters', s.id, { ...s, updatedAt: new Date().toISOString() } as any);
+    const existingMaster = s.id ? db.siteMasters.find(m => m.id === s.id) : null;
+    if (existingMaster) {
+      db.updateRow('siteMasters', existingMaster.id, { ...s, updatedAt: new Date().toISOString() } as any);
     } else {
       db.insertRow('siteMasters', { ...s, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as any);
     }
@@ -1980,36 +1983,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const saveSite = async (site: Omit<CustomerSite, 'id' | 'createdAt'> & { id?: string }) => {
     // 1. SiteMaster (독립 현장 마스터) 저장/업데이트
     let masterId = site.siteMasterId;
-    const rawName = site.name.trim();
-    const normalizedName = rawName.replace(/\s+/g, '');
-    
-    let existingMaster = db.siteMasters.find(m => m.name.replace(/\s+/g, '') === normalizedName);
-    
-    if (existingMaster) {
-      masterId = existingMaster.id;
-      let shouldUpdateMaster = false;
-      let updatedMaster = { ...existingMaster };
+    const masterExists = masterId ? db.siteMasters.some(m => m.id === masterId) : false;
+
+    if (!masterExists) {
+      const rawName = site.name.trim();
+      const normalizedName = rawName.replace(/\s+/g, '');
       
-      if (site.address && site.address !== existingMaster.address) {
-        updatedMaster.address = site.address;
-        shouldUpdateMaster = true;
+      let existingMaster = db.siteMasters.find(m => m.name.replace(/\s+/g, '') === normalizedName);
+      
+      if (existingMaster) {
+        masterId = existingMaster.id;
+        let shouldUpdateMaster = false;
+        let updatedMaster = { ...existingMaster };
+        
+        if (site.address && site.address !== existingMaster.address) {
+          updatedMaster.address = site.address;
+          shouldUpdateMaster = true;
+        }
+        if (shouldUpdateMaster) {
+          updatedMaster.updatedAt = new Date().toISOString();
+          db.updateRow('siteMasters', masterId, updatedMaster);
+        }
+      } else {
+        // 신규 마스터 생성
+        const newMaster = db.insertRow<SiteMaster>('siteMasters', {
+          name: rawName,
+          address: site.address || '',
+          paidOptions: site.paidOptions,
+          protection: site.protection,
+          checkedSpecs: site.checkedSpecs,
+          isActive: true,
+          createdAt: new Date().toISOString()
+        });
+        masterId = newMaster.id;
       }
-      if (shouldUpdateMaster) {
-        updatedMaster.updatedAt = new Date().toISOString();
-        db.updateRow('siteMasters', masterId, updatedMaster);
-      }
-    } else {
-      // 신규 마스터 생성
-      const newMaster = db.insertRow<SiteMaster>('siteMasters', {
-        name: rawName,
-        address: site.address || '',
-        paidOptions: site.paidOptions,
-        protection: site.protection,
-        checkedSpecs: site.checkedSpecs,
-        isActive: true,
-        createdAt: new Date().toISOString()
-      });
-      masterId = newMaster.id;
     }
 
     // 🚀 [Critical Fix] SiteMaster가 원격 DB에 먼저 저장되어야만 CustomerSite 삽입 시 FK 제약조건을 통과함
@@ -2030,8 +2037,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     delete (linkPayload as any).email;
 
     let resultSite: CustomerSite;
-    if (site.id) {
-      resultSite = db.updateRow<CustomerSite>('sites', site.id, linkPayload as CustomerSite) as CustomerSite;
+    const existingSite = site.id ? db.sites.find(s => s.id === site.id) : null;
+    if (existingSite) {
+      resultSite = db.updateRow<CustomerSite>('sites', existingSite.id, linkPayload as CustomerSite) as CustomerSite;
     } else {
       resultSite = db.insertRow<CustomerSite>('sites', {
         ...linkPayload,
@@ -2172,11 +2180,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const saveAsset = async (asset: Omit<Asset, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) => {
     let result;
-    const isNew = !asset.id;
     const existingAsset = asset.id ? db.assets.find(a => a.id === asset.id) : null;
+    const isNew = !existingAsset;
 
-    if (asset.id) {
-      result = db.updateRow<Asset>('assets', asset.id, asset as Asset);
+    if (existingAsset) {
+      result = db.updateRow<Asset>('assets', existingAsset.id, asset as Asset);
     } else {
       // 🛡️ [수량 한도 제한 인터셉터]
       const maxAssets = currentTenant?.subscription?.maxAssets;
@@ -2202,9 +2210,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           assetId: result.id,
           assetNo: result.assetNo,
           modelName: result.modelName,
-          type: 'ACQUISITION',
+          type: 'INBOUND',
           eventDate: result.acquisitionDate || new Date().toISOString().split('T')[0],
-          memo: `자산 최초 취득 및 대장 등록 (취득일: ${result.acquisitionDate || '-'} / 취득가: ${(result.acquisitionPrice || 0).toLocaleString()}원 / 임차/구입처: ${result.renter || '-'})`,
+          memo: `[자산 취득 입고] 대장 등록 (취득일: ${result.acquisitionDate || '-'} / 취득가: ${(result.acquisitionPrice || 0).toLocaleString()}원 / 임차/구입처: ${result.renter || '-'})`,
           createdAt: new Date().toISOString()
         });
       }
@@ -2215,9 +2223,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           assetId: result.id,
           assetNo: result.assetNo,
           modelName: result.modelName,
-          type: 'DISPOSAL',
+          type: 'OUTBOUND',
           eventDate: result.disposalDate || new Date().toISOString().split('T')[0],
-          memo: `자산 매각 완료 (매각일: ${result.disposalDate || '-'} / 매각가: ${(result.disposalPrice || 0).toLocaleString()}원 / 매각인수처: ${result.buyer || '-'})`,
+          memo: `[자산 매각 출고] 완료 (매각일: ${result.disposalDate || '-'} / 매각가: ${(result.disposalPrice || 0).toLocaleString()}원 / 매각인수처: ${result.buyer || '-'})`,
           createdAt: new Date().toISOString()
         });
       }
@@ -2485,16 +2493,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let site = db.sites.find(s => s.customerId === finalCustomer.id && (s.name.replace(/\s/g, '') === data.siteName.replace(/\s/g, '') || s.name.includes(data.siteName) || data.siteName.includes(s.name)));
     if (!site) {
       await notify(`📍 [2/5 신규 현장] 신규 현장 '${data.siteName}' 자동 등록 중...`, 40);
+      let master = db.siteMasters.find(m => m.name && data.siteName && m.name.replace(/\s/g, '') === data.siteName.replace(/\s/g, ''));
+      if (!master) {
+        master = db.insertRow<SiteMaster>('siteMasters', {
+          name: data.siteName,
+          address: data.siteAddress || '미상',
+          paidOptions: data.paidOptions || undefined,
+          protection: data.protection || undefined,
+          checkedSpecs: data.checkedSpecs || undefined,
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      }
       site = db.insertRow<CustomerSite>('sites', {
         customerId: finalCustomer.id,
+        siteMasterId: master.id,
         name: data.siteName,
         address: data.siteAddress || '미상',
         contactName: data.siteContactName || '미상',
         contact: data.siteContactPhone || '미상',
         email: data.siteContactEmail || '미상',
-        paidOptions: data.paidOptions || undefined,
-        protection: data.protection || undefined,
-        checkedSpecs: data.checkedSpecs || undefined,
         billingDay: contractBillingDay,
         statementClosingDay: contractStatementClosingDay,
         paymentDueDay: contractPaymentDueDay,
@@ -2524,16 +2543,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (rawData.paymentDay !== undefined || rawData.paymentDueDay !== undefined) {
         siteUpdates.paymentDueDay = contractPaymentDueDay;
       }
-      // 🌟 옵션 변경 시 현장 마스터 저장 여부 확인 (false인 경우 이번 출고만 1회성 적용하고 현장 마스터는 기존 옵션 원형 보존)
+      // 🌟 [헌장 1.5 N:M 엄격 준수] 물리적 옵션/보양은 CustomerSite에 저장하지 않고 오직 SiteMaster에만 보관
       if (data.saveOptionsToSite !== false) {
-        if (data.paidOptions !== undefined && data.paidOptions !== site.paidOptions) {
-          siteUpdates.paidOptions = data.paidOptions;
-        }
-        if (data.protection !== undefined && data.protection !== site.protection) {
-          siteUpdates.protection = data.protection;
-        }
-        if (data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0) {
-          siteUpdates.checkedSpecs = data.checkedSpecs;
+        const currentSite = site!;
+        let master = currentSite.siteMasterId ? db.siteMasters.find(m => m.id === currentSite.siteMasterId) : db.siteMasters.find(m => m.name && currentSite.name && m.name.replace(/\s/g, '') === currentSite.name.replace(/\s/g, ''));
+        if (master) {
+          const masterUpdates: Partial<SiteMaster> = {};
+          if (data.paidOptions !== undefined && data.paidOptions !== master.paidOptions) masterUpdates.paidOptions = data.paidOptions;
+          if (data.protection !== undefined && data.protection !== master.protection) masterUpdates.protection = data.protection;
+          if (data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0) masterUpdates.checkedSpecs = data.checkedSpecs;
+          if (Object.keys(masterUpdates).length > 0) {
+            db.updateRow<SiteMaster>('siteMasters', master.id, { ...masterUpdates, updatedAt: new Date().toISOString() } as any);
+          }
+        } else if (data.paidOptions || data.protection || (data.checkedSpecs && Object.keys(data.checkedSpecs).length > 0)) {
+          const newMaster = db.insertRow<SiteMaster>('siteMasters', {
+            name: currentSite.name,
+            address: currentSite.address || data.siteAddress || '',
+            paidOptions: data.paidOptions,
+            protection: data.protection,
+            checkedSpecs: data.checkedSpecs,
+            isActive: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          });
+          siteUpdates.siteMasterId = newMaster.id;
         }
       }
       if (Object.keys(siteUpdates).length > 0) {
@@ -2563,14 +2596,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (data.applyToAllSites) {
       const allSites = db.sites.filter(s => s.customerId === finalCustomer.id);
       for (const s of allSites) {
-        db.updateRow<CustomerSite>('sites', s.id, {
-          paidOptions: data.paidOptions || s.paidOptions,
-          protection: data.protection || s.protection,
-          checkedSpecs: data.checkedSpecs || s.checkedSpecs,
-          updatedAt: new Date().toISOString()
-        });
+        if (s.siteMasterId) {
+          const m = db.siteMasters.find(sm => sm.id === s.siteMasterId);
+          if (m) {
+            db.updateRow<SiteMaster>('siteMasters', m.id, {
+              paidOptions: data.paidOptions || m.paidOptions,
+              protection: data.protection || m.protection,
+              checkedSpecs: data.checkedSpecs || m.checkedSpecs,
+              updatedAt: new Date().toISOString()
+            });
+          }
+        }
       }
-      await notify(`🌐 [전체 현장 전파] '${finalCustomer.name}' 산하 ${allSites.length}개 모든 현장에 옵션/보양이 일괄 적용되었습니다.`, 50);
+      await notify(`🌐 [전체 현장 전파] '${finalCustomer.name}' 산하 ${allSites.length}개 모든 현장의 SiteMaster에 옵션/보양이 일괄 적용되었습니다.`, 50);
     }
 
     if (autoRegister && currentUser) {
@@ -2624,7 +2662,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // 📜 [헌장 1.2] 발생 사건 무누락 DB 저장: 기존 계약에 장비 추가 편입 이력 등록
       db.insertRow<ContractHistory>('contractHistory', {
         contractId: contract.id,
-        changeType: 'ADD_ASSET',
+        changeType: 'REGISTER',
         changeDate: targetStartDate,
         newEndDate: contract.endDate || '',
         description: `기존 계약(${contract.contractNo})에 추가 장비 투입 (${data.equipments.map(e => `${e.modelName} ${e.qty}대`).join(', ')})`,
@@ -2794,7 +2832,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       cargoItems,
       isCostSettled: false,
       rawText: (data as any).prompt || (data as any).rawText || data.note || '',
-      memo: `현장담당: ${data.siteContactName || '-'} (${data.siteContactPhone || '-'}) | 상차: ${data.loadingTime || '-'} / 하차: ${data.unloadingTime || '-'}${retrievalMemo}${paidByMemo} | 청구담당: ${data.billingContactName || '-'} (${data.billingContactPhone || '-'}) | 계산서: ${data.taxBillEmail || '-'} | 특이사항: ${data.note || '없음'}`,
+      memo: `현장담당: ${data.siteContactName || '-'} (${data.siteContactPhone || '-'}) | 상차: ${data.loadingTime || '-'} / 하차: ${data.unloadingTime || '-'}${retrievalMemo}${paidByMemo} | 청구담당: ${data.billingContactName || '-'} (${data.billingContactPhone || '-'}) | 계산서: ${data.taxBillEmail || '-'} | [옵션] ${dData.paidOptions || '없음'}${dData.protection && dData.protection !== 'NONE' ? ` / 보양: ${dData.protection}` : ''} | 특이사항: ${data.note || '없음'}`,
       closingMemo: `[마감조건] 마감일: ${dData.closingDay || '-'} / 결제일: ${dData.paymentDay || '-'} | 유상옵션: ${dData.paidOptions || '없음'} | 보양: ${dData.protection || '없음'}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -6245,10 +6283,10 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       createdAt: nowIso
     });
 
-    // 5. 계약 이력(contractHistory)에 [수리완료 재투입] ADD_ASSET 기록
+    // 5. 계약 이력(contractHistory)에 [수리완료 재투입] 재출고 기록
     db.insertRow<ContractHistory>('contractHistory', {
       contractId: contract.id,
-      changeType: 'ADD_ASSET',
+      changeType: 'REGISTER',
       changeDate: redeployDate,
       newEndDate: finalEndDate,
       description: `[수리완료 재투입] 장비 [${asset.assetNo} / ${asset.modelName}] 현장 재출고 (재가동 시작: ${redeployDate})${reason ? ' - 사유: ' + reason : ''}`,
@@ -6354,7 +6392,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     // 4. 이력 저장
     db.insertRow<ContractHistory>('contractHistory', {
       contractId: ca.contractId,
-      changeType: isExtension ? 'EXTEND' : isShortening ? 'SHORTEN' : 'ASSET_PERIOD_CHANGE',
+      changeType: isExtension ? 'EXTEND' : 'SHORTEN',
       changeDate: new Date().toISOString().split('T')[0],
       prevEndDate: prevEnd,
       newEndDate: endDate,

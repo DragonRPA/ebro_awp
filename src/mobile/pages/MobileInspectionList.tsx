@@ -41,11 +41,16 @@ function getInspectionCheckpoints(
   contractAssets: any[],
   sites: any[],
   customers: any[],
-  assets: any[]
+  assets: any[],
+  siteMasters?: any[]
 ) {
   const contract = contracts.find(c => c.id === oin.contractId);
   const contractAsset = contractAssets.find(ca => ca.id === oin.contractAssetId);
   const site = contract?.siteId ? sites.find(s => s.id === contract.siteId) : undefined;
+  const masterList = siteMasters || (db as any).siteMasters || [];
+  const siteMaster = site?.siteMasterId
+    ? masterList.find((sm: any) => sm.id === site.siteMasterId)
+    : masterList.find((sm: any) => sm.name && site?.name && sm.name.replace(/\s+/g, '') === site.name.replace(/\s+/g, ''));
   const customer = contract?.customerId ? customers.find(c => c.id === contract.customerId) : undefined;
   const asset = assets.find(a => a.id === oin.assetId);
 
@@ -63,7 +68,7 @@ function getInspectionCheckpoints(
   // 2. 현장 또는 고객사의 요구 사양 중 true인 항목만 추가
   const specMap: Record<string, boolean> = {
     ...(customer?.defaultCheckedSpecs || {}),
-    ...(site?.checkedSpecs || {})
+    ...(siteMaster?.checkedSpecs || site?.checkedSpecs || {})
   };
   STANDARD_SPECS.forEach(spec => {
     if (specMap[spec.id] === true) {
@@ -72,7 +77,7 @@ function getInspectionCheckpoints(
   });
 
   // 3. 유상 옵션 (텍스트 기반)
-  const paidOpts = site?.paidOptions || customer?.defaultPaidOptions || '';
+  const paidOpts = siteMaster?.paidOptions || site?.paidOptions || customer?.defaultPaidOptions || '';
   if (typeof paidOpts === 'string' && paidOpts.trim()) {
     paidOpts.split(/[,，、\n]/).map((o: string) => o.trim()).filter(Boolean).forEach((opt: string, i: number) => {
       checkpoints.push({ id: `paid_${i}`, label: `[옵션] ${opt} 장착 확인`, type: 'OPTION' });
@@ -92,6 +97,7 @@ export const MobileInspectionList: React.FC = () => {
     contracts, 
     customers, 
     sites, 
+    siteMasters,
     contractAssets, 
     deliveries, 
     currentUser, 

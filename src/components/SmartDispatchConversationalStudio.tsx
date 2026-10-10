@@ -61,7 +61,7 @@ export const SmartDispatchConversationalStudio: React.FC<SmartDispatchConversati
   onSyncToForm,
   onResetAll
 }) => {
-  const { customers, sites } = useApp();
+  const { customers, sites, siteMasters } = useApp();
 
   // 1. 단계 상태
   const [currentStep, setCurrentStep] = useState<StudioStep>('CUSTOMER');
@@ -137,11 +137,21 @@ export const SmartDispatchConversationalStudio: React.FC<SmartDispatchConversati
     ).slice(0, 10);
   }, [customers, customerSearchText]);
 
-  // 고객사의 현장 목록 (초성 검색 지원)
+  // 고객사의 현장 목록 (초성 검색 지원 및 현장 마스터 옵션 100% 가상 조인)
   const customerSites = useMemo(() => {
     if (!selectedCustomer) return [];
-    return (sites || []).filter(s => s.customerId === selectedCustomer.id);
-  }, [sites, selectedCustomer]);
+    return (sites || [])
+      .filter(s => s.customerId === selectedCustomer.id)
+      .map(s => {
+        const master = (siteMasters || []).find(m => m.id === s.siteMasterId || (m.name && s.name && m.name.replace(/\s+/g, '') === s.name.replace(/\s+/g, '')));
+        return {
+          ...s,
+          paidOptions: master?.paidOptions || s.paidOptions || '',
+          protection: master?.protection || s.protection || '',
+          checkedSpecs: master?.checkedSpecs || s.checkedSpecs || {},
+        };
+      });
+  }, [sites, siteMasters, selectedCustomer]);
 
   const filteredCustomerSites = useMemo(() => {
     if (!siteSearchText.trim()) return customerSites;

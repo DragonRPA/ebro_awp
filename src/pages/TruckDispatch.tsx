@@ -109,7 +109,7 @@ export const parseCargoItems = (d?: Delivery | null): CargoItem[] => {
 export const TruckDispatch: React.FC = () => {
   const { 
     currentUser,
-    deliveries, contracts, customers, products, sites, users,
+    deliveries, contracts, customers, products, sites, siteMasters, users,
     contractAssets, assets,
     transportCompanies, transportDrivers, transportNegotiations, outboundInspections, hasPermission, 
     refreshAllData, showErrorModal, showPrintSuccessModal, convertReconciledDeliveriesToSettlement,
@@ -473,14 +473,19 @@ export const TruckDispatch: React.FC = () => {
       }
     };
 
-    if (site?.paidOptions) {
-      site.paidOptions.split(',').forEach(s => addOption(s));
+    const siteMaster = site?.siteMasterId ? siteMasters?.find(m => m.id === site.siteMasterId) : siteMasters?.find(m => m.name && site?.name && m.name.replace(/\s+/g, '') === site.name.replace(/\s+/g, ''));
+    const effPaidOptions = siteMaster?.paidOptions || site?.paidOptions;
+    const effProtection = siteMaster?.protection || site?.protection;
+    const effCheckedSpecs = siteMaster?.checkedSpecs || site?.checkedSpecs;
+
+    if (effPaidOptions) {
+      effPaidOptions.split(',').forEach(s => addOption(s));
     }
-    if (site?.protection && site.protection !== 'NONE' && site.protection !== '없음') {
-      addOption(`보양: ${site.protection}`);
+    if (effProtection && effProtection !== 'NONE' && effProtection !== '없음') {
+      addOption(`보양: ${effProtection}`);
     }
-    if (site?.checkedSpecs && typeof site.checkedSpecs === 'object') {
-      Object.entries(site.checkedSpecs).forEach(([key, val]) => {
+    if (effCheckedSpecs && typeof effCheckedSpecs === 'object') {
+      Object.entries(effCheckedSpecs).forEach(([key, val]) => {
         if (val) addOption(key);
       });
     }
