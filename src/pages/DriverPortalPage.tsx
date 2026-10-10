@@ -212,7 +212,8 @@ export const DriverPortalPage: React.FC = () => {
     try {
       const ext = prefix === 'photo' ? 'jpg' : 'png';
       const fileName = `${delivery.id}_${prefix}_${Date.now()}.${ext}`;
-      const filePath = `receipts/${fileName}`;
+      const tId = (delivery as any).tenantId || (delivery as any).tenant_id || 'shared';
+      const filePath = `receipts/${tId}/${fileName}`;
 
       const { error: uploadError } = await supabase!.storage
         .from('evidence')
