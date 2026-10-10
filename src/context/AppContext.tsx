@@ -5611,9 +5611,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       updatedAt: new Date().toISOString()
     });
 
-    const cAssets = db.contractAssets.filter(ca => ca.contractId === contractId);
-    cAssets.forEach(ca => {
-      db.updateRow<ContractAsset>('contractAssets', ca.id, { endDate: newEndDate });
+    const cAssets = db.contractAssets.filter(ca => ca.contractId === contractId && ca.status !== 'RETURNED' && ca.status !== 'SOLD');
+      cAssets.forEach(ca => {
+        db.updateRow<ContractAsset>('contractAssets', ca.id, { endDate: newEndDate });
       if (ca.assetId) {
         db.updateRow<Asset>('assets', ca.assetId, {
           contractEnd: newEndDate,
@@ -5657,9 +5657,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       updatedAt: new Date().toISOString()
     });
 
-    const cAssets = db.contractAssets.filter(ca => ca.contractId === contractId);
-    cAssets.forEach(ca => {
-      db.updateRow<ContractAsset>('contractAssets', ca.id, { endDate: newEndDate });
+    const cAssets = db.contractAssets.filter(ca => ca.contractId === contractId && ca.status !== 'RETURNED' && ca.status !== 'SOLD');
+      cAssets.forEach(ca => {
+        db.updateRow<ContractAsset>('contractAssets', ca.id, { endDate: newEndDate });
       if (ca.assetId) {
         db.updateRow<Asset>('assets', ca.assetId, {
           contractEnd: newEndDate,
@@ -5678,18 +5678,20 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       createdAt: new Date().toISOString()
     });
 
-    db.insertRow<Delivery>('deliveries', {
-      contractId: contract.id,
-      type: 'INBOUND',
-      status: 'REQUESTED',
-      requestDate: new Date().toISOString().split('T')[0],
-      scheduledDate: newEndDate,
-      deliveryCost: 0,
-      isCostSettled: false,
-      memo: '계약 조기 단축/만료에 따른 회수 의뢰',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    });
+    if (cAssets.length > 0) {
+      db.insertRow<Delivery>('deliveries', {
+        contractId: contract.id,
+        type: 'INBOUND',
+        status: 'REQUESTED',
+        requestDate: new Date().toISOString().split('T')[0],
+        scheduledDate: newEndDate,
+        deliveryCost: 0,
+        isCostSettled: false,
+        memo: '계약 조기 단축/만료에 따른 회수 하차',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
 
     await db.awaitPendingWrites(); refreshAllData(); };
 
