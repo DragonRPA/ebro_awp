@@ -132,12 +132,26 @@ const SignaturePad: React.FC<{ receiverName?: string; onReady: (getBlob: () => P
   );
 };
 
+const formatCargo = (cargoStr?: string | null) => {
+  if (!cargoStr) return '장비 미지정';
+  try {
+    const parsed = JSON.parse(cargoStr);
+    if (Array.isArray(parsed)) {
+      return parsed.map(p => `${p.modelName} ${p.count}대`).join(', ');
+    }
+  } catch(e) {}
+  return cargoStr;
+};
+
 export const DriverPortalPage: React.FC = () => {
   const [delivery, setDelivery] = useState<Delivery | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [customerName, setCustomerName] = useState<string>('');
+  const [siteName, setSiteName] = useState<string>('');
+  const [siteAddress, setSiteAddress] = useState<string>('');
   const [mode, setMode] = useState<'SELECT' | 'PHOTO' | 'SIGN'>('SELECT');
   const [receiverName, setReceiverName] = useState<string>('인수자');
   
@@ -165,13 +179,19 @@ export const DriverPortalPage: React.FC = () => {
         if (data.contractId) {
           const { data: contract } = await supabase!.from('contracts').select('siteId, customerId').eq('id', data.contractId).single();
           if (contract && contract.siteId) {
-            const { data: siteMaster } = await supabase!.from('site_masters').select('contactName').eq('id', contract.siteId).single();
-            if (siteMaster && siteMaster.contactName) {
-              setReceiverName(siteMaster.contactName);
-            } else if (contract.customerId) {
-              const { data: customer } = await supabase!.from('customers').select('representative').eq('id', contract.customerId).single();
-              if (customer && customer.representative) {
-                setReceiverName(customer.representative);
+            const { data: siteMaster } = await supabase!.from('site_masters').select('name, contactName, address').eq('id', contract.siteId).single();
+            if (siteMaster) {
+              setSiteName(siteMaster.name || '');
+              setSiteAddress(siteMaster.address || '');
+              if (siteMaster.contactName) setReceiverName(siteMaster.contactName);
+            }
+            if (contract.customerId) {
+              const { data: customer } = await supabase!.from('customers').select('name, representative').eq('id', contract.customerId).single();
+              if (customer) {
+                setCustomerName(customer.name || '');
+                if (!siteMaster?.contactName && customer.representative) {
+                  setReceiverName(customer.representative);
+                }
               }
             }
           }
