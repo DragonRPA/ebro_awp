@@ -657,6 +657,26 @@ export const BillingInvoiceTab: React.FC = () => {
         : '신한은행 140-010-007060 (주식회사 기연리프트)';
 
       const attachments: { filename: string; content: string }[] = [];
+
+      // 1. 정품 거래명세서 엑셀 (.xlsx) 생성 및 첨부 (에이전트 서식 주입 엔진)
+      try {
+        const excelBuffer = await generateTransactionStatementExcel(data);
+        let excelBinary = '';
+        const excelBytes = new Uint8Array(excelBuffer);
+        for (let i = 0; i < excelBytes.byteLength; i++) {
+          excelBinary += String.fromCharCode(excelBytes[i]);
+        }
+        attachments.push({
+          filename: `[${tenantDisplay}]_통합거래명세서_${custName}_${selectedYm}_정품.xlsx`,
+          content: window.btoa(excelBinary),
+          contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        });
+      } catch (excelErr) {
+        console.error('통합거래명세서 엑셀 생성 실패:', excelErr);
+        throw new Error(`통합거래명세서 엑셀 첨부파일 생성 실패: ${(excelErr as any)?.message || excelErr}`);
+      }
+
+      // 2. 정품 거래명세서 PDF (.pdf) 생성 및 첨부 (로컬 COM 에이전트 연동)
       try {
         const pdfBytes = await generateTransactionStatementPdf(data);
         let binary = '';
@@ -665,11 +685,14 @@ export const BillingInvoiceTab: React.FC = () => {
         }
         attachments.push({
           filename: `[${tenantDisplay}]_통합거래명세서_${custName}_${selectedYm}.pdf`,
-          content: window.btoa(binary)
+          content: window.btoa(binary),
+          contentType: 'application/pdf'
         });
       } catch (attachErr) {
-        console.error('통합거래명세서 PDF 생성 실패:', attachErr);
-        throw new Error(`통합거래명세서 PDF 첨부파일 생성 실패: ${(attachErr as any)?.message || attachErr}`);
+        console.warn('통합거래명세서 PDF 생성 실패 (엑셀 단독 발송 지속):', attachErr);
+        if (attachments.length === 0) {
+          throw new Error(`통합거래명세서 첨부파일 생성 실패: ${(attachErr as any)?.message || attachErr}`);
+        }
       }
 
       await emailService.sendEmail(
@@ -822,34 +845,44 @@ export const BillingInvoiceTab: React.FC = () => {
 
       {/* ── 거래명세서 캔버스 및 인쇄 스타일 ── */}
       <style>{`
-        /* 캔버스 화면 및 인쇄 공통: 흰 배경 위 모든 텍스트 검은색 강제 (다크모드 전역 스타일 상속 완전 차단) */
+        /* 화면(다크/라이트 모드 공통): 테마 변수 기반 렌더링 유지 */
         #printable-invoice-canvas {
-          background-color: #ffffff !important;
-          color: #111827 !important;
+          background-color: var(--bg-card);
+          color: var(--text-main);
+          border-color: var(--border-color);
         }
         #printable-invoice-canvas table {
-          background-color: #ffffff !important;
-          border-color: #9ca3af !important;
-        }
-        #printable-invoice-canvas thead th {
-          background-color: #e5e7eb !important;
-          color: #111827 !important;
-          border-color: #d1d5db !important;
-        }
-        #printable-invoice-canvas td {
-          color: #111827 !important;
-          border-color: #e5e7eb !important;
-        }
-        #printable-invoice-canvas tr:hover td {
-          background-color: transparent !important;
-        }
-        #printable-invoice-canvas tfoot tr,
-        #printable-invoice-canvas tfoot td {
-          background-color: #f3f4f6 !important;
-          color: #111827 !important;
+          background-color: var(--bg-card);
+          border-color: var(--border-color);
         }
 
         @media print {
+          /* 인쇄 시에만 용지 규격에 맞춰 흰색 배경 및 검은색 글자 강제 */
+          #printable-invoice-canvas {
+            background-color: #ffffff !important;
+            color: #111827 !important;
+          }
+          #printable-invoice-canvas table {
+            background-color: #ffffff !important;
+            border-color: #9ca3af !important;
+          }
+          #printable-invoice-canvas thead th {
+            background-color: #e5e7eb !important;
+            color: #111827 !important;
+            border-color: #d1d5db !important;
+          }
+          #printable-invoice-canvas td {
+            color: #111827 !important;
+            border-color: #e5e7eb !important;
+          }
+          #printable-invoice-canvas tr:hover td {
+            background-color: transparent !important;
+          }
+          #printable-invoice-canvas tfoot tr,
+          #printable-invoice-canvas tfoot td {
+            background-color: #f3f4f6 !important;
+            color: #111827 !important;
+          }
           body * {
             visibility: hidden;
           }
@@ -1227,9 +1260,15 @@ export const BillingInvoiceTab: React.FC = () => {
                 <Printer size={16} color="var(--primary)" />
                 통합 인보이스 작업대
               </div>
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                공식 거래명세서 싱크
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#10B981' }}></span>
+                  eBroAgent 엑셀 연동
+                </span>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  공식 거래명세서 싱크
+                </span>
+              </div>
             </div>
 
             {/* 인보이스 기본 정보 폼 (상하 세로 스택) */}
@@ -1291,14 +1330,14 @@ export const BillingInvoiceTab: React.FC = () => {
                 color: 'var(--text-main)',
                 padding: '16px',
                 borderRadius: '6px',
-                border: '1px solid #d1d5db',
+                border: '1px solid var(--border-color)',
                 boxShadow: '0 2px 4px rgba(0,0,0,0.05)',
                 fontSize: '11px',
                 fontFamily: 'sans-serif'
               }}
             >
               {/* 명세서 헤더 */}
-              <div style={{ textAlign: 'center', borderBottom: '2px solid #111827', paddingBottom: '8px', marginBottom: '10px' }}>
+              <div style={{ textAlign: 'center', borderBottom: '2px solid var(--text-main)', paddingBottom: '8px', marginBottom: '10px' }}>
                 <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, letterSpacing: '4px', color: 'var(--text-main)' }}>
                   거 래 명 세 서
                 </h2>
@@ -1310,24 +1349,24 @@ export const BillingInvoiceTab: React.FC = () => {
               {/* 공급자 & 공급받는자 2열 테이블 */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
                 {/* 공급자 (${currentTenant?.displayName || '기연리프트'} SSOT) */}
-                <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #9ca3af', fontSize: '10px', backgroundColor: 'var(--bg-card)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid var(--border-color)', fontSize: '10px', backgroundColor: 'var(--bg-card)' }}>
                   <tbody>
                     <tr>
-                      <td rowSpan={4} style={{ width: '20px', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', textAlign: 'center', fontWeight: 700, borderRight: '1px solid #9ca3af', padding: '4px' }}>
+                      <td rowSpan={4} style={{ width: '20px', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', textAlign: 'center', fontWeight: 700, borderRight: '1px solid var(--border-color)', padding: '4px' }}>
                         공<br/>급<br/>자
                       </td>
-                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb', width: '55px', fontWeight: 600 }}>등록번호</td>
-                      <td colSpan={3} style={{ padding: '3px 4px', borderBottom: '1px solid #e5e7eb', fontWeight: 700, color: 'var(--text-main)' }}>
+                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', width: '55px', fontWeight: 600 }}>등록번호</td>
+                      <td colSpan={3} style={{ padding: '3px 4px', borderBottom: '1px solid var(--border-color)', fontWeight: 700, color: 'var(--text-main)' }}>
                         {currentTenant?.businessNumber || '138-81-83251'}
                       </td>
                     </tr>
                     <tr>
-                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb', fontWeight: 600 }}>상호</td>
-                      <td style={{ padding: '3px 4px', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb', fontWeight: 700, color: 'var(--text-main)' }}>
+                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', fontWeight: 600 }}>상호</td>
+                      <td style={{ padding: '3px 4px', borderRight: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', fontWeight: 700, color: 'var(--text-main)' }}>
                         {currentTenant?.corporateName || currentTenant?.displayName || '주식회사 기연리프트'}
                       </td>
-                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb', width: '35px', fontWeight: 600 }}>성명</td>
-                      <td style={{ padding: '3px 4px', borderBottom: '1px solid #e5e7eb', color: 'var(--text-main)' }}>
+                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', width: '35px', fontWeight: 600 }}>성명</td>
+                      <td style={{ padding: '3px 4px', borderBottom: '1px solid var(--border-color)', color: 'var(--text-main)' }}>
                         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '20px' }}>
                           <span>{currentTenant?.representativeName || '이수용'}</span>
                           {(currentTenant?.stampImageUrl || (currentTenant as any)?.stampBase64) && (
@@ -1346,14 +1385,14 @@ export const BillingInvoiceTab: React.FC = () => {
                       </td>
                     </tr>
                     <tr>
-                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb', fontWeight: 600 }}>사업장</td>
-                      <td colSpan={3} style={{ padding: '3px 4px', borderBottom: '1px solid #e5e7eb', color: 'var(--text-main)' }}>
+                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', fontWeight: 600 }}>사업장</td>
+                      <td colSpan={3} style={{ padding: '3px 4px', borderBottom: '1px solid var(--border-color)', color: 'var(--text-main)' }}>
                         {currentTenant?.businessAddress || '경기도 용인시 처인구 포곡읍 곡현로 254-3'}
                       </td>
                     </tr>
                     <tr>
-                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid #e5e7eb', fontWeight: 600 }}>업태/종목</td>
-                      <td style={{ padding: '3px 4px', borderRight: '1px solid #e5e7eb', color: 'var(--text-main)' }}>
+                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid var(--border-color)', fontWeight: 600 }}>업태/종목</td>
+                      <td style={{ padding: '3px 4px', borderRight: '1px solid var(--border-color)', color: 'var(--text-main)' }}>
                         {currentTenant?.businessCategory || '임대업'}
                       </td>
                       <td colSpan={2} style={{ padding: '3px 4px', color: 'var(--text-main)' }}>
@@ -1364,36 +1403,36 @@ export const BillingInvoiceTab: React.FC = () => {
                 </table>
 
                 {/* 공급받는자 (고객사) */}
-                <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #9ca3af', fontSize: '10px', backgroundColor: 'var(--bg-card)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid var(--border-color)', fontSize: '10px', backgroundColor: 'var(--bg-card)' }}>
                   <tbody>
                     <tr>
-                      <td rowSpan={4} style={{ width: '20px', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', textAlign: 'center', fontWeight: 700, borderRight: '1px solid #9ca3af', padding: '4px' }}>
+                      <td rowSpan={4} style={{ width: '20px', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', textAlign: 'center', fontWeight: 700, borderRight: '1px solid var(--border-color)', padding: '4px' }}>
                         공<br/>급<br/>받<br/>는<br/>자
                       </td>
-                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb', width: '55px', fontWeight: 600 }}>등록번호</td>
-                      <td colSpan={3} style={{ padding: '3px 4px', borderBottom: '1px solid #e5e7eb', fontWeight: 700, color: 'var(--text-main)' }}>
+                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', width: '55px', fontWeight: 600 }}>등록번호</td>
+                      <td colSpan={3} style={{ padding: '3px 4px', borderBottom: '1px solid var(--border-color)', fontWeight: 700, color: 'var(--text-main)' }}>
                         {selectedCustomer?.businessNumber || '-'}
                       </td>
                     </tr>
                     <tr>
-                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb', fontWeight: 600 }}>상호</td>
-                      <td style={{ padding: '3px 4px', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb', fontWeight: 700, color: 'var(--text-main)' }}>
+                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', fontWeight: 600 }}>상호</td>
+                      <td style={{ padding: '3px 4px', borderRight: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', fontWeight: 700, color: 'var(--text-main)' }}>
                         {selectedCustomer?.name || '고객사 미선택'}
                       </td>
-                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb', width: '35px', fontWeight: 600 }}>성명</td>
-                      <td style={{ padding: '3px 4px', borderBottom: '1px solid #e5e7eb', color: 'var(--text-main)' }}>
+                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', width: '35px', fontWeight: 600 }}>성명</td>
+                      <td style={{ padding: '3px 4px', borderBottom: '1px solid var(--border-color)', color: 'var(--text-main)' }}>
                         {selectedCustomer?.representativeName || '-'}
                       </td>
                     </tr>
                     <tr>
-                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb', fontWeight: 600 }}>사업장</td>
-                      <td colSpan={3} style={{ padding: '3px 4px', borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px', color: 'var(--text-main)' }}>
+                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', fontWeight: 600 }}>사업장</td>
+                      <td colSpan={3} style={{ padding: '3px 4px', borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px', color: 'var(--text-main)' }}>
                         {selectedCustomer?.address || '-'}
                       </td>
                     </tr>
                     <tr>
-                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid #e5e7eb', fontWeight: 600 }}>업태/종목</td>
-                      <td style={{ padding: '3px 4px', borderRight: '1px solid #e5e7eb', color: 'var(--text-main)' }}>{selectedCustomer?.bizType || '-'}</td>
+                      <td style={{ backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', padding: '3px 4px', borderRight: '1px solid var(--border-color)', fontWeight: 600 }}>업태/종목</td>
+                      <td style={{ padding: '3px 4px', borderRight: '1px solid var(--border-color)', color: 'var(--text-main)' }}>{selectedCustomer?.bizType || '-'}</td>
                       <td colSpan={2} style={{ padding: '3px 4px', color: 'var(--text-main)' }}>{selectedCustomer?.bizItem || '-'}</td>
                     </tr>
                   </tbody>
@@ -1403,7 +1442,7 @@ export const BillingInvoiceTab: React.FC = () => {
               {/* 총액 요약 바 */}
               <div style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                backgroundColor: 'var(--bg-app)', padding: '6px 10px', border: '1px solid #d1d5db',
+                backgroundColor: 'var(--bg-app)', padding: '6px 10px', border: '1px solid var(--border-color)',
                 marginBottom: '8px', fontWeight: 700, color: 'var(--text-main)'
               }}>
                 <div>
@@ -1415,16 +1454,16 @@ export const BillingInvoiceTab: React.FC = () => {
               </div>
 
               {/* ── 11행 정규 규격 그리드 (table-layout fixed, no-wrap 방어) ── */}
-              <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', border: '1px solid #9ca3af', fontSize: '10px', backgroundColor: 'var(--bg-card)' }}>
+              <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', border: '1px solid var(--border-color)', fontSize: '10px', backgroundColor: 'var(--bg-card)' }}>
                 <thead>
-                  <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid #9ca3af' }}>
-                    <th style={{ padding: '4px 2px', borderRight: '1px solid #d1d5db', width: '34px', textAlign: 'center', whiteSpace: 'nowrap', color: 'var(--text-main)', backgroundColor: 'var(--bg-secondary)' }}>월/일</th>
-                    <th style={{ padding: '4px 4px', borderRight: '1px solid #d1d5db', textAlign: 'left', whiteSpace: 'nowrap', color: 'var(--text-main)', backgroundColor: 'var(--bg-secondary)' }}>품목명</th>
-                    <th style={{ padding: '4px 3px', borderRight: '1px solid #d1d5db', width: '65px', textAlign: 'left', whiteSpace: 'nowrap', color: 'var(--text-main)', backgroundColor: 'var(--bg-secondary)' }}>규격/현장</th>
-                    <th style={{ padding: '4px 2px', borderRight: '1px solid #d1d5db', width: '28px', textAlign: 'center', whiteSpace: 'nowrap', color: 'var(--text-main)', backgroundColor: 'var(--bg-secondary)' }}>수량</th>
-                    <th style={{ padding: '4px 3px', borderRight: '1px solid #d1d5db', width: '56px', textAlign: 'right', whiteSpace: 'nowrap', color: 'var(--text-main)', backgroundColor: 'var(--bg-secondary)' }}>단가</th>
-                    <th style={{ padding: '4px 3px', borderRight: '1px solid #d1d5db', width: '66px', textAlign: 'right', whiteSpace: 'nowrap', color: 'var(--text-main)', backgroundColor: 'var(--bg-secondary)' }}>공급가액</th>
-                    <th style={{ padding: '4px 3px', borderRight: '1px solid #d1d5db', width: '56px', textAlign: 'right', whiteSpace: 'nowrap', color: 'var(--text-main)', backgroundColor: 'var(--bg-secondary)' }}>세액</th>
+                  <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+                    <th style={{ padding: '4px 2px', borderRight: '1px solid var(--border-color)', width: '34px', textAlign: 'center', whiteSpace: 'nowrap', color: 'var(--text-main)', backgroundColor: 'var(--bg-secondary)' }}>월/일</th>
+                    <th style={{ padding: '4px 4px', borderRight: '1px solid var(--border-color)', textAlign: 'left', whiteSpace: 'nowrap', color: 'var(--text-main)', backgroundColor: 'var(--bg-secondary)' }}>품목명</th>
+                    <th style={{ padding: '4px 3px', borderRight: '1px solid var(--border-color)', width: '65px', textAlign: 'left', whiteSpace: 'nowrap', color: 'var(--text-main)', backgroundColor: 'var(--bg-secondary)' }}>규격/현장</th>
+                    <th style={{ padding: '4px 2px', borderRight: '1px solid var(--border-color)', width: '28px', textAlign: 'center', whiteSpace: 'nowrap', color: 'var(--text-main)', backgroundColor: 'var(--bg-secondary)' }}>수량</th>
+                    <th style={{ padding: '4px 3px', borderRight: '1px solid var(--border-color)', width: '56px', textAlign: 'right', whiteSpace: 'nowrap', color: 'var(--text-main)', backgroundColor: 'var(--bg-secondary)' }}>단가</th>
+                    <th style={{ padding: '4px 3px', borderRight: '1px solid var(--border-color)', width: '66px', textAlign: 'right', whiteSpace: 'nowrap', color: 'var(--text-main)', backgroundColor: 'var(--bg-secondary)' }}>공급가액</th>
+                    <th style={{ padding: '4px 3px', borderRight: '1px solid var(--border-color)', width: '56px', textAlign: 'right', whiteSpace: 'nowrap', color: 'var(--text-main)', backgroundColor: 'var(--bg-secondary)' }}>세액</th>
                     <th style={{ padding: '4px 3px', width: '50px', textAlign: 'left', whiteSpace: 'nowrap', color: 'var(--text-main)', backgroundColor: 'var(--bg-secondary)' }}>비고</th>
                   </tr>
                 </thead>
@@ -1433,26 +1472,26 @@ export const BillingInvoiceTab: React.FC = () => {
                   {Array.from({ length: 11 }).map((_, idx) => {
                     const item = statementItems[idx];
                     return (
-                      <tr key={idx} style={{ height: '22px', borderBottom: '1px solid #e5e7eb' }}>
-                        <td style={{ padding: '2px 2px', borderRight: '1px solid #e5e7eb', textAlign: 'center', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                      <tr key={idx} style={{ height: '22px', borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '2px 2px', borderRight: '1px solid var(--border-color)', textAlign: 'center', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
                           {item ? item.date : ''}
                         </td>
-                        <td style={{ padding: '2px 4px', borderRight: '1px solid #e5e7eb', fontWeight: item ? 600 : 400, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item?.itemName}>
+                        <td style={{ padding: '2px 4px', borderRight: '1px solid var(--border-color)', fontWeight: item ? 600 : 400, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item?.itemName}>
                           {item ? item.itemName : ''}
                         </td>
-                        <td style={{ padding: '2px 3px', borderRight: '1px solid #e5e7eb', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item?.spec}>
+                        <td style={{ padding: '2px 3px', borderRight: '1px solid var(--border-color)', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={item?.spec}>
                           {item ? item.spec : ''}
                         </td>
-                        <td style={{ padding: '2px 2px', borderRight: '1px solid #e5e7eb', textAlign: 'center', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '2px 2px', borderRight: '1px solid var(--border-color)', textAlign: 'center', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
                           {item ? item.qty : ''}
                         </td>
-                        <td style={{ padding: '2px 3px', borderRight: '1px solid #e5e7eb', textAlign: 'right', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '2px 3px', borderRight: '1px solid var(--border-color)', textAlign: 'right', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
                           {item ? item.unitPrice.toLocaleString() : ''}
                         </td>
-                        <td style={{ padding: '2px 3px', borderRight: '1px solid #e5e7eb', textAlign: 'right', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '2px 3px', borderRight: '1px solid var(--border-color)', textAlign: 'right', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
                           {item ? item.amount.toLocaleString() : ''}
                         </td>
-                        <td style={{ padding: '2px 3px', borderRight: '1px solid #e5e7eb', textAlign: 'right', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '2px 3px', borderRight: '1px solid var(--border-color)', textAlign: 'right', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
                           {item ? item.vat.toLocaleString() : ''}
                         </td>
                         <td style={{ padding: '2px 3px', color: 'var(--text-secondary)', fontSize: '9px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -1463,14 +1502,14 @@ export const BillingInvoiceTab: React.FC = () => {
                   })}
                 </tbody>
                 <tfoot>
-                  <tr style={{ backgroundColor: 'var(--bg-app)', borderTop: '2px solid #9ca3af', fontWeight: 700 }}>
-                    <td colSpan={5} style={{ padding: '4px 6px', borderRight: '1px solid #d1d5db', textAlign: 'center', whiteSpace: 'nowrap', color: 'var(--text-main)', fontWeight: 800 }}>
+                  <tr style={{ backgroundColor: 'var(--bg-app)', borderTop: '2px solid var(--border-color)', fontWeight: 700 }}>
+                    <td colSpan={5} style={{ padding: '4px 6px', borderRight: '1px solid var(--border-color)', textAlign: 'center', whiteSpace: 'nowrap', color: 'var(--text-main)', fontWeight: 800 }}>
                       소계 및 합계
                     </td>
-                    <td style={{ padding: '4px 3px', borderRight: '1px solid #d1d5db', textAlign: 'right', color: 'var(--text-main)', whiteSpace: 'nowrap', fontWeight: 700 }}>
+                    <td style={{ padding: '4px 3px', borderRight: '1px solid var(--border-color)', textAlign: 'right', color: 'var(--text-main)', whiteSpace: 'nowrap', fontWeight: 700 }}>
                       {accountingSummary.supplyAmount.toLocaleString()}
                     </td>
-                    <td style={{ padding: '4px 3px', borderRight: '1px solid #d1d5db', textAlign: 'right', color: 'var(--text-main)', whiteSpace: 'nowrap', fontWeight: 700 }}>
+                    <td style={{ padding: '4px 3px', borderRight: '1px solid var(--border-color)', textAlign: 'right', color: 'var(--text-main)', whiteSpace: 'nowrap', fontWeight: 700 }}>
                       {accountingSummary.vatAmount.toLocaleString()}
                     </td>
                     <td style={{ padding: '4px 3px', textAlign: 'right', color: 'var(--text-main)', whiteSpace: 'nowrap', fontWeight: 800 }}>

@@ -66,7 +66,7 @@ class RealGmailService {
     to: string,
     subject: string,
     body: string,
-    attachments: { filename: string; content?: string; localPath?: string }[] = [],
+    attachments: { filename: string; content?: string; localPath?: string; contentType?: string }[] = [],
     cc?: string,
     fromName?: string
   ): Promise<SentEmail> {
