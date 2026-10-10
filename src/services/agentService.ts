@@ -1,6 +1,6 @@
 import type { TenantFeatures } from './db';
 
-export const EXPECTED_AGENT_VERSION = 'v2.0.0.Build.5';
+export const EXPECTED_AGENT_VERSION = 'v2.0.0.Build.6';
 // 🚀 GitHub Releases 글로벌 초고속 CDN (Azure/Fastly 한국 PoP 8~10MB/s 3초 다운로드)
 export const DEFAULT_GITHUB_RELEASE_BASE_URL = 'https://github.com/DragonRPA/ebro_awp/releases/download/agent-v2.0.0';
 // 🌐 Cloudflare R2 보조 엔드포인트 (Fallback)

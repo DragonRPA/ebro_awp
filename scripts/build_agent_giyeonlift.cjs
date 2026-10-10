@@ -82,13 +82,26 @@ if (fs.existsSync('C:\\eBroAgent')) {
       fs.copyFileSync(path.join(agentDir, 'trayIcon.ps1'), 'C:\\eBroAgent\\trayIcon.ps1');
       console.log(`[SYNC] C:\\eBroAgent\\trayIcon.ps1 동기화 완료`);
     }
+
+    const sumatraSrc = path.join(agentDir, 'bin', 'SumatraPDF.exe');
+    if (fs.existsSync(sumatraSrc)) {
+      const targetBin = 'C:\\eBroAgent\\bin';
+      if (!fs.existsSync(targetBin)) fs.mkdirSync(targetBin, { recursive: true });
+      fs.copyFileSync(sumatraSrc, path.join(targetBin, 'SumatraPDF.exe'));
+      fs.copyFileSync(sumatraSrc, 'C:\\eBroAgent\\SumatraPDF.exe');
+      console.log(`[SYNC] C:\\eBroAgent\\bin\\SumatraPDF.exe 동기화 완료`);
+    }
   } catch (cpErr) {
     console.warn('[WARN] C:\\eBroAgent 복사 실패:', cpErr.message);
   }
 }
 fs.copyFileSync(agentExe, path.join(publicDir, 'eBroAgent.exe'));
 fs.copyFileSync(coreDat, path.join(publicDir, 'engine.dat'));
-console.log(`[SYNC] ${path.join(publicDir, 'engine.dat')} 원격 핫패치 배포 파일 생성 완료`);
+fs.copyFileSync(path.join(agentDir, 'eBroAgent.js'), path.join(publicDir, 'eBroAgent.js'));
+if (fs.existsSync(path.join(agentDir, 'BroAgent.js'))) {
+  fs.copyFileSync(path.join(agentDir, 'BroAgent.js'), path.join(publicDir, 'agent.js'));
+}
+console.log(`[SYNC] ${path.join(publicDir, 'engine.dat')} 및 배포 파일 동기화 완료`);
 
 // 5. 기연리프트 전용 Inno Setup 인스톨러 컴파일
 console.log('\n[5/5] 기연리프트 전용 Inno Setup 인스톨러 컴파일 중...');

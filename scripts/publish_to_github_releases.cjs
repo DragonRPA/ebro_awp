@@ -172,7 +172,11 @@ async function main() {
   const dir = path.join(__dirname, '..', 'public', 'downloads');
 
   const files = [
-    'eBroAgent_Setup.exe'
+    'eBroAgent_Setup_GIYEONLIFT.exe',
+    'eBroAgent_Setup.exe',
+    'eBroAgent_Setup_GIYEUN.exe',
+    'eBroAgent.exe',
+    'engine.dat'
   ];
 
   for (const f of files) {
