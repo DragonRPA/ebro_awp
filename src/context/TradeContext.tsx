@@ -8,6 +8,8 @@ import {
   TradeReturn, TradeCogsLedger, TradeInventoryAdjustment,
   db, supabase, Delivery
 } from '../services/db';
+import { emailService, SentEmail } from '../services/email';
+
 
 export interface TradeContextType {
   products: TradeProduct[];
@@ -30,6 +32,22 @@ export interface TradeContextType {
 
   // Sales (Outbound)
   createSalesOrder: (customerId: string, items: {productId: string, qty: number, unitPrice: number}[]) => Promise<void>;
+  updateSalesOrder: (id: string, updates: Partial<TradeSalesOrder>) => Promise<void>;
+  sendTradeContractEmail: (orderId: string, emailData: {
+    to: string;
+    cc?: string;
+    subject: string;
+    body: string;
+    isTestMode: boolean;
+    excelBuffer: ArrayBuffer;
+    fileName: string;
+    terms?: {
+      deliveryLocation?: string;
+      deliveryDate?: string;
+      paymentTerms?: string;
+      specialTerms?: string;
+    };
+  }) => Promise<SentEmail>;
   allocateOutbound: (outboundId: string) => Promise<void>;
   dispatchOutbound: (outboundId: string, courierName: string, trackingNumber: string) => Promise<void>;
   dispatchDirectTradeDelivery: (outboundId: string, driverInfo: { driverName: string; driverContact?: string; vehicleNo?: string; destinationAddress?: string; receiverName?: string; receiverPhone?: string }) => Promise<void>;
@@ -245,6 +263,105 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const outbId = `TOUT-${uuidv4()}`;
     setOutbounds(prev => [...prev, { id: outbId, orderId: oId, status: 'REQUESTED', createdAt: new Date().toISOString() }]);
   };
+
+  const updateSalesOrder = async (id: string, updates: Partial<TradeSalesOrder>) => {
+    const now = new Date().toISOString();
+    setSalesOrders(prev => prev.map(o => o.id === id ? { ...o, ...updates, updatedAt: now } : o));
+  };
+
+  const sendTradeContractEmail = async (orderId: string, emailData: {
+    to: string;
+    cc?: string;
+    subject: string;
+    body: string;
+    isTestMode: boolean;
+    excelBuffer: ArrayBuffer;
+    fileName: string;
+    terms?: {
+      deliveryLocation?: string;
+      deliveryDate?: string;
+      paymentTerms?: string;
+      specialTerms?: string;
+    };
+  }): Promise<SentEmail> => {
+    const order = salesOrders.find(o => o.id === orderId);
+    if (!order) throw new Error("수주 건을 찾을 수 없습니다.");
+
+    // 전사 시스템 표준 헌장 5.9조: 테스트 모드 시 실제 거래처 발송 차단 및 개발자 강제 격리
+    const devEmail = 'admin@ebro.co.kr';
+    let destinationTo = emailData.to;
+    let destinationCc = emailData.cc;
+    let finalSubject = emailData.subject;
+    let finalBody = emailData.body;
+
+    if (emailData.isTestMode) {
+      destinationTo = devEmail;
+      destinationCc = undefined;
+      finalSubject = `[테스트 격리 발송] ${emailData.subject}`;
+      finalBody = `[※ 전사 표준 헌장 5.9조 테스트 발송 격리 정책]\n본 메일은 거래처 실제 발송이 차단되어 개발자(${devEmail})에게 안전하게 격리 발송되었습니다.\n(원래 수신 대상: ${emailData.to})\n\n----------------------------------------\n\n` + emailData.body;
+    }
+
+    let sentEmail: SentEmail;
+
+    if (emailData.isTestMode) {
+      // 🛡️ [전사 표준 헌장 5.9조 테스트 격리 발송 정책]
+      // 테스트 모드에서는 외부 메일 유출을 원천 차단하고 개발자 로컬 메일함에 즉시 안전 격리 보존
+      sentEmail = {
+        id: `mail-test-${Math.random().toString(36).substr(2, 9)}`,
+        to: destinationTo,
+        cc: destinationCc,
+        subject: finalSubject,
+        body: finalBody,
+        sentAt: new Date().toISOString(),
+        success: true
+      };
+      try {
+        const raw = localStorage.getItem('sent_emails');
+        const history = raw ? JSON.parse(raw) : [];
+        history.unshift(sentEmail);
+        localStorage.setItem('sent_emails', JSON.stringify(history.slice(0, 20)));
+      } catch (e) {
+        console.warn('sent_emails localStorage 저장 실패:', e);
+      }
+    } else {
+      // 실 거래처 운영 발송 모드 (Gmail SMTP 연동)
+      const uint8 = new Uint8Array(emailData.excelBuffer);
+      let binary = '';
+      for (let i = 0; i < uint8.byteLength; i++) {
+        binary += String.fromCharCode(uint8[i]);
+      }
+      const base64Excel = btoa(binary);
+      const attachments = [{
+        filename: emailData.fileName || `물품매매계약서_${orderId}.xlsx`,
+        content: base64Excel,
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      }];
+
+      sentEmail = await emailService.sendEmail(
+        destinationTo,
+        finalSubject,
+        finalBody,
+        attachments,
+        destinationCc,
+        '(주)기연리프트 / e-Bro ERP'
+      );
+    }
+
+
+    const now = new Date().toISOString();
+    const updates: Partial<TradeSalesOrder> = {
+      contractDocStatus: 'SENT',
+      contractSentAt: now,
+      contractSentTo: destinationTo,
+      updatedAt: now,
+      ...(emailData.terms || {})
+    };
+
+    setSalesOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...updates } : o));
+
+    return sentEmail;
+  };
+
 
   const allocateOutbound = async (outboundId: string) => {
     const ob = outbounds.find(o => o.id === outboundId);
@@ -480,9 +597,10 @@ export const TradeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <TradeContext.Provider value={{
       products, purchases, purchaseItems, inventoryLots, salesOrders, salesOrderLines, outbounds, billings, returns,
-      addProduct, updateProduct, createPurchase, confirmInbound, createSalesOrder, allocateOutbound, dispatchOutbound,
+      addProduct, updateProduct, createPurchase, confirmInbound, createSalesOrder, updateSalesOrder, sendTradeContractEmail, allocateOutbound, dispatchOutbound,
       dispatchDirectTradeDelivery, completeTradeDeliveryWithProof, processReturn, issueBilling
     }}>
+
       {children}
     </TradeContext.Provider>
   );

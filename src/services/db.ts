@@ -7360,7 +7360,15 @@ export interface TradeSalesOrder {
   totalCogsAmount: number;
   createdAt: string;
   updatedAt: string;
+  contractDocStatus?: 'DRAFT' | 'GENERATED' | 'SENT';
+  contractSentAt?: string;
+  contractSentTo?: string;
+  deliveryLocation?: string;
+  deliveryDate?: string;
+  paymentTerms?: string;
+  specialTerms?: string;
 }
+
 
 export interface TradeSalesOrderLine {
   id: string;

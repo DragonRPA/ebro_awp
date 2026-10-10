@@ -672,3 +672,352 @@ export async function generateSafetyInspectionPdfFromExcelTemplate(
   });
 }
 
+/**
+ * 유통 물품매매계약서 엑셀 양식 규격
+ */
+export interface TradeContractParty {
+  corpName: string;
+  bizNo: string;
+  ceo: string;
+  address: string;
+  tel: string;
+  manager?: string;
+  email?: string;
+}
+
+export interface TradeContractItem {
+  no: number;
+  productName: string;
+  skuCode?: string;
+  spec?: string;
+  qty: number;
+  unitPrice: number;
+  supplyAmount: number;
+  vatAmount: number;
+  totalAmount: number;
+  note?: string;
+}
+
+export interface TradeContractExcelData {
+  contractNo: string;
+  contractDate: string;
+  seller: TradeContractParty;
+  buyer: TradeContractParty;
+  items: TradeContractItem[];
+  totalSupply: number;
+  totalVat: number;
+  totalGrand: number;
+  deliveryDate?: string;
+  deliveryLocation?: string;
+  paymentTerms?: string;
+  specialTerms?: string;
+}
+
+/**
+ * 숫자를 한글 금액 표기로 변환하는 헬퍼 (예: 33000000 -> 삼천삼백만)
+ */
+function numberToKoreanWon(amount: number): string {
+  if (!amount || amount === 0) return '영';
+  const units = ['', '만', '억', '조'];
+  const smallUnits = ['', '십', '백', '천'];
+  const digits = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구'];
+
+  let result = '';
+  let unitIdx = 0;
+  let num = Math.floor(Math.abs(amount));
+
+  while (num > 0) {
+    const chunk = num % 10000;
+    if (chunk > 0) {
+      let chunkStr = '';
+      let c = chunk;
+      for (let i = 0; i < 4; i++) {
+        const d = c % 10;
+        if (d > 0) {
+          chunkStr = digits[d] + smallUnits[i] + chunkStr;
+        }
+        c = Math.floor(c / 10);
+      }
+      result = chunkStr + units[unitIdx] + (result ? ' ' + result : '');
+    }
+    unitIdx++;
+    num = Math.floor(num / 10000);
+  }
+
+  return result.trim();
+}
+
+/**
+ * 표준 물품매매(유통)계약서 엑셀 바이너리 (.xlsx) 동적 생성 엔진
+ */
+export async function generateTradeContractExcel(data: TradeContractExcelData): Promise<ArrayBuffer> {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'e-Bro ERP';
+  workbook.created = new Date();
+
+  const ws = workbook.addWorksheet('물품매매계약서', {
+    pageSetup: { paperSize: 9, orientation: 'portrait', fitToPage: true, fitToWidth: 1, fitToHeight: 0 }
+  });
+
+  // 열 너비 설정 (B열부터 H열까지 정렬)
+  ws.columns = [
+    { width: 4 },   // A: 여백
+    { width: 7 },   // B: 순번 / 항목명
+    { width: 22 },  // C: 품명 / 상호
+    { width: 14 },  // D: 규격 / 대표
+    { width: 10 },  // E: 수량 / 항목명
+    { width: 15 },  // F: 단가 / 상호
+    { width: 18 },  // G: 공급가액 / 대표
+    { width: 16 },  // H: 세액 / 비고
+  ];
+
+  const thinBorder: Partial<ExcelJS.Borders> = {
+    top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+    left: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+    bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
+    right: { style: 'thin', color: { argb: 'FFD1D5DB' } }
+  };
+
+  const headerFill: ExcelJS.Fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFF1F5F9' } // Slate 100
+  };
+
+  // Row 2: 제목
+  ws.mergeCells('B2:H2');
+  const titleCell = ws.getCell('B2');
+  titleCell.value = '물 품 매 매 (유 통) 계 약 서';
+  titleCell.font = { name: '맑은 고딕', size: 18, bold: true, color: { argb: 'FF0F172A' } };
+  titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+  ws.getRow(2).height = 40;
+
+  // Row 4: 계약 기본정보
+  ws.getCell('B4').value = `계약번호: ${data.contractNo}`;
+  ws.getCell('B4').font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: 'FF475569' } };
+  
+  ws.mergeCells('G4:H4');
+  const dateCell = ws.getCell('G4');
+  dateCell.value = `계약일자: ${data.contractDate}`;
+  dateCell.font = { name: '맑은 고딕', size: 10, color: { argb: 'FF475569' } };
+  dateCell.alignment = { horizontal: 'right' };
+
+  // Row 5: 전문
+  ws.mergeCells('B5:H5');
+  const preamble = ws.getCell('B5');
+  preamble.value = '매도인(공급자)과 매수인(공급받는자)은 상호 신의성실의 원칙에 따라 아래와 같이 물품매매계약을 체결한다.';
+  preamble.font = { name: '맑은 고딕', size: 9, italic: true, color: { argb: 'FF64748B' } };
+  preamble.alignment = { horizontal: 'center' };
+
+  // Row 7~12: 당사자 정보 테이블
+  ws.mergeCells('B7:D7');
+  const sellerHead = ws.getCell('B7');
+  sellerHead.value = '공 급 자 (매 도 인)';
+  sellerHead.fill = headerFill;
+  sellerHead.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: 'FF1E293B' } };
+  sellerHead.alignment = { horizontal: 'center', vertical: 'middle' };
+
+  ws.mergeCells('E7:H7');
+  const buyerHead = ws.getCell('E7');
+  buyerHead.value = '공 급 받 는 자 (매 수 인)';
+  buyerHead.fill = headerFill;
+  buyerHead.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: 'FF1E293B' } };
+  buyerHead.alignment = { horizontal: 'center', vertical: 'middle' };
+
+  const partyRows = [
+    { labelS: '상    호', valS: data.seller.corpName, labelB: '상    호', valB: data.buyer.corpName },
+    { labelS: '등록번호', valS: data.seller.bizNo, labelB: '등록번호', valB: data.buyer.bizNo },
+    { labelS: '대 표 자', valS: data.seller.ceo, labelB: '대 표 자', valB: data.buyer.ceo },
+    { labelS: '소 재 지', valS: data.seller.address, labelB: '소 재 지', valB: data.buyer.address },
+    { labelS: '연 락 처', valS: `${data.seller.manager || '-'} (${data.seller.tel || '-'})`, labelB: '연 락 처', valB: `${data.buyer.manager || '-'} (${data.buyer.tel || '-'} / ${data.buyer.email || '-'})` }
+  ];
+
+  partyRows.forEach((r, idx) => {
+    const rowNum = 8 + idx;
+    ws.getCell(`B${rowNum}`).value = r.labelS;
+    ws.getCell(`B${rowNum}`).fill = headerFill;
+    ws.getCell(`B${rowNum}`).alignment = { horizontal: 'center', vertical: 'middle' };
+    ws.getCell(`B${rowNum}`).font = { name: '맑은 고딕', size: 9, bold: true };
+    
+    ws.mergeCells(`C${rowNum}:D${rowNum}`);
+    ws.getCell(`C${rowNum}`).value = r.valS;
+    ws.getCell(`C${rowNum}`).alignment = { horizontal: 'left', vertical: 'middle' };
+    ws.getCell(`C${rowNum}`).font = { name: '맑은 고딕', size: 9 };
+
+    ws.getCell(`E${rowNum}`).value = r.labelB;
+    ws.getCell(`E${rowNum}`).fill = headerFill;
+    ws.getCell(`E${rowNum}`).alignment = { horizontal: 'center', vertical: 'middle' };
+    ws.getCell(`E${rowNum}`).font = { name: '맑은 고딕', size: 9, bold: true };
+
+    ws.mergeCells(`F${rowNum}:H${rowNum}`);
+    ws.getCell(`F${rowNum}`).value = r.valB;
+    ws.getCell(`F${rowNum}`).alignment = { horizontal: 'left', vertical: 'middle' };
+    ws.getCell(`F${rowNum}`).font = { name: '맑은 고딕', size: 9 };
+  });
+
+  for (let r = 7; r <= 12; r++) {
+    ['B', 'C', 'D', 'E', 'F', 'G', 'H'].forEach(col => {
+      ws.getCell(`${col}${r}`).border = thinBorder;
+    });
+  }
+
+  // Row 14: 총 계약금액
+  ws.mergeCells('B14:H14');
+  const amtCell = ws.getCell('B14');
+  const wonKorean = numberToKoreanWon(data.totalGrand);
+  amtCell.value = `총 계약금액: 일금 ${wonKorean}원정 (₩${data.totalGrand.toLocaleString()} / 부가세 포함)`;
+  amtCell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFE2E8F0' } // Slate 200
+  };
+  amtCell.font = { name: '맑은 고딕', size: 11, bold: true, color: { argb: 'FF0F172A' } };
+  amtCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  ws.getRow(14).height = 28;
+  ['B', 'C', 'D', 'E', 'F', 'G', 'H'].forEach(col => {
+    ws.getCell(`${col}14`).border = thinBorder;
+  });
+
+  // Row 16: 품목 헤더
+  const itemHeaders = [
+    { col: 'B', text: '순번', align: 'center' },
+    { col: 'C', text: '품목명', align: 'center' },
+    { col: 'D', text: '규격/SKU', align: 'center' },
+    { col: 'E', text: '수량', align: 'center' },
+    { col: 'F', text: '단가 (원)', align: 'center' },
+    { col: 'G', text: '공급가액 (원)', align: 'center' },
+    { col: 'H', text: '세액 (원)', align: 'center' }
+  ];
+
+  itemHeaders.forEach(h => {
+    const c = ws.getCell(`${h.col}16`);
+    c.value = h.text;
+    c.fill = headerFill;
+    c.font = { name: '맑은 고딕', size: 9, bold: true, color: { argb: 'FF1E293B' } };
+    c.alignment = { horizontal: h.align as any, vertical: 'middle' };
+    c.border = thinBorder;
+  });
+  ws.getRow(16).height = 24;
+
+  // Row 17..: 품목 행 리스트
+  let curRow = 17;
+  (data.items || []).forEach((item, idx) => {
+    ws.getCell(`B${curRow}`).value = item.no || idx + 1;
+    ws.getCell(`B${curRow}`).alignment = { horizontal: 'center', vertical: 'middle' };
+
+    ws.getCell(`C${curRow}`).value = item.productName;
+    ws.getCell(`C${curRow}`).alignment = { horizontal: 'left', vertical: 'middle' };
+
+    ws.getCell(`D${curRow}`).value = item.skuCode || item.spec || '-';
+    ws.getCell(`D${curRow}`).alignment = { horizontal: 'center', vertical: 'middle' };
+
+    ws.getCell(`E${curRow}`).value = item.qty;
+    ws.getCell(`E${curRow}`).numFmt = '#,##0';
+    ws.getCell(`E${curRow}`).alignment = { horizontal: 'right', vertical: 'middle' };
+
+    ws.getCell(`F${curRow}`).value = item.unitPrice;
+    ws.getCell(`F${curRow}`).numFmt = '#,##0';
+    ws.getCell(`F${curRow}`).alignment = { horizontal: 'right', vertical: 'middle' };
+
+    ws.getCell(`G${curRow}`).value = item.supplyAmount;
+    ws.getCell(`G${curRow}`).numFmt = '#,##0';
+    ws.getCell(`G${curRow}`).alignment = { horizontal: 'right', vertical: 'middle' };
+
+    ws.getCell(`H${curRow}`).value = item.vatAmount;
+    ws.getCell(`H${curRow}`).numFmt = '#,##0';
+    ws.getCell(`H${curRow}`).alignment = { horizontal: 'right', vertical: 'middle' };
+
+    ['B', 'C', 'D', 'E', 'F', 'G', 'H'].forEach(col => {
+      const c = ws.getCell(`${col}${curRow}`);
+      c.font = { name: '맑은 고딕', size: 9 };
+      c.border = thinBorder;
+    });
+    ws.getRow(curRow).height = 22;
+    curRow++;
+  });
+
+  // 품목 합계 행
+  ws.mergeCells(`B${curRow}:D${curRow}`);
+  const sumLabel = ws.getCell(`B${curRow}`);
+  sumLabel.value = '합    계';
+  sumLabel.fill = headerFill;
+  sumLabel.font = { name: '맑은 고딕', size: 9, bold: true };
+  sumLabel.alignment = { horizontal: 'center', vertical: 'middle' };
+
+  const totalQty = (data.items || []).reduce((acc, i) => acc + i.qty, 0);
+  ws.getCell(`E${curRow}`).value = totalQty;
+  ws.getCell(`E${curRow}`).numFmt = '#,##0';
+  ws.getCell(`E${curRow}`).font = { name: '맑은 고딕', size: 9, bold: true };
+  ws.getCell(`E${curRow}`).alignment = { horizontal: 'right', vertical: 'middle' };
+
+  ws.getCell(`F${curRow}`).value = '-';
+  ws.getCell(`F${curRow}`).alignment = { horizontal: 'center', vertical: 'middle' };
+
+  ws.getCell(`G${curRow}`).value = data.totalSupply;
+  ws.getCell(`G${curRow}`).numFmt = '#,##0';
+  ws.getCell(`G${curRow}`).font = { name: '맑은 고딕', size: 9, bold: true };
+  ws.getCell(`G${curRow}`).alignment = { horizontal: 'right', vertical: 'middle' };
+
+  ws.getCell(`H${curRow}`).value = data.totalVat;
+  ws.getCell(`H${curRow}`).numFmt = '#,##0';
+  ws.getCell(`H${curRow}`).font = { name: '맑은 고딕', size: 9, bold: true };
+  ws.getCell(`H${curRow}`).alignment = { horizontal: 'right', vertical: 'middle' };
+
+  ['B', 'C', 'D', 'E', 'F', 'G', 'H'].forEach(col => {
+    ws.getCell(`${col}${curRow}`).border = thinBorder;
+  });
+  ws.getRow(curRow).height = 24;
+  curRow += 2;
+
+  // 계약 조항 섹션
+  const clauses = [
+    { title: '제1조 (목 적)', content: '본 계약은 매도인이 공급하는 상기 물품을 매수인이 정당하게 매수하고 그 대금을 지급함에 있어 필요한 제반 권리 및 의무 사항을 규정함을 목적으로 한다.' },
+    { title: '제2조 (인도 장소 및 기한)', content: `1. 인도 장소: ${data.deliveryLocation || '매수인 지정 장소'}\n2. 납품 기한: ${data.deliveryDate || '계약 체결일로부터 상호 협의일 이내'}` },
+    { title: '제3조 (대금 결제 조건)', content: data.paymentTerms || '물품 납품 및 검수 완료 후 세금계산서를 발행하며, 30일 이내에 매도인의 지정 계좌로 현금 입금한다.' },
+    { title: '제4조 (검수 및 하자담보)', content: '매수인은 물품 인도일로부터 3영업일 이내에 검수를 완료하여야 하며, 외관 및 성능상 하자가 발견된 경우 매도인은 즉시 무상 교환 또는 정상품을 재납품한다.' },
+    { title: '제5조 (특약 사항)', content: data.specialTerms || '기타 본 계약서에 명시되지 않은 사항은 상법 및 일반 상거래 관례에 따르며, 분쟁 발생 시 관할 법원은 매도인 본점 소재지 관할 법원으로 한다.' }
+  ];
+
+  clauses.forEach(cl => {
+    ws.mergeCells(`B${curRow}:H${curRow}`);
+    const cHead = ws.getCell(`B${curRow}`);
+    cHead.value = cl.title;
+    cHead.font = { name: '맑은 고딕', size: 9, bold: true, color: { argb: 'FF1E293B' } };
+    curRow++;
+
+    ws.mergeCells(`B${curRow}:H${curRow}`);
+    const cBody = ws.getCell(`B${curRow}`);
+    cBody.value = cl.content;
+    cBody.font = { name: '맑은 고딕', size: 9, color: { argb: 'FF334155' } };
+    cBody.alignment = { wrapText: true, vertical: 'top' };
+    ws.getRow(curRow).height = cl.content.includes('\n') ? 34 : 22;
+    curRow += 2;
+  });
+
+  // 서명 날인 블록
+  ws.mergeCells(`B${curRow}:H${curRow}`);
+  const signDateCell = ws.getCell(`B${curRow}`);
+  signDateCell.value = `계약 체결일: ${data.contractDate}`;
+  signDateCell.font = { name: '맑은 고딕', size: 10, bold: true, color: { argb: 'FF0F172A' } };
+  signDateCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  curRow += 2;
+
+  // 매도인 / 매수인 날인 영역
+  ws.mergeCells(`B${curRow}:D${curRow}`);
+  const sellerSign = ws.getCell(`B${curRow}`);
+  sellerSign.value = `매도인: ${data.seller.corpName}  대표이사 ${data.seller.ceo}  (인)`;
+  sellerSign.font = { name: '맑은 고딕', size: 9, bold: true };
+  sellerSign.alignment = { horizontal: 'center', vertical: 'middle' };
+
+  ws.mergeCells(`E${curRow}:H${curRow}`);
+  const buyerSign = ws.getCell(`E${curRow}`);
+  buyerSign.value = `매수인: ${data.buyer.corpName}  대표이사 ${data.buyer.ceo}  (인)`;
+  buyerSign.font = { name: '맑은 고딕', size: 9, bold: true };
+  buyerSign.alignment = { horizontal: 'center', vertical: 'middle' };
+  ws.getRow(curRow).height = 36;
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return buffer;
+}
+
+
