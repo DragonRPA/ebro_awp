@@ -13,11 +13,11 @@ export const TradeContractsPage: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: '#f9fafb' }}>
-      <div style={{ padding: '16px', backgroundColor: '#fff', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ padding: '16px', backgroundColor: '#fff', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 data-mid="trade_contracts-header" style={{ fontSize: '18px', fontWeight: 600, margin: 0, color: '#111827' }}>유통 수주</h2>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <input data-mid="trade_contracts-qty-input" type="number" value={qty} onChange={e=>setQty(Number(e.target.value))} style={{ width: '60px', padding: '6px' }} />
-          <button data-mid="trade_contracts-create-btn" onClick={handleOrder} style={{ padding: '6px 12px', backgroundColor: '#8b5cf6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>수주 확정</button>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <input data-mid="trade_contracts-qty-input" type="number" value={qty} onChange={e=>setQty(Number(e.target.value))} style={{ width: '60px', padding: '6px', borderRadius: '4px', border: '1px solid #cbd5e1' }} />
+          <button data-mid="trade_contracts-create-btn" onClick={handleOrder} className="btn-save">수주 확정</button>
         </div>
       </div>
       <div data-mid="trade_contracts-cards" style={{ flex: 1, padding: '16px', overflow: 'auto', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>

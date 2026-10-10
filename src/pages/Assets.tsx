@@ -496,21 +496,19 @@ export const Assets: React.FC = () => {
           </span>
         </div>
 
-        {/* 우상단 파이프라인 버튼군 */}
-        <div data-mid="asset-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        {/* 우상단 파이프라인 버튼군 - 표준 횡배치: 조회 -> 엑셀다운로드 */}
+        <div data-mid="asset-header-actions" className="toolbar-actions">
           <button
-            className="btn-primary"
+            className="btn-query"
             data-mid="btn-asset-search"
             onClick={() => showToast('조회되었습니다.', 'success')}
-            style={{ padding: '5px 12px', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
           >
             <Search size={13} /> 조회
           </button>
           <button
-            className="btn-secondary"
+            className="btn-excel-download"
             data-mid="btn-asset-export"
             onClick={handleExport}
-            style={{ padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
           >
             <Download size={13} /> 엑셀 다운로드
           </button>

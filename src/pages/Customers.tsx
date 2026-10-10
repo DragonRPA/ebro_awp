@@ -1215,93 +1215,62 @@ const handleDeleteAccount = async (accId: string) => {
           </span>
         </div>
 
-        {/* 우상단 파이프라인 액션 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        {/* 우상단 파이프라인 액션 - 표준 횡배치: 조회 -> 저장/등록 -> 엑셀업로드 -> 엑셀다운로드 */}
+        <div className="toolbar-actions">
           <button
-            className="btn-secondary"
+            className="btn-query"
             onClick={handleRefresh}
             disabled={refreshing}
-            style={{ padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
           >
             <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} /> 조회
           </button>
-          <button
-            className="btn-secondary"
-            onClick={handleExportAllCustomers}
-            style={{ padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
-          >
-            <Download size={13} /> 엑셀 다운로드
-          </button>
+          {canSave && (
+            <button
+              data-uia="btn-add-customer"
+              data-hs-trigger="Register"
+              className="btn-save"
+              data-mid="btn-new-customer"
+              onClick={handleOpenAddCust}
+            >
+              <Plus size={13} /> 신규 고객 등록
+            </button>
+          )}
           {canSave && isDeveloper && (
-            <button data-hs-trigger="Register"
+            <button
+              data-hs-trigger="Register"
+              className="btn-reset"
               onClick={() => setShowBatchLicenseModal(true)}
-              style={{
-                padding: '5px 12px',
-                fontSize: '12px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                whiteSpace: 'nowrap',
-                backgroundColor: 'var(--primary)',
-                color: '#ffffff',
-                border: '1px solid #0369a1',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.15)'
-              }}
               title="사업자등록증 폴더를 지정하여 내부 모든 파일 일괄 등록 및 보완"
             >
-              <FolderOpen size={13} color="#ffffff" /> 폴더 일괄 등록
+              <FolderOpen size={13} /> 폴더 일괄 등록
             </button>
           )}
           {canSave && (
             <button
+              className="btn-reset"
               onClick={() => setShowNtsAuditModal(true)}
               data-mid="btn-nts-audit"
-              style={{
-                padding: '5px 12px',
-                fontSize: '12px',
-                fontWeight: 600,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                whiteSpace: 'nowrap',
-                backgroundColor: '#7c3aed',
-                color: '#ffffff',
-                border: '1px solid #6d28d9',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.15)'
-              }}
               title="국세청 홈택스 사업자 휴폐업 상태 전수 점검 및 임대자산 회수 점검"
             >
-              <ShieldAlert size={13} color="#ffffff" /> 국세청 휴폐업 점검
+              <ShieldAlert size={13} /> 국세청 휴폐업 점검
             </button>
           )}
           {canSave && (
             <button
               data-uia="btn-excel-upload-customer"
               data-hs-trigger="Register"
-              className="btn-secondary"
+              className="btn-excel-upload"
               onClick={() => setCustExcelModalOpen(true)}
-              style={{ padding: '5px 12px', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
             >
-              <FileSpreadsheet size={13} color="var(--primary)" /> 엑셀 일괄 등록
+              <FileSpreadsheet size={13} /> 엑셀 일괄 등록
             </button>
           )}
-          {canSave && (
-            <button
-              data-uia="btn-add-customer"
-              data-hs-trigger="Register"
-              className="btn-primary"
-              data-mid="btn-new-customer"
-              onClick={handleOpenAddCust}
-              style={{ padding: '5px 12px', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
-            >
-              <Plus size={13} /> 신규 고객 등록
-            </button>
-          )}
+          <button
+            className="btn-excel-download"
+            onClick={handleExportAllCustomers}
+          >
+            <Download size={13} /> 엑셀 다운로드
+          </button>
         </div>
       </div>
 
@@ -1730,24 +1699,22 @@ const handleDeleteAccount = async (accId: string) => {
                     <MapPin size={14} className="text-success" /> 고객 현장 목록 ({customerSites.length}개소)
                   </div>
                   <div style={{ display: 'flex', gap: '6px' }}>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={handleExportSites}
-                      style={{ padding: '2px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                    >
-                      <Download size={11} /> 현장 엑셀
-                    </button>
                     {canSave && (
                       <button
                         type="button"
-                        className="btn-primary"
+                        className="btn-save btn-sm"
                         onClick={handleOpenAddSite}
-                        style={{ padding: '2px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
                       >
                         <PlusCircle size={11} /> 현장 추가
                       </button>
                     )}
+                    <button
+                      type="button"
+                      className="btn-excel-download btn-sm"
+                      onClick={handleExportSites}
+                    >
+                      <Download size={11} /> 현장 엑셀
+                    </button>
                   </div>
                 </div>
 
@@ -1904,47 +1871,34 @@ const handleDeleteAccount = async (accId: string) => {
                     <User size={14} className="text-primary" /> 고객 담당자 목록 ({customerContacts.length}명)
                   </div>
                   <div style={{ display: 'flex', gap: '6px' }}>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={handleExportContacts}
-                      style={{ padding: '2px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                    >
-                      <Download size={11} /> 담당자 엑셀
-                    </button>
                     {canSave && (
                       <button
                         type="button"
-                        onClick={() => {
-                          setTargetContactCardCustId(activeCustomer.id);
-                          setShowContactCardModal(true);
-                        }}
-                        style={{
-                          padding: '2px 8px',
-                          fontSize: '11px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          backgroundColor: '#f59e0b',
-                          color: '#ffffff',
-                          border: '1px solid #d97706',
-                          borderRadius: '3px',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        <User size={11} color="#ffffff" /> 명함/이메일로 추가
-                      </button>
-                    )}
-                    {canSave && (
-                      <button
-                        type="button"
-                        className="btn-primary"
+                        className="btn-save btn-sm"
                         onClick={handleOpenAddContact}
-                        style={{ padding: '2px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
                       >
                         <PlusCircle size={11} /> 담당자 추가
                       </button>
                     )}
+                    {canSave && (
+                      <button
+                        type="button"
+                        className="btn-reset btn-sm"
+                        onClick={() => {
+                          setTargetContactCardCustId(activeCustomer.id);
+                          setShowContactCardModal(true);
+                        }}
+                      >
+                        <User size={11} /> 명함/이메일로 추가
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn-excel-download btn-sm"
+                      onClick={handleExportContacts}
+                    >
+                      <Download size={11} /> 담당자 엑셀
+                    </button>
                   </div>
                 </div>
 

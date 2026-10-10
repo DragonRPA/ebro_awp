@@ -679,41 +679,45 @@ export const Vendors: React.FC = () => {
               ✓ {syncResult.updatedCount}개사 동기화 완료 (누적 ₩{syncResult.totalAmount.toLocaleString()})
             </span>
           )}
-          <button
-            className="btn-secondary"
-            onClick={handleSyncMetrics}
-            disabled={isSyncing}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
-            title="당사자산 취득 및 매입정산 대장을 전수 스캔하여 거래개시일 및 누적거래액을 일괄 동기화합니다"
-          >
-            <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
-            {isSyncing ? '동기화 중...' : '누적거래액 전체 동기화'}
-          </button>
-          {canSave && (
-            <button data-hs-trigger="Register" 
-              className="btn-secondary" 
-              onClick={() => setShowBatchLicenseModal(true)} 
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', backgroundColor: 'var(--primary)', color: '#ffffff', borderColor: 'var(--info)' }}
-              title="사업자등록증 폴더를 지정하여 내부 모든 파일 일괄 등록 및 보완"
+          <div className="toolbar-actions">
+            <button
+              className="btn-query"
+              onClick={handleSyncMetrics}
+              disabled={isSyncing}
+              title="당사자산 취득 및 매입정산 대장을 전수 스캔하여 거래개시일 및 누적거래액을 일괄 동기화합니다"
             >
-              <FolderOpen size={15} color="#ffffff" /> 폴더 일괄 등록
+              <RefreshCw size={13} className={isSyncing ? 'animate-spin' : ''} />
+              {isSyncing ? '동기화 중...' : '누적거래액 전체 동기화'}
             </button>
-          )}
-          {canSave && (
-            <button 
-              className="btn-secondary" 
-              onClick={() => setShowNtsAuditModal(true)} 
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', backgroundColor: '#7c3aed', color: '#ffffff', borderColor: '#6d28d9' }}
-              title="국세청 홈택스 사업자 휴폐업 상태 전수 점검"
-            >
-              <ShieldAlert size={15} color="#ffffff" /> 국세청 휴폐업 점검
-            </button>
-          )}
-          {canSave && (
-            <button data-hs-trigger="Register" className="btn-primary" onClick={handleOpenAddModal} style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
-              <Plus size={16} /> 신규 매입처 등록
-            </button>
-          )}
+            {canSave && (
+              <button
+                data-hs-trigger="Register"
+                className="btn-save"
+                onClick={handleOpenAddModal}
+              >
+                <Plus size={13} /> 신규 매입처 등록
+              </button>
+            )}
+            {canSave && (
+              <button
+                data-hs-trigger="Register"
+                className="btn-reset"
+                onClick={() => setShowBatchLicenseModal(true)}
+                title="사업자등록증 폴더를 지정하여 내부 모든 파일 일괄 등록 및 보완"
+              >
+                <FolderOpen size={13} /> 폴더 일괄 등록
+              </button>
+            )}
+            {canSave && (
+              <button
+                className="btn-reset"
+                onClick={() => setShowNtsAuditModal(true)}
+                title="국세청 홈택스 사업자 휴폐업 상태 전수 점검"
+              >
+                <ShieldAlert size={13} /> 국세청 휴폐업 점검
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -794,29 +798,27 @@ export const Vendors: React.FC = () => {
             </div>
 
             <button
-              className="btn-primary"
+              className="btn-query"
               onClick={() => setSearchTerm(searchInput.trim())}
-              style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0, padding: '8px 14px' }}
             >
-              조회
+              <Search size={13} /> 조회
             </button>
 
             <button
-              className="btn-secondary"
+              className="btn-reset"
               onClick={() => { setSearchInput(''); setSearchTerm(''); setTypeFilter('ALL'); }}
-              style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0, padding: '8px 10px' }}
               title="검색 초기화"
             >
               <RefreshCw size={13} />
             </button>
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: '500' }}>
+          <div className="toolbar-actions">
+            <span style={{ fontSize: '12.5px', color: 'var(--text-muted)', fontWeight: '500', marginRight: '4px' }}>
               전체 <strong style={{ color: 'var(--primary)' }}>{vendors.length}</strong>개 매입처 (검색: {filtered.length}건)
             </span>
-            <button className="btn-secondary" onClick={handleExport} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Download size={14} /> 엑셀 다운로드
+            <button className="btn-excel-download" onClick={handleExport}>
+              <Download size={13} /> 엑셀 다운로드
             </button>
           </div>
         </div>

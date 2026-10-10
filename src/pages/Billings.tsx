@@ -2492,10 +2492,9 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               <h3 className="card-title" style={{ margin: 0 }}>청구 목록</h3>
               <button 
                 type="button" 
-                className="btn-secondary" 
+                className="btn-excel-download btn-sm" 
                 data-mid="billing-export-btn"
                 onClick={handleExportExcel}
-                style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', padding: '5px 10px' }}
               >
                 <Download size={12} /> 엑셀 다운로드
               </button>
@@ -2623,20 +2622,19 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               </div>
 
               {/* 버튼 그룹 */}
-              <div data-mid="billing-search-action" style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0, paddingBottom: '1px' }}>
+              <div data-mid="billing-search-action" className="toolbar-actions" style={{ paddingBottom: '1px' }}>
                 <button 
                   type="button" 
-                  className="btn-primary" 
+                  className="btn-query btn-sm" 
                   onClick={handleSearchClick}
-                  style={{ padding: '5px 12px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '12px', whiteSpace: 'nowrap' }}
                 >
-                  조회
+                  <Search size={12} /> 조회
                 </button>
                 <button 
                   type="button" 
-                  className="btn-secondary" 
+                  className="btn-reset btn-sm" 
                   onClick={handleResetFilters}
-                  style={{ padding: '5px 8px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '12px', whiteSpace: 'nowrap' }}
+                  title="검색 초기화"
                 >
                   초기화
                 </button>
@@ -3865,17 +3863,16 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn-query btn-sm"
                   onClick={handleWizardSearchClick}
-                  style={{ padding: '5px 12px', height: '30px', fontWeight: 'bold', fontSize: '12px', whiteSpace: 'nowrap', flexShrink: 0 }}
                 >
-                  조회
+                  <Search size={12} /> 조회
                 </button>
 
                 {canSave && (
                   <button
                     type="button"
-                    className="btn-primary"
+                    className="btn-save btn-sm"
                     data-mid="wizard-bulk-generate-btn"
                     onClick={handleBulkGenerateWizard}
                     disabled={isBulkGenerating || contractsWithoutReceivables.length === 0}
@@ -5034,11 +5031,10 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 <button
                   data-mid="waiver-export-excel-btn"
                   type="button"
-                  className="btn-secondary"
+                  className="btn-excel-download"
                   onClick={handleExportWaiverExcel}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px', fontWeight: 700 }}
                 >
-                  <Download size={14} /> 엑셀 내보내기
+                  <Download size={13} /> 엑셀 내보내기
                 </button>
               </div>
             </div>
@@ -5219,11 +5215,10 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 </span>
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn-excel-download btn-sm"
                   onClick={handleExportWaiverExcel}
-                  style={{ fontSize: '12px', padding: '4px 10px', fontWeight: 700 }}
                 >
-                  대장 다운로드
+                  <Download size={12} /> 대장 다운로드
                 </button>
               </div>
             </div>

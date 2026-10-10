@@ -1039,11 +1039,10 @@ export const ConsumableInOutPage: React.FC = () => {
 
               <button
                 type="button"
-                className="btn-secondary"
+                className="btn-excel-download"
                 onClick={handleExportLogs}
-                style={{ padding: '7px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
               >
-                <Download size={14} /> 엑셀 내보내기
+                <Download size={13} /> 엑셀 내보내기
               </button>
             </div>
           </div>

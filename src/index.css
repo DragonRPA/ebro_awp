@@ -18,24 +18,24 @@
   --scrollbar-thumb-hover: #475569;
   --scrollbar-thumb-border: #f7f5f0;
   
-  --primary: #4f46e5;
-  --primary-hover: #4338ca;
-  --primary-light: #e0e7ff;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --primary-light: #eff6ff;
   
-  --success: #10b981;
-  --success-hover: #059669;
-  --success-light: #d1fae5;
+  --success: #059669;
+  --success-hover: #047857;
+  --success-light: #ecfdf5;
   
-  --warning: #f59e0b;
-  --warning-hover: #d97706;
-  --warning-light: #fef3c7;
+  --warning: #d97706;
+  --warning-hover: #b45309;
+  --warning-light: #fffbeb;
   
-  --danger: #ef4444;
-  --danger-hover: #dc2626;
-  --danger-light: #fee2e2;
+  --danger: #dc2626;
+  --danger-hover: #b91c1c;
+  --danger-light: #fef2f2;
 
-  --info: #06b6d4;
-  --info-light: #ecfeff;
+  --info: #0284c7;
+  --info-light: #f0f9ff;
   
   --text-main: #000000;
   --text-secondary: #000000;
@@ -87,24 +87,24 @@
   --scrollbar-thumb-hover: #60a5fa;
   --scrollbar-thumb-border: #1f2937;
   
-  --primary: #6366f1;
-  --primary-hover: #4f46e5;
-  --primary-light: #1e1b4b;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --primary-light: #1e3a8a;
   
-  --success: #34d399;
+  --success: #10b981;
   --success-hover: #059669;
   --success-light: #064e3b;
   
-  --warning: #fbbf24;
+  --warning: #f59e0b;
   --warning-hover: #d97706;
   --warning-light: #78350f;
   
-  --danger: #f87171;
+  --danger: #ef4444;
   --danger-hover: #dc2626;
   --danger-light: #7f1d1d;
 
-  --info: #22d3ee;
-  --info-light: #083344;
+  --info: #38bdf8;
+  --info-light: #075985;
   
   --text-main: #f9fafb;
   --text-secondary: #d1d5db;
@@ -483,20 +483,210 @@ label {
 }
 
 
-/* 버튼 스타일 */
+/* 버튼 기본 및 엔터프라이즈 통합 버튼 시스템 */
 button {
   font-family: inherit;
   font-weight: 500;
-  font-size: 14px;
-  padding: 10px 16px;
+  font-size: 13px;
+  padding: 8px 14px;
   border-radius: var(--radius-sm);
   border: none;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   transition: all var(--transition-fast);
+}
+
+/* 전사 엔터프라이즈 통합 버튼 시스템 (Enterprise Unified Button System) */
+.btn-action-base,
+.btn-query,
+.btn-search,
+.btn-save,
+.btn-submit,
+.btn-register,
+.btn-excel-upload,
+.btn-upload,
+.btn-excel-download,
+.btn-download,
+.btn-reset,
+.btn-cancel {
+  height: 34px !important;
+  padding: 0 14px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease-in-out !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+  line-height: 1 !important;
+}
+
+/* 1. 조회 기능 (Query / Search) : 차분하고 지적인 Slate Navy */
+.btn-query,
+.btn-search {
+  background-color: #334155 !important;
+  color: #ffffff !important;
+  border: 1px solid #1e293b !important;
+}
+.btn-query:hover,
+.btn-search:hover {
+  background-color: #1e293b !important;
+  border-color: #0f172a !important;
+}
+[data-theme='dark'] .btn-query,
+[data-theme='dark'] .btn-search {
+  background-color: #475569 !important;
+  color: #ffffff !important;
+  border-color: #334155 !important;
+}
+[data-theme='dark'] .btn-query:hover,
+[data-theme='dark'] .btn-search:hover {
+  background-color: #334155 !important;
+}
+
+/* 2. 저장/등록 기능 (Save / Register / Submit) : 신뢰감 있는 Enterprise Royal Blue */
+.btn-save,
+.btn-submit,
+.btn-register {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  border: 1px solid #1d4ed8 !important;
+}
+.btn-save:hover,
+.btn-submit:hover,
+.btn-register:hover {
+  background-color: #1d4ed8 !important;
+  border-color: #1e40af !important;
+}
+[data-theme='dark'] .btn-save,
+[data-theme='dark'] .btn-submit,
+[data-theme='dark'] .btn-register {
+  background-color: #3b82f6 !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
+}
+[data-theme='dark'] .btn-save:hover,
+[data-theme='dark'] .btn-submit:hover,
+[data-theme='dark'] .btn-register:hover {
+  background-color: #2563eb !important;
+}
+
+/* 3. 엑셀 업로드 기능 (Excel Ingestion / Upload) : 차분한 Forest Emerald Solid */
+.btn-excel-upload,
+.btn-upload {
+  background-color: #047857 !important;
+  color: #ffffff !important;
+  border: 1px solid #065f46 !important;
+}
+.btn-excel-upload:hover,
+.btn-upload:hover {
+  background-color: #065f46 !important;
+  border-color: #064e3b !important;
+}
+[data-theme='dark'] .btn-excel-upload,
+[data-theme='dark'] .btn-upload {
+  background-color: #059669 !important;
+  color: #ffffff !important;
+  border-color: #047857 !important;
+}
+[data-theme='dark'] .btn-excel-upload:hover,
+[data-theme='dark'] .btn-upload:hover {
+  background-color: #047857 !important;
+}
+
+/* 4. 엑셀 다운로드 기능 (Excel Export / Download) : 단정하고 세련된 Emerald Outline/Subtle */
+.btn-excel-download,
+.btn-download {
+  background-color: #ffffff !important;
+  color: #047857 !important;
+  border: 1px solid #059669 !important;
+}
+.btn-excel-download:hover,
+.btn-download:hover {
+  background-color: #ecfdf5 !important;
+  color: #065f46 !important;
+  border-color: #047857 !important;
+}
+[data-theme='dark'] .btn-excel-download,
+[data-theme='dark'] .btn-download {
+  background-color: #1e293b !important;
+  color: #34d399 !important;
+  border: 1px solid #059669 !important;
+}
+[data-theme='dark'] .btn-excel-download:hover,
+[data-theme='dark'] .btn-download:hover {
+  background-color: #0f172a !important;
+}
+
+/* 5. 초기화/취소/보조 기능 (Reset / Cancel / Secondary) : 단정한 Slate Border */
+.btn-reset,
+.btn-cancel {
+  background-color: #ffffff !important;
+  color: #334155 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+.btn-reset:hover,
+.btn-cancel:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+  border-color: #94a3b8 !important;
+}
+[data-theme='dark'] .btn-reset,
+[data-theme='dark'] .btn-cancel {
+  background-color: #1e293b !important;
+  color: #cbd5e1 !important;
+  border-color: #475569 !important;
+}
+[data-theme='dark'] .btn-reset:hover,
+[data-theme='dark'] .btn-cancel:hover {
+  background-color: #334155 !important;
+}
+
+/* 6. 삭제/위험 기능 (Danger / Delete) : 차분하고 절제된 Crimson Red */
+.btn-danger {
+  height: 34px !important;
+  padding: 0 14px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+  background-color: #dc2626 !important;
+  color: #ffffff !important;
+  border: 1px solid #b91c1c !important;
+}
+.btn-danger:hover {
+  background-color: #b91c1c !important;
+}
+[data-theme='dark'] .btn-danger {
+  background-color: #ef4444 !important;
+  color: #ffffff !important;
+  border-color: #dc2626 !important;
+}
+[data-theme='dark'] .btn-danger:hover {
+  background-color: #dc2626 !important;
+}
+
+/* 소형 컴팩트 버튼 (.btn-sm) */
+.btn-sm {
+  height: 28px !important;
+  padding: 0 10px !important;
+  font-size: 11.5px !important;
+  gap: 4px !important;
+}
+
+/* 툴바 버튼 그룹 컨테이너 - 횡배치 표준 */
+.toolbar-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: nowrap !important;
 }
 
 .btn-primary,
@@ -525,14 +715,6 @@ button.btn-primary {
 }
 .btn-success:hover {
   background-color: var(--success-hover);
-}
-
-.btn-danger {
-  background-color: var(--danger);
-  color: var(--text-on-primary);
-}
-.btn-danger:hover {
-  background-color: var(--danger-hover);
 }
 
 button:disabled {

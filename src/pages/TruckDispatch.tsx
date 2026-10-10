@@ -3295,19 +3295,22 @@ export const TruckDispatch: React.FC = () => {
           </h2>
         </div>
         {activeTab === 'DISPATCH' && canSave && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="toolbar-actions">
+            <button
+              className="btn-save"
+              data-mid="btn-new-dispatch"
+              onClick={() => setShowManualModal(true)}
+            >
+              <Plus size={13} /> 수동 배차 등록
+            </button>
             <button
               data-uia="btn-excel-upload-delivery"
               data-hs-trigger="Register"
-              className="btn-secondary"
+              className="btn-excel-upload"
               onClick={() => setDispatchExcelModalOpen(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontWeight: 700, fontSize: '13px' }}
             >
-              <FileSpreadsheet size={15} color="var(--primary)" />
+              <FileSpreadsheet size={13} />
               <span>배차 엑셀 일괄 등록</span>
-            </button>
-            <button className="btn-primary" data-mid="btn-new-dispatch" onClick={() => setShowManualModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', fontWeight: 700, fontSize: '13px' }}>
-              <Plus size={15} /> [+ 수동 배차 생성]
             </button>
           </div>
         )}
@@ -5359,8 +5362,7 @@ export const TruckDispatch: React.FC = () => {
 
                 <button
                   onClick={handleReconSearch}
-                  className="btn-primary"
-                  style={{ padding: '5px 14px', fontSize: '12px', fontWeight: 800, borderRadius: '5px', display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}
+                  className="btn-query"
                 >
                   <Search size={13} /> 조회
                 </button>
@@ -5392,66 +5394,24 @@ export const TruckDispatch: React.FC = () => {
               
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="btn-primary"
-                style={{
-                  padding: '12px 18px',
-                  fontSize: '13.5px',
-                  fontWeight: 900,
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  boxShadow: '0 3px 10px rgba(59,130,246,0.3)',
-                  cursor: 'pointer',
-                  border: 'none',
-                  backgroundColor: 'var(--primary)',
-                  color: '#fff'
-                }}
+                className="btn-excel-upload"
+                style={{ height: '42px', fontSize: '13.5px', fontWeight: 700 }}
               >
-                <Upload size={16} /> 거래명세서 업로드 & 자동 대사
+                <Upload size={15} /> 거래명세서 업로드 & 자동 대사
               </button>
 
               {/* 하단 파이프라인 보조 버튼군 */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
                 <button
                   onClick={handleDownloadExcelTemplate}
-                  style={{
-                    padding: '6px 8px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    borderRadius: '5px',
-                    border: '1px solid var(--border-color)',
-                    backgroundColor: 'var(--bg-body)',
-                    color: 'var(--text-primary)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '4px',
-                    whiteSpace: 'nowrap'
-                  }}
+                  className="btn-reset btn-sm"
                 >
                   <FileSpreadsheet size={12} /> 양식 다운로드
                 </button>
 
                 <button
                   onClick={handleExportReconciliationReport}
-                  style={{
-                    padding: '6px 8px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    borderRadius: '5px',
-                    border: '1px solid rgba(16,185,129,0.4)',
-                    backgroundColor: 'rgba(16,185,129,0.1)',
-                    color: '#10b981',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '4px',
-                    whiteSpace: 'nowrap'
-                  }}
+                  className="btn-excel-download btn-sm"
                 >
                   <Download size={12} /> 대사 리포트
                 </button>

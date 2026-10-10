@@ -1555,8 +1555,8 @@ export const Contracts: React.FC = () => {
                   borderRadius: '6px',
                   fontSize: '12px',
                   fontWeight: contractTypeFilter === 'SALE' ? 700 : 500,
-                  border: contractTypeFilter === 'SALE' ? '1px solid #8b5cf6' : '1px solid var(--border-color)',
-                  backgroundColor: contractTypeFilter === 'SALE' ? '#8b5cf6' : 'var(--bg-app)',
+                  border: contractTypeFilter === 'SALE' ? '1px solid #475569' : '1px solid var(--border-color)',
+                  backgroundColor: contractTypeFilter === 'SALE' ? '#475569' : 'var(--bg-app)',
                   color: contractTypeFilter === 'SALE' ? '#fff' : 'var(--text-secondary)',
                   cursor: 'pointer',
                   display: 'flex',
@@ -1586,7 +1586,7 @@ export const Contracts: React.FC = () => {
               </button>
             </div>
 
-            {/* 1행: 검색어 & 엑셀 다운로드 */}
+            {/* 1행: 검색어 & 표준 횡배치 버튼군 (조회 -> 엑셀 다운로드) */}
             <div data-mid="contract-search-bar" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
               <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--bg-app)', padding: '8px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                 <Search size={16} color="var(--text-muted)" />
@@ -1603,9 +1603,14 @@ export const Contracts: React.FC = () => {
                 )}
               </div>
 
-              <button className="btn-secondary" onClick={handleExportExcel} style={{ padding: '8px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <Download size={14} /> 엑셀 다운로드
-              </button>
+              <div className="toolbar-actions">
+                <button className="btn-query" onClick={handleSearchClick}>
+                  <Search size={13} /> 조회
+                </button>
+                <button className="btn-excel-download" onClick={handleExportExcel}>
+                  <Download size={13} /> 엑셀 다운로드
+                </button>
+              </div>
             </div>
 
             {/* 2행: 고객사, 현장, 시작일, 종료일 세부 상세 필터 (레이블 상단 헤더 세로 스택 구조) */}

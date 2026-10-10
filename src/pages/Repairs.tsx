@@ -1661,9 +1661,8 @@ export const Repairs: React.FC = () => {
 
             <button
               type="button"
-              className="btn-secondary"
+              className="btn-excel-download"
               onClick={handleExportExcel}
-              style={{ padding: '6px 12px', height: '33px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
             >
               <Download size={13} /> 엑셀 다운로드
             </button>

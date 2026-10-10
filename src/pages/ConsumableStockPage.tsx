@@ -646,25 +646,23 @@ export const ConsumableStockPage: React.FC = () => {
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={handleExportStock}
-                  style={{ padding: '7px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
-                >
-                  <Download size={14} /> 엑셀 내보내기
-                </button>
+              <div className="toolbar-actions">
                 {canSave && (
                   <button data-hs-trigger="Register"
                     type="button"
-                    className="btn-primary"
+                    className="btn-save"
                     onClick={openCreateMaster}
-                    style={{ padding: '7px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
                   >
-                    <Plus size={14} /> 품목 마스터 등록
+                    <Plus size={13} /> 품목 마스터 등록
                   </button>
                 )}
+                <button
+                  type="button"
+                  className="btn-excel-download"
+                  onClick={handleExportStock}
+                >
+                  <Download size={13} /> 엑셀 내보내기
+                </button>
               </div>
             </div>
           </div>
@@ -830,11 +828,10 @@ export const ConsumableStockPage: React.FC = () => {
                 )}
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn-excel-download"
                   onClick={handleExportVehicleStock}
-                  style={{ padding: '7px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
                 >
-                  <Download size={14} /> 엑셀 내보내기
+                  <Download size={13} /> 엑셀 내보내기
                 </button>
               </div>
             </div>

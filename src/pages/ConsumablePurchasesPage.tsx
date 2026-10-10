@@ -280,27 +280,26 @@ export const ConsumablePurchasesPage: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {activeTab === 'REQ_LIST' && (
-            <button 
-              className="btn-secondary" 
-              onClick={handleExportExcel} 
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
-            >
-              <Download size={14} />
-              <span>구매대장 엑셀</span>
-            </button>
-          )}
+        {/* 우측 파이프라인 버튼군 - 표준 횡배치: 엑셀업로드 -> 엑셀다운로드 */}
+        <div className="toolbar-actions">
           {canSave && (
             <button
               data-uia="btn-excel-upload-consumable"
               data-hs-trigger="Register"
-              className="btn-primary"
+              className="btn-excel-upload"
               onClick={() => setExcelModalOpen(true)}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 14px' }}
             >
-              <FileSpreadsheet size={14} />
+              <FileSpreadsheet size={13} />
               <span>엑셀 일괄 등록</span>
+            </button>
+          )}
+          {activeTab === 'REQ_LIST' && (
+            <button 
+              className="btn-excel-download" 
+              onClick={handleExportExcel} 
+            >
+              <Download size={13} />
+              <span>구매대장 엑셀</span>
             </button>
           )}
         </div>

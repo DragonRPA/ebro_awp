@@ -495,32 +495,31 @@ export const Products: React.FC = () => {
           </span>
         </div>
 
-        {/* 우상단 파이프라인 액션 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        {/* 우상단 파이프라인 액션 - 표준 횡배치: 조회 -> 저장/등록 -> 엑셀업로드 -> 엑셀다운로드 */}
+        <div className="toolbar-actions">
           <button
-            className="btn-secondary"
+            className="btn-query"
             onClick={handleRefresh}
             disabled={refreshing}
-            style={{ padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
           >
             <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} /> 조회
           </button>
-          <button
-            className="btn-secondary"
-            onClick={handleExport}
-            style={{ padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
-          >
-            <Download size={13} /> 엑셀 다운로드
-          </button>
           {canSave && (
-            <button data-hs-trigger="Register" data-mid="product-btn-add"
-              className="btn-primary"
+            <button
+              data-hs-trigger="Register"
+              data-mid="product-btn-add"
+              className="btn-save"
               onClick={handleOpenAddModal}
-              style={{ padding: '5px 12px', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
             >
               <Plus size={13} /> 모델 등록
             </button>
           )}
+          <button
+            className="btn-excel-download"
+            onClick={handleExport}
+          >
+            <Download size={13} /> 엑셀 다운로드
+          </button>
         </div>
       </div>
 

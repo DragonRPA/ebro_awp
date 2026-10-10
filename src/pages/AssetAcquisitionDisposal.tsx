@@ -1748,11 +1748,10 @@ export const AssetAcquisitionDisposal: React.FC = () => {
 
                 <button
                   type="button"
-                  className="btn-secondary"
+                  className="btn-excel-download"
                   onClick={handleDownloadTemplate}
-                  style={{ padding: '6px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
-                  <Download size={14} /> 표준 취득 양식 다운로드
+                  <Download size={13} /> 표준 취득 양식 다운로드
                 </button>
               </div>
 
@@ -2184,11 +2183,10 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                   </label>
                   <button
                     type="button"
-                    className="btn-secondary"
+                    className="btn-excel-download btn-sm"
                     onClick={handleExportDisposalAssets}
-                    style={{ padding: '4px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', borderColor: 'var(--success)', color: 'var(--success)' }}
                   >
-                    <Download size={13} /> 엑셀 내보내기
+                    <Download size={12} /> 엑셀 내보내기
                   </button>
                 </div>
               </div>
@@ -2386,8 +2384,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                       <button
                         type="button"
                         onClick={handleExportDisposalBasket}
-                        className="btn-secondary"
-                        style={{ padding: '3px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', borderColor: 'var(--success)', color: 'var(--success)' }}
+                        className="btn-excel-download btn-sm"
                       >
                         <Download size={11} /> 엑셀 내보내기
                       </button>

@@ -477,10 +477,10 @@ export const Deliveries: React.FC = () => {
             출고 배차 및 장비 회수를 제어하고, 물류사 차량별 운송비(임시 vs 확정)를 정산 마감합니다.
           </span>
         </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div className="toolbar-actions">
           <button 
             type="button" 
-            className="btn-primary" 
+            className="btn-reset" 
             onClick={() => {
               if (deliveries.length > 0) {
                 handleOpenDestWeather(deliveries[deliveries.length - 1]);
@@ -489,17 +489,15 @@ export const Deliveries: React.FC = () => {
                 setShowDestWeatherModal(true);
               }
             }}
-            style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '13px', padding: '8px 14px', backgroundColor: 'var(--primary)', fontWeight: 'bold' }}
           >
-            <Sun size={15} color="#F59E0B" /> 하차지 일기예보
+            <Sun size={13} /> 하차지 일기예보
           </button>
           <button 
             type="button" 
-            className="btn-secondary" 
+            className="btn-excel-download" 
             onClick={handleExportExcel}
-            style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', padding: '8px 14px' }}
           >
-            <Download size={14} /> 배차목록 엑셀 다운로드
+            <Download size={13} /> 배차목록 엑셀 다운로드
           </button>
         </div>
       </div>
@@ -562,18 +560,17 @@ export const Deliveries: React.FC = () => {
               ))}
             </select>
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div className="toolbar-actions" style={{ height: '38px', alignItems: 'flex-end' }}>
             <button 
               type="button" 
-              className="btn-primary" 
+              className="btn-query" 
               onClick={handleSearchClick}
-              style={{ flex: 1, height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontWeight: 'bold' }}
             >
-              <Search size={16} /> 조회
+              <Search size={13} /> 조회
             </button>
             <button 
               type="button" 
-              className="btn-secondary" 
+              className="btn-reset" 
               onClick={() => {
                 setTempSearchTerm('');
                 setTempTypeFilter('ALL');
@@ -1111,7 +1108,7 @@ export const Deliveries: React.FC = () => {
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
               <button type="button" className="btn-secondary" onClick={() => setShowInboundModal(false)}>취소</button>
-              <button data-hs-trigger="Register" type="submit" className="btn-success" disabled={reviews.length === 0 || reviews.some(r => r.status === 'REPAIRING' && !r.faultImageUrl)}>입고 등록 완료</button>
+              <button data-hs-trigger="Register" type="submit" className="btn-save" disabled={reviews.length === 0 || reviews.some(r => r.status === 'REPAIRING' && !r.faultImageUrl)}>입고 등록 완료</button>
             </div>
           </form>
         </div>

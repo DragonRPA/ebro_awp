@@ -503,16 +503,23 @@ export const Receivables: React.FC = () => {
           </div>
         </div>
 
-        {/* 우측 파이프라인 버튼군 */}
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-          <button className="btn-secondary" onClick={handleExportExcel} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}>
-            <Download size={14} /> 엑셀 다운로드
-          </button>
+        {/* 우측 파이프라인 버튼군 - 표준 횡배치: 등록/저장 -> 엑셀다운로드 */}
+        <div className="toolbar-actions">
           {canWrite && (
-            <button data-hs-trigger="Register" className="btn-primary" onClick={() => setShowAddModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 14px' }}>
-              <Plus size={14} /> 신규 외상 등록
+            <button
+              data-hs-trigger="Register"
+              className="btn-save"
+              onClick={() => setShowAddModal(true)}
+            >
+              <Plus size={13} /> 신규 외상 등록
             </button>
           )}
+          <button
+            className="btn-excel-download"
+            onClick={handleExportExcel}
+          >
+            <Download size={13} /> 엑셀 다운로드
+          </button>
         </div>
       </div>
 
@@ -635,20 +642,18 @@ export const Receivables: React.FC = () => {
           </div>
 
           {/* 조회 & 초기화 액션 버튼 */}
-          <div style={{ display: 'flex', gap: '4px', marginLeft: 'auto' }}>
+          <div style={{ display: 'flex', gap: '6px', marginLeft: 'auto' }}>
             <button
               type="button"
-              className="btn-primary"
+              className="btn-query"
               onClick={handleApplyFilter}
-              style={{ padding: '5px 14px', fontSize: '12px', whiteSpace: 'nowrap', fontWeight: 700 }}
             >
-              조회
+              <Search size={13} /> 조회
             </button>
             <button
               type="button"
-              className="btn-secondary"
+              className="btn-reset"
               onClick={handleResetFilter}
-              style={{ padding: '5px 8px', fontSize: '12px', whiteSpace: 'nowrap' }}
               title="필터 초기화"
             >
               <RotateCcw size={13} />
