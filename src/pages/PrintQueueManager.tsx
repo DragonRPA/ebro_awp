@@ -385,15 +385,13 @@ export const PrintQueueManager: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="printqueuemanager" data-mid="print_queue-header" data-subview="print_queue_monitor" data-subview-title="Generated"
+    <div data-hs-observe="printqueuemanager" data-subview="print_queue_monitor" data-subview-title="Generated"
       style={{
-        padding: '24px',
-        backgroundColor: 'var(--bg-app)',
-        minHeight: '100%',
-        color: 'var(--text-main)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '20px',
+        gap: '14px',
+        height: '100%',
+        color: 'var(--text-main)',
         boxSizing: 'border-box'
       }}
     >
@@ -404,30 +402,18 @@ export const PrintQueueManager: React.FC = () => {
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '16px',
-          paddingBottom: '16px',
+          gap: '12px',
+          paddingBottom: '8px',
           borderBottom: '1px solid var(--border-color)'
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div
-            style={{
-              padding: '10px',
-              backgroundColor: 'var(--primary)',
-              color: '#ffffff',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <Printer size={22} />
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Printer size={18} color="var(--primary)" />
           <div>
-            <h1 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-main)', margin: 0, letterSpacing: '-0.3px' }}>
+            <h2 data-mid="print_queue_monitor-header" style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-main)', margin: 0, whiteSpace: 'nowrap' }}>
               프린트 큐 모니터
-            </h1>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: '3px 0 0 0' }}>
+            </h2>
+            <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
               로컬 프린터 원격 무인 인쇄 및 다중 프린터 스테이션 관리
             </p>
           </div>

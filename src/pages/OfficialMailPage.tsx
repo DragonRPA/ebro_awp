@@ -302,16 +302,14 @@ export const OfficialMailPage: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="officialmailpage" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1600px', margin: '0 auto', color: 'var(--text-main)' }}>
+    <div data-hs-observe="officialmailpage" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', color: 'var(--text-main)' }}>
       {/* 화면 헤더 (무수식어 건조 표준) */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ padding: '10px', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', borderRadius: '8px' }}>
-            <Mail size={22} />
-          </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Mail size={18} color="var(--primary)" />
           <div>
-            <h1 style={{ fontSize: '20px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>공식 메일 발송</h1>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '4px 0 0' }}>
+            <h2 data-mid="official_mail-header" style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>공식 메일 발송</h2>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '2px 0 0' }}>
               회사 공식 구글 계정({senderEmail}) 기반 견적서·회사소개서·제원표·서식 발송 센터
             </p>
           </div>

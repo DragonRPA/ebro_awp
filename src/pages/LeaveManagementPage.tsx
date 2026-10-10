@@ -304,13 +304,13 @@ export const LeaveManagementPage: React.FC = () => {
   });
 
   return (
-    <div data-hs-observe="leavemanagementpage" data-subview="leave_management" data-subview-title="Generated" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div data-hs-observe="leavemanagementpage" data-subview="leave_management" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%' }}>
       
       {/* 헤더 타이틀 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h2 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <UserCheck size={22} style={{ color: 'var(--primary)' }} />
+          <h2 data-mid="leave_management-header" style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
+            <UserCheck size={18} style={{ color: 'var(--primary)' }} />
             연차관리
             <span style={{
               fontSize: '11px',

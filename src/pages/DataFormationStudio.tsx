@@ -162,14 +162,14 @@ export const DataFormationStudio: React.FC = () => {
   const errorCount = reports.reduce((sum, r) => sum + r.errors.length, 0);
 
   return (
-    <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', height: '100%', overflowY: 'auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', overflowY: 'auto' }}>
       {/* 타이틀 및 헤더 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <FileSpreadsheet size={24} color="var(--primary)" />
-            초기자료형성 (Data Formation Studio)
-          </h1>
+          <h2 data-mid="data_formation-header" style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
+            <FileSpreadsheet size={18} color="var(--primary)" />
+            초기자료형성
+          </h2>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '6px' }}>
             다양한 테넌트의 불규칙한 엑셀 데이터를 정규 스키마 템플릿으로 맵핑하고, 부족 요소(Gap)를 식별 및 보정하여 실 DB에 이관합니다.
           </p>

@@ -490,12 +490,15 @@ export const Receivables: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="receivables" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+    <div data-hs-observe="receivables" style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '12px' }}>
       
-      {/* ── 1. 상단 헤더 & 슬림 인라인 요약 바 (거대 카드 4개 대체 및 중복 제거) ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+      {/* ── 1. 상단 헤더 & 슬림 인라인 요약 바 (Gutenberg Z-Pattern) ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, whiteSpace: 'nowrap' }}>외상미수금 대장</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <DollarSign size={18} color="var(--primary)" />
+            <h2 data-mid="receivable-header" style={{ margin: 0, fontSize: '17px', fontWeight: 700, whiteSpace: 'nowrap' }}>외상미수금 대장</h2>
+          </div>
           
           {/* 슬림 인라인 요약 뱃지 (높이 100px 절약 & 중복 해소) */}
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', fontSize: '11.5px' }}>

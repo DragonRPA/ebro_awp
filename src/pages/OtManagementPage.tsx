@@ -557,14 +557,14 @@ export const OtManagementPage: React.FC = () => {
   }, [isDateDetailModalOpen]);
 
   return (
-    <div data-hs-observe="otmanagementpage" data-mid="ot-header" data-subview="ot_management" data-subview-title="Generated" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div data-hs-observe="otmanagementpage" data-subview="ot_management" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%' }}>
       
       {/* 헤더 타이틀 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h2 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h2 data-mid="ot_management-header" style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
             <Clock size={22} style={{ color: 'var(--primary)' }} />
-            OT 관리
+            연장근무 관리
           </h2>
         </div>
 

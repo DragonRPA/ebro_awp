@@ -1250,7 +1250,7 @@ export const DevDataUploader: React.FC = () => {
 
   if (!isAdmin) {
     return (
-      <div data-hs-observe="devdatauploader" style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+      <div data-hs-observe="devdatauploader" style={{ textAlign: 'center', marginTop: '40px', color: 'var(--text-muted)' }}>
         <AlertTriangle size={40} style={{ margin: '0 auto 16px' }} />
         <h3>접근 권한 없음</h3>
         <p>이 메뉴는 ADMIN 역할만 접근 가능합니다.</p>
@@ -1259,11 +1259,11 @@ export const DevDataUploader: React.FC = () => {
   }
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%' }}>
       {/* 헤더 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-        <DatabaseIcon size={22} color="var(--primary)" />
-        <h2 style={{ fontWeight: '800', fontSize: '20px' }}>개발자 도구 - Supabase 데이터 업로더</h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
+        <DatabaseIcon size={18} color="var(--primary)" />
+        <h2 data-mid="dev_uploader-header" style={{ fontWeight: 700, fontSize: '17px', margin: 0, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>DB 데이터 업로더</h2>
       </div>
 
       {/* Supabase 연결 상태 배너 */}

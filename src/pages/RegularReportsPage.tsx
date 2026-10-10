@@ -194,12 +194,11 @@ export const RegularReportsPage: React.FC = () => {
     <main 
       data-uia="regular-reports-page"
       style={{ 
-        padding: '20px 24px', 
         backgroundColor: 'var(--bg-app, #0f172a)', 
         height: '100%', 
         display: 'flex', 
         flexDirection: 'column', 
-        gap: '16px',
+        gap: '14px',
         overflowY: 'auto',
         color: 'var(--text-main, #f8fafc)'
       }}
@@ -241,9 +240,9 @@ export const RegularReportsPage: React.FC = () => {
         {/* 좌측: 타이틀 및 보고서 유형 탭 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
           <div>
-            <h1 style={{ margin: 0, fontSize: '19px', fontWeight: 800, letterSpacing: '-0.3px', whiteSpace: 'nowrap' }}>
+            <h2 data-mid="regular_reports-header" style={{ margin: 0, fontSize: '17px', fontWeight: 700, letterSpacing: '-0.3px', whiteSpace: 'nowrap' }}>
               정기보고서 생성
-            </h1>
+            </h2>
           </div>
 
           {/* 3대 정기보고서 유형 탭 (건조한 명사 단일 표준) */}

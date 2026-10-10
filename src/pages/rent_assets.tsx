@@ -1475,14 +1475,15 @@ export const RentAssets: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="rent_assets" data-mid="rent_asset-header" data-subview="rent_asset" data-subview-title="Generated" style={{ padding: '14px 20px', maxWidth: '1600px', margin: '0 auto' }}>
+    <div data-hs-observe="rent_assets" data-subview="rent_asset" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%' }}>
       
       {/* 1. 상단 메뉴 헤더 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-        <div>
-          <h1 style={{ fontSize: '20px', fontWeight: '800', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-main)' }}>
-            <Layers className="text-primary" size={22} /> 임차 장비 관리
-          </h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Layers size={18} color="var(--primary)" />
+          <h2 data-mid="rent_asset-header" style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+            임차 장비 관리
+          </h2>
         </div>
 
         {activeTab === 'CURRENT' && canSave && (

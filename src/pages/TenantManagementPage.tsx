@@ -825,7 +825,7 @@ export const TenantManagementPage: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="tenantmanagementpage" style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '100%', gap: '16px', overflowY: 'auto' }}>
+    <div data-hs-observe="tenantmanagementpage" style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '14px', overflowY: 'auto' }}>
       
       {/* ── 1. 상단 바: 좌상단 스코프 & 우상단 파이프라인 (Gutenberg Z-Pattern) ── */}
       <div style={{ 
@@ -844,9 +844,9 @@ export const TenantManagementPage: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Building2 size={20} color="var(--primary)" />
-            <span style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+            <h2 data-mid="tenant_management-header" style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
               테넌트 관리
-            </span>
+            </h2>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

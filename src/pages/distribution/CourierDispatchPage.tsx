@@ -301,16 +301,16 @@ export const CourierDispatchPage: React.FC = () => {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: '#f8fafc', fontFamily: 'Pretendard, sans-serif' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '14px' }}>
       
       {/* Header Bar */}
-      <div style={{ padding: '16px 20px', backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ paddingBottom: '8px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h2 data-mid="courier_dispatch-header" style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Truck size={20} color="#3b82f6" />
-            택배 배송 관리 (송장 입력)
+          <h2 data-mid="courier_dispatch-header" style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
+            <Truck size={18} color="var(--primary)" />
+            택배 배송 관리
           </h2>
-          <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '4px' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
             유통 계약 출고건의 택배 송장 발급, 화물 직배 배차, 납품증 출력 및 운송기사 모바일 서명 통합 관리
           </div>
         </div>
@@ -349,17 +349,17 @@ export const CourierDispatchPage: React.FC = () => {
       </div>
 
       {/* Main Content Table Area */}
-      <div style={{ flex: 1, padding: '20px', overflow: 'auto' }}>
-        <table data-mid="courier_dispatch-table" style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#fff', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        <table data-mid="courier_dispatch-table" style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--bg-card)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
           <thead>
-            <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: '#475569', width: '110px' }}>출고번호</th>
-              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: '#475569' }}>주문번호 / 고객사</th>
-              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: '#475569' }}>배송 품목</th>
-              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: '#475569', width: '100px' }}>운송구분</th>
-              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: '#475569' }}>운송/배송 정보</th>
-              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: '#475569', width: '90px' }}>진행상태</th>
-              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: '#475569', minWidth: '320px' }}>배차 / 납품증 / 서명 관리</th>
+            <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: '#475569', width: '110px', whiteSpace: 'nowrap' }}>출고번호</th>
+              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>주문번호 / 고객사</th>
+              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>배송 품목</th>
+              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: '#475569', width: '100px', whiteSpace: 'nowrap' }}>운송구분</th>
+              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>운송/배송 정보</th>
+              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: '#475569', width: '90px', whiteSpace: 'nowrap' }}>진행상태</th>
+              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: '#475569', minWidth: '320px', whiteSpace: 'nowrap' }}>배차 / 납품증 / 서명 관리</th>
             </tr>
           </thead>
           <tbody>

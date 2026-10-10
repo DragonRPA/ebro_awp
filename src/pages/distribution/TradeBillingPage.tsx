@@ -8,25 +8,28 @@ export const TradeBillingPage: React.FC = () => {
   const [proofTitle, setProofTitle] = useState<string>('');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: '#f8fafc', fontFamily: 'Pretendard, sans-serif' }}>
-      <div style={{ padding: '16px 20px', backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '14px' }}>
+      <div style={{ paddingBottom: '8px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 data-mid="trade_billing-header" style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#0f172a' }}>유통 청구 및 명세</h2>
-          <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '4px' }}>
+          <h2 data-mid="trade_billing-header" style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
+            <FileText size={18} color="var(--primary)" />
+            유통 청구 및 명세
+          </h2>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
             납품증빙 서명이 완료된 유통 매출건을 검증하고 월별 거래명세서 및 전자세금계산서 청구 발행
           </div>
         </div>
       </div>
 
-      <div style={{ flex: 1, padding: '20px', overflow: 'auto' }}>
-        <table data-mid="trade_billing-table" style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#fff', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        <table data-mid="trade_billing-table" style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--bg-card)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
           <thead>
-            <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: '#475569' }}>주문번호</th>
-              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: '#475569' }}>고객사</th>
-              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: '#475569' }}>납품증빙 서명 확인</th>
-              <th style={{ padding: '12px 14px', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: '#475569' }}>매출액 (원)</th>
-              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: '#475569' }}>청구 발행</th>
+            <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>주문번호</th>
+              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>고객사</th>
+              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>납품증빙 서명 확인</th>
+              <th style={{ padding: '12px 14px', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>매출액 (원)</th>
+              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>청구 발행</th>
             </tr>
           </thead>
           <tbody>

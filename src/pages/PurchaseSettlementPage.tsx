@@ -259,7 +259,7 @@ export const PurchaseSettlementPage: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="purchasesettlementpage" data-mid="purchase_settlement-header" data-subview="purchase_settlement" data-subview-title="Generated" style={{ padding: '20px 24px', maxWidth: '1100px', position: 'relative' }}>
+    <div data-hs-observe="purchasesettlementpage" data-subview="purchase_settlement" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -278,7 +278,10 @@ export const PurchaseSettlementPage: React.FC = () => {
           {toastMessage.text}
         </div>
       )}
-      <h2 style={{ fontSize: '22px', fontWeight: '800', marginBottom: '6px' }}>매입 정산 대장</h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
+        <CreditCard size={18} color="var(--primary)" />
+        <h2 data-mid="purchase_settlement-header" style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>월말 매입 정산</h2>
+      </div>
       <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
         운송료·소모품·전대임차·외주정비 월별 매입처별 집계 및 통장 출금 1:1 대사
       </p>

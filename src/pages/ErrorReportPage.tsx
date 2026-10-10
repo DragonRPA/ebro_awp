@@ -404,7 +404,7 @@ export const ErrorReportPage: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="errorreportpage" data-mid="error_report-header" data-subview="error_report" data-subview-title="Generated" style={{ padding: '20px', width: '100%', boxSizing: 'border-box' }}>
+    <div data-hs-observe="errorreportpage" data-subview="error_report" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%', boxSizing: 'border-box' }}>
       {/* ─── 토스트 알림 ─── */}
       {toastMessage && (
         <div style={{
@@ -428,14 +428,12 @@ export const ErrorReportPage: React.FC = () => {
       )}
 
       {/* ─── 화면 헤더 및 3대 단계 요약 HUD (Gutenberg Z-패턴: 상단) ─── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'nowrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-          <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: 'var(--info-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
-            <AlertTriangle size={22} />
-          </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)', flexWrap: 'nowrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+          <AlertTriangle size={18} color="var(--primary)" />
           <div>
-            <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: 'var(--text-primary)' }}>오류 신고 관리</h2>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+            <h2 data-mid="error_report-header" style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>오류 신고</h2>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
               등록 ➔ 접수 ➔ 완료 3단계 처리 파이프라인 및 증빙 파일 첨부
             </div>
           </div>

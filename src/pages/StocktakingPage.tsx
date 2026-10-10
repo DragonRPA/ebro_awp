@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { StocktakingAudit, StocktakingAuditItem, db } from '../services/db';
 import { SortableTh } from '../components/SortableTh';
@@ -114,9 +114,11 @@ const [barcodeInput, setBarcodeInput] = useState('');
 
   if (!activeAudit) {
     return (
-      <div style={{ padding: '20px' }}>
-        <h2>재고 실사 시작</h2>
-        <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '14px' }}>
+        <div style={{ paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
+          <h2 data-mid="stocktaking-header" style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>재고 실사</h2>
+        </div>
+        <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
           <select data-mid="stocktaking-area-select" value={selectedArea} onChange={e => setSelectedArea(e.target.value)} style={{ padding: '8px' }}>
             <option value="HQ">본사 주기장 (비가동 장비 및 소모품)</option>
             <option value="VEHICLE">정비사 차량 (소모품)</option>
@@ -136,7 +138,7 @@ const [barcodeInput, setBarcodeInput] = useState('');
   }
 
   return (
-    <main className="inventory-reconciliation" style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+    <main className="inventory-reconciliation" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', borderBottom: '2px solid #000', background: '#f5f5f5' }}>
         <form onSubmit={handleBarcodeSubmit} className="filter-scan-group z-pattern-start" style={{ display: 'flex', gap: '8px' }}>
           <div style={{ padding: '6px 12px', background: '#e0e0e0', fontWeight: 'bold' }}>

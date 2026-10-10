@@ -1455,13 +1455,13 @@ export const InitialDbUploader: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="initialdbuploader" data-mid="initial_db_upload-header" data-subview="initial_db_upload" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div data-hs-observe="initialdbuploader" data-subview="initial_db_upload" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%' }}>
       {/* 상단 타이틀 헤더 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <Database size={28} color="#2563eb" />
           <div>
-            <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>초기DB 업로드</h1>
+            <h2 data-mid="initial_db_upload-header" style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>초기DB 업로드</h2>
             <span style={{ fontSize: '13px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               신규 고객 서비스 개시를 위한 과거 라이프사이클 체인 복원 및 청구 마감 일괄 적재
             </span>

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useCashFlowReport } from '../hooks/useCashFlowReport';
 import { AlertTriangle, Download, DollarSign, Activity, TrendingDown, CheckCircle } from 'lucide-react';
@@ -18,7 +18,7 @@ export const CashFlowPage: React.FC = () => {
 
   if (!report.integrity.isValid) {
     return (
-      <div style={{ padding: '24px', color: 'var(--danger)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', color: 'var(--danger)' }}>
         <h2>⚠️ 데이터 무결성 오류</h2>
         <p>DB의 누적 청구액과 수납액, 미수잔액의 대차대조 합계가 일치하지 않습니다.</p>
         <p>차액: {report.integrity.diff.toLocaleString()}원</p>
@@ -28,17 +28,37 @@ export const CashFlowPage: React.FC = () => {
   }
 
   return (
-    <main style={{ 
-      display: 'grid', 
-      gridTemplateColumns: '3fr 1.5fr', 
-      gridTemplateRows: 'auto 1fr', 
-      gap: '20px', 
-      padding: '24px',
-      height: '100%',
-      backgroundColor: 'var(--bg-app)'
-    }}>
-      {/* 1. 좌상단 (Primary) - 핵심 지표 */}
-      <header data-mid="cash_flow-header" style={{ gridColumn: 1, gridRow: 1, display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%' }}>
+      {/* ── 표준 헤더 바 ── */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingBottom: '8px',
+        borderBottom: '1px solid var(--border-color)',
+        flexShrink: 0
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Activity size={18} color="var(--primary)" />
+          <h2 data-mid="cash_flow-header" style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+            자금 흐름 분석
+          </h2>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            월별 현금 유출입 추정 및 유동성 가용 기간 모니터링
+          </span>
+        </div>
+      </div>
+
+      <main style={{ 
+        display: 'grid', 
+        gridTemplateColumns: '3fr 1.5fr', 
+        gridTemplateRows: 'auto 1fr', 
+        gap: '14px', 
+        flex: 1,
+        backgroundColor: 'var(--bg-app)'
+      }}>
+        {/* 1. 좌상단 (Primary) - 핵심 지표 */}
+        <header data-mid="cash_flow-kpi" style={{ gridColumn: 1, gridRow: 1, display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>가용자금</span>
           <span style={{ fontSize: '32px', fontWeight: 800, color: report.netAvailableCash < 0 ? 'var(--danger)' : 'var(--primary)' }}>
@@ -180,5 +200,6 @@ export const CashFlowPage: React.FC = () => {
         </div>
       </footer>
     </main>
+  </div>
   );
 };

@@ -456,8 +456,40 @@ export const DailyInOutStatus: React.FC = () => {
     <div data-hs-observe="dailyinoutstatus" 
       data-subview="daily_inout" 
       data-subview-title="일일 입출고 조회" 
-      style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '30px' }}
+      style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', minHeight: 0 }}
     >
+      {/* ── 표준 헤더 바 (Gutenberg Z-Pattern) ── */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingBottom: '8px',
+        borderBottom: '1px solid var(--border-color)',
+        flexShrink: 0,
+        flexWrap: 'wrap',
+        gap: '10px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Calendar size={18} color="var(--primary)" />
+          <h2 data-mid="daily_inout-header" style={{ margin: 0, fontWeight: 700, fontSize: '17px', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+            일일 입출고 조회
+          </h2>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            일자별 장비 입출고 실적 및 배차 예정 캘린더/대장 조회
+          </span>
+        </div>
+        <div className="toolbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => fullRefreshFromServer?.()}
+            className="btn btn-secondary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+          >
+            <RefreshCw size={14} />
+            새로고침
+          </button>
+        </div>
+      </div>
+
       {/* ──────────────────────────────────────────────────────── */}
       {/* 헌장 3.5 Gutenberg Z-패턴: ①좌상단 스코프 & ②우상단 파이프라인 */}
       {/* ──────────────────────────────────────────────────────── */}

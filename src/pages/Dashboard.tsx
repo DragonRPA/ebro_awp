@@ -51,9 +51,40 @@ export const Dashboard: React.FC = () => {
   const activeTasks = useMemo(() => findActiveTasksForUser(todos, currentUser, hasPermission), [todos, currentUser, hasPermission]);
 
   return (
-    <div data-hs-observe="dashboard" data-mid="dashboard-header" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div data-hs-observe="dashboard" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
       
-      
+      {/* ── 표준 헤더 바 (Gutenberg Z-Pattern) ── */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingBottom: '8px',
+        borderBottom: '1px solid var(--border-color)',
+        flexShrink: 0,
+        flexWrap: 'wrap',
+        gap: '10px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Activity size={18} color="var(--primary)" />
+          <h2 data-mid="dashboard-header" style={{ margin: 0, fontWeight: 700, fontSize: '17px', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+            대시보드
+          </h2>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            직무 중심 당면 과제 및 전사 운영 현황
+          </span>
+        </div>
+        <div className="toolbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => refreshAllData()}
+            className="btn btn-secondary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+          >
+            <RefreshCw size={14} />
+            새로고침
+          </button>
+        </div>
+      </div>
+
       {activeTasks.length > 0 && (
         <details data-mid="dashboard-todo-feed" open style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',

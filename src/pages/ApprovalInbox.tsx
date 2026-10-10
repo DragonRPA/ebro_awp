@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { CheckSquare } from 'lucide-react';
 import { supabase, TIER_LABELS, db, Billing, Contract, ContractAsset, ContractHistory, Asset, ApprovalPayload, Customer, Delivery, LeaveUsage, AssetInOutLog, getUserEffectiveTier } from '../services/db';
 import { useApp } from '../context/AppContext';
 
@@ -442,13 +443,16 @@ const ApprovalInbox: React.FC = () => {
      렌더
   ════════════════════════════════════════════════════ */
   return (
-    <div data-hs-observe="approvalinbox" data-mid="approvalInboxMain" data-subview="approvalInbox" style={{ padding: '20px 24px', maxWidth: '1100px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <h2 data-mid="approvalInbox-header" style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main, #1e293b)', margin: 0 }}>결재함 (수신)</h2>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted, #64748b)', margin: '3px 0 0' }}>
-            대기 중인 결재: {steps.length}건 (현재 접속: {currentUser?.name || '미인증'} [{currentUser?.duty || currentUser?.position || '사원'} | Tier {currentUser ? getUserEffectiveTier(currentUser).effectiveTier : 0}])
-          </p>
+    <div data-hs-observe="approvalinbox" data-mid="approvalInboxMain" data-subview="approvalInbox" style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxWidth: '1200px', width: '100%', margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <CheckSquare size={18} color="var(--primary)" />
+          <div>
+            <h2 data-mid="approvalInbox-header" style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-main, #1e293b)', margin: 0, whiteSpace: 'nowrap' }}>결재함 (수신)</h2>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted, #64748b)', margin: '2px 0 0' }}>
+              대기 중인 결재: {steps.length}건 (현재 접속: {currentUser?.name || '미인증'} [{currentUser?.duty || currentUser?.position || '사원'} | Tier {currentUser ? getUserEffectiveTier(currentUser).effectiveTier : 0}])
+            </p>
+          </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -582,13 +586,13 @@ const ApprovalInbox: React.FC = () => {
                         <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', background: 'var(--bg-card, #fff)', border: '1px solid var(--border-color, #e2e8f0)', borderRadius: '6px', overflow: 'hidden' }}>
                           <thead>
                             <tr style={{ background: 'var(--bg-card-header, #f1f5f9)', color: 'var(--text-main, #334155)', textAlign: 'left' }}>
-                              <th style={{ padding: '6px 8px', width: '35px' }}>#</th>
-                              <th style={{ padding: '6px 8px' }}>품목명 / 규격</th>
-                              <th style={{ padding: '6px 8px', textAlign: 'right' }}>수량</th>
-                              <th style={{ padding: '6px 8px', textAlign: 'right' }}>단가</th>
-                              <th style={{ padding: '6px 8px', textAlign: 'right' }}>공급가액</th>
-                              <th style={{ padding: '6px 8px', textAlign: 'right' }}>부가세</th>
-                              <th style={{ padding: '6px 8px', textAlign: 'right' }}>합계액</th>
+                              <th style={{ padding: '6px 8px', width: '35px', whiteSpace: 'nowrap' }}>#</th>
+                              <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>품목명 / 규격</th>
+                              <th style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>수량</th>
+                              <th style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>단가</th>
+                              <th style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>공급가액</th>
+                              <th style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>부가세</th>
+                              <th style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>합계액</th>
                             </tr>
                           </thead>
                           <tbody>

@@ -1109,12 +1109,12 @@ export const OutboundInspections: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="outbound_inspections" data-mid="outbound_inspections-header" data-subview="outbound_inspections" data-subview-title="Generated" style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', color: 'var(--text-primary)' }}>
+    <div data-hs-observe="outbound_inspections" data-subview="outbound_inspections" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', color: 'var(--text-primary)' }}>
       {/* 헤더 영역 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h2 style={{ fontWeight: 800, fontSize: '22px', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
-            <CheckSquare size={24} color="var(--primary)" /> 출고 검수 관리
+          <h2 data-mid="outbound_inspections-header" style={{ fontWeight: 700, fontSize: '17px', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, whiteSpace: 'nowrap' }}>
+            <CheckSquare size={18} color="var(--primary)" /> 출고 검수 관리
           </h2>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

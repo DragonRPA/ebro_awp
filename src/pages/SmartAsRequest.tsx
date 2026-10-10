@@ -363,7 +363,7 @@ export const SmartAsRequest: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="smartasrequest" data-mid="smart_as-header" data-subview="smart_as_request" data-subview-title="Generated" style={{ padding: '20px 24px', maxWidth: '1440px', margin: '0 auto', position: 'relative' }}>
+    <div data-hs-observe="smartasrequest" data-subview="smart_as_request" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -383,15 +383,15 @@ export const SmartAsRequest: React.FC = () => {
         </div>
       )}
       {/* 타이틀 및 헤더 (헌장 3.1 무수식어 건조 표준) */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', borderBottom: '2px solid #e2e8f0', paddingBottom: '14px' }}>
-        <div>
-          <h1 style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Wrench size={20} color="var(--primary)" />
-            AS 요청 접수
-          </h1>
-          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Wrench size={18} color="var(--primary)" />
+          <h2 data-mid="smart_as-header" style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-main)', margin: 0, whiteSpace: 'nowrap' }}>
+            AS 요청
+          </h2>
+          <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
             통화 녹음 AI 파싱 및 현장 고장 접수 전용 스튜디오
-          </p>
+          </span>
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button

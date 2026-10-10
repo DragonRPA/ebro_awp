@@ -922,7 +922,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
   }, [fieldAsTickets, historyModalAssetNo]);
 
   return (
-    <div data-hs-observe="fieldasmanagement" data-mid="field_as-header" data-subview="field_as" data-subview-title="Generated" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', boxSizing: 'border-box', position: 'relative' }}>
+    <div data-hs-observe="fieldasmanagement" data-subview="field_as" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', boxSizing: 'border-box', position: 'relative' }}>
       {/* 알림 토스트 배너 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -948,13 +948,13 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
       )}
       
       {/* ─── 상단 메인 헤더 & 탭 네비게이션 ─── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Wrench size={22} color="#2563eb" />
-            <h1 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-main)', margin: 0, whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Wrench size={18} color="var(--primary)" />
+            <h2 data-mid="field_as-header" style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-main)', margin: 0, whiteSpace: 'nowrap' }}>
               현장 AS 관리
-            </h1>
+            </h2>
           </div>
 
           {/* 5대 메인 탭 전환 버튼 (헌장 3.1 무수식어 건조 표준) */}

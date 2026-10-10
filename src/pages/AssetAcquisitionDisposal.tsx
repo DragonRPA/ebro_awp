@@ -52,7 +52,8 @@ export const AssetAcquisitionDisposal: React.FC = () => {
     executeAssetSale,
     hasPermission,
     currentTenant,
-    showErrorModal
+    showErrorModal,
+    refreshAllData
   } = useApp();
 
   const defaultYard = currentTenant?.yards?.find(y => y.isDefault) || currentTenant?.yards?.[0];
@@ -1100,8 +1101,40 @@ export const AssetAcquisitionDisposal: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="assetacquisitiondisposal" data-mid="acquisition-header" data-subview="acquisition_disposal" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
+    <div data-hs-observe="assetacquisitiondisposal" data-subview="acquisition_disposal" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
       
+      {/* ── 표준 헤더 바 (Gutenberg Z-Pattern) ── */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingBottom: '8px',
+        borderBottom: '1px solid var(--border-color)',
+        flexShrink: 0,
+        flexWrap: 'wrap',
+        gap: '10px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <ShoppingBag size={18} color="var(--primary)" />
+          <h2 data-mid="acquisition_disposal-header" style={{ margin: 0, fontWeight: 700, fontSize: '17px', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+            자산 취득 매각
+          </h2>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            장비 취득(신규/중고 입고) 및 매각(처분) 통합 관리
+          </span>
+        </div>
+        <div className="toolbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => refreshAllData()}
+            className="btn btn-secondary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+          >
+            <RefreshCw size={14} />
+            새로고침
+          </button>
+        </div>
+      </div>
+
       {/* 토스트 메시지 표출 */}
       {toastMessage && (
         <div style={{

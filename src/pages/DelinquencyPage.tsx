@@ -828,8 +828,40 @@ export const DelinquencyPage: React.FC = () => {
   }, [delinquencyActionLogs, todayStr]);
 
   return (
-    <div data-hs-observe="delinquencypage" data-mid="delinquency-header" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '8px', position: 'relative' }}>
+    <div data-hs-observe="delinquencypage" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '8px', position: 'relative' }}>
       
+      {/* ── 표준 헤더 바 (Gutenberg Z-Pattern) ── */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingBottom: '8px',
+        borderBottom: '1px solid var(--border-color)',
+        flexShrink: 0,
+        flexWrap: 'wrap',
+        gap: '10px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <AlertTriangle size={18} color="var(--primary)" />
+          <h2 data-mid="delinquency-header" style={{ margin: 0, fontWeight: 700, fontSize: '17px', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+            미수 채권 연체 관리
+          </h2>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+            총 {calculatedDelinquencies.length}개사 연체 관리 대상
+          </span>
+        </div>
+        <div className="toolbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => refreshAllData()}
+            className="btn btn-secondary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+          >
+            <RefreshCw size={14} />
+            새로고침
+          </button>
+        </div>
+      </div>
+
       {/* 알림 토스트 배너 (헌장 5.2) */}
       {toastMessage && (
         <div style={{

@@ -409,7 +409,7 @@ export const ConsumableInOutPage: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="consumableinoutpage" data-mid="consumable_inout-header" data-subview="consumable_inout" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px', maxWidth: '1440px', margin: '0 auto' }}>
+    <div data-hs-observe="consumableinoutpage" data-subview="consumable_inout" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%' }}>
       {/* ─── 토스트 알림 ─── */}
       {toastMessage && (
         <div style={{
@@ -426,11 +426,14 @@ export const ConsumableInOutPage: React.FC = () => {
       )}
 
       {/* ─── [Z-패턴 1단계: 헤더 & 탭 네비게이션] ─── */}
-      <div data-mid="consumable_inout-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h2 style={{ fontSize: '20px', fontWeight: 800, margin: 0, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-            소모품 입출고 관리
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <PackagePlus size={18} color="var(--primary)" />
+            <h2 data-mid="consumable_inout-header" style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+              소모품 입출고
+            </h2>
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
             <ShieldCheck size={14} style={{ color: 'var(--success)' }} />
             <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
