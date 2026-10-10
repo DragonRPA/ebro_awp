@@ -231,7 +231,7 @@ export const DepreciationExecution: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="depreciation_execution" data-subview="depreciation_execution" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontSize: '13px', position: 'relative' }}>
+    <div data-hs-observe="depreciation_execution" data-mid="dep-header" data-subview="depreciation_execution" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontSize: '13px', position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div style={{

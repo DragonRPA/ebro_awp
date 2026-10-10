@@ -248,7 +248,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="consumablepurchasespage" data-subview="consumable_purchase" data-subview-title="Generated" style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div data-hs-observe="consumablepurchasespage" data-mid="consumable_purchase-header" data-subview="consumable_purchase" data-subview-title="Generated" style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* 🔔 인앱 토스트 알림 */}
       {toastMessage && (
         <div style={{

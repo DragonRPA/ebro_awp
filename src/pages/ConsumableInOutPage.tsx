@@ -370,7 +370,7 @@ export const ConsumableInOutPage: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="consumableinoutpage" data-subview="consumable_inout" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px', maxWidth: '1440px', margin: '0 auto' }}>
+    <div data-hs-observe="consumableinoutpage" data-mid="consumable_inout-header" data-subview="consumable_inout" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px', maxWidth: '1440px', margin: '0 auto' }}>
       {/* ─── 토스트 알림 ─── */}
       {toastMessage && (
         <div style={{

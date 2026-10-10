@@ -1100,7 +1100,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="assetacquisitiondisposal" data-subview="acquisition_disposal" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
+    <div data-hs-observe="assetacquisitiondisposal" data-mid="acquisition-header" data-subview="acquisition_disposal" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '13px' }}>
       
       {/* 토스트 메시지 표출 */}
       {toastMessage && (

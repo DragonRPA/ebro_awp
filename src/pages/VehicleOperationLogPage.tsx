@@ -420,7 +420,7 @@ export const VehicleOperationLogPage: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="vehicleoperationlogpage" data-subview="vehicle_log" data-subview-title="Generated" style={{
+    <div data-hs-observe="vehicleoperationlogpage" data-mid="vehicle_log-header" data-subview="vehicle_log" data-subview-title="Generated" style={{
       display: 'flex',
       flexDirection: 'column',
       height: 'calc(100dvh - 85px)',
@@ -788,7 +788,7 @@ export const VehicleOperationLogPage: React.FC = () => {
       {activeTab === 'OPERATION_LOG' && (
         <>
           <div style={{ flex: 1, minHeight: 0, overflow: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-card)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left', whiteSpace: 'nowrap' }}>
+            <table data-mid="vehicle_log-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left', whiteSpace: 'nowrap' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                 <tr style={{ backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', height: '36px' }}>
                   <th style={{ padding: '8px 10px', textAlign: 'center', width: '40px' }}>No</th>

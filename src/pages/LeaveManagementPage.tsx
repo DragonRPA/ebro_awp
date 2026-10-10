@@ -324,8 +324,8 @@ export const LeaveManagementPage: React.FC = () => {
         </div>
 
         {/* 탭 버튼 그룹 & 엑셀 다운로드 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-          <button
+        <div data-mid="leave-management-tabs" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <button data-mid="leave-terminal-audit-excel"
             onClick={handleExportExcel}
             className="btn btn-secondary"
             style={{ fontSize: '13px', whiteSpace: 'nowrap', backgroundColor: 'rgba(16, 185, 129, 0.12)', color: '#10b981', border: '1px solid rgba(16, 185, 129, 0.3)', fontWeight: 'bold' }}
@@ -354,7 +354,7 @@ export const LeaveManagementPage: React.FC = () => {
       </div>
 
       {/* 📊 전사 연차 통계 요약 바 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+      <div data-mid="leave-inspection-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
         <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>총 등록 임직원</span>
           <strong style={{ fontSize: '15px', color: 'var(--primary)' }}>{users.length}명</strong>
@@ -392,7 +392,7 @@ export const LeaveManagementPage: React.FC = () => {
         <>
           {/* 테이블 (헌장 3.2: 1열 액션 버튼 배치, white-space: nowrap) */}
           <div className="table-container" style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto', maxHeight: 'calc(100vh - 290px)', overflowY: 'auto' }}>
-            <table style={{ width: '100%', minWidth: '1000px', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+            <table data-mid="leave-inspection-quota-grid" style={{ width: '100%', minWidth: '1000px', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
                 <tr style={{ backgroundColor: 'var(--bg-card-header)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
                   <th style={{ padding: '12px 14px', whiteSpace: 'nowrap', width: '130px' }}>연차 갱신 액션</th>

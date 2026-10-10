@@ -1455,7 +1455,7 @@ export const InitialDbUploader: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="initialdbuploader" data-subview="initial_db_upload" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
+    <div data-hs-observe="initialdbuploader" data-mid="initial_db_upload-header" data-subview="initial_db_upload" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
       {/* 상단 타이틀 헤더 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -1469,7 +1469,7 @@ export const InitialDbUploader: React.FC = () => {
         </div>
 
         {/* 탭 네비게이션 */}
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div data-mid="initial_db_upload-tabs" style={{ display: 'flex', gap: '8px' }}>
           <button
             onClick={handleAuditContractAssets}
             style={{

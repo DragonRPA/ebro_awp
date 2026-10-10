@@ -963,7 +963,7 @@ export const InspectionChecklistManage: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="inspection_checklist_manage" style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
+    <div data-hs-observe="inspection_checklist_manage" data-mid="inspection_checklist-header" style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div

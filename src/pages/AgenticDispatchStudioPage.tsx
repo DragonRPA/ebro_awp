@@ -107,7 +107,7 @@ export const AgenticDispatchStudioPage: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="agenticdispatchstudiopage" data-subview="agentic_dispatch_studio" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: '100%', minHeight: 0 }} data-uia="agentic-dispatch-studio-container">
+    <div data-hs-observe="agenticdispatchstudiopage" data-mid="agentic_dispatch_studio-header" data-subview="agentic_dispatch_studio" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: '100%', minHeight: 0 }} data-uia="agentic-dispatch-studio-container">
       {/* 상단 타이틀 바 (헌장 3.1 무수식어 건조 명사 표준) */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

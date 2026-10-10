@@ -571,7 +571,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
     if (children.length === 0) return null;
 
     return (
-    <div data-hs-observe="organizationsettings" data-subview="organization" data-subview-title="Generated" style={{ marginLeft: depth > 0 ? '16px' : '0' }}>
+    <div data-hs-observe="organizationsettings" data-mid="org-header" data-subview="organization" data-subview-title="Generated" style={{ marginLeft: depth > 0 ? '16px' : '0' }}>
         {children.map(dept => {
           const isSelected = selectedDeptId === dept.id;
           const userCount = users.filter(u => u.departmentId === dept.id).length;
@@ -801,7 +801,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
           {canEdit && (
             <button data-hs-trigger="Save" 
               className={`btn-primary ${isDirty ? 'pulse-animation' : ''}`} 
-              onClick={handleSaveAll} 
+              data-mid="org-save-all" onClick={handleSaveAll} 
               style={{ 
                 padding: '10px 20px', 
                 backgroundColor: isDirty ? 'var(--danger)' : 'var(--primary)',

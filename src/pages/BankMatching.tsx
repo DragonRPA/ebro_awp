@@ -313,7 +313,7 @@ export const BankMatching: React.FC = () => {
       const matchedSettlement = purchaseSettlements.find(s => s.bankTransactionId === tx.id);
       if (!matchedSettlement) return <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>-</span>;
       return (
-    <div data-hs-observe="bankmatching" data-subview="bank_matching" data-subview-title="Generated" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--text-main)', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
+    <div data-hs-observe="bankmatching" data-mid="bank_matching-header" data-subview="bank_matching" data-subview-title="Generated" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--text-main)', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
           <LinkIcon size={10} style={{ color: 'var(--primary)', flexShrink: 0 }} />
           <span>[{matchedSettlement.vendorName}] {matchedSettlement.settlementYm} 매입정산 대사됨</span>
         </div>

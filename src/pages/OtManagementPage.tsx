@@ -553,7 +553,7 @@ export const OtManagementPage: React.FC = () => {
   }, [isDateDetailModalOpen]);
 
   return (
-    <div data-hs-observe="otmanagementpage" data-subview="ot_management" data-subview-title="Generated" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div data-hs-observe="otmanagementpage" data-mid="ot-header" data-subview="ot_management" data-subview-title="Generated" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
       {/* 헤더 타이틀 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>

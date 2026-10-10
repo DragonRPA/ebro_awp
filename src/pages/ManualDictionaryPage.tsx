@@ -94,7 +94,7 @@ export const ManualDictionaryPage: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '4px' }}>
+      <div data-mid="manual_dictionary-process-list" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '4px' }}>
         {filteredProcesses.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
             검색 결과가 없습니다.

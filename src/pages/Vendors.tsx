@@ -663,7 +663,7 @@ export const Vendors: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="vendors" data-subview="vendors" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '10px' }}>
+    <div data-hs-observe="vendors" data-mid="vendors-header" data-subview="vendors" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '10px' }}>
       <div className="card-header" style={{ marginBottom: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
         <div>
           <h2 style={{ fontWeight: '700', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -825,7 +825,7 @@ export const Vendors: React.FC = () => {
       {/* 매입처 목록 테이블 */}
       <div className="card" style={{ padding: 0, flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <div className="table-container" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto', maxHeight: 'none', overscrollBehavior: 'contain' }}>
-          <table className="table" style={{ width: '100%', margin: 0, tableLayout: 'auto' }}>
+          <table data-mid="vendors-table" className="table" style={{ width: '100%', margin: 0, tableLayout: 'auto' }}>
             <colgroup>
               <col style={{ width: '135px' }} />
               <col style={{ width: '120px' }} />

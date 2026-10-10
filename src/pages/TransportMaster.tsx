@@ -271,7 +271,7 @@ contact: '',
   };
 
   return (
-    <div data-hs-observe="transportmaster" data-subview="transport_master" data-subview-title="Generated">
+    <div data-hs-observe="transportmaster" data-mid="transport_master-header" data-subview="transport_master" data-subview-title="Generated">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h2 style={{ fontWeight: '700', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Settings size={22} color="var(--primary)" /> 운송 거래처 관리

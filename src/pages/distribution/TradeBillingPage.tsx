@@ -7,10 +7,10 @@ export const TradeBillingPage: React.FC = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: '#f9fafb' }}>
       <div style={{ padding: '16px', backgroundColor: '#fff', borderBottom: '1px solid #e5e7eb' }}>
-        <h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0, color: '#111827' }}>유통 청구 및 명세</h2>
+        <h2 data-mid="trade_billing-header" style={{ fontSize: '18px', fontWeight: 600, margin: 0, color: '#111827' }}>유통 청구 및 명세</h2>
       </div>
       <div style={{ flex: 1, padding: '16px', overflow: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#fff' }}>
+        <table data-mid="trade_billing-table" style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#fff' }}>
           <thead>
             <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '1px solid #e5e7eb' }}>
               <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px' }}>주문번호</th>
@@ -24,7 +24,7 @@ export const TradeBillingPage: React.FC = () => {
                 <td style={{ padding: '10px', fontSize: '14px' }}>{o.id.substring(0,8)}</td>
                 <td style={{ padding: '10px', fontSize: '14px', textAlign: 'right' }}>{o.totalSalesAmount.toLocaleString()}원</td>
                 <td style={{ padding: '10px', fontSize: '14px', textAlign: 'center' }}>
-                  <button onClick={() => issueBilling(o.customerId, '2026-10').catch(err => alert(err.message))} style={{ padding: '4px 8px', backgroundColor: '#4f46e5', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>명세서 일괄 발행</button>
+                  <button data-mid="trade_billing-issue-btn" onClick={() => issueBilling(o.customerId, '2026-10').catch(err => alert(err.message))} style={{ padding: '4px 8px', backgroundColor: '#4f46e5', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>명세서 일괄 발행</button>
                 </td>
               </tr>
             ))}

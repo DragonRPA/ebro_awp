@@ -168,7 +168,7 @@ export const PrivacyAuditPage: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="privacyauditpage" data-subview="privacy_audit" data-subview-title="Generated" style={{ padding: '0 4px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+    <div data-hs-observe="privacyauditpage" data-mid="privacy-header" data-subview="privacy_audit" data-subview-title="Generated" style={{ padding: '0 4px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
       {/* 🔔 인앱 토스트 */}
       {toastMessage && (
         <div style={{
@@ -506,7 +506,7 @@ export const PrivacyAuditPage: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
               type="button"
-              onClick={handleExportAuditExcel}
+              data-mid="privacy-terminal-audit-excel" onClick={handleExportAuditExcel}
               style={{
                 padding: '7px 14px',
                 fontSize: '12px',
@@ -539,7 +539,7 @@ export const PrivacyAuditPage: React.FC = () => {
         overflow: 'auto',
         maxHeight: '600px'
       }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+        <table data-mid="privacy-inspection-grid" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
           <thead>
             <tr style={{
               backgroundColor: 'var(--bg-secondary, #f8fafc)',

@@ -114,7 +114,7 @@ export const StocktakingPage: React.FC = () => {
       <div style={{ padding: '20px' }}>
         <h2>재고/자산 실사 (Stocktaking) 시작</h2>
         <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-          <select value={selectedArea} onChange={e => setSelectedArea(e.target.value)} style={{ padding: '8px' }}>
+          <select data-mid="stocktaking-area-select" value={selectedArea} onChange={e => setSelectedArea(e.target.value)} style={{ padding: '8px' }}>
             <option value="HQ">본사 주기장 (비가동 장비 및 소모품)</option>
             <option value="VEHICLE">정비사 차량 (소모품)</option>
           </select>
@@ -126,7 +126,7 @@ export const StocktakingPage: React.FC = () => {
               ))}
             </select>
           )}
-          <button onClick={startAudit} style={{ padding: '8px 16px', background: '#000', color: '#fff', border: 'none', cursor: 'pointer' }}>실사 전표 생성</button>
+          <button data-mid="stocktaking-start-btn" onClick={startAudit} style={{ padding: '8px 16px', background: '#000', color: '#fff', border: 'none', cursor: 'pointer' }}>실사 전표 생성</button>
         </div>
       </div>
     );
@@ -141,7 +141,7 @@ export const StocktakingPage: React.FC = () => {
           </div>
           <input 
             type="text" 
-            className="barcode-input" 
+            data-mid="stocktaking-barcode-input" className="barcode-input" 
             placeholder="바코드 대기..." 
             autoFocus 
             ref={barcodeRef}
@@ -160,7 +160,7 @@ export const StocktakingPage: React.FC = () => {
         </div>
       </header>
 
-      <section className="grid-container" style={{ flex: 1, overflowY: 'auto', background: '#fff' }}>
+      <section data-mid="stocktaking-inspection-grid" className="grid-container" style={{ flex: 1, overflowY: 'auto', background: '#fff' }}>
         <table className="high-density-table tablet-optimized" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead style={{ position: 'sticky', top: 0, background: '#eee', zIndex: 1 }}>
             <tr>
@@ -226,7 +226,7 @@ export const StocktakingPage: React.FC = () => {
           <button className="btn-secondary" onClick={() => { if(confirm('실사를 취소하시겠습니까?')) { /* call cancel */ } }} style={{ padding: '8px 16px' }}>실사 취소</button>
           <button 
             className="btn-primary" 
-            onClick={handleConfirm}
+            data-mid="stocktaking-btn-confirm" onClick={handleConfirm}
             disabled={varianceCount > 0 && items.some(i => i.diffQty !== 0 && !i.diffReason)}
             style={{ 
               padding: '8px 24px', 

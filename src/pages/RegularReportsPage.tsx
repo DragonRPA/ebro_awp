@@ -30,7 +30,7 @@ export const RegularReportsPage: React.FC = () => {
         </div>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+      <div data-mid="reports-kpi" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
         <div className="card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>당일 가용 현금</span>
           <span style={{ fontSize: '24px', fontWeight: 800, color: cfReport.netAvailableCash < 0 ? 'var(--danger)' : 'var(--primary)' }}>

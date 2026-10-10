@@ -918,7 +918,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
   }, [fieldAsTickets, historyModalAssetNo]);
 
   return (
-    <div data-hs-observe="fieldasmanagement" data-subview="field_as" data-subview-title="Generated" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', boxSizing: 'border-box', position: 'relative' }}>
+    <div data-hs-observe="fieldasmanagement" data-mid="field_as-header" data-subview="field_as" data-subview-title="Generated" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', boxSizing: 'border-box', position: 'relative' }}>
       {/* 알림 토스트 배너 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -3331,7 +3331,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
 
           {/* 고밀도 슬림 테이블 (38~42px row height) */}
           <div style={{ flex: 1, backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', whiteSpace: 'nowrap' }}>
+            <table data-mid="field_as-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', whiteSpace: 'nowrap' }}>
               <thead style={{ backgroundColor: 'var(--bg-app)', position: 'sticky', top: 0, zIndex: 1, borderBottom: '2px solid var(--border-color)' }}>
                 <tr>
                   <th style={{ padding: '10px 12px', textAlign: 'center', width: '50px', color: 'var(--text-secondary)' }}>상세</th>

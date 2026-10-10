@@ -1349,12 +1349,12 @@ export const DevDataUploader: React.FC = () => {
               예시 행을 참고하여 데이터를 작성한 후 저장하세요.
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              <button onClick={handleDownloadTemplate} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button data-mid="dev_uploader-download-template" onClick={handleDownloadTemplate} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Download size={15} /> {schema.label} 양식 다운로드 ({selectedTableKey}_template.csv)
               </button>
 
               {/* 신규 버튼: 현재 DB 다운로드 */}
-              <button onClick={handleDownloadCurrent} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button data-mid="dev_uploader-download-current" onClick={handleDownloadCurrent} className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Download size={15} /> 현재 DB 다운로드 ({selectedTableKey}_data.csv)
               </button>
 
@@ -1377,7 +1377,7 @@ export const DevDataUploader: React.FC = () => {
                 style={{ flex: 1 }}
               />
               <button
-                onClick={handleValidate}
+                data-mid="dev_uploader-validate-btn" onClick={handleValidate}
                 disabled={parsedRows.length === 0}
                 className="btn-primary"
                 style={{ display: 'flex', alignItems: 'center', gap: '6px', opacity: parsedRows.length === 0 ? 0.5 : 1 }}
@@ -1438,7 +1438,7 @@ export const DevDataUploader: React.FC = () => {
               id가 이미 존재하면 <strong>수정(Update)</strong>, 없으면 <strong>신규 삽입(Insert)</strong>합니다.
             </p>
             <button
-              onClick={handleUpload}
+              data-mid="dev_uploader-upload-btn" onClick={handleUpload}
               disabled={!isConnected || !validationDone || validationErrors.length > 0 || uploading}
               className="btn-primary"
               style={{

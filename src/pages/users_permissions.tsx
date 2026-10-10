@@ -534,7 +534,7 @@ export const UsersPermissions: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="users_permissions" data-subview="permission" data-subview-title="Generated" style={{ padding: '0 4px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div data-hs-observe="users_permissions" data-mid="permission-header" data-subview="permission" data-subview-title="Generated" style={{ padding: '0 4px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* 🔔 인앱 토스트 */}
       {toastMessage && (
         <div data-mid="permission-toast" style={{
@@ -1000,7 +1000,7 @@ export const UsersPermissions: React.FC = () => {
 
                     {/* 카테고리 세부 메뉴 항목들 */}
                     {!isCollapsed && (
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                      <table data-mid="permission-inspection-grid" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                         <tbody>
                           {grp.items.map(item => {
                             const norm = normalizeMenuId(item.id);

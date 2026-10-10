@@ -344,7 +344,7 @@ export const PayrollPage: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="payrollpage" data-subview="payroll" data-subview-title="Generated" style={{ position: 'relative' }}>
+    <div data-hs-observe="payrollpage" data-mid="payroll-header" data-subview="payroll" data-subview-title="Generated" style={{ position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div data-mid="payroll-toast" style={{
@@ -466,7 +466,7 @@ export const PayrollPage: React.FC = () => {
             <div>
               <label style={{ fontSize: '13px', fontWeight: '600', marginBottom: '6px', display: 'block' }}>대상 귀속 월 선택</label>
               <input 
- type="month" 
+ data-mid="payroll-scope-month" type="month" 
                 value={selectedMonth} 
                 onChange={(e) => setSelectedMonth(e.target.value)}
                 disabled={payrollStatus === 'APPROVED'}

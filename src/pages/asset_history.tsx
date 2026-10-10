@@ -367,7 +367,7 @@ export const AssetHistory: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="asset_history" data-subview="asset_inout_history" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div data-hs-observe="asset_history" data-mid="asset_history-header" data-subview="asset_inout_history" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
       {/* 1. 페이지 헤더 (헌장 3.1: 무수식어 건조 표준) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

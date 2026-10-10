@@ -51,11 +51,11 @@ export const Dashboard: React.FC = () => {
   const activeTasks = useMemo(() => findActiveTasksForUser(todos, currentUser, hasPermission), [todos, currentUser, hasPermission]);
 
   return (
-    <div data-hs-observe="dashboard" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div data-hs-observe="dashboard" data-mid="dashboard-header" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
       
       {activeTasks.length > 0 && (
-        <details open style={{
+        <details data-mid="dashboard-todo-feed" open style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
                 borderLeft: '5px solid #6366f1', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
               }}>
@@ -70,7 +70,7 @@ export const Dashboard: React.FC = () => {
                       총 <strong>{activeTasks.length}건</strong> 대기
                     </span>
                     <button
-                      data-uia="btn-refresh-feed"
+                      data-mid="dashboard-btn-refresh" data-uia="btn-refresh-feed"
                       type="button"
                       className="btn-secondary"
                       onClick={(e) => { e.stopPropagation(); refreshAllData?.(); }}

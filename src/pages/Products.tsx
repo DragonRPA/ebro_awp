@@ -449,7 +449,7 @@ export const Products: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="products" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '8px', position: 'relative' }}>
+    <div data-hs-observe="products" data-mid="product-header" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '8px', position: 'relative' }}>
       
       {/* 알림 토스트 배너 */}
       {toastMessage && (
@@ -513,7 +513,7 @@ export const Products: React.FC = () => {
             <Download size={13} /> 엑셀 다운로드
           </button>
           {canSave && (
-            <button data-hs-trigger="Register"
+            <button data-hs-trigger="Register" data-mid="product-btn-add"
               className="btn-primary"
               onClick={handleOpenAddModal}
               style={{ padding: '5px 12px', fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}
@@ -675,7 +675,7 @@ export const Products: React.FC = () => {
         minHeight: 0
       }}>
         <div style={{ flex: 1, overflow: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '11.5px' }}>
+          <table data-mid="product-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '11.5px' }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
               <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 600 }}>
                 <th style={{ padding: '7px 8px', width: '50px', textAlign: 'center', whiteSpace: 'nowrap' }}>상세</th>

@@ -1109,7 +1109,7 @@ export const OutboundInspections: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="outbound_inspections" data-subview="outbound_inspections" data-subview-title="Generated" style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', color: 'var(--text-primary)' }}>
+    <div data-hs-observe="outbound_inspections" data-mid="outbound_inspections-header" data-subview="outbound_inspections" data-subview-title="Generated" style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', color: 'var(--text-primary)' }}>
       {/* 헤더 영역 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>

@@ -18,14 +18,14 @@ export const TradeProductsPage: React.FC = () => {
       <div style={{ padding: '16px', backgroundColor: '#fff', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between' }}>
         <div><h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0, color: '#111827' }}>상품 등록 및 관리</h2></div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <input type="text" placeholder="SKU코드" value={skuCode} onChange={e=>setSkuCode(e.target.value)} style={{ padding: '6px', border: '1px solid #d1d5db', borderRadius: '4px' }} />
-          <input type="text" placeholder="상품명" value={name} onChange={e=>setName(e.target.value)} style={{ padding: '6px', border: '1px solid #d1d5db', borderRadius: '4px' }} />
-          <input type="number" placeholder="판매가" value={price} onChange={e=>setPrice(Number(e.target.value))} style={{ padding: '6px', border: '1px solid #d1d5db', borderRadius: '4px' }} />
-          <button onClick={handleAdd} style={{ padding: '6px 12px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>신규 등록</button>
+          <input type="text" data-mid="trade_products-sku-input" placeholder="SKU코드" value={skuCode} onChange={e=>setSkuCode(e.target.value)} style={{ padding: '6px', border: '1px solid #d1d5db', borderRadius: '4px' }} />
+          <input type="text" data-mid="trade_products-name-input" placeholder="상품명" value={name} onChange={e=>setName(e.target.value)} style={{ padding: '6px', border: '1px solid #d1d5db', borderRadius: '4px' }} />
+          <input type="number" data-mid="trade_products-price-input" placeholder="판매가" value={price} onChange={e=>setPrice(Number(e.target.value))} style={{ padding: '6px', border: '1px solid #d1d5db', borderRadius: '4px' }} />
+          <button data-mid="trade_products-add-btn" onClick={handleAdd} style={{ padding: '6px 12px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>신규 등록</button>
         </div>
       </div>
       <div style={{ flex: 1, padding: '16px', overflow: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#fff' }}>
+        <table data-mid="trade_products-table" style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: '#fff' }}>
           <thead>
             <tr style={{ backgroundColor: '#f3f4f6', borderBottom: '1px solid #e5e7eb' }}>
               <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', whiteSpace: 'nowrap' }}>SKU</th>

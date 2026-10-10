@@ -401,7 +401,7 @@ export const ErrorReportPage: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="errorreportpage" data-subview="error_report" data-subview-title="Generated" style={{ padding: '20px', width: '100%', boxSizing: 'border-box' }}>
+    <div data-hs-observe="errorreportpage" data-mid="error_report-header" data-subview="error_report" data-subview-title="Generated" style={{ padding: '20px', width: '100%', boxSizing: 'border-box' }}>
       {/* ─── 토스트 알림 ─── */}
       {toastMessage && (
         <div style={{
@@ -439,7 +439,7 @@ export const ErrorReportPage: React.FC = () => {
         </div>
 
         {/* 3대 단계 HUD 카드 */}
-        <div data-uia="hud-stage-counts" style={{ display: 'flex', gap: '12px', flexShrink: 0 }}>
+        <div data-mid="error_report-scope-status" data-uia="hud-stage-counts" style={{ display: 'flex', gap: '12px', flexShrink: 0 }}>
           <div 
             onClick={() => setStageFilter('REGISTERED')}
             style={{ 
@@ -639,7 +639,7 @@ export const ErrorReportPage: React.FC = () => {
           <button
             data-uia="btn-open-report-modal"
             data-hs-trigger="Register"
-            onClick={() => setIsRegisterModalOpen(true)}
+            data-mid="error_report-pipeline-register" onClick={() => setIsRegisterModalOpen(true)}
             style={{
               height: '36px',
               padding: '0 16px',

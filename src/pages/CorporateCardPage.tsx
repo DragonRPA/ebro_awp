@@ -405,7 +405,7 @@ export const CorporateCardPage: React.FC = () => {
                 <div>
                   <label style={{ fontSize: '12px', fontWeight: '700', marginBottom: '6px', display: 'block' }}>정산 귀속 월</label>
                   <input 
-                    type="month" 
+                    data-mid="corporate_card-scope-month" type="month" 
                     value={selectedMonth} 
                     onChange={e => setSelectedMonth(e.target.value)}
                     style={{ width: '100%', padding: '6px', fontSize: '13px' }}

@@ -174,14 +174,14 @@ export const DataFormationStudio: React.FC = () => {
             다양한 테넌트의 불규칙한 엑셀 데이터를 정규 스키마 템플릿으로 맵핑하고, 부족 요소(Gap)를 식별 및 보정하여 실 DB에 이관합니다.
           </p>
         </div>
-        <button onClick={downloadTemplate} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <button data-mid="data_formation-download-template" onClick={downloadTemplate} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <Download size={16} /> 표준 템플릿 다운로드
         </button>
       </div>
 
       {/* 탭 선택 바 & 탭별 샘플 데이터 주입 버튼군 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div data-mid="data_formation-entity-tabs" style={{ display: 'flex', gap: '8px' }}>
           {(['CUSTOMER', 'ASSET', 'CONTRACT'] as TargetEntity[]).map(entity => {
             const label = entity === 'CUSTOMER' ? '거래처 마스터' : entity === 'ASSET' ? '장비(자산) 마스터' : '수주(계약) 원장';
             const isActive = activeEntity === entity;
@@ -202,7 +202,7 @@ export const DataFormationStudio: React.FC = () => {
         </div>
 
         {/* 탭별 샘플 데이터 주입 버튼 그룹 */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div data-mid="data_formation-sample-inject" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600 }}>샘플 데이터:</span>
           <button
             type="button"
@@ -242,7 +242,7 @@ export const DataFormationStudio: React.FC = () => {
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <input type="file" accept=".xlsx, .xls, .csv" onChange={handleFileUpload} />
+            <input data-mid="data_formation-file-upload" type="file" accept=".xlsx, .xls, .csv" onChange={handleFileUpload} />
             <button
               type="button"
               onClick={() => loadSampleData(activeEntity)}
@@ -289,7 +289,7 @@ export const DataFormationStudio: React.FC = () => {
                 상위 {Math.min(rawData.length, 10)}건 표시
               </span>
             </div>
-            <div style={{ maxHeight: '260px', overflowX: 'auto', overflowY: 'auto' }}>
+            <div data-mid="data_formation-preview-table" style={{ maxHeight: '260px', overflowX: 'auto', overflowY: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
                 <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-card)', zIndex: 1 }}>
                   <tr style={{ borderBottom: '1px solid var(--border-color)' }}>

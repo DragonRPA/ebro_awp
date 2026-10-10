@@ -181,7 +181,7 @@ export const OperationManualPage: React.FC = () => {
   }, [allManuals, selectedMenuId]);
 
   return (
-    <div data-hs-observe="operationmanualpage" data-subview="operations_manual" data-subview-title="Generated" className="manual-page-root" style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', overflow: 'hidden' }}>
+    <div data-hs-observe="operationmanualpage" data-mid="operations_manual-header" data-subview="operations_manual" data-subview-title="Generated" className="manual-page-root" style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', overflow: 'hidden' }}>
       
       {/* ── 인쇄 전용 글로벌 스타일 ── */}
       <style>{`
@@ -252,7 +252,7 @@ export const OperationManualPage: React.FC = () => {
           <div style={{ position: 'relative', width: '220px' }}>
             <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input
-              data-uia="input-search-manual"
+              data-mid="operations_manual-scope" data-uia="input-search-manual"
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
@@ -362,7 +362,7 @@ export const OperationManualPage: React.FC = () => {
 
           {/* DB 일괄 주입 버튼 */}
           <button
-            onClick={handleBatchSeed}
+            data-mid="operations_manual-pipeline-db" onClick={handleBatchSeed}
             disabled={saving}
             style={{
               padding: '6px 10px',
@@ -386,7 +386,7 @@ export const OperationManualPage: React.FC = () => {
 
           {/* 인쇄 버튼 */}
           <button
-            onClick={handlePrint}
+            data-mid="operations_manual-pipeline-print" onClick={handlePrint}
             style={{
               padding: '6px 12px',
               borderRadius: '6px',

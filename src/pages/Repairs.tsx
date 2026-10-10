@@ -715,7 +715,7 @@ export const Repairs: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="repairs" style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%' }}>
+    <div data-hs-observe="repairs" data-mid="repair-header" style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%' }}>
       {/* ─── 상단 헤더 & 탭 네비게이션 (무수식어 건조 표준) ─── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
         <div>

@@ -1475,7 +1475,7 @@ export const RentAssets: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="rent_assets" data-subview="rent_asset" data-subview-title="Generated" style={{ padding: '14px 20px', maxWidth: '1600px', margin: '0 auto' }}>
+    <div data-hs-observe="rent_assets" data-mid="rent_asset-header" data-subview="rent_asset" data-subview-title="Generated" style={{ padding: '14px 20px', maxWidth: '1600px', margin: '0 auto' }}>
       
       {/* 1. 상단 메뉴 헤더 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>

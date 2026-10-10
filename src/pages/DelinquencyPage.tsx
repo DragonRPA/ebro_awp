@@ -824,7 +824,7 @@ export const DelinquencyPage: React.FC = () => {
   }, [delinquencyActionLogs, todayStr]);
 
   return (
-    <div data-hs-observe="delinquencypage" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '8px', position: 'relative' }}>
+    <div data-hs-observe="delinquencypage" data-mid="delinquency-header" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '8px', position: 'relative' }}>
       
       {/* 알림 토스트 배너 (헌장 5.2) */}
       {toastMessage && (

@@ -385,7 +385,7 @@ export const PrintQueueManager: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="printqueuemanager" data-subview="print_queue_monitor" data-subview-title="Generated"
+    <div data-hs-observe="printqueuemanager" data-mid="print_queue-header" data-subview="print_queue_monitor" data-subview-title="Generated"
       style={{
         padding: '24px',
         backgroundColor: 'var(--bg-app)',

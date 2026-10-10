@@ -259,7 +259,7 @@ export const PurchaseSettlementPage: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="purchasesettlementpage" data-subview="purchase_settlement" data-subview-title="Generated" style={{ padding: '20px 24px', maxWidth: '1100px', position: 'relative' }}>
+    <div data-hs-observe="purchasesettlementpage" data-mid="purchase_settlement-header" data-subview="purchase_settlement" data-subview-title="Generated" style={{ padding: '20px 24px', maxWidth: '1100px', position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div style={{

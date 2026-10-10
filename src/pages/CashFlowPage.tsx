@@ -34,7 +34,7 @@ export const CashFlowPage: React.FC = () => {
       backgroundColor: 'var(--bg-app)'
     }}>
       {/* 1. 좌상단 (Primary) - 핵심 지표 */}
-      <header style={{ gridColumn: 1, gridRow: 1, display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
+      <header data-mid="cash_flow-header" style={{ gridColumn: 1, gridRow: 1, display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>가용자금</span>
           <span style={{ fontSize: '32px', fontWeight: 800, color: report.netAvailableCash < 0 ? 'var(--danger)' : 'var(--primary)' }}>
@@ -57,19 +57,19 @@ export const CashFlowPage: React.FC = () => {
 
       {/* 2. 우상단 (Strong Fallow) - 전역 컨트롤 */}
       <aside style={{ gridColumn: 2, gridRow: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-start', gap: '12px' }}>
-        <input 
+        <input data-mid="cash_flow-month-input" 
           type="month" 
           value={targetMonth} 
           onChange={e => setTargetMonth(e.target.value)} 
           style={{ padding: '8px 12px', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '14px', fontWeight: 600 }}
         />
-        <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <button data-mid="cash_flow-btn-export" className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <Download size={16} /> 엑셀 내보내기
         </button>
       </aside>
 
       {/* 3. 중앙 (Weak Fallow) - 마스터 그리드 */}
-      <section className="card" style={{ gridColumn: 1, gridRow: 2, overflowY: 'auto' }}>
+      <section data-mid="cash_flow-inspection-grid" className="card" style={{ gridColumn: 1, gridRow: 2, overflowY: 'auto' }}>
         <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
           <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Activity size={18} /> 현금흐름 요약표

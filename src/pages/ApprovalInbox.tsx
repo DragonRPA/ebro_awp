@@ -445,7 +445,7 @@ const ApprovalInbox: React.FC = () => {
     <div data-hs-observe="approvalinbox" data-mid="approvalInboxMain" data-subview="approvalInbox" style={{ padding: '20px 24px', maxWidth: '1100px', margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main, #1e293b)', margin: 0 }}>결재함 (수신)</h2>
+          <h2 data-mid="approvalInbox-header" style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main, #1e293b)', margin: 0 }}>결재함 (수신)</h2>
           <p style={{ fontSize: '12px', color: 'var(--text-muted, #64748b)', margin: '3px 0 0' }}>
             대기 중인 결재: {steps.length}건 (현재 접속: {currentUser?.name || '미인증'} [{currentUser?.duty || currentUser?.position || '사원'} | Tier {currentUser ? getUserEffectiveTier(currentUser).effectiveTier : 0}])
           </p>
@@ -454,7 +454,7 @@ const ApprovalInbox: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ fontSize: '12px', color: 'var(--text-muted, #64748b)', fontWeight: 600 }}>사용자 전환:</span>
             <select
-              id="approval-inbox-user-select"
+              id="approval-inbox-user-select" data-mid="approvalInbox-user-select"
               value={currentUser?.id || ''}
               onChange={e => {
                 if (e.target.value) switchUser(e.target.value);
@@ -712,14 +712,14 @@ const ApprovalInbox: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <button data-hs-trigger="Reject"
+                      <button data-mid="approvalInbox-btn-reject" data-hs-trigger="Reject"
                         onClick={() => setRejectingId(s.id)}
                         disabled={loading}
                         style={{ padding: '7px 16px', background: 'var(--bg-card, #fff)', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}
                       >
                         반려
                       </button>
-                      <button data-hs-trigger="Approve"
+                      <button data-mid="approvalInbox-btn-approve" data-hs-trigger="Approve"
                         onClick={() => handleAction(s.id, req.id, 'APPROVED')}
                         disabled={loading}
                         style={{ padding: '7px 20px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
