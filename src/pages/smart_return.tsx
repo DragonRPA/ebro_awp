@@ -22,20 +22,20 @@ export const SmartReturn: React.FC = () => {
 
   const defaultStationId = React.useMemo(() => {
     const saved = localStorage.getItem(PREFERRED_RETURN_STATION_KEY);
-    if (saved) {
-      if (saved === 'BROWSER_DIRECT') return 'BROWSER_DIRECT';
-      if (printStations.some(s => s.id === saved)) return saved;
+    if (saved && saved !== 'BROWSER_DIRECT' && printStations.some(s => s.id === saved)) {
+      return saved;
     }
     const matchDocType = printStations.find(s => s.docTypeDefault === 'RETURN_ORDER');
     if (matchDocType) return matchDocType.id;
-    const matchName = printStations.find(s => s.stationName.includes('프린터2') || s.stationName.includes('입고'));
+    const matchName = printStations.find(s => s.stationName.includes('입고') || s.stationName.includes('프린터2'));
     if (matchName) return matchName.id;
     if (printStations.length > 0) return printStations[0].id;
-    return 'BROWSER_DIRECT';
+    return '';
   }, [printStations]);
 
   const [targetStationId, setTargetStationId] = useState<string>(() => {
-    return localStorage.getItem(PREFERRED_RETURN_STATION_KEY) || '';
+    const saved = localStorage.getItem(PREFERRED_RETURN_STATION_KEY);
+    return (saved && saved !== 'BROWSER_DIRECT') ? saved : '';
   });
 
   useEffect(() => {
@@ -47,7 +47,9 @@ export const SmartReturn: React.FC = () => {
 
   const handleStationChange = (newStationId: string) => {
     setTargetStationId(newStationId);
-    localStorage.setItem(PREFERRED_RETURN_STATION_KEY, newStationId);
+    if (newStationId && newStationId !== 'BROWSER_DIRECT') {
+      localStorage.setItem(PREFERRED_RETURN_STATION_KEY, newStationId);
+    }
   };
 
   // 출고 시 장착 옵션 회수 상속 검수 마스터
@@ -324,123 +326,6 @@ export const SmartReturn: React.FC = () => {
     }
   };
 
-  // 🖨️ 브라우저 고품질 인쇄 메소드
-  const handlePrint = () => {
-    const printContent = document.getElementById('return-sheet-print');
-    if (!printContent) {
-      showToast('인쇄할 입고(회수)의뢰서 콘텐츠를 찾을 수 없습니다.', 'error');
-      return;
-    }
-
-    const uniqueName = new Date().getTime();
-    const printWindow = window.open('', `Print_${uniqueName}`, 'left=150,top=100,width=880,height=950,menubar=no,toolbar=no,location=no,status=no');
-    
-    if (!printWindow) {
-      showToast('브라우저 팝업이 차단되었습니다.', 'error');
-      return;
-    }
-
-    const selContract = contracts.find(c => c.id === selectedContractId);
-    const selCust = customers.find(c => c.id === selContract?.customerId);
-    const selSite = sites.find(s => s.id === selContract?.siteId);
-
-    const htmlDoc = `
-      <!DOCTYPE html>
-      <html lang="ko">
-        <head>
-          <meta charset="utf-8">
-          <title>입고요청서_${selCust?.name || '고객사'}_${selSite?.name || '현장'}</title>
-          <style>
-            @page {
-              size: A4 portrait;
-              margin: 7mm 10mm 7mm 10mm;
-            }
-            @media print {
-              @page { size: A4 portrait; margin: 7mm 10mm; }
-              * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-              }
-              body {
-                color: #000000 !important;
-                background-color: #ffffff !important;
-              }
-              .no-print {
-                display: none !important;
-              }
-            }
-            * {
-              box-sizing: border-box;
-              margin: 0;
-              padding: 0;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            body {
-              font-family: 'Malgun Gothic', '맑은 고딕', Dotum, sans-serif;
-              padding: 0;
-              margin: 0 auto;
-              color: #000000;
-              background-color: #ffffff;
-              width: 100%;
-              max-width: 210mm;
-              font-size: 8.5pt;
-              line-height: 1.15;
-            }
-            p, div, span, table, tr, td, th {
-              margin: 0;
-              padding: 0;
-              line-height: 1.15;
-              color: #000000;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-              margin-top: 2px;
-              margin-bottom: 3px;
-              table-layout: fixed;
-            }
-            th, td {
-              border: 1px solid #000000;
-              padding: 2.5px 5px !important;
-              font-size: 8pt;
-              vertical-align: middle;
-              white-space: nowrap;
-              overflow: hidden;
-              color: #000000;
-            }
-            th {
-              background-color: #f0f0f0 !important;
-              font-weight: 700;
-              color: #000000;
-              text-align: left;
-            }
-          </style>
-        </head>
-        <body>
-          <div style="padding: 2px 0;">
-            ${printContent.innerHTML}
-          </div>
-          <script>
-            window.onload = function() {
-              setTimeout(function() {
-                window.focus();
-                window.print();
-              }, 250);
-            };
-            window.onafterprint = function() {
-              window.close();
-            };
-          </script>
-        </body>
-      </html>
-    `;
-
-    printWindow.document.open();
-    printWindow.document.write(htmlDoc);
-    printWindow.document.close();
-  };
-
   // 🖨️ 현장 분산 인쇄 큐 전송 메소드 (입고장 프린터2 무인 자동 출력)
   const handleRemoteQueuePrint = async () => {
     const printContent = document.getElementById('return-sheet-print');
@@ -534,7 +419,11 @@ export const SmartReturn: React.FC = () => {
 
     try {
       setIsAgentPrinting(true);
-      const st = printStations.find(s => s.id === targetStationId);
+      const st = printStations.find(s => s.id === targetStationId) ||
+        printStations.find(s => s.docTypeDefault === 'RETURN_ORDER') ||
+        printStations.find(s => s.stationName.includes('입고') || s.stationName.includes('프린터2')) ||
+        printStations[0];
+
       await enqueuePrintJob({
         stationId: st?.id,
         docType: 'RETURN_ORDER',
@@ -552,12 +441,8 @@ export const SmartReturn: React.FC = () => {
     }
   };
 
-  // 🖨️ 통합 1-클릭 인쇄 실행 핸들러 (원격 큐 또는 브라우저 직접 인쇄)
+  // 🖨️ 원격 인쇄 큐 전송 실행 핸들러
   const handlePrintAction = async () => {
-    if (targetStationId === 'BROWSER_DIRECT') {
-      handlePrint();
-      return;
-    }
     await handleRemoteQueuePrint();
   };
 
@@ -1249,7 +1134,6 @@ export const SmartReturn: React.FC = () => {
                           {st.stationName} ({st.localPrinterName})
                         </option>
                       ))}
-                      <option value="BROWSER_DIRECT">사무실 직접 인쇄 (브라우저)</option>
                     </select>
                   </div>
 

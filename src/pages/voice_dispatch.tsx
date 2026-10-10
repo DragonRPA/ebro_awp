@@ -4972,8 +4972,8 @@ export const VoiceDispatch: React.FC = () => {
                   <Check className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-white m-0 tracking-tight">출고 요청 및 배차 등록 완료</h3>
-                  <p className="text-[11px] text-emerald-400 m-0">계약 체결 및 배차 관리 대장에 정상 등록되었습니다.</p>
+                  <h3 className="text-sm font-black text-white m-0 tracking-tight">출고 의뢰 완료</h3>
+                  <p className="text-[11px] text-emerald-400 m-0">출고 의뢰가 정상 접수되었습니다.</p>
                 </div>
               </div>
               <button
@@ -4987,16 +4987,16 @@ export const VoiceDispatch: React.FC = () => {
 
             {/* 본문 요약 카드 */}
             <div className="p-5 flex flex-col gap-3.5 text-xs">
-              {/* 계약 & 배차 식별 번호 */}
+              {/* 계약 & 의뢰 식별 번호 */}
               <div className="grid grid-cols-2 gap-2.5">
                 <div className="bg-slate-800/80 border border-slate-700/70 p-3 rounded-xl flex flex-col gap-1">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">계약 번호</span>
                   <span className="text-sm font-black text-blue-400 font-mono">{successModalInfo.contractNo || '생성 완료'}</span>
                 </div>
                 <div className="bg-slate-800/80 border border-slate-700/70 p-3 rounded-xl flex flex-col gap-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">배차 상태</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">진행 상태</span>
                   <span className="text-sm font-black text-emerald-400 flex items-center gap-1">
-                    <Truck className="w-3.5 h-3.5" /> 배차 요청 등록됨
+                    <Check className="w-3.5 h-3.5" /> 출고 의뢰 완료
                   </span>
                 </div>
               </div>
@@ -5034,11 +5034,11 @@ export const VoiceDispatch: React.FC = () => {
                 </div>
               </div>
 
-              {/* 다음 진행 안내 */}
+              {/* 안내 */}
               <div className="bg-blue-950/30 border border-blue-800/30 p-3 rounded-xl flex items-start gap-2 text-blue-300 text-[11px]">
                 <Info className="w-4 h-4 flex-shrink-0 text-blue-400 mt-0.5" />
                 <span>
-                  배차 대장에 출고 의뢰가 정상 등록되었습니다. 배차 관리 대장에서 운송 기사를 배정하거나 출고요청서를 인쇄할 수 있습니다.
+                  출고 의뢰가 정상 접수되었습니다. 출고요청서를 인쇄할 수 있습니다.
                 </span>
               </div>
             </div>
@@ -5060,27 +5060,13 @@ export const VoiceDispatch: React.FC = () => {
                 <span>출고요청서 인쇄</span>
               </button>
 
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSuccessModalInfo(null)}
-                  className="py-2 px-3 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 font-bold text-xs transition cursor-pointer whitespace-nowrap"
-                >
-                  새 출고 작성
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSuccessModalInfo(null);
-                    setGlobalActiveTab('delivery');
-                  }}
-                  className="py-2 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs transition shadow-lg shadow-blue-900/40 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
-                >
-                  <Truck className="w-4 h-4" />
-                  <span>배차 관리 대장 이동</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setSuccessModalInfo(null)}
+                className="py-2 px-5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition cursor-pointer whitespace-nowrap"
+              >
+                확인
+              </button>
             </div>
           </div>
         </div>
