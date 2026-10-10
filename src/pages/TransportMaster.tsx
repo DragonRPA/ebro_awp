@@ -307,7 +307,7 @@ contact: '',
                 onClick={handleExportCompanies}
                 style={{ padding: '4px 8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
               >
-                <Download size={13} /> 엑셀 내보내기
+                <Download size={13} /> 운송사 엑셀
               </button>
               {canSave && (
                 <button data-hs-trigger="Register" className="btn-primary" onClick={() => handleOpenCompanyModal()} style={{ padding: '4px 8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
@@ -395,7 +395,7 @@ contact: '',
                 onClick={handleExportDrivers}
                 style={{ padding: '4px 8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
               >
-                <Download size={13} /> 엑셀 내보내기
+                <Download size={13} /> 기사 엑셀
               </button>
               {canSave && (
                 <button data-hs-trigger="Register" className="btn-primary" onClick={() => handleOpenDriverModal()} style={{ padding: '4px 8px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>

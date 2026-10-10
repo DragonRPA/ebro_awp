@@ -1211,7 +1211,7 @@ export const InspectionChecklistManage: React.FC = () => {
                 onClick={exportMasterToExcel}
                 style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '12px' }}
               >
-                <FileDown size={14} /> 엑셀 내보내기
+                <FileDown size={14} /> 정비 항목 엑셀
               </button>
               <button data-hs-trigger="Register"
                 type="button"
@@ -1465,7 +1465,7 @@ export const InspectionChecklistManage: React.FC = () => {
                 onClick={exportAnalyticsToExcel}
                 style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '12px' }}
               >
-                <FileDown size={14} /> 정산 분석 엑셀 내보내기
+                <FileDown size={14} /> 정산 분석 엑셀
               </button>
             </div>
           </div>
@@ -1925,7 +1925,7 @@ export const InspectionChecklistManage: React.FC = () => {
                 onClick={exportManualsToExcel}
                 style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '12px', fontWeight: 600, whiteSpace: 'nowrap' }}
               >
-                <Download size={14} /> 엑셀 내보내기
+                <Download size={14} /> 매뉴얼 목록 엑셀
               </button>
 
               <button data-hs-trigger="Register"

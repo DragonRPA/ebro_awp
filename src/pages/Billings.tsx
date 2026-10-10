@@ -5034,7 +5034,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                   className="btn-excel-download"
                   onClick={handleExportWaiverExcel}
                 >
-                  <Download size={13} /> 엑셀 내보내기
+                  <Download size={13} /> 차감 대장 엑셀
                 </button>
               </div>
             </div>
@@ -5213,13 +5213,6 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                   대장 {filteredWaived.length}건 표시
                 </span>
-                <button
-                  type="button"
-                  className="btn-excel-download btn-sm"
-                  onClick={handleExportWaiverExcel}
-                >
-                  <Download size={12} /> 대장 다운로드
-                </button>
               </div>
             </div>
           </div>

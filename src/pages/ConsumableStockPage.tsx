@@ -662,7 +662,7 @@ export const ConsumableStockPage: React.FC = () => {
                   className="btn-excel-download"
                   onClick={handleExportStock}
                 >
-                  <Download size={13} /> 엑셀 내보내기
+                  <Download size={13} /> 주기장 재고 엑셀
                 </button>
               </div>
             </div>
@@ -832,7 +832,7 @@ export const ConsumableStockPage: React.FC = () => {
                   className="btn-excel-download"
                   onClick={handleExportVehicleStock}
                 >
-                  <Download size={13} /> 엑셀 내보내기
+                  <Download size={13} /> 차량 재고 엑셀
                 </button>
               </div>
             </div>

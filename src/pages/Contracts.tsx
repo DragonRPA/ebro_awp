@@ -1604,9 +1604,6 @@ export const Contracts: React.FC = () => {
               </div>
 
               <div className="toolbar-actions">
-                <button className="btn-query" onClick={handleSearchClick}>
-                  <Search size={13} /> 조회
-                </button>
                 <button className="btn-excel-download" onClick={handleExportExcel}>
                   <Download size={13} /> 엑셀 다운로드
                 </button>

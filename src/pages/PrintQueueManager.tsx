@@ -563,7 +563,7 @@ export const PrintQueueManager: React.FC = () => {
                   }}
                 >
                   <Download size={13} />
-                  <span>엑셀 내보내기</span>
+                  <span>스테이션 엑셀</span>
                 </button>
                 <button data-hs-trigger="Register"
                   type="button"
@@ -947,28 +947,9 @@ export const PrintQueueManager: React.FC = () => {
 
               {/* 2. 연결 로컬 프린터 드라이버 */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
-                    연결 프린터 (OS 드라이버)
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => scanLocalAgent(true)}
-                    style={{
-                      fontSize: '11px',
-                      color: 'var(--primary)',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontWeight: '700',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    <RefreshCw size={10} /> 목록 갱신
-                  </button>
-                </div>
+                <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>
+                  연결 프린터 (OS 드라이버)
+                </label>
 
                 {agentStatus.online && agentStatus.printers.length > 0 ? (
                   <select
@@ -1194,7 +1175,7 @@ export const PrintQueueManager: React.FC = () => {
                 }}
               >
                 <Download size={13} />
-                <span>엑셀 내보내기</span>
+                <span>대기열 엑셀</span>
               </button>
               <button
                 type="button"

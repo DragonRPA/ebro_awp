@@ -2219,7 +2219,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                     className="btn-excel-download btn-sm"
                     onClick={handleExportDisposalAssets}
                   >
-                    <Download size={12} /> 엑셀 내보내기
+                    <Download size={12} /> 가용 자산 엑셀
                   </button>
                 </div>
               </div>
@@ -2419,7 +2419,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                         onClick={handleExportDisposalBasket}
                         className="btn-excel-download btn-sm"
                       >
-                        <Download size={11} /> 엑셀 내보내기
+                        <Download size={11} /> 매각 바구니 엑셀
                       </button>
                       <button data-hs-trigger="Apply"
                         type="button"

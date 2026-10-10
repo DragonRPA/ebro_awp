@@ -526,7 +526,7 @@ export const PayrollPage: React.FC = () => {
         {/* 우측 급여대장 테이블 */}
         <div className="card" style={{ margin: 0, overflowX: 'auto' }}>
           <div className="card-header">
-            <h3 className="card-title">급여 정산 대장</h3>
+            <h3 className="card-title">사원별 급여 명세</h3>
             <span className={`badge ${payrollStatus === 'APPROVED' ? 'badge-danger' : 'badge-info'}`}>
               {payrollStatus === 'APPROVED' ? '결재 완료' : '초안 작성 중'}
             </span>

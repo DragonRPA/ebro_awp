@@ -559,12 +559,6 @@ export const SmartDispatch3: React.FC = () => {
             style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 12px', fontSize: '13px' }}>
             <RotateCcw size={13} /> 초기화
           </button>
-          {canSave && (
-            <button type="button" className="btn-primary" onClick={handleSave} disabled={isSubmitting}
-              style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 16px', fontSize: '13px', fontWeight: 800 }}>
-              <Zap size={14} /> 출고 지시
-            </button>
-          )}
         </div>
       </div>
 

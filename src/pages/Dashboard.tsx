@@ -75,6 +75,8 @@ export const Dashboard: React.FC = () => {
         </div>
         <div className="toolbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
+            data-mid="dashboard-btn-refresh"
+            data-uia="btn-refresh-feed"
             onClick={() => refreshAllData()}
             className="btn btn-secondary btn-sm"
             style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
@@ -100,15 +102,6 @@ export const Dashboard: React.FC = () => {
                     <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                       총 <strong>{activeTasks.length}건</strong> 대기
                     </span>
-                    <button
-                      data-mid="dashboard-btn-refresh" data-uia="btn-refresh-feed"
-                      type="button"
-                      className="btn-secondary"
-                      onClick={(e) => { e.stopPropagation(); refreshAllData?.(); }}
-                      style={{ padding: '3px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
-                    >
-                      <RefreshCw size={11} /> 새로고침
-                    </button>
                   </div>
                 </div>
                 <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
