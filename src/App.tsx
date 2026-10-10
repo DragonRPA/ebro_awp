@@ -57,6 +57,8 @@ const Consumables = React.lazy(() => import('./pages/Consumables').then(module =
 const ConsumablePurchasesPage = React.lazy(() => import('./pages/ConsumablePurchasesPage').then(module => ({ default: module.ConsumablePurchasesPage })));
 const ConsumableInOutPage = React.lazy(() => import('./pages/ConsumableInOutPage').then(module => ({ default: module.ConsumableInOutPage })));
 const ConsumableStockPage = React.lazy(() => import('./pages/ConsumableStockPage').then(module => ({ default: module.ConsumableStockPage })));
+const StocktakingPage = React.lazy(() => import('./pages/StocktakingPage').then(module => ({ default: module.StocktakingPage })));
+
 const Contracts = React.lazy(() => import('./pages/Contracts').then(module => ({ default: module.Contracts })));
 
 const Receivables = React.lazy(() => import('./pages/Receivables').then(module => ({ default: module.Receivables })));
