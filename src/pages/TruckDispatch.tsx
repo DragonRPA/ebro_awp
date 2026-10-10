@@ -3733,10 +3733,6 @@ export const TruckDispatch: React.FC = () => {
                       </span>
                     </div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                      {getOutboundInspectionBadge(selectedDelivery.contractId)}
-                      {getPrintQueueBadge(selectedDelivery)}
-                      {getDeliveryStatusBadge(getNormalizedDeliveryStatus(selectedDelivery))}
-                      
                       {/* 🖨️ 현장 무인 인쇄 버튼 (출고: 프린터1, 입고: 프린터2 자동 라우팅) */}
                       <button
                         type="button"
@@ -3819,137 +3815,7 @@ export const TruckDispatch: React.FC = () => {
                         카톡 메시지 복사
                       </button>
 
-                      {/* 💡 상단 배차/운송완료/취소 액션 버튼 */}
-                      {canSave && (
-                        <>
-                          {getNormalizedDeliveryStatus(selectedDelivery) === 'CANCELLED' ? (
-                            <button
-                              type="button"
-                              onClick={handleSaveDispatch}
-                              className="btn-primary"
-                              style={{
-                                padding: '6px 14px',
-                                fontWeight: 800,
-                                fontSize: '12.5px',
-                                borderRadius: '7px',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                backgroundColor: '#2563eb',
-                                color: '#ffffff',
-                                border: 'none',
-                                cursor: 'pointer',
-                                boxShadow: '0 2px 6px rgba(37,99,235,0.3)'
-                              }}
-                              title="수정된 배차 정보를 저장하고 배차 완료(기사배정) 상태로 복원합니다"
-                            >
-                              <RotateCcw size={14} /> 배차 수정 및 배차완료로 재배정
-                            </button>
-                          ) : getNormalizedDeliveryStatus(selectedDelivery) === 'DISPATCHED' ? (
-                            <>
-                              <button data-hs-trigger="Save"
-                                type="button"
-                                onClick={handleSaveDispatch}
-                                className="btn-primary"
-                                style={{
-                                  padding: '6px 14px',
-                                  fontWeight: 800,
-                                  fontSize: '12.5px',
-                                  borderRadius: '7px',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  backgroundColor: '#2563eb',
-                                  color: '#ffffff',
-                                  border: 'none',
-                                  cursor: 'pointer',
-                                  boxShadow: '0 2px 6px rgba(37,99,235,0.3)'
-                                }}
-                                title="변경된 운송사, 기사, 차종, 운송비, 일정 정보를 저장합니다"
-                              >
-                                <Save size={14} /> 배차 정보 수정 저장
-                              </button>
 
-                              <button data-hs-trigger="Process"
-                                type="button"
-                                onClick={() => handleCompleteDeliveryStatus(selectedDelivery.id)}
-                                style={{ padding: '6px 14px', backgroundColor: 'var(--success)', color: '#fff', border: 'none', borderRadius: '7px', fontWeight: 800, fontSize: '12.5px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 6px rgba(22,163,74,0.25)' }}
-                                title={(selectedDelivery.type === 'OUTBOUND' || selectedDelivery.type === 'EXCHANGE' || selectedDelivery.dispatchCategory === '출고' || selectedDelivery.dispatchCategory === '교환') ? '출고 상차완료 처리' : '입고(하차) 완료 처리'}
-                              >
-                                <CheckCircle size={14} />
-                                {(selectedDelivery.type === 'OUTBOUND' || selectedDelivery.type === 'EXCHANGE' || selectedDelivery.dispatchCategory === '출고' || selectedDelivery.dispatchCategory === '교환') ? '상차완료' : '입고완료'}
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => handleCancelDeliveryStatus(selectedDelivery.id)}
-                                style={{ padding: '6px 10px', borderRadius: '7px', backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer' }}
-                              >
-                                🚫 배차 취소
-                              </button>
-                            </>
-                          ) : getNormalizedDeliveryStatus(selectedDelivery) === 'DELIVERED' ? (
-                            !isEditUnlocked ? (
-                              <button
-                                type="button"
-                                onClick={() => setIsEditUnlocked(true)}
-                                style={{
-                                  padding: '6px 12px',
-                                  borderRadius: '7px',
-                                  backgroundColor: 'rgba(245,158,11,0.12)',
-                                  color: '#d97706',
-                                  border: '1px solid rgba(245,158,11,0.35)',
-                                  fontSize: '12px',
-                                  fontWeight: 800,
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '5px'
-                                }}
-                              >
-                                <RotateCcw size={13} /> 배차 정보 수정 해제
-                              </button>
-                            ) : (
-                              <button data-hs-trigger="Save"
-                                type="button"
-                                onClick={handleSaveDispatch}
-                                className="btn-primary"
-                                style={{
-                                  padding: '6px 14px',
-                                  fontWeight: 800,
-                                  fontSize: '12.5px',
-                                  borderRadius: '7px',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  cursor: 'pointer'
-                                }}
-                              >
-                                <Save size={14} /> 배차 정보 수정 저장
-                              </button>
-                            )
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                onClick={handleSaveDispatch}
-                                className="btn-primary"
-                                style={{ padding: '6px 14px', fontWeight: 800, fontSize: '12.5px', borderRadius: '7px', display: 'inline-flex', alignItems: 'center', gap: '5px', boxShadow: '0 2px 6px rgba(59,130,246,0.25)' }}
-                              >
-                                <ShieldCheck size={14} /> 배차 기사 배정 완료
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => handleCancelDeliveryStatus(selectedDelivery.id)}
-                                style={{ padding: '6px 10px', borderRadius: '7px', backgroundColor: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer' }}
-                              >
-                                🚫 배차 취소
-                              </button>
-                            </>
-                          )}
-                        </>
-                      )}
 
                       {/* 닫기 버튼 */}
                       <button
