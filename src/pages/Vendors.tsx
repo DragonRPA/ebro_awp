@@ -870,8 +870,8 @@ export const Vendors: React.FC = () => {
                 </th>
                 <th style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>연락처</th>
                 <th style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>지급 계좌</th>
-                <th style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>사업자등록증</th>
-                <th style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>통장사본</th>
+                <th style={{ padding: '8px 6px', whiteSpace: 'nowrap', textAlign: 'center' }}>사업자등록증</th>
+                <th style={{ padding: '8px 6px', whiteSpace: 'nowrap', textAlign: 'center' }}>통장사본</th>
                 <th style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>주소</th>
                 <th style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>이메일</th>
                 <th style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>상태</th>
@@ -945,9 +945,9 @@ export const Vendors: React.FC = () => {
                         )}
                       </td>
                       {/* 📄 사업자등록증 */}
-                      <td style={{ padding: '6px 6px', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '6px 6px', whiteSpace: 'nowrap', textAlign: 'center' }}>
                         {v.businessCertFileUrl ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                             <a
                               href={v.businessCertFileUrl}
                               target="_blank"
@@ -956,17 +956,18 @@ export const Vendors: React.FC = () => {
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '3px',
-                                padding: '2px 6px',
+                                padding: '2px 8px',
                                 borderRadius: '4px',
                                 fontSize: '11px',
                                 fontWeight: 600,
                                 backgroundColor: 'rgba(2, 132, 199, 0.1)',
                                 color: '#0284c7',
-                                textDecoration: 'none'
+                                textDecoration: 'none',
+                                border: '1px solid rgba(2, 132, 199, 0.3)'
                               }}
                               title={v.businessCertFileName || '사업자등록증 열람'}
                             >
-                              <FileText size={11} /> 사업자등록증 보기 ↗
+                              <FileText size={11} /> 보기
                             </a>
                             {v.businessStatus && (
                               <span style={{
@@ -980,118 +981,37 @@ export const Vendors: React.FC = () => {
                                 {v.businessStatus === 'CLOSED' ? '폐업' : '계속'}
                               </span>
                             )}
-                            {canSave && (
-                              <button data-hs-trigger="Register"
-                                type="button"
-                                onClick={() => handleRemoveVendorBizCert(v)}
-                                style={{
-                                  border: 'none',
-                                  background: 'none',
-                                  cursor: 'pointer',
-                                  color: 'var(--danger)',
-                                  padding: '2px',
-                                  fontSize: '11px',
-                                  lineHeight: 1
-                                }}
-                                title="사업자등록증 삭제"
-                              >
-                                ✕
-                              </button>
-                            )}
                           </div>
-                        ) : canSave ? (
-                          <label style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '3px',
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            fontSize: '11px',
-                            fontWeight: 500,
-                            backgroundColor: 'var(--bg-app)',
-                            border: '1px dashed var(--border-color)',
-                            color: 'var(--text-muted)',
-                            cursor: 'pointer'
-                          }}>
-                            <Upload size={11} /> 등록
-                            <input
-                              type="file"
-                              accept="image/*,application/pdf"
-                              style={{ display: 'none' }}
-                              onChange={e => handleDirectUploadVendorBizCert(v, e)}
-                            />
-                          </label>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>미등록</span>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '11.5px' }}>-</span>
                         )}
                       </td>
                       {/* 📄 통장사본 */}
-                      <td style={{ padding: '6px 6px', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '6px 6px', whiteSpace: 'nowrap', textAlign: 'center' }}>
                         {v.passbookFileUrl ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <a
-                              href={v.passbookFileUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '3px',
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                fontSize: '11px',
-                                fontWeight: 600,
-                                backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                                color: 'var(--primary)',
-                                textDecoration: 'none'
-                              }}
-                              title={v.passbookFileName || '통장사본 열람'}
-                            >
-                              <FileText size={11} /> 통장사본 보기 ↗
-                            </a>
-                            {canSave && (
-                              <button data-hs-trigger="Delete"
-                                type="button"
-                                onClick={() => handleRemoveVendorPassbook(v)}
-                                style={{
-                                  border: 'none',
-                                  background: 'none',
-                                  cursor: 'pointer',
-                                  color: 'var(--danger)',
-                                  padding: '2px',
-                                  fontSize: '11px',
-                                  lineHeight: 1
-                                }}
-                                title="통장사본 삭제"
-                              >
-                                ✕
-                              </button>
-                            )}
-                          </div>
-                        ) : canSave ? (
-                          <label style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '3px',
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            fontSize: '11px',
-                            fontWeight: 500,
-                            backgroundColor: 'var(--bg-app)',
-                            border: '1px dashed var(--border-color)',
-                            color: 'var(--text-muted)',
-                            cursor: 'pointer'
-                          }}>
-                            <Upload size={11} /> 등록
-                            <input
-                              type="file"
-                              accept="image/*,application/pdf"
-                              style={{ display: 'none' }}
-                              onChange={e => handleDirectUploadVendorPassbook(v, e)}
-                            />
-                          </label>
+                          <a
+                            href={v.passbookFileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                              color: 'var(--primary)',
+                              textDecoration: 'none',
+                              border: '1px solid rgba(37, 99, 235, 0.3)'
+                            }}
+                            title={v.passbookFileName || '통장사본 열람'}
+                          >
+                            <FileText size={11} /> 보기
+                          </a>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>미등록</span>
+                          <span style={{ color: 'var(--text-muted)', fontSize: '11.5px' }}>-</span>
                         )}
                       </td>
                       <td style={{ fontSize: '11.5px', padding: '6px 6px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
@@ -1107,14 +1027,9 @@ export const Vendors: React.FC = () => {
                       </td>
                       {canSave && (
                         <td style={{ textAlign: 'center', padding: '6px 4px', whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'flex', gap: '3px', justifyContent: 'center' }}>
-                            <button className="btn-secondary" onClick={() => handleOpenEditModal(v)} style={{ padding: '3px 5px' }} title="수정">
-                              <Edit2 size={12} />
-                            </button>
-                            <button data-hs-trigger="Delete" className="btn-danger" onClick={() => handleDelete(v.id, v.name)} style={{ padding: '3px 5px' }} title="삭제">
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
+                          <button className="btn-secondary" onClick={() => handleOpenEditModal(v)} style={{ padding: '3px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }} title="수정">
+                            <Edit2 size={12} /> 수정
+                          </button>
                         </td>
                       )}
                     </tr>
@@ -1191,6 +1106,301 @@ export const Vendors: React.FC = () => {
             <form onSubmit={handleSaveSubmit}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
                 
+                {/* 🌟 1. 증빙 서류 첨부 (사업자등록증 AI 자동인식 & 통장사본) - 모달 최상단 배치 🌟 */}
+                <div style={{
+                  gridColumn: 'span 2',
+                  backgroundColor: 'var(--bg-app)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  padding: '12px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                      <FileText size={14} style={{ color: 'var(--primary)' }} /> 증빙 서류 첨부 (선택적 드롭 또는 파일 선택)
+                    </label>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      ※ 사업자등록증 드롭 시 AI 판독 정보 및 국세청 상태 자동 입력
+                    </span>
+                  </div>
+
+                  {matchedNotice && (
+                    <div style={{
+                      padding: '6px 10px',
+                      marginBottom: '8px',
+                      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                      border: '1px solid rgba(59, 130, 246, 0.3)',
+                      borderRadius: '4px',
+                      fontSize: '11.5px',
+                      color: 'var(--primary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}>
+                      <Check size={14} /> {matchedNotice}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    {/* 1. 사업자등록증 드롭존 */}
+                    <div
+                      onDragOver={e => { e.preventDefault(); setBizCertDropActive(true); }}
+                      onDragLeave={() => setBizCertDropActive(false)}
+                      onDrop={e => {
+                        e.preventDefault();
+                        setBizCertDropActive(false);
+                        const f = e.dataTransfer.files?.[0];
+                        if (f) handleProcessBizCertFile(f);
+                      }}
+                      style={{
+                        border: bizCertDropActive ? '2px dashed var(--primary)' : '1px dashed var(--border-color)',
+                        borderRadius: '6px',
+                        padding: '10px',
+                        backgroundColor: bizCertDropActive ? 'rgba(59, 130, 246, 0.05)' : 'var(--bg-card)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <FileCheck size={13} style={{ color: '#0284c7' }} /> 사업자등록증 (AI 자동인식)
+                        </span>
+                        {editingVendor.businessStatus && (
+                          <span style={{
+                            fontSize: '10.5px',
+                            fontWeight: '600',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            backgroundColor: editingVendor.businessStatus === 'CLOSED' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                            color: editingVendor.businessStatus === 'CLOSED' ? '#ef4444' : '#16a34a'
+                          }}>
+                            {editingVendor.businessStatus === 'CLOSED' ? `폐업(${editingVendor.closedDate || ''})` : '계속사업자'}
+                          </span>
+                        )}
+                      </div>
+
+                      {isAnalyzingBizCert ? (
+                        <div style={{ padding: '14px 8px', textAlign: 'center', color: 'var(--primary)', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                          <Loader2 size={16} className="animate-spin" /> AI 등록증 분석 및 국세청 조회 중...
+                        </div>
+                      ) : editingVendor.businessCertFileUrl ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginTop: '2px' }}>
+                          <a
+                            href={editingVendor.businessCertFileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              fontSize: '11.5px',
+                              fontWeight: '600',
+                              backgroundColor: 'rgba(2, 132, 199, 0.1)',
+                              color: '#0284c7',
+                              textDecoration: 'none',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              maxWidth: '170px'
+                            }}
+                            title={editingVendor.businessCertFileName || '사업자등록증 열람'}
+                          >
+                            <FileText size={12} /> 보기 ↗
+                          </a>
+                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                            <label style={{
+                              padding: '3px 6px',
+                              borderRadius: '4px',
+                              fontSize: '11px',
+                              backgroundColor: 'var(--bg-app)',
+                              border: '1px solid var(--border-color)',
+                              color: 'var(--text-secondary)',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              변경
+                              <input
+                                type="file"
+                                accept="image/*,application/pdf"
+                                style={{ display: 'none' }}
+                                onChange={e => {
+                                  const f = e.target.files?.[0];
+                                  if (f) handleProcessBizCertFile(f);
+                                  e.target.value = '';
+                                }}
+                              />
+                            </label>
+                            <button data-hs-trigger="Delete"
+                              type="button"
+                              onClick={() => setEditingVendor({ ...editingVendor, businessCertFileUrl: undefined, businessCertFileName: undefined })}
+                              style={{
+                                border: 'none',
+                                background: 'none',
+                                color: 'var(--danger)',
+                                cursor: 'pointer',
+                                fontSize: '11px',
+                                padding: '2px'
+                              }}
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <label style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '12px 6px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          backgroundColor: 'var(--bg-app)',
+                          border: '1px dashed var(--border-color)'
+                        }}>
+                          <Upload size={16} style={{ color: 'var(--text-muted)', marginBottom: '4px' }} />
+                          <span style={{ fontSize: '11.5px', fontWeight: '600', color: 'var(--text-main)' }}>사업자등록증 드롭 또는 클릭</span>
+                          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>상호·번호·대표자·업태·종목 자동 완성</span>
+                          <input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            style={{ display: 'none' }}
+                            onChange={e => {
+                              const f = e.target.files?.[0];
+                              if (f) handleProcessBizCertFile(f);
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+
+                    {/* 2. 통장사본 드롭존 */}
+                    <div
+                      onDragOver={e => { e.preventDefault(); setPassbookDropActive(true); }}
+                      onDragLeave={() => setPassbookDropActive(false)}
+                      onDrop={e => {
+                        e.preventDefault();
+                        setPassbookDropActive(false);
+                        const f = e.dataTransfer.files?.[0];
+                        if (f) handleProcessPassbookFile(f);
+                      }}
+                      style={{
+                        border: passbookDropActive ? '2px dashed var(--primary)' : '1px dashed var(--border-color)',
+                        borderRadius: '6px',
+                        padding: '10px',
+                        backgroundColor: passbookDropActive ? 'rgba(59, 130, 246, 0.05)' : 'var(--bg-card)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <CreditCard size={13} style={{ color: '#f59e0b' }} /> 통장사본 증빙
+                        </span>
+                      </div>
+
+                      {editingVendor.passbookFileUrl ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginTop: '2px' }}>
+                          <a
+                            href={editingVendor.passbookFileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              fontSize: '11.5px',
+                              fontWeight: '600',
+                              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                              color: 'var(--warning)',
+                              textDecoration: 'none',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              maxWidth: '170px'
+                            }}
+                            title={editingVendor.passbookFileName || '통장사본 열람'}
+                          >
+                            <FileText size={12} /> 보기 ↗
+                          </a>
+                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                            <label style={{
+                              padding: '3px 6px',
+                              borderRadius: '4px',
+                              fontSize: '11px',
+                              backgroundColor: 'var(--bg-app)',
+                              border: '1px solid var(--border-color)',
+                              color: 'var(--text-secondary)',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              변경
+                              <input
+                                type="file"
+                                accept="image/*,application/pdf"
+                                style={{ display: 'none' }}
+                                onChange={e => {
+                                  const f = e.target.files?.[0];
+                                  if (f) handleProcessPassbookFile(f);
+                                  e.target.value = '';
+                                }}
+                              />
+                            </label>
+                            <button data-hs-trigger="Delete"
+                              type="button"
+                              onClick={() => setEditingVendor({ ...editingVendor, passbookFileUrl: undefined, passbookFileName: undefined })}
+                              style={{
+                                border: 'none',
+                                background: 'none',
+                                color: 'var(--danger)',
+                                cursor: 'pointer',
+                                fontSize: '11px',
+                                padding: '2px'
+                              }}
+                            >
+                              삭제
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <label style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '12px 6px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          backgroundColor: 'var(--bg-app)',
+                          border: '1px dashed var(--border-color)'
+                        }}>
+                          <Upload size={16} style={{ color: 'var(--text-muted)', marginBottom: '4px' }} />
+                          <span style={{ fontSize: '11.5px', fontWeight: '600', color: 'var(--text-main)' }}>통장사본 드롭 또는 클릭</span>
+                          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>대금 지급 계좌 확인용 사본 증빙</span>
+                          <input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            style={{ display: 'none' }}
+                            onChange={e => {
+                              const f = e.target.files?.[0];
+                              if (f) handleProcessPassbookFile(f);
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 {/* 상호명 */}
                 <div style={{ gridColumn: 'span 2' }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '4px' }}>상호명 (매입처명) *</label>
@@ -1386,7 +1596,7 @@ export const Vendors: React.FC = () => {
                   />
                 </div>
 
-                {/* 💳 대금 지급 계좌 & 2대 증빙 서류 (사업자등록증/통장사본) 드롭존 섹션 */}
+                {/* 💳 대금 지급 계좌 */}
                 <div style={{
                   gridColumn: 'span 2',
                   backgroundColor: 'var(--bg-app)',
@@ -1400,7 +1610,7 @@ export const Vendors: React.FC = () => {
                     </label>
                   </div>
                   
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr 1fr', gap: '8px', marginBottom: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr 1fr', gap: '8px' }}>
                     <div>
                       <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px' }}>은행명</label>
                       <input
@@ -1432,295 +1642,6 @@ export const Vendors: React.FC = () => {
                       />
                     </div>
                   </div>
-
-                  {/* 🌟 2대 증빙 서류 선택적 드롭존 패널 (사업자등록증 & 통장사본) 🌟 */}
-                  <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <label style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                        <FileText size={14} style={{ color: 'var(--primary)' }} /> 증빙 서류 첨부 (선택적 드롭 또는 파일 선택)
-                      </label>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                        ※ 사업자등록증 드롭 시 AI 판독 정보 및 국세청 상태 자동 입력
-                      </span>
-                    </div>
-
-                    {matchedNotice && (
-                      <div style={{
-                        padding: '6px 10px',
-                        marginBottom: '8px',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        border: '1px solid rgba(59, 130, 246, 0.3)',
-                        borderRadius: '4px',
-                        fontSize: '11.5px',
-                        color: 'var(--primary)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}>
-                        <Check size={14} /> {matchedNotice}
-                      </div>
-                    )}
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                      {/* 1. 사업자등록증 드롭존 */}
-                      <div
-                        onDragOver={e => { e.preventDefault(); setBizCertDropActive(true); }}
-                        onDragLeave={() => setBizCertDropActive(false)}
-                        onDrop={e => {
-                          e.preventDefault();
-                          setBizCertDropActive(false);
-                          const f = e.dataTransfer.files?.[0];
-                          if (f) handleProcessBizCertFile(f);
-                        }}
-                        style={{
-                          border: bizCertDropActive ? '2px dashed var(--primary)' : '1px dashed var(--border-color)',
-                          borderRadius: '6px',
-                          padding: '10px',
-                          backgroundColor: bizCertDropActive ? 'rgba(59, 130, 246, 0.05)' : 'var(--bg-card)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '6px',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <FileCheck size={13} style={{ color: '#0284c7' }} /> 사업자등록증 (AI 자동인식)
-                          </span>
-                          {editingVendor.businessStatus && (
-                            <span style={{
-                              fontSize: '10.5px',
-                              fontWeight: '600',
-                              padding: '1px 6px',
-                              borderRadius: '4px',
-                              backgroundColor: editingVendor.businessStatus === 'CLOSED' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                              color: editingVendor.businessStatus === 'CLOSED' ? '#ef4444' : '#16a34a'
-                            }}>
-                              {editingVendor.businessStatus === 'CLOSED' ? `폐업(${editingVendor.closedDate || ''})` : '계속사업자'}
-                            </span>
-                          )}
-                        </div>
-
-                        {isAnalyzingBizCert ? (
-                          <div style={{ padding: '14px 8px', textAlign: 'center', color: 'var(--primary)', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                            <Loader2 size={16} className="animate-spin" /> AI 등록증 분석 및 국세청 조회 중...
-                          </div>
-                        ) : editingVendor.businessCertFileUrl ? (
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginTop: '2px' }}>
-                            <a
-                              href={editingVendor.businessCertFileUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                padding: '4px 8px',
-                                borderRadius: '4px',
-                                fontSize: '11.5px',
-                                fontWeight: '600',
-                                backgroundColor: 'rgba(2, 132, 199, 0.1)',
-                                color: '#0284c7',
-                                textDecoration: 'none',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                maxWidth: '170px'
-                              }}
-                              title={editingVendor.businessCertFileName || '사업자등록증 열람'}
-                            >
-                              <FileText size={12} /> 사업자등록증 보기 ↗
-                            </a>
-                            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                              <label style={{
-                                padding: '3px 6px',
-                                borderRadius: '4px',
-                                fontSize: '11px',
-                                backgroundColor: 'var(--bg-app)',
-                                border: '1px solid var(--border-color)',
-                                color: 'var(--text-secondary)',
-                                cursor: 'pointer',
-                                whiteSpace: 'nowrap'
-                              }}>
-                                변경
-                                <input
-                                  type="file"
-                                  accept="image/*,application/pdf"
-                                  style={{ display: 'none' }}
-                                  onChange={e => {
-                                    const f = e.target.files?.[0];
-                                    if (f) handleProcessBizCertFile(f);
-                                    e.target.value = '';
-                                  }}
-                                />
-                              </label>
-                              <button data-hs-trigger="Delete"
-                                type="button"
-                                onClick={() => setEditingVendor({ ...editingVendor, businessCertFileUrl: undefined, businessCertFileName: undefined })}
-                                style={{
-                                  border: 'none',
-                                  background: 'none',
-                                  color: 'var(--danger)',
-                                  cursor: 'pointer',
-                                  fontSize: '11px',
-                                  padding: '2px'
-                                }}
-                              >
-                                삭제
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <label style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: '12px 6px',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            backgroundColor: 'var(--bg-app)',
-                            border: '1px dashed var(--border-color)'
-                          }}>
-                            <Upload size={16} style={{ color: 'var(--text-muted)', marginBottom: '4px' }} />
-                            <span style={{ fontSize: '11.5px', fontWeight: '600', color: 'var(--text-main)' }}>사업자등록증 드롭 또는 클릭</span>
-                            <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>상호·번호·대표자·업태·종목 자동 완성</span>
-                            <input
-                              type="file"
-                              accept="image/*,application/pdf"
-                              style={{ display: 'none' }}
-                              onChange={e => {
-                                const f = e.target.files?.[0];
-                                if (f) handleProcessBizCertFile(f);
-                                e.target.value = '';
-                              }}
-                            />
-                          </label>
-                        )}
-                      </div>
-
-                      {/* 2. 통장사본 드롭존 */}
-                      <div
-                        onDragOver={e => { e.preventDefault(); setPassbookDropActive(true); }}
-                        onDragLeave={() => setPassbookDropActive(false)}
-                        onDrop={e => {
-                          e.preventDefault();
-                          setPassbookDropActive(false);
-                          const f = e.dataTransfer.files?.[0];
-                          if (f) handleProcessPassbookFile(f);
-                        }}
-                        style={{
-                          border: passbookDropActive ? '2px dashed var(--primary)' : '1px dashed var(--border-color)',
-                          borderRadius: '6px',
-                          padding: '10px',
-                          backgroundColor: passbookDropActive ? 'rgba(59, 130, 246, 0.05)' : 'var(--bg-card)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '6px',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <CreditCard size={13} style={{ color: '#f59e0b' }} /> 통장사본 증빙
-                          </span>
-                        </div>
-
-                        {editingVendor.passbookFileUrl ? (
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginTop: '2px' }}>
-                            <a
-                              href={editingVendor.passbookFileUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                padding: '4px 8px',
-                                borderRadius: '4px',
-                                fontSize: '11.5px',
-                                fontWeight: '600',
-                                backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                                color: 'var(--warning)',
-                                textDecoration: 'none',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                maxWidth: '170px'
-                              }}
-                              title={editingVendor.passbookFileName || '통장사본 열람'}
-                            >
-                              <FileText size={12} /> 통장사본 보기 ↗
-                            </a>
-                            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                              <label style={{
-                                padding: '3px 6px',
-                                borderRadius: '4px',
-                                fontSize: '11px',
-                                backgroundColor: 'var(--bg-app)',
-                                border: '1px solid var(--border-color)',
-                                color: 'var(--text-secondary)',
-                                cursor: 'pointer',
-                                whiteSpace: 'nowrap'
-                              }}>
-                                변경
-                                <input
-                                  type="file"
-                                  accept="image/*,application/pdf"
-                                  style={{ display: 'none' }}
-                                  onChange={e => {
-                                    const f = e.target.files?.[0];
-                                    if (f) handleProcessPassbookFile(f);
-                                    e.target.value = '';
-                                  }}
-                                />
-                              </label>
-                              <button data-hs-trigger="Delete"
-                                type="button"
-                                onClick={() => setEditingVendor({ ...editingVendor, passbookFileUrl: undefined, passbookFileName: undefined })}
-                                style={{
-                                  border: 'none',
-                                  background: 'none',
-                                  color: 'var(--danger)',
-                                  cursor: 'pointer',
-                                  fontSize: '11px',
-                                  padding: '2px'
-                                }}
-                              >
-                                삭제
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <label style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: '12px 6px',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            backgroundColor: 'var(--bg-app)',
-                            border: '1px dashed var(--border-color)'
-                          }}>
-                            <Upload size={16} style={{ color: 'var(--text-muted)', marginBottom: '4px' }} />
-                            <span style={{ fontSize: '11.5px', fontWeight: '600', color: 'var(--text-main)' }}>통장사본 드롭 또는 클릭</span>
-                            <span style={{ fontSize: '10.5px', color: 'var(--text-muted)', marginTop: '2px' }}>대금 지급 계좌 확인용 사본 증빙</span>
-                            <input
-                              type="file"
-                              accept="image/*,application/pdf"
-                              style={{ display: 'none' }}
-                              onChange={e => {
-                                const f = e.target.files?.[0];
-                                if (f) handleProcessPassbookFile(f);
-                                e.target.value = '';
-                              }}
-                            />
-                          </label>
-                        )}
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
                 <div style={{ gridColumn: 'span 2' }}>
@@ -1735,9 +1656,30 @@ export const Vendors: React.FC = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
-                <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>취소</button>
-                <button data-hs-trigger="Save" type="submit" className="btn-primary">저장 (적용)</button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+                <div>
+                  {editingVendor.id && canSave && (
+                    <button
+                      data-hs-trigger="Delete"
+                      type="button"
+                      className="btn-danger"
+                      onClick={() => {
+                        if (window.confirm(`'${editingVendor.name}' 매입처를 정말 삭제하시겠습니까?`)) {
+                          deleteVendor(editingVendor.id!);
+                          setIsModalOpen(false);
+                          setEditingVendor(null);
+                        }
+                      }}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 14px', fontSize: '12.5px' }}
+                    >
+                      <Trash2 size={13} /> 삭제
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button type="button" className="btn-secondary" onClick={() => setIsModalOpen(false)}>취소</button>
+                  <button data-hs-trigger="Save" type="submit" className="btn-primary">저장 (적용)</button>
+                </div>
               </div>
             </form>
           </div>
