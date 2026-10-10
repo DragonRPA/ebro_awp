@@ -195,13 +195,13 @@ export const DriverPortalPage: React.FC = () => {
       const filePath = `receipts/${fileName}`;
 
       const { error: uploadError } = await supabase!.storage
-        .from('evidence-files')
+        .from('evidence')
         .upload(filePath, blob);
 
       if (uploadError) throw uploadError;
 
       const { data: publicUrlData } = supabase!.storage
-        .from('evidence-files')
+        .from('evidence')
         .getPublicUrl(filePath);
 
       const label = prefix === 'photo' ? '납품증 사진' : '전자 서명';
