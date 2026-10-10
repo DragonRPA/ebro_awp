@@ -173,7 +173,7 @@ export const DriverPortalPage: React.FC = () => {
         const { data, error } = await supabase!.from('deliveries').select('*').eq('id', dlvId).single();
         if (error || !data) throw new Error('배차 정보를 찾을 수 없습니다.');
         setDelivery(data);
-        if (data.status === 'COMPLETED') setCompleted(true);
+        if (data.status === 'COMPLETED' || data.status === 'DELIVERED') setCompleted(true);
         
         // 추가: 계약 및 현장 담당자(인수자) 조회
         if (data.contractId) {
@@ -231,9 +231,9 @@ export const DriverPortalPage: React.FC = () => {
       const { error: updateError } = await supabase!
         .from('deliveries')
         .update({
-          status: 'COMPLETED',
+          status: 'DELIVERED',
           closingMemo: newMemo,
-          completedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString()
         })
         .eq('id', delivery.id);
 
