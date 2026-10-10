@@ -30,10 +30,11 @@ import {
   X,
   Download,
   Boxes,
-  Printer
+  Printer,
+  Eye
 } from 'lucide-react';
 import { generateReceiptHtml } from '../utils/receiptGenerator';
-import { enqueuePrintJob, fetchLocalPrintersFromAgent, printDirectToLocalAgent } from '../services/printQueueService';
+import { enqueuePrintJob, resolveTargetStation } from '../services/printQueueService';
 import { exportToExcel } from '../services/excel';
 
 interface CheckPoint {
@@ -644,7 +645,7 @@ export const OutboundInspections: React.FC = () => {
   };
 
   // ──────────────────────────────────────────────────────────────────────────
-  // 4-C. 납품증(인수증) 즉시 출력 핸들러
+  // 4-C. 납품증 인쇄 큐 전송 핸들러 (프린터 연결 PC/에이전트가 백그라운드 인쇄)
   // ──────────────────────────────────────────────────────────────────────────
   const handlePrintReceipt = async () => {
     if (!selectedGroup) return;
@@ -668,7 +669,7 @@ export const OutboundInspections: React.FC = () => {
             modelName: `${a.modelName} (${a.assetNo})`,
             count: 1
           }))),
-          memo: selectedGroup.rawText || ''
+          memo: ''
         } as any;
       } else {
         if (selectedGroup.assets.length > 0) {
@@ -685,62 +686,89 @@ export const OutboundInspections: React.FC = () => {
 
       const receiptHtml = generateReceiptHtml(delivery, contract, customer, site, currentTenant);
 
-      // 1. 인쇄 대기열에 등록
+      // 1. 최적 인쇄 스테이션 자동 탐색 (출고/납품증 전용 스테이션)
+      const targetStation = resolveTargetStation('DISPATCH_ORDER');
+      const stationName = targetStation?.stationName || '출고장 프린터';
+
+      // 2. 인쇄 큐(print_queue)에 등록 -> 스테이션 PC의 eBroAgent가 자동 수신하여 실물 프린터로 인쇄 집행
       await enqueuePrintJob({
+        stationId: targetStation?.id,
         docType: 'DISPATCH_ORDER',
-        docNo: selectedGroup.contractNo,
+        docNo: selectedGroup.contractNo || contract?.contractNo || contract?.id,
         title: `[납품증] ${selectedGroup.customerName} - ${selectedGroup.siteName}`,
         documentHtml: receiptHtml,
         requestedById: currentUser?.id,
         requestedByName: currentUser?.name
       });
 
-      // 2. 로컬 에이전트 다이렉트 출력 전송
-      let directPrinted = false;
-      const agentCheck = await fetchLocalPrintersFromAgent();
-      if (agentCheck.online && (agentCheck.defaultPrinter || agentCheck.printers[0])) {
-        const printerName = agentCheck.defaultPrinter || agentCheck.printers[0];
-        directPrinted = await printDirectToLocalAgent({
-          printerName,
-          title: `[납품증] ${selectedGroup.customerName}`,
-          htmlContent: receiptHtml
-        });
+      showToast(`[${selectedGroup.customerName}] 납품증이 프린터 큐(${stationName})로 전송되었습니다. 에이전트가 출력을 진행합니다.`, 'success');
+    } catch (err: any) {
+      showErrorModal(`납품증 출력 실패: ${err.message || err}`);
+    }
+  };
+
+  // 4-D. 납품증 화면 미리보기 (프린터 전송 없이 브라우저에서 서식만 확인)
+  const handlePreviewReceipt = () => {
+    if (!selectedGroup) return;
+
+    try {
+      const contract = db.contracts.find(c => c.id === selectedGroup.contractId);
+      const customer = contract ? db.customers.find(c => c.id === contract.customerId) : undefined;
+      const site = contract ? db.sites.find(s => s.id === contract.siteId) : undefined;
+      let delivery = deliveries.find(d => d.contractId === selectedGroup.contractId && d.type === 'OUTBOUND');
+
+      if (!delivery) {
+        delivery = {
+          id: `DLV-VIRTUAL-${Date.now()}`,
+          contractId: selectedGroup.contractId,
+          type: 'OUTBOUND',
+          status: 'DELIVERED',
+          loadingDate: selectedGroup.loadingDate,
+          requestDate: selectedGroup.requestDate,
+          destinationAddress: site?.address || '',
+          cargoItems: JSON.stringify(selectedGroup.assets.map(a => ({
+            modelName: `${a.modelName} (${a.assetNo})`,
+            count: 1
+          }))),
+          memo: ''
+        } as any;
+      } else {
+        if (selectedGroup.assets.length > 0) {
+          const enrichedCargos = selectedGroup.assets.map(a => ({
+            modelName: `${a.modelName} (${a.assetNo})`,
+            count: 1
+          }));
+          delivery = {
+            ...delivery,
+            cargoItems: JSON.stringify(enrichedCargos)
+          };
+        }
       }
 
-      // 3. 브라우저 인쇄 팝업 창
-      const printWindow = window.open('', '_blank', 'width=850,height=900');
-      if (printWindow) {
-        printWindow.document.write(`
+      const receiptHtml = generateReceiptHtml(delivery, contract, customer, site, currentTenant);
+      const previewWindow = window.open('', '_blank', 'width=850,height=900');
+      if (previewWindow) {
+        previewWindow.document.write(`
           <!DOCTYPE html>
           <html>
           <head>
-            <title>납품증 출력 - ${selectedGroup.customerName}</title>
+            <title>납품증 미리보기 - ${selectedGroup.customerName}</title>
             <style>
-              @media print {
-                @page { margin: 15mm; size: A4; }
-                body { margin: 0; }
-              }
+              body { margin: 0; background: #f8fafc; padding: 24px; }
+              .preview-card { background: #fff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border-radius: 8px; max-width: 820px; margin: 0 auto; overflow: hidden; }
             </style>
           </head>
           <body>
-            ${receiptHtml}
-            <script>
-              window.onload = function() {
-                window.print();
-              };
-            </script>
+            <div class="preview-card">
+              ${receiptHtml}
+            </div>
           </body>
           </html>
         `);
-        printWindow.document.close();
+        previewWindow.document.close();
       }
-
-      showToast(directPrinted 
-        ? `[${selectedGroup.customerName}] 납품증이 프린터(${agentCheck.defaultPrinter})로 전송되었습니다.`
-        : `[${selectedGroup.customerName}] 납품증 인쇄 창이 열렸습니다.`
-      );
     } catch (err: any) {
-      showErrorModal(`납품증 출력 실패: ${err.message || err}`);
+      showErrorModal(`납품증 미리보기 실패: ${err.message || err}`);
     }
   };
 
@@ -1589,7 +1617,7 @@ export const OutboundInspections: React.FC = () => {
                         className="btn-primary"
                         style={{
                           flex: 1,
-                          padding: '12px 20px',
+                          padding: '12px 18px',
                           fontWeight: 800,
                           fontSize: '14px',
                           display: 'flex',
@@ -1599,14 +1627,35 @@ export const OutboundInspections: React.FC = () => {
                           backgroundColor: '#2563eb'
                         }}
                       >
-                        <Printer size={18} /> 🖨️ 납품증(인수증) 출력
+                        <Printer size={18} /> 납품증 출력
+                      </button>
+
+                      <button data-mid="btn-preview-receipt"
+                        onClick={handlePreviewReceipt}
+                        disabled={isProcessing}
+                        style={{
+                          padding: '12px 16px',
+                          borderRadius: '8px',
+                          backgroundColor: 'var(--bg-body)',
+                          color: 'var(--text-primary)',
+                          border: '1.5px solid var(--border-color)',
+                          fontWeight: 700,
+                          fontSize: '13px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        <Eye size={16} /> 미리보기
                       </button>
 
                       <button data-mid="btn-rollback-approval"
                         onClick={() => setShowRollbackModal(true)}
                         disabled={isProcessing}
                         style={{
-                          padding: '12px 20px',
+                          padding: '12px 18px',
                           borderRadius: '8px',
                           backgroundColor: 'rgba(239,68,68,0.08)',
                           color: 'var(--danger)',
@@ -1620,7 +1669,7 @@ export const OutboundInspections: React.FC = () => {
                           whiteSpace: 'nowrap'
                         }}
                       >
-                        <RotateCcw size={16} /> ↩️ 출고 승인 취소 (검수 롤백)
+                        <RotateCcw size={16} /> 출고 승인 취소 (검수 롤백)
                       </button>
                     </>
                   ) : (
