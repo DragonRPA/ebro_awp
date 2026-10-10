@@ -40,6 +40,7 @@ export const ACCOUNTING_TEMPLATE: PermissionRuleMap = {
   organization: { canView: true, canSave: true },
   privacy_audit: { canView: true, canSave: true },   // 개인정보 접속 감사 권한
   regular_reports: { canView: true, canSave: true },
+  data_formation: { canView: true, canSave: true },
   acquisition_disposal: { canView: true, canSave: true },
   // 열람만 허용 (영업/자산 상태 대사)
   customer: { canView: true, canSave: false },
@@ -143,6 +144,11 @@ export function getRoleTemplate(role?: string, departmentIdOrName?: string): Per
   }
 
   // 1순위: departmentId 기반 매핑
+  if (d === 'DEPT-0000001' || d === 'DEPT-1') {
+    return new Proxy({}, {
+      get: () => ({ canView: true, canSave: true })
+    }) as PermissionRuleMap;
+  }
   if (d === 'DEPT-0000002') return ACCOUNTING_TEMPLATE;
   if (d === 'DEPT-0000003') return SALES_TEMPLATE;
   if (d === 'DEPT-0000004') return LOGISTICS_TEMPLATE;
