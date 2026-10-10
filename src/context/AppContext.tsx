@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { db, supabase, PAYMENT_REVERSAL_ENABLED, isActivePayment, isActiveDepositLink, Tenant, TenantWorkplace, TenantYard, TenantBusinessType, TenantBankAccount, OFFICIAL_STAMP_BASE64, User, MenuPermission, createMenuPermission, CustomRole, RolePermission, Customer, CustomerContact, CustomerSite, SiteMaster, Product, Asset, Consumable, ConsumableLog, ConsumableLot, ConsumablePurchaseRequest, MechanicConsumableStock, Contract, ContractAsset, ContractHistory, Delivery, Billing, BillingType, BillingDetail, CustomStatementItem, Receivable, Payment, PaymentDepositLink, Repair, RepairConsumable, Todo, BankTransaction, BankMatchingRule, BankAccountInitialBalance, AssetInOutLog, GoogleConfig, Vendor, CashFlowSnapshot, OutboundInspection, TransportCompany, TransportDriver, TransportNegotiation, SubleaseNegotiation, DepreciationLog, PurchaseSettlement, PurchaseSettlementItem, SettlementPaymentLog, ExternalLease, PurchaseSettlementType, PurchaseSettlementStatus, findCustomerByNormalizedName, AnnualLeaveQuota, LeaveUsage, OvertimeRecord, PayrollClosing, InspectionChecklistItem, EquipmentManual, StandardOption, InboundDefectDetail, PrepaidTransaction, DelinquencyActionLog, LegalNoticeLog, LegalNoticeTemplate, calculateAssetDepreciation, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, CorporateVehicle, VehicleOperationLog, VehicleFuelLog, RepairPartUsed, RepairCollectedPart, SaleContractTerms, StocktakingAudit, StocktakingAuditItem, CollectedPart, PrintStation, PrintQueueItem, logPrivacyAccess, ErrorReport, ErrorReportAttachment, ErrorReportStatus, ErrorReportSeverity, ErrorReportCategory } from '../services/db';
+import { db, supabase, PAYMENT_REVERSAL_ENABLED, isActivePayment, isActiveDepositLink, Tenant, TenantWorkplace, TenantYard, TenantBusinessType, TenantBankAccount, OFFICIAL_STAMP_BASE64, User, MenuPermission, createMenuPermission, CustomRole, RolePermission, Customer, CustomerContact, CustomerSite, SiteMaster, Product, Asset, Consumable, ConsumableLog, ConsumableLot, ConsumablePurchaseRequest, MechanicConsumableStock, Contract, ContractAsset, ContractHistory, Delivery, Billing, BillingType, BillingDetail, CustomStatementItem, Receivable, Payment, PaymentDepositLink, Repair, RepairConsumable, Todo, BankTransaction, BankMatchingRule, BankAccountInitialBalance, AssetInOutLog, GoogleConfig, Vendor, CashFlowSnapshot, OutboundInspection, TransportCompany, TransportDriver, TransportNegotiation, SubleaseNegotiation, DepreciationLog, PurchaseSettlement, PurchaseSettlementItem, SettlementPaymentLog, ExternalLease, PurchaseSettlementType, PurchaseSettlementStatus, findCustomerByNormalizedName, AnnualLeaveQuota, LeaveUsage, OvertimeRecord, PayrollClosing, InspectionChecklistItem, EquipmentManual, StandardOption, InboundDefectDetail, PrepaidTransaction, DelinquencyActionLog, LegalNoticeLog, LegalNoticeTemplate, calculateAssetDepreciation, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, CorporateVehicle, VehicleOperationLog, VehicleFuelLog, RepairPartUsed, RepairCollectedPart, SaleContractTerms, StocktakingAudit, StocktakingAuditItem, CollectedPart, PrintStation, PrintQueueItem, logPrivacyAccess, ErrorReport, ErrorReportAttachment, ErrorReportStatus, ErrorReportSeverity, ErrorReportCategory, ApprovalRule, RuleConsensus, ApprovalPayload } from '../services/db';
+import { useApproval } from '../hooks/useApproval';
 import { enqueuePrintJob as serviceEnqueuePrintJob, registerPrintStation as serviceRegisterPrintStation, deletePrintStation as serviceDeletePrintStation, retryPrintJob as serviceRetryPrintJob, cancelPrintJob as serviceCancelPrintJob } from '../services/printQueueService';
 import { ErrorModal } from '../components/ErrorModal';
 import { PrintSuccessModal } from '../components/PrintSuccessModal';
@@ -496,12 +497,30 @@ interface AppContextType {
   goForward: () => void;
   historyStack: Array<{ tab: string; payload?: any }>;
   historyIndex: number;
+
+  // 🛡️ 전자결재 파이프라인 (Approval Engine)
+  fetchRuleForEvent: (eventCode: string) => Promise<{ rule: ApprovalRule | null; consensus: RuleConsensus[] }>;
+  createApprovalRequest: (
+    ruleId: string,
+    originatorId: string,
+    targetRecordId: string,
+    targetTable: string,
+    escalatedTier?: number,
+    payload?: ApprovalPayload
+  ) => Promise<{ req: any; steps: any[] }>;
+  processApprovalStep: (
+    stepId: string,
+    action: 'APPROVED' | 'REJECTED',
+    comment?: string
+  ) => Promise<boolean>;
+  db: typeof db;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   console.log("[DEBUG] AppProvider Render!");
+  const { fetchRuleForEvent, createApprovalRequest, processApprovalStep } = useApproval();
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
@@ -1556,8 +1575,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 1. 시스템 최고관리자 계정 및 ADMIN 역할 사용자는 모든 메뉴에 100% 무조건 권한 부여 (테넌트 숨김 가드 통과 후)
     if (isSuperAdmin) return true;
 
-    // 2-1. 연차신청, 매뉴얼 스튜디오, 업무매뉴얼 및 오류 신고는 권한 구분 없이 모든 임직원의 공통 기능으로 처리 (전원 상시 개방)
-    if (normMenuId === 'leave_application' || normMenuId === 'manual_studio' || normMenuId === 'operations_manual' || normMenuId === 'error_report') {
+    // 2-1. 연차신청, 매뉴얼 스튜디오, 업무매뉴얼, 오류 신고 및 내 결재함은 권한 구분 없이 모든 임직원의 공통 기능으로 처리 (전원 상시 개방)
+    if (normMenuId === 'leave_application' || normMenuId === 'manual_studio' || normMenuId === 'operations_manual' || normMenuId === 'error_report' || normMenuId === 'approvalInbox' || normMenuId === 'approval_inbox') {
       return true;
     }
 
@@ -11062,8 +11081,12 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     setErrorReports([...db.errorReports]);
   };
 
-  return (
-    <AppContext.Provider value={{ receivables: db.receivables as any[], refreshReceivables: () => {}, 
+  const contextValue: AppContextType = {
+    db,
+    fetchRuleForEvent,
+    createApprovalRequest,
+    processApprovalStep,
+    receivables: db.receivables as any[], refreshReceivables: () => {}, 
       currentUser, theme, toggleTheme, login, logout, switchUser, hasPermission, showErrorModal, showPrintSuccessModal,
       tenants, currentTenant, setCurrentTenantId, saveTenant, deleteTenant,
       addTenantWorkplace, updateTenantWorkplace, deleteTenantWorkplace,
@@ -11123,9 +11146,17 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       canGoForward,
       goBack,
       goForward,
-      historyStack,
-      historyIndex
-    }}>
+    historyStack,
+    historyIndex
+  };
+
+  if (typeof window !== 'undefined') {
+    (window as any).__APP_CONTEXT__ = contextValue;
+    (window as any).__ebro_db = db;
+  }
+
+  return (
+    <AppContext.Provider value={contextValue}>
       {children}
       <ErrorModal
         isOpen={errorModal.isOpen}

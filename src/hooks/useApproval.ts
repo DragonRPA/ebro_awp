@@ -47,7 +47,7 @@ export function useApproval() {
     if (!supabase) throw new Error('Supabase Client not initialized');
     setLoading(true);
     try {
-      const { data: ruleData } = await supabase.from('approval_rules').select('required_tier').eq('id', ruleId).single();
+      const { data: ruleData } = await supabase.from('approval_rules').select('event_code, required_tier').eq('id', ruleId).single();
       const targetTier = escalatedTier ?? (ruleData?.required_tier || 0);
 
       // 🛡️ FK 무결성 보장: sys-admin, usr-admin 등 가상 계정 방어 및 실제 DB 사용자(u-1 등) 매핑
@@ -57,6 +57,7 @@ export function useApproval() {
 
       const insertObj: any = {
         rule_id: ruleId,
+        event_code: ruleData?.event_code || 'APPROVAL_EVENT',
         originator_id: safeOriginatorId,
         target_record_id: targetRecordId,
         target_table: targetTable,
@@ -100,7 +101,13 @@ export function useApproval() {
         } catch {}
       }
       
-      // 결재선(approval_steps) 자동 생성 로직 (R&R 기반 직책 티어 우선 판정)
+      // 결재선(approval_steps) 자동 생성 로직 (R&R 및 책임분리 원칙 준수)
+      const { data: consensusList } = await supabase
+        .from('rule_consensus')
+        .select('*')
+        .eq('rule_id', ruleId)
+        .order('seq_order', { ascending: true });
+
       let usersList: any[] = [];
       const { data: usersData } = await supabase.from('users').select('*');
       if (usersData && usersData.length > 0) {
@@ -121,53 +128,146 @@ export function useApproval() {
         }
       } catch {}
 
-      const originator = usersList.find(u => u.id === originatorId);
-      const currentTier = originator ? getUserEffectiveTier(originator).effectiveTier : 0;
-      
+      const originator = usersList.find(u => u.id === safeOriginatorId || u.id === originatorId);
+      const origTier = originator ? getUserEffectiveTier(originator).effectiveTier : 0;
+      const origDeptId = originator?.departmentId;
+
+      // 🛡️ 책임 분리(Segregation of Duties) & 셀프 승인 방지 원칙:
+      // 기안자 본인은 어떠한 결재 스텝에도 승인권자로 참여할 수 없음
+      const assignedUserIds = new Set<string>();
+      if (originatorId) assignedUserIds.add(originatorId);
+      if (safeOriginatorId) assignedUserIds.add(safeOriginatorId);
+
+      // 목표 티어(targetTier) 및 기안자 권한에 따른 다양한 결재선 동역학(Approval Dynamics)
+      let milestoneTiers: number[] = [];
+      if (targetTier <= 4) {
+        if (origTier < 4) {
+          milestoneTiers = [4]; // 팀장 전결
+        } else {
+          // 기안자가 이미 팀장/부장이면 셀프 승인이 불가하므로 상위 임원/대표이사로 자동 에스컬레이션
+          milestoneTiers = [Math.min(7, Math.max(origTier + 1, 6))];
+        }
+      } else if (targetTier <= 6) {
+        if (origTier < 4) {
+          milestoneTiers = [4, targetTier]; // 1차 팀장 심사 ➔ 2차 임원 전결
+        } else if (origTier < targetTier) {
+          milestoneTiers = [targetTier]; // 임원 전결
+        } else {
+          milestoneTiers = [7]; // 대표이사 최종 결재로 에스컬레이션
+        }
+      } else {
+        // targetTier === 7 (중대/대표이사 결재)
+        if (origTier < 4) {
+          milestoneTiers = [4, 7]; // 1차 팀장 심사 ➔ 2차 대표이사 최종 승인
+        } else {
+          milestoneTiers = [7]; // 대표이사 최종 승인
+        }
+      }
+
+      // 헬퍼: 결재권자 탐색 (기안자 제외, 중복 배정 제외, 조직 지휘선 우선)
+      const findApprover = (minTier: number, targetDeptId?: string | null) => {
+        // 1. 합의선 등 지정된 부서가 있는 경우
+        if (targetDeptId) {
+          const deptApprover = usersList.find(u => 
+            !assignedUserIds.has(u.id) && 
+            u.departmentId === targetDeptId && 
+            getUserEffectiveTier(u).effectiveTier >= minTier
+          );
+          if (deptApprover) return deptApprover;
+        }
+        // 2. 기안자 소속 부서 내에서 minTier 이상 & 미할당 결재권자 탐색
+        if (origDeptId) {
+          const sameDeptApprover = usersList.find(u => 
+            !assignedUserIds.has(u.id) && 
+            u.departmentId === origDeptId && 
+            getUserEffectiveTier(u).effectiveTier >= minTier
+          );
+          if (sameDeptApprover) return sameDeptApprover;
+        }
+        // 3. 전사에서 정확한 티어 일치자 탐색
+        const exactTierApprover = usersList.find(u => 
+          !assignedUserIds.has(u.id) && 
+          getUserEffectiveTier(u).effectiveTier === minTier
+        );
+        if (exactTierApprover) return exactTierApprover;
+
+        // 4. 전사에서 minTier 이상인 자 탐색
+        const higherTierApprover = usersList.find(u => 
+          !assignedUserIds.has(u.id) && 
+          getUserEffectiveTier(u).effectiveTier >= minTier
+        );
+        if (higherTierApprover) return higherTierApprover;
+
+        // 5. 최고관리자(ADMIN) fallback (단, 기안자 제외)
+        const adminFallback = usersList.find(u => 
+          !assignedUserIds.has(u.id) && 
+          u.role === 'ADMIN'
+        );
+        if (adminFallback) return adminFallback;
+
+        // 6. 최후 수단: 기안자가 아닌 사용자 중 최고 티어 보유자
+        const highestFallback = [...usersList]
+          .filter(u => !assignedUserIds.has(u.id))
+          .sort((a, b) => getUserEffectiveTier(b).effectiveTier - getUserEffectiveTier(a).effectiveTier)[0];
+        return highestFallback || null;
+      };
+
       let stepNum = 1;
-      const stepsToInsert = [];
-      
-      // 요구 티어까지 수직 결재선(1->3->5->7 등) 생성
-      const allTiers = [1, 3, 5, 7];
-      const requiredTiers = allTiers.filter(t => t > currentTier && t <= targetTier);
-      if (requiredTiers.length === 0 && targetTier > currentTier) {
-         requiredTiers.push(targetTier);
+      const stepsToInsert: any[] = [];
+
+      for (const t of milestoneTiers) {
+        const approver = findApprover(t);
+        if (approver) {
+          assignedUserIds.add(approver.id);
+          stepsToInsert.push({
+            request_id: reqData.id,
+            step_order: stepNum++,
+            step_type: 'APPROVAL',
+            approver_id: approver.id,
+            approver_name: approver.name,
+            approver_tier: t,
+            status: stepsToInsert.length === 0 ? 'PENDING' : 'WAITING'
+          });
+
+          // 합의선(rule_consensus) 체크: 현재 티어 직후 트리거되는 부서 합의 단계 삽입
+          const matchingConsensus = (consensusList || []).filter(c => c.trigger_after_tier === t);
+          for (const con of matchingConsensus) {
+            const conApprover = findApprover(con.consensus_tier, con.target_dept_id);
+            if (conApprover) {
+              assignedUserIds.add(conApprover.id);
+              stepsToInsert.push({
+                request_id: reqData.id,
+                step_order: stepNum++,
+                step_type: 'CONSENSUS',
+                approver_id: conApprover.id,
+                approver_name: conApprover.name,
+                approver_tier: con.consensus_tier,
+                status: 'WAITING'
+              });
+            }
+          }
+        }
       }
-      
-      for (const t of requiredTiers) {
-         // 직책/직급 기반 유효 티어가 t 이상인 결재권자 탐색 (직책 우선)
-         const approver = usersList.find(u => getUserEffectiveTier(u).effectiveTier === t) 
-           || usersList.find(u => getUserEffectiveTier(u).effectiveTier >= t) 
-           || usersList.find(u => u.role === 'ADMIN');
-         if (approver) {
-            stepsToInsert.push({
-               request_id: reqData.id,
-               step_order: stepNum++,
-               step_type: 'APPROVAL',
-               approver_id: approver.id,
-               required_tier: t,
-               status: 'PENDING'
-            });
-         }
-      }
-      
-      // 만약 아무도 배정되지 않았다면 최고관리자(admin) 강제 배정
+
+      // 만약 아무도 배정되지 않았다면 기안자 외의 최고관리자/차상위자 배정
       if (stepsToInsert.length === 0) {
-         const admin = usersList.find(u => u.role === 'ADMIN');
-         if (admin) {
-            stepsToInsert.push({
-               request_id: reqData.id,
-               step_order: stepNum++,
-               step_type: 'APPROVAL',
-               approver_id: admin.id,
-               required_tier: targetTier,
-               status: 'PENDING'
-            });
-         }
+        const fallback = usersList.find(u => !assignedUserIds.has(u.id) && u.role === 'ADMIN') ||
+                         usersList.find(u => !assignedUserIds.has(u.id));
+        if (fallback) {
+          stepsToInsert.push({
+            request_id: reqData.id,
+            step_order: stepNum++,
+            step_type: 'APPROVAL',
+            approver_id: fallback.id,
+            approver_name: fallback.name,
+            approver_tier: targetTier,
+            status: 'PENDING'
+          });
+        }
       }
-      
+
       if (stepsToInsert.length > 0) {
-         await supabase.from('approval_steps').insert(stepsToInsert);
+        await supabase.from('approval_steps').insert(stepsToInsert);
       }
 
       return reqData;
@@ -194,23 +294,32 @@ export function useApproval() {
         
       if (stepErr) throw stepErr;
       
-      // 만약 최종 단계 승인이거나 반려일 경우 approval_requests 상태 업데이트 로직 추가
-      // (RWTT 환경이므로 간단히 Edge Function 대신 여기서 직접 처리)
       const { data: stepData } = await supabase.from('approval_steps').select('*').eq('id', stepId).single();
       if (stepData) {
         if (action === 'REJECTED') {
           await supabase.from('approval_requests').update({ status: 'REJECTED' }).eq('id', stepData.request_id);
-        } else if (action === 'APPROVED') {
-          // 남은 대기 스텝이 있는지 확인
-          const { data: remainingSteps } = await supabase.from('approval_steps')
-            .select('id')
+          // 잔여 대기(WAITING/PENDING) 스텝 전체 취소 마감
+          await supabase
+            .from('approval_steps')
+            .update({ status: 'CANCELLED' })
             .eq('request_id', stepData.request_id)
-            .eq('status', 'PENDING');
+            .in('status', ['WAITING', 'PENDING']);
+        } else if (action === 'APPROVED') {
+          // 다음 순번 대기(WAITING) 스텝 조회
+          const { data: nextSteps } = await supabase
+            .from('approval_steps')
+            .select('*')
+            .eq('request_id', stepData.request_id)
+            .eq('status', 'WAITING')
+            .order('step_order', { ascending: true });
           
-          if (!remainingSteps || remainingSteps.length === 0) {
-            await supabase.from('approval_requests').update({ status: 'APPROVED' }).eq('id', stepData.request_id);
+          if (nextSteps && nextSteps.length > 0) {
+            const nextStep = nextSteps[0];
+            await supabase.from('approval_steps').update({ status: 'PENDING' }).eq('id', nextStep.id);
+            await supabase.from('approval_requests').update({ current_step: nextStep.step_order }).eq('id', stepData.request_id);
           } else {
-            await supabase.from('approval_requests').update({ current_step: stepData.step_order + 1 }).eq('id', stepData.request_id);
+            // 모든 단계 승인 완료
+            await supabase.from('approval_requests').update({ status: 'APPROVED' }).eq('id', stepData.request_id);
           }
         }
       }

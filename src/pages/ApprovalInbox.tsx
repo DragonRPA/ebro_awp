@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase, TIER_LABELS, db, Billing, Contract, ContractAsset, ContractHistory, Asset, ApprovalPayload } from '../services/db';
+import { supabase, TIER_LABELS, db, Billing, Contract, ContractAsset, ContractHistory, Asset, ApprovalPayload, Customer, Delivery, LeaveUsage, AssetInOutLog, getUserEffectiveTier } from '../services/db';
 import { useApp } from '../context/AppContext';
 
 interface InboxStep {
@@ -23,7 +23,7 @@ interface InboxStep {
 }
 
 const ApprovalInbox: React.FC = () => {
-  const { currentUser, customers, contracts, contractAssets, billings, refreshAllData } = useApp();
+  const { currentUser, users, switchUser, customers, contracts, contractAssets, billings, refreshAllData, showErrorModal } = useApp();
   const [steps, setSteps] = useState<InboxStep[]>([]);
   const [loading, setLoading] = useState(false);
   const [rejectComment, setRejectComment] = useState<Record<string, string>>({});
@@ -88,6 +88,11 @@ const ApprovalInbox: React.FC = () => {
         return st;
       });
       setSteps(mergedSteps);
+      mergedSteps.forEach(st => {
+        if (st.approval_requests?.id) {
+          fetchAllSteps(st.approval_requests.id);
+        }
+      });
     }
     setLoading(false);
   };
@@ -97,21 +102,34 @@ const ApprovalInbox: React.FC = () => {
   /* ── 원본 레코드 요약 텍스트 조회 ── */
   const getRecordSummary = (targetTable: string, targetId: string): string => {
     if (targetTable === 'customers') {
-      const c = customers.find(x => x.id === targetId);
+      const c = (customers || []).find(x => x.id === targetId);
       return c ? `${c.name} (사업자: ${c.bizRegNo || '—'})` : targetId;
     }
     if (targetTable === 'contracts') {
-      const c = contracts.find(x => x.id === targetId);
+      const c = (contracts || []).find(x => x.id === targetId);
       if (!c) return targetId;
-      const cust = customers.find(x => x.id === c.customerId);
+      const cust = (customers || []).find(x => x.id === c.customerId);
       return `${c.contractNo} — ${cust?.name || ''}`;
     }
     if (targetTable === 'billings') {
-      const b = billings.find(x => x.id === targetId);
+      const b = (billings || []).find(x => x.id === targetId);
       if (!b) return targetId;
-      const cust = customers.find(x => x.id === b.customerId);
+      const cust = (customers || []).find(x => x.id === b.customerId);
       const customBadge = b.hasCustomStatement ? '[특수청구] ' : '';
       return `${customBadge}${b.billingYm} 청구 — ${cust?.name || ''} (공급가 ₩${b.totalAmount.toLocaleString()})`;
+    }
+    if (targetTable === 'assets') {
+      const a = (db.assets || []).find(x => x.id === targetId);
+      return a ? `장비 [${a.assetNo}] ${a.modelName} (상태: ${a.status})` : targetId;
+    }
+    if (targetTable === 'deliveries') {
+      const d = (db.deliveries || []).find(x => x.id === targetId);
+      return d ? `배차 [${d.id}] ${d.originAddress || '상차지'} ➔ ${d.destinationAddress || '하차지'}` : targetId;
+    }
+    if (targetTable === 'leave_requests' || targetTable === 'leave_usages') {
+      const l = (db.leaveUsages || []).find(x => x.id === targetId);
+      const u = (db.users || []).find(x => x.id === l?.userId);
+      return l ? `연차/반차 신청: ${u?.name || '임직원'} (${l.startDate} ~ ${l.endDate}, ${l.usedDays}일 차감)` : targetId;
     }
     return targetId;
   };
@@ -119,13 +137,32 @@ const ApprovalInbox: React.FC = () => {
   /* ── 전체 결재 진행 단계 조회 ── */
   const [stepMap, setStepMap] = useState<Record<string, any[]>>({});
   const fetchAllSteps = async (requestId: string) => {
-    if (!supabase || stepMap[requestId]) return;
+    if (!supabase) return;
     const { data } = await supabase
       .from('approval_steps')
-      .select('*, users(name, tier_level)')
+      .select('*')
       .eq('request_id', requestId)
       .order('step_order', { ascending: true });
-    if (data) setStepMap(prev => ({ ...prev, [requestId]: data }));
+    if (data) {
+      const enriched = data.map((st: any) => {
+        const u = (users || []).find((x: any) => x.id === st.approver_id);
+        return {
+          ...st,
+          users: u ? {
+            id: u.id,
+            name: u.name || st.approver_name,
+            position: u.position,
+            duty: u.duty,
+            tier_level: st.approver_tier
+          } : {
+            id: st.approver_id,
+            name: st.approver_name || st.approver_id,
+            tier_level: st.approver_tier
+          }
+        };
+      });
+      setStepMap(prev => ({ ...prev, [requestId]: enriched }));
+    }
   };
 
   /* ── 승인/반려 처리 (Staging-to-Live 무손실 자동 커밋) ── */
@@ -148,7 +185,7 @@ const ApprovalInbox: React.FC = () => {
       .eq('id', stepId);
 
     if (error) {
-      alert('처리 오류: ' + error.message);
+      showErrorModal('결재 처리 오류', error.message);
       setLoading(false);
       return;
     }
@@ -167,6 +204,12 @@ const ApprovalInbox: React.FC = () => {
     // ── 반려 처리 ──
     if (action === 'REJECTED') {
       await supabase.from('approval_requests').update({ status: 'REJECTED' }).eq('id', requestId);
+      // 잔여 대기(WAITING/PENDING) 스텝 전체 취소 마감
+      await supabase
+        .from('approval_steps')
+        .update({ status: 'CANCELLED' })
+        .eq('request_id', requestId)
+        .in('status', ['WAITING', 'PENDING']);
       
       if (reqItem?.target_table === 'billings') {
         db.updateRow<Billing>('billings', reqItem.target_record_id, { 
@@ -183,18 +226,58 @@ const ApprovalInbox: React.FC = () => {
         });
         await db.awaitPendingWrites();
         refreshAllData();
+      } else if (reqItem?.target_table === 'assets') {
+        db.updateRow<Asset>('assets', reqItem.target_record_id, {
+          updatedAt: new Date().toISOString()
+        });
+        await db.awaitPendingWrites();
+        refreshAllData();
+      } else if (reqItem?.target_table === 'deliveries') {
+        db.updateRow<Delivery>('deliveries', reqItem.target_record_id, {
+          reconciliationStatus: 'MISMATCH',
+          updatedAt: new Date().toISOString()
+        });
+        await db.awaitPendingWrites();
+        refreshAllData();
+      } else if (reqItem?.target_table === 'leave_requests' || reqItem?.target_table === 'leave_usages') {
+        db.updateRow<LeaveUsage>('leaveUsages', reqItem.target_record_id, {
+          status: 'REJECTED'
+        });
+        await db.awaitPendingWrites();
+        refreshAllData();
+      } else if (reqItem?.target_table === 'customers') {
+        db.updateRow<Customer>('customers', reqItem.target_record_id, {
+          transactionStatus: 'BLOCKED_ALL',
+          updatedAt: new Date().toISOString()
+        });
+        await db.awaitPendingWrites();
+        refreshAllData();
       }
     } 
     // ── 승인 처리 ──
     else {
-      const { data: pending } = await supabase
+      // 1. 다음 순번 대기(WAITING) 스텝 조회
+      const { data: nextSteps } = await supabase
         .from('approval_steps')
-        .select('id')
+        .select('*')
         .eq('request_id', requestId)
-        .eq('status', 'PENDING');
+        .eq('status', 'WAITING')
+        .order('step_order', { ascending: true });
 
-      // 전결권자 최종 승인 시점 (대기 스텝 0건)
-      if (!pending || pending.length === 0) {
+      if (nextSteps && nextSteps.length > 0) {
+        // 다음 스텝이 존재하면: 첫 번째 다음 스텝을 'PENDING'으로 전환하여 다음 결재자에게 바통 전달
+        const nextStep = nextSteps[0];
+        await supabase
+          .from('approval_steps')
+          .update({ status: 'PENDING' })
+          .eq('id', nextStep.id);
+
+        await supabase
+          .from('approval_requests')
+          .update({ current_step: nextStep.step_order })
+          .eq('id', requestId);
+      } else {
+        // 전결권자 최종 승인 시점 (대기 스텝 0건)
         await supabase.from('approval_requests').update({ status: 'APPROVED' }).eq('id', requestId);
 
         if (reqItem) {
@@ -284,7 +367,66 @@ const ApprovalInbox: React.FC = () => {
 
               await db.awaitPendingWrites();
               refreshAllData();
+            } else if (targetContract) {
+              db.updateRow<Contract>('contracts', targetContract.id, {
+                approvalStatus: 'APPROVED',
+                updatedAt: new Date().toISOString()
+              });
+              await db.awaitPendingWrites();
+              refreshAllData();
             }
+          }
+
+          // ③ 자산 매각/폐기 자동 반영
+          else if (reqItem.target_table === 'assets') {
+            const isDisposal = payload?.actionType === 'ASSET_DISPOSAL' || reqItem.approval_rules?.event_name?.includes('매각');
+            const isWriteOff = payload?.actionType === 'ASSET_WRITE_OFF' || reqItem.approval_rules?.event_name?.includes('폐기');
+            const newStatus = isDisposal ? 'SOLD' : isWriteOff ? 'SCRAPPED' : 'AVAILABLE';
+
+            db.updateRow<Asset>('assets', reqItem.target_record_id, {
+              status: newStatus as any,
+              updatedAt: new Date().toISOString()
+            });
+            const targetAsset = (db.assets || []).find(a => a.id === reqItem.target_record_id);
+            db.insertRow<AssetInOutLog>('assetInOutLogs', {
+              assetId: reqItem.target_record_id,
+              assetNo: targetAsset?.assetNo || '',
+              modelName: targetAsset?.modelName || '',
+              type: isDisposal ? 'DISPOSAL' : 'REPAIR',
+              eventDate: new Date().toISOString().split('T')[0],
+              memo: `[${isDisposal ? '자산 매각' : '자산 폐기'} 승인 완료] 전결권자 최종 승인 (${payload?.reason || '승인 처리'})`
+            });
+            await db.awaitPendingWrites();
+            refreshAllData();
+          }
+
+          // ④ 운송료 지급 자동 반영
+          else if (reqItem.target_table === 'deliveries') {
+            db.updateRow<Delivery>('deliveries', reqItem.target_record_id, {
+              reconciliationStatus: 'PAID',
+              updatedAt: new Date().toISOString()
+            });
+            await db.awaitPendingWrites();
+            refreshAllData();
+          }
+
+          // ⑤ 연차 신청 자동 반영
+          else if (reqItem.target_table === 'leave_requests' || reqItem.target_table === 'leave_usages') {
+            db.updateRow<LeaveUsage>('leaveUsages', reqItem.target_record_id, {
+              status: 'APPROVED'
+            });
+            await db.awaitPendingWrites();
+            refreshAllData();
+          }
+
+          // ⑥ 고객 등록 자동 반영
+          else if (reqItem.target_table === 'customers') {
+            db.updateRow<Customer>('customers', reqItem.target_record_id, {
+              transactionStatus: 'ALLOWED',
+              updatedAt: new Date().toISOString()
+            });
+            await db.awaitPendingWrites();
+            refreshAllData();
           }
         }
       }
@@ -301,20 +443,47 @@ const ApprovalInbox: React.FC = () => {
   ════════════════════════════════════════════════════ */
   return (
     <div data-hs-observe="approvalinbox" data-mid="approvalInboxMain" data-subview="approvalInbox" style={{ padding: '20px 24px', maxWidth: '1100px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-main, #1e293b)', margin: 0 }}>결재함 (수신)</h2>
           <p style={{ fontSize: '12px', color: 'var(--text-muted, #64748b)', margin: '3px 0 0' }}>
-            대기 중인 결재: {steps.length}건
+            대기 중인 결재: {steps.length}건 (현재 접속: {currentUser?.name || '미인증'} [{currentUser?.duty || currentUser?.position || '사원'} | Tier {currentUser ? getUserEffectiveTier(currentUser).effectiveTier : 0}])
           </p>
         </div>
-        <button
-          onClick={fetchInbox}
-          disabled={loading}
-          style={{ padding: '6px 14px', border: '1px solid var(--border-color, #e2e8f0)', borderRadius: '6px', fontSize: '13px', background: 'var(--bg-card, #fff)', cursor: 'pointer', color: 'var(--text-main, #475569)' }}
-        >
-          새로고침
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-muted, #64748b)', fontWeight: 600 }}>사용자 전환:</span>
+            <select
+              id="approval-inbox-user-select"
+              value={currentUser?.id || ''}
+              onChange={e => {
+                if (e.target.value) switchUser(e.target.value);
+              }}
+              style={{
+                padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color, #cbd5e1)',
+                fontSize: '12px', fontWeight: 600, background: 'var(--bg-card, #fff)', color: 'var(--text-main, #334155)',
+                cursor: 'pointer'
+              }}
+            >
+              {users.map(u => {
+                const effTier = getUserEffectiveTier(u).effectiveTier;
+                const posStr = u.duty || u.position || '사원';
+                return (
+                  <option key={u.id} value={u.id}>
+                    {u.name} [{posStr} | Tier {effTier}]
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+          <button
+            onClick={fetchInbox}
+            disabled={loading}
+            style={{ padding: '6px 14px', border: '1px solid var(--border-color, #e2e8f0)', borderRadius: '6px', fontSize: '13px', background: 'var(--bg-card, #fff)', cursor: 'pointer', color: 'var(--text-main, #475569)' }}
+          >
+            새로고침
+          </button>
+        </div>
       </div>
 
       {/* 카드 목록 */}
@@ -340,6 +509,8 @@ const ApprovalInbox: React.FC = () => {
           return (
             <div
               key={s.id}
+              data-request-id={req.id}
+              data-step-id={s.id}
               style={{
                 border: '1px solid var(--border-color, #e2e8f0)', borderRadius: '10px',
                 background: 'var(--bg-card, #fff)', overflow: 'hidden',
@@ -470,26 +641,31 @@ const ApprovalInbox: React.FC = () => {
                 {/* 결재 진행 단계 표시 */}
                 {allSteps.length > 0 && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px', flexWrap: 'wrap' }}>
-                    {allSteps.map((st, idx) => (
-                      <React.Fragment key={st.id}>
-                        <span style={{
-                          fontSize: '12px', padding: '3px 10px', borderRadius: '6px',
-                          background: st.status === 'APPROVED' ? '#dcfce7' : st.status === 'REJECTED' ? '#fee2e2' : st.id === s.id ? '#dbeafe' : '#f1f5f9',
-                          color: st.status === 'APPROVED' ? '#15803d' : st.status === 'REJECTED' ? '#b91c1c' : st.id === s.id ? '#1d4ed8' : '#64748b',
-                          fontWeight: st.id === s.id ? 700 : 400,
-                          border: st.id === s.id ? '1px solid #93c5fd' : '1px solid transparent',
-                        }}>
-                          {idx + 1}단계 {st.status === 'APPROVED' ? '✓' : st.status === 'REJECTED' ? '✗' : st.id === s.id ? '← 대기' : ''}
-                        </span>
-                        {idx < allSteps.length - 1 && <span style={{ color: '#cbd5e1', fontSize: '12px' }}>→</span>}
-                      </React.Fragment>
-                    ))}
+                    {allSteps.map((st, idx) => {
+                      const approverName = st.users?.name || '결재자';
+                      const approverPos = st.users?.duty || st.users?.position || '';
+                      const isCurrentActive = st.id === s.id;
+                      return (
+                        <React.Fragment key={st.id}>
+                          <span style={{
+                            fontSize: '12px', padding: '3px 10px', borderRadius: '6px',
+                            background: st.status === 'APPROVED' ? '#dcfce7' : st.status === 'REJECTED' ? '#fee2e2' : st.status === 'CANCELLED' ? '#f1f5f9' : isCurrentActive ? '#dbeafe' : '#f8fafc',
+                            color: st.status === 'APPROVED' ? '#15803d' : st.status === 'REJECTED' ? '#b91c1c' : st.status === 'CANCELLED' ? '#94a3b8' : isCurrentActive ? '#1d4ed8' : '#64748b',
+                            fontWeight: isCurrentActive ? 700 : 500,
+                            border: isCurrentActive ? '1.5px solid #3b82f6' : '1px solid var(--border-color, #e2e8f0)',
+                          }}>
+                            {idx + 1}단계: {approverName}{approverPos ? ` (${approverPos})` : ''} {st.step_type === 'CONSENSUS' ? '[합의]' : ''} {st.status === 'APPROVED' ? '✓' : st.status === 'REJECTED' ? '✗' : st.status === 'CANCELLED' ? '(취소)' : isCurrentActive ? '← 심사중' : '(대기)'}
+                          </span>
+                          {idx < allSteps.length - 1 && <span style={{ color: '#cbd5e1', fontSize: '12px' }}>→</span>}
+                        </React.Fragment>
+                      );
+                    })}
                   </div>
                 )}
 
                 {/* 결재 단계 로드 버튼 */}
                 {allSteps.length === 0 && (
-                  <button data-hs-trigger="Approve"
+                  <button data-hs-trigger="ViewSteps"
                     onClick={() => fetchAllSteps(req.id)}
                     style={{ fontSize: '12px', color: 'var(--text-muted, #64748b)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 10px', textDecoration: 'underline' }}
                   >
@@ -526,7 +702,7 @@ const ApprovalInbox: React.FC = () => {
                       >
                         취소
                       </button>
-                      <button
+                      <button data-hs-trigger="ConfirmReject"
                         onClick={() => handleAction(s.id, req.id, 'REJECTED')}
                         disabled={loading}
                         style={{ padding: '7px 20px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
@@ -536,7 +712,7 @@ const ApprovalInbox: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <button
+                      <button data-hs-trigger="Reject"
                         onClick={() => setRejectingId(s.id)}
                         disabled={loading}
                         style={{ padding: '7px 16px', background: 'var(--bg-card, #fff)', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}

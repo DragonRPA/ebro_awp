@@ -408,11 +408,14 @@ export interface ApprovalRequest {
 export interface ApprovalStep {
   id?: string;
   request_id: string;
-  step_index: number;
-  step_type: 'VERTICAL' | 'CONSENSUS';
+  step_order: number;
+  step_index?: number;
+  step_type: 'VERTICAL' | 'CONSENSUS' | 'APPROVAL';
   approver_id: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  tier_level: number;
+  approver_name?: string;
+  approver_tier: number;
+  status: 'PENDING' | 'WAITING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+  tier_level?: number;
   comment?: string;
   acted_at?: string;
   created_at?: string;
@@ -435,13 +438,19 @@ export interface ApprovalTierConfig {
 /** 기본 직급별 티어 매핑 (소규모 기업 및 직급 기반 결재 호환) */
 export const DEFAULT_POSITION_TIERS: ApprovalTierConfig[] = [
   { category: 'POSITION', title: '사원', tier_level: 0, description: '일반 실무 사원', seq_order: 1 },
-  { category: 'POSITION', title: '대리', tier_level: 1, description: '실무 담당 대리', seq_order: 2 },
-  { category: 'POSITION', title: '과장', tier_level: 2, description: '중간 실무 과장', seq_order: 3 },
-  { category: 'POSITION', title: '차장', tier_level: 3, description: '선임 차장', seq_order: 4 },
-  { category: 'POSITION', title: '부장', tier_level: 4, description: '부서 실무 총괄', seq_order: 5 },
-  { category: 'POSITION', title: '이사', tier_level: 5, description: '임원 이사', seq_order: 6 },
-  { category: 'POSITION', title: '상무', tier_level: 6, description: '임원 상무/전무', seq_order: 7 },
-  { category: 'POSITION', title: '대표', tier_level: 7, description: '대표이사', seq_order: 8 },
+  { category: 'POSITION', title: '주임', tier_level: 0, description: '초임 실무 주임', seq_order: 2 },
+  { category: 'POSITION', title: '대리', tier_level: 1, description: '실무 담당 대리', seq_order: 3 },
+  { category: 'POSITION', title: '과장', tier_level: 2, description: '중간 실무 과장', seq_order: 4 },
+  { category: 'POSITION', title: '차장', tier_level: 3, description: '선임 차장', seq_order: 5 },
+  { category: 'POSITION', title: '부장', tier_level: 4, description: '부서 실무 총괄', seq_order: 6 },
+  { category: 'POSITION', title: '팀장', tier_level: 4, description: '부서/팀 운영 책임자', seq_order: 7 },
+  { category: 'POSITION', title: '이사', tier_level: 5, description: '임원 이사', seq_order: 8 },
+  { category: 'POSITION', title: '상무', tier_level: 6, description: '임원 상무', seq_order: 9 },
+  { category: 'POSITION', title: '전무', tier_level: 6, description: '임원 전무', seq_order: 10 },
+  { category: 'POSITION', title: '부사장', tier_level: 7, description: '최고 경영진 부사장', seq_order: 11 },
+  { category: 'POSITION', title: '사장', tier_level: 7, description: '최고 경영진 사장', seq_order: 12 },
+  { category: 'POSITION', title: '대표', tier_level: 7, description: '대표이사', seq_order: 13 },
+  { category: 'POSITION', title: '대표이사', tier_level: 7, description: '대표이사', seq_order: 14 },
 ];
 
 /** 기본 직책별 티어 매핑 (R&R 기반 단위 기능조직 책임자 결재 우선 원칙) */
@@ -590,7 +599,32 @@ export function getUserEffectiveTier(
     }
   }
 
-  // 3. 기본 티어 (tier_level 또는 0)
+  // 3. 교차 상호 판정 (직급에 '팀장'이 저장되어 있거나, 직책에 '부장'이 저장된 경우 상호 지원)
+  if (user.position && user.position.trim()) {
+    const trimmedPos = user.position.trim().toLowerCase();
+    const matchedDutyFromPos = dutyList.find(d => d.title.trim().toLowerCase() === trimmedPos);
+    if (matchedDutyFromPos) {
+      return {
+        effectiveTier: matchedDutyFromPos.tier_level,
+        source: 'DUTY',
+        title: matchedDutyFromPos.title
+      };
+    }
+  }
+
+  if (user.duty && user.duty.trim()) {
+    const trimmedDuty = user.duty.trim().toLowerCase();
+    const matchedPosFromDuty = positionList.find(p => p.title.trim().toLowerCase() === trimmedDuty);
+    if (matchedPosFromDuty) {
+      return {
+        effectiveTier: matchedPosFromDuty.tier_level,
+        source: 'POSITION',
+        title: matchedPosFromDuty.title
+      };
+    }
+  }
+
+  // 4. 기본 티어 (tier_level 또는 0)
   return {
     effectiveTier: user.tier_level ?? 0,
     source: 'DEFAULT',
@@ -6710,6 +6744,8 @@ class LocalDB {
       // 💡 [NULL 컬럼 갱신 보장]: updates에 명시적으로 전달된 undefined/null 필드를 Supabase null로 정확히 반영
       for (const updateKey in updates) {
         if (updates[updateKey] === undefined || updates[updateKey] === null) {
+          if (tableName === 'contracts' && ['packageSentAt', 'approvalStatus', 'approvalRequestId', 'stagedExtend', 'saleTerms'].includes(updateKey)) continue;
+          if (tableName === 'contract_history' && ['approvalStatus', 'approvalRequestId'].includes(updateKey)) continue;
           payloadForSupabase[updateKey] = null;
         }
       }
