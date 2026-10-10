@@ -260,3 +260,11 @@ pm run build)을 통해 무결성을 검증한다.
 - **트리거 조건**: 사용자의 지시문(프롬프트)에 **'테스트'**라는 단어가 포함된 경우.
 - **자율 동작 원칙**: 사용자가 별도로 /browser 단축어나 에이전트 승인 명령을 명시하지 않더라도, 시스템(AI)은 사용자의 테스트 요구를 인지하는 즉시 **자율적으로 브라우저 에이전트 권한(Browser Automation)을 가동**해야 한다.
 - **실행 지침**: AI는 실제 웹 브라우저 DOM 환경을 제어하여 지시받은 UI 시나리오를 순차적으로 조작하고 검증(WTT)한 뒤 그 결과를 보고해야 하며, "브라우저 제어 권한이 없다"는 이유로 검증을 회피하거나 사용자에게 추가 승인을 요구해서는 안 된다.
+
+### 9.2 전사 전체 메뉴 및 UIA 단일 진실의 원천(SSOT) 학습 및 기초정보 준수 헌장 (Canonical Menu & UIA SSOT Doctrine)
+- **SSOT 문서 바인딩**: 시스템의 전체 69개 메뉴와 UIA(UI Automation & Action Architecture) 규격은 반드시 `docs/ERP_FULL_UIA_SPECIFICATION.md` 및 `public/data/uia_manifest.json`, `SYSTEM_MENU_AND_UIA_SSOT.md`를 **전사 유일한 단일 진실의 원천(SSOT)**으로 엄격히 준수한다.
+- **임의의 메뉴 ID 생성 및 다의어 파편화 영구 엄단**:
+  - 향후 모든 작업지시, 기획, 프롬프트, 도메인 관통 테스트(WTT), 코드 구현 시 반드시 본 SSOT에 등록된 표준 `menuId`(예: `customer`, `contract`, `delivery`, `trade_products`, `tenant_management` 등)를 그대로 사용해야 하며, 변형되거나 임의로 조작된 가짜 메뉴 ID 사용을 절대 금지한다.
+- **UIA 4대 불변식 및 Gutenberg Z-패턴 설계 계승**:
+  - 모든 신규 화면 및 기존 화면 유지보수 시 본 SSOT에 선언된 [UI 아키타입(유형 A / B / C)], [Gutenberg Z-패턴 4단계(Scope ➔ Pipeline ➔ Inspection ➔ Terminal Action)], [4대 헌장 가드레일(출고검수 승인 RENTED 전환, 단일 EXCHANGE 발행, 일할 기여액 대차 차액 ₩0, 무음 실패 방지)]을 100% 동일하게 추종하고 유지해야 한다.
+

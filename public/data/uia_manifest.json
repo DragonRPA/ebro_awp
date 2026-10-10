@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "version": "2.0.0",
+  "version": "2.2.0",
   "systemName": "Giyeun Lift e-Bro ERP",
-  "description": "전사 전체 60개 메뉴 UIA 기계 가독형 매니페스트 (에이전틱 AI Tool Calling 및 UI 자동화용)",
+  "description": "전사 전체 69개 메뉴 UIA 기계 가독형 매니페스트 (에이전틱 AI Tool Calling 및 UI 자동화용 단일 진실의 원천)",
   "constitutionalGuardrails": [
     {
       "id": "GUARD-1.3",
@@ -64,8 +64,236 @@
       ]
     },
     {
+      "id": "trade_products",
+      "name": "상품 등록 및 관리",
+      "group": "grp_distribution",
+      "archetype": "TYPE_B_HIGH_DENSITY_GRID",
+      "objective": "유통 및 판매 대상 상품(자재/부품/공구/안전용품) SKU 마스터 등록, 원가산출방식(FIFO) 및 표준 판매단가 관리",
+      "terminalAction": "신규 상품 마스터 등록 및 판매단가 확정",
+      "actionableElements": [
+        {
+          "id": "trade_products-sku-input",
+          "role": "input",
+          "description": "SKU 코드 입력"
+        },
+        {
+          "id": "trade_products-name-input",
+          "role": "input",
+          "description": "상품명 입력"
+        },
+        {
+          "id": "trade_products-price-input",
+          "role": "input",
+          "description": "표준 판매가 입력"
+        },
+        {
+          "id": "trade_products-add-btn",
+          "role": "button",
+          "description": "신규 상품 등록 실행"
+        },
+        {
+          "id": "trade_products-table",
+          "role": "table",
+          "description": "상품 마스터 목록 그리드"
+        }
+      ],
+      "tools": [
+        "trade_product_create",
+        "trade_product_list",
+        "trade_product_update"
+      ]
+    },
+    {
+      "id": "trade_purchases",
+      "name": "구매 및 입고",
+      "group": "grp_distribution",
+      "archetype": "TYPE_B_HIGH_DENSITY_GRID",
+      "objective": "유통 상품 발주 매입 등록, 매입 단가 입력 및 주기장 실물 입고 검수 확정",
+      "terminalAction": "매입 입고 승인 및 유통 재고 반영",
+      "actionableElements": [
+        {
+          "id": "trade_purchases-add-btn",
+          "role": "button",
+          "description": "신규 매입 발주 등록"
+        },
+        {
+          "id": "trade_purchases-table",
+          "role": "table",
+          "description": "매입 및 입고 대장 그리드"
+        },
+        {
+          "id": "trade_purchases-confirm-btn",
+          "role": "button",
+          "description": "실물 입고 검수 및 재고 승인"
+        }
+      ],
+      "tools": [
+        "trade_purchase_create",
+        "trade_purchase_confirm_inbound"
+      ]
+    },
+    {
+      "id": "trade_contracts",
+      "name": "유통 수주",
+      "group": "grp_distribution",
+      "archetype": "TYPE_A_CARD_STUDIO",
+      "objective": "고객사 유통 상품 주문/수주 계약 체결, 납기일정 및 주문 수량/금액 확정",
+      "terminalAction": "유통 수주 계약 체결 및 출고 파이프라인 생성",
+      "actionableElements": [
+        {
+          "id": "trade_contracts-qty-input",
+          "role": "input",
+          "description": "주문 수량 입력"
+        },
+        {
+          "id": "trade_contracts-create-btn",
+          "role": "button",
+          "description": "수주 계약 체결 실행"
+        },
+        {
+          "id": "trade_contracts-cards",
+          "role": "container",
+          "description": "수주 계약 카드 리스트"
+        }
+      ],
+      "tools": [
+        "trade_contract_create",
+        "trade_contract_list"
+      ]
+    },
+    {
+      "id": "trade_outbounds",
+      "name": "출고 요청",
+      "group": "grp_distribution",
+      "archetype": "TYPE_A_CARD_STUDIO",
+      "objective": "수주된 상품의 출고 지시 및 주기장 가용 재고 선점(Allocation) 처리",
+      "terminalAction": "출고 재고 할당 및 패킹 지시 완결",
+      "actionableElements": [
+        {
+          "id": "trade_outbounds-allocate-btn",
+          "role": "button",
+          "description": "재고 선점 및 출고 할당 승인"
+        }
+      ],
+      "tools": [
+        "trade_outbound_allocate",
+        "trade_outbound_list"
+      ]
+    },
+    {
+      "id": "courier_dispatch",
+      "name": "택배 배송 관리",
+      "group": "grp_distribution",
+      "archetype": "TYPE_B_HIGH_DENSITY_GRID",
+      "objective": "택배사 송장 번호 매핑, 배송 상태 추적 및 전자 서명 인수증 보관",
+      "terminalAction": "송장 등록 및 전자 인수증 확인을 통한 배송 완료 확정",
+      "actionableElements": [
+        {
+          "id": "courier_dispatch-table",
+          "role": "table",
+          "description": "택배 배송 추적 그리드"
+        },
+        {
+          "id": "courier_dispatch-dispatch-btn",
+          "role": "button",
+          "description": "택배 송장 발송 처리"
+        },
+        {
+          "id": "btn-view-signed-receipt",
+          "role": "button",
+          "description": "전자 서명 인수증 확인"
+        }
+      ],
+      "tools": [
+        "courier_dispatch_ship",
+        "courier_dispatch_view_receipt"
+      ]
+    },
+    {
+      "id": "trade_billing",
+      "name": "유통 청구 및 명세",
+      "group": "grp_distribution",
+      "archetype": "TYPE_B_HIGH_DENSITY_GRID",
+      "objective": "배송 완료된 유통 수주 건에 대한 전자 거래명세서 발행 및 세금계산서 청구 마감",
+      "terminalAction": "유통 매출 청구서 발행 및 증빙 저장 확정",
+      "actionableElements": [
+        {
+          "id": "trade_billing-table",
+          "role": "table",
+          "description": "유통 청구 대장 그리드"
+        },
+        {
+          "id": "trade_billing-issue-btn",
+          "role": "button",
+          "description": "거래명세서 및 청구서 발행"
+        },
+        {
+          "id": "btn-view-billing-proof",
+          "role": "button",
+          "description": "청구 증빙 내역 조회"
+        }
+      ],
+      "tools": [
+        "trade_billing_issue_invoice",
+        "trade_billing_list"
+      ]
+    },
+    {
+      "id": "trade_returns",
+      "name": "환입 및 반품",
+      "group": "grp_distribution",
+      "archetype": "TYPE_B_HIGH_DENSITY_GRID",
+      "objective": "출고 완료 상품의 고객 반품 접수 및 양품/불량 판정에 따른 재고 환원 또는 폐기/상계",
+      "terminalAction": "반품 판정(양품 환원 / 불량 폐기) 및 회계 정산 종결",
+      "actionableElements": [
+        {
+          "id": "trade_returns-table",
+          "role": "table",
+          "description": "반품/환입 접수 그리드"
+        },
+        {
+          "id": "trade_returns-btn-sellable",
+          "role": "button",
+          "description": "양품 판정 (가용 재고 환원)"
+        },
+        {
+          "id": "trade_returns-btn-defective",
+          "role": "button",
+          "description": "불량 판정 (폐기/손실 처리)"
+        }
+      ],
+      "tools": [
+        "trade_return_process_sellable",
+        "trade_return_process_defective"
+      ]
+    },
+    {
+      "id": "trade_profitability",
+      "name": "수익성 관리",
+      "group": "grp_distribution",
+      "archetype": "TYPE_B_HIGH_DENSITY_GRID",
+      "objective": "유통 총매출액, 선입선출 매출원가(COGS), 배송 운송료 차감 후 순마진 실시간 수학적 정밀 집계",
+      "terminalAction": "유통 손익 대차대조 검증 (매출 = 원가 + 운송비 + 순마진)",
+      "actionableElements": [
+        {
+          "id": "trade_profitability-header",
+          "role": "container",
+          "description": "수익성 분석 필터 헤더"
+        },
+        {
+          "id": "trade_profitability-kpi",
+          "role": "widget",
+          "description": "총매출, 총원가, 순마진 KPI 위젯"
+        }
+      ],
+      "tools": [
+        "trade_profitability_calculate",
+        "trade_profitability_get_report"
+      ]
+    },
+    {
       "id": "approvalInbox",
-      "name": "내 결재함 (수신)",
+      "name": "내 결재함",
       "group": "grp_approval",
       "archetype": "TYPE_A_CARD_STUDIO",
       "objective": "본인 직무/직책에 상신된 결재 요청 건을 검토하고 승인 또는 반려",
@@ -184,7 +412,7 @@
     },
     {
       "id": "billing",
-      "name": "청구 / 수납 관리",
+      "name": "청구 수납 관리",
       "group": "grp_sales",
       "archetype": "TYPE_B_HIGH_DENSITY_GRID",
       "objective": "월말 렌탈료 정밀 일할 계산 청구 확정 및 세금계산서/통합명세서 발행, 입금 수납 상계",
@@ -213,7 +441,7 @@
     },
     {
       "id": "custom_billing",
-      "name": "특수 거래명세서 (특수청구) 작성",
+      "name": "특수 거래명세서 작성",
       "group": "grp_sales",
       "archetype": "TYPE_A_CARD_STUDIO",
       "objective": "고객사 현장 요구 품목 규격으로 명세서를 재구성하되, 원청구 총액과 품목 합계 일치(차액 ₩0) 보장",
@@ -394,7 +622,7 @@
     },
     {
       "id": "asset",
-      "name": "자산 관리 (대장)",
+      "name": "자산 관리",
       "group": "grp_product_asset",
       "archetype": "TYPE_B_HIGH_DENSITY_GRID",
       "objective": "전사 보유 실물 장비 호기별 자산 대장 관리 및 상태(AVAILABLE, RENTED, REPAIRING 등) 완벽 동기화",
@@ -413,7 +641,7 @@
     },
     {
       "id": "acquisition_disposal",
-      "name": "당사자산 취득 / 매각",
+      "name": "자산 취득 매각",
       "group": "grp_product_asset",
       "archetype": "TYPE_A_CARD_STUDIO",
       "objective": "고소작업대 신규 매입(취득) 및 노후 장비 매각 전표 처리",
@@ -449,7 +677,7 @@
     },
     {
       "id": "delivery",
-      "name": "배차 / 운송 관리",
+      "name": "배차 운송 관리",
       "group": "grp_logistics",
       "archetype": "TYPE_A_CARD_AND_TYPE_B_GRID",
       "objective": "배차 의뢰 접수 ➔ 기사 매칭 및 운송비 확정, 대차 발생 시 단일 EXCHANGE 1건 발행 및 왕복할인(₩60,000) 집행 (헌장 2.3 준수)",
@@ -525,7 +753,7 @@
     },
     {
       "id": "asset_inout_history",
-      "name": "입고등록/입출고조회",
+      "name": "입출고 조회",
       "group": "grp_inout",
       "archetype": "TYPE_B_HIGH_DENSITY_GRID",
       "objective": "현장 반납 장비 실물 입고 전표 등록 및 자산별 전 생애 입출고 타임라인 추적",
@@ -543,7 +771,7 @@
     },
     {
       "id": "dispatch_assign",
-      "name": "장비 할당 / 매핑",
+      "name": "장비 할당",
       "group": "grp_inout",
       "archetype": "TYPE_A_CARD_STUDIO",
       "objective": "영업사원의 모델별 출고 요구에 대해 주기장 가용 실물 장비번호(호기) 매핑(Choice)",
@@ -597,7 +825,7 @@
     },
     {
       "id": "stocktaking",
-      "name": "재고/자산 실사",
+      "name": "재고 실사",
       "group": "grp_inout",
       "archetype": "TYPE_B_HIGH_DENSITY_GRID",
       "objective": "주기장(HQ) 및 정비차량(VEHICLE)의 실물 장비/부품을 바코드 연속 스캔으로 전수 실사하여 전산 재고 오차 영점화",
@@ -742,7 +970,7 @@
     },
     {
       "id": "ot_management",
-      "name": "OT 관리",
+      "name": "연장근무 관리",
       "group": "grp_management",
       "archetype": "TYPE_B_HIGH_DENSITY_GRID",
       "objective": "임직원 시간외근무(연장/휴일) 신청 내역 승인 및 수당 정산",
@@ -760,7 +988,7 @@
     },
     {
       "id": "vehicle_log",
-      "name": "차량 / 주유관리",
+      "name": "차량 주유관리",
       "group": "grp_management",
       "archetype": "TYPE_B_HIGH_DENSITY_GRID",
       "objective": "법인 차량 주유 명세서 엑셀 일괄 등록 및 주행거리 운행일지 관리",
@@ -797,7 +1025,7 @@
     },
     {
       "id": "vendors",
-      "name": "매입처 (공급자 / 외주처) 관리",
+      "name": "매입처 관리",
       "group": "grp_management",
       "archetype": "TYPE_B_HIGH_DENSITY_GRID",
       "objective": "부품 매입처 및 외주 정비 협력사 마스터, 사업자등록증/통장사본 관리",
@@ -910,7 +1138,7 @@
     },
     {
       "id": "organization",
-      "name": "조직 / 인사 관리",
+      "name": "조직 인사 관리",
       "group": "grp_management_special",
       "archetype": "TYPE_A_CARD_STUDIO",
       "objective": "부서, 직책, 결재 권한 티어(Tier 1~4) 및 임직원 조직도 관리",
@@ -928,7 +1156,7 @@
     },
     {
       "id": "permission",
-      "name": "사용자 및 권한",
+      "name": "사용자 및 권한 설정",
       "group": "grp_management_special",
       "archetype": "TYPE_B_HIGH_DENSITY_GRID",
       "objective": "임직원 계정별 화면 열람/수정/삭제 권한 매트릭스 제어",
@@ -1085,7 +1313,7 @@
     },
     {
       "id": "agentic_ai_lab",
-      "name": "에이전틱 AI 샌드박스 랩",
+      "name": "AI 샌드박스 랩",
       "group": "grp_system_dev",
       "archetype": "TYPE_A_CARD_STUDIO",
       "objective": "ReAct 프롬프트 시뮬레이터 및 에이전틱 AI Tool Calling 추론 샌드박스 테스트",
@@ -1103,7 +1331,7 @@
     },
     {
       "id": "agentic_dispatch_studio",
-      "name": "에이전틱 배차 관제 스튜디오",
+      "name": "배차 관제 스튜디오",
       "group": "grp_system_dev",
       "archetype": "TYPE_A_CARD_STUDIO",
       "objective": "자연어 배차 지시 ➔ AI 최적 기사 자동 매칭 및 단일 EXCHANGE ₩60,000 할인 가드 검증",
@@ -1133,7 +1361,7 @@
     },
     {
       "id": "agentic_settlement_autopilot",
-      "name": "에이전틱 월말 대사 정산 오토파일럿",
+      "name": "월말 대사 정산",
       "group": "grp_system_dev",
       "archetype": "TYPE_B_HIGH_DENSITY_GRID",
       "objective": "원클릭 오토파일럿 대사 실행 및 대차 차액 ₩0 종단 대차대조식 무결성 확정",
@@ -1158,7 +1386,7 @@
     },
     {
       "id": "agentic_asset_lifecycle",
-      "name": "에이전틱 자산 라이프사이클 관제",
+      "name": "자산 라이프사이클 관제",
       "group": "grp_system_dev",
       "archetype": "TYPE_A_CARD_STUDIO",
       "objective": "자산 전 생애 주기 상태 전이 자율 관제 및 헌장 1.3 RENTED 강제 가드 보존",
@@ -1224,7 +1452,7 @@
     },
     {
       "id": "google_config",
-      "name": "공식 메일 연동 설정",
+      "name": "구글 관리자 설정",
       "group": "grp_system_dev",
       "archetype": "TYPE_A_CARD_STUDIO",
       "objective": "Google Workspace Gmail API 서비스 계정 및 공식 메일 발송 설정",
@@ -1242,7 +1470,7 @@
     },
     {
       "id": "dev_uploader",
-      "name": "[개발] DB 데이터 업로더",
+      "name": "DB 데이터 업로더",
       "group": "grp_system_dev",
       "archetype": "TYPE_B_HIGH_DENSITY_GRID",
       "objective": "개발자 디버깅 및 마이그레이션용 로우 쿼리/데이터 업로더",
@@ -1256,6 +1484,52 @@
       ],
       "tools": [
         "dev_upload_execute"
+      ]
+    },
+    {
+      "id": "tenant_management",
+      "name": "테넌트 관리",
+      "group": "grp_system_dev",
+      "archetype": "TYPE_B_HIGH_DENSITY_GRID",
+      "objective": "멀티 테넌트 SaaS 인프라 설정, 기업 정보, 요금제 구독 라이프사이클 및 허용 메뉴 권한 제어",
+      "terminalAction": "테넌트 등록/수정, 구독 라이선스 발급 및 도메인 바인딩 확정",
+      "actionableElements": [
+        {
+          "id": "tenant-scope-search",
+          "role": "input",
+          "description": "테넌트 검색어 입력"
+        },
+        {
+          "id": "tenant-scope-status",
+          "role": "select",
+          "description": "구독 상태 필터 드롭다운"
+        },
+        {
+          "id": "tenant-pipeline-excel",
+          "role": "button",
+          "description": "테넌트 대장 엑셀 내보내기"
+        },
+        {
+          "id": "tenant-pipeline-onboard",
+          "role": "button",
+          "description": "초기 DB 온보딩 모달 열기"
+        },
+        {
+          "id": "tenant-pipeline-add",
+          "role": "button",
+          "description": "신규 테넌트 등록 모달 열기"
+        },
+        {
+          "id": "tenant-inspection-grid",
+          "role": "table",
+          "description": "테넌트 목록 고밀도 그리드"
+        }
+      ],
+      "tools": [
+        "tenant_create",
+        "tenant_update",
+        "tenant_extend_subscription",
+        "tenant_set_default"
       ]
     }
   ]

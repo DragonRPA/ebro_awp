@@ -46,6 +46,7 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
       { id: 'custom_billing', name: '특수 거래명세서 작성' },
       { id: 'receivable', name: '외상미수금 대장' },
       { id: 'smart_dispatch4', name: '출고 요청' },
+      { id: 'voice_dispatch', name: '음성 출고지시' },
       { id: 'smart_return', name: '회수 요청' },
       { id: 'smart_as_request', name: 'AS 요청' },
       { id: 'delinquency', name: '미수 채권 연체 관리' },
@@ -117,6 +118,7 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
     items: [
       { id: 'organization', name: '조직 인사 관리' },
       { id: 'permission', name: '사용자 및 권한 설정' },
+      { id: 'manual_dictionary', name: '전사 업무 매뉴얼 사전' },
       { id: 'payroll', name: '급여 정산' },
       { id: 'leave_management', name: '연차관리' },
       { id: 'privacy_audit', name: '개인정보 접속 감사' }
@@ -141,7 +143,8 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
       { id: 'initial_db_upload', name: '초기DB 업로드' },
       { id: 'data_formation', name: '초기자료형성' },
       { id: 'google_config', name: '구글 관리자 설정' },
-      { id: 'dev_uploader', name: 'DB 데이터 업로더' }
+      { id: 'dev_uploader', name: 'DB 데이터 업로더' },
+      { id: 'tenant_management', name: '테넌트 관리' }
     ]
   }
 ];
