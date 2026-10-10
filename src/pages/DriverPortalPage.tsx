@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Camera, CheckCircle, Truck, UploadCloud, Edit3 } from 'lucide-react';
-import { supabase, Delivery } from '../services/db';
+import { supabase, db, SEED_TENANTS, Delivery } from '../services/db';
 import { generateSignedReceiptBlob, SignedReceiptCargoItem } from '../utils/receiptGenerator';
 
 interface SignaturePadHandle {
@@ -153,7 +153,7 @@ export const DriverPortalPage: React.FC = () => {
 
   // Contract & Party Details
   const [contractNo, setContractNo] = useState<string>('');
-  const [supplierName, setSupplierName] = useState<string>('공급자');
+  const [supplierName, setSupplierName] = useState<string>('(주)기연리프트');
   const [supplierInfo, setSupplierInfo] = useState<any>(null);
   const [customerName, setCustomerName] = useState<string>('');
   const [siteName, setSiteName] = useState<string>('');
@@ -215,6 +215,8 @@ export const DriverPortalPage: React.FC = () => {
           }
         }
 
+        let contractTenantId: string | null = null;
+
         // Query contract and related entities
         if (data.contractId) {
           const { data: contract } = await supabase!
@@ -224,6 +226,7 @@ export const DriverPortalPage: React.FC = () => {
             .single();
 
           if (contract) {
+            contractTenantId = (contract as any).tenant_id || (contract as any).tenantId || null;
             if (contract.contractNo) setContractNo(contract.contractNo);
             else setContractNo(contract.id);
 
@@ -276,15 +279,32 @@ export const DriverPortalPage: React.FC = () => {
         }
 
         // 3. Supplier (Tenants)
-        const targetTenantId = (data as any).tenantId || (data as any).tenant_id;
-        let tenantQuery = supabase!.from('tenants').select('*');
-        if (targetTenantId) {
-          tenantQuery = tenantQuery.eq('id', targetTenantId);
+        const targetTenantId = (data as any).tenantId || (data as any).tenant_id || contractTenantId;
+        const { data: tenantsList } = await supabase!.from('tenants').select('*');
+        let matchedTenant: any = null;
+        if (Array.isArray(tenantsList) && tenantsList.length > 0) {
+          if (targetTenantId) {
+            const searchKey = String(targetTenantId).toLowerCase().trim();
+            matchedTenant = tenantsList.find((t: any) => 
+              t.id?.toLowerCase() === searchKey ||
+              t.tenantCode?.toLowerCase() === searchKey ||
+              t.subdomain?.toLowerCase() === searchKey ||
+              (['giyeun', 'giyeon', 'giyeonlift', 'kiyeun'].includes(searchKey) && 
+               (t.tenantCode?.toUpperCase() === 'GIYEONLIFT' || t.id === 'tenant-giyeonlift' || t.subdomain === 'giyeonlift'))
+            );
+          }
+          if (!matchedTenant) {
+            matchedTenant = tenantsList.find((t: any) => t.isDefault) || tenantsList[0];
+          }
         }
-        const { data: tenantData } = await tenantQuery.limit(1).single();
-        if (tenantData) {
-          setSupplierName(tenantData.tradeName || tenantData.corporateName || tenantData.displayName || '공급자');
-          setSupplierInfo(tenantData);
+        
+        if (!matchedTenant) {
+          matchedTenant = db?.currentTenant || SEED_TENANTS[0];
+        }
+
+        if (matchedTenant) {
+          setSupplierName(matchedTenant.tradeName || matchedTenant.corporateName || matchedTenant.displayName || '(주)기연리프트');
+          setSupplierInfo(matchedTenant);
         }
       } catch (err: any) {
         setError(err.message);
@@ -302,7 +322,7 @@ export const DriverPortalPage: React.FC = () => {
     try {
       const ext = prefix === 'photo' ? 'jpg' : 'png';
       const fileName = `${delivery.id}_${prefix}_${Date.now()}.${ext}`;
-      const tId = (delivery as any).tenantId || (delivery as any).tenant_id || 'shared';
+      const tId = supplierInfo?.subdomain || (delivery as any).tenantId || (delivery as any).tenant_id || 'giyeonlift';
       const filePath = `receipts/${tId}/${fileName}`;
 
       const { error: uploadError } = await supabase!.storage
@@ -369,7 +389,7 @@ export const DriverPortalPage: React.FC = () => {
         siteAddress: delivery.destinationAddress || siteAddress || '-',
         receiverName: receiverName || '인수담당자',
         receiverPhone: receiverPhone || '-',
-        supplierName: supplierName || supplierInfo?.tradeName || supplierInfo?.corporateName || supplierInfo?.displayName || '공급자',
+        supplierName: supplierName || supplierInfo?.tradeName || supplierInfo?.corporateName || supplierInfo?.displayName || '(주)기연리프트',
         supplierInfo,
         cargoList,
         specialNotes,

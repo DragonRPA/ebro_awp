@@ -1,3 +1,5 @@
+import { db, SEED_TENANTS } from '../services/db';
+
 export function generateReceiptHtml(delivery: any, contract: any, customer: any, site: any, tenant: any): string {
   const dateStr = new Date().toLocaleDateString('ko-KR');
   const dTypeStr = delivery?.type === 'OUTBOUND' ? '출고' : delivery?.type === 'INBOUND' ? '회수' : '교환';
@@ -35,6 +37,10 @@ export function generateReceiptHtml(delivery: any, contract: any, customer: any,
       </tr>
     `;
 
+  const defaultSupplier = SEED_TENANTS[0];
+  const effectiveTenant = tenant || db?.currentTenant || defaultSupplier;
+  const tTradeName = effectiveTenant?.tradeName || effectiveTenant?.corporateName || effectiveTenant?.displayName || defaultSupplier.tradeName;
+
   return `
     <div style="font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 24px; max-width: 800px; margin: 0 auto; color: #000; background-color: #fff;">
       <h1 style="text-align: center; font-size: 28px; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 20px; letter-spacing: 2px;">납품(인수)증</h1>
@@ -64,7 +70,7 @@ export function generateReceiptHtml(delivery: any, contract: any, customer: any,
           <table style="width: 100%; border-collapse: collapse; border: 1px solid #000;">
             <tr>
               <th style="border: 1px solid #000; padding: 8px; background: #f0f0f0; width: 32%; text-align: center;">공급자</th>
-              <td style="border: 1px solid #000; padding: 8px; font-weight: 700;">${tenant?.tradeName || tenant?.corporateName || tenant?.displayName || '공급자'}</td>
+              <td style="border: 1px solid #000; padding: 8px; font-weight: 700;">${tTradeName}</td>
             </tr>
             <tr>
               <th style="border: 1px solid #000; padding: 8px; background: #f0f0f0; width: 32%; text-align: center;">납품일</th>
@@ -261,13 +267,37 @@ export async function generateSignedReceiptCanvas(options: SignedReceiptOptions)
   const boxH = 215;
   const boxW = 525;
 
-  const sCorpName = supplierInfo?.tradeName || supplierInfo?.corporateName || supplierInfo?.displayName || supplierName || '공급자';
-  const sRep = supplierInfo?.representativeName || supplierInfo?.representative || '';
-  const sBizNo = supplierInfo?.businessNumber || supplierInfo?.bizRegNo || '-';
-  const sAddr = supplierInfo?.headOfficeAddress || supplierInfo?.businessAddress || supplierInfo?.address || '-';
-  const sTel = supplierInfo?.tel || supplierInfo?.phone || '-';
-  const sFax = supplierInfo?.fax || '-';
-  const sWebsite = supplierInfo?.websiteUrl || '';
+  const defaultSupplier = SEED_TENANTS[0];
+  const effectiveSupplier = supplierInfo || db?.currentTenant || defaultSupplier;
+
+  const sCorpName = effectiveSupplier?.tradeName || 
+                    effectiveSupplier?.corporateName || 
+                    effectiveSupplier?.displayName || 
+                    (supplierName && supplierName !== '공급자' ? supplierName : '') || 
+                    defaultSupplier.tradeName;
+
+  const sRep = effectiveSupplier?.representativeName || 
+               effectiveSupplier?.representative || 
+               defaultSupplier.representativeName;
+
+  const sBizNo = effectiveSupplier?.businessNumber || 
+                 effectiveSupplier?.bizRegNo || 
+                 defaultSupplier.businessNumber;
+
+  const sAddr = effectiveSupplier?.headOfficeAddress || 
+                effectiveSupplier?.businessAddress || 
+                effectiveSupplier?.address || 
+                defaultSupplier.headOfficeAddress;
+
+  const sTel = effectiveSupplier?.tel || 
+               effectiveSupplier?.phone || 
+               defaultSupplier.tel;
+
+  const sFax = effectiveSupplier?.fax || 
+               defaultSupplier.fax;
+
+  const sWebsite = effectiveSupplier?.websiteUrl || 
+                   defaultSupplier.websiteUrl || '';
 
   drawTableGrid(65, boxY, boxW, boxH, '공    급    자', [
     { label: '상호(법인명)', value: sCorpName },
@@ -634,10 +664,10 @@ export async function generateSignedReceiptCanvas(options: SignedReceiptOptions)
 
   ctx.fillStyle = '#94a3b8';
   ctx.font = '12px "Malgun Gothic", Pretendard, sans-serif';
-  const footerContact = sTel && sTel !== '-' ? `고객센터: ${sTel}` : '';
-  const footerWeb = sWebsite ? sWebsite.replace(/^https?:\/\//, '') : '';
+  const footerContact = sTel && sTel !== '-' ? `고객센터: ${sTel}` : `고객센터: ${defaultSupplier.tel}`;
+  const footerWeb = sWebsite ? sWebsite.replace(/^https?:\/\//, '') : defaultSupplier.websiteUrl?.replace(/^https?:\/\//, '');
   const footerText = [
-    supplierInfo?.systemName || 'eBro Management System',
+    effectiveSupplier?.systemName || defaultSupplier.systemName || 'eBro Management System',
     sCorpName,
     footerContact,
     footerWeb
