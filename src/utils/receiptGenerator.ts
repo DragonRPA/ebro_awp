@@ -270,7 +270,7 @@ export async function generateSignedReceiptCanvas(options: SignedReceiptOptions)
 
   drawTableGrid(65, boxY, boxW, boxH, '공    급    자', [
     { label: '상호(법인명)', value: sCorpName },
-    { label: '대표자 성명', value: sRep },
+    { label: '대표자 성명', value: `${sRep} (직인생략)` },
     { label: '사업자등록번호', value: sBizNo },
     { label: '사업장 소재지', value: sAddr },
     { label: '대표전화/FAX', value: `${sTel} / ${sFax}` }
@@ -506,42 +506,40 @@ export async function generateSignedReceiptCanvas(options: SignedReceiptOptions)
   ctx.fillStyle = '#475569';
   ctx.font = '14px "Malgun Gothic", Pretendard, sans-serif';
   ctx.fillText(`상      호 :  ${sCorpName}`, 90, signCardY + 70);
-  ctx.fillText(`대  표  자 :  ${sRep}`, 90, signCardY + 102);
+  ctx.fillText(`대  표  자 :  ${sRep}  (직인생략)`, 90, signCardY + 102);
   ctx.fillText(`사업자번호 :  ${sBizNo}`, 90, signCardY + 134);
   ctx.fillText(`소  재  지 :  ${sAddr}`, 90, signCardY + 166);
 
-  // Corporate Seal (Stamp)
+  // Official [직인생략] Notice Area per user legal instruction
   const sealX = 65 + (signCardW / 2);
-  const sealY = signCardY + 280;
-  const sealR = 52;
+  const sealBoxW = 220;
+  const sealBoxH = 100;
+  const sealBoxX = sealX - (sealBoxW / 2);
+  const sealBoxY = signCardY + 230;
 
   ctx.save();
-  ctx.beginPath();
-  ctx.arc(sealX, sealY, sealR, 0, Math.PI * 2);
-  ctx.strokeStyle = '#dc2626';
-  ctx.lineWidth = 3.5;
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(sealX, sealY, sealR - 6, 0, Math.PI * 2);
-  ctx.strokeStyle = '#dc2626';
-  ctx.lineWidth = 1.2;
-  ctx.stroke();
-
-  ctx.fillStyle = '#dc2626';
-  ctx.font = 'bold 17px "Malgun Gothic", Pretendard, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('주식회사', sealX, sealY - 14);
-  ctx.font = 'bold 20px "Malgun Gothic", Pretendard, sans-serif';
-  ctx.fillText('기연리프트', sealX, sealY + 10);
-  ctx.font = 'bold 14px "Malgun Gothic", Pretendard, sans-serif';
-  ctx.fillText('대표이사직인', sealX, sealY + 30);
-  ctx.restore();
+  ctx.strokeStyle = '#94a3b8';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 4]);
+  ctx.strokeRect(sealBoxX, sealBoxY, sealBoxW, sealBoxH);
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(sealBoxX, sealBoxY, sealBoxW, sealBoxH);
 
   ctx.fillStyle = '#64748b';
-  ctx.font = '13px "Malgun Gothic", Pretendard, sans-serif';
+  ctx.font = 'bold 20px "Malgun Gothic", Pretendard, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(`${sCorpName} 대표이사 직인날인`, sealX, signCardY + 380);
+  ctx.fillText('[ 직 인 생 략 ]', sealX, sealBoxY + 56);
+  ctx.restore();
+
+  ctx.fillStyle = '#475569';
+  ctx.font = 'bold 14px "Malgun Gothic", Pretendard, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${sCorpName}  대표이사  ${sRep}  (직인생략)`, sealX, signCardY + 365);
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '12px "Malgun Gothic", Pretendard, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('※ 전자문서법에 의거 당사 직인을 생략하여 발행함', sealX, signCardY + 392);
 
   // --- Right: Receiver Signature Card ---
   ctx.strokeStyle = '#2563eb';
