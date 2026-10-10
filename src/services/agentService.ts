@@ -194,7 +194,7 @@ export async function syncTenantPolicyToAgent(tenant?: {
 }
 
 // 활성 에이전트 베이스 URL (127.0.0.1 ➔ localhost 자동 동적 폴백)
-let activeAgentBaseUrl = 'http://127.0.0.1:5175';
+let activeAgentBaseUrl = 'http://localhost:5175';
 
 export function getAgentBaseUrl(): string {
   return activeAgentBaseUrl;
@@ -377,7 +377,7 @@ export async function fetchWithAgentFallback(path: string, init?: RequestInit): 
       const mergedInit: any = {
         ...init,
         // Chrome/Edge W3C Local Network Access(LNA) 표준: loopback 접근 권한 명시
-        targetAddressSpace: 'loopback'
+        
       };
       const res = await fetch(`${host}${path}`, mergedInit);
       if (res.ok || res.status < 500) {
