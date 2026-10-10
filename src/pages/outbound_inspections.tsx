@@ -128,6 +128,7 @@ export const OutboundInspections: React.FC = () => {
     refreshAllData,
     hasPermission,
     showErrorModal,
+    showPrintSuccessModal,
     exchangeOutboundAsset,
     inspectionChecklistItems,
     consumables,
@@ -690,18 +691,28 @@ export const OutboundInspections: React.FC = () => {
       const targetStation = resolveTargetStation('DISPATCH_ORDER');
       const stationName = targetStation?.stationName || '출고장 프린터';
 
+      const docNo = selectedGroup.contractNo || contract?.contractNo || contract?.id;
+      const docTitle = `[납품증] ${selectedGroup.customerName} - ${selectedGroup.siteName}`;
+
       // 2. 인쇄 큐(print_queue)에 등록 -> 스테이션 PC의 eBroAgent가 자동 수신하여 실물 프린터로 인쇄 집행
       await enqueuePrintJob({
         stationId: targetStation?.id,
         docType: 'DISPATCH_ORDER',
-        docNo: selectedGroup.contractNo || contract?.contractNo || contract?.id,
-        title: `[납품증] ${selectedGroup.customerName} - ${selectedGroup.siteName}`,
+        docNo,
+        title: docTitle,
         documentHtml: receiptHtml,
         requestedById: currentUser?.id,
         requestedByName: currentUser?.name
       });
 
-      showToast(`[${selectedGroup.customerName}] 납품증이 프린터 큐(${stationName})로 전송되었습니다. 에이전트가 출력을 진행합니다.`, 'success');
+      showToast(`[${selectedGroup.customerName}] 납품증이 프린터 큐(${stationName})로 전송되었습니다.`, 'success');
+      showPrintSuccessModal({
+        docType: '납품증',
+        docTitle,
+        docNo,
+        stationName,
+        printerName: targetStation?.localPrinterName
+      });
     } catch (err: any) {
       showErrorModal(`납품증 출력 실패: ${err.message || err}`);
     }

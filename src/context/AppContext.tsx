@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef, useCallb
 import { db, supabase, PAYMENT_REVERSAL_ENABLED, isActivePayment, isActiveDepositLink, Tenant, TenantWorkplace, TenantYard, TenantBusinessType, TenantBankAccount, OFFICIAL_STAMP_BASE64, User, MenuPermission, createMenuPermission, CustomRole, RolePermission, Customer, CustomerContact, CustomerSite, SiteMaster, Product, Asset, Consumable, ConsumableLog, ConsumableLot, ConsumablePurchaseRequest, MechanicConsumableStock, Contract, ContractAsset, ContractHistory, Delivery, Billing, BillingType, BillingDetail, CustomStatementItem, Receivable, Payment, PaymentDepositLink, Repair, RepairConsumable, Todo, BankTransaction, BankMatchingRule, BankAccountInitialBalance, AssetInOutLog, GoogleConfig, Vendor, CashFlowSnapshot, OutboundInspection, TransportCompany, TransportDriver, TransportNegotiation, SubleaseNegotiation, DepreciationLog, PurchaseSettlement, PurchaseSettlementItem, SettlementPaymentLog, ExternalLease, PurchaseSettlementType, PurchaseSettlementStatus, findCustomerByNormalizedName, AnnualLeaveQuota, LeaveUsage, OvertimeRecord, PayrollClosing, InspectionChecklistItem, EquipmentManual, StandardOption, InboundDefectDetail, PrepaidTransaction, DelinquencyActionLog, LegalNoticeLog, LegalNoticeTemplate, calculateAssetDepreciation, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart, CorporateVehicle, VehicleOperationLog, VehicleFuelLog, RepairPartUsed, RepairCollectedPart, SaleContractTerms, StocktakingAudit, StocktakingAuditItem, CollectedPart, PrintStation, PrintQueueItem, logPrivacyAccess, ErrorReport, ErrorReportAttachment, ErrorReportStatus, ErrorReportSeverity, ErrorReportCategory } from '../services/db';
 import { enqueuePrintJob as serviceEnqueuePrintJob, registerPrintStation as serviceRegisterPrintStation, deletePrintStation as serviceDeletePrintStation, retryPrintJob as serviceRetryPrintJob, cancelPrintJob as serviceCancelPrintJob } from '../services/printQueueService';
 import { ErrorModal } from '../components/ErrorModal';
+import { PrintSuccessModal } from '../components/PrintSuccessModal';
 import { getAllSystemMenuIds, normalizeMenuId } from '../config/menu_config';
 import { getRoleTemplatePermission } from '../config/role_templates';
 import { broadcastWorkNotification } from '../utils/workNotificationService';
@@ -89,6 +90,14 @@ interface AppContextType {
   switchUser: (userId: string) => void;
   hasPermission: (menuId: string, action: 'view' | 'save') => boolean;
   showErrorModal: (message: string, title?: string) => void;
+  showPrintSuccessModal: (params: {
+    docType?: string;
+    docTitle: string;
+    docNo?: string;
+    stationName: string;
+    printerName?: string;
+    detailMessage?: string;
+  }) => void;
   
   // Data States
   tenants: Tenant[];
@@ -824,6 +833,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       isOpen: true,
       title,
       message
+    });
+  };
+
+  // 글로벌 프린터 큐 출력 성공 안내 모달 상태
+  const [printSuccessModal, setPrintSuccessModal] = useState<{
+    isOpen: boolean;
+    docType: string;
+    docTitle: string;
+    docNo?: string;
+    stationName: string;
+    printerName?: string;
+    detailMessage?: string;
+  }>({
+    isOpen: false,
+    docType: '',
+    docTitle: '',
+    docNo: '',
+    stationName: '',
+    printerName: '',
+    detailMessage: ''
+  });
+
+  const showPrintSuccessModal = (params: {
+    docType?: string;
+    docTitle: string;
+    docNo?: string;
+    stationName: string;
+    printerName?: string;
+    detailMessage?: string;
+  }) => {
+    setPrintSuccessModal({
+      isOpen: true,
+      docType: params.docType || '문서',
+      docTitle: params.docTitle,
+      docNo: params.docNo || '',
+      stationName: params.stationName,
+      printerName: params.printerName || '',
+      detailMessage: params.detailMessage || ''
     });
   };
 
@@ -10851,7 +10898,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
   return (
     <AppContext.Provider value={{ receivables: db.receivables as any[], refreshReceivables: () => {}, 
-      currentUser, theme, toggleTheme, login, logout, switchUser, hasPermission, showErrorModal,
+      currentUser, theme, toggleTheme, login, logout, switchUser, hasPermission, showErrorModal, showPrintSuccessModal,
       tenants, currentTenant, setCurrentTenantId, saveTenant, deleteTenant,
       addTenantWorkplace, updateTenantWorkplace, deleteTenantWorkplace,
       addTenantYard, updateTenantYard, deleteTenantYard, setDefaultYard,
@@ -10919,6 +10966,16 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         title={errorModal.title}
         message={errorModal.message}
         onClose={() => setErrorModal(prev => ({ ...prev, isOpen: false }))}
+      />
+      <PrintSuccessModal
+        isOpen={printSuccessModal.isOpen}
+        docType={printSuccessModal.docType}
+        docTitle={printSuccessModal.docTitle}
+        docNo={printSuccessModal.docNo}
+        stationName={printSuccessModal.stationName}
+        printerName={printSuccessModal.printerName}
+        detailMessage={printSuccessModal.detailMessage}
+        onClose={() => setPrintSuccessModal(prev => ({ ...prev, isOpen: false }))}
       />
     </AppContext.Provider>
   );

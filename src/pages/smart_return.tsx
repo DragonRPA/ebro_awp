@@ -6,7 +6,7 @@ import { fetchMyDrafts, DraftDispatchOrder, discardDraft } from '../services/cal
 import { matchHangul, compareCustomerNames } from '../utils/hangulSearch';
 
 export const SmartReturn: React.FC = () => {
-  const { hasPermission, saveSmartReturn, contracts, customers, sites, contacts, deliveries, contractAssets, assets, repairs, vendors, currentUser, users, currentTenant, printStations, enqueuePrintJob } = useApp();
+  const { hasPermission, saveSmartReturn, contracts, customers, sites, contacts, deliveries, contractAssets, assets, repairs, vendors, currentUser, users, currentTenant, printStations, enqueuePrintJob, showPrintSuccessModal } = useApp();
   const canSave = hasPermission('delivery', 'save');
 
   // 토스트 알림 상태 (헌장 5.2: 브라우저 alert 전면 퇴출)
@@ -424,16 +424,27 @@ export const SmartReturn: React.FC = () => {
         printStations.find(s => s.stationName.includes('입고') || s.stationName.includes('프린터2')) ||
         printStations[0];
 
+      const docNo = selContract?.contractNo || `RET-${Date.now().toString().slice(-6)}`;
+      const docTitle = `입고요청서_${selCust?.name || '미지정'}_${selSite?.name || '현장'}`;
+      const stationName = st?.stationName || '입고장 프린터';
+
       await enqueuePrintJob({
         stationId: st?.id,
         docType: 'RETURN_ORDER',
-        docNo: selContract?.contractNo || `RET-${Date.now().toString().slice(-6)}`,
-        title: `입고요청서_${selCust?.name || '미지정'}_${selSite?.name || '현장'}`,
+        docNo,
+        title: docTitle,
         documentHtml: htmlDoc,
         requestedById: currentUser?.id,
         requestedByName: currentUser?.name
       });
-      showToast(`[${st?.stationName || '프린터2'}] 인쇄 큐 전송 완료`);
+      showToast(`[${stationName}] 인쇄 큐 전송 완료`);
+      showPrintSuccessModal({
+        docType: '회수요청서',
+        docTitle,
+        docNo,
+        stationName,
+        printerName: st?.localPrinterName
+      });
     } catch (err: any) {
       showToast(`원격 인쇄 큐 전송 실패: ${err.message || err}`, 'error');
     } finally {

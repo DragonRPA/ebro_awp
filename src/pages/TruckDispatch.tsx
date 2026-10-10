@@ -112,7 +112,7 @@ export const TruckDispatch: React.FC = () => {
     deliveries, contracts, customers, products, sites, users,
     contractAssets, assets,
     transportCompanies, transportDrivers, transportNegotiations, outboundInspections, hasPermission, 
-    refreshAllData, showErrorModal, convertReconciledDeliveriesToSettlement,
+    refreshAllData, showErrorModal, showPrintSuccessModal, convertReconciledDeliveriesToSettlement,
     currentTenant,
     printStations, printQueue, enqueuePrintJob,
     completeDelivery, completeInboundDelivery
@@ -591,17 +591,29 @@ export const TruckDispatch: React.FC = () => {
         : printStations.find(s => s.stationName.includes('입고') || s.stationName.includes('프린터2'))) ||
       printStations[0];
 
+    const targetDocName = isOutbound ? '출고요청서' : '회수요청서';
+    const docNo = contract?.contractNo || delivery.id;
+    const docTitle = `${title}_${customer?.name || '고객사'}_${site?.name || delivery.id}`;
+    const stationName = targetStation?.stationName || (isOutbound ? '출고장 프린터' : '입고장 프린터');
+
     try {
       await enqueuePrintJob({
         stationId: targetStation?.id,
         docType: targetDocType,
-        docNo: contract?.contractNo || delivery.id,
-        title: `${title}_${customer?.name || '고객사'}_${site?.name || delivery.id}`,
+        docNo,
+        title: docTitle,
         documentHtml: html,
         requestedById: currentUser?.id,
         requestedByName: currentUser?.name
       });
-      showToast(`[${targetStation?.stationName || (isOutbound ? '출고장 프린터' : '입고장 프린터')}] 인쇄 큐 전송 완료`);
+      showToast(`[${stationName}] 인쇄 큐 전송 완료`);
+      showPrintSuccessModal({
+        docType: targetDocName,
+        docTitle,
+        docNo,
+        stationName,
+        printerName: targetStation?.localPrinterName
+      });
     } catch (err: any) {
       showToast(`원격 인쇄 큐 전송 실패: ${err.message || err}`, 'error');
     }

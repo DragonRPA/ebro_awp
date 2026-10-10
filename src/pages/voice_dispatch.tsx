@@ -162,7 +162,7 @@ export const VoiceDispatch: React.FC = () => {
   const {
     hasPermission, customers, sites, contacts, currentUser, currentTenant,
     saveSmartDispatch, assets, deliveries, standardOptions,
-    printStations, enqueuePrintJob,
+    printStations, enqueuePrintJob, showPrintSuccessModal,
     products = [],
     inspectionChecklistItems = [],
     setActiveTab: setGlobalActiveTab,
@@ -2414,22 +2414,31 @@ export const VoiceDispatch: React.FC = () => {
           || printStations[0];
       }
       const stationName = st?.stationName || '출고장 프린터';
+      const docNo = `DSP-${Date.now().toString().slice(-6)}`;
+      const docTitle = `출고요청서_${custName || '미지정'}_${sName || '현장'}`;
       await enqueuePrintJob({
         stationId: st?.id,
         docType: 'DISPATCH_ORDER',
-        docNo: `DSP-${Date.now().toString().slice(-6)}`,
-        title: `출고요청서_${custName || '미지정'}_${sName || '현장'}`,
+        docNo,
+        title: docTitle,
         documentHtml: htmlDoc,
         requestedById: currentUser?.id,
         requestedByName: currentUser?.name
       });
       showToast(`[${stationName}] 인쇄 큐 전송 완료`);
+      showPrintSuccessModal({
+        docType: '출고요청서',
+        docTitle,
+        docNo,
+        stationName,
+        printerName: st?.localPrinterName
+      });
     } catch (err: any) {
       showToast(`원격 인쇄 큐 전송 실패: ${err.message || err}`, 'error');
     } finally {
       setIsAgentPrinting(false);
     }
-  }, [printStations, targetStationId, enqueuePrintJob, currentUser, showToast]);
+  }, [printStations, targetStationId, enqueuePrintJob, currentUser, showToast, showPrintSuccessModal]);
 
   // 🖨️ 통합 1-클릭 인쇄 실행 핸들러 (원격 인쇄 큐 전송)
   const handlePrintAction = useCallback(async (targetDraft?: DraftOrder | null) => {
