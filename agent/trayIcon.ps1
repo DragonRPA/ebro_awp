@@ -150,8 +150,43 @@ if ($aiEnabled) {
     $mStudio.add_Click({ Open-Studio })
 }
 
+# 🌐 테넌트 전용 ERP 로그인 페이지 URL 산출
+function Get-TenantLoginUrl {
+    $pPath = "C:\eBroAgent\tenant_policy.json"
+    $tCode = "GIYEONLIFT"
+    $subdomain = ""
+    if (Test-Path $pPath) {
+        try {
+            $pJson = Get-Content $pPath -Raw | ConvertFrom-Json
+            if ($pJson.subdomain) {
+                $subdomain = [string]$pJson.subdomain
+            }
+            if ($pJson.tenantCode) {
+                $tCode = [string]$pJson.tenantCode
+            }
+        } catch {}
+    }
+
+    if ($subdomain) {
+        $cleanSub = $subdomain.Trim().ToLower()
+        return "https://$cleanSub.ebro.run"
+    }
+
+    $cleanCode = $tCode.Trim().ToUpper()
+    if ($cleanCode -eq "GIYEONLIFT" -or $cleanCode -eq "GIYEUN" -or $cleanCode -eq "GIYUEN" -or $cleanCode -eq "KIYUEN") {
+        return "https://giyeon.ebro.run"
+    } elseif ($cleanCode -and $cleanCode -ne "EBRO") {
+        $sub = $cleanCode.ToLower()
+        return "https://$sub.ebro.run"
+    }
+    return "https://ebro.run?mode=tenant"
+}
+
 $mErp = $menu.Items.Add("e-Bro ERP 사이트 열기")
-$mErp.add_Click({ Start-Process "https://ebro.run" })
+$mErp.add_Click({ 
+    $targetUrl = Get-TenantLoginUrl
+    Start-Process $targetUrl 
+})
 
 $mFolder = $menu.Items.Add("Local Archive (문서고)")
 $mFolder.add_Click({ Open-Archive })

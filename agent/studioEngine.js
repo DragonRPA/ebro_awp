@@ -1806,8 +1806,8 @@ function renderSilentCoreHtml(port = 5175, version = 'v2.0.0.Build.6', tenantCod
       <button class="btn btn-secondary" onclick="fetch('/api/open-archive', {method:'POST'}).catch(alert)">
         로컬 문서고 열기
       </button>
-      <a class="btn btn-primary" href="https://ebro.run" target="_blank">
-        eBro ERP 웹 포털 이동
+      <a class="btn btn-primary" href="${(tenantCode === 'GIYEONLIFT' || tenantCode === 'GIYEUN') ? 'https://giyeon.ebro.run' : (tenantCode ? 'https://' + tenantCode.toLowerCase() + '.ebro.run' : 'https://ebro.run?mode=tenant')}" target="_blank">
+        eBro ERP 로그인
       </a>
     </div>
   </div>

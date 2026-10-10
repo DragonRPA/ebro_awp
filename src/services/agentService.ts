@@ -172,18 +172,21 @@ export interface AgentHealthInfo {
  */
 export async function syncTenantPolicyToAgent(tenant?: {
   tenantCode?: string;
+  subdomain?: string;
   features?: TenantFeatures;
 } | null): Promise<boolean> {
   if (!tenant) return false;
   try {
     const isAiEnabled = Boolean(tenant.features?.agentAiEnabled);
     const code = tenant.tenantCode || 'GIYEONLIFT';
+    const sub = tenant.subdomain || (code === 'GIYEONLIFT' ? 'giyeon' : code.toLowerCase());
     const res = await fetchWithAgentFallback('/api/policy/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         agentAiEnabled: isAiEnabled,
-        tenantCode: code
+        tenantCode: code,
+        subdomain: sub
       }),
       signal: AbortSignal.timeout(1500)
     });
