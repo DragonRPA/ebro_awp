@@ -201,6 +201,8 @@ export const FieldAsManagement: React.FC = () => {
   const [actionInspectionItemCode, setActionInspectionItemCode] = useState('');
   const [actionDegradationScore, setActionDegradationScore] = useState<number>(0);
   const [actionDurationMinutes, setActionDurationMinutes] = useState<number>(30);
+  const [isCompletingTicket, setIsCompletingTicket] = useState(false);
+  const [isCreatingTicket, setIsCreatingTicket] = useState(false);
 
   // 소모품 선택 임시 목록
   const [actionPartsUsed, setActionPartsUsed] = useState<FieldAsPartUsed[]>([]);
@@ -718,7 +720,7 @@ export const FieldAsManagement: React.FC = () => {
 
   // 최종 조치 완료 확정
   const handleCompleteTicket = async () => {
-    if (!selectedTicket) return;
+    if (!selectedTicket || isCompletingTicket) return;
     if (!actionAssignMechanicId) {
       showErrorModal('담당자를 지정해 주세요.');
       return;
@@ -729,6 +731,7 @@ export const FieldAsManagement: React.FC = () => {
     }
 
     try {
+      setIsCompletingTicket(true);
       await completeFieldAsTicket(selectedTicket.id, {
         mechanicId: actionAssignMechanicId,
         actionTaken: actionTakenText.trim(),
@@ -736,7 +739,7 @@ export const FieldAsManagement: React.FC = () => {
         partsUsed: actionPartsUsed,
         collectedParts: actionCollectedParts,
         billableType: actionBillableType,
-        billableAmount: actionBillableType === 'BILLABLE' ? actionBillableAmount : 0,
+        billableAmount: actionBillableType === 'BILLABLE' ? Math.max(0, actionBillableAmount) : 0,
         beforeImage: actionBeforeImage,
         afterImage: actionAfterImage,
         customerConfirmName: actionConfirmName.trim(),
@@ -744,19 +747,22 @@ export const FieldAsManagement: React.FC = () => {
         revisitReason: actionResolutionType === 'REVISIT_NEEDED' ? actionRevisitReason : undefined,
         exchangeSuggested: actionExchangeSuggested,
         inspectionItemCode: actionInspectionItemCode,
-        durationMinutes: actionDurationMinutes,
-        spentManHours: actionDurationMinutes > 0 ? Number((actionDurationMinutes / 60).toFixed(2)) : undefined,
+        durationMinutes: Math.max(0, actionDurationMinutes),
+        spentManHours: actionDurationMinutes > 0 ? Number((Math.max(0, actionDurationMinutes) / 60).toFixed(2)) : undefined,
         degradationScore: actionDegradationScore
       });
       showToast('AS 현장 조치가 성공적으로 등록되고 차량 소모품 재고가 차감되었습니다.');
     } catch (err: any) {
       // modal handled in context
+    } finally {
+      setIsCompletingTicket(false);
     }
   };
 
   // 신규 직접 등록 제출
   const handleCreateDirectTicket = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isCreatingTicket) return;
     if (!newSiteName.trim()) {
       showErrorModal('현장명을 입력해 주세요.');
       return;
@@ -767,6 +773,7 @@ export const FieldAsManagement: React.FC = () => {
     }
 
     try {
+      setIsCreatingTicket(true);
       const ticket = await createFieldAsTicket({
         source: 'DIRECT_INTAKE',
         customerName: newCustomerName.trim() || '현장 협력업체',
@@ -792,6 +799,8 @@ export const FieldAsManagement: React.FC = () => {
       showToast('신규 AS 접수가 등록되었습니다.');
     } catch (err: any) {
       // handled
+    } finally {
+      setIsCreatingTicket(false);
     }
   };
 
@@ -2488,9 +2497,10 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                     </label>
                     <input
                       type="number"
+                      min={0}
                       disabled={actionBillableType === 'FREE'}
                       value={actionBillableAmount}
-                      onChange={(e) => setActionBillableAmount(parseInt(e.target.value) || 0)}
+                      onChange={(e) => setActionBillableAmount(Math.max(0, parseInt(e.target.value) || 0))}
                       style={{
                         padding: '8px 12px',
                         borderRadius: '6px',
@@ -2585,6 +2595,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                   <button
                     type="button"
                     onClick={handleCompleteTicket}
+                    disabled={isCompletingTicket}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -2603,7 +2614,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                     }}
                   >
                     <Check size={18} />
-                    AS 조치 완료
+                    {isCompletingTicket ? '완료 처리중...' : 'AS 조치 완료'}
                   </button>
                 </div>
               </div>
@@ -4372,9 +4383,10 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                 </button>
                 <button data-hs-trigger="Register"
                   type="submit"
+                  disabled={isCreatingTicket}
                   style={{ padding: '8px 20px', backgroundColor: 'var(--primary)', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 700, color: '#ffffff', cursor: 'pointer' }}
                 >
-                  접수 등록
+                  {isCreatingTicket ? '등록중...' : '접수 등록'}
                 </button>
               </div>
             </form>

@@ -1040,6 +1040,7 @@ export const TruckDispatch: React.FC = () => {
 
   // 기존 배차 관리 상세 선택 상태
   const [selectedDelivery, setSelectedDelivery] = useState<Delivery | null>(null);
+  const [isSavingDispatch, setIsSavingDispatch] = useState(false);
 
   // 운송사 배차 협의 전용 선택 배차 건
   const selectedNegoDelivery = useMemo(() => {
@@ -2870,9 +2871,15 @@ export const TruckDispatch: React.FC = () => {
 
   // 3. 배차 배정 저장 (status: 'DISPATCHED' 배차 완료 전환!)
   const handleSaveDispatch = async () => {
+    if (isSavingDispatch) return;
     if (!selectedDelivery) return;
     if (!canSave) {
       showErrorModal('배차 수정 권한이 없습니다.');
+      return;
+    }
+
+    if (loadingDate && unloadingDate && loadingDate > unloadingDate) {
+      showErrorModal('상차일이 하차일보다 늦을 수 없습니다. 일자를 확인해 주십시오.');
       return;
     }
 
@@ -2895,13 +2902,20 @@ export const TruckDispatch: React.FC = () => {
       showToast('출고 검수 반려 이력이 있는 의뢰건의 배차 기사 배정을 진행합니다.', 'warning');
     }
 
+    setIsSavingDispatch(true);
     try {
       const finalLoadingSlot = loadingTimeSlot === '희망시간' ? loadingCustomTime : loadingTimeSlot;
       const finalUnloadingSlot = unloadingTimeSlot === '희망시간' ? unloadingCustomTime : unloadingTimeSlot;
-      const totalExpectedCost = assignedVehicles.reduce((sum, v) => sum + (Number(v.expectedCost) || 0), 0);
-      const totalFinalCost = assignedVehicles.reduce((sum, v) => sum + (Number(v.finalCost) || 0), 0);
+      const sanitizedVehicles = assignedVehicles.map(v => ({
+        ...v,
+        expectedCost: Math.max(0, Number(v.expectedCost) || 0),
+        finalCost: Math.max(0, Number(v.finalCost) || 0),
+        deliveryCost: Math.max(0, Number(v.deliveryCost) || Number(v.finalCost) || Number(v.expectedCost) || 0)
+      }));
+      const totalExpectedCost = sanitizedVehicles.reduce((sum, v) => sum + (Number(v.expectedCost) || 0), 0);
+      const totalFinalCost = sanitizedVehicles.reduce((sum, v) => sum + (Number(v.finalCost) || 0), 0);
 
-      const mainVeh = assignedVehicles[0] || {};
+      const mainVeh = sanitizedVehicles[0] || {};
       const payload: Partial<Delivery> = {
         status: 'DISPATCHED',
         dispatchCategory: dispatchCategory,
@@ -2922,7 +2936,7 @@ export const TruckDispatch: React.FC = () => {
         expectedCost: totalExpectedCost,
         finalCost: totalFinalCost,
         deliveryCost: totalFinalCost || totalExpectedCost,
-        vehicles: JSON.stringify(assignedVehicles),
+        vehicles: JSON.stringify(sanitizedVehicles),
         closingMemo: closingMemo,
         memo: selectedDelivery.memo || closingMemo,
         updatedAt: new Date().toISOString()
@@ -2987,6 +3001,8 @@ export const TruckDispatch: React.FC = () => {
       }
     } catch (err: any) {
       showErrorModal(`⚠️ 배차 저장 실패:\n${err?.message || err}`);
+    } finally {
+      setIsSavingDispatch(false);
     }
   };
 
@@ -4147,11 +4163,12 @@ export const TruckDispatch: React.FC = () => {
                                   {/* 5. 💰 예상 운송비 (필수) */}
                                   <input
                                     type="number"
+                                    min={0}
                                     placeholder="예상 운송비"
                                     value={veh.expectedCost !== undefined ? veh.expectedCost : ''}
                                     disabled={isFormDisabled}
                                     onChange={e => {
-                                      const val = Number(e.target.value);
+                                      const val = Math.max(0, Number(e.target.value) || 0);
                                       handleVehicleFieldChange(idx, 'expectedCost', val);
                                       handleVehicleFieldChange(idx, 'deliveryCost', val);
                                     }}
@@ -4161,11 +4178,12 @@ export const TruckDispatch: React.FC = () => {
                                   {/* 6. 💵 실제 운송비 (선택 - 알면 금액 입력, 모르면 기본값 0 유지) */}
                                   <input
                                     type="number"
+                                    min={0}
                                     placeholder="0 (알면 입력)"
                                     value={veh.finalCost !== undefined && veh.finalCost !== null ? veh.finalCost : 0}
                                     disabled={isFormDisabled}
                                     onChange={e => {
-                                      const val = e.target.value === '' ? 0 : Number(e.target.value);
+                                      const val = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value) || 0);
                                       handleVehicleFieldChange(idx, 'finalCost', val);
                                     }}
                                     style={{ padding: '6px 6px', borderRadius: '6px', border: '1px solid #16a34a', backgroundColor: isFormDisabled ? 'var(--bg-card)' : 'rgba(34,197,94,0.05)', color: 'var(--success)', fontSize: '11.5px', fontWeight: 800, textAlign: 'right', outline: 'none', opacity: isFormDisabled ? 0.75 : 1, cursor: isFormDisabled ? 'not-allowed' : 'default' }}
@@ -4245,6 +4263,7 @@ export const TruckDispatch: React.FC = () => {
                           <button
                             type="button"
                             onClick={handleSaveDispatch}
+                            disabled={isSavingDispatch}
                             className="btn-primary"
                             style={{
                               padding: '8px 18px',
@@ -4257,11 +4276,12 @@ export const TruckDispatch: React.FC = () => {
                               backgroundColor: '#2563eb',
                               color: '#ffffff',
                               border: 'none',
-                              cursor: 'pointer',
-                              boxShadow: '0 2px 6px rgba(37,99,235,0.3)'
+                              cursor: isSavingDispatch ? 'not-allowed' : 'pointer',
+                              boxShadow: '0 2px 6px rgba(37,99,235,0.3)',
+                              opacity: isSavingDispatch ? 0.7 : 1
                             }}
                           >
-                            <RotateCcw size={15} /> 배차 수정 및 배차완료로 재배정
+                            <RotateCcw size={15} /> {isSavingDispatch ? '처리 중...' : '배차 수정 및 배차완료로 재배정'}
                           </button>
                         ) : getNormalizedDeliveryStatus(selectedDelivery) === 'DISPATCHED' ? (
                           <>
@@ -4286,6 +4306,7 @@ export const TruckDispatch: React.FC = () => {
                             <button data-hs-trigger="Save"
                               type="button"
                               onClick={handleSaveDispatch}
+                              disabled={isSavingDispatch}
                               className="btn-primary"
                               style={{
                                 padding: '8px 18px',
@@ -4298,11 +4319,12 @@ export const TruckDispatch: React.FC = () => {
                                 backgroundColor: '#2563eb',
                                 color: '#ffffff',
                                 border: 'none',
-                                cursor: 'pointer',
-                                boxShadow: '0 2px 6px rgba(37,99,235,0.3)'
+                                cursor: isSavingDispatch ? 'not-allowed' : 'pointer',
+                                boxShadow: '0 2px 6px rgba(37,99,235,0.3)',
+                                opacity: isSavingDispatch ? 0.7 : 1
                               }}
                             >
-                              <Save size={15} /> 배차 정보 수정 저장
+                              <Save size={15} /> {isSavingDispatch ? '저장 중...' : '배차 정보 수정 저장'}
                             </button>
                           </>
                         ) : getNormalizedDeliveryStatus(selectedDelivery) === 'DELIVERED' ? (
@@ -4330,6 +4352,7 @@ export const TruckDispatch: React.FC = () => {
                             <button data-hs-trigger="Save"
                               type="button"
                               onClick={handleSaveDispatch}
+                              disabled={isSavingDispatch}
                               className="btn-primary"
                               style={{
                                 padding: '8px 18px',
@@ -4339,10 +4362,11 @@ export const TruckDispatch: React.FC = () => {
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '6px',
-                                cursor: 'pointer'
+                                cursor: isSavingDispatch ? 'not-allowed' : 'pointer',
+                                opacity: isSavingDispatch ? 0.7 : 1
                               }}
                             >
-                              <Save size={15} /> 배차 정보 수정 저장
+                              <Save size={15} /> {isSavingDispatch ? '저장 중...' : '배차 정보 수정 저장'}
                             </button>
                           )
                         ) : (
@@ -4358,10 +4382,11 @@ export const TruckDispatch: React.FC = () => {
                             <button
                               type="button"
                               onClick={handleSaveDispatch}
+                              disabled={isSavingDispatch}
                               className="btn-primary"
-                              style={{ padding: '7px 16px', fontWeight: 800, fontSize: '12.5px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                              style={{ padding: '7px 16px', fontWeight: 800, fontSize: '12.5px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '5px', opacity: isSavingDispatch ? 0.7 : 1, cursor: isSavingDispatch ? 'not-allowed' : 'pointer' }}
                             >
-                              <ShieldCheck size={15} /> 배차 기사 배정 완료
+                              <ShieldCheck size={15} /> {isSavingDispatch ? '배정 중...' : '배차 기사 배정 완료'}
                             </button>
                           </>
                         )}

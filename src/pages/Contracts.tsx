@@ -166,6 +166,10 @@ export const Contracts: React.FC = () => {
   const [modDesc, setModDesc] = useState('');
   const [selectedExtendAssetIds, setSelectedExtendAssetIds] = useState<Set<string>>(new Set());
 
+  // 🔒 제출 중복 방지 상태
+  const [isSubmittingContract, setIsSubmittingContract] = useState(false);
+  const [isSubmittingExtend, setIsSubmittingExtend] = useState(false);
+
   // 3) 계약 승계 모달
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [succCustSearch, setSuccCustSearch] = useState(''); // 🔍 양수 고객사 초성/검색어
@@ -760,6 +764,7 @@ export const Contracts: React.FC = () => {
 
   const handleSaveExtend = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingExtend) return;
     if (!activeContract) return;
 
     const activeCust = customers.find(cu => cu.id === activeContract.customerId);
@@ -775,6 +780,7 @@ export const Contracts: React.FC = () => {
       return;
     }
 
+    setIsSubmittingExtend(true);
     try {
       const targetEndDate = modIsOpen ? '미정' : modNewEndDate;
       const prevEnd = activeContract.endDate;
@@ -911,6 +917,8 @@ export const Contracts: React.FC = () => {
       setShowExtendModal(false);
     } catch (err: any) {
       showToast(`저장 실패: ${err?.message || err}`, 'error');
+    } finally {
+      setIsSubmittingExtend(false);
     }
   };
 
@@ -1196,9 +1204,15 @@ export const Contracts: React.FC = () => {
     setBasket(basket.filter(b => b.assetId !== id && b.expectedModel !== id));
   };
 
-  const handleCreateContractSubmit = (e: React.FormEvent) => {
+  const handleCreateContractSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingContract) return;
     if (!canSave) return;
+
+    if (!isEndDateOpen && startDate && endDate && startDate > endDate) {
+      showToast('계약 시작일이 종료일보다 늦을 수 없습니다.', 'error');
+      return;
+    }
 
     if (custSelect !== 'NEW' && custSelect) {
       const selectedCustomer = customers.find(c => c.id === custSelect);
@@ -1217,99 +1231,116 @@ export const Contracts: React.FC = () => {
       return;
     }
 
-    let finalCustomerId = custSelect;
-    let finalContactId = contactSelect;
-    let finalSiteId = siteSelect;
+    // Basket 자산들의 임대료 음수/NaN 정규화 방어
+    const cleanedBasket = basket.map(item => ({
+      ...item,
+      monthlyRentalFee: Math.max(0, isNaN(Number(item.monthlyRentalFee)) ? 0 : Number(item.monthlyRentalFee)),
+      dailyRentalFee: Math.max(0, isNaN(Number(item.dailyRentalFee)) ? 0 : Number(item.dailyRentalFee))
+    }));
 
-    if (custSelect === 'NEW') {
-      const newCust = db.insertRow<Customer>('customers', {
-        name: newCustName,
-        bizRegNo: newBizRegNo || '미상',
-        isClosed: false,
-        address: newAddress || '미상',
-        representative: newRepresentative || '미상',
-        repContact: newRepContact || '미상',
-        repEmail: newRepEmail || '미상',
-        createdAt: new Date().toISOString()
-      });
-      finalCustomerId = newCust.id;
-    }
+    const cleanBillingDay = Math.min(31, Math.max(1, Number(billingDay) || 31));
+    const cleanStatementClosingDay = Math.min(31, Math.max(1, Number(statementClosingDay) || 31));
+    const cleanPaymentDueDay = Math.min(31, Math.max(1, Number(paymentDueDay) || 25));
+    const cleanPaymentDueMonthOffset = paymentDueMonthOffset !== undefined ? Math.max(0, Number(paymentDueMonthOffset)) : 1;
 
-    if (contactSelect === 'NEW') {
-      const newContact = db.insertRow<CustomerContact>('contacts', {
+    setIsSubmittingContract(true);
+    try {
+      let finalCustomerId = custSelect;
+      let finalContactId = contactSelect;
+      let finalSiteId = siteSelect;
+
+      if (custSelect === 'NEW') {
+        const newCust = db.insertRow<Customer>('customers', {
+          name: newCustName,
+          bizRegNo: newBizRegNo || '미상',
+          isClosed: false,
+          address: newAddress || '미상',
+          representative: newRepresentative || '미상',
+          repContact: newRepContact || '미상',
+          repEmail: newRepEmail || '미상',
+          createdAt: new Date().toISOString()
+        });
+        finalCustomerId = newCust.id;
+      }
+
+      if (contactSelect === 'NEW') {
+        const newContact = db.insertRow<CustomerContact>('contacts', {
+          customerId: finalCustomerId,
+          name: newContactName || '미상',
+          position: newContactPosition || '담당자',
+          contact: newContactPhone || '미상',
+          email: newContactEmail || '미상',
+          isActive: true,
+          createdAt: new Date().toISOString()
+        });
+        finalContactId = newContact.id;
+      }
+
+      if (siteSelect === 'NEW') {
+        const newSite = db.insertRow<CustomerSite>('sites', {
+          customerId: finalCustomerId,
+          name: newSiteName,
+          address: newSiteAddress || '미상',
+          contactName: newSiteContactName || '미상',
+          contact: newSiteContactPhone || '미상',
+          email: newSiteContactEmail || '미상',
+          createdAt: new Date().toISOString()
+        });
+        finalSiteId = newSite.id;
+      }
+
+      const finalSalespersonId = salespersonSelect || currentUser?.id;
+
+      // ── Feature 2: 동일 고객+현장 중복 활성 계약 인터셉터 ──────────────────
+      const existingActiveContract = contracts.find(c =>
+        c.customerId === finalCustomerId &&
+        c.siteId === (finalSiteId && finalSiteId !== 'NEW' ? finalSiteId : undefined) &&
+        (c.status === 'ACTIVE' || c.status === 'EXTENDED') &&
+        (c.contractType || 'RENTAL') === 'RENTAL'
+      );
+      if (existingActiveContract) {
+        // 계속 진행할 수 있도록 payload를 보존한 뒤 모달 오픈
+        setPendingContractPayload({
+          customerId: finalCustomerId!,
+          contactId: finalContactId && finalContactId !== 'NEW' ? finalContactId : undefined,
+          siteId: finalSiteId && finalSiteId !== 'NEW' ? finalSiteId : undefined,
+          salespersonId: finalSalespersonId,
+          startDate,
+          endDate: isEndDateOpen ? '미정' : endDate,
+          billingDay: cleanBillingDay,
+          statementClosingDay: cleanStatementClosingDay,
+          paymentDueDay: cleanPaymentDueDay,
+          paymentDueMonthOffset: cleanPaymentDueMonthOffset,
+          lateInterestRate: 0,
+          status: 'ACTIVE',
+          basket: cleanedBasket,
+        });
+        setDuplicateContractModal(existingActiveContract);
+        return;
+      }
+      // ────────────────────────────────────────────────────────────────────────
+
+      createContract({
         customerId: finalCustomerId,
-        name: newContactName || '미상',
-        position: newContactPosition || '담당자',
-        contact: newContactPhone || '미상',
-        email: newContactEmail || '미상',
-        isActive: true,
-        createdAt: new Date().toISOString()
-      });
-      finalContactId = newContact.id;
-    }
-
-    if (siteSelect === 'NEW') {
-      const newSite = db.insertRow<CustomerSite>('sites', {
-        customerId: finalCustomerId,
-        name: newSiteName,
-        address: newSiteAddress || '미상',
-        contactName: newSiteContactName || '미상',
-        contact: newSiteContactPhone || '미상',
-        email: newSiteContactEmail || '미상',
-        createdAt: new Date().toISOString()
-      });
-      finalSiteId = newSite.id;
-    }
-
-    const finalSalespersonId = salespersonSelect || currentUser?.id;
-
-    // ── Feature 2: 동일 고객+현장 중복 활성 계약 인터셉터 ──────────────────
-    const existingActiveContract = contracts.find(c =>
-      c.customerId === finalCustomerId &&
-      c.siteId === (finalSiteId && finalSiteId !== 'NEW' ? finalSiteId : undefined) &&
-      (c.status === 'ACTIVE' || c.status === 'EXTENDED') &&
-      (c.contractType || 'RENTAL') === 'RENTAL'
-    );
-    if (existingActiveContract) {
-      // 계속 진행할 수 있도록 payload를 보존한 뒤 모달 오픈
-      setPendingContractPayload({
-        customerId: finalCustomerId!,
         contactId: finalContactId && finalContactId !== 'NEW' ? finalContactId : undefined,
         siteId: finalSiteId && finalSiteId !== 'NEW' ? finalSiteId : undefined,
         salespersonId: finalSalespersonId,
-        startDate,
+        startDate: startDate,
         endDate: isEndDateOpen ? '미정' : endDate,
-        billingDay: Number(billingDay),
-        statementClosingDay: Number(statementClosingDay),
-        paymentDueDay: Number(paymentDueDay) || 25,
-        paymentDueMonthOffset: paymentDueMonthOffset !== undefined ? Number(paymentDueMonthOffset) : 1,
+        billingDay: cleanBillingDay,
+        statementClosingDay: cleanStatementClosingDay,
+        paymentDueDay: cleanPaymentDueDay,
         lateInterestRate: 0,
-        status: 'ACTIVE',
-        basket,
-      });
-      setDuplicateContractModal(existingActiveContract);
-      return;
+        status: 'ACTIVE'
+      }, cleanedBasket);
+
+      showToast('계약 등록이 완료되었습니다.');
+      setActiveTab('ALL_LIST');
+      setViewMode('LIST');
+      setBasket([]);
+    } finally {
+      setIsSubmittingContract(false);
     }
-    // ────────────────────────────────────────────────────────────────────────
-
-    createContract({
-      customerId: finalCustomerId,
-      contactId: finalContactId && finalContactId !== 'NEW' ? finalContactId : undefined,
-      siteId: finalSiteId && finalSiteId !== 'NEW' ? finalSiteId : undefined,
-      salespersonId: finalSalespersonId,
-      startDate: startDate,
-      endDate: isEndDateOpen ? '미정' : endDate,
-      billingDay: Number(billingDay),
-      statementClosingDay: Number(statementClosingDay),
-      paymentDueDay: Number(paymentDueDay) || 25,
-      lateInterestRate: 0,
-      status: 'ACTIVE'
-    }, basket);
-
-    showToast('계약 등록이 완료되었습니다.');
-    setActiveTab('ALL_LIST');
-    setViewMode('LIST');
-    setBasket([]);
   };
 
   // Feature 2: 기존 활성 계약에 basket 자산 슬롯을 추가하는 핸들러

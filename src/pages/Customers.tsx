@@ -52,6 +52,7 @@ export const Customers: React.FC = () => {
   const [showCustModal, setShowCustModal] = useState(false);
   const [editingCust, setEditingCust] = useState<Partial<Customer> | null>(null);
   const [showCustSpecs, setShowCustSpecs] = useState(false);
+  const [isSubmittingCust, setIsSubmittingCust] = useState(false);
 
   // 📄 사업자등록증 AI 모달 상태
   const [showBizLicenseModal, setShowBizLicenseModal] = useState(false);
@@ -482,11 +483,19 @@ export const Customers: React.FC = () => {
 
   const handleSaveCustSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingCust || !editingCust.name) return;
+    if (!editingCust || !editingCust.name || isSubmittingCust) return;
 
     try {
+      setIsSubmittingCust(true);
       const isNew = !editingCust.id;
-      const saved = await saveCustomer(editingCust as Omit<Customer, 'id' | 'createdAt'>);
+      const sanitizedCust = {
+        ...editingCust,
+        defaultBillingDay: Math.min(31, Math.max(1, Number(editingCust.defaultBillingDay) || 30)),
+        defaultStatementClosingDay: Math.min(31, Math.max(1, Number(editingCust.defaultStatementClosingDay) || 25)),
+        paymentDueDay: Math.min(31, Math.max(1, Number(editingCust.paymentDueDay) || 25)),
+        paymentDueMonthOffset: Math.max(0, Number(editingCust.paymentDueMonthOffset) || 0)
+      };
+      const saved = await saveCustomer(sanitizedCust as Omit<Customer, 'id' | 'createdAt'>);
       
       // 결재선(RWTT 용): 신규 고객 등록 시 CUSTOMER_REGISTRATION 결재 태우기
       if (isNew) {
@@ -515,6 +524,8 @@ export const Customers: React.FC = () => {
       await refreshAllData();
     } catch (err: any) {
       showToast(`고객 정보 저장 실패: ${err?.message || err}`, 'error');
+    } finally {
+      setIsSubmittingCust(false);
     }
   };
 
@@ -2346,7 +2357,9 @@ const handleDeleteAccount = async (accId: string) => {
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button type="button" className="btn-secondary" onClick={() => setShowCustModal(false)} style={{ padding: '5px 14px', fontSize: '12px' }}>취소</button>
-                <button data-hs-trigger="Save" type="submit" className="btn-primary" style={{ padding: '5px 16px', fontSize: '12px' }}>저장</button>
+                <button data-hs-trigger="Save" type="submit" className="btn-primary" disabled={isSubmittingCust} style={{ padding: '5px 16px', fontSize: '12px' }}>
+                  {isSubmittingCust ? '저장중...' : '저장'}
+                </button>
               </div>
             </div>
           </form>

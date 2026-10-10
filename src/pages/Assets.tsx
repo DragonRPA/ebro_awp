@@ -43,6 +43,7 @@ export const Assets: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Asset>>({});
   const [showHistoryToggle, setShowHistoryToggle] = useState(false);
+  const [isSavingAsset, setIsSavingAsset] = useState(false);
 
   // ── 🌟 [초고속 O(1) 룩업 인덱싱 해시맵: 헌장 1.1] ──
   const customerMap = useMemo(() => new Map((customers || []).map(c => [c.id, c.name])), [customers]);
@@ -358,8 +359,21 @@ export const Assets: React.FC = () => {
   };
 
   const handleSaveEdit = async () => {
-    if (!selectedAsset || !editForm) return;
+    if (!selectedAsset || !editForm || isSavingAsset) return;
     try {
+      setIsSavingAsset(true);
+      if (editForm.acquisitionPrice !== undefined && editForm.acquisitionPrice < 0) {
+        showErrorModal('취득원가는 0원 이상이어야 합니다.');
+        return;
+      }
+      if (editForm.depreciationMonths !== undefined && editForm.depreciationMonths < 0) {
+        showErrorModal('내용연수는 0개월 이상이어야 합니다.');
+        return;
+      }
+      if (editForm.residualValueRate !== undefined && (editForm.residualValueRate < 0 || editForm.residualValueRate > 100)) {
+        showErrorModal('잔존가치율은 0% ~ 100% 사이여야 합니다.');
+        return;
+      }
       const updated: Asset = { ...selectedAsset, ...editForm };
       await (saveAsset as any)(updated);
       setSelectedAsset(updated);
@@ -367,6 +381,8 @@ export const Assets: React.FC = () => {
       showToast(`자산 ${updated.assetNo} 정보가 저장되었습니다.`);
     } catch (err: any) {
       showErrorModal(`자산 정보 저장 실패: ${err?.message || err}`, '자산 저장 오류');
+    } finally {
+      setIsSavingAsset(false);
     }
   };
 
@@ -1087,9 +1103,10 @@ export const Assets: React.FC = () => {
                     <button data-hs-trigger="Save"
                       className="btn-success"
                       onClick={handleSaveEdit}
+                      disabled={isSavingAsset}
                       style={{ padding: '3px 10px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
                     >
-                      <Save size={12} /> 저장
+                      <Save size={12} /> {isSavingAsset ? '저장중...' : '저장'}
                     </button>
                     <button
                       className="btn-secondary"
@@ -1209,12 +1226,12 @@ export const Assets: React.FC = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                       <div><label style={labelStyle}>취득일자</label><input type="date" style={inputStyle} value={editForm.acquisitionDate || ''} onChange={ef('acquisitionDate')} /></div>
                       {hasFinancialAccess && (
-                        <div><label style={labelStyle}>취득원가 (원)</label><input type="number" style={inputStyle} value={editForm.acquisitionPrice ?? ''} onChange={ef('acquisitionPrice')} /></div>
+                        <div><label style={labelStyle}>취득원가 (원)</label><input type="number" min={0} style={inputStyle} value={editForm.acquisitionPrice ?? ''} onChange={ef('acquisitionPrice')} /></div>
                       )}
                       <div><label style={labelStyle}>구입처 (공급자)</label><input style={inputStyle} value={editForm.supplier || ''} onChange={ef('supplier')} /></div>
-                      <div><label style={labelStyle}>내용연수(개월)</label><input type="number" style={inputStyle} value={editForm.depreciationMonths ?? ''} onChange={ef('depreciationMonths')} /></div>
+                      <div><label style={labelStyle}>내용연수(개월)</label><input type="number" min={0} style={inputStyle} value={editForm.depreciationMonths ?? ''} onChange={ef('depreciationMonths')} /></div>
                       {hasFinancialAccess && (
-                        <div><label style={labelStyle}>잔존가치율 (%)</label><input type="number" style={inputStyle} value={editForm.residualValueRate ?? ''} onChange={ef('residualValueRate')} /></div>
+                        <div><label style={labelStyle}>잔존가치율 (%)</label><input type="number" min={0} max={100} style={inputStyle} value={editForm.residualValueRate ?? ''} onChange={ef('residualValueRate')} /></div>
                       )}
                     </div>
                   ) : (

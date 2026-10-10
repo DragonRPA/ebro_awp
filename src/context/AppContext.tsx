@@ -8290,7 +8290,16 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
     const customerId = firstBilling.customerId;
     const mode = options?.matchingMode || 'CASCADE';
-    let remainingDeposit = tx.depositAmount;
+    
+    // 🌟 이미 사용된 금액을 제외한 실제 가용 잔액 산출 (과대/중복 소진 완벽 차단)
+    const usedSoFar = (db.paymentDepositLinks || [])
+      .filter(link => link.bankTransactionId === txId && isActiveDepositLink(link))
+      .reduce((sum, link) => sum + (link.usedAmount || 0), 0);
+    let remainingDeposit = Math.max(0, (tx.depositAmount || 0) - usedSoFar);
+    if (remainingDeposit <= 0) {
+      console.warn(`[executeMatch] Transaction ${txId} has no available deposit balance (used: ${usedSoFar}, total: ${tx.depositAmount})`);
+      return;
+    }
     const matchedBillingIds: string[] = [];
 
     if (mode === 'MULTI' && options?.allocations && options.allocations.length > 0) {
@@ -8306,7 +8315,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         const paymentAmount = Math.min(alloc.amount, remainingDeposit);
         remainingDeposit = Math.max(0, remainingDeposit - paymentAmount);
 
-        const payId = `pay-matching-${txId}-${billing.id}`;
+        const uniqueSuffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+        const payId = `pay-matching-${txId}-${billing.id}-${uniqueSuffix}`;
         db.insertRow<Payment>('payments', {
           id: payId,
           billingId: billing.id,
@@ -8355,7 +8365,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       const paymentAmount = Math.min(unpaidAmount, remainingDeposit);
       remainingDeposit -= paymentAmount;
 
-      const payId = `pay-matching-${txId}-${billing.id}`;
+      const uniqueSuffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+      const payId = `pay-matching-${txId}-${billing.id}-${uniqueSuffix}`;
       db.insertRow<Payment>('payments', {
         id: payId,
         billingId: billing.id,
@@ -8422,7 +8433,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
         const paymentAmount = Math.min(unpaidAmount, remainingDeposit);
         remainingDeposit -= paymentAmount;
 
-        const payId = `pay-matching-${txId}-${billing.id}`;
+        const uniqueSuffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+        const payId = `pay-matching-${txId}-${billing.id}-${uniqueSuffix}`;
         db.insertRow<Payment>('payments', {
           id: payId,
           billingId: billing.id,
@@ -8463,8 +8475,9 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       }
     }
 
-    // 2. 남은 초과금 선수금 적립 (과대입금 완벽 수지 보존)
-    if (remainingDeposit > 0) {
+    // 2. 남은 초과금 선수금 적립 (CASCADE 모드에서 모든 미수 청구서가 소진된 후에도 남은 경우에만 선수금 적립!)
+    // PINPOINT 또는 MULTI 모드에서는 사용자가 지정한 청구서만 매칭하였으므로 남은 금액은 통장 잔여 가용잔액으로 유지되어 추가 매칭이 가능함.
+    if (mode === 'CASCADE' && remainingDeposit > 0) {
       const customer = db.customers.find(c => c.id === customerId);
       if (customer) {
         const prevPrepaid = customer.prepaidBalance || 0;
@@ -8473,7 +8486,8 @@ ${currentTenant?.corporateName || tenantCorp} 배상
           updatedAt: new Date().toISOString()
         } as any);
 
-        const prepaidPayId = `pay-matching-${txId}-prepaid`;
+        const uniqueSuffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+        const prepaidPayId = `pay-matching-${txId}-${uniqueSuffix}-prepaid`;
         // 선수금 가상 수납 전표 등록
         db.insertRow<Payment>('payments', {
           id: prepaidPayId,

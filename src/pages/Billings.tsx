@@ -102,6 +102,7 @@ export const Billings: React.FC = () => {
   const [splitModalOpen, setSplitModalOpen] = useState(false);
   const [splitTargetId, setSplitTargetId] = useState<string | null>(null);
   const [splitAmountInput, setSplitAmountInput] = useState<string>('');
+  const [isSplittingBilling, setIsSplittingBilling] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [contractNoFilter, setContractNoFilter] = useState('');
@@ -334,6 +335,10 @@ export const Billings: React.FC = () => {
     if (!waiverModalTarget) return;
     if (waiverInputAmount < 0) {
       showToast('면제 금액은 0원 이상이어야 합니다.', 'error');
+      return;
+    }
+    if (waiverInputAmount > waiverModalTarget.originalCost) {
+      showToast('면제 금액은 원래 청구 금액을 초과할 수 없습니다.', 'error');
       return;
     }
     const finalReason = waiverInputCategory === '기타'
@@ -741,7 +746,7 @@ export const Billings: React.FC = () => {
 
   // 청구 취소: 환불/비환불 2-path (J-2 원칙)
   const handleSplitSubmit = async () => {
-    if (!splitTargetId) return;
+    if (!splitTargetId || isSplittingBilling) return;
     const splitAmount = parseInt(splitAmountInput.replace(/[^0-9]/g, ''), 10);
     if (isNaN(splitAmount) || splitAmount <= 0) {
       showErrorModal('분할할 금액을 정확히 입력해 주세요.', '오류');
@@ -755,6 +760,7 @@ export const Billings: React.FC = () => {
     }
 
     try {
+      setIsSplittingBilling(true);
       const newBillingId = await splitBillingAbsoluteAmount(splitTargetId, splitAmount);
       if (searchedBillingIds) {
         setSearchedBillingIds([...searchedBillingIds, newBillingId]);
@@ -765,6 +771,8 @@ export const Billings: React.FC = () => {
       setSplitAmountInput('');
     } catch (err: any) {
       showErrorModal(err.message || String(err), '분할 실패');
+    } finally {
+      setIsSplittingBilling(false);
     }
   };
 
@@ -4681,11 +4689,12 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                             <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>단가:</span>
                             <input
                               type="number"
+                              min="0"
                               placeholder="단가(원)"
                               value={ec.unitPrice || ''}
                               onChange={e => {
                                 const updated = [...extraCharges];
-                                updated[idx].unitPrice = parseInt(e.target.value) || 0;
+                                updated[idx].unitPrice = Math.max(0, parseInt(e.target.value) || 0);
                                 setExtraCharges(updated);
                               }}
                               style={{ width: '100%', minWidth: '70px', padding: '6px', fontSize: '13px', border: '1px solid var(--border-color)', borderRadius: '4px', backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', textAlign: 'right' }}
@@ -5373,7 +5382,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                               value={item.quantity}
                               min={1}
                               onChange={(e) => {
-                                const qty = Number(e.target.value) || 1;
+                                const qty = Math.max(1, Number(e.target.value) || 1);
                                 const upd = [...customStatementItemsDraft];
                                 upd[idx].quantity = qty;
                                 upd[idx].supplyAmount = qty * (upd[idx].unitPrice || 0);
@@ -5387,9 +5396,10 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                             <input
                               type="number"
                               value={item.unitPrice}
+                              min={0}
                               step={1000}
                               onChange={(e) => {
-                                const uPrice = Number(e.target.value) || 0;
+                                const uPrice = Math.max(0, Number(e.target.value) || 0);
                                 const upd = [...customStatementItemsDraft];
                                 upd[idx].unitPrice = uPrice;
                                 upd[idx].supplyAmount = (upd[idx].quantity || 1) * uPrice;
@@ -5403,9 +5413,10 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                             <input
                               type="number"
                               value={item.supplyAmount}
+                              min={0}
                               step={1000}
                               onChange={(e) => {
-                                const sAmt = Number(e.target.value) || 0;
+                                const sAmt = Math.max(0, Number(e.target.value) || 0);
                                 const upd = [...customStatementItemsDraft];
                                 upd[idx].supplyAmount = sAmt;
                                 if (upd[idx].quantity > 0) {
@@ -5420,9 +5431,10 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                           <td style={{ padding: '3px 6px' }}>
                             <input
                               type="number"
+                              min={0}
                               value={item.vatAmount}
                               onChange={(e) => {
-                                const vAmt = Number(e.target.value) || 0;
+                                const vAmt = Math.max(0, Number(e.target.value) || 0);
                                 const upd = [...customStatementItemsDraft];
                                 upd[idx].vatAmount = vAmt;
                                 setCustomStatementItemsDraft(upd);
@@ -5843,7 +5855,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                           </th>
                           <td style={{ padding: '8px 14px' }}>
                             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', maxWidth: '320px' }}>
-                              <input type="number" value={cardAmount || ''} onChange={e => setCardAmount(parseInt(e.target.value) || 0)} required style={{ flex: 1, padding: '6px 10px', fontSize: '14px', fontWeight: '700' }} />
+                              <input type="number" min={0} value={cardAmount || ''} onChange={e => setCardAmount(Math.max(0, parseInt(e.target.value) || 0))} required style={{ flex: 1, padding: '6px 10px', fontSize: '14px', fontWeight: '700' }} />
                               <button type="button" onClick={() => setCardAmount(unpaid)} style={{ padding: '6px 10px', fontSize: '11px', borderRadius: '4px', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', fontWeight: '600' }}>
                                 전액
                               </button>
@@ -6157,9 +6169,10 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                         <label style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block' }}>수량</label>
                         <input
                           type="number"
+                          min="1"
                           value={det.quantity || 1}
                           onChange={e => {
-                            const q = parseInt(e.target.value) || 1;
+                            const q = Math.max(1, parseInt(e.target.value) || 1);
                             const updated = [...regenDetails];
                             updated[idx].quantity = q;
                             updated[idx].amount = q * (updated[idx].unitPrice || 0);
@@ -6172,9 +6185,10 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                         <label style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'block' }}>단가(원)</label>
                         <input
                           type="number"
+                          min="0"
                           value={det.unitPrice ?? 0}
                           onChange={e => {
-                            const p = parseInt(e.target.value) || 0;
+                            const p = Math.max(0, parseInt(e.target.value) || 0);
                             const updated = [...regenDetails];
                             updated[idx].unitPrice = p;
                             updated[idx].amount = (updated[idx].quantity || 1) * p;
@@ -6311,7 +6325,9 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                   <input
                     type="number"
                     value={waiverInputAmount}
-                    onChange={e => setWaiverInputAmount(Math.max(0, parseInt(e.target.value) || 0))}
+                    min={0}
+                    max={waiverModalTarget?.originalCost}
+                    onChange={e => setWaiverInputAmount(Math.max(0, Math.min(waiverModalTarget?.originalCost ?? 0, parseInt(e.target.value) || 0)))}
                     style={{ flex: 1, padding: '8px 12px', fontSize: '14px', fontWeight: 800, border: '1px solid var(--border-color)', borderRadius: '6px', textAlign: 'right', color: 'var(--danger)' }}
                   />
                   <span style={{ fontSize: '13px', fontWeight: 600 }}>원</span>
@@ -6465,7 +6481,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                     <button 
                       className="btn-primary" 
                       onClick={handleSplitSubmit}
-                      disabled={splitAmount <= 0 || splitAmount >= origBilling.totalAmount}
+                      disabled={isSplittingBilling || splitAmount <= 0 || splitAmount >= origBilling.totalAmount}
                     >분할 확정</button>
                   </div>
                 </div>

@@ -92,6 +92,7 @@ export const Repairs: React.FC = () => {
   const [selectedDetailRepair, setSelectedDetailRepair] = useState<Repair | null>(null);
   // 대장 사진 라이트박스 뷰어 모달
   const [viewingPhotoRepair, setViewingPhotoRepair] = useState<Repair | null>(null);
+  const [isSubmittingRepair, setIsSubmittingRepair] = useState(false);
 
   // 🏢 조직도 최상위(root)에 속하지 않으면서 repair 권한을 보유한 담당자 목록 (SSOT)
   const eligibleAssignees = useMemo(() => {
@@ -504,6 +505,7 @@ export const Repairs: React.FC = () => {
 
   // ✅ 정비 완료 ➔ AVAILABLE 전환
   const handleCompleteRepair = async () => {
+    if (isSubmittingRepair) return;
     if (!canSave) return;
     if (!selectedAsset) {
       showToast('정비 대상 자산을 먼저 선택해 주십시오.', 'error');
@@ -514,64 +516,69 @@ export const Repairs: React.FC = () => {
       return;
     }
 
+    setIsSubmittingRepair(true);
+    try {
+      const evidenceImages: string[] = [];
+      if (beforeImage) evidenceImages.push(beforeImage);
+      if (afterImage) evidenceImages.push(afterImage);
 
+      const payload: Partial<Repair> = {
+        id: selectedRepairId || undefined, // 🟢 기존 PENDING 티켓(입고결함 등)이 있으면 업데이트, 없으면 신규
+        assetId: selectedAsset.id,
+        assetNo: selectedAsset.assetNo,
+        modelName: selectedAsset.modelName,
+        workLocation: 'YARD',
+        stockSource: 'YARD_STOCK',
+        maintenanceType,
+        repairType: maintenanceType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
+        status: 'COMPLETED',
+        targetAssetStatus: 'AVAILABLE',
+        mechanicId: selectedMechanicId || currentUser?.id,
+        vendorId: maintenanceType === 'EXTERNAL' ? selectedVendorId : undefined,
+        repairDate,
+        requestDate: repairDate,
+        details: repairDetails,
+        totalCost: Math.max(0, Number(totalCost) || 0),
+        beforeImage,
+        afterImage,
+        evidenceImages,
+        billableType,
+        billableAmount: billableType === 'BILLABLE' ? Math.max(0, Number(billableAmount) || 0) : 0,
+        billableToCustomer: billableType === 'BILLABLE',
+        durationMinutes: Math.max(1, Number(durationMinutes) || 30),
+        spentManHours: (Math.max(1, Number(durationMinutes) || 30)) / 60,
+        inspectionItemId: selectedInspectionItemId || undefined,
+        inspectionItemCode: inspectionItemCode || undefined,
+        degradationScore,
+        inboundNo: inboundMeta?.inboundNo
+      };
 
-    const evidenceImages: string[] = [];
-    if (beforeImage) evidenceImages.push(beforeImage);
-    if (afterImage) evidenceImages.push(afterImage);
+      await registerRepair(payload, usedConsumables);
+      await db.awaitPendingWrites();
+      showToast(`${selectedAsset.assetNo} 정비 완료: 임대가능(AVAILABLE) 복원 및 소모품 차감 완료`);
 
-    const payload: Partial<Repair> = {
-      id: selectedRepairId || undefined, // 🟢 기존 PENDING 티켓(입고결함 등)이 있으면 업데이트, 없으면 신규
-      assetId: selectedAsset.id,
-      assetNo: selectedAsset.assetNo,
-      modelName: selectedAsset.modelName,
-      workLocation: 'YARD',
-      stockSource: 'YARD_STOCK',
-      maintenanceType,
-      repairType: maintenanceType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
-      status: 'COMPLETED',
-      targetAssetStatus: 'AVAILABLE',
-      mechanicId: selectedMechanicId || currentUser?.id,
-      vendorId: maintenanceType === 'EXTERNAL' ? selectedVendorId : undefined,
-      repairDate,
-      requestDate: repairDate,
-      details: repairDetails,
-      totalCost,
-      beforeImage,
-      afterImage,
-      evidenceImages,
-      billableType,
-      billableAmount: billableType === 'BILLABLE' ? billableAmount : 0,
-      billableToCustomer: billableType === 'BILLABLE',
-      durationMinutes: Number(durationMinutes) || 30,
-      spentManHours: (Number(durationMinutes) || 30) / 60,
-      inspectionItemId: selectedInspectionItemId || undefined,
-      inspectionItemCode: inspectionItemCode || undefined,
-      degradationScore,
-      inboundNo: inboundMeta?.inboundNo
-    };
-
-    await registerRepair(payload, usedConsumables);
-    await db.awaitPendingWrites();
-    showToast(`${selectedAsset.assetNo} 정비 완료: 임대가능(AVAILABLE) 복원 및 소모품 차감 완료`);
-
-    // 폼 초기화
-    setSelectedAssetId('');
-    setSelectedRepairId('');
-    setInboundDefects([]);
-    setInboundPhotos([]);
-    setInboundMeta(null);
-    setRepairDetails('');
-    setUsedConsumables([]);
-    setBeforeImage('');
-    setAfterImage('');
-    setInspectionItemCode('');
-    setSelectedInspectionItemId('');
-    setSelectedInspectionItemActionGuide('');
-    setDurationMinutes(30);
-    setDegradationScore(0);
-    setBillableType('FREE');
-    setBillableAmount(0);
+      // 폼 초기화
+      setSelectedAssetId('');
+      setSelectedRepairId('');
+      setInboundDefects([]);
+      setInboundPhotos([]);
+      setInboundMeta(null);
+      setRepairDetails('');
+      setUsedConsumables([]);
+      setBeforeImage('');
+      setAfterImage('');
+      setInspectionItemCode('');
+      setSelectedInspectionItemId('');
+      setSelectedInspectionItemActionGuide('');
+      setDurationMinutes(30);
+      setDegradationScore(0);
+      setBillableType('FREE');
+      setBillableAmount(0);
+    } catch (err: any) {
+      showErrorModal(`정비 완료 처리 실패: ${err?.message || err}`);
+    } finally {
+      setIsSubmittingRepair(false);
+    }
   };
 
   // ⏸️ 부품대기 (수리중 REPAIRING 유지)
@@ -581,89 +588,106 @@ export const Repairs: React.FC = () => {
   };
 
   const handleConfirmHoldRepair = async () => {
+    if (isSubmittingRepair) return;
     if (!canSave || !selectedAsset) return;
-    const evidenceImages: string[] = [];
-    if (beforeImage) evidenceImages.push(beforeImage);
-    if (afterImage) evidenceImages.push(afterImage);
 
-    const payload: Partial<Repair> = {
-      id: selectedRepairId || undefined,
-      assetId: selectedAsset.id,
-      assetNo: selectedAsset.assetNo,
-      modelName: selectedAsset.modelName,
-      workLocation: 'YARD',
-      stockSource: 'YARD_STOCK',
-      maintenanceType,
-      repairType: maintenanceType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
-      status: 'UNRESOLVED',
-      targetAssetStatus: 'REPAIRING',
-      unresolvedReason,
-      nextAction: 'NONE',
-      mechanicId: selectedMechanicId || currentUser?.id,
-      vendorId: maintenanceType === 'EXTERNAL' ? selectedVendorId : undefined,
-      repairDate,
-      requestDate: repairDate,
-      details: (repairDetails ? repairDetails + '\n' : '') + `[부품대기 사유: ${unresolvedReason}]`,
-      totalCost,
-      beforeImage,
-      afterImage,
-      evidenceImages,
-      billableType,
-      billableAmount: billableType === 'BILLABLE' ? billableAmount : 0,
-      billableToCustomer: billableType === 'BILLABLE',
-      inspectionItemCode,
-      degradationScore,
-      inboundNo: inboundMeta?.inboundNo
-    };
+    setIsSubmittingRepair(true);
+    try {
+      const evidenceImages: string[] = [];
+      if (beforeImage) evidenceImages.push(beforeImage);
+      if (afterImage) evidenceImages.push(afterImage);
 
-    await registerRepair(payload, usedConsumables);
-    await db.awaitPendingWrites();
-    showToast(`${selectedAsset.assetNo} 장비가 수리정비중(REPAIRING) 상태로 보존되었습니다.`);
-    setShowUnresolvedModal(false);
-    setSelectedAssetId('');
-    setSelectedRepairId('');
-    setInboundDefects([]);
-    setInboundPhotos([]);
-    setInboundMeta(null);
-    setRepairDetails('');
-    setUsedConsumables([]);
+      const payload: Partial<Repair> = {
+        id: selectedRepairId || undefined,
+        assetId: selectedAsset.id,
+        assetNo: selectedAsset.assetNo,
+        modelName: selectedAsset.modelName,
+        workLocation: 'YARD',
+        stockSource: 'YARD_STOCK',
+        maintenanceType,
+        repairType: maintenanceType === 'EXTERNAL' ? 'EXTERNAL' : 'INTERNAL',
+        status: 'UNRESOLVED',
+        targetAssetStatus: 'REPAIRING',
+        unresolvedReason,
+        nextAction: 'NONE',
+        mechanicId: selectedMechanicId || currentUser?.id,
+        vendorId: maintenanceType === 'EXTERNAL' ? selectedVendorId : undefined,
+        repairDate,
+        requestDate: repairDate,
+        details: (repairDetails ? repairDetails + '\n' : '') + `[부품대기 사유: ${unresolvedReason}]`,
+        totalCost: Math.max(0, Number(totalCost) || 0),
+        beforeImage,
+        afterImage,
+        evidenceImages,
+        billableType,
+        billableAmount: billableType === 'BILLABLE' ? Math.max(0, Number(billableAmount) || 0) : 0,
+        billableToCustomer: billableType === 'BILLABLE',
+        inspectionItemCode,
+        degradationScore,
+        inboundNo: inboundMeta?.inboundNo
+      };
+
+      await registerRepair(payload, usedConsumables);
+      await db.awaitPendingWrites();
+      showToast(`${selectedAsset.assetNo} 장비가 수리정비중(REPAIRING) 상태로 보존되었습니다.`);
+      setShowUnresolvedModal(false);
+      setSelectedAssetId('');
+      setSelectedRepairId('');
+      setInboundDefects([]);
+      setInboundPhotos([]);
+      setInboundMeta(null);
+      setRepairDetails('');
+      setUsedConsumables([]);
+    } catch (err: any) {
+      showErrorModal(`부품대기 처리 실패: ${err?.message || err}`);
+    } finally {
+      setIsSubmittingRepair(false);
+    }
   };
 
   // 🚚 외주위탁 등록
   const handleOutsourceRepair = async () => {
+    if (isSubmittingRepair) return;
     if (!canSave || !selectedAsset) return;
     if (!selectedVendorId) {
       showToast('외주 정비 업체를 선택해 주십시오.', 'error');
       return;
     }
 
-    const payload: Partial<Repair> = {
-      assetId: selectedAsset.id,
-      assetNo: selectedAsset.assetNo,
-      modelName: selectedAsset.modelName,
-      workLocation: 'VENDOR_SHOP',
-      maintenanceType: 'EXTERNAL',
-      repairType: 'EXTERNAL',
-      status: 'IN_PROGRESS',
-      targetAssetStatus: 'REPAIRING',
-      mechanicId: selectedMechanicId || currentUser?.id,
-      vendorId: selectedVendorId,
-      repairDate,
-      requestDate: repairDate,
-      details: repairDetails || `외주정비 위탁 반출: ${getVendorName(selectedVendorId)}`,
-      totalCost: externalCost,
-      billableType,
-      billableAmount: billableType === 'BILLABLE' ? billableAmount : 0,
-      billableToCustomer: billableType === 'BILLABLE',
-      inspectionItemCode,
-      degradationScore
-    };
+    setIsSubmittingRepair(true);
+    try {
+      const payload: Partial<Repair> = {
+        assetId: selectedAsset.id,
+        assetNo: selectedAsset.assetNo,
+        modelName: selectedAsset.modelName,
+        workLocation: 'VENDOR_SHOP',
+        maintenanceType: 'EXTERNAL',
+        repairType: 'EXTERNAL',
+        status: 'IN_PROGRESS',
+        targetAssetStatus: 'REPAIRING',
+        mechanicId: selectedMechanicId || currentUser?.id,
+        vendorId: selectedVendorId,
+        repairDate,
+        requestDate: repairDate,
+        details: repairDetails || `외주정비 위탁 반출: ${getVendorName(selectedVendorId)}`,
+        totalCost: Math.max(0, Number(externalCost) || 0),
+        billableType,
+        billableAmount: billableType === 'BILLABLE' ? Math.max(0, Number(billableAmount) || 0) : 0,
+        billableToCustomer: billableType === 'BILLABLE',
+        inspectionItemCode,
+        degradationScore
+      };
 
-    await registerRepair(payload, []);
-    await db.awaitPendingWrites();
-    showToast(`${selectedAsset.assetNo} 외주 정비 위탁 등록 완료`);
-    setSelectedAssetId('');
-    setRepairDetails('');
+      await registerRepair(payload, []);
+      await db.awaitPendingWrites();
+      showToast(`${selectedAsset.assetNo} 외주 정비 위탁 등록 완료`);
+      setSelectedAssetId('');
+      setRepairDetails('');
+    } catch (err: any) {
+      showErrorModal(`외주위탁 등록 실패: ${err?.message || err}`);
+    } finally {
+      setIsSubmittingRepair(false);
+    }
   };
 
   // 대장 엑셀 내보내기
@@ -1197,7 +1221,7 @@ export const Repairs: React.FC = () => {
                         min={0}
                         step={1000}
                         value={billableAmount}
-                        onChange={e => setBillableAmount(Number(e.target.value) || 0)}
+                        onChange={e => setBillableAmount(Math.max(0, Number(e.target.value) || 0))}
                         placeholder="청구 금액 입력"
                         style={{ padding: '6px 8px', fontSize: '12.5px' }}
                       />
@@ -1227,8 +1251,9 @@ export const Repairs: React.FC = () => {
                       <label style={{ fontSize: '11px', fontWeight: '700', color: '#7c3aed', whiteSpace: 'nowrap' }}>외주 정비 예상 비용 (원)</label>
                       <input
                         type="number"
+                        min={0}
                         value={externalCost || ''}
-                        onChange={e => setExternalCost(Number(e.target.value) || 0)}
+                        onChange={e => setExternalCost(Math.max(0, Number(e.target.value) || 0))}
                         placeholder="0"
                         style={{ padding: '6px 8px', fontSize: '12.5px' }}
                       />
@@ -1413,7 +1438,7 @@ export const Repairs: React.FC = () => {
                         type="number"
                         min={1}
                         value={tempConsumableQty}
-                        onChange={e => setTempConsumableQty(Number(e.target.value) || 1)}
+                        onChange={e => setTempConsumableQty(Math.max(1, Number(e.target.value) || 1))}
                         style={{ padding: '6px', fontSize: '12px' }}
                       />
                     </div>
@@ -1507,10 +1532,10 @@ export const Repairs: React.FC = () => {
                       type="button"
                       className="btn-secondary"
                       onClick={handleHoldRepair}
-                      disabled={!canSave}
+                      disabled={!canSave || isSubmittingRepair}
                       style={{ padding: '8px 14px', fontSize: '12.5px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', flexShrink: 0 }}
                     >
-                      <Clock size={14} /> 부품 대기 등록
+                      <Clock size={14} /> {isSubmittingRepair ? '처리중...' : '부품 대기 등록'}
                     </button>
 
                     {maintenanceType === 'EXTERNAL' ? (
@@ -1519,20 +1544,20 @@ export const Repairs: React.FC = () => {
                           type="button"
                           className="btn-primary"
                           onClick={handleCompleteRepair}
-                          disabled={!canSave || isProcessingImage}
+                          disabled={!canSave || isProcessingImage || isSubmittingRepair}
                           style={{ padding: '8px 18px', fontSize: '13.5px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--success)', borderColor: 'var(--success)', whiteSpace: 'nowrap', flexShrink: 0 }}
                         >
-                          <CheckCircle size={15} /> 외주 정비 완료 (임대가능 복원)
+                          <CheckCircle size={15} /> {isSubmittingRepair ? '처리중...' : '외주 정비 완료 (임대가능 복원)'}
                         </button>
                       ) : (
                         <button data-hs-trigger="Register"
                           type="button"
                           className="btn-primary"
                           onClick={handleOutsourceRepair}
-                          disabled={!canSave || isProcessingImage}
+                          disabled={!canSave || isProcessingImage || isSubmittingRepair}
                           style={{ padding: '8px 16px', fontSize: '13px', fontWeight: '700', backgroundColor: '#7c3aed', borderColor: '#7c3aed', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', flexShrink: 0 }}
                         >
-                          <Truck size={14} /> 외주 위탁 등록
+                          <Truck size={14} /> {isSubmittingRepair ? '처리중...' : '외주 위탁 등록'}
                         </button>
                       )
                     ) : (
@@ -1540,10 +1565,10 @@ export const Repairs: React.FC = () => {
                         type="button"
                         className="btn-primary"
                         onClick={handleCompleteRepair}
-                        disabled={!canSave || isProcessingImage}
+                        disabled={!canSave || isProcessingImage || isSubmittingRepair}
                         style={{ padding: '8px 18px', fontSize: '13.5px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--success)', borderColor: 'var(--success)', whiteSpace: 'nowrap', flexShrink: 0 }}
                       >
-                        <CheckCircle size={15} /> 정비 완료 (임대가능 복원)
+                        <CheckCircle size={15} /> {isSubmittingRepair ? '처리중...' : '정비 완료 (임대가능 복원)'}
                       </button>
                     )}
                   </div>
@@ -1857,8 +1882,8 @@ export const Repairs: React.FC = () => {
                 <button type="button" className="btn-secondary" onClick={() => setShowUnresolvedModal(false)} style={{ padding: '6px 12px', fontSize: '12px' }}>
                   취소
                 </button>
-                <button data-hs-trigger="Register" type="button" className="btn-primary" onClick={handleConfirmHoldRepair} style={{ padding: '6px 14px', fontSize: '12px', backgroundColor: 'var(--danger)', borderColor: 'var(--danger)' }}>
-                  정비중 유지 등록
+                <button data-hs-trigger="Register" type="button" className="btn-primary" onClick={handleConfirmHoldRepair} disabled={isSubmittingRepair} style={{ padding: '6px 14px', fontSize: '12px', backgroundColor: 'var(--danger)', borderColor: 'var(--danger)' }}>
+                  {isSubmittingRepair ? '처리중...' : '정비중 유지 등록'}
                 </button>
               </div>
             </div>

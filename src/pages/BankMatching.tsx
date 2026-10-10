@@ -120,13 +120,33 @@ export const BankMatching: React.FC = () => {
   const [appliedStatusFilter, setAppliedStatusFilter] = useState<string>('UNMATCHED_ALL');
   const [appliedBankFilter, setAppliedBankFilter] = useState<string>('ALL');
 
-  // 조회 실행
+  // 조회 실행 (날짜 및 금액 역전 방어 포함)
   const handleSearch = () => {
+    let sDate = txStartDate;
+    let eDate = txEndDate;
+    if (sDate && eDate && sDate > eDate) {
+      showToast('조회 시작일이 종료일보다 늦어 날짜 순서를 자동으로 보정했습니다.', 'warning');
+      const temp = sDate;
+      sDate = eDate;
+      eDate = temp;
+      setTxStartDate(sDate);
+      setTxEndDate(eDate);
+    }
+    let minA = minAmount ? Math.max(0, Number(minAmount)) : '';
+    let maxA = maxAmount ? Math.max(0, Number(maxAmount)) : '';
+    if (typeof minA === 'number' && typeof maxA === 'number' && minA > maxA) {
+      showToast('최소 금액이 최대 금액보다 커서 범위를 자동으로 맞바꿨습니다.', 'warning');
+      const temp = minA;
+      minA = maxA;
+      maxA = temp;
+      setMinAmount(String(minA));
+      setMaxAmount(String(maxA));
+    }
     setAppliedSearchTerm(searchTerm);
-    setAppliedTxStartDate(txStartDate);
-    setAppliedTxEndDate(txEndDate);
-    setAppliedMinAmount(minAmount);
-    setAppliedMaxAmount(maxAmount);
+    setAppliedTxStartDate(sDate);
+    setAppliedTxEndDate(eDate);
+    setAppliedMinAmount(minA !== '' ? String(minA) : '');
+    setAppliedMaxAmount(maxA !== '' ? String(maxA) : '');
     setAppliedTypeFilter(typeFilter);
     setAppliedStatusFilter(statusFilter);
     setAppliedBankFilter(selectedBankFilter);
@@ -187,6 +207,11 @@ export const BankMatching: React.FC = () => {
   const [selectedWithdrawTx, setSelectedWithdrawTx] = useState<BankTransaction | null>(null);
   const [matchingSettlementId, setMatchingSettlementId] = useState('');
   const [settlementSearchTerm, setSettlementSearchTerm] = useState('');
+
+  // 🔒 중복 클릭/제출 방지 락 상태
+  const [isManualMatchSubmitting, setIsManualMatchSubmitting] = useState(false);
+  const [isWithdrawMatchSubmitting, setIsWithdrawMatchSubmitting] = useState(false);
+  const [isSavingInitBalance, setIsSavingInitBalance] = useState(false);
 
   // 1. 기초 연계 헬퍼 함수
   const getCustName = (custId: string) => {
@@ -657,19 +682,48 @@ export const BankMatching: React.FC = () => {
 
   const handleManualMatchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isManualMatchSubmitting) return;
     if (!selectedTx) return;
     if (matchingMode !== 'MULTI' && !matchingBillingId) return;
     if (matchingMode === 'MULTI' && selectedMultiBillingIds.length === 0) return;
 
+    const remBal = getDepositBalance(selectedTx.id);
+    if (remBal <= 0) {
+      showErrorModal('해당 입금건은 이미 전액 소진되어 추가 수납할 수 없습니다.');
+      return;
+    }
+
+    if (matchingMode === 'MULTI') {
+      let totalAlloc = 0;
+      for (const id of selectedMultiBillingIds) {
+        const amt = multiAllocations[id];
+        if (amt === undefined || amt === null || isNaN(amt) || amt < 0) {
+          showErrorModal('배분 금액은 0원 이상의 정상적인 숫자여야 합니다.');
+          return;
+        }
+        totalAlloc += amt;
+      }
+      if (totalAlloc <= 0) {
+        showErrorModal('최소 1개 이상의 청구서에 1원 이상 배분 금액을 입력해야 합니다.');
+        return;
+      }
+      if (totalAlloc > remBal) {
+        showErrorModal(`총 배분 금액(₩${totalAlloc.toLocaleString()})이 입금 가용 잔액(₩${remBal.toLocaleString()})을 초과할 수 없습니다.`);
+        return;
+      }
+    }
+
+    setIsManualMatchSubmitting(true);
     try {
       const targetBilling = matchingBillingId || selectedMultiBillingIds[0];
+      const cleanFeeAdj = Math.max(0, isNaN(Number(feeAdjustment)) ? 0 : Number(feeAdjustment));
       const options = {
         matchingMode,
-        feeAdjustment: feeAdjustment > 0 ? feeAdjustment : undefined,
+        feeAdjustment: cleanFeeAdj > 0 ? cleanFeeAdj : undefined,
         allocations: matchingMode === 'MULTI'
           ? selectedMultiBillingIds.map(id => ({
               billingId: id,
-              amount: multiAllocations[id] || 0,
+              amount: Math.max(0, multiAllocations[id] || 0),
               feeAdjustment: 0
             }))
           : undefined
@@ -684,6 +738,8 @@ export const BankMatching: React.FC = () => {
       showToast('수동 매칭 및 수납 승인이 완료되었습니다.');
     } catch (err: any) {
       showErrorModal(`수동 매칭 실패: ${err?.message || err}`);
+    } finally {
+      setIsManualMatchSubmitting(false);
     }
   };
 
@@ -714,14 +770,24 @@ export const BankMatching: React.FC = () => {
 
   const handleManualWithdrawMatchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isWithdrawMatchSubmitting) return;
     if (!selectedWithdrawTx || !matchingSettlementId) return;
 
     const targetSettlement = purchaseSettlements.find(s => s.id === matchingSettlementId);
     if (!targetSettlement) return;
 
-    const remainingAmt = targetSettlement.totalAmount - targetSettlement.paidAmount;
-    const payAmt = remainingAmt > 0 ? Math.min(remainingAmt, selectedWithdrawTx.withdrawAmount) : selectedWithdrawTx.withdrawAmount;
+    const remainingAmt = Math.max(0, targetSettlement.totalAmount - targetSettlement.paidAmount);
+    if (remainingAmt <= 0) {
+      showErrorModal('이미 전액 지급 완료된 매입 정산 건입니다.');
+      return;
+    }
+    const payAmt = Math.min(remainingAmt, Math.max(0, selectedWithdrawTx.withdrawAmount));
+    if (payAmt <= 0) {
+      showErrorModal('유효한 지급 대사 금액이 없습니다.');
+      return;
+    }
 
+    setIsWithdrawMatchSubmitting(true);
     try {
       await recordPurchaseSettlementPayment(matchingSettlementId, {
         paidAmount: payAmt,
@@ -737,6 +803,8 @@ export const BankMatching: React.FC = () => {
       showToast(`[${targetSettlement.vendorName}] 매입 정산 건에 대한 출금 지급 대사가 완결되었습니다.`);
     } catch (err: any) {
       showErrorModal(`출금 지급 대사 실패: ${err?.message || err}`);
+    } finally {
+      setIsWithdrawMatchSubmitting(false);
     }
   };
 
@@ -1765,79 +1833,166 @@ export const BankMatching: React.FC = () => {
                         : matchingBillingId === b.id;
 
                       return (
-                        <label
+                        <div
                           key={b.id}
                           style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            display: 'flex', flexDirection: 'column', gap: '6px',
                             padding: '8px 12px', borderRadius: '6px', cursor: 'pointer',
                             backgroundColor: isSelected ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-card)',
                             border: isSelected ? '1.5px solid var(--primary)' : '1px solid var(--border-color)'
                           }}
+                          onClick={() => {
+                            if (matchingMode !== 'MULTI') {
+                              setMatchingBillingId(b.id);
+                              setFeeAdjustment(0);
+                            }
+                          }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            {matchingMode === 'MULTI' ? (
-                              <input data-mid="input-matching-billing" type="checkbox" onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedMultiBillingIds(prev => [...prev, b.id]);
-                                    setMultiAllocations(prev => ({ ...prev, [b.id]: unpaidAmt }));
-                                  } else {
-                                    setSelectedMultiBillingIds(prev => prev.filter(id => id !== b.id));
-                                    setMultiAllocations(prev => {
-                                      const next = { ...prev };
-                                      delete next[b.id];
-                                      return next;
-                                    });
-                                  }
-                                }}
-                              />
-                            ) : (
-                              <input
-                                type="radio"
-                                name="matchingBilling"
-                                value={b.id}
-                                checked={matchingBillingId === b.id}
-                                onChange={() => {
-                                  setMatchingBillingId(b.id);
-                                  setFeeAdjustment(0);
-                                }}
-                              />
-                            )}
-                            <div>
-                              <div style={{ fontWeight: 'bold', fontSize: '13px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                {custName} ({b.billingYm} 청구)
-                                {customers.find(c => c.id === b.customerId)?.transactionStatus === 'BLOCKED' && (
-                                  <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(239, 68, 68, 0.15)', color: 'var(--danger)', fontWeight: 'bold' }}>
-                                    🚫 거래제한(BLOCKED)
-                                  </span>
-                                )}
-                                {isSmartMatch && (
-                                  <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.2)', color: 'var(--success)', fontWeight: 'bold' }}>
-                                    상호 일치
-                                  </span>
-                                )}
-                                {isExactAmount && (
-                                  <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.2)', color: 'var(--primary)', fontWeight: 'bold' }}>
-                                    금액 일치
-                                  </span>
-                                )}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              {matchingMode === 'MULTI' ? (
+                                <input data-mid="input-matching-billing" type="checkbox"
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedMultiBillingIds(prev => [...prev, b.id]);
+                                      const curDepositBal = getDepositBalance(selectedTx.id);
+                                      const otherAlloc = Object.entries(multiAllocations)
+                                        .filter(([id]) => id !== b.id)
+                                        .reduce((sum, [, a]) => sum + (a || 0), 0);
+                                      const suggested = Math.min(unpaidAmt, Math.max(0, curDepositBal - otherAlloc));
+                                      setMultiAllocations(prev => ({ ...prev, [b.id]: suggested }));
+                                    } else {
+                                      setSelectedMultiBillingIds(prev => prev.filter(id => id !== b.id));
+                                      setMultiAllocations(prev => {
+                                        const next = { ...prev };
+                                        delete next[b.id];
+                                        return next;
+                                      });
+                                    }
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              ) : (
+                                <input
+                                  type="radio"
+                                  name="matchingBilling"
+                                  value={b.id}
+                                  checked={matchingBillingId === b.id}
+                                  onChange={() => {
+                                    setMatchingBillingId(b.id);
+                                    setFeeAdjustment(0);
+                                  }}
+                                />
+                              )}
+                              <div>
+                                <div style={{ fontWeight: 'bold', fontSize: '13px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  {custName} ({b.billingYm} 청구)
+                                  {customers.find(c => c.id === b.customerId)?.transactionStatus === 'BLOCKED' && (
+                                    <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(239, 68, 68, 0.15)', color: 'var(--danger)', fontWeight: 'bold' }}>
+                                      🚫 거래제한(BLOCKED)
+                                    </span>
+                                  )}
+                                  {isSmartMatch && (
+                                    <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.2)', color: 'var(--success)', fontWeight: 'bold' }}>
+                                      상호 일치
+                                    </span>
+                                  )}
+                                  {isExactAmount && (
+                                    <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(59, 130, 246, 0.2)', color: 'var(--primary)', fontWeight: 'bold' }}>
+                                      금액 일치
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                  공급가: ₩{bSup.toLocaleString()} | 부가세: ₩{bVat.toLocaleString()} | <strong>청구총액: ₩{bGrand.toLocaleString()}</strong> (기수납: ₩{(b.paidAmount || 0).toLocaleString()})
+                                </div>
                               </div>
-                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                공급가: ₩{bSup.toLocaleString()} | 부가세: ₩{bVat.toLocaleString()} | <strong>청구총액: ₩{bGrand.toLocaleString()}</strong> (기수납: ₩{(b.paidAmount || 0).toLocaleString()})
+                            </div>
+
+                            <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                              <div style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--danger)' }}>
+                                미수잔액: ₩{unpaidAmt.toLocaleString()}
                               </div>
                             </div>
                           </div>
 
-                          <div style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                            <div style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--danger)' }}>
-                              미수잔액: ₩{unpaidAmt.toLocaleString()}
+                          {/* MULTI 모드일 때 선택된 항목에 대해 배분 금액 직접 입력 및 빠른 버튼 제공 */}
+                          {matchingMode === 'MULTI' && isSelected && (
+                            <div style={{
+                              marginTop: '4px', paddingTop: '6px', borderTop: '1px dashed var(--border-color)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px',
+                              backgroundColor: 'rgba(99, 102, 241, 0.08)', padding: '6px 8px', borderRadius: '4px'
+                            }} onClick={(e) => e.stopPropagation()}>
+                              <span style={{ fontSize: '11.5px', fontWeight: 'bold', color: 'var(--primary)', whiteSpace: 'nowrap' }}>
+                                이 청구서 충당 배분액:
+                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={unpaidAmt}
+                                  value={multiAllocations[b.id] ?? ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value));
+                                    setMultiAllocations(prev => ({ ...prev, [b.id]: val }));
+                                  }}
+                                  className="form-control"
+                                  style={{ width: '120px', textAlign: 'right', fontWeight: 'bold', fontSize: '12.5px', padding: '3px 6px', height: '26px' }}
+                                />
+                                <span style={{ fontSize: '12px', fontWeight: 'bold' }}>원</span>
+                                <button
+                                  type="button"
+                                  className="btn-secondary"
+                                  style={{ padding: '2px 6px', fontSize: '11px', height: '26px', whiteSpace: 'nowrap' }}
+                                  onClick={() => {
+                                    const curDepositBal = getDepositBalance(selectedTx.id);
+                                    const otherAlloc = Object.entries(multiAllocations)
+                                      .filter(([id]) => id !== b.id)
+                                      .reduce((sum, [, a]) => sum + (a || 0), 0);
+                                    const maxPossible = Math.min(unpaidAmt, Math.max(0, curDepositBal - otherAlloc));
+                                    setMultiAllocations(prev => ({ ...prev, [b.id]: maxPossible }));
+                                  }}
+                                  title="미수잔액과 남은 입금잔액 중 가능한 최대 금액을 자동 입력합니다"
+                                >
+                                  최대
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        </label>
+                          )}
+                        </div>
                       );
                     })
                   )}
                 </div>
               </div>
+
+              {/* MULTI 모드 배분 요약 바 */}
+              {matchingMode === 'MULTI' && (
+                <div style={{
+                  padding: '8px 12px', borderRadius: '6px',
+                  backgroundColor: (selectedMultiBillingIds.reduce((sum, id) => sum + (multiAllocations[id] || 0), 0) > getDepositBalance(selectedTx.id))
+                    ? 'rgba(239, 68, 68, 0.12)'
+                    : 'rgba(59, 130, 246, 0.08)',
+                  border: `1px solid ${(selectedMultiBillingIds.reduce((sum, id) => sum + (multiAllocations[id] || 0), 0) > getDepositBalance(selectedTx.id)) ? 'var(--danger)' : 'var(--primary)'}`,
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px'
+                }}>
+                  <span>
+                    입금 가용잔액: <strong>₩{getDepositBalance(selectedTx.id).toLocaleString()}</strong> | 배분 합계: <strong style={{ color: (selectedMultiBillingIds.reduce((sum, id) => sum + (multiAllocations[id] || 0), 0) > getDepositBalance(selectedTx.id)) ? 'var(--danger)' : 'var(--primary)' }}>
+                      ₩{selectedMultiBillingIds.reduce((sum, id) => sum + (multiAllocations[id] || 0), 0).toLocaleString()}
+                    </strong>
+                  </span>
+                  {(selectedMultiBillingIds.reduce((sum, id) => sum + (multiAllocations[id] || 0), 0) > getDepositBalance(selectedTx.id)) ? (
+                    <span style={{ color: 'var(--danger)', fontWeight: 'bold' }}>
+                      ⚠️ ₩{(selectedMultiBillingIds.reduce((sum, id) => sum + (multiAllocations[id] || 0), 0) - getDepositBalance(selectedTx.id)).toLocaleString()}원 초과
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--success)', fontWeight: 'bold' }}>
+                      ✓ 잔여 ₩{(getDepositBalance(selectedTx.id) - selectedMultiBillingIds.reduce((sum, id) => sum + (multiAllocations[id] || 0), 0)).toLocaleString()}원
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* 🌟 송금 수수료 500원~1,000원 자동 감액 제안 바 */}
               {(() => {
@@ -1896,9 +2051,17 @@ export const BankMatching: React.FC = () => {
                 <button data-hs-trigger="Approve"
                   type="submit"
                   className="btn btn-primary"
-                  disabled={matchingMode !== 'MULTI' ? !matchingBillingId : selectedMultiBillingIds.length === 0}
+                  disabled={
+                    isManualMatchSubmitting ||
+                    (matchingMode !== 'MULTI'
+                      ? !matchingBillingId
+                      : (selectedMultiBillingIds.length === 0 ||
+                         selectedMultiBillingIds.reduce((sum, id) => sum + (multiAllocations[id] || 0), 0) <= 0 ||
+                         selectedMultiBillingIds.reduce((sum, id) => sum + (multiAllocations[id] || 0), 0) > getDepositBalance(selectedTx.id))
+                    )
+                  }
                 >
-                  수납 승인 완료
+                  {isManualMatchSubmitting ? '수납 처리 중...' : '수납 승인 완료'}
                 </button>
               </div>
             </form>
@@ -2206,10 +2369,19 @@ export const BankMatching: React.FC = () => {
 
             <form onSubmit={async (e) => {
               e.preventDefault();
-              await saveBankInitialBalance(editingBankName, editingInitialBalance, editingAccountNumber);
-              await db.awaitPendingWrites();
-              setIsInitBalanceModalOpen(false);
-              showToast(`[${editingBankName}] 계좌 잔액 설정이 완료되었습니다.`);
+              if (isSavingInitBalance) return;
+              const cleanBal = Math.max(0, isNaN(Number(editingInitialBalance)) ? 0 : Number(editingInitialBalance));
+              setIsSavingInitBalance(true);
+              try {
+                await saveBankInitialBalance(editingBankName, cleanBal, editingAccountNumber.trim());
+                await db.awaitPendingWrites();
+                setIsInitBalanceModalOpen(false);
+                showToast(`[${editingBankName}] 계좌 잔액 설정이 완료되었습니다.`);
+              } catch (err: any) {
+                showErrorModal(`잔액 설정 저장 실패: ${err?.message || err}`);
+              } finally {
+                setIsSavingInitBalance(false);
+              }
             }} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -2257,10 +2429,14 @@ export const BankMatching: React.FC = () => {
                 </label>
                 <input
                   type="number"
+                  min="0"
                   required
                   placeholder="예: 15000000"
                   value={editingInitialBalance}
-                  onChange={(e) => setEditingInitialBalance(Number(e.target.value))}
+                  onChange={(e) => {
+                    const val = e.target.value === '' ? 0 : Math.max(0, Number(e.target.value));
+                    setEditingInitialBalance(val);
+                  }}
                   className="form-control"
                   style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--primary)' }}
                 />
@@ -2270,8 +2446,10 @@ export const BankMatching: React.FC = () => {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setIsInitBalanceModalOpen(false)}>취소</button>
-                <button data-hs-trigger="Save" type="submit" className="btn btn-primary">잔액 설정 저장</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsInitBalanceModalOpen(false)} disabled={isSavingInitBalance}>취소</button>
+                <button data-hs-trigger="Save" type="submit" className="btn btn-primary" disabled={isSavingInitBalance}>
+                  {isSavingInitBalance ? '저장 중...' : '잔액 설정 저장'}
+                </button>
               </div>
             </form>
           </div>
