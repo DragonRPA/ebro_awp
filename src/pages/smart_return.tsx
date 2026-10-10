@@ -345,6 +345,16 @@ export const SmartReturn: React.FC = () => {
           <meta charset="utf-8">
           <title>입고요청서_${selCust?.name || '고객사'}_${selSite?.name || '현장'}</title>
           <style>
+            :root {
+              --bg-card: #ffffff;
+              --bg-app: #ffffff;
+              --bg-body: #ffffff;
+              --text-main: #000000;
+              --text-primary: #000000;
+              --text-secondary: #333333;
+              --text-muted: #555555;
+              --border-color: #000000;
+            }
             @page {
               size: A4 portrait;
               margin: 7mm 10mm 7mm 10mm;

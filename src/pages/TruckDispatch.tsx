@@ -383,8 +383,17 @@ export const TruckDispatch: React.FC = () => {
         }
       }
     } else {
-      for (const a of returnAssets) {
-        unitList.push({ no: uNo++, modelName: a.modelName || '-', assetNo: a.assetNo || '' });
+      if (returnAssets && returnAssets.length > 0) {
+        for (const a of returnAssets) {
+          unitList.push({ no: uNo++, modelName: a.modelName || '-', assetNo: a.assetNo || '' });
+        }
+      } else if (cargoItems && cargoItems.length > 0) {
+        for (const c of cargoItems) {
+          const count = Math.max(1, Number(c.count) || 1);
+          for (let i = 0; i < count; i++) {
+            unitList.push({ no: uNo++, modelName: c.modelName || '-', assetNo: '' });
+          }
+        }
       }
     }
     const totalCount = unitList.length;
@@ -3511,17 +3520,17 @@ export const TruckDispatch: React.FC = () => {
                                 handleRemoteQueuePrintDispatchRequest(d, isInbound ? 'INBOUND' : 'OUTBOUND');
                               }}
                               style={{
-                                padding: '2px 7px',
+                                padding: '3px 8px',
                                 fontSize: '11px',
-                                fontWeight: 700,
-                                borderRadius: '4px',
-                                border: '1px solid rgba(99, 102, 241, 0.4)',
-                                backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                                color: '#6366f1',
+                                fontWeight: 800,
+                                borderRadius: '5px',
+                                border: '1px solid rgba(79, 70, 229, 0.4)',
+                                backgroundColor: 'rgba(79, 70, 229, 0.12)',
+                                color: '#4338ca',
                                 cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '3px',
+                                gap: '4px',
                                 flexShrink: 0
                               }}
                               title={(d.type === 'INBOUND' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납') ? '입고요청서 인쇄 큐 전송' : '출고요청서 인쇄 큐 전송'}
@@ -3624,23 +3633,25 @@ export const TruckDispatch: React.FC = () => {
                         data-mid="btn-dispatch-print"
                         onClick={() => handleRemoteQueuePrintDispatchRequest(selectedDelivery, (selectedDelivery.type === 'INBOUND' || selectedDelivery.dispatchCategory === '입고' || selectedDelivery.dispatchCategory === '반납') ? 'INBOUND' : 'OUTBOUND')}
                         style={{
-                          padding: '6px 12px',
+                          padding: '6px 14px',
                           borderRadius: '7px',
-                          backgroundColor: 'var(--bg-card)',
+                          backgroundColor: '#2563eb',
                           color: '#ffffff',
-                          border: '1px solid #0f172a',
+                          border: 'none',
                           fontSize: '12px',
-                          fontWeight: 700,
+                          fontWeight: 800,
                           cursor: 'pointer',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '5px',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                          gap: '6px',
+                          boxShadow: '0 1px 3px rgba(37, 99, 235, 0.35)',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0
                         }}
                         title="현장 로컬 PC 프린터(프린터1 또는 프린터2)로 자동 원격 출력합니다"
                       >
-                        <Printer size={13} />
-                        {(selectedDelivery.type === 'INBOUND' || selectedDelivery.dispatchCategory === '입고' || selectedDelivery.dispatchCategory === '반납') ? '입고요청서 인쇄' : '출고요청서 인쇄'}
+                        <Printer size={13} color="#ffffff" />
+                        <span>{(selectedDelivery.type === 'INBOUND' || selectedDelivery.dispatchCategory === '입고' || selectedDelivery.dispatchCategory === '반납') ? '입고요청서 인쇄' : '출고요청서 인쇄'}</span>
                       </button>
 
                       
