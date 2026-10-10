@@ -101,23 +101,23 @@ export const BankMatching: React.FC = () => {
   const [editingInitialBalance, setEditingInitialBalance] = useState<number>(15000000);
   const [editingAccountNumber, setEditingAccountNumber] = useState('');
 
-  // ── 입력 상태 (필터 패널 바인딩용)
+  // ── 입력 상태 (필터 패널 바인딩용: 기본값 = 전 기간 미매칭 내역)
   const [searchTerm, setSearchTerm] = useState('');
   const [txStartDate, setTxStartDate] = useState('');
   const [txEndDate, setTxEndDate] = useState('');
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'DEPOSIT' | 'WITHDRAW'>('ALL');
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<string>('UNMATCHED_ALL');
 
-  // ── 적용 상태 (조회 버튼 클릭 시에만 갱신 → 실제 테이블 필터링에 사용)
+  // ── 적용 상태 (메뉴 진입 시 기본값 = 전 기간 수납/지급 미매칭 내역 최적 조건 자동 적용)
   const [appliedSearchTerm, setAppliedSearchTerm] = useState('');
   const [appliedTxStartDate, setAppliedTxStartDate] = useState('');
   const [appliedTxEndDate, setAppliedTxEndDate] = useState('');
   const [appliedMinAmount, setAppliedMinAmount] = useState('');
   const [appliedMaxAmount, setAppliedMaxAmount] = useState('');
   const [appliedTypeFilter, setAppliedTypeFilter] = useState<'ALL' | 'DEPOSIT' | 'WITHDRAW'>('ALL');
-  const [appliedStatusFilter, setAppliedStatusFilter] = useState<string>('ALL');
+  const [appliedStatusFilter, setAppliedStatusFilter] = useState<string>('UNMATCHED_ALL');
   const [appliedBankFilter, setAppliedBankFilter] = useState<string>('ALL');
 
   // 조회 실행
@@ -130,6 +130,30 @@ export const BankMatching: React.FC = () => {
     setAppliedTypeFilter(typeFilter);
     setAppliedStatusFilter(statusFilter);
     setAppliedBankFilter(selectedBankFilter);
+  };
+
+  // 🌟 전 기간 수납/지급 미매칭 내역 일괄 설정 및 즉시 조회 (수납업무 담당자 원클릭 최적화)
+  const handleSetUnmatchedOnly = () => {
+    setActiveTab('MATCHING');
+    // 1. 입력 필터 갱신 (전 기간, 미매칭 전체)
+    setSearchTerm('');
+    setTxStartDate('');
+    setTxEndDate('');
+    setMinAmount('');
+    setMaxAmount('');
+    setTypeFilter('ALL');
+    setStatusFilter('UNMATCHED_ALL');
+    setSelectedBankFilter('ALL');
+
+    // 2. 적용 필터 즉시 동기화 (원클릭 즉각 렌더링)
+    setAppliedSearchTerm('');
+    setAppliedTxStartDate('');
+    setAppliedTxEndDate('');
+    setAppliedMinAmount('');
+    setAppliedMaxAmount('');
+    setAppliedTypeFilter('ALL');
+    setAppliedStatusFilter('UNMATCHED_ALL');
+    setAppliedBankFilter('ALL');
   };
   
   // 은행별 필터 ('ALL' | '우리은행' | '신한은행' | 기타)
@@ -529,28 +553,27 @@ export const BankMatching: React.FC = () => {
     if (appliedTypeFilter === 'WITHDRAW' && (t.depositAmount > 0 && t.withdrawAmount === 0)) return false;
 
     // 2) 지급 / 수납 매치 완료 여부 상태 필터 (appliedStatusFilter)
-    const linkedLinks = (paymentDepositLinks || []).filter(l => l.bankTransactionId === t.id && l.usedAmount > 0 && isActiveDepositLink(l));
     const remBal = getDepositBalance(t.id);
-    const isMatchedDeposit = !!t.matchedBillingId || linkedLinks.length > 0 || (t.depositAmount > 0 && remBal <= 0);
-    const isMatchedWithdraw = purchaseSettlements.some(s => s.bankTransactionId === t.id);
+    const isCompletedDeposit = t.depositAmount > 0 && remBal <= 0;
+    const isCompletedWithdraw = t.withdrawAmount > 0 && (purchaseSettlements.some(s => s.bankTransactionId === t.id) || getWithdrawMatchedAmount(t.id) >= t.withdrawAmount);
 
     if (appliedStatusFilter === 'DEPOSIT_UNMATCHED') {
-      return t.depositAmount > 0 && !isMatchedDeposit;
+      return t.depositAmount > 0 && !isCompletedDeposit;
     }
     if (appliedStatusFilter === 'DEPOSIT_MATCHED') {
-      return t.depositAmount > 0 && isMatchedDeposit;
+      return t.depositAmount > 0 && isCompletedDeposit;
     }
     if (appliedStatusFilter === 'WITHDRAW_UNMATCHED') {
-      return t.withdrawAmount > 0 && !isMatchedWithdraw;
+      return t.withdrawAmount > 0 && !isCompletedWithdraw;
     }
     if (appliedStatusFilter === 'WITHDRAW_MATCHED') {
-      return t.withdrawAmount > 0 && isMatchedWithdraw;
+      return t.withdrawAmount > 0 && isCompletedWithdraw;
     }
     if (appliedStatusFilter === 'UNMATCHED_ALL') {
-      return (t.depositAmount > 0 && !isMatchedDeposit) || (t.withdrawAmount > 0 && !isMatchedWithdraw);
+      return (t.depositAmount > 0 && !isCompletedDeposit) || (t.withdrawAmount > 0 && !isCompletedWithdraw);
     }
     if (appliedStatusFilter === 'MATCHED_ALL') {
-      return (t.depositAmount > 0 && isMatchedDeposit) || (t.withdrawAmount > 0 && isMatchedWithdraw);
+      return (t.depositAmount > 0 && isCompletedDeposit) || (t.withdrawAmount > 0 && isCompletedWithdraw);
     }
     return true;
   }).sort((a, b) => b.transactionDate.localeCompare(a.transactionDate));
@@ -1095,6 +1118,30 @@ export const BankMatching: React.FC = () => {
                 setAppliedStatusFilter('ALL');
                 setAppliedBankFilter('ALL');
               }}>초기화</button>
+
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={handleSetUnmatchedOnly}
+                style={{
+                  padding: '3px 10px',
+                  height: '28px',
+                  fontSize: '11.5px',
+                  fontWeight: '700',
+                  marginBottom: '1px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  whiteSpace: 'nowrap',
+                  color: 'var(--warning)',
+                  borderColor: 'var(--warning)',
+                  backgroundColor: 'rgba(245, 158, 11, 0.08)'
+                }}
+                title="전 기간 수납/지급 미매칭 내역만 일괄 조회합니다"
+              >
+                <AlertCircle size={13} style={{ color: 'var(--warning)' }} />
+                미매칭 내역
+              </button>
 
               <button
                 className="btn btn-primary"
