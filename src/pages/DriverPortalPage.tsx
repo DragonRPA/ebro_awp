@@ -2,7 +2,7 @@
 import { Camera, CheckCircle, Truck, UploadCloud, Edit3, FileText } from 'lucide-react';
 import { supabase, Delivery } from '../services/db';
 
-const SignaturePad: React.FC<{ onReady: (getBlob: () => Promise<Blob | null>) => void }> = ({ onReady }) => {
+const SignaturePad: React.FC<{ receiverName?: string; onReady: (getBlob: () => Promise<Blob | null>) => void }> = ({ receiverName, onReady }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
@@ -63,13 +63,50 @@ const SignaturePad: React.FC<{ onReady: (getBlob: () => Promise<Blob | null>) =>
     ctx.moveTo(x, y);
   };
 
-  const clearCanvas = () => {
+  const drawWatermark = () => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
-    if (ctx && canvas) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.beginPath();
+    if (!ctx || !canvas) return;
+    
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    if (receiverName && receiverName.trim().length > 0) {
+      const chars = receiverName.trim().split('');
+      const charCount = chars.length;
+      
+      ctx.save();
+      const sectionWidth = canvas.width / charCount;
+      
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+      ctx.font = '900 120px Pretendard, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      for (let i = 0; i < charCount; i++) {
+        const centerX = (i * sectionWidth) + (sectionWidth / 2);
+        ctx.fillText(chars[i], centerX, canvas.height / 2);
+        
+        if (i > 0) {
+          ctx.beginPath();
+          ctx.setLineDash([8, 8]);
+          ctx.moveTo(i * sectionWidth, 40);
+          ctx.lineTo(i * sectionWidth, canvas.height - 40);
+          ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
     }
+    ctx.beginPath();
+  };
+
+  useEffect(() => {
+    drawWatermark();
+  }, [receiverName]);
+
+  const clearCanvas = () => {
+    drawWatermark();
   };
 
   return (
@@ -102,6 +139,7 @@ export const DriverPortalPage: React.FC = () => {
   const [completed, setCompleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<'SELECT' | 'PHOTO' | 'SIGN'>('SELECT');
+  const [receiverName, setReceiverName] = useState<string>('인수자');
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const getSignatureBlobRef = useRef<(() => Promise<Blob | null>) | null>(null);
@@ -122,6 +160,22 @@ export const DriverPortalPage: React.FC = () => {
         if (error || !data) throw new Error('배차 정보를 찾을 수 없습니다.');
         setDelivery(data);
         if (data.status === 'COMPLETED') setCompleted(true);
+        
+        // 추가: 계약 및 현장 담당자(인수자) 조회
+        if (data.contractId) {
+          const { data: contract } = await supabase!.from('contracts').select('siteId, customerId').eq('id', data.contractId).single();
+          if (contract && contract.siteId) {
+            const { data: siteMaster } = await supabase!.from('site_masters').select('contactName').eq('id', contract.siteId).single();
+            if (siteMaster && siteMaster.contactName) {
+              setReceiverName(siteMaster.contactName);
+            } else if (contract.customerId) {
+              const { data: customer } = await supabase!.from('customers').select('representative').eq('id', contract.customerId).single();
+              if (customer && customer.representative) {
+                setReceiverName(customer.representative);
+              }
+            }
+          }
+        }
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -284,7 +338,7 @@ export const DriverPortalPage: React.FC = () => {
                   <strong>일자:</strong> {new Date().toLocaleDateString()}
                 </div>
 
-                <SignaturePad onReady={(getBlob) => { getSignatureBlobRef.current = getBlob; }} />
+                <SignaturePad receiverName={receiverName} onReady={(getBlob) => { getSignatureBlobRef.current = getBlob; }} />
 
                 <button 
                   onClick={handleSubmitSignature}
