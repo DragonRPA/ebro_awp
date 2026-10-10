@@ -7,6 +7,7 @@ import {
   Info, Search, ShieldCheck
 } from 'lucide-react';
 import { User as UserType } from '../services/db';
+import { calculateLeaveDaysInfo } from '../utils/holidayUtils';
 
 export const LeaveManagementPage: React.FC = () => {
   const {
@@ -46,6 +47,9 @@ export const LeaveManagementPage: React.FC = () => {
   const [adminLeaveStartDate, setAdminLeaveStartDate] = useState(new Date().toISOString().substring(0, 10));
   const [adminLeaveEndDate, setAdminLeaveEndDate] = useState(new Date().toISOString().substring(0, 10));
   const [adminLeaveReason, setAdminLeaveReason] = useState('');
+
+  // 관리자 소진 일수 계산 (주말 및 법정공휴일/대체공휴일 제외 SSOT 표준)
+  const adminCalcResult = calculateLeaveDaysInfo(adminLeaveType, adminLeaveStartDate, adminLeaveEndDate);
 
   // 1. 임직원 입사일 기준 갱신 주기 계산 헬퍼
   const calculatePeriod = (joinDateStr?: string) => {
@@ -112,6 +116,10 @@ export const LeaveManagementPage: React.FC = () => {
   const totalCompanyRemaining = users.reduce((sum, u) => sum + getUserLeaveSummary(u).remainingDays, 0);
   const leaveBalanceDiff = Math.abs(totalCompanyGranted - (totalCompanyUsed + totalCompanyRemaining));
 
+  // 관리자 소진 등록 대상자 실시간 연차 요약
+  const selectedAdminTargetUser = users.find(u => u.id === adminLeaveUserId);
+  const selectedAdminSummary = selectedAdminTargetUser ? getUserLeaveSummary(selectedAdminTargetUser) : null;
+
   // 3. 연차 1년 부여 갯수 갱신 모달 오픈
   const handleOpenQuotaModal = (u: UserType) => {
     setSelectedUserForQuota(u);
@@ -164,18 +172,15 @@ export const LeaveManagementPage: React.FC = () => {
       return;
     }
 
-    if (adminLeaveType === 'ANNUAL' && adminLeaveEndDate < adminLeaveStartDate) {
-      showErrorModal('연차 종료일은 시작일보다 빠를 수 없습니다.');
+    if (!adminCalcResult.isValid) {
+      showErrorModal(adminCalcResult.errorMessage || '등록 일자 또는 기간이 올바르지 않습니다.');
       return;
     }
 
-    let usedDays = 0.5;
-    if (adminLeaveType === 'ANNUAL') {
-      const start = new Date(adminLeaveStartDate);
-      const end = new Date(adminLeaveEndDate);
-      const diffTime = end.getTime() - start.getTime();
-      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
-      usedDays = Math.max(1.0, diffDays);
+    const usedDays = adminCalcResult.deductedDays;
+    if (usedDays <= 0) {
+      showErrorModal('소진 대상 소정근로일수(평일)가 0일이므로 등록할 수 없습니다.');
+      return;
     }
 
     const summary = getUserLeaveSummary(targetUser);
@@ -515,7 +520,10 @@ export const LeaveManagementPage: React.FC = () => {
                   type="date"
                   required
                   value={adminLeaveStartDate}
-                  onChange={(e) => setAdminLeaveStartDate(e.target.value)}
+                  onChange={(e) => {
+                    setAdminLeaveStartDate(e.target.value);
+                    if (adminLeaveType !== 'ANNUAL') setAdminLeaveEndDate(e.target.value);
+                  }}
                   className="form-control"
                   style={{ fontSize: '13px' }}
                 />
@@ -529,6 +537,7 @@ export const LeaveManagementPage: React.FC = () => {
                   <input
                     type="date"
                     required
+                    min={adminLeaveStartDate}
                     value={adminLeaveEndDate}
                     onChange={(e) => setAdminLeaveEndDate(e.target.value)}
                     className="form-control"
@@ -536,6 +545,68 @@ export const LeaveManagementPage: React.FC = () => {
                   />
                 </div>
               )}
+
+              {/* 소진 일수 안내 배너 */}
+              <div style={{
+                padding: '10px 14px',
+                borderRadius: '6px',
+                backgroundColor: !adminCalcResult.isValid 
+                  ? 'rgba(239, 68, 68, 0.1)' 
+                  : (selectedAdminSummary && adminCalcResult.deductedDays > selectedAdminSummary.remainingDays) 
+                    ? 'rgba(239, 68, 68, 0.1)' 
+                    : 'rgba(59, 130, 246, 0.08)',
+                border: `1px solid ${
+                  !adminCalcResult.isValid || (selectedAdminSummary && adminCalcResult.deductedDays > selectedAdminSummary.remainingDays)
+                    ? 'rgba(239, 68, 68, 0.3)' 
+                    : 'rgba(59, 130, 246, 0.2)'
+                }`,
+                fontSize: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                  <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    {adminLeaveType === 'ANNUAL' ? '연차 소진 일수:' : '반차 소진 일수:'}
+                  </span>
+                  <strong style={{ 
+                    color: !adminCalcResult.isValid || (selectedAdminSummary && adminCalcResult.deductedDays > selectedAdminSummary.remainingDays) ? '#ef4444' : 'var(--primary)', 
+                    fontSize: '13px',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {!adminCalcResult.isValid 
+                      ? (adminCalcResult.errorMessage || '등록 불가')
+                      : selectedAdminSummary 
+                        ? `${adminCalcResult.deductedDays}일 차감 (잔여: ${Math.round((selectedAdminSummary.remainingDays - adminCalcResult.deductedDays) * 10) / 10}일)`
+                        : `${adminCalcResult.deductedDays}일 차감`
+                    }
+                  </strong>
+                </div>
+
+                {/* 주말 및 공휴일 차감(제외) 안내문 */}
+                {adminCalcResult.isValid && adminCalcResult.excludedDays > 0 && (
+                  <div style={{ 
+                    fontSize: '11px', 
+                    color: '#2563eb', 
+                    borderTop: '1px dashed rgba(59, 130, 246, 0.3)', 
+                    paddingTop: '6px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '2px'
+                  }}>
+                    <div>
+                      총 {adminCalcResult.totalCalendarDays}일 중 <strong>주말 {adminCalcResult.weekendDays}일</strong>
+                      {adminCalcResult.holidayDays > 0 && <>, <strong>공휴일 {adminCalcResult.holidayDays}일</strong></>}
+                      {' '}제외 ➔ <strong>실제 소정근로 {adminCalcResult.workingDays}일만 차감</strong>
+                    </div>
+                    {adminCalcResult.excludedBreakdownText && (
+                      <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                        {adminCalcResult.excludedBreakdownText}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
@@ -556,7 +627,7 @@ export const LeaveManagementPage: React.FC = () => {
                 type="submit"
                 className="btn btn-primary"
                 style={{ fontSize: '13px', marginTop: '6px' }}
-                disabled={!canSave}
+                disabled={!canSave || !adminCalcResult.isValid || adminCalcResult.deductedDays <= 0 || (!!selectedAdminSummary && adminCalcResult.deductedDays > selectedAdminSummary.remainingDays)}
               >
                 소진 내역 등록
               </button>
