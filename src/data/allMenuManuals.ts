@@ -6231,111 +6231,211 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "regular_reports",
-    "version": 12,
+    "version": 15,
     "menuName": "정기보고서 생성",
+    "groupId": "grp_management",
+    "groupName": "경영관리",
+    "department": "경영기획/경영진",
+    "archetype": "유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)",
+    "objective": "월간 결산 시점 월간 손익계산서(순 렌탈료·유통·기타청구 대사·영업이익), 자금수지 및 채권, 경영진 종합 브리핑 정기보고서 생성, 1회 발행 확정 및 엑셀/PDF 출력",
+    "scopeInfo": "정산 귀속연월(YYYY-MM), 보고서 유형 탭(월간 손익계산서, 자금수지 및 채권, 경영진 종합 브리핑), 전사 매출·매입·급여 확정 데이터",
+    "cognitiveSequence": [
+      "1. 좌상단 (Scope): 정산 귀속연월(YYYY-MM) 지정 및 3대 보고서 탭(월간 손익계산서 / 자금수지 및 채권 / 경영진 종합 브리핑) 선택",
+      "2. 우상단 (Pipeline): [조회] 버튼 클릭으로 당월 청구 마감, 매입 정산, 급여 마감 원천 데이터 실시간 동기화",
+      "3. 본문 1 (월간 손익계산서): 순 렌탈료 매출/원가(감가상각비+외부임차료)/순이익 및 유통 매출/원가/순이익 계정별 대사 검토",
+      "4. 본문 2 (기타 청구 대사): 운송비·정비비·보양작업·소모품 등 기타 청구 유형별 당월 청구액과 당월 지급정산액 1:1 대사 내역 확인",
+      "5. 수학적 산식 검증: 영업이익 = 렌탈순이익 + 유통순이익 + 기타청구차액 - 판관비(급여/기타) 공식 일치 확인",
+      "6. 우하단 (Terminal Action): 모든 정산 마감 후 [월간 손익계산서 발행 및 확정] 버튼을 클릭하여 스냅샷 영구 보존",
+      "7. 공식 배포: [엑셀 내보내기(XLSX)] 또는 [공식 PDF 다운로드]를 통해 경영진 공식 보고 자료 출력"
+    ],
+    "subTabs": [
+      {
+        "tabId": "INCOME_STATEMENT",
+        "tabName": "월간 손익계산서",
+        "purpose": "순 렌탈료 매출/원가(감가상각+외부임차)/순이익, 유통 매출/원가/순이익, 기타 청구 유형별 청구액 및 당월 지급정산액 1:1 대사, 판관비/급여 차감 후 영업이익 및 추정 순이익 산출",
+        "keyActions": [
+          "월간 결산 손익계산서 조회",
+          "월 1회 발행 및 영구 확정",
+          "손익계산서 엑셀 다운로드"
+        ]
+      },
+      {
+        "tabId": "CASH_FLOW",
+        "tabName": "자금수지 및 채권",
+        "purpose": "월별 현금 유입/유출, 기초/기말 잔액 대차대조, 만기 채권 회수율 분석",
+        "keyActions": [
+          "기간별 현금 흐름 분석",
+          "채권 회수 현황 점검"
+        ]
+      },
+      {
+        "tabId": "EXECUTIVE_BRIEFING",
+        "tabName": "경영진 종합 브리핑",
+        "purpose": "전사 5대 핵심 도메인 (손익·플릿가동·영업계약·물류정비·채권누수) 360도 입체 조망 브리핑 및 3페이지 고해상도 벡터 PDF 출력",
+        "keyActions": [
+          "경영진 핵심 지표 조회",
+          "공식 PDF 다운로드",
+          "공식 보고서 인쇄"
+        ]
+      }
+    ],
+    "auditResult": "월간 손익계산서 스냅샷 영구 보존 및 대차대조 무결성 확정 (총매출 - 총원가 - 판관비 = 영업이익)",
+    "rulesCompliance": [
+      "헌장 5.1 [리포트 2단계 검증 정책 필수 이행]: 모든 통계 지표는 수학적 산식 정립 + DB 스키마 1:1 검증 후 집계",
+      "헌장 4.1 [자산별 매출 기여액 정밀 일할 집계]: 렌탈 매출의 일할 단가 기준 정확한 원장 집계",
+      "헌장 3.1 [건조한 보고서]: 과장 없는 건조한 명사/숫자 중심 레이아웃"
+    ],
+    "precautions": [
+      "월간 손익계산서는 1개월마다 모든 매출(청구)과 매입정산, 급여 마감이 끝나는 시점에 1회 공식 발행함",
+      "정산 마감 전 조회 시 실시간 가결산 추정치로 표기되며, 발행 확정 후에는 스냅샷 데이터로 영구 보존됨"
+    ],
+    "annotations": [
+      {
+        "seq": 1,
+        "selector": "[data-uia=\"tab-income-statement\"]",
+        "label": "월간 손익계산서 탭",
+        "description": "순 렌탈료, 유통, 기타청구 대사, 영업이익 및 추정 순이익 손익계산서 탭입니다.",
+        "colorToken": "BLUE",
+        "type": "STAMP"
+      },
+      {
+        "seq": 2,
+        "selector": "[data-uia=\"tab-cash-flow\"]",
+        "label": "자금수지 및 채권 탭",
+        "description": "월별 현금 유입/유출 및 채권 회수 분석 탭입니다.",
+        "colorToken": "PURPLE",
+        "type": "CALLOUT"
+      },
+      {
+        "seq": 3,
+        "selector": "[data-uia=\"tab-executive-briefing\"]",
+        "label": "경영진 종합 브리핑 탭",
+        "description": "5대 도메인 핵심 지표 브리핑 및 PDF 출력 탭입니다.",
+        "colorToken": "GREEN",
+        "type": "CALLOUT"
+      },
+      {
+        "seq": 4,
+        "selector": "[data-uia=\"input-report-target-ym\"]",
+        "label": "정산 귀속연월 선택",
+        "description": "결산 및 보고 대상 연월(YYYY-MM)을 지정합니다.",
+        "colorToken": "BLUE",
+        "type": "CALLOUT"
+      },
+      {
+        "seq": 5,
+        "selector": "[data-uia=\"btn-refresh-report\"]",
+        "label": "원천 데이터 새로고침",
+        "description": "청구, 매입, 급여 원천 데이터를 최신으로 재동기화합니다.",
+        "colorToken": "BLUE",
+        "type": "STAMP"
+      },
+      {
+        "seq": 6,
+        "selector": "[data-uia=\"btn-issue-income-statement\"]",
+        "label": "손익계산서 발행 및 확정",
+        "description": "모든 정산 마감 후 월 1회 공식 손익계산서 스냅샷을 영구 발행 보존합니다.",
+        "colorToken": "GREEN",
+        "type": "CLICK_RIPPLE"
+      },
+      {
+        "seq": 7,
+        "selector": "[data-uia=\"btn-export-excel\"]",
+        "label": "손익계산서 엑셀 내보내기",
+        "description": "손익계산서 본문 및 기타청구 1:1 대사 내역을 표준 XLSX 파일로 다운로드합니다.",
+        "colorToken": "GREEN",
+        "type": "CALLOUT"
+      },
+      {
+        "seq": 8,
+        "selector": "[data-uia=\"table-income-statement\"]",
+        "label": "손익계산서 고밀도 그리드",
+        "description": "계정과목별(매출/원가/마진/영업이익/순이익) 금액 및 구성비 테이블입니다.",
+        "colorToken": "PURPLE",
+        "type": "HIGHLIGHT_BOX"
+      },
+      {
+        "seq": 9,
+        "selector": "[data-uia=\"table-other-reconciliation\"]",
+        "label": "기타 청구 1:1 대사 그리드",
+        "description": "운송비, 정비비 등 유형별 당월 청구액과 당월 지급정산액 1:1 대사 내역입니다.",
+        "colorToken": "BLUE",
+        "type": "HIGHLIGHT_BOX"
+      }
+    ],
     "basicGuide": [
       {
         "seq": 1,
-        "selector": "select",
+        "selector": "[data-uia=\"input-report-target-ym\"]",
         "type": "highlight",
-        "label": "리포트 목록 선택",
-        "description": "[리포트 목록 선택] 화면 영역입니다. 조회할 대상 연월을 선택하여 해당 월의 결산 보고서를 불러옵니다.",
+        "label": "정산 귀속연월 및 보고서 탭",
+        "description": "결산 대상 연월을 선택하고 손익계산서, 자금수지, 경영진 브리핑 중 조회할 보고서를 선택합니다.",
         "positionHint": "bottom"
       },
       {
         "seq": 2,
-        "selector": "button.btn-primary",
+        "selector": "[data-uia=\"btn-issue-income-statement\"]",
         "type": "callout",
-        "label": "보고서 확정 및 다운로드",
-        "description": "[보고서 확정 및 다운로드] 화면 영역입니다. 지시 사항을 저장하거나 최종 확정된 공식 보고서를 다운로드하는 기본 기능을 제공합니다.",
+        "label": "월간 손익계산서 1회 발행 및 확정",
+        "description": "월말 모든 매출과 매입정산이 완료된 시점에 월 1회 손익계산서를 발행 확정합니다.",
         "positionHint": "bottom"
       }
     ],
     "processes": [
       {
-        "processId": "보고서 확인 및 결재",
-        "title": "보고서 확인 및 결재",
-        "description": "결재 대기 중인 보고서를 선택하고 내용을 검토한 뒤 최종 승인합니다.",
+        "processId": "income_statement_issue_flow",
+        "title": "월간 결산 손익계산서 확인 및 1회 발행 절차",
+        "description": "정산 연월 선택부터 손익 대사, 공식 발행 확정 및 엑셀 다운로드까지의 표준 절차입니다.",
         "steps": [
           {
             "seq": 1,
-            "selector": "select",
+            "selector": "[data-uia=\"input-report-target-ym\"]",
             "type": "click_ripple",
-            "label": "대기 보고서 선택",
-            "description": "[대기 보고서 선택] UI 요소를 조작합니다. 드롭다운 목록에서 결재할 대상 연월의 보고서를 선택하십시오.",
-            "positionHint": "right"
+            "label": "정산 귀속연월 설정",
+            "description": "마감 대상 정산 연월(YYYY-MM)을 선택합니다.",
+            "positionHint": "bottom"
           },
           {
             "seq": 2,
-            "selector": "[data-mid='reports-grid']",
-            "type": "highlight",
-            "label": "보고서 내용 검토",
-            "description": "[보고서 내용 검토] UI 요소에 값을 입력하거나 조작합니다. 보고서 본문의 상세 지표, 차트, 부서별 의견을 정밀 검토하십시오.",
-            "positionHint": "top"
+            "selector": "[data-uia=\"btn-refresh-report\"]",
+            "type": "stamp",
+            "label": "원천 데이터 동기화",
+            "description": "조회 버튼을 클릭하여 확정 청구 및 매입 데이터를 로드합니다.",
+            "positionHint": "bottom"
           },
           {
             "seq": 3,
-            "selector": "button.btn-primary",
-            "type": "stamp",
-            "label": "승인 및 결재 확정",
-            "description": "[승인 및 결재 확정] UI 요소를 조작합니다. 확인 버튼을 클릭하여 보고서를 최종 승인 상태로 확정 마감하십시오.",
+            "selector": "[data-uia=\"table-income-statement\"]",
+            "type": "highlight",
+            "label": "손익계산서 계정과목 검토",
+            "description": "순 렌탈료 이익, 순 유통 이익, 판관비 차감 후 영업이익 및 순이익을 확인합니다.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 4,
+            "selector": "[data-uia=\"table-other-reconciliation\"]",
+            "type": "highlight",
+            "label": "기타 청구 1:1 대사 확인",
+            "description": "운송비, 정비비 등 유형별 청구액과 지급정산액 차액을 검증합니다.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 5,
+            "selector": "[data-uia=\"btn-issue-income-statement\"]",
+            "type": "click_ripple",
+            "label": "손익계산서 발행 및 확정",
+            "description": "월 1회 발행 버튼을 클릭하여 결산 스냅샷을 영구 저장합니다.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 6,
+            "selector": "[data-uia=\"btn-export-excel\"]",
+            "type": "click_ripple",
+            "label": "엑셀 다운로드",
+            "description": "엑셀 내보내기 버튼을 클릭하여 결산 서류를 파일로 저장합니다.",
             "positionHint": "bottom"
           }
         ]
-      }
-    ],
-    "groupId": "grp_management",
-    "groupName": "경영관리",
-    "department": "경영기획/경영진",
-    "archetype": "유형 C: 대시보드 및 지식 포털 (대시보드 / 포털)",
-    "objective": "월간 렌탈 가동률, 매출 실적, 채권 현황 등 경영 핵심 리포트 생성 및 출력",
-    "scopeInfo": "보고 기간(월간/분기/연간), 집계 지표(가동률, 총매출, 운송비율, 정비비용, 연체율)",
-    "cognitiveSequence": [
-      "1. 보고 기간(월간, 분기, 연간) 및 경영 성과 지표 스코핑",
-      "2. 렌탈 자산 가동률 및 자산별 누적 매출 기여액 정밀 일할 통계 산출 (헌장 4.1)",
-      "3. 고객사별 매출 순위 및 연체 채권 회수율 분석",
-      "4. 장비 기종별/작업 높이별 렌탈 수요 트렌드 분석",
-      "5. 운송비 및 정비비 원가 비율 지표 검증",
-      "6. 전사 손익 요약 및 핵심 KPI(가동율 85% 이상, 연체율 3% 미만) 달성도 검토",
-      "7. 정기 경영 보고서 PDF 생성 및 경영진 공식 배포 확정"
-    ],
-    "subTabs": [
-      {
-        "tabId": "EXECUTIVE",
-        "tabName": "경영진 핵심 요약 보고서",
-        "purpose": "월별 전사 가동률, 매출 총액, 미수 채권, 자산 수익률 1장 요약 브리핑",
-        "keyActions": [
-          "기간별 KPI 비교",
-          "PDF 리포트 출력"
-        ]
-      },
-      {
-        "tabId": "DRILLDOWN",
-        "tabName": "부문별 상세 손익 드릴다운",
-        "purpose": "장비 모델별, 거래처별, 영업담당자별 공헌이익 및 비용 세부 분석",
-        "keyActions": [
-          "장비군별 수익성 필터",
-          "엑셀 데이터 내보내기"
-        ]
-      }
-    ],
-    "auditResult": "리포트 집계 수식 100% DB 원장 일치 및 PDF/엑셀 생성 완료",
-    "rulesCompliance": [
-      "헌장 5.1 [2단계 검증 정책 필수 이행]: 모든 통계 지표는 수학적 산식 정립 + DB 스키마 1:1 검증 후 집계",
-      "헌장 3.1 [건조한 보고서]: 과장 없는 건조한 명사/숫자 중심 레이아웃"
-    ],
-    "precautions": [
-      "월말 결산(청구 마감, 매입 마감, 감가상각)이 완료되기 전 집계 시 미확정 추정치로 표기 필수",
-      "가동률 계산 시 역일(달력 일수)과 장비 총 보유 대수 기준을 명확히 명기"
-    ],
-    "annotations": [
-      {
-        "seq": 1,
-        "selector": "[data-mid=\"reports-kpi\"]",
-        "label": "경영 지표 카드",
-        "description": "가동률, 당월 매출, 채권 회수율 KPI",
-        "colorToken": "GREEN",
-        "type": "HIGHLIGHT_BOX"
       }
     ]
   },
@@ -8633,100 +8733,201 @@ export const ALL_MENU_MANUALS: MenuManualDetail[] = [
   },
   {
     "menuId": "trade_contracts",
-    "menuName": "유통 수주(계약)",
+    "version": 15,
+    "menuName": "유통 계약 관리",
     "groupId": "grp_distribution",
     "groupName": "영업-유통",
     "department": "유통 영업",
-    "archetype": "유형 A: 요청 처리형 (카드형 상세)",
-    "objective": "유통 상품 판매 견적, 고객 수주 등록 및 납품 계약 체결 관리",
-    "scopeInfo": "고객 마스터 정보 및 가용 재고(Available Qty) 현황",
+    "archetype": "유형 B: 기간 조회 및 정산/정리형 (고밀도 그리드)",
+    "objective": "유통 수주 등록, 고밀도 그리드 기반 계약 대장 조회, 표준 물품매매계약서 엑셀 양식 편집 및 거래처 이메일 발송 관리",
+    "scopeInfo": "거래처 마스터(고객사), 유통 상품 마스터, 계약서 상태(작성대기 DRAFT, 양식생성 GENERATED, 발송완료 SENT), 총 계약금액",
     "cognitiveSequence": [
-      "1. 좌상단 고객사 정보 세팅",
-      "2. 우상단 에이전트 [초안 작성] 호출 또는 상품 직접 검색 유입",
-      "3. 중앙 카드에서 품목별 수량, 단가, 할인율, 인도 조건(특약) 세부 컨텍스트 조율",
-      "4. 우하단 '수주 체결 승인' 버튼으로 거래 명세 확정 및 물류 부서로 출고 지시 하달"
+      "1. 좌상단 (Scope): 수주 주문번호/거래처 검색 및 계약서 진행 상태별 필터(전체, 작성대기, 양식생성, 발송완료) 스코핑",
+      "2. 우상단 (Pipeline): 신규 수주 등록 바(거래처 선택, 상품 선택, 수량 입력)에서 [수주 등록] 실행",
+      "3. 상단 우측 통계: 총 수주 건수, 총 계약금액, 계약서 발송 건수, 발송 대기 건수 실시간 요약 검증",
+      "4. 중앙 본문 (Inspection): 행 높이 38~42px 고밀도 그리드 테이블에서 수주 목록 조망 (1열 [계약서/이메일 ➔] 고정 배치)",
+      "5. 모달 스튜디오: 1열 액션 버튼 클릭 시 [유통 물품매매계약서 양식 편집 및 이메일 발송] 모달 진입",
+      "6. 계약 조건 편집: 계약일자, 납품기한, 인도장소, 대금결제조건, 5대 표준 특약사항 입력 후 [계약 조건 저장]",
+      "7. 엑셀 계약서 생성: [엑셀 다운로드] 또는 [에이전트로 열기]를 통해 ExcelJS 기반 표준 서식 파일 확인",
+      "8. 우하단 (Terminal Action): 헌장 5.9조 안전 격리(테스트 모드: admin@ebro.co.kr) 확인 후 [계약서 이메일 발송] 완결 및 전표 확정"
     ],
-    "auditResult": "수주 전표 발행 및 납품 대기 상태 확정",
+    "subTabs": [],
+    "modalWorkflows": [
+      {
+        "modalName": "유통 물품매매계약서 양식 편집 및 이메일 발송",
+        "triggerButton": "[계약서/이메일 ➔] 1열 액션 버튼",
+        "keyFields": [
+          "주문번호 및 계약일자",
+          "납품 기한 및 인도 장소",
+          "대금 결제 조건 (납품 검수 후 30일 이내 등)",
+          "5대 표준 특약 사항 (운송비 부담, 검수 기한, 하자 시 무상 맞교환 등)",
+          "체결 품목 명세 (수량, 단가, 공급가액, 세액 합계)",
+          "헌장 5.9조 안전 격리 테스트 모드 토글 (기본 활성: admin@ebro.co.kr)"
+        ],
+        "terminalAction": "[계약서 이메일 발송]",
+        "afterStateTransition": "contractDocStatus = 'SENT', contractSentAt/contractSentTo 무누락 영구 저장"
+      }
+    ],
+    "auditResult": "수주 전표 DB 저장, 엑셀 계약서 생성 및 발송 이력(contractSentAt, contractSentTo) 무누락 보존",
     "rulesCompliance": [
-      "3.6 마스터-디테일 카드형 설계",
-      "3.7 AI 에이전트 Slop 방지 (건조한 버튼 적용)"
+      "헌장 3.1 [무수식어 건조 표준]: 감성적 수식어 전면 배제 및 건조한 명사형 버튼 강제",
+      "헌장 3.2 [No-Wrap 원칙]: 1열 액션 버튼 [계약서/이메일 ➔] 최좌측 배치 및 셀 줄바꿈 방지",
+      "헌장 3.6 [유형 B 고밀도 그리드]: 38~42px 슬림 테이블로 1화면 수십 건 동시 조망",
+      "헌장 5.9 [외부 발송 안전 격리 원칙]: 테스트 모드 시 실제 거래처 대신 개발자 격리 발송 (admin@ebro.co.kr)"
     ],
     "precautions": [
-      "마진율 미달 시 시스템 알림 및 관리자 승인 대기(Hard Lock)"
+      "실제 거래처 발송 시 테스트 모드 체크박스를 해제해야 하며, 수신자 이메일 주소를 반드시 사전 검증할 것",
+      "품목 단가 및 수량은 수주 등록 시점의 마스터 기준으로 자동 산출되므로 변동 사항을 철저히 확인할 것"
     ],
     "annotations": [
       {
         "seq": 1,
         "selector": "[data-mid=\"trade_contracts-header\"]",
-        "label": "유통 수주 헤더",
-        "description": "고객 수주 등록 및 판매 계약 체결",
+        "label": "유통 계약 관리 헤더",
+        "description": "물품매매계약서 표준 양식 엑셀 편집 및 거래처 이메일 발송 관리 헤더입니다.",
         "colorToken": "BLUE",
         "type": "STAMP"
       },
       {
         "seq": 2,
-        "selector": "[data-mid=\"trade_contracts-qty-input\"]",
-        "label": "수주 수량",
-        "description": "판매 납품 수량 지정",
+        "selector": "[data-mid=\"trade_contracts-customer-select\"]",
+        "label": "수주 고객사 선택",
+        "description": "신규 수주 계약을 체결할 거래처(고객사)를 선택합니다.",
         "colorToken": "PURPLE",
         "type": "CALLOUT"
       },
       {
         "seq": 3,
+        "selector": "[data-mid=\"trade_contracts-product-select\"]",
+        "label": "유통 상품 선택",
+        "description": "판매할 유통 상품 마스터 품목을 선택합니다.",
+        "colorToken": "PURPLE",
+        "type": "CALLOUT"
+      },
+      {
+        "seq": 4,
+        "selector": "[data-mid=\"trade_contracts-qty-input\"]",
+        "label": "수주 수량 입력",
+        "description": "판매 납품할 상품 수량을 입력합니다.",
+        "colorToken": "BLUE",
+        "type": "CALLOUT"
+      },
+      {
+        "seq": 5,
         "selector": "[data-mid=\"trade_contracts-create-btn\"]",
-        "label": "수주 전표 생성",
-        "description": "판매 수주 계약서 체결",
+        "label": "신규 수주 등록",
+        "description": "새로운 유통 수주 전표를 생성하여 계약 대장에 등록합니다.",
         "colorToken": "GREEN",
         "type": "STAMP"
       },
       {
-        "seq": 4,
-        "selector": "[data-mid=\"trade_contracts-cards\"]",
-        "label": "수주 현황 카드",
-        "description": "진행 중인 유통 수주 계약 덱",
+        "seq": 6,
+        "selector": "[data-mid=\"trade_contracts-search-input\"]",
+        "label": "주문번호 / 거래처 검색",
+        "description": "주문번호 또는 거래처명을 입력하여 실시간 검색 필터링합니다.",
         "colorToken": "BLUE",
-        "type": "HIGHLIGHT_BOX"
+        "type": "CALLOUT"
+      },
+      {
+        "seq": 7,
+        "selector": "[data-mid=\"trade_contracts-filter-SENT\"]",
+        "label": "발송완료 상태 필터",
+        "description": "계약서 발송 완료 건만 선별하여 조회합니다.",
+        "colorToken": "PURPLE",
+        "type": "CALLOUT"
+      },
+      {
+        "seq": 8,
+        "selector": "[data-mid*=\"trade_contracts-action-btn\"]",
+        "label": "1열 계약서/이메일 액션",
+        "description": "해당 수주건의 표준 물품매매계약서 서식 편집 및 이메일 발송 모달을 실행합니다.",
+        "colorToken": "GREEN",
+        "type": "CLICK_RIPPLE"
       }
     ],
     "basicGuide": [
       {
-        "id": "tc_bg_1",
-        "title": "수주 기본 정보",
-        "text": "상단에서 고객사명과 납기 예정일, 결제 조건 등 계약의 기본 골격을 확인합니다.",
-        "elementSelector": ".header-info"
+        "seq": 1,
+        "selector": "[data-mid=\"trade_contracts-header\"]",
+        "type": "highlight",
+        "label": "유통 계약 대장 개요",
+        "description": "유통 수주 목록을 고밀도 그리드로 확인하고 표준 물품매매계약서 엑셀 양식을 편집/발송하는 화면입니다.",
+        "positionHint": "bottom"
       },
       {
-        "id": "tc_bg_2",
-        "title": "품목 상세 카드",
-        "text": "중앙 영역에서 어떤 상품을 얼마에 몇 개 판매할지 상세 조건을 입력합니다.",
-        "elementSelector": ".card-container"
+        "seq": 2,
+        "selector": "[data-mid=\"trade_contracts-create-btn\"]",
+        "type": "callout",
+        "label": "신규 수주 파이프라인",
+        "description": "고객사, 품목, 수량을 선택하여 즉시 수주 전표를 생성합니다.",
+        "positionHint": "bottom"
       }
     ],
     "processes": [
       {
-        "id": "tc_proc_1",
-        "title": "신규 수주 체결 흐름",
+        "processId": "trade_contract_flow",
+        "title": "유통 계약서 편집 및 이메일 발송 절차",
+        "description": "수주 등록부터 계약 조건 편집, 엑셀 생성, 안전 격리 이메일 발송까지의 표준 절차입니다.",
         "steps": [
           {
-            "text": "좌상단의 [고객사 검색] 창에 기업명을 입력하여 대상을 지정하세요.",
-            "selector": ".customer-search"
+            "seq": 1,
+            "selector": "[data-mid=\"trade_contracts-customer-select\"]",
+            "type": "click_ripple",
+            "label": "거래처 및 품목 선택",
+            "description": "수주 파이프라인에서 거래처와 유통 상품, 수량을 입력합니다.",
+            "positionHint": "bottom"
           },
           {
-            "text": "우상단의 [양식 자동 채우기] 버튼을 누르거나 중앙의 [품목 추가]를 통해 판매할 상품을 나열하세요.",
-            "selector": ".btn-add-item"
+            "seq": 2,
+            "selector": "[data-mid=\"trade_contracts-create-btn\"]",
+            "type": "stamp",
+            "label": "수주 등록 완료",
+            "description": "수주 등록 버튼을 클릭하여 계약 대장에 전표를 추가합니다.",
+            "positionHint": "bottom"
           },
           {
-            "text": "각 상품별 [수량] 및 [단가] 입력칸에 숫자를 기입하고 이윤율을 확인하세요.",
-            "selector": ".item-qty-input"
+            "seq": 3,
+            "selector": "[data-mid*=\"trade_contracts-action-btn\"]",
+            "type": "click_ripple",
+            "label": "계약서/이메일 모달 오픈",
+            "description": "테이블 최좌측의 [계약서/이메일 ➔] 액션 버튼을 클릭합니다.",
+            "positionHint": "right"
           },
           {
-            "text": "우하단의 [수주 체결 승인] 버튼을 클릭해 물류팀으로 출고 지시를 넘기세요.",
-            "selector": ".btn-submit"
+            "seq": 4,
+            "selector": "[data-mid=\"trade_contract_modal-save_terms_btn\"]",
+            "type": "stamp",
+            "label": "계약 조항 및 특약 저장",
+            "description": "납품기한, 인도장소, 결제조건, 특약사항을 입력하고 계약 조건을 저장합니다.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 5,
+            "selector": "[data-mid=\"trade_contract_modal-download_excel_btn\"]",
+            "type": "click_ripple",
+            "label": "표준 엑셀 계약서 확인",
+            "description": "엑셀 다운로드 또는 에이전트로 열기를 통해 생성된 계약서 서식을 검토합니다.",
+            "positionHint": "bottom"
+          },
+          {
+            "seq": 6,
+            "selector": "[data-mid=\"trade_contract_modal-test_mode_toggle\"]",
+            "type": "stamp",
+            "label": "헌장 5.9조 안전 격리 확인",
+            "description": "테스트 모드(admin@ebro.co.kr 격리) 여부를 확인하고 실제 발송 시 해제합니다.",
+            "positionHint": "top"
+          },
+          {
+            "seq": 7,
+            "selector": "[data-mid=\"trade_contract_modal-send_email_btn\"]",
+            "type": "click_ripple",
+            "label": "계약서 이메일 발송 완결",
+            "description": "계약서 이메일 발송 버튼을 클릭하여 거래처 전송 및 이력을 영구 보존합니다.",
+            "positionHint": "top"
           }
         ]
       }
-    ],
-    "version": 3
+    ]
   },
   {
     "menuId": "trade_outbounds",

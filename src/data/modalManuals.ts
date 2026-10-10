@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 // src/data/modalManuals.ts
 // 전사 팝업(모달) 전용 표준 업무 매뉴얼 및 활성 모달 DOM 자동 감지 엔진 (SSOT)
 import type { ManualPage, ManualAnnotationItem } from '../types/manual';
@@ -1004,7 +1004,172 @@ export const MODAL_MANUAL_REGISTRY: Record<string, {
     ]
   },
 
-    // ── 20. 일반 팝업(모달) 공통 폴백 매뉴얼 ──
+  // ── 21. 유통 물품매매계약서 양식 편집 및 이메일 발송 모달 ──
+  modal_trade_contract_bundle: {
+    modalId: 'modal_trade_contract_bundle',
+    modalName: '유통 물품매매계약서 양식 편집 및 이메일 발송',
+    category: '유통/계약',
+    keywords: [
+      '물품매매계약서', '유통 물품매매계약서', '유통 계약서', '계약서 양식', '양식 편집',
+      '계약서/이메일', 'trade_contract', '엑셀 계약서'
+    ],
+    annotations: [
+      {
+        seq: 1,
+        selector: '[data-mid="trade_contract_modal-title"]',
+        type: 'callout',
+        label: '계약서 스튜디오 헤더 및 상태 배지',
+        description: '주문번호별 계약서 작성 상태(작성대기 / 양식생성됨 / 발송완료)를 확인합니다.',
+        badgeColor: '#1D4ED8',
+        positionHint: 'bottom',
+        spotlight: true,
+      },
+      {
+        seq: 2,
+        selector: '[data-mid="trade_contract_modal-contract_date"], [data-mid="trade_contract_modal-delivery_date"]',
+        type: 'stamp',
+        label: '계약일자 및 납품기한',
+        description: '공식 계약 체결 일자와 물품 현장 납품 마감 기한을 지정합니다.',
+        badgeColor: '#059669',
+        positionHint: 'bottom',
+        spotlight: false,
+      },
+      {
+        seq: 3,
+        selector: '[data-mid="trade_contract_modal-delivery_location"]',
+        type: 'stamp',
+        label: '인도 장소 및 현장 주기장',
+        description: '매수인이 지정한 본점 주소 또는 공사 현장/주기장 하차 장소를 기재합니다.',
+        badgeColor: '#2563EB',
+        positionHint: 'bottom',
+        spotlight: false,
+      },
+      {
+        seq: 4,
+        selector: '[data-mid="trade_contract_modal-payment_terms"]',
+        type: 'stamp',
+        label: '대금 결제 조항',
+        description: '물품 납품 및 검수 완료 후 세금계산서 발행일 기준 결제 기한을 명시합니다.',
+        badgeColor: '#D97706',
+        positionHint: 'bottom',
+        spotlight: false,
+      },
+      {
+        seq: 5,
+        selector: '[data-mid="trade_contract_modal-special_terms"]',
+        type: 'stamp',
+        label: '5대 표준 특약 사항',
+        description: '운송비 부담 주체, 검수 기한(3영업일), 하자 발생 시 무상 맞교환 등 특약을 정의합니다.',
+        badgeColor: '#7C3AED',
+        positionHint: 'top',
+        spotlight: false,
+      },
+      {
+        seq: 6,
+        selector: '[data-mid="trade_contract_modal-save_terms_btn"]',
+        type: 'click_ripple',
+        label: '계약 조건 저장',
+        description: '수정된 납품/결제/특약 조건을 유통 수주 DB에 즉시 동기화합니다.',
+        badgeColor: '#0D9488',
+        positionHint: 'top',
+        spotlight: false,
+      },
+      {
+        seq: 7,
+        selector: '[data-mid="trade_contract_modal-download_excel_btn"], [data-mid="trade_contract_modal-open_excel_agent_btn"]',
+        type: 'click_ripple',
+        label: '표준 엑셀 계약서 다운로드 및 에이전트 연동',
+        description: 'ExcelJS 기반 표준 물품매매계약서(.xlsx) 파일을 다운로드하거나 로컬 에이전트로 즉시 실행합니다.',
+        badgeColor: '#16A34A',
+        positionHint: 'bottom',
+        spotlight: true,
+      },
+      {
+        seq: 8,
+        selector: '[data-mid="trade_contract_modal-test_mode_toggle"]',
+        type: 'stamp',
+        label: '헌장 5.9조 안전 격리 테스트 모드',
+        description: '외부 오발송을 차단하기 위해 테스트 모드 활성 시 개발자 계정(admin@ebro.co.kr)으로만 격리 발송합니다.',
+        badgeColor: '#E11D48',
+        positionHint: 'top',
+        spotlight: true,
+      },
+      {
+        seq: 9,
+        selector: '[data-mid="trade_contract_modal-recipient_email"], [data-mid="trade_contract_modal-email_subject"]',
+        type: 'stamp',
+        label: '거래처 수신 이메일 및 발송 안내문',
+        description: '거래처 담당자 이메일 주소와 정식 계약서 송부 안내 본문을 검토합니다.',
+        badgeColor: '#4F46E5',
+        positionHint: 'bottom',
+        spotlight: false,
+      },
+      {
+        seq: 10,
+        selector: '[data-mid="trade_contract_modal-send_email_btn"]',
+        type: 'click_ripple',
+        label: '계약서 이메일 발송 완결',
+        description: '엑셀 계약서를 첨부하여 이메일을 발송하고 발송 시각 및 수신처를 영구 보존합니다.',
+        badgeColor: '#10B981',
+        positionHint: 'top',
+        spotlight: true,
+      },
+    ],
+  },
+
+  // ── 22. 시스템 에러 및 업무 안내 모달 ──
+  modal_error_and_guidance: {
+    modalId: 'modal_error_and_guidance',
+    modalName: '시스템 에러 및 업무 안내 창구',
+    category: '시스템 공통',
+    keywords: [
+      '시스템 에러', '시스템 오류', '오류 발생', '업무 안내', '선결 조건', '처리 불가', '안내'
+    ],
+    annotations: [
+      {
+        seq: 1,
+        selector: '.card h3, [data-mid*="error-title"], [data-mid*="guidance-title"], h3',
+        type: 'callout',
+        label: '모달 목적 및 디자인 위계 식별',
+        description: '코드 예외 및 DB 장애는 강렬한 레드 악센트(시스템 에러), 선결 조건 미비 및 단순 사용자 안내는 차분한 블루/슬레이트 악센트(업무 안내)로 자동 이원화 표시됩니다.',
+        badgeColor: '#1D4ED8',
+        positionHint: 'bottom',
+        spotlight: true,
+      },
+      {
+        seq: 2,
+        selector: '.error-message, .guidance-message, div[style*="lineHeight"]',
+        type: 'stamp',
+        label: '오류 원인 및 선결 조건 안내 본문',
+        description: '진행할 수 없는 근본 원인(선결 처리 부재, 필수값 누락, 계약일자 전후 불일치 등)을 명확히 파악합니다.',
+        badgeColor: '#D97706',
+        positionHint: 'bottom',
+        spotlight: false,
+      },
+      {
+        seq: 3,
+        selector: 'button:contains("오류 복사"), button:contains("복사")',
+        type: 'click_ripple',
+        label: '[시스템 에러 전용] 기술 스택 복사',
+        description: '시스템 코드 에러 발생 시 개발팀 디버깅을 위해 스택 트레이스를 클립보드에 원클릭 복사합니다. (업무 안내 시에는 불필요하여 자동 제거됨)',
+        badgeColor: '#E53935',
+        positionHint: 'top',
+        spotlight: false,
+      },
+      {
+        seq: 4,
+        selector: 'button:contains("닫기"), button:contains("확인"), button.btn-secondary',
+        type: 'click_ripple',
+        label: '창 닫기 및 선결 업무 이행',
+        description: '모달을 닫고 안내받은 선결 처리나 입력값을 보완한 뒤 후속 절차를 다시 진행합니다.',
+        badgeColor: '#10B981',
+        positionHint: 'top',
+        spotlight: true,
+      },
+    ],
+  },
+
+  // ── 23. 일반 팝업(모달) 공통 폴백 매뉴얼 ──
   modal_generic_dialog: {
     modalId: 'modal_generic_dialog',
     modalName: '팝업 창구 업무 가이드',
