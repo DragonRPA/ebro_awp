@@ -2123,6 +2123,15 @@ export const SmartDispatch4: React.FC = () => {
         <td style="text-align:center; font-size:7.5pt;">${right ? '[ &nbsp; ]' : '&nbsp;'}</td>
       </tr>`;
     }
+    const noteLines = String(orderNote || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const noteRowsHtml = noteLines.length === 0
+      ? `<tr><th class="nowrap">요청사항</th><td class="wrap-text" style="line-height: 1.35; padding: 3px 5px !important;">특이사항 없음</td></tr>`
+      : noteLines.map((line, idx) => `
+        <tr>
+          <th class="nowrap">${idx === 0 ? '요청사항' : `요청사항 (${idx + 1})`}</th>
+          <td class="wrap-text" style="line-height: 1.35; padding: 3px 5px !important; white-space: pre-wrap; word-break: break-all;">${line}</td>
+        </tr>
+      `).join('');
 
     const html = `<!DOCTYPE html>
 <html lang="ko">
@@ -2376,10 +2385,7 @@ export const SmartDispatch4: React.FC = () => {
               <td class="wrap-text" style="font-weight: 700;">자산 #${orderRetrievalAssetIds.join(', #')} (총 ${orderRetrievalAssetIds.length}대 회수)</td>
             </tr>
           ` : ''}
-          <tr>
-            <th class="nowrap">요청사항</th>
-            <td class="wrap-text" style="line-height: 1.3;">${orderNote || '특이사항 없음'}</td>
-          </tr>
+          ${noteRowsHtml}
         </tbody>
       </table>
     </div>

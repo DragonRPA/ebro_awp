@@ -541,6 +541,19 @@ export const TruckDispatch: React.FC = () => {
 
     if (!cleanNoteForPrint) cleanNoteForPrint = '특이사항 없음';
 
+    const rawNoteList = cleanNoteForPrint === '특이사항 없음'
+      ? []
+      : cleanNoteForPrint.split(/\r?\n| \| /).map(s => s.trim()).filter(s => s && s !== '-' && s !== '없음');
+
+    const noteRowsHtml = rawNoteList.length === 0
+      ? `<tr><th class="nowrap">요청사항</th><td class="wrap-text" style="line-height: 1.35; padding: 3px 5px !important;">특이사항 없음</td></tr>`
+      : rawNoteList.map((line, idx) => `
+        <tr>
+          <th class="nowrap">${idx === 0 ? '요청사항' : `요청사항 (${idx + 1})`}</th>
+          <td class="wrap-text" style="line-height: 1.35; padding: 3px 5px !important; white-space: pre-wrap; word-break: break-all;">${line}</td>
+        </tr>
+      `).join('');
+
     return `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -683,7 +696,7 @@ export const TruckDispatch: React.FC = () => {
       <colgroup><col style="width: 12%;"><col style="width: 88%;"></colgroup>
       ${staggeredMemo ? `<tr><th class="nowrap">시차출고</th><td class="wrap-text" style="font-weight: 700;">${staggeredMemo}</td></tr>` : ''}
       ${retrievalMemo ? `<tr><th class="nowrap">대차 회수대상</th><td class="wrap-text" style="font-weight: 700;">${retrievalMemo}</td></tr>` : ''}
-      <tr><th class="nowrap">요청사항</th><td class="wrap-text" style="line-height: 1.3;">${cleanNoteForPrint}</td></tr>
+      ${noteRowsHtml}
       ${!isOutbound && returnAssets.some(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR') ? `<tr><th class="nowrap" style="color: #dc2626; font-weight: 800;">옵션 주의</th><td class="wrap-text" style="color: #dc2626; font-weight: 800; background-color: #fee2e2;">🚨 [임차처 소유 협착방지봉 탈거 절대 금지] ${returnAssets.filter(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR').map(a => `${a.assetNo}(${a.modelName})`).join(', ')} 장비는 임차거래처 소유 협착방지봉이 장착되어 있으므로 주기장 입고 시 절대 탈거(제거)하지 마십시오!</td></tr>` : ''}
     </table>
   </div>
