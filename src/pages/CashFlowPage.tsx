@@ -2,6 +2,8 @@
 import { useApp } from '../context/AppContext';
 import { useCashFlowReport } from '../hooks/useCashFlowReport';
 import { AlertTriangle, Download, DollarSign, Activity, TrendingDown, CheckCircle } from 'lucide-react';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 export const CashFlowPage: React.FC = () => {
   const [targetMonth, setTargetMonth] = useState(() => {
@@ -11,6 +13,8 @@ export const CashFlowPage: React.FC = () => {
 
   const report = useCashFlowReport(targetMonth);
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
+  const { sortedData: sortedGrid, sortKey: cfSortKey, sortDirection: cfSortDir, handleSort: handleCfSort } = useSortableData(report.masterGrid);
+
 
   if (!report.integrity.isValid) {
     return (
@@ -69,23 +73,23 @@ export const CashFlowPage: React.FC = () => {
       </aside>
 
       {/* 3. 중앙 (Weak Fallow) - 마스터 그리드 */}
-      <section data-mid="cash_flow-inspection-grid" className="card" style={{ gridColumn: 1, gridRow: 2, overflowY: 'auto' }}>
-        <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
+      <section data-mid="cash_flow-inspection-grid" className="card table-container" style={{ gridColumn: 1, gridRow: 2, maxHeight: 'calc(100vh - 280px)', overflowX: 'auto', overflowY: 'auto' }}>
+        <div style={{ padding: '16px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', position: 'sticky', top: 0, zIndex: 3 }}>
           <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Activity size={18} /> 현금흐름 요약표
           </h3>
         </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-          <thead style={{ backgroundColor: 'var(--bg-app)', borderBottom: '2px solid var(--border-color)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', whiteSpace: 'nowrap' }}>
+          <thead style={{ backgroundColor: 'var(--bg-app)', borderBottom: '2px solid var(--border-color)', position: 'sticky', top: '53px', zIndex: 2 }}>
             <tr>
-              <th style={{ padding: '12px', textAlign: 'left', fontWeight: 600 }}>구분</th>
-              <th style={{ padding: '12px', textAlign: 'right', fontWeight: 600 }}>유입액</th>
-              <th style={{ padding: '12px', textAlign: 'right', fontWeight: 600 }}>유출액</th>
-              <th style={{ padding: '12px', textAlign: 'right', fontWeight: 600 }}>순현금흐름</th>
+              <SortableTh label="구분" sortKey="category" currentSortKey={cfSortKey} currentDirection={cfSortDir} onSort={handleCfSort} />
+              <SortableTh label="유입액" sortKey="inflow" currentSortKey={cfSortKey} currentDirection={cfSortDir} onSort={handleCfSort} align="right" />
+              <SortableTh label="유출액" sortKey="outflow" currentSortKey={cfSortKey} currentDirection={cfSortDir} onSort={handleCfSort} align="right" />
+              <SortableTh label="순현금흐름" sortKey="net" currentSortKey={cfSortKey} currentDirection={cfSortDir} onSort={handleCfSort} align="right" />
             </tr>
           </thead>
           <tbody>
-            {report.masterGrid.map((row, idx) => (
+            {sortedGrid.map((row, idx) => (
               <tr 
                 key={idx} 
                 onClick={() => setSelectedRow(idx)}

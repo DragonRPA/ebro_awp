@@ -5,6 +5,8 @@ import {
   HelpCircle, RefreshCw, FileText, Settings, Plus, Trash2, Edit3, Save, X, Lightbulb
 } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 interface PurchaseCategory {
   categoryId: string;
@@ -55,7 +57,10 @@ export const CorporateCardPage: React.FC = () => {
   // 3. 정산 및 거래내역 상태
   const [selectedMonth, setSelectedMonth] = useState('2026-07');
   const [isUploaded, setIsUploaded] = useState(false);
+
   const [transactions, setTransactions] = useState<any[]>([]);
+  const { items: sortedTransactions, requestSort: requestSortTx, sortConfig: sortConfigTx } = useSortableData(transactions);
+  const { items: sortedCategories, requestSort: requestSortCat, sortConfig: sortConfigCat } = useSortableData(categories);
   const [actualAmounts, setActualAmounts] = useState<Record<string, number>>({});
   // 토스트 알림 상태 (헌장 5.2: 브라우저 alert/confirm 전면 퇴출)
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -558,20 +563,21 @@ export const CorporateCardPage: React.FC = () => {
                 좌측에서 법인카드 거래내역 파일을 업로드해 주십시오.
               </div>
             ) : (
-              <table style={{ width: '100%', fontSize: '11.5px' }}>
-                <thead>
-                  <tr>
-                    <th>승인번호</th>
-                    <th>거래일시</th>
-                    <th>사용사원</th>
-                    <th>가맹점 (금액)</th>
-                    <th>매칭여부</th>
-                    <th>회계 계정과목 배정</th>
-                    <th>연결 전표 명세</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transactions.map(tx => (
+              <div className="table-container" style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto', overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+                <table style={{ width: '100%', fontSize: '11.5px' }}>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-card)' }}>
+                    <tr>
+                      <SortableTh label="승인번호" sortKey="approvalNo" currentSort={sortConfigTx} onSort={requestSortTx} />
+                      <SortableTh label="거래일시" sortKey="transactionDate" currentSort={sortConfigTx} onSort={requestSortTx} />
+                      <SortableTh label="사용사원" sortKey="employeeName" currentSort={sortConfigTx} onSort={requestSortTx} />
+                      <SortableTh label="가맹점" sortKey="merchantName" currentSort={sortConfigTx} onSort={requestSortTx} />
+                      <SortableTh label="매칭여부" sortKey="status" currentSort={sortConfigTx} onSort={requestSortTx} />
+                      <SortableTh label="회계 계정과목 배정" sortKey="accountCode" currentSort={sortConfigTx} onSort={requestSortTx} />
+                      <th style={{ whiteSpace: 'nowrap' }}>연결 전표 명세</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedTransactions.map(tx => (
                     <tr key={tx.approvalNo}>
                       <td><code>{tx.approvalNo}</code></td>
                       <td>{tx.transactionDate}</td>
@@ -618,7 +624,8 @@ export const CorporateCardPage: React.FC = () => {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+                </table>
+              </div>
             )}
           </div>
 
@@ -717,20 +724,21 @@ export const CorporateCardPage: React.FC = () => {
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>당월 정산 누락 검증 대조 데이터로 직접 연동됨</span>
             </div>
 
-            <table style={{ width: '100%', fontSize: '12px' }}>
-              <thead>
-                <tr>
-                  <th>매입유형 항목명</th>
-                  <th>계정과목</th>
-                  <th>결제유형</th>
-                  <th style={{ textAlign: 'right' }}>월 기본예상액</th>
-                  <th style={{ textAlign: 'center' }}>증빙 필수</th>
-                  <th style={{ textAlign: 'center' }}>검증 상태</th>
-                  <th style={{ textAlign: 'center' }}>관리</th>
-                </tr>
-              </thead>
-              <tbody>
-                {categories.map(c => (
+            <div className="table-container" style={{ maxHeight: 'calc(100vh - 300px)', overflowY: 'auto', overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+              <table style={{ width: '100%', fontSize: '12px' }}>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-card)' }}>
+                  <tr>
+                    <SortableTh label="매입유형 항목명" sortKey="categoryName" currentSort={sortConfigCat} onSort={requestSortCat} />
+                    <SortableTh label="계정과목" sortKey="accountCode" currentSort={sortConfigCat} onSort={requestSortCat} />
+                    <SortableTh label="결제유형" sortKey="paymentMethod" currentSort={sortConfigCat} onSort={requestSortCat} />
+                    <SortableTh label="월 기본예상액" sortKey="defaultExpectedAmount" currentSort={sortConfigCat} onSort={requestSortCat} align="right" />
+                    <SortableTh label="증빙 필수" sortKey="isRequiredProof" currentSort={sortConfigCat} onSort={requestSortCat} align="center" />
+                    <SortableTh label="검증 상태" sortKey="isActive" currentSort={sortConfigCat} onSort={requestSortCat} align="center" />
+                    <th style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>관리</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedCategories.map(c => (
                   <tr key={c.categoryId} style={{ opacity: c.isActive ? 1 : 0.45 }}>
                     <td>
                       <strong>{c.categoryName}</strong>
@@ -768,7 +776,8 @@ export const CorporateCardPage: React.FC = () => {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
 
         </div>

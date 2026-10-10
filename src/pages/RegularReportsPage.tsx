@@ -2,11 +2,15 @@
 import { Download, FileText, CheckCircle2, TrendingUp, AlertTriangle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useCashFlowReport } from '../hooks/useCashFlowReport';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 export const RegularReportsPage: React.FC = () => {
   const [targetYm, setTargetYm] = useState<string>('2026-08');
   const app = useApp();
   const cfReport = useCashFlowReport(targetYm);
+  const { sortedData: sortedBadDebt, sortKey: badDebtSortKey, sortDirection: badDebtSortDir, handleSort: handleBadDebtSort } = useSortableData(cfReport.badDebtList);
+  const { sortedData: sortedLeakage, sortKey: leakSortKey, sortDirection: leakSortDir, handleSort: handleLeakSort } = useSortableData(cfReport.assetLeakageList);
   
   // Fake printing/download trigger
   const handleDownload = () => {
@@ -57,45 +61,45 @@ export const RegularReportsPage: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', flex: 1 }}>
-        <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--danger)' }}>🔥 주요 악성 미수 채권 (출혈 지수 순)</h2>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead style={{ backgroundColor: 'var(--bg-app)', borderBottom: '2px solid var(--border-color)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', flex: 1, minHeight: 0 }}>
+        <div className="card table-container" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 350px)' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--danger)' }}>악성 미수 채권</h2>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', whiteSpace: 'nowrap' }}>
+            <thead style={{ backgroundColor: 'var(--bg-app)', borderBottom: '2px solid var(--border-color)', position: 'sticky', top: 0, zIndex: 2 }}>
               <tr>
-                <th style={{ padding: '12px', textAlign: 'left' }}>거래처명</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>총 미수금</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>90일 초과 악성</th>
+                <SortableTh label="거래처명" sortKey="customerName" currentSortKey={badDebtSortKey} currentDirection={badDebtSortDir} onSort={handleBadDebtSort} />
+                <SortableTh label="총 미수금" sortKey="totalReceivable" currentSortKey={badDebtSortKey} currentDirection={badDebtSortDir} onSort={handleBadDebtSort} align="right" />
+                <SortableTh label="90일 초과 악성" sortKey="badDebtAmount" currentSortKey={badDebtSortKey} currentDirection={badDebtSortDir} onSort={handleBadDebtSort} align="right" />
               </tr>
             </thead>
             <tbody>
-              {cfReport.badDebtList.map(item => (
+              {sortedBadDebt.map(item => (
                 <tr key={item.customerId} style={{ borderBottom: '1px solid var(--border-color)' }}>
                   <td style={{ padding: '12px', fontWeight: 600 }}>{item.customerName}</td>
                   <td style={{ padding: '12px', textAlign: 'right' }}>{item.totalReceivable.toLocaleString()}</td>
                   <td style={{ padding: '12px', textAlign: 'right', color: 'var(--danger)', fontWeight: 700 }}>{item.badDebtAmount.toLocaleString()}</td>
                 </tr>
               ))}
-              {cfReport.badDebtList.length === 0 && (
+              {sortedBadDebt.length === 0 && (
                 <tr><td colSpan={3} style={{ textAlign: 'center', padding: '24px' }}>악성 미수 채권이 없습니다.</td></tr>
               )}
             </tbody>
           </table>
         </div>
 
-        <div className="card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--warning)' }}>⚠️ 비용 누수 자산 (수리비 &gt; 임대료)</h2>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead style={{ backgroundColor: 'var(--bg-app)', borderBottom: '2px solid var(--border-color)' }}>
+        <div className="card table-container" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 350px)' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: 'var(--warning)' }}>비용 누수 자산</h2>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', whiteSpace: 'nowrap' }}>
+            <thead style={{ backgroundColor: 'var(--bg-app)', borderBottom: '2px solid var(--border-color)', position: 'sticky', top: 0, zIndex: 2 }}>
               <tr>
-                <th style={{ padding: '12px', textAlign: 'left' }}>장비 번호</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>월 렌탈 수익</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>당월 수리비용</th>
-                <th style={{ padding: '12px', textAlign: 'right' }}>순손실</th>
+                <SortableTh label="장비 번호" sortKey="assetNo" currentSortKey={leakSortKey} currentDirection={leakSortDir} onSort={handleLeakSort} />
+                <SortableTh label="월 렌탈 수익" sortKey="revenue" currentSortKey={leakSortKey} currentDirection={leakSortDir} onSort={handleLeakSort} align="right" />
+                <SortableTh label="당월 수리비용" sortKey="repairCost" currentSortKey={leakSortKey} currentDirection={leakSortDir} onSort={handleLeakSort} align="right" />
+                <SortableTh label="순손실" sortKey="profit" currentSortKey={leakSortKey} currentDirection={leakSortDir} onSort={handleLeakSort} align="right" />
               </tr>
             </thead>
             <tbody>
-              {cfReport.assetLeakageList.map(item => (
+              {sortedLeakage.map(item => (
                 <tr key={item.assetId} style={{ borderBottom: '1px solid var(--border-color)' }}>
                   <td style={{ padding: '12px', fontWeight: 600 }}>{item.assetNo}</td>
                   <td style={{ padding: '12px', textAlign: 'right', color: 'var(--success)' }}>{item.revenue.toLocaleString()}</td>

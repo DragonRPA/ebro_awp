@@ -8,6 +8,8 @@ import {
   Printer, Zap
 } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 import { db, BankTransaction, isActivePayment, isActiveDepositLink } from '../services/db';
 import { getTenantPlugin } from '../integrations/TenantPluginManager';
 import { matchHangul, sortCustomersByName } from '../utils/hangulSearch';
@@ -469,7 +471,7 @@ export const BankMatching: React.FC = () => {
 
   // 5. 엑셀 다운로드
   const handleExport = () => {
-    const excelData = filteredTransactions.map((t, idx) => {
+    const excelData = sortedTransactions.map((t, idx) => {
       const linkedLinks = (paymentDepositLinks || []).filter(l => l.bankTransactionId === t.id && l.usedAmount > 0 && isActiveDepositLink(l));
       const matchPrefix = `pay-matching-${t.id}`;
       const txPayments = payments.filter(p => p.id.startsWith(matchPrefix) && isActivePayment(p));
@@ -602,6 +604,8 @@ export const BankMatching: React.FC = () => {
     }
     return true;
   }).sort((a, b) => b.transactionDate.localeCompare(a.transactionDate));
+
+  const { items: sortedTransactions, requestSort, sortConfig } = useSortableData(filteredTransactions);
 
   // 자동 매칭 가능 건수 집계
   const autoMatchableCount = useMemo(() => {
@@ -1290,21 +1294,21 @@ export const BankMatching: React.FC = () => {
           </div>
 
           {/* 데이터 테이블 (헌장 3.6: 유형 B 고밀도 슬림 그리드, 38~42px 행, Col 0 Sticky 고정) */}
-          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto' }}>
+          <div className="table-container" style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
             <table data-uia="table-bank-matching-grid" style={{ width: '100%', minWidth: '1100px', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
-              <thead>
+<thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-card-header)' }}>
                 <tr style={{ backgroundColor: 'var(--bg-card-header)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', width: '150px', position: 'sticky', left: 0, zIndex: 2, backgroundColor: 'var(--bg-card-header)' }}>수납/지급 대사</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>은행명</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>거래일시</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>적요</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>기재내용 (상호/거래처)</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', textAlign: 'right' }}>입금액 대비 수납결과</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', textAlign: 'right' }}>출금액 대비 정산결과</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', textAlign: 'right' }}>거래후 잔액</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>취급/거래점</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>매칭 정보 (청구/정산)</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>메모</th>
+                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap', width: '150px', position: 'sticky', left: 0, zIndex: 3, backgroundColor: 'var(--bg-card-header)' }}>수납/지급 대사</th>
+                  <SortableTh label="은행명" sortKey="bankName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px', whiteSpace: 'nowrap' }} />
+                  <SortableTh label="거래일시" sortKey="transactionDate" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px', whiteSpace: 'nowrap' }} />
+                  <SortableTh label="적요" sortKey="summary" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px', whiteSpace: 'nowrap' }} />
+                  <SortableTh label="기재내용" sortKey="senderName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px', whiteSpace: 'nowrap' }} />
+                  <SortableTh label="입금액 대비 수납결과" sortKey="depositAmount" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px', whiteSpace: 'nowrap' }} align="right" />
+                  <SortableTh label="출금액 대비 정산결과" sortKey="withdrawAmount" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px', whiteSpace: 'nowrap' }} align="right" />
+                  <SortableTh label="거래후 잔액" sortKey="balance" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px', whiteSpace: 'nowrap' }} align="right" />
+                  <SortableTh label="취급/거래점" sortKey="branchName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px', whiteSpace: 'nowrap' }} />
+                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>매칭 정보</th>
+                  <SortableTh label="메모" sortKey="memo" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px', whiteSpace: 'nowrap' }} />
                 </tr>
               </thead>
               <tbody>
@@ -1315,7 +1319,7 @@ export const BankMatching: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredTransactions.map((tx) => {
+                  sortedTransactions.map((tx) => {
                     const linkedLinks = (paymentDepositLinks || []).filter(l => l.bankTransactionId === tx.id && l.usedAmount > 0 && isActiveDepositLink(l));
                     const remBal = getDepositBalance(tx.id);
                     const usedDeposit = getDepositUsedAmount(tx.id);

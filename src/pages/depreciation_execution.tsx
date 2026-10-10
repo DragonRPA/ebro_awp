@@ -4,6 +4,8 @@ import { useApp } from '../context/AppContext';
 import { TrendingUp, Calculator, Calendar, CheckCircle2, History, AlertCircle, ShieldAlert, Download } from 'lucide-react';
 import { calculateAssetDepreciation, db } from '../services/db';
 import { exportToExcel } from '../services/excel';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 export const DepreciationExecution: React.FC = () => {
   const { assets, depreciationLogs, executeMonthlyDepreciation, cancelMonthlyDepreciation, currentUser, hasPermission, showErrorModal } = useApp();
@@ -11,6 +13,7 @@ export const DepreciationExecution: React.FC = () => {
 
   const todayYm = new Date().toISOString().substring(0, 7); // 'YYYY-MM'
   const [selectedYm, setSelectedYm] = useState<string>(todayYm);
+  const { sortedData: sortedDepLogs, sortKey: depSortKey, sortDirection: depSortDir, handleSort: handleDepSort } = useSortableData(depreciationLogs);
   const [note, setNote] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   // 토스트 알림 상태 (헌장 5.2: 브라우저 alert/confirm 전면 퇴출)
@@ -214,7 +217,7 @@ export const DepreciationExecution: React.FC = () => {
       showToast('내보낼 결산 마감 이력이 없습니다.', 'error');
       return;
     }
-    const rows = depreciationLogs.map((log, idx) => ({
+    const rows = sortedDepLogs.map((log, idx) => ({
       'No': idx + 1,
       '이력ID': log.id,
       '마감연월': log.depreciationYm,
@@ -397,28 +400,28 @@ export const DepreciationExecution: React.FC = () => {
           </button>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px' }}>
-            <thead>
+        <div className="table-container" style={{ maxHeight: 'calc(100vh - 350px)', overflowX: 'auto', overflowY: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px', whiteSpace: 'nowrap' }}>
+            <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-secondary)' }}>
               <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
-                <th style={{ padding: '8px', textAlign: 'center' }}>이력 ID</th>
-                <th style={{ padding: '8px', textAlign: 'center' }}>마감 연월</th>
-                <th style={{ padding: '8px', textAlign: 'center' }}>마감 실행일시</th>
-                <th style={{ padding: '8px', textAlign: 'center' }}>실행자</th>
-                <th style={{ padding: '8px', textAlign: 'right' }}>대상 자산수</th>
-                <th style={{ padding: '8px', textAlign: 'right' }}>당월 상각 총액</th>
-                <th style={{ padding: '8px', textAlign: 'left' }}>비고 메모</th>
+                <SortableTh label="이력 ID" sortKey="id" currentSortKey={depSortKey} currentDirection={depSortDir} onSort={handleDepSort} align="center" />
+                <SortableTh label="마감 연월" sortKey="depreciationYm" currentSortKey={depSortKey} currentDirection={depSortDir} onSort={handleDepSort} align="center" />
+                <SortableTh label="마감 실행일시" sortKey="executedAt" currentSortKey={depSortKey} currentDirection={depSortDir} onSort={handleDepSort} align="center" />
+                <SortableTh label="실행자" sortKey="executedBy" currentSortKey={depSortKey} currentDirection={depSortDir} onSort={handleDepSort} align="center" />
+                <SortableTh label="대상 자산수" sortKey="targetAssetCount" currentSortKey={depSortKey} currentDirection={depSortDir} onSort={handleDepSort} align="right" />
+                <SortableTh label="당월 상각 총액" sortKey="totalDepreciationAmount" currentSortKey={depSortKey} currentDirection={depSortDir} onSort={handleDepSort} align="right" />
+                <SortableTh label="비고 메모" sortKey="note" currentSortKey={depSortKey} currentDirection={depSortDir} onSort={handleDepSort} />
               </tr>
             </thead>
             <tbody>
-              {depreciationLogs.length === 0 ? (
+              {sortedDepLogs.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
                     아직 실행된 감가상각 결산 마감 내역이 없습니다.
                   </td>
                 </tr>
               ) : (
-                depreciationLogs.map(log => (
+                sortedDepLogs.map(log => (
                   <tr key={log.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '8px', textAlign: 'center', fontWeight: 'bold', color: 'var(--text-muted)' }}>{log.id}</td>
                     <td style={{ padding: '8px', textAlign: 'center', fontWeight: 'bold', color: 'var(--primary)' }}>{log.depreciationYm}</td>

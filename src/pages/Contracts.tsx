@@ -1862,19 +1862,19 @@ export const Contracts: React.FC = () => {
                 <thead style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'var(--bg-app)' }}>
                   <tr style={{ backgroundColor: 'var(--bg-app)', whiteSpace: 'nowrap' }}>
                     <th style={{ textAlign: 'center', whiteSpace: 'nowrap', width: '80px' }}>상세 보기</th>
-                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('contractNo')}>계약번호{sortConfig?.key === 'contractNo' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
-                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('customer')}>고객사명{sortConfig?.key === 'customer' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
-                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('site')}>현장명{sortConfig?.key === 'site' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <SortableTh label="계약번호" sortKey="contractNo" currentSort={sortConfig} onSort={handleSort} />
+                    <SortableTh label="고객사명" sortKey="customer" currentSort={sortConfig} onSort={handleSort} />
+                    <SortableTh label="현장명" sortKey="site" currentSort={sortConfig} onSort={handleSort} />
                     {showOutboundProgressCol && <th style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>출고 진행 현황</th>}
-                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('assets')}>체결 자산{sortConfig?.key === 'assets' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
-                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('rentalFee')}>월 렌탈료{sortConfig?.key === 'rentalFee' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
-                    {showPeriodCol && <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('period')}>계약 기간{sortConfig?.key === 'period' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>}
-                    {showLastBilledCol && <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('billingPeriod')}>최근 청구 기간{sortConfig?.key === 'billingPeriod' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>}
-                    {showBillingCountCol && <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('billingCount')}>청구 건수{sortConfig?.key === 'billingCount' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>}
-                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('dday')}>만료 D-Day{sortConfig?.key === 'dday' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
-                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('billingDay')}>청구 마감일{sortConfig?.key === 'billingDay' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
-                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('salesperson')}>영업담당{sortConfig?.key === 'salesperson' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
-                    <th style={{ whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => handleSort('status')}>상태{sortConfig?.key === 'status' ? (sortConfig.direction === 'asc' ? ' ▲' : ' ▼') : ''}</th>
+                    <SortableTh label="체결 자산" sortKey="assets" currentSort={sortConfig} onSort={handleSort} />
+                    <SortableTh label="월 렌탈료" sortKey="rentalFee" currentSort={sortConfig} onSort={handleSort} align="right" />
+                    {showPeriodCol && <SortableTh label="계약 기간" sortKey="period" currentSort={sortConfig} onSort={handleSort} />}
+                    {showLastBilledCol && <SortableTh label="최근 청구 기간" sortKey="billingPeriod" currentSort={sortConfig} onSort={handleSort} />}
+                    {showBillingCountCol && <SortableTh label="청구 건수" sortKey="billingCount" currentSort={sortConfig} onSort={handleSort} align="center" />}
+                    <SortableTh label="만료 D-Day" sortKey="dday" currentSort={sortConfig} onSort={handleSort} align="center" />
+                    <SortableTh label="청구 마감일" sortKey="billingDay" currentSort={sortConfig} onSort={handleSort} align="center" />
+                    <SortableTh label="영업담당" sortKey="salesperson" currentSort={sortConfig} onSort={handleSort} />
+                    <SortableTh label="상태" sortKey="status" currentSort={sortConfig} onSort={handleSort} align="center" />
                   </tr>
                 </thead>
                 <tbody style={{ whiteSpace: 'nowrap' }}>

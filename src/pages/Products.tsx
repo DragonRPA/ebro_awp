@@ -5,6 +5,8 @@ import { Plus, Download, Search, RefreshCw, FileText, X, Folder, Trash2, Externa
 import { exportToExcel } from '../services/excel';
 import { Product } from '../services/db';
 import { LIFT_RETRACTED_IMG, LIFT_EXTENDED_IMG } from '../services/specImages';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 interface R2DocFile {
   key: string;
@@ -37,11 +39,6 @@ export const Products: React.FC = () => {
   const [manufacturerFilter, setManufacturerFilter] = useState('ALL');
   const [powerSourceFilter, setPowerSourceFilter] = useState('ALL');
   const [activeStatusFilter, setActiveStatusFilter] = useState('ALL');
-
-  // 정렬 상태
-  type ProductSortField = 'modelName' | 'feet' | 'manufacturer' | 'powerSource' | 'isActive' | 'assetCount' | 'createdAt';
-  const [sortField, setSortField] = useState<ProductSortField>('modelName');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // 상세조회 Dossier 슬라이드오버 및 수정 상태
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -203,45 +200,31 @@ export const Products: React.FC = () => {
                             p.isActive === false;
 
       return matchesSearch && matchesManufacturer && matchesPowerSource && matchesActive;
-    }).sort((a, b) => {
-      let aVal: any = a[sortField as keyof Product];
-      let bVal: any = b[sortField as keyof Product];
-
-      if (sortField === 'assetCount') {
-        aVal = assetStatsMap.get(a.id)?.total || 0;
-        bVal = assetStatsMap.get(b.id)?.total || 0;
-      } else if (sortField === 'isActive') {
-        aVal = a.isActive !== false ? 1 : 0;
-        bVal = b.isActive !== false ? 1 : 0;
-      }
-
-      if (aVal === undefined || aVal === null) aVal = '';
-      if (bVal === undefined || bVal === null) bVal = '';
-
-      let cmp = 0;
-      if (typeof aVal === 'number' && typeof bVal === 'number') {
-        cmp = aVal - bVal;
-      } else {
-        cmp = String(aVal).localeCompare(String(bVal), 'ko');
-      }
-
-      return sortDirection === 'asc' ? cmp : -cmp;
     });
-  }, [products, assetFilter, searchTerm, manufacturerFilter, powerSourceFilter, activeStatusFilter, sortField, sortDirection, assetStatsMap]);
+  }, [products, assetFilter, searchTerm, manufacturerFilter, powerSourceFilter, activeStatusFilter]);
 
-  const handleSort = (field: ProductSortField) => {
-    if (sortField === field) {
-      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
+  const { items: sortedProducts, sortConfig, requestSort } = useSortableData<Product>(
+    filtered,
+    { key: 'modelName', direction: 'asc' },
+    (p, key) => {
+      switch (key) {
+        case 'modelName': return p.modelName;
+        case 'shortName': return p.shortName || '';
+        case 'feet': return Number(p.feet) || 0;
+        case 'assetCount': return assetStatsMap.get(p.id)?.total || 0;
+        case 'manufacturer': return p.manufacturer || '';
+        case 'powerSource': return p.powerSource || '';
+        case 'workingHeight': return p.workingHeight || '';
+        case 'platformHeight': return p.platformHeight || '';
+        case 'machineWeight': return p.weight || '';
+        case 'loadingCapacity': return p.capacityPreExt || '';
+        case 'machineDimensions': return p.machineDimensions || '';
+        case 'travelSpeed': return p.speed || '';
+        case 'isActive': return p.isActive !== false ? 1 : 0;
+        default: return (p as any)[key];
+      }
     }
-  };
-
-  const renderSortArrow = (field: ProductSortField) => {
-    if (sortField !== field) return <span style={{ color: 'var(--text-muted)', fontSize: '10px', marginLeft: '3px' }}>↕</span>;
-    return <span style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '11px', marginLeft: '3px' }}>{sortDirection === 'asc' ? '▲' : '▼'}</span>;
-  };
+  );
 
   const handleSelectProduct = (product: Product) => {
     setSelectedProduct(product);
@@ -673,50 +656,36 @@ export const Products: React.FC = () => {
         flexDirection: 'column',
         minHeight: 0
       }}>
-        <div style={{ flex: 1, overflow: 'auto' }}>
-          <table data-mid="product-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '11.5px' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowX: 'auto', overflowY: 'auto' }}>
+          <table data-mid="product-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '11.5px', whiteSpace: 'nowrap' }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
               <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 600 }}>
                 <th style={{ padding: '7px 8px', width: '50px', textAlign: 'center', whiteSpace: 'nowrap' }}>상세</th>
-                <th onClick={() => handleSort('modelName')} style={{ padding: '7px 8px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                  모델명{renderSortArrow('modelName')}
-                </th>
-                <th style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>
-                  축약명
-                </th>
-                <th onClick={() => handleSort('feet')} style={{ padding: '7px 8px', cursor: 'pointer', userSelect: 'none', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                  피트{renderSortArrow('feet')}
-                </th>
-                <th onClick={() => handleSort('assetCount')} style={{ padding: '7px 8px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                  실물자산 (당사/임차){renderSortArrow('assetCount')}
-                </th>
+                <SortableTh sortKey="modelName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px' }}>모델명</SortableTh>
+                <SortableTh sortKey="shortName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px' }}>축약명</SortableTh>
+                <SortableTh sortKey="feet" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '7px 8px' }}>피트</SortableTh>
+                <SortableTh sortKey="assetCount" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px' }}>실물자산 (당사/임차)</SortableTh>
                 <th style={{ padding: '7px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>R2 문서함</th>
-                <th onClick={() => handleSort('manufacturer')} style={{ padding: '7px 8px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                  제조사{renderSortArrow('manufacturer')}
-                </th>
-                <th onClick={() => handleSort('powerSource')} style={{ padding: '7px 8px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                  동력{renderSortArrow('powerSource')}
-                </th>
-                <th style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>작업높이</th>
-                <th style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>발판높이</th>
-                <th style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>장비중량</th>
-                <th style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>적재중량</th>
-                <th style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>장비크기</th>
-                <th style={{ padding: '7px 8px', whiteSpace: 'nowrap' }}>주행속도</th>
-                <th onClick={() => handleSort('isActive')} style={{ padding: '7px 8px', cursor: 'pointer', userSelect: 'none', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                  상태{renderSortArrow('isActive')}
-                </th>
+                <SortableTh sortKey="manufacturer" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px' }}>제조사</SortableTh>
+                <SortableTh sortKey="powerSource" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px' }}>동력</SortableTh>
+                <SortableTh sortKey="workingHeight" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px' }}>작업높이</SortableTh>
+                <SortableTh sortKey="platformHeight" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px' }}>발판높이</SortableTh>
+                <SortableTh sortKey="machineWeight" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px' }}>장비중량</SortableTh>
+                <SortableTh sortKey="loadingCapacity" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px' }}>적재중량</SortableTh>
+                <SortableTh sortKey="machineDimensions" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px' }}>장비크기</SortableTh>
+                <SortableTh sortKey="travelSpeed" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px' }}>주행속도</SortableTh>
+                <SortableTh sortKey="isActive" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '7px 8px' }}>상태</SortableTh>
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {sortedProducts.length === 0 ? (
                 <tr>
                   <td colSpan={15} style={{ padding: '36px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
                     조회 조건에 해당하는 제품 모델이 없습니다.
                   </td>
                 </tr>
               ) : (
-                filtered.map(p => {
+                sortedProducts.map(p => {
                   const stats = assetStatsMap.get(p.id) || { total: 0, owned: 0, leased: 0, available: 0, rented: 0, assigned: 0, repairing: 0 };
                   const docList = r2FilesByModelMap.get(p.id) || [];
 

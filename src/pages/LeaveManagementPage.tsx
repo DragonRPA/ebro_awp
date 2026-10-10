@@ -6,8 +6,10 @@ import {
   UserCheck, Download, Edit3, Trash2, Calendar, 
   Info, Search, ShieldCheck
 } from 'lucide-react';
-import { User as UserType } from '../services/db';
+import { User as UserType, LeaveUsage } from '../services/db';
 import { calculateLeaveDaysInfo } from '../utils/holidayUtils';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 export const LeaveManagementPage: React.FC = () => {
   const {
@@ -47,6 +49,9 @@ export const LeaveManagementPage: React.FC = () => {
   const [adminLeaveStartDate, setAdminLeaveStartDate] = useState(new Date().toISOString().substring(0, 10));
   const [adminLeaveEndDate, setAdminLeaveEndDate] = useState(new Date().toISOString().substring(0, 10));
   const [adminLeaveReason, setAdminLeaveReason] = useState('');
+
+  const { items: sortedUsers, requestSort: requestSortUsers, sortConfig: sortConfigUsers } = useSortableData<UserType>(users);
+  const { items: sortedUsages, requestSort: requestSortUsages, sortConfig: sortConfigUsages } = useSortableData<LeaveUsage>(leaveUsages);
 
   // 관리자 소진 일수 계산 (주말 및 법정공휴일/대체공휴일 제외 SSOT 표준)
   const adminCalcResult = calculateLeaveDaysInfo(adminLeaveType, adminLeaveStartDate, adminLeaveEndDate);
@@ -236,7 +241,7 @@ export const LeaveManagementPage: React.FC = () => {
     const ymd = new Date().toISOString().substring(0, 10).replace(/-/g, '');
 
     if (activeTab === 'QUOTA') {
-      const data = filteredUsers.map((u, idx) => {
+      const data = sortedUsers.map((u, idx) => {
         const summary = getUserLeaveSummary(u);
         const totalOtHours = overtimeRecords
           .filter(ot => ot.userId === u.id)
@@ -262,7 +267,7 @@ export const LeaveManagementPage: React.FC = () => {
       XLSX.utils.book_append_sheet(wb, ws, '임직원 연차 현황');
       XLSX.writeFile(wb, `임직원_연차_현황_대장_${ymd}.xlsx`);
     } else {
-      const data = filteredUsages.map((l, idx) => {
+      const data = sortedUsages.map((l, idx) => {
         const uName = users.find(u => u.id === l.userId)?.name || '알 수 없음';
         const typeLabel = l.leaveType === 'ANNUAL' ? '연차' : l.leaveType === 'HALF_AM' ? '오전반차' : '오후반차';
 
@@ -396,25 +401,25 @@ export const LeaveManagementPage: React.FC = () => {
               <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
                 <tr style={{ backgroundColor: 'var(--bg-card-header)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
                   <th style={{ padding: '12px 14px', whiteSpace: 'nowrap', width: '130px' }}>연차 갱신 액션</th>
-                  <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>성명</th>
-                  <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>부서 / 직급</th>
-                  <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>입사일</th>
+                  <SortableTh label="성명" sortKey="name" currentSort={sortConfigUsers} onSort={requestSortUsers} style={{ padding: '12px 14px', whiteSpace: 'nowrap' }} />
+                  <SortableTh label="부서 / 직급" sortKey="department" currentSort={sortConfigUsers} onSort={requestSortUsers} style={{ padding: '12px 14px', whiteSpace: 'nowrap' }} />
+                  <SortableTh label="입사일" sortKey="joinDate" currentSort={sortConfigUsers} onSort={requestSortUsers} style={{ padding: '12px 14px', whiteSpace: 'nowrap' }} />
                   <th style={{ padding: '12px 14px', whiteSpace: 'nowrap' }}>현재 1년 갱신 주기</th>
-                  <th style={{ padding: '12px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>부여 연차 (일)</th>
-                  <th style={{ padding: '12px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>소진 일수 (일)</th>
-                  <th style={{ padding: '12px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>잔여 연차 (일)</th>
-                  <th style={{ padding: '12px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>누적 OT (시간)</th>
+                  <th style={{ padding: '12px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>부여 연차</th>
+                  <th style={{ padding: '12px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>소진 일수</th>
+                  <th style={{ padding: '12px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>잔여 연차</th>
+                  <th style={{ padding: '12px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>누적 OT</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.length === 0 ? (
+                {sortedUsers.length === 0 ? (
                   <tr>
                     <td colSpan={9} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
                       조회된 임직원 데이터가 없습니다.
                     </td>
                   </tr>
                 ) : (
-                  filteredUsers.map((u) => {
+                  sortedUsers.map((u) => {
                     const summary = getUserLeaveSummary(u);
                     const totalOtHours = overtimeRecords
                       .filter(ot => ot.userId === u.id)
@@ -706,22 +711,22 @@ export const LeaveManagementPage: React.FC = () => {
                 <tr style={{ backgroundColor: 'var(--bg-card-header)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
                   <th style={{ padding: '10px 14px', whiteSpace: 'nowrap', width: '80px' }}>취소</th>
                   <th style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>성명</th>
-                  <th style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>구분</th>
-                  <th style={{ padding: '10px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>차감 일수</th>
-                  <th style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>사용 기간</th>
-                  <th style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>휴가 사유</th>
-                  <th style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>등록일시</th>
+                  <SortableTh label="구분" sortKey="leaveType" currentSort={sortConfigUsages} onSort={requestSortUsages} style={{ padding: '10px 14px', whiteSpace: 'nowrap' }} />
+                  <SortableTh label="차감 일수" sortKey="usedDays" currentSort={sortConfigUsages} onSort={requestSortUsages} style={{ padding: '10px 14px', whiteSpace: 'nowrap' }} align="center" />
+                  <SortableTh label="사용 기간" sortKey="startDate" currentSort={sortConfigUsages} onSort={requestSortUsages} style={{ padding: '10px 14px', whiteSpace: 'nowrap' }} />
+                  <SortableTh label="휴가 사유" sortKey="reason" currentSort={sortConfigUsages} onSort={requestSortUsages} style={{ padding: '10px 14px', whiteSpace: 'nowrap' }} />
+                  <SortableTh label="등록일시" sortKey="createdAt" currentSort={sortConfigUsages} onSort={requestSortUsages} style={{ padding: '10px 14px', whiteSpace: 'nowrap' }} />
                 </tr>
               </thead>
               <tbody>
-                {filteredUsages.length === 0 ? (
+                {sortedUsages.length === 0 ? (
                   <tr>
                     <td colSpan={7} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
                       조회된 연차/반차 사용 내역이 없습니다.
                     </td>
                   </tr>
                 ) : (
-                  filteredUsages.map((l) => {
+                  sortedUsages.map((l) => {
                     const u = users.find(user => user.id === l.userId);
                     const uName = u?.name || '알 수 없음';
                     const typeLabel = l.leaveType === 'ANNUAL' ? '연차' : l.leaveType === 'HALF_AM' ? '오전반차' : '오후반차';

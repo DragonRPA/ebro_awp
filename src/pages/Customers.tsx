@@ -19,6 +19,8 @@ import { BatchBusinessLicenseModal } from '../components/BatchBusinessLicenseMod
 import { ContactCardOcrModal } from '../components/ContactCardOcrModal';
 import { NtsStatusAuditModal } from '../components/NtsStatusAuditModal';
 import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 export const Customers: React.FC = () => {
   
@@ -288,6 +290,9 @@ export const Customers: React.FC = () => {
       });
   }, [sites, siteMasters, selectedCustomerId]);
 
+  const { items: sortedCustomerContacts, requestSort: requestSortContacts, sortConfig: sortConfigContacts } = useSortableData(customerContacts);
+  const { items: sortedCustomerSites, requestSort: requestSortSites, sortConfig: sortConfigSites } = useSortableData(customerSites);
+
   // 📄 사업자등록증 원본 파일 누락 여부 판정 (실제 파일 첨부/등록 여부)
   const isMissingBizCert = (c: Customer) => {
     return !c.businessCertFileUrl || c.businessCertFileUrl.trim() === '';
@@ -397,7 +402,7 @@ export const Customers: React.FC = () => {
   const handleExportContacts = () => {
     if (!activeCustomer) return;
     const isPrivileged = isPrivilegedPrivacyUser(currentUser);
-    const excelData = customerContacts.map((cc, idx) => ({
+    const excelData = sortedCustomerContacts.map((cc, idx) => ({
       'No': idx + 1,
       '고객사명': activeCustomer.name,
       '담당자명': isPrivileged ? cc.name : maskName(cc.name),
@@ -414,13 +419,13 @@ export const Customers: React.FC = () => {
       `고객사 [${activeCustomer.name}] 담당자 목록 ${excelData.length}건 엑셀 다운로드 (${isPrivileged ? '경영진/개발자 전체 원본' : '개인정보 마스킹 적용'})`,
       { targetSubjectId: activeCustomer.id, targetSubjectName: activeCustomer.name, isMasked: !isPrivileged }
     );
-    showToast(`담당자 목록 (${customerContacts.length}건) 엑셀이 다운로드되었습니다. (${isPrivileged ? '전체 정보' : '마스킹 적용'})`);
+    showToast(`담당자 목록 (${sortedCustomerContacts.length}건) 엑셀이 다운로드되었습니다. (${isPrivileged ? '전체 정보' : '마스킹 적용'})`);
   };
 
   const handleExportSites = () => {
     if (!activeCustomer) return;
     const isPrivileged = isPrivilegedPrivacyUser(currentUser);
-    const excelData = customerSites.map((cs, idx) => ({
+    const excelData = sortedCustomerSites.map((cs, idx) => ({
       'No': idx + 1,
       '고객사명': activeCustomer.name,
       '현장명': cs.name,
@@ -1718,29 +1723,29 @@ const handleDeleteAccount = async (accId: string) => {
                   </div>
                 </div>
 
-                <div style={{ overflowX: 'auto' }}>
+                <div className="table-container" style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '360px', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: 'left' }}>
-                    <thead>
+                    <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-card)' }}>
                       <tr style={{ backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-                        <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>현장명</th>
+                        <SortableTh label="현장명" sortKey="name" currentSort={sortConfigSites} onSort={requestSortSites} style={{ padding: '5px 6px', whiteSpace: 'nowrap' }} />
                         <th style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>관리</th>
-                        <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>현장 주소</th>
-                        <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>현장 소장/담당</th>
-                        <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>연락처</th>
-                        <th style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>명세서 마감일</th>
+                        <SortableTh label="현장 주소" sortKey="address" currentSort={sortConfigSites} onSort={requestSortSites} style={{ padding: '5px 6px', whiteSpace: 'nowrap' }} />
+                        <SortableTh label="현장 소장/담당" sortKey="contactName" currentSort={sortConfigSites} onSort={requestSortSites} style={{ padding: '5px 6px', whiteSpace: 'nowrap' }} />
+                        <SortableTh label="연락처" sortKey="contact" currentSort={sortConfigSites} onSort={requestSortSites} style={{ padding: '5px 6px', whiteSpace: 'nowrap' }} />
+                        <SortableTh label="명세서 마감일" sortKey="closingDay" currentSort={sortConfigSites} onSort={requestSortSites} style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }} align="center" />
                         <th style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>상태</th>
                         <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>유상옵션 / 보양</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {customerSites.length === 0 ? (
+                      {sortedCustomerSites.length === 0 ? (
                         <tr>
                           <td colSpan={8} style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-muted)' }}>
                             등록된 현장이 없습니다. 현장을 추가해 주세요.
                           </td>
                         </tr>
                       ) : (
-                        customerSites.map(cs => {
+                        sortedCustomerSites.map(cs => {
                           const activeContracts = contracts?.filter(c => c.siteId === cs.id && (c.status === 'ACTIVE' || c.status === 'EXTENDED')) || [];
                           const activeAssetCount = activeContracts.reduce((acc, contract) => {
                             const assetsForContract = contractAssets?.filter(ca => ca.contractId === contract.id && ca.status !== 'RETURNED') || [];
@@ -1902,27 +1907,27 @@ const handleDeleteAccount = async (accId: string) => {
                   </div>
                 </div>
 
-                <div style={{ overflowX: 'auto' }}>
+                <div className="table-container" style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '360px', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', textAlign: 'left' }}>
-                    <thead>
+                    <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-card)' }}>
                       <tr style={{ backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-                        <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>담당자명</th>
-                        <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>직책 / 부서</th>
-                        <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>연락처</th>
-                        <th style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>이메일</th>
-                        <th style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>사용 여부</th>
+                        <SortableTh label="담당자명" sortKey="name" currentSort={sortConfigContacts} onSort={requestSortContacts} style={{ padding: '5px 6px', whiteSpace: 'nowrap' }} />
+                        <SortableTh label="직책 / 부서" sortKey="position" currentSort={sortConfigContacts} onSort={requestSortContacts} style={{ padding: '5px 6px', whiteSpace: 'nowrap' }} />
+                        <SortableTh label="연락처" sortKey="contact" currentSort={sortConfigContacts} onSort={requestSortContacts} style={{ padding: '5px 6px', whiteSpace: 'nowrap' }} />
+                        <SortableTh label="이메일" sortKey="email" currentSort={sortConfigContacts} onSort={requestSortContacts} style={{ padding: '5px 6px', whiteSpace: 'nowrap' }} />
+                        <SortableTh label="사용 여부" sortKey="isActive" currentSort={sortConfigContacts} onSort={requestSortContacts} style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }} align="center" />
                         <th style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>관리</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {customerContacts.length === 0 ? (
+                      {sortedCustomerContacts.length === 0 ? (
                         <tr>
                           <td colSpan={6} style={{ textAlign: 'center', padding: '16px 0', color: 'var(--text-muted)' }}>
                             등록된 담당자가 없습니다. 담당자를 추가해 주세요.
                           </td>
                         </tr>
                       ) : (
-                        customerContacts.map(cc => (
+                        sortedCustomerContacts.map(cc => (
                           <tr key={cc.id} style={{ borderBottom: '1px solid var(--border-color)', opacity: cc.isActive !== false ? 1 : 0.6 }}>
                             <td style={{ padding: '5px 6px', fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>{cc.name}</td>
                             <td style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>{cc.position || '-'}</td>
@@ -3656,9 +3661,9 @@ const handleDeleteAccount = async (accId: string) => {
             )}
 
             {/* 표준 옵션 테이블 */}
-            <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+            <div className="table-container" style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '420px', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px' }}>
-                <thead>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-app)' }}>
                   <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
                     <th style={{ padding: '6px 8px', textAlign: 'left', whiteSpace: 'nowrap' }}>분류</th>
                     <th style={{ padding: '6px 8px', textAlign: 'left', whiteSpace: 'nowrap' }}>옵션 품목명</th>

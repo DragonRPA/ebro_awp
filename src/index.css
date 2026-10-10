@@ -722,16 +722,30 @@ button:disabled {
   cursor: not-allowed;
 }
 
-/* 테이블 공통 스타일 & 다이나믹 컴팩트 밀도 적용 */
+/* 테이블 공통 스타일 & 다이나믹 컴팩트 밀도 적용 (종/횡 스크롤바 완벽 지원: 헌장 3.2 & 3.6) */
 .table-container {
   width: 100%;
-  overflow: auto !important;
+  overflow-x: auto !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
   border: 1px solid var(--table-row-border);
   border-radius: var(--radius-md);
   background-color: var(--bg-card);
   box-shadow: var(--shadow-sm);
   margin-bottom: 0;
-  /* max-height는 각 페이지에서 flex:1 로 제어 */
+  position: relative;
+  /* 기본 종(세로) 스크롤바 영역 확보 */
+  max-height: calc(100vh - 260px);
+}
+
+/* 세로 스크롤 시 헤더 고정 (Sticky Thead) */
+.table-container thead th,
+table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background-color: var(--bg-app);
+  box-shadow: 0 1px 0 var(--table-row-border);
 }
 
 table {

@@ -4,6 +4,8 @@ import * as XLSX from 'xlsx';
 import { Clock, Trash2, Download, Search, CheckCircle2, Plus, Minus, RotateCcw, ChevronLeft, ChevronRight, Calendar, List, X, Printer } from 'lucide-react';
 import { User as UserType, Department, db } from '../services/db';
 import { OtApprovalDocumentModal } from '../components/OtApprovalDocumentModal';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 const getDayOfWeekKr = (dateStr: string) => {
   if (!dateStr) return '';
@@ -466,7 +468,7 @@ export const OtManagementPage: React.FC = () => {
   const handleExportExcel = () => {
     const ymd = new Date().toISOString().substring(0, 10).replace(/-/g, '');
 
-    const data = filteredRecords.map((ot, idx) => {
+    const data = sortedRecords.map((ot, idx) => {
       const u = findUser(ot.userId);
       const uName = u?.name || ot.userId;
       const uDept = getEmployeeDeptName(u) || '미지정';
@@ -503,6 +505,8 @@ export const OtManagementPage: React.FC = () => {
     const uDept = getEmployeeDeptName(u);
     return (u?.name || ot.userId).toLowerCase().includes(q) || uDept.toLowerCase().includes(q) || (ot.workDetail || '').toLowerCase().includes(q);
   });
+
+  const { items: sortedRecords, requestSort, sortConfig } = useSortableData(filteredRecords);
 
   // 📅 캘린더 월간 데이터 계산 (윤달/역법 정합성 준수)
   const daysInMonth = useMemo(() => new Date(calYear, calMonth, 0).getDate(), [calYear, calMonth]);
@@ -1383,29 +1387,29 @@ export const OtManagementPage: React.FC = () => {
 
           {/* 📋 1. 목록 뷰 */}
           {viewMode === 'LIST' && (
-            <div style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto' }}>
+            <div className="table-container" style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
               <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
-                <thead>
+                <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-main)' }}>
                   <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
                     <th style={{ padding: '10px 14px', whiteSpace: 'nowrap', width: '80px' }}>취소</th>
-                    <th style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>성명</th>
+                    <SortableTh label="성명" sortKey="userId" currentSort={sortConfig} onSort={requestSort} style={{ padding: '10px 14px', whiteSpace: 'nowrap' }} />
                     <th style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>부서</th>
-                    <th style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>시작 일시</th>
-                    <th style={{ padding: '10px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>OT 시간</th>
+                    <SortableTh label="시작 일시" sortKey="startDateTime" currentSort={sortConfig} onSort={requestSort} style={{ padding: '10px 14px', whiteSpace: 'nowrap' }} />
+                    <SortableTh label="OT 시간" sortKey="hours" currentSort={sortConfig} onSort={requestSort} style={{ padding: '10px 14px', whiteSpace: 'nowrap' }} align="center" />
                     <th style={{ padding: '10px 14px', whiteSpace: 'nowrap', textAlign: 'center', width: '60px' }}>식사</th>
-                    <th style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>근무 상세 내용</th>
-                    <th style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>등록일시</th>
+                    <SortableTh label="근무 상세 내용" sortKey="workDetail" currentSort={sortConfig} onSort={requestSort} style={{ padding: '10px 14px', whiteSpace: 'nowrap' }} />
+                    <SortableTh label="등록일시" sortKey="createdAt" currentSort={sortConfig} onSort={requestSort} style={{ padding: '10px 14px', whiteSpace: 'nowrap' }} />
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredRecords.length === 0 ? (
+                  {sortedRecords.length === 0 ? (
                     <tr>
                       <td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
                         조회된 OT 연장근무 내역이 없습니다.
                       </td>
                     </tr>
                   ) : (
-                    filteredRecords.map((ot) => {
+                    sortedRecords.map((ot) => {
                       const u = findUser(ot.userId);
                       const uName = u?.name || ot.userId;
                       const uDept = getEmployeeDeptName(u) || '미지정';
@@ -2019,9 +2023,9 @@ export const OtManagementPage: React.FC = () => {
                   <span>해당 일자에 등록된 OT 초과근무 내역이 없습니다.</span>
                 </div>
               ) : (
-                <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+                <div className="table-container" style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: '400px', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
                   <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
-                    <thead>
+                    <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-main)' }}>
                       <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
                         <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '50px' }}>취소</th>
                         <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>성명</th>

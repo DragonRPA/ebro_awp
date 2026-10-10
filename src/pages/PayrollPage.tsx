@@ -6,6 +6,8 @@ import {
   Upload, CheckSquare, RefreshCw, Lock, LockOpen, Download 
 } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 export const PayrollPage: React.FC = () => {
   const { users, leaveUsages, overtimeRecords, payrollClosings, currentUser, hasPermission, setPayrollClosingStatus, saveUser } = useApp();
@@ -295,13 +297,15 @@ export const PayrollPage: React.FC = () => {
     });
   }, [payrollList, empSearch, deptFilter, roleFilter]);
 
+  const { items: sortedPayrollList, requestSort, sortConfig } = useSortableData(filteredPayrollList);
+
   // 급여 정산 대장 엑셀 내보내기
   const handleExportPayrollExcel = () => {
     if (filteredPayrollList.length === 0) {
       showToast('내보낼 급여 데이터가 없습니다.', 'error');
       return;
     }
-    const rows = filteredPayrollList.map((p, idx) => {
+    const rows = sortedPayrollList.map((p, idx) => {
       const overtimeAllowance = Math.round(p.overtimeHours * p.ordinaryHourly * 1.5);
       const holidayAllowance = Math.round((p.holidayHours || 0) * p.ordinaryHourly * 1.5);
       const nightAllowance = Math.round((p.nightHours || 0) * p.ordinaryHourly * 0.5);
@@ -553,26 +557,21 @@ export const PayrollPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="table-container" style={{ border: 'none', boxShadow: 'none', maxHeight: 'calc(100vh - 360px)', overflowY: 'auto' }}>
+          <div className="table-container" style={{ border: 'none', boxShadow: 'none', maxHeight: 'calc(100vh - 360px)', overflowY: 'auto', overflowX: 'auto' }}>
             <table style={{ width: '100%', fontSize: '12.5px' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-card)' }}>
                 <tr>
-                <th>사원명(부서)</th>
-                <th>기본급</th>
-                <th>근태 가산수당 시간 (연장/휴일/야간)</th>
-                <th>무급휴가</th>
-                <th>수동 가감(조정)</th>
-                <th>공제액(보험/세금)</th>
-                <th style={{ textAlign: 'right' }}>실수령액</th>
-              </tr>
-            </thead>
+                  <SortableTh label="사원명" sortKey="name" currentSort={sortConfig} onSort={requestSort} />
+                  <SortableTh label="기본급" sortKey="baseSalary" currentSort={sortConfig} onSort={requestSort} align="right" />
+                  <SortableTh label="근태 가산수당" sortKey="overtimeHours" currentSort={sortConfig} onSort={requestSort} align="right" />
+                  <SortableTh label="무급휴가" sortKey="unpaidLeaveDays" currentSort={sortConfig} onSort={requestSort} align="center" />
+                  <SortableTh label="수동 가감" sortKey="manualAdjustmentAmount" currentSort={sortConfig} onSort={requestSort} align="right" />
+                  <SortableTh label="공제액" sortKey="nationalPension" currentSort={sortConfig} onSort={requestSort} align="right" />
+                  <SortableTh label="실수령액" sortKey="baseSalary" currentSort={sortConfig} onSort={requestSort} align="right" />
+                </tr>
+              </thead>
             <tbody>
-              {payrollList.filter(p => {
-                const matchName = !empSearch || (p.name || '').includes(empSearch);
-                const matchDept = deptFilter === 'ALL' || p.deptName === deptFilter;
-                const matchRole = roleFilter === 'ALL' || p.role === roleFilter;
-                return matchName && matchDept && matchRole;
-              }).map(p => {
+              {sortedPayrollList.map(p => {
                 const overtimeAllowance = Math.round(p.overtimeHours * p.ordinaryHourly * 1.5);
                 const holidayAllowance = Math.round(p.holidayHours * p.ordinaryHourly * 1.5);
                 const nightAllowance = Math.round(p.nightHours * p.ordinaryHourly * 0.5);

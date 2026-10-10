@@ -3,6 +3,8 @@ import { useApp } from '../context/AppContext';
 import { Settings, Users, Truck, Plus, Trash2, Edit2, Copy, Check, X, CreditCard, Building, Download } from 'lucide-react';
 import { TransportCompany, TransportDriver, db, logPrivacyAccess, VEHICLE_TYPE_OPTIONS } from '../services/db';
 import { exportToExcel } from '../services/excel';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 import { isPrivilegedPrivacyUser, maskPhoneNumber, maskName, maskAddress } from '../utils/privacyMasking';
 
 export const TransportMaster: React.FC = () => {
@@ -42,6 +44,7 @@ export const TransportMaster: React.FC = () => {
   const filteredDrivers = selectedCompanyId 
     ? transportDrivers.filter(d => d.companyId === selectedCompanyId)
     : transportDrivers;
+  const { sortedData: sortedDrivers, sortKey: driverSortKey, sortDirection: driverSortDir, handleSort: handleDriverSort } = useSortableData<TransportDriver>(filteredDrivers);
 
   // 운송사 삭제
   const handleDeleteCompany = (id: string) => {
@@ -402,23 +405,23 @@ contact: '',
             </div>
           </div>
 
-          <div className="table-container" style={{ marginTop: '16px', maxHeight: 'calc(100vh - 280px)', overflowY: 'auto' }}>
+          <div className="table-container" style={{ marginTop: '16px', maxHeight: 'calc(100vh - 280px)', overflowX: 'auto', overflowY: 'auto' }}>
             <table>
-              <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-app)' }}>
                 <tr style={{ whiteSpace: 'nowrap' }}>
-                  <th style={{ whiteSpace: 'nowrap' }}>기사명</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>소속 운송사</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>생년월일</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>연락처</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>차종/톤수</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>차량번호</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>색상</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>주소</th>
+                  <SortableTh label="기사명" sortKey="driverName" currentSortKey={driverSortKey} currentDirection={driverSortDir} onSort={handleDriverSort} />
+                  <SortableTh label="소속 운송사" sortKey="companyId" currentSortKey={driverSortKey} currentDirection={driverSortDir} onSort={handleDriverSort} />
+                  <SortableTh label="생년월일" sortKey="birthDate" currentSortKey={driverSortKey} currentDirection={driverSortDir} onSort={handleDriverSort} />
+                  <SortableTh label="연락처" sortKey="driverContact" currentSortKey={driverSortKey} currentDirection={driverSortDir} onSort={handleDriverSort} />
+                  <SortableTh label="차종/톤수" sortKey="vehicleType" currentSortKey={driverSortKey} currentDirection={driverSortDir} onSort={handleDriverSort} />
+                  <SortableTh label="차량번호" sortKey="vehicleNo" currentSortKey={driverSortKey} currentDirection={driverSortDir} onSort={handleDriverSort} />
+                  <SortableTh label="색상" sortKey="vehicleColor" currentSortKey={driverSortKey} currentDirection={driverSortDir} onSort={handleDriverSort} />
+                  <SortableTh label="주소" sortKey="address" currentSortKey={driverSortKey} currentDirection={driverSortDir} onSort={handleDriverSort} />
                   {canSave && <th style={{ width: '80px', textAlign: 'center', whiteSpace: 'nowrap' }}>관리</th>}
                 </tr>
               </thead>
               <tbody>
-                {filteredDrivers.length === 0 ? (
+                {sortedDrivers.length === 0 ? (
                   <tr>
                     <td colSpan={9} style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>
                       {transportDrivers.length === 0
@@ -429,7 +432,7 @@ contact: '',
                     </td>
                   </tr>
                 ) : (
-                  filteredDrivers.map(d => {
+                  sortedDrivers.map((d: TransportDriver) => {
                     const comp = transportCompanies.find(c => c.id === d.companyId);
                     return (
                       <tr key={d.id} style={{ whiteSpace: 'nowrap' }}>

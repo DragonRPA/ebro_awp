@@ -1,6 +1,8 @@
 ﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { StocktakingAudit, StocktakingAuditItem, db } from '../services/db';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 export const StocktakingPage: React.FC = () => {
   const {
@@ -16,7 +18,8 @@ export const StocktakingPage: React.FC = () => {
   const [selectedArea, setSelectedArea] = useState('HQ'); // HQ or VEHICLE
   const [selectedMechanic, setSelectedMechanic] = useState('');
   
-  const [barcodeInput, setBarcodeInput] = useState('');
+    const { sortedData: sortedAuditItems, sortKey: auditSortKey, sortDirection: auditSortDir, handleSort: handleAuditSort } = useSortableData(items);
+const [barcodeInput, setBarcodeInput] = useState('');
   const barcodeRef = useRef<HTMLInputElement>(null);
 
   // Initialize or load active draft audit
@@ -160,21 +163,21 @@ export const StocktakingPage: React.FC = () => {
         </div>
       </header>
 
-      <section data-mid="stocktaking-inspection-grid" className="grid-container" style={{ flex: 1, overflowY: 'auto', background: '#fff' }}>
-        <table className="high-density-table tablet-optimized" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-          <thead style={{ position: 'sticky', top: 0, background: '#eee', zIndex: 1 }}>
+      <section data-mid="stocktaking-inspection-grid" className="grid-container table-container" style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 200px)', background: '#fff' }}>
+        <table className="high-density-table tablet-optimized" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', whiteSpace: 'nowrap' }}>
+          <thead style={{ position: 'sticky', top: 0, background: '#eee', zIndex: 2 }}>
             <tr>
-              <th style={{ padding: '8px', borderBottom: '1px solid #ccc' }}>구분</th>
-              <th style={{ padding: '8px', borderBottom: '1px solid #ccc' }}>코드/관리번호</th>
-              <th style={{ padding: '8px', borderBottom: '1px solid #ccc' }}>품명/장비명</th>
-              <th style={{ padding: '8px', borderBottom: '1px solid #ccc', textAlign: 'right' }}>장부</th>
-              <th style={{ padding: '8px', borderBottom: '1px solid #ccc', textAlign: 'right' }}>실사</th>
-              <th style={{ padding: '8px', borderBottom: '1px solid #ccc', textAlign: 'right' }}>차이</th>
-              <th style={{ padding: '8px', borderBottom: '1px solid #ccc' }}>사유</th>
+              <SortableTh label="구분" sortKey="itemType" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} />
+              <SortableTh label="코드/관리번호" sortKey="assetNo" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} />
+              <SortableTh label="품명/장비명" sortKey="modelName" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} />
+              <SortableTh label="장부" sortKey="systemQty" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} align="right" />
+              <SortableTh label="실사" sortKey="actualQty" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} align="right" />
+              <SortableTh label="차이" sortKey="diffQty" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} align="right" />
+              <SortableTh label="사유" sortKey="diffReason" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} />
             </tr>
           </thead>
           <tbody>
-            {items.map(item => {
+            {sortedAuditItems.map(item => {
               const hasVariance = item.diffQty !== 0;
               return (
                 <tr key={item.id} style={{ background: hasVariance ? '#ffebee' : '#fff', borderBottom: '1px solid #eee' }}>

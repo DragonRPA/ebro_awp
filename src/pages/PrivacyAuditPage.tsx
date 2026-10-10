@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { db, supabase, PrivacyAccessLog } from '../services/db';
 import { exportToExcel } from '../services/excel';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 import { PrivacyPolicyModal } from '../components/PrivacyPolicyModal';
 
 export const PrivacyAuditPage: React.FC = () => {
@@ -120,6 +122,7 @@ export const PrivacyAuditPage: React.FC = () => {
       return true;
     });
   }, [logs, startDate, endDate, selectedUser, selectedAction, selectedMenu, maskFilter, searchTerm]);
+  const { sortedData: sortedLogs, sortKey: auditSortKey, sortDirection: auditSortDir, handleSort: handleAuditSort } = useSortableData(filteredLogs);
 
   // 통계 집계
   const stats = useMemo(() => {
@@ -136,7 +139,7 @@ export const PrivacyAuditPage: React.FC = () => {
       showToast('출력할 감사 로그가 없습니다.', 'error');
       return;
     }
-    const rows = filteredLogs.map((log, idx) => ({
+    const rows = sortedLogs.map((log, idx) => ({
       'NO': idx + 1,
       '감사로그ID': log.id,
       '일시': log.createdAt ? log.createdAt.replace('T', ' ').substring(0, 19) : '-',
@@ -532,15 +535,16 @@ export const PrivacyAuditPage: React.FC = () => {
       {/* ─────────────────────────────────────────────────────────────
           개인정보 접속 이력 대장
           ───────────────────────────────────────────────────────────── */}
-      <div style={{
+      <div className="table-container" style={{
         backgroundColor: 'var(--bg-card, #ffffff)',
         borderRadius: '8px',
         border: '1px solid var(--border-color, var(--border-color))',
-        overflow: 'auto',
-        maxHeight: '600px'
+        maxHeight: 'calc(100vh - 280px)',
+        overflowX: 'auto',
+        overflowY: 'auto'
       }}>
-        <table data-mid="privacy-inspection-grid" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-          <thead>
+        <table data-mid="privacy-inspection-grid" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', whiteSpace: 'nowrap' }}>
+          <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-secondary, #f8fafc)' }}>
             <tr style={{
               backgroundColor: 'var(--bg-secondary, #f8fafc)',
               borderBottom: '1px solid var(--border-color, #e2e8f0)',
@@ -549,24 +553,24 @@ export const PrivacyAuditPage: React.FC = () => {
               whiteSpace: 'nowrap'
             }}>
               <th style={{ padding: '8px 12px', textAlign: 'center', width: '50px' }}>NO</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', width: '140px' }}>일시</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', width: '110px' }}>접속자</th>
-              <th style={{ padding: '8px 12px', textAlign: 'center', width: '110px' }}>수행 업무</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', width: '110px' }}>대상 메뉴</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left', width: '130px' }}>대상 정보주체</th>
-              <th style={{ padding: '8px 12px', textAlign: 'center', width: '100px' }}>마스킹 여부</th>
-              <th style={{ padding: '8px 12px', textAlign: 'left' }}>상세 수행 내역 (감사 사유)</th>
+              <SortableTh label="일시" sortKey="createdAt" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} />
+              <SortableTh label="접속자" sortKey="userName" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} />
+              <SortableTh label="수행 업무" sortKey="actionType" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} align="center" />
+              <SortableTh label="대상 메뉴" sortKey="targetMenu" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} />
+              <SortableTh label="대상 정보주체" sortKey="targetSubjectName" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} />
+              <SortableTh label="마스킹 여부" sortKey="isMasked" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} align="center" />
+              <SortableTh label="상세 수행 내역" sortKey="actionDetail" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} />
             </tr>
           </thead>
           <tbody>
-            {filteredLogs.length === 0 ? (
+            {sortedLogs.length === 0 ? (
               <tr>
                 <td colSpan={8} style={{ padding: '50px', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' }}>
                   조회 조건에 해당하는 개인정보 접속기록이 없습니다.
                 </td>
               </tr>
             ) : (
-              filteredLogs.map((log, idx) => {
+              sortedLogs.map((log, idx) => {
                 const isDownload = log.actionType === 'EXCEL_DOWNLOAD';
                 const isUnmasked = log.isMasked === false;
                 return (

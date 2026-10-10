@@ -5539,7 +5539,7 @@ export const TruckDispatch: React.FC = () => {
             )}
 
             {/* 1:1 대사 그리드 테이블 (행 높이 42px / 한눈에 15건 조망) */}
-            <div style={{ maxHeight: 'calc(100vh - 320px)', minHeight: '400px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+            <div className="table-container" style={{ maxHeight: 'calc(100vh - 320px)', minHeight: '400px', overflowY: 'auto', overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
                   {/* 1행: 대분류 영역 헤더 (상태 | 배차정보 3열 | 비교 | 청구정보 3열 | 차액 | 조치) */}

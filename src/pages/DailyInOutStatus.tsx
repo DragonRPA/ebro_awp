@@ -7,6 +7,8 @@ import {
   Clock, Package, Layers, X, FileSpreadsheet
 } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 export interface InOutEventItem {
   id: string;
@@ -326,6 +328,8 @@ export const DailyInOutStatus: React.FC = () => {
     });
   }, [allEvents, filterType, sourceFilter, modelFilter, searchKeyword]);
 
+  const { items: sortedEvents, requestSort, sortConfig } = useSortableData<InOutEventItem>(filteredEvents);
+
   // ── 📅 월간 기준 필터링 및 일자별 그룹핑 맵 ──
   const monthPrefix = `${calYear}-${String(calMonth).padStart(2, '0')}`;
 
@@ -428,7 +432,7 @@ export const DailyInOutStatus: React.FC = () => {
 
   // ── 📥 엑셀 내보내기 ──
   const handleExportExcel = () => {
-    const rows = filteredEvents.map(e => ({
+    const rows = sortedEvents.map(e => ({
       '일자': e.date,
       '구분': e.inOutType === 'INBOUND' ? '입고' : '출고',
       '상태': e.sourceType === 'ACTUAL' ? '실적' : '예정',
@@ -1145,15 +1149,15 @@ export const DailyInOutStatus: React.FC = () => {
             <table style={{ width: '100%', minWidth: '950px', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
                 <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '95px', backgroundColor: 'var(--bg-secondary)' }}>일자</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '70px', backgroundColor: 'var(--bg-secondary)' }}>구분</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '80px', backgroundColor: 'var(--bg-secondary)' }}>진행상태</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '160px', backgroundColor: 'var(--bg-secondary)' }}>모델명 * 수량</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '60px', backgroundColor: 'var(--bg-secondary)' }}>수량</th>
+                  <SortableTh label="일자" sortKey="date" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '95px', backgroundColor: 'var(--bg-secondary)' }} />
+                  <SortableTh label="구분" sortKey="inOutType" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '70px', backgroundColor: 'var(--bg-secondary)' }} />
+                  <SortableTh label="진행상태" sortKey="sourceType" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '80px', backgroundColor: 'var(--bg-secondary)' }} />
+                  <SortableTh label="모델명" sortKey="modelName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '160px', backgroundColor: 'var(--bg-secondary)' }} />
+                  <SortableTh label="수량" sortKey="quantity" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '60px', backgroundColor: 'var(--bg-secondary)' }} align="center" />
                   <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '130px', backgroundColor: 'var(--bg-secondary)' }}>자산번호</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', backgroundColor: 'var(--bg-secondary)' }}>거래처 / 현장</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '110px', backgroundColor: 'var(--bg-secondary)' }}>배차/상태</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '130px', backgroundColor: 'var(--bg-secondary)' }}>운송기사 / 업체</th>
+                  <SortableTh label="거래처 / 현장" sortKey="customerName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', backgroundColor: 'var(--bg-secondary)' }} />
+                  <SortableTh label="배차/상태" sortKey="statusText" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '110px', backgroundColor: 'var(--bg-secondary)' }} />
+                  <SortableTh label="운송기사 / 업체" sortKey="driverName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 12px', whiteSpace: 'nowrap', width: '130px', backgroundColor: 'var(--bg-secondary)' }} />
                   <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', backgroundColor: 'var(--bg-secondary)' }}>비고</th>
                 </tr>
               </thead>
@@ -1165,7 +1169,7 @@ export const DailyInOutStatus: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredEvents.map(item => {
+                  sortedEvents.map(item => {
                     const isIn = item.inOutType === 'INBOUND';
                     return (
                       <tr 

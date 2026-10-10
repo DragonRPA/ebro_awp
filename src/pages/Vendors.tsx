@@ -9,6 +9,8 @@ import { NtsStatusAuditModal } from '../components/NtsStatusAuditModal';
 import { uploadToSupabaseStorage } from '../services/supabaseStorage';
 import { analyzeBusinessLicense } from '../services/visionOcrService';
 import { checkSingleNtsStatus, NtsStatusResult } from '../services/ntsBusinessService';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 type VendorTypeOption = 'RENTAL' | 'PURCHASE' | 'TRANSPORT' | 'REPAIR' | 'OTHER';
 
@@ -58,25 +60,7 @@ export const Vendors: React.FC = () => {
   const [passbookDropActive, setPassbookDropActive] = useState(false);
   const [matchedNotice, setMatchedNotice] = useState<string | null>(null);
 
-  type VendorSortField = 'name' | 'bizRegNo' | 'representative' | 'contactName' | 'createdAt' | 'firstTradeDate' | 'totalPurchaseAmount';
-  const [sortField, setSortField] = useState<VendorSortField>('name');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-
   const canSave = hasPermission('vendors', 'save');
-
-  const handleSort = (field: VendorSortField) => {
-    if (sortField === field) {
-      setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  const renderSortArrow = (field: VendorSortField) => {
-    if (sortField !== field) return <span style={{ color: 'var(--text-muted)', fontSize: '11px', marginLeft: '4px' }}>↕</span>;
-    return <span style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '12px', marginLeft: '4px' }}>{sortDirection === 'asc' ? '▲' : '▼'}</span>;
-  };
 
   const handleOpenAddModal = () => {
     setEditingVendor({
@@ -608,22 +592,34 @@ export const Vendors: React.FC = () => {
     const vTypes = getVendorTypes(v);
     const matchesType = typeFilter === 'ALL' || vTypes.includes(typeFilter as VendorTypeOption);
     return matchesSearch && matchesType;
-  }).sort((a, b) => {
-    if (sortField === 'totalPurchaseAmount') {
-      const aVal = a.totalPurchaseAmount || 0;
-      const bVal = b.totalPurchaseAmount || 0;
-      return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
-    }
-    let aVal = a[sortField as keyof Vendor] || '';
-    let bVal = b[sortField as keyof Vendor] || '';
-
-    let cmp = String(aVal).localeCompare(String(bVal), 'ko', { numeric: true });
-    return sortDirection === 'asc' ? cmp : -cmp;
   });
+
+  const { items: sortedVendors, sortConfig, requestSort } = useSortableData<Vendor>(
+    filtered,
+    { key: 'name', direction: 'asc' },
+    (v, key) => {
+      switch (key) {
+        case 'name': return v.name;
+        case 'types': return getVendorTypes(v).join(', ');
+        case 'firstTradeDate': return v.firstTradeDate || '';
+        case 'tradeDuration': return v.firstTradeDate || '';
+        case 'totalPurchaseAmount': return v.totalPurchaseAmount || 0;
+        case 'bizRegNo': return v.bizRegNo || '';
+        case 'representative': return v.representative || '';
+        case 'contactName': return v.contactName || '';
+        case 'contact': return v.contact || '';
+        case 'bankAccount': return v.bankName || v.bankAccount || '';
+        case 'address': return v.address || '';
+        case 'email': return v.email || '';
+        case 'status': return v.businessStatus || '';
+        default: return (v as any)[key];
+      }
+    }
+  );
 
   const handleExport = () => {
     const isPrivileged = isPrivilegedPrivacyUser(currentUser);
-    const data = filtered.map(v => {
+    const data = sortedVendors.map(v => {
       const vTypes = getVendorTypes(v);
       const typeLabels = vTypes.map(t => VENDOR_TYPE_CONFIG[t]?.label || t).join(', ');
       return {
@@ -848,47 +844,49 @@ export const Vendors: React.FC = () => {
             </colgroup>
             <thead>
               <tr>
-                <th onClick={() => handleSort('name')} style={{ cursor: 'pointer', padding: '8px 10px', whiteSpace: 'nowrap' }}>
-                  상호명 (매입처명) {renderSortArrow('name')}
-                </th>
-                <th style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>매입/거래 속성</th>
-                <th onClick={() => handleSort('firstTradeDate')} style={{ cursor: 'pointer', padding: '8px 6px', whiteSpace: 'nowrap' }}>
-                  거래개시일 {renderSortArrow('firstTradeDate')}
-                </th>
-                <th style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>
+                <SortableTh sortKey="name" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px' }}>
+                  상호명
+                </SortableTh>
+                <SortableTh sortKey="types" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 6px' }}>
+                  매입/거래 속성
+                </SortableTh>
+                <SortableTh sortKey="firstTradeDate" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 6px' }}>
+                  거래개시일
+                </SortableTh>
+                <SortableTh sortKey="tradeDuration" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 6px' }}>
                   거래기간
-                </th>
-                <th onClick={() => handleSort('totalPurchaseAmount')} style={{ cursor: 'pointer', padding: '8px 6px', whiteSpace: 'nowrap', textAlign: 'right' }}>
-                  매입 누적거래액 {renderSortArrow('totalPurchaseAmount')}
-                </th>
-                <th onClick={() => handleSort('bizRegNo')} style={{ cursor: 'pointer', padding: '8px 6px', whiteSpace: 'nowrap' }}>
-                  사업자등록번호 {renderSortArrow('bizRegNo')}
-                </th>
-                <th onClick={() => handleSort('representative')} style={{ cursor: 'pointer', padding: '8px 6px', whiteSpace: 'nowrap' }}>
-                  대표자명 {renderSortArrow('representative')}
-                </th>
-                <th onClick={() => handleSort('contactName')} style={{ cursor: 'pointer', padding: '8px 6px', whiteSpace: 'nowrap' }}>
-                  담당자 {renderSortArrow('contactName')}
-                </th>
+                </SortableTh>
+                <SortableTh sortKey="totalPurchaseAmount" currentSort={sortConfig} onSort={requestSort} align="right" style={{ padding: '8px 6px' }}>
+                  매입 누적거래액
+                </SortableTh>
+                <SortableTh sortKey="bizRegNo" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 6px' }}>
+                  사업자등록번호
+                </SortableTh>
+                <SortableTh sortKey="representative" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 6px' }}>
+                  대표자명
+                </SortableTh>
+                <SortableTh sortKey="contactName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 6px' }}>
+                  담당자
+                </SortableTh>
                 <th style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>연락처</th>
                 <th style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>지급 계좌</th>
                 <th style={{ padding: '8px 6px', whiteSpace: 'nowrap', textAlign: 'center' }}>사업자등록증</th>
                 <th style={{ padding: '8px 6px', whiteSpace: 'nowrap', textAlign: 'center' }}>통장사본</th>
-                <th style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>주소</th>
-                <th style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>이메일</th>
-                <th style={{ padding: '8px 6px', whiteSpace: 'nowrap' }}>상태</th>
+                <SortableTh sortKey="address" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 6px' }}>주소</SortableTh>
+                <SortableTh sortKey="email" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 6px' }}>이메일</SortableTh>
+                <SortableTh sortKey="status" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 6px' }}>상태</SortableTh>
                 {canSave && <th style={{ width: '72px', textAlign: 'center', padding: '8px 6px', whiteSpace: 'nowrap' }}>관리</th>}
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {sortedVendors.length === 0 ? (
                 <tr>
                   <td colSpan={canSave ? 16 : 15} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
                     {vendors.length === 0 ? '📭 등록된 매입처(공급자)가 없습니다.' : '🔍 조회 조건에 맞는 매입처가 없습니다. 검색 조건을 변경해 보세요.'}
                   </td>
                 </tr>
               ) : (
-                filtered.map(v => {
+                sortedVendors.map(v => {
                   return (
                     <tr key={v.id}>
                       <td style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>

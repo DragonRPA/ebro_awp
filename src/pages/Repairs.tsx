@@ -10,6 +10,8 @@ import { exportToExcel } from '../services/excel';
 import { compressFileIfNeeded } from '../utils/imageCompressor';
 import { normalizeMenuId } from '../config/menu_config';
 import { getRoleTemplatePermission } from '../config/role_templates';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 export const Repairs: React.FC = () => {
   const {
@@ -268,6 +270,27 @@ export const Repairs: React.FC = () => {
       return matchSearch && matchType && matchStatus && matchStart && matchEnd && matchMechanic;
     });
   }, [repairs, ledgerSearch, ledgerTypeFilter, ledgerStatusFilter, ledgerStartDate, ledgerEndDate, ledgerMechanicFilter]);
+
+  const { items: sortedLedgerRepairs, sortConfig, requestSort } = useSortableData<Repair>(
+    filteredLedgerRepairs,
+    { key: 'repairDate', direction: 'desc' },
+    (r, key) => {
+      switch (key) {
+        case 'repairDate': return r.repairDate || r.requestDate || '';
+        case 'maintenanceType': return r.maintenanceType;
+        case 'assetNo': return r.assetNo || getAssetNo(r.assetId);
+        case 'modelName': return r.modelName || getAssetModel(r.assetId);
+        case 'details': return r.details || '';
+        case 'duration': return r.durationMinutes || (r.spentManHours ? r.spentManHours * 60 : 0);
+        case 'totalCost': return r.totalCost || 0;
+        case 'inspectionItemCode': return r.inspectionItemCode || '';
+        case 'degradationScore': return r.degradationScore || 0;
+        case 'mechanic': return getMechanicName(r.mechanicId);
+        case 'status': return r.status;
+        default: return (r as any)[key];
+      }
+    }
+  );
 
   // =========================================================================
   // [4] 핸들러
@@ -692,7 +715,7 @@ export const Repairs: React.FC = () => {
 
   // 대장 엑셀 내보내기
   const handleExportExcel = () => {
-    const data = filteredLedgerRepairs.map((r, idx) => ({
+    const data = sortedLedgerRepairs.map((r, idx) => ({
       'No': idx + 1,
       '접수번호': r.ticketNo || r.id,
       '정비일자': r.repairDate || r.requestDate || '-',
@@ -1669,35 +1692,35 @@ export const Repairs: React.FC = () => {
           </div>
 
           {/* 고밀도 정비 대장 그리드 */}
-          <div className="table-container" style={{ border: 'none', boxShadow: 'none' }}>
-            <table style={{ width: '100%', fontSize: '12px' }}>
+          <div className="table-container" style={{ border: 'none', boxShadow: 'none', overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
+            <table style={{ width: '100%', fontSize: '12px', whiteSpace: 'nowrap' }}>
               <thead>
                 <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '2px solid var(--border-color)', color: 'var(--text-muted)' }}>
                   <th style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap', width: '45px' }}>No</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>정비일자</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>정비구분</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>자산번호</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>모델명</th>
-                  <th style={{ padding: '8px 10px' }}>정비 상세 내용</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>소요시간</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>정비비용</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>점검코드</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>정비점수</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>담당자</th>
+                  <SortableTh sortKey="repairDate" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px' }}>정비일자</SortableTh>
+                  <SortableTh sortKey="maintenanceType" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px' }}>정비구분</SortableTh>
+                  <SortableTh sortKey="assetNo" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px' }}>자산번호</SortableTh>
+                  <SortableTh sortKey="modelName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px' }}>모델명</SortableTh>
+                  <SortableTh sortKey="details" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px' }}>정비 상세 내용</SortableTh>
+                  <SortableTh sortKey="duration" currentSort={sortConfig} onSort={requestSort} align="right" style={{ padding: '8px 10px' }}>소요시간</SortableTh>
+                  <SortableTh sortKey="totalCost" currentSort={sortConfig} onSort={requestSort} align="right" style={{ padding: '8px 10px' }}>정비비용</SortableTh>
+                  <SortableTh sortKey="inspectionItemCode" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '8px 10px' }}>점검코드</SortableTh>
+                  <SortableTh sortKey="degradationScore" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '8px 10px' }}>정비점수</SortableTh>
+                  <SortableTh sortKey="mechanic" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px' }}>담당자</SortableTh>
                   <th style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>증빙사진</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>상태</th>
+                  <SortableTh sortKey="status" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '8px 10px' }}>상태</SortableTh>
                   <th style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap', width: '60px' }}>상세</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredLedgerRepairs.length === 0 ? (
+                {sortedLedgerRepairs.length === 0 ? (
                   <tr>
                     <td colSpan={14} style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
                       조회 조건에 해당하는 주기장 정비 이력이 없습니다.
                     </td>
                   </tr>
                 ) : (
-                  filteredLedgerRepairs.map((r, idx) => {
+                  sortedLedgerRepairs.map((r, idx) => {
                     const photos = [r.beforeImage, r.afterImage, ...(r.evidenceImages || []), r.faultImageUrl].filter(Boolean) as string[];
 
                     return (

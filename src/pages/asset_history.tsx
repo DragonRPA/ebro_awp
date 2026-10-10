@@ -664,18 +664,18 @@ export const AssetHistory: React.FC = () => {
           </div>
 
           {/* 데이터 테이블 (헌장 3.2: 줄바꿈 방지 nowrap) */}
-          <div className="table-container" style={{ overflowX: 'auto' }}>
+          <div className="table-container" style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-app)' }}>
                 {activeTab === 'OUTBOUND' && (
                   <tr>
                     <th style={{ whiteSpace: 'nowrap' }}>번호</th>
                     <SortableTh label="출고일자" sortKey="eventDate" currentSort={sortConfig} onSort={requestSort} />
                     <SortableTh label="관리번호" sortKey="assetNo" currentSort={sortConfig} onSort={requestSort} />
                     <SortableTh label="모델명" sortKey="modelName" currentSort={sortConfig} onSort={requestSort} />
-                    <SortableTh label="고객사 (거래처)" sortKey="customerName" currentSort={sortConfig} onSort={requestSort} />
+                    <SortableTh label="고객사" sortKey="customerName" currentSort={sortConfig} onSort={requestSort} />
                     <SortableTh label="현장명" sortKey="siteName" currentSort={sortConfig} onSort={requestSort} />
-                    <SortableTh label="비고 / 메모" sortKey="memo" currentSort={sortConfig} onSort={requestSort} />
+                    <SortableTh label="비고" sortKey="memo" currentSort={sortConfig} onSort={requestSort} />
                   </tr>
                 )}
                 {activeTab === 'INBOUND' && (
@@ -685,7 +685,7 @@ export const AssetHistory: React.FC = () => {
                     <SortableTh label="입고일" sortKey="eventDate" currentSort={sortConfig} onSort={requestSort} />
                     <SortableTh label="관리번호" sortKey="assetNo" currentSort={sortConfig} onSort={requestSort} />
                     <SortableTh label="모델명" sortKey="modelName" currentSort={sortConfig} onSort={requestSort} />
-                    <SortableTh label="고객사 (거래처)" sortKey="customerName" currentSort={sortConfig} onSort={requestSort} />
+                    <SortableTh label="고객사" sortKey="customerName" currentSort={sortConfig} onSort={requestSort} />
                     <SortableTh label="현장명" sortKey="siteName" currentSort={sortConfig} onSort={requestSort} />
                     <SortableTh label="정비 점수" sortKey="totalPenaltyScore" currentSort={sortConfig} onSort={requestSort} />
                     <th style={{ whiteSpace: 'nowrap' }}>불량 증상 상세</th>

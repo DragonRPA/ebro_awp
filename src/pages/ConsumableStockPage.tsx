@@ -669,7 +669,7 @@ export const ConsumableStockPage: React.FC = () => {
 
           {/* 품목 마스터 목록 테이블 */}
           <div className="card" style={{ margin: 0 }}>
-            <div className="table-container" style={{ border: 'none', boxShadow: 'none', maxHeight: 'calc(100vh - 340px)', overflowY: 'auto' }}>
+            <div className="table-container" style={{ border: 'none', boxShadow: 'none', maxHeight: 'calc(100vh - 340px)', overflowY: 'auto', overflowX: 'auto' }}>
               <table>
                 <thead>
                   <tr>
@@ -839,7 +839,7 @@ export const ConsumableStockPage: React.FC = () => {
 
           {/* 차량 이동재고 테이블 */}
           <div className="card" style={{ margin: 0 }}>
-            <div className="table-container" style={{ border: 'none', boxShadow: 'none', maxHeight: 'calc(100vh - 340px)', overflowY: 'auto' }}>
+            <div className="table-container" style={{ border: 'none', boxShadow: 'none', maxHeight: 'calc(100vh - 340px)', overflowY: 'auto', overflowX: 'auto' }}>
               <table>
                 <thead>
                   <tr>
@@ -1002,7 +1002,7 @@ export const ConsumableStockPage: React.FC = () => {
 
           {/* 고품 목록 테이블 */}
           <div className="card" style={{ margin: 0 }}>
-            <div className="table-container" style={{ border: 'none', boxShadow: 'none', maxHeight: 'calc(100vh - 340px)', overflowY: 'auto' }}>
+            <div className="table-container" style={{ border: 'none', boxShadow: 'none', maxHeight: 'calc(100vh - 340px)', overflowY: 'auto', overflowX: 'auto' }}>
               <table>
                 <thead>
                   <tr>
@@ -1256,7 +1256,7 @@ export const ConsumableStockPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="table-container" style={{ border: 'none', boxShadow: 'none', maxHeight: 'calc(100vh - 420px)', overflowY: 'auto' }}>
+                <div className="table-container" style={{ border: 'none', boxShadow: 'none', maxHeight: 'calc(100vh - 420px)', overflowY: 'auto', overflowX: 'auto' }}>
                   <table>
                     <thead>
                       <tr>

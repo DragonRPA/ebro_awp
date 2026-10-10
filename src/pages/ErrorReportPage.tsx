@@ -15,6 +15,8 @@ import {
   ErrorReportAttachment 
 } from '../services/db';
 import { SYSTEM_MENU_CONFIG } from '../config/menu_config';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 export const ErrorReportPage: React.FC = () => {
   const { 
@@ -180,6 +182,7 @@ export const ErrorReportPage: React.FC = () => {
       return true;
     }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [errorReports, stageFilter, menuFilter, severityFilter, searchQuery]);
+  const { sortedData: sortedReports, sortKey: errSortKey, sortDirection: errSortDir, handleSort: handleErrSort } = useSortableData(filteredReports);
 
   // ─── 1단계: 신고 등록 실행 ───
   const handleRegisterSubmit = async (e: React.FormEvent) => {
@@ -333,7 +336,7 @@ export const ErrorReportPage: React.FC = () => {
       return;
     }
 
-    const rows = filteredReports.map(r => ({
+    const rows = sortedReports.map(r => ({
       '신고번호': r.reportNo,
       '상태': r.status === 'REGISTERED' ? '신고등록' : r.status === 'IN_PROGRESS' ? '접수처리' : r.status === 'COMPLETED' ? '완료' : '취소',
       '중요도': r.severity === 'CRITICAL' ? '치명' : r.severity === 'HIGH' ? '긴급' : r.severity === 'MEDIUM' ? '보통' : '낮음',
@@ -672,31 +675,31 @@ export const ErrorReportPage: React.FC = () => {
         overflowY: 'auto'
       }}>
         <table data-uia="table-error-reports" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
-          <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
+          <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-card-header)' }}>
             <tr style={{ backgroundColor: 'var(--bg-card-header)', borderBottom: '1.5px solid var(--border-color)', height: '40px' }}>
               <th style={{ padding: '0 12px', whiteSpace: 'nowrap', width: '80px', flexShrink: 0 }}>처리</th>
-              <th style={{ padding: '0 12px', whiteSpace: 'nowrap', width: '90px' }}>단계</th>
-              <th style={{ padding: '0 12px', whiteSpace: 'nowrap', width: '120px' }}>신고번호</th>
-              <th style={{ padding: '0 12px', whiteSpace: 'nowrap', width: '60px' }}>중요도</th>
-              <th style={{ padding: '0 12px', whiteSpace: 'nowrap', width: '110px' }}>오류유형</th>
-              <th style={{ padding: '0 12px', whiteSpace: 'nowrap', width: '140px' }}>발생메뉴</th>
-              <th style={{ padding: '0 12px', whiteSpace: 'nowrap', minWidth: '220px' }}>신고제목</th>
+              <SortableTh label="단계" sortKey="status" currentSortKey={errSortKey} currentDirection={errSortDir} onSort={handleErrSort} />
+              <SortableTh label="신고번호" sortKey="reportNo" currentSortKey={errSortKey} currentDirection={errSortDir} onSort={handleErrSort} />
+              <SortableTh label="중요도" sortKey="severity" currentSortKey={errSortKey} currentDirection={errSortDir} onSort={handleErrSort} />
+              <SortableTh label="오류유형" sortKey="category" currentSortKey={errSortKey} currentDirection={errSortDir} onSort={handleErrSort} />
+              <SortableTh label="발생메뉴" sortKey="menuName" currentSortKey={errSortKey} currentDirection={errSortDir} onSort={handleErrSort} />
+              <SortableTh label="신고제목" sortKey="title" currentSortKey={errSortKey} currentDirection={errSortDir} onSort={handleErrSort} />
               <th style={{ padding: '0 12px', whiteSpace: 'nowrap', width: '60px' }}>첨부</th>
-              <th style={{ padding: '0 12px', whiteSpace: 'nowrap', width: '90px' }}>신고자</th>
-              <th style={{ padding: '0 12px', whiteSpace: 'nowrap', width: '130px' }}>신고일시</th>
-              <th style={{ padding: '0 12px', whiteSpace: 'nowrap', width: '90px' }}>담당자</th>
+              <SortableTh label="신고자" sortKey="reporterName" currentSortKey={errSortKey} currentDirection={errSortDir} onSort={handleErrSort} />
+              <SortableTh label="신고일시" sortKey="reportedAt" currentSortKey={errSortKey} currentDirection={errSortDir} onSort={handleErrSort} />
+              <SortableTh label="담당자" sortKey="assigneeName" currentSortKey={errSortKey} currentDirection={errSortDir} onSort={handleErrSort} />
               <th style={{ padding: '0 12px', whiteSpace: 'nowrap', width: '70px', textAlign: 'center' }}>삭제</th>
             </tr>
           </thead>
           <tbody>
-            {filteredReports.length === 0 ? (
+            {sortedReports.length === 0 ? (
               <tr>
                 <td colSpan={12} style={{ textAlign: 'center', padding: '60px 0', color: 'var(--text-secondary)' }}>
                   등록된 오류 신고 내역이 없습니다.
                 </td>
               </tr>
             ) : (
-              filteredReports.map(r => (
+              sortedReports.map(r => (
                 <tr 
                   key={r.id} 
                   style={{ 

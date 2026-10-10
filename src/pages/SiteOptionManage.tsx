@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { supabase, db, SiteMaster } from '../services/db';
+import { SortableTh } from '../components/SortableTh';
 
 // 🛠️ 개발자 전용 현장 마스터 병합 모달
 const DeveloperSiteMergeModal: React.FC<{
@@ -1371,17 +1372,17 @@ export const SiteOptionManage: React.FC = () => {
           </div>
 
           {/* 마스터 그리드 */}
-          <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+          <div className="table-container" style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 280px)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
             <table style={{ width: '100%', minWidth: '750px', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
-              <thead>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-secondary)' }}>
                 <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                  <th onClick={() => handleMasterSort('category')} style={{ padding: '9px 12px', width: '80px', cursor: 'pointer' }}>분류{masterSortConfig.key === 'category' ? (masterSortConfig.direction === 'asc' ? ' ▲' : masterSortConfig.direction === 'desc' ? ' ▼' : '') : ''}</th>
-                  <th onClick={() => handleMasterSort('name')} style={{ padding: '9px 12px', width: '220px', cursor: 'pointer' }}>옵션 품목명{masterSortConfig.key === 'name' ? (masterSortConfig.direction === 'asc' ? ' ▲' : masterSortConfig.direction === 'desc' ? ' ▼' : '') : ''}</th>
-                  <th onClick={() => handleMasterSort('defaultPrice')} style={{ padding: '9px 12px', width: '110px', cursor: 'pointer' }}>기준단가{masterSortConfig.key === 'defaultPrice' ? (masterSortConfig.direction === 'asc' ? ' ▲' : masterSortConfig.direction === 'desc' ? ' ▼' : '') : ''}</th>
-                  <th onClick={() => handleMasterSort('unit')} style={{ padding: '9px 12px', width: '70px', cursor: 'pointer' }}>단위{masterSortConfig.key === 'unit' ? (masterSortConfig.direction === 'asc' ? ' ▲' : masterSortConfig.direction === 'desc' ? ' ▼' : '') : ''}</th>
-                  <th onClick={() => handleMasterSort('description')} style={{ padding: '9px 12px', cursor: 'pointer' }}>설명{masterSortConfig.key === 'description' ? (masterSortConfig.direction === 'asc' ? ' ▲' : masterSortConfig.direction === 'desc' ? ' ▼' : '') : ''}</th>
-                  <th onClick={() => handleMasterSort('isActive')} style={{ padding: '9px 12px', width: '80px', textAlign: 'center', cursor: 'pointer' }}>상태{masterSortConfig.key === 'isActive' ? (masterSortConfig.direction === 'asc' ? ' ▲' : masterSortConfig.direction === 'desc' ? ' ▼' : '') : ''}</th>
-                  <th style={{ padding: '9px 12px', width: '80px', textAlign: 'center' }}>수정</th>
+                  <SortableTh label="분류" sortKey="category" currentSort={masterSortConfig} onSort={handleMasterSort} style={{ padding: '9px 12px', width: '80px' }} />
+                  <SortableTh label="옵션 품목명" sortKey="name" currentSort={masterSortConfig} onSort={handleMasterSort} style={{ padding: '9px 12px', width: '220px' }} />
+                  <SortableTh label="기준단가" sortKey="defaultPrice" currentSort={masterSortConfig} onSort={handleMasterSort} style={{ padding: '9px 12px', width: '110px' }} align="right" />
+                  <SortableTh label="단위" sortKey="unit" currentSort={masterSortConfig} onSort={handleMasterSort} style={{ padding: '9px 12px', width: '70px' }} align="center" />
+                  <SortableTh label="설명" sortKey="description" currentSort={masterSortConfig} onSort={handleMasterSort} style={{ padding: '9px 12px' }} />
+                  <SortableTh label="상태" sortKey="isActive" currentSort={masterSortConfig} onSort={handleMasterSort} style={{ padding: '9px 12px', width: '80px', textAlign: 'center' }} align="center" />
+                  <th style={{ padding: '9px 12px', width: '80px', textAlign: 'center', whiteSpace: 'nowrap' }}>수정</th>
                 </tr>
               </thead>
               <tbody>

@@ -5,6 +5,8 @@ import * as XLSX from 'xlsx';
 import { Calendar, Trash2, Download, Info } from 'lucide-react';
 import { User as UserType } from '../services/db';
 import { calculateLeaveDaysInfo } from '../utils/holidayUtils';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 export const LeaveApplicationPage: React.FC = () => {
   const {
@@ -219,7 +221,7 @@ export const LeaveApplicationPage: React.FC = () => {
       return true;
     });
 
-    const data = filtered.map((l, idx) => {
+    const data = sortedUsages.map((l, idx) => {
       const uObj = users.find(u => u.id === l.userId) || (l.userId === currentUser?.id ? currentUser : null);
       const uName = getApplicantDisplayName(uObj);
       const typeLabel = l.leaveType === 'ANNUAL' ? '연차' : l.leaveType === 'HALF_AM' ? '오전반차' : '오후반차';
@@ -248,6 +250,7 @@ export const LeaveApplicationPage: React.FC = () => {
     if (historyTypeFilter !== 'ALL' && l.leaveType !== historyTypeFilter) return false;
     return true;
   });
+  const { sortedData: sortedUsages, sortKey: leaveSortKey, sortDirection: leaveSortDir, handleSort: handleLeaveSort } = useSortableData(displayedUsages);
 
   return (
     <div data-hs-observe="leaveapplicationpage" data-mid="leave_app-header" data-subview="leave_application" data-subview-title="Generated" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -621,28 +624,28 @@ export const LeaveApplicationPage: React.FC = () => {
           </div>
 
           {/* 이력 테이블 */}
-          <div style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto' }}>
-            <table data-mid="leave-history-table" style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
-              <thead>
+          <div className="table-container" style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border-color)', maxHeight: 'calc(100vh - 350px)', overflowX: 'auto', overflowY: 'auto' }}>
+            <table data-mid="leave-history-table" style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left', whiteSpace: 'nowrap' }}>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-main)' }}>
                 <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
                   {isSystemAdmin && <th style={{ padding: '10px 14px', whiteSpace: 'nowrap', width: '70px', textAlign: 'center' }}>취소</th>}
-                  <th style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>성명</th>
-                  <th style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>구분</th>
-                  <th style={{ padding: '10px 14px', whiteSpace: 'nowrap', textAlign: 'center' }}>차감 일수</th>
-                  <th style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>사용 기간</th>
-                  <th style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>휴가 사유</th>
-                  <th style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>등록일시</th>
+                  <SortableTh label="성명" sortKey="userId" currentSortKey={leaveSortKey} currentDirection={leaveSortDir} onSort={handleLeaveSort} />
+                  <SortableTh label="구분" sortKey="leaveType" currentSortKey={leaveSortKey} currentDirection={leaveSortDir} onSort={handleLeaveSort} />
+                  <SortableTh label="차감 일수" sortKey="usedDays" currentSortKey={leaveSortKey} currentDirection={leaveSortDir} onSort={handleLeaveSort} align="center" />
+                  <SortableTh label="사용 기간" sortKey="startDate" currentSortKey={leaveSortKey} currentDirection={leaveSortDir} onSort={handleLeaveSort} />
+                  <SortableTh label="휴가 사유" sortKey="reason" currentSortKey={leaveSortKey} currentDirection={leaveSortDir} onSort={handleLeaveSort} />
+                  <SortableTh label="등록일시" sortKey="createdAt" currentSortKey={leaveSortKey} currentDirection={leaveSortDir} onSort={handleLeaveSort} />
                 </tr>
               </thead>
               <tbody>
-                {displayedUsages.length === 0 ? (
+                {sortedUsages.length === 0 ? (
                   <tr>
                     <td colSpan={isSystemAdmin ? 7 : 6} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
                       조회 조건에 해당하는 연차/반차 신청 내역이 없습니다.
                     </td>
                   </tr>
                 ) : (
-                  displayedUsages.map((l) => {
+                  sortedUsages.map((l) => {
                     const rawUser = users.find(u => u.id === l.userId);
                     const uName = l.userId === currentUser?.id 
                       ? getApplicantDisplayName(currentUser) 

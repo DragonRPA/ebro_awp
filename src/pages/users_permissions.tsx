@@ -11,6 +11,8 @@ import {
   UNIVERSAL_FUNCTIONAL_ATTRIBUTES, getDepartmentFunctionalTags 
 } from '../services/db';
 import { exportToExcel } from '../services/excel';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 import { SYSTEM_MENU_CONFIG, getAllSystemMenuIds, MenuGroupConfig, normalizeMenuId } from '../config/menu_config';
 
 export type MenuCategoryGroup = MenuGroupConfig;
@@ -498,6 +500,8 @@ export const UsersPermissions: React.FC = () => {
     });
   }, [activeUsers, searchTerm, filterDept, filterRole, departmentMap, departmentObjMap]);
 
+  const { sortedData: sortedUsers, sortKey: userSortKey, sortDirection: userSortDir, handleSort: handleUserSort } = useSortableData(filteredUsers);
+
   // 상속된 권한 메뉴 요약 헬퍼
   const getUserInheritedMenus = (u: User) => {
     if (u.role === 'ADMIN') return { total: '전체 (관리자)', preview: '전 메뉴 허용' };
@@ -513,7 +517,7 @@ export const UsersPermissions: React.FC = () => {
 
   // 엑셀 내보내기
   const handleExportExcel = () => {
-    const rows = filteredUsers.map((u, idx) => {
+    const rows = sortedUsers.map((u, idx) => {
       const roleObj = customRoles.find(r => r.id === u.customRoleId);
       const summary = getUserInheritedMenus(u);
       return {
@@ -1172,14 +1176,16 @@ export const UsersPermissions: React.FC = () => {
           </div>
 
           {/* 고밀도 직원 목록 및 권한 상속 테이블 */}
-          <div style={{
+          <div className="table-container" style={{
             backgroundColor: 'var(--bg-card, #ffffff)',
             borderRadius: '8px',
             border: '1px solid var(--border-color, var(--border-color))',
-            overflow: 'auto'
+            maxHeight: 'calc(100vh - 280px)',
+            overflowX: 'auto',
+            overflowY: 'auto'
           }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-              <thead>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', whiteSpace: 'nowrap' }}>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-secondary, #f8fafc)' }}>
                 <tr style={{
                   backgroundColor: 'var(--bg-secondary, #f8fafc)',
                   borderBottom: '1px solid var(--border-color, #e2e8f0)',
@@ -1188,25 +1194,25 @@ export const UsersPermissions: React.FC = () => {
                   whiteSpace: 'nowrap'
                 }}>
                   <th style={{ padding: '8px 12px', textAlign: 'center', width: '45px' }}>NO</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left', width: '110px' }}>사번 / ID</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left', width: '90px' }}>성명</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left', width: '100px' }}>소속 부서</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left', width: '120px' }}>직급 / 직책</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'center', width: '90px' }}>시스템 등급</th>
-                  <th style={{ padding: '8px 12px', textAlign: 'left', width: '220px' }}>상속 권한 명칭 (핵심)</th>
+                  <SortableTh label="사번 / ID" sortKey="employeeId" currentSortKey={userSortKey} currentDirection={userSortDir} onSort={handleUserSort} />
+                  <SortableTh label="성명" sortKey="name" currentSortKey={userSortKey} currentDirection={userSortDir} onSort={handleUserSort} />
+                  <SortableTh label="소속 부서" sortKey="department" currentSortKey={userSortKey} currentDirection={userSortDir} onSort={handleUserSort} />
+                  <SortableTh label="직급 / 직책" sortKey="position" currentSortKey={userSortKey} currentDirection={userSortDir} onSort={handleUserSort} />
+                  <SortableTh label="시스템 등급" sortKey="role" currentSortKey={userSortKey} currentDirection={userSortDir} onSort={handleUserSort} align="center" />
+                  <SortableTh label="상속 권한 명칭" sortKey="customRoleId" currentSortKey={userSortKey} currentDirection={userSortDir} onSort={handleUserSort} />
                   <th style={{ padding: '8px 12px', textAlign: 'left' }}>상속 권한 메뉴 요약</th>
                   <th style={{ padding: '8px 12px', textAlign: 'center', width: '80px' }}>상세 확인</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.length === 0 ? (
+                {sortedUsers.length === 0 ? (
                   <tr>
                     <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' }}>
                       조회된 임직원이 없습니다.
                     </td>
                   </tr>
                 ) : (
-                  filteredUsers.map((user, idx) => {
+                  sortedUsers.map((user, idx) => {
                     const deptName = getDeptName(user);
                     const isDev = user.id === 'u-1' || user.id === 'sys-admin';
                     const summary = getUserInheritedMenus(user);

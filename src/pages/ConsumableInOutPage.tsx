@@ -6,12 +6,14 @@ import {
   CheckCircle2, AlertTriangle, AlertCircle, FileText, Camera, Upload, X, ShieldCheck
 } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
-import { db } from '../services/db';
+import { db, ConsumableLog, ConsumablePurchaseRequest } from '../services/db';
 import { compressFileIfNeeded } from '../utils/imageCompressor';
 import { uploadToSupabaseStorage } from '../services/supabaseStorage';
 import { matchHangul } from '../utils/hangulSearch';
 import { normalizeMenuId } from '../config/menu_config';
 import { getRoleTemplatePermission } from '../config/role_templates';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 export const ConsumableInOutPage: React.FC = () => {
   const {
@@ -204,6 +206,43 @@ export const ConsumableInOutPage: React.FC = () => {
     }).sort((a, b) => (b.actionDate || '').localeCompare(a.actionDate || ''));
   }, [consumableLogs, consumables, logTypeFilter, logStartDate, logEndDate, logUserFilter, logSearch, logConsumableId]);
 
+  const { items: sortedPendingInbounds, sortConfig: inSortConfig, requestSort: requestInSort } = useSortableData<ConsumablePurchaseRequest>(
+    pendingInbounds,
+    { key: 'requestDate', direction: 'desc' },
+    (p, key) => {
+      switch (key) {
+        case 'requestDate': return p.requestDate;
+        case 'modelName': return p.modelName;
+        case 'requestedQty': return p.requestedQty || 0;
+        case 'unitPrice': return p.unitPrice || 0;
+        case 'sellerName': return p.sellerName || '';
+        case 'requesterName': return p.requesterName || '';
+        default: return (p as any)[key];
+      }
+    }
+  );
+
+  const { items: sortedLogs, sortConfig: logSortConfig, requestSort: requestLogSort } = useSortableData<ConsumableLog>(
+    filteredLogs,
+    { key: 'date', direction: 'desc' },
+    (l, key) => {
+      const item = consumables.find(c => c.id === l.consumableId);
+      switch (key) {
+        case 'type': return l.type;
+        case 'modelName': return item?.modelName || '';
+        case 'quantity': return l.quantity || 0;
+        case 'unitPrice': return l.unitPrice || 0;
+        case 'amount': return (l.quantity || 0) * (l.unitPrice || 0);
+        case 'source': return l.fromLocation || (l.type === 'INBOUND' ? (l.supplier || '매입처') : '주기장 재고');
+        case 'target': return l.toLocation || (l.targetAssetId ? `자산: ${getAssetNo(l.targetAssetId)}` : '-');
+        case 'operator': return getUserName(l.userId || l.mechanicId);
+        case 'date': return l.actionDate || '';
+        case 'memo': return l.description || '';
+        default: return (l as any)[key];
+      }
+    }
+  );
+
   // ─── [Z-패턴 최하단 입출고 대차대조식 요약 검증] ───
   const auditBalance = useMemo(() => {
     let inboundSum = 0;
@@ -346,7 +385,7 @@ export const ConsumableInOutPage: React.FC = () => {
 
   // 엑셀 내보내기
   const handleExportLogs = () => {
-    const excelData = filteredLogs.map((l, idx) => {
+    const excelData = sortedLogs.map((l, idx) => {
       const item = consumables.find(c => c.id === l.consumableId);
       return {
         'No': idx + 1,
@@ -454,28 +493,28 @@ export const ConsumableInOutPage: React.FC = () => {
               </span>
             </div>
 
-            <div className="table-container" style={{ border: 'none', boxShadow: 'none' }}>
-              <table>
+            <div className="table-container" style={{ border: 'none', boxShadow: 'none', overflowX: 'auto', overflowY: 'auto', maxHeight: '350px' }}>
+              <table style={{ width: '100%', whiteSpace: 'nowrap' }}>
                 <thead>
                   <tr>
-                    <th>신청일자</th>
-                    <th>품목명</th>
-                    <th style={{ textAlign: 'center' }}>신청수량</th>
-                    <th>단가</th>
-                    <th>공급처</th>
-                    <th>신청자</th>
-                    <th style={{ textAlign: 'center' }}>선택</th>
+                    <SortableTh sortKey="requestDate" currentSort={inSortConfig} onSort={requestInSort} style={{ padding: '8px 10px' }}>신청일자</SortableTh>
+                    <SortableTh sortKey="modelName" currentSort={inSortConfig} onSort={requestInSort} style={{ padding: '8px 10px' }}>품목명</SortableTh>
+                    <SortableTh sortKey="requestedQty" currentSort={inSortConfig} onSort={requestInSort} align="center" style={{ padding: '8px 10px' }}>신청수량</SortableTh>
+                    <SortableTh sortKey="unitPrice" currentSort={inSortConfig} onSort={requestInSort} align="right" style={{ padding: '8px 10px' }}>단가</SortableTh>
+                    <SortableTh sortKey="sellerName" currentSort={inSortConfig} onSort={requestInSort} style={{ padding: '8px 10px' }}>공급처</SortableTh>
+                    <SortableTh sortKey="requesterName" currentSort={inSortConfig} onSort={requestInSort} style={{ padding: '8px 10px' }}>신청자</SortableTh>
+                    <th style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>선택</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pendingInbounds.length === 0 ? (
+                  {sortedPendingInbounds.length === 0 ? (
                     <tr>
                       <td colSpan={7} style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-muted)' }}>
                         현재 입고 대기 중인 구매 신청 건이 없습니다.
                       </td>
                     </tr>
                   ) : (
-                    pendingInbounds.map(p => {
+                    sortedPendingInbounds.map(p => {
                       const isSelected = selectedReqId === p.id;
                       return (
                         <tr 
@@ -1049,32 +1088,32 @@ export const ConsumableInOutPage: React.FC = () => {
 
           {/* [Z-패턴 3단계: 본문 수불 대장 그리드] */}
           <div className="card" style={{ margin: 0 }}>
-            <div className="table-container" style={{ border: 'none', boxShadow: 'none' }}>
-              <table>
+            <div className="table-container" style={{ border: 'none', boxShadow: 'none', overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 300px)' }}>
+              <table style={{ width: '100%', whiteSpace: 'nowrap', fontSize: '12px' }}>
                 <thead>
                   <tr>
-                    <th>No</th>
-                    <th>구분</th>
-                    <th>품목명</th>
-                    <th style={{ textAlign: 'center' }}>수량</th>
-                    <th>단가</th>
-                    <th>총금액</th>
-                    <th>출처</th>
-                    <th>이동처 / 적용자산</th>
-                    <th>담당자</th>
-                    <th>일자</th>
-                    <th>비고</th>
+                    <th style={{ width: '45px', textAlign: 'center', whiteSpace: 'nowrap' }}>No</th>
+                    <SortableTh sortKey="type" currentSort={logSortConfig} onSort={requestLogSort}>구분</SortableTh>
+                    <SortableTh sortKey="modelName" currentSort={logSortConfig} onSort={requestLogSort}>품목명</SortableTh>
+                    <SortableTh sortKey="quantity" currentSort={logSortConfig} onSort={requestLogSort} align="center">수량</SortableTh>
+                    <SortableTh sortKey="unitPrice" currentSort={logSortConfig} onSort={requestLogSort} align="right">단가</SortableTh>
+                    <SortableTh sortKey="amount" currentSort={logSortConfig} onSort={requestLogSort} align="right">총금액</SortableTh>
+                    <SortableTh sortKey="source" currentSort={logSortConfig} onSort={requestLogSort}>출처</SortableTh>
+                    <SortableTh sortKey="target" currentSort={logSortConfig} onSort={requestLogSort}>이동처 / 적용자산</SortableTh>
+                    <SortableTh sortKey="operator" currentSort={logSortConfig} onSort={requestLogSort}>담당자</SortableTh>
+                    <SortableTh sortKey="date" currentSort={logSortConfig} onSort={requestLogSort}>일자</SortableTh>
+                    <SortableTh sortKey="memo" currentSort={logSortConfig} onSort={requestLogSort}>비고</SortableTh>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredLogs.length === 0 ? (
+                  {sortedLogs.length === 0 ? (
                     <tr>
                       <td colSpan={11} style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
                         조회 조건에 해당하는 입출고 수불 내역이 없습니다.
                       </td>
                     </tr>
                   ) : (
-                    filteredLogs.map((l, idx) => {
+                    sortedLogs.map((l, idx) => {
                       const item = consumables.find(c => c.id === l.consumableId);
                       const amount = (l.quantity || 0) * (l.unitPrice || 0);
 

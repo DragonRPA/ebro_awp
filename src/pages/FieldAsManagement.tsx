@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { db, FieldAsTicket, FieldAsPartUsed, FieldAsCollectedPart } from '../services/db';
 import { exportToExcel } from '../services/excel';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 import { compressImageFile } from '../utils/imageCompressor';
 import { launchNavigation, safePhoneCall, resolveSiteDetailedAddress } from '../utils/nativeLauncher';
 import { normalizeMenuId } from '../config/menu_config';
@@ -499,10 +501,12 @@ export const FieldAsManagement: React.FC = () => {
     });
   }, [fieldAsTickets, ledgerStatus, ledgerCategory, ledgerMechanic, ledgerBillable, ledgerStartDate, ledgerEndDate, deferredLedgerSearch, userMap, ledgerMatcher]);
 
+  const { sortedData: sortedLedgerTickets, sortKey: ledgerSortKey, sortDirection: ledgerSortDir, handleSort: handleLedgerSort } = useSortableData<FieldAsTicket>(ledgerFilteredTickets);
+
   // 대장 대용량 슬라이스 렌더링 (기본 100건 표시 후 더보기)
   const visibleLedgerTickets = useMemo(() => {
-    return ledgerFilteredTickets.slice(0, ledgerDisplayLimit);
-  }, [ledgerFilteredTickets, ledgerDisplayLimit]);
+    return sortedLedgerTickets.slice(0, ledgerDisplayLimit);
+  }, [sortedLedgerTickets, ledgerDisplayLimit]);
 
   // 캘린더 탭 단일 순회 O(1) 인덱스 해시맵 및 월간 KPI 통계 (7,600건 대용량 최적화)
   const calendarMonthData = useMemo(() => {
@@ -849,7 +853,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
 
   // 대장 엑셀 내보내기
   const handleExportLedgerExcel = () => {
-    const data = ledgerFilteredTickets.map((t, idx) => ({
+    const data = sortedLedgerTickets.map((t, idx) => ({
       // ① 식별 및 접수
       'No': idx + 1,
       '접수번호': t.ticketNo,
@@ -3330,28 +3334,28 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
           </div>
 
           {/* 고밀도 슬림 테이블 (38~42px row height) */}
-          <div style={{ flex: 1, backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'auto' }}>
+          <div className="table-container" style={{ flex: 1, backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', maxHeight: 'calc(100vh - 280px)', overflowX: 'auto', overflowY: 'auto' }}>
             <table data-mid="field_as-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', whiteSpace: 'nowrap' }}>
-              <thead style={{ backgroundColor: 'var(--bg-app)', position: 'sticky', top: 0, zIndex: 1, borderBottom: '2px solid var(--border-color)' }}>
+              <thead style={{ backgroundColor: 'var(--bg-app)', position: 'sticky', top: 0, zIndex: 2, borderBottom: '2px solid var(--border-color)' }}>
                 <tr>
                   <th style={{ padding: '10px 12px', textAlign: 'center', width: '50px', color: 'var(--text-secondary)' }}>상세</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--text-secondary)' }}>접수번호</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--text-secondary)' }}>접수일</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--text-secondary)' }}>현장명</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--text-secondary)' }}>현장 상세주소 (도로명)</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--text-secondary)' }}>업체명</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--text-secondary)' }}>관리번호</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--text-secondary)' }}>위치</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--text-secondary)' }}>고장분류</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--text-secondary)' }}>고장증상</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'center', color: 'var(--text-secondary)' }}>상태</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--text-secondary)' }}>담당자</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--text-secondary)' }}>조치내용</th>
+                  <SortableTh label="접수번호" sortKey="ticketNo" currentSortKey={ledgerSortKey} currentDirection={ledgerSortDir} onSort={handleLedgerSort} />
+                  <SortableTh label="접수일" sortKey="requestDate" currentSortKey={ledgerSortKey} currentDirection={ledgerSortDir} onSort={handleLedgerSort} />
+                  <SortableTh label="현장명" sortKey="siteName" currentSortKey={ledgerSortKey} currentDirection={ledgerSortDir} onSort={handleLedgerSort} />
+                  <SortableTh label="현장 상세주소" sortKey="siteAddress" currentSortKey={ledgerSortKey} currentDirection={ledgerSortDir} onSort={handleLedgerSort} />
+                  <SortableTh label="업체명" sortKey="customerName" currentSortKey={ledgerSortKey} currentDirection={ledgerSortDir} onSort={handleLedgerSort} />
+                  <SortableTh label="관리번호" sortKey="assetNo" currentSortKey={ledgerSortKey} currentDirection={ledgerSortDir} onSort={handleLedgerSort} />
+                  <SortableTh label="위치" sortKey="locationDetail" currentSortKey={ledgerSortKey} currentDirection={ledgerSortDir} onSort={handleLedgerSort} />
+                  <SortableTh label="고장분류" sortKey="issueCategory" currentSortKey={ledgerSortKey} currentDirection={ledgerSortDir} onSort={handleLedgerSort} />
+                  <SortableTh label="고장증상" sortKey="issueDescription" currentSortKey={ledgerSortKey} currentDirection={ledgerSortDir} onSort={handleLedgerSort} />
+                  <SortableTh label="상태" sortKey="status" currentSortKey={ledgerSortKey} currentDirection={ledgerSortDir} onSort={handleLedgerSort} align="center" />
+                  <SortableTh label="담당자" sortKey="assignedMechanicId" currentSortKey={ledgerSortKey} currentDirection={ledgerSortDir} onSort={handleLedgerSort} />
+                  <SortableTh label="조치내용" sortKey="actionTaken" currentSortKey={ledgerSortKey} currentDirection={ledgerSortDir} onSort={handleLedgerSort} />
                   <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--text-secondary)' }}>사용소모품</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'center', color: 'var(--text-secondary)' }}>점검코드</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'center', color: 'var(--text-secondary)' }}>정비점수</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'center', color: 'var(--text-secondary)' }}>유/무상</th>
-                  <th style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-secondary)' }}>청구액</th>
+                  <SortableTh label="점검코드" sortKey="inspectionCode" currentSortKey={ledgerSortKey} currentDirection={ledgerSortDir} onSort={handleLedgerSort} align="center" />
+                  <SortableTh label="정비점수" sortKey="maintenanceScore" currentSortKey={ledgerSortKey} currentDirection={ledgerSortDir} onSort={handleLedgerSort} align="center" />
+                  <SortableTh label="유/무상" sortKey="billableType" currentSortKey={ledgerSortKey} currentDirection={ledgerSortDir} onSort={handleLedgerSort} align="center" />
+                  <SortableTh label="청구액" sortKey="billedAmount" currentSortKey={ledgerSortKey} currentDirection={ledgerSortDir} onSort={handleLedgerSort} align="right" />
                 </tr>
               </thead>
               <tbody>

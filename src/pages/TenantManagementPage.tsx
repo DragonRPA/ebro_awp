@@ -13,6 +13,8 @@ import {
   SolutionType, db, GoogleConfig 
 } from '../services/db';
 import { exportToExcel } from '../services/excel';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 import { SYSTEM_MENU_CONFIG, getAllSystemMenuIds, MenuGroupConfig } from '../config/menu_config';
 import { syncTenantPolicyToAgent } from '../services/agentService';
 import { 
@@ -211,6 +213,8 @@ export const TenantManagementPage: React.FC = () => {
       return true;
     });
   }, [tenants, statusFilter, searchKeyword]);
+
+  const { sortedData: sortedTenants, sortKey: tenantSortKey, sortDirection: tenantSortDir, handleSort: handleTenantSort } = useSortableData<Tenant>(filteredTenants);
 
   // ── 테넌트 등록/수정 모달 오픈 ──
   // ── 테넌트 등록/수정 모달 오픈 ──
@@ -792,12 +796,12 @@ export const TenantManagementPage: React.FC = () => {
 
   // ── 엑셀 내보내기 ──
   const handleExportExcel = () => {
-    const exportData = filteredTenants.map(t => {
+    const exportData = sortedTenants.map((t: Tenant) => {
       const hiddenCount = Array.isArray(t.hiddenPages) ? t.hiddenPages.length : 0;
       const isCustom = (t.allowedPages && t.allowedPages.length > 0) || hiddenCount > 0;
       const visibleCount = isCustom
         ? (t.allowedPages && t.allowedPages.length > 0
-            ? t.allowedPages.filter(id => !t.hiddenPages?.includes(id)).length
+            ? t.allowedPages.filter((id: string) => !t.hiddenPages?.includes(id)).length
             : allSystemMenuIds.length - hiddenCount)
         : allSystemMenuIds.length;
 
@@ -1031,9 +1035,9 @@ export const TenantManagementPage: React.FC = () => {
         flexDirection: 'column',
         boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
       }}>
-        <div style={{ overflowX: 'auto', flex: 1 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-            <thead>
+        <div className="table-container" style={{ overflowX: 'auto', overflowY: 'auto', flex: 1, maxHeight: 'calc(100vh - 280px)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px', whiteSpace: 'nowrap' }}>
+            <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-app)' }}>
               <tr style={{ 
                 backgroundColor: 'var(--bg-app)', 
                 borderBottom: '2px solid var(--border-color)',
@@ -1042,29 +1046,29 @@ export const TenantManagementPage: React.FC = () => {
                 height: '42px'
               }}>
                 <th style={{ padding: '8px 14px', whiteSpace: 'nowrap', width: '130px' }}>관리 조치</th>
-                <th style={{ padding: '8px 14px', whiteSpace: 'nowrap', width: '80px' }}>상태</th>
-                <th style={{ padding: '8px 14px', whiteSpace: 'nowrap', width: '90px' }}>솔루션</th>
-                <th style={{ padding: '8px 14px', whiteSpace: 'nowrap', width: '100px' }}>테넌트 코드</th>
-                <th style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>표시 상호 / 법인명</th>
-                <th style={{ padding: '8px 14px', whiteSpace: 'nowrap', width: '190px' }}>구독 플랜 & 만료일</th>
-                <th style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>서브도메인 URL</th>
-                <th style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>사업자번호</th>
-                <th style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>대표자</th>
+                <SortableTh label="상태" sortKey="isActive" currentSortKey={tenantSortKey} currentDirection={tenantSortDir} onSort={handleTenantSort} />
+                <SortableTh label="솔루션" sortKey="solutionType" currentSortKey={tenantSortKey} currentDirection={tenantSortDir} onSort={handleTenantSort} />
+                <SortableTh label="테넌트 코드" sortKey="tenantCode" currentSortKey={tenantSortKey} currentDirection={tenantSortDir} onSort={handleTenantSort} />
+                <SortableTh label="표시 상호 / 법인명" sortKey="displayName" currentSortKey={tenantSortKey} currentDirection={tenantSortDir} onSort={handleTenantSort} />
+                <SortableTh label="구독 플랜 & 만료일" sortKey="subscription" currentSortKey={tenantSortKey} currentDirection={tenantSortDir} onSort={handleTenantSort} />
+                <SortableTh label="서브도메인 URL" sortKey="subdomain" currentSortKey={tenantSortKey} currentDirection={tenantSortDir} onSort={handleTenantSort} />
+                <SortableTh label="사업자번호" sortKey="bizRegNo" currentSortKey={tenantSortKey} currentDirection={tenantSortDir} onSort={handleTenantSort} />
+                <SortableTh label="대표자" sortKey="representative" currentSortKey={tenantSortKey} currentDirection={tenantSortDir} onSort={handleTenantSort} />
                 <th style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>브랜드 에셋</th>
                 <th style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>라이선스 플러그인</th>
                 <th style={{ padding: '8px 14px', whiteSpace: 'nowrap', width: '130px' }}>노출 페이지</th>
-                <th style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>대표 연락처</th>
+                <SortableTh label="대표 연락처" sortKey="phone" currentSortKey={tenantSortKey} currentDirection={tenantSortDir} onSort={handleTenantSort} />
               </tr>
             </thead>
             <tbody>
-              {filteredTenants.length === 0 ? (
+              {sortedTenants.length === 0 ? (
                 <tr>
                   <td colSpan={13} style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
                     일치하는 테넌트 데이터가 없습니다.
                   </td>
                 </tr>
               ) : (
-                filteredTenants.map(tenant => {
+                sortedTenants.map((tenant: Tenant) => {
                   const isCurrentActive = currentTenant?.id === tenant.id;
                   const subdomain = tenant.subdomain || tenant.tenantCode.toLowerCase();
                   const fullUrl = `https://${subdomain}.ebro.run`;
@@ -1185,7 +1189,7 @@ export const TenantManagementPage: React.FC = () => {
                       {/* 솔루션 배지 */}
                       <td style={{ padding: '8px 14px', whiteSpace: 'nowrap' }}>
                         {(() => {
-                          const sType = tenant.solutionType || 'AWP';
+                          const sType = (tenant.solutionType || 'AWP') as 'AWP' | 'IT' | 'MULTI';
                           const badgeConfig = {
                             AWP: { bg: '#dbeafe', color: '#1d4ed8', label: 'AWP' },
                             IT: { bg: '#f3e8ff', color: '#7e22ce', label: 'IT' },
@@ -1406,7 +1410,7 @@ export const TenantManagementPage: React.FC = () => {
                           const isCustom = (tenant.allowedPages && tenant.allowedPages.length > 0) || hiddenCount > 0;
                           const visibleCount = isCustom
                             ? (tenant.allowedPages && tenant.allowedPages.length > 0
-                                ? tenant.allowedPages.filter(id => !tenant.hiddenPages?.includes(id)).length
+                                ? tenant.allowedPages.filter((id: string) => !tenant.hiddenPages?.includes(id)).length
                                 : allSystemMenuIds.length - hiddenCount)
                             : allSystemMenuIds.length;
 

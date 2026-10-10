@@ -5,6 +5,8 @@ import { exportToExcel } from '../services/excel';
 import { Asset, calculateAssetDepreciation, AssetInOutLog, Repair } from '../services/db';
 import { ASSET_STATUS_SSOT, getAssetStatusLabel, getAssetStatusBadgeClass } from '../config/asset_status_config';
 import { canViewFinancials } from '../utils/privacyMasking';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 export const Assets: React.FC = () => {
   const { 
@@ -32,11 +34,6 @@ export const Assets: React.FC = () => {
   const [ownerFilter, setOwnerFilter] = useState('ALL');
   const [manufacturerFilter, setManufacturerFilter] = useState('ALL');
   const [customerFilter, setCustomerFilter] = useState('ALL');
-
-  // 정렬 상태
-  type AssetSortField = 'assetNo' | 'modelName' | 'ownerType' | 'status' | 'currentCustomerId' | 'currentSiteId' | 'contractNo' | 'renterName' | 'acquisitionDate' | 'manufacturer';
-  const [sortField, setSortField] = useState<AssetSortField>('assetNo');
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // 상세조회 Dossier 슬라이드오버 및 수정 상태
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
@@ -293,50 +290,56 @@ export const Assets: React.FC = () => {
       const matchesCustomer = customerFilter === 'ALL' || a.currentCustomerId === customerFilter;
 
       return matchesSearch && matchesStatus && matchesOwner && matchesManufacturer && matchesCustomer;
-    }).sort((a, b) => {
-      let aVal: any = a[sortField as keyof Asset];
-      let bVal: any = b[sortField as keyof Asset];
-      if (sortField === 'currentCustomerId') { aVal = getCustomerName(a.currentCustomerId); bVal = getCustomerName(b.currentCustomerId); }
-      else if (sortField === 'currentSiteId') { aVal = getSiteName(a.currentSiteId); bVal = getSiteName(b.currentSiteId); }
-      else if (sortField === 'contractNo') { aVal = getAssetContractInfo(a.id)?.contractNo; bVal = getAssetContractInfo(b.id)?.contractNo; }
-      else if (sortField === 'renterName') { aVal = getAssetRenterName(a); bVal = getAssetRenterName(b); }
-      if (aVal === undefined || aVal === null) aVal = '';
-      if (bVal === undefined || bVal === null) bVal = '';
-      const cmp = String(aVal).localeCompare(String(bVal), 'ko', { numeric: true });
-      return sortDirection === 'asc' ? cmp : -cmp;
     });
-  }, [assets, searchTerm, statusFilter, ownerFilter, manufacturerFilter, customerFilter, sortField, sortDirection]);
+  }, [assets, searchTerm, statusFilter, ownerFilter, manufacturerFilter, customerFilter]);
+
+  const { items: sortedAssets, sortConfig, requestSort } = useSortableData<Asset>(
+    filtered,
+    { key: 'assetNo', direction: 'asc' },
+    (a, key) => {
+      switch (key) {
+        case 'assetNo': return a.assetNo;
+        case 'modelName': return a.modelName;
+        case 'feet': return getAssetFeet(a);
+        case 'manufacturer': return a.manufacturer || '';
+        case 'serialNo': return a.serialNo || '';
+        case 'manufacturingYear': return a.manufactureYear || 0;
+        case 'ownerType': return a.ownerType;
+        case 'status': return a.status;
+        case 'currentCustomerId': return getCustomerName(a.currentCustomerId);
+        case 'currentSiteId': return getSiteName(a.currentSiteId);
+        case 'contractNo': return getAssetContractInfo(a.id)?.contractNo || '';
+        case 'rentalPeriod': return a.contractStart || '';
+        case 'billingDay': return a.billingDay || 0;
+        case 'monthlyRentalFee': return a.monthlyRentalFee || 0;
+        case 'renterName': return getAssetRenterName(a);
+        case 'supplierName': return getAssetSupplierName(a);
+        case 'acquisitionDate': return a.acquisitionDate || '';
+        case 'acquisitionPrice': return a.acquisitionPrice || 0;
+        case 'accumDepreciation': return a.accumDepreciation || 0;
+        case 'bookValue': return a.bookValue || 0;
+        case 'totalRevenue': return a.cumRentalFee || 0;
+        case 'totalRepairCost': return a.cumRepairCost || 0;
+        case 'netMargin': return (a.cumRentalFee || 0) - (a.cumRepairCost || 0);
+        case 'penaltyScore': return a.maintenanceScore || 0;
+        case 'memo': return a.memo || '';
+        default: return (a as any)[key];
+      }
+    }
+  );
 
   // 현재 뷰포트에 렌더링할 청크 데이터 (초기 50건 -> 스크롤 시 자동 확장)
   const visibleAssets = useMemo(() => {
-    return filtered.slice(0, visibleCount);
-  }, [filtered, visibleCount]);
+    return sortedAssets.slice(0, visibleCount);
+  }, [sortedAssets, visibleCount]);
 
   const handleTableScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
     if (target.scrollTop + target.clientHeight >= target.scrollHeight - 200) {
-      if (visibleCount < filtered.length) {
-        setVisibleCount(prev => Math.min(prev + 50, filtered.length));
+      if (visibleCount < sortedAssets.length) {
+        setVisibleCount(prev => Math.min(prev + 50, sortedAssets.length));
       }
     }
-  };
-
-  const handleSort = (field: AssetSortField) => {
-    if (sortField === field) {
-      if (sortDirection === 'asc') setSortDirection('desc');
-      else {
-        setSortField('assetNo');
-        setSortDirection('asc');
-      }
-    } else {
-      setSortField(field);
-      setSortDirection('asc');
-    }
-  };
-
-  const renderSortArrow = (field: AssetSortField) => {
-    if (sortField !== field) return <span style={{ color: 'var(--text-muted)', fontSize: '10px', marginLeft: '3px' }}>↕</span>;
-    return <span style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '11px', marginLeft: '3px' }}>{sortDirection === 'asc' ? '▲' : '▼'}</span>;
   };
 
   const handleSelectAsset = (asset: Asset) => {
@@ -673,7 +676,7 @@ export const Assets: React.FC = () => {
           style={{
             flex: 1,
             minHeight: 0,
-            overflowX: 'scroll',
+            overflowX: 'auto',
             overflowY: 'auto',
             position: 'relative'
           }}
@@ -684,70 +687,56 @@ export const Assets: React.FC = () => {
                 {/* 1. 상세 (고정) */}
                 <th style={{ padding: '7px 8px', width: '50px', textAlign: 'center', whiteSpace: 'nowrap', position: 'sticky', left: 0, zIndex: 12, backgroundColor: 'var(--bg-app)' }}>상세</th>
                 {/* 2. 관리번호 (고정) */}
-                <th onClick={() => handleSort('assetNo')} style={{ padding: '7px 8px', width: '90px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', position: 'sticky', left: '50px', zIndex: 12, backgroundColor: 'var(--bg-app)' }}>
-                  관리번호{renderSortArrow('assetNo')}
-                </th>
+                <SortableTh sortKey="assetNo" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px', width: '90px', position: 'sticky', left: '50px', zIndex: 12, backgroundColor: 'var(--bg-app)' }}>관리번호</SortableTh>
                 {/* 3. 모델명 */}
-                <th onClick={() => handleSort('modelName')} style={{ padding: '7px 8px', width: '100px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                  모델명{renderSortArrow('modelName')}
-                </th>
+                <SortableTh sortKey="modelName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px', width: '100px' }}>모델명</SortableTh>
                 {/* 4. 규격/피트 */}
-                <th style={{ padding: '7px 8px', width: '75px', textAlign: 'center', whiteSpace: 'nowrap' }}>규격(피트)</th>
+                <SortableTh sortKey="feet" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '7px 8px', width: '75px' }}>규격(피트)</SortableTh>
                 {/* 5. 제조사 */}
-                <th onClick={() => handleSort('manufacturer')} style={{ padding: '7px 8px', width: '90px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                  제조사{renderSortArrow('manufacturer')}
-                </th>
+                <SortableTh sortKey="manufacturer" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px', width: '90px' }}>제조사</SortableTh>
                 {/* 6. 제조번호 */}
-                <th style={{ padding: '7px 8px', width: '100px', whiteSpace: 'nowrap' }}>제조번호</th>
+                <SortableTh sortKey="serialNo" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px', width: '100px' }}>제조번호</SortableTh>
                 {/* 7. 연식 */}
-                <th style={{ padding: '7px 8px', width: '70px', textAlign: 'center', whiteSpace: 'nowrap' }}>연식</th>
+                <SortableTh sortKey="manufacturingYear" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '7px 8px', width: '70px' }}>연식</SortableTh>
                 {/* 8. 소유구분 */}
-                <th onClick={() => handleSort('ownerType')} style={{ padding: '7px 8px', width: '70px', cursor: 'pointer', userSelect: 'none', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                  소유{renderSortArrow('ownerType')}
-                </th>
+                <SortableTh sortKey="ownerType" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '7px 8px', width: '70px' }}>소유</SortableTh>
                 {/* 9. 상태 */}
-                <th onClick={() => handleSort('status')} style={{ padding: '7px 8px', width: '85px', cursor: 'pointer', userSelect: 'none', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                  상태{renderSortArrow('status')}
-                </th>
+                <SortableTh sortKey="status" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '7px 8px', width: '85px' }}>상태</SortableTh>
                 {/* 10. 현재 고객사 */}
-                <th onClick={() => handleSort('currentCustomerId')} style={{ padding: '7px 8px', width: '140px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                  현재 고객사{renderSortArrow('currentCustomerId')}
-                </th>
+                <SortableTh sortKey="currentCustomerId" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px', width: '140px' }}>현재 고객사</SortableTh>
                 {/* 11. 사용 현장 */}
-                <th onClick={() => handleSort('currentSiteId')} style={{ padding: '7px 8px', width: '150px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>사용 현장{renderSortArrow('currentSiteId')}</th>
+                <SortableTh sortKey="currentSiteId" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px', width: '150px' }}>사용 현장</SortableTh>
                 {/* 12. 계약번호 */}
-                <th onClick={() => handleSort('contractNo')} style={{ padding: '7px 8px', width: '105px', cursor: 'pointer', userSelect: 'none', textAlign: 'center', whiteSpace: 'nowrap' }}>계약번호{renderSortArrow('contractNo')}</th>
+                <SortableTh sortKey="contractNo" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '7px 8px', width: '105px' }}>계약번호</SortableTh>
                 {/* 13. 계약기간 */}
-                <th style={{ padding: '7px 8px', width: '160px', textAlign: 'center', whiteSpace: 'nowrap' }}>계약기간</th>
+                <SortableTh sortKey="rentalPeriod" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '7px 8px', width: '160px' }}>계약기간</SortableTh>
                 {/* 14. 청구일 */}
-                <th style={{ padding: '7px 8px', width: '65px', textAlign: 'center', whiteSpace: 'nowrap' }}>청구일</th>
+                <SortableTh sortKey="billingDay" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '7px 8px', width: '65px' }}>청구일</SortableTh>
                 {/* 15. 월 렌탈료 (경영진/관리부/영업부) */}
                 {hasFinancialAccess && (
-                  <th style={{ padding: '7px 8px', width: '95px', textAlign: 'right', whiteSpace: 'nowrap' }}>월 렌탈료</th>
+                  <SortableTh sortKey="monthlyRentalFee" currentSort={sortConfig} onSort={requestSort} align="right" style={{ padding: '7px 8px', width: '95px' }}>월 렌탈료</SortableTh>
                 )}
                 {/* 16. 임차처 */}
-                <th onClick={() => handleSort('renterName')} style={{ padding: '7px 8px', width: '120px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>임차처{renderSortArrow('renterName')}</th>
+                <SortableTh sortKey="renterName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px', width: '120px' }}>임차처</SortableTh>
                 {/* 17. 구입/공급처 */}
-                <th style={{ padding: '7px 8px', width: '120px', whiteSpace: 'nowrap' }}>구입/공급처</th>
+                <SortableTh sortKey="supplierName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px', width: '120px' }}>구입/공급처</SortableTh>
                 {/* 18. 취득/개시일 */}
-                <th onClick={() => handleSort('acquisitionDate')} style={{ padding: '7px 8px', width: '90px', cursor: 'pointer', userSelect: 'none', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                  취득/개시일{renderSortArrow('acquisitionDate')}
-                </th>
+                <SortableTh sortKey="acquisitionDate" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '7px 8px', width: '90px' }}>취득/개시일</SortableTh>
                 {/* 19. 취득원가 ~ 24. 기여 순익 (경영진/관리부/영업부 전용) */}
                 {hasFinancialAccess && (
                   <>
-                    <th style={{ padding: '7px 8px', width: '105px', textAlign: 'right', whiteSpace: 'nowrap' }}>취득원가</th>
-                    <th style={{ padding: '7px 8px', width: '105px', textAlign: 'right', whiteSpace: 'nowrap' }}>감가누계액</th>
-                    <th style={{ padding: '7px 8px', width: '105px', textAlign: 'right', whiteSpace: 'nowrap' }}>장부가치</th>
-                    <th style={{ padding: '7px 8px', width: '105px', textAlign: 'right', whiteSpace: 'nowrap' }}>누적 렌탈수익</th>
-                    <th style={{ padding: '7px 8px', width: '95px', textAlign: 'right', whiteSpace: 'nowrap' }}>누적 수리비</th>
-                    <th style={{ padding: '7px 8px', width: '105px', textAlign: 'right', whiteSpace: 'nowrap' }}>기여 순익</th>
+                    <SortableTh sortKey="acquisitionPrice" currentSort={sortConfig} onSort={requestSort} align="right" style={{ padding: '7px 8px', width: '105px' }}>취득원가</SortableTh>
+                    <SortableTh sortKey="accumDepreciation" currentSort={sortConfig} onSort={requestSort} align="right" style={{ padding: '7px 8px', width: '105px' }}>감가누계액</SortableTh>
+                    <SortableTh sortKey="bookValue" currentSort={sortConfig} onSort={requestSort} align="right" style={{ padding: '7px 8px', width: '105px' }}>장부가치</SortableTh>
+                    <SortableTh sortKey="totalRevenue" currentSort={sortConfig} onSort={requestSort} align="right" style={{ padding: '7px 8px', width: '105px' }}>누적 렌탈수익</SortableTh>
+                    <SortableTh sortKey="totalRepairCost" currentSort={sortConfig} onSort={requestSort} align="right" style={{ padding: '7px 8px', width: '95px' }}>누적 수리비</SortableTh>
+                    <SortableTh sortKey="netMargin" currentSort={sortConfig} onSort={requestSort} align="right" style={{ padding: '7px 8px', width: '105px' }}>기여 순익</SortableTh>
                   </>
                 )}
                 {/* 25. 정비점수 */}
-                <th style={{ padding: '7px 8px', width: '70px', textAlign: 'center', whiteSpace: 'nowrap' }}>정비점수</th>
+                <SortableTh sortKey="penaltyScore" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '7px 8px', width: '70px' }}>정비점수</SortableTh>
                 {/* 26. 비고 */}
-                <th style={{ padding: '7px 8px', width: '140px', whiteSpace: 'nowrap' }}>비고</th>
+                <SortableTh sortKey="memo" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px', width: '140px' }}>비고</SortableTh>
               </tr>
             </thead>
             <tbody>

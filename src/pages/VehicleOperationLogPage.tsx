@@ -38,6 +38,8 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 // 탭 정의 (헌장 3.1: 무수식어 건조 명사 표준)
 type PageTab = 'OPERATION_LOG' | 'FUEL_LOG' | 'FLEET_MASTER';
@@ -213,6 +215,11 @@ export const VehicleOperationLogPage: React.FC = () => {
   }, [filteredOperationLogs]);
 
   // 주유일지 대차대조 집계 수식
+    // 3-state 컬럼 정렬 훅
+  const { sortedData: sortedOperationLogs, sortKey: opSortKey, sortDirection: opSortDir, handleSort: handleOpSort } = useSortableData<VehicleOperationLog>(filteredOperationLogs);
+  const { sortedData: sortedFuelLogs, sortKey: fuelSortKey, sortDirection: fuelSortDir, handleSort: handleFuelSort } = useSortableData<VehicleFuelLog>(filteredFuelLogs);
+  const { sortedData: sortedVehicles, sortKey: vehSortKey, sortDirection: vehSortDir, handleSort: handleVehSort } = useSortableData<CorporateVehicle>(corporateVehicles);
+
   const fuelMetrics = useMemo(() => {
     const totalCount = filteredFuelLogs.length;
     const totalVolume = filteredFuelLogs.reduce((acc, cur) => acc + (cur.fuelVolume || 0), 0);
@@ -249,7 +256,7 @@ export const VehicleOperationLogPage: React.FC = () => {
       });
 
       // 2. 레코드 데이터
-      filteredOperationLogs.forEach(log => {
+      sortedOperationLogs.forEach((log: VehicleOperationLog) => {
         ntsRows.push({
           A: log.operationDate,
           B: log.driverDept || '관리부',
@@ -262,7 +269,7 @@ export const VehicleOperationLogPage: React.FC = () => {
           I: log.commuteDistance || 0,
           J: log.businessDistance || 0,
           K: (log.commuteDistance || 0) + (log.businessDistance || 0),
-          L: `${PURPOSE_MAP[log.purposeType]?.label || ''} ${log.purposeDetail || ''}`.trim()
+          L: `${PURPOSE_MAP[log.purposeType as OperationPurposeType]?.label || ''} ${log.purposeDetail || ''}`.trim()
         });
       });
 
@@ -310,7 +317,7 @@ export const VehicleOperationLogPage: React.FC = () => {
   // 주유 영수증 대장 엑셀 내보내기
   const handleExportFuelExcel = () => {
     try {
-      const fuelRows = filteredFuelLogs.map((f, idx) => ({
+      const fuelRows = sortedFuelLogs.map((f: VehicleFuelLog, idx: number) => ({
         '연번': idx + 1,
         '주유일시': f.fuelDate,
         '차량번호': f.vehicleNo,
@@ -787,35 +794,35 @@ export const VehicleOperationLogPage: React.FC = () => {
       {/* ── 4-1. 탭 1: 운행일지 대장 ── */}
       {activeTab === 'OPERATION_LOG' && (
         <>
-          <div style={{ flex: 1, minHeight: 0, overflow: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-card)' }}>
+          <div className="table-container" style={{ flex: 1, minHeight: 0, maxHeight: 'calc(100vh - 280px)', overflowX: 'auto', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-card)' }}>
             <table data-mid="vehicle_log-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left', whiteSpace: 'nowrap' }}>
-              <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-card)' }}>
                 <tr style={{ backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', height: '36px' }}>
                   <th style={{ padding: '8px 10px', textAlign: 'center', width: '40px' }}>No</th>
-                  <th style={{ padding: '8px 10px' }}>운행일자</th>
-                  <th style={{ padding: '8px 10px' }}>차량번호</th>
-                  <th style={{ padding: '8px 10px' }}>운행자(부서)</th>
-                  <th style={{ padding: '8px 10px' }}>운행목적</th>
-                  <th style={{ padding: '8px 10px' }}>출발지 ➔ 도착지</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>출발 거리</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>도착 거리</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800' }}>주행 거리</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>업무용 거리</th>
+                  <SortableTh label="운행일자" sortKey="operationDate" currentSortKey={opSortKey} currentDirection={opSortDir} onSort={handleOpSort} />
+                  <SortableTh label="차량번호" sortKey="vehicleNo" currentSortKey={opSortKey} currentDirection={opSortDir} onSort={handleOpSort} />
+                  <SortableTh label="운행자" sortKey="driverName" currentSortKey={opSortKey} currentDirection={opSortDir} onSort={handleOpSort} />
+                  <SortableTh label="운행목적" sortKey="purposeType" currentSortKey={opSortKey} currentDirection={opSortDir} onSort={handleOpSort} />
+                  <SortableTh label="출발지" sortKey="departureLocation" currentSortKey={opSortKey} currentDirection={opSortDir} onSort={handleOpSort} />
+                  <SortableTh label="출발 거리" sortKey="departureMileage" currentSortKey={opSortKey} currentDirection={opSortDir} onSort={handleOpSort} align="right" />
+                  <SortableTh label="도착 거리" sortKey="arrivalMileage" currentSortKey={opSortKey} currentDirection={opSortDir} onSort={handleOpSort} align="right" />
+                  <SortableTh label="주행 거리" sortKey="driveDistance" currentSortKey={opSortKey} currentDirection={opSortDir} onSort={handleOpSort} align="right" />
+                  <SortableTh label="업무용 거리" sortKey="businessDistance" currentSortKey={opSortKey} currentDirection={opSortDir} onSort={handleOpSort} align="right" />
                   <th style={{ padding: '8px 10px', textAlign: 'center' }}>계기판 증빙</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'center' }}>상태</th>
+                  <SortableTh label="상태" sortKey="status" currentSortKey={opSortKey} currentDirection={opSortDir} onSort={handleOpSort} align="center" />
                   <th style={{ padding: '8px 10px', textAlign: 'center' }}>관리</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredOperationLogs.length === 0 ? (
+                {sortedOperationLogs.length === 0 ? (
                   <tr>
                     <td colSpan={13} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' }}>
                       조회 조건에 해당하는 운행일지 내역이 없습니다.
                     </td>
                   </tr>
                 ) : (
-                  filteredOperationLogs.map((log, idx) => {
-                    const purposeInfo = PURPOSE_MAP[log.purposeType] || PURPOSE_MAP.OTHER;
+                  sortedOperationLogs.map((log: VehicleOperationLog, idx: number) => {
+                    const purposeInfo = PURPOSE_MAP[log.purposeType as OperationPurposeType] || PURPOSE_MAP.OTHER;
                     return (
                       <tr
                         key={log.id}
@@ -1002,35 +1009,35 @@ export const VehicleOperationLogPage: React.FC = () => {
       {/* ── 4-2. 탭 2: 주유 영수증 대장 ── */}
       {activeTab === 'FUEL_LOG' && (
         <>
-          <div style={{ flex: 1, minHeight: 0, overflow: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-card)' }}>
+          <div className="table-container" style={{ flex: 1, minHeight: 0, maxHeight: 'calc(100vh - 280px)', overflowX: 'auto', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-card)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left', whiteSpace: 'nowrap' }}>
-              <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-card)' }}>
                 <tr style={{ backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', height: '36px' }}>
                   <th style={{ padding: '8px 10px', textAlign: 'center', width: '40px' }}>No</th>
-                  <th style={{ padding: '8px 10px' }}>주유일시</th>
-                  <th style={{ padding: '8px 10px' }}>차량번호</th>
-                  <th style={{ padding: '8px 10px' }}>주유자</th>
-                  <th style={{ padding: '8px 10px' }}>유종</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>주유량(L)</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800' }}>주유금액(원)</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>리터단가(원/L)</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>계기판 거리</th>
+                  <SortableTh label="주유일시" sortKey="fuelDate" currentSortKey={fuelSortKey} currentDirection={fuelSortDir} onSort={handleFuelSort} />
+                  <SortableTh label="차량번호" sortKey="vehicleNo" currentSortKey={fuelSortKey} currentDirection={fuelSortDir} onSort={handleFuelSort} />
+                  <SortableTh label="주유자" sortKey="driverName" currentSortKey={fuelSortKey} currentDirection={fuelSortDir} onSort={handleFuelSort} />
+                  <SortableTh label="유종" sortKey="fuelType" currentSortKey={fuelSortKey} currentDirection={fuelSortDir} onSort={handleFuelSort} />
+                  <SortableTh label="주유량" sortKey="fuelVolume" currentSortKey={fuelSortKey} currentDirection={fuelSortDir} onSort={handleFuelSort} align="right" />
+                  <SortableTh label="주유금액" sortKey="fuelAmount" currentSortKey={fuelSortKey} currentDirection={fuelSortDir} onSort={handleFuelSort} align="right" />
+                  <SortableTh label="리터단가" sortKey="fuelUnitPrice" currentSortKey={fuelSortKey} currentDirection={fuelSortDir} onSort={handleFuelSort} align="right" />
+                  <SortableTh label="계기판 거리" sortKey="currentMileage" currentSortKey={fuelSortKey} currentDirection={fuelSortDir} onSort={handleFuelSort} align="right" />
                   <th style={{ padding: '8px 10px', textAlign: 'center' }}>계기판 사진</th>
                   <th style={{ padding: '8px 10px', textAlign: 'center' }}>영수증 사진</th>
-                  <th style={{ padding: '8px 10px' }}>주유소명</th>
-                  <th style={{ padding: '8px 10px' }}>결제구분</th>
+                  <SortableTh label="주유소명" sortKey="gasStationName" currentSortKey={fuelSortKey} currentDirection={fuelSortDir} onSort={handleFuelSort} />
+                  <SortableTh label="결제구분" sortKey="paymentMethod" currentSortKey={fuelSortKey} currentDirection={fuelSortDir} onSort={handleFuelSort} />
                   <th style={{ padding: '8px 10px', textAlign: 'center' }}>관리</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredFuelLogs.length === 0 ? (
+                {sortedFuelLogs.length === 0 ? (
                   <tr>
                     <td colSpan={14} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' }}>
                       조회 조건에 해당하는 주유 영수증 내역이 없습니다.
                     </td>
                   </tr>
                 ) : (
-                  filteredFuelLogs.map((fuel, idx) => {
+                  sortedFuelLogs.map((fuel: VehicleFuelLog, idx: number) => {
                     const unitPrice = fuel.fuelUnitPrice || (fuel.fuelVolume > 0 ? Math.round(fuel.fuelAmount / fuel.fuelVolume) : 0);
                     return (
                       <tr
@@ -1222,32 +1229,32 @@ export const VehicleOperationLogPage: React.FC = () => {
           {/* 차량 마스터 테이블 */}
           <div style={{ flex: 1, minHeight: 0, overflow: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-card)' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left', whiteSpace: 'nowrap' }}>
-              <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-card)' }}>
                 <tr style={{ backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', height: '36px' }}>
                   <th style={{ padding: '8px 10px', textAlign: 'center', width: '40px' }}>No</th>
-                  <th style={{ padding: '8px 10px' }}>차량번호</th>
-                  <th style={{ padding: '8px 10px' }}>차종 / 모델명</th>
-                  <th style={{ padding: '8px 10px' }}>차량구분</th>
-                  <th style={{ padding: '8px 10px' }}>소유구분</th>
-                  <th style={{ padding: '8px 10px' }}>기본유종</th>
-                  <th style={{ padding: '8px 10px' }}>배정부서</th>
-                  <th style={{ padding: '8px 10px' }}>주 운행자</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right' }}>최초 거리</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: '800' }}>현재 누적 거리</th>
-                  <th style={{ padding: '8px 10px' }}>보험만료일</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'center' }}>상태</th>
+                  <SortableTh label="차량번호" sortKey="vehicleNo" currentSortKey={vehSortKey} currentDirection={vehSortDir} onSort={handleVehSort} />
+                  <SortableTh label="모델명" sortKey="modelName" currentSortKey={vehSortKey} currentDirection={vehSortDir} onSort={handleVehSort} />
+                  <SortableTh label="차량구분" sortKey="vehicleType" currentSortKey={vehSortKey} currentDirection={vehSortDir} onSort={handleVehSort} />
+                  <SortableTh label="소유구분" sortKey="ownershipType" currentSortKey={vehSortKey} currentDirection={vehSortDir} onSort={handleVehSort} />
+                  <SortableTh label="기본유종" sortKey="fuelType" currentSortKey={vehSortKey} currentDirection={vehSortDir} onSort={handleVehSort} />
+                  <SortableTh label="배정부서" sortKey="assignedDepartment" currentSortKey={vehSortKey} currentDirection={vehSortDir} onSort={handleVehSort} />
+                  <SortableTh label="주 운행자" sortKey="primaryDriverName" currentSortKey={vehSortKey} currentDirection={vehSortDir} onSort={handleVehSort} />
+                  <SortableTh label="최초 거리" sortKey="initialMileage" currentSortKey={vehSortKey} currentDirection={vehSortDir} onSort={handleVehSort} align="right" />
+                  <SortableTh label="현재 누적 거리" sortKey="currentMileage" currentSortKey={vehSortKey} currentDirection={vehSortDir} onSort={handleVehSort} align="right" />
+                  <SortableTh label="보험만료일" sortKey="insuranceExpiryDate" currentSortKey={vehSortKey} currentDirection={vehSortDir} onSort={handleVehSort} />
+                  <SortableTh label="상태" sortKey="isActive" currentSortKey={vehSortKey} currentDirection={vehSortDir} onSort={handleVehSort} align="center" />
                   <th style={{ padding: '8px 10px', textAlign: 'center' }}>관리</th>
                 </tr>
               </thead>
               <tbody>
-                {corporateVehicles.length === 0 ? (
+                {sortedVehicles.length === 0 ? (
                   <tr>
                     <td colSpan={13} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' }}>
                       등록된 법인 차량이 없습니다. [법인 차량 신규 등록] 버튼을 눌러 등록하십시오.
                     </td>
                   </tr>
                 ) : (
-                  corporateVehicles.map((veh, idx) => (
+                  sortedVehicles.map((veh: CorporateVehicle, idx: number) => (
                     <tr
                       key={veh.id}
                       style={{

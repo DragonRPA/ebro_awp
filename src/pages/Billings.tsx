@@ -600,7 +600,7 @@ export const Billings: React.FC = () => {
   const { items: sortedBillings, requestSort, sortConfig } = useSortableData(enrichedBillings, { key: 'billingYm', direction: 'desc' });
 
   const handleExportExcel = () => {
-    const excelData = filteredBillings.map((b, idx) => {
+    const excelData = sortedBillings.map((b, idx) => {
       const supply = b.totalAmount || 0;
       const vat = Math.round(supply * 0.1);
       const grand = supply + vat;
@@ -2685,7 +2685,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                     <strong>₩{totalSupply.toLocaleString()}</strong>
                   </div>
                   <div  style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>총 청구(VAT포함):</span>
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>총 청구:</span>
                     <strong style={{ color: '#0070C0', fontSize: '13.5px' }}>₩{totalGrand.toLocaleString()}</strong>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -2704,7 +2704,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               );
             })()}
 
-            <div className="table-container" style={{ border: 'none', boxShadow: 'none', overflowX: 'auto' }}>
+            <div className="table-container" style={{ border: 'none', boxShadow: 'none', overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
               <table data-mid="billing-list-table" style={{ minWidth: '650px', whiteSpace: 'nowrap' }}>
                 <thead>
                   <tr>
@@ -2712,7 +2712,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                     <SortableTh label="청구월" sortKey="billingYm" currentSort={sortConfig} onSort={requestSort} style={{ whiteSpace: 'nowrap' }} />
                     <SortableTh label="고객사" sortKey="customerName" currentSort={sortConfig} onSort={requestSort} style={{ whiteSpace: 'nowrap' }} />
                     <SortableTh label="공급가액" sortKey="totalAmount" currentSort={sortConfig} onSort={requestSort} style={{ whiteSpace: 'nowrap', paddingRight: '12px' }} align="right" />
-                    <SortableTh label="청구합계(VAT포함)" sortKey="grandTotal" currentSort={sortConfig} onSort={requestSort} style={{ whiteSpace: 'nowrap', paddingRight: '12px' }} align="right" />
+                    <SortableTh label="청구합계" sortKey="grandTotal" currentSort={sortConfig} onSort={requestSort} style={{ whiteSpace: 'nowrap', paddingRight: '12px' }} align="right" />
                     <SortableTh label="미납액" sortKey="unpaidAmount" currentSort={sortConfig} onSort={requestSort} style={{ whiteSpace: 'nowrap', paddingRight: '12px' }} align="right" />
                     <SortableTh label="상태" sortKey="status" currentSort={sortConfig} onSort={requestSort} style={{ whiteSpace: 'nowrap' }} />
                   </tr>

@@ -3,6 +3,8 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { db, Todo, DelinquencyActionLog, Customer, Billing, calculatePaymentDueDate, formatPaymentDueCondition, CustomerTransactionStatus, isCustomerRestricted, isCustomerTotalBlocked, getCustomerTransactionStatusLabel } from '../services/db';
 import { exportToExcel } from '../services/excel';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 import { fetchCentralLegalNoticeTemplates, saveCentralLegalNoticeTemplate } from '../services/centralDb';
 import { 
   AlertTriangle, PhoneCall, Mail, CheckCircle, 
@@ -335,6 +337,8 @@ export const DelinquencyPage: React.FC = () => {
     });
   }, [calculatedDelinquencies, searchTerm, statusFilter, salesFilter, amountRangeFilter, overdueStartDate, overdueEndDate]);
 
+  const { items: sortedDelinquencies, requestSort, sortConfig } = useSortableData(filteredDelinquencies);
+
   const selectedDelinquency = calculatedDelinquencies.find(d => d.customerId === selectedCustomerId) || null;
   const selectedCustLogs = useMemo(() => {
     if (!selectedCustomerId) return [];
@@ -359,7 +363,7 @@ export const DelinquencyPage: React.FC = () => {
       showToast('내보낼 연체 채권 데이터가 없습니다.', 'warning');
       return;
     }
-    const rows = filteredDelinquencies.map((del, idx) => {
+    const rows = sortedDelinquencies.map((del, idx) => {
       const cust = customers.find(c => c.id === del.customerId);
       const riskTierLabel = del.riskTier === 'HIGH' ? '고위험' : del.riskTier === 'MID' ? '중위험' : '일반/저위험';
       const statusLabel = del.transactionStatus === 'BLOCKED' ? '거래차단' : '정상거래';
@@ -989,30 +993,30 @@ export const DelinquencyPage: React.FC = () => {
           </div>
 
           {/* 고밀도 슬림 테이블 (행 높이 38~42px) */}
-          <div data-mid="delinquency-inspection-grid" style={{ overflowX: 'auto', flex: 1, minHeight: 0 }}>
+          <div data-mid="delinquency-inspection-grid" className="table-container" style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 280px)', flex: 1, minHeight: 0 }}>
             <table className="data-table" style={{ width: '100%', fontSize: '11.5px', borderCollapse: 'collapse' }}>
-              <thead>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-secondary)' }}>
                 <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-color)' }}>
-                  <th style={{ padding: '6px 8px', textAlign: 'left', whiteSpace: 'nowrap' }}>위험등급</th>
-                  <th style={{ padding: '6px 8px', textAlign: 'left', whiteSpace: 'nowrap' }}>고객사</th>
-                  <th style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>연체 총액</th>
-                  <th style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>약정 납기일</th>
-                  <th style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>경과일</th>
-                  <th style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>약속위반</th>
-                  <th style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>담당 영업</th>
-                  <th style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>지시/통제</th>
-                  <th style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>차단</th>
+                  <SortableTh label="위험등급" sortKey="riskTier" currentSort={sortConfig} onSort={requestSort} style={{ padding: '6px 8px', textAlign: 'left', whiteSpace: 'nowrap' }} />
+                  <SortableTh label="고객사" sortKey="customerName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '6px 8px', textAlign: 'left', whiteSpace: 'nowrap' }} />
+                  <SortableTh label="연체 총액" sortKey="totalOverdueAmount" currentSort={sortConfig} onSort={requestSort} style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }} align="right" />
+                  <SortableTh label="약정 납기일" sortKey="oldestOverdueDueDate" currentSort={sortConfig} onSort={requestSort} style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }} align="center" />
+                  <SortableTh label="경과일" sortKey="overdueDays" currentSort={sortConfig} onSort={requestSort} style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }} align="center" />
+                  <SortableTh label="약속위반" sortKey="brokenPromiseCount" currentSort={sortConfig} onSort={requestSort} style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }} align="center" />
+                  <SortableTh label="담당 영업" sortKey="responsibleEmployeeName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }} align="center" />
+                  <SortableTh label="지시/통제" sortKey="directiveNeglectedDays" currentSort={sortConfig} onSort={requestSort} style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }} align="center" />
+                  <SortableTh label="차단" sortKey="transactionStatus" currentSort={sortConfig} onSort={requestSort} style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }} align="center" />
                 </tr>
               </thead>
               <tbody>
-                {filteredDelinquencies.length === 0 ? (
+                {sortedDelinquencies.length === 0 ? (
                   <tr>
                     <td colSpan={9} style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
                       현재 약정 납기일을 도과한 연체 채권이 없습니다.
                     </td>
                   </tr>
                 ) : (
-                  filteredDelinquencies.map(del => {
+                  sortedDelinquencies.map(del => {
                     const isSelected = selectedCustomerId === del.customerId;
                     return (
                       <tr 

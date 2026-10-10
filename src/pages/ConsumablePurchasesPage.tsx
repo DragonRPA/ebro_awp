@@ -9,6 +9,8 @@ import {
 import { exportToExcel } from '../services/excel';
 import { ConsumablePurchaseRequest, db } from '../services/db';
 import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 export const ConsumablePurchasesPage: React.FC = () => {
   const {
@@ -138,6 +140,25 @@ export const ConsumablePurchasesPage: React.FC = () => {
     }).sort((a, b) => b.requestDate.localeCompare(a.requestDate));
   }, [consumablePurchases, searchTerm, statusFilter, startDate, endDate]);
 
+  const { items: sortedPurchases, sortConfig, requestSort } = useSortableData<ConsumablePurchaseRequest>(
+    filteredPurchases,
+    { key: 'requestDate', direction: 'desc' },
+    (p, key) => {
+      switch (key) {
+        case 'id': return p.id;
+        case 'requestDate': return p.requestDate;
+        case 'modelName': return p.modelName;
+        case 'requestedQty': return p.requestedQty || 0;
+        case 'unitPrice': return p.unitPrice || 0;
+        case 'totalPrice': return (p.requestedQty || 0) * (p.unitPrice || 0);
+        case 'sellerName': return p.sellerName || p.purchaseUrl || '';
+        case 'requester': return p.requesterName || '';
+        case 'status': return p.status;
+        default: return (p as any)[key];
+      }
+    }
+  );
+
   // 구매신청서 제출 핸들러
   const handleRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -228,7 +249,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
 
   // 엑셀 내보내기
   const handleExportExcel = () => {
-    const excelData = filteredPurchases.map((p, idx) => ({
+    const excelData = sortedPurchases.map((p, idx) => ({
       'No': idx + 1,
       '신청번호': p.id,
       '신청일자': p.requestDate,
@@ -424,32 +445,32 @@ export const ConsumablePurchasesPage: React.FC = () => {
           </div>
 
           {/* 고밀도 대사 그리드 (3.6 유형 B) */}
-          <div style={{ overflowX: 'auto' }}>
-            <table data-uia="table-consumable-purchases" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+          <div className="table-container" style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
+            <table data-uia="table-consumable-purchases" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left', whiteSpace: 'nowrap' }}>
               <thead>
                 <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>신청번호</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>신청일자</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>품목명</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>수량</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>예상단가</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>합계금액</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>공급처 / 구매 URL</th>
-                  <th style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>신청자</th>
+                  <SortableTh sortKey="id" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px' }}>신청번호</SortableTh>
+                  <SortableTh sortKey="requestDate" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px' }}>신청일자</SortableTh>
+                  <SortableTh sortKey="modelName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px' }}>품목명</SortableTh>
+                  <SortableTh sortKey="requestedQty" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '8px 10px' }}>수량</SortableTh>
+                  <SortableTh sortKey="unitPrice" currentSort={sortConfig} onSort={requestSort} align="right" style={{ padding: '8px 10px' }}>예상단가</SortableTh>
+                  <SortableTh sortKey="totalPrice" currentSort={sortConfig} onSort={requestSort} align="right" style={{ padding: '8px 10px' }}>합계금액</SortableTh>
+                  <SortableTh sortKey="sellerName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px' }}>공급처 / 구매 URL</SortableTh>
+                  <SortableTh sortKey="requester" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px' }}>신청자</SortableTh>
                   <th style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>증빙</th>
-                  <th style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>진행상태</th>
+                  <SortableTh sortKey="status" currentSort={sortConfig} onSort={requestSort} align="center" style={{ padding: '8px 10px' }}>진행상태</SortableTh>
                   <th style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>관리 / 조치</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredPurchases.length === 0 ? (
+                {sortedPurchases.length === 0 ? (
                   <tr>
                     <td colSpan={11} style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
                       조회 조건에 해당하는 구매 신청 내역이 없습니다.
                     </td>
                   </tr>
                 ) : (
-                  filteredPurchases.map(p => {
+                  sortedPurchases.map(p => {
                     const isUrl = (p.sellerName || '').toLowerCase().startsWith('http://') || 
                                   (p.sellerName || '').toLowerCase().startsWith('https://') || 
                                   (p.sellerName || '').toLowerCase().startsWith('www.');

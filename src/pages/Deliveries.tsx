@@ -673,7 +673,7 @@ export const Deliveries: React.FC = () => {
       </div>
 
       {/* 배차 관리 대장 목록 */}
-      <div className="table-container" style={{ overflowX: 'auto' }}>
+      <div className="table-container" style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
         <table style={{ minWidth: '1100px', whiteSpace: 'nowrap' }}>
           <thead>
             <tr>
@@ -698,7 +698,7 @@ export const Deliveries: React.FC = () => {
                 </td>
               </tr>
             ) : (
-              [...sortedDeliveries].reverse().map((d, idx) => {
+              sortedDeliveries.map((d, idx) => {
                 // 외주정비회수 및 일반회수 가독성 바인딩
                 let displayName = getCustNameFromContract(d.contractId);
                 if (displayName === '-' && (d.memo || '').includes('[외주정비회수]')) {

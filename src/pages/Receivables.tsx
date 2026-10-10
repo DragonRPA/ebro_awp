@@ -4,6 +4,8 @@ import { db, Receivable } from '../services/db';
 import { Plus, Search, DollarSign, Calendar, FileText, CheckCircle, AlertTriangle, RotateCcw, Download, X } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
 import { matchHangul, sortCustomersByName } from '../utils/hangulSearch';
+import { SortableTh } from '../components/SortableTh';
+import { useSortableData } from '../hooks/useSortableData';
 
 export const Receivables: React.FC = () => {
   const {
@@ -341,6 +343,29 @@ export const Receivables: React.FC = () => {
     return true;
   }).sort((a: any, b: any) => new Date(b.occurredDate).getTime() - new Date(a.occurredDate).getTime());
 
+  const { items: sortedReceivables, sortConfig, requestSort } = useSortableData<Receivable>(
+    filtered,
+    null,
+    (r, key) => {
+      const c = contracts.find(x => x.id === r.contractId);
+      const cu = customers.find(x => x.id === (r.customerId || c?.customerId));
+      const s = c?.siteId ? sites.find(x => x.id === c.siteId) : null;
+      switch (key) {
+        case 'occurredDate': return r.occurredDate;
+        case 'customer': return cu?.name || '';
+        case 'contract': return `${c?.contractNo || ''} ${s?.name || ''}`;
+        case 'type': return r.type;
+        case 'internalDescription': return r.internalDescription;
+        case 'displayName': return r.displayName || '';
+        case 'totalAmount': return r.totalAmount;
+        case 'billedAmount': return r.billedAmount;
+        case 'remaining': return r.totalAmount - r.billedAmount;
+        case 'status': return r.status;
+        default: return (r as any)[key];
+      }
+    }
+  );
+
   // 집계 데이터
   const totalReceivableSum = filtered.reduce((sum, r) => sum + (r.totalAmount || 0), 0);
   const totalBilledSum = filtered.reduce((sum, r) => sum + (r.billedAmount || 0), 0);
@@ -670,20 +695,20 @@ export const Receivables: React.FC = () => {
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-app)', whiteSpace: 'nowrap' }}>
                 <th style={{ whiteSpace: 'nowrap', textAlign: 'center', width: '80px' }}>조치</th>
-                <th style={{ whiteSpace: 'nowrap', textAlign: 'center', width: '90px' }}>발생일</th>
-                <th style={{ whiteSpace: 'nowrap' }}>고객사명</th>
-                <th style={{ whiteSpace: 'nowrap' }}>계약번호 / 현장</th>
-                <th style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>유형</th>
-                <th style={{ whiteSpace: 'nowrap' }}>내부 기재명 (실제 내역)</th>
-                <th style={{ whiteSpace: 'nowrap' }}>명세서 표기명</th>
-                <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>외상 총액</th>
-                <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>기청구액</th>
-                <th style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>미청구 잔액</th>
-                <th style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>상태</th>
+                <SortableTh columnKey="occurredDate" currentSortKey={sortConfig?.key} currentDirection={sortConfig?.direction} onSort={requestSort} align="center" style={{ width: '90px' }}>발생일</SortableTh>
+                <SortableTh columnKey="customer" currentSortKey={sortConfig?.key} currentDirection={sortConfig?.direction} onSort={requestSort}>고객사명</SortableTh>
+                <SortableTh columnKey="contract" currentSortKey={sortConfig?.key} currentDirection={sortConfig?.direction} onSort={requestSort}>계약번호 / 현장</SortableTh>
+                <SortableTh columnKey="type" currentSortKey={sortConfig?.key} currentDirection={sortConfig?.direction} onSort={requestSort} align="center">유형</SortableTh>
+                <SortableTh columnKey="internalDescription" currentSortKey={sortConfig?.key} currentDirection={sortConfig?.direction} onSort={requestSort}>내부 기재명</SortableTh>
+                <SortableTh columnKey="displayName" currentSortKey={sortConfig?.key} currentDirection={sortConfig?.direction} onSort={requestSort}>명세서 표기명</SortableTh>
+                <SortableTh columnKey="totalAmount" currentSortKey={sortConfig?.key} currentDirection={sortConfig?.direction} onSort={requestSort} align="right">외상 총액</SortableTh>
+                <SortableTh columnKey="billedAmount" currentSortKey={sortConfig?.key} currentDirection={sortConfig?.direction} onSort={requestSort} align="right">기청구액</SortableTh>
+                <SortableTh columnKey="remaining" currentSortKey={sortConfig?.key} currentDirection={sortConfig?.direction} onSort={requestSort} align="right">미청구 잔액</SortableTh>
+                <SortableTh columnKey="status" currentSortKey={sortConfig?.key} currentDirection={sortConfig?.direction} onSort={requestSort} align="center">상태</SortableTh>
               </tr>
             </thead>
             <tbody style={{ whiteSpace: 'nowrap' }}>
-              {filtered.map(r => {
+              {sortedReceivables.map(r => {
                 const c = contracts.find(x => x.id === r.contractId);
                 const cu = customers.find(x => x.id === (r.customerId || c?.customerId));
                 const s = c?.siteId ? sites.find(x => x.id === c.siteId) : null;
