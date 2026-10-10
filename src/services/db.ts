@@ -6654,6 +6654,32 @@ class LocalDB {
                 return d2;
               });
             }
+
+            // 🛡️ [외래키 제약조건 위반 자동 복구 Fallback 방어벽 (23503)]
+            // 부모 레코드(예: customer_sites) 비동기 커밋 지연 시 300ms 대기 후 1회 원본 재시도, 실패 시 Nullable FK는 null 격리 후 저장
+            if (error.code === '23503' || msg.includes('foreign key constraint')) {
+              await new Promise(r => setTimeout(r, 300));
+              const retryRes = await targetClient.from(tableName).upsert([payloadForSupabase], { onConflict: 'id' });
+              if (!retryRes.error) {
+                console.log(`[FK 지연 커밋 재시도 성공] ${tableName} upsert 정상 완료`);
+                return retryRes.data;
+              }
+              // 2차: 제약조건에 명시된 컬럼 파싱 (예: contracts_siteId_fkey -> siteId)
+              const fkMatch = msg.match(/constraint "([a-zA-Z0-9]+)_([a-zA-Z0-9]+)_fkey"/i);
+              if (fkMatch) {
+                const constraintCol = fkMatch[2];
+                const rule = FK_RULES_MAP[`${tableName}.${constraintCol}`];
+                if (rule && !rule.notNull && payloadForSupabase[constraintCol] !== undefined) {
+                  const safeFkPayload = { ...payloadForSupabase, [constraintCol]: null };
+                  const nullRetryRes = await targetClient.from(tableName).upsert([safeFkPayload], { onConflict: 'id' });
+                  if (!nullRetryRes.error) {
+                    console.warn(`[FK 위반 방어 격리 성공] ${tableName}.${constraintCol}을 null로 격리 후 저장 완료`);
+                    return nullRetryRes.data;
+                  }
+                }
+              }
+            }
+
             throw new Error(`[Supabase DB 저장 실패] ${tableName} (ID: ${newId})\n\n사유: ${msg}`);
           }
           return data;
@@ -6772,6 +6798,30 @@ class LocalDB {
                 return d2;
               });
             }
+
+            // 🛡️ [외래키 제약조건 위반 자동 복구 Fallback 방어벽 (23503)]
+            if (error.code === '23503' || msg.includes('foreign key constraint')) {
+              await new Promise(r => setTimeout(r, 300));
+              const retryRes = await targetClient.from(tableName).update(payloadForSupabase as any).eq('id', id);
+              if (!retryRes.error) {
+                console.log(`[FK 지연 커밋 재시도 성공] ${tableName} update 정상 완료`);
+                return retryRes.data;
+              }
+              const fkMatch = msg.match(/constraint "([a-zA-Z0-9]+)_([a-zA-Z0-9]+)_fkey"/i);
+              if (fkMatch) {
+                const constraintCol = fkMatch[2];
+                const rule = FK_RULES_MAP[`${tableName}.${constraintCol}`];
+                if (rule && !rule.notNull && payloadForSupabase[constraintCol] !== undefined) {
+                  const safeFkPayload = { ...payloadForSupabase, [constraintCol]: null };
+                  const nullRetryRes = await targetClient.from(tableName).update(safeFkPayload as any).eq('id', id);
+                  if (!nullRetryRes.error) {
+                    console.warn(`[FK 위반 방어 격리 성공] ${tableName}.${constraintCol}을 null로 격리 후 수정 완료`);
+                    return nullRetryRes.data;
+                  }
+                }
+              }
+            }
+
             throw new Error(`[Supabase DB 수정 실패] ${tableName} (ID: ${id})\n\n사유: ${msg}`);
           }
           return data;

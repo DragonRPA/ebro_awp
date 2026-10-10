@@ -2539,6 +2539,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const finalSite = site!;
 
+    // ⚠️ FK 제약 방지: 현장(CustomerSite) 레코드가 Supabase 원격 DB에 100% 저장·반영 완료된 후에만 contracts 생성이 가능하도록 동기 대기!
+    try {
+      await db.awaitPendingWrites();
+    } catch (err: any) {
+      console.error('Supabase site sync error before contract creation:', err);
+      showErrorModal(`⚠️ 신규 현장 DB 동기화 오류가 발생했습니다:\n${err.message || JSON.stringify(err)}`, '스마트 출고 오류');
+      return { success: false, errorMessage: err.message };
+    }
+
     const existingUsers = db.users;
     const isSalespersonValid = currentUser?.id && existingUsers.some(u => u.id === currentUser.id);
     const validSalespersonId = isSalespersonValid ? currentUser.id : (existingUsers.find(u => u.id === 'u-1')?.id || existingUsers[0]?.id || undefined);
@@ -2603,6 +2612,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         await db.awaitPendingWrites();
       } catch (err: any) {
         console.error('Supabase contract insert sync error:', err);
+        if (contract?.id) {
+          db.deleteRow('contracts', contract.id);
+        }
         showErrorModal(`⚠️ 스마트 출고 계약 생성 중 DB 동기화 오류가 발생했습니다:\n${err.message || err.details || JSON.stringify(err)}`, '스마트 출고 DB 동기화 오류');
         return { success: false, errorMessage: err.message || err.details };
       }
@@ -5503,6 +5515,13 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     const contractNo = generateNextContractNo(contractData.startDate);
     ensureCustomerContactExists(contractData.customerId, contractData.contactId);
     
+    // ⚠️ 외래키(Foreign Key) 제약조건 위반 방지: 선행 sites/contacts/customer 레코드가 Supabase 원격 DB에 먼저 100% 저장되도록 동기 대기!
+    try {
+      await db.awaitPendingWrites();
+    } catch (err: any) {
+      console.warn('Pending writes sync before createContract:', err);
+    }
+
     const contract = db.insertRow<Contract>('contracts', {
       ...contractData,
       contractNo,
