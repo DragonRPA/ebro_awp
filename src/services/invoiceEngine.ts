@@ -385,8 +385,9 @@ export async function consolidateSelectedBillings(opts: ConsolidateSelectedOptio
   };
 
   if (supabase) {
-    // 1. billing_invoices insert
-    const { error: invErr } = await supabase.from('billing_invoices').upsert([invoice], { onConflict: 'id' });
+    // 1. billing_invoices insert (외래키 무결성 가디언 정제 적용)
+    const sanitizedInvoice = db.sanitizeSupabasePayload(invoice, 'billing_invoices');
+    const { error: invErr } = await supabase.from('billing_invoices').upsert([sanitizedInvoice], { onConflict: 'id' });
     if (invErr) return { success: false, message: `통합 청구서 생성 실패: ${invErr.message}` };
 
     // 2. billings.invoiceId 업데이트

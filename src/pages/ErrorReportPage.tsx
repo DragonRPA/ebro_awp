@@ -253,8 +253,9 @@ export const ErrorReportPage: React.FC = () => {
       const assigneeObj = users.find(u => u.id === receptionAssigneeId);
       const assigneeName = assigneeObj ? assigneeObj.name : (currentUser?.name || '담당자');
 
+      const safeAssigneeId = receptionAssigneeId || ((currentUser?.id && !['sys-admin', 'usr-admin'].includes(currentUser.id)) ? currentUser.id : 'u-1');
       await receiveErrorReport(selectedReport.id, {
-        assigneeId: receptionAssigneeId || (currentUser?.id || 'usr-admin'),
+        assigneeId: safeAssigneeId,
         assigneeName,
         receptionNote: receptionNote.trim(),
         targetCompletionDate: targetCompletionDate || undefined

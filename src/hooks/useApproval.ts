@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase, ApprovalRule, RuleConsensus, ApprovalRequest, ApprovalStep, ApprovalPayload, getUserEffectiveTier } from '../services/db';
+import { db, supabase, ApprovalRule, RuleConsensus, ApprovalRequest, ApprovalStep, ApprovalPayload, getUserEffectiveTier } from '../services/db';
 
 export function useApproval() {
   const [loading, setLoading] = useState(false);
@@ -50,9 +50,14 @@ export function useApproval() {
       const { data: ruleData } = await supabase.from('approval_rules').select('required_tier').eq('id', ruleId).single();
       const targetTier = escalatedTier ?? (ruleData?.required_tier || 0);
 
+      // 🛡️ FK 무결성 보장: sys-admin, usr-admin 등 가상 계정 방어 및 실제 DB 사용자(u-1 등) 매핑
+      const VIRTUAL_USER_IDS = new Set(['sys-admin', 'usr-admin', 'sys-anon', 'system', 'admin']);
+      const isValidUser = originatorId && !VIRTUAL_USER_IDS.has(originatorId) && (db.users || []).some((u: any) => u && u.id === originatorId && !VIRTUAL_USER_IDS.has(u.id));
+      const safeOriginatorId = isValidUser ? originatorId : ((db.users || []).find((u: any) => u && u.id === 'u-1')?.id || (db.users || []).find((u: any) => u && !VIRTUAL_USER_IDS.has(u.id))?.id || null);
+
       const insertObj: any = {
         rule_id: ruleId,
-        originator_id: originatorId,
+        originator_id: safeOriginatorId,
         target_record_id: targetRecordId,
         target_table: targetTable,
         escalated_tier: escalatedTier,

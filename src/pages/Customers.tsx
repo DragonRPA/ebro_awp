@@ -23,7 +23,7 @@ import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal
 export const Customers: React.FC = () => {
   
   const {
-    customers, contacts, sites, siteMasters, contracts, contractAssets, saveCustomer, saveContact, deleteContact, saveSite, deleteSite, hasPermission,
+    users, customers, contacts, sites, siteMasters, contracts, contractAssets, saveCustomer, saveContact, deleteContact, saveSite, deleteSite, hasPermission,
     navigationPayload, setNavigationPayload, currentUser, refreshAllData, legalNoticeLogs,
     standardOptions, saveStandardOption, deleteStandardOption, setActiveTab, showErrorModal
   } = useApp();
@@ -492,9 +492,12 @@ export const Customers: React.FC = () => {
       if (isNew) {
         const { rule } = await fetchRuleForEvent('CUSTOMER_REGISTRATION');
         if (rule) {
+          const validOriginatorId = (currentUser?.id && !['sys-admin', 'usr-admin'].includes(currentUser.id) && (users || []).some((u: any) => u && u.id === currentUser.id))
+            ? currentUser.id
+            : ((users || []).find((u: any) => u && u.id === 'u-1')?.id || (users || [])[0]?.id || 'u-1');
           await createApprovalRequest(
             rule.id!,
-            currentUser?.id || 'usr-admin',
+            validOriginatorId,
             saved.id!,
             'customers',
             rule.required_tier // 기본 결재선 티어

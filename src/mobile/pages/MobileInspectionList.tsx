@@ -345,9 +345,11 @@ export const MobileInspectionList: React.FC = () => {
       const photos = assetPhotos[oin.id] || [];
       const memoText = assetNotes[oin.id] || '';
 
+      const safeInspectorId = (currentUser?.id && db.users.some(u => u.id === currentUser.id && !['sys-admin', 'usr-admin'].includes(u.id))) ? currentUser.id : undefined;
+
       db.updateRow<OutboundInspection>('outboundInspections', oin.id, {
         status: 'COMPLETED', 
-        inspectorId: currentUser?.name || '담당기사',
+        inspectorId: safeInspectorId,
         inspectedAt: nowIso, 
         approvedAt: nowIso,
         specsJson: JSON.stringify({
@@ -356,6 +358,7 @@ export const MobileInspectionList: React.FC = () => {
           checkedCount,
           totalCheckpoints: checkpoints.length,
           completedAt: nowIso,
+          inspectorName: currentUser?.name || '담당기사',
           inspectorMemo: memoText
         }),
         note: `[출고검수 완료] 확인 ${checkedCount}/${checkpoints.length}개소 (사진 ${photos.length}매)${memoText ? ` | 메모: ${memoText}` : ''}`,
@@ -433,9 +436,11 @@ export const MobileInspectionList: React.FC = () => {
         const photos = assetPhotos[oin.id] || [];
         const memoText = assetNotes[oin.id] || '';
 
+        const safeBatchInspectorId = (currentUser?.id && db.users.some(u => u.id === currentUser.id && !['sys-admin', 'usr-admin'].includes(u.id))) ? currentUser.id : undefined;
+
         db.updateRow<OutboundInspection>('outboundInspections', oin.id, {
           status: 'COMPLETED', 
-          inspectorId: currentUser?.name || '담당기사',
+          inspectorId: safeBatchInspectorId,
           inspectedAt: nowIso, 
           approvedAt: nowIso,
           specsJson: JSON.stringify({
@@ -444,6 +449,7 @@ export const MobileInspectionList: React.FC = () => {
             checkedCount,
             totalCheckpoints: checkpoints.length,
             completedAt: nowIso,
+            inspectorName: currentUser?.name || '담당기사',
             inspectorMemo: memoText
           }),
           note: `[출고검수 일괄 완료] 확인 ${checkedCount}/${checkpoints.length}개소 (사진 ${photos.length}매)${memoText ? ` | 메모: ${memoText}` : ''}`,

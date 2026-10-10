@@ -5227,11 +5227,11 @@ ${currentTenant?.corporateName || tenantCorp} 배상
   };
 
   const getValidUserId = (id?: string): string => {
-    if (id && id !== 'system') {
-      const exists = db.users.some(u => u.id === id);
+    if (id && !['system', 'sys-admin', 'usr-admin', 'sys-anon', 'admin'].includes(id)) {
+      const exists = db.users.some(u => u.id === id && !['sys-admin', 'usr-admin'].includes(u.id));
       if (exists) return id;
     }
-    return db.users[0]?.id || 'usr-admin';
+    return db.users.find(u => u.id === 'u-1')?.id || db.users.find(u => !['sys-admin', 'usr-admin'].includes(u.id))?.id || 'u-1';
   };
 
   const requestConsumablePurchase = async (data: { consumableId?: string; modelName: string; qty: number; unitPrice: number; requestDate: string; sellerName: string; purchaseUrl?: string; requestAttachmentUrl?: string; vendorId?: string; paymentMethod?: 'CARD' | 'CREDIT'; }) => {
@@ -10766,9 +10766,10 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
   const receiveErrorReport = async (id: string, payload: { assigneeId: string; assigneeName: string; receptionNote?: string; targetCompletionDate?: string }): Promise<void> => {
     const nowIso = new Date().toISOString();
+    const safeReceiverId = (currentUser?.id && !['sys-admin', 'usr-admin'].includes(currentUser.id)) ? currentUser.id : 'u-1';
     const updates: Partial<ErrorReport> = {
       status: 'IN_PROGRESS',
-      receiverId: currentUser?.id || 'usr-admin',
+      receiverId: safeReceiverId,
       receiverName: currentUser?.name || '관리자',
       receivedAt: nowIso.replace('T', ' ').slice(0, 16),
       assigneeId: payload.assigneeId,
@@ -10784,9 +10785,10 @@ ${currentTenant?.corporateName || tenantCorp} 배상
 
   const completeErrorReport = async (id: string, payload: { resolutionNote: string; resolvedVersion?: string; rootCause?: string }): Promise<void> => {
     const nowIso = new Date().toISOString();
+    const safeResolverId = (currentUser?.id && !['sys-admin', 'usr-admin'].includes(currentUser.id)) ? currentUser.id : 'u-1';
     const updates: Partial<ErrorReport> = {
       status: 'COMPLETED',
-      resolverId: currentUser?.id || 'usr-admin',
+      resolverId: safeResolverId,
       resolverName: currentUser?.name || '관리자',
       completedAt: nowIso.replace('T', ' ').slice(0, 16),
       resolutionNote: payload.resolutionNote,

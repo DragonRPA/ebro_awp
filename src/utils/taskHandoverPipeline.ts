@@ -37,22 +37,23 @@ export async function issueHandoverTask(params: IssueHandoverTaskParams): Promis
   const todoId = db.generateNextId('todos', db.todos);
 
   // fallback userId for legacy compatibility
+  const systemFallbackUserId = db.users.find(u => u.id === 'u-1')?.id || db.users.find(u => !['sys-admin', 'usr-admin'].includes(u.id))?.id || 'u-1';
   let validUserId = params.assignedUserId;
   if (!validUserId) {
     if (params.targetDept === 'DISPATCH') {
       const dispatchUser = db.users.find(u => (u.department || '').includes('배차') || (u.role || '').includes('LOGISTICS'));
-      validUserId = dispatchUser?.id || db.users[0]?.id || 'usr-admin';
+      validUserId = dispatchUser?.id || systemFallbackUserId;
     } else if (params.targetDept === 'YARD') {
       const yardUser = db.users.find(u => (u.department || '').includes('출고') || (u.department || '').includes('주기장'));
-      validUserId = yardUser?.id || db.users[0]?.id || 'usr-admin';
+      validUserId = yardUser?.id || systemFallbackUserId;
     } else if (params.targetDept === 'AS') {
       const asUser = db.users.find(u => (u.department || '').includes('정비') || (u.role || '').includes('MECHANIC'));
-      validUserId = asUser?.id || db.users[0]?.id || 'usr-admin';
+      validUserId = asUser?.id || systemFallbackUserId;
     } else if (params.targetDept === 'ACCOUNTING') {
       const acctUser = db.users.find(u => (u.department || '').includes('관리') || (u.department || '').includes('회계'));
-      validUserId = acctUser?.id || db.users[0]?.id || 'usr-admin';
+      validUserId = acctUser?.id || systemFallbackUserId;
     } else {
-      validUserId = db.users[0]?.id || 'usr-admin';
+      validUserId = systemFallbackUserId;
     }
   }
 
@@ -73,7 +74,7 @@ export async function issueHandoverTask(params: IssueHandoverTaskParams): Promis
     entityType: params.entityType,
     entityId: params.entityId,
     relatedEntityId: params.entityId,
-    senderId: params.senderId && !['sys-admin', 'u-1', 'usr-admin'].includes(params.senderId) ? params.senderId : undefined,
+    senderId: params.senderId && !['sys-admin', 'usr-admin'].includes(params.senderId) ? params.senderId : undefined,
     senderName: params.senderName,
     isCompleted: false,
     createdAt: nowIso,

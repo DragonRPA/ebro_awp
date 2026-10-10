@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 import { createClient } from '@supabase/supabase-js';
 import { isDemoMode, DEMO_SUPABASE_CONFIG } from './demoMode';
 import { centralSupabase } from './centralDb';
@@ -4531,7 +4531,7 @@ const SEED_CASH_FLOW_SNAPSHOTS: CashFlowSnapshot[] = [
 const SEED_ANNUAL_LEAVE_QUOTAS: AnnualLeaveQuota[] = [
   {
     id: 'quota-1',
-    userId: 'usr-admin',
+    userId: 'u-1',
     periodStart: '2026-01-01',
     periodEnd: '2026-12-31',
     grantedDays: 15,
@@ -4540,7 +4540,7 @@ const SEED_ANNUAL_LEAVE_QUOTAS: AnnualLeaveQuota[] = [
   },
   {
     id: 'quota-2',
-    userId: 'usr-sales1',
+    userId: 'USR-0000007',
     periodStart: '2026-03-15',
     periodEnd: '2027-03-14',
     grantedDays: 15,
@@ -4552,7 +4552,7 @@ const SEED_ANNUAL_LEAVE_QUOTAS: AnnualLeaveQuota[] = [
 const SEED_LEAVE_USAGES: LeaveUsage[] = [
   {
     id: 'leave-1',
-    userId: 'usr-sales1',
+    userId: 'USR-0000007',
     leaveType: 'ANNUAL',
     usedDays: 1.0,
     startDate: '2026-06-10',
@@ -4563,7 +4563,7 @@ const SEED_LEAVE_USAGES: LeaveUsage[] = [
   },
   {
     id: 'leave-2',
-    userId: 'usr-sales1',
+    userId: 'USR-0000007',
     leaveType: 'HALF_PM',
     usedDays: 0.5,
     startDate: '2026-07-20',
@@ -4577,7 +4577,7 @@ const SEED_LEAVE_USAGES: LeaveUsage[] = [
 const SEED_OVERTIME_RECORDS: OvertimeRecord[] = [
   {
     id: 'ot-1',
-    userId: 'usr-sales1',
+    userId: 'USR-0000007',
     startDateTime: '2026-08-01 18:00',
     hours: 2.5,
     workDetail: '긴급 출고 장비 정비 및 야간 배차 대기',
@@ -4806,8 +4806,8 @@ export const SEED_CORPORATE_VEHICLES: CorporateVehicle[] = [
     ownershipType: 'OWNED',
     fuelType: 'DIESEL',
     assignedDepartment: 'AS팀',
-    primaryDriverId: 'usr-mech1',
-    primaryDriverName: '김정비',
+    primaryDriverId: 'USR-0000005',
+    primaryDriverName: '김원진',
     initialMileage: 12500,
     currentMileage: 28450,
     insuranceExpiryDate: '2027-03-15',
@@ -4825,8 +4825,8 @@ export const SEED_CORPORATE_VEHICLES: CorporateVehicle[] = [
     ownershipType: 'OWNED',
     fuelType: 'DIESEL',
     assignedDepartment: '출고관리부',
-    primaryDriverId: 'usr-outbound1',
-    primaryDriverName: '박출고',
+    primaryDriverId: 'USR-0000003',
+    primaryDriverName: '강상안',
     initialMileage: 5400,
     currentMileage: 41200,
     insuranceExpiryDate: '2027-05-20',
@@ -4844,8 +4844,8 @@ export const SEED_CORPORATE_VEHICLES: CorporateVehicle[] = [
     ownershipType: 'LEASE',
     fuelType: 'HYBRID',
     assignedDepartment: '영업부',
-    primaryDriverId: 'usr-sales1',
-    primaryDriverName: '이영업',
+    primaryDriverId: 'USR-0000007',
+    primaryDriverName: '김동우',
     initialMileage: 3000,
     currentMileage: 18900,
     insuranceExpiryDate: '2027-08-31',
@@ -4863,7 +4863,7 @@ export const SEED_CORPORATE_VEHICLES: CorporateVehicle[] = [
     ownershipType: 'LEASE',
     fuelType: 'GASOLINE',
     assignedDepartment: '경영지원부',
-    primaryDriverId: 'usr-admin',
+    primaryDriverId: 'u-1',
     primaryDriverName: '관리자',
     initialMileage: 1000,
     currentMileage: 15300,
@@ -4882,8 +4882,8 @@ export const SEED_CORPORATE_VEHICLES: CorporateVehicle[] = [
     ownershipType: 'OWNED',
     fuelType: 'ELECTRIC',
     assignedDepartment: 'AS팀',
-    primaryDriverId: 'usr-mech2',
-    primaryDriverName: '최기사',
+    primaryDriverId: 'USR-0000008',
+    primaryDriverName: '김관주',
     initialMileage: 500,
     currentMileage: 9800,
     insuranceExpiryDate: '2027-09-10',
@@ -4900,8 +4900,8 @@ export const SEED_VEHICLE_OPERATION_LOGS: VehicleOperationLog[] = [
     id: 'vlog-01',
     vehicleId: 'veh-01',
     vehicleNo: '82가 1024',
-    driverId: 'usr-mech1',
-    driverName: '김정비',
+    driverId: 'USR-0000005',
+    driverName: '김원진',
     driverDept: 'AS팀',
     operationDate: '2026-09-04',
     purposeType: 'SITE_AS',
@@ -4924,8 +4924,8 @@ export const SEED_VEHICLE_OPERATION_LOGS: VehicleOperationLog[] = [
     id: 'vlog-02',
     vehicleId: 'veh-03',
     vehicleNo: '24너 9182',
-    driverId: 'usr-sales1',
-    driverName: '이영업',
+    driverId: 'USR-0000007',
+    driverName: '김동우',
     driverDept: '영업부',
     operationDate: '2026-09-03',
     purposeType: 'CLIENT_MEETING',
@@ -4951,8 +4951,8 @@ export const SEED_VEHICLE_FUEL_LOGS: VehicleFuelLog[] = [
     id: 'vfuel-01',
     vehicleId: 'veh-01',
     vehicleNo: '82가 1024',
-    driverId: 'usr-mech1',
-    driverName: '김정비',
+    driverId: 'USR-0000005',
+    driverName: '김원진',
     fuelDate: '2026-09-04 08:30',
     fuelType: '경유',
     fuelVolume: 55.4,
@@ -4973,8 +4973,8 @@ export const SEED_VEHICLE_FUEL_LOGS: VehicleFuelLog[] = [
     id: 'vfuel-02',
     vehicleId: 'veh-03',
     vehicleNo: '24너 9182',
-    driverId: 'usr-sales1',
-    driverName: '이영업',
+    driverId: 'USR-0000007',
+    driverName: '김동우',
     fuelDate: '2026-09-03 09:15',
     fuelType: '휘발유',
     fuelVolume: 42.0,
@@ -5004,7 +5004,7 @@ export const SEED_ERROR_REPORTS: ErrorReport[] = [
     category: 'UI_DISPLAY',
     severity: 'MEDIUM',
     status: 'REGISTERED',
-    reporterId: 'usr-mech1',
+    reporterId: 'USR-0000005',
     reporterName: '김정비',
     reporterDept: 'AS팀',
     reporterPhone: '010-3344-5566',
@@ -5038,7 +5038,7 @@ export const SEED_ERROR_REPORTS: ErrorReport[] = [
     category: 'DATA_CALC',
     severity: 'HIGH',
     status: 'IN_PROGRESS',
-    reporterId: 'usr-outbound1',
+    reporterId: 'USR-0000003',
     reporterName: '박출고',
     reporterDept: '출고관리부',
     reporterPhone: '010-7788-9900',
@@ -5050,10 +5050,10 @@ export const SEED_ERROR_REPORTS: ErrorReport[] = [
       activeUrl: '/delivery',
       appVersion: 'v1.14.0.Build.84'
     },
-    receiverId: 'usr-admin',
+    receiverId: 'u-1',
     receiverName: '강상안 최고관리자',
     receivedAt: '2026-09-11 14:30',
-    assigneeId: 'usr-admin',
+    assigneeId: 'u-1',
     assigneeName: '개발자',
     receptionNote: '헌장 2.3 단일 EXCHANGE 운송비 할인 로직 렌더링 파이프라인 정밀 점검 중',
     targetCompletionDate: '2026-09-14',
@@ -5070,7 +5070,7 @@ export const SEED_ERROR_REPORTS: ErrorReport[] = [
     category: 'DATA_CALC',
     severity: 'LOW',
     status: 'COMPLETED',
-    reporterId: 'usr-sales1',
+    reporterId: 'USR-0000007',
     reporterName: '이영업',
     reporterDept: '영업부',
     reporterPhone: '010-1234-5678',
@@ -5082,13 +5082,13 @@ export const SEED_ERROR_REPORTS: ErrorReport[] = [
       activeUrl: '/billing',
       appVersion: 'v1.14.0.Build.83'
     },
-    receiverId: 'usr-admin',
+    receiverId: 'u-1',
     receiverName: '강상안 최고관리자',
     receivedAt: '2026-09-10 09:15',
-    assigneeId: 'usr-admin',
+    assigneeId: 'u-1',
     assigneeName: '개발자',
     receptionNote: 'SheetJS numFmt 속성 적용 예정',
-    resolverId: 'usr-admin',
+    resolverId: 'u-1',
     resolverName: '개발자',
     completedAt: '2026-09-10 11:20',
     resolutionNote: 'SheetJS XLSX 엑셀 빌더 내 공급가액 및 세액 컬럼 서식을 #,##0 표준 화폐 포맷으로 강제 적용 완료',
@@ -5115,6 +5115,126 @@ export const ALL_DB_KEYS = [
   'stocktakingAudits', 'stocktakingAuditItems', 'collectedParts', 'equipmentManuals', 'standardOptions',
   'printStations', 'printQueue', 'customRoles', 'rolePermissions', 'privacyAccessLogs', 'errorReports'
 ];
+
+// 🛡️ [전사 외래키(Foreign Key) 참조 무결성 룰 SSOT]: schema.sql 전수 파싱 기반
+const FK_RULES_MAP: Record<string, { targetTable: string; targetProp: string | null; notNull: boolean }> = {
+  'departments.parentDepartmentId': { targetTable: 'departments', targetProp: 'departments', notNull: false },
+  'users.departmentId': { targetTable: 'departments', targetProp: 'departments', notNull: false },
+  'users.managerId': { targetTable: 'users', targetProp: 'users', notNull: false },
+  'permissions.userId': { targetTable: 'users', targetProp: 'users', notNull: true },
+  'role_permissions.roleId': { targetTable: 'custom_roles', targetProp: 'customRoles', notNull: true },
+  'annual_leave_quotas.userId': { targetTable: 'users', targetProp: 'users', notNull: true },
+  'leave_usages.userId': { targetTable: 'users', targetProp: 'users', notNull: true },
+  'leave_usages.approverId': { targetTable: 'users', targetProp: 'users', notNull: false },
+  'overtime_records.userId': { targetTable: 'users', targetProp: 'users', notNull: true },
+  'overtime_records.approverId': { targetTable: 'users', targetProp: 'users', notNull: false },
+  'payroll_closings.userId': { targetTable: 'users', targetProp: 'users', notNull: true },
+  'customer_contacts.siteMasterId': { targetTable: 'site_masters', targetProp: 'siteMasters', notNull: false },
+  'customer_contacts.customerId': { targetTable: 'customers', targetProp: 'customers', notNull: false },
+  'customer_sites.customerId': { targetTable: 'customers', targetProp: 'customers', notNull: true },
+  'assets.vendorId': { targetTable: 'vendors', targetProp: 'vendors', notNull: false },
+  'assets.currentCustomerId': { targetTable: 'customers', targetProp: 'customers', notNull: false },
+  'assets.currentSiteId': { targetTable: 'customer_sites', targetProp: 'sites', notNull: false },
+  'consumables.vendorId': { targetTable: 'vendors', targetProp: 'vendors', notNull: false },
+  'consumable_purchases.consumableId': { targetTable: 'consumables', targetProp: 'consumables', notNull: false },
+  'mechanic_consumable_stocks.mechanicId': { targetTable: 'users', targetProp: 'users', notNull: true },
+  'mechanic_consumable_stocks.consumableId': { targetTable: 'consumables', targetProp: 'consumables', notNull: true },
+  'transport_drivers.companyId': { targetTable: 'transport_companies', targetProp: 'transportCompanies', notNull: false },
+  'contracts.customerId': { targetTable: 'customers', targetProp: 'customers', notNull: true },
+  'contracts.salespersonId': { targetTable: 'users', targetProp: 'users', notNull: false },
+  'contracts.contactId': { targetTable: 'customer_contacts', targetProp: 'contacts', notNull: false },
+  'contracts.siteId': { targetTable: 'customer_sites', targetProp: 'sites', notNull: false },
+  'contracts.predecessorContractId': { targetTable: 'contracts', targetProp: 'contracts', notNull: false },
+  'contracts.predecessorCustomerId': { targetTable: 'customers', targetProp: 'customers', notNull: false },
+  'contracts.successorContractId': { targetTable: 'contracts', targetProp: 'contracts', notNull: false },
+  'contract_assets.contractId': { targetTable: 'contracts', targetProp: 'contracts', notNull: true },
+  'contract_assets.assetId': { targetTable: 'assets', targetProp: 'assets', notNull: false },
+  'contract_assets.predecessorContractId': { targetTable: 'contracts', targetProp: 'contracts', notNull: false },
+  'external_leases.vendorId': { targetTable: 'vendors', targetProp: 'vendors', notNull: true },
+  'external_leases.contractId': { targetTable: 'contracts', targetProp: 'contracts', notNull: true },
+  'external_leases.contractAssetId': { targetTable: 'contract_assets', targetProp: 'contractAssets', notNull: false },
+  'contract_history.contractId': { targetTable: 'contracts', targetProp: 'contracts', notNull: true },
+  'deliveries.contractId': { targetTable: 'contracts', targetProp: 'contracts', notNull: false },
+  'deliveries.transportVendorId': { targetTable: 'vendors', targetProp: 'vendors', notNull: false },
+  'outbound_inspections.contractId': { targetTable: 'contracts', targetProp: 'contracts', notNull: false },
+  'outbound_inspections.contractAssetId': { targetTable: 'contract_assets', targetProp: 'contractAssets', notNull: false },
+  'outbound_inspections.assetId': { targetTable: 'assets', targetProp: 'assets', notNull: false },
+  'outbound_inspections.deliveryId': { targetTable: 'deliveries', targetProp: 'deliveries', notNull: false },
+  'outbound_inspections.inspectorId': { targetTable: 'users', targetProp: 'users', notNull: false },
+  'outbound_inspections.repairId': { targetTable: 'repairs', targetProp: 'repairs', notNull: false },
+  'asset_inout_logs.assetId': { targetTable: 'assets', targetProp: 'assets', notNull: true },
+  'asset_inout_logs.customerId': { targetTable: 'customers', targetProp: 'customers', notNull: false },
+  'asset_inout_logs.siteId': { targetTable: 'customer_sites', targetProp: 'sites', notNull: false },
+  'asset_inout_logs.deliveryId': { targetTable: 'deliveries', targetProp: 'deliveries', notNull: false },
+  'repairs.assetId': { targetTable: 'assets', targetProp: 'assets', notNull: false },
+  'repairs.contractId': { targetTable: 'contracts', targetProp: 'contracts', notNull: false },
+  'repairs.customerId': { targetTable: 'customers', targetProp: 'customers', notNull: false },
+  'repairs.siteId': { targetTable: 'customer_sites', targetProp: 'sites', notNull: false },
+  'repairs.inspectionItemId': { targetTable: 'inspection_checklist_items', targetProp: 'inspectionChecklistItems', notNull: false },
+  'repairs.mechanicId': { targetTable: 'users', targetProp: 'users', notNull: false },
+  'repairs.vendorId': { targetTable: 'vendors', targetProp: 'vendors', notNull: false },
+  'repair_consumables.repairId': { targetTable: 'repairs', targetProp: 'repairs', notNull: true },
+  'repair_consumables.consumableId': { targetTable: 'consumables', targetProp: 'consumables', notNull: true },
+  'consumable_logs.consumableId': { targetTable: 'consumables', targetProp: 'consumables', notNull: true },
+  'consumable_logs.vendorId': { targetTable: 'vendors', targetProp: 'vendors', notNull: false },
+  'consumable_logs.userId': { targetTable: 'users', targetProp: 'users', notNull: false },
+  'consumable_logs.mechanicId': { targetTable: 'users', targetProp: 'users', notNull: false },
+  'consumable_logs.targetAssetId': { targetTable: 'assets', targetProp: 'assets', notNull: false },
+  'billings.customerId': { targetTable: 'customers', targetProp: 'customers', notNull: true },
+  'billings.contractId': { targetTable: 'contracts', targetProp: 'contracts', notNull: false },
+  'billings.invoiceId': { targetTable: 'billing_invoices', targetProp: null, notNull: false },
+  'billing_details.billingId': { targetTable: 'billings', targetProp: 'billings', notNull: true },
+  'billing_details.contractAssetId': { targetTable: 'contract_assets', targetProp: 'contractAssets', notNull: false },
+  'billing_details.assetId': { targetTable: 'assets', targetProp: 'assets', notNull: false },
+  'billing_invoices.customerId': { targetTable: 'customers', targetProp: 'customers', notNull: true },
+  'billing_invoices.siteId': { targetTable: 'customer_sites', targetProp: 'sites', notNull: false },
+  'receivables.contractId': { targetTable: 'contracts', targetProp: 'contracts', notNull: false },
+  'receivables.customerId': { targetTable: 'customers', targetProp: 'customers', notNull: false },
+  'receivables.repairId': { targetTable: 'repairs', targetProp: 'repairs', notNull: false },
+  'payments.billingId': { targetTable: 'billings', targetProp: 'billings', notNull: true },
+  'bank_transactions.customerId': { targetTable: 'customers', targetProp: 'customers', notNull: false },
+  'bank_transactions.matchedBillingId': { targetTable: 'billings', targetProp: 'billings', notNull: false },
+  'payment_deposit_links.paymentId': { targetTable: 'payments', targetProp: 'payments', notNull: true },
+  'payment_deposit_links.bankTransactionId': { targetTable: 'bank_transactions', targetProp: 'bankTransactions', notNull: true },
+  'bank_matching_rules.customerId': { targetTable: 'customers', targetProp: 'customers', notNull: true },
+  'purchase_settlements.vendorId': { targetTable: 'vendors', targetProp: 'vendors', notNull: false },
+  'purchase_settlements.bankTransactionId': { targetTable: 'bank_transactions', targetProp: 'bankTransactions', notNull: false },
+  'purchase_settlement_items.settlementId': { targetTable: 'purchase_settlements', targetProp: 'purchaseSettlements', notNull: true },
+  'settlement_payment_logs.settlementId': { targetTable: 'purchase_settlements', targetProp: 'purchaseSettlements', notNull: true },
+  'settlement_payment_logs.bankTransactionId': { targetTable: 'bank_transactions', targetProp: 'bankTransactions', notNull: false },
+  'prepaid_transactions.customerId': { targetTable: 'customers', targetProp: 'customers', notNull: true },
+  'prepaid_transactions.billingId': { targetTable: 'billings', targetProp: 'billings', notNull: false },
+  'prepaid_transactions.paymentId': { targetTable: 'payments', targetProp: 'payments', notNull: false },
+  'prepaid_transactions.bankTransactionId': { targetTable: 'bank_transactions', targetProp: 'bankTransactions', notNull: false },
+  'prepaid_transactions.relatedBillingId': { targetTable: 'billings', targetProp: 'billings', notNull: false },
+  'delinquency_action_logs.customerId': { targetTable: 'customers', targetProp: 'customers', notNull: true },
+  'delinquency_action_logs.actorId': { targetTable: 'users', targetProp: 'users', notNull: false },
+  'legal_notice_logs.customerId': { targetTable: 'customers', targetProp: 'customers', notNull: true },
+  'legal_notice_logs.sentByUserId': { targetTable: 'users', targetProp: 'users', notNull: true },
+  'todos.userId': { targetTable: 'users', targetProp: 'users', notNull: true },
+  'todos.assignedUserId': { targetTable: 'users', targetProp: 'users', notNull: false },
+  'todos.senderId': { targetTable: 'users', targetProp: 'users', notNull: false },
+  'todos.completedByUserId': { targetTable: 'users', targetProp: 'users', notNull: false },
+  'corporate_vehicles.primaryDriverId': { targetTable: 'users', targetProp: 'users', notNull: false },
+  'vehicle_operation_logs.vehicleId': { targetTable: 'corporate_vehicles', targetProp: 'corporateVehicles', notNull: true },
+  'vehicle_operation_logs.driverId': { targetTable: 'users', targetProp: 'users', notNull: true },
+  'vehicle_fuel_logs.vehicleId': { targetTable: 'corporate_vehicles', targetProp: 'corporateVehicles', notNull: true },
+  'vehicle_fuel_logs.driverId': { targetTable: 'users', targetProp: 'users', notNull: true },
+  'print_queue.stationId': { targetTable: 'print_stations', targetProp: 'printStations', notNull: true },
+  'print_queue.requestedById': { targetTable: 'users', targetProp: 'users', notNull: false },
+  'stocktaking_audit_items.auditId': { targetTable: 'stocktaking_audits', targetProp: 'stocktakingAudits', notNull: true },
+  'call_pipeline_logs.call_upload_id': { targetTable: 'call_uploads', targetProp: null, notNull: false },
+  'rule_consensus.rule_id': { targetTable: 'approval_rules', targetProp: null, notNull: false },
+  'rule_consensus.target_dept_id': { targetTable: 'departments', targetProp: 'departments', notNull: false },
+  'approval_requests.rule_id': { targetTable: 'approval_rules', targetProp: null, notNull: false },
+  'approval_requests.originator_id': { targetTable: 'users', targetProp: 'users', notNull: false },
+  'approval_steps.request_id': { targetTable: 'approval_requests', targetProp: null, notNull: false },
+  'approval_steps.approver_id': { targetTable: 'users', targetProp: 'users', notNull: false },
+  'delegation_records.delegator_id': { targetTable: 'users', targetProp: 'users', notNull: false },
+  'delegation_records.delegate_id': { targetTable: 'users', targetProp: 'users', notNull: false }
+};
+
+const VIRTUAL_USER_IDS = new Set(['sys-admin', 'usr-admin', 'sys-anon', 'system', 'admin']);
 
 class LocalDB {
   private inMemoryCache: Map<string, any> = new Map();
@@ -6155,9 +6275,16 @@ class LocalDB {
     return `${prefix}${paddedNum}`;
   }
 
-  private sanitizeSupabasePayload(obj: any, tableName?: string): any {
+  public sanitizeSupabasePayload(obj: any, tableName?: string): any {
     if (!obj || typeof obj !== 'object') return obj;
     const sanitized: any = Array.isArray(obj) ? [] : {};
+    const resolvedTable = this.mapToSupabaseTable(tableName || '');
+
+    // 유효한 최고관리자/실제 사용자 Fallback ID 사전 탐색
+    const realFallbackUser = (this.users || []).find(u => u && u.id === 'u-1') ||
+      (this.users || []).find(u => u && u.id && !VIRTUAL_USER_IDS.has(u.id));
+    const fallbackUserId = realFallbackUser ? realFallbackUser.id : 'u-1';
+
     for (const key in obj) {
       const val = obj[key];
       // undefined 값은 제외 (PostgreSQL update/insert Payload 오염 및 쿼리 거부 방지)
@@ -6165,56 +6292,130 @@ class LocalDB {
         continue;
       }
       // contracts 테이블 프론트엔드 전용 상태 필드 격리
-      if (tableName === 'contracts' && ['packageSentAt', 'approvalStatus', 'approvalRequestId', 'stagedExtend', 'saleTerms'].includes(key)) { continue; }
-      if (tableName === 'contract_history' && ['approvalStatus', 'approvalRequestId'].includes(key)) { continue; }
+      if (resolvedTable === 'contracts' && ['packageSentAt', 'approvalStatus', 'approvalRequestId', 'stagedExtend', 'saleTerms'].includes(key)) { continue; }
+      if (resolvedTable === 'contract_history' && ['approvalStatus', 'approvalRequestId'].includes(key)) { continue; }
       // DB consumables 스키마에 없는 supplier, category, note, repairingQty 컬럼 오염 방지
-      if (tableName === 'consumables' && (key === 'supplier' || key === 'category' || key === 'note' || key === 'repairingQty')) {
+      if (resolvedTable === 'consumables' && (key === 'supplier' || key === 'category' || key === 'note' || key === 'repairingQty')) {
         continue;
       }
       // DB purchase_settlements 스키마에 없는 bankTransactionId 컬럼 오염 방지 (Audit Log는 settlement_payment_logs에 보관)
-      if (tableName === 'purchase_settlements' && key === 'bankTransactionId') {
+      if (resolvedTable === 'purchase_settlements' && key === 'bankTransactionId') {
         continue;
       }
       // DB repairs 스키마에 아직 없는 siteAddress 컬럼 오염 및 PostgreSQL 42703 에러 방지
-      if (tableName === 'repairs' && (key === 'siteAddress')) {
-          continue;
-        }
-        if (tableName === 'purchase_settlement_items' && key === 'updatedAt') {
-          continue;
-        }
-        if (tableName === 'assets' && key === 'antiEntrapmentOwnership') {
-          continue;
-        }
-        if (tableName === 'customer_sites' && ['billingContactName', 'billingContactPhone', 'billingContactEmail', 'safetyContactName', 'safetyContactPhone', 'safetyContactEmail'].includes(key)) { continue; }
+      if (resolvedTable === 'repairs' && (key === 'siteAddress')) {
+        continue;
+      }
+      if (resolvedTable === 'purchase_settlement_items' && key === 'updatedAt') {
+        continue;
+      }
+      if (resolvedTable === 'assets' && key === 'antiEntrapmentOwnership') {
+        continue;
+      }
+      if (resolvedTable === 'customer_sites' && ['billingContactName', 'billingContactPhone', 'billingContactEmail', 'safetyContactName', 'safetyContactPhone', 'safetyContactEmail'].includes(key)) { continue; }
       // modelName 컬럼이 존재하지 않는 테이블로의 modelName 누출 원천 방지 (departments, users, customers 등)
-      if (key === 'modelName' && !['products', 'assets', 'product_specs', 'product_spec_items', 'contract_assets', 'contract_history', 'inspection_checklist_items', 'equipment_manuals', 'consumable_purchases', 'asset_inout_logs'].includes(tableName || '')) {
+      if (key === 'modelName' && !['products', 'assets', 'product_specs', 'product_spec_items', 'contract_assets', 'contract_history', 'inspection_checklist_items', 'equipment_manuals', 'consumable_purchases', 'asset_inout_logs'].includes(resolvedTable || '')) {
         continue;
       }
       // supplier 컬럼이 존재하지 않는 테이블로의 supplier 누출 원천 방지
-      if (key === 'supplier' && !['assets', 'vendors'].includes(tableName || '')) {
+      if (key === 'supplier' && !['assets', 'vendors'].includes(resolvedTable || '')) {
         continue;
       }
       // departments 테이블 전용 허용 컬럼 방어벽
-      if (tableName === 'departments' && !['id', 'name', 'parentDepartmentId', 'managerId', 'functionalTags', 'functional_tags', 'tenantId', 'tenant_id', 'createdAt', 'updatedAt'].includes(key)) {
+      if (resolvedTable === 'departments' && !['id', 'name', 'parentDepartmentId', 'managerId', 'functionalTags', 'functional_tags', 'tenantId', 'tenant_id', 'createdAt', 'updatedAt'].includes(key)) {
         continue;
       }
       // users 테이블 전용 허용 컬럼 방어벽 (DB users 테이블에 존재하지 않는 department 컬럼 누출 차단)
-      if (tableName === 'users' && !['id', 'loginId', 'passwordHash', 'name', 'departmentId', 'position', 'managerId', 'role', 'status', 'baseSalary', 'phone', 'email', 'address', 'birthDate', 'joinDate', 'retireDate', 'profileImageUrl', 'customRoleId', 'createdAt', 'updatedAt'].includes(key)) {
+      if (resolvedTable === 'users' && !['id', 'loginId', 'passwordHash', 'name', 'departmentId', 'position', 'managerId', 'role', 'status', 'baseSalary', 'phone', 'email', 'address', 'birthDate', 'joinDate', 'retireDate', 'profileImageUrl', 'customRoleId', 'createdAt', 'updatedAt'].includes(key)) {
         continue;
       }
-      if (tableName === 'privacy_access_logs' && (key === 'userId' || key === 'userName')) {
-        sanitized[key] = val || (key === 'userId' ? 'sys-anon' : '시스템사용자');
-      } else if (typeof val === 'string' && (key === 'userId' || key === 'salespersonId' || key === 'requesterId' || key === 'accepterId' || key === 'completerId' || key === 'inbounderId' || key === 'createdById' || key === 'updatedById' || key.toLowerCase().includes('user'))) {
-        const userExists = this.users.some(u => u.id === val);
-        sanitized[key] = userExists ? val : (this.users[0]?.id || null);
-      } else if (key === 'consumableId') {
-        const consumableExists = typeof val === 'string' && val.trim() !== '' && this.consumables.some(c => c.id === val);
-        sanitized[key] = consumableExists ? val : null;
-      } else if (typeof val === 'string' && val.trim() === '' && (key.endsWith('Id') || key === 'contractId' || key === 'assetId' || key === 'customerId' || key === 'siteId' || key === 'salespersonId' || key === 'vendorId')) {
-        sanitized[key] = null;
-      } else {
-        sanitized[key] = val;
+
+      // ─── 🛡️ [전사 외래키(FK) 가디언 방어벽 시작] ───
+
+      // 1. 의사 널(Pseudo-null) 문자열 전면 정제 (공백, 'null', 'undefined', 'none', 'n/a' 등)
+      if (typeof val === 'string') {
+        const trimmed = val.trim();
+        const lower = trimmed.toLowerCase();
+        if (trimmed === '' || lower === 'null' || lower === 'undefined' || lower === 'none' || lower === 'n/a') {
+          if (key.endsWith('Id') || key.endsWith('_id') || key === 'contractId' || key === 'assetId' || key === 'customerId' || key === 'siteId' || key === 'salespersonId' || key === 'vendorId') {
+            sanitized[key] = null;
+            continue;
+          }
+        }
       }
+
+      // 2. privacy_access_logs 예외 허용 (sys-anon 허용)
+      if (resolvedTable === 'privacy_access_logs' && (key === 'userId' || key === 'userName')) {
+        sanitized[key] = val || (key === 'userId' ? 'sys-anon' : '시스템사용자');
+        continue;
+      }
+
+      // 3. schema.sql 1:1 관통 FK_RULES_MAP 정밀 검사
+      // camelCase, snake_case 모두 지원하기 위해 key 및 변환 키 동시 조회
+      const camelKey = key.replace(/_([a-z])/g, (_, g) => g.toUpperCase());
+      const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+      const fkRule = FK_RULES_MAP[`${resolvedTable}.${key}`] ||
+                     FK_RULES_MAP[`${resolvedTable}.${camelKey}`] ||
+                     FK_RULES_MAP[`${resolvedTable}.${snakeKey}`];
+
+      if (fkRule) {
+        if (fkRule.targetTable === 'users') {
+          const isRealUser = typeof val === 'string' && val.trim() !== '' &&
+            !VIRTUAL_USER_IDS.has(val) &&
+            !/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(val) &&
+            (this.users || []).some(u => u && u.id === val && !VIRTUAL_USER_IDS.has(u.id));
+          if (isRealUser) {
+            sanitized[key] = val;
+          } else {
+            sanitized[key] = fkRule.notNull ? fallbackUserId : null;
+          }
+          continue;
+        }
+
+        if (fkRule.targetProp) {
+          const targetList = (this as any)[fkRule.targetProp];
+          const hasLocalData = Array.isArray(targetList) && targetList.length > 0;
+          const entityExists = hasLocalData && typeof val === 'string' && val.trim() !== '' &&
+            targetList.some((item: any) => item && item.id === val);
+          if (entityExists) {
+            sanitized[key] = val;
+          } else if (hasLocalData) {
+            // 로컬 데이터셋이 존재하는데 해당 ID가 없는 경우: FK 위반 방지를 위해 안전하게 격리
+            if (!fkRule.notNull) {
+              sanitized[key] = null;
+            } else {
+              sanitized[key] = (typeof val === 'string' && val.trim() !== '') ? val : null;
+            }
+          } else {
+            // 로컬 데이터셋이 아직 비어있는 경우(초기화 전): 의사 널만 정제하고 값 유지
+            sanitized[key] = (typeof val === 'string' && val.trim() === '') ? null : val;
+          }
+          continue;
+        }
+
+        // targetProp이 없는 테이블 (billing_invoices, call_uploads, approval_rules 등)
+        if (!fkRule.notNull && (typeof val !== 'string' || val.trim() === '' || ['null', 'undefined'].includes(val.trim().toLowerCase()))) {
+          sanitized[key] = null;
+        } else {
+          sanitized[key] = val;
+        }
+        continue;
+      }
+
+      // 4. FK_RULES_MAP에 명시되지 않은 일반 사용자 참조 컬럼 가디언 (createdById, updatedById, requesterId, inspectorId 등)
+      if (typeof val === 'string' && (key === 'userId' || key === 'salespersonId' || key === 'requesterId' || key === 'accepterId' || key === 'completerId' || key === 'inbounderId' || key === 'createdById' || key === 'updatedById' || key === 'inspectorId' || key === 'mechanicId' || key === 'requestedById' || key === 'actorId' || key.toLowerCase().includes('user'))) {
+        const isRealUser = !VIRTUAL_USER_IDS.has(val) && !/[ㄱ-ㅎ|ㅏ-ㅣ|가-힣]/.test(val) && (this.users || []).some(u => u && u.id === val && !VIRTUAL_USER_IDS.has(u.id));
+        sanitized[key] = isRealUser ? val : null;
+        continue;
+      }
+
+      // 5. 일반 *Id 빈 문자열 null 변환 방어
+      if (typeof val === 'string' && val.trim() === '' && (key.endsWith('Id') || key.endsWith('_id'))) {
+        sanitized[key] = null;
+        continue;
+      }
+
+      sanitized[key] = val;
     }
     // consumables 테이블 호환 (name, spec)
     if (tableName === 'consumables') {

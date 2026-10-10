@@ -389,11 +389,12 @@ export const OutboundInspections: React.FC = () => {
     try {
       const nowIso = new Date().toISOString();
       const inspectorName = currentUser?.name || '담당엔지니어';
+      const safeInspectorId = (currentUser?.id && db.users.some(u => u.id === currentUser.id && !['sys-admin', 'usr-admin'].includes(u.id))) ? currentUser.id : undefined;
 
       group.items.forEach(item => {
         db.updateRow<OutboundInspection>('outboundInspections', item.id, {
           status: 'IN_PROGRESS',
-          inspectorId: inspectorName,
+          inspectorId: safeInspectorId,
           updatedAt: nowIso
         });
       });
@@ -439,13 +440,14 @@ export const OutboundInspections: React.FC = () => {
     try {
       const nowIso = new Date().toISOString();
       const inspectorName = currentUser?.name || '담당엔지니어';
+      const safeInspectorId = (currentUser?.id && db.users.some(u => u.id === currentUser.id && !['sys-admin', 'usr-admin'].includes(u.id))) ? currentUser.id : undefined;
       const resultNote = `[검수완료 ${checkedCount}/${totalCount}항목 합격] ${inspectionNote}`;
 
       selectedGroup.items.forEach(item => {
         const itemDeliveryId = item.deliveryId || selectedGroup.deliveryId || undefined;
         db.updateRow<OutboundInspection>('outboundInspections', item.id, {
           status: 'COMPLETED',
-          inspectorId: inspectorName,
+          inspectorId: safeInspectorId,
           inspectedAt: nowIso,
           approvedAt: nowIso,
           specsJson: JSON.stringify({
@@ -757,6 +759,7 @@ export const OutboundInspections: React.FC = () => {
     try {
       const nowIso = new Date().toISOString();
       const inspectorName = currentUser?.name || '담당엔지니어';
+      const safeInspectorId = (currentUser?.id && db.users.some(u => u.id === currentUser.id && !['sys-admin', 'usr-admin'].includes(u.id))) ? currentUser.id : undefined;
 
       selectedGroup.items.forEach(item => {
         const targetAsset = item.assetId ? db.assets.find(a => a.id === item.assetId) : undefined;
@@ -821,7 +824,7 @@ export const OutboundInspections: React.FC = () => {
 
         db.updateRow<OutboundInspection>('outboundInspections', item.id, {
           status: 'REJECTED',
-          inspectorId: inspectorName,
+          inspectorId: safeInspectorId,
           rejectReason: rejectReason.trim(),
           repairId: createdRepairId,
           note: `[출고반려] ${rejectReason.trim()}`,
