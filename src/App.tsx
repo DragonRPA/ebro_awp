@@ -911,6 +911,15 @@ const App: React.FC = () => {
     return <LandingPage />;
   }
 
+  // 🌐 [1.5단계: 스마트 운송 포털 (기사용 모바일 웹) - 로그인 우회]
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/driver-portal/')) {
+    return (
+      <React.Suspense fallback={<div style={{ padding: '20px', textAlign: 'center' }}>로딩 중...</div>}>
+        <DriverPortalPage />
+      </React.Suspense>
+    );
+  }
+
   // 1. 비로그인 상태: 로그인 화면 렌더링
   if (!currentUser) {
     return (
