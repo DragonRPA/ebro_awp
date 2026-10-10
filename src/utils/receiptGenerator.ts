@@ -82,118 +82,54 @@ export function generateReceiptHtml(
     parsedCargos = [{ modelName: '고소작업대 (장비 미지정)', count: 1, note: '정상 납품' }];
   }
 
-  const isMultiCol = parsedCargos.length > 10;
-  const isCompact = parsedCargos.length > 6 && parsedCargos.length <= 10;
-
   const totalCount = parsedCargos.reduce((acc, c) => acc + (Number(c.count) || 1), 0);
   const itemCount = parsedCargos.length;
 
-  let equipmentTableHtml = '';
-  if (isMultiCol) {
-    // 11대 이상: 2단 대칭 분할 레이아웃 (최대 28대까지 A4 1장에 수용)
-    const pairs: Array<{ left: any; leftIdx: number; right: any; rightIdx: number }> = [];
-    const half = Math.ceil(parsedCargos.length / 2);
-    for (let i = 0; i < half; i++) {
-      pairs.push({
-        left: parsedCargos[i],
-        leftIdx: i,
-        right: parsedCargos[i + half] || null,
-        rightIdx: i + half
-      });
+  // ── 다중 페이지(Multi-Page) 분할 알고리즘 ──
+  // 1페이지에 공급자/공급받는자/운송정보/서명부까지 완벽 수용 가능한 기준: 최대 12행
+  // 13행 이상 시 다중 페이지로 자동 전환하며, 2페이지 이상일 때 모든 페이지에 배차번호/계약번호/발행일자/페이지번호 공통 출력
+  function chunkCargosForPages(cargos: any[]): any[][] {
+    const total = cargos.length;
+    if (total <= 12) {
+      return [cargos];
     }
 
-    equipmentTableHtml = `
-      <table style="width: 100%; border-collapse: collapse; border: 1px solid #000000; margin-bottom: 6px;">
-        <thead>
-          <tr style="background: #f0f0f0; height: 24px;">
-            <th style="border: 1px solid #000000; width: 34px; text-align: center; font-size: 10px; font-weight: 700; color: #000000;">No.</th>
-            <th style="border: 1px solid #000000; text-align: center; font-size: 10px; font-weight: 700; color: #000000;">품목 (장비 모델명)</th>
-            <th style="border: 1px solid #000000; width: 44px; text-align: center; font-size: 10px; font-weight: 700; color: #000000;">수량</th>
-            <th style="border: 1px solid #000000; width: 60px; text-align: center; font-size: 10px; font-weight: 700; color: #000000;">비고</th>
-            <th style="border: 1px solid #000000; width: 34px; text-align: center; font-size: 10px; font-weight: 700; color: #000000;">No.</th>
-            <th style="border: 1px solid #000000; text-align: center; font-size: 10px; font-weight: 700; color: #000000;">품목 (장비 모델명)</th>
-            <th style="border: 1px solid #000000; width: 44px; text-align: center; font-size: 10px; font-weight: 700; color: #000000;">수량</th>
-            <th style="border: 1px solid #000000; width: 60px; text-align: center; font-size: 10px; font-weight: 700; color: #000000;">비고</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${pairs.map(p => `
-            <tr style="height: 22px;">
-              <td style="border: 1px solid #000000; padding: 2px; text-align: center; font-size: 10px; color: #000000;">${p.leftIdx + 1}</td>
-              <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: 10px; font-weight: 700; color: #000000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.left.modelName || '고소작업대'}</td>
-              <td style="border: 1px solid #000000; padding: 2px; text-align: center; font-size: 10px; font-weight: 700; color: #000000;">${p.left.count || 1}대</td>
-              <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: 9.5px; color: #000000;">${p.left.note || '정상'}</td>
-              <td style="border: 1px solid #000000; padding: 2px; text-align: center; font-size: 10px; color: #000000;">${p.right ? p.rightIdx + 1 : '&nbsp;'}</td>
-              <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: 10px; font-weight: 700; color: #000000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.right ? (p.right.modelName || '고소작업대') : '&nbsp;'}</td>
-              <td style="border: 1px solid #000000; padding: 2px; text-align: center; font-size: 10px; font-weight: 700; color: #000000;">${p.right ? `${p.right.count || 1}대` : '&nbsp;'}</td>
-              <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: 9.5px; color: #000000;">${p.right ? (p.right.note || '정상') : '&nbsp;'}</td>
-            </tr>
-          `).join('')}
-          <tr style="height: 24px; background: #f0f0f0;">
-            <td colspan="8" style="border: 1px solid #000000; padding: 3px 12px; text-align: center; font-size: 11px; font-weight: 700; color: #000000;">
-              합 계 : &nbsp; 총 ${itemCount}개 품목 &nbsp; / &nbsp; ${totalCount}대
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    `;
-  } else {
-    // 1~10대: 1단 테이블 (1~6대는 6행 보정, 7~10대는 컴팩트 22px 높이 적용하여 A4 1장 유지)
-    const minRows = isCompact ? parsedCargos.length : 6;
-    const displayRows: any[] = [...parsedCargos];
-    while (displayRows.length < minRows) {
-      displayRows.push(null);
-    }
-    const rowH = isCompact ? '22px' : '26px';
-    const fontSz = isCompact ? '10px' : '11px';
+    const P1_MAX = 14;
+    const MID_MAX = 20;
+    const LAST_MAX = 14;
 
-    equipmentTableHtml = `
-      <table style="width: 100%; border-collapse: collapse; border: 1px solid #000000; margin-bottom: 6px;">
-        <thead>
-          <tr style="background: #f0f0f0; height: ${rowH};">
-            <th style="border: 1px solid #000000; width: 45px; text-align: center; font-size: ${fontSz}; font-weight: 700; color: #000000;">No.</th>
-            <th style="border: 1px solid #000000; text-align: center; font-size: ${fontSz}; font-weight: 700; color: #000000;">품목 (장비 모델명)</th>
-            <th style="border: 1px solid #000000; width: 65px; text-align: center; font-size: ${fontSz}; font-weight: 700; color: #000000;">수량</th>
-            <th style="border: 1px solid #000000; width: 45px; text-align: center; font-size: ${fontSz}; font-weight: 700; color: #000000;">단위</th>
-            <th style="border: 1px solid #000000; width: 170px; text-align: center; font-size: ${fontSz}; font-weight: 700; color: #000000;">하차지 (현장명)</th>
-            <th style="border: 1px solid #000000; width: 110px; text-align: center; font-size: ${fontSz}; font-weight: 700; color: #000000;">비고</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${displayRows.map((item, idx) => {
-            if (item) {
-              return `
-                <tr style="height: ${rowH};">
-                  <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: ${fontSz}; color: #000000;">${idx + 1}</td>
-                  <td style="border: 1px solid #000000; padding: 2px 8px; text-align: center; font-size: ${fontSz}; font-weight: 700; color: #000000;">${item.modelName || '고소작업대'}</td>
-                  <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: ${fontSz}; font-weight: 700; color: #000000;">${item.count || 1}</td>
-                  <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: ${fontSz}; color: #000000;">대</td>
-                  <td style="border: 1px solid #000000; padding: 2px 8px; text-align: center; font-size: ${fontSz}; color: #000000;">${siteName}</td>
-                  <td style="border: 1px solid #000000; padding: 2px 8px; text-align: center; font-size: 10px; color: #000000;">${item.note || '정상 납품'}</td>
-                </tr>
-              `;
-            } else {
-              return `
-                <tr style="height: ${rowH};">
-                  <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: ${fontSz};">&nbsp;</td>
-                  <td style="border: 1px solid #000000; padding: 2px 8px; text-align: center; font-size: ${fontSz};">&nbsp;</td>
-                  <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: ${fontSz};">&nbsp;</td>
-                  <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: ${fontSz};">&nbsp;</td>
-                  <td style="border: 1px solid #000000; padding: 2px 8px; text-align: center; font-size: ${fontSz};">&nbsp;</td>
-                  <td style="border: 1px solid #000000; padding: 2px 8px; text-align: center; font-size: 10px;">&nbsp;</td>
-                </tr>
-              `;
-            }
-          }).join('')}
-          <tr style="height: ${rowH}; background: #f0f0f0;">
-            <td colspan="6" style="border: 1px solid #000000; padding: 3px 12px; text-align: center; font-size: 11px; font-weight: 700; color: #000000;">
-              합 계 : &nbsp; 총 ${itemCount}개 품목 &nbsp; / &nbsp; ${totalCount}대
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    `;
+    let numPages = 2;
+    while (true) {
+      const maxCapacity = P1_MAX + (numPages - 2) * MID_MAX + LAST_MAX;
+      if (total <= maxCapacity || numPages >= 10) break;
+      numPages++;
+    }
+
+    const pages: any[][] = [];
+    let remaining = [...cargos];
+
+    for (let p = 0; p < numPages; p++) {
+      const isFirst = p === 0;
+      const isLast = p === numPages - 1;
+      const pagesLeft = numPages - p;
+
+      if (isLast) {
+        pages.push(remaining);
+        break;
+      }
+
+      const currentMax = isFirst ? P1_MAX : MID_MAX;
+      const target = Math.ceil(remaining.length / pagesLeft);
+      const safeTake = Math.min(currentMax, Math.max(1, target), remaining.length - (pagesLeft - 1));
+      pages.push(remaining.slice(0, safeTake));
+      remaining = remaining.slice(safeTake);
+    }
+
+    return pages;
   }
+
+  const pageChunks = chunkCargosForPages(parsedCargos);
+  const totalPages = pageChunks.length;
 
   let signatureUrl = options?.signatureUrl;
   if (!signatureUrl && delivery?.closingMemo) {
@@ -205,6 +141,280 @@ export function generateReceiptHtml(
 
   const signDateFormatted = signDate.replace(/(\d{4})-(\d{2})-(\d{2})/, '$1년  $2월  $3일');
 
+  // 각 페이지 HTML 렌더링
+  let accumulatedRowIndex = 0;
+  const pagesHtml = pageChunks.map((chunk, pageIdx) => {
+    const isFirstPage = pageIdx === 0;
+    const isLastPage = pageIdx === totalPages - 1;
+    const rowOffset = accumulatedRowIndex;
+    accumulatedRowIndex += chunk.length;
+
+    // 단일 페이지이면서 6행 미만일 경우 표의 격식을 위해 빈 행 보정
+    const displayRows: any[] = [...chunk];
+    if (totalPages === 1 && displayRows.length < 6) {
+      while (displayRows.length < 6) {
+        displayRows.push(null);
+      }
+    }
+
+    return `
+      <div class="receipt-page">
+        <div style="border: 1px solid #000000; padding: 14px 18px; box-sizing: border-box;">
+          
+          <!-- 1. Header Title -->
+          <h1 style="text-align: center; font-size: 24px; font-weight: 800; color: #000000; margin: 6px 0 6px; letter-spacing: 4px;">
+            납 &nbsp; 품 &nbsp; (인 &nbsp; 수) &nbsp; 확 &nbsp; 인 &nbsp; 서${!isFirstPage ? ' &nbsp;<span style="font-size: 16px; font-weight: 700;">(계 속)</span>' : ''}
+          </h1>
+          <div style="width: 360px; margin: 0 auto 10px auto;">
+            <div style="height: 2px; background: #000000; margin-bottom: 2px;"></div>
+            <div style="height: 1px; background: #000000;"></div>
+          </div>
+
+          <!-- 2. 공통 메타데이터 바 (다중 페이지 발생 시 전 페이지 동일 건 인식 보장) -->
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #000000; margin-bottom: 8px; font-weight: 700; border-bottom: 1px dashed #000000; padding-bottom: 4px;">
+            <span>배차번호 : ${delivery?.id || '-'}</span>
+            <span>계약번호 : ${contractNo}</span>
+            <span>발행일자 : ${signDate}</span>
+            <span style="background: #f0f0f0; border: 1px solid #000000; padding: 1px 6px;">페이지 : ${pageIdx + 1} / ${totalPages}</span>
+          </div>
+
+          ${isFirstPage ? `
+            <!-- 3. Top Boxes: 공급자 vs 공급받는자 (1페이지 전용) -->
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+              <!-- Left: 공급자 -->
+              <div style="flex: 1; border: 1px solid #000000; box-sizing: border-box;">
+                <div style="background: #f0f0f0; border-bottom: 1px solid #000000; padding: 4px; text-align: center; font-size: 12px; font-weight: 700; color: #000000;">
+                  공 &nbsp; &nbsp; 급 &nbsp; &nbsp; 자
+                </div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 10.5px;">
+                  <tr style="border-bottom: 1px solid #000000; height: 23px;">
+                    <td style="width: 90px; background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">상호(법인명)</td>
+                    <td style="padding: 2px 6px; color: #000000; font-weight: 700;">${sCorpName}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #000000; height: 23px;">
+                    <td style="background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">대표자 성명</td>
+                    <td style="padding: 2px 6px; color: #000000;">${sRep || '-'}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #000000; height: 23px;">
+                    <td style="background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">사업자등록번호</td>
+                    <td style="padding: 2px 6px; color: #000000;">${sBizNo}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #000000; height: 23px;">
+                    <td style="background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">사업장 소재지</td>
+                    <td style="padding: 2px 6px; color: #000000; font-size: 10px;">${sAddr}</td>
+                  </tr>
+                  <tr style="height: 23px;">
+                    <td style="background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">대표전화/FAX</td>
+                    <td style="padding: 2px 6px; color: #000000;">${sFax && sFax !== '-' ? `${sTel} / ${sFax}` : sTel}</td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- Right: 공급받는자 -->
+              <div style="flex: 1; border: 1px solid #000000; box-sizing: border-box;">
+                <div style="background: #f0f0f0; border-bottom: 1px solid #000000; padding: 4px; text-align: center; font-size: 12px; font-weight: 700; color: #000000;">
+                  공 &nbsp; 급 &nbsp; 받 &nbsp; 는 &nbsp; 자 &nbsp; (인 &nbsp; 수 &nbsp; 처)
+                </div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 10.5px;">
+                  <tr style="border-bottom: 1px solid #000000; height: 23px;">
+                    <td style="width: 90px; background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">고객사 (상호)</td>
+                    <td style="padding: 2px 6px; color: #000000; font-weight: 700;">${customerName}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #000000; height: 23px;">
+                    <td style="background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">현 &nbsp; &nbsp;장 &nbsp; &nbsp;명</td>
+                    <td style="padding: 2px 6px; color: #000000;">${siteName}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #000000; height: 23px;">
+                    <td style="background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">하차지 주소</td>
+                    <td style="padding: 2px 6px; color: #000000; font-size: 10px;">${siteAddress}</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #000000; height: 23px;">
+                    <td style="background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">인수 담당자</td>
+                    <td style="padding: 2px 6px; color: #000000; font-weight: 700;">${receiverName}</td>
+                  </tr>
+                  <tr style="height: 23px;">
+                    <td style="background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">인수자 연락처</td>
+                    <td style="padding: 2px 6px; color: #000000; font-weight: 700;">${receiverPhone}</td>
+                  </tr>
+                </table>
+              </div>
+            </div>
+
+            <!-- 4. Delivery Details Bar (1페이지 전용) -->
+            <div style="border: 1px solid #000000; display: flex; font-size: 10.5px; margin-bottom: 8px;">
+              <div style="flex: 1; display: flex; border-right: 1px solid #000000;">
+                <div style="width: 60px; background: #f0f0f0; border-right: 1px solid #000000; font-weight: 700; color: #000000; text-align: center; padding: 4px 2px;">배차구분</div>
+                <div style="flex: 1; padding: 4px 6px; text-align: center; font-weight: 700; color: #000000;">${dType}</div>
+              </div>
+              <div style="flex: 1; display: flex; border-right: 1px solid #000000;">
+                <div style="width: 60px; background: #f0f0f0; border-right: 1px solid #000000; font-weight: 700; color: #000000; text-align: center; padding: 4px 2px;">납품일자</div>
+                <div style="flex: 1; padding: 4px 6px; text-align: center; color: #000000;">${dDate}</div>
+              </div>
+              <div style="flex: 1.2; display: flex; border-right: 1px solid #000000;">
+                <div style="width: 60px; background: #f0f0f0; border-right: 1px solid #000000; font-weight: 700; color: #000000; text-align: center; padding: 4px 2px;">운송차량</div>
+                <div style="flex: 1; padding: 4px 6px; text-align: center; color: #000000;">${dVehicle}</div>
+              </div>
+              <div style="flex: 1.4; display: flex;">
+                <div style="width: 60px; background: #f0f0f0; border-right: 1px solid #000000; font-weight: 700; color: #000000; text-align: center; padding: 4px 2px;">운송기사</div>
+                <div style="flex: 1; padding: 4px 6px; text-align: center; color: #000000;">${dDriver}</div>
+              </div>
+            </div>
+
+            <!-- 5. Equipment List Title -->
+            <div style="font-size: 12.5px; font-weight: 700; color: #000000; margin: 6px 0 4px;">
+              ■ 납품 장비 목록 ${totalPages > 1 ? `<span style="font-size: 11px; font-weight: normal; color: #555555;">(1 / ${totalPages} 페이지)</span>` : ''}
+            </div>
+          ` : `
+            <!-- 3. 속행 페이지 참조 바 (2페이지 이상 공통) -->
+            <div style="border: 1px solid #000000; background: #f0f0f0; padding: 5px 10px; display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 700; color: #000000; margin-bottom: 8px;">
+              <span>공급자 : ${sCorpName}</span>
+              <span>고객사 : ${customerName}</span>
+              <span>하차지(현장명) : ${siteName}</span>
+            </div>
+            <div style="font-size: 12.5px; font-weight: 700; color: #000000; margin: 6px 0 4px;">
+              ■ 납품 장비 목록 (계속 - ${pageIdx + 1} / ${totalPages} 페이지)
+            </div>
+          `}
+
+          <!-- Equipment Table for this page -->
+          <table style="width: 100%; border-collapse: collapse; border: 1px solid #000000; margin-bottom: 6px;">
+            <thead>
+              <tr style="background: #f0f0f0; height: 26px;">
+                <th style="border: 1px solid #000000; width: 45px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">No.</th>
+                <th style="border: 1px solid #000000; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">품목 (장비 모델명)</th>
+                <th style="border: 1px solid #000000; width: 65px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">수량</th>
+                <th style="border: 1px solid #000000; width: 45px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">단위</th>
+                <th style="border: 1px solid #000000; width: 170px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">하차지 (현장명)</th>
+                <th style="border: 1px solid #000000; width: 110px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">비고</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${displayRows.map((item, idx) => {
+                if (item) {
+                  return `
+                    <tr style="height: 25px;">
+                      <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: 10.5px; color: #000000;">${rowOffset + idx + 1}</td>
+                      <td style="border: 1px solid #000000; padding: 2px 8px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">${item.modelName || '고소작업대'}</td>
+                      <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">${item.count || 1}</td>
+                      <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: 10.5px; color: #000000;">대</td>
+                      <td style="border: 1px solid #000000; padding: 2px 8px; text-align: center; font-size: 10.5px; color: #000000;">${siteName}</td>
+                      <td style="border: 1px solid #000000; padding: 2px 8px; text-align: center; font-size: 10px; color: #000000;">${item.note || '정상 납품'}</td>
+                    </tr>
+                  `;
+                } else {
+                  return `
+                    <tr style="height: 25px;">
+                      <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: 10.5px;">&nbsp;</td>
+                      <td style="border: 1px solid #000000; padding: 2px 8px; text-align: center; font-size: 10.5px;">&nbsp;</td>
+                      <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: 10.5px;">&nbsp;</td>
+                      <td style="border: 1px solid #000000; padding: 2px 4px; text-align: center; font-size: 10.5px;">&nbsp;</td>
+                      <td style="border: 1px solid #000000; padding: 2px 8px; text-align: center; font-size: 10.5px;">&nbsp;</td>
+                      <td style="border: 1px solid #000000; padding: 2px 8px; text-align: center; font-size: 10px;">&nbsp;</td>
+                    </tr>
+                  `;
+                }
+              }).join('')}
+
+              ${isLastPage ? `
+                <tr style="height: 25px; background: #f0f0f0;">
+                  <td colspan="6" style="border: 1px solid #000000; padding: 3px 12px; text-align: center; font-size: 11px; font-weight: 700; color: #000000;">
+                    합 계 : &nbsp; 총 ${itemCount}개 품목 &nbsp; / &nbsp; ${totalCount}대
+                  </td>
+                </tr>
+              ` : `
+                <tr style="height: 24px; background: #f0f0f0;">
+                  <td colspan="6" style="border: 1px solid #000000; padding: 3px 12px; text-align: center; font-size: 10.5px; font-weight: 700; color: #000000;">
+                    [ 다음 페이지 (${pageIdx + 2} / ${totalPages}) 에 계속 연결됩니다 ➔ ]
+                  </td>
+                </tr>
+              `}
+            </tbody>
+          </table>
+
+          ${isLastPage && specialNotes ? `
+            <div style="margin-bottom: 6px; padding: 4px 8px; background: #f0f0f0; border: 1px solid #000000; font-size: 10px; color: #000000; font-weight: 700;">
+              ※ 장비 옵션 및 요청사항 : ${specialNotes}
+            </div>
+          ` : ''}
+
+          ${isLastPage ? `
+            <!-- 6. Confirmation & Signatures (최종 페이지 전용) -->
+            <div class="sign-section" style="margin-top: 6px; margin-bottom: 6px;">
+              <div style="display: flex; justify-content: space-between; align-items: stretch; border: 1px solid #000000; padding: 8px 12px; background: #ffffff;">
+                
+                <!-- Left: Confirmation Statement & Company (No redundant supplier table) -->
+                <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; padding-right: 14px;">
+                  <div>
+                    <div style="font-size: 13.5px; font-weight: 800; color: #000000; letter-spacing: -0.2px; line-height: 1.4;">
+                      상기 장비를 이상 없이 정히 납품 (인수) 하였음을 상호 확인합니다.
+                    </div>
+                    <div style="margin-top: 4px; font-size: 11.5px; font-weight: 700; color: #000000;">
+                      ${signDateFormatted}
+                    </div>
+                  </div>
+                  
+                  <div style="margin-top: 8px;">
+                    <div style="font-size: 12.5px; font-weight: 800; color: #000000;">
+                      ${sCorpName} 대표이사 ${sRep} <span style="font-size: 11px; font-weight: 700;">(직인생략)</span>
+                    </div>
+                    <div style="font-size: 9.5px; color: #555555; margin-top: 3px;">
+                      ※ 전자문서법에 의거 당사 직인을 생략하여 발행함
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Right: Compact Receiver Confirmation Table -->
+                <div style="width: 290px; flex-shrink: 0;">
+                  <table style="width: 100%; border-collapse: collapse; border: 1px solid #000000;">
+                    <thead>
+                      <tr style="background: #f0f0f0; height: 23px;">
+                        <th colspan="2" style="border: 1px solid #000000; text-align: center; font-size: 11px; font-weight: 700; color: #000000; padding: 2px;">
+                          인 &nbsp; 수 &nbsp; 자 &nbsp; 확 &nbsp; 인
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style="height: 23px;">
+                        <td style="width: 80px; background: #f0f0f0; border: 1px solid #000000; text-align: center; font-size: 10px; font-weight: 700; color: #000000; padding: 2px 4px;">인수 담당자</td>
+                        <td style="border: 1px solid #000000; padding: 2px 8px; font-size: 10.5px; font-weight: 700; color: #000000;">${receiverName}</td>
+                      </tr>
+                      <tr style="height: 23px;">
+                        <td style="background: #f0f0f0; border: 1px solid #000000; text-align: center; font-size: 10px; font-weight: 700; color: #000000; padding: 2px 4px;">인수자 연락처</td>
+                        <td style="border: 1px solid #000000; padding: 2px 8px; font-size: 10.5px; color: #000000;">${receiverPhone}</td>
+                      </tr>
+                      <tr style="height: 52px;">
+                        <td style="background: #f0f0f0; border: 1px solid #000000; text-align: center; font-size: 10px; font-weight: 700; color: #000000; padding: 2px 4px;">서명 또는 (인)</td>
+                        <td style="border: 1px solid #000000; padding: 2px 6px; text-align: center; vertical-align: middle;">
+                          ${signatureUrl ? `
+                            <img src="${signatureUrl}" style="max-height: 46px; max-width: 180px; object-fit: contain;" alt="인수자 서명" />
+                          ` : `
+                            <span style="font-size: 10px; color: #555555;">(인수자 서명 또는 날인)</span>
+                          `}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- 7. Footer Legal & Brand Notice (전 페이지 공통) -->
+          <div style="border-top: 1px solid #000000; padding-top: 5px; margin-top: ${isLastPage ? '6px' : '14px'}; text-align: center;">
+            <div style="font-size: 9.5px; color: #000000;">
+              ※ 본 확인서는 모바일 전자서명 시스템 및 현장 납품 확인 표준 서식에 의거 발행된 정식 납품확인서입니다.
+            </div>
+            <div style="font-size: 9px; color: #555555; margin-top: 2px;">
+              ${effectiveTenant?.systemName || defaultSupplier.systemName || 'eBro Management System'} &nbsp;|&nbsp; ${sCorpName} &nbsp;|&nbsp; 고객센터: ${sTel} &nbsp;|&nbsp; ${sWebsite ? sWebsite.replace(/^https?:\/\//, '') : defaultSupplier.websiteUrl?.replace(/^https?:\/\//, '')} &nbsp;|&nbsp; (${pageIdx + 1} / ${totalPages})
+            </div>
+          </div>
+
+        </div>
+      </div>
+    `;
+  }).join('');
+
   return `
     <style>
       @page {
@@ -212,18 +422,25 @@ export function generateReceiptHtml(
         margin: 8mm 10mm;
       }
       @media print {
-        body {
-          margin: 0;
-          padding: 0;
-          background: #fff !important;
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          background: #ffffff !important;
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
         }
-        .receipt-container {
+        .receipt-page {
           border: 2px solid #000000 !important;
           box-shadow: none !important;
           margin: 0 auto !important;
           max-width: 100% !important;
+          page-break-after: always !important;
+          break-after: page !important;
+          box-sizing: border-box !important;
+        }
+        .receipt-page:last-child {
+          page-break-after: avoid !important;
+          break-after: avoid !important;
         }
         .sign-section {
           page-break-inside: avoid !important;
@@ -234,191 +451,23 @@ export function generateReceiptHtml(
           break-inside: avoid !important;
         }
       }
+      .receipt-page {
+        box-sizing: border-box;
+        font-family: 'Malgun Gothic', Pretendard, 'Apple SD Gothic Neo', sans-serif;
+        width: 100%;
+        max-width: 760px;
+        margin: 0 auto 24px auto;
+        color: #000000;
+        background-color: #ffffff;
+        border: 2px solid #000000;
+        padding: 4px;
+      }
+      .receipt-page:last-child {
+        margin-bottom: 0;
+      }
     </style>
-    <div class="receipt-container" style="box-sizing: border-box; font-family: 'Malgun Gothic', Pretendard, 'Apple SD Gothic Neo', sans-serif; width: 100%; max-width: 760px; margin: 0 auto; color: #000000; background-color: #ffffff; border: 2px solid #000000; padding: 4px;">
-      <div style="border: 1px solid #000000; padding: 14px 18px; box-sizing: border-box;">
-        
-        <!-- 1. Header Title -->
-        <h1 style="text-align: center; font-size: 24px; font-weight: 800; color: #000000; margin: 6px 0 6px; letter-spacing: 4px;">
-          납 &nbsp; 품 &nbsp; (인 &nbsp; 수) &nbsp; 확 &nbsp; 인 &nbsp; 서
-        </h1>
-        <div style="width: 360px; margin: 0 auto 10px auto;">
-          <div style="height: 2px; background: #000000; margin-bottom: 2px;"></div>
-          <div style="height: 1px; background: #000000;"></div>
-        </div>
-
-        <!-- 2. Metadata Bar -->
-        <div style="display: flex; justify-content: space-between; font-size: 11px; color: #000000; margin-bottom: 8px;">
-          <span>배차번호 : ${delivery?.id || '-'}</span>
-          <span>계약번호 : ${contractNo}</span>
-          <span>발행일자 : ${signDate}</span>
-        </div>
-
-        <!-- 3. Top Boxes: 공급자 vs 공급받는자 -->
-        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-          <!-- Left: 공급자 -->
-          <div style="flex: 1; border: 1px solid #000000; box-sizing: border-box;">
-            <div style="background: #f0f0f0; border-bottom: 1px solid #000000; padding: 4px; text-align: center; font-size: 12px; font-weight: 700; color: #000000;">
-              공 &nbsp; &nbsp; 급 &nbsp; &nbsp; 자
-            </div>
-            <table style="width: 100%; border-collapse: collapse; font-size: 10.5px;">
-              <tr style="border-bottom: 1px solid #000000; height: 23px;">
-                <td style="width: 90px; background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">상호(법인명)</td>
-                <td style="padding: 2px 6px; color: #000000; font-weight: 700;">${sCorpName}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #000000; height: 23px;">
-                <td style="background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">대표자 성명</td>
-                <td style="padding: 2px 6px; color: #000000;">${sRep || '-'}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #000000; height: 23px;">
-                <td style="background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">사업자등록번호</td>
-                <td style="padding: 2px 6px; color: #000000;">${sBizNo}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #000000; height: 23px;">
-                <td style="background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">사업장 소재지</td>
-                <td style="padding: 2px 6px; color: #000000; font-size: 10px;">${sAddr}</td>
-              </tr>
-              <tr style="height: 23px;">
-                <td style="background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">대표전화/FAX</td>
-                <td style="padding: 2px 6px; color: #000000;">${sFax && sFax !== '-' ? `${sTel} / ${sFax}` : sTel}</td>
-              </tr>
-            </table>
-          </div>
-
-          <!-- Right: 공급받는자 -->
-          <div style="flex: 1; border: 1px solid #000000; box-sizing: border-box;">
-            <div style="background: #f0f0f0; border-bottom: 1px solid #000000; padding: 4px; text-align: center; font-size: 12px; font-weight: 700; color: #000000;">
-              공 &nbsp; 급 &nbsp; 받 &nbsp; 는 &nbsp; 자 &nbsp; (인 &nbsp; 수 &nbsp; 처)
-            </div>
-            <table style="width: 100%; border-collapse: collapse; font-size: 10.5px;">
-              <tr style="border-bottom: 1px solid #000000; height: 23px;">
-                <td style="width: 90px; background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">고객사 (상호)</td>
-                <td style="padding: 2px 6px; color: #000000; font-weight: 700;">${customerName}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #000000; height: 23px;">
-                <td style="background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">현 &nbsp; &nbsp;장 &nbsp; &nbsp;명</td>
-                <td style="padding: 2px 6px; color: #000000;">${siteName}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #000000; height: 23px;">
-                <td style="background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">하차지 주소</td>
-                <td style="padding: 2px 6px; color: #000000; font-size: 10px;">${siteAddress}</td>
-              </tr>
-              <tr style="border-bottom: 1px solid #000000; height: 23px;">
-                <td style="background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">인수 담당자</td>
-                <td style="padding: 2px 6px; color: #000000; font-weight: 700;">${receiverName}</td>
-              </tr>
-              <tr style="height: 23px;">
-                <td style="background: #f0f0f0; border-right: 1px solid #000000; text-align: center; font-weight: 700; color: #000000; padding: 2px 4px;">인수자 연락처</td>
-                <td style="padding: 2px 6px; color: #000000; font-weight: 700;">${receiverPhone}</td>
-              </tr>
-            </table>
-          </div>
-        </div>
-
-        <!-- 4. Delivery Details Bar -->
-        <div style="border: 1px solid #000000; display: flex; font-size: 10.5px; margin-bottom: 8px;">
-          <div style="flex: 1; display: flex; border-right: 1px solid #000000;">
-            <div style="width: 60px; background: #f0f0f0; border-right: 1px solid #000000; font-weight: 700; color: #000000; text-align: center; padding: 4px 2px;">배차구분</div>
-            <div style="flex: 1; padding: 4px 6px; text-align: center; font-weight: 700; color: #000000;">${dType}</div>
-          </div>
-          <div style="flex: 1; display: flex; border-right: 1px solid #000000;">
-            <div style="width: 60px; background: #f0f0f0; border-right: 1px solid #000000; font-weight: 700; color: #000000; text-align: center; padding: 4px 2px;">납품일자</div>
-            <div style="flex: 1; padding: 4px 6px; text-align: center; color: #000000;">${dDate}</div>
-          </div>
-          <div style="flex: 1.2; display: flex; border-right: 1px solid #000000;">
-            <div style="width: 60px; background: #f0f0f0; border-right: 1px solid #000000; font-weight: 700; color: #000000; text-align: center; padding: 4px 2px;">운송차량</div>
-            <div style="flex: 1; padding: 4px 6px; text-align: center; color: #000000;">${dVehicle}</div>
-          </div>
-          <div style="flex: 1.4; display: flex;">
-            <div style="width: 60px; background: #f0f0f0; border-right: 1px solid #000000; font-weight: 700; color: #000000; text-align: center; padding: 4px 2px;">운송기사</div>
-            <div style="flex: 1; padding: 4px 6px; text-align: center; color: #000000;">${dDriver}</div>
-          </div>
-        </div>
-
-        <!-- 5. Equipment List Table -->
-        <div style="font-size: 12.5px; font-weight: 700; color: #000000; margin: 6px 0 4px;">
-          ■ 납품 장비 목록
-        </div>
-        ${equipmentTableHtml}
-
-        ${specialNotes ? `
-          <div style="margin-bottom: 6px; padding: 4px 8px; background: #f0f0f0; border: 1px solid #000000; font-size: 10px; color: #000000; font-weight: 700;">
-            ※ 장비 옵션 및 요청사항 : ${specialNotes}
-          </div>
-        ` : ''}
-
-        <!-- 6. Confirmation & Signatures (Protected from page-break split) -->
-        <div class="sign-section" style="margin-top: 6px; margin-bottom: 6px;">
-          <div style="display: flex; justify-content: space-between; align-items: stretch; border: 1px solid #000000; padding: 8px 12px; background: #ffffff;">
-            
-            <!-- Left: Confirmation Statement & Company (No redundant supplier table) -->
-            <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; padding-right: 14px;">
-              <div>
-                <div style="font-size: 13.5px; font-weight: 800; color: #000000; letter-spacing: -0.2px; line-height: 1.4;">
-                  상기 장비를 이상 없이 정히 납품 (인수) 하였음을 상호 확인합니다.
-                </div>
-                <div style="margin-top: 4px; font-size: 11.5px; font-weight: 700; color: #000000;">
-                  ${signDateFormatted}
-                </div>
-              </div>
-              
-              <div style="margin-top: 8px;">
-                <div style="font-size: 12.5px; font-weight: 800; color: #000000;">
-                  ${sCorpName} 대표이사 ${sRep} <span style="font-size: 11px; font-weight: 700;">(직인생략)</span>
-                </div>
-                <div style="font-size: 9.5px; color: #555555; margin-top: 3px;">
-                  ※ 전자문서법에 의거 당사 직인을 생략하여 발행함
-                </div>
-              </div>
-            </div>
-
-            <!-- Right: Compact Receiver Confirmation Table -->
-            <div style="width: 290px; flex-shrink: 0;">
-              <table style="width: 100%; border-collapse: collapse; border: 1px solid #000000;">
-                <thead>
-                  <tr style="background: #f0f0f0; height: 23px;">
-                    <th colspan="2" style="border: 1px solid #000000; text-align: center; font-size: 11px; font-weight: 700; color: #000000; padding: 2px;">
-                      인 &nbsp; 수 &nbsp; 자 &nbsp; 확 &nbsp; 인
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr style="height: 23px;">
-                    <td style="width: 80px; background: #f0f0f0; border: 1px solid #000000; text-align: center; font-size: 10px; font-weight: 700; color: #000000; padding: 2px 4px;">인수 담당자</td>
-                    <td style="border: 1px solid #000000; padding: 2px 8px; font-size: 10.5px; font-weight: 700; color: #000000;">${receiverName}</td>
-                  </tr>
-                  <tr style="height: 23px;">
-                    <td style="background: #f0f0f0; border: 1px solid #000000; text-align: center; font-size: 10px; font-weight: 700; color: #000000; padding: 2px 4px;">인수자 연락처</td>
-                    <td style="border: 1px solid #000000; padding: 2px 8px; font-size: 10.5px; color: #000000;">${receiverPhone}</td>
-                  </tr>
-                  <tr style="height: 52px;">
-                    <td style="background: #f0f0f0; border: 1px solid #000000; text-align: center; font-size: 10px; font-weight: 700; color: #000000; padding: 2px 4px;">서명 또는 (인)</td>
-                    <td style="border: 1px solid #000000; padding: 2px 6px; text-align: center; vertical-align: middle;">
-                      ${signatureUrl ? `
-                        <img src="${signatureUrl}" style="max-height: 46px; max-width: 180px; object-fit: contain;" alt="인수자 서명" />
-                      ` : `
-                        <span style="font-size: 10px; color: #555555;">(인수자 서명 또는 날인)</span>
-                      `}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-          </div>
-        </div>
-
-        <!-- 7. Footer Legal & Brand Notice -->
-        <div style="border-top: 1px solid #000000; padding-top: 5px; text-align: center;">
-          <div style="font-size: 9.5px; color: #000000;">
-            ※ 본 확인서는 모바일 전자서명 시스템 및 현장 납품 확인 표준 서식에 의거 발행된 정식 납품확인서입니다.
-          </div>
-          <div style="font-size: 9px; color: #555555; margin-top: 2px;">
-            ${effectiveTenant?.systemName || defaultSupplier.systemName || 'eBro Management System'} &nbsp;|&nbsp; ${sCorpName} &nbsp;|&nbsp; 고객센터: ${sTel} &nbsp;|&nbsp; ${sWebsite ? sWebsite.replace(/^https?:\/\//, '') : defaultSupplier.websiteUrl?.replace(/^https?:\/\//, '')}
-          </div>
-        </div>
-
-      </div>
+    <div class="receipt-print-wrapper" style="width: 100%; margin: 0; padding: 0;">
+      ${pagesHtml}
     </div>
   `;
 }
