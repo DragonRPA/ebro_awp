@@ -396,9 +396,9 @@ label {
   color: var(--text-secondary);
 }
 
-/* 🌟 라이트 모드 고시인성 완전 블랙 표준: 회색 글씨 라이트 모드에서만 블랙 변환 (다크 모드 침범 방지) */
-[data-theme='light'] label,
-:root:not([data-theme='dark']) label {
+/* 🌟 라이트 모드 고시인성 완전 블랙 표준: 회색 글씨 라이트 모드에서만 블랙 변환 (다크 모드 침범 방지, 버튼 라벨 제외) */
+[data-theme='light'] label:not(.btn):not([class*="btn"]),
+:root:not([data-theme='dark']) label:not(.btn):not([class*="btn"]) {
   color: #000000 !important;
 }
 
@@ -499,9 +499,11 @@ button {
   transition: all var(--transition-fast);
 }
 
-.btn-primary {
+.btn-primary,
+label.btn-primary,
+button.btn-primary {
   background-color: var(--primary);
-  color: var(--text-on-primary);
+  color: var(--text-on-primary) !important;
 }
 .btn-primary:hover {
   background-color: var(--primary-hover);

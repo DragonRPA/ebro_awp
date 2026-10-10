@@ -66,6 +66,16 @@ export const BankMatching: React.FC = () => {
 
   const canSave = hasPermission('billing', 'save');
   const isAdmin = currentUser?.role === 'ADMIN';
+  // 개발자 전용 기능 판별 (일반 사용자 및 경영진에게는 미노출)
+  const isDeveloper = Boolean(
+    currentUser && (
+      currentUser.id === 'sys-admin' ||
+      currentUser.id === 'u-1' ||
+      currentUser.loginId === 'admin' ||
+      currentUser.position === 'D.RPA' ||
+      currentUser.name === '개발자'
+    )
+  );
 
   // 토스트 알림 상태 (헌장 5.2: 브라우저 alert/confirm 전면 퇴출)
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
@@ -1098,9 +1108,34 @@ export const BankMatching: React.FC = () => {
               <div style={{ flex: 1 }} />
 
               {/* 통장 엑셀 업로드 및 내보내기 */}
-              <label className="btn btn-primary" style={{ fontSize: '11.5px', padding: '4px 10px', height: '28px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', marginBottom: '1px' }}>
-                <Upload size={13} />
-                통장 엑셀 업로드
+              <label 
+                style={{ 
+                  fontSize: '11.5px', 
+                  fontWeight: 700,
+                  padding: '4px 12px', 
+                  height: '28px', 
+                  cursor: 'pointer', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '5px', 
+                  whiteSpace: 'nowrap', 
+                  marginBottom: '1px',
+                  backgroundColor: '#2563eb',
+                  color: '#ffffff',
+                  border: '1px solid #1d4ed8',
+                  borderRadius: 'var(--radius-sm, 6px)',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1d4ed8';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#2563eb';
+                }}
+              >
+                <Upload size={13} color="#ffffff" style={{ flexShrink: 0 }} />
+                <span style={{ color: '#ffffff', fontWeight: 700 }}>통장 엑셀 업로드</span>
                 <input
                   type="file"
                   accept=".xlsx, .xls, .csv"
@@ -1109,11 +1144,12 @@ export const BankMatching: React.FC = () => {
                 />
               </label>
 
-              {isAdmin && (
+              {isDeveloper && (
                 <button
                   onClick={handleGenerateMockData}
                   className="btn btn-secondary"
                   style={{ fontSize: '11.5px', padding: '4px 10px', height: '28px', whiteSpace: 'nowrap', marginBottom: '1px' }}
+                  title="개발자 전용 테스트 데이터 생성"
                 >
                   <Plus size={13} style={{ marginRight: '3px' }} />
                   샘플 엑셀 데이터
