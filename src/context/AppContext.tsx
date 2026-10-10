@@ -2626,7 +2626,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         changeType: 'ADD_ASSET',
         changeDate: targetStartDate,
         newEndDate: contract.endDate || '',
-        description: `[스마트출고] 기존 계약(${contract.contractNo})에 추가 장비 투입 (${data.equipments.map(e => `${e.modelName} ${e.qty}대`).join(', ')})`,
+        description: `기존 계약(${contract.contractNo})에 추가 장비 투입 (${data.equipments.map(e => `${e.modelName} ${e.qty}대`).join(', ')})`,
         createdAt: new Date().toISOString()
       });
     } else {
@@ -2672,7 +2672,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         changeType: 'REGISTER',
         changeDate: contract.startDate,
         newEndDate: '',
-        description: `[스마트출고] 신규 임대차 계약 체결 (${finalCustomer.name} / ${finalSite.name} - ${data.equipments.map(e => `${e.modelName} ${e.qty}대`).join(', ')})`,
+        description: `신규 임대차 계약 체결 (${finalCustomer.name} / ${finalSite.name} - ${data.equipments.map(e => `${e.modelName} ${e.qty}대`).join(', ')})`,
         createdAt: new Date().toISOString()
       });
     }
@@ -2793,7 +2793,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       cargoItems,
       isCostSettled: false,
       rawText: (data as any).prompt || (data as any).rawText || data.note || '',
-      memo: `[스마트출고] 현장담당: ${data.siteContactName || '-'} (${data.siteContactPhone || '-'}) | 상차: ${data.loadingTime || '-'} / 하차: ${data.unloadingTime || '-'}${retrievalMemo}${paidByMemo} | 청구담당: ${data.billingContactName || '-'} (${data.billingContactPhone || '-'}) | 계산서: ${data.taxBillEmail || '-'} | 특이사항: ${data.note || '없음'}`,
+      memo: `현장담당: ${data.siteContactName || '-'} (${data.siteContactPhone || '-'}) | 상차: ${data.loadingTime || '-'} / 하차: ${data.unloadingTime || '-'}${retrievalMemo}${paidByMemo} | 청구담당: ${data.billingContactName || '-'} (${data.billingContactPhone || '-'}) | 계산서: ${data.taxBillEmail || '-'} | 특이사항: ${data.note || '없음'}`,
       closingMemo: `[마감조건] 마감일: ${dData.closingDay || '-'} / 결제일: ${dData.paymentDay || '-'} | 유상옵션: ${dData.paidOptions || '없음'} | 보양: ${dData.protection || '없음'}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()

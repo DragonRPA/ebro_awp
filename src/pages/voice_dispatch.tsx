@@ -2189,9 +2189,8 @@ export const VoiceDispatch: React.FC = () => {
         padding: 2.5px 5px !important;
         font-size: 8pt;
         vertical-align: middle;
-        white-space: nowrap;
-        overflow: hidden;
         color: #000000;
+        word-break: break-all;
       }
       th {
         background-color: #f0f0f0 !important;
@@ -2199,6 +2198,8 @@ export const VoiceDispatch: React.FC = () => {
         color: #000000;
         text-align: left;
       }
+      .nowrap { white-space: nowrap; }
+      .wrap-text { white-space: normal; line-height: 1.25; }
       .header-table {
         width: 100%;
         border: none;
@@ -2255,20 +2256,20 @@ export const VoiceDispatch: React.FC = () => {
         </colgroup>
         <tbody>
           <tr>
-            <th>고객사명</th>
-            <td style="font-weight: 700;">${customerName || '-'}</td>
-            <th>투입현장</th>
-            <td style="font-weight: 700;">${siteName || '-'}</td>
+            <th class="nowrap">고객사명</th>
+            <td class="wrap-text" style="font-weight: 700;">${customerName || '-'}</td>
+            <th class="nowrap">투입현장</th>
+            <td class="wrap-text" style="font-weight: 700;">${siteName || '-'}</td>
           </tr>
           <tr>
-            <th>납품주소</th>
-            <td colspan="3">${siteAddress || '-'}</td>
+            <th class="nowrap">납품주소</th>
+            <td colspan="3" class="wrap-text">${siteAddress || '-'}</td>
           </tr>
           <tr>
-            <th>영업담당</th>
-            <td>${currentUser?.name || '본사 담당자'} ${currentUser?.phone ? `(${currentUser.phone})` : ''}</td>
-            <th>현장담당</th>
-            <td>${siteContactName || '-'} ${siteContactPhone ? `(${siteContactPhone})` : ''}</td>
+            <th class="nowrap">영업담당</th>
+            <td class="wrap-text">${currentUser?.name || '본사 담당자'} ${currentUser?.phone ? `(${currentUser.phone})` : ''}</td>
+            <th class="nowrap">현장담당</th>
+            <td class="wrap-text">${siteContactName || '-'} ${siteContactPhone ? `(${siteContactPhone})` : ''}</td>
           </tr>
         </tbody>
       </table>
@@ -2284,16 +2285,39 @@ export const VoiceDispatch: React.FC = () => {
         </colgroup>
         <tbody>
           <tr>
-            <th>상차스케줄</th>
-            <td style="font-weight: 700;">${loadingSchedule || '-'}</td>
-            <th>하차스케줄</th>
-            <td style="font-weight: 700;">${unloadingSchedule || '-'}</td>
+            <th class="nowrap">상차스케줄</th>
+            <td class="wrap-text" style="font-weight: 700;">${loadingSchedule || '-'}</td>
+            <th class="nowrap">하차스케줄</th>
+            <td class="wrap-text" style="font-weight: 700;">${unloadingSchedule || '-'}</td>
           </tr>
           <tr>
-            <th>운송차종 / 운임</th>
-            <td>${orderVehicleType} (${paidByLabel})</td>
-            <th>신청 총수량</th>
-            <td style="font-weight: 700;">총 ${totalCount}대</td>
+            <th class="nowrap">신청 총수량</th>
+            <td class="nowrap" style="font-weight: 700;">총 ${totalCount}대</td>
+            <th class="nowrap">배정 차량수</th>
+            <td class="nowrap" style="font-weight: 700;">총 1대 차량</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table style="margin-top: 2px;">
+        <thead>
+          <tr>
+            <th style="width: 10%; text-align: center;" class="nowrap">차량</th>
+            <th style="width: 12%; text-align: center;" class="nowrap">차종</th>
+            <th style="width: 24%; text-align: center;" class="nowrap">운송사</th>
+            <th style="width: 20%; text-align: center;" class="nowrap">차량번호</th>
+            <th style="width: 14%; text-align: center;" class="nowrap">기사명</th>
+            <th style="width: 20%; text-align: center;" class="nowrap">기사연락처</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="text-align: center; font-weight: 700;" class="nowrap">1호차</td>
+            <td style="text-align: center;" class="nowrap">${orderVehicleType || '5T'}</td>
+            <td style="text-align: center; font-weight: 600;" class="wrap-text">배차 대기중</td>
+            <td style="text-align: center;" class="nowrap">-</td>
+            <td style="text-align: center; font-weight: 700;" class="nowrap">배차 대기중</td>
+            <td style="text-align: center;" class="nowrap">-</td>
           </tr>
         </tbody>
       </table>
@@ -2303,14 +2327,14 @@ export const VoiceDispatch: React.FC = () => {
       <table>
         <thead>
           <tr>
-            <th style="width: 6%; text-align: center;">순번</th>
-            <th style="width: 21%; text-align: center;">모델명</th>
-            <th style="width: 17%; text-align: center;">관리번호</th>
-            <th style="width: 6%; text-align: center; border-right: 2px solid #000000;">확인</th>
-            <th style="width: 6%; text-align: center;">순번</th>
-            <th style="width: 21%; text-align: center;">모델명</th>
-            <th style="width: 17%; text-align: center;">관리번호</th>
-            <th style="width: 6%; text-align: center;">확인</th>
+            <th style="width: 6%; text-align: center;" class="nowrap">순번</th>
+            <th style="width: 21%; text-align: center;" class="nowrap">모델명</th>
+            <th style="width: 17%; text-align: center;" class="nowrap">관리번호</th>
+            <th style="width: 6%; text-align: center; border-right: 2px solid #000000;" class="nowrap">확인</th>
+            <th style="width: 6%; text-align: center;" class="nowrap">순번</th>
+            <th style="width: 21%; text-align: center;" class="nowrap">모델명</th>
+            <th style="width: 17%; text-align: center;" class="nowrap">관리번호</th>
+            <th style="width: 6%; text-align: center;" class="nowrap">확인</th>
           </tr>
         </thead>
         <tbody>
@@ -2324,8 +2348,8 @@ export const VoiceDispatch: React.FC = () => {
         ${orderSafetyOptions.length > 0 ? `
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font-size: 8pt;">
             ${orderSafetyOptions.map((opt, idx) => `
-              <div style="display: flex; align-items: center; gap: 4px; font-weight: 700; color: #000000;">
-                <span style="font-size: 8pt;">[v]</span>
+              <div style="display: flex; align-items: center; gap: 4px; font-weight: 700; color: #000000; word-break: break-all;">
+                <span style="font-size: 8pt; flex-shrink: 0;">[v]</span>
                 <span>${idx + 1}. ${opt}</span>
               </div>
             `).join('')}
@@ -2337,8 +2361,8 @@ export const VoiceDispatch: React.FC = () => {
         `}
       </div>
 
-      <!-- 5. 현장 특이사항 및 작업 지시 -->
-      <div class="sec-title">5. 현장 특이사항 및 작업 지시</div>
+      <!-- 5. 현장 특이사항 및 작업 요청 -->
+      <div class="sec-title">5. 현장 특이사항 및 작업 요청</div>
       <table>
         <colgroup>
           <col style="width: 12%;" />
@@ -2347,19 +2371,19 @@ export const VoiceDispatch: React.FC = () => {
         <tbody>
           ${orderStaggeredMemo ? `
             <tr>
-              <th>시차출고</th>
-              <td style="font-weight: 700;">${orderStaggeredMemo}</td>
+              <th class="nowrap">시차출고</th>
+              <td class="wrap-text" style="font-weight: 700;">${orderStaggeredMemo}</td>
             </tr>
           ` : ''}
           ${orderRetrievalAssetIds.length > 0 ? `
             <tr>
-              <th>대차 회수대상</th>
-              <td style="font-weight: 700;">자산 #${orderRetrievalAssetIds.join(', #')} (총 ${orderRetrievalAssetIds.length}대 회수)</td>
+              <th class="nowrap">대차 회수대상</th>
+              <td class="wrap-text" style="font-weight: 700;">자산 #${orderRetrievalAssetIds.join(', #')} (총 ${orderRetrievalAssetIds.length}대 회수)</td>
             </tr>
           ` : ''}
           <tr>
-            <th>지시사항</th>
-            <td>${orderNote || '특이사항 없음'}</td>
+            <th class="nowrap">요청사항</th>
+            <td class="wrap-text" style="line-height: 1.3;">${orderNote || '특이사항 없음'}</td>
           </tr>
         </tbody>
       </table>
@@ -3932,7 +3956,7 @@ export const VoiceDispatch: React.FC = () => {
                   </h4>
                   <p className="text-[11px] text-slate-300 font-medium">
                     {isFormValid
-                      ? '모든 필수 스키마가 완결되어 즉시 출고지시가 가능합니다.'
+                      ? '모든 필수 스키마가 완결되어 즉시 출고요청이 가능합니다.'
                       : `미충족 ${invalidRules.length}건 — 정보 누락 상태로 발행 시 자동 차단됩니다.`}
                   </p>
                 </div>
@@ -4841,7 +4865,7 @@ export const VoiceDispatch: React.FC = () => {
       {/* 최상단 컴팩트 툴바 (타이틀 + 탭 + 녹음 업로드 1줄 인라인) */}
       <div className="dispatch4-toolbar">
         <div className="dispatch4-toolbar-left">
-          <h2 className="dispatch4-title">음성 출고지시</h2>
+          <h2 className="dispatch4-title">음성 출고요청</h2>
         </div>
 
         <div className="flex items-center gap-2">

@@ -368,9 +368,56 @@ export const TruckDispatch: React.FC = () => {
     const unloadTimeStr = delivery.unloadingTimeSlot ? `[${delivery.unloadingTimeSlot}]` : '';
     const unloadingSchedule = delivery.unloadingDate ? `${delivery.unloadingDate} ${unloadTimeStr}`.trim() : (delivery.scheduledDate || loadingSchedule);
 
-    // 운임/차종
-    const vehicleTypeStr = delivery.vehicleType || '5T';
-    const paidByLabel = delivery.billableToCustomer ? '고객사 부담' : (delivery.memo?.includes('당사부담') ? '당사 부담' : '기본 운임');
+    // 운송 차량 목록 추출 (다수 차량 지원)
+    interface AssignedVehicleView {
+      no: string;
+      vehicleType: string;
+      transportCompany: string;
+      vehicleNo: string;
+      driverName: string;
+      driverContact: string;
+    }
+    const vehicleList: AssignedVehicleView[] = [];
+
+    if (Array.isArray(delivery.assignedVehicles) && delivery.assignedVehicles.length > 0) {
+      delivery.assignedVehicles.forEach((v: any, idx: number) => {
+        vehicleList.push({
+          no: `${idx + 1}호차`,
+          vehicleType: v.vehicleType || delivery.vehicleType || '5T',
+          transportCompany: v.transportCompany || delivery.transportCompany || '자사/협력운송',
+          vehicleNo: v.vehicleNo || (idx === 0 ? delivery.vehicleNo || '-' : '-'),
+          driverName: v.driverName || (idx === 0 ? delivery.driverName || '배차 대기중' : '배차 대기중'),
+          driverContact: v.driverContact || (idx === 0 ? delivery.driverContact || '-' : '-')
+        });
+      });
+    } else if (delivery.vehicles) {
+      try {
+        const parsed = JSON.parse(delivery.vehicles);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          parsed.forEach((v: any, idx: number) => {
+            vehicleList.push({
+              no: `${idx + 1}호차`,
+              vehicleType: v.vehicleType || delivery.vehicleType || '5T',
+              transportCompany: v.transportCompany || delivery.transportCompany || '자사/협력운송',
+              vehicleNo: v.vehicleNo || (idx === 0 ? delivery.vehicleNo || '-' : '-'),
+              driverName: v.driverName || (idx === 0 ? delivery.driverName || '배차 대기중' : '배차 대기중'),
+              driverContact: v.driverContact || (idx === 0 ? delivery.driverContact || '-' : '-')
+            });
+          });
+        }
+      } catch (e) {}
+    }
+
+    if (vehicleList.length === 0) {
+      vehicleList.push({
+        no: '1호차',
+        vehicleType: delivery.vehicleType || '5T',
+        transportCompany: delivery.transportCompany || '자사/협력운송',
+        vehicleNo: delivery.vehicleNo || '-',
+        driverName: delivery.driverName || '배차 대기중',
+        driverContact: delivery.driverContact || '-'
+      });
+    }
 
     // 수량 및 장비 목록 (50:50 대칭 균형 그리드)
     const unitList: { no: number; modelName: string; assetNo: string }[] = [];
@@ -416,36 +463,45 @@ export const TruckDispatch: React.FC = () => {
       </tr>`;
     }
 
-    // 옵션 항목 추출 (Section 4)
+    // 옵션 항목 추출 및 중복 제거 (Section 4)
     const safetyOptions: string[] = [];
-    if (site?.paidOptions) safetyOptions.push(`유상옵션: ${site.paidOptions}`);
-    if (site?.protection) safetyOptions.push(`보양: ${site.protection}`);
+    const addOption = (opt: string) => {
+      if (!opt) return;
+      const clean = opt.trim().replace(/^유상옵션:\s*/, '').replace(/^보양:\s*/, '');
+      if (clean && clean !== '없음' && clean !== 'NONE' && !safetyOptions.includes(clean)) {
+        safetyOptions.push(clean);
+      }
+    };
+
+    if (site?.paidOptions) {
+      site.paidOptions.split(',').forEach(s => addOption(s));
+    }
+    if (site?.protection && site.protection !== 'NONE' && site.protection !== '없음') {
+      addOption(`보양: ${site.protection}`);
+    }
     if (site?.checkedSpecs && typeof site.checkedSpecs === 'object') {
       Object.entries(site.checkedSpecs).forEach(([key, val]) => {
-        if (val && !safetyOptions.includes(key)) safetyOptions.push(key);
+        if (val) addOption(key);
       });
     }
     if (delivery.closingMemo) {
       const optMatch = delivery.closingMemo.match(/유상옵션:\s*([^\|]+)/);
       if (optMatch && optMatch[1]?.trim() && optMatch[1].trim() !== '없음') {
-        const val = optMatch[1].trim();
-        if (!safetyOptions.includes(val)) safetyOptions.push(val);
+        optMatch[1].split(',').forEach(s => addOption(s));
       }
       const protMatch = delivery.closingMemo.match(/보양:\s*([^\|]+)/);
-      if (protMatch && protMatch[1]?.trim() && protMatch[1].trim() !== '없음') {
-        const val = protMatch[1].trim();
-        if (!safetyOptions.includes(val)) safetyOptions.push(val);
+      if (protMatch && protMatch[1]?.trim() && protMatch[1].trim() !== '없음' && protMatch[1].trim() !== 'NONE') {
+        addOption(`보양: ${protMatch[1].trim()}`);
       }
     }
     if (delivery.memo && delivery.memo.includes('[옵션]')) {
       const optMatch = delivery.memo.match(/\[옵션\]\s*([^\|]+)/);
       if (optMatch && optMatch[1]?.trim()) {
-        const opts = optMatch[1].split(',').map(s => s.trim()).filter(Boolean);
-        opts.forEach(o => { if (!safetyOptions.includes(o)) safetyOptions.push(o); });
+        optMatch[1].split(',').forEach(s => addOption(s));
       }
     }
 
-    // 특이사항 (Section 5)
+    // 특이사항 및 작업 요청 정제 (Section 5)
     let staggeredMemo = '';
     if (delivery.memo && delivery.memo.includes('[시차출고]')) {
       const stMatch = delivery.memo.match(/\[시차출고\]\s*([^\|]+)/);
@@ -456,6 +512,34 @@ export const TruckDispatch: React.FC = () => {
       const retMatch = delivery.memo.match(/\[대차회수대상\]\s*([^\|]+)/);
       if (retMatch) retrievalMemo = retMatch[1].trim();
     }
+
+    let cleanNoteForPrint = (delivery.memo || '')
+      .replace(/\[스마트출고\]\s*/g, '')
+      .replace(/\[스마트[^\]]*\]\s*/g, '')
+      .replace(/청구담당:\s*[^\|]+(\|)?/g, '')
+      .replace(/계산서:\s*[^\|]+(\|)?/g, '')
+      .replace(/\[정산일정\]\s*[^\|]+(\|)?/g, '')
+      .replace(/\[차종\]\s*[^\|]+(\|)?/g, '')
+      .replace(/\[하차일정\]\s*[^\|]+(\|)?/g, '')
+      .replace(/\[현장상세주소\]\s*[^\|]+(\|)?/g, '')
+      .replace(/\[옵션\]\s*[^\|]+(\|)?/g, '')
+      .replace(/\[시차출고\]\s*[^\|]+(\|)?/g, '')
+      .replace(/\[대차회수대상\]\s*[^\|]+(\|)?/g, '')
+      .replace(/(당사부담|고객사부담|기본운임)/g, '');
+
+    if (cleanNoteForPrint.includes('특이사항:')) {
+      const parts = cleanNoteForPrint.split('특이사항:');
+      cleanNoteForPrint = parts[1] || '';
+    }
+
+    cleanNoteForPrint = cleanNoteForPrint
+      .split('|')
+      .map(s => s.trim())
+      .filter(s => s && s !== '-' && s !== '없음' && !s.startsWith('현장담당:') && !s.startsWith('상차:'))
+      .join(' | ')
+      .trim();
+
+    if (!cleanNoteForPrint) cleanNoteForPrint = '특이사항 없음';
 
     return `<!DOCTYPE html>
 <html lang="ko">
@@ -474,8 +558,10 @@ export const TruckDispatch: React.FC = () => {
     body { font-family: 'Malgun Gothic', '맑은 고딕', Dotum, sans-serif; padding: 0; margin: 0 auto; color: #000000; background-color: #ffffff; width: 100%; max-width: 210mm; font-size: 8.5pt; line-height: 1.15; }
     p, div, span, table, tr, td, th { margin: 0; padding: 0; line-height: 1.15; color: #000000; }
     table { width: 100%; border-collapse: collapse; margin-top: 2px; margin-bottom: 3px; table-layout: fixed; }
-    th, td { border: 1px solid #000000; padding: 2.5px 5px !important; font-size: 8pt; vertical-align: middle; white-space: nowrap; overflow: hidden; color: #000000; }
+    th, td { border: 1px solid #000000; padding: 2.5px 5px !important; font-size: 8pt; vertical-align: middle; color: #000000; word-break: break-all; }
     th { background-color: #f0f0f0 !important; font-weight: 700; color: #000000; text-align: left; }
+    .nowrap { white-space: nowrap; }
+    .wrap-text { white-space: normal; line-height: 1.25; }
     .header-table { width: 100%; border: none; border-bottom: 2px solid #000000; margin-bottom: 3px; padding-bottom: 2px; }
     .header-table td { border: none; padding: 0 !important; vertical-align: middle; color: #000000; }
     .sec-title { font-size: 8.5pt; font-weight: 800; color: #000000; border-left: 3.5px solid #000000; padding-left: 4px; margin-top: 3px; margin-bottom: 1px; }
@@ -505,15 +591,15 @@ export const TruckDispatch: React.FC = () => {
     <table>
       <colgroup><col style="width: 12%;"><col style="width: 38%;"><col style="width: 12%;"><col style="width: 38%;"></colgroup>
       <tr>
-        <th>고객사명</th><td style="font-weight: 700;">${customer?.name || '-'}</td>
-        <th>${isOutbound ? '투입현장' : '현장명'}</th><td style="font-weight: 700;">${site?.name || '-'}</td>
+        <th class="nowrap">고객사명</th><td class="wrap-text" style="font-weight: 700;">${customer?.name || '-'}</td>
+        <th class="nowrap">${isOutbound ? '투입현장' : '현장명'}</th><td class="wrap-text" style="font-weight: 700;">${site?.name || '-'}</td>
       </tr>
       <tr>
-        <th>${isOutbound ? '납품주소' : '회수지(상차)'}</th><td colspan="3">${destAddr}</td>
+        <th class="nowrap">${isOutbound ? '납품주소' : '회수지(상차)'}</th><td colspan="3" class="wrap-text">${destAddr}</td>
       </tr>
       <tr>
-        <th>영업담당</th><td>${salesRepDisplay}</td>
-        <th>현장담당</th><td>${siteContactName || '-'} ${siteContactPhone ? `(${siteContactPhone})` : ''}</td>
+        <th class="nowrap">영업담당</th><td class="wrap-text">${salesRepDisplay}</td>
+        <th class="nowrap">현장담당</th><td class="wrap-text">${siteContactName || '-'} ${siteContactPhone ? `(${siteContactPhone})` : ''}</td>
       </tr>
     </table>
 
@@ -521,28 +607,52 @@ export const TruckDispatch: React.FC = () => {
     <table>
       <colgroup><col style="width: 12%;"><col style="width: 38%;"><col style="width: 12%;"><col style="width: 38%;"></colgroup>
       <tr>
-        <th>상차스케줄</th><td style="font-weight: 700;">${loadingSchedule}</td>
-        <th>하차스케줄</th><td style="font-weight: 700;">${unloadingSchedule}</td>
+        <th class="nowrap">상차스케줄</th><td class="wrap-text" style="font-weight: 700;">${loadingSchedule}</td>
+        <th class="nowrap">하차스케줄</th><td class="wrap-text" style="font-weight: 700;">${unloadingSchedule}</td>
       </tr>
       <tr>
-        <th>운송차종 / 운임</th><td>${vehicleTypeStr} (${paidByLabel})</td>
-        <th>신청 총수량</th><td style="font-weight: 700;">총 ${totalCount}대</td>
+        <th class="nowrap">신청 총수량</th><td class="nowrap" style="font-weight: 700;">총 ${totalCount}대</td>
+        <th class="nowrap">배정 차량수</th><td class="nowrap" style="font-weight: 700;">총 ${vehicleList.length}대 차량</td>
       </tr>
-      ${delivery.driverName ? `<tr><th>운송기사</th><td>${delivery.driverName} (${delivery.vehicleNo || '-'})</td><th>기사연락처</th><td>${delivery.driverContact || '-'}</td></tr>` : ''}
+    </table>
+
+    <table style="margin-top: 2px;">
+      <thead>
+        <tr>
+          <th style="width: 10%; text-align: center;" class="nowrap">차량</th>
+          <th style="width: 12%; text-align: center;" class="nowrap">차종</th>
+          <th style="width: 24%; text-align: center;" class="nowrap">운송사</th>
+          <th style="width: 20%; text-align: center;" class="nowrap">차량번호</th>
+          <th style="width: 14%; text-align: center;" class="nowrap">기사명</th>
+          <th style="width: 20%; text-align: center;" class="nowrap">기사연락처</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${vehicleList.map(v => `
+          <tr>
+            <td style="text-align: center; font-weight: 700;" class="nowrap">${v.no}</td>
+            <td style="text-align: center;" class="nowrap">${v.vehicleType}</td>
+            <td style="text-align: center; font-weight: 600;" class="wrap-text">${v.transportCompany}</td>
+            <td style="text-align: center;" class="nowrap">${v.vehicleNo}</td>
+            <td style="text-align: center; font-weight: 700;" class="nowrap">${v.driverName}</td>
+            <td style="text-align: center;" class="nowrap">${v.driverContact}</td>
+          </tr>
+        `).join('')}
+      </tbody>
     </table>
 
     <div class="sec-title">3. ${isOutbound ? `출고 대상 장비 목록 (총 ${totalCount}대 의뢰 - 주기장 실물 매핑용)` : `회수 대상 장비 목록 (총 ${unitList.length}대)`}</div>
     <table>
       <thead>
         <tr>
-          <th style="width: 6%; text-align: center;">순번</th>
-          <th style="width: 21%; text-align: center;">모델명</th>
-          <th style="width: 17%; text-align: center;">관리번호</th>
-          <th style="width: 6%; text-align: center; border-right: 2px solid #000000;">확인</th>
-          <th style="width: 6%; text-align: center;">순번</th>
-          <th style="width: 21%; text-align: center;">모델명</th>
-          <th style="width: 17%; text-align: center;">관리번호</th>
-          <th style="width: 6%; text-align: center;">확인</th>
+          <th style="width: 6%; text-align: center;" class="nowrap">순번</th>
+          <th style="width: 21%; text-align: center;" class="nowrap">모델명</th>
+          <th style="width: 17%; text-align: center;" class="nowrap">관리번호</th>
+          <th style="width: 6%; text-align: center; border-right: 2px solid #000000;" class="nowrap">확인</th>
+          <th style="width: 6%; text-align: center;" class="nowrap">순번</th>
+          <th style="width: 21%; text-align: center;" class="nowrap">모델명</th>
+          <th style="width: 17%; text-align: center;" class="nowrap">관리번호</th>
+          <th style="width: 6%; text-align: center;" class="nowrap">확인</th>
         </tr>
       </thead>
       <tbody>
@@ -555,8 +665,8 @@ export const TruckDispatch: React.FC = () => {
       ${safetyOptions.length > 0 ? `
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font-size: 8pt;">
           ${safetyOptions.map((opt, idx) => `
-            <div style="display: flex; align-items: center; gap: 4px; font-weight: 700; color: #000000;">
-              <span style="font-size: 8pt;">[v]</span>
+            <div style="display: flex; align-items: center; gap: 4px; font-weight: 700; color: #000000; word-break: break-all;">
+              <span style="font-size: 8pt; flex-shrink: 0;">[v]</span>
               <span>${idx + 1}. ${opt}</span>
             </div>
           `).join('')}
@@ -568,13 +678,13 @@ export const TruckDispatch: React.FC = () => {
       `}
     </div>
 
-    <div class="sec-title">5. 현장 특이사항 및 작업 지시</div>
+    <div class="sec-title">5. 현장 특이사항 및 작업 요청</div>
     <table>
       <colgroup><col style="width: 12%;"><col style="width: 88%;"></colgroup>
-      ${staggeredMemo ? `<tr><th>시차출고</th><td style="font-weight: 700;">${staggeredMemo}</td></tr>` : ''}
-      ${retrievalMemo ? `<tr><th>대차 회수대상</th><td style="font-weight: 700;">${retrievalMemo}</td></tr>` : ''}
-      <tr><th>지시사항</th><td>${delivery.memo || '특이사항 없음'}</td></tr>
-      ${!isOutbound && returnAssets.some(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR') ? `<tr><th style="color: #dc2626; font-weight: 800;">옵션 주의</th><td style="color: #dc2626; font-weight: 800; background-color: #fee2e2;">🚨 [임차처 소유 협착방지봉 탈거 절대 금지] ${returnAssets.filter(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR').map(a => `${a.assetNo}(${a.modelName})`).join(', ')} 장비는 임차거래처 소유 협착방지봉이 장착되어 있으므로 주기장 입고 시 절대 탈거(제거)하지 마십시오!</td></tr>` : ''}
+      ${staggeredMemo ? `<tr><th class="nowrap">시차출고</th><td class="wrap-text" style="font-weight: 700;">${staggeredMemo}</td></tr>` : ''}
+      ${retrievalMemo ? `<tr><th class="nowrap">대차 회수대상</th><td class="wrap-text" style="font-weight: 700;">${retrievalMemo}</td></tr>` : ''}
+      <tr><th class="nowrap">요청사항</th><td class="wrap-text" style="line-height: 1.3;">${cleanNoteForPrint}</td></tr>
+      ${!isOutbound && returnAssets.some(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR') ? `<tr><th class="nowrap" style="color: #dc2626; font-weight: 800;">옵션 주의</th><td class="wrap-text" style="color: #dc2626; font-weight: 800; background-color: #fee2e2;">🚨 [임차처 소유 협착방지봉 탈거 절대 금지] ${returnAssets.filter(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR').map(a => `${a.assetNo}(${a.modelName})`).join(', ')} 장비는 임차거래처 소유 협착방지봉이 장착되어 있으므로 주기장 입고 시 절대 탈거(제거)하지 마십시오!</td></tr>` : ''}
     </table>
   </div>
 </body>

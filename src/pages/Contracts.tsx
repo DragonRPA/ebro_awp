@@ -3412,7 +3412,7 @@ export const Contracts: React.FC = () => {
                 <div>고객사 / 현장: <strong>{getCustName(activeContract.customerId)} — {getSiteName(activeContract.siteId)}</strong></div>
                 <div>대차 요구 모델: <strong>{exchangeIdentifyType === 'KNOWN' ? (assets.find(a => a.id === exchangeOldAssetId)?.modelName || activeContractAssets[0]?.expectedModel || '동급 동일 모델') : (exchangeContractAssetId || activeContractAssets[0]?.expectedModel || '동급 동일 모델')}</strong></div>
                 <div>렌탈료 단가 조건: 기존 계약 월 렌탈료 조건 100% 동일 상속 (추가 비용 없음)</div>
-                <div>청구 / 작업지시 조건: 매월 {activeContract.billingDay}일 청구 마감 조건 승계</div>
+                <div>청구 / 작업요청 조건: 매월 {activeContract.billingDay}일 청구 마감 조건 승계</div>
               </div>
 
               {/* 후속 업무 흐름 연계 시각화 카드 */}
