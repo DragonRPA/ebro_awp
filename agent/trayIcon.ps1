@@ -1,9 +1,20 @@
-﻿# agent/trayIcon.ps1
+# agent/trayIcon.ps1
 # eBro AI Agent Windows System Tray Icon Worker
 param(
     [int]$AgentPid = 0,
     [int]$Port = 5175
 )
+
+# 🚀 Windows EcoQoS(효율 모드) 절전 스로틀링 원천 차단: 트레이 및 에이전트 프로세스 우선순위 AboveNormal 격상
+try {
+    [System.Diagnostics.Process]::GetCurrentProcess().PriorityClass = [System.Diagnostics.ProcessPriorityClass]::AboveNormal
+    if ($AgentPid -gt 0) {
+        $agentProc = Get-Process -Id $AgentPid -ErrorAction SilentlyContinue
+        if ($agentProc) {
+            $agentProc.PriorityClass = [System.Diagnostics.ProcessPriorityClass]::AboveNormal
+        }
+    }
+} catch {}
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing

@@ -32,45 +32,20 @@ export const Dashboard: React.FC = () => {
   const [isRestartingAgent, setIsRestartingAgent] = useState(false);
   const [showAgentGuideModal, setShowAgentGuideModal] = useState(false);
 
+  // 에이전트 전역 상태 구독 (단일 전역 모니터와 완벽 동기화)
   useEffect(() => {
     return subscribeAgentStatus((online, info) => {
       if (online) {
         setAgentStatus('ONLINE');
         if (info?.version) setAgentVersion(info.version);
         if (info?.callsign) setAgentCallsign(info.callsign);
-      }
-    });
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-    const checkAgent = async () => {
-      try {
-        const userCallsign = currentUser?.loginId || currentUser?.name || 'admin';
-        const res = await fetchWithAgentFallback(`/health?callsign=${encodeURIComponent(userCallsign)}`, { method: 'GET', signal: AbortSignal.timeout(2000) });
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted) {
-            setAgentStatus('ONLINE');
-            setAgentCallsign(data.callsign || userCallsign);
-            setAgentVersion(data.version || '');
-          }
-          return;
-        }
-      } catch (e) {}
-      if (isMounted && !isAgentOnlineGlobal()) {
+      } else {
         setAgentStatus('OFFLINE');
         setAgentCallsign('');
         setAgentVersion('');
       }
-    };
-    checkAgent();
-    const interval = setInterval(checkAgent, 3000);
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [currentUser]);
+    });
+  }, []);
 
   const activeTasks = useMemo(() => findActiveTasksForUser(todos, currentUser, hasPermission), [todos, currentUser, hasPermission]);
 

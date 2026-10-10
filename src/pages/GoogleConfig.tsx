@@ -76,49 +76,20 @@ export const GoogleConfig: React.FC = () => {
 
   const [isRestartingAgent, setIsRestartingAgent] = useState(false);
 
+  // 로컬 사이드카 에이전트 실시간 상태 구독 (단일 전역 모니터 연동)
   useEffect(() => {
     return subscribeAgentStatus((online, info) => {
       if (online) {
         setAgentStatus('ONLINE');
         if (info) setAgentInfo(info);
         if (info?.callsign) setAgentCallsign(info.callsign);
-      }
-    });
-  }, []);
-
-  // 로컬 에이전트 헬스체크 및 콜사인 동기화 (3초 주기)
-  useEffect(() => {
-    let isMounted = true;
-    const checkAgent = async () => {
-      try {
-        const userCallsign = currentUser?.loginId || currentUser?.name || 'admin';
-        const res = await fetchWithAgentFallback(`/health?callsign=${encodeURIComponent(userCallsign)}`, { method: 'GET', signal: AbortSignal.timeout(2000) });
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted) {
-            setAgentStatus('ONLINE');
-            setAgentCallsign(data.callsign || userCallsign);
-            setAgentInfo(data);
-          }
-          return;
-        }
-      } catch (e) {
-        // 미연결
-      }
-      if (isMounted && !isAgentOnlineGlobal()) {
+      } else {
         setAgentStatus('OFFLINE');
         setAgentCallsign('');
         setAgentInfo(null);
       }
-    };
-
-    checkAgent();
-    const interval = setInterval(checkAgent, 3000);
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [currentUser]);
+    });
+  }, []);
 
   // ── 📥 사내 보안 인증서 (.cer & .bat) 다운로드 ──
   const handleDownloadCert = () => {

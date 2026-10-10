@@ -348,51 +348,77 @@ export async function fetchViaExtensionBridge(pathOrUrl: string, init?: RequestI
 /**
  * 로컬 에이전트 통신 헬퍼 (확장 프로그램 프록시 ➔ 루프백 fetch 상호 폴백 지원)
  */
+/**
+ * 로컬 에이전트 통신 헬퍼 (확장 프로그램 프록시 ➔ 루프백 fetch 상호 폴백 지원)
+ * - 신호 소진(Signal Exhaustion) 방지: 확장 프로그램 대기로 부모 AbortSignal이 소진되어 루프백이 즉사하는 결함 원천 차단
+ * - 확장 프로그램 미설치 시 불필요한 2초 대기 없이 루프백으로 즉각 직행
+ * - W3C Potentially Trustworthy Origin 표준 준수: http://localhost:5175 1순위 시도
+ */
 export async function fetchWithAgentFallback(path: string, init?: RequestInit): Promise<Response> {
   const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:' && !window.location.hostname.includes('localhost');
+  const hasExtension = isExtensionBridgeAvailable();
 
-  // HTTPS 환경에서는 브라우저의 PNA/LNA(Local Network Access) 차단 정책으로 인해
-  // Chrome 확장 프로그램(ebro-web-agent) 프록시를 1순위로 시도
-  if (isHttps) {
+  // 1. HTTPS 환경이며 확장 프로그램이 실제 활성화되어 있는 경우에만 1순위로 시도 (최대 1500ms 빠른 타임아웃)
+  if (isHttps && hasExtension) {
     try {
-      const extRes = await fetchViaExtensionBridge(path, init);
+      const extRes = await fetchViaExtensionBridge(path, {
+        ...init,
+        timeout: Math.min((init as any)?.timeout || 3000, 1500)
+      } as RequestInit & { timeout?: number });
       if (extRes.ok || extRes.status < 500) {
         setGlobalAgentStatus(true);
         return extRes;
       }
     } catch (extErr) {
-      // 확장 프로그램 미응답 시 직접 루프백 fetch 시도로 폴백
+      // 확장 프로그램 응답 지연/미응답 시 즉시 루프백 직접 fetch 시도로 인계
     }
   }
 
-  // 직접 루프백 fetch 시도 (127.0.0.1 및 localhost)
+  // 2. 직접 루프백 fetch 시도 (W3C 표준 준수: http://localhost:5175 ➔ http://127.0.0.1:5175 순차 탐색)
   const candidateHosts = [
-    activeAgentBaseUrl,
-    activeAgentBaseUrl.includes('127.0.0.1') ? 'http://localhost:5175' : 'http://127.0.0.1:5175'
+    'http://localhost:5175',
+    'http://127.0.0.1:5175'
   ];
 
   let lastErr: any = null;
   for (const host of candidateHosts) {
+    let timeoutTimer: any = null;
     try {
-      const mergedInit: any = {
+      // 💡 [핵심 방어] 신호 소진(Signal Exhaustion) 방지:
+      // 부모 init?.signal이 이미 aborted된 상태라면 이를 복사하지 않고, 각 호스트마다 신선한 독립 AbortController를 생성합니다.
+      const freshController = new AbortController();
+      const hostTimeoutMs = (init as any)?.timeout || 3500;
+
+      if (init?.signal && !init.signal.aborted) {
+        init.signal.addEventListener('abort', () => freshController.abort(init.signal?.reason), { once: true });
+      } else {
+        timeoutTimer = setTimeout(() => {
+          freshController.abort(new DOMException('Local agent loopback request timeout', 'TimeoutError'));
+        }, hostTimeoutMs);
+      }
+
+      const mergedInit: RequestInit = {
         ...init,
-        // Chrome/Edge W3C Local Network Access(LNA) 표준: loopback 접근 권한 명시
-        
+        signal: freshController.signal,
+        // Chrome/Edge W3C Local Network Access(LNA) 표준
       };
+
       const res = await fetch(`${host}${path}`, mergedInit);
+      if (timeoutTimer) clearTimeout(timeoutTimer);
+
       if (res.ok || res.status < 500) {
         activeAgentBaseUrl = host;
         setGlobalAgentStatus(true);
         return res;
       }
     } catch (e) {
+      if (timeoutTimer) clearTimeout(timeoutTimer);
       lastErr = e;
     }
   }
 
-  // 만약 직접 fetch가 실패했고(HTTP 개발 환경이거나 PNA 차단 시),
-  // 아직 확장 프로그램 프록시를 안 거쳤다면 3순위로 확장 프로그램 프록시 시도
-  if (!isHttps) {
+  // 3. 만약 직접 fetch가 실패했고 확장 프로그램을 아직 시도 안 했다면(HTTP 개발 환경이거나 PNA 차단 시), 보조 시도
+  if (!isHttps && hasExtension) {
     try {
       const extRes = await fetchViaExtensionBridge(path, init);
       if (extRes.ok || extRes.status < 500) {
@@ -405,21 +431,34 @@ export async function fetchWithAgentFallback(path: string, init?: RequestInit): 
   throw lastErr || new Error('로컬 에이전트 연결 실패');
 }
 
+// ── 🌐 단일 전역 에이전트 헬스체크 매니저 (Single Global Autonomous Poller) ──
+let globalHealthCheckTimer: any = null;
+let consecutiveFailures = 0;
+let isCheckingHealth = false;
+
 /**
- * 로컬 에이전트 헬스체크 및 콜사인 동기화
+ * 2-Strike 확인 기반 가짜 오프라인(Flapping) 방지 헬스체크
  */
-export async function checkLocalAgentHealth(callsign: string = 'admin'): Promise<AgentHealthInfo> {
+export async function pingLocalAgentHealth(callsign: string = 'admin'): Promise<AgentHealthInfo> {
+  if (isCheckingHealth) {
+    return lastKnownAgentInfo || { status: lastKnownAgentOnline ? 'ONLINE' : 'OFFLINE' };
+  }
+  isCheckingHealth = true;
+
   try {
     const res = await fetchWithAgentFallback(`/health?callsign=${encodeURIComponent(callsign)}`, {
       method: 'GET',
-      signal: AbortSignal.timeout(2000),
-      cache: 'no-store'
-    });
+      cache: 'no-store',
+      // 헬스체크 전용 독립 타임아웃 (3초)
+      timeout: 3000
+    } as any);
+
     if (res.ok) {
       const data = await res.json();
+      consecutiveFailures = 0;
       const info: AgentHealthInfo = {
         status: 'ONLINE',
-        version: data.version || 'v1.0.0',
+        version: data.version || 'v2.0.0',
         callsign: data.callsign || callsign,
         machineName: data.machineName,
         archiveRoot: data.archiveRoot,
@@ -434,10 +473,77 @@ export async function checkLocalAgentHealth(callsign: string = 'admin'): Promise
       return info;
     }
   } catch (err) {
-    // 오프라인
+    // 💡 1회 실패 시 즉각 OFFLINE으로 단정하지 않고 400ms 후 즉시 1회 재시도 (2-Strike Flapping Prevention)
+    consecutiveFailures++;
+    if (consecutiveFailures === 1) {
+      try {
+        await new Promise(r => setTimeout(r, 400));
+        const retryRes = await fetchWithAgentFallback('/health', { method: 'GET', cache: 'no-store', timeout: 2000 } as any);
+        if (retryRes.ok) {
+          const retryData = await retryRes.json();
+          consecutiveFailures = 0;
+          const retryInfo: AgentHealthInfo = {
+            status: 'ONLINE',
+            version: retryData.version || 'v2.0.0',
+            callsign: retryData.callsign || callsign,
+            machineName: retryData.machineName,
+            archiveRoot: retryData.archiveRoot,
+            driveMirrorDir: retryData.driveMirrorDir,
+            uptimeSeconds: retryData.uptimeSeconds,
+            updateState: retryData.updateState,
+            policy: retryData.policy,
+            isAiEnabled: retryData.isAiEnabled,
+            timestamp: retryData.timestamp
+          };
+          setGlobalAgentStatus(true, retryInfo);
+          return retryInfo;
+        }
+      } catch (retryErr) {
+        consecutiveFailures = 2;
+      }
+    }
+  } finally {
+    isCheckingHealth = false;
   }
-  setGlobalAgentStatus(false);
+
+  // 2회 연속 실패 시에만 정식으로 OFFLINE 확정
+  if (consecutiveFailures >= 2) {
+    setGlobalAgentStatus(false, null);
+  }
   return { status: 'OFFLINE' };
+}
+
+/**
+ * 단일 전역 에이전트 헬스체크 모니터 가동
+ * - 3.5초 주기 단일 폴링으로 소켓 경합 원천 제거
+ * - 탭 포커스 복귀(window.focus) 및 화면 복원(visibilitychange) 시 0.1초 즉시 헬스체크 트리거
+ */
+export function startGlobalAgentHealthMonitor(callsign: string = 'admin'): void {
+  if (typeof window === 'undefined') return;
+  if (globalHealthCheckTimer) return;
+
+  // 1. 즉시 1회 검사
+  pingLocalAgentHealth(callsign);
+
+  // 2. 단일 주기적 폴링 (3.5초)
+  globalHealthCheckTimer = setInterval(() => {
+    pingLocalAgentHealth(callsign);
+  }, 3500);
+
+  // 3. 브라우저 창/탭 복원 시 즉시 재검사 (트레이에서 올라왔을 때 0.1초 즉시 초록불 복귀)
+  window.addEventListener('focus', () => { pingLocalAgentHealth(callsign); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      pingLocalAgentHealth(callsign);
+    }
+  });
+}
+
+/**
+ * 로컬 에이전트 헬스체크 및 콜사인 동기화 (하위 호환)
+ */
+export async function checkLocalAgentHealth(callsign: string = 'admin'): Promise<AgentHealthInfo> {
+  return pingLocalAgentHealth(callsign);
 }
 
 /**

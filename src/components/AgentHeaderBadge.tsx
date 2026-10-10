@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bot, Download, RefreshCw, Shield, ChevronDown, CheckCircle2, AlertTriangle, X, Cloud, FolderCheck, HardDrive, Play } from 'lucide-react';
-import { EXPECTED_AGENT_VERSION, AGENT_DOWNLOAD_URL, AGENT_BRO_JS_URL, AGENT_REG_BAT_URL, AGENT_LAUNCHER_URL, AGENT_CERT_URL, AGENT_INSTALL_BAT_URL, NODEJS_INSTALL_URL, launchLocalAgentFromBrowser, restartLocalAgent, fetchWithAgentFallback, openAgentStudio, triggerAgentSelfUpdate, subscribeAgentStatus, setGlobalAgentStatus, isAgentOnlineGlobal } from '../services/agentService';
+import { EXPECTED_AGENT_VERSION, AGENT_DOWNLOAD_URL, AGENT_BRO_JS_URL, AGENT_REG_BAT_URL, AGENT_LAUNCHER_URL, AGENT_CERT_URL, AGENT_INSTALL_BAT_URL, NODEJS_INSTALL_URL, launchLocalAgentFromBrowser, restartLocalAgent, fetchWithAgentFallback, openAgentStudio, triggerAgentSelfUpdate, subscribeAgentStatus, setGlobalAgentStatus, isAgentOnlineGlobal, startGlobalAgentHealthMonitor } from '../services/agentService';
 import { executeDriveMirrorSync, getLocalMirrorStatus, subscribeMirrorProgress, MirrorProgressState } from '../services/driveMirrorSync';
 import { useApp } from '../context/AppContext';
 
@@ -47,61 +47,33 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
     return subscribeMirrorProgress(setMirrorProgress);
   }, []);
 
-  // 에이전트 전역 상태 구독 (확장 프로그램 실시간 연동)
+  // ── 전역 단일 에이전트 헬스체크 모니터 가동 및 실시간 상태 구독 ──
   useEffect(() => {
-    return subscribeAgentStatus((online, info) => {
+    const userCallsign = currentUser?.loginId || currentUser?.name || 'admin';
+    startGlobalAgentHealthMonitor(userCallsign);
+
+    const unsubscribe = subscribeAgentStatus((online, info) => {
       if (online) {
         setAgentStatus('ONLINE');
         if (info?.version) setAgentVersion(info.version);
         if (info?.callsign) setAgentCallsign(info.callsign);
-      }
-    });
-  }, []);
-
-  // 3초 주기 헬스체크 및 콜사인 바인딩
-  useEffect(() => {
-    let isMounted = true;
-    const check = async () => {
-      try {
-        const userCallsign = currentUser?.loginId || currentUser?.name || 'admin';
-        const res = await fetchWithAgentFallback(`/health?callsign=${encodeURIComponent(userCallsign)}`, {
-          method: 'GET',
-          signal: AbortSignal.timeout(2000),
-          cache: 'no-store'
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted) {
-            setAgentStatus('ONLINE');
-            setAgentVersion(data.version || '');
-            setAgentCallsign(data.callsign || userCallsign);
-            setGlobalAgentStatus(true, data);
-          }
-
-          // 로컬 미러링 현황 경량 조회 (0.01초 로컬 질의)
-          const mStatus = await getLocalMirrorStatus();
-          if (isMounted && mStatus.success) {
-            setMirrorFiles(mStatus.files || []);
-          }
-
-          return;
-        }
-      } catch (e) {}
-      if (isMounted) {
+      } else {
         setAgentStatus('OFFLINE');
         setAgentVersion('');
         setAgentCallsign('');
         setMirrorFiles([]);
       }
-    };
+    });
 
-    check();
-    const interval = setInterval(check, 3000);
+    // 로컬 미러링 현황 경량 조회 (0.01초 로컬 질의)
+    getLocalMirrorStatus().then(mStatus => {
+      if (mStatus.success) setMirrorFiles(mStatus.files || []);
+    }).catch(() => {});
+
     return () => {
-      isMounted = false;
-      clearInterval(interval);
+      unsubscribe();
     };
-  }, [currentUser, googleConfigs]);
+  }, [currentUser]);
 
   // 외부 클릭 시 메뉴 닫기
   useEffect(() => {

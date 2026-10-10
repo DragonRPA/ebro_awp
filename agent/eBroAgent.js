@@ -20,6 +20,11 @@ const { handleStudioRequest, launchStudioWindow, broadcastStudioLog, getAgentPol
 const { WebSocketServer } = require('ws');
 const AdmZip = require('adm-zip');
 
+// 🚀 Windows EcoQoS(효율 모드) 절전 스로틀링 원천 차단: 프로세스 우선순위 AboveNormal 격상
+try {
+  os.setPriority(os.constants.priority.PRIORITY_ABOVE_NORMAL);
+} catch (e) {}
+
 //  Windows GUI 서브시스템(무음 백그라운드) 환경 콘솔 크래시 원천 차단
 if (process.platform === 'win32') {
   const noop = () => {};
