@@ -40,6 +40,14 @@ if (Test-Path $coreSrc) {
     Write-Host "Copied: core\engine.dat" -ForegroundColor Green
 }
 
+$binSrc = Join-Path $srcDir 'bin\SumatraPDF.exe'
+$binDst = Join-Path $agentHome 'bin\SumatraPDF.exe'
+if (Test-Path $binSrc) {
+    if (-not (Test-Path (Join-Path $agentHome 'bin'))) { New-Item -ItemType Directory -Path (Join-Path $agentHome 'bin') -Force | Out-Null }
+    Copy-Item $binSrc $binDst -Force
+    Write-Host "Copied: bin\SumatraPDF.exe" -ForegroundColor Green
+}
+
 # 바탕화면 바로가기 아이콘 갱신
 $sh = New-Object -ComObject WScript.Shell
 $deskPaths = @(

@@ -983,8 +983,20 @@ $excel.Quit()
 
         console.log(`🖨️ [다이렉트 인쇄] 대상 프린터: [${printerName}], 임시파일: ${tempPrintHtml}`);
 
-        const printCmd = `Start-Process rundll32.exe -ArgumentList 'mshtml.dll,PrintHTML "${tempPrintHtml}" "${printerName}"' -NoNewWindow`;
-        execSync(`powershell -NoProfile -Command "${printCmd}"`, { stdio: 'ignore' });
+        const tempPrintPdf = path.join(AGENT_HOME, `temp_dispatch_print_${Date.now()}.pdf`);
+        const edgePath = fs.existsSync('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe')
+          ? 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
+          : 'msedge.exe';
+        const sumatraPath = fs.existsSync(path.join(AGENT_HOME, 'bin', 'SumatraPDF.exe'))
+          ? path.join(AGENT_HOME, 'bin', 'SumatraPDF.exe')
+          : path.join(AGENT_HOME, 'SumatraPDF.exe');
+
+        execSync(`"${edgePath}" --headless --disable-gpu --run-all-compositor-stages-before-draw --print-to-pdf="${tempPrintPdf}" "${tempPrintHtml}"`, { windowsHide: true, timeout: 20000 });
+        if (fs.existsSync(sumatraPath)) {
+          execSync(`"${sumatraPath}" -print-to "${printerName}" -silent "${tempPrintPdf}"`, { windowsHide: true, timeout: 25000 });
+        } else {
+          execSync(`powershell -NoProfile -Command "Start-Process -FilePath '${tempPrintPdf}' -Verb PrintTo -ArgumentList '${printerName}' -NoNewWindow"`, { windowsHide: true });
+        }
 
         // 10초 후 임시 파일 자동 정리
         setTimeout(() => {
@@ -1320,8 +1332,20 @@ async function checkAndProcessPrintQueue() {
 </html>`, 'utf8');
 
     console.log(`🖨️ [무인 다이렉트 출력 전송] 프린터: [${printerName}], 작업: ${job.id}`);
-    const printCmd = `Start-Process rundll32.exe -ArgumentList 'mshtml.dll,PrintHTML "${tempPrintHtml}" "${printerName}"' -NoNewWindow`;
-    execSync(`powershell -NoProfile -Command "${printCmd}"`, { stdio: 'ignore' });
+    const tempPrintPdf = path.join(AGENT_HOME, `remote_print_${job.id}_${Date.now()}.pdf`);
+    const edgePath = fs.existsSync('C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe')
+      ? 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
+      : 'msedge.exe';
+    const sumatraPath = fs.existsSync(path.join(AGENT_HOME, 'bin', 'SumatraPDF.exe'))
+      ? path.join(AGENT_HOME, 'bin', 'SumatraPDF.exe')
+      : path.join(AGENT_HOME, 'SumatraPDF.exe');
+
+    execSync(`"${edgePath}" --headless --disable-gpu --run-all-compositor-stages-before-draw --print-to-pdf="${tempPrintPdf}" "${tempPrintHtml}"`, { windowsHide: true, timeout: 20000 });
+    if (fs.existsSync(sumatraPath)) {
+      execSync(`"${sumatraPath}" -print-to "${printerName}" -silent "${tempPrintPdf}"`, { windowsHide: true, timeout: 25000 });
+    } else {
+      execSync(`powershell -NoProfile -Command "Start-Process -FilePath '${tempPrintPdf}' -Verb PrintTo -ArgumentList '${printerName}' -NoNewWindow"`, { windowsHide: true });
+    }
 
     // 3. 완료 상태 업데이트
     await fetch(`${SUPABASE_REST_URL}/print_queue?id=eq.${encodeURIComponent(job.id)}`, {

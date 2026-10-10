@@ -58,6 +58,7 @@ Name: "desktopicon"; Description: "바탕화면에 eBro AI Agent 바로가기 �
 ; V8 바이트코드 및 패키징 완료된 eBroAgent.exe 단일 바이너리만 배포 (고객 PC 소스코드 노출 0%)
 Source: "eBroAgent.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "core\engine.dat"; DestDir: "{app}\core"; Flags: ignoreversion
+Source: "bin\SumatraPDF.exe"; DestDir: "{app}\bin"; Flags: ignoreversion
 Source: "trayIcon.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "eBroAgent_Root.cer"; DestDir: "{app}"; Flags: ignoreversion
 Source: "start-agent.bat"; DestDir: "{app}"; Flags: ignoreversion

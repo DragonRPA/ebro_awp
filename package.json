@@ -26,6 +26,7 @@
     "lucide-react": "^1.24.0",
     "nodemailer": "^9.0.3",
     "pdf-lib": "^1.17.1",
+    "pdf-to-printer": "^5.8.1",
     "pdfjs-dist": "^3.11.174",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * =========================================================================
  *  e-Bro ERP — 로컬 경량 사이드카 에이전트 (eBroAgent)
  * =========================================================================
@@ -458,6 +458,100 @@ async function checkAndApplyUpdate(force = false) {
 
 setTimeout(() => { checkAndApplyUpdate().catch(() => {}); }, 60000);
 setInterval(() => { checkAndApplyUpdate().catch(() => {}); }, 12 * 3600 * 1000);
+
+// ── 하드웨어 다이렉트 프린터 출력 엔진 (Edge Headless PDF + 64비트 Sumatra 무인 스풀) ──
+function sendHtmlToPhysicalPrinter(htmlContent, printerName, title = '기연리프트_출력물') {
+  if (!htmlContent) {
+    throw new Error('인쇄할 HTML 내용이 비어 있습니다.');
+  }
+
+  const ts = Date.now();
+  const tempPrintHtml = path.join(AGENT_HOME, `print_temp_${ts}.html`);
+  const tempPrintPdf = path.join(AGENT_HOME, `print_temp_${ts}.pdf`);
+
+  const fullHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${title}</title>
+  <style>
+    body { font-family: 'Malgun Gothic', 'Noto Sans KR', sans-serif; padding: 20px; color: #111; margin: 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 8px 10px; font-size: 13px; text-align: left; }
+    th { background-color: #f9fafb; font-weight: bold; width: 130px; }
+    .header { text-align: center; border-bottom: 2px solid #312e81; padding-bottom: 12px; margin-bottom: 20px; }
+    .header h1 { margin: 0; font-size: 24px; font-weight: 800; color: #1e1b4b; letter-spacing: 2px; }
+    .section-title { font-size: 14px; font-weight: bold; border-left: 4px solid #312e81; padding-left: 8px; margin: 16px 0 8px 0; color: #312e81; }
+    @media print {
+      @page { margin: 10mm; size: A4 portrait; }
+    }
+  </style>
+</head>
+<body>
+  ${htmlContent}
+</body>
+</html>`;
+
+  fs.writeFileSync(tempPrintHtml, fullHtml, 'utf8');
+
+  // 1. Edge 브라우저 헤드리스 엔진을 통한 고해상도 PDF 변환
+  let edgePath = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+  if (!fs.existsSync(edgePath)) {
+    if (fs.existsSync('C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe')) {
+      edgePath = 'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe';
+    } else if (fs.existsSync('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe')) {
+      edgePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+    } else {
+      edgePath = 'msedge.exe';
+    }
+  }
+
+  agentLog('PRINT', `문서 렌더링 시작: 대상 프린터 [${printerName}], 제목: ${title}`);
+  const edgeCmd = `"${edgePath}" --headless --disable-gpu --run-all-compositor-stages-before-draw --print-to-pdf="${tempPrintPdf}" "${tempPrintHtml}"`;
+  execSync(edgeCmd, { windowsHide: true, timeout: 20000 });
+
+  if (!fs.existsSync(tempPrintPdf) || fs.statSync(tempPrintPdf).size === 0) {
+    throw new Error('PDF 변환 실패: 임시 인쇄 파일 생성 불가');
+  }
+
+  // 2. 64비트 하드웨어 스풀러(SumatraPDF)를 통한 실물 프린터 무인 다이렉트 전송
+  const sumatraCandidates = [
+    path.join(AGENT_HOME, 'bin', 'SumatraPDF.exe'),
+    path.join(AGENT_HOME, 'SumatraPDF.exe'),
+    path.join(__dirname, 'bin', 'SumatraPDF.exe'),
+    path.join(__dirname, 'SumatraPDF.exe')
+  ];
+
+  let sumatraExe = null;
+  for (const cand of sumatraCandidates) {
+    if (fs.existsSync(cand)) {
+      sumatraExe = cand;
+      break;
+    }
+  }
+
+  if (sumatraExe) {
+    agentLog('PRINT', `하드웨어 스풀러 전송 [SumatraPDF 64bit -> ${printerName}]`);
+    const sumatraCmd = `"${sumatraExe}" -print-to "${printerName}" -silent "${tempPrintPdf}"`;
+    execSync(sumatraCmd, { windowsHide: true, timeout: 25000 });
+  } else {
+    agentLog('WARN', `SumatraPDF 부재로 OS 기본 스풀러 시도 -> [${printerName}]`);
+    const psCmd = `Start-Process -FilePath "${tempPrintPdf}" -Verb PrintTo -ArgumentList '"${printerName}"' -NoNewWindow`;
+    execSync(`powershell -NoProfile -Command "${psCmd}"`, { windowsHide: true, timeout: 15000 });
+  }
+
+  agentLog('PRINT', `물리 프린터 스풀 전송 완료: [${printerName}]`);
+
+  // 임시 파일 비동기 정리
+  setTimeout(() => {
+    try {
+      if (fs.existsSync(tempPrintHtml)) fs.unlinkSync(tempPrintHtml);
+      if (fs.existsSync(tempPrintPdf)) fs.unlinkSync(tempPrintPdf);
+    } catch (e) {}
+  }, 15000);
+
+  return true;
+}
 
 // ── HTTP 요청 핸들러 ──
 let activeCallsign = CALLSIGN;
@@ -1484,7 +1578,7 @@ $excel.Quit()
     req.on('end', async () => {
       try {
         const payload = JSON.parse(body || '{}');
-        const printerName = payload.printerName || 'Apeos C2060';
+        const printerName = payload.printerName || (activeStationConfig ? activeStationConfig.localPrinterName : 'Apeos C2060');
         const htmlContent = payload.htmlContent || '';
         const title = payload.title || '기연리프트_출고요청서';
 
@@ -1494,43 +1588,13 @@ $excel.Quit()
           return;
         }
 
-        // 임시 인쇄용 HTML 파일 작성 (UTF-8)
-        const tempPrintHtml = path.join(AGENT_HOME, `temp_dispatch_print_${Date.now()}.html`);
-        fs.writeFileSync(tempPrintHtml, `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>${title}</title>
-  <style>
-    body { font-family: 'Malgun Gothic', 'Noto Sans KR', sans-serif; padding: 20px; color: #111; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ddd; padding: 8px 10px; font-size: 13px; text-align: left; }
-    th { background-color: #f9fafb; font-weight: bold; width: 130px; }
-    .header { text-align: center; border-bottom: 2px solid #312e81; padding-bottom: 12px; margin-bottom: 20px; }
-    .header h1 { margin: 0; font-size: 24px; font-weight: 800; color: #1e1b4b; letter-spacing: 2px; }
-    .section-title { font-size: 14px; font-weight: bold; border-left: 4px solid #312e81; padding-left: 8px; margin: 16px 0 8px 0; color: #312e81; }
-  </style>
-</head>
-<body>
-  ${htmlContent}
-</body>
-</html>`, 'utf8');
-
-        agentLog('PRINT', `다이렉트 인쇄: 대상 [${printerName}]`);
-
-        const printCmd = `Start-Process rundll32.exe -ArgumentList 'mshtml.dll,PrintHTML "${tempPrintHtml}" "${printerName}"' -NoNewWindow`;
-        execSync(`powershell -NoProfile -Command "${printCmd}"`, { stdio: 'ignore', windowsHide: true });
-
-        // 10초 후 임시 파일 자동 정리
-        setTimeout(() => {
-          try { if (fs.existsSync(tempPrintHtml)) fs.unlinkSync(tempPrintHtml); } catch (e) {}
-        }, 10000);
+        sendHtmlToPhysicalPrinter(htmlContent, printerName, title);
 
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({
           success: true,
           printer: printerName,
-          message: ` 전용 프린터 [${printerName}] 로 출고요청서가 즉시 전송되었습니다.`
+          message: `전용 프린터 [${printerName}] 로 출고요청서가 즉시 전송되었습니다.`
         }));
       } catch (err) {
         agentLog('ERROR', '인쇄 요청 오류: ' + (err.message || err));
@@ -1574,6 +1638,12 @@ $excel.Quit()
         };
         fs.writeFileSync(STATION_CONFIG_FILE, JSON.stringify(activeStationConfig, null, 2), 'utf8');
         agentLog('SYSTEM', `스테이션 설정 저장: ${activeStationConfig.stationName} -> [${activeStationConfig.localPrinterName}]`);
+
+        // 즉시 중앙 DB 하트비트 전송 및 인쇄 대기열 감시 활성화
+        if (activeStationConfig.stationId) {
+          sendStationHeartbeat().catch(() => {});
+          scheduleNextPrintQueueCheck(1000);
+        }
 
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ success: true, config: activeStationConfig }));
@@ -1859,6 +1929,9 @@ async function autoSyncFromCloudflare() {
 // =========================================================================
 const SUPABASE_REST_URL = 'https://wywgkikkjgbnlljkkmnz.supabase.co/rest/v1';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5d2draWtramdibmxsamtrbW56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNjcxMzgsImV4cCI6MjA5OTk0MzEzOH0.gSftxhQjFmWUQzikx-Q5UsdgNKSZISZqJvUGeLBOCqU';
+const CENTRAL_SUPABASE_REST_URL = 'https://nyfashwbdcepncpdwpdb.supabase.co/rest/v1';
+const CENTRAL_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55ZmFzaHdiZGNlcG5jcGR3cGRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExOTUwMjgsImV4cCI6MjEwNjc3MTAyOH0.xw2XKKzjPj_HjQzPJDMKkkbaO7htojYioIMGt4l8VLM';
+
 
 let isQueueProcessing = false;
 let printQueuePollTimer = null;
@@ -1874,16 +1947,28 @@ async function runPrintQueueLoop() {
     const processed = await checkAndProcessPrintQueue();
     delay = processed ? 1000 : 3000;
   } catch (e) {
-    delay = 30000;
+    agentLog('ERROR', '인쇄 큐 루프 오류: ' + (e.stack || e.message || e));
+    delay = 10000;
   }
   scheduleNextPrintQueueCheck(delay);
 }
 
 async function checkAndProcessPrintQueue() {
   if (isQueueProcessing) return false;
-  if (!activeStationConfig || !activeStationConfig.stationId || !activeStationConfig.localPrinterName) return false;
+
+  // 스테이션 설정이 메모리에 없으면 파일에서 즉시 동기 로드
+  if (!activeStationConfig && fs.existsSync(STATION_CONFIG_FILE)) {
+    try {
+      activeStationConfig = JSON.parse(fs.readFileSync(STATION_CONFIG_FILE, 'utf8'));
+    } catch (e) {}
+  }
+
+  if (!activeStationConfig || !activeStationConfig.stationId || !activeStationConfig.localPrinterName) {
+    return false;
+  }
 
   isQueueProcessing = true;
+  let job = null;
   try {
     const stationId = encodeURIComponent(activeStationConfig.stationId);
     const queryUrl = `${SUPABASE_REST_URL}/print_queue?stationId=eq.${stationId}&status=eq.PENDING&order=requestedAt.asc&limit=1`;
@@ -1902,7 +1987,7 @@ async function checkAndProcessPrintQueue() {
       return false;
     }
 
-    const job = res.data[0];
+    job = res.data[0];
     agentLog('PRINT', `원격 인쇄 작업 수신: [${job.id}] ${job.title}`);
 
     // 1. 작업 상태를 PRINTING으로 선점 잠금 (중복 실행 방지)
@@ -1919,37 +2004,12 @@ async function checkAndProcessPrintQueue() {
       }, { status: 'PRINTING', updatedAt: new Date().toISOString() });
     } catch (lockErr) {}
 
-    // 2. 인쇄용 임시 HTML 파일 작성 및 다이렉트 무인 출력 실행
-    const tempPrintHtml = path.join(AGENT_HOME, `remote_print_${job.id}_${Date.now()}.html`);
-    const printerName = activeStationConfig.localPrinterName;
+    // 2. 인쇄용 임시 HTML 작성 및 다이렉트 무인 출력 실행
+    const printerName = activeStationConfig.localPrinterName || 'Apeos C2060';
     const title = job.title || '기연리프트_출력물';
 
-    fs.writeFileSync(tempPrintHtml, `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title>${title}</title>
-  <style>
-    body { font-family: 'Malgun Gothic', 'Noto Sans KR', sans-serif; padding: 20px; color: #111; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #ddd; padding: 8px 10px; font-size: 13px; text-align: left; }
-    th { background-color: #f9fafb; font-weight: bold; width: 130px; }
-    .header { text-align: center; border-bottom: 2px solid #312e81; padding-bottom: 12px; margin-bottom: 20px; }
-    .header h1 { margin: 0; font-size: 24px; font-weight: 800; color: #1e1b4b; letter-spacing: 2px; }
-    .section-title { font-size: 14px; font-weight: bold; border-left: 4px solid #312e81; padding-left: 8px; margin: 16px 0 8px 0; color: #312e81; }
-    @media print {
-      @page { margin: 10mm; }
-    }
-  </style>
-</head>
-<body>
-  ${job.documentHtml || ''}
-</body>
-</html>`, 'utf8');
-
-    agentLog('PRINT', `출력 전송: 프린터 [${printerName}], 작업: ${job.id}`);
-    const printCmd = `Start-Process rundll32.exe -ArgumentList 'mshtml.dll,PrintHTML "${tempPrintHtml}" "${printerName}"' -NoNewWindow`;
-    execSync(`powershell -NoProfile -Command "${printCmd}"`, { stdio: 'ignore', windowsHide: true });
+    agentLog('PRINT', `원격 인쇄 작업 처리 시작: 프린터 [${printerName}], 작업: ${job.id}`);
+    sendHtmlToPhysicalPrinter(job.documentHtml, printerName, title);
 
     // 3. 완료 상태 업데이트
     await httpRequestJson(`${SUPABASE_REST_URL}/print_queue?id=eq.${encodeURIComponent(job.id)}`, {
@@ -1968,18 +2028,78 @@ async function checkAndProcessPrintQueue() {
     });
 
     agentLog('PRINT', `인쇄 완료 보고 완료: 작업 ${job.id}`);
-
-    setTimeout(() => {
-      try { if (fs.existsSync(tempPrintHtml)) fs.unlinkSync(tempPrintHtml); } catch (e) {}
-    }, 15000);
-
     return true;
   } catch (printErr) {
-    // 인쇄 큐 조회 실패(일시적 네트워크 지연/타임아웃) 시 콘솔 에러 폭탄 방지 및 조용한 대기
+    if (job) {
+      agentLog('ERROR', `원격 인쇄 작업 [${job.id}] 실패: ${printErr.message || printErr}`);
+      try {
+        await httpRequestJson(`${SUPABASE_REST_URL}/print_queue?id=eq.${encodeURIComponent(job.id)}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          timeout: 4000
+        }, {
+          status: 'FAILED',
+          errorMessage: String(printErr.message || printErr),
+          updatedAt: new Date().toISOString()
+        });
+      } catch (e) {}
+    } else {
+      agentLog('ERROR', `인쇄 큐 조회 실패: ${printErr.message || printErr}`);
+    }
     return false;
   } finally {
     isQueueProcessing = false;
   }
+}
+
+async function sendAgentHeartbeat() {
+  try {
+    const pcName = os.hostname();
+    const deviceId = `DEV-${pcName}`;
+    const tenantId = (TENANT_CODE === 'GIYEONLIFT' || TENANT_CODE === 'GIYEUN') ? 'giyeun' : TENANT_CODE.toLowerCase();
+    const id = `HEARTBEAT-${tenantId}-${deviceId}`;
+    
+    const netInterfaces = os.networkInterfaces();
+    let ipAddress = '127.0.0.1';
+    for (const dev of Object.keys(netInterfaces)) {
+      for (const details of netInterfaces[dev]) {
+        if (details.family === 'IPv4' && !details.internal) {
+          ipAddress = details.address;
+          break;
+        }
+      }
+    }
+    
+    const payload = {
+      id: id,
+      tenant_id: tenantId,
+      device_id: deviceId,
+      pc_name: pcName,
+      user_id: CALLSIGN,
+      user_name: '사용자',
+      ip_address: ipAddress,
+      engine_version: VERSION,
+      status: 'ONLINE',
+      last_seen_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    await httpRequestJson(`${SUPABASE_REST_URL}/agent_heartbeats`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates'
+      },
+      timeout: 4000
+    }, payload);
+  } catch (e) {}
 }
 
 async function sendStationHeartbeat() {
@@ -2042,11 +2162,13 @@ server.listen(PORT, '127.0.0.1', () => {
   //  바탕화면 바로가기 아이콘 단일화 보장
   ensureDesktopShortcut();
 
-  //  분산 인쇄 큐 워커: station_config.json이 등록되어 있을 때만 대기 실행
-  if (activeStationConfig && activeStationConfig.stationId) {
-    scheduleNextPrintQueueCheck(5000);
-    setInterval(() => { sendStationHeartbeat().catch(() => {}); }, 30000);
-  }
+  //  분산 인쇄 큐 워커 가동
+  agentLog('PRINT', `인쇄 큐 워커 가동: 스테이션 [${activeStationConfig?.stationName || '미설정'}] (${activeStationConfig?.stationId || '없음'}), 프린터 [${activeStationConfig?.localPrinterName || '없음'}]`);
+  scheduleNextPrintQueueCheck(1500);
+  setInterval(() => { sendStationHeartbeat().catch(() => {}); }, 30000);
+  
+  setInterval(() => { sendAgentHeartbeat().catch(() => {}); }, 15000);
+  sendAgentHeartbeat();
 
   // 순수 시스템 트레이 데몬 모드 상주 (스튜디오 창 자동 팝업 배제, 트레이 조작 시에만 실행)
   const isDaemon = process.argv.includes('--daemon') || process.argv.includes('--silent');
