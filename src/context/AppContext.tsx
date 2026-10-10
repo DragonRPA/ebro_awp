@@ -1095,6 +1095,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'vehicle_log':          ['corporateVehicles', 'vehicleOperationLogs', 'vehicleFuelLogs', 'users'],
     'regular_reports':      ['contracts', 'contractAssets', 'deliveries', 'assets', 'repairs', 'purchaseSettlements', 'purchaseSettlementItems', 'billings', 'billingDetails', 'bankTransactions', 'customers'],
     'initial_db_upload':    ['contracts', 'contractAssets', 'customers', 'assets', 'sites', 'billings', 'billingDetails'],
+    'data_formation':       ['contracts', 'contractAssets', 'customers', 'assets', 'sites', 'products'],
     'print_queue_monitor':  ['printStations', 'printQueue'],
     'privacy_audit':        ['privacyAccessLogs', 'users', 'departments'],
     'receivable':           ['billings', 'billingDetails', 'customers', 'contracts', 'bankTransactions'],

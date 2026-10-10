@@ -68,6 +68,7 @@ export const MENU_TO_APP_TAB_MAP: Record<string, MenuNavTarget> = {
   agentic_settlement_autopilot: { tabId: 'agentic_settlement_autopilot' },
   agentic_asset_lifecycle: { tabId: 'agentic_asset_lifecycle' },
   initial_db_upload: { tabId: 'initial_db_upload' },
+  data_formation: { tabId: 'data_formation' },
   google_config: { tabId: 'google_config' },
   dev_uploader: { tabId: 'dev_uploader' },
   official_mail: { tabId: 'official_mail' },
