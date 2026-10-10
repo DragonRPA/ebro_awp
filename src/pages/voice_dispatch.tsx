@@ -2639,26 +2639,6 @@ export const VoiceDispatch: React.FC = () => {
                         placeholder="예: (주)한국건설"
                       />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs font-semibold text-slate-300">대표전화 / 연락처</label>
-                        <input
-                          className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2.5 text-xs focus:outline-none focus:border-blue-500"
-                          value={newCustomerPhone}
-                          onChange={e => setNewCustomerPhone(e.target.value)}
-                          placeholder="010-0000-0000 또는 02-000-0000"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs font-semibold text-slate-300">사업장 주소</label>
-                        <input
-                          className="bg-slate-800 border border-slate-700 text-white rounded-lg p-2.5 text-xs focus:outline-none focus:border-blue-500"
-                          value={newCustomerAddress}
-                          onChange={e => setNewCustomerAddress(e.target.value)}
-                          placeholder="본사 사업장 소재지"
-                        />
-                      </div>
-                    </div>
                   </>
                 ) : (
                   <>
