@@ -27,7 +27,8 @@ export function inheritOptionsFromMaster(
   currentSpecs?: Record<string, boolean>
 ): SiteOptionItem[] {
   const paidList = (currentPaidString || '').split(',').map(s => s.trim()).filter(Boolean);
-  const protName = (currentProtString || '').trim();
+  const protList = (currentProtString || '').split(',').map(s => s.trim()).filter(Boolean);
+  const isNoneOrEmpty = protList.length === 0 || protList.some(p => p.toUpperCase() === 'NONE' || p.includes('보양 없음') || p.includes('보양없음'));
 
   return (masterOptions || []).map((opt, idx) => {
     let isEnabled = false;
@@ -38,9 +39,20 @@ export function inheritOptionsFromMaster(
         return cleanP === cleanOptName || (cleanP.length > 2 && (cleanOptName.includes(cleanP) || cleanP.includes(cleanOptName)));
       });
     } else if (opt.category === 'PROTECTION') {
-      const cleanProtName = protName.replace(/\s+/g, '');
-      const cleanOptName = opt.name.replace(/\s+/g, '');
-      isEnabled = cleanProtName === cleanOptName || (cleanProtName.length > 2 && cleanOptName.length > 2 && (cleanOptName.includes(cleanProtName) || cleanProtName.includes(cleanOptName)));
+      const isOptNone = opt.name.toUpperCase().includes('NONE') || opt.name.includes('보양 없음') || opt.name.includes('보양없음');
+      if (isOptNone) {
+        isEnabled = isNoneOrEmpty;
+      } else {
+        if (isNoneOrEmpty) {
+          isEnabled = false;
+        } else {
+          const cleanOptName = opt.name.replace(/\s+/g, '');
+          isEnabled = protList.some(p => {
+            const cleanP = p.replace(/\s+/g, '');
+            return cleanP === cleanOptName || (cleanP.length > 2 && cleanOptName.length > 2 && (cleanOptName.includes(cleanP) || cleanP.includes(cleanOptName)));
+          });
+        }
+      }
     } else if (opt.category === 'SPEC') {
       isEnabled = Boolean(currentSpecs && (currentSpecs[opt.id] || currentSpecs[opt.name]));
     }

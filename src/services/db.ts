@@ -6532,6 +6532,11 @@ class LocalDB {
         sanitized['media_type'] = val;
         continue;
       }
+      // tenantId -> tenant_id 자동 표준화 (PostgreSQL snake_case 스키마 정합성 보장)
+      if (key === 'tenantId') {
+        sanitized['tenant_id'] = val;
+        continue;
+      }
       // modelName 컬럼이 존재하지 않는 테이블로의 modelName 누출 원천 방지 (departments, users, customers 등)
       if (key === 'modelName' && !['products', 'assets', 'product_specs', 'product_spec_items', 'contract_assets', 'contract_history', 'inspection_checklist_items', 'equipment_manuals', 'consumable_purchases', 'asset_inout_logs'].includes(resolvedTable || '')) {
         continue;

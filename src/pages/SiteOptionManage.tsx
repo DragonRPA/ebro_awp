@@ -119,7 +119,8 @@ export const SiteOptionManage: React.FC = () => {
   const { 
     customers, siteMasters, standardOptions, saveStandardOption, deleteStandardOption, 
     saveSiteMaster, showErrorModal, fullRefreshFromServer,
-    navigationPayload, setNavigationPayload
+    navigationPayload, setNavigationPayload,
+    sites, contracts
   } = useApp();
 
   // 1. 활성 탭: 'SITE_OPTIONS' (현장별 옵션 관리) vs 'MASTER_OPTIONS' (옵션 품목 마스터)
@@ -127,7 +128,7 @@ export const SiteOptionManage: React.FC = () => {
 
   // 2. 검색 및 필터 상태
   const [searchSiteKeyword, setSearchSiteKeyword] = useState<string>('');
-  const [siteStatusFilter, setSiteStatusFilter] = useState<'ACTIVE' | 'COMPLETED' | 'ALL'>('ACTIVE');
+  const [siteStatusFilter, setSiteStatusFilter] = useState<'ACTIVE' | 'COMPLETED' | 'READY_TO_CLOSE' | 'ALL'>('ACTIVE');
 
   const [showQuickSiteModal, setShowQuickSiteModal] = useState(false);
   const [showEditSiteMasterModal, setShowEditSiteMasterModal] = useState(false);
@@ -135,13 +136,16 @@ export const SiteOptionManage: React.FC = () => {
 
   const handleToggleSiteStatus = async (site: any, targetStatus: boolean) => {
     if (targetStatus === false) {
-      const activeContracts = db.contracts.filter(c => 
-        c.siteId === site.id && 
+      const linkedCustomerSites = (sites || []).filter((s: any) => s.siteMasterId === site.id);
+      const matchingSiteIds = new Set([site.id, ...linkedCustomerSites.map((s: any) => s.id)]);
+
+      const activeContracts = (contracts || []).filter((c: any) => 
+        matchingSiteIds.has(c.siteId) && 
         (c.status === 'ACTIVE' || c.status === 'EXTENDED')
       );
       if (activeContracts.length > 0) {
         showErrorModal(
-          `현장 완공(종료) 처리 불가:\n해당 현장에 아직 유효한(진행 중인) 계약이 ${activeContracts.length}건 존재합니다.\n(대표 계약: ${activeContracts[0].contractNo})\n\n모든 장비가 반납되고 관련 계약이 모두 종료된 후에만 현장을 완공 처리할 수 있습니다.`
+          `현장 완공(종료) 처리 불가:\n해당 현장에 아직 유효한(진행 중인) 계약이 ${activeContracts.length}건 존재합니다.\n(대표 계약: ${activeContracts[0].contractNo || activeContracts[0].id})\n\n모든 장비가 반납되고 관련 계약이 모두 종료된 후에만 현장을 완공 처리할 수 있습니다.`
         );
         return;
       }
@@ -280,25 +284,69 @@ export const SiteOptionManage: React.FC = () => {
   const [showMasterModal, setShowMasterModal] = useState(false);
   const [editingMasterOption, setEditingMasterOption] = useState<Partial<StandardOption> | null>(null);
 
-  // ── 🏢 고객사 ID ➔ 고객사명 매핑 맵 ──
+  // ── 🏢 각 현장(SiteMaster)별 사용 중인 고객사 및 진행 계약 집계 ──
+  const siteCustomerStatsMap = useMemo(() => {
+    const stats: Record<string, {
+      activeCustomerCount: number;
+      activeCustomerNames: string[];
+      activeContractCount: number;
+      totalLinkedCustomerCount: number;
+      linkedCustomerNames: string[];
+    }> = {};
+
+    (siteMasters || []).forEach((sm: any) => {
+      // 1. 해당 물리 현장과 연결된 CustomerSite 목록
+      const linkedSites = (sites || []).filter((s: any) => s.siteMasterId === sm.id);
+      const siteIdSet = new Set([sm.id, ...linkedSites.map((s: any) => s.id)]);
+
+      // 2. 연결된 전체 고객사
+      const linkedCustIds = Array.from(new Set(linkedSites.map((s: any) => s.customerId).filter(Boolean)));
+      const linkedCustNames = linkedCustIds.map((cid: string) => customers.find((c: any) => c.id === cid)?.name || cid);
+
+      // 3. 진행 중인(ACTIVE / EXTENDED) 계약
+      const relActiveContracts = (contracts || []).filter((c: any) => 
+        siteIdSet.has(c.siteId) && (c.status === 'ACTIVE' || c.status === 'EXTENDED')
+      );
+
+      // 4. 현재 실질적으로 투입/사용 중인 고객사
+      const activeCustIds = Array.from(new Set(relActiveContracts.map((c: any) => c.customerId).filter(Boolean)));
+      const activeCustNames = activeCustIds.map((cid: string) => customers.find((c: any) => c.id === cid)?.name || cid);
+
+      stats[sm.id] = {
+        activeCustomerCount: activeCustIds.length,
+        activeCustomerNames: activeCustNames,
+        activeContractCount: relActiveContracts.length,
+        totalLinkedCustomerCount: linkedCustIds.length,
+        linkedCustomerNames: linkedCustNames,
+      };
+    });
+
+    return stats;
+  }, [siteMasters, sites, contracts, customers]);
 
   // ── 🎯 필터링된 고객 현장 목록 ──
   const filteredSites = useMemo(() => {
-    
-
-  return (siteMasters || []).filter((s: any) => {
+    return (siteMasters || []).filter((s: any) => {
       const sActive = s.isActive !== false;
+      const stats = siteCustomerStatsMap[s.id];
+      const activeCustCount = stats?.activeCustomerCount || 0;
+
       if (siteStatusFilter === 'ACTIVE' && !sActive) return false;
       if (siteStatusFilter === 'COMPLETED' && sActive) return false;
+      if (siteStatusFilter === 'READY_TO_CLOSE') {
+        if (!sActive || activeCustCount > 0) return false;
+      }
       if (searchSiteKeyword.trim()) {
         const kw = searchSiteKeyword.trim().toLowerCase();
         const matchName = (s.name || "").toLowerCase().includes(kw);
         const matchAddr = (s.address || "").toLowerCase().includes(kw);
-        if (!matchName && !matchAddr) return false;
+        const matchCust = (stats?.linkedCustomerNames || []).some(cn => cn.toLowerCase().includes(kw)) ||
+                          (stats?.activeCustomerNames || []).some(cn => cn.toLowerCase().includes(kw));
+        if (!matchName && !matchAddr && !matchCust) return false;
       }
       return true;
     }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [siteMasters, searchSiteKeyword]);
+  }, [siteMasters, siteStatusFilter, searchSiteKeyword, siteCustomerStatsMap]);
 
   // 첫 번째 현장 자동 선택
   useEffect(() => {
@@ -341,14 +389,60 @@ export const SiteOptionManage: React.FC = () => {
     }));
   };
 
-  // ── 💡 보양작업 단일 선택 핸들러 ──
-  const handleSelectProtection = (optionId: string) => {
-    setWorkingOptionItems(prev => prev.map(item => {
-      if (item.category === 'PROTECTION') {
-        return { ...item, isEnabled: item.optionId === optionId };
+  // ── 💡 보양작업 복수 선택 토글 핸들러 ──
+  const handleToggleProtection = (optionId: string) => {
+    setWorkingOptionItems(prev => {
+      const targetItem = prev.find(item => item.optionId === optionId);
+      if (!targetItem) return prev;
+
+      const isNoneBtn = targetItem.name.toUpperCase().includes('NONE') || targetItem.name.includes('보양 없음') || targetItem.name.includes('보양없음');
+
+      if (isNoneBtn) {
+        // 'NONE (보양 없음)' 클릭 시: 다른 모든 보양을 끄고 NONE 활성화
+        return prev.map(item => {
+          if (item.category === 'PROTECTION') {
+            const isThisNone = item.name.toUpperCase().includes('NONE') || item.name.includes('보양 없음') || item.name.includes('보양없음');
+            return { ...item, isEnabled: isThisNone };
+          }
+          return item;
+        });
       }
-      return item;
-    }));
+
+      // 일반 보양 항목 토글 시:
+      // 1. 해당 항목의 isEnabled를 반전
+      // 2. NONE 항목은 비활성화
+      const updated = prev.map(item => {
+        if (item.category === 'PROTECTION') {
+          const isThisNone = item.name.toUpperCase().includes('NONE') || item.name.includes('보양 없음') || item.name.includes('보양없음');
+          if (isThisNone) {
+            return { ...item, isEnabled: false };
+          }
+          if (item.optionId === optionId) {
+            return { ...item, isEnabled: !item.isEnabled };
+          }
+        }
+        return item;
+      });
+
+      // 만약 선택된 일반 보양이 하나도 없다면 자동으로 NONE 활성화
+      const anyActive = updated.some(item => 
+        item.category === 'PROTECTION' && 
+        !(item.name.toUpperCase().includes('NONE') || item.name.includes('보양 없음') || item.name.includes('보양없음')) && 
+        item.isEnabled
+      );
+
+      if (!anyActive) {
+        return updated.map(item => {
+          if (item.category === 'PROTECTION') {
+            const isThisNone = item.name.toUpperCase().includes('NONE') || item.name.includes('보양 없음') || item.name.includes('보양없음');
+            return { ...item, isEnabled: isThisNone };
+          }
+          return item;
+        });
+      }
+
+      return updated;
+    });
   };
 
   // ── 💰 현장 특약 단가 변경 핸들러 ──
@@ -399,9 +493,13 @@ export const SiteOptionManage: React.FC = () => {
         .map(item => item.name)
         .join(', ');
 
-      // 2. 보양작업 문자열 요약
-      const protItem = workingOptionItems.find(item => item.category === 'PROTECTION' && item.isEnabled);
-      const protName = protItem ? protItem.name : '';
+      // 2. 보양작업 문자열 요약 (복수 선택 지원)
+      const protItems = workingOptionItems.filter(item => 
+        item.category === 'PROTECTION' && 
+        item.isEnabled && 
+        !(item.name.toUpperCase().includes('NONE') || item.name.includes('보양 없음') || item.name.includes('보양없음'))
+      );
+      const protName = protItems.length > 0 ? protItems.map(item => item.name).join(', ') : 'NONE';
 
       // 3. 요구사양 맵 요약
       const specsMap: Record<string, boolean> = {};
@@ -434,10 +532,13 @@ export const SiteOptionManage: React.FC = () => {
       const rows = filteredSites.map(s => {
         return {
           "현장명": s.name,
-        '현장주소': s.address || '-',
-        '유상옵션': s.paidOptions || '미지정',
-        '보양작업': s.protection || 'NONE',
-                      };
+          '현장주소': s.address || '-',
+          '유상옵션': s.paidOptions || '미지정',
+          '보양작업': s.protection || 'NONE',
+          '사용고객수': `${siteCustomerStatsMap[s.id]?.activeCustomerCount || 0}개사`,
+          '진행계약수': `${siteCustomerStatsMap[s.id]?.activeContractCount || 0}건`,
+          '사용고객목록': siteCustomerStatsMap[s.id]?.activeCustomerNames?.join(', ') || '-',
+        };
     });
     exportToExcel(rows, `현장별옵션대장_${new Date().toISOString().split('T')[0]}`);
   };
@@ -685,10 +786,11 @@ export const SiteOptionManage: React.FC = () => {
                 fontSize: '12.5px',
                 fontWeight: 600,
                 outline: 'none',
-                minWidth: '100px'
+                minWidth: '130px'
               }}
             >
               <option value="ACTIVE">진행중 현장</option>
+              <option value="READY_TO_CLOSE">완공 대상 (사용 고객 0개사)</option>
               <option value="COMPLETED">완공/종료 현장</option>
               <option value="ALL">전체 현장</option>
             </select>
@@ -885,6 +987,8 @@ export const SiteOptionManage: React.FC = () => {
                   const isSelected = site.id === selectedSiteId;
                   const paidCount = (site.paidOptions || '').split(',').filter(Boolean).length;
                   const hasProt = Boolean(site.protection && site.protection !== 'NONE');
+                  const stats = siteCustomerStatsMap[site.id];
+                  const activeCustCount = stats?.activeCustomerCount || 0;
 
                   return (
                     <div
@@ -898,7 +1002,7 @@ export const SiteOptionManage: React.FC = () => {
                         cursor: 'pointer',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: '4px',
+                        gap: '6px',
                         transition: 'all 0.15s ease'
                       }}
                     >
@@ -916,28 +1020,72 @@ export const SiteOptionManage: React.FC = () => {
                         <ChevronRight size={14} color={isSelected ? 'var(--primary)' : 'var(--text-muted)'} />
                       </div>
 
-                      <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                      </div>
+                      {/* 고객사 및 옵션 뱃지 행 */}
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        {site.isActive !== false ? (
+                          activeCustCount > 0 ? (
+                            <span style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                              color: '#047857',
+                              border: '1px solid rgba(16, 185, 129, 0.25)',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              사용 고객 {activeCustCount}개사
+                            </span>
+                          ) : (
+                            <span style={{
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                              color: '#dc2626',
+                              border: '1px dashed rgba(239, 68, 68, 0.45)',
+                              whiteSpace: 'nowrap'
+                            }} title="진행 중인 계약이 없어 완공(종료) 처리 가능">
+                              사용 고객 0개사 (완공 대상)
+                            </span>
+                          )
+                        ) : (
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            backgroundColor: 'var(--bg-secondary)',
+                            color: 'var(--text-muted)',
+                            border: '1px solid var(--border-color)',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            완공(종료)
+                          </span>
+                        )}
 
-                      <div style={{ display: 'flex', gap: '6px', marginTop: '2px', alignItems: 'center' }}>
                         <span style={{
-                          fontSize: '11.5px',
+                          fontSize: '11px',
                           fontWeight: 700,
                           padding: '1px 6px',
                           borderRadius: '4px',
                           backgroundColor: paidCount > 0 ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-secondary)',
-                          color: paidCount > 0 ? '#1d4ed8' : 'var(--text-muted)'
+                          color: paidCount > 0 ? '#1d4ed8' : 'var(--text-muted)',
+                          whiteSpace: 'nowrap'
                         }}>
                           유상옵션 {paidCount}개
                         </span>
+
                         {hasProt && (
                           <span style={{
-                            fontSize: '11.5px',
+                            fontSize: '11px',
                             fontWeight: 700,
                             padding: '1px 6px',
                             borderRadius: '4px',
                             backgroundColor: 'rgba(5, 150, 105, 0.12)',
-                            color: '#059669'
+                            color: '#059669',
+                            whiteSpace: 'nowrap'
                           }}>
                             {site.protection}
                           </span>
@@ -966,7 +1114,9 @@ export const SiteOptionManage: React.FC = () => {
             ) : (
               <>
                 {/* 상단 현장 정보 바 */}
-                <div style={{
+                <div 
+                  data-mid="panel-site-header"
+                  style={{
                   padding: '14px 20px',
                   borderBottom: '1px solid var(--border-color)',
                   backgroundColor: 'var(--bg-secondary)',
@@ -976,41 +1126,110 @@ export const SiteOptionManage: React.FC = () => {
                   flexWrap: 'wrap',
                   gap: '10px'
                 }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Building2 size={17} color="var(--primary)" />
-                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                        {activeSite.name}
-                      </h3>
-                      {activeSite.isActive !== false ? (
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#fff', backgroundColor: '#10b981', padding: '2px 6px', borderRadius: '4px' }}>🟢 가동중</span>
-                      ) : (
-                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#fff', backgroundColor: '#64748b', padding: '2px 6px', borderRadius: '4px' }}>⚫ 종료(완공)</span>
-                      )}
-                    </div>
-                    <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <MapPin size={12} /> {activeSite.address || '주소 미등록'}
-                    </div>
-                  </div>
-                  
-                  {/* 종결 버튼 영역 */}
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    {activeSite.isActive !== false ? (
-                      <button
-                        onClick={() => handleToggleSiteStatus(activeSite, false)}
-                        style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 700, backgroundColor: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                      >
-                        <PowerOff size={14} /> 현장 완공(종료) 처리
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleToggleSiteStatus(activeSite, true)}
-                        style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 700, backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                      >
-                        <Power size={14} /> 현장 가동(진행) 전환
-                      </button>
-                    )}
-                  </div>
+                  {(() => {
+                    const activeStats = siteCustomerStatsMap[activeSite.id] || {
+                      activeCustomerCount: 0,
+                      activeCustomerNames: [],
+                      activeContractCount: 0,
+                      totalLinkedCustomerCount: 0,
+                      linkedCustomerNames: []
+                    };
+
+                    return (
+                      <>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <Building2 size={17} color="var(--primary)" />
+                            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                              {activeSite.name}
+                            </h3>
+                            {activeSite.isActive !== false ? (
+                              <span style={{ fontSize: '11px', fontWeight: 800, color: '#fff', backgroundColor: '#10b981', padding: '2px 6px', borderRadius: '4px' }}>🟢 가동중</span>
+                            ) : (
+                              <span style={{ fontSize: '11px', fontWeight: 800, color: '#fff', backgroundColor: '#64748b', padding: '2px 6px', borderRadius: '4px' }}>⚫ 종료(완공)</span>
+                            )}
+
+                            {/* 사용 고객 수 표시 뱃지 */}
+                            {activeSite.isActive !== false && (
+                              activeStats.activeCustomerCount > 0 ? (
+                                <span style={{
+                                  fontSize: '11.5px',
+                                  fontWeight: 700,
+                                  color: '#047857',
+                                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                                  padding: '2px 8px',
+                                  borderRadius: '4px',
+                                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}>
+                                  사용 고객 {activeStats.activeCustomerCount}개사 ({activeStats.activeCustomerNames.slice(0, 3).join(', ')}{activeStats.activeCustomerNames.length > 3 ? ` 외 ${activeStats.activeCustomerNames.length - 3}개사` : ''} · 진행 계약 {activeStats.activeContractCount}건)
+                                </span>
+                              ) : (
+                                <span style={{
+                                  fontSize: '11.5px',
+                                  fontWeight: 800,
+                                  color: '#dc2626',
+                                  backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                                  padding: '2px 8px',
+                                  borderRadius: '4px',
+                                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}>
+                                  ⚠️ 사용 고객 0개사 (진행 계약 없음 · 완공/종료 가능)
+                                </span>
+                              )
+                            )}
+                          </div>
+
+                          <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <span><MapPin size={12} style={{ display: 'inline', verticalAlign: 'text-bottom' }} /> {activeSite.address || '주소 미등록'}</span>
+                            {activeStats.totalLinkedCustomerCount > 0 && (
+                              <span style={{ color: 'var(--text-secondary)' }}>
+                                • 등록 고객: {activeStats.linkedCustomerNames.join(', ')} ({activeStats.totalLinkedCustomerCount}개사)
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* 종결 버튼 영역 */}
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          {activeSite.isActive !== false ? (
+                            <button
+                              onClick={() => handleToggleSiteStatus(activeSite, false)}
+                              style={{
+                                padding: activeStats.activeCustomerCount === 0 ? '7px 14px' : '6px 12px',
+                                fontSize: activeStats.activeCustomerCount === 0 ? '12.5px' : '12px',
+                                fontWeight: 800,
+                                backgroundColor: activeStats.activeCustomerCount === 0 ? '#dc2626' : '#fef2f2',
+                                color: activeStats.activeCustomerCount === 0 ? '#ffffff' : '#dc2626',
+                                border: activeStats.activeCustomerCount === 0 ? 'none' : '1px solid #fecaca',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                boxShadow: activeStats.activeCustomerCount === 0 ? '0 2px 8px rgba(220, 38, 38, 0.3)' : 'none'
+                              }}
+                              title={activeStats.activeCustomerCount === 0 ? '현재 사용중인 고객이 없으므로 완공 처리할 수 있습니다.' : '진행 중인 계약이 있는 현장입니다.'}
+                            >
+                              <PowerOff size={14} /> 현장 완공(종료) 처리
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleToggleSiteStatus(activeSite, true)}
+                              style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 700, backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <Power size={14} /> 현장 가동(진행) 전환
+                            </button>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* 중앙 옵션 카테고리별 리스트 */}
@@ -1154,10 +1373,10 @@ export const SiteOptionManage: React.FC = () => {
                   <div data-mid="card-protection-options" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Shield size={15} color="#059669" /> 2. 보양 작업 - 1종 선택
+                        <Shield size={15} color="#059669" /> 2. 보양 작업
                       </span>
                       <span style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                        * 현장 환경에 따른 보호 완충/함석 보양 규격 지정
+                        * 복수 선택 가능 (NONE 선택 시 전체 해제)
                       </span>
                     </div>
 
@@ -1166,7 +1385,7 @@ export const SiteOptionManage: React.FC = () => {
                           <button
                             key={item.optionId}
                             type="button"
-                            onClick={() => handleSelectProtection(item.isEnabled ? '' : item.optionId)}
+                            onClick={() => handleToggleProtection(item.optionId)}
                             style={{
                               padding: '6px 12px',
                               fontSize: '12px',
@@ -1176,9 +1395,13 @@ export const SiteOptionManage: React.FC = () => {
                               color: item.isEnabled ? 'var(--primary)' : 'var(--text-primary)',
                               cursor: 'pointer',
                               fontWeight: item.isEnabled ? 700 : 500,
-                              boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '5px'
                             }}
                           >
+                            {item.isEnabled && <Check size={13} strokeWidth={3} />}
                             {item.name}
                           </button>
                         ))}
@@ -1279,7 +1502,7 @@ export const SiteOptionManage: React.FC = () => {
                       적용 유상옵션: <strong>{workingOptionItems.filter(i => i.category === 'PAID' && i.isEnabled).length}건</strong>
                     </span>
                     <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-                      보양작업: <strong>{workingOptionItems.find(i => i.category === 'PROTECTION' && i.isEnabled)?.name || 'NONE'}</strong>
+                      보양작업: <strong>{workingOptionItems.filter(i => i.category === 'PROTECTION' && i.isEnabled).map(i => i.name).join(', ') || 'NONE'}</strong>
                     </span>
                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#1d4ed8' }}>
                       💰 월 유상옵션 총액: ₩{monthlyPaidFeeTotal.toLocaleString()}
