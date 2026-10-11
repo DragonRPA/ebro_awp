@@ -279,483 +279,561 @@ export const PurchaseSettlementPage: React.FC = () => {
         </div>
       )}
 
-      {/* 상단 고정 제어 영역 (헤더, 연월 선택, 액션 버튼, 유형 탭, 필터, 요약 카드) */}
-      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '6px', borderBottom: '1px solid var(--border-color)' }}>
-          <CreditCard size={18} color="var(--primary)" />
-          <h2 data-mid="purchase_settlement-header" style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>월말 매입 정산</h2>
+      {/* 상단 고정 제어 영역 (타이틀, 파이프라인 액션, 탭/필터, 초슬림 요약 바) */}
+      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        {/* 1열: 타이틀 + 정산연월 + 우측 파이프라인 액션 버튼군 (헌장 3.5 Gutenberg Z-패턴 1~2단계) */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', paddingBottom: '6px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <CreditCard size={18} color="var(--primary)" />
+              <h2 data-mid="purchase_settlement-header" style={{ fontSize: '16px', fontWeight: 800, margin: 0, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                월말 매입 정산
+              </h2>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>정산 연월:</span>
+              <select
+                value={selectedYm}
+                onChange={e => setSelectedYm(e.target.value)}
+                style={{ height: '30px', fontSize: '13px', padding: '0 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontWeight: 700 }}
+              >
+                {ymOptions.map(ym => <option key={ym} value={ym}>{ym}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* 우측 파이프라인 버튼군 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            <button
+              data-mid="purchase_settlement-pipeline-generate"
+              onClick={handleGenerate}
+              disabled={isGenerating}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '5px', height: '30px', padding: '0 12px',
+                background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '4px',
+                fontWeight: 700, fontSize: '12.5px', cursor: isGenerating ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap'
+              }}
+            >
+              {isGenerating ? <RefreshCw size={13} className="animate-spin" /> : <Plus size={13} />}
+              {selectedYm} 자동 집계
+            </button>
+
+            <button
+              onClick={handleExportSettlementExcel}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '5px', height: '30px', padding: '0 10px',
+                background: 'var(--bg-card)', color: 'var(--text-primary)', border: '1px solid var(--border)',
+                borderRadius: '4px', fontWeight: 600, fontSize: '12.5px', cursor: 'pointer', whiteSpace: 'nowrap'
+              }}
+            >
+              <Download size={13} />
+              엑셀 내보내기
+            </button>
+
+            <button
+              onClick={() => setIsHometaxModalOpen(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '5px', height: '30px', padding: '0 12px',
+                background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '4px',
+                fontWeight: 700, fontSize: '12.5px', cursor: 'pointer', whiteSpace: 'nowrap'
+              }}
+            >
+              <Database size={13} />
+              국세청 매입세금계산서 대사
+            </button>
+          </div>
         </div>
-        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-          운송료·소모품·전대임차·외주정비 월별 매입처별 집계 및 통장 출금 1:1 대사
-        </p>
 
-        {/* 상단 컨트롤 */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'flex-end', marginTop: '2px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>정산 연월</label>
-          <select
-            value={selectedYm}
-            onChange={e => setSelectedYm(e.target.value)}
-            style={{ height: '36px', fontSize: '14px', padding: '0 10px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)', minWidth: '130px' }}
-          >
-            {ymOptions.map(ym => <option key={ym} value={ym}>{ym}</option>)}
-          </select>
-        </div>
-
-        <button data-mid="purchase_settlement-pipeline-generate"
-          onClick={handleGenerate}
-          disabled={isGenerating}
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '36px', padding: '0 16px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: '700', fontSize: '13.5px', cursor: isGenerating ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
-        >
-          {isGenerating ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
-          {selectedYm} 자동 집계
-        </button>
-
-        <button
-          onClick={handleExportSettlementExcel}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            height: '36px',
-            padding: '0 14px',
-            background: 'var(--bg-card)',
-            color: 'var(--text-primary)',
-            border: '1px solid var(--border)',
-            borderRadius: '6px',
-            fontWeight: '700',
-            fontSize: '13px',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap'
-          }}
-        >
-          <Download size={14} />
-          엑셀 내보내기
-        </button>
-
-        <button
-          onClick={() => setIsHometaxModalOpen(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            height: '36px',
-            padding: '0 14px',
-            background: 'var(--primary)',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            fontWeight: '700',
-            fontSize: '13px',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            boxShadow: '0 2px 8px rgba(37, 99, 235, 0.25)'
-          }}
-        >
-          <Database size={14} />
-          국세청 매입세금계산서 대사/업데이트
-        </button>
-
+        {/* 자동 집계 결과 알림 배너 */}
         {generateResult && (
-          <div style={{ padding: '8px 14px', borderRadius: '6px', background: 'var(--bg-app)', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-primary)' }}>
-            {generateResult}
+          <div style={{ padding: '6px 12px', borderRadius: '4px', background: 'var(--bg-app)', border: '1px solid var(--border)', fontSize: '12px', color: 'var(--text-primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>{generateResult}</span>
+            <button onClick={() => setGenerateResult(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={13} /></button>
           </div>
         )}
-      </div>
 
-      {/* 유형 탭 */}
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
-        {SETTLEMENT_TYPES.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTypeFilter(t.id)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '5px',
-              padding: '6px 14px', borderRadius: '20px', fontSize: '13px', fontWeight: '600', cursor: 'pointer',
-              background: typeFilter === t.id ? 'var(--primary)' : 'var(--bg-card)',
-              color: typeFilter === t.id ? '#fff' : 'var(--text-secondary)',
-              border: typeFilter === t.id ? 'none' : '1px solid var(--border)',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {t.icon} {t.label}
-          </button>
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '8px' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <label style={{ fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' }}>지급 상태</label>
-          <select value={payStatusFilter} onChange={e => setPayStatusFilter(e.target.value)} style={{ padding: '5px', fontSize: '12px' }}>
-            <option value="ALL">전체</option>
-            <option value="PENDING">집계중</option>
-            <option value="CONFIRMED">정산확정</option>
-            <option value="PAID">지급완료</option>
-          </select>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <label style={{ fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' }}>매입처</label>
-          <input type="text" value={vendorSearch} onChange={e => setVendorSearch(e.target.value)}
-            placeholder="매입처명 검색" style={{ padding: '5px 8px', fontSize: '12px', width: '160px' }} />
-        </div>
-        {(payStatusFilter !== 'ALL' || vendorSearch) && (
-          <button type="button" onClick={() => { setPayStatusFilter('ALL'); setVendorSearch(''); }}
-            style={{ padding: '5px 10px', fontSize: '11px', background: 'var(--bg-app)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer', alignSelf: 'flex-end' }}>초기화</button>
-        )}
-      </div>
-
-      {/* 요약 카드 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', marginBottom: '8px' }}>
-        {[
-          { label: '총 정산 건수',  value: `${summary.count}건`,                    color: 'var(--primary)' },
-          { label: '총 청구액',     value: `${summary.total.toLocaleString()}원`,    color: '#F59E0B' },
-          { label: '지급 완료액',   value: `${summary.paid.toLocaleString()}원`,     color: '#10B981' },
-          { label: '미지급 잔액',   value: `${summary.remaining.toLocaleString()}원`, color: 'var(--danger)' },
-        ].map(card => (
-          <div key={card.label} className="card" style={{ padding: '12px 14px' }}>
-            <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginBottom: '3px', whiteSpace: 'nowrap' }}>{card.label}</div>
-            <div style={{ fontSize: '17px', fontWeight: '800', color: card.color }}>{card.value}</div>
+        {/* 2열: 정산 유형 탭(좌) + 필터/검색(우) */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          {/* 유형 탭 */}
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+            {SETTLEMENT_TYPES.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setTypeFilter(t.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '4px',
+                  padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                  background: typeFilter === t.id ? 'var(--primary)' : 'var(--bg-card)',
+                  color: typeFilter === t.id ? '#fff' : 'var(--text-secondary)',
+                  border: typeFilter === t.id ? 'none' : '1px solid var(--border)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {t.icon} {t.label}
+              </button>
+            ))}
           </div>
-        ))}
-      </div>
-      </div>
 
-      {/* 중앙 스크롤 영역 (정산 목록 + 임차료 안내) */}
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '4px' }}>
-      {/* 정산 목록 */}
-      {filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)', fontSize: '14px' }}>
-          <AlertCircle size={32} style={{ marginBottom: '12px', opacity: 0.4 }} />
-          <div>{selectedYm} 정산 데이터가 없습니다.</div>
-          <div style={{ fontSize: '12.5px', marginTop: '6px' }}>위 [자동 집계] 버튼을 눌러 당월 데이터를 집계하세요.</div>
+          {/* 우측 검색/필터 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <select
+              value={payStatusFilter}
+              onChange={e => setPayStatusFilter(e.target.value)}
+              style={{ height: '28px', fontSize: '12px', padding: '0 6px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+            >
+              <option value="ALL">지급 상태: 전체</option>
+              <option value="PENDING">집계중</option>
+              <option value="CONFIRMED">정산확정</option>
+              <option value="PAID">지급완료</option>
+            </select>
+
+            <input
+              type="text"
+              value={vendorSearch}
+              onChange={e => setVendorSearch(e.target.value)}
+              placeholder="매입처명 검색"
+              style={{ height: '28px', padding: '0 8px', fontSize: '12px', width: '140px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+            />
+
+            {(payStatusFilter !== 'ALL' || vendorSearch) && (
+              <button
+                type="button"
+                onClick={() => { setPayStatusFilter('ALL'); setVendorSearch(''); }}
+                style={{ height: '28px', padding: '0 8px', fontSize: '11px', background: 'var(--bg-app)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
+                초기화
+              </button>
+            )}
+          </div>
         </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {filtered.map(p => {
-            const items = purchaseSettlementItems.filter(i => i.settlementId === p.id);
-            const isExpanded = expandedId === p.id;
-            const statusInfo = STATUS_LABEL[p.status] || { label: p.status, color: '#888' };
-            const remaining = p.totalAmount - p.paidAmount;
 
-            return (
-              <div key={p.id} className="card" style={{ padding: '0', overflow: 'hidden' }}>
-                {/* 헤더 행 */}
-                <div
-                  style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 18px', cursor: 'pointer', flexWrap: 'wrap' }}
-                  onClick={() => setExpandedId(isExpanded ? null : p.id)}
-                >
-                  {/* 유형 배지 */}
-                  <span style={{ fontSize: '11.5px', fontWeight: '700', padding: '3px 8px', borderRadius: '12px', background: 'var(--bg-app)', color: 'var(--text-secondary)', whiteSpace: 'nowrap', border: '1px solid var(--border)' }}>
-                    {TYPE_LABEL[p.settlementType] || p.settlementType}
-                  </span>
+        {/* 3열: 초슬림 1줄 요약 스탯 바 */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '16px', padding: '6px 14px',
+          background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '4px',
+          fontSize: '12px', flexWrap: 'wrap'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>정산 대상:</span>
+            <strong style={{ color: 'var(--primary)', fontWeight: 800 }}>{summary.count}개사</strong>
+          </div>
+          <span style={{ color: 'var(--border)' }}>|</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>총 청구액:</span>
+            <strong style={{ color: '#F59E0B', fontWeight: 800 }}>{summary.total.toLocaleString()}원</strong>
+          </div>
+          <span style={{ color: 'var(--border)' }}>|</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>지급 완료:</span>
+            <strong style={{ color: '#10B981', fontWeight: 800 }}>{summary.paid.toLocaleString()}원</strong>
+          </div>
+          <span style={{ color: 'var(--border)' }}>|</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>미지급 잔액:</span>
+            <strong style={{ color: summary.remaining > 0 ? 'var(--danger)' : 'var(--text-secondary)', fontWeight: 800 }}>
+              {summary.remaining.toLocaleString()}원
+            </strong>
+          </div>
+        </div>
+      </div>
 
-                  {/* 매입처명 */}
-                  <span style={{ fontWeight: '800', fontSize: '15px', flexGrow: 1, minWidth: '120px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    {p.vendorName.startsWith('http://') || p.vendorName.startsWith('https://') ? (
-                      <a
-                        href={p.vendorName}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={e => e.stopPropagation()}
-                        style={{ color: 'var(--primary)', textDecoration: 'underline', wordBreak: 'break-all', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                      >
-                        {p.vendorName} <ExternalLink size={13} />
-                      </a>
-                    ) : (
-                      p.vendorName
-                    )}
-                  </span>
+      {/* 중앙 본문: 고밀도 그리드 테이블 (헌장 3.6 아키타입 B 기간 조회/정산형) */}
+      <div style={{
+        flex: 1,
+        minHeight: 0,
+        overflow: 'auto',
+        border: '1px solid var(--border)',
+        borderRadius: '6px',
+        background: 'var(--bg-card)'
+      }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', whiteSpace: 'nowrap' }}>
+          <thead style={{ position: 'sticky', top: 0, zIndex: 5, background: 'var(--bg-app)', borderBottom: '2px solid var(--border)' }}>
+            <tr>
+              <th style={{ width: '55px', padding: '8px 6px', textAlign: 'center', fontWeight: 700, color: 'var(--text-secondary)' }}>상세</th>
+              <th style={{ width: '80px', padding: '8px 8px', textAlign: 'center', fontWeight: 700, color: 'var(--text-secondary)' }}>구분</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: 'var(--text-secondary)' }}>매입처(거래처)</th>
+              <th style={{ width: '60px', padding: '8px 8px', textAlign: 'right', fontWeight: 700, color: 'var(--text-secondary)' }}>품목수</th>
+              <th style={{ width: '110px', padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text-secondary)' }}>총 청구액</th>
+              <th style={{ width: '110px', padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text-secondary)' }}>지급 완료액</th>
+              <th style={{ width: '110px', padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: 'var(--text-secondary)' }}>미지급 잔액</th>
+              <th style={{ width: '80px', padding: '8px 8px', textAlign: 'center', fontWeight: 700, color: 'var(--text-secondary)' }}>지급 상태</th>
+              <th style={{ width: '130px', padding: '8px 8px', textAlign: 'center', fontWeight: 700, color: 'var(--text-secondary)' }}>세금계산서</th>
+              <th style={{ width: '85px', padding: '8px 8px', textAlign: 'center', fontWeight: 700, color: 'var(--text-secondary)' }}>증빙</th>
+              <th style={{ width: '180px', padding: '8px 10px', textAlign: 'center', fontWeight: 700, color: 'var(--text-secondary)' }}>관리 조치</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 700, color: 'var(--text-secondary)' }}>비고</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={12} style={{ textAlign: 'center', padding: '50px 20px', color: 'var(--text-secondary)' }}>
+                  <AlertCircle size={28} style={{ marginBottom: '8px', opacity: 0.5 }} />
+                  <div>{selectedYm} 정산 데이터가 없습니다.</div>
+                  <div style={{ fontSize: '11px', marginTop: '4px' }}>상단 [{selectedYm} 자동 집계] 버튼을 실행하십시오.</div>
+                </td>
+              </tr>
+            ) : (
+              filtered.map(p => {
+                const items = purchaseSettlementItems.filter(i => i.settlementId === p.id);
+                const isExpanded = expandedId === p.id;
+                const statusInfo = STATUS_LABEL[p.status] || { label: p.status, color: '#888' };
+                const remaining = p.totalAmount - p.paidAmount;
+                const evidences = items.map(item => ({ item, url: getItemEvidenceUrl(item) })).filter(x => !!x.url) as { item: PurchaseSettlementItem; url: string }[];
 
-                  {/* 상태 뱃지 */}
-                  <span style={{ fontSize: '12px', fontWeight: '700', padding: '3px 10px', borderRadius: '12px', background: statusInfo.color + '22', color: statusInfo.color, whiteSpace: 'nowrap' }}>
-                    {statusInfo.label}
-                  </span>
-
-                  {/* 국세청 세금계산서 대사 뱃지 */}
-                  {p.taxInvoiceNo ? (
-                    <span 
-                      title={`국세청 승인번호: ${p.taxInvoiceNo}\n작성일자: ${p.taxInvoiceIssueDate || '-'}\n공급가: ₩${(p.taxInvoiceSupplyAmount || 0).toLocaleString()} / 세액: ₩${(p.taxInvoiceVatAmount || 0).toLocaleString()}`}
+                return (
+                  <React.Fragment key={p.id}>
+                    <tr
+                      onClick={() => setExpandedId(isExpanded ? null : p.id)}
                       style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        fontSize: '11px',
-                        fontWeight: '700',
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        background: 'rgba(16, 185, 129, 0.15)',
-                        color: '#10b981',
-                        border: '1px solid rgba(16, 185, 129, 0.3)',
-                        whiteSpace: 'nowrap'
+                        borderBottom: '1px solid var(--border)',
+                        background: isExpanded ? 'rgba(59, 130, 246, 0.05)' : undefined,
+                        cursor: 'pointer'
                       }}
                     >
-                      <CheckCircle2 size={12} />
-                      계산서 수취 ({p.taxInvoiceNo.slice(0, 8)}...)
-                    </span>
-                  ) : (
-                    <span style={{
-                      fontSize: '11px',
-                      padding: '3px 8px',
-                      borderRadius: '6px',
-                      background: 'rgba(148, 163, 184, 0.1)',
-                      color: 'var(--text-secondary)',
-                      border: '1px solid var(--border)',
-                      whiteSpace: 'nowrap'
-                    }}>
-                      계산서 미수취
-                    </span>
-                  )}
-
-                  {/* 카드 헤더 증빙 보기 직결 버튼 */}
-                  {(() => {
-                    const evidences = items.map(item => ({ item, url: getItemEvidenceUrl(item) })).filter(x => !!x.url) as { item: PurchaseSettlementItem; url: string }[];
-                    if (evidences.length === 0) return null;
-                    return (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenEvidence(evidences[0].url, evidences[0].item.itemDescription);
-                        }}
-                        style={{
-                          display: 'inline-flex', alignItems: 'center', gap: '4px',
-                          padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--primary)',
-                          background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)',
-                          fontSize: '12.5px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap'
-                        }}
-                      >
-                        <Eye size={13} /> 증빙 보기 ({evidences.length}건)
-                      </button>
-                    );
-                  })()}
-
-                  {/* 금액 */}
-                  <div style={{ textAlign: 'right', minWidth: '120px' }}>
-                    <div style={{ fontSize: '16px', fontWeight: '800' }}>{p.totalAmount.toLocaleString()}원</div>
-                    {p.paidAmount > 0 && (
-                      <div style={{ fontSize: '11.5px', color: p.paidAmount > p.totalAmount ? 'var(--danger)' : '#10B981', fontWeight: p.paidAmount > p.totalAmount ? 'bold' : 'normal' }}>
-                        {p.paidAmount > p.totalAmount ? `과지급 ${p.paidAmount.toLocaleString()}원 (+${(p.paidAmount - p.totalAmount).toLocaleString()}원)` : `지급 ${p.paidAmount.toLocaleString()}원`}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 아이템 수 */}
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{items.length}건</span>
-
-                  {/* 펼치기 */}
-                  {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </div>
-
-                {/* 상세 영역 */}
-                {isExpanded && (
-                  <div style={{ borderTop: '1px solid var(--border)', padding: '16px 18px', background: 'var(--bg-app)' }}>
-                    {/* 라인 아이템 테이블 */}
-                    {items.length > 0 && (
-                      <div style={{ overflowX: 'auto', marginBottom: '16px' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                          <thead>
-                            <tr style={{ background: 'var(--bg-card)' }}>
-                              <th style={{ padding: '8px 12px', textAlign: 'left', fontWeight: '700', whiteSpace: 'nowrap', borderBottom: '1px solid var(--border)' }}>내역</th>
-                              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '700', whiteSpace: 'nowrap', width: '80px', borderBottom: '1px solid var(--border)' }}>수량</th>
-                              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '700', whiteSpace: 'nowrap', width: '110px', borderBottom: '1px solid var(--border)' }}>단가</th>
-                              <th style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '700', whiteSpace: 'nowrap', width: '130px', borderBottom: '1px solid var(--border)' }}>금액</th>
-                              <th style={{ padding: '8px 12px', textAlign: 'center', fontWeight: '700', whiteSpace: 'nowrap', width: '120px', borderBottom: '1px solid var(--border)' }}>증빙</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {items.map(item => {
-                              const evidenceUrl = getItemEvidenceUrl(item);
-                              return (
-                                <tr key={item.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                                  <td style={{ padding: '8px 12px', textAlign: 'left' }}>{item.itemDescription}</td>
-                                  <td style={{ padding: '8px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>{item.quantity.toLocaleString()}</td>
-                                  <td style={{ padding: '8px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>{item.unitPrice.toLocaleString()}원</td>
-                                  <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '700', whiteSpace: 'nowrap', color: 'var(--primary)' }}>{item.amount.toLocaleString()}원</td>
-                                  <td style={{ padding: '8px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                                    {evidenceUrl ? (
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleOpenEvidence(evidenceUrl, item.itemDescription);
-                                        }}
-                                        style={{
-                                          display: 'inline-flex', alignItems: 'center', gap: '4px',
-                                          padding: '4px 10px', borderRadius: '4px', border: '1px solid var(--primary)',
-                                          background: 'rgba(99, 102, 241, 0.08)', color: 'var(--primary)',
-                                          fontSize: '12px', fontWeight: '600', cursor: 'pointer'
-                                        }}
-                                      >
-                                        {evidenceUrl.startsWith('http') ? <ExternalLink size={13} /> : <Eye size={13} />}
-                                        증빙 보기
-                                      </button>
-                                    ) : (
-                                      <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>없음</span>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-
-                    {/* 🧾 국세청 전자세금계산서 대사 정보 블록 */}
-                    {p.taxInvoiceNo && (
-                      <div style={{
-                        marginBottom: '14px',
-                        padding: '10px 14px',
-                        borderRadius: '6px',
-                        background: 'rgba(16, 185, 129, 0.06)',
-                        border: '1px solid rgba(16, 185, 129, 0.25)',
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '10px',
-                        fontSize: '12px'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <CheckCircle2 size={16} style={{ color: '#10b981', flexShrink: 0 }} />
-                          <div>
-                            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>국세청 전자세금계산서 승인: </span>
-                            <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#10b981' }}>{p.taxInvoiceNo}</span>
-                            <span style={{ color: 'var(--text-secondary)', marginLeft: '8px' }}>
-                              (작성일: {p.taxInvoiceIssueDate || '미상'})
-                            </span>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontFamily: 'monospace' }}>
-                          <span>공급가: ₩{(p.taxInvoiceSupplyAmount || 0).toLocaleString()}</span>
-                          <span>세액: ₩{(p.taxInvoiceVatAmount || 0).toLocaleString()}</span>
-                          <span style={{ fontWeight: 700, color: 'var(--primary)' }}>합계: ₩{(p.taxInvoiceTotalAmount || 0).toLocaleString()}</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* 비고 편집 */}
-                    <div style={{ marginBottom: '14px' }}>
-                      {memoEditId === p.id ? (
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <input
-                            type="text"
-                            value={memoText}
-                            onChange={e => setMemoText(e.target.value)}
-                            placeholder="비고 입력"
-                            style={{ flex: 1, height: '34px', fontSize: '13px', padding: '0 10px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
-                          />
-                          <button data-hs-trigger="Save" onClick={() => handleMemoSave(p.id)} style={{ padding: '6px 12px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13px', cursor: 'pointer' }}>저장</button>
-                          <button onClick={() => setMemoEditId(null)} style={{ padding: '6px 8px', background: 'none', border: '1px solid var(--border)', borderRadius: '6px', cursor: 'pointer' }}><X size={14} /></button>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                          <span>비고: {p.memo || '—'}</span>
-                          <button onClick={() => { setMemoEditId(p.id); setMemoText(p.memo || ''); }} style={{ fontSize: '12px', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>수정</button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 액션 버튼 */}
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      {p.status === 'PENDING' && (
-                        <button
-                          onClick={() => handleConfirm(p.id)}
-                          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 16px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                        >
-                          <CheckCircle2 size={15} /> 정산 확정
-                        </button>
-                      )}
-                      {(p.status === 'CONFIRMED' || (p.status === 'PAID' && p.paidAmount < p.totalAmount)) && remaining > 0 && (
-                        <button data-hs-trigger="Process"
-                          onClick={() => {
-                            setSelectedBankTxId(null);
-                            setPaymentModal({ id: p.id, totalAmount: p.totalAmount, paidAmount: p.paidAmount, vendorName: p.vendorName });
-                            setPaymentForm(prev => ({ ...prev, paidAmount: (p.totalAmount - p.paidAmount).toString() }));
-                          }}
-                          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 16px', background: 'var(--success)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                        >
-                          <CreditCard size={15} /> 지급 처리 ({remaining.toLocaleString()}원 잔여)
-                        </button>
-                      )}
-                      {p.status === 'PAID' && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10B981', fontWeight: '700', fontSize: '13.5px' }}>
-                            <CheckCircle2 size={16} /> 지급 완료 ({p.paymentDate})
-                          </div>
-                          {p.bankTransactionId && (
-                            <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)', fontWeight: 'bold' }}>
-                              🏦 통장 출금 증빙 연결됨
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* 🔍 지급 대사 이력 상세 명세서 버튼 */}
-                      {(p.paidAmount > 0 || p.bankTransactionId) && (
+                      {/* 상세 펼침 토글 버튼 */}
+                      <td style={{ textAlign: 'center', padding: '6px' }}>
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setDetailModalSettlementId(p.id);
+                            setExpandedId(isExpanded ? null : p.id);
                           }}
                           style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '4px',
-                            padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--primary)',
-                            background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)',
-                            fontSize: '12.5px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap'
+                            background: isExpanded ? 'var(--primary)' : 'var(--bg-app)',
+                            color: isExpanded ? '#fff' : 'var(--text-secondary)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '4px',
+                            padding: '2px 5px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '2px'
                           }}
                         >
-                          <FileText size={14} /> 🔍 지급 대사 이력 명세서
+                          {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                         </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          </div>
-        )}
+                      </td>
 
-        {/* 임차료 정산 연동 안내 */}
-        {(typeFilter === 'ALL' || typeFilter === 'EQUIPMENT_LEASE') && (
-          <div style={{ marginTop: '8px', padding: '14px 16px', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.3)', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--text-main)', fontSize: '12.5px', lineHeight: '1.6' }}>
-            <strong>🏢 임차(전대)장비 임차료 매입 정산 프로세스</strong><br />
-            배차 관리 및 소모품 매입과 동일하게, 임차자산 관리 메뉴의 <strong>[임차처 거래명세서 대사 & 매입 정산]</strong>에서 1:1 대사를 완벽하게 검증하고 <strong>승인 확정한 내역만</strong> 본 월말 매입 정산 대장으로 전달되어 확정/지급 처리됩니다.
-          </div>
-        )}
+                      {/* 구분 */}
+                      <td style={{ textAlign: 'center', padding: '6px 8px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: 'var(--bg-app)', color: 'var(--text-secondary)', border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
+                          {TYPE_LABEL[p.settlementType] || p.settlementType}
+                        </span>
+                      </td>
+
+                      {/* 매입처(거래처) */}
+                      <td style={{ padding: '6px 12px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {p.vendorName.startsWith('http://') || p.vendorName.startsWith('https://') ? (
+                          <a
+                            href={p.vendorName}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={e => e.stopPropagation()}
+                            style={{ color: 'var(--primary)', textDecoration: 'underline', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            {p.vendorName} <ExternalLink size={12} />
+                          </a>
+                        ) : (
+                          p.vendorName
+                        )}
+                      </td>
+
+                      {/* 품목수 */}
+                      <td style={{ textAlign: 'right', padding: '6px 8px', color: 'var(--text-secondary)' }}>
+                        {items.length}건
+                      </td>
+
+                      {/* 총 청구액 */}
+                      <td style={{ textAlign: 'right', padding: '6px 10px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {p.totalAmount.toLocaleString()}원
+                      </td>
+
+                      {/* 지급 완료액 */}
+                      <td style={{ textAlign: 'right', padding: '6px 10px', color: p.paidAmount > 0 ? '#10B981' : 'var(--text-secondary)', fontWeight: p.paidAmount > 0 ? 700 : 400 }}>
+                        {p.paidAmount.toLocaleString()}원
+                      </td>
+
+                      {/* 미지급 잔액 */}
+                      <td style={{ textAlign: 'right', padding: '6px 10px', color: remaining > 0 ? 'var(--danger)' : 'var(--text-secondary)', fontWeight: remaining > 0 ? 800 : 400 }}>
+                        {remaining.toLocaleString()}원
+                      </td>
+
+                      {/* 지급 상태 */}
+                      <td style={{ textAlign: 'center', padding: '6px 8px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '10px', background: statusInfo.color + '22', color: statusInfo.color, whiteSpace: 'nowrap' }}>
+                          {statusInfo.label}
+                        </span>
+                      </td>
+
+                      {/* 국세청 세금계산서 대사 상태 */}
+                      <td style={{ textAlign: 'center', padding: '6px 8px' }}>
+                        {p.taxInvoiceNo ? (
+                          <span
+                            title={`승인번호: ${p.taxInvoiceNo}\n작성일자: ${p.taxInvoiceIssueDate || '-'}\n공급가: ₩${(p.taxInvoiceSupplyAmount || 0).toLocaleString()} / 세액: ₩${(p.taxInvoiceVatAmount || 0).toLocaleString()}`}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              background: 'rgba(16, 185, 129, 0.15)',
+                              color: '#10b981',
+                              border: '1px solid rgba(16, 185, 129, 0.3)',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            <CheckCircle2 size={11} />
+                            수취 ({p.taxInvoiceNo.slice(0, 8)}...)
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'var(--bg-app)', color: 'var(--text-muted)', border: '1px solid var(--border)', whiteSpace: 'nowrap' }}>
+                            미수취
+                          </span>
+                        )}
+                      </td>
+
+                      {/* 증빙 */}
+                      <td style={{ textAlign: 'center', padding: '6px 8px' }}>
+                        {evidences.length > 0 ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenEvidence(evidences[0].url, evidences[0].item.itemDescription);
+                            }}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '3px',
+                              padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--primary)',
+                              background: 'rgba(99, 102, 241, 0.08)', color: 'var(--primary)',
+                              fontSize: '11px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap'
+                            }}
+                          >
+                            <Eye size={11} /> 증빙 ({evidences.length})
+                          </button>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>-</span>
+                        )}
+                      </td>
+
+                      {/* 관리 조치 액션 버튼 */}
+                      <td style={{ textAlign: 'center', padding: '6px 10px' }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          {p.status === 'PENDING' && (
+                            <button
+                              onClick={() => handleConfirm(p.id)}
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                padding: '3px 8px', background: 'var(--primary)', color: '#fff',
+                                border: 'none', borderRadius: '4px', fontSize: '11.5px', fontWeight: 700,
+                                cursor: 'pointer', whiteSpace: 'nowrap'
+                              }}
+                            >
+                              <CheckCircle2 size={12} /> 정산 확정
+                            </button>
+                          )}
+                          {(p.status === 'CONFIRMED' || (p.status === 'PAID' && p.paidAmount < p.totalAmount)) && remaining > 0 && (
+                            <button
+                              data-hs-trigger="Process"
+                              onClick={() => {
+                                setSelectedBankTxId(null);
+                                setPaymentModal({ id: p.id, totalAmount: p.totalAmount, paidAmount: p.paidAmount, vendorName: p.vendorName });
+                                setPaymentForm(prev => ({ ...prev, paidAmount: (p.totalAmount - p.paidAmount).toString() }));
+                              }}
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                padding: '3px 8px', background: 'var(--success)', color: '#fff',
+                                border: 'none', borderRadius: '4px', fontSize: '11.5px', fontWeight: 700,
+                                cursor: 'pointer', whiteSpace: 'nowrap'
+                              }}
+                            >
+                              <CreditCard size={12} /> 지급 처리
+                            </button>
+                          )}
+                          {p.status === 'PAID' && remaining <= 0 && (
+                            <span style={{ fontSize: '11px', color: '#10B981', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                              <CheckCircle2 size={12} /> 지급완료
+                            </span>
+                          )}
+
+                          {/* 지급 대사 이력 명세서 버튼 */}
+                          {(p.paidAmount > 0 || p.bankTransactionId) && (
+                            <button
+                              type="button"
+                              onClick={() => setDetailModalSettlementId(p.id)}
+                              title="지급 대사 이력 상세 명세서"
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '2px',
+                                padding: '3px 6px', borderRadius: '4px', border: '1px solid var(--border)',
+                                background: 'var(--bg-app)', color: 'var(--text-secondary)',
+                                fontSize: '11px', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap'
+                              }}
+                            >
+                              <FileText size={12} /> 명세서
+                            </button>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* 비고 */}
+                      <td style={{ padding: '6px 12px', color: 'var(--text-secondary)', fontSize: '11.5px', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {p.memo || '-'}
+                      </td>
+                    </tr>
+
+                    {/* 행 확장 시: 인라인 상세 명세 테이블 (1:N 품목 및 세금계산서/비고) */}
+                    {isExpanded && (
+                      <tr style={{ background: 'var(--bg-app)' }}>
+                        <td colSpan={12} style={{ padding: '12px 16px', borderBottom: '2px solid var(--border)' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {/* 라인 아이템 테이블 */}
+                            {items.length > 0 && (
+                              <div style={{ overflowX: 'auto', background: 'var(--bg-card)', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                                  <thead>
+                                    <tr style={{ background: 'var(--bg-app)', borderBottom: '1px solid var(--border)' }}>
+                                      <th style={{ padding: '6px 10px', textAlign: 'left', fontWeight: 700, color: 'var(--text-secondary)' }}>내역 설명</th>
+                                      <th style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700, width: '70px', color: 'var(--text-secondary)' }}>수량</th>
+                                      <th style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700, width: '100px', color: 'var(--text-secondary)' }}>단가</th>
+                                      <th style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700, width: '110px', color: 'var(--text-secondary)' }}>금액</th>
+                                      <th style={{ padding: '6px 10px', textAlign: 'center', fontWeight: 700, width: '100px', color: 'var(--text-secondary)' }}>증빙 파일</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {items.map(item => {
+                                      const evidenceUrl = getItemEvidenceUrl(item);
+                                      return (
+                                        <tr key={item.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                          <td style={{ padding: '6px 10px', textAlign: 'left' }}>{item.itemDescription}</td>
+                                          <td style={{ padding: '6px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>{item.quantity.toLocaleString()}</td>
+                                          <td style={{ padding: '6px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>{item.unitPrice.toLocaleString()}원</td>
+                                          <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap', color: 'var(--primary)' }}>{item.amount.toLocaleString()}원</td>
+                                          <td style={{ padding: '6px 10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                            {evidenceUrl ? (
+                                              <button
+                                                type="button"
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  handleOpenEvidence(evidenceUrl, item.itemDescription);
+                                                }}
+                                                style={{
+                                                  display: 'inline-flex', alignItems: 'center', gap: '3px',
+                                                  padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--primary)',
+                                                  background: 'rgba(99, 102, 241, 0.08)', color: 'var(--primary)',
+                                                  fontSize: '11.5px', fontWeight: 600, cursor: 'pointer'
+                                                }}
+                                              >
+                                                {evidenceUrl.startsWith('http') ? <ExternalLink size={12} /> : <Eye size={12} />}
+                                                증빙 열람
+                                              </button>
+                                            ) : (
+                                              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>없음</span>
+                                            )}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+
+                            {/* 🧾 국세청 전자세금계산서 대사 정보 블록 */}
+                            {p.taxInvoiceNo && (
+                              <div style={{
+                                padding: '8px 12px',
+                                borderRadius: '4px',
+                                background: 'rgba(16, 185, 129, 0.06)',
+                                border: '1px solid rgba(16, 185, 129, 0.25)',
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                gap: '8px',
+                                fontSize: '11.5px'
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <CheckCircle2 size={14} style={{ color: '#10b981', flexShrink: 0 }} />
+                                  <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>국세청 전자세금계산서 승인번호:</span>
+                                  <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#10b981' }}>{p.taxInvoiceNo}</span>
+                                  <span style={{ color: 'var(--text-secondary)' }}>
+                                    (작성일자: {p.taxInvoiceIssueDate || '미상'})
+                                  </span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: 'monospace' }}>
+                                  <span>공급가: ₩{(p.taxInvoiceSupplyAmount || 0).toLocaleString()}</span>
+                                  <span>세액: ₩{(p.taxInvoiceVatAmount || 0).toLocaleString()}</span>
+                                  <span style={{ fontWeight: 700, color: 'var(--primary)' }}>합계: ₩{(p.taxInvoiceTotalAmount || 0).toLocaleString()}</span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 비고 수정 영역 */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                              {memoEditId === p.id ? (
+                                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flex: 1 }}>
+                                  <input
+                                    type="text"
+                                    value={memoText}
+                                    onChange={e => setMemoText(e.target.value)}
+                                    placeholder="비고 입력"
+                                    style={{ flex: 1, height: '28px', fontSize: '12px', padding: '0 8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+                                  />
+                                  <button onClick={() => handleMemoSave(p.id)} style={{ height: '28px', padding: '0 10px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '4px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>저장</button>
+                                  <button onClick={() => setMemoEditId(null)} style={{ height: '28px', padding: '0 6px', background: 'none', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer' }}><X size={13} /></button>
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', color: 'var(--text-secondary)' }}>
+                                  <span><strong>비고:</strong> {p.memo || '등록된 비고가 없습니다.'}</span>
+                                  <button onClick={() => { setMemoEditId(p.id); setMemoText(p.memo || ''); }} style={{ fontSize: '11.5px', color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>수정</button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })
+            )}
+          </tbody>
+        </table>
       </div>
 
       {/* ⚖️ Gutenberg Z-패턴 4단계 최하단 회계/매입 대차대조식 검증 바 (헌장 3.5) */}
       <div style={{
         flexShrink: 0,
-        height: '40px',
+        height: '36px',
         backgroundColor: 'var(--bg-card)',
         borderTop: '2px solid var(--primary)',
-        boxShadow: '0 -2px 10px rgba(0,0,0,0.08)',
+        boxShadow: '0 -2px 10px rgba(0,0,0,0.06)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 16px',
+        padding: '0 14px',
         zIndex: 10,
         fontSize: '11.5px',
         fontWeight: 600,
-        borderRadius: '6px'
+        borderRadius: '4px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
           <span>🏢 <strong>[{selectedYm} 매입정산]:</strong> {settlementAuditSummary.totalCount}개사</span>
-          <span style={{ color: 'var(--border-color)' }}>|</span>
+          <span style={{ color: 'var(--border)' }}>|</span>
           <span>📄 <strong>총 청구액:</strong> ₩{settlementAuditSummary.totalAmount.toLocaleString()}원</span>
-          <span style={{ color: 'var(--border-color)' }}>|</span>
+          <span style={{ color: 'var(--border)' }}>|</span>
           <span style={{ color: 'var(--success)' }}>🟢 <strong>지급완료:</strong> ₩{settlementAuditSummary.totalPaid.toLocaleString()}원 ({settlementAuditSummary.paidCount}건)</span>
-          <span style={{ color: 'var(--border-color)' }}>|</span>
+          <span style={{ color: 'var(--border)' }}>|</span>
           <span style={{ color: settlementAuditSummary.balance > 0 ? 'var(--danger)' : 'var(--text-secondary)' }}>
             ⏳ <strong>지급잔액:</strong> ₩{settlementAuditSummary.balance.toLocaleString()}원
           </span>
-          <span style={{ color: 'var(--border-color)' }}>|</span>
-          <span style={{ color: settlementAuditSummary.taxInvoiceIssuedCount === settlementAuditSummary.totalCount && settlementAuditSummary.totalCount > 0 ? '#10b981' : '#3b82f6' }}>
-            🧾 <strong>국세청 계산서수취:</strong> {settlementAuditSummary.taxInvoiceIssuedCount}/{settlementAuditSummary.totalCount}건 ({settlementAuditSummary.totalCount > 0 ? Math.round((settlementAuditSummary.taxInvoiceIssuedCount / settlementAuditSummary.totalCount) * 100) : 0}%)
+          <span style={{ color: 'var(--border)' }}>|</span>
+          <span style={{ color: settlementAuditSummary.taxInvoiceIssuedCount === settlementAuditSummary.totalCount && settlementAuditSummary.totalCount > 0 ? '#10b981' : 'var(--primary)' }}>
+            🧾 <strong>국세청 계산서:</strong> {settlementAuditSummary.taxInvoiceIssuedCount}/{settlementAuditSummary.totalCount}건 ({settlementAuditSummary.totalCount > 0 ? Math.round((settlementAuditSummary.taxInvoiceIssuedCount / settlementAuditSummary.totalCount) * 100) : 0}%)
           </span>
         </div>
       </div>
