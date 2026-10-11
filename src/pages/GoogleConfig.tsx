@@ -406,7 +406,7 @@ export const GoogleConfig: React.FC = () => {
                   onChange={e => setSmtpHost(e.target.value)}
                   placeholder="예: smtp.gmail.com"
                   disabled={smtpProvider !== 'CUSTOM'}
-                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border)', backgroundColor: smtpProvider !== 'CUSTOM' ? 'var(--bg-app)' : 'white' }}
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border)', backgroundColor: smtpProvider !== 'CUSTOM' ? 'var(--bg-app)' : '#fbf9f5' }}
                 />
               </div>
 
@@ -418,7 +418,7 @@ export const GoogleConfig: React.FC = () => {
                   onChange={e => setSmtpPort(Number(e.target.value))}
                   placeholder="465"
                   disabled={smtpProvider !== 'CUSTOM'}
-                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border)', backgroundColor: smtpProvider !== 'CUSTOM' ? 'var(--bg-app)' : 'white' }}
+                  style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border)', backgroundColor: smtpProvider !== 'CUSTOM' ? 'var(--bg-app)' : '#fbf9f5' }}
                 />
               </div>
 

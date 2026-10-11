@@ -423,7 +423,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
         }
 
         #printable-ot-approval-canvas {
-          background-color: #ffffff !important;
+          background-color: #fbf9f5 !important;
           color: #111827 !important;
           box-sizing: border-box;
           font-family: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "맑은 고딕", helvetica, "Apple SD Gothic Neo", sans-serif;
@@ -481,7 +481,7 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
             padding: 0 !important;
             box-shadow: none !important;
             border: none !important;
-            background: #ffffff !important;
+            background: #fbf9f5 !important;
             color: #000000 !important;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;

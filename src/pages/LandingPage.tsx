@@ -19,9 +19,9 @@ export const LandingPage: React.FC = () => {
   const [contactModalOpen, setContactModalOpen] = useState(false);
 
   return (
-    <div data-hs-observe="landingpage" className="min-h-screen bg-white text-slate-900 flex flex-col font-sans selection:bg-[#FF5200] selection:text-white">
+    <div data-hs-observe="landingpage" className="min-h-screen bg-[#fbf9f5] text-slate-900 flex flex-col font-sans selection:bg-[#FF5200] selection:text-white">
       {/* ── 1. 메인 내비게이션 바 ── */}
-      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200">
+      <header className="sticky top-0 z-40 bg-[#fbf9f5]/90 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded bg-[#FF5200] flex items-center justify-center">
@@ -81,7 +81,7 @@ export const LandingPage: React.FC = () => {
             </a>
             <button
               onClick={() => setContactModalOpen(true)}
-              className="px-8 py-4 rounded bg-white hover:bg-slate-50 border border-slate-200 text-slate-900 font-bold text-base transition cursor-pointer"
+              className="px-8 py-4 rounded bg-[#fbf9f5] hover:bg-slate-50 border border-slate-200 text-slate-900 font-bold text-base transition cursor-pointer"
             >
               맞춤형 도입 상담
             </button>
@@ -118,7 +118,7 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* ── 4. 핵심 기능 상세 (Alternating blocks) ── */}
-      <section id="features" className="py-32 bg-white">
+      <section id="features" className="py-32 bg-[#fbf9f5]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-40">
           
           {/* Feature 1 */}
@@ -142,7 +142,7 @@ export const LandingPage: React.FC = () => {
             </div>
             <div className="bg-slate-50 rounded-3xl p-12 flex items-center justify-center border border-slate-100 aspect-square">
               <div className="text-center space-y-6">
-                <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-white shadow-xl shadow-slate-200/50">
+                <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-[#fbf9f5] shadow-xl shadow-slate-200/50">
                   <Truck className="w-10 h-10 text-slate-900" />
                 </div>
                 <div className="text-xl font-bold text-slate-900">물류 자동화 엔진</div>
@@ -171,7 +171,7 @@ export const LandingPage: React.FC = () => {
             </div>
             <div className="lg:order-1 bg-slate-50 rounded-3xl p-12 flex items-center justify-center border border-slate-100 aspect-square">
               <div className="text-center space-y-6">
-                <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-white shadow-xl shadow-slate-200/50">
+                <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-[#fbf9f5] shadow-xl shadow-slate-200/50">
                   <Smartphone className="w-10 h-10 text-slate-900" />
                 </div>
                 <div className="text-xl font-bold text-slate-900">모바일 검수 시스템</div>
@@ -200,7 +200,7 @@ export const LandingPage: React.FC = () => {
             </div>
             <div className="bg-slate-50 rounded-3xl p-12 flex items-center justify-center border border-slate-100 aspect-square">
               <div className="text-center space-y-6">
-                <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-white shadow-xl shadow-slate-200/50">
+                <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-[#fbf9f5] shadow-xl shadow-slate-200/50">
                   <MessageSquare className="w-10 h-10 text-slate-900" />
                 </div>
                 <div className="text-xl font-bold text-slate-900">24시간 AI 비서</div>
@@ -229,7 +229,7 @@ export const LandingPage: React.FC = () => {
             </div>
             <div className="lg:order-1 bg-slate-50 rounded-3xl p-12 flex items-center justify-center border border-slate-100 aspect-square">
               <div className="text-center space-y-6">
-                <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-white shadow-xl shadow-slate-200/50">
+                <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-[#fbf9f5] shadow-xl shadow-slate-200/50">
                   <Building2 className="w-10 h-10 text-slate-900" />
                 </div>
                 <div className="text-xl font-bold text-slate-900">회계 무결성 엔진</div>
@@ -266,7 +266,7 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* ── 6. Footer ── */}
-      <footer className="bg-white py-12 border-t border-slate-200">
+      <footer className="bg-[#fbf9f5] py-12 border-t border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="text-slate-500 text-sm text-center md:text-left">
             <div className="flex items-center gap-2 text-slate-900 font-bold mb-2 justify-center md:justify-start">
@@ -287,7 +287,7 @@ export const LandingPage: React.FC = () => {
       {/* ── 모달 ── */}
       {contactModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md bg-white rounded-2xl p-8 shadow-2xl relative">
+          <div className="w-full max-w-md bg-[#fbf9f5] rounded-2xl p-8 shadow-2xl relative">
             <button
               onClick={() => setContactModalOpen(false)}
               className="absolute top-6 right-6 text-slate-400 hover:text-slate-900 cursor-pointer transition"

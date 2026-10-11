@@ -369,7 +369,7 @@ export const SmartReturn: React.FC = () => {
               }
               body {
                 color: #000000 !important;
-                background-color: #ffffff !important;
+                background-color: #fbf9f5 !important;
               }
               .no-print { display: none !important; }
             }
@@ -385,7 +385,7 @@ export const SmartReturn: React.FC = () => {
               padding: 0;
               margin: 0 auto;
               color: #000000;
-              background-color: #ffffff;
+              background-color: #fbf9f5;
               width: 100%;
               max-width: 210mm;
               font-size: 8.5pt;

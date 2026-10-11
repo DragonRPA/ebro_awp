@@ -618,8 +618,8 @@ const TRANSACTION_STATEMENT_TEMPLATE = `<!DOCTYPE html>
     <meta charset="UTF-8">
     <title>거래명세서</title>
     <style>
-        body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; margin: 20px; color: #1e293b; line-height: 1.4; background-color: #ffffff; }
-        .statement-box { border: 2px solid #0f172a; padding: 24px; width: 100%; max-width: 780px; margin: 0 auto; background-color: #ffffff; box-sizing: border-box; }
+        body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; margin: 20px; color: #1e293b; line-height: 1.4; background-color: #fbf9f5; }
+        .statement-box { border: 2px solid #0f172a; padding: 24px; width: 100%; max-width: 780px; margin: 0 auto; background-color: #fbf9f5; box-sizing: border-box; }
         .title-container { text-align: center; margin-bottom: 20px; border-bottom: 2px double #0f172a; padding-bottom: 10px; }
         .title { font-size: 26px; font-weight: 900; letter-spacing: 6px; color: #0f172a; margin: 0; }
         .subtitle { font-size: 11px; color: #64748b; margin-top: 4px; }

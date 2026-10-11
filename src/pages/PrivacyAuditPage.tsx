@@ -1537,7 +1537,7 @@ export const PrivacyAuditPage: React.FC = () => {
                       fontWeight: 600,
                       borderRadius: '4px',
                       border: '1px solid #f87171',
-                      backgroundColor: '#ffffff',
+                      backgroundColor: '#fbf9f5',
                       color: '#dc2626',
                       cursor: 'pointer',
                       display: 'flex',
