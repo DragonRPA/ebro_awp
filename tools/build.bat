@@ -17,7 +17,7 @@ if not exist %CSC% (
 )
 
 echo [1/3] C# 소스코드 컴파일 중 (csc.exe)...
-%CSC% /target:exe /optimize+ /out:tools\eBroDevPCRegister.exe tools\eBroDevPCRegister.cs
+%CSC% /r:System.Web.Extensions.dll /target:exe /optimize+ /out:tools\eBroDevPCRegister.exe tools\eBroDevPCRegister.cs
 if %errorlevel% neq 0 (
     echo [실패] 컴파일 오류가 발생했습니다.
     pause

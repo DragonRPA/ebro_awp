@@ -1,11 +1,12 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Security.Cryptography;
 using System.Text;
+using System.Web.Script.Serialization;
 
 namespace EBro.DeveloperDeviceRegistrar
 {
@@ -16,9 +17,6 @@ namespace EBro.DeveloperDeviceRegistrar
         private const string SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55ZmFzaHdiZGNlcG5jcGR3cGRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExOTUwMjgsImV4cCI6MjEwNjc3MTAyOH0.xw2XKKzjPj_HjQzPJDMKkkbaO7htojYioIMGt4l8VLM";
         private const string DEFAULT_MASTER_KEY = "ebro-dev-master-2026!";
         private const string EMERGENCY_BREAK_GLASS_KEY = "ebro-breakglass-recovery-2026!";
-        private const string DEFAULT_WEB_URL = "http://localhost:5174";
-        private const int VAULT_CIPHER_KEY = 0x4f;
-        private const string VAULT_PREFIX = "__EBRO_ENC__v1__";
 
         static void Main(string[] args)
         {
@@ -29,7 +27,7 @@ namespace EBro.DeveloperDeviceRegistrar
 
             try
             {
-                // 1. 명령줄 옵션 파싱 또는 대화형 정보 수집
+                // 1. 명령줄 옵션 파싱 (기본 실행 시 대화형 질문 없이 100% 완전 자동 원클릭 실행)
                 var options = ParseArguments(args);
 
                 // 2. 물리적 하드웨어 및 네트워크 MAC 정보 탐색
@@ -46,20 +44,13 @@ namespace EBro.DeveloperDeviceRegistrar
                     return;
                 }
 
-                // 주 MAC 주소 선택
-                string selectedMac = hardware.MacAddresses[0];
-                if (hardware.MacAddresses.Count > 1 && !options.AutoMode)
-                {
-                    selectedMac = SelectMacAddress(hardware.MacAddresses);
-                }
-
-                // 3. 개발자 인가 정보 입력 (대화형 모드인 경우)
-                if (!options.AutoMode)
+                // 수동 대화형 모드 플래그(--interactive 또는 -i)가 명시적으로 주어진 경우에만 입력 받음
+                if (options.InteractiveMode)
                 {
                     PromptForDetails(options, hardware);
                 }
 
-                // 4. 보안키 인증 검증
+                // 3. 보안키 인증 검증
                 if (options.MasterKey != DEFAULT_MASTER_KEY && options.MasterKey != EMERGENCY_BREAK_GLASS_KEY)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
@@ -71,89 +62,67 @@ namespace EBro.DeveloperDeviceRegistrar
 
                 bool isEmergency = (options.MasterKey == EMERGENCY_BREAK_GLASS_KEY);
 
-                // 5. DB 등록 페이로드 구성
-                Console.WriteLine("\n[2단계] eBro ERP 중앙 데이터베이스(Supabase) 등록 통신 준비...");
-                string cleanMac = selectedMac.Replace("-", "");
-                string macSuffix = cleanMac.Substring(Math.Max(0, cleanMac.Length - 6));
-                string deviceId = "DEV-PC-" + DateTime.Now.ToString("yyyyMMdd") + "-" + macSuffix;
-                string fingerprint = GenerateDeterministicFingerprint(hardware, selectedMac);
-
+                // 4. Supabase DB 영구 인가 대장에 자동 등록
+                Console.WriteLine("\n[2단계] eBro ERP 중앙 제어 플랫폼 DB(Supabase) 영구 인가 대장에 자동 등록 중...");
                 string nowIso = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+                int successCount = 0;
+                string primaryDeviceId = "";
 
-                var deviceProfile = new Dictionary<string, object>
+                // 감지된 모든 물리 MAC(이더넷, Wi-Fi 등)을 전원 등록하여 연결 방식(유선/무선)에 구애받지 않고 100% 자동 승인
+                for (int i = 0; i < hardware.MacAddresses.Count; i++)
                 {
-                    { "id", deviceId },
-                    { "developerId", options.DeveloperId },
-                    { "developerName", options.DeveloperName },
-                    { "machineName", hardware.MachineName },
-                    { "macAddress", selectedMac },
-                    { "hardwareFingerprint", fingerprint },
-                    { "platform", hardware.Platform },
-                    { "status", "ACTIVE" },
-                    { "isPrimary", options.IsPrimary },
-                    { "emergencyBreakGlassUsed", isEmergency },
-                    { "note", string.IsNullOrEmpty(options.Note) ? (isEmergency ? "비상 단말기 단일실행기 등록" : "공인 단말기 원클릭 단일실행기(eBroDevPCRegister.exe) 등록") : options.Note },
-                    { "registeredAt", nowIso },
-                    { "lastVerifiedAt", nowIso }
-                };
+                    string mac = hardware.MacAddresses[i];
+                    string cleanMac = mac.Replace("-", "").ToUpper();
+                    string deviceId = "DEV-PC-" + DateTime.Now.ToString("yyyyMMdd") + "-" + cleanMac;
+                    if (i == 0) primaryDeviceId = deviceId;
+                    string fingerprint = GenerateDeterministicFingerprint(hardware, mac);
 
-                // 6. Supabase REST API 호출 (기존 등록 여부 조회 후 Upsert)
-                Console.WriteLine("[3단계] Supabase DB `developer_authorized_devices` 테이블에 영구 저장 중...");
-                bool dbSuccess = RegisterToSupabase(deviceProfile, selectedMac);
+                    var deviceProfile = new Dictionary<string, object>
+                    {
+                        { "id", deviceId },
+                        { "developerId", options.DeveloperId },
+                        { "developerName", options.DeveloperName },
+                        { "machineName", hardware.MachineName },
+                        { "macAddress", mac },
+                        { "hardwareFingerprint", fingerprint },
+                        { "platform", hardware.Platform },
+                        { "status", "ACTIVE" },
+                        { "isPrimary", (i == 0 && options.IsPrimary) },
+                        { "emergencyBreakGlassUsed", isEmergency },
+                        { "note", string.IsNullOrEmpty(options.Note) 
+                            ? string.Format("공인 개발 단말기 원클릭 등록 ({0} / {1})", hardware.MachineName, hardware.AdapterNames[i])
+                            : options.Note },
+                        { "registeredAt", nowIso },
+                        { "lastVerifiedAt", nowIso }
+                    };
 
-                if (!dbSuccess)
+                    bool ok = RegisterToSupabase(deviceProfile, mac);
+                    if (ok)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("  ✅ [등록 완료] {0} ({1})", mac, hardware.AdapterNames[i]);
+                        Console.ResetColor();
+                        successCount++;
+                    }
+                    else
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("  ⚠️ [등록 지연] {0}", mac);
+                        Console.ResetColor();
+                    }
+                }
+
+                if (successCount == 0)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("❌ DB 저장 과정에서 오류가 발생했습니다. 네트워크 연결 상태를 확인하십시오.");
+                    Console.WriteLine("\n❌ DB 저장 과정에서 오류가 발생했습니다. 네트워크 연결 상태를 확인하십시오.");
                     Console.ResetColor();
                     WaitForKeyAndExit(1);
                     return;
                 }
 
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("✅ [DB 저장 완료] Supabase 영구 인가 대장에 성공적으로 등록/갱신되었습니다!");
-                Console.ResetColor();
-
-                // 7. 로컬 단말기 암호화 바인딩 토큰 생성
-                string tokenPayload = string.Format(
-                    "{{\"id\":\"{0}\",\"deviceId\":\"{0}\",\"macAddress\":\"{1}\",\"hardwareFingerprint\":\"{2}\",\"status\":\"ACTIVE\",\"sealedAt\":\"{3}\"}}",
-                    deviceId, selectedMac, fingerprint, nowIso
-                );
-                string encryptedToken = EncryptSecret(tokenPayload);
-
-                // 8. 웹 브라우저 자동 바인딩 및 런처 링크 제공
-                string bindUrl = string.Format(
-                    "{0}/?dev_bind_id={1}&dev_token={2}&dev_mac={3}",
-                    options.WebUrl.TrimEnd('/'),
-                    Uri.EscapeDataString(deviceId),
-                    Uri.EscapeDataString(encryptedToken),
-                    Uri.EscapeDataString(selectedMac)
-                );
-
-                PrintSuccessReceipt(deviceProfile, bindUrl, isEmergency);
-
-                // 9. 브라우저 즉시 실행 여부
-                bool openBrowser = options.AutoMode;
-                if (!options.AutoMode)
-                {
-                    Console.Write("\n🌐 지금 바로 웹 브라우저를 열어 eBro ERP에 연결하시겠습니까? (Y/N, 기본값: Y): ");
-                    string ans = Console.ReadLine();
-                    openBrowser = string.IsNullOrEmpty(ans) || ans.Trim().ToUpper() == "Y";
-                }
-
-                if (openBrowser)
-                {
-                    Console.WriteLine("🚀 기본 웹 브라우저를 호출하여 eBro ERP 공인 바인딩을 실행합니다...");
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = bindUrl,
-                        UseShellExecute = true
-                    });
-                }
-
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine("\n✨ 등록 작업이 성공적으로 완결되었습니다.");
-                Console.ResetColor();
+                // 5. 등록 영수증 표출
+                PrintSuccessReceipt(hardware.MachineName, primaryDeviceId, options.DeveloperName, options.DeveloperId, successCount, isEmergency);
                 WaitForKeyAndExit(0);
             }
             catch (Exception ex)
@@ -166,7 +135,7 @@ namespace EBro.DeveloperDeviceRegistrar
             }
         }
 
-        // ─── 배너 및 UI ─────────────────────────────────────────────────────────────
+        // ─── 배너 및 영수증 ─────────────────────────────────────────────────────────
         private static void PrintBanner()
         {
             Console.ForegroundColor = ConsoleColor.Cyan;
@@ -174,40 +143,45 @@ namespace EBro.DeveloperDeviceRegistrar
             Console.WriteLine("   🛡️   eBro ERP - 개발자 공인 PC 원클릭 등록 프로그램 (eBroDevPCRegister)   ");
             Console.WriteLine("================================================================================");
             Console.ResetColor();
-            Console.WriteLine("  [목적]");
-            Console.WriteLine("   • 개발자 PC 고장, 파손, 도난/분실 시 신규/대체 PC에 즉시 개발자 권한 부여");
-            Console.WriteLine("   • 신규 개발자 입사 시 해당 개발자의 물리적 PC를 공인 개발자 단말기로 추가");
-            Console.WriteLine("   • 물리적 MAC 주소 및 하드웨어 지문을 수집하여 eBro 중앙 DB에 영구 등록");
+            Console.WriteLine("  [원클릭 자동 등록 안내]");
+            Console.WriteLine("   • 현재 PC의 하드웨어 및 모든 물리 네트워크 어댑터(MAC)를 자동 감지합니다.");
+            Console.WriteLine("   • 질의응답 없이 eBro 중앙 제어 플랫폼 DB에 1초 만에 영구 공인 등록을 완료합니다.");
             Console.WriteLine("--------------------------------------------------------------------------------");
         }
 
         private static void DisplayHardwareInfo(HardwareInfo hw)
         {
-            Console.WriteLine("  • 컴퓨터 이름(Hostname): " + hw.MachineName);
-            Console.WriteLine("  • 운영체제(OS Platform): " + hw.OsVersion + " (" + hw.Platform + ")");
+            Console.WriteLine("  • 컴퓨터 이름 (Hostname): " + hw.MachineName);
+            Console.WriteLine("  • 운영체제 (OS Platform): " + hw.OsVersion + " (" + hw.Platform + ")");
             Console.WriteLine("  • CPU 논리 프로세서 수 : " + hw.ProcessorCount + " Cores");
-            Console.WriteLine("  • 감지된 물리적 MAC 목록:");
+            Console.WriteLine("  • 감지된 물리적 MAC 목록 (총 {0}개 어댑터 자동 일괄 인가):", hw.MacAddresses.Count);
             for (int i = 0; i < hw.MacAddresses.Count; i++)
             {
                 Console.WriteLine("     [{0}] {1} ({2})", i + 1, hw.MacAddresses[i], hw.AdapterNames[i]);
             }
         }
 
-        private static string SelectMacAddress(List<string> macs)
+        private static void PrintSuccessReceipt(string machineName, string primaryDeviceId, string devName, string devId, int count, bool isEmergency)
         {
-            Console.Write("\n사용할 주 MAC 어댑터 번호를 선택하십시오 (기본값: 1): ");
-            string input = Console.ReadLine();
-            int idx;
-            if (int.TryParse(input, out idx) && idx >= 1 && idx <= macs.Count)
-            {
-                return macs[idx - 1];
-            }
-            return macs[0];
+            Console.WriteLine("\n================================================================================");
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("🎉  [등록 완결] 현재 PC가 eBro ERP 공인 개발자 단말기로 영구 승인되었습니다!");
+            Console.ResetColor();
+            Console.WriteLine("================================================================================");
+            Console.WriteLine("  • 공인 단말기 식별 ID : " + primaryDeviceId);
+            Console.WriteLine("  • 컴퓨터 이름 (Hostname): " + machineName);
+            Console.WriteLine("  • 개발자 명칭 / ID    : " + devName + " (" + devId + ")");
+            Console.WriteLine("  • 등록된 물리 어댑터  : 총 " + count + "개 (이더넷 / Wi-Fi 상호 승인)");
+            Console.WriteLine("  • 승인 상태           : ACTIVE " + (isEmergency ? "(비상 마스터 인증)" : "(정상 공인)"));
+            Console.WriteLine("  • 영구 DB 보존 위치   : eBro 본사 중앙 제어 플랫폼 (nyfashwbdcepncpdwpdb.supabase.co)");
+            Console.WriteLine("--------------------------------------------------------------------------------");
+            Console.WriteLine("🔑 이제 웹 브라우저에서 eBro ERP에 접속하시면 개발자 보안 인증이 자동 통과됩니다.");
+            Console.WriteLine("================================================================================");
         }
 
         private static void PromptForDetails(CliOptions options, HardwareInfo hw)
         {
-            Console.WriteLine("\n[기본 정보 확인 및 입력 (Enter 키를 누르면 기본값이 적용됩니다)]");
+            Console.WriteLine("\n[수동 커스텀 정보 입력 (Enter 키를 누르면 기본값이 적용됩니다)]");
 
             Console.Write("  1. 개발자 성명 (기본값: {0}): ", options.DeveloperName);
             string devName = Console.ReadLine();
@@ -217,36 +191,16 @@ namespace EBro.DeveloperDeviceRegistrar
             string devId = Console.ReadLine();
             if (!string.IsNullOrWhiteSpace(devId)) options.DeveloperId = devId.Trim();
 
-            Console.Write("  3. 주 개발 PC로 지정하시겠습니까? (Y/N, 기본값: N): ");
+            Console.Write("  3. 주 개발 PC로 지정하시겠습니까? (Y/N, 기본값: Y): ");
             string isPrimaryInput = Console.ReadLine();
-            options.IsPrimary = (!string.IsNullOrEmpty(isPrimaryInput) && isPrimaryInput.Trim().ToUpper() == "Y");
+            if (!string.IsNullOrWhiteSpace(isPrimaryInput))
+            {
+                options.IsPrimary = (isPrimaryInput.Trim().ToUpper() == "Y");
+            }
 
             Console.Write("  4. 마스터 보안 인증키 (기본 인증키 적용: Enter): ");
             string keyInput = Console.ReadLine();
             if (!string.IsNullOrWhiteSpace(keyInput)) options.MasterKey = keyInput.Trim();
-
-            Console.Write("  5. eBro ERP 웹 주소 (기본값: {0}): ", options.WebUrl);
-            string urlInput = Console.ReadLine();
-            if (!string.IsNullOrWhiteSpace(urlInput)) options.WebUrl = urlInput.Trim();
-        }
-
-        private static void PrintSuccessReceipt(Dictionary<string, object> dev, string bindUrl, bool isEmergency)
-        {
-            Console.WriteLine("\n================================================================================");
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("🎉  [등록 완결] 현재 PC가 eBro ERP 공인 개발자 단말기로 승인되었습니다!");
-            Console.ResetColor();
-            Console.WriteLine("================================================================================");
-            Console.WriteLine("  • 공인 단말기 식별 ID : " + dev["id"]);
-            Console.WriteLine("  • 컴퓨터 이름         : " + dev["machineName"]);
-            Console.WriteLine("  • 물리 MAC 주소       : " + dev["macAddress"]);
-            Console.WriteLine("  • 하드웨어 고유 지문  : " + dev["hardwareFingerprint"]);
-            Console.WriteLine("  • 개발자 명칭 / ID    : " + dev["developerName"] + " (" + dev["developerId"] + ")");
-            Console.WriteLine("  • 등록 상태           : " + dev["status"] + (isEmergency ? " (비상 마스터 인증)" : " (정상 공인)"));
-            Console.WriteLine("  • 영구 DB 보존 위치   : eBro 본사 중앙 제어 플랫폼 (nyfashwbdcepncpdwpdb.supabase.co)");
-            Console.WriteLine("--------------------------------------------------------------------------------");
-            Console.WriteLine("🔑 이제 브라우저에서 'admin' 또는 관리자 계정으로 로그인하시면 즉시 통과됩니다.");
-            Console.WriteLine("================================================================================");
         }
 
         // ─── 네트워크 및 하드웨어 탐색 ─────────────────────────────────────────────
@@ -270,7 +224,10 @@ namespace EBro.DeveloperDeviceRegistrar
                 ProcessorCount = Environment.ProcessorCount
             };
 
-            foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
+            var allNics = NetworkInterface.GetAllNetworkInterfaces();
+            var validNics = new List<NetworkInterface>();
+
+            foreach (NetworkInterface nic in allNics)
             {
                 // 루프백, 터널 어댑터 제외
                 if (nic.NetworkInterfaceType == NetworkInterfaceType.Loopback ||
@@ -291,7 +248,26 @@ namespace EBro.DeveloperDeviceRegistrar
                 string rawMac = nic.GetPhysicalAddress().ToString();
                 if (string.IsNullOrEmpty(rawMac) || rawMac == "000000000000") continue;
 
-                // D4-AB-61-46-47-82 규격 포맷팅
+                validNics.Add(nic);
+            }
+
+            // 우선순위 정렬: 현재 연결(Up) 상태 우선, 이더넷/와이파이 우선, 블루투스 후순위
+            validNics.Sort((a, b) =>
+            {
+                int scoreA = (a.OperationalStatus == OperationalStatus.Up ? 100 : 0) +
+                             (a.NetworkInterfaceType == NetworkInterfaceType.Ethernet ? 50 : 0) +
+                             (a.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 ? 40 : 0) -
+                             (a.Description.ToLower().Contains("bluetooth") ? 80 : 0);
+                int scoreB = (b.OperationalStatus == OperationalStatus.Up ? 100 : 0) +
+                             (b.NetworkInterfaceType == NetworkInterfaceType.Ethernet ? 50 : 0) +
+                             (b.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 ? 40 : 0) -
+                             (b.Description.ToLower().Contains("bluetooth") ? 80 : 0);
+                return scoreB.CompareTo(scoreA);
+            });
+
+            foreach (var nic in validNics)
+            {
+                string rawMac = nic.GetPhysicalAddress().ToString();
                 var sb = new StringBuilder();
                 for (int i = 0; i < rawMac.Length; i++)
                 {
@@ -303,14 +279,15 @@ namespace EBro.DeveloperDeviceRegistrar
                 if (!info.MacAddresses.Contains(formattedMac))
                 {
                     info.MacAddresses.Add(formattedMac);
-                    info.AdapterNames.Add(nic.Name + " - " + nic.Description);
+                    string statusTag = (nic.OperationalStatus == OperationalStatus.Up) ? " [활성]" : "";
+                    info.AdapterNames.Add(nic.Name + " - " + nic.Description + statusTag);
                 }
             }
 
-            // 만약 가상 어댑터 필터 때문에 비어있다면 전체 중 유효한 첫 번째 인터페이스라도 수집
+            // 예외적으로 가상 어댑터 필터 때문에 비어있다면 물리 주소가 있는 첫 번째라도 수집
             if (info.MacAddresses.Count == 0)
             {
-                foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
+                foreach (NetworkInterface nic in allNics)
                 {
                     if (nic.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
                     string rawMac = nic.GetPhysicalAddress().ToString();
@@ -343,58 +320,15 @@ namespace EBro.DeveloperDeviceRegistrar
             }
         }
 
-        // ─── Supabase REST 통신 ───────────────────────────────────────────────────
+        // ─── Supabase REST 통신 (이중화 영구 보존) ──────────────────────────────────
         private static bool RegisterToSupabase(Dictionary<string, object> device, string macAddress)
         {
+            bool saved = false;
+            var ser = new JavaScriptSerializer();
+
+            // 1. developer_authorized_devices 전용 테이블 시도
             try
             {
-                // 1. 기존 기기 확인 (동일 MAC 주소 존재 여부 조회)
-                string queryUrl = string.Format("{0}/rest/v1/developer_authorized_devices?macAddress=eq.{1}&select=id", SUPABASE_URL, macAddress);
-                string existingId = null;
-
-                try
-                {
-                    var getReq = (HttpWebRequest)WebRequest.Create(queryUrl);
-                    getReq.Method = "GET";
-                    getReq.Headers["apikey"] = SUPABASE_ANON_KEY;
-                    getReq.Headers["Authorization"] = "Bearer " + SUPABASE_ANON_KEY;
-                    getReq.ContentType = "application/json";
-
-                    using (var res = (HttpWebResponse)getReq.GetResponse())
-                    using (var reader = new StreamReader(res.GetResponseStream()))
-                    {
-                        string body = reader.ReadToEnd();
-                        if (body.StartsWith("[") && body.Length > 2)
-                        {
-                            // "id":"DEV-PC-..." 파싱
-                            int idIdx = body.IndexOf("\"id\":");
-                            if (idIdx != -1)
-                            {
-                                int valStart = body.IndexOf('"', idIdx + 5);
-                                if (valStart != -1)
-                                {
-                                    int valEnd = body.IndexOf('"', valStart + 1);
-                                    if (valEnd != -1)
-                                    {
-                                        existingId = body.Substring(valStart + 1, valEnd - valStart - 1);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                catch (Exception qEx)
-                {
-                    Console.WriteLine("  (기존 등록 조회 알림: " + qEx.Message + ")");
-                }
-
-                if (!string.IsNullOrEmpty(existingId))
-                {
-                    Console.WriteLine("  ➔ 동일 MAC 주소의 기존 등록 기기 발견 (ID: {0}). 해당 레코드를 갱신합니다.", existingId);
-                    device["id"] = existingId;
-                }
-
-                // 2. Upsert 수행 (POST with Prefer: resolution=merge-duplicates)
                 string postUrl = SUPABASE_URL + "/rest/v1/developer_authorized_devices";
                 var req = (HttpWebRequest)WebRequest.Create(postUrl);
                 req.Method = "POST";
@@ -403,7 +337,7 @@ namespace EBro.DeveloperDeviceRegistrar
                 req.Headers["Prefer"] = "resolution=merge-duplicates,return=representation";
                 req.ContentType = "application/json; charset=utf-8";
 
-                string jsonPayload = BuildJson(device);
+                string jsonPayload = ser.Serialize(device);
                 byte[] byteData = Encoding.UTF8.GetBytes(jsonPayload);
                 req.ContentLength = byteData.Length;
 
@@ -414,108 +348,120 @@ namespace EBro.DeveloperDeviceRegistrar
 
                 using (var res = (HttpWebResponse)req.GetResponse())
                 {
-                    return (res.StatusCode == HttpStatusCode.OK ||
-                            res.StatusCode == HttpStatusCode.Created ||
-                            res.StatusCode == HttpStatusCode.NoContent);
-                }
-            }
-            catch (WebException webEx)
-            {
-                string respBody = "";
-                if (webEx.Response != null)
-                {
-                    using (var r = new StreamReader(webEx.Response.GetResponseStream()))
+                    if (res.StatusCode == HttpStatusCode.OK ||
+                        res.StatusCode == HttpStatusCode.Created ||
+                        res.StatusCode == HttpStatusCode.NoContent)
                     {
-                        respBody = r.ReadToEnd();
+                        saved = true;
                     }
                 }
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine("  [Supabase 통신 응답]: " + webEx.Message + " " + respBody);
-                Console.ResetColor();
-                return false;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("  [DB 등록 예외]: " + ex.Message);
-                return false;
-            }
-        }
-
-        // ─── eBro 볼트 암호화 엔진 (JavaScript encryptSecret 호환) ─────────────────
-        private static string EncryptSecret(string plainText)
-        {
-            if (string.IsNullOrEmpty(plainText)) return "";
-            try
-            {
-                byte[] utf8Bytes = Encoding.UTF8.GetBytes(plainText);
-                byte[] masked = new byte[utf8Bytes.Length];
-                for (int i = 0; i < utf8Bytes.Length; i++)
-                {
-                    masked[i] = (byte)(utf8Bytes[i] ^ (VAULT_CIPHER_KEY + (i % 7)));
-                }
-                string b64 = Convert.ToBase64String(masked);
-
-                string checksum;
-                using (SHA256 sha = SHA256.Create())
-                {
-                    byte[] hash = sha.ComputeHash(utf8Bytes);
-                    StringBuilder sb = new StringBuilder();
-                    for (int i = 0; i < hash.Length; i++) sb.Append(hash[i].ToString("x2"));
-                    checksum = sb.ToString().Substring(0, 8);
-                }
-
-                return string.Format("{0}{1}__{2}", VAULT_PREFIX, checksum, b64);
             }
             catch
             {
-                return plainText;
+                // 전용 테이블 미존재 시 중앙 메타 저장으로 자동 폴백
             }
-        }
 
-        // ─── 경량 JSON 직렬화 ────────────────────────────────────────────────────
-        private static string BuildJson(Dictionary<string, object> dict)
-        {
-            StringBuilder sb = new StringBuilder();
-            sb.Append("{");
-            bool first = true;
-            foreach (var kvp in dict)
+            // 2. 중앙 플랫폼 테넌트 글로벌 메타(tenants.features.developerAuthorizedDevices) 영구 동기화
+            try
             {
-                if (!first) sb.Append(",");
-                first = false;
+                string getUrl = SUPABASE_URL + "/rest/v1/tenants?select=id,features&limit=1";
+                var getReq = (HttpWebRequest)WebRequest.Create(getUrl);
+                getReq.Method = "GET";
+                getReq.Headers["apikey"] = SUPABASE_ANON_KEY;
+                getReq.Headers["Authorization"] = "Bearer " + SUPABASE_ANON_KEY;
+                getReq.ContentType = "application/json";
 
-                sb.Append("\"").Append(kvp.Key).Append("\":");
-                if (kvp.Value == null)
+                string body = "";
+                using (var res = (HttpWebResponse)getReq.GetResponse())
+                using (var reader = new StreamReader(res.GetResponseStream()))
                 {
-                    sb.Append("null");
+                    body = reader.ReadToEnd();
                 }
-                else if (kvp.Value is bool)
+
+                var rows = ser.Deserialize<List<Dictionary<string, object>>>(body);
+                if (rows != null && rows.Count > 0)
                 {
-                    sb.Append(((bool)kvp.Value) ? "true" : "false");
-                }
-                else if (kvp.Value is int || kvp.Value is long)
-                {
-                    sb.Append(kvp.Value);
-                }
-                else
-                {
-                    sb.Append("\"").Append(EscapeJson(kvp.Value.ToString())).Append("\"");
+                    var tenant = rows[0];
+                    string tenantId = tenant["id"].ToString();
+                    var features = tenant.ContainsKey("features") && tenant["features"] is Dictionary<string, object>
+                        ? (Dictionary<string, object>)tenant["features"]
+                        : new Dictionary<string, object>();
+
+                    var devList = features.ContainsKey("developerAuthorizedDevices") && features["developerAuthorizedDevices"] is ArrayList
+                        ? (ArrayList)features["developerAuthorizedDevices"]
+                        : new ArrayList();
+
+                    // 기존 동일 MAC 또는 동일 ID 기기 찾기
+                    int foundIdx = -1;
+                    for (int i = 0; i < devList.Count; i++)
+                    {
+                        if (devList[i] is Dictionary<string, object>)
+                        {
+                            var d = (Dictionary<string, object>)devList[i];
+                            if (d.ContainsKey("macAddress") && d["macAddress"].ToString().ToUpper().Replace(":", "-") == macAddress.ToUpper().Replace(":", "-"))
+                            {
+                                foundIdx = i;
+                                break;
+                            }
+                            if (d.ContainsKey("id") && d["id"].ToString() == device["id"].ToString())
+                            {
+                                foundIdx = i;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (foundIdx >= 0)
+                    {
+                        devList[foundIdx] = device;
+                    }
+                    else
+                    {
+                        devList.Insert(0, device);
+                    }
+
+                    features["developerAuthorizedDevices"] = devList;
+
+                    // PATCH tenants
+                    string patchUrl = SUPABASE_URL + "/rest/v1/tenants?id=eq." + Uri.EscapeDataString(tenantId);
+                    var patchReq = (HttpWebRequest)WebRequest.Create(patchUrl);
+                    patchReq.Method = "PATCH";
+                    patchReq.Headers["apikey"] = SUPABASE_ANON_KEY;
+                    patchReq.Headers["Authorization"] = "Bearer " + SUPABASE_ANON_KEY;
+                    patchReq.Headers["Prefer"] = "return=representation";
+                    patchReq.ContentType = "application/json; charset=utf-8";
+
+                    string patchJson = ser.Serialize(new Dictionary<string, object> { { "features", features } });
+                    byte[] patchBytes = Encoding.UTF8.GetBytes(patchJson);
+                    patchReq.ContentLength = patchBytes.Length;
+
+                    using (Stream pStream = patchReq.GetRequestStream())
+                    {
+                        pStream.Write(patchBytes, 0, patchBytes.Length);
+                    }
+
+                    using (var pRes = (HttpWebResponse)patchReq.GetResponse())
+                    {
+                        if (pRes.StatusCode == HttpStatusCode.OK ||
+                            pRes.StatusCode == HttpStatusCode.NoContent)
+                        {
+                            saved = true;
+                        }
+                    }
                 }
             }
-            sb.Append("}");
-            return sb.ToString();
-        }
+            catch (Exception ex)
+            {
+                Console.WriteLine("  [중앙 플랫폼 메타 저장 알림]: " + ex.Message);
+            }
 
-        private static string EscapeJson(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return "";
-            return s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\r", "\\r").Replace("\n", "\\n");
+            return saved;
         }
 
         private static void ConfigureSecurityProtocol()
         {
             try
             {
-                // TLS 1.2 (3072) 및 TLS 1.3 강제 활성화
                 ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | (SecurityProtocolType)12288 | SecurityProtocolType.Tls12;
             }
             catch
@@ -527,12 +473,11 @@ namespace EBro.DeveloperDeviceRegistrar
         // ─── CLI 옵션 및 헬퍼 ────────────────────────────────────────────────────
         private class CliOptions
         {
-            public bool AutoMode = false;
+            public bool InteractiveMode = false;
             public string DeveloperName = "대표 개발자";
             public string DeveloperId = "sys-admin";
-            public bool IsPrimary = false;
+            public bool IsPrimary = true;
             public string MasterKey = DEFAULT_MASTER_KEY;
-            public string WebUrl = DEFAULT_WEB_URL;
             public string Note = "";
         }
 
@@ -542,9 +487,9 @@ namespace EBro.DeveloperDeviceRegistrar
             for (int i = 0; i < args.Length; i++)
             {
                 string arg = args[i].ToLower();
-                if (arg == "--auto" || arg == "-y")
+                if (arg == "--interactive" || arg == "-i")
                 {
-                    opt.AutoMode = true;
+                    opt.InteractiveMode = true;
                 }
                 else if (arg == "--name" && i + 1 < args.Length)
                 {
@@ -558,13 +503,9 @@ namespace EBro.DeveloperDeviceRegistrar
                 {
                     opt.MasterKey = args[++i];
                 }
-                else if (arg == "--url" && i + 1 < args.Length)
+                else if (arg == "--secondary")
                 {
-                    opt.WebUrl = args[++i];
-                }
-                else if (arg == "--primary")
-                {
-                    opt.IsPrimary = true;
+                    opt.IsPrimary = false;
                 }
                 else if (arg == "--note" && i + 1 < args.Length)
                 {
@@ -572,13 +513,15 @@ namespace EBro.DeveloperDeviceRegistrar
                 }
                 else if (arg == "--help" || arg == "-h")
                 {
+                    Console.WriteLine("eBro ERP - 개발자 공인 PC 원클릭 등록기 (eBroDevPCRegister)");
                     Console.WriteLine("사용법: eBroDevPCRegister.exe [옵션]");
-                    Console.WriteLine("  --auto, -y           대화형 프롬프트 없이 감지된 기본값으로 즉시 등록");
+                    Console.WriteLine("  (인자 없이 실행 시 모든 하드웨어를 자동 감지하여 1초 만에 중앙 DB 등록 완결)");
+                    Console.WriteLine("");
+                    Console.WriteLine("옵션:");
+                    Console.WriteLine("  --interactive, -i    수동 대화형 입력 모드");
                     Console.WriteLine("  --name <이름>        등록할 개발자 성명 (기본값: '대표 개발자')");
                     Console.WriteLine("  --id <아이디>        개발자 로그인 ID (기본값: 'sys-admin')");
-                    Console.WriteLine("  --primary            주 개발 워크스테이션으로 등록");
-                    Console.WriteLine("  --key <보안키>       마스터 보안키 (기본값: 'ebro-dev-master-2026!')");
-                    Console.WriteLine("  --url <ERP웹주소>    eBro ERP 접속 URL (기본값: 'http://localhost:5174')");
+                    Console.WriteLine("  --key <보안키>       마스터 보안키 (기본값: 내장 마스터키)");
                     Console.WriteLine("  --note <메모>        인가 사유 또는 등록 비고");
                     Environment.Exit(0);
                 }
@@ -588,8 +531,15 @@ namespace EBro.DeveloperDeviceRegistrar
 
         private static void WaitForKeyAndExit(int exitCode)
         {
-            Console.WriteLine("\n[종료하려면 아무 키나 누르십시오...]");
-            try { Console.ReadKey(); } catch { }
+            try
+            {
+                if (Environment.UserInteractive && !Console.IsInputRedirected)
+                {
+                    Console.WriteLine("\n[종료하려면 아무 키나 누르십시오...]");
+                    Console.ReadKey();
+                }
+            }
+            catch { }
             Environment.Exit(exitCode);
         }
     }
