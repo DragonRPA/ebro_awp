@@ -340,3 +340,133 @@ export async function fetchCentralLatestApk(): Promise<any> {
   }
 }
 
+// ──────────────────────────────────────────────
+// 7. 개발자 권한 물리 단말기 인가 대장 (developer_authorized_devices)
+// 🌐 멀티 테넌트 독립 중앙 플랫폼 SSOT (테넌트 계약과 무관한 영구 보존 Control Plane)
+// ──────────────────────────────────────────────
+
+/**
+ * 중앙 플랫폼 DB에서 모든 인가된 개발자 물리 단말기 목록 조회
+ * (1순위: developer_authorized_devices 테이블 ➔ 2순위: 중앙 테넌트 글로벌 메타)
+ */
+export async function fetchCentralDeveloperDevices(): Promise<any[]> {
+  // 1순위: developer_authorized_devices 전용 테이블 조회
+  try {
+    const { data, error } = await centralSupabase
+      .from('developer_authorized_devices')
+      .select('*')
+      .order('registeredAt', { ascending: false });
+
+    if (!error && Array.isArray(data) && data.length > 0) {
+      return data;
+    }
+  } catch {}
+
+  // 2순위: 중앙 테넌트 원장의 글로벌 메타(features.developerAuthorizedDevices) 조회
+  try {
+    const { data: tenantRows } = await centralSupabase
+      .from('tenants')
+      .select('features')
+      .limit(10);
+
+    if (Array.isArray(tenantRows)) {
+      for (const row of tenantRows) {
+        if (row.features && Array.isArray(row.features.developerAuthorizedDevices) && row.features.developerAuthorizedDevices.length > 0) {
+          return row.features.developerAuthorizedDevices;
+        }
+      }
+    }
+  } catch (err: any) {
+    console.warn('[Central DB] Fallback fetch warning:', err.message);
+  }
+
+  return [];
+}
+
+/**
+ * 중앙 플랫폼 DB에 개발자 물리 단말기 프로필 저장 또는 갱신
+ * (전용 테이블 및 중앙 메타 동시 동기화로 100% 영구 보존)
+ */
+export async function saveCentralDeveloperDevice(device: any): Promise<boolean> {
+  let saved = false;
+  const cleanDev = { ...device, updatedAt: new Date().toISOString() };
+  delete cleanDev.tenant_id; // 중앙 플랫폼에서는 특정 테넌트 종속성 완전 배제
+
+  // 1. developer_authorized_devices 전용 테이블 저장 시도
+  try {
+    const { error } = await centralSupabase
+      .from('developer_authorized_devices')
+      .upsert([cleanDev], { onConflict: 'id' });
+
+    if (!error) saved = true;
+  } catch {}
+
+  // 2. 중앙 테넌트 글로벌 메타(features.developerAuthorizedDevices) 영구 동기화
+  try {
+    const { data: tenantRow } = await centralSupabase
+      .from('tenants')
+      .select('id, features')
+      .limit(1)
+      .maybeSingle();
+
+    if (tenantRow) {
+      const curFeatures = tenantRow.features || {};
+      const list = Array.isArray(curFeatures.developerAuthorizedDevices) ? [...curFeatures.developerAuthorizedDevices] : [];
+      const idx = list.findIndex((d: any) => d.id === cleanDev.id || (d.macAddress && d.macAddress === cleanDev.macAddress));
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], ...cleanDev };
+      } else {
+        list.unshift(cleanDev);
+      }
+      curFeatures.developerAuthorizedDevices = list;
+      const { error: updErr } = await centralSupabase
+        .from('tenants')
+        .update({ features: curFeatures })
+        .eq('id', tenantRow.id);
+
+      if (!updErr) saved = true;
+    }
+  } catch (err: any) {
+    console.warn('[Central DB] Global meta sync warn:', err.message);
+  }
+
+  return saved;
+}
+
+/**
+ * 중앙 플랫폼 DB에서 개발자 물리 단말기 인가 회수(삭제)
+ */
+export async function deleteCentralDeveloperDevice(deviceId: string): Promise<boolean> {
+  let deleted = false;
+  // 1. 전용 테이블 삭제
+  try {
+    const { error } = await centralSupabase
+      .from('developer_authorized_devices')
+      .delete()
+      .eq('id', deviceId);
+
+    if (!error) deleted = true;
+  } catch {}
+
+  // 2. 중앙 테넌트 메타 동기화
+  try {
+    const { data: tenantRow } = await centralSupabase
+      .from('tenants')
+      .select('id, features')
+      .limit(1)
+      .maybeSingle();
+
+    if (tenantRow && tenantRow.features && Array.isArray(tenantRow.features.developerAuthorizedDevices)) {
+      const curFeatures = tenantRow.features;
+      curFeatures.developerAuthorizedDevices = curFeatures.developerAuthorizedDevices.filter(
+        (d: any) => d.id !== deviceId && d.deviceId !== deviceId
+      );
+      await centralSupabase.from('tenants').update({ features: curFeatures }).eq('id', tenantRow.id);
+      deleted = true;
+    }
+  } catch {}
+
+  return deleted;
+}
+
+

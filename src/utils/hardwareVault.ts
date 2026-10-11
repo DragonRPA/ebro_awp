@@ -10,6 +10,7 @@
 
 import { encryptSecret, decryptSecret } from './cryptoVault';
 import { db, DeveloperDeviceProfile, PrivacyAccessLog } from '../services/db';
+import { centralSupabase, saveCentralDeveloperDevice, fetchCentralDeveloperDevices } from '../services/centralDb';
 
 export type { DeveloperDeviceProfile };
 
@@ -172,13 +173,12 @@ export function getAuthorizedDeveloperDevices(): DeveloperDeviceProfile[] {
 }
 
 /**
- * 3-1. Supabase 원격 DB 실시간 인가 단말기 목록 조회 (단일실행등록기 등록 즉시 실시간 반영)
+ * 3-1. 중앙 플랫폼(ebro-platform-core) 원격 DB 실시간 인가 단말기 목록 조회 (테넌트 독립 SSOT)
  */
 export async function fetchAuthorizedDeveloperDevicesLive(): Promise<DeveloperDeviceProfile[]> {
   try {
-    const { supabase } = await import('../services/db');
-    if (supabase) {
-      const { data } = await supabase
+    if (centralSupabase) {
+      const { data } = await centralSupabase
         .from('developer_authorized_devices')
         .select('*')
         .order('registeredAt', { ascending: false });
@@ -266,11 +266,10 @@ export async function isCurrentDeviceAuthorizedForDeveloper(): Promise<{
     };
   }
 
-  // 4순위: 중앙 Supabase `developer_authorized_devices` 원격 실시간 조회 (단일실행등록기 등록 직후 로컬 캐시 미동기화 방어)
+  // 4순위: 중앙 플랫폼(ebro-platform-core) 원격 실시간 조회 (단일실행등록기 등록 직후 로컬 캐시 미동기화 방어)
   try {
-    const { supabase } = await import('../services/db');
-    if (supabase) {
-      const { data } = await supabase
+    if (centralSupabase) {
+      const { data } = await centralSupabase
         .from('developer_authorized_devices')
         .select('*')
         .eq('status', 'ACTIVE');
@@ -311,7 +310,7 @@ export async function isCurrentDeviceAuthorizedForDeveloper(): Promise<{
       }
     }
   } catch (liveErr) {
-    console.warn('[hardwareVault] 원격 Supabase 실시간 인가 조회 경고:', liveErr);
+    console.warn('[hardwareVault] 중앙 플랫폼 원격 실시간 인가 조회 경고:', liveErr);
   }
 
   return {
@@ -405,11 +404,15 @@ export async function registerAndAuthorizeDeveloperDevice(params: {
     emergencyBreakGlassUsed: Boolean(params.isEmergency || isEmergency),
     note: params.note || (isEmergency ? '비상 복구 인가 등록' : '신규 공인 단말기 등록'),
     registeredAt: nowIso,
-    lastVerifiedAt: nowIso,
-    tenant_id: 'tenant-giyeonlift'
+    lastVerifiedAt: nowIso
   };
 
-  // DB에 영구 저장
+  // 1. 중앙 플랫폼 DB(ebro-platform-core) 영구 저장 (테넌트 독립)
+  try {
+    saveCentralDeveloperDevice(newDevice).catch(err => console.warn('saveCentralDeveloperDevice async warn:', err));
+  } catch {}
+
+  // 2. 클라이언트 인메모리/캐시 동기화
   try {
     const existing = db.developerAuthorizedDevices.find(
       d => d.macAddress.toUpperCase().replace(/:/g, '-') === cleanMac

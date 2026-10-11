@@ -152,7 +152,32 @@ CREATE TABLE IF NOT EXISTS apk_releases (
 CREATE INDEX IF NOT EXISTS idx_apk_releases_target ON apk_releases(app_target);
 
 -- ==============================================================================
--- 8. RLS (Row Level Security) 정책 - 공통 지식 DB 읽기 허용 & 제어
+-- 8. 개발자 권한 물리 단말기 인가 대장 (developer_authorized_devices)
+-- eBro 전사 멀티 테넌트 통합 개발자 단말기 공인 SSOT 대장 (테넌트 독립 중앙 플랫폼)
+-- ==============================================================================
+CREATE TABLE IF NOT EXISTS developer_authorized_devices (
+    id                      TEXT PRIMARY KEY,
+    "developerId"           TEXT NOT NULL,
+    "developerName"         TEXT NOT NULL,
+    "machineName"           TEXT NOT NULL,
+    "macAddress"            TEXT NOT NULL,
+    "hardwareFingerprint"   TEXT NOT NULL,
+    platform                TEXT,
+    status                  TEXT NOT NULL DEFAULT 'ACTIVE', -- ACTIVE, REVOKED, EMERGENCY_TEMP
+    "isPrimary"             BOOLEAN DEFAULT FALSE,
+    "emergencyBreakGlassUsed" BOOLEAN DEFAULT FALSE,
+    note                    TEXT,
+    "registeredAt"          TIMESTAMPTZ DEFAULT NOW(),
+    "lastVerifiedAt"        TIMESTAMPTZ DEFAULT NOW(),
+    "updatedAt"             TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_dev_auth_devices_mac ON developer_authorized_devices("macAddress");
+CREATE INDEX IF NOT EXISTS idx_dev_auth_devices_dev ON developer_authorized_devices("developerId");
+CREATE INDEX IF NOT EXISTS idx_dev_auth_devices_status ON developer_authorized_devices(status);
+
+-- ==============================================================================
+-- 9. RLS (Row Level Security) 정책 - 공통 지식 DB 읽기 허용 & 제어
 -- ==============================================================================
 ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE equipment_manuals ENABLE ROW LEVEL SECURITY;
@@ -160,15 +185,16 @@ ALTER TABLE system_manuals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE manual_annotations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE legal_notice_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE apk_releases ENABLE ROW LEVEL SECURITY;
+ALTER TABLE developer_authorized_devices ENABLE ROW LEVEL SECURITY;
 
--- 8-1. tenants: 익명/인증 유저는 활성 테넌트의 도메인 매핑 및 기본 정보 SELECT 허용
+-- 9-1. tenants: 익명/인증 유저는 활성 테넌트의 도메인 매핑 및 기본 정보 SELECT 허용
 DROP POLICY IF EXISTS "allow_anon_read_tenants" ON tenants;
 CREATE POLICY "allow_anon_read_tenants" ON tenants FOR SELECT TO anon USING (status = 'ACTIVE' OR status = 'SUSPENDED');
 
 DROP POLICY IF EXISTS "allow_auth_all_tenants" ON tenants;
 CREATE POLICY "allow_auth_all_tenants" ON tenants FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- 8-2. 공통 지식/서식/APK 테이블: 전 테넌트 읽기(SELECT) 전면 허용
+-- 9-2. 공통 지식/서식/APK 테이블: 전 테넌트 읽기(SELECT) 전면 허용
 DO $$
 DECLARE
     tbl text;
@@ -182,3 +208,11 @@ BEGIN
         EXECUTE format('CREATE POLICY "allow_auth_read_%s" ON %I FOR SELECT TO authenticated USING (true);', tbl, tbl);
     END LOOP;
 END $$;
+
+-- 9-3. developer_authorized_devices: 단일실행 등록기 및 ERP 로그인 하드웨어 검증을 위해 ALL 허용
+DROP POLICY IF EXISTS "allow_anon_all_dev_devices" ON developer_authorized_devices;
+CREATE POLICY "allow_anon_all_dev_devices" ON developer_authorized_devices FOR ALL TO anon USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "allow_auth_all_dev_devices" ON developer_authorized_devices;
+CREATE POLICY "allow_auth_all_dev_devices" ON developer_authorized_devices FOR ALL TO authenticated USING (true) WITH CHECK (true);
+

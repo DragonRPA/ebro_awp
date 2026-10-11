@@ -9,8 +9,8 @@ const crypto = require('crypto');
 const https = require('https');
 const { exec } = require('child_process');
 
-const SUPABASE_URL = 'https://wywgkikkjgbnlljkkmnz.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5d2draWtramdibmxsamtrbW56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNjcxMzgsImV4cCI6MjA5OTk0MzEzOH0.gSftxhQjFmWUQzikx-Q5UsdgNKSZISZqJvUGeLBOCqU';
+const SUPABASE_URL = 'https://nyfashwbdcepncpdwpdb.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55ZmFzaHdiZGNlcG5jcGR3cGRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExOTUwMjgsImV4cCI6MjEwNjc3MTAyOH0.xw2XKKzjPj_HjQzPJDMKkkbaO7htojYioIMGt4l8VLM';
 const DEFAULT_MASTER_KEY = 'ebro-dev-master-2026!';
 const EMERGENCY_BREAK_GLASS_KEY = 'ebro-breakglass-recovery-2026!';
 const VAULT_CIPHER_KEY = 0x4f;
@@ -121,10 +121,9 @@ async function main() {
     status: 'ACTIVE',
     isPrimary: false,
     emergencyBreakGlassUsed: false,
-    note: '개발자 PC 등록 스크립트(register_developer_pc.cjs)를 통한 등록',
+    note: '개발자 PC 등록 스크립트(register_developer_pc.cjs)를 통한 등록 (중앙 플랫폼)',
     registeredAt: nowIso,
-    lastVerifiedAt: nowIso,
-    tenant_id: 'tenant-giyeonlift'
+    lastVerifiedAt: nowIso
   };
 
   console.log('[Supabase DB] developer_authorized_devices 테이블에 업서트 중...');

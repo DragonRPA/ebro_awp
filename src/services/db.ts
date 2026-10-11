@@ -26,7 +26,8 @@ export const CENTRAL_TABLE_NAMES = new Set([
   'system_manuals',
   'manual_annotations',
   'legal_notice_templates',
-  'apk_releases'
+  'apk_releases',
+  'developer_authorized_devices'
 ]);
 
 // 법인 표기어 및 공백 제거 정규화 파서
@@ -6896,13 +6897,13 @@ class LocalDB {
         .upsert([payloadForSupabase], { onConflict: 'id' })
         .then(async ({ data, error }) => {
           if (error) {
-            console.error(`Supabase upsert failed for ${tableName}:`, error);
             const msg = error.message || String(error);
             const isTableMissing = msg.includes('Could not find the table') || msg.includes('schema cache') || error.code === 'PGRST205' || (error.code === 'PGRST204' && msg.includes('table')) || error.code === '42P01';
             if (isTableMissing) {
               console.warn(`[Graceful Isolation] 원격 Supabase DB에 ${tableName} 테이블이 존재하지 않습니다. 로컬 저장을 완결합니다.`);
               return null;
             }
+            console.error(`Supabase upsert failed for ${tableName}:`, error);
             // 신규 미반영 컬럼 에러 시 2차 Fallback (주요 기본 컬럼만 전송하여 100% 저장 성공 보장)
             if (msg.includes('column') || msg.includes('Could not find') || error.code === 'PGRST200' || error.code === '42703' || error.code === 'PGRST204') {
               // 💡 [tenants 테이블 스키마 자동 반영 시도]
@@ -7045,13 +7046,13 @@ class LocalDB {
         .eq('id', id)
         .then(async ({ data, error }) => {
           if (error) {
-            console.error(`Supabase update failed for ${tableName}:`, error);
             const msg = error.message || String(error);
             const isTableMissing = msg.includes('Could not find the table') || msg.includes('schema cache') || error.code === 'PGRST205' || (error.code === 'PGRST204' && msg.includes('table')) || error.code === '42P01';
             if (isTableMissing) {
               console.warn(`[Graceful Isolation] 원격 Supabase DB에 ${tableName} 테이블이 존재하지 않습니다. 로컬 저장을 완결합니다.`);
               return null;
             }
+            console.error(`Supabase update failed for ${tableName}:`, error);
             if (msg.includes('column') || msg.includes('Could not find') || error.code === 'PGRST200' || error.code === '42703' || error.code === 'PGRST204') {
               // 💡 [tenants 테이블 스키마 자동 반영 시도]
               if (tableName === 'tenants' && (msg.includes('targetRepo') || msg.includes('solutionType') || msg.includes('stampImageUrl') || msg.includes('stampBase64') || msg.includes('column'))) {

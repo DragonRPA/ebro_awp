@@ -11,9 +11,9 @@ namespace EBro.DeveloperDeviceRegistrar
 {
     class Program
     {
-        // ─── 시스템 보안 및 Supabase 설정 상수 ───────────────────────────────────────
-        private const string SUPABASE_URL = "https://wywgkikkjgbnlljkkmnz.supabase.co";
-        private const string SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5d2draWtramdibmxsamtrbW56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzNjcxMzgsImV4cCI6MjA5OTk0MzEzOH0.gSftxhQjFmWUQzikx-Q5UsdgNKSZISZqJvUGeLBOCqU";
+        // ─── 시스템 보안 및 Supabase 설정 상수 (eBro 중앙 플랫폼 제어 DB) ──────────────
+        private const string SUPABASE_URL = "https://nyfashwbdcepncpdwpdb.supabase.co";
+        private const string SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55ZmFzaHdiZGNlcG5jcGR3cGRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExOTUwMjgsImV4cCI6MjEwNjc3MTAyOH0.xw2XKKzjPj_HjQzPJDMKkkbaO7htojYioIMGt4l8VLM";
         private const string DEFAULT_MASTER_KEY = "ebro-dev-master-2026!";
         private const string EMERGENCY_BREAK_GLASS_KEY = "ebro-breakglass-recovery-2026!";
         private const string DEFAULT_WEB_URL = "http://localhost:5174";
@@ -94,8 +94,7 @@ namespace EBro.DeveloperDeviceRegistrar
                     { "emergencyBreakGlassUsed", isEmergency },
                     { "note", string.IsNullOrEmpty(options.Note) ? (isEmergency ? "비상 단말기 단일실행기 등록" : "공인 단말기 원클릭 단일실행기(eBroDevPCRegister.exe) 등록") : options.Note },
                     { "registeredAt", nowIso },
-                    { "lastVerifiedAt", nowIso },
-                    { "tenant_id", "tenant-giyeonlift" }
+                    { "lastVerifiedAt", nowIso }
                 };
 
                 // 6. Supabase REST API 호출 (기존 등록 여부 조회 후 Upsert)
@@ -244,7 +243,7 @@ namespace EBro.DeveloperDeviceRegistrar
             Console.WriteLine("  • 하드웨어 고유 지문  : " + dev["hardwareFingerprint"]);
             Console.WriteLine("  • 개발자 명칭 / ID    : " + dev["developerName"] + " (" + dev["developerId"] + ")");
             Console.WriteLine("  • 등록 상태           : " + dev["status"] + (isEmergency ? " (비상 마스터 인증)" : " (정상 공인)"));
-            Console.WriteLine("  • 영구 DB 보존 위치   : Supabase table 'developer_authorized_devices'");
+            Console.WriteLine("  • 영구 DB 보존 위치   : eBro 본사 중앙 제어 플랫폼 (nyfashwbdcepncpdwpdb.supabase.co)");
             Console.WriteLine("--------------------------------------------------------------------------------");
             Console.WriteLine("🔑 이제 브라우저에서 'admin' 또는 관리자 계정으로 로그인하시면 즉시 통과됩니다.");
             Console.WriteLine("================================================================================");
