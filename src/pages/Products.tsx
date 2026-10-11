@@ -939,7 +939,7 @@ export const Products: React.FC = () => {
                   </div>
                   
                   {/* 파일 업로드 버튼 */}
-                  <label style={{
+                  <label className="btn-primary" style={{
                     padding: '2px 8px',
                     fontSize: '11px',
                     borderRadius: '4px',
