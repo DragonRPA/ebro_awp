@@ -13,7 +13,7 @@ import { emailService } from '../services/email';
 import { sortCustomersByName } from '../utils/hangulSearch';
 import { getDomainMode } from '../utils/domainRouter';
 import { fetchCentralTenants, saveCentralTenant, deleteCentralTenant, fetchCentralEquipmentManuals } from '../services/centralDb';
-import { hashPassword, verifyPassword, encryptSecret, decryptSecret, signSessionUser, verifySessionUser, maskSalaryForRole } from '../utils/cryptoVault';
+import { hashPassword, verifyPassword, encryptSecret, decryptSecret, signSessionUser, verifySessionUser, parseSessionUser, safeJsonParse, maskSalaryForRole } from '../utils/cryptoVault';
 import { isCurrentDeviceAuthorizedForDeveloper } from '../utils/hardwareVault';
 
 export interface AssetSaleItem {
@@ -1247,7 +1247,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const autoUser = localStorage.getItem('auto_user');
     if (savedUser) {
       try {
-        const parsed = verifySessionUser<User>(savedUser) || JSON.parse(savedUser);
+        const parsed = parseSessionUser<User>(savedUser);
         if (parsed) {
           if (parsed.loginId === 'admin' && (parsed.name === '최고관리자' || !parsed.name)) {
             parsed.name = '개발자';
@@ -1264,13 +1264,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
           sessionStorage.setItem('user', signSessionUser(parsed));
           setCurrentUser(parsed);
+        } else {
+          sessionStorage.removeItem('user');
+          setCurrentUser(null);
         }
       } catch (e) {
+        sessionStorage.removeItem('user');
         setCurrentUser(null);
       }
     } else if (autoUser) {
       try {
-        const parsed = verifySessionUser<User>(autoUser) || JSON.parse(autoUser);
+        const parsed = parseSessionUser<User>(autoUser);
         if (parsed) {
           if (parsed.loginId === 'admin' && (parsed.name === '최고관리자' || !parsed.name)) {
             parsed.name = '개발자';
@@ -1288,8 +1292,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
           localStorage.setItem('auto_user', signSessionUser(parsed));
           setCurrentUser(parsed);
+        } else {
+          localStorage.removeItem('auto_user');
+          setCurrentUser(null);
         }
       } catch (e) {
+        localStorage.removeItem('auto_user');
         setCurrentUser(null);
       }
     }
@@ -1626,7 +1634,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // sys-admin 등 users 배열에 없는 fallback 계정으로의 복귀 처리
       const originalAdminStr = sessionStorage.getItem('original_admin_user');
       if (originalAdminStr) {
-        const originalAdmin = verifySessionUser<User>(originalAdminStr) || JSON.parse(originalAdminStr);
+        const originalAdmin = parseSessionUser<User>(originalAdminStr);
         if (originalAdmin && originalAdmin.id === userId) {
           targetUser = originalAdmin;
         }

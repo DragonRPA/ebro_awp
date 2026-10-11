@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Radio } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Radio, LogOut } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
@@ -66,6 +66,8 @@ export class ErrorBoundary extends Component<Props, State> {
   private handleReload = () => {
     try {
       sessionStorage.removeItem('ebro_chunk_retry_attempted');
+      // 오염된 대행 세션 토큰으로 인한 렌더링 루프 방어
+      sessionStorage.removeItem('original_admin_user');
       if ('caches' in window) {
         caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).catch(() => {});
       }
@@ -76,6 +78,21 @@ export class ErrorBoundary extends Component<Props, State> {
       }
     } catch {}
     const nextUrl = new URL(window.location.href);
+    nextUrl.searchParams.set('_t', String(Date.now()));
+    window.location.replace(nextUrl.toString());
+  };
+
+  private handleResetAuthAndReload = () => {
+    try {
+      sessionStorage.removeItem('user');
+      sessionStorage.removeItem('original_admin_user');
+      sessionStorage.removeItem('ebro_chunk_retry_attempted');
+      localStorage.removeItem('auto_user');
+      if ('caches' in window) {
+        caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k)))).catch(() => {});
+      }
+    } catch {}
+    const nextUrl = new URL(window.location.origin + window.location.pathname);
     nextUrl.searchParams.set('_t', String(Date.now()));
     window.location.replace(nextUrl.toString());
   };
@@ -218,6 +235,29 @@ export class ErrorBoundary extends Component<Props, State> {
               >
                 <RefreshCw size={14} />
                 <span>화면 새로고침</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={this.handleResetAuthAndReload}
+                style={{
+                  width: '100%',
+                  padding: '9px',
+                  borderRadius: '10px',
+                  border: '1px solid #475569',
+                  backgroundColor: 'var(--bg-card)',
+                  color: '#f8fafc',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  cursor: 'pointer'
+                }}
+              >
+                <LogOut size={13} color="#38bdf8" />
+                <span>인증 초기화 및 로그인</span>
               </button>
 
               <button

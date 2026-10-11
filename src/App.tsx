@@ -2,7 +2,7 @@
 // d:\Giyeun_Lift\src\App.tsx
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useApp } from './context/AppContext';
-import { encryptSecret, decryptSecret, safeLocalStorageSet, purgeStorageQuotaOverflow } from './utils/cryptoVault';
+import { encryptSecret, decryptSecret, safeLocalStorageSet, purgeStorageQuotaOverflow, parseSessionUser, safeJsonParse } from './utils/cryptoVault';
 import {
   LayoutDashboard, Users, UserCheck, Package, Layers, PlusCircle,
   Truck, Wrench, Shield, ShoppingBag, CreditCard, LogOut, Sun, Moon, Menu, X, Zap, Settings, Database as DatabaseIcon,
@@ -1972,7 +1972,10 @@ const App: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }} className="user-profile-badge">
             {(() => {
               const originalAdminStr = sessionStorage.getItem('original_admin_user');
-              const originalAdmin = originalAdminStr ? JSON.parse(originalAdminStr) : null;
+              const originalAdmin = parseSessionUser<any>(originalAdminStr);
+              if (originalAdminStr && !originalAdmin) {
+                try { sessionStorage.removeItem('original_admin_user'); } catch {}
+              }
               const isSuperAdmin = currentUser.role === 'ADMIN' || originalAdmin?.role === 'ADMIN';
 
               const isTrueDev = (u?: any) => u && (u.loginId === 'admin' || u.id === 'sys-admin');

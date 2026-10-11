@@ -336,6 +336,54 @@ export function verifySessionUser<T extends { id: string; role?: string }>(encry
   }
 }
 
+/**
+ * 안전한 JSON 파싱 (SyntaxError 완전 무음 방어 및 기본값 반환)
+ */
+export function safeJsonParse<T = any>(str: string | null | undefined, fallback: T): T {
+  if (!str || typeof str !== 'string') return fallback;
+  try {
+    return JSON.parse(str);
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * 안전한 세션 사용자 복원 유틸 (암호화 서명본 및 레거시 평문 JSON 완전 무결 호환)
+ * 암호화 접두사(__EBRO_ENC...)가 있는 문자열은 절대 JSON.parse로 넘기지 않고 verifySessionUser로만 복호화합니다.
+ * 어떤 상황에서도 SyntaxError 예외를 외부로 전파하지 않습니다.
+ */
+export function parseSessionUser<T extends { id: string; role?: string } = any>(raw: string | null | undefined): T | null {
+  if (!raw || typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  // 1. 암호화 서명 세션인 경우 (__EBRO_ENC__v1__...)
+  if (trimmed.startsWith(VAULT_PREFIX)) {
+    try {
+      const verified = verifySessionUser<T>(trimmed);
+      if (verified) return verified;
+    } catch (e) {
+      console.warn('parseSessionUser verifySessionUser failed:', e);
+    }
+    // 암호화 문자열은 절대 JSON.parse로 넘기지 않음
+    return null;
+  }
+
+  // 2. 레거시 평문 JSON인 경우
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed && typeof parsed === 'object' && parsed.id) {
+      return parsed as T;
+    }
+  } catch (e) {
+    console.warn('parseSessionUser JSON.parse legacy failed:', e);
+  }
+
+  return null;
+}
+
+
 // ─── 5. 역할 기반 민감정보 마스킹 (Role-Based Masking) ───────────
 /**
  * 키/비밀번호 UI 마스킹 (앞 3자리, 뒤 4자리 표기, 나머지 마스킹)
