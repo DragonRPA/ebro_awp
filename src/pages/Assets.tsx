@@ -854,7 +854,7 @@ export const Assets: React.FC = () => {
                               if (extRep) {
                                 const vName = vendors?.find(v => v.id === extRep.vendorId)?.name || '외주처';
                                 return (
-                                  <span className="badge" style={{ fontSize: '9px', padding: '1px 4px', backgroundColor: '#8b5cf6', color: '#ffffff', whiteSpace: 'nowrap' }}>
+                                  <span className="badge" style={{ fontSize: '9px', padding: '1px 4px', backgroundColor: 'var(--primary)', color: '#ffffff', whiteSpace: 'nowrap' }}>
                                     외주:{vName}
                                   </span>
                                 );

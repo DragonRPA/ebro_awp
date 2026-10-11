@@ -1823,7 +1823,7 @@ export const Contracts: React.FC = () => {
                     fontSize: '11.5px',
                     cursor: 'pointer',
                     border: `1px solid ${quickChipFilter === chip.id ? 'var(--primary)' : 'var(--border-color)'}`,
-                    backgroundColor: quickChipFilter === chip.id ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-card)',
+                    backgroundColor: quickChipFilter === chip.id ? 'var(--primary-light)' : 'var(--bg-card)',
                     color: quickChipFilter === chip.id ? 'var(--primary)' : 'var(--text-secondary)',
                   }}
                 >
@@ -1932,7 +1932,7 @@ export const Contracts: React.FC = () => {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <strong style={{ color: 'var(--primary)' }}>{c.contractNo}</strong>
                               {c.contractType === 'SALE' && (
-                                <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: '#8b5cf6', color: '#fff', flexShrink: 0 }}>
+                                <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: 'var(--primary)', color: '#fff', flexShrink: 0 }}>
                                   매각
                                 </span>
                               )}
@@ -1974,7 +1974,7 @@ export const Contracts: React.FC = () => {
                           </td>
                           <td style={{ whiteSpace: 'nowrap' }}>
                             {c.contractType === 'SALE' ? (
-                              <span style={{ color: '#8b5cf6', fontWeight: 700 }}>
+                              <span style={{ color: 'var(--primary)', fontWeight: 700 }}>
                                 매각가 ₩{cas.reduce((s, ca) => s + (ca.salePrice || 0), 0).toLocaleString()}원
                               </span>
                             ) : hasZeroFee ? (
@@ -2598,10 +2598,10 @@ export const Contracts: React.FC = () => {
                           <tr key={ca.id}>
                             <td style={{ whiteSpace: 'nowrap' }}><strong style={{ color: 'var(--primary)' }}>{asset?.assetNo || '미지정'}</strong></td>
                             <td style={{ whiteSpace: 'nowrap' }}>{asset?.modelName || ca.expectedModel}</td>
-                            <td style={{ whiteSpace: 'nowrap' }}><strong style={{ color: '#8b5cf6' }}>₩{price.toLocaleString()}원</strong></td>
+                            <td style={{ whiteSpace: 'nowrap' }}><strong style={{ color: 'var(--primary)' }}>₩{price.toLocaleString()}원</strong></td>
                             <td style={{ whiteSpace: 'nowrap' }}>₩{vat.toLocaleString()}원</td>
                             <td style={{ whiteSpace: 'nowrap' }}><strong style={{ color: 'var(--text-primary)' }}>₩{(price + vat).toLocaleString()}원</strong></td>
-                            <td style={{ whiteSpace: 'nowrap' }}><span className="badge" style={{ backgroundColor: '#8b5cf6', color: '#fff', fontSize: '11px' }}>매각완료</span></td>
+                            <td style={{ whiteSpace: 'nowrap' }}><span className="badge" style={{ backgroundColor: 'var(--primary)', color: '#fff', fontSize: '11px' }}>매각완료</span></td>
                           </tr>
                         );
                       }

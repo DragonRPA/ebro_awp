@@ -2821,12 +2821,12 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                             </span>
                           )}
                           {b.parentBillingId && (
-                            <span style={{ marginLeft: '6px', fontSize: '10px', padding: '2px 5px', backgroundColor: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', borderRadius: '4px', fontWeight: 'bold' }} title="분할 생성된 청구건입니다">
+                            <span style={{ marginLeft: '6px', fontSize: '10px', padding: '2px 5px', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', borderRadius: '4px', fontWeight: 'bold' }} title="분할 생성된 청구건입니다">
                               ✂️ 분할됨
                             </span>
                           )}
                           {billingDetails.filter(d => d.billingId === b.id).some(d => d.amount < 0 && d.itemName.includes('분할')) && !b.parentBillingId && (
-                            <span style={{ marginLeft: '6px', fontSize: '10px', padding: '2px 5px', backgroundColor: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', borderRadius: '4px', fontWeight: 'bold' }} title="일부 금액이 다른 청구서로 분할되었습니다">
+                            <span style={{ marginLeft: '6px', fontSize: '10px', padding: '2px 5px', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', borderRadius: '4px', fontWeight: 'bold' }} title="일부 금액이 다른 청구서로 분할되었습니다">
                               ✂️ 분할(원본)
                             </span>
                           )}</td>
@@ -3069,8 +3069,8 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                   {activeBilling.invoiceId && (
                     <div style={{
                       padding: '8px 12px',
-                      backgroundColor: 'rgba(99, 102, 241, 0.08)',
-                      border: '1px solid rgba(99, 102, 241, 0.25)',
+                      backgroundColor: 'var(--primary-light)',
+                      border: '1px solid var(--border-color)',
                       borderRadius: '6px',
                       display: 'flex',
                       alignItems: 'center',
@@ -5733,7 +5733,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                                 const isAllocated = allocatedAmt > 0;
 
                                 return (
-                                  <tr key={dep.id} style={{ borderBottom: '1px solid var(--border)', background: isAllocated ? 'rgba(99,102,241,0.06)' : undefined }}>
+                                  <tr key={dep.id} style={{ borderBottom: '1px solid var(--border)', background: isAllocated ? 'var(--primary-light)' : undefined }}>
                                     {/* 입금일 */}
                                     <td style={{ padding: '7px 10px', textAlign: 'center', whiteSpace: 'nowrap', borderRight: '1px solid var(--border)' }}>
                                       {dep.transactionDate.split(' ')[0]}
@@ -6440,7 +6440,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                     />
                   </div>
                   
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', backgroundColor: remainingAmount < 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(99, 102, 241, 0.1)', borderRadius: '6px', border: remainingAmount < 0 ? '1px solid var(--danger)' : '1px solid var(--primary)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', backgroundColor: remainingAmount < 0 ? 'rgba(239, 68, 68, 0.1)' : 'var(--primary-light)', borderRadius: '6px', border: remainingAmount < 0 ? '1px solid var(--danger)' : '1px solid var(--primary)' }}>
                     <span>분할 후 원본에 남을 금액 (청구서 A):</span>
                     <strong style={{ color: remainingAmount < 0 ? 'var(--danger)' : 'var(--primary)' }}>
                       {remainingAmount.toLocaleString()}원

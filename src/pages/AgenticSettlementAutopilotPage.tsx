@@ -192,7 +192,7 @@ export const AgenticSettlementAutopilotPage: React.FC = () => {
                 <td style={{ padding: '6px 10px', fontWeight: '700', whiteSpace: 'nowrap' }}>{row.contractNo}</td>
                 <td style={{ padding: '6px 10px', fontWeight: '600', whiteSpace: 'nowrap' }}>{row.customerName}</td>
                 <td style={{ padding: '6px 10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{row.assetOld} ({row.oldDays}일)</td>
-                <td style={{ padding: '6px 10px', color: '#8b5cf6', fontWeight: '600', whiteSpace: 'nowrap' }}>{row.assetNew} {row.newDays > 0 ? `(${row.newDays}일)` : ''}</td>
+                <td style={{ padding: '6px 10px', color: 'var(--primary)', fontWeight: '600', whiteSpace: 'nowrap' }}>{row.assetNew} {row.newDays > 0 ? `(${row.newDays}일)` : ''}</td>
                 <td style={{ padding: '6px 10px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{row.exchangeDate}</td>
                 <td style={{ padding: '6px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>₩{row.oldRevenue.toLocaleString()}</td>
                 <td style={{ padding: '6px 10px', textAlign: 'right', whiteSpace: 'nowrap' }}>₩{row.newRevenue.toLocaleString()}</td>

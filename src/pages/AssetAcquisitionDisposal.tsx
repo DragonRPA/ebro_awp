@@ -3114,7 +3114,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                     padding: '10px 24px',
                     fontSize: '13px',
                     fontWeight: 700,
-                    backgroundColor: '#8b5cf6',
+                    backgroundColor: 'var(--primary)',
                     borderColor: '#7c3aed',
                     display: 'flex',
                     alignItems: 'center',

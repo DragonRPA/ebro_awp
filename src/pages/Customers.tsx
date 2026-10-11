@@ -2007,7 +2007,7 @@ const handleDeleteAccount = async (accId: string) => {
               <div style={{ padding: '8px 12px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <div style={{ fontWeight: 600, fontSize: '12.5px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <CreditCard size={14} style={{ color: '#8B5CF6' }} /> 입금 계좌 목록 ({activeCustomer.bankAccounts?.length || 0}건)
+                    <CreditCard size={14} style={{ color: 'var(--primary)' }} /> 입금 계좌 목록 ({activeCustomer.bankAccounts?.length || 0}건)
                   </div>
                   {canSave && (
                     <button
@@ -2042,7 +2042,7 @@ const handleDeleteAccount = async (accId: string) => {
                       ) : (
                         activeCustomer.bankAccounts.map(acc => (
                           <tr key={acc.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                            <td style={{ padding: '5px 6px', fontWeight: 600, color: '#8B5CF6', whiteSpace: 'nowrap' }}>{acc.bankName}</td>
+                            <td style={{ padding: '5px 6px', fontWeight: 600, color: 'var(--primary)', whiteSpace: 'nowrap' }}>{acc.bankName}</td>
                             <td style={{ padding: '5px 6px', fontFamily: 'monospace', fontWeight: 600, whiteSpace: 'nowrap' }}>{acc.accountNumber}</td>
                             <td style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>{acc.accountHolder || '-'}</td>
                             <td style={{ padding: '5px 6px', whiteSpace: 'nowrap' }}>{acc.memo || '-'}</td>

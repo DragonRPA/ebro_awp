@@ -1762,12 +1762,12 @@ export const BankMatching: React.FC = () => {
                   style={{
                     flex: 1, padding: '6px 8px', borderRadius: '6px', fontSize: '11.5px', fontWeight: matchingMode === 'PINPOINT' ? 'bold' : 'normal',
                     border: matchingMode === 'PINPOINT' ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
-                    backgroundColor: matchingMode === 'PINPOINT' ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-app)',
+                    backgroundColor: matchingMode === 'PINPOINT' ? 'var(--primary-light)' : 'var(--bg-app)',
                     color: matchingMode === 'PINPOINT' ? 'var(--primary)' : 'var(--text-main)',
                     cursor: 'pointer', whiteSpace: 'nowrap'
                   }}
                 >
-                  🎯 선택 청구서 단독 충당 (권장)
+                  선택 청구서 단독 충당
                 </button>
                 <button
                   type="button"
@@ -1775,12 +1775,12 @@ export const BankMatching: React.FC = () => {
                   style={{
                     flex: 1, padding: '6px 8px', borderRadius: '6px', fontSize: '11.5px', fontWeight: matchingMode === 'CASCADE' ? 'bold' : 'normal',
                     border: matchingMode === 'CASCADE' ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
-                    backgroundColor: matchingMode === 'CASCADE' ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-app)',
+                    backgroundColor: matchingMode === 'CASCADE' ? 'var(--primary-light)' : 'var(--bg-app)',
                     color: matchingMode === 'CASCADE' ? 'var(--primary)' : 'var(--text-main)',
                     cursor: 'pointer', whiteSpace: 'nowrap'
                   }}
                 >
-                  ⏳ 과거 미수부터 순차 소진
+                  과거 미수 순차 소진
                 </button>
                 <button
                   type="button"
@@ -1788,7 +1788,7 @@ export const BankMatching: React.FC = () => {
                   style={{
                     flex: 1, padding: '6px 8px', borderRadius: '6px', fontSize: '11.5px', fontWeight: matchingMode === 'MULTI' ? 'bold' : 'normal',
                     border: matchingMode === 'MULTI' ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
-                    backgroundColor: matchingMode === 'MULTI' ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-app)',
+                    backgroundColor: matchingMode === 'MULTI' ? 'var(--primary-light)' : 'var(--bg-app)',
                     color: matchingMode === 'MULTI' ? 'var(--primary)' : 'var(--text-main)',
                     cursor: 'pointer', whiteSpace: 'nowrap'
                   }}
@@ -1847,7 +1847,7 @@ export const BankMatching: React.FC = () => {
                           style={{
                             display: 'flex', flexDirection: 'column', gap: '6px',
                             padding: '8px 12px', borderRadius: '6px', cursor: 'pointer',
-                            backgroundColor: isSelected ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-card)',
+                            backgroundColor: isSelected ? 'var(--primary-light)' : 'var(--bg-card)',
                             border: isSelected ? '1.5px solid var(--primary)' : '1px solid var(--border-color)'
                           }}
                           onClick={() => {
@@ -1931,7 +1931,7 @@ export const BankMatching: React.FC = () => {
                             <div style={{
                               marginTop: '4px', paddingTop: '6px', borderTop: '1px dashed var(--border-color)',
                               display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px',
-                              backgroundColor: 'rgba(99, 102, 241, 0.08)', padding: '6px 8px', borderRadius: '4px'
+                              backgroundColor: 'var(--primary-light)', padding: '6px 8px', borderRadius: '4px'
                             }} onClick={(e) => e.stopPropagation()}>
                               <span style={{ fontSize: '11.5px', fontWeight: 'bold', color: 'var(--primary)', whiteSpace: 'nowrap' }}>
                                 이 청구서 충당 배분액:

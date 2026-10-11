@@ -299,7 +299,7 @@ export const AgenticAiLabPage: React.FC = () => {
                     <span style={{
                       fontWeight: '800',
                       fontSize: '11px',
-                      color: step.type === 'THOUGHT' ? '#6366f1' :
+                      color: step.type === 'THOUGHT' ? 'var(--primary)' :
                              step.type === 'TOOL_CALL' ? '#2563eb' :
                              step.type === 'GUARDRAIL_CHECK' ? '#d97706' :
                              step.type === 'OBSERVATION' ? '#059669' : '#10b981'

@@ -121,7 +121,7 @@ export const AgenticDispatchStudioPage: React.FC = () => {
 
       {/* 편의성 비교 HUD (인간 vs AI) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }} data-uia="hud-dispatch-metrics">
-        <div className="card" style={{ padding: '12px 16px', borderLeft: '4px solid #3b82f6' }}>
+        <div className="card" style={{ padding: '12px 16px', borderLeft: '4px solid var(--primary)' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>배차 수립 소요시간</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '4px' }}>
             <span style={{ fontSize: '18px', fontWeight: '900', color: '#10b981' }}>1.8초</span>
@@ -130,13 +130,13 @@ export const AgenticDispatchStudioPage: React.FC = () => {
           <div style={{ fontSize: '11px', color: '#10b981', fontWeight: '700', marginTop: '2px' }}>99.2% 시간 단축</div>
         </div>
 
-        <div className="card" style={{ padding: '12px 16px', borderLeft: '4px solid #8b5cf6' }}>
+        <div className="card" style={{ padding: '12px 16px', borderLeft: '4px solid var(--primary)' }}>
           <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>필요 조작 클릭 수</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '4px' }}>
-            <span style={{ fontSize: '18px', fontWeight: '900', color: '#8b5cf6' }}>1회</span>
+            <span style={{ fontSize: '18px', fontWeight: '900', color: 'var(--primary)' }}>1회</span>
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', textDecoration: 'line-through' }}>인간 28회</span>
           </div>
-          <div style={{ fontSize: '11px', color: '#8b5cf6', fontWeight: '700', marginTop: '2px' }}>96.4% 조작 절감</div>
+          <div style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: '700', marginTop: '2px' }}>96.4% 조작 절감</div>
         </div>
 
         <div className="card" style={{ padding: '12px 16px', borderLeft: '4px solid #f59e0b' }}>
@@ -197,7 +197,7 @@ export const AgenticDispatchStudioPage: React.FC = () => {
               display: 'flex',
               flexDirection: 'column',
               gap: '12px',
-              borderLeft: item.type === 'EXCHANGE' ? '4px solid #8b5cf6' : '4px solid #3b82f6'
+              borderLeft: item.type === 'EXCHANGE' ? '4px solid var(--primary)' : '4px solid var(--primary)'
             }}
             data-uia={`card-dispatch-item-${item.id}`}
           >
@@ -208,7 +208,7 @@ export const AgenticDispatchStudioPage: React.FC = () => {
                   fontWeight: '800',
                   padding: '3px 8px',
                   borderRadius: '4px',
-                  backgroundColor: item.type === 'EXCHANGE' ? '#8b5cf6' : '#3b82f6',
+                  backgroundColor: item.type === 'EXCHANGE' ? 'var(--primary)' : 'var(--primary)',
                   color: '#fff'
                 }}>
                   {item.type === 'EXCHANGE' ? '교환' : item.type === 'OUTBOUND' ? '출고' : '회수'}
