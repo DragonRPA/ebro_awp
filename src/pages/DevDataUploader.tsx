@@ -1300,7 +1300,7 @@ export const DevDataUploader: React.FC = () => {
           }}
         >
           <FileSpreadsheet size={15} />
-          통합 엑셀 지능 적재 (7대 도메인)
+          통합 엑셀 지능 적재 (8대 도메인)
         </button>
         <button
           type="button"

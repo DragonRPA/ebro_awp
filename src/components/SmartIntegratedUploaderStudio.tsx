@@ -33,10 +33,8 @@ import {
   Shield,
   FileText,
   Loader,
-  ArrowRight,
   DatabaseIcon,
-  Eye,
-  Check,
+  Package,
   FolderOpen
 } from 'lucide-react';
 
@@ -46,6 +44,7 @@ type DomainKey =
   | 'siteMasters'
   | 'customers'
   | 'inspectionItems'
+  | 'consumables'
   | 'vendors'
   | 'contracts';
 
@@ -57,6 +56,8 @@ interface DomainMeta {
   countFn: (entities: IntegratedDomainEntities) => string;
   tableKey: keyof IntegratedDomainEntities;
   subTableKey?: keyof IntegratedDomainEntities;
+  mainTabLabel: string;
+  subTabLabel?: string;
 }
 
 const DOMAIN_CARDS: DomainMeta[] = [
@@ -67,52 +68,75 @@ const DOMAIN_CARDS: DomainMeta[] = [
     subLabel: '부서, 임직원 계정',
     countFn: (e) => `${e.departments.length}개 부서 / ${e.users.length}명 사원`,
     tableKey: 'departments',
-    subTableKey: 'users'
+    subTableKey: 'users',
+    mainTabLabel: '부서 목록',
+    subTabLabel: '임직원 계정'
   },
   {
     key: 'products',
     label: '제품 및 장비',
     icon: <Layers size={18} color="var(--primary)" />,
-    subLabel: '모델 기종, 개별 호기',
+    subLabel: '10대 상세제원 카탈로그, 보유 호기',
     countFn: (e) => `${e.products.length}개 모델 / ${e.assets.length}대 장비`,
     tableKey: 'products',
-    subTableKey: 'assets'
+    subTableKey: 'assets',
+    mainTabLabel: '제품 카탈로그(10대 제원)',
+    subTabLabel: '보유 장비(호기)'
   },
   {
     key: 'siteMasters',
     label: '현장 및 옵션',
     icon: <Shield size={18} color="var(--primary)" />,
-    subLabel: '물리 현장, 표준 옵션',
+    subLabel: '물리 현장, 표준 옵션 마스터',
     countFn: (e) => `${e.siteMasters.length}개 현장 / ${e.standardOptions.length}개 옵션`,
     tableKey: 'siteMasters',
-    subTableKey: 'standardOptions'
+    subTableKey: 'standardOptions',
+    mainTabLabel: '물리 현장',
+    subTabLabel: '전사 표준 옵션 마스터'
   },
   {
     key: 'customers',
     label: '고객 및 담당자',
     icon: <Users size={18} color="var(--primary)" />,
-    subLabel: '고객사, 현장연결, 담당자',
+    subLabel: '고객사, 현장연결, 3대 담당자',
     countFn: (e) => `${e.customers.length}개사 / ${e.customerSites.length}현장 / ${e.customerContacts.length}명`,
     tableKey: 'customers',
-    subTableKey: 'customerContacts'
+    subTableKey: 'customerContacts',
+    mainTabLabel: '고객사 목록',
+    subTabLabel: '3대 현장담당자 (장비/마감/안전)'
   },
   {
     key: 'inspectionItems',
-    label: '정비점검 및 소모품',
+    label: '정비점검 및 이력',
     icon: <Wrench size={18} color="var(--primary)" />,
-    subLabel: '점검항목, 부품 재고',
-    countFn: (e) => `${e.inspectionItems.length}개 항목 / ${e.consumables.length}개 부품`,
+    subLabel: '점검항목 마스터, 정비수리 대장',
+    countFn: (e) => `${e.inspectionItems.length}개 항목 / ${e.repairs.length}건 정비이력`,
     tableKey: 'inspectionItems',
-    subTableKey: 'consumables'
+    subTableKey: 'repairs',
+    mainTabLabel: '점검항목 마스터',
+    subTabLabel: '정비/수리/점검 대장'
+  },
+  {
+    key: 'consumables',
+    label: '부품 및 소모품',
+    icon: <Package size={18} color="var(--primary)" />,
+    subLabel: '부품/소모품 마스터, 구매입고 내역',
+    countFn: (e) => `${e.consumables.length}개 부품 / ${e.consumablePurchases.length}건 입고`,
+    tableKey: 'consumables',
+    subTableKey: 'consumablePurchases',
+    mainTabLabel: '부품/소모품 마스터',
+    subTabLabel: '구매/입고 내역'
   },
   {
     key: 'vendors',
-    label: '협력사 및 운송기사',
+    label: '매입거래처 및 운송사',
     icon: <Truck size={18} color="var(--primary)" />,
-    subLabel: '매입/임차처, 탁송기사',
+    subLabel: '5대 매입유형, 운송사 전속 기사',
     countFn: (e) => `${e.vendors.length}개 매입처 / ${e.transportDrivers.length}명 기사`,
     tableKey: 'vendors',
-    subTableKey: 'transportDrivers'
+    subTableKey: 'transportDrivers',
+    mainTabLabel: '매입거래처 (5대 유형)',
+    subTabLabel: '운송사 전속 기사'
   },
   {
     key: 'contracts',
@@ -121,15 +145,17 @@ const DOMAIN_CARDS: DomainMeta[] = [
     subLabel: '렌탈 계약, 호기 매핑',
     countFn: (e) => `${e.contracts.length}건 계약 / ${e.contractAssets.length}대 투입`,
     tableKey: 'contracts',
-    subTableKey: 'contractAssets'
+    subTableKey: 'contractAssets',
+    mainTabLabel: '임대 계약 대장',
+    subTabLabel: '계약 투입 장비'
   }
 ];
 
 const COLUMN_LABEL_MAP: Record<string, string> = {
   id: '식별코드',
-  code: '코드',
+  code: '점검코드',
   name: '명칭/이름',
-  modelName: '모델명',
+  modelName: '모델명/품명',
   manufacturer: '제조사',
   serialNo: '차대번호(S/N)',
   manufactureYear: '제작연도',
@@ -137,12 +163,23 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   ownerType: '소유구분',
   status: '상태',
   acquisitionPrice: '취득원가',
-  monthlyRentFee: '월대단가',
-  dailyRentFee: '일대단가',
+  monthlyRentFee: '기준월렌탈료',
+  dailyRentFee: '기준일렌탈료',
   workingHeight: '작업높이(m)',
-  feet: '피트(ft)',
+  platformHeight: '발판높이(m)',
+  machineDimensions: '장비외형규격',
+  platformDimensions: '작업대규격',
+  weight: '장비자중',
   powerSource: '동력원',
-  spec: '제원사양',
+  capacityPreExt: '확장전적재하중',
+  capacityPostExtMain: '메인확장적재하중',
+  capacityPostExtDeck: '데크확장적재하중',
+  speed: '주행속도',
+  gradeability: '등판능력',
+  maxWindSpeed: '허용풍속',
+  asContact: 'AS문의처',
+  spec: '제원/비고사양',
+  feet: '피트(ft)',
   department: '부서명',
   departmentId: '부서코드',
   loginId: '아이디',
@@ -152,42 +189,65 @@ const COLUMN_LABEL_MAP: Record<string, string> = {
   phone: '연락처',
   contact: '연락처',
   email: '이메일',
-  baseSalary: '기본급',
+  baseSalary: '기본급(원)',
   address: '주소',
   detailAddress: '상세주소',
+  birthDate: '생년월일',
+  joinDate: '입사일',
+  retireDate: '퇴사일',
   bizRegNo: '사업자등록번호',
   representative: '대표자명',
-  representativeContact: '대표연락처',
-  representativeEmail: '대표이메일',
+  repContact: '대표연락처',
+  repEmail: '계산서이메일',
   defaultBillingDay: '정기청구일',
-  paymentTerms: '결제조건',
-  safetyManagerName: '안전관리자',
-  safetyManagerContact: '안전관리자연락처',
+  paymentDueDay: '결제마감일',
+  contactType: '담당자유형',
   siteMasterId: '현장코드',
   customerId: '고객코드',
   customerName: '고객사명',
   siteName: '현장명',
   category: '카테고리',
+  defaultPrice: '기본단가',
+  unitPrice: '단가(원)',
+  unit: '단위',
+  stockQty: '현재고수량',
+  supplier: '주공급처',
   maintenanceScore: '정비배점',
   standardManHours: '표준공수(h)',
   isDefectSymptom: '불량증상여부',
-  unitPrice: '단가',
-  unit: '단위',
-  currentStock: '현재고',
-  minimumStock: '안전재고',
-  type: '협력사구분',
-  managerName: '담당자명',
-  managerPhone: '담당자연락처',
-  managerEmail: '담당자이메일',
-  vehicleType: '차종',
-  vehicleNumber: '차량번호',
-  driverName: '기사명',
-  driverPhone: '기사연락처',
+  actionGuide: '조치/수리가이드',
+  description: '설명/증상요약',
+  sortOrder: '정렬순서',
+  ticketNo: '정비티켓번호',
+  workCategory: '작업구분',
+  repairType: '정비구분',
+  issueCategory: '고장분류',
+  issueDescription: '고장내용/증상',
+  actionTaken: '조치내용',
+  mechanicName: '정비사',
+  repairDate: '정비완료일',
+  requestedQty: '요청수량',
+  receivedQty: '입고수량',
+  sellerName: '매입처',
+  requesterName: '입고요청자',
+  requestDate: '입고일자',
+  type: '매입유형',
+  types: '세부유형',
+  bankAccount: '은행계좌정보',
+  companyName: '소속운송사',
+  companyId: '운송사ID',
+  driverName: '기사성명',
+  driverContact: '기사연락처',
+  vehicleNo: '차량번호',
+  vehicleType: '차종/톤수',
   contractNo: '계약번호',
   startDate: '대여시작일',
   endDate: '대여종료일',
-  rentFee: '월렌탈료',
+  monthlyRentalFee: '월렌탈료',
+  dailyRentalFee: '일렌탈료',
+  expectedModel: '약정모델',
   note: '비고',
+  memo: '메모',
   isActive: '사용여부',
   isPrimary: '대표여부'
 };
@@ -219,9 +279,9 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
   const handleDownloadTemplate = () => {
     try {
       const wb = generateIntegratedTemplateWorkbook(tenantId);
-      const fileName = `eBro_통합_기초데이터_업로드_표준양식_${tenantId}.xlsx`;
+      const fileName = `eBro_통합_기초데이터_업로드_표준양식_8도메인_${tenantId}.xlsx`;
       XLSX.writeFile(wb, fileName);
-      if (showNoticeModal) showNoticeModal('표준 양식 엑셀 파일이 다운로드되었습니다.');
+      if (showNoticeModal) showNoticeModal('표준 8개 시트 양식 엑셀 파일이 다운로드되었습니다.');
     } catch (err: any) {
       if (showErrorModal) showErrorModal(`양식 다운로드 실패: ${err?.message || String(err)}`);
     }
@@ -232,10 +292,13 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
     setIsProcessing(true);
     setTimeout(() => {
       const entities = getIntegratedSampleDataset(tenantId);
-      // 샘플 데이터 파싱 결과 생성
-      const wb = XLSX.utils.book_new();
-      // 가상 파싱 결과 구축
       const now = new Date().toISOString();
+      const validationList = validateIntegratedEntities(entities);
+      const errorCount = validationList.reduce((acc, v) => acc + v.errorRows, 0);
+      const warningCount = validationList.reduce((acc, v) => acc + v.warnings.length, 0);
+
+      const totalEntitiesCount = Object.values(entities).reduce((acc: number, arr: any) => acc + (Array.isArray(arr) ? arr.length : 0), 0);
+
       const res: ParseResult = {
         entities,
         stats: {
@@ -249,36 +312,40 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
           customerSitesCount: entities.customerSites.length,
           customerContactsCount: entities.customerContacts.length,
           inspectionItemsCount: entities.inspectionItems.length,
+          repairsCount: entities.repairs.length,
           consumablesCount: entities.consumables.length,
+          consumablePurchasesCount: entities.consumablePurchases.length,
           vendorsCount: entities.vendors.length,
           transportDriversCount: entities.transportDrivers.length,
           contractsCount: entities.contracts.length,
           contractAssetsCount: entities.contractAssets.length,
-          totalEntitiesCount: 43,
-          errorCount: 0,
-          warningCount: 0
+          totalEntitiesCount,
+          errorCount,
+          warningCount
         },
-        validationList: [],
+        validationList,
         sourceType: 'SAMPLE',
-        fileName: '시스템_전체도메인_통합_샘플데이터.xlsx',
+        fileName: 'eBro_기초데이터_표준샘플_8대도메인.xlsx',
         analyzedAt: now
       };
+
       setParseResult(res);
       setSelectedDomain('customers');
       setSelectedSubTab('MAIN');
       setIsProcessing(false);
-      if (showNoticeModal) showNoticeModal('7대 도메인 16개 엔티티 샘플 데이터가 로드되었습니다.');
-    }, 200);
+      if (showNoticeModal) {
+        showNoticeModal(`8대 도메인 17개 엔티티 총 ${res.stats.totalEntitiesCount}건의 표준 샘플 데이터가 성공적으로 로드되었습니다.`);
+      }
+    }, 150);
   };
 
-  // 3. 실제 엑셀 파일 업로드 파싱
+  // 3. 엑셀 파일 업로드 및 지능 분석
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsProcessing(true);
     const reader = new FileReader();
-
     reader.onload = (evt) => {
       try {
         const bstr = evt.target?.result;
@@ -288,26 +355,21 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
         setSelectedDomain('customers');
         setSelectedSubTab('MAIN');
         if (showNoticeModal) {
-          showNoticeModal(`엑셀 파일 분석 완료: 총 ${result.stats.totalEntitiesCount}건 수집`);
+          showNoticeModal(`엑셀 파일 [${file.name}] 분석 완료: 총 ${result.stats.totalEntitiesCount}건 수집`);
         }
       } catch (err: any) {
         if (showErrorModal) {
-          showErrorModal(`엑셀 파싱 실패: ${err?.message || String(err)}`);
+          showErrorModal(`파일 파싱 실패: ${err?.message || String(err)}`);
         }
       } finally {
         setIsProcessing(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
       }
     };
-
-    reader.onerror = () => {
-      setIsProcessing(false);
-      if (showErrorModal) showErrorModal('파일 읽기에 실패했습니다.');
-    };
-
     reader.readAsBinaryString(file);
   };
 
-  // 4-1. 로컬 파일로 중간 저장 내보내기 (PC 파일 다운로드)
+  // 4-1. 중간 작업 내보내기 (JSON 파일 로컬 다운로드)
   const handleExportDraftFile = () => {
     if (!parseResult) return;
     try {
@@ -319,31 +381,31 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
         stats: parseResult.stats,
         entities: parseResult.entities
       };
+
       const jsonStr = JSON.stringify(draft, null, 2);
       const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
-      const dateStr = new Date().toISOString().slice(0, 10);
-      saveAs(blob, `eBro_기초데이터_중간저장_${tenantId}_${dateStr}.json`);
-
-      saveDraftToStaging(draft);
-      setExistingDraft(draft);
+      const safeTime = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const exportName = `eBro_중간저장데이터_${tenantId}_${safeTime}.json`;
+      saveAs(blob, exportName);
 
       if (showNoticeModal) {
-        showNoticeModal(`현재 중간 작업 데이터(총 ${draft.stats.totalEntitiesCount}건)가 로컬 PC 파일로 다운로드되었습니다.`);
+        showNoticeModal(`현재 작업 중인 데이터(총 ${draft.stats.totalEntitiesCount}건)가 [${exportName}] 파일로 안전하게 내보내졌습니다.`);
       }
     } catch (err: any) {
-      if (showErrorModal) showErrorModal(`파일 내보내기 실패: ${err?.message || String(err)}`);
+      if (showErrorModal) {
+        showErrorModal(`중간 저장 파일 내보내기 실패: ${err?.message || String(err)}`);
+      }
     }
   };
 
-  // 4-2. 로컬에 저장한 중간 저장 파일 불러오기 (PC 파일 선택)
+  // 4-2. 중간 작업 불러오기 (로컬 JSON/XLSX 파일 열기)
   const handleDraftFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsProcessing(true);
-    const isJson = file.name.endsWith('.json');
 
-    if (isJson) {
+    if (file.name.endsWith('.json')) {
       const reader = new FileReader();
       reader.onload = (evt) => {
         try {
@@ -365,7 +427,9 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
             customerSites: draft.entities.customerSites || [],
             customerContacts: draft.entities.customerContacts || [],
             inspectionItems: draft.entities.inspectionItems || [],
+            repairs: draft.entities.repairs || [],
             consumables: draft.entities.consumables || [],
+            consumablePurchases: draft.entities.consumablePurchases || [],
             vendors: draft.entities.vendors || [],
             transportDrivers: draft.entities.transportDrivers || [],
             contracts: draft.entities.contracts || [],
@@ -392,7 +456,9 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
               customerSitesCount: entities.customerSites.length,
               customerContactsCount: entities.customerContacts.length,
               inspectionItemsCount: entities.inspectionItems.length,
+              repairsCount: entities.repairs.length,
               consumablesCount: entities.consumables.length,
+              consumablePurchasesCount: entities.consumablePurchases.length,
               vendorsCount: entities.vendors.length,
               transportDriversCount: entities.transportDrivers.length,
               contractsCount: entities.contracts.length,
@@ -513,7 +579,7 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
     if (!parseResult) return;
     const confirmed = window.confirm(
       `총 ${parseResult.stats.totalEntitiesCount}건의 기초 데이터를 운영 DB에 확정 적재하시겠습니까?\n\n` +
-      `• 대상: 7대 도메인 16개 테이블\n` +
+      `• 대상: 8대 도메인 17개 테이블\n` +
       `• 참조 무결성(FK) 순차 계층 적재가 실행됩니다.`
     );
     if (!confirmed) return;
@@ -595,7 +661,7 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
             style={{ height: '36px', padding: '0 16px', fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
           >
             <Download size={15} />
-            통합 표준 엑셀 양식 다운로드 (7개 시트)
+            표준 엑셀 양식 다운로드 (8개 시트)
           </button>
 
           {/* 샘플 데이터 로드 */}
@@ -607,7 +673,7 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
             style={{ height: '36px', padding: '0 16px', fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
           >
             <FileSpreadsheet size={15} color="var(--primary)" />
-            샘플 데이터 로드 (전체 7개 도메인)
+            샘플 데이터 로드 (8대 도메인 전수)
           </button>
 
           {/* 엑셀 파일 선택 */}
@@ -714,7 +780,7 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
           fontSize: '13px'
         }}>
           <div>
-            📄 분석 대상: <strong>{parseResult.fileName}</strong> · 형식: <strong>{parseResult.sourceType === 'MULTI_SHEET' ? '7시트 통합 양식' : parseResult.sourceType === 'SAMPLE' ? '검증용 샘플 데이터' : '단일 대여장부 플랫 시트 (지능 분해됨)'}</strong> · 분석일시: {parseResult.analyzedAt.slice(0, 19).replace('T', ' ')}
+            📄 분석 대상: <strong>{parseResult.fileName}</strong> · 형식: <strong>{parseResult.sourceType === 'MULTI_SHEET' ? '8시트 통합 양식' : parseResult.sourceType === 'SAMPLE' ? '검증용 샘플 데이터' : '단일 대여장부 플랫 시트 (지능 분해됨)'}</strong> · 분석일시: {parseResult.analyzedAt.slice(0, 19).replace('T', ' ')}
           </div>
           <div style={{ display: 'flex', gap: '12px', fontWeight: 700 }}>
             <span>총 수집 데이터: <strong style={{ color: 'var(--primary)' }}>{parseResult.stats.totalEntitiesCount}건</strong></span>
@@ -726,7 +792,7 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
         </div>
       )}
 
-      {/* ── 수집 현황 대시보드 (7개 도메인 카드 매트릭스) ── */}
+      {/* ── 수집 현황 대시보드 (8개 도메인 카드 매트릭스) ── */}
       {parseResult && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
           {DOMAIN_CARDS.map(card => {
@@ -806,7 +872,7 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
                       cursor: 'pointer'
                     }}
                   >
-                    메인 엔티티 ({parseResult.entities[currentDomainMeta.tableKey]?.length || 0})
+                    {currentDomainMeta.mainTabLabel} ({parseResult.entities[currentDomainMeta.tableKey]?.length || 0})
                   </button>
                   <button
                     type="button"
@@ -821,7 +887,7 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
                       cursor: 'pointer'
                     }}
                   >
-                    하위/연결 엔티티 ({parseResult.entities[currentDomainMeta.subTableKey]?.length || 0})
+                    {currentDomainMeta.subTabLabel || '하위/연결 엔티티'} ({parseResult.entities[currentDomainMeta.subTableKey]?.length || 0})
                   </button>
                 </div>
               )}
@@ -987,10 +1053,10 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
         }}>
           <FileSpreadsheet size={48} color="var(--primary)" style={{ opacity: 0.8 }} />
           <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: 'var(--text-main)' }}>
-            통합 엑셀 지능 적재 (7대 도메인 16개 엔티티)
+            통합 엑셀 지능 적재 (8대 도메인 17개 엔티티)
           </h3>
           <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '640px', lineHeight: 1.6 }}>
-            조직도(부서/사원), 제품 및 장비, 물리현장과 옵션, 고객사 및 담당자, 정비점검 항목과 부품, 협력사 및 대여계약까지<br />
+            조직도(부서/사원), 제품(10대 상세제원) 및 장비, 물리현장과 전사표준옵션, 고객사 및 3대 담당자, 정비점검 및 수리이력, 부품/소모품 마스터 및 입고, 매입거래처(5대 유형) 및 운송기사, 대여계약까지<br />
             <strong>1개의 엑셀 파일</strong>로 분석하고 수집 현황을 조망하여, 중간 저장 및 안전한 계층적 DB 적재를 수행합니다.
           </p>
           <div style={{ display: 'flex', gap: '10px', marginTop: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -1001,7 +1067,7 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
               style={{ height: '36px', padding: '0 18px', fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
             >
               <FileSpreadsheet size={15} />
-              샘플 데이터 로드
+              샘플 데이터 로드 (8대 도메인)
             </button>
             <label
               className="btn-secondary"
@@ -1034,7 +1100,7 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
               style={{ height: '36px', padding: '0 16px', fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
             >
               <Download size={15} />
-              표준 양식 엑셀 다운로드
+              표준 양식 엑셀 다운로드 (8개 시트)
             </button>
           </div>
         </div>

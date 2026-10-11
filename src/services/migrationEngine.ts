@@ -97,7 +97,7 @@ export const TABLE_COLUMNS: Record<string, string[]> = {
     'id', 'siteMasterId', 'customerId', 'name', 'address', 'isActive', 'createdAt', 'updatedAt'
   ],
   customer_contacts: [
-    'id', 'customerId', 'name', 'position', 'contact', 'email', 'isPrimary', 'createdAt', 'updatedAt'
+    'id', 'siteMasterId', 'customerId', 'name', 'contactType', 'position', 'contact', 'email', 'isPrimary', 'isActive', 'memo', 'tenant_id', 'createdAt', 'updatedAt'
   ],
   assets: [
     'id', 'modelName', 'assetNo', 'vendorAssetNo', 'serialNo', 'manufacturer', 'manufactureYear',
@@ -204,6 +204,26 @@ export const TABLE_COLUMNS: Record<string, string[]> = {
     'standardManHours', 'manHours', 'isDefectSymptom', 'actionGuide',
     'description', 'relatedManualIds', 'recommendedConsumables',
     'tenant_id', 'createdAt', 'updatedAt'
+  ],
+  departments: [
+    'id', 'name', 'parentDepartmentId', 'managerId', 'domainUrls', 'defaultPaymentMethod', 'tenant_id', 'createdAt', 'updatedAt'
+  ],
+  users: [
+    'id', 'loginId', 'passwordHash', 'name', 'departmentId', 'position', 'duty', 'managerId', 'role', 'status', 'department',
+    'baseSalary', 'phone', 'address', 'birthDate', 'joinDate', 'retireDate', 'profileImageUrl', 'customRoleId', 'tenant_id', 'createdAt', 'updatedAt'
+  ],
+  standard_options: [
+    'id', 'category', 'name', 'defaultPrice', 'unit', 'description', 'isActive', 'sortOrder', 'tenant_id', 'createdAt', 'updatedAt'
+  ],
+  consumables: [
+    'id', 'modelName', 'unit', 'unitPrice', 'stockQty', 'category', 'note', 'repairingQty', 'supplier', 'vendorId', 'tenant_id', 'createdAt', 'updatedAt'
+  ],
+  consumable_purchases: [
+    'id', 'consumableId', 'modelName', 'requestedQty', 'unitPrice', 'sellerName', 'status', 'requesterId', 'requesterName',
+    'accepterId', 'accepterName', 'inbounderName', 'receivedQty', 'statementFileUrl', 'requestDate', 'acceptedDate', 'completedDate', 'actualReturnDate', 'tenant_id', 'createdAt', 'updatedAt'
+  ],
+  transport_drivers: [
+    'id', 'companyId', 'driverName', 'driverContact', 'vehicleNo', 'vehicleType', 'vehicleColor', 'birthDate', 'idNo', 'address', 'tenant_id', 'createdAt', 'updatedAt'
   ]
 };
 
