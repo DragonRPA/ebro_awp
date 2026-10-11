@@ -1,8 +1,5 @@
-// src/components/manual/MenuBriefingBox.tsx
-// 전사 51개 메뉴 및 모달 매뉴얼 활성화 시 화면에 표시되는 상단 기능 목적 브리핑 텍스트박스
-// 전사 시스템 개발 표준 헌장 준수: 무수식어 건조 UI, 기능 목적(Terminal Objective) 명시, 주요 조작 버튼/모달 목록 노출
-import React, { useState } from 'react';
-import { FileText, ChevronDown, ChevronUp, X, Sparkles, Layers, ExternalLink, Workflow, BookOpen } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { FileText, ChevronDown, ChevronUp, X, Sparkles, Layers, ExternalLink, Workflow, BookOpen, Move, RotateCcw } from 'lucide-react';
 import { getMenuBriefingSummary, type MenuBriefingSummary } from '../../utils/menuSpecMarkdown';
 import { getStepBadgeColor } from './manualPalette';
 
@@ -16,6 +13,7 @@ export interface MenuBriefingBoxProps {
   onOpenSpecDoc: () => void;
   onClose?: () => void;
   zIndex?: number;
+  targetRect?: { top: number; left: number; width: number; height: number } | null;
 }
 
 export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
@@ -28,9 +26,147 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
   onOpenSpecDoc,
   onClose,
   zIndex = 200010,
+  targetRect = null,
 }) => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
+  const [manualPos, setManualPos] = useState<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ startX: number; startY: number; initialX: number; initialY: number } | null>(null);
+
+  // 💡 [지능형 타겟 회피 및 드래그 위치 계산]
+  const isDesktop = typeof window !== 'undefined' && window.innerWidth > 1024;
+  const defaultLeftPos = isDesktop ? 280 : 16;
+
+  // 마우스 드래그 핸들러 (헤더를 잡고 자유롭게 이동)
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button, input, select, a, [role="button"]')) {
+      return;
+    }
+    const currentBox = (e.currentTarget.closest('[data-manual-ui="true"]') as HTMLElement);
+    if (!currentBox) return;
+    const rect = currentBox.getBoundingClientRect();
+    setIsDragging(true);
+    dragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: rect.left,
+      initialY: rect.top,
+    };
+    e.preventDefault();
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!dragStartRef.current) return;
+      const dx = e.clientX - dragStartRef.current.startX;
+      const dy = e.clientY - dragStartRef.current.startY;
+      const nextX = Math.max(10, Math.min(window.innerWidth - 100, dragStartRef.current.initialX + dx));
+      const nextY = Math.max(10, Math.min(window.innerHeight - 80, dragStartRef.current.initialY + dy));
+      setManualPos({ x: nextX, y: nextY });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      dragStartRef.current = null;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
+  // 스마트 회피 위치 산출 (타겟 UI 요소를 가리지 않도록 자동 회피)
+  const getSmartPositionStyle = (): React.CSSProperties => {
+    if (manualPos) {
+      return {
+        left: `${manualPos.x}px`,
+        top: `${manualPos.y}px`,
+        right: 'auto',
+        bottom: 'auto',
+        transform: 'none',
+      };
+    }
+
+    if (typeof window === 'undefined') {
+      return { top: '76px', left: `${defaultLeftPos}px` };
+    }
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const boxWidth = isMinimized ? 340 : Math.min(450, vw - 32);
+
+    const defaultTop = 76;
+    const defaultLeft = defaultLeftPos;
+
+    if (!targetRect) {
+      return {
+        top: `${defaultTop}px`,
+        left: `${defaultLeft}px`,
+        right: 'auto',
+        bottom: 'auto',
+        transform: 'none',
+      };
+    }
+
+    // 타겟 요소의 중심점
+    const targetCenterX = targetRect.left + targetRect.width / 2;
+    const screenCenterX = vw / 2;
+    const isWide = targetRect.width > vw * 0.45;
+
+    // 💡 [지능형 회피 1] 타겟이 가로로 넓은 컨테이너인 경우:
+    if (isWide) {
+      // 타겟이 상단부에 위치하면 -> 우하단으로 회피!
+      if (targetRect.top < vh * 0.35) {
+        return {
+          top: 'auto',
+          left: 'auto',
+          right: '24px',
+          bottom: '86px',
+          maxHeight: `${Math.min(480, vh - 180)}px`,
+          transform: 'none',
+        };
+      } else {
+        // 타겟이 중하단부에 위치하면 -> 우상단으로 회피!
+        return {
+          top: `${defaultTop}px`,
+          left: 'auto',
+          right: '24px',
+          bottom: 'auto',
+          maxHeight: `${Math.min(480, vh - 180)}px`,
+          transform: 'none',
+        };
+      }
+    }
+
+    // 💡 [지능형 회피 2] 일반 요소인 경우 (수평 중심점 기준 반대편 상단 배치)
+    if (targetCenterX < screenCenterX) {
+      // 타겟이 화면 좌측에 있으면 -> 우측 상단으로 회피!
+      return {
+        top: `${defaultTop}px`,
+        left: 'auto',
+        right: '24px',
+        bottom: 'auto',
+        maxHeight: `${Math.min(520, vh - 150)}px`,
+        transform: 'none',
+      };
+    } else {
+      // 타겟이 화면 우측에 있으면 -> 좌측 상단으로 회피!
+      return {
+        top: `${defaultTop}px`,
+        left: `${defaultLeft}px`,
+        right: 'auto',
+        bottom: 'auto',
+        maxHeight: `${Math.min(520, vh - 150)}px`,
+        transform: 'none',
+      };
+    }
+  };
 
   if (isDismissed) return null;
 
@@ -47,19 +183,18 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
 
   const processes = summary.processes || [];
   const activeProcess = activeProcessId ? processes.find(p => p.processId === activeProcessId) : null;
-
-  const isDesktop = typeof window !== 'undefined' && window.innerWidth > 1024;
-  const leftPos = isDesktop ? 280 : 16;
+  const currentPosStyle = getSmartPositionStyle();
 
   // 1. 최소화(접힘) 상태 뷰
   if (isMinimized) {
     return (
       <div
         data-manual-ui="true"
+        onMouseDown={handleMouseDown}
+        onDoubleClick={() => setManualPos(null)}
         style={{
           position: 'fixed',
-          top: '76px',
-          left: `${leftPos}px`,
+          ...currentPosStyle,
           zIndex,
           pointerEvents: 'all',
           display: 'flex',
@@ -70,8 +205,11 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
           borderRadius: '24px',
           padding: '6px 14px',
           boxShadow: '0 6px 20px rgba(0,0,0,0.22)',
-          transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+          cursor: isDragging ? 'grabbing' : 'grab',
+          userSelect: 'none',
+          transition: isDragging ? 'none' : 'left 0.25s cubic-bezier(0.16, 1, 0.3, 1), right 0.25s cubic-bezier(0.16, 1, 0.3, 1), top 0.25s cubic-bezier(0.16, 1, 0.3, 1), bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
+        title="드래그하여 이동 / 더블클릭 시 위치 초기화"
       >
         <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '5px' }}>
           🎯 {summary.title}
@@ -104,6 +242,23 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
             기본 {summary.buttons.length}단계
           </span>
         ) : null}
+        {manualPos && (
+          <button
+            onClick={() => setManualPos(null)}
+            style={{
+              border: 'none',
+              background: 'none',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              padding: '2px',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+            title="자동 회피 위치로 복귀"
+          >
+            <RotateCcw size={13} />
+          </button>
+        )}
         <button
           onClick={onOpenSpecDoc}
           style={{
@@ -149,11 +304,10 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
       data-manual-ui="true"
       style={{
         position: 'fixed',
-        top: '76px',
-        left: `${leftPos}px`,
+        ...currentPosStyle,
         width: '450px',
         maxWidth: 'calc(100vw - 32px)',
-        maxHeight: 'calc(100vh - 150px)',
+        maxHeight: currentPosStyle.maxHeight || 'calc(100vh - 150px)',
         backgroundColor: 'var(--bg-card)',
         border: '1.5px solid var(--primary)',
         borderRadius: '12px',
@@ -163,18 +317,26 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
+        transition: isDragging ? 'none' : 'left 0.25s cubic-bezier(0.16, 1, 0.3, 1), right 0.25s cubic-bezier(0.16, 1, 0.3, 1), top 0.25s cubic-bezier(0.16, 1, 0.3, 1), bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
-      {/* 카드 헤더 */}
-      <div style={{
-        padding: '12px 14px',
-        borderBottom: '1px solid var(--border-color)',
-        backgroundColor: 'var(--bg-body)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '8px',
-      }}>
+      {/* 카드 헤더 (드래그 가능, 더블클릭 시 위치 초기화) */}
+      <div 
+        onMouseDown={handleMouseDown}
+        onDoubleClick={() => setManualPos(null)}
+        style={{
+          padding: '12px 14px',
+          borderBottom: '1px solid var(--border-color)',
+          backgroundColor: 'var(--bg-body)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px',
+          cursor: isDragging ? 'grabbing' : 'grab',
+          userSelect: 'none',
+        }}
+        title="헤더를 드래그하여 이동 / 더블클릭 시 자동 회피 위치로 복귀"
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
           <span style={{
             width: '26px',
@@ -220,6 +382,28 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
 
         {/* 상단 우측 버튼군 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+          {manualPos && (
+            <button
+              onClick={() => setManualPos(null)}
+              style={{
+                border: '1px solid var(--border-color)',
+                borderRadius: '6px',
+                padding: '4px 6px',
+                backgroundColor: 'var(--bg-app)',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '3px',
+                fontSize: '11px',
+                fontWeight: 600
+              }}
+              title="자동 회피 위치로 복귀 (더블클릭 가능)"
+            >
+              <RotateCcw size={12} />
+              <span>위치 복귀</span>
+            </button>
+          )}
           <button
             onClick={onOpenSpecDoc}
             style={{

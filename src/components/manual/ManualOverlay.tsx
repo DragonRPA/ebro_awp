@@ -1153,7 +1153,7 @@ export const ManualOverlay: React.FC = () => {
       {/* ripple & pulse CSS 주입 */}
       <style>{RIPPLE_CSS}</style>
 
-      {/* 🎯 메뉴 기능 목적 브리핑 텍스트박스 (상단 좌측 플로팅, 접기/펼치기 가능) */}
+      {/* 🎯 메뉴 기능 목적 브리핑 텍스트박스 (스마트 타겟 회피 + 드래그 이동 가능) */}
       <MenuBriefingBox
         pageId={page.pageId}
         pageTitle={page.pageTitle}
@@ -1171,6 +1171,7 @@ export const ManualOverlay: React.FC = () => {
         onOpenSpecDoc={() => openDocModal(page.pageId, page.pageTitle)}
         onClose={() => setMode('off')}
         zIndex={baseZIndex + 4}
+        targetRect={activeRect || (items[0] ? rects[items[0].seq] : null)}
       />
 
       {/* ① Spotlight (활성 항목이 존재하고 위치를 찾은 경우) */}
