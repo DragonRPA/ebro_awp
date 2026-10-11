@@ -54,18 +54,18 @@ export const ManualDictionaryPage: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="manualdictionarypage" style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: '16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div data-hs-observe="manualdictionarypage" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, gap: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
         <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <BookOpen size={20} color="var(--primary)" />
           전사 업무 매뉴얼 사전
         </h2>
         <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-          등록된 개별 업무 프로세스: <strong>{allProcesses.length}</strong>건
+          조회된 업무 프로세스: <strong>{filteredProcesses.length}</strong>건 (전체 {allProcesses.length}건)
         </div>
       </div>
 
-      <div className="card" style={{ padding: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+      <div className="card" style={{ padding: '16px', display: 'flex', gap: '12px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', flexShrink: 0, marginBottom: 0 }}>
         <div style={{ flex: '1 1 200px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)' }}>메뉴 필터</label>
           <select 
@@ -94,63 +94,75 @@ export const ManualDictionaryPage: React.FC = () => {
         </div>
       </div>
 
-      <div data-mid="manual_dictionary-process-list" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '4px' }}>
+      <div data-mid="manual_dictionary-process-list" style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '4px' }}>
         {filteredProcesses.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
             검색 결과가 없습니다.
           </div>
         ) : (
           filteredProcesses.map((proc, idx) => (
-            <div key={`${proc.menuId}-${proc.processId}-${idx}`} className="card" style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden' }}>
-              <div style={{ padding: '16px', backgroundColor: 'var(--bg-muted)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
+            <div 
+              key={`${proc.menuId}-${proc.processId}-${idx}`} 
+              className="card" 
+              style={{ 
+                flexShrink: 0, 
+                padding: 0, 
+                marginBottom: 0, 
+                border: '1px solid var(--border-color)', 
+                borderRadius: '8px', 
+                overflow: 'hidden',
+                backgroundColor: 'var(--bg-card)'
+              }}
+            >
+              <div style={{ padding: '16px 20px', backgroundColor: 'var(--bg-muted, rgba(0,0,0,0.03))', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
                   <div style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <Layers size={12} /> {proc.menuName}
                   </div>
                   <h3 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>
                     {proc.title}
                   </h3>
-                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.45' }}>
                     {proc.description}
                   </p>
                 </div>
                 <button 
+                  type="button"
                   className="btn-primary"
                   onClick={() => handleStartProcess(proc.menuId, proc.processId, proc.menuName)}
                   style={{ 
                     whiteSpace: 'nowrap', 
-                    display: 'flex', 
+                    display: 'inline-flex', 
                     alignItems: 'center', 
-                    gap: '8px',
-                    padding: '8px 16px',
+                    gap: '6px',
+                    height: '36px',
+                    padding: '0 18px',
                     fontSize: '13px',
-                    fontWeight: '800',
+                    fontWeight: '700',
                     borderRadius: '6px',
                     cursor: 'pointer',
-                    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)',
-                    transition: 'all 0.2s ease',
                     flexShrink: 0
                   }}
                 >
                   가이드 시작
                 </button>
               </div>
-              <div style={{ padding: '16px' }}>
-                <h4 style={{ margin: '0 0 12px 0', fontSize: '13px', fontWeight: '800', color: 'var(--text-main)' }}>작업 절차 (총 {proc.steps.length}단계)</h4>
+              <div style={{ padding: '18px 20px' }}>
+                <h4 style={{ margin: '0 0 14px 0', fontSize: '13px', fontWeight: '800', color: 'var(--text-main)' }}>작업 절차 (총 {proc.steps.length}단계)</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {proc.steps.map((step: any, sIdx: number) => (
                     <div key={sIdx} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                       <div style={{ 
-                        width: '24px', height: '24px', borderRadius: '12px', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', 
+                        width: '24px', height: '24px', borderRadius: '50%', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', 
                         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '800', flexShrink: 0
                       }}>
                         {sIdx + 1}
                       </div>
-                      <div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
                         <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-main)', marginBottom: '2px' }}>
                           {step.label}
                         </div>
-                        <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                        <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
                           {step.description}
                         </div>
                       </div>
