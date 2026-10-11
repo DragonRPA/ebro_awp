@@ -987,8 +987,6 @@ export const SiteOptionManage: React.FC = () => {
                   const isSelected = site.id === selectedSiteId;
                   const paidCount = (site.paidOptions || '').split(',').filter(Boolean).length;
                   const hasProt = Boolean(site.protection && site.protection !== 'NONE');
-                  const stats = siteCustomerStatsMap[site.id];
-                  const activeCustCount = stats?.activeCustomerCount || 0;
 
                   return (
                     <div
@@ -1020,73 +1018,20 @@ export const SiteOptionManage: React.FC = () => {
                         <ChevronRight size={14} color={isSelected ? 'var(--primary)' : 'var(--text-muted)'} />
                       </div>
 
-                      {/* 고객사 및 옵션 뱃지 행 */}
+                      {/* 옵션 뱃지 행 */}
                       <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        {site.isActive !== false ? (
-                          activeCustCount > 0 ? (
-                            <span style={{
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              padding: '1px 6px',
-                              borderRadius: '4px',
-                              backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                              color: '#047857',
-                              border: '1px solid rgba(16, 185, 129, 0.25)',
-                              whiteSpace: 'nowrap'
-                            }}>
-                              사용 고객 {activeCustCount}개사
-                            </span>
-                          ) : (
-                            <span style={{
-                              fontSize: '11px',
-                              fontWeight: 800,
-                              padding: '1px 6px',
-                              borderRadius: '4px',
-                              backgroundColor: 'rgba(239, 68, 68, 0.12)',
-                              color: '#dc2626',
-                              border: '1px dashed rgba(239, 68, 68, 0.45)',
-                              whiteSpace: 'nowrap'
-                            }} title="진행 중인 계약이 없어 완공(종료) 처리 가능">
-                              사용 고객 0개사 (완공 대상)
-                            </span>
-                          )
-                        ) : (
-                          <span style={{
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            padding: '1px 6px',
-                            borderRadius: '4px',
-                            backgroundColor: 'var(--bg-secondary)',
-                            color: 'var(--text-muted)',
-                            border: '1px solid var(--border-color)',
-                            whiteSpace: 'nowrap'
-                          }}>
+                        {site.isActive === false && (
+                          <span className="badge badge-secondary" style={{ fontSize: '10.5px' }}>
                             완공(종료)
                           </span>
                         )}
 
-                        <span style={{
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          padding: '1px 6px',
-                          borderRadius: '4px',
-                          backgroundColor: paidCount > 0 ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-secondary)',
-                          color: paidCount > 0 ? '#1d4ed8' : 'var(--text-muted)',
-                          whiteSpace: 'nowrap'
-                        }}>
+                        <span className={`badge ${paidCount > 0 ? 'badge-primary' : 'badge-secondary'}`} style={{ fontSize: '10.5px' }}>
                           유상옵션 {paidCount}개
                         </span>
 
                         {hasProt && (
-                          <span style={{
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            padding: '1px 6px',
-                            borderRadius: '4px',
-                            backgroundColor: 'rgba(5, 150, 105, 0.12)',
-                            color: '#059669',
-                            whiteSpace: 'nowrap'
-                          }}>
+                          <span className="badge badge-success" style={{ fontSize: '10.5px' }}>
                             {site.protection}
                           </span>
                         )}
