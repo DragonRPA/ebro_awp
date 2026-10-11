@@ -50,8 +50,8 @@ export const MobileHome: React.FC<MobileHomeProps> = ({
 
   // ── 로그인 사용자 직무 맞춤형 ToDo 필터링 (헌장 3.3 정책 준수) ──
   const userTodos = useMemo(() => {
-    return findActiveTasksForUser(todos || [], currentUser, hasPermission);
-  }, [todos, currentUser, hasPermission]);
+    return findActiveTasksForUser(todos || [], currentUser, hasPermission, deptMode);
+  }, [todos, currentUser, hasPermission, deptMode]);
 
   const resolveMobileTabForTask = (task: Todo): MobileTabType | null => {
     const url = task.actionUrl || '';
