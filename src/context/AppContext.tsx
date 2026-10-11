@@ -866,7 +866,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     type?: 'system' | 'business';
   }>({
     isOpen: false,
-    title: '시스템 오류 발생',
+    title: undefined,
     message: '',
     type: undefined
   });
@@ -874,13 +874,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const showErrorModal = (message: string, title?: string, type?: 'system' | 'business') => {
     setErrorModal({
       isOpen: true,
-      title: title || (type === 'business' ? '업무 진행 안내' : '시스템 오류 발생'),
+      title,
       message,
       type
     });
   };
 
-  const showNoticeModal = (message: string, title: string = '업무 진행 안내') => {
+  const showNoticeModal = (message: string, title: string = '업무 처리 안내') => {
     setErrorModal({
       isOpen: true,
       title,
@@ -888,6 +888,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       type: 'business'
     });
   };
+
+  // E2E 및 테스트 환경을 위한 글로벌 모달 테스트 이벤트 리스너
+  useEffect(() => {
+    const handleTestModal = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (!detail) return;
+      if (detail.type === 'business') {
+        showNoticeModal(detail.message || '', detail.title || '업무 처리 안내');
+      } else if (detail.type === 'system') {
+        showErrorModal(detail.message || '', detail.title, 'system');
+      } else {
+        showErrorModal(detail.message || '', detail.title);
+      }
+    };
+    window.addEventListener('erp:test-error-modal', handleTestModal);
+    return () => window.removeEventListener('erp:test-error-modal', handleTestModal);
+  }, []);
 
   // 글로벌 프린터 큐 출력 성공 안내 모달 상태
   const [printSuccessModal, setPrintSuccessModal] = useState<{

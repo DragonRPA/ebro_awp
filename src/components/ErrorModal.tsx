@@ -18,78 +18,83 @@ export function detectModalPurpose(
   title?: string, 
   explicitType?: ModalPurpose
 ): ModalPurpose {
+  // 1. 명시적 지정이 있는 경우 최우선 적용
   if (explicitType === 'system') return 'system';
   if (explicitType === 'business') return 'business';
 
-  const combined = `${title || ''}\n${message || ''}`.toLowerCase();
+  const rawMessage = (message || '').trim();
+  const rawTitle = (title || '').trim();
+  const combined = `${rawTitle}\n${rawMessage}`.toLowerCase();
 
-  // 1. 시스템/코드 에러 및 DB 예외 명확한 지표
+  // 2. 명백한 시스템 / JS 런타임 / DB / 네트워크 기술적 예외 (System Error)
   const isSystemError = 
+    // JS/TS 런타임 에러
     combined.includes('stack') ||
-    combined.includes('error:') ||
-    combined.includes('exception') ||
-    combined.includes('syntaxerror') ||
     combined.includes('typeerror') ||
+    combined.includes('syntaxerror') ||
     combined.includes('referenceerror') ||
     combined.includes('rangeerror') ||
-    combined.includes('failed to fetch') ||
-    combined.includes('networkerror') ||
-    combined.includes('postgrest') ||
-    combined.includes('pgrst') ||
-    combined.includes('row-level security') ||
-    combined.includes('42501') ||
-    combined.includes('supabase') ||
-    combined.includes('status code') ||
-    combined.includes('sql') ||
-    combined.includes('relation ') ||
-    combined.includes('column ') ||
-    combined.includes('violates ') ||
-    combined.includes('foreign key') ||
-    combined.includes('constraint ') ||
+    combined.includes('cannot read properties of') ||
+    combined.includes('undefined is not') ||
     combined.includes('nullpointer') ||
     combined.includes('json.parse') ||
-    combined.includes('원격 db') ||
-    combined.includes('통신 장애') ||
-    combined.includes('동기화 오류') ||
-    /at\s+[\w\d_.]+\s+\(/i.test(message || '') ||
-    /line\s+\d+/i.test(message || '');
+    combined.includes('uncaught exception') ||
+    /at\s+[\w\d_.<>]+\s+\(/i.test(rawMessage) ||
+    /line\s+\d+:\d+/i.test(rawMessage) ||
+    // DB 및 원격 Supabase/SQL 에러
+    combined.includes('pgrst') ||
+    combined.includes('postgrest') ||
+    combined.includes('row-level security') ||
+    combined.includes('42501') ||
+    combined.includes('relation "') ||
+    combined.includes('column "') ||
+    combined.includes('violates foreign key') ||
+    combined.includes('violates check constraint') ||
+    combined.includes('violates unique constraint') ||
+    combined.includes('sqlstate') ||
+    combined.includes('syntax error at or near') ||
+    // 통신 장애
+    combined.includes('failed to fetch') ||
+    combined.includes('networkerror') ||
+    combined.includes('원격 supabase db 통신 장애') ||
+    combined.includes('원격 db 통신 장애');
 
   if (isSystemError) return 'system';
 
-  // 2. 비즈니스 업무 안내 및 선결 조건 부재 지표
+  // 3. 비즈니스 업무 안내 및 제약 펜딩 지표
   const isBusinessGuidance = 
+    combined.includes('불가') ||
+    combined.includes('할 수 없습니다') ||
+    combined.includes('수 없습니다') ||
+    combined.includes('존재합니다') ||
+    combined.includes('존재하지 않습니다') ||
+    combined.includes('찾을 수 없습니다') ||
     combined.includes('선결') ||
     combined.includes('선행') ||
-    combined.includes('입력해') ||
-    combined.includes('입력하십시오') ||
-    combined.includes('선택해') ||
-    combined.includes('선택하십시오') ||
-    combined.includes('확인해') ||
-    combined.includes('확인하십시오') ||
-    combined.includes('이후여야') ||
-    combined.includes('이전이어야') ||
-    combined.includes('찾을 수 없습니다') ||
-    combined.includes('존재하지 않습니다') ||
-    combined.includes('이미 등록된') ||
-    combined.includes('초과하여') ||
-    combined.includes('출고차단') ||
-    combined.includes('거래제한') ||
-    combined.includes('권한이 없습니다') ||
-    combined.includes('부재하여') ||
-    combined.includes('진행할 수 없습니다') ||
-    combined.includes('1원 이상') ||
-    combined.includes('필수 입력') ||
-    combined.includes('지정해') ||
-    combined.includes('요청해');
+    combined.includes('입력') ||
+    combined.includes('선택') ||
+    combined.includes('확인') ||
+    combined.includes('지정') ||
+    combined.includes('요청') ||
+    combined.includes('필수') ||
+    combined.includes('미입력') ||
+    combined.includes('미등록') ||
+    combined.includes('미완료') ||
+    combined.includes('부족') ||
+    combined.includes('초과') ||
+    combined.includes('중복') ||
+    combined.includes('권한') ||
+    combined.includes('차단') ||
+    combined.includes('제한') ||
+    combined.includes('종료') ||
+    combined.includes('계약') ||
+    combined.includes('장비') ||
+    combined.includes('현장');
 
   if (isBusinessGuidance) return 'business';
 
-  // 3. 기본값: 메시지가 짧고 스택이 없는 일반 문장은 불필요한 공포감을 주지 않도록 건조하고 평온한 업무 안내로 처리
-  if ((message || '').length < 200 && !(message || '').includes('\n\n')) {
-    return 'business';
-  }
-
-  return 'system';
+  // 4. 기본값: 기술적 영문 에러/스택이 없는 한, 사용자를 놀라게 하지 않도록 '업무 처리 안내(business)'로 처리
+  return 'business';
 }
 
 /** 메시지 및 패치 구문에서 실행 가능한 DDL 문장을 추출하는 헬퍼 */
@@ -209,8 +214,8 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
 
   const isSystemError = effectivePurpose === 'system';
 
-  const defaultTitle = isSystemError ? '시스템 오류 발생' : '업무 진행 안내';
-  const effectiveTitle = title || defaultTitle;
+  const defaultTitle = isSystemError ? '시스템 오류 (개발팀 제보 대상)' : '업무 처리 안내';
+  const effectiveTitle = (title && title !== '시스템 오류 발생') ? title : defaultTitle;
 
   const isRlsError = useMemo(() =>
     isSystemError && (message.includes('row-level security') || message.includes('42501')),
@@ -289,7 +294,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
   };
 
   // ─────────────────────────────────────────────────────────────
-  // 🏛️ [디자인 2] 업무 진행 안내 / 선결 조건 부재 모달 (건조하고 평온한 엔터프라이즈 가이드)
+  // 🏛️ [유형 1] 업무 진행 안내 / 제약 펜딩 모달 (건조하고 명확한 비즈니스 가이드)
   // ─────────────────────────────────────────────────────────────
   if (!isSystemError) {
     return (
@@ -301,8 +306,8 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(15, 23, 42, 0.6)',
-          backdropFilter: 'blur(4px)',
+          backgroundColor: 'rgba(15, 23, 42, 0.45)',
+          backdropFilter: 'blur(3px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -313,14 +318,14 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
         <div
           data-uia="business-notice-modal"
           style={{
-            backgroundColor: 'var(--bg-card, #1e293b)',
-            border: '1px solid var(--border-color, #475569)',
-            borderRadius: '14px',
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '12px',
             width: '100%',
-            maxWidth: '500px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.25)',
+            maxWidth: '480px',
+            boxShadow: '0 12px 28px -6px rgba(0, 0, 0, 0.18)',
             overflow: 'hidden',
-            color: 'var(--text-main, #f8fafc)',
+            color: 'var(--text-main)',
             animation: 'fadeIn 0.15s ease-out',
             display: 'flex',
             flexDirection: 'column'
@@ -329,42 +334,20 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
           {/* 상단 슬림 악센트 바 */}
           <div style={{ height: '3px', background: 'var(--primary)' }} />
 
-          {/* 모달 헤더 (차분하고 단정한 인디고/블루 톤) */}
+          {/* 모달 헤더 (단정하고 건조한 블루 톤) */}
           <div style={{
-            padding: '16px 20px',
-            backgroundColor: 'rgba(59, 130, 246, 0.08)',
-            borderBottom: '1px solid rgba(148, 163, 184, 0.15)',
+            padding: '14px 18px',
+            borderBottom: '1px solid var(--border-color)',
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'center'
+            alignItems: 'center',
+            backgroundColor: 'var(--bg-header)'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{
-                backgroundColor: '#2563eb',
-                borderRadius: '8px',
-                padding: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <Info size={18} color="#ffffff" />
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-main, #f8fafc)', letterSpacing: '-0.3px' }}>
-                  {effectiveTitle}
-                </h3>
-                <span style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  padding: '2px 7px',
-                  borderRadius: '4px',
-                  backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                  color: '#93c5fd',
-                  border: '1px solid rgba(59, 130, 246, 0.25)'
-                }}>
-                  업무 안내
-                </span>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Info size={18} color="var(--primary)" />
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', letterSpacing: '-0.3px' }}>
+                {effectiveTitle}
+              </h3>
             </div>
             <button
               data-uia="btn-close-notice-modal"
@@ -372,7 +355,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
               style={{
                 background: 'none',
                 border: 'none',
-                color: 'var(--text-muted, #94a3b8)',
+                color: 'var(--text-muted)',
                 cursor: 'pointer',
                 padding: '4px',
                 borderRadius: '6px',
@@ -381,40 +364,31 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
                 justifyContent: 'center'
               }}
             >
-              <X size={19} />
+              <X size={18} />
             </button>
           </div>
 
-          {/* 모달 본문 (평온하고 가독성 높은 카드 레이아웃) */}
-          <div style={{ padding: '22px 20px 16px' }}>
+          {/* 모달 본문 (핵심 사유 고대비 표시) */}
+          <div style={{ padding: '18px' }}>
             <div style={{
-              backgroundColor: 'var(--bg-app, rgba(15, 23, 42, 0.65))',
-              border: '1px solid var(--border-color, #334155)',
-              borderRadius: '10px',
-              padding: '18px 20px',
-              fontSize: '14px',
-              color: 'var(--text-main, #f1f5f9)',
+              backgroundColor: 'var(--bg-app)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '8px',
+              padding: '16px 18px',
+              fontSize: '13.5px',
+              color: 'var(--text-main)',
               lineHeight: 1.65,
               whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
+              wordBreak: 'keep-all',
               fontWeight: 500
             }}>
               {message}
             </div>
-
-            <p style={{
-              fontSize: '12px',
-              color: 'var(--text-muted, #94a3b8)',
-              margin: '12px 4px 0',
-              lineHeight: 1.5
-            }}>
-              * 위의 안내 사항 및 선결 조건을 확인하신 후 다음 업무를 진행해 주십시오.
-            </p>
           </div>
 
           {/* 모달 푸터 (오류복사 버튼 배제, 단일 [확인] 완결 버튼만 우측 배치) */}
           <div style={{
-            padding: '12px 20px 16px',
+            padding: '10px 18px 16px',
             display: 'flex',
             justifyContent: 'flex-end',
             alignItems: 'center',
@@ -422,19 +396,16 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
           }}>
             <button
               type="button"
+              className="btn-primary"
               data-uia="btn-confirm-notice-modal"
               onClick={onClose}
               style={{
-                backgroundColor: 'var(--primary, #2563eb)',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '9px 24px',
-                fontSize: '13.5px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-                transition: 'all 0.15s ease'
+                height: '34px',
+                padding: '0 24px',
+                fontSize: '13px',
+                fontWeight: 700,
+                borderRadius: '6px',
+                cursor: 'pointer'
               }}
             >
               확인
@@ -446,7 +417,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
   }
 
   // ─────────────────────────────────────────────────────────────
-  // 🚨 [디자인 1] 시스템 / 코드상 에러 모달 (강렬한 경고 & 기술 디버깅 도메인)
+  // 🚨 [유형 2] 시스템 / 코드상 에러 모달 (강렬한 경고 & 기술 디버깅 도메인)
   // ─────────────────────────────────────────────────────────────
   return (
     <div 
@@ -457,8 +428,8 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(6px)',
+        backgroundColor: 'rgba(15, 23, 42, 0.75)',
+        backdropFilter: 'blur(5px)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -469,45 +440,44 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
       <div
         data-uia="system-error-modal"
         style={{
-          backgroundColor: 'var(--bg-card, #1e293b)',
-          border: '1px solid #ef4444',
-          borderRadius: '16px',
+          backgroundColor: 'var(--bg-card)',
+          border: '1.5px solid #dc2626',
+          borderRadius: '12px',
           width: '100%',
-          maxWidth: '580px',
-          boxShadow: '0 25px 50px -12px rgba(239, 68, 68, 0.35)',
+          maxWidth: '560px',
+          boxShadow: '0 20px 40px -8px rgba(220, 38, 38, 0.28)',
           overflow: 'hidden',
-          color: '#f8fafc',
+          color: 'var(--text-main)',
           animation: 'fadeIn 0.2s ease-out',
           display: 'flex',
           flexDirection: 'column'
         }}
       >
         {/* 상단 강렬한 레드 악센트 바 */}
-        <div style={{ height: '3px', background: 'var(--danger)' }} />
+        <div style={{ height: '3px', background: '#dc2626' }} />
 
-        {/* 모달 헤더 (강렬한 레드 톤) */}
+        {/* 모달 헤더 (강렬한 크림슨 레드 톤) */}
         <div style={{
-          padding: '16px 20px',
-          backgroundColor: 'rgba(239, 68, 68, 0.16)',
-          borderBottom: '1px solid rgba(239, 68, 68, 0.35)',
+          padding: '14px 18px',
+          backgroundColor: 'rgba(220, 38, 38, 0.08)',
+          borderBottom: '1px solid rgba(220, 38, 38, 0.25)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{
-              backgroundColor: '#ef4444',
-              borderRadius: '8px',
-              padding: '6px',
+              backgroundColor: '#dc2626',
+              borderRadius: '6px',
+              padding: '5px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(239, 68, 68, 0.4)'
+              justifyContent: 'center'
             }}>
-              <ShieldAlert size={20} color="#ffffff" />
+              <ShieldAlert size={16} color="#ffffff" />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#fca5a5' }}>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#dc2626' }}>
                 {effectiveTitle}
               </h3>
               <span style={{
@@ -515,11 +485,10 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
                 fontWeight: 700,
                 padding: '2px 7px',
                 borderRadius: '4px',
-                backgroundColor: 'rgba(239, 68, 68, 0.25)',
-                color: '#fca5a5',
-                border: '1px solid rgba(239, 68, 68, 0.4)'
+                backgroundColor: '#dc2626',
+                color: '#ffffff'
               }}>
-                시스템 예외
+                개발팀 제보 대상
               </span>
             </div>
           </div>
@@ -529,7 +498,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
             style={{
               background: 'none',
               border: 'none',
-              color: 'var(--text-muted, #94a3b8)',
+              color: 'var(--text-muted)',
               cursor: 'pointer',
               padding: '4px',
               borderRadius: '6px',
@@ -538,37 +507,64 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
               justifyContent: 'center'
             }}
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
         {/* 모달 본문 (기술 디버깅 및 에러 스택 박스) */}
-        <div style={{ padding: '20px' }}>
-          <p style={{ fontSize: '13px', color: '#cbd5e1', marginBottom: '10px', lineHeight: 1.5 }}>
-            시스템 내부 예외 또는 데이터베이스 오류가 감지되었습니다. <b>[오류 내용 복사]</b> 버튼을 눌러 원인을 개발팀에 제보하실 수 있습니다:
+        <div style={{ padding: '18px' }}>
+          <p style={{ fontSize: '13px', color: 'var(--text-main)', margin: '0 0 10px', lineHeight: 1.5, fontWeight: 600 }}>
+            시스템 내부 예외 또는 데이터베이스 오류가 감지되었습니다. 아래 <b>[오류 내용 복사]</b> 버튼을 눌러 원인을 개발팀에 제보해 주십시오:
           </p>
           
-          {/* 오류 텍스트 박스 (모노스페이스 다크 에디터 톤) */}
-          <div style={{ position: 'relative' }}>
+          {/* 오류 텍스트 박스 (모노스페이스 다크 터미널 콘솔) */}
+          <div style={{
+            borderRadius: '8px',
+            overflow: 'hidden',
+            border: '1px solid #334155',
+            backgroundColor: '#0b0f19'
+          }}>
+            {/* 터미널 상단 타이틀바 */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '6px 12px',
+              backgroundColor: '#1e293b',
+              borderBottom: '1px solid #334155'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block' }} />
+                <span style={{ width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#f59e0b', display: 'inline-block' }} />
+                <span style={{ width: '9px', height: '9px', borderRadius: '50%', backgroundColor: '#10b981', display: 'inline-block' }} />
+                <span style={{ fontSize: '11px', fontFamily: 'monospace', color: '#94a3b8', marginLeft: '6px', fontWeight: 600 }}>
+                  SYSTEM EXCEPTION LOG
+                </span>
+              </div>
+              <span style={{ fontSize: '10.5px', fontFamily: 'monospace', color: '#ef4444', fontWeight: 700 }}>
+                CRITICAL
+              </span>
+            </div>
             <textarea
               readOnly
+              className="system-error-terminal"
               value={message}
               onClick={(e) => (e.target as HTMLTextAreaElement).select()}
               style={{
                 width: '100%',
-                minHeight: '140px',
-                maxHeight: '260px',
-                backgroundColor: 'var(--bg-app, #0f172a)',
+                minHeight: '130px',
+                maxHeight: '240px',
+                backgroundColor: '#0b0f19',
                 color: '#f87171',
-                border: '1px solid #334155',
-                borderRadius: '10px',
-                padding: '14px',
+                border: 'none',
+                padding: '12px 14px',
                 fontFamily: 'Consolas, Monaco, monospace',
-                fontSize: '13px',
-                lineHeight: '1.5',
+                fontSize: '12.5px',
+                lineHeight: '1.55',
                 resize: 'vertical',
                 outline: 'none',
-                boxSizing: 'border-box'
+                boxSizing: 'border-box',
+                display: 'block'
               }}
             />
           </div>
@@ -576,42 +572,40 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
           {/* RLS DDL 패치 섹션 (RLS 오류 감지 시에만 표시) */}
           {isRlsError && ddlPatch && (
             <div style={{
-              marginTop: '14px',
-              backgroundColor: 'rgba(234, 179, 8, 0.07)',
+              marginTop: '12px',
+              backgroundColor: 'rgba(234, 179, 8, 0.08)',
               border: '1px solid rgba(234, 179, 8, 0.35)',
-              borderRadius: '10px',
-              padding: '14px',
+              borderRadius: '8px',
+              padding: '12px',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                <ShieldOff size={16} color="#facc15" />
-                <span style={{ fontSize: '13px', fontWeight: 700, color: '#facc15' }}>
-                  🛡️ RLS 쓰기 차단 감지 — 즉시 복구 Policy DDL
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                <ShieldOff size={15} color="#d97706" />
+                <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#d97706' }}>
+                  RLS 쓰기 차단 감지 — 복구 Policy DDL
                 </span>
               </div>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)', margin: '0 0 8px', lineHeight: 1.5 }}>
-                아래 SQL을 <b>Supabase SQL Editor</b>에서 실행하면 <b>RLS를 유지한 채로</b> 해당 테이블의 anon/authenticated 롤 쓰기가 허용됩니다:
-              </p>
               <textarea
                 readOnly
+                className="system-error-terminal"
                 value={ddlPatch}
                 onClick={(e) => (e.target as HTMLTextAreaElement).select()}
                 style={{
                   width: '100%',
-                  minHeight: '70px',
+                  minHeight: '65px',
                   backgroundColor: '#0c1426',
                   color: '#4ade80',
                   border: '1px solid rgba(234, 179, 8, 0.3)',
-                  borderRadius: '8px',
-                  padding: '12px',
+                  borderRadius: '6px',
+                  padding: '10px',
                   fontFamily: 'Consolas, Monaco, monospace',
-                  fontSize: '13px',
-                  lineHeight: '1.6',
+                  fontSize: '12px',
+                  lineHeight: '1.5',
                   resize: 'vertical',
                   outline: 'none',
                   boxSizing: 'border-box'
                 }}
               />
-              <div style={{ marginTop: '10px', display: 'flex', justifyContent: 'flex-end' }}>
+              <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
                 <button
                   type="button"
                   onClick={handleDdlCopy}
@@ -619,142 +613,108 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
                     backgroundColor: ddlCopied ? '#059669' : '#d97706',
                     color: '#ffffff',
                     border: 'none',
-                    borderRadius: '8px',
-                    padding: '8px 16px',
-                    fontSize: '13px',
+                    borderRadius: '6px',
+                    padding: '6px 12px',
+                    fontSize: '12px',
                     fontWeight: 700,
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '6px',
-                    transition: 'all 0.2s ease'
+                    gap: '5px'
                   }}
                 >
-                  {ddlCopied ? <Check size={15} /> : <Copy size={15} />}
-                  {ddlCopied ? 'Policy DDL 복사 완료!' : '🔓 RLS Policy DDL 복사'}
+                  {ddlCopied ? <Check size={14} /> : <Copy size={14} />}
+                  {ddlCopied ? '복사 완료' : 'RLS Policy DDL 복사'}
                 </button>
               </div>
-            </div>
-          )}
-
-          {/* 네트워크 통신 오류 안내 섹션 */}
-          {isNetworkError && (
-            <div style={{
-              marginTop: '14px',
-              backgroundColor: 'rgba(59, 130, 246, 0.08)',
-              border: '1px solid rgba(59, 130, 246, 0.35)',
-              borderRadius: '10px',
-              padding: '14px',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--primary, #2563eb)' }}>
-                  🌐 원격 DB 네트워크 통신 장애 안내
-                </span>
-              </div>
-              <p style={{ fontSize: '12px', color: 'var(--text-muted, #94a3b8)', margin: 0, lineHeight: 1.6 }}>
-                • 브라우저의 인터넷 연결이 단락되었거나, 원격 Supabase 서버 연결이 지연되었습니다.<br />
-                • <b style={{ color: 'var(--text-primary, #1e293b)' }}>로컬 데이터베이스에는 변경 사항이 안전하게 반영되었습니다.</b> 네트워크 연결 복구 후 작업을 재시도하시거나 페이지를 새로고침하여 주십시오.
-              </p>
             </div>
           )}
 
           {/* DDL 패치 실행 결과 안내 배너 */}
           {patchResultMsg && (
             <div style={{
-              marginTop: '12px',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
+              marginTop: '10px',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              fontSize: '12px',
               fontWeight: 600,
               whiteSpace: 'pre-wrap',
               backgroundColor: patchExecuted ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)',
               border: `1px solid ${patchExecuted ? '#22c55e' : '#ef4444'}`,
-              color: patchExecuted ? '#4ade80' : '#fca5a5'
+              color: patchExecuted ? '#047857' : '#dc2626'
             }}>
               {patchResultMsg}
             </div>
           )}
         </div>
 
-        {/* 모달 푸터 / 액션 버튼 (오류 내용 복사 버튼 필수 유지) */}
+        {/* 모달 푸터 / 액션 버튼 */}
         <div style={{
-          padding: '14px 20px',
-          backgroundColor: 'var(--bg-app, #0f172a)',
-          borderTop: '1px solid #1e293b',
+          padding: '12px 18px',
+          borderTop: '1px solid var(--border-color)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '10px',
-          flexWrap: 'wrap'
+          gap: '8px',
+          flexWrap: 'nowrap'
         }}>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
             <button
               type="button"
+              className="btn-primary"
               data-uia="btn-copy-error-content"
               onClick={handleCopy}
               style={{
-                backgroundColor: copied ? '#059669' : '#3b82f6',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '9px 16px',
-                fontSize: '13px',
-                fontWeight: 600,
+                height: '34px',
+                padding: '0 16px',
+                fontSize: '12.5px',
+                fontWeight: 700,
+                borderRadius: '6px',
                 cursor: 'pointer',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.2s ease'
+                gap: '6px'
               }}
             >
-              {copied ? <Check size={16} /> : <Copy size={16} />}
-              {copied ? '복사되었습니다!' : '📋 오류 내용 복사'}
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+              <span>{copied ? '복사 완료!' : '오류 내용 복사'}</span>
             </button>
 
-            {/* 🚀 1-Click DB 패치 즉시 실행 버튼 (DDL 구문 감지 시 동적 노출!) */}
             {ddlStatements.length > 0 && (
               <button
                 type="button"
+                className="btn-danger"
                 onClick={handleExecutePatch}
                 disabled={executingPatch || patchExecuted}
                 style={{
-                  background: patchExecuted 
-                    ? '#059669' 
-                    : 'var(--danger)',
-                  color: '#ffffff',
-                  border: '1px solid var(--danger)',
-                  borderRadius: '8px',
-                  padding: '9px 18px',
-                  fontSize: '13px',
-                  fontWeight: 800,
+                  height: '34px',
+                  padding: '0 14px',
+                  fontSize: '12.5px',
+                  fontWeight: 700,
+                  borderRadius: '6px',
                   cursor: (executingPatch || patchExecuted) ? 'default' : 'pointer',
-                  display: 'flex',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
-                  boxShadow: '0 4px 12px rgba(225, 29, 72, 0.35)',
-                  transition: 'all 0.2s ease',
-                  opacity: executingPatch ? 0.7 : 1
+                  gap: '6px'
                 }}
               >
-                {executingPatch ? <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> : (patchExecuted ? <Check size={16} /> : <Database size={16} />)}
-                {executingPatch ? 'DB 패치 실행 중...' : (patchExecuted ? '✅ DB 패치 완결!' : '🚀 1-Click DB 패치 즉시 실행')}
+                {executingPatch ? <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : (patchExecuted ? <Check size={14} /> : <Database size={14} />)}
+                <span>{executingPatch ? '패치 중...' : (patchExecuted ? '패치 완료' : '1-Click 패치')}</span>
               </button>
             )}
           </div>
           
           <button
             type="button"
+            className="btn-reset"
             data-uia="btn-close-error-modal-confirm"
             onClick={onClose}
             style={{
-              backgroundColor: '#334155',
-              color: '#f8fafc',
-              border: 'none',
-              borderRadius: '8px',
-              padding: '9px 20px',
-              fontSize: '13px',
+              height: '34px',
+              padding: '0 18px',
+              fontSize: '12.5px',
               fontWeight: 600,
-              cursor: 'pointer'
+              borderRadius: '6px'
             }}
           >
             확인 및 닫기

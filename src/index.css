@@ -490,17 +490,29 @@ input:not([type="checkbox"]):not([type="radio"]), select, textarea {
   appearance: none;
 }
 
-[data-theme='light'] input:not([type="checkbox"]):not([type="radio"]),
+[data-theme='light'] input:not([type="checkbox"]):not([type="radio"]):not(.system-error-terminal),
 [data-theme='light'] select,
-[data-theme='light'] textarea,
-:root:not([data-theme='dark']) input:not([type="checkbox"]):not([type="radio"]),
+[data-theme='light'] textarea:not(.system-error-terminal),
+:root:not([data-theme='dark']) input:not([type="checkbox"]):not([type="radio"]):not(.system-error-terminal),
 :root:not([data-theme='dark']) select,
-:root:not([data-theme='dark']) textarea {
+:root:not([data-theme='dark']) textarea:not(.system-error-terminal) {
   background-color: var(--bg-app) !important;
   background-image: var(--paper-texture) !important;
   background-repeat: repeat !important;
   color: var(--text-main) !important;
   border: 1px solid var(--border-color) !important;
+}
+
+/* 🚨 개발팀 제보용 시스템 오류 모달 다크 콘솔 터미널 (High-Impact Developer Crash Console) */
+.system-error-terminal,
+textarea.system-error-terminal,
+pre.system-error-terminal {
+  background-color: #0b0f19 !important;
+  background-image: none !important;
+  color: #f87171 !important;
+  border: 1px solid #334155 !important;
+  font-family: Consolas, Monaco, 'Courier New', monospace !important;
+  letter-spacing: -0.01em;
 }
 
 [data-theme='light'] select option,

@@ -118,7 +118,7 @@ export const SiteOptionManage: React.FC = () => {
   const [showDevMergeModal, setShowDevMergeModal] = React.useState(false);
   const { 
     customers, siteMasters, standardOptions, saveStandardOption, deleteStandardOption, 
-    saveSiteMaster, showErrorModal, fullRefreshFromServer,
+    saveSiteMaster, showErrorModal, showNoticeModal, fullRefreshFromServer,
     navigationPayload, setNavigationPayload,
     sites, contracts
   } = useApp();
@@ -144,8 +144,9 @@ export const SiteOptionManage: React.FC = () => {
         (c.status === 'ACTIVE' || c.status === 'EXTENDED')
       );
       if (activeContracts.length > 0) {
-        showErrorModal(
-          `현장 완공(종료) 처리 불가:\n해당 현장에 아직 유효한(진행 중인) 계약이 ${activeContracts.length}건 존재합니다.\n(대표 계약: ${activeContracts[0].contractNo || activeContracts[0].id})\n\n모든 장비가 반납되고 관련 계약이 모두 종료된 후에만 현장을 완공 처리할 수 있습니다.`
+        showNoticeModal(
+          `현장 완공(종료) 처리 불가:\n해당 현장에 아직 유효한(진행 중인) 계약이 ${activeContracts.length}건 존재합니다.\n(대표 계약: ${activeContracts[0].contractNo || activeContracts[0].id})\n\n모든 장비가 반납되고 관련 계약이 모두 종료된 후에만 현장을 완공 처리할 수 있습니다.`,
+          '현장 완공 처리 불가'
         );
         return;
       }
