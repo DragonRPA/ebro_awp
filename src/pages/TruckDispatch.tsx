@@ -11,7 +11,8 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { exportToExcel } from '../services/excel';
-import { Delivery, TransportCompany, TransportDriver, TransportNegotiation, db, DeliveryStatus, Asset, PurchaseSettlement, PurchaseSettlementItem, VEHICLE_TYPE_OPTIONS, isCustomerRestricted } from '../services/db';
+import { Delivery, TransportCompany, TransportDriver, TransportNegotiation, db, DeliveryStatus, Asset, PurchaseSettlement, PurchaseSettlementItem, VEHICLE_TYPE_OPTIONS, isCustomerRestricted, logPrivacyAccess } from '../services/db';
+import { isPrivilegedPrivacyUser, maskPhoneNumber, maskName, maskAddress } from '../utils/privacyMasking';
 import { DestinationWeatherModal } from '../components/DestinationWeatherModal';
 import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal';
 import { matchHangul } from '../utils/hangulSearch';
@@ -3226,6 +3227,7 @@ export const TruckDispatch: React.FC = () => {
       showToast('내보낼 배차 데이터가 없습니다.', 'warning');
       return;
     }
+    const isPrivileged = isPrivilegedPrivacyUser(currentUser);
     const rows = filteredDeliveries.map((d, index) => {
       const contract = getContract(d.contractId);
       const customer = contract ? getCustomer(contract.customerId) : null;
@@ -3251,13 +3253,13 @@ export const TruckDispatch: React.FC = () => {
         '고객사': customer?.name || (d as any).customerName || '-',
         '현장명': site?.name || (d as any).siteName || '-',
         '운송장비': cargoStr,
-        '출발지(상차지)': d.originAddress || '당사 보관소',
-        '도착지(하차지)': d.destinationAddress || site?.address || '-',
+        '출발지(상차지)': isPrivileged ? (d.originAddress || '당사 보관소') : maskAddress(d.originAddress || '당사 보관소'),
+        '도착지(하차지)': isPrivileged ? (d.destinationAddress || site?.address || '-') : maskAddress(d.destinationAddress || site?.address || '-'),
         '운송사': d.transportCompany || '-',
         '차종': d.vehicleType || '-',
         '차량번호': d.vehicleNo || '-',
-        '기사명': d.driverName || '-',
-        '기사연락처': d.driverContact || '-',
+        '기사명': isPrivileged ? (d.driverName || '-') : maskName(d.driverName),
+        '기사연락처': isPrivileged ? (d.driverContact || '-') : maskPhoneNumber(d.driverContact),
         '예상운송비': d.expectedCost || 0,
         '확정운송비': effCost,
         '고객청구여부': d.billableToCustomer ? '청구' : '당사부담',
@@ -3268,7 +3270,13 @@ export const TruckDispatch: React.FC = () => {
     });
     const todayStr = new Date().toISOString().split('T')[0];
     exportToExcel(rows, `배차대장_${todayStr}`, '배차목록');
-    showToast(`배차 대장 ${rows.length}건 엑셀 다운로드 완료`);
+    logPrivacyAccess(
+      'EXCEL_DOWNLOAD',
+      'truck_dispatch',
+      `배차 대장 ${rows.length}건 엑셀 다운로드 (${isPrivileged ? '경영진/개발자 원본' : '기사/고객사 개인정보 마스킹'})`,
+      { isMasked: !isPrivileged }
+    ).catch(console.error);
+    showToast(`배차 대장 ${rows.length}건 엑셀 다운로드 완료 (${isPrivileged ? '전체 정보' : '마스킹 적용'})`);
   };
 
   return (

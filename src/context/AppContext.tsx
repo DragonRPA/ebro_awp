@@ -101,7 +101,7 @@ interface AppContextType {
     detectedFingerprint?: string;
     detectedMacs?: string[];
   }>;
-  logout: () => void;
+  logout: (reason?: any) => void;
   switchUser: (userId: string) => void;
   hasPermission: (menuId: string, action: 'view' | 'save') => boolean;
   showErrorModal: (message: string, title?: string, type?: 'system' | 'business') => void;
@@ -1326,6 +1326,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     fullRefreshFromServer();
   }, []);
 
+  // 🛡️ [개인정보 보호법 및 안전성 확보조치 기준 제8조 준수: 세션 타임아웃 30분 자동 로그아웃]
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30분
+    let timer: any = null;
+
+    const resetTimer = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        logout('개인정보보호 안전성 확보조치 기준에 따라 30분간 조작이 없어 보안을 위해 자동 로그아웃되었습니다.');
+      }, INACTIVITY_TIMEOUT_MS);
+    };
+
+    resetTimer();
+
+    const activityEvents = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    const handleActivity = () => resetTimer();
+
+    activityEvents.forEach(evt => window.addEventListener(evt, handleActivity, { passive: true }));
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      activityEvents.forEach(evt => window.removeEventListener(evt, handleActivity));
+    };
+  }, [currentUser]);
+
   const toggleTheme = () => {
     const nextTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(nextTheme);
@@ -1635,9 +1662,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { success: true };
   };
 
-  const logout = () => {
+  const logout = (reason?: any) => {
+    const isSyntheticEvent = reason && typeof reason === 'object' && ('nativeEvent' in reason || 'preventDefault' in reason);
+    const reasonStr = (typeof reason === 'string' && reason.trim()) ? reason.trim() : undefined;
+
     if (currentUser) {
-      logPrivacyAccess('LOGOUT', 'logout', `사용자 로그아웃: ${currentUser.name}`, {
+      const logMsg = reasonStr ? `사용자 자동 로그아웃 (${reasonStr}): ${currentUser.name}` : `사용자 로그아웃: ${currentUser.name}`;
+      logPrivacyAccess('LOGOUT', 'logout', logMsg, {
         userId: currentUser.loginId,
         userName: currentUser.name
       }).catch(console.error);
@@ -1646,6 +1677,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('original_admin_user');
     localStorage.removeItem('auto_user');
+    if (reasonStr && !isSyntheticEvent) {
+      showNoticeModal(reasonStr, '보안 자동 로그아웃');
+    }
   };
 
   const switchUser = (userId: string) => {
