@@ -149,6 +149,7 @@ import { useGridWheel } from './hooks/useGridWheel';
 /* ── 인앱 오버레이 매뉴얼 버튼 (헤더 우측 배치) ─────────────── */
 const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activeTabName?: string }> = ({ activeTab, currentUser, activeTabName }) => {
   const { mode, setMode, loadPage, page } = useManualContext();
+  const { hasPermission } = useApp();
   
   // 개발자 계정(admin, sys-admin)일 때만 매뉴얼 작성 기능 노출
   const isTrueDev = (u?: any) => u && (u.loginId === 'admin' || u.id === 'sys-admin');
@@ -158,7 +159,7 @@ const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activ
 
   // 💡 [메뉴 전환 시 매뉴얼 단계 수 동기화]
   useEffect(() => {
-    if (activeTab) {
+    if (activeTab && hasPermission(activeTab, 'view')) {
       const ctx = detectCurrentContext(activeTab, pageTitle);
       loadPage(ctx.pageId, ctx.pageTitle);
     }
@@ -179,6 +180,10 @@ const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activ
     await loadPage(ctx.pageId, ctx.pageTitle);
     setMode('authoring');
   };
+
+  if (activeTab && !hasPermission(activeTab, 'view')) {
+    return null;
+  }
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>

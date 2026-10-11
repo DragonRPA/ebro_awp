@@ -1710,8 +1710,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return false;
       }
 
-      // 2) allowedPages가 지정되어 있는 경우, 허용 목록에 없는 메뉴는 원천 차단 (단, 최고관리자는 모든 메뉴 접근 허용, 개발/유통 모듈은 isSuperAdmin 예외 허용)
-      if (!isSuperAdmin && normAllowedPages.length > 0 && normMenuId !== 'dashboard' && !normAllowedPages.includes(normMenuId)) {
+      // 2) allowedPages가 지정되어 있는 경우, 허용 목록에 없는 메뉴는 원천 차단 (단, 공통 기본 메뉴는 전원 상시 개방)
+      const commonAlwaysOpen = ['dashboard', 'manual_dictionary', 'operations_manual', 'leave_application', 'error_report', 'approvalInbox', 'approval_inbox'];
+      if (!isSuperAdmin && normAllowedPages.length > 0 && !commonAlwaysOpen.includes(normMenuId) && !normAllowedPages.includes(normMenuId)) {
         return false;
       }
     }
@@ -1719,8 +1720,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 1. 시스템 최고관리자 계정 및 ADMIN 역할 사용자는 모든 메뉴에 100% 무조건 권한 부여 (테넌트 숨김 가드 통과 후)
     if (isSuperAdmin) return true;
 
-    // 2-1. 연차신청, 매뉴얼 스튜디오, 업무매뉴얼, 오류 신고 및 내 결재함은 권한 구분 없이 모든 임직원의 공통 기능으로 처리 (전원 상시 개방)
-    if (normMenuId === 'leave_application' || normMenuId === 'manual_studio' || normMenuId === 'operations_manual' || normMenuId === 'error_report' || normMenuId === 'approvalInbox' || normMenuId === 'approval_inbox') {
+    // 2-1. 연차신청, 매뉴얼 스튜디오, 업무매뉴얼, 전사 업무 매뉴얼 사전, 오류 신고, 대시보드 및 내 결재함은 권한 구분 없이 모든 임직원의 공통 기능으로 처리 (전원 상시 개방)
+    if (normMenuId === 'leave_application' || normMenuId === 'manual_studio' || normMenuId === 'operations_manual' || normMenuId === 'manual_dictionary' || normMenuId === 'dashboard' || normMenuId === 'error_report' || normMenuId === 'approvalInbox' || normMenuId === 'approval_inbox') {
       return true;
     }
 

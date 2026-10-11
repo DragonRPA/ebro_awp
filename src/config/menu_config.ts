@@ -258,7 +258,15 @@ export const CANONICAL_MENU_ALIASES: Record<string, string> = {
   'data_formation': 'dev_uploader',
   'data-formation': 'dev_uploader',
   'dataformation': 'dev_uploader',
-  '초기자료형성': 'dev_uploader'
+  '초기자료형성': 'dev_uploader',
+  'contract_create': 'contract',
+  'contract-create': 'contract',
+  'billing_wizard': 'billing',
+  'billing-wizard': 'billing',
+  'billing_invoice': 'billing',
+  'billing-invoice': 'billing',
+  'billing_waiver': 'billing',
+  'billing-waiver': 'billing'
 };
 
 export function normalizeMenuId(menuId: string): string {

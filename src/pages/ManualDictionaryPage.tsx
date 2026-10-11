@@ -6,7 +6,7 @@ import { useApp } from '../context/AppContext';
 import { useManualContext } from '../components/manual/ManualContext';
 
 export const ManualDictionaryPage: React.FC = () => {
-  const { setActiveTab } = useApp();
+  const { setActiveTab, hasPermission, showErrorModal } = useApp();
   const { startGuidedTour } = useManualContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMenu, setSelectedMenu] = useState<string>('ALL');
@@ -14,6 +14,11 @@ export const ManualDictionaryPage: React.FC = () => {
   const allProcesses = useMemo(() => {
     const list: any[] = [];
     ALL_MENU_MANUALS.forEach(menu => {
+      // 💡 [권한 격리] 현재 사용자가 'view' 권한을 보유한 메뉴의 프로세스만 노출 (권한 없는 메뉴 완전 배제)
+      if (!hasPermission(menu.menuId, 'view')) {
+        return;
+      }
+
       if (menu.processes && menu.processes.length > 0) {
         menu.processes.forEach((proc: any) => {
           list.push({
@@ -28,13 +33,20 @@ export const ManualDictionaryPage: React.FC = () => {
       }
     });
     return list;
-  }, []);
+  }, [hasPermission]);
 
   const menuOptions = useMemo(() => {
     const menus = new Set<string>();
     allProcesses.forEach(p => menus.add(p.menuName));
     return Array.from(menus).sort();
   }, [allProcesses]);
+
+  // 권한 없는 메뉴가 선택되어 있다면 자동으로 전체로 리셋
+  React.useEffect(() => {
+    if (selectedMenu !== 'ALL' && !menuOptions.includes(selectedMenu)) {
+      setSelectedMenu('ALL');
+    }
+  }, [menuOptions, selectedMenu]);
 
   const filteredProcesses = useMemo(() => {
     return allProcesses.filter(p => {
@@ -46,6 +58,15 @@ export const ManualDictionaryPage: React.FC = () => {
   }, [allProcesses, searchQuery, selectedMenu]);
 
   const handleStartProcess = (menuId: string, processId?: string, menuName?: string) => {
+    if (!hasPermission(menuId, 'view')) {
+      if (typeof showErrorModal === 'function') {
+        showErrorModal(`[${menuName || menuId}] 메뉴에 대한 접근 권한이 없습니다.`, '접근 권한 제한');
+      } else {
+        alert(`[${menuName || menuId}] 메뉴에 대한 접근 권한이 없습니다.`);
+      }
+      return;
+    }
+
     if (typeof startGuidedTour === 'function') {
       startGuidedTour(menuId, processId, menuName);
     } else {
@@ -103,7 +124,9 @@ export const ManualDictionaryPage: React.FC = () => {
           filteredProcesses.map((proc, idx) => (
             <div 
               key={`${proc.menuId}-${proc.processId}-${idx}`} 
-              className="card" 
+              className="card"
+              data-menu-id={proc.menuId}
+              data-menu-name={proc.menuName} 
               style={{ 
                 flexShrink: 0, 
                 padding: 0, 

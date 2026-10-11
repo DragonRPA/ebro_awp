@@ -117,6 +117,20 @@ export const ManualProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const nav = getAppTabForMenu(targetMenuId);
     const targetTab = nav.tabId;
 
+    // 0. 권한 검증: 권한 없는 메뉴에 대한 가이드 투어 시작 원천 차단
+    if (typeof window !== 'undefined' && (window as any).__APP_CONTEXT__) {
+      const appContext = (window as any).__APP_CONTEXT__;
+      if (typeof appContext.hasPermission === 'function' && !appContext.hasPermission(targetTab, 'view')) {
+        console.warn(`[startGuidedTour] Access denied for menu: ${targetTab}`);
+        if (typeof appContext.showErrorModal === 'function') {
+          appContext.showErrorModal(`[${targetMenuTitle || targetTab}] 메뉴에 대한 접근 권한이 없습니다.`, '접근 권한 제한');
+        } else if (typeof alert !== 'undefined') {
+          alert(`[${targetMenuTitle || targetTab}] 메뉴에 대한 접근 권한이 없습니다.`);
+        }
+        return;
+      }
+    }
+
     // 1. 실제 화면 전환
     if (typeof window !== 'undefined' && (window as any).__APP_CONTEXT__?.setActiveTab) {
       (window as any).__APP_CONTEXT__.setActiveTab(targetTab);
@@ -144,6 +158,16 @@ export const ManualProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }, 150);
     }
   }, [loadPage, setBaseMenu]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).__MANUAL_CONTEXT__ = {
+        startGuidedTour,
+        mode,
+        setMode,
+      };
+    }
+  }, [startGuidedTour, mode, setMode]);
 
   return (
     <ManualCtx.Provider value={{

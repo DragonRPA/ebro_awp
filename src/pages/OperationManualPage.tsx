@@ -10,11 +10,13 @@ import {
 import { ALL_MENU_MANUALS, MenuManualDetail } from '../data/allMenuManuals';
 import { useManual } from '../hooks/useManual';
 import { useManualContext } from '../components/manual/ManualContext';
+import { useApp } from '../context/AppContext';
 import { fetchCentralSystemManuals, SystemManualItem } from '../services/centralDb';
 
 type DeptFilter = 'all' | 'sales' | 'inout' | 'maintenance' | 'logistics' | 'management' | 'special' | 'dev';
 
 export const OperationManualPage: React.FC = () => {
+  const { hasPermission, showErrorModal } = useApp();
   const [selectedMenuId, setSelectedMenuId] = useState<string>('dashboard');
   const [deptFilter, setDeptFilter] = useState<DeptFilter>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -129,9 +131,33 @@ export const OperationManualPage: React.FC = () => {
     setTimeout(() => setSeedingSuccess(null), 5000);
   };
 
-  // 부서 매핑 필터
+  // 권한 있는 메뉴만 사전 필터링 (SSOT 전사 단일 권한 체계 준수)
+  const permittedManuals = useMemo(() => {
+    return allManuals.filter(m => hasPermission(m.menuId, 'view'));
+  }, [allManuals, hasPermission]);
+
+  // 권한 없는 메뉴가 현재 선택되어 있는 경우 허가된 첫 번째 메뉴로 자동 전환
+  useEffect(() => {
+    if (permittedManuals.length > 0) {
+      const exists = permittedManuals.some(m => m.menuId === selectedMenuId);
+      if (!exists) {
+        setSelectedMenuId(permittedManuals[0].menuId);
+      }
+    }
+  }, [permittedManuals, selectedMenuId]);
+
+  // 가이드 투어 안전 시작 핸들러
+  const handleStartGuide = (menuId: string, processId?: string, menuName?: string) => {
+    if (!hasPermission(menuId, 'view')) {
+      showErrorModal(`'${menuName || menuId}' 메뉴에 대한 접근 권한이 없습니다.`, '접근 권한 제한');
+      return;
+    }
+    (startGuidedTour as any)?.(menuId, processId, menuName);
+  };
+
+  // 부서 매핑 필터 (권한 허가된 메뉴 대상)
   const filteredManuals = useMemo(() => {
-    return allManuals.filter(m => {
+    return permittedManuals.filter(m => {
       // 1. 부서 필터
       if (deptFilter === 'sales' && !m.groupId.includes('sales')) return false;
       if (deptFilter === 'inout' && !m.groupId.includes('inout') && !m.groupId.includes('product_asset')) return false;
@@ -159,9 +185,9 @@ export const OperationManualPage: React.FC = () => {
 
       return true;
     });
-  }, [allManuals, deptFilter, searchQuery]);
+  }, [permittedManuals, deptFilter, searchQuery]);
 
-  // 그룹별 묶음 계산
+  // 그룹별 묶음 계산 (비어있는 그룹은 사이드바에서 제외)
   const groupedMenus = useMemo(() => {
     const groups: { groupId: string; groupName: string; items: MenuManualDetail[] }[] = [];
     filteredManuals.forEach(item => {
@@ -172,13 +198,13 @@ export const OperationManualPage: React.FC = () => {
       }
       grp.items.push(item);
     });
-    return groups;
+    return groups.filter(g => g.items.length > 0);
   }, [filteredManuals]);
 
-  // 현재 선택된 메뉴 상세
+  // 현재 선택된 메뉴 상세 (허가된 메뉴 중 선택)
   const activeManual = useMemo(() => {
-    return allManuals.find(m => m.menuId === selectedMenuId) || allManuals[0];
-  }, [allManuals, selectedMenuId]);
+    return permittedManuals.find(m => m.menuId === selectedMenuId) || permittedManuals[0] || null;
+  }, [permittedManuals, selectedMenuId]);
 
   return (
     <div data-hs-observe="operationmanualpage" data-mid="operations_manual-header" data-subview="operations_manual" data-subview-title="Generated" className="manual-page-root" style={{ height: '100%', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', overflow: 'hidden' }}>
@@ -244,7 +270,7 @@ export const OperationManualPage: React.FC = () => {
             </div>
             <div>
               <span style={{ fontSize: '15px', fontWeight: '900', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>전사 업무매뉴얼</span>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', whiteSpace: 'nowrap' }}>E-Bro ERP 실무 표준 가이드 (총 {allManuals.length}개 메뉴)</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', whiteSpace: 'nowrap' }}>E-Bro ERP 실무 표준 가이드 (총 {permittedManuals.length}개 메뉴)</span>
             </div>
           </div>
 
@@ -511,7 +537,7 @@ export const OperationManualPage: React.FC = () => {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              (startGuidedTour as any)?.(item.menuId, null, item.menuName);
+                              handleStartGuide(item.menuId, undefined, item.menuName);
                             }}
                             style={{
                               border: 'none',
@@ -577,14 +603,28 @@ export const OperationManualPage: React.FC = () => {
             }}
           >
             {viewMode === 'single' ? (
-              <ManualDetailCard item={activeManual} />
-            ) : (
+              activeManual ? (
+                <ManualDetailCard item={activeManual} />
+              ) : (
+                <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+                  <BookOpen size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
+                  <div style={{ fontSize: '16px', fontWeight: 700 }}>조회 가능한 업무 매뉴얼이 없습니다.</div>
+                  <div style={{ fontSize: '13px', marginTop: '6px' }}>접근 권한이 부여된 메뉴의 매뉴얼만 열람할 수 있습니다.</div>
+                </div>
+              )
+            ) : filteredManuals.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '48px' }}>
                 {filteredManuals.map((item, idx) => (
                   <div key={item.menuId} id={`manual-${item.menuId}`} className="manual-section print-break-before">
                     <ManualDetailCard item={item} />
                   </div>
                 ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+                <BookOpen size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
+                <div style={{ fontSize: '16px', fontWeight: 700 }}>조회 가능한 업무 매뉴얼이 없습니다.</div>
+                <div style={{ fontSize: '13px', marginTop: '6px' }}>검색 조건에 일치하거나 권한이 있는 매뉴얼이 없습니다.</div>
               </div>
             )}
           </div>
@@ -601,6 +641,15 @@ export const OperationManualPage: React.FC = () => {
  */
 const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
   const { startGuidedTour } = useManualContext();
+  const { hasPermission, showErrorModal } = useApp();
+
+  const handleStartGuide = (menuId: string, processId?: string | null, menuName?: string) => {
+    if (!hasPermission(menuId, 'view')) {
+      showErrorModal(`'${menuName || menuId}' 메뉴에 대한 접근 권한이 없습니다.`, '접근 권한 제한');
+      return;
+    }
+    (startGuidedTour as any)?.(menuId, processId, menuName);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
@@ -651,7 +700,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
           </h2>
           <button
             className="no-print"
-            onClick={() => (startGuidedTour as any)?.(item.menuId, null, item.menuName)}
+            onClick={() => handleStartGuide(item.menuId, null, item.menuName)}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -756,7 +805,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
                     </span>
                     <button
                       className="no-print"
-                      onClick={() => (startGuidedTour as any)?.(item.menuId, proc.processId, item.menuName)}
+                      onClick={() => handleStartGuide(item.menuId, proc.processId, item.menuName)}
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
