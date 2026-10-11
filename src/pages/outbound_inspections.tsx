@@ -536,15 +536,13 @@ export const OutboundInspections: React.FC = () => {
         });
       }
 
-      // 🚀 [단일 업무 인계 파이프라인] 화물 기사/영업에 장비 상차 출발 ToDo 발행
-      const matchedContract = contracts.find(c => c.id === selectedGroup.contractId);
+      // 🚀 [단일 업무 인계 파이프라인] 배차팀에 장비 상차 출발 ToDo 발행 (헌장 2.1 영업과 배차 R&R 엄격 분리)
       await issueHandoverTask({
         category: 'OUTBOUND_SHIPMENT_START',
         title: `[장비 상차 출발] ${selectedGroup.customerName} (${selectedGroup.items.length}대 PDI 완료)`,
         content: `출고 PDI 검수 완료 승인 (자산 대여중 전환). 차량 상차 및 현장 배송을 시작하세요. (현장: ${selectedGroup.siteName || '-'})`,
         targetDept: 'DISPATCH',
         targetRole: 'LOGISTICS',
-        assignedUserId: matchedContract?.salespersonId,
         priority: 'HIGH',
         actionUrl: '/admin/dispatch',
         entityType: 'DELIVERY',

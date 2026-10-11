@@ -151,8 +151,47 @@ export function findActiveTasksForUser(
   const uRole = (currentUser.role || '').toUpperCase();
   const isExec = uDept.includes('경영') || uDept.includes('대표') || uRole === 'ADMIN' || uRole === 'MASTER' || uRole === 'EXECUTIVE';
 
+  // 🏛️ 부서 식별 플래그
+  const isSalesDept = uDept.includes('SALES') || uDept.includes('영업') || uRole.includes('SALES');
+  const isDispatchDept = uDept.includes('DISPATCH') || uDept.includes('배차') || uDept.includes('운송') || uRole.includes('LOGISTICS');
+  const isYardDept = uDept.includes('YARD') || uDept.includes('출고') || uDept.includes('주기장');
+  const isAsDept = uDept.includes('AS') || uDept.includes('정비') || uRole.includes('MECHANIC');
+
   const filtered = todos.filter(t => {
     if (t.isCompleted) return false;
+
+    // 0. 🛡️ [전사 표준 헌장 2.1 영업 부서와 출고/배차/자산 부서 간 R&R 엄격 분리]
+    // 일반 부서원(비경영진)은 자신의 R&R과 무관한 타 부서 전용 업무가 노출되지 않도록 상위에서 강력 차단
+    if (!isExec) {
+      // 0-1. 영업부 임직원:
+      // 배차(DISPATCH), 주기장(YARD), 정비(AS) 타겟 업무는 절대 영업부 대시보드에 노출되지 않음
+      // (예외: 영업사원 본인에게 명시적 지정된 현장도착완료 SITE_ARRIVAL_CONFIRM, 계약서패키지재발송 CONTRACT_PACKAGE_RESEND는 허용)
+      if (isSalesDept) {
+        const isSalesPermitted = 
+          t.taskCategory === 'CONTRACT_PACKAGE_RESEND' ||
+          t.taskCategory === 'SITE_ARRIVAL_CONFIRM' ||
+          t.targetDept === 'SALES' ||
+          (t.assignedUserId && t.assignedUserId === currentUser.id);
+
+        if (!isSalesPermitted) {
+          // 배차 의뢰(DISPATCH_REQUEST), 상차 출발(OUTBOUND_SHIPMENT_START), PDI 검수 등은 배차/출고팀 전용
+          if (t.targetDept === 'DISPATCH' || t.targetDept === 'YARD' || t.targetDept === 'AS' ||
+              t.taskCategory?.includes('DISPATCH') || t.taskCategory?.includes('SHIPMENT') ||
+              t.taskCategory?.includes('INSPECTION') || t.taskCategory?.includes('PDI')) {
+            return false;
+          }
+        }
+      }
+
+      // 0-2. 타겟 부서가 명시되어 있고 현재 사용자 부서와 명백히 다른 경우 차단 (단, 본인에게 직접 지정된 건 제외)
+      if (t.targetDept && (!t.assignedUserId || t.assignedUserId !== currentUser.id)) {
+        const td = t.targetDept.toUpperCase();
+        if (td === 'DISPATCH' && !isDispatchDept) return false;
+        if (td === 'YARD' && !isYardDept) return false;
+        if (td === 'AS' && !isAsDept) return false;
+        if (td === 'SALES' && !isSalesDept) return false;
+      }
+    }
 
     // 1. 개인 지정 ToDo: 본인에게 직접 지정된 경우
     if (t.assignedUserId && t.assignedUserId === currentUser.id) return true;
@@ -162,8 +201,6 @@ export function findActiveTasksForUser(
       return isExec; // 경영진만 감독 목적으로 조회 가능
     }
 
-    if (t.userId === currentUser.id && (!t.targetDept || t.targetDept === uDept)) return true;
-
     // 2. 최고관리자/경영진은 전사 미결 ToDo 모두 조망 가능
     if (isExec) return true;
 
@@ -171,11 +208,11 @@ export function findActiveTasksForUser(
     if (t.targetDept) {
       const td = t.targetDept.toUpperCase();
       if (uDept.includes(td)) return true;
-      if (td === 'DISPATCH' && (uDept.includes('배차') || uRole.includes('LOGISTICS') || uDept.includes('운송'))) return true;
-      if (td === 'YARD' && (uDept.includes('출고') || uDept.includes('주기장') || uRole.includes('YARD') || uRole.includes('MECHANIC'))) return true;
-      if (td === 'AS' && (uDept.includes('정비') || uDept.includes('AS') || uRole.includes('MECHANIC'))) return true;
+      if (td === 'DISPATCH' && isDispatchDept) return true;
+      if (td === 'YARD' && (isYardDept || uRole.includes('YARD') || uRole.includes('MECHANIC'))) return true;
+      if (td === 'AS' && (isAsDept || uRole.includes('MECHANIC'))) return true;
       if (td === 'ACCOUNTING' && (uDept.includes('관리') || uDept.includes('회계') || uRole.includes('ADMIN') || uRole.includes('ACCOUNTING'))) return true;
-      if (td === 'SALES' && (uDept.includes('영업') || uRole.includes('SALES'))) return true;
+      if (td === 'SALES' && isSalesDept) return true;
       if (td === 'ADMIN' && (uDept.includes('총무') || uDept.includes('관리') || uRole.includes('ADMIN'))) return true;
     }
 
@@ -187,20 +224,20 @@ export function findActiveTasksForUser(
 
     // 5. 🌟 계약서패키지 재발송 ToDo: 발송 권한 보유자 또는 영업/출고 부서원 매칭
     if (t.taskCategory === 'CONTRACT_PACKAGE_RESEND') {
-      if (hasPermission && (hasPermission('contract', 'view') || hasPermission('agent_badge', 'view'))) return true;
       if (t.assignedUserId && t.assignedUserId === currentUser.id) return true;
-      if (uDept.includes('SALES') || uDept.includes('영업') || uRole.includes('SALES')) return true;
-      if (uDept.includes('출고') || uDept.includes('배차') || uRole.includes('LOGISTICS')) return true;
+      if (isSalesDept) return true;
+      if (isDispatchDept || isYardDept) return true;
+      if (hasPermission && (hasPermission('contract', 'view') || hasPermission('agent_badge', 'view'))) return true;
     }
 
-    // 6. 업무 카테고리별 시스템 메뉴 권한(Permission) 매칭
+    // 6. 업무 카테고리별 시스템 메뉴 권한(Permission) 매칭 (해당 부서 업무에 한함)
     if (hasPermission) {
-      if ((t.taskCategory?.includes('DISPATCH') || t.entityType === 'DELIVERY') && hasPermission('delivery', 'view')) return true;
-      if ((t.taskCategory?.includes('INSPECTION') || t.entityType === 'INSPECTION') && (hasPermission('outbound_inspections', 'view') || hasPermission('repair', 'view'))) return true;
-      if (t.taskCategory?.includes('ASSIGN') && hasPermission('dispatch_assign', 'view')) return true;
-      if ((t.taskCategory?.includes('AS') || t.entityType === 'REPAIR') && (hasPermission('repair', 'view') || hasPermission('field_as', 'view'))) return true;
+      if (isDispatchDept && (t.taskCategory?.includes('DISPATCH') || t.entityType === 'DELIVERY') && hasPermission('delivery', 'view')) return true;
+      if ((isYardDept || isAsDept) && (t.taskCategory?.includes('INSPECTION') || t.entityType === 'INSPECTION') && (hasPermission('outbound_inspections', 'view') || hasPermission('repair', 'view'))) return true;
+      if (isYardDept && t.taskCategory?.includes('ASSIGN') && hasPermission('dispatch_assign', 'view')) return true;
+      if (isAsDept && (t.taskCategory?.includes('AS') || t.entityType === 'REPAIR') && (hasPermission('repair', 'view') || hasPermission('field_as', 'view'))) return true;
       if (t.entityType === 'BILLING' && hasPermission('billing', 'view')) return true;
-      if (t.entityType === 'CONTRACT' && hasPermission('contract', 'view')) return true;
+      if (isSalesDept && t.entityType === 'CONTRACT' && hasPermission('contract', 'view')) return true;
     }
 
     return false;
