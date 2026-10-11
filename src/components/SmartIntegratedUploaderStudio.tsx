@@ -1,0 +1,758 @@
+import React, { useState, useEffect, useRef } from 'react';
+import * as XLSX from 'xlsx';
+import { useApp } from '../context/AppContext';
+import {
+  IntegratedDomainEntities,
+  ParseResult,
+  StagingDraft,
+  DomainValidationItem,
+  generateIntegratedTemplateWorkbook,
+  getIntegratedSampleDataset,
+  parseIntegratedWorkbook,
+  saveDraftToStaging,
+  loadDraftFromStaging,
+  clearDraftFromStaging,
+  ingestIntegratedEntitiesToDatabase,
+  IngestionResult
+} from '../utils/migration/smartMigrationEngine';
+import {
+  Download,
+  Upload,
+  CheckCircle,
+  AlertTriangle,
+  AlertCircle,
+  FileSpreadsheet,
+  Save,
+  RotateCcw,
+  Layers,
+  Users,
+  Truck,
+  Wrench,
+  Shield,
+  FileText,
+  Loader,
+  ArrowRight,
+  DatabaseIcon,
+  Eye,
+  Check
+} from 'lucide-react';
+
+type DomainKey = 
+  | 'departments'
+  | 'products'
+  | 'siteMasters'
+  | 'customers'
+  | 'inspectionItems'
+  | 'vendors'
+  | 'contracts';
+
+interface DomainMeta {
+  key: DomainKey;
+  label: string;
+  icon: React.ReactNode;
+  subLabel: string;
+  countFn: (entities: IntegratedDomainEntities) => string;
+  tableKey: keyof IntegratedDomainEntities;
+  subTableKey?: keyof IntegratedDomainEntities;
+}
+
+const DOMAIN_CARDS: DomainMeta[] = [
+  {
+    key: 'departments',
+    label: '조직 및 사원',
+    icon: <Users size={18} color="var(--primary)" />,
+    subLabel: '부서, 임직원 계정',
+    countFn: (e) => `${e.departments.length}개 부서 / ${e.users.length}명 사원`,
+    tableKey: 'departments',
+    subTableKey: 'users'
+  },
+  {
+    key: 'products',
+    label: '제품 및 장비',
+    icon: <Layers size={18} color="var(--primary)" />,
+    subLabel: '모델 기종, 개별 호기',
+    countFn: (e) => `${e.products.length}개 모델 / ${e.assets.length}대 장비`,
+    tableKey: 'products',
+    subTableKey: 'assets'
+  },
+  {
+    key: 'siteMasters',
+    label: '현장 및 옵션',
+    icon: <Shield size={18} color="var(--primary)" />,
+    subLabel: '물리 현장, 표준 옵션',
+    countFn: (e) => `${e.siteMasters.length}개 현장 / ${e.standardOptions.length}개 옵션`,
+    tableKey: 'siteMasters',
+    subTableKey: 'standardOptions'
+  },
+  {
+    key: 'customers',
+    label: '고객 및 담당자',
+    icon: <Users size={18} color="var(--primary)" />,
+    subLabel: '고객사, 현장연결, 담당자',
+    countFn: (e) => `${e.customers.length}개사 / ${e.customerSites.length}현장 / ${e.customerContacts.length}명`,
+    tableKey: 'customers',
+    subTableKey: 'customerContacts'
+  },
+  {
+    key: 'inspectionItems',
+    label: '정비점검 및 소모품',
+    icon: <Wrench size={18} color="var(--primary)" />,
+    subLabel: '점검항목, 부품 재고',
+    countFn: (e) => `${e.inspectionItems.length}개 항목 / ${e.consumables.length}개 부품`,
+    tableKey: 'inspectionItems',
+    subTableKey: 'consumables'
+  },
+  {
+    key: 'vendors',
+    label: '협력사 및 운송기사',
+    icon: <Truck size={18} color="var(--primary)" />,
+    subLabel: '매입/임차처, 탁송기사',
+    countFn: (e) => `${e.vendors.length}개 매입처 / ${e.transportDrivers.length}명 기사`,
+    tableKey: 'vendors',
+    subTableKey: 'transportDrivers'
+  },
+  {
+    key: 'contracts',
+    label: '대여계약 및 투입장비',
+    icon: <FileText size={18} color="var(--primary)" />,
+    subLabel: '렌탈 계약, 호기 매핑',
+    countFn: (e) => `${e.contracts.length}건 계약 / ${e.contractAssets.length}대 투입`,
+    tableKey: 'contracts',
+    subTableKey: 'contractAssets'
+  }
+];
+
+export const SmartIntegratedUploaderStudio: React.FC = () => {
+  const { showNoticeModal, showErrorModal, fullRefreshFromServer, currentTenant } = useApp();
+  const tenantId = (currentTenant as any)?.id || 'giyeonlift';
+
+  const [parseResult, setParseResult] = useState<ParseResult | null>(null);
+  const [selectedDomain, setSelectedDomain] = useState<DomainKey>('customers');
+  const [selectedSubTab, setSelectedSubTab] = useState<'MAIN' | 'SUB'>('MAIN');
+  const [existingDraft, setExistingDraft] = useState<StagingDraft | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isIngesting, setIsIngesting] = useState(false);
+  const [ingestionResult, setIngestionResult] = useState<IngestionResult | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 마운트 시 로컬스토리지 임시보관본(Staging Draft) 확인
+  useEffect(() => {
+    const draft = loadDraftFromStaging();
+    if (draft) {
+      setExistingDraft(draft);
+    }
+  }, []);
+
+  // 1. 표준 통합 엑셀 양식 다운로드
+  const handleDownloadTemplate = () => {
+    try {
+      const wb = generateIntegratedTemplateWorkbook(tenantId);
+      const fileName = `eBro_통합_기초데이터_업로드_표준양식_${tenantId}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+      if (showNoticeModal) showNoticeModal('표준 양식 엑셀 파일이 다운로드되었습니다.');
+    } catch (err: any) {
+      if (showErrorModal) showErrorModal(`양식 다운로드 실패: ${err?.message || String(err)}`);
+    }
+  };
+
+  // 2. 샘플 데이터 즉시 로드
+  const handleLoadSampleData = () => {
+    setIsProcessing(true);
+    setTimeout(() => {
+      const entities = getIntegratedSampleDataset(tenantId);
+      // 샘플 데이터 파싱 결과 생성
+      const wb = XLSX.utils.book_new();
+      // 가상 파싱 결과 구축
+      const now = new Date().toISOString();
+      const res: ParseResult = {
+        entities,
+        stats: {
+          departmentsCount: entities.departments.length,
+          usersCount: entities.users.length,
+          productsCount: entities.products.length,
+          assetsCount: entities.assets.length,
+          siteMastersCount: entities.siteMasters.length,
+          standardOptionsCount: entities.standardOptions.length,
+          customersCount: entities.customers.length,
+          customerSitesCount: entities.customerSites.length,
+          customerContactsCount: entities.customerContacts.length,
+          inspectionItemsCount: entities.inspectionItems.length,
+          consumablesCount: entities.consumables.length,
+          vendorsCount: entities.vendors.length,
+          transportDriversCount: entities.transportDrivers.length,
+          contractsCount: entities.contracts.length,
+          contractAssetsCount: entities.contractAssets.length,
+          totalEntitiesCount: 43,
+          errorCount: 0,
+          warningCount: 0
+        },
+        validationList: [],
+        sourceType: 'SAMPLE',
+        fileName: '시스템_전체도메인_통합_샘플데이터.xlsx',
+        analyzedAt: now
+      };
+      setParseResult(res);
+      setSelectedDomain('customers');
+      setSelectedSubTab('MAIN');
+      setIsProcessing(false);
+      if (showNoticeModal) showNoticeModal('7대 도메인 16개 엔티티 샘플 데이터가 로드되었습니다.');
+    }, 200);
+  };
+
+  // 3. 실제 엑셀 파일 업로드 파싱
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessing(true);
+    const reader = new FileReader();
+
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const result = parseIntegratedWorkbook(wb, file.name, tenantId);
+        setParseResult(result);
+        setSelectedDomain('customers');
+        setSelectedSubTab('MAIN');
+        if (showNoticeModal) {
+          showNoticeModal(`엑셀 파일 분석 완료: 총 ${result.stats.totalEntitiesCount}건 수집`);
+        }
+      } catch (err: any) {
+        if (showErrorModal) {
+          showErrorModal(`엑셀 파싱 실패: ${err?.message || String(err)}`);
+        }
+      } finally {
+        setIsProcessing(false);
+      }
+    };
+
+    reader.onerror = () => {
+      setIsProcessing(false);
+      if (showErrorModal) showErrorModal('파일 읽기에 실패했습니다.');
+    };
+
+    reader.readAsBinaryString(file);
+  };
+
+  // 4. 중간 저장 (Staging Draft)
+  const handleSaveDraft = () => {
+    if (!parseResult) return;
+    const draft: StagingDraft = {
+      id: `draft-${Date.now()}`,
+      savedAt: new Date().toISOString(),
+      fileName: parseResult.fileName,
+      sourceType: parseResult.sourceType,
+      stats: parseResult.stats,
+      entities: parseResult.entities
+    };
+
+    const success = saveDraftToStaging(draft);
+    if (success) {
+      setExistingDraft(draft);
+      if (showNoticeModal) {
+        showNoticeModal('임시보관본(Staging Draft)이 브라우저에 안전하게 저장되었습니다.');
+      }
+    } else {
+      if (showErrorModal) showErrorModal('임시보관본 저장에 실패했습니다.');
+    }
+  };
+
+  // 5. 임시 저장본 불러오기
+  const handleRestoreDraft = () => {
+    if (!existingDraft) return;
+    const now = new Date().toISOString();
+    const restoredResult: ParseResult = {
+      entities: existingDraft.entities,
+      stats: existingDraft.stats,
+      validationList: [],
+      sourceType: existingDraft.sourceType as any,
+      fileName: `[임시저장 복원] ${existingDraft.fileName}`,
+      analyzedAt: now
+    };
+    setParseResult(restoredResult);
+    if (showNoticeModal) {
+      showNoticeModal(`${existingDraft.savedAt.slice(0, 16)}에 저장된 임시보관본이 복원되었습니다.`);
+    }
+  };
+
+  // 6. 임시 저장본 폐기
+  const handleDiscardDraft = () => {
+    clearDraftFromStaging();
+    setExistingDraft(null);
+    if (showNoticeModal) showNoticeModal('임시보관본이 삭제되었습니다.');
+  };
+
+  // 7. 전체 초기화
+  const handleReset = () => {
+    setParseResult(null);
+    setIngestionResult(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (showNoticeModal) showNoticeModal('화면이 초기화되었습니다.');
+  };
+
+  // 8. 2-Phase 최종 DB 확정 주입
+  const handleCommitIngestion = async () => {
+    if (!parseResult) return;
+    const confirmed = window.confirm(
+      `총 ${parseResult.stats.totalEntitiesCount}건의 기초 데이터를 운영 DB에 확정 적재하시겠습니까?\n\n` +
+      `• 대상: 7대 도메인 16개 테이블\n` +
+      `• 참조 무결성(FK) 순차 계층 적재가 실행됩니다.`
+    );
+    if (!confirmed) return;
+
+    setIsIngesting(true);
+    try {
+      const result = await ingestIntegratedEntitiesToDatabase(parseResult.entities, tenantId);
+      setIngestionResult(result);
+      if (result.success) {
+        if (showNoticeModal) showNoticeModal(result.message);
+        clearDraftFromStaging();
+        setExistingDraft(null);
+        if (fullRefreshFromServer) fullRefreshFromServer();
+      } else {
+        if (showErrorModal) showErrorModal(result.message);
+      }
+    } catch (err: any) {
+      if (showErrorModal) showErrorModal(`적재 중 시스템 오류: ${err?.message || String(err)}`);
+    } finally {
+      setIsIngesting(false);
+    }
+  };
+
+  // 현재 선택된 도메인 데이터 산출
+  const currentDomainMeta = DOMAIN_CARDS.find(d => d.key === selectedDomain) || DOMAIN_CARDS[0];
+  const activeDataKey = selectedSubTab === 'MAIN' ? currentDomainMeta.tableKey : (currentDomainMeta.subTableKey || currentDomainMeta.tableKey);
+  const currentTableData: any[] = parseResult ? (parseResult.entities[activeDataKey] || []) : [];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', minHeight: 0 }}>
+      {/* ── 임시보관본 알림 배너 ── */}
+      {existingDraft && !parseResult && (
+        <div style={{
+          padding: '12px 16px',
+          borderRadius: '8px',
+          backgroundColor: 'rgba(59, 130, 246, 0.08)',
+          border: '1px solid var(--primary)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'nowrap',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+            <Save size={16} color="var(--primary)" />
+            <span>
+              <strong>작업 중이던 임시보관본 발견:</strong> {existingDraft.savedAt.slice(0, 16)} 저장 ({existingDraft.fileName}, 총 {existingDraft.stats.totalEntitiesCount}건)
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={handleRestoreDraft}
+              className="btn-primary"
+              style={{ height: '32px', padding: '0 14px', fontSize: '12px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+            >
+              임시보관본 불러오기
+            </button>
+            <button
+              type="button"
+              onClick={handleDiscardDraft}
+              className="btn-secondary"
+              style={{ height: '32px', padding: '0 12px', fontSize: '12px', color: 'var(--text-muted)' }}
+            >
+              폐기
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── 상단 조작 및 유입 바 (Z-패턴 ①좌상단 Scope & ②우상단 Pipeline) ── */}
+      <div className="card" style={{ padding: '16px 20px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          {/* 양식 다운로드 */}
+          <button
+            type="button"
+            onClick={handleDownloadTemplate}
+            className="btn-secondary"
+            style={{ height: '36px', padding: '0 16px', fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+          >
+            <Download size={15} />
+            통합 표준 엑셀 양식 다운로드 (7개 시트)
+          </button>
+
+          {/* 샘플 데이터 로드 */}
+          <button
+            type="button"
+            onClick={handleLoadSampleData}
+            disabled={isProcessing}
+            className="btn-secondary"
+            style={{ height: '36px', padding: '0 16px', fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+          >
+            <FileSpreadsheet size={15} color="var(--primary)" />
+            샘플 데이터 로드 (전체 7개 도메인)
+          </button>
+
+          {/* 엑셀 파일 선택 */}
+          <label
+            className="btn-primary"
+            style={{
+              height: '36px',
+              padding: '0 18px',
+              fontSize: '13px',
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: isProcessing ? 'not-allowed' : 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <Upload size={15} />
+            엑셀 파일 업로드 (멀티시트/단일시트 자동 판별)
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx, .xls, .csv"
+              onChange={handleFileUpload}
+              disabled={isProcessing}
+              style={{ display: 'none' }}
+            />
+          </label>
+        </div>
+
+        {/* 우측 보조 액션 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {parseResult && (
+            <>
+              <button
+                type="button"
+                onClick={handleSaveDraft}
+                className="btn-secondary"
+                style={{ height: '36px', padding: '0 14px', fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+              >
+                <Save size={15} />
+                중간 저장 (임시보관)
+              </button>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="btn-secondary"
+                style={{ height: '36px', padding: '0 12px', fontSize: '13px', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+              >
+                <RotateCcw size={14} />
+                초기화
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ── 데이터 상태 요약 바 ── */}
+      {parseResult && (
+        <div style={{
+          padding: '12px 16px',
+          borderRadius: '8px',
+          backgroundColor: 'var(--bg-body)',
+          border: '1px solid var(--border-color)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: '13px'
+        }}>
+          <div>
+            📄 분석 대상: <strong>{parseResult.fileName}</strong> · 형식: <strong>{parseResult.sourceType === 'MULTI_SHEET' ? '7시트 통합 양식' : parseResult.sourceType === 'SAMPLE' ? '검증용 샘플 데이터' : '단일 대여장부 플랫 시트 (지능 분해됨)'}</strong> · 분석일시: {parseResult.analyzedAt.slice(0, 19).replace('T', ' ')}
+          </div>
+          <div style={{ display: 'flex', gap: '12px', fontWeight: 700 }}>
+            <span>총 수집 데이터: <strong style={{ color: 'var(--primary)' }}>{parseResult.stats.totalEntitiesCount}건</strong></span>
+            <span>정상: <strong style={{ color: 'var(--success, #22c55e)' }}>{parseResult.stats.totalEntitiesCount - parseResult.stats.errorCount}건</strong></span>
+            {parseResult.stats.errorCount > 0 && (
+              <span>오류: <strong style={{ color: 'var(--danger)' }}>{parseResult.stats.errorCount}건</strong></span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── 수집 현황 대시보드 (7개 도메인 카드 매트릭스) ── */}
+      {parseResult && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+          {DOMAIN_CARDS.map(card => {
+            const isSelected = selectedDomain === card.key;
+            return (
+              <div
+                key={card.key}
+                onClick={() => {
+                  setSelectedDomain(card.key);
+                  setSelectedSubTab('MAIN');
+                }}
+                className="card"
+                style={{
+                  padding: '14px 16px',
+                  cursor: 'pointer',
+                  backgroundColor: isSelected ? 'var(--bg-card)' : 'var(--bg-body)',
+                  border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  transition: 'border-color 0.15s ease'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {card.icon}
+                    <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
+                      {card.label}
+                    </span>
+                  </div>
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                    color: 'var(--success, #22c55e)',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    정상
+                  </span>
+                </div>
+                <div style={{ fontSize: '13px', fontWeight: 800, color: isSelected ? 'var(--primary)' : 'var(--text-main)' }}>
+                  {card.countFn(parseResult.entities)}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  {card.subLabel}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── 중앙 본문: 도메인 상세 검증 그리드 (Inspection Grid) ── */}
+      {parseResult && (
+        <div className="card" style={{ padding: '16px 20px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '12px', minHeight: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: 'var(--text-main)' }}>
+                {currentDomainMeta.label} 데이터 검증 목록 ({currentTableData.length}건)
+              </h3>
+              {currentDomainMeta.subTableKey && (
+                <div style={{ display: 'inline-flex', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSubTab('MAIN')}
+                    style={{
+                      padding: '4px 12px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      backgroundColor: selectedSubTab === 'MAIN' ? 'var(--primary)' : 'var(--bg-body)',
+                      color: selectedSubTab === 'MAIN' ? '#fff' : 'var(--text-secondary)',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    메인 엔티티 ({parseResult.entities[currentDomainMeta.tableKey]?.length || 0})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSubTab('SUB')}
+                    style={{
+                      padding: '4px 12px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      backgroundColor: selectedSubTab === 'SUB' ? 'var(--primary)' : 'var(--bg-body)',
+                      color: selectedSubTab === 'SUB' ? '#fff' : 'var(--text-secondary)',
+                      border: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    하위/연결 엔티티 ({parseResult.entities[currentDomainMeta.subTableKey]?.length || 0})
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+              * 중복 제거(Deduplication) 및 N:M 정규화 연결이 적용된 데이터입니다.
+            </span>
+          </div>
+
+          {/* 고밀도 데이터 테이블 */}
+          <div style={{ maxHeight: '340px', overflowY: 'auto', overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
+            {currentTableData.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)', fontSize: '13px' }}>
+                해당 도메인에 수집된 데이터가 없습니다.
+              </div>
+            ) : (
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px', whiteSpace: 'nowrap' }}>
+                <thead>
+                  <tr style={{ backgroundColor: 'var(--bg-body)', borderBottom: '1px solid var(--border-color)', height: '36px' }}>
+                    <th style={{ padding: '6px 12px', textAlign: 'left', fontWeight: 800 }}>NO</th>
+                    {Object.keys(currentTableData[0] || {})
+                      .filter(k => !['tenant_id', 'createdAt', 'updatedAt', 'passwordHash'].includes(k))
+                      .map(col => (
+                        <th key={col} style={{ padding: '6px 12px', textAlign: 'left', fontWeight: 800 }}>
+                          {col}
+                        </th>
+                      ))}
+                    <th style={{ padding: '6px 12px', textAlign: 'center', fontWeight: 800 }}>검증상태</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentTableData.slice(0, 50).map((row, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', height: '36px' }}>
+                      <td style={{ padding: '6px 12px', color: 'var(--text-muted)' }}>{i + 1}</td>
+                      {Object.keys(row)
+                        .filter(k => !['tenant_id', 'createdAt', 'updatedAt', 'passwordHash'].includes(k))
+                        .map(col => (
+                          <td key={col} style={{ padding: '6px 12px', color: 'var(--text-main)' }}>
+                            {typeof row[col] === 'boolean' ? (row[col] ? 'Y' : 'N') : String(row[col] ?? '-')}
+                          </td>
+                        ))}
+                      <td style={{ padding: '6px 12px', textAlign: 'center' }}>
+                        <span style={{ fontSize: '11px', padding: '1px 6px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.1)', color: 'var(--success, #22c55e)', fontWeight: 700 }}>
+                          정상
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          {currentTableData.length > 50 && (
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'right' }}>
+              상위 50건 미리보기 표시 중 (전체 {currentTableData.length}건)
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── 우하단 최종 완결 액션 (Z-패턴 ④ Terminal Action) ── */}
+      {parseResult && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '16px 20px',
+          backgroundColor: 'var(--bg-card)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '8px'
+        }}>
+          <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+            총 <strong>{parseResult.stats.totalEntitiesCount}건</strong>의 데이터가 검증을 통과했습니다. 중간 저장하거나 운영 DB로 확정 적재하세요.
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              className="btn-secondary"
+              style={{ height: '40px', padding: '0 18px', fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Save size={16} />
+              중간 저장 (임시보관)
+            </button>
+            <button
+              type="button"
+              onClick={handleCommitIngestion}
+              disabled={isIngesting || parseResult.stats.totalEntitiesCount === 0}
+              className="btn-primary"
+              style={{
+                height: '40px',
+                padding: '0 24px',
+                fontSize: '14px',
+                fontWeight: 800,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: 'var(--primary)',
+                cursor: isIngesting ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {isIngesting ? <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <DatabaseIcon size={16} />}
+              DB 확정 주입 (최종 적재 실행)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── 완료 리포트 모달/배너 ── */}
+      {ingestionResult && (
+        <div className="card" style={{
+          padding: '16px 20px',
+          backgroundColor: ingestionResult.success ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+          border: `1px solid ${ingestionResult.success ? 'var(--success, #22c55e)' : 'var(--danger)'}`,
+          borderRadius: '8px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800, fontSize: '14px', color: ingestionResult.success ? 'var(--success, #22c55e)' : 'var(--danger)' }}>
+            {ingestionResult.success ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}
+            <span>{ingestionResult.message}</span>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {ingestionResult.tableResults.map(tr => (
+              <span key={tr.table} style={{
+                fontSize: '11px',
+                padding: '3px 8px',
+                borderRadius: '4px',
+                backgroundColor: tr.success ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                color: tr.success ? 'var(--success, #22c55e)' : 'var(--danger)',
+                fontWeight: 700
+              }}>
+                {tr.table}: {tr.count}건 {tr.success ? '성공' : `실패(${tr.error})`}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 초기 미선택 안내 상태 */}
+      {!parseResult && (
+        <div className="card" style={{
+          padding: '40px 20px',
+          textAlign: 'center',
+          backgroundColor: 'var(--bg-card)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '8px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          <FileSpreadsheet size={48} color="var(--primary)" style={{ opacity: 0.8 }} />
+          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: 'var(--text-main)' }}>
+            통합 엑셀 지능 적재 (7대 도메인 16개 엔티티)
+          </h3>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', maxWidth: '640px', lineHeight: 1.6 }}>
+            조직도(부서/사원), 제품 및 장비, 물리현장과 옵션, 고객사 및 담당자, 정비점검 항목과 부품, 협력사 및 대여계약까지<br />
+            <strong>1개의 엑셀 파일</strong>로 분석하고 수집 현황을 조망하여, 중간 저장 및 안전한 계층적 DB 적재를 수행합니다.
+          </p>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+            <button
+              type="button"
+              onClick={handleLoadSampleData}
+              className="btn-primary"
+              style={{ height: '36px', padding: '0 18px', fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <FileSpreadsheet size={15} />
+              샘플 데이터로 즉시 체험하기
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadTemplate}
+              className="btn-secondary"
+              style={{ height: '36px', padding: '0 16px', fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Download size={15} />
+              표준 양식 엑셀 다운로드
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

@@ -102,7 +102,6 @@ const SiteOptionManage = React.lazy(() => import('./pages/SiteOptionManage').the
 const RegularReportsPage = React.lazy(() => import('./pages/RegularReportsPage').then(module => ({ default: module.RegularReportsPage })));
 const GoogleConfig = React.lazy(() => import('./pages/GoogleConfig').then(module => ({ default: module.GoogleConfig })));
 const InitialDbUploader = React.lazy(() => import('./pages/InitialDbUploader').then(module => ({ default: module.InitialDbUploader })));
-const DataFormationStudio = React.lazy(() => import('./pages/DataFormationStudio'));
 
 import { AgentRequiredModal } from './components/AgentRequiredModal';
 const OperationManualPage = React.lazy(() => import('./pages/OperationManualPage').then(module => ({ default: module.OperationManualPage })));
@@ -747,7 +746,6 @@ const App: React.FC = () => {
         { id: 'agentic_settlement_autopilot', name: '월말 대사 정산', icon: <TrendingUp size={16} />, component: <AgenticSettlementAutopilotPage /> },
         { id: 'agentic_asset_lifecycle', name: '자산 라이프사이클 관제', icon: <Layers size={16} />, component: <AgenticAssetLifecyclePage /> },
         { id: 'initial_db_upload', name: '초기DB 업로드', icon: <DatabaseIcon size={16} />, component: <InitialDbUploader /> },
-          { id: 'data_formation', name: '초기자료형성', icon: <DatabaseIcon size={16} />, component: <DataFormationStudio /> },
         { id: 'google_config', name: '공식 메일 연동 설정', icon: <Settings size={16} />, component: <GoogleConfig /> },
         { id: 'dev_uploader', name: 'DB 데이터 업로더', icon: <DatabaseIcon size={16} />, component: <DevDataUploader /> },
         { id: 'tenant_management', name: '테넌트 관리', icon: <Building2 size={16} />, component: <TenantManagementPage /> },

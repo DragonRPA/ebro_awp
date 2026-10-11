@@ -14,7 +14,9 @@ import {
   Loader,
   Info,
   Trash2,
+  FileSpreadsheet,
 } from 'lucide-react';
+import { SmartIntegratedUploaderStudio } from '../components/SmartIntegratedUploaderStudio';
 
 // ──────────────────────────────────────────────
 // 테이블 스키마 정의
@@ -621,6 +623,7 @@ export const DevDataUploader: React.FC = () => {
     [products]
   );
   
+  const [activeMainTab, setActiveMainTab] = useState<'SMART_EXCEL' | 'SINGLE_TABLE' | 'SQL_PATCH'>('SMART_EXCEL');
   const [selectedTableKey, setSelectedTableKey] = useState<string>('customers');
   const [parsedRows, setParsedRows] = useState<Record<string, string>[]>([]);
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
@@ -1277,18 +1280,79 @@ export const DevDataUploader: React.FC = () => {
           <span><strong>Supabase 미연결:</strong> <code>VITE_SUPABASE_URL</code> 및 <code>VITE_SUPABASE_ANON_KEY</code> 환경변수를 설정해야 업로드가 활성화됩니다.</span>
         </div>
       )}
-      {isConnected && (
-        <div style={{
-          backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid #22c55e',
-          borderRadius: '8px', padding: '10px 16px', marginBottom: '20px',
-          display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--success)'
-        }}>
-          <CheckCircle size={16} />
-          <span>Supabase 연결됨 — 업로드 준비 완료</span>
-        </div>
+      {/* ── 상단 메인 탭 네비게이션 ── */}
+      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+        <button
+          type="button"
+          onClick={() => setActiveMainTab('SMART_EXCEL')}
+          style={{
+            padding: '8px 16px',
+            fontSize: '13px',
+            fontWeight: 800,
+            borderRadius: '6px',
+            border: 'none',
+            backgroundColor: activeMainTab === 'SMART_EXCEL' ? 'var(--primary)' : 'var(--bg-body)',
+            color: activeMainTab === 'SMART_EXCEL' ? '#fff' : 'var(--text-secondary)',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+        >
+          <FileSpreadsheet size={15} />
+          통합 엑셀 지능 적재 (7대 도메인)
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveMainTab('SINGLE_TABLE')}
+          style={{
+            padding: '8px 16px',
+            fontSize: '13px',
+            fontWeight: 800,
+            borderRadius: '6px',
+            border: 'none',
+            backgroundColor: activeMainTab === 'SINGLE_TABLE' ? 'var(--primary)' : 'var(--bg-body)',
+            color: activeMainTab === 'SINGLE_TABLE' ? '#fff' : 'var(--text-secondary)',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+        >
+          <DatabaseIcon size={15} />
+          개별 테이블 CSV/엑셀 업로드
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveMainTab('SQL_PATCH')}
+          style={{
+            padding: '8px 16px',
+            fontSize: '13px',
+            fontWeight: 800,
+            borderRadius: '6px',
+            border: 'none',
+            backgroundColor: activeMainTab === 'SQL_PATCH' ? 'var(--primary)' : 'var(--bg-body)',
+            color: activeMainTab === 'SQL_PATCH' ? '#fff' : 'var(--text-secondary)',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+        >
+          <FileText size={15} />
+          SQL 패치 및 스키마 검증
+        </button>
+      </div>
+
+      {/* ── 탭 1: 통합 엑셀 지능 적재 ── */}
+      {activeMainTab === 'SMART_EXCEL' && (
+        <SmartIntegratedUploaderStudio />
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '20px', alignItems: 'start' }}>
+      {/* ── 탭 2: 개별 테이블 업로드 ── */}
+      {activeMainTab === 'SINGLE_TABLE' && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '20px', alignItems: 'start' }}>
 
         {/* ── 좌측 패널: 테이블 선택 + 컬럼 정보 ── */}
         <div className="card" style={{ padding: '20px' }}>
@@ -1633,11 +1697,12 @@ export const DevDataUploader: React.FC = () => {
           </div>
         </div>
       </div>
+    </>
+  )}
 
-      <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '30px 0 20px 0' }} />
-
-      {/* ✅ 재설계된 Supabase DB 스키마 정합성 검증 도구 */}
-      <div className="card" style={{ padding: '24px', backgroundColor: 'var(--bg-card)', marginBottom: '30px' }}>
+      {/* ── 탭 3: SQL 패치 및 스키마 검증 ── */}
+      {activeMainTab === 'SQL_PATCH' && (
+        <div className="card" style={{ padding: '24px', backgroundColor: 'var(--bg-card)', marginBottom: '30px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
           <DatabaseIcon size={20} color="var(--primary)" />
           <h3 style={{ fontWeight: '800', fontSize: '18px', margin: 0 }}>🔍 Supabase DB 스키마 정합성 자동화 도구</h3>
@@ -1865,6 +1930,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;`}
           </div>
         )}
       </div>
+      )}
     </div>
   );
 };

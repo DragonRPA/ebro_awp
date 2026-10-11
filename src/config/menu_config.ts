@@ -141,7 +141,6 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
       { id: 'agentic_settlement_autopilot', name: '월말 대사 정산' },
       { id: 'agentic_asset_lifecycle', name: '자산 라이프사이클 관제' },
       { id: 'initial_db_upload', name: '초기DB 업로드' },
-      { id: 'data_formation', name: '초기자료형성' },
       { id: 'google_config', name: '구글 관리자 설정' },
       { id: 'dev_uploader', name: 'DB 데이터 업로더' },
       { id: 'tenant_management', name: '테넌트 관리' }
@@ -256,10 +255,10 @@ export const CANONICAL_MENU_ALIASES: Record<string, string> = {
   'tenantmanagement': 'tenant_management',
   '테넌트': 'tenant_management',
   '테넌트관리': 'tenant_management',
-  'data_formation': 'data_formation',
-  'data-formation': 'data_formation',
-  'dataformation': 'data_formation',
-  '초기자료형성': 'data_formation'
+  'data_formation': 'dev_uploader',
+  'data-formation': 'dev_uploader',
+  'dataformation': 'dev_uploader',
+  '초기자료형성': 'dev_uploader'
 };
 
 export function normalizeMenuId(menuId: string): string {
