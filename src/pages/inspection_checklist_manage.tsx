@@ -3778,24 +3778,6 @@ export const InspectionChecklistManage: React.FC = () => {
           </div>
         )}
 
-        {/* 우측 종단 확정 배지 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-          <span
-            style={{
-              padding: '2px 8px',
-              borderRadius: '4px',
-              backgroundColor: 'var(--success-light)',
-              color: 'var(--success)',
-              fontWeight: 700,
-              fontSize: '11px',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            {activeTab === 'ANALYTICS'
-              ? `⚖️ 대차 차액 ₩${analyticsData.balanceDiff.toLocaleString()} (무결)`
-              : '⚖️ 데이터 무결 보존'}
-          </span>
-        </div>
       </div>
 
       <div style={{ height: '50px' }} aria-hidden="true" />

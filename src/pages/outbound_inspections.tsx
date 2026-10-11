@@ -1790,16 +1790,6 @@ export const OutboundInspections: React.FC = () => {
               <span>|</span>
               <span>반려: <strong style={{ color: 'var(--danger)' }}>총 {rCount}건</strong></span>
             </div>
-            <span style={{
-              padding: '2px 8px',
-              borderRadius: '4px',
-              backgroundColor: 'var(--success-light)',
-              color: 'var(--success)',
-              fontWeight: 700,
-              fontSize: '11px'
-            }}>
-              ⚖️ 대차 정상 (검수승인-자산상태 RENTED 전환 100% 무결)
-            </span>
           </div>
         );
       })()}

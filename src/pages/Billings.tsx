@@ -3654,16 +3654,6 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 <span>|</span>
                 <span>미수 잔액: <strong style={{ color: 'var(--danger)' }}>₩{sumUnpaid.toLocaleString()}원</strong></span>
               </div>
-              <span style={{
-                padding: '2px 8px',
-                borderRadius: '4px',
-                backgroundColor: 'var(--success-light)',
-                color: 'var(--success)',
-                fontWeight: 700,
-                fontSize: '11px'
-              }}>
-                ⚖️ 대차 정상 (청구총액 = 수납액 + 미수잔액 100% 무결)
-              </span>
             </div>
           );
         })()}
@@ -5202,10 +5192,6 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 <span style={{ color: 'var(--text-muted)' }}>+</span>
                 <span style={{ color: 'var(--danger)', fontWeight: 700 }}>
                   🚫 영업 면제액: ₩{totalWaivedAmount.toLocaleString()}원
-                </span>
-                <span style={{ color: 'var(--text-muted)' }}>|</span>
-                <span style={{ color: 'var(--primary)', fontWeight: 800, backgroundColor: 'rgba(37, 99, 235, 0.08)', padding: '2px 8px', borderRadius: '4px' }}>
-                  ⚖️ 대차 차액 ₩0 (정합)
                 </span>
               </div>
 

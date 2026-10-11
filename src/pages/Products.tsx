@@ -834,16 +834,6 @@ export const Products: React.FC = () => {
             <span>|</span>
             <span>R2 클라우드 보관문서: <strong style={{ color: '#0070C0' }}>{kpiStats.totalDocs}건</strong></span>
           </div>
-          <span style={{
-            padding: '2px 8px',
-            borderRadius: '4px',
-            backgroundColor: 'var(--success-light)',
-            color: 'var(--success)',
-            fontWeight: 700,
-            fontSize: '11px'
-          }}>
-            ⚖️ 대차 정상 (모델-자산 기준정보 100% 정합)
-          </span>
         </div>
       </div>
 

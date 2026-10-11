@@ -2414,18 +2414,20 @@ export const RentAssets: React.FC = () => {
                 <span>
                   제외/반려액 <strong style={{ color: excludedCost > 0 ? '#ef4444' : 'var(--text-muted)' }}>₩{excludedCost.toLocaleString()}</strong>
                 </span>
-                <span style={{
-                  marginLeft: '8px',
-                  padding: '3px 10px',
-                  borderRadius: '12px',
-                  backgroundColor: balanceDiff === 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                  color: balanceDiff === 0 ? '#10b981' : '#ef4444',
-                  fontWeight: 800,
-                  fontSize: '11px',
-                  border: balanceDiff === 0 ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(239, 68, 68, 0.3)'
-                }}>
-                  {balanceDiff === 0 ? '대차 차액 ₩0 (정합 확정)' : `차액 불일치 ₩${Math.abs(balanceDiff).toLocaleString()}`}
-                </span>
+                {balanceDiff !== 0 && (
+                  <span style={{
+                    marginLeft: '8px',
+                    padding: '3px 10px',
+                    borderRadius: '12px',
+                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                    color: '#ef4444',
+                    fontWeight: 800,
+                    fontSize: '11px',
+                    border: '1px solid rgba(239, 68, 68, 0.3)'
+                  }}>
+                    {`차액 불일치 ₩${Math.abs(balanceDiff).toLocaleString()}`}
+                  </span>
+                )}
               </div>
 
               {/* 우측: 최종 완결 버튼 */}
@@ -3014,7 +3016,7 @@ export const RentAssets: React.FC = () => {
                           </td>
                           <td style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'center' }}>
                             <span className="badge badge-success" style={{ fontSize: '10px' }}>
-                              무결성 일치 ⚖️
+                              일치
                             </span>
                           </td>
                         </tr>
@@ -3102,16 +3104,6 @@ export const RentAssets: React.FC = () => {
               <span>+</span>
               <span>순마진(공헌이익): <strong style={{ color: netProfit >= 0 ? 'var(--success)' : 'var(--danger)' }}>₩{netProfit.toLocaleString()}</strong></span>
             </div>
-            <span style={{
-              padding: '2px 8px',
-              borderRadius: '4px',
-              backgroundColor: 'var(--success-light)',
-              color: 'var(--success)',
-              fontWeight: 700,
-              fontSize: '11px'
-            }}>
-              ⚖️ 대차 차액 ₩0 (손익 무결성 확정)
-            </span>
           </div>
 
         </div>
@@ -3470,18 +3462,6 @@ export const RentAssets: React.FC = () => {
                   <span>월 총 임차료 지출: <strong style={{ color: 'var(--danger)' }}>₩{totalMonthlyRentCost.toLocaleString()}원</strong></span>
                   <span>|</span>
                   <span>반납 완료 장비: <strong style={{ color: 'var(--text-muted)' }}>{returnedList.length}대</strong></span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    backgroundColor: 'var(--success-light)',
-                    color: 'var(--success)',
-                    fontWeight: 700,
-                    fontSize: '11px'
-                  }}>
-                    ⚖️ 대차 정상 (FSM 동기화 완결)
-                  </span>
                 </div>
               </div>
             </div>

@@ -1851,16 +1851,6 @@ export const Repairs: React.FC = () => {
               <span>|</span>
               <span>금월 소모품비: <strong style={{ color: 'var(--text-main)' }}>₩{totalConsumableCost.toLocaleString()}원</strong></span>
             </div>
-            <span style={{
-              padding: '2px 8px',
-              borderRadius: '4px',
-              backgroundColor: 'var(--success-light)',
-              color: 'var(--success)',
-              fontWeight: 700,
-              fontSize: '11px'
-            }}>
-              ⚖️ 대차 정상 (정비완료-자산AVAILABLE환원 100% 무결)
-            </span>
           </div>
         );
       })()}

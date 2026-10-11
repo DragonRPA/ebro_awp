@@ -798,19 +798,6 @@ export const PayrollPage: React.FC = () => {
           <span style={{ color: 'var(--border-color)' }}>|</span>
           <span style={{ color: 'var(--success)' }}>💰 <strong>실지급총액(세후):</strong> ₩{payrollAuditSummary.totalNet.toLocaleString()}원</span>
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-          <span style={{
-            padding: '2px 8px',
-            borderRadius: '4px',
-            backgroundColor: 'var(--success-light)',
-            color: 'var(--success)',
-            fontWeight: 700,
-            fontSize: '11px'
-          }}>
-            ⚖️ 지급총액 = 실지급총액 + 공제총액 (대차 무결)
-          </span>
-        </div>
       </div>
       <div style={{ height: '50px' }} aria-hidden="true" />
     </div>

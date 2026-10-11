@@ -962,16 +962,6 @@ export const AssetAssignment: React.FC = () => {
           <span>|</span>
           <span>현재 선택 매핑: <strong style={{ color: 'var(--primary)' }}>{selectedAssetIds.length}대</strong></span>
         </div>
-        <span style={{
-          padding: '2px 8px',
-          borderRadius: '4px',
-          backgroundColor: 'var(--success-light)',
-          color: 'var(--success)',
-          fontWeight: 700,
-          fontSize: '11px'
-        }}>
-          ⚖️ 대차 정상 (요구슬롯-실자산 1:1 매핑 무결)
-        </span>
       </div>
 
       <style>{`

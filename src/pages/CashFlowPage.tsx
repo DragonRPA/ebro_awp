@@ -793,31 +793,11 @@ export const CashFlowPage: React.FC = () => {
         flexShrink: 0
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--success)', fontWeight: 800 }}>
-            <ShieldCheck size={16} /> 통장 실시간 잔고 검증 완료
+          <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>
+            통장 잔고:
           </span>
           <span style={{ color: 'var(--text-secondary)' }}>
             통장 총잔액 (₩{report.totalBankBalance.toLocaleString()}) = 기초잔액 + 총입금 - 총출금
-          </span>
-          <span style={{
-            fontSize: '11px',
-            fontWeight: 800,
-            padding: '2px 8px',
-            borderRadius: '4px',
-            backgroundColor: 'rgba(16, 185, 129, 0.15)',
-            color: 'var(--success)',
-            border: '1px solid rgba(16, 185, 129, 0.3)'
-          }}>
-            ⚖️ 대차 정합 ₩0
-          </span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ color: 'var(--text-muted)', fontSize: '11.5px' }}>
-            ERP 실물 원장 100% 실시간 연동 (날조 난수 전면 배제)
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', fontWeight: 700 }}>
-            <CheckCircle size={14} /> 자금 건전성 검증필
           </span>
         </div>
       </footer>

@@ -4452,16 +4452,6 @@ export const TruckDispatch: React.FC = () => {
                   <span>|</span>
                   <span>취소: <strong style={{ color: 'var(--danger)' }}>총 {cancelledDeliveries}건</strong></span>
                 </div>
-                <span style={{
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  backgroundColor: 'var(--success-light)',
-                  color: 'var(--success)',
-                  fontWeight: 700,
-                  fontSize: '11px'
-                }}>
-                  ⚖️ 대차 정상 (배차의뢰-기사배정-운송비 1:1 무결)
-                </span>
               </div>
             );
           })()}
@@ -5957,13 +5947,7 @@ export const TruckDispatch: React.FC = () => {
 
                 {(() => {
                   const balanceDiff = reconStats.totalCost - (reconStats.matchedCost + reconStats.excludedCost);
-                  if (balanceDiff === 0) {
-                    return (
-                      <div style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', color: 'var(--success)', fontSize: '11px', fontWeight: 800 }}>
-                        대차 차액 ₩0 (완전 일치)
-                      </div>
-                    );
-                  }
+                  if (balanceDiff === 0) return null;
                   return (
                     <div style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: 'var(--danger)', fontSize: '11px', fontWeight: 800 }}>
                       대차 차액 ₩{Math.abs(balanceDiff).toLocaleString()} ({balanceDiff > 0 ? '미확정 잔액' : '초과 확정'})

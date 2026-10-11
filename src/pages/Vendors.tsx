@@ -1075,18 +1075,6 @@ export const Vendors: React.FC = () => {
                   💰 <strong>조회 누적거래액 합계:</strong> <span style={{ color: 'var(--success)', fontWeight: 700 }}>₩{filteredPurchaseSum.toLocaleString()}</span>
                 </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{
-                  padding: '3px 8px',
-                  borderRadius: '4px',
-                  backgroundColor: 'rgba(34, 197, 94, 0.12)',
-                  color: 'var(--success)',
-                  fontWeight: 600,
-                  fontSize: '11px'
-                }}>
-                  ⚖️ 대차대조 무결성 확인됨
-                </span>
-              </div>
             </div>
           );
         })()}

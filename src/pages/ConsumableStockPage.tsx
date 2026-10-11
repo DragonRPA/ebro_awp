@@ -1382,8 +1382,6 @@ export const ConsumableStockPage: React.FC = () => {
                     <span>💻 <strong>전산 총액:</strong> ₩{currentAudit.totalSystemAmount.toLocaleString()}원</span>
                     <span>+</span>
                     <span>⚖️ <strong>실사 차액:</strong> ₩{currentAudit.totalDiffAmount.toLocaleString()}원</span>
-                    <span style={{ color: 'var(--border-color)' }}>|</span>
-                    <span style={{ color: 'var(--success)', fontWeight: 800 }}>⚖️ 대차 차액 ₩0 무결 확정</span>
                   </div>
 
                   {isDraft && canSave && (

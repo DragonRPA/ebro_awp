@@ -1611,8 +1611,6 @@ export const BankMatching: React.FC = () => {
                   <span>{isWithdrawView ? '정산 반영액' : '확정 수납액'}: <strong style={{ color: 'var(--primary)' }}>₩{barUsed.toLocaleString()}</strong></span>
                   <span>+</span>
                   <span>{isWithdrawView ? '미정산 잔액' : '미수납 잔액'}: <strong style={{ color: barAvail > 0 ? 'var(--danger)' : 'var(--text-secondary)' }}>₩{barAvail.toLocaleString()}</strong></span>
-                  <span style={{ color: 'var(--border-color)' }}>|</span>
-                  <span style={{ color: 'var(--success)', fontWeight: 700 }}>대차 차액 ₩0 (일치)</span>
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                   {isWithdrawView ? '지급 매칭률' : '수납 매칭률'}: <strong style={{ color: 'var(--primary)' }}>{barRate}%</strong>

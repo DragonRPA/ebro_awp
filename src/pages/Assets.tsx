@@ -1015,16 +1015,6 @@ export const Assets: React.FC = () => {
             <span>|</span>
             <span>당사자산 장부가 총액: <strong style={{ color: 'var(--primary)' }}>₩{kpiStats.totalBookValue.toLocaleString()}원</strong></span>
           </div>
-          <span style={{
-            padding: '2px 8px',
-            borderRadius: '4px',
-            backgroundColor: 'var(--success-light)',
-            color: 'var(--success)',
-            fontWeight: 700,
-            fontSize: '11px'
-          }}>
-            ⚖️ 대차 정상 (전사 자산 대사 완결)
-          </span>
         </div>
       </div>
 

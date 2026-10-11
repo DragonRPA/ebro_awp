@@ -1077,24 +1077,11 @@ export const SmartAsRequest: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
           <span>🔧 <strong>누적AS접수:</strong> {asAuditSummary.totalCount}건</span>
           <span style={{ color: 'var(--border-color)' }}>|</span>
-          <span style={{ color: 'var(--danger)' }}>🚨 <strong>접수대기:</strong> {asAuditSummary.requestedCount}건</span>
+          <span style={{ color: 'var(--danger)' }}><strong>접수대기:</strong> {asAuditSummary.requestedCount}건</span>
           <span style={{ color: 'var(--border-color)' }}>|</span>
-          <span style={{ color: 'var(--warning)' }}>⏳ <strong>배정/출동중:</strong> {asAuditSummary.inProgressCount}건</span>
+          <span style={{ color: 'var(--warning)' }}><strong>배정/출동중:</strong> {asAuditSummary.inProgressCount}건</span>
           <span style={{ color: 'var(--border-color)' }}>|</span>
-          <span style={{ color: 'var(--success)' }}>🟢 <strong>조치완료:</strong> {asAuditSummary.completedCount}건</span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-          <span style={{
-            padding: '2px 8px',
-            borderRadius: '4px',
-            backgroundColor: 'var(--success-light)',
-            color: 'var(--success)',
-            fontWeight: 700,
-            fontSize: '11px'
-          }}>
-            ⚖️ 대차 정상 (전체 AS 티켓 상태 파이프라인 무결)
-          </span>
+          <span style={{ color: 'var(--success)' }}><strong>조치완료:</strong> {asAuditSummary.completedCount}건</span>
         </div>
       </div>
       <div style={{ height: '50px' }} aria-hidden="true" />

@@ -3600,14 +3600,11 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                 flexShrink: 0
               }}>
                 <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
-                  <span>📋 조회 건수: <strong>{totalTickets}</strong>건 (완료 {completedCount}건)</span>
+                  <span>조회 건수: <strong>{totalTickets}</strong>건 (완료 {completedCount}건)</span>
                   <span style={{ color: 'var(--text-muted)' }}>|</span>
-                  <span style={{ color: 'var(--success)' }}>🟢 무상 AS: <strong>{freeCount}</strong>건</span>
+                  <span style={{ color: 'var(--success)' }}>무상 AS: <strong>{freeCount}</strong>건</span>
                   <span style={{ color: 'var(--text-muted)' }}>|</span>
-                  <span style={{ color: '#ea580c' }}>💰 유상 AS: <strong>{billableTickets.length}</strong>건 (총 <strong>₩{totalBillableAmount.toLocaleString()}</strong>원)</span>
-                </div>
-                <div style={{ fontWeight: 700, color: 'var(--primary)' }}>
-                  ⚖️ 대사 합계 검증 완료: ₩{totalBillableAmount.toLocaleString()}원
+                  <span style={{ color: '#ea580c' }}>유상 AS: <strong>{billableTickets.length}</strong>건 (총 <strong>₩{totalBillableAmount.toLocaleString()}</strong>원)</span>
                 </div>
               </div>
             );
@@ -4757,16 +4754,6 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
           <span>|</span>
           <span>누적 투입 소모품비: <strong style={{ color: 'var(--text-main)' }}>₩{globalSummaryStats.totalPartsCost.toLocaleString()}원</strong></span>
         </div>
-        <span style={{
-          padding: '2px 8px',
-          borderRadius: '4px',
-          backgroundColor: 'var(--success-light)',
-          color: 'var(--success)',
-          fontWeight: 700,
-          fontSize: '11px'
-        }}>
-          ⚖️ 대차 정상 (현장AS-담당자지정-차량소모품차감 100% 무결)
-        </span>
       </div>
 
     </div>

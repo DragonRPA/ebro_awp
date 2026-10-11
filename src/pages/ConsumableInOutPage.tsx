@@ -1189,12 +1189,6 @@ export const ConsumableInOutPage: React.FC = () => {
                 <span style={{ color: 'var(--text-muted)' }}>🔄 주기장반납: </span>
                 <strong style={{ color: 'var(--warning)' }}>₩{auditBalance.returnSum.toLocaleString()}</strong>
               </div>
-              <div style={{
-                padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 700,
-                backgroundColor: 'rgba(5, 150, 105, 0.1)', color: 'var(--success)', border: '1px solid rgba(5, 150, 105, 0.3)'
-              }}>
-                ⚖️ 수불 무결성 검증 완료
-              </div>
             </div>
           </div>
         </div>

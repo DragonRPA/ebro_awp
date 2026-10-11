@@ -890,59 +890,59 @@ export const DelinquencyPage: React.FC = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px' }}>
         <div className="card" style={{ padding: '14px', borderLeft: '4px solid var(--danger)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>약정 납기 도과 연체 총액</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>연체 총액</span>
             <DollarSign size={15} color="var(--danger)" />
           </div>
           <h3 style={{ fontSize: '17px', fontWeight: '800', margin: '2px 0', color: 'var(--danger)' }}>
             ₩ {totalOverdueAmount.toLocaleString()}
           </h3>
-          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>연체 고객 {calculatedDelinquencies.length}개사 (정밀 납기 기준)</span>
+          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>연체 고객 {calculatedDelinquencies.length}개사</span>
         </div>
 
         <div className="card" style={{ padding: '14px', borderLeft: '4px solid #dc2626' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>고위험 상습 연체 (🔴)</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>고위험 연체</span>
             <ShieldAlert size={15} color="#dc2626" />
           </div>
           <h3 style={{ fontSize: '17px', fontWeight: '800', margin: '2px 0', color: 'var(--danger)' }}>
             {highRiskCount}개사
           </h3>
-          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>60일 이상 도과 or 약속 2회 위반</span>
+          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>60일 초과 또는 약속 2회 위반</span>
         </div>
 
         <div className="card" style={{ padding: '14px', borderLeft: '4px solid var(--primary)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>경영진 수금지시 진행</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>수금지시 진행</span>
             <Send size={15} color="var(--primary)" />
           </div>
           <h3 style={{ fontSize: '17px', fontWeight: '800', margin: '2px 0', color: 'var(--primary)' }}>
             {pendingDirectiveCount}건
           </h3>
-          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>영업사원 업무 연동</span>
+          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>영업 담당자 연동</span>
         </div>
 
         <div className="card" style={{ padding: '14px', borderLeft: neglectedDirectiveCount > 0 ? '4px solid #b91c1c' : '4px solid var(--border-color)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
             <span style={{ fontSize: '11px', color: neglectedDirectiveCount > 0 ? '#b91c1c' : 'var(--text-secondary)', fontWeight: 700 }}>
-              지시 방치 경보 (3일+)
+              지시 미이행 (3일 초과)
             </span>
             <AlertCircle size={15} color={neglectedDirectiveCount > 0 ? '#b91c1c' : 'var(--text-muted)'} />
           </div>
           <h3 style={{ fontSize: '17px', fontWeight: '800', margin: '2px 0', color: neglectedDirectiveCount > 0 ? '#b91c1c' : 'var(--text-muted)' }}>
             {neglectedDirectiveCount}건
           </h3>
-          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>지시 하달 후 영업 피드백 누락</span>
+          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>독촉 지시 후 조치 미등록</span>
         </div>
 
         <div className="card" style={{ padding: '14px', borderLeft: '4px solid #d97706' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>누적 약속 위반 횟수</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>약속 위반</span>
             <ThumbsDown size={15} color="#d97706" />
           </div>
           <h3 style={{ fontSize: '17px', fontWeight: '800', margin: '2px 0', color: 'var(--warning)' }}>
             {brokenPromises}건
           </h3>
-          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>전체 {totalPromises}건 중 이행 {keptPromises}건</span>
+          <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>약속 {totalPromises}건 중 {keptPromises}건 이행</span>
         </div>
       </div>
 
@@ -957,57 +957,57 @@ export const DelinquencyPage: React.FC = () => {
               <AlertTriangle size={15} color="var(--danger)" /> 미수 채권 연체 관리 대장 ({filteredDelinquencies.length}건)
             </h3>
 
-            {/* 필터 칩 */}
-            <div data-mid="delinquency-scope-period" style={{ display: 'flex', gap: '5px' }}>
-              <button 
-                className={statusFilter === 'ALL' ? 'btn-primary' : 'btn-secondary'} 
-                onClick={() => setStatusFilter('ALL')}
-                style={{ fontSize: '11px', padding: '3px 8px' }}
-              >
-                전체
-              </button>
-              <button 
-                className={statusFilter === 'HIGH_RISK' ? 'btn-primary' : 'btn-secondary'} 
-                onClick={() => setStatusFilter('HIGH_RISK')}
-                style={{ fontSize: '11px', padding: '3px 8px', color: 'var(--danger)', fontWeight: 700 }}
-              >
-                🔴 고위험
-              </button>
-              <button 
-                className={statusFilter === 'NEGLECTED' ? 'btn-primary' : 'btn-secondary'} 
-                onClick={() => setStatusFilter('NEGLECTED')}
-                style={{ fontSize: '11px', padding: '3px 8px', color: 'var(--danger)', fontWeight: 700 }}
-              >
-                🚨 지시방치
-              </button>
-              <button 
-                className={statusFilter === 'OVERDUE_30' ? 'btn-primary' : 'btn-secondary'} 
-                onClick={() => setStatusFilter('OVERDUE_30')}
-                style={{ fontSize: '11px', padding: '3px 8px' }}
-              >
-                30일 이상
-              </button>
-              <button 
-                className={statusFilter === 'RESTRICT_NEW' ? 'btn-primary' : 'btn-secondary'} 
-                onClick={() => setStatusFilter('RESTRICT_NEW')}
-                style={{ fontSize: '11px', padding: '3px 8px', color: '#d97706', fontWeight: statusFilter === 'RESTRICT_NEW' ? 800 : 600 }}
-              >
-                🟡 추가계약금지
-              </button>
-              <button 
-                className={statusFilter === 'BLOCKED_ALL' ? 'btn-primary' : 'btn-secondary'} 
-                onClick={() => setStatusFilter('BLOCKED_ALL')}
-                style={{ fontSize: '11px', padding: '3px 8px', color: 'var(--danger)', fontWeight: statusFilter === 'BLOCKED_ALL' ? 800 : 600 }}
-              >
-                🔴 전면차단
-              </button>
+            {/* 필터 탭 */}
+            <div data-mid="delinquency-scope-period" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="segmented-tab-group">
+                <button 
+                  className={`segmented-tab-item ${statusFilter === 'ALL' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('ALL')}
+                >
+                  전체
+                </button>
+                <button 
+                  className={`segmented-tab-item ${statusFilter === 'HIGH_RISK' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('HIGH_RISK')}
+                  style={statusFilter === 'HIGH_RISK' ? {} : { color: 'var(--danger)' }}
+                >
+                  고위험
+                </button>
+                <button 
+                  className={`segmented-tab-item ${statusFilter === 'NEGLECTED' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('NEGLECTED')}
+                  style={statusFilter === 'NEGLECTED' ? {} : { color: 'var(--danger)' }}
+                >
+                  지시미이행
+                </button>
+                <button 
+                  className={`segmented-tab-item ${statusFilter === 'OVERDUE_30' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('OVERDUE_30')}
+                >
+                  30일 초과
+                </button>
+                <button 
+                  className={`segmented-tab-item ${statusFilter === 'RESTRICT_NEW' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('RESTRICT_NEW')}
+                >
+                  추가계약제한
+                </button>
+                <button 
+                  className={`segmented-tab-item ${statusFilter === 'BLOCKED_ALL' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('BLOCKED_ALL')}
+                >
+                  전면차단
+                </button>
+              </div>
+
               <button
                 type="button"
                 className="btn-secondary"
                 onClick={handleExportDelinquencyExcel}
-                style={{ fontSize: '11px', padding: '3px 8px', display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap' }}
+                style={{ fontSize: '11px', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
               >
-                <Download size={11} /> 엑셀 내보내기
+                <Download size={12} />
+                <span>엑셀 내보내기</span>
               </button>
             </div>
           </div>
@@ -1019,8 +1019,8 @@ export const DelinquencyPage: React.FC = () => {
               type="text"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              placeholder="고객사명, 사업자번호, 담당영업사원 검색..."
-              style={{ width: '100%', padding: '6px 8px 6px 28px', fontSize: '12px', borderRadius: '5px', border: '1px solid var(--border-color)' }}
+              placeholder="고객사명, 사업자번호, 담당자 검색"
+              style={{ width: '100%', padding: '6px 8px 6px 28px', fontSize: '12px', borderRadius: '5px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
             />
           </div>
 
@@ -1063,16 +1063,16 @@ export const DelinquencyPage: React.FC = () => {
                       >
                         <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                           {del.riskTier === 'HIGH' ? (
-                            <span style={{ padding: '2px 5px', borderRadius: '3px', fontSize: '10px', fontWeight: 800, backgroundColor: 'var(--danger-light)', color: 'var(--danger)' }}>
-                              🔴 고위험
+                            <span style={{ padding: '2px 6px', borderRadius: '3px', fontSize: '11px', fontWeight: 800, backgroundColor: 'var(--danger-light)', color: 'var(--danger)' }}>
+                              고위험
                             </span>
                           ) : del.riskTier === 'MID' ? (
-                            <span style={{ padding: '2px 5px', borderRadius: '3px', fontSize: '10px', fontWeight: 700, backgroundColor: 'var(--warning-light)', color: 'var(--warning)' }}>
-                              🟡 중위험
+                            <span style={{ padding: '2px 6px', borderRadius: '3px', fontSize: '11px', fontWeight: 700, backgroundColor: 'var(--warning-light)', color: 'var(--warning)' }}>
+                              중위험
                             </span>
                           ) : (
-                            <span style={{ padding: '2px 5px', borderRadius: '3px', fontSize: '10px', fontWeight: 600, backgroundColor: 'var(--success-light)', color: 'var(--success)' }}>
-                              🟢 일반
+                            <span style={{ padding: '2px 6px', borderRadius: '3px', fontSize: '11px', fontWeight: 600, backgroundColor: 'var(--success-light)', color: 'var(--success)' }}>
+                              일반
                             </span>
                           )}
                         </td>
@@ -1122,7 +1122,7 @@ export const DelinquencyPage: React.FC = () => {
                         <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                           {del.directiveNeglectedDays >= 3 ? (
                             <span style={{ padding: '2px 6px', borderRadius: '3px', fontSize: '10px', fontWeight: 800, backgroundColor: '#7f1d1d', color: '#ffffff', animation: 'pulse 1.5s infinite' }}>
-                              🚨 방치 {del.directiveNeglectedDays}일
+                              방치 {del.directiveNeglectedDays}일
                             </span>
                           ) : del.hasPendingDirective ? (
                             <span style={{ padding: '2px 6px', borderRadius: '3px', fontSize: '10px', fontWeight: 700, backgroundColor: 'rgba(37, 99, 235, 0.12)', border: '1px solid rgba(59, 130, 246, 0.3)', color: 'var(--primary)' }}>
@@ -1203,12 +1203,12 @@ export const DelinquencyPage: React.FC = () => {
                   {selectedDelinquency.customerName}
                   {selectedDelinquency.transactionStatus === 'RESTRICT_NEW' && (
                     <span style={{ padding: '2px 8px', fontSize: '11px', backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#d97706', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '4px', fontWeight: 800 }}>
-                      🟡 추가계약 금지
+                      추가계약제한
                     </span>
                   )}
                   {(selectedDelinquency.transactionStatus === 'BLOCKED_ALL' || selectedDelinquency.transactionStatus === 'BLOCKED') && (
                     <span style={{ padding: '2px 8px', fontSize: '11px', backgroundColor: 'var(--danger-light)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '4px', fontWeight: 800 }}>
-                      🔴 전면 차단 (장비회수)
+                      전면차단
                     </span>
                   )}
                 </h3>
@@ -1247,8 +1247,9 @@ export const DelinquencyPage: React.FC = () => {
                     <button 
                       type="button" 
                       className="btn-secondary" 
+                      data-mid="btn-open-notice-modal"
                       onClick={() => handleOpenNoticeModal(selectedDelinquency)}
-                      style={{ padding: '4px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', color: '#7e22ce', fontWeight: 700, borderColor: '#d8b4fe', backgroundColor: '#faf5ff' }}
+                      style={{ padding: '4px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 700 }}
                       title="경영진 고유권한: 최고장/내용증명 작성 및 인쇄"
                     >
                       <FileText size={12} /> 내용증명 작성
@@ -1283,7 +1284,7 @@ export const DelinquencyPage: React.FC = () => {
                         onClick={() => handleNavigateToSmartReturn(selectedDelinquency.customerId, selectedDelinquency.customerName)}
                         style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
                       >
-                        <Truck size={12} /> 회수 요청 발행 (반납관리) ➔
+                        <Truck size={12} /> 회수 요청 발행 (반납관리)
                       </button>
                     </div>
                     <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', display: 'flex', gap: '12px' }}>
@@ -1341,7 +1342,7 @@ export const DelinquencyPage: React.FC = () => {
                     onClick={() => setNewActionType(type)}
                     style={{ padding: '5px', fontSize: '11px', fontWeight: '600' }}
                   >
-                    {type === 'CALL' ? '📞 전화독촉' : type === 'VISIT' ? '🚗 현장방문' : type === 'NOTICE_SENT' ? '✉️ 최고장' : '⚖️ 법적조치'}
+                    {type === 'CALL' ? '전화독촉' : type === 'VISIT' ? '현장방문' : type === 'NOTICE_SENT' ? '최고장' : '법적조치'}
                   </button>
                 ))}
               </div>
@@ -1413,7 +1414,7 @@ export const DelinquencyPage: React.FC = () => {
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                         <span style={{ fontWeight: '700', color: log.actionType === 'DIRECTIVE' ? '#3b82f6' : 'var(--text-main)' }}>
-                          {log.actionType === 'DIRECTIVE' ? '📢 [경영진 수금지시]' : log.actionType === 'CALL' ? '📞 [전화독촉]' : log.actionType === 'VISIT' ? '🚗 [현장방문]' : log.actionType === 'NOTICE_SENT' ? '✉️ [최고장]' : '⚖️ [법적조치]'} ({log.recordedBy})
+                          {log.actionType === 'DIRECTIVE' ? '[경영진 수금지시]' : log.actionType === 'CALL' ? '[전화독촉]' : log.actionType === 'VISIT' ? '[현장방문]' : log.actionType === 'NOTICE_SENT' ? '[최고장]' : '[법적조치]'} ({log.recordedBy})
                         </span>
                         <span style={{ color: 'var(--text-muted)', fontSize: '10.5px' }}>
                           {log.createdAt.replace('T', ' ').slice(0, 16)}
@@ -1443,7 +1444,7 @@ export const DelinquencyPage: React.FC = () => {
                         <div style={{ marginTop: '6px', padding: '6px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <div>
                             <strong style={{ color: log.promiseStatus === 'KEPT' ? '#16a34a' : log.promiseStatus === 'BROKEN' ? '#dc2626' : '#2563eb' }}>
-                              📌 약속일: {log.promiseDate} (₩{log.promiseAmount?.toLocaleString()}원)
+                              약속일: {log.promiseDate} (₩{log.promiseAmount?.toLocaleString()}원)
                             </strong>
                             <span style={{ fontSize: '10.5px', marginLeft: '6px' }}>
                               [{log.promiseStatus === 'KEPT' ? '이행 완료' : log.promiseStatus === 'BROKEN' ? '약속 파기' : '대기중'}]
@@ -1498,26 +1499,16 @@ export const DelinquencyPage: React.FC = () => {
               <span>|</span>
               <span>연체 총액: <strong style={{ color: 'var(--danger)' }}>₩{totalOverdueSum.toLocaleString()}원</strong></span>
               <span>|</span>
-              <span>고위험 상습연체(🔴): <strong style={{ color: 'var(--danger)' }}>총 {highRiskCount}개사</strong></span>
+              <span>고위험 연체: <strong style={{ color: 'var(--danger)' }}>총 {highRiskCount}개사</strong></span>
               <span>|</span>
-              <span>경영진 지시 진행중: <strong style={{ color: 'var(--primary)' }}>총 {pendingDirectiveCount}건</strong></span>
+              <span>수금지시 진행: <strong style={{ color: 'var(--primary)' }}>총 {pendingDirectiveCount}건</strong></span>
               {neglectedDirectiveCount > 0 && (
                 <>
                   <span>|</span>
-                  <span style={{ color: 'var(--danger)', fontWeight: 800 }}>🚨 3일 이상 지시 방치: 총 {neglectedDirectiveCount}건</span>
+                  <span style={{ color: 'var(--danger)', fontWeight: 700 }}>지시 미이행 (3일 초과): 총 {neglectedDirectiveCount}건</span>
                 </>
               )}
             </div>
-            <span style={{
-              padding: '2px 8px',
-              borderRadius: '4px',
-              backgroundColor: 'var(--success-light)',
-              color: 'var(--success)',
-              fontWeight: 700,
-              fontSize: '11px'
-            }}>
-              ⚖️ 대차 정상 (연체채권-약정납기-영업담당 매핑 100% 무결)
-            </span>
           </div>
         );
       })()}
@@ -1720,7 +1711,7 @@ export const DelinquencyPage: React.FC = () => {
           <div className="card" style={{ width: '90%', maxWidth: '750px', maxHeight: '85vh', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', margin: 0, padding: '24px', display: 'flex', flexDirection: 'column', gap: '14px', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #cbd5e1', paddingBottom: '8px' }}>
               <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0 }}>
-                📜 발송 내용증명 원문 (발송일: {viewingNoticeLog.sentDate})
+                발송 내용증명 원문 (발송일: {viewingNoticeLog.sentDate})
               </h3>
               <button type="button" onClick={() => setViewingNoticeLog(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px' }}>
                 ✕
@@ -1786,7 +1777,7 @@ export const DelinquencyPage: React.FC = () => {
                     onClick={() => setDirectiveDetails(preset)}
                     style={{ textAlign: 'left', padding: '4px 8px', fontSize: '11px' }}
                   >
-                    👉 {preset}
+                    {preset}
                   </button>
                 ))}
               </div>
@@ -1950,7 +1941,7 @@ export const DelinquencyPage: React.FC = () => {
               {/* 하단 버튼 */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  {selectedBlockType === 'BLOCKED_ALL' ? '⚠️ 실행 시 영업사원에게 긴급 회수 ToDo가 자동 발행됩니다.' : '💡 기존 계약은 현장에서 계속 정상 청구됩니다.'}
+                  {selectedBlockType === 'BLOCKED_ALL' ? '실행 시 영업사원에게 긴급 회수 ToDo가 자동 발행됩니다.' : '기존 계약은 현장에서 계속 정상 청구됩니다.'}
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button 

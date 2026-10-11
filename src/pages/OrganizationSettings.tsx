@@ -1337,18 +1337,20 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
             부서 {totalDeptsCount}개 (배정 {assignedUsersCount}명 / 미배정 {unassignedUsersCount}명)
           </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
-          <span style={{
-            fontSize: '11px',
-            padding: '3px 10px',
-            borderRadius: '6px',
-            fontWeight: 'bold',
-            backgroundColor: userBalanceDiff === 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-            color: userBalanceDiff === 0 ? '#10b981' : '#ef4444'
-          }}>
-            대차 차액 {userBalanceDiff}명 {userBalanceDiff === 0 ? '(정합)' : '(불일치)'}
-          </span>
-        </div>
+        {userBalanceDiff !== 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
+            <span style={{
+              fontSize: '11px',
+              padding: '3px 10px',
+              borderRadius: '6px',
+              fontWeight: 'bold',
+              backgroundColor: 'rgba(239, 68, 68, 0.12)',
+              color: '#ef4444'
+            }}>
+              대차 차액 {userBalanceDiff}명 (불일치)
+            </span>
+          </div>
+        )}
       </div>
 
       {/* 토스트 알림 팝업 (헌장 5.2) */}

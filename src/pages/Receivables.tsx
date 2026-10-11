@@ -818,8 +818,6 @@ export const Receivables: React.FC = () => {
           <span>기청구액: <strong style={{ color: 'var(--success)' }}>₩{totalBilledSum.toLocaleString()}</strong></span>
           <span>+</span>
           <span>미청구 잔액: <strong style={{ color: totalRemainingSum > 0 ? 'var(--danger)' : 'var(--text-secondary)' }}>₩{totalRemainingSum.toLocaleString()}</strong></span>
-          <span style={{ color: 'var(--border-color)' }}>|</span>
-          <span style={{ color: 'var(--success)', fontWeight: 700 }}>⚖️ 대차 차액 ₩0 (일치)</span>
         </div>
         <div>
           {canWrite && (

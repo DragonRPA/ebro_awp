@@ -1148,19 +1148,6 @@ export const PurchaseSettlementPage: React.FC = () => {
             🧾 <strong>국세청 계산서수취:</strong> {settlementAuditSummary.taxInvoiceIssuedCount}/{settlementAuditSummary.totalCount}건 ({settlementAuditSummary.totalCount > 0 ? Math.round((settlementAuditSummary.taxInvoiceIssuedCount / settlementAuditSummary.totalCount) * 100) : 0}%)
           </span>
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-          <span style={{
-            padding: '2px 8px',
-            borderRadius: '4px',
-            backgroundColor: settlementAuditSummary.balance === 0 && settlementAuditSummary.totalCount > 0 ? 'var(--success-light)' : 'var(--bg-app)',
-            color: settlementAuditSummary.balance === 0 && settlementAuditSummary.totalCount > 0 ? 'var(--success)' : 'var(--text-main)',
-            fontWeight: 700,
-            fontSize: '11px'
-          }}>
-            ⚖️ 청구총액 = 지급완료 + 지급잔액 (대차 무결)
-          </span>
-        </div>
       </div>
 
       <div style={{ height: '80px' }} aria-hidden="true" />

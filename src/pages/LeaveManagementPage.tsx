@@ -809,18 +809,20 @@ export const LeaveManagementPage: React.FC = () => {
             잔여합계 <strong>{totalCompanyRemaining.toFixed(1)}일</strong>
           </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
-          <span style={{
-            fontSize: '11px',
-            padding: '3px 10px',
-            borderRadius: '6px',
-            fontWeight: 'bold',
-            backgroundColor: leaveBalanceDiff === 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-            color: leaveBalanceDiff === 0 ? '#10b981' : '#ef4444'
-          }}>
-            대차 차액 {leaveBalanceDiff.toFixed(1)}일 {leaveBalanceDiff === 0 ? '(정합)' : '(불일치)'}
-          </span>
-        </div>
+        {leaveBalanceDiff !== 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
+            <span style={{
+              fontSize: '11px',
+              padding: '3px 10px',
+              borderRadius: '6px',
+              fontWeight: 'bold',
+              backgroundColor: 'rgba(239, 68, 68, 0.12)',
+              color: '#ef4444'
+            }}>
+              대차 차액 {leaveBalanceDiff.toFixed(1)}일 (불일치)
+            </span>
+          </div>
+        )}
       </div>
 
       {/* 1년 부여 연차 갯수 갱신 모달 */}

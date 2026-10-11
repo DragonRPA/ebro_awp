@@ -843,19 +843,6 @@ export const CorporateCardPage: React.FC = () => {
             ⚖️ <strong>예실차액:</strong> ₩{Math.abs(cardAuditSummary.diff).toLocaleString()}원 ({cardAuditSummary.diff >= 0 ? '예산 잔여' : '예산 초과'})
           </span>
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-          <span style={{
-            padding: '2px 8px',
-            borderRadius: '4px',
-            backgroundColor: 'var(--success-light)',
-            color: 'var(--success)',
-            fontWeight: 700,
-            fontSize: '11px'
-          }}>
-            ⚖️ 대차 정상 (예실 대비 100% 무결 정산)
-          </span>
-        </div>
       </div>
       <div style={{ height: '50px' }} aria-hidden="true" />
     </div>

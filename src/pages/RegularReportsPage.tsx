@@ -884,16 +884,6 @@ export const RegularReportsPage: React.FC = () => {
               <span style={{ color: 'var(--text-muted, #94a3b8)' }}>
                 영업이익(₩{metrics.operatingProfit.toLocaleString()}) = 매출총이익 - 판관비(₩{metrics.sgaTotal.toLocaleString()})
               </span>
-              <span style={{
-                fontWeight: 700,
-                color: '#34d399',
-                backgroundColor: 'rgba(5, 150, 105, 0.2)',
-                padding: '3px 8px',
-                borderRadius: '4px',
-                border: '1px solid rgba(5, 150, 105, 0.35)'
-              }}>
-                무결성 100% 일치
-              </span>
             </div>
           </footer>
         </div>

@@ -2064,16 +2064,6 @@ const handleDeleteAccount = async (accId: string) => {
           <span>|</span>
           <span>등록 담당자: <strong style={{ color: '#0070C0' }}>{kpiStats.totalContacts}명</strong></span>
         </div>
-        <span style={{
-          padding: '2px 8px',
-          borderRadius: '4px',
-          backgroundColor: 'var(--success-light)',
-          color: 'var(--success)',
-          fontWeight: 700,
-          fontSize: '11px'
-        }}>
-          ⚖️ 대차 정상 (고객-현장-담당자 기준정보 100% 무결)
-        </span>
       </div>
 
       {/* ⑥ 고객 등록/수정 모달 */}

@@ -3150,14 +3150,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
               <span>📉 매각시점 장부가액 <strong>₩{disposalAccounting.totalBookValue.toLocaleString()}원</strong></span>
               <span>+</span>
               <span style={{ color: disposalAccounting.gainLoss >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>
-                {disposalAccounting.gainLoss >= 0 ? `🟢 처분이익 ₩${disposalAccounting.gainLoss.toLocaleString()}원` : `🔴 처분손실 ₩${disposalAccounting.gainLoss.toLocaleString()}원`}
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800 }}>
-              <ShieldCheck size={16} color="var(--success)" />
-              <span style={{ color: 'var(--success)' }}>
-                ⚖️ 대차 차액 ₩0 (회계 무결성 확정)
+                {disposalAccounting.gainLoss >= 0 ? `처분이익 ₩${disposalAccounting.gainLoss.toLocaleString()}원` : `처분손실 ₩${disposalAccounting.gainLoss.toLocaleString()}원`}
               </span>
             </div>
           </div>

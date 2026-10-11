@@ -998,9 +998,6 @@ export const VehicleOperationLogPage: React.FC = () => {
             </div>
             <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
               <span>📊 업무사용비율: <strong style={{ color: '#eab308' }}>{operationMetrics.businessRatio}%</strong></span>
-              <span style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', padding: '4px 10px', borderRadius: '6px', color: 'var(--primary)', fontSize: '11px' }}>
-                ⚖️ 대차대조 무결성 일치
-              </span>
             </div>
           </div>
         </>
@@ -1188,9 +1185,6 @@ export const VehicleOperationLogPage: React.FC = () => {
             </div>
             <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
               <span>🧾 영수증 증빙율: <strong style={{ color: '#eab308' }}>{fuelMetrics.proofRatio}% ({fuelMetrics.receiptProofCount}/{fuelMetrics.totalCount})</strong></span>
-              <span style={{ backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', padding: '4px 10px', borderRadius: '6px', color: '#10b981', fontSize: '11px' }}>
-                🟢 세무 적격 증빙 확인
-              </span>
             </div>
           </div>
         </>

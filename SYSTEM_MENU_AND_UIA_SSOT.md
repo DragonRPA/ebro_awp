@@ -201,6 +201,16 @@
   - 출고 지시 제출: `[data-mid="dispatch4-btn-submit"]`
 - **지원 도구**: `voice_dispatch_transcribe`, `voice_dispatch_parse_order`
 
+#### ④ `delinquency` (미수 채권 연체 관리)
+- **UI 아키타입**: 유형 B (고밀도 그리드)
+- **핵심 셀렉터**:
+  - 연체 현황 그리드: `[data-hs-observe="delinquencypage"]`
+  - 세그먼트 상태 필터: `.segmented-tab-group .segmented-tab-item`
+  - 경영진 수금지시 등록: `[data-hs-trigger="Save"]`
+  - 최고장/내용증명 작성: `[data-mid="btn-open-notice-modal"]`
+  - 엑셀 내보내기: `button.btn-secondary`
+- **헌장 원칙**: 헌장 3.1 무수식어 건조 표준, 테마 CSS 변수 100% 적용, 플랫 디자인(그림자 전면 제거), 우하단 자랑성 뱃지 영구 배제.
+
 ---
 
 ### 3.3 [배차 및 입출고관리]
