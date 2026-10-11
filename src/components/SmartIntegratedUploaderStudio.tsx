@@ -734,6 +734,7 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
             return (
               <div
                 key={card.key}
+                data-uia={`domain-card-${card.key}`}
                 onClick={() => {
                   setSelectedDomain(card.key);
                   setSelectedSubTab('MAIN');
