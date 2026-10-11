@@ -22,9 +22,46 @@ function r2DevPlugin(): Plugin {
   };
 }
 
+import os from 'os';
+
+function developerDevicePlugin(): Plugin {
+  return {
+    name: 'developer-device-plugin',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (req.url && req.url.startsWith('/api/device/physical-mac')) {
+          try {
+            const ifaces = os.networkInterfaces();
+            const macs = Object.values(ifaces)
+              .flat()
+              .filter(i => i && !i.internal && i.mac && i.mac !== '00:00:00:00:00:00')
+              .map(i => i!.mac.toUpperCase().replace(/:/g, '-'));
+            const uniqueMacs = [...new Set(macs)];
+
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.statusCode = 200;
+            res.end(JSON.stringify({
+              success: true,
+              macAddresses: uniqueMacs,
+              hostname: os.hostname(),
+              platform: os.platform()
+            }));
+          } catch (e: any) {
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.statusCode = 500;
+            res.end(JSON.stringify({ success: false, error: e?.message || String(e) }));
+          }
+          return;
+        }
+        next();
+      });
+    }
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), r2DevPlugin()],
+  plugins: [react(), r2DevPlugin(), developerDevicePlugin()],
   server: {
     port: 5174,
     watch: {

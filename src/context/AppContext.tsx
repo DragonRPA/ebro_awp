@@ -14,6 +14,7 @@ import { sortCustomersByName } from '../utils/hangulSearch';
 import { getDomainMode } from '../utils/domainRouter';
 import { fetchCentralTenants, saveCentralTenant, deleteCentralTenant, fetchCentralEquipmentManuals } from '../services/centralDb';
 import { hashPassword, verifyPassword, encryptSecret, decryptSecret, signSessionUser, verifySessionUser, maskSalaryForRole } from '../utils/cryptoVault';
+import { isCurrentDeviceAuthorizedForDeveloper } from '../utils/hardwareVault';
 
 export interface AssetSaleItem {
   assetId: string;
@@ -87,7 +88,19 @@ interface AppContextType {
   currentUser: User | null;
   theme: 'light' | 'dark';
   toggleTheme: () => void;
-  login: (loginId: string, passwordHash: string, keepLoggedIn?: boolean) => Promise<{ success: boolean; reason?: string; error?: string }>;
+  login: (
+    loginId: string, 
+    passwordHash: string, 
+    keepLoggedIn?: boolean,
+    bypassDeviceCheck?: boolean
+  ) => Promise<{ 
+    success: boolean; 
+    reason?: string; 
+    error?: string;
+    requireDeviceVerification?: boolean;
+    detectedFingerprint?: string;
+    detectedMacs?: string[];
+  }>;
   logout: () => void;
   switchUser: (userId: string) => void;
   hasPermission: (menuId: string, action: 'view' | 'save') => boolean;
@@ -1239,6 +1252,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           if (parsed.loginId === 'admin' && (parsed.name === '최고관리자' || !parsed.name)) {
             parsed.name = '개발자';
           }
+          const isDev = parsed.loginId === 'admin' || parsed.role === 'ADMIN' || parsed.id === 'sys-admin';
+          if (isDev) {
+            isCurrentDeviceAuthorizedForDeveloper().then(auth => {
+              if (!auth.isAuthorized) {
+                console.warn('🚨 [보안 차단] 비인가 물리 단말기에서의 개발자 세션 복원 차단');
+                sessionStorage.removeItem('user');
+                setCurrentUser(null);
+              }
+            });
+          }
           sessionStorage.setItem('user', signSessionUser(parsed));
           setCurrentUser(parsed);
         }
@@ -1251,6 +1274,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (parsed) {
           if (parsed.loginId === 'admin' && (parsed.name === '최고관리자' || !parsed.name)) {
             parsed.name = '개발자';
+          }
+          const isDev = parsed.loginId === 'admin' || parsed.role === 'ADMIN' || parsed.id === 'sys-admin';
+          if (isDev) {
+            isCurrentDeviceAuthorizedForDeveloper().then(auth => {
+              if (!auth.isAuthorized) {
+                console.warn('🚨 [보안 차단] 비인가 물리 단말기에서의 개발자 자동 로그인 차단');
+                localStorage.removeItem('auto_user');
+                sessionStorage.removeItem('user');
+                setCurrentUser(null);
+              }
+            });
           }
           localStorage.setItem('auto_user', signSessionUser(parsed));
           setCurrentUser(parsed);
@@ -1274,8 +1308,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const login = async (
     loginId: string, 
     passwordHash: string, 
-    keepLoggedIn?: boolean
-  ): Promise<{ success: boolean; reason?: string; error?: string }> => {
+    keepLoggedIn?: boolean,
+    bypassDeviceCheck?: boolean
+  ): Promise<{ 
+    success: boolean; 
+    reason?: string; 
+    error?: string;
+    requireDeviceVerification?: boolean;
+    detectedFingerprint?: string;
+    detectedMacs?: string[];
+  }> => {
     const cleanId = (loginId || '').trim();
     const cleanPw = (passwordHash || '').trim();
 
@@ -1288,6 +1330,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     // 1. 개발자 / 최고관리자 마스터 계정 (DB/네트워크 상태와 무관하게 100% 무조건 보장)
     if (cleanId.toLowerCase() === 'admin' && cleanPw === 'admin123') {
+      // 🛡️ [물리 단말기 2단계 인가 검증]
+      if (!bypassDeviceCheck) {
+        const deviceAuth = await isCurrentDeviceAuthorizedForDeveloper();
+        if (!deviceAuth.isAuthorized) {
+          logPrivacyAccess('LOGIN', 'login', `로그인 거부: 비인가 물리 단말기 개발자 마스터 로그인 시도 ('${cleanId}')`, {
+            userId: cleanId,
+            userName: '비인가 물리 단말기'
+          }).catch(console.error);
+          return {
+            success: false,
+            requireDeviceVerification: true,
+            reason: '🚨 [물리 단말기 인가 필요] 개발자 권한은 사전에 등록 및 인가된 물리적 개발자 PC(MAC 주소/하드웨어 지문)에서만 로그인이 허용됩니다.',
+            detectedFingerprint: deviceAuth.detectedFingerprint,
+            detectedMacs: deviceAuth.detectedMacs
+          };
+        }
+      }
+
       const fallbackAdmin: User = { 
         id: 'sys-admin', loginId: 'admin', passwordHash: hashPassword('admin123'), 
         name: '개발자', department: '시스템', departmentId: '', role: 'ADMIN', customRoleId: 'role_mgmt', createdAt: new Date().toISOString() 
@@ -1506,6 +1566,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       else if (dept.includes('0000005') || dept.includes('0000006') || dept.includes('AS') || dept.includes('정비') || dept.includes('외국인')) assignedRoleId = 'role_mechanic';
       if (assignedRoleId) {
         user = { ...user, customRoleId: assignedRoleId };
+      }
+    }
+
+    // 🛡️ [물리 단말기 2단계 인가 검증 - 최고관리자/개발자 권한 계정]
+    const isDevAdmin = user.role === 'ADMIN' || user.id === 'sys-admin' || user.loginId === 'admin';
+    if (isDevAdmin && !bypassDeviceCheck) {
+      const deviceAuth = await isCurrentDeviceAuthorizedForDeveloper();
+      if (!deviceAuth.isAuthorized) {
+        logPrivacyAccess('LOGIN', 'login', `로그인 거부: 비인가 물리 단말기 관리자 권한 로그인 시도 (${user.name})`, {
+          userId: user.loginId || user.id,
+          userName: user.name
+        }).catch(console.error);
+        return {
+          success: false,
+          requireDeviceVerification: true,
+          reason: '🚨 [물리 단말기 인가 필요] 최고관리자/개발자 권한은 사전에 등록 및 인가된 물리적 개발자 PC(MAC 주소/하드웨어 지문)에서만 로그인이 허용됩니다.',
+          detectedFingerprint: deviceAuth.detectedFingerprint,
+          detectedMacs: deviceAuth.detectedMacs
+        };
       }
     }
 

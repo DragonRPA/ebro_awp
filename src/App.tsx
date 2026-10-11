@@ -21,6 +21,7 @@ import { WeatherWidget } from './components/WeatherWidget';
 const ApprovalRulesManage = React.lazy(() => import('./pages/ApprovalRulesManage'));
 const ApprovalInbox = React.lazy(() => import('./pages/ApprovalInbox'));
 import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
+import { DeveloperDeviceGuardModal } from './components/DeveloperDeviceGuardModal';
 const PrivacyAuditPage = React.lazy(() => import('./pages/PrivacyAuditPage').then(module => ({ default: module.PrivacyAuditPage })));
 const ManualsManage = React.lazy(() => import('./pages/ManualsManage').then(module => ({ default: module.ManualsManage })));
 const ManualDictionaryPage = React.lazy(() => import('./pages/ManualDictionaryPage').then(module => ({ default: module.ManualDictionaryPage })));
@@ -351,6 +352,8 @@ const App: React.FC = () => {
 
   // 개인정보 처리방침 법정 고지 모달 상태
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
+  const [showDeviceGuardModal, setShowDeviceGuardModal] = useState(false);
+  const [pendingDeviceLogin, setPendingDeviceLogin] = useState<{ id: string; pw: string } | null>(null);
 
   // 🔔 주기장/공장 현장용 업무 알림 설정 상태
   const [showJobAlertModal, setShowJobAlertModal] = useState(false);
@@ -552,6 +555,10 @@ const App: React.FC = () => {
         if (!rememberPw) setPassword('');
         
         setActiveTab('dashboard'); // 로그인 성공시 대시보드로
+
+      } else if (res.requireDeviceVerification) {
+        setPendingDeviceLogin({ id: loginId, pw: password });
+        setShowDeviceGuardModal(true);
       } else {
         setLoginErrorMsg(res.reason || '아이디 또는 비밀번호가 잘못되었습니다.');
       }
@@ -559,6 +566,30 @@ const App: React.FC = () => {
       setLoginErrorMsg(`로그인 처리 중 시스템 오류가 발생했습니다: ${err?.message || err}`);
     } finally {
       setIsLoggingIn(false);
+    }
+  };
+
+  const handleDeviceAuthorized = async (device: any) => {
+    setShowDeviceGuardModal(false);
+    if (pendingDeviceLogin) {
+      setIsLoggingIn(true);
+      try {
+        const res = await login(pendingDeviceLogin.id, pendingDeviceLogin.pw, autoLogin, true);
+        if (res.success) {
+          if (rememberId) localStorage.setItem('remember_id', pendingDeviceLogin.id);
+          if (rememberPw) localStorage.setItem('remember_pw', encryptSecret(pendingDeviceLogin.pw));
+          if (!rememberId) setLoginId('');
+          if (!rememberPw) setPassword('');
+          setPendingDeviceLogin(null);
+          setActiveTab('dashboard');
+        } else {
+          setLoginErrorMsg(res.reason || '단말기 인가 후 로그인에 실패했습니다.');
+        }
+      } catch (err: any) {
+        setLoginErrorMsg(`단말기 인가 로그인 처리 중 오류가 발생했습니다: ${err?.message || err}`);
+      } finally {
+        setIsLoggingIn(false);
+      }
     }
   };
 
@@ -1392,6 +1423,17 @@ const App: React.FC = () => {
         {/* 🛡️ 개인정보 처리방침 모달 (로그인 전 열람 가능) */}
         {showPrivacyPolicy && (
           <PrivacyPolicyModal onClose={() => setShowPrivacyPolicy(false)} />
+        )}
+        {showDeviceGuardModal && (
+          <DeveloperDeviceGuardModal
+            isOpen={showDeviceGuardModal}
+            onClose={() => {
+              setShowDeviceGuardModal(false);
+              setPendingDeviceLogin(null);
+            }}
+            onSuccess={handleDeviceAuthorized}
+            targetLoginId={pendingDeviceLogin?.id || loginId}
+          />
         )}
         </div>
       </div>

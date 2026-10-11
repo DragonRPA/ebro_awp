@@ -4,13 +4,19 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { 
   FileCheck, Shield, Download, Search, RefreshCw, Calendar, 
-  Filter, CheckCircle, AlertTriangle, UserCheck, Eye, EyeOff, Lock
+  Filter, CheckCircle, AlertTriangle, UserCheck, Eye, EyeOff, Lock,
+  Laptop, Cpu, Network, Trash2
 } from 'lucide-react';
 import { db, supabase, PrivacyAccessLog } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
 import { PrivacyPolicyModal } from '../components/PrivacyPolicyModal';
+import { 
+  getAuthorizedDeveloperDevices, 
+  revokeDeveloperDevice, 
+  DeveloperDeviceProfile 
+} from '../utils/hardwareVault';
 
 export const PrivacyAuditPage: React.FC = () => {
   const { currentUser, users, hasPermission, showErrorModal, currentTenant } = useApp();
@@ -47,6 +53,20 @@ export const PrivacyAuditPage: React.FC = () => {
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setToastMessage({ type, text });
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  // 🛡️ 인가된 개발자 물리 단말기 상태 관리
+  const [authorizedDevices, setAuthorizedDevices] = useState<DeveloperDeviceProfile[]>(() => getAuthorizedDeveloperDevices());
+  const refreshDevices = () => {
+    setAuthorizedDevices(getAuthorizedDeveloperDevices());
+  };
+
+  const handleRevokeDevice = (deviceId: string, deviceName: string) => {
+    if (window.confirm(`'${deviceName}' 단말기의 개발자 물리적 인가를 차단(취소)하시겠습니까?\n취소 후 해당 기기에서는 마스터 비밀번호를 재입력해야 합니다.`)) {
+      revokeDeveloperDevice(deviceId);
+      refreshDevices();
+      showToast(`'${deviceName}' 단말기의 인가가 취소되었습니다.`, 'error');
+    }
   };
 
   // DB 접속로그 로딩
@@ -764,6 +784,204 @@ export const PrivacyAuditPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* ─────────────────────────────────────────────────────────────
+          🛡️ 인가된 개발자 물리 단말기 (Hardware-Bound Machine Registry)
+          ───────────────────────────────────────────────────────────── */}
+      {(isSuperAdmin || isExecutive) && (
+        <div style={{
+          backgroundColor: '#ffffff',
+          borderRadius: '8px',
+          border: '1px solid var(--border-color, #e2e8f0)',
+          padding: '16px 20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingBottom: '10px',
+            borderBottom: '1px solid var(--border-color, #e2e8f0)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '6px',
+                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--primary, #4f46e5)'
+              }}>
+                <Laptop size={16} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--text-main, #0f172a)' }}>
+                  개발자 물리 단말기 인가 목록
+                </h3>
+                <span style={{ fontSize: '11.5px', color: 'var(--text-secondary, #64748b)' }}>
+                  개발자 및 최고관리자 권한 로그인이 허용된 물리적 워크스테이션 등록부
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{
+                fontSize: '11px',
+                padding: '3px 8px',
+                borderRadius: '9999px',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                color: '#047857',
+                fontWeight: 700,
+                border: '1px solid rgba(16, 185, 129, 0.25)'
+              }}>
+                물리 하드웨어 통제 활성
+              </span>
+              <button
+                type="button"
+                onClick={refreshDevices}
+                style={{
+                  padding: '5px 10px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color, #cbd5e1)',
+                  backgroundColor: '#ffffff',
+                  color: 'var(--text-secondary, #475569)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <RefreshCw size={13} />
+                새로고침
+              </button>
+            </div>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{
+              width: '100%',
+              borderCollapse: 'collapse',
+              fontSize: '12.5px',
+              textAlign: 'left'
+            }}>
+              <thead>
+                <tr style={{
+                  backgroundColor: 'var(--bg-secondary, #f8fafc)',
+                  borderBottom: '1px solid var(--border-color, #e2e8f0)',
+                  color: 'var(--text-secondary, #475569)',
+                  fontWeight: 700
+                }}>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>단말기명</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>물리 MAC 주소</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>하드웨어 지문</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>인가 일시</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>최근 접속 일시</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>상태</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', textAlign: 'center' }}>관리</th>
+                </tr>
+              </thead>
+              <tbody>
+                {authorizedDevices.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' }}>
+                      등록된 개발자 물리 단말기가 없습니다.
+                    </td>
+                  </tr>
+                ) : (
+                  authorizedDevices.map((dev) => (
+                    <tr
+                      key={dev.deviceId}
+                      style={{
+                        borderBottom: '1px solid var(--border-color, #f1f5f9)',
+                        backgroundColor: dev.status === 'ACTIVE' ? '#ffffff' : '#f8fafc'
+                      }}
+                    >
+                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontWeight: 600, color: 'var(--text-main, #0f172a)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Cpu size={14} color="var(--primary, #4f46e5)" />
+                          <span>{dev.machineName}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontFamily: 'monospace', fontWeight: 700, color: '#0f766e' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Network size={13} color="#0d9488" />
+                          <span>{dev.macAddress}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontFamily: 'monospace', fontSize: '11.5px', color: 'var(--text-secondary, #64748b)' }}>
+                        {dev.hardwareFingerprint}
+                      </td>
+                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontSize: '11.5px', color: 'var(--text-secondary, #64748b)' }}>
+                        {dev.registeredAt ? dev.registeredAt.replace('T', ' ').substring(0, 16) : '-'}
+                      </td>
+                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontSize: '11.5px', color: 'var(--text-secondary, #64748b)' }}>
+                        {dev.lastVerifiedAt ? dev.lastVerifiedAt.replace('T', ' ').substring(0, 16) : '-'}
+                      </td>
+                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
+                        {dev.status === 'ACTIVE' ? (
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: '9999px',
+                            backgroundColor: '#dcfce7',
+                            color: '#166534',
+                            border: '1px solid #86efac'
+                          }}>
+                            인가 활성
+                          </span>
+                        ) : (
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: '9999px',
+                            backgroundColor: '#fee2e2',
+                            color: '#991b1b',
+                            border: '1px solid #fca5a5'
+                          }}>
+                            차단됨
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                        {dev.status === 'ACTIVE' && (
+                          <button
+                            type="button"
+                            onClick={() => handleRevokeDevice(dev.deviceId, dev.machineName)}
+                            style={{
+                              padding: '4px 8px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              borderRadius: '4px',
+                              border: '1px solid #f87171',
+                              backgroundColor: '#fff',
+                              color: '#dc2626',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <Trash2 size={12} />
+                            인가 취소
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
