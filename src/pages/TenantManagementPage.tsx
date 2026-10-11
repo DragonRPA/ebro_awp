@@ -37,6 +37,7 @@ import {
   ParsedInitialData
 } from '../services/migrationEngine';
 import { analyzeBusinessLicense, formatBizRegNo, BusinessLicenseAnalysisResult } from '../services/visionOcrService';
+import { SPECIAL_FEATURES_REGISTRY, SpecialFeatureDef } from '../config/specialFeaturesRegistry';
 
 export const TenantManagementPage: React.FC = () => {
   const { 
@@ -64,7 +65,7 @@ export const TenantManagementPage: React.FC = () => {
   // 2. 모달 상태
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
-  const [modalTab, setModalTab] = useState<'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'AGENTS' | 'TEMPLATES' | 'INITIAL_DB' | 'STORAGE'>('BASIC');
+  const [modalTab, setModalTab] = useState<'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'SPECIAL_FEATURES' | 'AGENTS' | 'TEMPLATES' | 'INITIAL_DB' | 'STORAGE'>('BASIC');
   const [tenantHeartbeats, setTenantHeartbeats] = useState<any[]>([]);
   const [isLoadingHeartbeats, setIsLoadingHeartbeats] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -123,6 +124,7 @@ export const TenantManagementPage: React.FC = () => {
     allowCustomBillingStatement: false,
     allowedPages: [],
     hiddenPages: [],
+    specialFeatures: [],
     subscription: {
       plan: 'STANDARD',
       status: 'ACTIVE',
@@ -217,8 +219,7 @@ export const TenantManagementPage: React.FC = () => {
   const { sortedData: sortedTenants, sortKey: tenantSortKey, sortDirection: tenantSortDir, handleSort: handleTenantSort } = useSortableData<Tenant>(filteredTenants);
 
   // ── 테넌트 등록/수정 모달 오픈 ──
-  // ── 테넌트 등록/수정 모달 오픈 ──
-  const handleOpenModal = (tenant?: Tenant, initialTab: 'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'AGENTS' | 'TEMPLATES' | 'INITIAL_DB' | 'STORAGE' = 'BASIC') => {
+  const handleOpenModal = (tenant?: Tenant, initialTab: 'BASIC' | 'SUBSCRIPTION' | 'BRAND' | 'BANKS_YARDS' | 'PLUGINS' | 'PAGES' | 'SPECIAL_FEATURES' | 'AGENTS' | 'TEMPLATES' | 'INITIAL_DB' | 'STORAGE' = 'BASIC') => {
     setModalTab(initialTab);
     setPageSearchKeyword('');
     if (tenant) {
@@ -246,6 +247,7 @@ export const TenantManagementPage: React.FC = () => {
         },
         allowedPages: Array.isArray(tenant.allowedPages) ? [...tenant.allowedPages] : [],
         hiddenPages: Array.isArray(tenant.hiddenPages) ? [...tenant.hiddenPages] : [],
+        specialFeatures: Array.isArray(tenant.specialFeatures) ? [...tenant.specialFeatures] : SPECIAL_FEATURES_REGISTRY.map(f => f.id),
         subscription: tenant.subscription ? { ...tenant.subscription } : {
           plan: 'STANDARD',
           status: 'ACTIVE',
@@ -306,6 +308,7 @@ export const TenantManagementPage: React.FC = () => {
         allowCustomBillingStatement: false,
         allowedPages: allMenuIds,
         hiddenPages: [],
+        specialFeatures: SPECIAL_FEATURES_REGISTRY.map(f => f.id),
         subscription: {
           plan: 'STANDARD',
           status: 'ACTIVE',
@@ -599,6 +602,48 @@ export const TenantManagementPage: React.FC = () => {
     };
   }, [allSystemMenuIds, formData.allowedPages, formData.hiddenPages]);
 
+  // ── 특수 기능(선별적 탭/버튼) 인가 헬퍼 ──
+  const handleToggleSpecialFeature = (featureId: string) => {
+    setFormData(prev => {
+      const current = prev.specialFeatures || [];
+      const exists = current.includes(featureId);
+      const next = exists ? current.filter(id => id !== featureId) : [...current, featureId];
+      return { ...prev, specialFeatures: next };
+    });
+  };
+
+  const handleGrantAllSpecialFeatures = () => {
+    setFormData(prev => ({
+      ...prev,
+      specialFeatures: SPECIAL_FEATURES_REGISTRY.map(f => f.id)
+    }));
+  };
+
+  const handleRevokeAllSpecialFeatures = () => {
+    setFormData(prev => ({
+      ...prev,
+      specialFeatures: []
+    }));
+  };
+
+  const formSpecialFeatureStats = useMemo(() => {
+    const grantedList = formData.specialFeatures || [];
+    const total = SPECIAL_FEATURES_REGISTRY.length;
+    const granted = SPECIAL_FEATURES_REGISTRY.filter(f => grantedList.includes(f.id)).length;
+    const revoked = total - granted;
+    const tabs = SPECIAL_FEATURES_REGISTRY.filter(f => f.type === 'TAB');
+    const buttons = SPECIAL_FEATURES_REGISTRY.filter(f => f.type === 'BUTTON');
+    return {
+      total,
+      granted,
+      revoked,
+      tabsTotal: tabs.length,
+      tabsGranted: tabs.filter(f => grantedList.includes(f.id)).length,
+      buttonsTotal: buttons.length,
+      buttonsGranted: buttons.filter(f => grantedList.includes(f.id)).length,
+    };
+  }, [formData.specialFeatures]);
+
   // ── 구독 빠른 기간 연장 헬퍼 ──
   const handleExtendSubscription = (months: number) => {
     setFormData(prev => {
@@ -701,6 +746,11 @@ export const TenantManagementPage: React.FC = () => {
         corporateName: formData.corporateName?.trim() || formData.displayName?.trim() || cleanCode,
         tradeName: formData.tradeName?.trim() || formData.displayName?.trim() || cleanCode,
         systemName: formData.systemName || 'e-Bro System',
+        features: {
+          ...(formData.features || {}),
+          specialFeatures: formData.specialFeatures || [],
+        },
+        specialFeatures: formData.specialFeatures || [],
         updatedAt: new Date().toISOString(),
       };
 
@@ -1553,6 +1603,7 @@ export const TenantManagementPage: React.FC = () => {
                 { key: 'BANKS_YARDS', label: '계좌 및 주기장' },
                 { key: 'PLUGINS', label: '플러그인 설정' },
                 { key: 'PAGES', label: '페이지 노출 관리' },
+                { key: 'SPECIAL_FEATURES', label: '특수 기능 인가' },
                 { key: 'AGENTS', label: '에이전트 관제' },
                 { key: 'TEMPLATES', label: '서식 관리' },
                 { key: 'INITIAL_DB', label: '초기 DB 업로드' },
@@ -3214,6 +3265,339 @@ export const TenantManagementPage: React.FC = () => {
                   </div>
                 </div>
               )}
+              {/* ─── 특수 기능 인가 (SPECIAL_FEATURES) ─── */}
+              {modalTab === 'SPECIAL_FEATURES' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* 상단 컨트롤 바 (Gutenberg Z-패턴 1~2단계) */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '12px',
+                    padding: '14px 18px',
+                    backgroundColor: 'var(--bg-app)',
+                    borderRadius: '10px',
+                    border: '1px solid var(--border-color)'
+                  }}>
+                    {/* 좌상단: 통계 현황 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                        특수 기능 인가 현황
+                      </span>
+                      <span style={{
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        fontSize: '11.5px',
+                        fontWeight: 700,
+                        backgroundColor: '#dcfce7',
+                        color: '#166534',
+                        border: '1px solid #bbf7d0',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        인가 {formSpecialFeatureStats.granted}개
+                      </span>
+                      <span style={{
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        fontSize: '11.5px',
+                        fontWeight: 700,
+                        backgroundColor: formSpecialFeatureStats.revoked > 0 ? '#fee2e2' : 'var(--bg-card)',
+                        color: formSpecialFeatureStats.revoked > 0 ? '#b91c1c' : 'var(--text-muted)',
+                        border: '1px solid var(--border-color)',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        차단 {formSpecialFeatureStats.revoked}개
+                      </span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                        / 등록 {formSpecialFeatureStats.total}개
+                      </span>
+                    </div>
+
+                    {/* 우상단: 일괄 액션 버튼군 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'nowrap' }}>
+                      <button
+                        type="button"
+                        onClick={handleGrantAllSpecialFeatures}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          backgroundColor: 'var(--bg-card)',
+                          border: '1px solid var(--border-color)',
+                          color: 'var(--text-primary)',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        전체 인가
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRevokeAllSpecialFeatures}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          backgroundColor: 'var(--bg-card)',
+                          border: '1px solid var(--border-color)',
+                          color: '#dc2626',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        전체 차단
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 안내 배너 (건조한 사실 표준) */}
+                  <div style={{
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-card)',
+                    fontSize: '12px',
+                    color: 'var(--text-secondary)',
+                    lineHeight: '1.6'
+                  }}>
+                    시스템 내 일반 탭과 버튼은 기본적으로 모두 노출(Default Open)됩니다.
+                    상기 등록된 특수 탭과 특수 버튼에 한하여 테넌트별 인가 목록을 대조하여 선택적으로 노출 또는 차단합니다.
+                  </div>
+
+                  {/* 1. 특수 탭 그룹 */}
+                  <div style={{
+                    borderRadius: '10px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-card)',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      padding: '12px 18px',
+                      backgroundColor: 'var(--bg-app)',
+                      borderBottom: '1px solid var(--border-color)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Layers size={15} style={{ color: 'var(--primary)' }} />
+                        <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                          특수 탭 통제
+                        </span>
+                        <span style={{
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          backgroundColor: 'var(--bg-card)',
+                          border: '1px solid var(--border-color)',
+                          color: 'var(--text-secondary)'
+                        }}>
+                          {formSpecialFeatureStats.tabsGranted} / {formSpecialFeatureStats.tabsTotal} 인가
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      {SPECIAL_FEATURES_REGISTRY.filter(f => f.type === 'TAB').map((f, idx, arr) => {
+                        const isGranted = (formData.specialFeatures || []).includes(f.id);
+                        return (
+                          <div
+                            key={f.id}
+                            data-testid={`special-feature-row-${f.id}`}
+                            style={{
+                              padding: '14px 18px',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              gap: '16px',
+                              borderBottom: idx < arr.length - 1 ? '1px solid var(--border-color)' : 'none',
+                              backgroundColor: isGranted ? 'transparent' : 'rgba(239, 68, 68, 0.03)'
+                            }}
+                          >
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                <span style={{
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '10.5px',
+                                  fontWeight: 700,
+                                  backgroundColor: 'var(--bg-app)',
+                                  border: '1px solid var(--border-color)',
+                                  color: 'var(--text-secondary)',
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {f.menuName}
+                                </span>
+                                <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                                  {f.name}
+                                </span>
+                                <span style={{
+                                  fontFamily: 'monospace',
+                                  fontSize: '11px',
+                                  color: 'var(--text-muted)',
+                                  backgroundColor: 'var(--bg-app)',
+                                  padding: '1px 5px',
+                                  borderRadius: '3px',
+                                  border: '1px solid var(--border-color)',
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {f.id}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {f.description}
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              data-testid={`toggle-special-feature-${f.id}`}
+                              onClick={() => handleToggleSpecialFeature(f.id)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '6px 14px',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                border: isGranted ? '1px solid #16a34a' : '1px solid var(--border-color)',
+                                backgroundColor: isGranted ? '#dcfce7' : 'var(--bg-card)',
+                                color: isGranted ? '#166534' : 'var(--text-muted)',
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                                flexShrink: 0
+                              }}
+                            >
+                              {isGranted ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
+                              {isGranted ? 'ON 인가됨 (노출)' : 'OFF 차단됨 (숨김)'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* 2. 특수 버튼 그룹 */}
+                  <div style={{
+                    borderRadius: '10px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-card)',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      padding: '12px 18px',
+                      backgroundColor: 'var(--bg-app)',
+                      borderBottom: '1px solid var(--border-color)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Zap size={15} style={{ color: 'var(--primary)' }} />
+                        <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                          특수 버튼 통제
+                        </span>
+                        <span style={{
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          backgroundColor: 'var(--bg-card)',
+                          border: '1px solid var(--border-color)',
+                          color: 'var(--text-secondary)'
+                        }}>
+                          {formSpecialFeatureStats.buttonsGranted} / {formSpecialFeatureStats.buttonsTotal} 인가
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      {SPECIAL_FEATURES_REGISTRY.filter(f => f.type === 'BUTTON').map((f, idx, arr) => {
+                        const isGranted = (formData.specialFeatures || []).includes(f.id);
+                        return (
+                          <div
+                            key={f.id}
+                            data-testid={`special-feature-row-${f.id}`}
+                            style={{
+                              padding: '14px 18px',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              gap: '16px',
+                              borderBottom: idx < arr.length - 1 ? '1px solid var(--border-color)' : 'none',
+                              backgroundColor: isGranted ? 'transparent' : 'rgba(239, 68, 68, 0.03)'
+                            }}
+                          >
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                <span style={{
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '10.5px',
+                                  fontWeight: 700,
+                                  backgroundColor: 'var(--bg-app)',
+                                  border: '1px solid var(--border-color)',
+                                  color: 'var(--text-secondary)',
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {f.menuName}
+                                </span>
+                                <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                                  {f.name}
+                                </span>
+                                <span style={{
+                                  fontFamily: 'monospace',
+                                  fontSize: '11px',
+                                  color: 'var(--text-muted)',
+                                  backgroundColor: 'var(--bg-app)',
+                                  padding: '1px 5px',
+                                  borderRadius: '3px',
+                                  border: '1px solid var(--border-color)',
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {f.id}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {f.description}
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              data-testid={`toggle-special-feature-${f.id}`}
+                              onClick={() => handleToggleSpecialFeature(f.id)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '6px 14px',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                border: isGranted ? '1px solid #16a34a' : '1px solid var(--border-color)',
+                                backgroundColor: isGranted ? '#dcfce7' : 'var(--bg-card)',
+                                color: isGranted ? '#166534' : 'var(--text-muted)',
+                                cursor: 'pointer',
+                                whiteSpace: 'nowrap',
+                                flexShrink: 0
+                              }}
+                            >
+                              {isGranted ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
+                              {isGranted ? 'ON 인가됨 (노출)' : 'OFF 차단됨 (숨김)'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
               {/* ─── 7번째 탭: 에이전트 관제 (AGENTS) ─── */}
               {modalTab === 'AGENTS' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -3736,6 +4120,7 @@ export const TenantManagementPage: React.FC = () => {
               </button>
 
               <button data-hs-trigger="Save"
+                data-testid="tenant-modal-save-btn"
                 type="button"
                 onClick={handleSave}
                 disabled={isSaving}

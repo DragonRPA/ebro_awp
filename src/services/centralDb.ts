@@ -41,8 +41,10 @@ export async function fetchCentralTenants(): Promise<Tenant[]> {
 
     return (data || []).map(row => {
       const decrypted = decryptEntityPrivacyFields('tenants', row);
+      const specialFeatures = decrypted.specialFeatures || decrypted.features?.specialFeatures || (row.id === 'tenant-giyeonlift' ? ['tab:truck_dispatch:audit_settle', 'btn:truck_dispatch:bulk_approve', 'btn:courier_dispatch:direct_dispatch'] : undefined);
       return {
         ...decrypted,
+        specialFeatures,
         stampImageUrl: decrypted.stampImageUrl || decrypted.stampBase64 || '',
         stampBase64: decrypted.stampBase64 || decrypted.stampImageUrl || ''
       };
@@ -65,6 +67,18 @@ export async function saveCentralTenant(tenant: Partial<Tenant> & { id: string }
     if (payload.stampBase64 && !payload.stampImageUrl) {
       payload.stampImageUrl = payload.stampBase64;
     }
+
+    // 🛡️ centralSupabase의 tenants 테이블에 top-level specialFeatures 컬럼이 없는 경우 대비:
+    // 기존 JSONB 컬럼인 features.specialFeatures 에도 안전하게 동시 저장
+    if (payload.specialFeatures) {
+      payload.features = {
+        ...(payload.features || {}),
+        specialFeatures: payload.specialFeatures
+      };
+    }
+    // 중앙 DB에 top-level specialFeatures 컬럼이 없으므로 payload에서 제거하여 PostgreSQL 42703 에러 방어
+    delete payload.specialFeatures;
+
     payload = encryptEntityPrivacyFields('tenants', payload);
 
     const { error } = await centralSupabase

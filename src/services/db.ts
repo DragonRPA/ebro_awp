@@ -140,6 +140,7 @@ export interface TenantFeatures {
   publicDataApiKey?: string;      // 국토교통부 세움터 공공데이터포털 인증키 (서버/DB 보관)
   vworldApiKey?: string;          // V-World 공간정보 오픈플랫폼 인증키 (서버/DB 보관)
   agentAiEnabled?: boolean;       // eBro AI Agent 고유 기능 (텔레그램 명령 / 브라우저 확장 제어 / 데스크톱 AI Studio) 활성화 여부 (false 시 Silent Core 인쇄·문서 처리 모드)
+  specialFeatures?: string[];     // 🛡️ 사장님 지목 선별적 특수 탭 / 특수 버튼 인가 목록
 }
 
 /** 💳 테넌트 구독 요금제 등급 */
@@ -319,7 +320,8 @@ export interface Tenant {
   excelMappingRules?: TenantExcelMappingRules;
   allowCustomBillingStatement?: boolean; // 💡 특수 거래명세서(항목 임의수정 및 사유 기록) 기능 활성화 여부
   allowedPages?: string[];               // 📄 테넌트별 노출 허용 페이지 ID 목록 (빈 배열/미지정 시 전체 노출)
-  hiddenPages?: string[];                // 🚫 테넌트별 숨김/비노출 페이지 ID 목록
+  hiddenPages?: string[];
+  specialFeatures?: string[]; // 🛡️ 사장님 지목 선별적 특수 탭 / 특수 버튼 인가 목록 (예: ['tab:truck_dispatch:audit_settle'])                // 🚫 테넌트별 숨김/비노출 페이지 ID 목록
 
   // 🛡️ 법정 개인정보 보호책임자 (CPO - Chief Privacy Officer)
   privacyOfficer?: TenantPrivacyOfficer;
@@ -346,6 +348,7 @@ export const TENANTS_DDL_STATEMENTS: string[] = [
   'ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "solutionType" TEXT;',
   'ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "stampImageUrl" TEXT;',
   'ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "stampBase64" TEXT;',
+  'ALTER TABLE "tenants" ADD COLUMN IF NOT EXISTS "specialFeatures" JSONB DEFAULT \'[]\'::jsonb;',
   `NOTIFY pgrst, 'reload schema';`
 ];
 
@@ -4388,7 +4391,8 @@ export const SEED_TENANTS: Tenant[] = [
     isDefault: true,
     createdAt: '2013-04-03T00:00:00.000Z',
     updatedAt: new Date().toISOString(),
-    allowCustomBillingStatement: true, // 💡 특수 거래명세서 기능 활성화
+    allowCustomBillingStatement: true,
+    specialFeatures: ['tab:truck_dispatch:audit_settle', 'btn:truck_dispatch:bulk_approve', 'btn:courier_dispatch:direct_dispatch'], // 💡 특수 거래명세서 기능 활성화
     excelMappingRules: {
       contractAssetsStartRow: 44,
       contractModelCol: 1,

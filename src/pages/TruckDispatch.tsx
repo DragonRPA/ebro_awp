@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { 
@@ -27,6 +27,7 @@ import {
   markTransportCallConfirmed,
   deleteTransportCall
 } from '../services/transportCallService';
+import { useSpecialFeature, SpecialFeatureGuard } from '../utils/specialFeatureGuard';
 
 export { VEHICLE_TYPE_OPTIONS };
 
@@ -796,6 +797,8 @@ export const TruckDispatch: React.FC = () => {
     return str;
   };
 
+  const isAuditSettleGranted = useSpecialFeature('tab:truck_dispatch:audit_settle');
+
   const [activeTab, setActiveTabState] = useState<'DISPATCH' | 'NEGOTIATION' | 'RECONCILIATION'>(() => {
     if (typeof window !== 'undefined') {
       const saved = sessionStorage.getItem('truck_dispatch_active_tab') as any;
@@ -809,6 +812,12 @@ export const TruckDispatch: React.FC = () => {
       sessionStorage.setItem('truck_dispatch_active_tab', tab);
     }
   };
+
+  useEffect(() => {
+    if (!isAuditSettleGranted && activeTab === 'RECONCILIATION') {
+      setActiveTab('DISPATCH');
+    }
+  }, [isAuditSettleGranted, activeTab]);
 
   // 엑셀 일괄 배차 등록 모달 상태
   const [dispatchExcelModalOpen, setDispatchExcelModalOpen] = useState(false);
@@ -3332,19 +3341,21 @@ export const TruckDispatch: React.FC = () => {
           배차 관리
         </button>
         {/* 운송사 배차 협의 메뉴는 사용자 요청으로 임시 숨김 처리 */}
-        <button
-          data-uia="tab-dispatch-settle"
-          onClick={() => setActiveTab('RECONCILIATION')}
-          style={{
-            padding: '10px 18px', fontSize: '14px', fontWeight: 700, backgroundColor: 'transparent', border: 'none',
-            borderBottom: activeTab === 'RECONCILIATION' ? '3px solid var(--primary)' : 'none',
-            color: activeTab === 'RECONCILIATION' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer',
-            whiteSpace: 'nowrap', flexShrink: 0
-          }}
-        >
-          <FileText size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
-          운송료 대사
-        </button>
+        {isAuditSettleGranted && (
+          <button
+            data-uia="tab-dispatch-settle"
+            onClick={() => setActiveTab('RECONCILIATION')}
+            style={{
+              padding: '10px 18px', fontSize: '14px', fontWeight: 700, backgroundColor: 'transparent', border: 'none',
+              borderBottom: activeTab === 'RECONCILIATION' ? '3px solid var(--primary)' : 'none',
+              color: activeTab === 'RECONCILIATION' ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer',
+              whiteSpace: 'nowrap', flexShrink: 0
+            }}
+          >
+            <FileText size={15} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+            운송료 대사
+          </button>
+        )}
       </div>
 
       {/* 탭 1: 배차 관리 */}
@@ -5150,7 +5161,7 @@ export const TruckDispatch: React.FC = () => {
       )}
 
       {/* 탭 3: 월말 운송료 대사 및 매입 지급 요청 (Z-패턴 4단계 직무 완결 동선) */}
-      {activeTab === 'RECONCILIATION' && (
+      {isAuditSettleGranted && activeTab === 'RECONCILIATION' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           
           {/* ────────────── ① 좌상단 (Start/Scope) & ② 우상단 (Input/Pipeline) Z-패턴 2단 레이아웃 ────────────── */}
@@ -5963,27 +5974,29 @@ export const TruckDispatch: React.FC = () => {
             )}
 
             {/* 우측: ④ 최종 완결 버튼 (통합 매입 지급요청 생성) */}
-            <button
-              onClick={handleExecuteBundlePaymentRequest}
-              disabled={reconStats.matchedCount === 0}
-              style={{
-                padding: '10px 22px',
-                fontSize: '13.5px',
-                fontWeight: 900,
-                borderRadius: '8px',
-                border: 'none',
-                backgroundColor: reconStats.matchedCount > 0 ? '#2563eb' : '#94a3b8',
-                color: '#fff',
-                cursor: reconStats.matchedCount > 0 ? 'pointer' : 'not-allowed',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: reconStats.matchedCount > 0 ? '0 4px 14px rgba(37,99,235,0.35)' : 'none',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              <Send size={15} /> 대사 완료 {reconStats.matchedCount}건 통합 지급요청 생성 ➔
-            </button>
+            <SpecialFeatureGuard featureId="btn:truck_dispatch:bulk_approve">
+              <button
+                onClick={handleExecuteBundlePaymentRequest}
+                disabled={reconStats.matchedCount === 0}
+                style={{
+                  padding: '10px 22px',
+                  fontSize: '13.5px',
+                  fontWeight: 900,
+                  borderRadius: '8px',
+                  border: 'none',
+                  backgroundColor: reconStats.matchedCount > 0 ? '#2563eb' : '#94a3b8',
+                  color: '#fff',
+                  cursor: reconStats.matchedCount > 0 ? 'pointer' : 'not-allowed',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: reconStats.matchedCount > 0 ? '0 4px 14px rgba(37,99,235,0.35)' : 'none',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Send size={15} /> 대사 완료 {reconStats.matchedCount}건 통합 지급요청 생성 ➔
+              </button>
+            </SpecialFeatureGuard>
           </div>
 
         </div>

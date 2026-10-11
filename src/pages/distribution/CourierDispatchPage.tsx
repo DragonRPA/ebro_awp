@@ -3,6 +3,7 @@ import { useTrade } from '../../context/TradeContext';
 import { db, supabase } from '../../services/db';
 import { generateReceiptHtml, generateSignedReceiptBlob } from '../../utils/receiptGenerator';
 import { Printer, Eye, Link, Edit3, CheckCircle, FileText, X, Truck, Package } from 'lucide-react';
+import { SpecialFeatureGuard } from '../../utils/specialFeatureGuard';
 
 export const CourierDispatchPage: React.FC = () => {
   const { 
@@ -477,26 +478,28 @@ export const CourierDispatchPage: React.FC = () => {
                               송장 발급 및 출고 마감
                             </button>
 
-                            <button
-                              onClick={() => setDirectDispatchTarget(o.id)}
-                              style={{
-                                padding: '5px 10px',
-                                backgroundColor: '#3b82f6',
-                                color: '#fff',
-                                border: 'none',
-                                borderRadius: '4px',
-                                fontSize: '12px',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                              }}
-                              title="화물 운송기사 직접 배차"
-                            >
-                              <Truck size={13} />
-                              화물 직배 배차
-                            </button>
+                            <SpecialFeatureGuard featureId="btn:courier_dispatch:direct_dispatch">
+                              <button
+                                onClick={() => setDirectDispatchTarget(o.id)}
+                                style={{
+                                  padding: '5px 10px',
+                                  backgroundColor: '#3b82f6',
+                                  color: '#fff',
+                                  border: 'none',
+                                  borderRadius: '4px',
+                                  fontSize: '12px',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                                title="화물 운송기사 직접 배차"
+                              >
+                                <Truck size={13} />
+                                화물 직배 배차
+                              </button>
+                            </SpecialFeatureGuard>
                           </>
                         )}
 
