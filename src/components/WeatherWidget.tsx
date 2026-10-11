@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Sun, Cloud, CloudSun, CloudRain, Snowflake, CloudLightning, CloudFog, MapPin, X, RefreshCw, Calendar, Clock } from 'lucide-react';
 
 export interface WeatherRegion {
@@ -197,45 +198,68 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ compact = false, s
         )}
       </div>
 
-      {/* 상세 날씨 모달 */}
-      {showModal && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999,
-          padding: '12px'
-        }}>
-          <div className="card" style={{
-            width: '100%', maxWidth: '520px', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '14px',
-            maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 35px -5px rgba(0,0,0,0.5)'
-          }}>
+      {/* 상세 날씨 모달 (createPortal로 헤더 overflow-x:hidden 밖으로 탈출 및 다크 테마 일관성 유지) */}
+      {showModal && typeof document !== 'undefined' && createPortal(
+        <div 
+          onClick={() => setShowModal(false)}
+          style={{
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)', 
+            backdropFilter: 'blur(6px)',
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            zIndex: 99999,
+            padding: '16px'
+          }}
+        >
+          <div 
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%', 
+              maxWidth: '480px', 
+              backgroundColor: '#0f172a', 
+              color: '#f8fafc',
+              border: '1px solid #334155',
+              padding: '20px', 
+              borderRadius: '18px',
+              maxHeight: '85vh', 
+              overflowY: 'auto', 
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)'
+            }}
+          >
             {/* 모달 헤더 */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #1e293b', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <MapPin size={20} color="var(--primary)" />
-                <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0 }}>현장 날씨 정보</h3>
+                <MapPin size={20} color="#38bdf8" />
+                <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0, color: '#ffffff' }}>현장 실시간 날씨 정보</h3>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button
                   type="button"
                   onClick={() => fetchWeatherData(selectedRegion)}
                   title="새로고침"
-                  style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px' }}
+                  style={{ border: '1px solid #334155', background: '#1e293b', cursor: 'pointer', color: '#94a3b8', borderRadius: '8px', padding: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <RefreshCw size={16} />
+                  <RefreshCw size={15} />
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px' }}
+                  style={{ border: '1px solid #334155', background: '#1e293b', cursor: 'pointer', color: '#cbd5e1', borderRadius: '8px', padding: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
-                  <X size={20} />
+                  <X size={18} />
                 </button>
               </div>
             </div>
 
             {/* 지역 선택 바 */}
             <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>현장 지역 선택:</label>
+              <label style={{ fontSize: '12px', fontWeight: 700, color: '#94a3b8', whiteSpace: 'nowrap' }}>현장 지역 선택:</label>
               <select
                 value={selectedRegion.id}
                 onChange={e => {
@@ -246,58 +270,76 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ compact = false, s
                   }
                 }}
                 style={{
-                  flex: 1, padding: '7px 10px', borderRadius: '6px', fontSize: '13px', fontWeight: 600,
-                  border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)', outline: 'none'
+                  flex: 1, 
+                  padding: '8px 12px', 
+                  borderRadius: '10px', 
+                  fontSize: '13px', 
+                  fontWeight: 600,
+                  border: '1px solid #334155', 
+                  backgroundColor: '#1e293b', 
+                  color: '#ffffff', 
+                  outline: 'none'
                 }}
               >
                 {WEATHER_REGIONS.map(r => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
+                  <option key={r.id} value={r.id} style={{ backgroundColor: '#0f172a', color: '#ffffff' }}>{r.name}</option>
                 ))}
               </select>
             </div>
 
             {/* 메인 현재 날씨 카드 */}
             {loading ? (
-              <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>날씨 정보 로딩 중...</div>
+              <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '13px' }}>날씨 정보 로딩 중...</div>
             ) : current && weatherMeta ? (
               <>
                 <div style={{
-                  padding: '16px', borderRadius: '12px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'
+                  padding: '16px', 
+                  borderRadius: '14px', 
+                  backgroundColor: '#1e293b', 
+                  border: '1px solid #334155',
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  marginBottom: '20px'
                 }}>
                   <div>
-                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '4px' }}>{selectedRegion.name} 현재 기온</div>
-                    <div style={{ fontSize: '32px', fontWeight: 900, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '4px' }}>{selectedRegion.name} 현재 기온</div>
+                    <div style={{ fontSize: '32px', fontWeight: 900, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px', lineHeight: 1.1 }}>
                       {current.temp}°C
                       <span style={{ fontSize: '14px', fontWeight: 600, color: weatherMeta.color }}>{weatherMeta.text} {weatherMeta.emoji}</span>
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                    <div style={{ fontSize: '12px', color: '#cbd5e1', marginTop: '6px' }}>
                       체감 {current.apparentTemp}°C · 습도 {current.humidity}% · 풍속 {current.windSpeed} m/s
                     </div>
                   </div>
-                  <div style={{ transform: 'scale(1.8)', transformOrigin: 'center right', paddingRight: '12px' }}>
+                  <div style={{ transform: 'scale(1.7)', transformOrigin: 'center right', paddingRight: '12px' }}>
                     {weatherMeta.icon}
                   </div>
                 </div>
 
                 {/* 시간대별 예보 (24시간) */}
                 <div style={{ marginBottom: '20px' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Clock size={15} color="var(--primary)" /> 시간대별 예보 (24시간)
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#94a3b8', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Clock size={15} color="#38bdf8" /> 시간대별 예보 (24시간)
                   </div>
-                  <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '6px' }}>
+                  <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '6px' }}>
                     {hourly.map((h, idx) => {
                       const hMeta = getWeatherInfo(h.weatherCode);
                       return (
                         <div key={idx} style={{
-                          minWidth: '68px', padding: '10px 6px', borderRadius: '8px', border: '1px solid var(--border-color)',
-                          backgroundColor: 'var(--bg-app)', textAlign: 'center', flexShrink: 0
+                          minWidth: '66px', 
+                          padding: '10px 6px', 
+                          borderRadius: '10px', 
+                          border: '1px solid #334155',
+                          backgroundColor: '#1e293b', 
+                          textAlign: 'center', 
+                          flexShrink: 0
                         }}>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '4px' }}>{h.time}</div>
+                          <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>{h.time}</div>
                           <div style={{ margin: '4px 0', display: 'flex', justifyContent: 'center' }}>{hMeta.icon}</div>
-                          <div style={{ fontSize: '13px', fontWeight: 700 }}>{h.temp}°C</div>
+                          <div style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff' }}>{h.temp}°C</div>
                           {h.pop > 0 && (
-                            <div style={{ fontSize: '10px', color: 'var(--primary)', marginTop: '2px' }}>☔ {h.pop}%</div>
+                            <div style={{ fontSize: '10px', color: '#38bdf8', marginTop: '2px', fontWeight: 700 }}>☔ {h.pop}%</div>
                           )}
                         </div>
                       );
@@ -307,29 +349,36 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ compact = false, s
 
                 {/* 주간 예보 (7일간) */}
                 <div>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Calendar size={15} color="var(--primary)" /> 주간 예보 (7일)
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#94a3b8', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Calendar size={15} color="#38bdf8" /> 주간 예보 (7일)
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {daily.map((d, idx) => {
                       const dMeta = getWeatherInfo(d.weatherCode);
                       return (
                         <div key={idx} style={{
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px',
-                          borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', fontSize: '12.5px'
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center', 
+                          padding: '10px 14px',
+                          borderRadius: '10px', 
+                          border: '1px solid #334155', 
+                          backgroundColor: '#1e293b', 
+                          fontSize: '12.5px',
+                          color: '#f8fafc'
                         }}>
-                          <div style={{ width: '100px', fontWeight: idx === 0 ? 800 : 600, color: idx === 0 ? 'var(--primary)' : 'var(--text-primary)' }}>
+                          <div style={{ width: '90px', fontWeight: idx === 0 ? 800 : 600, color: idx === 0 ? '#38bdf8' : '#ffffff' }}>
                             {d.dayName}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, justifyContent: 'center' }}>
                             {dMeta.icon}
-                            <span style={{ fontSize: '12px', color: dMeta.color }}>{dMeta.text}</span>
+                            <span style={{ fontSize: '12px', color: dMeta.color, fontWeight: 600 }}>{dMeta.text}</span>
                             {d.popMax > 0 && (
-                              <span style={{ fontSize: '11px', color: 'var(--primary)', marginLeft: '4px' }}>☔ {d.popMax}%</span>
+                              <span style={{ fontSize: '11px', color: '#38bdf8', marginLeft: '4px', fontWeight: 700 }}>☔ {d.popMax}%</span>
                             )}
                           </div>
                           <div style={{ fontWeight: 700, fontSize: '12.5px', whiteSpace: 'nowrap' }}>
-                            <span style={{ color: 'var(--primary)' }}>{d.minTemp}°</span> / <span style={{ color: 'var(--danger)' }}>{d.maxTemp}°</span>
+                            <span style={{ color: '#38bdf8' }}>{d.minTemp}°</span> / <span style={{ color: '#f87171' }}>{d.maxTemp}°</span>
                           </div>
                         </div>
                       );
@@ -339,7 +388,8 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ compact = false, s
               </>
             ) : null}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
