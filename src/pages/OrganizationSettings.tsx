@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Network, Plus, Trash2, Edit2, AlertCircle, GripVertical, ChevronRight, 
   ChevronDown, CheckCircle, Upload, Save, X, User as UserIcon, Calendar, 
-  MapPin, Phone, Mail, Download, ShieldCheck
+  MapPin, Phone, Mail, Download, ShieldCheck, Eye, EyeOff
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { 
@@ -14,9 +14,12 @@ import {
   Department,
   UNIVERSAL_FUNCTIONAL_ATTRIBUTES,
   FunctionalAttributeConfig,
-  getDepartmentFunctionalTags
+  getDepartmentFunctionalTags,
+  logPrivacyAccess
 } from '../services/db';
 import { exportToExcel } from '../services/excel';
+import { isPrivilegedPrivacyUser, maskPhoneNumber, maskEmail, maskName, maskAddress } from '../utils/privacyMasking';
+import { hashPassword } from '../utils/cryptoVault';
 
 // --- Type Definitions ---
 
@@ -52,6 +55,7 @@ export const OrganizationSettings: React.FC = () => {
   const isSuperAdmin = currentUser?.loginId === 'admin';
   const canEdit = currentUser?.role === 'ADMIN' || hasPermission('organization', 'save');
   const canViewPayroll = hasPermission('payroll', 'view'); // 급여 정산 권한자 여부
+  const isPrivileged = isPrivilegedPrivacyUser(currentUser);
   
   // --- States ---
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -116,6 +120,17 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
   
   // Profile Modal State (Slide-out)
   const [selectedProfile, setSelectedProfile] = useState<UserNode | null>(null);
+  const [showPasswordInput, setShowPasswordInput] = useState(false);
+  const [revealedPhones, setRevealedPhones] = useState<Set<string>>(new Set());
+  const toggleRevealPhone = (userId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setRevealedPhones(prev => {
+      const next = new Set(prev);
+      if (next.has(userId)) next.delete(userId);
+      else next.add(userId);
+      return next;
+    });
+  };
   
   // Handoff Modal State
   const [showHandoffModal, setShowHandoffModal] = useState<UserNode | null>(null);
@@ -350,7 +365,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
     updated = enforceManagerPolicies(updated, departments);
     setUsers(updated);
     setActiveTab('UNASSIGNED');
-    setSelectedProfile(newUser);
+    setSelectedProfile(newUser); setShowPasswordInput(false);
   };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -484,8 +499,14 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
         dutyConfigs,
         positionConfigs
       );
+      const originalUser = users.find(u => u.id === selectedProfile.id);
+      let nextPasswordHash = originalUser?.passwordHash || '';
+      if (selectedProfile.passwordHash && selectedProfile.passwordHash !== '__HASHED__') {
+        nextPasswordHash = hashPassword(selectedProfile.passwordHash);
+      }
       const profileWithTier: UserNode = {
         ...selectedProfile,
+        passwordHash: nextPasswordHash,
         tier_level: eff.effectiveTier
       };
 
@@ -517,7 +538,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
       const eff = getUserEffectiveTier(u, dutyConfigs, positionConfigs);
       const row: any = {
         'No': idx + 1,
-        '성명': u.name || '-',
+        '성명': isPrivileged ? (u.name || '-') : maskName(u.name),
         '아이디': u.loginId || '-',
         '소속부서': deptName,
         '직급': u.position || '-',
@@ -526,10 +547,10 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
         '역할/권한': u.role || 'USER',
         '재직상태': statusLabel,
         '입사일': u.joinDate || '-',
-        '생년월일': u.birthDate || '-',
-        '연락처': u.phone || '-',
-        '이메일': u.email || '-',
-        '주소': u.address || '-'
+        '생년월일': isPrivileged ? (u.birthDate || '-') : (u.birthDate ? `${u.birthDate.slice(0, 7)}-**` : '-'),
+        '연락처': isPrivileged ? (u.phone || '-') : maskPhoneNumber(u.phone),
+        '이메일': isPrivileged ? (u.email || '-') : maskEmail(u.email),
+        '주소': isPrivileged ? (u.address || '-') : maskAddress(u.address)
       };
       if (canViewPayroll) {
         row['기본급(원)'] = u.baseSalary || 0;
@@ -539,7 +560,13 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
 
     const todayStr = new Date().toISOString().slice(0, 10);
     exportToExcel(rows, `임직원대장_${todayStr}`, '임직원');
-    showToast(`임직원 대장 ${rows.length}명 엑셀 내보내기 완료`);
+    logPrivacyAccess(
+      'EXCEL_DOWNLOAD',
+      'organization_users',
+      `임직원 대장 ${rows.length}명 엑셀 내보내기 (${isPrivileged ? '경영진/개발자 원본' : '개인정보 마스킹 적용'})`,
+      { isMasked: !isPrivileged }
+    ).catch(console.error);
+    showToast(`임직원 대장 ${rows.length}명 엑셀 내보내기 완료 (${isPrivileged ? '전체 정보' : '마스킹 적용'})`);
   };
 
   // --- Renders ---
@@ -685,7 +712,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
         key={user.id}
         draggable={canEdit}
         onDragStart={(e) => handleDragStart(e, user.id)}
-        onDoubleClick={() => setSelectedProfile(user)}
+        onDoubleClick={() => { setSelectedProfile({ ...user, passwordHash: user.passwordHash ? "__HASHED__" : "" }); setShowPasswordInput(false); }}
         style={{
           border: '1px solid var(--border-color)',
           borderRadius: 'var(--radius-md)',
@@ -737,7 +764,19 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
             <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
               {user.position || '직급 미지정'}{user.duty ? ` (${user.duty})` : ''} | {user.role}
             </div>
-            {user.phone && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>📞 {user.phone}</div>}
+            {user.phone && (
+              <div 
+                style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                onClick={(e) => toggleRevealPhone(user.id, e)}
+                title="클릭하여 마스킹 해제/적용"
+              >
+                <span>📞</span>
+                <span>{isPrivileged || revealedPhones.has(user.id) ? user.phone : maskPhoneNumber(user.phone)}</span>
+                <span style={{ cursor: 'pointer', opacity: 0.6, display: 'inline-flex', alignItems: 'center' }}>
+                  {isPrivileged || revealedPhones.has(user.id) ? <EyeOff size={11} /> : <Eye size={11} />}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1040,8 +1079,28 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
                     <input type="text" style={{ padding: '4px 8px', fontSize: '12px' }} placeholder="시스템 로그인 ID" value={selectedProfile.loginId || ''} onChange={e => setSelectedProfile({...selectedProfile, loginId: e.target.value})} disabled={!canEdit} />
                   </div>
                   <div>
-                    <label style={{ marginBottom: '2px', color: 'var(--primary)', fontWeight: 'bold', fontSize: '12px' }}>초기 비밀번호</label>
-                    <input type="password" style={{ padding: '4px 8px', fontSize: '12px' }} placeholder="비밀번호" value={selectedProfile.passwordHash || ''} onChange={e => setSelectedProfile({...selectedProfile, passwordHash: e.target.value})} disabled={!canEdit} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                      <label style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '12px' }}>비밀번호 변경</label>
+                      <button 
+                        type="button" 
+                        onClick={() => setShowPasswordInput(prev => !prev)} 
+                        style={{ background: 'none', border: 'none', padding: 0, fontSize: '11px', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px' }}
+                      >
+                        {showPasswordInput ? <EyeOff size={12} /> : <Eye size={12} />}
+                        {showPasswordInput ? '숨기기' : '입력보기'}
+                      </button>
+                    </div>
+                    <input 
+                      type={showPasswordInput ? 'text' : 'password'} 
+                      style={{ padding: '4px 8px', fontSize: '12px', width: '100%' }} 
+                      placeholder="변경 시 새 비밀번호 입력 (미입력시 유지)" 
+                      value={selectedProfile.passwordHash?.startsWith('__HASHED__') ? '' : (selectedProfile.passwordHash || '')} 
+                      onChange={e => setSelectedProfile({...selectedProfile, passwordHash: e.target.value})} 
+                      disabled={!canEdit} 
+                    />
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      * 안전을 위해 기존 비밀번호는 표시되지 않으며 단방향 해시로 보호됩니다.
+                    </div>
                   </div>
                 </div>
 
