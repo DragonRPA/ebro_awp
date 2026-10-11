@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import * as XLSX from 'xlsx';
-import { Calendar, Trash2, Download, Info } from 'lucide-react';
+import { Calendar, Trash2, Download, Info, AlertCircle } from 'lucide-react';
 import { User as UserType } from '../services/db';
 import { calculateLeaveDaysInfo } from '../utils/holidayUtils';
 import { SortableTh } from '../components/SortableTh';
@@ -356,7 +356,7 @@ export const LeaveApplicationPage: React.FC = () => {
             gap: '8px'
           }}>
             <Info size={15} style={{ color: 'var(--primary)', flexShrink: 0, marginTop: '2px' }} />
-            <div>
+            <div style={{ wordBreak: 'keep-all', overflowWrap: 'break-word', flex: 1, minWidth: 0 }}>
               <span style={{ fontWeight: 'bold', color: 'var(--text-main)' }}>안내: </span>
               주말(토/일) 및 법정공휴일은 연차 소진 일수에서 <strong>자동 제외</strong>됩니다. 
               정부 수시 지정 <strong>임시공휴일은 자동 제외되지 않으므로</strong>, 해당 일자 신청 시 확인 바랍니다.
@@ -477,21 +477,39 @@ export const LeaveApplicationPage: React.FC = () => {
               flexDirection: 'column',
               gap: '8px'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                  {leaveType === 'ANNUAL' ? '연차 소진 일수:' : '반차 소진 일수:'}
-                </span>
-                <strong style={{ 
-                  color: !calcResult.isValid || requestedDays > mySummary.remainingDays ? '#ef4444' : 'var(--primary)', 
-                  fontSize: '13px',
-                  whiteSpace: 'nowrap'
-                }}>
-                  {!calcResult.isValid 
-                    ? (calcResult.errorMessage || '신청 불가')
-                    : `${requestedDays}일 소진 (잔여: ${Math.round((mySummary.remainingDays - requestedDays) * 10) / 10}일)`
-                  }
-                </strong>
-              </div>
+              {!calcResult.isValid ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <AlertCircle size={14} style={{ color: '#ef4444', flexShrink: 0 }} />
+                    <span style={{ color: 'var(--text-muted)', fontWeight: 600, fontSize: '11px', whiteSpace: 'nowrap' }}>
+                      {leaveType === 'ANNUAL' ? '연차 소진 일수 안내' : '반차 소진 일수 안내'}
+                    </span>
+                  </div>
+                  <div style={{ 
+                    color: '#ef4444', 
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    lineHeight: '1.45',
+                    wordBreak: 'keep-all',
+                    overflowWrap: 'break-word'
+                  }}>
+                    {calcResult.errorMessage || '선택한 기간에는 연차를 신청할 수 없습니다.'}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                  <span style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    {leaveType === 'ANNUAL' ? '연차 소진 일수:' : '반차 소진 일수:'}
+                  </span>
+                  <strong style={{ 
+                    color: requestedDays > mySummary.remainingDays ? '#ef4444' : 'var(--primary)', 
+                    fontSize: '13px',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {`${requestedDays}일 소진 (잔여: ${Math.round((mySummary.remainingDays - requestedDays) * 10) / 10}일)`}
+                  </strong>
+                </div>
+              )}
 
               {/* 주말 및 법정공휴일 포함 여부 표시 뱃지 */}
               <div style={{

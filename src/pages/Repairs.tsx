@@ -802,7 +802,7 @@ export const Repairs: React.FC = () => {
           
           {/* ── 좌측: 수리 대기 자산 큐 ── */}
           <div className="card" style={{ margin: 0, padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0, overflow: 'hidden', boxSizing: 'border-box' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
               <div style={{ fontSize: '13px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
                 <Package size={15} color="var(--primary)" /> 정비 대상 자산 ({yardAssets.length}대)
               </div>
@@ -812,7 +812,7 @@ export const Repairs: React.FC = () => {
             </div>
 
             {/* 필터 탭 (Pill) */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', flexShrink: 0 }}>
               {[
                 { key: 'ALL', label: '전체', count: queueCounts.all },
                 { key: 'OUTBOUND_DEFECT', label: '출고불량', count: queueCounts.outboundDefects, color: 'var(--danger)' },
@@ -845,7 +845,7 @@ export const Repairs: React.FC = () => {
             </div>
 
             {/* 콤팩트 검색 */}
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', flexShrink: 0 }}>
               <Search size={14} style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               <input
                 type="text"
