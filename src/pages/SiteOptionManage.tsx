@@ -600,7 +600,7 @@ export const SiteOptionManage: React.FC = () => {
     <div data-hs-observe="siteoptionmanage" 
       data-subview="site_options" 
       data-subview-title="현장별 옵션 관리"
-      style={{ display: 'flex', flexDirection: 'column', gap: '14px', paddingBottom: '30px' }}
+      style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%', minHeight: 0, overflow: 'hidden' }}
     >
       
       {/* 신규 현장 빠른 등록 모달 */}
@@ -638,7 +638,7 @@ export const SiteOptionManage: React.FC = () => {
         </div>
       )}
       
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '12px 20px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '12px 20px', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <h2 style={{ margin: 0, fontWeight: '700', fontSize: '17px', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
             현장별 옵션 관리
@@ -762,7 +762,8 @@ export const SiteOptionManage: React.FC = () => {
           alignItems: 'flex-end',
           flexWrap: 'wrap',
           gap: '12px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+          flexShrink: 0
         }}
       >
         {/* ① 좌상단 (Start / Scope): 고객사 필터 & 현장 검색 */}
@@ -947,7 +948,7 @@ export const SiteOptionManage: React.FC = () => {
 
       {/* ── [탭 1: 현장별 옵션 관리 마스터-디테일 스튜디오] ── */}
       {activeTab === 'SITE_OPTIONS' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '14px', height: 'calc(100vh - 180px)', minHeight: '500px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '14px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
           
           {/* 좌측: 고객 현장 목록 패널 (320px) */}
           <div 
@@ -1495,9 +1496,12 @@ export const SiteOptionManage: React.FC = () => {
           display: 'flex',
           flexDirection: 'column',
           gap: '14px',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+          flex: 1,
+          minHeight: 0,
+          overflow: 'hidden'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', flexShrink: 0 }}>
             <div>
               <h3 style={{ margin: 0, fontSize: '15.5px', fontWeight: 800, color: 'var(--text-primary)' }}>
                 옵션 품목 마스터 (전사 기준 풀)
@@ -1541,7 +1545,7 @@ export const SiteOptionManage: React.FC = () => {
           </div>
 
           {/* 마스터 그리드 */}
-          <div className="table-container" style={{ overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 280px)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+          <div className="table-container" style={{ overflowX: 'auto', overflowY: 'auto', flex: 1, minHeight: 0, border: '1px solid var(--border-color)', borderRadius: '8px' }}>
             <table style={{ width: '100%', minWidth: '750px', borderCollapse: 'collapse', fontSize: '12.5px', textAlign: 'left' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-secondary)' }}>
                 <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>

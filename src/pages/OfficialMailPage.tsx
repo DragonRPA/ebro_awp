@@ -302,9 +302,9 @@ export const OfficialMailPage: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="officialmailpage" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', color: 'var(--text-main)' }}>
+    <div data-hs-observe="officialmailpage" style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%', minHeight: 0, overflow: 'hidden', color: 'var(--text-main)' }}>
       {/* 화면 헤더 (무수식어 건조 표준) */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Mail size={18} color="var(--primary)" />
           <div>
@@ -334,7 +334,8 @@ export const OfficialMailPage: React.FC = () => {
           fontSize: '13px',
           backgroundColor: sendResultMsg.success ? 'var(--success-light)' : 'var(--danger-light)',
           color: sendResultMsg.success ? 'var(--success)' : 'var(--danger)',
-          border: `1px solid ${sendResultMsg.success ? 'var(--success)' : 'var(--danger)'}`
+          border: `1px solid ${sendResultMsg.success ? 'var(--success)' : 'var(--danger)'}`,
+          flexShrink: 0
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {sendResultMsg.success ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
@@ -346,8 +347,10 @@ export const OfficialMailPage: React.FC = () => {
         </div>
       )}
 
-      {/* 메인 작업 영역: 좌측 Scope (거래처 및 수신자) + 우측 Pipeline/Inspection (서식 및 본문) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))', gap: '20px' }}>
+      {/* 내부 스크롤 작업 본문 래퍼 */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '4px' }}>
+        {/* 메인 작업 영역: 좌측 Scope (거래처 및 수신자) + 우측 Pipeline/Inspection (서식 및 본문) */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, minmax(0, 1fr))', gap: '20px' }}>
 
         {/* 좌측 패널: ① 좌상단 Scope (거래처 및 수신자 설정) */}
         <div
@@ -980,6 +983,7 @@ export const OfficialMailPage: React.FC = () => {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
     </div>
   );

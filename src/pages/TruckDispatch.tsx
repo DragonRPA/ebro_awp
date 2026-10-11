@@ -3272,7 +3272,7 @@ export const TruckDispatch: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="truckdispatch" style={{ padding: '24px', maxWidth: '1400px', margin: '0 auto', color: 'var(--text-primary)', position: 'relative' }}>
+    <div data-hs-observe="truckdispatch" style={{ padding: '0', maxWidth: '1400px', width: '100%', margin: '0 auto', height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', gap: '10px', overflow: 'hidden', color: 'var(--text-primary)', position: 'relative' }}>
       {/* 알림 토스트 배너 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -3297,7 +3297,7 @@ export const TruckDispatch: React.FC = () => {
         </div>
       )}
       {/* 헤더 영역 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '12px', flexShrink: 0 }}>
         <div>
           <h2 style={{ fontWeight: '800', fontSize: '20px', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
             <Truck size={22} color="var(--primary)" /> 배차 / 운송 관리
@@ -3337,8 +3337,7 @@ export const TruckDispatch: React.FC = () => {
         )}
       </div>
 
-      {/* 메인 탭 (헌장 3.1 무수식어 건조 표준: 배차 관리 / 운송료 대사 - 운송사 배차 협의는 임시 숨김) */}
-      <div data-mid="dispatch-mode-tabs" style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', marginBottom: '20px' }}>
+      <div data-mid="dispatch-mode-tabs" style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', marginBottom: '8px', flexShrink: 0 }}>
         <button
           data-uia="tab-dispatch-ops"
           onClick={() => setActiveTab('DISPATCH')}
@@ -3372,20 +3371,20 @@ export const TruckDispatch: React.FC = () => {
 
       {/* 탭 1: 배차 관리 */}
       {activeTab === 'DISPATCH' && (
-        <div>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '8px', overflow: 'hidden' }}>
           {/* 📊 오늘/내일/이번주 상차 배차 통계 바 */}
           {(() => {
             return (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginBottom: '16px' }}>
-                <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px', marginBottom: '8px', flexShrink: 0 }}>
+                <div style={{ padding: '8px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>오늘 상차 예정</span>
                   <strong style={{ fontSize: '15px', color: deliveryCounts.today > 0 ? 'var(--primary)' : 'var(--text-muted)' }}>{deliveryCounts.today}건</strong>
                 </div>
-                <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ padding: '8px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>내일 상차 예정</span>
                   <strong style={{ fontSize: '15px', color: deliveryCounts.tomorrow > 0 ? '#0070C0' : 'var(--text-muted)' }}>{deliveryCounts.tomorrow}건</strong>
                 </div>
-                <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ padding: '8px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>배차 대기 (미배정)</span>
                   <strong style={{ fontSize: '15px', color: deliveryCounts.pending > 0 ? '#d97706' : 'var(--text-muted)' }}>{deliveryCounts.pending}건</strong>
                 </div>
@@ -3394,7 +3393,7 @@ export const TruckDispatch: React.FC = () => {
           })()}
 
           {/* 4단계 배차 진행 상태 카운트 탭 */}
-          <div data-mid="dispatch-status-tabs" style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          <div data-mid="dispatch-status-tabs" style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap', flexShrink: 0 }}>
             {[
               { key: 'ALL', label: '전체 보기', count: deliveries.length },
               { key: 'PENDING', label: '🟡 배차 전 (대기)', count: deliveries.filter(d => getNormalizedDeliveryStatus(d) === 'PENDING').length },
@@ -3437,10 +3436,10 @@ export const TruckDispatch: React.FC = () => {
           </div>
 
           {/* 2열 메인 레이아웃 (좌: 배차 목록 + 📅 기간조회 | 우: 기사 배정 폼) */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 420px) 1fr', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 420px) 1fr', gap: '16px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
             
             {/* [좌측] 배차 목록 카드 + 📅 요청/운송일 기간 선택 폼 */}
-            <div data-mid="dispatch-dossier-card" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 230px)', minHeight: '600px' }}>
+            <div data-mid="dispatch-dossier-card" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
               
               {/* 📅 배차 요청/운송일 기간 선택 폼 */}
               <div data-mid="dispatch-date-filter" style={{ marginBottom: '12px', padding: '10px 12px', backgroundColor: 'var(--bg-body)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
@@ -3755,7 +3754,7 @@ export const TruckDispatch: React.FC = () => {
             </div>
 
             {/* [우측] 배차 기사 배정 및 상세 폼 */}
-            <div data-mid="dispatch-assign-studio" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px', height: 'calc(100vh - 230px)', minHeight: '600px', overflowY: 'auto' }}>
+            <div data-mid="dispatch-assign-studio" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px', height: '100%', minHeight: 0, overflowY: 'auto' }}>
               {!selectedDelivery ? (
                 <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
                   <Truck size={48} style={{ opacity: 0.3, marginBottom: '12px' }} />
@@ -4425,7 +4424,7 @@ export const TruckDispatch: React.FC = () => {
                 gap: '8px',
                 fontSize: '11.5px',
                 borderRadius: '6px',
-                marginTop: '12px',
+                marginTop: '8px',
                 flexShrink: 0
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
@@ -5139,14 +5138,15 @@ export const TruckDispatch: React.FC = () => {
 
       {/* 탭 3: 월말 운송료 대사 및 매입 지급 요청 (Z-패턴 4단계 직무 완결 동선) */}
       {isAuditSettleGranted && activeTab === 'RECONCILIATION' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
           
           {/* ────────────── ① 좌상단 (Start/Scope) & ② 우상단 (Input/Pipeline) Z-패턴 2단 레이아웃 ────────────── */}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'minmax(520px, 1.4fr) minmax(360px, 1fr)',
             gap: '14px',
-            alignItems: 'stretch'
+            alignItems: 'stretch',
+            flexShrink: 0
           }}>
             
             {/* ① 좌측 상단 [START / SCOPE]: 정산 대상 범위 설정 */}
@@ -5444,10 +5444,10 @@ export const TruckDispatch: React.FC = () => {
 
 
           {/* ────────────── ③ 중앙 본문 (Body / Inspection): 고밀도 1:1 대사 작업대 그리드 (화면의 85% 확보) ────────────── */}
-          <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
             
             {/* 상태 필터 배지 바 + 일괄 승인 버튼 + 검색창 */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', flexShrink: 0 }}>
               <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
                 {[
                   { key: 'ALL', label: '전체', count: reconPairs.length || completedDeliveriesForRecon.length, color: 'var(--text-primary)', bg: 'var(--bg-body)' },
@@ -5521,13 +5521,13 @@ export const TruckDispatch: React.FC = () => {
 
             {/* 알림 메시지 */}
             {reconNotificationMsg && (
-              <div style={{ fontSize: '12px', padding: '6px 10px', backgroundColor: 'rgba(59,130,246,0.08)', borderRadius: '6px', color: 'var(--primary)', fontWeight: 600 }}>
+              <div style={{ fontSize: '12px', padding: '6px 10px', backgroundColor: 'rgba(59,130,246,0.08)', borderRadius: '6px', color: 'var(--primary)', fontWeight: 600, flexShrink: 0 }}>
                 {reconNotificationMsg}
               </div>
             )}
 
             {/* 1:1 대사 그리드 테이블 (행 높이 42px / 한눈에 15건 조망) */}
-            <div className="table-container" style={{ maxHeight: 'calc(100vh - 320px)', minHeight: '400px', overflowY: 'auto', overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+            <div className="table-container" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
                   {/* 1행: 대분류 영역 헤더 (상태 | 배차정보 3열 | 비교 | 청구정보 3열 | 차액 | 조치) */}
@@ -5885,6 +5885,7 @@ export const TruckDispatch: React.FC = () => {
             position: 'sticky',
             bottom: 0,
             zIndex: 10,
+            flexShrink: 0,
             backgroundColor: 'var(--bg-card)',
             border: '1.5px solid var(--border-color)',
             borderRadius: '10px',

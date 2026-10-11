@@ -1475,10 +1475,10 @@ export const RentAssets: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="rent_assets" data-subview="rent_asset" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%' }}>
+    <div data-hs-observe="rent_assets" data-subview="rent_asset" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0, overflow: 'hidden' }}>
       
       {/* 1. 상단 메뉴 헤더 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '10px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '10px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Layers size={18} color="var(--primary)" />
           <h2 data-mid="rent_asset-header" style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
@@ -1494,7 +1494,7 @@ export const RentAssets: React.FC = () => {
       </div>
 
       {/* 2. 상단 메인 탭 (헌장 3.1 무수식어 건조 표준 준수) */}
-      <div style={{ display: 'flex', borderBottom: '2px solid var(--border-color)', marginBottom: '12px', gap: '8px' }}>
+      <div style={{ display: 'flex', borderBottom: '2px solid var(--border-color)', marginBottom: '8px', gap: '8px', flexShrink: 0 }}>
         <button
           onClick={() => setActiveTab('CURRENT')}
           style={{
@@ -1592,7 +1592,7 @@ export const RentAssets: React.FC = () => {
         const totalMonthlyRentCost = activeRentedList.reduce((sum, a) => sum + (a.monthlyRentFee || 0), 0);
 
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginBottom: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginBottom: '8px', flexShrink: 0 }}>
             <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>가동중인 임차장비</span>
               <strong style={{ fontSize: '15px', color: 'var(--primary)' }}>{activeRentedList.length}대</strong>
@@ -1624,7 +1624,7 @@ export const RentAssets: React.FC = () => {
         const balanceDiff = totalBilled - (confirmedCost + excludedCost);
 
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', flex: 1, minHeight: 0, overflow: 'hidden' }}>
 
             {/* =================================================================== */}
             {/* ① 좌상단 [START / SCOPE] & ② 우상단 [INPUT / PIPELINE] 2열 그리드 배치 */}
@@ -2009,13 +2009,13 @@ export const RentAssets: React.FC = () => {
             </div>
 
             {/* 고밀도 그리드 테이블 (행 높이 36px 슬림, 2단 밴드 헤더, 100% 전체 너비) */}
-            <div className="card" style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'var(--bg-card)', width: '100%' }}>
+            <div className="card" style={{ border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'var(--bg-card)', width: '100%', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
               {filteredReconcileResults.length === 0 ? (
                 <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
                   대사 대상 데이터가 없습니다. 상단 [거래명세서 업로드]를 실행해 주세요.
                 </div>
               ) : (
-                <div style={{ overflowX: 'auto', maxHeight: 'calc(100vh - 290px)', minHeight: '520px', overflowY: 'auto', width: '100%' }}>
+                <div style={{ overflowX: 'auto', overflowY: 'auto', flex: 1, minHeight: 0, width: '100%' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px' }}>
                     <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
                       {/* 2단 밴드 헤더 1행: 그룹 분류 */}
@@ -3119,7 +3119,7 @@ export const RentAssets: React.FC = () => {
         const totalMonthlyRentCost = activeRentedList.reduce((sum, a) => sum + (a.monthlyRentFee || 0), 0);
 
         return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
 
             {/* 필터 컨트롤 바 (Vertical Header-Label Layout: 헌장 3.4) */}
             <div style={{
@@ -3130,7 +3130,8 @@ export const RentAssets: React.FC = () => {
               backgroundColor: 'var(--bg-card)',
               borderRadius: '6px',
               border: '1px solid var(--border-color)',
-              flexWrap: 'wrap'
+              flexWrap: 'wrap',
+              flexShrink: 0
             }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: '1', minWidth: '180px' }}>
                 <label style={{ fontSize: '10.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>자산 검색</label>
@@ -3213,9 +3214,10 @@ export const RentAssets: React.FC = () => {
               border: '1px solid var(--border-color)',
               overflow: 'hidden',
               display: 'flex',
-              flexDirection: 'column'
+              flexDirection: 'column',
+              minHeight: 0
             }}>
-              <div style={{ flex: 1, overflow: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
+              <div style={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '11.5px' }}>
                   <thead>
                     <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 600 }}>

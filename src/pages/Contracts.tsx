@@ -1439,10 +1439,10 @@ export const Contracts: React.FC = () => {
   }, [contracts, contractAssets]);
 
   return (
-    <div data-uia="contract-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '13px' }}>
+    <div data-uia="contract-container" style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0, overflow: 'hidden', fontSize: '13px' }}>
       
       {/* 최상단 헤더 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '14px 18px', borderRadius: '8px', border: '1px solid var(--border-color)', gap: '16px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-card)', padding: '12px 18px', borderRadius: '8px', border: '1px solid var(--border-color)', gap: '16px', flexWrap: 'wrap', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {viewMode === 'DETAIL' && (
             <button
@@ -1520,10 +1520,10 @@ export const Contracts: React.FC = () => {
       )}
 
       {viewMode === 'LIST' && activeTab === 'ALL_LIST' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
           
           {/* 필터 패널 */}
-          <div className="card" data-mid="contract-filter-panel" style={{ padding: '14px', margin: 0, border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div className="card" data-mid="contract-filter-panel" style={{ padding: '12px 14px', margin: 0, border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '10px', flexShrink: 0 }}>
             
             {/* 0행: 계약 유형 분계선 탭 (렌탈 계약 vs 매각 계약) */}
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1853,8 +1853,8 @@ export const Contracts: React.FC = () => {
           </div>
 
           {/* 계약 목록 데이터 테이블 (횡 스크롤 지원 & 셀 줄바꿈 방지) */}
-          <div className="card" data-mid="contract-table" style={{ padding: 0, margin: 0, overflow: 'hidden' }}>
-            <div className="table-container" style={{ maxHeight: 'calc(100vh - 465px)', minHeight: '300px', overflowY: 'auto', overflowX: 'auto', position: 'relative' }}>
+          <div className="card" data-mid="contract-table" style={{ padding: 0, margin: 0, overflow: 'hidden', flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+            <div className="table-container" style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto', position: 'relative' }}>
               <table style={{ width: '100%', minWidth: '1200px', borderCollapse: 'collapse', whiteSpace: 'nowrap' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 10, backgroundColor: 'var(--bg-app)' }}>
                   <tr style={{ backgroundColor: 'var(--bg-app)', whiteSpace: 'nowrap' }}>
@@ -2081,7 +2081,7 @@ export const Contracts: React.FC = () => {
       {/* 뷰 2: 계약 상세 뷰 (viewMode === 'DETAIL') */}
       {/* ────────────────────────────────────────────────────────────────────────── */}
       {viewMode === 'DETAIL' && activeContract && (
-        <div data-uia="panel-contract-detail" data-subview="contract_detail" data-subview-title="계약 상세" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div data-uia="panel-contract-detail" data-subview="contract_detail" data-subview-title="계약 상세" style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '4px' }}>
           
                     {/* 연관 계약 (족보) 패널 (N:M 족보 아키텍처 반영) */}
           {(() => {
@@ -3506,7 +3506,7 @@ export const Contracts: React.FC = () => {
 
       {/* 뷰 3: 신규 계약 등록 */}
       {viewMode === 'LIST' && activeTab === 'CREATE' && (
-        <form onSubmit={handleCreateContractSubmit} className="card" data-subview="contract_create" data-subview-title="신규 계약 등록" style={{ margin: 0 }}>
+        <form onSubmit={handleCreateContractSubmit} className="card" data-subview="contract_create" data-subview-title="신규 계약 등록" style={{ margin: 0, flex: 1, minHeight: 0, overflowY: 'auto' }}>
           <h3 className="card-title" style={{ marginBottom: '16px' }}>신규 계약 등록</h3>
           
           {selectedCustOverdue && (
