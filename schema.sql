@@ -1577,6 +1577,28 @@ CREATE INDEX IF NOT EXISTS idx_privacy_access_logs_created ON privacy_access_log
 CREATE INDEX IF NOT EXISTS idx_privacy_access_logs_user ON privacy_access_logs("userId");
 CREATE INDEX IF NOT EXISTS idx_privacy_access_logs_action ON privacy_access_logs("actionType");
 
+-- 🛡️ [개발자 권한 물리 단말기 인가 대장 (Developer Hardware Registry)]
+CREATE TABLE IF NOT EXISTS developer_authorized_devices (
+    id                      TEXT PRIMARY KEY,
+    "developerId"           TEXT NOT NULL,
+    "developerName"         TEXT NOT NULL,
+    "machineName"           TEXT NOT NULL,
+    "macAddress"            TEXT NOT NULL,
+    "hardwareFingerprint"   TEXT NOT NULL,
+    platform                TEXT,
+    status                  TEXT NOT NULL DEFAULT 'ACTIVE', -- ACTIVE, REVOKED, EMERGENCY_TEMP
+    "isPrimary"             BOOLEAN DEFAULT FALSE,
+    "emergencyBreakGlassUsed" BOOLEAN DEFAULT FALSE,
+    note                    TEXT,
+    "registeredAt"          TEXT NOT NULL,
+    "lastVerifiedAt"        TEXT NOT NULL,
+    "updatedAt"             TEXT,
+    "tenant_id"             TEXT NOT NULL DEFAULT 'giyeonlift'
+);
+
+CREATE INDEX IF NOT EXISTS idx_dev_auth_devices_mac ON developer_authorized_devices("macAddress");
+CREATE INDEX IF NOT EXISTS idx_dev_auth_devices_dev ON developer_authorized_devices("developerId");
+
 -- ==============================================================================
 -- 🔒 전 테이블 Row Level Security (RLS) 및 권한 일괄 활성화
 -- ==============================================================================

@@ -5,7 +5,7 @@ import { useApp } from '../context/AppContext';
 import { 
   FileCheck, Shield, Download, Search, RefreshCw, Calendar, 
   Filter, CheckCircle, AlertTriangle, UserCheck, Eye, EyeOff, Lock,
-  Laptop, Cpu, Network, Trash2
+  Laptop, Cpu, Network, Trash2, Plus, AlertOctagon, RotateCcw, X, Key, Info, Copy
 } from 'lucide-react';
 import { db, supabase, PrivacyAccessLog } from '../services/db';
 import { exportToExcel } from '../services/excel';
@@ -15,6 +15,12 @@ import { PrivacyPolicyModal } from '../components/PrivacyPolicyModal';
 import { 
   getAuthorizedDeveloperDevices, 
   revokeDeveloperDevice, 
+  reactivateDeveloperDevice,
+  registerAndAuthorizeDeveloperDevice,
+  MASTER_HARDWARE_SECURITY_KEY,
+  EMERGENCY_BREAK_GLASS_KEY,
+  getPhysicalHardwareFingerprint,
+  fetchPhysicalMacAddress,
   DeveloperDeviceProfile 
 } from '../utils/hardwareVault';
 
@@ -61,11 +67,95 @@ export const PrivacyAuditPage: React.FC = () => {
     setAuthorizedDevices(getAuthorizedDeveloperDevices());
   };
 
+  // 신규 개발자 / 단말기 등록 모달 상태
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [regDevId, setRegDevId] = useState('sys-admin');
+  const [regDevName, setRegDevName] = useState('대표 개발자');
+  const [regMachineName, setRegMachineName] = useState('');
+  const [regMacAddress, setRegMacAddress] = useState('');
+  const [regMasterKey, setRegMasterKey] = useState(MASTER_HARDWARE_SECURITY_KEY);
+  const [regNote, setRegNote] = useState('');
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+
+  // 비상 마스터 복구 지침 모달 상태
+  const [showBreakGlassModal, setShowBreakGlassModal] = useState(false);
+
+  // 단말기 차단 (도난/분실 즉시 킬스위치)
   const handleRevokeDevice = (deviceId: string, deviceName: string) => {
-    if (window.confirm(`'${deviceName}' 단말기의 개발자 물리적 인가를 차단(취소)하시겠습니까?\n취소 후 해당 기기에서는 마스터 비밀번호를 재입력해야 합니다.`)) {
-      revokeDeveloperDevice(deviceId);
+    if (window.confirm(`'${deviceName}' 단말기의 개발자 물리적 인가를 차단(도난/분실 킬스위치 가동)하시겠습니까?\n차단 즉시 해당 단말기에서는 개발자 권한 로그인이 거부됩니다.`)) {
+      revokeDeveloperDevice(deviceId, '관리자에 의한 도난/분실/보안 차단');
       refreshDevices();
-      showToast(`'${deviceName}' 단말기의 인가가 취소되었습니다.`, 'error');
+      showToast(`'${deviceName}' 단말기 인가가 차단되었습니다.`, 'error');
+    }
+  };
+
+  // 단말기 재승인
+  const handleReactivateDevice = (deviceId: string, deviceName: string) => {
+    if (window.confirm(`'${deviceName}' 단말기의 개발자 물리적 인가를 다시 활성화(재승인)하시겠습니까?`)) {
+      reactivateDeveloperDevice(deviceId);
+      refreshDevices();
+      showToast(`'${deviceName}' 단말기 인가가 재승인되었습니다.`, 'success');
+    }
+  };
+
+  // 현재 접속 PC 정보 자동 감지
+  const handleDetectCurrentPc = async () => {
+    setIsDetecting(true);
+    try {
+      const macs = await fetchPhysicalMacAddress();
+      if (macs.length > 0) {
+        setRegMacAddress(macs[0]);
+      }
+      const fp = await getPhysicalHardwareFingerprint();
+      if (!regMachineName) {
+        setRegMachineName(`개발자 워크스테이션 (${fp.details.platform || 'PC'})`);
+      }
+      showToast('현재 기기의 물리 정보가 자동 감지되었습니다.');
+    } catch {
+      showToast('물리 정보 감지에 실패했습니다. 수동으로 입력해 주십시오.', 'error');
+    } finally {
+      setIsDetecting(false);
+    }
+  };
+
+  // 신규 등록 제출
+  const handleRegisterDeviceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!regMacAddress.trim()) {
+      showToast('물리 MAC 주소를 입력해 주십시오.', 'error');
+      return;
+    }
+    if (!regMachineName.trim()) {
+      showToast('단말기명을 입력해 주십시오.', 'error');
+      return;
+    }
+
+    setIsRegistering(true);
+    try {
+      const res = await registerAndAuthorizeDeveloperDevice({
+        developerId: regDevId,
+        developerName: regDevName.trim() || '개발자',
+        machineName: regMachineName.trim(),
+        macAddress: regMacAddress.trim(),
+        masterSecurityKey: regMasterKey.trim(),
+        note: regNote.trim() || '신규 개발자/단말기 인가'
+      });
+
+      if (res.success && res.device) {
+        refreshDevices();
+        setShowRegisterModal(false);
+        setRegMachineName('');
+        setRegMacAddress('');
+        setRegNote('');
+        showToast(`[${res.device.machineName}] 단말기가 공인 등록되었습니다.`);
+      } else {
+        showToast(res.error || '단말기 등록에 실패했습니다.', 'error');
+      }
+    } catch (err: any) {
+      showToast(`등록 처리 중 오류: ${err?.message || err}`, 'error');
+    } finally {
+      setIsRegistering(false);
     }
   };
 
@@ -796,55 +886,91 @@ export const PrivacyAuditPage: React.FC = () => {
           padding: '16px 20px',
           display: 'flex',
           flexDirection: 'column',
-          gap: '12px'
+          gap: '14px'
         }}>
+          {/* 패널 헤더 및 버튼군 */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            paddingBottom: '10px',
-            borderBottom: '1px solid var(--border-color)'
+            paddingBottom: '12px',
+            borderBottom: '1px solid var(--border-color)',
+            flexWrap: 'wrap',
+            gap: '12px'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '6px',
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
                 backgroundColor: 'rgba(79, 70, 229, 0.1)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: 'var(--primary, #4f46e5)'
               }}>
-                <Laptop size={16} />
+                <Laptop size={18} />
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: 'var(--text-main, #0f172a)' }}>
-                  개발자 물리 단말기 인가 목록
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: 'var(--text-main, #0f172a)' }}>
+                  개발자 물리 단말기 인가 목록 및 통제 대장
                 </h3>
-                <span style={{ fontSize: '11.5px', color: 'var(--text-secondary, #64748b)' }}>
-                  개발자 및 최고관리자 권한 로그인이 허용된 물리적 워크스테이션 등록부
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary, #64748b)' }}>
+                  중앙 DB(Supabase developer_authorized_devices) 기반 하드웨어 접근 통제 및 비상 복구(Break-Glass) 체계
                 </span>
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{
-                fontSize: '11px',
-                padding: '3px 8px',
-                borderRadius: '9999px',
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                color: '#047857',
-                fontWeight: 700,
-                border: '1px solid rgba(16, 185, 129, 0.25)'
-              }}>
-                물리 하드웨어 통제 활성
-              </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => setShowRegisterModal(true)}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  border: 'none',
+                  backgroundColor: 'var(--primary, #4f46e5)',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <Plus size={14} />
+                신규 개발자 / 단말기 인가 등록
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowBreakGlassModal(true)}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  border: '1px solid rgba(220, 38, 38, 0.3)',
+                  backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                  color: '#dc2626',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <AlertOctagon size={14} />
+                비상 마스터 복구 지침 및 보안키
+              </button>
+
               <button
                 type="button"
                 onClick={refreshDevices}
                 style={{
-                  padding: '5px 10px',
+                  padding: '6px 12px',
                   fontSize: '12px',
                   fontWeight: 600,
                   borderRadius: '6px',
@@ -854,7 +980,8 @@ export const PrivacyAuditPage: React.FC = () => {
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '4px'
+                  gap: '4px',
+                  whiteSpace: 'nowrap'
                 }}
               >
                 <RefreshCw size={13} />
@@ -863,6 +990,7 @@ export const PrivacyAuditPage: React.FC = () => {
             </div>
           </div>
 
+          {/* 단말기 목록 고밀도 테이블 */}
           <div style={{ overflowX: 'auto' }}>
             <table style={{
               width: '100%',
@@ -877,35 +1005,78 @@ export const PrivacyAuditPage: React.FC = () => {
                   color: 'var(--text-secondary, #475569)',
                   fontWeight: 700
                 }}>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>단말기명</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>단말기명 / 기기 구분</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>담당 개발자</th>
                   <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>물리 MAC 주소</th>
                   <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>하드웨어 지문</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>인가 일시</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>최근 접속 일시</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>상태</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>등록 일시</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>최근 인증 일시</th>
+                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', textAlign: 'center' }}>상태</th>
                   <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', textAlign: 'center' }}>관리</th>
                 </tr>
               </thead>
               <tbody>
                 {authorizedDevices.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' }}>
+                    <td colSpan={8} style={{ padding: '28px', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' }}>
                       등록된 개발자 물리 단말기가 없습니다.
                     </td>
                   </tr>
                 ) : (
                   authorizedDevices.map((dev) => (
                     <tr
-                      key={dev.deviceId}
+                      key={dev.id || dev.deviceId}
                       style={{
                         borderBottom: '1px solid var(--border-color)',
-                        backgroundColor: dev.status === 'ACTIVE' ? 'var(--bg-card)' : 'var(--bg-secondary)'
+                        backgroundColor: dev.status === 'ACTIVE' ? 'var(--bg-card)' : 'var(--bg-secondary)',
+                        opacity: dev.status === 'REVOKED' ? 0.75 : 1
                       }}
                     >
                       <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontWeight: 600, color: 'var(--text-main, #0f172a)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Cpu size={14} color="var(--primary, #4f46e5)" />
-                          <span>{dev.machineName}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Cpu size={15} color="var(--primary, #4f46e5)" />
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span>{dev.machineName}</span>
+                              {dev.isPrimary && (
+                                <span style={{
+                                  fontSize: '10.5px',
+                                  fontWeight: 700,
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                  backgroundColor: 'rgba(79, 70, 229, 0.12)',
+                                  color: 'var(--primary, #4f46e5)'
+                                }}>
+                                  대표 기기
+                                </span>
+                              )}
+                              {dev.emergencyBreakGlassUsed && (
+                                <span style={{
+                                  fontSize: '10.5px',
+                                  fontWeight: 700,
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                  backgroundColor: '#fee2e2',
+                                  color: '#dc2626'
+                                }}>
+                                  비상 복구
+                                </span>
+                              )}
+                            </div>
+                            {dev.note && (
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted, #64748b)', fontWeight: 400 }}>
+                                {dev.note}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text-main, #0f172a)' }}>
+                          {dev.developerName || '대표 개발자'}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary, #64748b)' }}>
+                          ID: {dev.developerId || 'sys-admin'}
                         </div>
                       </td>
                       <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontFamily: 'monospace', fontWeight: 700, color: '#0f766e' }}>
@@ -923,12 +1094,12 @@ export const PrivacyAuditPage: React.FC = () => {
                       <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontSize: '11.5px', color: 'var(--text-secondary, #64748b)' }}>
                         {dev.lastVerifiedAt ? dev.lastVerifiedAt.replace('T', ' ').substring(0, 16) : '-'}
                       </td>
-                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', textAlign: 'center' }}>
                         {dev.status === 'ACTIVE' ? (
                           <span style={{
                             fontSize: '11px',
                             fontWeight: 700,
-                            padding: '2px 8px',
+                            padding: '3px 8px',
                             borderRadius: '9999px',
                             backgroundColor: '#dcfce7',
                             color: '#166534',
@@ -936,11 +1107,23 @@ export const PrivacyAuditPage: React.FC = () => {
                           }}>
                             인가 활성
                           </span>
+                        ) : dev.status === 'EMERGENCY_TEMP' ? (
+                          <span style={{
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: '9999px',
+                            backgroundColor: '#fef3c7',
+                            color: '#92400e',
+                            border: '1px solid #fde68a'
+                          }}>
+                            임시 복구
+                          </span>
                         ) : (
                           <span style={{
                             fontSize: '11px',
                             fontWeight: 700,
-                            padding: '2px 8px',
+                            padding: '3px 8px',
                             borderRadius: '9999px',
                             backgroundColor: '#fee2e2',
                             color: '#991b1b',
@@ -951,17 +1134,17 @@ export const PrivacyAuditPage: React.FC = () => {
                         )}
                       </td>
                       <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', textAlign: 'center' }}>
-                        {dev.status === 'ACTIVE' && (
+                        {dev.status === 'ACTIVE' || dev.status === 'EMERGENCY_TEMP' ? (
                           <button
                             type="button"
-                            onClick={() => handleRevokeDevice(dev.deviceId, dev.machineName)}
+                            onClick={() => handleRevokeDevice(dev.id || dev.deviceId || '', dev.machineName)}
                             style={{
-                              padding: '4px 8px',
+                              padding: '4px 10px',
                               fontSize: '11px',
                               fontWeight: 600,
                               borderRadius: '4px',
                               border: '1px solid #f87171',
-                              backgroundColor: 'var(--bg-app)',
+                              backgroundColor: 'rgba(239, 68, 68, 0.05)',
                               color: '#dc2626',
                               cursor: 'pointer',
                               display: 'inline-flex',
@@ -970,7 +1153,28 @@ export const PrivacyAuditPage: React.FC = () => {
                             }}
                           >
                             <Trash2 size={12} />
-                            인가 취소
+                            도난/분실 차단
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleReactivateDevice(dev.id || dev.deviceId || '', dev.machineName)}
+                            style={{
+                              padding: '4px 10px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              borderRadius: '4px',
+                              border: '1px solid #86efac',
+                              backgroundColor: 'rgba(34, 197, 94, 0.05)',
+                              color: '#15803d',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <RotateCcw size={12} />
+                            인가 재승인
                           </button>
                         )}
                       </td>
@@ -979,6 +1183,435 @@ export const PrivacyAuditPage: React.FC = () => {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          모달 A: 신규 개발자 및 물리 단말기 인가 등록 모달
+          ───────────────────────────────────────────────────────────── */}
+      {showRegisterModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 99999,
+          backgroundColor: 'rgba(15, 23, 42, 0.7)',
+          backdropFilter: 'blur(3px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '520px',
+            backgroundColor: 'var(--bg-card, #ffffff)',
+            borderRadius: '10px',
+            border: '1px solid var(--border-color)',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <div style={{
+              padding: '16px 20px',
+              borderBottom: '1px solid var(--border-color)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Laptop size={18} color="var(--primary, #4f46e5)" />
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: 'var(--text-main)' }}>
+                  신규 개발자 및 물리 단말기 인가 등록
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRegisterModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleRegisterDeviceSubmit} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {/* 담당 개발자 선택 (상하 스택) */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)' }}>
+                  담당 개발자 계정 선택 / 입력
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <select
+                    value={regDevId}
+                    onChange={(e) => {
+                      const selId = e.target.value;
+                      setRegDevId(selId);
+                      const matched = users.find(u => u.id === selId || u.loginId === selId);
+                      if (matched) {
+                        setRegDevName(matched.name);
+                      }
+                    }}
+                    style={{
+                      padding: '8px 10px',
+                      fontSize: '12.5px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-app)',
+                      color: 'var(--text-main)',
+                      outline: 'none'
+                    }}
+                  >
+                    <option value="sys-admin">대표 개발자 (sys-admin)</option>
+                    {users
+                      .filter(u => u.id !== 'sys-admin')
+                      .map(u => (
+                        <option key={u.id} value={u.loginId || u.id}>
+                          {u.name} ({u.position || u.role} / {u.department || '개발'})
+                        </option>
+                      ))}
+                    <option value="custom">직접 입력 (신규 채용 개발자)</option>
+                  </select>
+
+                  <input
+                    type="text"
+                    value={regDevName}
+                    onChange={(e) => setRegDevName(e.target.value)}
+                    placeholder="개발자 성명 (예: 김개발)"
+                    required
+                    style={{
+                      padding: '8px 10px',
+                      fontSize: '12.5px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'var(--bg-app)',
+                      color: 'var(--text-main)',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* 단말기명 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)' }}>
+                  단말기 식별 명칭
+                </label>
+                <input
+                  type="text"
+                  value={regMachineName}
+                  onChange={(e) => setRegMachineName(e.target.value)}
+                  placeholder="예: 2차 개발자 업무용 랩탑, 연구실 메인 PC, 자택 서브 워크스테이션"
+                  required
+                  style={{
+                    padding: '8px 10px',
+                    fontSize: '12.5px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-main)',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              {/* 물리 MAC 주소 및 자동 감지 버튼 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)' }}>
+                    물리 네트워크 MAC 주소
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleDetectCurrentPc}
+                    disabled={isDetecting}
+                    style={{
+                      padding: '2px 8px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      borderRadius: '4px',
+                      border: '1px solid var(--primary, #4f46e5)',
+                      backgroundColor: 'rgba(79, 70, 229, 0.08)',
+                      color: 'var(--primary, #4f46e5)',
+                      cursor: isDetecting ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <RefreshCw size={11} className={isDetecting ? 'animate-spin' : ''} />
+                    현재 접속 PC 정보 감지
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={regMacAddress}
+                  onChange={(e) => setRegMacAddress(e.target.value.toUpperCase())}
+                  placeholder="형식: D4-AB-61-46-47-82"
+                  required
+                  style={{
+                    padding: '8px 10px',
+                    fontSize: '12.5px',
+                    fontFamily: 'monospace',
+                    fontWeight: 700,
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-app)',
+                    color: '#0f766e',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              {/* 마스터 보안키 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)' }}>
+                  개발자 마스터 보안 패스프레이즈
+                </label>
+                <input
+                  type="password"
+                  value={regMasterKey}
+                  onChange={(e) => setRegMasterKey(e.target.value)}
+                  placeholder="공인 보안키 입력 (기본: ebro-dev-master-2026!)"
+                  required
+                  style={{
+                    padding: '8px 10px',
+                    fontSize: '12.5px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-main)',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              {/* 비고 및 등록 사유 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)' }}>
+                  등록 사유 / 기기 비고
+                </label>
+                <input
+                  type="text"
+                  value={regNote}
+                  onChange={(e) => setRegNote(e.target.value)}
+                  placeholder="예: 추가 채용 개발 직원 업무 기기, 외근 점검용 랩탑"
+                  style={{
+                    padding: '8px 10px',
+                    fontSize: '12.5px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-main)',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              {/* 버튼군 */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: '8px',
+                marginTop: '10px'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setShowRegisterModal(false)}
+                  style={{
+                    padding: '8px 14px',
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  disabled={isRegistering}
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '12.5px',
+                    fontWeight: 700,
+                    borderRadius: '6px',
+                    border: 'none',
+                    backgroundColor: 'var(--primary, #4f46e5)',
+                    color: '#ffffff',
+                    cursor: isRegistering ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <CheckCircle size={14} />
+                  {isRegistering ? '등록 중...' : '공인 단말기 등록 및 DB 영구 저장'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────────
+          모달 B: 비상 마스터 복구 지침 및 보안키 안내 모달
+          ───────────────────────────────────────────────────────────── */}
+      {showBreakGlassModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 99999,
+          backgroundColor: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(3px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '580px',
+            backgroundColor: 'var(--bg-card, #ffffff)',
+            borderRadius: '10px',
+            border: '1px solid var(--border-color)',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            <div style={{
+              padding: '16px 20px',
+              borderBottom: '1px solid var(--border-color)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: 'rgba(239, 68, 68, 0.05)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <AlertOctagon size={20} color="#dc2626" />
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#b91c1c' }}>
+                    비상 마스터 복구(Break-Glass) 및 재해 대비 표준 지침
+                  </h3>
+                  <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                    개발자 PC 고장, 도난, 분실 시 긴급 접근권 복구 및 원격 보안 조치
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBreakGlassModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '12.5px', lineHeight: 1.6 }}>
+              {/* 1. 비상 복구 보안키 */}
+              <div style={{
+                padding: '12px 16px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontWeight: 800, color: '#dc2626' }}>🚨 비상 마스터 복구 보안키 (Break-Glass Key)</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(EMERGENCY_BREAK_GLASS_KEY);
+                      showToast('비상 마스터 복구키가 클립보드에 복사되었습니다.');
+                    }}
+                    style={{
+                      padding: '2px 8px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      borderRadius: '4px',
+                      border: '1px solid #f87171',
+                      backgroundColor: '#ffffff',
+                      color: '#dc2626',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <Copy size={11} />
+                    복사
+                  </button>
+                </div>
+                <code style={{
+                  fontFamily: 'monospace',
+                  fontSize: '13px',
+                  fontWeight: 800,
+                  color: '#991b1b',
+                  backgroundColor: '#fee2e2',
+                  padding: '6px 10px',
+                  borderRadius: '4px'
+                }}>
+                  {EMERGENCY_BREAK_GLASS_KEY}
+                </code>
+              </div>
+
+              {/* 2. 비상 복구 절차 단계 */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+                  1. 개발자 PC 고장/파손 시 긴급 복구 절차
+                </div>
+                <div style={{ color: 'var(--text-secondary)', paddingLeft: '8px', borderLeft: '2px solid var(--border-color)' }}>
+                  새로운 PC 또는 임시 기기에서 관리자 로그인 시도시 <strong>[물리 단말기 인가 필요]</strong> 팝업이 표출됩니다.
+                  상단의 <strong>[🚨 비상 마스터 복구 (고장/도난/분실)]</strong> 탭을 클릭하고 위 복구키와 사유를 입력하면 즉시 접속되며 새 기기로 등록됩니다.
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+                  2. 도난 / 분실 시 원격 킬스위치(Kill-Switch) 즉시 가동
+                </div>
+                <div style={{ color: 'var(--text-secondary)', paddingLeft: '8px', borderLeft: '2px solid #ef4444' }}>
+                  기기를 분실하였거나 도난당한 경우, 비상 복구 팝업에서 분실 기기를 선택하여 차단하거나,
+                  본 관리 대장의 <strong>[도난/분실 차단]</strong> 버튼을 1클릭하여 즉시 단말기 상태를 <strong>차단됨(REVOKED)</strong>으로 무효화하십시오.
+                  차단 즉시 해당 단말기에서는 로컬 토큰이 파기되어 더 이상 로그인이 불가능합니다.
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+                  3. 무누락 감사 기록 및 중앙 DB 영구 보존
+                </div>
+                <div style={{ color: 'var(--text-secondary)', paddingLeft: '8px', borderLeft: '2px solid var(--primary, #4f46e5)' }}>
+                  모든 단말기 등록, 인증 내역, 비상 복구 시도는 <strong>Supabase 중앙 DB의 developer_authorized_devices 및 privacy_access_logs 테이블에 1원/1로그 오차 없이 영구 저장</strong>됩니다.
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowBreakGlassModal(false)}
+                  style={{
+                    padding: '8px 16px',
+                    fontSize: '12.5px',
+                    fontWeight: 700,
+                    borderRadius: '6px',
+                    border: 'none',
+                    backgroundColor: 'var(--text-main)',
+                    color: 'var(--bg-card)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  확인 완료
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

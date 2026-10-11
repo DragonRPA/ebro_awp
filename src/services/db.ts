@@ -1142,6 +1142,24 @@ export interface SiteMaster {
   updatedAt?: string;
 }
 
+export interface DeveloperDeviceProfile {
+  id: string;
+  deviceId?: string;
+  developerId: string;
+  developerName: string;
+  machineName: string;
+  macAddress: string;
+  hardwareFingerprint: string;
+  platform?: string;
+  status: 'ACTIVE' | 'REVOKED' | 'EMERGENCY_TEMP';
+  isPrimary?: boolean;
+  emergencyBreakGlassUsed?: boolean;
+  note?: string;
+  registeredAt: string;
+  lastVerifiedAt: string;
+  tenant_id?: string;
+}
+
 export interface CustomerSite {
   id: string;
   siteMasterId?: string;
@@ -5210,6 +5228,43 @@ export const SEED_ERROR_REPORTS: ErrorReport[] = [
   }
 ];
 
+export const SEED_DEVELOPER_AUTHORIZED_DEVICES: DeveloperDeviceProfile[] = [
+  {
+    id: 'DEV-PC-PRIMARY-01',
+    deviceId: 'DEV-PC-PRIMARY-01',
+    developerId: 'sys-admin',
+    developerName: '대표 개발자 (시스템 총괄)',
+    machineName: '대표 개발자 공인 워크스테이션',
+    macAddress: 'D4-AB-61-46-47-82',
+    hardwareFingerprint: 'HW-6A2F-F12E-24C32G',
+    platform: 'Win32/x86_64',
+    status: 'ACTIVE',
+    isPrimary: true,
+    emergencyBreakGlassUsed: false,
+    note: '기본 공인 개발자 메인 PC (사전 인가)',
+    registeredAt: '2026-10-11T00:00:00.000Z',
+    lastVerifiedAt: '2026-10-11T00:00:00.000Z',
+    tenant_id: 'tenant-giyeonlift'
+  },
+  {
+    id: 'DEV-PC-PRIMARY-02',
+    deviceId: 'DEV-PC-PRIMARY-02',
+    developerId: 'sys-admin',
+    developerName: '대표 개발자 (시스템 총괄)',
+    machineName: '대표 개발자 보조 워크스테이션',
+    macAddress: 'D4-AB-61-46-47-81',
+    hardwareFingerprint: 'HW-D4AB-6146-4781-MASTER',
+    platform: 'Win32/x86_64',
+    status: 'ACTIVE',
+    isPrimary: false,
+    emergencyBreakGlassUsed: false,
+    note: '보조 개발 PC (사전 인가)',
+    registeredAt: '2026-10-11T00:00:00.000Z',
+    lastVerifiedAt: '2026-10-11T00:00:00.000Z',
+    tenant_id: 'tenant-giyeonlift'
+  }
+];
+
 export const ALL_DB_KEYS = [
   'tenants', 'users', 'departments', 'permissions', 'customers', 'contacts', 'siteMasters', 'sites', 
   'products', 'assets', 'consumables', 'consumableLots', 'consumableLogs', 'consumablePurchases',
@@ -5225,7 +5280,7 @@ export const ALL_DB_KEYS = [
   'approvalRules', 'ruleConsensus', 'approvalRequests', 'approvalSteps', 'delegationRecords',
   'stocktakingAudits', 'stocktakingAuditItems', 'collectedParts', 'equipmentManuals', 'standardOptions',
   'printStations', 'printQueue', 'customRoles', 'rolePermissions', 'privacyAccessLogs', 'errorReports',
-  'monthlyIncomeStatements'
+  'monthlyIncomeStatements', 'developerAuthorizedDevices'
 ];
 
 // 🛡️ [전사 외래키(Foreign Key) 참조 무결성 룰 SSOT]: schema.sql 전수 파싱 기반
@@ -6001,6 +6056,9 @@ class LocalDB {
   get monthlyIncomeStatements() { return this.get<MonthlyIncomeStatement>('monthlyIncomeStatements', []); }
   set monthlyIncomeStatements(val: MonthlyIncomeStatement[]) { this.set('monthlyIncomeStatements', val); }
 
+  get developerAuthorizedDevices() { return this.get<DeveloperDeviceProfile>('developerAuthorizedDevices', SEED_DEVELOPER_AUTHORIZED_DEVICES); }
+  set developerAuthorizedDevices(val: DeveloperDeviceProfile[]) { this.set('developerAuthorizedDevices', val); }
+
   // Supabase 테이블 맵핑
   private mapToSupabaseTable(key: string): string {
     const mapping: Record<string, string> = {
@@ -6757,6 +6815,8 @@ class LocalDB {
       errorReports: 'errorReports',
       monthly_income_statements: 'monthlyIncomeStatements',
       monthlyIncomeStatements: 'monthlyIncomeStatements',
+      developer_authorized_devices: 'developerAuthorizedDevices',
+      developerAuthorizedDevices: 'developerAuthorizedDevices',
     };
     return (reverseMapping[key] || key) as keyof LocalDB;
   }

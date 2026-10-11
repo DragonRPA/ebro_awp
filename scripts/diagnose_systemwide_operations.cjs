@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 
-const BASE_URL = 'http://localhost:5174';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:5174';
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -89,7 +89,19 @@ async function runSystemDiagnostics() {
       if (passInputs.length > 0) await passInputs[0].fill('admin123');
       const loginBtn = await page.$('button[type="submit"], button:has-text("로그인")');
       if (loginBtn) await loginBtn.click();
-      await sleep(2000);
+      await sleep(1500);
+
+      // 🛡️ 개발자 물리 단말기 인가 모달 감지 시 테스트 환경 자동 인가 수행
+      const guardBtn = await page.$('button:has-text("물리 단말기 인가")');
+      if (guardBtn) {
+        console.log('   🛡️ 개발자 물리 단말기 인가 모달 감지 -> 테스트 환경 마스터 보안키 입력 및 바인딩');
+        const modalPass = await page.$$('input[type="password"]');
+        if (modalPass.length > 0) {
+          await modalPass[modalPass.length - 1].fill('ebro-dev-master-2026!');
+        }
+        await guardBtn.click();
+        await sleep(2000);
+      }
     }
     console.log('   ✅ 로그인 및 대시보드 진입 완료\n');
 
