@@ -1821,7 +1821,7 @@ export const InitialDbUploader: React.FC = () => {
                   {[
                     { label: '총 배차건', value: `${dispatchParsedData.stats.total}건`, color: 'var(--text-main)' },
                     { label: '완료', value: `${dispatchParsedData.stats.completed}건`, color: 'var(--success)' },
-                    { label: '교환', value: `${dispatchParsedData.stats.exchangeCount}건`, color: '#7c3aed' },
+                    { label: '교환', value: `${dispatchParsedData.stats.exchangeCount}건`, color: 'var(--primary)' },
                     { label: '2026 운송사', value: `${dispatchParsedData.stats.transportCompaniesCount}개사`, color: '#0284c7' },
                     { label: '고객 미매핑', value: `${dispatchParsedData.stats.customerUnmatched}건`, color: dispatchParsedData.stats.customerUnmatched > 0 ? '#dc2626' : '#059669' },
                     { label: '계약 미매핑', value: `${dispatchParsedData.stats.contractUnmatched}건`, color: dispatchParsedData.stats.contractUnmatched > 0 ? '#d97706' : '#059669' },
@@ -2011,7 +2011,7 @@ export const InitialDbUploader: React.FC = () => {
                     { label: '총 AS 분석 건수', value: `${bandAnalysisResult.totalCount.toLocaleString()}건`, color: 'var(--text-main)' },
                     { label: '고유 장비 매핑', value: `${bandAnalysisResult.uniqueAssetsCount.toLocaleString()}대`, color: 'var(--primary)' },
                     { label: '자산 역추적 현장 매핑', value: `${(bandAnalysisResult.assetBacktrackedSiteCount || 0).toLocaleString()}건`, color: 'var(--success)', sub: '현장명 자동 복원' },
-                    { label: '유효 계약 연동', value: `${bandAnalysisResult.matchedContractCount.toLocaleString()}건`, color: '#7c3aed', sub: bandAnalysisResult.singleAssetGuessedCount > 0 ? `(1대 계약 추정 ${bandAnalysisResult.singleAssetGuessedCount}건)` : undefined },
+                    { label: '유효 계약 연동', value: `${bandAnalysisResult.matchedContractCount.toLocaleString()}건`, color: 'var(--primary)', sub: bandAnalysisResult.singleAssetGuessedCount > 0 ? `(1대 계약 추정 ${bandAnalysisResult.singleAssetGuessedCount}건)` : undefined },
                     { label: '현장 조치완료', value: `${bandAnalysisResult.completedCount.toLocaleString()}건`, color: 'var(--success)' },
                     { label: '익일방문 / 안내', value: `${(bandAnalysisResult.revisitCount + bandAnalysisResult.guidedCount).toLocaleString()}건`, color: 'var(--warning)' },
                   ].map(({ label, value, color, sub }) => (
@@ -2059,7 +2059,7 @@ export const InitialDbUploader: React.FC = () => {
                         onClick={() => setBandContractFilter(cf)}
                         style={{
                           padding: '4px 8px', fontSize: '11px', fontWeight: 600, borderRadius: '4px', border: 'none', cursor: 'pointer',
-                          backgroundColor: bandContractFilter === cf ? '#7c3aed' : '#e2e8f0',
+                          backgroundColor: bandContractFilter === cf ? 'var(--primary)' : 'var(--bg-secondary)',
                           color: bandContractFilter === cf ? '#ffffff' : '#475569'
                         }}
                       >
@@ -2254,7 +2254,7 @@ export const InitialDbUploader: React.FC = () => {
           {/* ⑤ 밴드 출고요청 분석 & 유효 계약처 기본 요구사항(옵션/보양/스펙) 마스터 동기화 카드 */}
           <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', padding: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-              <FileCheck size={16} color="#7c3aed" />
+              <FileCheck size={16} color="var(--primary)" />
               <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
                 출고요청 이력 분석 & 고객 요구사항 마스터 DB 동기화
               </span>
@@ -2277,7 +2277,7 @@ export const InitialDbUploader: React.FC = () => {
                 disabled={isAnalyzingDispatchHist || isIngestingCustomerDefaults}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '6px',
-                  padding: '8px 16px', backgroundColor: '#7c3aed', color: 'white',
+                  padding: '8px 16px', backgroundColor: 'var(--primary)', color: 'white',
                   border: 'none', borderRadius: '6px', cursor: 'pointer',
                   fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap',
                   opacity: (isAnalyzingDispatchHist || isIngestingCustomerDefaults) ? 0.5 : 1
@@ -2308,7 +2308,7 @@ export const InitialDbUploader: React.FC = () => {
               )}
 
               {isAnalyzingDispatchHist && (
-                <span style={{ fontSize: '12px', color: '#7c3aed', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: '12px', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                   <RefreshCw size={13} className="animate-spin" /> 출고요청 데이터 정밀 분석 중...
                 </span>
               )}
@@ -2321,7 +2321,7 @@ export const InitialDbUploader: React.FC = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
                   {[
                     { label: '총 출고요청 건수', value: `${dispatchAnalysisResult.stats.totalParsed}건`, color: 'var(--text-main)' },
-                    { label: '유효 계약 고객사', value: `${dispatchAnalysisResult.stats.contractedCustomerCount}개사`, color: '#7c3aed' },
+                    { label: '유효 계약 고객사', value: `${dispatchAnalysisResult.stats.contractedCustomerCount}개사`, color: 'var(--primary)' },
                     { label: '유효 계약 현장', value: `${dispatchAnalysisResult.stats.contractedSiteCount}개소`, color: 'var(--primary)' },
                     { label: '추출 기본 유상옵션', value: `${dispatchAnalysisResult.stats.extractedOptionCount}건`, color: 'var(--success)' },
                     { label: '추출 기본 보양작업', value: `${dispatchAnalysisResult.stats.extractedProtectionCount}건`, color: 'var(--warning)' },
@@ -2474,7 +2474,7 @@ export const InitialDbUploader: React.FC = () => {
 
                 {/* 진행 메시지 */}
                 {dispatchHistProgressMsg && (
-                  <div style={{ fontSize: '13px', color: '#7c3aed', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <RefreshCw size={13} className="animate-spin" />
                     {dispatchHistProgressMsg}
                   </div>
@@ -2486,7 +2486,7 @@ export const InitialDbUploader: React.FC = () => {
                   disabled={isIngestingCustomerDefaults}
                   style={{
                     display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center',
-                    padding: '10px 20px', backgroundColor: isIngestingCustomerDefaults ? '#94a3b8' : '#7c3aed',
+                    padding: '10px 20px', backgroundColor: isIngestingCustomerDefaults ? '#94a3b8' : 'var(--primary)',
                     color: 'white', border: 'none', borderRadius: '6px',
                     cursor: isIngestingCustomerDefaults ? 'not-allowed' : 'pointer',
                     fontSize: '14px', fontWeight: 600, whiteSpace: 'nowrap', alignSelf: 'flex-start'
@@ -2870,7 +2870,7 @@ export const InitialDbUploader: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <ShieldCheck size={18} color="#4f46e5" />
+                  <ShieldCheck size={18} color="var(--primary)" />
                   <label style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
                     임직원 권한 마스터 업로드
                   </label>
@@ -2911,8 +2911,8 @@ export const InitialDbUploader: React.FC = () => {
                   style={{
                     display: 'flex', alignItems: 'center', gap: '6px',
                     padding: '8px 14px', borderRadius: '6px',
-                    border: '1px solid #4f46e5', backgroundColor: '#eef2ff',
-                    color: '#4338ca', fontSize: '13px', fontWeight: 600,
+                    border: '1px solid var(--border-color)', backgroundColor: 'var(--primary-light)',
+                    color: 'var(--primary)', fontSize: '13px', fontWeight: 600,
                     cursor: 'pointer', whiteSpace: 'nowrap'
                   }}
                 >
@@ -3061,7 +3061,7 @@ export const InitialDbUploader: React.FC = () => {
                     style={{
                       display: 'flex', alignItems: 'center', gap: '8px',
                       padding: '10px 20px', borderRadius: '6px',
-                      backgroundColor: isPermIngesting ? '#94a3b8' : '#4f46e5',
+                      backgroundColor: isPermIngesting ? '#94a3b8' : 'var(--primary)',
                       color: 'white', border: 'none',
                       fontSize: '14px', fontWeight: 600,
                       cursor: isPermIngesting ? 'not-allowed' : 'pointer',
@@ -3114,7 +3114,7 @@ export const InitialDbUploader: React.FC = () => {
                   <div style={{ fontSize: '20px', fontWeight: 700, color: '#115e59', marginTop: '4px' }}>
                     {parsedData.stats.productsCount} 종
                   </div>
-                  <div style={{ fontSize: '11px', color: '#0d9488', marginTop: '2px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--success)', marginTop: '2px' }}>
                     R2 제원표/안전문서 {parsedData.stats.docLinkedProductsCount || 0}종 자동 연동
                   </div>
                 </div>

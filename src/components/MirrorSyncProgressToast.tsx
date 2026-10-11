@@ -96,7 +96,7 @@ export const MirrorSyncProgressToast: React.FC = () => {
             style={{
               width: `${state.percent}%`,
               height: '100%',
-              background: 'linear-gradient(90deg, #2563eb, #10b981)',
+              background: 'var(--primary)',
               transition: 'width 0.2s ease'
             }}
           />

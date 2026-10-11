@@ -326,7 +326,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
             style={{
               padding: '4px 9px',
               borderRadius: '6px',
-              background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+              background: 'var(--warning)',
               border: 'none',
               color: '#fff',
               display: 'flex',
@@ -336,7 +336,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
               fontWeight: '800',
               cursor: isUpdatingSelf ? 'wait' : 'pointer',
               whiteSpace: 'nowrap',
-              boxShadow: '0 1px 4px rgba(217, 119, 6, 0.35)'
+              boxShadow: 'none'
             }}
             title="클릭 즉시 백그라운드 무음 자동 업데이트를 시작합니다."
           >
@@ -585,7 +585,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '6px',
-                    background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
+                    background: 'var(--primary)',
                     border: 'none',
                     borderRadius: '7px',
                     color: '#fff',
@@ -694,7 +694,7 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '6px',
-                    background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                    background: 'var(--warning)',
                     border: 'none',
                     borderRadius: '7px',
                     color: '#fff',

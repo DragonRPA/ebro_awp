@@ -658,7 +658,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
               gap: '8px',
               padding: '8px 18px',
               borderRadius: '8px',
-              background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+              background: 'var(--primary)',
               color: '#FFFFFF',
               border: 'none',
               fontSize: '13.5px',
@@ -895,7 +895,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
       {item.modalWorkflows && item.modalWorkflows.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Sparkles size={14} color="#7C3AED" />
+            <Sparkles size={14} color="var(--primary)" />
             <span>팝업(모달) 업무 흐름 가이드 ({item.modalWorkflows.length}개 스튜디오)</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -906,7 +906,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
                   padding: '14px 16px',
                   borderRadius: '10px',
                   backgroundColor: '#FAF5FF',
-                  border: '1px solid #E9D5FF',
+                  border: '1px solid var(--border-color)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '10px'
@@ -914,10 +914,10 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #F3E8FF', paddingBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: '#7C3AED', color: '#fff', fontSize: '11px', fontWeight: 800 }}>
+                    <span style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--primary)', color: '#fff', fontSize: '11px', fontWeight: 800 }}>
                       모달 #{mIdx + 1}
                     </span>
-                    <span style={{ fontSize: '13.5px', fontWeight: 800, color: '#581C87' }}>
+                    <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-main)' }}>
                       {mw.modalName}
                     </span>
                   </div>
@@ -932,12 +932,12 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
                 {/* 3단계 스튜디오 파이프라인 */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px' }}>
                   {/* ① 검토 및 입력 항목 */}
-                  <div style={{ backgroundColor: '#fff', padding: '10px 12px', borderRadius: '6px', border: '1px solid #E9D5FF', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#7C3AED' }}>① 모달 내부 핵심 검토/입력 항목</span>
+                  <div style={{ backgroundColor: '#fff', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--primary)' }}>① 모달 내부 핵심 검토/입력 항목</span>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                       {mw.keyFields.map((kf, kIdx) => (
                         <div key={kIdx} style={{ fontSize: '11.5px', color: '#334155', display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
-                          <span style={{ color: '#7C3AED', fontSize: '10px' }}>•</span>
+                          <span style={{ color: 'var(--primary)', fontSize: '10px' }}>•</span>
                           <span>{kf}</span>
                         </div>
                       ))}
@@ -945,7 +945,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
                   </div>
 
                   {/* ② 완결 액션 */}
-                  <div style={{ backgroundColor: '#fff', padding: '10px 12px', borderRadius: '6px', border: '1px solid #E9D5FF', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ backgroundColor: '#fff', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <span style={{ fontSize: '11px', fontWeight: 800, color: '#2563EB' }}>② 터미널 완결 액션 버튼</span>
                     <div style={{ fontSize: '12px', fontWeight: 700, color: '#1E40AF', padding: '6px 8px', borderRadius: '4px', backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE' }}>
                       {mw.terminalAction}
@@ -953,7 +953,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
                   </div>
 
                   {/* ③ 사후 상태 전이 */}
-                  <div style={{ backgroundColor: '#fff', padding: '10px 12px', borderRadius: '6px', border: '1px solid #E9D5FF', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ backgroundColor: '#fff', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <span style={{ fontSize: '11px', fontWeight: 800, color: '#059669' }}>③ 사후 자산/DB 상태 전이</span>
                     <div style={{ fontSize: '11.5px', color: '#065F46', lineHeight: '1.45', fontWeight: 600 }}>
                       {mw.afterStateTransition}
@@ -979,13 +979,13 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
       {/* ── 5. 전사 시스템 개발 표준 헌장 준수 수칙 (카테고리 I~VII) ── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
         <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Shield size={14} color="#7C3AED" />
+          <Shield size={14} color="var(--primary)" />
           <span>전사 시스템 개발 표준 헌장 준수 가이드</span>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px 12px', borderRadius: '6px', backgroundColor: '#FAF5FF', border: '1px solid #E9D5FF' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px 12px', borderRadius: '6px', backgroundColor: '#FAF5FF', border: '1px solid var(--border-color)' }}>
           {item.rulesCompliance.map((rule, rIdx) => (
-            <div key={rIdx} style={{ fontSize: '12.5px', color: '#581C87', lineHeight: '1.5', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-              <span style={{ color: '#7C3AED', fontWeight: 700 }}>•</span>
+            <div key={rIdx} style={{ fontSize: '12.5px', color: 'var(--text-main)', lineHeight: '1.5', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+              <span style={{ color: 'var(--primary)', fontWeight: 700 }}>•</span>
               <span>{rule}</span>
             </div>
           ))}

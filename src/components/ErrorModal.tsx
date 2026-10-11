@@ -327,7 +327,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
           }}
         >
           {/* 상단 슬림 악센트 바 */}
-          <div style={{ height: '3px', background: 'linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%)' }} />
+          <div style={{ height: '3px', background: 'var(--primary)' }} />
 
           {/* 모달 헤더 (차분하고 단정한 인디고/블루 톤) */}
           <div style={{
@@ -483,7 +483,7 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
         }}
       >
         {/* 상단 강렬한 레드 악센트 바 */}
-        <div style={{ height: '3px', background: 'linear-gradient(90deg, #ef4444 0%, #b91c1c 100%)' }} />
+        <div style={{ height: '3px', background: 'var(--danger)' }} />
 
         {/* 모달 헤더 (강렬한 레드 톤) */}
         <div style={{
@@ -720,9 +720,9 @@ export const ErrorModal: React.FC<ErrorModalProps> = ({
                 style={{
                   background: patchExecuted 
                     ? '#059669' 
-                    : 'linear-gradient(135deg, #e11d48 0%, #be123c 100%)',
+                    : 'var(--danger)',
                   color: '#ffffff',
-                  border: '1px solid #f43f5e',
+                  border: '1px solid var(--danger)',
                   borderRadius: '8px',
                   padding: '9px 18px',
                   fontSize: '13px',

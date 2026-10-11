@@ -641,7 +641,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
               <span style={{ color: 'var(--success)' }}>신규: <strong>{currentProgress.successNew}</strong></span>
               <span style={{ color: '#0284c7' }}>보완: <strong>{currentProgress.successUpdated}</strong></span>
               {currentProgress.failed > 0 && (
-                <span style={{ color: '#e11d48' }}>오류: <strong>{currentProgress.failed}</strong></span>
+                <span style={{ color: 'var(--danger)' }}>오류: <strong>{currentProgress.failed}</strong></span>
               )}
               {currentProgress.skipped > 0 && (
                 <span style={{ color: 'var(--warning)' }}>건너뜀: <strong>{currentProgress.skipped}</strong></span>
@@ -837,7 +837,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
 
                       <td style={{ padding: '6px 12px', fontSize: '11px', whiteSpace: 'nowrap', maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {row.error ? (
-                          <span style={{ color: '#e11d48', fontWeight: 700 }} title={row.error}>{row.error}</span>
+                          <span style={{ color: 'var(--danger)', fontWeight: 700 }} title={row.error}>{row.error}</span>
                         ) : (
                           <span style={{ color: 'var(--text-muted, #64748b)' }} title={row.details || ''}>{row.details || '-'}</span>
                         )}
@@ -867,7 +867,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
             {currentProgress.failed > 0 && (
               <>
                 <span>•</span>
-                <span style={{ color: '#e11d48' }}>오류: <strong>{currentProgress.failed}건</strong></span>
+                <span style={{ color: 'var(--danger)' }}>오류: <strong>{currentProgress.failed}건</strong></span>
               </>
             )}
           </div>
@@ -905,7 +905,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                 borderRadius: '6px',
                 fontSize: '12px',
                 fontWeight: 700,
-                backgroundColor: 'var(--primary, #4f46e5)',
+                backgroundColor: 'var(--primary)',
                 color: '#ffffff',
                 border: 'none',
                 cursor: isProcessing ? 'not-allowed' : 'pointer',

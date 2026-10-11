@@ -10,14 +10,10 @@ export interface MenuColorPreset {
 
 export const MENU_COLOR_PRESETS: MenuColorPreset[] = [
   { id: 'default', name: '기본', color: 'var(--text-secondary)', bgTint: 'transparent', borderTint: 'transparent' },
-  { id: 'blue', name: '청색', color: '#2563eb', bgTint: 'rgba(37, 99, 235, 0.08)', borderTint: 'rgba(37, 99, 235, 0.25)' },
-  { id: 'emerald', name: '녹색', color: '#059669', bgTint: 'rgba(5, 150, 105, 0.08)', borderTint: 'rgba(5, 150, 105, 0.25)' },
-  { id: 'indigo', name: '남색', color: '#4f46e5', bgTint: 'rgba(79, 70, 229, 0.08)', borderTint: 'rgba(79, 70, 229, 0.25)' },
-  { id: 'amber', name: '황색', color: '#d97706', bgTint: 'rgba(217, 119, 6, 0.08)', borderTint: 'rgba(217, 119, 6, 0.25)' },
-  { id: 'red', name: '적색', color: '#dc2626', bgTint: 'rgba(220, 38, 38, 0.08)', borderTint: 'rgba(220, 38, 38, 0.25)' },
-  { id: 'violet', name: '자색', color: '#7c3aed', bgTint: 'rgba(124, 58, 237, 0.08)', borderTint: 'rgba(124, 58, 237, 0.25)' },
-  { id: 'cyan', name: '청록', color: '#0891b2', bgTint: 'rgba(8, 145, 178, 0.08)', borderTint: 'rgba(8, 145, 178, 0.25)' },
-  { id: 'rose', name: '장미', color: '#e11d48', bgTint: 'rgba(225, 29, 72, 0.08)', borderTint: 'rgba(225, 29, 72, 0.25)' }
+  { id: 'blue', name: '청색 (액션)', color: '#1d4ed8', bgTint: 'rgba(29, 78, 216, 0.08)', borderTint: 'rgba(29, 78, 216, 0.25)' },
+  { id: 'emerald', name: '녹색 (수익)', color: '#047857', bgTint: 'rgba(4, 120, 87, 0.08)', borderTint: 'rgba(4, 120, 87, 0.25)' },
+  { id: 'red', name: '적색 (위험)', color: '#dc2626', bgTint: 'rgba(220, 38, 38, 0.08)', borderTint: 'rgba(220, 38, 38, 0.25)' },
+  { id: 'slate', name: '먹색 (잉크)', color: '#0f172a', bgTint: 'rgba(15, 23, 42, 0.06)', borderTint: 'rgba(15, 23, 42, 0.2)' }
 ];
 
 export interface MenuItemPreference {

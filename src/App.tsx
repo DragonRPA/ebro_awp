@@ -218,9 +218,9 @@ const ManualHeaderButtons: React.FC<{ activeTab: string; currentUser: any; activ
           onClick={handleAuthor}
           style={{
             padding: '6px 12px', borderRadius: '20px', fontSize: '12.5px', fontWeight: 700,
-            background: mode === 'authoring' ? '#e0e7ff' : 'var(--bg-app)',
-            color: mode === 'authoring' ? '#4f46e5' : 'var(--text-primary)',
-            border: mode === 'authoring' ? '1.5px solid #4f46e5' : '1px solid var(--border-color)',
+            background: mode === 'authoring' ? 'var(--primary-light)' : 'var(--bg-app)',
+            color: mode === 'authoring' ? 'var(--primary)' : 'var(--text-primary)',
+            border: mode === 'authoring' ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
             cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap',
             flexShrink: 0,
           }}
@@ -293,8 +293,8 @@ const ContextualManualButton: React.FC = () => {
         <button
           onClick={(e) => { e.stopPropagation(); window.alert('이 메뉴에 등록된 매뉴얼이 없습니다. [메뉴 매뉴얼 관리]에서 HTML 문서를 연결해주세요.'); }}
           style={{
-            padding: '4px 8px', fontSize: '11px', borderRadius: '4px', backgroundColor: '#F3F4F6',
-            color: '#9CA3AF', border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer',
+            padding: '4px 8px', fontSize: '11px', borderRadius: '4px', backgroundColor: 'var(--bg-app)',
+            color: 'var(--text-secondary)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer',
             height: '24px'
           }}
           title="등록된 매뉴얼 없음"
@@ -308,7 +308,7 @@ const ContextualManualButton: React.FC = () => {
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999
         }} onClick={() => setShowIframe(false)}>
-          <div style={{ width: '90%', height: '90%', backgroundColor: '#fff', borderRadius: '8px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+          <div style={{ width: '90%', height: '90%', backgroundColor: 'var(--bg-card)', borderRadius: '8px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '10px 16px', backgroundColor: '#1E293B', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '15px', display: 'flex', alignItems: 'center', gap: '6px' }}><BookOpen size={16}/> 매뉴얼 열람</h3>
               <button onClick={() => setShowIframe(false)} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={20} /></button>
@@ -948,7 +948,7 @@ const App: React.FC = () => {
   // 1. 비로그인 상태: 로그인 화면 렌더링
   if (!currentUser) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: '#0f172a' }}>
         <DemoModeBanner />
         <div style={{
           display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center',
@@ -960,7 +960,7 @@ const App: React.FC = () => {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                 <div style={{
                   width: '48px', height: '48px', borderRadius: '14px',
-                  background: 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)',
+                  background: 'var(--primary)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   boxShadow: '0 8px 16px rgba(79, 70, 229, 0.35)',
                   border: '1px solid rgba(255, 255, 255, 0.15)'
@@ -973,9 +973,9 @@ const App: React.FC = () => {
                 <span style={{
                   fontSize: '11px',
                   fontWeight: '700',
-                  color: '#818cf8',
-                  backgroundColor: 'rgba(99, 102, 241, 0.15)',
-                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                  color: 'var(--primary)',
+                  backgroundColor: 'var(--primary-light)',
+                  border: '1px solid var(--border-color)',
                   padding: '2px 8px',
                   borderRadius: '9999px'
                 }}>
@@ -1422,12 +1422,12 @@ const App: React.FC = () => {
       <div style={{ display: 'flex', height: '100dvh', maxHeight: '100dvh', flexDirection: 'column', overflow: 'hidden' }}>
         <header style={{ height: '64px', flexShrink: 0, backgroundColor: '#1e1b4b', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', zIndex: 50, borderBottom: '1px solid #312e81' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255,255,255,0.1)' }}>
               <span style={{ color: '#fff', fontSize: '16px', fontWeight: '900' }}>eB</span>
             </div>
             <div>
               <div style={{ fontSize: '18px', fontWeight: '900', letterSpacing: '-0.5px' }}>eBro 플랫폼 통합 관제탑</div>
-              <div style={{ fontSize: '11.5px', color: '#a5b4fc', marginTop: '2px', fontWeight: '600' }}>admin.ebro.run (정보보호서약 완벽 준수 아키텍처)</div>
+              <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '2px', fontWeight: '600' }}>admin.ebro.run (정보보호서약 완벽 준수 아키텍처)</div>
             </div>
           </div>
           
@@ -1554,7 +1554,7 @@ const App: React.FC = () => {
               <>
                 <div style={{
                   width: '32px', height: '32px', borderRadius: '8px',
-                  background: 'linear-gradient(135deg, #4f46e5 0%, #312e81 100%)',
+                  background: 'var(--primary)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   boxShadow: '0 4px 10px rgba(79, 70, 229, 0.35)',
                   flexShrink: 0
@@ -1583,9 +1583,9 @@ const App: React.FC = () => {
                       borderRadius: '10px',
                       fontSize: '10.5px',
                       fontWeight: 800,
-                      backgroundColor: 'rgba(99, 102, 241, 0.15)',
-                      color: '#818cf8',
-                      border: '1px solid rgba(99, 102, 241, 0.3)'
+                      backgroundColor: 'var(--primary-light)',
+                      color: 'var(--primary)',
+                      border: '1px solid var(--border-color)'
                     }}>
                       admin.ebro.run
                     </span>
@@ -1911,7 +1911,7 @@ const App: React.FC = () => {
               </>
             ) : (
               <>
-                <Moon size={14} color="#8B5CF6" />
+                <Moon size={14} color="#38bdf8" />
                 <span>어두운화면모드</span>
               </>
             )}
@@ -2052,8 +2052,8 @@ const App: React.FC = () => {
                 fontSize: '13.5px',
                 fontWeight: activeTab === 'dashboard' ? '700' : '500',
                 color: activeTab === 'dashboard' ? '#ffffff' : 'var(--text-main)',
-                background: activeTab === 'dashboard' ? 'linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%)' : 'transparent',
-                boxShadow: activeTab === 'dashboard' ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none',
+                background: activeTab === 'dashboard' ? 'var(--primary)' : 'transparent',
+                boxShadow: 'none',
                 cursor: 'pointer',
                 marginBottom: '8px',
                 transition: 'all 0.2s ease'
@@ -2097,7 +2097,7 @@ const App: React.FC = () => {
                     padding: '8px 10px',
                     borderRadius: 'var(--radius-sm)',
                     border: 'none',
-                    backgroundColor: hasActiveChild ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                    backgroundColor: hasActiveChild ? 'var(--primary-light)' : 'transparent',
                     color: hasActiveChild ? 'var(--primary)' : 'var(--text-secondary)',
                     fontWeight: '700',
                     fontSize: '12.5px',
@@ -2124,7 +2124,7 @@ const App: React.FC = () => {
                     gap: '2px',
                     marginTop: '2px',
                     marginLeft: '15px',
-                    borderLeft: '2px solid rgba(59, 130, 246, 0.22)',
+                    borderLeft: '2px solid var(--border-color)',
                   }}>
                     {visibleItems.map(item => {
                       const isItemActive = activeTab === item.id;

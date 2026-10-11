@@ -362,7 +362,7 @@ export const ManualAuthorPanel: React.FC = () => {
                 top: `${hoveredRect.top}px`,
                 width: `${hoveredRect.width}px`,
                 height: `${hoveredRect.height}px`,
-                border: '2px solid #4f46e5',
+                border: '2px solid var(--primary)',
                 background: 'rgba(79, 70, 229, 0.15)',
                 borderRadius: '4px',
                 pointerEvents: 'none',
@@ -378,7 +378,7 @@ export const ManualAuthorPanel: React.FC = () => {
             data-manual-guide="true"
             style={{
               position: 'fixed', top: '16px', left: '50%', transform: 'translateX(-50%)',
-              background: '#4f46e5', color: '#fff', padding: '10px 22px',
+              background: 'var(--primary)', color: '#fff', padding: '10px 22px',
               borderRadius: '30px', fontSize: '14px', fontWeight: 700,
               boxShadow: '0 8px 30px rgba(0,0,0,0.3)', zIndex: 99999,
               display: 'flex', alignItems: 'center', gap: '14px',
@@ -472,7 +472,7 @@ export const ManualAuthorPanel: React.FC = () => {
           width: collapsed ? '42px' : '340px',
           maxHeight: 'calc(100vh - 80px)',
           background: 'var(--bg-card)',
-          border: '2px solid #4f46e5',
+          border: '2px solid var(--primary)',
           borderRadius: '12px',
           boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
           zIndex: 9995,
@@ -487,7 +487,7 @@ export const ManualAuthorPanel: React.FC = () => {
           onMouseDown={handleDragStart}
           style={{
             padding: '10px 12px',
-            background: '#4f46e5', color: '#fff',
+            background: 'var(--primary)', color: '#fff',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             flexShrink: 0, gap: '6px',
             cursor: isDragging ? 'grabbing' : 'grab',
@@ -538,8 +538,8 @@ export const ManualAuthorPanel: React.FC = () => {
                     flex: 1, padding: '8px 4px', border: 'none',
                     fontSize: '12px', fontWeight: 700, cursor: 'pointer',
                     background: panelTab === tab ? 'var(--bg-card)' : 'var(--bg-secondary)',
-                    color: panelTab === tab ? '#4f46e5' : 'var(--text-secondary)',
-                    borderBottom: panelTab === tab ? '2px solid #4f46e5' : '2px solid transparent',
+                    color: panelTab === tab ? 'var(--primary)' : 'var(--text-secondary)',
+                    borderBottom: panelTab === tab ? '2px solid var(--primary)' : '2px solid transparent',
                   }}
                 >
                   {tab === 'list' ? `항목 목록 (${items.length})` : editingSeq !== null ? `#${editingSeq} 편집` : '새 항목'}
@@ -552,7 +552,7 @@ export const ManualAuthorPanel: React.FC = () => {
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 {/* 상단 액션 */}
                 <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  <button onClick={() => startNew()} style={{ ...btnBase, flex: 2, padding: '7px', background: '#4f46e5', color: '#fff', fontSize: '12.5px', whiteSpace: 'nowrap' }}>
+                  <button onClick={() => startNew()} style={{ ...btnBase, flex: 2, padding: '7px', background: 'var(--primary)', color: '#fff', fontSize: '12.5px', whiteSpace: 'nowrap' }}>
                     + 항목 추가
                   </button>
                   <button onClick={handleResetToSeed} style={{ ...btnBase, flex: 1, padding: '7px 8px', background: 'var(--bg-secondary)', color: 'var(--text-main)', border: '1px solid var(--border-color)', fontSize: '11.5px', whiteSpace: 'nowrap' }} title="현재 메뉴를 표준 기본 매뉴얼로 복원">
@@ -583,8 +583,8 @@ export const ManualAuthorPanel: React.FC = () => {
                           onMouseLeave={() => handleHoverItem(null)}
                           style={{
                             marginBottom: '4px', borderRadius: '8px',
-                            border: `1px solid ${editingSeq === item.seq ? '#4f46e5' : inspectItem?.seq === item.seq ? '#059669' : 'var(--border-color)'}`,
-                            background: editingSeq === item.seq ? '#eef2ff' : inspectItem?.seq === item.seq ? '#f0fdf4' : 'var(--bg-card)',
+                            border: `1px solid ${editingSeq === item.seq ? 'var(--primary)' : inspectItem?.seq === item.seq ? '#059669' : 'var(--border-color)'}`,
+                            background: editingSeq === item.seq ? 'var(--primary-light)' : inspectItem?.seq === item.seq ? '#f0fdf4' : 'var(--bg-card)',
                             overflow: 'hidden',
                             transition: 'all 0.15s ease',
                           }}
@@ -655,7 +655,7 @@ export const ManualAuthorPanel: React.FC = () => {
                               <button
                                 onClick={() => startEdit(item)}
                                 title="편집"
-                                style={{ ...btnBase, padding: '4px 7px', background: '#e0e7ff', color: '#4f46e5' }}
+                                style={{ ...btnBase, padding: '4px 7px', background: 'var(--primary-light)', color: 'var(--primary)' }}
                               >✏</button>
                               <button
                                 onClick={() => deleteItem(item.seq, item.label)}
@@ -685,7 +685,7 @@ export const ManualAuthorPanel: React.FC = () => {
 
                 {/* 삽입 위치 표시 */}
                 {editingSeq === null && (
-                  <div style={{ padding: '5px 10px', background: '#e0e7ff', borderRadius: '6px', fontSize: '12px', color: '#4f46e5', fontWeight: 700, marginBottom: '10px' }}>
+                  <div style={{ padding: '5px 10px', background: 'var(--primary-light)', borderRadius: '6px', fontSize: '12px', color: 'var(--primary)', fontWeight: 700, marginBottom: '10px' }}>
                     {insertAfterSeq !== null
                       ? `#${insertAfterSeq} 아래에 삽입`
                       : '맨 끝에 추가'}
@@ -705,7 +705,7 @@ export const ManualAuthorPanel: React.FC = () => {
                     <button
                       onClick={() => setSelectMode(true)}
                       title="화면에서 직접 요소 클릭 선택"
-                      style={{ ...btnBase, padding: '6px 10px', background: '#4f46e5', color: '#fff', fontSize: '16px', flexShrink: 0 }}
+                      style={{ ...btnBase, padding: '6px 10px', background: 'var(--primary)', color: '#fff', fontSize: '16px', flexShrink: 0 }}
                     >🎯</button>
                   </div>
                   {form.autoExtracted && (
@@ -725,7 +725,7 @@ export const ManualAuthorPanel: React.FC = () => {
                         onClick={() => setForm(p => ({ ...p, type: t.value }))}
                         style={{
                           ...btnBase, padding: '5px 9px', fontSize: '12px',
-                          background: form.type === t.value ? '#4f46e5' : 'var(--bg-secondary)',
+                          background: form.type === t.value ? 'var(--primary)' : 'var(--bg-secondary)',
                           color: form.type === t.value ? '#fff' : 'var(--text-secondary)',
                         }}
                       >
@@ -792,7 +792,7 @@ export const ManualAuthorPanel: React.FC = () => {
                         onClick={() => setForm(p => ({ ...p, positionHint: h.value }))}
                         style={{
                           ...btnBase, flex: 1, padding: '5px 2px', fontSize: '11px',
-                          background: form.positionHint === h.value ? '#4f46e5' : 'var(--bg-secondary)',
+                          background: form.positionHint === h.value ? 'var(--primary)' : 'var(--bg-secondary)',
                           color: form.positionHint === h.value ? '#fff' : 'var(--text-secondary)',
                         }}
                       >
@@ -808,7 +808,7 @@ export const ManualAuthorPanel: React.FC = () => {
                     onClick={() => setForm(p => ({ ...p, spotlight: !p.spotlight }))}
                     style={{
                       ...btnBase, flex: 1, padding: '6px 8px', fontSize: '12px',
-                      background: form.spotlight ? '#4f46e5' : 'var(--bg-secondary)',
+                      background: form.spotlight ? 'var(--primary)' : 'var(--bg-secondary)',
                       color: form.spotlight ? '#fff' : 'var(--text-muted)',
                     }}
                   >
@@ -818,7 +818,7 @@ export const ManualAuthorPanel: React.FC = () => {
                     onClick={() => setForm(p => ({ ...p, arrow: p.arrow ? undefined : { style: 'elbow' as const, route: 'HV' as const } }))}
                     style={{
                       ...btnBase, flex: 1, padding: '6px 8px', fontSize: '12px',
-                      background: form.arrow ? '#4f46e5' : 'var(--bg-secondary)',
+                      background: form.arrow ? 'var(--primary)' : 'var(--bg-secondary)',
                       color: form.arrow ? '#fff' : 'var(--text-muted)',
                     }}
                   >
@@ -849,7 +849,7 @@ export const ManualAuthorPanel: React.FC = () => {
                 <div style={{ display: 'flex', gap: '7px', paddingTop: '4px' }}>
                   <button
                     onClick={saveForm}
-                    style={{ ...btnBase, flex: 1, padding: '10px', fontSize: '13px', background: '#4f46e5', color: '#fff' }}
+                    style={{ ...btnBase, flex: 1, padding: '10px', fontSize: '13px', background: 'var(--primary)', color: '#fff' }}
                   >
                     {editingSeq !== null ? '✓ 수정 저장' : '+ 추가 저장'}
                   </button>

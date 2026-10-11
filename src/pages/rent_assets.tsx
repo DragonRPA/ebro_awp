@@ -3318,7 +3318,7 @@ export const RentAssets: React.FC = () => {
                                     style={{
                                       padding: '2px 5px',
                                       fontSize: '10.5px',
-                                      backgroundColor: a.status === 'RENTED' ? '#4f46e5' : 'var(--danger)',
+                                      backgroundColor: a.status === 'RENTED' ? 'var(--primary)' : 'var(--danger)',
                                       color: '#fff',
                                       border: 'none',
                                       borderRadius: '3px',
@@ -3861,9 +3861,9 @@ export const RentAssets: React.FC = () => {
                     style={{
                       padding: '8px',
                       borderRadius: '6px',
-                      border: returnMode === 'DIRECT' ? '2px solid #4f46e5' : '1px solid var(--border-color)',
-                      backgroundColor: returnMode === 'DIRECT' ? 'rgba(79, 70, 229, 0.1)' : 'var(--bg-app)',
-                      color: returnMode === 'DIRECT' ? '#4f46e5' : 'var(--text-muted)',
+                      border: returnMode === 'DIRECT' ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                      backgroundColor: returnMode === 'DIRECT' ? 'var(--primary-light)' : 'var(--bg-app)',
+                      color: returnMode === 'DIRECT' ? 'var(--primary)' : 'var(--text-secondary)',
                       fontWeight: returnMode === 'DIRECT' ? 700 : 500,
                       fontSize: '11.5px',
                       cursor: 'pointer'
@@ -3997,7 +3997,7 @@ export const RentAssets: React.FC = () => {
                     <div><strong>임차처 표기 모델명:</strong> {selectedReconcileDetail.statementRow.modelName || '미기재'}</div>
                     <div><strong>임차처 청구 기간:</strong> <span style={{ color: 'var(--primary)', fontWeight: '700' }}>{selectedReconcileDetail.statementRow.rentStart} ~ {selectedReconcileDetail.statementRow.rentEnd}</span></div>
                     {selectedReconcileDetail.statementRow.unitPrice && (
-                      <div><strong>임차처 약정 단가 (월단가):</strong> <span style={{ color: '#6366f1', fontWeight: '700' }}>₩{selectedReconcileDetail.statementRow.unitPrice.toLocaleString()}원</span></div>
+                      <div><strong>임차처 약정 단가 (월단가):</strong> <span style={{ color: 'var(--primary)', fontWeight: '700' }}>₩{selectedReconcileDetail.statementRow.unitPrice.toLocaleString()}원</span></div>
                     )}
                     <div><strong>임차처 실청구 금액:</strong> <span style={{ color: 'var(--danger)', fontWeight: '800', fontSize: '14px' }}>₩{selectedReconcileDetail.statementRow.billedAmount.toLocaleString()}원</span></div>
                     <div><strong>임차처 비고/메모:</strong> {selectedReconcileDetail.statementRow.memo || '없음'}</div>
@@ -4440,7 +4440,7 @@ export const RentAssets: React.FC = () => {
                 <div><span style={{ color: 'var(--text-secondary)' }}>청구 모델:</span> <strong>{matchingItem.statementRow.modelName || '미기재'}</strong></div>
                 <div><span style={{ color: 'var(--text-secondary)' }}>청구 기간:</span> {matchingItem.statementRow.rentStart} ~ {matchingItem.statementRow.rentEnd}</div>
                 {matchingItem.statementRow.unitPrice && matchingItem.statementRow.unitPrice !== matchingItem.statementRow.billedAmount && (
-                  <div><span style={{ color: 'var(--text-secondary)' }}>임차처 월단가:</span> <strong style={{ color: '#6366f1' }}>₩{matchingItem.statementRow.unitPrice.toLocaleString()}</strong></div>
+                  <div><span style={{ color: 'var(--text-secondary)' }}>임차처 월단가:</span> <strong style={{ color: 'var(--primary)' }}>₩{matchingItem.statementRow.unitPrice.toLocaleString()}</strong></div>
                 )}
                 <div><span style={{ color: 'var(--text-secondary)' }}>청구 금액:</span> <strong style={{ color: 'var(--primary)' }}>₩{matchingItem.statementRow.billedAmount.toLocaleString()}</strong></div>
               </div>

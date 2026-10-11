@@ -66,7 +66,7 @@ export const AgentRequiredModal: React.FC<Props> = ({
     }}>
       <div style={{
         width: '460px',
-        backgroundColor: '#ffffff',
+        backgroundColor: 'var(--bg-card)',
         borderRadius: '10px',
         boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.25)',
         display: 'flex',
@@ -77,21 +77,21 @@ export const AgentRequiredModal: React.FC<Props> = ({
         {/* 헤더 */}
         <div style={{
           padding: '14px 18px',
-          backgroundColor: '#f8fafc',
-          borderBottom: '1px solid #e2e8f0',
+          backgroundColor: 'var(--bg-app)',
+          borderBottom: '1px solid var(--border-color)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Monitor size={18} color="#2563eb" />
-            <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#0f172a' }}>
+            <Monitor size={18} color="var(--primary)" />
+            <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: 'var(--text-main)' }}>
               PC 에이전트 실행 안내
             </h3>
           </div>
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
           >
             <X size={18} />
           </button>
@@ -147,7 +147,7 @@ export const AgentRequiredModal: React.FC<Props> = ({
                 flexDirection: 'column',
                 gap: '6px'
               }}>
-                <div style={{ fontWeight: 600, color: '#0f172a' }}>조치 방법:</div>
+                <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>조치 방법:</div>
                 <ol style={{ margin: 0, paddingLeft: '18px', color: '#475569', lineHeight: 1.6, fontSize: '11.5px' }}>
                   <li>PC 바탕화면 또는 시작프로그램의 <b>eBroAgent</b>를 실행해 주세요.</li>
                   <li>프로그램이 설치되어 있지 않다면 아래 <b>[설치 프로그램 다운로드]</b>를 진행해 주세요.</li>
@@ -176,8 +176,8 @@ export const AgentRequiredModal: React.FC<Props> = ({
         {/* 푸터 */}
         <div style={{
           padding: '12px 18px',
-          backgroundColor: '#f8fafc',
-          borderTop: '1px solid #e2e8f0',
+          backgroundColor: 'var(--bg-app)',
+          borderTop: '1px solid var(--border-color)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
@@ -188,9 +188,9 @@ export const AgentRequiredModal: React.FC<Props> = ({
             style={{
               padding: '6px 12px',
               borderRadius: '5px',
-              border: '1px solid #cbd5e1',
-              backgroundColor: '#ffffff',
-              color: '#334155',
+              border: '1px solid var(--border-color)',
+              backgroundColor: 'var(--bg-card)',
+              color: 'var(--text-secondary)',
               fontSize: '11.5px',
               fontWeight: 600,
               cursor: 'pointer',
@@ -199,7 +199,7 @@ export const AgentRequiredModal: React.FC<Props> = ({
               gap: '5px'
             }}
           >
-            <Download size={13} color="#2563eb" />
+            <Download size={13} color="var(--primary)" />
             통합 설치 프로그램 다운로드
           </button>
 

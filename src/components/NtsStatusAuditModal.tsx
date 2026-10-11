@@ -497,9 +497,9 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                   fontSize: '12px',
                   fontWeight: 700,
                   borderRadius: '6px',
-                  border: '1px solid #e11d48',
-                  backgroundColor: filterType === 'RENTED_RISK' ? '#e11d48' : '#ffe4e6',
-                  color: filterType === 'RENTED_RISK' ? '#ffffff' : '#be123c',
+                  border: '1px solid var(--danger)',
+                  backgroundColor: filterType === 'RENTED_RISK' ? 'var(--danger)' : 'var(--danger-light)',
+                  color: filterType === 'RENTED_RISK' ? '#ffffff' : 'var(--danger)',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -518,9 +518,9 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                   fontSize: '12px',
                   fontWeight: filterType === 'CLOSED' ? 700 : 500,
                   borderRadius: '6px',
-                  border: '1px solid #f43f5e',
-                  backgroundColor: filterType === 'CLOSED' ? '#f43f5e' : '#fff1f2',
-                  color: filterType === 'CLOSED' ? '#ffffff' : '#e11d48',
+                  border: '1px solid var(--danger)',
+                  backgroundColor: filterType === 'CLOSED' ? 'var(--danger)' : 'var(--danger-light)',
+                  color: filterType === 'CLOSED' ? '#ffffff' : 'var(--danger)',
                   cursor: 'pointer',
                   whiteSpace: 'nowrap'
                 }}
@@ -619,7 +619,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                 whiteSpace: 'nowrap'
               }}
             >
-              <Key size={14} color="#6366f1" />
+              <Key size={14} color="var(--primary)" />
               API 설정
             </button>
 
@@ -766,7 +766,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ color: 'var(--success)' }}>정상: <strong>{stats.active}</strong></span>
             <span style={{ color: 'var(--warning)' }}>휴업: <strong>{stats.suspended}</strong></span>
-            <span style={{ color: '#e11d48' }}>폐업: <strong>{stats.closed}</strong></span>
+            <span style={{ color: 'var(--danger)' }}>폐업: <strong>{stats.closed}</strong></span>
             {stats.rentedRisk > 0 && (
               <span style={{
                 padding: '2px 8px',
@@ -938,8 +938,8 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                             fontSize: '11px',
                             fontWeight: 800,
                             fontFamily: 'monospace',
-                            backgroundColor: (isNtsClosed || item.isClosed) ? '#e11d48' : '#ecfdf5',
-                            color: (isNtsClosed || item.isClosed) ? '#ffffff' : '#047857',
+                            backgroundColor: (isNtsClosed || item.isClosed) ? 'var(--danger)' : 'var(--success-light)',
+                            color: (isNtsClosed || item.isClosed) ? '#ffffff' : 'var(--success)',
                             border: (isNtsClosed || item.isClosed) ? 'none' : '1px solid #a7f3d0',
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -1031,7 +1031,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
           <div style={{ fontSize: '12px', color: 'var(--text-secondary, #475569)' }}>
             총 <strong>{filteredItems.length}</strong>개사 표시
             {stats.rentedRisk > 0 && (
-              <span style={{ color: '#e11d48', fontWeight: 800, marginLeft: '8px' }}>
+              <span style={{ color: 'var(--danger)', fontWeight: 800, marginLeft: '8px' }}>
                 (가동장비 위험: {stats.rentedRisk}개사 즉시 회수 필요)
               </span>
             )}
@@ -1070,7 +1070,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                 borderRadius: '6px',
                 fontSize: '12px',
                 fontWeight: 700,
-                backgroundColor: 'var(--primary, #4f46e5)',
+                backgroundColor: 'var(--primary)',
                 color: '#ffffff',
                 border: 'none',
                 cursor: 'pointer',
@@ -1120,7 +1120,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
               justifyContent: 'space-between'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Key size={18} color="#6366f1" />
+                <Key size={18} color="var(--primary)" />
                 <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-main, #0f172a)' }}>
                   국세청 공공데이터 API 연동 설정
                 </h3>
@@ -1261,7 +1261,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                     borderRadius: '6px',
                     fontSize: '12px',
                     fontWeight: 700,
-                    backgroundColor: 'var(--primary, #4f46e5)',
+                    backgroundColor: 'var(--primary)',
                     color: '#ffffff',
                     border: 'none',
                     cursor: 'pointer',

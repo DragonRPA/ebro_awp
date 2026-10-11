@@ -2392,8 +2392,8 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 padding: '2px 8px', 
                 fontSize: '11px', 
                 fontWeight: 'bold',
-                backgroundColor: currentTenant?.allowCustomBillingStatement ? '#7c3aed' : undefined,
-                borderColor: currentTenant?.allowCustomBillingStatement ? '#6d28d9' : undefined
+                backgroundColor: currentTenant?.allowCustomBillingStatement ? 'var(--primary)' : undefined,
+                borderColor: currentTenant?.allowCustomBillingStatement ? 'var(--primary-hover)' : undefined
               }}
               title="테넌트별 특수 거래명세서 작성 기능 활성화/비활성화"
             >
@@ -2843,9 +2843,9 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                                 marginLeft: '6px',
                                 padding: '1px 6px',
                                 fontSize: '10px',
-                                backgroundColor: '#e0e7ff',
-                                color: '#3730a3',
-                                border: '1px solid #c7d2fe',
+                                backgroundColor: 'var(--primary-light)',
+                                color: 'var(--primary)',
+                                border: '1px solid var(--border-color)',
                                 borderRadius: '3px',
                                 fontWeight: 700,
                                 whiteSpace: 'nowrap'
@@ -2998,8 +2998,8 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                               alignItems: 'center', 
                               gap: '4px', 
                               fontWeight: 'bold', 
-                              borderColor: '#8b5cf6', 
-                              color: '#6d28d9', 
+                              borderColor: 'var(--border-color)', 
+                              color: 'var(--primary)', 
                               backgroundColor: '#f5f3ff' 
                             }}
                             title={activeBilling.hasCustomStatement ? "특수 거래명세서 품목 및 변환 사유 수정" : "실제 계약 원장은 보존하고, 거래명세서 품목을 임의 수정합니다."}
@@ -3032,10 +3032,10 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
                   {/* 특수 거래명세서 적용 건 알림 배너 */}
                   {activeBilling.hasCustomStatement && (
-                    <div style={{ padding: '12px 14px', backgroundColor: '#faf5ff', border: '1px solid #e9d5ff', borderLeft: '4px solid #8b5cf6', borderRadius: '6px' }}>
+                    <div style={{ padding: '12px 14px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderLeft: '4px solid var(--primary)', borderRadius: '6px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', gap: '6px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ padding: '2px 7px', fontSize: '11px', fontWeight: 'bold', backgroundColor: '#8b5cf6', color: '#ffffff', borderRadius: '4px' }}>
+                          <span style={{ padding: '2px 7px', fontSize: '11px', fontWeight: 'bold', backgroundColor: 'var(--primary)', color: '#ffffff', borderRadius: '4px' }}>
                             특수 거래명세서 적용 건
                           </span>
                           <span style={{ fontSize: '12px', fontWeight: '600', color: '#5b21b6' }}>
@@ -3105,7 +3105,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                       fontSize: '12px'
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <FileText size={16} style={{ color: '#7c3aed', flexShrink: 0 }} />
+                        <FileText size={16} style={{ color: 'var(--primary)', flexShrink: 0 }} />
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <strong style={{ color: '#6d28d9', fontSize: '13px' }}>특수 거래명세서 발행 청구건</strong>
@@ -3204,8 +3204,8 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                               padding: '3px 10px', 
                               fontSize: '11.5px', 
                               fontWeight: 'bold',
-                              backgroundColor: activeBillingDetailTab === 'STATEMENT' ? '#7c3aed' : undefined,
-                              borderColor: activeBillingDetailTab === 'STATEMENT' ? '#6d28d9' : undefined
+                              backgroundColor: activeBillingDetailTab === 'STATEMENT' ? 'var(--primary)' : undefined,
+                              borderColor: activeBillingDetailTab === 'STATEMENT' ? 'var(--primary-hover)' : undefined
                             }}
                           >
                             📝 특수 거래명세서 품목 ({activeBilling.customStatementItems?.length || 0}건)
@@ -3271,7 +3271,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                                     <td style={{ padding: '6px 8px', textAlign: 'right' }}>₩{(ci.unitPrice || 0).toLocaleString()}</td>
                                     <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 700 }}>₩{supply.toLocaleString()}</td>
                                     <td style={{ padding: '6px 8px', textAlign: 'right', color: 'var(--text-muted)' }}>₩{vat.toLocaleString()}</td>
-                                    <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 800, color: '#7c3aed' }}>₩{total.toLocaleString()}</td>
+                                    <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 800, color: 'var(--primary)' }}>₩{total.toLocaleString()}</td>
                                     <td style={{ padding: '6px 8px', color: 'var(--text-secondary)' }}>{ci.notes || '-'}</td>
                                   </tr>
                                 );
@@ -3290,7 +3290,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                                   <td style={{ padding: '8px', textAlign: 'right' }}>-</td>
                                   <td style={{ padding: '8px', textAlign: 'right' }}>₩{csTotalSupply.toLocaleString()}</td>
                                   <td style={{ padding: '8px', textAlign: 'right', color: '#0070C0' }}>₩{csTotalVat.toLocaleString()}</td>
-                                  <td style={{ padding: '8px', textAlign: 'right', color: '#7c3aed' }}>₩{csTotalGrand.toLocaleString()}</td>
+                                  <td style={{ padding: '8px', textAlign: 'right', color: 'var(--primary)' }}>₩{csTotalGrand.toLocaleString()}</td>
                                   <td style={{ padding: '8px' }}>-</td>
                                 </tr>
                               );
@@ -5061,9 +5061,9 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 </div>
               </div>
 
-              <div className="card" style={{ margin: 0, padding: '14px', borderLeft: '4px solid #7c3aed' }}>
+              <div className="card" style={{ margin: 0, padding: '14px', borderLeft: '4px solid var(--primary)' }}>
                 <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: '4px' }}>반납 입고 정비비 면제</div>
-                <div style={{ fontSize: '18px', fontWeight: 800, color: '#7c3aed' }}>
+                <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--primary)' }}>
                   ₩{inboundAmount.toLocaleString()}원
                 </div>
                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -5240,8 +5240,8 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
             <div className="modal-content" style={{ maxWidth: '1000px', width: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', gap: '14px', padding: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Edit3 size={18} color="#7c3aed" />
-                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#6d28d9' }}>
+                  <Edit3 size={18} color="var(--primary)" />
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: 'var(--primary)' }}>
                     특수 거래명세서 품목 편집 ({targetBilling?.billingYm} - {targetCustomer?.name || '고객사'})
                   </h3>
                 </div>
@@ -5312,7 +5312,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                       }
                     ]);
                   }}
-                  style={{ fontSize: '11px', padding: '3px 8px', backgroundColor: '#7c3aed', borderColor: '#6d28d9' }}
+                  style={{ fontSize: '11px', padding: '3px 8px', backgroundColor: 'var(--primary)', borderColor: 'var(--primary-hover)' }}
                 >
                   <Plus size={11} /> 행 추가
                 </button>
@@ -5430,7 +5430,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                               style={{ width: '100%', textAlign: 'right', padding: '3px 6px', fontSize: '11.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-muted)' }}
                             />
                           </td>
-                          <td style={{ textAlign: 'right', padding: '3px 8px', fontWeight: 700, color: '#7c3aed' }}>
+                          <td style={{ textAlign: 'right', padding: '3px 8px', fontWeight: 700, color: 'var(--primary)' }}>
                             ₩{total.toLocaleString()}
                           </td>
                           <td style={{ padding: '3px 6px' }}>
@@ -5465,7 +5465,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12.5px' }}>
                   <span>원장: ₩{originalGrand.toLocaleString()}</span>
                   <span>➔</span>
-                  <span style={{ fontWeight: 800, color: '#7c3aed' }}>명세서: ₩{draftGrand.toLocaleString()}</span>
+                  <span style={{ fontWeight: 800, color: 'var(--primary)' }}>명세서: ₩{draftGrand.toLocaleString()}</span>
                   <span style={{
                     padding: '3px 8px',
                     borderRadius: '4px',
@@ -5511,8 +5511,8 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                     style={{
                       fontSize: '12px',
                       padding: '6px 16px',
-                      backgroundColor: diffGrand === 0 && customStatementReasonInput.trim() ? '#7c3aed' : 'var(--bg-secondary)',
-                      borderColor: diffGrand === 0 && customStatementReasonInput.trim() ? '#6d28d9' : 'var(--border-color)',
+                      backgroundColor: diffGrand === 0 && customStatementReasonInput.trim() ? 'var(--primary)' : 'var(--bg-secondary)',
+                      borderColor: diffGrand === 0 && customStatementReasonInput.trim() ? 'var(--primary-hover)' : 'var(--border-color)',
                       color: diffGrand === 0 && customStatementReasonInput.trim() ? '#ffffff' : 'var(--text-muted)',
                       fontWeight: 800,
                       cursor: diffGrand !== 0 || !customStatementReasonInput.trim() ? 'not-allowed' : 'pointer',

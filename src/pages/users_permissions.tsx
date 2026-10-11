@@ -573,7 +573,7 @@ export const UsersPermissions: React.FC = () => {
             width: '38px',
             height: '38px',
             borderRadius: '8px',
-            backgroundColor: 'var(--primary, #4f46e5)',
+            backgroundColor: 'var(--primary)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -609,7 +609,7 @@ export const UsersPermissions: React.FC = () => {
               borderRadius: '6px',
               border: 'none',
               backgroundColor: activeTab === 'ROLES' ? 'var(--bg-card, #ffffff)' : 'transparent',
-              color: activeTab === 'ROLES' ? 'var(--primary, #4f46e5)' : 'var(--text-secondary, #475569)',
+              color: activeTab === 'ROLES' ? 'var(--primary)' : 'var(--text-secondary, #475569)',
               boxShadow: activeTab === 'ROLES' ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none',
               cursor: 'pointer',
               display: 'flex',
@@ -631,7 +631,7 @@ export const UsersPermissions: React.FC = () => {
               borderRadius: '6px',
               border: 'none',
               backgroundColor: activeTab === 'USERS' ? 'var(--bg-card, #ffffff)' : 'transparent',
-              color: activeTab === 'USERS' ? 'var(--primary, #4f46e5)' : 'var(--text-secondary, #475569)',
+              color: activeTab === 'USERS' ? 'var(--primary)' : 'var(--text-secondary, #475569)',
               boxShadow: activeTab === 'USERS' ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none',
               cursor: 'pointer',
               display: 'flex',
@@ -665,7 +665,7 @@ export const UsersPermissions: React.FC = () => {
                 gap: '10px'
               }}>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main, #0f172a)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Plus size={15} color="var(--primary, #4f46e5)" />
+                  <Plus size={15} color="var(--primary)" />
                   신규 권한 명칭 등록
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -717,7 +717,7 @@ export const UsersPermissions: React.FC = () => {
                     fontWeight: 700,
                     borderRadius: '6px',
                     border: 'none',
-                    backgroundColor: 'var(--primary, #4f46e5)',
+                    backgroundColor: 'var(--primary)',
                     color: '#ffffff',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap'
@@ -763,7 +763,7 @@ export const UsersPermissions: React.FC = () => {
                         padding: '12px 14px',
                         borderBottom: '1px solid var(--border-color, #f1f5f9)',
                         backgroundColor: isSelected ? '#eff6ff' : 'transparent',
-                        borderLeft: isSelected ? '4px solid var(--primary, #4f46e5)' : '4px solid transparent',
+                        borderLeft: isSelected ? '4px solid var(--primary)' : '4px solid transparent',
                         cursor: 'pointer',
                         display: 'flex',
                         flexDirection: 'column',
@@ -772,7 +772,7 @@ export const UsersPermissions: React.FC = () => {
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <strong style={{ fontSize: '13px', color: isSelected ? 'var(--primary, #4f46e5)' : 'var(--text-main, #0f172a)' }}>
+                        <strong style={{ fontSize: '13px', color: isSelected ? 'var(--primary)' : 'var(--text-main, #0f172a)' }}>
                           {role.name}
                         </strong>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -840,7 +840,7 @@ export const UsersPermissions: React.FC = () => {
               gap: '10px'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Key size={16} color="var(--primary, #4f46e5)" />
+                <Key size={16} color="var(--primary)" />
                 <h2 style={{ margin: 0, fontSize: '14px', fontWeight: 800, color: 'var(--text-main, #0f172a)' }}>
                   [{selectedRole?.name}] 메뉴 권한 매트릭스
                 </h2>
@@ -932,7 +932,7 @@ export const UsersPermissions: React.FC = () => {
                       fontWeight: 700,
                       borderRadius: '5px',
                       border: 'none',
-                      backgroundColor: isRoleDirty ? 'var(--primary, #4f46e5)' : '#94a3b8',
+                      backgroundColor: isRoleDirty ? 'var(--primary)' : '#94a3b8',
                       color: '#ffffff',
                       cursor: isRoleDirty ? 'pointer' : 'not-allowed',
                       display: 'flex',
@@ -1328,9 +1328,9 @@ export const UsersPermissions: React.FC = () => {
                                   fontSize: '11.5px',
                                   fontWeight: user.customRoleId ? 600 : 400,
                                   borderRadius: '5px',
-                                  border: user.customRoleId ? '1px solid #6366f1' : '1px solid #f59e0b',
-                                  backgroundColor: user.customRoleId ? '#eef2ff' : '#fffbeb',
-                                  color: user.customRoleId ? '#3730a3' : '#b45309',
+                                  border: user.customRoleId ? '1px solid var(--border-color)' : '1px solid var(--border-color)',
+                                  backgroundColor: user.customRoleId ? 'var(--primary-light)' : 'var(--warning-light)',
+                                  color: user.customRoleId ? 'var(--primary)' : 'var(--warning)',
                                   outline: 'none',
                                   cursor: canSave ? 'pointer' : 'not-allowed'
                                 }}
@@ -1368,7 +1368,7 @@ export const UsersPermissions: React.FC = () => {
                               borderRadius: '4px',
                               border: '1px solid var(--border-color, var(--border-color))',
                               backgroundColor: 'var(--bg-card, #ffffff)',
-                              color: 'var(--primary, #4f46e5)',
+                              color: 'var(--primary)',
                               cursor: 'pointer',
                               whiteSpace: 'nowrap'
                             }}
@@ -1497,7 +1497,7 @@ export const UsersPermissions: React.FC = () => {
                   borderRadius: '6px',
                   fontSize: '12px',
                   fontWeight: 700,
-                  backgroundColor: 'var(--primary, #4f46e5)',
+                  backgroundColor: 'var(--primary)',
                   color: '#ffffff',
                   border: 'none',
                   cursor: 'pointer'

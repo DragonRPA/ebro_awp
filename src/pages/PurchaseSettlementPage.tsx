@@ -302,7 +302,7 @@ export const PurchaseSettlementPage: React.FC = () => {
         <button data-mid="purchase_settlement-pipeline-generate"
           onClick={handleGenerate}
           disabled={isGenerating}
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '36px', padding: '0 16px', background: 'linear-gradient(135deg, #6366F1 0%, #4F46E5 100%)', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: '700', fontSize: '13.5px', cursor: isGenerating ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', height: '36px', padding: '0 16px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: '700', fontSize: '13.5px', cursor: isGenerating ? 'not-allowed' : 'pointer', whiteSpace: 'nowrap' }}
         >
           {isGenerating ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
           {selectedYm} 자동 집계
@@ -338,7 +338,7 @@ export const PurchaseSettlementPage: React.FC = () => {
             gap: '6px',
             height: '36px',
             padding: '0 14px',
-            background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+            background: 'var(--primary)',
             color: '#fff',
             border: 'none',
             borderRadius: '6px',
@@ -667,7 +667,7 @@ export const PurchaseSettlementPage: React.FC = () => {
                             setPaymentModal({ id: p.id, totalAmount: p.totalAmount, paidAmount: p.paidAmount, vendorName: p.vendorName });
                             setPaymentForm(prev => ({ ...prev, paidAmount: (p.totalAmount - p.paidAmount).toString() }));
                           }}
-                          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 16px', background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                          style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 16px', background: 'var(--success)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '13.5px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}
                         >
                           <CreditCard size={15} /> 지급 처리 ({remaining.toLocaleString()}원 잔여)
                         </button>
@@ -813,7 +813,7 @@ export const PurchaseSettlementPage: React.FC = () => {
                                   </span>
                                 )}
                                 {isMatchAmount && !isPerfect && (
-                                  <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(139, 92, 246, 0.2)', color: '#8B5CF6', fontWeight: 'bold' }}>
+                                  <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 'bold' }}>
                                     금액 일치
                                   </span>
                                 )}
@@ -896,7 +896,7 @@ export const PurchaseSettlementPage: React.FC = () => {
               <button data-hs-trigger="Approve"
                 onClick={handlePaymentSubmit}
                 disabled={isSubmittingPayment}
-                style={{ flex: 1, height: '40px', background: isSubmittingPayment ? 'var(--text-muted)' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '800', fontSize: '14px', cursor: isSubmittingPayment ? 'not-allowed' : 'pointer' }}
+                style={{ flex: 1, height: '40px', background: isSubmittingPayment ? 'var(--text-muted)' : 'var(--success)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '800', fontSize: '14px', cursor: isSubmittingPayment ? 'not-allowed' : 'pointer' }}
               >
                 {isSubmittingPayment ? '⏳ 지급 대사 승인 중...' : '지급 대사 완료 승인'}
               </button>

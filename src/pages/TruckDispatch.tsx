@@ -3608,7 +3608,7 @@ export const TruckDispatch: React.FC = () => {
                           <span style={{
                             fontSize: '11.5px',
                             fontWeight: 700,
-                            color: (d.type === 'MOVEMENT' || d.dispatchCategory === '이동') ? '#8b5cf6'
+                            color: (d.type === 'MOVEMENT' || d.dispatchCategory === '이동') ? 'var(--text-secondary)'
                               : (d.type === 'EXCHANGE' || d.dispatchCategory === '교환') ? '#10b981'
                               : (d.type === 'INBOUND' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납') ? '#f59e0b'
                               : 'var(--primary)'
@@ -4437,7 +4437,7 @@ export const TruckDispatch: React.FC = () => {
                   <span>|</span>
                   <span>운송 완료: <strong style={{ color: 'var(--success)' }}>총 {deliveredDeliveries}건</strong></span>
                   <span>|</span>
-                  <span>대차 왕복배차: <strong style={{ color: '#8b5cf6' }}>총 {exchangeCount}건</strong></span>
+                  <span>대차 왕복배차: <strong style={{ color: 'var(--primary)' }}>총 {exchangeCount}건</strong></span>
                   <span>|</span>
                   <span>취소: <strong style={{ color: 'var(--danger)' }}>총 {cancelledDeliveries}건</strong></span>
                 </div>
@@ -4592,7 +4592,7 @@ export const TruckDispatch: React.FC = () => {
                           </span>
                         )}
                         {item.extracted.vehicleType && (
-                          <span style={{ fontSize: '10.5px', fontWeight: 800, backgroundColor: 'rgba(139,92,246,0.15)', color: '#8b5cf6', padding: '1px 5px', borderRadius: '4px' }}>
+                          <span style={{ fontSize: '10.5px', fontWeight: 800, backgroundColor: 'var(--primary-light)', color: 'var(--primary)', padding: '1px 5px', borderRadius: '4px' }}>
                             {item.extracted.vehicleType}
                           </span>
                         )}
@@ -4740,7 +4740,7 @@ export const TruckDispatch: React.FC = () => {
                     const confirmedNego = negos.find(n => n.status === 'CONFIRMED');
 
                     const typeLabel = del.type === 'OUTBOUND' ? '출고' : del.type === 'INBOUND' ? '회수' : del.type === 'EXCHANGE' ? '교환' : '이동';
-                    const typeColor = del.type === 'OUTBOUND' ? '#2563eb' : del.type === 'INBOUND' ? '#dc2626' : del.type === 'EXCHANGE' ? '#0891b2' : '#6b7280';
+                    const typeColor = del.type === 'OUTBOUND' ? '#2563eb' : del.type === 'INBOUND' ? '#dc2626' : del.type === 'EXCHANGE' ? 'var(--primary)' : '#6b7280';
 
                     return (
                       <div
@@ -5437,8 +5437,8 @@ export const TruckDispatch: React.FC = () => {
                     fontWeight: 800,
                     borderRadius: '5px',
                     border: '1px solid rgba(99,102,241,0.4)',
-                    backgroundColor: 'rgba(99,102,241,0.12)',
-                    color: '#6366f1',
+                    backgroundColor: 'var(--primary-light)',
+                    color: 'var(--primary)',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',

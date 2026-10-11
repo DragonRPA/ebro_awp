@@ -49,7 +49,7 @@ export const PersistentJobAlertToast: React.FC<Props> = ({ onNavigateMenu }) => 
       case 'REPAIR_REQUESTED':
         return <Wrench size={18} color="#d97706" />;
       case 'DISPATCH_ASSIGNED':
-        return <UserCheck size={18} color="#0891b2" />;
+        return <UserCheck size={18} color="var(--primary)" />;
       default:
         return <Bell size={18} color="#2563eb" />;
     }
@@ -73,9 +73,9 @@ export const PersistentJobAlertToast: React.FC<Props> = ({ onNavigateMenu }) => 
           key={alert.id}
           style={{
             pointerEvents: 'auto',
-            backgroundColor: '#ffffff',
+            backgroundColor: 'var(--bg-card)',
             borderRadius: '8px',
-            border: '2px solid #2563eb',
+            border: '2px solid var(--primary)',
             boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.2)',
             overflow: 'hidden',
             display: 'flex',
@@ -86,40 +86,40 @@ export const PersistentJobAlertToast: React.FC<Props> = ({ onNavigateMenu }) => 
           {/* 헤더 */}
           <div style={{
             padding: '10px 14px',
-            backgroundColor: '#eff6ff',
-            borderBottom: '1px solid #dbeafe',
+            backgroundColor: 'var(--primary-light)',
+            borderBottom: '1px solid var(--border-color)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               {renderIcon(alert.type)}
-              <span style={{ fontSize: '13px', fontWeight: 700, color: '#1e40af' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--primary)' }}>
                 {alert.title}
               </span>
             </div>
-            <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>
               {alert.timestamp}
             </span>
           </div>
 
           {/* 본문 정보 */}
           <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px' }}>
-            <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '13.5px' }}>
+            <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '13.5px' }}>
               {alert.customerName}
             </div>
-            <div style={{ color: '#475569', fontSize: '12px' }}>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
               현장: {alert.siteName}
             </div>
             {alert.modelName && (
-              <div style={{ display: 'flex', gap: '8px', marginTop: '4px', background: '#f8fafc', padding: '6px 8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
-                <span style={{ fontWeight: 600, color: '#2563eb' }}>{alert.modelName}</span>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '4px', background: 'var(--bg-app)', padding: '6px 8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                <span style={{ fontWeight: 600, color: 'var(--primary)' }}>{alert.modelName}</span>
                 {alert.quantity && <span>({alert.quantity}대)</span>}
-                {alert.deliveryDate && <span style={{ color: '#64748b' }}>· 납기: {alert.deliveryDate}</span>}
+                {alert.deliveryDate && <span style={{ color: 'var(--text-secondary)' }}>· 납기: {alert.deliveryDate}</span>}
               </div>
             )}
             {alert.memo && (
-              <div style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500, marginTop: '2px' }}>
+              <div style={{ fontSize: '11px', color: 'var(--danger)', fontWeight: 500, marginTop: '2px' }}>
                 {alert.memo}
               </div>
             )}
@@ -141,7 +141,7 @@ export const PersistentJobAlertToast: React.FC<Props> = ({ onNavigateMenu }) => 
                 padding: '6px 12px',
                 borderRadius: '4px',
                 border: '1px solid #cbd5e1',
-                backgroundColor: '#ffffff',
+                backgroundColor: 'var(--bg-card)',
                 color: '#334155',
                 fontSize: '11.5px',
                 fontWeight: 600,

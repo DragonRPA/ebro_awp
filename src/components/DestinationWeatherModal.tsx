@@ -411,8 +411,8 @@ export const DestinationWeatherModal: React.FC<Props> = ({
               {/* 현재 기온 카드 */}
               <div style={{
                 padding: '16px', borderRadius: '12px',
-                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(139, 92, 246, 0.12) 100%)',
-                border: '1px solid rgba(59, 130, 246, 0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                background: 'var(--primary-light)',
+                border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
               }}>
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>

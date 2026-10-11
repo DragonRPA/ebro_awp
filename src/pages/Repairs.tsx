@@ -819,7 +819,7 @@ export const Repairs: React.FC = () => {
                 { key: 'INBOUND_DEFECT', label: '입고결함', count: queueCounts.inboundDefects, color: 'var(--danger)' },
                 { key: 'RENTED_RETURNED', label: '반납검수', count: queueCounts.returned, color: '#f59e0b' },
                 { key: 'REPAIRING', label: '정비중', count: queueCounts.repairing, color: '#f97316' },
-                { key: 'EXTERNAL', label: '외주위탁', count: queueCounts.external, color: '#8b5cf6' },
+                { key: 'EXTERNAL', label: '외주위탁', count: queueCounts.external, color: 'var(--primary)' },
                 { key: 'AVAILABLE', label: '점검대상', count: queueCounts.available, color: '#10b981' },
               ].map(f => (
                 <button
@@ -906,7 +906,7 @@ export const Repairs: React.FC = () => {
                               🚨 입고결함
                             </span>
                           ) : activeExternal ? (
-                            <span className="badge" style={{ fontSize: '10px', padding: '2px 6px', backgroundColor: '#8b5cf6', color: '#ffffff' }}>
+                            <span className="badge" style={{ fontSize: '10px', padding: '2px 6px', backgroundColor: 'var(--primary)', color: '#ffffff' }}>
                               외주:{getVendorName(activeExternal.vendorId)}
                             </span>
                           ) : unresolvedRepair ? (
@@ -1258,7 +1258,7 @@ export const Repairs: React.FC = () => {
                 {maintenanceType === 'EXTERNAL' && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', padding: '10px', backgroundColor: 'rgba(139, 92, 246, 0.08)', borderRadius: '6px', border: '1px solid rgba(139, 92, 246, 0.25)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '11px', fontWeight: '700', color: '#7c3aed', whiteSpace: 'nowrap' }}>외주 정비 거래처 *</label>
+                      <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>외주 정비 거래처 *</label>
                       <select
                         value={selectedVendorId} data-mid="repair-vendor-select"
                         onChange={e => setSelectedVendorId(e.target.value)}
@@ -1271,7 +1271,7 @@ export const Repairs: React.FC = () => {
                       </select>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '11px', fontWeight: '700', color: '#7c3aed', whiteSpace: 'nowrap' }}>외주 정비 예상 비용 (원)</label>
+                      <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>외주 정비 예상 비용 (원)</label>
                       <input
                         type="number"
                         min={0}
@@ -1578,7 +1578,7 @@ export const Repairs: React.FC = () => {
                           className="btn-primary"
                           onClick={handleOutsourceRepair}
                           disabled={!canSave || isProcessingImage || isSubmittingRepair}
-                          style={{ padding: '8px 16px', fontSize: '13px', fontWeight: '700', backgroundColor: '#7c3aed', borderColor: '#7c3aed', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', flexShrink: 0 }}
+                          style={{ padding: '8px 16px', fontSize: '13px', fontWeight: '700', backgroundColor: 'var(--primary)', borderColor: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap', flexShrink: 0 }}
                         >
                           <Truck size={14} /> {isSubmittingRepair ? '처리중...' : '외주 위탁 등록'}
                         </button>
