@@ -1,1 +1,0 @@
-v1.15.0.Build.00009 - Update asset status to RENTED on outbound inspection approval and append system core values to AGENTS.md
