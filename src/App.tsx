@@ -1505,6 +1505,17 @@ const App: React.FC = () => {
             targetLoginId={pendingDeviceLogin?.id || loginId}
           />
         )}
+        {showBiometricModal && (
+          <BiometricAuthModal
+            isOpen={showBiometricModal}
+            onClose={() => {
+              setShowBiometricModal(false);
+              setPendingDeviceLogin(null);
+            }}
+            onSuccess={handleBiometricSuccess}
+            targetLoginId={pendingDeviceLogin?.id || "admin"}
+          />
+        )}
         </div>
       </div>
     );
