@@ -534,7 +534,7 @@ export const AssetHistory: React.FC = () => {
               </label>
               <button
                 type="button"
-                className="btn-primary"
+                className="btn-query"
                 onClick={() => handleSearch()}
                 style={{
                   width: '100%',

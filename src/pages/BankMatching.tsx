@@ -1221,7 +1221,7 @@ export const BankMatching: React.FC = () => {
               </button>
 
               <button
-                className="btn btn-primary"
+                className="btn-query"
                 style={{ padding: '3px 14px', height: '28px', fontSize: '12px', fontWeight: '700', marginBottom: '1px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
                 onClick={handleSearch}
               >

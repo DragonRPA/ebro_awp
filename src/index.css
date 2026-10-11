@@ -683,23 +683,30 @@ button {
   line-height: 1 !important;
 }
 
-/* 1. 조회 기능 (Query / Search) : 차분하고 지적인 Slate Navy */
+/* 1. 조회 기능 (Query / Search) : 전사 대표 액션 클래식 로열 블루 솔리드 (#1d4ed8) */
 .btn-query,
 .btn-search {
-  background-color: #334155 !important;
+  background-color: #1d4ed8 !important;
   color: #ffffff !important;
-  border: 1px solid #1e293b !important;
+  border: 1px solid #1e40af !important;
+  font-weight: 700 !important;
+}
+.btn-query svg,
+.btn-search svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
 }
 .btn-query:hover,
 .btn-search:hover {
-  background-color: #1e293b !important;
-  border-color: #0f172a !important;
+  background-color: #1e40af !important;
+  border-color: #172554 !important;
+  color: #ffffff !important;
 }
 [data-theme='dark'] .btn-query,
 [data-theme='dark'] .btn-search {
   background-color: #475569 !important;
   color: #ffffff !important;
-  border-color: #334155 !important;
+  border: 1px solid #334155 !important;
 }
 [data-theme='dark'] .btn-query:hover,
 [data-theme='dark'] .btn-search:hover {

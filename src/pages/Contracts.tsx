@@ -1743,7 +1743,7 @@ export const Contracts: React.FC = () => {
                 <label style={{ fontSize: '11px', fontWeight: 700, visibility: 'hidden', whiteSpace: 'nowrap', userSelect: 'none' }}>조회</label>
                 <button
                   type="button"
-                  className="btn-primary"
+                  className="btn-query"
                   onClick={handleSearchClick}
                   style={{
                     display: 'inline-flex',

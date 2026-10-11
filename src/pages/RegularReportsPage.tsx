@@ -351,25 +351,13 @@ export const RegularReportsPage: React.FC = () => {
 
           <button
             type="button"
+            className="btn-query"
             data-uia="btn-refresh-report"
             onClick={() => {
               app.refreshAllData();
               showToast('보고서 원천 데이터를 새로고침하였습니다.', 'info');
             }}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 14px',
-              backgroundColor: 'var(--bg-card, #1e293b)',
-              color: 'var(--text-main, #f8fafc)',
-              border: '1px solid var(--border-color, #334155)',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              height: '34px',
               marginTop: '16px'
             }}
           >
