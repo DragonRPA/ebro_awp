@@ -3268,7 +3268,7 @@ export const TruckDispatch: React.FC = () => {
     });
     const todayStr = new Date().toISOString().split('T')[0];
     exportToExcel(rows, `배차대장_${todayStr}`, '배차목록');
-    showToast(`배차 대장 ${rows.length}건 엑셀 내보내기 완료`);
+    showToast(`배차 대장 ${rows.length}건 엑셀 다운로드 완료`);
   };
 
   return (
@@ -3303,23 +3303,35 @@ export const TruckDispatch: React.FC = () => {
             <Truck size={22} color="var(--primary)" /> 배차 / 운송 관리
           </h2>
         </div>
-        {activeTab === 'DISPATCH' && canSave && (
+        {activeTab === 'DISPATCH' && (
           <div className="toolbar-actions">
+            {canSave && (
+              <>
+                <button
+                  className="btn-save"
+                  data-mid="btn-new-dispatch"
+                  onClick={() => setShowManualModal(true)}
+                >
+                  <Plus size={13} /> 수동 배차 등록
+                </button>
+                <button
+                  data-uia="btn-excel-upload-delivery"
+                  data-hs-trigger="Register"
+                  className="btn-excel-upload"
+                  onClick={() => setDispatchExcelModalOpen(true)}
+                >
+                  <FileSpreadsheet size={13} />
+                  <span>배차 엑셀 일괄 등록</span>
+                </button>
+              </>
+            )}
             <button
-              className="btn-save"
-              data-mid="btn-new-dispatch"
-              onClick={() => setShowManualModal(true)}
+              className="btn-excel-download"
+              data-mid="btn-dispatch-export"
+              onClick={handleExportDispatchExcel}
             >
-              <Plus size={13} /> 수동 배차 등록
-            </button>
-            <button
-              data-uia="btn-excel-upload-delivery"
-              data-hs-trigger="Register"
-              className="btn-excel-upload"
-              onClick={() => setDispatchExcelModalOpen(true)}
-            >
-              <FileSpreadsheet size={13} />
-              <span>배차 엑셀 일괄 등록</span>
+              <Download size={13} />
+              <span>엑셀 다운로드</span>
             </button>
           </div>
         )}
@@ -3422,31 +3434,6 @@ export const TruckDispatch: React.FC = () => {
                 </span>
               </button>
             ))}
-            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
-              <button
-                onClick={handleExportDispatchExcel}
-                data-mid="btn-dispatch-export"
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-card)',
-                  color: 'var(--text-primary)',
-                  fontWeight: 700,
-                  fontSize: '12.5px',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  whiteSpace: 'nowrap',
-                  flexShrink: 0,
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                }}
-              >
-                <Download size={14} />
-                엑셀 내보내기
-              </button>
-            </div>
           </div>
 
           {/* 2열 메인 레이아웃 (좌: 배차 목록 + 📅 기간조회 | 우: 기사 배정 폼) */}
