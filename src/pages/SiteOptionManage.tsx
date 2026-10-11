@@ -15,6 +15,8 @@ const DeveloperSiteMergeModal: React.FC<{
 
   const masters = db.siteMasters || [];
 
+  const [showConfirmStep, setShowConfirmStep] = useState(false);
+
   const handleMerge = async () => {
     if (!sourceId || !targetId) return showErrorModal('병합할 두 현장을 선택하세요.');
     if (sourceId === targetId) return showErrorModal('서로 다른 현장을 선택하세요.');
@@ -27,9 +29,6 @@ const DeveloperSiteMergeModal: React.FC<{
     const discardedId = survivor === 'A' ? masterB.id : masterA.id;
     const survivingName = survivor === 'A' ? masterA.name : masterB.name;
     const discardedName = survivor === 'A' ? masterB.name : masterA.name;
-
-    const confirmed = window.confirm(`[${discardedName}] 현장을 폐기하고, 모든 연결을 [ ${survivingName} ](으)로 이동시킵니다.n진행하시겠습니까?`);
-    if (!confirmed) return;
 
     // 1. Update all CustomerSiteLinks
     let updatedCount = 0;
@@ -96,7 +95,29 @@ const DeveloperSiteMergeModal: React.FC<{
 
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '12px' }}>
           <button type="button" className="btn-secondary" onClick={onClose}>취소</button>
-          <button type="button" className="btn-danger" onClick={handleMerge} style={{ background: '#ef4444', color: '#fff', border: 'none' }}>강제 병합 실행</button>
+          {!showConfirmStep ? (
+            <button
+              type="button"
+              className="btn-danger"
+              onClick={() => {
+                if (!sourceId || !targetId) return showErrorModal('병합할 두 현장을 선택하세요.');
+                if (sourceId === targetId) return showErrorModal('서로 다른 현장을 선택하세요.');
+                setShowConfirmStep(true);
+              }}
+              style={{ background: '#ef4444', color: '#fff', border: 'none' }}
+            >
+              강제 병합 검토
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn-danger"
+              onClick={handleMerge}
+              style={{ background: '#b91c1c', color: '#fff', border: 'none', fontWeight: 800 }}
+            >
+              확인: 폐기 및 최종 병합 실행
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -151,13 +172,19 @@ export const SiteOptionManage: React.FC = () => {
         return;
       }
     }
-    if (!window.confirm(`[${site.name}] 현장을 ${targetStatus ? '가동(진행중)' : '종료(완공)'} 상태로 변경하시겠습니까?\n\n※ 종료 시, 계약 등록 및 배차 화면의 현장 선택 목록에서 제외됩니다.`)) return;
-    try {
-      await saveSiteMaster({ id: site.id, isActive: targetStatus });
-      showToast(`[${site.name}] 현장이 ${targetStatus ? '가동중' : '완공/종료'} 상태로 변경되었습니다.`);
-    } catch (err: any) {
-      showErrorModal('상태 변경 실패: ' + err.message);
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: '현장 가동 상태 변경 확인',
+      message: `[${site.name}] 현장을 ${targetStatus ? '가동(진행중)' : '종료(완공)'} 상태로 변경하시겠습니까?\n\n※ 종료 시, 계약 등록 및 배차 화면의 현장 선택 목록에서 제외됩니다.`,
+      onConfirm: async () => {
+        try {
+          await saveSiteMaster({ id: site.id, isActive: targetStatus });
+          showToast(`[${site.name}] 현장이 ${targetStatus ? '가동중' : '완공/종료'} 상태로 변경되었습니다.`);
+        } catch (err: any) {
+          showErrorModal('상태 변경 실패: ' + err.message);
+        }
+      }
+    });
   };
   const handleOpenEditMaster = (site: any) => {
     setEditSiteMasterForm({ id: site.id, name: site.name || '', address: site.address || '' });
@@ -284,6 +311,19 @@ export const SiteOptionManage: React.FC = () => {
   // 5. 옵션 품목 마스터 신규/수정 모달 상태
   const [showMasterModal, setShowMasterModal] = useState(false);
   const [editingMasterOption, setEditingMasterOption] = useState<Partial<StandardOption> | null>(null);
+
+  // 6. 확인 대화상자 모달 상태 (헌장 5.2 window.confirm 전면 퇴출)
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
 
   // ── 🏢 각 현장(SiteMaster)별 사용 중인 고객사 및 진행 계약 집계 ──
   const siteCustomerStatsMap = useMemo(() => {
@@ -1794,17 +1834,22 @@ export const SiteOptionManage: React.FC = () => {
                     <button
                       type="button"
                       data-hs-trigger="Delete"
-                      onClick={async () => {
-                        if (confirm('이 옵션 품목 마스터를 삭제하시겠습니까?')) {
-                          try {
-                            await deleteStandardOption(editingMasterOption.id!);
-                            setShowMasterModal(false);
-                            setEditingMasterOption(null);
-                            await fullRefreshFromServer();
-                          } catch (err: any) {
-                            showErrorModal(`삭제 실패: ${err.message}`);
+                      onClick={() => {
+                        setConfirmModal({
+                          isOpen: true,
+                          title: '옵션 품목 마스터 삭제 확인',
+                          message: '이 옵션 품목 마스터를 삭제하시겠습니까?',
+                          onConfirm: async () => {
+                            try {
+                              await deleteStandardOption(editingMasterOption.id!);
+                              setShowMasterModal(false);
+                              setEditingMasterOption(null);
+                              await fullRefreshFromServer();
+                            } catch (err: any) {
+                              showErrorModal(`삭제 실패: ${err.message}`);
+                            }
                           }
-                        }
+                        });
                       }}
                       style={{
                         padding: '7px 14px', borderRadius: '6px', border: '1px solid #ef4444', 
@@ -1849,6 +1894,57 @@ export const SiteOptionManage: React.FC = () => {
               >
                 저장
               </button></div></div></form>
+        </div>
+      )}
+
+      {/* ── 전사 표준 확인 모달 (헌장 5.2 window.confirm 전면 퇴출) ── */}
+      {confirmModal.isOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 99999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-card)', borderRadius: '10px',
+            padding: '20px', maxWidth: '420px', width: '90%',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.3)', border: '1px solid var(--border-color)',
+            display: 'flex', flexDirection: 'column', gap: '14px'
+          }}>
+            <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: 'var(--text-main)' }}>
+              {confirmModal.title}
+            </h4>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+              {confirmModal.message}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
+              <button
+                type="button"
+                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                style={{
+                  padding: '7px 14px', borderRadius: '6px',
+                  border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)',
+                  color: 'var(--text-secondary)', fontSize: '13px', fontWeight: 600, cursor: 'pointer'
+                }}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const action = confirmModal.onConfirm;
+                  setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                  action();
+                }}
+                style={{
+                  padding: '7px 16px', borderRadius: '6px',
+                  border: 'none', backgroundColor: 'var(--primary)',
+                  color: '#ffffff', fontSize: '13px', fontWeight: 700, cursor: 'pointer'
+                }}
+              >
+                확인
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

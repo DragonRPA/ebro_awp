@@ -41,6 +41,7 @@ export const PrivacyAuditPage: React.FC = () => {
   const [selectedMenu, setSelectedMenu] = useState('ALL');
   const [maskFilter, setMaskFilter] = useState<'ALL' | 'MASKED' | 'UNMASKED'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeAuditTab, setActiveAuditTab] = useState<'LOGS' | 'DEVICES'>('LOGS');
 
   // 개인정보 처리방침 모달
   const [showPolicyModal, setShowPolicyModal] = useState(false);
@@ -281,7 +282,7 @@ export const PrivacyAuditPage: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="privacyauditpage" data-mid="privacy-header" data-subview="privacy_audit" data-subview-title="Generated" style={{ padding: '0 4px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+    <div data-hs-observe="privacyauditpage" data-mid="privacy-header" data-subview="privacy_audit" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '6px', height: '100%', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
       {/* 🔔 인앱 토스트 */}
       {toastMessage && (
         <div style={{
@@ -307,16 +308,8 @@ export const PrivacyAuditPage: React.FC = () => {
       {/* 개인정보 처리방침 모달 */}
       <PrivacyPolicyModal isOpen={showPolicyModal} onClose={() => setShowPolicyModal(false)} />
 
-      {/* ─────────────────────────────────────────────────────────────
-          헤더 및 정책 바로가기
-          ───────────────────────────────────────────────────────────── */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '12px'
-      }}>
+      {/* 헤더 및 정책 바로가기 */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', flexShrink: 0, paddingBottom: '4px', borderBottom: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{
             width: '36px',
@@ -334,13 +327,40 @@ export const PrivacyAuditPage: React.FC = () => {
             <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: 'var(--text-main, #0f172a)' }}>
               개인정보 접속 감사
             </h2>
-            <div style={{ fontSize: '12px', color: 'var(--text-secondary, #475569)', marginTop: '2px' }}>
-              대한민국 개인정보 보호법 제29조 및 개인정보의 안전성 확보조치 기준 제8조 준수 접속기록 관리
-            </div>
-          </div>
-        </div>
+            </div></div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+          {/* 감사 모드 탭 */}
+          <div style={{ display: 'flex', gap: '4px', marginRight: '6px' }}>
+            <button
+              type="button"
+              onClick={() => setActiveAuditTab('LOGS')}
+              style={{
+                padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 700,
+                background: activeAuditTab === 'LOGS' ? 'var(--primary)' : 'var(--bg-card)',
+                color: activeAuditTab === 'LOGS' ? '#fff' : 'var(--text-secondary)',
+                border: activeAuditTab === 'LOGS' ? 'none' : '1px solid var(--border-color)',
+                cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px'
+              }}
+            >
+              <FileCheck size={13} /> 접속 감사 대장
+            </button>
+            {(isSuperAdmin || isExecutive) && (
+              <button
+                type="button"
+                onClick={() => setActiveAuditTab('DEVICES')}
+                style={{
+                  padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 700,
+                  background: activeAuditTab === 'DEVICES' ? 'var(--primary)' : 'var(--bg-card)',
+                  color: activeAuditTab === 'DEVICES' ? '#fff' : 'var(--text-secondary)',
+                  border: activeAuditTab === 'DEVICES' ? 'none' : '1px solid var(--border-color)',
+                  cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px'
+                }}
+              >
+                <Laptop size={13} /> 개발자 단말기 인가
+              </button>
+            )}
+          </div>
           <button data-hs-trigger="Process"
             type="button"
             onClick={() => setShowPolicyModal(true)}
@@ -388,7 +408,9 @@ export const PrivacyAuditPage: React.FC = () => {
       </div>
 
       {/* 🛡️ 테넌트별 개인정보 보호책임자(CPO) 지정 현황 바 */}
-      {(() => {
+      {activeAuditTab === 'LOGS' && (
+        <>
+          {(() => {
         const companyName = currentTenant?.tradeName || currentTenant?.corporateName || currentTenant?.displayName || '(주)기연리프트';
         const officer = currentTenant?.privacyOfficer || {
           name: currentTenant?.privacyOfficerName || currentTenant?.representativeName || '대표이사 / 관리부 총괄',
@@ -403,13 +425,7 @@ export const PrivacyAuditPage: React.FC = () => {
             backgroundColor: 'var(--bg-card, #ffffff)',
             borderRadius: '8px',
             border: '1px solid var(--border-color)',
-            padding: '12px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '12px'
-          }}>
+            padding: '6px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', flexShrink: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <div data-mid="privacy-cpo-badge" style={{
                 padding: '4px 8px',
@@ -454,11 +470,7 @@ export const PrivacyAuditPage: React.FC = () => {
         backgroundColor: 'var(--bg-card, #ffffff)',
         borderRadius: '8px',
         border: '1px solid var(--border-color)',
-        padding: '12px 18px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '10px'
-      }}>
+        padding: '6px 14px', display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Lock size={15} color="var(--primary)" />
@@ -475,9 +487,8 @@ export const PrivacyAuditPage: React.FC = () => {
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '10px'
-        }}>
-          <div style={{ padding: '8px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          gap: '6px' }}>
+          <div style={{ padding: '4px 8px', borderRadius: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <CheckCircle size={16} color="#059669" />
             <div>
               <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-main)' }}>고유식별정보 (주민번호/신분증)</div>
@@ -485,7 +496,7 @@ export const PrivacyAuditPage: React.FC = () => {
             </div>
           </div>
 
-          <div style={{ padding: '8px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ padding: '4px 8px', borderRadius: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <CheckCircle size={16} color="#059669" />
             <div>
               <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-main)' }}>금융정보 (계좌번호/법인카드)</div>
@@ -493,7 +504,7 @@ export const PrivacyAuditPage: React.FC = () => {
             </div>
           </div>
 
-          <div style={{ padding: '8px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ padding: '4px 8px', borderRadius: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <CheckCircle size={16} color="#059669" />
             <div>
               <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-main)' }}>민감 개인정보 (생년월일/연락처)</div>
@@ -501,7 +512,7 @@ export const PrivacyAuditPage: React.FC = () => {
             </div>
           </div>
 
-          <div style={{ padding: '8px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ padding: '4px 8px', borderRadius: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <CheckCircle size={16} color="#059669" />
             <div>
               <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-main)' }}>평문 노출 제로 (Zero-Plaintext)</div>
@@ -518,11 +529,7 @@ export const PrivacyAuditPage: React.FC = () => {
         backgroundColor: 'var(--bg-card, #ffffff)',
         borderRadius: '8px',
         border: '1px solid var(--border-color, var(--border-color))',
-        padding: '14px 18px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px'
-      }}>
+        padding: '6px 14px', display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
         <div style={{
           display: 'flex',
           alignItems: 'flex-end',
@@ -542,7 +549,7 @@ export const PrivacyAuditPage: React.FC = () => {
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 style={{
-                  padding: '6px 10px',
+                  padding: '4px 8px',
                   fontSize: '12px',
                   borderRadius: '6px',
                   border: '1px solid var(--border-color, var(--border-color))',
@@ -562,7 +569,7 @@ export const PrivacyAuditPage: React.FC = () => {
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 style={{
-                  padding: '6px 10px',
+                  padding: '4px 8px',
                   fontSize: '12px',
                   borderRadius: '6px',
                   border: '1px solid var(--border-color, var(--border-color))',
@@ -582,7 +589,7 @@ export const PrivacyAuditPage: React.FC = () => {
                 value={selectedAction}
                 onChange={(e) => setSelectedAction(e.target.value)}
                 style={{
-                  padding: '6px 10px',
+                  padding: '4px 8px',
                   fontSize: '12px',
                   borderRadius: '6px',
                   border: '1px solid var(--border-color, var(--border-color))',
@@ -611,7 +618,7 @@ export const PrivacyAuditPage: React.FC = () => {
                 value={selectedUser}
                 onChange={(e) => setSelectedUser(e.target.value)}
                 style={{
-                  padding: '6px 10px',
+                  padding: '4px 8px',
                   fontSize: '12px',
                   borderRadius: '6px',
                   border: '1px solid var(--border-color, var(--border-color))',
@@ -638,7 +645,7 @@ export const PrivacyAuditPage: React.FC = () => {
                 value={maskFilter}
                 onChange={(e) => setMaskFilter(e.target.value as any)}
                 style={{
-                  padding: '6px 10px',
+                  padding: '4px 8px',
                   fontSize: '12px',
                   borderRadius: '6px',
                   border: '1px solid var(--border-color, var(--border-color))',
@@ -665,7 +672,7 @@ export const PrivacyAuditPage: React.FC = () => {
                 placeholder="성명, 사번, 대상정보, 상세내용"
                 style={{
                   width: '180px',
-                  padding: '6px 10px',
+                  padding: '4px 8px',
                   fontSize: '12px',
                   borderRadius: '6px',
                   border: '1px solid var(--border-color, var(--border-color))',
@@ -707,14 +714,7 @@ export const PrivacyAuditPage: React.FC = () => {
       {/* ─────────────────────────────────────────────────────────────
           개인정보 접속 이력 대장
           ───────────────────────────────────────────────────────────── */}
-      <div className="table-container" style={{
-        backgroundColor: 'var(--bg-card, #ffffff)',
-        borderRadius: '8px',
-        border: '1px solid var(--border-color, var(--border-color))',
-        maxHeight: 'calc(100vh - 280px)',
-        overflowX: 'auto',
-        overflowY: 'auto'
-      }}>
+      <div className="table-container" style={{ backgroundColor: 'var(--bg-card, #ffffff)', borderRadius: '6px', border: '1px solid var(--border-color)', flex: 1, minHeight: 0, overflow: 'auto' }}>
         <table data-mid="privacy-inspection-grid" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', whiteSpace: 'nowrap' }}>
           <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-secondary)' }}>
             <tr style={{
@@ -724,7 +724,7 @@ export const PrivacyAuditPage: React.FC = () => {
               fontWeight: 700,
               whiteSpace: 'nowrap'
             }}>
-              <th style={{ padding: '8px 12px', textAlign: 'center', width: '50px' }}>NO</th>
+              <th style={{ padding: '4px 8px', textAlign: 'center', width: '50px' }}>NO</th>
               <SortableTh label="일시" sortKey="createdAt" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} />
               <SortableTh label="접속자" sortKey="userName" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} />
               <SortableTh label="수행 업무" sortKey="actionType" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} align="center" />
@@ -737,7 +737,7 @@ export const PrivacyAuditPage: React.FC = () => {
           <tbody>
             {sortedLogs.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ padding: '50px', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' }}>
+                <td colSpan={6} style={{ padding: '50px', textAlign: 'center', color: 'var(--text-muted, #94a3b8)' }}>
                   조회 조건에 해당하는 개인정보 접속기록이 없습니다.
                 </td>
               </tr>
@@ -755,19 +755,19 @@ export const PrivacyAuditPage: React.FC = () => {
                       height: '38px'
                     }}
                   >
-                    <td style={{ padding: '8px 12px', textAlign: 'center', color: 'var(--text-muted, #64748b)' }}>
+                    <td style={{ padding: '4px 8px', textAlign: 'center', color: 'var(--text-muted, #64748b)' }}>
                       {idx + 1}
                     </td>
-                    <td style={{ padding: '8px 12px', fontFamily: 'monospace', color: 'var(--text-main, #0f172a)' }}>
+                    <td style={{ padding: '4px 8px', fontFamily: 'monospace', color: 'var(--text-main, #0f172a)' }}>
                       {log.createdAt ? log.createdAt.replace('T', ' ').substring(0, 19) : '-'}
                     </td>
-                    <td style={{ padding: '8px 12px', fontWeight: 600, color: 'var(--text-main, #0f172a)' }}>
+                    <td style={{ padding: '4px 8px', fontWeight: 600, color: 'var(--text-main, #0f172a)' }}>
                       {log.userName}
                       <span style={{ fontSize: '11px', color: 'var(--text-muted, #64748b)', marginLeft: '4px', fontWeight: 400 }}>
                         ({log.userId})
                       </span>
                     </td>
-                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                    <td style={{ padding: '4px 8px', textAlign: 'center' }}>
                       <span style={{
                         display: 'inline-block',
                         padding: '2px 8px',
@@ -790,13 +790,13 @@ export const PrivacyAuditPage: React.FC = () => {
                         {log.actionType}
                       </span>
                     </td>
-                    <td style={{ padding: '8px 12px', color: 'var(--text-secondary, #475569)' }}>
+                    <td style={{ padding: '4px 8px', color: 'var(--text-secondary, #475569)' }}>
                       {log.targetMenu}
                     </td>
-                    <td style={{ padding: '8px 12px', fontWeight: log.targetSubjectName ? 600 : 400, color: 'var(--text-main, #0f172a)' }}>
+                    <td style={{ padding: '4px 8px', fontWeight: log.targetSubjectName ? 600 : 400, color: 'var(--text-main, #0f172a)' }}>
                       {log.targetSubjectName || '-'}
                     </td>
-                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                    <td style={{ padding: '4px 8px', textAlign: 'center' }}>
                       {isUnmasked ? (
                         <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'var(--danger-light)', color: 'var(--danger)', fontWeight: 700 }}>
                           비마스킹 (전체)
@@ -807,7 +807,7 @@ export const PrivacyAuditPage: React.FC = () => {
                         </span>
                       )}
                     </td>
-                    <td style={{ padding: '8px 12px', color: 'var(--text-main, #0f172a)' }}>
+                    <td style={{ padding: '4px 8px', color: 'var(--text-main, #0f172a)' }}>
                       {log.actionDetail}
                     </td>
                   </tr>
@@ -874,20 +874,14 @@ export const PrivacyAuditPage: React.FC = () => {
           )}
         </div>
       </div>
+      </>
+      )}
 
       {/* ─────────────────────────────────────────────────────────────
           🛡️ 인가된 개발자 물리 단말기 (Hardware-Bound Machine Registry)
           ───────────────────────────────────────────────────────────── */}
-      {(isSuperAdmin || isExecutive) && (
-        <div style={{
-          backgroundColor: 'var(--bg-card)',
-          borderRadius: '8px',
-          border: '1px solid var(--border-color)',
-          padding: '16px 20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '14px'
-        }}>
+      {activeAuditTab === 'DEVICES' && (isSuperAdmin || isExecutive) && (
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {/* 패널 헤더 및 버튼군 */}
           <div style={{
             display: 'flex',
@@ -991,11 +985,11 @@ export const PrivacyAuditPage: React.FC = () => {
           </div>
 
           {/* 단말기 목록 고밀도 테이블 */}
-          <div style={{ overflowX: 'auto' }}>
+          <div className="table-container" style={{ flex: 1, minHeight: 0, overflow: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
             <table style={{
               width: '100%',
               borderCollapse: 'collapse',
-              fontSize: '12.5px',
+              fontSize: '12px',
               textAlign: 'left'
             }}>
               <thead>
@@ -1005,14 +999,12 @@ export const PrivacyAuditPage: React.FC = () => {
                   color: 'var(--text-secondary, #475569)',
                   fontWeight: 700
                 }}>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>단말기명 / 기기 구분</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>담당 개발자</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>물리 MAC 주소</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>하드웨어 지문</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>등록 일시</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>최근 인증 일시</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', textAlign: 'center' }}>상태</th>
-                  <th style={{ padding: '8px 12px', whiteSpace: 'nowrap', textAlign: 'center' }}>관리</th>
+                  <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>단말기 식별</th>
+                  <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>담당 개발자</th>
+                  <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>물리 보안 식별자</th>
+                  <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>인가 및 인증 일시</th>
+                  <th style={{ padding: '6px 8px', whiteSpace: 'nowrap', textAlign: 'center' }}>상태</th>
+                  <th style={{ padding: '6px 8px', whiteSpace: 'nowrap', textAlign: 'center' }}>관리</th>
                 </tr>
               </thead>
               <tbody>
@@ -1032,7 +1024,7 @@ export const PrivacyAuditPage: React.FC = () => {
                         opacity: dev.status === 'REVOKED' ? 0.75 : 1
                       }}
                     >
-                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontWeight: 600, color: 'var(--text-main, #0f172a)' }}>
+                      <td style={{ padding: '4px 8px', whiteSpace: 'nowrap', fontWeight: 600, color: 'var(--text-main, #0f172a)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <Cpu size={15} color="var(--primary, #4f46e5)" />
                           <div>
@@ -1071,7 +1063,7 @@ export const PrivacyAuditPage: React.FC = () => {
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '4px 8px', whiteSpace: 'nowrap' }}>
                         <div style={{ fontWeight: 600, color: 'var(--text-main, #0f172a)' }}>
                           {dev.developerName || '대표 개발자'}
                         </div>
@@ -1079,22 +1071,22 @@ export const PrivacyAuditPage: React.FC = () => {
                           ID: {dev.developerId || 'sys-admin'}
                         </div>
                       </td>
-                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontFamily: 'monospace', fontWeight: 700, color: '#0f766e' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'monospace', fontWeight: 700, color: '#0f766e', fontSize: '12px' }}>
                           <Network size={13} color="#0d9488" />
                           <span>{dev.macAddress}</span>
                         </div>
+                        <div style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--text-muted, #64748b)', marginTop: '2px' }}>
+                          지문: {dev.hardwareFingerprint}
+                        </div>
                       </td>
-                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontFamily: 'monospace', fontSize: '11.5px', color: 'var(--text-secondary, #64748b)' }}>
-                        {dev.hardwareFingerprint}
+                      <td style={{ padding: '6px 8px', whiteSpace: 'nowrap', fontSize: '11.5px', color: 'var(--text-secondary, #64748b)' }}>
+                        <div>등록: {dev.registeredAt ? dev.registeredAt.replace('T', ' ').substring(0, 16) : '-'}</div>
+                        <div style={{ color: 'var(--text-muted, #64748b)', fontSize: '11px', marginTop: '2px' }}>
+                          인증: {dev.lastVerifiedAt ? dev.lastVerifiedAt.replace('T', ' ').substring(0, 16) : '-'}
+                        </div>
                       </td>
-                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontSize: '11.5px', color: 'var(--text-secondary, #64748b)' }}>
-                        {dev.registeredAt ? dev.registeredAt.replace('T', ' ').substring(0, 16) : '-'}
-                      </td>
-                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontSize: '11.5px', color: 'var(--text-secondary, #64748b)' }}>
-                        {dev.lastVerifiedAt ? dev.lastVerifiedAt.replace('T', ' ').substring(0, 16) : '-'}
-                      </td>
-                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                      <td style={{ padding: '4px 8px', whiteSpace: 'nowrap', textAlign: 'center' }}>
                         {dev.status === 'ACTIVE' ? (
                           <span style={{
                             fontSize: '11px',
@@ -1133,7 +1125,7 @@ export const PrivacyAuditPage: React.FC = () => {
                           </span>
                         )}
                       </td>
-                      <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', textAlign: 'center' }}>
+                      <td style={{ padding: '4px 8px', whiteSpace: 'nowrap', textAlign: 'center' }}>
                         {dev.status === 'ACTIVE' || dev.status === 'EMERGENCY_TEMP' ? (
                           <button
                             type="button"
@@ -1555,7 +1547,7 @@ export const PrivacyAuditPage: React.FC = () => {
                   fontWeight: 800,
                   color: '#991b1b',
                   backgroundColor: '#fee2e2',
-                  padding: '6px 10px',
+                  padding: '4px 8px',
                   borderRadius: '4px'
                 }}>
                   {EMERGENCY_BREAK_GLASS_KEY}

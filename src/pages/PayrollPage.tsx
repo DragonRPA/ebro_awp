@@ -348,7 +348,7 @@ export const PayrollPage: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="payrollpage" data-mid="payroll-header" data-subview="payroll" data-subview-title="Generated" style={{ position: 'relative' }}>
+    <div data-hs-observe="payrollpage" data-mid="payroll-header" data-subview="payroll" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: '100%', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div data-mid="payroll-toast" style={{
@@ -368,7 +368,7 @@ export const PayrollPage: React.FC = () => {
         </div>
       )}
       {/* 타이틀 헤더 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', flexShrink: 0, paddingBottom: '4px', borderBottom: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <CreditCard size={24} color="var(--primary)" />
           <h2 style={{ fontSize: '20px', fontWeight: '800' }}>급여 정산 대장</h2>
@@ -438,20 +438,20 @@ export const PayrollPage: React.FC = () => {
         const totalOtHours = payrollList.reduce((sum, p) => sum + (p.overtimeHours || 0), 0);
 
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '20px' }}>
-            <div style={{ padding: '12px 16px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: '6px', flexShrink: 0, gap: '8px' }}>
+            <div style={{ padding: '6px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '4px' }}>정산 대상 인원</div>
               <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--primary)' }}>{payrollList.length}명</div>
             </div>
-            <div style={{ padding: '12px 16px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <div style={{ padding: '6px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '4px' }}>기본급 합계</div>
               <div style={{ fontSize: '16px', fontWeight: 800 }}>₩{totalBase.toLocaleString()}원</div>
             </div>
-            <div style={{ padding: '12px 16px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <div style={{ padding: '6px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '4px' }}>총 OT 시간</div>
               <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--warning)' }}>{totalOtHours}시간</div>
             </div>
-            <div style={{ padding: '12px 16px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <div style={{ padding: '6px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '4px' }}>실지급 총액</div>
               <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--success)' }}>₩{totalNet.toLocaleString()}원</div>
             </div>
@@ -459,10 +459,10 @@ export const PayrollPage: React.FC = () => {
         );
       })()}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 3fr', gap: '24px', alignItems: 'start' }}>
+      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'grid', gridTemplateColumns: '320px 1fr', gap: '10px', alignItems: 'stretch' }}>
         {/* 좌측 제어판 */}
-        <div className="card" style={{ margin: 0 }}>
-          <div className="card-header">
+        <div className="card" style={{ margin: 0, height: '100%', minHeight: 0, overflowY: 'auto', padding: '12px', boxSizing: 'border-box' }}>
+          <div className="card-header" style={{ flexShrink: 0 }}>
             <h3 className="card-title">정산 제어판</h3>
           </div>
           
@@ -524,7 +524,7 @@ export const PayrollPage: React.FC = () => {
         </div>
 
         {/* 우측 급여대장 테이블 */}
-        <div className="card" style={{ margin: 0, overflowX: 'auto' }}>
+        <div className="card" style={{ margin: 0, height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0, boxSizing: 'border-box' }}>
           <div className="card-header">
             <h3 className="card-title">사원별 급여 명세</h3>
             <span className={`badge ${payrollStatus === 'APPROVED' ? 'badge-danger' : 'badge-info'}`}>
@@ -532,7 +532,7 @@ export const PayrollPage: React.FC = () => {
             </span>
           </div>
 
-          <div style={{ padding: '16px', display: 'flex', gap: '16px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', flexWrap: 'wrap', alignItems: 'end' }}>
+          <div style={{ padding: '8px 12px', display: 'flex', gap: '10px', borderBottom: '1px solid var(--border-color)', flexShrink: 0, backgroundColor: 'var(--bg-app)', flexWrap: 'wrap', alignItems: 'end' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '11px', fontWeight: '600', display: 'block', whiteSpace: 'nowrap', flexShrink: 0 }}>사원명</label>
               <input type="text" value={empSearch} onChange={e => setEmpSearch(e.target.value)} placeholder="이름 검색" style={{ padding: '6px', fontSize: '12px', width: '120px' }} />
@@ -557,7 +557,7 @@ export const PayrollPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="table-container" style={{ border: 'none', boxShadow: 'none', maxHeight: 'calc(100vh - 360px)', overflowY: 'auto', overflowX: 'auto' }}>
+          <div className="table-container" style={{ border: 'none', boxShadow: 'none', flex: 1, minHeight: 0, overflow: 'auto' }}>
             <table style={{ width: '100%', fontSize: '12.5px' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-card)' }}>
                 <tr>
@@ -773,19 +773,7 @@ export const PayrollPage: React.FC = () => {
 
       {/* ⚖️ Gutenberg Z-패턴 4단계 최하단 급여 정산 대차대조식 검증 바 (헌장 3.5) */}
       <div style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 'var(--sidebar-width, 240px)',
-        right: 0,
-        height: '42px',
-        backgroundColor: 'var(--bg-card)',
-        borderTop: '2px solid var(--primary)',
-        boxShadow: '0 -2px 10px rgba(0,0,0,0.08)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 20px',
-        zIndex: 99,
+        flexShrink: 0, height: '36px', backgroundColor: 'var(--bg-card)', borderTop: '2px solid var(--primary)', boxShadow: '0 -2px 10px rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 14px', zIndex: 10, borderRadius: '4px',
         fontSize: '11.5px',
         fontWeight: 600
       }}>
@@ -799,7 +787,7 @@ export const PayrollPage: React.FC = () => {
           <span style={{ color: 'var(--success)' }}>💰 <strong>실지급총액(세후):</strong> ₩{payrollAuditSummary.totalNet.toLocaleString()}원</span>
         </div>
       </div>
-      <div style={{ height: '50px' }} aria-hidden="true" />
+      
     </div>
   );
 };

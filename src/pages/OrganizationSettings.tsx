@@ -751,18 +751,16 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
   const unassignedCount = users.filter(u => u.departmentId === null).length;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative', minHeight: '900px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', height: '100%', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
       
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, paddingBottom: '4px', borderBottom: '1px solid var(--border-color)' }}>
         <div>
           <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Network size={24} color="var(--primary)" />
             인사 및 조직도 마스터 설정
           </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginTop: '4px' }}>
-            전사 임직원의 상세 프로필과 부서 배치, 입/퇴사 이력을 통합 관리합니다.
-          </p>
+          
         </div>
         
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -799,16 +797,16 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
         const retiredCount = users.filter(u => u.status === 'RETIRED').length;
 
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
-            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px', flexShrink: 0 }}>
+            <div style={{ padding: '6px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>총 조직 부서</span>
               <strong style={{ fontSize: '15px', color: 'var(--primary)' }}>{departments.length}개 부서</strong>
             </div>
-            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '6px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>재직 임직원</span>
               <strong style={{ fontSize: '15px', color: 'var(--success)' }}>{activeUsersCount}명</strong>
             </div>
-            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '6px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>부서 미배치 / 휴·퇴사</span>
               <strong style={{ fontSize: '15px', color: (unassignedCount + leaveCount + retiredCount) > 0 ? '#d97706' : 'var(--text-muted)' }}>{unassignedCount + leaveCount + retiredCount}명</strong>
             </div>
@@ -816,11 +814,11 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
         );
       })()}
 
-      <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', gap: '10px', alignItems: 'stretch' }}>
         
         {/* 좌측: 조직 트리 */}
-        <div className="card" style={{ width: '420px', minWidth: '380px', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+        <div className="card" style={{ width: '380px', minWidth: '340px', height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', flexShrink: 0, padding: '12px', margin: 0, boxSizing: 'border-box' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', flexShrink: 0 }}>
             <h3 style={{ fontSize: '15px', fontWeight: '700' }}>조직 구조도</h3>
             {canEdit && (
               <button onClick={handleAddDept} style={{ background: 'transparent', padding: '4px', color: 'var(--primary)' }} title="선택된 부서 아래에 하위 부서 추가">
@@ -828,7 +826,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
               </button>
             )}
           </div>
-          <div style={{ minHeight: '440px', maxHeight: 'calc(100vh - 340px)', overflowY: 'auto', overflowX: 'auto', paddingRight: '4px' }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'auto', paddingRight: '4px' }}>
             {renderDeptTree(null)}
           </div>
           
@@ -838,7 +836,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
             onDragOver={handleDragOver}
             onDrop={handleDropToPool}
             style={{
-              marginTop: '12px', padding: '10px 12px', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-md)',
+              marginTop: '8px', padding: '8px 10px', border: '1px dashed var(--border-color)', flexShrink: 0, borderRadius: 'var(--radius-md)',
               backgroundColor: activeTab === 'UNASSIGNED' ? 'var(--primary-light)' : 'var(--bg-app)',
               color: activeTab === 'UNASSIGNED' ? 'var(--primary)' : 'var(--text-secondary)',
               cursor: 'pointer', textAlign: 'center', fontWeight: '600', fontSize: '13.5px',
@@ -852,8 +850,8 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
         </div>
 
         {/* 중앙: 직원 리스트 뷰 */}
-        <div className="card" style={{ flex: 1, minWidth: '460px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+        <div className="card" style={{ flex: 1, minWidth: '420px', height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', padding: '12px', margin: 0, overflow: 'hidden', boxSizing: 'border-box' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', flexShrink: 0 }}>
             <h3 style={{ fontSize: '16px', fontWeight: '700' }}>
               {activeTab === 'DEPT' 
                 ? `${departments.find(d => d.id === selectedDeptId)?.name || '선택된 부서'} 소속원 (${displayedUsers.length}명)`
@@ -882,9 +880,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
 
             return (
               <div style={{
-                marginBottom: '16px',
-                padding: '12px 14px',
-                backgroundColor: 'var(--bg-app)',
+                marginBottom: '8px', padding: '8px 12px', backgroundColor: 'var(--bg-app)', flexShrink: 0,
                 borderRadius: 'var(--radius-md)',
                 border: '1px solid var(--border-color)',
                 display: 'flex',
@@ -963,7 +959,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
             );
           })()}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px', alignContent: 'start', overflowY: 'auto', flex: 1, padding: '4px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '10px', alignContent: 'start', overflowY: 'auto', flex: 1, minHeight: 0, padding: '4px' }}>
             {displayedUsers.length === 0 ? (
               <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
                 이 목록에 직원이 없습니다.
@@ -1300,11 +1296,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
 
       {/* ⚖️ 헌장 3.5 Gutenberg Z-패턴 4단계 조직/인사 대차대조 검증 바 */}
       <div style={{
-        marginTop: '16px',
-        backgroundColor: 'var(--bg-surface)',
-        border: '1px solid var(--border-color)',
-        borderRadius: '8px',
-        padding: '12px 18px',
+        marginTop: 0, backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '0 14px', height: '36px',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',

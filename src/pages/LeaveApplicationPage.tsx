@@ -410,8 +410,8 @@ export const LeaveApplicationPage: React.FC = () => {
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                 휴가 구분 (차감 일수):
               </label>
-              <select
- value={leaveType}
+              <select data-mid="leave-type-select"
+                value={leaveType}
                 onChange={(e: any) => setLeaveType(e.target.value)}
                 className="form-control"
                 style={{ fontSize: '13px' }}
@@ -427,8 +427,8 @@ export const LeaveApplicationPage: React.FC = () => {
               <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                 시작 일자:
               </label>
-              <input
- type="date"
+              <input data-mid="leave-start-date"
+                type="date"
                 required
                 value={leaveStartDate}
                 onChange={(e) => {
