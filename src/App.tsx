@@ -104,6 +104,7 @@ const GoogleConfig = React.lazy(() => import('./pages/GoogleConfig').then(module
 const InitialDbUploader = React.lazy(() => import('./pages/InitialDbUploader').then(module => ({ default: module.InitialDbUploader })));
 
 import { AgentRequiredModal } from './components/AgentRequiredModal';
+import { BiometricAuthModal } from './components/BiometricAuthModal';
 const OperationManualPage = React.lazy(() => import('./pages/OperationManualPage').then(module => ({ default: module.OperationManualPage })));
 const ErrorReportPage = React.lazy(() => import('./pages/ErrorReportPage').then(module => ({ default: module.ErrorReportPage })));
 import { MirrorSyncProgressToast } from './components/MirrorSyncProgressToast';
@@ -358,6 +359,7 @@ const App: React.FC = () => {
   // 개인정보 처리방침 법정 고지 모달 상태
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [showDeviceGuardModal, setShowDeviceGuardModal] = useState(false);
+  const [showBiometricModal, setShowBiometricModal] = useState(false);
   const [pendingDeviceLogin, setPendingDeviceLogin] = useState<{ id: string; pw: string } | null>(null);
 
   // 🔔 주기장/공장 현장용 업무 알림 설정 상태
@@ -583,6 +585,30 @@ const App: React.FC = () => {
       setLoginErrorMsg(`로그인 처리 중 시스템 오류가 발생했습니다: ${err?.message || err}`);
     } finally {
       setIsLoggingIn(false);
+    }
+  };
+
+  const handleBiometricSuccess = async () => {
+    setShowBiometricModal(false);
+    if (pendingDeviceLogin) {
+      setIsLoggingIn(true);
+      try {
+        const res = await login(pendingDeviceLogin.id, pendingDeviceLogin.pw, autoLogin, true);
+        if (res.success) {
+          if (rememberId) safeLocalStorageSet('remember_id', pendingDeviceLogin.id);
+          if (rememberPw) safeLocalStorageSet('remember_pw', encryptSecret(pendingDeviceLogin.pw));
+          if (!rememberId) setLoginId('');
+          if (!rememberPw) setPassword('');
+          setPendingDeviceLogin(null);
+          setActiveTab('dashboard');
+        } else {
+          setLoginErrorMsg(res.reason || '지문 인증 후 관리자 로그인에 실패했습니다.');
+        }
+      } catch (err: any) {
+        setLoginErrorMsg(`지문 인증 후 처리 중 오류가 발생했습니다: ${err?.message || err}`);
+      } finally {
+        setIsLoggingIn(false);
+      }
     }
   };
 
