@@ -90,12 +90,12 @@ export const Dashboard: React.FC = () => {
       {activeTasks.length > 0 && (
         <details data-mid="dashboard-todo-feed" open style={{
                 backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px 24px',
-                borderLeft: '5px solid #6366f1', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
+                borderLeft: '5px solid var(--primary)', border: '1px solid var(--border-color)', borderLeftWidth: '5px'
               }}>
 <summary style={{ cursor: "pointer", listStyle: "none", outline: "none" }}>
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: '800', color: '#6366f1', backgroundColor: 'rgba(99,102,241,0.1)', padding: '3px 9px', borderRadius: '4px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: '800', color: 'var(--primary)', backgroundColor: 'var(--primary-light)', padding: '3px 9px', borderRadius: '4px' }}>
                     담당 업무
                   </span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -105,7 +105,7 @@ export const Dashboard: React.FC = () => {
                   </div>
                 </div>
                 <h4 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Bell size={18} color="#6366f1" /> 업무 목록
+                  <Bell size={18} color="var(--primary)" /> 업무 목록
                 </h4>
 </summary>
 <div className="details-content">
@@ -115,13 +115,13 @@ export const Dashboard: React.FC = () => {
                   {activeTasks.slice(0, 8).map(task => {
                     const isDirective = task.taskCategory === 'EXECUTIVE_DIRECTIVE';
                     const isPackageResend = task.taskCategory === 'CONTRACT_PACKAGE_RESEND';
-                    const priorityColor = task.priority === 'URGENT' ? '#ef4444' : task.priority === 'HIGH' ? '#f59e0b' : '#3b82f6';
+                    const priorityColor = task.priority === 'URGENT' ? 'var(--danger)' : task.priority === 'HIGH' ? 'var(--warning)' : 'var(--primary)';
                     
                     return (
                       <div key={task.id} style={{
-                        backgroundColor: isDirective ? 'rgba(239, 68, 68, 0.03)' : isPackageResend ? 'rgba(99, 102, 241, 0.04)' : 'var(--bg-secondary)',
+                        backgroundColor: isDirective ? 'rgba(220, 38, 38, 0.05)' : isPackageResend ? 'rgba(29, 78, 216, 0.05)' : 'var(--bg-secondary)',
                         padding: '14px 16px', borderRadius: '8px',
-                        border: isDirective ? '1.5px solid rgba(239, 68, 68, 0.35)' : isPackageResend ? '1.5px solid rgba(99, 102, 241, 0.4)' : '1px solid var(--border-color)',
+                        border: isDirective ? '1.5px solid var(--danger)' : isPackageResend ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap'
                       }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', flex: 1, minWidth: '260px' }}>
@@ -136,7 +136,7 @@ export const Dashboard: React.FC = () => {
                             ) : isPackageResend ? (
                               <span style={{
                                 fontSize: '11px', fontWeight: '900', padding: '2px 8px', borderRadius: '4px',
-                                backgroundColor: '#6366f1', color: '#fff', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px'
+                                backgroundColor: 'var(--primary)', color: '#fff', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '3px'
                               }}>
                                 <FileText size={11} /> 패키지 재발송 필요
                               </span>
@@ -187,7 +187,7 @@ export const Dashboard: React.FC = () => {
                               style={{
                                 fontSize: '12px', padding: '6px 12px', borderRadius: '6px', border: 'none',
                                 backgroundColor: 'var(--primary)', color: '#fff', fontWeight: '800', cursor: 'pointer',
-                                display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 2px 6px rgba(79,70,229,0.3)',
+                                display: 'flex', alignItems: 'center', gap: '4px',
                                 whiteSpace: 'nowrap'
                               }}
                             >
@@ -234,7 +234,7 @@ export const Dashboard: React.FC = () => {
                               style={{
                                 fontSize: '12px', padding: '6px 12px', borderRadius: '6px', border: 'none',
                                 backgroundColor: 'var(--success)', color: '#fff', fontWeight: '800', cursor: 'pointer',
-                                display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 2px 6px rgba(16,185,129,0.25)',
+                                display: 'flex', alignItems: 'center', gap: '4px',
                                 whiteSpace: 'nowrap'
                               }}
                             >
@@ -265,7 +265,7 @@ export const Dashboard: React.FC = () => {
 
       {activeTasks.length === 0 && (
               <div className="card" style={{ padding: '36px 24px', textAlign: 'center', borderRadius: '12px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
-                <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', backgroundColor: 'rgba(34,197,94,0.1)', color: '#22c55e', marginBottom: '12px' }}>
+                <div style={{ display: 'inline-flex', padding: '12px', borderRadius: '50%', backgroundColor: 'var(--success-light)', color: 'var(--success)', marginBottom: '12px' }}>
                   <CheckCircle size={36} />
                 </div>
                 <h3 style={{ fontSize: '18px', fontWeight: '800', margin: '0 0 8px 0' }}>처리 대기 과제 없음</h3>

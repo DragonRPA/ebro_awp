@@ -1436,11 +1436,10 @@ export const Vendors: React.FC = () => {
                             fontWeight: isSelected ? '700' : '500',
                             borderRadius: '6px',
                             border: isSelected ? '1px solid var(--primary)' : '1px solid var(--border-color)',
-                            background: isSelected ? 'linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%)' : 'var(--bg-card)',
+                            background: isSelected ? 'var(--primary)' : 'var(--bg-card)',
                             color: isSelected ? '#ffffff' : 'var(--text-main)',
-                            boxShadow: isSelected ? '0 2px 8px rgba(59, 130, 246, 0.35)' : 'none',
                             cursor: 'pointer',
-                            transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                            transition: 'var(--transition-fast)'
                           }}
                         >
                           {isSelected && <Check size={14} style={{ color: '#fff', strokeWidth: 3 }} />}

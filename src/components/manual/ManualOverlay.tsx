@@ -154,6 +154,40 @@ export function ensureContainerUnfolded(item: ManualAnnotationItem, root: Parent
     didUnfold = true;
   }
 
+  // 4. 결재선 규칙 탭 (RULES vs TIERS)
+  if (sel.includes('tier-simulator') || sel.includes('duty-config') || sel.includes('position-config')) {
+    const tierTabBtn = safeQueryAll<HTMLButtonElement>(root, '[data-mid="approvalRules-tabs"] button')
+      .find(b => b.innerText && b.innerText.includes('직급·직책'));
+    if (tierTabBtn && tierTabBtn.style.color !== '#fff' && tierTabBtn.style.color !== 'rgb(255, 255, 255)') {
+      tierTabBtn.click();
+      didUnfold = true;
+    }
+  } else if (sel.includes('rules-grid') || sel.includes('approvalRules-sync')) {
+    const rulesTabBtn = safeQueryAll<HTMLButtonElement>(root, '[data-mid="approvalRules-tabs"] button')
+      .find(b => b.innerText && b.innerText.includes('결재선 규칙'));
+    if (rulesTabBtn && rulesTabBtn.style.color !== '#fff' && rulesTabBtn.style.color !== 'rgb(255, 255, 255)') {
+      rulesTabBtn.click();
+      didUnfold = true;
+    }
+  }
+
+  // 5. 프린트 큐 모니터 탭 (stations vs queue)
+  if (sel.includes('queue-filter') || sel.includes('queue-grid')) {
+    const queueTabBtn = safeQueryAll<HTMLButtonElement>(root, '[data-mid="print_queue_monitor-tabs"] button')
+      .find(b => b.innerText && b.innerText.includes('인쇄 대기 대장'));
+    if (queueTabBtn && !queueTabBtn.style.borderBottomColor?.includes('primary')) {
+      queueTabBtn.click();
+      didUnfold = true;
+    }
+  } else if (sel.includes('station-list') || sel.includes('station-form')) {
+    const stationTabBtn = safeQueryAll<HTMLButtonElement>(root, '[data-mid="print_queue_monitor-tabs"] button')
+      .find(b => b.innerText && b.innerText.includes('프린터 스테이션'));
+    if (stationTabBtn && !stationTabBtn.style.borderBottomColor?.includes('primary')) {
+      stationTabBtn.click();
+      didUnfold = true;
+    }
+  }
+
   return didUnfold;
 }
 
@@ -220,7 +254,8 @@ function queryElementBySelectorAndLabel(
 export function resolveTargetElement(
   item: ManualAnnotationItem,
   rootContainer?: HTMLElement | null,
-  isModalContext?: boolean
+  isModalContext?: boolean,
+  allowTabSwitch = false
 ): HTMLElement | null {
   // 모달 매뉴얼 모드인데 모달 엘리먼트가 없으면 탐색하지 않음 (일반 화면 요소로 폴백 방지)
   if (isModalContext && !rootContainer) {
@@ -233,8 +268,8 @@ export function resolveTargetElement(
   let foundEl = queryElementBySelectorAndLabel(item, root);
   if (foundEl) return foundEl;
 
-  // 2. 요소를 찾지 못했고 모달 컨텍스트가 아니라면 숨겨진 폼/탭 전개 후 즉시 재탐색!
-  if (!isModalContext) {
+  // 2. 요소를 찾지 못했고 모달 컨텍스트가 아니며 allowTabSwitch일 때만 숨겨진 폼/탭 전개 후 즉시 재탐색!
+  if (!isModalContext && allowTabSwitch) {
     const didUnfold = ensureContainerUnfolded(item, root);
     if (didUnfold) {
       foundEl = queryElementBySelectorAndLabel(item, root);
@@ -257,6 +292,25 @@ export function resolveTargetElement(
     } else if (sel.includes('dispatch4-exchange-') || sel.includes('dispatch4-safety-')) {
       const b = safeQuery(root, '[data-mid="dispatch4-block-safety"]');
       if (b) return b;
+    }
+
+    // 3-1. 비활성 탭 내부 하위 요소의 경우 해당 탭 버튼을 타겟으로 안전 앵커링 (엉뚱한 화면 상단으로 튀는 오류 방지)
+    if (sel.includes('tier-simulator') || sel.includes('duty-config') || sel.includes('position-config')) {
+      const tierTabBtn = safeQueryAll<HTMLButtonElement>(root, '[data-mid="approvalRules-tabs"] button')
+        .find(b => b.innerText && b.innerText.includes('직급·직책'));
+      if (tierTabBtn) return tierTabBtn;
+    } else if (sel.includes('rules-grid') || sel.includes('approvalRules-sync')) {
+      const rulesTabBtn = safeQueryAll<HTMLButtonElement>(root, '[data-mid="approvalRules-tabs"] button')
+        .find(b => b.innerText && b.innerText.includes('결재선 규칙'));
+      if (rulesTabBtn) return rulesTabBtn;
+    } else if (sel.includes('queue-filter') || sel.includes('queue-grid')) {
+      const queueTabBtn = safeQueryAll<HTMLButtonElement>(root, '[data-mid="print_queue_monitor-tabs"] button')
+        .find(b => b.innerText && b.innerText.includes('인쇄 대기 대장'));
+      if (queueTabBtn) return queueTabBtn;
+    } else if (sel.includes('station-list') || sel.includes('station-form')) {
+      const stationTabBtn = safeQueryAll<HTMLButtonElement>(root, '[data-mid="print_queue_monitor-tabs"] button')
+        .find(b => b.innerText && b.innerText.includes('프린터 스테이션'));
+      if (stationTabBtn) return stationTabBtn;
     }
   }
 
@@ -1035,17 +1089,16 @@ export const ManualOverlay: React.FC = () => {
         }
       }
 
-      // 6. 화면 내부 탭 버튼, 링크, 네비게이션 버튼 클릭 시 -> 매뉴얼 즉시 끄기
+      // 6. 화면 내부 탭 버튼 클릭 시 -> 매뉴얼을 끄지 않고 새 탭의 DOM 요소를 즉시 재스캔!
       const clickedBtn = target.closest('button, [role="tab"], .tab, a, [data-nav-item]');
       if (clickedBtn) {
-        const parent = clickedBtn.parentElement;
-        const siblingButtons = parent ? Array.from(parent.children).filter(c => c.tagName === 'BUTTON' || c.getAttribute('role') === 'tab') : [];
-        const isTabGroup = siblingButtons.length >= 2;
-        const isTabStyle = clickedBtn.getAttribute('role') === 'tab' ||
-                           clickedBtn.className?.includes('tab');
-
-        if (isTabGroup || isTabStyle) {
-          setMode('off');
+        const isTab = clickedBtn.getAttribute('role') === 'tab' ||
+                      clickedBtn.className?.includes('tab') ||
+                      clickedBtn.closest('[data-mid*="tab"], .nav-tabs, .tabs');
+        if (isTab) {
+          setTimeout(() => {
+            recalcTargets();
+          }, 80);
           return;
         }
       }

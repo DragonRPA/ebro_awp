@@ -1692,10 +1692,8 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
             <div style={{ width: '100%', height: '10px', backgroundColor: 'var(--bg-card)', borderRadius: '5px', overflow: 'hidden', marginBottom: '20px' }}>
               <div style={{
                 width: `${progressPercent}%`, height: '100%',
-                backgroundColor: isProcessCompleted ? '#10b981' : '#3b82f6',
-                backgroundImage: 'linear-gradient(45deg, rgba(255,255,255,.2) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.2) 50%, rgba(255,255,255,.2) 75%, transparent 75%, transparent)',
-                backgroundSize: '1rem 1rem',
-                transition: 'width 0.3s ease-in-out'
+                backgroundColor: isProcessCompleted ? 'var(--success)' : 'var(--primary)',
+                transition: 'width 0.2s ease'
               }}></div>
             </div>
 
