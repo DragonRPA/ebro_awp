@@ -336,8 +336,8 @@ export const CourierDispatchPage: React.FC = () => {
                   fontSize: '12px',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  backgroundColor: activeFilter === tab ? '#fff' : 'transparent',
-                  color: activeFilter === tab ? '#1e293b' : '#64748b',
+                  backgroundColor: activeFilter === tab ? 'var(--bg-card)' : 'transparent',
+                  color: activeFilter === tab ? 'var(--text-main)' : 'var(--text-muted)',
                   boxShadow: activeFilter === tab ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
                 }}
               >
@@ -507,9 +507,9 @@ export const CourierDispatchPage: React.FC = () => {
                           onClick={() => handlePrintReceipt(o)}
                           style={{
                             padding: '5px 9px',
-                            backgroundColor: '#fff',
-                            color: '#334155',
-                            border: '1px solid #cbd5e1',
+                            backgroundColor: 'var(--bg-app)',
+                            color: 'var(--text-secondary)',
+                            border: '1px solid var(--border-color)',
                             borderRadius: '4px',
                             fontSize: '12px',
                             fontWeight: 600,
@@ -528,9 +528,9 @@ export const CourierDispatchPage: React.FC = () => {
                           onClick={() => handlePreviewReceipt(o)}
                           style={{
                             padding: '5px 9px',
-                            backgroundColor: '#fff',
-                            color: '#334155',
-                            border: '1px solid #cbd5e1',
+                            backgroundColor: 'var(--bg-app)',
+                            color: 'var(--text-secondary)',
+                            border: '1px solid var(--border-color)',
                             borderRadius: '4px',
                             fontSize: '12px',
                             fontWeight: 600,
@@ -633,30 +633,30 @@ export const CourierDispatchPage: React.FC = () => {
       {/* Direct Truck Dispatch Modal */}
       {directDispatchTarget && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: '#fff', width: '480px', borderRadius: '10px', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#0f172a' }}>화물 직배 기사 배차 및 출고 마감</h3>
-              <button onClick={() => setDirectDispatchTarget(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8' }}><X size={18} /></button>
+          <div style={{ backgroundColor: 'var(--bg-card)', width: '480px', borderRadius: '10px', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-main)' }}>화물 직배 기사 배차 및 출고 마감</h3>
+              <button onClick={() => setDirectDispatchTarget(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
               <div>
-                <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>운송 기사명</label>
+                <label style={{ display: 'block', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>운송 기사명</label>
                 <input
                   type="text"
                   value={driverName}
                   onChange={e => setDriverName(e.target.value)}
-                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border-color)', borderRadius: '6px', boxSizing: 'border-box', backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)' }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>기사 연락처</label>
+                <label style={{ display: 'block', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>기사 연락처</label>
                 <input
                   type="text"
                   value={driverContact}
                   onChange={e => setDriverContact(e.target.value)}
-                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border-color)', borderRadius: '6px', boxSizing: 'border-box', backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)' }}
                 />
               </div>
 
@@ -738,14 +738,14 @@ export const CourierDispatchPage: React.FC = () => {
       {/* On-Site Signature Pad Modal */}
       {onsiteSignTarget && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: '#fff', width: '520px', borderRadius: '12px', padding: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>
-              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>현장 인수 확인 전자 서명</h3>
-              <button onClick={() => setOnsiteSignTarget(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#94a3b8' }}><X size={18} /></button>
+          <div style={{ backgroundColor: 'var(--bg-card)', width: '520px', borderRadius: '12px', padding: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: 'var(--text-main)' }}>현장 인수 확인 전자 서명</h3>
+              <button onClick={() => setOnsiteSignTarget(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={18} /></button>
             </div>
 
             <div style={{ marginBottom: '12px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>인수자 성명</label>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>인수자 성명</label>
               <input
                 type="text"
                 value={onsiteReceiverName}
@@ -753,15 +753,15 @@ export const CourierDispatchPage: React.FC = () => {
                   setOnsiteReceiverName(e.target.value);
                   drawSignatureWatermark(e.target.value);
                 }}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '14px', fontWeight: 700 }}
+                style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '14px', fontWeight: 700, backgroundColor: 'var(--bg-app)', color: 'var(--text-primary)' }}
               />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <span style={{ fontSize: '12.5px', color: '#64748b' }}>네모 박스 안에 정자로 직접 서명해 주세요</span>
+              <span style={{ fontSize: '12.5px', color: 'var(--text-muted)' }}>네모 박스 안에 정자로 직접 서명해 주세요</span>
               <button
                 onClick={handleClearSignature}
-                style={{ border: 'none', background: 'none', color: '#ef4444', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                style={{ border: 'none', background: 'none', color: 'var(--danger)', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
               >
                 지우기
               </button>
@@ -774,9 +774,9 @@ export const CourierDispatchPage: React.FC = () => {
               style={{
                 width: '100%',
                 height: '200px',
-                border: '2px dashed #94a3b8',
+                border: '2px dashed var(--border-color)',
                 borderRadius: '8px',
-                backgroundColor: '#ffffff',
+                backgroundColor: 'var(--bg-card)',
                 touchAction: 'none'
               }}
               onMouseDown={handleMouseDown}
@@ -787,10 +787,10 @@ export const CourierDispatchPage: React.FC = () => {
               onTouchEnd={handleMouseUp}
             />
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
               <button
                 onClick={() => setOnsiteSignTarget(null)}
-                style={{ padding: '8px 16px', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
+                style={{ padding: '8px 16px', backgroundColor: 'var(--bg-app)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
               >
                 취소
               </button>
@@ -799,7 +799,7 @@ export const CourierDispatchPage: React.FC = () => {
                 disabled={isSigning}
                 style={{
                   padding: '8px 20px',
-                  backgroundColor: '#10b981',
+                  backgroundColor: 'var(--success)',
                   color: '#fff',
                   border: 'none',
                   borderRadius: '6px',
@@ -817,13 +817,13 @@ export const CourierDispatchPage: React.FC = () => {
       {/* Receipt Preview Modal */}
       {previewHtml && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
-          <div style={{ backgroundColor: '#fff', width: '850px', maxHeight: '90vh', borderRadius: '10px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)' }}>
+          <div style={{ backgroundColor: 'var(--bg-card)', width: '850px', maxHeight: '90vh', borderRadius: '10px', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.3)', border: '1px solid var(--border-color)' }}>
             <div style={{ padding: '12px 20px', backgroundColor: '#1e293b', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700 }}>{previewTitle}</h3>
               <button onClick={() => setPreviewHtml(null)} style={{ border: 'none', background: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
             </div>
-            <div style={{ flex: 1, padding: '20px', overflow: 'auto', backgroundColor: '#f1f5f9' }} dangerouslySetInnerHTML={{ __html: previewHtml }} />
-            <div style={{ padding: '12px 20px', backgroundColor: '#fff', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <div style={{ flex: 1, padding: '20px', overflow: 'auto', backgroundColor: 'var(--bg-app)' }} dangerouslySetInnerHTML={{ __html: previewHtml }} />
+            <div style={{ padding: '12px 20px', backgroundColor: 'var(--bg-card)', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
               <button onClick={() => setPreviewHtml(null)} style={{ padding: '6px 16px', backgroundColor: '#64748b', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>닫기</button>
             </div>
           </div>
@@ -833,7 +833,7 @@ export const CourierDispatchPage: React.FC = () => {
       {/* Signed Proof Document Viewer Modal */}
       {viewProofUrl && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
-          <div style={{ backgroundColor: '#fff', width: '800px', maxHeight: '92vh', borderRadius: '12px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ backgroundColor: 'var(--bg-card)', width: '800px', maxHeight: '92vh', borderRadius: '12px', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
             <div style={{ padding: '14px 20px', backgroundColor: '#064e3b', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <CheckCircle size={18} />
@@ -841,11 +841,11 @@ export const CourierDispatchPage: React.FC = () => {
               </h3>
               <button onClick={() => setViewProofUrl(null)} style={{ border: 'none', background: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
             </div>
-            <div style={{ flex: 1, padding: '20px', overflow: 'auto', textAlign: 'center', backgroundColor: '#f8fafc' }}>
+            <div style={{ flex: 1, padding: '20px', overflow: 'auto', textAlign: 'center', backgroundColor: 'var(--bg-app)' }}>
               <img src={viewProofUrl} alt="서명된 납품확인서" style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
             </div>
-            <div style={{ padding: '12px 20px', backgroundColor: '#fff', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', color: '#64748b' }}>※ 법적 효력을 갖는 전자서명 인수확인 증빙 문서입니다.</span>
+            <div style={{ padding: '12px 20px', backgroundColor: 'var(--bg-card)', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>※ 법적 효력을 갖는 전자서명 인수확인 증빙 문서입니다.</span>
               <button onClick={() => setViewProofUrl(null)} style={{ padding: '6px 16px', backgroundColor: '#0f172a', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 700 }}>닫기</button>
             </div>
           </div>

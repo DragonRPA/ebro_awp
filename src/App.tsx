@@ -1491,7 +1491,7 @@ const App: React.FC = () => {
             <button style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderRadius: '8px', backgroundColor: '#eef2ff', color: '#4f46e5', fontWeight: '800', fontSize: '14.5px', border: '1px solid #c7d2fe', cursor: 'pointer', boxShadow: '0 2px 4px rgba(79, 70, 229, 0.05)' }}>
               <Building2 size={18} /> 테넌트 인프라 관리
             </button>
-            <div style={{ marginTop: 'auto', padding: '16px', backgroundColor: '#fff', borderRadius: '8px', border: '1px dashed #cbd5e1', fontSize: '12px', color: '#64748b', lineHeight: '1.6' }}>
+            <div style={{ marginTop: 'auto', padding: '16px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px dashed var(--border-color)', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#0f172a', fontWeight: '800', marginBottom: '8px' }}>
                 <ShieldAlert size={16} color="#ef4444" />
                 접근 통제 및 보안 알림

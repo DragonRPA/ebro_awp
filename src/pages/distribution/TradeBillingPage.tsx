@@ -76,9 +76,9 @@ export const TradeBillingPage: React.FC = () => {
                             }}
                             style={{
                               padding: '3px 8px',
-                              backgroundColor: '#fff',
-                              color: '#059669',
-                              border: '1px solid #059669',
+                              backgroundColor: 'var(--bg-app)',
+                              color: 'var(--success)',
+                              border: '1px solid var(--border-color)',
                               borderRadius: '4px',
                               fontSize: '11.5px',
                               fontWeight: 700,
@@ -132,7 +132,7 @@ export const TradeBillingPage: React.FC = () => {
       {/* Proof Modal */}
       {proofUrl && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
-          <div style={{ backgroundColor: '#fff', width: '800px', maxHeight: '92vh', borderRadius: '12px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ backgroundColor: 'var(--bg-card)', width: '800px', maxHeight: '92vh', borderRadius: '12px', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
             <div style={{ padding: '14px 20px', backgroundColor: '#064e3b', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <CheckCircle size={18} />
@@ -140,11 +140,11 @@ export const TradeBillingPage: React.FC = () => {
               </h3>
               <button onClick={() => setProofUrl(null)} style={{ border: 'none', background: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
             </div>
-            <div style={{ flex: 1, padding: '20px', overflow: 'auto', textAlign: 'center', backgroundColor: '#f8fafc' }}>
+            <div style={{ flex: 1, padding: '20px', overflow: 'auto', textAlign: 'center', backgroundColor: 'var(--bg-app)' }}>
               <img src={proofUrl} alt="서명된 납품확인서" style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }} />
             </div>
-            <div style={{ padding: '12px 20px', backgroundColor: '#fff', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '12px', color: '#64748b' }}>※ 회계 청구 전 최종 검증용 인수자 서명 문서입니다.</span>
+            <div style={{ padding: '12px 20px', backgroundColor: 'var(--bg-card)', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>※ 회계 청구 전 최종 검증용 인수자 서명 문서입니다.</span>
               <button onClick={() => setProofUrl(null)} style={{ padding: '6px 16px', backgroundColor: '#0f172a', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 700 }}>닫기</button>
             </div>
           </div>

@@ -288,7 +288,7 @@ export const AssetInboundStaging: React.FC = () => {
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           backdropFilter: 'blur(3px)'
         }}>
-          <div className="card" style={{ width: '400px', padding: '30px', textAlign: 'center', backgroundColor: '#ffffff', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+          <div className="card" style={{ width: '400px', padding: '30px', textAlign: 'center', backgroundColor: 'var(--bg-card)', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
             <h3 style={{ margin: '0 0 10px 0', fontSize: '18px', fontWeight: 600, color: 'var(--text-main)' }}>일괄 처리 진행 중</h3>
             <p style={{ color: '#ef4444', fontSize: '13.5px', marginBottom: '24px', fontWeight: 500 }}>
               ⚠️ 데이터 동기화 중입니다.<br/>화면을 닫거나 다른 탭으로 이동하지 마세요.
@@ -522,7 +522,7 @@ export const AssetInboundStaging: React.FC = () => {
                           <span style={{ fontSize: '11px', color: 'var(--text-secondary)', textAlign: 'center' }}>{item.name} 사진</span>
                           <label style={{ 
                             display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80px', 
-                            border: '1px solid var(--border-color)', borderRadius: '6px', backgroundColor: '#fff', cursor: 'pointer',
+                            border: '1px solid var(--border-color)', borderRadius: '6px', backgroundColor: 'var(--bg-app)', cursor: 'pointer',
                             overflow: 'hidden', position: 'relative'
                           }}>
                             {photoUrl ? (
@@ -566,7 +566,7 @@ export const AssetInboundStaging: React.FC = () => {
       {/* 입고 불가 자산 알림 모달 */}
       {invalidAssets.length > 0 && (
         <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div className="modal-content" style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '8px', minWidth: '400px', maxWidth: '500px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+          <div className="modal-content" style={{ backgroundColor: 'var(--bg-card)', padding: '24px', borderRadius: '8px', minWidth: '400px', maxWidth: '500px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', border: '1px solid var(--border-color)' }}>
             <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 700, color: '#dc2626', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <AlertTriangle size={18} /> 입고 처리 불가 자산
             </h3>

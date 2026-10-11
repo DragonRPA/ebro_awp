@@ -3619,7 +3619,7 @@ export const TenantManagementPage: React.FC = () => {
                     <div style={{
                       flex: 1,
                       minHeight: '520px',
-                      backgroundColor: '#ffffff',
+                      backgroundColor: 'var(--bg-card)',
                       border: '1px solid var(--border-color)',
                       borderRadius: '8px',
                       overflow: 'hidden',

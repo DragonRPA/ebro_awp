@@ -796,8 +796,8 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
                           style={{
                             padding: '10px 12px',
                             borderRadius: '6px',
-                            backgroundColor: '#FFFFFF',
-                            border: '1px solid #E2E8F0',
+                            backgroundColor: 'var(--bg-card)',
+                            border: '1px solid var(--border-color)',
                             display: 'flex',
                             flexDirection: 'column',
                             gap: '4px',

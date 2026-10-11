@@ -790,9 +790,9 @@ export const PrivacyAuditPage: React.FC = () => {
           ───────────────────────────────────────────────────────────── */}
       {(isSuperAdmin || isExecutive) && (
         <div style={{
-          backgroundColor: '#ffffff',
+          backgroundColor: 'var(--bg-card)',
           borderRadius: '8px',
-          border: '1px solid var(--border-color, #e2e8f0)',
+          border: '1px solid var(--border-color)',
           padding: '16px 20px',
           display: 'flex',
           flexDirection: 'column',
@@ -803,7 +803,7 @@ export const PrivacyAuditPage: React.FC = () => {
             alignItems: 'center',
             justifyContent: 'space-between',
             paddingBottom: '10px',
-            borderBottom: '1px solid var(--border-color, #e2e8f0)'
+            borderBottom: '1px solid var(--border-color)'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div style={{
@@ -848,8 +848,8 @@ export const PrivacyAuditPage: React.FC = () => {
                   fontSize: '12px',
                   fontWeight: 600,
                   borderRadius: '6px',
-                  border: '1px solid var(--border-color, #cbd5e1)',
-                  backgroundColor: '#ffffff',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-app)',
                   color: 'var(--text-secondary, #475569)',
                   cursor: 'pointer',
                   display: 'flex',
@@ -898,8 +898,8 @@ export const PrivacyAuditPage: React.FC = () => {
                     <tr
                       key={dev.deviceId}
                       style={{
-                        borderBottom: '1px solid var(--border-color, #f1f5f9)',
-                        backgroundColor: dev.status === 'ACTIVE' ? '#ffffff' : '#f8fafc'
+                        borderBottom: '1px solid var(--border-color)',
+                        backgroundColor: dev.status === 'ACTIVE' ? 'var(--bg-card)' : 'var(--bg-secondary)'
                       }}
                     >
                       <td style={{ padding: '8px 12px', whiteSpace: 'nowrap', fontWeight: 600, color: 'var(--text-main, #0f172a)' }}>
@@ -961,7 +961,7 @@ export const PrivacyAuditPage: React.FC = () => {
                               fontWeight: 600,
                               borderRadius: '4px',
                               border: '1px solid #f87171',
-                              backgroundColor: '#fff',
+                              backgroundColor: 'var(--bg-app)',
                               color: '#dc2626',
                               cursor: 'pointer',
                               display: 'inline-flex',

@@ -306,7 +306,7 @@ input[type="checkbox"] {
   margin: 0 !important;
   border: 2px solid #64748b !important;
   border-radius: 4px !important;
-  background-color: #ffffff !important;
+  background-color: var(--bg-card) !important;
   cursor: pointer !important;
   display: inline-flex !important;
   align-items: center !important;
@@ -629,7 +629,7 @@ button {
 /* 4. 엑셀 다운로드 기능 (Excel Export / Download) : 단정하고 세련된 Emerald Outline/Subtle */
 .btn-excel-download,
 .btn-download {
-  background-color: #ffffff !important;
+  background-color: var(--bg-card) !important;
   color: #047857 !important;
   border: 1px solid #059669 !important;
 }
@@ -653,7 +653,7 @@ button {
 /* 5. 초기화/취소/보조 기능 (Reset / Cancel / Secondary) : 단정한 Slate Border */
 .btn-reset,
 .btn-cancel {
-  background-color: #ffffff !important;
+  background-color: var(--bg-card) !important;
   color: #334155 !important;
   border: 1px solid #cbd5e1 !important;
 }

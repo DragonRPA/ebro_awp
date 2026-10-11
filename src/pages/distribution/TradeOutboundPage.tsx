@@ -94,22 +94,22 @@ export const TradeOutboundPage: React.FC = () => {
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: '#f8fafc', fontFamily: 'Pretendard, sans-serif' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', backgroundColor: 'var(--bg-app)', fontFamily: 'Pretendard, sans-serif' }}>
       
       {/* Header */}
-      <div style={{ padding: '16px 20px', backgroundColor: '#fff', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ padding: '16px 20px', backgroundColor: 'var(--bg-card)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h2 data-mid="trade_outbounds-header" style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <h2 data-mid="trade_outbounds-header" style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Package size={20} color="#0284c7" />
             출고 요청 및 재고 할당
           </h2>
-          <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '4px' }}>
+          <div style={{ fontSize: '12.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
             유통 수주 물류 창고 재고 할당, 납품증 출력 및 배송 증빙 확인
           </div>
         </div>
 
         {/* Filter */}
-        <div style={{ display: 'flex', backgroundColor: '#f1f5f9', borderRadius: '6px', padding: '3px' }}>
+        <div style={{ display: 'flex', backgroundColor: 'var(--bg-secondary)', borderRadius: '6px', padding: '3px' }}>
           {(['ALL', 'REQUESTED', 'ALLOCATED', 'SHIPPED', 'DELIVERED'] as const).map(tab => (
             <button
               key={tab}
@@ -121,8 +121,8 @@ export const TradeOutboundPage: React.FC = () => {
                 fontSize: '12px',
                 fontWeight: 600,
                 cursor: 'pointer',
-                backgroundColor: filter === tab ? '#fff' : 'transparent',
-                color: filter === tab ? '#1e293b' : '#64748b',
+                backgroundColor: filter === tab ? 'var(--bg-card)' : 'transparent',
+                color: filter === tab ? 'var(--text-main)' : 'var(--text-muted)',
                 boxShadow: filter === tab ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
               }}
             >
@@ -135,7 +135,7 @@ export const TradeOutboundPage: React.FC = () => {
       {/* Cards Area */}
       <div style={{ flex: 1, padding: '20px', overflow: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px', alignContent: 'start' }}>
         {displayedOutbounds.length === 0 ? (
-          <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+          <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
             해당 상태의 출고 데이터가 없습니다.
           </div>
         ) : (
@@ -147,8 +147,8 @@ export const TradeOutboundPage: React.FC = () => {
               <div 
                 key={o.id} 
                 style={{ 
-                  backgroundColor: '#fff', 
-                  border: '1px solid #e2e8f0', 
+                  backgroundColor: 'var(--bg-card)', 
+                  border: '1px solid var(--border-color)', 
                   borderRadius: '10px', 
                   padding: '16px', 
                   boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
@@ -219,9 +219,9 @@ export const TradeOutboundPage: React.FC = () => {
                         style={{
                           flex: 1,
                           padding: '7px',
-                          backgroundColor: '#fff',
-                          color: '#334155',
-                          border: '1px solid #cbd5e1',
+                          backgroundColor: 'var(--bg-app)',
+                          color: 'var(--text-secondary)',
+                          border: '1px solid var(--border-color)',
                           borderRadius: '4px',
                           fontSize: '12px',
                           fontWeight: 600,
@@ -241,9 +241,9 @@ export const TradeOutboundPage: React.FC = () => {
                         style={{
                           flex: 1,
                           padding: '7px',
-                          backgroundColor: '#fff',
-                          color: '#334155',
-                          border: '1px solid #cbd5e1',
+                          backgroundColor: 'var(--bg-app)',
+                          color: 'var(--text-secondary)',
+                          border: '1px solid var(--border-color)',
                           borderRadius: '4px',
                           fontSize: '12px',
                           fontWeight: 600,
@@ -292,13 +292,13 @@ export const TradeOutboundPage: React.FC = () => {
       {/* Preview Modal */}
       {previewHtml && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
-          <div style={{ backgroundColor: '#fff', width: '850px', maxHeight: '90vh', borderRadius: '10px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ backgroundColor: 'var(--bg-card)', width: '850px', maxHeight: '90vh', borderRadius: '10px', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
             <div style={{ padding: '12px 20px', backgroundColor: '#1e293b', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700 }}>{previewTitle}</h3>
               <button onClick={() => setPreviewHtml(null)} style={{ border: 'none', background: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
             </div>
-            <div style={{ flex: 1, padding: '20px', overflow: 'auto', backgroundColor: '#f1f5f9' }} dangerouslySetInnerHTML={{ __html: previewHtml }} />
-            <div style={{ padding: '12px 20px', backgroundColor: '#fff', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ flex: 1, padding: '20px', overflow: 'auto', backgroundColor: 'var(--bg-app)' }} dangerouslySetInnerHTML={{ __html: previewHtml }} />
+            <div style={{ padding: '12px 20px', backgroundColor: 'var(--bg-card)', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
               <button onClick={() => setPreviewHtml(null)} style={{ padding: '6px 16px', backgroundColor: '#64748b', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 600 }}>닫기</button>
             </div>
           </div>
@@ -308,7 +308,7 @@ export const TradeOutboundPage: React.FC = () => {
       {/* Proof Modal */}
       {proofUrl && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
-          <div style={{ backgroundColor: '#fff', width: '800px', maxHeight: '92vh', borderRadius: '12px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ backgroundColor: 'var(--bg-card)', width: '800px', maxHeight: '92vh', borderRadius: '12px', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
             <div style={{ padding: '14px 20px', backgroundColor: '#064e3b', color: '#fff', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <CheckCircle size={18} />
@@ -316,10 +316,10 @@ export const TradeOutboundPage: React.FC = () => {
               </h3>
               <button onClick={() => setProofUrl(null)} style={{ border: 'none', background: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
             </div>
-            <div style={{ flex: 1, padding: '20px', overflow: 'auto', textAlign: 'center', backgroundColor: '#f8fafc' }}>
+            <div style={{ flex: 1, padding: '20px', overflow: 'auto', textAlign: 'center', backgroundColor: 'var(--bg-app)' }}>
               <img src={proofUrl} alt="서명된 납품확인서" style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain' }} />
             </div>
-            <div style={{ padding: '12px 20px', backgroundColor: '#fff', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ padding: '12px 20px', backgroundColor: 'var(--bg-card)', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
               <button onClick={() => setProofUrl(null)} style={{ padding: '6px 16px', backgroundColor: '#0f172a', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 700 }}>닫기</button>
             </div>
           </div>

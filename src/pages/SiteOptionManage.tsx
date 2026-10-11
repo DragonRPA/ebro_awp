@@ -1,4 +1,4 @@
-﻿// src/pages/SiteOptionManage.tsx
+// src/pages/SiteOptionManage.tsx
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { supabase, db, SiteMaster } from '../services/db';
@@ -680,7 +680,7 @@ export const SiteOptionManage: React.FC = () => {
                 padding: '0 10px',
                 borderRadius: '6px',
                 border: '1px solid var(--border-color)',
-                backgroundColor: 'var(--bg-surface)',
+                backgroundColor: 'var(--bg-app)',
                 color: 'var(--text-primary)',
                 fontSize: '12.5px',
                 fontWeight: 600,
@@ -712,7 +712,7 @@ export const SiteOptionManage: React.FC = () => {
                   paddingRight: '10px',
                   borderRadius: '6px',
                   border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-surface)',
+                  backgroundColor: 'var(--bg-app)',
                   color: 'var(--text-primary)',
                   fontSize: '12.5px',
                   outline: 'none',
@@ -894,7 +894,7 @@ export const SiteOptionManage: React.FC = () => {
                         padding: '10px 12px',
                         borderRadius: '8px',
                         border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                        backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.08)' : 'var(--bg-card)',
+                        backgroundColor: isSelected ? 'rgba(37, 99, 235, 0.1)' : 'var(--bg-app)',
                         cursor: 'pointer',
                         display: 'flex',
                         flexDirection: 'column',
@@ -969,7 +969,7 @@ export const SiteOptionManage: React.FC = () => {
                 <div style={{
                   padding: '14px 20px',
                   borderBottom: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-surface)',
+                  backgroundColor: 'var(--bg-secondary)',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
@@ -1038,7 +1038,7 @@ export const SiteOptionManage: React.FC = () => {
                               fontSize: '12px',
                               borderRadius: '6px',
                               border: '1px solid var(--border-color)',
-                              backgroundColor: 'var(--bg-surface)',
+                              backgroundColor: 'var(--bg-app)',
                               color: 'var(--text-primary)',
                               cursor: 'pointer',
                               fontWeight: 500,
@@ -1109,7 +1109,7 @@ export const SiteOptionManage: React.FC = () => {
               padding: '0 8px',
               borderRadius: '4px',
               border: '1px solid var(--border-color)',
-              backgroundColor: 'var(--bg-surface)',
+              backgroundColor: 'var(--bg-app)',
               color: 'var(--text-primary)',
               fontSize: '11.5px'
             }}
@@ -1135,7 +1135,7 @@ export const SiteOptionManage: React.FC = () => {
               padding: '0 8px',
               borderRadius: '4px',
               border: '1px solid var(--border-color)',
-              backgroundColor: 'var(--bg-surface)',
+              backgroundColor: 'var(--bg-app)',
               color: 'var(--text-primary)',
               fontSize: '11.5px'
             }}
@@ -1172,7 +1172,7 @@ export const SiteOptionManage: React.FC = () => {
                               fontSize: '12px',
                               borderRadius: '6px',
                               border: item.isEnabled ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                              backgroundColor: item.isEnabled ? 'rgba(37, 99, 235, 0.1)' : 'var(--bg-surface)',
+                              backgroundColor: item.isEnabled ? 'rgba(37, 99, 235, 0.12)' : 'var(--bg-app)',
                               color: item.isEnabled ? 'var(--primary)' : 'var(--text-primary)',
                               cursor: 'pointer',
                               fontWeight: item.isEnabled ? 700 : 500,
@@ -1207,7 +1207,7 @@ export const SiteOptionManage: React.FC = () => {
                               fontSize: '12px',
                               borderRadius: '6px',
                               border: '1px solid var(--border-color)',
-                              backgroundColor: 'var(--bg-surface)',
+                              backgroundColor: 'var(--bg-app)',
                               color: 'var(--text-primary)',
                               cursor: 'pointer',
                               fontWeight: 500,
@@ -1266,7 +1266,7 @@ export const SiteOptionManage: React.FC = () => {
                   style={{
                     padding: '14px 20px',
                     borderTop: '1px solid var(--border-color)',
-                    backgroundColor: 'var(--bg-surface)',
+                    backgroundColor: 'var(--bg-secondary)',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
@@ -1497,7 +1497,7 @@ export const SiteOptionManage: React.FC = () => {
                   padding: '0 10px',
                   borderRadius: '6px',
                   border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-surface)',
+                  backgroundColor: 'var(--bg-app)',
                   color: 'var(--text-primary)',
                   fontSize: '12.5px'
                 }}
@@ -1524,7 +1524,7 @@ export const SiteOptionManage: React.FC = () => {
                   padding: '0 10px',
                   borderRadius: '6px',
                   border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-surface)',
+                  backgroundColor: 'var(--bg-app)',
                   color: 'var(--text-primary)',
                   fontSize: '12.5px'
                 }}
@@ -1546,7 +1546,7 @@ export const SiteOptionManage: React.FC = () => {
                     padding: '0 10px',
                     borderRadius: '6px',
                     border: '1px solid var(--border-color)',
-                    backgroundColor: 'var(--bg-surface)',
+                    backgroundColor: 'var(--bg-app)',
                     color: 'var(--text-primary)',
                     fontSize: '12.5px',
                     textAlign: 'right'
@@ -1566,7 +1566,7 @@ export const SiteOptionManage: React.FC = () => {
                     padding: '0 10px',
                     borderRadius: '6px',
                     border: '1px solid var(--border-color)',
-                    backgroundColor: 'var(--bg-surface)',
+                    backgroundColor: 'var(--bg-app)',
                     color: 'var(--text-primary)',
                     fontSize: '12.5px'
                   }}
@@ -1593,7 +1593,7 @@ export const SiteOptionManage: React.FC = () => {
                   padding: '0 10px',
                   borderRadius: '6px',
                   border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-surface)',
+                  backgroundColor: 'var(--bg-app)',
                   color: 'var(--text-primary)',
                   fontSize: '12.5px'
                 }}
@@ -1653,7 +1653,7 @@ export const SiteOptionManage: React.FC = () => {
                   padding: '7px 14px',
                   borderRadius: '6px',
                   border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-surface)',
+                  backgroundColor: 'var(--bg-app)',
                   color: 'var(--text-secondary)',
                   fontSize: '12.5px',
                   cursor: 'pointer'

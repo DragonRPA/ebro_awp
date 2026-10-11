@@ -139,9 +139,9 @@ const [barcodeInput, setBarcodeInput] = useState('');
 
   return (
     <main className="inventory-reconciliation" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', borderBottom: '2px solid #000', background: '#f5f5f5' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-card)' }}>
         <form onSubmit={handleBarcodeSubmit} className="filter-scan-group z-pattern-start" style={{ display: 'flex', gap: '8px' }}>
-          <div style={{ padding: '6px 12px', background: '#e0e0e0', fontWeight: 'bold' }}>
+          <div style={{ padding: '6px 12px', background: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '4px', fontWeight: 'bold' }}>
             {activeAudit.targetType === 'HQ' ? '본사 주기장' : `${activeAudit.mechanicName} 차량`}
           </div>
           <input 
@@ -152,7 +152,7 @@ const [barcodeInput, setBarcodeInput] = useState('');
             ref={barcodeRef}
             value={barcodeInput}
             onChange={e => setBarcodeInput(e.target.value)}
-            style={{ padding: '6px 12px', width: '250px', border: '1px solid #ccc' }}
+            style={{ padding: '6px 12px', width: '250px', border: '1px solid var(--border-color)', borderRadius: '4px', background: 'var(--bg-app)', color: 'var(--text-main)' }}
             onBlur={() => {
                // Focus back if possible, but for UX keep it simple
             }}
@@ -161,13 +161,13 @@ const [barcodeInput, setBarcodeInput] = useState('');
         </form>
         <div className="status-group z-pattern-mid" style={{ fontWeight: 'bold', textAlign: 'right' }}>
           <span className="metric">진척 {progressPercent}%</span>
-          <span className="metric variance-alert" style={{ color: varianceCount > 0 ? '#d32f2f' : '#333', marginLeft: '12px' }}>차이 {varianceCount}건</span>
+          <span className="metric variance-alert" style={{ color: varianceCount > 0 ? '#d32f2f' : 'var(--text-main)', marginLeft: '12px' }}>차이 {varianceCount}건</span>
         </div>
       </header>
 
-      <section data-mid="stocktaking-inspection-grid" className="grid-container table-container" style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 200px)', background: '#fff' }}>
+      <section data-mid="stocktaking-inspection-grid" className="grid-container table-container" style={{ flex: 1, overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 200px)', background: 'var(--bg-card)' }}>
         <table className="high-density-table tablet-optimized" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', whiteSpace: 'nowrap' }}>
-          <thead style={{ position: 'sticky', top: 0, background: '#eee', zIndex: 2 }}>
+          <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-secondary)', zIndex: 2 }}>
             <tr>
               <SortableTh label="구분" sortKey="itemType" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} />
               <SortableTh label="코드/관리번호" sortKey="assetNo" currentSortKey={auditSortKey} currentDirection={auditSortDir} onSort={handleAuditSort} />
@@ -182,7 +182,7 @@ const [barcodeInput, setBarcodeInput] = useState('');
             {sortedAuditItems.map(item => {
               const hasVariance = item.diffQty !== 0;
               return (
-                <tr key={item.id} style={{ background: hasVariance ? '#ffebee' : '#fff', borderBottom: '1px solid #eee' }}>
+                <tr key={item.id} style={{ background: hasVariance ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-card)', borderBottom: '1px solid var(--border-color)' }}>
                   <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>
                     {item.itemType === 'ASSET' ? '🚜 장비' : '🔧 소모품'}
                   </td>
@@ -196,12 +196,12 @@ const [barcodeInput, setBarcodeInput] = useState('');
                         type="number" 
                         value={item.actualQty} 
                         onChange={e => handleUpdateItem(item.id, Number(e.target.value))}
-                        style={{ width: '60px', textAlign: 'right' }}
+                        style={{ width: '60px', textAlign: 'right', background: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '4px' }}
                       />
                       <button onClick={() => handleUpdateItem(item.id, item.actualQty + 1)} style={{ width: '24px', height: '24px', padding: 0 }}>+</button>
                     </div>
                   </td>
-                  <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: hasVariance ? '#d32f2f' : '#333', whiteSpace: 'nowrap' }}>
+                  <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold', color: hasVariance ? '#d32f2f' : 'var(--text-main)', whiteSpace: 'nowrap' }}>
                     {item.diffQty > 0 ? '+' : ''}{item.diffQty}
                   </td>
                   <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>
@@ -209,7 +209,7 @@ const [barcodeInput, setBarcodeInput] = useState('');
                       <select 
                         value={item.diffReason || 'LOST'} 
                         onChange={e => handleUpdateItem(item.id, item.actualQty, e.target.value as any)}
-                        style={{ width: '120px' }}
+                        style={{ width: '120px', background: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-main)', borderRadius: '4px' }}
                       >
                         <option value="LOST">망실/도난</option>
                         <option value="DAMAGED">파손/폐기</option>
@@ -226,7 +226,7 @@ const [barcodeInput, setBarcodeInput] = useState('');
         </table>
       </section>
 
-      <footer style={{ padding: '12px', borderTop: '2px solid #000', display: 'flex', justifyContent: 'flex-end', background: '#f5f5f5' }}>
+      <footer style={{ padding: '12px', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', background: 'var(--bg-card)' }}>
         <div className="action-group z-pattern-end" style={{ display: 'flex', gap: '8px' }}>
           <button className="btn-secondary" onClick={() => { if(confirm('실사를 취소하시겠습니까?')) { /* call cancel */ } }} style={{ padding: '8px 16px' }}>실사 취소</button>
           <button 

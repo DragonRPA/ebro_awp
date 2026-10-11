@@ -140,9 +140,9 @@ export const AgentRequiredModal: React.FC<Props> = ({
 
               <div style={{
                 padding: '12px',
-                background: '#f8fafc',
+                background: 'var(--bg-app)',
                 borderRadius: '6px',
-                border: '1px solid #e2e8f0',
+                border: '1px solid var(--border-color)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '6px'
@@ -210,9 +210,9 @@ export const AgentRequiredModal: React.FC<Props> = ({
               style={{
                 padding: '6px 14px',
                 borderRadius: '5px',
-                border: '1px solid #cbd5e1',
-                backgroundColor: '#ffffff',
-                color: '#475569',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-card)',
+                color: 'var(--text-secondary)',
                 fontSize: '11.5px',
                 cursor: 'pointer'
               }}

@@ -131,7 +131,7 @@ const SignaturePad: React.FC<{
         ref={canvasRef}
         width={800}
         height={400}
-        style={{ width: '100%', height: '210px', border: '2px dashed #94a3b8', borderRadius: '8px', backgroundColor: '#ffffff', touchAction: 'none' }}
+        style={{ width: '100%', height: '210px', border: '2px dashed var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-card)', touchAction: 'none' }}
         onMouseDown={startDrawing}
         onMouseUp={stopDrawing}
         onMouseOut={stopDrawing}
@@ -508,7 +508,7 @@ export const DriverPortalPage: React.FC = () => {
   const dCategory = delivery.type === 'INBOUND' ? '회수' : delivery.type === 'EXCHANGE' ? '교환' : (delivery.memo?.includes('[유통') ? '유통 납품' : '출고');
 
   return (
-    <div style={{ maxWidth: '480px', margin: '0 auto', minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: 'Pretendard, sans-serif' }}>
+    <div style={{ maxWidth: '480px', margin: '0 auto', minHeight: '100vh', backgroundColor: 'var(--bg-app)', fontFamily: 'Pretendard, sans-serif' }}>
       <header style={{ backgroundColor: '#1e1b4b', color: 'white', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
         <Truck size={20} />
         <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 700 }}>운송 포털</h1>
@@ -516,8 +516,8 @@ export const DriverPortalPage: React.FC = () => {
 
       <main style={{ padding: '20px' }}>
         {/* Delivery Info Card (Image 1 Requirement) */}
-        <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', marginBottom: '20px' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: 800, margin: '0 0 16px 0', borderBottom: '2px solid #f1f5f9', paddingBottom: '12px' }}>
+        <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '20px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', marginBottom: '20px', border: '1px solid var(--border-color)' }}>
+          <h2 style={{ fontSize: '16px', fontWeight: 800, margin: '0 0 16px 0', borderBottom: '2px solid var(--border-color)', paddingBottom: '12px' }}>
             {dCategory} 정보
           </h2>
           
@@ -555,10 +555,10 @@ export const DriverPortalPage: React.FC = () => {
 
             {/* Equipment List Table (All columns centered per user instruction) */}
             <div style={{ marginTop: '6px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>납품장비 목록</div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>납품장비 목록</div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
                 <thead>
-                  <tr style={{ backgroundColor: '#f1f5f9', borderBottom: '1px solid #cbd5e1', fontSize: '13px', color: '#475569' }}>
+                  <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', fontSize: '13px', color: 'var(--text-secondary)' }}>
                     <th style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 700 }}>품목 (모델명)</th>
                     <th style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 700, width: '64px' }}>수량</th>
                     <th style={{ padding: '8px 6px', textAlign: 'center', fontWeight: 700 }}>비고</th>
@@ -567,17 +567,17 @@ export const DriverPortalPage: React.FC = () => {
                 <tbody>
                   {cargoList.length > 0 ? (
                     cargoList.map((item, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', fontSize: '13px' }}>
-                        <td style={{ padding: '9px 6px', textAlign: 'center', fontWeight: 600, color: '#0f172a' }}>{item.modelName || '고소작업대'}</td>
+                      <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '13px' }}>
+                        <td style={{ padding: '9px 6px', textAlign: 'center', fontWeight: 600, color: 'var(--text-main)' }}>{item.modelName || '고소작업대'}</td>
                         <td style={{ padding: '9px 6px', textAlign: 'center', fontWeight: 700, color: '#2563eb' }}>{item.count || 1}대</td>
-                        <td style={{ padding: '9px 6px', textAlign: 'center', color: '#64748b' }}>{item.note || '-'}</td>
+                        <td style={{ padding: '9px 6px', textAlign: 'center', color: 'var(--text-muted)' }}>{item.note || '-'}</td>
                       </tr>
                     ))
                   ) : (
-                    <tr style={{ borderBottom: '1px solid #f1f5f9', fontSize: '13px' }}>
-                      <td style={{ padding: '9px 6px', textAlign: 'center', fontWeight: 600, color: '#0f172a' }}>{delivery.cargoItems || '장비 미지정'}</td>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)', fontSize: '13px' }}>
+                      <td style={{ padding: '9px 6px', textAlign: 'center', fontWeight: 600, color: 'var(--text-main)' }}>{delivery.cargoItems || '장비 미지정'}</td>
                       <td style={{ padding: '9px 6px', textAlign: 'center', fontWeight: 700, color: '#2563eb' }}>1대</td>
-                      <td style={{ padding: '9px 6px', textAlign: 'center', color: '#64748b' }}>-</td>
+                      <td style={{ padding: '9px 6px', textAlign: 'center', color: 'var(--text-muted)' }}>-</td>
                     </tr>
                   )}
                 </tbody>
@@ -601,29 +601,29 @@ export const DriverPortalPage: React.FC = () => {
                 </p>
                 <button 
                   onClick={() => setMode('PHOTO')}
-                  style={{ padding: '16px', backgroundColor: 'white', border: '1px solid #cbd5e1', borderRadius: '12px', fontSize: '15px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', color: '#0f172a', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+                  style={{ padding: '16px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', fontSize: '15px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-main)', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
                 >
-                  <div style={{ backgroundColor: '#eff6ff', padding: '10px', borderRadius: '50%', color: '#2563eb' }}><Camera size={20} /></div>
+                  <div style={{ backgroundColor: 'rgba(37, 99, 235, 0.12)', padding: '10px', borderRadius: '50%', color: '#2563eb' }}><Camera size={20} /></div>
                   <div style={{ textAlign: 'left' }}>
                     <div style={{ fontSize: '15px' }}>종이 납품증 사진 찍기</div>
-                    <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 500, marginTop: '2px' }}>종이 송장을 이미 작성하신 경우</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 500, marginTop: '2px' }}>종이 송장을 이미 작성하신 경우</div>
                   </div>
                 </button>
                 <button 
                   onClick={() => setMode('SIGN')}
-                  style={{ padding: '16px', backgroundColor: 'white', border: '1px solid #cbd5e1', borderRadius: '12px', fontSize: '15px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', color: '#0f172a', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
+                  style={{ padding: '16px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', fontSize: '15px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-main)', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}
                 >
-                  <div style={{ backgroundColor: '#f0fdf4', padding: '10px', borderRadius: '50%', color: '#16a34a' }}><Edit3 size={20} /></div>
+                  <div style={{ backgroundColor: 'rgba(22, 163, 74, 0.12)', padding: '10px', borderRadius: '50%', color: '#16a34a' }}><Edit3 size={20} /></div>
                   <div style={{ textAlign: 'left' }}>
                     <div style={{ fontSize: '15px' }}>모바일 전자 서명 받기</div>
-                    <div style={{ fontSize: '12px', color: '#64748b', fontWeight: 500, marginTop: '2px' }}>종이 송장이 없거나 분실하신 경우</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 500, marginTop: '2px' }}>종이 송장이 없거나 분실하신 경우</div>
                   </div>
                 </button>
               </div>
             )}
 
             {mode === 'PHOTO' && (
-              <div style={{ textAlign: 'center', backgroundColor: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+              <div style={{ textAlign: 'center', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                 <input type="file" accept="image/*" capture="environment" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
                 <button 
                   onClick={() => fileInputRef.current?.click()}
@@ -632,41 +632,41 @@ export const DriverPortalPage: React.FC = () => {
                 >
                   {uploading ? <><UploadCloud size={20} /> 업로드 중...</> : <><Camera size={20} /> 카메라 켜기</>}
                 </button>
-                <button onClick={() => setMode('SELECT')} style={{ marginTop: '16px', background: 'none', border: 'none', color: '#64748b', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>이전으로 돌아가기</button>
+                <button onClick={() => setMode('SELECT')} style={{ marginTop: '16px', background: 'none', border: 'none', color: 'var(--text-secondary)', fontWeight: 600, fontSize: '13px', cursor: 'pointer' }}>이전으로 돌아가기</button>
               </div>
             )}
 
             {mode === 'SIGN' && (
-              <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                <div style={{ textAlign: 'center', marginBottom: '14px', paddingBottom: '12px', borderBottom: '2px solid #1e293b' }}>
+              <div style={{ backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                <div style={{ textAlign: 'center', marginBottom: '14px', paddingBottom: '12px', borderBottom: '2px solid var(--border-color)' }}>
                   <h3 style={{ margin: 0, fontSize: '19px', fontWeight: 900, letterSpacing: '1px' }}>납품(인수)확인서 서명</h3>
                 </div>
                 
-                <div style={{ fontSize: '13px', lineHeight: '1.6', color: '#334155', marginBottom: '14px' }}>
+                <div style={{ fontSize: '13px', lineHeight: '1.6', color: 'var(--text-secondary)', marginBottom: '14px' }}>
                   위 장비를 이상 없이 정히 인수(반납) 하였음을 확인합니다.<br/>
                   <strong>일자:</strong> {new Date().toLocaleDateString('ko-KR')}
                 </div>
 
                 {/* Receiver Info Confirmation & Input */}
-                <div style={{ backgroundColor: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ backgroundColor: 'var(--bg-app)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <label style={{ width: '90px', fontSize: '13px', fontWeight: 700, color: '#475569' }}>인수자 성명</label>
+                    <label style={{ width: '90px', fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>인수자 성명</label>
                     <input 
                       type="text" 
                       value={receiverName} 
                       onChange={(e) => setReceiverName(e.target.value)} 
                       placeholder="인수자 성명"
-                      style={{ flex: 1, padding: '6px 10px', fontSize: '14px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                      style={{ flex: 1, padding: '6px 10px', fontSize: '14px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}
                     />
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <label style={{ width: '90px', fontSize: '13px', fontWeight: 700, color: '#475569' }}>인수자 연락처</label>
+                    <label style={{ width: '90px', fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>인수자 연락처</label>
                     <input 
                       type="text" 
                       value={receiverPhone} 
                       onChange={(e) => setReceiverPhone(e.target.value)} 
                       placeholder="010-0000-0000"
-                      style={{ flex: 1, padding: '6px 10px', fontSize: '14px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                      style={{ flex: 1, padding: '6px 10px', fontSize: '14px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}
                     />
                   </div>
                 </div>
