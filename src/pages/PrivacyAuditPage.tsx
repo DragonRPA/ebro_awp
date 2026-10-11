@@ -477,7 +477,7 @@ export const PrivacyAuditPage: React.FC = () => {
           gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
           gap: '10px'
         }}>
-          <div style={{ padding: '8px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-surface, #f8fafc)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ padding: '8px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <CheckCircle size={16} color="#059669" />
             <div>
               <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-main)' }}>고유식별정보 (주민번호/신분증)</div>
@@ -485,7 +485,7 @@ export const PrivacyAuditPage: React.FC = () => {
             </div>
           </div>
 
-          <div style={{ padding: '8px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-surface, #f8fafc)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ padding: '8px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <CheckCircle size={16} color="#059669" />
             <div>
               <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-main)' }}>금융정보 (계좌번호/법인카드)</div>
@@ -493,7 +493,7 @@ export const PrivacyAuditPage: React.FC = () => {
             </div>
           </div>
 
-          <div style={{ padding: '8px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-surface, #f8fafc)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ padding: '8px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <CheckCircle size={16} color="#059669" />
             <div>
               <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-main)' }}>민감 개인정보 (생년월일/연락처)</div>
@@ -501,7 +501,7 @@ export const PrivacyAuditPage: React.FC = () => {
             </div>
           </div>
 
-          <div style={{ padding: '8px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-surface, #f8fafc)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ padding: '8px 12px', borderRadius: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <CheckCircle size={16} color="#059669" />
             <div>
               <div style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--text-main)' }}>평문 노출 제로 (Zero-Plaintext)</div>
@@ -716,9 +716,9 @@ export const PrivacyAuditPage: React.FC = () => {
         overflowY: 'auto'
       }}>
         <table data-mid="privacy-inspection-grid" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', whiteSpace: 'nowrap' }}>
-          <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-secondary, #f8fafc)' }}>
+          <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-secondary)' }}>
             <tr style={{
-              backgroundColor: 'var(--bg-secondary, #f8fafc)',
+              backgroundColor: 'var(--bg-secondary)',
               borderBottom: '1px solid var(--border-color, #e2e8f0)',
               color: 'var(--text-secondary, #475569)',
               fontWeight: 700,
@@ -822,7 +822,7 @@ export const PrivacyAuditPage: React.FC = () => {
           통계 검증 및 반기 감사 승인
           ───────────────────────────────────────────────────────────── */}
       <div style={{
-        backgroundColor: 'var(--bg-secondary, #f8fafc)',
+        backgroundColor: 'var(--bg-secondary)',
         borderRadius: '8px',
         border: '1px solid var(--border-color, var(--border-color))',
         padding: '12px 18px',
@@ -1000,7 +1000,7 @@ export const PrivacyAuditPage: React.FC = () => {
             }}>
               <thead>
                 <tr style={{
-                  backgroundColor: 'var(--bg-secondary, #f8fafc)',
+                  backgroundColor: 'var(--bg-secondary)',
                   borderBottom: '1px solid var(--border-color, #e2e8f0)',
                   color: 'var(--text-secondary, #475569)',
                   fontWeight: 700

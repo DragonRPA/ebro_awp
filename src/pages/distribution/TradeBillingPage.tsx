@@ -25,17 +25,17 @@ export const TradeBillingPage: React.FC = () => {
         <table data-mid="trade_billing-table" style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--bg-card)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
           <thead>
             <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
-              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>주문번호</th>
-              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>고객사</th>
-              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>납품증빙 서명 확인</th>
-              <th style={{ padding: '12px 14px', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>매출액 (원)</th>
-              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>청구 발행</th>
+              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>주문번호</th>
+              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>고객사</th>
+              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>납품증빙 서명 확인</th>
+              <th style={{ padding: '12px 14px', textAlign: 'right', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>매출액 (원)</th>
+              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>청구 발행</th>
             </tr>
           </thead>
           <tbody>
             {salesOrders.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
+                <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
                   수주 내역이 없습니다.
                 </td>
               </tr>
@@ -46,9 +46,9 @@ export const TradeBillingPage: React.FC = () => {
                 const hasProof = Boolean(matchedOutbound?.proofUrl);
 
                 return (
-                  <tr key={o.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '12px 14px', fontSize: '14px', fontWeight: 600, color: '#0f172a' }}>{o.id.substring(0, 10)}</td>
-                    <td style={{ padding: '12px 14px', fontSize: '13px', color: '#475569' }}>현대건설(주)</td>
+                  <tr key={o.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                    <td style={{ padding: '12px 14px', fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>{o.id.substring(0, 10)}</td>
+                    <td style={{ padding: '12px 14px', fontSize: '13px', color: 'var(--text-muted)' }}>현대건설(주)</td>
                     
                     {/* Proof Status */}
                     <td style={{ padding: '12px 14px', textAlign: 'center' }}>

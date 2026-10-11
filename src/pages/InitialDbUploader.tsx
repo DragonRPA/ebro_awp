@@ -2043,8 +2043,8 @@ export const InitialDbUploader: React.FC = () => {
                         onClick={() => setBandStatusFilter(st)}
                         style={{
                           padding: '4px 8px', fontSize: '11px', fontWeight: 600, borderRadius: '4px', border: 'none', cursor: 'pointer',
-                          backgroundColor: bandStatusFilter === st ? '#1e293b' : '#e2e8f0',
-                          color: bandStatusFilter === st ? '#ffffff' : '#475569'
+                          backgroundColor: bandStatusFilter === st ? 'var(--primary)' : 'var(--bg-secondary)',
+                          color: bandStatusFilter === st ? '#ffffff' : 'var(--text-muted)'
                         }}
                       >
                         {st === 'ALL' ? '전체 상태' : st === 'COMPLETED' ? '조치완료' : st === 'REVISIT' ? '익일방문' : '안내종결'}
@@ -2060,7 +2060,7 @@ export const InitialDbUploader: React.FC = () => {
                         style={{
                           padding: '4px 8px', fontSize: '11px', fontWeight: 600, borderRadius: '4px', border: 'none', cursor: 'pointer',
                           backgroundColor: bandContractFilter === cf ? 'var(--primary)' : 'var(--bg-secondary)',
-                          color: bandContractFilter === cf ? '#ffffff' : '#475569'
+                          color: bandContractFilter === cf ? '#ffffff' : 'var(--text-muted)'
                         }}
                       >
                         {cf === 'ALL' ? '계약 전체' : cf === 'MATCHED' ? '계약 매핑' : cf === 'GUESSED' ? '1대 추정' : '미매핑'}
@@ -3018,7 +3018,7 @@ export const InitialDbUploader: React.FC = () => {
                           <td style={{ padding: '7px 10px', whiteSpace: 'nowrap', fontWeight: 600, color: 'var(--text-main)' }}>{u.name}</td>
                           <td style={{ padding: '7px 10px', whiteSpace: 'nowrap', color: 'var(--text-muted)' }}>{u.loginId}</td>
                           <td style={{ padding: '7px 10px', whiteSpace: 'nowrap' }}>
-                            <span style={{ padding: '2px 6px', borderRadius: '4px', backgroundColor: u.role === 'ADMIN' ? '#fee2e2' : u.role === 'MANAGER' ? '#fef3c7' : '#f1f5f9', color: u.role === 'ADMIN' ? '#b91c1c' : u.role === 'MANAGER' ? '#b45309' : '#475569', fontSize: '11px', fontWeight: 600 }}>
+                            <span style={{ padding: '2px 6px', borderRadius: '4px', backgroundColor: u.role === 'ADMIN' ? '#fee2e2' : u.role === 'MANAGER' ? '#fef3c7' : 'var(--bg-secondary)', color: u.role === 'ADMIN' ? '#b91c1c' : u.role === 'MANAGER' ? '#b45309' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600 }}>
                               {u.role}
                             </span>
                           </td>
@@ -3496,7 +3496,7 @@ export const InitialDbUploader: React.FC = () => {
                 <span>{restoreProgress.message}</span>
                 <span>{Math.round((restoreProgress.step / Math.max(1, restoreProgress.total)) * 100)}%</span>
               </div>
-              <div style={{ width: '100%', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+              <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--bg-secondary)', borderRadius: '4px', overflow: 'hidden' }}>
                 <div
                   style={{
                     width: `${Math.round((restoreProgress.step / Math.max(1, restoreProgress.total)) * 100)}%`,

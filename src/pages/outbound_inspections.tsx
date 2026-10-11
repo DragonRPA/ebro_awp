@@ -2150,7 +2150,7 @@ export const OutboundInspections: React.FC = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              backgroundColor: 'var(--bg-body, #f8fafc)'
+              backgroundColor: 'var(--bg-body)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Boxes size={20} color="#d97706" />
@@ -2291,7 +2291,7 @@ export const OutboundInspections: React.FC = () => {
               borderTop: '1px solid var(--border-color)',
               display: 'flex',
               justifyContent: 'flex-end',
-              backgroundColor: 'var(--bg-body, #f8fafc)'
+              backgroundColor: 'var(--bg-body)'
             }}>
               <button
                 onClick={() => setShowConsumableModal(false)}

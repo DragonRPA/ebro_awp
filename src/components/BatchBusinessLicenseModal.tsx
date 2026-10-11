@@ -771,7 +771,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                       style={{
                         height: '38px',
                         borderBottom: '1px solid var(--border-color, #e2e8f0)',
-                        backgroundColor: isCurProcessing ? '#e0f2fe' : (row.index % 2 === 1 ? 'var(--bg-secondary, #f8fafc)' : 'transparent')
+                        backgroundColor: isCurProcessing ? '#e0f2fe' : (row.index % 2 === 1 ? 'var(--bg-secondary)' : 'transparent')
                       }}
                     >
                       <td style={{ padding: '6px 10px', textAlign: 'center', color: 'var(--text-muted, #94a3b8)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>

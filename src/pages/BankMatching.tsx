@@ -2110,19 +2110,19 @@ export const BankMatching: React.FC = () => {
             </div>
 
             {/* 기본 거래 정보 테이블 */}
-            <div style={{ border: '1px solid #111827', borderRadius: '4px', overflow: 'hidden' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 120px 1fr', borderBottom: '1px solid #e5e7eb', fontSize: '12.5px' }}>
-                <div style={{ backgroundColor: 'var(--bg-app)', padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid #e5e7eb' }}>발행 번호</div>
-                <div style={{ padding: '8px 10px', borderRight: '1px solid #e5e7eb' }}>RCP-{receiptTx.id.replace(/[^0-9a-zA-Z]/g, '').substring(0, 10).toUpperCase()}</div>
-                <div style={{ backgroundColor: 'var(--bg-app)', padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid #e5e7eb' }}>영수 일자</div>
+            <div style={{ border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 120px 1fr', borderBottom: '1px solid var(--border-color)', fontSize: '12.5px' }}>
+                <div style={{ backgroundColor: 'var(--bg-app)', padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid var(--border-color)' }}>발행 번호</div>
+                <div style={{ padding: '8px 10px', borderRight: '1px solid var(--border-color)' }}>RCP-{receiptTx.id.replace(/[^0-9a-zA-Z]/g, '').substring(0, 10).toUpperCase()}</div>
+                <div style={{ backgroundColor: 'var(--bg-app)', padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid var(--border-color)' }}>영수 일자</div>
                 <div style={{ padding: '8px 10px' }}>{receiptTx.transactionDate.split(' ')[0]}</div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr 120px 1fr', fontSize: '12.5px' }}>
-                <div style={{ backgroundColor: 'var(--bg-app)', padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid #e5e7eb' }}>입금 고객사</div>
-                <div style={{ padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid #e5e7eb', color: 'var(--primary)' }}>
+                <div style={{ backgroundColor: 'var(--bg-app)', padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid var(--border-color)' }}>입금 고객사</div>
+                <div style={{ padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid var(--border-color)', color: 'var(--primary)' }}>
                   {receiptTx.counterparty || receiptTx.senderName} 貴下
                 </div>
-                <div style={{ backgroundColor: 'var(--bg-app)', padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid #e5e7eb' }}>수납 구분</div>
+                <div style={{ backgroundColor: 'var(--bg-app)', padding: '8px 10px', fontWeight: 'bold', borderRight: '1px solid var(--border-color)' }}>수납 구분</div>
                 <div style={{ padding: '8px 10px' }}>계좌이체 (통장입금)</div>
               </div>
             </div>

@@ -2630,7 +2630,7 @@ export const Contracts: React.FC = () => {
                           <td style={{ whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
                               {ca.status === 'RETURNED' ? (
-                                <span style={{ backgroundColor: '#e5e7eb', color: '#374151', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>🚫 반납완료</span>
+                                <span style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-muted)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>🚫 반납완료</span>
                               ) : (
                                 <span style={{ backgroundColor: '#dcfce3', color: '#166534', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>🟢 운용중</span>
                               )}
@@ -3991,7 +3991,7 @@ export const Contracts: React.FC = () => {
       {/* 스타일 */}
       <style>{`
         .hover-row:hover {
-          background-color: #f1f5f9 !important;
+          background-color: var(--bg-secondary) !important;
         }
       `}</style>
       {toastMessage && (

@@ -306,8 +306,8 @@ export const TradeContractsPage: React.FC = () => {
                               fontSize: '11px',
                               padding: '2px 8px',
                               borderRadius: '4px',
-                              backgroundColor: o.status === 'DELIVERED' ? '#dcfce7' : o.status === 'SHIPPED' ? '#e0f2fe' : '#f1f5f9',
-                              color: o.status === 'DELIVERED' ? '#166534' : o.status === 'SHIPPED' ? '#0369a1' : '#475569',
+                              backgroundColor: o.status === 'DELIVERED' ? 'var(--success-light, #dcfce7)' : o.status === 'SHIPPED' ? 'var(--primary-light, #e0f2fe)' : 'var(--bg-secondary)',
+                              color: o.status === 'DELIVERED' ? 'var(--success)' : o.status === 'SHIPPED' ? 'var(--primary)' : 'var(--text-muted)',
                               fontWeight: 600
                             }}
                           >
@@ -321,8 +321,8 @@ export const TradeContractsPage: React.FC = () => {
                               fontSize: '11px',
                               padding: '2px 8px',
                               borderRadius: '4px',
-                              backgroundColor: docStatus === 'SENT' ? '#dcfce7' : docStatus === 'GENERATED' ? '#fef3c7' : '#f1f5f9',
-                              color: docStatus === 'SENT' ? '#166534' : docStatus === 'GENERATED' ? '#b45309' : '#475569',
+                              backgroundColor: docStatus === 'SENT' ? 'var(--success-light, #dcfce7)' : docStatus === 'GENERATED' ? 'var(--warning-light, #fef3c7)' : 'var(--bg-secondary)',
+                              color: docStatus === 'SENT' ? 'var(--success)' : docStatus === 'GENERATED' ? 'var(--warning)' : 'var(--text-muted)',
                               fontWeight: 600,
                               display: 'inline-flex',
                               alignItems: 'center',

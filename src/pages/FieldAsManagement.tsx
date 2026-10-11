@@ -1128,12 +1128,12 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
               alignItems: 'center',
               gap: '6px',
               padding: '7px 12px',
-              backgroundColor: isEffectiveMobile ? '#fef3c7' : '#f1f5f9',
-              border: isEffectiveMobile ? '1px solid #f59e0b' : '1px solid #cbd5e1',
+              backgroundColor: isEffectiveMobile ? 'var(--warning-light, #fef3c7)' : 'var(--bg-secondary)',
+              border: isEffectiveMobile ? '1px solid var(--warning)' : '1px solid var(--border-color)',
               borderRadius: '6px',
               fontSize: '12px',
               fontWeight: 700,
-              color: isEffectiveMobile ? '#b45309' : '#475569',
+              color: isEffectiveMobile ? 'var(--warning)' : 'var(--text-muted)',
               cursor: 'pointer',
               whiteSpace: 'nowrap',
               flexShrink: 0
@@ -2510,7 +2510,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                         borderRadius: '6px',
                         border: '1px solid var(--border-color)',
                         fontSize: '14px',
-                        backgroundColor: actionBillableType === 'FREE' ? '#f1f5f9' : 'var(--bg-card)',
+                        backgroundColor: actionBillableType === 'FREE' ? 'var(--bg-secondary)' : 'var(--bg-card)',
                         fontWeight: 700
                       }}
                     />

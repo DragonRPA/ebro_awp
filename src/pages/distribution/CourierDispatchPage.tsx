@@ -322,24 +322,22 @@ export const CourierDispatchPage: React.FC = () => {
             placeholder="출고/주문번호/기사/송장 검색..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            style={{ padding: '6px 12px', fontSize: '13px', border: '1px solid #cbd5e1', borderRadius: '6px', width: '220px' }}
+            style={{
+              padding: '6px 12px',
+              fontSize: '13px',
+              backgroundColor: 'var(--bg-card)',
+              color: 'var(--text-main)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '6px',
+              width: '220px'
+            }}
           />
-          <div style={{ display: 'flex', backgroundColor: '#f1f5f9', borderRadius: '6px', padding: '3px' }}>
+          <div className="segmented-tab-group">
             {(['ALL', 'ALLOCATED', 'SHIPPED', 'DELIVERED'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveFilter(tab)}
-                style={{
-                  border: 'none',
-                  padding: '5px 12px',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  backgroundColor: activeFilter === tab ? 'var(--bg-card)' : 'transparent',
-                  color: activeFilter === tab ? 'var(--text-main)' : 'var(--text-muted)',
-                  boxShadow: activeFilter === tab ? '0 1px 2px rgba(0,0,0,0.05)' : 'none'
-                }}
+                className={`segmented-tab-item ${activeFilter === tab ? 'active' : ''}`}
               >
                 {tab === 'ALL' ? '전체' : tab === 'ALLOCATED' ? '배송대기' : tab === 'SHIPPED' ? '배송중' : '납품완료'}
               </button>
@@ -353,19 +351,19 @@ export const CourierDispatchPage: React.FC = () => {
         <table data-mid="courier_dispatch-table" style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--bg-card)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
           <thead>
             <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
-              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: '#475569', width: '110px', whiteSpace: 'nowrap' }}>출고번호</th>
-              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>주문번호 / 고객사</th>
-              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>배송 품목</th>
-              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: '#475569', width: '100px', whiteSpace: 'nowrap' }}>운송구분</th>
-              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>운송/배송 정보</th>
-              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: '#475569', width: '90px', whiteSpace: 'nowrap' }}>진행상태</th>
-              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: '#475569', minWidth: '320px', whiteSpace: 'nowrap' }}>배차 / 납품증 / 서명 관리</th>
+              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', width: '110px', whiteSpace: 'nowrap' }}>출고번호</th>
+              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>주문번호 / 고객사</th>
+              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>배송 품목</th>
+              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', width: '100px', whiteSpace: 'nowrap' }}>운송구분</th>
+              <th style={{ padding: '12px 14px', textAlign: 'left', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>운송/배송 정보</th>
+              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', width: '90px', whiteSpace: 'nowrap' }}>진행상태</th>
+              <th style={{ padding: '12px 14px', textAlign: 'center', fontSize: '13px', fontWeight: 700, color: 'var(--text-muted)', minWidth: '320px', whiteSpace: 'nowrap' }}>배차 / 납품증 / 서명 관리</th>
             </tr>
           </thead>
           <tbody>
             {filteredOutbounds.length === 0 ? (
               <tr>
-                <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
+                <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px' }}>
                   해당 조건의 출고/배송 데이터가 없습니다.
                 </td>
               </tr>
@@ -380,23 +378,23 @@ export const CourierDispatchPage: React.FC = () => {
                   : `${firstProduct?.name || '상품'} 외 ${lines.length - 1}종 (총 ${itemCount}개)`;
 
                 return (
-                  <tr key={o.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  <tr key={o.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     
                     {/* Outbound ID */}
-                    <td style={{ padding: '12px 14px', fontSize: '13px', fontWeight: 700, color: '#1e293b' }}>
+                    <td style={{ padding: '12px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>
                       {o.id.substring(0, 12)}
                     </td>
 
                     {/* Order & Customer */}
                     <td style={{ padding: '12px 14px', fontSize: '13px' }}>
-                      <div style={{ fontWeight: 600, color: '#0f172a' }}>{order?.id ? order.id.substring(0, 10) : o.orderId}</div>
-                      <div style={{ fontSize: '12px', color: '#64748b' }}>현대건설(주)</div>
+                      <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{order?.id ? order.id.substring(0, 10) : o.orderId}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>현대건설(주)</div>
                     </td>
 
                     {/* Cargo Summary */}
-                    <td style={{ padding: '12px 14px', fontSize: '13px', color: '#334155' }}>
+                    <td style={{ padding: '12px 14px', fontSize: '13px', color: 'var(--text-secondary)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <Package size={14} color="#64748b" />
+                        <Package size={14} color="var(--text-muted)" />
                         <span>{itemsSummary}</span>
                       </div>
                     </td>
@@ -408,8 +406,8 @@ export const CourierDispatchPage: React.FC = () => {
                         borderRadius: '4px',
                         fontSize: '11.5px',
                         fontWeight: 600,
-                        backgroundColor: o.deliveryType === 'DIRECT' ? '#eff6ff' : '#fef3c7',
-                        color: o.deliveryType === 'DIRECT' ? '#2563eb' : '#d97706'
+                        backgroundColor: o.deliveryType === 'DIRECT' ? 'var(--primary-light, #eff6ff)' : 'var(--warning-light, #fef3c7)',
+                        color: o.deliveryType === 'DIRECT' ? 'var(--primary)' : 'var(--warning)'
                       }}>
                         {o.deliveryType === 'DIRECT' ? '화물직배' : '택배배송'}
                       </span>
@@ -418,16 +416,16 @@ export const CourierDispatchPage: React.FC = () => {
                     {/* Dispatch Details */}
                     <td style={{ padding: '12px 14px', fontSize: '13px' }}>
                       {o.status === 'ALLOCATED' ? (
-                        <span style={{ color: '#94a3b8', fontSize: '12px' }}>배송 정보 미등록 (배차대기)</span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>배송 정보 미등록 (배차대기)</span>
                       ) : o.deliveryType === 'DIRECT' ? (
                         <div>
-                          <div style={{ fontWeight: 600, color: '#0f172a' }}>{o.driverName || '기사'} ({o.driverContact || '-'})</div>
-                          <div style={{ fontSize: '12px', color: '#64748b' }}>{o.vehicleNo || '화물차량'}</div>
+                          <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{o.driverName || '기사'} ({o.driverContact || '-'})</div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{o.vehicleNo || '화물차량'}</div>
                         </div>
                       ) : (
                         <div>
-                          <div style={{ fontWeight: 600, color: '#0f172a' }}>{o.courierName || 'CJ대한통운'}</div>
-                          <div style={{ fontSize: '12px', color: '#059669', fontFamily: 'monospace' }}>송장: {o.trackingNumber || '-'}</div>
+                          <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{o.courierName || 'CJ대한통운'}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--success, #059669)', fontFamily: 'monospace' }}>송장: {o.trackingNumber || '-'}</div>
                         </div>
                       )}
                     </td>
@@ -661,51 +659,51 @@ export const CourierDispatchPage: React.FC = () => {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>차량 번호 / 종류</label>
+                <label style={{ display: 'block', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>차량 번호 / 종류</label>
                 <input
                   type="text"
                   value={vehicleNo}
                   onChange={e => setVehicleNo(e.target.value)}
-                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border-color)', borderRadius: '6px', boxSizing: 'border-box', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>하차지 (현장 주소)</label>
+                <label style={{ display: 'block', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>하차지 (현장 주소)</label>
                 <input
                   type="text"
                   value={destinationAddress}
                   onChange={e => setDestinationAddress(e.target.value)}
-                  style={{ width: '100%', padding: '8px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border-color)', borderRadius: '6px', boxSizing: 'border-box', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
                 />
               </div>
 
               <div style={{ display: 'flex', gap: '10px' }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>인수 담당자</label>
+                  <label style={{ display: 'block', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>인수 담당자</label>
                   <input
                     type="text"
                     value={receiverName}
                     onChange={e => setReceiverName(e.target.value)}
-                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border-color)', borderRadius: '6px', boxSizing: 'border-box', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
                   />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontWeight: 600, color: '#475569', marginBottom: '4px' }}>인수자 연락처</label>
+                  <label style={{ display: 'block', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '4px' }}>인수자 연락처</label>
                   <input
                     type="text"
                     value={receiverPhone}
                     onChange={e => setReceiverPhone(e.target.value)}
-                    style={{ width: '100%', padding: '8px 10px', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border-color)', borderRadius: '6px', boxSizing: 'border-box', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)' }}
                   />
                 </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
               <button
                 onClick={() => setDirectDispatchTarget(null)}
-                style={{ padding: '8px 16px', backgroundColor: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
+                style={{ padding: '8px 16px', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
               >
                 취소
               </button>

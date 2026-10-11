@@ -1055,10 +1055,10 @@ export const ConsumableInOutPage: React.FC = () => {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>기간</label>
                     <div style={{ display: 'flex', gap: '2px' }}>
-                      <button type="button" onClick={() => handleQuickDate('TODAY')} style={{ fontSize: '10px', padding: '2px 4px', border: '1px solid #ccc', borderRadius: '3px', cursor: 'pointer', backgroundColor: '#f9fafb' }}>오늘</button>
-                      <button type="button" onClick={() => handleQuickDate('WEEK')} style={{ fontSize: '10px', padding: '2px 4px', border: '1px solid #ccc', borderRadius: '3px', cursor: 'pointer', backgroundColor: '#f9fafb' }}>7일</button>
-                      <button type="button" onClick={() => handleQuickDate('THIS_MONTH')} style={{ fontSize: '10px', padding: '2px 4px', border: '1px solid #ccc', borderRadius: '3px', cursor: 'pointer', backgroundColor: '#f9fafb' }}>당월</button>
-                      <button type="button" onClick={() => handleQuickDate('LAST_MONTH')} style={{ fontSize: '10px', padding: '2px 4px', border: '1px solid #ccc', borderRadius: '3px', cursor: 'pointer', backgroundColor: '#f9fafb' }}>전월</button>
+                      <button type="button" onClick={() => handleQuickDate('TODAY')} style={{ fontSize: '10px', padding: '2px 4px', border: '1px solid var(--border-color)', borderRadius: '3px', cursor: 'pointer', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-main)' }}>오늘</button>
+                      <button type="button" onClick={() => handleQuickDate('WEEK')} style={{ fontSize: '10px', padding: '2px 4px', border: '1px solid var(--border-color)', borderRadius: '3px', cursor: 'pointer', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-main)' }}>7일</button>
+                      <button type="button" onClick={() => handleQuickDate('THIS_MONTH')} style={{ fontSize: '10px', padding: '2px 4px', border: '1px solid var(--border-color)', borderRadius: '3px', cursor: 'pointer', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-main)' }}>당월</button>
+                      <button type="button" onClick={() => handleQuickDate('LAST_MONTH')} style={{ fontSize: '10px', padding: '2px 4px', border: '1px solid var(--border-color)', borderRadius: '3px', cursor: 'pointer', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-main)' }}>전월</button>
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>

@@ -512,7 +512,7 @@ export const AssetInboundStaging: React.FC = () => {
               </div>
 
               {activeInspectionItem.selectedChecklistIds.length > 0 && (
-                <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: '#f8fafc', borderRadius: '6px', border: '1px dashed var(--border-color)' }}>
+                <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: 'var(--bg-secondary)', borderRadius: '6px', border: '1px dashed var(--border-color)' }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '10px' }}>파손 부위 사진 첨부 (선택 사항)</label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px' }}>
                     {inspectionChecklistItems.filter(i => activeInspectionItem.selectedChecklistIds.includes(i.id)).map(item => {
@@ -576,8 +576,8 @@ export const AssetInboundStaging: React.FC = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
               <thead>
                 <tr>
-                  <th style={{ padding: '8px', border: '1px solid #e5e7eb', backgroundColor: '#f9fafb', fontSize: '12px', textAlign: 'left', fontWeight: 600 }}>관리번호</th>
-                  <th style={{ padding: '8px', border: '1px solid #e5e7eb', backgroundColor: '#f9fafb', fontSize: '12px', textAlign: 'left', fontWeight: 600 }}>현재 상태</th>
+                  <th style={{ padding: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-main)', fontSize: '12px', textAlign: 'left', fontWeight: 600 }}>관리번호</th>
+                  <th style={{ padding: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-secondary)', color: 'var(--text-main)', fontSize: '12px', textAlign: 'left', fontWeight: 600 }}>현재 상태</th>
                 </tr>
               </thead>
               <tbody>

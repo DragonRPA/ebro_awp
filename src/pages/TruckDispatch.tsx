@@ -6821,7 +6821,7 @@ export const TruckDispatch: React.FC = () => {
                     padding: '12px 14px',
                     borderRadius: '8px',
                     border: '1px solid var(--border-color, #d1d5db)',
-                    backgroundColor: 'var(--bg-app, #f9fafb)',
+                    backgroundColor: 'var(--bg-app)',
                     color: 'var(--text-primary, #111827)',
                     fontFamily: 'Consolas, Monaco, "Courier New", monospace',
                     fontSize: '12.5px',
@@ -6842,7 +6842,7 @@ export const TruckDispatch: React.FC = () => {
                 justifyContent: 'flex-end',
                 alignItems: 'center',
                 gap: '8px',
-                backgroundColor: 'var(--bg-app, #f9fafb)'
+                backgroundColor: 'var(--bg-app)'
               }}
             >
               <button

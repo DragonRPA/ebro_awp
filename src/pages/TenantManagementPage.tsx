@@ -3167,8 +3167,8 @@ export const TenantManagementPage: React.FC = () => {
                                           fontSize: '10px',
                                           padding: '1px 4px',
                                           borderRadius: '3px',
-                                          backgroundColor: '#e2e8f0',
-                                          color: '#475569',
+                                          backgroundColor: 'var(--bg-secondary)',
+                                          color: 'var(--text-muted)',
                                           fontWeight: 700,
                                           whiteSpace: 'nowrap'
                                         }}>
@@ -3320,11 +3320,11 @@ export const TenantManagementPage: React.FC = () => {
                   {/* 텔레그램 및 클라우드 큐잉 안내 배너 */}
                   <div style={{
                     padding: '12px 16px',
-                    backgroundColor: '#f8fafc',
+                    backgroundColor: 'var(--bg-secondary)',
                     borderRadius: '8px',
-                    border: '1px dashed #cbd5e1',
+                    border: '1px dashed var(--border-color)',
                     fontSize: '12px',
-                    color: '#334155',
+                    color: 'var(--text-secondary)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '10px'
@@ -3464,8 +3464,8 @@ export const TenantManagementPage: React.FC = () => {
                               fontWeight: 700,
                               padding: '2px 6px',
                               borderRadius: '4px',
-                              backgroundColor: hasCustom ? '#eff6ff' : '#f1f5f9',
-                              color: hasCustom ? '#1d4ed8' : '#64748b',
+                              backgroundColor: hasCustom ? 'var(--primary-light, #eff6ff)' : 'var(--bg-secondary)',
+                              color: hasCustom ? 'var(--primary)' : 'var(--text-muted)',
                               whiteSpace: 'nowrap'
                             }}>
                               {hasCustom ? '맞춤 서식' : '기본 서식'}
@@ -3506,8 +3506,8 @@ export const TenantManagementPage: React.FC = () => {
                             fontWeight: 700,
                             padding: '1px 6px',
                             borderRadius: '4px',
-                            backgroundColor: '#e2e8f0',
-                            color: '#334155'
+                            backgroundColor: 'var(--bg-secondary)',
+                            color: 'var(--text-muted)'
                           }}>
                             {selectedDocType}
                           </span>

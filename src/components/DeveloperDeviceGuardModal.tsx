@@ -174,7 +174,7 @@ export const DeveloperDeviceGuardModal: React.FC<DeveloperDeviceGuardModalProps>
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          backgroundColor: activeTab === 'BREAK_GLASS' ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-surface, #f8fafc)'
+          backgroundColor: activeTab === 'BREAK_GLASS' ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-surface)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
@@ -217,7 +217,7 @@ export const DeveloperDeviceGuardModal: React.FC<DeveloperDeviceGuardModalProps>
         <div style={{
           display: 'flex',
           borderBottom: '1px solid var(--border-color)',
-          backgroundColor: 'var(--bg-secondary, #f1f5f9)'
+          backgroundColor: 'var(--bg-secondary)'
         }}>
           <button
             type="button"

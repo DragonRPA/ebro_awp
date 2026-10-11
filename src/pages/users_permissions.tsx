@@ -594,7 +594,7 @@ export const UsersPermissions: React.FC = () => {
         {/* 2대 탭 세그먼트 버튼 */}
         <div style={{
           display: 'flex',
-          backgroundColor: 'var(--bg-secondary, #f1f5f9)',
+          backgroundColor: 'var(--bg-secondary)',
           borderRadius: '8px',
           padding: '4px',
           gap: '4px'
@@ -739,7 +739,7 @@ export const UsersPermissions: React.FC = () => {
             }}>
               <div style={{
                 padding: '10px 14px',
-                backgroundColor: 'var(--bg-secondary, #f8fafc)',
+                backgroundColor: 'var(--bg-secondary)',
                 borderBottom: '1px solid var(--border-color, #e2e8f0)',
                 fontSize: '12px',
                 fontWeight: 700,
@@ -781,8 +781,8 @@ export const UsersPermissions: React.FC = () => {
                             borderRadius: '10px',
                             fontSize: '11px',
                             fontWeight: 700,
-                            backgroundColor: count > 0 ? '#dbeafe' : '#f1f5f9',
-                            color: count > 0 ? '#1d4ed8' : '#64748b'
+                            backgroundColor: count > 0 ? 'var(--primary-light, #dbeafe)' : 'var(--bg-secondary)',
+                            color: count > 0 ? 'var(--primary)' : 'var(--text-muted)'
                           }}>
                             {count}명 상속
                           </span>
@@ -831,7 +831,7 @@ export const UsersPermissions: React.FC = () => {
             {/* 권한 헤더 & 일괄 설정 바 */}
             <div style={{
               padding: '12px 18px',
-              backgroundColor: 'var(--bg-secondary, #f8fafc)',
+              backgroundColor: 'var(--bg-secondary)',
               borderBottom: '1px solid var(--border-color, #e2e8f0)',
               display: 'flex',
               alignItems: 'center',
@@ -961,7 +961,7 @@ export const UsersPermissions: React.FC = () => {
                     {/* 카테고리 헤더 행 */}
                     <div style={{
                       padding: '8px 18px',
-                      backgroundColor: 'var(--bg-secondary, #f1f5f9)',
+                      backgroundColor: 'var(--bg-secondary)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
@@ -1160,7 +1160,7 @@ export const UsersPermissions: React.FC = () => {
                   fontWeight: 600,
                   borderRadius: '6px',
                   border: '1px solid var(--border-color, var(--border-color))',
-                  backgroundColor: 'var(--bg-secondary, #f8fafc)',
+                  backgroundColor: 'var(--bg-secondary)',
                   color: 'var(--text-main, #0f172a)',
                   cursor: 'pointer',
                   display: 'flex',
@@ -1185,9 +1185,9 @@ export const UsersPermissions: React.FC = () => {
             overflowY: 'auto'
           }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', whiteSpace: 'nowrap' }}>
-              <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-secondary, #f8fafc)' }}>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-secondary)' }}>
                 <tr style={{
-                  backgroundColor: 'var(--bg-secondary, #f8fafc)',
+                  backgroundColor: 'var(--bg-secondary)',
                   borderBottom: '1px solid var(--border-color, #e2e8f0)',
                   color: 'var(--text-secondary, #475569)',
                   fontWeight: 700,
@@ -1223,7 +1223,7 @@ export const UsersPermissions: React.FC = () => {
                         key={user.id}
                         style={{
                           borderBottom: '1px solid var(--border-color, #f1f5f9)',
-                          backgroundColor: idx % 2 === 1 ? 'var(--bg-secondary, #f8fafc)' : 'transparent',
+                          backgroundColor: idx % 2 === 1 ? 'var(--bg-secondary)' : 'transparent',
                           whiteSpace: 'nowrap'
                         }}
                       >
@@ -1413,7 +1413,7 @@ export const UsersPermissions: React.FC = () => {
           }}>
             <div style={{
               padding: '14px 20px',
-              backgroundColor: 'var(--bg-secondary, #f8fafc)',
+              backgroundColor: 'var(--bg-secondary)',
               borderBottom: '1px solid var(--border-color, #e2e8f0)',
               display: 'flex',
               alignItems: 'center',
@@ -1457,7 +1457,7 @@ export const UsersPermissions: React.FC = () => {
 
                     return (
                       <div key={grp.id} style={{ border: '1px solid var(--border-color, var(--border-color))', borderRadius: '6px', overflow: 'hidden' }}>
-                        <div style={{ padding: '6px 12px', backgroundColor: 'var(--bg-secondary, #f1f5f9)', fontSize: '12px', fontWeight: 700, color: 'var(--text-main, #0f172a)' }}>
+                        <div style={{ padding: '6px 12px', backgroundColor: 'var(--bg-secondary)', fontSize: '12px', fontWeight: 700, color: 'var(--text-main, #0f172a)' }}>
                           {grp.name} ({permittedItems.length}개)
                         </div>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11.5px' }}>
@@ -1468,7 +1468,7 @@ export const UsersPermissions: React.FC = () => {
                               const canSave = perm?.canSave || normalizeMenuId(item.id) === 'leave_application';
 
                               return (
-                                <tr key={item.id} style={{ borderBottom: '1px solid #f8fafc' }}>
+                                <tr key={item.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                                   <td style={{ padding: '6px 12px', fontWeight: 600 }}>{item.name}</td>
                                   <td style={{ padding: '6px 12px', width: '80px', textAlign: 'center' }}>
                                     {canView ? <span style={{ color: 'var(--primary)', fontWeight: 700 }}>조회 허용</span> : '-'}
@@ -1488,7 +1488,7 @@ export const UsersPermissions: React.FC = () => {
               )}
             </div>
 
-            <div style={{ padding: '12px 20px', backgroundColor: 'var(--bg-secondary, #f8fafc)', borderTop: '1px solid var(--border-color, #e2e8f0)', display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ padding: '12px 20px', backgroundColor: 'var(--bg-secondary)', borderTop: '1px solid var(--border-color, #e2e8f0)', display: 'flex', justifyContent: 'flex-end' }}>
               <button
                 type="button"
                 onClick={() => setPreviewUser(null)}

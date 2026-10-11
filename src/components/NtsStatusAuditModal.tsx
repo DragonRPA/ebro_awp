@@ -839,7 +839,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                       style={{
                         height: '38px',
                         borderBottom: '1px solid var(--border-color, #e2e8f0)',
-                        backgroundColor: hasRentedRisk ? '#fff1f2' : (idx % 2 === 1 ? 'var(--bg-secondary, #f8fafc)' : 'transparent')
+                        backgroundColor: hasRentedRisk ? '#fff1f2' : (idx % 2 === 1 ? 'var(--bg-secondary)' : 'transparent')
                       }}
                     >
                       <td style={{ padding: '6px 10px', textAlign: 'center', color: 'var(--text-muted, #94a3b8)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>

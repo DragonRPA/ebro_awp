@@ -128,8 +128,8 @@ export const PersistentJobAlertToast: React.FC<Props> = ({ onNavigateMenu }) => 
           {/* 액션 버튼군: [확인] & [상세 바로가기] (전사 표준 헌장 3.1) */}
           <div style={{
             padding: '8px 14px',
-            backgroundColor: '#f8fafc',
-            borderTop: '1px solid #e2e8f0',
+            backgroundColor: 'var(--bg-secondary)',
+            borderTop: '1px solid var(--border-color)',
             display: 'flex',
             justifyContent: 'flex-end',
             gap: '8px'
@@ -140,9 +140,9 @@ export const PersistentJobAlertToast: React.FC<Props> = ({ onNavigateMenu }) => 
               style={{
                 padding: '6px 12px',
                 borderRadius: '4px',
-                border: '1px solid #cbd5e1',
+                border: '1px solid var(--border-color)',
                 backgroundColor: 'var(--bg-card)',
-                color: '#334155',
+                color: 'var(--text-main)',
                 fontSize: '11.5px',
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -151,7 +151,7 @@ export const PersistentJobAlertToast: React.FC<Props> = ({ onNavigateMenu }) => 
                 gap: '4px'
               }}
             >
-              <Check size={13} color="#64748b" />
+              <Check size={13} color="var(--text-muted)" />
               확인
             </button>
 

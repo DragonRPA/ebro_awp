@@ -465,7 +465,7 @@ const ApprovalInbox: React.FC = () => {
               }}
               style={{
                 padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color, #cbd5e1)',
-                fontSize: '12px', fontWeight: 600, background: 'var(--bg-card, #fff)', color: 'var(--text-main, #334155)',
+                fontSize: '12px', fontWeight: 600, background: 'var(--bg-card)', color: 'var(--text-main)',
                 cursor: 'pointer'
               }}
             >
@@ -483,7 +483,7 @@ const ApprovalInbox: React.FC = () => {
           <button
             onClick={fetchInbox}
             disabled={loading}
-            style={{ padding: '6px 14px', border: '1px solid var(--border-color, #e2e8f0)', borderRadius: '6px', fontSize: '13px', background: 'var(--bg-card, #fff)', cursor: 'pointer', color: 'var(--text-main, #475569)' }}
+            style={{ padding: '6px 14px', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '13px', background: 'var(--bg-card)', cursor: 'pointer', color: 'var(--text-main, #475569)' }}
           >
             새로고침
           </button>
@@ -516,15 +516,15 @@ const ApprovalInbox: React.FC = () => {
               data-request-id={req.id}
               data-step-id={s.id}
               style={{
-                border: '1px solid var(--border-color, #e2e8f0)', borderRadius: '10px',
-                background: 'var(--bg-card, #fff)', overflow: 'hidden',
+                border: '1px solid var(--border-color)', borderRadius: '10px',
+                background: 'var(--bg-card)', overflow: 'hidden',
                 boxShadow: '0 1px 4px rgba(0,0,0,.06)',
               }}
             >
               {/* 카드 헤더 */}
               <div style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '12px 16px', background: 'var(--bg-card-header, #f8fafc)', borderBottom: '1px solid var(--border-color, #f1f5f9)',
+                padding: '12px 16px', background: 'var(--bg-card-header)', borderBottom: '1px solid var(--border-color)',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontWeight: 700, fontSize: '14px', color: 'var(--text-main, #1e293b)' }}>
@@ -561,15 +561,15 @@ const ApprovalInbox: React.FC = () => {
                     margin: '12px 0 14px',
                     padding: '12px 14px',
                     borderRadius: '8px',
-                    background: 'var(--bg-sub, #f8fafc)',
-                    border: '1px solid var(--border-color, #e2e8f0)',
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                       <span style={{ fontSize: '12px', fontWeight: 800, color: '#4f46e5' }}>
                         변경 요청 상세 내역 (승인 시 자동 반영 대상)
                       </span>
                       {payload.reason && (
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted, #64748b)', background: 'var(--bg-card, #fff)', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border-color, #e2e8f0)' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted, #64748b)', background: 'var(--bg-card)', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                           사유: {payload.reason}
                         </span>
                       )}
@@ -583,9 +583,9 @@ const ApprovalInbox: React.FC = () => {
                             {payload.toBe.originalSummary} (특수명세서 품목 합계와 100% 일치 보존 검증 완료)
                           </div>
                         )}
-                        <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', background: 'var(--bg-card, #fff)', border: '1px solid var(--border-color, #e2e8f0)', borderRadius: '6px', overflow: 'hidden' }}>
+                        <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
                           <thead>
-                            <tr style={{ background: 'var(--bg-card-header, #f1f5f9)', color: 'var(--text-main, #334155)', textAlign: 'left' }}>
+                            <tr style={{ background: 'var(--bg-card-header)', color: 'var(--text-main)', textAlign: 'left' }}>
                               <th style={{ padding: '6px 8px', width: '35px', whiteSpace: 'nowrap' }}>#</th>
                               <th style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>품목명 / 규격</th>
                               <th style={{ padding: '6px 8px', textAlign: 'right', whiteSpace: 'nowrap' }}>수량</th>
@@ -620,10 +620,10 @@ const ApprovalInbox: React.FC = () => {
 
                     {/* ② 계약 기간 연장/단축 건 */}
                     {(payload.actionType === 'CONTRACT_EXTEND' || payload.actionType === 'CONTRACT_SHORTEN') && (
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '12px', alignItems: 'center', background: 'var(--bg-card, #fff)', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border-color, #e2e8f0)' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '12px', alignItems: 'center', background: 'var(--bg-card)', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                         <div>
                           <div style={{ fontSize: '11px', color: 'var(--text-muted, #94a3b8)', fontWeight: 700 }}>현재 종료일</div>
-                          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main, #334155)', marginTop: '2px' }}>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', marginTop: '2px' }}>
                             {payload.asIs?.endDate || '미정'}
                           </div>
                         </div>
@@ -653,8 +653,8 @@ const ApprovalInbox: React.FC = () => {
                         <React.Fragment key={st.id}>
                           <span style={{
                             fontSize: '12px', padding: '3px 10px', borderRadius: '6px',
-                            background: st.status === 'APPROVED' ? '#dcfce7' : st.status === 'REJECTED' ? '#fee2e2' : st.status === 'CANCELLED' ? '#f1f5f9' : isCurrentActive ? '#dbeafe' : '#f8fafc',
-                            color: st.status === 'APPROVED' ? '#15803d' : st.status === 'REJECTED' ? '#b91c1c' : st.status === 'CANCELLED' ? '#94a3b8' : isCurrentActive ? '#1d4ed8' : '#64748b',
+                            background: st.status === 'APPROVED' ? 'var(--success-light, #dcfce7)' : st.status === 'REJECTED' ? 'var(--danger-light, #fee2e2)' : st.status === 'CANCELLED' ? 'var(--bg-secondary)' : isCurrentActive ? 'var(--primary-light, #dbeafe)' : 'var(--bg-secondary)',
+                            color: st.status === 'APPROVED' ? 'var(--success)' : st.status === 'REJECTED' ? 'var(--danger)' : st.status === 'CANCELLED' ? 'var(--text-muted)' : isCurrentActive ? 'var(--primary)' : 'var(--text-muted)',
                             fontWeight: isCurrentActive ? 700 : 500,
                             border: isCurrentActive ? '1.5px solid #3b82f6' : '1px solid var(--border-color, #e2e8f0)',
                           }}>
@@ -702,7 +702,7 @@ const ApprovalInbox: React.FC = () => {
                     <>
                       <button
                         onClick={() => { setRejectingId(null); }}
-                        style={{ padding: '7px 16px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '6px', fontSize: '13px', cursor: 'pointer' }}
+                        style={{ padding: '7px 16px', background: 'var(--bg-secondary)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '13px', cursor: 'pointer' }}
                       >
                         취소
                       </button>
@@ -719,7 +719,7 @@ const ApprovalInbox: React.FC = () => {
                       <button data-mid="approvalInbox-btn-reject" data-hs-trigger="Reject"
                         onClick={() => setRejectingId(s.id)}
                         disabled={loading}
-                        style={{ padding: '7px 16px', background: 'var(--bg-card, #fff)', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}
+                        style={{ padding: '7px 16px', background: 'var(--bg-card)', color: '#dc2626', border: '1px solid #fca5a5', borderRadius: '6px', fontSize: '13px', cursor: 'pointer', fontWeight: 600 }}
                       >
                         반려
                       </button>

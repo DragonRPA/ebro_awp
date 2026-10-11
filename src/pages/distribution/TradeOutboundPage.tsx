@@ -172,16 +172,16 @@ export const TradeOutboundPage: React.FC = () => {
                     </span>
                   </div>
 
-                  <div style={{ fontSize: '13px', color: '#475569', marginBottom: '6px' }}>
-                    주문번호: <span style={{ fontWeight: 600, color: '#1e293b' }}>{o.orderId.substring(0, 10)}</span>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+                    주문번호: <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{o.orderId.substring(0, 10)}</span>
                   </div>
 
-                  <div style={{ fontSize: '13px', color: '#475569', marginBottom: '12px' }}>
-                    수량: <span style={{ fontWeight: 600, color: '#0284c7' }}>총 {totalQty}개</span> ({lines.length}종 품목)
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                    수량: <span style={{ fontWeight: 600, color: 'var(--primary)' }}>총 {totalQty}개</span> ({lines.length}종 품목)
                   </div>
 
                   {o.driverName && (
-                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px', backgroundColor: '#f8fafc', padding: '6px 8px', borderRadius: '4px' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', padding: '6px 8px', borderRadius: '4px' }}>
                       배송기사: {o.driverName} ({o.vehicleNo || '-'})
                     </div>
                   )}

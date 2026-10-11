@@ -220,6 +220,65 @@
   --accent-border: #0284c7;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   📜 [전사 다크 모드 하드코딩 백색 차단 가드 (Anti-Light-Island Guard)]
+   다크 테마 환경에서 개발자의 라이트 색상 하드코딩(#f1f5f9, #f8fafc, #ffffff 등)으로
+   인한 눈부신 흰색 돌출 결함을 전역 CSS 수준에서 원천 차단
+   ───────────────────────────────────────────────────────────── */
+[data-theme='dark'] [style*="background: #f1f5f9"],
+[data-theme='dark'] [style*="background:#f1f5f9"],
+[data-theme='dark'] [style*="background-color: #f1f5f9"],
+[data-theme='dark'] [style*="background-color:#f1f5f9"],
+[data-theme='dark'] [style*="background: #f8fafc"],
+[data-theme='dark'] [style*="background:#f8fafc"],
+[data-theme='dark'] [style*="background-color: #f8fafc"],
+[data-theme='dark'] [style*="background-color:#f8fafc"],
+[data-theme='dark'] [style*="background: #f3f4f6"],
+[data-theme='dark'] [style*="background:#f3f4f6"],
+[data-theme='dark'] [style*="background-color: #f3f4f6"],
+[data-theme='dark'] [style*="background-color:#f3f4f6"],
+[data-theme='dark'] [style*="background: #e2e8f0"],
+[data-theme='dark'] [style*="background:#e2e8f0"],
+[data-theme='dark'] [style*="background-color: #e2e8f0"],
+[data-theme='dark'] [style*="background-color:#e2e8f0"] {
+  background-color: var(--bg-secondary) !important;
+  color: var(--text-main) !important;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   📜 [전사 표준 세그먼트 컨트롤 / 필터 탭 바 (Segmented Tabs SSOT)]
+   라이트(종이질감) / 다크(OLED 슬레이트) 테마 100% 자동 동기화 표준 컴포넌트
+   ───────────────────────────────────────────────────────────── */
+.segmented-tab-group {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 3px;
+  gap: 2px;
+}
+.segmented-tab-item {
+  border: none;
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  background-color: transparent;
+  color: var(--text-muted);
+  box-shadow: none !important;
+  transition: all 0.15s ease;
+}
+.segmented-tab-item:hover {
+  color: var(--text-main);
+}
+.segmented-tab-item.active {
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  box-shadow: none !important;
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
