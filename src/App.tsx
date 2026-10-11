@@ -2,7 +2,7 @@
 // d:\Giyeun_Lift\src\App.tsx
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useApp } from './context/AppContext';
-import { encryptSecret, decryptSecret } from './utils/cryptoVault';
+import { encryptSecret, decryptSecret, safeLocalStorageSet, purgeStorageQuotaOverflow } from './utils/cryptoVault';
 import {
   LayoutDashboard, Users, UserCheck, Package, Layers, PlusCircle,
   Truck, Wrench, Shield, ShoppingBag, CreditCard, LogOut, Sun, Moon, Menu, X, Zap, Settings, Database as DatabaseIcon,
@@ -538,14 +538,14 @@ const App: React.FC = () => {
       if (res.success) {
         // 아이디 저장 처리
         if (rememberId) {
-          localStorage.setItem('remember_id', loginId);
+          safeLocalStorageSet('remember_id', loginId);
         } else {
           localStorage.removeItem('remember_id');
         }
         
         // 비밀번호 저장 처리
         if (rememberPw) {
-          localStorage.setItem('remember_pw', encryptSecret(password));
+          safeLocalStorageSet('remember_pw', encryptSecret(password));
         } else {
           localStorage.removeItem('remember_pw');
         }
@@ -576,8 +576,8 @@ const App: React.FC = () => {
       try {
         const res = await login(pendingDeviceLogin.id, pendingDeviceLogin.pw, autoLogin, true);
         if (res.success) {
-          if (rememberId) localStorage.setItem('remember_id', pendingDeviceLogin.id);
-          if (rememberPw) localStorage.setItem('remember_pw', encryptSecret(pendingDeviceLogin.pw));
+          if (rememberId) safeLocalStorageSet('remember_id', pendingDeviceLogin.id);
+          if (rememberPw) safeLocalStorageSet('remember_pw', encryptSecret(pendingDeviceLogin.pw));
           if (!rememberId) setLoginId('');
           if (!rememberPw) setPassword('');
           setPendingDeviceLogin(null);
@@ -1048,7 +1048,7 @@ const App: React.FC = () => {
                   const val = e.target.value;
                   setLoginId(val);
                   if (rememberId) {
-                    try { localStorage.setItem('remember_id', val); } catch (err) {}
+                    safeLocalStorageSet('remember_id', val);
                   }
                 }}
                 placeholder="아이디 입력"
@@ -1065,7 +1065,7 @@ const App: React.FC = () => {
                   const val = e.target.value;
                   setPassword(val);
                   if (rememberPw) {
-                    try { localStorage.setItem('remember_pw', encryptSecret(val)); } catch (err) {}
+                    safeLocalStorageSet('remember_pw', encryptSecret(val));
                   }
                 }}
                 placeholder="비밀번호 입력"
@@ -1084,8 +1084,8 @@ const App: React.FC = () => {
                     setRememberId(checked);
                     try {
                       if (checked) {
-                        localStorage.setItem('remember_id_pref', 'true');
-                        if (loginId) localStorage.setItem('remember_id', loginId);
+                        safeLocalStorageSet('remember_id_pref', 'true');
+                        if (loginId) safeLocalStorageSet('remember_id', loginId);
                       } else {
                         localStorage.removeItem('remember_id_pref');
                         localStorage.removeItem('remember_id');
@@ -1104,8 +1104,8 @@ const App: React.FC = () => {
                     setRememberPw(checked);
                     try {
                       if (checked) {
-                        localStorage.setItem('remember_pw_pref', 'true');
-                        if (password) localStorage.setItem('remember_pw', encryptSecret(password));
+                        safeLocalStorageSet('remember_pw_pref', 'true');
+                        if (password) safeLocalStorageSet('remember_pw', encryptSecret(password));
                       } else {
                         localStorage.removeItem('remember_pw_pref');
                         localStorage.removeItem('remember_pw');
@@ -1363,25 +1363,6 @@ const App: React.FC = () => {
                 <span>PC/대화면</span>
               </button>
             </div>
-          </div>
-
-          {/* 아이폰 · 아이패드 사파리(Safari) 최적화 안내 */}
-          <div style={{
-            marginTop: '16px',
-            padding: '12px 14px',
-            borderRadius: '12px',
-            backgroundColor: 'rgba(15, 23, 42, 0.75)',
-            border: '1px solid rgba(59, 130, 246, 0.25)',
-            color: 'var(--text-muted)',
-            fontSize: '11.5px',
-            lineHeight: 1.5
-          }}>
-            <div style={{ fontWeight: '700', color: '#60a5fa', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Smartphone size={14} />
-              <span>아이폰 · 아이패드 사파리 지원</span>
-            </div>
-            <div>• 사파리 브라우저 <strong>[공유]</strong> ➔ <strong>[홈 화면에 추가]</strong> 시 전체화면 단독 앱으로 즉시 실행됩니다.</div>
-            <div>• 아이패드는 화면 회전 및 상단 모드 전환을 통해 모바일/PC 뷰를 선택할 수 있습니다.</div>
           </div>
 
           {/* 테스트 계정 안내 — 개발 환경(localhost)에서만 표시 */}

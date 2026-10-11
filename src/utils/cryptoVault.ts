@@ -169,8 +169,82 @@ export function decryptSecret(cipherText: string): string {
   }
 }
 
+// ─── 3. 안전 로컬스토리지 입출력 및 용량 한도(Quota) 방어 ──────────────
+export const ESSENTIAL_STORAGE_KEYS = new Set([
+  'remember_id',
+  'remember_pw',
+  'remember_id_pref',
+  'remember_pw_pref',
+  'auto_user',
+  'user',
+  'erp_view_mode',
+  'erp_theme',
+  'erp_current_tenant_id',
+  'ebro_authorized_developer_devices_v1',
+  'ebro_local_developer_device_token_v1',
+  'erp_privacy_audit_check'
+]);
+
 /**
- * 암호화 안전 로컬스토리지 저장
+ * localStorage 용량 한도(5MB) 초과 방어 및 비핵심 캐시 자동 소탕
+ */
+export function purgeStorageQuotaOverflow(): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    const candidates: { key: string; size: number }[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k) continue;
+      if (ESSENTIAL_STORAGE_KEYS.has(k)) continue;
+
+      // 소탕 대상 비핵심 캐시 식별 (Supabase 원본 또는 인메모리에 존재하는 임시 캐시)
+      if (
+        k.startsWith('erp_') ||
+        k.startsWith('ebro_trade_') ||
+        k.startsWith('walkie_') ||
+        k.startsWith('drive_') ||
+        k.startsWith('sent_') ||
+        k.startsWith('approval_payload_')
+      ) {
+        const val = localStorage.getItem(k) || '';
+        candidates.push({ key: k, size: val.length });
+      }
+    }
+
+    // 용량이 큰 항목부터 우선 정리하여 최대 여유 공간을 즉시 확보
+    candidates.sort((a, b) => b.size - a.size);
+    for (const item of candidates) {
+      localStorage.removeItem(item.key);
+      console.warn(`[Storage Quota Guard] 비핵심 캐시 소탕: ${item.key} (${Math.round(item.size / 1024)} KB 회수)`);
+    }
+  } catch (e) {
+    console.warn('[Storage Quota Guard] 캐시 소탕 중 오류:', e);
+  }
+}
+
+/**
+ * Quota 초과 시 자동 소탕 및 예외 무음 방어형 안전 setItem
+ */
+export function safeLocalStorageSet(key: string, value: string): boolean {
+  if (typeof localStorage === 'undefined') return false;
+  try {
+    localStorage.setItem(key, value);
+    return true;
+  } catch (err: any) {
+    console.warn(`[safeLocalStorageSet] '${key}' 저장 중 Quota 초과 감지 -> 비핵심 캐시 자동 소탕 실행`);
+    purgeStorageQuotaOverflow();
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch (retryErr) {
+      console.warn(`[safeLocalStorageSet] 캐시 소탕 후에도 '${key}' 저장 실패 (무음 처리):`, retryErr);
+      return false;
+    }
+  }
+}
+
+/**
+ * 암호화 안전 로컬스토리지 저장 (Quota 방어 내장)
  */
 export function setVaultItem(key: string, value: string): void {
   try {
@@ -179,7 +253,7 @@ export function setVaultItem(key: string, value: string): void {
       localStorage.removeItem(key);
       return;
     }
-    localStorage.setItem(key, encryptSecret(value));
+    safeLocalStorageSet(key, encryptSecret(value));
   } catch (e) {
     console.warn(`setVaultItem failed for key ${key}:`, e);
   }

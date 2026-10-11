@@ -6,7 +6,9 @@ import {
   encryptEntityPrivacyFields, 
   decryptEntityPrivacyFields,
   isEncryptedPrivacyField,
-  PRIVACY_PROTECTED_TABLE_FIELDS
+  PRIVACY_PROTECTED_TABLE_FIELDS,
+  safeLocalStorageSet,
+  purgeStorageQuotaOverflow
 } from '../utils/cryptoVault';
 
 const isDemo = isDemoMode();
@@ -5407,7 +5409,28 @@ class LocalDB {
   private inMemoryCache: Map<string, any> = new Map();
 
   constructor() {
+    this.cleanStorageQuotaOverflow();
     this.migrateLegacyPrivacyStorage();
+  }
+
+  /**
+   * 🧹 localStorage 5MB 한도 잠식 방지 및 불필요한 대용량 레거시 캐시 자동 소탕
+   */
+  private cleanStorageQuotaOverflow(): void {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      const bloatedKeys = [
+        'erp_privacyAccessLogs', 
+        'erp_privacy_access_logs', 
+        'erp_printQueue', 
+        'erp_walkieTalkieHistory',
+        'walkie_today_history',
+        'sent_emails'
+      ];
+      for (const k of bloatedKeys) {
+        localStorage.removeItem(k);
+      }
+    } catch (e) {}
   }
 
   /**
@@ -5522,11 +5545,24 @@ class LocalDB {
     this.inMemoryCache.set(key, decryptedData);
 
     // 2. 브라우저 localStorage: 고유식별정보, 금융계좌, 연락처 등 법정 보호 개인정보를 100% 암호화하여 저장
+    // 💡 로그/대용량 트랜잭션은 localStorage 용량(5MB) 잠식을 방지하기 위해 로컬 캐시를 건너뜁니다 (인메모리 및 Supabase 영구 보존)
+    const SKIP_LOCAL_STORAGE_TABLES = new Set([
+      'privacyAccessLogs', 'privacy_access_logs', 'printQueue', 'walkieTalkieHistory'
+    ]);
+    if (SKIP_LOCAL_STORAGE_TABLES.has(key)) {
+      return;
+    }
+
     try {
       const encryptedData = Array.isArray(data)
         ? data.map(item => encryptEntityPrivacyFields(key, item))
         : data;
-      localStorage.setItem(`erp_${key}`, JSON.stringify(encryptedData));
+      const str = JSON.stringify(encryptedData);
+      // 단일 테이블이 250KB 이상인 경우 로컬스토리지 5MB 한도 보호를 위해 인메모리에만 유지
+      if (str.length > 250_000) {
+        return;
+      }
+      safeLocalStorageSet(`erp_${key}`, str);
     } catch (e: any) {
       console.warn(`[LocalDB Quota Exceeded] localStorage 용량 한도(5MB) 초과로 erp_${key} 키를 인메모리에 안전하게 보존합니다:`, e?.message || e);
     }
