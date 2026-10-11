@@ -7,7 +7,7 @@ import {
   CreditCard, ShieldCheck, Zap, Sparkles, CheckCircle2, AlertCircle, 
   X, Edit2, Trash2, RefreshCw, Layers, Check, Building2, Circle,
   Sliders, Tag, Settings, CheckSquare, Square, ChevronDown, ChevronUp, FileText, FolderOpen,
-  ShieldAlert, FileSpreadsheet, SlidersHorizontal, Copy
+  ShieldAlert, FileSpreadsheet, SlidersHorizontal, Copy, ExternalLink
 } from 'lucide-react';
 import { db, Customer, CustomerContact, CustomerSite, SiteMaster, CustomerBankAccount, StandardOption, logPrivacyAccess, SiteContactPerson, SiteContactType, SITE_CONTACT_TYPE_CONFIG, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, CustomerTransactionStatus, isCustomerRestricted, isCustomerTotalBlocked, getCustomerTransactionStatusLabel } from '../services/db';
 import { exportToExcel } from '../services/excel';
@@ -59,9 +59,18 @@ export const Customers: React.FC = () => {
   // 📄 사업자등록증 AI 모달 상태
   const [showBizLicenseModal, setShowBizLicenseModal] = useState(false);
   const [targetBizLicenseCustId, setTargetBizLicenseCustId] = useState<string | undefined>(undefined);
-  console.log("[DEBUG] Customers Render! selectedCustomerId:", selectedCustomerId, "targetBizLicenseCustId:", targetBizLicenseCustId);
   const [showBatchLicenseModal, setShowBatchLicenseModal] = useState(false);
   const [showNtsAuditModal, setShowNtsAuditModal] = useState(false);
+
+  // 📄 사업자등록증 사본 열람 모달 상태 및 핸들러
+  const [viewingBizCertCust, setViewingBizCertCust] = useState<Customer | null>(null);
+  const handleViewBizCert = (cust: Customer) => {
+    if (!cust.businessCertFileUrl || cust.businessCertFileUrl.trim() === '') {
+      showErrorModal(`[${cust.name}] 고객사에 등록된 사업자등록증 파일(이미지/PDF)이 없습니다. '사업자등록증 보완' 버튼을 통해 등록해 주십시오.`);
+      return;
+    }
+    setViewingBizCertCust(cust);
+  };
 
   // 📇 명함/이메일 AI 모달 상태
   const [showContactCardModal, setShowContactCardModal] = useState(false);
@@ -1527,9 +1536,35 @@ const handleDeleteAccount = async (accId: string) => {
                             )}
                           </>
                         ) : (
-                          <span style={{ fontSize: '9.5px', color: 'var(--success)', backgroundColor: 'rgba(5,150,105,0.08)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>
-                            <Check size={10} /> 등록증 첨부
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                            <span style={{ fontSize: '9.5px', color: 'var(--success)', backgroundColor: 'rgba(5,150,105,0.08)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>
+                              <Check size={10} /> 등록증 첨부
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewBizCert(cust);
+                              }}
+                              title="사업자등록증 사본 열람"
+                              style={{
+                                padding: '1px 5px',
+                                fontSize: '9.5px',
+                                border: '1px solid #0284c7',
+                                borderRadius: '3px',
+                                backgroundColor: 'rgba(2,132,199,0.12)',
+                                color: '#0284c7',
+                                cursor: 'pointer',
+                                fontWeight: 700,
+                                whiteSpace: 'nowrap',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '2px'
+                              }}
+                            >
+                              <FileText size={9} /> 보기
+                            </button>
+                          </div>
                         )}
                         {cust.isClosed ? (
                           <span className="badge badge-danger" style={{ fontSize: '9.5px', padding: '1px 4px' }}>폐업</span>
@@ -1620,6 +1655,26 @@ const handleDeleteAccount = async (accId: string) => {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleViewBizCert(activeCustomer)}
+                      style={{
+                        padding: '3px 8px',
+                        fontSize: '11px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        borderRadius: '4px',
+                        border: activeCustomer.businessCertFileUrl ? '1px solid #0284c7' : '1px solid var(--border-color)',
+                        backgroundColor: activeCustomer.businessCertFileUrl ? 'rgba(2, 132, 199, 0.12)' : 'var(--bg-app)',
+                        color: activeCustomer.businessCertFileUrl ? '#0284c7' : 'var(--text-muted)',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                      title={activeCustomer.businessCertFileUrl ? "등록된 사업자등록증 사본 열람" : "등록된 사업자등록증 파일 없음 (클릭 시 안내)"}
+                    >
+                      <FileText size={12} /> 사업자등록증 보기
+                    </button>
                     {canSave && (
                       <button data-hs-trigger="Register"
                         type="button"
@@ -1654,16 +1709,6 @@ const handleDeleteAccount = async (accId: string) => {
                         <Edit2 size={12} /> 고객사 수정
                       </button>
                     )}
-                    {activeCustomer.businessCertFileUrl && (
-                      <button
-                        type="button"
-                        onClick={() => window.open(activeCustomer.businessCertFileUrl, '_blank')}
-                        style={{ padding: '3px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', borderRadius: '4px', border: '1px solid #0284c7', backgroundColor: 'rgba(2, 132, 199, 0.1)', color: '#0284c7', fontWeight: 600, cursor: 'pointer' }}
-                        title="등록된 사업자등록증 사본 열람"
-                      >
-                        <FileText size={12} /> 사업자등록증 보기
-                      </button>
-                    )}
                   </div>
                 </div>
 
@@ -1684,14 +1729,13 @@ const handleDeleteAccount = async (accId: string) => {
                   {activeCustomer.businessCertFileUrl && (
                     <div style={{ gridColumn: 'span 4', display: 'flex', alignItems: 'center', gap: '6px', paddingTop: '4px', borderTop: '1px solid var(--border-color)' }}>
                       <span style={{ color: 'var(--text-secondary)' }}>사업자등록증 원본:</span>
-                      <a
-                        href={activeCustomer.businessCertFileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ color: '#0284c7', textDecoration: 'underline', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                      <button
+                        type="button"
+                        onClick={() => handleViewBizCert(activeCustomer)}
+                        style={{ background: 'none', border: 'none', padding: 0, color: '#0284c7', textDecoration: 'underline', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px', cursor: 'pointer', fontSize: '11.5px' }}
                       >
                         <FileText size={12} /> 등록증 사본 열람 ↗
-                      </a>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -2118,6 +2162,42 @@ const handleDeleteAccount = async (accId: string) => {
               </div>
             )}
 
+            {editingCust.id && editingCust.businessCertFileUrl && (
+              <div style={{
+                marginBottom: '10px',
+                padding: '6px 10px',
+                backgroundColor: 'rgba(2, 132, 199, 0.08)',
+                border: '1px solid rgba(2, 132, 199, 0.25)',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <span style={{ fontSize: '11px', color: '#0284c7', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <FileText size={12} /> 등록된 사업자등록증 사본이 존재합니다.
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleViewBizCert(editingCust as Customer)}
+                  style={{
+                    padding: '2px 8px',
+                    fontSize: '11px',
+                    backgroundColor: '#0284c7',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '2px'
+                  }}
+                >
+                  <FileText size={10} /> 사업자등록증 보기
+                </button>
+              </div>
+            )}
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px' }}>
               <div>
                 <label style={labelStyle}>고객사명 *</label>
@@ -2317,6 +2397,128 @@ const handleDeleteAccount = async (accId: string) => {
               </div>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* 📄 사업자등록증 사본 열람 모달 */}
+      {viewingBizCertCust && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200,
+          padding: '20px'
+        }}>
+          <div className="card" style={{ width: '100%', maxWidth: '820px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-card)', borderRadius: '8px', overflow: 'hidden', padding: 0, boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)' }}>
+            {/* 헤더 */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 18px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileText size={18} style={{ color: '#0284c7' }} />
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  사업자등록증 사본 열람
+                </h3>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>
+                  | {viewingBizCertCust.name} ({viewingBizCertCust.bizRegNo || '번호미상'})
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingBizCertCust(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* 본문 요약 바 */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', padding: '10px 18px', backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', fontSize: '11.5px' }}>
+              <div><span style={{ color: 'var(--text-secondary)' }}>대표자:</span> <strong>{viewingBizCertCust.representative || '-'}</strong></div>
+              <div><span style={{ color: 'var(--text-secondary)' }}>업태 / 종목:</span> {viewingBizCertCust.bizType || '-'} / {viewingBizCertCust.bizItem || '-'}</div>
+              <div><span style={{ color: 'var(--text-secondary)' }}>과세유형:</span> {viewingBizCertCust.taxType || '일반과세자'}</div>
+              <div><span style={{ color: 'var(--text-secondary)' }}>사업장주소:</span> <span title={viewingBizCertCust.address} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'inline-block', maxWidth: '140px', verticalAlign: 'bottom' }}>{viewingBizCertCust.address || '-'}</span></div>
+            </div>
+
+            {/* 문서 미리보기 영역 */}
+            <div style={{ flex: 1, overflow: 'auto', padding: '16px', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a', minHeight: '480px' }}>
+              {(() => {
+                const url = viewingBizCertCust.businessCertFileUrl || '';
+                const isPdf = url.toLowerCase().includes('.pdf') || url.startsWith('data:application/pdf');
+                
+                if (isPdf) {
+                  return (
+                    <object
+                      data={url}
+                      type="application/pdf"
+                      style={{ width: '100%', height: '580px', borderRadius: '4px', border: 'none' }}
+                    >
+                      <iframe
+                        src={url}
+                        title="사업자등록증 PDF 열람"
+                        style={{ width: '100%', height: '580px', border: 'none' }}
+                      />
+                    </object>
+                  );
+                }
+
+                return (
+                  <img
+                    src={url}
+                    alt="사업자등록증"
+                    style={{ maxWidth: '100%', maxHeight: '580px', objectFit: 'contain', borderRadius: '4px', boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}
+                  />
+                );
+              })()}
+            </div>
+
+            {/* 하단 버튼 영역 */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 18px', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
+              <div>
+                {viewingBizCertCust.businessCertFileUrl && (
+                  <a
+                    href={viewingBizCertCust.businessCertFileUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '5px 12px',
+                      fontSize: '12px',
+                      borderRadius: '4px',
+                      border: '1px solid #0284c7',
+                      backgroundColor: 'rgba(2, 132, 199, 0.1)',
+                      color: '#0284c7',
+                      textDecoration: 'none',
+                      fontWeight: 600
+                    }}
+                  >
+                    <ExternalLink size={13} /> 새 탭에서 열기
+                  </a>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => {
+                    const targetId = viewingBizCertCust.id;
+                    setViewingBizCertCust(null);
+                    setTargetBizLicenseCustId(targetId);
+                    setShowBizLicenseModal(true);
+                  }}
+                  style={{ padding: '5px 12px', fontSize: '12px' }}
+                >
+                  <FileText size={12} /> 재등록 및 보완
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => setViewingBizCertCust(null)}
+                  style={{ padding: '5px 16px', fontSize: '12px' }}
+                >
+                  닫기
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
