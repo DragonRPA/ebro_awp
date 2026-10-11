@@ -288,3 +288,113 @@ export function maskSalaryForRole(salary: number | undefined, userRole?: string,
   }
   return '비공개 (인사권한 필요)';
 }
+
+// ─── 6. 법정 개인정보 보호 암호화 엔진 (Privacy Data Encryption Engine) ───
+// 개인정보 보호법 제24조의2(고유식별정보 처리 제한), 제29조(안전조치의무), 시행령 제30조(개인정보의 안전성 확보조치)
+// 및 개인정보의 안전성 확보조치 기준(개인정보보호위원회 고시 제2023-4호) 제7조(개인정보의 암호화) 준수
+
+/**
+ * 단일 개인정보 필드 암호화 (이미 암호화된 경우 중복 암호화 방지)
+ */
+export function encryptPrivacyField(val?: string | null): string {
+  if (val === undefined || val === null) return '';
+  const str = String(val).trim();
+  if (!str) return '';
+  // 이미 암호화된 토큰인 경우 그대로 반환
+  if (str.startsWith(VAULT_PREFIX)) return str;
+  return encryptSecret(str);
+}
+
+/**
+ * 단일 개인정보 필드 복호화 (암호화되지 않은 레거시 평문 값은 안전하게 그대로 반환)
+ */
+export function decryptPrivacyField(val?: string | null): string {
+  if (val === undefined || val === null) return '';
+  const str = String(val);
+  if (!str) return '';
+  if (!str.startsWith(VAULT_PREFIX)) return str;
+  return decryptSecret(str);
+}
+
+/**
+ * 개인정보 암호화 상태 여부 판별
+ */
+export function isEncryptedPrivacyField(val?: string | null): boolean {
+  return typeof val === 'string' && val.startsWith(VAULT_PREFIX);
+}
+
+/**
+ * 테이블별 개인정보보호법 법정 보호 대상 필드 정의 SSOT
+ */
+export const PRIVACY_PROTECTED_TABLE_FIELDS: Record<string, string[]> = {
+  users: ['phone', 'birthDate', 'address'],
+  transportDrivers: ['idNo', 'birthDate', 'driverContact', 'address'],
+  transport_drivers: ['idNo', 'birthDate', 'driverContact', 'address'],
+  vendors: ['accountNumber', 'bankAccount'],
+  customers: ['repContact', 'repEmail'],
+  customerContacts: ['contact', 'email', 'mobile', 'phone'],
+  customer_contacts: ['contact', 'email', 'mobile', 'phone'],
+  tenants: ['bankAccount', 'accountNumber'],
+  corporateCards: ['cardNumber'],
+  corporate_cards: ['cardNumber']
+};
+
+/**
+ * 엔티티 객체의 법정 보호 개인정보 필드 일괄 암호화 (저장 시 사용)
+ */
+export function encryptEntityPrivacyFields<T extends Record<string, any>>(tableName: string, entity: T): T {
+  if (!entity || typeof entity !== 'object') return entity;
+  const fields = PRIVACY_PROTECTED_TABLE_FIELDS[tableName];
+  const clone: any = { ...entity };
+
+  if (fields && fields.length > 0) {
+    for (const f of fields) {
+      if (typeof clone[f] === 'string' && clone[f].trim() !== '') {
+        clone[f] = encryptPrivacyField(clone[f]);
+      }
+    }
+  }
+
+  // 중첩 계좌번호 배열 암호화 (고객사 및 테넌트 다중 계좌)
+  if (Array.isArray(clone.bankAccounts)) {
+    clone.bankAccounts = clone.bankAccounts.map((acc: any) => {
+      if (!acc || typeof acc !== 'object') return acc;
+      return {
+        ...acc,
+        accountNumber: acc.accountNumber ? encryptPrivacyField(acc.accountNumber) : acc.accountNumber
+      };
+    });
+  }
+
+  return clone as T;
+}
+
+/**
+ * 엔티티 객체의 법정 보호 개인정보 필드 일괄 복호화 (불러오기 시 사용)
+ */
+export function decryptEntityPrivacyFields<T extends Record<string, any>>(tableName: string, entity: T): T {
+  if (!entity || typeof entity !== 'object') return entity;
+  const fields = PRIVACY_PROTECTED_TABLE_FIELDS[tableName];
+  const clone: any = { ...entity };
+
+  if (fields && fields.length > 0) {
+    for (const f of fields) {
+      if (typeof clone[f] === 'string' && clone[f].startsWith(VAULT_PREFIX)) {
+        clone[f] = decryptPrivacyField(clone[f]);
+      }
+    }
+  }
+
+  // 중첩 계좌번호 배열 복호화
+  if (Array.isArray(clone.bankAccounts)) {
+    clone.bankAccounts = clone.bankAccounts.map((acc: any) => {
+      if (!acc || typeof acc !== 'object') return acc;
+      return {
+        ...acc,
+        accountNumber: acc.accountNumber ? decryptPrivacyField(acc.accountNumber) : acc.accountNumber
+      };
+    });
+  }
+
+  return clone as T;
+}

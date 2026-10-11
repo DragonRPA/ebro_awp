@@ -4,6 +4,7 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Tenant } from './db';
+import { encryptEntityPrivacyFields, decryptEntityPrivacyFields } from '../utils/cryptoVault';
 
 const CENTRAL_SUPABASE_URL = import.meta.env.VITE_CENTRAL_SUPABASE_URL || 'https://nyfashwbdcepncpdwpdb.supabase.co';
 const CENTRAL_SUPABASE_ANON_KEY = import.meta.env.VITE_CENTRAL_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55ZmFzaHdiZGNlcG5jcGR3cGRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExOTUwMjgsImV4cCI6MjEwNjc3MTAyOH0.xw2XKKzjPj_HjQzPJDMKkkbaO7htojYioIMGt4l8VLM';
@@ -38,11 +39,14 @@ export async function fetchCentralTenants(): Promise<Tenant[]> {
       return [];
     }
 
-    return (data || []).map(row => ({
-      ...row,
-      stampImageUrl: row.stampImageUrl || row.stampBase64 || '',
-      stampBase64: row.stampBase64 || row.stampImageUrl || ''
-    })) as Tenant[];
+    return (data || []).map(row => {
+      const decrypted = decryptEntityPrivacyFields('tenants', row);
+      return {
+        ...decrypted,
+        stampImageUrl: decrypted.stampImageUrl || decrypted.stampBase64 || '',
+        stampBase64: decrypted.stampBase64 || decrypted.stampImageUrl || ''
+      };
+    }) as Tenant[];
   } catch (err: any) {
     console.error('[Central DB] Exception fetching central tenants:', err.message);
     return [];
@@ -54,13 +58,14 @@ export async function fetchCentralTenants(): Promise<Tenant[]> {
  */
 export async function saveCentralTenant(tenant: Partial<Tenant> & { id: string }): Promise<boolean> {
   try {
-    const payload: any = { ...tenant };
+    let payload: any = { ...tenant };
     if (payload.stampImageUrl && !payload.stampBase64) {
       payload.stampBase64 = payload.stampImageUrl;
     }
     if (payload.stampBase64 && !payload.stampImageUrl) {
       payload.stampImageUrl = payload.stampBase64;
     }
+    payload = encryptEntityPrivacyFields('tenants', payload);
 
     const { error } = await centralSupabase
       .from('tenants')

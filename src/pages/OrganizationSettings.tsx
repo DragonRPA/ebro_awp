@@ -150,31 +150,8 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
 
   // --- Persistence Load ---
   useEffect(() => {
-    const savedDepts = localStorage.getItem('erp_departments');
-    const savedUsers = localStorage.getItem('erp_users');
-    
-    let loadedDepts: Department[] = INITIAL_DEPTS;
-    let loadedUsers: UserNode[] = INITIAL_USERS;
-
-    if (savedDepts) {
-      try {
-        loadedDepts = JSON.parse(savedDepts);
-      } catch (e) {
-        loadedDepts = (db.departments && db.departments.length > 0) ? db.departments : INITIAL_DEPTS;
-      }
-    } else if (db.departments && db.departments.length > 0) {
-      loadedDepts = db.departments;
-    }
-
-    if (savedUsers) {
-      try {
-        loadedUsers = JSON.parse(savedUsers);
-      } catch (e) {
-        loadedUsers = (db.users && db.users.length > 0) ? (db.users as any) : INITIAL_USERS;
-      }
-    } else if (db.users && db.users.length > 0) {
-      loadedUsers = db.users as any;
-    }
+    let loadedDepts: Department[] = (db.departments && db.departments.length > 0) ? db.departments : INITIAL_DEPTS;
+    let loadedUsers: UserNode[] = (db.users && db.users.length > 0) ? (db.users as any) : INITIAL_USERS;
 
     // 🛡️ [테스터 배제] 로컬스토리지나 DB 캐시에 잔존하는 테스터 계정 원천 차단
     const isTester = (u: any) =>
@@ -201,9 +178,9 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
         : u
     );
 
-    // 로컬스토리지 erp_users에서도 테스터 계정을 즉시 정화
-    if (savedUsers) {
-      localStorage.setItem('erp_users', JSON.stringify(loadedUsers));
+    // 테스터 계정 정화 및 법정 개인정보 암호화 저장 완결
+    if (loadedUsers.length !== db.users.length) {
+      db.users = loadedUsers as any;
     }
 
     setDepartments(loadedDepts);
@@ -270,9 +247,9 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
       setDepartments(cleanDepts);
       setUsers(cleanUsers);
       
-      // 혹시 모를 로컬스토리지 찌꺼기 덮어쓰기 (강제 동기화)
-      localStorage.setItem('erp_departments', JSON.stringify(cleanDepts));
-      localStorage.setItem('erp_users', JSON.stringify(cleanUsers));
+      // 로컬 DB 및 인메모리/암호화 스토리지 동기화
+      db.departments = cleanDepts;
+      db.users = cleanUsers as any;
       
       if (refreshAllData) {
         await refreshAllData();
