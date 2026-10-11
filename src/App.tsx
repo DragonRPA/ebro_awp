@@ -1443,7 +1443,7 @@ const App: React.FC = () => {
         </header>
 
         <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-          <aside style={{ width: '260px', backgroundColor: '#f8fafc', borderRight: '1px solid #e2e8f0', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <aside style={{ width: '260px', backgroundColor: 'var(--bg-sidebar)', borderRight: '1px solid var(--border-color)', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <button style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', borderRadius: '8px', backgroundColor: '#eef2ff', color: '#4f46e5', fontWeight: '800', fontSize: '14.5px', border: '1px solid #c7d2fe', cursor: 'pointer', boxShadow: '0 2px 4px rgba(79, 70, 229, 0.05)' }}>
               <Building2 size={18} /> 테넌트 인프라 관리
             </button>
@@ -1457,7 +1457,7 @@ const App: React.FC = () => {
             </div>
           </aside>
           
-          <main className="main-content-area" style={{ flex: 1, overflowY: 'auto', backgroundColor: '#f1f5f9', padding: '24px' }}>
+          <main className="main-content-area" style={{ flex: 1, overflowY: 'auto', backgroundColor: 'var(--bg-app)', padding: '24px' }}>
             <ErrorBoundary>
                <TenantManagementPage />
             </ErrorBoundary>

@@ -4,30 +4,37 @@
 
 :root,
 [data-theme='light'] {
-  /* 🌟 라이트 테마 토큰: 부드럽고 눈이 편안한 옅은 아이보리 웜톤 표준 */
-  --bg-app: #f7f5f0;              /* 부드러운 웜 아이보리 배경 */
-  --bg-sidebar: #faf8f3;          /* 크리미 아이보리 사이드바 */
-  --bg-card: #fdfcf9;             /* 은은한 웜화이트/아이보리 카드 */
-  --bg-header: #faf8f3;           /* 웜 아이보리 상단 헤더 */
-  --border-color: #cbd5e1;        /* 부드럽고 정돈된 경계선 */
-  --table-border-color: #cbd5e1;
-  --table-row-border: #e2e8f0;    /* 차분한 행 구분선 */
+  /* 🌟 라이트 테마 토큰: 프리미엄 웜 페이퍼(Warm Cotton Paper) 종이질감 및 5색 고시인성 표준 */
+  --bg-app: #f5f2eb;              /* 웜 코튼 페이퍼(종이질감) 캔버스 */
+  --bg-sidebar: #ece7de;          /* 가죽 바인더/장부 표지 톤 사이드바 */
+  --bg-card: #fbf9f5;             /* 선명하고 깨끗한 장부 서식 표면 */
+  --bg-header: #ece7de;           /* 장부 상단 바인더 헤더 */
+  --border-color: #dcd5c9;        /* 정갈한 연필 그리드/장부 테두리선 */
+  --table-border-color: #dcd5c9;
+  --table-row-border: #e8e2d8;    /* 장부 괘선(미세 행 구분선) */
   
-  --scrollbar-track: #e2e8f0;
-  --scrollbar-thumb: #94a3b8;     /* 썸 */
-  --scrollbar-thumb-hover: #475569;
-  --scrollbar-thumb-border: #f7f5f0;
+  --scrollbar-track: #e8e2d8;
+  --scrollbar-thumb: #9a9284;     /* 부드러운 먹색/흑연 썸 */
+  --scrollbar-thumb-hover: #575147;
+  --scrollbar-thumb-border: #f5f2eb;
   
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
+  /* 5색 표준: 
+     1) 먹색 잉크 (Text): #0f172a
+     2) 블루 액션 (Primary): #1d4ed8
+     3) 에메랄드 플러스/수익 (Success): #047857
+     4) 크림슨 마이너스/위험 (Danger): #dc2626
+     5) 웜 페이퍼 캔버스 (Background): #f5f2eb
+  */
+  --primary: #1d4ed8;
+  --primary-hover: #1e40af;
   --primary-light: #eff6ff;
   
-  --success: #059669;
-  --success-hover: #047857;
+  --success: #047857;
+  --success-hover: #065f46;
   --success-light: #ecfdf5;
   
-  --warning: #d97706;
-  --warning-hover: #b45309;
+  --warning: #b45309;
+  --warning-hover: #92400e;
   --warning-light: #fffbeb;
   
   --danger: #dc2626;
@@ -37,14 +44,14 @@
   --info: #0284c7;
   --info-light: #f0f9ff;
   
-  --text-main: #000000;
-  --text-secondary: #000000;
-  --text-muted: #000000;
+  --text-main: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #475569;
   --text-on-primary: #ffffff;
   
-  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.10), 0 1px 2px -1px rgba(0, 0, 0, 0.08);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.12), 0 2px 4px -2px rgba(0, 0, 0, 0.10);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.12), 0 4px 6px -4px rgba(0, 0, 0, 0.10);
+  --shadow-sm: 0 1px 3px 0 rgba(40, 30, 20, 0.08), 0 1px 2px -1px rgba(40, 30, 20, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(40, 30, 20, 0.09), 0 2px 4px -2px rgba(40, 30, 20, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(40, 30, 20, 0.09), 0 4px 6px -4px rgba(40, 30, 20, 0.06);
   
   --radius-sm: 6px;
   --radius-md: 12px;
@@ -54,44 +61,55 @@
   --transition-fast: 0.15s ease;
   --transition-normal: 0.25s ease;
 
-  /* 🎨 호환성 및 전사 통일 별칭 토큰 (라이트 테마: 옅은 아이보리 계열) */
-  --text-primary: #000000;
-  --border: #cbd5e1;
-  --bg-body: #f7f5f0;
-  --bg-main: #f7f5f0;
-  --bg-secondary: #eeeae1;
-  --bg-surface: #fdfcf9;
-  --card-bg: #fdfcf9;
-  --body-bg: #f7f5f0;
-  --bg-card-header: #f2efe7;
-  --bg-active: #eeebff;
-  --primary-rgb: 79, 70, 229;
-  --primary-border: #818cf8;
-  --accent: #4f46e5;
-  --accent-bg: #eeebff;
-  --accent-border: #818cf8;
+  /* 📜 종이질감(Warm Cotton Paper Micro-grain) 노이즈 텍스처 (SVG 무손실 벡터 데이터 URI) */
+  --paper-texture: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='paperNoise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.35 0 0 0 0 0.3 0 0 0 0 0.25 0 0 0 0.038 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23paperNoise)'/%3E%3C/svg%3E");
+
+  /* 🎨 호환성 및 전사 통일 별칭 토큰 (라이트 테마: 종이질감 웜 페이퍼 계열) */
+  --text-primary: #0f172a;
+  --border: #dcd5c9;
+  --bg-body: #f5f2eb;
+  --bg-main: #f5f2eb;
+  --bg-secondary: #ece7de;
+  --bg-surface: #fbf9f5;
+  --card-bg: #fbf9f5;
+  --body-bg: #f5f2eb;
+  --bg-card-header: #f2eee6;
+  --bg-active: #e0e7ff;
+  --primary-rgb: 29, 78, 216;
+  --primary-border: #3b82f6;
+  --accent: #1d4ed8;
+  --accent-bg: #eff6ff;
+  --accent-border: #3b82f6;
 }
 
 [data-theme='dark'] {
-  /* 다크 테마 토큰 */
+  /* 다크 테마 토큰: 5색 고시인성 표준 (종이질감 제외: OLED 최적화 다크 캔버스) */
+  --paper-texture: none;
   --bg-app: #0b0f19;
   --bg-sidebar: #111827;
   --bg-card: #1f2937;
   --bg-header: #111827;
   --border-color: #374151;
   --table-border-color: #475569;
-  --table-row-border: #475569;
+  --table-row-border: #374151;
   
   --scrollbar-track: #1e293b;
   --scrollbar-thumb: #64748b;
   --scrollbar-thumb-hover: #60a5fa;
   --scrollbar-thumb-border: #1f2937;
   
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
+  /* 5색 표준: 
+     1) 백묵 잉크 (Text): #f1f5f9
+     2) 스카이 액션 (Primary): #38bdf8
+     3) 에메랄드 플러스/수익 (Success): #34d399
+     4) 크림슨 마이너스/위험 (Danger): #f87171
+     5) 다크 슬레이트 캔버스 (Background): #0b0f19
+  */
+  --primary: #38bdf8;
+  --primary-hover: #0284c7;
   --primary-light: #1e3a8a;
   
-  --success: #10b981;
+  --success: #34d399;
   --success-hover: #059669;
   --success-light: #064e3b;
   
@@ -99,23 +117,23 @@
   --warning-hover: #d97706;
   --warning-light: #78350f;
   
-  --danger: #ef4444;
+  --danger: #f87171;
   --danger-hover: #dc2626;
   --danger-light: #7f1d1d;
 
   --info: #38bdf8;
   --info-light: #075985;
   
-  --text-main: #f9fafb;
-  --text-secondary: #d1d5db;
-  --text-muted: #9ca3af;
+  --text-main: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3af;
   
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
 
   /* 🎨 호환성 및 전사 통일 별칭 토큰 (다크 테마) */
-  --text-primary: #f9fafb;
+  --text-primary: #f1f5f9;
   --border: #374151;
   --bg-body: #0b0f19;
   --bg-main: #0b0f19;
@@ -125,11 +143,11 @@
   --body-bg: #0b0f19;
   --bg-card-header: #111827;
   --bg-active: #1e1b4b;
-  --primary-rgb: 99, 102, 241;
-  --primary-border: #4f46e5;
-  --accent: #818cf8;
+  --primary-rgb: 56, 189, 248;
+  --primary-border: #0284c7;
+  --accent: #38bdf8;
   --accent-bg: #1e1b4b;
-  --accent-border: #4f46e5;
+  --accent-border: #0284c7;
 }
 
 * {
@@ -182,6 +200,9 @@ html, body, #root {
   overscroll-behavior: contain !important;
   -webkit-overflow-scrolling: touch !important;
   touch-action: pan-x pan-y !important;
+  background-color: var(--bg-app);
+  background-image: var(--paper-texture);
+  background-repeat: repeat;
 }
 
 /* 표(테이블) 및 모달 독자 스크롤 */
@@ -243,6 +264,8 @@ div[style*="overflow"]::-webkit-scrollbar-thumb:hover {
 body {
   font-family: var(--font-sans);
   background-color: var(--bg-app);
+  background-image: var(--paper-texture);
+  background-repeat: repeat;
   color: var(--text-main);
   height: 100vh;
   line-height: 1.5;
@@ -396,15 +419,15 @@ label {
   color: var(--text-secondary);
 }
 
-/* 🌟 라이트 모드 고시인성 완전 블랙 표준: 회색 글씨 라이트 모드에서만 블랙 변환 (다크 모드 침범 방지, 버튼 라벨 제외) */
+/* 🌟 라이트 모드 고시인성 먹색(Deep Slate Ink) 표준: 회색 글씨 라이트 모드에서만 고대비 먹색 변환 (다크 모드 침범 방지, 버튼 라벨 제외) */
 [data-theme='light'] label:not(.btn):not([class*="btn"]),
 :root:not([data-theme='dark']) label:not(.btn):not([class*="btn"]) {
-  color: #000000 !important;
+  color: #0f172a !important;
 }
 
 [data-theme='light'] th,
 :root:not([data-theme='dark']) th {
-  color: #000000 !important;
+  color: #0f172a !important;
 }
 
 [data-theme='light'] .text-muted,
@@ -427,10 +450,10 @@ label {
 :root:not([data-theme='dark']) .text-gray-500,
 [data-theme='light'] .text-gray-600,
 :root:not([data-theme='dark']) .text-gray-600 {
-  color: #000000 !important;
+  color: #0f172a !important;
 }
 
-/* 인라인 스타일로 지정된 흐린 회색 글씨: 오직 라이트 모드에서만 블랙 변환 */
+/* 인라인 스타일로 지정된 흐린 회색 글씨: 오직 라이트 모드에서만 먹색 변환 */
 [data-theme='light'] [style*="color: #64748b"],
 [data-theme='light'] [style*="color: #475569"],
 [data-theme='light'] [style*="color: #94a3b8"],
@@ -443,7 +466,7 @@ label {
 [data-theme='light'] [style*="color: rgb(51, 65, 85)"],
 [data-theme='light'] [style*="color: rgb(107, 114, 128)"],
 [data-theme='light'] [style*="color: rgb(156, 163, 175)"] {
-  color: #000000 !important;
+  color: #0f172a !important;
 }
 
 /* 🌙 다크 모드 고시인성 보장: 검은 글씨 오염 방지 및 명확한 라이트 슬레이트 가독성 */
