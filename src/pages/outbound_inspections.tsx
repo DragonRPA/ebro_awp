@@ -1109,9 +1109,9 @@ export const OutboundInspections: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="outbound_inspections" data-subview="outbound_inspections" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', color: 'var(--text-primary)' }}>
+    <div data-hs-observe="outbound_inspections" data-subview="outbound_inspections" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0, overflow: 'hidden', color: 'var(--text-primary)' }}>
       {/* 헤더 영역 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '6px', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '12px', flexShrink: 0 }}>
         <div>
           <h2 data-mid="outbound_inspections-header" style={{ fontWeight: 700, fontSize: '17px', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, whiteSpace: 'nowrap' }}>
             <CheckSquare size={18} color="var(--primary)" /> 출고 검수 관리
@@ -1166,7 +1166,7 @@ export const OutboundInspections: React.FC = () => {
       </div>
 
       {/* 상태 필터 카운트 탭 */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap', flexShrink: 0 }}>
         {[
           { key: 'ALL', label: '전체 의뢰 보기', count: scopedGroups.length },
           { key: 'PENDING', label: '🟡 접수 대기', count: scopedGroups.filter(g => g.status === 'PENDING').length },
@@ -1209,10 +1209,10 @@ export const OutboundInspections: React.FC = () => {
       </div>
 
       {/* 2열 메인 레이아웃 (좌: 의뢰 묶음 카드리스트 + 📅 기간 선택 | 우: 상세 검수서) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 420px) 1fr', gap: '20px' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: 'minmax(340px, 420px) 1fr', gap: '16px', overflow: 'hidden' }}>
         
         {/* [좌측] 의뢰 묶음 카드리스트 + 📅 요청일자 기간 지정 피커 */}
-        <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 230px)', minHeight: '600px' }}>
+        <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflow: 'hidden' }}>
           
           {/* 📅 의뢰 신청일자 기간 지정 피커 및 1-Click Quick 버튼 */}
           <div style={{ marginBottom: '12px', padding: '10px 12px', backgroundColor: 'var(--bg-body)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
@@ -1437,7 +1437,7 @@ export const OutboundInspections: React.FC = () => {
         </div>
 
         {/* [우측] 의뢰 맞춤 검수서 및 정비 체크 작성 */}
-        <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 230px)', minHeight: '600px', overflowY: 'auto' }}>
+        <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflowY: 'auto' }}>
           {!selectedGroup ? (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
               <PackageCheck size={48} style={{ opacity: 0.3, marginBottom: '12px' }} />

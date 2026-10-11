@@ -738,9 +738,9 @@ export const Repairs: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="repairs" data-mid="repair-header" style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%' }}>
+    <div data-hs-observe="repairs" data-mid="repair-header" style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0, overflow: 'hidden' }}>
       {/* ─── 상단 헤더 & 탭 네비게이션 (무수식어 건조 표준) ─── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexShrink: 0 }}>
         <div>
           <h2 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
             주기장 정비 관리
@@ -798,10 +798,10 @@ export const Repairs: React.FC = () => {
       {/* 탭 1: 주기장 정비 스튜디오 (유형 A: 요청 처리형 마스터-디테일 스튜디오)   */}
       {/* ──────────────────────────────────────────────────────────────────────── */}
       {activeTab === 'STUDIO' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '370px 1fr', gap: '14px', alignItems: 'start' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '370px 1fr', gap: '14px', alignItems: 'stretch', overflow: 'hidden' }}>
           
           {/* ── 좌측: 수리 대기 자산 큐 ── */}
-          <div className="card" style={{ margin: 0, padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div className="card" style={{ margin: 0, padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0, overflow: 'hidden', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: '13px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
                 <Package size={15} color="var(--primary)" /> 정비 대상 자산 ({yardAssets.length}대)
@@ -857,7 +857,7 @@ export const Repairs: React.FC = () => {
             </div>
 
             {/* 자산 카드 목록 (고밀도 스크롤) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: 'calc(100vh - 270px)', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1, minHeight: 0, overflowY: 'auto' }}>
               {yardAssets.length === 0 ? (
                 <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
                   해당 조건의 정비 대상 자산이 없습니다.
@@ -977,7 +977,7 @@ export const Repairs: React.FC = () => {
           </div>
 
           {/* ── 우측: 정비 조치 & 소모품 투입 워크벤치 ── */}
-          <div className="card" style={{ margin: 0, padding: '14px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="card" style={{ margin: 0, padding: '14px', display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', minHeight: 0, overflowY: 'auto', boxSizing: 'border-box' }}>
             {!selectedAsset ? (
               <div style={{ padding: '100px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
                 <Wrench size={42} style={{ opacity: 0.25, marginBottom: '12px' }} />
@@ -1606,10 +1606,10 @@ export const Repairs: React.FC = () => {
       {/* 탭 2: 주기장 정비 대장 (유형 B: 기간 조회 및 정산/정리형 고밀도 그리드)   */}
       {/* ──────────────────────────────────────────────────────────────────────── */}
       {activeTab === 'LEDGER' && (
-        <div className="card" style={{ margin: 0, padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="card" style={{ flex: 1, minHeight: 0, overflow: 'hidden', margin: 0, padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           
           {/* 상단 필터 바 (헌장 3.4 상하 수직 스택 구조) */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1.5fr 1fr auto', gap: '10px', alignItems: 'end', backgroundColor: 'var(--bg-app)', padding: '12px', borderRadius: '6px' }}>
+          <div style={{ flexShrink: 0, display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1.5fr 1fr auto', gap: '10px', alignItems: 'end', backgroundColor: 'var(--bg-app)', padding: '12px', borderRadius: '6px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' }}>자산번호/모델/내용 검색</label>
               <input
@@ -1692,9 +1692,9 @@ export const Repairs: React.FC = () => {
           </div>
 
           {/* 고밀도 정비 대장 그리드 */}
-          <div className="table-container" style={{ border: 'none', boxShadow: 'none', overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
+          <div className="table-container" style={{ flex: 1, minHeight: 0, border: 'none', boxShadow: 'none', overflowX: 'auto', overflowY: 'auto' }}>
             <table style={{ width: '100%', fontSize: '12px', whiteSpace: 'nowrap' }}>
-              <thead>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 2 }}>
                 <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '2px solid var(--border-color)', color: 'var(--text-muted)' }}>
                   <th style={{ padding: '8px 10px', textAlign: 'center', whiteSpace: 'nowrap', width: '45px' }}>No</th>
                   <SortableTh sortKey="repairDate" currentSort={sortConfig} onSort={requestSort} style={{ padding: '8px 10px' }}>정비일자</SortableTh>

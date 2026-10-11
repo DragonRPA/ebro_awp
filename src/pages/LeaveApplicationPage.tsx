@@ -253,10 +253,10 @@ export const LeaveApplicationPage: React.FC = () => {
   const { sortedData: sortedUsages, sortKey: leaveSortKey, sortDirection: leaveSortDir, handleSort: handleLeaveSort } = useSortableData(displayedUsages);
 
   return (
-    <div data-hs-observe="leaveapplicationpage" data-subview="leave_application" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%' }}>
+    <div data-hs-observe="leaveapplicationpage" data-subview="leave_application" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%', minHeight: 0, overflow: 'hidden' }}>
       
       {/* 헤더 타이틀 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '12px', flexShrink: 0 }}>
         <div>
           <h2 data-mid="leave_application-header" style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
             <Calendar size={18} style={{ color: 'var(--primary)' }} />
@@ -280,9 +280,10 @@ export const LeaveApplicationPage: React.FC = () => {
         gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
         gap: '12px',
         backgroundColor: 'var(--bg-card)',
-        padding: '16px',
+        padding: '14px 16px',
         borderRadius: '8px',
-        border: '1px solid var(--border-color)'
+        border: '1px solid var(--border-color)',
+        flexShrink: 0
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <span style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontWeight: 600 }}>신청 대상 임직원</span>
@@ -321,20 +322,23 @@ export const LeaveApplicationPage: React.FC = () => {
       </div>
 
       {/* 2단 작업대 레이아웃 (좌: 신청 폼 / 우: 신청 이력) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr', gap: '20px' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '340px 1fr', gap: '16px', overflow: 'hidden' }}>
         
         {/* 좌측: 연차/반차 신청 폼 (헌장 3.4 상하 세로 스택) */}
         <div style={{
           backgroundColor: 'var(--bg-surface)',
-          padding: '20px',
+          padding: '16px',
           borderRadius: '8px',
           border: '1px solid var(--border-color)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '16px',
-          height: 'fit-content'
+          gap: '14px',
+          height: '100%',
+          minHeight: 0,
+          overflowY: 'auto',
+          boxSizing: 'border-box'
         }}>
-          <h3 style={{ fontSize: '15px', fontWeight: 'bold', margin: 0, color: 'var(--text-main)', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 'bold', margin: 0, color: 'var(--text-main)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
             연차 / 반차 소진 등록
           </h3>
 
@@ -586,10 +590,10 @@ export const LeaveApplicationPage: React.FC = () => {
         </div>
 
         {/* 우측: 신청 및 소진 이력 대장 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0, overflow: 'hidden' }}>
           
           {/* 서브 필터 바 */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', flexShrink: 0 }}>
             <div style={{ display: 'flex', gap: '6px' }}>
               {(['ALL', 'ANNUAL', 'HALF_AM', 'HALF_PM'] as const).map(t => (
                 <button
@@ -624,7 +628,7 @@ export const LeaveApplicationPage: React.FC = () => {
           </div>
 
           {/* 이력 테이블 */}
-          <div className="table-container" style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border-color)', maxHeight: 'calc(100vh - 350px)', overflowX: 'auto', overflowY: 'auto' }}>
+          <div className="table-container" style={{ flex: 1, minHeight: 0, backgroundColor: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto', overflowY: 'auto' }}>
             <table data-mid="leave-history-table" style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left', whiteSpace: 'nowrap' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-main)' }}>
                 <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>

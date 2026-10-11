@@ -9,7 +9,8 @@ import {
   fetchLocalStationConfigFromAgent,
   saveStationConfigToAgent,
   printDirectToLocalAgent,
-  LocalAgentPrintersResult
+  LocalAgentPrintersResult,
+  purgeOldPrintJobs
 } from '../services/printQueueService';
 import {
   Printer,
@@ -134,15 +135,29 @@ export const PrintQueueManager: React.FC = () => {
     }
   };
 
+  // 당일 이전 인쇄 작업 매일 자동 삭제 실행
+  const executePurgeOldJobs = async () => {
+    try {
+      const purgedCount = await purgeOldPrintJobs();
+      if (purgedCount > 0) {
+        refreshAllData();
+      }
+    } catch (err) {
+      console.warn('Auto purge old print jobs failed:', err);
+    }
+  };
+
   useEffect(() => {
     scanLocalAgent();
+    executePurgeOldJobs(); // 화면 진입 시 오늘 자정 이전 데이터 자동 삭제
     const handleConnected = () => {
       scanLocalAgent(false);
     };
     window.addEventListener('ebro:agent_connected', handleConnected);
-    // 10초마다 큐 및 스테이션 데이터 갱신
+    // 10초마다 큐 및 스테이션 데이터 갱신 및 자정 경과 시 자동 purge
     const timer = setInterval(() => {
       refreshAllData();
+      executePurgeOldJobs();
     }, 10000);
     return () => {
       window.removeEventListener('ebro:agent_connected', handleConnected);
@@ -389,8 +404,10 @@ export const PrintQueueManager: React.FC = () => {
       style={{
         display: 'flex',
         flexDirection: 'column',
-        gap: '14px',
+        gap: '12px',
         height: '100%',
+        minHeight: 0,
+        overflow: 'hidden',
         color: 'var(--text-main)',
         boxSizing: 'border-box'
       }}
@@ -404,7 +421,8 @@ export const PrintQueueManager: React.FC = () => {
           flexWrap: 'wrap',
           gap: '12px',
           paddingBottom: '8px',
-          borderBottom: '1px solid var(--border-color)'
+          borderBottom: '1px solid var(--border-color)',
+          flexShrink: 0
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -414,7 +432,7 @@ export const PrintQueueManager: React.FC = () => {
               프린트 큐 모니터
             </h2>
             <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
-              로컬 프린터 원격 무인 인쇄 및 다중 프린터 스테이션 관리
+              로컬 프린터 원격 무인 인쇄 및 다중 프린터 스테이션 관리 (당일 이전 작업 매일 자동 삭제)
             </p>
           </div>
         </div>
@@ -441,7 +459,8 @@ export const PrintQueueManager: React.FC = () => {
           display: 'flex',
           gap: '8px',
           borderBottom: '1px solid var(--border-color)',
-          paddingBottom: '2px'
+          paddingBottom: '2px',
+          flexShrink: 0
         }}
       >
         <button
@@ -497,10 +516,14 @@ export const PrintQueueManager: React.FC = () => {
       {activeTab === 'stations' && (
         <div
           style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
             gap: '20px',
-            alignItems: 'start'
+            alignItems: 'start',
+            paddingRight: '4px'
           }}
         >
           {/* ─── 좌측: 등록 프린터 목록 대장 ─── */}
@@ -1086,6 +1109,8 @@ export const PrintQueueManager: React.FC = () => {
       {activeTab === 'queue' && (
         <div
           style={{
+            flex: 1,
+            minHeight: 0,
             backgroundColor: 'var(--bg-card)',
             border: '1px solid var(--border-color)',
             borderRadius: '10px',
@@ -1097,14 +1122,15 @@ export const PrintQueueManager: React.FC = () => {
           {/* 상단 필터 바 (헌장 3.5 좌상단 Scope & 우상단 Pipeline) */}
           <div
             style={{
-              padding: '14px 18px',
+              padding: '12px 18px',
               borderBottom: '1px solid var(--border-color)',
               backgroundColor: 'var(--bg-app)',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
               flexWrap: 'wrap',
-              gap: '12px'
+              gap: '12px',
+              flexShrink: 0
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
@@ -1155,6 +1181,18 @@ export const PrintQueueManager: React.FC = () => {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                color: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                border: '1px solid rgba(16, 185, 129, 0.25)',
+                padding: '3px 8px',
+                borderRadius: '4px',
+                whiteSpace: 'nowrap'
+              }}>
+                매일 자정 이전 작업 자동 삭제
+              </span>
               <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                 조회 {filteredQueue.length}건
               </span>
@@ -1180,19 +1218,19 @@ export const PrintQueueManager: React.FC = () => {
               <button
                 type="button"
                 className="btn-secondary"
-                onClick={() => refreshAllData()}
+                onClick={() => { executePurgeOldJobs(); refreshAllData(); }}
                 style={{ padding: '6px 10px', fontSize: '12px' }}
-                title="새로고침"
+                title="정리 및 새로고침"
               >
                 <RefreshCw size={12} />
               </button>
             </div>
           </div>
 
-          {/* 고밀도 대사 테이블 (헌장 3.2 줄바꿈 방지 적용) */}
-          <div style={{ overflowX: 'auto' }}>
+          {/* 고밀도 대사 테이블 (헌장 3.2 줄바꿈 방지 & 내부 독립 스크롤) */}
+          <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
             <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 3 }}>
                 <tr
                   style={{
                     backgroundColor: 'var(--bg-app)',

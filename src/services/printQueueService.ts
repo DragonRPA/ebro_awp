@@ -222,6 +222,9 @@ export async function enqueuePrintJob(params: {
     throw new Error('등록된 인쇄 스테이션이 없습니다. [시스템 관리 ➔ 프린트 큐 모니터]에서 스테이션을 먼저 등록해 주세요.');
   }
 
+  // 당일 이전 누적 작업 자동 정리 (매일 자정 이전 데이터 자동 삭제)
+  purgeOldPrintJobs().catch(() => {});
+
   const now = new Date().toISOString();
   const jobId = `PQ-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
@@ -298,3 +301,29 @@ export async function cancelPrintJob(id: string): Promise<void> {
   });
   await db.awaitPendingWrites();
 }
+
+/**
+ * 12. 당일 이전(자정 00:00:00 이전)에 누적된 인쇄 작업 큐 데이터 매일 자동 일괄 삭제
+ * (헌장 1.1 임직원 최소 노력 & 최대 편익, 임시 인쇄 큐 자동 정화)
+ */
+export async function purgeOldPrintJobs(): Promise<number> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStartIso = today.toISOString();
+
+  // 오늘 자정 이전에 생성된 모든 인쇄 큐 작업 필터링
+  const oldJobs = db.printQueue.filter(item => {
+    const jobDate = item.createdAt || item.requestedAt || '';
+    return jobDate < todayStartIso;
+  });
+
+  if (oldJobs.length === 0) return 0;
+
+  for (const job of oldJobs) {
+    db.deleteRow('printQueue', job.id);
+  }
+
+  await db.awaitPendingWrites();
+  return oldJobs.length;
+}
+

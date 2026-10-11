@@ -557,10 +557,10 @@ export const OtManagementPage: React.FC = () => {
   }, [isDateDetailModalOpen]);
 
   return (
-    <div data-hs-observe="otmanagementpage" data-subview="ot_management" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%' }}>
+    <div data-hs-observe="otmanagementpage" data-subview="ot_management" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%', minHeight: 0, overflow: 'hidden' }}>
       
       {/* 헤더 타이틀 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', flexShrink: 0 }}>
         <div>
           <h2 data-mid="ot_management-header" style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
             <Clock size={22} style={{ color: 'var(--primary)' }} />
@@ -611,7 +611,7 @@ export const OtManagementPage: React.FC = () => {
       </div>
 
       {/* 📊 통계 요약 바 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', flexShrink: 0 }}>
         <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>총 등록건수</span>
           <strong style={{ fontSize: '15px', color: 'var(--text-main)' }}>{overtimeRecords.length}건</strong>
@@ -633,21 +633,24 @@ export const OtManagementPage: React.FC = () => {
       </div>
 
       {/* 2단 작업대 레이아웃 (좌: 등록 폼 / 우: 대장 그리드 및 월간 캘린더) */}
-      <div style={{ display: 'grid', gridTemplateColumns: isFormCollapsed ? '1fr' : '330px 1fr', gap: '20px', transition: 'all 0.2s ease' }}>
+      <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: isFormCollapsed ? '1fr' : '330px 1fr', gap: '16px', overflow: 'hidden', transition: 'all 0.2s ease' }}>
         
         {/* 좌측: OT 연장근무 6단계 간편 등록 폼 (헌장 3.4 상하 세로 스택) */}
         {!isFormCollapsed && (
           <div style={{
           backgroundColor: 'var(--bg-surface)',
-          padding: '20px',
+          padding: '16px',
           borderRadius: '8px',
           border: '1px solid var(--border-color)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '14px',
-          height: 'fit-content'
+          gap: '12px',
+          height: '100%',
+          minHeight: 0,
+          overflowY: 'auto',
+          boxSizing: 'border-box'
         }}>
-          <h3 style={{ fontSize: '15px', fontWeight: 'bold', margin: 0, color: 'var(--text-main)', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 'bold', margin: 0, color: 'var(--text-main)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
             OT 등록
           </h3>
 
@@ -1267,10 +1270,10 @@ export const OtManagementPage: React.FC = () => {
         )}
 
         {/* 우측: OT 이력 작업대 (목록 대장 & 월간 캘린더) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0, overflow: 'hidden' }}>
           
           {/* 상단 툴바: 검색, 임직원 필터, 등록창 토글, 뷰 모드(목록/캘린더) 전환 */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', flexShrink: 0 }}>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', flex: 1 }}>
               <div style={{ position: 'relative', flex: '1 1 200px', maxWidth: '300px' }}>
                 <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -1387,7 +1390,7 @@ export const OtManagementPage: React.FC = () => {
 
           {/* 📋 1. 목록 뷰 */}
           {viewMode === 'LIST' && (
-            <div className="table-container" style={{ backgroundColor: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
+            <div className="table-container" style={{ flex: 1, minHeight: 0, backgroundColor: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto', overflowY: 'auto' }}>
               <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-main)' }}>
                   <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
@@ -1470,7 +1473,7 @@ export const OtManagementPage: React.FC = () => {
 
           {/* 📅 2. 캘린더 뷰 */}
           {viewMode === 'CALENDAR' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto' }}>
               {/* 캘린더 월간 이동 헤더 바 */}
               <div style={{
                 backgroundColor: 'var(--bg-surface)',

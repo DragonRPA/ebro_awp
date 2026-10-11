@@ -363,7 +363,7 @@ export const SmartAsRequest: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="smartasrequest" data-subview="smart_as_request" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', position: 'relative' }}>
+    <div data-hs-observe="smartasrequest" data-subview="smart_as_request" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -383,7 +383,7 @@ export const SmartAsRequest: React.FC = () => {
         </div>
       )}
       {/* 타이틀 및 헤더 (헌장 3.1 무수식어 건조 표준) */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+      <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Wrench size={18} color="var(--primary)" />
           <h2 data-mid="smart_as-header" style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-main)', margin: 0, whiteSpace: 'nowrap' }}>
@@ -397,11 +397,11 @@ export const SmartAsRequest: React.FC = () => {
           <button
             onClick={() => setActiveTab('field_as')}
             style={{
-              padding: '7px 14px',
+              padding: '6px 12px',
               backgroundColor: 'var(--bg-secondary)',
               border: '1px solid var(--border-color)',
               borderRadius: '6px',
-              fontSize: '12.5px',
+              fontSize: '12px',
               color: 'var(--text-secondary)',
               cursor: 'pointer',
               fontWeight: 700
@@ -413,7 +413,7 @@ export const SmartAsRequest: React.FC = () => {
       </div>
 
       {submitSuccessTicket ? (
-        <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '12px', padding: '32px', textAlign: 'center' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', backgroundColor: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '12px', padding: '32px', textAlign: 'center' }}>
           <CheckCircle2 size={48} color="#10b981" style={{ margin: '0 auto 16px auto' }} />
           <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--text-main)', margin: '0 0 8px 0' }}>
             AS 의뢰가 성공적으로 접수되었습니다!
@@ -456,14 +456,14 @@ export const SmartAsRequest: React.FC = () => {
         </div>
       ) : (
         /* ── 헌장 3.6 마스터-디테일 스튜디오 레이아웃 ── */
-        <div style={{ display: 'flex', gap: '18px', alignItems: 'flex-start' }}>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: '16px', alignItems: 'stretch', overflow: 'hidden' }}>
           {/* 좌측 Master: 통화 접수 AS 대기 큐 (너비 360px 고정) */}
           <div style={{
-            width: '360px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '10px',
+            width: '360px', flexShrink: 0, height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', gap: '10px',
             backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '10px',
             padding: '14px', boxSizing: 'border-box'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ fontSize: '13px', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
                 <PhoneCall size={15} /> 통화 접수 대기 ({asDrafts.length}건)
               </h3>
@@ -481,7 +481,7 @@ export const SmartAsRequest: React.FC = () => {
                 우측 폼에서 직접 수동 접수하십시오.
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '620px', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, minHeight: 0, overflowY: 'auto' }}>
                 {asDrafts.map(d => {
                   const isSelected = selectedDraftId === d.id;
                   return (
@@ -535,7 +535,7 @@ export const SmartAsRequest: React.FC = () => {
           </div>
 
           {/* 우측 Detail: AS 접수 및 상세 검토 폼 (flex: 1) */}
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ flex: 1, minWidth: 0, height: '100%', minHeight: 0, overflowY: 'auto', paddingRight: '4px' }}>
             {selectedDraftId && (
               <div style={{
                 backgroundColor: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '8px',
@@ -1058,21 +1058,19 @@ export const SmartAsRequest: React.FC = () => {
       )}
       {/* ⚖️ Gutenberg Z-패턴 4단계 최하단 현장 AS 접수 대차대조식 검증 바 (헌장 3.5) */}
       <div style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 'var(--sidebar-width, 240px)',
-        right: 0,
-        height: '42px',
+        flexShrink: 0,
+        height: '40px',
         backgroundColor: 'var(--bg-card)',
         borderTop: '2px solid var(--primary)',
         boxShadow: '0 -2px 10px rgba(0,0,0,0.08)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 20px',
-        zIndex: 99,
+        padding: '0 16px',
+        zIndex: 10,
         fontSize: '11.5px',
-        fontWeight: 600
+        fontWeight: 600,
+        borderRadius: '6px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
           <span>🔧 <strong>누적AS접수:</strong> {asAuditSummary.totalCount}건</span>
@@ -1084,7 +1082,6 @@ export const SmartAsRequest: React.FC = () => {
           <span style={{ color: 'var(--success)' }}><strong>조치완료:</strong> {asAuditSummary.completedCount}건</span>
         </div>
       </div>
-      <div style={{ height: '50px' }} aria-hidden="true" />
     </div>
   );
 };

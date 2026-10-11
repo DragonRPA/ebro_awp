@@ -259,7 +259,7 @@ export const PurchaseSettlementPage: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="purchasesettlementpage" data-subview="purchase_settlement" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', position: 'relative' }}>
+    <div data-hs-observe="purchasesettlementpage" data-subview="purchase_settlement" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0, overflow: 'hidden', position: 'relative' }}>
       {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -278,16 +278,19 @@ export const PurchaseSettlementPage: React.FC = () => {
           {toastMessage.text}
         </div>
       )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
-        <CreditCard size={18} color="var(--primary)" />
-        <h2 data-mid="purchase_settlement-header" style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>월말 매입 정산</h2>
-      </div>
-      <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
-        운송료·소모품·전대임차·외주정비 월별 매입처별 집계 및 통장 출금 1:1 대사
-      </p>
 
-      {/* 상단 컨트롤 */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end', marginBottom: '20px' }}>
+      {/* 상단 고정 제어 영역 (헤더, 연월 선택, 액션 버튼, 유형 탭, 필터, 요약 카드) */}
+      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '6px', borderBottom: '1px solid var(--border-color)' }}>
+          <CreditCard size={18} color="var(--primary)" />
+          <h2 data-mid="purchase_settlement-header" style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>월말 매입 정산</h2>
+        </div>
+        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
+          운송료·소모품·전대임차·외주정비 월별 매입처별 집계 및 통장 출금 1:1 대사
+        </p>
+
+        {/* 상단 컨트롤 */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'flex-end', marginTop: '2px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <label style={{ fontSize: '12px', fontWeight: '700', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>정산 연월</label>
           <select
@@ -361,7 +364,7 @@ export const PurchaseSettlementPage: React.FC = () => {
       </div>
 
       {/* 유형 탭 */}
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
         {SETTLEMENT_TYPES.map(t => (
           <button
             key={t.id}
@@ -380,7 +383,7 @@ export const PurchaseSettlementPage: React.FC = () => {
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '8px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <label style={{ fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' }}>지급 상태</label>
           <select value={payStatusFilter} onChange={e => setPayStatusFilter(e.target.value)} style={{ padding: '5px', fontSize: '12px' }}>
@@ -402,20 +405,23 @@ export const PurchaseSettlementPage: React.FC = () => {
       </div>
 
       {/* 요약 카드 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', marginBottom: '8px' }}>
         {[
           { label: '총 정산 건수',  value: `${summary.count}건`,                    color: 'var(--primary)' },
           { label: '총 청구액',     value: `${summary.total.toLocaleString()}원`,    color: '#F59E0B' },
           { label: '지급 완료액',   value: `${summary.paid.toLocaleString()}원`,     color: '#10B981' },
           { label: '미지급 잔액',   value: `${summary.remaining.toLocaleString()}원`, color: 'var(--danger)' },
         ].map(card => (
-          <div key={card.label} className="card" style={{ padding: '14px 16px' }}>
-            <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginBottom: '4px', whiteSpace: 'nowrap' }}>{card.label}</div>
-            <div style={{ fontSize: '18px', fontWeight: '800', color: card.color }}>{card.value}</div>
+          <div key={card.label} className="card" style={{ padding: '12px 14px' }}>
+            <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginBottom: '3px', whiteSpace: 'nowrap' }}>{card.label}</div>
+            <div style={{ fontSize: '17px', fontWeight: '800', color: card.color }}>{card.value}</div>
           </div>
         ))}
       </div>
+      </div>
 
+      {/* 중앙 스크롤 영역 (정산 목록 + 임차료 안내) */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '4px' }}>
       {/* 정산 목록 */}
       {filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)', fontSize: '14px' }}>
@@ -709,8 +715,50 @@ export const PurchaseSettlementPage: React.FC = () => {
               </div>
             );
           })}
+          </div>
+        )}
+
+        {/* 임차료 정산 연동 안내 */}
+        {(typeFilter === 'ALL' || typeFilter === 'EQUIPMENT_LEASE') && (
+          <div style={{ marginTop: '8px', padding: '14px 16px', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.3)', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--text-main)', fontSize: '12.5px', lineHeight: '1.6' }}>
+            <strong>🏢 임차(전대)장비 임차료 매입 정산 프로세스</strong><br />
+            배차 관리 및 소모품 매입과 동일하게, 임차자산 관리 메뉴의 <strong>[임차처 거래명세서 대사 & 매입 정산]</strong>에서 1:1 대사를 완벽하게 검증하고 <strong>승인 확정한 내역만</strong> 본 월말 매입 정산 대장으로 전달되어 확정/지급 처리됩니다.
+          </div>
+        )}
+      </div>
+
+      {/* ⚖️ Gutenberg Z-패턴 4단계 최하단 회계/매입 대차대조식 검증 바 (헌장 3.5) */}
+      <div style={{
+        flexShrink: 0,
+        height: '40px',
+        backgroundColor: 'var(--bg-card)',
+        borderTop: '2px solid var(--primary)',
+        boxShadow: '0 -2px 10px rgba(0,0,0,0.08)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 16px',
+        zIndex: 10,
+        fontSize: '11.5px',
+        fontWeight: 600,
+        borderRadius: '6px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
+          <span>🏢 <strong>[{selectedYm} 매입정산]:</strong> {settlementAuditSummary.totalCount}개사</span>
+          <span style={{ color: 'var(--border-color)' }}>|</span>
+          <span>📄 <strong>총 청구액:</strong> ₩{settlementAuditSummary.totalAmount.toLocaleString()}원</span>
+          <span style={{ color: 'var(--border-color)' }}>|</span>
+          <span style={{ color: 'var(--success)' }}>🟢 <strong>지급완료:</strong> ₩{settlementAuditSummary.totalPaid.toLocaleString()}원 ({settlementAuditSummary.paidCount}건)</span>
+          <span style={{ color: 'var(--border-color)' }}>|</span>
+          <span style={{ color: settlementAuditSummary.balance > 0 ? 'var(--danger)' : 'var(--text-secondary)' }}>
+            ⏳ <strong>지급잔액:</strong> ₩{settlementAuditSummary.balance.toLocaleString()}원
+          </span>
+          <span style={{ color: 'var(--border-color)' }}>|</span>
+          <span style={{ color: settlementAuditSummary.taxInvoiceIssuedCount === settlementAuditSummary.totalCount && settlementAuditSummary.totalCount > 0 ? '#10b981' : '#3b82f6' }}>
+            🧾 <strong>국세청 계산서수취:</strong> {settlementAuditSummary.taxInvoiceIssuedCount}/{settlementAuditSummary.totalCount}건 ({settlementAuditSummary.totalCount > 0 ? Math.round((settlementAuditSummary.taxInvoiceIssuedCount / settlementAuditSummary.totalCount) * 100) : 0}%)
+          </span>
         </div>
-      )}
+      </div>
 
       {/* 통장 출금 내역 매칭 지급 대사 모달 (Audit Trail 지원) */}
       {paymentModal && (
@@ -1106,51 +1154,6 @@ export const PurchaseSettlementPage: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* 임차료 정산 연동 안내 */}
-      {(typeFilter === 'ALL' || typeFilter === 'EQUIPMENT_LEASE') && (
-        <div style={{ marginTop: '28px', padding: '16px', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.3)', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--text-main)', fontSize: '13px', lineHeight: '1.6' }}>
-          <strong>🏢 임차(전대)장비 임차료 매입 정산 프로세스</strong><br />
-          배차 관리 및 소모품 매입과 동일하게, 임차자산 관리 메뉴의 <strong>[임차처 거래명세서 대사 & 매입 정산]</strong>에서 1:1 대사를 완벽하게 검증하고 <strong>승인 확정한 내역만</strong> 본 월말 매입 정산 대장으로 전달되어 확정/지급 처리됩니다.
-        </div>
-      )}
-
-      {/* ⚖️ Gutenberg Z-패턴 4단계 최하단 회계/매입 대차대조식 검증 바 (헌장 3.5) */}
-      <div style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 'var(--sidebar-width, 240px)',
-        right: 0,
-        height: '42px',
-        backgroundColor: 'var(--bg-card)',
-        borderTop: '2px solid var(--primary)',
-        boxShadow: '0 -2px 10px rgba(0,0,0,0.08)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 20px',
-        zIndex: 99,
-        fontSize: '11.5px',
-        fontWeight: 600
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
-          <span>🏢 <strong>[{selectedYm} 매입정산]:</strong> {settlementAuditSummary.totalCount}개사</span>
-          <span style={{ color: 'var(--border-color)' }}>|</span>
-          <span>📄 <strong>총 청구액:</strong> ₩{settlementAuditSummary.totalAmount.toLocaleString()}원</span>
-          <span style={{ color: 'var(--border-color)' }}>|</span>
-          <span style={{ color: 'var(--success)' }}>🟢 <strong>지급완료:</strong> ₩{settlementAuditSummary.totalPaid.toLocaleString()}원 ({settlementAuditSummary.paidCount}건)</span>
-          <span style={{ color: 'var(--border-color)' }}>|</span>
-          <span style={{ color: settlementAuditSummary.balance > 0 ? 'var(--danger)' : 'var(--text-secondary)' }}>
-            ⏳ <strong>지급잔액:</strong> ₩{settlementAuditSummary.balance.toLocaleString()}원
-          </span>
-          <span style={{ color: 'var(--border-color)' }}>|</span>
-          <span style={{ color: settlementAuditSummary.taxInvoiceIssuedCount === settlementAuditSummary.totalCount && settlementAuditSummary.totalCount > 0 ? '#10b981' : '#3b82f6' }}>
-            🧾 <strong>국세청 계산서수취:</strong> {settlementAuditSummary.taxInvoiceIssuedCount}/{settlementAuditSummary.totalCount}건 ({settlementAuditSummary.totalCount > 0 ? Math.round((settlementAuditSummary.taxInvoiceIssuedCount / settlementAuditSummary.totalCount) * 100) : 0}%)
-          </span>
-        </div>
-      </div>
-
-      <div style={{ height: '80px' }} aria-hidden="true" />
 
       {/* 🏛️ 국세청 매입세금계산서 대사 & 업데이트 모달 */}
       {isHometaxModalOpen && (

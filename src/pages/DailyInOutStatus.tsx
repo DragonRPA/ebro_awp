@@ -456,14 +456,14 @@ export const DailyInOutStatus: React.FC = () => {
     <div data-hs-observe="dailyinoutstatus" 
       data-subview="daily_inout" 
       data-subview-title="일일 입출고 조회" 
-      style={{ display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', minHeight: 0 }}
+      style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0, overflow: 'hidden' }}
     >
       {/* ── 표준 헤더 바 (Gutenberg Z-Pattern) ── */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingBottom: '8px',
+        paddingBottom: '6px',
         borderBottom: '1px solid var(--border-color)',
         flexShrink: 0,
         flexWrap: 'wrap',
@@ -496,10 +496,11 @@ export const DailyInOutStatus: React.FC = () => {
       <div 
         data-mid="filter-panel"
         style={{
+          flexShrink: 0,
           backgroundColor: 'var(--bg-card)',
           borderRadius: '12px',
           border: '1px solid var(--border-color)',
-          padding: '16px 20px',
+          padding: '12px 16px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-end',
@@ -785,7 +786,7 @@ export const DailyInOutStatus: React.FC = () => {
 
       {/* ── [모드 A: 캘린더 형태 보기] ── */}
       {viewMode === 'CALENDAR' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '4px' }}>
           {/* 월간 7열 달력 그리드 */}
           <div 
             data-mid="calendar-grid-card"
@@ -1149,17 +1150,20 @@ export const DailyInOutStatus: React.FC = () => {
         <div 
           data-mid="table-grid-card"
           style={{
+            flex: 1,
+            minHeight: 0,
+            overflow: 'hidden',
             backgroundColor: 'var(--bg-card)',
             borderRadius: '12px',
             border: '1px solid var(--border-color)',
-            padding: '16px',
+            padding: '14px 16px',
             boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '12px'
+            gap: '10px'
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
             <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
               {calYear}년 {calMonth}월 입출고 대장 (총 {filteredEvents.length}건)
             </span>
@@ -1170,10 +1174,10 @@ export const DailyInOutStatus: React.FC = () => {
 
           <div 
             style={{ 
+              flex: 1,
+              minHeight: 0,
               overflowY: 'auto', 
               overflowX: 'auto', 
-              maxHeight: 'calc(100vh - 330px)', 
-              minHeight: '480px',
               border: '1px solid var(--border-color)', 
               borderRadius: '8px' 
             }}
@@ -1283,10 +1287,11 @@ export const DailyInOutStatus: React.FC = () => {
       <div 
         data-mid="audit-summary-bar"
         style={{
+          flexShrink: 0,
           backgroundColor: 'var(--bg-card)',
           borderRadius: '12px',
           border: '1px solid var(--border-color)',
-          padding: '14px 22px',
+          padding: '10px 18px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
