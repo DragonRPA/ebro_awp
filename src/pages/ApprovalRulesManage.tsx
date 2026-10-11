@@ -524,7 +524,7 @@ const ApprovalRulesManage: React.FC = () => {
     }}>
 
       {/* ── 상단 탭 내비게이션 ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', flexShrink: 0 }}>
+      <div data-mid="approvalRules-tabs" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', flexShrink: 0 }}>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button data-hs-trigger="Approve"
             onClick={() => setActiveTab('RULES')}
@@ -585,6 +585,7 @@ const ApprovalRulesManage: React.FC = () => {
               </p>
             </div>
             <button
+              data-mid="approvalRules-sync"
               onClick={handleSyncStandardRules}
               style={{
                 padding: '7px 14px',
@@ -630,7 +631,7 @@ const ApprovalRulesManage: React.FC = () => {
           </div>
 
           {/* ── 그리드 (스크롤 추가 및 헤더 고정) ── */}
-          <div style={{
+          <div data-mid="approvalRules-rules-grid" style={{
             flex: 1,
             minHeight: 0,
             overflowY: 'auto',
@@ -981,7 +982,7 @@ const ApprovalRulesManage: React.FC = () => {
             </div>
 
             {/* 실시간 유효 티어 판정 시뮬레이터 */}
-            <div style={{
+            <div data-mid="approvalRules-tier-simulator" style={{
               marginTop: '16px',
               padding: '14px 18px',
               background: 'var(--bg-secondary)',
@@ -1063,7 +1064,7 @@ const ApprovalRulesManage: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
 
             {/* ── 좌측: 직책별 티어 관리 (Duty Tiers Master) ── */}
-            <div style={{
+            <div data-mid="approvalRules-duty-config" style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border-color)',
               borderRadius: '10px',
@@ -1205,7 +1206,7 @@ const ApprovalRulesManage: React.FC = () => {
             </div>
 
             {/* ── 우측: 직급별 티어 관리 (Position Tiers Master) ── */}
-            <div style={{
+            <div data-mid="approvalRules-position-config" style={{
               background: 'var(--bg-card)',
               border: '1px solid var(--border-color)',
               borderRadius: '10px',

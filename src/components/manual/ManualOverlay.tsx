@@ -36,12 +36,23 @@ const RIPPLE_CSS = `
 interface Rect { top: number; left: number; width: number; height: number; }
 
 /**
- * 안전한 DOM 쿼리 셀렉터 헬퍼 (SyntaxError 및 파싱 실패 시 예외 던짐 방지)
+ * 매뉴얼 자체 UI 요소인지 검사 (자가 타겟팅 및 무한 회피 루프 원천 차단)
+ */
+export function isManualUiElement(el: Element | null | undefined): boolean {
+  if (!el) return false;
+  if (!(el instanceof HTMLElement || el instanceof SVGElement)) return false;
+  return !!el.closest('[data-manual-ui="true"], .manual-overlay-ui, [data-manual-card="true"]');
+}
+
+/**
+ * 안전한 DOM 쿼리 셀렉터 헬퍼 (SyntaxError 및 파싱 실패 시 예외 던짐 방지 & 매뉴얼 자체 UI 배제)
  */
 function safeQuery<T extends Element = HTMLElement>(root: ParentNode | null | undefined, selector: string): T | null {
   if (!root || !selector) return null;
   try {
-    return root.querySelector<T>(selector);
+    const el = root.querySelector<T>(selector);
+    if (el && isManualUiElement(el)) return null;
+    return el;
   } catch {
     return null;
   }
@@ -50,7 +61,8 @@ function safeQuery<T extends Element = HTMLElement>(root: ParentNode | null | un
 function safeQueryAll<T extends Element = HTMLElement>(root: ParentNode | null | undefined, selector: string): T[] {
   if (!root || !selector) return [];
   try {
-    return Array.from(root.querySelectorAll<T>(selector));
+    const list = Array.from(root.querySelectorAll<T>(selector));
+    return list.filter(el => !isManualUiElement(el));
   } catch {
     return [];
   }
@@ -454,7 +466,7 @@ const HighlightBox: React.FC<{
     pointerEvents: 'none',
     zIndex,
     boxShadow: isActive ? `0 0 0 2px rgba(255,255,255,0.85), 0 0 24px ${color}aa, inset 0 0 12px ${color}25` : 'none',
-    transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+    transition: 'border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease',
   }} />
 );
 
@@ -731,6 +743,8 @@ export const ManualOverlay: React.FC = () => {
   } = useManualContext();
   const [elements, setElements] = useState<Record<number, HTMLElement | null>>({});
   const [rects, setRects] = useState<Record<number, Rect | null>>({});
+  const elementsRef = useRef<Record<number, HTMLElement | null>>({});
+  const rectsRef = useRef<Record<number, Rect | null>>({});
   const [expandedSeq, setExpandedSeq] = useState<number | null>(null);
   const [isPlayingAutoTour, setIsPlayingAutoTour] = useState(false);
   const autoTourTimerRef = useRef<number | null>(null);
@@ -778,8 +792,43 @@ export const ManualOverlay: React.FC = () => {
       nextRects[item.seq] = getRect(el);
     });
 
-    setElements(nextEls);
-    setRects(nextRects);
+    // 💡 [깜빡임 및 불필요 리렌더링 원천 차단 가드 (Zero-Flicker Precision Guard)]
+    // 이전 엘리먼트 및 rect 좌표(0.5px 미만 차이)와 정밀 비교하여 변경이 없을 시 setState 생략(No-Op)
+    const prevEls = elementsRef.current;
+    const prevRects = rectsRef.current;
+    let hasChanged = false;
+
+    for (const item of activeItems) {
+      const seq = item.seq;
+      if (prevEls[seq] !== nextEls[seq]) {
+        hasChanged = true;
+        break;
+      }
+      const pR = prevRects[seq];
+      const nR = nextRects[seq];
+      if ((pR === null) !== (nR === null)) {
+        hasChanged = true;
+        break;
+      }
+      if (pR && nR) {
+        if (
+          Math.abs(pR.top - nR.top) >= 0.5 ||
+          Math.abs(pR.left - nR.left) >= 0.5 ||
+          Math.abs(pR.width - nR.width) >= 0.5 ||
+          Math.abs(pR.height - nR.height) >= 0.5
+        ) {
+          hasChanged = true;
+          break;
+        }
+      }
+    }
+
+    if (hasChanged) {
+      elementsRef.current = nextEls;
+      rectsRef.current = nextRects;
+      setElements(nextEls);
+      setRects(nextRects);
+    }
   }, [page, setMode, activeItems]);
 
   // 스크롤 이동 중 뱃지 및 파동이 실시간으로 엘리먼트를 밀착 추적하는 rAF 루프
@@ -828,7 +877,18 @@ export const ManualOverlay: React.FC = () => {
     recalcTargets();
 
     // 1. DOM 변경 감시: 서브뷰 전환, 모달 열림/닫힘 실시간 감지 및 단계 뱃지 위치 재계산
-    const mo = new MutationObserver(() => {
+    const mo = new MutationObserver((mutations) => {
+      // 💡 매뉴얼 자체 UI 변경(하단 바, 카드, 오버레이 뱃지 등)으로 인한 DOM 변형은 무시하여 피드백 루프 차단
+      const isPurelyManualMutation = mutations.every(m => {
+        const target = m.target as HTMLElement | null;
+        if (!target) return true;
+        if (target.nodeType === 3) {
+          return !!target.parentElement?.closest('[data-manual-ui="true"], .manual-overlay-ui');
+        }
+        return !!target.closest?.('[data-manual-ui="true"], .manual-overlay-ui');
+      });
+      if (isPurelyManualMutation) return;
+
       // 💡 [동적 서브뷰 및 모달 자동 전환]
       if (page) {
         const baseId = baseMenuId || (page.pageId.startsWith('modal_') ? 'dashboard' : page.pageId);
@@ -1231,7 +1291,7 @@ export const ManualOverlay: React.FC = () => {
                 cursor: 'pointer',
                 zIndex: isExpanded ? baseZIndex + 3 : baseZIndex + 2,
                 border: '2.5px solid #FFFFFF',
-                transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, background-color 0.2s ease',
                 transform: isExpanded ? 'scale(1.2)' : 'scale(1)',
                 userSelect: 'none',
               }}

@@ -376,7 +376,8 @@ export const PayrollPage: React.FC = () => {
         
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           {payrollStatus === 'DRAFT' ? (
-            <button data-hs-trigger="Approve" 
+            <button data-hs-trigger="Approve"
+              data-mid="payroll-terminal-audit-close"
               className="btn-success" 
               onClick={handleApprovePayroll}
               style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '13px', fontWeight: 'bold' }}
@@ -557,7 +558,7 @@ export const PayrollPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="table-container" style={{ border: 'none', boxShadow: 'none', flex: 1, minHeight: 0, overflow: 'auto' }}>
+          <div data-mid="payroll-inspection-grid" className="table-container" style={{ border: 'none', boxShadow: 'none', flex: 1, minHeight: 0, overflow: 'auto' }}>
             <table style={{ width: '100%', fontSize: '12.5px' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-card)' }}>
                 <tr>

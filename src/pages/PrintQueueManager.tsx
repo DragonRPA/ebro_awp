@@ -438,7 +438,7 @@ export const PrintQueueManager: React.FC = () => {
         </div>
 
         {/* 상단 우측: 프린터 목록 갱신 버튼 (헌장 3.1 무수식어 건조 표준, 상시 상태바 배제) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'nowrap' }}>
+        <div data-mid="print_queue_monitor-agent-status" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'nowrap' }}>
           <button
             type="button"
             className="btn-secondary"
@@ -455,6 +455,7 @@ export const PrintQueueManager: React.FC = () => {
 
       {/* ═══ 탭 네비게이션 ═══ */}
       <div
+        data-mid="print_queue_monitor-tabs"
         style={{
           display: 'flex',
           gap: '8px',
@@ -528,6 +529,7 @@ export const PrintQueueManager: React.FC = () => {
         >
           {/* ─── 좌측: 등록 프린터 목록 대장 ─── */}
           <div
+            data-mid="print_queue_monitor-station-list"
             style={{
               backgroundColor: 'var(--bg-card)',
               border: '1px solid var(--border-color)',
@@ -820,6 +822,7 @@ export const PrintQueueManager: React.FC = () => {
 
           {/* ─── 우측: 프린터 등록 / 수정 스튜디오 (헌장 3.4 상하 스택 폼) ─── */}
           <div
+            data-mid="print_queue_monitor-station-form"
             style={{
               backgroundColor: 'var(--bg-card)',
               border: '1px solid var(--border-color)',
@@ -1121,6 +1124,7 @@ export const PrintQueueManager: React.FC = () => {
         >
           {/* 상단 필터 바 (헌장 3.5 좌상단 Scope & 우상단 Pipeline) */}
           <div
+            data-mid="print_queue_monitor-queue-filter"
             style={{
               padding: '12px 18px',
               borderBottom: '1px solid var(--border-color)',
@@ -1228,7 +1232,7 @@ export const PrintQueueManager: React.FC = () => {
           </div>
 
           {/* 고밀도 대사 테이블 (헌장 3.2 줄바꿈 방지 & 내부 독립 스크롤) */}
-          <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+          <div data-mid="print_queue_monitor-queue-grid" style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
             <table style={{ width: '100%', fontSize: '12px', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead style={{ position: 'sticky', top: 0, zIndex: 3 }}>
                 <tr

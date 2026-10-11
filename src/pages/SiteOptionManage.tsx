@@ -815,7 +815,7 @@ export const SiteOptionManage: React.FC = () => {
             <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               상태 필터
             </span>
-            <select
+            <select data-mid="site-status-filter"
               value={siteStatusFilter}
               onChange={e => setSiteStatusFilter(e.target.value as any)}
               style={{

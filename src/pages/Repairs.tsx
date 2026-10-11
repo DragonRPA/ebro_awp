@@ -801,7 +801,7 @@ export const Repairs: React.FC = () => {
         <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '370px 1fr', gap: '14px', alignItems: 'stretch', overflow: 'hidden' }}>
           
           {/* ── 좌측: 수리 대기 자산 큐 ── */}
-          <div className="card" style={{ margin: 0, padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0, overflow: 'hidden', boxSizing: 'border-box' }}>
+          <div data-mid="repair-inspection-grid" className="card" style={{ margin: 0, padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0, overflow: 'hidden', boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
               <div style={{ fontSize: '13px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
                 <Package size={15} color="var(--primary)" /> 정비 대상 자산 ({yardAssets.length}대)
@@ -977,7 +977,7 @@ export const Repairs: React.FC = () => {
           </div>
 
           {/* ── 우측: 정비 조치 & 소모품 투입 워크벤치 ── */}
-          <div className="card" style={{ margin: 0, padding: '14px', display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', minHeight: 0, overflowY: 'auto', boxSizing: 'border-box' }}>
+          <div data-mid="repair-studio-workbench" className="card" style={{ margin: 0, padding: '14px', display: 'flex', flexDirection: 'column', gap: '14px', height: '100%', minHeight: 0, overflowY: 'auto', boxSizing: 'border-box' }}>
             {!selectedAsset ? (
               <div style={{ padding: '100px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
                 <Wrench size={42} style={{ opacity: 0.25, marginBottom: '12px' }} />
@@ -1418,6 +1418,7 @@ export const Repairs: React.FC = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '11px', fontWeight: '600', whiteSpace: 'nowrap' }}>정비 상세 조치 내용 *</label>
                   <textarea
+                    data-mid="repair-details-input"
                     rows={4}
                     value={repairDetails}
                     onChange={e => setRepairDetails(e.target.value)}
@@ -1564,6 +1565,7 @@ export const Repairs: React.FC = () => {
                     {maintenanceType === 'EXTERNAL' ? (
                       repairs.some(r => r.assetId === selectedAsset.id && r.status === 'IN_PROGRESS' && r.maintenanceType === 'EXTERNAL') ? (
                         <button
+                          data-mid="repair-pipeline-add"
                           type="button"
                           className="btn-primary"
                           onClick={handleCompleteRepair}
@@ -1574,6 +1576,7 @@ export const Repairs: React.FC = () => {
                         </button>
                       ) : (
                         <button data-hs-trigger="Register"
+                          data-mid="repair-pipeline-add"
                           type="button"
                           className="btn-primary"
                           onClick={handleOutsourceRepair}
@@ -1585,6 +1588,7 @@ export const Repairs: React.FC = () => {
                       )
                     ) : (
                       <button
+                        data-mid="repair-pipeline-add"
                         type="button"
                         className="btn-primary"
                         onClick={handleCompleteRepair}

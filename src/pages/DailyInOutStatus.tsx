@@ -587,7 +587,7 @@ export const DailyInOutStatus: React.FC = () => {
             <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
               입출구분
             </span>
-            <select
+            <select data-mid="inout-type-filter"
               value={filterType}
               onChange={e => setFilterType(e.target.value as any)}
               style={{

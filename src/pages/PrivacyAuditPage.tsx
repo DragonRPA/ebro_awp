@@ -421,7 +421,7 @@ export const PrivacyAuditPage: React.FC = () => {
         };
 
         return (
-          <div style={{
+          <div data-mid="privacy-scope-header" style={{
             backgroundColor: 'var(--bg-card, #ffffff)',
             borderRadius: '8px',
             border: '1px solid var(--border-color)',
@@ -540,8 +540,7 @@ export const PrivacyAuditPage: React.FC = () => {
           {/* 좌측: 상하 세로 스택 필터군 (헌장 3.4 준수) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             {/* 조회 기간 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary, #475569)', whiteSpace: 'nowrap' }}>
+            <div data-mid="privacy-scope-date" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>             <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary, #475569)', whiteSpace: 'nowrap' }}>
                 조회 시작일
               </label>
               <input

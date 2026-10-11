@@ -611,7 +611,7 @@ export const OtManagementPage: React.FC = () => {
       </div>
 
       {/* 📊 통계 요약 바 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', flexShrink: 0 }}>
+      <div data-mid="ot_management-terminal-audit" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', flexShrink: 0 }}>
         <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>총 등록건수</span>
           <strong style={{ fontSize: '15px', color: 'var(--text-main)' }}>{overtimeRecords.length}건</strong>
@@ -637,7 +637,7 @@ export const OtManagementPage: React.FC = () => {
         
         {/* 좌측: OT 연장근무 6단계 간편 등록 폼 (헌장 3.4 상하 세로 스택) */}
         {!isFormCollapsed && (
-          <div style={{
+          <div data-mid="ot_management-pipeline-add" style={{
           backgroundColor: 'var(--bg-surface)',
           padding: '16px',
           borderRadius: '8px',
@@ -1390,7 +1390,7 @@ export const OtManagementPage: React.FC = () => {
 
           {/* 📋 1. 목록 뷰 */}
           {viewMode === 'LIST' && (
-            <div className="table-container" style={{ flex: 1, minHeight: 0, backgroundColor: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto', overflowY: 'auto' }}>
+            <div data-mid="ot_management-inspection-grid" className="table-container" style={{ flex: 1, minHeight: 0, backgroundColor: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto', overflowY: 'auto' }}>
               <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-main)' }}>
                   <tr style={{ backgroundColor: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
@@ -1473,7 +1473,7 @@ export const OtManagementPage: React.FC = () => {
 
           {/* 📅 2. 캘린더 뷰 */}
           {viewMode === 'CALENDAR' && (
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto' }}>
+            <div data-mid="ot_management-analytics-grid" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto' }}>
               {/* 캘린더 월간 이동 헤더 바 */}
               <div style={{
                 backgroundColor: 'var(--bg-surface)',

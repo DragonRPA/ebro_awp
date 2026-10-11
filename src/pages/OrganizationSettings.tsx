@@ -817,11 +817,11 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
       <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', gap: '10px', alignItems: 'stretch' }}>
         
         {/* 좌측: 조직 트리 */}
-        <div className="card" style={{ width: '380px', minWidth: '340px', height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', flexShrink: 0, padding: '12px', margin: 0, boxSizing: 'border-box' }}>
+        <div data-mid="org-tree-panel" className="card" style={{ width: '380px', minWidth: '340px', height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', flexShrink: 0, padding: '12px', margin: 0, boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', flexShrink: 0 }}>
             <h3 style={{ fontSize: '15px', fontWeight: '700' }}>조직 구조도</h3>
             {canEdit && (
-              <button onClick={handleAddDept} style={{ background: 'transparent', padding: '4px', color: 'var(--primary)' }} title="선택된 부서 아래에 하위 부서 추가">
+              <button data-mid="org-btn-add-dept" onClick={handleAddDept} style={{ background: 'transparent', padding: '4px', color: 'var(--primary)' }} title="선택된 부서 아래에 하위 부서 추가">
                 <Plus size={18} />
               </button>
             )}
@@ -850,7 +850,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
         </div>
 
         {/* 중앙: 직원 리스트 뷰 */}
-        <div className="card" style={{ flex: 1, minWidth: '420px', height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', padding: '12px', margin: 0, overflow: 'hidden', boxSizing: 'border-box' }}>
+        <div data-mid="org-users-panel" className="card" style={{ flex: 1, minWidth: '420px', height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', padding: '12px', margin: 0, overflow: 'hidden', boxSizing: 'border-box' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', flexShrink: 0 }}>
             <h3 style={{ fontSize: '16px', fontWeight: '700' }}>
               {activeTab === 'DEPT' 
@@ -858,7 +858,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
                 : `미배정 대기 임직원 (${displayedUsers.length}명)`}
             </h3>
             {canEdit && (
-              <button data-hs-trigger="Register" className="btn-secondary" onClick={handleAddUser} style={{ padding: '6px 12px', fontSize: '13px' }}>
+              <button data-mid="org-btn-add-user" data-hs-trigger="Register" className="btn-secondary" onClick={handleAddUser} style={{ padding: '6px 12px', fontSize: '13px' }}>
                 <Plus size={14} style={{ marginRight: '4px' }} /> 신규 직원 등록
               </button>
             )}
