@@ -109,7 +109,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'my_contracts', label: '계약현황', icon: Building2, badge: 0 },
       { id: 'assets', label: '자산가동', icon: Search, badge: 0 },
     ];
-  } else {
+  } else if (deptMode === 'ADMIN') {
     // 📊 관리부 모바일 탭 (배차 포함)
     rawNavItems = [
       { id: 'home', label: '관리홈', icon: Home, badge: 0 },
@@ -117,6 +117,20 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'dispatch', label: '배차상차', icon: Truck, badge: pendingDispatchCount },
       { id: 'vehicle_log', label: '주유영수증', icon: Fuel, badge: 0 },
       { id: 'assets', label: '자산목록', icon: Search, badge: 0 },
+    ];
+  } else if (deptMode === 'TEST') {
+    // 🧪 테스트부서(TEST 랩) 5대 비교검증 탭
+    rawNavItems = [
+      { id: 'home', label: '랩홈', icon: Home, badge: 0 },
+      { id: 'sales_order', label: '패스트출고', icon: Send, badge: 0 },
+      { id: 'as', label: '패스트AS', icon: Wrench, badge: pendingAsCount },
+      { id: 'inspection', label: '패스트검수', icon: CheckSquare, badge: pendingInspectionCount },
+      { id: 'assets', label: '가용자산', icon: Search, badge: 0 },
+    ];
+  } else {
+    rawNavItems = [
+      { id: 'home', label: '홈', icon: Home, badge: 0 },
+      { id: 'assets', label: '가용자산', icon: Search, badge: 0 },
     ];
   }
 

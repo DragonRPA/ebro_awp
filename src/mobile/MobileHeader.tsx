@@ -3,9 +3,9 @@ import { LogOut, Wrench, Crown, Radio, RotateCw, Smartphone } from 'lucide-react
 import { useApp } from '../context/AppContext';
 import { WeatherWidget } from '../components/WeatherWidget';
 
-import { isDeveloperUser, getUserDepartmentName } from '../utils/userDepartmentHelper';
+import { isDeveloperUser, getUserDepartmentName, MobileDeptMode } from '../utils/userDepartmentHelper';
 
-export type MobileDeptMode = 'SALES' | 'AS' | 'OUTBOUND' | 'EXECUTIVE' | 'ADMIN';
+export type { MobileDeptMode };
 
 interface MobileHeaderProps {
   deptMode: MobileDeptMode;
@@ -62,6 +62,7 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
     { mode: 'OUTBOUND', label: '출고팀', activeColor: '#059669' },
     { mode: 'EXECUTIVE', label: '경영진', activeColor: '#7c3aed' },
     { mode: 'ADMIN', label: '관리부', activeColor: '#0284c7' },
+    { mode: 'TEST', label: '테스트랩', activeColor: '#ec4899' },
   ];
 
   return (
