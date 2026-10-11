@@ -8,7 +8,7 @@ import {
   Truck, Wrench, Shield, ShoppingBag, CreditCard, LogOut, Sun, Moon, Menu, X, Zap, Settings, Database as DatabaseIcon,
   TrendingUp, Clock, AlertTriangle, Building2, ChevronDown, ChevronRight, ChevronLeft, Briefcase, Box, FolderKanban, ShieldAlert, Terminal, ArrowLeftRight, CheckSquare,
   Smartphone, Monitor, Car, FileText, Search, Printer, PackagePlus, Boxes, Calendar, Camera, BookOpen,
-  FileCheck, ShieldCheck, Bot, Download, Bell, ClipboardList
+  FileCheck, ShieldCheck, Bot, Download, Bell, ClipboardList, Brain
 , CheckCircle, Settings as SettingsIcon, SlidersHorizontal, Mail, Mic } from 'lucide-react';
 const OfficialMailPage = React.lazy(() => import('./pages/OfficialMailPage').then(module => ({ default: module.OfficialMailPage })));
 import { getTenantAgentInstallerInfo, triggerTenantAgentDownload, AGENT_CERT_URL, syncTenantPolicyToAgent } from './services/agentService';
@@ -18,6 +18,7 @@ import { PersistentJobAlertToast } from './components/PersistentJobAlertToast';
 import { jobNotificationService } from './services/jobNotificationService';
 
 import { WeatherWidget } from './components/WeatherWidget';
+import { HindsightQueryModal } from './components/HindsightQueryModal';
 const ApprovalRulesManage = React.lazy(() => import('./pages/ApprovalRulesManage'));
 const ApprovalInbox = React.lazy(() => import('./pages/ApprovalInbox'));
 import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
@@ -365,6 +366,9 @@ const App: React.FC = () => {
   // 🔔 주기장/공장 현장용 업무 알림 설정 상태
   const [showJobAlertModal, setShowJobAlertModal] = useState(false);
   const [jobNotifySettings, setJobNotifySettings] = useState(jobNotificationService.getSettings());
+
+  // 🧠 Hindsight 4대 메모리 지식 콘솔 모달 상태
+  const [showHindsightModal, setShowHindsightModal] = useState(false);
 
   useEffect(() => {
     const unsub = jobNotificationService.onSettingsChange(setJobNotifySettings);
@@ -817,6 +821,14 @@ const App: React.FC = () => {
         setMenuSearchQuery('');
         setMenuSearchHighlight(0);
         setTimeout(() => menuSearchInputRef.current?.focus(), 50);
+        return;
+      }
+
+      // 1-2. Ctrl+H 또는 Cmd+H -> Hindsight 4대 메모리 지식 콘솔 열기/닫기
+      const isHKey = e.code === 'KeyH' || (e.key && (e.key.toLowerCase() === 'h' || e.key === 'ㅗ'));
+      if ((e.ctrlKey || e.metaKey) && isHKey) {
+        e.preventDefault();
+        setShowHindsightModal(prev => !prev);
         return;
       }
 
@@ -1969,6 +1981,32 @@ const App: React.FC = () => {
             activeTabName={menuGroups.flatMap(g => g.items).find(i => i.id === activeTab)?.name || (activeTab === 'dashboard' ? '대시보드' : activeTab)}
           />
 
+          {/* 🧠 Hindsight 4대 메모리 지식 콘솔 버튼 */}
+          <button
+            onClick={() => setShowHindsightModal(true)}
+            data-uia="btn-hindsight-console"
+            style={{
+              padding: '6px 11px',
+              borderRadius: '20px',
+              backgroundColor: '#eff6ff',
+              color: '#1d4ed8',
+              border: '1px solid #bfdbfe',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '12px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+              transition: 'all 0.15s ease'
+            }}
+            title="Hindsight 4대 메모리 지식 콘솔 (자연어 질의응답 및 전사 지식)"
+          >
+            <Brain size={14} color="#2563eb" />
+            <span>Hindsight 지식</span>
+          </button>
+
           {/* 🔔 주기장/공장 현장용 업무 알림 설정 버튼 (소리-차임벨 & 팝업 토스트) */}
           <button
             onClick={() => setShowJobAlertModal(true)}
@@ -2471,6 +2509,12 @@ const App: React.FC = () => {
       <JobAlertModal
         isOpen={showJobAlertModal}
         onClose={() => setShowJobAlertModal(false)}
+      />
+
+      {/* 🧠 Hindsight 4대 메모리 지식 콘솔 모달 */}
+      <HindsightQueryModal
+        isOpen={showHindsightModal}
+        onClose={() => setShowHindsightModal(false)}
       />
 
       {/* 🤖 온디맨드 로컬 에이전트 실행 안내 모달 (실행 필요 시점에만 팝업) */}
