@@ -2,6 +2,7 @@
 // d:\Giyeun_Lift\src\App.tsx
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useApp } from './context/AppContext';
+import { encryptSecret, decryptSecret } from './utils/cryptoVault';
 import {
   LayoutDashboard, Users, UserCheck, Package, Layers, PlusCircle,
   Truck, Wrench, Shield, ShoppingBag, CreditCard, LogOut, Sun, Moon, Menu, X, Zap, Settings, Database as DatabaseIcon,
@@ -444,7 +445,8 @@ const App: React.FC = () => {
   useEffect(() => {
     try {
       const savedId = localStorage.getItem('remember_id');
-      const savedPw = localStorage.getItem('remember_pw');
+      const savedPwRaw = localStorage.getItem('remember_pw');
+      const savedPw = savedPwRaw ? decryptSecret(savedPwRaw) : '';
       const idPref = localStorage.getItem('remember_id_pref') === 'true';
       const pwPref = localStorage.getItem('remember_pw_pref') === 'true';
       if (savedId) {
@@ -540,7 +542,7 @@ const App: React.FC = () => {
         
         // 비밀번호 저장 처리
         if (rememberPw) {
-          localStorage.setItem('remember_pw', password);
+          localStorage.setItem('remember_pw', encryptSecret(password));
         } else {
           localStorage.removeItem('remember_pw');
         }
@@ -1032,7 +1034,7 @@ const App: React.FC = () => {
                   const val = e.target.value;
                   setPassword(val);
                   if (rememberPw) {
-                    try { localStorage.setItem('remember_pw', val); } catch (err) {}
+                    try { localStorage.setItem('remember_pw', encryptSecret(val)); } catch (err) {}
                   }
                 }}
                 placeholder="비밀번호 입력"
@@ -1072,7 +1074,7 @@ const App: React.FC = () => {
                     try {
                       if (checked) {
                         localStorage.setItem('remember_pw_pref', 'true');
-                        if (password) localStorage.setItem('remember_pw', password);
+                        if (password) localStorage.setItem('remember_pw', encryptSecret(password));
                       } else {
                         localStorage.removeItem('remember_pw_pref');
                         localStorage.removeItem('remember_pw');

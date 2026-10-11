@@ -62,13 +62,11 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
  * CF R2 버킷 전체 파일 목록을 Vercel /api/r2 프록시를 통해 조회
  */
 async function listR2AllFiles(config?: GoogleConfig): Promise<Array<{ key: string; size: number }>> {
-  const params = new URLSearchParams({
-    action: 'list',
-    accountId: config?.r2AccountId || '35014a2514680107d74e1e68d96e6c32',
-    bucketName: config?.r2BucketName || 'giyeon-storage',
-    accessKeyId: config?.r2AccessKeyId || '03cdb7560d37242de608a5db2a976030',
-    secretAccessKey: config?.r2SecretAccessKey || 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986'
-  });
+  const params = new URLSearchParams({ action: 'list' });
+  if (config?.r2AccountId) params.set('accountId', config.r2AccountId);
+  if (config?.r2BucketName) params.set('bucketName', config.r2BucketName);
+  if (config?.r2AccessKeyId) params.set('accessKeyId', config.r2AccessKeyId);
+  if (config?.r2SecretAccessKey) params.set('secretAccessKey', config.r2SecretAccessKey);
 
   const res = await fetch(`/api/r2?${params.toString()}`, {
     signal: AbortSignal.timeout(15000)

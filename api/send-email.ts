@@ -36,15 +36,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: '수신자(to), 제목(subject), 본문(body)은 필수 항목입니다.' });
   }
 
-  if (!googleEmail || !gmailAppPassword || gmailAppPassword.includes('•')) {
+  const effectiveEmail = (googleEmail && !googleEmail.includes('•') ? googleEmail : (process.env.GMAIL_ACCOUNT_EMAIL || process.env.GOOGLE_EMAIL || '')).trim();
+  const effectivePassword = (gmailAppPassword && !gmailAppPassword.includes('•') ? gmailAppPassword : (process.env.GMAIL_APP_PASSWORD || process.env.GOOGLE_APP_PASSWORD || '')).replace(/\s+/g, '').trim();
+
+  if (!effectiveEmail || !effectivePassword) {
     return res.status(400).json({
-      error: '구글 연동 설정에 16자리 Gmail 앱 비밀번호가 올바르게 저장되지 않았습니다. [시스템 설정 > 구글 및 클라우드 연계 설정] 메뉴에서 구글 앱 비밀번호를 다시 입력하고 저장해 주세요.'
+      error: '구글 연동 설정에 16자리 Gmail 앱 비밀번호가 올바르게 설정되지 않았습니다. 서버 환경변수(GMAIL_APP_PASSWORD) 또는 시스템 설정을 확인해 주세요.'
     });
   }
 
   try {
-    const cleanEmail = String(googleEmail).trim();
-    const cleanPass  = String(gmailAppPassword).replace(/\s+/g, '').trim();
+    const cleanEmail = effectiveEmail;
+    const cleanPass  = effectivePassword;
 
     // SMTP 클라이언트 트랜스포터 생성
     const transporter = nodemailer.createTransport({

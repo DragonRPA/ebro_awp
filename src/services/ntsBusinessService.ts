@@ -78,26 +78,28 @@ function parseNtsItem(item: any, source: 'NTS_LIVE_API' | 'CHECKSUM_FALLBACK'): 
   };
 }
 
-export const DEFAULT_NTS_API_KEY = '7f24250bd002412aaa152a6e3ec63e556604f75be0fa9181983c33a618cb2e03';
+import { getVaultItem, setVaultItem } from '../utils/cryptoVault';
 
 export function getNtsApiKey(): string {
-  if (typeof window === 'undefined') return DEFAULT_NTS_API_KEY;
-  return localStorage.getItem('erp_nts_api_key') || DEFAULT_NTS_API_KEY;
+  if (typeof window === 'undefined') return '';
+  return getVaultItem('erp_nts_api_key', '');
 }
 
 export function setNtsApiKey(key: string): void {
   if (typeof window !== 'undefined') {
-    localStorage.setItem('erp_nts_api_key', key.trim());
+    setVaultItem('erp_nts_api_key', key.trim());
   }
 }
 
 export async function testNtsConnection(serviceKey?: string): Promise<{ success: boolean; message: string; source?: string }> {
   const activeKey = (serviceKey || getNtsApiKey()).trim();
   try {
+    const payload: any = { b_no: ['1408126442'] };
+    if (activeKey) payload.serviceKey = activeKey;
     const res = await fetch('/api/nts-status', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ b_no: ['1408126442'], serviceKey: activeKey })
+      body: JSON.stringify(payload)
     });
     if (res.ok) {
       const json = await res.json();
@@ -188,10 +190,12 @@ export async function checkBatchNtsStatus(
   for (let i = 0; i < total; i += CHUNK_SIZE) {
     const chunk = cleanList.slice(i, i + CHUNK_SIZE);
     try {
+      const payload: any = { b_no: chunk };
+      if (activeKey) payload.serviceKey = activeKey;
       const res = await fetch('/api/nts-status', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ b_no: chunk, serviceKey: activeKey })
+        body: JSON.stringify(payload)
       });
 
       if (res.ok) {

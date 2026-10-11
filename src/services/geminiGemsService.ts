@@ -47,14 +47,16 @@ export const STANDARD_SPEC_MAP: Record<string, string> = {
   '53ft': '1612',
 };
 
+import { getVaultItem, setVaultItem } from '../utils/cryptoVault';
+
 /**
  * Gemini API Key 조회 헬퍼
- * 1. localStorage ('gemini_api_key')
+ * 1. 암호화 로컬 볼트 ('gemini_api_key')
  * 2. import.meta.env.VITE_GEMINI_API_KEY
  */
 export function getGeminiApiKey(): string {
   try {
-    const local = localStorage.getItem('gemini_api_key');
+    const local = getVaultItem('gemini_api_key');
     if (local && local.trim()) return local.trim();
   } catch {
     // ignore
@@ -64,11 +66,7 @@ export function getGeminiApiKey(): string {
 
 export function setGeminiApiKey(key: string) {
   try {
-    if (!key || !key.trim()) {
-      localStorage.removeItem('gemini_api_key');
-    } else {
-      localStorage.setItem('gemini_api_key', key.trim());
-    }
+    setVaultItem('gemini_api_key', key ? key.trim() : '');
   } catch {
     // ignore
   }

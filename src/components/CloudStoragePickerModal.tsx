@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
+import { decryptSecret } from '../utils/cryptoVault';
 import {
   Folder,
   File,
@@ -49,7 +50,7 @@ export const CloudStoragePickerModal: React.FC<CloudStoragePickerModalProps> = (
   const accountId = config?.r2AccountId || '35014a2514680107d74e1e68d96e6c32';
   const bucketName = config?.r2BucketName || 'giyeon-storage';
   const accessKeyId = config?.r2AccessKeyId || '03cdb7560d37242de608a5db2a976030';
-  const secretAccessKey = config?.r2SecretAccessKey || 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986';
+  const secretAccessKey = config?.r2SecretAccessKey ? decryptSecret(config.r2SecretAccessKey) : undefined;
   const publicDomain = config?.r2PublicDomain || 'https://pub-55a68547bdf24600b80d27782912c83e.r2.dev';
 
   const fetchR2Files = async () => {

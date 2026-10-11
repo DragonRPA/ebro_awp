@@ -11,6 +11,7 @@ import { InboundDefectDetail, formatContractEndDate } from '../services/db';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
 import { compressImageFile } from '../utils/imageCompressor';
+import { decryptSecret } from '../utils/cryptoVault';
 
 export const AssetHistory: React.FC = () => {
   const { 
@@ -247,7 +248,7 @@ export const AssetHistory: React.FC = () => {
       const accountId = config?.r2AccountId || '35014a2514680107d74e1e68d96e6c32';
       const bucketName = config?.r2BucketName || 'giyeon-storage';
       const accessKeyId = config?.r2AccessKeyId || '03cdb7560d37242de608a5db2a976030';
-      const secretAccessKey = config?.r2SecretAccessKey || 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986';
+      const secretAccessKey = config?.r2SecretAccessKey ? decryptSecret(config.r2SecretAccessKey) : undefined;
 
       for (const item of selectedChecklistObjects) {
         const base64 = defectPhotos[item.id];

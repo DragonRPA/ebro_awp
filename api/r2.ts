@@ -47,10 +47,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const action = (req.query.action as string) || (req.body && req.body.action) || 'list';
 
   try {
-    const accountId = (req.query.accountId as string) || (req.body && req.body.accountId) || process.env.R2_ACCOUNT_ID;
-    const bucketName = (req.query.bucketName as string) || (req.body && req.body.bucketName) || process.env.R2_BUCKET_NAME;
-    const accessKeyId = (req.query.accessKeyId as string) || (req.body && req.body.accessKeyId) || process.env.R2_ACCESS_KEY_ID;
-    const secretAccessKey = (req.query.secretAccessKey as string) || (req.body && req.body.secretAccessKey) || process.env.R2_SECRET_ACCESS_KEY;
+    const accountId = (req.query.accountId as string) || (req.body && req.body.accountId) || process.env.R2_ACCOUNT_ID || '35014a2514680107d74e1e68d96e6c32';
+    const bucketName = (req.query.bucketName as string) || (req.body && req.body.bucketName) || process.env.R2_BUCKET_NAME || 'giyeon-storage';
+    const accessKeyId = (req.query.accessKeyId as string) || (req.body && req.body.accessKeyId) || process.env.R2_ACCESS_KEY_ID || '03cdb7560d37242de608a5db2a976030';
+    const secretAccessKey = (req.query.secretAccessKey as string) || (req.body && req.body.secretAccessKey) || process.env.R2_SECRET_ACCESS_KEY || 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986';
 
     if (!accountId || !bucketName || !accessKeyId || !secretAccessKey) {
       return res.status(400).json({

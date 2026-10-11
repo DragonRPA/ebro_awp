@@ -7,6 +7,7 @@ import { Product } from '../services/db';
 import { LIFT_RETRACTED_IMG, LIFT_EXTENDED_IMG } from '../services/specImages';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
+import { decryptSecret } from '../utils/cryptoVault';
 
 interface R2DocFile {
   key: string;
@@ -62,7 +63,7 @@ export const Products: React.FC = () => {
     const accountId = config?.r2AccountId || '35014a2514680107d74e1e68d96e6c32';
     const bucketName = config?.r2BucketName || 'giyeon-storage';
     const accessKeyId = config?.r2AccessKeyId || '03cdb7560d37242de608a5db2a976030';
-    const secretAccessKey = config?.r2SecretAccessKey || 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986';
+    const secretAccessKey = config?.r2SecretAccessKey ? decryptSecret(config.r2SecretAccessKey) : undefined;
     const publicDomain = config?.r2PublicDomain || 'https://pub-55a68547bdf24600b80d27782912c83e.r2.dev';
 
     setLoadingR2Docs(true);
@@ -318,7 +319,7 @@ export const Products: React.FC = () => {
       const accountId = config?.r2AccountId || '35014a2514680107d74e1e68d96e6c32';
       const bucketName = config?.r2BucketName || 'giyeon-storage';
       const accessKeyId = config?.r2AccessKeyId || '03cdb7560d37242de608a5db2a976030';
-      const secretAccessKey = config?.r2SecretAccessKey || 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986';
+      const secretAccessKey = config?.r2SecretAccessKey ? decryptSecret(config.r2SecretAccessKey) : undefined;
 
       const reader = new FileReader();
       reader.onload = async (event) => {
@@ -364,7 +365,7 @@ export const Products: React.FC = () => {
       const accountId = config?.r2AccountId || '35014a2514680107d74e1e68d96e6c32';
       const bucketName = config?.r2BucketName || 'giyeon-storage';
       const accessKeyId = config?.r2AccessKeyId || '03cdb7560d37242de608a5db2a976030';
-      const secretAccessKey = config?.r2SecretAccessKey || 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986';
+      const secretAccessKey = config?.r2SecretAccessKey ? decryptSecret(config.r2SecretAccessKey) : undefined;
 
       const res = await fetch('/api/r2', {
         method: 'POST',

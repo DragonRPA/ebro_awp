@@ -2,6 +2,7 @@
 // 실 구글 연동 계정 (googleEmail + gmailAppPassword) 기반 real Gmail SMTP 발송 서비스 (로컬 에이전트 1순위 + Vercel 폴백)
 import { db } from './db';
 import { fetchWithAgentFallback } from './agentService';
+import { decryptSecret } from '../utils/cryptoVault';
 
 export interface SentEmail {
   id: string;
@@ -87,11 +88,12 @@ class RealGmailService {
       ''
     ).trim();
 
-    const gmailAppPassword = (
+    const rawAppPass = (
       dbConfig?.gmailAppPassword ||
       lsConfig?.gmailAppPassword ||
       ''
     ).replace(/\s+/g, '').trim();
+    const gmailAppPassword = decryptSecret(rawAppPass);
 
     const smtpProvider = dbConfig?.smtpProvider || lsConfig?.smtpProvider || 'GMAIL';
     const smtpHost = dbConfig?.smtpHost || lsConfig?.smtpHost || '';

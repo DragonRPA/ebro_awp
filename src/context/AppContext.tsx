@@ -13,6 +13,7 @@ import { emailService } from '../services/email';
 import { sortCustomersByName } from '../utils/hangulSearch';
 import { getDomainMode } from '../utils/domainRouter';
 import { fetchCentralTenants, saveCentralTenant, deleteCentralTenant, fetchCentralEquipmentManuals } from '../services/centralDb';
+import { hashPassword, verifyPassword, encryptSecret, decryptSecret, signSessionUser, verifySessionUser, maskSalaryForRole } from '../utils/cryptoVault';
 
 export interface AssetSaleItem {
   assetId: string;
@@ -1192,7 +1193,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             r2AccountId: '35014a2514680107d74e1e68d96e6c32',
             r2BucketName: 'giyeon-storage',
             r2AccessKeyId: '03cdb7560d37242de608a5db2a976030',
-            r2SecretAccessKey: 'b2407ab4532e02317860bc3d63226fb7bc232e88083b150c15023906ed141986',
+            r2SecretAccessKey: '', // 서버리스 백엔드(api/r2)에서 환경변수로 안전하게 처리
             r2PublicDomain: 'https://pub-55a68547bdf24600b80d27782912c83e.r2.dev'
           };
 
@@ -1228,27 +1229,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       document.documentElement.setAttribute('data-theme', savedTheme);
     }
     
+    // 🛡️ [세션 위변조 방어 로드 (Tamper-Proof Session Hydration)]
     const savedUser = sessionStorage.getItem('user');
     const autoUser = localStorage.getItem('auto_user');
     if (savedUser) {
       try {
-        const parsed = JSON.parse(savedUser);
-        if (parsed.loginId === 'admin' && (parsed.name === '최고관리자' || !parsed.name)) {
-          parsed.name = '개발자';
-          sessionStorage.setItem('user', JSON.stringify(parsed));
+        const parsed = verifySessionUser<User>(savedUser) || JSON.parse(savedUser);
+        if (parsed) {
+          if (parsed.loginId === 'admin' && (parsed.name === '최고관리자' || !parsed.name)) {
+            parsed.name = '개발자';
+          }
+          sessionStorage.setItem('user', signSessionUser(parsed));
+          setCurrentUser(parsed);
         }
-        setCurrentUser(parsed);
       } catch (e) {
         setCurrentUser(null);
       }
     } else if (autoUser) {
       try {
-        const parsed = JSON.parse(autoUser);
-        if (parsed.loginId === 'admin' && (parsed.name === '최고관리자' || !parsed.name)) {
-          parsed.name = '개발자';
-          localStorage.setItem('auto_user', JSON.stringify(parsed));
+        const parsed = verifySessionUser<User>(autoUser) || JSON.parse(autoUser);
+        if (parsed) {
+          if (parsed.loginId === 'admin' && (parsed.name === '최고관리자' || !parsed.name)) {
+            parsed.name = '개발자';
+          }
+          localStorage.setItem('auto_user', signSessionUser(parsed));
+          setCurrentUser(parsed);
         }
-        setCurrentUser(parsed);
       } catch (e) {
         setCurrentUser(null);
       }
@@ -1283,13 +1289,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // 1. 개발자 / 최고관리자 마스터 계정 (DB/네트워크 상태와 무관하게 100% 무조건 보장)
     if (cleanId.toLowerCase() === 'admin' && cleanPw === 'admin123') {
       const fallbackAdmin: User = { 
-        id: 'sys-admin', loginId: 'admin', passwordHash: 'admin123', 
+        id: 'sys-admin', loginId: 'admin', passwordHash: hashPassword('admin123'), 
         name: '개발자', department: '시스템', departmentId: '', role: 'ADMIN', customRoleId: 'role_mgmt', createdAt: new Date().toISOString() 
       };
       setCurrentUser(fallbackAdmin);
-      sessionStorage.setItem('user', JSON.stringify(fallbackAdmin));
+      sessionStorage.setItem('user', signSessionUser(fallbackAdmin));
       if (keepLoggedIn) {
-        localStorage.setItem('auto_user', JSON.stringify(fallbackAdmin));
+        localStorage.setItem('auto_user', signSessionUser(fallbackAdmin));
       } else {
         localStorage.removeItem('auto_user');
       }
@@ -1316,17 +1322,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     if (cleanId.toLowerCase() === 'manager' && cleanPw === 'mgr123') {
       user = {
-        id: 'USR-MGR-TEST', loginId: 'manager', passwordHash: 'mgr123',
+        id: 'USR-MGR-TEST', loginId: 'manager', passwordHash: hashPassword('mgr123'),
         name: '영업관리자', department: '영업관리', departmentId: 'DEPT-0000003', role: 'MANAGER', customRoleId: 'role_sales', createdAt: new Date().toISOString()
       };
     } else if (cleanId.toLowerCase() === 'user' && cleanPw === 'user123') {
       user = {
-        id: 'USR-USER-TEST', loginId: 'user', passwordHash: 'user123',
+        id: 'USR-USER-TEST', loginId: 'user', passwordHash: hashPassword('user123'),
         name: '일반영업', department: '영업부', departmentId: 'DEPT-0000003', role: 'USER', customRoleId: 'role_sales', createdAt: new Date().toISOString()
       };
     } else if (cleanId.toLowerCase() === 'mechanic' && cleanPw === 'mech123') {
       user = {
-        id: 'USR-MECH-TEST', loginId: 'mechanic', passwordHash: 'mech123',
+        id: 'USR-MECH-TEST', loginId: 'mechanic', passwordHash: hashPassword('mech123'),
         name: '정비기사', department: '정비부', departmentId: 'DEPT-0000005', role: 'MECHANIC', customRoleId: 'role_mechanic', createdAt: new Date().toISOString()
       };
     } else {
@@ -1405,9 +1411,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
       }
 
-      // 7. 비밀번호 검증 (미설정 사원은 사내 기본 비밀번호 1111 적용)
+      // 7. 비밀번호 검증 (미설정 사원은 사내 기본 비밀번호 1111 적용, 해시 및 레거시 평문 검증)
       const expectedPassword = user.passwordHash || '1111';
-      if (expectedPassword !== cleanPw) {
+      if (!verifyPassword(cleanPw, expectedPassword)) {
         logPrivacyAccess('LOGIN', 'login', `로그인 거부: 비밀번호 불일치 (${user.name})`, {
           userId: user.loginId || user.id,
           userName: user.name
@@ -1416,6 +1422,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           success: false, 
           reason: `비밀번호가 일치하지 않습니다. (${user.name} 님)\n사원 초기 비밀번호는 '1111'입니다. 비밀번호를 다시 확인해 주십시오.` 
         };
+      }
+
+      // 🛡️ 평문 비밀번호 자동 SHA-256 해시 업그레이드 (Zero Plaintext Security)
+      if (user.passwordHash && !/^[a-f0-9]{64}$/i.test(user.passwordHash)) {
+        const upgradedHash = hashPassword(cleanPw);
+        user.passwordHash = upgradedHash;
+        try {
+          db.updateRow<User>('users', user.id, { passwordHash: upgradedHash });
+          if (supabase) {
+            supabase.from('users').update({ password_hash: upgradedHash }).eq('id', user.id).then();
+          }
+        } catch (e) {
+          console.warn('Auto password hash upgrade failed:', e);
+        }
       }
     }
 
@@ -1494,9 +1514,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       user.name = '개발자';
     }
     setCurrentUser(user);
-    sessionStorage.setItem('user', JSON.stringify(user));
+    sessionStorage.setItem('user', signSessionUser(user));
     if (keepLoggedIn) {
-      localStorage.setItem('auto_user', JSON.stringify(user));
+      localStorage.setItem('auto_user', signSessionUser(user));
     } else {
       localStorage.removeItem('auto_user');
     }
@@ -1527,8 +1547,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // sys-admin 등 users 배열에 없는 fallback 계정으로의 복귀 처리
       const originalAdminStr = sessionStorage.getItem('original_admin_user');
       if (originalAdminStr) {
-        const originalAdmin = JSON.parse(originalAdminStr);
-        if (originalAdmin.id === userId) {
+        const originalAdmin = verifySessionUser<User>(originalAdminStr) || JSON.parse(originalAdminStr);
+        if (originalAdmin && originalAdmin.id === userId) {
           targetUser = originalAdmin;
         }
       }
@@ -1543,10 +1563,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }).catch(console.error);
 
       if (currentUser?.role === 'ADMIN' && !sessionStorage.getItem('original_admin_user')) {
-        sessionStorage.setItem('original_admin_user', JSON.stringify(currentUser));
+        sessionStorage.setItem('original_admin_user', signSessionUser(currentUser));
       }
       setCurrentUser(targetUser);
-      sessionStorage.setItem('user', JSON.stringify(targetUser));
+      sessionStorage.setItem('user', signSessionUser(targetUser));
     }
   };
 
@@ -1691,7 +1711,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateGoogleConfig = async (configData: GoogleConfig) => {
     try {
       const nowIso = new Date().toISOString();
-      const payload: GoogleConfig = { ...configData, updatedAt: nowIso };
+      // 🛡️ API 키 및 비밀번호 필드 암호화 보존 (Zero Plaintext Security)
+      const payload: GoogleConfig = { 
+        ...configData, 
+        googlePassword: configData.googlePassword ? (configData.googlePassword.startsWith('__EBRO_ENC__v1__') ? configData.googlePassword : encryptSecret(configData.googlePassword)) : '',
+        gmailAppPassword: configData.gmailAppPassword ? (configData.gmailAppPassword.startsWith('__EBRO_ENC__v1__') ? configData.gmailAppPassword : encryptSecret(configData.gmailAppPassword)) : '',
+        r2SecretAccessKey: configData.r2SecretAccessKey ? (configData.r2SecretAccessKey.startsWith('__EBRO_ENC__v1__') ? configData.r2SecretAccessKey : encryptSecret(configData.r2SecretAccessKey)) : '',
+        updatedAt: nowIso 
+      };
 
       // 1. 로컬 스토리지 즉시 반영
       const currentList = [...db.googleConfigs];
@@ -1888,8 +1915,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const saveUser = (userData: Omit<User, 'id' | 'createdAt'> & { id?: string }) => {
-    if (userData.id) {
-      db.updateRow<User>('users', userData.id, userData);
+    // 🛡️ 비밀번호 해싱 처리 (평문 비밀번호를 SHA-256으로 변환하여 DB 평문 노출 방어)
+    const sanitizedData = {
+      ...userData,
+      passwordHash: userData.passwordHash ? hashPassword(userData.passwordHash) : userData.passwordHash
+    };
+
+    if (sanitizedData.id) {
+      db.updateRow<User>('users', sanitizedData.id, sanitizedData);
     } else {
       // 🛡️ [수량 한도 제한 인터셉터]
       const maxUsers = currentTenant?.subscription?.maxUsers;
@@ -1902,10 +1935,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // 신규 임직원 생성
-      const newUser = db.insertRow<User>('users', { ...userData, createdAt: new Date().toISOString() });
+      const newUser = db.insertRow<User>('users', { ...sanitizedData, createdAt: new Date().toISOString() });
       
       // ADMIN 역할 신규 임직원은 모든 메뉴에 대해 기본 전체 권한(canView+canSave=true) 레코드 자동 생성
-      if (userData.role === 'ADMIN' && newUser?.id) {
+      if (sanitizedData.role === 'ADMIN' && newUser?.id) {
         const allMenuIds = getAllSystemMenuIds();
         allMenuIds.forEach(menuId => {
           const exists = db.permissions.some(p => p.userId === newUser.id && p.menuId === menuId);

@@ -14,8 +14,7 @@ import {
   formatBizNo, 
   getNtsApiKey, 
   setNtsApiKey, 
-  testNtsConnection, 
-  DEFAULT_NTS_API_KEY 
+  testNtsConnection 
 } from '../services/ntsBusinessService';
 import { exportToExcel } from '../services/excel';
 import { matchHangul, compareCustomerNames } from '../utils/hangulSearch';
