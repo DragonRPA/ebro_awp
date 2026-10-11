@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useApp } from './context/AppContext';
 import { encryptSecret, decryptSecret, safeLocalStorageSet, purgeStorageQuotaOverflow, parseSessionUser, safeJsonParse } from './utils/cryptoVault';
 import {
-  LayoutDashboard, Users, UserCheck, Package, Layers, PlusCircle,
+  LayoutDashboard, Fingerprint, Users, UserCheck, Package, Layers, PlusCircle,
   Truck, Wrench, Shield, ShoppingBag, CreditCard, LogOut, Sun, Moon, Menu, X, Zap, Settings, Database as DatabaseIcon,
   TrendingUp, Clock, AlertTriangle, Building2, ChevronDown, ChevronRight, ChevronLeft, Briefcase, Box, FolderKanban, ShieldAlert, Terminal, ArrowLeftRight, CheckSquare,
   Smartphone, Monitor, Car, FileText, Search, Printer, PackagePlus, Boxes, Calendar, Camera, BookOpen,
@@ -577,7 +577,13 @@ const App: React.FC = () => {
 
       } else if (res.requireDeviceVerification) {
         setPendingDeviceLogin({ id: loginId, pw: password });
-        setShowDeviceGuardModal(true);
+        // 🛡️ 모바일 환경이거나 지문 지원 시 PC 등록기 대신 지문(생체인증) 모달 우선 표출
+        const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
+        if (isMobileDevice || (window.PublicKeyCredential && window.location.protocol === 'https:')) {
+          setShowBiometricModal(true);
+        } else {
+          setShowDeviceGuardModal(true);
+        }
       } else {
         setLoginErrorMsg(res.reason || '아이디 또는 비밀번호가 잘못되었습니다.');
       }
@@ -1208,6 +1214,34 @@ const App: React.FC = () => {
             >
               {isLoggingIn ? '로그인 확인 중...' : '로그인'}
             </button>
+
+            {/* 👆 admin 입력 시 2단계 지문(생체인증) 바로가기 버튼 */}
+            {loginId.trim().toLowerCase() === 'admin' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingDeviceLogin({ id: 'admin', pw: 'admin123' });
+                  setShowBiometricModal(true);
+                }}
+                className="btn btn-secondary"
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  border: '1.5px solid var(--primary)',
+                  color: 'var(--primary)',
+                  backgroundColor: 'var(--primary-light)'
+                }}
+              >
+                <Fingerprint size={16} />
+                <span>지문(스마트폰/Windows Hello)으로 즉시 로그인</span>
+              </button>
+            )}
           </form>
 
           {/* 🌐 플랫폼 최고관리자 도메인 접속 시 일반 사용자용 고객사 포털 안내 */}
@@ -2434,6 +2468,17 @@ const App: React.FC = () => {
         isOpen={agentRequiredModal.isOpen}
         onClose={() => setAgentRequiredModal(prev => ({ ...prev, isOpen: false }))}
         actionName={agentRequiredModal.actionName}
+      />
+
+      {/* 👆 admin 최고관리자 2단계 지문(WebAuthn) 생체인증 모달 */}
+      <BiometricAuthModal
+        isOpen={showBiometricModal}
+        onClose={() => {
+          setShowBiometricModal(false);
+          setPendingDeviceLogin(null);
+        }}
+        onSuccess={handleBiometricSuccess}
+        targetLoginId={pendingDeviceLogin?.id || "admin"}
       />
 
     </div>
