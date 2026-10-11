@@ -650,7 +650,7 @@ const BottomDossierCard: React.FC<{
               )}
               <span>{item.label}</span>
               {!hasTarget && (
-                <span style={{ fontSize: '11px', fontWeight: 700, color: '#D97706', backgroundColor: 'rgba(217,119,6,0.15)', border: '1px solid rgba(217,119,6,0.35)', padding: '1px 7px', borderRadius: '4px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--warning, #b45309)', backgroundColor: 'rgba(180,83,9,0.12)', border: '1px solid rgba(180,83,9,0.3)', padding: '1px 7px', borderRadius: '4px' }}>
                   화면 전반
                 </span>
               )}
@@ -1331,8 +1331,8 @@ export const ManualOverlay: React.FC = () => {
             marginLeft: '6px',
             padding: '4px 12px',
             borderRadius: '14px',
-            border: isPlayingAutoTour ? '1.5px solid #10b981' : '1px solid var(--primary)',
-            background: isPlayingAutoTour ? '#10b981' : 'rgba(59,130,246,0.1)',
+            border: isPlayingAutoTour ? '1.5px solid var(--success)' : '1px solid var(--primary)',
+            background: isPlayingAutoTour ? 'var(--success)' : 'var(--primary-light)',
             fontSize: '11.5px',
             fontWeight: 800,
             color: isPlayingAutoTour ? '#ffffff' : 'var(--primary)',

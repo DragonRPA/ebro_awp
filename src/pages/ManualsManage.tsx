@@ -97,7 +97,7 @@ export const ManualsManage: React.FC = () => {
     <div data-hs-observe="manualsmanage" style={{ paddingBottom: '40px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <h2 style={{ margin: 0, fontWeight: '700', fontSize: '18px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <BookOpen size={20} color="#0ea5e9" />
+          <BookOpen size={20} color="var(--primary)" />
           메뉴별 매뉴얼 매핑 관리
         </h2>
         <div style={{ display: 'flex', gap: '8px' }}>
@@ -151,15 +151,15 @@ export const ManualsManage: React.FC = () => {
                   </td>
                   <td style={{ textAlign: 'center' }}>
                     {m.manual_url && (
-                      <a href={m.manual_url} target="_blank" rel="noopener noreferrer" style={{ color: '#0ea5e9' }}>
+                      <a href={m.manual_url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)' }}>
                         <ExternalLink size={18} />
                       </a>
                     )}
                   </td>
                   <td style={{ textAlign: 'center' }}>
                     <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
-                      <button data-hs-trigger="Save" onClick={() => saveRow(idx)} className="btn-icon" title="저장" style={{ color: '#10b981' }}><Save size={16} /></button>
-                      <button data-hs-trigger="Delete" onClick={() => deleteRow(idx)} className="btn-icon" title="삭제" style={{ color: '#ef4444' }}><Trash2 size={16} /></button>
+                      <button data-hs-trigger="Save" onClick={() => saveRow(idx)} className="btn-icon" title="저장" style={{ color: 'var(--success)' }}><Save size={16} /></button>
+                      <button data-hs-trigger="Delete" onClick={() => deleteRow(idx)} className="btn-icon" title="삭제" style={{ color: 'var(--danger)' }}><Trash2 size={16} /></button>
                     </div>
                   </td>
                 </tr>
@@ -172,7 +172,7 @@ export const ManualsManage: React.FC = () => {
       {toastMessage && (
         <div style={{
           position: 'fixed', bottom: '20px', right: '20px',
-          backgroundColor: toastMessage.type === 'success' ? '#10B981' : '#EF4444',
+          backgroundColor: toastMessage.type === 'success' ? 'var(--success)' : 'var(--danger)',
           color: 'white', padding: '12px 20px', borderRadius: '8px',
           boxShadow: '0 4px 6px rgba(0,0,0,0.1)', zIndex: 9999, fontWeight: 'bold'
         }}>

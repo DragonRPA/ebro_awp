@@ -239,7 +239,7 @@ export const OperationManualPage: React.FC = () => {
         {/* 타이틀 및 부서 필터 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: '#EFF6FF', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <BookOpen size={18} />
             </div>
             <div>
@@ -301,7 +301,7 @@ export const OperationManualPage: React.FC = () => {
                   fontWeight: '700',
                   border: 'none',
                   cursor: 'pointer',
-                  backgroundColor: deptFilter === b.id ? '#2563EB' : 'transparent',
+                  backgroundColor: deptFilter === b.id ? 'var(--primary)' : 'transparent',
                   color: deptFilter === b.id ? '#FFFFFF' : 'var(--text-secondary)',
                   whiteSpace: 'nowrap',
                   transition: 'all 0.15s ease'
@@ -321,7 +321,7 @@ export const OperationManualPage: React.FC = () => {
               onClick={() => setViewMode('single')}
               style={{
                 padding: '4px 8px', fontSize: '11.5px', fontWeight: 700, border: 'none', borderRadius: '4px', cursor: 'pointer',
-                backgroundColor: viewMode === 'single' ? '#2563EB' : 'transparent',
+                backgroundColor: viewMode === 'single' ? 'var(--primary)' : 'transparent',
                 color: viewMode === 'single' ? '#fff' : 'var(--text-secondary)',
               }}
             >
@@ -331,7 +331,7 @@ export const OperationManualPage: React.FC = () => {
               onClick={() => setViewMode('all')}
               style={{
                 padding: '4px 8px', fontSize: '11.5px', fontWeight: 700, border: 'none', borderRadius: '4px', cursor: 'pointer',
-                backgroundColor: viewMode === 'all' ? '#2563EB' : 'transparent',
+                backgroundColor: viewMode === 'all' ? 'var(--primary)' : 'transparent',
                 color: viewMode === 'all' ? '#fff' : 'var(--text-secondary)',
               }}
             >
@@ -370,7 +370,7 @@ export const OperationManualPage: React.FC = () => {
               fontSize: '12px',
               fontWeight: '700',
               border: 'none',
-              backgroundColor: '#D97706',
+              backgroundColor: 'var(--warning, #b45309)',
               color: '#FFFFFF',
               cursor: 'pointer',
               display: 'flex',
@@ -409,7 +409,7 @@ export const OperationManualPage: React.FC = () => {
       </div>
 
       {seedingSuccess && (
-        <div style={{ padding: '8px 20px', backgroundColor: '#D1FAE5', color: '#065F46', fontSize: '12.5px', fontWeight: 700, borderBottom: '1px solid #A7F3D0' }}>
+        <div style={{ padding: '8px 20px', backgroundColor: 'rgba(4, 120, 87, 0.12)', color: 'var(--success)', fontSize: '12.5px', fontWeight: 700, borderBottom: '1px solid var(--border-color)' }}>
           ✓ {seedingSuccess}
         </div>
       )}
@@ -498,7 +498,7 @@ export const OperationManualPage: React.FC = () => {
                               cursor: 'pointer',
                               textAlign: 'left',
                               backgroundColor: 'transparent',
-                              color: isActive ? '#2563EB' : 'var(--text-main)',
+                              color: isActive ? 'var(--primary)' : 'var(--text-main)',
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis'
@@ -539,7 +539,7 @@ export const OperationManualPage: React.FC = () => {
                             }}
                             title={`[${item.menuName}] 실무 화면으로 이동하여 가이드 시작`}
                           >
-                            🚀
+                            <BookOpen size={12} />
                           </button>
                         </div>
                       );
@@ -608,13 +608,13 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
       {/* ── 헤더: 메뉴명, 부서, 아키타입 ── */}
       <div style={{ borderBottom: '2px solid var(--border-color)', paddingBottom: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-          <span style={{ padding: '3px 8px', borderRadius: '4px', backgroundColor: '#EFF6FF', color: '#1D4ED8', fontSize: '11.5px', fontWeight: 700 }}>
+          <span style={{ padding: '3px 8px', borderRadius: '4px', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', fontSize: '11.5px', fontWeight: 700 }}>
             {item.groupName}
           </span>
-          <span style={{ padding: '3px 8px', borderRadius: '4px', backgroundColor: '#F1F5F9', color: '#475569', fontSize: '11.5px', fontWeight: 700 }}>
+          <span style={{ padding: '3px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-app)', color: 'var(--text-secondary)', fontSize: '11.5px', fontWeight: 700 }}>
             담당: {item.department}
           </span>
-          <span style={{ padding: '3px 8px', borderRadius: '4px', backgroundColor: '#FEF3C7', color: '#92400E', fontSize: '11.5px', fontWeight: 700 }}>
+          <span style={{ padding: '3px 8px', borderRadius: '4px', backgroundColor: 'rgba(180, 83, 9, 0.12)', color: 'var(--warning, #b45309)', fontSize: '11.5px', fontWeight: 700 }}>
             {item.archetype}
           </span>
           {item.manualUrl && (
@@ -628,9 +628,9 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
                 gap: '4px',
                 padding: '3px 8px',
                 borderRadius: '4px',
-                backgroundColor: '#EFF6FF',
-                color: '#2563EB',
-                border: '1px solid #BFDBFE',
+                backgroundColor: 'var(--primary-light)',
+                color: 'var(--primary)',
+                border: '1px solid var(--border-color)',
                 fontSize: '11.5px',
                 fontWeight: 700,
                 textDecoration: 'none'
@@ -670,14 +670,14 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
             }}
             title={`${item.menuName} 실무 화면으로 이동하여 가이드 시작`}
           >
-            <span style={{ fontSize: '15px' }}>🚀</span>
-            <span>실무 화면으로 이동하여 가이드 시작</span>
+            <BookOpen size={16} />
+            <span>가이드 시작</span>
           </button>
         </div>
       </div>
 
       {/* ── 1. 최종 업무 목표 (Terminal Objective - Gutenberg 질문 1) ── */}
-      <div style={{ backgroundColor: '#F8FAFC', padding: '14px 18px', borderRadius: '8px', borderLeft: '4px solid #2563EB' }}>
+      <div style={{ backgroundColor: 'var(--bg-card)', padding: '14px 18px', borderRadius: '8px', borderLeft: '4px solid var(--primary)', border: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
           <span style={{ fontSize: '13px', fontWeight: 900, color: '#1E40AF' }}>🎯 최종 업무 목표</span>
         </div>
@@ -689,7 +689,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
       {/* ── 2. 시작 정보 및 전제 조건 (Scope - Gutenberg 질문 2) ── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
         <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#059669' }}></span>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: 'var(--success)' }}></span>
           <span>1단계: 조회 범위 및 필수 데이터</span>
         </div>
         <div style={{ padding: '10px 14px', borderRadius: '6px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
@@ -721,7 +721,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
       {item.processes && item.processes.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Workflow size={15} color="#2563EB" />
+            <Workflow size={15} color="var(--primary)" />
             <span>단위업무 Flow ({item.processes.length}개 단위업무 표준 프로세스)</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -731,22 +731,22 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
                 style={{
                   padding: '14px 16px',
                   borderRadius: '10px',
-                  backgroundColor: '#F8FAFC',
-                  border: '1.5px solid #CBD5E1',
+                  backgroundColor: 'var(--bg-card)',
+                  border: '1px solid var(--border-color)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '10px',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #E2E8F0', paddingBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <span style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: '#2563EB', color: '#fff', fontSize: '11px', fontWeight: 800 }}>
                       단위업무 #{pIdx + 1}
                     </span>
-                    <span style={{ fontSize: '14px', fontWeight: 800, color: '#1E293B' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-main)' }}>
                       {proc.title}
                     </span>
-                    <span style={{ fontSize: '11px', padding: '1px 6px', borderRadius: '4px', backgroundColor: '#EFF6FF', color: '#2563EB', fontWeight: 700, fontFamily: 'monospace' }}>
+                    <span style={{ fontSize: '11px', padding: '1px 6px', borderRadius: '4px', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 700, fontFamily: 'monospace' }}>
                       {proc.processId}
                     </span>
                   </div>
@@ -773,22 +773,22 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
                         whiteSpace: 'nowrap',
                         transition: 'all 0.15s ease',
                       }}
-                      title={`[${proc.title}] 실무 화면으로 이동하여 단계별 파동 가이드 실행`}
+                      title={`[${proc.title}] 실무 화면으로 이동하여 단계별 가이드 실행`}
                     >
                       <span style={{ fontSize: '10px' }}>▶</span>
-                      <span>이 단위업무 실무 화면으로 이동하여 단계별 파동 가이드 실행</span>
+                      <span>가이드 실행</span>
                     </button>
                   </div>
                 </div>
 
-                <div style={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.5, fontWeight: 500 }}>
+                <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.5, fontWeight: 500 }}>
                   {proc.description}
                 </div>
 
                 {/* 단계별 절차 리스트 */}
                 {proc.steps && proc.steps.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748B' }}>수행 절차 체크리스트:</span>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>수행 절차 체크리스트:</span>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '8px' }}>
                       {proc.steps.map((st, sIdx) => (
                         <div
@@ -808,7 +808,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
                               width: '18px',
                               height: '18px',
                               borderRadius: '50%',
-                              backgroundColor: st.badgeColor || '#2563EB',
+                              backgroundColor: st.badgeColor || 'var(--primary)',
                               color: '#fff',
                               fontSize: '10.5px',
                               fontWeight: 900,
@@ -846,7 +846,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
       {item.subTabs && item.subTabs.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Layers size={14} color="#0284C7" />
+            <Layers size={14} color="var(--primary)" />
             <span>메뉴 내부 하위 탭 구성 및 역할 ({item.subTabs.length}개 탭)</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px' }}>
@@ -867,7 +867,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
                   <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)' }}>
                     {st.tabName}
                   </span>
-                  <span style={{ fontSize: '10.5px', fontFamily: 'monospace', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'rgba(2,132,199,0.1)', color: '#0284C7', fontWeight: 700 }}>
+                  <span style={{ fontSize: '10.5px', fontFamily: 'monospace', padding: '2px 6px', borderRadius: '4px', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', fontWeight: 700 }}>
                     {st.tabId}
                   </span>
                 </div>
@@ -879,7 +879,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
                     <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)' }}>주요 액션:</span>
                     {st.keyActions.map((act, aIdx) => (
                       <div key={aIdx} style={{ fontSize: '11.5px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span style={{ color: '#0284C7', fontSize: '10px' }}>▶</span>
+                        <span style={{ color: 'var(--primary)', fontSize: '10px' }}>▶</span>
                         <span>{act}</span>
                       </div>
                     ))}
@@ -905,14 +905,14 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
                 style={{
                   padding: '14px 16px',
                   borderRadius: '10px',
-                  backgroundColor: '#FAF5FF',
+                  backgroundColor: 'var(--bg-card)',
                   border: '1px solid var(--border-color)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '10px'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #F3E8FF', paddingBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{ padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--primary)', color: '#fff', fontSize: '11px', fontWeight: 800 }}>
                       모달 #{mIdx + 1}
@@ -921,9 +921,9 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
                       {mw.modalName}
                     </span>
                   </div>
-                  <div style={{ fontSize: '11.5px', color: '#6B21A8', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div style={{ fontSize: '11.5px', color: 'var(--text-main)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <span>트리거:</span>
-                    <span style={{ padding: '2px 6px', borderRadius: '4px', backgroundColor: '#EDE9FE', border: '1px solid #DDD6FE', color: '#5B21B6', fontFamily: 'monospace' }}>
+                    <span style={{ padding: '2px 6px', borderRadius: '4px', backgroundColor: 'var(--primary-light)', border: '1px solid var(--primary)', color: 'var(--primary)', fontFamily: 'monospace' }}>
                       {mw.triggerButton}
                     </span>
                   </div>
@@ -932,7 +932,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
                 {/* 3단계 스튜디오 파이프라인 */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px' }}>
                   {/* ① 검토 및 입력 항목 */}
-                  <div style={{ backgroundColor: '#fff', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ backgroundColor: 'var(--bg-app)', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--primary)' }}>① 모달 내부 핵심 검토/입력 항목</span>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                       {mw.keyFields.map((kf, kIdx) => (
@@ -945,15 +945,15 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
                   </div>
 
                   {/* ② 완결 액션 */}
-                  <div style={{ backgroundColor: '#fff', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 800, color: '#2563EB' }}>② 터미널 완결 액션 버튼</span>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#1E40AF', padding: '6px 8px', borderRadius: '4px', backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE' }}>
+                  <div style={{ backgroundColor: 'var(--bg-app)', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--primary)' }}>② 터미널 완결 액션 버튼</span>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--primary)', padding: '6px 8px', borderRadius: '4px', backgroundColor: 'var(--primary-light)', border: '1px solid var(--border-color)' }}>
                       {mw.terminalAction}
                     </div>
                   </div>
 
                   {/* ③ 사후 상태 전이 */}
-                  <div style={{ backgroundColor: '#fff', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ backgroundColor: 'var(--bg-app)', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <span style={{ fontSize: '11px', fontWeight: 800, color: '#059669' }}>③ 사후 자산/DB 상태 전이</span>
                     <div style={{ fontSize: '11.5px', color: '#065F46', lineHeight: '1.45', fontWeight: 600 }}>
                       {mw.afterStateTransition}
@@ -967,7 +967,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
       )}
 
       {/* ── 4. 최종 확정 및 대차대조 결과 (Audit Result - Gutenberg 질문 4) ── */}
-      <div style={{ backgroundColor: '#F0FDF4', padding: '12px 16px', borderRadius: '8px', borderLeft: '4px solid #059669' }}>
+      <div style={{ backgroundColor: 'rgba(4, 120, 87, 0.08)', padding: '12px 16px', borderRadius: '8px', borderLeft: '4px solid var(--success)', border: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
           <span style={{ fontSize: '13px', fontWeight: 900, color: '#065F46' }}>⚖️ 최종 감사 및 확정 결과</span>
         </div>
@@ -995,10 +995,10 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
       {/* ── 6. 현장 물리적 마찰 방지 주의사항 (WTT 스트레스 대비) ── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
         <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <AlertCircle size={14} color="#D97706" />
+          <AlertCircle size={14} color="var(--warning, #b45309)" />
           <span>현장 실무 마찰 방지 주의사항 (WTT 대비)</span>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px 12px', borderRadius: '6px', backgroundColor: '#FFFBEB', border: '1px solid #FDE68A' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px 12px', borderRadius: '6px', backgroundColor: 'rgba(180, 83, 9, 0.08)', border: '1px solid rgba(180, 83, 9, 0.25)' }}>
           {item.precautions.map((prec, pIdx) => (
             <div key={pIdx} style={{ fontSize: '12.5px', color: '#78350F', lineHeight: '1.5', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
               <span style={{ color: '#D97706', fontWeight: 700 }}>⚠️</span>
@@ -1012,7 +1012,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
       {item.annotations && item.annotations.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
           <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Sparkles size={14} color="#1D4ED8" />
+            <Sparkles size={14} color="var(--primary)" />
             <span>화면 인앱 오버레이 안내 항목 (상단 [📖 매뉴얼 보기] 연동)</span>
           </div>
           <div style={{ overflowX: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>

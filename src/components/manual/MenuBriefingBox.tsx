@@ -76,7 +76,7 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
         <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '5px' }}>
           🎯 {summary.title}
           {activeProcess && (
-            <span style={{ color: '#2563EB', fontWeight: 700, fontSize: '11.5px' }}>
+            <span style={{ color: 'var(--primary)', fontWeight: 700, fontSize: '11.5px' }}>
               · {activeProcess.title}
             </span>
           )}
@@ -84,8 +84,8 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
         {activeProcess ? (
           <span style={{
             fontSize: '11px',
-            backgroundColor: 'rgba(37,99,235,0.12)',
-            color: '#2563EB',
+            backgroundColor: 'var(--primary-light)',
+            color: 'var(--primary)',
             padding: '2px 7px',
             borderRadius: '10px',
             fontWeight: 700,
@@ -291,7 +291,7 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
         }}>
           <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Workflow size={12} color="#2563EB" />
+              <Workflow size={12} color="var(--primary)" />
               <span>업무 모드 선택 ({processes.length}개 단위업무)</span>
             </span>
             <span style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: 600 }}>
@@ -392,7 +392,7 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
               <div style={{
                 backgroundColor: 'var(--bg-app)',
                 border: '1px solid var(--border-color)',
-                borderLeft: '4px solid #2563EB',
+                borderLeft: '4px solid var(--primary)',
                 padding: '8px 10px',
                 borderRadius: '6px',
                 fontSize: '12px',
@@ -641,7 +641,7 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
               gap: '4px',
               border: 'none',
               background: 'none',
-              color: '#059669',
+              color: 'var(--success)',
               fontSize: '11.5px',
               fontWeight: 800,
               cursor: 'pointer',
@@ -650,7 +650,7 @@ export const MenuBriefingBox: React.FC<MenuBriefingBoxProps> = ({
             title="도구 및 다운로드 > 업무매뉴얼 화면으로 바로 이동하여 전사 51개 메뉴 및 184개 단위업무 전체 편람 열람"
           >
             <BookOpen size={13} />
-            <span>📖 전사 업무매뉴얼 열람 ➔</span>
+            <span>전사 업무매뉴얼 열람 ➔</span>
           </button>
 
           <button

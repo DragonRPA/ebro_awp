@@ -132,7 +132,7 @@ export const ManualDictionaryPage: React.FC = () => {
                     flexShrink: 0
                   }}
                 >
-                  🚀 실무 화면 이동 및 파동 가이드 시작
+                  가이드 시작
                 </button>
               </div>
               <div style={{ padding: '16px' }}>

@@ -107,7 +107,7 @@ export const ManualAuthorPanel: React.FC = () => {
       const r = el.getBoundingClientRect();
       setInspectItem({
         rect: r,
-        color: item.badgeColor || '#4f46e5',
+        color: item.badgeColor || 'var(--primary)',
         label: item.label,
         seq: item.seq,
       });
@@ -130,7 +130,7 @@ export const ManualAuthorPanel: React.FC = () => {
       const r = el.getBoundingClientRect();
       setInspectItem({
         rect: r,
-        color: item.badgeColor || '#4f46e5',
+        color: item.badgeColor || 'var(--primary)',
         label: item.label,
         seq: item.seq,
       });
@@ -363,12 +363,12 @@ export const ManualAuthorPanel: React.FC = () => {
                 width: `${hoveredRect.width}px`,
                 height: `${hoveredRect.height}px`,
                 border: '2px solid var(--primary)',
-                background: 'rgba(79, 70, 229, 0.15)',
+                background: 'var(--primary-light)',
                 borderRadius: '4px',
                 pointerEvents: 'none',
                 zIndex: 99998,
                 transition: 'all 0.05s ease-out',
-                boxShadow: '0 0 0 1px #fff, 0 0 12px rgba(79,70,229,0.5)',
+                boxShadow: '0 0 0 1px var(--bg-card), 0 0 8px rgba(29,78,216,0.3)',
               }}
             />
           )}
@@ -558,14 +558,13 @@ export const ManualAuthorPanel: React.FC = () => {
                   <button onClick={handleResetToSeed} style={{ ...btnBase, flex: 1, padding: '7px 8px', background: 'var(--bg-secondary)', color: 'var(--text-main)', border: '1px solid var(--border-color)', fontSize: '11.5px', whiteSpace: 'nowrap' }} title="현재 메뉴를 표준 기본 매뉴얼로 복원">
                     🔄 기본 복원
                   </button>
-                  <button onClick={handleSeedAll} disabled={seeding} style={{ ...btnBase, width: '100%', padding: '6px 8px', background: '#f59e0b', color: '#fff', fontSize: '11.5px', marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }} title="시스템에 존재하는 51개 모든 메뉴의 매뉴얼을 DB에 일괄 주입">
-                    {seeding ? '⚡ 전사 매뉴얼 주입 중…' : '⚡ 전사 51개 표준 매뉴얼 DB 일괄 주입'}
+                  <button onClick={handleSeedAll} disabled={seeding} style={{ ...btnBase, width: '100%', padding: '6px 8px', background: 'var(--warning, #b45309)', color: '#fff', fontSize: '11.5px', marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }} title="시스템에 존재하는 51개 모든 메뉴의 매뉴얼을 DB에 일괄 주입">
+                    {seeding ? '전사 매뉴얼 주입 중…' : '전사 51개 표준 매뉴얼 DB 일괄 주입'}
                   </button>
                 </div>
 
                 {items.length === 0 ? (
                   <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                    <div style={{ fontSize: '32px', marginBottom: '8px' }}>📭</div>
                     등록된 매뉴얼 항목이 없습니다.<br />
                     「+ 항목 추가」로 시작하세요.
                   </div>
@@ -583,8 +582,8 @@ export const ManualAuthorPanel: React.FC = () => {
                           onMouseLeave={() => handleHoverItem(null)}
                           style={{
                             marginBottom: '4px', borderRadius: '8px',
-                            border: `1px solid ${editingSeq === item.seq ? 'var(--primary)' : inspectItem?.seq === item.seq ? '#059669' : 'var(--border-color)'}`,
-                            background: editingSeq === item.seq ? 'var(--primary-light)' : inspectItem?.seq === item.seq ? '#f0fdf4' : 'var(--bg-card)',
+                            border: `1px solid ${editingSeq === item.seq ? 'var(--primary)' : inspectItem?.seq === item.seq ? 'var(--success)' : 'var(--border-color)'}`,
+                            background: editingSeq === item.seq ? 'var(--primary-light)' : inspectItem?.seq === item.seq ? 'rgba(4,120,87,0.1)' : 'var(--bg-card)',
                             overflow: 'hidden',
                             transition: 'all 0.15s ease',
                           }}
@@ -606,12 +605,12 @@ export const ManualAuthorPanel: React.FC = () => {
                                   {item.label || '(레이블 없음)'}
                                 </span>
                                 {isFound ? (
-                                  <span style={{ fontSize: '9.5px', color: '#059669', background: '#ecfdf5', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                                    🟢 UI 연결
+                                  <span style={{ fontSize: '9.5px', color: 'var(--success)', background: 'rgba(4,120,87,0.1)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                                    UI 연결
                                   </span>
                                 ) : (
-                                  <span style={{ fontSize: '9.5px', color: '#d97706', background: '#fef3c7', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }} title="화면에서 요소를 찾지 못함 (폴백 적용)">
-                                    ⚠️ 미탐색
+                                  <span style={{ fontSize: '9.5px', color: 'var(--warning, #b45309)', background: 'rgba(180,83,9,0.1)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }} title="화면에서 요소를 찾지 못함 (폴백 적용)">
+                                    미탐색
                                   </span>
                                 )}
                               </div>
@@ -633,8 +632,8 @@ export const ManualAuthorPanel: React.FC = () => {
                                   handleInspectItem(item);
                                 }}
                                 title="화면에서 이 단계의 UI 위치 확인 (스크롤 및 파동 강조)"
-                                style={{ ...btnBase, padding: '4px 6px', background: '#ecfdf5', color: '#059669', border: '1px solid #a7f3d0' }}
-                              >🎯 위치</button>
+                                style={{ ...btnBase, padding: '4px 6px', background: 'rgba(4,120,87,0.1)', color: 'var(--success)', border: '1px solid var(--border-color)' }}
+                              >위치</button>
                               <button
                                 onClick={() => moveItem(item.seq, -1)}
                                 disabled={idx === 0}
@@ -650,18 +649,18 @@ export const ManualAuthorPanel: React.FC = () => {
                               <button
                                 onClick={() => startNew(item.seq)}
                                 title="이 항목 아래에 삽입"
-                                style={{ ...btnBase, padding: '4px 6px', background: '#dbeafe', color: '#1d4ed8' }}
+                                style={{ ...btnBase, padding: '4px 6px', background: 'var(--primary-light)', color: 'var(--primary)' }}
                               >+▼</button>
                               <button
                                 onClick={() => startEdit(item)}
                                 title="편집"
                                 style={{ ...btnBase, padding: '4px 7px', background: 'var(--primary-light)', color: 'var(--primary)' }}
-                              >✏</button>
+                              >편집</button>
                               <button
                                 onClick={() => deleteItem(item.seq, item.label)}
                                 title="삭제"
-                                style={{ ...btnBase, padding: '4px 6px', background: '#fee2e2', color: '#dc2626' }}
-                              >🗑</button>
+                                style={{ ...btnBase, padding: '4px 6px', background: 'rgba(220,38,38,0.1)', color: 'var(--danger)' }}
+                              >삭제</button>
                             </div>
                           </div>
 
@@ -837,7 +836,7 @@ export const ManualAuthorPanel: React.FC = () => {
                       style={{ ...inputS, flex: 1, fontSize: '11px' }}
                     />
                     {form.imageUrl && (
-                      <button onClick={() => setForm(p => ({ ...p, imageUrl: null }))} style={{ ...btnBase, padding: '6px 10px', background: '#fee2e2', color: '#dc2626' }}>×</button>
+                      <button onClick={() => setForm(p => ({ ...p, imageUrl: null }))} style={{ ...btnBase, padding: '6px 10px', background: 'rgba(220,38,38,0.1)', color: 'var(--danger)' }}>×</button>
                     )}
                   </div>
                   {form.imageUrl && (

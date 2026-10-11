@@ -48,8 +48,11 @@ export interface ManualPage {
 }
 
 export const DEFAULT_BADGE_COLORS = [
-  '#E53935', '#1D4ED8', '#059669', '#D97706',
-  '#7C3AED', '#DB2777', '#0891B2', '#374151',
+  '#1D4ED8', // Primary (Action Blue)
+  '#047857', // Success (Forest Emerald)
+  '#B45309', // Warning (Deep Amber)
+  '#0F172A', // Neutral (Deep Slate)
+  '#DC2626', // Danger (Crimson Red)
 ];
 
 export const DEFAULT_ITEM: Omit<ManualAnnotationItem, 'seq'> = {
@@ -57,7 +60,7 @@ export const DEFAULT_ITEM: Omit<ManualAnnotationItem, 'seq'> = {
   type: 'stamp',
   label: '',
   description: '',
-  badgeColor: '#E53935',
+  badgeColor: '#1D4ED8',
   positionHint: 'bottom',
   spotlight: false,
 };

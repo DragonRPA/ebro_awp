@@ -357,7 +357,7 @@ export const MenuSpecDocModal: React.FC<MenuSpecDocModalProps> = ({
                 fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
               }}
             >
-              {copied ? <Check size={14} color="#10B981" /> : <Copy size={14} />}
+              {copied ? <Check size={14} color="var(--success)" /> : <Copy size={14} />}
               <span>{copied ? '복사됨' : 'MD 복사'}</span>
             </button>
 
@@ -394,7 +394,7 @@ export const MenuSpecDocModal: React.FC<MenuSpecDocModalProps> = ({
         {/* 저장 성공 알림 배너 */}
         {saveSuccessMsg && (
           <div style={{
-            backgroundColor: '#059669', color: '#fff', padding: '8px 16px',
+            backgroundColor: 'var(--success)', color: '#fff', padding: '8px 16px',
             fontSize: '12.5px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px'
           }}>
             <Check size={16} />
@@ -418,7 +418,7 @@ export const MenuSpecDocModal: React.FC<MenuSpecDocModalProps> = ({
                   type="button"
                   onClick={handleResetToDefault}
                   style={{
-                    border: 'none', background: 'none', color: '#D97706', fontSize: '11.5px',
+                    border: 'none', background: 'none', color: 'var(--warning, #b45309)', fontSize: '11.5px',
                     fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
                   }}
                 >
