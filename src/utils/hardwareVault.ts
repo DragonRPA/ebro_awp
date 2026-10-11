@@ -172,6 +172,27 @@ export function getAuthorizedDeveloperDevices(): DeveloperDeviceProfile[] {
 }
 
 /**
+ * 3-1. Supabase 원격 DB 실시간 인가 단말기 목록 조회 (단일실행등록기 등록 즉시 실시간 반영)
+ */
+export async function fetchAuthorizedDeveloperDevicesLive(): Promise<DeveloperDeviceProfile[]> {
+  try {
+    const { supabase } = await import('../services/db');
+    if (supabase) {
+      const { data } = await supabase
+        .from('developer_authorized_devices')
+        .select('*')
+        .order('registeredAt', { ascending: false });
+      if (Array.isArray(data) && data.length > 0) {
+        return data as DeveloperDeviceProfile[];
+      }
+    }
+  } catch (e) {
+    console.warn('fetchAuthorizedDeveloperDevicesLive fallback to local cache:', e);
+  }
+  return getAuthorizedDeveloperDevices();
+}
+
+/**
  * 4. 현재 접속 기기가 인가된 개발자 물리 단말기인지 검증
  * - 일치하는 경우 자동으로 통과하며, 로컬 서명 토큰 및 DB 최종 검증 시각을 갱신
  */
@@ -243,6 +264,54 @@ export async function isCurrentDeviceAuthorizedForDeveloper(): Promise<{
       detectedFingerprint: fingerprint,
       detectedMacs
     };
+  }
+
+  // 4순위: 중앙 Supabase `developer_authorized_devices` 원격 실시간 조회 (단일실행등록기 등록 직후 로컬 캐시 미동기화 방어)
+  try {
+    const { supabase } = await import('../services/db');
+    if (supabase) {
+      const { data } = await supabase
+        .from('developer_authorized_devices')
+        .select('*')
+        .eq('status', 'ACTIVE');
+
+      if (Array.isArray(data) && data.length > 0) {
+        // MAC 주소 일치 검증
+        for (const mac of detectedMacs) {
+          const normalizedMac = mac.toUpperCase().replace(/:/g, '-');
+          const matched = data.find(
+            (d: any) => d.status === 'ACTIVE' && d.macAddress && d.macAddress.toUpperCase().replace(/:/g, '-') === normalizedMac
+          );
+          if (matched) {
+            sealLocalDeviceToken(matched);
+            updateDeviceLastVerified(matched);
+            return {
+              isAuthorized: true,
+              matchedDevice: matched,
+              detectedFingerprint: fingerprint,
+              detectedMacs
+            };
+          }
+        }
+
+        // 하드웨어 지문 일치 검증
+        const matchedFp = data.find(
+          (d: any) => d.status === 'ACTIVE' && d.hardwareFingerprint === fingerprint
+        );
+        if (matchedFp) {
+          sealLocalDeviceToken(matchedFp);
+          updateDeviceLastVerified(matchedFp);
+          return {
+            isAuthorized: true,
+            matchedDevice: matchedFp,
+            detectedFingerprint: fingerprint,
+            detectedMacs
+          };
+        }
+      }
+    }
+  } catch (liveErr) {
+    console.warn('[hardwareVault] 원격 Supabase 실시간 인가 조회 경고:', liveErr);
   }
 
   return {

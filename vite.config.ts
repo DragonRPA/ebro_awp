@@ -23,12 +23,25 @@ function r2DevPlugin(): Plugin {
 }
 
 import os from 'os';
+import fs from 'fs';
+import path from 'path';
 
 function developerDevicePlugin(): Plugin {
   return {
     name: 'developer-device-plugin',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
+        if (req.url && (req.url === '/downloads/eBroDevPCRegister.exe' || req.url.startsWith('/downloads/eBroDevPCRegister.exe'))) {
+          const exePath = path.resolve(__dirname, 'public/downloads/eBroDevPCRegister.exe');
+          if (fs.existsSync(exePath)) {
+            res.setHeader('Content-Type', 'application/vnd.microsoft.portable-executable');
+            res.setHeader('Content-Disposition', 'attachment; filename="eBroDevPCRegister.exe"');
+            res.statusCode = 200;
+            fs.createReadStream(exePath).pipe(res);
+            return;
+          }
+        }
+
         if (req.url && req.url.startsWith('/api/device/physical-mac')) {
           try {
             const ifaces = os.networkInterfaces();

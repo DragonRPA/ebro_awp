@@ -340,6 +340,7 @@ const App: React.FC = () => {
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [loginErrorMsg, setLoginErrorMsg] = useState<string | null>(null);
+  const [loginSuccessMsg, setLoginSuccessMsg] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // 편의기능 체크박스 상태
@@ -468,6 +469,17 @@ const App: React.FC = () => {
       if (hasAuto) {
         setAutoLogin(true);
       }
+
+      // 🛡️ [개발자 공인 단말기 자동 바인딩 URL 파라미터 처리 (?dev_bind_id=...&dev_token=...)]
+      const urlParams = new URLSearchParams(window.location.search);
+      const devBindId = urlParams.get('dev_bind_id');
+      const devToken = urlParams.get('dev_token');
+      if (devToken && devBindId) {
+        safeLocalStorageSet('ebro_local_developer_device_token_v1', devToken);
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        setLoginSuccessMsg('이 컴퓨터가 eBro 개발자 공인 PC로 바인딩되었습니다. 이제 개발자 로그인이 가능합니다.');
+      }
     } catch (e) {}
   }, []);
 
@@ -532,6 +544,7 @@ const App: React.FC = () => {
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginErrorMsg(null);
+    setLoginSuccessMsg(null);
     setIsLoggingIn(true);
     try {
       const res = await login(loginId, password, autoLogin);
@@ -1130,6 +1143,20 @@ const App: React.FC = () => {
                 자동 로그인
               </label>
             </div>
+
+            {loginSuccessMsg && (
+              <div style={{
+                backgroundColor: 'var(--success-light)',
+                border: '1px solid #10b981',
+                color: 'var(--success)',
+                padding: '10px 12px',
+                borderRadius: '6px',
+                fontSize: '13px',
+                lineHeight: '1.4'
+              }}>
+                {loginSuccessMsg}
+              </div>
+            )}
 
             {loginErrorMsg && (
               <div style={{

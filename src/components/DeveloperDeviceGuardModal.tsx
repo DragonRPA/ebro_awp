@@ -1,12 +1,14 @@
 // src/components/DeveloperDeviceGuardModal.tsx
 import React, { useState, useEffect } from 'react';
-import { ShieldAlert, Cpu, Network, Key, CheckCircle2, X, AlertTriangle, Laptop, Lock, RefreshCw } from 'lucide-react';
+import { ShieldAlert, Cpu, Network, Key, CheckCircle2, X, AlertTriangle, Laptop, Lock, RefreshCw, Download } from 'lucide-react';
 import { 
   getPhysicalHardwareFingerprint, 
   fetchPhysicalMacAddress, 
   registerAndAuthorizeDeveloperDevice,
   executeBreakGlassEmergencyLogin,
   getAuthorizedDeveloperDevices,
+  fetchAuthorizedDeveloperDevicesLive,
+  isCurrentDeviceAuthorizedForDeveloper,
   DeveloperDeviceProfile
 } from '../utils/hardwareVault';
 
@@ -65,6 +67,27 @@ export const DeveloperDeviceGuardModal: React.FC<DeveloperDeviceGuardModalProps>
     const devices = getAuthorizedDeveloperDevices();
     setActiveDeviceList(devices.filter(d => d.status === 'ACTIVE'));
   }, [isOpen]);
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleCheckStatusLive = async () => {
+    setIsRefreshing(true);
+    setErrorMessage(null);
+    try {
+      const devices = await fetchAuthorizedDeveloperDevicesLive();
+      setActiveDeviceList(devices.filter(d => d.status === 'ACTIVE'));
+      const authResult = await isCurrentDeviceAuthorizedForDeveloper();
+      if (authResult.isAuthorized && authResult.matchedDevice) {
+        onSuccess(authResult.matchedDevice);
+        return;
+      }
+      setErrorMessage('등록된 기기 목록을 새로고침했습니다. 아직 이 PC와 일치하는 활성 단말기가 감지되지 않았습니다.');
+    } catch (e: any) {
+      setErrorMessage(`상태 확인 중 오류: ${e?.message || e}`);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -245,6 +268,67 @@ export const DeveloperDeviceGuardModal: React.FC<DeveloperDeviceGuardModalProps>
               lineHeight: 1.5
             }}>
               <strong>안내:</strong> 현재 PC의 하드웨어 지문과 MAC 주소를 개발자 공인 기기로 DB에 등록하면, 이후 로그인 시 추가 확인 없이 즉시 자동 통과됩니다.
+            </div>
+
+            {/* 소형 단일실행 등록기 다운로드 & 실시간 확인 카드 */}
+            <div style={{
+              padding: '12px 14px',
+              borderRadius: '8px',
+              backgroundColor: 'var(--bg-secondary)',
+              border: '1px solid var(--border-color)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              flexWrap: 'wrap'
+            }}>
+              <div style={{ flex: '1 1 200px' }}>
+                <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '12.5px', marginBottom: '2px' }}>
+                  소형 단일실행 등록기 (eBroDevPCRegister.exe)
+                </div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '11px', lineHeight: 1.4 }}>
+                  PC 고장/교체나 신규 입사 시, 이 PC에서 프로그램을 실행하면 자동으로 하드웨어를 감지하여 DB에 공인 개발자 PC로 등록합니다.
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                <a
+                  href="/downloads/eBroDevPCRegister.exe"
+                  download="eBroDevPCRegister.exe"
+                  className="btn"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '7px 12px',
+                    backgroundColor: 'var(--primary)',
+                    color: '#ffffff',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    textDecoration: 'none'
+                  }}
+                >
+                  <Download size={14} />
+                  <span>등록기 다운로드</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={handleCheckStatusLive}
+                  disabled={isRefreshing}
+                  className="btn btn-secondary"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '7px 12px',
+                    fontSize: '12px',
+                    fontWeight: 600
+                  }}
+                >
+                  <RefreshCw size={14} className={isRefreshing ? 'spin' : ''} />
+                  <span>DB 등록 확인</span>
+                </button>
+              </div>
             </div>
 
             {errorMessage && (
