@@ -612,35 +612,6 @@ export const MobileWalkieTalkieModal: React.FC<MobileWalkieTalkieModalProps> = (
               <span>{receiveMode === 'VOICE' ? '음성' : receiveMode === 'BEEP' ? '비프' : '무음'}</span>
             </button>
 
-            {/* 독백의뢰 모드 토글 버튼 */}
-            <button
-              type="button"
-              onClick={() => {
-                const next = !isMonologueOrderMode;
-                setIsMonologueOrderMode(next);
-                if (next) {
-                  setCurrentOrderDraft(loadVoiceOrderDraft() || createEmptyDraft());
-                }
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '3px',
-                padding: '2.5px 7px',
-                borderRadius: '6px',
-                border: isMonologueOrderMode ? '1px solid #38bdf8' : '1px solid #334155',
-                backgroundColor: isMonologueOrderMode ? '#0284c7' : '#0f172a',
-                color: isMonologueOrderMode ? '#ffffff' : '#94a3b8',
-                fontSize: '10.5px',
-                fontWeight: '800',
-                cursor: 'pointer'
-              }}
-              title="독백 모드로 출고의뢰 음성 조각 수집"
-            >
-              <FileText size={11} />
-              <span>{isMonologueOrderMode ? '독백 ON' : '독백의뢰'}</span>
-            </button>
-
             <button
               type="button"
               onClick={onClose}
@@ -901,41 +872,6 @@ export const MobileWalkieTalkieModal: React.FC<MobileWalkieTalkieModalProps> = (
               }}>
                 <span style={{ width: '7px', height: '7px', borderRadius: '9999px', backgroundColor: '#ef4444', boxShadow: '0 0 8px #ef4444' }} />
                 <span>🔴 [{talkingStatus?.senderName}] 발언 중...</span>
-              </div>
-            ) : isMonologueOrderMode ? (
-              <div style={{
-                padding: '5px 12px',
-                backgroundColor: 'rgba(2, 132, 199, 0.15)',
-                borderBottom: '1px solid rgba(56, 189, 248, 0.4)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '6px',
-                flexShrink: 0
-              }}>
-                <div style={{ fontSize: '10.5px', color: '#cbd5e1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  <span style={{ color: '#38bdf8', fontWeight: '800', marginRight: '4px' }}>📝 독백의뢰:</span>
-                  {currentOrderDraft?.customerName || '고객사'} / {currentOrderDraft?.siteName || '현장'} | {currentOrderDraft?.orders?.map(o => `${o.modelName}(${o.count}대)`).join(', ') || '1930(1대)'}
-                </div>
-                {onNavigateToDispatchOrder && (
-                  <button
-                    type="button"
-                    onClick={onNavigateToDispatchOrder}
-                    style={{
-                      padding: '2px 7px',
-                      borderRadius: '5px',
-                      border: 'none',
-                      backgroundColor: '#0284c7',
-                      color: '#ffffff',
-                      fontSize: '10px',
-                      fontWeight: '800',
-                      cursor: 'pointer',
-                      flexShrink: 0
-                    }}
-                  >
-                    작성 ➔
-                  </button>
-                )}
               </div>
             ) : null}
 

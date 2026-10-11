@@ -1,4 +1,4 @@
-﻿// src/mobile/pages/MobileDispatchOrderCreate.tsx
+// src/mobile/pages/MobileDispatchOrderCreate.tsx
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
 import { 
@@ -1018,107 +1018,6 @@ export const MobileDispatchOrderCreate: React.FC<MobileDispatchOrderCreateProps>
           <RotateCw className="w-3.5 h-3.5" />
           <span>대차 교체</span>
         </button>
-      </div>
-
-      {/* 🎙️ 음성 조각 입력 및 임시저장 패널 */}
-      <div className="bg-slate-900 border border-blue-500/30 rounded-2xl p-3.5 flex flex-col gap-2.5 shadow-sm">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Mic className="w-3.5 h-3.5 text-blue-400" />
-            <span className="text-xs font-bold text-slate-200">
-              {dispatchMode === 'EXCHANGE' ? '대차 교체 음성 입력' : dispatchMode === 'RETURN' ? '회수 음성 입력' : '출고 음성 입력'}
-            </span>
-          </div>
-          {hasRestoredDraft && (
-            <button
-              type="button"
-              onClick={handleResetDraft}
-              className="text-[11px] text-rose-400 hover:text-rose-300 flex items-center gap-1 active:scale-95"
-            >
-              <RotateCcw className="w-3 h-3" />
-              <span>초기화</span>
-            </button>
-          )}
-        </div>
-
-        {/* 🌟 [1] 최우선 메인: 자유 음성메모 출고의뢰 스튜디오 실행 버튼 */}
-        <button
-          type="button"
-          onClick={() => setIsVoiceMemoStudioOpen(true)}
-          className="w-full py-3.5 px-4 rounded-2xl flex items-center justify-between font-black text-xs text-white bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-indigo-500 shadow-xl shadow-indigo-600/30 transition-all active:scale-[0.98]"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center">
-              <Mic className="w-4 h-4 text-white" />
-            </div>
-            <div className="text-left">
-              <div className="text-[13px] font-extrabold tracking-tight flex items-center gap-1.5">
-                <span>자유 음성메모 출고의뢰</span>
-                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-white/20 text-white">
-                  핸즈프리
-                </span>
-              </div>
-              <div className="text-[10px] text-blue-100 font-normal mt-0.5">
-                음성메모를 남기면 5대 핵심항목 검증 후 즉시 접수
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 text-[11px] font-bold bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-xl whitespace-nowrap shrink-0">
-            <span>시작</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </div>
-        </button>
-
-        {/* 🌟 [2] 보조: 단계별 대화형 위자드 & 통화 텍스트 붙여넣기 (2열 그리드) */}
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setIsVoiceWizardOpen(true)}
-            className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-xs font-bold text-slate-200 flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-            <span>대화형 위자드 (단계별)</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handlePasteCallTranscript}
-            className="py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-750 border border-slate-700 text-xs font-bold text-slate-200 flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]"
-          >
-            <ClipboardList className="w-3.5 h-3.5 text-sky-400" />
-            <span>통화 텍스트 붙여넣기</span>
-          </button>
-        </div>
-
-        {/* 실시간 말풍선 */}
-        {(isListening || interimText) && (
-          <div className="bg-slate-950 border border-blue-500/40 rounded-xl p-2.5 text-xs text-blue-200 animate-in fade-in duration-150">
-            <div className="text-[10px] text-slate-400 mb-0.5">음성 전사:</div>
-            <div className="font-mono">{interimText || '말씀하시면 텍스트가 표시됩니다...'}</div>
-          </div>
-        )}
-
-        {/* 최근 반영된 항목 뱃지 */}
-        {recentModifiedFields.length > 0 && (
-          <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-lg px-2.5 py-1.5 text-[11px] text-emerald-300 flex items-center gap-1.5 flex-wrap">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span className="font-bold">반영 항목:</span>
-            {recentModifiedFields.map((f, i) => (
-              <span key={i} className="bg-emerald-900/50 px-1.5 py-0.5 rounded text-[10px] text-emerald-200 font-mono">{f}</span>
-            ))}
-          </div>
-        )}
-
-        {/* 임시저장 상태 안내 */}
-        {hasRestoredDraft && (
-          <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5 px-0.5">
-            <span className="flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-              임시저장 보존 중 (앱을 닫아도 유지됨)
-            </span>
-            <span>누적 발화: {snippetsHistory.length}회</span>
-          </div>
-        )}
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">

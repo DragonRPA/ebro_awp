@@ -46,7 +46,6 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
       { id: 'custom_billing', name: '특수 거래명세서 작성' },
       { id: 'receivable', name: '외상미수금 대장' },
       { id: 'smart_dispatch4', name: '출고 요청' },
-      { id: 'voice_dispatch', name: '음성 출고지시' },
       { id: 'smart_return', name: '회수 요청' },
       { id: 'smart_as_request', name: 'AS 요청' },
       { id: 'delinquency', name: '미수 채권 연체 관리' },

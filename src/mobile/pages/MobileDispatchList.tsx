@@ -306,14 +306,14 @@ export const MobileDispatchList: React.FC = () => {
           <Truck className="w-5 h-5 text-blue-400" />
           배차 운송 지시 ({filteredDeliveries.length})
         </h2>
-        {/* 통화 텍스트/음성 기사 배정 퀵 버튼 */}
+        {/* 기사 배정 퀵 버튼 */}
         <button
           type="button"
           onClick={() => handleOpenAssignModal()}
           className="flex items-center gap-1.5 py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black shadow-lg active:scale-95 transition-all"
         >
           <UserCheck className="w-4 h-4" />
-          통화로 기사 배정
+          기사 배정
         </button>
       </div>
 
@@ -536,7 +536,7 @@ export const MobileDispatchList: React.FC = () => {
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black text-white flex items-center gap-2">
                 <Truck className="w-4 h-4 text-blue-400" />
-                화물 기사 배정 (통화/음성 연동)
+                화물 기사 배정
               </h3>
               <button
                 type="button"
@@ -547,12 +547,12 @@ export const MobileDispatchList: React.FC = () => {
               </button>
             </div>
 
-            {/* 통화 텍스트 및 음성 바 */}
+            {/* 텍스트 빠른 입력 바 */}
             <div className="p-3 rounded-xl bg-slate-950 border border-blue-900/40 flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-blue-300 flex items-center gap-1">
                   <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-                  기사 통화 내용 자동 파싱
+                  기사 정보 텍스트 자동 파싱
                 </span>
                 <div className="flex items-center gap-1.5">
                   <button
@@ -563,26 +563,8 @@ export const MobileDispatchList: React.FC = () => {
                     <FileText className="w-3 h-3 inline mr-1" />
                     {showPasteBox ? '입력창 닫기' : '텍스트 붙여넣기'}
                   </button>
-                  <button
-                    type="button"
-                    onClick={toggleListening}
-                    className={`py-1 px-2.5 rounded-lg text-[11px] font-black flex items-center gap-1 transition-all ${
-                      isListening
-                        ? 'bg-rose-600 text-white animate-pulse'
-                        : 'bg-blue-600 hover:bg-blue-500 text-white'
-                    }`}
-                  >
-                    {isListening ? <MicOff className="w-3 h-3" /> : <Mic className="w-3 h-3" />}
-                    {isListening ? '듣는중...' : '음성입력'}
-                  </button>
                 </div>
               </div>
-
-              {isListening && interimText && (
-                <div className="p-2 rounded-lg bg-rose-950/30 border border-rose-800/40 text-rose-200 text-xs">
-                  🎙️ {interimText}
-                </div>
-              )}
 
               {showPasteBox && (
                 <div className="flex flex-col gap-2 pt-1 border-t border-slate-800">

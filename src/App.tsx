@@ -679,7 +679,6 @@ const App: React.FC = () => {
         { id: 'billing', name: '청구 수납 관리', icon: <CreditCard size={16} />, component: <Billings /> },
         { id: 'receivable', name: '외상미수금 대장', icon: <CreditCard size={16} />, component: <Receivables /> },
         { id: 'smart_dispatch4', name: '출고 요청', icon: <Zap size={16} />, component: <SmartDispatch4 /> },
-        { id: 'voice_dispatch', name: '음성 출고지시', icon: <Mic size={16} />, component: <VoiceDispatch /> },
         { id: 'smart_return', name: '회수 요청', icon: <Zap size={16} />, component: <SmartReturn /> },
         { id: 'smart_as_request', name: 'AS 요청', icon: <Wrench size={16} />, component: <SmartAsRequest /> },
         { id: 'delinquency', name: '미수 채권 연체 관리', icon: <AlertTriangle size={16} />, component: <DelinquencyPage /> },
