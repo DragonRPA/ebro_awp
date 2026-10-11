@@ -170,14 +170,16 @@
   
   /* 5색 표준: 
      1) 백묵 잉크 (Text): #f1f5f9
-     2) 스카이 액션 (Primary): #38bdf8
+     2) 딥 오션 사파이어 액션 (Primary): #0284c7 (눈부심 0%, 순백 텍스트 100% 일치)
      3) 에메랄드 플러스/수익 (Success): #34d399
      4) 크림슨 마이너스/위험 (Danger): #f87171
      5) 다크 슬레이트 캔버스 (Background): #0b0f19
   */
-  --primary: #38bdf8;
-  --primary-hover: #0284c7;
-  --primary-light: #1e3a8a;
+  --primary: #0284c7;
+  --primary-hover: #0369a1;
+  --primary-light: #075985;
+  --primary-border: #0369a1;
+  --text-on-primary: #ffffff;
   
   --success: #34d399;
   --success-hover: #059669;
@@ -191,7 +193,7 @@
   --danger-hover: #dc2626;
   --danger-light: #7f1d1d;
 
-  --info: #38bdf8;
+  --info: #0284c7;
   --info-light: #075985;
   
   --text-main: #f1f5f9;
@@ -212,12 +214,12 @@
   --card-bg: #1f2937;
   --body-bg: #0b0f19;
   --bg-card-header: #111827;
-  --bg-active: #1e1b4b;
-  --primary-rgb: 56, 189, 248;
-  --primary-border: #0284c7;
-  --accent: #38bdf8;
-  --accent-bg: #1e1b4b;
-  --accent-border: #0284c7;
+  --bg-active: #0c4a6e;
+  --primary-rgb: 2, 132, 199;
+  --primary-border: #0369a1;
+  --accent: #0284c7;
+  --accent-bg: #0c4a6e;
+  --accent-border: #0369a1;
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -721,15 +723,16 @@ button {
 [data-theme='dark'] .btn-save,
 [data-theme='dark'] .btn-submit,
 [data-theme='dark'] .btn-register {
-  background-color: #38bdf8 !important;
-  color: #0b0f19 !important;
-  border-color: #0284c7 !important;
+  background-color: #0284c7 !important;
+  color: #ffffff !important;
+  border: 1px solid #0369a1 !important;
 }
 [data-theme='dark'] .btn-save:hover,
 [data-theme='dark'] .btn-submit:hover,
 [data-theme='dark'] .btn-register:hover {
-  background-color: #0284c7 !important;
+  background-color: #0369a1 !important;
   color: #ffffff !important;
+  border-color: #075985 !important;
 }
 
 /* 3. 엑셀 업로드 기능 (Excel Ingestion / Upload) : 차분한 Forest Emerald Solid */

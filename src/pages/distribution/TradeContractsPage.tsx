@@ -198,9 +198,9 @@ export const TradeContractsPage: React.FC = () => {
                   fontSize: '11px',
                   borderRadius: '4px',
                   border: '1px solid',
-                  borderColor: statusFilter === st ? 'var(--primary)' : 'var(--border-color)',
+                  borderColor: statusFilter === st ? 'var(--primary-border, var(--primary))' : 'var(--border-color)',
                   backgroundColor: statusFilter === st ? 'var(--primary)' : 'var(--bg-card)',
-                  color: statusFilter === st ? '#fff' : 'var(--text-muted)',
+                  color: statusFilter === st ? 'var(--text-on-primary, #ffffff)' : 'var(--text-muted)',
                   cursor: 'pointer',
                   fontWeight: statusFilter === st ? 600 : 400
                 }}
