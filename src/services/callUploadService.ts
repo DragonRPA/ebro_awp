@@ -212,10 +212,13 @@ const LOCAL_DRAFTS_STORAGE_KEY = 'giyeun_draft_dispatch_orders_local';
 function getLocalDrafts(): DraftDispatchOrder[] {
   try {
     if (typeof localStorage === 'undefined') return [];
-    const raw = localStorage.getItem(LOCAL_DRAFTS_STORAGE_KEY) || localStorage.getItem('kiyeun_draft_dispatch_orders_local');
+    if (localStorage.getItem('kiyeun_draft_dispatch_orders_local')) {
+      try { localStorage.removeItem('kiyeun_draft_dispatch_orders_local'); } catch (_) {}
+    }
+    const raw = localStorage.getItem(LOCAL_DRAFTS_STORAGE_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch (e) {
-    console.error('로컬 초안 스토리지 파싱 실패:', e);
+    console.warn('로컬 초안 스토리지 파싱 경고:', e);
     return [];
   }
 }
@@ -223,9 +226,18 @@ function getLocalDrafts(): DraftDispatchOrder[] {
 function saveLocalDrafts(drafts: DraftDispatchOrder[]): void {
   try {
     if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(LOCAL_DRAFTS_STORAGE_KEY, JSON.stringify(drafts));
+    const toSave = drafts.slice(0, 50);
+    try {
+      localStorage.setItem(LOCAL_DRAFTS_STORAGE_KEY, JSON.stringify(toSave));
+    } catch (quotaErr) {
+      try {
+        localStorage.setItem(LOCAL_DRAFTS_STORAGE_KEY, JSON.stringify(toSave.slice(0, 20)));
+      } catch (innerErr) {
+        console.warn('로컬 초안 스토리지 용량 초과로 저장 건수 축소:', innerErr);
+      }
+    }
   } catch (e) {
-    console.error('로컬 초안 스토리지 저장 실패:', e);
+    console.warn('로컬 초안 스토리지 저장 경고:', e);
   }
 }
 

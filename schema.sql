@@ -1979,3 +1979,71 @@ ALTER TABLE approval_steps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE delegation_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE approval_tier_configs ENABLE ROW LEVEL SECURITY;
 
+
+-- ------------------------------------------------------------------------------
+-- 📊 월간 결산 손익계산서 엔티티 (monthly_income_statements)
+-- ------------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS monthly_income_statements (
+    id TEXT PRIMARY KEY,
+    "targetYm" TEXT,
+    target_ym TEXT,
+    status TEXT,
+    "issuedAt" TEXT,
+    issued_at TEXT,
+    "issuedBy" TEXT,
+    issued_by TEXT,
+    "issuedByName" TEXT,
+    issued_by_name TEXT,
+    "rentalRevenue" NUMERIC DEFAULT 0,
+    rental_revenue NUMERIC DEFAULT 0,
+    "distributionRevenue" NUMERIC DEFAULT 0,
+    distribution_revenue NUMERIC DEFAULT 0,
+    "otherRevenue" JSONB,
+    other_revenue JSONB,
+    "totalRevenue" NUMERIC DEFAULT 0,
+    total_revenue NUMERIC DEFAULT 0,
+    "rentalCost" JSONB,
+    rental_cost JSONB,
+    "pureRentalProfit" NUMERIC DEFAULT 0,
+    pure_rental_profit NUMERIC DEFAULT 0,
+    "rentalMarginRate" NUMERIC DEFAULT 0,
+    rental_margin_rate NUMERIC DEFAULT 0,
+    "distributionCost" NUMERIC DEFAULT 0,
+    distribution_cost NUMERIC DEFAULT 0,
+    "pureDistributionProfit" NUMERIC DEFAULT 0,
+    pure_distribution_profit NUMERIC DEFAULT 0,
+    "distributionMarginRate" NUMERIC DEFAULT 0,
+    distribution_margin_rate NUMERIC DEFAULT 0,
+    "otherCost" JSONB,
+    other_cost JSONB,
+    "otherNetProfit" NUMERIC DEFAULT 0,
+    other_net_profit NUMERIC DEFAULT 0,
+    "totalCostOfSales" NUMERIC DEFAULT 0,
+    total_cost_of_sales NUMERIC DEFAULT 0,
+    "grossProfit" NUMERIC DEFAULT 0,
+    gross_profit NUMERIC DEFAULT 0,
+    "grossMarginRate" NUMERIC DEFAULT 0,
+    gross_margin_rate NUMERIC DEFAULT 0,
+    "sgaExpenses" JSONB,
+    sga_expenses JSONB,
+    "operatingProfit" NUMERIC DEFAULT 0,
+    operating_profit NUMERIC DEFAULT 0,
+    "operatingMarginRate" NUMERIC DEFAULT 0,
+    operating_margin_rate NUMERIC DEFAULT 0,
+    "estimatedTax" NUMERIC DEFAULT 0,
+    estimated_tax NUMERIC DEFAULT 0,
+    "projectedNetProfit" NUMERIC DEFAULT 0,
+    projected_net_profit NUMERIC DEFAULT 0,
+    "netMarginRate" NUMERIC DEFAULT 0,
+    net_margin_rate NUMERIC DEFAULT 0,
+    "settlementClosingStatus" JSONB,
+    settlement_closing_status JSONB,
+    "createdAt" TEXT,
+    created_at TEXT,
+    "updatedAt" TEXT,
+    updated_at TEXT,
+    tenant_id TEXT DEFAULT 'giyeonlift'
+);
+
+ALTER TABLE monthly_income_statements DISABLE ROW LEVEL SECURITY;
+GRANT ALL ON monthly_income_statements TO anon, authenticated, service_role;

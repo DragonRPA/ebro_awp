@@ -40,7 +40,10 @@ const CALL_QUEUE_STORAGE_KEY = 'giyeun_transport_call_queue_local';
 export function getTransportCallQueue(): TransportCallQueueItem[] {
   try {
     if (typeof localStorage === 'undefined') return [];
-    const raw = localStorage.getItem(CALL_QUEUE_STORAGE_KEY) || localStorage.getItem('kiyeun_transport_call_queue_local');
+    if (localStorage.getItem('kiyeun_transport_call_queue_local')) {
+      try { localStorage.removeItem('kiyeun_transport_call_queue_local'); } catch (_) {}
+    }
+    const raw = localStorage.getItem(CALL_QUEUE_STORAGE_KEY);
     if (!raw) {
       // 최초 기본 시드 데이터 제공 (현장 배차 협의 실제 예시)
       const seedItems: TransportCallQueueItem[] = [
@@ -90,7 +93,7 @@ export function getTransportCallQueue(): TransportCallQueueItem[] {
     }
     return JSON.parse(raw);
   } catch (e) {
-    console.error('getTransportCallQueue error:', e);
+    console.warn('getTransportCallQueue error:', e);
     return [];
   }
 }
@@ -98,9 +101,18 @@ export function getTransportCallQueue(): TransportCallQueueItem[] {
 export function saveTransportCallQueue(items: TransportCallQueueItem[]): void {
   try {
     if (typeof localStorage === 'undefined') return;
-    localStorage.setItem(CALL_QUEUE_STORAGE_KEY, JSON.stringify(items));
+    const toSave = items.slice(0, 20);
+    try {
+      localStorage.setItem(CALL_QUEUE_STORAGE_KEY, JSON.stringify(toSave));
+    } catch (quotaErr) {
+      try {
+        localStorage.setItem(CALL_QUEUE_STORAGE_KEY, JSON.stringify(toSave.slice(0, 5)));
+      } catch (innerErr) {
+        console.warn('saveTransportCallQueue quota warning:', innerErr);
+      }
+    }
   } catch (e) {
-    console.error('saveTransportCallQueue error:', e);
+    console.warn('saveTransportCallQueue error:', e);
   }
 }
 
