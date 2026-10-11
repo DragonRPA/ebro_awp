@@ -548,7 +548,15 @@ export const SmartReturn: React.FC = () => {
   };
 
   return (
-    <div data-hs-observe="smart_return" style={{ display: 'flex', flexDirection: 'column', gap: '14px', position: 'relative' }}>
+    <div data-hs-observe="smart_return" style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '8px',
+      height: '100%',
+      minHeight: 0,
+      overflow: 'hidden',
+      position: 'relative'
+    }}>
       {/* 알림 토스트 배너 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
@@ -574,10 +582,10 @@ export const SmartReturn: React.FC = () => {
       )}
       
       {/* 타이틀 및 가이드 배너 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
         <div>
-          <h2 style={{ fontWeight: '700', marginBottom: '4px' }}>회수 의뢰 관리</h2>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
+          <h2 style={{ fontWeight: '700', marginBottom: '2px', fontSize: '18px' }}>회수 의뢰 관리</h2>
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
             영업 계약 만료/단축/고장 및 외주정비업체 수리 완료 건에 대한 회수 의뢰 프로세스를 등록합니다.
           </p>
         </div>
@@ -594,16 +602,16 @@ export const SmartReturn: React.FC = () => {
         const activeContractsCount = contracts.filter(c => c.status === 'ACTIVE').length;
 
         return (
-          <div data-mid="smart_return-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
-            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div data-mid="smart_return-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px', flexShrink: 0 }}>
+            <div style={{ padding: '8px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>진행중인 계약</span>
               <strong style={{ fontSize: '15px', color: 'var(--primary)' }}>{activeContractsCount}건</strong>
             </div>
-            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '8px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>현장 대여중 장비</span>
               <strong style={{ fontSize: '15px', color: 'var(--success)' }}>{totalRentedAssets}대</strong>
             </div>
-            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '8px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>7일 내 만료예정 계약</span>
               <strong style={{ fontSize: '15px', color: expiringSoonContracts.length > 0 ? '#d97706' : 'var(--text-muted)' }}>{expiringSoonContracts.length}건</strong>
             </div>
@@ -612,7 +620,7 @@ export const SmartReturn: React.FC = () => {
       })()}
 
       {/* 모드 전환 탭 */}
-      <div data-mid="smart_return-mode-tabs" style={{ display: 'flex', gap: '10px', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px' }}>
+      <div data-mid="smart_return-mode-tabs" style={{ display: 'flex', gap: '8px', borderBottom: '2px solid var(--border-color)', paddingBottom: '6px', flexShrink: 0 }}>
         <button
           type="button"
           onClick={() => {
@@ -621,7 +629,7 @@ export const SmartReturn: React.FC = () => {
             setSelectedAssetIds([]);
           }}
           className={activeMode === 'SALES' ? 'btn-primary' : 'btn-secondary'}
-          style={{ padding: '8px 18px', fontSize: '14px', fontWeight: 'bold' }}
+          style={{ padding: '6px 16px', fontSize: '13px', fontWeight: 'bold' }}
         >
           임대 계약 회수 의뢰
         </button>
@@ -633,7 +641,7 @@ export const SmartReturn: React.FC = () => {
             setSelectedRepairIds([]);
           }}
           className={activeMode === 'MAINTENANCE' ? 'btn-primary' : 'btn-secondary'}
-          style={{ padding: '8px 18px', fontSize: '14px', fontWeight: 'bold' }}
+          style={{ padding: '6px 16px', fontSize: '13px', fontWeight: 'bold' }}
         >
           외주 정비 수리완료 회수 의뢰
         </button>
@@ -641,20 +649,33 @@ export const SmartReturn: React.FC = () => {
 
       {/* [1] 영업사용자 모드 UI */}
       {activeMode === 'SALES' && (
-        <>
-          <div style={{ display: 'grid', gridTemplateColumns: '4.5fr 5.5fr', gap: '20px', alignItems: 'start' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(360px, 4.5fr) minmax(420px, 5.5fr)',
+          gap: '14px',
+          flex: 1,
+          minHeight: 0,
+          overflow: 'hidden'
+        }}>
           
           {/* 왼쪽: 계약 목록 / 검색 / 파서 */}
-          <div className="card" style={{ padding: '16px', minHeight: '520px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+          <div className="card" style={{
+            padding: '14px',
+            height: '100%',
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Search size={16} className="text-primary" />
-                <h4 style={{ margin: 0, fontWeight: '700' }}>임대 계약 조회</h4>
+                <h4 style={{ margin: 0, fontWeight: '700', fontSize: '14px' }}>임대 계약 조회</h4>
               </div>
 
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
                 
                 {/* 📞 통화 접수 회수 대기 큐 (헌장 3.1 무수식어 건조 표준) */}
                 {returnDrafts.length > 0 && (
@@ -811,7 +832,7 @@ export const SmartReturn: React.FC = () => {
                 </div>
 
                 {/* 계약 목록 */}
-                <div data-mid="smart_return-contract-list" style={{ maxHeight: '380px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px', backgroundColor: 'var(--bg-app)' }}>
+                <div data-mid="smart_return-contract-list" style={{ flex: 1, minHeight: 0, overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px', backgroundColor: 'var(--bg-app)' }}>
                   {sortedContracts.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--text-muted)', fontSize: '13px' }}>
                       검색 조건에 맞는 활성 임대계약이 없습니다.
@@ -862,10 +883,10 @@ export const SmartReturn: React.FC = () => {
           </div>
 
           {/* 오른쪽: 상세 정보 입력 및 폼 제출 */}
-          <div className="card" style={{ padding: '20px', minHeight: '520px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
-              <h4 style={{ margin: 0, fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Clipboard size={18} className="text-success" />
+          <div className="card" style={{ padding: '16px', height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexShrink: 0 }}>
+              <h4 style={{ margin: 0, fontWeight: '700', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Clipboard size={17} className="text-success" />
                 회수 지시 세부 설정
               </h4>
             </div>
@@ -1136,297 +1157,38 @@ export const SmartReturn: React.FC = () => {
           </div>
 
         </div>
-
-        {/* 3단계: 서식 출력 및 미리보기 (A4 서식) */}
-        {(() => {
-          const selectedContract = contracts.find(c => c.id === selectedContractId);
-          const selectedCustomer = customers.find(c => c.id === selectedContract?.customerId);
-          const selectedSite = sites.find(s => s.id === selectedContract?.siteId);
-          const selectedSalesperson = users?.find(u => u.id === selectedContract?.salespersonId) || currentUser;
-          const selectedReturnAssets = assets.filter(a => selectedAssetIds.includes(a.id));
-
-          return (
-            <div data-mid="smart_return-preview-print" className="card" style={{ marginTop: '20px', padding: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-                <h4 style={{ margin: 0, fontWeight: '800', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <FileText size={18} className="text-primary" />
-                  서식 출력 및 미리보기
-                </h4>
-
-                {/* 🖨️ 출력 프린터 지정 및 1-클릭 인쇄 */}
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', flexWrap: 'nowrap' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                      출력 프린터
-                    </label>
-                    <select
-                      value={targetStationId}
-                      onChange={(e) => handleStationChange(e.target.value)}
-                      style={{
-                        padding: '6px 10px',
-                        borderRadius: '4px',
-                        fontSize: '12.5px',
-                        border: '1px solid var(--border-color)',
-                        backgroundColor: 'var(--bg-app)',
-                        color: 'var(--text-main)',
-                        fontWeight: '600',
-                        minWidth: '200px',
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      {printStations.map(st => (
-                        <option key={st.id} value={st.id}>
-                          {st.stationName} ({st.localPrinterName})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={handlePrintAction}
-                    disabled={isAgentPrinting}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      fontSize: '12.5px',
-                      padding: '7px 16px',
-                      fontWeight: '700',
-                      whiteSpace: 'nowrap',
-                      height: '35px',
-                      flexShrink: 0
-                    }}
-                  >
-                    <Printer size={14} />
-                    {isAgentPrinting ? '전송 중...' : '입고의뢰서 인쇄'}
-                  </button>
-                </div>
-              </div>
-
-              {/* 실제 인쇄 타겟 컨테이너 */}
-              <div id="return-sheet-print" style={{ padding: '16px 20px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', borderRadius: '2px', border: '1px solid #000000', maxWidth: '800px', width: '100%', margin: '0 auto', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', boxSizing: 'border-box', overflow: 'hidden' }}>
-                
-                {/* 상단 헤더: 좌측 계약번호+출력일시 / 중앙 타이틀 / 우측 날인란 */}
-                <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', borderBottom: '2px solid #000000', paddingBottom: '6px', marginBottom: '8px', gap: '8px' }}>
-
-                  {/* 좌측: 계약번호 및 출력일시 */}
-                  <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <div style={{ fontSize: '11px', fontWeight: '800', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                      계약번호: <span style={{ color: selectedContract?.contractNo ? '#000000' : '#666666', fontWeight: '800' }}>{selectedContract?.contractNo || '(계약 선택)'}</span>
-                    </div>
-                    <div style={{ fontSize: '10px', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
-                      출력일시: {(() => {
-                        const now = new Date();
-                        const y = now.getFullYear();
-                        const mo = String(now.getMonth() + 1).padStart(2, '0');
-                        const d = String(now.getDate()).padStart(2, '0');
-                        const hh = String(now.getHours()).padStart(2, '0');
-                        const mi = String(now.getMinutes()).padStart(2, '0');
-                        const ss = String(now.getSeconds()).padStart(2, '0');
-                        return `${y}.${mo}.${d} ${hh}:${mi}:${ss}`;
-                      })()}
-                    </div>
-                  </div>
-
-                  {/* 중앙: 문서 타이틀 */}
-                  <div style={{ flex: 1, textAlign: 'center', minWidth: 0 }}>
-                    <h1 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: 'var(--text-main)', letterSpacing: '2px', whiteSpace: 'nowrap' }}>{(currentTenant?.tradeName || '기연리프트')} 입고요청서</h1>
-                  </div>
-
-                  {/* 우측: 입고 등록자 날인란 */}
-                  <div style={{ flexShrink: 0, width: '64px', border: '1px solid #000000', overflow: 'hidden' }}>
-                    <div style={{
-                      backgroundColor: '#f0f0f0',
-                      borderBottom: '1px solid #000000',
-                      textAlign: 'center',
-                      fontSize: '9px',
-                      fontWeight: 'bold',
-                      color: 'var(--text-main)',
-                      padding: '1px 0',
-                      whiteSpace: 'nowrap',
-                    }}>
-                      입고 확인
-                    </div>
-                    <div style={{
-                      height: '28px',
-                      backgroundColor: 'var(--bg-card)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '9px',
-                      color: '#777777',
-                    }}>
-                      (인)
-                    </div>
-                  </div>
-                </div>
-
-                {/* 1. 고객사 및 회수현장 정보 */}
-                <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: 'var(--text-main)' }}>1. 고객사 및 회수현장 정보</div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '4px', tableLayout: 'fixed', boxSizing: 'border-box' }}>
-                  <colgroup>
-                    <col style={{ width: '12%' }} />
-                    <col style={{ width: '38%' }} />
-                    <col style={{ width: '12%' }} />
-                    <col style={{ width: '38%' }} />
-                  </colgroup>
-                  <tbody>
-                    <tr>
-                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>고객사명</th>
-                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '11px', fontWeight: '700', wordBreak: 'break-all', boxSizing: 'border-box' }}>{selectedCustomer?.name || '-'}</td>
-                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>회수현장</th>
-                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '11px', fontWeight: '700', wordBreak: 'break-all', boxSizing: 'border-box' }}>{selectedSite?.name || '-'}</td>
-                    </tr>
-                    <tr>
-                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>회수지주소</th>
-                      <td colSpan={3} style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>{selectedSite?.address || selectedCustomer?.address || '-'}</td>
-                    </tr>
-                    <tr>
-                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>영업담당</th>
-                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>
-                        {selectedSalesperson?.name || currentUser?.name || '-'} {selectedSalesperson?.phone || currentUser?.phone ? `(${selectedSalesperson?.phone || currentUser?.phone})` : ''}
-                      </td>
-                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>현장담당</th>
-                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>
-                        {contactName || '-'} {contactPhone ? `(${contactPhone})` : ''}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                {/* 2. 회수 배차 및 운송 정보 */}
-                <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: 'var(--text-main)' }}>2. 회수 배차 및 운송 정보</div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '4px', tableLayout: 'fixed', boxSizing: 'border-box' }}>
-                  <colgroup>
-                    <col style={{ width: '12%' }} />
-                    <col style={{ width: '38%' }} />
-                    <col style={{ width: '12%' }} />
-                    <col style={{ width: '38%' }} />
-                  </colgroup>
-                  <tbody>
-                    <tr>
-                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>회수예정일</th>
-                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '11px', fontWeight: '700', wordBreak: 'break-all', boxSizing: 'border-box' }}>{returnDate || '-'}</td>
-                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>상차희망시간</th>
-                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>{loadingTime || '-'}</td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                {/* 3. 회수 대상 장비 목록 (50:50 대칭 균형 그리드) */}
-                <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: 'var(--text-main)' }}>
-                  3. 회수 대상 장비 목록 (총 {selectedReturnAssets.length}대 일괄 회수)
-                </div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '4px', tableLayout: 'fixed', boxSizing: 'border-box' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ width: '6%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>순번</th>
-                      <th style={{ width: '21%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>모델명</th>
-                      <th style={{ width: '17%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>관리번호</th>
-                      <th style={{ width: '6%', border: '1px solid #000000', borderRight: '2px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>확인</th>
-                      <th style={{ width: '6%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>순번</th>
-                      <th style={{ width: '21%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>모델명</th>
-                      <th style={{ width: '17%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>관리번호</th>
-                      <th style={{ width: '6%', border: '1px solid #000000', padding: '2.5px 3px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: '700', fontSize: '8pt', textAlign: 'center' }}>확인</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(() => {
-                      if (selectedReturnAssets.length === 0) {
-                        return (
-                          <tr>
-                            <td colSpan={8} style={{ border: '1px solid #000000', textAlign: 'center', padding: '10px 0', fontSize: '8pt', color: '#555555' }}>
-                              회수할 장비를 선택해 주세요
-                            </td>
-                          </tr>
-                        );
-                      }
-                      const half = Math.max(1, Math.ceil(selectedReturnAssets.length / 2));
-                      const rows = [];
-                      for (let i = 0; i < half; i++) {
-                        const left = selectedReturnAssets[i];
-                        const right = selectedReturnAssets[i + half];
-                        rows.push(
-                          <tr key={i}>
-                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontSize: '8pt', padding: '2px 3px', color: 'var(--text-main)' }}>{left ? i + 1 : ''}</td>
-                            <td style={{ border: '1px solid #000000', fontWeight: '700', paddingLeft: '5px', fontSize: '8pt', color: 'var(--text-main)' }}>{left?.modelName || ''}</td>
-                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontWeight: '600', fontSize: '8pt', color: 'var(--text-main)' }}>{left?.assetNo || ''}</td>
-                            <td style={{ border: '1px solid #000000', borderRight: '2px solid #000000', textAlign: 'center', fontSize: '7.5pt', padding: '2px 3px', color: 'var(--text-main)' }}>{left ? '[   ]' : ''}</td>
-                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontSize: '8pt', padding: '2px 3px', color: 'var(--text-main)' }}>{right ? i + half + 1 : ''}</td>
-                            <td style={{ border: '1px solid #000000', fontWeight: '700', paddingLeft: '5px', fontSize: '8pt', color: 'var(--text-main)' }}>{right?.modelName || ''}</td>
-                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontWeight: '600', fontSize: '8pt', color: 'var(--text-main)' }}>{right?.assetNo || ''}</td>
-                            <td style={{ border: '1px solid #000000', textAlign: 'center', fontSize: '7.5pt', padding: '2px 3px', color: 'var(--text-main)' }}>{right ? '[   ]' : ''}</td>
-                          </tr>
-                        );
-                      }
-                      return rows;
-                    })()}
-                  </tbody>
-                </table>
-
-                {/* 4. 출고 장착 옵션 회수 점검 (실제 출고 장착 옵션이 있을 때만 표출) */}
-                {(() => {
-                  const inheritedSpecs = getInheritedOutboundSpecs(selectedContractId);
-                  if (inheritedSpecs.length === 0) return null;
-                  return (
-                    <>
-                      <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: 'var(--text-main)' }}>
-                        4. 출고 장착 옵션 회수 점검
-                      </div>
-                      <div style={{ padding: '4px 8px', border: '1px solid #000000', marginBottom: '4px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', boxSizing: 'border-box' }}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px 10px', fontSize: '8pt' }}>
-                          {inheritedSpecs.map((s, idx) => (
-                            <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '700', color: 'var(--text-main)' }}>
-                              <span style={{ fontSize: '8pt' }}>[ ]</span>
-                              <span>[출고옵션 {idx + 1}] {s.label} 회수 확인</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()}
-
-                {/* 5. 현장 특이사항 및 인계 메모 */}
-                <div style={{ fontSize: '11px', fontWeight: '800', borderLeft: '3.5px solid #000000', paddingLeft: '4px', marginBottom: '2px', color: 'var(--text-main)' }}>5. 현장 특이사항 및 인계 메모</div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', boxSizing: 'border-box' }}>
-                  <colgroup>
-                    <col style={{ width: '12%' }} />
-                    <col style={{ width: '88%' }} />
-                  </colgroup>
-                  <tbody>
-                    <tr>
-                      <th style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: '#f0f0f0', color: 'var(--text-main)', fontWeight: 'bold', fontSize: '11px', boxSizing: 'border-box', textAlign: 'left' }}>지시/비고사항</th>
-                      <td style={{ border: '1px solid #000000', padding: '3px 6px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '11px', wordBreak: 'break-all', boxSizing: 'border-box' }}>{note || '특이사항 없음'}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          );
-        })()}
-        </>
       )}
 
       {/* [2] 정비직원 모드 UI */}
       {activeMode === 'MAINTENANCE' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '4.5fr 5.5fr', gap: '20px', alignItems: 'start' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(360px, 4.5fr) minmax(420px, 5.5fr)',
+          gap: '14px',
+          flex: 1,
+          minHeight: 0,
+          overflow: 'hidden'
+        }}>
           
           {/* 왼쪽: 외주 정비 수리중인 외주업체 목록 */}
-          <div className="card" style={{ padding: '16px', minHeight: '520px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px' }}>
+          <div className="card" style={{
+            padding: '14px',
+            height: '100%',
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', flexShrink: 0 }}>
               <Search size={16} className="text-primary" />
-              <h4 style={{ margin: 0, fontWeight: '700' }}>외주 정비 진행중인 업체 목록</h4>
+              <h4 style={{ margin: 0, fontWeight: '700', fontSize: '14px' }}>외주 정비 진행중인 업체 목록</h4>
             </div>
             
-            <div style={{ padding: '10px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '12px', marginBottom: '12px' }}>
+            <div style={{ padding: '8px 10px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '11.5px', marginBottom: '10px', flexShrink: 0 }}>
               ℹ 현재 외주 정비 (`EXTERNAL`) 중인 리프트 자산이 존재하는 정비소들만 노출됩니다.
             </div>
 
-            <div data-mid="smart_return-maint-vendors" style={{ border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden' }}>
+            <div data-mid="smart_return-maint-vendors" style={{ flex: 1, minHeight: 0, overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
               {repairVendors.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px 10px', color: 'var(--text-muted)', fontSize: '13px' }}>
                   현재 외주정비 진행 중인 자산이 없습니다.
@@ -1471,10 +1233,10 @@ export const SmartReturn: React.FC = () => {
           </div>
 
           {/* 오른쪽: 외주정비 자산 리스트 및 회수 폼 */}
-          <div className="card" style={{ padding: '20px', minHeight: '520px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
-              <h4 style={{ margin: 0, fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Clipboard size={18} className="text-success" />
+          <div className="card" style={{ padding: '16px', height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', flexShrink: 0 }}>
+              <h4 style={{ margin: 0, fontWeight: '700', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Clipboard size={17} className="text-success" />
                 외주정비 완료 회수 의뢰
               </h4>
             </div>

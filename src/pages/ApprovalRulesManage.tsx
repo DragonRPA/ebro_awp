@@ -511,10 +511,20 @@ const ApprovalRulesManage: React.FC = () => {
      렌더
   ════════════════════════════════════════════════════════════ */
   return (
-    <div data-hs-observe="approvalrulesmanage" data-mid="approvalRules-header" data-subview="approvalRules" data-subview-title="Generated" style={{ padding: '20px 24px', maxWidth: '1280px', margin: '0 auto' }}>
+    <div data-hs-observe="approvalrulesmanage" data-mid="approvalRules-header" data-subview="approvalRules" data-subview-title="Generated" style={{
+      padding: '0',
+      maxWidth: '1280px',
+      width: '100%',
+      margin: '0 auto',
+      height: '100%',
+      minHeight: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    }}>
 
       {/* ── 상단 탭 내비게이션 ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px', borderBottom: '2px solid var(--border-color)', paddingBottom: '12px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '2px solid var(--border-color)', paddingBottom: '10px', flexShrink: 0 }}>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button data-hs-trigger="Approve"
             onClick={() => setActiveTab('RULES')}
@@ -563,9 +573,9 @@ const ApprovalRulesManage: React.FC = () => {
          [탭 1] 결재선 규칙 설정
       ════════════════════════════════════════════════════════ */}
       {activeTab === 'RULES' && (
-        <>
+        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* ── 헤더 ── */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', flexShrink: 0 }}>
             <div>
               <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-main)', margin: '0 0 4px' }}>
                 결재선 규칙
@@ -594,9 +604,9 @@ const ApprovalRulesManage: React.FC = () => {
           {/* ── 카테고리별 요약 바 (유형별 정렬 현황) ── */}
           <div style={{
             display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px',
-            marginBottom: '14px', padding: '10px 14px',
+            marginBottom: '10px', padding: '8px 12px',
             background: 'var(--bg-card)', border: '1px solid var(--border-color)',
-            borderRadius: '8px',
+            borderRadius: '8px', flexShrink: 0
           }}>
             <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginRight: '6px' }}>
               결재선 유형 현황 (총 {sortedRules.length}건):
@@ -619,10 +629,15 @@ const ApprovalRulesManage: React.FC = () => {
             })}
           </div>
 
-          {/* ── 그리드 ── */}
+          {/* ── 그리드 (스크롤 추가 및 헤더 고정) ── */}
           <div style={{
-            border: '1px solid var(--border-color)', borderRadius: '10px',
-            overflow: 'hidden', background: 'var(--bg-card)',
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            overflowX: 'auto',
+            border: '1px solid var(--border-color)',
+            borderRadius: '10px',
+            background: 'var(--bg-card)',
             boxShadow: 'var(--shadow-sm)',
           }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
@@ -635,7 +650,7 @@ const ApprovalRulesManage: React.FC = () => {
                 <col style={{ width: '62px' }} />
                 <col style={{ width: '44px' }} />
               </colgroup>
-              <thead>
+              <thead style={{ position: 'sticky', top: 0, zIndex: 3 }}>
                 <tr>
                   <th style={{ ...thBase, textAlign: 'center' }}>구분</th>
                   <th style={thBase}>업무 이벤트명</th>
@@ -905,7 +920,7 @@ const ApprovalRulesManage: React.FC = () => {
           </div>
 
           {/* ── 하단 범례 + 안내 ── */}
-          <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+          <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap', flexShrink: 0 }}>
             {Object.entries(CATEGORY_COLORS).map(([cat, colors]) => (
               <span key={cat} style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <span style={{
@@ -919,14 +934,14 @@ const ApprovalRulesManage: React.FC = () => {
               저장 중 행은 강조 표시 · 전결 티어/사용 여부는 선택 즉시 저장 · 이름은 셀 이탈 시 저장
             </span>
           </div>
-        </>
+        </div>
       )}
 
       {/* ════════════════════════════════════════════════════════
          [탭 2] 직급·직책 티어 설정 (R&R 기반 단위조직 책임자 결재 우선)
       ════════════════════════════════════════════════════════ */}
       {activeTab === 'TIERS' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, minHeight: 0, overflowY: 'auto' }}>
           
           {/* ── 상단 R&R 결재 원칙 및 시뮬레이터 카드 ── */}
           <div style={{
