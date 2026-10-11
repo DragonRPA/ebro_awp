@@ -58,14 +58,14 @@ export const PrintSuccessModal: React.FC<PrintSuccessModalProps> = ({
         data-uia="print-success-modal"
         onClick={(e) => e.stopPropagation()}
         style={{
-          backgroundColor: 'var(--bg-card, #1e293b)',
-          border: '1px solid var(--border-color, #334155)',
+          backgroundColor: 'var(--bg-card)',
+          border: '1px solid var(--border-color)',
           borderRadius: '14px',
           width: '100%',
           maxWidth: '480px',
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
           overflow: 'hidden',
-          color: 'var(--text-main, #f8fafc)',
+          color: 'var(--text-main)',
           animation: 'fadeIn 0.15s ease-out'
         }}
       >
@@ -94,7 +94,7 @@ export const PrintSuccessModal: React.FC<PrintSuccessModalProps> = ({
               <Printer size={18} color="#ffffff" />
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: '#34d399', letterSpacing: '-0.02em' }}>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: 'var(--success)', letterSpacing: '-0.02em' }}>
                 인쇄 요청 전송 완료
               </h3>
               <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: 'var(--text-secondary)' }}>
@@ -126,7 +126,7 @@ export const PrintSuccessModal: React.FC<PrintSuccessModalProps> = ({
           <div
             style={{
               backgroundColor: 'rgba(15, 23, 42, 0.6)',
-              border: '1px solid var(--border-color, #334155)',
+              border: '1px solid var(--border-color)',
               borderRadius: '10px',
               padding: '14px 16px',
               display: 'flex',
@@ -143,20 +143,20 @@ export const PrintSuccessModal: React.FC<PrintSuccessModalProps> = ({
             {docNo && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>문서 번호</span>
-                <span style={{ fontWeight: 700, fontFamily: 'monospace', color: '#f1f5f9', whiteSpace: 'nowrap' }}>{docNo}</span>
+                <span style={{ fontWeight: 700, fontFamily: 'monospace', color: 'var(--text-main)', whiteSpace: 'nowrap' }}>{docNo}</span>
               </div>
             )}
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
               <span style={{ color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>문서 제목</span>
-              <span style={{ fontWeight: 700, color: '#f1f5f9', textAlign: 'right', wordBreak: 'break-all' }}>{docTitle}</span>
+              <span style={{ fontWeight: 700, color: 'var(--text-main)', textAlign: 'right', wordBreak: 'break-all' }}>{docTitle}</span>
             </div>
 
             <div style={{ height: '1px', backgroundColor: 'var(--border-color, #334155)', margin: '2px 0' }} />
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>출력 스테이션</span>
-              <span style={{ fontWeight: 800, color: '#34d399', whiteSpace: 'nowrap' }}>
+              <span style={{ fontWeight: 800, color: 'var(--success)', whiteSpace: 'nowrap' }}>
                 {stationName} {printerName ? `(${printerName})` : ''}
               </span>
             </div>
@@ -169,7 +169,7 @@ export const PrintSuccessModal: React.FC<PrintSuccessModalProps> = ({
                 gap: '5px',
                 fontWeight: 700,
                 fontSize: '11.5px',
-                color: '#34d399',
+                color: 'var(--success)',
                 backgroundColor: 'rgba(16, 185, 129, 0.15)',
                 padding: '2px 8px',
                 borderRadius: '6px',

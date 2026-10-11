@@ -102,7 +102,7 @@ export const ExecutiveDirectiveModal: React.FC<Props> = ({ isOpen, onClose }) =>
       zIndex: 9999, padding: '20px'
     }}>
       <div style={{
-        backgroundColor: 'var(--bg-card, #ffffff)', borderRadius: '14px',
+        backgroundColor: 'var(--bg-card)', borderRadius: '14px',
         width: '100%', maxWidth: '640px', maxHeight: '90vh',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
         border: '1px solid var(--border-color, var(--border-color))',
@@ -110,9 +110,9 @@ export const ExecutiveDirectiveModal: React.FC<Props> = ({ isOpen, onClose }) =>
       }}>
         {/* 헤더 */}
         <div style={{
-          padding: '16px 20px', borderBottom: '1px solid var(--border-color, #e2e8f0)',
+          padding: '16px 20px', borderBottom: '1px solid var(--border-color)',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          backgroundColor: 'var(--bg-secondary, #f8fafc)'
+          backgroundColor: 'var(--bg-header)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{
@@ -123,10 +123,10 @@ export const ExecutiveDirectiveModal: React.FC<Props> = ({ isOpen, onClose }) =>
               <ShieldAlert size={18} />
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: 'var(--text-main, #0f172a)' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: 'var(--text-main)' }}>
                 경영진 업무지시 하달
               </h3>
-              <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted, #64748b)' }}>
+              <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>
                 발행자: {currentUser?.name || '경영진'} ({currentUser?.department || '대표이사'})
               </p>
             </div>

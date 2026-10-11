@@ -936,8 +936,8 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
       fontFamily: 'sans-serif'
     }}>
       <div style={{
-        backgroundColor: 'var(--bg-card, #1e293b)',
-        borderTop: '1px solid var(--border-color, #334155)',
+        backgroundColor: 'var(--bg-card)',
+        borderTop: '1px solid var(--border-color)',
         borderTopLeftRadius: '24px',
         borderTopRightRadius: '24px',
         padding: '20px 16px 24px',
@@ -1018,7 +1018,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
               style={{
                 padding: '6px',
                 borderRadius: '50%',
-                backgroundColor: '#334155',
+                backgroundColor: 'var(--bg-header)',
                 border: 'none',
                 color: '#94a3b8',
                 cursor: 'pointer'
@@ -1146,7 +1146,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
                 onClick={() => setIsEditingText(false)}
                 style={{
                   padding: '6px 8px',
-                  backgroundColor: '#334155',
+                  backgroundColor: 'var(--bg-header)',
                   color: '#94a3b8',
                   borderRadius: '8px',
                   border: 'none',
@@ -1500,7 +1500,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
                       style={{
                         padding: '6px 10px',
                         borderRadius: '8px',
-                        backgroundColor: '#334155',
+                        backgroundColor: 'var(--bg-header)',
                         border: '1px solid #475569',
                         color: '#e2e8f0',
                         fontSize: '12px',
@@ -1591,7 +1591,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
                       <button
                         type="button"
                         onClick={() => setShowNewSiteForm(false)}
-                        style={{ padding: '7px 10px', borderRadius: '6px', backgroundColor: '#334155', color: '#94a3b8', border: 'none', fontSize: '12px', cursor: 'pointer' }}
+                        style={{ padding: '7px 10px', borderRadius: '6px', backgroundColor: 'var(--bg-header)', color: '#94a3b8', border: 'none', fontSize: '12px', cursor: 'pointer' }}
                       >
                         취소
                       </button>
@@ -1650,7 +1650,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setTouchEquipmentQty(prev => Math.max(1, prev - 1))}
-                  style={{ width: '28px', height: '28px', borderRadius: '6px', backgroundColor: '#334155', border: 'none', color: '#ffffff', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  style={{ width: '28px', height: '28px', borderRadius: '6px', backgroundColor: 'var(--bg-header)', border: 'none', color: '#ffffff', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
                   -
                 </button>
@@ -1660,7 +1660,7 @@ export const VoiceGuideWizardModal: React.FC<VoiceGuideWizardModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setTouchEquipmentQty(prev => prev + 1)}
-                  style={{ width: '28px', height: '28px', borderRadius: '6px', backgroundColor: '#334155', border: 'none', color: '#ffffff', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  style={{ width: '28px', height: '28px', borderRadius: '6px', backgroundColor: 'var(--bg-header)', border: 'none', color: '#ffffff', fontSize: '16px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
                   +
                 </button>

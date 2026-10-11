@@ -287,10 +287,10 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
           maxWidth: '1320px',
           height: '90vh',
           maxHeight: '900px',
-          backgroundColor: 'var(--bg-card, #ffffff)',
-          color: 'var(--text-main, #0f172a)',
+          backgroundColor: 'var(--bg-card)',
+          color: 'var(--text-main)',
           borderRadius: '12px',
-          border: '1px solid var(--border-color, var(--border-color))',
+          border: '1px solid var(--border-color)',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
           display: 'flex',
           flexDirection: 'column',
@@ -323,8 +323,8 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
         {/* ─── ① 모달 상단 헤더 ─── */}
         <div style={{
           padding: '14px 20px',
-          backgroundColor: 'var(--bg-secondary, #f8fafc)',
-          borderBottom: '1px solid var(--border-color, #cbd5e1)',
+          backgroundColor: 'var(--bg-header)',
+          borderBottom: '1px solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -344,7 +344,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
               <FolderOpen size={18} />
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: 'var(--text-main, #0f172a)', whiteSpace: 'nowrap' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
                 사업자등록증 폴더 일괄 등록
               </h3>
             </div>
@@ -374,7 +374,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
         {/* ─── ② 조작 및 파이프라인 제어 바 (Gutenberg Z-Pattern) ─── */}
         <div style={{
           padding: '10px 20px',
-          backgroundColor: 'var(--bg-card, #ffffff)',
+          backgroundColor: 'var(--bg-card)',
           borderBottom: '1px solid var(--border-color, #e2e8f0)',
           display: 'flex',
           alignItems: 'center',
@@ -389,8 +389,8 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
               display: 'flex',
               padding: '2px',
               borderRadius: '8px',
-              backgroundColor: 'var(--bg-secondary, #f1f5f9)',
-              border: '1px solid var(--border-color, var(--border-color))'
+              backgroundColor: 'var(--bg-header)',
+              border: '1px solid var(--border-color)'
             }}>
               <button
                 type="button"
@@ -449,7 +449,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
             </div>
 
             {targetType === 'VENDOR' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 8px', borderRadius: '6px', backgroundColor: 'var(--bg-secondary, #f1f5f9)', border: '1px solid var(--border-color, var(--border-color))' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 8px', borderRadius: '6px', backgroundColor: 'var(--bg-header)', border: '1px solid var(--border-color)' }}>
                 <span style={{ fontSize: '11px', color: 'var(--text-muted, #64748b)', whiteSpace: 'nowrap' }}>유형:</span>
                 <select
                   disabled={isProcessing}
@@ -465,9 +465,9 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                     fontSize: '11px',
                     padding: '2px 6px',
                     borderRadius: '4px',
-                    border: '1px solid var(--border-color, var(--border-color))',
-                    backgroundColor: 'var(--bg-card, #ffffff)',
-                    color: 'var(--text-main, #0f172a)'
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-card)',
+                    color: 'var(--text-main)'
                   }}
                 >
                   <option value="RENTAL">장비 임차처</option>
@@ -491,9 +491,9 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                   fontSize: '12px',
                   fontWeight: 600,
                   borderRadius: '6px',
-                  border: '1px solid var(--border-color, var(--border-color))',
-                  backgroundColor: 'var(--bg-secondary, #f8fafc)',
-                  color: 'var(--text-main, #0f172a)',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-header)',
+                  color: 'var(--text-main)',
                   cursor: isProcessing ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -513,9 +513,9 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                   fontSize: '12px',
                   fontWeight: 600,
                   borderRadius: '6px',
-                  border: '1px solid var(--border-color, var(--border-color))',
-                  backgroundColor: 'var(--bg-secondary, #f8fafc)',
-                  color: 'var(--text-main, #0f172a)',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-header)',
+                  color: 'var(--text-main)',
                   cursor: isProcessing ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -586,8 +586,8 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
               style={{
                 padding: '6px 8px',
                 borderRadius: '6px',
-                border: '1px solid var(--border-color, var(--border-color))',
-                backgroundColor: 'var(--bg-secondary, #f8fafc)',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-header)',
                 color: 'var(--text-secondary, #475569)',
                 cursor: (isProcessing || selectedFiles.length === 0) ? 'not-allowed' : 'pointer'
               }}
@@ -601,7 +601,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
         {/* ─── ③ 진행 HUD & 현황 통계 배지 ─── */}
         <div style={{
           padding: '8px 20px',
-          backgroundColor: 'var(--bg-secondary, #f1f5f9)',
+          backgroundColor: 'var(--bg-header)',
           borderBottom: '1px solid var(--border-color, #e2e8f0)',
           display: 'flex',
           flexDirection: 'column',
@@ -655,7 +655,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
           flex: 1,
           minHeight: 0,
           overflow: 'auto',
-          backgroundColor: 'var(--bg-card, #ffffff)'
+          backgroundColor: 'var(--bg-card)'
         }}>
           {selectedFiles.length === 0 ? (
             <div 
@@ -673,10 +673,10 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
               }}
               onClick={() => folderInputRef.current?.click()}
             >
-              <div style={{ width: '56px', height: '56px', borderRadius: '14px', backgroundColor: 'var(--bg-secondary, #f1f5f9)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px' }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: '14px', backgroundColor: 'var(--bg-header)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px' }}>
                 <FolderOpen size={28} color="#0284c7" />
               </div>
-              <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-main, #0f172a)' }}>
+              <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>
                 사업자등록증 폴더를 이곳으로 드래그하거나 클릭하여 선택하십시오
               </h4>
               <p style={{ margin: '8px 0 20px 0', fontSize: '12px', color: 'var(--text-muted, #64748b)', maxWidth: '460px', lineHeight: '1.5' }}>
@@ -715,11 +715,11 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                   style={{
                     padding: '8px 16px',
                     borderRadius: '6px',
-                    backgroundColor: 'var(--bg-secondary, #f1f5f9)',
-                    color: 'var(--text-main, #0f172a)',
+                    backgroundColor: 'var(--bg-header)',
+                    color: 'var(--text-main)',
                     fontSize: '12px',
                     fontWeight: 600,
-                    border: '1px solid var(--border-color, var(--border-color))',
+                    border: '1px solid var(--border-color)',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -741,7 +741,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                 position: 'sticky',
                 top: 0,
                 zIndex: 5,
-                backgroundColor: 'var(--bg-secondary, #f8fafc)',
+                backgroundColor: 'var(--bg-header)',
                 borderBottom: '2px solid var(--border-color, #cbd5e1)',
                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
               }}>
@@ -800,7 +800,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                           </span>
                         )}
                         {isPending && (
-                          <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '11px', color: 'var(--text-muted, #94a3b8)', backgroundColor: 'var(--bg-secondary, #f1f5f9)' }}>
+                          <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '11px', color: 'var(--text-muted, #94a3b8)', backgroundColor: 'var(--bg-header)' }}>
                             대기
                           </span>
                         )}
@@ -815,7 +815,7 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                         {row.fileName}
                       </td>
 
-                      <td style={{ padding: '6px 12px', fontWeight: 700, color: 'var(--text-main, #0f172a)', whiteSpace: 'nowrap', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.companyName || ''}>
+                      <td style={{ padding: '6px 12px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.companyName || ''}>
                         {row.companyName || (isPending ? '-' : '판독 중...')}
                       </td>
 
@@ -853,8 +853,8 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
         {/* ─── ⑤ 하단 마감 및 엑셀 다운로드 바 ─── */}
         <div style={{
           padding: '12px 20px',
-          backgroundColor: 'var(--bg-secondary, #f8fafc)',
-          borderTop: '1px solid var(--border-color, #cbd5e1)',
+          backgroundColor: 'var(--bg-header)',
+          borderTop: '1px solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -882,9 +882,9 @@ export const BatchBusinessLicenseModal: React.FC<BatchBusinessLicenseModalProps>
                 borderRadius: '6px',
                 fontSize: '12px',
                 fontWeight: 600,
-                border: '1px solid var(--border-color, var(--border-color))',
-                backgroundColor: 'var(--bg-card, #ffffff)',
-                color: 'var(--text-main, #0f172a)',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-card)',
+                color: 'var(--text-main)',
                 cursor: results.length === 0 ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',

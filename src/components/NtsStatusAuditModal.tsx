@@ -342,10 +342,10 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
         maxWidth: '1320px',
         height: '90vh',
         maxHeight: '900px',
-        backgroundColor: 'var(--bg-card, #ffffff)',
-        color: 'var(--text-main, #0f172a)',
+        backgroundColor: 'var(--bg-card)',
+        color: 'var(--text-main)',
         borderRadius: '12px',
-        border: '1px solid var(--border-color, var(--border-color))',
+        border: '1px solid var(--border-color)',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
         display: 'flex',
         flexDirection: 'column',
@@ -354,8 +354,8 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
         {/* ─── ① 헤더 (Scope & Title) ─── */}
         <div style={{
           padding: '14px 20px',
-          backgroundColor: 'var(--bg-secondary, #f8fafc)',
-          borderBottom: '1px solid var(--border-color, #cbd5e1)',
+          backgroundColor: 'var(--bg-header)',
+          borderBottom: '1px solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -375,7 +375,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
               <Building2 size={18} />
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: 'var(--text-main, #0f172a)', whiteSpace: 'nowrap' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
                 국세청 휴폐업 점검
               </h3>
             </div>
@@ -405,7 +405,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
         {/* ─── ② 조작 및 파이프라인 제어 바 (Gutenberg Z-Pattern) ─── */}
         <div style={{
           padding: '10px 20px',
-          backgroundColor: 'var(--bg-card, #ffffff)',
+          backgroundColor: 'var(--bg-card)',
           borderBottom: '1px solid var(--border-color, #e2e8f0)',
           display: 'flex',
           alignItems: 'center',
@@ -421,8 +421,8 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
               display: 'flex',
               padding: '2px',
               borderRadius: '8px',
-              backgroundColor: 'var(--bg-secondary, #f1f5f9)',
-              border: '1px solid var(--border-color, var(--border-color))'
+              backgroundColor: 'var(--bg-header)',
+              border: '1px solid var(--border-color)'
             }}>
               <button
                 type="button"
@@ -561,9 +561,9 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                   padding: '5px 8px 5px 28px',
                   fontSize: '12px',
                   borderRadius: '6px',
-                  border: '1px solid var(--border-color, var(--border-color))',
-                  backgroundColor: 'var(--bg-card, #ffffff)',
-                  color: 'var(--text-main, #0f172a)',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-card)',
+                  color: 'var(--text-main)',
                   outline: 'none'
                 }}
               />
@@ -609,9 +609,9 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                 fontSize: '12px',
                 fontWeight: 600,
                 borderRadius: '6px',
-                border: '1px solid var(--border-color, var(--border-color))',
-                backgroundColor: 'var(--bg-secondary, #f8fafc)',
-                color: 'var(--text-main, #0f172a)',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-header)',
+                color: 'var(--text-main)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -631,9 +631,9 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                 fontSize: '12px',
                 fontWeight: 600,
                 borderRadius: '6px',
-                border: '1px solid var(--border-color, var(--border-color))',
-                backgroundColor: 'var(--bg-secondary, #f8fafc)',
-                color: 'var(--text-main, #0f172a)',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-header)',
+                color: 'var(--text-main)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -716,7 +716,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
         {/* ─── ③ 진행 HUD 요약 바 ─── */}
         <div style={{
           padding: '6px 20px',
-          backgroundColor: 'var(--bg-secondary, #f1f5f9)',
+          backgroundColor: 'var(--bg-header)',
           borderBottom: '1px solid var(--border-color, #e2e8f0)',
           display: 'flex',
           alignItems: 'center',
@@ -790,7 +790,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
           flex: 1,
           minHeight: 0,
           overflow: 'auto',
-          backgroundColor: 'var(--bg-card, #ffffff)'
+          backgroundColor: 'var(--bg-card)'
         }}>
           <table style={{
             width: '100%',
@@ -802,7 +802,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
               position: 'sticky',
               top: 0,
               zIndex: 5,
-              backgroundColor: 'var(--bg-secondary, #f8fafc)',
+              backgroundColor: 'var(--bg-header)',
               borderBottom: '2px solid var(--border-color, #cbd5e1)',
               boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
             }}>
@@ -847,7 +847,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                         {idx + 1}
                       </td>
 
-                      <td style={{ padding: '6px 12px', fontWeight: 700, color: 'var(--text-main, #0f172a)', whiteSpace: 'nowrap', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <td style={{ padding: '6px 12px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {item.name}
                       </td>
 
@@ -912,7 +912,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                             borderRadius: '4px',
                             fontSize: '11px',
                             color: 'var(--text-muted, #94a3b8)',
-                            backgroundColor: 'var(--bg-secondary, #f1f5f9)'
+                            backgroundColor: 'var(--bg-header)'
                           }}>
                             {item.isClosed ? '폐업' : '미조회'}
                           </span>
@@ -1021,8 +1021,8 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
         {/* ─── ⑤ 우하단 마감 바 (Terminal Action) ─── */}
         <div style={{
           padding: '12px 20px',
-          backgroundColor: 'var(--bg-secondary, #f8fafc)',
-          borderTop: '1px solid var(--border-color, #cbd5e1)',
+          backgroundColor: 'var(--bg-header)',
+          borderTop: '1px solid var(--border-color)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -1102,9 +1102,9 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
           <div style={{
             width: '100%',
             maxWidth: '560px',
-            backgroundColor: 'var(--bg-card, #ffffff)',
+            backgroundColor: 'var(--bg-card)',
             borderRadius: '12px',
-            border: '1px solid var(--border-color, var(--border-color))',
+            border: '1px solid var(--border-color)',
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.25)',
             display: 'flex',
             flexDirection: 'column',
@@ -1113,7 +1113,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
             {/* 팝업 헤더 */}
             <div style={{
               padding: '14px 20px',
-              backgroundColor: 'var(--bg-secondary, #f8fafc)',
+              backgroundColor: 'var(--bg-header)',
               borderBottom: '1px solid var(--border-color, #e2e8f0)',
               display: 'flex',
               alignItems: 'center',
@@ -1121,7 +1121,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Key size={18} color="var(--primary)" />
-                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-main, #0f172a)' }}>
+                <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>
                   국세청 공공데이터 API 연동 설정
                 </h3>
               </div>
@@ -1137,7 +1137,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
             {/* 팝업 본문 */}
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main, #0f172a)', whiteSpace: 'nowrap' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>
                   공공데이터포털 일반 인증키
                 </label>
                 <input
@@ -1150,9 +1150,9 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                     padding: '8px 12px',
                     fontSize: '12px',
                     borderRadius: '6px',
-                    border: '1px solid var(--border-color, var(--border-color))',
-                    backgroundColor: 'var(--bg-card, #ffffff)',
-                    color: 'var(--text-main, #0f172a)',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-card)',
+                    color: 'var(--text-main)',
                     fontFamily: 'monospace',
                     outline: 'none'
                   }}
@@ -1206,7 +1206,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
             {/* 팝업 하단 액션 바 */}
             <div style={{
               padding: '12px 20px',
-              backgroundColor: 'var(--bg-secondary, #f8fafc)',
+              backgroundColor: 'var(--bg-header)',
               borderTop: '1px solid var(--border-color, #e2e8f0)',
               display: 'flex',
               alignItems: 'center',
@@ -1221,9 +1221,9 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                   borderRadius: '6px',
                   fontSize: '12px',
                   fontWeight: 600,
-                  border: '1px solid var(--border-color, var(--border-color))',
-                  backgroundColor: 'var(--bg-card, #ffffff)',
-                  color: 'var(--text-main, #0f172a)',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-card)',
+                  color: 'var(--text-main)',
                   cursor: configTestState?.running ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -1244,7 +1244,7 @@ export const NtsStatusAuditModal: React.FC<NtsStatusAuditModalProps> = ({
                     borderRadius: '6px',
                     fontSize: '12px',
                     fontWeight: 600,
-                    border: '1px solid var(--border-color, var(--border-color))',
+                    border: '1px solid var(--border-color)',
                     backgroundColor: 'transparent',
                     color: 'var(--text-secondary, #475569)',
                     cursor: 'pointer',

@@ -136,8 +136,8 @@ export const CallAudioUploadModal: React.FC<CallAudioUploadModalProps> = ({
     >
       <div
         style={{
-          background: 'var(--bg-app)',
-          borderTop: '1px solid #1e293b',
+          background: 'var(--bg-card)',
+          borderTop: '1px solid var(--border-color)',
           borderRadius: '16px 16px 0 0',
           width: '100%',
           maxHeight: 'calc(100dvh - 56px)', // 헤더 높이 제외
@@ -148,13 +148,13 @@ export const CallAudioUploadModal: React.FC<CallAudioUploadModalProps> = ({
         onClick={e => e.stopPropagation()}
       >
         {/* ── 헤더 ── */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid #1e293b', background: 'rgba(2,6,23,0.7)', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-header)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(37,99,235,0.18)', border: '1px solid rgba(59,130,246,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <FileAudio style={{ width: 16, height: 16, color: '#60a5fa' }} />
             </div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: '#fff', lineHeight: 1.3 }}>통화 녹음 파일 직접 업로드</div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-main)', lineHeight: 1.3 }}>통화 녹음 파일 직접 업로드</div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>AI 출고 요청 초안 자동 생성</div>
             </div>
           </div>
@@ -172,7 +172,7 @@ export const CallAudioUploadModal: React.FC<CallAudioUploadModalProps> = ({
 
           {/* 1. 파일 선택 */}
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#cbd5e1', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>1. 음성 파일 선택</span>
               <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--text-muted)' }}>음성 또는 텍스트 중 하나 필수</span>
             </div>
@@ -350,7 +350,7 @@ export const CallAudioUploadModal: React.FC<CallAudioUploadModalProps> = ({
 
           {/* 3. 통화 메모 / 텍스트 의뢰 */}
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#cbd5e1', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>3. 통화 텍스트 / 삼성 AI 요약 / 카톡 의뢰</span>
               <span style={{ fontSize: 10, fontWeight: 400, color: '#60a5fa' }}>파일 없이 텍스트만으로 초안 생성 가능</span>
             </div>
@@ -381,7 +381,7 @@ export const CallAudioUploadModal: React.FC<CallAudioUploadModalProps> = ({
           gap: 10,
           padding: '14px 20px',
           paddingBottom: 'calc(14px + env(safe-area-inset-bottom, 0px))',
-          borderTop: '1px solid #1e293b',
+          borderTop: '1px solid var(--border-color)',
           background: 'rgba(2,6,23,0.85)',
           flexShrink: 0,
         }}>

@@ -322,7 +322,7 @@ export const TradeContractBundleModal: React.FC<Props> = ({ isOpen, onClose, ord
                 fontSize: '11px',
                 padding: '2px 8px',
                 borderRadius: '4px',
-                backgroundColor: order.contractDocStatus === 'SENT' ? '#dcfce7' : '#f1f5f9',
+                backgroundColor: order.contractDocStatus === 'SENT' ? 'var(--success-light)' : 'var(--bg-app)',
                 color: order.contractDocStatus === 'SENT' ? '#166534' : '#475569',
                 fontWeight: 600
               }}

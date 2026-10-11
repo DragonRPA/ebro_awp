@@ -123,8 +123,8 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen =
       padding: '20px'
     }}>
       <div style={{
-        backgroundColor: 'var(--bg-card, #ffffff)',
-        color: 'var(--text-main, #0f172a)',
+        backgroundColor: 'var(--bg-card)',
+        color: 'var(--text-main)',
         borderRadius: '12px',
         border: '1px solid var(--border-color)',
         width: '100%',
@@ -141,12 +141,12 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen =
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          backgroundColor: 'var(--bg-secondary, #f8fafc)',
+          backgroundColor: 'var(--bg-header)',
           borderRadius: '12px 12px 0 0'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <ShieldCheck size={20} color="var(--primary, #4f46e5)" />
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-main, #0f172a)' }}>
+            <ShieldCheck size={20} color="var(--primary)" />
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: 'var(--text-main)' }}>
               개인정보 처리방침
             </h3>
             <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 600 }}>
@@ -162,7 +162,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen =
             style={{
               background: 'none',
               border: 'none',
-              color: 'var(--text-muted, #64748b)',
+              color: 'var(--text-secondary)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center'
@@ -188,8 +188,8 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen =
             <strong>{companyName}</strong>(이하 &apos;당사&apos;)는 「개인정보 보호법」 제30조에 따라 정보주체의 개인정보를 보호하고 이와 관련한 고충을 신속하고 원활하게 처리할 수 있도록 다음과 같이 개인정보 처리방침을 수립·공개합니다.
           </p>
 
-          <section style={{ borderTop: '1px solid var(--border-color, #f1f5f9)', paddingTop: '12px' }}>
-            <h4 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main, #0f172a)', marginBottom: '8px' }}>
+          <section style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+            <h4 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>
               제1조 (개인정보의 처리 목적)
             </h4>
             <p style={{ margin: 0 }}>
@@ -197,11 +197,11 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen =
             </p>
           </section>
 
-          <section style={{ borderTop: '1px solid var(--border-color, #f1f5f9)', paddingTop: '12px' }}>
-            <h4 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main, #0f172a)', marginBottom: '8px' }}>
+          <section style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+            <h4 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>
               제2조 (처리하는 개인정보 항목 및 주민등록번호 미수집 원칙)
             </h4>
-            <div style={{ backgroundColor: 'var(--bg-secondary, #f8fafc)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', marginBottom: '8px' }}>
+            <div style={{ backgroundColor: 'var(--bg-header)', padding: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', marginBottom: '8px' }}>
               <div style={{ fontWeight: 700, color: 'var(--text-main)', marginBottom: '4px' }}>
                 주민등록번호 미수집 원칙 (개인정보 보호법 제24조의2 준수)
               </div>
@@ -217,8 +217,8 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen =
             </ul>
           </section>
 
-          <section style={{ borderTop: '1px solid var(--border-color, #f1f5f9)', paddingTop: '12px' }}>
-            <h4 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main, #0f172a)', marginBottom: '8px' }}>
+          <section style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+            <h4 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>
               제3조 (개인정보의 안전성 확보조치 - 법 제29조 준수)
             </h4>
             <p style={{ margin: 0, marginBottom: '6px' }}>
@@ -232,8 +232,8 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen =
             </ul>
           </section>
 
-          <section style={{ borderTop: '1px solid var(--border-color, #f1f5f9)', paddingTop: '12px' }}>
-            <h4 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main, #0f172a)', marginBottom: '8px' }}>
+          <section style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
+            <h4 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>
               제4조 (개인정보 접속기록의 보관 및 점검 - 안전성 확보조치 기준 제8조 준수)
             </h4>
             <p style={{ margin: 0, marginBottom: '6px' }}>
@@ -247,9 +247,9 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen =
           </section>
 
           {/* 제5조: 테넌트별 개인정보 보호책임자 동적 연동 및 인라인 수정 (이미지 2 요구사항) */}
-          <section style={{ borderTop: '1px solid var(--border-color, #f1f5f9)', paddingTop: '12px' }}>
+          <section style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <h4 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main, #0f172a)', margin: 0 }}>
+              <h4 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
                 제5조 (개인정보 보호책임자 및 권익침해 구제)
               </h4>
               {canEdit && !isEditingOfficer && (
@@ -294,7 +294,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen =
             {isEditingOfficer ? (
               /* 관리자 전용 책임자 수정 폼 */
               <form onSubmit={handleSaveOfficer} style={{
-                backgroundColor: 'var(--bg-secondary, #f8fafc)',
+                backgroundColor: 'var(--bg-header)',
                 padding: '14px 16px',
                 borderRadius: '8px',
                 border: '1.5px solid var(--primary)',
@@ -398,7 +398,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen =
             ) : (
               /* 책임자 정보 뷰 (이미지 2 연동) */
               <div style={{
-                backgroundColor: 'var(--bg-secondary, #f8fafc)',
+                backgroundColor: 'var(--bg-header)',
                 padding: '14px 16px',
                 borderRadius: '8px',
                 border: '1px solid var(--border-color)',
@@ -423,7 +423,7 @@ export const PrivacyPolicyModal: React.FC<PrivacyPolicyModalProps> = ({ isOpen =
           borderTop: '1px solid var(--border-color)',
           display: 'flex',
           justifyContent: 'flex-end',
-          backgroundColor: 'var(--bg-secondary, #f8fafc)',
+          backgroundColor: 'var(--bg-header)',
           borderRadius: '0 0 12px 12px'
         }}>
           <button

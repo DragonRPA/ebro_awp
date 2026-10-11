@@ -503,20 +503,20 @@ export const OtApprovalDocumentModal: React.FC<OtApprovalDocumentModalProps> = (
         style={{
           width: '100%',
           maxWidth: '920px',
-          backgroundColor: 'var(--bg-card, #1e293b)',
+          backgroundColor: 'var(--bg-card)',
           borderRadius: '10px 10px 0 0',
-          border: '1px solid var(--border-color, #334155)',
+          border: '1px solid var(--border-color)',
           borderBottom: 'none',
           padding: '16px 20px',
           flexDirection: 'column',
           gap: '14px',
-          color: 'var(--text-main, #f8fafc)'
+          color: 'var(--text-main)'
         }}
       >
         {/* 상단 타이틀 & 닫기 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Printer size={20} style={{ color: 'var(--primary, #3b82f6)' }} />
+            <Printer size={20} style={{ color: 'var(--primary)' }} />
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>
               초과근무 결재 문서 출력
             </h3>
