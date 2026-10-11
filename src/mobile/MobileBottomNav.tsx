@@ -25,6 +25,8 @@ interface MobileBottomNavProps {
   deptMode: MobileDeptMode;
   activeTab: MobileTabType;
   onChangeTab: (tab: MobileTabType) => void;
+  hasPermission?: (menuId: string, action: 'view' | 'save') => boolean;
+  isDeveloper?: boolean;
   pendingAsCount?: number;
   pendingDispatchCount?: number;
   pendingInspectionCount?: number;
@@ -38,6 +40,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   deptMode,
   activeTab,
   onChangeTab,
+  hasPermission,
+  isDeveloper = false,
   pendingAsCount = 0,
   pendingDispatchCount = 0,
   pendingInspectionCount = 0,
@@ -46,12 +50,32 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
   overdueBadgeCount = 0,
   incompleteCustomerCount = 0,
 }) => {
-  // 부서별 하단 5대 탭 동적 매핑
-  let navItems: { id: MobileTabType; label: string; icon: any; badge: number }[] = [];
+  // 탭별 대응 시스템 메뉴 ID 매핑 (RBAC 권한 1:1 관통)
+  const tabMenuMap: Partial<Record<MobileTabType, string>> = {
+    home: 'dashboard',
+    customers: 'customer',
+    assets: 'asset',
+    sales_order: 'smart_dispatch4',
+    my_contracts: 'contract',
+    as: 'field_as',
+    as_create: 'smart_as_request',
+    vehicle_stock: 'consumable_stock',
+    assignment: 'dispatch_assign',
+    inspection: 'outbound_inspections',
+    inbound_register: 'daily_inout',
+    delinquency: 'delinquency',
+    sublease: 'rent_asset',
+    dispatch: 'delivery',
+    vehicle_log: 'vehicle_log',
+    consumable_stock: 'consumable_stock',
+  };
+
+  // 부서별 하단 후보 탭 동적 매핑
+  let rawNavItems: { id: MobileTabType; label: string; icon: any; badge: number }[] = [];
 
   if (deptMode === 'SALES') {
-    // 💼 영업부 모바일 5대 정예 탭 (헌장 3.1 & 과제 10: 홈, 고객관리, 가용재고, 출고요청, 내현장)
-    navItems = [
+    // 💼 영업부 모바일 5대 정예 탭
+    rawNavItems = [
       { id: 'home', label: '홈', icon: Home, badge: 0 },
       { id: 'customers', label: '고객관리', icon: Users, badge: incompleteCustomerCount },
       { id: 'assets', label: '가용재고', icon: Search, badge: 0 },
@@ -59,8 +83,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'my_contracts', label: '내현장', icon: Building2, badge: 0 },
     ];
   } else if (deptMode === 'AS') {
-    // 🔧 AS팀 모바일 탭 (검수지원 제거 ➔ 차량 소모품재고 신설)
-    navItems = [
+    // 🔧 AS팀 모바일 탭
+    rawNavItems = [
       { id: 'home', label: '홈', icon: Home, badge: 0 },
       { id: 'as', label: '출동티켓', icon: Wrench, badge: pendingAsCount },
       { id: 'as_create', label: 'AS신규', icon: PlusCircle, badge: 0 },
@@ -68,8 +92,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'assets', label: '가용자산', icon: Search, badge: 0 },
     ];
   } else if (deptMode === 'OUTBOUND') {
-    // 🏗️ 출고/자산팀 모바일 5대 정예 탭 (장비할당 신설 & 출고 라이프사이클 완성)
-    navItems = [
+    // 🏗️ 출고팀 모바일 탭 (주기장 실물 관리)
+    rawNavItems = [
       { id: 'home', label: '홈', icon: Home, badge: 0 },
       { id: 'assignment', label: '장비할당', icon: Layers, badge: pendingAssignmentCount },
       { id: 'inspection', label: '출고검수', icon: CheckSquare, badge: pendingInspectionCount },
@@ -77,8 +101,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'assets', label: '주기장자산', icon: Search, badge: 0 },
     ];
   } else if (deptMode === 'EXECUTIVE') {
-    // 👑 경영진 모바일 탭 (출고승인, AS현황 영구 제거 ➔ 고객관리, 연체관리 신규 탑재)
-    navItems = [
+    // 👑 경영진 모바일 탭
+    rawNavItems = [
       { id: 'home', label: '경영홈', icon: Home, badge: 0 },
       { id: 'customers', label: '고객관리', icon: Users, badge: incompleteCustomerCount },
       { id: 'delinquency', label: '연체관리', icon: AlertTriangle, badge: overdueBadgeCount },
@@ -86,8 +110,8 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'assets', label: '자산가동', icon: Search, badge: 0 },
     ];
   } else {
-    // 📊 관리부 모바일 5대 전용 탭 (출고관리, 채권/계약, 출고요청 전면 제거)
-    navItems = [
+    // 📊 관리부 모바일 탭 (배차 포함)
+    rawNavItems = [
       { id: 'home', label: '관리홈', icon: Home, badge: 0 },
       { id: 'sublease', label: '전대관리', icon: Layers, badge: subleaseLeakCount },
       { id: 'dispatch', label: '배차상차', icon: Truck, badge: pendingDispatchCount },
@@ -95,6 +119,17 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       { id: 'assets', label: '자산목록', icon: Search, badge: 0 },
     ];
   }
+
+  // 🛡️ [원칙 2: 직원에게 노출되는 메뉴는 권한과 같다]
+  // 개발자이거나 홈 탭인 경우 상시 허용, 그 외 메뉴는 hasPermission('view') 통과 탭만 노출
+  const navItems = rawNavItems.filter(item => {
+    if (item.id === 'home') return true;
+    if (isDeveloper) return true;
+    if (!hasPermission) return true;
+    const menuId = tabMenuMap[item.id];
+    if (!menuId) return true;
+    return hasPermission(menuId, 'view');
+  });
 
   return (
     <nav 

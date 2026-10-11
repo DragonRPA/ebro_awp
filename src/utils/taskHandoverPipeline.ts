@@ -160,10 +160,11 @@ export function findActiveTasksForUser(
 
   // 🏛️ 유효 부서 식별 플래그
   const isSalesDept = isSimulation ? (activeMode === 'SALES') : (rawDept.includes('SALES') || rawDept.includes('영업') || rawRole.includes('SALES'));
-  const isDispatchDept = isSimulation ? (activeMode === 'OUTBOUND') : (rawDept.includes('DISPATCH') || rawDept.includes('배차') || rawDept.includes('운송') || rawRole.includes('LOGISTICS'));
   const isYardDept = isSimulation ? (activeMode === 'OUTBOUND') : (rawDept.includes('YARD') || rawDept.includes('출고') || rawDept.includes('주기장'));
   const isAsDept = isSimulation ? (activeMode === 'AS') : (rawDept.includes('AS') || rawDept.includes('정비') || rawRole.includes('MECHANIC'));
   const isAdminDept = isSimulation ? (activeMode === 'ADMIN') : (rawDept.includes('관리') || rawDept.includes('총무') || rawDept.includes('회계') || rawRole.includes('ADMIN'));
+  // 🚚 [기연리프트 R&R] 배차(DISPATCH) 업무는 관리부(ADMIN) 소관
+  const isDispatchDept = isSimulation ? (activeMode === 'ADMIN') : (isAdminDept || rawDept.includes('DISPATCH') || rawDept.includes('배차') || rawDept.includes('운송') || rawRole.includes('LOGISTICS'));
 
   const filtered = todos.filter(t => {
     if (t.isCompleted) return false;
@@ -206,10 +207,12 @@ export function findActiveTasksForUser(
         }
       }
 
-      // 0-3. 출고/배차팀 모드/임직원:
-      // 정비(AS), 영업(SALES) 타겟 업무는 출고/배차 대시보드에서 차단
-      if (isDispatchDept || isYardDept) {
-        if (t.targetDept === 'AS' || t.targetDept === 'SALES' || (!t.targetDept && (t.taskCategory?.includes('AS') || t.taskCategory?.includes('CONTRACT')))) {
+      // 0-3. 출고팀(주기장) 모드/임직원:
+      // 배차(DISPATCH), 정비(AS), 영업(SALES) 타겟 업무는 출고팀 대시보드에서 차단
+      if (isYardDept && !isAdminDept) {
+        if (t.targetDept === 'DISPATCH' || t.targetDept === 'AS' || t.targetDept === 'SALES' ||
+            t.taskCategory?.includes('DISPATCH') || t.entityType === 'DELIVERY' ||
+            (!t.targetDept && (t.taskCategory?.includes('AS') || t.taskCategory?.includes('CONTRACT')))) {
           if (!isSimulation && t.assignedUserId && t.assignedUserId === currentUser.id) {
             // 본인 직접 할당 예외
           } else {

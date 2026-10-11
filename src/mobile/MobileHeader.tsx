@@ -3,6 +3,8 @@ import { LogOut, Wrench, Crown, Radio, RotateCw, Smartphone } from 'lucide-react
 import { useApp } from '../context/AppContext';
 import { WeatherWidget } from '../components/WeatherWidget';
 
+import { isDeveloperUser, getUserDepartmentName } from '../utils/userDepartmentHelper';
+
 export type MobileDeptMode = 'SALES' | 'AS' | 'OUTBOUND' | 'EXECUTIVE' | 'ADMIN';
 
 interface MobileHeaderProps {
@@ -26,8 +28,10 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
   isWorkLoading = false,
   onToggleWork
 }) => {
-  const { currentUser, logout, currentTenant } = useApp();
+  const { currentUser, logout, currentTenant, departments } = useApp();
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const isDeveloper = isDeveloperUser(currentUser);
+  const myDeptName = getUserDepartmentName(currentUser, departments || []);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -314,52 +318,86 @@ export const MobileHeader: React.FC<MobileHeaderProps> = ({
         </div>
       </header>
 
-      {/* 부서별 특화 모드 5대 직무 퀵 체인저 (헌장 3.1 무수식어 건조한 명사) */}
-      <div style={{
-        backgroundColor: 'rgba(15, 23, 42, 0.98)',
-        padding: '6px 12px 8px',
-        borderBottom: '1px solid #1e293b',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '4px'
-      }}>
+      {/* 🏛️ [원칙 1: 각자 로그인한 아이디의 소속 탭만 보인다 / 개발자는 모든 탭이 다 보인다] */}
+      {isDeveloper ? (
         <div style={{
-          flex: 1,
+          backgroundColor: 'rgba(15, 23, 42, 0.98)',
+          padding: '6px 12px 8px',
+          borderBottom: '1px solid #1e293b',
           display: 'flex',
           alignItems: 'center',
-          gap: '3px',
-          backgroundColor: '#020617',
-          padding: '3px',
-          borderRadius: '10px',
-          border: '1px solid #334155'
+          gap: '4px'
         }}>
-          {deptList.map(item => {
-            const isActive = deptMode === item.mode;
-            return (
-              <button
-                key={item.mode}
-                type="button"
-                onClick={() => onChangeDeptMode(item.mode)}
-                style={{
-                  flex: 1,
-                  padding: '5px 0',
-                  borderRadius: '7px',
-                  border: 'none',
-                  fontSize: '11px',
-                  fontWeight: isActive ? '800' : '500',
-                  backgroundColor: isActive ? item.activeColor : 'transparent',
-                  color: isActive ? '#ffffff' : '#94a3b8',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {item.label}
-              </button>
-            );
-          })}
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '3px',
+            backgroundColor: '#020617',
+            padding: '3px',
+            borderRadius: '10px',
+            border: '1px solid #334155'
+          }}>
+            {deptList.map(item => {
+              const isActive = deptMode === item.mode;
+              return (
+                <button
+                  key={item.mode}
+                  type="button"
+                  onClick={() => onChangeDeptMode(item.mode)}
+                  style={{
+                    flex: 1,
+                    padding: '5px 0',
+                    borderRadius: '7px',
+                    border: 'none',
+                    fontSize: '11px',
+                    fontWeight: isActive ? '800' : '500',
+                    backgroundColor: isActive ? item.activeColor : 'transparent',
+                    color: isActive ? '#ffffff' : '#94a3b8',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div style={{
+          backgroundColor: 'rgba(15, 23, 42, 0.98)',
+          padding: '4px 12px 6px',
+          borderBottom: '1px solid #1e293b',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '11px',
+          color: '#94a3b8'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{
+              display: 'inline-block',
+              width: '6px',
+              height: '6px',
+              borderRadius: '9999px',
+              backgroundColor: '#3b82f6'
+            }} />
+            <span style={{ fontWeight: '700', color: '#f8fafc' }}>
+              {myDeptName}
+            </span>
+            {currentUser?.position && (
+              <span style={{ color: '#64748b', fontSize: '10.5px' }}>
+                ({currentUser.position})
+              </span>
+            )}
+          </div>
+          <span style={{ fontSize: '10px', color: '#64748b', fontWeight: '600' }}>
+            {deptMode === 'EXECUTIVE' ? '경영진' : deptMode === 'ADMIN' ? '관리부' : deptMode === 'OUTBOUND' ? '출고팀' : deptMode === 'AS' ? 'AS팀' : '영업부'} 모드
+          </span>
+        </div>
+      )}
     </>
   );
 };

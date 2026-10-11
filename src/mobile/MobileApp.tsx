@@ -33,6 +33,7 @@ import {
   getMyWorkStatus, clockIn, clockOut, subscribeWorkStatus, 
   getLatestApkRelease, WorkStatus, ApkRelease 
 } from '../services/workStatusService';
+import { isDeveloperUser, resolveUserMobileDeptMode } from '../utils/userDepartmentHelper';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import './mobile.css';
 
@@ -41,7 +42,13 @@ interface MobileAppProps {
 }
 
 export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToPc }) => {
-  const { fieldAsTickets, deliveries, outboundInspections, currentUser, assets, customers, billings, currentTenant, contractAssets, loadTablesForMenu, logout } = useApp();
+  const { 
+    fieldAsTickets, deliveries, outboundInspections, currentUser, assets, 
+    customers, billings, currentTenant, contractAssets, loadTablesForMenu, 
+    logout, departments, hasPermission 
+  } = useApp();
+
+  const isDeveloper = useMemo(() => isDeveloperUser(currentUser), [currentUser]);
 
   // 전대 장비 주기장 유휴 누수 위험 건수
   const subleaseLeakCount = useMemo(() => {
@@ -101,19 +108,28 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
     ).length;
   }, [customers]);
 
-  // 1. 초기 부서 모드 감지 (사용자 역할 기반 또는 저장된 모드)
+  // 1. 🏛️ 부서 모드 결정:
+  // - 일반 직원은 조직도상 본인 부서 모드로 100% 자동 고정
+  // - 개발자(ADMIN)는 전사 시뮬레이션을 위해 저장된 모드 또는 자유 전환 가능
+  const userResolvedMode = useMemo(() => {
+    return resolveUserMobileDeptMode(currentUser, departments || []);
+  }, [currentUser, departments]);
+
   const [deptMode, setDeptMode] = useState<MobileDeptMode>(() => {
+    if (!isDeveloper) return userResolvedMode;
     const saved = localStorage.getItem('erp_mobile_dept') as MobileDeptMode;
     if (saved && (saved === 'SALES' || saved === 'AS' || saved === 'OUTBOUND' || saved === 'EXECUTIVE' || saved === 'ADMIN')) {
       return saved;
     }
-    const role = (currentUser?.role || '').toUpperCase();
-    if (role === 'ADMIN') return 'EXECUTIVE';
-    if (role === 'ACCOUNTING' || role === 'OFFICE') return 'ADMIN';
-    if (role === 'MECHANIC' || role === 'AS') return 'AS';
-    if (role === 'DISPATCH' || role === 'YARD') return 'OUTBOUND';
-    return 'SALES';
+    return userResolvedMode;
   });
+
+  // 일반 직원은 로그인 정보나 부서 변경 시 본인 부서 모드로 자동 동기화
+  useEffect(() => {
+    if (!isDeveloper) {
+      setDeptMode(userResolvedMode);
+    }
+  }, [isDeveloper, userResolvedMode]);
 
   const [activeTab, setActiveTab] = useState<MobileTabType>('home');
   const [selectedAsTicketId, setSelectedAsTicketId] = useState<string | null>(null);
@@ -172,7 +188,7 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
         role: currentUser.role,
         deptName: currentUser.department || currentTenant?.displayName || currentTenant?.tradeName || 'eBro'
       });
-      initWorkNotificationListener(currentUser);
+      initWorkNotificationListener(currentUser, departments);
     }
 
     // 모바일 브라우저 오디오 자동재생 언락 (첫 화면 터치 시 영구 언락)
@@ -382,6 +398,8 @@ export const MobileApp: React.FC<MobileAppProps> = ({ onSwitchToPc: _onSwitchToP
           deptMode={deptMode}
           activeTab={activeTab}
           onChangeTab={handleTabChange}
+          hasPermission={hasPermission}
+          isDeveloper={isDeveloper}
           pendingAsCount={pendingAsCount}
           pendingDispatchCount={pendingDispatchCount}
           pendingInspectionCount={pendingInspectionCount}

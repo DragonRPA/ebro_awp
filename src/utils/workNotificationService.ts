@@ -141,12 +141,15 @@ export async function broadcastWorkNotification(payload: WorkNotificationPayload
   }
 }
 
-/**
- * 🎧 전사 업무 수신 리스너 (앱 실행 시 1회 구독)
- */
+import { Department, User } from '../services/db';
+import { getUserDepartmentName, getUserHierarchyLevel, isDeveloperUser } from './userDepartmentHelper';
+
 let isListenerInitialized = false;
 
-export function initWorkNotificationListener(currentUser: { id?: string; department?: string; role?: string } | null) {
+export function initWorkNotificationListener(
+  currentUser: User | { id?: string; department?: string; departmentId?: string | null; role?: string; position?: string; loginId?: string; name?: string } | null,
+  departments: Department[] = []
+) {
   if (isListenerInitialized || !supabase || typeof window === 'undefined') return;
   isListenerInitialized = true;
 
@@ -169,19 +172,23 @@ export function initWorkNotificationListener(currentUser: { id?: string; departm
 
     // 2. 부서 필터링 (지정된 경우에만 검사, 미지정이면 전사 수신)
     if (payload.targetDepts && payload.targetDepts.length > 0 && currentUser) {
-      const uDept = (currentUser.department || '').toUpperCase();
-      const uRole = (currentUser.role || '').toUpperCase();
-      const isExec = uDept.includes('경영') || uDept.includes('대표') || uDept.includes('ADMIN') || uRole === 'ADMIN' || uRole === 'MASTER';
+      const isDev = isDeveloperUser(currentUser);
+      const hierarchyLevel = getUserHierarchyLevel(currentUser, departments);
+      const isExec = hierarchyLevel === 1; // Level 1 (최상위 조직 / 임원 / 대표)은 전사 업무 수신
       
-      if (!isExec) {
+      if (!isDev && !isExec) {
+        const myDeptName = getUserDepartmentName(currentUser, departments).toUpperCase();
+        const uRole = (currentUser.role || '').toUpperCase();
+        
         const isTarget = payload.targetDepts.some(d => {
           const dt = d.toUpperCase();
-          if (uDept.includes(dt) || uRole.includes(dt)) return true;
-          if (dt === 'SALES' && (uDept.includes('영업') || uRole.includes('SALES'))) return true;
-          if (dt === 'DISPATCH' && (uDept.includes('배차') || uDept.includes('관리') || uRole.includes('DISPATCH') || uRole.includes('OFFICE'))) return true;
-          if (dt === 'YARD' && (uDept.includes('출고') || uDept.includes('주기장') || uRole.includes('YARD'))) return true;
-          if (dt === 'AS' && (uDept.includes('정비') || uDept.includes('AS') || uRole.includes('MECHANIC'))) return true;
-          if (dt === 'ADMIN' && (uDept.includes('관리') || uDept.includes('총무') || uRole.includes('ADMIN') || uRole.includes('ACCOUNTING'))) return true;
+          if (myDeptName.includes(dt) || uRole.includes(dt)) return true;
+          if (dt === 'SALES' && (myDeptName.includes('영업') || uRole.includes('SALES'))) return true;
+          // 배차는 관리부 소관
+          if (dt === 'DISPATCH' && (myDeptName.includes('관리') || myDeptName.includes('총무') || myDeptName.includes('배차') || uRole.includes('DISPATCH') || uRole.includes('OFFICE'))) return true;
+          if (dt === 'YARD' && (myDeptName.includes('출고') || myDeptName.includes('주기장') || uRole.includes('YARD'))) return true;
+          if (dt === 'AS' && (myDeptName.includes('정비') || myDeptName.includes('AS') || myDeptName.includes('서비스') || uRole.includes('MECHANIC'))) return true;
+          if (dt === 'ADMIN' && (myDeptName.includes('관리') || myDeptName.includes('총무') || uRole.includes('ADMIN') || uRole.includes('ACCOUNTING'))) return true;
           return false;
         });
         if (!isTarget) return;
