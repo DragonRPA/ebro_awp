@@ -2151,9 +2151,9 @@ const App: React.FC = () => {
                     width: '100%',
                     padding: '8px 10px',
                     borderRadius: 'var(--radius-sm)',
-                    border: 'none',
-                    backgroundColor: hasActiveChild ? 'var(--primary-light)' : 'transparent',
-                    color: hasActiveChild ? 'var(--primary)' : 'var(--text-secondary)',
+                    backgroundColor: hasActiveChild ? 'rgba(2, 132, 199, 0.12)' : 'transparent',
+                    color: hasActiveChild ? 'var(--text-main)' : 'var(--text-secondary)',
+                    border: hasActiveChild ? '1px solid rgba(2, 132, 199, 0.35)' : '1px solid transparent',
                     fontWeight: '700',
                     fontSize: '12.5px',
                     cursor: 'pointer',
@@ -2161,7 +2161,14 @@ const App: React.FC = () => {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', flex: 1, overflow: 'hidden' }}>
-                    <span style={{ width: '20px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <span style={{
+                      width: '20px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      color: hasActiveChild ? 'var(--primary)' : 'inherit'
+                    }}>
                       {grp.icon}
                     </span>
                     <span style={{ marginLeft: '8px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
@@ -2189,14 +2196,14 @@ const App: React.FC = () => {
 
                       // 커스텀 색상 스타일
                       const itemTextColor = isItemActive 
-                        ? (hasCustomColor ? colorPreset.color : 'var(--primary)') 
-                        : (hasCustomColor ? colorPreset.color : 'var(--text-secondary)');
+                        ? '#ffffff' 
+                        : (hasCustomColor ? colorPreset.color : 'var(--text-main)');
                       const itemBgColor = isItemActive 
-                        ? (hasCustomColor ? colorPreset.bgTint : 'var(--primary-light)') 
+                        ? (hasCustomColor ? colorPreset.color : 'var(--primary)') 
                         : 'transparent';
-                      const itemBorder = isItemActive && hasCustomColor 
-                        ? `1px solid ${colorPreset.borderTint}` 
-                        : 'none';
+                      const itemBorder = isItemActive 
+                        ? `1px solid ${hasCustomColor ? colorPreset.color : 'var(--primary)'}` 
+                        : '1px solid transparent';
 
                       return (
                         <button
@@ -2234,8 +2241,7 @@ const App: React.FC = () => {
                             height: '16px',
                             flexShrink: 0,
                             overflow: 'hidden',
-                            color: hasCustomColor ? colorPreset.color : 'inherit'
-                          }}>
+                            color: isItemActive ? '#ffffff' : (hasCustomColor ? colorPreset.color : 'inherit') }}>
                             {item.icon}
                           </span>
                           <span style={{

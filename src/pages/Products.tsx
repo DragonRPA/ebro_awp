@@ -651,7 +651,7 @@ export const Products: React.FC = () => {
         flex: 1,
         backgroundColor: 'var(--bg-card)',
         borderRadius: '6px',
-        border: '1px solid var(--border-color)',
+        border: '1px solid var(--table-border-color)',
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
@@ -660,7 +660,7 @@ export const Products: React.FC = () => {
         <div style={{ flex: 1, minHeight: 0, overflowX: 'auto', overflowY: 'auto' }}>
           <table data-mid="product-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '11.5px', whiteSpace: 'nowrap' }}>
             <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-              <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 600 }}>
+              <tr style={{ backgroundColor: 'var(--bg-app)', borderBottom: '2px solid var(--table-border-color)', color: 'var(--text-secondary)', fontWeight: 700 }}>
                 <th style={{ padding: '7px 8px', width: '50px', textAlign: 'center', whiteSpace: 'nowrap' }}>상세</th>
                 <SortableTh sortKey="modelName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px' }}>모델명</SortableTh>
                 <SortableTh sortKey="shortName" currentSort={sortConfig} onSort={requestSort} style={{ padding: '7px 8px' }}>축약명</SortableTh>
@@ -695,7 +695,7 @@ export const Products: React.FC = () => {
                       key={p.id}
                       onClick={() => handleSelectProduct(p)}
                       style={{
-                        borderBottom: '1px solid var(--border-color)',
+                        borderBottom: '1px solid var(--table-row-border)',
                         cursor: 'pointer',
                         transition: 'background-color 0.15s',
                         opacity: p.isActive !== false ? 1 : 0.65
@@ -740,7 +740,7 @@ export const Products: React.FC = () => {
                       <td style={{ padding: '6px 8px', whiteSpace: 'nowrap' }}>
                         {stats.total > 0 ? (
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                            <span className="badge badge-primary" style={{ fontSize: '10px', padding: '1px 5px' }}>
+                            <span className="badge badge-primary" style={{ fontSize: '10.5px', padding: '2px 6px' }}>
                               총 {stats.total}대
                             </span>
                             <span style={{ fontSize: '10.5px', color: 'var(--text-secondary)' }}>
@@ -748,7 +748,7 @@ export const Products: React.FC = () => {
                             </span>
                           </div>
                         ) : (
-                          <span className="badge badge-secondary" style={{ fontSize: '9.5px', opacity: 0.6 }}>
+                          <span className="badge badge-secondary" style={{ fontSize: '10px', padding: '2px 6px' }}>
                             미보유 (0대)
                           </span>
                         )}
@@ -765,10 +765,8 @@ export const Products: React.FC = () => {
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '3px',
-                            padding: '1px 6px',
-                            fontSize: '10px',
-                            border: 'none',
-                            opacity: docList.length > 0 ? 1 : 0.6
+                            padding: '2px 6px',
+                            fontSize: '10px'
                           }}
                         >
                           <Folder size={11} /> {docList.length}건
@@ -801,7 +799,7 @@ export const Products: React.FC = () => {
 
                       {/* 사용여부 */}
                       <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        <span className={`badge ${p.isActive !== false ? 'badge-success' : 'badge-secondary'}`} style={{ fontSize: '10px', padding: '1px 5px' }}>
+                        <span className={`badge ${p.isActive !== false ? 'badge-success' : 'badge-secondary'}`} style={{ fontSize: '10px', padding: '2px 6px' }}>
                           {p.isActive !== false ? '사용' : '미사용'}
                         </span>
                       </td>
@@ -817,7 +815,7 @@ export const Products: React.FC = () => {
         <div style={{
           padding: '8px 14px',
           backgroundColor: 'var(--bg-app)',
-          borderTop: '1px solid var(--border-color)',
+          borderTop: '1px solid var(--table-border-color)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
