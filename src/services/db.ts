@@ -7504,9 +7504,6 @@ export async function logPrivacyAccess(
 }
 
 
-if (typeof window !== 'undefined') (window as any).__DB__ = db;
-
-
 
 
 

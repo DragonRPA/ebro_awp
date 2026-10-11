@@ -83,4 +83,17 @@ export default defineConfig({
       ],
     },
   },
+  build: {
+    sourcemap: false, // 🛡️ 역공학 방어: 프로덕션 원본 TypeScript 소스맵 완전 배제
+    minify: 'esbuild',
+    target: 'es2020',
+    cssMinify: true,
+    reportCompressedSize: false,
+    chunkSizeWarningLimit: 1500,
+  },
+  esbuild: {
+    // 🛡️ 프로덕션 번들에서 console.log, console.debug, debugger 구문 영구 드롭
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
+    legalComments: 'none',
+  }
 })

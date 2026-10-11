@@ -11332,7 +11332,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
     historyIndex
   };
 
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
     (window as any).__APP_CONTEXT__ = contextValue;
     (window as any).__ebro_db = db;
   }

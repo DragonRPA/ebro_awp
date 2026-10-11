@@ -6,9 +6,10 @@ import { initializeHindsightTracker } from './utils/hindsightTracker'
 import { AppProvider } from './context/AppContext.tsx'
 import { TradeProvider } from './context/TradeContext.tsx'
 import { ErrorBoundary } from './components/ErrorBoundary.tsx'
-import { db } from './services/db'
+import { initClientSecurityDefense } from './utils/clientSecurityDefense'
 
-(window as any).__DB__ = db;
+// 🛡️ 역공학 방어: 프로덕션 콘솔 소탕, 개발자 도구 변조 및 우클릭/단축키 방어 활성화
+initClientSecurityDefense();
 
 // [System Optimization] Global Unhandled Promise Rejection Handler
 // 비동기 프로세스(fire-and-forget DB 호출 등)가 실패 시 무음 처리(Silent Failure)되는 위험을 차단합니다.
@@ -36,5 +37,3 @@ createRoot(document.getElementById('root')!).render(
     </ErrorBoundary>
   </StrictMode>,
 )
-
-
