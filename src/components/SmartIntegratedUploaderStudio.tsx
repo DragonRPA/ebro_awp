@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
 import { useApp } from '../context/AppContext';
 import {
   IntegratedDomainEntities,
@@ -12,6 +13,7 @@ import {
   saveDraftToStaging,
   loadDraftFromStaging,
   clearDraftFromStaging,
+  validateIntegratedEntities,
   ingestIntegratedEntitiesToDatabase,
   IngestionResult
 } from '../utils/migration/smartMigrationEngine';
@@ -34,7 +36,8 @@ import {
   ArrowRight,
   DatabaseIcon,
   Eye,
-  Check
+  Check,
+  FolderOpen
 } from 'lucide-react';
 
 type DomainKey = 
@@ -122,6 +125,73 @@ const DOMAIN_CARDS: DomainMeta[] = [
   }
 ];
 
+const COLUMN_LABEL_MAP: Record<string, string> = {
+  id: '식별코드',
+  code: '코드',
+  name: '명칭/이름',
+  modelName: '모델명',
+  manufacturer: '제조사',
+  serialNo: '차대번호(S/N)',
+  manufactureYear: '제작연도',
+  assetNo: '관리번호(호기)',
+  ownerType: '소유구분',
+  status: '상태',
+  acquisitionPrice: '취득원가',
+  monthlyRentFee: '월대단가',
+  dailyRentFee: '일대단가',
+  workingHeight: '작업높이(m)',
+  feet: '피트(ft)',
+  powerSource: '동력원',
+  spec: '제원사양',
+  department: '부서명',
+  departmentId: '부서코드',
+  loginId: '아이디',
+  position: '직급',
+  duty: '직책',
+  role: '권한',
+  phone: '연락처',
+  contact: '연락처',
+  email: '이메일',
+  baseSalary: '기본급',
+  address: '주소',
+  detailAddress: '상세주소',
+  bizRegNo: '사업자등록번호',
+  representative: '대표자명',
+  representativeContact: '대표연락처',
+  representativeEmail: '대표이메일',
+  defaultBillingDay: '정기청구일',
+  paymentTerms: '결제조건',
+  safetyManagerName: '안전관리자',
+  safetyManagerContact: '안전관리자연락처',
+  siteMasterId: '현장코드',
+  customerId: '고객코드',
+  customerName: '고객사명',
+  siteName: '현장명',
+  category: '카테고리',
+  maintenanceScore: '정비배점',
+  standardManHours: '표준공수(h)',
+  isDefectSymptom: '불량증상여부',
+  unitPrice: '단가',
+  unit: '단위',
+  currentStock: '현재고',
+  minimumStock: '안전재고',
+  type: '협력사구분',
+  managerName: '담당자명',
+  managerPhone: '담당자연락처',
+  managerEmail: '담당자이메일',
+  vehicleType: '차종',
+  vehicleNumber: '차량번호',
+  driverName: '기사명',
+  driverPhone: '기사연락처',
+  contractNo: '계약번호',
+  startDate: '대여시작일',
+  endDate: '대여종료일',
+  rentFee: '월렌탈료',
+  note: '비고',
+  isActive: '사용여부',
+  isPrimary: '대표여부'
+};
+
 export const SmartIntegratedUploaderStudio: React.FC = () => {
   const { showNoticeModal, showErrorModal, fullRefreshFromServer, currentTenant } = useApp();
   const tenantId = (currentTenant as any)?.id || 'giyeonlift';
@@ -135,6 +205,7 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
   const [ingestionResult, setIngestionResult] = useState<IngestionResult | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const draftFileInputRef = useRef<HTMLInputElement>(null);
 
   // 마운트 시 로컬스토리지 임시보관본(Staging Draft) 확인
   useEffect(() => {
@@ -236,7 +307,152 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
     reader.readAsBinaryString(file);
   };
 
-  // 4. 중간 저장 (Staging Draft)
+  // 4-1. 로컬 파일로 중간 저장 내보내기 (PC 파일 다운로드)
+  const handleExportDraftFile = () => {
+    if (!parseResult) return;
+    try {
+      const draft: StagingDraft = {
+        id: `draft-${Date.now()}`,
+        savedAt: new Date().toISOString(),
+        fileName: parseResult.fileName,
+        sourceType: parseResult.sourceType,
+        stats: parseResult.stats,
+        entities: parseResult.entities
+      };
+      const jsonStr = JSON.stringify(draft, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8' });
+      const dateStr = new Date().toISOString().slice(0, 10);
+      saveAs(blob, `eBro_기초데이터_중간저장_${tenantId}_${dateStr}.json`);
+
+      saveDraftToStaging(draft);
+      setExistingDraft(draft);
+
+      if (showNoticeModal) {
+        showNoticeModal(`현재 중간 작업 데이터(총 ${draft.stats.totalEntitiesCount}건)가 로컬 PC 파일로 다운로드되었습니다.`);
+      }
+    } catch (err: any) {
+      if (showErrorModal) showErrorModal(`파일 내보내기 실패: ${err?.message || String(err)}`);
+    }
+  };
+
+  // 4-2. 로컬에 저장한 중간 저장 파일 불러오기 (PC 파일 선택)
+  const handleDraftFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessing(true);
+    const isJson = file.name.endsWith('.json');
+
+    if (isJson) {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const content = evt.target?.result as string;
+          const draft: StagingDraft = JSON.parse(content);
+
+          if (!draft.entities) {
+            throw new Error('유효한 eBro 중간 저장 데이터 파일 형식이 아닙니다.');
+          }
+
+          const entities: IntegratedDomainEntities = {
+            departments: draft.entities.departments || [],
+            users: draft.entities.users || [],
+            products: draft.entities.products || [],
+            assets: draft.entities.assets || [],
+            siteMasters: draft.entities.siteMasters || [],
+            standardOptions: draft.entities.standardOptions || [],
+            customers: draft.entities.customers || [],
+            customerSites: draft.entities.customerSites || [],
+            customerContacts: draft.entities.customerContacts || [],
+            inspectionItems: draft.entities.inspectionItems || [],
+            consumables: draft.entities.consumables || [],
+            vendors: draft.entities.vendors || [],
+            transportDrivers: draft.entities.transportDrivers || [],
+            contracts: draft.entities.contracts || [],
+            contractAssets: draft.entities.contractAssets || []
+          };
+
+          const validationList = validateIntegratedEntities(entities);
+          const errorCount = validationList.reduce((acc, v) => acc + v.errorRows, 0);
+          const warningCount = validationList.reduce((acc, v) => acc + v.warnings.length, 0);
+
+          const totalEntitiesCount = Object.values(entities).reduce((acc: number, arr: any) => acc + (Array.isArray(arr) ? arr.length : 0), 0);
+
+          const now = new Date().toISOString();
+          const restoredResult: ParseResult = {
+            entities,
+            stats: {
+              departmentsCount: entities.departments.length,
+              usersCount: entities.users.length,
+              productsCount: entities.products.length,
+              assetsCount: entities.assets.length,
+              siteMastersCount: entities.siteMasters.length,
+              standardOptionsCount: entities.standardOptions.length,
+              customersCount: entities.customers.length,
+              customerSitesCount: entities.customerSites.length,
+              customerContactsCount: entities.customerContacts.length,
+              inspectionItemsCount: entities.inspectionItems.length,
+              consumablesCount: entities.consumables.length,
+              vendorsCount: entities.vendors.length,
+              transportDriversCount: entities.transportDrivers.length,
+              contractsCount: entities.contracts.length,
+              contractAssetsCount: entities.contractAssets.length,
+              totalEntitiesCount,
+              errorCount,
+              warningCount
+            },
+            validationList,
+            sourceType: (draft.sourceType as any) || 'MULTI_SHEET',
+            fileName: `[로컬 파일 복원] ${file.name}`,
+            analyzedAt: now
+          };
+
+          setParseResult(restoredResult);
+          setSelectedDomain('customers');
+          setSelectedSubTab('MAIN');
+          saveDraftToStaging(draft);
+          setExistingDraft(draft);
+
+          if (showNoticeModal) {
+            showNoticeModal(`로컬에 저장된 중간 작업 파일 [${file.name}]이 성공적으로 복원되었습니다. (총 ${totalEntitiesCount}건)`);
+          }
+        } catch (err: any) {
+          if (showErrorModal) {
+            showErrorModal(`중간 저장 파일 불러오기 실패: ${err?.message || String(err)}`);
+          }
+        } finally {
+          setIsProcessing(false);
+          if (draftFileInputRef.current) draftFileInputRef.current.value = '';
+        }
+      };
+      reader.readAsText(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const bstr = evt.target?.result;
+          const wb = XLSX.read(bstr, { type: 'binary' });
+          const result = parseIntegratedWorkbook(wb, file.name, tenantId);
+          setParseResult(result);
+          setSelectedDomain('customers');
+          setSelectedSubTab('MAIN');
+          if (showNoticeModal) {
+            showNoticeModal(`로컬 엑셀 파일 [${file.name}] 분석 완료: 총 ${result.stats.totalEntitiesCount}건 수집`);
+          }
+        } catch (err: any) {
+          if (showErrorModal) {
+            showErrorModal(`파일 파싱 실패: ${err?.message || String(err)}`);
+          }
+        } finally {
+          setIsProcessing(false);
+          if (draftFileInputRef.current) draftFileInputRef.current.value = '';
+        }
+      };
+      reader.readAsBinaryString(file);
+    }
+  };
+
+  // 4-3. 중간 저장 (Staging Draft 브라우저 보관)
   const handleSaveDraft = () => {
     if (!parseResult) return;
     const draft: StagingDraft = {
@@ -420,12 +636,48 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
               style={{ display: 'none' }}
             />
           </label>
+
+          {/* 중간 저장 파일 불러오기 */}
+          <label
+            className="btn-secondary"
+            style={{
+              height: '36px',
+              padding: '0 16px',
+              fontSize: '13px',
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: isProcessing ? 'not-allowed' : 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <FolderOpen size={15} color="var(--primary)" />
+            중간 저장 파일 불러오기
+            <input
+              ref={draftFileInputRef}
+              type="file"
+              accept=".json, .xlsx, .xls"
+              onChange={handleDraftFileUpload}
+              disabled={isProcessing}
+              style={{ display: 'none' }}
+            />
+          </label>
         </div>
 
         {/* 우측 보조 액션 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {parseResult && (
             <>
+              <button
+                type="button"
+                onClick={handleExportDraftFile}
+                className="btn-secondary"
+                style={{ height: '36px', padding: '0 14px', fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+              >
+                <Download size={15} />
+                중간 저장 파일 내보내기
+              </button>
               <button
                 type="button"
                 onClick={handleSaveDraft}
@@ -593,8 +845,8 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
                     {Object.keys(currentTableData[0] || {})
                       .filter(k => !['tenant_id', 'createdAt', 'updatedAt', 'passwordHash'].includes(k))
                       .map(col => (
-                        <th key={col} style={{ padding: '6px 12px', textAlign: 'left', fontWeight: 800 }}>
-                          {col}
+                        <th key={col} style={{ padding: '6px 12px', textAlign: 'left', fontWeight: 800, color: 'var(--text-main)' }}>
+                          {COLUMN_LABEL_MAP[col] || col}
                         </th>
                       ))}
                     <th style={{ padding: '6px 12px', textAlign: 'center', fontWeight: 800 }}>검증상태</th>
@@ -647,9 +899,18 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
           <div style={{ display: 'flex', gap: '10px' }}>
             <button
               type="button"
+              onClick={handleExportDraftFile}
+              className="btn-secondary"
+              style={{ height: '40px', padding: '0 18px', fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+            >
+              <Download size={16} />
+              중간 저장 파일 내보내기
+            </button>
+            <button
+              type="button"
               onClick={handleSaveDraft}
               className="btn-secondary"
-              style={{ height: '40px', padding: '0 18px', fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              style={{ height: '40px', padding: '0 18px', fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
             >
               <Save size={16} />
               중간 저장 (임시보관)
@@ -731,21 +992,45 @@ export const SmartIntegratedUploaderStudio: React.FC = () => {
             조직도(부서/사원), 제품 및 장비, 물리현장과 옵션, 고객사 및 담당자, 정비점검 항목과 부품, 협력사 및 대여계약까지<br />
             <strong>1개의 엑셀 파일</strong>로 분석하고 수집 현황을 조망하여, 중간 저장 및 안전한 계층적 DB 적재를 수행합니다.
           </p>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+          <div style={{ display: 'flex', gap: '10px', marginTop: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
             <button
               type="button"
               onClick={handleLoadSampleData}
               className="btn-primary"
-              style={{ height: '36px', padding: '0 18px', fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              style={{ height: '36px', padding: '0 18px', fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
             >
               <FileSpreadsheet size={15} />
-              샘플 데이터로 즉시 체험하기
+              샘플 데이터 로드
             </button>
+            <label
+              className="btn-secondary"
+              style={{
+                height: '36px',
+                padding: '0 16px',
+                fontSize: '13px',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: isProcessing ? 'not-allowed' : 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <FolderOpen size={15} color="var(--primary)" />
+              중간 저장 파일 불러오기
+              <input
+                type="file"
+                accept=".json, .xlsx, .xls"
+                onChange={handleDraftFileUpload}
+                disabled={isProcessing}
+                style={{ display: 'none' }}
+              />
+            </label>
             <button
               type="button"
               onClick={handleDownloadTemplate}
               className="btn-secondary"
-              style={{ height: '36px', padding: '0 16px', fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              style={{ height: '36px', padding: '0 16px', fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
             >
               <Download size={15} />
               표준 양식 엑셀 다운로드
