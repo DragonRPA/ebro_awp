@@ -569,11 +569,11 @@ export const TruckDispatch: React.FC = () => {
     @media print {
       @page { size: A4 portrait; margin: 7mm 10mm; }
       * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      body { color: #000000 !important; background-color: #fbf9f5 !important; }
+      body { color: #000000 !important; background-color: #f5f2eb !important; }
       .no-print { display: none !important; }
     }
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-    body { font-family: 'Malgun Gothic', '맑은 고딕', Dotum, sans-serif; padding: 0; margin: 0 auto; color: #000000; background-color: #fbf9f5; width: 100%; max-width: 210mm; font-size: 8.5pt; line-height: 1.15; }
+    body { font-family: 'Malgun Gothic', '맑은 고딕', Dotum, sans-serif; padding: 0; margin: 0 auto; color: #000000; background-color: #f5f2eb; width: 100%; max-width: 210mm; font-size: 8.5pt; line-height: 1.15; }
     p, div, span, table, tr, td, th { margin: 0; padding: 0; line-height: 1.15; color: #000000; }
     table { width: 100%; border-collapse: collapse; margin-top: 2px; margin-bottom: 3px; table-layout: fixed; }
     th, td { border: 1px solid #000000; padding: 2.5px 5px !important; font-size: 8pt; vertical-align: middle; color: #000000; word-break: break-all; }
@@ -679,7 +679,7 @@ export const TruckDispatch: React.FC = () => {
     </table>
 
     <div class="sec-title">4. ${isOutbound ? '장비 출하 스펙 요구사항 (현장 요청 검수 항목)' : '회수 대상 장비 장착 옵션 및 보양 회수/탈거 항목'}</div>
-    <div style="padding: 4px 8px; border: 1px solid #000000; margin-bottom: 3px; background-color: #fbf9f5; box-sizing: border-box;">
+    <div style="padding: 4px 8px; border: 1px solid #000000; margin-bottom: 3px; background-color: #f5f2eb; box-sizing: border-box;">
       ${safetyOptions.length > 0 ? `
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font-size: 8pt;">
           ${safetyOptions.map((opt, idx) => `

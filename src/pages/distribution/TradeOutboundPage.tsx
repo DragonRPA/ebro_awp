@@ -67,7 +67,7 @@ export const TradeOutboundPage: React.FC = () => {
         <head>
           <meta charset="utf-8">
           <title>납품(인수)확인서 - ${ob.id}</title>
-          <style>body { margin: 0; background: #fbf9f5; } @media print { body { margin: 0; padding: 0; } }</style>
+          <style>body { margin: 0; background: #f5f2eb; } @media print { body { margin: 0; padding: 0; } }</style>
         </head>
         <body>
           ${html}

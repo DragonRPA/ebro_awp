@@ -341,7 +341,7 @@ export function generateReceiptHtml(
           ${isLastPage ? `
             <!-- 6. Confirmation & Signatures (최종 페이지 전용) -->
             <div class="sign-section" style="margin-top: 6px; margin-bottom: 6px;">
-              <div style="display: flex; justify-content: space-between; align-items: stretch; border: 1px solid #000000; padding: 8px 12px; background: #fbf9f5;">
+              <div style="display: flex; justify-content: space-between; align-items: stretch; border: 1px solid #000000; padding: 8px 12px; background: #f5f2eb;">
                 
                 <!-- Left: Confirmation Statement & Company (No redundant supplier table) -->
                 <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; padding-right: 14px;">
@@ -426,7 +426,7 @@ export function generateReceiptHtml(
         html, body {
           margin: 0 !important;
           padding: 0 !important;
-          background: #fbf9f5 !important;
+          background: #f5f2eb !important;
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
         }
@@ -459,7 +459,7 @@ export function generateReceiptHtml(
         max-width: 760px;
         margin: 0 auto 24px auto;
         color: #000000;
-        background-color: #fbf9f5;
+        background-color: #f5f2eb;
         border: 2px solid #000000;
         padding: 4px;
       }

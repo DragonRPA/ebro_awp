@@ -504,7 +504,7 @@ export const MobileInboundRegister: React.FC<MobileInboundRegisterProps> = ({
                 >
                   <span>{cat}</span>
                   {countInCat > 0 && (
-                    <span className="px-1.5 py-0.2 rounded-full bg-[#fbf9f5] text-rose-600 text-[10px] font-black">
+                    <span className="px-1.5 py-0.2 rounded-full bg-[#f5f2eb] text-rose-600 text-[10px] font-black">
                       {countInCat}
                     </span>
                   )}

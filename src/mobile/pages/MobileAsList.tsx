@@ -164,7 +164,7 @@ export const MobileAsList: React.FC<MobileAsListProps> = ({
           <Package className="w-4 h-4" />
           <span>주기장 입고정비 ({yardAssets.length})</span>
           {inboundDefectCount > 0 && (
-            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#fbf9f5] text-red-600 font-black">
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#f5f2eb] text-red-600 font-black">
               {inboundDefectCount}
             </span>
           )}

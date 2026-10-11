@@ -271,8 +271,8 @@
 /* Colors - Scoped to .mobile-app-root to prevent overriding desktop ERP CSS variables */
 .mobile-app-root {
   .bg-transparent { background-color: transparent; }
-  .bg-white { background-color: #fbf9f5; }
-  .bg-white\/20 { background-color: rgba(251, 249, 245, 0.2) !important; }
+  .bg-white { background-color: #f5f2eb; }
+  .bg-white\/20 { background-color: rgba(245, 242, 235, 0.2) !important; }
   .bg-black\/70 { background-color: rgba(0, 0, 0, 0.7) !important; }
   .bg-black\/80 { background-color: rgba(0, 0, 0, 0.8) !important; }
   .bg-slate-700 { background-color: #334155; }

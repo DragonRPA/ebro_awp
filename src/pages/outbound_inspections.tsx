@@ -782,7 +782,7 @@ export const OutboundInspections: React.FC = () => {
               .btn-close:hover { background: #475569; }
               .preview-wrapper { max-width: 760px; margin: 0 auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
               @media print {
-                body { background: #fbf9f5 !important; padding: 0 !important; }
+                body { background: #f5f2eb !important; padding: 0 !important; }
                 .preview-toolbar { display: none !important; }
                 .preview-wrapper { box-shadow: none !important; margin: 0 !important; max-width: 100% !important; }
               }

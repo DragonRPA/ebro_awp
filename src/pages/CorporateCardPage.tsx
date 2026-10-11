@@ -373,7 +373,7 @@ export const CorporateCardPage: React.FC = () => {
             style={{
               padding: '6px 16px', borderRadius: '6px', fontSize: '13px', border: 'none', cursor: 'pointer',
               fontWeight: activeSubTab === 'settlement' ? 'bold' : 'normal',
-              backgroundColor: activeSubTab === 'settlement' ? '#fbf9f5' : 'transparent',
+              backgroundColor: activeSubTab === 'settlement' ? '#f5f2eb' : 'transparent',
               color: activeSubTab === 'settlement' ? 'var(--primary)' : 'var(--text-secondary)'
             }}
           >
@@ -384,7 +384,7 @@ export const CorporateCardPage: React.FC = () => {
             style={{
               padding: '6px 16px', borderRadius: '6px', fontSize: '13px', border: 'none', cursor: 'pointer',
               fontWeight: activeSubTab === 'settings' ? 'bold' : 'normal',
-              backgroundColor: activeSubTab === 'settings' ? '#fbf9f5' : 'transparent',
+              backgroundColor: activeSubTab === 'settings' ? '#f5f2eb' : 'transparent',
               color: activeSubTab === 'settings' ? 'var(--primary)' : 'var(--text-secondary)'
             }}
           >

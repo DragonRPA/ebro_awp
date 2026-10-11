@@ -2151,7 +2151,7 @@ export const SmartDispatch4: React.FC = () => {
         }
         body {
           color: #000000 !important;
-          background-color: #fbf9f5 !important;
+          background-color: #f5f2eb !important;
         }
         .no-print {
           display: none !important;
@@ -2169,7 +2169,7 @@ export const SmartDispatch4: React.FC = () => {
         padding: 0;
         margin: 0 auto;
         color: #000000;
-        background-color: #fbf9f5;
+        background-color: #f5f2eb;
         width: 100%;
         max-width: 210mm;
         font-size: 8.5pt;
@@ -2348,7 +2348,7 @@ export const SmartDispatch4: React.FC = () => {
 
       <!-- 4. 장비 출하 스펙 및 안전옵션 요구사항 -->
       <div class="sec-title">4. 장비 출하 스펙 요구사항 (현장 요청 검수 항목)</div>
-      <div style="padding: 4px 8px; border: 1px solid #000000; margin-bottom: 3px; background-color: #fbf9f5; box-sizing: border-box;">
+      <div style="padding: 4px 8px; border: 1px solid #000000; margin-bottom: 3px; background-color: #f5f2eb; box-sizing: border-box;">
         ${orderSafetyOptions.length > 0 ? `
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 10px; font-size: 8pt;">
             ${orderSafetyOptions.map((opt, idx) => `

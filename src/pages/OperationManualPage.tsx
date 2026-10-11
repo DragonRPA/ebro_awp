@@ -192,7 +192,7 @@ export const OperationManualPage: React.FC = () => {
           body, html, #root, .manual-page-root, .manual-content-scroll {
             height: auto !important;
             overflow: visible !important;
-            background-color: #fbf9f5 !important;
+            background-color: #f5f2eb !important;
             color: #000000 !important;
           }
           .manual-page-root {

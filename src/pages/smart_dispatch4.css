@@ -649,7 +649,7 @@
 /* 선택된 칩 내부 배지: 순백 캡슐 & 짙은 텍스트로 최고 시인성 확보 */
 .dispatch4-model-chip.selected .dispatch4-qty-badge.available,
 .dispatch4-model-chip.selected .dispatch4-qty-badge.shortage {
-  background-color: #fbf9f5 !important;
+  background-color: #f5f2eb !important;
   color: #1e1b4b !important;
   border: 1px solid rgba(255, 255, 255, 0.9) !important;
   font-weight: 500 !important;
@@ -740,7 +740,7 @@
 .dispatch4-ft-tab.active .dispatch4-ft-count {
   /* 보라색 바탕 속에서 검은 글자가 묻히는 문제를 완벽 해결:
      배경은 순백색(#ffffff), 숫자는 진한 네이비/인디고(#1e1b4b)로 대비비 14:1 극대화 */
-  background-color: #fbf9f5 !important;
+  background-color: #f5f2eb !important;
   color: #1e1b4b !important;
   border: 1px solid rgba(255, 255, 255, 0.95) !important;
   font-weight: 500 !important;

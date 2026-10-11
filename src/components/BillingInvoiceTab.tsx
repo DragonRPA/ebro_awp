@@ -859,11 +859,11 @@ export const BillingInvoiceTab: React.FC = () => {
         @media print {
           /* 인쇄 시에만 용지 규격에 맞춰 흰색 배경 및 검은색 글자 강제 */
           #printable-invoice-canvas {
-            background-color: #fbf9f5 !important;
+            background-color: #f5f2eb !important;
             color: #111827 !important;
           }
           #printable-invoice-canvas table {
-            background-color: #fbf9f5 !important;
+            background-color: #f5f2eb !important;
             border-color: #9ca3af !important;
           }
           #printable-invoice-canvas thead th {
