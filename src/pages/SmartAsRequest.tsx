@@ -7,6 +7,7 @@ import { matchHangul, sortCustomersByName } from '../utils/hangulSearch';
 import { Wrench, Send, AlertTriangle, CheckCircle2, Search, Building2, MapPin, Phone, User, Tag, HelpCircle, PhoneCall, Sparkles, Clock, Check, ClipboardPaste, ChevronUp, ChevronDown, FolderOpen, Zap } from 'lucide-react';
 
 const QUICK_ISSUE_PRESETS = [
+  '현장 옵션 추가장착 (유상 의뢰)',
   '협착 방지봉 단선 및 파손',
   '과상승 감지봉 파손',
   '상승 / 하강 작동 불가',
@@ -22,7 +23,7 @@ const QUICK_ISSUE_PRESETS = [
 ];
 
 export const SmartAsRequest: React.FC = () => {
-  const { customers, sites, contracts, contractAssets, assets, fieldAsTickets, createFieldAsTicket, currentUser, showErrorModal, setActiveTab } = useApp();
+  const { customers, sites, contracts, contractAssets, assets, fieldAsTickets, createFieldAsTicket, currentUser, showErrorModal, setActiveTab, navigationPayload, setNavigationPayload } = useApp();
 
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
@@ -186,6 +187,37 @@ export const SmartAsRequest: React.FC = () => {
     loadAsDrafts();
   }, []);
 
+  const [selectedContractId, setSelectedContractId] = useState('');
+
+  // ── 외부 페이지(계약 관리 등)에서 넘어온 네비게이션 페이로드 자동 주입 ──
+  useEffect(() => {
+    if (navigationPayload && typeof navigationPayload === 'object') {
+      if (navigationPayload.customerId) {
+        setSelectedCustomerId(navigationPayload.customerId);
+      }
+      if (navigationPayload.siteId) {
+        setSelectedSiteId(navigationPayload.siteId);
+      }
+      if (navigationPayload.contractId) {
+        setSelectedContractId(navigationPayload.contractId);
+      }
+      if (navigationPayload.assetNo) {
+        setSelectedAssetNo(navigationPayload.assetNo);
+      }
+      if (navigationPayload.category) {
+        setSelectedCategory(navigationPayload.category);
+      }
+      if (navigationPayload.issueDescription) {
+        setIssueDescription(navigationPayload.issueDescription);
+      }
+      if (navigationPayload.customAssetNo) {
+        setCustomAssetNo(navigationPayload.customAssetNo);
+      }
+      // 사용 후 소비 처리
+      setNavigationPayload(null);
+    }
+  }, [navigationPayload, setNavigationPayload]);
+
   // 통화 초안 클릭 시 폼에 100% 자동 주입 (Auto Injection)
   const handleApplyDraft = (draft: DraftDispatchOrder) => {
     setSelectedDraftId(draft.id);
@@ -281,7 +313,8 @@ export const SmartAsRequest: React.FC = () => {
       setIssueDescription(prev => `${prev}\n${preset}`);
     }
 
-    if (preset.includes('방지봉') || preset.includes('감지봉')) setSelectedCategory('방지봉/협착');
+    if (preset.includes('옵션') || preset.includes('장착')) setSelectedCategory('옵션장착');
+    else if (preset.includes('방지봉') || preset.includes('감지봉')) setSelectedCategory('방지봉/협착');
     else if (preset.includes('상승') || preset.includes('하강')) setSelectedCategory('상하강불량');
     else if (preset.includes('충전') || preset.includes('배터리')) setSelectedCategory('충전/전원');
     else if (preset.includes('오일') || preset.includes('누유')) setSelectedCategory('오일누유');
@@ -310,6 +343,7 @@ export const SmartAsRequest: React.FC = () => {
 
       const ticket = await createFieldAsTicket({
         source: 'SALES_REQUEST',
+        contractId: selectedContractId || undefined,
         customerId: customer?.id || '',
         customerName: customer?.name || (site?.name ? `${site.name} 협력사` : '영업 의뢰 고객사'),
         siteId: site?.id || '',
@@ -884,6 +918,7 @@ export const SmartAsRequest: React.FC = () => {
                     color: 'var(--text-main)'
                   }}
                 >
+                  <option value="옵션장착">옵션 추가 장착 (유상)</option>
                   <option value="방지봉/협착">방지봉 / 협착 센서</option>
                   <option value="상하강불량">상승 / 하강 작동 불량</option>
                   <option value="충전/전원">충전 불량 / 충전선 단선</option>

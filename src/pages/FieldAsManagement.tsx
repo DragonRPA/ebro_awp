@@ -19,6 +19,7 @@ import { createHangulMatcher } from '../utils/hangulSearch';
 
 // 자주 쓰이는 조치 내용 프리셋 태그 (5,518건 빅데이터 기반)
 const QUICK_ACTION_TAGS = [
+  '옵션 추가장착 완료',
   '협착 방지봉 교체',
   '과상승 감지봉 보수 및 결선',
   '충전선 교체 및 220V 플러그 수리',
@@ -35,6 +36,7 @@ const QUICK_ACTION_TAGS = [
 // 자주 쓰이는 고장 분류 탭/필터
 const CATEGORIES = [
   'ALL',
+  '옵션장착',
   '방지봉/협착',
   '상하강불량',
   '충전/전원',
@@ -594,7 +596,8 @@ export const FieldAsManagement: React.FC = () => {
     setActionRevisitDate(t.revisitDate || new Date(Date.now() + 86400000).toISOString().split('T')[0]);
     setActionRevisitReason(t.revisitReason || '');
     setActionExchangeSuggested(!!t.exchangeSuggested);
-    setActionBillableType(t.billableType || 'FREE');
+    const isOptionAttach = t.issueCategory === '옵션장착' || (t.issueDescription && t.issueDescription.includes('옵션 추가장착'));
+    setActionBillableType(t.billableType || (isOptionAttach ? 'BILLABLE' : 'FREE'));
     setActionBillableAmount(t.billableAmount || 0);
     setActionConfirmName(t.customerConfirmName || '');
     setActionBeforeImage(t.beforeImage || '');

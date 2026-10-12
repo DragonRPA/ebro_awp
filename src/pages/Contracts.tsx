@@ -19,7 +19,8 @@ export const Contracts: React.FC = () => {
     contracts, contractAssets, contractHistory, customers, contacts, sites, assets, users, currentUser,
     createContract, extendContract, shortenContract, succeedContract, exchangeAsset, hasPermission,
     products, refreshAllData, deliveries, repairs, outboundInspections, billings, billingDetails, receivables,
-    navigationPayload, setNavigationPayload, updateContractAssetPeriod, relocateContractAsset, showErrorModal
+    navigationPayload, setNavigationPayload, updateContractAssetPeriod, relocateContractAsset, showErrorModal,
+    setActiveTab: setGlobalActiveTab
   } = useApp();
 
   const canSave = hasPermission('contract', 'save');
@@ -2558,6 +2559,22 @@ export const Contracts: React.FC = () => {
                 </h3>
                 {canSave && canModifyContract(activeContract) && activeContract.status !== 'COMPLETED' && (
                   <div style={{ display: 'flex', gap: '6px' }}>
+                    <button 
+                      className="btn-secondary" 
+                      onClick={() => {
+                        setGlobalActiveTab('smart_as_request', {
+                          customerId: activeContract.customerId,
+                          siteId: activeContract.siteId,
+                          contractId: activeContract.id,
+                          category: '옵션장착',
+                          issueDescription: `현장 옵션 추가 장착 의뢰 (계약: ${activeContract.contractNo})`
+                        });
+                      }} 
+                      style={{ padding: '5px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', borderColor: 'var(--primary)' }}
+                      title="해당 계약 현장으로 옵션 추가장착(유상 AS) 접수 이동"
+                    >
+                      <Plus size={13} /> 옵션 장착 AS 의뢰
+                    </button>
                     <button className="btn-secondary" onClick={() => handleOpenExchangeGlobal()} style={{ padding: '5px 10px', fontSize: '11.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <Repeat size={13} /> 자산 교체/대차 의뢰
                     </button>
@@ -2687,6 +2704,23 @@ export const Contracts: React.FC = () => {
                                   </button>
                                   <button className="btn-secondary" onClick={() => handleOpenRelocateModal(ca)} style={{ padding: '2px 6px', fontSize: '10.5px' }} title="동일 고객 타 현장으로 장비 이동">
                                     <Truck size={11} /> 현장 이동
+                                  </button>
+                                  <button 
+                                    className="btn-secondary" 
+                                    onClick={() => {
+                                      setGlobalActiveTab('smart_as_request', {
+                                        customerId: activeContract.customerId,
+                                        siteId: activeContract.siteId,
+                                        contractId: activeContract.id,
+                                        assetNo: asset?.assetNo,
+                                        category: '옵션장착',
+                                        issueDescription: `현장 옵션 추가 장착 의뢰 (장비: ${asset?.assetNo || '지정'}, 계약: ${activeContract.contractNo})`
+                                      });
+                                    }} 
+                                    style={{ padding: '2px 6px', fontSize: '10.5px', color: 'var(--primary)' }} 
+                                    title="해당 장비로 옵션 추가장착(유상 AS) 접수 이동"
+                                  >
+                                    <Plus size={11} /> 옵션 장착 AS
                                   </button>
                                 </div>
                               )

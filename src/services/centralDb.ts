@@ -6,8 +6,8 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Tenant } from './db';
 import { encryptEntityPrivacyFields, decryptEntityPrivacyFields } from '../utils/cryptoVault';
 
-const CENTRAL_SUPABASE_URL = import.meta.env.VITE_CENTRAL_SUPABASE_URL || 'https://nyfashwbdcepncpdwpdb.supabase.co';
-const CENTRAL_SUPABASE_ANON_KEY = import.meta.env.VITE_CENTRAL_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55ZmFzaHdiZGNlcG5jcGR3cGRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExOTUwMjgsImV4cCI6MjEwNjc3MTAyOH0.xw2XKKzjPj_HjQzPJDMKkkbaO7htojYioIMGt4l8VLM';
+const CENTRAL_SUPABASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_CENTRAL_SUPABASE_URL) || (typeof process !== 'undefined' && process.env?.VITE_CENTRAL_SUPABASE_URL) || 'https://nyfashwbdcepncpdwpdb.supabase.co';
+const CENTRAL_SUPABASE_ANON_KEY = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_CENTRAL_SUPABASE_ANON_KEY) || (typeof process !== 'undefined' && process.env?.VITE_CENTRAL_SUPABASE_ANON_KEY) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im55ZmFzaHdiZGNlcG5jcGR3cGRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExOTUwMjgsImV4cCI6MjEwNjc3MTAyOH0.xw2XKKzjPj_HjQzPJDMKkkbaO7htojYioIMGt4l8VLM';
 
 export const centralSupabase: SupabaseClient = createClient(
   CENTRAL_SUPABASE_URL,

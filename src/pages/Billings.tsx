@@ -2220,11 +2220,13 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
     // 2. 순수 추가 청구 항목 정산 (수기 추가분 - 외상미수금은 linkReceivableToBilling이 전담)
     pureExtraCharges.forEach(ec => {
-      let itemName = '';
-      if (ec.category === 'TRANSPORT_ONEWAY') itemName = '운송료 (편도)';
-      else if (ec.category === 'TRANSPORT_ROUNDTRIP') itemName = '운송료 (왕복)';
-      else if (ec.category === 'REPAIR') itemName = '수리비';
-      else itemName = ec.customName || '기타 추가청구';
+      let itemName = ec.customName || '';
+      if (!itemName) {
+        if (ec.category === 'TRANSPORT_ONEWAY') itemName = '운송료 (편도)';
+        else if (ec.category === 'TRANSPORT_ROUNDTRIP') itemName = '운송료 (왕복)';
+        else if (ec.category === 'REPAIR') itemName = '수리비';
+        else itemName = '기타 추가청구';
+      }
 
       const amount = ec.quantity * ec.unitPrice;
 
@@ -4317,23 +4319,28 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 {/* 추가 청구 항목 입력 섹션 */}
                 <div style={{ marginTop: '24px', borderTop: '1px dashed var(--border-color)', paddingTop: '16px', marginBottom: '20px' }}>
                   
-                  {/* 💡 미청구 고객 과실 수리비 자동 추천 패널 */}
+                  {/* 💡 미청구 고객 과실 수리비 / 옵션 장착비 자동 추천 패널 */}
                   {(() => {
                     const contractAssetIds = wizardContractAssets.map(ca => ca.assetId).filter(Boolean);
                     const unbilledRepairs = repairs.filter(r => 
                       r.billableToCustomer && 
                       !r.billingId && 
                       !r.isWaived &&
-                      contractAssetIds.includes(r.assetId) &&
+                      (contractAssetIds.includes(r.assetId) || (selectedContractForWizard && r.contractId === selectedContractForWizard.id)) &&
                       !selectedRepairIdsForWizard.includes(r.id)
                     );
 
                     if (unbilledRepairs.length === 0) return null;
 
+                    const getRepairLabel = (rep: any) => {
+                      const isOptionAttach = rep.issueCategory === '옵션장착' || (rep.details && (rep.details.includes('옵션') || rep.details.includes('장착')));
+                      return isOptionAttach ? '[옵션 추가장착]' : '[고객부담 수리비]';
+                    };
+
                     return (
                       <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)', marginBottom: '14px' }}>
                         <div style={{ fontWeight: 'bold', fontSize: '12.5px', color: 'var(--danger)', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>⚠️ 고객 부담 미청구 정비/수리비 {unbilledRepairs.length}건 발견</span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>⚠️ 고객 부담 미청구 정비/옵션장착비 {unbilledRepairs.length}건 발견</span>
                           {unbilledRepairs.length > 1 && (
                             <button
                               type="button"
@@ -4344,10 +4351,11 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                                 const newCharges = unbilledRepairs.map(rep => {
                                   const ast = assets.find(a => a.id === rep.assetId);
                                   const cost = rep.totalCost || rep.billableAmount || 0;
+                                  const label = getRepairLabel(rep);
                                   return {
                                     id: `EXTRA-REP-${rep.id}`,
                                     category: 'REPAIR',
-                                    customName: `[고객부담 수리비] ${ast?.assetNo || ''} ${rep.details || ''}`,
+                                    customName: `${label} ${ast?.assetNo || ''} ${rep.details || ''}`.trim(),
                                     quantity: 1,
                                     unitPrice: cost
                                   };
@@ -4364,10 +4372,12 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                           {unbilledRepairs.map(rep => {
                             const ast = assets.find(a => a.id === rep.assetId);
                             const cost = rep.totalCost || rep.billableAmount || 0;
+                            const label = getRepairLabel(rep);
                             return (
                               <div key={rep.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', backgroundColor: 'var(--bg-card)', padding: '6px 10px', borderRadius: '6px' }}>
                                 <div>
-                                  <strong>{ast?.modelName || '장비'} ({ast?.assetNo})</strong> — {rep.details || '현장 수리'} ({cost.toLocaleString()}원)
+                                  <span style={{ fontWeight: 700, color: label.includes('옵션') ? 'var(--primary)' : 'var(--danger)', marginRight: '6px' }}>{label}</span>
+                                  <strong>{ast?.modelName || '장비'} ({ast?.assetNo || '현장확인'})</strong> — {rep.details || '현장 조치'} ({cost.toLocaleString()}원)
                                 </div>
                                 <div style={{ display: 'flex', gap: '6px' }}>
                                   <button
@@ -4378,7 +4388,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                                       setExtraCharges([...extraCharges, {
                                         id: `EXTRA-REP-${rep.id}`,
                                         category: 'REPAIR',
-                                        customName: `[고객부담 수리비] ${ast?.assetNo || ''} ${rep.details || ''}`,
+                                        customName: `${label} ${ast?.assetNo || ''} ${rep.details || ''}`.trim(),
                                         quantity: 1,
                                         unitPrice: cost
                                       }]);
@@ -4394,7 +4404,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                                       handleOpenWaiverModal({
                                         type: 'REPAIR',
                                         id: rep.id,
-                                        title: `[고객부담 수리비] ${ast?.assetNo || ''} ${rep.details || '현장 수리'}`,
+                                        title: `${label} ${ast?.assetNo || ''} ${rep.details || '현장 조치'}`,
                                         originalCost: cost,
                                         customerName: selectedContractForWizard ? getCustName(selectedContractForWizard.customerId) : undefined,
                                         contractNo: selectedContractForWizard?.contractNo,
