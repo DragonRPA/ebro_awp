@@ -19,6 +19,7 @@ import { jobNotificationService } from './services/jobNotificationService';
 
 import { WeatherWidget } from './components/WeatherWidget';
 import { HindsightQueryModal } from './components/HindsightQueryModal';
+import { isDeveloperUser } from './utils/userDepartmentHelper';
 const ApprovalRulesManage = React.lazy(() => import('./pages/ApprovalRulesManage'));
 const ApprovalInbox = React.lazy(() => import('./pages/ApprovalInbox'));
 import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
@@ -1981,31 +1982,33 @@ const App: React.FC = () => {
             activeTabName={menuGroups.flatMap(g => g.items).find(i => i.id === activeTab)?.name || (activeTab === 'dashboard' ? '대시보드' : activeTab)}
           />
 
-          {/* 🧠 Hindsight 4대 메모리 지식 콘솔 버튼 */}
-          <button
-            onClick={() => setShowHindsightModal(true)}
-            data-uia="btn-hindsight-console"
-            style={{
-              padding: '6px 11px',
-              borderRadius: '20px',
-              backgroundColor: '#eff6ff',
-              color: '#1d4ed8',
-              border: '1px solid #bfdbfe',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '12px',
-              fontWeight: '700',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-              transition: 'all 0.15s ease'
-            }}
-            title="Hindsight 4대 메모리 지식 콘솔 (자연어 질의응답 및 전사 지식)"
-          >
-            <Brain size={14} color="#2563eb" />
-            <span>Hindsight 지식</span>
-          </button>
+          {/* 🧠 Hindsight 4대 메모리 지식 콘솔 버튼 (개발자 전용 노출) */}
+          {isDeveloperUser(currentUser) && (
+            <button
+              onClick={() => setShowHindsightModal(true)}
+              data-uia="btn-hindsight-console"
+              style={{
+                padding: '6px 11px',
+                borderRadius: '20px',
+                backgroundColor: '#eff6ff',
+                color: '#1d4ed8',
+                border: '1px solid #bfdbfe',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+                transition: 'all 0.15s ease'
+              }}
+              title="Hindsight 4대 메모리 지식 콘솔 (자연어 질의응답 및 전사 지식)"
+            >
+              <Brain size={14} color="#2563eb" />
+              <span>Hindsight 지식</span>
+            </button>
+          )}
 
           {/* 🔔 주기장/공장 현장용 업무 알림 설정 버튼 (소리-차임벨 & 팝업 토스트) */}
           <button
