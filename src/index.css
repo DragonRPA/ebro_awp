@@ -948,8 +948,8 @@ button {
 
 /* 6. 삭제/위험 기능 (Danger / Delete) : 차분하고 절제된 Crimson Red */
 .btn-danger {
-  height: 34px !important;
-  padding: 0 14px !important;
+  height: 34px;
+  padding: 0 14px;
   font-size: 12.5px !important;
   font-weight: 600 !important;
   border-radius: 6px !important;

@@ -2782,7 +2782,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               <table data-mid="billing-list-table" style={{ minWidth: '650px', whiteSpace: 'nowrap' }}>
                 <thead>
                   <tr>
-                    <th style={{ whiteSpace: 'nowrap', width: '130px' }}>관리</th>
+                    <th style={{ whiteSpace: 'nowrap', width: '90px' }}>관리</th>
                     <SortableTh label="청구월" sortKey="billingYm" currentSort={sortConfig} onSort={requestSort} style={{ whiteSpace: 'nowrap' }} />
                     <SortableTh label="고객사" sortKey="customerName" currentSort={sortConfig} onSort={requestSort} style={{ whiteSpace: 'nowrap' }} />
                     <SortableTh label="공급가액" sortKey="totalAmount" currentSort={sortConfig} onSort={requestSort} style={{ whiteSpace: 'nowrap', paddingRight: '12px' }} align="right" />
@@ -2867,30 +2867,6 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                                 title={b.invoiceId ? `통합 청구서(${b.invoiceId})에 포함됨 - 개별 명세서 발송` : "거래명세서 이메일 발송"}
                               >
                                 <Mail size={11} /> {b.invoiceId ? '개별발송' : '발송'}
-                              </button>
-                            )}
-
-                            {/* 3. 청구 취소 버튼: 완납(PAID) 또는 이미 취소(REJECTED)가 아닌 상태 */}
-                            {isAdmin && b.status !== 'PAID' && b.status !== 'REJECTED' && (
-                              <button 
-                                type="button" 
-                                className="btn-danger" 
-                                data-mid='btn-rollback-billing' onClick={(e) => handleCancel(b.id, e)} 
-                                style={{
-                                  height: '24px',
-                                  padding: '0 8px',
-                                  fontSize: '11px',
-                                  fontWeight: '600',
-                                  whiteSpace: 'nowrap',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  borderRadius: '4px',
-                                  flexShrink: 0
-                                }}
-                                title="청구 취소"
-                              >
-                                취소
                               </button>
                             )}
                           </div>
@@ -3058,7 +3034,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                       {canSave && activeBilling.status !== 'REJECTED' && (
                         <button 
                           type="button" 
-                          className="btn-danger"
+                          className="btn-danger btn-sm"
                           onClick={(e) => handleCancel(activeBilling.id, e)}
                           style={{
                             height: '28px',
