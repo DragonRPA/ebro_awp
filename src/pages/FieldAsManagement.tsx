@@ -16,6 +16,7 @@ import { launchNavigation, safePhoneCall, resolveSiteDetailedAddress } from '../
 import { normalizeMenuId } from '../config/menu_config';
 import { getRoleTemplatePermission } from '../config/role_templates';
 import { createHangulMatcher } from '../utils/hangulSearch';
+import { FieldAsCreateModal, FieldAsCreatePayload } from '../components/FieldAsCreateModal';
 
 // 자주 쓰이는 조치 내용 프리셋 태그 (5,518건 빅데이터 기반)
 const QUICK_ACTION_TAGS = [
@@ -767,39 +768,12 @@ export const FieldAsManagement: React.FC = () => {
   };
 
   // 신규 직접 등록 제출
-  const handleCreateDirectTicket = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreateDirectTicket = async (payload: FieldAsCreatePayload) => {
     if (isCreatingTicket) return;
-    if (!newSiteName.trim()) {
-      showErrorModal('현장명을 입력해 주세요.');
-      return;
-    }
-    if (!newIssueDesc.trim()) {
-      showErrorModal('고장 내용을 입력해 주세요.');
-      return;
-    }
 
     try {
       setIsCreatingTicket(true);
-      const ticket = await createFieldAsTicket({
-        source: 'DIRECT_INTAKE',
-        customerName: newCustomerName.trim() || '현장 협력업체',
-        siteName: newSiteName.trim(),
-        siteAddress: newSiteAddress.trim(),
-        assetNo: newAssetNo.trim() || '현장확인',
-        locationDetail: newLocationDetail.trim(),
-        reporterName: newReporterName.trim(),
-        reporterContact: newReporterContact.trim(),
-        issueCategory: newCategory,
-        issueDescription: newIssueDesc.trim(),
-        errorCode: newErrorCode.trim(),
-        priority: newPriority,
-        status: newAssignedMechanicId ? 'SCHEDULED' : 'REQUESTED',
-        visitDate: newVisitDate,
-        assignedMechanicId: newAssignedMechanicId,
-        billableType: 'FREE',
-        billableAmount: 0
-      });
+      const ticket = await createFieldAsTicket(payload);
 
       setShowCreateModal(false);
       setStudioSelectedTicketId(ticket.id);
@@ -4163,239 +4137,18 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
         </div>
       )}
 
-      {/* ──────────────────────────────────────────────────────────────────────────
-          모달: 신규 AS 직접 등록
-      ────────────────────────────────────────────────────────────────────────── */}
       {showCreateModal && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
-          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '12px', width: '560px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
-              <h3 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Wrench size={18} color="#2563eb" />
-                신규 현장 AS 접수 등록
-              </h3>
-              <button onClick={() => setShowCreateModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateDirectTicket} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>현장명 *</label>
-                  <input
-                    type="text"
-                    required
-                    value={newSiteName}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setNewSiteName(val);
-                      const s = db.customerSites.find(cs => cs.name.includes(val.trim()) || val.trim().includes(cs.name));
-                      if (s?.address?.trim()) setNewSiteAddress(s.address.trim());
-                    }}
-                    placeholder="예: 용인 SK하이닉스 팹동"
-                    style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px' }}
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>업체명 (고객사)</label>
-                  <input
-                    type="text"
-                    value={newCustomerName}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setNewCustomerName(val);
-                      const cust = db.customers.find(c => c.name.includes(val.trim()) || val.trim().includes(c.name));
-                      if (cust) {
-                        const cs = db.customerSites.find(s => s.customerId === cust.id);
-                        if (cs?.address?.trim()) setNewSiteAddress(cs.address.trim());
-                        else if (cust.address?.trim()) setNewSiteAddress(cust.address.trim());
-                      }
-                    }}
-                    placeholder="예: 세보, 화성"
-                    style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px' }}
-                  />
-                </div>
-              </div>
-
-              {/* 도로명 상세 주소 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                    현장 도로명 주소 (T맵 연동)
-                  </label>
-                  {newSiteName.trim() && (
-                    <button data-hs-trigger="Register"
-                      type="button"
-                      onClick={() => {
-                        const s = (db.customerSites || []).find(cs => cs.name.includes(newSiteName.trim()) || newSiteName.trim().includes(cs.name));
-                        if (s?.address?.trim()) {
-                          setNewSiteAddress(s.address.trim());
-                          showToast('현장 마스터 등록 주소를 반영했습니다.');
-                        } else {
-                          const cust = (db.customers || []).find(c => c.name.includes(newCustomerName.trim()) || newCustomerName.trim().includes(c.name));
-                          if (cust?.address?.trim()) {
-                            setNewSiteAddress(cust.address.trim());
-                            showToast('고객사 기본 주소를 반영했습니다.');
-                          } else {
-                            showToast('해당 현장/고객사의 등록 주소를 찾을 수 없습니다.', 'warning');
-                          }
-                        }
-                      }}
-                      style={{
-                        fontSize: '11px',
-                        color: '#0284c7',
-                        backgroundColor: 'rgba(2, 132, 199, 0.08)',
-                        border: '1px solid rgba(2, 132, 199, 0.25)',
-                        borderRadius: '4px',
-                        padding: '1px 6px',
-                        cursor: 'pointer',
-                        fontWeight: 600
-                      }}
-                    >
-                      📍 마스터 주소 자동적용
-                    </button>
-                  )}
-                </div>
-                <input
-                  type="text"
-                  value={newSiteAddress}
-                  onChange={(e) => setNewSiteAddress(e.target.value)}
-                  placeholder="도로명 주소 입력 (고객 정보 자동 연동)"
-                  style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px' }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>관리번호 (장비번호)</label>
-                    {newAssetNo.trim() && (
-                      <button
-                        type="button"
-                        onClick={() => handleAutoLookupByAssetNo(newAssetNo)}
-                        style={{
-                          fontSize: '11px',
-                          color: 'var(--primary)',
-                          backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                          border: '1px solid rgba(37, 99, 235, 0.25)',
-                          borderRadius: '4px',
-                          padding: '1px 6px',
-                          cursor: 'pointer',
-                          fontWeight: 600
-                        }}
-                      >
-                        🔍 계약/현장/주소 자동완성
-                      </button>
-                    )}
-                  </div>
-                  <input
-                    type="text"
-                    value={newAssetNo}
-                    onChange={(e) => setNewAssetNo(e.target.value)}
-                    onBlur={(e) => {
-                      if (e.target.value.trim() && !newSiteName.trim()) {
-                        handleAutoLookupByAssetNo(e.target.value);
-                      }
-                    }}
-                    placeholder="예: G10032, 전체장비"
-                    style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px' }}
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>장비 세부 위치</label>
-                  <input
-                    type="text"
-                    value={newLocationDetail}
-                    onChange={(e) => setNewLocationDetail(e.target.value)}
-                    placeholder="예: 8층 X27 Y17"
-                    style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>고장 분류</label>
-                  <select
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                    style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px', backgroundColor: 'var(--bg-card)' }}
-                  >
-                    {CATEGORIES.filter(c => c !== 'ALL').map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>에러코드 (선택)</label>
-                  <input
-                    type="text"
-                    value={newErrorCode}
-                    onChange={(e) => setNewErrorCode(e.target.value)}
-                    placeholder="예: LD, U038"
-                    style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>고장 상세 내용 *</label>
-                <textarea
-                  rows={3}
-                  required
-                  value={newIssueDesc}
-                  onChange={(e) => setNewIssueDesc(e.target.value)}
-                  placeholder="고장 증상을 입력해 주세요."
-                  style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px' }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>현장 접수자 연락처</label>
-                  <input
-                    type="text"
-                    value={newReporterContact}
-                    onChange={(e) => setNewReporterContact(e.target.value)}
-                    placeholder="예: 010-1234-5678"
-                    style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px' }}
-                  />
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>담당자지정</label>
-                  <select
-                    value={newAssignedMechanicId}
-                    onChange={(e) => setNewAssignedMechanicId(e.target.value)}
-                    style={{ padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px', backgroundColor: 'var(--bg-card)' }}
-                  >
-                    <option value="">담당자지정 (추후 지정)</option>
-                    {eligibleAssignees.map(m => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  style={{ padding: '8px 16px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '13px', fontWeight: 600, color: 'var(--text-muted)', cursor: 'pointer' }}
-                >
-                  취소
-                </button>
-                <button data-hs-trigger="Register"
-                  type="submit"
-                  disabled={isCreatingTicket}
-                  style={{ padding: '8px 20px', backgroundColor: 'var(--primary)', border: 'none', borderRadius: '6px', fontSize: '13px', fontWeight: 700, color: '#ffffff', cursor: 'pointer' }}
-                >
-                  {isCreatingTicket ? '등록중...' : '접수 등록'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <FieldAsCreateModal
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSubmit={handleCreateDirectTicket}
+          isSubmitting={isCreatingTicket}
+          eligibleAssignees={eligibleAssignees}
+          categories={CATEGORIES}
+          initialMechanicId={currentUser?.role === 'MECHANIC' ? currentUser.id : ''}
+          showToast={showToast}
+          showErrorModal={showErrorModal}
+        />
       )}
 
       {/* ──────────────────────────────────────────────────────────────────────────

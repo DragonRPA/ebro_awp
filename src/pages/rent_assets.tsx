@@ -11,6 +11,7 @@ import * as XLSX from 'xlsx';
 import { VendorStatementRow, parseVendorStatementExcel } from '../services/vendorStatementParser';
 import { parsePdfStatement } from '../services/pdfStatementParser';
 import { matchHangul } from '../utils/hangulSearch';
+import { RentedAssetEditModal } from '../components/RentedAssetEditModal';
 
 // 5대 대사 결과 항목 인터페이스
 export type ReconcileStatusKey = 'MATCHED' | 'PRICE_MISMATCH' | 'PERIOD_MISMATCH' | 'UNREGISTERED' | 'MISSING_BILLING';
@@ -1241,50 +1242,50 @@ export const RentAssets: React.FC = () => {
     setShowReturnModal(true);
   };
 
-  const handleSubmitAsset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!canSave || !editingAsset || !editingAsset.assetNo || !editingAsset.modelName) {
+  const handleSubmitAsset = async (assetData?: Partial<Asset>, searchRenter?: string) => {
+    const targetAsset = assetData || editingAsset;
+    if (!canSave || !targetAsset || !targetAsset.assetNo || !targetAsset.modelName) {
       showToast('필수 입력을 확인해 주세요.', 'error');
       return;
     }
-    if (editingAsset.rentStart && editingAsset.rentEnd && editingAsset.rentStart > editingAsset.rentEnd) {
+    if (targetAsset.rentStart && targetAsset.rentEnd && targetAsset.rentStart > targetAsset.rentEnd) {
       showToast('임차 시작일이 만료예정일보다 늦을 수 없습니다.', 'error');
       return;
     }
 
-    const resolvedRenter = renterSearchQuery.trim() || editingAsset.renter || (editingAsset.vendorId ? vendors.find(v => v.id === editingAsset.vendorId)?.name : '') || '';
+    const resolvedRenter = (searchRenter !== undefined ? searchRenter.trim() : renterSearchQuery.trim()) || targetAsset.renter || (targetAsset.vendorId ? vendors.find(v => v.id === targetAsset.vendorId)?.name : '') || '';
     if (!resolvedRenter) {
       showToast('임차처를 선택해 주세요.', 'error');
       return;
     }
-    editingAsset.renter = resolvedRenter;
-    if (!editingAsset.vendorId) {
+    targetAsset.renter = resolvedRenter;
+    if (!targetAsset.vendorId) {
       const v = vendors.find(item => item.name === resolvedRenter);
-      if (v) editingAsset.vendorId = v.id;
+      if (v) targetAsset.vendorId = v.id;
     }
 
     // 🔒 임차 중인 자산 수정 시 임차처 변조 방어
-    if (editingAsset.id && editingAsset.status !== 'RENTED_RETURNED' && !(editingAsset as any).isReactivating) {
-      const original = assets.find(a => a.id === editingAsset.id);
+    if (targetAsset.id && targetAsset.status !== 'RENTED_RETURNED' && !(targetAsset as any).isReactivating) {
+      const original = assets.find(a => a.id === targetAsset.id);
       if (original && (original.renter || original.vendorId)) {
-        editingAsset.renter = original.renter || resolvedRenter;
-        editingAsset.vendorId = original.vendorId || editingAsset.vendorId;
+        targetAsset.renter = original.renter || resolvedRenter;
+        targetAsset.vendorId = original.vendorId || targetAsset.vendorId;
       }
     }
 
     try {
-      const calculatedDailyFee = editingAsset.dailyRentFee || Math.floor((editingAsset.monthlyRentFee || 0) / 30);
+      const calculatedDailyFee = targetAsset.dailyRentFee || Math.floor((targetAsset.monthlyRentFee || 0) / 30);
       await registerRentedAsset({
-        ...editingAsset,
+        ...targetAsset,
         dailyRentFee: calculatedDailyFee
       });
-      if (editingAsset.renter) {
-        setLastUsedRenter(editingAsset.renter);
+      if (targetAsset.renter) {
+        setLastUsedRenter(targetAsset.renter);
         try {
-          localStorage.setItem('last_rent_asset_vendor', editingAsset.renter);
+          localStorage.setItem('last_rent_asset_vendor', targetAsset.renter);
         } catch {}
       }
-      showToast(`임차 자산 ${editingAsset.assetNo} 등록/수정이 완료되었습니다.`);
+      showToast(`임차 자산 ${targetAsset.assetNo} 등록/수정이 완료되었습니다.`);
       setShowModal(false);
       setEditingAsset(null);
       setIsRenterDropdownOpen(false);
@@ -3474,333 +3475,23 @@ export const RentAssets: React.FC = () => {
 
       {/* ========================================================================= */}
       {/* 3. 모달: 임차 자산 등록 / 수정 모달 */}
-      {/* ========================================================================= */}
-      {showModal && editingAsset && (() => {
-        const currentRenterVal = editingAsset.renter || (editingAsset.vendorId ? vendors.find(v => v.id === editingAsset.vendorId)?.name : '') || '';
-        const isRenterDisabled = Boolean(editingAsset.id && currentRenterVal && editingAsset.status !== 'RENTED_RETURNED' && !(editingAsset as any).isReactivating);
-        return (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', padding: '24px', borderRadius: '12px', width: '500px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border-color)' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: '800', marginBottom: '16px', color: 'var(--text-main)' }}>
-              {editingAsset.id ? '임차 자산 수정' : '임차 자산 신규/재임차 등록'}
-            </h2>
-
-            <form onSubmit={handleSubmitAsset} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>자사 관리번호 (필수)</label>
-                    {!editingAsset.id && (
-                      <button
-                        type="button"
-                        onClick={handleAutoGenerateAssetNo}
-                        style={{
-                          fontSize: '10.5px',
-                          fontWeight: 700,
-                          padding: '1px 6px',
-                          borderRadius: '4px',
-                          border: '1px solid var(--border-color)',
-                          backgroundColor: 'var(--bg-card)',
-                          color: 'var(--primary)',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        신규 채번
-                      </button>
-                    )}
-                  </div>
-                  <input
-                    type="text"
-                    list="past-returned-asset-nos"
-                    required
-                    placeholder="예: R-001"
-                    value={editingAsset.assetNo || ''}
-                    onChange={e => handleAssetNoChange(e.target.value)}
-                    style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
-                  />
-                  <datalist id="past-returned-asset-nos">
-                    {rentedAssets.filter(a => a.status === 'RENTED_RETURNED').map(a => (
-                      <option key={a.id} value={a.assetNo}>
-                        {`${a.modelName} | ${a.renter || '미지정'} (반납 자산)`}
-                      </option>
-                    ))}
-                  </datalist>
-                  {(editingAsset as any).isReactivating && (
-                    <div style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
-                      <CheckCircle2 size={12} /> 과거 반납 이력 자산 (재임차 승계)
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>임차처 원래번호 (선택)</label>
-                  <input
-                    type="text"
-                    placeholder="예: 대한-101, AJ-502"
-                    value={editingAsset.vendorAssetNo || ''}
-                    onChange={e => setEditingAsset({ ...editingAsset, vendorAssetNo: e.target.value })}
-                    style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>모델명 (필수)</label>
-                <select
-                  value={editingAsset.modelName || ''}
-                  onChange={e => setEditingAsset({ ...editingAsset, modelName: e.target.value })}
-                  style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
-                >
-                  {sortedProducts.map(p => (
-                    <option key={p.id} value={p.modelName}>{p.modelName}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', position: 'relative' }} ref={renterComboboxRef}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>
-                    임차처 (필수, 초성검색 지원)
-                  </label>
-                  {isRenterDisabled && (
-                    <span style={{ fontSize: '10px', color: 'var(--warning)', fontWeight: 700, backgroundColor: 'rgba(245, 158, 11, 0.1)', padding: '1px 6px', borderRadius: '4px' }}>
-                      임차 중 변경 불가
-                    </span>
-                  )}
-                </div>
-
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <input
-                    type="text"
-                    required
-                    disabled={isRenterDisabled}
-                    placeholder="임차처 입력 또는 초성 검색 (예: ㄹㅇㅈ, 한국)"
-                    value={renterSearchQuery}
-                    onChange={e => {
-                      const val = e.target.value;
-                      setRenterSearchQuery(val);
-                      setIsRenterDropdownOpen(true);
-                      const matched = vendors.find(v => v.name === val.trim());
-                      setEditingAsset({
-                        ...editingAsset,
-                        renter: val,
-                        vendorId: matched?.id || editingAsset.vendorId
-                      });
-                    }}
-                    onFocus={() => {
-                      if (!isRenterDisabled) setIsRenterDropdownOpen(true);
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '6px 30px 6px 10px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border-color)',
-                      backgroundColor: isRenterDisabled ? 'var(--bg-app)' : 'var(--bg-card)',
-                      color: isRenterDisabled ? 'var(--text-muted)' : 'var(--text-main)',
-                      cursor: isRenterDisabled ? 'not-allowed' : 'text',
-                      fontSize: '12px',
-                      boxSizing: 'border-box'
-                    }}
-                  />
-                  {renterSearchQuery && !isRenterDisabled && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setRenterSearchQuery('');
-                        setEditingAsset({ ...editingAsset, renter: '', vendorId: undefined });
-                        setIsRenterDropdownOpen(true);
-                      }}
-                      style={{
-                        position: 'absolute',
-                        right: '8px',
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--text-muted)',
-                        cursor: 'pointer',
-                        padding: '2px',
-                        display: 'flex'
-                      }}
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
-
-                {/* 초성 검색 결과 드롭다운 */}
-                {isRenterDropdownOpen && !isRenterDisabled && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      right: 0,
-                      marginTop: '4px',
-                      backgroundColor: 'var(--bg-card)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                      maxHeight: '180px',
-                      overflowY: 'auto',
-                      zIndex: 1050
-                    }}
-                  >
-                    {filteredRenterVendors.length === 0 ? (
-                      <div style={{ padding: '8px 12px', fontSize: '11.5px', color: 'var(--text-muted)', textAlign: 'center' }}>
-                        일치하는 임차처 없음 (입력한 상호명으로 등록)
-                      </div>
-                    ) : (
-                      filteredRenterVendors.map(name => {
-                        const isSelected = (editingAsset.renter || renterSearchQuery) === name;
-                        return (
-                          <div
-                            key={name}
-                            onClick={() => {
-                              setRenterSearchQuery(name);
-                              const matched = vendors.find(v => v.name === name);
-                              setEditingAsset({
-                                ...editingAsset,
-                                renter: name,
-                                vendorId: matched?.id || editingAsset.vendorId
-                              });
-                              setIsRenterDropdownOpen(false);
-                            }}
-                            style={{
-                              padding: '7px 12px',
-                              fontSize: '12px',
-                              fontWeight: isSelected ? 700 : 500,
-                              color: isSelected ? 'var(--primary)' : 'var(--text-main)',
-                              backgroundColor: isSelected ? 'rgba(59,130,246,0.08)' : 'transparent',
-                              cursor: 'pointer',
-                              borderBottom: '1px solid var(--border-color)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between'
-                            }}
-                            onMouseEnter={e => (e.currentTarget.style.backgroundColor = 'var(--bg-app)')}
-                            onMouseLeave={e => (e.currentTarget.style.backgroundColor = isSelected ? 'rgba(59,130,246,0.08)' : 'transparent')}
-                          >
-                            <span>{name}</span>
-                            {isSelected && <Check size={13} color="var(--primary)" />}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* 협착방지봉 옵션 소유권 (입고 시 오탈거 및 비용 피청구 방지) */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>
-                    협착방지봉 옵션 소유권 (입고 시 오탈거 방지)
-                  </label>
-                  {editingAsset.antiEntrapmentOwnership === 'VENDOR' ? (
-                    <span style={{ fontSize: '10px', color: 'var(--danger)', fontWeight: 700, backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '1px 6px', borderRadius: '4px' }}>
-                      주기장 입고 시 탈거 절대 금지
-                    </span>
-                  ) : editingAsset.antiEntrapmentOwnership === 'OURS' ? (
-                    <span style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: 700, backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '1px 6px', borderRadius: '4px' }}>
-                      원사 반납 시 탈거 회수
-                    </span>
-                  ) : null}
-                </div>
-                <select
-                  value={editingAsset.antiEntrapmentOwnership || 'NONE'}
-                  onChange={e => setEditingAsset({ ...editingAsset, antiEntrapmentOwnership: e.target.value as any })}
-                  style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
-                >
-                  <option value="VENDOR">임차처 소유 (탈거 절대 금지 / 원형 보존)</option>
-                  <option value="OURS">당사 소유 (원사 반납 전 탈거 회수)</option>
-                  <option value="NONE">미장착 (협착방지봉 없음)</option>
-                </select>
-                <div style={{ fontSize: '10.5px', color: editingAsset.antiEntrapmentOwnership === 'VENDOR' ? 'var(--danger)' : 'var(--text-muted)', lineHeight: '1.4' }}>
-                  {editingAsset.antiEntrapmentOwnership === 'VENDOR' && '⚠️ 주기장 입고 시 출고/정비팀이 임의 탈거하지 않도록 입고 검수 경고가 자동 연동됩니다.'}
-                  {editingAsset.antiEntrapmentOwnership === 'OURS' && '🔧 당사 소유 부품이므로 임차처 최종 반납 시 탈거하여 부품실로 회수 안내가 표출됩니다.'}
-                  {(!editingAsset.antiEntrapmentOwnership || editingAsset.antiEntrapmentOwnership === 'NONE') && '장비에 협착방지봉이 장착되어 있지 않습니다.'}
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>임차 시작일</label>
-                  <input
-                    type="date"
-                    value={editingAsset.rentStart || ''}
-                    onChange={e => {
-                      const newStart = e.target.value;
-                      setEditingAsset({
-                        ...editingAsset,
-                        rentStart: newStart,
-                        rentEnd: calcRentEnd(newStart)
-                      });
-                    }}
-                    style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>임차 만료예정일</label>
-                  <input
-                    type="date"
-                    value={editingAsset.rentEnd || ''}
-                    onChange={e => setEditingAsset({ ...editingAsset, rentEnd: e.target.value })}
-                    style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>월 임차료 (원)</label>
-                  <input
-                    type="number"
-                    placeholder="300000"
-                    value={editingAsset.monthlyRentFee || 0}
-                    onChange={e => setEditingAsset({ ...editingAsset, monthlyRentFee: Number(e.target.value) })}
-                    style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)' }}>실제 반납일 (반납 완료 시 입력)</label>
-                  <input
-                    type="date"
-                    value={editingAsset.actualRentReturnDate || ''}
-                    onChange={e => {
-                      const returnVal = e.target.value;
-                      setEditingAsset({
-                        ...editingAsset,
-                        actualRentReturnDate: returnVal || undefined,
-                        status: returnVal ? 'RENTED_RETURNED' : (editingAsset.status === 'RENTED_RETURNED' ? 'AVAILABLE' : editingAsset.status)
-                      });
-                    }}
-                    style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)', color: 'var(--text-main)', fontSize: '12px' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  style={{ padding: '8px 14px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', fontSize: '12px', cursor: 'pointer' }}
-                >
-                  취소
-                </button>
-                <button data-hs-trigger="Save"
-                  type="submit"
-                  className="btn-primary"
-                  style={{ padding: '8px 16px', borderRadius: '6px', fontSize: '12px', fontWeight: 'bold' }}
-                >
-                  저장
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-        );
-      })()}
+      {showModal && editingAsset && (
+        <RentedAssetEditModal
+          isOpen={showModal}
+          onClose={() => {
+            setShowModal(false);
+            setEditingAsset(null);
+          }}
+          asset={editingAsset}
+          vendors={vendors}
+          products={sortedProducts}
+          rentedAssets={rentedAssets}
+          allAssets={assets}
+          onSave={handleSubmitAsset}
+          calcRentEnd={calcRentEnd}
+          generateNextRentedAssetNo={generateNextRentedAssetNo}
+        />
+      )}
 
       {/* ========================================================================= */}
       {/* 4. 모달: 임차 자산 반납 및 회수 배차 동시 신청 모달 */}

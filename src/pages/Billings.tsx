@@ -9,6 +9,7 @@ import { emailService } from '../services/email';
 import { exportToExcel, exportTransactionStatementExcel, exportTransactionStatementExcelBuffer, calcServicePeriod, formatStatementItemName } from '../services/excel';
 import { generateTransactionStatementPdf, generateTransactionStatementExcel } from '../services/excelTemplateEngine';
 import { BillingInvoiceTab } from '../components/BillingInvoiceTab';
+import { CustomStatementEditModal } from '../components/CustomStatementEditModal';
 import { matchHangul } from '../utils/hangulSearch';
 import { useApproval } from '../hooks/useApproval';
 
@@ -1540,24 +1541,25 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
   };
 
   // 기존 청구건 특수 명세서 저장
-  const handleSaveCustomStatementDraft = async () => {
+  const handleSaveCustomStatementDraft = async (reason: string, items: CustomStatementItem[]) => {
     if (!customStatementTargetBillingId) return;
     const targetBilling = billings.find(b => b.id === customStatementTargetBillingId);
     if (!targetBilling) return;
 
-    if (!customStatementReasonInput.trim()) {
+    const trimmedReason = (reason || '').trim();
+    if (!trimmedReason) {
       showErrorModal('⚠️ 거래명세서 변환 사유를 반드시 입력해야 합니다.\n\n정상 회계 원장(계약 DB)과 다르게 고객용 거래명세서를 임의 변경하는 사유와 원본과의 차이점을 구체적으로 기재해 주십시오.', '필수 입력 누락');
       showToast('거래명세서 변환 사유를 반드시 입력해야 합니다.', 'error');
       return;
     }
-    if (customStatementItemsDraft.length === 0) {
+    if (!items || items.length === 0) {
       showErrorModal('명세서 품목을 최소 1건 이상 등록해야 합니다.', '품목 누락');
       showToast('명세서 품목을 최소 1건 이상 등록해야 합니다.', 'error');
       return;
     }
 
-    for (let i = 0; i < customStatementItemsDraft.length; i++) {
-      const it = customStatementItemsDraft[i];
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i];
       if (!it.itemDescription || !it.itemDescription.trim()) {
         showErrorModal(`${i + 1}번째 품목의 품목명이 비어있습니다. 모든 품목의 품목명을 입력해야 합니다.`, '품목명 누락');
         showToast('모든 품목의 품목명을 입력해야 합니다.', 'error');
@@ -1570,8 +1572,8 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     const originalVat = Math.round(originalSupply * 0.1);
     const originalGrand = originalSupply + originalVat;
 
-    const draftSupply = customStatementItemsDraft.reduce((s, it) => s + (it.supplyAmount || 0), 0);
-    const draftVat = customStatementItemsDraft.reduce((s, it) => s + (it.vatAmount || 0), 0);
+    const draftSupply = items.reduce((s, it) => s + (it.supplyAmount || 0), 0);
+    const draftVat = items.reduce((s, it) => s + (it.vatAmount || 0), 0);
     const draftGrand = draftSupply + draftVat;
     const diffGrand = draftGrand - originalGrand;
 
@@ -1613,11 +1615,11 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
         },
         toBe: {
           hasCustomStatement: true,
-          reason: customStatementReasonInput.trim(),
-          items: customStatementItemsDraft,
+          reason: trimmedReason,
+          items: items,
           originalSummary: `원장 정상 공급가 ₩${originalSupply.toLocaleString()}, VAT ₩${originalVat.toLocaleString()}, 합계 ₩${originalGrand.toLocaleString()}`
         },
-        reason: customStatementReasonInput.trim(),
+        reason: trimmedReason,
         summaryText: `${targetBilling.billingYm} 특수 거래명세서 품목 승인 요청 (합계 ₩${draftGrand.toLocaleString()})`
       };
 
@@ -1640,8 +1642,8 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       }
 
       await saveCustomStatementForBilling(customStatementTargetBillingId, {
-        reason: customStatementReasonInput.trim(),
-        items: customStatementItemsDraft,
+        reason: trimmedReason,
+        items: items,
         originalSummary: `원장 정상 공급가 ₩${originalSupply.toLocaleString()}, VAT ₩${originalVat.toLocaleString()}, 합계 ₩${originalGrand.toLocaleString()}`,
         approvalStatus: initialApprovalStatus,
         approvalRequestId: createdRequestId
@@ -1653,7 +1655,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
           contractId: targetBilling.contractId,
           changeType: 'BILLING_CREATED',
           changeDate: new Date().toISOString().split('T')[0],
-          description: `[특수 거래명세서] 품목 작성/수정: ${targetBilling.billingYm} / 원장 ₩${originalGrand.toLocaleString()} (사유: ${customStatementReasonInput.trim()}) (결재상태: ${initialApprovalStatus})`,
+          description: `[특수 거래명세서] 품목 작성/수정: ${targetBilling.billingYm} / 원장 ₩${originalGrand.toLocaleString()} (사유: ${trimmedReason}) (결재상태: ${initialApprovalStatus})`,
           createdAt: new Date().toISOString()
         });
       }
@@ -5215,313 +5217,30 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
         );
       })()}
 
-      {/* 🛠️ 기존 청구건 대상 특수 거래명세서 편집 모달 */}
-      {customStatementModalOpen && (() => {
+      {/* 🛠️ 기존 청구건 대상 특수 거래명세서 편집 모달 (독립 컴포넌트로 분리하여 키 입력 시 대형 부모 리렌더링 차단) */}
+      {customStatementModalOpen && customStatementTargetBillingId && (() => {
         const targetBilling = billings.find(b => b.id === customStatementTargetBillingId);
-        const targetContract = targetBilling ? contracts.find(c => c.id === targetBilling.contractId) : null;
-        const targetCustomer = targetBilling ? customers.find(c => c.id === targetBilling.customerId) : null;
-        const targetSite = targetContract ? sites.find(s => s.id === targetContract.siteId) : null;
-
-        const originalSupply = targetBilling?.totalAmount || 0;
-        const originalVat = Math.round(originalSupply * 0.1);
-        const originalGrand = originalSupply + originalVat;
-
-        const draftSupply = customStatementItemsDraft.reduce((s, it) => s + (it.supplyAmount || 0), 0);
-        const draftVat = customStatementItemsDraft.reduce((s, it) => s + (it.vatAmount || 0), 0);
-        const draftGrand = draftSupply + draftVat;
-        const diffGrand = draftGrand - originalGrand;
+        if (!targetBilling) return null;
+        const targetContract = contracts.find(c => c.id === targetBilling.contractId) || null;
+        const targetCustomer = customers.find(c => c.id === targetBilling.customerId) || null;
+        const targetSite = targetContract ? sites.find(s => s.id === targetContract.siteId) || null : null;
 
         return (
-          <div className="modal-backdrop" style={{ zIndex: 1100 }}>
-            <div className="modal-content" style={{ maxWidth: '1000px', width: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column', gap: '14px', padding: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Edit3 size={18} color="var(--primary)" />
-                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: 'var(--primary)' }}>
-                    특수 거래명세서 품목 편집 ({targetBilling?.billingYm} - {targetCustomer?.name || '고객사'})
-                  </h3>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setCustomStatementModalOpen(false)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--text-muted)' }}
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div style={{ padding: '8px 12px', backgroundColor: '#faf5ff', borderRadius: '6px', border: '1px solid #e9d5ff', fontSize: '12px', color: '#5b21b6' }}>
-                💡 실제 계약 회계 원장 DB(Billing & BillingDetail)는 원본 그대로 보존되며, 거래명세서 출력 및 이메일 발송 시 교부될 품목명과 금액만 임의 수정됩니다.
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', padding: '8px 12px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px' }}>
-                <div>
-                  <span style={{ color: 'var(--text-muted)', display: 'block' }}>계약번호 / 현장</span>
-                  <strong>{targetContract?.contractNo || '-'} / {targetSite?.name || '직납'}</strong>
-                </div>
-                <div>
-                  <span style={{ color: 'var(--text-muted)', display: 'block' }}>청구귀속월 / 발행일</span>
-                  <strong>{targetBilling?.billingYm} / {targetBilling?.billingDate}</strong>
-                </div>
-                <div>
-                  <span style={{ color: 'var(--text-muted)', display: 'block' }}>회계 원장 정상 총액</span>
-                  <strong style={{ color: 'var(--primary)' }}>₩{originalGrand.toLocaleString()} (공급가 ₩{originalSupply.toLocaleString()})</strong>
-                </div>
-                <div>
-                  <span style={{ color: 'var(--text-muted)', display: 'block' }}>현재 상태</span>
-                  <strong>{targetBilling?.status === 'PAID' ? '완납' : '미납'} {targetBilling?.hasCustomStatement ? '(특수명세서 적용중)' : '(정상원장 기준)'}</strong>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 800, color: '#6d28d9' }}>
-                  거래명세서 변환 사유 및 차이 내역 (필수) *
-                </label>
-                <input
-                  type="text"
-                  value={customStatementReasonInput}
-                  onChange={(e) => setCustomStatementReasonInput(e.target.value)}
-                  placeholder="예: 고객사 요청에 따라 장비 명칭 통합 표기 및 단가 조정..."
-                  style={{ width: '100%', padding: '6px 10px', fontSize: '12.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '12.5px', fontWeight: 700 }}>
-                  명세서 품목 목록 ({customStatementItemsDraft.length}건)
-                </span>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  onClick={() => {
-                    setCustomStatementItemsDraft([
-                      ...customStatementItemsDraft,
-                      {
-                        id: `cs-item-${Date.now()}-${customStatementItemsDraft.length}`,
-                        itemDescription: '',
-                        specification: '',
-                        quantity: 1,
-                        unitPrice: 0,
-                        supplyAmount: 0,
-                        vatAmount: 0,
-                        notes: ''
-                      }
-                    ]);
-                  }}
-                  style={{ fontSize: '11px', padding: '3px 8px', backgroundColor: 'var(--primary)', borderColor: 'var(--primary-hover)' }}
-                >
-                  <Plus size={11} /> 행 추가
-                </button>
-              </div>
-
-              <div className="table-container" style={{ border: '1px solid var(--border-color)', borderRadius: '6px', overflowX: 'auto', maxHeight: '300px' }}>
-                <table style={{ width: '100%', fontSize: '11.5px', borderCollapse: 'collapse', whiteSpace: 'nowrap' }}>
-                  <thead style={{ position: 'sticky', top: 0, zIndex: 2, backgroundColor: 'var(--bg-app)' }}>
-                    <tr>
-                      <th style={{ width: '36px', textAlign: 'center', padding: '4px 6px' }}>순번</th>
-                      <th style={{ minWidth: '160px', textAlign: 'left', padding: '4px 8px' }}>품목명 *</th>
-                      <th style={{ width: '120px', textAlign: 'left', padding: '4px 8px' }}>규격/상세</th>
-                      <th style={{ width: '60px', textAlign: 'right', padding: '4px 8px' }}>수량 *</th>
-                      <th style={{ width: '100px', textAlign: 'right', padding: '4px 8px' }}>단가 *</th>
-                      <th style={{ width: '110px', textAlign: 'right', padding: '4px 8px' }}>공급가액 *</th>
-                      <th style={{ width: '90px', textAlign: 'right', padding: '4px 8px' }}>부가세</th>
-                      <th style={{ width: '110px', textAlign: 'right', padding: '4px 8px' }}>합계</th>
-                      <th style={{ minWidth: '100px', textAlign: 'left', padding: '4px 8px' }}>비고</th>
-                      <th style={{ width: '40px', textAlign: 'center', padding: '4px 6px' }}>삭제</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {customStatementItemsDraft.map((item, idx) => {
-                      const total = (item.supplyAmount || 0) + (item.vatAmount || 0);
-                      return (
-                        <tr key={item.id} style={{ height: '36px', borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '4px 6px' }}>{idx + 1}</td>
-                          <td style={{ padding: '3px 6px' }}>
-                            <input
-                              type="text"
-                              value={item.itemDescription}
-                              onChange={(e) => {
-                                const upd = [...customStatementItemsDraft];
-                                upd[idx].itemDescription = e.target.value;
-                                setCustomStatementItemsDraft(upd);
-                              }}
-                              style={{ width: '100%', padding: '3px 6px', fontSize: '11.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
-                            />
-                          </td>
-                          <td style={{ padding: '3px 6px' }}>
-                            <input
-                              type="text"
-                              value={item.specification || ''}
-                              onChange={(e) => {
-                                const upd = [...customStatementItemsDraft];
-                                upd[idx].specification = e.target.value;
-                                setCustomStatementItemsDraft(upd);
-                              }}
-                              style={{ width: '100%', padding: '3px 6px', fontSize: '11.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
-                            />
-                          </td>
-                          <td style={{ padding: '3px 6px' }}>
-                            <input
-                              type="number"
-                              value={item.quantity}
-                              min={1}
-                              onChange={(e) => {
-                                const qty = Math.max(1, Number(e.target.value) || 1);
-                                const upd = [...customStatementItemsDraft];
-                                upd[idx].quantity = qty;
-                                upd[idx].supplyAmount = qty * (upd[idx].unitPrice || 0);
-                                upd[idx].vatAmount = Math.round(upd[idx].supplyAmount * 0.1);
-                                setCustomStatementItemsDraft(upd);
-                              }}
-                              style={{ width: '100%', textAlign: 'right', padding: '3px 6px', fontSize: '11.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
-                            />
-                          </td>
-                          <td style={{ padding: '3px 6px' }}>
-                            <input
-                              type="number"
-                              value={item.unitPrice}
-                              min={0}
-                              step={1000}
-                              onChange={(e) => {
-                                const uPrice = Math.max(0, Number(e.target.value) || 0);
-                                const upd = [...customStatementItemsDraft];
-                                upd[idx].unitPrice = uPrice;
-                                upd[idx].supplyAmount = (upd[idx].quantity || 1) * uPrice;
-                                upd[idx].vatAmount = Math.round(upd[idx].supplyAmount * 0.1);
-                                setCustomStatementItemsDraft(upd);
-                              }}
-                              style={{ width: '100%', textAlign: 'right', padding: '3px 6px', fontSize: '11.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
-                            />
-                          </td>
-                          <td style={{ padding: '3px 6px' }}>
-                            <input
-                              type="number"
-                              value={item.supplyAmount}
-                              min={0}
-                              step={1000}
-                              onChange={(e) => {
-                                const sAmt = Math.max(0, Number(e.target.value) || 0);
-                                const upd = [...customStatementItemsDraft];
-                                upd[idx].supplyAmount = sAmt;
-                                if (upd[idx].quantity > 0) {
-                                  upd[idx].unitPrice = Math.round(sAmt / upd[idx].quantity);
-                                }
-                                upd[idx].vatAmount = Math.round(sAmt * 0.1);
-                                setCustomStatementItemsDraft(upd);
-                              }}
-                              style={{ width: '100%', textAlign: 'right', padding: '3px 6px', fontSize: '11.5px', fontWeight: 700, borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
-                            />
-                          </td>
-                          <td style={{ padding: '3px 6px' }}>
-                            <input
-                              type="number"
-                              min={0}
-                              value={item.vatAmount}
-                              onChange={(e) => {
-                                const vAmt = Math.max(0, Number(e.target.value) || 0);
-                                const upd = [...customStatementItemsDraft];
-                                upd[idx].vatAmount = vAmt;
-                                setCustomStatementItemsDraft(upd);
-                              }}
-                              style={{ width: '100%', textAlign: 'right', padding: '3px 6px', fontSize: '11.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', color: 'var(--text-muted)' }}
-                            />
-                          </td>
-                          <td style={{ textAlign: 'right', padding: '3px 8px', fontWeight: 700, color: 'var(--primary)' }}>
-                            ₩{total.toLocaleString()}
-                          </td>
-                          <td style={{ padding: '3px 6px' }}>
-                            <input
-                              type="text"
-                              value={item.notes || ''}
-                              onChange={(e) => {
-                                const upd = [...customStatementItemsDraft];
-                                upd[idx].notes = e.target.value;
-                                setCustomStatementItemsDraft(upd);
-                              }}
-                              style={{ width: '100%', padding: '3px 6px', fontSize: '11.5px', borderRadius: '4px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}
-                            />
-                          </td>
-                          <td style={{ textAlign: 'center', padding: '3px 6px' }}>
-                            <button
-                              type="button"
-                              onClick={() => setCustomStatementItemsDraft(customStatementItemsDraft.filter((_, i) => i !== idx))}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--danger)' }}
-                            >
-                              ✕
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12.5px' }}>
-                  <span>원장: ₩{originalGrand.toLocaleString()}</span>
-                  <span>➔</span>
-                  <span style={{ fontWeight: 800, color: 'var(--primary)' }}>명세서: ₩{draftGrand.toLocaleString()}</span>
-                  <span style={{
-                    padding: '3px 8px',
-                    borderRadius: '4px',
-                    fontWeight: 800,
-                    fontSize: '11.5px',
-                    backgroundColor: diffGrand === 0 ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                    color: diffGrand === 0 ? 'var(--success)' : 'var(--danger)',
-                    border: `1px solid ${diffGrand === 0 ? 'var(--success)' : 'var(--danger)'}44`
-                  }}>
-                    {diffGrand === 0 ? '⚖️ 총액 일치 (저장 승인 가능)' : `🚫 저장 불가: 총액 불일치 (차액: ₩${diffGrand.toLocaleString()})`}
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {targetBilling?.hasCustomStatement && (
-                    <button
-                      type="button"
-                      className="btn-danger"
-                      onClick={async () => {
-                        if (targetBilling) {
-                          await handleRestoreNormalStatement(targetBilling.id);
-                          setCustomStatementModalOpen(false);
-                        }
-                      }}
-                      style={{ fontSize: '12px', padding: '6px 12px' }}
-                    >
-                      정상 복원
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => setCustomStatementModalOpen(false)}
-                    style={{ fontSize: '12px', padding: '6px 12px' }}
-                  >
-                    닫기
-                  </button>
-                  <button data-hs-trigger="Save"
-                    type="button"
-                    className="btn-primary"
-                    onClick={handleSaveCustomStatementDraft}
-                    disabled={diffGrand !== 0 || !customStatementReasonInput.trim() || customStatementItemsDraft.length === 0}
-                    style={{
-                      fontSize: '12px',
-                      padding: '6px 16px',
-                      backgroundColor: diffGrand === 0 && customStatementReasonInput.trim() ? 'var(--primary)' : 'var(--bg-secondary)',
-                      borderColor: diffGrand === 0 && customStatementReasonInput.trim() ? 'var(--primary-hover)' : 'var(--border-color)',
-                      color: diffGrand === 0 && customStatementReasonInput.trim() ? '#ffffff' : 'var(--text-muted)',
-                      fontWeight: 800,
-                      cursor: diffGrand !== 0 || !customStatementReasonInput.trim() ? 'not-allowed' : 'pointer',
-                      opacity: diffGrand !== 0 || !customStatementReasonInput.trim() ? 0.6 : 1
-                    }}
-                    title={diffGrand !== 0 ? '원청구 합계와 특수명세서 품목 합계가 정확히 일치해야만 저장할 수 있습니다.' : !customStatementReasonInput.trim() ? '거래명세서 변환 사유를 입력해 주세요.' : '특수 거래명세서 품목 저장'}
-                  >
-                    명세서 저장
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <CustomStatementEditModal
+            isOpen={customStatementModalOpen}
+            onClose={() => setCustomStatementModalOpen(false)}
+            targetBilling={targetBilling}
+            targetContract={targetContract}
+            targetCustomer={targetCustomer}
+            targetSite={targetSite}
+            initialReason={customStatementReasonInput}
+            initialItems={customStatementItemsDraft}
+            onSave={handleSaveCustomStatementDraft}
+            onRestore={async (billingId) => {
+              await handleRestoreNormalStatement(billingId);
+              setCustomStatementModalOpen(false);
+            }}
+          />
         );
       })()}
 
