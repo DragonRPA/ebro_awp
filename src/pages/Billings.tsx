@@ -4,7 +4,7 @@ import { useSortableData } from '../hooks/useSortableData';
 import { SortableTh } from '../components/SortableTh';
 import { useApp } from '../context/AppContext';
 import { db, isActivePayment, Asset, Billing, BillingDetail, ContractHistory, normalizeEndDate, formatContractEndDate, CustomStatementItem, ApprovalPayload, TenantBankAccount, Tenant } from '../services/db';
-import { Plus, Download, Mail, CheckCircle, Search, DollarSign, Calendar, FileText, Send, Edit3, RotateCcw, AlertTriangle, Check, Layers, Sliders, Settings } from 'lucide-react';
+import { Plus, Download, Mail, CheckCircle, Search, DollarSign, Calendar, FileText, Send, Edit3, RotateCcw, AlertTriangle, Check, Layers, Sliders, Settings, Scissors } from 'lucide-react';
 import { emailService } from '../services/email';
 import { exportToExcel, exportTransactionStatementExcel, exportTransactionStatementExcelBuffer, calcServicePeriod, formatStatementItemName } from '../services/excel';
 import { generateTransactionStatementPdf, generateTransactionStatementExcel } from '../services/excelTemplateEngine';
@@ -59,6 +59,64 @@ export const Billings: React.FC = () => {
     saveCustomStatementForBilling, removeCustomStatementForBilling, toggleTenantCustomBillingStatement
   } = useApp();
 
+  // ⚡ 고속 O(1) 해시맵 인덱스 (헌장 1.1 최우선 개발 사명: 렌더링 랙 제로화)
+  const customerMap = useMemo(() => new Map(customers.map(c => [c.id, c])), [customers]);
+  const contractMap = useMemo(() => new Map(contracts.map(c => [c.id, c])), [contracts]);
+  const siteMap = useMemo(() => new Map(sites.map(s => [s.id, s])), [sites]);
+  const assetMap = useMemo(() => new Map(assets.map(a => [a.id, a])), [assets]);
+  const billingMap = useMemo(() => new Map(billings.map(b => [b.id, b])), [billings]);
+
+  // ⚡ 청구서별 분할 원본 여부 O(1) Set 캐시
+  const splitOriginalBillingIdSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const d of billingDetails) {
+      if (d.amount < 0 && d.itemName && d.itemName.includes('분할')) {
+        set.add(d.billingId);
+      }
+    }
+    return set;
+  }, [billingDetails]);
+
+  // ⚡ v2: 미납액 기준으로 입금잔액 O(1) 사전 집계 캐시 (루프 내 선형 검색 제거)
+  const depositBalanceMap = useMemo(() => {
+    const map = new Map<string, number>();
+
+    // 1. 입금 거래별 사용액 및 연결 결제ID 해시맵 구축
+    const linkUsedMap = new Map<string, number>();
+    const linkedPaymentIdsMap = new Map<string, Set<string>>();
+    for (const l of paymentDepositLinks || []) {
+      linkUsedMap.set(l.bankTransactionId, (linkUsedMap.get(l.bankTransactionId) || 0) + (l.usedAmount || 0));
+      let set = linkedPaymentIdsMap.get(l.bankTransactionId);
+      if (!set) {
+        set = new Set<string>();
+        linkedPaymentIdsMap.set(l.bankTransactionId, set);
+      }
+      set.add(l.paymentId);
+    }
+
+    // 2. 활성 레거시 결제 건 사전 필터링
+    const activeLegacyPayments = (payments || []).filter(p => p.id.startsWith('pay-matching-') && isActivePayment(p));
+
+    for (const tx of bankTransactions) {
+      if (!tx.isDeposit) continue;
+      const linkedPaymentIds = linkedPaymentIdsMap.get(tx.id) || new Set<string>();
+      const linkUsed = linkUsedMap.get(tx.id) || 0;
+
+      const matchPrefix = `pay-matching-${tx.id}`;
+      let legacyUsed = 0;
+      for (const p of activeLegacyPayments) {
+        if (p.id.startsWith(matchPrefix) && !linkedPaymentIds.has(p.id)) {
+          legacyUsed += (p.amount || 0);
+        }
+      }
+      map.set(tx.id, Math.max(0, (tx.depositAmount || 0) - (linkUsed + legacyUsed)));
+    }
+    return map;
+  }, [bankTransactions, paymentDepositLinks, payments]);
+
+  const getDepositBalance = (txId: string) => {
+    return depositBalanceMap.get(txId) ?? 0;
+  };
 
   const canSave = hasPermission('billing', 'save');
   const isAdmin = currentUser?.role === 'ADMIN';
@@ -401,7 +459,7 @@ export const Billings: React.FC = () => {
   const [isSending, setIsSending] = useState(false);
 
 
-  const getCustName = (id: string) => customers.find(c => c.id === id)?.name || '-';
+  const getCustName = (id?: string) => (id ? customerMap.get(id)?.name : undefined) || '-';
 
   // 고유 청구월 목록 추출
   const billingMonths = Array.from(new Set(billings.map(b => b.billingYm))).sort().reverse();
@@ -420,7 +478,7 @@ export const Billings: React.FC = () => {
       if (b.status === 'REJECTED') return false;
 
       const custName = getCustName(b.customerId).toLowerCase();
-      const contractObj = contracts.find(c => c.id === b.contractId);
+      const contractObj = b.contractId ? contractMap.get(b.contractId) : undefined;
       const contractNoStr = (contractObj?.contractNo || b.contractId || '').toLowerCase();
 
       if (sTerm && !matchHangul(getCustName(b.customerId), sTerm)) return false;
@@ -576,11 +634,10 @@ export const Billings: React.FC = () => {
       mailSentFilter,
       invoiceFilter
     );
-    const billingMap = new Map(billings.map(b => [b.id, b]));
     return effectiveIds
       .map(id => billingMap.get(id))
       .filter((b): b is Billing => !!b && b.status !== 'REJECTED');
-  }, [searchedBillingIds, billings, searchTerm, contractNoFilter, startBillingYmFilter, endBillingYmFilter, paymentFilter, mailSentFilter, invoiceFilter]);
+  }, [searchedBillingIds, billingMap, searchTerm, contractNoFilter, startBillingYmFilter, endBillingYmFilter, paymentFilter, mailSentFilter, invoiceFilter]);
 
   const enrichedBillings = useMemo(() => {
     return filteredBillings.map(b => {
@@ -588,7 +645,7 @@ export const Billings: React.FC = () => {
       const vat = Math.round(supply * 0.1);
       const grandTotal = supply + vat;
       const unpaidAmount = b.status === 'PAID' ? 0 : grandTotal - (b.paidAmount || 0);
-      const customer = customers.find(c => c.id === b.customerId);
+      const customer = customerMap.get(b.customerId);
       return {
         ...b,
         customerName: customer ? customer.name : '알 수 없음',
@@ -596,7 +653,37 @@ export const Billings: React.FC = () => {
         unpaidAmount
       };
     });
-  }, [filteredBillings, customers]);
+  }, [filteredBillings, customerMap]);
+
+  // ⚡ 청구 및 수납 종합 집계 메모이제이션 (검색/데이터 변경 시에만 재계산)
+  const billingKpiSummary = useMemo(() => {
+    const totalSupply = filteredBillings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+    const totalVat = Math.round(totalSupply * 0.1);
+    const totalGrand = totalSupply + totalVat;
+    const totalPaid = filteredBillings.reduce((sum, b) => {
+      const g = (b.totalAmount || 0) + Math.round((b.totalAmount || 0) * 0.1);
+      return sum + (b.status === 'PAID' ? g : (b.paidAmount || 0));
+    }, 0);
+    const totalUnpaid = Math.max(0, totalGrand - totalPaid);
+
+    const searchedCustName = searchTerm.trim().toLowerCase();
+    const relevantDeposits = bankTransactions.filter(t => {
+      if (!t.isDeposit) return false;
+      if (!searchedCustName) return true;
+      const mappedCustName = (t.customerId ? customerMap.get(t.customerId)?.name : undefined) || '';
+      return t.senderName.toLowerCase().includes(searchedCustName) || mappedCustName.toLowerCase().includes(searchedCustName);
+    });
+    const totalUnappliedDeposit = relevantDeposits.reduce((sum, t) => sum + (depositBalanceMap.get(t.id) ?? 0), 0);
+
+    return {
+      totalSupply,
+      totalVat,
+      totalGrand,
+      totalPaid,
+      totalUnpaid,
+      totalUnappliedDeposit
+    };
+  }, [filteredBillings, searchTerm, bankTransactions, customerMap, depositBalanceMap]);
 
   const { items: sortedBillings, requestSort, sortConfig } = useSortableData(enrichedBillings, { key: 'billingYm', direction: 'desc' });
 
@@ -637,16 +724,23 @@ export const Billings: React.FC = () => {
     exportToExcel(excelData, `청구수납대장_${new Date().toISOString().split('T')[0]}`, '청구목록');
   };
 
-  const activeBilling = billings.find(b => b.id === selectedBillingId);
-  const activeBillingDetails = selectedBillingId 
-    ? [...billingDetails.filter(bd => bd.billingId === selectedBillingId)].sort((a, b) => {
+  const activeBilling = useMemo(() => {
+    if (!selectedBillingId) return undefined;
+    return billingMap.get(selectedBillingId);
+  }, [selectedBillingId, billingMap]);
+
+  const activeBillingDetails = useMemo(() => {
+    if (!selectedBillingId) return [];
+    return billingDetails
+      .filter(bd => bd.billingId === selectedBillingId)
+      .sort((a, b) => {
         const aIsAsset = Boolean(a.contractAssetId);
         const bIsAsset = Boolean(b.contractAssetId);
         if (aIsAsset && !bIsAsset) return -1;
         if (!aIsAsset && bIsAsset) return 1;
         return 0;
-      })
-    : [];
+      });
+  }, [selectedBillingId, billingDetails]);
 
   const handleGenerateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -818,26 +912,10 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
     }
   };
 
-  // v2: 미납액 기준으로 입금잔액 자동 할당 (음수 방지 및 통일)
-  const getDepositBalance = (txId: string) => {
-    const tx = bankTransactions.find(t => t.id === txId);
-    if (!tx) return 0;
-    const linkedPaymentIds = new Set(
-      (paymentDepositLinks || []).filter(l => l.bankTransactionId === txId).map(l => l.paymentId)
-    );
-    const linkUsed = (paymentDepositLinks || [])
-      .filter(l => l.bankTransactionId === txId)
-      .reduce((s, l) => s + l.usedAmount, 0);
-    const legacyUsed = (payments || [])
-      .filter(p => p.id.startsWith(`pay-matching-${txId}`) && isActivePayment(p) && !linkedPaymentIds.has(p.id))
-      .reduce((s, p) => s + p.amount, 0);
-    return Math.max(0, (tx.depositAmount || 0) - (linkUsed + legacyUsed));
-  };
-
   const handleOpenPay = (bId: string, unpaidAmount: number) => {
-    const billing = billings.find(b => b.id === bId);
+    const billing = billingMap.get(bId);
     const custId = billing?.customerId;
-    const custName = customers.find(c => c.id === custId)?.name || '';
+    const custName = custId ? (customerMap.get(custId)?.name || '') : '';
 
     // 검색어 초기값: 고객명 → 고객명으로 매핑된 입금내역 자동 표시
     setDepSearchQuery(custName);
@@ -1688,10 +1766,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
   const getTodayStr = () => new Date().toISOString().split('T')[0];
   const getCurrentYm = () => new Date().toISOString().substring(0, 7);
 
-  const getSiteName = (id?: string) => {
-    const s = sites.find(site => site.id === id);
-    return s ? s.name : '직납(현장없음)';
-  };
+  const getSiteName = (id?: string) => (id ? siteMap.get(id)?.name : undefined) || '직납(현장없음)';
 
   const getLatestBillingPeriod = () => {
     if (!selectedContractIdForWizard) return '이전 청구 내역 없음';
@@ -1713,12 +1788,14 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
   const todayStr = getTodayStr();
   const currentYm = getCurrentYm();
   
-  // 💡 사용자가 선택한 마감일 검색 기간 기준 대상 귀속월 (예: 전월 선택 시 2026-08)
+  // 💡 사용자가 선택한 마감일 검색 기간 기준 대상 귀속월 (WIZARD 탭일 때만 연산)
   const targetYm = useMemo(() => {
+    if (activeTab !== 'WIZARD') return '';
     return (wizardSearchEndDate || wizardSearchStartDate || getTodayStr()).substring(0, 7);
-  }, [wizardSearchStartDate, wizardSearchEndDate]);
+  }, [activeTab, wizardSearchStartDate, wizardSearchEndDate]);
 
   const activeContractsForWizard = useMemo(() => {
+    if (activeTab !== 'WIZARD') return [];
     return contracts.filter(c => {
       // 1. 계약 유형: 정기 렌탈(RENTAL) 계약만 청구 대상 (자산 매각 SALE 등 제외)
       if ((c.contractType || 'RENTAL') !== 'RENTAL') return false;
@@ -1746,7 +1823,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
       return true;
     });
-  }, [contracts, billings, targetYm, wizardSearchStartDate, wizardSearchEndDate, todayStr]);
+  }, [activeTab, contracts, billings, targetYm, wizardSearchStartDate, wizardSearchEndDate, todayStr]);
 
   // 💡 오늘 거래명세서 마감 건 우선 필터 토글 ('ALL' | 'TODAY_STATEMENT' | 'OVERDUE_STATEMENT')
   const [statementDueQuickFilter, setStatementDueQuickFilter] = useState<'ALL' | 'TODAY_STATEMENT' | 'OVERDUE_STATEMENT'>('ALL');
@@ -1758,8 +1835,8 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     const lastDayThisMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
 
     // 1. 현장 설정 거래명세서 마감일 최우선 상속 체인
-    const siteObj = sites.find(s => s.id === c.siteId);
-    const custObj = customers.find(cu => cu.id === c.customerId);
+    const siteObj = siteMap.get(c.siteId);
+    const custObj = customerMap.get(c.customerId);
     const rawStatementDay = siteObj?.statementClosingDay || c.statementClosingDay || custObj?.defaultStatementClosingDay || 25;
     const effectiveStatementDay = Math.min(rawStatementDay, lastDayThisMonth);
     const rawBillingDay = siteObj?.billingDay || c.billingDay || custObj?.defaultBillingDay || 30;
@@ -1857,41 +1934,46 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
   // 💡 오늘 거래명세서 마감 대상(미발행) 계약 목록
   const todayStatementDueContracts = useMemo(() => {
+    if (activeTab !== 'WIZARD') return [];
     return activeContractsForWizard.filter(c => {
       const status = getTodayStatementDueStatus(c);
       return status.isTodayDue && !status.isAlreadyBilledThisMonth;
     });
-  }, [activeContractsForWizard, sites, customers]);
+  }, [activeTab, activeContractsForWizard, siteMap, customerMap]);
 
   // 💡 마감일 도과 미발행 계약 목록
   const overdueStatementContracts = useMemo(() => {
+    if (activeTab !== 'WIZARD') return [];
     return activeContractsForWizard.filter(c => {
       const status = getTodayStatementDueStatus(c);
       return status.isOverdue && !status.isAlreadyBilledThisMonth;
     });
-  }, [activeContractsForWizard, sites, customers]);
+  }, [activeTab, activeContractsForWizard, siteMap, customerMap]);
 
-  const filteredWizardContracts = activeContractsForWizard.filter(c => {
-    const custName = getCustName(c.customerId).toLowerCase();
-    const siteName = getSiteName(c.siteId).toLowerCase();
-    const contractNoStr = c.contractNo.toLowerCase();
+  const filteredWizardContracts = useMemo(() => {
+    if (activeTab !== 'WIZARD') return [];
+    return activeContractsForWizard.filter(c => {
+      const custName = getCustName(c.customerId).toLowerCase();
+      const siteName = getSiteName(c.siteId).toLowerCase();
+      const contractNoStr = c.contractNo.toLowerCase();
 
-    const matchesDue = isDuePeriod(c);
-    const matchesCustomer = !wizardCustomerFilter || matchHangul(getCustName(c.customerId), wizardCustomerFilter);
-    const matchesContractNo = !wizardContractNoFilter || contractNoStr.includes(wizardContractNoFilter.trim().toLowerCase());
-    const matchesSite = !wizardSiteFilter || matchHangul(getSiteName(c.siteId), wizardSiteFilter);
+      const matchesDue = isDuePeriod(c);
+      const matchesCustomer = !wizardCustomerFilter || matchHangul(getCustName(c.customerId), wizardCustomerFilter);
+      const matchesContractNo = !wizardContractNoFilter || contractNoStr.includes(wizardContractNoFilter.trim().toLowerCase());
+      const matchesSite = !wizardSiteFilter || matchHangul(getSiteName(c.siteId), wizardSiteFilter);
 
-    // 🔔 거래명세서 마감 퀵 필터 반영
-    if (statementDueQuickFilter === 'TODAY_STATEMENT') {
-      const status = getTodayStatementDueStatus(c);
-      if (!status.isTodayDue || status.isAlreadyBilledThisMonth) return false;
-    } else if (statementDueQuickFilter === 'OVERDUE_STATEMENT') {
-      const status = getTodayStatementDueStatus(c);
-      if (!status.isOverdue || status.isAlreadyBilledThisMonth) return false;
-    }
+      // 🔔 거래명세서 마감 퀵 필터 반영
+      if (statementDueQuickFilter === 'TODAY_STATEMENT') {
+        const status = getTodayStatementDueStatus(c);
+        if (!status.isTodayDue || status.isAlreadyBilledThisMonth) return false;
+      } else if (statementDueQuickFilter === 'OVERDUE_STATEMENT') {
+        const status = getTodayStatementDueStatus(c);
+        if (!status.isOverdue || status.isAlreadyBilledThisMonth) return false;
+      }
 
-    return matchesDue && matchesCustomer && matchesContractNo && matchesSite;
-  });
+      return matchesDue && matchesCustomer && matchesContractNo && matchesSite;
+    });
+  }, [activeTab, activeContractsForWizard, wizardCustomerFilter, wizardContractNoFilter, wizardSiteFilter, statementDueQuickFilter, siteMap, customerMap]);
 
   // 특정 계약에 연동 가능한 미청구 외상미수금 목록 조회
   const getUnbilledReceivablesForContract = (c: any) => {
@@ -1905,8 +1987,15 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
   };
 
   // 일괄 생성 가능 계약(외상미수금 없는 일반 계약) vs 수동 검토 계약(외상미수금 보유 계약) 분리
-  const contractsWithoutReceivables = filteredWizardContracts.filter(c => getUnbilledReceivablesForContract(c).length === 0);
-  const contractsWithReceivables = filteredWizardContracts.filter(c => getUnbilledReceivablesForContract(c).length > 0);
+  const contractsWithoutReceivables = useMemo(() => {
+    if (activeTab !== 'WIZARD') return [];
+    return filteredWizardContracts.filter(c => getUnbilledReceivablesForContract(c).length === 0);
+  }, [activeTab, filteredWizardContracts, receivables]);
+
+  const contractsWithReceivables = useMemo(() => {
+    if (activeTab !== 'WIZARD') return [];
+    return filteredWizardContracts.filter(c => getUnbilledReceivablesForContract(c).length > 0);
+  }, [activeTab, filteredWizardContracts, receivables]);
 
   const handleBulkGenerateWizard = async () => {
     if (filteredWizardContracts.length === 0) {
@@ -2080,8 +2169,15 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     }
   };
 
-  const selectedContractForWizard = contracts.find(c => c.id === selectedContractIdForWizard);
-  const wizardContractAssets = contractAssets.filter(ca => ca.contractId === selectedContractIdForWizard);
+  const selectedContractForWizard = useMemo(() => {
+    if (!selectedContractIdForWizard) return undefined;
+    return contractMap.get(selectedContractIdForWizard);
+  }, [selectedContractIdForWizard, contractMap]);
+
+  const wizardContractAssets = useMemo(() => {
+    if (activeTab !== 'WIZARD' || !selectedContractIdForWizard) return [];
+    return contractAssets.filter(ca => ca.contractId === selectedContractIdForWizard);
+  }, [activeTab, contractAssets, selectedContractIdForWizard]);
   
   const getDiffDays = () => {
     if (!wizardStartDate || !wizardEndDate) return 0;
@@ -2414,10 +2510,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
         </div>
       )}
 
-      {activeTab === 'LIST' && (() => {
-        const dueContracts = getDueContractsForBilling();
-
-        return (
+      {activeTab === 'LIST' && (
         <div data-subview="billing" data-subview-title="청구 대장" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           {/* ⚠️ K-1: 일괄 청구 보류(SKIP) 대시보드 (1행 1건 컴팩트 테이블 형태) */}
           {skippedContracts.length > 0 && (
@@ -2645,74 +2738,51 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               </div>
             </div>
 
-            {/* 📊 청구 및 수납 종합 집계 (1줄 고밀도 압축 스트립) */}
-            {(() => {
-              const totalSupply = filteredBillings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
-              const totalVat = Math.round(totalSupply * 0.1);
-              const totalGrand = totalSupply + totalVat;
-              const totalPaid = filteredBillings.reduce((sum, b) => {
-                const g = (b.totalAmount || 0) + Math.round((b.totalAmount || 0) * 0.1);
-                return sum + (b.status === 'PAID' ? g : (b.paidAmount || 0));
-              }, 0);
-              const totalUnpaid = Math.max(0, totalGrand - totalPaid);
-
-              // 💰 미수납 통장잔액 (검색된 고객사 기준, 전체 검색 시 전사 미사용 입금 잔액 총합)
-              const searchedCustName = searchTerm.trim().toLowerCase();
-              const relevantDeposits = bankTransactions.filter(t => {
-                if (!t.isDeposit) return false;
-                if (!searchedCustName) return true;
-                const mappedCustName = customers.find(c => c.id === t.customerId)?.name || '';
-                return t.senderName.toLowerCase().includes(searchedCustName) || mappedCustName.toLowerCase().includes(searchedCustName);
-              });
-              const totalUnappliedDeposit = relevantDeposits.reduce((sum, t) => sum + getDepositBalance(t.id), 0);
-
-              return (
-                <div data-mid="billing-kpi-summary" style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '12px',
-                  padding: '8px 14px',
-                  backgroundColor: 'var(--bg-app)',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border-color)',
-                  flexWrap: 'wrap',
-                  fontSize: '12.5px',
-                  whiteSpace: 'nowrap'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>조회:</span>
-                    <strong style={{ color: 'var(--primary)', fontSize: '13.5px' }}>{filteredBillings.length}건</strong>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>공급가액:</span>
-                    <strong>₩{totalSupply.toLocaleString()}</strong>
-                  </div>
-                  <div  style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>총 청구:</span>
-                    <strong style={{ color: '#0070C0', fontSize: '13.5px' }}>₩{totalGrand.toLocaleString()}</strong>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>수납완료:</span>
-                    <strong style={{ color: 'var(--success)' }}>₩{totalPaid.toLocaleString()}</strong>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>미수채권:</span>
-                    <strong style={{ color: totalUnpaid > 0 ? '#dc2626' : 'var(--text-muted)' }}>₩{totalUnpaid.toLocaleString()}</strong>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>통장잔액:</span>
-                    <strong style={{ color: totalUnappliedDeposit > 0 ? '#10B981' : 'var(--text-muted)' }}>₩{totalUnappliedDeposit.toLocaleString()}</strong>
-                  </div>
-                </div>
-              );
-            })()}
+            {/* 📊 청구 및 수납 종합 집계 (1줄 고밀도 압축 스트립, 메모이제이션 적용) */}
+            <div data-mid="billing-kpi-summary" style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              padding: '8px 14px',
+              backgroundColor: 'var(--bg-app)',
+              borderRadius: '6px',
+              border: '1px solid var(--border-color)',
+              flexWrap: 'wrap',
+              fontSize: '12.5px',
+              whiteSpace: 'nowrap'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>조회:</span>
+                <strong style={{ color: 'var(--primary)', fontSize: '13.5px' }}>{filteredBillings.length}건</strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>공급가액:</span>
+                <strong>₩{billingKpiSummary.totalSupply.toLocaleString()}</strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>총 청구:</span>
+                <strong style={{ color: '#0070C0', fontSize: '13.5px' }}>₩{billingKpiSummary.totalGrand.toLocaleString()}</strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>수납완료:</span>
+                <strong style={{ color: 'var(--success)' }}>₩{billingKpiSummary.totalPaid.toLocaleString()}</strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>미수채권:</span>
+                <strong style={{ color: billingKpiSummary.totalUnpaid > 0 ? '#dc2626' : 'var(--text-muted)' }}>₩{billingKpiSummary.totalUnpaid.toLocaleString()}</strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>통장잔액:</span>
+                <strong style={{ color: billingKpiSummary.totalUnappliedDeposit > 0 ? '#10B981' : 'var(--text-muted)' }}>₩{billingKpiSummary.totalUnappliedDeposit.toLocaleString()}</strong>
+              </div>
+            </div>
 
             <div className="table-container" style={{ border: 'none', boxShadow: 'none', overflowX: 'auto', overflowY: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
               <table data-mid="billing-list-table" style={{ minWidth: '650px', whiteSpace: 'nowrap' }}>
                 <thead>
                   <tr>
-                    <th style={{ whiteSpace: 'nowrap', width: '190px' }}>관리</th>
+                    <th style={{ whiteSpace: 'nowrap', width: '130px' }}>관리</th>
                     <SortableTh label="청구월" sortKey="billingYm" currentSort={sortConfig} onSort={requestSort} style={{ whiteSpace: 'nowrap' }} />
                     <SortableTh label="고객사" sortKey="customerName" currentSort={sortConfig} onSort={requestSort} style={{ whiteSpace: 'nowrap' }} />
                     <SortableTh label="공급가액" sortKey="totalAmount" currentSort={sortConfig} onSort={requestSort} style={{ whiteSpace: 'nowrap', paddingRight: '12px' }} align="right" />
@@ -2756,7 +2826,18 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                                 className="btn-success" 
                                 data-mid="billing-pay-btn"
                                 onClick={() => handleOpenPay(b.id, unpaid)} 
-                                style={{ padding: '3px 6px', fontSize: '11px', whiteSpace: 'nowrap', fontWeight: 'bold' }}
+                                style={{
+                                  height: '24px',
+                                  padding: '0 8px',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  whiteSpace: 'nowrap',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  borderRadius: '4px',
+                                  flexShrink: 0
+                                }}
                                 title="수납 등록"
                               >
                                 수납
@@ -2770,34 +2851,43 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                                 className="btn-secondary" 
                                 data-mid="billing-mail-btn"
                                 onClick={() => handleOpenMail(b.id)} 
-                                style={{ padding: '3px 6px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}
+                                style={{
+                                  height: '24px',
+                                  padding: '0 8px',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  whiteSpace: 'nowrap',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '3px',
+                                  borderRadius: '4px',
+                                  flexShrink: 0
+                                }}
                                 title={b.invoiceId ? `통합 청구서(${b.invoiceId})에 포함됨 - 개별 명세서 발송` : "거래명세서 이메일 발송"}
                               >
-                                <Mail size={10} /> {b.invoiceId ? '개별발송' : '발송'}
+                                <Mail size={11} /> {b.invoiceId ? '개별발송' : '발송'}
                               </button>
                             )}
 
-                            {/* 3. 취소/재생성 버튼: 완납(PAID)이 아닌 상태에서 수정/재생성 */}
-                            {canSave && b.status !== 'PAID' && (
-                              <button 
-                                type="button" 
-                                className="btn-secondary" 
-                                data-mid="billing-cancel-btn"
-                                onClick={(e) => handleOpenRegenerate(b.id, e)} 
-                                style={{ padding: '3px 6px', fontSize: '11px', color: 'var(--primary)', fontWeight: '600', whiteSpace: 'nowrap' }}
-                                title="내역 수정 및 재생성"
-                              >
-                                {b.status === 'REJECTED' ? '재생성' : '취소/재생성'}
-                              </button>
-                            )}
-
-                            {/* 4. 청구 취소 버튼: 완납(PAID) 또는 이미 취소(REJECTED)가 아닌 상태 */}
+                            {/* 3. 청구 취소 버튼: 완납(PAID) 또는 이미 취소(REJECTED)가 아닌 상태 */}
                             {isAdmin && b.status !== 'PAID' && b.status !== 'REJECTED' && (
                               <button 
                                 type="button" 
                                 className="btn-danger" 
                                 data-mid='btn-rollback-billing' onClick={(e) => handleCancel(b.id, e)} 
-                                style={{ padding: '3px 6px', fontSize: '11px', whiteSpace: 'nowrap' }}
+                                style={{
+                                  height: '24px',
+                                  padding: '0 8px',
+                                  fontSize: '11px',
+                                  fontWeight: '600',
+                                  whiteSpace: 'nowrap',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  borderRadius: '4px',
+                                  flexShrink: 0
+                                }}
                                 title="청구 취소"
                               >
                                 취소
@@ -2829,14 +2919,14 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                               ✂️ 분할됨
                             </span>
                           )}
-                          {billingDetails.filter(d => d.billingId === b.id).some(d => d.amount < 0 && d.itemName.includes('분할')) && !b.parentBillingId && (
+                          {splitOriginalBillingIdSet.has(b.id) && !b.parentBillingId && (
                             <span style={{ marginLeft: '6px', fontSize: '10px', padding: '2px 5px', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', borderRadius: '4px', fontWeight: 'bold' }} title="일부 금액이 다른 청구서로 분할되었습니다">
                               ✂️ 분할(원본)
                             </span>
                           )}</td>
                         <td style={{ whiteSpace: 'nowrap' }}>
                           <span>{getCustName(b.customerId)}</span>
-                          {customers.find(c => c.id === b.customerId)?.transactionStatus === 'BLOCKED' && (
+                          {customerMap.get(b.customerId)?.transactionStatus === 'BLOCKED' && (
                             <span style={{ marginLeft: '6px', padding: '1px 5px', fontSize: '10px', backgroundColor: 'var(--danger-light)', color: 'var(--danger)', borderRadius: '3px', fontWeight: 800 }}>
                               출고제한
                             </span>
@@ -2918,9 +3008,9 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
           {/* 청구 상세 정보 (우측 독립 스크롤 & 고정) */}
           <div data-mid="billing-detail-studio" style={{ position: 'sticky', top: '16px', maxHeight: 'calc(100vh - 160px)', overflowY: 'auto' }}>
             {activeBilling ? (() => {
-              const contractObj = contracts.find(c => c.id === activeBilling.contractId);
-              const siteObj = sites.find(s => s.id === contractObj?.siteId);
-              const custObj = customers.find(cu => cu.id === activeBilling.customerId);
+              const contractObj = activeBilling.contractId ? contractMap.get(activeBilling.contractId) : undefined;
+              const siteObj = contractObj?.siteId ? siteMap.get(contractObj.siteId) : undefined;
+              const custObj = customerMap.get(activeBilling.customerId);
 
               const totalSupply = activeBillingDetails.reduce((sum, bd) => sum + (bd.amount || 0), 0);
               const totalVat = Math.round(totalSupply * 0.1);
@@ -2933,61 +3023,122 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 <div className="card" style={{ margin: 0, padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   {/* 상단 헤더: 타이틀, 발행일자, 버튼 */}
                   <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <h3 className="card-title" style={{ margin: 0, fontSize: '16px' }}>청구 명세서 ({activeBilling.billingYm})</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <h3 className="card-title" style={{ margin: 0, fontSize: '15px', fontWeight: '700' }}>
+                        청구 명세서 ({activeBilling.billingYm})
+                      </h3>
                       {canSave && (
                         <button
                           type="button"
                           className="btn-secondary"
                           onClick={() => handleEditBillingYm(activeBilling.id, activeBilling.billingYm)}
-                          style={{ padding: '2px 8px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          style={{
+                            height: '26px',
+                            padding: '0 8px',
+                            fontSize: '11px',
+                            fontWeight: '500',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            borderRadius: '4px',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0
+                          }}
                           title="청구귀속월 변경"
                         >
                           <Edit3 size={11} /> 청구월 수정
                         </button>
                       )}
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '4px', whiteSpace: 'nowrap' }}>
+                        발행일자: {activeBilling.billingDate}
+                      </span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>발행일자: {activeBilling.billingDate}</span>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
                       {canSave && activeBilling.status !== 'REJECTED' && (
                         <button 
                           type="button" 
                           className="btn-danger"
                           onClick={(e) => handleCancel(activeBilling.id, e)}
-                          style={{ padding: '5px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }}
+                          style={{
+                            height: '28px',
+                            padding: '0 10px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            borderRadius: '4px',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0
+                          }}
                           title="이 청구서를 취소하고 계약의 최근 청구 정보를 직전 유효 상태로 롤백합니다."
                         >
-                          <RotateCcw size={13} /> 청구 취소
+                          <RotateCcw size={12} /> 청구 취소
                         </button>
                       )}
                       {canSave && activeBilling.status !== 'PAID' && (
                         <button
                           type="button"
                           className="btn-secondary"
-                          data-mid='btn-split-billing' onClick={() => { setSplitTargetId(activeBilling.id); setSplitModalOpen(true); }}
-                          style={{ padding: '5px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }}
+                          data-mid='btn-split-billing'
+                          onClick={() => { setSplitTargetId(activeBilling.id); setSplitModalOpen(true); }}
+                          style={{
+                            height: '28px',
+                            padding: '0 10px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            borderRadius: '4px',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0
+                          }}
                           title="이 청구서를 금액 기준으로 2개의 청구서로 분할합니다."
                         >
-                          <span>✂️</span> 청구 분할
+                          <Scissors size={12} /> 청구 분할
                         </button>
                       )}
                       <button 
                         type="button" 
                         className="btn-secondary"
                         onClick={() => downloadStatementExcel(activeBilling.id)}
-                        style={{ padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }}
+                        style={{
+                          height: '28px',
+                          padding: '0 10px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          borderRadius: '4px',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0
+                        }}
                         title="00.거래명세서양식.xlsx 정품 엑셀 원본 파일 다운로드"
                       >
-                        <FileText size={13} /> 엑셀 다운로드
+                        <FileText size={12} /> 엑셀 다운로드
                       </button>
                       <button 
                         type="button" 
                         className="btn-secondary"
                         onClick={() => downloadStatementPdf(activeBilling.id)}
-                        style={{ padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }}
+                        style={{
+                          height: '28px',
+                          padding: '0 10px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          borderRadius: '4px',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0
+                        }}
                         title="로컬 에이전트 MS Excel COM 엔진 기반 정품 A4 PDF 다운로드"
                       >
-                        <Download size={13} /> PDF 다운로드
+                        <Download size={12} /> PDF 다운로드
                       </button>
                       {currentTenant?.allowCustomBillingStatement && canCustomBilling && activeBilling.status !== 'REJECTED' && (
                         <>
@@ -2996,29 +3147,41 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                             className="btn-secondary"
                             onClick={() => handleOpenCustomStatementModal(activeBilling.id)}
                             style={{ 
-                              padding: '5px 10px', 
+                              height: '28px',
+                              padding: '0 10px', 
                               fontSize: '12px', 
-                              display: 'flex', 
+                              fontWeight: '600',
+                              display: 'inline-flex', 
                               alignItems: 'center', 
-                              gap: '4px', 
-                              fontWeight: 'bold', 
-                              borderColor: 'var(--border-color)', 
-                              color: 'var(--primary)', 
-                              backgroundColor: '#f5f3ff' 
+                              gap: '5px', 
+                              borderRadius: '4px',
+                              whiteSpace: 'nowrap',
+                              flexShrink: 0
                             }}
                             title={activeBilling.hasCustomStatement ? "특수 거래명세서 품목 및 변환 사유 수정" : "실제 계약 원장은 보존하고, 거래명세서 품목을 임의 수정합니다."}
                           >
-                            <Edit3 size={13} /> {activeBilling.hasCustomStatement ? '특수 명세서 수정' : '특수 명세서 작성'}
+                            <Edit3 size={12} /> {activeBilling.hasCustomStatement ? '특수 명세서 수정' : '특수 명세서 작성'}
                           </button>
                           {activeBilling.hasCustomStatement && (
                             <button
                               type="button"
                               className="btn-secondary"
                               onClick={() => handleRestoreNormalStatement(activeBilling.id)}
-                              style={{ padding: '5px 10px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              style={{
+                                height: '28px',
+                                padding: '0 10px',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                borderRadius: '4px',
+                                whiteSpace: 'nowrap',
+                                flexShrink: 0
+                              }}
                               title="임의 수정 거래명세서를 제거하고 실제 원장 품목으로 복원합니다."
                             >
-                              <RotateCcw size={13} /> 정상 복원
+                              <RotateCcw size={12} /> 정상 복원
                             </button>
                           )}
                         </>
@@ -3027,9 +3190,20 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                         type="button" 
                         className="btn-primary"
                         onClick={() => handleOpenMail(activeBilling.id)}
-                        style={{ padding: '5px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }}
+                        style={{
+                          height: '28px',
+                          padding: '0 12px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          borderRadius: '4px',
+                          whiteSpace: 'nowrap',
+                          flexShrink: 0
+                        }}
                       >
-                        <Mail size={13} /> 거래명세서 메일 발송
+                        <Mail size={12} /> 거래명세서 메일 발송
                       </button>
                     </div>
                   </div>
@@ -3663,8 +3837,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
         })()}
         </div>
         </div>
-        );
-      })()}
+      )}
 
 
 
