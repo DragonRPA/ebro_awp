@@ -132,6 +132,7 @@ import {
 import { StandardOption, CustomerSite, Customer } from '../services/db';
 import { SiteOptionItem, inheritOptionsFromMaster } from '../types/siteOption';
 import { exportToExcel } from '../services/excel';
+import { createHangulMatcher } from '../utils/hangulSearch';
 
 export const SiteOptionManage: React.FC = () => {
   const { currentUser } = useApp();
@@ -408,6 +409,41 @@ export const SiteOptionManage: React.FC = () => {
     onConfirm: () => {}
   });
 
+  // ── 🗺️ O(1) 고속 조회용 인덱스 맵 (Precomputed Lookup Maps) ──
+  const customerMap = useMemo(() => {
+    const map = new Map<string, Customer>();
+    (customers || []).forEach((c: Customer) => map.set(c.id, c));
+    return map;
+  }, [customers]);
+
+  const siteMasterMap = useMemo(() => {
+    const map = new Map<string, SiteMaster>();
+    (siteMasters || []).forEach((sm: SiteMaster) => map.set(sm.id, sm));
+    return map;
+  }, [siteMasters]);
+
+  const sitesByMasterMap = useMemo(() => {
+    const map = new Map<string, CustomerSite[]>();
+    (sites || []).forEach((s: CustomerSite) => {
+      if (!s.siteMasterId) return;
+      const list = map.get(s.siteMasterId);
+      if (list) list.push(s);
+      else map.set(s.siteMasterId, [s]);
+    });
+    return map;
+  }, [sites]);
+
+  const contractsBySiteMap = useMemo(() => {
+    const map = new Map<string, any[]>();
+    (contracts || []).forEach((c: any) => {
+      if (!c.siteId) return;
+      const list = map.get(c.siteId);
+      if (list) list.push(c);
+      else map.set(c.siteId, [c]);
+    });
+    return map;
+  }, [contracts]);
+
   // ── 🏢 각 현장(SiteMaster)별 사용 중인 고객사 및 진행 계약 집계 ──
   const siteCustomerStatsMap = useMemo(() => {
     const stats: Record<string, {
@@ -419,22 +455,30 @@ export const SiteOptionManage: React.FC = () => {
     }> = {};
 
     (siteMasters || []).forEach((sm: any) => {
-      // 1. 해당 물리 현장과 연결된 CustomerSite 목록
-      const linkedSites = (sites || []).filter((s: any) => s.siteMasterId === sm.id);
-      const siteIdSet = new Set([sm.id, ...linkedSites.map((s: any) => s.id)]);
+      // 1. 해당 물리 현장과 연결된 CustomerSite 목록 (O(1) 조회)
+      const linkedSites = sitesByMasterMap.get(sm.id) || [];
+      const siteIds = [sm.id, ...linkedSites.map((s: any) => s.id)];
 
       // 2. 연결된 전체 고객사
       const linkedCustIds = Array.from(new Set(linkedSites.map((s: any) => s.customerId).filter(Boolean)));
-      const linkedCustNames = linkedCustIds.map((cid: string) => customers.find((c: any) => c.id === cid)?.name || cid);
+      const linkedCustNames = linkedCustIds.map((cid: string) => customerMap.get(cid)?.name || cid);
 
-      // 3. 진행 중인(ACTIVE / EXTENDED) 계약
-      const relActiveContracts = (contracts || []).filter((c: any) => 
-        siteIdSet.has(c.siteId) && (c.status === 'ACTIVE' || c.status === 'EXTENDED')
-      );
+      // 3. 진행 중인(ACTIVE / EXTENDED) 계약 (O(1) 사이트별 인덱스 조회)
+      const relActiveContracts: any[] = [];
+      for (const sid of siteIds) {
+        const siteContracts = contractsBySiteMap.get(sid);
+        if (siteContracts) {
+          for (const c of siteContracts) {
+            if (c.status === 'ACTIVE' || c.status === 'EXTENDED') {
+              relActiveContracts.push(c);
+            }
+          }
+        }
+      }
 
       // 4. 현재 실질적으로 투입/사용 중인 고객사
       const activeCustIds = Array.from(new Set(relActiveContracts.map((c: any) => c.customerId).filter(Boolean)));
-      const activeCustNames = activeCustIds.map((cid: string) => customers.find((c: any) => c.id === cid)?.name || cid);
+      const activeCustNames = activeCustIds.map((cid: string) => customerMap.get(cid)?.name || cid);
 
       stats[sm.id] = {
         activeCustomerCount: activeCustIds.length,
@@ -446,10 +490,13 @@ export const SiteOptionManage: React.FC = () => {
     });
 
     return stats;
-  }, [siteMasters, sites, contracts, customers]);
+  }, [siteMasters, sitesByMasterMap, contractsBySiteMap, customerMap]);
 
   // ── 🎯 필터링된 고객 현장 목록 ──
   const filteredSites = useMemo(() => {
+    const kw = searchSiteKeyword.trim();
+    const matcher = kw ? createHangulMatcher(kw) : null;
+
     return (siteMasters || []).filter((s: any) => {
       const sActive = s.isActive !== false;
       const stats = siteCustomerStatsMap[s.id];
@@ -460,13 +507,12 @@ export const SiteOptionManage: React.FC = () => {
       if (siteStatusFilter === 'READY_TO_CLOSE') {
         if (!sActive || activeCustCount > 0) return false;
       }
-      if (searchSiteKeyword.trim()) {
-        const kw = searchSiteKeyword.trim().toLowerCase();
-        const matchName = (s.name || "").toLowerCase().includes(kw);
-        const matchAddr = (s.address || "").toLowerCase().includes(kw);
-        const matchCust = (stats?.linkedCustomerNames || []).some(cn => cn.toLowerCase().includes(kw)) ||
-                          (stats?.activeCustomerNames || []).some(cn => cn.toLowerCase().includes(kw));
-        if (!matchName && !matchAddr && !matchCust) return false;
+      if (matcher) {
+        const matchNameOrAddr = matcher(s.name) || matcher(s.address);
+        const matchCust = matchNameOrAddr ||
+          (stats?.linkedCustomerNames || []).some(cn => matcher(cn)) ||
+          (stats?.activeCustomerNames || []).some(cn => matcher(cn));
+        if (!matchCust) return false;
       }
       return true;
     }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -481,8 +527,8 @@ export const SiteOptionManage: React.FC = () => {
 
   // 선택된 현장 객체
   const activeSite = useMemo(() => {
-    return (siteMasters || []).find((s: any) => s.id === selectedSiteId) || null;
-  }, [siteMasters, selectedSiteId]);
+    return siteMasterMap.get(selectedSiteId) || null;
+  }, [siteMasterMap, selectedSiteId]);
 
   // ── 🔄 현장 선택 시 옵션품목마스터에서 옵션값 상속 동기화 ──
   useEffect(() => {
@@ -599,11 +645,55 @@ export const SiteOptionManage: React.FC = () => {
     }));
   };
 
-  // ── 📊 월 유상옵션 총액 합계 계산 ──
-  const monthlyPaidFeeTotal = useMemo(() => {
-    return workingOptionItems
-      .filter(item => item.category === 'PAID' && item.isEnabled)
-      .reduce((sum, item) => sum + (item.appliedPrice || 0), 0);
+  // ── 📊 작업대 옵션 카테고리별 분류 및 월 유상옵션 총액 1-Pass 집계 ──
+  const {
+    paidDisabledOptions,
+    paidEnabledOptions,
+    protectionOptions,
+    protectionEnabledDisplay,
+    specDisabledOptions,
+    specEnabledOptions,
+    monthlyPaidFeeTotal
+  } = useMemo(() => {
+    const paidDisabled: SiteOptionItem[] = [];
+    const paidEnabled: SiteOptionItem[] = [];
+    const protection: SiteOptionItem[] = [];
+    const protectionEnabledNames: string[] = [];
+    const specDisabled: SiteOptionItem[] = [];
+    const specEnabled: SiteOptionItem[] = [];
+    let paidSum = 0;
+
+    for (const item of workingOptionItems) {
+      if (item.category === 'PAID') {
+        if (item.isEnabled) {
+          paidEnabled.push(item);
+          paidSum += item.appliedPrice || 0;
+        } else {
+          paidDisabled.push(item);
+        }
+      } else if (item.category === 'PROTECTION') {
+        protection.push(item);
+        if (item.isEnabled) {
+          protectionEnabledNames.push(item.name);
+        }
+      } else if (item.category === 'SPEC') {
+        if (item.isEnabled) {
+          specEnabled.push(item);
+        } else {
+          specDisabled.push(item);
+        }
+      }
+    }
+
+    return {
+      paidDisabledOptions: paidDisabled,
+      paidEnabledOptions: paidEnabled,
+      protectionOptions: protection,
+      protectionEnabledDisplay: protectionEnabledNames.join(', ') || 'NONE',
+      specDisabledOptions: specDisabled,
+      specEnabledOptions: specEnabled,
+      monthlyPaidFeeTotal: paidSum
+    };
   }, [workingOptionItems]);
 
   // ── 💾 현장 옵션 설정 저장 ──
@@ -1342,7 +1432,7 @@ export const SiteOptionManage: React.FC = () => {
                     </div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
-                        {workingOptionItems.filter(item => item.category === 'PAID' && !item.isEnabled).map(item => (
+                        {paidDisabledOptions.map(item => (
                           <button
                             key={item.optionId}
                             type="button"
@@ -1377,7 +1467,7 @@ export const SiteOptionManage: React.FC = () => {
                           </tr>
                         </thead>
                         <tbody>
-{workingOptionItems.filter(item => item.category === 'PAID' && item.isEnabled).length === 0 ? (
+{paidEnabledOptions.length === 0 ? (
   <tr>
     <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
@@ -1388,7 +1478,7 @@ export const SiteOptionManage: React.FC = () => {
     </td>
   </tr>
 ) : (
-  workingOptionItems.filter(item => item.category === 'PAID' && item.isEnabled).map(item => {
+  paidEnabledOptions.map(item => {
     return (
       <tr 
         key={item.id}
@@ -1476,7 +1566,7 @@ export const SiteOptionManage: React.FC = () => {
                     </div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
-                        {workingOptionItems.filter(item => item.category === 'PROTECTION').map(item => (
+                        {protectionOptions.map(item => (
                           <button
                             key={item.optionId}
                             type="button"
@@ -1515,7 +1605,7 @@ export const SiteOptionManage: React.FC = () => {
                     </div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
-                        {workingOptionItems.filter(item => item.category === 'SPEC' && !item.isEnabled).map(item => (
+                        {specDisabledOptions.map(item => (
                           <button
                             key={item.optionId}
                             type="button"
@@ -1538,14 +1628,14 @@ export const SiteOptionManage: React.FC = () => {
                       </div>
 
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-{workingOptionItems.filter(item => item.category === 'SPEC' && item.isEnabled).length === 0 ? (
+{specEnabledOptions.length === 0 ? (
   <div style={{ padding: '16px', textAlign: 'center', width: '100%', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: '6px', fontSize: '12px' }}>
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
       <span>현장에 적용된 요구 사양이 없습니다. 상단의 드롭다운에서 등록된 마스터 품목을 선택하여 추가해주세요.</span>
     </div>
   </div>
 ) : (
-  workingOptionItems.filter(item => item.category === 'SPEC' && item.isEnabled).map(item => {
+  specEnabledOptions.map(item => {
     return (
       <div
         key={item.id}
@@ -1594,10 +1684,10 @@ export const SiteOptionManage: React.FC = () => {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                     <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-                      적용 유상옵션: <strong>{workingOptionItems.filter(i => i.category === 'PAID' && i.isEnabled).length}건</strong>
+                      적용 유상옵션: <strong>{paidEnabledOptions.length}건</strong>
                     </span>
                     <span style={{ fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-                      보양작업: <strong>{workingOptionItems.filter(i => i.category === 'PROTECTION' && i.isEnabled).map(i => i.name).join(', ') || 'NONE'}</strong>
+                      보양작업: <strong>{protectionEnabledDisplay}</strong>
                     </span>
                     <span style={{ fontSize: '13px', fontWeight: 800, color: '#1d4ed8' }}>
                       💰 월 유상옵션 총액: ₩{monthlyPaidFeeTotal.toLocaleString()}

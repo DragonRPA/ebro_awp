@@ -12,7 +12,7 @@ import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
 import { db, BankTransaction, isActivePayment, isActiveDepositLink } from '../services/db';
 import { getTenantPlugin } from '../integrations/TenantPluginManager';
-import { matchHangul, sortCustomersByName } from '../utils/hangulSearch';
+import { matchHangul, createHangulMatcher, sortCustomersByName } from '../utils/hangulSearch';
 
 // 한글 금액 변환 헬퍼 (공식 입금표용)
 function numberToKorean(num: number): string {
@@ -215,27 +215,113 @@ export const BankMatching: React.FC = () => {
   const [isWithdrawMatchSubmitting, setIsWithdrawMatchSubmitting] = useState(false);
   const [isSavingInitBalance, setIsSavingInitBalance] = useState(false);
 
+  // ⚡ O(1) 룩업 맵 및 그룹화 사전 연산
+  const customerMap = useMemo(() => new Map((customers || []).map(c => [c.id, c])), [customers]);
+  const billingMap = useMemo(() => new Map((billings || []).map(b => [b.id, b])), [billings]);
+  const paymentMap = useMemo(() => new Map((payments || []).map(p => [p.id, p])), [payments]);
+  const bankTxMap = useMemo(() => new Map((bankTransactions || []).map(t => [t.id, t])), [bankTransactions]);
+  const settlementMap = useMemo(() => new Map((purchaseSettlements || []).map(s => [s.id, s])), [purchaseSettlements]);
+  const ruleBySenderNameMap = useMemo(() => new Map((bankMatchingRules || []).map(r => [r.senderName, r])), [bankMatchingRules]);
+  const initBalanceByBankNameMap = useMemo(() => new Map((bankInitialBalances || []).map(b => [b.bankName, b])), [bankInitialBalances]);
+  const sortedCustomers = useMemo(() => sortCustomersByName(customers), [customers]);
+
+  const { allLinksByTxIdMap, activeLinksByTxIdMap } = useMemo(() => {
+    const allMap = new Map<string, NonNullable<typeof paymentDepositLinks>>();
+    const activeMap = new Map<string, NonNullable<typeof paymentDepositLinks>>();
+    for (const l of (paymentDepositLinks || [])) {
+      const arr = allMap.get(l.bankTransactionId);
+      if (arr) arr.push(l);
+      else allMap.set(l.bankTransactionId, [l]);
+
+      if (l.usedAmount > 0 && isActiveDepositLink(l)) {
+        const actArr = activeMap.get(l.bankTransactionId);
+        if (actArr) actArr.push(l);
+        else activeMap.set(l.bankTransactionId, [l]);
+      }
+    }
+    return { allLinksByTxIdMap: allMap, activeLinksByTxIdMap: activeMap };
+  }, [paymentDepositLinks]);
+
+  const legacyMatchingPayments = useMemo(
+    () => (payments || []).filter(p => p.id.startsWith('pay-matching-') && isActivePayment(p)),
+    [payments]
+  );
+
+  const depositUsedAmountByTxIdMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const tx of (bankTransactions || [])) {
+      const links = allLinksByTxIdMap.get(tx.id);
+      let linkUsed = 0;
+      let linkedPaymentIds: Set<string> | null = null;
+      if (links && links.length > 0) {
+        linkedPaymentIds = new Set<string>();
+        for (const l of links) {
+          linkedPaymentIds.add(l.paymentId);
+          linkUsed += l.usedAmount;
+        }
+      }
+      let legacyUsed = 0;
+      if (legacyMatchingPayments.length > 0) {
+        const prefix = `pay-matching-${tx.id}`;
+        for (const p of legacyMatchingPayments) {
+          if (p.id.startsWith(prefix) && (!linkedPaymentIds || !linkedPaymentIds.has(p.id))) {
+            legacyUsed += p.amount;
+          }
+        }
+      }
+      if (linkUsed + legacyUsed > 0) {
+        map.set(tx.id, linkUsed + legacyUsed);
+      }
+    }
+    return map;
+  }, [bankTransactions, allLinksByTxIdMap, legacyMatchingPayments]);
+
+  const { settlementsByBankTxIdMap, withdrawMatchedAmountByTxIdMap } = useMemo(() => {
+    const sMap = new Map<string, typeof purchaseSettlements>();
+    const amtMap = new Map<string, number>();
+    for (const s of (purchaseSettlements || [])) {
+      if (!s.bankTransactionId) continue;
+      const arr = sMap.get(s.bankTransactionId);
+      if (arr) arr.push(s);
+      else sMap.set(s.bankTransactionId, [s]);
+      amtMap.set(s.bankTransactionId, (amtMap.get(s.bankTransactionId) || 0) + (s.paidAmount || s.totalAmount || 0));
+    }
+    return { settlementsByBankTxIdMap: sMap, withdrawMatchedAmountByTxIdMap: amtMap };
+  }, [purchaseSettlements]);
+
   // 1. 기초 연계 헬퍼 함수
   const getCustName = (custId: string) => {
-    return customers.find(c => c.id === custId)?.name || '알 수 없음';
+    return customerMap.get(custId)?.name || '알 수 없음';
   };
 
-  // v2: 통장 입금 잔액 계산 (PaymentDepositLinks 반영 및 음수 방지)
+  // v2: 통장 입금 사용 금액 계산 (이중 계상 원천 차단, O(1) 조회)
+  const getDepositUsedAmount = (txId: string) => {
+    return depositUsedAmountByTxIdMap.get(txId) || 0;
+  };
+
+  // v2: 통장 입금 잔액 계산 (PaymentDepositLinks 반영 및 음수 방지, O(1) 조회)
   const getDepositBalance = (txId: string) => {
-    const tx = bankTransactions.find(t => t.id === txId);
+    const tx = bankTxMap.get(txId);
     if (!tx) return 0;
-    return Math.max(0, (tx.depositAmount || 0) - getDepositUsedAmount(txId));
+    return Math.max(0, (tx.depositAmount || 0) - (depositUsedAmountByTxIdMap.get(txId) || 0));
+  };
+
+  // v2: 통장 출금 매입정산 대사 금액 계산 (O(1) 조회)
+  const getWithdrawMatchedAmount = (txId: string) => {
+    return withdrawMatchedAmountByTxIdMap.get(txId) || 0;
   };
 
   // 통장 입출금 내역 1건에 연결된 매칭 정보 (입금: 매출청구서 1:N / 출금: 월말매입정산)
   const getMatchedTransactionInfo = (tx: BankTransaction) => {
     if (tx.isDeposit || tx.depositAmount > 0) {
       // 1) 신규 체계: paymentDepositLinks 1:N 매핑
-      const linkedLinks = (paymentDepositLinks || []).filter(l => l.bankTransactionId === tx.id && l.usedAmount > 0 && isActiveDepositLink(l));
+      const linkedLinks = activeLinksByTxIdMap.get(tx.id) || [];
       
       // 2) 레거시 호환 체계
       const matchPrefix = `pay-matching-${tx.id}`;
-      const txPayments = payments.filter(p => p.id.startsWith(matchPrefix) && isActivePayment(p));
+      const txPayments = legacyMatchingPayments.length > 0
+        ? legacyMatchingPayments.filter(p => p.id.startsWith(matchPrefix))
+        : [];
       
       if (linkedLinks.length === 0 && txPayments.length === 0) {
         return <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>미수납 (가용 {tx.depositAmount.toLocaleString()}원)</span>;
@@ -246,7 +332,7 @@ export const BankMatching: React.FC = () => {
 
       // 신규 링크 표출
       linkedLinks.forEach(link => {
-        const payObj = payments.find(p => p.id === link.paymentId);
+        const payObj = paymentMap.get(link.paymentId);
         if (!payObj) return;
         renderedPayIds.add(payObj.id);
 
@@ -257,9 +343,9 @@ export const BankMatching: React.FC = () => {
             </div>
           );
         } else {
-          const b = billings.find(x => x.id === payObj.billingId);
+          const b = billingMap.get(payObj.billingId);
           if (b) {
-            const cust = customers.find(c => c.id === b.customerId);
+            const cust = customerMap.get(b.customerId);
             elements.push(
               <div key={link.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', whiteSpace: 'nowrap' }}>
                 <LinkIcon size={10} style={{ color: 'var(--primary)', flexShrink: 0 }} />
@@ -282,7 +368,7 @@ export const BankMatching: React.FC = () => {
             </div>
           );
         } else {
-          const b = billings.find(x => x.id === p.billingId);
+          const b = billingMap.get(p.billingId);
           if (b) {
             elements.push(
               <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', whiteSpace: 'nowrap' }}>
@@ -312,7 +398,7 @@ export const BankMatching: React.FC = () => {
       return elements;
     } else {
       // 출금 항목인 경우: 매입 정산 건 수색
-      const matchedSettlement = purchaseSettlements.find(s => s.bankTransactionId === tx.id);
+      const matchedSettlement = settlementsByBankTxIdMap.get(tx.id)?.[0];
       if (!matchedSettlement) return <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>-</span>;
       return (
     <div data-hs-observe="bankmatching" data-mid="bank_matching-header" data-subview="bank_matching" data-subview-title="Generated" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', color: 'var(--text-main)', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
@@ -325,16 +411,21 @@ export const BankMatching: React.FC = () => {
 
   // 2. 통계 메트릭 계산 (수납/입금 관점 + 지급/출금 관점 + 업로드 최신 계좌 잔액)
   const bankBalances = useMemo(() => {
-    const bankNames = Array.from(new Set([
-      '우리은행', '신한은행',
-      ...bankTransactions.map(t => t.bankName || '우리은행')
-    ]));
+    const groupedByBank = new Map<string, BankTransaction[]>();
+    groupedByBank.set('우리은행', []);
+    groupedByBank.set('신한은행', []);
+    for (const t of (bankTransactions || [])) {
+      const bName = t.bankName || '우리은행';
+      const arr = groupedByBank.get(bName);
+      if (arr) arr.push(t);
+      else groupedByBank.set(bName, [t]);
+    }
 
     const bankMap: Record<string, { latestDate: string; balance: number; accountNumber?: string }> = {};
+    let totalBalance = 0;
 
-    bankNames.forEach(bName => {
-      const bTxs = bankTransactions.filter(t => (t.bankName || '우리은행') === bName)
-        .sort((a, b) => b.transactionDate.localeCompare(a.transactionDate));
+    groupedByBank.forEach((bTxs, bName) => {
+      bTxs.sort((a, b) => b.transactionDate.localeCompare(a.transactionDate));
 
       const latestTx = bTxs[0];
       const latestDate = latestTx ? latestTx.transactionDate : '내역없음';
@@ -358,65 +449,112 @@ export const BankMatching: React.FC = () => {
         balance: finalBalance,
         accountNumber: latestAccNumber
       };
+      totalBalance += finalBalance;
     });
 
-    const totalBalance = Object.values(bankMap).reduce((sum, b) => sum + b.balance, 0);
     return { bankMap, totalBalance };
   }, [bankTransactions]);
 
-  // v2: 통장 입금 사용 금액 계산 (이중 계상 원천 차단)
-  const getDepositUsedAmount = (txId: string) => {
-    const linkedPaymentIds = new Set(
-      (paymentDepositLinks || []).filter(l => l.bankTransactionId === txId).map(l => l.paymentId)
-    );
-    const linkUsed = (paymentDepositLinks || [])
-      .filter(l => l.bankTransactionId === txId)
-      .reduce((s, l) => s + l.usedAmount, 0);
-    const legacyUsed = (payments || [])
-      .filter(p => p.id.startsWith(`pay-matching-${txId}`) && isActivePayment(p) && !linkedPaymentIds.has(p.id))
-      .reduce((s, p) => s + p.amount, 0);
-    return linkUsed + legacyUsed;
-  };
+  // 단일 패스 입금/출금 통계 집계
+  const {
+    deposits,
+    totalDepositAmountSum,
+    totalDepositUsedAmountSum,
+    totalDepositAvailAmountSum,
+    matchedDepositCount,
+    unmatchedDepositCount,
+    depositMatchRate,
+    withdraws,
+    totalWithdrawAmountSum,
+    totalWithdrawMatchedAmountSum,
+    totalWithdrawUnmatchedAmountSum,
+    matchedWithdrawCount,
+    unmatchedWithdrawCount,
+    withdrawMatchRate
+  } = useMemo(() => {
+    const depArr: BankTransaction[] = [];
+    let depAmtSum = 0;
+    let depUsedSum = 0;
+    let matchedDepCnt = 0;
 
-  // v2: 통장 출금 매입정산 대사 금액 계산
-  const getWithdrawMatchedAmount = (txId: string) => {
-    const matched = purchaseSettlements.filter(s => s.bankTransactionId === txId);
-    return matched.reduce((s, st) => s + (st.paidAmount || st.totalAmount || 0), 0);
-  };
+    const wdArr: BankTransaction[] = [];
+    let wdAmtSum = 0;
+    let wdMatchedSum = 0;
+    let matchedWdCnt = 0;
 
-  const deposits = bankTransactions.filter(t => t.depositAmount > 0);
-  const totalDepositAmountSum = deposits.reduce((s, t) => s + t.depositAmount, 0);
-  const totalDepositUsedAmountSum = deposits.reduce((s, t) => s + getDepositUsedAmount(t.id), 0);
-  const totalDepositAvailAmountSum = Math.max(0, totalDepositAmountSum - totalDepositUsedAmountSum);
+    for (const t of (bankTransactions || [])) {
+      if (t.depositAmount > 0) {
+        depArr.push(t);
+        depAmtSum += t.depositAmount;
+        const used = depositUsedAmountByTxIdMap.get(t.id) || 0;
+        depUsedSum += used;
+        const remBal = Math.max(0, t.depositAmount - used);
+        const hasLink = (activeLinksByTxIdMap.get(t.id)?.length || 0) > 0;
+        if (!!t.matchedBillingId || hasLink || remBal <= 0) {
+          matchedDepCnt++;
+        }
+      }
+      if (t.withdrawAmount > 0) {
+        wdArr.push(t);
+        wdAmtSum += t.withdrawAmount;
+        const matchedAmt = withdrawMatchedAmountByTxIdMap.get(t.id) || 0;
+        wdMatchedSum += matchedAmt;
+        if (settlementsByBankTxIdMap.has(t.id)) {
+          matchedWdCnt++;
+        }
+      }
+    }
 
-  const matchedDepositCount = deposits.filter(t => {
-    const hasLink = (paymentDepositLinks || []).some(l => l.bankTransactionId === t.id && l.usedAmount > 0 && isActiveDepositLink(l));
-    const remBal = getDepositBalance(t.id);
-    return !!t.matchedBillingId || hasLink || remBal <= 0;
-  }).length;
-  const unmatchedDepositCount = deposits.length - matchedDepositCount;
-  const depositMatchRate = totalDepositAmountSum > 0 ? Math.round((totalDepositUsedAmountSum / totalDepositAmountSum) * 100) : 0;
+    const depAvailSum = Math.max(0, depAmtSum - depUsedSum);
+    const depRate = depAmtSum > 0 ? Math.round((depUsedSum / depAmtSum) * 100) : 0;
+    const wdUnmatchedSum = Math.max(0, wdAmtSum - wdMatchedSum);
+    const wdRate = wdAmtSum > 0 ? Math.round((wdMatchedSum / wdAmtSum) * 100) : 0;
 
-  const unpaidBillings = billings.filter(b => b.status === 'UNPAID' || b.status === 'PARTIAL' || b.status === 'REQUESTED');
-  const totalUnpaidBillingAmount = unpaidBillings.reduce((sum, b) => {
-    const grand = (b.totalAmount || 0) + Math.round((b.totalAmount || 0) * 0.1);
-    const isPaid = b.status === 'PAID';
-    const actualPaid = isPaid ? grand : (b.paidAmount || 0);
-    return sum + (isPaid ? 0 : Math.max(0, grand - actualPaid));
-  }, 0);
+    return {
+      deposits: depArr,
+      totalDepositAmountSum: depAmtSum,
+      totalDepositUsedAmountSum: depUsedSum,
+      totalDepositAvailAmountSum: depAvailSum,
+      matchedDepositCount: matchedDepCnt,
+      unmatchedDepositCount: depArr.length - matchedDepCnt,
+      depositMatchRate: depRate,
+      withdraws: wdArr,
+      totalWithdrawAmountSum: wdAmtSum,
+      totalWithdrawMatchedAmountSum: wdMatchedSum,
+      totalWithdrawUnmatchedAmountSum: wdUnmatchedSum,
+      matchedWithdrawCount: matchedWdCnt,
+      unmatchedWithdrawCount: wdArr.length - matchedWdCnt,
+      withdrawMatchRate: wdRate
+    };
+  }, [bankTransactions, depositUsedAmountByTxIdMap, activeLinksByTxIdMap, withdrawMatchedAmountByTxIdMap, settlementsByBankTxIdMap]);
 
-  // 출금/지급 통계
-  const withdraws = bankTransactions.filter(t => t.withdrawAmount > 0);
-  const totalWithdrawAmountSum = withdraws.reduce((s, t) => s + t.withdrawAmount, 0);
-  const totalWithdrawMatchedAmountSum = withdraws.reduce((s, t) => s + getWithdrawMatchedAmount(t.id), 0);
-  const totalWithdrawUnmatchedAmountSum = Math.max(0, totalWithdrawAmountSum - totalWithdrawMatchedAmountSum);
+  const { unpaidBillings, totalUnpaidBillingAmount, unpaidCustomerIdsSet } = useMemo(() => {
+    const arr: typeof billings = [];
+    let totalAmt = 0;
+    const custIdSet = new Set<string>();
+    for (const b of (billings || [])) {
+      if (b.status === 'UNPAID' || b.status === 'PARTIAL' || b.status === 'REQUESTED') {
+        arr.push(b);
+        custIdSet.add(b.customerId);
+        const grand = (b.totalAmount || 0) + Math.round((b.totalAmount || 0) * 0.1);
+        const actualPaid = b.paidAmount || 0;
+        totalAmt += Math.max(0, grand - actualPaid);
+      }
+    }
+    return { unpaidBillings: arr, totalUnpaidBillingAmount: totalAmt, unpaidCustomerIdsSet: custIdSet };
+  }, [billings]);
 
-  const matchedWithdrawCount = withdraws.filter(t => purchaseSettlements.some(s => s.bankTransactionId === t.id)).length;
-  const unmatchedWithdrawCount = withdraws.length - matchedWithdrawCount;
-  const withdrawMatchRate = totalWithdrawAmountSum > 0 ? Math.round((totalWithdrawMatchedAmountSum / totalWithdrawAmountSum) * 100) : 0;
-
-  const unpaidSettlements = purchaseSettlements.filter(s => s.status !== 'PAID');
-  const totalUnpaidSettlementAmount = unpaidSettlements.reduce((sum, s) => sum + (s.totalAmount - s.paidAmount), 0);
+  const { unpaidSettlements, totalUnpaidSettlementAmount } = useMemo(() => {
+    const arr: typeof purchaseSettlements = [];
+    let totalAmt = 0;
+    for (const s of (purchaseSettlements || [])) {
+      if (s.status !== 'PAID') {
+        arr.push(s);
+        totalAmt += (s.totalAmount - s.paidAmount);
+      }
+    }
+    return { unpaidSettlements: arr, totalUnpaidSettlementAmount: totalAmt };
+  }, [purchaseSettlements]);
 
   // 3. 모의 데이터 생성
   const handleGenerateMockData = async () => {
@@ -472,16 +610,18 @@ export const BankMatching: React.FC = () => {
   // 5. 엑셀 다운로드
   const handleExport = () => {
     const excelData = sortedTransactions.map((t, idx) => {
-      const linkedLinks = (paymentDepositLinks || []).filter(l => l.bankTransactionId === t.id && l.usedAmount > 0 && isActiveDepositLink(l));
+      const linkedLinks = activeLinksByTxIdMap.get(t.id) || [];
       const matchPrefix = `pay-matching-${t.id}`;
-      const txPayments = payments.filter(p => p.id.startsWith(matchPrefix) && isActivePayment(p));
+      const txPayments = legacyMatchingPayments.length > 0
+        ? legacyMatchingPayments.filter(p => p.id.startsWith(matchPrefix))
+        : [];
 
       const infoParts: string[] = [];
       linkedLinks.forEach(link => {
-        const payObj = payments.find(p => p.id === link.paymentId);
-        const b = payObj ? billings.find(x => x.id === payObj.billingId) : null;
+        const payObj = paymentMap.get(link.paymentId);
+        const b = payObj && payObj.billingId ? billingMap.get(payObj.billingId) : null;
         if (b) {
-          const cust = customers.find(c => c.id === b.customerId);
+          const cust = customerMap.get(b.customerId);
           infoParts.push(`[${cust?.name || ''}] ${b.billingYm} 청구분 (${link.usedAmount.toLocaleString()}원)`);
         }
       });
@@ -489,7 +629,7 @@ export const BankMatching: React.FC = () => {
         if (!p.billingId) {
           infoParts.push(`선수금 (+${p.amount.toLocaleString()}원)`);
         } else {
-          const b = billings.find(x => x.id === p.billingId);
+          const b = billingMap.get(p.billingId);
           if (b) infoParts.push(`${b.billingYm} 청구분 (${p.amount.toLocaleString()}원)`);
         }
       });
@@ -549,83 +689,98 @@ export const BankMatching: React.FC = () => {
   };
 
   // 6. 데이터 필터링 — applied* 상태 기준으로 실행 (조회 버튼 클릭 시에만 갱신)
-  const filteredTransactions = bankTransactions.filter(t => {
-    if (appliedBankFilter !== 'ALL') {
-      const tBank = t.bankName || '우리은행';
-      if (tBank !== appliedBankFilter) return false;
-    }
+  const filteredTransactions = useMemo(() => {
+    const searchMatcher = appliedSearchTerm ? createHangulMatcher(appliedSearchTerm) : null;
+    const minAmtNum = appliedMinAmount ? Number(appliedMinAmount) : null;
+    const maxAmtNum = appliedMaxAmount ? Number(appliedMaxAmount) : null;
 
-    const sender = t.counterparty || t.senderName || '';
-    const memoStr = t.memo || '';
-    const summaryStr = t.summary || '';
+    return (bankTransactions || []).filter(t => {
+      if (appliedBankFilter !== 'ALL') {
+        const tBank = t.bankName || '우리은행';
+        if (tBank !== appliedBankFilter) return false;
+      }
 
-    const matchesSearch = !appliedSearchTerm ||
-      matchHangul(sender, appliedSearchTerm) ||
-      matchHangul(memoStr, appliedSearchTerm) ||
-      matchHangul(summaryStr, appliedSearchTerm);
-    if (!matchesSearch) return false;
+      if (searchMatcher) {
+        const sender = t.counterparty || t.senderName || '';
+        const memoStr = t.memo || '';
+        const summaryStr = t.summary || '';
+        if (!searchMatcher.testAny([sender, memoStr, summaryStr])) return false;
+      }
 
-    const txDate = (t.transactionDate || '').split('T')[0];
-    const matchesTxDateStart = !appliedTxStartDate || txDate >= appliedTxStartDate;
-    const matchesTxDateEnd = !appliedTxEndDate || txDate <= appliedTxEndDate;
-    if (!matchesTxDateStart || !matchesTxDateEnd) return false;
+      const txDate = (t.transactionDate || '').split('T')[0];
+      const matchesTxDateStart = !appliedTxStartDate || txDate >= appliedTxStartDate;
+      const matchesTxDateEnd = !appliedTxEndDate || txDate <= appliedTxEndDate;
+      if (!matchesTxDateStart || !matchesTxDateEnd) return false;
 
-    const txAmt = Math.abs((t.depositAmount || 0) + (t.withdrawAmount || 0));
-    const matchesMinAmt = !appliedMinAmount || txAmt >= Number(appliedMinAmount);
-    const matchesMaxAmt = !appliedMaxAmount || txAmt <= Number(appliedMaxAmount);
-    if (!matchesMinAmt || !matchesMaxAmt) return false;
+      const txAmt = Math.abs((t.depositAmount || 0) + (t.withdrawAmount || 0));
+      if (minAmtNum !== null && txAmt < minAmtNum) return false;
+      if (maxAmtNum !== null && txAmt > maxAmtNum) return false;
 
-    // 1) 입금액 / 출금액 구분 필터 (appliedTypeFilter)
-    if (appliedTypeFilter === 'DEPOSIT' && (t.withdrawAmount > 0 && t.depositAmount === 0)) return false;
-    if (appliedTypeFilter === 'WITHDRAW' && (t.depositAmount > 0 && t.withdrawAmount === 0)) return false;
+      // 1) 입금액 / 출금액 구분 필터 (appliedTypeFilter)
+      if (appliedTypeFilter === 'DEPOSIT' && (t.withdrawAmount > 0 && t.depositAmount === 0)) return false;
+      if (appliedTypeFilter === 'WITHDRAW' && (t.depositAmount > 0 && t.withdrawAmount === 0)) return false;
 
-    // 2) 지급 / 수납 매치 완료 여부 상태 필터 (appliedStatusFilter)
-    const remBal = getDepositBalance(t.id);
-    const isCompletedDeposit = t.depositAmount > 0 && remBal <= 0;
-    const isCompletedWithdraw = t.withdrawAmount > 0 && (purchaseSettlements.some(s => s.bankTransactionId === t.id) || getWithdrawMatchedAmount(t.id) >= t.withdrawAmount);
+      // 2) 지급 / 수납 매치 완료 여부 상태 필터 (appliedStatusFilter)
+      const used = depositUsedAmountByTxIdMap.get(t.id) || 0;
+      const remBal = Math.max(0, (t.depositAmount || 0) - used);
+      const isCompletedDeposit = t.depositAmount > 0 && remBal <= 0;
+      const isCompletedWithdraw = t.withdrawAmount > 0 && (settlementsByBankTxIdMap.has(t.id) || (withdrawMatchedAmountByTxIdMap.get(t.id) || 0) >= t.withdrawAmount);
 
-    if (appliedStatusFilter === 'DEPOSIT_UNMATCHED') {
-      return t.depositAmount > 0 && !isCompletedDeposit;
-    }
-    if (appliedStatusFilter === 'DEPOSIT_MATCHED') {
-      return t.depositAmount > 0 && isCompletedDeposit;
-    }
-    if (appliedStatusFilter === 'WITHDRAW_UNMATCHED') {
-      return t.withdrawAmount > 0 && !isCompletedWithdraw;
-    }
-    if (appliedStatusFilter === 'WITHDRAW_MATCHED') {
-      return t.withdrawAmount > 0 && isCompletedWithdraw;
-    }
-    if (appliedStatusFilter === 'UNMATCHED_ALL') {
-      return (t.depositAmount > 0 && !isCompletedDeposit) || (t.withdrawAmount > 0 && !isCompletedWithdraw);
-    }
-    if (appliedStatusFilter === 'MATCHED_ALL') {
-      return (t.depositAmount > 0 && isCompletedDeposit) || (t.withdrawAmount > 0 && isCompletedWithdraw);
-    }
-    return true;
-  }).sort((a, b) => b.transactionDate.localeCompare(a.transactionDate));
+      if (appliedStatusFilter === 'DEPOSIT_UNMATCHED') {
+        return t.depositAmount > 0 && !isCompletedDeposit;
+      }
+      if (appliedStatusFilter === 'DEPOSIT_MATCHED') {
+        return t.depositAmount > 0 && isCompletedDeposit;
+      }
+      if (appliedStatusFilter === 'WITHDRAW_UNMATCHED') {
+        return t.withdrawAmount > 0 && !isCompletedWithdraw;
+      }
+      if (appliedStatusFilter === 'WITHDRAW_MATCHED') {
+        return t.withdrawAmount > 0 && isCompletedWithdraw;
+      }
+      if (appliedStatusFilter === 'UNMATCHED_ALL') {
+        return (t.depositAmount > 0 && !isCompletedDeposit) || (t.withdrawAmount > 0 && !isCompletedWithdraw);
+      }
+      if (appliedStatusFilter === 'MATCHED_ALL') {
+        return (t.depositAmount > 0 && isCompletedDeposit) || (t.withdrawAmount > 0 && isCompletedWithdraw);
+      }
+      return true;
+    }).sort((a, b) => b.transactionDate.localeCompare(a.transactionDate));
+  }, [
+    bankTransactions,
+    appliedBankFilter,
+    appliedSearchTerm,
+    appliedTxStartDate,
+    appliedTxEndDate,
+    appliedMinAmount,
+    appliedMaxAmount,
+    appliedTypeFilter,
+    appliedStatusFilter,
+    depositUsedAmountByTxIdMap,
+    settlementsByBankTxIdMap,
+    withdrawMatchedAmountByTxIdMap
+  ]);
 
   const { items: sortedTransactions, requestSort, sortConfig } = useSortableData(filteredTransactions);
 
   // 자동 매칭 가능 건수 집계
   const autoMatchableCount = useMemo(() => {
-    const unallocated = bankTransactions.filter(t => (t.depositAmount || 0) > 0 && !t.matchedBillingId);
+    if (unpaidCustomerIdsSet.size === 0) return 0;
     let count = 0;
-    unallocated.forEach(tx => {
-      const rule = bankMatchingRules.find(r => r.senderName === tx.senderName);
+    for (const tx of (bankTransactions || [])) {
+      if ((tx.depositAmount || 0) <= 0 || tx.matchedBillingId) continue;
+      const rule = ruleBySenderNameMap.get(tx.senderName);
       if (rule) {
-        const hasUnpaid = billings.some(b => b.customerId === rule.customerId && (b.status === 'UNPAID' || b.status === 'PARTIAL' || b.status === 'REQUESTED'));
-        if (hasUnpaid) count++;
-        return;
+        if (unpaidCustomerIdsSet.has(rule.customerId)) count++;
+        continue;
       }
       const cust = customers.find(c => tx.senderName.includes(c.name) || c.name.includes(tx.senderName));
-      if (cust) {
-        const hasUnpaid = billings.some(b => b.customerId === cust.id && (b.status === 'UNPAID' || b.status === 'PARTIAL' || b.status === 'REQUESTED'));
-        if (hasUnpaid) count++;
+      if (cust && unpaidCustomerIdsSet.has(cust.id)) {
+        count++;
       }
-    });
+    }
     return count;
-  }, [bankTransactions, bankMatchingRules, billings, customers]);
+  }, [bankTransactions, ruleBySenderNameMap, unpaidCustomerIdsSet, customers]);
 
   // ⚡ 일괄 자동 수납 핸들러
   const handleBatchAutoMatch = async () => {
@@ -777,7 +932,7 @@ export const BankMatching: React.FC = () => {
     if (isWithdrawMatchSubmitting) return;
     if (!selectedWithdrawTx || !matchingSettlementId) return;
 
-    const targetSettlement = purchaseSettlements.find(s => s.id === matchingSettlementId);
+    const targetSettlement = settlementMap.get(matchingSettlementId);
     if (!targetSettlement) return;
 
     const remainingAmt = Math.max(0, targetSettlement.totalAmount - targetSettlement.paidAmount);
@@ -812,19 +967,18 @@ export const BankMatching: React.FC = () => {
     }
   };
 
-  const getModalFilteredSettlements = () => {
+  const modalFilteredSettlements = useMemo(() => {
     if (!selectedWithdrawTx) return [];
     
     const senderKey = (selectedWithdrawTx.counterparty || selectedWithdrawTx.senderName || selectedWithdrawTx.summary || '');
+    const search = settlementSearchTerm.trim();
+    const searchMatcher = search ? createHangulMatcher(search) : null;
+
     return unpaidSettlements.filter(s => {
+      if (!searchMatcher) return true;
       const vName = s.vendorName || '';
       const bYm = s.settlementYm || '';
-      
-      const search = settlementSearchTerm.trim();
-      if (search) {
-        return matchHangul(vName, search) || bYm.includes(search);
-      }
-      return true;
+      return searchMatcher.test(vName) || bYm.includes(search);
     }).sort((a, b) => {
       const matchA = senderKey.includes(a.vendorName) || a.vendorName.includes(senderKey);
       const matchB = senderKey.includes(b.vendorName) || b.vendorName.includes(senderKey);
@@ -839,26 +993,26 @@ export const BankMatching: React.FC = () => {
 
       return b.settlementYm.localeCompare(a.settlementYm);
     });
-  };
+  }, [selectedWithdrawTx, unpaidSettlements, settlementSearchTerm]);
 
-  const getModalFilteredBillings = () => {
+  const getModalFilteredSettlements = () => modalFilteredSettlements;
+
+  const modalFilteredBillings = useMemo(() => {
     if (!selectedTx) return [];
     
     const senderKey = selectedTx.counterparty || selectedTx.senderName;
+    const search = billingSearchTerm.trim();
+    const searchMatcher = search ? createHangulMatcher(search) : null;
+
     return unpaidBillings.filter(b => {
-      const cust = customers.find(c => c.id === b.customerId);
-      const custName = cust?.name || '';
+      if (!searchMatcher) return true;
+      const custName = customerMap.get(b.customerId)?.name || '';
       const bYm = b.billingYm || '';
-      
-      const search = billingSearchTerm.trim();
-      if (search) {
-        return matchHangul(custName, search) || bYm.includes(search);
-      }
-      return true;
+      return searchMatcher.test(custName) || bYm.includes(search);
     }).sort((a, b) => {
       // 상호 일치 1순위, 금액 일치 2순위 상단 배치
-      const custA = customers.find(c => c.id === a.customerId)?.name || '';
-      const custB = customers.find(c => c.id === b.customerId)?.name || '';
+      const custA = customerMap.get(a.customerId)?.name || '';
+      const custB = customerMap.get(b.customerId)?.name || '';
       const matchA = senderKey.includes(custA) || custA.includes(senderKey);
       const matchB = senderKey.includes(custB) || custB.includes(senderKey);
 
@@ -876,7 +1030,35 @@ export const BankMatching: React.FC = () => {
 
       return b.billingYm.localeCompare(a.billingYm);
     });
-  };
+  }, [selectedTx, unpaidBillings, billingSearchTerm, customerMap]);
+
+  const getModalFilteredBillings = () => modalFilteredBillings;
+
+  const reconciliationBarStats = useMemo(() => {
+    const isWithdrawView = appliedTypeFilter === 'WITHDRAW';
+    let barTotal = 0;
+    let barUsed = 0;
+    if (isWithdrawView) {
+      for (const t of filteredTransactions) {
+        barTotal += (t.withdrawAmount || 0);
+        barUsed += (withdrawMatchedAmountByTxIdMap.get(t.id) || 0);
+      }
+    } else {
+      for (const t of filteredTransactions) {
+        barTotal += (t.depositAmount || 0);
+        barUsed += (depositUsedAmountByTxIdMap.get(t.id) || 0);
+      }
+    }
+    const barAvail = Math.max(0, barTotal - barUsed);
+    const barRate = barTotal > 0 ? Math.round((barUsed / barTotal) * 100) : 0;
+    return { isWithdrawView, barTotal, barUsed, barAvail, barRate };
+  }, [appliedTypeFilter, filteredTransactions, withdrawMatchedAmountByTxIdMap, depositUsedAmountByTxIdMap]);
+
+  const filteredRules = useMemo(() => {
+    const q = ruleSearchInput.trim().toLowerCase();
+    if (!q) return bankMatchingRules;
+    return bankMatchingRules.filter(r => r.senderName.toLowerCase().includes(q));
+  }, [bankMatchingRules, ruleSearchInput]);
 
   return (
     <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -933,7 +1115,7 @@ export const BankMatching: React.FC = () => {
             onClick={() => {
               const bInfo = bankBalances.bankMap['우리은행'];
               setEditingBankName('우리은행');
-              setEditingInitialBalance(bankInitialBalances.find(b => b.bankName === '우리은행')?.initialBalance || 15000000);
+              setEditingInitialBalance(initBalanceByBankNameMap.get('우리은행')?.initialBalance || 15000000);
               setEditingAccountNumber(bInfo?.accountNumber || '');
               setIsInitBalanceModalOpen(true);
             }}
@@ -1320,14 +1502,14 @@ export const BankMatching: React.FC = () => {
                   </tr>
                 ) : (
                   sortedTransactions.map((tx) => {
-                    const linkedLinks = (paymentDepositLinks || []).filter(l => l.bankTransactionId === tx.id && l.usedAmount > 0 && isActiveDepositLink(l));
+                    const linkedLinks = activeLinksByTxIdMap.get(tx.id) || [];
                     const remBal = getDepositBalance(tx.id);
                     const usedDeposit = getDepositUsedAmount(tx.id);
                     const matchedWithdrawAmt = getWithdrawMatchedAmount(tx.id);
                     const isFullyUsed = tx.depositAmount > 0 && remBal <= 0;
                     const isPartialUsed = tx.depositAmount > 0 && remBal > 0 && usedDeposit > 0;
                     const isMatchedDeposit = !!tx.matchedBillingId || linkedLinks.length > 0 || usedDeposit > 0;
-                    const matchedSettlement = purchaseSettlements.find(s => s.bankTransactionId === tx.id);
+                    const matchedSettlement = settlementsByBankTxIdMap.get(tx.id)?.[0];
                     const isMatchedWithdraw = !!matchedSettlement || matchedWithdrawAmt > 0;
                     const isMatched = isMatchedDeposit || isMatchedWithdraw;
                     const senderDisplay = tx.counterparty || tx.senderName;
@@ -1576,48 +1758,33 @@ export const BankMatching: React.FC = () => {
           </div>
 
           {/* 헌장 3.5 대차대조 검증 및 우하단 종결 액션 바 */}
-          {(() => {
-            const isWithdrawView = appliedTypeFilter === 'WITHDRAW';
-            const barTxs = filteredTransactions;
-            const barTotal = isWithdrawView
-              ? barTxs.reduce((s, t) => s + (t.withdrawAmount || 0), 0)
-              : barTxs.reduce((s, t) => s + (t.depositAmount || 0), 0);
-            const barUsed = isWithdrawView
-              ? barTxs.reduce((s, t) => s + getWithdrawMatchedAmount(t.id), 0)
-              : barTxs.reduce((s, t) => s + getDepositUsedAmount(t.id), 0);
-            const barAvail = Math.max(0, barTotal - barUsed);
-            const barRate = barTotal > 0 ? Math.round((barUsed / barTotal) * 100) : 0;
-
-            return (
-              <div style={{
-                position: 'sticky',
-                bottom: '10px',
-                zIndex: 10,
-                marginTop: '12px',
-                padding: '10px 16px',
-                backgroundColor: 'var(--bg-card)',
-                borderRadius: '8px',
-                border: '1.5px solid var(--border-color)',
-                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '12px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12.5px', flexWrap: 'wrap' }}>
-                  <span>{isWithdrawView ? '조회 출금 총액' : '조회 입금 총액'}: <strong>₩{barTotal.toLocaleString()}</strong></span>
-                  <span>=</span>
-                  <span>{isWithdrawView ? '정산 반영액' : '확정 수납액'}: <strong style={{ color: 'var(--primary)' }}>₩{barUsed.toLocaleString()}</strong></span>
-                  <span>+</span>
-                  <span>{isWithdrawView ? '미정산 잔액' : '미수납 잔액'}: <strong style={{ color: barAvail > 0 ? 'var(--danger)' : 'var(--text-secondary)' }}>₩{barAvail.toLocaleString()}</strong></span>
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  {isWithdrawView ? '지급 매칭률' : '수납 매칭률'}: <strong style={{ color: 'var(--primary)' }}>{barRate}%</strong>
-                </div>
-              </div>
-            );
-          })()}
+          <div style={{
+            position: 'sticky',
+            bottom: '10px',
+            zIndex: 10,
+            marginTop: '12px',
+            padding: '10px 16px',
+            backgroundColor: 'var(--bg-card)',
+            borderRadius: '8px',
+            border: '1.5px solid var(--border-color)',
+            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '12.5px', flexWrap: 'wrap' }}>
+              <span>{reconciliationBarStats.isWithdrawView ? '조회 출금 총액' : '조회 입금 총액'}: <strong>₩{reconciliationBarStats.barTotal.toLocaleString()}</strong></span>
+              <span>=</span>
+              <span>{reconciliationBarStats.isWithdrawView ? '정산 반영액' : '확정 수납액'}: <strong style={{ color: 'var(--primary)' }}>₩{reconciliationBarStats.barUsed.toLocaleString()}</strong></span>
+              <span>+</span>
+              <span>{reconciliationBarStats.isWithdrawView ? '미정산 잔액' : '미수납 잔액'}: <strong style={{ color: reconciliationBarStats.barAvail > 0 ? 'var(--danger)' : 'var(--text-secondary)' }}>₩{reconciliationBarStats.barAvail.toLocaleString()}</strong></span>
+            </div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+              {reconciliationBarStats.isWithdrawView ? '지급 매칭률' : '수납 매칭률'}: <strong style={{ color: 'var(--primary)' }}>{reconciliationBarStats.barRate}%</strong>
+            </div>
+          </div>
         </>
       ) : (
         /* 규칙 관리 탭 */
@@ -1673,9 +1840,7 @@ export const BankMatching: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  bankMatchingRules
-                    .filter(r => !ruleSearchInput || r.senderName.toLowerCase().includes(ruleSearchInput.toLowerCase()))
-                    .map((rule) => (
+                  filteredRules.map((rule) => (
                       <tr key={rule.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                         <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
                           <button
@@ -1897,7 +2062,7 @@ export const BankMatching: React.FC = () => {
                               <div>
                                 <div style={{ fontWeight: 'bold', fontSize: '13px', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                   {custName} ({b.billingYm} 청구)
-                                  {customers.find(c => c.id === b.customerId)?.transactionStatus === 'BLOCKED' && (
+                                  {customerMap.get(b.customerId)?.transactionStatus === 'BLOCKED' && (
                                     <span style={{ fontSize: '10px', padding: '1px 5px', borderRadius: '4px', backgroundColor: 'rgba(239, 68, 68, 0.15)', color: 'var(--danger)', fontWeight: 'bold' }}>
                                       🚫 거래제한(BLOCKED)
                                     </span>
@@ -2005,7 +2170,7 @@ export const BankMatching: React.FC = () => {
 
               {/* 🌟 송금 수수료 500원~1,000원 자동 감액 제안 바 */}
               {(() => {
-                const targetB = billings.find(b => b.id === matchingBillingId);
+                const targetB = billingMap.get(matchingBillingId);
                 if (!targetB) return null;
                 const bSup = targetB.totalAmount || 0;
                 const bGrand = bSup + Math.round(bSup * 0.1);
@@ -2402,7 +2567,7 @@ export const BankMatching: React.FC = () => {
                   onChange={(e) => {
                     const bName = e.target.value;
                     setEditingBankName(bName);
-                    const initRec = bankInitialBalances.find(b => b.bankName === bName);
+                    const initRec = initBalanceByBankNameMap.get(bName);
                     const bInfo = bankBalances.bankMap[bName];
                     setEditingInitialBalance(initRec?.initialBalance || (bName === '우리은행' ? 15000000 : 10000000));
                     setEditingAccountNumber(bInfo?.accountNumber || '');
@@ -2519,7 +2684,7 @@ export const BankMatching: React.FC = () => {
                   className="form-control"
                 >
                   <option value="">고객사 선택</option>
-                  {sortCustomersByName(customers).map(c => (
+                  {sortedCustomers.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>

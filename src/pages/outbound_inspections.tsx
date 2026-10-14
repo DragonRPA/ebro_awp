@@ -4,6 +4,7 @@ import { ToggleSwitch } from '../components/ToggleSwitch';
 import { OutboundInspection, OutboundInspectionStatus, Asset, Contract, Customer, CustomerSite as Site, AssetInOutLog, Repair, ContractAsset, db, STANDARD_SPECS, isCustomerRestricted } from '../services/db';
 import { issueHandoverTask, clearHandoverTasks } from '../utils/taskHandoverPipeline';
 import { isModelMatch } from '../utils/modelUtils';
+import { createHangulMatcher } from '../utils/hangulSearch';
 import {
   CheckSquare,
   AlertTriangle,
@@ -49,14 +50,16 @@ function getGroupCheckpoints(
   contract: Contract | undefined,
   customer: Customer | null | undefined,
   site: Site | null | undefined,
-  siteMaster: any
+  siteMaster: any,
+  contractAssetMap: Map<string, ContractAsset>,
+  assetMap: Map<string, Asset>
 ): { checkpoints: CheckPoint[]; specialNote: string } {
   const checkpoints: CheckPoint[] = [];
 
   // 1. 모델 일치 확인 — 항상 포함
   items.forEach(item => {
-    const ca = db.contractAssets.find(ca => ca.id === item.contractAssetId);
-    const asset = db.assets.find(a => a.id === item.assetId);
+    const ca = item.contractAssetId ? contractAssetMap.get(item.contractAssetId) : undefined;
+    const asset = item.assetId ? assetMap.get(item.assetId) : undefined;
     if (ca?.expectedModel) {
       checkpoints.push({
         id: `model_${item.id}`,
@@ -205,30 +208,118 @@ export const OutboundInspections: React.FC = () => {
   const [exchangeToRepairing, setExchangeToRepairing] = useState<boolean>(false); // 💡 기본값: false (수리 미전환)
   const [exchangeSearchQuery, setExchangeSearchQuery] = useState<string>(''); // 🔍 대체 장비 관리번호 검색어
 
+  // 💡 O(1) 룩업 맵 사전 생성
+  const contractMap = useMemo(() => {
+    const map = new Map<string, Contract>();
+    for (let i = 0; i < contracts.length; i++) map.set(contracts[i].id, contracts[i]);
+    return map;
+  }, [contracts]);
+
+  const customerMap = useMemo(() => {
+    const map = new Map<string, Customer>();
+    for (let i = 0; i < customers.length; i++) map.set(customers[i].id, customers[i]);
+    return map;
+  }, [customers]);
+
+  const siteMap = useMemo(() => {
+    const map = new Map<string, Site>();
+    for (let i = 0; i < sites.length; i++) map.set(sites[i].id, sites[i]);
+    return map;
+  }, [sites]);
+
+  const siteMasterMap = useMemo(() => {
+    const map = new Map<string, any>();
+    for (let i = 0; i < siteMasters.length; i++) map.set(siteMasters[i].id, siteMasters[i]);
+    return map;
+  }, [siteMasters]);
+
+  const assetMap = useMemo(() => {
+    const map = new Map<string, Asset>();
+    for (let i = 0; i < assets.length; i++) map.set(assets[i].id, assets[i]);
+    return map;
+  }, [assets]);
+
+  const contractAssetMap = useMemo(() => {
+    const map = new Map<string, ContractAsset>();
+    for (let i = 0; i < contractAssets.length; i++) map.set(contractAssets[i].id, contractAssets[i]);
+    return map;
+  }, [contractAssets]);
+
+  const outboundDeliveryByContractMap = useMemo(() => {
+    const map = new Map<string, (typeof deliveries)[number]>();
+    for (let i = 0; i < deliveries.length; i++) {
+      const d = deliveries[i];
+      if (d.type === 'OUTBOUND' && d.contractId && !map.has(d.contractId)) {
+        map.set(d.contractId, d);
+      }
+    }
+    return map;
+  }, [deliveries]);
+
+  const mechanicStockQtyByConsumableIdMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const list = mechanicConsumableStocks || [];
+    for (let i = 0; i < list.length; i++) {
+      const ms = list[i];
+      if (!ms.consumableId) continue;
+      map.set(ms.consumableId, (map.get(ms.consumableId) || 0) + (ms.stockQty || 0));
+    }
+    return map;
+  }, [mechanicConsumableStocks]);
+
+  const consumableCounts = useMemo(() => {
+    const list = consumables || [];
+    let inStock = 0;
+    let outOfStock = 0;
+    for (let i = 0; i < list.length; i++) {
+      if ((list[i].stockQty || 0) > 0) inStock++;
+      else outOfStock++;
+    }
+    return { total: list.length, inStock, outOfStock };
+  }, [consumables]);
+
+  const totalInspectionCounts = useMemo(() => {
+    const list = outboundInspections || [];
+    let pending = 0;
+    let inProgress = 0;
+    let completed = 0;
+    let rejected = 0;
+    for (let i = 0; i < list.length; i++) {
+      const s = list[i].status;
+      if (s === 'PENDING') pending++;
+      else if (s === 'IN_PROGRESS') inProgress++;
+      else if (s === 'COMPLETED') completed++;
+      else if (s === 'REJECTED') rejected++;
+    }
+    return { pending, inProgress, completed, rejected };
+  }, [outboundInspections]);
+
   // 💡 교체 모달 오픈 시 또는 검색 시 조건에 맞는 첫번째 대체 장비 100% 자동선택!
   React.useEffect(() => {
     if (exchangeModalAsset) {
-      const q = exchangeSearchQuery.toLowerCase().trim();
+      const q = exchangeSearchQuery.trim();
+      const matcher = q ? createHangulMatcher(q) : null;
       const availables = assets.filter(a => {
         if (a.status !== 'AVAILABLE' || !isModelMatch(a.modelName, exchangeModalAsset.modelName, products) || a.id === exchangeModalAsset.id) return false;
-        if (!q) return true;
-        return a.assetNo.toLowerCase().includes(q) || (a.serialNo && a.serialNo.toLowerCase().includes(q));
+        if (!matcher) return true;
+        return matcher.test(a.assetNo) || (!!a.serialNo && matcher.test(a.serialNo));
       });
       if (availables.length > 0 && (!targetNewAssetId || !availables.some(a => a.id === targetNewAssetId))) {
         setTargetNewAssetId(availables[0].id);
       }
     }
-  }, [exchangeModalAsset, assets, targetNewAssetId, exchangeSearchQuery]);
+  }, [exchangeModalAsset, assets, targetNewAssetId, exchangeSearchQuery, products]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // 1. 개별 의뢰건들을 계약(contractId) 및 신청일자 기준 의뢰 1건 단위로 그룹핑
   // ──────────────────────────────────────────────────────────────────────────
   const inspectionGroups = useMemo<InspectionGroup[]>(() => {
     const groupMap = new Map<string, OutboundInspection[]>();
+    const hasContracts = contractMap.size > 0;
 
     outboundInspections.forEach(item => {
       // 💡 고아 레코드 가드: 계약 대장이 로드된 상태에서 계약 연결이 없는 고아 검수의뢰는 대기열에서 제외
-      if (contracts.length > 0 && (!item.contractId || !contracts.some(c => c.id === item.contractId))) {
+      if (hasContracts && (!item.contractId || !contractMap.has(item.contractId))) {
         return;
       }
       const key = `${item.contractId || 'NOCONTR'}_${item.createdAt ? item.createdAt.substring(0, 10) : 'NODATE'}`;
@@ -242,14 +333,14 @@ export const OutboundInspections: React.FC = () => {
 
     groupMap.forEach((items, key) => {
       const firstItem = items[0];
-      const contract = contracts.find(c => c.id === firstItem.contractId);
-      const customer = contract ? customers.find(c => c.id === contract.customerId) : null;
-      const site = contract ? sites.find(s => s.id === contract.siteId) : null;
+      const contract = firstItem.contractId ? contractMap.get(firstItem.contractId) : undefined;
+      const customer = contract?.customerId ? customerMap.get(contract.customerId) : null;
+      const site = contract?.siteId ? siteMap.get(contract.siteId) : null;
 
       const groupAssets = Array.from(
         new Map(
           items
-            .map(i => assets.find(a => a.id === i.assetId))
+            .map(i => (i.assetId ? assetMap.get(i.assetId) : undefined))
             .filter((a): a is Asset => !!a)
             .map(a => [a.id, a])
         ).values()
@@ -263,11 +354,11 @@ export const OutboundInspections: React.FC = () => {
         .map(([m, c]) => `${m} ${c}대`)
         .join(', ') || '장비 매핑 대기 중';
 
-      const delivery = deliveries.find(d => d.contractId === firstItem.contractId && d.type === 'OUTBOUND');
+      const delivery = firstItem.contractId ? outboundDeliveryByContractMap.get(firstItem.contractId) : undefined;
       const rawText = delivery?.rawText || delivery?.memo || (contract as any)?.memo || firstItem.note || '';
-      const memoText = `${rawText} ${delivery?.closingMemo || ''} ${firstItem.note || ''}`.toLowerCase();
 
-      const { checkpoints, specialNote } = getGroupCheckpoints(items, groupAssets, contract, customer, site, contract ? siteMasters.find(sm => sm.id === site?.siteMasterId) : null);
+      const siteMaster = contract && site?.siteMasterId ? siteMasterMap.get(site.siteMasterId) : null;
+      const { checkpoints, specialNote } = getGroupCheckpoints(items, groupAssets, contract, customer, site, siteMaster, contractAssetMap, assetMap);
 
       let groupStatus: OutboundInspectionStatus = 'PENDING';
       if (items.every(i => i.status === 'COMPLETED')) {
@@ -300,28 +391,44 @@ export const OutboundInspections: React.FC = () => {
     });
 
     return groups.sort((a, b) => a.loadingDate.localeCompare(b.loadingDate));
-  }, [outboundInspections, contracts, customers, sites, siteMasters, assets, deliveries]);
+  }, [outboundInspections, contractMap, customerMap, siteMap, siteMasterMap, assetMap, contractAssetMap, outboundDeliveryByContractMap]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // 2-A. 날짜+검색만 적용 (상태 필터 제외) → 탭 카운트용
   //      사용자가 설정한 기간과 검색어에 해당하는 건만 탭 숫자에 반영
   // ──────────────────────────────────────────────────────────────────────────
   const scopedGroups = useMemo(() => {
+    const q = searchQuery.trim();
+    const matcher = q ? createHangulMatcher(q) : null;
     return inspectionGroups.filter(g => {
       if (startDate && g.loadingDate < startDate) return false;
       if (endDate && g.loadingDate > endDate) return false;
-      if (!searchQuery) return true;
-      const q = searchQuery.toLowerCase();
+      if (!matcher) return true;
       return (
-        g.customerName.toLowerCase().includes(q) ||
-        g.siteName.toLowerCase().includes(q) ||
-        g.contractNo.toLowerCase().includes(q) ||
-        g.equipmentsSummary.toLowerCase().includes(q) ||
-        (g.rawText && g.rawText.toLowerCase().includes(q)) ||
-        g.assets.some(a => a.assetNo.toLowerCase().includes(q))
+        matcher.test(g.customerName) ||
+        matcher.test(g.siteName) ||
+        matcher.test(g.contractNo) ||
+        matcher.test(g.equipmentsSummary) ||
+        (!!g.rawText && matcher.test(g.rawText)) ||
+        g.assets.some(a => matcher.test(a.assetNo))
       );
     });
   }, [inspectionGroups, startDate, endDate, searchQuery]);
+
+  const scopedStatusCounts = useMemo(() => {
+    let pending = 0;
+    let inProgress = 0;
+    let completed = 0;
+    let rejected = 0;
+    for (let i = 0; i < scopedGroups.length; i++) {
+      const s = scopedGroups[i].status;
+      if (s === 'PENDING') pending++;
+      else if (s === 'IN_PROGRESS') inProgress++;
+      else if (s === 'COMPLETED') completed++;
+      else if (s === 'REJECTED') rejected++;
+    }
+    return { pending, inProgress, completed, rejected };
+  }, [scopedGroups]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // 2-B. 상태 탭 추가 적용 → 실제 리스트 표시용
@@ -1067,7 +1174,7 @@ export const OutboundInspections: React.FC = () => {
         });
       } else {
         g.items.forEach(item => {
-          const asset = g.assets.find(a => a.id === item.assetId) || db.assets.find(a => a.id === item.assetId);
+          const asset = (item.assetId ? assetMap.get(item.assetId) : undefined) || g.assets.find(a => a.id === item.assetId);
           const itemStatus = item.status === 'COMPLETED' ? '검수완료'
             : item.status === 'IN_PROGRESS' ? '검수진행'
             : item.status === 'REJECTED' ? '검수반려' : '검수대기';
@@ -1167,10 +1274,10 @@ export const OutboundInspections: React.FC = () => {
       <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap', flexShrink: 0 }}>
         {[
           { key: 'ALL', label: '전체 의뢰 보기', count: scopedGroups.length },
-          { key: 'PENDING', label: '🟡 접수 대기', count: scopedGroups.filter(g => g.status === 'PENDING').length },
-          { key: 'IN_PROGRESS', label: '🔵 검수 진행중', count: scopedGroups.filter(g => g.status === 'IN_PROGRESS').length },
-          { key: 'COMPLETED', label: '🟢 출고 승인 마감', count: scopedGroups.filter(g => g.status === 'COMPLETED').length },
-          { key: 'REJECTED', label: '🔴 의뢰 반려', count: scopedGroups.filter(g => g.status === 'REJECTED').length },
+          { key: 'PENDING', label: '🟡 접수 대기', count: scopedStatusCounts.pending },
+          { key: 'IN_PROGRESS', label: '🔵 검수 진행중', count: scopedStatusCounts.inProgress },
+          { key: 'COMPLETED', label: '🟢 출고 승인 마감', count: scopedStatusCounts.completed },
+          { key: 'REJECTED', label: '🔴 의뢰 반려', count: scopedStatusCounts.rejected },
         ].map(tab => (
           <button
             key={tab.key}
@@ -1759,38 +1866,29 @@ export const OutboundInspections: React.FC = () => {
       </div>
 
       {/* ⚖️ Gutenberg Z-패턴 4단계 최하단 회계 대차대조식 검증 바 (헌장 3.5) */}
-      {(() => {
-        const pCount = (outboundInspections || []).filter(i => i.status === 'PENDING').length;
-        const ipCount = (outboundInspections || []).filter(i => i.status === 'IN_PROGRESS').length;
-        const cCount = (outboundInspections || []).filter(i => i.status === 'COMPLETED').length;
-        const rCount = (outboundInspections || []).filter(i => i.status === 'REJECTED').length;
-
-        return (
-          <div style={{
-            padding: '8px 14px',
-            backgroundColor: 'var(--bg-app)',
-            border: '1px solid var(--border-color)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '8px',
-            fontSize: '11.5px',
-            borderRadius: '6px',
-            flexShrink: 0
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-              <span>검수 대기: <strong style={{ color: 'var(--warning)' }}>총 {pCount}건</strong></span>
-              <span>|</span>
-              <span>검수 진행중: <strong style={{ color: 'var(--primary)' }}>총 {ipCount}건</strong></span>
-              <span>|</span>
-              <span>출고 승인마감: <strong style={{ color: 'var(--success)' }}>총 {cCount}건</strong></span>
-              <span>|</span>
-              <span>반려: <strong style={{ color: 'var(--danger)' }}>총 {rCount}건</strong></span>
-            </div>
-          </div>
-        );
-      })()}
+      <div style={{
+        padding: '8px 14px',
+        backgroundColor: 'var(--bg-app)',
+        border: '1px solid var(--border-color)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '8px',
+        fontSize: '11.5px',
+        borderRadius: '6px',
+        flexShrink: 0
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+          <span>검수 대기: <strong style={{ color: 'var(--warning)' }}>총 {totalInspectionCounts.pending}건</strong></span>
+          <span>|</span>
+          <span>검수 진행중: <strong style={{ color: 'var(--primary)' }}>총 {totalInspectionCounts.inProgress}건</strong></span>
+          <span>|</span>
+          <span>출고 승인마감: <strong style={{ color: 'var(--success)' }}>총 {totalInspectionCounts.completed}건</strong></span>
+          <span>|</span>
+          <span>반려: <strong style={{ color: 'var(--danger)' }}>총 {totalInspectionCounts.rejected}건</strong></span>
+        </div>
+      </div>
 
       {/* 반려 사유 입력 모달 */}
       {showRejectModal && (
@@ -2023,11 +2121,12 @@ export const OutboundInspections: React.FC = () => {
               </label>
 
               {(() => {
-                const q = exchangeSearchQuery.toLowerCase().trim();
+                const q = exchangeSearchQuery.trim();
+                const matcher = q ? createHangulMatcher(q) : null;
                 const filteredAssets = assets.filter(a => {
                   if (a.status !== 'AVAILABLE' || !isModelMatch(a.modelName, exchangeModalAsset.modelName, products) || a.id === exchangeModalAsset.id) return false;
-                  if (!q) return true;
-                  return a.assetNo.toLowerCase().includes(q) || (a.serialNo && a.serialNo.toLowerCase().includes(q));
+                  if (!matcher) return true;
+                  return matcher.test(a.assetNo) || (!!a.serialNo && matcher.test(a.serialNo));
                 });
 
                 if (filteredAssets.length === 0) {
@@ -2177,13 +2276,13 @@ export const OutboundInspections: React.FC = () => {
               </div>
               <div style={{ display: 'flex', gap: '8px', fontSize: '12px', fontWeight: 700 }}>
                 <span style={{ padding: '6px 10px', borderRadius: '6px', background: 'rgba(59,130,246,0.1)', color: 'var(--primary)' }}>
-                  총 {(consumables || []).length}종
+                  총 {consumableCounts.total}종
                 </span>
                 <span style={{ padding: '6px 10px', borderRadius: '6px', background: 'rgba(16,185,129,0.1)', color: 'var(--success)' }}>
-                  보유 {(consumables || []).filter(c => (c.stockQty || 0) > 0).length}종
+                  보유 {consumableCounts.inStock}종
                 </span>
                 <span style={{ padding: '6px 10px', borderRadius: '6px', background: 'rgba(239,68,68,0.1)', color: 'var(--danger)' }}>
-                  품절 {(consumables || []).filter(c => (c.stockQty || 0) <= 0).length}종
+                  품절 {consumableCounts.outOfStock}종
                 </span>
               </div>
             </div>
@@ -2204,13 +2303,14 @@ export const OutboundInspections: React.FC = () => {
                 </thead>
                 <tbody>
                   {(() => {
+                    const q = consumableModalSearch.trim();
+                    const matcher = q ? createHangulMatcher(q) : null;
                     const filtered = (consumables || []).filter(c => {
-                      if (!consumableModalSearch.trim()) return true;
-                      const q = consumableModalSearch.toLowerCase();
+                      if (!matcher) return true;
                       return (
-                        (c.modelName || '').toLowerCase().includes(q) ||
-                        (c.supplier || '').toLowerCase().includes(q) ||
-                        (c.category || '').toLowerCase().includes(q)
+                        matcher.test(c.modelName) ||
+                        matcher.test(c.supplier) ||
+                        matcher.test(c.category)
                       );
                     });
 
@@ -2226,9 +2326,7 @@ export const OutboundInspections: React.FC = () => {
 
                     return filtered.map(c => {
                       const yardQty = c.stockQty || 0;
-                      const vQty = (mechanicConsumableStocks || [])
-                        .filter(ms => ms.consumableId === c.id)
-                        .reduce((sum, ms) => sum + (ms.stockQty || 0), 0);
+                      const vQty = mechanicStockQtyByConsumableIdMap.get(c.id) || 0;
                       const isOut = yardQty <= 0;
 
                       return (

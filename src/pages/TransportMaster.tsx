@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Settings, Users, Truck, Plus, Trash2, Edit2, Copy, Check, X, CreditCard, Building, Download } from 'lucide-react';
 import { TransportCompany, TransportDriver, db, logPrivacyAccess, VEHICLE_TYPE_OPTIONS } from '../services/db';
@@ -10,6 +10,16 @@ import { isPrivilegedPrivacyUser, maskPhoneNumber, maskName, maskAddress } from 
 export const TransportMaster: React.FC = () => {
   const { transportCompanies, transportDrivers, hasPermission, refreshAllData, showErrorModal, currentUser } = useApp();
   const canSave = hasPermission('delivery', 'save');
+
+  const companyMap = useMemo(() => new Map(transportCompanies.map(c => [c.id, c])), [transportCompanies]);
+  const driverCountByCompanyMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const d of transportDrivers) {
+      if (!d.companyId) continue;
+      map.set(d.companyId, (map.get(d.companyId) || 0) + 1);
+    }
+    return map;
+  }, [transportDrivers]);
 
   // 토스트 알림 상태 (헌장 5.2: 브라우저 alert/confirm 전면 퇴출)
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
@@ -41,9 +51,11 @@ export const TransportMaster: React.FC = () => {
     onConfirm: () => void;
   } | null>(null);
 
-  const filteredDrivers = selectedCompanyId 
-    ? transportDrivers.filter(d => d.companyId === selectedCompanyId)
-    : transportDrivers;
+  const filteredDrivers = useMemo(() => (
+    selectedCompanyId
+      ? transportDrivers.filter(d => d.companyId === selectedCompanyId)
+      : transportDrivers
+  ), [transportDrivers, selectedCompanyId]);
   const { sortedData: sortedDrivers, sortKey: driverSortKey, sortDirection: driverSortDir, handleSort: handleDriverSort } = useSortableData<TransportDriver>(filteredDrivers);
 
   // 운송사 삭제
@@ -232,7 +244,7 @@ contact: '',
       '은행명': c.bankName || '-',
       '계좌번호': c.bankAccount || '-',
       '예금주': c.bankHolder || '-',
-      '소속기사수': transportDrivers.filter(d => d.companyId === c.id).length,
+      '소속기사수': driverCountByCompanyMap.get(c.id) || 0,
       '등록일시': c.createdAt ? c.createdAt.substring(0, 10) : '-'
     }));
     const todayStr = new Date().toISOString().split('T')[0];
@@ -248,7 +260,7 @@ contact: '',
     }
     const isPrivileged = isPrivilegedPrivacyUser(currentUser);
     const rows = filteredDrivers.map((d, index) => {
-      const comp = transportCompanies.find(c => c.id === d.companyId);
+      const comp = d.companyId ? companyMap.get(d.companyId) : undefined;
       return {
         'No': index + 1,
         '기사명': isPrivileged ? d.driverName : maskName(d.driverName),
@@ -433,7 +445,7 @@ contact: '',
                   </tr>
                 ) : (
                   sortedDrivers.map((d: TransportDriver) => {
-                    const comp = transportCompanies.find(c => c.id === d.companyId);
+                    const comp = d.companyId ? companyMap.get(d.companyId) : undefined;
                     return (
                       <tr key={d.id} style={{ whiteSpace: 'nowrap' }}>
                         <td style={{ fontWeight: '700', whiteSpace: 'nowrap' }}>{d.driverName}</td>

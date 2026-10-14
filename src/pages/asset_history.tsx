@@ -12,6 +12,7 @@ import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
 import { compressImageFile } from '../utils/imageCompressor';
 import { decryptSecret } from '../utils/cryptoVault';
+import { createHangulMatcher } from '../utils/hangulSearch';
 
 export const AssetHistory: React.FC = () => {
   const { 
@@ -19,6 +20,45 @@ export const AssetHistory: React.FC = () => {
     navigationPayload, setNavigationPayload,
     inspectionChecklistItems, registerInboundAsset, cancelInboundAsset, fullRefreshFromServer, googleConfigs, showErrorModal
   } = useApp();
+
+  // ── 🌟 [O(1) 룩업 해시맵 사전 인덱싱: 헌장 1.1] ──
+  const assetMap = useMemo(() => new Map((assets || []).map(a => [a.id, a])), [assets]);
+  const assetByLowerNoMap = useMemo(() => {
+    const map = new Map<string, any>();
+    (assets || []).forEach(a => {
+      if (a.assetNo) map.set(a.assetNo.trim().toLowerCase(), a);
+    });
+    return map;
+  }, [assets]);
+  const contractMap = useMemo(() => new Map((contracts || []).map(c => [c.id, c])), [contracts]);
+  const customerMap = useMemo(() => new Map((customers || []).map(c => [c.id, c])), [customers]);
+  const siteMap = useMemo(() => new Map((sites || []).map(s => [s.id, s])), [sites]);
+  const contractAssetByAssetIdMap = useMemo(() => {
+    const map = new Map<string, any>();
+    (contractAssets || []).forEach(ca => {
+      if (!ca.assetId) return;
+      const existing = map.get(ca.assetId);
+      if (!existing) {
+        map.set(ca.assetId, ca);
+      } else if (ca.status === 'RENTED') {
+        map.set(ca.assetId, ca);
+      } else if (ca.status !== 'RETURNED' && existing.status === 'RETURNED') {
+        map.set(ca.assetId, ca);
+      }
+    });
+    return map;
+  }, [contractAssets]);
+
+  const inOutSummaryCounts = useMemo(() => {
+    let inboundCount = 0;
+    let outboundCount = 0;
+    for (let i = 0; i < assetInOutLogs.length; i++) {
+      const t = assetInOutLogs[i].type;
+      if (t === 'INBOUND') inboundCount++;
+      else if (t === 'OUTBOUND') outboundCount++;
+    }
+    return { inboundCount, outboundCount };
+  }, [assetInOutLogs]);
 
   // 토스트 알림 상태 (헌장 5.2: 브라우저 alert/confirm 전면 퇴출)
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
@@ -57,9 +97,18 @@ export const AssetHistory: React.FC = () => {
   const [isSubmittingInbound, setIsSubmittingInbound] = useState(false);
 
   // 💡 [사장님 지시] 사전 정의 정비 필요 항목 점수 100% 자동 합산 (수동 입력 휴먼에러 전면 제거)
-  const selectedChecklistObjects = inspectionChecklistItems.filter(item => selectedChecklistIds.includes(item.id));
-  const calculatedInboundScore = selectedChecklistObjects.reduce((sum, item) => sum + item.score, 0);
-  const selectedChecklistSummary = selectedChecklistObjects.map(item => `${item.name}(+${item.score}점)`).join(', ');
+  const selectedChecklistObjects = useMemo(
+    () => inspectionChecklistItems.filter(item => selectedChecklistIds.includes(item.id)),
+    [inspectionChecklistItems, selectedChecklistIds]
+  );
+  const calculatedInboundScore = useMemo(
+    () => selectedChecklistObjects.reduce((sum, item) => sum + item.score, 0),
+    [selectedChecklistObjects]
+  );
+  const selectedChecklistSummary = useMemo(
+    () => selectedChecklistObjects.map(item => `${item.name}(+${item.score}점)`).join(', '),
+    [selectedChecklistObjects]
+  );
 
   // 💡 정비 점검 항목 퀵버튼 토글
   const toggleChecklistItem = (itemId: string) => {
@@ -156,14 +205,12 @@ export const AssetHistory: React.FC = () => {
   };
 
   // =========================================================================
-  // 🌟 [핵심 엔진 1: 정밀 모델명 보정 엔진 (100% Precision Matcher)]
+  // 🌟 [핵심 엔진 1: 정밀 모델명 보정 엔진 (100% Precision O(1) Matcher)]
   // =========================================================================
   const resolvePrecisionModelName = (assetId?: string, assetNo?: string, rawModel?: string): string => {
-    // 1. assets 마스터 데이터 교차 검증 (자산 식별자 1:1 매칭)
-    const matchedAsset = assets.find(a => 
-      (assetId && a.id === assetId) || 
-      (assetNo && a.assetNo && a.assetNo.trim().toLowerCase() === assetNo.trim().toLowerCase())
-    );
+    // 1. assets 마스터 데이터 O(1) 해시맵 교차 검증 (자산 식별자 1:1 매칭)
+    const matchedAsset = (assetId ? assetMap.get(assetId) : undefined) ||
+      (assetNo ? assetByLowerNoMap.get(assetNo.trim().toLowerCase()) : undefined);
     if (matchedAsset?.modelName && matchedAsset.modelName !== '고소작업대' && matchedAsset.modelName !== '전체장비') {
       return matchedAsset.modelName;
     }
@@ -192,6 +239,10 @@ export const AssetHistory: React.FC = () => {
 
   // 💡 입출고 탭용 로그 필터링 (INBOUND, OUTBOUND)
   const filteredTabLogs = useMemo(() => {
+    if (activeTab === 'INBOUND_REGISTER') return [];
+    const term = activeSearchParams.searchTerm.trim();
+    const matcher = term ? createHangulMatcher(term) : null;
+
     return assetInOutLogs.filter(log => {
       if (log.type !== activeTab) return false;
       if (log.eventDate > todayStr) return false;
@@ -199,34 +250,37 @@ export const AssetHistory: React.FC = () => {
       if (activeSearchParams.startDate && log.eventDate < activeSearchParams.startDate) return false;
       if (activeSearchParams.endDate && log.eventDate > activeSearchParams.endDate) return false;
 
-      if (activeSearchParams.searchTerm.trim()) {
-        const term = activeSearchParams.searchTerm.toLowerCase();
-        const matchesAssetNo = log.assetNo.toLowerCase().includes(term);
-        const matchesModel = log.modelName.toLowerCase().includes(term);
-        const matchesCustomer = log.customerName && log.customerName.toLowerCase().includes(term);
-        const matchesSite = log.siteName && log.siteName.toLowerCase().includes(term);
-        const matchesMemo = log.memo && log.memo.toLowerCase().includes(term);
-
-        if (!matchesAssetNo && !matchesModel && !matchesCustomer && !matchesSite && !matchesMemo) {
+      if (matcher) {
+        if (
+          !matcher.test(log.assetNo) &&
+          !matcher.test(log.modelName) &&
+          !matcher.test(log.customerName) &&
+          !matcher.test(log.siteName) &&
+          !matcher.test(log.memo)
+        ) {
           return false;
         }
       }
       return true;
-    }).sort((a, b) => new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime());
+    }).sort((a, b) => (b.eventDate || '').localeCompare(a.eventDate || ''));
   }, [assetInOutLogs, activeTab, selectedAssetId, activeSearchParams, todayStr]);
 
   const { items: sortedTabLogs, requestSort, sortConfig } = useSortableData(filteredTabLogs);
 
-  // 💡 [오타방지 및 유연매칭] 입고 등록용 선택된 자산 정보 및 대여 계약 자동 매칭 탐색
-  const inboundTargetAsset = assets.find(a => a.id === selectedInboundAssetId || a.assetNo.toLowerCase() === inboundAssetNoInput.trim().toLowerCase());
-  const inboundContractAsset = inboundTargetAsset ? (
-    contractAssets.find(ca => ca.assetId === inboundTargetAsset.id && ca.status === 'RENTED') ||
-    contractAssets.find(ca => ca.assetId === inboundTargetAsset.id && ca.status !== 'RETURNED') ||
-    contractAssets.find(ca => ca.assetId === inboundTargetAsset.id)
-  ) : null;
-  const inboundContract = inboundContractAsset ? contracts.find(c => c.id === inboundContractAsset.contractId) : null;
-  const inboundCustomer = inboundContract ? customers.find(c => c.id === inboundContract.customerId) : null;
-  const inboundSite = inboundContract ? sites.find(s => s.id === inboundContract.siteId) : null;
+  // 💡 [오타방지 및 유연매칭] 입고 등록용 선택된 자산 정보 및 대여 계약 O(1) 자동 매칭 탐색
+  const inboundTargetAsset = useMemo(() => {
+    if (selectedInboundAssetId) {
+      const byId = assetMap.get(selectedInboundAssetId);
+      if (byId) return byId;
+    }
+    const cleanInput = inboundAssetNoInput.trim().toLowerCase();
+    return cleanInput ? assetByLowerNoMap.get(cleanInput) : undefined;
+  }, [selectedInboundAssetId, inboundAssetNoInput, assetMap, assetByLowerNoMap]);
+
+  const inboundContractAsset = inboundTargetAsset ? (contractAssetByAssetIdMap.get(inboundTargetAsset.id) || null) : null;
+  const inboundContract = inboundContractAsset?.contractId ? (contractMap.get(inboundContractAsset.contractId) || null) : null;
+  const inboundCustomer = inboundContract?.customerId ? (customerMap.get(inboundContract.customerId) || null) : null;
+  const inboundSite = inboundContract?.siteId ? (siteMap.get(inboundContract.siteId) || null) : null;
 
   // 입고 등록 전송 실행
   const handleSubmitInbound = async (e?: React.FormEvent | React.MouseEvent) => {
@@ -344,11 +398,14 @@ export const AssetHistory: React.FC = () => {
     }
   };
 
-  // 5. 선택된 자산 정보 및 통합 타임라인
-  const selectedAsset = assets.find(a => a.id === selectedAssetId);
-  const selectedAssetTimeline = assetInOutLogs
-    .filter(l => l.assetId === selectedAssetId)
-    .sort((a, b) => new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime());
+  // 5. 선택된 자산 정보 및 통합 타임라인 (O(1) 룩업 및 메모이제이션)
+  const selectedAsset = selectedAssetId ? assetMap.get(selectedAssetId) : undefined;
+  const selectedAssetTimeline = useMemo(() => {
+    if (!selectedAssetId) return [];
+    return assetInOutLogs
+      .filter(l => l.assetId === selectedAssetId)
+      .sort((a, b) => (b.eventDate || '').localeCompare(a.eventDate || ''));
+  }, [assetInOutLogs, selectedAssetId]);
 
   // 6. 엑셀 다운로드 (정밀 모델명, 현장명, 상세 정비 정보 반영)
   const handleExport = () => {
@@ -385,8 +442,7 @@ export const AssetHistory: React.FC = () => {
 
       {/* 📊 자산 라이프사이클 이벤트 요약 바 */}
       {(() => {
-        const inboundCount = assetInOutLogs.filter(l => l.type === 'INBOUND').length;
-        const outboundCount = assetInOutLogs.filter(l => l.type === 'OUTBOUND').length;
+        const { inboundCount, outboundCount } = inOutSummaryCounts;
 
         return (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>

@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { db, Todo, DelinquencyActionLog, Customer, Billing, calculatePaymentDueDate, formatPaymentDueCondition, CustomerTransactionStatus, isCustomerRestricted, isCustomerTotalBlocked, getCustomerTransactionStatusLabel } from '../services/db';
 import { exportToExcel } from '../services/excel';
+import { createHangulMatcher } from '../utils/hangulSearch';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
 import { fetchCentralLegalNoticeTemplates, saveCentralLegalNoticeTemplate } from '../services/centralDb';
@@ -126,8 +127,61 @@ export const DelinquencyPage: React.FC = () => {
     return d.toISOString().split('T')[0];
   });
 
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
+  // 고정 기준일자 및 타임스탬프 (렌더마다 new Date() 객체 참조가 바뀌어 useMemo가 무효화되는 결함 방지)
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const todayMs = useMemo(() => new Date(todayStr).getTime(), [todayStr]);
+
+  // ── 🗺️ O(1) 고속 조회용 인덱스 맵 (Precomputed Lookup Maps) ──
+  const customerMap = useMemo(() => {
+    const map = new Map<string, Customer>();
+    customers.forEach(c => map.set(c.id, c));
+    return map;
+  }, [customers]);
+
+  const contractMap = useMemo(() => {
+    const map = new Map<string, typeof contracts[0]>();
+    contracts.forEach(c => map.set(c.id, c));
+    return map;
+  }, [contracts]);
+
+  const userMap = useMemo(() => {
+    const map = new Map<string, typeof users[0]>();
+    users.forEach(u => map.set(u.id, u));
+    return map;
+  }, [users]);
+
+  const logsByCustomerMap = useMemo(() => {
+    const map = new Map<string, DelinquencyActionLog[]>();
+    delinquencyActionLogs.forEach(l => {
+      const list = map.get(l.customerId);
+      if (list) list.push(l);
+      else map.set(l.customerId, [l]);
+    });
+    map.forEach(list => {
+      list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    });
+    return map;
+  }, [delinquencyActionLogs]);
+
+  const pendingTodoCustomerIds = useMemo(() => {
+    const set = new Set<string>();
+    todos.forEach(t => {
+      if (!t.isCompleted && t.relatedEntityId) {
+        set.add(t.relatedEntityId);
+      }
+    });
+    return set;
+  }, [todos]);
+
+  const latestLegalNoticeByCustomerMap = useMemo(() => {
+    const map = new Map<string, any>();
+    (legalNoticeLogs || []).forEach(n => {
+      if (!map.has(n.customerId)) {
+        map.set(n.customerId, n);
+      }
+    });
+    return map;
+  }, [legalNoticeLogs]);
 
   // 🌟 고객 약정 납기일 동적 산출 함수 (고객정보 paymentDueMonthOffset / paymentDueDay / paymentTermDays 기반)
   const getAgreedDueDate = (billing: Billing, customer?: Customer): { dueDate: string; conditionText: string } => {
@@ -187,12 +241,12 @@ export const DelinquencyPage: React.FC = () => {
       if (unpaid <= 0) return;
 
       const custId = b.customerId;
-      const customer = customers.find(c => c.id === custId);
+      const customer = customerMap.get(custId);
       const { dueDate, conditionText } = getAgreedDueDate(b, customer);
       const isOverdue = dueDate < todayStr;
 
-      // 계약에서 영업담당자 추출
-      const contract = contracts.find(c => c.id === b.contractId);
+      // 계약에서 영업담당자 추출 (O(1))
+      const contract = b.contractId ? contractMap.get(b.contractId) : undefined;
       const spId = contract?.salespersonId;
 
       if (!custMap.has(custId)) {
@@ -222,38 +276,41 @@ export const DelinquencyPage: React.FC = () => {
 
     const result: CalculatedDelinquency[] = [];
     custMap.forEach((val, custId) => {
-      const customer = customers.find(c => c.id === custId);
+      const customer = customerMap.get(custId);
       if (!customer) return;
 
       // 납기일 도과 연체 금액이 없으면 제외 (미도래 정상 채권)
       if (val.totalOverdueAmount <= 0) return;
 
-      const oldestDate = val.oldestOverdueDueDate ? new Date(val.oldestOverdueDueDate) : today;
-      const diffMs = today.getTime() - oldestDate.getTime();
+      const oldestMs = val.oldestOverdueDueDate ? new Date(val.oldestOverdueDueDate).getTime() : todayMs;
+      const diffMs = todayMs - oldestMs;
       const overdueDays = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
 
-      // 고객 조치 내역 정렬
-      const custLogs = delinquencyActionLogs
-        .filter(l => l.customerId === custId)
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      // 고객 조치 내역 (이미 최신순 정렬된 O(1) 맵 조회)
+      const custLogs = logsByCustomerMap.get(custId) || [];
       const lastLog = custLogs[0];
 
-      // 약속 위반 횟수 카운트
-      const brokenPromisesCount = custLogs.filter(l => {
-        if (!l.promiseDate) return false;
-        if (l.promiseStatus === 'BROKEN') return true;
-        if (l.promiseStatus === 'PENDING' && l.promiseDate < todayStr) return true;
-        return false;
-      }).length;
+      // 약속 위반 횟수 카운트 및 경영진 지시 1-Pass 탐색
+      let brokenPromisesCount = 0;
+      let activeDirective: DelinquencyActionLog | undefined;
+      for (const l of custLogs) {
+        if (!activeDirective && l.actionType === 'DIRECTIVE') {
+          activeDirective = l;
+        }
+        if (l.promiseDate) {
+          if (l.promiseStatus === 'BROKEN' || (l.promiseStatus === 'PENDING' && l.promiseDate < todayStr)) {
+            brokenPromisesCount++;
+          }
+        }
+      }
 
-      // 경영진 지시 및 방치 일수 추적
-      const activeDirective = custLogs.find(l => l.actionType === 'DIRECTIVE');
-      const hasPendingDirective = !!todos.some(t => t.relatedEntityId === custId && !t.isCompleted);
+      // 경영진 지시 및 방치 일수 추적 (O(1) Set 조회)
+      const hasPendingDirective = pendingTodoCustomerIds.has(custId);
       
       let directiveNeglectedDays = 0;
       if (activeDirective && hasPendingDirective) {
-        const dirDate = new Date(activeDirective.createdAt);
-        const neglectMs = today.getTime() - dirDate.getTime();
+        const dirDateMs = new Date(activeDirective.createdAt).getTime();
+        const neglectMs = todayMs - dirDateMs;
         directiveNeglectedDays = Math.max(0, Math.floor(neglectMs / (1000 * 60 * 60 * 24)));
       }
 
@@ -265,7 +322,7 @@ export const DelinquencyPage: React.FC = () => {
         riskTier = 'MID';
       }
 
-      const salesperson = users.find(u => u.id === val.salespersonId);
+      const salesperson = val.salespersonId ? userMap.get(val.salespersonId) : undefined;
 
       result.push({
         id: `del-${custId}`,
@@ -304,16 +361,19 @@ export const DelinquencyPage: React.FC = () => {
       }
       return b.overdueDays - a.overdueDays;
     });
-  }, [billings, customers, users, contracts, delinquencyActionLogs, todos, today, todayStr]);
+  }, [billings, customerMap, userMap, contractMap, logsByCustomerMap, pendingTodoCustomerIds, todayMs, todayStr]);
 
   // 필터링된 연체 목록
   const filteredDelinquencies = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    const matcher = q ? createHangulMatcher(q) : null;
+
     return calculatedDelinquencies.filter(d => {
-      const q = searchTerm.trim().toLowerCase();
-      const matchesSearch = !q || 
-        d.customerName.toLowerCase().includes(q) || 
-        (d.bizRegNo && d.bizRegNo.includes(q)) ||
-        d.responsibleEmployeeName.toLowerCase().includes(q);
+      const matchesSearch = !matcher || matcher.testAny([
+        d.customerName,
+        d.bizRegNo,
+        d.responsibleEmployeeName
+      ]);
 
       let matchesStatus = true;
       if (statusFilter === 'OVERDUE_30') matchesStatus = d.overdueDays >= 30;
@@ -340,13 +400,14 @@ export const DelinquencyPage: React.FC = () => {
 
   const { items: sortedDelinquencies, requestSort, sortConfig } = useSortableData(filteredDelinquencies);
 
-  const selectedDelinquency = calculatedDelinquencies.find(d => d.customerId === selectedCustomerId) || null;
+  const selectedDelinquency = useMemo(
+    () => calculatedDelinquencies.find(d => d.customerId === selectedCustomerId) || null,
+    [calculatedDelinquencies, selectedCustomerId]
+  );
   const selectedCustLogs = useMemo(() => {
     if (!selectedCustomerId) return [];
-    return delinquencyActionLogs
-      .filter(l => l.customerId === selectedCustomerId)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [delinquencyActionLogs, selectedCustomerId]);
+    return logsByCustomerMap.get(selectedCustomerId) || [];
+  }, [logsByCustomerMap, selectedCustomerId]);
 
   const handleSelectDelinquency = (del: CalculatedDelinquency) => {
     setSelectedCustomerId(del.customerId);
@@ -629,17 +690,38 @@ export const DelinquencyPage: React.FC = () => {
     }
   };
 
-  // 특정 고객사의 현장 가동 계약 및 투입 장비 현황 산출
+  // 특정 고객사의 현장 가동 계약 및 투입 장비 현황 O(1) 인덱스 맵
+  const rentedInfoByCustomerMap = useMemo(() => {
+    const activeContractsByCust = new Map<string, typeof contracts>();
+    const contractToCust = new Map<string, string>();
+
+    for (const c of contracts) {
+      if (c.status !== 'COMPLETED' && c.customerId) {
+        contractToCust.set(c.id, c.customerId);
+        const list = activeContractsByCust.get(c.customerId);
+        if (list) list.push(c);
+        else activeContractsByCust.set(c.customerId, [c]);
+      }
+    }
+
+    const rentedAssetsByCust = new Map<string, typeof contractAssets>();
+    for (const ca of contractAssets) {
+      if (ca.status !== 'RETURNED') {
+        const custId = contractToCust.get(ca.contractId);
+        if (custId) {
+          const list = rentedAssetsByCust.get(custId);
+          if (list) list.push(ca);
+          else rentedAssetsByCust.set(custId, [ca]);
+        }
+      }
+    }
+
+    return { activeContractsByCust, rentedAssetsByCust };
+  }, [contracts, contractAssets]);
+
   const getCustomerRentedInfo = (customerId: string) => {
-    const activeContracts = contracts.filter(c => 
-      c.customerId === customerId && 
-      c.status !== 'COMPLETED'
-    );
-    const activeContractIds = new Set(activeContracts.map(c => c.id));
-    const rentedAssets = contractAssets.filter(ca => 
-      activeContractIds.has(ca.contractId) && 
-      ca.status !== 'RETURNED'
-    );
+    const activeContracts = rentedInfoByCustomerMap.activeContractsByCust.get(customerId) || [];
+    const rentedAssets = rentedInfoByCustomerMap.rentedAssetsByCust.get(customerId) || [];
 
     return {
       contractCount: activeContracts.length,
@@ -683,7 +765,7 @@ export const DelinquencyPage: React.FC = () => {
   // 차단 처분 실행 (2대 유형 체계 지원)
   const handleExecuteBlock = async () => {
     if (!isExecutive || !blockTargetDel) return;
-    const customer = customers.find(c => c.id === blockTargetDel.customerId);
+    const customer = customerMap.get(blockTargetDel.customerId);
     if (!customer) return;
 
     const rented = getCustomerRentedInfo(blockTargetDel.customerId);
@@ -744,7 +826,7 @@ export const DelinquencyPage: React.FC = () => {
       showToast('거래처 제재 해제는 경영진 고유 권한입니다.', 'error');
       return;
     }
-    const customer = customers.find(c => c.id === del.customerId);
+    const customer = customerMap.get(del.customerId);
     if (!customer) return;
 
     try {
@@ -804,21 +886,26 @@ export const DelinquencyPage: React.FC = () => {
     }
   };
 
-  // 상단 지표 계산
-  const totalOverdueAmount = useMemo(() => {
-    return calculatedDelinquencies.reduce((sum, d) => sum + d.totalOverdueAmount, 0);
-  }, [calculatedDelinquencies]);
+  // 상단 및 하단 공통 핵심 경영 통제 지표 (1-Pass 단일 루프 집계)
+  const { totalOverdueAmount, highRiskCount, pendingDirectiveCount, neglectedDirectiveCount } = useMemo(() => {
+    let totalAmount = 0;
+    let highRisk = 0;
+    let pendingDir = 0;
+    let neglectedDir = 0;
 
-  const highRiskCount = useMemo(() => {
-    return calculatedDelinquencies.filter(d => d.riskTier === 'HIGH').length;
-  }, [calculatedDelinquencies]);
+    for (const d of calculatedDelinquencies) {
+      totalAmount += d.totalOverdueAmount;
+      if (d.riskTier === 'HIGH') highRisk++;
+      if (d.hasPendingDirective) pendingDir++;
+      if (d.directiveNeglectedDays >= 3) neglectedDir++;
+    }
 
-  const pendingDirectiveCount = useMemo(() => {
-    return calculatedDelinquencies.filter(d => d.hasPendingDirective).length;
-  }, [calculatedDelinquencies]);
-
-  const neglectedDirectiveCount = useMemo(() => {
-    return calculatedDelinquencies.filter(d => d.directiveNeglectedDays >= 3).length;
+    return {
+      totalOverdueAmount: totalAmount,
+      highRiskCount: highRisk,
+      pendingDirectiveCount: pendingDir,
+      neglectedDirectiveCount: neglectedDir
+    };
   }, [calculatedDelinquencies]);
 
   const { totalPromises, keptPromises, brokenPromises } = useMemo(() => {
@@ -1430,7 +1517,7 @@ export const DelinquencyPage: React.FC = () => {
                         {log.actionDetails}
                       </div>
                       {log.actionType === 'NOTICE_SENT' && (() => {
-                        const noticeRecord = legalNoticeLogs.find(n => n.customerId === selectedDelinquency?.customerId);
+                        const noticeRecord = selectedDelinquency?.customerId ? latestLegalNoticeByCustomerMap.get(selectedDelinquency.customerId) : undefined;
                         if (!noticeRecord) return null;
                         return (
                           <div style={{ marginTop: '6px' }}>
@@ -1480,49 +1567,40 @@ export const DelinquencyPage: React.FC = () => {
       </div>
 
       {/* ⚖️ Gutenberg Z-패턴 4단계 최하단 회계 대차대조식 검증 바 (헌장 3.5) */}
-      {(() => {
-        const totalOverdueSum = calculatedDelinquencies.reduce((s, d) => s + d.totalOverdueAmount, 0);
-        const highRiskCount = calculatedDelinquencies.filter(d => d.riskTier === 'HIGH').length;
-        const pendingDirectiveCount = calculatedDelinquencies.filter(d => d.hasPendingDirective).length;
-        const neglectedDirectiveCount = calculatedDelinquencies.filter(d => d.directiveNeglectedDays >= 3).length;
-
-        return (
-          <div style={{
-            padding: '8px 14px',
-            backgroundColor: 'var(--bg-app)',
-            border: '1px solid var(--border-color)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '8px',
-            fontSize: '11.5px',
-            borderRadius: '6px',
-            flexShrink: 0
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-              <span>연체 거래처: <strong style={{ color: 'var(--danger)' }}>총 {calculatedDelinquencies.length}개사</strong></span>
+      <div style={{
+        padding: '8px 14px',
+        backgroundColor: 'var(--bg-app)',
+        border: '1px solid var(--border-color)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '8px',
+        fontSize: '11.5px',
+        borderRadius: '6px',
+        flexShrink: 0
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+          <span>연체 거래처: <strong style={{ color: 'var(--danger)' }}>총 {calculatedDelinquencies.length}개사</strong></span>
+          <span>|</span>
+          <span>연체 총액: <strong style={{ color: 'var(--danger)' }}>₩{totalOverdueAmount.toLocaleString()}원</strong></span>
+          <span>|</span>
+          <span>고위험 연체: <strong style={{ color: 'var(--danger)' }}>총 {highRiskCount}개사</strong></span>
+          <span>|</span>
+          <span>수금지시 진행: <strong style={{ color: 'var(--primary)' }}>총 {pendingDirectiveCount}건</strong></span>
+          {neglectedDirectiveCount > 0 && (
+            <>
               <span>|</span>
-              <span>연체 총액: <strong style={{ color: 'var(--danger)' }}>₩{totalOverdueSum.toLocaleString()}원</strong></span>
-              <span>|</span>
-              <span>고위험 연체: <strong style={{ color: 'var(--danger)' }}>총 {highRiskCount}개사</strong></span>
-              <span>|</span>
-              <span>수금지시 진행: <strong style={{ color: 'var(--primary)' }}>총 {pendingDirectiveCount}건</strong></span>
-              {neglectedDirectiveCount > 0 && (
-                <>
-                  <span>|</span>
-                  <span style={{ color: 'var(--danger)', fontWeight: 700 }}>지시 미이행 (3일 초과): 총 {neglectedDirectiveCount}건</span>
-                </>
-              )}
-            </div>
-          </div>
-        );
-      })()}
+              <span style={{ color: 'var(--danger)', fontWeight: 700 }}>지시 미이행 (3일 초과): 총 {neglectedDirectiveCount}건</span>
+            </>
+          )}
+        </div>
+      </div>
       {/* ──────────────────────────────────────────────────────────────────────── */}
       {/* [경영진 고유권한] 내용증명(최고장) 편집기 & 인쇄 스튜디오 모달 (독립 컴포넌트로 분리) */}
       {/* ──────────────────────────────────────────────────────────────────────── */}
       {showNoticeModal && noticeTargetDel && (() => {
-        const cust = customers.find(c => c.id === noticeTargetDel.customerId);
+        const cust = customerMap.get(noticeTargetDel.customerId);
 
         return (
           <LegalNoticeStudioModal

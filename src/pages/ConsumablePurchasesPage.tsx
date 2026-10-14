@@ -7,10 +7,11 @@ import {
   ExternalLink, FileSpreadsheet
 } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
-import { ConsumablePurchaseRequest, db } from '../services/db';
+import { Consumable, ConsumablePurchaseRequest, db } from '../services/db';
 import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
+import { createHangulMatcher } from '../utils/hangulSearch';
 
 export const ConsumablePurchasesPage: React.FC = () => {
   const {
@@ -27,6 +28,19 @@ export const ConsumablePurchasesPage: React.FC = () => {
   } = useApp();
 
   const canSave = hasPermission('consumable_purchase', 'save') || hasPermission('consumable', 'save');
+
+  // O(1) 소모품 품목명 매핑
+  const { consumableByExactNameMap, consumableByLowerNameMap } = useMemo(() => {
+    const exactMap = new Map<string, Consumable>();
+    const lowerMap = new Map<string, Consumable>();
+    for (const c of consumables) {
+      if (c.modelName) {
+        exactMap.set(c.modelName, c);
+        lowerMap.set(c.modelName.toLowerCase(), c);
+      }
+    }
+    return { consumableByExactNameMap: exactMap, consumableByLowerNameMap: lowerMap };
+  }, [consumables]);
 
   // 활성 탭: REQ_WRITE (구매신청등록) | REQ_LIST (구매신청대장)
   const [activeTab, setActiveTab] = useState<'REQ_WRITE' | 'REQ_LIST'>('REQ_LIST');
@@ -57,7 +71,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
       const sellerName = String(row.sellerName || '일괄구매처').trim();
       const requestDate = row.requestDate || today;
 
-      const matched = consumables.find(c => c.modelName?.toLowerCase() === modelName.toLowerCase());
+      const matched = consumableByLowerNameMap.get(modelName.toLowerCase());
 
       await requestConsumablePurchase({
         consumableId: matched ? matched.id : undefined,
@@ -113,25 +127,33 @@ export const ConsumablePurchasesPage: React.FC = () => {
   const [startDate, setStartDate] = useState(thisMonthStart);
   const [endDate, setEndDate] = useState(thisMonthEnd);
 
-  // 구매 신청 통계 요약 (Z-패턴 상단 Scope)
+  // 구매 신청 통계 요약 (Z-패턴 상단 Scope - Single-pass)
   const purchaseSummary = useMemo(() => {
     const ym = new Date().toISOString().substring(0, 7);
-    const thisMonth = consumablePurchases.filter(p => p.requestDate?.startsWith(ym));
-    const totalRequested = thisMonth.length;
-    const pendingCount = thisMonth.filter(p => p.status === 'REQUESTED').length;
-    const completedCount = thisMonth.filter(p => p.status === 'COMPLETED').length;
-    const totalAmount = thisMonth.reduce((sum, p) => sum + (p.requestedQty * (p.unitPrice || 0)), 0);
+    let totalRequested = 0;
+    let pendingCount = 0;
+    let completedCount = 0;
+    let totalAmount = 0;
+    for (const p of consumablePurchases) {
+      if (!p.requestDate?.startsWith(ym)) continue;
+      totalRequested++;
+      if (p.status === 'REQUESTED') pendingCount++;
+      else if (p.status === 'COMPLETED') completedCount++;
+      totalAmount += p.requestedQty * (p.unitPrice || 0);
+    }
     return { totalRequested, pendingCount, completedCount, totalAmount };
   }, [consumablePurchases]);
 
   // 필터링된 구매신청 목록
   const filteredPurchases = useMemo(() => {
+    const matcher = searchTerm ? createHangulMatcher(searchTerm) : null;
     return consumablePurchases.filter(p => {
-      const matchSearch = !searchTerm || 
-        (p.modelName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-        (p.sellerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.requesterName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.id || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const matchSearch = !matcher || matcher.testAny([
+        p.modelName,
+        p.sellerName,
+        p.requesterName,
+        p.id
+      ]);
       
       const matchStatus = statusFilter === 'ALL' || p.status === statusFilter;
       const matchDate = (!startDate || p.requestDate >= startDate) && (!endDate || p.requestDate <= endDate);
@@ -139,6 +161,17 @@ export const ConsumablePurchasesPage: React.FC = () => {
       return matchSearch && matchStatus && matchDate;
     }).sort((a, b) => b.requestDate.localeCompare(a.requestDate));
   }, [consumablePurchases, searchTerm, statusFilter, startDate, endDate]);
+
+  // 필터링된 구매신청 하단 합계 (Single-pass)
+  const filteredFooterTotals = useMemo(() => {
+    let totalQty = 0;
+    let totalAmount = 0;
+    for (const p of filteredPurchases) {
+      totalQty += p.requestedQty;
+      totalAmount += p.requestedQty * p.unitPrice;
+    }
+    return { totalQty, totalAmount };
+  }, [filteredPurchases]);
 
   const { items: sortedPurchases, sortConfig, requestSort } = useSortableData<ConsumablePurchaseRequest>(
     filteredPurchases,
@@ -665,9 +698,9 @@ export const ConsumablePurchasesPage: React.FC = () => {
           <div style={{ display: 'flex', justifyContent: 'flex-end', borderTop: '1px solid var(--border-color)', paddingTop: '10px', fontSize: '12px' }}>
             <div style={{ display: 'flex', gap: '16px', fontWeight: '600' }}>
               <span>조회 합계: <strong>{filteredPurchases.length}건</strong></span>
-              <span>총 수량: <strong>{filteredPurchases.reduce((sum, p) => sum + p.requestedQty, 0)}개</strong></span>
+              <span>총 수량: <strong>{filteredFooterTotals.totalQty}개</strong></span>
               <span style={{ color: 'var(--primary)' }}>
-                총 예상 금액: <strong>₩{filteredPurchases.reduce((sum, p) => sum + (p.requestedQty * p.unitPrice), 0).toLocaleString()}원</strong>
+                총 예상 금액: <strong>₩{filteredFooterTotals.totalAmount.toLocaleString()}원</strong>
               </span>
             </div>
           </div>
@@ -710,7 +743,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
                     value={item.modelName}
                     onChange={e => {
                       const val = e.target.value;
-                      const matched = consumables.find(c => c.modelName === val);
+                      const matched = consumableByExactNameMap.get(val);
                       setReqItems(prev => {
                         const newArr = [...prev];
                         newArr[index] = { 

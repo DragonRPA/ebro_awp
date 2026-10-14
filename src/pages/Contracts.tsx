@@ -11,7 +11,7 @@ import {
 import { Contract, db, Customer, CustomerContact, CustomerSite, ContractAsset, ContractHistory, Delivery, Asset, OutboundInspection, normalizeEndDate, formatContractEndDate, isIndefiniteEndDate, PAYMENT_DUE_MONTH_OPTIONS, formatPaymentDueCondition, isCustomerRestricted, isCustomerTotalBlocked, ApprovalPayload } from '../services/db';
 import { exportToExcel } from '../services/excel';
 import { ContractDocumentBundleModal } from '../components/ContractDocumentBundleModal';
-import { matchHangul, sortCustomersByName, compareCustomerNames } from '../utils/hangulSearch';
+import { matchHangul, createHangulMatcher, sortCustomersByName, compareCustomerNames } from '../utils/hangulSearch';
 import { useApproval } from '../hooks/useApproval';
 
 export const Contracts: React.FC = () => {
@@ -219,21 +219,112 @@ export const Contracts: React.FC = () => {
   const [relocatePaidBy, setRelocatePaidBy] = useState<'OURS' | 'CUSTOMER' | 'VENDOR'>('CUSTOMER');
   const [relocateReason, setRelocateReason] = useState('');
 
-  // 헬퍼
-  const getCustName = (id: string) => customers.find(c => c.id === id)?.name || '-';
-  const getSiteName = (id?: string) => sites.find(s => s.id === id)?.name || '-';
-  const getContactName = (id?: string) => {
-    if (!id) return '-';
-    const custContact = contacts.find(c => c.id === id);
-    if (custContact) return custContact.name;
-    for (const site of sites) {
-      if (site.contacts) {
-        const siteContact = site.contacts.find(sc => sc.id === id);
-        if (siteContact) return siteContact.name;
+  // ⚡ O(1) 조회용 인덱스 맵 사전 계산 (필터 변경 시 O(N*M) 중첩 탐색 방지)
+  const customerMap = useMemo(() => {
+    const map = new Map<string, Customer>();
+    for (const c of customers) map.set(c.id, c);
+    return map;
+  }, [customers]);
+
+  const siteMap = useMemo(() => {
+    const map = new Map<string, CustomerSite>();
+    for (const s of sites) map.set(s.id, s);
+    return map;
+  }, [sites]);
+
+  const contactNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of contacts) {
+      map.set(c.id, c.name);
+    }
+    for (const s of sites) {
+      if (s.contacts) {
+        for (const sc of s.contacts) {
+          if (!map.has(sc.id)) map.set(sc.id, sc.name);
+        }
       }
     }
-    return '-';
-  };
+    return map;
+  }, [contacts, sites]);
+
+  const assetMap = useMemo(() => {
+    const map = new Map<string, Asset>();
+    for (const a of assets) map.set(a.id, a);
+    return map;
+  }, [assets]);
+
+  const userMap = useMemo(() => {
+    const map = new Map<string, (typeof users)[number]>();
+    for (const u of users) map.set(u.id, u);
+    return map;
+  }, [users]);
+
+  const contractAssetsByContractMap = useMemo(() => {
+    const map = new Map<string, ContractAsset[]>();
+    for (const ca of contractAssets) {
+      const list = map.get(ca.contractId);
+      if (list) list.push(ca);
+      else map.set(ca.contractId, [ca]);
+    }
+    return map;
+  }, [contractAssets]);
+
+  const deliveriesByContractMap = useMemo(() => {
+    const map = new Map<string, Delivery[]>();
+    for (const d of (deliveries || [])) {
+      if (!d.contractId) continue;
+      const list = map.get(d.contractId);
+      if (list) list.push(d);
+      else map.set(d.contractId, [d]);
+    }
+    return map;
+  }, [deliveries]);
+
+  const outboundInspectionsByContractMap = useMemo(() => {
+    const map = new Map<string, OutboundInspection[]>();
+    for (const oi of (outboundInspections || [])) {
+      if (!oi.contractId) continue;
+      const list = map.get(oi.contractId);
+      if (list) list.push(oi);
+      else map.set(oi.contractId, [oi]);
+    }
+    return map;
+  }, [outboundInspections]);
+
+  const packageSentContractIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const h of (contractHistory || [])) {
+      if (h.changeType === 'DOCUMENT_SENT' || (h.description && h.description.includes('계약서패키지'))) {
+        set.add(h.contractId);
+      }
+    }
+    return set;
+  }, [contractHistory]);
+
+  const billingsByContractMap = useMemo(() => {
+    const map = new Map<string, (typeof billings)>();
+    for (const b of (billings || [])) {
+      if (!b.contractId || b.status === 'REJECTED') continue;
+      const list = map.get(b.contractId);
+      if (list) list.push(b);
+      else map.set(b.contractId, [b]);
+    }
+    return map;
+  }, [billings]);
+
+  const billingDetailsSumByCaIdMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const bd of (billingDetails || [])) {
+      if (!bd.contractAssetId) continue;
+      map.set(bd.contractAssetId, (map.get(bd.contractAssetId) || 0) + (bd.amount || 0));
+    }
+    return map;
+  }, [billingDetails]);
+
+  // 헬퍼 (O(1) Map 기반)
+  const getCustName = (id: string) => customerMap.get(id)?.name || '-';
+  const getSiteName = (id?: string) => (id ? siteMap.get(id)?.name : undefined) || '-';
+  const getContactName = (id?: string) => (id ? contactNameMap.get(id) : undefined) || '-';
 
   // 오늘 날짜 및 D-Day 계산
   const todayStr = new Date().toISOString().split('T')[0];
@@ -247,9 +338,9 @@ export const Contracts: React.FC = () => {
     return { text: `D-${diff}일`, isWarning: false };
   };
 
-  // 💡 영업부 출고 진행 4대 마일스톤(배차, 장비할당, 출고검수, 계약서패키지) 판정 함수 (헌장 1.1 ~ 3.1)
+  // 💡 영업부 출고 진행 4대 마일스톤(배차, 장비할당, 출고검수, 계약서패키지) 판정 함수 (헌장 1.1 ~ 3.1, O(1) 맵 조회)
   const getContractOutboundMilestones = (c: Contract) => {
-    const relDels = (deliveries || []).filter(d => d.contractId === c.id);
+    const relDels = deliveriesByContractMap.get(c.id) || [];
     const outboundDel = relDels.find(d => d.type === 'OUTBOUND' || d.type === 'EXCHANGE') || relDels[0];
     const isDelivered = outboundDel ? (outboundDel.status === 'DELIVERED' || outboundDel.status === 'COMPLETED') : false;
 
@@ -259,19 +350,20 @@ export const Contracts: React.FC = () => {
       : false;
 
     // 2. 장비할당 여부: 계약 체결 자산 슬롯 전체에 assetId 매핑 여부
-    const cas = (contractAssets || []).filter(ca => ca.contractId === c.id);
-    const unassignedCount = cas.filter(ca => !ca.assetId).length;
+    const cas = contractAssetsByContractMap.get(c.id) || [];
+    let unassignedCount = 0;
+    for (const ca of cas) {
+      if (!ca.assetId) unassignedCount++;
+    }
     const isAssigned = cas.length > 0 && unassignedCount === 0;
 
     // 3. 출고검수 완료 여부: outboundInspections 전체가 COMPLETED 여부
-    const relInsps = (outboundInspections || []).filter(oi => oi.contractId === c.id);
+    const relInsps = outboundInspectionsByContractMap.get(c.id) || [];
     const isInspected = relInsps.length > 0 && relInsps.every(oi => oi.status === 'COMPLETED');
     const isInspecting = relInsps.some(oi => oi.status === 'IN_PROGRESS');
 
     // 4. 계약서패키지 발송 여부: packageSentAt 존재 또는 DOCUMENT_SENT / 계약서패키지 이력
-    const isPackageSent = Boolean(c.packageSentAt) || (contractHistory || []).some(
-      h => h.contractId === c.id && (h.changeType === 'DOCUMENT_SENT' || (h.description && h.description.includes('계약서패키지')))
-    );
+    const isPackageSent = Boolean(c.packageSentAt) || packageSentContractIds.has(c.id);
 
     return {
       outboundDel,
@@ -412,56 +504,70 @@ export const Contracts: React.FC = () => {
     );
   };
 
-  // 💡 다차원 필터링 (고객사, 현장, 시작일, 종료일)
+  const hasCurrentUserSalesContracts = useMemo(() => {
+    if (!currentUser || currentUser.role === 'ADMIN') return false;
+    return contracts.some(con => con.salespersonId === currentUser.id);
+  }, [contracts, currentUser]);
+
+  // 💡 다차원 필터링 (고객사, 현장, 시작일, 종료일 - O(1) 맵 및 단일 matcher 적용)
   const filteredContracts = useMemo(() => {
+    const q = searchTerm.trim();
+    const qLower = q.toLowerCase();
+    const matcher = q ? createHangulMatcher(q) : null;
+
     return contracts.filter(c => {
-      const custName = getCustName(c.customerId).toLowerCase();
-      const siteName = getSiteName(c.siteId).toLowerCase();
-      const contactName = getContactName(c.contactId).toLowerCase();
-      const cas = contractAssets.filter(ca => ca.contractId === c.id);
-      const assetNos = cas.map(ca => assets.find(a => a.id === ca.assetId)?.assetNo || '').join(' ').toLowerCase();
-
-      const q = searchTerm.trim();
-      const matchesSearch = !q ||
-        c.contractNo.toLowerCase().includes(q.toLowerCase()) ||
-        matchHangul(custName, q) ||
-        matchHangul(siteName, q) ||
-        matchHangul(contactName, q) ||
-        assetNos.includes(q.toLowerCase()) ||
-        matchHangul(assetNos, q);
-
       const matchesType = contractTypeFilter === 'ALL' || (c.contractType || 'RENTAL') === contractTypeFilter;
-      
-      let matchesStatus = true;
+      if (!matchesType) return false;
+
       if (statusFilter !== 'ALL') {
-        if (statusFilter === 'ACTIVE') matchesStatus = c.status === 'ACTIVE' || c.status === 'EXTENDED';
-        else matchesStatus = c.status === statusFilter;
+        const matchesStatus = statusFilter === 'ACTIVE'
+          ? (c.status === 'ACTIVE' || c.status === 'EXTENDED')
+          : c.status === statusFilter;
+        if (!matchesStatus) return false;
       }
-      
-      const matchesCustomer = customerFilter === 'ALL' || c.customerId === customerFilter;
-      const matchesSite = siteFilter === 'ALL' || c.siteId === siteFilter;
-      const matchesStartDate = !startDateFilter || (c.startDate && c.startDate >= startDateFilter);
-      const matchesEndDate = !endDateFilter || normalizeEndDate(c.endDate) <= endDateFilter;
 
-      let matchesChip = true;
+      if (customerFilter !== 'ALL' && c.customerId !== customerFilter) return false;
+      if (siteFilter !== 'ALL' && c.siteId !== siteFilter) return false;
+      if (startDateFilter && (!c.startDate || c.startDate < startDateFilter)) return false;
+      if (endDateFilter && normalizeEndDate(c.endDate) > endDateFilter) return false;
+
+      const cas = contractAssetsByContractMap.get(c.id) || [];
+
       if (quickChipFilter === 'PENDING_DELIVERY') {
-        const isMySalesContract = !currentUser || currentUser.role === 'ADMIN' || !contracts.some(con => con.salespersonId === currentUser.id) || c.salespersonId === currentUser.id;
+        const isMySalesContract = !currentUser || currentUser.role === 'ADMIN' || !hasCurrentUserSalesContracts || c.salespersonId === currentUser.id;
         const m = getContractOutboundMilestones(c);
-        matchesChip = isMySalesContract && c.status !== 'COMPLETED' && !m.isDelivered;
-      } else if (quickChipFilter === 'ACTIVE') matchesChip = c.status === 'ACTIVE' || c.status === 'EXTENDED';
-      else if (quickChipFilter === 'ASSIGNED') matchesChip = cas.some(ca => assets.find(a => a.id === ca.assetId)?.status === 'ASSIGNED');
-      else if (quickChipFilter === 'D3') {
-        const dday = getDDayText(c.endDate);
-        matchesChip = dday.isWarning;
+        if (!(isMySalesContract && c.status !== 'COMPLETED' && !m.isDelivered)) return false;
+      } else if (quickChipFilter === 'ACTIVE') {
+        if (!(c.status === 'ACTIVE' || c.status === 'EXTENDED')) return false;
+      } else if (quickChipFilter === 'ASSIGNED') {
+        if (!cas.some(ca => ca.assetId && assetMap.get(ca.assetId)?.status === 'ASSIGNED')) return false;
+      } else if (quickChipFilter === 'D3') {
+        if (!getDDayText(c.endDate).isWarning) return false;
       } else if (quickChipFilter === 'ZERO_FEE') {
-        matchesChip = cas.some(ca => ca.monthlyRentalFee === 0);
+        if (!cas.some(ca => ca.monthlyRentalFee === 0)) return false;
       } else if (quickChipFilter === 'COMPLETED') {
-        matchesChip = c.status === 'COMPLETED';
+        if (c.status !== 'COMPLETED') return false;
       }
 
-      return matchesType && matchesSearch && matchesStatus && matchesCustomer && matchesSite && matchesStartDate && matchesEndDate && matchesChip;
+      if (matcher) {
+        const custName = getCustName(c.customerId).toLowerCase();
+        const siteName = getSiteName(c.siteId).toLowerCase();
+        const contactName = getContactName(c.contactId).toLowerCase();
+        const assetNos = cas.map(ca => (ca.assetId ? assetMap.get(ca.assetId)?.assetNo : '') || '').join(' ').toLowerCase();
+
+        const matchesSearch =
+          c.contractNo.toLowerCase().includes(qLower) ||
+          matcher.test(custName) ||
+          matcher.test(siteName) ||
+          matcher.test(contactName) ||
+          assetNos.includes(qLower) ||
+          matcher.test(assetNos);
+        if (!matchesSearch) return false;
+      }
+
+      return true;
     });
-  }, [contracts, contractAssets, assets, customers, sites, contacts, searchTerm, contractTypeFilter, statusFilter, customerFilter, siteFilter, startDateFilter, endDateFilter, quickChipFilter, deliveries, outboundInspections, contractHistory, currentUser]);
+  }, [contracts, contractAssetsByContractMap, assetMap, customerMap, siteMap, contactNameMap, searchTerm, contractTypeFilter, statusFilter, customerFilter, siteFilter, startDateFilter, endDateFilter, quickChipFilter, deliveriesByContractMap, outboundInspectionsByContractMap, packageSentContractIds, currentUser, hasCurrentUserSalesContracts]);
 
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
@@ -499,9 +605,9 @@ export const Contracts: React.FC = () => {
             bValue = getSiteName(b.siteId);
             break;
           case 'rentalFee': {
-            const casA = contractAssets.filter(ca => ca.contractId === a.id);
+            const casA = contractAssetsByContractMap.get(a.id) || [];
             aValue = casA.reduce((sum, ca) => sum + (ca.monthlyRentalFee || 0), 0);
-            const casB = contractAssets.filter(ca => ca.contractId === b.id);
+            const casB = contractAssetsByContractMap.get(b.id) || [];
             bValue = casB.reduce((sum, ca) => sum + (ca.monthlyRentalFee || 0), 0);
             break;
           }
@@ -528,18 +634,16 @@ export const Contracts: React.FC = () => {
              bValue = b.billingDay || 0;
              break;
           case 'salesperson':
-            aValue = users.find(u => u.id === a.salespersonId)?.name || '';
-            bValue = users.find(u => u.id === b.salespersonId)?.name || '';
+            aValue = (a.salespersonId ? userMap.get(a.salespersonId)?.name : '') || '';
+            bValue = (b.salespersonId ? userMap.get(b.salespersonId)?.name : '') || '';
             break;
           case 'status':
             aValue = a.status;
             bValue = b.status;
             break;
           case 'assets': {
-            const casA = contractAssets.filter(ca => ca.contractId === a.id);
-            aValue = casA.length;
-            const casB = contractAssets.filter(ca => ca.contractId === b.id);
-            bValue = casB.length;
+            aValue = (contractAssetsByContractMap.get(a.id) || []).length;
+            bValue = (contractAssetsByContractMap.get(b.id) || []).length;
             break;
           }
         }
@@ -553,16 +657,20 @@ export const Contracts: React.FC = () => {
       });
     }
     return sortable;
-  }, [filteredContracts, sortConfig, contractAssets, billings, users]);
+  }, [filteredContracts, sortConfig, contractAssetsByContractMap, customerMap, siteMap, userMap]);
 
   // 💡 출고 진행 중인 계약 건수 (운송 완료 전)
   const pendingDeliveryCount = useMemo(() => {
-    return contracts.filter(c => {
-      const isMySalesContract = !currentUser || currentUser.role === 'ADMIN' || !contracts.some(con => con.salespersonId === currentUser.id) || c.salespersonId === currentUser.id;
-      const m = getContractOutboundMilestones(c);
-      return isMySalesContract && c.status !== 'COMPLETED' && !m.isDelivered;
-    }).length;
-  }, [contracts, deliveries, contractAssets, outboundInspections, contractHistory, currentUser]);
+    let count = 0;
+    for (const c of contracts) {
+      const isMySalesContract = !currentUser || currentUser.role === 'ADMIN' || !hasCurrentUserSalesContracts || c.salespersonId === currentUser.id;
+      if (isMySalesContract && c.status !== 'COMPLETED') {
+        const m = getContractOutboundMilestones(c);
+        if (!m.isDelivered) count++;
+      }
+    }
+    return count;
+  }, [contracts, deliveriesByContractMap, contractAssetsByContractMap, outboundInspectionsByContractMap, packageSentContractIds, currentUser, hasCurrentUserSalesContracts]);
 
   // 🔍 조회 버튼 핸들러 (서버 데이터 재동기화 및 필터 반영)
   const handleSearchClick = async () => {
@@ -573,15 +681,15 @@ export const Contracts: React.FC = () => {
   };
 
   // 선택된 계약 관련 데이터
-  const activeContract = contracts.find(c => c.id === selectedContractId);
-  const activeContractHistory = contractHistory.filter(h => h.contractId === selectedContractId);
-  const activeContractAssets = contractAssets.filter(ca => ca.contractId === selectedContractId);
+  const activeContract = useMemo(() => contracts.find(c => c.id === selectedContractId), [contracts, selectedContractId]);
+  const activeContractHistory = useMemo(() => contractHistory.filter(h => h.contractId === selectedContractId), [contractHistory, selectedContractId]);
+  const activeContractAssets = useMemo(() => (selectedContractId ? contractAssetsByContractMap.get(selectedContractId) || [] : []), [contractAssetsByContractMap, selectedContractId]);
 
   const { items: sortedActiveContractAssets, requestSort: requestCaSort, sortConfig: caSortConfig } = useSortableData(
     activeContractAssets, 
     null,
     (ca, key) => {
-      const asset = assets.find(a => a.id === ca.assetId);
+      const asset = ca.assetId ? assetMap.get(ca.assetId) : undefined;
       if (key === 'asset') return asset?.assetNo || '';
       if (key === 'statusPeriod') {
         const statusScore = ca.status === 'RETURNED' ? 1 : 0; // 운용중(0)이 반납완료(1)보다 위에 오도록
@@ -589,7 +697,7 @@ export const Contracts: React.FC = () => {
       }
       if (key === 'price') return ca.monthlyRentalFee || 0;
       if (key === 'accrual') {
-        return (billingDetails || []).filter(bd => bd.contractAssetId === ca.id).reduce((sum, bd) => sum + (bd.amount || 0), 0);
+        return billingDetailsSumByCaIdMap.get(ca.id) || 0;
       }
       if (key === 'scheduled') return ca.status === 'RETURNED' ? -1 : (ca.monthlyRentalFee || 0);
       return '';
@@ -600,19 +708,20 @@ export const Contracts: React.FC = () => {
   const filteredSuccCustomers = useMemo(() => {
     const currentCustId = activeContract?.customerId;
     const candidates = customers.filter(c => c.id !== currentCustId);
-    if (!succCustSearch.trim()) return candidates;
     const q = succCustSearch.trim();
+    if (!q) return candidates;
+    const matcher = createHangulMatcher(q);
     const matched = candidates.filter(c =>
-      matchHangul(c.name, q) ||
+      matcher.test(c.name) ||
       (c.bizRegNo && c.bizRegNo.includes(q))
     );
     // 선택된 고객사가 있으면 검색 필터에 관계없이 옵션 보존
     if (succCustId && !matched.some(c => c.id === succCustId)) {
-      const sel = candidates.find(c => c.id === succCustId);
-      if (sel) return [sel, ...matched];
+      const sel = customerMap.get(succCustId);
+      if (sel && sel.id !== currentCustId) return [sel, ...matched];
     }
     return matched;
-  }, [customers, activeContract, succCustSearch, succCustId]);
+  }, [customers, customerMap, activeContract, succCustSearch, succCustId]);
 
   // 📜 계약 변경 및 이력 타임라인
   const activeTimeline = useMemo(() => {
@@ -657,9 +766,9 @@ export const Contracts: React.FC = () => {
     });
 
     // 2. 출고 검수 이력
-    const relInsps = outboundInspections.filter(o => o.contractId === activeContract.id);
+    const relInsps = outboundInspectionsByContractMap.get(activeContract.id) || [];
     relInsps.forEach(i => {
-      const asset = assets.find(a => a.id === i.assetId);
+      const asset = i.assetId ? assetMap.get(i.assetId) : undefined;
       timeline.push({
         id: `i-${i.id}`,
         date: i.inspectedAt?.split('T')[0] || i.createdAt.split('T')[0],
@@ -670,7 +779,7 @@ export const Contracts: React.FC = () => {
     });
 
     // 3. 배차 이력
-    const relDels = deliveries.filter(d => d.contractId === activeContract.id);
+    const relDels = deliveriesByContractMap.get(activeContract.id) || [];
     relDels.forEach(d => {
       const cost = d.finalCost || d.deliveryCostConfirmed || d.deliveryCost || d.expectedCost || 0;
       const dDate = d.loadingDate || d.scheduledDate || d.requestDate || (d.createdAt ? d.createdAt.split('T')[0] : '');
@@ -691,7 +800,7 @@ export const Contracts: React.FC = () => {
     // ※ 현장 AS 및 정비 이력은 하단 '계약 현장 AS 및 정비 이력' 전용 그리드에서 관리되므로 계약 흐름 타임라인에서는 제외함.
 
     return timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [activeContract, activeContractHistory, outboundInspections, deliveries, activeContractAssets, assets, todayStr]);
+  }, [activeContract, activeContractHistory, outboundInspectionsByContractMap, deliveriesByContractMap, assetMap, todayStr]);
 
   // 핸들러
   const handleSelectContract = (contractId: string) => {
@@ -1130,10 +1239,10 @@ export const Contracts: React.FC = () => {
 
   const handleExportExcel = () => {
     const excelData = filteredContracts.map((c, idx) => {
-      const cas = contractAssets.filter(ca => ca.contractId === c.id);
+      const cas = contractAssetsByContractMap.get(c.id) || [];
       const totalMonthlyRent = cas.reduce((sum, ca) => sum + (ca.monthlyRentalFee || 0), 0);
       const assetSummary = cas.map(ca => {
-        const a = assets.find(ast => ast.id === ca.assetId);
+        const a = ca.assetId ? assetMap.get(ca.assetId) : undefined;
         return a ? `${a.modelName} (${a.assetNo})` : (ca.expectedModel || '미배정');
       }).join(', ');
 
@@ -1150,7 +1259,7 @@ export const Contracts: React.FC = () => {
         '고객사명': getCustName(c.customerId),
         '현장명': getSiteName(c.siteId),
         '현장 담당자': getContactName(c.contactId),
-        '영업 담당자': users.find(u => u.id === c.salespersonId)?.name || '-',
+        '영업 담당자': (c.salespersonId ? userMap.get(c.salespersonId)?.name : undefined) || '-',
 
         // ③ 체결 장비 요약
         '체결 장비 수': `${cas.length}대`,
@@ -1176,9 +1285,12 @@ export const Contracts: React.FC = () => {
     exportToExcel(excelData, `계약대장_${todayStr}`, '계약목록');
   };
 
-  const availableAssets = assets.filter(a => a.status === 'AVAILABLE');
-  const oldAssetToExchange = assets.find(a => a.id === exchangeOldAssetId);
-  const filteredAvailableAssets = assets.filter(a => a.status === 'AVAILABLE' && (oldAssetToExchange ? a.modelName === oldAssetToExchange.modelName : true));
+  const availableAssets = useMemo(() => assets.filter(a => a.status === 'AVAILABLE'), [assets]);
+  const oldAssetToExchange = useMemo(() => (exchangeOldAssetId ? assetMap.get(exchangeOldAssetId) : undefined), [assetMap, exchangeOldAssetId]);
+  const filteredAvailableAssets = useMemo(
+    () => availableAssets.filter(a => (oldAssetToExchange ? a.modelName === oldAssetToExchange.modelName : true)),
+    [availableAssets, oldAssetToExchange]
+  );
 
   const handleAddToBasket = () => {
     if (basketAssetMethod === 'ASSET') {
@@ -1418,26 +1530,69 @@ export const Contracts: React.FC = () => {
     setBasket([]);
   };
 
-  // 계약 KPI 통계 (렌탈 계약과 매각 계약 정밀 분리)
+  // 계약 KPI 통계 및 상태 칩 건수 (렌탈 계약과 매각 계약 정밀 분리 - 단일 패스 O(N))
   const contractKpiStats = useMemo(() => {
-    const rentalContracts = contracts.filter(c => (c.contractType || 'RENTAL') === 'RENTAL');
-    const saleContracts = contracts.filter(c => c.contractType === 'SALE');
-    const rentalContractIds = new Set(rentalContracts.map(c => c.id));
-    const rentalContractAssets = contractAssets.filter(ca => rentalContractIds.has(ca.contractId));
+    let rentalCount = 0;
+    let saleCount = 0;
+    let activeCount = 0;
+    let d3Count = 0;
+    let zeroFeeCount = 0;
+    let succeededCount = 0;
+    let completedCount = 0;
+    let totalRentSum = 0;
 
-    const totalCount = contracts.length;
-    const rentalCount = rentalContracts.length;
-    const saleCount = saleContracts.length;
-    const activeCount = rentalContracts.filter(c => c.status === 'ACTIVE' || c.status === 'EXTENDED').length;
-    const d3Count = rentalContracts.filter(c => getDDayText(c.endDate).isWarning).length;
-    const zeroFeeCount = rentalContracts.filter(c => contractAssets.filter(ca => ca.contractId === c.id).some(ca => ca.monthlyRentalFee === 0)).length;
-    const succeededCount = rentalContracts.filter(c => c.status === 'SUCCEEDED').length;
-    const completedCount = rentalContracts.filter(c => c.status === 'COMPLETED').length;
-    const totalRentSum = rentalContractAssets.reduce((sum, ca) => sum + (ca.monthlyRentalFee || 0), 0);
-    const totalAssetsCount = contractAssets.length;
+    let allActiveCount = 0;
+    let allD3Count = 0;
+    let allZeroFeeCount = 0;
+    let allCompletedCount = 0;
 
-    return { totalCount, rentalCount, saleCount, activeCount, d3Count, zeroFeeCount, succeededCount, completedCount, totalRentSum, totalAssetsCount };
-  }, [contracts, contractAssets]);
+    for (const c of contracts) {
+      const isSale = c.contractType === 'SALE';
+      const isActive = c.status === 'ACTIVE' || c.status === 'EXTENDED';
+      const isD3 = getDDayText(c.endDate).isWarning;
+      const cas = contractAssetsByContractMap.get(c.id) || [];
+      let hasZero = false;
+      let contractRentSum = 0;
+      for (const ca of cas) {
+        if (ca.monthlyRentalFee === 0) hasZero = true;
+        contractRentSum += (ca.monthlyRentalFee || 0);
+      }
+
+      if (isActive) allActiveCount++;
+      if (isD3) allD3Count++;
+      if (hasZero) allZeroFeeCount++;
+      if (c.status === 'COMPLETED') allCompletedCount++;
+
+      if (isSale) {
+        saleCount++;
+      } else {
+        rentalCount++;
+        if (isActive) activeCount++;
+        if (isD3) d3Count++;
+        if (hasZero) zeroFeeCount++;
+        if (c.status === 'SUCCEEDED') succeededCount++;
+        if (c.status === 'COMPLETED') completedCount++;
+        totalRentSum += contractRentSum;
+      }
+    }
+
+    return {
+      totalCount: contracts.length,
+      rentalCount,
+      saleCount,
+      activeCount,
+      d3Count,
+      zeroFeeCount,
+      succeededCount,
+      completedCount,
+      totalRentSum,
+      totalAssetsCount: contractAssets.length,
+      allActiveCount,
+      allD3Count,
+      allZeroFeeCount,
+      allCompletedCount
+    };
+  }, [contracts, contractAssets.length, contractAssetsByContractMap]);
 
   return (
     <div data-uia="contract-container" style={{ display: 'flex', flexDirection: 'column', gap: '10px', height: '100%', minHeight: 0, overflow: 'hidden', fontSize: '13px' }}>
@@ -1808,12 +1963,12 @@ export const Contracts: React.FC = () => {
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginRight: '4px', whiteSpace: 'nowrap', flexShrink: 0 }}>상태 필터:</span>
               {[
-                { id: 'ALL', label: `전체 (${contracts.length})` },
+                { id: 'ALL', label: `전체 (${contractKpiStats.totalCount})` },
                 { id: 'PENDING_DELIVERY', label: `출고진행 (${pendingDeliveryCount})` },
-                { id: 'ACTIVE', label: `진행중 (${contracts.filter(c => c.status === 'ACTIVE' || c.status === 'EXTENDED').length})` },
-                { id: 'D3', label: `만료 임박 (${contracts.filter(c => getDDayText(c.endDate).isWarning).length})` },
-                { id: 'ZERO_FEE', label: `렌탈료 0원 (${contracts.filter(c => contractAssets.filter(ca => ca.contractId === c.id).some(ca => ca.monthlyRentalFee === 0)).length})` },
-                { id: 'COMPLETED', label: `종결건 (${contracts.filter(c => c.status === 'COMPLETED').length})` }
+                { id: 'ACTIVE', label: `진행중 (${contractKpiStats.allActiveCount})` },
+                { id: 'D3', label: `만료 임박 (${contractKpiStats.allD3Count})` },
+                { id: 'ZERO_FEE', label: `렌탈료 0원 (${contractKpiStats.allZeroFeeCount})` },
+                { id: 'COMPLETED', label: `종결건 (${contractKpiStats.allCompletedCount})` }
               ].map(chip => (
                 <button
                   key={chip.id}
@@ -1884,7 +2039,7 @@ export const Contracts: React.FC = () => {
                     </tr>
                   ) : (
                     sortedContracts.map((c, idx) => {
-                      const cas = contractAssets.filter(ca => ca.contractId === c.id);
+                      const cas = contractAssetsByContractMap.get(c.id) || [];
                       const totalFee = cas.reduce((sum, ca) => sum + (ca.monthlyRentalFee || 0), 0);
                       const dday = getDDayText(c.endDate);
                       const hasZeroFee = cas.some(ca => ca.monthlyRentalFee === 0);
@@ -1892,7 +2047,7 @@ export const Contracts: React.FC = () => {
                       // 💡 자산 표기: 모델명 * 수량 요약 집계 (예: GS-1930 2대, GS-3246 1대)
                       const modelCountMap: Record<string, number> = {};
                       cas.forEach(ca => {
-                        const a = assets.find(ast => ast.id === ca.assetId);
+                        const a = ca.assetId ? assetMap.get(ca.assetId) : undefined;
                         const modelName = a?.modelName || ca.expectedModel || '미지정 모델';
                         modelCountMap[modelName] = (modelCountMap[modelName] || 0) + 1;
                       });
@@ -1909,9 +2064,10 @@ export const Contracts: React.FC = () => {
                         modelSummaryText = `${firstModel} 외 ${otherCount}대`;
                       }
 
-                      // 💡 계약별 청구 건수 집계 (휴먼에러 및 청구 누락 방지 교차 검증)
-                      const cBillings = (billings || []).filter(b => b.contractId === c.id && b.status !== 'REJECTED');
-                      const unpaidCount = cBillings.filter(b => b.status !== 'PAID').length;
+                      // 💡 계약별 청구 건수 집계 (휴먼에러 및 청구 누락 방지 교차 검증 - O(1) Map 조회)
+                      const cBillings = showBillingCountCol ? (billingsByContractMap.get(c.id) || []) : [];
+                      const unpaidCount = showBillingCountCol ? cBillings.filter(b => b.status !== 'PAID').length : 0;
+                      const custObj = customerMap.get(c.customerId);
 
                       return (
                         <tr
@@ -1941,13 +2097,13 @@ export const Contracts: React.FC = () => {
                           </td>
                           <td style={{ whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                              <strong>{getCustName(c.customerId)}</strong>
-                              {customers.find(cu => cu.id === c.customerId)?.transactionStatus === 'RESTRICT_NEW' && (
+                              <strong>{custObj?.name || '-'}</strong>
+                              {custObj?.transactionStatus === 'RESTRICT_NEW' && (
                                 <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #f59e0b', flexShrink: 0 }}>
                                   추가금지
                                 </span>
                               )}
-                              {isCustomerTotalBlocked(customers.find(cu => cu.id === c.customerId)?.transactionStatus) && (
+                              {isCustomerTotalBlocked(custObj?.transactionStatus) && (
                                 <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: 'var(--danger)', color: '#fff', flexShrink: 0 }}>
                                   전면차단
                                 </span>
@@ -2029,7 +2185,7 @@ export const Contracts: React.FC = () => {
                             )}
                           </td>
                           <td style={{ whiteSpace: 'nowrap' }}>매월 {c.billingDay}일</td>
-                          <td style={{ whiteSpace: 'nowrap' }}>{users.find(u => u.id === c.salespersonId)?.name || '-'}</td>
+                          <td style={{ whiteSpace: 'nowrap' }}>{(c.salespersonId ? userMap.get(c.salespersonId)?.name : undefined) || '-'}</td>
                           <td style={{ whiteSpace: 'nowrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                               <span className={

@@ -11,10 +11,11 @@ import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
 import { 
   Consumable, MechanicConsumableStock, StocktakingAudit, 
-  StocktakingAuditItem, CollectedPart, db 
+  StocktakingAuditItem, CollectedPart, User, db 
 } from '../services/db';
 import { normalizeMenuId } from '../config/menu_config';
 import { getRoleTemplatePermission } from '../config/role_templates';
+import { createHangulMatcher } from '../utils/hangulSearch';
 
 export const ConsumableStockPage: React.FC = () => {
   const {
@@ -44,6 +45,56 @@ export const ConsumableStockPage: React.FC = () => {
   } = useApp();
 
   const canSave = hasPermission('consumable_stock', 'save') || hasPermission('consumable', 'save');
+
+  // O(1) 룩업 맵 사전 연산
+  const consumableMap = useMemo(() => {
+    const map = new Map<string, Consumable>();
+    for (const c of consumables) map.set(c.id, c);
+    return map;
+  }, [consumables]);
+
+  const userMap = useMemo(() => {
+    const map = new Map<string, User>();
+    for (const u of (users || [])) map.set(u.id, u);
+    return map;
+  }, [users]);
+
+  const permissionsByUserMap = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const p of (permissions || [])) {
+      const uid = p.userId || (p as any).user_id;
+      if (!uid) continue;
+      const arr = map.get(uid);
+      if (arr) arr.push(p);
+      else map.set(uid, [p]);
+    }
+    return map;
+  }, [permissions]);
+
+  const vehicleQtyByConsumableMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const ms of (mechanicConsumableStocks || [])) {
+      if (!ms.stockQty) continue;
+      map.set(ms.consumableId, (map.get(ms.consumableId) || 0) + ms.stockQty);
+    }
+    return map;
+  }, [mechanicConsumableStocks]);
+
+  const auditMap = useMemo(() => {
+    const map = new Map<string, StocktakingAudit>();
+    for (const a of stocktakingAudits) map.set(a.id, a);
+    return map;
+  }, [stocktakingAudits]);
+
+  const auditItemsByAuditIdMap = useMemo(() => {
+    const map = new Map<string, StocktakingAuditItem[]>();
+    for (const item of stocktakingAuditItems) {
+      const arr = map.get(item.auditId);
+      if (arr) arr.push(item);
+      else map.set(item.auditId, [item]);
+    }
+    return map;
+  }, [stocktakingAuditItems]);
 
   // 활성 탭: STOCK (주기장재고) | VEHICLE_STOCK (차량재고) | COLLECTED_PARTS (고품관리) | STOCKTAKING (재고실사)
   const [activeTab, setActiveTab] = useState<'STOCK' | 'VEHICLE_STOCK' | 'COLLECTED_PARTS' | 'STOCKTAKING'>('STOCK');
@@ -150,7 +201,7 @@ export const ConsumableStockPage: React.FC = () => {
       if (dName.includes('대표') || dName.includes('임원') || dName.includes('시스템')) return false;
 
       // 2. 소모품재고/현장AS/정비 관련 개별 권한 부여 여부 확인
-      const userPerms = (permissions || []).filter(p => p.userId === u.id || (p as any).user_id === u.id);
+      const userPerms = permissionsByUserMap.get(u.id) || [];
       const hasExplicitPerm = userPerms.some(p => 
         vehicleTargetMenuIds.includes(normalizeMenuId(p.menuId)) && (p.canView || p.canSave)
       );
@@ -181,17 +232,32 @@ export const ConsumableStockPage: React.FC = () => {
       if (b.role === 'MANAGER' && a.role !== 'MANAGER') return 1;
       return a.name.localeCompare(b.name, 'ko');
     });
-  }, [users, permissions, mechanicConsumableStocks]);
+  }, [users, permissionsByUserMap, mechanicConsumableStocks]);
 
-  // 재고 통계 요약
+  const mechanicMap = useMemo(() => {
+    const map = new Map<string, User>();
+    for (const m of mechanics) map.set(m.id, m);
+    return map;
+  }, [mechanics]);
+
+  // 재고 통계 요약 (Single-pass)
   const stockSummary = useMemo(() => {
-    const hqTotalQty = consumables.reduce((sum, c) => sum + (c.stockQty || 0), 0);
-    const hqTotalValue = consumables.reduce((sum, c) => sum + (c.stockQty || 0) * (c.unitPrice || 0), 0);
-    const vehicleTotalQty = (mechanicConsumableStocks || []).reduce((sum, s) => sum + (s.stockQty || 0), 0);
-    const vehicleTotalValue = (mechanicConsumableStocks || []).reduce((sum, s) => {
-      const c = consumables.find(item => item.id === s.consumableId);
-      return sum + (s.stockQty || 0) * (c?.unitPrice || 0);
-    }, 0);
+    let hqTotalQty = 0;
+    let hqTotalValue = 0;
+    for (const c of consumables) {
+      const qty = c.stockQty || 0;
+      hqTotalQty += qty;
+      hqTotalValue += qty * (c.unitPrice || 0);
+    }
+
+    let vehicleTotalQty = 0;
+    let vehicleTotalValue = 0;
+    for (const s of (mechanicConsumableStocks || [])) {
+      const qty = s.stockQty || 0;
+      vehicleTotalQty += qty;
+      const c = consumableMap.get(s.consumableId);
+      vehicleTotalValue += qty * (c?.unitPrice || 0);
+    }
 
     return {
       hqTotalKinds: consumables.length,
@@ -202,51 +268,91 @@ export const ConsumableStockPage: React.FC = () => {
       grandTotalQty: hqTotalQty + vehicleTotalQty,
       grandTotalValue: hqTotalValue + vehicleTotalValue
     };
-  }, [consumables, mechanicConsumableStocks]);
+  }, [consumables, mechanicConsumableStocks, consumableMap]);
+
+  // 고품 관리 요약 및 배지 카운트 (Single-pass)
+  const collectedPartsSummary = useMemo(() => {
+    const totalCount = collectedParts.length;
+    let uncompletedCount = 0;
+    let rebuildCount = 0;
+    let scrapCount = 0;
+    let warrantyCount = 0;
+    for (const p of collectedParts) {
+      if (p.status !== 'COMPLETED') uncompletedCount++;
+      if (p.disposition === 'REBUILD') rebuildCount++;
+      else if (p.disposition === 'SCRAP') scrapCount++;
+      else if (p.disposition === 'VENDOR_WARRANTY') warrantyCount++;
+    }
+    return { totalCount, uncompletedCount, rebuildCount, scrapCount, warrantyCount };
+  }, [collectedParts]);
+
+  const draftAuditsCount = useMemo(() => {
+    let count = 0;
+    for (const a of stocktakingAudits) {
+      if (a.status === 'DRAFT') count++;
+    }
+    return count;
+  }, [stocktakingAudits]);
+
+  const filteredAudits = useMemo(() => {
+    return stocktakingAudits.filter(a => {
+      const matchTarget = auditTargetFilter === 'ALL' || a.targetType === auditTargetFilter;
+      const matchStatus = auditStatusFilter === 'ALL' || a.status === auditStatusFilter;
+      return matchTarget && matchStatus;
+    });
+  }, [stocktakingAudits, auditTargetFilter, auditStatusFilter]);
+
+  const currentAudit = useMemo(() => {
+    return selectedAuditId ? auditMap.get(selectedAuditId) : undefined;
+  }, [auditMap, selectedAuditId]);
+
+  const currentAuditItems = useMemo(() => {
+    if (!currentAudit) return [];
+    const items = auditItemsByAuditIdMap.get(currentAudit.id) || [];
+    if (!auditItemSearch) return items;
+    const matcher = createHangulMatcher(auditItemSearch);
+    return items.filter(item => matcher.test(item.modelName));
+  }, [currentAudit, auditItemsByAuditIdMap, auditItemSearch]);
 
   // --- 정렬용 Enriched Data ---
   const enrichedStock = useMemo(() => {
+    const matcher = stockSearch ? createHangulMatcher(stockSearch) : null;
     return consumables.filter(c => {
-      return !stockSearch || 
-        c.modelName.toLowerCase().includes(stockSearch.toLowerCase()) || 
-        (c.supplier || '').toLowerCase().includes(stockSearch.toLowerCase());
+      return !matcher || matcher.testAny([c.modelName, c.supplier]);
     }).map(c => {
-      const totalVehicleQty = (mechanicConsumableStocks || [])
-        .filter(ms => ms.consumableId === c.id)
-        .reduce((sum, ms) => sum + ms.stockQty, 0);
+      const totalVehicleQty = vehicleQtyByConsumableMap.get(c.id) || 0;
       const grandQty = (c.stockQty || 0) + totalVehicleQty;
       const hqValue = (c.stockQty || 0) * (c.unitPrice || 0);
       return { ...c, totalVehicleQty, grandQty, hqValue };
     });
-  }, [consumables, stockSearch, mechanicConsumableStocks]);
+  }, [consumables, stockSearch, vehicleQtyByConsumableMap]);
 
   const { items: sortedStock, requestSort: requestSortStock, sortConfig: sortConfigStock } = useSortableData(enrichedStock);
 
   const enrichedVehicleStock = useMemo(() => {
+    const matcher = vehicleStockSearch ? createHangulMatcher(vehicleStockSearch) : null;
     return (mechanicConsumableStocks || []).filter(ms => {
       if (ms.stockQty <= 0) return false;
       const matchMech = selectedMechanicFilter === 'ALL' || ms.mechanicId === selectedMechanicFilter;
-      const item = consumables.find(c => c.id === ms.consumableId);
-      const matchSearch = !vehicleStockSearch || 
-        (item && item.modelName.toLowerCase().includes(vehicleStockSearch.toLowerCase()));
+      const item = consumableMap.get(ms.consumableId);
+      const matchSearch = !matcher || (item && matcher.test(item.modelName));
       return matchMech && matchSearch;
     }).map(ms => {
-      const item = consumables.find(c => c.id === ms.consumableId);
-      const mechanic = mechanics.find(m => m.id === ms.mechanicId);
+      const item = consumableMap.get(ms.consumableId);
+      const mechanic = mechanicMap.get(ms.mechanicId) || userMap.get(ms.mechanicId);
       const msValue = (ms.stockQty || 0) * (item?.unitPrice || 0);
       return { ...ms, item, mechanic, msValue };
     });
-  }, [mechanicConsumableStocks, selectedMechanicFilter, vehicleStockSearch, consumables, mechanics]);
+  }, [mechanicConsumableStocks, selectedMechanicFilter, vehicleStockSearch, consumableMap, mechanicMap, userMap]);
 
   const { items: sortedVehicleStock, requestSort: requestSortVehicle, sortConfig: sortConfigVehicle } = useSortableData(enrichedVehicleStock);
 
   const enrichedCollectedParts = useMemo(() => {
+    const matcher = partSearch ? createHangulMatcher(partSearch) : null;
     return collectedParts.filter(p => {
       const matchDisp = partDispositionFilter === 'ALL' || p.disposition === partDispositionFilter;
       const matchStatus = partStatusFilter === 'ALL' || p.status === partStatusFilter;
-      const matchSearch = !partSearch || 
-        p.modelName.toLowerCase().includes(partSearch.toLowerCase()) || 
-        p.partNo.toLowerCase().includes(partSearch.toLowerCase());
+      const matchSearch = !matcher || matcher.testAny([p.modelName, p.partNo]);
       return matchDisp && matchStatus && matchSearch;
     }).map(p => {
       return { ...p, quantity: p.quantity }; // Ensure quantity maps for sorting
@@ -258,9 +364,7 @@ export const ConsumableStockPage: React.FC = () => {
   // --- 엑셀 다운로드 핸들러 ---
   const handleExportStock = () => {
     const excelData = consumables.map((c, idx) => {
-      const totalVehicleQty = (mechanicConsumableStocks || [])
-        .filter(ms => ms.consumableId === c.id)
-        .reduce((sum, ms) => sum + ms.stockQty, 0);
+      const totalVehicleQty = vehicleQtyByConsumableMap.get(c.id) || 0;
 
       return {
         'No': idx + 1,
@@ -282,8 +386,8 @@ export const ConsumableStockPage: React.FC = () => {
 
   const handleExportVehicleStock = () => {
     const excelData = (mechanicConsumableStocks || []).map((ms, idx) => {
-      const item = consumables.find(c => c.id === ms.consumableId);
-      const mechanic = users.find(u => u.id === ms.mechanicId);
+      const item = consumableMap.get(ms.consumableId);
+      const mechanic = userMap.get(ms.mechanicId);
       return {
         'No': idx + 1,
         '담당 정비사': mechanic?.name || '정비사',
@@ -573,12 +677,12 @@ export const ConsumableStockPage: React.FC = () => {
             style={{ padding: '8px 14px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
           >
             <Archive size={14} /> 고품 관리
-            {collectedParts.filter(p => p.status !== 'COMPLETED').length > 0 && (
+            {collectedPartsSummary.uncompletedCount > 0 && (
               <span style={{
                 backgroundColor: '#7c3aed', color: '#fff', fontSize: '11px',
                 padding: '1px 6px', borderRadius: '10px', fontWeight: 700
               }}>
-                {collectedParts.filter(p => p.status !== 'COMPLETED').length}
+                {collectedPartsSummary.uncompletedCount}
               </span>
             )}
           </button>
@@ -589,12 +693,12 @@ export const ConsumableStockPage: React.FC = () => {
             style={{ padding: '8px 14px', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
           >
             <CheckSquare size={14} /> 재고 실사
-            {stocktakingAudits.filter(a => a.status === 'DRAFT').length > 0 && (
+            {draftAuditsCount > 0 && (
               <span style={{
                 backgroundColor: 'var(--warning)', color: '#fff', fontSize: '11px',
                 padding: '1px 6px', borderRadius: '10px', fontWeight: 700
               }}>
-                {stocktakingAudits.filter(a => a.status === 'DRAFT').length}
+                {draftAuditsCount}
               </span>
             )}
           </button>
@@ -701,11 +805,9 @@ export const ConsumableStockPage: React.FC = () => {
                     }
 
                     return filtered.map((c, idx) => {
-                      const totalVehicleQty = (mechanicConsumableStocks || [])
-                        .filter(ms => ms.consumableId === c.id)
-                        .reduce((sum, ms) => sum + ms.stockQty, 0);
-                      const grandQty = c.stockQty + totalVehicleQty;
-                      const hqValue = (c.stockQty || 0) * (c.unitPrice || 0);
+                      const totalVehicleQty = c.totalVehicleQty;
+                      const grandQty = c.grandQty;
+                      const hqValue = c.hqValue;
 
                       return (
                         <tr key={c.id}>
@@ -869,8 +971,8 @@ export const ConsumableStockPage: React.FC = () => {
                     }
 
                     return filteredList.map(ms => {
-                      const item = consumables.find(c => c.id === ms.consumableId);
-                      const mech = users.find(u => u.id === ms.mechanicId);
+                      const item = ms.item;
+                      const mech = ms.mechanic;
                       const unitPrice = item?.unitPrice || 0;
 
                       return (
@@ -937,10 +1039,7 @@ export const ConsumableStockPage: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* 상단 요약 카드 */}
           {(() => {
-            const totalCount = collectedParts.length;
-            const rebuildCount = collectedParts.filter(p => p.disposition === 'REBUILD').length;
-            const scrapCount = collectedParts.filter(p => p.disposition === 'SCRAP').length;
-            const warrantyCount = collectedParts.filter(p => p.disposition === 'VENDOR_WARRANTY').length;
+            const { totalCount, rebuildCount, scrapCount, warrantyCount } = collectedPartsSummary;
 
             return (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
@@ -1156,12 +1255,6 @@ export const ConsumableStockPage: React.FC = () => {
               </div>
               <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '6px' }}>
                 {(() => {
-                  const filteredAudits = stocktakingAudits.filter(a => {
-                    const matchTarget = auditTargetFilter === 'ALL' || a.targetType === auditTargetFilter;
-                    const matchStatus = auditStatusFilter === 'ALL' || a.status === auditStatusFilter;
-                    return matchTarget && matchStatus;
-                  });
-
                   if (filteredAudits.length === 0) {
                     return (
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)', padding: '10px 0' }}>
@@ -1195,7 +1288,7 @@ export const ConsumableStockPage: React.FC = () => {
                           {a.targetType === 'HQ' ? '주기장 재고' : `차량: ${a.mechanicName || '정비사'}`}
                         </div>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          {a.auditDate} | {stocktakingAuditItems.filter(i => i.auditId === a.id).length}개 품목
+                          {a.auditDate} | {(auditItemsByAuditIdMap.get(a.id) || []).length}개 품목
                         </div>
                       </div>
                     );
@@ -1207,7 +1300,6 @@ export const ConsumableStockPage: React.FC = () => {
 
           {/* 선택 전표 상세 대사 스튜디오 */}
           {(() => {
-            const currentAudit = stocktakingAudits.find(a => a.id === selectedAuditId);
             if (!currentAudit) {
               return (
                 <div className="card" style={{ margin: 0, padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
@@ -1216,11 +1308,7 @@ export const ConsumableStockPage: React.FC = () => {
               );
             }
 
-            const currentItems = stocktakingAuditItems.filter(item => {
-              const matchAudit = item.auditId === currentAudit.id;
-              const matchSearch = !auditItemSearch || item.modelName.toLowerCase().includes(auditItemSearch.toLowerCase());
-              return matchAudit && matchSearch;
-            });
+            const currentItems = currentAuditItems;
             const isDraft = currentAudit.status === 'DRAFT';
 
             return (

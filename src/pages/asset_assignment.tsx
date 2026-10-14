@@ -5,6 +5,7 @@ import { Asset } from '../services/db';
 import { isModelMatch, normalizeModelKey } from '../utils/modelUtils';
 import { Wrench, CheckCircle, PackageSearch, Layers, Truck, ChevronDown, Check, Activity, Search, AlertTriangle, CheckSquare, Square, Zap, X, Download } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
+import { createHangulMatcher } from '../utils/hangulSearch';
 
 export const AssetAssignment: React.FC = () => {
   const { hasPermission, contractAssets, contracts, customers, assets, assignAssetToContract, batchAssignAssetsToContract, unassignAssetFromContract, batchUnassignAssetsFromContract, contractHistory } = useApp();
@@ -31,24 +32,73 @@ export const AssetAssignment: React.FC = () => {
   const canEdit = hasPermission('dispatch_assign', 'save');
   const canView = hasPermission('dispatch_assign', 'view');
 
-  // 대차 교체 의뢰 접수 건 (EXCHANGE 이력 기반)
-  const exchangeRequests = (contractHistory || []).filter(h => h.changeType === 'EXCHANGE');
-  const exchangeContractIds = Array.from(new Set(exchangeRequests.map(h => h.contractId)));
-  const exchangePendingContracts = contracts.filter(c =>
-    exchangeContractIds.includes(c.id) &&
-    contractAssets.some(ca => ca.contractId === c.id && !ca.assetId)
-  );
+  // ── 🌟 [O(1) 룩업 해시맵 및 그룹핑 사전 인덱싱: 헌장 1.1] ──
+  const assetMap = useMemo(() => new Map((assets || []).map(a => [a.id, a])), [assets]);
+  const contractMap = useMemo(() => new Map((contracts || []).map(c => [c.id, c])), [contracts]);
+  const customerMap = useMemo(() => new Map((customers || []).map(c => [c.id, c])), [customers]);
+  const availablePool = useMemo(() => (assets || []).filter(a => a.status === 'AVAILABLE'), [assets]);
 
-  // 일반 미할당 계약 목록
-  const pendingCaList = contractAssets.filter(ca => !ca.assetId);
-  const pendingContractIds = Array.from(new Set(pendingCaList.map(ca => ca.contractId)));
-  const pendingContracts = contracts.filter(c => pendingContractIds.includes(c.id) && !exchangeContractIds.includes(c.id));
+  const contractAssetsByContractMap = useMemo(() => {
+    const map = new Map<string, typeof contractAssets>();
+    (contractAssets || []).forEach(ca => {
+      if (!ca.contractId) return;
+      let list = map.get(ca.contractId);
+      if (!list) {
+        list = [];
+        map.set(ca.contractId, list);
+      }
+      list.push(ca);
+    });
+    return map;
+  }, [contractAssets]);
+
+  const exchangeHistoryByContractMap = useMemo(() => {
+    const map = new Map<string, any>();
+    (contractHistory || []).forEach(h => {
+      if (h.changeType === 'EXCHANGE' && h.contractId && !map.has(h.contractId)) {
+        map.set(h.contractId, h);
+      }
+    });
+    return map;
+  }, [contractHistory]);
+
+  // 일반 미할당 계약자산 및 계약별 미할당 슬롯 집계
+  const pendingCaList = useMemo(() => (contractAssets || []).filter(ca => !ca.assetId), [contractAssets]);
+  const pendingCountByContractMap = useMemo(() => {
+    const map = new Map<string, number>();
+    pendingCaList.forEach(ca => {
+      if (ca.contractId) {
+        map.set(ca.contractId, (map.get(ca.contractId) || 0) + 1);
+      }
+    });
+    return map;
+  }, [pendingCaList]);
+
+  // 대차 교체 의뢰 접수 건 (EXCHANGE 이력 기반) & 일반 미할당 계약 목록
+  const { exchangePendingContracts, pendingContracts, exchangeSlotsCount } = useMemo(() => {
+    const excList: typeof contracts = [];
+    const normList: typeof contracts = [];
+    let excSlots = 0;
+
+    for (let i = 0; i < contracts.length; i++) {
+      const c = contracts[i];
+      const pCount = pendingCountByContractMap.get(c.id) || 0;
+      if (pCount <= 0) continue;
+      if (exchangeHistoryByContractMap.has(c.id)) {
+        excList.push(c);
+        excSlots += pCount;
+      } else {
+        normList.push(c);
+      }
+    }
+    return { exchangePendingContracts: excList, pendingContracts: normList, exchangeSlotsCount: excSlots };
+  }, [contracts, pendingCountByContractMap, exchangeHistoryByContractMap]);
 
 
-  // 선택된 계약의 하위 슬롯들 (미할당 + 기할당)
+  // 선택된 계약의 하위 슬롯들 (미할당 + 기할당) (O(1) 맵 조회)
   const currentSlots = useMemo(() => {
-    return selectedContractId ? contractAssets.filter(ca => ca.contractId === selectedContractId) : [];
-  }, [contractAssets, selectedContractId]);
+    return selectedContractId ? (contractAssetsByContractMap.get(selectedContractId) || []) : [];
+  }, [contractAssetsByContractMap, selectedContractId]);
 
   // 모델별 그룹핑 집계 (정규화 키 기반 동일 모델 100% 통합)
   const modelGroups = useMemo(() => {
@@ -73,11 +123,12 @@ export const AssetAssignment: React.FC = () => {
 
   // 가용 장비 풀 필터링
   const availableAssets = useMemo(() => {
-    let list = assets.filter(a => a.status === 'AVAILABLE');
+    let list = availablePool.slice();
 
     // 선택된 슬롯들의 요구 모델 기준 필터링
     if (selectedCaIds.length > 0) {
-      const selectedSlots = currentSlots.filter(ca => selectedCaIds.includes(ca.id));
+      const selectedIdSet = new Set(selectedCaIds);
+      const selectedSlots = currentSlots.filter(ca => selectedIdSet.has(ca.id));
       const reqModels = Array.from(new Set(selectedSlots.map(ca => ca.expectedModel).filter(Boolean)));
       if (reqModels.length > 0) {
         list = list.filter(a => reqModels.some(req => isModelMatch(a.modelName, req!)));
@@ -90,13 +141,14 @@ export const AssetAssignment: React.FC = () => {
       }
     }
 
-    // 검색어 필터링
-    if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
+    // 검색어 필터링 (한글 초성 매처 호이스팅)
+    const q = searchQuery.trim();
+    if (q) {
+      const matcher = createHangulMatcher(q);
       list = list.filter(a =>
-        (a.assetNo && a.assetNo.toLowerCase().includes(q)) ||
-        (a.serialNo && a.serialNo.toLowerCase().includes(q)) ||
-        (a.modelName && a.modelName.toLowerCase().includes(q))
+        matcher.test(a.assetNo) ||
+        matcher.test(a.serialNo) ||
+        matcher.test(a.modelName)
       );
     }
 
@@ -104,7 +156,7 @@ export const AssetAssignment: React.FC = () => {
     list.sort((a, b) => (a.maintenanceScore || 0) - (b.maintenanceScore || 0));
 
     return list;
-  }, [assets, selectedCaIds, currentSlots, selectedContractId, searchQuery]);
+  }, [availablePool, selectedCaIds, currentSlots, selectedContractId, searchQuery]);
 
   // 점수 뱃지 스타일
   const getScoreBadgeColor = (score: number = 0) => {
@@ -118,7 +170,7 @@ export const AssetAssignment: React.FC = () => {
     setSelectedContractId(contractId);
     setSelectedAssetIds([]);
 
-    const slots = contractAssets.filter(ca => ca.contractId === contractId);
+    const slots = contractAssetsByContractMap.get(contractId) || [];
     const pendingSlots = slots.filter(ca => !ca.assetId);
     if (pendingSlots.length > 0) {
       const firstModelKey = normalizeModelKey(pendingSlots[0].expectedModel);
@@ -156,9 +208,9 @@ export const AssetAssignment: React.FC = () => {
     const matchingSlots = targetSlots.filter(ca => isModelMatch(asset.modelName, ca.expectedModel || ''));
     const maxQuotaForThisModel = matchingSlots.length;
 
-    // 이미 선택된 장비들 중 이 모델과 일치하는 장비 수
+    // 이미 선택된 장비들 중 이 모델과 일치하는 장비 수 (O(1) 룩업)
     const currentSelectedCountForThisModel = selectedAssetIds.filter(id => {
-      const a = assets.find(ast => ast.id === id);
+      const a = assetMap.get(id);
       return a && isModelMatch(a.modelName, asset.modelName);
     }).length;
 
@@ -180,7 +232,7 @@ export const AssetAssignment: React.FC = () => {
     if (selectedAssetIds.includes(assetId)) {
       setSelectedAssetIds(selectedAssetIds.filter(id => id !== assetId));
     } else {
-      const targetAsset = assets.find(a => a.id === assetId);
+      const targetAsset = assetMap.get(assetId);
       if (!targetAsset) return;
 
       const quota = getModelQuotaForAsset(targetAsset);
@@ -227,8 +279,7 @@ export const AssetAssignment: React.FC = () => {
     const skippedOverQuota: string[] = [];
 
     for (const token of tokens) {
-      const found = assets.find(a =>
-        a.status === 'AVAILABLE' &&
+      const found = availablePool.find(a =>
         !selectedAssetIds.includes(a.id) &&
         !matchedAssetIds.includes(a.id) &&
         (
@@ -241,7 +292,7 @@ export const AssetAssignment: React.FC = () => {
       if (found) {
         const quota = getModelQuotaForAsset(found);
         const alreadyMatchedForThisModel = matchedAssetIds.filter(id => {
-          const a = assets.find(ast => ast.id === id);
+          const a = assetMap.get(id);
           return a && isModelMatch(a.modelName, found.modelName);
         }).length;
 
@@ -294,7 +345,7 @@ export const AssetAssignment: React.FC = () => {
     } else {
       // 선택된 슬롯이 없는 경우 장비 모델과 일치하는 미할당 슬롯들을 순차 매핑
       for (const assetId of selectedAssetIds) {
-        const asset = assets.find(a => a.id === assetId);
+        const asset = assetMap.get(assetId);
         if (!asset) continue;
         const availableSlot = currentSlots.find(ca =>
           !ca.assetId &&
@@ -374,7 +425,7 @@ export const AssetAssignment: React.FC = () => {
     }
   };
 
-  // ─── 장비 할당 현황 대장 엑셀 내보내기 ───
+  // ─── 장비 할당 현황 대장 엑셀 내보내기 (O(1) 룩업) ───
   const handleExportAssignmentStatus = () => {
     if (contractAssets.length === 0) {
       showToast('내보낼 장비 할당 데이터가 없습니다.', 'error');
@@ -383,10 +434,10 @@ export const AssetAssignment: React.FC = () => {
 
     const exportRows: any[] = [];
     contractAssets.forEach((ca, idx) => {
-      const contract = contracts.find(c => c.id === ca.contractId);
-      const cust = contract ? customers.find(c => c.id === contract.customerId) : undefined;
-      const assignedAsset = ca.assetId ? assets.find(a => a.id === ca.assetId) : undefined;
-      const isExchange = exchangeContractIds.includes(ca.contractId);
+      const contract = ca.contractId ? contractMap.get(ca.contractId) : undefined;
+      const cust = contract?.customerId ? customerMap.get(contract.customerId) : undefined;
+      const assignedAsset = ca.assetId ? assetMap.get(ca.assetId) : undefined;
+      const isExchange = ca.contractId ? exchangeHistoryByContractMap.has(ca.contractId) : false;
       
       exportRows.push({
         'No': idx + 1,
@@ -437,9 +488,9 @@ export const AssetAssignment: React.FC = () => {
 
       {/* 📊 현황 요약 바 */}
       {(() => {
-        const totalPendingSlots = contractAssets.filter(ca => !ca.assetId).length;
-        const totalAvailableAssets = assets.filter(a => a.status === 'AVAILABLE').length;
-        const exchangeSlots = exchangePendingContracts.reduce((sum, c) => sum + contractAssets.filter(ca => ca.contractId === c.id && !ca.assetId).length, 0);
+        const totalPendingSlots = pendingCaList.length;
+        const totalAvailableAssets = availablePool.length;
+        const exchangeSlots = exchangeSlotsCount;
 
         return (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px' }}>
@@ -468,10 +519,10 @@ export const AssetAssignment: React.FC = () => {
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
             {exchangePendingContracts.map(contract => {
-              const cust = customers.find(c => c.id === contract.customerId);
-              const cas = contractAssets.filter(ca => ca.contractId === contract.id);
+              const cust = contract.customerId ? customerMap.get(contract.customerId) : undefined;
+              const cas = contractAssetsByContractMap.get(contract.id) || [];
               const isSelected = selectedContractId === contract.id;
-              const excHistory = exchangeRequests.find(h => h.contractId === contract.id);
+              const excHistory = exchangeHistoryByContractMap.get(contract.id);
               return (
                 <div
                   key={contract.id}
@@ -511,8 +562,8 @@ export const AssetAssignment: React.FC = () => {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '12px' }}>
             {pendingContracts.map(contract => {
-              const cust = customers.find(c => c.id === contract.customerId);
-              const cas = contractAssets.filter(ca => ca.contractId === contract.id);
+              const cust = contract.customerId ? customerMap.get(contract.customerId) : undefined;
+              const cas = contractAssetsByContractMap.get(contract.id) || [];
               const totalCount = cas.length;
               const assignedCount = cas.filter(ca => ca.assetId).length;
               const isSelected = selectedContractId === contract.id;
@@ -691,7 +742,7 @@ export const AssetAssignment: React.FC = () => {
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                           {assignedSlots.map(ca => {
-                            const a = assets.find(ast => ast.id === ca.assetId);
+                            const a = ca.assetId ? assetMap.get(ca.assetId) : undefined;
                             return (
                               <span
                                 key={ca.id}
@@ -958,7 +1009,7 @@ export const AssetAssignment: React.FC = () => {
           <span>|</span>
           <span>대차 긴급: <strong style={{ color: 'var(--warning)' }}>{exchangePendingContracts.length}건</strong></span>
           <span>|</span>
-          <span>가용 출고자산: <strong style={{ color: 'var(--success)' }}>총 {assets.filter(a => a.status === 'AVAILABLE').length}대</strong></span>
+          <span>가용 출고자산: <strong style={{ color: 'var(--success)' }}>총 {availablePool.length}대</strong></span>
           <span>|</span>
           <span>현재 선택 매핑: <strong style={{ color: 'var(--primary)' }}>{selectedAssetIds.length}대</strong></span>
         </div>

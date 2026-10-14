@@ -7,6 +7,7 @@ import { ASSET_STATUS_SSOT, getAssetStatusLabel, getAssetStatusBadgeClass } from
 import { canViewFinancials } from '../utils/privacyMasking';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
+import { createHangulMatcher } from '../utils/hangulSearch';
 
 export const Assets: React.FC = () => {
   const { 
@@ -46,6 +47,13 @@ export const Assets: React.FC = () => {
   const customerMap = useMemo(() => new Map((customers || []).map(c => [c.id, c.name])), [customers]);
   const siteMap = useMemo(() => new Map((sites || []).map(s => [s.id, s.name])), [sites]);
   const vendorMap = useMemo(() => new Map((vendors || []).map(v => [v.id, v.name])), [vendors]);
+  const productByModelMap = useMemo(() => {
+    const map = new Map<string, any>();
+    (products || []).forEach(p => {
+      if (p.modelName) map.set(p.modelName, p);
+    });
+    return map;
+  }, [products]);
   const productFeetMap = useMemo(() => {
     const map = new Map<string, string>();
     (products || []).forEach(p => {
@@ -53,6 +61,15 @@ export const Assets: React.FC = () => {
     });
     return map;
   }, [products]);
+  const externalRepairByAssetIdMap = useMemo(() => {
+    const map = new Map<string, Repair>();
+    (repairs || []).forEach(r => {
+      if (r.assetId && r.status === 'IN_PROGRESS' && r.maintenanceType === 'EXTERNAL' && !map.has(r.assetId)) {
+        map.set(r.assetId, r);
+      }
+    });
+    return map;
+  }, [repairs]);
 
   // 계약번호 O(1) 사전 인덱싱 (기존 380만 번 반복 순회 제거)
   const contractMap = useMemo(() => {
@@ -207,29 +224,40 @@ export const Assets: React.FC = () => {
     showToast(`자산 ${asset.assetNo} 이력 엑셀 파일이 다운로드되었습니다.`);
   };
 
-  // KPI 통계
+  // KPI 통계 (단일 패스 O(N) 집계)
   const kpiStats = useMemo(() => {
     const totalCount = assets.length;
-    const ownedCount = assets.filter(a => a.ownerType === 'OWNED').length;
-    const rentedCount = assets.filter(a => a.ownerType === 'RENTED').length;
-    
-    // 실가동: 현장 대여중(RENTED) + 출고대기(ASSIGNED)
-    const rentedOpCount = assets.filter(a => a.status === 'RENTED').length;
-    const assignedCount = assets.filter(a => a.status === 'ASSIGNED').length;
-    const availableCount = assets.filter(a => a.status === 'AVAILABLE' && !a.actualRentReturnDate).length;
-    const repairingCount = assets.filter(a => a.status === 'REPAIRING').length;
-    const returnedOrDisposedCount = assets.filter(a => a.status === 'RENTED_RETURNED' || a.status === 'SOLD' || Boolean(a.actualRentReturnDate)).length;
+    let ownedCount = 0;
+    let rentedCount = 0;
+    let rentedOpCount = 0;
+    let assignedCount = 0;
+    let availableCount = 0;
+    let repairingCount = 0;
+    let returnedOrDisposedCount = 0;
+    let totalBookValue = 0;
+
+    for (let i = 0; i < totalCount; i++) {
+      const a = assets[i];
+      if (a.ownerType === 'OWNED') {
+        ownedCount++;
+        const bv = a.bookValue ?? Math.max(0, (a.acquisitionPrice || 0) - (a.accumDepreciation || 0));
+        if (bv > 0) totalBookValue += bv;
+      } else if (a.ownerType === 'RENTED') {
+        rentedCount++;
+      }
+
+      if (a.status === 'RENTED') rentedOpCount++;
+      else if (a.status === 'ASSIGNED') assignedCount++;
+      else if (a.status === 'AVAILABLE' && !a.actualRentReturnDate) availableCount++;
+      else if (a.status === 'REPAIRING') repairingCount++;
+
+      if (a.status === 'RENTED_RETURNED' || a.status === 'SOLD' || Boolean(a.actualRentReturnDate)) {
+        returnedOrDisposedCount++;
+      }
+    }
 
     const activeTotal = totalCount - returnedOrDisposedCount;
     const opRate = activeTotal > 0 ? Math.round(((rentedOpCount + assignedCount) / activeTotal) * 100) : 0;
-
-    const totalBookValue = assets.reduce((sum, a) => {
-      if (a.ownerType === 'OWNED') {
-        const bv = a.bookValue ?? Math.max(0, (a.acquisitionPrice || 0) - (a.accumDepreciation || 0));
-        return sum + (bv > 0 ? bv : 0);
-      }
-      return sum;
-    }, 0);
 
     return {
       totalCount,
@@ -251,47 +279,51 @@ export const Assets: React.FC = () => {
   // 반응형 필터링 및 정렬
   const filtered = useMemo(() => {
     setVisibleCount(50); // 필터 변경 시 50건으로 리셋
+    const searchTokens = searchTerm.split(/[\s,\n\t]+/).map(t => t.trim().toLowerCase()).filter(Boolean);
+    const tokenMatchers = searchTokens.map(token => ({
+      token,
+      matcher: createHangulMatcher(token)
+    }));
+
     return assets.filter(a => {
-      const renterName = getAssetRenterName(a);
-      const supplierName = getAssetSupplierName(a);
       const isReturned = Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED';
-      
-      const assetProduct = products?.find(p => p.modelName === a.modelName);
-      const searchTokens = searchTerm.split(/[\s,\n\t]+/).map(t => t.trim().toLowerCase()).filter(Boolean);
-
-      const matchesSearch = searchTokens.length === 0 || (() => {
-        // [1] Bulk 다중 검색 (OR 조건): 엑셀 복붙 등에서 정확한 자산/시리얼 번호가 1개라도 일치하면 포함
-        const isExactOrMatch = searchTokens.some(token => 
-          a.assetNo.toLowerCase() === token || 
-          (a.serialNo && a.serialNo.toLowerCase() === token)
-        );
-        if (isExactOrMatch) return true;
-
-        // [2] 복합어 부분 검색 (AND 조건): 모든 토큰이 자산의 속성 어딘가에 각각 포함되어야 함
-        const isAndMatch = searchTokens.every(token => 
-          a.assetNo.toLowerCase().includes(token) ||
-          a.modelName.toLowerCase().includes(token) ||
-          (assetProduct?.shortName && assetProduct.shortName.toLowerCase().includes(token)) ||
-          (a.serialNo && a.serialNo.toLowerCase().includes(token)) ||
-          (a.manufacturer && a.manufacturer.toLowerCase().includes(token)) ||
-          renterName.toLowerCase().includes(token) ||
-          supplierName.toLowerCase().includes(token)
-        );
-        return isAndMatch;
-      })();
 
       const matchesStatus = statusFilter === 'ALL' ? true :
                             statusFilter === 'RENTED_RETURNED' ? isReturned :
                             statusFilter === 'AVAILABLE' ? (a.status === 'AVAILABLE' && !isReturned) :
                             a.status === statusFilter;
+      if (!matchesStatus) return false;
 
-      const matchesOwner = ownerFilter === 'ALL' || a.ownerType === ownerFilter;
-      const matchesManufacturer = manufacturerFilter === 'ALL' || a.manufacturer === manufacturerFilter;
-      const matchesCustomer = customerFilter === 'ALL' || a.currentCustomerId === customerFilter;
+      if (ownerFilter !== 'ALL' && a.ownerType !== ownerFilter) return false;
+      if (manufacturerFilter !== 'ALL' && a.manufacturer !== manufacturerFilter) return false;
+      if (customerFilter !== 'ALL' && a.currentCustomerId !== customerFilter) return false;
 
-      return matchesSearch && matchesStatus && matchesOwner && matchesManufacturer && matchesCustomer;
+      if (tokenMatchers.length === 0) return true;
+
+      // [1] Bulk 다중 검색 (OR 조건): 엑셀 복붙 등에서 정확한 자산/시리얼 번호가 1개라도 일치하면 포함
+      const assetNoLower = a.assetNo.toLowerCase();
+      const serialNoLower = a.serialNo ? a.serialNo.toLowerCase() : '';
+      const isExactOrMatch = tokenMatchers.some(({ token }) =>
+        assetNoLower === token || (serialNoLower !== '' && serialNoLower === token)
+      );
+      if (isExactOrMatch) return true;
+
+      // [2] 복합어 부분 검색 (AND 조건): 모든 토큰이 자산의 속성 어딘가에 각각 포함되어야 함
+      const renterName = getAssetRenterName(a);
+      const supplierName = getAssetSupplierName(a);
+      const assetProduct = productByModelMap.get(a.modelName);
+
+      return tokenMatchers.every(({ matcher }) =>
+        matcher.test(a.assetNo) ||
+        matcher.test(a.modelName) ||
+        matcher.test(assetProduct?.shortName) ||
+        matcher.test(a.serialNo) ||
+        matcher.test(a.manufacturer) ||
+        matcher.test(renterName) ||
+        matcher.test(supplierName)
+      );
     });
-  }, [assets, searchTerm, statusFilter, ownerFilter, manufacturerFilter, customerFilter]);
+  }, [assets, searchTerm, statusFilter, ownerFilter, manufacturerFilter, customerFilter, productByModelMap, vendorMap]);
 
   const { items: sortedAssets, sortConfig, requestSort } = useSortableData<Asset>(
     filtered,
@@ -850,9 +882,9 @@ export const Assets: React.FC = () => {
                               {getAssetStatusLabel(a.status)}
                             </span>
                             {a.status === 'REPAIRING' && (() => {
-                              const extRep = repairs?.find(r => r.assetId === a.id && r.status === 'IN_PROGRESS' && r.maintenanceType === 'EXTERNAL');
+                              const extRep = externalRepairByAssetIdMap.get(a.id);
                               if (extRep) {
-                                const vName = vendors?.find(v => v.id === extRep.vendorId)?.name || '외주처';
+                                const vName = (extRep.vendorId ? vendorMap.get(extRep.vendorId) : undefined) || '외주처';
                                 return (
                                   <span className="badge" style={{ fontSize: '9px', padding: '1px 4px', backgroundColor: 'var(--primary)', color: '#ffffff', whiteSpace: 'nowrap' }}>
                                     외주:{vName}
@@ -1115,7 +1147,7 @@ export const Assets: React.FC = () => {
                     <div>
                       <label style={labelStyle}>모델명</label>
                       <input style={inputStyle} value={editForm.modelName || ''} onChange={ef('modelName')} />
-                      {(() => { const mp = products?.find(p => p.modelName === editForm.modelName); return mp?.shortName ? <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>축약명: {mp.shortName}</div> : null; })()}
+                      {(() => { const mp = editForm.modelName ? productByModelMap.get(editForm.modelName) : undefined; return mp?.shortName ? <div style={{ fontSize: '10.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>축약명: {mp.shortName}</div> : null; })()}
                     </div>
                     <div><label style={labelStyle}>제조번호</label><input style={inputStyle} value={editForm.serialNo || ''} onChange={ef('serialNo')} /></div>
                     <div><label style={labelStyle}>제조사</label><input style={inputStyle} value={editForm.manufacturer || ''} onChange={ef('manufacturer')} /></div>

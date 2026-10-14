@@ -8,6 +8,7 @@ import { LIFT_RETRACTED_IMG, LIFT_EXTENDED_IMG } from '../services/specImages';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
 import { decryptSecret } from '../utils/cryptoVault';
+import { createHangulMatcher } from '../utils/hangulSearch';
 
 interface R2DocFile {
   key: string;
@@ -121,38 +122,61 @@ export const Products: React.FC = () => {
     }
   };
 
-  // 모델별 보유 자산 통계 매핑
+  // 모델별 보유 자산 통계 매핑 (O(A + P) 단일 패스 집계)
   const assetStatsMap = useMemo(() => {
-    const map = new Map<string, { total: number; owned: number; leased: number; available: number; rented: number; assigned: number; repairing: number }>();
-    for (const p of products) {
-      const pClean = clean(p.modelName);
-      const matched = assets.filter(a => {
-        const aClean = clean(a.modelName);
-        return a.modelName === p.modelName || aClean === pClean;
-      });
-      const owned = matched.filter(a => a.ownerType === 'OWNED' || !a.ownerType).length;
-      const leased = matched.filter(a => a.ownerType === 'RENTED').length;
-      const available = matched.filter(a => a.status === 'AVAILABLE' && !a.actualRentReturnDate).length;
-      const rented = matched.filter(a => a.status === 'RENTED' || (!a.actualRentReturnDate && a.currentCustomerId)).length;
-      const assigned = matched.filter(a => a.status === 'ASSIGNED').length;
-      const repairing = matched.filter(a => a.status === 'REPAIRING').length;
-      map.set(p.id, { total: matched.length, owned, leased, available, rented, assigned, repairing });
+    type ModelAssetStats = { total: number; owned: number; leased: number; available: number; rented: number; assigned: number; repairing: number };
+    const statsByCleanKey = new Map<string, ModelAssetStats>();
+
+    for (let i = 0; i < assets.length; i++) {
+      const a = assets[i];
+      const key = clean(a.modelName) || a.modelName || '';
+      let st = statsByCleanKey.get(key);
+      if (!st) {
+        st = { total: 0, owned: 0, leased: 0, available: 0, rented: 0, assigned: 0, repairing: 0 };
+        statsByCleanKey.set(key, st);
+      }
+      st.total++;
+      if (a.ownerType === 'OWNED' || !a.ownerType) st.owned++;
+      if (a.ownerType === 'RENTED') st.leased++;
+      if (a.status === 'AVAILABLE' && !a.actualRentReturnDate) st.available++;
+      if (a.status === 'RENTED' || (!a.actualRentReturnDate && a.currentCustomerId)) st.rented++;
+      if (a.status === 'ASSIGNED') st.assigned++;
+      if (a.status === 'REPAIRING') st.repairing++;
+    }
+
+    const emptyStats: ModelAssetStats = { total: 0, owned: 0, leased: 0, available: 0, rented: 0, assigned: 0, repairing: 0 };
+    const map = new Map<string, ModelAssetStats>();
+    for (let i = 0; i < products.length; i++) {
+      const p = products[i];
+      const pKey = clean(p.modelName) || p.modelName || '';
+      map.set(p.id, statsByCleanKey.get(pKey) || emptyStats);
     }
     return map;
   }, [products, assets]);
 
-  // 모델별 R2 문서 매핑
+  // 모델별 R2 문서 매핑 (사전 파싱 후 매칭)
   const r2FilesByModelMap = useMemo(() => {
     const map = new Map<string, R2DocFile[]>();
-    for (const p of products) {
-      const pClean = clean(p.modelName);
-      const matched = r2Files.filter(f => {
-        const parts = f.key.split('/');
-        if (parts.length < 3) return false;
+    const parsedR2: { file: R2DocFile; folderModel: string; fClean: string }[] = [];
+    for (let i = 0; i < r2Files.length; i++) {
+      const f = r2Files[i];
+      const parts = f.key.split('/');
+      if (parts.length >= 3) {
         const folderModel = parts[1];
-        const fClean = clean(folderModel);
-        return folderModel === p.modelName || fClean === pClean || fClean.includes(pClean) || pClean.includes(fClean);
-      });
+        parsedR2.push({ file: f, folderModel, fClean: clean(folderModel) });
+      }
+    }
+
+    for (let i = 0; i < products.length; i++) {
+      const p = products[i];
+      const pClean = clean(p.modelName);
+      const matched: R2DocFile[] = [];
+      for (let j = 0; j < parsedR2.length; j++) {
+        const { file, folderModel, fClean } = parsedR2[j];
+        if (folderModel === p.modelName || fClean === pClean || fClean.includes(pClean) || pClean.includes(fClean)) {
+          matched.push(file);
+        }
+      }
       map.set(p.id, matched);
     }
     return map;
@@ -167,42 +191,55 @@ export const Products: React.FC = () => {
     return Array.from(new Set(products.map(p => p.powerSource).filter(Boolean))) as string[];
   }, [products]);
 
-  // KPI 통계
+  // KPI 통계 (단일 패스 집계)
   const kpiStats = useMemo(() => {
     const totalModels = products.length;
-    const withAssets = products.filter(p => (assetStatsMap.get(p.id)?.total || 0) > 0).length;
+    let withAssets = 0;
+    let activeModels = 0;
+    let totalMappedAssets = 0;
+
+    for (let i = 0; i < totalModels; i++) {
+      const p = products[i];
+      const total = assetStatsMap.get(p.id)?.total || 0;
+      if (total > 0) {
+        withAssets++;
+        totalMappedAssets += total;
+      }
+      if (p.isActive !== false) activeModels++;
+    }
+
     const noAssets = totalModels - withAssets;
-    const activeModels = products.filter(p => p.isActive !== false).length;
     const totalDocs = r2Files.length;
-    const totalMappedAssets = Array.from(assetStatsMap.values()).reduce((sum, s) => sum + s.total, 0);
 
     return { totalModels, withAssets, noAssets, activeModels, totalDocs, totalMappedAssets };
   }, [products, assetStatsMap, r2Files]);
 
   // 필터링 및 정렬
   const filtered = useMemo(() => {
+    const q = searchTerm.trim();
+    const matcher = q ? createHangulMatcher(q) : null;
+
     return products.filter(p => {
-      const stats = assetStatsMap.get(p.id) || { total: 0, owned: 0, leased: 0, available: 0, rented: 0, assigned: 0, repairing: 0 };
-      if (assetFilter === 'WITH_ASSETS' && stats.total === 0) return false;
-      if (assetFilter === 'NO_ASSETS' && stats.total > 0) return false;
+      const stats = assetStatsMap.get(p.id);
+      const totalAssets = stats ? stats.total : 0;
+      if (assetFilter === 'WITH_ASSETS' && totalAssets === 0) return false;
+      if (assetFilter === 'NO_ASSETS' && totalAssets > 0) return false;
 
-      const matchesSearch =
-        !searchTerm ||
-        (p.modelName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.shortName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.manufacturer || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.spec || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.powerSource || '').toLowerCase().includes(searchTerm.toLowerCase());
+      if (manufacturerFilter !== 'ALL' && p.manufacturer !== manufacturerFilter) return false;
+      if (powerSourceFilter !== 'ALL' && p.powerSource !== powerSourceFilter) return false;
+      if (activeStatusFilter === 'ACTIVE' && p.isActive === false) return false;
+      if (activeStatusFilter !== 'ALL' && activeStatusFilter !== 'ACTIVE' && p.isActive !== false) return false;
 
-      const matchesManufacturer = manufacturerFilter === 'ALL' || p.manufacturer === manufacturerFilter;
-      const matchesPowerSource = powerSourceFilter === 'ALL' || p.powerSource === powerSourceFilter;
-      const matchesActive = activeStatusFilter === 'ALL' ? true :
-                            activeStatusFilter === 'ACTIVE' ? p.isActive !== false :
-                            p.isActive === false;
-
-      return matchesSearch && matchesManufacturer && matchesPowerSource && matchesActive;
+      if (!matcher) return true;
+      return (
+        matcher.test(p.modelName) ||
+        matcher.test(p.shortName) ||
+        matcher.test(p.manufacturer) ||
+        matcher.test(p.spec) ||
+        matcher.test(p.powerSource)
+      );
     });
-  }, [products, assetFilter, searchTerm, manufacturerFilter, powerSourceFilter, activeStatusFilter]);
+  }, [products, assetStatsMap, assetFilter, searchTerm, manufacturerFilter, powerSourceFilter, activeStatusFilter]);
 
   const { items: sortedProducts, sortConfig, requestSort } = useSortableData<Product>(
     filtered,

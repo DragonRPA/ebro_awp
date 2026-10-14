@@ -1,5 +1,5 @@
 // src/pages/rent_assets.tsx
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import {
   Plus, CheckCircle, Search, AlertTriangle, Download, Clock, Layers, ShieldAlert, Upload, FileSpreadsheet, RefreshCw, FileText, Check, ArrowRight, XCircle, CreditCard, CheckCircle2, AlertCircle, X, ExternalLink, ShieldCheck, Building, Calendar
@@ -10,7 +10,7 @@ import * as XLSX from 'xlsx';
 
 import { VendorStatementRow, parseVendorStatementExcel } from '../services/vendorStatementParser';
 import { parsePdfStatement } from '../services/pdfStatementParser';
-import { matchHangul } from '../utils/hangulSearch';
+import { matchHangul, createHangulMatcher } from '../utils/hangulSearch';
 import { RentedAssetEditModal } from '../components/RentedAssetEditModal';
 
 // 5대 대사 결과 항목 인터페이스
@@ -82,8 +82,43 @@ export const RentAssets: React.FC = () => {
   const [selectedAssetIdForMapping, setSelectedAssetIdForMapping] = useState<string>('');
   const [acknowledgedMissingAssetIds, setAcknowledgedMissingAssetIds] = useState<string[]>([]);
 
-  // 임차 자산(ownerType === 'RENTED') 전체 리스트
-  const rentedAssets = assets.filter(a => a.ownerType === 'RENTED');
+  // ── 🌟 [O(1) 룩업 해시맵 사전 인덱싱: 헌장 1.1] ──
+  const vendorMap = useMemo(() => new Map((vendors || []).map(v => [v.id, v])), [vendors]);
+  const customerMap = useMemo(() => new Map((customers || []).map(c => [c.id, c])), [customers]);
+  const siteMap = useMemo(() => new Map((sites || []).map(s => [s.id, s])), [sites]);
+  const productByModelMap = useMemo(() => new Map((products || []).map(p => [p.modelName, p])), [products]);
+
+  // 임차 자산(ownerType === 'RENTED') 전체 리스트 (메모이제이션)
+  const rentedAssets = useMemo(() => assets.filter(a => a.ownerType === 'RENTED'), [assets]);
+  const rentedAssetByIdMap = useMemo(() => new Map(rentedAssets.map(a => [a.id, a])), [rentedAssets]);
+  const rentedAssetByCleanNoMap = useMemo(() => {
+    const map = new Map<string, Asset>();
+    for (let i = 0; i < rentedAssets.length; i++) {
+      const a = rentedAssets[i];
+      if (a.assetNo) {
+        const key = a.assetNo.replace(/[\s\-_]/g, '').toLowerCase();
+        if (key && !map.has(key)) map.set(key, a);
+      }
+    }
+    return map;
+  }, [rentedAssets]);
+
+  // 임차 장비 KPI 요약 단일 패스 집계 (상단 요약바 및 탭1 하단 바 공용)
+  const rentedKpiStats = useMemo(() => {
+    const activeRentedList: Asset[] = [];
+    const returnedList: Asset[] = [];
+    let totalMonthlyRentCost = 0;
+    for (let i = 0; i < rentedAssets.length; i++) {
+      const a = rentedAssets[i];
+      if (Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED') {
+        returnedList.push(a);
+      } else {
+        activeRentedList.push(a);
+        totalMonthlyRentCost += (a.monthlyRentFee || 0);
+      }
+    }
+    return { activeRentedList, returnedList, totalMonthlyRentCost };
+  }, [rentedAssets]);
 
   // ── [전대 임차 협의] 전용 로컬 상태 ──
   const [selectedSubleaseId, setSelectedSubleaseId] = useState<string | null>(null);
@@ -111,7 +146,7 @@ export const RentAssets: React.FC = () => {
       showToast('요청 장비 모델을 선택 또는 입력하십시오.', 'error');
       return;
     }
-    const vendor = vendors.find(v => v.id === subleaseVendorId);
+    const vendor = vendorMap.get(subleaseVendorId);
     const newNego: SubleaseNegotiation = {
       id: `SN-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       vendorId: subleaseVendorId,
@@ -142,8 +177,8 @@ export const RentAssets: React.FC = () => {
   // 협의 완료 건을 임차 자산 대장으로 등록
   const handleConvertSubleaseToAsset = async (nego: SubleaseNegotiation) => {
     if (!nego.modelName) return;
-    const vendor = vendors.find(v => v.id === nego.vendorId);
-    const product = products.find(p => p.modelName === nego.modelName);
+    const vendor = nego.vendorId ? vendorMap.get(nego.vendorId) : undefined;
+    const product = productByModelMap.get(nego.modelName);
 
     // 자산 대장에 임차 자산 등록
     const newAsset: Partial<Asset> = {
@@ -193,10 +228,10 @@ export const RentAssets: React.FC = () => {
   // 우측 슬라이드오버 Dossier 패널 상태
   const [selectedAssetForDossier, setSelectedAssetForDossier] = useState<Asset | null>(null);
 
-  // 헬퍼: 자산의 임차처 상호명 추출 (vendorId 외래키 우선 매핑)
+  // 헬퍼: 자산의 임차처 상호명 추출 (vendorId 외래키 우선 O(1) 매핑)
   const getAssetRenterName = (a: Asset): string => {
     if (a.vendorId) {
-      const v = vendors.find(item => item.id === a.vendorId);
+      const v = vendorMap.get(a.vendorId);
       if (v?.name) return v.name;
     }
     return a.renter || '미지정';
@@ -220,15 +255,17 @@ export const RentAssets: React.FC = () => {
 
     const combined = Array.from(new Set([...rentalVendorNames, ...existingRenters, ...allVendorNames]));
     return combined.sort((a, b) => a.localeCompare(b));
-  }, [vendors, rentedAssets]);
+  }, [vendors, rentedAssets, vendorMap]);
 
   // 1:1 대사 계산 엔진 (3단계 매칭 & 5대 교차 검증)
   const reconcileResults: ReconcileResultItem[] = React.useMemo(() => {
     const results: ReconcileResultItem[] = [];
     const matchedAssetIds = new Set<string>();
+    const ackedSet = new Set(acknowledgedMissingAssetIds);
 
     // 문자열 공백/하이픈/소문자 통일 정화 헬퍼
     const cleanStr = (s?: string) => (s || '').replace(/[\s\-_]/g, '').toLowerCase();
+    const cleanSelectedVendor = cleanStr(selectedVendor);
 
     // 두 날짜 간 일수 계산 헬퍼 (양편넣기: 시작일/종료일 모두 포함)
     const calcDaysBetween = (d1Str?: string, d2Str?: string): number => {
@@ -246,7 +283,7 @@ export const RentAssets: React.FC = () => {
       return Math.round(((monthlyFee / 30) * days) / unit) * unit;
     };
 
-    // A. 임차처 거래명세서 행 기준으로 자사 DB 자산 대조 (오직 관리번호 기준 1:1 매칭)
+    // A. 임차처 거래명세서 행 기준으로 자사 DB 자산 대조 (오직 관리번호 기준 O(1) 매칭)
     statementRows.forEach((row, idx) => {
       // 이미지 2 지원: 장비 임대료가 아닌 기타 수리비/세척비/도색비/운송비 등 항목
       if (row.itemType === 'REPAIR' || row.itemType === 'OTHER_FEE') {
@@ -263,16 +300,16 @@ export const RentAssets: React.FC = () => {
         return;
       }
 
-      // 1단계: 관리번호(assetNo) 정밀 매칭 (시리얼번호/제조번호 일절 무시)
-      let matched = rentedAssets.find(a => 
-        a.assetNo && cleanStr(a.assetNo) === cleanStr(row.assetNo)
-      );
+      // 1단계: 관리번호(assetNo) 정밀 O(1) 매칭 (시리얼번호/제조번호 일절 무시)
+      const rowCleanNo = cleanStr(row.assetNo);
+      let matched = rowCleanNo ? rentedAssetByCleanNoMap.get(rowCleanNo) : undefined;
 
       // 2단계: 관리번호 불일치 시 [모델명 + 임차처] 조합 2차 보조 추적
       if (!matched && row.modelName) {
+        const rowCleanModel = cleanStr(row.modelName);
         matched = rentedAssets.find(a => 
-          cleanStr(a.modelName) === cleanStr(row.modelName) &&
-          (!selectedVendor || cleanStr(getAssetRenterName(a)) === cleanStr(selectedVendor)) &&
+          cleanStr(a.modelName) === rowCleanModel &&
+          (!selectedVendor || cleanStr(getAssetRenterName(a)) === cleanSelectedVendor) &&
           !matchedAssetIds.has(a.id)
         );
       }
@@ -466,13 +503,15 @@ export const RentAssets: React.FC = () => {
     const monthEnd = `${selectedYm || yearStr + '-' + monthStr}-${String(daysInMonth).padStart(2, '0')}`;
 
     const cleanVendor = (s?: string) => (s || '').replace(/[\s\-_주식회사\(\)㈜]/g, '').toLowerCase();
+    const cleanSelectedV = cleanVendor(selectedVendor);
     const targetRented = rentedAssets.filter(a => {
       const aVendor = getAssetRenterName(a);
+      const cleanAV = cleanVendor(aVendor);
       const matchesVendor = !selectedVendor ||
         aVendor === selectedVendor ||
-        cleanVendor(aVendor) === cleanVendor(selectedVendor) ||
-        (cleanVendor(selectedVendor).includes('aj') && cleanVendor(aVendor).includes('아주')) ||
-        (cleanVendor(selectedVendor).includes('아주') && cleanVendor(aVendor).includes('aj'));
+        cleanAV === cleanSelectedV ||
+        (cleanSelectedV.includes('aj') && cleanAV.includes('아주')) ||
+        (cleanSelectedV.includes('아주') && cleanAV.includes('aj'));
       const assetStart = a.rentStart || '1900-01-01';
       const assetEnd = a.actualRentReturnDate || a.rentEnd || '9999-12-31';
       const isOverlapped = (assetStart <= monthEnd) && (assetEnd >= monthStart);
@@ -481,7 +520,7 @@ export const RentAssets: React.FC = () => {
 
     targetRented.forEach(asset => {
       if (!matchedAssetIds.has(asset.id)) {
-        const isAcked = acknowledgedMissingAssetIds.includes(asset.id);
+        const isAcked = ackedSet.has(asset.id);
         // 🔵 임차처 미청구 자산 (반납 또는 청구제외 대상)
         results.push({
           id: `recon-missing-${asset.id}`,
@@ -497,69 +536,107 @@ export const RentAssets: React.FC = () => {
     });
 
     return results;
-  }, [statementRows, rentedAssets, selectedVendor, selectedYm, acknowledgedMissingAssetIds]);
+  }, [statementRows, rentedAssets, rentedAssetByCleanNoMap, vendorMap, selectedVendor, selectedYm, acknowledgedMissingAssetIds]);
 
   const filteredReconcileResults = React.useMemo(() => {
+    const q = reconcileSearch.trim();
+    const matcher = q ? createHangulMatcher(q) : null;
     return reconcileResults.filter(item => {
-      const matchStatus = reconcileStatusFilter === 'ALL' || item.status === reconcileStatusFilter;
-      const term = reconcileSearch.toLowerCase();
-      const assetNo = (item.statementRow?.assetNo || item.matchedAsset?.assetNo || '').toLowerCase();
-      const modelName = (item.statementRow?.modelName || item.matchedAsset?.modelName || '').toLowerCase();
-      const matchSearch = !term || assetNo.includes(term) || modelName.includes(term);
-      return matchStatus && matchSearch;
+      if (reconcileStatusFilter !== 'ALL' && item.status !== reconcileStatusFilter) return false;
+      if (!matcher) return true;
+      const assetNo = item.statementRow?.assetNo || item.matchedAsset?.assetNo || '';
+      const modelName = item.statementRow?.modelName || item.matchedAsset?.modelName || '';
+      return matcher.test(assetNo) || matcher.test(modelName);
     });
   }, [reconcileResults, reconcileStatusFilter, reconcileSearch]);
 
-  // 대사 통계 KPI
+  // 대사 통계 KPI (단일 패스 집계)
   const statsRecon = React.useMemo(() => {
     const totalCount = statementRows.length;
-    const totalBilled = statementRows.reduce((sum, r) => sum + r.billedAmount, 0);
-    const matchedCount = reconcileResults.filter(r => r.status === 'MATCHED').length;
-    const priceMismatchCount = reconcileResults.filter(r => r.status === 'PRICE_MISMATCH').length;
-    const periodMismatchCount = reconcileResults.filter(r => r.status === 'PERIOD_MISMATCH').length;
-    const unregisteredCount = reconcileResults.filter(r => r.status === 'UNREGISTERED').length;
-    const missingCount = reconcileResults.filter(r => r.status === 'MISSING_BILLING').length;
-    const totalDiffAmount = reconcileResults.reduce((sum, r) => sum + r.priceDiff, 0);
+    let totalBilled = 0;
+    for (let i = 0; i < totalCount; i++) {
+      totalBilled += statementRows[i].billedAmount;
+    }
+
+    let matchedCount = 0;
+    let priceMismatchCount = 0;
+    let periodMismatchCount = 0;
+    let unregisteredCount = 0;
+    let missingCount = 0;
+    let totalDiffAmount = 0;
+
+    for (let i = 0; i < reconcileResults.length; i++) {
+      const r = reconcileResults[i];
+      totalDiffAmount += r.priceDiff;
+      if (r.status === 'MATCHED') matchedCount++;
+      else if (r.status === 'PRICE_MISMATCH') priceMismatchCount++;
+      else if (r.status === 'PERIOD_MISMATCH') periodMismatchCount++;
+      else if (r.status === 'UNREGISTERED') unregisteredCount++;
+      else if (r.status === 'MISSING_BILLING') missingCount++;
+    }
 
     return { totalCount, totalBilled, matchedCount, priceMismatchCount, periodMismatchCount, unregisteredCount, missingCount, totalDiffAmount };
   }, [statementRows, reconcileResults]);
 
   // ==========================================
-  // 💰 [원천정보 기반 대차대조 전대 손익 원장] 계산 엔진
+  // 💰 [원천정보 기반 대차대조 전대 손익 원장] 계산 엔진 (탭 활성화 시에만 연산)
   // ==========================================
   // 1. 계약별 전대 손익 원장 (확정 청구서 매출 vs 매입세금계산서 원가 + 운송비)
   const subleaseContracts = React.useMemo(() => {
-    const rentedAssetIds = new Set(rentedAssets.map(a => a.id));
-    const rentedAssetNos = new Set(rentedAssets.map(a => a.assetNo));
-    
+    if (activeTab !== 'PROFIT_LEDGER') return [];
+
+    const billingsByContract = new Map<string, number>();
+    for (let i = 0; i < billings.length; i++) {
+      const b = billings[i];
+      if (b.contractId && b.status !== 'REJECTED') {
+        billingsByContract.set(b.contractId, (billingsByContract.get(b.contractId) || 0) + (b.totalAmount || 0));
+      }
+    }
+
+    const freightByContract = new Map<string, number>();
+    for (let i = 0; i < deliveries.length; i++) {
+      const d = deliveries[i];
+      if (d.contractId && d.status !== 'CANCELLED') {
+        freightByContract.set(d.contractId, (freightByContract.get(d.contractId) || 0) + (d.finalCost || d.deliveryCostConfirmed || d.deliveryCost || 0));
+      }
+    }
+
+    const purchaseCostBySource = new Map<string, number>();
+    for (let i = 0; i < purchaseSettlementItems.length; i++) {
+      const item = purchaseSettlementItems[i];
+      if (item.sourceId) {
+        purchaseCostBySource.set(item.sourceId, (purchaseCostBySource.get(item.sourceId) || 0) + (item.amount || 0));
+      }
+    }
+
     return contracts.map(c => {
-      // 이 계약에 속한 임차 자산들 매핑
+      // 이 계약에 속한 임차 자산들 O(1) 매핑
       const assignedRentedAssets = (c.assets || [])
-        .filter(ca => ca.assetId && rentedAssetIds.has(ca.assetId))
-        .map(ca => {
-          const match = rentedAssets.find(a => a.id === ca.assetId);
-          return { ca, match };
-        });
+        .filter(ca => ca.assetId && rentedAssetByIdMap.has(ca.assetId))
+        .map(ca => ({ ca, match: rentedAssetByIdMap.get(ca.assetId!) }));
 
       if (assignedRentedAssets.length === 0) return null;
 
-      const customer = customers.find(cust => cust.id === c.customerId);
-      const site = sites.find(s => s.id === c.siteId);
+      const customer = c.customerId ? customerMap.get(c.customerId) : undefined;
+      const site = c.siteId ? siteMap.get(c.siteId) : undefined;
 
-      // 확정 매출 청구액 (billings 중 이 contractId)
-      const contractBillings = billings.filter(b => b.contractId === c.id && b.status !== 'REJECTED');
-      const confirmedRevenue = contractBillings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+      const confirmedRevenue = billingsByContract.get(c.id) || 0;
 
-      // 매입세금계산서 원가 (purchaseSettlementItems 중 이 임차자산들 대상)
-      const assetIds = new Set(assignedRentedAssets.map(a => a.match?.id).filter(Boolean));
-      const assetNos = new Set(assignedRentedAssets.map(a => a.match?.assetNo).filter(Boolean));
       let confirmedCost = 0;
-      purchaseSettlementItems.forEach(item => {
-        if (item.sourceId && (assetIds.has(item.sourceId) || assetNos.has(item.sourceId))) {
-          confirmedCost += (item.amount || 0);
+      const seenSources = new Set<string>();
+      for (let i = 0; i < assignedRentedAssets.length; i++) {
+        const m = assignedRentedAssets[i].match;
+        if (!m) continue;
+        if (m.id && !seenSources.has(m.id)) {
+          seenSources.add(m.id);
+          confirmedCost += (purchaseCostBySource.get(m.id) || 0);
         }
-      });
-      // 만약 purchaseSettlementItems에 아직 매칭 전이면 약정 임차료로 보조 산출
+        if (m.assetNo && !seenSources.has(m.assetNo)) {
+          seenSources.add(m.assetNo);
+          confirmedCost += (purchaseCostBySource.get(m.assetNo) || 0);
+        }
+      }
+
       if (confirmedCost === 0) {
         assignedRentedAssets.forEach(a => {
           if (a.match?.monthlyRentFee) {
@@ -568,10 +645,7 @@ export const RentAssets: React.FC = () => {
         });
       }
 
-      // 직송/회수 운송비 원가 (deliveries 중 이 contractId)
-      const contractDeliveries = deliveries.filter(d => d.contractId === c.id && d.status !== 'CANCELLED');
-      const freightCost = contractDeliveries.reduce((sum, d) => sum + (d.finalCost || d.deliveryCostConfirmed || d.deliveryCost || 0), 0);
-
+      const freightCost = freightByContract.get(c.id) || 0;
       const netProfit = confirmedRevenue - (confirmedCost + freightCost);
       const marginRate = confirmedRevenue > 0 ? (netProfit / confirmedRevenue) * 100 : 0;
 
@@ -597,10 +671,12 @@ export const RentAssets: React.FC = () => {
       netProfit: number;
       marginRate: number;
     }[];
-  }, [contracts, rentedAssets, customers, sites, billings, purchaseSettlementItems, deliveries]);
+  }, [activeTab, contracts, rentedAssetByIdMap, customerMap, siteMap, billings, purchaseSettlementItems, deliveries]);
 
   // 2. 자산별 누적 손익 원장 (자산별 누적 청구액 vs 누적 매입원가)
   const assetProfitLedgers = React.useMemo(() => {
+    if (activeTab !== 'PROFIT_LEDGER') return [];
+
     return rentedAssets.map(a => {
       // 매출: billingDetails 중 assetId === a.id 또는 assetNo === a.assetNo
       const relatedBillingDetails = billingDetails.filter(bd => bd.assetId === a.id || bd.itemName?.includes(a.assetNo));
@@ -626,7 +702,7 @@ export const RentAssets: React.FC = () => {
         marginRate
       };
     });
-  }, [rentedAssets, billingDetails, purchaseSettlementItems, deliveries]);
+  }, [activeTab, rentedAssets, billingDetails, purchaseSettlementItems, deliveries]);
 
   // 거래명세서 파일 업로드 처리 핸들러 (엑셀 .xlsx / .xls 및 PDF .pdf 통합 범용 파서 연동)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1056,9 +1132,10 @@ export const RentAssets: React.FC = () => {
   }, []);
 
   const filteredRenterVendors = React.useMemo(() => {
-    if (!renterSearchQuery.trim()) return renterVendors;
     const q = renterSearchQuery.trim();
-    return renterVendors.filter(r => matchHangul(r, q));
+    if (!q) return renterVendors;
+    const matcher = createHangulMatcher(q);
+    return renterVendors.filter(r => matcher.test(r));
   }, [renterVendors, renterSearchQuery]);
 
   const [showReturnModal, setShowReturnModal] = useState(false);
@@ -1073,23 +1150,31 @@ export const RentAssets: React.FC = () => {
   const [returnVehicleType, setReturnVehicleType] = useState('3.5T');
   const [returnCost, setReturnCost] = useState(70000);
 
-  const filteredAssets = rentedAssets.filter(a => {
-    const rName = getAssetRenterName(a);
-    const matchesSearch = a.assetNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          a.modelName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          rName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRenter = !renterQuery || rName.toLowerCase().includes(renterQuery.toLowerCase());
-    const matchesStartDate = !startDateQuery || (a.rentEnd && a.rentEnd >= startDateQuery);
-    const matchesEndDate = !endDateQuery || (a.rentStart && a.rentStart <= endDateQuery);
-    const isReturned = Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED';
-    const isAvailable = !isReturned && (a.status === 'AVAILABLE' || (!a.currentCustomerId && a.status !== 'RENTED' && a.status !== 'ASSIGNED' && a.status !== 'REPAIRING'));
-    const matchesReturn = returnQuery === 'ALL' ? true :
-                          returnQuery === 'RETURNED' ? isReturned :
-                          returnQuery === 'AVAILABLE' ? isAvailable :
-                          !isReturned;
+  const filteredAssets = useMemo(() => {
+    const sq = searchQuery.trim();
+    const searchMatcher = sq ? createHangulMatcher(sq) : null;
+    const rq = renterQuery.trim();
+    const renterMatcher = rq ? createHangulMatcher(rq) : null;
 
-    return matchesSearch && matchesRenter && matchesStartDate && matchesEndDate && matchesReturn;
-  });
+    return rentedAssets.filter(a => {
+      const isReturned = Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED';
+      const isAvailable = !isReturned && (a.status === 'AVAILABLE' || (!a.currentCustomerId && a.status !== 'RENTED' && a.status !== 'ASSIGNED' && a.status !== 'REPAIRING'));
+      const matchesReturn = returnQuery === 'ALL' ? true :
+                            returnQuery === 'RETURNED' ? isReturned :
+                            returnQuery === 'AVAILABLE' ? isAvailable :
+                            !isReturned;
+      if (!matchesReturn) return false;
+
+      if (startDateQuery && (!a.rentEnd || a.rentEnd < startDateQuery)) return false;
+      if (endDateQuery && (!a.rentStart || a.rentStart > endDateQuery)) return false;
+
+      const rName = getAssetRenterName(a);
+      if (renterMatcher && !renterMatcher.test(rName)) return false;
+      if (searchMatcher && !(searchMatcher.test(a.assetNo) || searchMatcher.test(a.modelName) || searchMatcher.test(rName))) return false;
+
+      return true;
+    });
+  }, [rentedAssets, vendorMap, searchQuery, renterQuery, startDateQuery, endDateQuery, returnQuery]);
 
   // 모델명 알파벳/한글 오름차순 정렬
   const sortedProducts = React.useMemo(() => {
@@ -1588,9 +1673,7 @@ export const RentAssets: React.FC = () => {
 
       {/* 📊 임차 장비 보유 및 월 임차료 요약 바 (임차자산 대장 탭 전용 노출로 정산화면 슬림화) */}
       {activeTab === 'CURRENT' && (() => {
-        const activeRentedList = rentedAssets.filter(a => !a.actualRentReturnDate && a.status !== 'RENTED_RETURNED');
-        const returnedList = rentedAssets.filter(a => Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED');
-        const totalMonthlyRentCost = activeRentedList.reduce((sum, a) => sum + (a.monthlyRentFee || 0), 0);
+        const { activeRentedList, returnedList, totalMonthlyRentCost } = rentedKpiStats;
 
         return (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', marginBottom: '8px', flexShrink: 0 }}>
@@ -3115,9 +3198,7 @@ export const RentAssets: React.FC = () => {
       {/* 탭 1: 임차자산 대장 현황 (Current Assets) - 헌장 3.6 유형 B 고밀도 대장 */}
       {/* ========================================================================= */}
       {activeTab === 'CURRENT' && (() => {
-        const activeRentedList = rentedAssets.filter(a => !a.actualRentReturnDate && a.status !== 'RENTED_RETURNED');
-        const returnedList = rentedAssets.filter(a => Boolean(a.actualRentReturnDate) || a.status === 'RENTED_RETURNED');
-        const totalMonthlyRentCost = activeRentedList.reduce((sum, a) => sum + (a.monthlyRentFee || 0), 0);
+        const { activeRentedList, returnedList, totalMonthlyRentCost } = rentedKpiStats;
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
@@ -3247,8 +3328,8 @@ export const RentAssets: React.FC = () => {
                         const isOverdue = isSubleaseOverdue(a);
                         const delayDays = calculateDelayDays(a);
                         const renterName = getAssetRenterName(a);
-                        const cust = customers.find(c => c.id === a.currentCustomerId);
-                        const site = sites.find(s => s.id === a.currentSiteId);
+                        const cust = a.currentCustomerId ? customerMap.get(a.currentCustomerId) : undefined;
+                        const site = a.currentSiteId ? siteMap.get(a.currentSiteId) : undefined;
 
                         // 날짜 역전 방어 포맷
                         let periodText = '-';

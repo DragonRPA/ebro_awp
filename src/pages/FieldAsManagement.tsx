@@ -338,6 +338,14 @@ export const FieldAsManagement: React.FC = () => {
       if (!d.parentDepartmentId) rootDeptIds.add(d.id);
     });
 
+    const fieldAsPermMap = new Map<string, typeof permissions[0]>();
+    for (const p of permissions) {
+      if (normalizeMenuId(p.menuId) === 'field_as') {
+        const uid = p.userId || (p as any).user_id;
+        if (uid) fieldAsPermMap.set(uid, p);
+      }
+    }
+
     return users.filter(u => {
       if (u.status === 'RETIRED') return false;
 
@@ -350,10 +358,7 @@ export const FieldAsManagement: React.FC = () => {
       if (!u.departmentId && u.role === 'ADMIN') return false;
 
       // 2. 해당 메뉴(field_as) 권한 보유 여부 확인
-      const perm = permissions.find(p =>
-        (p.userId === u.id || (p as any).user_id === u.id) &&
-        normalizeMenuId(p.menuId) === 'field_as'
-      );
+      const perm = fieldAsPermMap.get(u.id);
       if (perm) {
         return Boolean(perm.canView || perm.canSave);
       }
@@ -394,6 +399,23 @@ export const FieldAsManagement: React.FC = () => {
     });
     return map;
   }, [users]);
+
+  // O(1) 조회용 사전 계산 맵 (티켓, 소모품, 점검항목, 차량소모품재고)
+  const ticketMap = useMemo(() => new Map((fieldAsTickets || []).map(t => [t.id, t])), [fieldAsTickets]);
+  const consumableMap = useMemo(() => new Map((consumables || []).map(c => [c.id, c])), [consumables]);
+  const checklistItemByCodeMap = useMemo(() => new Map((inspectionChecklistItems || []).map(item => [item.code, item])), [inspectionChecklistItems]);
+
+  const { mechanicStocksByMechIdMap, mechanicStockQtyMap } = useMemo(() => {
+    const byMech = new Map<string, typeof mechanicConsumableStocks>();
+    const qtyMap = new Map<string, number>();
+    for (const s of mechanicConsumableStocks || []) {
+      const list = byMech.get(s.mechanicId);
+      if (list) list.push(s);
+      else byMech.set(s.mechanicId, [s]);
+      qtyMap.set(`${s.mechanicId}_${s.consumableId}`, s.stockQty || 0);
+    }
+    return { mechanicStocksByMechIdMap: byMech, mechanicStockQtyMap: qtyMap };
+  }, [mechanicConsumableStocks]);
 
   // 쿼리 전처리/컴파일 캐시 (7,600건 대용량 필터링 1ms 미만 초고속 매칭)
   const studioMatcher = useMemo(() => createHangulMatcher(deferredStudioSearch), [deferredStudioSearch]);
@@ -454,19 +476,34 @@ export const FieldAsManagement: React.FC = () => {
     });
   }, [fieldAsTickets, studioStartDate, studioEndDate, studioStatusFilter, studioCategoryFilter, deferredStudioSearch, userMap, studioMatcher]);
 
+  // 모바일 출동 탭용 미완료 티켓 및 완료 티켓 슬라이스 메모이제이션
+  const mobilePendingTickets = useMemo(() => {
+    return studioFilteredTickets.filter(t => t.status !== 'COMPLETED');
+  }, [studioFilteredTickets]);
+
+  const mobileCompletedTickets = useMemo(() => {
+    const res: FieldAsTicket[] = [];
+    for (let i = 0; i < fieldAsTickets.length && res.length < 30; i++) {
+      if (fieldAsTickets[i].status === 'COMPLETED') {
+        res.push(fieldAsTickets[i]);
+      }
+    }
+    return res;
+  }, [fieldAsTickets]);
+
   // 대용량(7,000건+) DOM 부하 방어용 슬라이스 렌더링 (기본 50건 표시 후 더보기)
   const visibleStudioTickets = useMemo(() => {
     return studioFilteredTickets.slice(0, studioDisplayLimit);
   }, [studioFilteredTickets, studioDisplayLimit]);
 
-  // 선택된 티켓 정보 (현재 필터의 1순위 미완결 티켓 자동 포커스)
+  // 선택된 티켓 정보 (현재 필터의 1순위 미완결 티켓 자동 포커스 - O(1) 맵 조회)
   const selectedTicket = useMemo(() => {
     if (studioSelectedTicketId) {
-      const found = fieldAsTickets.find(t => t.id === studioSelectedTicketId);
+      const found = ticketMap.get(studioSelectedTicketId);
       if (found) return found;
     }
     return studioFilteredTickets[0] || fieldAsTickets[0] || null;
-  }, [fieldAsTickets, studioSelectedTicketId, studioFilteredTickets]);
+  }, [ticketMap, fieldAsTickets, studioSelectedTicketId, studioFilteredTickets]);
 
   // 대장 필터링된 티켓 목록 (날짜 스코프 및 복합 필터)
   const ledgerFilteredTickets = useMemo(() => {
@@ -504,12 +541,81 @@ export const FieldAsManagement: React.FC = () => {
     });
   }, [fieldAsTickets, ledgerStatus, ledgerCategory, ledgerMechanic, ledgerBillable, ledgerStartDate, ledgerEndDate, deferredLedgerSearch, userMap, ledgerMatcher]);
 
+  // 대장 하단 요약 바 단일 패스 집계
+  const ledgerFooterStats = useMemo(() => {
+    const totalTickets = ledgerFilteredTickets.length;
+    let completedCount = 0;
+    let billableCount = 0;
+    let totalBillableAmount = 0;
+    for (let i = 0; i < totalTickets; i++) {
+      const t = ledgerFilteredTickets[i];
+      if (t.status === 'COMPLETED') completedCount++;
+      if (t.billableType === 'BILLABLE') {
+        billableCount++;
+        totalBillableAmount += t.billableAmount || 0;
+      }
+    }
+    return {
+      totalTickets,
+      completedCount,
+      billableCount,
+      totalBillableAmount,
+      freeCount: totalTickets - billableCount
+    };
+  }, [ledgerFilteredTickets]);
+
   const { sortedData: sortedLedgerTickets, sortKey: ledgerSortKey, sortDirection: ledgerSortDir, handleSort: handleLedgerSort } = useSortableData<FieldAsTicket>(ledgerFilteredTickets);
 
   // 대장 대용량 슬라이스 렌더링 (기본 100건 표시 후 더보기)
   const visibleLedgerTickets = useMemo(() => {
     return sortedLedgerTickets.slice(0, ledgerDisplayLimit);
   }, [sortedLedgerTickets, ledgerDisplayLimit]);
+
+  // AS 성과 및 원인 분석 탭 단일 패스 집계 (ANALYTICS 탭)
+  const analyticsStats = useMemo(() => {
+    let totalCount = 0;
+    let completedCount = 0;
+    let billableCount = 0;
+    let billableTotal = 0;
+    const categoryMap: Record<string, number> = {};
+    const mechanicMap: Record<string, { total: number; completed: number }> = {};
+
+    for (let i = 0; i < fieldAsTickets.length; i++) {
+      const t = fieldAsTickets[i];
+      const d = t.visitDate || t.requestDate;
+      if (!d) continue;
+      if (analyticsStartDate && d < analyticsStartDate) continue;
+      if (analyticsEndDate && d > analyticsEndDate) continue;
+
+      totalCount++;
+      if (t.status === 'COMPLETED') completedCount++;
+      if (t.billableType === 'BILLABLE') {
+        billableCount++;
+        billableTotal += t.billableAmount || 0;
+      }
+
+      const cat = t.issueCategory || '기타';
+      categoryMap[cat] = (categoryMap[cat] || 0) + 1;
+
+      const mId = t.assignedMechanicId || 'UNASSIGNED';
+      if (!mechanicMap[mId]) mechanicMap[mId] = { total: 0, completed: 0 };
+      mechanicMap[mId].total += 1;
+      if (t.status === 'COMPLETED') mechanicMap[mId].completed += 1;
+    }
+
+    const completeRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+    const sortedCategories = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]);
+
+    return {
+      totalCount,
+      completedCount,
+      completeRate,
+      billableCount,
+      billableTotal,
+      sortedCategories,
+      mechanicMap
+    };
+  }, [fieldAsTickets, analyticsStartDate, analyticsEndDate]);
 
   // 캘린더 탭 단일 순회 O(1) 인덱스 해시맵 및 월간 KPI 통계 (7,600건 대용량 최적화)
   const calendarMonthData = useMemo(() => {
@@ -580,11 +686,10 @@ export const FieldAsManagement: React.FC = () => {
     };
   }, [fieldAsTickets]);
 
-  // 특정 정비사의 특정 소모품 차량 잔여 수량 조회
+  // 특정 정비사의 특정 소모품 차량 잔여 수량 조회 (O(1) 맵 조회)
   const getMechanicVehicleStock = (mechId: string, consId: string): number => {
     if (!mechId || !consId) return 0;
-    const stock = (mechanicConsumableStocks || []).find(s => s.mechanicId === mechId && s.consumableId === consId);
-    return stock?.stockQty || 0;
+    return mechanicStockQtyMap.get(`${mechId}_${consId}`) || 0;
   };
 
   // 티켓 선택 시 우측 조치 패널 초기화
@@ -612,12 +717,12 @@ export const FieldAsManagement: React.FC = () => {
   // 소모품 추가 핸들러
   const handleAddPartUsed = () => {
     if (!tempConsumableId) return;
-    const item = consumables.find(c => c.id === tempConsumableId);
+    const item = consumableMap.get(tempConsumableId);
     if (!item) return;
 
     const availableStock = getMechanicVehicleStock(actionAssignMechanicId, tempConsumableId);
     if (availableStock < tempPartQty) {
-      const mechName = users.find(u => u.id === actionAssignMechanicId)?.name || '기사';
+      const mechName = (actionAssignMechanicId ? userMap.get(actionAssignMechanicId) : '') || '기사';
       showErrorModal(`⚠️ [차량 재고 부족] ${mechName} 기사의 차량 재고에 "${item.modelName}"이(가) 부족합니다.\n(현재 차량 적재: ${availableStock}개 / 요청: ${tempPartQty}개)\n\n상단의 [차량 소모품 적재] 탭 또는 [소모품 관리] 메뉴에서 차량으로 먼저 보충 이동(불출) 등록을 진행해 주세요.`);
       return;
     }
@@ -648,7 +753,7 @@ export const FieldAsManagement: React.FC = () => {
 
   // ─── [모바일 전용 대형 스텝퍼 부품 증감 핸들러] ───
   const handleStepPartQty = (consumableId: string, delta: number) => {
-    const item = consumables.find(c => c.id === consumableId);
+    const item = consumableMap.get(consumableId);
     if (!item) return;
     const vehicleStock = getMechanicVehicleStock(actionAssignMechanicId, consumableId);
 
@@ -864,7 +969,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
       '고장증상': t.issueDescription || '-',
 
       // ④ 배정 담당자
-      '담당자': users.find(u => u.id === t.assignedMechanicId)?.name || '미지정',
+      '담당자': (t.assignedMechanicId ? userMap.get(t.assignedMechanicId) : '') || '미지정',
 
       // ⑤ 일정 및 진행상태
       '방문일자': t.visitDate || '-',
@@ -1147,7 +1252,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                 whiteSpace: 'nowrap'
             }}
           >
-            출동 ({studioFilteredTickets.filter(t => t.status !== 'COMPLETED').length})
+            출동 ({mobilePendingTickets.length})
           </button>
           <button
             onClick={() => setMobileActiveTab('VAN_STOCK')}
@@ -1241,14 +1346,14 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
               </div>
 
               {/* 티켓 카드 리스트 */}
-              {studioFilteredTickets.filter(t => t.status !== 'COMPLETED').length === 0 ? (
+              {mobilePendingTickets.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '60px 20px', backgroundColor: 'var(--bg-card)', borderRadius: '10px', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
                   <CheckCircle2 size={42} color="#16a34a" style={{ margin: '0 auto 10px auto' }} />
                   <p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: 'var(--text-main)' }}>대기 중인 출동 건이 없습니다!</p>
                   <p style={{ margin: '4px 0 0 0', fontSize: '12px' }}>모든 현장 AS가 완료 처리되었습니다.</p>
                 </div>
               ) : (
-                studioFilteredTickets.filter(t => t.status !== 'COMPLETED').map(t => {
+                mobilePendingTickets.map(t => {
                   const isUrgent = t.priority === 'URGENT';
                   const isRevisit = t.status === 'REVISIT';
 
@@ -1408,7 +1513,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                 <div>
                   <div style={{ fontSize: '11px', color: '#10b981', fontWeight: 600 }}>담당 차량 보관소</div>
                   <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-main)' }}>
-                    🚐 {users.find(u => u.id === actionAssignMechanicId)?.name || currentUser?.name || '내 차량'}
+                    🚐 {(actionAssignMechanicId ? userMap.get(actionAssignMechanicId) : '') || currentUser?.name || '내 차량'}
                   </div>
                 </div>
                 <button
@@ -1471,7 +1576,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
           {/* 3. 모바일 완료 이력 탭 */}
           {mobileActiveTab === 'HISTORY' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {fieldAsTickets.filter(t => t.status === 'COMPLETED').slice(0, 30).map(t => (
+              {mobileCompletedTickets.map(t => (
                 <div key={t.id} style={{ backgroundColor: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>
                     <span>{t.ticketNo}</span>
@@ -1825,7 +1930,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                       {/* 카드 하단: 담당자 지정 및 조치 결과 요약 */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--text-muted)' }}>
                         <span>
-                          👨‍🔧 {users.find(u => u.id === t.assignedMechanicId)?.name || '담당자 미지정'}
+                          👨‍🔧 {(t.assignedMechanicId ? userMap.get(t.assignedMechanicId) : '') || '담당자 미지정'}
                         </span>
                         {t.actionTaken && (
                           <span style={{ color: 'var(--success)', fontWeight: 600 }}>
@@ -2104,7 +2209,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                         onChange={(e) => {
                           const val = e.target.value;
                           setActionInspectionItemCode(val);
-                          const matched = (inspectionChecklistItems || []).find(item => item.code === val);
+                          const matched = checklistItemByCodeMap.get(val);
                           if (matched && matched.standardManHours) {
                             setActionDurationMinutes(Math.round(matched.standardManHours * 60));
                           }
@@ -2884,7 +2989,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                   </div>
                 ) : (
                   selectedDateTickets.map(t => {
-                    const mechUser = users.find(u => u.id === t.assignedMechanicId);
+                    const mechName = (t.assignedMechanicId ? userMap.get(t.assignedMechanicId) : '') || '미지정';
                     const isDone = t.status === 'COMPLETED' || t.status === 'GUIDED';
                     return (
                       <div
@@ -2916,7 +3021,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                           고객: <strong>{t.customerName || '-'}</strong> | 자산: <strong>{t.assetNo || '-'}</strong>
                         </div>
                         <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                          담당: <strong>{mechUser?.name || '미지정'}</strong>
+                          담당: <strong>{mechName}</strong>
                         </div>
                         <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
                           증상: {t.issueDescription || t.issueCategory}
@@ -2948,36 +3053,15 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
           탭: AS 성과 및 원인 분석 (통계 & 드릴다운)
       ────────────────────────────────────────────────────────────────────────── */}
       {mainTab === 'ANALYTICS' && (() => {
-        const filtered = fieldAsTickets.filter(t => {
-          const d = t.visitDate || t.requestDate;
-          if (!d) return false;
-          if (analyticsStartDate && d < analyticsStartDate) return false;
-          if (analyticsEndDate && d > analyticsEndDate) return false;
-          return true;
-        });
-
-        const totalCount = filtered.length;
-        const completedCount = filtered.filter(t => t.status === 'COMPLETED').length;
-        const completeRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
-        const billableTickets = filtered.filter(t => t.billableType === 'BILLABLE');
-        const billableTotal = billableTickets.reduce((sum, t) => sum + (t.billableAmount || 0), 0);
-
-        // 고장 유형별 집계
-        const categoryMap: Record<string, number> = {};
-        filtered.forEach(t => {
-          const cat = t.issueCategory || '기타';
-          categoryMap[cat] = (categoryMap[cat] || 0) + 1;
-        });
-        const sortedCategories = Object.entries(categoryMap).sort((a, b) => b[1] - a[1]);
-
-        // 기사별 처리 건수 집계
-        const mechanicMap: Record<string, { total: number; completed: number }> = {};
-        filtered.forEach(t => {
-          const mId = t.assignedMechanicId || 'UNASSIGNED';
-          if (!mechanicMap[mId]) mechanicMap[mId] = { total: 0, completed: 0 };
-          mechanicMap[mId].total += 1;
-          if (t.status === 'COMPLETED') mechanicMap[mId].completed += 1;
-        });
+        const {
+          totalCount,
+          completedCount,
+          completeRate,
+          billableCount,
+          billableTotal,
+          sortedCategories,
+          mechanicMap
+        } = analyticsStats;
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', height: 'calc(100vh - 170px)', overflowY: 'auto' }}>
@@ -3044,7 +3128,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
               </div>
               <div className="card" style={{ padding: '16px' }}>
                 <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>유상 AS 청구 건수</div>
-                <div style={{ fontSize: '22px', fontWeight: 800, color: '#ea580c' }}>{billableTickets.length}건</div>
+                <div style={{ fontSize: '22px', fontWeight: 800, color: '#ea580c' }}>{billableCount}건</div>
               </div>
               <div className="card" style={{ padding: '16px' }}>
                 <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px' }}>유상 AS 청구 총액</div>
@@ -3082,8 +3166,8 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                 <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 800 }}>🔧 담당자별 조치 및 완료 실적</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {Object.entries(mechanicMap).map(([mId, data]) => {
-                    const u = users.find(user => user.id === mId);
-                    const name = u ? u.name : (mId === 'UNASSIGNED' ? '미지정' : mId);
+                    const uName = userMap.get(mId);
+                    const name = uName || (mId === 'UNASSIGNED' ? '미지정' : mId);
                     const rate = data.total > 0 ? Math.round((data.completed / data.total) * 100) : 0;
                     return (
                       <div key={mId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', borderRadius: '6px', backgroundColor: 'var(--bg-app)', fontSize: '12px' }}>
@@ -3490,7 +3574,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                       </span>
                     </td>
                     <td style={{ padding: '6px 12px', color: 'var(--text-main)' }}>
-                      {users.find(u => u.id === t.assignedMechanicId)?.name || '미지정'}
+                      {(t.assignedMechanicId ? userMap.get(t.assignedMechanicId) : '') || '미지정'}
                     </td>
                     <td style={{ padding: '6px 12px', color: 'var(--text-main)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {t.actionTaken || '-'}
@@ -3556,11 +3640,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
 
           {/* ⚖️ Gutenberg Z-패턴 4단계 최하단 유상 AS 대사 검증 요약 바 (헌장 3.5) */}
           {(() => {
-            const totalTickets = ledgerFilteredTickets.length;
-            const completedCount = ledgerFilteredTickets.filter(t => t.status === 'COMPLETED').length;
-            const billableTickets = ledgerFilteredTickets.filter(t => t.billableType === 'BILLABLE');
-            const totalBillableAmount = billableTickets.reduce((sum, t) => sum + (t.billableAmount || 0), 0);
-            const freeCount = totalTickets - billableTickets.length;
+            const { totalTickets, completedCount, billableCount, totalBillableAmount, freeCount } = ledgerFooterStats;
 
             return (
               <div style={{
@@ -3581,7 +3661,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                   <span style={{ color: 'var(--text-muted)' }}>|</span>
                   <span style={{ color: 'var(--success)' }}>무상 AS: <strong>{freeCount}</strong>건</span>
                   <span style={{ color: 'var(--text-muted)' }}>|</span>
-                  <span style={{ color: '#ea580c' }}>유상 AS: <strong>{billableTickets.length}</strong>건 (총 <strong>₩{totalBillableAmount.toLocaleString()}</strong>원)</span>
+                  <span style={{ color: '#ea580c' }}>유상 AS: <strong>{billableCount}</strong>건 (총 <strong>₩{totalBillableAmount.toLocaleString()}</strong>원)</span>
                 </div>
               </div>
             );
@@ -3622,7 +3702,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '16px' }}>
             {eligibleAssignees.map(m => {
-              const myStocks = (mechanicConsumableStocks || []).filter(s => s.mechanicId === m.id);
+              const myStocks = mechanicStocksByMechIdMap.get(m.id) || [];
               const totalItemsCount = myStocks.reduce((sum, s) => sum + s.stockQty, 0);
 
               return (
@@ -3653,7 +3733,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {myStocks.map(ms => {
-                        const item = consumables.find(c => c.id === ms.consumableId);
+                        const item = consumableMap.get(ms.consumableId);
                         return (
                           <div
                             key={ms.id}

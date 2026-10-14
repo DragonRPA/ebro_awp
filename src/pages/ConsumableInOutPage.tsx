@@ -6,10 +6,10 @@ import {
   CheckCircle2, AlertTriangle, AlertCircle, FileText, Camera, Upload, X, ShieldCheck
 } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
-import { db, ConsumableLog, ConsumablePurchaseRequest } from '../services/db';
+import { db, Consumable, Asset, User, MenuPermission, ConsumableLog, ConsumablePurchaseRequest } from '../services/db';
 import { compressFileIfNeeded } from '../utils/imageCompressor';
 import { uploadToSupabaseStorage } from '../services/supabaseStorage';
-import { matchHangul } from '../utils/hangulSearch';
+import { matchHangul, createHangulMatcher } from '../utils/hangulSearch';
 import { normalizeMenuId } from '../config/menu_config';
 import { getRoleTemplatePermission } from '../config/role_templates';
 import { SortableTh } from '../components/SortableTh';
@@ -31,6 +31,37 @@ export const ConsumableInOutPage: React.FC = () => {
   } = useApp();
 
   const canSave = hasPermission('consumable_inout', 'save') || hasPermission('consumable', 'save');
+
+  // O(1) 룩업 맵 사전 연산
+  const consumableMap = useMemo(() => {
+    const map = new Map<string, Consumable>();
+    for (const c of consumables) map.set(c.id, c);
+    return map;
+  }, [consumables]);
+
+  const assetMap = useMemo(() => {
+    const map = new Map<string, Asset>();
+    for (const a of assets) map.set(a.id, a);
+    return map;
+  }, [assets]);
+
+  const userMap = useMemo(() => {
+    const map = new Map<string, User>();
+    for (const u of users) map.set(u.id, u);
+    return map;
+  }, [users]);
+
+  const permissionsByUserMap = useMemo(() => {
+    const map = new Map<string, MenuPermission[]>();
+    for (const p of (permissions || [])) {
+      const uid = p.userId || (p as any).user_id;
+      if (!uid) continue;
+      const arr = map.get(uid);
+      if (arr) arr.push(p);
+      else map.set(uid, [p]);
+    }
+    return map;
+  }, [permissions]);
 
   // 활성 탭: REQ_INBOUND (소모품 입고) | OUTBOUND (소모품 출고) | LOGS (입출고 이력)
   const [activeTab, setActiveTab] = useState<'REQ_INBOUND' | 'OUTBOUND' | 'LOGS'>('REQ_INBOUND');
@@ -113,7 +144,7 @@ export const ConsumableInOutPage: React.FC = () => {
       if (dName.includes('대표') || dName.includes('임원') || dName.includes('시스템')) return false;
 
       // 2. 소모품/현장AS/정비 관련 개별 권한 부여 여부 확인
-      const userPerms = (permissions || []).filter(p => p.userId === u.id || (p as any).user_id === u.id);
+      const userPerms = permissionsByUserMap.get(u.id) || [];
       const hasExplicitPerm = userPerms.some(p => 
         vehicleTargetMenuIds.includes(normalizeMenuId(p.menuId)) && (p.canView || p.canSave)
       );
@@ -144,40 +175,41 @@ export const ConsumableInOutPage: React.FC = () => {
       if (b.role === 'MANAGER' && a.role !== 'MANAGER') return 1;
       return a.name.localeCompare(b.name, 'ko');
     });
-  }, [users, permissions]);
+  }, [users, permissionsByUserMap]);
 
   const getUserName = (id?: string) => {
     if (!id) return '시스템';
-    return users.find(u => u.id === id)?.name || '담당자';
+    return userMap.get(id)?.name || '담당자';
   };
 
   const getAssetNo = (id?: string) => {
     if (!id) return '-';
-    return assets.find(a => a.id === id)?.assetNo || '-';
+    return assetMap.get(id)?.assetNo || '-';
   };
 
   // 선택된 출고 대상 품목 정보
   const targetConsumable = useMemo(() => {
-    return consumables.find(c => c.id === useConsumableId);
-  }, [consumables, useConsumableId]);
+    if (!useConsumableId) return undefined;
+    return consumableMap.get(useConsumableId);
+  }, [consumableMap, useConsumableId]);
 
   // 출고 품목 초성/일반 검색 필터링 목록
   const filteredConsumables = useMemo(() => {
-    if (!consumableSearchQuery.trim()) return consumables;
+    const q = consumableSearchQuery.trim();
+    if (!q) return consumables;
+    const matcher = createHangulMatcher(q);
     return consumables.filter(c =>
-      matchHangul(c.modelName, consumableSearchQuery) ||
-      matchHangul(c.category, consumableSearchQuery) ||
-      matchHangul(c.supplier, consumableSearchQuery) ||
-      matchHangul(c.note, consumableSearchQuery)
+      matcher.testAny([c.modelName, c.category, c.supplier, c.note])
     );
   }, [consumables, consumableSearchQuery]);
 
   // 투입 대상 자산 초성/번호 검색 필터링 목록
   const filteredAssets = useMemo(() => {
-    if (!assetSearchQuery.trim()) return assets;
+    const q = assetSearchQuery.trim();
+    if (!q) return assets;
+    const matcher = createHangulMatcher(q);
     return assets.filter(a =>
-      matchHangul(a.assetNo, assetSearchQuery) ||
-      matchHangul(a.modelName, assetSearchQuery)
+      matcher.testAny([a.assetNo, a.modelName])
     );
   }, [assets, assetSearchQuery]);
 
@@ -188,23 +220,37 @@ export const ConsumableInOutPage: React.FC = () => {
       .sort((a, b) => b.requestDate.localeCompare(a.requestDate));
   }, [consumablePurchases]);
 
+  // 최근 출고 내역 (최대 10건)
+  const recentOuts = useMemo(() => {
+    const res: ConsumableLog[] = [];
+    for (const l of consumableLogs) {
+      if (l.type === 'OUTBOUND') {
+        res.push(l);
+        if (res.length >= 10) break;
+      }
+    }
+    return res;
+  }, [consumableLogs]);
+
   // 이력 필터링
   const filteredLogs = useMemo(() => {
+    const matcher = logSearch ? createHangulMatcher(logSearch) : null;
     return consumableLogs.filter(l => {
       const matchType = logTypeFilter === 'ALL' || l.type === logTypeFilter;
       const matchStart = !logStartDate || l.actionDate >= logStartDate;
       const matchEnd = !logEndDate || l.actionDate <= logEndDate;
       const matchUser = logUserFilter === 'ALL' || l.userId === logUserFilter || l.mechanicId === logUserFilter;
       const matchConsumable = logConsumableId === 'ALL' || l.consumableId === logConsumableId;
-      const item = consumables.find(c => c.id === l.consumableId);
-      const matchSearch = !logSearch || 
-        (item?.modelName || '').toLowerCase().includes(logSearch.toLowerCase()) || 
-        (l.description || '').toLowerCase().includes(logSearch.toLowerCase()) ||
-        (l.targetAssetId && getAssetNo(l.targetAssetId).toLowerCase().includes(logSearch.toLowerCase()));
+      const item = consumableMap.get(l.consumableId);
+      const matchSearch = !matcher || matcher.testAny([
+        item?.modelName,
+        l.description,
+        l.targetAssetId ? getAssetNo(l.targetAssetId) : ''
+      ]);
 
       return matchType && matchStart && matchEnd && matchUser && matchConsumable && matchSearch;
     }).sort((a, b) => (b.actionDate || '').localeCompare(a.actionDate || ''));
-  }, [consumableLogs, consumables, logTypeFilter, logStartDate, logEndDate, logUserFilter, logSearch, logConsumableId]);
+  }, [consumableLogs, consumableMap, assetMap, logTypeFilter, logStartDate, logEndDate, logUserFilter, logSearch, logConsumableId]);
 
   const { items: sortedPendingInbounds, sortConfig: inSortConfig, requestSort: requestInSort } = useSortableData<ConsumablePurchaseRequest>(
     pendingInbounds,
@@ -226,7 +272,7 @@ export const ConsumableInOutPage: React.FC = () => {
     filteredLogs,
     { key: 'date', direction: 'desc' },
     (l, key) => {
-      const item = consumables.find(c => c.id === l.consumableId);
+      const item = consumableMap.get(l.consumableId);
       switch (key) {
         case 'type': return l.type;
         case 'modelName': return item?.modelName || '';
@@ -349,7 +395,7 @@ export const ConsumableInOutPage: React.FC = () => {
     }
 
     // 횡령/부정 방지 1차 가드: 가용 재고 초과 출고 원천 차단
-    const item = consumables.find(c => c.id === useConsumableId);
+    const item = consumableMap.get(useConsumableId);
     if (!item || item.stockQty < useQty) {
       showErrorModal(`주기장 가용 재고(${item?.stockQty || 0}개)를 초과하여 ${useQty}개를 출고할 수 없습니다.`);
       return;
@@ -386,7 +432,7 @@ export const ConsumableInOutPage: React.FC = () => {
   // 엑셀 내보내기
   const handleExportLogs = () => {
     const excelData = sortedLogs.map((l, idx) => {
-      const item = consumables.find(c => c.id === l.consumableId);
+      const item = consumableMap.get(l.consumableId);
       return {
         'No': idx + 1,
         '구분': l.type === 'INBOUND' ? '구매입고' :
@@ -950,10 +996,6 @@ export const ConsumableInOutPage: React.FC = () => {
                 </thead>
                 <tbody>
                   {(() => {
-                    const recentOuts = consumableLogs
-                      .filter(l => l.type === 'OUTBOUND')
-                      .slice(0, 10);
-
                     if (recentOuts.length === 0) {
                       return (
                         <tr>
@@ -965,7 +1007,7 @@ export const ConsumableInOutPage: React.FC = () => {
                     }
 
                     return recentOuts.map(l => {
-                      const item = consumables.find(c => c.id === l.consumableId);
+                      const item = consumableMap.get(l.consumableId);
                       return (
                         <tr key={l.id}>
                           <td style={{ fontSize: '12px', whiteSpace: 'nowrap' }}>{l.actionDate}</td>
@@ -1117,7 +1159,7 @@ export const ConsumableInOutPage: React.FC = () => {
                     </tr>
                   ) : (
                     sortedLogs.map((l, idx) => {
-                      const item = consumables.find(c => c.id === l.consumableId);
+                      const item = consumableMap.get(l.consumableId);
                       const amount = (l.quantity || 0) * (l.unitPrice || 0);
 
                       return (

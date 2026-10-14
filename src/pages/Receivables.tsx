@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { db, Receivable } from '../services/db';
 import { Plus, Search, DollarSign, Calendar, FileText, CheckCircle, AlertTriangle, RotateCcw, Download, X } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
-import { matchHangul, sortCustomersByName } from '../utils/hangulSearch';
+import { matchHangul, createHangulMatcher, sortCustomersByName } from '../utils/hangulSearch';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
 
@@ -53,84 +53,139 @@ export const Receivables: React.FC = () => {
   const [formDisplayName, setFormDisplayName] = useState('');
   const [formOccurredDate, setFormOccurredDate] = useState(new Date().toISOString().split('T')[0]);
 
+  // ── 🗺️ O(1) 고속 조회용 인덱스 맵 (Precomputed Lookup Maps) ──
+  const customerMap = useMemo(() => {
+    const map = new Map<string, typeof customers[0]>();
+    customers.forEach(c => map.set(c.id, c));
+    return map;
+  }, [customers]);
+
+  const siteMap = useMemo(() => {
+    const map = new Map<string, typeof sites[0]>();
+    sites.forEach(s => map.set(s.id, s));
+    return map;
+  }, [sites]);
+
+  const contractMap = useMemo(() => {
+    const map = new Map<string, typeof contracts[0]>();
+    contracts.forEach(c => map.set(c.id, c));
+    return map;
+  }, [contracts]);
+
+  const sortedCustomers = useMemo(() => sortCustomersByName(customers), [customers]);
+
+  const sitesByCustomerMap = useMemo(() => {
+    const map = new Map<string, typeof sites>();
+    sites.forEach(s => {
+      if (!s.customerId) return;
+      const list = map.get(s.customerId);
+      if (list) list.push(s);
+      else map.set(s.customerId, [s]);
+    });
+    return map;
+  }, [sites]);
+
+  const contractsByCustomerMap = useMemo(() => {
+    const map = new Map<string, typeof contracts>();
+    contracts.forEach(c => {
+      if (!c.customerId) return;
+      const list = map.get(c.customerId);
+      if (list) list.push(c);
+      else map.set(c.customerId, [c]);
+    });
+    return map;
+  }, [contracts]);
+
+  const activeContractsByCustomerMap = useMemo(() => {
+    const map = new Map<string, typeof contracts>();
+    contracts.forEach(c => {
+      if (!c.customerId || c.status === 'COMPLETED') return;
+      const list = map.get(c.customerId);
+      if (list) list.push(c);
+      else map.set(c.customerId, [c]);
+    });
+    return map;
+  }, [contracts]);
+
   // 🔍 모달 검색어 기반 필터링된 고객사 목록 (초성 검색 지원)
   const modalFilteredCustomers = useMemo(() => {
-    if (!modalSearchTerm.trim()) return customers;
     const q = modalSearchTerm.trim().toLowerCase();
+    if (!q) return sortedCustomers;
+    const matcher = createHangulMatcher(q);
 
     const matched = customers.filter(cu => {
       // 1. 고객사명 직접 매칭 또는 한글 초성 매칭
-      if (matchHangul(cu.name, q) || cu.name.toLowerCase().includes(q)) return true;
+      if (matcher.test(cu.name)) return true;
       // 2. 사업자등록번호 매칭
       if (cu.bizRegNo && cu.bizRegNo.includes(q)) return true;
       // 3. 해당 고객사의 현장명 매칭 (초성 포함)
-      const hasMatchingSite = sites.some(s => s.customerId === cu.id && (matchHangul(s.name, q) || s.name.toLowerCase().includes(q)));
-      if (hasMatchingSite) return true;
+      const custSites = sitesByCustomerMap.get(cu.id);
+      if (custSites && custSites.some(s => matcher.test(s.name))) return true;
       // 4. 해당 고객사의 계약번호 매칭
-      const hasMatchingContract = contracts.some(c => c.customerId === cu.id && c.contractNo.toLowerCase().includes(q));
-      if (hasMatchingContract) return true;
+      const custContracts = contractsByCustomerMap.get(cu.id);
+      if (custContracts && custContracts.some(c => c.contractNo.toLowerCase().includes(q))) return true;
       return false;
     });
 
     // 이미 선택된 고객사가 있다면 검색 필터와 무관하게 목록 최상단에 보존
     if (modalSelectedCustId && !matched.some(cu => cu.id === modalSelectedCustId)) {
-      const selectedCust = customers.find(cu => cu.id === modalSelectedCustId);
+      const selectedCust = customerMap.get(modalSelectedCustId);
       if (selectedCust) return [selectedCust, ...sortCustomersByName(matched)];
     }
     return sortCustomersByName(matched);
-  }, [customers, sites, contracts, modalSearchTerm, modalSelectedCustId]);
+  }, [customers, sortedCustomers, customerMap, sitesByCustomerMap, contractsByCustomerMap, modalSearchTerm, modalSelectedCustId]);
 
   // 🔍 모달 검색어 기반 필터링된 현장 목록
   const modalFilteredSites = useMemo(() => {
     let baseSites = sites;
     if (modalSelectedCustId) {
-      baseSites = sites.filter(s => {
-        const hasCustContract = contracts.some(c => c.customerId === modalSelectedCustId && c.siteId === s.id);
-        const isDirectCustSite = s.customerId === modalSelectedCustId;
-        return hasCustContract || isDirectCustSite;
-      });
+      const custContracts = contractsByCustomerMap.get(modalSelectedCustId) || [];
+      const custContractSiteIds = new Set(custContracts.map(c => c.siteId).filter(Boolean));
+      baseSites = sites.filter(s => s.customerId === modalSelectedCustId || custContractSiteIds.has(s.id));
     }
 
-    if (!modalSearchTerm.trim()) return baseSites;
-    const q = modalSearchTerm.trim().toLowerCase();
+    const q = modalSearchTerm.trim();
+    if (!q) return baseSites;
+    const matcher = createHangulMatcher(q);
 
     const matched = baseSites.filter(s => {
-      if (matchHangul(s.name, q) || s.name.toLowerCase().includes(q)) return true;
-      if (s.address && (matchHangul(s.address, q) || s.address.toLowerCase().includes(q))) return true;
-      const cu = customers.find(c => c.id === s.customerId);
-      if (cu && (matchHangul(cu.name, q) || cu.name.toLowerCase().includes(q))) return true;
+      if (matcher.test(s.name)) return true;
+      if (s.address && matcher.test(s.address)) return true;
+      const cu = s.customerId ? customerMap.get(s.customerId) : undefined;
+      if (cu && matcher.test(cu.name)) return true;
       return false;
     });
 
     if (modalSelectedSiteId && !matched.some(s => s.id === modalSelectedSiteId)) {
-      const selectedSite = sites.find(s => s.id === modalSelectedSiteId);
+      const selectedSite = siteMap.get(modalSelectedSiteId);
       if (selectedSite) return [selectedSite, ...matched];
     }
     return matched;
-  }, [sites, customers, contracts, modalSelectedCustId, modalSearchTerm, modalSelectedSiteId]);
+  }, [sites, siteMap, customerMap, contractsByCustomerMap, modalSelectedCustId, modalSearchTerm, modalSelectedSiteId]);
 
   // 🔍 모달 검색어 기반 필터링된 계약 목록
   const modalFilteredContracts = useMemo(() => {
     const q = modalSearchTerm.trim().toLowerCase();
+    const matcher = q ? createHangulMatcher(q) : null;
 
     return contracts
       .filter(c => c.status !== 'COMPLETED')
       .filter(c => {
         if (modalSelectedCustId && c.customerId !== modalSelectedCustId) return false;
         if (modalSelectedSiteId && c.siteId !== modalSelectedSiteId) return false;
-        if (q) {
-          const cu = customers.find(x => x.id === c.customerId);
-          const s = sites.find(x => x.id === c.siteId);
+        if (matcher) {
+          const cu = customerMap.get(c.customerId);
+          const s = c.siteId ? siteMap.get(c.siteId) : undefined;
           const matches = (
             c.contractNo.toLowerCase().includes(q) ||
-            (cu?.name && (matchHangul(cu.name, q) || cu.name.toLowerCase().includes(q))) ||
-            (s?.name && (matchHangul(s.name, q) || s.name.toLowerCase().includes(q)))
+            (cu?.name && matcher.test(cu.name)) ||
+            (s?.name && matcher.test(s.name))
           );
           if (!matches) return false;
         }
         return true;
       });
-  }, [contracts, customers, sites, modalSelectedCustId, modalSelectedSiteId, modalSearchTerm]);
+  }, [contracts, customerMap, siteMap, modalSelectedCustId, modalSelectedSiteId, modalSearchTerm]);
 
   // ── 양방향 계약/고객/현장 자동 확정 핸들러 ──
   // 1. 검색창 입력 핸들러 (계약번호/고객사명/현장명/초성)
@@ -150,15 +205,16 @@ export const Receivables: React.FC = () => {
       return;
     }
 
+    const matcher = createHangulMatcher(term);
+
     // 고객사 검색 결과가 단 1개사로 특정되는 경우 고객사 자동 선택
     const matchedCusts = customers.filter(cu =>
-      matchHangul(cu.name, term) ||
-      cu.name.toLowerCase().includes(term) ||
+      matcher.test(cu.name) ||
       (cu.bizRegNo && cu.bizRegNo.includes(term))
     );
     if (matchedCusts.length === 1 && !modalSelectedCustId) {
       setModalSelectedCustId(matchedCusts[0].id);
-      const custContracts = contracts.filter(c => c.customerId === matchedCusts[0].id && c.status !== 'COMPLETED');
+      const custContracts = activeContractsByCustomerMap.get(matchedCusts[0].id) || [];
       if (custContracts.length === 1) {
         setFormContractId(custContracts[0].id);
         setModalSelectedSiteId(custContracts[0].siteId || '');
@@ -169,12 +225,12 @@ export const Receivables: React.FC = () => {
     // 부분 일치 진행 계약이 1건으로 특정되는 경우
     const matchedContracts = contracts.filter(c => {
       if (c.status === 'COMPLETED') return false;
-      const cu = customers.find(x => x.id === c.customerId);
-      const s = sites.find(x => x.id === c.siteId);
+      const cu = customerMap.get(c.customerId);
+      const s = c.siteId ? siteMap.get(c.siteId) : undefined;
       return (
         c.contractNo.toLowerCase().includes(term) ||
-        (cu?.name && (matchHangul(cu.name, term) || cu.name.toLowerCase().includes(term))) ||
-        (s?.name && (matchHangul(s.name, term) || s.name.toLowerCase().includes(term)))
+        (cu?.name && matcher.test(cu.name)) ||
+        (s?.name && matcher.test(s.name))
       );
     });
 
@@ -196,7 +252,7 @@ export const Receivables: React.FC = () => {
     }
 
     // 해당 고객사의 진행 계약이 1건인 경우 계약 및 현장 자동 확정
-    const custContracts = contracts.filter(c => c.customerId === custId && c.status !== 'COMPLETED');
+    const custContracts = activeContractsByCustomerMap.get(custId) || [];
     if (custContracts.length === 1) {
       const single = custContracts[0];
       setFormContractId(single.id);
@@ -234,7 +290,7 @@ export const Receivables: React.FC = () => {
   const handleContractSelect = (cId: string) => {
     setFormContractId(cId);
     if (!cId) return;
-    const c = contracts.find(x => x.id === cId);
+    const c = contractMap.get(cId);
     if (c) {
       setModalSelectedCustId(c.customerId);
       setModalSelectedSiteId(c.siteId || '');
@@ -302,54 +358,57 @@ export const Receivables: React.FC = () => {
     setEndDate(defaultEndDate);
   };
 
-  const filtered = receivables.filter(r => {
-    // 텍스트 검색
-    if (searchTerm) {
-      const c = contracts.find(x => x.id === r.contractId);
-      const cu = customers.find(x => x.id === r.customerId);
-      const s = c?.siteId ? sites.find(x => x.id === c.siteId) : null;
-      const term = searchTerm.toLowerCase();
-      const matchText = (
-        r.internalDescription.toLowerCase().includes(term) ||
-        (r.displayName || '').toLowerCase().includes(term) ||
-        (c?.contractNo || '').toLowerCase().includes(term) ||
-        (cu?.name || '').toLowerCase().includes(term) ||
-        (s?.name || '').toLowerCase().includes(term)
-      );
-      if (!matchText) return false;
-    }
+  const filtered = useMemo(() => {
+    const term = searchTerm.trim();
+    const matcher = term ? createHangulMatcher(term) : null;
 
-    // 고객사 필터
-    if (customerId !== 'ALL') {
-      const c = contracts.find(x => x.id === r.contractId);
+    return receivables.filter(r => {
+      // 유형 필터
+      if (filterType !== 'ALL' && r.type !== filterType) return false;
+
+      // 상태 필터
+      if (filterStatus === 'PENDING_PARTIAL') {
+        if (r.status === 'CLEARED') return false;
+      } else if (filterStatus !== 'ALL') {
+        if (r.status !== filterStatus) return false;
+      }
+
+      // 기간 필터 (발생일 기준)
+      if (startDate && r.occurredDate < startDate) return false;
+      if (endDate && r.occurredDate > endDate) return false;
+
+      const c = r.contractId ? contractMap.get(r.contractId) : undefined;
       const actualCustId = r.customerId || c?.customerId;
-      if (actualCustId !== customerId) return false;
-    }
 
-    // 유형 필터
-    if (filterType !== 'ALL' && r.type !== filterType) return false;
+      // 고객사 필터
+      if (customerId !== 'ALL' && actualCustId !== customerId) return false;
 
-    // 상태 필터
-    if (filterStatus === 'PENDING_PARTIAL') {
-      if (r.status === 'CLEARED') return false;
-    } else if (filterStatus !== 'ALL') {
-      if (r.status !== filterStatus) return false;
-    }
+      // 텍스트 검색 (한글 초성 및 부분일치 지원)
+      if (matcher) {
+        const cu = actualCustId ? customerMap.get(actualCustId) : undefined;
+        const s = c?.siteId ? siteMap.get(c.siteId) : undefined;
+        const matchText = matcher.testAny([
+          r.internalDescription,
+          r.displayName,
+          c?.contractNo,
+          cu?.name,
+          s?.name
+        ]);
+        if (!matchText) return false;
+      }
 
-    // 기간 필터 (발생일 기준)
-    if (startDate && r.occurredDate < startDate) return false;
-    if (endDate && r.occurredDate > endDate) return false;
-
-    return true;
-  }).sort((a: any, b: any) => new Date(b.occurredDate).getTime() - new Date(a.occurredDate).getTime());
+      return true;
+    }).sort((a: any, b: any) => (b.occurredDate || '').localeCompare(a.occurredDate || ''));
+  }, [receivables, contractMap, customerMap, siteMap, searchTerm, customerId, filterType, filterStatus, startDate, endDate]);
 
   const { items: sortedReceivables, sortConfig, requestSort } = useSortableData<Receivable>(
     filtered,
     null,
     (r, key) => {
-      const c = contracts.find(x => x.id === r.contractId);
-      const cu = customers.find(x => x.id === (r.customerId || c?.customerId));
-      const s = c?.siteId ? sites.find(x => x.id === c.siteId) : null;
+      const c = r.contractId ? contractMap.get(r.contractId) : undefined;
+      const actualCustId = r.customerId || c?.customerId;
+      const cu = actualCustId ? customerMap.get(actualCustId) : undefined;
+      const s = c?.siteId ? siteMap.get(c.siteId) : null;
       switch (key) {
         case 'occurredDate': return r.occurredDate;
         case 'customer': return cu?.name || '';
@@ -366,16 +425,27 @@ export const Receivables: React.FC = () => {
     }
   );
 
-  // 집계 데이터
-  const totalReceivableSum = filtered.reduce((sum, r) => sum + (r.totalAmount || 0), 0);
-  const totalBilledSum = filtered.reduce((sum, r) => sum + (r.billedAmount || 0), 0);
-  const totalRemainingSum = Math.max(0, totalReceivableSum - totalBilledSum);
+  // 집계 데이터 (1-Pass 단일 루프 집계)
+  const { totalReceivableSum, totalBilledSum, totalRemainingSum } = useMemo(() => {
+    let total = 0;
+    let billed = 0;
+    for (const r of filtered) {
+      total += r.totalAmount || 0;
+      billed += r.billedAmount || 0;
+    }
+    return {
+      totalReceivableSum: total,
+      totalBilledSum: billed,
+      totalRemainingSum: Math.max(0, total - billed)
+    };
+  }, [filtered]);
 
   const handleExportExcel = () => {
     const excelData = filtered.map((r, idx) => {
-      const c = contracts.find(x => x.id === r.contractId);
-      const cust = customers.find(x => x.id === (r.customerId || c?.customerId));
-      const s = c ? sites.find(x => x.id === c.siteId) : null;
+      const c = r.contractId ? contractMap.get(r.contractId) : undefined;
+      const actualCustId = r.customerId || c?.customerId;
+      const cust = actualCustId ? customerMap.get(actualCustId) : undefined;
+      const s = c?.siteId ? siteMap.get(c.siteId) : null;
       const remaining = Math.max(0, (r.totalAmount || 0) - (r.billedAmount || 0));
 
       return {
@@ -580,7 +650,7 @@ export const Receivables: React.FC = () => {
               style={{ padding: '5px 8px', fontSize: '12px', width: '140px', borderRadius: '4px' }}
             >
               <option value="ALL">전체 고객사</option>
-              {sortCustomersByName(customers).map(cu => (
+              {sortedCustomers.map(cu => (
                 <option key={cu.id} value={cu.id}>{cu.name}</option>
               ))}
             </select>
@@ -712,9 +782,10 @@ export const Receivables: React.FC = () => {
             </thead>
             <tbody style={{ whiteSpace: 'nowrap' }}>
               {sortedReceivables.map(r => {
-                const c = contracts.find(x => x.id === r.contractId);
-                const cu = customers.find(x => x.id === (r.customerId || c?.customerId));
-                const s = c?.siteId ? sites.find(x => x.id === c.siteId) : null;
+                const c = r.contractId ? contractMap.get(r.contractId) : undefined;
+                const actualCustId = r.customerId || c?.customerId;
+                const cu = actualCustId ? customerMap.get(actualCustId) : undefined;
+                const s = c?.siteId ? siteMap.get(c.siteId) : null;
                 const remaining = r.totalAmount - r.billedAmount;
 
                 return (
@@ -961,7 +1032,7 @@ export const Receivables: React.FC = () => {
                           : '전체 고객사'}
                       </option>
                       {modalFilteredCustomers.map(cu => {
-                        const activeCount = contracts.filter(c => c.customerId === cu.id && c.status !== 'COMPLETED').length;
+                        const activeCount = activeContractsByCustomerMap.get(cu.id)?.length || 0;
                         return (
                           <option key={cu.id} value={cu.id}>
                             {cu.name} {activeCount > 0 ? `(${activeCount}건)` : '(없음)'}
@@ -1006,8 +1077,8 @@ export const Receivables: React.FC = () => {
                           : '계약 미지정 (고객사 공통)'}
                       </option>
                       {modalFilteredContracts.map(c => {
-                        const cu = customers.find(x => x.id === c.customerId);
-                        const s = sites.find(x => x.id === c.siteId);
+                        const cu = customerMap.get(c.customerId);
+                        const s = c.siteId ? siteMap.get(c.siteId) : undefined;
                         return (
                           <option key={c.id} value={c.id}>
                             {c.contractNo} ({cu?.name || '고객사'} - {s?.name || '현장미지정'})
@@ -1020,15 +1091,15 @@ export const Receivables: React.FC = () => {
 
                 {/* 선택된 계약 상세 정보 확인 뱃지 카드 */}
                 {(() => {
-                  const selectedC = contracts.find(x => x.id === formContractId);
+                  const selectedC = formContractId ? contractMap.get(formContractId) : undefined;
                   if (!selectedC) return (
                     <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', padding: '2px' }}>
                       ※ 특정 계약/현장이 아닌 고객사 공통 외상으로 등록하려면 '계약 미지정'을 유지하세요.
                     </div>
                   );
 
-                  const cu = customers.find(x => x.id === selectedC.customerId);
-                  const s = sites.find(x => x.id === selectedC.siteId);
+                  const cu = customerMap.get(selectedC.customerId);
+                  const s = selectedC.siteId ? siteMap.get(selectedC.siteId) : undefined;
 
                   return (
                     <div style={{

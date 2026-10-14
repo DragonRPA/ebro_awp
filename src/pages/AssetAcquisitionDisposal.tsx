@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { calculateAssetDepreciation, Asset, Product, Vendor, Customer, SaleContractTerms } from '../services/db';
 import * as XLSX from 'xlsx';
 import { exportToExcel } from '../services/excel';
+import { createHangulMatcher } from '../utils/hangulSearch';
 import {
   ShoppingBag,
   TrendingDown,
@@ -55,6 +56,10 @@ export const AssetAcquisitionDisposal: React.FC = () => {
     showErrorModal,
     refreshAllData
   } = useApp();
+
+  // ── 🌟 [O(1) 룩업 해시맵 사전 인덱싱: 헌장 1.1] ──
+  const assetMap = useMemo(() => new Map((assets || []).map(a => [a.id, a])), [assets]);
+  const productByModelMap = useMemo(() => new Map((products || []).map(p => [p.modelName, p])), [products]);
 
   const defaultYard = currentTenant?.yards?.find(y => y.isDefault) || currentTenant?.yards?.[0];
   const canSave = hasPermission('acquisition_disposal', 'save');
@@ -150,10 +155,10 @@ export const AssetAcquisitionDisposal: React.FC = () => {
 
   // 💡 모델 초기 동기화 보장: products 로드 시 singleModelName이 비어있거나 불일치 시 첫 번째 모델로 즉시 동기화
   useEffect(() => {
-    if (products.length > 0 && (!singleModelName || !products.some(p => p.modelName === singleModelName))) {
+    if (products.length > 0 && (!singleModelName || !productByModelMap.has(singleModelName))) {
       handleModelChange(products[0].modelName);
     }
-  }, [products]);
+  }, [products, productByModelMap]);
 
   // 취득가 변경 핸들러: 메인 취득가 변경 시 슬롯들의 기본 취득가도 동일하게 자동 동기화
   const handleAcqPriceChange = (newPrice: number) => {
@@ -167,10 +172,10 @@ export const AssetAcquisitionDisposal: React.FC = () => {
     setMultiSlots(prev => prev.map(s => (!s.manufactureYear || s.manufactureYear === singleManufactureYear) ? { ...s, manufactureYear: newYear } : s));
   };
 
-  // 모델 선택 시 제품 마스터 제원 자동 상속
+  // 모델 선택 시 제품 마스터 제원 자동 상속 (O(1) 룩업)
   const selectedProduct = useMemo(() => {
-    return products.find(p => p.modelName === singleModelName);
-  }, [products, singleModelName]);
+    return productByModelMap.get(singleModelName);
+  }, [productByModelMap, singleModelName]);
 
   useEffect(() => {
     if (selectedProduct) {
@@ -715,16 +720,17 @@ export const AssetAcquisitionDisposal: React.FC = () => {
 
   // 좌측 상단: 선택된 모델 및 검색 필터링된 가용 자산 목록
   const filteredDisposalAssets = useMemo(() => {
+    const q = disposalSearchQuery.trim();
+    const matcher = q ? createHangulMatcher(q) : null;
+
     return availableForDisposalAssets.filter(a => {
       if (selectedDisposalModel !== 'ALL' && a.modelName !== selectedDisposalModel) {
         return false;
       }
-      if (disposalSearchQuery.trim()) {
-        const q = disposalSearchQuery.toLowerCase().trim();
-        const m1 = a.assetNo?.toLowerCase().includes(q);
-        const m2 = a.modelName?.toLowerCase().includes(q);
-        const m3 = a.serialNo?.toLowerCase().includes(q);
-        if (!m1 && !m2 && !m3) return false;
+      if (matcher) {
+        if (!matcher.test(a.assetNo) && !matcher.test(a.modelName) && !matcher.test(a.serialNo)) {
+          return false;
+        }
       }
       return true;
     }).sort((a, b) => {
@@ -771,10 +777,11 @@ export const AssetAcquisitionDisposal: React.FC = () => {
   const handleAddCheckedToBasket = () => {
     if (checkedAssetIds.size === 0) return;
     const newItems: DisposalBasketItem[] = [];
+    const targetDate = new Date(disposalDate);
     checkedAssetIds.forEach(id => {
-      const asset = assets.find(a => a.id === id);
+      const asset = assetMap.get(id);
       if (asset && !basketAssetIdSet.has(id)) {
-        const dep = calculateAssetDepreciation(asset, new Date(disposalDate));
+        const dep = calculateAssetDepreciation(asset, targetDate);
         newItems.push({
           id: asset.id,
           assetNo: asset.assetNo,
@@ -812,9 +819,10 @@ export const AssetAcquisitionDisposal: React.FC = () => {
 
   // 바구니 전체 매각단가를 현재 장부가로 일괄 설정
   const handleResetBasketPriceToBookValue = () => {
+    const targetDate = new Date(disposalDate);
     setDisposalBasket(prev => prev.map(b => {
-      const asset = assets.find(a => a.id === b.id);
-      const bv = asset ? calculateAssetDepreciation(asset, new Date(disposalDate)).bookValue : b.bookValue;
+      const asset = assetMap.get(b.id);
+      const bv = asset ? calculateAssetDepreciation(asset, targetDate).bookValue : b.bookValue;
       return { ...b, bookValue: bv, salePrice: bv };
     }));
     showToast('바구니의 모든 자산 매각단가가 현재 장부가치로 일괄 설정되었습니다.');
@@ -877,20 +885,24 @@ export const AssetAcquisitionDisposal: React.FC = () => {
     showToast(`총 ${disposalBasket.length}대의 매각 바구니 목록이 엑셀로 내보내기 되었습니다.`);
   };
 
-  // 구입처 (제조공급사 + 거래처 딜러) 통합 검색 필터링
+  // 구입처 (제조공급사 + 거래처 딜러) 통합 검색 필터링 (O(N) Set 중복제거 및 한글 초성 매처 호이스팅)
   const filteredSuppliersForSearch = useMemo(() => {
-    const q = supplierSearchQuery.trim().toLowerCase();
+    const q = supplierSearchQuery.trim();
+    const matcher = q ? createHangulMatcher(q) : null;
     const results: SelectedSupplierInfo[] = [];
+    const seenNames = new Set<string>();
 
     // 1. 등록 제조/공급사 (vendors)
-    vendors.forEach(v => {
+    for (let i = 0; i < vendors.length; i++) {
+      const v = vendors[i];
       if (
-        !q ||
-        (v.name && v.name.toLowerCase().includes(q)) ||
-        (v.bizRegNo && v.bizRegNo.includes(q)) ||
-        (v.representative && v.representative.toLowerCase().includes(q)) ||
-        (v.contact && v.contact.includes(q))
+        !matcher ||
+        matcher.test(v.name) ||
+        matcher.test(v.bizRegNo) ||
+        matcher.test(v.representative) ||
+        matcher.test(v.contact)
       ) {
+        if (v.name) seenNames.add(v.name.toLowerCase());
         results.push({
           name: v.name,
           bizRegNo: v.bizRegNo,
@@ -900,19 +912,23 @@ export const AssetAcquisitionDisposal: React.FC = () => {
           vendorId: v.id,
           sourceType: 'VENDOR'
         });
+        if (results.length >= 50) return results;
       }
-    });
+    }
 
     // 2. 고객사 및 중고 딜러 (customers)
-    customers.forEach(c => {
+    for (let i = 0; i < customers.length; i++) {
+      const c = customers[i];
       if (
-        !q ||
-        (c.name && c.name.toLowerCase().includes(q)) ||
-        (c.bizRegNo && c.bizRegNo.includes(q)) ||
-        (c.representative && c.representative.toLowerCase().includes(q)) ||
-        (c.repContact && c.repContact.includes(q))
+        !matcher ||
+        matcher.test(c.name) ||
+        matcher.test(c.bizRegNo) ||
+        matcher.test(c.representative) ||
+        matcher.test(c.repContact)
       ) {
-        if (!results.some(r => r.name.toLowerCase() === c.name.toLowerCase())) {
+        const lowerName = (c.name || '').toLowerCase();
+        if (!seenNames.has(lowerName)) {
+          if (lowerName) seenNames.add(lowerName);
           results.push({
             name: c.name,
             bizRegNo: c.bizRegNo,
@@ -922,11 +938,12 @@ export const AssetAcquisitionDisposal: React.FC = () => {
             email: c.repEmail,
             sourceType: 'CUSTOMER'
           });
+          if (results.length >= 50) return results;
         }
       }
-    });
+    }
 
-    return results.slice(0, 50);
+    return results;
   }, [vendors, customers, supplierSearchQuery]);
 
   // 검색 모달에서 구입처 선택 핸들러
@@ -942,17 +959,25 @@ export const AssetAcquisitionDisposal: React.FC = () => {
     showToast(`구입처로 [${supp.name}]이(가) 확정되었습니다.`);
   };
 
-  // 고객사/딜러 검색 결과 필터링
+  // 고객사/딜러 검색 결과 필터링 (한글 초성 매처 호이스팅)
   const filteredCustomersForSearch = useMemo(() => {
-    if (!buyerSearchQuery.trim()) return customers.slice(0, 30);
-    const q = buyerSearchQuery.toLowerCase().trim();
-    return customers.filter(c => {
-      const m1 = c.name?.toLowerCase().includes(q);
-      const m2 = c.bizRegNo?.includes(q);
-      const m3 = c.representative?.toLowerCase().includes(q);
-      const m4 = c.repContact?.includes(q);
-      return m1 || m2 || m3 || m4;
-    }).slice(0, 50);
+    const q = buyerSearchQuery.trim();
+    if (!q) return customers.slice(0, 30);
+    const matcher = createHangulMatcher(q);
+    const matched: Customer[] = [];
+    for (let i = 0; i < customers.length; i++) {
+      const c = customers[i];
+      if (
+        matcher.test(c.name) ||
+        matcher.test(c.bizRegNo) ||
+        matcher.test(c.representative) ||
+        matcher.test(c.repContact)
+      ) {
+        matched.push(c);
+        if (matched.length >= 50) break;
+      }
+    }
+    return matched;
   }, [customers, buyerSearchQuery]);
 
   // 검색 모달에서 고객사/딜러 선택 시

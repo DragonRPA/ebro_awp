@@ -8,6 +8,7 @@ import {
 import { exportToExcel } from '../services/excel';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
+import { createHangulMatcher } from '../utils/hangulSearch';
 
 export const PayrollPage: React.FC = () => {
   const { users, leaveUsages, overtimeRecords, payrollClosings, currentUser, hasPermission, setPayrollClosingStatus, saveUser } = useApp();
@@ -54,14 +55,34 @@ export const PayrollPage: React.FC = () => {
     onConfirm: () => void;
   } | null>(null);
 
-  // ─── [Gutenberg Z-패턴 4단계 최하단 급여 정산 대차대조식 검증] ───
+  // ─── [Gutenberg Z-패턴 4단계 최하단 급여 정산 대차대조식 검증 & 상단 KPI 통합 Single-Pass] ───
   const payrollAuditSummary = useMemo(() => {
     const totalCount = payrollList.length;
-    const totalGross = payrollList.reduce((sum, p) => sum + (p.baseSalary || 0) + (p.overtimeHours * p.ordinaryHourly * 1.5) + (p.manualAdjustmentAmount || 0), 0);
-    const totalDeductions = payrollList.reduce((sum, p) => sum + (p.nationalPension || 0) + (p.healthInsurance || 0) + (p.careInsurance || 0) + (p.employmentInsurance || 0) + (p.earnedIncomeTax || 0) + (p.localIncomeTax || 0), 0);
-    const totalNet = payrollList.reduce((sum, p) => sum + (p.netSalary || 0), 0);
+    let totalBase = 0;
+    let totalOtHours = 0;
+    let totalPay = 0;
+    let totalGross = 0;
+    let totalDeductions = 0;
+    let totalNet = 0;
 
-    return { totalCount, totalGross: Math.round(totalGross), totalDeductions: Math.round(totalDeductions), totalNet: Math.round(totalNet) };
+    for (const p of payrollList) {
+      totalBase += (p.baseSalary || 0);
+      totalOtHours += (p.overtimeHours || 0);
+      totalPay += (p.netPay || 0);
+      totalGross += (p.baseSalary || 0) + ((p.overtimeHours || 0) * (p.ordinaryHourly || 0) * 1.5) + (p.manualAdjustmentAmount || 0);
+      totalDeductions += (p.nationalPension || 0) + (p.healthInsurance || 0) + (p.careInsurance || 0) + (p.employmentInsurance || 0) + (p.earnedIncomeTax || 0) + (p.localIncomeTax || 0);
+      totalNet += (p.netSalary || 0);
+    }
+
+    return {
+      totalCount,
+      totalBase,
+      totalOtHours,
+      totalPay,
+      totalGross: Math.round(totalGross),
+      totalDeductions: Math.round(totalDeductions),
+      totalNet: Math.round(totalNet)
+    };
   }, [payrollList]);
 
   // 선택한 월이 변경되면 DB의 월별 마감 상태(payrollClosings) 자동 동기화
@@ -70,25 +91,22 @@ export const PayrollPage: React.FC = () => {
     setPayrollStatus(closing?.status || 'DRAFT');
   }, [selectedMonth, payrollClosings]);
 
-  // 사원별 당월 OT시간 및 연차/반차 소진 일수 계산 헬퍼
-  const calculateMonthLeaveOt = (empId: string, month: string) => {
-    const monthOtList = overtimeRecords.filter(ot => 
-      ot.userId === empId && 
-      (ot.startDateTime || '').substring(0, 7) === month
-    );
-    const otHours = monthOtList.reduce((sum, ot) => sum + (ot.hours || 0), 0);
-
-    const monthLeaveList = leaveUsages.filter(l => 
-      l.userId === empId && 
-      (l.startDate || '').substring(0, 7) === month
-    );
-    const leaveDays = monthLeaveList.reduce((sum, l) => sum + (l.usedDays || 0), 0);
-
-    return { otHours, leaveDays };
-  };
-
-  // 당월 급여 데이터 로드 및 leave_ot 자동 연동 (u.baseSalary DB 속성 우선 사용)
+  // 당월 급여 데이터 로드 및 leave_ot 자동 연동 (O(N+M) 1회 사전 그룹핑으로 최적화)
   const loadPayrollData = (month: string) => {
+    const otHoursByUser = new Map<string, number>();
+    for (const ot of overtimeRecords) {
+      if (ot.userId && (ot.startDateTime || '').substring(0, 7) === month) {
+        otHoursByUser.set(ot.userId, (otHoursByUser.get(ot.userId) || 0) + (ot.hours || 0));
+      }
+    }
+
+    const leaveDaysByUser = new Map<string, number>();
+    for (const l of leaveUsages) {
+      if (l.userId && (l.startDate || '').substring(0, 7) === month) {
+        leaveDaysByUser.set(l.userId, (leaveDaysByUser.get(l.userId) || 0) + (l.usedDays || 0));
+      }
+    }
+
     const activeStaff = users.filter(u => u.id !== 'sys-admin');
 
     const list = activeStaff.map(u => {
@@ -102,7 +120,8 @@ export const PayrollPage: React.FC = () => {
       }
 
       const ordinaryHourly = Math.round(baseSalary / 209);
-      const { otHours, leaveDays } = calculateMonthLeaveOt(u.id, month);
+      const otHours = otHoursByUser.get(u.id) || 0;
+      const leaveDays = leaveDaysByUser.get(u.id) || 0;
 
       const pObj = {
         employeeId: u.id,
@@ -289,8 +308,10 @@ export const PayrollPage: React.FC = () => {
   };
 
   const filteredPayrollList = useMemo(() => {
+    const q = empSearch.trim();
+    const matcher = q ? createHangulMatcher(q) : null;
     return payrollList.filter(p => {
-      const matchName = !empSearch || (p.name || '').includes(empSearch);
+      const matchName = !matcher || matcher(p.name || '');
       const matchDept = deptFilter === 'ALL' || p.deptName === deptFilter;
       const matchRole = roleFilter === 'ALL' || p.role === roleFilter;
       return matchName && matchDept && matchRole;
@@ -433,32 +454,24 @@ export const PayrollPage: React.FC = () => {
       </div>
 
       {/* 📊 당월 급여 집계 요약 바 */}
-      {(() => {
-        const totalBase = payrollList.reduce((sum, p) => sum + (p.baseSalary || 0), 0);
-        const totalNet = payrollList.reduce((sum, p) => sum + (p.netPay || 0), 0);
-        const totalOtHours = payrollList.reduce((sum, p) => sum + (p.overtimeHours || 0), 0);
-
-        return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: '6px', flexShrink: 0, gap: '8px' }}>
-            <div style={{ padding: '6px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-              <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '4px' }}>정산 대상 인원</div>
-              <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--primary)' }}>{payrollList.length}명</div>
-            </div>
-            <div style={{ padding: '6px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-              <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '4px' }}>기본급 합계</div>
-              <div style={{ fontSize: '16px', fontWeight: 800 }}>₩{totalBase.toLocaleString()}원</div>
-            </div>
-            <div style={{ padding: '6px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-              <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '4px' }}>총 OT 시간</div>
-              <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--warning)' }}>{totalOtHours}시간</div>
-            </div>
-            <div style={{ padding: '6px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-              <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '4px' }}>실지급 총액</div>
-              <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--success)' }}>₩{totalNet.toLocaleString()}원</div>
-            </div>
-          </div>
-        );
-      })()}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: '6px', flexShrink: 0, gap: '8px' }}>
+        <div style={{ padding: '6px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+          <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '4px' }}>정산 대상 인원</div>
+          <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--primary)' }}>{payrollAuditSummary.totalCount}명</div>
+        </div>
+        <div style={{ padding: '6px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+          <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '4px' }}>기본급 합계</div>
+          <div style={{ fontSize: '16px', fontWeight: 800 }}>₩{payrollAuditSummary.totalBase.toLocaleString()}원</div>
+        </div>
+        <div style={{ padding: '6px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+          <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '4px' }}>총 OT 시간</div>
+          <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--warning)' }}>{payrollAuditSummary.totalOtHours}시간</div>
+        </div>
+        <div style={{ padding: '6px 12px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+          <div style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '4px' }}>실지급 총액</div>
+          <div style={{ fontSize: '16px', fontWeight: 800, color: 'var(--success)' }}>₩{payrollAuditSummary.totalPay.toLocaleString()}원</div>
+        </div>
+      </div>
 
       <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'grid', gridTemplateColumns: '320px 1fr', gap: '10px', alignItems: 'stretch' }}>
         {/* 좌측 제어판 */}

@@ -15,7 +15,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useApp } from '../context/AppContext';
 import { db, Customer, CustomerSite, findCustomerByNormalizedName, StandardOption, VEHICLE_TYPE_OPTIONS } from '../services/db';
 import { EQUIPMENT_SPEC_MATRIX } from '../services/voiceOrderDraftService';
-import { matchHangul, sortCustomersByName } from '../utils/hangulSearch';
+import { matchHangul, createHangulMatcher, sortCustomersByName } from '../utils/hangulSearch';
 import {
   fetchMyDrafts, subscribeDraftUpdates, submitDraft, discardDraft,
   createDraftOrder, DraftDispatchOrder, mergeDrafts,
@@ -446,7 +446,7 @@ export const SmartDispatch4: React.FC = () => {
     };
   }, [loadDrafts, loadUploadsAndLogs, currentUser?.id, showToast, parseNoteMeta]);
 
-  const pendingCount = queue.filter(q => q.status === 'DRAFT').length;
+  const pendingCount = useMemo(() => queue.filter(q => q.status === 'DRAFT').length, [queue]);
 
   // ── 업무 유형 (기본값: 기존현장 출고) ──
   const [selectedContext, setSelectedContext] = useState<CallContext>('ADDITIONAL');
@@ -464,12 +464,19 @@ export const SmartDispatch4: React.FC = () => {
   };
 
   // 🛡️ 보양/유상옵션 정밀 분류 헬퍼
+  const protectionOptionNameSet = useMemo(() => {
+    const set = new Set<string>();
+    (standardOptions || []).forEach(o => {
+      if (o.category === 'PROTECTION' && o.name) set.add(o.name);
+    });
+    return set;
+  }, [standardOptions]);
+
   const isProtectionOption = useCallback((label: string): boolean => {
-    const protDefs = (standardOptions || []).filter(o => o.category === 'PROTECTION').map(o => o.name);
-    if (protDefs.includes(label)) return true;
+    if (protectionOptionNameSet.has(label)) return true;
     if (/보양|비닐보양|바닥보양|완충/i.test(label) && !/조이스틱|커버|센서|스위치/i.test(label)) return true;
     return false;
-  }, [standardOptions]);
+  }, [protectionOptionNameSet]);
 
   // 🌟 [현장 마스터 + 고객사 기본상속 + 과거 배차 이력 종합 옵션 자동 로드]
   const loadSiteSafetyOptions = useCallback((site: CustomerSite | null, cust: Customer | null) => {
@@ -584,19 +591,35 @@ export const SmartDispatch4: React.FC = () => {
   // ── 추가출고 옵션 첨삭 확인 모달 상태 ────────────────────────────────────
   const [optionConfirmModalOpen, setOptionConfirmModalOpen] = useState(false);
 
+  // 고객사별 현장 O(1) 인덱스 맵
+  const sitesByCustomerMap = useMemo(() => {
+    const map = new Map<string, CustomerSite[]>();
+    sites.forEach(s => {
+      if (!s.customerId) return;
+      const list = map.get(s.customerId);
+      if (list) list.push(s);
+      else map.set(s.customerId, [s]);
+    });
+    return map;
+  }, [sites]);
+
   // 🌟 검색어가 없을 때는 고객사를 일절 추천/제시하지 않음 (사용자 피드백 100% 반영)
   const filteredCustomers = useMemo(() => {
-    if (!customerQuery.trim()) return [];
-    return sortCustomersByName(customers.filter(c => matchHangul(c.name, customerQuery))).slice(0, 16);
+    const q = customerQuery.trim();
+    if (!q) return [];
+    const matcher = createHangulMatcher(q);
+    return sortCustomersByName(customers.filter(c => matcher.test(c.name))).slice(0, 16);
   }, [customers, customerQuery]);
 
   // 🌟 [고객 지정 전 현장 노출 완전 차단] 고객사 미선택 시 현장 목록 일절 노출 금지!
   const filteredSites = useMemo(() => {
     if (!selectedCustomer) return [];
-    const base = sites.filter(s => s.customerId === selectedCustomer.id);
-    if (!siteQuery.trim()) return base.slice(0, 16);
-    return base.filter(s => matchHangul(s.name, siteQuery)).slice(0, 16);
-  }, [sites, selectedCustomer, siteQuery]);
+    const base = sitesByCustomerMap.get(selectedCustomer.id) || [];
+    const q = siteQuery.trim();
+    if (!q) return base.slice(0, 16);
+    const matcher = createHangulMatcher(q);
+    return base.filter(s => matcher.test(s.name)).slice(0, 16);
+  }, [sitesByCustomerMap, selectedCustomer, siteQuery]);
 
   // 중복 접수 감지 (큐 + 배차 대장 동시 검사)
   const duplicateAlert = useMemo(() => {
@@ -640,7 +663,7 @@ export const SmartDispatch4: React.FC = () => {
   const [activeFt, setActiveFt] = useState(FT_GROUPS[0] || '19ft');
   const [modelSearchQuery, setModelSearchQuery] = useState('');
 
-  // 🌟 전사 제품 마스터(53종), 자산 대장, 제원 매트릭스 100% 통합 풀링
+  // 🌟 전사 제품 마스터(53종), 자산 대장, 제원 매트릭스 100% 통합 풀링 (O(A) 단일 패스 집계)
   const catalogModels = useMemo(() => {
     const map = new Map<string, {
       modelName: string;
@@ -654,11 +677,19 @@ export const SmartDispatch4: React.FC = () => {
     const allProds = products && products.length > 0 ? products : db.products;
     const allAssets = assets && assets.length > 0 ? assets : db.assets;
 
+    // 0. 가용 자산(AVAILABLE) 모델별 수량 O(A) 1-Pass 사전 집계
+    const availableCountByModel = new Map<string, number>();
+    for (const a of allAssets) {
+      if (a.modelName && a.status === 'AVAILABLE') {
+        availableCountByModel.set(a.modelName, (availableCountByModel.get(a.modelName) || 0) + 1);
+      }
+    }
+
     // 1. 등록 제품 마스터 (53종) 100% 등록
     for (const p of allProds) {
       if (!p.modelName) continue;
       const ftGroup = getFtGroup(p.feet, p.modelName);
-      const avail = allAssets.filter(a => a.modelName === p.modelName && a.status === 'AVAILABLE').length;
+      const avail = availableCountByModel.get(p.modelName) || 0;
       map.set(p.modelName, {
         modelName: p.modelName,
         ftGroup,
@@ -672,7 +703,7 @@ export const SmartDispatch4: React.FC = () => {
     // 2. 제원 매트릭스 (Skyjack 등)
     for (const s of EQUIPMENT_SPEC_MATRIX) {
       if (!map.has(s.modelName)) {
-        const avail = allAssets.filter(a => a.modelName === s.modelName && a.status === 'AVAILABLE').length;
+        const avail = availableCountByModel.get(s.modelName) || 0;
         map.set(s.modelName, {
           modelName: s.modelName,
           ftGroup: getFtGroup(undefined, s.modelName),
@@ -687,7 +718,7 @@ export const SmartDispatch4: React.FC = () => {
     // 3. 자산 대장 등록 모델
     for (const a of allAssets) {
       if (a.modelName && !map.has(a.modelName)) {
-        const avail = allAssets.filter(x => x.modelName === a.modelName && x.status === 'AVAILABLE').length;
+        const avail = availableCountByModel.get(a.modelName) || 0;
         map.set(a.modelName, {
           modelName: a.modelName,
           ftGroup: getFtGroup(undefined, a.modelName),
@@ -699,30 +730,50 @@ export const SmartDispatch4: React.FC = () => {
     return Array.from(map.values());
   }, [products, assets]);
 
+  const catalogModelMap = useMemo(() => {
+    const map = new Map<string, typeof catalogModels[0]>();
+    for (const m of catalogModels) map.set(m.modelName, m);
+    return map;
+  }, [catalogModels]);
+
+  const productByModelMap = useMemo(() => {
+    const map = new Map<string, any>();
+    const allProds = products && products.length > 0 ? products : db.products;
+    for (const p of allProds) {
+      if (p.modelName) map.set(p.modelName, p);
+    }
+    return map;
+  }, [products]);
+
+  const ftCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    map.set('전체', catalogModels.length);
+    for (const m of catalogModels) {
+      map.set(m.ftGroup, (map.get(m.ftGroup) || 0) + 1);
+    }
+    return map;
+  }, [catalogModels]);
+
   const displayedModels = useMemo(() => {
     let list = catalogModels;
     if (activeFt !== '전체') {
       list = list.filter(m => m.ftGroup === activeFt);
     }
-    if (modelSearchQuery.trim()) {
-      const q = modelSearchQuery.trim().toLowerCase();
-      list = list.filter(m =>
-        m.modelName.toLowerCase().includes(q) ||
-        (m.manufacturer && m.manufacturer.toLowerCase().includes(q)) ||
-        (m.spec && m.spec.toLowerCase().includes(q))
-      );
+    const q = modelSearchQuery.trim();
+    if (q) {
+      const matcher = createHangulMatcher(q);
+      list = list.filter(m => matcher.testAny([m.modelName, m.manufacturer, m.spec]));
     }
     return [...list].sort((a, b) => a.modelName.localeCompare(b.modelName));
   }, [catalogModels, activeFt, modelSearchQuery]);
 
   const getFtCount = useCallback((ft: string) => {
-    if (ft === '전체') return catalogModels.length;
-    return catalogModels.filter(m => m.ftGroup === ft).length;
-  }, [catalogModels]);
+    return ftCountMap.get(ft) || 0;
+  }, [ftCountMap]);
 
   const addModel = (modelName: string) => {
-    // 모델 기준 단가 조회 (기본 단가 자동 제안)
-    const prod = products.find(p => p.modelName === modelName);
+    // 모델 기준 단가 조회 (기본 단가 자동 제안, O(1))
+    const prod = productByModelMap.get(modelName);
     const defMonthly = (prod as any)?.standardPrice || (prod as any)?.monthlyPrice || 0;
     const defDaily = defMonthly > 0 ? Math.round(defMonthly / 30) : 0;
 
@@ -759,7 +810,16 @@ export const SmartDispatch4: React.FC = () => {
   const removeEquipment = (index: number) => {
     setEquipments(prev => prev.filter((_, i) => i !== index));
   };
-  const totalQty = equipments.reduce((s, e) => s + e.qty, 0);
+  const totalQty = useMemo(() => equipments.reduce((s, e) => s + e.qty, 0), [equipments]);
+  const pickedModelSet = useMemo(() => new Set(equipments.map(e => e.modelName)), [equipments]);
+  const totalAvailShortage = useMemo(() => {
+    let shortage = 0;
+    for (const eq of equipments) {
+      const avail = catalogModelMap.get(eq.modelName)?.availableCount ?? 0;
+      shortage += Math.max(0, eq.qty - avail);
+    }
+    return shortage;
+  }, [equipments, catalogModelMap]);
 
   // ── 4. 출고 및 하차 일정 ──────────────────────────────────────────────────
   const [loadingDate, setLoadingDate] = useState('');
@@ -3283,7 +3343,7 @@ export const SmartDispatch4: React.FC = () => {
                 {/* 모델 버튼 목록 */}
                 <div data-mid="dispatch4-model-chips" className="flex flex-wrap gap-2 max-h-[220px] overflow-y-auto pr-1">
                   {displayedModels.map(m => {
-                    const isPicked = equipments.some(e => e.modelName === m.modelName);
+                    const isPicked = pickedModelSet.has(m.modelName);
                     return (
                       <button
                         key={m.modelName}
@@ -3317,33 +3377,23 @@ export const SmartDispatch4: React.FC = () => {
                     className="mt-1 flex flex-col gap-1.5 p-2 rounded-lg border"
                     style={{ backgroundColor: 'var(--bg-app)', borderColor: 'var(--border-color)' }}
                   >
-                    {(() => {
-                      const totalAvailShortage = equipments.reduce((acc, eq) => {
-                        const spec = catalogModels.find(s => s.modelName === eq.modelName);
-                        const avail = spec?.availableCount ?? 0;
-                        return acc + Math.max(0, eq.qty - avail);
-                      }, 0);
-
-                      return (
-                        <div className="flex items-center justify-between px-1 flex-wrap gap-1">
-                          <span className="text-xs font-normal" style={{ color: 'var(--text-main)' }}>
-                            선택된 출고 장비 목록 ({equipments.length}종 / 총 {totalQty}대):
-                          </span>
-                          {totalAvailShortage > 0 ? (
-                            <span className="dispatch4-qty-badge shortage text-xs font-normal px-2 py-0.5 shadow-sm">
-                              <span>⚠️ 외부 임차 {totalAvailShortage}대 필요</span>
-                              <span className="font-normal">(가용 초과)</span>
-                            </span>
-                          ) : (
-                            <span className="dispatch4-qty-badge available text-xs font-normal px-2 py-0.5 shadow-sm">
-                              <span>✓ 전량 자사 가용재고 출고 가능</span>
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })()}
+                    <div className="flex items-center justify-between px-1 flex-wrap gap-1">
+                      <span className="text-xs font-normal" style={{ color: 'var(--text-main)' }}>
+                        선택된 출고 장비 목록 ({equipments.length}종 / 총 {totalQty}대):
+                      </span>
+                      {totalAvailShortage > 0 ? (
+                        <span className="dispatch4-qty-badge shortage text-xs font-normal px-2 py-0.5 shadow-sm">
+                          <span>⚠️ 외부 임차 {totalAvailShortage}대 필요</span>
+                          <span className="font-normal">(가용 초과)</span>
+                        </span>
+                      ) : (
+                        <span className="dispatch4-qty-badge available text-xs font-normal px-2 py-0.5 shadow-sm">
+                          <span>✓ 전량 자사 가용재고 출고 가능</span>
+                        </span>
+                      )}
+                    </div>
                     {equipments.map((eq, idx) => {
-                      const spec = catalogModels.find(s => s.modelName === eq.modelName);
+                      const spec = catalogModelMap.get(eq.modelName);
                       const ftLabel = spec?.feet ? `${spec.feet}ft` : (spec?.ftGroup && spec.ftGroup !== '전체' ? spec.ftGroup : undefined);
                       const availCount = spec?.availableCount ?? 0;
                       const shortage = Math.max(0, eq.qty - availCount);
@@ -4123,31 +4173,21 @@ export const SmartDispatch4: React.FC = () => {
 
             {/* 서식 테이블 3: 신청 장비 규격 */}
             <div>
-              {(() => {
-                const totalAvailShortage = equipments.reduce((acc, eq) => {
-                  const spec = catalogModels.find(s => s.modelName === eq.modelName);
-                  const avail = spec?.availableCount ?? 0;
-                  return acc + Math.max(0, eq.qty - avail);
-                }, 0);
-
-                return (
-                  <div className="text-xs font-black text-slate-300 mb-1.5 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <span>신청 장비 제원</span>
-                      {totalAvailShortage > 0 ? (
-                        <span className="text-[11px] font-black text-slate-950 bg-amber-400 px-2 py-0.5 rounded font-mono shadow-sm">
-                          (임차 {totalAvailShortage}대 필요)
-                        </span>
-                      ) : equipments.length > 0 ? (
-                        <span className="text-[11px] font-black text-white bg-emerald-600 px-2 py-0.5 rounded font-mono shadow-sm">
-                          (자사 가용 충족)
-                        </span>
-                      ) : null}
+              <div className="text-xs font-black text-slate-300 mb-1.5 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <span>신청 장비 제원</span>
+                  {totalAvailShortage > 0 ? (
+                    <span className="text-[11px] font-black text-slate-950 bg-amber-400 px-2 py-0.5 rounded font-mono shadow-sm">
+                      (임차 {totalAvailShortage}대 필요)
                     </span>
-                    <span className="text-blue-400 font-mono font-black text-xs">합계: {totalQty}대</span>
-                  </div>
-                );
-              })()}
+                  ) : equipments.length > 0 ? (
+                    <span className="text-[11px] font-black text-white bg-emerald-600 px-2 py-0.5 rounded font-mono shadow-sm">
+                      (자사 가용 충족)
+                    </span>
+                  ) : null}
+                </span>
+                <span className="text-blue-400 font-mono font-black text-xs">합계: {totalQty}대</span>
+              </div>
               <div className="border border-slate-700 rounded-lg overflow-hidden text-xs">
                 <div className="grid grid-cols-4 bg-slate-800 border-b border-slate-700 p-2 font-black text-slate-200 text-xs">
                   <div className="col-span-2">모델명</div>
@@ -4156,7 +4196,7 @@ export const SmartDispatch4: React.FC = () => {
                 </div>
                 {equipments.length > 0 ? (
                   equipments.map((eq, i) => {
-                    const spec = catalogModels.find(s => s.modelName === eq.modelName);
+                    const spec = catalogModelMap.get(eq.modelName);
                     const avail = spec?.availableCount ?? 0;
                     const shortage = Math.max(0, eq.qty - avail);
                     return (

@@ -143,19 +143,21 @@ export function containsChosung(text: string): boolean {
 }
 
 export interface HangulMatcher {
+  (target?: string | null): boolean;
   test: (target?: string | null) => boolean;
   testAny: (targets: (string | null | undefined)[]) => boolean;
 }
 
 /**
  * 검색어를 1회 전처리/컴파일하여 수천~수만 건 대량 데이터 반복 검색에 최적화된 고속 매처를 생성
+ * 직접 호출 `matcher(str)` 및 메서드 호출 `matcher.test(str)`, `matcher.testAny([...])` 모두 지원
  */
 export function createHangulMatcher(query?: string | null): HangulMatcher {
   if (!query || !query.trim()) {
-    return {
-      test: () => true,
-      testAny: () => true
-    };
+    const alwaysTrue = (() => true) as HangulMatcher;
+    alwaysTrue.test = () => true;
+    alwaysTrue.testAny = () => true;
+    return alwaysTrue;
   }
 
   const cleanQuery = decomposeComplexConsonants(query.trim());
@@ -189,7 +191,10 @@ export function createHangulMatcher(query?: string | null): HangulMatcher {
     return false;
   };
 
-  return { test, testAny };
+  const matcher = ((target?: string | null) => test(target)) as HangulMatcher;
+  matcher.test = test;
+  matcher.testAny = testAny;
+  return matcher;
 }
 
 /**

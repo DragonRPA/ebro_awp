@@ -3,8 +3,9 @@
 
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { PurchaseSettlement, PurchaseSettlementItem, PurchaseSettlementType, db } from '../services/db';
+import { PurchaseSettlement, PurchaseSettlementItem, PurchaseSettlementType, SettlementPaymentLog, db } from '../services/db';
 import { exportToExcel } from '../services/excel';
+import { createHangulMatcher } from '../utils/hangulSearch';
 import {
   Truck, ShoppingBag, Building2, Plus, CheckCircle2, CreditCard,
   ChevronDown, ChevronUp, FileText, AlertCircle, RefreshCw, X, Download, ExternalLink, Eye, Wrench, Database
@@ -66,7 +67,7 @@ export const PurchaseSettlementPage: React.FC = () => {
   // 🔍 지급 대사 상세 명세서 모달 상태 (Audit 1:N 이력)
   const [detailModalSettlementId, setDetailModalSettlementId] = useState<string | null>(null);
 
-  const [memoEditId, setMemoEditId]                = useState<string | null>(null);
+  const [memoEditId, setMemoEditId]                = useState(null as string | null);
   const [memoText, setMemoText]                    = useState('');
 
   // 증빙 파일 미리보기 모달 상태
@@ -81,33 +82,75 @@ export const PurchaseSettlementPage: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // ─── [Gutenberg Z-패턴 4단계 최하단 매입 대차대조식 검증] ───
-  const settlementAuditSummary = useMemo(() => {
-    const monthSettlements = purchaseSettlements.filter(s => s.settlementYm === selectedYm);
-    const totalCount = monthSettlements.length;
-    const totalAmount = monthSettlements.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
-    const totalPaid = monthSettlements.reduce((sum, s) => sum + (s.paidAmount || 0), 0);
-    const balance = totalAmount - totalPaid;
-    const confirmedCount = monthSettlements.filter(s => s.status === 'CONFIRMED' || s.status === 'PAID').length;
-    const paidCount = monthSettlements.filter(s => s.status === 'PAID').length;
-    const taxInvoiceIssuedCount = monthSettlements.filter(s => !!s.taxInvoiceNo).length;
+  // O(1) Lookups & 1:N Grouped Maps
+  const settlementMap = useMemo(() => new Map(purchaseSettlements.map(s => [s.id, s])), [purchaseSettlements]);
 
-    return { totalCount, totalAmount, totalPaid, balance, confirmedCount, paidCount, taxInvoiceIssuedCount };
+  const itemsBySettlementIdMap = useMemo(() => {
+    const map = new Map<string, PurchaseSettlementItem[]>();
+    for (let i = 0; i < purchaseSettlementItems.length; i++) {
+      const item = purchaseSettlementItems[i];
+      const list = map.get(item.settlementId);
+      if (list) list.push(item);
+      else map.set(item.settlementId, [item]);
+    }
+    return map;
+  }, [purchaseSettlementItems]);
+
+  const logsBySettlementIdMap = useMemo(() => {
+    const map = new Map<string, SettlementPaymentLog[]>();
+    for (let i = 0; i < settlementPaymentLogs.length; i++) {
+      const log = settlementPaymentLogs[i];
+      const list = map.get(log.settlementId);
+      if (list) list.push(log);
+      else map.set(log.settlementId, [log]);
+    }
+    return map;
+  }, [settlementPaymentLogs]);
+
+  const consumablePurchaseMap = useMemo(() => new Map(consumablePurchases.map(p => [p.id, p])), [consumablePurchases]);
+  const deliveryMap = useMemo(() => new Map(deliveries.map(d => [d.id, d])), [deliveries]);
+  const bankTxMap = useMemo(() => new Map(bankTransactions.map(bt => [bt.id, bt])), [bankTransactions]);
+
+  const withdrawTxs = useMemo(() => {
+    return bankTransactions.filter(tx => (tx.withdrawAmount || 0) > 0);
+  }, [bankTransactions]);
+
+  // ─── [Gutenberg Z-패턴 4단계 최하단 매입 대차대조식 검증] (단일 패스 집계) ───
+  const settlementAuditSummary = useMemo(() => {
+    let totalCount = 0;
+    let totalAmount = 0;
+    let totalPaid = 0;
+    let confirmedCount = 0;
+    let paidCount = 0;
+    let taxInvoiceIssuedCount = 0;
+
+    for (let i = 0; i < purchaseSettlements.length; i++) {
+      const s = purchaseSettlements[i];
+      if (s.settlementYm !== selectedYm) continue;
+      totalCount++;
+      totalAmount += s.totalAmount || 0;
+      totalPaid += s.paidAmount || 0;
+      if (s.status === 'CONFIRMED' || s.status === 'PAID') confirmedCount++;
+      if (s.status === 'PAID') paidCount++;
+      if (s.taxInvoiceNo) taxInvoiceIssuedCount++;
+    }
+
+    return { totalCount, totalAmount, totalPaid, balance: totalAmount - totalPaid, confirmedCount, paidCount, taxInvoiceIssuedCount };
   }, [purchaseSettlements, selectedYm]);
 
 
-  // 동적 원천 레코드 증빙 조회 (정산 항목에 없다면 원천 레코드에서 파악)
+  // 동적 원천 레코드 증빙 조회 (정산 항목에 없다면 원천 레코드에서 파악, O(1) Map 조회)
   const getItemEvidenceUrl = (item: PurchaseSettlementItem): string | undefined => {
     if (item.evidenceFileUrl && item.evidenceFileUrl !== '-' && item.evidenceFileUrl.trim() !== '') {
       return item.evidenceFileUrl;
     }
     if (item.sourceType === 'CONSUMABLE_PURCHASE') {
-      const cp = consumablePurchases.find(p => p.id === item.sourceId);
+      const cp = consumablePurchaseMap.get(item.sourceId);
       if (cp?.statementFileUrl && cp.statementFileUrl !== '-' && cp.statementFileUrl.trim() !== '') {
         return cp.statementFileUrl;
       }
     } else if (item.sourceType === 'DELIVERY') {
-      const d = deliveries.find(d => d.id === item.sourceId);
+      const d = deliveryMap.get(item.sourceId);
       if (d?.statementFileUrl && d.statementFileUrl !== '-' && d.statementFileUrl.trim() !== '') {
         return d.statementFileUrl;
       }
@@ -135,12 +178,17 @@ export const PurchaseSettlementPage: React.FC = () => {
     showToast(`증빙 정보: ${url}`);
   };
 
-  // 필터링된 정산 목록
+  // 필터링된 정산 목록 (단일 패스 필터 + 한글 초성 매처)
   const filtered = useMemo(() => {
+    const matcher = vendorSearch.trim() ? createHangulMatcher(vendorSearch) : null;
     return purchaseSettlements
-      .filter(p => p.settlementYm === selectedYm && (typeFilter === 'ALL' || p.settlementType === typeFilter))
-      .filter(p => payStatusFilter === 'ALL' || p.status === payStatusFilter)
-      .filter(p => !vendorSearch || (p.vendorName || '').toLowerCase().includes(vendorSearch.toLowerCase()))
+      .filter(p => {
+        if (p.settlementYm !== selectedYm) return false;
+        if (typeFilter !== 'ALL' && p.settlementType !== typeFilter) return false;
+        if (payStatusFilter !== 'ALL' && p.status !== payStatusFilter) return false;
+        if (matcher && !matcher.test(p.vendorName || '')) return false;
+        return true;
+      })
       .sort((a, b) => a.settlementType.localeCompare(b.settlementType) || a.vendorName.localeCompare(b.vendorName));
   }, [purchaseSettlements, selectedYm, typeFilter, payStatusFilter, vendorSearch]);
 
@@ -157,10 +205,14 @@ export const PurchaseSettlementPage: React.FC = () => {
     return opts;
   }, []);
 
-  // 요약 집계
+  // 요약 집계 (단일 패스)
   const summary = useMemo(() => {
-    const total = filtered.reduce((s, p) => s + p.totalAmount, 0);
-    const paid  = filtered.reduce((s, p) => s + p.paidAmount, 0);
+    let total = 0;
+    let paid = 0;
+    for (let i = 0; i < filtered.length; i++) {
+      total += filtered[i].totalAmount;
+      paid += filtered[i].paidAmount;
+    }
     return { total, paid, remaining: total - paid, count: filtered.length };
   }, [filtered]);
 
@@ -172,7 +224,7 @@ export const PurchaseSettlementPage: React.FC = () => {
     const rows = filtered.map((p, idx) => {
       const typeStr = TYPE_LABEL[p.settlementType] || p.settlementType;
       const statusStr = STATUS_LABEL[p.status]?.label || p.status;
-      const itemsCount = purchaseSettlementItems.filter(item => item.settlementId === p.id).length;
+      const itemsCount = (itemsBySettlementIdMap.get(p.id) || []).length;
       const supplyAmt = Math.round((p.totalAmount || 0) / 1.1);
       const taxAmt = (p.totalAmount || 0) - supplyAmt;
       return {
@@ -475,7 +527,7 @@ export const PurchaseSettlementPage: React.FC = () => {
               </tr>
             ) : (
               filtered.map(p => {
-                const items = purchaseSettlementItems.filter(i => i.settlementId === p.id);
+                const items = itemsBySettlementIdMap.get(p.id) || [];
                 const isExpanded = expandedId === p.id;
                 const statusInfo = STATUS_LABEL[p.status] || { label: p.status, color: '#888' };
                 const remaining = p.totalAmount - p.paidAmount;
@@ -870,7 +922,6 @@ export const PurchaseSettlementPage: React.FC = () => {
               </label>
 
               {(() => {
-                const withdrawTxs = bankTransactions.filter(tx => (tx.withdrawAmount || 0) > 0);
                 const remainingAmt = paymentModal.totalAmount - paymentModal.paidAmount;
 
                 if (withdrawTxs.length === 0) {
@@ -1116,12 +1167,12 @@ export const PurchaseSettlementPage: React.FC = () => {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '20px' }}>
           <div style={{ background: 'var(--bg-card)', borderRadius: '12px', width: '100%', maxWidth: '750px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', border: '1px solid var(--border-color)', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
             {(() => {
-              const targetSettlement = purchaseSettlements.find(s => s.id === detailModalSettlementId);
+              const targetSettlement = settlementMap.get(detailModalSettlementId);
               if (!targetSettlement) return null;
 
-              const targetItems = purchaseSettlementItems.filter(i => i.settlementId === targetSettlement.id);
-              const targetLogs = settlementPaymentLogs.filter(l => l.settlementId === targetSettlement.id);
-              const bankTx = targetSettlement.bankTransactionId ? bankTransactions.find(bt => bt.id === targetSettlement.bankTransactionId) : undefined;
+              const targetItems = itemsBySettlementIdMap.get(targetSettlement.id) || [];
+              const targetLogs = logsBySettlementIdMap.get(targetSettlement.id) || [];
+              const bankTx = targetSettlement.bankTransactionId ? bankTxMap.get(targetSettlement.bankTransactionId) : undefined;
 
               return (
                 <>

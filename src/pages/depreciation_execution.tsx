@@ -33,78 +33,98 @@ export const DepreciationExecution: React.FC = () => {
     onConfirm: () => void;
   } | null>(null);
 
-  // ─── [Gutenberg Z-패턴 4단계 최하단 감가상각 자산가치 대차대조식 검증] ───
-  const depreciationAuditSummary = useMemo(() => {
-    const owned = assets.filter(a => a.ownerType === 'OWNED');
-    const totalCount = owned.length;
-    const totalAcquisition = owned.reduce((sum, a) => sum + (a.acquisitionPrice || 0), 0);
-    const totalAccum = owned.reduce((sum, a) => sum + (a.accumDepreciation || 0), 0);
-    const totalBookValue = owned.reduce((sum, a) => sum + (a.bookValue || (a.acquisitionPrice || 0) - (a.accumDepreciation || 0)), 0);
+  // ─── [Gutenberg Z-패턴 4단계 최하단 감가상각 자산가치 대차대조식 검증 (Single-Pass Memo)] ───
+  const { ownedAssets, depreciationAuditSummary } = useMemo(() => {
+    const owned: typeof assets = [];
+    let totalAcquisition = 0;
+    let totalAccum = 0;
+    let totalBookValue = 0;
 
-    return { totalCount, totalAcquisition, totalAccum, totalBookValue };
+    for (const a of assets) {
+      if (a.ownerType !== 'OWNED') continue;
+      owned.push(a);
+      const acq = a.acquisitionPrice || 0;
+      const accum = a.accumDepreciation || 0;
+      totalAcquisition += acq;
+      totalAccum += accum;
+      totalBookValue += (a.bookValue ?? (acq - accum));
+    }
+
+    return {
+      ownedAssets: owned,
+      depreciationAuditSummary: {
+        totalCount: owned.length,
+        totalAcquisition,
+        totalAccum,
+        totalBookValue
+      }
+    };
   }, [assets]);
 
-  // 대상 연월 마감 완료 여부
-  const isAlreadyExecuted = depreciationLogs.some(l => l.depreciationYm === selectedYm);
-  const executedLog = depreciationLogs.find(l => l.depreciationYm === selectedYm);
+  // 대상 연월 마감 완료 여부 (O(1) Memo)
+  const executedLog = useMemo(() => depreciationLogs.find(l => l.depreciationYm === selectedYm), [depreciationLogs, selectedYm]);
+  const isAlreadyExecuted = Boolean(executedLog);
 
-  // 사전 시뮬레이션: 당사자산 중 당월 상각 대상 자산 수 및 예상 총상각액
-  const ownedAssets = assets.filter(a => a.ownerType === 'OWNED');
-  let estimatedCount = 0;
-  let estimatedTotalDepn = 0;
+  // 사전 시뮬레이션: 당사자산 중 당월 상각 대상 자산 수 및 예상 총상각액 (selectedYm 변경 시에만 재계산)
+  const { estimatedCount, estimatedTotalDepn } = useMemo(() => {
+    let count = 0;
+    let totalDepn = 0;
 
-  // 마감 연월의 말일 시점 Date 생성
-  const [ymYear, ymMonth] = selectedYm.split('-').map(Number);
-  const closingDate = new Date(ymYear, ymMonth, 0, 23, 59, 59, 999);
+    // 마감 연월의 말일 시점 Date 생성
+    const [ymYear, ymMonth] = selectedYm.split('-').map(Number);
+    const closingDate = new Date(ymYear, ymMonth, 0, 23, 59, 59, 999);
 
-  ownedAssets.forEach(asset => {
-    const cost = asset.acquisitionPrice || 0;
-    if (cost <= 0 || !asset.acquisitionDate || !asset.depreciationMonths || asset.depreciationMonths <= 0) return;
+    for (const asset of ownedAssets) {
+      const cost = asset.acquisitionPrice || 0;
+      if (cost <= 0 || !asset.acquisitionDate || !asset.depreciationMonths || asset.depreciationMonths <= 0) continue;
 
-    // 1. 취득일자 검증: 마감 연월 말일보다 미래 취득 자산 제외
-    const acqDate = new Date(asset.acquisitionDate);
-    if (isNaN(acqDate.getTime()) || acqDate > closingDate) return;
+      // 1. 취득일자 검증: 마감 연월 말일보다 미래 취득 자산 제외
+      const acqDate = new Date(asset.acquisitionDate);
+      if (isNaN(acqDate.getTime()) || acqDate > closingDate) continue;
 
-    // 2. 매각 여부 및 매각일자 검증: 매각 상태이거나 매각일이 마감 연월 이전인 경우 상각 중단
-    if (asset.status === 'SOLD' || asset.disposalDate) {
-      const dispDateStr = asset.disposalDate ? asset.disposalDate.substring(0, 7) : '';
-      if (dispDateStr && dispDateStr < selectedYm) return;
-    }
-
-    const residualRate = asset.residualValueRate ?? 0;
-    const residualValue = Math.round(cost * (residualRate / 100));
-    const depreciableAmount = cost - residualValue;
-    if (depreciableAmount <= 0) return;
-
-    const monthlyDepn = depreciableAmount / asset.depreciationMonths;
-    if (monthlyDepn <= 0) return;
-
-    // 3. 취득일부터 마감연월까지의 전체 경과월수 정밀 계산
-    let yearsDiff = closingDate.getFullYear() - acqDate.getFullYear();
-    let monthsDiff = closingDate.getMonth() - acqDate.getMonth();
-    let totalElapsedMonths = yearsDiff * 12 + monthsDiff + 1; // 취득당월 포함
-
-    if (totalElapsedMonths < 1) totalElapsedMonths = 1;
-
-    if ((asset.status === 'SOLD' || asset.disposalDate) && asset.disposalDate) {
-      const dispDate = new Date(asset.disposalDate);
-      if (!isNaN(dispDate.getTime()) && dispDate <= closingDate) {
-        let dispYears = dispDate.getFullYear() - acqDate.getFullYear();
-        let dispMonths = dispDate.getMonth() - acqDate.getMonth();
-        totalElapsedMonths = Math.max(1, dispYears * 12 + dispMonths + 1);
+      // 2. 매각 여부 및 매각일자 검증: 매각 상태이거나 매각일이 마감 연월 이전인 경우 상각 중단
+      if (asset.status === 'SOLD' || asset.disposalDate) {
+        const dispDateStr = asset.disposalDate ? asset.disposalDate.substring(0, 7) : '';
+        if (dispDateStr && dispDateStr < selectedYm) continue;
       }
+
+      const residualRate = asset.residualValueRate ?? 0;
+      const residualValue = Math.round(cost * (residualRate / 100));
+      const depreciableAmount = cost - residualValue;
+      if (depreciableAmount <= 0) continue;
+
+      const monthlyDepn = depreciableAmount / asset.depreciationMonths;
+      if (monthlyDepn <= 0) continue;
+
+      // 3. 취득일부터 마감연월까지의 전체 경과월수 정밀 계산
+      const yearsDiff = closingDate.getFullYear() - acqDate.getFullYear();
+      const monthsDiff = closingDate.getMonth() - acqDate.getMonth();
+      let totalElapsedMonths = yearsDiff * 12 + monthsDiff + 1; // 취득당월 포함
+
+      if (totalElapsedMonths < 1) totalElapsedMonths = 1;
+
+      if ((asset.status === 'SOLD' || asset.disposalDate) && asset.disposalDate) {
+        const dispDate = new Date(asset.disposalDate);
+        if (!isNaN(dispDate.getTime()) && dispDate <= closingDate) {
+          const dispYears = dispDate.getFullYear() - acqDate.getFullYear();
+          const dispMonths = dispDate.getMonth() - acqDate.getMonth();
+          totalElapsedMonths = Math.max(1, dispYears * 12 + dispMonths + 1);
+        }
+      }
+
+      const effectiveElapsed = Math.min(totalElapsedMonths, asset.depreciationMonths);
+      const targetAccum = Math.min(depreciableAmount, Math.round(monthlyDepn * effectiveElapsed));
+      const currentAccum = asset.accumDepreciation || 0;
+
+      const actualDepn = Math.max(0, targetAccum - currentAccum);
+      if (actualDepn <= 0) continue;
+
+      totalDepn += actualDepn;
+      count++;
     }
 
-    const effectiveElapsed = Math.min(totalElapsedMonths, asset.depreciationMonths);
-    const targetAccum = Math.min(depreciableAmount, Math.round(monthlyDepn * effectiveElapsed));
-    const currentAccum = asset.accumDepreciation || 0;
-
-    const actualDepn = Math.max(0, targetAccum - currentAccum);
-    if (actualDepn <= 0) return;
-
-    estimatedTotalDepn += actualDepn;
-    estimatedCount++;
-  });
+    return { estimatedCount: count, estimatedTotalDepn: totalDepn };
+  }, [ownedAssets, selectedYm]);
 
   const doExecute = async () => {
     setIsProcessing(true);

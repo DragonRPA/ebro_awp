@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Search, Plus, Edit2, Trash2, Download, Building2, Check, RefreshCw, Calendar, DollarSign, Clock, FolderOpen, ShieldAlert, CreditCard, Upload, FileText, FileCheck, AlertCircle, Loader2, Sparkles, ExternalLink } from 'lucide-react';
 import { exportToExcel } from '../services/excel';
@@ -11,6 +11,7 @@ import { analyzeBusinessLicense } from '../services/visionOcrService';
 import { checkSingleNtsStatus, NtsStatusResult } from '../services/ntsBusinessService';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
+import { createHangulMatcher } from '../utils/hangulSearch';
 
 type VendorTypeOption = 'RENTAL' | 'PURCHASE' | 'TRANSPORT' | 'REPAIR' | 'OTHER';
 
@@ -582,17 +583,78 @@ export const Vendors: React.FC = () => {
     return ['RENTAL'];
   };
 
-  const filtered = vendors.filter(v => {
-    const matchesSearch = 
-      v.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (v.bizRegNo && v.bizRegNo.includes(searchTerm)) ||
-      (v.representative && v.representative.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (v.contactName && v.contactName.toLowerCase().includes(searchTerm.toLowerCase()));
+  // O(1) 매입처별 거래유형 맵 및 상단 KPI 요약 (Single-pass)
+  const { vendorTypesMap, vendorStats } = useMemo(() => {
+    const tMap = new Map<string, VendorTypeOption[]>();
+    let rentalCount = 0;
+    let transportCount = 0;
+    let repairCount = 0;
+    let purchaseCount = 0;
+    let totalPurchaseSum = 0;
+    let startedVendorsCount = 0;
 
-    const vTypes = getVendorTypes(v);
-    const matchesType = typeFilter === 'ALL' || vTypes.includes(typeFilter as VendorTypeOption);
-    return matchesSearch && matchesType;
-  });
+    for (const v of vendors) {
+      const vTypes = getVendorTypes(v);
+      tMap.set(v.id, vTypes);
+
+      const rawStr = JSON.stringify(v.types || v.type || '');
+      if (rawStr.includes('RENTAL')) rentalCount++;
+      if (rawStr.includes('TRANSPORT')) transportCount++;
+      if (rawStr.includes('REPAIR')) repairCount++;
+      if (rawStr.includes('PURCHASE')) purchaseCount++;
+      totalPurchaseSum += v.totalPurchaseAmount || 0;
+      if (v.firstTradeDate) startedVendorsCount++;
+    }
+
+    return {
+      vendorTypesMap: tMap,
+      vendorStats: {
+        rentalCount,
+        transportCount,
+        repairCount,
+        purchaseCount,
+        totalPurchaseSum,
+        startedVendorsCount
+      }
+    };
+  }, [vendors]);
+
+  const filtered = useMemo(() => {
+    const matcher = searchTerm ? createHangulMatcher(searchTerm) : null;
+    return vendors.filter(v => {
+      const matchesSearch = !matcher || matcher.testAny([
+        v.name,
+        v.bizRegNo,
+        v.representative,
+        v.contactName
+      ]);
+
+      const vTypes = vendorTypesMap.get(v.id) || getVendorTypes(v);
+      const matchesType = typeFilter === 'ALL' || vTypes.includes(typeFilter as VendorTypeOption);
+      return matchesSearch && matchesType;
+    });
+  }, [vendors, searchTerm, typeFilter, vendorTypesMap]);
+
+  // 하단 대차대조식 요약 바 집계 (Single-pass)
+  const filteredStats = useMemo(() => {
+    const totalVendors = filtered.length;
+    let startedVendors = 0;
+    let filteredPurchaseSum = 0;
+    let activeCount = 0;
+    for (const v of filtered) {
+      if (v.firstTradeDate) startedVendors++;
+      filteredPurchaseSum += v.totalPurchaseAmount || 0;
+      if (v.isActive !== false) activeCount++;
+    }
+    return {
+      totalVendors,
+      startedVendors,
+      unstartedVendors: totalVendors - startedVendors,
+      filteredPurchaseSum,
+      activeCount,
+      inactiveCount: totalVendors - activeCount
+    };
+  }, [filtered]);
 
   const { items: sortedVendors, sortConfig, requestSort } = useSortableData<Vendor>(
     filtered,
@@ -600,7 +662,7 @@ export const Vendors: React.FC = () => {
     (v, key) => {
       switch (key) {
         case 'name': return v.name;
-        case 'types': return getVendorTypes(v).join(', ');
+        case 'types': return (vendorTypesMap.get(v.id) || getVendorTypes(v)).join(', ');
         case 'firstTradeDate': return v.firstTradeDate || '';
         case 'tradeDuration': return v.firstTradeDate || '';
         case 'totalPurchaseAmount': return v.totalPurchaseAmount || 0;
@@ -620,7 +682,7 @@ export const Vendors: React.FC = () => {
   const handleExport = () => {
     const isPrivileged = isPrivilegedPrivacyUser(currentUser);
     const data = sortedVendors.map(v => {
-      const vTypes = getVendorTypes(v);
+      const vTypes = vendorTypesMap.get(v.id) || getVendorTypes(v);
       const typeLabels = vTypes.map(t => VENDOR_TYPE_CONFIG[t]?.label || t).join(', ');
       return {
         '매입처ID': v.id,
@@ -718,39 +780,28 @@ export const Vendors: React.FC = () => {
       </div>
 
       {/* 📊 매입처 등록 현황 요약 바 */}
-      {(() => {
-        const rentalCount = vendors.filter(v => JSON.stringify(v.types || v.type || '').includes('RENTAL')).length;
-        const transportCount = vendors.filter(v => JSON.stringify(v.types || v.type || '').includes('TRANSPORT')).length;
-        const repairCount = vendors.filter(v => JSON.stringify(v.types || v.type || '').includes('REPAIR')).length;
-        const purchaseCount = vendors.filter(v => JSON.stringify(v.types || v.type || '').includes('PURCHASE')).length;
-        const totalPurchaseSum = vendors.reduce((sum, v) => sum + (v.totalPurchaseAmount || 0), 0);
-        const startedVendorsCount = vendors.filter(v => !!v.firstTradeDate).length;
-
-        return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', marginBottom: 0, flexShrink: 0 }}>
-            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>총 매입 협력처</span>
-              <strong style={{ fontSize: '15px', color: 'var(--primary)', whiteSpace: 'nowrap' }}>{vendors.length}개사</strong>
-            </div>
-            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>전사 매입 누적거래액</span>
-              <strong style={{ fontSize: '15px', color: 'var(--success)', whiteSpace: 'nowrap' }}>₩{totalPurchaseSum.toLocaleString()}</strong>
-            </div>
-            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>거래 개시처</span>
-              <strong style={{ fontSize: '15px', color: '#8b5cf6', whiteSpace: 'nowrap' }}>{startedVendorsCount}개사</strong>
-            </div>
-            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>임차 / 운송사</span>
-              <strong style={{ fontSize: '15px', color: 'var(--primary)', whiteSpace: 'nowrap' }}>{rentalCount + transportCount}개사</strong>
-            </div>
-            <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>외주 정비 / 구매처</span>
-              <strong style={{ fontSize: '15px', color: 'var(--warning)', whiteSpace: 'nowrap' }}>{repairCount + purchaseCount}개사</strong>
-            </div>
-          </div>
-        );
-      })()}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', marginBottom: 0, flexShrink: 0 }}>
+        <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>총 매입 협력처</span>
+          <strong style={{ fontSize: '15px', color: 'var(--primary)', whiteSpace: 'nowrap' }}>{vendors.length}개사</strong>
+        </div>
+        <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>전사 매입 누적거래액</span>
+          <strong style={{ fontSize: '15px', color: 'var(--success)', whiteSpace: 'nowrap' }}>₩{vendorStats.totalPurchaseSum.toLocaleString()}</strong>
+        </div>
+        <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>거래 개시처</span>
+          <strong style={{ fontSize: '15px', color: '#8b5cf6', whiteSpace: 'nowrap' }}>{vendorStats.startedVendorsCount}개사</strong>
+        </div>
+        <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>임차 / 운송사</span>
+          <strong style={{ fontSize: '15px', color: 'var(--primary)', whiteSpace: 'nowrap' }}>{vendorStats.rentalCount + vendorStats.transportCount}개사</strong>
+        </div>
+        <div style={{ padding: '10px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>외주 정비 / 구매처</span>
+          <strong style={{ fontSize: '15px', color: 'var(--warning)', whiteSpace: 'nowrap' }}>{vendorStats.repairCount + vendorStats.purchaseCount}개사</strong>
+        </div>
+      </div>
 
       {/* 검색 및 필터 패널 (3.4 상하 스택 레이아웃 표준 준수) */}
       <div className="card" style={{ padding: '12px 14px', flexShrink: 0 }}>
@@ -1041,43 +1092,32 @@ export const Vendors: React.FC = () => {
         </div>
 
         {/* 🏛️ 헌장 3.5 Gutenberg Z-패턴 4단계 대차대조식 무결성 검증 바 */}
-        {(() => {
-          const totalVendors = filtered.length;
-          const startedVendors = filtered.filter(v => !!v.firstTradeDate).length;
-          const unstartedVendors = totalVendors - startedVendors;
-          const filteredPurchaseSum = filtered.reduce((sum, v) => sum + (v.totalPurchaseAmount || 0), 0);
-          const activeCount = filtered.filter(v => v.isActive !== false).length;
-          const inactiveCount = totalVendors - activeCount;
-
-          return (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '10px 16px',
-              backgroundColor: 'var(--bg-app)',
-              borderTop: '1px solid var(--border-color)',
-              flexShrink: 0,
-              fontSize: '12px'
-            }}>
-              <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>
-                  📄 <strong>조회 매입처:</strong> <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{totalVendors}</span>개사
-                </span>
-                <span style={{ color: 'var(--text-secondary)' }}>
-                  🟢 <strong>거래개시:</strong> <span style={{ color: 'var(--primary)', fontWeight: 700 }}>{startedVendors}</span>개사 
-                  <span style={{ color: 'var(--text-muted)', fontSize: '11px', marginLeft: '4px' }}>(미개시 {unstartedVendors}사)</span>
-                </span>
-                <span style={{ color: 'var(--text-secondary)' }}>
-                  🏢 <strong>상태:</strong> 정상 <span style={{ color: 'var(--success)', fontWeight: 700 }}>{activeCount}</span>사 / 중단 <span style={{ color: 'var(--danger)', fontWeight: 700 }}>{inactiveCount}</span>사
-                </span>
-                <span style={{ color: 'var(--text-secondary)' }}>
-                  💰 <strong>조회 누적거래액 합계:</strong> <span style={{ color: 'var(--success)', fontWeight: 700 }}>₩{filteredPurchaseSum.toLocaleString()}</span>
-                </span>
-              </div>
-            </div>
-          );
-        })()}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '10px 16px',
+          backgroundColor: 'var(--bg-app)',
+          borderTop: '1px solid var(--border-color)',
+          flexShrink: 0,
+          fontSize: '12px'
+        }}>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>
+              📄 <strong>조회 매입처:</strong> <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{filteredStats.totalVendors}</span>개사
+            </span>
+            <span style={{ color: 'var(--text-secondary)' }}>
+              🟢 <strong>거래개시:</strong> <span style={{ color: 'var(--primary)', fontWeight: 700 }}>{filteredStats.startedVendors}</span>개사 
+              <span style={{ color: 'var(--text-muted)', fontSize: '11px', marginLeft: '4px' }}>(미개시 {filteredStats.unstartedVendors}사)</span>
+            </span>
+            <span style={{ color: 'var(--text-secondary)' }}>
+              🏢 <strong>상태:</strong> 정상 <span style={{ color: 'var(--success)', fontWeight: 700 }}>{filteredStats.activeCount}</span>사 / 중단 <span style={{ color: 'var(--danger)', fontWeight: 700 }}>{filteredStats.inactiveCount}</span>사
+            </span>
+            <span style={{ color: 'var(--text-secondary)' }}>
+              💰 <strong>조회 누적거래액 합계:</strong> <span style={{ color: 'var(--success)', fontWeight: 700 }}>₩{filteredStats.filteredPurchaseSum.toLocaleString()}</span>
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* 등록 / 수정 모달 */}

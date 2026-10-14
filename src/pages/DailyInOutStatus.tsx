@@ -9,6 +9,7 @@ import {
 import { exportToExcel } from '../services/excel';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
+import { createHangulMatcher } from '../utils/hangulSearch';
 
 export interface InOutEventItem {
   id: string;
@@ -31,7 +32,7 @@ export interface InOutEventItem {
 export const DailyInOutStatus: React.FC = () => {
   const { 
     assetInOutLogs, deliveries, assets, contracts, customers, sites, 
-    contractAssets, fullRefreshFromServer, showErrorModal, theme 
+    fullRefreshFromServer, showErrorModal, theme 
   } = useApp();
 
   const isDark = theme === 'dark';
@@ -91,7 +92,7 @@ export const DailyInOutStatus: React.FC = () => {
     return map;
   }, [assets]);
 
-  // ── 🏢 고객사 및 현장명 매핑 맵 ──
+  // ── 🏢 고객사, 현장명 및 계약 매핑 맵 (O(1) 룩업) ──
   const customerMap = useMemo(() => {
     const map = new Map<string, string>();
     (customers || []).forEach(c => map.set(c.id, c.name));
@@ -103,6 +104,12 @@ export const DailyInOutStatus: React.FC = () => {
     (sites || []).forEach(s => map.set(s.id, s.name));
     return map;
   }, [sites]);
+
+  const contractMap = useMemo(() => {
+    const map = new Map<string, any>();
+    (contracts || []).forEach(c => map.set(c.id, c));
+    return map;
+  }, [contracts]);
 
   // ── 📋 통합 비즈니스 이벤트 추출 파이프라인 (실적 + 예정) ──
   const allEvents = useMemo(() => {
@@ -143,7 +150,7 @@ export const DailyInOutStatus: React.FC = () => {
       // 하지만 실적+예정 전체를 투명하게 보되, 소스를 명확히 분리
       const isActualDelivered = del.status === 'DELIVERED';
 
-      const relContract = del.contractId ? contracts.find(c => c.id === del.contractId) : null;
+      const relContract = del.contractId ? contractMap.get(del.contractId) : null;
       const custName = relContract?.customerId ? customerMap.get(relContract.customerId) : undefined;
       const sName = relContract?.siteId ? siteMap.get(relContract.siteId) : undefined;
 
@@ -285,7 +292,7 @@ export const DailyInOutStatus: React.FC = () => {
     });
 
     return list;
-  }, [assetInOutLogs, deliveries, assetMap, customerMap, siteMap, contracts]);
+  }, [assetInOutLogs, deliveries, assetMap, customerMap, siteMap, contractMap]);
 
   // ── 🔍 전체 모델명 목록 추출 (필터 드롭다운용) ──
   const uniqueModelList = useMemo(() => {
@@ -301,6 +308,9 @@ export const DailyInOutStatus: React.FC = () => {
 
   // ── 🎯 필터링 적용된 이벤트 목록 ──
   const filteredEvents = useMemo(() => {
+    const kw = searchKeyword.trim();
+    const matcher = kw ? createHangulMatcher(kw) : null;
+
     return allEvents.filter(e => {
       // 1. 유형 필터 (입고 / 출고)
       if (filterType !== 'ALL' && e.inOutType !== filterType) return false;
@@ -312,16 +322,14 @@ export const DailyInOutStatus: React.FC = () => {
       if (modelFilter !== 'ALL' && e.modelName !== modelFilter) return false;
 
       // 4. 검색어 필터
-      if (searchKeyword.trim()) {
-        const kw = searchKeyword.trim().toLowerCase();
-        const matchModel = e.modelName.toLowerCase().includes(kw);
-        const matchCust = (e.customerName || '').toLowerCase().includes(kw);
-        const matchSite = (e.siteName || '').toLowerCase().includes(kw);
-        const matchAsset = e.assetNos.some(no => no.toLowerCase().includes(kw));
-        const matchContract = (e.contractNo || '').toLowerCase().includes(kw);
-        if (!matchModel && !matchCust && !matchSite && !matchAsset && !matchContract) {
-          return false;
-        }
+      if (matcher) {
+        const matched =
+          matcher.test(e.modelName) ||
+          matcher.test(e.customerName) ||
+          matcher.test(e.siteName) ||
+          matcher.test(e.contractNo) ||
+          e.assetNos.some(no => matcher.test(no));
+        if (!matched) return false;
       }
 
       return true;

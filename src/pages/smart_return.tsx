@@ -1,9 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Zap, Clipboard, FileText, Check, Search, ArrowUpDown, Shield, AlertTriangle, Printer, RotateCcw, Copy, PhoneCall, Sparkles } from 'lucide-react';
 import { SmartReturnData } from '../context/AppContext';
 import { fetchMyDrafts, DraftDispatchOrder, discardDraft } from '../services/callUploadService';
-import { matchHangul, compareCustomerNames } from '../utils/hangulSearch';
+import { createHangulMatcher, compareCustomerNames } from '../utils/hangulSearch';
+
+// 출고 시 장착 옵션 회수 상속 검수 마스터
+const RETURN_CHECK_SPECS = [
+  { id: 'spec1', label: '철망 / 함석 설치 부속품 (판넬/볼트)', keywords: ['철망', '함석', '사면철망', '1면', '2면', '3면', '4면', '5면', '망'] },
+  { id: 'spec2', label: '확장대 철망 / 함석 부속품', keywords: ['확장대 철망', '확장대 함석', '확장대철망', '확장대함석'] },
+  { id: 'spec3', label: '상단 감지봉 / 협착 방지 센서', keywords: ['감지봉', '감지봉 4ea', '상단감지', '협착', '센서', '4ea', '감지봉4ea'] },
+  { id: 'spec4', label: '원판 부착물', keywords: ['원판설치', '원판'] },
+  { id: 'spec9', label: '소화기함 및 거치대 / 소화기', keywords: ['소화기함', '기타 스티커물', '소화기'] },
+  { id: 'spec10', label: '조이스틱 보호 커버', keywords: ['조이스틱 커버', '커버 연장'] },
+  { id: 'spec14', label: '전용 충전기 및 전원선', keywords: ['충전기', '전원선', '릴선'] }
+];
 
 export const SmartReturn: React.FC = () => {
   const { hasPermission, saveSmartReturn, contracts, customers, sites, siteMasters, contacts, deliveries, contractAssets, assets, repairs, vendors, currentUser, users, currentTenant, printStations, enqueuePrintJob, showPrintSuccessModal } = useApp();
@@ -16,11 +27,50 @@ export const SmartReturn: React.FC = () => {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  // ⚡ O(1) 엔티티 조회용 Map 사전 인덱싱
+  const customerMap = useMemo(() => new Map((customers || []).map(c => [c.id, c])), [customers]);
+  const siteMap = useMemo(() => new Map((sites || []).map(s => [s.id, s])), [sites]);
+  const siteMasterMap = useMemo(() => new Map((siteMasters || []).map(sm => [sm.id, sm])), [siteMasters]);
+  const contractMap = useMemo(() => new Map((contracts || []).map(c => [c.id, c])), [contracts]);
+  const assetMap = useMemo(() => new Map((assets || []).map(a => [a.id, a])), [assets]);
+  const contactMap = useMemo(() => new Map((contacts || []).map(ct => [ct.id, ct])), [contacts]);
+  const vendorMap = useMemo(() => new Map((vendors || []).map(v => [v.id, v])), [vendors]);
+  const repairMap = useMemo(() => new Map((repairs || []).map(r => [r.id, r])), [repairs]);
+
+  const contractAssetsByContractMap = useMemo(() => {
+    const map = new Map<string, typeof contractAssets>();
+    for (const ca of contractAssets || []) {
+      if (!ca.contractId || !ca.assetId) continue;
+      let list = map.get(ca.contractId);
+      if (!list) {
+        list = [];
+        map.set(ca.contractId, list);
+      }
+      list.push(ca);
+    }
+    return map;
+  }, [contractAssets]);
+
+  const deliveryLookupByContract = useMemo(() => {
+    const outboundMap = new Map<string, any>();
+    const anyDeliveryMap = new Map<string, any>();
+    for (const d of deliveries || []) {
+      if (!d.contractId) continue;
+      if (!anyDeliveryMap.has(d.contractId)) {
+        anyDeliveryMap.set(d.contractId, d);
+      }
+      if (d.type === 'OUTBOUND' && !outboundMap.has(d.contractId)) {
+        outboundMap.set(d.contractId, d);
+      }
+    }
+    return { outboundMap, anyDeliveryMap };
+  }, [deliveries]);
+
   // 🖨️ 원격 분산 인쇄 큐 타겟 스테이션 설정 (1회 선택 시 기억)
   const PREFERRED_RETURN_STATION_KEY = 'preferred_print_station_return';
   const [isAgentPrinting, setIsAgentPrinting] = useState<boolean>(false);
 
-  const defaultStationId = React.useMemo(() => {
+  const defaultStationId = useMemo(() => {
     const saved = localStorage.getItem(PREFERRED_RETURN_STATION_KEY);
     if (saved && saved !== 'BROWSER_DIRECT' && printStations.some(s => s.id === saved)) {
       return saved;
@@ -52,23 +102,12 @@ export const SmartReturn: React.FC = () => {
     }
   };
 
-  // 출고 시 장착 옵션 회수 상속 검수 마스터
-  const RETURN_CHECK_SPECS = [
-    { id: 'spec1', label: '철망 / 함석 설치 부속품 (판넬/볼트)', keywords: ['철망', '함석', '사면철망', '1면', '2면', '3면', '4면', '5면', '망'] },
-    { id: 'spec2', label: '확장대 철망 / 함석 부속품', keywords: ['확장대 철망', '확장대 함석', '확장대철망', '확장대함석'] },
-    { id: 'spec3', label: '상단 감지봉 / 협착 방지 센서', keywords: ['감지봉', '감지봉 4ea', '상단감지', '협착', '센서', '4ea', '감지봉4ea'] },
-    { id: 'spec4', label: '원판 부착물', keywords: ['원판설치', '원판'] },
-    { id: 'spec9', label: '소화기함 및 거치대 / 소화기', keywords: ['소화기함', '기타 스티커물', '소화기'] },
-    { id: 'spec10', label: '조이스틱 보호 커버', keywords: ['조이스틱 커버', '커버 연장'] },
-    { id: 'spec14', label: '전용 충전기 및 전원선', keywords: ['충전기', '전원선', '릴선'] }
-  ];
-
   const getInheritedOutboundSpecs = (contractId?: string) => {
     if (!contractId) return [];
-    const outboundDel = (deliveries || []).find((d: any) => d.contractId === contractId && d.type === 'OUTBOUND');
-    const contract = contracts.find(c => c.id === contractId);
-    const site = sites.find(s => s.id === contract?.siteId);
-    const siteMaster = siteMasters?.find(sm => sm.id === site?.siteMasterId);
+    const outboundDel = deliveryLookupByContract.outboundMap.get(contractId);
+    const contract = contractMap.get(contractId);
+    const site = contract?.siteId ? siteMap.get(contract.siteId) : undefined;
+    const siteMaster = site?.siteMasterId ? siteMasterMap.get(site.siteMasterId) : undefined;
     const text = `${outboundDel?.rawText || ''} ${outboundDel?.memo || ''} ${outboundDel?.closingMemo || ''} ${(contract as any)?.memo || ''} ${siteMaster?.paidOptions || ''} ${siteMaster?.protection || ''} ${siteMaster?.checkedSpecs ? JSON.stringify(siteMaster.checkedSpecs) : ''}`.toLowerCase();
     
     return RETURN_CHECK_SPECS.filter(s => s.keywords.some(kw => text.includes(kw.toLowerCase())));
@@ -78,6 +117,34 @@ export const SmartReturn: React.FC = () => {
   const [activeMode, setActiveMode] = useState<'SALES' | 'MAINTENANCE'>('SALES');
 
   const getTodayString = () => new Date().toISOString().split('T')[0];
+
+  // 📊 상단 KPI 요약 바 (1-pass 단일 순회 메모이제이션)
+  const returnSummaryStats = useMemo(() => {
+    const todayStr = getTodayString();
+    const nextWeek = new Date();
+    nextWeek.setDate(nextWeek.getDate() + 7);
+    const nextWeekStr = nextWeek.toISOString().split('T')[0];
+
+    let activeContractsCount = 0;
+    let expiringSoonCount = 0;
+    for (const c of contracts) {
+      if (c.status === 'ACTIVE') {
+        activeContractsCount++;
+        if (c.endDate && c.endDate >= todayStr && c.endDate <= nextWeekStr) {
+          expiringSoonCount++;
+        }
+      }
+    }
+
+    let totalRentedAssets = 0;
+    for (const ca of contractAssets) {
+      if (ca.assetId && !ca.actualReturnDate) {
+        totalRentedAssets++;
+      }
+    }
+
+    return { activeContractsCount, totalRentedAssets, expiringSoonCount };
+  }, [contracts, contractAssets]);
 
   // ==========================================
   // [1] 영업사원 모드 (SALES) 상태
@@ -98,21 +165,21 @@ export const SmartReturn: React.FC = () => {
   // 💡 [사장님 지시] 계약 선택 시 회수예정일자 오늘날짜 세팅 및 담당자 정보 자동 기본값 세팅 (수정 가능)
   useEffect(() => {
     if (!selectedContractId) return;
-    const contract = contracts.find(c => c.id === selectedContractId);
+    const contract = contractMap.get(selectedContractId);
     if (!contract) return;
 
     setReturnDate(getTodayString());
 
-    const outboundDelivery = (deliveries || []).find((d: any) => d.contractId === selectedContractId);
-    const site = (sites || []).find((s: any) => s.id === contract.siteId);
-    const contact = (contacts || []).find((ct: any) => ct.id === contract.contactId);
+    const outboundDelivery = deliveryLookupByContract.anyDeliveryMap.get(selectedContractId);
+    const site: any = contract.siteId ? siteMap.get(contract.siteId) : undefined;
+    const contact: any = contract.contactId ? contactMap.get(contract.contactId) : undefined;
 
     const defaultContactName = (outboundDelivery as any)?.siteContactName || (outboundDelivery as any)?.recipientName || contact?.name || site?.contactName || '';
     const defaultContactPhone = (outboundDelivery as any)?.siteContactPhone || (outboundDelivery as any)?.recipientPhone || contact?.contact || site?.contact || '';
 
     if (defaultContactName) setContactName(defaultContactName);
     if (defaultContactPhone) setContactPhone(defaultContactPhone);
-  }, [selectedContractId, contracts, deliveries, sites, contacts]);
+  }, [selectedContractId, contractMap, deliveryLookupByContract, siteMap, contactMap]);
 
   // 통화 녹음 회수 초안 대기 큐
   const [returnDrafts, setReturnDrafts] = useState<DraftDispatchOrder[]>([]);
@@ -170,7 +237,7 @@ export const SmartReturn: React.FC = () => {
 
     if (matchedContractId) {
       setSelectedContractId(matchedContractId);
-      const assetsForContract = contractAssets.filter(ca => ca.contractId === matchedContractId && ca.assetId);
+      const assetsForContract = contractAssetsByContractMap.get(matchedContractId) || [];
       setSelectedAssetIds(assetsForContract.map(ca => ca.assetId!));
     } else if (custQuery) {
       setSalesSearch(d.customerName?.value || '');
@@ -208,55 +275,69 @@ export const SmartReturn: React.FC = () => {
 
 
   // ==========================================
-  // [4] 영업용 데이터 정렬/필터
+  // [4] 영업용 데이터 정렬/필터 (useMemo + O(1) Map + createHangulMatcher)
   // ==========================================
-  const activeContracts = contracts.filter(c => c.status !== 'COMPLETED');
+  const activeContracts = useMemo(
+    () => contracts.filter(c => c.status !== 'COMPLETED'),
+    [contracts]
+  );
 
-  const filteredContracts = activeContracts.filter(c => {
-    const custName = customers.find(cust => cust.id === c.customerId)?.name || '';
-    const siteName = sites.find(s => s.id === c.siteId)?.name || '';
+  const filteredContracts = useMemo(() => {
     const trimmed = salesSearch.trim();
-    
-    const matchesSearch = 
-      !trimmed ||
-      matchHangul(custName, trimmed) || 
-      matchHangul(siteName, trimmed) || 
-      (c.contractNo && c.contractNo.toLowerCase().includes(trimmed.toLowerCase()));
+    const matcher = trimmed ? createHangulMatcher(trimmed) : null;
+    const lowerTrimmed = trimmed.toLowerCase();
 
-    const matchesReturnStart = !returnStartDate || (c.endDate || '') >= returnStartDate;
-    const matchesReturnEnd = !returnEndDate || (c.endDate || '') <= returnEndDate;
+    return activeContracts.filter(c => {
+      if (returnStartDate && (c.endDate || '') < returnStartDate) return false;
+      if (returnEndDate && (c.endDate || '') > returnEndDate) return false;
+      if (!matcher) return true;
 
-    return matchesSearch && matchesReturnStart && matchesReturnEnd;
-  });
+      const custName = customerMap.get(c.customerId)?.name || '';
+      const siteName = (c.siteId ? siteMap.get(c.siteId)?.name : '') || '';
 
-  const sortedContracts = filteredContracts.slice().sort((a, b) => {
-    if (salesSortBy === 'CUSTOMER_NAME') {
-      const custA = customers.find(cust => cust.id === a.customerId)?.name || '';
-      const custB = customers.find(cust => cust.id === b.customerId)?.name || '';
-      const cmp = compareCustomerNames(custA, custB);
-      return salesSortDesc ? -cmp : cmp;
-    }
+      return (
+        matcher.test(custName) ||
+        matcher.test(siteName) ||
+        Boolean(c.contractNo && c.contractNo.toLowerCase().includes(lowerTrimmed))
+      );
+    });
+  }, [activeContracts, customerMap, siteMap, salesSearch, returnStartDate, returnEndDate]);
 
-    let valA = '';
-    let valB = '';
+  const sortedContracts = useMemo(() => {
+    return filteredContracts.slice().sort((a, b) => {
+      if (salesSortBy === 'CUSTOMER_NAME') {
+        const custA = customerMap.get(a.customerId)?.name || '';
+        const custB = customerMap.get(b.customerId)?.name || '';
+        const cmp = compareCustomerNames(custA, custB);
+        return salesSortDesc ? -cmp : cmp;
+      }
 
-    if (salesSortBy === 'END_DATE') {
-      valA = a.endDate || '';
-      valB = b.endDate || '';
-    } else if (salesSortBy === 'SITE_NAME') {
-      valA = sites.find(s => s.id === a.siteId)?.name || '';
-      valB = sites.find(s => s.id === b.siteId)?.name || '';
-    }
+      let valA = '';
+      let valB = '';
 
-    const compare = valA.localeCompare(valB, 'ko');
-    return salesSortDesc ? -compare : compare;
-  });
+      if (salesSortBy === 'END_DATE') {
+        valA = a.endDate || '';
+        valB = b.endDate || '';
+      } else if (salesSortBy === 'SITE_NAME') {
+        valA = (a.siteId ? siteMap.get(a.siteId)?.name : '') || '';
+        valB = (b.siteId ? siteMap.get(b.siteId)?.name : '') || '';
+      }
 
-  // 계약 선택에 따른 자산 매칭
-  const activeContractAssets = contractAssets.filter(ca => ca.contractId === selectedContractId && ca.assetId);
+      const compare = valA.localeCompare(valB, 'ko');
+      return salesSortDesc ? -compare : compare;
+    });
+  }, [filteredContracts, salesSortBy, salesSortDesc, customerMap, siteMap]);
+
+  // 계약 선택에 따른 자산 매칭 (O(1) Map 조회)
+  const activeContractAssets = useMemo(
+    () => (selectedContractId ? (contractAssetsByContractMap.get(selectedContractId) || []) : []),
+    [selectedContractId, contractAssetsByContractMap]
+  );
+
+  const selectedAssetIdSet = useMemo(() => new Set(selectedAssetIds), [selectedAssetIds]);
 
   const handleSalesAssetCheckboxChange = (assetId: string) => {
-    if (selectedAssetIds.includes(assetId)) {
+    if (selectedAssetIdSet.has(assetId)) {
       setSelectedAssetIds(selectedAssetIds.filter(id => id !== assetId));
     } else {
       setSelectedAssetIds([...selectedAssetIds, assetId]);
@@ -279,7 +360,7 @@ export const SmartReturn: React.FC = () => {
       showToast('회수할 대상 계약을 목록에서 선택해 주세요.', 'error');
       return;
     }
-    const targetContract = contracts.find(c => c.id === selectedContractId);
+    const targetContract = contractMap.get(selectedContractId);
     if (targetContract && targetContract.startDate && returnDate < targetContract.startDate) {
       showToast(`회수 예정일(${returnDate})은 계약 시작일(${targetContract.startDate})보다 이전일 수 없습니다.`, 'error');
       return;
@@ -336,9 +417,9 @@ export const SmartReturn: React.FC = () => {
       return;
     }
 
-    const selContract = contracts.find(c => c.id === selectedContractId);
-    const selCust = customers.find(c => c.id === selContract?.customerId);
-    const selSite = sites.find(s => s.id === selContract?.siteId);
+    const selContract = contractMap.get(selectedContractId);
+    const selCust = selContract?.customerId ? customerMap.get(selContract.customerId) : undefined;
+    const selSite = selContract?.siteId ? siteMap.get(selContract.siteId) : undefined;
 
     const htmlDoc = `
       <!DOCTYPE html>
@@ -470,22 +551,44 @@ export const SmartReturn: React.FC = () => {
   };
 
   // ==========================================
-  // [5] 정비용 데이터 가공 (외주 정비 자산)
+  // [5] 정비용 데이터 가공 (외주 정비 자산, useMemo + O(1) Map)
   // ==========================================
   // repairs 중에서 repairType === 'EXTERNAL' 이고 status !== 'COMPLETED' (외주수리중)인 수리 건 필터링
-  const ongoingRepairs = repairs.filter(r => r.repairType === 'EXTERNAL' && r.status !== 'COMPLETED');
+  const ongoingRepairs = useMemo(
+    () => repairs.filter(r => r.repairType === 'EXTERNAL' && r.status !== 'COMPLETED'),
+    [repairs]
+  );
+
+  const ongoingRepairsByVendorMap = useMemo(() => {
+    const map = new Map<string, typeof ongoingRepairs>();
+    for (const r of ongoingRepairs) {
+      if (!r.vendorId) continue;
+      let list = map.get(r.vendorId);
+      if (!list) {
+        list = [];
+        map.set(r.vendorId, list);
+      }
+      list.push(r);
+    }
+    return map;
+  }, [ongoingRepairs]);
 
   // 외주정비 중인 자산이 존재하는 정비 업체(Vendor)들만 추출
-  const repairVendors = vendors.filter(v => 
-    v.type === 'REPAIR' && 
-    ongoingRepairs.some(r => r.vendorId === v.id)
+  const repairVendors = useMemo(
+    () => vendors.filter(v => v.type === 'REPAIR' && ongoingRepairsByVendorMap.has(v.id)),
+    [vendors, ongoingRepairsByVendorMap]
   );
 
   // 선택된 외주업체에서 외주정비 중인 정비 리스트
-  const repairsAtSelectedVendor = ongoingRepairs.filter(r => r.vendorId === selectedVendorId);
+  const repairsAtSelectedVendor = useMemo(
+    () => (selectedVendorId ? (ongoingRepairsByVendorMap.get(selectedVendorId) || []) : []),
+    [selectedVendorId, ongoingRepairsByVendorMap]
+  );
+
+  const selectedRepairIdSet = useMemo(() => new Set(selectedRepairIds), [selectedRepairIds]);
 
   const handleMaintAssetCheckboxChange = (repairId: string) => {
-    if (selectedRepairIds.includes(repairId)) {
+    if (selectedRepairIdSet.has(repairId)) {
       setSelectedRepairIds(selectedRepairIds.filter(id => id !== repairId));
     } else {
       setSelectedRepairIds([...selectedRepairIds, repairId]);
@@ -517,10 +620,10 @@ export const SmartReturn: React.FC = () => {
       return;
     }
 
-    // 선택된 수리건들의 assetId 목록 추출
+    // 선택된 수리건들의 assetId 목록 추출 (O(1) Map 조회)
     const targetAssetIds: string[] = [];
     selectedRepairIds.forEach(rId => {
-      const rep = repairs.find(r => r.id === rId);
+      const rep = repairMap.get(rId);
       if (rep && rep.assetId) {
         targetAssetIds.push(rep.assetId);
       }
@@ -592,32 +695,20 @@ export const SmartReturn: React.FC = () => {
       </div>
 
       {/* 📊 회수 대상 및 계약 만료 현황 요약 바 */}
-      {(() => {
-        const todayStr = getTodayString();
-        const nextWeek = new Date(); nextWeek.setDate(nextWeek.getDate() + 7);
-        const nextWeekStr = nextWeek.toISOString().split('T')[0];
-
-        const expiringSoonContracts = contracts.filter(c => c.status === 'ACTIVE' && c.endDate && c.endDate >= todayStr && c.endDate <= nextWeekStr);
-        const totalRentedAssets = contractAssets.filter(ca => ca.assetId && !ca.actualReturnDate).length;
-        const activeContractsCount = contracts.filter(c => c.status === 'ACTIVE').length;
-
-        return (
-          <div data-mid="smart_return-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px', flexShrink: 0 }}>
-            <div style={{ padding: '8px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>진행중인 계약</span>
-              <strong style={{ fontSize: '15px', color: 'var(--primary)' }}>{activeContractsCount}건</strong>
-            </div>
-            <div style={{ padding: '8px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>현장 대여중 장비</span>
-              <strong style={{ fontSize: '15px', color: 'var(--success)' }}>{totalRentedAssets}대</strong>
-            </div>
-            <div style={{ padding: '8px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>7일 내 만료예정 계약</span>
-              <strong style={{ fontSize: '15px', color: expiringSoonContracts.length > 0 ? '#d97706' : 'var(--text-muted)' }}>{expiringSoonContracts.length}건</strong>
-            </div>
-          </div>
-        );
-      })()}
+      <div data-mid="smart_return-summary" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px', flexShrink: 0 }}>
+        <div style={{ padding: '8px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>진행중인 계약</span>
+          <strong style={{ fontSize: '15px', color: 'var(--primary)' }}>{returnSummaryStats.activeContractsCount}건</strong>
+        </div>
+        <div style={{ padding: '8px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>현장 대여중 장비</span>
+          <strong style={{ fontSize: '15px', color: 'var(--success)' }}>{returnSummaryStats.totalRentedAssets}대</strong>
+        </div>
+        <div style={{ padding: '8px 14px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)', fontWeight: 600 }}>7일 내 만료예정 계약</span>
+          <strong style={{ fontSize: '15px', color: returnSummaryStats.expiringSoonCount > 0 ? '#d97706' : 'var(--text-muted)' }}>{returnSummaryStats.expiringSoonCount}건</strong>
+        </div>
+      </div>
 
       {/* 모드 전환 탭 */}
       <div data-mid="smart_return-mode-tabs" style={{ display: 'flex', gap: '8px', borderBottom: '2px solid var(--border-color)', paddingBottom: '6px', flexShrink: 0 }}>
@@ -839,8 +930,8 @@ export const SmartReturn: React.FC = () => {
                     </div>
                   ) : (
                     sortedContracts.map(c => {
-                      const cust = customers.find(cust => cust.id === c.customerId);
-                      const site = sites.find(s => s.id === c.siteId);
+                      const cust = customerMap.get(c.customerId);
+                      const site = c.siteId ? siteMap.get(c.siteId) : undefined;
                       const isSelected = selectedContractId === c.id;
                       
                       return (
@@ -921,11 +1012,11 @@ export const SmartReturn: React.FC = () => {
                 {/* 1. 계약 기본 확인 */}
                 <div data-mid="smart_return-contract-info" style={{ padding: '12px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '13px' }}>
                   {(() => {
-                    const c = contracts.find(con => con.id === selectedContractId);
-                    const cust = customers.find(cust => cust.id === c?.customerId);
-                    const site = sites.find(s => s.id === c?.siteId);
-                    const siteMaster = siteMasters?.find(sm => sm.id === site?.siteMasterId);
-                    const outboundDel = deliveries.find(d => d.contractId === c?.id && d.type === 'OUTBOUND');
+                    const c = contractMap.get(selectedContractId);
+                    const cust = c?.customerId ? customerMap.get(c.customerId) : undefined;
+                    const site = c?.siteId ? siteMap.get(c.siteId) : undefined;
+                    const siteMaster = site?.siteMasterId ? siteMasterMap.get(site.siteMasterId) : undefined;
+                    const outboundDel = c?.id ? deliveryLookupByContract.outboundMap.get(c.id) : undefined;
 
                     const inheritedSpecs = getInheritedOutboundSpecs(selectedContractId);
                     const optMatch = outboundDel?.closingMemo?.match(/유상옵션:\s*([^\|]+)/) || outboundDel?.memo?.match(/\[(?:회수)?옵션\]\s*([^\|]+)/);
@@ -976,9 +1067,9 @@ export const SmartReturn: React.FC = () => {
                       </div>
                     ) : (
                       activeContractAssets.map(ca => {
-                        const asset = assets.find(a => a.id === ca.assetId);
+                        const asset = ca.assetId ? assetMap.get(ca.assetId) : undefined;
                         if (!asset) return null;
-                        const isChecked = selectedAssetIds.includes(asset.id);
+                        const isChecked = selectedAssetIdSet.has(asset.id);
                         return (
                           <label
                             key={ca.id}
@@ -1195,7 +1286,7 @@ export const SmartReturn: React.FC = () => {
                 </div>
               ) : (
                 repairVendors.map(v => {
-                  const cnt = ongoingRepairs.filter(r => r.vendorId === v.id).length;
+                  const cnt = (ongoingRepairsByVendorMap.get(v.id) || []).length;
                   const isSelected = selectedVendorId === v.id;
                   return (
                     <div
@@ -1247,7 +1338,7 @@ export const SmartReturn: React.FC = () => {
                 {/* 외주업체 정보 */}
                 <div style={{ padding: '12px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '13px' }}>
                   {(() => {
-                    const v = vendors.find(vend => vend.id === selectedVendorId);
+                    const v = vendorMap.get(selectedVendorId);
                     return (
                       <>
                         <div style={{ marginBottom: '4px' }}><strong>회수장소 (외주정비업체):</strong> {v?.name}</div>
@@ -1271,13 +1362,13 @@ export const SmartReturn: React.FC = () => {
                   </div>
                   <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid var(--border-color)', padding: '10px', borderRadius: '6px', display: 'flex', flexDirection: 'column', gap: '6px', backgroundColor: 'var(--bg-app)' }}>
                     {repairsAtSelectedVendor.map(r => {
-                      const asset = assets.find(a => a.id === r.assetId);
+                      const asset = r.assetId ? assetMap.get(r.assetId) : undefined;
                       if (!asset) return null;
                       return (
                         <label key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', cursor: 'pointer', margin: 0 }}>
                           <input
                             type="checkbox"
-                            checked={selectedRepairIds.includes(r.id)}
+                            checked={selectedRepairIdSet.has(r.id)}
                             onChange={() => handleMaintAssetCheckboxChange(r.id)}
                           />
                           <span>

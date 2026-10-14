@@ -12,6 +12,7 @@ import { normalizeMenuId } from '../config/menu_config';
 import { getRoleTemplatePermission } from '../config/role_templates';
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
+import { createHangulMatcher } from '../utils/hangulSearch';
 
 export const Repairs: React.FC = () => {
   const {
@@ -96,6 +97,82 @@ export const Repairs: React.FC = () => {
   const [viewingPhotoRepair, setViewingPhotoRepair] = useState<Repair | null>(null);
   const [isSubmittingRepair, setIsSubmittingRepair] = useState(false);
 
+  // O(1) Lookups & Precomputed Maps
+  const assetMap = useMemo(() => new Map(assets.map(a => [a.id, a])), [assets]);
+  const userMap = useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
+  const vendorMap = useMemo(() => new Map(vendors.map(v => [v.id, v])), [vendors]);
+  const consumableMap = useMemo(() => new Map(consumables.map(c => [c.id, c])), [consumables]);
+
+  const checklistItemByIdOrCodeMap = useMemo(() => {
+    const map = new Map<string, (typeof inspectionChecklistItems)[0]>();
+    if (inspectionChecklistItems) {
+      for (let i = 0; i < inspectionChecklistItems.length; i++) {
+        const item = inspectionChecklistItems[i];
+        if (item.id) map.set(item.id, item);
+        if (item.code) map.set(item.code, item);
+      }
+    }
+    return map;
+  }, [inspectionChecklistItems]);
+
+  const permissionsByUserMap = useMemo(() => {
+    const map = new Map<string, any>();
+    for (let i = 0; i < permissions.length; i++) {
+      const p = permissions[i];
+      if (normalizeMenuId(p.menuId) === 'repair') {
+        const uid = p.userId || (p as any).user_id;
+        if (uid && !map.has(uid)) {
+          map.set(uid, p);
+        }
+      }
+    }
+    return map;
+  }, [permissions]);
+
+  // 자산별 진행/대기 정비 건 사전 그룹핑 (O(1) 조회)
+  const { repairsByAssetIdMap, externalInProgressCount } = useMemo(() => {
+    const map = new Map<string, {
+      pendingOutbound?: Repair;
+      pendingInbound?: Repair;
+      activeExternal?: Repair;
+      unresolvedRepair?: Repair;
+      generalPending?: Repair;
+    }>();
+    let extCount = 0;
+
+    for (let i = 0; i < repairs.length; i++) {
+      const r = repairs[i];
+      if (r.status === 'IN_PROGRESS' && r.maintenanceType === 'EXTERNAL') {
+        extCount++;
+      }
+      if (!r.assetId) continue;
+
+      let entry = map.get(r.assetId);
+      if (!entry) {
+        entry = {};
+        map.set(r.assetId, entry);
+      }
+
+      if (r.status === 'PENDING' && r.source === 'OUTBOUND_DEFECT' && !entry.pendingOutbound) {
+        entry.pendingOutbound = r;
+      }
+      if (r.status === 'PENDING' && r.source === 'INBOUND_INSPECTION' && !entry.pendingInbound) {
+        entry.pendingInbound = r;
+      }
+      if (r.status === 'IN_PROGRESS' && r.maintenanceType === 'EXTERNAL' && !entry.activeExternal) {
+        entry.activeExternal = r;
+      }
+      if (r.status === 'UNRESOLVED' && !entry.unresolvedRepair) {
+        entry.unresolvedRepair = r;
+      }
+      if ((r.status === 'PENDING' || r.status === 'IN_PROGRESS') && !entry.generalPending) {
+        entry.generalPending = r;
+      }
+    }
+
+    return { repairsByAssetIdMap: map, externalInProgressCount: extCount };
+  }, [repairs]);
+
   // 🏢 조직도 최상위(root)에 속하지 않으면서 repair 권한을 보유한 담당자 목록 (SSOT)
   const eligibleAssignees = useMemo(() => {
     const depts = db.departments || [];
@@ -116,10 +193,7 @@ export const Repairs: React.FC = () => {
       if (!u.departmentId && u.role === 'ADMIN') return false;
 
       // 2. 해당 메뉴(repair) 권한 보유 여부 확인
-      const perm = permissions.find(p =>
-        (p.userId === u.id || (p as any).user_id === u.id) &&
-        normalizeMenuId(p.menuId) === 'repair'
-      );
+      const perm = permissionsByUserMap.get(u.id);
       if (perm) {
         return Boolean(perm.canView || perm.canSave);
       }
@@ -136,7 +210,7 @@ export const Repairs: React.FC = () => {
 
       return false;
     });
-  }, [users, permissions]);
+  }, [users, permissionsByUserMap]);
 
   // 담당자 선택 자동 동기화
   useEffect(() => {
@@ -151,49 +225,46 @@ export const Repairs: React.FC = () => {
   // =========================================================================
   // [3] 연산 및 필터링
   // =========================================================================
-  const getAssetNo = (id?: string) => (id ? assets.find(a => a.id === id)?.assetNo : '') || '-';
-  const getAssetModel = (id?: string) => (id ? assets.find(a => a.id === id)?.modelName : '') || '-';
-  const getMechanicName = (id?: string) => users.find(u => u.id === id)?.name || '담당자';
-  const getVendorName = (id?: string) => vendors.find(v => v.id === id)?.name || '-';
+  const getAssetNo = (id?: string) => (id ? assetMap.get(id)?.assetNo : '') || '-';
+  const getAssetModel = (id?: string) => (id ? assetMap.get(id)?.modelName : '') || '-';
+  const getMechanicName = (id?: string) => (id ? userMap.get(id)?.name : '') || '담당자';
+  const getVendorName = (id?: string) => (id ? vendorMap.get(id)?.name : '') || '-';
 
   // 주기장 대상 자산 목록 (RENTED_RETURNED, REPAIRING, AVAILABLE 및 진행중인 외주정비 자산)
   const yardAssets = useMemo(() => {
+    const matcher = yardSearchTerm.trim() ? createHangulMatcher(yardSearchTerm) : null;
+
     const list = assets.filter(a => {
       // 대여중(RENTED)이나 매각(SOLD)은 주기장 정비 큐에서 제외
       if (a.status === 'RENTED' || a.status === 'SOLD' || a.status === 'ASSIGNED') return false;
 
-      // 출고불량, 입고결함 및 외주정비 진행 건 확인
-      const hasOutboundDefect = repairs.some(r => r.assetId === a.id && r.status === 'PENDING' && r.source === 'OUTBOUND_DEFECT');
-      const hasInboundDefect = repairs.some(r => r.assetId === a.id && r.status === 'PENDING' && r.source === 'INBOUND_INSPECTION');
-      const hasActiveExternalRepair = repairs.some(r => r.assetId === a.id && r.status === 'IN_PROGRESS' && r.maintenanceType === 'EXTERNAL');
+      const assetRepairs = repairsByAssetIdMap.get(a.id);
+      const hasOutboundDefect = Boolean(assetRepairs?.pendingOutbound);
+      const hasInboundDefect = Boolean(assetRepairs?.pendingInbound);
+      const hasActiveExternalRepair = Boolean(assetRepairs?.activeExternal);
 
-      if (yardQueueFilter === 'OUTBOUND_DEFECT') return hasOutboundDefect;
-      if (yardQueueFilter === 'INBOUND_DEFECT') return hasInboundDefect;
-      if (yardQueueFilter === 'RENTED_RETURNED') return a.status === 'RENTED_RETURNED';
-      if (yardQueueFilter === 'REPAIRING') return a.status === 'REPAIRING';
-      if (yardQueueFilter === 'EXTERNAL') return hasActiveExternalRepair;
-      if (yardQueueFilter === 'AVAILABLE') return a.status === 'AVAILABLE';
-      return true; // 'ALL'
-    }).filter(a => {
-      if (!yardSearchTerm.trim()) return true;
-      const term = yardSearchTerm.toLowerCase();
-      return a.assetNo.toLowerCase().includes(term) || 
-        a.modelName.toLowerCase().includes(term) || 
-        (a.note && a.note.toLowerCase().includes(term)) || 
-        (a.memo && a.memo.toLowerCase().includes(term));
+      if (yardQueueFilter === 'OUTBOUND_DEFECT' && !hasOutboundDefect) return false;
+      if (yardQueueFilter === 'INBOUND_DEFECT' && !hasInboundDefect) return false;
+      if (yardQueueFilter === 'RENTED_RETURNED' && a.status !== 'RENTED_RETURNED') return false;
+      if (yardQueueFilter === 'REPAIRING' && a.status !== 'REPAIRING') return false;
+      if (yardQueueFilter === 'EXTERNAL' && !hasActiveExternalRepair) return false;
+      if (yardQueueFilter === 'AVAILABLE' && a.status !== 'AVAILABLE') return false;
+
+      if (matcher && !matcher.testAny([a.assetNo, a.modelName, a.note, a.memo])) {
+        return false;
+      }
+      return true;
     });
 
     // 당면 정비 우선순위 정렬: 출고불량 > 입고결함 > 수리중 > 입고검수대기 > 외주위탁 > 정상임대가능
     return list.sort((a, b) => {
       const getPriority = (item: Asset) => {
-        const hasOutboundDefect = repairs.some(r => r.assetId === item.id && r.status === 'PENDING' && r.source === 'OUTBOUND_DEFECT');
-        if (hasOutboundDefect) return 1;
-        const hasInboundDefect = repairs.some(r => r.assetId === item.id && r.status === 'PENDING' && r.source === 'INBOUND_INSPECTION');
-        if (hasInboundDefect) return 2;
+        const assetRepairs = repairsByAssetIdMap.get(item.id);
+        if (assetRepairs?.pendingOutbound) return 1;
+        if (assetRepairs?.pendingInbound) return 2;
         if (item.status === 'REPAIRING') return 3;
         if (item.status === 'RENTED_RETURNED') return 4;
-        const hasExternal = repairs.some(r => r.assetId === item.id && r.status === 'IN_PROGRESS' && r.maintenanceType === 'EXTERNAL');
-        if (hasExternal) return 5;
+        if (assetRepairs?.activeExternal) return 5;
         return 6; // AVAILABLE
       };
       const pA = getPriority(a);
@@ -201,24 +272,60 @@ export const Repairs: React.FC = () => {
       if (pA !== pB) return pA - pB;
       return a.assetNo.localeCompare(b.assetNo, 'ko');
     });
-  }, [assets, repairs, yardQueueFilter, yardSearchTerm]);
+  }, [assets, repairsByAssetIdMap, yardQueueFilter, yardSearchTerm]);
 
-  // 주기장 큐 카운트 통계
+  // 주기장 큐 카운트 통계 (단일 패스)
   const queueCounts = useMemo(() => {
-    const nonRented = assets.filter(a => a.status !== 'RENTED' && a.status !== 'SOLD' && a.status !== 'ASSIGNED');
-    const outboundDefects = nonRented.filter(a => repairs.some(r => r.assetId === a.id && r.status === 'PENDING' && r.source === 'OUTBOUND_DEFECT')).length;
-    const inboundDefects = nonRented.filter(a => repairs.some(r => r.assetId === a.id && r.status === 'PENDING' && r.source === 'INBOUND_INSPECTION')).length;
-    const returned = nonRented.filter(a => a.status === 'RENTED_RETURNED').length;
-    const repairing = nonRented.filter(a => a.status === 'REPAIRING').length;
-    const external = repairs.filter(r => r.status === 'IN_PROGRESS' && r.maintenanceType === 'EXTERNAL').length;
-    const available = nonRented.filter(a => a.status === 'AVAILABLE').length;
-    return { all: nonRented.length, outboundDefects, inboundDefects, returned, repairing, external, available };
-  }, [assets, repairs]);
+    let all = 0;
+    let outboundDefects = 0;
+    let inboundDefects = 0;
+    let returned = 0;
+    let repairing = 0;
+    let available = 0;
+
+    for (let i = 0; i < assets.length; i++) {
+      const a = assets[i];
+      if (a.status === 'RENTED' || a.status === 'SOLD' || a.status === 'ASSIGNED') continue;
+      all++;
+      const assetRepairs = repairsByAssetIdMap.get(a.id);
+      if (assetRepairs?.pendingOutbound) outboundDefects++;
+      if (assetRepairs?.pendingInbound) inboundDefects++;
+      if (a.status === 'RENTED_RETURNED') returned++;
+      if (a.status === 'REPAIRING') repairing++;
+      if (a.status === 'AVAILABLE') available++;
+    }
+
+    return { all, outboundDefects, inboundDefects, returned, repairing, external: externalInProgressCount, available };
+  }, [assets, repairsByAssetIdMap, externalInProgressCount]);
+
+  // 최하단 회계 대차대조식 검증 바 통계 (단일 패스)
+  const auditFooterStats = useMemo(() => {
+    let repairingAssets = 0;
+    let availableAssets = 0;
+    for (let i = 0; i < assets.length; i++) {
+      const st = assets[i].status;
+      if (st === 'REPAIRING') repairingAssets++;
+      else if (st === 'AVAILABLE') availableAssets++;
+    }
+
+    const ymPrefix = thisMonthStart.slice(0, 7);
+    let monthlyCompletedRepairs = 0;
+    let totalConsumableCost = 0;
+    for (let i = 0; i < repairs.length; i++) {
+      const r = repairs[i];
+      if ((r.repairDate || '').startsWith(ymPrefix)) {
+        if (r.status === 'COMPLETED') monthlyCompletedRepairs++;
+        totalConsumableCost += r.totalCost || 0;
+      }
+    }
+
+    return { repairingAssets, availableAssets, monthlyCompletedRepairs, totalConsumableCost };
+  }, [assets, repairs, thisMonthStart]);
 
   // 현재 선택된 자산 객체
   const selectedAsset = useMemo(() => {
-    return assets.find(a => a.id === selectedAssetId) || null;
-  }, [assets, selectedAssetId]);
+    return assetMap.get(selectedAssetId) || null;
+  }, [assetMap, selectedAssetId]);
 
   // 선택된 자산의 가장 최근 입고/하자 로그
   const assetInboundNote = useMemo(() => {
@@ -232,44 +339,45 @@ export const Repairs: React.FC = () => {
   // 투입 소모품 금액 합산
   const totalConsumablesCost = useMemo(() => {
     return usedConsumables.reduce((sum, item) => {
-      const c = consumables.find(con => con.id === item.consumableId);
+      const c = consumableMap.get(item.consumableId);
       const price = c ? c.unitPrice : 0;
       return sum + (price * item.quantity);
     }, 0);
-  }, [usedConsumables, consumables]);
+  }, [usedConsumables, consumableMap]);
 
   // 총 정비 비용 (소모품비 + 외주비)
   const totalCost = totalConsumablesCost + (maintenanceType === 'EXTERNAL' ? externalCost : 0);
 
-  // 대장 목록 필터링
+  // 대장 목록 필터링 (한글 초성 매처 + O(1) 조회)
   const filteredLedgerRepairs = useMemo(() => {
+    const matcher = ledgerSearch.trim() ? createHangulMatcher(ledgerSearch) : null;
+
     return repairs.filter(r => {
-      // 1. 검색어 (자산번호, 모델명, 고객사, 내용)
-      const assetNo = (r.assetNo || getAssetNo(r.assetId)).toLowerCase();
-      const model = (r.modelName || getAssetModel(r.assetId)).toLowerCase();
-      const details = (r.details || '').toLowerCase();
-      const matchSearch = !ledgerSearch.trim() || 
-        assetNo.includes(ledgerSearch.toLowerCase()) || 
-        model.includes(ledgerSearch.toLowerCase()) || 
-        details.includes(ledgerSearch.toLowerCase());
+      // 1. 구분
+      if (ledgerTypeFilter !== 'ALL' && r.maintenanceType !== ledgerTypeFilter) return false;
 
-      // 2. 구분
-      const matchType = ledgerTypeFilter === 'ALL' || r.maintenanceType === ledgerTypeFilter;
+      // 2. 상태
+      if (ledgerStatusFilter !== 'ALL' && r.status !== ledgerStatusFilter) return false;
 
-      // 3. 상태
-      const matchStatus = ledgerStatusFilter === 'ALL' || r.status === ledgerStatusFilter;
-
-      // 4. 기간
+      // 3. 기간
       const dateVal = r.repairDate || r.requestDate || '';
-      const matchStart = !ledgerStartDate || dateVal >= ledgerStartDate;
-      const matchEnd = !ledgerEndDate || dateVal <= ledgerEndDate;
+      if (ledgerStartDate && dateVal < ledgerStartDate) return false;
+      if (ledgerEndDate && dateVal > ledgerEndDate) return false;
 
-      // 5. 정비사
-      const matchMechanic = ledgerMechanicFilter === 'ALL' || r.mechanicId === ledgerMechanicFilter;
+      // 4. 정비사
+      if (ledgerMechanicFilter !== 'ALL' && r.mechanicId !== ledgerMechanicFilter) return false;
 
-      return matchSearch && matchType && matchStatus && matchStart && matchEnd && matchMechanic;
+      // 5. 검색어 (자산번호, 모델명, 고객사, 내용)
+      if (matcher) {
+        const assetNo = r.assetNo || getAssetNo(r.assetId);
+        const model = r.modelName || getAssetModel(r.assetId);
+        const details = r.details || '';
+        if (!matcher.testAny([assetNo, model, details])) return false;
+      }
+
+      return true;
     });
-  }, [repairs, ledgerSearch, ledgerTypeFilter, ledgerStatusFilter, ledgerStartDate, ledgerEndDate, ledgerMechanicFilter]);
+  }, [repairs, ledgerSearch, ledgerTypeFilter, ledgerStatusFilter, ledgerStartDate, ledgerEndDate, ledgerMechanicFilter, assetMap]);
 
   const { items: sortedLedgerRepairs, sortConfig, requestSort } = useSortableData<Repair>(
     filteredLedgerRepairs,
@@ -298,12 +406,13 @@ export const Repairs: React.FC = () => {
   const handleSelectAsset = (asset: Asset) => {
     setSelectedAssetId(asset.id);
     
-    // 진행 중인 외주정비, 부품대기 또는 출고불량/입고결함 PENDING 건 탐색
-    const pendingOutbound = repairs.find(r => r.assetId === asset.id && r.status === 'PENDING' && r.source === 'OUTBOUND_DEFECT');
-    const activeExternal = repairs.find(r => r.assetId === asset.id && r.status === 'IN_PROGRESS' && r.maintenanceType === 'EXTERNAL');
-    const unresolvedRepair = repairs.find(r => r.assetId === asset.id && r.status === 'UNRESOLVED');
-    const pendingInbound = repairs.find(r => r.assetId === asset.id && r.status === 'PENDING' && r.source === 'INBOUND_INSPECTION');
-    const generalPending = repairs.find(r => r.assetId === asset.id && (r.status === 'PENDING' || r.status === 'IN_PROGRESS'));
+    // 진행 중인 외주정비, 부품대기 또는 출고불량/입고결함 PENDING 건 탐색 (O(1) Map 조회)
+    const assetRepairs = repairsByAssetIdMap.get(asset.id);
+    const pendingOutbound = assetRepairs?.pendingOutbound;
+    const activeExternal = assetRepairs?.activeExternal;
+    const unresolvedRepair = assetRepairs?.unresolvedRepair;
+    const pendingInbound = assetRepairs?.pendingInbound;
+    const generalPending = assetRepairs?.generalPending;
 
     const targetRepair = pendingOutbound || pendingInbound || activeExternal || unresolvedRepair || generalPending;
     setSelectedRepairId(targetRepair?.id || '');
@@ -389,7 +498,7 @@ export const Repairs: React.FC = () => {
   const handleAutoFillDefectDetails = () => {
     if (inboundDefects.length === 0) return;
     const lines = inboundDefects.map(d => {
-      const chk = (inspectionChecklistItems || []).find(c => c.id === d.checkitemId || c.code === d.checkitemId);
+      const chk = checklistItemByIdOrCodeMap.get(d.checkitemId);
       const sop = chk?.actionGuide ? ` (SOP: ${chk.actionGuide})` : '';
       return `• [${d.checkitemName}] 점검 및 부품 교체/정비 완료${sop}`;
     });
@@ -406,7 +515,7 @@ export const Repairs: React.FC = () => {
     }
     const recConsumableIds = new Set<string>();
     inboundDefects.forEach(d => {
-      const chk = (inspectionChecklistItems || []).find(c => c.id === d.checkitemId || c.code === d.checkitemId);
+      const chk = checklistItemByIdOrCodeMap.get(d.checkitemId);
       if (chk?.recommendedConsumableIds && Array.isArray(chk.recommendedConsumableIds)) {
         chk.recommendedConsumableIds.forEach(cId => recConsumableIds.add(cId));
       }
@@ -440,7 +549,7 @@ export const Repairs: React.FC = () => {
     setUsedConsumables(prev => {
       const next = [...prev];
       recConsumableIds.forEach(cId => {
-        const con = consumables.find(c => c.id === cId);
+        const con = consumableMap.get(cId);
         if (con && (con.stockQty || 0) > 0) {
           const existIdx = next.findIndex(item => item.consumableId === cId);
           if (existIdx >= 0) {
@@ -485,7 +594,7 @@ export const Repairs: React.FC = () => {
 
   const handleAddConsumable = () => {
     if (!tempConsumableId) return;
-    const targetItem = consumables.find(c => c.id === tempConsumableId);
+    const targetItem = consumableMap.get(tempConsumableId);
     if (!targetItem) return;
     const qty = Math.max(1, tempConsumableQty);
     const existingUsed = usedConsumables.find(item => item.consumableId === tempConsumableId)?.quantity || 0;
@@ -869,11 +978,12 @@ export const Repairs: React.FC = () => {
                   const isRepairing = asset.status === 'REPAIRING';
                   const isAvailable = asset.status === 'AVAILABLE';
 
-                  // 외주정비, 부품대기 및 출고불량/입고결함 활성 건 탐색
-                  const pendingOutbound = repairs.find(r => r.assetId === asset.id && r.status === 'PENDING' && r.source === 'OUTBOUND_DEFECT');
-                  const activeExternal = repairs.find(r => r.assetId === asset.id && r.status === 'IN_PROGRESS' && r.maintenanceType === 'EXTERNAL');
-                  const unresolvedRepair = repairs.find(r => r.assetId === asset.id && r.status === 'UNRESOLVED');
-                  const pendingInbound = repairs.find(r => r.assetId === asset.id && r.status === 'PENDING' && r.source === 'INBOUND_INSPECTION');
+                  // 외주정비, 부품대기 및 출고불량/입고결함 활성 건 탐색 (O(1) 맵 조회)
+                  const assetRepairs = repairsByAssetIdMap.get(asset.id);
+                  const pendingOutbound = assetRepairs?.pendingOutbound;
+                  const activeExternal = assetRepairs?.activeExternal;
+                  const unresolvedRepair = assetRepairs?.unresolvedRepair;
+                  const pendingInbound = assetRepairs?.pendingInbound;
 
                   return (
                     <div
@@ -1009,8 +1119,9 @@ export const Repairs: React.FC = () => {
                     </div>
                     {/* 출고불량 / 입고결함 / 정비요구 메모 배너 */}
                     {(() => {
-                      const pendingOutbound = repairs.find(r => r.assetId === selectedAsset.id && r.status === 'PENDING' && r.source === 'OUTBOUND_DEFECT');
-                      const pendingInbound = repairs.find(r => r.assetId === selectedAsset.id && r.status === 'PENDING' && r.source === 'INBOUND_INSPECTION');
+                      const selAssetRepairs = repairsByAssetIdMap.get(selectedAsset.id);
+                      const pendingOutbound = selAssetRepairs?.pendingOutbound;
+                      const pendingInbound = selAssetRepairs?.pendingInbound;
                       if (pendingOutbound) {
                         return (
                           <div style={{ marginTop: '6px', fontSize: '11.5px', color: 'var(--danger)', backgroundColor: 'rgba(239, 68, 68, 0.08)', padding: '5px 10px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1045,14 +1156,14 @@ export const Repairs: React.FC = () => {
                       return null;
                     })()}
                     {/* 진행 중인 외주정비 안내 배너 */}
-                    {repairs.some(r => r.assetId === selectedAsset.id && r.status === 'IN_PROGRESS' && r.maintenanceType === 'EXTERNAL') && (
+                    {Boolean(repairsByAssetIdMap.get(selectedAsset.id)?.activeExternal) && (
                       <div style={{ marginTop: '6px', fontSize: '11.5px', color: '#6d28d9', backgroundColor: 'rgba(139, 92, 246, 0.1)', padding: '5px 10px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Truck size={14} />
                         <strong>외주정비 위탁 진행 중:</strong> 협력업체 정비 완료 후 수리내역 확인 및 [외주 입고 검수 완료]를 실행하면 '임대가능'으로 복원됩니다.
                       </div>
                     )}
                     {/* 소모품대기 안내 배너 */}
-                    {repairs.some(r => r.assetId === selectedAsset.id && r.status === 'UNRESOLVED') && (
+                    {Boolean(repairsByAssetIdMap.get(selectedAsset.id)?.unresolvedRepair) && (
                       <div style={{ marginTop: '6px', fontSize: '11.5px', color: 'var(--warning)', backgroundColor: 'rgba(245, 158, 11, 0.12)', padding: '5px 10px', borderRadius: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <AlertTriangle size={14} />
                         <strong>소모품 수급 대기 중인 장비:</strong> 입고된 소모품을 아래 소모품 투입 관리에서 선택한 후 [정비 완료]를 실행하면 정상 임대가능으로 전환됩니다.
@@ -1491,7 +1602,7 @@ export const Repairs: React.FC = () => {
                       </thead>
                       <tbody>
                         {usedConsumables.map(uc => {
-                          const item = consumables.find(c => c.id === uc.consumableId);
+                          const item = consumableMap.get(uc.consumableId);
                           const subtotal = (item?.unitPrice || 0) * uc.quantity;
                           return (
                             <tr key={uc.consumableId} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
@@ -1563,7 +1674,7 @@ export const Repairs: React.FC = () => {
                     </button>
 
                     {maintenanceType === 'EXTERNAL' ? (
-                      repairs.some(r => r.assetId === selectedAsset.id && r.status === 'IN_PROGRESS' && r.maintenanceType === 'EXTERNAL') ? (
+                      Boolean(repairsByAssetIdMap.get(selectedAsset.id)?.activeExternal) ? (
                         <button
                           data-mid="repair-pipeline-add"
                           type="button"
@@ -1827,10 +1938,7 @@ export const Repairs: React.FC = () => {
 
       {/* ⚖️ Gutenberg Z-패턴 4단계 최하단 회계 대차대조식 검증 바 (헌장 3.5) */}
       {(() => {
-        const repairingAssets = assets.filter(a => a.status === 'REPAIRING').length;
-        const availableAssets = assets.filter(a => a.status === 'AVAILABLE').length;
-        const monthlyCompletedRepairs = repairs.filter(r => r.status === 'COMPLETED' && (r.repairDate || '').startsWith(thisMonthStart.slice(0, 7))).length;
-        const totalConsumableCost = repairs.filter(r => (r.repairDate || '').startsWith(thisMonthStart.slice(0, 7))).reduce((sum, r) => sum + (r.totalCost || 0), 0);
+        const { repairingAssets, availableAssets, monthlyCompletedRepairs, totalConsumableCost } = auditFooterStats;
 
         return (
           <div style={{

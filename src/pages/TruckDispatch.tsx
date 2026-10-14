@@ -15,7 +15,7 @@ import { Delivery, TransportCompany, TransportDriver, TransportNegotiation, db, 
 import { isPrivilegedPrivacyUser, maskPhoneNumber, maskName, maskAddress } from '../utils/privacyMasking';
 import { DestinationWeatherModal } from '../components/DestinationWeatherModal';
 import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal';
-import { matchHangul } from '../utils/hangulSearch';
+import { matchHangul, createHangulMatcher } from '../utils/hangulSearch';
 import { buildDispatchSmsText, launchDispatchSms, buildDispatchKakaoTalkText, copyToClipboard } from '../utils/nativeLauncher';
 import { broadcastWorkNotification } from '../utils/workNotificationService';
 import { issueHandoverTask, clearHandoverTasks } from '../utils/taskHandoverPipeline';
@@ -122,11 +122,48 @@ export const TruckDispatch: React.FC = () => {
 
   const canSave = hasPermission('delivery', 'save');
 
-  // 출고 검수 상태 파싱 헬퍼
+  // ⚡ [O(1) 룩업 맵] 필터링 및 카드/테이블 렌더링 시 O(N*M) 중첩 탐색 제거
+  const contractMap = useMemo(() => new Map(contracts.map(c => [c.id, c])), [contracts]);
+  const customerMap = useMemo(() => new Map(customers.map(c => [c.id, c])), [customers]);
+  const siteMap = useMemo(() => new Map((sites || []).map(s => [s.id, s])), [sites]);
+  const siteMasterMap = useMemo(() => new Map((siteMasters || []).map(m => [m.id, m])), [siteMasters]);
+  const assetMap = useMemo(() => new Map(assets.map(a => [a.id, a])), [assets]);
+  const userMap = useMemo(() => new Map((users || []).map(u => [u.id, u])), [users]);
+  const printStationMap = useMemo(() => new Map((printStations || []).map(s => [s.id, s])), [printStations]);
+
+  const contractAssetsByContractMap = useMemo(() => {
+    const map = new Map<string, typeof contractAssets>();
+    for (const ca of contractAssets) {
+      if (!ca.contractId) continue;
+      let list = map.get(ca.contractId);
+      if (!list) {
+        list = [];
+        map.set(ca.contractId, list);
+      }
+      list.push(ca);
+    }
+    return map;
+  }, [contractAssets]);
+
+  const outboundInspectionsByContractMap = useMemo(() => {
+    const map = new Map<string, typeof outboundInspections>();
+    for (const insp of outboundInspections) {
+      if (!insp.contractId) continue;
+      let list = map.get(insp.contractId);
+      if (!list) {
+        list = [];
+        map.set(insp.contractId, list);
+      }
+      list.push(insp);
+    }
+    return map;
+  }, [outboundInspections]);
+
+  // 출고 검수 상태 파싱 헬퍼 (O(1) Map 조회)
   const getOutboundInspectionStatus = (contractId?: string) => {
     if (!contractId) return 'NONE';
-    const insps = outboundInspections.filter(i => i.contractId === contractId);
-    if (insps.length === 0) return 'NONE';
+    const insps = outboundInspectionsByContractMap.get(contractId);
+    if (!insps || insps.length === 0) return 'NONE';
     if (insps.some(i => i.status === 'REJECTED')) return 'REJECTED';
     if (insps.every(i => i.status === 'COMPLETED')) return 'COMPLETED';
     if (insps.some(i => i.status === 'IN_PROGRESS')) return 'IN_PROGRESS';
@@ -181,19 +218,24 @@ export const TruckDispatch: React.FC = () => {
 
   // 🖨️ 분산 인쇄 큐 상태 배지 헬퍼 (프린터1/프린터2 무인 출력 상태 표출)
   const getPrintQueueBadge = (delivery: Delivery) => {
-    const c = contracts.find(ct => ct.id === delivery.contractId);
+    const c = delivery.contractId ? contractMap.get(delivery.contractId) : undefined;
     const cNo = c?.contractNo;
-    const matchedJob = printQueue
-      .filter(q => {
-        if (cNo && q.docNo && q.docNo.includes(cNo)) return true;
-        if (delivery.id && q.docNo && q.docNo.includes(delivery.id)) return true;
-        return false;
-      })
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+    let matchedJob: typeof printQueue[number] | undefined;
+    let latestTime = -Infinity;
+    for (const q of printQueue) {
+      if (!q.docNo) continue;
+      if ((cNo && q.docNo.includes(cNo)) || (delivery.id && q.docNo.includes(delivery.id))) {
+        const t = q.createdAt ? new Date(q.createdAt).getTime() : 0;
+        if (t > latestTime) {
+          latestTime = t;
+          matchedJob = q;
+        }
+      }
+    }
 
     if (!matchedJob) return null;
 
-    const st = printStations.find(s => s.id === matchedJob.stationId);
+    const st = matchedJob.stationId ? printStationMap.get(matchedJob.stationId) : undefined;
     const stationLabel = st?.stationName || (matchedJob.docType === 'DISPATCH_ORDER' ? '프린터1' : '프린터2');
 
     switch (matchedJob.status) {
@@ -283,10 +325,10 @@ export const TruckDispatch: React.FC = () => {
     }
   };
 
-  const getContract = (contractId?: string) => contracts.find(c => c.id === contractId);
-  const getCustomer = (customerId?: string) => customers.find(c => c.id === customerId);
+  const getContract = (contractId?: string) => (contractId ? contractMap.get(contractId) : undefined);
+  const getCustomer = (customerId?: string) => (customerId ? customerMap.get(customerId) : undefined);
 
-  // 회수 배차 대상 자산 조회 (delivery.assetIds 우선 매핑, 없으면 contractId 기준)
+  // 회수 배차 대상 자산 조회 (delivery.assetIds 우선 매핑, 없으면 contractId 기준) - O(1) Map 조회
   const getReturnAssets = (delivery: Delivery) => {
     if (!delivery) return [];
     if (delivery.assetIds) {
@@ -294,7 +336,7 @@ export const TruckDispatch: React.FC = () => {
         ? (delivery.assetIds as any[])
         : (typeof delivery.assetIds === 'string' ? delivery.assetIds.split(',') : []);
       const ids = rawIds.map((id: any) => String(id).trim()).filter(Boolean);
-      const found = ids.map(id => assets.find(a => a.id === id)).filter(Boolean) as Asset[];
+      const found = ids.map(id => assetMap.get(id)).filter(Boolean) as Asset[];
       if (found.length > 0) {
         return found.map(a => ({
           modelName: a.modelName || '-',
@@ -306,10 +348,10 @@ export const TruckDispatch: React.FC = () => {
       }
     }
     if (delivery.contractId) {
-      return contractAssets
-        .filter(ca => ca.contractId === delivery.contractId)
+      const cas = contractAssetsByContractMap.get(delivery.contractId) || [];
+      return cas
         .map(ca => {
-          const asset = assets.find(a => a.id === ca.assetId);
+          const asset = ca.assetId ? assetMap.get(ca.assetId) : undefined;
           return asset ? {
             modelName: asset.modelName || ca.expectedModel || '-',
             assetNo: asset.assetNo || '-',
@@ -1540,6 +1582,11 @@ export const TruckDispatch: React.FC = () => {
 
   // 🚚 운송 완료(DELIVERED) 건들 대사 대상 필터링 (지급 상태 및 운송사별 연동)
   const completedDeliveriesForRecon = useMemo(() => {
+    const q = reconSearchQuery.trim();
+    const qLower = q.toLowerCase();
+    const matcher = q ? createHangulMatcher(q) : null;
+    const compFilterLower = selectedReconCompany !== 'ALL' ? selectedReconCompany.toLowerCase() : '';
+
     return deliveries.filter(d => {
       // 1. 운송 완료건만 대상
       if (getNormalizedDeliveryStatus(d) !== 'DELIVERED') return false;
@@ -1555,22 +1602,23 @@ export const TruckDispatch: React.FC = () => {
       if (reconEndDate && dDate && dDate > reconEndDate) return false;
 
       // 4. 운송 거래처 필터
-      if (selectedReconCompany !== 'ALL') {
+      if (compFilterLower) {
         const rawComp = d.assignedVehicles?.[0]?.transportCompany || d.transportCompany || '';
-        const match = rawComp.toLowerCase().includes(selectedReconCompany.toLowerCase());
+        const match = rawComp.toLowerCase().includes(compFilterLower);
         if (!match) return false;
       }
 
       // 5. 검색어 (배차ID, 기사명, 거래처, 고객사명)
-      if (reconSearchQuery) {
-        const q = reconSearchQuery.trim();
-        const contract = contracts.find(c => c.id === d.contractId);
-        const customer = contract ? customers.find(c => c.id === contract.customerId) : null;
-        const match = (d.id && d.id.toLowerCase().includes(q.toLowerCase())) ||
-          (d.driverName && matchHangul(d.driverName, q)) ||
-          (d.destinationAddress && matchHangul(d.destinationAddress, q)) ||
-          (contract && contract.contractNo.toLowerCase().includes(q.toLowerCase())) ||
-          (customer && matchHangul(customer.name, q));
+      if (matcher) {
+        const contract = d.contractId ? contractMap.get(d.contractId) : undefined;
+        const customer = contract?.customerId ? customerMap.get(contract.customerId) : undefined;
+        const match = Boolean(
+          (d.id && d.id.toLowerCase().includes(qLower)) ||
+          (d.driverName && matcher.test(d.driverName)) ||
+          (d.destinationAddress && matcher.test(d.destinationAddress)) ||
+          (contract && contract.contractNo.toLowerCase().includes(qLower)) ||
+          (customer && matcher.test(customer.name))
+        );
         if (!match) return false;
       }
 
@@ -1581,7 +1629,7 @@ export const TruckDispatch: React.FC = () => {
       if (dateA !== dateB) return dateA.localeCompare(dateB);
       return (a.id || '').localeCompare(b.id || '');
     });
-  }, [deliveries, reconPaymentFilter, reconStartDate, reconEndDate, selectedReconCompany, reconSearchQuery, contracts, customers]);
+  }, [deliveries, reconPaymentFilter, reconStartDate, reconEndDate, selectedReconCompany, reconSearchQuery, contractMap, customerMap]);
 
   // 💡 [사장님 지시] 조회 버튼 클릭 시 로딩된 대사 정보(엑셀 1:1 대사 pair, 업로드 파일, 선택 상태 등)를 완전 초기화하여 깨끗한 원장 조회 상태로 복귀
   const handleReconSearch = () => {
@@ -2370,23 +2418,52 @@ export const TruckDispatch: React.FC = () => {
     }
   };
 
-  // 대사 통계 집계
+  // 대사 통계 집계 (Single-Pass O(N) 최적화)
   const reconStats = useMemo(() => {
     const isPairMode = reconPairs.length > 0;
     
     if (isPairMode) {
-      const excelPairs = reconPairs.filter(p => p.excelRow);
-      let excelTotalCount = excelPairs.length;
-      let excelTotalCost = excelPairs.reduce((acc, p) => acc + p.excelCost, 0);
+      let excelTotalCount = 0;
+      let excelTotalCost = 0;
+      let matchedCount = 0;
+      let matchedCost = 0;
+      let mismatchCount = 0;
+      let mismatchCost = 0;
+      let excludedCount = 0;
+      let excludedCost = 0;
+      let paymentRequestedCount = 0;
+      let paymentRequestedCost = 0;
+      let excelOnlyCount = 0;
+      let systemOnlyCount = 0;
 
-      let matchedCount = reconPairs.filter(p => p.isReconciled && !p.isExcluded).length;
-      let matchedCost = reconPairs.filter(p => p.isReconciled && !p.isExcluded).reduce((acc, p) => acc + p.systemCost, 0);
-      let mismatchCount = reconPairs.filter(p => p.matchStatus === 'MISMATCH').length;
-      let mismatchCost = reconPairs.filter(p => p.matchStatus === 'MISMATCH').reduce((acc, p) => acc + p.excelCost, 0);
-      let excludedCount = reconPairs.filter(p => p.isExcluded).length;
-      let excludedCost = reconPairs.filter(p => p.isExcluded).reduce((acc, p) => acc + p.excelCost, 0);
-      let paymentRequestedCount = reconPairs.filter(p => p.matchStatus === 'PAYMENT_REQUESTED').length;
-      let paymentRequestedCost = reconPairs.filter(p => p.matchStatus === 'PAYMENT_REQUESTED').reduce((acc, p) => acc + p.systemCost, 0);
+      for (const p of reconPairs) {
+        if (p.excelRow) {
+          excelTotalCount++;
+          excelTotalCost += p.excelCost;
+        }
+        if (p.isReconciled && !p.isExcluded) {
+          matchedCount++;
+          matchedCost += p.systemCost;
+        }
+        if (p.matchStatus === 'MISMATCH') {
+          mismatchCount++;
+          mismatchCost += p.excelCost;
+        }
+        if (p.isExcluded) {
+          excludedCount++;
+          excludedCost += p.excelCost;
+        }
+        if (p.matchStatus === 'PAYMENT_REQUESTED') {
+          paymentRequestedCount++;
+          paymentRequestedCost += p.systemCost;
+        }
+        if (p.matchStatus === 'EXCEL_ONLY') {
+          excelOnlyCount++;
+        }
+        if (p.matchStatus === 'SYSTEM_ONLY') {
+          systemOnlyCount++;
+        }
+      }
 
       return {
         isPairMode: true,
@@ -2400,31 +2477,47 @@ export const TruckDispatch: React.FC = () => {
         excludedCost,
         paymentRequestedCount,
         paymentRequestedCost,
+        excelOnlyCount,
+        systemOnlyCount,
         systemCount: completedDeliveriesForRecon.length
       };
     }
 
     const totalCount = completedDeliveriesForRecon.length;
-    const totalCost = completedDeliveriesForRecon.reduce((acc, d) => {
-      const cost = getEffectiveDeliveryCost(d);
-      return acc + cost;
-    }, 0);
+    let totalCost = 0;
+    let matchedCount = 0;
+    let matchedCost = 0;
+    let paymentRequestedCount = 0;
+    let paymentRequestedCost = 0;
 
-    const paymentRequestedDeliveries = completedDeliveriesForRecon.filter(d => (d as any).reconciliationStatus === 'PAYMENT_REQUESTED');
-    const matchedDeliveries = completedDeliveriesForRecon.filter(d => (d as any).reconciliationStatus === 'MATCHED' || (d as any).reconciliationStatus === 'RECONCILED');
+    for (const d of completedDeliveriesForRecon) {
+      const cost = getEffectiveDeliveryCost(d);
+      totalCost += cost;
+      const st = (d as any).reconciliationStatus;
+      if (st === 'PAYMENT_REQUESTED') {
+        paymentRequestedCount++;
+        paymentRequestedCost += cost;
+      }
+      if (st === 'MATCHED' || st === 'RECONCILED') {
+        matchedCount++;
+        matchedCost += cost;
+      }
+    }
 
     return {
       isPairMode: false,
       totalCount,
       totalCost,
-      matchedCount: matchedDeliveries.length,
-      matchedCost: matchedDeliveries.reduce((sum, d) => sum + getEffectiveDeliveryCost(d), 0),
+      matchedCount,
+      matchedCost,
       mismatchCount: 0,
       mismatchCost: 0,
       excludedCount: 0,
       excludedCost: 0,
-      paymentRequestedCount: paymentRequestedDeliveries.length,
-      paymentRequestedCost: paymentRequestedDeliveries.reduce((sum, d) => sum + getEffectiveDeliveryCost(d), 0),
+      paymentRequestedCount,
+      paymentRequestedCost,
+      excelOnlyCount: 0,
+      systemOnlyCount: 0,
       systemCount: totalCount
     };
   }, [reconPairs, completedDeliveriesForRecon]);
@@ -2521,8 +2614,8 @@ export const TruckDispatch: React.FC = () => {
     const exportRows = reconPairs.length > 0
       ? reconPairs.map((p, i) => {
           const sysD = p.systemDelivery;
-          const contract = sysD ? contracts.find(c => c.id === sysD.contractId) : null;
-          const customer = contract ? customers.find(c => c.id === contract.customerId) : null;
+          const contract = sysD?.contractId ? contractMap.get(sysD.contractId) : null;
+          const customer = contract?.customerId ? customerMap.get(contract.customerId) : null;
 
           return {
             '순번': i + 1,
@@ -2540,8 +2633,8 @@ export const TruckDispatch: React.FC = () => {
           };
         })
       : completedDeliveriesForRecon.map((d, i) => {
-          const contract = contracts.find(c => c.id === d.contractId);
-          const customer = contract ? customers.find(c => c.id === contract.customerId) : null;
+          const contract = d.contractId ? contractMap.get(d.contractId) : null;
+          const customer = contract?.customerId ? customerMap.get(contract.customerId) : null;
           const cost = getEffectiveDeliveryCost(d);
 
           return {
@@ -2582,6 +2675,10 @@ export const TruckDispatch: React.FC = () => {
 
   // 2. 배차건 정밀 필터링 (상태 4단계 + 요청/운송일 기간 피커 + 검색어)
   const filteredDeliveries = useMemo(() => {
+    const q = searchQuery.trim();
+    const qLower = q.toLowerCase();
+    const matcher = q ? createHangulMatcher(q) : null;
+
     const list = deliveries.filter(d => {
       const dStatus = getNormalizedDeliveryStatus(d);
       if (activeDispatchStatusTab !== 'ALL' && dStatus !== activeDispatchStatusTab) return false;
@@ -2590,18 +2687,17 @@ export const TruckDispatch: React.FC = () => {
       if (startDate && dDate && dDate < startDate) return false;
       if (endDate && dDate && dDate > endDate) return false;
 
-      if (!searchQuery || !searchQuery.trim()) return true;
-      const q = searchQuery.trim();
+      if (!matcher) return true;
       const contract = getContract(d.contractId);
       const customer = contract ? getCustomer(contract.customerId) : null;
 
-      return (
-        (d.id && d.id.toLowerCase().includes(q.toLowerCase())) ||
-        (d.driverName && matchHangul(d.driverName, q)) ||
-        (d.transportCompany && matchHangul(d.transportCompany, q)) ||
-        (d.destinationAddress && matchHangul(d.destinationAddress, q)) ||
-        (contract && contract.contractNo.toLowerCase().includes(q.toLowerCase())) ||
-        (customer && matchHangul(customer.name, q))
+      return Boolean(
+        (d.id && d.id.toLowerCase().includes(qLower)) ||
+        (d.driverName && matcher(d.driverName)) ||
+        (d.transportCompany && matcher(d.transportCompany)) ||
+        (d.destinationAddress && matcher(d.destinationAddress)) ||
+        (contract && contract.contractNo.toLowerCase().includes(qLower)) ||
+        (customer && matcher(customer.name))
       );
     });
 
@@ -2614,7 +2710,7 @@ export const TruckDispatch: React.FC = () => {
       const dateB = b.loadingDate || b.requestDate || '';
       return dateB.localeCompare(dateA);
     });
-  }, [deliveries, activeDispatchStatusTab, startDate, endDate, searchQuery, contracts, customers]);
+  }, [deliveries, activeDispatchStatusTab, startDate, endDate, searchQuery, contractMap, customerMap]);
 
   // 💡 배차 완료 상태에서 수정을 위해 임시 잠금 해제(Unlock)하는 모드 state
   const [isEditUnlocked, setIsEditUnlocked] = useState<boolean>(false);
@@ -3404,10 +3500,10 @@ export const TruckDispatch: React.FC = () => {
           <div data-mid="dispatch-status-tabs" style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap', flexShrink: 0 }}>
             {[
               { key: 'ALL', label: '전체 보기', count: deliveries.length },
-              { key: 'PENDING', label: '🟡 배차 전 (대기)', count: deliveries.filter(d => getNormalizedDeliveryStatus(d) === 'PENDING').length },
-              { key: 'DISPATCHED', label: '🔵 배차 완료 (기사배정)', count: deliveries.filter(d => getNormalizedDeliveryStatus(d) === 'DISPATCHED').length },
-              { key: 'DELIVERED', label: '🟢 운송 완료', count: deliveries.filter(d => getNormalizedDeliveryStatus(d) === 'DELIVERED').length },
-              { key: 'CANCELLED', label: '🔴 배차 취소', count: deliveries.filter(d => getNormalizedDeliveryStatus(d) === 'CANCELLED').length },
+              { key: 'PENDING', label: '🟡 배차 전 (대기)', count: deliveryCounts.pending },
+              { key: 'DISPATCHED', label: '🔵 배차 완료 (기사배정)', count: deliveryCounts.dispatched },
+              { key: 'DELIVERED', label: '🟢 운송 완료', count: deliveryCounts.delivered },
+              { key: 'CANCELLED', label: '🔴 배차 취소', count: deliveryCounts.cancelled },
             ].map(tab => (
               <button
                 key={tab.key}
@@ -3698,24 +3794,27 @@ export const TruckDispatch: React.FC = () => {
                         </div>
 
                         {/* 화물/자산 정보 표시 */}
-                        {(d.type === 'INBOUND' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납') ? (
-                          // 회수 배차: 계약/회수 자산 목록 표시 (모델명 {관리번호})
-                          <div style={{ padding: '6px 8px', backgroundColor: 'rgba(239,68,68,0.05)', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.2)', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px' }}>
-                              <span>
-                                🔄 회수 대상:&nbsp;
-                                {getReturnAssets(d).length > 0
-                                  ? getReturnAssets(d).map(a => `${a.modelName} {${a.assetNo}}`).join(' / ')
-                                  : (cargoItems.length > 0 ? cargoItems.map(c => `${c.modelName} ${c.count}대`).join(', ') : '자산 정보 미확인')}
-                              </span>
-                              {getReturnAssets(d).some(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR') && (
-                                <span style={{ fontSize: '9.5px', color: '#dc2626', fontWeight: 800, backgroundColor: 'rgba(220, 38, 38, 0.12)', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(220,38,38,0.25)', whiteSpace: 'nowrap' }}>
-                                  🚨 원사협착봉 (탈거금지)
+                        {(d.type === 'INBOUND' || d.dispatchCategory === '입고' || d.dispatchCategory === '반납') ? (() => {
+                          const returnAssetsList = getReturnAssets(d);
+                          return (
+                            // 회수 배차: 계약/회수 자산 목록 표시 (모델명 {관리번호})
+                            <div style={{ padding: '6px 8px', backgroundColor: 'rgba(239,68,68,0.05)', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.2)', fontSize: '11.5px', color: 'var(--text-secondary)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px' }}>
+                                <span>
+                                  🔄 회수 대상:&nbsp;
+                                  {returnAssetsList.length > 0
+                                    ? returnAssetsList.map(a => `${a.modelName} {${a.assetNo}}`).join(' / ')
+                                    : (cargoItems.length > 0 ? cargoItems.map(c => `${c.modelName} ${c.count}대`).join(', ') : '자산 정보 미확인')}
                                 </span>
-                              )}
+                                {returnAssetsList.some(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR') && (
+                                  <span style={{ fontSize: '9.5px', color: '#dc2626', fontWeight: 800, backgroundColor: 'rgba(220, 38, 38, 0.12)', padding: '1px 5px', borderRadius: '4px', border: '1px solid rgba(220,38,38,0.25)', whiteSpace: 'nowrap' }}>
+                                    🚨 원사협착봉 (탈거금지)
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ) : (
+                          );
+                        })() : (
                           // 출고 배차: 화물 cargoItems 표시
                           <div style={{ padding: '6px 8px', backgroundColor: 'var(--bg-card)', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '11.5px', color: 'var(--text-muted)' }}>
                             📦 화물: {cargoItems.map(c => `${c.modelName} ${c.count}대`).join(', ')}
@@ -5461,8 +5560,8 @@ export const TruckDispatch: React.FC = () => {
                   { key: 'ALL', label: '전체', count: reconPairs.length || completedDeliveriesForRecon.length, color: 'var(--text-primary)', bg: 'var(--bg-body)' },
                   { key: 'MATCHED', label: '대사 일치', count: reconStats.matchedCount, color: 'var(--success)', bg: 'rgba(34,197,94,0.1)' },
                   { key: 'MISMATCH', label: '금액 불일치', count: reconStats.mismatchCount, color: '#ca8a04', bg: 'rgba(234,179,8,0.12)' },
-                  { key: 'EXCEL_ONLY', label: '청구 단독', count: reconPairs.filter(p => p.matchStatus === 'EXCEL_ONLY').length, color: 'var(--danger)', bg: 'rgba(239,68,68,0.1)' },
-                  { key: 'SYSTEM_ONLY', label: '시스템 단독', count: reconPairs.filter(p => p.matchStatus === 'SYSTEM_ONLY').length, color: 'var(--text-muted)', bg: 'var(--bg-body)' },
+                  { key: 'EXCEL_ONLY', label: '청구 단독', count: reconStats.excelOnlyCount, color: 'var(--danger)', bg: 'rgba(239,68,68,0.1)' },
+                  { key: 'SYSTEM_ONLY', label: '시스템 단독', count: reconStats.systemOnlyCount, color: 'var(--text-muted)', bg: 'var(--bg-body)' },
                   { key: 'EXCLUDED', label: '오청구 제외', count: reconStats.excludedCount, color: 'var(--text-muted)', bg: 'rgba(100,116,139,0.1)' },
                   { key: 'PAYMENT_REQUESTED', label: '지급요청 완료', count: reconStats.paymentRequestedCount, color: 'var(--primary)', bg: 'rgba(37,99,235,0.1)' }
                 ].map(t => (
@@ -5613,8 +5712,8 @@ export const TruckDispatch: React.FC = () => {
                           return false;
                         })
                         .map(d => {
-                          const contract = contracts.find(c => c.id === d.contractId);
-                          const customer = contract ? customers.find(c => c.id === contract.customerId) : null;
+                          const contract = d.contractId ? contractMap.get(d.contractId) : null;
+                          const customer = contract?.customerId ? customerMap.get(contract.customerId) : null;
                           const memoCustomer = d.memo && d.memo.includes('업체:') ? d.memo.split('업체:')[1].split('|')[0].trim() : '';
                           const displayCustomer = customer?.name || memoCustomer || '고객사미지정';
                           const cost = getEffectiveDeliveryCost(d);
@@ -5706,8 +5805,8 @@ export const TruckDispatch: React.FC = () => {
                       .map((pair, pIdx) => {
                         const sys = pair.systemDelivery;
                         const excel = pair.excelRow;
-                        const contract = sys ? contracts.find(c => c.id === sys.contractId) : null;
-                        const customer = contract ? customers.find(c => c.id === contract.customerId) : null;
+                        const contract = sys?.contractId ? contractMap.get(sys.contractId) : null;
+                        const customer = contract?.customerId ? customerMap.get(contract.customerId) : null;
                         const memoCustomer = sys?.memo && sys.memo.includes('업체:') ? sys.memo.split('업체:')[1].split('|')[0].trim() : '';
                         const displayCustomer = customer?.name || memoCustomer || '고객사미지정';
 
