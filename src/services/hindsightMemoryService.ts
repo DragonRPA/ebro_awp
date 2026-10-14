@@ -1,14 +1,15 @@
 // src/services/hindsightMemoryService.ts
-// 🧠 eBro Hindsight 4-Tier Memory & Cognitive Core Service
-// 🏛️ 전사 시스템 개발 표준 헌장 (카테고리 I~V, 최대 편익, 건조 명사, 1단어 1뜻 SSOT) 준수
+// 🧠 eBro Hindsight 4-Tier Memory & Real-DB Cognitive Core Service
+// 🏛️ 무목업(Zero-Mock) · 무시드(Zero-Seed) · 100% 실DB(Central + Tenant) 직접 연동 엔진
 
 import { centralSupabase } from './centralDb';
-import { supabase } from './db';
+import { db, supabase } from './db';
 import { sanitizePrivacyDeep, sanitizeSensitiveString } from '../utils/hindsightPrivacyFilter';
+import { createHangulMatcher } from '../utils/hangulSearch';
 
 export type HindsightDomain = 'SALES' | 'LOGISTICS' | 'ASSET' | 'FINANCE' | 'SYSTEM' | 'CHARTER' | 'GENERAL';
 
-// 1. World Fact 인터페이스
+// 1. World Fact 인터페이스 (DB 마스터/제원/매뉴얼/기준 사실)
 export interface HindsightWorldFact {
   id: string;
   tenant_id: string;
@@ -23,7 +24,7 @@ export interface HindsightWorldFact {
   updated_at: string;
 }
 
-// 2. Experience 인터페이스
+// 2. Experience 인터페이스 (실제 캡처된 사용자 인터랙션 및 CUD SQL)
 export interface HindsightExperience {
   id: string;
   tenant_id: string;
@@ -41,7 +42,7 @@ export interface HindsightExperience {
   created_at: string;
 }
 
-// 3. Observation 인터페이스
+// 3. Observation 인터페이스 (실제 DB 원장 및 경험으로부터 귀납 도출된 패턴)
 export interface HindsightObservation {
   id: string;
   tenant_id: string;
@@ -56,7 +57,7 @@ export interface HindsightObservation {
   last_refined_at: string;
 }
 
-// 4. Mental Model 인터페이스
+// 4. Mental Model 인터페이스 (실제 DB 집계로부터 합성된 도메인 지식 모델)
 export interface HindsightMentalModel {
   id: string;
   tenant_id: string;
@@ -70,8 +71,35 @@ export interface HindsightMentalModel {
   last_synthesized_at: string;
 }
 
+export interface HindsightDbDiagnostics {
+  lastSyncedAt: string;
+  syncLatencyMs: number;
+  remoteTables: {
+    awp_shared_memories: { exists: boolean; totalCount: number; sqlCapturedCount: number };
+    hindsight_world_facts: { exists: boolean; rowCount: number };
+    hindsight_observations: { exists: boolean; rowCount: number };
+    hindsight_mental_models: { exists: boolean; rowCount: number };
+  };
+  liveErpCounts: {
+    customers: number;
+    siteMasters: number;
+    contracts: number;
+    contractAssets: number;
+    products: number;
+    assets: number;
+    deliveries: number;
+    billings: number;
+    payments: number;
+    repairs: number;
+    outboundInspections: number;
+    standardOptions: number;
+    systemManuals: number;
+  };
+}
+
 export interface RecallResult {
   query: string;
+  extracted_tokens: string[];
   world_facts: HindsightWorldFact[];
   experiences: HindsightExperience[];
   observations: HindsightObservation[];
@@ -81,426 +109,784 @@ export interface RecallResult {
 
 export interface ReflectResponse {
   answer: string;
+  extracted_tokens: string[];
   sources: {
     fact_keys: string[];
     observation_clusters: string[];
     mental_model_keys: string[];
     experience_count: number;
+    live_db_matches: {
+      customers: number;
+      sites: number;
+      contracts: number;
+      products: number;
+      assets: number;
+      deliveries: number;
+      billings: number;
+    };
   };
   dry_summary: string;
   action_recommendation?: string;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 🏛️ 불변의 사실 지식 초기 시드 (World Facts SSOT)
-// ─────────────────────────────────────────────────────────────────────────────
-const SEED_WORLD_FACTS: HindsightWorldFact[] = [
-  {
-    id: 'wf_charter_1_1',
-    tenant_id: 'giyeonlift',
-    domain: 'CHARTER',
-    fact_key: 'SYSTEM_CORE_MISSION_MAX_BENEFIT',
-    fact_title: '최우선 개발 사명 (최대 편익 원칙)',
-    fact_content: '최대 편리함과 담당자의 노력 대비 효과와 이익(효익)을 합쳐서, 최대 편익에 이르는 시스템 개발이 우리의 목적이다.',
-    source_reference: '전사 시스템 개발 표준 헌장 1.1조',
-    is_immutable: true,
-    created_at: '2026-10-12T00:00:00Z',
-    updated_at: '2026-10-12T00:00:00Z'
-  },
-  {
-    id: 'wf_charter_1_3',
-    tenant_id: 'giyeonlift',
-    domain: 'ASSET',
-    fact_key: 'ASSET_STATUS_RENTED_ON_OUTBOUND_INSPECTION',
-    fact_title: '출고 검수 승인 마감 시 자산 상태 RENTED 전환 원칙',
-    fact_content: '출고 검수 승인이 최종 완료되는 즉시 자산 상태는 RENTED(대여중)으로 전환된다. 배차 단계에서는 배차 취소 시 롤백 여부를 판단할 수 없고 권한이 없으므로 자산 상태를 조작하지 않는다.',
-    source_reference: '전사 시스템 개발 표준 헌장 1.3조',
-    is_immutable: true,
-    created_at: '2026-10-12T00:00:00Z',
-    updated_at: '2026-10-12T00:00:00Z'
-  },
-  {
-    id: 'wf_charter_1_4',
-    tenant_id: 'giyeonlift',
-    domain: 'SYSTEM',
-    fact_key: 'ONE_TERM_ONE_MEANING_SSOT',
-    fact_title: '1단어 1뜻 전사 단일 의미 표준화 원칙',
-    fact_content: '단 하나의 비즈니스 개념은 오직 전사 표준으로 합의된 단 하나의 고유 명사/동사로만 명명하며 다의어화 및 동의어 파편화를 절대 금지한다. 예: 교환은 오직 EXCHANGE 단일 표준 사용.',
-    source_reference: '전사 시스템 개발 표준 헌장 1.4조',
-    is_immutable: true,
-    created_at: '2026-10-12T00:00:00Z',
-    updated_at: '2026-10-12T00:00:00Z'
-  },
-  {
-    id: 'wf_charter_1_5',
-    tenant_id: 'giyeonlift',
-    domain: 'SALES',
-    fact_key: 'STRICT_NM_NORMALIZATION_ANTI_DENORMALIZATION',
-    fact_title: 'N:M 객체 지향 데이터 정규화 및 역정규화 영구 금지',
-    fact_content: '고객(Customer)과 물리 현장(SiteMaster)은 완전히 독립된 마스터 엔티티이며 customer_sites 조인 링크로만 결합된다. 이름이나 물리 속성(isActive, paidOptions 등)의 하위 복사 저장(역정규화)을 영구 금지한다.',
-    source_reference: '전사 시스템 개발 표준 헌장 1.5조',
-    is_immutable: true,
-    created_at: '2026-10-12T00:00:00Z',
-    updated_at: '2026-10-12T00:00:00Z'
-  },
-  {
-    id: 'wf_charter_2_1',
-    tenant_id: 'giyeonlift',
-    domain: 'SALES',
-    fact_key: 'SALES_ASSET_RR_SEPARATION',
-    fact_title: '영업 부서와 출고/자산 부서 간 R&R 엄격 분리',
-    fact_content: '영업 부서는 동일/동등 모델 장비의 대차 교체 요구(의뢰)만 전송하며 개별 출고 자산번호를 직접 선택/지정할 수 없다. 자산번호 지정은 출고/자산 부서의 권한이다.',
-    source_reference: '전사 시스템 개발 표준 헌장 2.1조',
-    is_immutable: true,
-    created_at: '2026-10-12T00:00:00Z',
-    updated_at: '2026-10-12T00:00:00Z'
-  },
-  {
-    id: 'wf_charter_2_2',
-    tenant_id: 'giyeonlift',
-    domain: 'SALES',
-    fact_key: 'CONTRACT_PROPERTY_INHERITANCE',
-    fact_title: '대차/교체 시 계약 속성 100% 자동 상속 원칙',
-    fact_content: '대차 교체로 현장에 신규 투입되는 장비는 최초 계약의 렌탈료 단가 조건, 청구/명세서 마감일 조건, 현장/작업지시 속성, 영업담당자 속성을 100% 자동 상속받는다.',
-    source_reference: '전사 시스템 개발 표준 헌장 2.2조',
-    is_immutable: true,
-    created_at: '2026-10-12T00:00:00Z',
-    updated_at: '2026-10-12T00:00:00Z'
-  },
-  {
-    id: 'wf_charter_2_3',
-    tenant_id: 'giyeonlift',
-    domain: 'LOGISTICS',
-    fact_key: 'SINGLE_EXCHANGE_DISPATCH_30PCT_DISCOUNT',
-    fact_title: '단일 EXCHANGE 1건 발행 원칙 및 왕복운송비 30% 자동 할인',
-    fact_content: '대차/교체 발생 시 출고/입고 2건으로 분할하지 않고 속성 EXCHANGE 1건의 왕복 배차만 발행한다. 왕복 운송비는 편도 정상가 2배 대비 30% 자동 할인이 적용된다.',
-    source_reference: '전사 시스템 개발 표준 헌장 2.3조',
-    is_immutable: true,
-    created_at: '2026-10-12T00:00:00Z',
-    updated_at: '2026-10-12T00:00:00Z'
-  },
-  {
-    id: 'wf_charter_3_1',
-    tenant_id: 'giyeonlift',
-    domain: 'SYSTEM',
-    fact_key: 'ZERO_ADJECTIVE_DRY_SYNTAX',
-    fact_title: '무수식어 건조한 명사·동사 UI 단일 표준화 정책',
-    fact_content: '시스템 화면의 모든 타이틀, 버튼, 카드 라벨에 감성적이거나 과장된 수식어를 배제하고 오직 건조한 명사 또는 명사+동사 구조만을 사용한다.',
-    source_reference: '전사 시스템 개발 표준 헌장 3.1조',
-    is_immutable: true,
-    created_at: '2026-10-12T00:00:00Z',
-    updated_at: '2026-10-12T00:00:00Z'
-  },
-  {
-    id: 'wf_charter_4_1',
-    tenant_id: 'giyeonlift',
-    domain: 'FINANCE',
-    fact_key: 'ASSET_REVENUE_PRO_RATA_POLICY',
-    fact_title: '자산별 매출 기여액 정밀 일할 집계 정책',
-    fact_content: '각 자산별 누적 매출 기여액을 정밀 일할 집계한다. 대차 교체 시 전자산은 교체 전일까지 확정 마감, 후장비는 교체 당일부터 바통을 승계받아 집계하며 총합은 1원도 틀림없이 일치해야 한다.',
-    source_reference: '전사 시스템 개발 표준 헌장 4.1조',
-    is_immutable: true,
-    created_at: '2026-10-12T00:00:00Z',
-    updated_at: '2026-10-12T00:00:00Z'
-  },
-  {
-    id: 'wf_charter_5_5',
-    tenant_id: 'giyeonlift',
-    domain: 'SYSTEM',
-    fact_key: 'THREE_CONSERVATION_LAWS',
-    fact_title: '3대 종단 보존 법칙 (날짜, 수지, 상태 보존)',
-    fact_content: '1. 날짜 보존(가동일 합계 = 역일), 2. 수지 보존(청구총액 = 확정액 + 반려액 | 대차 차액 ₩0), 3. 상태 보존(정비 완료 시 정비점수 0점 복원)의 3대 보존 법칙이 오차 없이 지켜져야 한다.',
-    source_reference: '전사 시스템 개발 표준 헌장 5.5조',
-    is_immutable: true,
-    created_at: '2026-10-12T00:00:00Z',
-    updated_at: '2026-10-12T00:00:00Z'
-  },
-  {
-    id: 'wf_equipment_specs_19ft',
-    tenant_id: 'giyeonlift',
-    domain: 'ASSET',
-    fact_key: 'EQUIPMENT_SPEC_19FT',
-    fact_title: '19ft 자주식 시저 리프트 표준 제원 (GS-1930 / SJ-3219)',
-    fact_content: '작업높이: 7.8m, 발판높이: 5.8m, 전폭: 0.81m, 중량: 1,450kg, 적재하중: 230kg, 등판능력: 25%, 허용풍속: 12.5m/s. 소형/실내 배관 및 덕트 마감용.',
-    source_reference: '장비 제원 기준표',
-    is_immutable: true,
-    created_at: '2026-10-12T00:00:00Z',
-    updated_at: '2026-10-12T00:00:00Z'
-  },
-  {
-    id: 'wf_equipment_specs_26ft',
-    tenant_id: 'giyeonlift',
-    domain: 'ASSET',
-    fact_key: 'EQUIPMENT_SPEC_26FT',
-    fact_title: '26ft 자주식 시저 리프트 표준 제원 (GS-2646 / SJ-3226)',
-    fact_content: '작업높이: 9.8m, 발판높이: 7.8m, 전폭: 1.17m, 중량: 2,450kg, 적재하중: 450kg, 등판능력: 25%. 중대형 설비 및 소방 배관 시공용.',
-    source_reference: '장비 제원 기준표',
-    is_immutable: true,
-    created_at: '2026-10-12T00:00:00Z',
-    updated_at: '2026-10-12T00:00:00Z'
-  },
-  {
-    id: 'wf_pricing_standard',
-    tenant_id: 'giyeonlift',
-    domain: 'SALES',
-    fact_key: 'STANDARD_RENTAL_PRICING_TABLE',
-    fact_title: '표준 렌탈 단가표 및 일할 공식',
-    fact_content: '19ft 월 ₩350,000~400,000(일 ₩15,000) / 26ft 월 ₩450,000~500,000(일 ₩18,000) / 33ft 월 ₩600,000(일 ₩22,000). 일할단가 = floor(월임대료 / 30).',
-    source_reference: '영업 단가 기준표',
-    is_immutable: true,
-    created_at: '2026-10-12T00:00:00Z',
-    updated_at: '2026-10-12T00:00:00Z'
-  }
-];
+// 자연어 질의에서 불용어(어미/조사/질문 수식어)를 제거하고 핵심 검색 키워드 추출
+const QUESTION_STOPWORDS = new Set([
+  '얼마로', '들어갔었지', '들어갔지', '얼마', '줬지', '보통', '오늘', '오는데', '해야', '돼', '되나', '될까',
+  '지난달', '왜', '발생했지', '발생', '뭐', '무엇', '어떻게', '알려줘', '보여줘', '조회', '검색', '확인',
+  '현황', '내역', '목록', '리스트', '데이터', '있어', '있나', '없는', '건수', '몇', '대', '건', '원',
+  '에서', '가는', '관련', '대한', '대해', '기준', '현재', '최근', '전체', '모든', '우리', '회사'
+]);
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 🧠 도메인 관찰/신념 초기 시드 (Observations SSOT)
-// ─────────────────────────────────────────────────────────────────────────────
-const SEED_OBSERVATIONS: HindsightObservation[] = [
-  {
-    id: 'obs_sales_godek',
-    tenant_id: 'giyeonlift',
-    domain: 'SALES',
-    cluster_key: 'SITE_GODEK_DEMAND_PATTERN',
-    belief_title: '삼성전자 고덕 현장 기종 및 단가 패턴',
-    belief_statement: '삼성전자 고덕 P4 복합동 현장은 전체 장비 중 19ft(GS-1930)가 68%, 26ft가 24%를 차지하며, 상부 협착방지센서(4EA) 및 4면 철망이 100% 필수 장착되어 출고됨.',
-    proof_count: 42,
-    confidence: 0.98,
-    supporting_quotes: ['삼성 고덕 센서 4EA 필수', '19ft 2대, 26ft 1대 출고'],
-    first_observed_at: '2026-08-01T00:00:00Z',
-    last_refined_at: '2026-10-11T12:00:00Z'
-  },
-  {
-    id: 'obs_logistics_pocheon',
-    tenant_id: 'giyeonlift',
-    domain: 'LOGISTICS',
-    cluster_key: 'ROUTE_HWASEONG_POCHEON_FREIGHT',
-    belief_title: '화성 남양 - 포천 5톤 축차 공차비 할증 패턴',
-    belief_statement: '화성 남양 ➔ 포천 노선은 회차 화물 부족으로 기사들이 통상 공차비를 요구하여 실제 체결 단가는 기준단가(₩250,000) 대비 +₩35,000원(실제 ₩285,000원)에 수렴함.',
-    proof_count: 14,
-    confidence: 0.94,
-    supporting_quotes: ['포천 회차비 3만원 추가', '5톤 축차 28만5천원 타결'],
-    first_observed_at: '2026-07-15T00:00:00Z',
-    last_refined_at: '2026-10-10T15:00:00Z'
-  },
-  {
-    id: 'obs_asset_sj3219_leak',
-    tenant_id: 'giyeonlift',
-    domain: 'ASSET',
-    cluster_key: 'MODEL_SJ3219_VALVE_LEAK',
-    belief_title: 'SJ-3219 18~24개월차 밸브 블록 누유 주기',
-    belief_statement: 'Skyjack SJ-3219 기종은 출고 18~24개월 차에 밸브 블록 O링 경화로 인한 미세 오일 누유 발생률이 68%에 달하므로 출고 PDI 검수 시 선제 점검이 요구됨.',
-    proof_count: 218,
-    confidence: 0.96,
-    supporting_quotes: ['104호기 밸브 블록 O링 교체', '하강 시 미세 누유 감지'],
-    first_observed_at: '2026-05-20T00:00:00Z',
-    last_refined_at: '2026-10-11T09:00:00Z'
-  },
-  {
-    id: 'obs_finance_fee_adjustment',
-    tenant_id: 'giyeonlift',
-    domain: 'FINANCE',
-    cluster_key: 'BANK_FEE_500_AUTO_CLEAR',
-    belief_title: '통장 입금 500원/1,000원 송금수수료 차감 입금 패턴',
-    belief_statement: '고객사 입금액이 청구액보다 정확히 500원 또는 1,000원 부족한 경우 99.4% 확률로 타행 이체 수수료 차감 입금이며, feeAdjustment로 원클릭 완납 처리가 적합함.',
-    proof_count: 148,
-    confidence: 0.99,
-    supporting_quotes: ['타행이체 수수료 500원 차액 완납 처리', '우리은행 타행 수수료'],
-    first_observed_at: '2026-06-01T00:00:00Z',
-    last_refined_at: '2026-10-11T16:00:00Z'
-  }
-];
+const SUFFIX_PARTICLES = /(에서|으로|에게|한테|부터|까지|이나|거나|처럼|만큼|하고|이랑|라도|마저|조차|은|는|이|가|을|를|의|에|로|와|과|도|만|요|지|까|냐)$/u;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 📑 상비 멘탈 모델 초기 시드 (Mental Models SSOT)
-// ─────────────────────────────────────────────────────────────────────────────
-const SEED_MENTAL_MODELS: HindsightMentalModel[] = [
-  {
-    id: 'mm_site_pricing',
-    tenant_id: 'giyeonlift',
-    domain: 'SALES',
-    model_key: 'site_pricing_profile',
-    title: '현장별 단가 및 필수 안전옵션 프로필',
-    standing_query: '현장별 과거 체결 단가와 필수 안전옵션 기준',
-    content_markdown: `# 현장별 단가 및 필수 안전옵션 프로필
-- **삼성전자 평택/고덕 P4**: 19ft 월 ₩380,000, 26ft 월 ₩480,000. 상부 협착방지센서(4EA), 4면 철망, 소화기함 필수.
-- **SK하이닉스 이천/용인**: 19ft 월 ₩380,000, 26ft 월 ₩480,000. 백색 논마킹 타이어, 감지봉 결선 필수.
-- **판교 테크노밸리**: 19ft 월 ₩400,000. 지하 2.7m 차고 제한으로 2.5톤 저상 셀프로더 배차 필수.`,
-    structured_data: {
-      sites: {
-        'SM-GODEK-01': { model19: 380000, model26: 480000, requiredOptions: ['spec1', 'spec3', 'spec13'] },
-        'SM-PANGYO-01': { model19: 400000, maxVehicle: '2.5T_LOADER', rampLimitM: 2.7 }
-      }
-    },
-    revision: 1,
-    last_synthesized_at: '2026-10-12T00:00:00Z'
-  },
-  {
-    id: 'mm_route_rates',
-    tenant_id: 'giyeonlift',
-    domain: 'LOGISTICS',
-    model_key: 'route_freight_rates',
-    title: '노선별 적정 화물 운송료 및 차량 배정 지침',
-    standing_query: '수도권 주요 노선별 적정 운송비 및 차종 제원',
-    content_markdown: `# 노선별 적정 화물 운송료 및 차량 배정 지침
-- **화성 남양 ➔ 포천 (108km)**: 5톤 축차 기준 ₩285,000 (공차비 +₩35,000 반영).
-- **청주 본사 ➔ 평택 고덕 (65km)**: 5톤 축차 기준 ₩120,000 (안정 노선).
-- **화성 남양 ➔ 판교 (48km)**: 2.5톤 셀프로더 기준 ₩100,000. 대차 교환 시 30% 왕복할인(₩140,000 확정).`,
-    structured_data: {
-      routes: {
-        'hwaseong_pocheon_5t': { basePrice: 250000, marketAverage: 285000, emptyTruckPenalty: 35000 },
-        'hwaseong_pangyo_exchange': { oneWay: 100000, twoWayGross: 200000, finalExchangeCost: 140000 }
-      }
-    },
-    revision: 1,
-    last_synthesized_at: '2026-10-12T00:00:00Z'
-  },
-  {
-    id: 'mm_preventive_guide',
-    tenant_id: 'giyeonlift',
-    domain: 'ASSET',
-    model_key: 'equipment_preventive_guide',
-    title: '고소작업대 모델 연차별 예지 정비 및 출고 점검 가이드',
-    standing_query: '모델별 연차에 따른 집중 점검 부품 및 고질 결함',
-    content_markdown: `# 고소작업대 모델 연차별 예지 정비 가이드
-- **GS-1930 / SJ-3219 (3년차)**:
-  1. 유압 리프트 실린더 씰 키트 마모 및 미세 하강 점검.
-  2. 트로잔 배터리 비중 저하 (상승 작동 시 21V 이상 유지 측정).
-  3. 조이스틱 포텐셔미터 중립 영점 복귀 점검.
-- **출고 검수 승인 마감**: 승인 즉시 자산 상태를 RENTED로 자동 전환.`,
-    structured_data: {
-      checkpoints: ['cylinder_seal', 'battery_load_voltage', 'joystick_neutral_zero']
-    },
-    revision: 1,
-    last_synthesized_at: '2026-10-12T00:00:00Z'
-  },
-  {
-    id: 'mm_reconciliation_rules',
-    tenant_id: 'giyeonlift',
-    domain: 'FINANCE',
-    model_key: 'financial_reconciliation_rules',
-    title: '월말 1:1 대사 및 대차대조 무결성 감사 원칙',
-    standing_query: '통장 입금 대사 및 대차 교체 일할 정산 차액 분석',
-    content_markdown: `# 월말 1:1 대사 및 대차대조 무결성 감사 원칙
-- **대차대조식**: 청구총액 = 확정액 + 반려액 | 대차 차액 ₩0.
-- **대차 교체 일할 계산 (헌장 4.1)**: 전자산 교체 전일까지 일할 마감, 후장비 교체 당일부터 일할 승계.
-- **송금 수수료 500/1000원**: feeAdjustment로 자동 감액 처리.`,
-    structured_data: {
-      formula: 'Billed = Matched + Rejected',
-      maxAutoFeeAdjustment: 2000
-    },
-    revision: 1,
-    last_synthesized_at: '2026-10-12T00:00:00Z'
+export function extractQueryTokens(rawQuery: string): string[] {
+  if (!rawQuery || !rawQuery.trim()) return [];
+  const cleaned = rawQuery
+    .replace(/[?!.,~"'()[\]{}<>:/\\|+=*^%$#@`]/g, ' ')
+    .trim();
+
+  const rawParts = cleaned.split(/\s+/).filter(Boolean);
+  const tokens: string[] = [];
+
+  for (const part of rawParts) {
+    const lower = part.toLowerCase();
+    if (QUESTION_STOPWORDS.has(lower)) continue;
+
+    // 조사 제거본도 함께 고려 (단, 모델명/영문숫자 조합은 원형 유지)
+    const stripped = lower.length >= 3 ? lower.replace(SUFFIX_PARTICLES, '') : lower;
+    const candidate = stripped.length >= 1 && !QUESTION_STOPWORDS.has(stripped) ? stripped : lower;
+
+    if (candidate.length >= 1 && ! QUESTION_STOPWORDS.has(candidate) && !tokens.includes(candidate)) {
+      tokens.push(candidate);
+    }
   }
-];
+
+  return tokens;
+}
 
 class HindsightMemoryService {
-  private localWorldFacts: HindsightWorldFact[] = [...SEED_WORLD_FACTS];
-  private localObservations: HindsightObservation[] = [...SEED_OBSERVATIONS];
-  private localMentalModels: HindsightMentalModel[] = [...SEED_MENTAL_MODELS];
+  private localWorldFacts: HindsightWorldFact[] = [];
+  private localObservations: HindsightObservation[] = [];
+  private localMentalModels: HindsightMentalModel[] = [];
+  private cachedExperiences: HindsightExperience[] = [];
   private hasInitializedRemote = false;
 
+  private diagnostics: HindsightDbDiagnostics = {
+    lastSyncedAt: '',
+    syncLatencyMs: 0,
+    remoteTables: {
+      awp_shared_memories: { exists: false, totalCount: 0, sqlCapturedCount: 0 },
+      hindsight_world_facts: { exists: false, rowCount: 0 },
+      hindsight_observations: { exists: false, rowCount: 0 },
+      hindsight_mental_models: { exists: false, rowCount: 0 }
+    },
+    liveErpCounts: {
+      customers: 0,
+      siteMasters: 0,
+      contracts: 0,
+      contractAssets: 0,
+      products: 0,
+      assets: 0,
+      deliveries: 0,
+      billings: 0,
+      payments: 0,
+      repairs: 0,
+      outboundInspections: 0,
+      standardOptions: 0,
+      systemManuals: 0
+    }
+  };
+
   constructor() {
-    this.syncFromStorage();
+    this.purgeLegacySeedCache();
   }
 
   /**
-   * 로컬 스토리지에 캐시된 지식 로드
+   * 과거 테스트용으로 브라우저 localStorage에 저장되었던 시드/목업 캐시 영구 삭제
    */
-  private syncFromStorage() {
+  private purgeLegacySeedCache() {
     if (typeof window === 'undefined') return;
     try {
-      const savedWf = localStorage.getItem('hs_world_facts_cache');
-      if (savedWf) {
-        const parsed = JSON.parse(savedWf);
-        if (Array.isArray(parsed) && parsed.length > 0) this.localWorldFacts = parsed;
-      }
-      const savedObs = localStorage.getItem('hs_observations_cache');
-      if (savedObs) {
-        const parsed = JSON.parse(savedObs);
-        if (Array.isArray(parsed) && parsed.length > 0) this.localObservations = parsed;
-      }
-      const savedMm = localStorage.getItem('hs_mental_models_cache');
-      if (savedMm) {
-        const parsed = JSON.parse(savedMm);
-        if (Array.isArray(parsed) && parsed.length > 0) this.localMentalModels = parsed;
-      }
+      localStorage.removeItem('hs_world_facts_cache');
+      localStorage.removeItem('hs_observations_cache');
+      localStorage.removeItem('hs_mental_models_cache');
     } catch {}
   }
 
-  private saveToStorage() {
-    if (typeof window === 'undefined') return;
-    try {
-      localStorage.setItem('hs_world_facts_cache', JSON.stringify(this.localWorldFacts));
-      localStorage.setItem('hs_observations_cache', JSON.stringify(this.localObservations));
-      localStorage.setItem('hs_mental_models_cache', JSON.stringify(this.localMentalModels));
-    } catch {}
+  private getActiveTenantId(): string {
+    if (typeof window !== 'undefined') {
+      return (
+        localStorage.getItem('erp_current_tenant_id') ||
+        (window as any).__APP_CONTEXT__?.currentTenant?.id ||
+        'tenant-giyeonlift'
+      );
+    }
+    return 'tenant-giyeonlift';
   }
 
   /**
-   * Hindsight 4대 메모리 데이터베이스 연동 및 시드 자동 동기화
+   * 실제 DB(Central Supabase + Live Tenant DB)에서 4대 메모리를 실시간 구축/동기화 (목업/시드 0%)
    */
-  public async ensureInitialized(): Promise<void> {
-    if (this.hasInitializedRemote) return;
+  public async ensureInitialized(forceRefresh = false): Promise<void> {
+    if (this.hasInitializedRemote && !forceRefresh) return;
+
+    const startMs = performance.now();
+    this.purgeLegacySeedCache();
+    const tenantId = this.getActiveTenantId();
+    const nowIso = new Date().toISOString();
+
+    // ── 1. 원격 전용 테이블 존재 여부 및 실데이터 조회 (시드 자동 Upsert 일절 없음) ──
+    let remoteWf: HindsightWorldFact[] = [];
+    let remoteObs: HindsightObservation[] = [];
+    let remoteMm: HindsightMentalModel[] = [];
 
     try {
-      // 1. 원격 hindsight_world_facts 테이블 존재 여부 및 조회 시도
-      const { data: wfData, error: wfErr } = await centralSupabase
-        .from('hindsight_world_facts')
-        .select('*')
-        .limit(100);
-
-      if (!wfErr && Array.isArray(wfData) && wfData.length > 0) {
-        this.localWorldFacts = wfData;
-      } else if (!wfErr && Array.isArray(wfData) && wfData.length === 0) {
-        // 비어있으면 초기 시드 데이터 원격 저장
-        await centralSupabase.from('hindsight_world_facts').upsert(SEED_WORLD_FACTS);
+      const { data, error } = await centralSupabase.from('hindsight_world_facts').select('*').limit(500);
+      if (!error && Array.isArray(data)) {
+        this.diagnostics.remoteTables.hindsight_world_facts = { exists: true, rowCount: data.length };
+        remoteWf = data;
+      } else {
+        this.diagnostics.remoteTables.hindsight_world_facts = { exists: false, rowCount: 0 };
       }
-    } catch {}
+    } catch {
+      this.diagnostics.remoteTables.hindsight_world_facts = { exists: false, rowCount: 0 };
+    }
 
     try {
-      const { data: obsData, error: obsErr } = await centralSupabase
-        .from('hindsight_observations')
-        .select('*')
-        .limit(100);
-
-      if (!obsErr && Array.isArray(obsData) && obsData.length > 0) {
-        this.localObservations = obsData;
-      } else if (!obsErr && Array.isArray(obsData) && obsData.length === 0) {
-        await centralSupabase.from('hindsight_observations').upsert(SEED_OBSERVATIONS);
+      const { data, error } = await centralSupabase.from('hindsight_observations').select('*').limit(500);
+      if (!error && Array.isArray(data)) {
+        this.diagnostics.remoteTables.hindsight_observations = { exists: true, rowCount: data.length };
+        remoteObs = data;
+      } else {
+        this.diagnostics.remoteTables.hindsight_observations = { exists: false, rowCount: 0 };
       }
-    } catch {}
+    } catch {
+      this.diagnostics.remoteTables.hindsight_observations = { exists: false, rowCount: 0 };
+    }
 
     try {
-      const { data: mmData, error: mmErr } = await centralSupabase
-        .from('hindsight_mental_models')
-        .select('*')
-        .limit(100);
-
-      if (!mmErr && Array.isArray(mmData) && mmData.length > 0) {
-        this.localMentalModels = mmData;
-      } else if (!mmErr && Array.isArray(mmData) && mmData.length === 0) {
-        await centralSupabase.from('hindsight_mental_models').upsert(SEED_MENTAL_MODELS);
+      const { data, error } = await centralSupabase.from('hindsight_mental_models').select('*').limit(500);
+      if (!error && Array.isArray(data)) {
+        this.diagnostics.remoteTables.hindsight_mental_models = { exists: true, rowCount: data.length };
+        remoteMm = data;
+      } else {
+        this.diagnostics.remoteTables.hindsight_mental_models = { exists: false, rowCount: 0 };
       }
-    } catch {}
+    } catch {
+      this.diagnostics.remoteTables.hindsight_mental_models = { exists: false, rowCount: 0 };
+    }
 
+    // ── 2. Central DB `awp_shared_memories` (실제 수집된 Experiences) 로드 ──
+    try {
+      const solution = (typeof window !== 'undefined' ? localStorage.getItem('ebro_current_solution') || 'AWP' : 'AWP').toUpperCase();
+      const tableName = solution === 'IT' ? 'it_shared_memories' : 'awp_shared_memories';
+
+      const { data, error, count } = await centralSupabase
+        .from(tableName)
+        .select('*', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .limit(300);
+
+      if (!error && Array.isArray(data)) {
+        const mapped: HindsightExperience[] = data.map(row => ({
+          id: row.id,
+          tenant_id: row.tenant_id,
+          domain: (row.ui_context_bundle?.domain || 'GENERAL') as HindsightDomain,
+          action_name: row.action_name || 'UNKNOWN_ACTION',
+          menu_path: row.menu_path || 'unknown',
+          trigger_element: row.ui_context_bundle?.trigger_element,
+          interaction_history: row.ui_context_bundle?.interaction_history || [],
+          final_query: row.final_query,
+          raw_sql: row.raw_sql,
+          pii_masked: Boolean(row.ui_context_bundle?.pii_masked ?? true),
+          created_at: row.created_at
+        }));
+        this.cachedExperiences = mapped;
+        const sqlCount = mapped.filter(e => Boolean(e.raw_sql && e.raw_sql.trim())).length;
+        this.diagnostics.remoteTables.awp_shared_memories = {
+          exists: true,
+          totalCount: typeof count === 'number' ? count : mapped.length,
+          sqlCapturedCount: sqlCount
+        };
+      } else {
+        this.cachedExperiences = [];
+        this.diagnostics.remoteTables.awp_shared_memories = { exists: false, totalCount: 0, sqlCapturedCount: 0 };
+      }
+    } catch {
+      this.cachedExperiences = [];
+      this.diagnostics.remoteTables.awp_shared_memories = { exists: false, totalCount: 0, sqlCapturedCount: 0 };
+    }
+
+    // ── 3. 실제 운영 DB (LocalDB / Supabase) 원장 데이터 참조 ──
+    const customers = (db as any).customers || [];
+    const siteMasters = (db as any).siteMasters || [];
+    const sites = (db as any).sites || [];
+    const contracts = (db as any).contracts || [];
+    const contractAssets = (db as any).contractAssets || [];
+    const products = (db as any).products || [];
+    const assets = (db as any).assets || [];
+    const deliveries = (db as any).deliveries || [];
+    const billings = (db as any).billings || [];
+    const payments = (db as any).payments || [];
+    const repairs = (db as any).repairs || [];
+    const outboundInspections = (db as any).outboundInspections || [];
+    const standardOptions = (db as any).standardOptions || [];
+    const systemManuals = (db as any).systemManuals || [];
+
+    this.diagnostics.liveErpCounts = {
+      customers: customers.length,
+      siteMasters: siteMasters.length,
+      contracts: contracts.length,
+      contractAssets: contractAssets.length,
+      products: products.length,
+      assets: assets.length,
+      deliveries: deliveries.length,
+      billings: billings.length,
+      payments: payments.length,
+      repairs: repairs.length,
+      outboundInspections: outboundInspections.length,
+      standardOptions: standardOptions.length,
+      systemManuals: systemManuals.length
+    };
+
+    // ── 4. World Facts 구축 (원격 테이블 + 실제 DB products, standard_options, system_manuals) ──
+    const derivedFacts: HindsightWorldFact[] = [...remoteWf];
+
+    // 4-1. 실제 DB 등록 상품/장비 제원 (products 테이블)
+    for (const p of products) {
+      if (!p || !p.modelName) continue;
+      const specParts = [
+        p.manufacturer ? `제조사: ${p.manufacturer}` : '',
+        p.feet ? `규격: ${p.feet}ft` : '',
+        p.workingHeight ? `작업높이: ${p.workingHeight}` : '',
+        p.platformHeight ? `발판높이: ${p.platformHeight}` : '',
+        p.weight ? `중량: ${p.weight}` : '',
+        p.capacityPreExt ? `적재하중: ${p.capacityPreExt}` : '',
+        p.powerSource ? `동력: ${p.powerSource}` : '',
+        p.machineDimensions ? `장비치수: ${p.machineDimensions}` : '',
+        p.gradeability ? `등판능력: ${p.gradeability}` : '',
+        p.maxWindSpeed ? `허용풍속: ${p.maxWindSpeed}` : '',
+        p.spec ? `요약제원: ${p.spec}` : ''
+      ].filter(Boolean);
+
+      derivedFacts.push({
+        id: `wf_db_prod_${p.id}`,
+        tenant_id: tenantId,
+        domain: 'ASSET',
+        fact_key: `DB_PRODUCT_${p.modelName}`,
+        fact_title: `[장비제원] ${p.modelName}${p.feet ? ` (${p.feet}ft)` : ''}`,
+        fact_content: specParts.length > 0 ? specParts.join(' | ') : '제원 상세 미입력',
+        source_reference: `실제 DB products (${p.id})`,
+        is_immutable: true,
+        created_at: p.createdAt || nowIso,
+        updated_at: p.updatedAt || nowIso
+      });
+    }
+
+    // 4-2. 실제 DB 등록 현장 표준 옵션 (standard_options 테이블)
+    for (const opt of standardOptions) {
+      if (!opt || !opt.name) continue;
+      derivedFacts.push({
+        id: `wf_db_opt_${opt.id}`,
+        tenant_id: tenantId,
+        domain: 'SALES',
+        fact_key: `DB_STD_OPTION_${opt.id}`,
+        fact_title: `[표준옵션] ${opt.name} (${opt.category || '일반'})`,
+        fact_content: `분류: ${opt.category || '-'} | 기준단가: ₩${Number(opt.defaultAmount || 0).toLocaleString()} (${opt.unit || '식'})${opt.description ? ` | 설명: ${opt.description}` : ''}`,
+        source_reference: `실제 DB standard_options (${opt.id})`,
+        is_immutable: true,
+        created_at: opt.createdAt || nowIso,
+        updated_at: opt.updatedAt || nowIso
+      });
+    }
+
+    // 4-3. 실제 DB 등록 시스템 매뉴얼 (system_manuals 테이블)
+    for (const man of systemManuals) {
+      if (!man || (!man.title && !man.menuId && !man.menu_id)) continue;
+      const mId = man.menuId || man.menu_id || man.id;
+      const mTitle = man.title || man.menuTitle || mId;
+      const mContent = man.purpose || man.overview || man.description || (typeof man.content === 'string' ? man.content.slice(0, 240) : '');
+      if (!mContent) continue;
+      derivedFacts.push({
+        id: `wf_db_man_${man.id || mId}`,
+        tenant_id: tenantId,
+        domain: 'SYSTEM',
+        fact_key: `DB_MANUAL_${mId}`,
+        fact_title: `[업무매뉴얼] ${mTitle}`,
+        fact_content: String(mContent).slice(0, 300),
+        source_reference: `실제 DB system_manuals (${mId})`,
+        is_immutable: true,
+        created_at: man.updatedAt || man.created_at || nowIso,
+        updated_at: man.updatedAt || man.created_at || nowIso
+      });
+    }
+
+    this.localWorldFacts = derivedFacts;
+
+    // ── 5. Observations 구축 (원격 테이블 + 실제 DB 운영 데이터 및 awp_shared_memories 귀납 추출) ──
+    const derivedObs: HindsightObservation[] = [...remoteObs];
+
+    // O(1) 조인 맵 구성
+    const customerMap = new Map<string, any>();
+    for (const c of customers) customerMap.set(c.id, c);
+    const siteMasterMap = new Map<string, any>();
+    for (const sm of siteMasters) siteMasterMap.set(sm.id, sm);
+    const siteMap = new Map<string, any>();
+    for (const s of sites) siteMap.set(s.id, s);
+    const assetMap = new Map<string, any>();
+    for (const a of assets) assetMap.set(a.id, a);
+    const contractMap = new Map<string, any>();
+    for (const c of contracts) contractMap.set(c.id, c);
+
+    const resolveSiteName = (siteId?: string): string => {
+      if (!siteId) return '현장미지정';
+      const cs = siteMap.get(siteId);
+      if (cs?.siteMasterId) {
+        const sm = siteMasterMap.get(cs.siteMasterId);
+        if (sm?.name) return sm.name;
+      }
+      if (cs?.name) return cs.name;
+      const smDirect = siteMasterMap.get(siteId);
+      return smDirect?.name || siteId;
+    };
+
+    // 5-1. awp_shared_memories 실측 사용자 액션 클러스터링 (상위 빈도 업무 패턴)
+    if (this.cachedExperiences.length > 0) {
+      const actionClusters = new Map<string, {
+        menu: string;
+        action: string;
+        domain: HindsightDomain;
+        count: number;
+        sqlCount: number;
+        firstAt: string;
+        lastAt: string;
+        quotes: string[];
+      }>();
+
+      for (const exp of this.cachedExperiences) {
+        const key = `${exp.menu_path}::${exp.action_name}`;
+        const existing = actionClusters.get(key);
+        const quote = exp.raw_sql
+          ? exp.raw_sql.slice(0, 100)
+          : `${exp.menu_path} > ${exp.action_name}`;
+        if (!existing) {
+          actionClusters.set(key, {
+            menu: exp.menu_path,
+            action: exp.action_name,
+            domain: exp.domain || 'GENERAL',
+            count: 1,
+            sqlCount: exp.raw_sql ? 1 : 0,
+            firstAt: exp.created_at,
+            lastAt: exp.created_at,
+            quotes: [quote]
+          });
+        } else {
+          existing.count += 1;
+          if (exp.raw_sql) existing.sqlCount += 1;
+          if (exp.created_at < existing.firstAt) existing.firstAt = exp.created_at;
+          if (exp.created_at > existing.lastAt) existing.lastAt = exp.created_at;
+          if (existing.quotes.length < 3 && !existing.quotes.includes(quote)) {
+            existing.quotes.push(quote);
+          }
+        }
+      }
+
+      const topClusters = Array.from(actionClusters.values())
+        .filter(c => c.count >= 2)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 8);
+
+      for (const cl of topClusters) {
+        const conf = Math.min(0.99, Math.round((0.5 + Math.min(cl.count, 50) / 100) * 100) / 100);
+        derivedObs.push({
+          id: `obs_exp_${cl.menu}_${cl.action}`.replace(/\s+/g, '_'),
+          tenant_id: tenantId,
+          domain: cl.domain,
+          cluster_key: `REAL_EXP_${cl.menu}_${cl.action}`,
+          belief_title: `[실측 행동패턴] ${cl.menu} ➔ '${cl.action}' 반복 수행 (${cl.count}회)`,
+          belief_statement: `Central DB(awp_shared_memories) 최근 로그 분석 결과, [${cl.menu}] 메뉴에서 [${cl.action}] 액션이 총 ${cl.count}회 실행되었으며 이 중 실제 DB 변경(SQL 캡처)은 ${cl.sqlCount}회 발생함.`,
+          proof_count: cl.count,
+          confidence: conf,
+          supporting_quotes: cl.quotes,
+          first_observed_at: cl.firstAt,
+          last_refined_at: cl.lastAt
+        });
+      }
+    }
+
+    // 5-2. 실제 계약자산(contract_assets) 기종별 체결 단가 분포 패턴
+    if (contractAssets.length > 0) {
+      const modelRateStats = new Map<string, {
+        count: number;
+        feeSum: number;
+        feeCount: number;
+        minFee: number;
+        maxFee: number;
+        sampleContracts: string[];
+      }>();
+
+      for (const ca of contractAssets) {
+        const asset = ca.assetId ? assetMap.get(ca.assetId) : null;
+        const model = asset?.modelName || ca.expectedModel || '미지정모델';
+        const fee = Number(ca.monthlyRentalFee || 0);
+        const stat = modelRateStats.get(model) || {
+          count: 0,
+          feeSum: 0,
+          feeCount: 0,
+          minFee: Number.MAX_SAFE_INTEGER,
+          maxFee: 0,
+          sampleContracts: []
+        };
+        stat.count += 1;
+        if (fee > 0) {
+          stat.feeSum += fee;
+          stat.feeCount += 1;
+          if (fee < stat.minFee) stat.minFee = fee;
+          if (fee > stat.maxFee) stat.maxFee = fee;
+        }
+        if (stat.sampleContracts.length < 3 && ca.contractId) {
+          const c = contractMap.get(ca.contractId);
+          const cLabel = c?.contractNo || ca.contractId;
+          if (!stat.sampleContracts.includes(cLabel)) stat.sampleContracts.push(cLabel);
+        }
+        modelRateStats.set(model, stat);
+      }
+
+      const topModels = Array.from(modelRateStats.entries())
+        .sort((a, b) => b[1].count - a[1].count)
+        .slice(0, 6);
+
+      for (const [modelName, st] of topModels) {
+        const avgFee = st.feeCount > 0 ? Math.round(st.feeSum / st.feeCount) : 0;
+        const rangeText = st.feeCount > 0
+          ? `평균 월단가 ₩${avgFee.toLocaleString()} (최저 ₩${st.minFee.toLocaleString()} ~ 최고 ₩${st.maxFee.toLocaleString()})`
+          : '단가 ₩0 또는 미입력';
+        derivedObs.push({
+          id: `obs_db_model_rate_${modelName}`,
+          tenant_id: tenantId,
+          domain: 'SALES',
+          cluster_key: `DB_MODEL_RATE_${modelName}`,
+          belief_title: `[실측 기종단가] ${modelName} 계약 투입 ${st.count}건 단가 분포`,
+          belief_statement: `실제 DB contract_assets(${contractAssets.length}건) 분석 결과, [${modelName}] 기종은 총 ${st.count}건 계약에 투입되었으며 ${rangeText}로 집계됨.`,
+          proof_count: st.count,
+          confidence: Math.min(0.99, Math.round((0.6 + Math.min(st.count, 100) / 250) * 100) / 100),
+          supporting_quotes: st.sampleContracts.map(no => `계약 ${no}`),
+          first_observed_at: nowIso,
+          last_refined_at: nowIso
+        });
+      }
+    }
+
+    // 5-3. 실제 고객사/현장별 다량 투입 계약 패턴
+    if (contracts.length > 0) {
+      const caCountByContract = new Map<string, { count: number; feeSum: number; models: Set<string> }>();
+      for (const ca of contractAssets) {
+        if (!ca.contractId) continue;
+        const cur = caCountByContract.get(ca.contractId) || { count: 0, feeSum: 0, models: new Set<string>() };
+        cur.count += 1;
+        cur.feeSum += Number(ca.monthlyRentalFee || 0);
+        const asset = ca.assetId ? assetMap.get(ca.assetId) : null;
+        const m = asset?.modelName || ca.expectedModel;
+        if (m) cur.models.add(m);
+        caCountByContract.set(ca.contractId, cur);
+      }
+
+      const siteAgg = new Map<string, {
+        siteName: string;
+        custNames: Set<string>;
+        contractCount: number;
+        assetCount: number;
+        feeSum: number;
+        models: Set<string>;
+      }>();
+
+      for (const c of contracts) {
+        const sName = resolveSiteName(c.siteId);
+        const custName = customerMap.get(c.customerId)?.name || c.customerName || c.customerId;
+        const caInfo = caCountByContract.get(c.id) || { count: 0, feeSum: 0, models: new Set<string>() };
+        const cur = siteAgg.get(sName) || {
+          siteName: sName,
+          custNames: new Set<string>(),
+          contractCount: 0,
+          assetCount: 0,
+          feeSum: 0,
+          models: new Set<string>()
+        };
+        if (custName) cur.custNames.add(custName);
+        cur.contractCount += 1;
+        cur.assetCount += caInfo.count;
+        cur.feeSum += caInfo.feeSum;
+        caInfo.models.forEach(m => cur.models.add(m));
+        siteAgg.set(sName, cur);
+      }
+
+      const topSites = Array.from(siteAgg.values())
+        .filter(s => s.siteName !== '현장미지정')
+        .sort((a, b) => b.assetCount - a.assetCount || b.contractCount - a.contractCount)
+        .slice(0, 5);
+
+      for (const s of topSites) {
+        const custList = Array.from(s.custNames).slice(0, 3).join(', ');
+        const modelList = Array.from(s.models).slice(0, 4).join(', ') || '기종미지정';
+        derivedObs.push({
+          id: `obs_db_site_${s.siteName}`.replace(/\s+/g, '_'),
+          tenant_id: tenantId,
+          domain: 'SALES',
+          cluster_key: `DB_SITE_TOP_${s.siteName}`,
+          belief_title: `[실측 현장투입] ${s.siteName} (계약 ${s.contractCount}건 / 장비 ${s.assetCount}대)`,
+          belief_statement: `실제 DB contracts 분석 결과, [${s.siteName}] 현장은 고객사(${custList})와 총 ${s.contractCount}건의 계약, 누적 ${s.assetCount}대 장비(${modelList})가 체결되었으며 월 렌탈료 합계는 ₩${s.feeSum.toLocaleString()}임.`,
+          proof_count: s.contractCount,
+          confidence: 0.95,
+          supporting_quotes: [`고객사: ${custList}`, `투입기종: ${modelList}`],
+          first_observed_at: nowIso,
+          last_refined_at: nowIso
+        });
+      }
+    }
+
+    // 5-4. 실제 배차(deliveries) 원장 상태 및 운송비 실측 패턴
+    if (deliveries.length > 0) {
+      let outboundCnt = 0;
+      let inboundCnt = 0;
+      let exchangeCnt = 0;
+      let costRecordedCnt = 0;
+      let costSum = 0;
+      const driverCounts = new Map<string, number>();
+
+      for (const d of deliveries) {
+        if (d.type === 'OUTBOUND') outboundCnt++;
+        else if (d.type === 'INBOUND') inboundCnt++;
+        else if (d.type === 'EXCHANGE' || d.dispatchCategory === '교환') exchangeCnt++;
+
+        const cost = Number(d.confirmedCost || d.finalCost || d.deliveryCost || 0);
+        if (cost > 0) {
+          costRecordedCnt++;
+          costSum += cost;
+        }
+        if (d.driverName && String(d.driverName).trim()) {
+          const dn = String(d.driverName).trim();
+          driverCounts.set(dn, (driverCounts.get(dn) || 0) + 1);
+        }
+      }
+
+      const avgCost = costRecordedCnt > 0 ? Math.round(costSum / costRecordedCnt) : 0;
+      const topDrivers = Array.from(driverCounts.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([name, cnt]) => `${name}(${cnt}건)`);
+
+      derivedObs.push({
+        id: 'obs_db_deliveries_summary',
+        tenant_id: tenantId,
+        domain: 'LOGISTICS',
+        cluster_key: 'DB_DELIVERIES_REAL_STATS',
+        belief_title: `[실측 배차통계] 전체 배차 ${deliveries.length}건 유형 및 운송비 기록 현황`,
+        belief_statement: `실제 DB deliveries(${deliveries.length}건) 전수 집계: 출고(OUTBOUND) ${outboundCnt}건, 입고(INBOUND) ${inboundCnt}건, 교환(EXCHANGE) ${exchangeCnt}건. 운송비가 입력된 배차는 ${costRecordedCnt}건(평균 ₩${avgCost.toLocaleString()})이며, 배정 기사 기록 상위: ${topDrivers.length > 0 ? topDrivers.join(', ') : '운송기사 미입력'}.`,
+        proof_count: deliveries.length,
+        confidence: 1.0,
+        supporting_quotes: [`총 ${deliveries.length}건 중 운송비 기재 ${costRecordedCnt}건`, `기사 배정: ${topDrivers.join(', ') || '없음'}`],
+        first_observed_at: nowIso,
+        last_refined_at: nowIso
+      });
+    }
+
+    // 5-5. 실제 청구(billings) 및 수납(payments) 실측 패턴
+    if (billings.length > 0) {
+      let totalBilled = 0;
+      let totalPaid = 0;
+      let unpaidCount = 0;
+      let paidCount = 0;
+
+      for (const b of billings) {
+        if (b.status === 'REJECTED') continue;
+        const amt = Number(b.totalAmount || 0);
+        const paid = Number(b.paidAmount || 0);
+        totalBilled += amt;
+        totalPaid += paid;
+        if (b.status === 'PAID' || (amt > 0 && paid >= amt)) paidCount++;
+        else unpaidCount++;
+      }
+
+      derivedObs.push({
+        id: 'obs_db_billings_summary',
+        tenant_id: tenantId,
+        domain: 'FINANCE',
+        cluster_key: 'DB_BILLINGS_REAL_STATS',
+        belief_title: `[실측 청구/수납] 청구 ${billings.length}건 수납률 및 미수 잔액 패턴`,
+        belief_statement: `실제 DB billings(${billings.length}건) 및 payments(${payments.length}건) 전수 집계: 누적 청구총액 ₩${totalBilled.toLocaleString()}, 누적 수납액 ₩${totalPaid.toLocaleString()}, 미수 잔액 ₩${(totalBilled - totalPaid).toLocaleString()} (완납 ${paidCount}건 / 미수·부분수납 ${unpaidCount}건).`,
+        proof_count: billings.length,
+        confidence: 1.0,
+        supporting_quotes: [`청구총액 ₩${totalBilled.toLocaleString()}`, `미수잔액 ₩${(totalBilled - totalPaid).toLocaleString()}`],
+        first_observed_at: nowIso,
+        last_refined_at: nowIso
+      });
+    }
+
+    this.localObservations = derivedObs;
+
+    // ── 6. Mental Models 구축 (원격 테이블 + 실제 DB 5대 도메인 실시간 합성) ──
+    const derivedModels: HindsightMentalModel[] = [...remoteMm];
+
+    // 6-1. SALES 멘탈 모델 (실제 DB 고객/현장/계약/단가 종합)
+    const activeContractsCnt = contracts.filter((c: any) => c.status === 'ACTIVE' || c.status === 'EXTENDED').length;
+    derivedModels.push({
+      id: 'mm_real_sales_overview',
+      tenant_id: tenantId,
+      domain: 'SALES',
+      model_key: 'real_db_sales_contract_model',
+      title: `[실DB 합성] 영업·계약·현장 원장 모델 (계약 ${contracts.length}건 / 현장 ${siteMasters.length}개)`,
+      standing_query: '고객사 현장의 실제 계약 건수, 투입 대수, 기종별 체결 단가 현황',
+      content_markdown: [
+        `# 실제 DB 영업·계약·현장 집계 (시드/목업 제외)`,
+        `- **등록 고객사(customers)**: ${customers.length.toLocaleString()}개사`,
+        `- **독립 물리 현장(site_masters)**: ${siteMasters.length.toLocaleString()}개 현장 (고객-현장 연결 ${sites.length.toLocaleString()}건)`,
+        `- **전체 계약(contracts)**: ${contracts.length.toLocaleString()}건 (진행중 ACTIVE/EXTENDED: ${activeContractsCnt.toLocaleString()}건)`,
+        `- **체결 계약자산(contract_assets)**: ${contractAssets.length.toLocaleString()}건`,
+        `- **등록 표준옵션(standard_options)**: ${standardOptions.length.toLocaleString()}종`
+      ].join('\n'),
+      structured_data: {
+        customersCount: customers.length,
+        siteMastersCount: siteMasters.length,
+        contractsCount: contracts.length,
+        activeContractsCount: activeContractsCnt,
+        contractAssetsCount: contractAssets.length
+      },
+      revision: 1,
+      last_synthesized_at: nowIso
+    });
+
+    // 6-2. ASSET 멘탈 모델 (실제 DB 보유자산/상품/정비/검수 종합)
+    const assetStatusCounts: Record<string, number> = {};
+    for (const a of assets) {
+      const st = a.status || 'UNKNOWN';
+      assetStatusCounts[st] = (assetStatusCounts[st] || 0) + 1;
+    }
+    const statusSummaryLine = Object.entries(assetStatusCounts)
+      .map(([k, v]) => `${k}: ${v.toLocaleString()}대`)
+      .join(' | ');
+
+    derivedModels.push({
+      id: 'mm_real_asset_overview',
+      tenant_id: tenantId,
+      domain: 'ASSET',
+      model_key: 'real_db_asset_fleet_model',
+      title: `[실DB 합성] 보유자산·상품제원·정비검수 원장 모델 (자산 ${assets.length}대 / 모델 ${products.length}종)`,
+      standing_query: '보유 자산 상태별 대수, 등록 상품 제원, 출고검수 및 수리 이력 건수',
+      content_markdown: [
+        `# 실제 DB 자산·제원·정비 집계 (시드/목업 제외)`,
+        `- **총 등록 자산(assets)**: ${assets.length.toLocaleString()}대 (${statusSummaryLine || '데이터 없음'})`,
+        `- **등록 장비 모델(products)**: ${products.length.toLocaleString()}종`,
+        `- **출고 검수 이력(outbound_inspections)**: ${outboundInspections.length.toLocaleString()}건 ${outboundInspections.length === 0 ? '(현재 실제 DB에 적재된 검수 레코드 0건)' : ''}`,
+        `- **정비/수리 이력(repairs)**: ${repairs.length.toLocaleString()}건 ${repairs.length === 0 ? '(현재 실제 DB에 적재된 수리 레코드 0건 — 예지정비 분석을 위해 수리 데이터 축적 필요)' : ''}`
+      ].join('\n'),
+      structured_data: {
+        totalAssets: assets.length,
+        statusBreakdown: assetStatusCounts,
+        productsCount: products.length,
+        outboundInspectionsCount: outboundInspections.length,
+        repairsCount: repairs.length
+      },
+      revision: 1,
+      last_synthesized_at: nowIso
+    });
+
+    // 6-3. LOGISTICS 멘탈 모델 (실제 DB 배차/운송 종합)
+    const delivStatusCounts: Record<string, number> = {};
+    for (const d of deliveries) {
+      const st = d.status || 'UNKNOWN';
+      delivStatusCounts[st] = (delivStatusCounts[st] || 0) + 1;
+    }
+    const delivStatusLine = Object.entries(delivStatusCounts)
+      .map(([k, v]) => `${k}: ${v.toLocaleString()}건`)
+      .join(' | ');
+
+    derivedModels.push({
+      id: 'mm_real_logistics_overview',
+      tenant_id: tenantId,
+      domain: 'LOGISTICS',
+      model_key: 'real_db_logistics_dispatch_model',
+      title: `[실DB 합성] 배차·운송 원장 모델 (배차 ${deliveries.length}건)`,
+      standing_query: '배차 상태별 건수, 노선 운송비 기록 여부, 기사 배정 현황',
+      content_markdown: [
+        `# 실제 DB 배차·운송 집계 (시드/목업 제외)`,
+        `- **총 배차 레코드(deliveries)**: ${deliveries.length.toLocaleString()}건 (${delivStatusLine || '데이터 없음'})`,
+        `- **실제 운송비(deliveryCost/finalCost) 기록 건수**: ${deliveries.filter((d: any) => Number(d.confirmedCost || d.finalCost || d.deliveryCost || 0) > 0).length}건`,
+        `- **실제 기사명(driverName) 기록 건수**: ${deliveries.filter((d: any) => Boolean(d.driverName)).length}건`,
+        `- **실제 하차지 주소(destinationAddress) 기록 건수**: ${deliveries.filter((d: any) => Boolean(d.destinationAddress)).length}건`
+      ].join('\n'),
+      structured_data: {
+        deliveriesCount: deliveries.length,
+        statusBreakdown: delivStatusCounts
+      },
+      revision: 1,
+      last_synthesized_at: nowIso
+    });
+
+    // 6-4. FINANCE 멘탈 모델 (실제 DB 청구/수납 종합)
+    derivedModels.push({
+      id: 'mm_real_finance_overview',
+      tenant_id: tenantId,
+      domain: 'FINANCE',
+      model_key: 'real_db_finance_billing_model',
+      title: `[실DB 합성] 청구·수납·통장 원장 모델 (청구 ${billings.length}건 / 수납 ${payments.length}건)`,
+      standing_query: '월말 청구 건수, 수납 건수, 미수금 현황',
+      content_markdown: [
+        `# 실제 DB 청구·수납 집계 (시드/목업 제외)`,
+        `- **청구 원장(billings)**: ${billings.length.toLocaleString()}건`,
+        `- **수납 내역(payments)**: ${payments.length.toLocaleString()}건`,
+        `- **통장 입출금(bank_transactions)**: ${((db as any).bankTransactions || []).length.toLocaleString()}건`
+      ].join('\n'),
+      structured_data: {
+        billingsCount: billings.length,
+        paymentsCount: payments.length
+      },
+      revision: 1,
+      last_synthesized_at: nowIso
+    });
+
+    // 6-5. SYSTEM 텔레메트리 멘탈 모델 (Central DB awp_shared_memories 실측 상태)
+    const wfTableStatus = this.diagnostics.remoteTables.hindsight_world_facts.exists ? '존재함' : '미생성 (실제 ERP 테이블에서 동적 추출 중)';
+    const obsTableStatus = this.diagnostics.remoteTables.hindsight_observations.exists ? '존재함' : '미생성 (실제 ERP + 경험 테이블에서 실시간 귀납 추출 중)';
+    const mmTableStatus = this.diagnostics.remoteTables.hindsight_mental_models.exists ? '존재함' : '미생성 (실제 ERP 원장에서 실시간 합성 중)';
+
+    derivedModels.push({
+      id: 'mm_real_system_telemetry',
+      tenant_id: tenantId,
+      domain: 'SYSTEM',
+      model_key: 'real_db_hindsight_architecture_status',
+      title: `[실DB 진단] Hindsight 4대 메모리 DB 테이블 및 텔레메트리 실측 상태`,
+      standing_query: 'Hindsight DB 테이블 생성 여부, awp_shared_memories 수집 건수, 아키텍처 보완점',
+      content_markdown: [
+        `# Hindsight 데이터베이스 실측 연동 상태`,
+        `- **Central DB \`awp_shared_memories\` (Experiences)**: 테이블 존재함 (총 ${this.diagnostics.remoteTables.awp_shared_memories.totalCount}건 적재, 최근 300건 중 SQL 캡처 ${this.diagnostics.remoteTables.awp_shared_memories.sqlCapturedCount}건)`,
+        `- **Central DB \`hindsight_world_facts\`**: ${wfTableStatus}`,
+        `- **Central DB \`hindsight_observations\`**: ${obsTableStatus}`,
+        `- **Central DB \`hindsight_mental_models\`**: ${mmTableStatus}`
+      ].join('\n'),
+      structured_data: this.diagnostics.remoteTables,
+      revision: 1,
+      last_synthesized_at: nowIso
+    });
+
+    this.localMentalModels = derivedModels;
     this.hasInitializedRemote = true;
-    this.saveToStorage();
+    this.diagnostics.lastSyncedAt = nowIso;
+    this.diagnostics.syncLatencyMs = Math.round(performance.now() - startMs);
   }
 
   // ─────────────────────────────────────────────────────────────────────────
   // 1. Retain 연산: 새로운 사용자 경험을 Hindsight 메모리에 보존
   // ─────────────────────────────────────────────────────────────────────────
   public async retainExperience(experience: Partial<HindsightExperience>): Promise<boolean> {
-    const tenantId = experience.tenant_id || localStorage.getItem('erp_current_tenant_id') || 'tenant-giyeonlift';
+    const tenantId = experience.tenant_id || this.getActiveTenantId();
     const payload = {
       tenant_id: tenantId,
-      domain: experience.domain || 'GENERAL',
       action_name: sanitizeSensitiveString(experience.action_name || 'UNKNOWN_ACTION'),
       menu_path: experience.menu_path || 'unknown',
       raw_sql: experience.raw_sql || null,
       final_query: sanitizePrivacyDeep(experience.final_query || {}),
       ui_context_bundle: {
+        domain: experience.domain || 'GENERAL',
         trigger_element: experience.trigger_element,
         interaction_history: experience.interaction_history || [],
         pii_masked: true
@@ -508,7 +894,7 @@ class HindsightMemoryService {
     };
 
     try {
-      const solution = (localStorage.getItem('ebro_current_solution') || 'AWP').toUpperCase();
+      const solution = (typeof window !== 'undefined' ? localStorage.getItem('ebro_current_solution') || 'AWP' : 'AWP').toUpperCase();
       const tableName = solution === 'IT' ? 'it_shared_memories' : 'awp_shared_memories';
       const { error } = await centralSupabase.from(tableName).insert(payload);
       return !error;
@@ -518,69 +904,87 @@ class HindsightMemoryService {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 2. Recall 연산: 4-Way 하이브리드 검색 (World facts, Experiences, Observations, Mental models)
+  // 2. Recall 연산: 실제 DB 기반 4-Way 검색 (빈 쿼리 시 최신 원장 반환, 한글 초성/키워드 매칭)
   // ─────────────────────────────────────────────────────────────────────────
-  public async recall(query: string, limit = 5): Promise<RecallResult> {
+  public async recall(query: string, limit = 10): Promise<RecallResult> {
     const startTime = performance.now();
     await this.ensureInitialized();
 
-    const normalizedQuery = query.toLowerCase().trim();
-    const queryTokens = normalizedQuery.split(/\s+/).filter(t => t.length > 1);
+    const trimmed = (query || '').trim();
+    const tokens = extractQueryTokens(trimmed);
+    const matchers = tokens.map(t => createHangulMatcher(t));
 
-    // 1. World Facts 검색 (헌장 및 기준 사실)
-    const matchedFacts = this.localWorldFacts.filter(fact => {
-      const text = (fact.fact_title + ' ' + fact.fact_content + ' ' + fact.source_reference).toLowerCase();
-      return queryTokens.some(token => text.includes(token));
-    }).slice(0, limit);
+    // 빈 쿼리인 경우: 필터링으로 0건을 만드는 버그 없이 최신 실데이터를 limit만큼 그대로 반환
+    if (tokens.length === 0) {
+      return {
+        query: trimmed,
+        extracted_tokens: [],
+        world_facts: this.localWorldFacts.slice(0, limit),
+        experiences: this.cachedExperiences.slice(0, limit),
+        observations: this.localObservations.slice(0, limit),
+        mental_models: this.localMentalModels.slice(0, limit),
+        execution_time_ms: Math.round(performance.now() - startTime)
+      };
+    }
 
-    // 2. Observations 검색 (패턴 및 신념)
-    const matchedObservations = this.localObservations.filter(obs => {
-      const text = (obs.belief_title + ' ' + obs.belief_statement + ' ' + obs.cluster_key).toLowerCase();
-      return queryTokens.some(token => text.includes(token));
-    }).slice(0, limit);
-
-    // 3. Mental Models 검색 (상비 지식 페이지)
-    const matchedMentalModels = this.localMentalModels.filter(mm => {
-      const text = (mm.title + ' ' + mm.standing_query + ' ' + mm.content_markdown).toLowerCase();
-      return queryTokens.some(token => text.includes(token));
-    }).slice(0, limit);
-
-    // 4. Experiences 검색 (중앙 awp_shared_memories에서 최근 유사 인터랙션 조회)
-    let matchedExperiences: HindsightExperience[] = [];
-    try {
-      const { data, error } = await centralSupabase
-        .from('awp_shared_memories')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (!error && Array.isArray(data)) {
-        matchedExperiences = data
-          .filter(row => {
-            const actionText = (row.action_name + ' ' + row.menu_path + ' ' + (row.raw_sql || '')).toLowerCase();
-            return queryTokens.some(token => actionText.includes(token));
-          })
-          .slice(0, limit)
-          .map(row => ({
-            id: row.id,
-            tenant_id: row.tenant_id,
-            domain: (row.ui_context_bundle?.domain || 'GENERAL') as HindsightDomain,
-            action_name: row.action_name,
-            menu_path: row.menu_path,
-            trigger_element: row.ui_context_bundle?.trigger_element,
-            interaction_history: row.ui_context_bundle?.interaction_history || [],
-            final_query: row.final_query,
-            raw_sql: row.raw_sql,
-            pii_masked: true,
-            created_at: row.created_at
-          }));
+    const scoreText = (text: string): number => {
+      if (!text) return 0;
+      let score = 0;
+      for (let i = 0; i < matchers.length; i++) {
+        if (matchers[i].test(text)) score += 1;
       }
-    } catch {}
+      return score;
+    };
+
+    // 1. World Facts 검색 (매칭 점수순 정렬)
+    const matchedFacts = this.localWorldFacts
+      .map(fact => ({
+        fact,
+        score: scoreText(`${fact.fact_title} ${fact.fact_content} ${fact.source_reference} ${fact.fact_key}`)
+      }))
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map(item => item.fact);
+
+    // 2. Observations 검색
+    const matchedObservations = this.localObservations
+      .map(obs => ({
+        obs,
+        score: scoreText(`${obs.belief_title} ${obs.belief_statement} ${obs.cluster_key} ${(obs.supporting_quotes || []).join(' ')}`)
+      }))
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score || b.obs.proof_count - a.obs.proof_count)
+      .slice(0, limit)
+      .map(item => item.obs);
+
+    // 3. Mental Models 검색
+    const matchedMentalModels = this.localMentalModels
+      .map(mm => ({
+        mm,
+        score: scoreText(`${mm.title} ${mm.standing_query} ${mm.content_markdown}`)
+      }))
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map(item => item.mm);
+
+    // 4. Experiences 검색 (Central DB awp_shared_memories 캐시 + 실시간 검색)
+    const matchedExperiences = this.cachedExperiences
+      .map(exp => ({
+        exp,
+        score: scoreText(`${exp.action_name} ${exp.menu_path} ${exp.domain} ${exp.raw_sql || ''} ${JSON.stringify(exp.final_query || {})}`)
+      }))
+      .filter(item => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map(item => item.exp);
 
     const executionTimeMs = Math.round(performance.now() - startTime);
 
     return {
-      query,
+      query: trimmed,
+      extracted_tokens: tokens,
       world_facts: matchedFacts,
       experiences: matchedExperiences,
       observations: matchedObservations,
@@ -590,88 +994,253 @@ class HindsightMemoryService {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 3. Reflect 연산: 전사 헌장 가드레일 주입 심층 자연어 추론
+  // 3. Reflect 연산: 하드코딩 분기문 0%, 100% 실제 DB 원장 직접 조회 및 4대 메모리 결합 응답
   // ─────────────────────────────────────────────────────────────────────────
   public async reflect(question: string): Promise<ReflectResponse> {
-    const recallResult = await this.recall(question, 4);
+    const startTime = performance.now();
+    await this.ensureInitialized();
 
-    const factTitles = recallResult.world_facts.map(f => f.fact_title);
-    const obsTitles = recallResult.observations.map(o => o.belief_title);
-    const mmTitles = recallResult.mental_models.map(m => m.title);
+    const recallResult = await this.recall(question, 8);
+    const tokens = recallResult.extracted_tokens;
+    const matchers = tokens.map(t => createHangulMatcher(t));
 
-    // 도메인 분류 및 전문 건조 답변 도출
-    const qLower = question.toLowerCase();
-    let answer = '';
-    let recommendation = '';
+    const matchesAnyToken = (targets: (string | null | undefined)[]): boolean => {
+      if (matchers.length === 0) return false;
+      for (const m of matchers) {
+        if (m.testAny(targets)) return true;
+      }
+      return false;
+    };
 
-    if (qLower.includes('고덕') || qLower.includes('삼성') || (qLower.includes('단가') && qLower.includes('현장'))) {
-      answer = `[삼성전자 고덕 현장 단가 및 필수 규격]
-• 19ft(GS-1930 / SJ-3219): 월 ₩380,000 (일할 ₩12,666) | 총 42대 운용 중 (기준가 대비 5.0% 네고)
-• 26ft(GS-2646 / SJ-3226): 월 ₩480,000 (일할 ₩16,000) | 총 18대 운용 중 (기준가 대비 4.0% 네고)
-• 현장 필수 안전사양: 상부 협착방지센서(4EA), 4면 철망, 소화기함 부착 필수 (출고 검수 100% 검사 항목)
-• 헌장 2.2조 원칙: 신규 대차 장비 투입 시 위 단가 및 현장 옵션 속성 100% 자동 상속`;
-      recommendation = '신규 계약 등록 시 원클릭 추천 조건(19ft 2대, 26ft 1대, 안전옵션 일괄 세팅) 적용 권장.';
-    } else if (qLower.includes('포천') || (qLower.includes('남양') && qLower.includes('5톤')) || qLower.includes('화물')) {
-      answer = `[화성 남양 ➔ 포천 5톤 축차 배차 실적]
-• 기준 계약단가: ₩250,000
-• 실제 지급 평균단가: ₩285,000 (최저 ₩270,000 / 최고 ₩300,000)
-• 특이 관찰 패턴: 포천 지역 회차 화물 부족으로 기사 공차비(+₩35,000원) 요구가 고착화되어 있음
-• 추천 배정 기사: 박철민 기사 (경기88바9012 / 5톤 축차 / 최근 5회 무사고 / ₩280,000 협의 수락률 100%)`;
-      recommendation = '단일 EXCHANGE 교환 배차인 경우 헌장 2.3조에 따라 30% 왕복할인(최종 ₩140,000) 적용 필수.';
-    } else if (qLower.includes('비') || qLower.includes('우천') || qLower.includes('판교') || qLower.includes('취소')) {
-      answer = `[판교 현장 우천 배차 판단 결과]
-• 판단 결론: 배차 정상 진행 권고 (취소 불필요)
-• 사유: 판교 현장은 지하 2층 옥내 마감 공정으로 강수량 영향 0%에 수렴 (과거 우천일 7건 중 정상완료 7건)
-• 필수 주의사항:
-  1. 지하 램프 층고 2.7m 제한 ➔ 2.5톤 저상 셀프로더 배차 필수 (5톤 진입 불가)
-  2. 이동 중 장비 방수를 위한 호루(방수 덮개) 결속 기사 필수 배정`;
-      recommendation = '배차 담당자는 취소 없이 2.5톤 저상 셀프로더(호루 장착) 기사에게 배차 통보 실행.';
-    } else if (qLower.includes('차액') || qLower.includes('현대건설') || qLower.includes('5만')) {
-      answer = `[현대건설 청구 차액 ₩50,000원 원인 추적 보고]
-• 8월 청구총액: ₩1,290,000원
-  - 기본 장비 렌탈료: ₩1,240,000원 (8/18 대차 교체 일할 정산 완벽 일치: #101호 17일 68만 원 + #108호 14일 56만 원)
-  - 추가 외상미수금: ₩50,000원 (8/24 판교 현장 타이어 펑크 수리비)
-• 실제 통장 입금액: ₩1,240,000원 (8/28 우리은행 입금)
-• 차액 원인: 고객사가 기본 렌탈료만 입금하고 수리비 5만 원을 누락 입금함
-• 헌장 3.5조 대차대조식: 📄 청구총액 ₩1,290,000 = 🟢 확정수납 ₩1,240,000 + 🚫 미수채권 ₩50,000 | 대차 차액 ₩0`;
-      recommendation = '해당 50,000원을 외상미수금으로 이월 유지하거나 영업담당자 확인 후 면제 여부 결정.';
-    } else if (qLower.includes('3년차') || qLower.includes('점검') || qLower.includes('gs-1930') || qLower.includes('sj-3219')) {
-      answer = `[GS-1930 / SJ-3219 3년차 예지 정비 중점 체크포인트]
-1. 유압 리프트 실린더 씰 키트 마모 (발생률 42%): 실린더 로드 미세 스크래치 및 하강 시 미세 누유 점검
-2. 트로잔 배터리 비중 저하 (발생률 37%): 상승 작동 시 부하 전압 21V 이상 유지 여부 측정
-3. 조이스틱 포텐셔미터 영점 이탈 (발생률 28%): 레버 중립 복귀 시 미세 구동 여부 확인
-• 헌장 1.3조: 출고 검수 승인 마감 완료 즉시 자산 상태는 RENTED로 자동 전환됨`;
-      recommendation = '주기장 정비사는 출고 PDI 검수 체크리스트 15개 항목과 함께 위 3대 부품 사전 점검 수행.';
-    } else {
-      // 일반적인 질의인 경우 매칭된 4대 메모리를 조합하여 건조하게 응답
-      const factsText = recallResult.world_facts.map(f => `• [기준사실] ${f.fact_title}: ${f.fact_content}`).join('\n');
-      const obsText = recallResult.observations.map(o => `• [관찰패턴] ${o.belief_title}: ${o.belief_statement}`).join('\n');
-      const mmText = recallResult.mental_models.map(m => `• [상비지식] ${m.title}\n${m.content_markdown}`).join('\n');
+    // ── 실제 운영 DB 원장 직접 검색 (Live ERP Entity Query) ──
+    const customers: any[] = (db as any).customers || [];
+    const siteMasters: any[] = (db as any).siteMasters || [];
+    const sites: any[] = (db as any).sites || [];
+    const contracts: any[] = (db as any).contracts || [];
+    const contractAssets: any[] = (db as any).contractAssets || [];
+    const products: any[] = (db as any).products || [];
+    const assets: any[] = (db as any).assets || [];
+    const deliveries: any[] = (db as any).deliveries || [];
+    const billings: any[] = (db as any).billings || [];
 
-      answer = `[Hindsight 4대 메모리 질의 결과 요약]
-${factsText || '• 관련 기준 사실 없음'}
-
-${obsText || '• 관련 관찰 패턴 없음'}
-
-${mmText || ''}`;
-      recommendation = '추가 세부 사항이 필요한 경우 현장명, 자산번호, 고객사명을 포함하여 질의하십시오.';
+    const customerMap = new Map<string, any>();
+    for (const c of customers) customerMap.set(c.id, c);
+    const siteMasterMap = new Map<string, any>();
+    for (const sm of siteMasters) siteMasterMap.set(sm.id, sm);
+    const siteMap = new Map<string, any>();
+    for (const s of sites) siteMap.set(s.id, s);
+    const assetMap = new Map<string, any>();
+    for (const a of assets) assetMap.set(a.id, a);
+    const contractAssetsByContractMap = new Map<string, any[]>();
+    for (const ca of contractAssets) {
+      if (!ca.contractId) continue;
+      const list = contractAssetsByContractMap.get(ca.contractId);
+      if (list) list.push(ca);
+      else contractAssetsByContractMap.set(ca.contractId, [ca]);
     }
 
+    const resolveSiteNameAndAddr = (siteId?: string): { name: string; address: string } => {
+      if (!siteId) return { name: '현장미지정', address: '' };
+      const cs = siteMap.get(siteId);
+      if (cs?.siteMasterId) {
+        const sm = siteMasterMap.get(cs.siteMasterId);
+        if (sm) return { name: sm.name || cs.name || siteId, address: sm.address || cs.address || '' };
+      }
+      if (cs) return { name: cs.name || siteId, address: cs.address || '' };
+      const smDirect = siteMasterMap.get(siteId);
+      if (smDirect) return { name: smDirect.name || siteId, address: smDirect.address || '' };
+      return { name: siteId, address: '' };
+    };
+
+    // 1) 매칭된 고객사 & 현장 & 계약
+    const matchedCustomers = customers.filter(c => matchesAnyToken([c.name, c.businessNumber, c.ceoName]));
+    const matchedSites = siteMasters.filter(sm => matchesAnyToken([sm.name, sm.address]));
+    const matchedContracts = contracts.filter(c => {
+      const custName = customerMap.get(c.customerId)?.name || c.customerName || '';
+      const sInfo = resolveSiteNameAndAddr(c.siteId);
+      const cas = contractAssetsByContractMap.get(c.id) || [];
+      const modelNames = cas.map(ca => assetMap.get(ca.assetId)?.modelName || ca.expectedModel || '').join(' ');
+      return matchesAnyToken([c.contractNo, custName, sInfo.name, sInfo.address, modelNames]);
+    });
+
+    // 2) 매칭된 장비 모델(products) & 보유 자산(assets)
+    const matchedProducts = products.filter(p => matchesAnyToken([p.modelName, p.manufacturer, p.spec, p.feet ? `${p.feet}ft` : '']));
+    const matchedAssets = assets.filter(a => matchesAnyToken([a.assetNo, a.modelName, a.manufacturer, a.serialNo, a.status]));
+
+    // 3) 매칭된 배차(deliveries)
+    const matchedDeliveries = deliveries.filter(d => {
+      const c = d.contractId ? contracts.find((ct: any) => ct.id === d.contractId) : null;
+      const custName = d.customerName || (c ? customerMap.get(c.customerId)?.name : '') || '';
+      const sInfo = c ? resolveSiteNameAndAddr(c.siteId) : { name: '', address: '' };
+      return matchesAnyToken([
+        d.id, d.type, d.dispatchCategory, d.destinationAddress, d.originAddress,
+        d.driverName, d.vehicleType, d.vehicleNo, d.transportCompany, d.memo,
+        custName, sInfo.name, sInfo.address
+      ]);
+    });
+
+    // 4) 매칭된 청구(billings)
+    const matchedBillings = billings.filter(b => {
+      const custName = customerMap.get(b.customerId)?.name || '';
+      return matchesAnyToken([b.id, b.billingYm, b.status, custName, b.customStatementReason]);
+    });
+
+    // ── 응답 보고서 조립 (100% 실데이터 기반) ──
+    const sections: string[] = [];
+    sections.push(`[질의 키워드 분석] 추출 토큰: ${tokens.length > 0 ? tokens.map(t => `'${t}'`).join(', ') : '(없음)'}`);
+
+    // A. 계약 / 현장 / 단가 실DB 조회 결과
+    if (matchedContracts.length > 0 || matchedSites.length > 0 || matchedCustomers.length > 0) {
+      const lines: string[] = [];
+      lines.push(`■ [실DB 영업/계약/현장 매칭 결과] 고객사 ${matchedCustomers.length}개 | 현장 ${matchedSites.length}개 | 계약 ${matchedContracts.length}건`);
+
+      for (const c of matchedContracts.slice(0, 6)) {
+        const custName = customerMap.get(c.customerId)?.name || c.customerName || c.customerId;
+        const sInfo = resolveSiteNameAndAddr(c.siteId);
+        const cas = contractAssetsByContractMap.get(c.id) || [];
+        const rateSummaries = cas.slice(0, 4).map(ca => {
+          const mName = assetMap.get(ca.assetId)?.modelName || ca.expectedModel || '미지정';
+          const mFee = Number(ca.monthlyRentalFee || 0);
+          const dFee = Number(ca.dailyRentalFee || 0);
+          return `${mName}(월 ₩${mFee.toLocaleString()}${dFee > 0 ? `/일 ₩${dFee.toLocaleString()}` : ''})`;
+        });
+        lines.push(
+          `  • 계약 [${c.contractNo || c.id}] (${c.status}) | 고객: ${custName} | 현장: ${sInfo.name} | 기간: ${c.startDate}~${c.endDate} | 투입장비 ${cas.length}대: ${rateSummaries.join(', ') || '자산미배정'}`
+        );
+      }
+
+      if (matchedContracts.length === 0 && matchedSites.length > 0) {
+        for (const sm of matchedSites.slice(0, 5)) {
+          lines.push(`  • 등록 현장 [${sm.name}] (ID: ${sm.id}) | 주소: ${sm.address || '미입력'} | 상태: ${sm.isActive !== false ? '가동중' : '완공/종료'} (연결된 계약 레코드 0건)`);
+        }
+      }
+      sections.push(lines.join('\n'));
+    }
+
+    // B. 배차 / 운송 실DB 조회 결과
+    if (matchedDeliveries.length > 0) {
+      const lines: string[] = [];
+      let costSum = 0;
+      let costCnt = 0;
+      for (const d of matchedDeliveries) {
+        const cost = Number(d.confirmedCost || d.finalCost || d.deliveryCost || 0);
+        if (cost > 0) {
+          costSum += cost;
+          costCnt++;
+        }
+      }
+      const avgCost = costCnt > 0 ? Math.round(costSum / costCnt) : 0;
+      lines.push(`■ [실DB 배차/운송 매칭 결과] 총 ${matchedDeliveries.length}건 (운송비 기재 ${costCnt}건, 평균 ₩${avgCost.toLocaleString()})`);
+      for (const d of matchedDeliveries.slice(0, 6)) {
+        const cost = Number(d.confirmedCost || d.finalCost || d.deliveryCost || 0);
+        lines.push(
+          `  • 배차 [${d.id}] (${d.type}/${d.status}) | 일자: ${d.requestDate || d.loadingDate || '-'} | 기사: ${d.driverName || '미배정'}(${d.vehicleType || '차종미상'}) | 하차지: ${d.destinationAddress || '미입력'} | 운송비: ₩${cost.toLocaleString()}`
+        );
+      }
+      sections.push(lines.join('\n'));
+    }
+
+    // C. 장비 제원 / 보유자산 실DB 조회 결과
+    if (matchedProducts.length > 0 || matchedAssets.length > 0) {
+      const lines: string[] = [];
+      lines.push(`■ [실DB 상품제원/보유자산 매칭 결과] 모델 ${matchedProducts.length}종 | 보유자산 ${matchedAssets.length}대`);
+      for (const p of matchedProducts.slice(0, 5)) {
+        lines.push(
+          `  • 모델 [${p.modelName}] (${p.manufacturer || '-'}, ${p.feet || '-'}ft) | 작업높이: ${p.workingHeight || '-'} | 중량: ${p.weight || '-'} | 적재하중: ${p.capacityPreExt || '-'} | 동력: ${p.powerSource || '-'}`
+        );
+      }
+      if (matchedAssets.length > 0) {
+        const stMap: Record<string, number> = {};
+        for (const a of matchedAssets) stMap[a.status || 'UNKNOWN'] = (stMap[a.status || 'UNKNOWN'] || 0) + 1;
+        const stLine = Object.entries(stMap).map(([k, v]) => `${k} ${v}대`).join(', ');
+        lines.push(`  • 매칭 자산 상태 분포: ${stLine}`);
+      }
+      sections.push(lines.join('\n'));
+    }
+
+    // D. 청구 / 수납 실DB 조회 결과
+    if (matchedBillings.length > 0) {
+      const lines: string[] = [];
+      let bSum = 0;
+      let pSum = 0;
+      for (const b of matchedBillings) {
+        bSum += Number(b.totalAmount || 0);
+        pSum += Number(b.paidAmount || 0);
+      }
+      lines.push(`■ [실DB 청구/수납 매칭 결과] 총 ${matchedBillings.length}건 | 청구합계 ₩${bSum.toLocaleString()} | 수납합계 ₩${pSum.toLocaleString()} | 차액(미수) ₩${(bSum - pSum).toLocaleString()}`);
+      for (const b of matchedBillings.slice(0, 5)) {
+        const custName = customerMap.get(b.customerId)?.name || b.customerId;
+        const diff = Number(b.totalAmount || 0) - Number(b.paidAmount || 0);
+        lines.push(
+          `  • 청구 [${b.billingYm}] 고객: ${custName} | 상태: ${b.status} | 청구: ₩${Number(b.totalAmount || 0).toLocaleString()} | 수납: ₩${Number(b.paidAmount || 0).toLocaleString()} | 미수차액: ₩${diff.toLocaleString()}`
+        );
+      }
+      sections.push(lines.join('\n'));
+    }
+
+    // E. Hindsight 4대 메모리 매칭 결과 (World Facts, Observations, Experiences)
+    if (recallResult.observations.length > 0) {
+      const obsLines = recallResult.observations.slice(0, 4).map(
+        o => `  • ${o.belief_title}: ${o.belief_statement} (증거 ${o.proof_count}건)`
+      );
+      sections.push(`■ [Hindsight 귀납 관찰(Observations) 매칭 ${recallResult.observations.length}건]\n${obsLines.join('\n')}`);
+    }
+
+    if (recallResult.experiences.length > 0) {
+      const expLines = recallResult.experiences.slice(0, 4).map(
+        e => `  • [${new Date(e.created_at).toLocaleString('ko-KR')}] ${e.menu_path} ➔ ${e.action_name}${e.raw_sql ? ` | SQL: ${e.raw_sql.slice(0, 90)}...` : ''}`
+      );
+      sections.push(`■ [Hindsight 사용자 경험(awp_shared_memories) 매칭 ${recallResult.experiences.length}건]\n${expLines.join('\n')}`);
+    }
+
+    const totalLiveMatches =
+      matchedCustomers.length +
+      matchedSites.length +
+      matchedContracts.length +
+      matchedProducts.length +
+      matchedAssets.length +
+      matchedDeliveries.length +
+      matchedBillings.length;
+
+    const totalMemoryMatches =
+      recallResult.world_facts.length +
+      recallResult.observations.length +
+      recallResult.mental_models.length +
+      recallResult.experiences.length;
+
+    if (totalLiveMatches === 0 && totalMemoryMatches === 0) {
+      sections.push(
+        `■ [실DB 조회 결과: 일치하는 레코드 없음 (0건)]\n` +
+        `  • 입력하신 질의 키워드(${tokens.map(t => `'${t}'`).join(', ')})와 일치하는 레코드가 현재 실제 DB(계약 ${contracts.length}건, 현장 ${siteMasters.length}개, 배차 ${deliveries.length}건, 청구 ${billings.length}건, 상품 ${products.length}종, 경험로그 ${this.cachedExperiences.length}건)에 존재하지 않습니다.`
+      );
+    }
+
+    const elapsedMs = Math.round(performance.now() - startTime);
+
     return {
-      answer,
+      answer: sections.join('\n\n'),
+      extracted_tokens: tokens,
       sources: {
-        fact_keys: factTitles,
-        observation_clusters: obsTitles,
-        mental_model_keys: mmTitles,
-        experience_count: recallResult.experiences.length
+        fact_keys: recallResult.world_facts.map(f => f.fact_title),
+        observation_clusters: recallResult.observations.map(o => o.belief_title),
+        mental_model_keys: recallResult.mental_models.map(m => m.title),
+        experience_count: recallResult.experiences.length,
+        live_db_matches: {
+          customers: matchedCustomers.length,
+          sites: matchedSites.length,
+          contracts: matchedContracts.length,
+          products: matchedProducts.length,
+          assets: matchedAssets.length,
+          deliveries: matchedDeliveries.length,
+          billings: matchedBillings.length
+        }
       },
-      dry_summary: `Hindsight 4대 메모리 검색 완료 (${recallResult.execution_time_ms}ms, 사실 ${recallResult.world_facts.length}건, 관찰 ${recallResult.observations.length}건, 경험 ${recallResult.experiences.length}건 결합)`,
-      action_recommendation: recommendation
+      dry_summary: `실DB 조회 완료 (${elapsedMs}ms | 실DB 매칭 ${totalLiveMatches}건 | 사실 ${recallResult.world_facts.length}건 | 관찰 ${recallResult.observations.length}건 | 경험 ${recallResult.experiences.length}건)`
     };
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // 4. 4대 메모리 목록 반환 (대시보드 / 모니터링용)
+  // 4. 4대 메모리 및 실DB 진단 상태 반환
   // ─────────────────────────────────────────────────────────────────────────
   public getWorldFacts(): HindsightWorldFact[] {
     return this.localWorldFacts;
@@ -683,6 +1252,14 @@ ${mmText || ''}`;
 
   public getMentalModels(): HindsightMentalModel[] {
     return this.localMentalModels;
+  }
+
+  public getRecentExperiences(limit = 50): HindsightExperience[] {
+    return this.cachedExperiences.slice(0, limit);
+  }
+
+  public getDiagnostics(): HindsightDbDiagnostics {
+    return this.diagnostics;
   }
 }
 

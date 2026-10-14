@@ -318,7 +318,9 @@ export function initializeHindsightTracker() {
 
       if (!triggerEl) {
         const btn = target.closest('button, [role="button"], a, input[type="submit"]') as HTMLElement;
-        if (btn && !isSensitiveDomElement(btn)) {
+        // 사이드바(aside), 상단 헤더(header), 글로벌 네비게이션(nav), Hindsight 모달 자체 클릭은 암시적 키워드 트리거에서 제외 (단순 메뉴 이동 오염 방지)
+        const isNavOrConsole = btn ? Boolean(btn.closest('aside, nav, header, [data-hs-console="true"]')) : false;
+        if (btn && !isNavOrConsole && !isSensitiveDomElement(btn)) {
           const text = btn.textContent?.trim() || '';
           const triggerKeywords = [
             '저장', '등록', '생성', '완료', '결제', '배차', '승인', 
