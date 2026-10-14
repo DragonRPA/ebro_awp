@@ -139,9 +139,9 @@ export const SiteOptionManage: React.FC = () => {
   const [showDevMergeModal, setShowDevMergeModal] = React.useState(false);
   const { 
     customers, siteMasters, standardOptions, saveStandardOption, deleteStandardOption, 
-    saveSiteMaster, showErrorModal, showNoticeModal, fullRefreshFromServer,
+    saveSiteMaster, deleteSiteMaster, showErrorModal, showNoticeModal, fullRefreshFromServer,
     navigationPayload, setNavigationPayload,
-    sites, contracts
+    sites, contracts, assets
   } = useApp();
 
   // 1. 활성 탭: 'SITE_OPTIONS' (현장별 옵션 관리) vs 'MASTER_OPTIONS' (옵션 품목 마스터)
@@ -176,12 +176,89 @@ export const SiteOptionManage: React.FC = () => {
       isOpen: true,
       title: '현장 가동 상태 변경 확인',
       message: `[${site.name}] 현장을 ${targetStatus ? '가동(진행중)' : '종료(완공)'} 상태로 변경하시겠습니까?\n\n※ 종료 시, 계약 등록 및 배차 화면의 현장 선택 목록에서 제외됩니다.`,
+      confirmText: '확인',
+      isDanger: false,
       onConfirm: async () => {
         try {
           await saveSiteMaster({ id: site.id, isActive: targetStatus });
           showToast(`[${site.name}] 현장이 ${targetStatus ? '가동중' : '완공/종료'} 상태로 변경되었습니다.`);
         } catch (err: any) {
           showErrorModal('상태 변경 실패: ' + err.message);
+        }
+      }
+    });
+  };
+
+  const handleDeleteSite = (site: any) => {
+    const linkedCustomerSites = (sites || []).filter((s: any) => s.siteMasterId === site.id);
+    const matchingSiteIds = new Set([site.id, ...linkedCustomerSites.map((s: any) => s.id)]);
+
+    // 1. 계약 이력 전수 검사 (진행중 및 종료된 과거 계약 전체 포함)
+    const allSiteContracts = (contracts || []).filter((c: any) => matchingSiteIds.has(c.siteId));
+    const activeContracts = allSiteContracts.filter((c: any) => c.status === 'ACTIVE' || c.status === 'EXTENDED');
+
+    if (allSiteContracts.length > 0) {
+      const sampleContract = allSiteContracts[0];
+      const sampleCust = (customers || []).find((cu: any) => cu.id === sampleContract.customerId);
+      const canCloseNow = site.isActive !== false && activeContracts.length === 0;
+
+      setConfirmModal({
+        isOpen: true,
+        title: '현장 삭제 불가 (계약 이력 존재)',
+        message:
+          `[${site.name}] 현장은 계약 이력이 존재하여 삭제할 수 없습니다.\n\n` +
+          `■ 삭제 불가 사유:\n` +
+          `• 누적 계약 이력: 총 ${allSiteContracts.length}건 (진행중 ${activeContracts.length}건 / 종료 ${allSiteContracts.length - activeContracts.length}건)\n` +
+          `• 대표 계약: ${sampleContract.contractNo || sampleContract.id}${sampleCust ? ` (${sampleCust.name})` : ''}\n` +
+          `• 회계 정산 및 출고·배차·청구 이력 보존을 위해 계약이 한 번이라도 체결된 현장은 영구 삭제가 제한됩니다.\n\n` +
+          (canCloseNow
+            ? `💡 현재 진행 중인 계약이 없으므로 삭제 대신 [현장 완공(종료) 처리]를 권장합니다.\n지금 바로 해당 현장을 완공(종료) 처리하시겠습니까?`
+            : activeContracts.length > 0
+              ? `💡 진행 중인 계약(${activeContracts.length}건)이 모두 종료된 후 삭제 대신 [현장 완공(종료) 처리] 기능을 이용해 주십시오.`
+              : `💡 해당 현장은 이미 완공(종료) 처리되어 보관 중입니다.`),
+        confirmText: canCloseNow ? '현장 완공(종료) 처리' : '확인',
+        hideCancel: !canCloseNow,
+        isDanger: false,
+        onConfirm: async () => {
+          if (canCloseNow) {
+            try {
+              await saveSiteMaster({ id: site.id, isActive: false });
+              showToast(`[${site.name}] 현장이 완공/종료 상태로 변경되었습니다.`);
+            } catch (err: any) {
+              showErrorModal('상태 변경 실패: ' + err.message);
+            }
+          }
+        }
+      });
+      return;
+    }
+
+    // 2. 투입 장비 검사
+    const linkedAssets = (assets || []).filter((a: any) => matchingSiteIds.has(a.currentSiteId));
+    if (linkedAssets.length > 0) {
+      showNoticeModal(
+        `[${site.name}] 현장에 현재 배정된 장비가 ${linkedAssets.length}대 존재하여 삭제할 수 없습니다.\n장비 배정을 먼저 해제하거나 [현장 완공(종료) 처리]를 이용해 주십시오.`,
+        '현장 삭제 불가'
+      );
+      return;
+    };
+
+    // 3. 계약 이력이 전혀 없는 현장 삭제 확인
+    setConfirmModal({
+      isOpen: true,
+      title: '현장 삭제 확인',
+      message: `[${site.name}] 현장을 영구 삭제하시겠습니까?\n\n• 연결된 계약 이력: 0건\n• 삭제 후에는 복구할 수 없습니다.${linkedCustomerSites.length > 0 ? `\n• 고객사 현장 연결(${linkedCustomerSites.length}건)도 함께 정리됩니다.` : ''}`,
+      confirmText: '현장 삭제',
+      hideCancel: false,
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          const remaining = filteredSites.filter((s: any) => s.id !== site.id);
+          await deleteSiteMaster(site.id);
+          setSelectedSiteId(remaining.length > 0 ? remaining[0].id : '');
+          showToast(`[${site.name}] 현장이 삭제되었습니다.`);
+        } catch (err: any) {
+          showErrorModal('현장 삭제 실패: ' + err.message);
         }
       }
     });
@@ -317,11 +394,17 @@ export const SiteOptionManage: React.FC = () => {
     isOpen: boolean;
     title: string;
     message: string;
+    confirmText?: string;
+    hideCancel?: boolean;
+    isDanger?: boolean;
     onConfirm: () => void;
   }>({
     isOpen: false,
     title: '',
     message: '',
+    confirmText: '확인',
+    hideCancel: false,
+    isDanger: false,
     onConfirm: () => {}
   });
 
@@ -1182,10 +1265,33 @@ export const SiteOptionManage: React.FC = () => {
                           </div>
                         </div>
                         
-                        {/* 종결 버튼 영역 */}
+                        {/* 종결 및 삭제 버튼 영역 */}
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <button
+                            type="button"
+                            data-mid="btn-delete-site"
+                            onClick={() => handleDeleteSite(activeSite)}
+                            style={{
+                              padding: '6px 12px',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                              color: '#ef4444',
+                              border: '1px solid rgba(239, 68, 68, 0.35)',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '5px',
+                              whiteSpace: 'nowrap'
+                            }}
+                            title="계약 이력이 없는 현장 삭제"
+                          >
+                            <Trash2 size={13} /> 현장 삭제
+                          </button>
                           {activeSite.isActive !== false ? (
                             <button
+                              type="button"
                               onClick={() => handleToggleSiteStatus(activeSite, false)}
                               style={{
                                 padding: activeStats.activeCustomerCount === 0 ? '7px 14px' : '6px 12px',
@@ -1199,6 +1305,7 @@ export const SiteOptionManage: React.FC = () => {
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '5px',
+                                whiteSpace: 'nowrap',
                                 boxShadow: activeStats.activeCustomerCount === 0 ? '0 2px 8px rgba(220, 38, 38, 0.3)' : 'none'
                               }}
                               title={activeStats.activeCustomerCount === 0 ? '현재 사용중인 고객이 없으므로 완공 처리할 수 있습니다.' : '진행 중인 계약이 있는 현장입니다.'}
@@ -1207,8 +1314,9 @@ export const SiteOptionManage: React.FC = () => {
                             </button>
                           ) : (
                             <button
+                              type="button"
                               onClick={() => handleToggleSiteStatus(activeSite, true)}
-                              style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 700, backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                              style={{ padding: '6px 12px', fontSize: '12px', fontWeight: 700, backgroundColor: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
                             >
                               <Power size={14} /> 현장 가동(진행) 전환
                             </button>
@@ -1906,28 +2014,30 @@ export const SiteOptionManage: React.FC = () => {
         }}>
           <div style={{
             backgroundColor: 'var(--bg-card)', borderRadius: '10px',
-            padding: '20px', maxWidth: '420px', width: '90%',
+            padding: '20px', maxWidth: '460px', width: '90%',
             boxShadow: '0 10px 25px rgba(0,0,0,0.3)', border: '1px solid var(--border-color)',
             display: 'flex', flexDirection: 'column', gap: '14px'
           }}>
             <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 800, color: 'var(--text-main)' }}>
               {confirmModal.title}
             </h4>
-            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
               {confirmModal.message}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
-              <button
-                type="button"
-                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
-                style={{
-                  padding: '7px 14px', borderRadius: '6px',
-                  border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)',
-                  color: 'var(--text-secondary)', fontSize: '13px', fontWeight: 600, cursor: 'pointer'
-                }}
-              >
-                취소
-              </button>
+              {!confirmModal.hideCancel && (
+                <button
+                  type="button"
+                  onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                  style={{
+                    padding: '7px 14px', borderRadius: '6px',
+                    border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-app)',
+                    color: 'var(--text-secondary)', fontSize: '13px', fontWeight: 600, cursor: 'pointer'
+                  }}
+                >
+                  취소
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
@@ -1937,11 +2047,12 @@ export const SiteOptionManage: React.FC = () => {
                 }}
                 style={{
                   padding: '7px 16px', borderRadius: '6px',
-                  border: 'none', backgroundColor: 'var(--primary)',
+                  border: 'none',
+                  backgroundColor: confirmModal.isDanger ? '#dc2626' : 'var(--primary)',
                   color: '#ffffff', fontSize: '13px', fontWeight: 700, cursor: 'pointer'
                 }}
               >
-                확인
+                {confirmModal.confirmText || '확인'}
               </button>
             </div>
           </div>

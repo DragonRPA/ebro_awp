@@ -28,6 +28,28 @@ window.addEventListener('unhandledrejection', (event) => {
 });
 
 initializeHindsightTracker();
+
+// 🧹 브라우저 주소창 임시 캐시무효화 파라미터(_v, _t) 자동 정리 (히스토리 오염 방지)
+try {
+  if (typeof window !== 'undefined' && window.location.search) {
+    const url = new URL(window.location.href);
+    let changed = false;
+    if (url.searchParams.has('_v')) {
+      url.searchParams.delete('_v');
+      changed = true;
+    }
+    if (url.searchParams.has('_t')) {
+      url.searchParams.delete('_t');
+      changed = true;
+    }
+    if (changed) {
+      const cleanPath = url.pathname + (url.searchParams.toString() ? '?' + url.searchParams.toString() : '') + url.hash;
+      window.history.replaceState(window.history.state, document.title, cleanPath);
+    }
+  }
+} catch (e) {
+  // Silent ignore
+}
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary fallbackTitle="시스템 일시 오류 복구">

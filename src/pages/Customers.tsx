@@ -22,6 +22,164 @@ import { ExcelUploadModal, ExcelColumnDef } from '../components/ExcelUploadModal
 import { SortableTh } from '../components/SortableTh';
 import { useSortableData } from '../hooks/useSortableData';
 
+// ⚡ 좌측 고객 목록 개별 아이템 메모이제이션 (선택 고객 변경 시 타 고객 불필요 재렌더링 방지)
+interface CustomerListItemProps {
+  cust: Customer;
+  isSelected: boolean;
+  custSitesCount: number;
+  custContactsCount: number;
+  noticeCount: number;
+  canSave: boolean;
+  onSelect: (id: string) => void;
+  onUploadBizCert: (id: string) => void;
+  onViewBizCert: (cust: Customer) => void;
+  onEditCust: (cust: Customer) => void;
+}
+
+const CustomerListItem = React.memo<CustomerListItemProps>(({
+  cust,
+  isSelected,
+  custSitesCount,
+  custContactsCount,
+  noticeCount,
+  canSave,
+  onSelect,
+  onUploadBizCert,
+  onViewBizCert,
+  onEditCust
+}) => {
+  const isMissingBiz = !cust.businessCertFileUrl || cust.businessCertFileUrl.trim() === '';
+
+  return (
+    <div
+      id={`customer-item-${cust.id}`}
+      data-mid='customer-grid-item'
+      onClick={() => onSelect(cust.id)}
+      style={{
+        padding: '8px 10px',
+        borderRadius: '5px',
+        border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+        backgroundColor: isSelected ? 'var(--primary-light)' : 'var(--bg-app)',
+        cursor: 'pointer',
+        transition: 'all 0.15s',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '3px'
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <strong style={{ fontSize: '13px', color: isSelected ? 'var(--primary)' : 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '210px' }}>
+          {cust.name}
+        </strong>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {isMissingBiz ? (
+            <>
+              <span style={{ fontSize: '9.5px', color: 'var(--danger)', backgroundColor: 'rgba(239,68,68,0.08)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                등록증 미첨부
+              </span>
+              {canSave && (
+                <button
+                  data-hs-trigger="Register"
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUploadBizCert(cust.id);
+                  }}
+                  title="사업자등록증 업로드로 사업자 정보 등록"
+                  style={{
+                    padding: '1px 5px',
+                    fontSize: '9.5px',
+                    border: '1px solid #059669',
+                    borderRadius: '3px',
+                    backgroundColor: 'rgba(5,150,105,0.12)',
+                    color: 'var(--success)',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '2px',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <FileText size={10} /> 등록증 첨부
+                </button>
+              )}
+            </>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+              <span style={{ fontSize: '9.5px', color: 'var(--success)', backgroundColor: 'rgba(5,150,105,0.08)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>
+                <Check size={10} /> 등록증 첨부
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewBizCert(cust);
+                }}
+                title="사업자등록증 사본 열람"
+                style={{
+                  padding: '1px 5px',
+                  fontSize: '9.5px',
+                  border: '1px solid #0284c7',
+                  borderRadius: '3px',
+                  backgroundColor: 'rgba(2,132,199,0.12)',
+                  color: '#0284c7',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '2px'
+                }}
+              >
+                <FileText size={9} /> 보기
+              </button>
+            </div>
+          )}
+          {cust.isClosed ? (
+            <span className="badge badge-danger" style={{ fontSize: '9.5px', padding: '1px 4px' }}>폐업</span>
+          ) : cust.transactionStatus === 'RESTRICT_NEW' ? (
+            <span className="badge" style={{ fontSize: '9.5px', padding: '1px 4px', backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #f59e0b' }}>추가금지</span>
+          ) : isCustomerTotalBlocked(cust.transactionStatus) ? (
+            <span className="badge badge-danger" style={{ fontSize: '9.5px', padding: '1px 4px' }}>전면차단</span>
+          ) : null}
+          {noticeCount > 0 && (
+            <span style={{ fontSize: '9.5px', color: '#7e22ce', backgroundColor: '#f3e8ff', padding: '1px 4px', borderRadius: '3px', fontWeight: 800 }}>
+              📜 내용증명 {noticeCount}건
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)' }}>
+        <span>대표: {cust.representative || '-'}</span>
+        <span>등록번호: {cust.bizRegNo || '-'}</span>
+      </div>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px', fontSize: '11.5px', color: 'var(--text-muted)' }}>
+        <span>현장 {custSitesCount}개소 · 담당 {custContactsCount}명</span>
+        {canSave && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onEditCust(cust); }}
+            style={{
+              padding: '1px 5px',
+              fontSize: '11.5px',
+              border: '1px solid var(--border-color)',
+              borderRadius: '3px',
+              backgroundColor: 'transparent',
+              color: 'var(--primary)',
+              cursor: 'pointer'
+            }}
+          >
+            수정
+          </button>
+        )}
+      </div>
+    </div>
+  );
+});
+
 export const Customers: React.FC = () => {
   
   const {
@@ -233,6 +391,67 @@ export const Customers: React.FC = () => {
     return map;
   }, [customers]);
 
+  // 🗺️ 현장 마스터 ID ➔ 현장 마스터 매핑 맵
+  const siteMasterMap = useMemo(() => {
+    const map = new Map<string, SiteMaster>();
+    (siteMasters || []).forEach(sm => map.set(sm.id, sm));
+    return map;
+  }, [siteMasters]);
+
+  // 🏗️ 고객사별 현장 개수 매핑 맵 (O(1) 검색)
+  const customerSiteCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    (sites || []).forEach(s => {
+      if (s.customerId) {
+        map.set(s.customerId, (map.get(s.customerId) || 0) + 1);
+      }
+    });
+    return map;
+  }, [sites]);
+
+  // 👤 고객사별 담당자 개수 매핑 맵 (O(1) 검색)
+  const customerContactCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    (contacts || []).forEach(c => {
+      if (c.customerId) {
+        map.set(c.customerId, (map.get(c.customerId) || 0) + 1);
+      }
+    });
+    return map;
+  }, [contacts]);
+
+  // 📜 고객사별 내용증명 개수 매핑 맵 (O(1) 검색)
+  const customerLegalNoticeCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    (legalNoticeLogs || []).forEach(l => {
+      if (l.customerId) {
+        map.set(l.customerId, (map.get(l.customerId) || 0) + 1);
+      }
+    });
+    return map;
+  }, [legalNoticeLogs]);
+
+  // 📋 현장별 활성 계약 및 투입 장비 개수 매핑 맵 (O(1) 검색)
+  const siteContractAssetStatsMap = useMemo(() => {
+    const contractAssetCountMap = new Map<string, number>();
+    (contractAssets || []).forEach(ca => {
+      if (ca.contractId && ca.status !== 'RETURNED') {
+        contractAssetCountMap.set(ca.contractId, (contractAssetCountMap.get(ca.contractId) || 0) + 1);
+      }
+    });
+
+    const statsMap = new Map<string, { contractCount: number; assetCount: number }>();
+    (contracts || []).forEach(c => {
+      if (c.siteId && (c.status === 'ACTIVE' || c.status === 'EXTENDED')) {
+        const current = statsMap.get(c.siteId) || { contractCount: 0, assetCount: 0 };
+        current.contractCount += 1;
+        current.assetCount += (contractAssetCountMap.get(c.id) || 0);
+        statsMap.set(c.siteId, current);
+      }
+    });
+    return statsMap;
+  }, [contracts, contractAssets]);
+
   // 🎯 현장별 옵션관리 등록 현장 중 옵션 참조 대상 목록 (검색 필터 및 옵션 보유 현장 상위 정렬)
   const optionReferenceSites = useMemo(() => {
     const matcher = createHangulMatcher(siteOptionRefSearch);
@@ -290,14 +509,14 @@ export const Customers: React.FC = () => {
     return sites
       .filter(cs => cs.customerId === selectedCustomerId)
       .sort((a, b) => {
-        const aMaster = siteMasters.find(sm => sm.id === a.siteMasterId);
-        const bMaster = siteMasters.find(sm => sm.id === b.siteMasterId);
+        const aMaster = a.siteMasterId ? siteMasterMap.get(a.siteMasterId) : undefined;
+        const bMaster = b.siteMasterId ? siteMasterMap.get(b.siteMasterId) : undefined;
         const aActive = aMaster?.isActive !== false;
         const bActive = bMaster?.isActive !== false;
         if (aActive !== bActive) return aActive ? -1 : 1;
         return a.name.localeCompare(b.name, 'ko');
       });
-  }, [sites, siteMasters, selectedCustomerId]);
+  }, [sites, siteMasterMap, selectedCustomerId]);
 
   const { items: sortedCustomerContacts, requestSort: requestSortContacts, sortConfig: sortConfigContacts } = useSortableData(customerContacts);
   const { items: sortedCustomerSites, requestSort: requestSortSites, sortConfig: sortConfigSites } = useSortableData(customerSites);
@@ -341,7 +560,7 @@ export const Customers: React.FC = () => {
     });
 
     return sortCustomersByName(list);
-  }, [customers, searchTerm, chosungFilter, statusFilter, showOnlyIncomplete, contacts, sites]);
+  }, [customers, searchTerm, chosungFilter, statusFilter, showOnlyIncomplete]);
 
   // 선택된 고객사 목록 스크롤 동기화
   useEffect(() => {
@@ -353,18 +572,39 @@ export const Customers: React.FC = () => {
     }
   }, [selectedCustomerId, filteredCustomers]);
 
-  // KPI 집계
+  // KPI 집계 (단일 루프 및 O(1) 마스터 조회로 최적화)
   const kpiStats = useMemo(() => {
-    const totalCust = customers.length;
-    const activeCust = customers.filter(c => !isCustomerRestricted(c.transactionStatus) && !c.isClosed).length;
-    const blockedCust = customers.filter(c => isCustomerRestricted(c.transactionStatus)).length;
-    const closedCust = customers.filter(c => c.isClosed).length;
-    const totalSites = sites.length;
-    const activeSites = sites.filter(s => siteMasters.find(sm => sm.id === s.siteMasterId)?.isActive !== false).length;
-    const totalContacts = contacts.length;
+    let activeCust = 0;
+    let blockedCust = 0;
+    let closedCust = 0;
+    for (const c of customers) {
+      if (c.isClosed) {
+        closedCust++;
+      } else if (isCustomerRestricted(c.transactionStatus)) {
+        blockedCust++;
+      } else {
+        activeCust++;
+      }
+    }
 
-    return { totalCust, activeCust, blockedCust, closedCust, totalSites, activeSites, totalContacts };
-  }, [customers, sites, siteMasters, contacts]);
+    let activeSites = 0;
+    for (const s of sites) {
+      const sm = s.siteMasterId ? siteMasterMap.get(s.siteMasterId) : undefined;
+      if (sm?.isActive !== false) {
+        activeSites++;
+      }
+    }
+
+    return {
+      totalCust: customers.length,
+      activeCust,
+      blockedCust,
+      closedCust,
+      totalSites: sites.length,
+      activeSites,
+      totalContacts: contacts.length
+    };
+  }, [customers, sites, siteMasterMap, contacts.length]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -1474,145 +1714,24 @@ const handleDeleteAccount = async (accId: string) => {
                 조회된 고객사가 없습니다.
               </div>
             ) : (
-              filteredCustomers.map(cust => {
-                const isSelected = selectedCustomerId === cust.id;
-                const isIncomplete = isIncompleteCustomer(cust);
-                const custSitesCount = sites.filter(s => s.customerId === cust.id).length;
-                const custContactsCount = contacts.filter(c => c.customerId === cust.id).length;
-
-                return (
-                  <div
-                    key={cust.id}
-                    id={`customer-item-${cust.id}`}
-                    data-mid='customer-grid-item' onClick={() => setSelectedCustomerId(cust.id)}
-                    style={{
-                      padding: '8px 10px',
-                      borderRadius: '5px',
-                      border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                      backgroundColor: isSelected ? 'var(--primary-light)' : 'var(--bg-app)',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '3px'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <strong style={{ fontSize: '13px', color: isSelected ? 'var(--primary)' : 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '210px' }}>
-                        {cust.name}
-                      </strong>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        {isMissingBizCert(cust) ? (
-                          <>
-                            <span style={{ fontSize: '9.5px', color: 'var(--danger)', backgroundColor: 'rgba(239,68,68,0.08)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                              등록증 미첨부
-                            </span>
-                            {canSave && (
-                              <button data-hs-trigger="Register"
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setTargetBizLicenseCustId(cust.id);
-                                  setShowBizLicenseModal(true);
-                                }}
-                                title="사업자등록증 업로드로 사업자 정보 등록"
-                                style={{
-                                  padding: '1px 5px',
-                                  fontSize: '9.5px',
-                                  border: '1px solid #059669',
-                                  borderRadius: '3px',
-                                  backgroundColor: 'rgba(5,150,105,0.12)',
-                                  color: 'var(--success)',
-                                  cursor: 'pointer',
-                                  fontWeight: 700,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '2px',
-                                  whiteSpace: 'nowrap'
-                                }}
-                              >
-                                <FileText size={10} /> 등록증 첨부
-                              </button>
-                            )}
-                          </>
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                            <span style={{ fontSize: '9.5px', color: 'var(--success)', backgroundColor: 'rgba(5,150,105,0.08)', padding: '1px 4px', borderRadius: '3px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>
-                              <Check size={10} /> 등록증 첨부
-                            </span>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViewBizCert(cust);
-                              }}
-                              title="사업자등록증 사본 열람"
-                              style={{
-                                padding: '1px 5px',
-                                fontSize: '9.5px',
-                                border: '1px solid #0284c7',
-                                borderRadius: '3px',
-                                backgroundColor: 'rgba(2,132,199,0.12)',
-                                color: '#0284c7',
-                                cursor: 'pointer',
-                                fontWeight: 700,
-                                whiteSpace: 'nowrap',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '2px'
-                              }}
-                            >
-                              <FileText size={9} /> 보기
-                            </button>
-                          </div>
-                        )}
-                        {cust.isClosed ? (
-                          <span className="badge badge-danger" style={{ fontSize: '9.5px', padding: '1px 4px' }}>폐업</span>
-                        ) : cust.transactionStatus === 'RESTRICT_NEW' ? (
-                          <span className="badge" style={{ fontSize: '9.5px', padding: '1px 4px', backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #f59e0b' }}>추가금지</span>
-                        ) : isCustomerTotalBlocked(cust.transactionStatus) ? (
-                          <span className="badge badge-danger" style={{ fontSize: '9.5px', padding: '1px 4px' }}>전면차단</span>
-                        ) : null}
-                        {(() => {
-                          const noticeCount = (legalNoticeLogs || []).filter(l => l.customerId === cust.id).length;
-                          if (noticeCount === 0) return null;
-                          return (
-                            <span style={{ fontSize: '9.5px', color: '#7e22ce', backgroundColor: '#f3e8ff', padding: '1px 4px', borderRadius: '3px', fontWeight: 800 }}>
-                              📜 내용증명 {noticeCount}건
-                            </span>
-                          );
-                        })()}
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)' }}>
-                      <span>대표: {cust.representative || '-'}</span>
-                      <span>등록번호: {cust.bizRegNo || '-'}</span>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px', fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                      <span>현장 {custSitesCount}개소 · 담당 {custContactsCount}명</span>
-                      {canSave && (
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); handleOpenEditCust(cust); }}
-                          style={{
-                            padding: '1px 5px',
-                            fontSize: '11.5px',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: '3px',
-                            backgroundColor: 'transparent',
-                            color: 'var(--primary)',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          수정
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
+              filteredCustomers.map(cust => (
+                <CustomerListItem
+                  key={cust.id}
+                  cust={cust}
+                  isSelected={selectedCustomerId === cust.id}
+                  custSitesCount={customerSiteCountMap.get(cust.id) || 0}
+                  custContactsCount={customerContactCountMap.get(cust.id) || 0}
+                  noticeCount={customerLegalNoticeCountMap.get(cust.id) || 0}
+                  canSave={canSave}
+                  onSelect={setSelectedCustomerId}
+                  onUploadBizCert={(id) => {
+                    setTargetBizLicenseCustId(id);
+                    setShowBizLicenseModal(true);
+                  }}
+                  onViewBizCert={handleViewBizCert}
+                  onEditCust={handleOpenEditCust}
+                />
+              ))
             )}
           </div>
         </div>
@@ -1790,12 +1909,10 @@ const handleDeleteAccount = async (accId: string) => {
                         </tr>
                       ) : (
                         sortedCustomerSites.map(cs => {
-                          const activeContracts = contracts?.filter(c => c.siteId === cs.id && (c.status === 'ACTIVE' || c.status === 'EXTENDED')) || [];
-                          const activeAssetCount = activeContracts.reduce((acc, contract) => {
-                            const assetsForContract = contractAssets?.filter(ca => ca.contractId === contract.id && ca.status !== 'RETURNED') || [];
-                            return acc + assetsForContract.length;
-                          }, 0);
-                          const hasActiveContracts = activeContracts.length > 0;
+                          const siteStats = siteContractAssetStatsMap.get(cs.id) || { contractCount: 0, assetCount: 0 };
+                          const activeContractsCount = siteStats.contractCount;
+                          const activeAssetCount = siteStats.assetCount;
+                          const hasActiveContracts = activeContractsCount > 0;
 
                           return (
                             <tr key={cs.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
@@ -1806,7 +1923,7 @@ const handleDeleteAccount = async (accId: string) => {
                                 
 
                                 <span style={{fontSize: '11px', color: 'var(--text-muted)', fontWeight: 400}}>
-                                  (계약 {activeContracts.length}건 / {activeAssetCount}대)
+                                  (계약 {activeContractsCount}건 / {activeAssetCount}대)
                                 </span>
                               </td>
                               <td style={{ padding: '5px 6px', textAlign: 'center', whiteSpace: 'nowrap' }}>

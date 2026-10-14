@@ -136,6 +136,7 @@ interface AppContextType {
   sites: CustomerSite[];
   siteMasters: SiteMaster[];
   saveSiteMaster: (s: Partial<SiteMaster>) => Promise<void>;
+  deleteSiteMaster: (id: string) => Promise<void>;
   products: Product[];
   assets: Asset[];
   consumables: Consumable[];
@@ -2258,6 +2259,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       db.insertRow('siteMasters', { ...s, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as any);
     }
     await db.awaitPendingWrites(); refreshAllData(); };
+
+  const deleteSiteMaster = async (id: string) => {
+    // 1. 연결된 고객 현장(CustomerSite) 조회 및 삭제
+    const linkedSites = db.sites.filter(s => s.siteMasterId === id);
+    for (const ls of linkedSites) {
+      db.deleteRow('sites', ls.id);
+    }
+    // 2. 연결된 담당자(CustomerContact)의 siteMasterId 참조 해제
+    const linkedContacts = db.contacts.filter((c: any) => c.siteMasterId === id);
+    for (const lc of linkedContacts) {
+      db.updateRow('contacts', lc.id, { ...lc, siteMasterId: undefined } as any);
+    }
+    // 3. SiteMaster 본체 삭제
+    db.deleteRow('siteMasters', id);
+    await db.awaitPendingWrites();
+    refreshAllData();
+  };
 
   const saveSite = async (site: Omit<CustomerSite, 'id' | 'createdAt'> & { id?: string }) => {
     // 1. SiteMaster (독립 현장 마스터) 저장/업데이트
@@ -11372,7 +11390,7 @@ ${currentTenant?.corporateName || tenantCorp} 배상
       addTenantWorkplace, updateTenantWorkplace, deleteTenantWorkplace,
       addTenantYard, updateTenantYard, deleteTenantYard, setDefaultYard,
       errorReports, addErrorReport, receiveErrorReport, completeErrorReport, cancelErrorReport, reopenErrorReport, deleteErrorReport,
-      users, departments, permissions, customers, contacts, sites, siteMasters, saveSiteMaster, products, assets, consumables, consumableLots: db.consumableLots, consumableLogs, consumablePurchases, mechanicConsumableStocks, contracts, contractAssets, contractHistory, deliveries, billings, billingDetails, payments, paymentDepositLinks, repairs, repairConsumables, transportCompanies, transportDrivers, transportNegotiations, subleaseNegotiations, todos,
+      users, departments, permissions, customers, contacts, sites, siteMasters, saveSiteMaster, deleteSiteMaster, products, assets, consumables, consumableLots: db.consumableLots, consumableLogs, consumablePurchases, mechanicConsumableStocks, contracts, contractAssets, contractHistory, deliveries, billings, billingDetails, payments, paymentDepositLinks, repairs, repairConsumables, transportCompanies, transportDrivers, transportNegotiations, subleaseNegotiations, todos,
       stocktakingAudits, stocktakingAuditItems, collectedParts,
       bankTransactions, bankMatchingRules, bankInitialBalances, assetInOutLogs, vendors, googleConfigs, cashFlowSnapshots, outboundInspections, depreciationLogs,
       purchaseSettlements, purchaseSettlementItems, settlementPaymentLogs: db.settlementPaymentLogs, externalLeases, inspectionChecklistItems,
