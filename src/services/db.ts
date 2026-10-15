@@ -7517,9 +7517,14 @@ export interface TradeProduct {
   skuCode: string;
   name: string;
   category: string;
-  status: 'ACTIVE' | 'DISCONTINUED';
+  spec?: string;
+  unit?: string;
+  standardCost?: number;
   standardPrice: number;
+  safetyStock?: number;
+  status: 'ACTIVE' | 'DISCONTINUED';
   cogsMethod: 'FIFO' | 'MOVING_AVG';
+  memo?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -7528,8 +7533,13 @@ export interface TradePurchase {
   id: string;
   vendorId: string;
   orderDate: string;
-  status: 'ORDERED' | 'PARTIAL_RECEIVED' | 'RECEIVED';
+  expectedDate?: string;
+  receivedDate?: string;
+  status: 'REQUESTED' | 'ORDERED' | 'PARTIAL_RECEIVED' | 'RECEIVED' | 'CANCELLED';
   totalAmount: number;
+  vatAmount?: number;
+  requesterName?: string;
+  memo?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -7541,6 +7551,7 @@ export interface TradePurchaseItem {
   orderQty: number;
   receivedQty: number;
   unitCost: number;
+  memo?: string;
 }
 
 export interface TradeInventoryLot {
@@ -7557,7 +7568,7 @@ export interface TradeSalesOrder {
   id: string;
   customerId: string;
   orderDate: string;
-  status: 'PENDING' | 'SHIPPED' | 'DELIVERED' | 'RETURNED';
+  status: 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'RETURNED' | 'CANCELLED';
   totalSalesAmount: number;
   totalCogsAmount: number;
   createdAt: string;
@@ -7567,10 +7578,13 @@ export interface TradeSalesOrder {
   contractSentTo?: string;
   deliveryLocation?: string;
   deliveryDate?: string;
+  receiverName?: string;
+  receiverPhone?: string;
   paymentTerms?: string;
   specialTerms?: string;
+  salespersonName?: string;
+  memo?: string;
 }
-
 
 export interface TradeSalesOrderLine {
   id: string;
@@ -7579,16 +7593,19 @@ export interface TradeSalesOrderLine {
   qty: number;
   unitPrice: number;
   unitCogs: number;
+  memo?: string;
   createdAt: string;
 }
 
 export interface TradeOutbound {
   id: string;
   orderId: string;
-  status: 'REQUESTED' | 'ALLOCATED' | 'PACKED' | 'SHIPPED' | 'DELIVERED';
+  status: 'REQUESTED' | 'ALLOCATED' | 'PACKED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
   deliveryType?: 'COURIER' | 'DIRECT';
   courierName?: string;
   trackingNumber?: string;
+  shippingCost?: number;
+  paidBy?: 'OURS' | 'CUSTOMER';
   driverName?: string;
   driverContact?: string;
   vehicleNo?: string;
@@ -7597,6 +7614,8 @@ export interface TradeOutbound {
   receiverPhone?: string;
   proofUrl?: string;
   proofType?: 'SIGNATURE' | 'PHOTO';
+  allocatedAt?: string;
+  packedAt?: string;
   shippedAt?: string;
   deliveredAt?: string;
   closingMemo?: string;
@@ -7606,21 +7625,40 @@ export interface TradeOutbound {
 
 export interface TradeBilling {
   id: string;
+  orderId?: string;
+  orderIds?: string[];
   customerId: string;
   billingMonth: string;
+  billingDate?: string;
+  supplyAmount?: number;
+  vatAmount?: number;
   totalAmount: number;
-  status: 'DRAFT' | 'ISSUED' | 'PAID';
+  status: 'DRAFT' | 'ISSUED' | 'SENT' | 'PAID' | 'CANCELLED';
+  recipientName?: string;
+  recipientEmail?: string;
+  ccEmail?: string;
+  emailSubject?: string;
+  sentAt?: string;
+  paidAt?: string;
+  memo?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface TradeReturn {
   id: string;
+  orderId?: string;
   orderLineId: string;
   returnDate: string;
   qty: number;
   condition: 'SELLABLE' | 'DEFECTIVE';
+  status?: 'REQUESTED' | 'COMPLETED' | 'CANCELLED';
+  reason?: string;
   refundAmount: number;
+  processedBy?: string;
+  memo?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface TradeCogsLedger {
@@ -7640,3 +7678,4 @@ export interface TradeInventoryAdjustment {
   reason: string;
   createdAt: string;
 }
+

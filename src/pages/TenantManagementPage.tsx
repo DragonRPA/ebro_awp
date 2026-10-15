@@ -546,7 +546,7 @@ export const TenantManagementPage: React.FC = () => {
   const handleSetCorePagesOnly = () => {
     const coreIds = [
       'approvalInbox', 'approvalRules',
-      'customer', 'contract', 'billing', 'custom_billing', 'receivable', 'smart_dispatch4', 'smart_return', 'smart_as_request',
+      'customer', 'contract', 'billing', 'receivable', 'smart_dispatch4', 'smart_return', 'smart_as_request',
       'product', 'asset', 'acquisition_disposal', 'rent_asset',
       'delivery', 'transport_master',
       'daily_inout', 'asset_inout_history', 'dispatch_assign', 'outbound_inspections',

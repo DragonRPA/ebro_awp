@@ -14,7 +14,7 @@ export interface MenuGroupConfig {
 export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
   {
     id: 'grp_distribution',
-    name: '유통관리',
+    name: '영업-유통',
     items: [
       { id: 'trade_products', name: '상품 등록 및 관리' },
       { id: 'trade_purchases', name: '구매 및 입고' },
@@ -26,7 +26,6 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
       { id: 'trade_profitability', name: '수익성 관리' }
     ]
   },
-
   {
     id: 'grp_approval',
     name: '결재 센터',
@@ -43,7 +42,6 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
       { id: 'site_options', name: '현장별 옵션 관리' },
       { id: 'contract', name: '계약 관리' },
       { id: 'billing', name: '청구 수납 관리' },
-      { id: 'custom_billing', name: '특수 거래명세서 작성' },
       { id: 'receivable', name: '외상미수금 대장' },
       { id: 'smart_dispatch4', name: '출고 요청' },
       { id: 'smart_return', name: '회수 요청' },
@@ -79,8 +77,7 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
       { id: 'asset_inout_history', name: '입출고 조회' },
       { id: 'dispatch_assign', name: '장비 할당' },
       { id: 'outbound_inspections', name: '출고 검수 관리' },
-      { id: 'consumable_stock', name: '주기장 소모품 재고' },
-        { id: 'stocktaking', name: '재고 실사' },
+      { id: 'stocktaking', name: '재고 실사' },
       { id: 'print_queue_monitor', name: '프린트 큐 모니터' }
     ]
   },
@@ -90,6 +87,7 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
     items: [
       { id: 'consumable_purchase', name: '소모품 구매' },
       { id: 'consumable_inout', name: '소모품 입출고' },
+      { id: 'consumable_stock', name: '소모품 재고' },
       { id: 'field_as', name: '현장 AS 관리' },
       { id: 'repair', name: '주기장 정비 관리' },
       { id: 'inspection_checklist_manage', name: '정비 항목 관리' }
@@ -116,7 +114,7 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
     name: '경영관리 - 특수',
     items: [
       { id: 'organization', name: '조직 인사 관리' },
-      { id: 'permission', name: '사용자 및 권한 설정' },
+      { id: 'permission', name: '사용자 및 권한' },
       { id: 'manual_dictionary', name: '전사 업무 매뉴얼 사전' },
       { id: 'payroll', name: '급여 정산' },
       { id: 'leave_management', name: '연차관리' },
@@ -140,7 +138,7 @@ export const SYSTEM_MENU_CONFIG: MenuGroupConfig[] = [
       { id: 'agentic_settlement_autopilot', name: '월말 대사 정산' },
       { id: 'agentic_asset_lifecycle', name: '자산 라이프사이클 관제' },
       { id: 'initial_db_upload', name: '초기DB 업로드' },
-      { id: 'google_config', name: '구글 관리자 설정' },
+      { id: 'google_config', name: '공식 메일 연동 설정' },
       { id: 'dev_uploader', name: 'DB 데이터 업로더' },
       { id: 'tenant_management', name: '테넌트 관리' }
     ]

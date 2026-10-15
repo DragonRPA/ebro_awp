@@ -1377,6 +1377,36 @@ const App: React.FC = () => {
               </button>
             </div>
 
+            {/* 🧩 크롬 웹스토어 웹 확장프로그램 연동 링크 */}
+            <div style={{ marginTop: '2px' }}>
+              <a
+                href="https://chromewebstore.google.com/detail/bjljgkmnehpfnocaflfdhioanigljfmb"
+                target="_blank"
+                rel="noreferrer noopener"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-card)',
+                  color: 'var(--text-primary)',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  boxSizing: 'border-box',
+                  transition: 'all 0.15s ease'
+                }}
+                title="Chrome 웹 스토어에서 eBro 웹 확장프로그램 설치 및 연동"
+              >
+                <Bot size={14} color="var(--primary)" style={{ flexShrink: 0 }} />
+                <span>Chrome 웹 확장프로그램 설치</span>
+              </a>
+            </div>
+
             {installerDownloadMsg && (
               <div style={{
                 padding: '6px 10px',
