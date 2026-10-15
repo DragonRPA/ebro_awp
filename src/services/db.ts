@@ -7406,17 +7406,14 @@ class LocalDB {
               name: u.name,
               departmentId: u.departmentId || null,
               position: u.position || '',
-              duty: u.duty || null,
               managerId: (u as any).managerId || null,
               role: u.role || 'USER',
               status: u.status || 'ACTIVE',
               department: (u as any).department || null,
               baseSalary: u.baseSalary ?? 0,
               phone: u.phone || null,
+              email: u.email || null,
               address: u.address || null,
-              paidOptions: (u as any).paidOptions || null,
-              protection: (u as any).protection || null,
-              checkedSpecs: (u as any).checkedSpecs || null,
               birthDate: u.birthDate || null,
               joinDate: u.joinDate || null,
               retireDate: (u as any).retireDate || null,
@@ -7436,13 +7433,13 @@ class LocalDB {
                 const copy: any = { ...u };
                 delete copy.retireDate;
                 delete copy.profileImageUrl;
-                delete copy.paidOptions;
-                delete copy.protection;
-                delete copy.checkedSpecs;
                 delete copy.customRoleId;
-                if (msg.includes('duty')) delete copy.duty;
+                delete copy.email;
+                if ((copy as any).duty !== undefined) delete (copy as any).duty;
+                if ((copy as any).paidOptions !== undefined) delete (copy as any).paidOptions;
+                if ((copy as any).protection !== undefined) delete (copy as any).protection;
+                if ((copy as any).checkedSpecs !== undefined) delete (copy as any).checkedSpecs;
                 if ((copy as any).tier_level !== undefined) delete (copy as any).tier_level;
-                if ((copy as any).email !== undefined) delete (copy as any).email;
                 return copy;
               });
               const retryRes = await supabase.from('users').upsert(fallbackUsers, { onConflict: 'id' });
