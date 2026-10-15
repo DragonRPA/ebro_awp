@@ -833,9 +833,9 @@ export const CorporateCardPage: React.FC = () => {
         fontWeight: 600
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
-          <span>🏢 <strong>관리유형:</strong> {cardAuditSummary.catCount}개 항목</span>
+          <span><strong>관리유형:</strong> {cardAuditSummary.catCount}개 항목</span>
           <span style={{ color: 'var(--border-color)' }}>|</span>
-          <span>📄 <strong>총 예상매입:</strong> ₩{cardAuditSummary.totalExpected.toLocaleString()}원</span>
+          <span><strong>총 예상매입:</strong> ₩{cardAuditSummary.totalExpected.toLocaleString()}원</span>
           <span style={{ color: 'var(--border-color)' }}>|</span>
           <span style={{ color: 'var(--success)' }}>💳 <strong>당월 실지출:</strong> ₩{cardAuditSummary.totalActual.toLocaleString()}원</span>
           <span style={{ color: 'var(--border-color)' }}>|</span>

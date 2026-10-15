@@ -451,7 +451,7 @@ export const ConsumableStockPage: React.FC = () => {
       }
       setShowMasterModal(false);
     } catch (err: any) {
-      showErrorModal(`⚠️ 품목 저장 실패:\n${err?.message || err}`);
+      showErrorModal(`품목 저장 실패:\n${err?.message || err}`);
     }
   };
 
@@ -461,7 +461,7 @@ export const ConsumableStockPage: React.FC = () => {
       await deleteConsumable(id);
       showToast(`[${modelName}] 품목이 삭제되었습니다.`);
     } catch (err: any) {
-      showErrorModal(`⚠️ 품목 삭제 실패:\n${err?.message || err}`);
+      showErrorModal(`품목 삭제 실패:\n${err?.message || err}`);
     }
   };
 
@@ -576,7 +576,7 @@ export const ConsumableStockPage: React.FC = () => {
       setShowCreateAuditModal(false);
       setNewAuditMemo('');
     } catch (err: any) {
-      showErrorModal(`⚠️ 실사 전표 생성 실패:\n${err?.message || err}`);
+      showErrorModal(`실사 전표 생성 실패:\n${err?.message || err}`);
     }
   };
 
@@ -598,7 +598,7 @@ export const ConsumableStockPage: React.FC = () => {
       await db.awaitPendingWrites();
       showToast('재고 실사가 최종 확정되어 전산 재고가 강제 보정되었습니다.');
     } catch (err: any) {
-      showErrorModal(`⚠️ 실사 확정 실패:\n${err?.message || err}`);
+      showErrorModal(`실사 확정 실패:\n${err?.message || err}`);
     }
   };
 
@@ -610,7 +610,7 @@ export const ConsumableStockPage: React.FC = () => {
       await db.awaitPendingWrites();
       showToast('실사 전표가 취소되었습니다.');
     } catch (err: any) {
-      showErrorModal(`⚠️ 실사 취소 실패:\n${err?.message || err}`);
+      showErrorModal(`실사 취소 실패:\n${err?.message || err}`);
     }
   };
 
@@ -622,7 +622,7 @@ export const ConsumableStockPage: React.FC = () => {
       await db.awaitPendingWrites();
       showToast(`고품 상태가 '${actionStatus === 'COMPLETED' ? '완료' : '처리중'}'으로 갱신되었습니다.`);
     } catch (err: any) {
-      showErrorModal(`⚠️ 고품 상태 갱신 실패:\n${err?.message || err}`);
+      showErrorModal(`고품 상태 갱신 실패:\n${err?.message || err}`);
     }
   };
 
@@ -1465,11 +1465,11 @@ export const ConsumableStockPage: React.FC = () => {
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px'
                 }}>
                   <div style={{ fontSize: '12px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                    <span>📦 <strong>실물 총액:</strong> ₩{currentAudit.totalActualAmount.toLocaleString()}원</span>
+                    <span><strong>실물 총액:</strong> ₩{currentAudit.totalActualAmount.toLocaleString()}원</span>
                     <span>=</span>
                     <span>💻 <strong>전산 총액:</strong> ₩{currentAudit.totalSystemAmount.toLocaleString()}원</span>
                     <span>+</span>
-                    <span>⚖️ <strong>실사 차액:</strong> ₩{currentAudit.totalDiffAmount.toLocaleString()}원</span>
+                    <span><strong>실사 차액:</strong> ₩{currentAudit.totalDiffAmount.toLocaleString()}원</span>
                   </div>
 
                   {isDraft && canSave && (

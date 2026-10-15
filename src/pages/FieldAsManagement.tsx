@@ -723,7 +723,7 @@ export const FieldAsManagement: React.FC = () => {
     const availableStock = getMechanicVehicleStock(actionAssignMechanicId, tempConsumableId);
     if (availableStock < tempPartQty) {
       const mechName = (actionAssignMechanicId ? userMap.get(actionAssignMechanicId) : '') || '기사';
-      showErrorModal(`⚠️ [차량 재고 부족] ${mechName} 기사의 차량 재고에 "${item.modelName}"이(가) 부족합니다.\n(현재 차량 적재: ${availableStock}개 / 요청: ${tempPartQty}개)\n\n상단의 [차량 소모품 적재] 탭 또는 [소모품 관리] 메뉴에서 차량으로 먼저 보충 이동(불출) 등록을 진행해 주세요.`);
+      showErrorModal(`[차량 재고 부족] ${mechName} 기사의 차량 재고에 "${item.modelName}"이(가) 부족합니다.\n(현재 차량 적재: ${availableStock}개 / 요청: ${tempPartQty}개)\n\n상단의 [차량 소모품 적재] 탭 또는 [소모품 관리] 메뉴에서 차량으로 먼저 보충 이동(불출) 등록을 진행해 주세요.`);
       return;
     }
 
@@ -766,14 +766,14 @@ export const FieldAsManagement: React.FC = () => {
           return prev.filter((_, i) => i !== existingIdx);
         }
         if (newQty > vehicleStock) {
-          showErrorModal(`⚠️ 차량 적재 잔여량(${vehicleStock}개)을 초과할 수 없습니다.`);
+          showErrorModal(`차량 적재 잔여량(${vehicleStock}개)을 초과할 수 없습니다.`);
           return prev;
         }
         return prev.map((p, i) => i === existingIdx ? { ...p, quantity: newQty } : p);
       } else {
         if (delta <= 0) return prev;
         if (delta > vehicleStock) {
-          showErrorModal(`⚠️ 차량 적재 잔여량(${vehicleStock}개)을 초과할 수 없습니다.`);
+          showErrorModal(`차량 적재 잔여량(${vehicleStock}개)을 초과할 수 없습니다.`);
           return prev;
         }
         return [...prev, {
@@ -1383,7 +1383,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                             color: isRevisit ? '#f59e0b' : (isUrgent ? '#ef4444' : '#3b82f6'),
                             border: `1px solid ${isRevisit ? 'rgba(245, 158, 11, 0.3)' : (isUrgent ? 'rgba(239, 68, 68, 0.3)' : 'rgba(59, 130, 246, 0.3)')}`
                           }}>
-                            {isRevisit ? '🔄 재방문' : (isUrgent ? '🚨 긴급' : '⚡ 출동대기')}
+                            {isRevisit ? '🔄 재방문' : (isUrgent ? '긴급' : '출동대기')}
                           </span>
                           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{t.ticketNo}</span>
                         </div>
@@ -1399,7 +1399,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
                           <span style={{ fontWeight: 700, color: 'var(--primary)', backgroundColor: 'rgba(37, 99, 235, 0.12)', border: '1px solid rgba(59, 130, 246, 0.25)', padding: '2px 8px', borderRadius: '4px' }}>
                             장비: {t.assetNo || '현장확인'}
                           </span>
-                          <span style={{ color: 'var(--text-secondary)' }}>🏢 {t.customerName}</span>
+                          <span style={{ color: 'var(--text-secondary)' }}>{t.customerName}</span>
                         </div>
                         {t.locationDetail && (
                           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px' }}>
@@ -1892,8 +1892,8 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
 
                       {/* 업체명 및 위치 */}
                       <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span>🏢 {t.customerName}</span>
-                        {t.locationDetail && <span>📍 {t.locationDetail}</span>}
+                        <span>{t.customerName}</span>
+                        {t.locationDetail && <span>{t.locationDetail}</span>}
                       </div>
 
                       {/* 현장 도로명 상세주소 */}
@@ -3068,7 +3068,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
             {/* 기간 제어 바 */}
             <div className="card" style={{ padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>📊 분석 조회 기간:</span>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>분석 조회 기간:</span>
                 <input
                   type="date"
                   value={analyticsStartDate}
@@ -3139,7 +3139,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
             {/* 고장 원인 분석 및 기사별 실적 2열 그리드 */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div className="card" style={{ padding: '16px' }}>
-                <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 800 }}>📌 고장 분류별 발생 비중</h4>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 800 }}>고장 분류별 발생 비중</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {sortedCategories.length === 0 ? (
                     <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>데이터가 없습니다.</div>
@@ -3163,7 +3163,7 @@ showToast('밴드 과거 AS 빅데이터 탑재를 시작합니다.');
               </div>
 
               <div className="card" style={{ padding: '16px' }}>
-                <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 800 }}>🔧 담당자별 조치 및 완료 실적</h4>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 800 }}>담당자별 조치 및 완료 실적</h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {Object.entries(mechanicMap).map(([mId, data]) => {
                     const uName = userMap.get(mId);

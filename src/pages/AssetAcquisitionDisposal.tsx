@@ -2529,7 +2529,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                                 <span style={{ fontSize: '11.5px' }}>원</span>
                               </div>
                               <span style={{ fontSize: '11px', fontWeight: 700, color: diff >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                                {diff >= 0 ? `🟢 +₩${diff.toLocaleString()}` : `🔴 ₩${diff.toLocaleString()}`}
+                                {diff >= 0 ? `+₩${diff.toLocaleString()}` : `₩${diff.toLocaleString()}`}
                               </span>
                             </div>
 
@@ -2965,7 +2965,7 @@ export const AssetAcquisitionDisposal: React.FC = () => {
                 <div>
                   <span style={{ color: 'var(--text-muted)', display: 'block' }}>유형자산 처분손익</span>
                   <strong style={{ fontSize: '13px', color: disposalAccounting.gainLoss >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                    {disposalAccounting.gainLoss >= 0 ? `🟢 +₩${disposalAccounting.gainLoss.toLocaleString()}` : `🔴 ₩${disposalAccounting.gainLoss.toLocaleString()}`}
+                    {disposalAccounting.gainLoss >= 0 ? `+₩${disposalAccounting.gainLoss.toLocaleString()}` : `₩${disposalAccounting.gainLoss.toLocaleString()}`}
                   </strong>
                 </div>
                 <div>
@@ -3170,9 +3170,9 @@ export const AssetAcquisitionDisposal: React.FC = () => {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontWeight: 700 }}>대차대조 회계 검증식:</span>
-              <span>📄 매각총액(공급가) <strong>₩{disposalAccounting.totalSupplyAmount.toLocaleString()}원</strong></span>
+              <span>매각총액(공급가) <strong>₩{disposalAccounting.totalSupplyAmount.toLocaleString()}원</strong></span>
               <span>=</span>
-              <span>📉 매각시점 장부가액 <strong>₩{disposalAccounting.totalBookValue.toLocaleString()}원</strong></span>
+              <span>매각시점 장부가액 <strong>₩{disposalAccounting.totalBookValue.toLocaleString()}원</strong></span>
               <span>+</span>
               <span style={{ color: disposalAccounting.gainLoss >= 0 ? 'var(--success)' : 'var(--danger)', fontWeight: 700 }}>
                 {disposalAccounting.gainLoss >= 0 ? `처분이익 ₩${disposalAccounting.gainLoss.toLocaleString()}원` : `처분손실 ₩${disposalAccounting.gainLoss.toLocaleString()}원`}

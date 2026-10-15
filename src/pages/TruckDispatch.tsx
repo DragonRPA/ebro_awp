@@ -746,7 +746,7 @@ export const TruckDispatch: React.FC = () => {
       ${staggeredMemo ? `<tr><th class="nowrap">시차출고</th><td class="wrap-text" style="font-weight: 700;">${staggeredMemo}</td></tr>` : ''}
       ${retrievalMemo ? `<tr><th class="nowrap">대차 회수대상</th><td class="wrap-text" style="font-weight: 700;">${retrievalMemo}</td></tr>` : ''}
       ${noteRowsHtml}
-      ${!isOutbound && returnAssets.some(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR') ? `<tr><th class="nowrap" style="color: #dc2626; font-weight: 800;">옵션 주의</th><td class="wrap-text" style="color: #dc2626; font-weight: 800; background-color: #fee2e2;">🚨 [임차처 소유 협착방지봉 탈거 절대 금지] ${returnAssets.filter(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR').map(a => `${a.assetNo}(${a.modelName})`).join(', ')} 장비는 임차거래처 소유 협착방지봉이 장착되어 있으므로 주기장 입고 시 절대 탈거(제거)하지 마십시오!</td></tr>` : ''}
+      ${!isOutbound && returnAssets.some(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR') ? `<tr><th class="nowrap" style="color: #dc2626; font-weight: 800;">옵션 주의</th><td class="wrap-text" style="color: #dc2626; font-weight: 800; background-color: #fee2e2;">[임차처 소유 협착방지봉 탈거 절대 금지] ${returnAssets.filter(a => a.ownerType === 'RENTED' && a.antiEntrapmentOwnership === 'VENDOR').map(a => `${a.assetNo}(${a.modelName})`).join(', ')} 장비는 임차거래처 소유 협착방지봉이 장착되어 있으므로 주기장 입고 시 절대 탈거(제거)하지 마십시오!</td></tr>` : ''}
     </table>
   </div>
 </body>
@@ -1441,7 +1441,7 @@ export const TruckDispatch: React.FC = () => {
 
       setShowCostEditModal(false);
       setEditingDelivery(null);
-      setReconNotificationMsg(`💰 ${editingDelivery.id} 배차 운송료가 ₩${newCost.toLocaleString()}원으로 수정되어 DB에 반영되었습니다.`);
+      setReconNotificationMsg(`${editingDelivery.id} 배차 운송료가 ₩${newCost.toLocaleString()}원으로 수정되어 DB에 반영되었습니다.`);
     } catch (err: any) {
       showErrorModal('금액 수정 중 오류가 발생하였습니다: ' + err.message);
     }
@@ -1470,7 +1470,7 @@ export const TruckDispatch: React.FC = () => {
 
     // 💡 [사장님 지시] 좌측/우측 금액 상이 시 대사 처리 거절
     if (diff !== 0) {
-      showErrorModal(`⚠️ [대사 처리 거절]\n\n• 좌측 시스템 금액: ₩${sysCost.toLocaleString()}원\n• 우측 엑셀 청구금액: ₩${excelCost.toLocaleString()}원\n• 차액: ₩${Math.abs(diff).toLocaleString()}원\n\n좌측과 우측 패널의 금액이 상이한 항목은 대사 처리가 불가능합니다.`);
+      showErrorModal(`[대사 처리 거절]\n\n• 좌측 시스템 금액: ₩${sysCost.toLocaleString()}원\n• 우측 엑셀 청구금액: ₩${excelCost.toLocaleString()}원\n• 차액: ₩${Math.abs(diff).toLocaleString()}원\n\n좌측과 우측 패널의 금액이 상이한 항목은 대사 처리가 불가능합니다.`);
       return;
     }
 
@@ -1494,7 +1494,7 @@ export const TruckDispatch: React.FC = () => {
 
     setSelectedSystemDeliveryId(null);
     setSelectedExcelRowIndex(null);
-    setReconNotificationMsg(`✅ ${sysD.id} 배차건과 엑셀 행이 1:1 수동 대사 완료 처리되었습니다.`);
+    setReconNotificationMsg(`${sysD.id} 배차건과 엑셀 행이 1:1 수동 대사 완료 처리되었습니다.`);
   };
 
   // 📅 기간 선택 피커 헬퍼 (월별 정산 지원)
@@ -1643,7 +1643,7 @@ export const TruckDispatch: React.FC = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-    setReconNotificationMsg(`🔍 [${selectedReconCompany === 'ALL' ? '전체 거래처' : selectedReconCompany}] (${reconStartDate} ~ ${reconEndDate} / ${reconPaymentFilter === 'UNPAID' ? '미지급건' : reconPaymentFilter === 'PAID' ? '지급완료건' : '전체'}) 조회가 갱신되었습니다. (대사 정보 초기화됨)`);
+    setReconNotificationMsg(`[${selectedReconCompany === 'ALL' ? '전체 거래처' : selectedReconCompany}] (${reconStartDate} ~ ${reconEndDate} / ${reconPaymentFilter === 'UNPAID' ? '미지급건' : reconPaymentFilter === 'PAID' ? '지급완료건' : '전체'}) 조회가 갱신되었습니다. (대사 정보 초기화됨)`);
   };
 
   // 거래명세서 엑셀 파싱 및 1:1 페어링 파이프라인 (다변형 서식/날짜 정규화 & 2단계 지능형 매칭 엔진)
@@ -2164,7 +2164,7 @@ export const TruckDispatch: React.FC = () => {
 
         setReconPairs(pairs);
         const excelOnlyCnt = pairs.filter(p => p.matchStatus === 'EXCEL_ONLY').length;
-        const msg = `🎉 2단계 지능형 대사 완료! [🟢 일치 ${autoMatchedCount}건] | [🟡 금액불일치/할증 ${mismatchCount}건] | [🔴 엑셀단독 ${excelOnlyCnt}건] | [⚪ 시스템단독 ${remainingSystemDeliveries.length}건]`;
+        const msg = `2단계 지능형 대사 완료! [🟢 일치 ${autoMatchedCount}건] | [🟡 금액불일치/할증 ${mismatchCount}건] | [🔴 엑셀단독 ${excelOnlyCnt}건] | [⚪ 시스템단독 ${remainingSystemDeliveries.length}건]`;
         setReconNotificationMsg(msg);
       } catch (err: any) {
         showErrorModal('엑셀 파싱 중 오류가 발생하였습니다: ' + err.message);
@@ -2240,7 +2240,7 @@ export const TruckDispatch: React.FC = () => {
         }
         return p;
       }));
-      setReconNotificationMsg(`✅ 할증 및 금액 불일치 ${mismatches.length}건이 일괄 승인되었습니다.`);
+      setReconNotificationMsg(`할증 및 금액 불일치 ${mismatches.length}건이 일괄 승인되었습니다.`);
     } catch (e: any) {
       showErrorModal(`일괄 승인 오류: ${e.message}`);
     }
@@ -2314,7 +2314,7 @@ export const TruckDispatch: React.FC = () => {
 
       await db.awaitPendingWrites();
       await refreshAllData();
-      setReconNotificationMsg(`✅ 신규 배차(${newDelivId})가 생성되고 대사 완료되었습니다.`);
+      setReconNotificationMsg(`신규 배차(${newDelivId})가 생성되고 대사 완료되었습니다.`);
     } catch (e: any) {
       showErrorModal(`배차 생성 실패: ${e.message}`);
     }
@@ -2333,7 +2333,7 @@ export const TruckDispatch: React.FC = () => {
     const unreconciledExcelPairs = excelPairs.filter(p => !p.isReconciled && !p.isExcluded);
 
     if (unreconciledExcelPairs.length > 0) {
-      showErrorModal(`⚠️ 업로드한 거래명세서 엑셀 항목 (${excelPairs.length}건) 중 아직 대사/승인되지 않은 항목이 ${unreconciledExcelPairs.length}건 남아있어 지급요청을 작성할 수 없습니다.\n\n불일치 건은 [차액 승인] 또는 [오청구 제외/반려]를 처리해 주세요.`);
+      showErrorModal(`업로드한 거래명세서 엑셀 항목 (${excelPairs.length}건) 중 아직 대사/승인되지 않은 항목이 ${unreconciledExcelPairs.length}건 남아있어 지급요청을 작성할 수 없습니다.\n\n불일치 건은 [차액 승인] 또는 [오청구 제외/반려]를 처리해 주세요.`);
       return;
     }
 
@@ -2531,7 +2531,7 @@ export const TruckDispatch: React.FC = () => {
     if (!targetPair.isReconciled) {
       // 대사 완료 전환 시 금액 검증
       if (targetPair.diffCost !== 0 || targetPair.systemCost !== targetPair.excelCost) {
-        showErrorModal(`⚠️ [대사 처리 거절]\n\n• 좌측 시스템 금액: ₩${targetPair.systemCost.toLocaleString()}원\n• 우측 엑셀 청구금액: ₩${targetPair.excelCost.toLocaleString()}원\n• 차액: ₩${Math.abs(targetPair.diffCost).toLocaleString()}원\n\n좌측과 우측의 금액이 상이한 항목은 대사 처리가 불가능합니다.`);
+        showErrorModal(`[대사 처리 거절]\n\n• 좌측 시스템 금액: ₩${targetPair.systemCost.toLocaleString()}원\n• 우측 엑셀 청구금액: ₩${targetPair.excelCost.toLocaleString()}원\n• 차액: ₩${Math.abs(targetPair.diffCost).toLocaleString()}원\n\n좌측과 우측의 금액이 상이한 항목은 대사 처리가 불가능합니다.`);
         return;
       }
     }
@@ -2575,9 +2575,9 @@ export const TruckDispatch: React.FC = () => {
     setSelectedPairIds(new Set());
 
     if (rejectedCount > 0) {
-      showErrorModal(`⚠️ 선택한 항목 중 ${rejectedCount}건은 좌/우 금액이 상이하여 대사 처리가 거절되었습니다.\n\n(금액이 일치하는 ${successCount}건만 대사 완료 처리되었습니다.)`);
+      showErrorModal(`선택한 항목 중 ${rejectedCount}건은 좌/우 금액이 상이하여 대사 처리가 거절되었습니다.\n\n(금액이 일치하는 ${successCount}건만 대사 완료 처리되었습니다.)`);
     } else if (successCount > 0) {
-      setReconNotificationMsg(`✅ 선택한 Pair 항목 ${successCount}건이 '대사 완료'로 전환되었습니다.`);
+      setReconNotificationMsg(`선택한 Pair 항목 ${successCount}건이 '대사 완료'로 전환되었습니다.`);
     }
   };
 
@@ -3106,7 +3106,7 @@ export const TruckDispatch: React.FC = () => {
         showToast('배차 기사 배정 완료 (상태: 배차 완료)');
       }
     } catch (err: any) {
-      showErrorModal(`⚠️ 배차 저장 실패:\n${err?.message || err}`);
+      showErrorModal(`배차 저장 실패:\n${err?.message || err}`);
     } finally {
       setIsSavingDispatch(false);
     }
@@ -3193,7 +3193,7 @@ export const TruckDispatch: React.FC = () => {
       }
       showToast(isOutboundLike ? '출고 상차가 완료되었습니다. (상차완료)' : '운송이 완료 마감되었습니다. (입고완료)');
     } catch (err: any) {
-      showErrorModal(`⚠️ 운송 완료 처리 실패:\n${err?.message || err}`);
+      showErrorModal(`운송 완료 처리 실패:\n${err?.message || err}`);
     }
   };
 
@@ -3226,7 +3226,7 @@ export const TruckDispatch: React.FC = () => {
       }
       showToast('배차가 취소되었습니다. (배차 취소)');
     } catch (err: any) {
-      showErrorModal(`⚠️ 배차 취소 처리 실패:\n${err?.message || err}`);
+      showErrorModal(`배차 취소 처리 실패:\n${err?.message || err}`);
     }
   };
 
@@ -3296,7 +3296,7 @@ export const TruckDispatch: React.FC = () => {
       showToast('신규 배차건이 생성되었습니다.');
       setShowManualModal(false);
     } catch (err: any) {
-      showErrorModal(`⚠️ 수동 배차 생성 실패:\n${err?.message || err}`);
+      showErrorModal(`수동 배차 생성 실패:\n${err?.message || err}`);
     }
   };
 
@@ -3500,10 +3500,10 @@ export const TruckDispatch: React.FC = () => {
           <div data-mid="dispatch-status-tabs" style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap', flexShrink: 0 }}>
             {[
               { key: 'ALL', label: '전체 보기', count: deliveries.length },
-              { key: 'PENDING', label: '🟡 배차 전 (대기)', count: deliveryCounts.pending },
+              { key: 'PENDING', label: '배차 전 (대기)', count: deliveryCounts.pending },
               { key: 'DISPATCHED', label: '🔵 배차 완료 (기사배정)', count: deliveryCounts.dispatched },
-              { key: 'DELIVERED', label: '🟢 운송 완료', count: deliveryCounts.delivered },
-              { key: 'CANCELLED', label: '🔴 배차 취소', count: deliveryCounts.cancelled },
+              { key: 'DELIVERED', label: '운송 완료', count: deliveryCounts.delivered },
+              { key: 'CANCELLED', label: '배차 취소', count: deliveryCounts.cancelled },
             ].map(tab => (
               <button
                 key={tab.key}
@@ -3724,7 +3724,7 @@ export const TruckDispatch: React.FC = () => {
                         </div>
 
                         <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>🏢 {customer?.name || '고객사 미지정'}</span>
+                          <span>{customer?.name || '고객사 미지정'}</span>
                           {customer?.transactionStatus === 'RESTRICT_NEW' && (
                             <span style={{ fontSize: '10px', fontWeight: 800, padding: '1px 5px', borderRadius: '4px', backgroundColor: '#fef3c7', color: '#b45309', border: '1px solid #f59e0b', flexShrink: 0 }}>
                               추가계약금지
@@ -3823,7 +3823,7 @@ export const TruckDispatch: React.FC = () => {
 
                         {d.driverName && (
                           <div style={{ marginTop: '6px', fontSize: '11.5px', fontWeight: 700, color: 'var(--success)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span>🚛 기사: {d.driverName} ({d.vehicleNo || '차량번호미상'})</span>
+                            <span>기사: {d.driverName} ({d.vehicleNo || '차량번호미상'})</span>
                             {normStatus === 'DISPATCHED' && canSave && (
                               <button data-hs-trigger="Process"
                                 type="button"
@@ -4317,7 +4317,7 @@ export const TruckDispatch: React.FC = () => {
                         <div style={{ marginBottom: '16px' }}>
                           
 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>📝 배차 특이사항 및 마감 메모</label>
+  <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>배차 특이사항 및 마감 메모</label>
   {(() => {
     const match = closingMemo.match(/\[(납품증 사진|전자 서명)\]:\s*(https?:\/\/[^\s]+)/);
     const receiptUrl = match ? match[2] : null;
@@ -4657,7 +4657,7 @@ export const TruckDispatch: React.FC = () => {
                           backgroundColor: isConfirmed ? 'rgba(16,185,129,0.15)' : isAnalyzing ? 'rgba(245,158,11,0.15)' : 'rgba(59,130,246,0.15)',
                           color: isConfirmed ? '#10b981' : isAnalyzing ? '#d97706' : '#2563eb'
                         }}>
-                          {isConfirmed ? '✅ 배차확정됨' : isAnalyzing ? '⏳ AI 분석중' : '🟢 분석완료'}
+                          {isConfirmed ? '배차확정됨' : isAnalyzing ? 'AI 분석중' : '분석완료'}
                         </span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
@@ -6085,7 +6085,7 @@ export const TruckDispatch: React.FC = () => {
       {showManualModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px' }}>
           <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '520px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 16px 0' }}>🚛 수동 배차 신규 생성</h3>
+            <h3 style={{ fontSize: '18px', fontWeight: 800, margin: '0 0 16px 0' }}>수동 배차 신규 생성</h3>
             
             <div style={{ marginBottom: '12px' }}>
               <label style={{ fontSize: '12.5px', fontWeight: 700, marginBottom: '4px', display: 'block' }}>배차 구분의 유형</label>
@@ -6130,9 +6130,9 @@ export const TruckDispatch: React.FC = () => {
             </div>
 
             <div style={{ backgroundColor: 'var(--bg-body)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '16px', fontSize: '12.5px' }}>
-              <div style={{ fontWeight: 800, color: 'var(--primary)', marginBottom: '4px' }}>📌 배차ID: {editingDelivery.id}</div>
-              <div>📍 하차지: {editingDelivery.destinationAddress || '미지정'}</div>
-              <div>🚛 기사명: {editingDelivery.driverName || '미지정'}</div>
+              <div style={{ fontWeight: 800, color: 'var(--primary)', marginBottom: '4px' }}>배차ID: {editingDelivery.id}</div>
+              <div>하차지: {editingDelivery.destinationAddress || '미지정'}</div>
+              <div>기사명: {editingDelivery.driverName || '미지정'}</div>
             </div>
 
             <div style={{ marginBottom: '20px' }}>
@@ -6303,7 +6303,7 @@ export const TruckDispatch: React.FC = () => {
                   alignItems: 'center',
                   gap: '6px'
                 }}>
-                  <span>💡</span>
+                  <span></span>
                   <span>할증 및 차액 사유 분석: <strong>{pair.surchargeReason}</strong></span>
                 </div>
               )}

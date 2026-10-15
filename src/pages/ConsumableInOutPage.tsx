@@ -376,7 +376,7 @@ export const ConsumableInOutPage: React.FC = () => {
       setNoInvoiceReason('');
       setActiveTab('LOGS');
     } catch (err: any) {
-      showErrorModal(`⚠️ 소모품 입고 처리 실패:\n${err?.message || err}`);
+      showErrorModal(`소모품 입고 처리 실패:\n${err?.message || err}`);
     } finally {
       setIsUploading(false);
     }
@@ -425,7 +425,7 @@ export const ConsumableInOutPage: React.FC = () => {
       setAssetSearchQuery('');
       setActiveTab('LOGS');
     } catch (err: any) {
-      showErrorModal(`⚠️ 소모품 출고 실패:\n${err?.message || err}`);
+      showErrorModal(`소모품 출고 실패:\n${err?.message || err}`);
     }
   };
 

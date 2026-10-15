@@ -543,7 +543,7 @@ export const InitialDbUploader: React.FC = () => {
       return;
     }
 
-    const confirmMsg = `⚠️ [재난 복구 (Disaster Recovery) 경고]\n\n` +
+    const confirmMsg = `[재난 복구 (Disaster Recovery) 경고]\n\n` +
       `선택하신 백업 파일(${restoreFile?.name || '백업본'})\n` +
       `- 복원 대상: ${restoreSummary.totalTables}개 테이블, 총 ${restoreSummary.totalRows.toLocaleString()}건\n\n` +
       `이 작업은 데이터베이스의 외래키(FK) 의존성 순서에 따라 데이터를 복원하며,\n` +
@@ -587,8 +587,8 @@ export const InitialDbUploader: React.FC = () => {
       return;
     }
 
-    const confirmMsg = `⚠️ [${targetTenantName}] 테넌트의 비즈니스 데이터(고객, 계약, 자산, 배차, 청구 등)만 초기화합니다.\n\n` +
-      `🛡️ [보존 안내]\n` +
+    const confirmMsg = `[${targetTenantName}] 테넌트의 비즈니스 데이터(고객, 계약, 자산, 배차, 청구 등)만 초기화합니다.\n\n` +
+      `[보존 안내]\n` +
       `- 전사 공통 장비/시스템 매뉴얼 지식 DB는 100% 안전하게 보존됩니다.\n` +
       `- 타 고객사(테넌트) 데이터는 1건도 영향받지 않습니다.\n\n` +
       `정말 [${targetTenantName}] 비즈니스 데이터를 초기화하시겠습니까?`;
@@ -1111,7 +1111,7 @@ export const InitialDbUploader: React.FC = () => {
   // ── 밴드 콘솔 추출 스크립트 클립보드 복사 ──
   const handleCopyBandScraperScript = () => {
     const scriptCode = `(async () => {
-  console.log('🚀 [ERP] 밴드 postDetailView ➔ txtBody 정밀 순차 수집기 v8.0 시작...');
+  console.log('[ERP] 밴드 postDetailView ➔ txtBody 정밀 순차 수집기 v8.0 시작...');
 
   const hudId = 'band_modal_scraper_hud';
   const oldHud = document.getElementById(hudId);
@@ -1175,8 +1175,8 @@ export const InitialDbUploader: React.FC = () => {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    updateHud('완료', null, '✅ 총 ' + postMap.size + '건 파일 다운로드 완료!', true);
-    console.log('🎉 [ERP] 총 ' + postMap.size + '건 다운로드 완료! (band_dispatch_history_full.txt)');
+    updateHud('완료', null, '총 ' + postMap.size + '건 파일 다운로드 완료!', true);
+    console.log('[ERP] 총 ' + postMap.size + '건 다운로드 완료! (band_dispatch_history_full.txt)');
   };
 
   document.getElementById('hud_btn_stop')?.addEventListener('click', () => {
@@ -1320,7 +1320,7 @@ export const InitialDbUploader: React.FC = () => {
 
     if (!postMap.has(post.signature) || post.fullText.length > (postMap.get(post.signature)?.length || 0)) {
       postMap.set(post.signature, post.fullText);
-      console.log('📦 [' + postMap.size + '건 수집] ' + post.date + ' | ' + post.author + ' | 본문길이: ' + post.body.length + '자');
+      console.log('[' + postMap.size + '건 수집] ' + post.date + ' | ' + post.author + ' | 본문길이: ' + post.body.length + '자');
     }
 
     updateHud('수집 중', post.date + ' (' + post.author + ')', '[' + postMap.size + '건] ' + post.body.slice(0, 35) + '...');
@@ -1341,7 +1341,7 @@ export const InitialDbUploader: React.FC = () => {
     const changed = await waitForPostChange(post.signature, 5000);
 
     if (!changed) {
-      console.warn('⚠️ 글 전환 지연 감지. 버튼 재클릭 시도...');
+      console.warn('글 전환 지연 감지. 버튼 재클릭 시도...');
       const retryBtn = await waitForNextButton(2000);
       if (retryBtn) {
         clickNextButton(retryBtn);
@@ -1364,13 +1364,13 @@ export const InitialDbUploader: React.FC = () => {
     }
   }
 
-  console.log('✅ 최종 수집 완료! 총 ' + postMap.size + '건 수집됨.');
+  console.log('최종 수집 완료! 총 ' + postMap.size + '건 수집됨.');
   triggerDownload();
 })();`;
 
     if (navigator.clipboard) {
       navigator.clipboard.writeText(scriptCode).then(() => {
-        showSuccessToast?.('📋 밴드 추출 스크립트가 복사되었습니다. 네이버 밴드 화면의 F12 콘솔에 붙여넣어 실행하세요.');
+        showSuccessToast?.('밴드 추출 스크립트가 복사되었습니다. 네이버 밴드 화면의 F12 콘솔에 붙여넣어 실행하세요.');
       }).catch(() => {
         showErrorModal?.('클립보드 복사에 실패했습니다.');
       });
@@ -2166,7 +2166,7 @@ export const InitialDbUploader: React.FC = () => {
                                     )}
                                   </div>
                                   <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{r.matchedSiteName || r.site}</div>
-                                  <div style={{ fontSize: '10.5px', color: '#0284c7' }}>📍 {r.matchedSiteAddress || r.address || '주소 미등록'}</div>
+                                  <div style={{ fontSize: '10.5px', color: '#0284c7' }}>{r.matchedSiteAddress || r.address || '주소 미등록'}</div>
                                 </td>
                                 <td style={{ padding: '6px 10px' }}>
                                   <span style={{ fontWeight: 700, color: r.matchedAssetId ? '#2563eb' : '#475569' }}>

@@ -794,11 +794,11 @@ export const PayrollPage: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
           <span>👥 <strong>대상임직원:</strong> {payrollAuditSummary.totalCount}명</span>
           <span style={{ color: 'var(--border-color)' }}>|</span>
-          <span>💵 <strong>지급총액(세전):</strong> ₩{payrollAuditSummary.totalGross.toLocaleString()}원</span>
+          <span><strong>지급총액(세전):</strong> ₩{payrollAuditSummary.totalGross.toLocaleString()}원</span>
           <span style={{ color: 'var(--border-color)' }}>|</span>
-          <span style={{ color: 'var(--warning)' }}>📉 <strong>공제총액:</strong> ₩{payrollAuditSummary.totalDeductions.toLocaleString()}원</span>
+          <span style={{ color: 'var(--warning)' }}><strong>공제총액:</strong> ₩{payrollAuditSummary.totalDeductions.toLocaleString()}원</span>
           <span style={{ color: 'var(--border-color)' }}>|</span>
-          <span style={{ color: 'var(--success)' }}>💰 <strong>실지급총액(세후):</strong> ₩{payrollAuditSummary.totalNet.toLocaleString()}원</span>
+          <span style={{ color: 'var(--success)' }}><strong>실지급총액(세후):</strong> ₩{payrollAuditSummary.totalNet.toLocaleString()}원</span>
         </div>
       </div>
       

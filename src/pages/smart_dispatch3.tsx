@@ -455,7 +455,7 @@ export const SmartDispatch3: React.FC = () => {
       };
 
       setProgressLogs([]); setProgressPct(0);
-      setStepText('🚀 출고 파이프라인 가동 중...');
+      setStepText('출고 파이프라인 가동 중...');
       setProcessCompleted(false); setProcessingOpen(true);
 
       const onProgress = (logText: string, pct: number) => {
@@ -572,7 +572,7 @@ export const SmartDispatch3: React.FC = () => {
         }}>
           <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
             <AlertTriangle size={14} />
-            {matchedOverdue.isBlocked ? '🚫 거래 불가' : '⚠️ 연체 채권 경고'}
+            {matchedOverdue.isBlocked ? '🚫 거래 불가' : '연체 채권 경고'}
           </div>
           {!matchedOverdue.isBlocked && (
             <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontWeight: 700, marginTop: '4px' }}>
@@ -1111,7 +1111,7 @@ export const SmartDispatch3: React.FC = () => {
         <div style={{ position: 'fixed', inset: 0, zIndex: 9998, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '32px 36px', minWidth: '400px', maxWidth: '560px', boxShadow: '0 20px 60px rgba(0,0,0,0.4)' }}>
             <h3 style={{ marginBottom: '20px', fontSize: '16px', fontWeight: 800 }}>
-              {processCompleted ? `✅ 출고 지시 완료${savedContractNo ? ` (${savedContractNo})` : ''}` : '🚀 출고 파이프라인 진행 중...'}
+              {processCompleted ? `출고 지시 완료${savedContractNo ? ` (${savedContractNo})` : ''}` : '출고 파이프라인 진행 중...'}
             </h3>
             <div style={{ marginBottom: '16px', height: '6px', backgroundColor: 'var(--border-color)', borderRadius: '3px', overflow: 'hidden' }}>
               <div style={{ height: '100%', backgroundColor: 'var(--success)', borderRadius: '3px', width: `${progressPct}%`, transition: 'width 0.4s ease' }} />

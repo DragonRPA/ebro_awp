@@ -173,7 +173,7 @@ contact: '',
       setShowCompanyModal(false);
       setEditingCompany(null);
     } catch (err: any) {
-      showErrorModal(`⚠️ 운송사 정보 저장 실패:\n\n${err?.message || err}`);
+      showErrorModal(`운송사 정보 저장 실패:\n\n${err?.message || err}`);
     }
   };
 
@@ -218,7 +218,7 @@ contact: '',
       setShowDriverModal(false);
       setEditingDriver(null);
     } catch (err: any) {
-      showErrorModal(`⚠️ 기사 정보 저장 실패:\n\n${err?.message || err}`);
+      showErrorModal(`기사 정보 저장 실패:\n\n${err?.message || err}`);
     }
   };
 
@@ -439,8 +439,8 @@ contact: '',
                       {transportDrivers.length === 0
                         ? '📭 등록된 기사 정보가 없습니다.'
                         : selectedCompanyId
-                          ? '🔍 선택한 운송사에 등록된 기사가 없습니다.'
-                          : '🔍 조회 조건에 맞는 기사 정보가 없습니다.'}
+                          ? '선택한 운송사에 등록된 기사가 없습니다.'
+                          : '조회 조건에 맞는 기사 정보가 없습니다.'}
                     </td>
                   </tr>
                 ) : (

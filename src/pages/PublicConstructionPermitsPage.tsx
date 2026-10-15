@@ -1798,7 +1798,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div style={{ background: 'var(--bg-app)', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>🚛 V-World 도로망 (국토부 표준노드링크)</div>
+                    <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>V-World 도로망 (국토부 표준노드링크)</div>
                     <ul style={{ margin: 0, paddingLeft: '16px', color: 'var(--text-secondary)', lineHeight: 1.5, fontSize: '11px' }}>
                       <li><b>도로폭 ≥ 12m</b>: 광폭 대로변, 폭원 및 회차 공간 충분</li>
                       <li><b>도로폭 6m ~ 12m</b>: 5톤/11톤 트럭 진입 가능</li>
@@ -1807,7 +1807,7 @@ export const PublicConstructionPermitsPage: React.FC = () => {
                   </div>
 
                   <div style={{ background: 'var(--bg-app)', padding: '10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>🛡️ CSI 안전관리망 (건설기술진흥법 제62조)</div>
+                    <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '4px' }}>CSI 안전관리망 (건설기술진흥법 제62조)</div>
                     <ul style={{ margin: 0, paddingLeft: '16px', color: 'var(--text-secondary)', lineHeight: 1.5, fontSize: '11px' }}>
                       <li><b>법정 의무 현장</b>: 10층 이상 또는 지하 10m 이상 굴착 현장</li>
                       <li><b>필수 안전옵션</b>: 협착방지봉(안전가드), 과부하방지기, 상부충돌방지센서</li>

@@ -1076,7 +1076,7 @@ export const Repairs: React.FC = () => {
                       {/* 🔧 4. 기타 정비 필요 메모 (미완료 수리중 또는 반납검수 대기 자산에 남겨진 정비 사유) */}
                       {!pendingOutbound && !pendingInbound && !unresolvedRepair && asset.note && !asset.note.startsWith('[정비완료') && asset.note !== '정상 입고 점검 완료' && (
                         <div style={{ fontSize: '11px', color: asset.status === 'REPAIRING' ? '#b91c1c' : '#b45309', backgroundColor: asset.status === 'REPAIRING' ? 'rgba(239, 68, 68, 0.08)' : 'rgba(245, 158, 11, 0.08)', padding: '3px 6px', borderRadius: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {asset.status === 'REPAIRING' ? '🔧 정비요구' : '📌 점검메모'}: {asset.note}
+                          {asset.status === 'REPAIRING' ? '정비요구' : '점검메모'}: {asset.note}
                         </div>
                       )}
                     </div>

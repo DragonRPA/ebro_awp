@@ -1837,7 +1837,7 @@ export const InspectionChecklistManage: React.FC = () => {
                 </span>
                 {[
                   { key: '전체', label: '전체' },
-                  { key: 'PDF', label: '📄 PDF' },
+                  { key: 'PDF', label: 'PDF' },
                   { key: 'YOUTUBE', label: '🎬 유튜브' },
                   { key: 'WEB_LINK', label: '🌐 웹문서' }
                 ].map(item => (
@@ -2894,7 +2894,7 @@ export const InspectionChecklistManage: React.FC = () => {
                 <label style={{ fontSize: '12px', fontWeight: 'bold' }}>자료 형태 (미디어 포맷) *</label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                   {[
-                    { type: 'PDF', label: '📄 PDF / 파일' },
+                    { type: 'PDF', label: 'PDF / 파일' },
                     { type: 'YOUTUBE', label: '🎬 유튜브 영상' },
                     { type: 'WEB_LINK', label: '🌐 웹 기술문서' }
                   ].map(m => (
@@ -3081,7 +3081,7 @@ export const InspectionChecklistManage: React.FC = () => {
                             style={{ width: '100px', height: '56px', objectFit: 'cover', borderRadius: '4px' }}
                           />
                           <div style={{ fontSize: '11.5px', color: '#1e40af' }}>
-                            <div style={{ fontWeight: 700 }}>🟢 유튜브 영상 ID 감지 완료</div>
+                            <div style={{ fontWeight: 700 }}>유튜브 영상 ID 감지 완료</div>
                             <div>고유 ID: <strong>{videoId}</strong></div>
                             <div style={{ fontSize: '11px', color: 'var(--primary)' }}>앱 내에서 직접 임베드 재생됩니다.</div>
                           </div>
@@ -3734,7 +3734,7 @@ export const InspectionChecklistManage: React.FC = () => {
       >
         {activeTab === 'MASTER' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
-            <span>🛠️ <strong>정비점검항목:</strong> {masterAuditSummary.totalCount}개</span>
+            <span><strong>정비점검항목:</strong> {masterAuditSummary.totalCount}개</span>
             <span style={{ color: 'var(--border-color)' }}>|</span>
             <span>📂 <strong>관리분류:</strong> {masterAuditSummary.categoryCount}개 카테고리</span>
             <span style={{ color: 'var(--border-color)' }}>|</span>
@@ -3746,15 +3746,15 @@ export const InspectionChecklistManage: React.FC = () => {
 
         {activeTab === 'ANALYTICS' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
-            <span>📄 <strong>정비총비용:</strong> ₩{analyticsData.grandTotalCost.toLocaleString()}</span>
+            <span><strong>정비총비용:</strong> ₩{analyticsData.grandTotalCost.toLocaleString()}</span>
             <span style={{ color: 'var(--border-color)' }}>=</span>
-            <span style={{ color: 'var(--success)' }}>🟢 <strong>소모품비:</strong> ₩{analyticsData.grandPartCost.toLocaleString()}</span>
+            <span style={{ color: 'var(--success)' }}><strong>소모품비:</strong> ₩{analyticsData.grandPartCost.toLocaleString()}</span>
             <span>+</span>
-            <span style={{ color: 'var(--warning)' }}>🏢 <strong>외주비:</strong> ₩{analyticsData.grandExternalCost.toLocaleString()}</span>
+            <span style={{ color: 'var(--warning)' }}><strong>외주비:</strong> ₩{analyticsData.grandExternalCost.toLocaleString()}</span>
             <span style={{ color: 'var(--border-color)' }}>=</span>
-            <span style={{ color: 'var(--primary)' }}>🟢 <strong>고객청구:</strong> ₩{analyticsData.grandBillableAmount.toLocaleString()}</span>
+            <span style={{ color: 'var(--primary)' }}><strong>고객청구:</strong> ₩{analyticsData.grandBillableAmount.toLocaleString()}</span>
             <span>+</span>
-            <span style={{ color: 'var(--danger)' }}>🔴 <strong>회사순부담:</strong> ₩{analyticsData.grandCompanyCost.toLocaleString()}</span>
+            <span style={{ color: 'var(--danger)' }}><strong>회사순부담:</strong> ₩{analyticsData.grandCompanyCost.toLocaleString()}</span>
           </div>
         )}
 
@@ -3762,7 +3762,7 @@ export const InspectionChecklistManage: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
             <span>📚 <strong>매뉴얼 총계:</strong> {manualSummary.total}건</span>
             <span style={{ color: 'var(--border-color)' }}>|</span>
-            <span style={{ color: 'var(--success)' }}>🟢 <strong>AI 색인완료:</strong> {manualSummary.aiIndexedCount}건</span>
+            <span style={{ color: 'var(--success)' }}><strong>AI 색인완료:</strong> {manualSummary.aiIndexedCount}건</span>
             <span style={{ color: 'var(--border-color)' }}>|</span>
             <span style={{ color: manualSummary.aiPendingCount > 0 ? '#ea580c' : 'var(--text-muted)' }}>
               🟡 <strong>AI 분석대기:</strong> {manualSummary.aiPendingCount}건

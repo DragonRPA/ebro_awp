@@ -965,7 +965,7 @@ export const DevDataUploader: React.FC = () => {
             totalFailed += batch.length;
             console.error(`Bulk upsert error for ${schema.supabaseTable}:`, error);
             const isRlsError = error.code === '42501' || error.message.includes('row-level security');
-            const rlsSolution = isRlsError ? `\n💡 [원인 및 복구 가이드] ${schema.supabaseTable} 테이블의 RLS(행 수준 보안) 정책이 쓰기를 차단하고 있습니다.\n아래 Policy DDL을 Supabase SQL Editor에서 실행하세요 (RLS는 유지됨):\n\nDROP POLICY IF EXISTS "allow_anon_select" ON "${schema.supabaseTable}";\nDROP POLICY IF EXISTS "allow_anon_insert" ON "${schema.supabaseTable}";\nDROP POLICY IF EXISTS "allow_anon_update" ON "${schema.supabaseTable}";\nDROP POLICY IF EXISTS "allow_authenticated_select" ON "${schema.supabaseTable}";\nDROP POLICY IF EXISTS "allow_authenticated_insert" ON "${schema.supabaseTable}";\nDROP POLICY IF EXISTS "allow_authenticated_update" ON "${schema.supabaseTable}";\nCREATE POLICY "allow_anon_select" ON "${schema.supabaseTable}" FOR SELECT TO anon USING (true);\nCREATE POLICY "allow_anon_insert" ON "${schema.supabaseTable}" FOR INSERT TO anon WITH CHECK (true);\nCREATE POLICY "allow_anon_update" ON "${schema.supabaseTable}" FOR UPDATE TO anon USING (true) WITH CHECK (true);\nCREATE POLICY "allow_authenticated_select" ON "${schema.supabaseTable}" FOR SELECT TO authenticated USING (true);\nCREATE POLICY "allow_authenticated_insert" ON "${schema.supabaseTable}" FOR INSERT TO authenticated WITH CHECK (true);\nCREATE POLICY "allow_authenticated_update" ON "${schema.supabaseTable}" FOR UPDATE TO authenticated USING (true) WITH CHECK (true);\n\n(상단 'DB 스키마 정합성 검증 실행' 버튼을 누르시면 전체 테이블 Policy DDL이 자동 생성됩니다.)\n` : '';
+            const rlsSolution = isRlsError ? `\n[원인 및 복구 가이드] ${schema.supabaseTable} 테이블의 RLS(행 수준 보안) 정책이 쓰기를 차단하고 있습니다.\n아래 Policy DDL을 Supabase SQL Editor에서 실행하세요 (RLS는 유지됨):\n\nDROP POLICY IF EXISTS "allow_anon_select" ON "${schema.supabaseTable}";\nDROP POLICY IF EXISTS "allow_anon_insert" ON "${schema.supabaseTable}";\nDROP POLICY IF EXISTS "allow_anon_update" ON "${schema.supabaseTable}";\nDROP POLICY IF EXISTS "allow_authenticated_select" ON "${schema.supabaseTable}";\nDROP POLICY IF EXISTS "allow_authenticated_insert" ON "${schema.supabaseTable}";\nDROP POLICY IF EXISTS "allow_authenticated_update" ON "${schema.supabaseTable}";\nCREATE POLICY "allow_anon_select" ON "${schema.supabaseTable}" FOR SELECT TO anon USING (true);\nCREATE POLICY "allow_anon_insert" ON "${schema.supabaseTable}" FOR INSERT TO anon WITH CHECK (true);\nCREATE POLICY "allow_anon_update" ON "${schema.supabaseTable}" FOR UPDATE TO anon USING (true) WITH CHECK (true);\nCREATE POLICY "allow_authenticated_select" ON "${schema.supabaseTable}" FOR SELECT TO authenticated USING (true);\nCREATE POLICY "allow_authenticated_insert" ON "${schema.supabaseTable}" FOR INSERT TO authenticated WITH CHECK (true);\nCREATE POLICY "allow_authenticated_update" ON "${schema.supabaseTable}" FOR UPDATE TO authenticated USING (true) WITH CHECK (true);\n\n(상단 'DB 스키마 정합성 검증 실행' 버튼을 누르시면 전체 테이블 Policy DDL이 자동 생성됩니다.)\n` : '';
             errDetailsMsg += `[시트/테이블: ${schema.supabaseTable}]\n[Supabase 에러 코드: ${error.code || '미지정'}]\n[메시지: ${error.message}]${rlsSolution}\n[상세 내역: ${error.details || '없음'}]\n\n`;
           } else {
             totalSuccess += batch.length;
@@ -978,7 +978,7 @@ export const DevDataUploader: React.FC = () => {
       }
     } catch (err: any) {
       console.error("Bulk upload failed:", err);
-      showErrorModal(`⚠️ 일괄 업로드 처리 중 예외 발생:\n\n${err?.message || err}`);
+      showErrorModal(`일괄 업로드 처리 중 예외 발생:\n\n${err?.message || err}`);
     } finally {
       setBulkUploading(false);
     }
@@ -1237,7 +1237,7 @@ export const DevDataUploader: React.FC = () => {
         if (failed.length > 0) {
           setApplyResult({ ok: false, msg: `일부 DDL 실패:\n${failed.map((r: any) => `• ${r.sql}\n  → ${r.err}`).join('\n')}` });
         } else {
-          setApplyResult({ ok: true, msg: `✅ ${results.length}개 DDL 구문 실행 완료! PostgREST 스키마 캐시도 자동 갱신되었습니다.` });
+          setApplyResult({ ok: true, msg: `${results.length}개 DDL 구문 실행 완료! PostgREST 스키마 캐시도 자동 갱신되었습니다.` });
           // 패치 성공 후 자동 재검증
           const tables = schemaAuditResults?.map(r => r.table) || allSchemaTableNames;
           await runSchemaVerification(tables);
@@ -1537,7 +1537,7 @@ export const DevDataUploader: React.FC = () => {
 
                 {uploadResult.failed > 0 && lastUploadErrorDetails && (
                   <button
-                    onClick={() => showErrorModal(`⚠️ 엑셀 데이터 업로드 실패 원인 상세 분석:\n\n${lastUploadErrorDetails}`)}
+                    onClick={() => showErrorModal(`엑셀 데이터 업로드 실패 원인 상세 분석:\n\n${lastUploadErrorDetails}`)}
                     className="btn-danger"
                     style={{
                       width: '100%', marginTop: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1671,7 +1671,7 @@ export const DevDataUploader: React.FC = () => {
 
                 {bulkUploadResult.failed > 0 && lastBulkUploadErrorDetails && (
                   <button
-                    onClick={() => showErrorModal(`⚠️ 엑셀 일괄 업로드 실패 원인 상세 분석:\n\n${lastBulkUploadErrorDetails}`)}
+                    onClick={() => showErrorModal(`엑셀 일괄 업로드 실패 원인 상세 분석:\n\n${lastBulkUploadErrorDetails}`)}
                     className="btn-danger"
                     style={{
                       width: '100%', marginTop: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1705,7 +1705,7 @@ export const DevDataUploader: React.FC = () => {
         <div className="card" style={{ padding: '24px', backgroundColor: 'var(--bg-card)', marginBottom: '30px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
           <DatabaseIcon size={20} color="var(--primary)" />
-          <h3 style={{ fontWeight: '800', fontSize: '18px', margin: 0 }}>🔍 Supabase DB 스키마 정합성 자동화 도구</h3>
+          <h3 style={{ fontWeight: '800', fontSize: '18px', margin: 0 }}>Supabase DB 스키마 정합성 자동화 도구</h3>
         </div>
         <p style={{ fontSize: '12.5px', color: 'var(--text-muted)', marginBottom: '16px' }}>
           <code>schema.sql</code> 정의 기준으로 실제 Supabase DB의 {schemaTableCount}개 테이블 컬럼 구조를 <strong>information_schema 직접 조회</strong>로 검증합니다.
@@ -1715,7 +1715,7 @@ export const DevDataUploader: React.FC = () => {
         {/* 1회 초기 셋업 안내 */}
         {helperFunctionsExist === false && (
           <div style={{ padding: '14px 16px', backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid var(--danger)', borderRadius: '8px', marginBottom: '16px' }}>
-            <p style={{ fontWeight: '700', color: 'var(--danger)', margin: '0 0 8px 0', fontSize: '13px' }}>⚠️ [1회 초기 셋업 필요] Supabase SQL Editor에서 아래 SQL을 실행한 후 다시 검증하세요.</p>
+            <p style={{ fontWeight: '700', color: 'var(--danger)', margin: '0 0 8px 0', fontSize: '13px' }}>[1회 초기 셋업 필요] Supabase SQL Editor에서 아래 SQL을 실행한 후 다시 검증하세요.</p>
             <textarea readOnly value={`-- ✅ DB 스키마 자동화 도구 Helper 함수 (최초 1회만 실행)
 CREATE OR REPLACE FUNCTION dev_get_columns(p_table TEXT)
 RETURNS TABLE(column_name TEXT) AS $$
@@ -1753,7 +1753,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;`}
           {/* 체크박스 헤더 */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', backgroundColor: 'var(--bg-active)', borderBottom: '1px solid var(--border-color)', gap: '10px', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontWeight: '700', fontSize: '13px' }}>🎯 테이블 선택 검증</span>
+              <span style={{ fontWeight: '700', fontSize: '13px' }}>테이블 선택 검증</span>
               <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                 {selectedTables.length === 0
                   ? `선택 안 하면 전체 ${allSchemaTableNames.length}개 검증`
@@ -1860,7 +1860,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;`}
                           backgroundColor: result.status === 'OK' ? 'rgba(34,197,94,0.1)' : result.status === 'MISMATCH' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.1)',
                           color: result.status === 'OK' ? '#15803d' : result.status === 'MISMATCH' ? '#b45309' : 'var(--danger)'
                         }}>
-                          {result.status === 'OK' ? '✅ 정상' : result.status === 'MISMATCH' ? '⚠️ 컬럼 누락' : '❌ 테이블 없음'}
+                          {result.status === 'OK' ? '정상' : result.status === 'MISMATCH' ? '컬럼 누락' : '테이블 없음'}
                         </span>
                       </td>
                       <td style={{ padding: '10px 12px', fontSize: '12px', color: 'var(--text-muted)' }}>{result.message}</td>
@@ -1888,7 +1888,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;`}
                       }}
                     >
                       {applyingPatch ? <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <DatabaseIcon size={14} />}
-                      {applyingPatch ? 'DDL 실행 중...' : '🚀 패치 자동 적용 (DB 직접 실행)'}
+                      {applyingPatch ? 'DDL 실행 중...' : '패치 자동 적용 (DB 직접 실행)'}
                     </button>
                     <button
                       onClick={() => { navigator.clipboard.writeText(generatedPatchSql); alert('클립보드에 복사되었습니다.'); }}

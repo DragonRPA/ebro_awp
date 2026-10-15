@@ -518,7 +518,7 @@ export const OutboundInspections: React.FC = () => {
       showToast(`고객사 [${group.customerName}] 출고 검수 의뢰 접수가 완료되었습니다.`);
       handleSelectGroup(group);
     } catch (err: any) {
-      showErrorModal(`⚠️ 의뢰 접수 실패: ${err?.message || err}`);
+      showErrorModal(`의뢰 접수 실패: ${err?.message || err}`);
     } finally {
       setIsProcessing(false);
     }
@@ -534,7 +534,7 @@ export const OutboundInspections: React.FC = () => {
     const contract = db.contracts.find(c => c.id === selectedGroup.contractId);
     const customer = contract ? db.customers.find(c => c.id === contract.customerId) : undefined;
     if (customer && isCustomerRestricted(customer.transactionStatus)) {
-      showErrorModal(`⚠️ [출고제한 가드] 연체 및 거래차단 상태인 고객사(${customer.name})의 장비는 출고 승인할 수 없습니다.\n관리부 채권 확인 및 거래 제한 해제 후 진행해 주십시오.`);
+      showErrorModal(`[출고제한 가드] 연체 및 거래차단 상태인 고객사(${customer.name})의 장비는 출고 승인할 수 없습니다.\n관리부 채권 확인 및 거래 제한 해제 후 진행해 주십시오.`);
       return;
     }
 
@@ -663,7 +663,7 @@ export const OutboundInspections: React.FC = () => {
       showToast(`[${selectedGroup.customerName}] 출고 검수가 최종 승인 마감되었습니다. (자산상태 RENTED 전환)`);
       setSelectedGroupId(null);
     } catch (err: any) {
-      showErrorModal(`⚠️ 출고 승인 마감 실패: ${err?.message || err}`);
+      showErrorModal(`출고 승인 마감 실패: ${err?.message || err}`);
     } finally {
       setIsProcessing(false);
     }
@@ -749,7 +749,7 @@ export const OutboundInspections: React.FC = () => {
         status: 'IN_PROGRESS'
       });
     } catch (err: any) {
-      showErrorModal(`⚠️ 출고 승인 취소 롤백 실패: ${err?.message || err}`);
+      showErrorModal(`출고 승인 취소 롤백 실패: ${err?.message || err}`);
     } finally {
       setIsProcessing(false);
     }
@@ -1070,7 +1070,7 @@ export const OutboundInspections: React.FC = () => {
       setRejectReason('');
       setSelectedGroupId(null);
     } catch (err: any) {
-      showErrorModal(`⚠️ 반려 처리 실패: ${err?.message || err}`);
+      showErrorModal(`반려 처리 실패: ${err?.message || err}`);
     } finally {
       setIsProcessing(false);
     }
@@ -1120,7 +1120,7 @@ export const OutboundInspections: React.FC = () => {
       setSelectedChecklistId('');
       setSelectedGroupId(null);
     } catch (err: any) {
-      showErrorModal(`⚠️ 장비 교체 실패: ${err?.message || err}`);
+      showErrorModal(`장비 교체 실패: ${err?.message || err}`);
     } finally {
       setIsProcessing(false);
     }
@@ -1274,10 +1274,10 @@ export const OutboundInspections: React.FC = () => {
       <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap', flexShrink: 0 }}>
         {[
           { key: 'ALL', label: '전체 의뢰 보기', count: scopedGroups.length },
-          { key: 'PENDING', label: '🟡 접수 대기', count: scopedStatusCounts.pending },
+          { key: 'PENDING', label: '접수 대기', count: scopedStatusCounts.pending },
           { key: 'IN_PROGRESS', label: '🔵 검수 진행중', count: scopedStatusCounts.inProgress },
-          { key: 'COMPLETED', label: '🟢 출고 승인 마감', count: scopedStatusCounts.completed },
-          { key: 'REJECTED', label: '🔴 의뢰 반려', count: scopedStatusCounts.rejected },
+          { key: 'COMPLETED', label: '출고 승인 마감', count: scopedStatusCounts.completed },
+          { key: 'REJECTED', label: '의뢰 반려', count: scopedStatusCounts.rejected },
         ].map(tab => (
           <button
             key={tab.key}
@@ -1589,7 +1589,7 @@ export const OutboundInspections: React.FC = () => {
                     {selectedGroup.assets.map((asset, aIdx) => (
                       <div key={`${asset.id}-${aIdx}`} style={{ padding: '10px 12px', borderRadius: '8px', backgroundColor: 'var(--bg-body)', border: '1px solid var(--border-color)', fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                          <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>🏷️ {asset.assetNo}</div>
+                          <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>{asset.assetNo}</div>
                           <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>모델: {asset.modelName} | 시리얼: {asset.serialNo || '-'}</div>
                         </div>
                         {canEdit && selectedGroup.status !== 'COMPLETED' && (
@@ -2132,7 +2132,7 @@ export const OutboundInspections: React.FC = () => {
                 if (filteredAssets.length === 0) {
                   return (
                     <div style={{ padding: '16px', textAlign: 'center', color: 'var(--danger)', backgroundColor: 'rgba(239,68,68,0.08)', borderRadius: '8px', fontSize: '13px', fontWeight: 600 }}>
-                      {exchangeSearchQuery ? `⚠️ 검색어 [${exchangeSearchQuery}]에 해당되는 임대가능(${exchangeModalAsset.modelName}) 장비가 없습니다.` : `⚠️ 교체 가능한 동일 모델(${exchangeModalAsset.modelName})의 임대가능(AVAILABLE) 자산이 없습니다.`}
+                      {exchangeSearchQuery ? `검색어 [${exchangeSearchQuery}]에 해당되는 임대가능(${exchangeModalAsset.modelName}) 장비가 없습니다.` : `교체 가능한 동일 모델(${exchangeModalAsset.modelName})의 임대가능(AVAILABLE) 자산이 없습니다.`}
                     </div>
                   );
                 }
@@ -2156,7 +2156,7 @@ export const OutboundInspections: React.FC = () => {
                           }}
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                            <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--text-primary)' }}>🏷️ {a.assetNo}</span>
+                            <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--text-primary)' }}>{a.assetNo}</span>
                             <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 700, backgroundColor: score === 0 ? 'rgba(34,197,94,0.15)' : 'rgba(245,158,11,0.15)', color: score === 0 ? '#16a34a' : '#d97706' }}>
                               정비점수: {score}점 {score === 0 ? '(이상무)' : '(검수필요)'}
                             </span>

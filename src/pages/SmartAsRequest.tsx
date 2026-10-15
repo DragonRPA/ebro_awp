@@ -538,7 +538,7 @@ export const SmartAsRequest: React.FC = () => {
                           backgroundColor: d.urgency === 'HIGH' ? 'rgba(239,68,68,0.15)' : 'rgba(59,130,246,0.15)',
                           color: d.urgency === 'HIGH' ? '#ef4444' : '#2563eb'
                         }}>
-                          {d.urgency === 'HIGH' ? '🚨 긴급' : '일반'}
+                          {d.urgency === 'HIGH' ? '긴급' : '일반'}
                         </span>
                       </div>
 
@@ -1041,7 +1041,7 @@ export const SmartAsRequest: React.FC = () => {
                   }}
                 >
                   <option value="NORMAL">보통 (일반 순회/익일 일정)</option>
-                  <option value="URGENT">🚨 긴급 (당일 현장 작업 중단)</option>
+                  <option value="URGENT">긴급 (당일 현장 작업 중단)</option>
                 </select>
               </div>
             </div>
@@ -1108,7 +1108,7 @@ export const SmartAsRequest: React.FC = () => {
         borderRadius: '6px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
-          <span>🔧 <strong>누적AS접수:</strong> {asAuditSummary.totalCount}건</span>
+          <span><strong>누적AS접수:</strong> {asAuditSummary.totalCount}건</span>
           <span style={{ color: 'var(--border-color)' }}>|</span>
           <span style={{ color: 'var(--danger)' }}><strong>접수대기:</strong> {asAuditSummary.requestedCount}건</span>
           <span style={{ color: 'var(--border-color)' }}>|</span>

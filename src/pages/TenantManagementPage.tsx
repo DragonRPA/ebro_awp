@@ -3631,7 +3631,7 @@ export const TenantManagementPage: React.FC = () => {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <span style={{ fontSize: '13.5px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                            eBro AI Agent 고유 기능: {formData.features?.agentAiEnabled ? '🟢 Full AI Studio 모드 (개방)' : '🔵 Silent Core 모드 (인쇄·문서 처리 전용)'}
+                            eBro AI Agent 고유 기능: {formData.features?.agentAiEnabled ? 'Full AI Studio 모드 (개방)' : '🔵 Silent Core 모드 (인쇄·문서 처리 전용)'}
                           </span>
                         </div>
                         <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
@@ -3713,7 +3713,7 @@ export const TenantManagementPage: React.FC = () => {
                     alignItems: 'center',
                     gap: '10px'
                   }}>
-                    <span style={{ fontSize: '18px' }}>💡</span>
+                    <span style={{ fontSize: '18px' }}></span>
                     <div>
                       <strong>24시간 텔레그램 지시 무누락 보존:</strong> 출고 PC가 퇴근/절전으로 오프라인이어도, 텔레그램 모바일 지시는 클라우드 서버의 태스크 큐에 즉시 안전 저장되며 익일 PC 부팅 시 0초 만에 일괄 자동 실행됩니다.
                     </div>

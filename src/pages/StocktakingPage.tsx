@@ -184,7 +184,7 @@ const [barcodeInput, setBarcodeInput] = useState('');
               return (
                 <tr key={item.id} style={{ background: hasVariance ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-card)', borderBottom: '1px solid var(--border-color)' }}>
                   <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>
-                    {item.itemType === 'ASSET' ? '🚜 장비' : '🔧 소모품'}
+                    {item.itemType === 'ASSET' ? '🚜 장비' : '소모품'}
                   </td>
                   <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>{item.itemType === 'ASSET' ? item.assetNo : item.consumableId}</td>
                   <td style={{ padding: '8px', whiteSpace: 'nowrap' }}>{item.modelName}</td>

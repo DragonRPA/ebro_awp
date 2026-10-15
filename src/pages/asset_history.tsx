@@ -370,7 +370,7 @@ export const AssetHistory: React.FC = () => {
       } catch (e) {}
       setActiveTab('INBOUND');
     } catch (err: any) {
-      showErrorModal(`⚠️ 입고 등록 중 오류 발생: ${err?.message || err}`);
+      showErrorModal(`입고 등록 중 오류 발생: ${err?.message || err}`);
     } finally {
       setIsSubmittingInbound(false);
     }
@@ -394,7 +394,7 @@ export const AssetHistory: React.FC = () => {
       await cancelInboundAsset(log.id, reason || '사용자 입력 오타로 인한 입고 취소 롤백');
       showToast(`[입고 취소 롤백 성공] 자산 ${log.assetNo} 상태가 대여중(RENTED)으로 안전하게 원복 되었습니다.`);
     } catch (err: any) {
-      showErrorModal(`⚠️ 입고 취소 롤백 실패: ${err?.message || err}`);
+      showErrorModal(`입고 취소 롤백 실패: ${err?.message || err}`);
     }
   };
 
@@ -688,7 +688,7 @@ export const AssetHistory: React.FC = () => {
                       <div style={{ padding: '10px', fontSize: '12.5px', backgroundColor: 'var(--bg-app)', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                           <strong style={{ color: log.type === 'OUTBOUND' ? 'var(--primary)' : log.type === 'INBOUND' ? 'var(--success)' : 'var(--warning)' }}>
-                            {log.type === 'OUTBOUND' ? '📤 출고 (OUTBOUND)' : log.type === 'INBOUND' ? '📥 입고 (INBOUND)' : '🛠️ 정비 (REPAIR)'}
+                            {log.type === 'OUTBOUND' ? '📤 출고 (OUTBOUND)' : log.type === 'INBOUND' ? '📥 입고 (INBOUND)' : '정비 (REPAIR)'}
                           </strong>
                           <span style={{ fontSize: '11.5px', color: 'var(--text-secondary)' }}>{log.eventDate}</span>
                         </div>

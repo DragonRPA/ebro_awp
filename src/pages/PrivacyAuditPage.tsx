@@ -833,7 +833,7 @@ export const PrivacyAuditPage: React.FC = () => {
       }}>
         {/* 대차대조 감사 통계 HUD */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '12.5px', color: 'var(--text-secondary, #475569)', flexWrap: 'wrap' }}>
-          <span>📄 총 접속 건수: <strong style={{ color: 'var(--text-main, #0f172a)' }}>{stats.total.toLocaleString()}</strong>건</span>
+          <span>총 접속 건수: <strong style={{ color: 'var(--text-main, #0f172a)' }}>{stats.total.toLocaleString()}</strong>건</span>
           <span>📥 엑셀 다운로드: <strong style={{ color: 'var(--warning)' }}>{stats.downloadCount.toLocaleString()}</strong>건</span>
           <span>🔓 비마스킹(전체정보) 다운로드: <strong style={{ color: stats.unmaskedDownloads > 0 ? '#dc2626' : 'var(--text-main, #0f172a)' }}>{stats.unmaskedDownloads.toLocaleString()}</strong>건</span>
           <span>👥 접속 임직원 수: <strong style={{ color: 'var(--primary, #4f46e5)' }}>{stats.uniqueUsers}</strong>명</span>
@@ -1515,7 +1515,7 @@ export const PrivacyAuditPage: React.FC = () => {
                 gap: '6px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 800, color: '#dc2626' }}>🚨 비상 마스터 복구 보안키 (Break-Glass Key)</span>
+                  <span style={{ fontWeight: 800, color: '#dc2626' }}>비상 마스터 복구 보안키 (Break-Glass Key)</span>
                   <button
                     type="button"
                     onClick={() => {

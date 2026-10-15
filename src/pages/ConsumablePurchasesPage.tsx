@@ -241,7 +241,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
       ]);
       setCartScreenshotUrl('');
     } catch (err: any) {
-      showErrorModal(`⚠️ 구매 신청 등록 실패:\n${err?.message || err}`);
+      showErrorModal(`구매 신청 등록 실패:\n${err?.message || err}`);
     }
   };
 
@@ -265,7 +265,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
       await db.awaitPendingWrites();
       showToast(`[${modelName}] 구매 신청이 승인/접수 처리되었습니다.`);
     } catch (err: any) {
-      showErrorModal(`⚠️ 승인 처리 실패:\n${err?.message || err}`);
+      showErrorModal(`승인 처리 실패:\n${err?.message || err}`);
     }
   };
 
@@ -276,7 +276,7 @@ export const ConsumablePurchasesPage: React.FC = () => {
       await db.awaitPendingWrites();
       showToast(`[${p.modelName}] 구매완결 및 월말 매입정산 대장에 지급요청이 등록되었습니다.`);
     } catch (err: any) {
-      showErrorModal(`⚠️ 구매 완결 및 지급요청 처리 실패:\n${err?.message || err}`);
+      showErrorModal(`구매 완결 및 지급요청 처리 실패:\n${err?.message || err}`);
     }
   };
 

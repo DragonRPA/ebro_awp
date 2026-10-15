@@ -259,12 +259,12 @@ export const PurchaseSettlementPage: React.FC = () => {
       const result = await generateMonthlyPurchaseSettlements(selectedYm);
       const totalCount = result.transport + result.consumable + result.lease;
       if (totalCount === 0) {
-        setGenerateResult('ℹ️ 집계할 신규 정산 건이 없습니다. (이미 집계되었거나 해당 월 데이터 없음)');
+        setGenerateResult('집계할 신규 정산 건이 없습니다. (이미 집계되었거나 해당 월 데이터 없음)');
       } else {
-        setGenerateResult(`✅ 자동 집계 완료 — 운송료 ${result.transport}건 / 소모품 ${result.consumable}건 / 임차료(전대장비) ${result.lease}건 생성`);
+        setGenerateResult(`자동 집계 완료 — 운송료 ${result.transport}건 / 소모품 ${result.consumable}건 / 임차료(전대장비) ${result.lease}건 생성`);
       }
     } catch (err: any) {
-      setGenerateResult(`❌ 집계 실패: ${err?.message || err}`);
+      setGenerateResult(`집계 실패: ${err?.message || err}`);
     }
     setIsGenerating(false);
   };
@@ -874,11 +874,11 @@ export const PurchaseSettlementPage: React.FC = () => {
         borderRadius: '4px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
-          <span>🏢 <strong>[{selectedYm} 매입정산]:</strong> {settlementAuditSummary.totalCount}개사</span>
+          <span><strong>[{selectedYm} 매입정산]:</strong> {settlementAuditSummary.totalCount}개사</span>
           <span style={{ color: 'var(--border)' }}>|</span>
-          <span>📄 <strong>총 청구액:</strong> ₩{settlementAuditSummary.totalAmount.toLocaleString()}원</span>
+          <span><strong>총 청구액:</strong> ₩{settlementAuditSummary.totalAmount.toLocaleString()}원</span>
           <span style={{ color: 'var(--border)' }}>|</span>
-          <span style={{ color: 'var(--success)' }}>🟢 <strong>지급완료:</strong> ₩{settlementAuditSummary.totalPaid.toLocaleString()}원 ({settlementAuditSummary.paidCount}건)</span>
+          <span style={{ color: 'var(--success)' }}><strong>지급완료:</strong> ₩{settlementAuditSummary.totalPaid.toLocaleString()}원 ({settlementAuditSummary.paidCount}건)</span>
           <span style={{ color: 'var(--border)' }}>|</span>
           <span style={{ color: settlementAuditSummary.balance > 0 ? 'var(--danger)' : 'var(--text-secondary)' }}>
             ⏳ <strong>지급잔액:</strong> ₩{settlementAuditSummary.balance.toLocaleString()}원
@@ -1075,7 +1075,7 @@ export const PurchaseSettlementPage: React.FC = () => {
                 disabled={isSubmittingPayment}
                 style={{ flex: 1, height: '40px', background: isSubmittingPayment ? 'var(--text-muted)' : 'var(--success)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '800', fontSize: '14px', cursor: isSubmittingPayment ? 'not-allowed' : 'pointer' }}
               >
-                {isSubmittingPayment ? '⏳ 지급 대사 승인 중...' : '지급 대사 완료 승인'}
+                {isSubmittingPayment ? '지급 대사 승인 중...' : '지급 대사 완료 승인'}
               </button>
               <button
                 onClick={() => { setPaymentModal(null); setSelectedBankTxId(null); }}

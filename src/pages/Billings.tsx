@@ -321,7 +321,7 @@ export const Billings: React.FC = () => {
       await db.awaitPendingWrites();
       showToast(`청구귀속월이 [${newYm.trim()}]으로 성공적으로 변경되었습니다.`);
     } catch (err: any) {
-      showErrorModal(`⚠️ 청구귀속월 변경 중 DB 저장 실패:\n\n${err?.message || err}`, '청구월 수정 오류');
+      showErrorModal(`청구귀속월 변경 중 DB 저장 실패:\n\n${err?.message || err}`, '청구월 수정 오류');
     }
   };
 
@@ -774,7 +774,7 @@ export const Billings: React.FC = () => {
         showToast(`외상미수금 존재 등으로 ${result.skippedContracts.length}건의 청구가 보류되었습니다.`, 'warning');
       }
     } catch (err: any) {
-      showErrorModal(`⚠️ 일괄 생성 오류:\n\n${err?.message || err}`, '도래 계약 청구 생성 실패');
+      showErrorModal(`일괄 생성 오류:\n\n${err?.message || err}`, '도래 계약 청구 생성 실패');
     } finally {
       setIsGeneratingDue(false);
     }
@@ -822,7 +822,7 @@ export const Billings: React.FC = () => {
       setSelectedBillingId(newId);
       showToast('새 청구서가 발행되었습니다. (기존 건 취소 마감)');
     } catch (err: any) {
-      showErrorModal(`⚠️ 청구서 수정 재생성 실패:\n\n${err?.message || err}`, '재생성 오류');
+      showErrorModal(`청구서 수정 재생성 실패:\n\n${err?.message || err}`, '재생성 오류');
     } finally {
       setIsRegenerating(false);
     }
@@ -897,7 +897,7 @@ showToast('수납 내역 취소 및 통장 잔액을 복원합니다.');
       await cancelPayment(paymentId);
       showToast('수납이 정상적으로 취소(롤백)되었습니다.');
     } catch (err: any) {
-      showErrorModal(`⚠️ 수납 취소 실패:\n${err?.message || err}`);
+      showErrorModal(`수납 취소 실패:\n${err?.message || err}`);
     }
   };
 
@@ -908,7 +908,7 @@ showToast('모든 수납 내역 일괄 취소 및 통장 잔액을 복원합니�
       await cancelAllPaymentsForBilling(billingId);
       showToast('모든 수납 내역이 취소(롤백)되었습니다.');
     } catch (err: any) {
-      showErrorModal(`⚠️ 수납 일괄 취소 실패:\n${err?.message || err}`);
+      showErrorModal(`수납 일괄 취소 실패:\n${err?.message || err}`);
     }
   };
 
@@ -1572,7 +1572,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       setShowMailModal(false);
 
     } catch (err: any) {
-      showErrorModal(`⚠️ 이메일 발송 실패:\n\n${err?.message || err}`, '메일 발송 오류');
+      showErrorModal(`이메일 발송 실패:\n\n${err?.message || err}`, '메일 발송 오류');
     } finally {
       setIsSending(false);
     }
@@ -1626,7 +1626,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
     const trimmedReason = (reason || '').trim();
     if (!trimmedReason) {
-      showErrorModal('⚠️ 거래명세서 변환 사유를 반드시 입력해야 합니다.\n\n정상 회계 원장(계약 DB)과 다르게 고객용 거래명세서를 임의 변경하는 사유와 원본과의 차이점을 구체적으로 기재해 주십시오.', '필수 입력 누락');
+      showErrorModal('거래명세서 변환 사유를 반드시 입력해야 합니다.\n\n정상 회계 원장(계약 DB)과 다르게 고객용 거래명세서를 임의 변경하는 사유와 원본과의 차이점을 구체적으로 기재해 주십시오.', '필수 입력 누락');
       showToast('거래명세서 변환 사유를 반드시 입력해야 합니다.', 'error');
       return;
     }
@@ -1657,7 +1657,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
 
     if (diffGrand !== 0) {
       showErrorModal(
-        `⚠️ 특수청구 총액 불일치 (저장 제한)\n\n` +
+        `특수청구 총액 불일치 (저장 제한)\n\n` +
         `• 정상 원청구 합계액: ₩${originalGrand.toLocaleString()} (공급가 ₩${originalSupply.toLocaleString()})\n` +
         `• 특수 거래명세서 합계액: ₩${draftGrand.toLocaleString()}\n` +
         `• 대차 차액: ₩${Math.abs(diffGrand).toLocaleString()} (${diffGrand > 0 ? '초과' : '부족'})\n\n` +
@@ -2031,7 +2031,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
     const confirmMessage = hasExcluded
       ? `현재 조회된 정산 대상 계약 총 ${filteredWizardContracts.length}건 중,\n\n` +
         `▶ 일괄 생성 대상: ${contractsWithoutReceivables.length}건 (외상미수금 없음)\n` +
-        `⚠️ 일괄 생성 제외: ${contractsWithReceivables.length}건 (외상미수금 존재 - 수동 검토 필요)\n\n` +
+        `일괄 생성 제외: ${contractsWithReceivables.length}건 (외상미수금 존재 - 수동 검토 필요)\n\n` +
         `[청구 귀속월: ${finalTargetYm}]\n` +
         `외상미수금이 없는 ${contractsWithoutReceivables.length}건에 대해 청구를 일괄 생성하시겠습니까?\n` +
         `(제외된 ${contractsWithReceivables.length}건은 수동 생성 필요)`
@@ -2061,9 +2061,9 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       refreshAllData();
       await db.awaitPendingWrites();
 
-      let resultMsg = `✅ 외상미수금이 없는 ${successCount}건의 계약에 대해 청구서가 성공적으로 일괄 생성되었습니다!`;
+      let resultMsg = `외상미수금이 없는 ${successCount}건의 계약에 대해 청구서가 성공적으로 일괄 생성되었습니다!`;
       if (hasExcluded) {
-        resultMsg += `\n\n⚠️ 외상미수금이 있는 ${contractsWithReceivables.length}건은 수동 검토를 위해 남아있습니다. 개별 카드를 확인해 주세요.`;
+        resultMsg += `\n\n외상미수금이 있는 ${contractsWithReceivables.length}건은 수동 검토를 위해 남아있습니다. 개별 카드를 확인해 주세요.`;
       }
 
       if (failCount === 0) {
@@ -2433,7 +2433,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
       setWizardSelectedCaIds(new Set());
       showToast(`[${getCustName(selectedContractForWizard.customerId)}] 청구귀속월(${targetYm}) 총 ${overallTotal.toLocaleString()}원 청구 생성이 저장되었습니다.`);
     } catch (err: any) {
-      showErrorModal(`⚠️ 청구서 DB 저장 실패:\n\n${err?.message || err}`, '청구 생성 오류');
+      showErrorModal(`청구서 DB 저장 실패:\n\n${err?.message || err}`, '청구 생성 오류');
     } finally {
       setIsWizardGenerating(false);
     }
@@ -2524,7 +2524,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
               gap: '12px'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '16px' }}>⚠️</span>
+                <span style={{ fontSize: '16px' }}></span>
                 <strong style={{ color: 'var(--warning)', fontSize: '14px' }}>
                   일괄 청구 보류 (Action Required) - {skippedContracts.length}건
                 </strong>
@@ -4324,7 +4324,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                     gap: '4px'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span>ℹ️ <strong>직전 청구 마일스톤:</strong></span>
+                      <span><strong>직전 청구 마일스톤:</strong></span>
                       <span className="badge badge-info" style={{ fontSize: '10.5px' }}>
                         누적 발행: {selectedContractForWizard.billingCount ? `총 ${selectedContractForWizard.billingCount}회` : '최초 청구'}
                       </span>
@@ -4491,7 +4491,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                     return (
                       <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)', marginBottom: '14px' }}>
                         <div style={{ fontWeight: 'bold', fontSize: '12.5px', color: 'var(--danger)', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>⚠️ 고객 부담 미청구 정비/옵션장착비 {unbilledRepairs.length}건 발견</span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>고객 부담 미청구 정비/옵션장착비 {unbilledRepairs.length}건 발견</span>
                           {unbilledRepairs.length > 1 && (
                             <button
                               type="button"
@@ -4592,7 +4592,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                     return (
                       <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'rgba(249,115,22,0.06)', border: '1px solid rgba(249,115,22,0.25)', marginBottom: '14px' }}>
                         <div style={{ fontWeight: 'bold', fontSize: '12.5px', color: '#ea580c', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>⚠️ 고객 부담 미청구 운송료 {unbilledDeliveries.length}건 발견</span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>고객 부담 미청구 운송료 {unbilledDeliveries.length}건 발견</span>
                           {unbilledDeliveries.length > 1 && (
                             <button
                               type="button"
@@ -4685,7 +4685,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                     return (
                       <div style={{ padding: '12px', borderRadius: '8px', backgroundColor: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.25)', marginBottom: '14px' }}>
                         <div style={{ fontWeight: 'bold', fontSize: '12.5px', color: 'var(--primary)', marginBottom: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>ℹ️ 이 계약/고객사의 미청구 외상미수금 {unbilledReceivables.length}건 발견</span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>이 계약/고객사의 미청구 외상미수금 {unbilledReceivables.length}건 발견</span>
                           {unbilledReceivables.length > 1 && (
                             <button
                               type="button"
@@ -5237,7 +5237,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
             {(topReasons.length > 0 || topSalespeople.length > 0) && (
               <div data-mid="waiver-reason-sales-strip" className="card" style={{ margin: 0, padding: '10px 14px', backgroundColor: 'var(--bg-app)', display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap', fontSize: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                  <span style={{ fontWeight: 800, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>📊 사유별 비중:</span>
+                  <span style={{ fontWeight: 800, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>사유별 비중:</span>
                   {topReasons.slice(0, 4).map(([rs, data]) => (
                     <span key={rs} style={{ backgroundColor: 'var(--bg-card)', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>
                       <strong>{rs}</strong>: {data.count}건 (₩{data.amount.toLocaleString()})
@@ -5826,14 +5826,14 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
                 </div>
 
                 <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', padding: '12px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px dashed var(--border-color)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <span style={{ fontWeight: '600' }}>💡 거래명세서 메일 자동 생성 안내</span>
+                  <span style={{ fontWeight: '600' }}>거래명세서 메일 자동 생성 안내</span>
                   <span>- 발송 시 표준 거래명세서 양식(공급자/공급받는자 정보, 세부 품목별 날짜/적용단가/공급가액/부가세)이 메일 본문에 100% 자동 생성되어 전달됩니다.</span>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px', marginTop: '2px', lineHeight: '1.5' }}>
                     <span style={{ fontWeight: 600, flexShrink: 0 }}>- 입금 계좌:</span>
                     {(() => {
                       const pri = getTenantPrimaryBankAccount(currentTenant);
                       if (!pri) {
-                        return <span style={{ color: '#ef4444', fontWeight: 600 }}>⚠️ 등록된 주거래 입금 계좌 정보가 없습니다. (테넌트 설정에서 계좌를 등록해 주세요)</span>;
+                        return <span style={{ color: '#ef4444', fontWeight: 600 }}>등록된 주거래 입금 계좌 정보가 없습니다. (테넌트 설정에서 계좌를 등록해 주세요)</span>;
                       }
                       return (
                         <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
@@ -6362,7 +6362,7 @@ ${currentTenant?.tradeName || currentTenant?.corporateName || '임대인'} 올�
           fontWeight: 700,
           border: '1px solid rgba(255,255,255,0.2)'
         }}>
-          <span style={{ fontSize: '16px' }}>{toastMessage.type === 'error' ? '⚠️' : toastMessage.type === 'warning' ? '⚡' : '✅'}</span>
+          <span style={{ fontSize: '16px' }}>{toastMessage.type === 'error' ? '' : toastMessage.type === 'warning' ? '' : ''}</span>
           <span>{toastMessage.text}</span>
           <button
             type="button"

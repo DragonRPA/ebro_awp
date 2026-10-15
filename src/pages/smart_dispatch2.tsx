@@ -544,7 +544,7 @@ export const SmartDispatch2: React.FC = () => {
       showToast('🚫 거래 불가 거래처입니다.', 'error'); return;
     }
     if (matchedCustOverdue && matchedCustOverdue.overdueSum > 0 && !dispatchOverdueAcknowledged) {
-      showToast('⚠️ 연체 채권 확인 체크박스에 동의해야 합니다.', 'error'); return;
+      showToast('연체 채권 확인 체크박스에 동의해야 합니다.', 'error'); return;
     }
     if (!siteAddress.trim()) { showToast('현장 상세 주소를 입력하세요.', 'error'); return; }
     if (!siteContactPhone.trim()) { showToast('현장 담당자 연락처를 입력하세요.', 'error'); return; }
@@ -579,7 +579,7 @@ export const SmartDispatch2: React.FC = () => {
 
       setProgressLogs([]);
       setProgressPercent(0);
-      setCurrentStepText('🚀 출고 파이프라인 가동 중...');
+      setCurrentStepText('출고 파이프라인 가동 중...');
       setIsProcessCompleted(false);
       setIsProcessingModalOpen(true);
 
@@ -594,7 +594,7 @@ export const SmartDispatch2: React.FC = () => {
         showToast('신규 고객/현장 자동 등록 후 재진행합니다.');
         setProgressLogs([]);
         setProgressPercent(0);
-        setCurrentStepText('🚀 신규 등록 & 재가동 중...');
+        setCurrentStepText('신규 등록 & 재가동 중...');
         result = await saveSmartDispatch(data, true, onProgress);
       }
       if (result.errorMessage) {
@@ -772,7 +772,7 @@ export const SmartDispatch2: React.FC = () => {
         }}>
           <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
             <AlertTriangle size={15} color={matchedCustOverdue.isBlocked ? '#dc2626' : '#d97706'} />
-            {matchedCustOverdue.isBlocked ? '🚫 [경영진 처분] 거래 불가' : '⚠️ 연체 채권 경각심 통제 경보'}
+            {matchedCustOverdue.isBlocked ? '🚫 [경영진 처분] 거래 불가' : '연체 채권 경각심 통제 경보'}
           </div>
           {!matchedCustOverdue.isBlocked && (
             <>
@@ -1170,7 +1170,7 @@ export const SmartDispatch2: React.FC = () => {
             boxShadow: '0 20px 60px rgba(0,0,0,0.4)'
           }}>
             <h3 style={{ marginBottom: '20px', fontSize: '16px', fontWeight: 800 }}>
-              {isProcessCompleted ? '✅ 출고 지시 완료' : '🚀 출고 파이프라인 진행 중...'}
+              {isProcessCompleted ? '출고 지시 완료' : '출고 파이프라인 진행 중...'}
             </h3>
             <div style={{ marginBottom: '16px', height: '6px', backgroundColor: 'var(--border-color)', borderRadius: '3px', overflow: 'hidden' }}>
               <div style={{ height: '100%', backgroundColor: 'var(--success)', borderRadius: '3px', width: `${progressPercent}%`, transition: 'width 0.4s ease' }} />

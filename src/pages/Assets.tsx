@@ -1190,9 +1190,9 @@ export const Assets: React.FC = () => {
                       <div style={{ gridColumn: 'span 2', marginTop: '2px', padding: '6px 8px', borderRadius: '4px', backgroundColor: selectedAsset.antiEntrapmentOwnership === 'VENDOR' ? 'rgba(220, 38, 38, 0.1)' : selectedAsset.antiEntrapmentOwnership === 'OURS' ? 'rgba(37, 99, 235, 0.1)' : 'var(--bg-app)', border: `1px solid ${selectedAsset.antiEntrapmentOwnership === 'VENDOR' ? 'rgba(220, 38, 38, 0.3)' : selectedAsset.antiEntrapmentOwnership === 'OURS' ? 'rgba(37, 99, 235, 0.3)' : 'var(--border-color)'}` }}>
                         <span style={{ color: 'var(--text-secondary)' }}>협착방지봉:</span>{' '}
                         {selectedAsset.antiEntrapmentOwnership === 'VENDOR' ? (
-                          <strong style={{ color: '#dc2626' }}>🚨 임차처 소유 (주기장 입고 시 탈거 절대 금지 / 원형 보존)</strong>
+                          <strong style={{ color: '#dc2626' }}>임차처 소유 (주기장 입고 시 탈거 절대 금지 / 원형 보존)</strong>
                         ) : selectedAsset.antiEntrapmentOwnership === 'OURS' ? (
-                          <strong style={{ color: '#2563eb' }}>🔧 당사 소유 (임차처 반납 전 탈거 회수)</strong>
+                          <strong style={{ color: '#2563eb' }}>당사 소유 (임차처 반납 전 탈거 회수)</strong>
                         ) : (
                           <span style={{ color: 'var(--text-muted)' }}>미장착 (없음)</span>
                         )}

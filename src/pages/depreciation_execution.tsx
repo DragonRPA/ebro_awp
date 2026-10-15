@@ -255,7 +255,7 @@ export const DepreciationExecution: React.FC = () => {
 
   return (
     <div data-hs-observe="depreciation_execution" data-mid="dep-header" data-subview="depreciation_execution" data-subview-title="Generated" style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontSize: '13px', position: 'relative' }}>
-      {/* 🔔 인앱 토스트 알림 (헌장 5.2) */}
+      {/* 인앱 토스트 알림 (헌장 5.2) */}
       {toastMessage && (
         <div style={{
           position: 'fixed',
@@ -307,7 +307,7 @@ export const DepreciationExecution: React.FC = () => {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '14px', borderRadius: '8px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <label style={{ fontWeight: 'bold', fontSize: '13px', whiteSpace: 'nowrap' }}>📌 결산 마감 연월:</label>
+              <label style={{ fontWeight: 'bold', fontSize: '13px', whiteSpace: 'nowrap' }}>결산 마감 연월:</label>
               <input
                 type="month"
                 value={selectedYm}
@@ -334,7 +334,7 @@ export const DepreciationExecution: React.FC = () => {
               </div>
             ) : (
               <div style={{ padding: '10px 12px', borderRadius: '6px', backgroundColor: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: 'var(--primary)', fontSize: '12px' }}>
-                ℹ️ 미마감 상태입니다. 마감 실행 시 대상 당사자산의 장부가치가 당월분만큼 차감됩니다.
+                미마감 상태입니다. 마감 실행 시 대상 당사자산의 장부가치가 당월분만큼 차감됩니다.
               </div>
             )}
           </div>
@@ -353,7 +353,7 @@ export const DepreciationExecution: React.FC = () => {
 
           {/* 비고 메모 */}
           <div>
-            <label style={{ fontSize: '12.5px', fontWeight: '700', display: 'block', marginBottom: '4px' }}>📝 결산 비고 메모</label>
+            <label style={{ fontSize: '12.5px', fontWeight: '700', display: 'block', marginBottom: '4px' }}>결산 비고 메모</label>
             <input
               type="text"
               value={note}
@@ -374,7 +374,7 @@ export const DepreciationExecution: React.FC = () => {
               backgroundColor: isAlreadyExecuted ? 'var(--text-muted)' : 'var(--primary)'
             }}
           >
-            <TrendingUp size={16} /> {isProcessing ? '상각 마감 처리 중...' : isAlreadyExecuted ? '해당 연월 결산 마감 완료됨' : '🚀 당월 감가상각 결산 마감 실행'}
+            <TrendingUp size={16} /> {isProcessing ? '상각 마감 처리 중...' : isAlreadyExecuted ? '해당 연월 결산 마감 완료됨' : '당월 감가상각 결산 마감 실행'}
           </button>
         </div>
 
@@ -460,7 +460,7 @@ export const DepreciationExecution: React.FC = () => {
         </div>
       </div>
 
-      {/* 💬 인앱 확인 모달 (헌장 5.2: alert/confirm 퇴출) */}
+      {/* 인앱 확인 모달 (헌장 5.2: alert/confirm 퇴출) */}
       {confirmModal && confirmModal.isOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: '20px' }}>
           <div className="card" style={{ width: '90%', maxWidth: '460px', backgroundColor: 'var(--bg-card)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -492,7 +492,7 @@ export const DepreciationExecution: React.FC = () => {
         </div>
       )}
 
-      {/* ⚖️ Gutenberg Z-패턴 4단계 최하단 감가상각 대차대조식 검증 바 (헌장 3.5) */}
+      {/* Gutenberg Z-패턴 4단계 최하단 감가상각 대차대조식 검증 바 (헌장 3.5) */}
       <div style={{
         position: 'fixed',
         bottom: 0,
@@ -511,13 +511,13 @@ export const DepreciationExecution: React.FC = () => {
         fontWeight: 600
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', overflowX: 'auto', whiteSpace: 'nowrap' }}>
-          <span>🏗️ <strong>자사자산:</strong> {depreciationAuditSummary.totalCount}대</span>
+          <span><strong>자사자산:</strong> {depreciationAuditSummary.totalCount}대</span>
           <span style={{ color: 'var(--border-color)' }}>|</span>
-          <span>📄 <strong>취득원가총액:</strong> ₩{depreciationAuditSummary.totalAcquisition.toLocaleString()}원</span>
+          <span><strong>취득원가총액:</strong> ₩{depreciationAuditSummary.totalAcquisition.toLocaleString()}원</span>
           <span style={{ color: 'var(--border-color)' }}>|</span>
-          <span style={{ color: 'var(--warning)' }}>📉 <strong>누적상각액:</strong> ₩{depreciationAuditSummary.totalAccum.toLocaleString()}원</span>
+          <span style={{ color: 'var(--warning)' }}><strong>누적상각액:</strong> ₩{depreciationAuditSummary.totalAccum.toLocaleString()}원</span>
           <span style={{ color: 'var(--border-color)' }}>|</span>
-          <span style={{ color: 'var(--success)' }}>💵 <strong>현재 장부가치:</strong> ₩{depreciationAuditSummary.totalBookValue.toLocaleString()}원</span>
+          <span style={{ color: 'var(--success)' }}><strong>현재 장부가치:</strong> ₩{depreciationAuditSummary.totalBookValue.toLocaleString()}원</span>
         </div>
       </div>
       <div style={{ height: '50px' }} aria-hidden="true" />

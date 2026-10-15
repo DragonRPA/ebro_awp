@@ -613,7 +613,7 @@ export const DailyInOutStatus: React.FC = () => {
             >
               <option value="ALL">전체 (입·출고)</option>
               <option value="INBOUND">🔵 입고만</option>
-              <option value="OUTBOUND">🔴 출고만</option>
+              <option value="OUTBOUND">출고만</option>
             </select>
           </div>
 
@@ -1105,7 +1105,7 @@ export const DailyInOutStatus: React.FC = () => {
                                 ? (isDark ? '#ffffff' : '#1e3a8a') 
                                 : (isDark ? '#fde047' : '#111827')
                             }}>
-                              {isIn ? '🔵 입고' : '🔴 출고'}
+                              {isIn ? '🔵 입고' : '출고'}
                             </span>
                           </td>
                           <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>
@@ -1239,7 +1239,7 @@ export const DailyInOutStatus: React.FC = () => {
                               ? (isDark ? '#ffffff' : '#1e3a8a') 
                               : (isDark ? '#fde047' : '#111827')
                           }}>
-                            {isIn ? '🔵 입고' : '🔴 출고'}
+                            {isIn ? '🔵 입고' : '출고'}
                           </span>
                         </td>
                         <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>

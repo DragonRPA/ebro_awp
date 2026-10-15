@@ -3045,10 +3045,10 @@ export const RentAssets: React.FC = () => {
                       <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>계약번호 / 현장</th>
                       <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>고객사명</th>
                       <th style={{ padding: '10px', whiteSpace: 'nowrap' }}>투입 전대장비</th>
-                      <th style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right' }}>📄 확정 청구액(매출)</th>
-                      <th style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right' }}>🏢 매입원가(임차료)</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right' }}>확정 청구액(매출)</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right' }}>매입원가(임차료)</th>
                       <th style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right' }}>🚚 직송 운송비</th>
-                      <th style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right' }}>🟢 순마진</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right' }}>순마진</th>
                       <th style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'center' }}>마진율</th>
                       <th style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'center' }}>대차대조 상태</th>
                     </tr>
@@ -3126,7 +3126,7 @@ export const RentAssets: React.FC = () => {
                       <th style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right' }}>누적 렌탈 청구액</th>
                       <th style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right' }}>누적 지급 임차료</th>
                       <th style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right' }}>누적 운송비</th>
-                      <th style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right' }}>🟢 누적 공헌이익</th>
+                      <th style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'right' }}>누적 공헌이익</th>
                       <th style={{ padding: '10px', whiteSpace: 'nowrap', textAlign: 'center' }}>수익 기여율</th>
                     </tr>
                   </thead>
@@ -3789,7 +3789,7 @@ export const RentAssets: React.FC = () => {
 
             {/* 검증 소견 카드 */}
             <div style={{ padding: '14px', backgroundColor: 'var(--bg-app)', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
-              <div style={{ fontWeight: '800', fontSize: '12px', color: 'var(--text-main)', marginBottom: '4px' }}>🔍 시스템 자동 대사 검증 소견:</div>
+              <div style={{ fontWeight: '800', fontSize: '12px', color: 'var(--text-main)', marginBottom: '4px' }}>시스템 자동 대사 검증 소견:</div>
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{selectedReconcileDetail.reason}</div>
               <div style={{ fontSize: '12px', fontWeight: '700', marginTop: '6px', color: selectedReconcileDetail.priceDiff > 0 ? '#ef4444' : (selectedReconcileDetail.priceDiff < 0 ? '#10b981' : 'var(--text-main)') }}>
                 오차: {selectedReconcileDetail.priceDiff > 0 ? `+₩${selectedReconcileDetail.priceDiff.toLocaleString()}원 (임차처 과다 청구)` : selectedReconcileDetail.priceDiff < 0 ? `-₩${Math.abs(selectedReconcileDetail.priceDiff).toLocaleString()}원 (임차처 임의 할인)` : '0원 (정상 일치)'}
@@ -3888,7 +3888,7 @@ export const RentAssets: React.FC = () => {
                                     </span>
                                   ) : (
                                     <span style={{ color: r.itemType === 'EQUIPMENT' ? '#ef4444' : '#3b82f6', fontWeight: '600' }}>
-                                      {r.itemType === 'EQUIPMENT' ? '⚠️ 자사 미등록 유령장비' : `📦 기타비용 (${r.memo || '비장비 항목'})`}
+                                      {r.itemType === 'EQUIPMENT' ? '자사 미등록 유령장비' : `기타비용 (${r.memo || '비장비 항목'})`}
                                     </span>
                                   )}
                                 </td>

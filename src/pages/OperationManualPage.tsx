@@ -728,7 +728,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
       {/* ── 1. 최종 업무 목표 (Terminal Objective - Gutenberg 질문 1) ── */}
       <div style={{ backgroundColor: 'var(--bg-card)', padding: '14px 18px', borderRadius: '8px', borderLeft: '4px solid var(--primary)', border: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 900, color: '#1E40AF' }}>🎯 최종 업무 목표</span>
+          <span style={{ fontSize: '13px', fontWeight: 900, color: '#1E40AF' }}>최종 업무 목표</span>
         </div>
         <div style={{ fontSize: '13.5px', lineHeight: '1.6', color: '#1E293B', fontWeight: 600 }}>
           {item.objective}
@@ -1018,7 +1018,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
       {/* ── 4. 최종 확정 및 대차대조 결과 (Audit Result - Gutenberg 질문 4) ── */}
       <div style={{ backgroundColor: 'rgba(4, 120, 87, 0.08)', padding: '12px 16px', borderRadius: '8px', borderLeft: '4px solid var(--success)', border: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-          <span style={{ fontSize: '13px', fontWeight: 900, color: '#065F46' }}>⚖️ 최종 감사 및 확정 결과</span>
+          <span style={{ fontSize: '13px', fontWeight: 900, color: '#065F46' }}>최종 감사 및 확정 결과</span>
         </div>
         <div style={{ fontSize: '13px', lineHeight: '1.6', color: '#064E3B', fontWeight: 600 }}>
           {item.auditResult}
@@ -1050,7 +1050,7 @@ const ManualDetailCard: React.FC<{ item: MenuManualDetail }> = ({ item }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px 12px', borderRadius: '6px', backgroundColor: 'rgba(180, 83, 9, 0.08)', border: '1px solid rgba(180, 83, 9, 0.25)' }}>
           {item.precautions.map((prec, pIdx) => (
             <div key={pIdx} style={{ fontSize: '12.5px', color: '#78350F', lineHeight: '1.5', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-              <span style={{ color: '#D97706', fontWeight: 700 }}>⚠️</span>
+              <span style={{ color: '#D97706', fontWeight: 700 }}></span>
               <span>{prec}</span>
             </div>
           ))}

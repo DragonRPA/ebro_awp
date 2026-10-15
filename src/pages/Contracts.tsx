@@ -740,11 +740,11 @@ export const Contracts: React.FC = () => {
         historyTitle = '🔄 자산 대차/교체 이력';
       } else if (h.changeType === 'FEE_CHANGE' || h.description?.includes('단가')) {
         if (h.description.includes('월/일') || (h.description.includes('월') && h.description.includes('일'))) {
-          historyTitle = '💰 월/일 렌탈료 단가 변경';
+          historyTitle = '월/일 렌탈료 단가 변경';
         } else if (h.description.includes('일 렌탈료') || h.description.includes('일 단가') || h.description.includes('일단가')) {
-          historyTitle = '💰 일 렌탈료 단가 변경';
+          historyTitle = '일 렌탈료 단가 변경';
         } else {
-          historyTitle = '💰 월 렌탈료 단가 변경';
+          historyTitle = '월 렌탈료 단가 변경';
         }
       } else if (h.changeType === 'REGISTER') {
         historyTitle = '계약 등록';
@@ -1334,7 +1334,7 @@ export const Contracts: React.FC = () => {
         return;
       }
       if (selectedCustOverdue && !overdueAcknowledged) {
-        showToast('⚠️ 연체 채권 경각심 통제: [수금 책임 인지] 확인 체크박스에 동의해야 신규 계약을 등록할 수 있습니다.', 'error');
+        showToast('연체 채권 경각심 통제: [수금 책임 인지] 확인 체크박스에 동의해야 신규 계약을 등록할 수 있습니다.', 'error');
         return;
       }
     }
@@ -2805,7 +2805,7 @@ export const Contracts: React.FC = () => {
                               {ca.status === 'RETURNED' ? (
                                 <span style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-muted)', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>🚫 반납완료</span>
                               ) : (
-                                <span style={{ backgroundColor: '#dcfce3', color: '#166534', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>🟢 운용중</span>
+                                <span style={{ backgroundColor: '#dcfce3', color: '#166534', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>운용중</span>
                               )}
                               <span style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
                                 {ca.startDate ? ca.startDate.slice(2).replace(/-/g, '.') : ''} ~ {ca.status === 'RETURNED' ? (ca.actualReturnDate ? ca.actualReturnDate.slice(2).replace(/-/g, '.') : (ca.endDate ? ca.endDate.slice(2).replace(/-/g, '.') : '미상')) : (ca.endDate ? ca.endDate.slice(2).replace(/-/g, '.') : '미정')}
@@ -3632,7 +3632,7 @@ export const Contracts: React.FC = () => {
 
               {/* 계약 속성 자동 상속 카드 명세 */}
               <div style={{ padding: '12px', backgroundColor: 'var(--bg-app)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ fontWeight: 'bold', color: 'var(--primary)', marginBottom: '2px' }}>🔒 기존 계약 속성 100% 자동 상속</div>
+                <div style={{ fontWeight: 'bold', color: 'var(--primary)', marginBottom: '2px' }}>기존 계약 속성 100% 자동 상속</div>
                 <div>고객사 / 현장: <strong>{getCustName(activeContract.customerId)} — {getSiteName(activeContract.siteId)}</strong></div>
                 <div>대차 요구 모델: <strong>{exchangeIdentifyType === 'KNOWN' ? (assets.find(a => a.id === exchangeOldAssetId)?.modelName || activeContractAssets[0]?.expectedModel || '동급 동일 모델') : (exchangeContractAssetId || activeContractAssets[0]?.expectedModel || '동급 동일 모델')}</strong></div>
                 <div>렌탈료 단가 조건: 기존 계약 월 렌탈료 조건 100% 동일 상속 (추가 비용 없음)</div>
@@ -3703,7 +3703,7 @@ export const Contracts: React.FC = () => {
             <div style={{ padding: '10px 14px', borderRadius: '6px', backgroundColor: selectedCustOverdue.isBlocked ? '#fef2f2' : '#fffbeb', border: `1px solid ${selectedCustOverdue.isBlocked ? '#f87171' : '#fcd34d'}`, color: selectedCustOverdue.isBlocked ? '#991b1b' : '#92400e', marginBottom: '14px', fontSize: '12px' }}>
               <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                 <AlertTriangle size={15} color={selectedCustOverdue.isBlocked ? '#dc2626' : '#d97706'} />
-                {selectedCustOverdue.isBlocked ? '🚫 [경영진 처분] 거래 불가' : '⚠️ [연체 채권 경각심 통제 경보]'}
+                {selectedCustOverdue.isBlocked ? '🚫 [경영진 처분] 거래 불가' : '[연체 채권 경각심 통제 경보]'}
               </div>
               <div>
                 {selectedCustOverdue.isBlocked
@@ -3763,7 +3763,7 @@ export const Contracts: React.FC = () => {
                 </option>
                 {filteredCustModalList.map(c => (
                   <option key={c.id} value={c.id}>
-                    {c.transactionStatus === 'RESTRICT_NEW' ? `🟡 [추가계약금지] ${c.name}` : isCustomerTotalBlocked(c.transactionStatus) ? `🔴 [전면차단] ${c.name}` : c.name} ({c.bizRegNo})
+                    {c.transactionStatus === 'RESTRICT_NEW' ? `[추가계약금지] ${c.name}` : isCustomerTotalBlocked(c.transactionStatus) ? `[전면차단] ${c.name}` : c.name} ({c.bizRegNo})
                   </option>
                 ))}
               </select>
@@ -4201,7 +4201,7 @@ export const Contracts: React.FC = () => {
           fontSize: '14px',
           fontWeight: 600
         }}>
-          {toastMessage.type === 'success' ? '✅' : '⚠️'} {toastMessage.text}
+          {toastMessage.type === 'success' ? '' : ''} {toastMessage.text}
         </div>
       )}
     </div>

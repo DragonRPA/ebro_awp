@@ -273,7 +273,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
       showToast('조직도 및 구성원 마스터 데이터가 데이터베이스에 성공적으로 저장되었습니다.');
     } catch (err: any) {
       console.error('Organization batch save error:', err);
-      showErrorModal(`⚠️ 조직도 및 구성원 저장 중 DB 동기화 오류가 발생했습니다:\n${err.message || err.details || JSON.stringify(err)}`, '조직도 DB 저장 오류');
+      showErrorModal(`조직도 및 구성원 저장 중 DB 동기화 오류가 발생했습니다:\n${err.message || err.details || JSON.stringify(err)}`, '조직도 DB 저장 오류');
     }
   };
 
@@ -770,7 +770,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
                 onClick={(e) => toggleRevealPhone(user.id, e)}
                 title="클릭하여 마스킹 해제/적용"
               >
-                <span>📞</span>
+                <span></span>
                 <span>{isPrivileged || revealedPhones.has(user.id) ? user.phone : maskPhoneNumber(user.phone)}</span>
                 <span style={{ cursor: 'pointer', opacity: 0.6, display: 'inline-flex', alignItems: 'center' }}>
                   {isPrivileged || revealedPhones.has(user.id) ? <EyeOff size={11} /> : <Eye size={11} />}
@@ -990,7 +990,7 @@ const enforceManagerPolicies = (usersList: UserNode[], deptList: Department[]) =
                     paddingTop: '4px',
                     borderTop: '1px dashed var(--border-color)'
                   }}>
-                    <span>💡 전사 미할당 기능: {unassignedCompanyAttributes.map(a => a.label).join(', ')}</span>
+                    <span>전사 미할당 기능: {unassignedCompanyAttributes.map(a => a.label).join(', ')}</span>
                     <span style={{ color: 'var(--primary)' }}>(전사 공용 공유 ToDo 풀로 자동 개방됨)</span>
                   </div>
                 )}

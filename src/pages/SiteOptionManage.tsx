@@ -63,7 +63,7 @@ const DeveloperSiteMergeModal: React.FC<{
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ background: 'var(--bg-app)', padding: '24px', borderRadius: '12px', width: '500px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>🛠️ 개발자 전용 현장 마스터 강제 병합</h3>
+        <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>개발자 전용 현장 마스터 강제 병합</h3>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>현장 A 선택</label>
@@ -213,10 +213,10 @@ export const SiteOptionManage: React.FC = () => {
           `• 대표 계약: ${sampleContract.contractNo || sampleContract.id}${sampleCust ? ` (${sampleCust.name})` : ''}\n` +
           `• 회계 정산 및 출고·배차·청구 이력 보존을 위해 계약이 한 번이라도 체결된 현장은 영구 삭제가 제한됩니다.\n\n` +
           (canCloseNow
-            ? `💡 현재 진행 중인 계약이 없으므로 삭제 대신 [현장 완공(종료) 처리]를 권장합니다.\n지금 바로 해당 현장을 완공(종료) 처리하시겠습니까?`
+            ? `현재 진행 중인 계약이 없으므로 삭제 대신 [현장 완공(종료) 처리]를 권장합니다.\n지금 바로 해당 현장을 완공(종료) 처리하시겠습니까?`
             : activeContracts.length > 0
-              ? `💡 진행 중인 계약(${activeContracts.length}건)이 모두 종료된 후 삭제 대신 [현장 완공(종료) 처리] 기능을 이용해 주십시오.`
-              : `💡 해당 현장은 이미 완공(종료) 처리되어 보관 중입니다.`),
+              ? `진행 중인 계약(${activeContracts.length}건)이 모두 종료된 후 삭제 대신 [현장 완공(종료) 처리] 기능을 이용해 주십시오.`
+              : `해당 현장은 이미 완공(종료) 처리되어 보관 중입니다.`),
         confirmText: canCloseNow ? '현장 완공(종료) 처리' : '확인',
         hideCancel: !canCloseNow,
         isDanger: false,
@@ -1304,7 +1304,7 @@ export const SiteOptionManage: React.FC = () => {
                               {activeSite.name}
                             </h3>
                             {activeSite.isActive !== false ? (
-                              <span style={{ fontSize: '11px', fontWeight: 800, color: '#fff', backgroundColor: '#10b981', padding: '2px 6px', borderRadius: '4px' }}>🟢 가동중</span>
+                              <span style={{ fontSize: '11px', fontWeight: 800, color: '#fff', backgroundColor: '#10b981', padding: '2px 6px', borderRadius: '4px' }}>가동중</span>
                             ) : (
                               <span style={{ fontSize: '11px', fontWeight: 800, color: '#fff', backgroundColor: '#64748b', padding: '2px 6px', borderRadius: '4px' }}>⚫ 종료(완공)</span>
                             )}

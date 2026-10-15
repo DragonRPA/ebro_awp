@@ -3383,7 +3383,7 @@ export const SmartDispatch4: React.FC = () => {
                       </span>
                       {totalAvailShortage > 0 ? (
                         <span className="dispatch4-qty-badge shortage text-xs font-normal px-2 py-0.5 shadow-sm">
-                          <span>⚠️ 외부 임차 {totalAvailShortage}대 필요</span>
+                          <span>외부 임차 {totalAvailShortage}대 필요</span>
                           <span className="font-normal">(가용 초과)</span>
                         </span>
                       ) : (
@@ -3590,10 +3590,10 @@ export const SmartDispatch4: React.FC = () => {
                       <label className="text-xs font-bold text-slate-200">상차 시간 구분 *</label>
                       <div className="dispatch4-slot-group">
                         {[
-                          { id: 'ASAP', label: '⚡ ASAP (최우선)' },
+                          { id: 'ASAP', label: 'ASAP (최우선)' },
                           { id: 'MORNING', label: '🌅 오전' },
                           { id: 'AFTERNOON', label: '🌇 오후' },
-                          { id: 'EXACT', label: '⏰ 시간지정' },
+                          { id: 'EXACT', label: '시간지정' },
                         ].map(slot => (
                           <button
                             key={slot.id}
@@ -3644,10 +3644,10 @@ export const SmartDispatch4: React.FC = () => {
                       <label className="text-xs font-bold text-slate-200">하차 시간 구분</label>
                       <div className="dispatch4-slot-group">
                         {[
-                          { id: 'ASAP', label: '⚡ ASAP' },
+                          { id: 'ASAP', label: 'ASAP' },
                           { id: 'MORNING', label: '🌅 오전' },
                           { id: 'AFTERNOON', label: '🌇 오후' },
-                          { id: 'EXACT', label: '⏰ 시간지정' },
+                          { id: 'EXACT', label: '시간지정' },
                         ].map(slot => (
                           <button
                             key={slot.id}
@@ -4811,7 +4811,7 @@ export const SmartDispatch4: React.FC = () => {
                       <div className="flex flex-col gap-1 bg-slate-950 p-2.5 rounded-lg border border-emerald-900/40">
                         <div className="flex items-center justify-between text-[11px] font-bold text-emerald-400">
                           <span className="flex items-center gap-1">
-                            <span>📄 원본 통화 텍스트 대조</span>
+                            <span>원본 통화 텍스트 대조</span>
                             <span className="text-[10px] font-normal text-slate-400">(모바일 등록 원문)</span>
                           </span>
                           {linkedUpload && (

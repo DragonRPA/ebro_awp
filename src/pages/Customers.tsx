@@ -1159,7 +1159,7 @@ export const Customers: React.FC = () => {
     const linkedContracts = (contracts || []).filter(c => c.siteId === siteId);
     let confirmMsg = `정말로 현장 [${siteName}] 정보를 삭제하시겠습니까?`;
     if (linkedContracts.length > 0) {
-      confirmMsg = `⚠️ 해당 현장에 연결된 계약 ${linkedContracts.length}건이 존재합니다.\n정말로 현장 [${siteName}] 정보를 삭제하시겠습니까?`;
+      confirmMsg = `해당 현장에 연결된 계약 ${linkedContracts.length}건이 존재합니다.\n정말로 현장 [${siteName}] 정보를 삭제하시겠습니까?`;
     }
     if (!window.confirm(confirmMsg)) return;
 
@@ -1598,8 +1598,8 @@ const handleDeleteAccount = async (accId: string) => {
           >
             <option value="ALL">전체 상태</option>
             <option value="ACTIVE">정상 거래</option>
-            <option value="RESTRICT_NEW">🟡 추가계약 금지</option>
-            <option value="BLOCKED_ALL">🔴 전면 차단</option>
+            <option value="RESTRICT_NEW">추가계약 금지</option>
+            <option value="BLOCKED_ALL">전면 차단</option>
             <option value="BLOCKED">전체 제재 (차단/금지)</option>
             <option value="CLOSED">폐업</option>
           </select>

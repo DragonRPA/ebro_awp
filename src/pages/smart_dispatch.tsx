@@ -881,7 +881,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
       return;
     }
     if (matchedCustOverdue && matchedCustOverdue.overdueSum > 0 && !dispatchOverdueAcknowledged) {
-      showToast('⚠️ 연체 채권 경각심 통제: [수금 책임 인지] 확인 체크박스에 동의해야 출고의뢰를 발행할 수 있습니다.', 'error');
+      showToast('연체 채권 경각심 통제: [수금 책임 인지] 확인 체크박스에 동의해야 출고의뢰를 발행할 수 있습니다.', 'error');
       return;
     }
     const matchedSite = matchedCust ? sites.find(s => s.customerId === matchedCust.id && (s.name.replace(/\s/g, '') === siteName.replace(/\s/g, '') || s.name.includes(siteName) || siteName.includes(s.name))) : null;
@@ -941,7 +941,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
     // 프로세스 진행 모달 초기화
     setProgressLogs([]);
     setProgressPercent(0);
-    setCurrentStepText('🚀 출고 파이프라인 가동 준비 중...');
+    setCurrentStepText('출고 파이프라인 가동 준비 중...');
     setIsProcessCompleted(false);
     setIsProcessingModalOpen(true);
 
@@ -957,7 +957,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
       showToast('신규 고객/현장을 자동 등록하고 출고 프로세스를 연속 진행합니다.');
       setProgressLogs([]);
       setProgressPercent(0);
-      setCurrentStepText('🚀 신규 고객/현장 등록 & 출고 프로세스 재가동 중...');
+      setCurrentStepText('신규 고객/현장 등록 & 출고 프로세스 재가동 중...');
       setIsProcessCompleted(false);
       setIsProcessingModalOpen(true);
 
@@ -1186,7 +1186,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                 fontWeight: '600'
               }}>
                 <CheckCircle2 size={16} color="#10b981" />
-                <span>⚡ 기존 DB 자동 상속: {inheritedFieldList.join(', ')}</span>
+                <span>기존 DB 자동 상속: {inheritedFieldList.join(', ')}</span>
                 <span style={{ fontSize: '11px', color: 'var(--success)', fontWeight: '400', marginLeft: 'auto' }}>
                   (새로운 입력 시 고객/현장 마스터가 자동 최신화됩니다)
                 </span>
@@ -1207,7 +1207,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                 <div style={{ padding: '10px 14px', borderRadius: '6px', backgroundColor: matchedCustOverdue.isBlocked ? '#fef2f2' : '#fffbeb', border: `1px solid ${matchedCustOverdue.isBlocked ? '#f87171' : '#fcd34d'}`, color: matchedCustOverdue.isBlocked ? '#991b1b' : '#92400e', marginBottom: '12px', fontSize: '12px' }}>
                   <div style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                     <AlertTriangle size={15} color={matchedCustOverdue.isBlocked ? '#dc2626' : '#d97706'} />
-                    {matchedCustOverdue.isBlocked ? '🚫 [경영진 처분] 거래 불가' : '⚠️ [연체 채권 경각심 통제 경보]'}
+                    {matchedCustOverdue.isBlocked ? '🚫 [경영진 처분] 거래 불가' : '[연체 채권 경각심 통제 경보]'}
                   </div>
                   <div>
                     {matchedCustOverdue.isBlocked
@@ -1542,7 +1542,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                     checked={isSetAsCustomerDefault}
                     onChange={e => setIsSetAsCustomerDefault(e.target.checked)}
                   />
-                  <span>🏢 이 옵션·보양·스펙을 '{customerName || '해당 고객사'}' 기본 설정으로 등록 (다음 신규 현장에도 자동 적용)</span>
+                  <span>이 옵션·보양·스펙을 '{customerName || '해당 고객사'}' 기본 설정으로 등록 (다음 신규 현장에도 자동 적용)</span>
                 </label>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 600, color: 'var(--primary)' }}>
                   <input
@@ -1550,7 +1550,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                     checked={applyToAllSites}
                     onChange={e => setApplyToAllSites(e.target.checked)}
                   />
-                  <span>⚡ '{customerName || '해당 고객사'}'의 등록된 모든 현장에도 이 옵션·보양을 동일하게 일괄 적용</span>
+                  <span>'{customerName || '해당 고객사'}'의 등록된 모든 현장에도 이 옵션·보양을 동일하게 일괄 적용</span>
                 </label>
 
                 {/* 🌟 옵션 변경 시 현장 마스터 저장 확인 토글 (PC 버전) */}
@@ -1574,7 +1574,7 @@ ${activeSpecs.map((s, idx) => `  ${idx + 1}. [적용] ${s.label}`).join('\n') ||
                         checked={saveOptionsToSite}
                         onChange={e => setSaveOptionsToSite(e.target.checked)}
                       />
-                      <span>📍 변경된 옵션을 '{siteName || '해당 현장'}' 기본값으로 갱신 저장 (미체크 시 이번 출고 1회성 적용, 기존 현장 옵션 보존)</span>
+                      <span>변경된 옵션을 '{siteName || '해당 현장'}' 기본값으로 갱신 저장 (미체크 시 이번 출고 1회성 적용, 기존 현장 옵션 보존)</span>
                     </label>
                   </div>
                 )}

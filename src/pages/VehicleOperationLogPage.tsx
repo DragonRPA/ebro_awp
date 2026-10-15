@@ -993,11 +993,11 @@ export const VehicleOperationLogPage: React.FC = () => {
             <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
               <span>🚗 운행건수: <strong style={{ color: 'var(--primary)' }}>{operationMetrics.totalCount}</strong>건</span>
               <span>🛣️ 총 주행거리: <strong style={{ color: 'var(--primary)' }}>{operationMetrics.totalDistance.toLocaleString()}</strong> km</span>
-              <span>🏢 업무용: <strong style={{ color: '#10b981' }}>{operationMetrics.businessDistance.toLocaleString()}</strong> km</span>
+              <span>업무용: <strong style={{ color: '#10b981' }}>{operationMetrics.businessDistance.toLocaleString()}</strong> km</span>
               <span>🏠 출퇴근: <strong style={{ color: '#a855f7' }}>{operationMetrics.commuteDistance.toLocaleString()}</strong> km</span>
             </div>
             <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-              <span>📊 업무사용비율: <strong style={{ color: '#eab308' }}>{operationMetrics.businessRatio}%</strong></span>
+              <span>업무사용비율: <strong style={{ color: '#eab308' }}>{operationMetrics.businessRatio}%</strong></span>
             </div>
           </div>
         </>
@@ -1181,7 +1181,7 @@ export const VehicleOperationLogPage: React.FC = () => {
             <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
               <span>⛽ 주유건수: <strong style={{ color: 'var(--primary)' }}>{fuelMetrics.totalCount}</strong>건</span>
               <span>🛢️ 총 주유용량: <strong style={{ color: 'var(--primary)' }}>{fuelMetrics.totalVolume.toFixed(1)}</strong> L</span>
-              <span>💰 총 주유금액: <strong style={{ color: '#10b981' }}>₩{fuelMetrics.totalAmount.toLocaleString()}</strong></span>
+              <span>총 주유금액: <strong style={{ color: '#10b981' }}>₩{fuelMetrics.totalAmount.toLocaleString()}</strong></span>
             </div>
             <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
               <span>🧾 영수증 증빙율: <strong style={{ color: '#eab308' }}>{fuelMetrics.proofRatio}% ({fuelMetrics.receiptProofCount}/{fuelMetrics.totalCount})</strong></span>

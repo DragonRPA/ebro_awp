@@ -110,7 +110,7 @@ export const GoogleConfig: React.FC = () => {
         document.body.removeChild(link2);
       }, 500);
     } catch (err: any) {
-      alert(`⚠️ 인증서 다운로드 실패: ${err?.message || err}`);
+      alert(`인증서 다운로드 실패: ${err?.message || err}`);
     }
   };
 
@@ -126,7 +126,7 @@ export const GoogleConfig: React.FC = () => {
       link.click();
       document.body.removeChild(link);
     } catch (err: any) {
-      alert(`⚠️ 에이전트 다운로드 실패: ${err?.message || err}`);
+      alert(`에이전트 다운로드 실패: ${err?.message || err}`);
     } finally {
       setIsDownloadingAgent(false);
     }
@@ -268,7 +268,7 @@ export const GoogleConfig: React.FC = () => {
       await updateGoogleConfig(updated);
       alert('클라우드 스토리지 및 Cloudflare R2 설정 정보가 안전하게 저장되었습니다.');
     } catch (err: any) {
-      showErrorModal(`⚠️ 설정 원격 DB 저장 실패:\n\n${err?.message || err}`, '스토리지 설정 저장 오류');
+      showErrorModal(`설정 원격 DB 저장 실패:\n\n${err?.message || err}`, '스토리지 설정 저장 오류');
     }
   };
 
@@ -278,18 +278,18 @@ export const GoogleConfig: React.FC = () => {
     setTestLog([]);
 
     const logs = [
-      '⚡ 구글 드라이브 및 Gmail SMTP 모의 연결 테스트를 시작합니다...',
-      `🔍 1단계: 계정 자격증명 검증 중... (${googleEmail})`,
+      '구글 드라이브 및 Gmail SMTP 모의 연결 테스트를 시작합니다...',
+      `1단계: 계정 자격증명 검증 중... (${googleEmail})`,
       '✔ 1단계 통과: 구글 OAuth 토큰 갱신에 성공했습니다.',
-      '🔍 2단계: 구글 드라이브 API 연동 및 폴더 상태 확인 중...',
+      '2단계: 구글 드라이브 API 연동 및 폴더 상태 확인 중...',
       `📁 렌탈계약서 보존 경로 확인: [${contractFolder}] 존재함`,
       `📁 소모품납품증빙 보존 경로 확인: [${consumableFolder}] 존재함`,
       `📁 출고의뢰/배차 보존 경로 확인: [${deliveryFolder}] 존재함`,
       `📁 정비보고서 보존 경로 확인: [${maintenanceFolder}] 존재함`,
       '✔ 2단계 통과: 모든 드라이브 폴더가 정상 식별되었습니다.',
-      '🔍 3단계: Gmail SMTP 릴레이 테스트 메일 송신 중...',
+      '3단계: Gmail SMTP 릴레이 테스트 메일 송신 중...',
       '📬 [테스트 메일] 발송 성공 (수신처: 기윤리프트 내부 백업 메일함)',
-      '🎉 구글 클라우드 연동 테스트가 모두 성공적으로 완료되었습니다!'
+      '구글 클라우드 연동 테스트가 모두 성공적으로 완료되었습니다!'
     ];
 
     let currentLogIndex = 0;
@@ -641,7 +641,7 @@ export const GoogleConfig: React.FC = () => {
                     <li><strong>[📥 eBroAgent.exe 다운로드]</strong> 버튼을 누릅니다.</li>
                     <li>다운로드된 <code>eBroAgent.exe</code> 파일을 <code>C:\eBroAgent\</code> 에 넣습니다.</li>
                     <li><strong><code>eBroAgent.exe</code></strong> 파일을 더블클릭하여 실행합니다. (Node.js 불필요)</li>
-                    <li>웹 화면 상단에 <strong>`🟢 로컬 에이전트 가동중`</strong> 신호등이 즉시 켜집니다.</li>
+                    <li>웹 화면 상단에 <strong>`로컬 에이전트 가동중`</strong> 신호등이 즉시 켜집니다.</li>
                   </ol>
                 </div>
 

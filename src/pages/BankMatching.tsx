@@ -1269,8 +1269,8 @@ export const BankMatching: React.FC = () => {
                   value={statusFilter}
                   onChange={(e: any) => setStatusFilter(e.target.value)} className="form-control" style={{ width: '160px', fontSize: '12px', padding: '4px 8px', height: '28px' }}>
                   <option value="ALL">전체 매칭 상태</option>
-                  <option value="UNMATCHED_ALL">⚠️ 전체 미대사건</option>
-                  <option value="MATCHED_ALL">✅ 전체 대사완료건</option>
+                  <option value="UNMATCHED_ALL">전체 미대사건</option>
+                  <option value="MATCHED_ALL">전체 대사완료건</option>
                   <option value="DEPOSIT_UNMATCHED">📥 입금 미수납</option>
                   <option value="DEPOSIT_MATCHED">📥 입금 수납 완료</option>
                   <option value="WITHDRAW_UNMATCHED">💸 출금 미대사</option>
