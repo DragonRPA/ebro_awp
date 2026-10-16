@@ -199,11 +199,18 @@ export const GoogleConfig: React.FC = () => {
 
   useEffect(() => {
     if (currentConfig) {
-      setGoogleEmail(currentConfig.googleEmail || '');
+      const emailStr = (currentConfig.googleEmail || '').trim();
+      const emailLower = emailStr.toLowerCase();
+      const inferredProvider = currentConfig.smtpProvider || (emailLower.endsWith('@naver.com') ? 'NAVER' : (emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) ? 'DAUM' : 'GMAIL');
+      const inferredHost = (currentConfig.smtpHost && !(emailLower.endsWith('@naver.com') && currentConfig.smtpHost.includes('gmail.com')))
+        ? currentConfig.smtpHost
+        : (inferredProvider === 'NAVER' ? 'smtp.naver.com' : inferredProvider === 'DAUM' ? 'smtp.daum.net' : 'smtp.gmail.com');
+
+      setGoogleEmail(emailStr);
       setGooglePassword(decryptSecret(currentConfig.googlePassword || ''));
       setGmailAppPassword(decryptSecret(currentConfig.gmailAppPassword || ''));
-      setSmtpProvider(currentConfig.smtpProvider || 'GMAIL');
-      setSmtpHost(currentConfig.smtpHost || (currentConfig.smtpProvider === 'NAVER' ? 'smtp.naver.com' : currentConfig.smtpProvider === 'DAUM' ? 'smtp.daum.net' : 'smtp.gmail.com'));
+      setSmtpProvider(inferredProvider);
+      setSmtpHost(inferredHost);
       setSmtpPort(currentConfig.smtpPort || 465);
       setContractFolder(currentConfig.contractFolder || '');
       setConsumableFolder(currentConfig.consumableFolder || '');

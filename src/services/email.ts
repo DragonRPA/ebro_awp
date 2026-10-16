@@ -132,9 +132,25 @@ class RealGmailService {
     ).replace(/\s+/g, '').trim();
     const gmailAppPassword = decryptSecret(rawAppPass);
 
-    const smtpProvider = dbConfig?.smtpProvider || lsConfig?.smtpProvider || 'GMAIL';
-    const smtpHost = dbConfig?.smtpHost || lsConfig?.smtpHost || '';
-    const smtpPort = dbConfig?.smtpPort || lsConfig?.smtpPort || 0;
+    const emailLower = googleEmail.toLowerCase();
+    let smtpProvider = dbConfig?.smtpProvider || lsConfig?.smtpProvider || '';
+    if (!smtpProvider) {
+      if (emailLower.endsWith('@naver.com')) smtpProvider = 'NAVER';
+      else if (emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) smtpProvider = 'DAUM';
+      else smtpProvider = 'GMAIL';
+    }
+
+    let smtpHost = dbConfig?.smtpHost || lsConfig?.smtpHost || '';
+    if (!smtpHost || (emailLower.endsWith('@naver.com') && smtpHost.includes('gmail.com')) || ((emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) && smtpHost.includes('gmail.com'))) {
+      if (smtpProvider === 'NAVER' || emailLower.endsWith('@naver.com')) {
+        smtpHost = 'smtp.naver.com';
+      } else if (smtpProvider === 'DAUM' || emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) {
+        smtpHost = 'smtp.daum.net';
+      } else {
+        smtpHost = 'smtp.gmail.com';
+      }
+    }
+    const smtpPort = dbConfig?.smtpPort || lsConfig?.smtpPort || 465;
 
     if (!googleEmail || !gmailAppPassword || gmailAppPassword.includes('•')) {
       // 🛡️ [전사 표준 헌장 5.9조 테스트 격리 지원] 테스트 모드이거나 개발자 격리 발송인 경우 로컬 모의 발송 보존

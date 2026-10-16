@@ -30,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { to, cc, subject, body, html, googleEmail, gmailAppPassword, smtpHost, smtpPort, attachments, tenantCorp, tenantBrand, fromName } = req.body || {};
+  const { to, cc, subject, body, html, googleEmail, gmailAppPassword, smtpProvider, smtpHost, smtpPort, attachments, tenantCorp, tenantBrand, fromName } = req.body || {};
 
   if (!to || !subject || !body) {
     return res.status(400).json({ error: '수신자(to), 제목(subject), 본문(body)은 필수 항목입니다.' });
@@ -41,19 +41,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (!effectiveEmail || !effectivePassword) {
     return res.status(400).json({
-      error: '구글 연동 설정에 16자리 Gmail 앱 비밀번호가 올바르게 설정되지 않았습니다. 서버 환경변수(GMAIL_APP_PASSWORD) 또는 시스템 설정을 확인해 주세요.'
+      error: '공식 메일 연동 설정에 발송용 앱 비밀번호가 올바르게 설정되지 않았습니다. 시스템 설정을 확인해 주세요.'
     });
   }
 
   try {
     const cleanEmail = effectiveEmail;
     const cleanPass  = effectivePassword;
+    const emailLower = cleanEmail.toLowerCase();
+
+    let resolvedHost = smtpHost;
+    const providerUpper = String(smtpProvider || '').toUpperCase();
+    if (!resolvedHost || (emailLower.endsWith('@naver.com') && resolvedHost.includes('gmail.com')) || ((emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) && resolvedHost.includes('gmail.com'))) {
+      if (providerUpper === 'NAVER' || emailLower.endsWith('@naver.com')) {
+        resolvedHost = 'smtp.naver.com';
+      } else if (providerUpper === 'DAUM' || emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) {
+        resolvedHost = 'smtp.daum.net';
+      } else {
+        resolvedHost = 'smtp.gmail.com';
+      }
+    }
+    const resolvedPort = Number(smtpPort) || 465;
 
     // SMTP 클라이언트 트랜스포터 생성
     const transporter = nodemailer.createTransport({
-      host: smtpHost || 'smtp.gmail.com',
-      port: smtpPort || 465,
-      secure: true, // SSL (port 465)
+      host: resolvedHost,
+      port: resolvedPort,
+      secure: resolvedPort === 465, // SSL (port 465)
       auth: {
         user: cleanEmail,
         pass: cleanPass
@@ -111,9 +125,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
   } catch (err: any) {
-    console.error('Gmail SMTP Transport Error:', err);
+    console.error('SMTP Transport Error:', err);
     return res.status(500).json({
-      error: `Gmail 발송 실패: ${err?.message || '구글 앱 비밀번호가 올바른지 확인해 주세요.'}`
+      error: `SMTP 발송 실패 (${effectiveEmail}): ${err?.message || '이메일 계정 및 앱 비밀번호 설정을 확인해 주세요.'}`
     });
   }
 }

@@ -362,9 +362,6 @@ export const OfficialMailPage: React.FC = () => {
           <Mail size={18} color="var(--primary)" />
           <div>
             <h2 data-mid="official_mail-header" style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>공식 메일 발송</h2>
-            <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '2px 0 0' }}>
-              회사 공식 메일 계정({senderEmail}) 기반 견적서·회사소개서·제원표·서식 발송 센터
-            </p>
           </div>
         </div>
 

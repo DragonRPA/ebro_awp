@@ -854,13 +854,14 @@ const server = http.createServer(async (req, res) => {
         // SMTP 호스트 및 포트 결정 (NAVER, DAUM, GMAIL, CUSTOM 등 지원)
         let resolvedHost = smtpHost;
         let resolvedPort = Number(smtpPort) || 465;
+        const emailLower = cleanEmail.toLowerCase();
 
-        if (!resolvedHost) {
+        if (!resolvedHost || (emailLower.endsWith('@naver.com') && resolvedHost.includes('gmail.com')) || ((emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) && resolvedHost.includes('gmail.com'))) {
           const provider = (smtpProvider || '').toUpperCase();
-          if (provider === 'NAVER' || cleanEmail.toLowerCase().endsWith('@naver.com')) {
+          if (provider === 'NAVER' || emailLower.endsWith('@naver.com')) {
             resolvedHost = 'smtp.naver.com';
             resolvedPort = resolvedPort || 465;
-          } else if (provider === 'DAUM' || cleanEmail.toLowerCase().endsWith('@daum.net') || cleanEmail.toLowerCase().endsWith('@hanmail.net')) {
+          } else if (provider === 'DAUM' || emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) {
             resolvedHost = 'smtp.daum.net';
             resolvedPort = resolvedPort || 465;
           } else {
