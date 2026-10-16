@@ -175,34 +175,33 @@ export const GoogleConfig: React.FC = () => {
   const activeTenantId = currentTenant?.id || currentTenant?.tenantCode || import.meta.env.VITE_TENANT_ID || '';
   const activeTenantCode = currentTenant?.tenantCode || currentTenant?.id || '';
   const activeSubdomain = currentTenant?.subdomain || '';
+  const isTenantMatch = React.useCallback((tId?: string) => {
+    if (!tId) return false;
+    const norm = tId.toLowerCase();
+    const idNorm = activeTenantId.toLowerCase();
+    const codeNorm = activeTenantCode.toLowerCase();
+    const subNorm = activeSubdomain.toLowerCase();
+    return (
+      (idNorm && norm === idNorm) ||
+      (codeNorm && norm === codeNorm) ||
+      (subNorm && norm === subNorm) ||
+      (codeNorm && norm === `tenant-${codeNorm}`) ||
+      (subNorm && norm === `tenant-${subNorm}`)
+    );
+  }, [activeTenantId, activeTenantCode, activeSubdomain]);
+
   const currentConfig = React.useMemo(() => {
     if (!googleConfigs || googleConfigs.length === 0) return undefined;
-    const isMatch = (c: GoogleConfigType) =>
-      c.tenantId && (
-        (activeTenantId && c.tenantId === activeTenantId) ||
-        (activeTenantCode && c.tenantId === activeTenantCode) ||
-        (activeSubdomain && c.tenantId === activeSubdomain) ||
-        (activeTenantCode && c.tenantId === `tenant-${activeTenantCode}`)
-      );
-    const tenantMatched = googleConfigs.filter(isMatch);
-    // 1순위: 현재 테넌트 일치 + 개발자 기본 메일(77.victor.lee@gmail.com)이 아닌 실제 등록 메일 중 최신 갱신된 설정
-    const tenantCustom = tenantMatched.filter(c => c.googleEmail && !c.googleEmail.includes('victor.lee'));
-    if (tenantCustom.length > 0) {
-      return [...tenantCustom].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))[0];
-    }
-    // 2순위: 전체 중 개발자 기본 메일이 아닌 실제 등록 메일 중 최신 갱신된 설정
-    const customEmailConfigs = googleConfigs.filter(c => c.googleEmail && !c.googleEmail.includes('victor.lee'));
-    if (customEmailConfigs.length > 0) {
-      return [...customEmailConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))[0];
-    }
-    // 3순위: 테넌트 일치 중 최신 갱신된 설정
-    if (tenantMatched.length > 0) {
-      return [...tenantMatched].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))[0];
-    }
-    // 4순위: 전체 중 최신 갱신된 설정
     const sorted = [...googleConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
-    return sorted[0];
-  }, [googleConfigs, activeTenantId, activeTenantCode, activeSubdomain]);
+    const tenantMatched = sorted.filter(c => isTenantMatch(c.tenantId));
+    // 1순위: 현재 테넌트 일치 + 개발자 기본 메일(77.victor.lee@gmail.com)이 아닌 실제 등록 메일 중 최신 갱신된 설정
+    const tenantCustom = tenantMatched.find(c => c.googleEmail && !c.googleEmail.includes('victor.lee'));
+    if (tenantCustom) return tenantCustom;
+    // 2순위: 현재 테넌트 일치 중 최신 갱신된 설정
+    if (tenantMatched.length > 0) return tenantMatched[0];
+    // 3순위: 테넌트가 단일 1개뿐인 환경에서만 레거시 호환 폴백
+    return undefined;
+  }, [googleConfigs, isTenantMatch]);
 
   useEffect(() => {
     if (currentConfig) {
@@ -225,6 +224,13 @@ export const GoogleConfig: React.FC = () => {
       setMaintenanceFolder(currentConfig.maintenanceFolder || '');
       setMirrorRecursive(currentConfig.mirrorRecursive !== undefined ? currentConfig.mirrorRecursive : true);
       setIsDevMode(currentConfig.isDevMode !== undefined ? currentConfig.isDevMode : true);
+    } else {
+      setGoogleEmail('');
+      setGooglePassword('');
+      setGmailAppPassword('');
+      setSmtpProvider('GMAIL');
+      setSmtpHost('smtp.gmail.com');
+      setSmtpPort(465);
     }
   }, [currentConfig]);
 
@@ -271,8 +277,8 @@ export const GoogleConfig: React.FC = () => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      // 설정 레코드가 없거나 새로 생성해야 하는 경우를 대비해 ID 기본값 지정
-      const configId = currentConfig?.id || 'GOOG-0000001';
+      // 테넌트별 고유 설정 ID 부여 (하드코딩된 GOOG-0000001 충돌 원천 차단)
+      const configId = currentConfig?.id || `cfg-${activeTenantId || 'default'}`;
 
       // 사용자가 마스킹 값(••••••••••••) 또는 빈값을 입력했을 경우, 기존 저장되어 있던 실제 비밀번호 값을 보존
       const finalPassword = (googlePassword === '••••••••••••' || !googlePassword) 

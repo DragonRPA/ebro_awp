@@ -65,43 +65,39 @@ export const OfficialMailPage: React.FC = () => {
   };
 
   const officialConfig = useMemo(() => {
-    // 1. Context에 로드된 googleConfigs 탐색
+    // 1. Context에 로드된 googleConfigs 탐색 (최신 갱신순 + 현재 테넌트 격리)
     if (googleConfigs && googleConfigs.length > 0) {
-      const tenantMatched = googleConfigs.find(c => isTenantMatch(c.tenantId) && c.googleEmail && !c.googleEmail.includes('victor.lee'));
-      if (tenantMatched) return tenantMatched;
-
-      const customEmailConfigs = googleConfigs.filter(c => c.googleEmail && !c.googleEmail.includes('victor.lee'));
-      if (customEmailConfigs.length > 0) {
-        return [...customEmailConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))[0];
-      }
-
-      const fallbackTenantMatched = googleConfigs.find(c => isTenantMatch(c.tenantId));
-      if (fallbackTenantMatched) return fallbackTenantMatched;
+      const sorted = [...googleConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+      const tenantMatched = sorted.filter(c => isTenantMatch(c.tenantId));
+      const tenantCustom = tenantMatched.find(c => c.googleEmail && !c.googleEmail.includes('victor.lee'));
+      if (tenantCustom) return tenantCustom;
+      if (tenantMatched.length > 0) return tenantMatched[0];
+      if (!activeTenantId) return sorted[0];
     }
 
     // 2. DB(db.googleConfigs) 탐색
-    const allDbConfigs = db.googleConfigs || [];
-    const dbExact = allDbConfigs.find(c => isTenantMatch(c.tenantId) && c.googleEmail && !c.googleEmail.includes('victor.lee'));
+    const allDbConfigs = [...(db.googleConfigs || [])].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+    const dbTenantMatched = allDbConfigs.filter(c => isTenantMatch(c.tenantId));
+    const dbExact = dbTenantMatched.find(c => c.googleEmail && !c.googleEmail.includes('victor.lee'));
     if (dbExact) return dbExact;
-
-    const dbCustom = allDbConfigs.find(c => c.googleEmail && !c.googleEmail.includes('victor.lee'));
-    if (dbCustom) return dbCustom;
+    if (dbTenantMatched.length > 0) return dbTenantMatched[0];
 
     // 3. localStorage('erp_googleConfigs') 탐색
     try {
       const lsVal = localStorage.getItem('erp_googleConfigs');
       if (lsVal) {
-        const lsConfigs: any[] = JSON.parse(lsVal);
-        if (Array.isArray(lsConfigs) && lsConfigs.length > 0) {
-          const lsExact = lsConfigs.find((c: any) => isTenantMatch(c.tenantId) && c.googleEmail && !c.googleEmail.includes('victor.lee'));
+        const rawLsConfigs: any[] = JSON.parse(lsVal);
+        if (Array.isArray(rawLsConfigs) && rawLsConfigs.length > 0) {
+          const lsConfigs = [...rawLsConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+          const lsTenantMatched = lsConfigs.filter((c: any) => isTenantMatch(c.tenantId));
+          const lsExact = lsTenantMatched.find((c: any) => c.googleEmail && !c.googleEmail.includes('victor.lee'));
           if (lsExact) return lsExact;
-          const lsCustom = lsConfigs.find((c: any) => c.googleEmail && !c.googleEmail.includes('victor.lee'));
-          if (lsCustom) return lsCustom;
+          if (lsTenantMatched.length > 0) return lsTenantMatched[0];
         }
       }
     } catch {}
 
-    return googleConfigs[0];
+    return undefined;
   }, [googleConfigs, activeTenantId, activeTenantCode, activeSubdomain, currentTenant]);
 
   const senderEmail = officialConfig?.googleEmail || currentTenant?.email || currentTenant?.taxEmail || '미설정 (공식 메일 연동 설정 필요)';

@@ -1928,7 +1928,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updatedAt: nowIso 
       };
 
-      // 1. 로컬 스토리지 즉시 반영
+      // 1. 로컬 스토리지 즉시 반영 (동일 테넌트 중복 행 동기화 포함)
       const currentList = [...db.googleConfigs];
       const localIndex = currentList.findIndex(cfg => cfg.id === configData.id);
       if (localIndex >= 0) {
@@ -1936,25 +1936,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } else {
         currentList.push({ ...payload, createdAt: nowIso });
       }
+      const sameTenantIds: string[] = [];
+      if (payload.tenantId) {
+        for (let i = 0; i < currentList.length; i++) {
+          const item = currentList[i];
+          if (item.id !== payload.id && item.tenantId && item.tenantId === payload.tenantId) {
+            currentList[i] = { ...payload, id: item.id };
+            sameTenantIds.push(item.id);
+          }
+        }
+      }
       db.googleConfigs = currentList;
       localStorage.setItem('erp_googleConfigs', JSON.stringify(currentList));
 
       // 2. Supabase UPSERT — 행 존재 여부와 관계없이 반드시 반영
       if (supabase) {
-        const upsertPayload = { ...payload, createdAt: (payload as any).createdAt || nowIso };
+        const rowsToUpsert = [
+          { ...payload, createdAt: (payload as any).createdAt || nowIso },
+          ...sameTenantIds.map(dupId => ({ ...payload, id: dupId, createdAt: nowIso }))
+        ];
         let { error } = await supabase
           .from('google_configs')
-          .upsert([upsertPayload], { onConflict: 'id' });
+          .upsert(rowsToUpsert, { onConflict: 'id' });
         if (error) {
           const msg = error.message || String(error);
           if (msg.includes('column') || msg.includes('Could not find') || error.code === 'PGRST200' || error.code === '42703' || error.code === 'PGRST204') {
             console.warn('Supabase upsert google_configs column cache error, retrying without optional columns:', error);
-            const fallback: any = { ...upsertPayload };
-            delete fallback.smtpHost;
-            delete fallback.smtpPort;
-            delete fallback.smtpProvider;
-            delete fallback.tenantId;
-            const retryRes = await supabase.from('google_configs').upsert([fallback], { onConflict: 'id' });
+            const fallbackRows = rowsToUpsert.map(r => {
+              const fb: any = { ...r };
+              delete fb.smtpHost;
+              delete fb.smtpPort;
+              delete fb.smtpProvider;
+              delete fb.tenantId;
+              return fb;
+            });
+            const retryRes = await supabase.from('google_configs').upsert(fallbackRows, { onConflict: 'id' });
             error = retryRes.error;
           }
         }

@@ -774,15 +774,16 @@ export const TenantManagementPage: React.FC = () => {
 
       // GoogleConfig에 R2 설정 저장/업데이트
       const targetTenantId = tenantToSave.id!;
-      const existingConfig = db.googleConfigs.find(c => c.tenantId === targetTenantId);
+      const existingConfig = db.googleConfigs.find(c => c.tenantId === targetTenantId || c.id === `cfg-${targetTenantId}`);
       if (existingConfig) {
         db.updateRow<GoogleConfig>('googleConfigs', existingConfig.id, {
+          tenantId: targetTenantId,
           ...r2Config,
           updatedAt: new Date().toISOString()
         });
       } else {
         db.insertRow<GoogleConfig>('googleConfigs', {
-          id: db.generateNextId('googleConfigs', db.googleConfigs),
+          id: `cfg-${targetTenantId}`,
           tenantId: targetTenantId,
           googleEmail: '',
           contractFolder: '',

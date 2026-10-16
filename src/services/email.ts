@@ -99,13 +99,9 @@ class RealGmailService {
     if (!dbConfig) {
       dbConfig = tenantConfigs.find(c => c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'));
     }
-    // 3순위: 전체 중 개발자 기본 메일이 아닌 실제 사용자 지정 이메일 설정
+    // 3순위: 현재 테넌트 일치 첫번째 설정 (타 테넌트 설정 침범 원천 차단)
     if (!dbConfig) {
-      dbConfig = allDbConfigs.find(c => c.googleEmail && !c.googleEmail.includes('victor.lee') && c.gmailAppPassword && !c.gmailAppPassword.includes('•'));
-    }
-    // 4순위: 테넌트 일치 첫번째 설정 또는 전체 중 최신 설정
-    if (!dbConfig) {
-      dbConfig = tenantConfigs[0] || allDbConfigs[0];
+      dbConfig = tenantConfigs[0] || (!activeTenantId ? allDbConfigs[0] : undefined);
     }
     
     const lsVal = localStorage.getItem('erp_googleConfigs');
@@ -118,8 +114,8 @@ class RealGmailService {
     if (!lsConfig) {
       lsConfig = lsTenantConfigs.find((c: any) => c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'));
     }
-    if (!lsConfig && lsConfigs.length > 0) {
-      lsConfig = lsConfigs.find((c: any) => c.googleEmail && !c.googleEmail.includes('victor.lee') && c.gmailAppPassword && !c.gmailAppPassword.includes('•')) || lsTenantConfigs[0] || lsConfigs[0];
+    if (!lsConfig) {
+      lsConfig = lsTenantConfigs[0] || (!activeTenantId ? lsConfigs[0] : undefined);
     }
 
     const googleEmail = (
