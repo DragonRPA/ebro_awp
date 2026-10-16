@@ -177,22 +177,29 @@ export const GoogleConfig: React.FC = () => {
   const activeSubdomain = currentTenant?.subdomain || '';
   const currentConfig = React.useMemo(() => {
     if (!googleConfigs || googleConfigs.length === 0) return undefined;
-    // 1순위: 현재 테넌트 ID/코드/서브도메인과 정확히 일치하는 설정
-    const exact = googleConfigs.find(c =>
+    const isMatch = (c: GoogleConfigType) =>
       c.tenantId && (
         (activeTenantId && c.tenantId === activeTenantId) ||
         (activeTenantCode && c.tenantId === activeTenantCode) ||
         (activeSubdomain && c.tenantId === activeSubdomain) ||
         (activeTenantCode && c.tenantId === `tenant-${activeTenantCode}`)
-      )
-    );
-    if (exact) return exact;
-    // 2순위: 개발자 기본 메일(77.victor.lee@gmail.com)이 아닌 실제 등록 메일을 보유한 설정 중 최신 갱신된 것
+      );
+    const tenantMatched = googleConfigs.filter(isMatch);
+    // 1순위: 현재 테넌트 일치 + 개발자 기본 메일(77.victor.lee@gmail.com)이 아닌 실제 등록 메일 중 최신 갱신된 설정
+    const tenantCustom = tenantMatched.filter(c => c.googleEmail && !c.googleEmail.includes('victor.lee'));
+    if (tenantCustom.length > 0) {
+      return [...tenantCustom].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))[0];
+    }
+    // 2순위: 전체 중 개발자 기본 메일이 아닌 실제 등록 메일 중 최신 갱신된 설정
     const customEmailConfigs = googleConfigs.filter(c => c.googleEmail && !c.googleEmail.includes('victor.lee'));
     if (customEmailConfigs.length > 0) {
       return [...customEmailConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))[0];
     }
-    // 3순위: 최신 갱신된 설정
+    // 3순위: 테넌트 일치 중 최신 갱신된 설정
+    if (tenantMatched.length > 0) {
+      return [...tenantMatched].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))[0];
+    }
+    // 4순위: 전체 중 최신 갱신된 설정
     const sorted = [...googleConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
     return sorted[0];
   }, [googleConfigs, activeTenantId, activeTenantCode, activeSubdomain]);

@@ -91,9 +91,9 @@ class RealGmailService {
       );
     };
     
-    const allDbConfigs = db.googleConfigs || [];
+    const allDbConfigs = [...(db.googleConfigs || [])].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
     const tenantConfigs = allDbConfigs.filter(c => isTenantMatch(c.tenantId));
-    // 1순위: 현재 테넌트 일치 + 개발자 기본 계정이 아닌 실제 설정 계정
+    // 1순위: 현재 테넌트 일치 + 개발자 기본 계정이 아닌 실제 설정 계정 (최신 갱신순)
     let dbConfig = tenantConfigs.find(c => c.googleEmail && !c.googleEmail.includes('victor.lee') && c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'));
     // 2순위: 현재 테넌트 일치 + 유효 앱비밀번호
     if (!dbConfig) {
@@ -109,13 +109,16 @@ class RealGmailService {
     }
     
     const lsVal = localStorage.getItem('erp_googleConfigs');
-    const lsConfigs: any[] = lsVal ? JSON.parse(lsVal) : [];
-    const lsTenantConfigs = Array.isArray(lsConfigs) ? lsConfigs.filter((c: any) => isTenantMatch(c.tenantId)) : [];
+    const rawLsConfigs: any[] = lsVal ? JSON.parse(lsVal) : [];
+    const lsConfigs: any[] = Array.isArray(rawLsConfigs)
+      ? [...rawLsConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
+      : [];
+    const lsTenantConfigs = lsConfigs.filter((c: any) => isTenantMatch(c.tenantId));
     let lsConfig = lsTenantConfigs.find((c: any) => c.googleEmail && !c.googleEmail.includes('victor.lee') && c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'));
     if (!lsConfig) {
       lsConfig = lsTenantConfigs.find((c: any) => c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'));
     }
-    if (!lsConfig && Array.isArray(lsConfigs)) {
+    if (!lsConfig && lsConfigs.length > 0) {
       lsConfig = lsConfigs.find((c: any) => c.googleEmail && !c.googleEmail.includes('victor.lee') && c.gmailAppPassword && !c.gmailAppPassword.includes('•')) || lsTenantConfigs[0] || lsConfigs[0];
     }
 
