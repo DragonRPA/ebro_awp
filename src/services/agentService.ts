@@ -357,16 +357,57 @@ export async function fetchViaExtensionBridge(pathOrUrl: string, init?: RequestI
  * - 확장 프로그램 미설치 시 불필요한 2초 대기 없이 루프백으로 즉각 직행
  * - W3C Potentially Trustworthy Origin 표준 준수: http://localhost:5175 1순위 시도
  */
-export async function fetchWithAgentFallback(path: string, init?: RequestInit): Promise<Response> {
+export interface AgentFetchOptions extends RequestInit {
+  timeout?: number;
+  requireAgent?: boolean; // true인 경우 에이전트 미응답 시 즉시 AgentRequiredModal 표출 및 명확한 안내 에러 반환
+  actionName?: string;    // AgentRequiredModal에 표시할 작업명 (예: '계약서 패키지 생성', '이메일 발송')
+  skipPrecheck?: boolean; // true인 경우 사전 /health 핑 생략
+}
+
+export async function fetchWithAgentFallback(path: string, init?: AgentFetchOptions): Promise<Response> {
+  const isHealthCheck = path.startsWith('/health');
+  const requestedTimeout = init?.timeout || 3500;
+  const requireAgent = Boolean(init?.requireAgent);
+  const actionName = init?.actionName || '로컬 연동 작업';
+
+  // 🛡️ [사전 실행 상태 확인 (Pre-flight Health Check)]
+  // 무거운 작업(타임아웃 > 5000ms) 또는 requireAgent=true인 프로세스는 본 요청 전 1.2초 빠른 핑으로 에이전트 생존 여부를 선행 확인합니다.
+  if (!isHealthCheck && !init?.skipPrecheck && (requireAgent || requestedTimeout > 5000 || !lastKnownAgentOnline)) {
+    let alive = false;
+    const precheckHosts = ['http://127.0.0.1:5175', 'http://localhost:5175'];
+    for (const h of precheckHosts) {
+      try {
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 1200);
+        const pingRes = await fetch(`${h}/health`, { method: 'GET', signal: ctrl.signal, cache: 'no-store' });
+        clearTimeout(tid);
+        if (pingRes.ok) {
+          alive = true;
+          activeAgentBaseUrl = h;
+          setGlobalAgentStatus(true);
+          break;
+        }
+      } catch {}
+    }
+
+    if (!alive) {
+      setGlobalAgentStatus(false, null);
+      if (requireAgent) {
+        notifyAgentRequired(actionName);
+      }
+      throw new Error(`로컬 에이전트(eBroAgent)가 실행되고 있지 않습니다. PC에서 eBroAgent를 실행한 후 다시 시도해 주십시오.`);
+    }
+  }
+
   const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:' && !window.location.hostname.includes('localhost');
   const hasExtension = isExtensionBridgeAvailable();
 
   // 1. HTTPS 환경이며 확장 프로그램이 실제 활성화되어 있는 경우에만 1순위로 시도 (최대 1500ms 빠른 타임아웃)
-  if (isHttps && hasExtension) {
+  if (isHttps && hasExtension && requestedTimeout <= 5000) {
     try {
       const extRes = await fetchViaExtensionBridge(path, {
         ...init,
-        timeout: Math.min((init as any)?.timeout || 3000, 1500)
+        timeout: Math.min(requestedTimeout, 1500)
       } as RequestInit & { timeout?: number });
       if (extRes.ok || extRes.status < 500) {
         setGlobalAgentStatus(true);
@@ -377,33 +418,29 @@ export async function fetchWithAgentFallback(path: string, init?: RequestInit): 
     }
   }
 
-  // 2. 직접 루프백 fetch 시도 (W3C 표준 준수: http://localhost:5175 ➔ http://127.0.0.1:5175 순차 탐색)
-  const candidateHosts = [
-    'http://localhost:5175',
-    'http://127.0.0.1:5175'
-  ];
+  // 2. 직접 루프백 fetch 시도 (Windows IPv6 ::1 지연 방지를 위해 127.0.0.1 1순위 시도)
+  const candidateHosts = activeAgentBaseUrl === 'http://localhost:5175'
+    ? ['http://localhost:5175', 'http://127.0.0.1:5175']
+    : ['http://127.0.0.1:5175', 'http://localhost:5175'];
 
   let lastErr: any = null;
   for (const host of candidateHosts) {
     let timeoutTimer: any = null;
     try {
-      // 💡 [핵심 방어] 신호 소진(Signal Exhaustion) 방지:
-      // 부모 init?.signal이 이미 aborted된 상태라면 이를 복사하지 않고, 각 호스트마다 신선한 독립 AbortController를 생성합니다.
       const freshController = new AbortController();
-      const hostTimeoutMs = (init as any)?.timeout || 3500;
+      const hostTimeoutMs = requestedTimeout;
 
       if (init?.signal && !init.signal.aborted) {
         init.signal.addEventListener('abort', () => freshController.abort(init.signal?.reason), { once: true });
       } else {
         timeoutTimer = setTimeout(() => {
-          freshController.abort(new DOMException('Local agent loopback request timeout', 'TimeoutError'));
+          freshController.abort(new DOMException('로컬 에이전트 응답 대기 시간이 초과되었습니다 (Timeout).', 'TimeoutError'));
         }, hostTimeoutMs);
       }
 
       const mergedInit: RequestInit = {
         ...init,
         signal: freshController.signal,
-        // Chrome/Edge W3C Local Network Access(LNA) 표준
       };
 
       const res = await fetch(`${host}${path}`, mergedInit);
@@ -414,13 +451,17 @@ export async function fetchWithAgentFallback(path: string, init?: RequestInit): 
         setGlobalAgentStatus(true);
         return res;
       }
-    } catch (e) {
+    } catch (e: any) {
       if (timeoutTimer) clearTimeout(timeoutTimer);
       lastErr = e;
+      // 첫 번째 호스트에서 이미 긴 타임아웃(>5초)을 소진한 경우 두 번째 호스트에서 또 대기하지 않고 즉시 탈출
+      if (requestedTimeout > 5000) {
+        break;
+      }
     }
   }
 
-  // 3. 만약 직접 fetch가 실패했고 확장 프로그램을 아직 시도 안 했다면(HTTP 개발 환경이거나 PNA 차단 시), 보조 시도
+  // 3. 만약 직접 fetch가 실패했고 확장 프로그램을 아직 시도 안 했다면 보조 시도
   if (!isHttps && hasExtension) {
     try {
       const extRes = await fetchViaExtensionBridge(path, init);
@@ -431,7 +472,11 @@ export async function fetchWithAgentFallback(path: string, init?: RequestInit): 
     } catch (e) {}
   }
 
-  throw lastErr || new Error('로컬 에이전트 연결 실패');
+  if (requireAgent) {
+    notifyAgentRequired(actionName);
+  }
+
+  throw lastErr || new Error('로컬 에이전트(eBroAgent)와 통신할 수 없습니다. 에이전트 실행 상태를 확인해 주십시오.');
 }
 
 // ── 🌐 단일 전역 에이전트 헬스체크 매니저 (Single Global Autonomous Poller) ──

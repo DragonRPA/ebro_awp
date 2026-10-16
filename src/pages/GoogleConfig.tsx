@@ -172,24 +172,30 @@ export const GoogleConfig: React.FC = () => {
 
   // ── 🚀 [살아있는 계약 기반] 3대 핵심 서류 생성 + 구글 드라이브 원본 통합 팩 ──
 
-  const activeTenantId = currentTenant?.id || currentTenant?.tenantCode || import.meta.env.VITE_TENANT_ID || 'giyuen';
+  const activeTenantId = currentTenant?.id || currentTenant?.tenantCode || import.meta.env.VITE_TENANT_ID || '';
+  const activeTenantCode = currentTenant?.tenantCode || currentTenant?.id || '';
+  const activeSubdomain = currentTenant?.subdomain || '';
   const currentConfig = React.useMemo(() => {
     if (!googleConfigs || googleConfigs.length === 0) return undefined;
-    // 1순위: 현재 테넌트 ID/코드와 정확히 일치하는 설정
-    const exact = googleConfigs.find(c => c.tenantId && (c.tenantId === activeTenantId || c.tenantId === currentTenant?.id || c.tenantId === currentTenant?.tenantCode));
+    // 1순위: 현재 테넌트 ID/코드/서브도메인과 정확히 일치하는 설정
+    const exact = googleConfigs.find(c =>
+      c.tenantId && (
+        (activeTenantId && c.tenantId === activeTenantId) ||
+        (activeTenantCode && c.tenantId === activeTenantCode) ||
+        (activeSubdomain && c.tenantId === activeSubdomain) ||
+        (activeTenantCode && c.tenantId === `tenant-${activeTenantCode}`)
+      )
+    );
     if (exact) return exact;
-    // 2순위: 테넌트 키워드('giyeonlift', 'giyuen', 'tenant-giyeonlift')를 포함하는 설정
-    const tenantMatched = googleConfigs.find(c => c.tenantId && (c.tenantId === 'giyuen' || c.tenantId === 'giyeonlift' || c.tenantId === 'tenant-giyeonlift'));
-    if (tenantMatched) return tenantMatched;
-    // 3순위: 개발자 기본 메일(77.victor.lee@gmail.com)이 아닌 실제 등록 메일을 보유한 설정 중 최신 갱신된 것
+    // 2순위: 개발자 기본 메일(77.victor.lee@gmail.com)이 아닌 실제 등록 메일을 보유한 설정 중 최신 갱신된 것
     const customEmailConfigs = googleConfigs.filter(c => c.googleEmail && !c.googleEmail.includes('victor.lee'));
     if (customEmailConfigs.length > 0) {
       return [...customEmailConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))[0];
     }
-    // 4순위: 최신 갱신된 설정
+    // 3순위: 최신 갱신된 설정
     const sorted = [...googleConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
     return sorted[0];
-  }, [googleConfigs, activeTenantId, currentTenant]);
+  }, [googleConfigs, activeTenantId, activeTenantCode, activeSubdomain]);
 
   useEffect(() => {
     if (currentConfig) {

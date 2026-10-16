@@ -1,4 +1,4 @@
-﻿// src/components/ContractDocumentBundleModal.tsx
+// src/components/ContractDocumentBundleModal.tsx
 import React, { useState, useMemo, useEffect } from 'react';
 import { getTenantPlugin } from '../integrations/TenantPluginManager';
 import { useApp } from '../context/AppContext';
@@ -515,7 +515,10 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       const agentResp = await fetchWithAgentFallback('/api/generate-contract-bundle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bundleOptions)
+        body: JSON.stringify(bundleOptions),
+        timeout: 60000,
+        requireAgent: true,
+        actionName: '계약서 패키지 PDF 생성'
       });
 
       if (!agentResp.ok) {
@@ -540,9 +543,9 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       };
 
       setProgressPercent(100);
-      let successMsg = `✅ 총 ${finalRes.pageCount}페이지 정품 계약서패키지 조립 완료!`;
+      let successMsg = `총 ${finalRes.pageCount}페이지 정품 계약서패키지 조립 완료!`;
       if (agentRes.missingAttachments && agentRes.missingAttachments.length > 0) {
-        successMsg += ` (⚠️ 일부 첨부 서류 미보유: ${agentRes.missingAttachments.join(', ')})`;
+        successMsg += ` (일부 첨부 서류 미보유: ${agentRes.missingAttachments.join(', ')})`;
       }
       setProgressText(successMsg);
       setGeneratedResult(finalRes);
@@ -563,7 +566,10 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       await fetchWithAgentFallback('/api/open-local-file', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath: pdf.filePath })
+        body: JSON.stringify({ filePath: pdf.filePath }),
+        timeout: 5000,
+        requireAgent: true,
+        actionName: '로컬 PDF 파일 열기'
       });
     } catch (err: any) {
       showErrorModal?.(`파일 열기 실패:\n${err.message || err}`);
@@ -599,7 +605,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       const attachments = [{ filename: pdf.fileName, localPath: pdf.filePath }];
 
       const tenantBrand = currentTenant?.displayName || currentTenant?.tradeName || 'e-Bro Lift';
-      const tenantCorp = currentTenant?.tradeName || currentTenant?.corporateName || tenantBrand || '(주)기연리프트';
+      const tenantCorp = currentTenant?.tradeName || currentTenant?.corporateName || tenantBrand;
 
       // 3. Gmail SMTP 서비스 호출
       await emailService.sendEmail(

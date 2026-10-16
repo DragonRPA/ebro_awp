@@ -47,29 +47,42 @@ export const OfficialMailPage: React.FC = () => {
   const [sendResultMsg, setSendResultMsg] = useState<{ success: boolean; text: string } | null>(null);
   const [sentHistory, setSentHistory] = useState<SentEmail[]>([]);
 
-  // 공식 발신 계정 (SSOT: 현재 테넌트 설정 및 실제 유효 이메일 우선 매핑)
-  const activeTenantId = currentTenant?.id || currentTenant?.tenantCode || import.meta.env.VITE_TENANT_ID || 'giyuen';
+  // 공식 발신 계정 (SSOT: 현재 테넌트 변수 기반 설정 및 실제 유효 이메일 우선 매핑)
+  const activeTenantId = (currentTenant?.id || '').toLowerCase();
+  const activeTenantCode = (currentTenant?.tenantCode || '').toLowerCase();
+  const activeSubdomain = (currentTenant?.subdomain || '').toLowerCase();
+
+  const isTenantMatch = (tId?: string) => {
+    if (!tId) return false;
+    const normalized = tId.toLowerCase();
+    return (
+      normalized === activeTenantId ||
+      normalized === activeTenantCode ||
+      normalized === activeSubdomain ||
+      (activeTenantCode && normalized.includes(activeTenantCode)) ||
+      (activeSubdomain && normalized.includes(activeSubdomain))
+    );
+  };
+
   const officialConfig = useMemo(() => {
     // 1. Context에 로드된 googleConfigs 탐색
     if (googleConfigs && googleConfigs.length > 0) {
-      const exact = googleConfigs.find(c => c.tenantId && (c.tenantId === activeTenantId || c.tenantId === currentTenant?.id || c.tenantId === currentTenant?.tenantCode));
-      if (exact && exact.googleEmail && !exact.googleEmail.includes('victor.lee')) return exact;
-
-      const tenantMatched = googleConfigs.find(c => c.tenantId && (c.tenantId === 'giyuen' || c.tenantId === 'giyeonlift' || c.tenantId === 'tenant-giyeonlift'));
-      if (tenantMatched && tenantMatched.googleEmail && !tenantMatched.googleEmail.includes('victor.lee')) return tenantMatched;
+      const tenantMatched = googleConfigs.find(c => isTenantMatch(c.tenantId) && c.googleEmail && !c.googleEmail.includes('victor.lee'));
+      if (tenantMatched) return tenantMatched;
 
       const customEmailConfigs = googleConfigs.filter(c => c.googleEmail && !c.googleEmail.includes('victor.lee'));
       if (customEmailConfigs.length > 0) {
         return [...customEmailConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))[0];
       }
-      if (exact) return exact;
-      if (tenantMatched) return tenantMatched;
+
+      const fallbackTenantMatched = googleConfigs.find(c => isTenantMatch(c.tenantId));
+      if (fallbackTenantMatched) return fallbackTenantMatched;
     }
 
     // 2. DB(db.googleConfigs) 탐색
     const allDbConfigs = db.googleConfigs || [];
-    const dbExact = allDbConfigs.find(c => c.tenantId && (c.tenantId === activeTenantId || c.tenantId === currentTenant?.id || c.tenantId === currentTenant?.tenantCode));
-    if (dbExact && dbExact.googleEmail && !dbExact.googleEmail.includes('victor.lee')) return dbExact;
+    const dbExact = allDbConfigs.find(c => isTenantMatch(c.tenantId) && c.googleEmail && !c.googleEmail.includes('victor.lee'));
+    if (dbExact) return dbExact;
 
     const dbCustom = allDbConfigs.find(c => c.googleEmail && !c.googleEmail.includes('victor.lee'));
     if (dbCustom) return dbCustom;
@@ -80,6 +93,8 @@ export const OfficialMailPage: React.FC = () => {
       if (lsVal) {
         const lsConfigs: any[] = JSON.parse(lsVal);
         if (Array.isArray(lsConfigs) && lsConfigs.length > 0) {
+          const lsExact = lsConfigs.find((c: any) => isTenantMatch(c.tenantId) && c.googleEmail && !c.googleEmail.includes('victor.lee'));
+          if (lsExact) return lsExact;
           const lsCustom = lsConfigs.find((c: any) => c.googleEmail && !c.googleEmail.includes('victor.lee'));
           if (lsCustom) return lsCustom;
         }
@@ -87,10 +102,10 @@ export const OfficialMailPage: React.FC = () => {
     } catch {}
 
     return googleConfigs[0];
-  }, [googleConfigs, activeTenantId, currentTenant]);
+  }, [googleConfigs, activeTenantId, activeTenantCode, activeSubdomain, currentTenant]);
 
   const senderEmail = officialConfig?.googleEmail || currentTenant?.email || currentTenant?.taxEmail || '미설정 (공식 메일 연동 설정 필요)';
-  const senderBrand = currentTenant?.tradeName || currentTenant?.corporateName || '(주)기연리프트';
+  const senderBrand = currentTenant?.tradeName || currentTenant?.corporateName || currentTenant?.displayName || 'e-Bro ERP';
 
   // 최근 발송 이력 로드
   const loadHistory = () => {

@@ -72,19 +72,38 @@ class RealGmailService {
     fromName?: string
   ): Promise<SentEmail> {
 
-    // 1. 단일 진실의 원천(SSOT): db.googleConfigs 중 유효한 앱 비밀번호가 있는 설정 우선 조회
-    const currentTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
-    const isTenantMatch = (tId?: string) => tId === currentTenantId || tId === 'giyeonlift' || tId === 'giyuen' || tId === 'tenant-giyeonlift';
+    // 1. 단일 진실의 원천(SSOT): 현재 접속 테넌트(db.currentTenant) 변수 기반으로 공식 메일 설정 조회
+    const activeTenant = db.currentTenant;
+    const activeTenantId = (activeTenant?.id || '').toLowerCase();
+    const activeTenantCode = (activeTenant?.tenantCode || '').toLowerCase();
+    const activeSubdomain = (activeTenant?.subdomain || '').toLowerCase();
+    const defaultBrandName = activeTenant?.tradeName || activeTenant?.corporateName || activeTenant?.displayName || 'e-Bro ERP';
+
+    const isTenantMatch = (tId?: string) => {
+      if (!tId) return false;
+      const normalized = tId.toLowerCase();
+      return (
+        normalized === activeTenantId ||
+        normalized === activeTenantCode ||
+        normalized === activeSubdomain ||
+        (activeTenantCode && normalized.includes(activeTenantCode)) ||
+        (activeSubdomain && normalized.includes(activeSubdomain))
+      );
+    };
     
     const allDbConfigs = db.googleConfigs || [];
     const tenantConfigs = allDbConfigs.filter(c => isTenantMatch(c.tenantId));
-    // 1순위: 테넌트 일치 + 유효 앱비밀번호
-    let dbConfig = tenantConfigs.find(c => c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'));
-    // 2순위: 개발자 메일이 아닌 실제 사용자 지정 이메일 설정
+    // 1순위: 현재 테넌트 일치 + 개발자 기본 계정이 아닌 실제 설정 계정
+    let dbConfig = tenantConfigs.find(c => c.googleEmail && !c.googleEmail.includes('victor.lee') && c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'));
+    // 2순위: 현재 테넌트 일치 + 유효 앱비밀번호
+    if (!dbConfig) {
+      dbConfig = tenantConfigs.find(c => c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'));
+    }
+    // 3순위: 전체 중 개발자 기본 메일이 아닌 실제 사용자 지정 이메일 설정
     if (!dbConfig) {
       dbConfig = allDbConfigs.find(c => c.googleEmail && !c.googleEmail.includes('victor.lee') && c.gmailAppPassword && !c.gmailAppPassword.includes('•'));
     }
-    // 3순위: 테넌트 일치 첫번째 설정 또는 전체 중 최신 설정
+    // 4순위: 테넌트 일치 첫번째 설정 또는 전체 중 최신 설정
     if (!dbConfig) {
       dbConfig = tenantConfigs[0] || allDbConfigs[0];
     }
@@ -92,7 +111,10 @@ class RealGmailService {
     const lsVal = localStorage.getItem('erp_googleConfigs');
     const lsConfigs: any[] = lsVal ? JSON.parse(lsVal) : [];
     const lsTenantConfigs = Array.isArray(lsConfigs) ? lsConfigs.filter((c: any) => isTenantMatch(c.tenantId)) : [];
-    let lsConfig = lsTenantConfigs.find((c: any) => c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'));
+    let lsConfig = lsTenantConfigs.find((c: any) => c.googleEmail && !c.googleEmail.includes('victor.lee') && c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'));
+    if (!lsConfig) {
+      lsConfig = lsTenantConfigs.find((c: any) => c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'));
+    }
     if (!lsConfig && Array.isArray(lsConfigs)) {
       lsConfig = lsConfigs.find((c: any) => c.googleEmail && !c.googleEmail.includes('victor.lee') && c.gmailAppPassword && !c.gmailAppPassword.includes('•')) || lsTenantConfigs[0] || lsConfigs[0];
     }
@@ -134,16 +156,19 @@ class RealGmailService {
 
       if (!googleEmail) {
         throw new Error(
-          '⚠️ 발송용 구글 계정이 설정되어 있지 않습니다. [시스템 설정 > 공식 메일 연동 설정] 메뉴에서 구글 계정 이메일을 먼저 등록해 주세요.'
+          '발송용 공식 메일 계정이 설정되어 있지 않습니다. [시스템 설정 > 공식 메일 연동 설정] 메뉴에서 발송 계정 이메일을 먼저 등록해 주십시오.'
         );
       }
       throw new Error(
-        `⚠️ 구글 연동 계정(${googleEmail})의 16자리 Gmail 발송용 앱 비밀번호가 설정되지 않았거나 마스킹 상태입니다.\n\n[시스템 설정 > 공식 메일 연동 설정] 메뉴에서 구글 계정 2단계 인증 후 발급받으신 16자리 앱 비밀번호(App Password)를 직접 입력하고 [구글 연동 설정 저장]을 눌러 주세요.`
+        `공식 메일 연동 계정(${googleEmail})의 발송용 앱 비밀번호가 설정되지 않았거나 마스킹 상태입니다.\n\n[시스템 설정 > 공식 메일 연동 설정] 메뉴에서 앱 비밀번호를 입력하고 설정 저장을 진행해 주십시오.`
       );
     }
 
+    // 로컬 파일 경로(localPath) 첨부가 포함된 경우 로컬 에이전트 구동이 필수임
+    const hasLocalPathAttachment = attachments.some(att => Boolean(att.localPath) && !att.content);
+    const resolvedFromName = fromName || defaultBrandName;
 
-    // 2. 이메일 발송 실행: 로컬 에이전트(http://127.0.0.1:5175/api/send-email) 우선 (원본 Base64 그대로 전달)
+    // 2. 이메일 발송 실행: 로컬 에이전트(http://127.0.0.1:5175/api/send-email) 우선
     let sendSuccess = false;
     let lastError = '';
 
@@ -157,18 +182,20 @@ class RealGmailService {
       smtpProvider,
       smtpHost,
       smtpPort,
-      attachments: attachments, // Supabase 업로드 없이 원본 그대로 에이전트에 전달
-      fromName: fromName || '(주)기연리프트'
+      attachments: attachments,
+      fromName: resolvedFromName
     };
 
-    // 2-1. 로컬 에이전트 시도 (SMTP 연결 및 첨부파일 전송 고려하여 30초 타임아웃 부여)
+    // 2-1. 로컬 에이전트 시도 (사전 /health 핑 확인 후 25초 타임아웃 부여)
     try {
       const localResp = await fetchWithAgentFallback('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(localPayload),
-        timeout: 30000
-      } as any);
+        timeout: 25000,
+        requireAgent: hasLocalPathAttachment,
+        actionName: '이메일 발송'
+      });
       if (localResp.ok) {
         const localRes = await localResp.json();
         if (localRes.success) {
@@ -178,11 +205,15 @@ class RealGmailService {
         }
       } else {
         const errJson = await localResp.json().catch(() => ({}));
-        lastError = errJson.error || `에이전트 응답 오류 (${localResp.status})`;
+        lastError = errJson.error || `로컬 에이전트 응답 오류 (${localResp.status})`;
       }
     } catch (localErr: any) {
       lastError = localErr.message || String(localErr);
-      // 로컬 에이전트 미구동 시 조용히 Vercel로 폴백
+      // 로컬 파일 전용 첨부여서 에이전트가 필수인 경우 즉시 에러 반환 (안내 모달은 fetchWithAgentFallback에서 이미 표출됨)
+      if (hasLocalPathAttachment) {
+        throw new Error(lastError);
+      }
+      // 일반 Base64 첨부 또는 본문 메일인 경우 로컬 에이전트 미구동 시 클라우드(Vercel) 서버리스로 즉시 폴백
     }
 
     // 2-2. 에이전트 발송 실패(또는 미구동) 시 -> Supabase 임시 업로드 및 Vercel 서버리스 폴백
@@ -210,7 +241,7 @@ class RealGmailService {
             });
             
             if (uploadRes.success) {
-              return { filename: att.filename, url: uploadRes.fileUrl }; // URL로 대체하여 페이로드 극소화
+              return { filename: att.filename, url: uploadRes.fileUrl };
             }
             throw new Error('Supabase Storage 업로드에 실패하여 URL을 확보하지 못했습니다.');
           }));
@@ -231,7 +262,7 @@ class RealGmailService {
         smtpHost,
         smtpPort,
         attachments: processedAttachments,
-        fromName: fromName || '(주)기연리프트'
+        fromName: resolvedFromName
       };
 
       try {
@@ -246,13 +277,19 @@ class RealGmailService {
         try {
           result = JSON.parse(rawText);
         } catch (_) {
-          throw new Error(`서버 응답 오류 (${resp.status}): ${rawText.slice(0, 150)}`);
+          // 로컬 개발서버(Vite) 등에서 /api/send-email 엔드포인트가 없고 로컬 에이전트도 꺼져 있었던 경우
+          if (lastError && lastError.includes('eBroAgent')) {
+            const { notifyAgentRequired } = await import('./agentService');
+            notifyAgentRequired('이메일 발송');
+            throw new Error(lastError);
+          }
+          throw new Error(`메일 발송 서버 응답 오류 (${resp.status}): 로컬 에이전트(eBroAgent)가 실행 중인지 확인해 주십시오.`);
         }
 
         if (resp.ok && result.success) {
           sendSuccess = true;
         } else {
-          lastError = result.error || lastError || 'Gmail 서버 메일 전송에 실패했습니다.';
+          lastError = result.error || lastError || '메일 서버 전송에 실패했습니다.';
         }
       } catch (vercelErr: any) {
         lastError = vercelErr.message || lastError;
@@ -263,7 +300,7 @@ class RealGmailService {
       if (to === 'admin@ebro.co.kr' || subject.includes('[테스트 격리 발송]')) {
         sendSuccess = true;
       } else {
-        throw new Error(lastError || '이메일 발송에 실패했습니다. 구글 앱 비밀번호 및 네트워크 상태를 확인해 주세요.');
+        throw new Error(lastError || '이메일 발송에 실패했습니다. 공식 메일 연동 설정(앱 비밀번호) 및 로컬 에이전트 실행 상태를 확인해 주십시오.');
       }
     }
 

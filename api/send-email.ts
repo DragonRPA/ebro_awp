@@ -90,7 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    const senderBrand = fromName || tenantCorp || tenantBrand || '(주)기연리프트';
+    const senderBrand = fromName || tenantCorp || tenantBrand || process.env.VITE_TENANT_NAME || 'e-Bro ERP';
 
     const mailOptions: nodemailer.SendMailOptions = {
       from: `"${senderBrand}" <${cleanEmail}>`,

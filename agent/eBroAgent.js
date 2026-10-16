@@ -903,7 +903,7 @@ const server = http.createServer(async (req, res) => {
           };
         }) : undefined;
 
-        const senderDisplayName = fromName || '(주)기연리프트';
+        const senderDisplayName = fromName || payload.tenantCorp || payload.tenantBrand || policyData.tenantName || TENANT_CODE || 'e-Bro ERP';
 
         const info = await transporter.sendMail({
           from: `"${senderDisplayName}" <${cleanEmail}>`,
@@ -934,7 +934,7 @@ const server = http.createServer(async (req, res) => {
       try {
         const payload = JSON.parse(body || '{}');
         if (!fs.existsSync(tempBuildDir)) fs.mkdirSync(tempBuildDir, { recursive: true });
-        const tenantName = payload.tenantName || payload.corporateName || '기연리프트';
+        const tenantName = payload.tenantName || payload.corporateName || policyData.tenantName || TENANT_CODE || 'e-Bro ERP';
 
         const custName = payload.customerName || '고객사';
         const bizRegNo = payload.bizRegNo || '등록번호미지정';
