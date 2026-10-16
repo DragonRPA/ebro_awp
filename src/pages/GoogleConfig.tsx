@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Settings, Mail, FolderOpen, RefreshCw, CheckCircle2, Lock, Eye, EyeOff, ShieldCheck, HelpCircle, AlertTriangle, ExternalLink, Key, Search, Cloud, Folder, File, ArrowLeft, Download, HardDrive, FileText, Shield, Save } from 'lucide-react';
 import { GoogleConfig as GoogleConfigType } from '../services/db';
+import { decryptSecret } from '../utils/cryptoVault';
 import { CloudStoragePickerModal } from '../components/CloudStoragePickerModal';
 import { backupToGoogleDrive, getDriveReadToken, extractDriveFileId, extractDriveFolderId, listFilesInDriveFolder } from '../services/googleDriveBackup';
 import { 
@@ -193,8 +194,8 @@ export const GoogleConfig: React.FC = () => {
   useEffect(() => {
     if (currentConfig) {
       setGoogleEmail(currentConfig.googleEmail || '');
-      setGooglePassword(currentConfig.googlePassword || '');
-      setGmailAppPassword(currentConfig.gmailAppPassword || '');
+      setGooglePassword(decryptSecret(currentConfig.googlePassword || ''));
+      setGmailAppPassword(decryptSecret(currentConfig.gmailAppPassword || ''));
       setSmtpProvider(currentConfig.smtpProvider || 'GMAIL');
       setSmtpHost(currentConfig.smtpHost || (currentConfig.smtpProvider === 'NAVER' ? 'smtp.naver.com' : currentConfig.smtpProvider === 'DAUM' ? 'smtp.daum.net' : 'smtp.gmail.com'));
       setSmtpPort(currentConfig.smtpPort || 465);
