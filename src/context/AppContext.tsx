@@ -1941,9 +1941,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // 2. Supabase UPSERT — 행 존재 여부와 관계없이 반드시 반영
       if (supabase) {
         const upsertPayload = { ...payload, createdAt: (payload as any).createdAt || nowIso };
-        const { error } = await supabase
+        let { error } = await supabase
           .from('google_configs')
           .upsert([upsertPayload], { onConflict: 'id' });
+        if (error) {
+          const msg = error.message || String(error);
+          if (msg.includes('column') || msg.includes('Could not find') || error.code === 'PGRST200' || error.code === '42703' || error.code === 'PGRST204') {
+            console.warn('Supabase upsert google_configs column cache error, retrying without optional columns:', error);
+            const fallback: any = { ...upsertPayload };
+            delete fallback.smtpHost;
+            delete fallback.smtpPort;
+            delete fallback.smtpProvider;
+            delete fallback.tenantId;
+            const retryRes = await supabase.from('google_configs').upsert([fallback], { onConflict: 'id' });
+            error = retryRes.error;
+          }
+        }
         if (error) {
           console.error('Supabase upsert failed for google_configs:', error);
           throw error;
