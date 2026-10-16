@@ -74,13 +74,28 @@ class RealGmailService {
 
     // 1. 단일 진실의 원천(SSOT): db.googleConfigs 중 유효한 앱 비밀번호가 있는 설정 우선 조회
     const currentTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
-    const tenantConfigs = db.googleConfigs.filter(c => c.tenantId === currentTenantId || !c.tenantId);
-    const dbConfig = tenantConfigs.find(c => c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•')) || tenantConfigs[0] || db.googleConfigs[0];
+    const isTenantMatch = (tId?: string) => tId === currentTenantId || tId === 'giyeonlift' || tId === 'giyuen' || tId === 'tenant-giyeonlift';
+    
+    const allDbConfigs = db.googleConfigs || [];
+    const tenantConfigs = allDbConfigs.filter(c => isTenantMatch(c.tenantId));
+    // 1순위: 테넌트 일치 + 유효 앱비밀번호
+    let dbConfig = tenantConfigs.find(c => c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'));
+    // 2순위: 개발자 메일이 아닌 실제 사용자 지정 이메일 설정
+    if (!dbConfig) {
+      dbConfig = allDbConfigs.find(c => c.googleEmail && !c.googleEmail.includes('victor.lee') && c.gmailAppPassword && !c.gmailAppPassword.includes('•'));
+    }
+    // 3순위: 테넌트 일치 첫번째 설정 또는 전체 중 최신 설정
+    if (!dbConfig) {
+      dbConfig = tenantConfigs[0] || allDbConfigs[0];
+    }
     
     const lsVal = localStorage.getItem('erp_googleConfigs');
-    const lsConfigs = lsVal ? JSON.parse(lsVal) : [];
-    const lsTenantConfigs = Array.isArray(lsConfigs) ? lsConfigs.filter((c: any) => c.tenantId === currentTenantId || !c.tenantId) : [];
-    const lsConfig = lsTenantConfigs.find((c: any) => c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•')) || lsTenantConfigs[0] || (Array.isArray(lsConfigs) ? lsConfigs[0] : null);
+    const lsConfigs: any[] = lsVal ? JSON.parse(lsVal) : [];
+    const lsTenantConfigs = Array.isArray(lsConfigs) ? lsConfigs.filter((c: any) => isTenantMatch(c.tenantId)) : [];
+    let lsConfig = lsTenantConfigs.find((c: any) => c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'));
+    if (!lsConfig && Array.isArray(lsConfigs)) {
+      lsConfig = lsConfigs.find((c: any) => c.googleEmail && !c.googleEmail.includes('victor.lee') && c.gmailAppPassword && !c.gmailAppPassword.includes('•')) || lsTenantConfigs[0] || lsConfigs[0];
+    }
 
     const googleEmail = (
       dbConfig?.googleEmail ||

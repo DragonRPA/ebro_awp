@@ -19,6 +19,7 @@ export const GoogleConfig: React.FC = () => {
     googleConfigs, 
     updateGoogleConfig, 
     currentUser, 
+    currentTenant,
     showErrorModal, 
     consumablePurchases, 
     clearEvidenceFileUrls, 
@@ -170,8 +171,24 @@ export const GoogleConfig: React.FC = () => {
 
   // ── 🚀 [살아있는 계약 기반] 3대 핵심 서류 생성 + 구글 드라이브 원본 통합 팩 ──
 
-  const activeTenantId = import.meta.env.VITE_TENANT_ID || 'giyuen';
-  const currentConfig = googleConfigs?.find(c => (c.tenantId || 'giyuen') === activeTenantId) || googleConfigs?.[0];
+  const activeTenantId = currentTenant?.id || currentTenant?.tenantCode || import.meta.env.VITE_TENANT_ID || 'giyuen';
+  const currentConfig = React.useMemo(() => {
+    if (!googleConfigs || googleConfigs.length === 0) return undefined;
+    // 1순위: 현재 테넌트 ID/코드와 정확히 일치하는 설정
+    const exact = googleConfigs.find(c => c.tenantId && (c.tenantId === activeTenantId || c.tenantId === currentTenant?.id || c.tenantId === currentTenant?.tenantCode));
+    if (exact) return exact;
+    // 2순위: 테넌트 키워드('giyeonlift', 'giyuen', 'tenant-giyeonlift')를 포함하는 설정
+    const tenantMatched = googleConfigs.find(c => c.tenantId && (c.tenantId === 'giyuen' || c.tenantId === 'giyeonlift' || c.tenantId === 'tenant-giyeonlift'));
+    if (tenantMatched) return tenantMatched;
+    // 3순위: 개발자 기본 메일(77.victor.lee@gmail.com)이 아닌 실제 등록 메일을 보유한 설정 중 최신 갱신된 것
+    const customEmailConfigs = googleConfigs.filter(c => c.googleEmail && !c.googleEmail.includes('victor.lee'));
+    if (customEmailConfigs.length > 0) {
+      return [...customEmailConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))[0];
+    }
+    // 4순위: 최신 갱신된 설정
+    const sorted = [...googleConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+    return sorted[0];
+  }, [googleConfigs, activeTenantId, currentTenant]);
 
   useEffect(() => {
     if (currentConfig) {
@@ -179,7 +196,7 @@ export const GoogleConfig: React.FC = () => {
       setGooglePassword(currentConfig.googlePassword || '');
       setGmailAppPassword(currentConfig.gmailAppPassword || '');
       setSmtpProvider(currentConfig.smtpProvider || 'GMAIL');
-      setSmtpHost(currentConfig.smtpHost || '');
+      setSmtpHost(currentConfig.smtpHost || (currentConfig.smtpProvider === 'NAVER' ? 'smtp.naver.com' : currentConfig.smtpProvider === 'DAUM' ? 'smtp.daum.net' : 'smtp.gmail.com'));
       setSmtpPort(currentConfig.smtpPort || 465);
       setContractFolder(currentConfig.contractFolder || '');
       setConsumableFolder(currentConfig.consumableFolder || '');
@@ -187,7 +204,6 @@ export const GoogleConfig: React.FC = () => {
       setMaintenanceFolder(currentConfig.maintenanceFolder || '');
       setMirrorRecursive(currentConfig.mirrorRecursive !== undefined ? currentConfig.mirrorRecursive : true);
       setIsDevMode(currentConfig.isDevMode !== undefined ? currentConfig.isDevMode : true);
-    } else {
     }
   }, [currentConfig]);
 
@@ -235,7 +251,7 @@ export const GoogleConfig: React.FC = () => {
     e.preventDefault();
     try {
       // 설정 레코드가 없거나 새로 생성해야 하는 경우를 대비해 ID 기본값 지정
-      const configId = currentConfig?.id || 'default-config';
+      const configId = currentConfig?.id || 'GOOG-0000001';
 
       // 사용자가 마스킹 값(••••••••••••) 또는 빈값을 입력했을 경우, 기존 저장되어 있던 실제 비밀번호 값을 보존
       const finalPassword = (googlePassword === '••••••••••••' || !googlePassword) 
@@ -266,7 +282,7 @@ export const GoogleConfig: React.FC = () => {
       };
 
       await updateGoogleConfig(updated);
-      alert('클라우드 스토리지 및 Cloudflare R2 설정 정보가 안전하게 저장되었습니다.');
+      alert('클라우드 이메일 및 스토리지 연동 설정이 안전하게 저장되었습니다.');
     } catch (err: any) {
       showErrorModal(`설정 원격 DB 저장 실패:\n\n${err?.message || err}`, '스토리지 설정 저장 오류');
     }
