@@ -172,20 +172,47 @@ export interface AgentHealthInfo {
 export async function syncTenantPolicyToAgent(tenant?: {
   tenantCode?: string;
   subdomain?: string;
+  displayName?: string;
+  tradeName?: string;
+  corporateName?: string;
+  businessNumber?: string;
+  representativeName?: string;
+  tel?: string;
+  fax?: string;
+  salesPhone?: string;
+  businessAddress?: string;
+  businessCategory?: string;
+  businessItem?: string;
+  bankAccounts?: Array<{ bankName: string; accountNumber: string; accountHolder: string }>;
+  stampImageUrl?: string;
   features?: TenantFeatures;
 } | null): Promise<boolean> {
   if (!tenant) return false;
   try {
     const isAiEnabled = Boolean(tenant.features?.agentAiEnabled);
     const code = tenant.tenantCode || 'GIYEONLIFT';
-    const sub = tenant.subdomain || (code === 'GIYEONLIFT' ? 'giyeon' : code.toLowerCase());
+    const sub = tenant.subdomain || (code === 'GIYEONLIFT' || code === 'GIYEUN' ? 'giyeon' : code.toLowerCase());
+    const tenantName = tenant.displayName || tenant.tradeName || tenant.corporateName || code;
+    const corporateName = tenant.corporateName || tenant.tradeName || tenantName;
     const res = await fetchWithAgentFallback('/api/policy/sync', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         agentAiEnabled: isAiEnabled,
         tenantCode: code,
-        subdomain: sub
+        subdomain: sub,
+        tenantName,
+        corporateName,
+        businessNumber: tenant.businessNumber || '',
+        representativeName: tenant.representativeName || '',
+        tel: tenant.tel || '',
+        fax: tenant.fax || '',
+        salesPhone: tenant.salesPhone || tenant.tel || '',
+        businessAddress: tenant.businessAddress || '',
+        businessCategory: tenant.businessCategory || '',
+        businessItem: tenant.businessItem || '',
+        bankAccounts: tenant.bankAccounts || [],
+        stampImageUrl: tenant.stampImageUrl || ''
       })
     });
     return res.ok;

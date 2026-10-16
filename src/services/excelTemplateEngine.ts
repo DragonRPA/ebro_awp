@@ -501,9 +501,26 @@ export interface TransactionStatementPdfData {
  */
 export async function generateTransactionStatementPdf(data: TransactionStatementPdfData): Promise<Uint8Array> {
   try {
+    const curTenant = db.currentTenant;
+    const primaryAccount = curTenant?.bankAccounts?.[0];
+    const defaultBankAccount = primaryAccount
+      ? `${primaryAccount.bankName} ${primaryAccount.accountNumber} (${primaryAccount.accountHolder})`
+      : '';
+
     const payload = {
       ...data,
-      excelMappingRules: db.currentTenant?.excelMappingRules,
+      tenantName: data.lessorName || curTenant?.displayName || curTenant?.tradeName || curTenant?.corporateName,
+      lessorName: data.lessorName || curTenant?.corporateName || curTenant?.tradeName || curTenant?.displayName,
+      lessorBizNo: data.lessorBizNo || curTenant?.businessNumber,
+      lessorCeo: data.lessorCeo || curTenant?.representativeName,
+      lessorAddress: data.lessorAddress || curTenant?.businessAddress,
+      lessorBizType: data.lessorBizType || curTenant?.businessCategory,
+      lessorBizItem: data.lessorBizItem || curTenant?.businessItem,
+      lessorTel: data.lessorTel || curTenant?.tel,
+      lessorFax: data.lessorFax || curTenant?.fax,
+      lessorEmail: data.lessorEmail || curTenant?.taxEmail || curTenant?.email,
+      bankAccount: data.bankAccount || defaultBankAccount,
+      excelMappingRules: curTenant?.excelMappingRules,
       asyncQueue: true
     };
     

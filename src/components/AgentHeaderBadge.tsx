@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bot, Download, RefreshCw, Shield, ChevronDown, CheckCircle2, AlertTriangle, X, Cloud, FolderCheck, HardDrive, Play } from 'lucide-react';
-import { EXPECTED_AGENT_VERSION, AGENT_DOWNLOAD_URL, AGENT_BRO_JS_URL, AGENT_REG_BAT_URL, AGENT_LAUNCHER_URL, AGENT_CERT_URL, AGENT_INSTALL_BAT_URL, NODEJS_INSTALL_URL, launchLocalAgentFromBrowser, restartLocalAgent, fetchWithAgentFallback, openAgentStudio, triggerAgentSelfUpdate, subscribeAgentStatus, setGlobalAgentStatus, isAgentOnlineGlobal, startGlobalAgentHealthMonitor } from '../services/agentService';
+import { EXPECTED_AGENT_VERSION, AGENT_DOWNLOAD_URL, AGENT_BRO_JS_URL, AGENT_REG_BAT_URL, AGENT_LAUNCHER_URL, AGENT_CERT_URL, AGENT_INSTALL_BAT_URL, NODEJS_INSTALL_URL, launchLocalAgentFromBrowser, restartLocalAgent, fetchWithAgentFallback, openAgentStudio, triggerAgentSelfUpdate, subscribeAgentStatus, setGlobalAgentStatus, isAgentOnlineGlobal, startGlobalAgentHealthMonitor, syncTenantPolicyToAgent } from '../services/agentService';
 import { executeDriveMirrorSync, getLocalMirrorStatus, subscribeMirrorProgress, MirrorProgressState } from '../services/driveMirrorSync';
 import { useApp } from '../context/AppContext';
 
@@ -12,7 +12,7 @@ interface Props {
 }
 
 export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
-  const { googleConfigs, hasPermission } = useApp();
+  const { googleConfigs, hasPermission, currentTenant } = useApp();
   const [agentStatus, setAgentStatus] = useState<'ONLINE' | 'OFFLINE'>(() => isAgentOnlineGlobal() ? 'ONLINE' : 'OFFLINE');
   const [agentVersion, setAgentVersion] = useState<string>('');
   const [agentCallsign, setAgentCallsign] = useState<string>('');
@@ -74,6 +74,13 @@ export const AgentHeaderBadge: React.FC<Props> = ({ currentUser }) => {
       unsubscribe();
     };
   }, [currentUser]);
+
+  // ── 접속 테넌트 변경 또는 에이전트 온라인 전환 시 현재 테넌트 정체성 자동 핫 동기화 ──
+  useEffect(() => {
+    if (agentStatus === 'ONLINE' && currentTenant) {
+      syncTenantPolicyToAgent(currentTenant).catch(() => {});
+    }
+  }, [agentStatus, currentTenant?.id, currentTenant?.tenantCode, currentTenant?.displayName, currentTenant?.corporateName, currentTenant?.features?.agentAiEnabled]);
 
   // 외부 클릭 시 메뉴 닫기
   useEffect(() => {

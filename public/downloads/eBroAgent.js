@@ -668,7 +668,8 @@ async function executeSendEmailInternal(payload) {
     };
   }) : undefined;
 
-  const senderDisplayName = fromName || payload.tenantCorp || payload.tenantBrand || policyData.tenantName || TENANT_CODE || 'e-Bro ERP';
+  const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+  const senderDisplayName = fromName || payload.tenantCorp || payload.tenantBrand || policy.tenantName || policy.corporateName || TENANT_CODE || 'e-Bro ERP';
 
   const info = await transporter.sendMail({
     from: `"${senderDisplayName}" <${cleanEmail}>`,
@@ -687,7 +688,14 @@ async function executeContractBundleInternal(payload) {
   const tempBuildDir = path.join(AGENT_HOME, 'temp_build_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6));
   try {
     if (!fs.existsSync(tempBuildDir)) fs.mkdirSync(tempBuildDir, { recursive: true });
-    const tenantName = payload.tenantName || payload.corporateName || policyData.tenantName || TENANT_CODE || 'e-Bro ERP';
+    const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+    const tenantName = payload.tenantName || payload.corporateName || policy.tenantName || policy.corporateName || TENANT_CODE || 'e-Bro ERP';
+    const tenantCorp = payload.corporateName || payload.tenantName || policy.corporateName || tenantName;
+    const tenantBizNo = payload.businessNumber || policy.businessNumber || '';
+    const tenantRepName = payload.representativeName || policy.representativeName || '';
+    const tenantTel = payload.salesRepPhone || payload.tel || policy.salesPhone || policy.tel || '';
+    const tenantBankAccount = payload.bankAccount || (policy.bankAccounts?.[0] ? `${policy.bankAccounts[0].bankName} ${policy.bankAccounts[0].accountNumber} (${policy.bankAccounts[0].accountHolder})` : '');
+    const inspectorName = payload.inspectorName || payload.salesRepName || tenantRepName || '점검담당자';
 
     const custName = payload.customerName || '고객사';
     const bizRegNo = payload.bizRegNo || '등록번호미지정';
@@ -759,6 +767,13 @@ $wsSafetyBase = Get-SheetByKeyword $wb "안전점검|결과서" 3
 
 # --- 2. 계약서 데이터 주입 (Sheet 1) ---
 Replace-Tag $wsContract "{Today}" "${contractDate}"
+Replace-Tag $wsContract "{테넌트}" "${tenantCorp}"
+Replace-Tag $wsContract "(주)기연리프트" "${tenantCorp}"
+Replace-Tag $wsContract "주식회사 기연리프트" "${tenantCorp}"
+Replace-Tag $wsContract "기연리프트" "${tenantName}"
+${tenantBizNo ? `Replace-Tag $wsContract "138-81-83251" "${tenantBizNo}"` : ''}
+${tenantRepName ? `Replace-Tag $wsContract "이수용" "${tenantRepName}"` : ''}
+${tenantBankAccount ? `Replace-Tag $wsContract "{입금계좌}" "${tenantBankAccount}"` : ''}
 Replace-Tag $wsContract "{사업자등록번호}" "${bizRegNo}"
 Replace-Tag $wsContract "{고객명}" "${custName}"
 Replace-Tag $wsContract "{대표자}" "${ceoName}"
@@ -837,6 +852,9 @@ for ($i = 0; $i -lt $assetsJson.Count; $i++) {
         $curSafety = $wb.Sheets.Item($wb.Sheets.Count)
     }
     
+    Replace-Tag $curChecklist "{테넌트}" "${tenantCorp}"
+    Replace-Tag $curChecklist "(주)기연리프트" "${tenantCorp}"
+    Replace-Tag $curChecklist "기연리프트" "${tenantName}"
     Replace-Tag $curChecklist "{모델명}" "$($asset.modelName)"
     Replace-Tag $curChecklist "{관리번호}" "$($asset.assetNo)"
     $curChecklist.PageSetup.Orientation = 1
@@ -847,8 +865,9 @@ for ($i = 0; $i -lt $assetsJson.Count; $i++) {
     Replace-Tag $curSafety "{사업장명}" "${siteName}"
     Replace-Tag $curSafety "{형식}" "자주식 시저형"
     Replace-Tag $curSafety "{제조사}" "SINOBOOM"
-    Replace-Tag $curSafety "{테넌트}" "${tenantName}"
-    Replace-Tag $curSafety "(주)기연리프트" "${tenantName}"
+    Replace-Tag $curSafety "{테넌트}" "${tenantCorp}"
+    Replace-Tag $curSafety "(주)기연리프트" "${tenantCorp}"
+    Replace-Tag $curSafety "기연리프트" "${tenantName}"
     Replace-Tag $curSafety "{고객명}" "${custName}"
     Replace-Tag $curSafety "{동력방식}" "배터리식"
     Replace-Tag $curSafety "{모델명}" "$($asset.modelName)"
@@ -863,7 +882,7 @@ for ($i = 0; $i -lt $assetsJson.Count; $i++) {
     Replace-Tag $curSafety "{안전점검일시}" "${inspectionDate}"
     Replace-Tag $curSafety "{(배차일)-2} 또는 {지정}" "${inspectionDate}"
     Replace-Tag $curSafety "{(배차일)-2}" "${inspectionDate}"
-    Replace-Tag $curSafety "{점검자}" "김관주"
+    Replace-Tag $curSafety "{점검자}" "${inspectorName}"
     $curSafety.PageSetup.Orientation = 1
     $curSafety.PageSetup.Zoom = $false
     $curSafety.PageSetup.FitToPagesWide = 1
@@ -920,7 +939,7 @@ $excel.Quit()
     const safeCustName = (payload.customerName || '고객').replace(/[\\/:*?"<>|]/g, '');
     const safeSiteName = String(payload.siteName || '현장').replace(/[\\/:*?"<>|]/g, '');
     const contractStartDateStr = String(payload.contractStartDate || payload.contractDate || '').replace(/[\\/:*?"<>|]/g, '');
-    const cleanTenantPrefix = String(tenantName).replace(/^\(주\)|주식회사/g, '').trim() || '기연리프트';
+    const cleanTenantPrefix = String(tenantName).replace(/^\(주\)|주식회사/g, '').trim() || 'eBro';
     const fileName = `[${cleanTenantPrefix}계약서]_${safeCustName}_${safeSiteName}_${contractStartDateStr}.pdf`;
 
     const yyyyMm = contractDate.substring(0, 7) || new Date().toISOString().substring(0, 7);
@@ -950,6 +969,15 @@ async function executeGenerateStatementInternal(payload) {
   try {
     if (!fs.existsSync(tempBuildDir)) fs.mkdirSync(tempBuildDir, { recursive: true });
 
+    const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+    const tenantName = payload.tenantName || payload.lessorName || policy.tenantName || policy.corporateName || TENANT_CODE || 'e-Bro ERP';
+    const lessorName = payload.lessorName || policy.corporateName || tenantName;
+    const lessorBizNo = payload.lessorBizNo || policy.businessNumber || '';
+    const lessorCeo = payload.lessorCeo || policy.representativeName || '';
+    const lessorAddress = payload.lessorAddress || policy.businessAddress || '';
+    const lessorBizType = payload.lessorBizType || policy.businessCategory || '';
+    const lessorBizItem = payload.lessorBizItem || policy.businessItem || '';
+
     const custName = payload.customerName || '고객사';
     const bizRegNo = payload.customerBizNo || payload.bizRegNo || '등록번호미지정';
     const ceoName = payload.customerCeo || '대표자';
@@ -964,10 +992,10 @@ async function executeGenerateStatementInternal(payload) {
     const custBizType = payload.customerBizType || '-';
     const custBizItem = payload.customerBizItem || '-';
 
-    const salespersonName = payload.salespersonName || '김동우 팀장';
-    const salespersonPhone = payload.salespersonPhone || '010-9402-5296';
-    const billingManagerName = payload.billingManagerName || '정수아';
-    const billingManagerPhone = payload.billingManagerPhone || '031-334-5295';
+    const salespersonName = payload.salespersonName || lessorCeo || '영업담당자';
+    const salespersonPhone = payload.salespersonPhone || payload.lessorTel || policy.salesPhone || policy.tel || '-';
+    const billingManagerName = payload.billingManagerName || lessorCeo || '청구담당자';
+    const billingManagerPhone = payload.billingManagerPhone || payload.lessorTel || policy.tel || '-';
     const yyyyMm = (payload.billingYm || (payload.billingDate ? payload.billingDate.substring(0, 7) : new Date().toISOString().substring(0, 7))).replace(/[\\/:*?"<>|]/g, '');
     const supplySummary = (payload.supplySummary || payload.billingDescription || `${yyyyMm}분 고소작업대 렌탈료`).replace(/"/g, '""');
 
@@ -1039,7 +1067,16 @@ $curWs = $wb.Sheets.Item($wb.Sheets.Count)
       }
 
       s += `
-# 페이지 ${pageNum} 공급자 / 공급받는자 데이터 주입
+# 페이지 ${pageNum} 공급자(테넌트) 및 공급받는자(고객사) 데이터 주입
+Replace-Tag $curWs "{테넌트}" "${lessorName}"
+Replace-Tag $curWs "(주)기연리프트" "${lessorName}"
+Replace-Tag $curWs "주식회사 기연리프트" "${lessorName}"
+Replace-Tag $curWs "기연리프트" "${tenantName}"
+${lessorBizNo ? `Replace-Tag $curWs "138-81-83251" "${lessorBizNo}"` : ''}
+${lessorCeo ? `Replace-Tag $curWs "이수용" "${lessorCeo}"` : ''}
+${lessorAddress ? `Replace-Tag $curWs "{공급자주소}" "${lessorAddress}"` : ''}
+${lessorBizType ? `Replace-Tag $curWs "{공급자업태}" "${lessorBizType}"` : ''}
+${lessorBizItem ? `Replace-Tag $curWs "{공급자종목}" "${lessorBizItem}"` : ''}
 Replace-Tag $curWs "{사업자등록번호}" "${bizRegNo}"
 Replace-Tag $curWs "{고객명}" "${custName}"
 Replace-Tag $curWs "{대표자}" "${ceoName}"
@@ -1154,7 +1191,8 @@ $excel.Quit()
     const b64 = pdfBuffer.toString('base64');
     const safeCustName = (custName || '고객사').replace(/[\\/:*?"<>|]/g, '');
     const safeSiteName = String(siteName || '현장').replace(/[\\/:*?"<>|]/g, '');
-    const fileName = `[기연리프트]_거래명세서_${safeCustName}_${safeSiteName}_${yyyyMm}.pdf`;
+    const cleanTenantPrefix = String(tenantName).replace(/^\(주\)|주식회사/g, '').trim() || 'eBro';
+    const fileName = `[${cleanTenantPrefix}]_거래명세서_${safeCustName}_${safeSiteName}_${yyyyMm}.pdf`;
 
     const archiveDir = path.join(ARCHIVE_ROOT, yyyyMm);
     if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
@@ -1163,7 +1201,7 @@ $excel.Quit()
 
     const xlsxWorkFile = path.join(tempBuildDir, '거래명세서_작업용.xlsx');
     if (fs.existsSync(xlsxWorkFile)) {
-      const xlsxFileName = `[기연리프트]_거래명세서_${safeCustName}_${safeSiteName}_${yyyyMm}.xlsx`;
+      const xlsxFileName = `[${cleanTenantPrefix}]_거래명세서_${safeCustName}_${safeSiteName}_${yyyyMm}.xlsx`;
       fs.copyFileSync(xlsxWorkFile, path.join(archiveDir, xlsxFileName));
     }
 
@@ -1844,8 +1882,10 @@ const server = http.createServer(async (req, res) => {
         const monthDir = path.join(ARCHIVE_ROOT, today.substring(0, 7));
         if (!fs.existsSync(monthDir)) fs.mkdirSync(monthDir, { recursive: true });
 
+        const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+        const cleanTenantPrefix = String(payload.tenantName || policy.tenantName || policy.corporateName || TENANT_CODE || 'eBro').replace(/^\(주\)|주식회사/g, '').trim() || 'eBro';
         const safeCustName = (payload.customerName || '고객사').replace(/[/\\?%*:|"<>]/g, '_');
-        const fileName = `[기연리프트]_${payload.contractNo || '계약'}_${safeCustName}_${today}.pdf`;
+        const fileName = `[${cleanTenantPrefix}]_${payload.contractNo || '계약'}_${safeCustName}_${today}.pdf`;
         const localSavePath = path.join(monthDir, fileName);
 
         if (payload.base64Content) {
@@ -1911,9 +1951,11 @@ const server = http.createServer(async (req, res) => {
     req.on('end', async () => {
       try {
         const payload = JSON.parse(body || '{}');
+        const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+        const cleanTenantPrefix = String(payload.tenantName || policy.tenantName || 'eBro').replace(/^\(주\)|주식회사/g, '').trim() || 'eBro';
         const printerName = payload.printerName || (activeStationConfig ? activeStationConfig.localPrinterName : 'Apeos C2060');
         const htmlContent = payload.htmlContent || '';
-        const title = payload.title || '기연리프트_출고요청서';
+        const title = payload.title || `${cleanTenantPrefix}_출고요청서`;
 
         if (!htmlContent) {
           res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -2338,8 +2380,10 @@ async function checkAndProcessPrintQueue() {
     } catch (lockErr) {}
 
     // 2. 인쇄용 임시 HTML 작성 및 다이렉트 무인 출력 실행
+    const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+    const cleanTenantPrefix = String(policy.tenantName || 'eBro').replace(/^\(주\)|주식회사/g, '').trim() || 'eBro';
     const printerName = activeStationConfig.localPrinterName || 'Apeos C2060';
-    const title = job.title || '기연리프트_출력물';
+    const title = job.title || `${cleanTenantPrefix}_출력물`;
 
     agentLog('PRINT', `원격 인쇄 작업 처리 시작: 프린터 [${printerName}], 작업: ${job.id}`);
     await sendHtmlToPhysicalPrinter(job.documentHtml, printerName, title);
@@ -2394,7 +2438,9 @@ async function sendAgentHeartbeat() {
   try {
     const pcName = os.hostname();
     const deviceId = `DEV-${pcName}`;
-    const tenantId = (TENANT_CODE === 'GIYEONLIFT' || TENANT_CODE === 'GIYEUN') ? 'giyeun' : TENANT_CODE.toLowerCase();
+    const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+    const activeCode = policy.tenantCode || TENANT_CODE || 'GIYEONLIFT';
+    const tenantId = (activeCode === 'GIYEONLIFT' || activeCode === 'GIYEUN') ? 'giyeun' : activeCode.toLowerCase();
     const id = `HEARTBEAT-${tenantId}-${deviceId}`;
     
     const netInterfaces = os.networkInterfaces();
@@ -2413,7 +2459,7 @@ async function sendAgentHeartbeat() {
       tenant_id: tenantId,
       device_id: deviceId,
       pc_name: pcName,
-      user_id: CALLSIGN,
+      user_id: activeCallsign || CALLSIGN,
       user_name: '사용자',
       ip_address: ipAddress,
       engine_version: VERSION,
@@ -2507,7 +2553,9 @@ server.listen(PORT, '127.0.0.1', () => {
   const isDaemon = process.argv.includes('--daemon') || process.argv.includes('--silent');
   if (!isDaemon) {
     setTimeout(() => {
-      const subdomain = (TENANT_CODE === 'GIYEONLIFT' || TENANT_CODE === 'GIYEUN') ? 'giyeon' : TENANT_CODE.toLowerCase();
+      const policy = typeof getAgentPolicy === 'function' ? (getAgentPolicy() || {}) : {};
+      const activeCode = policy.tenantCode || TENANT_CODE || 'GIYEONLIFT';
+      const subdomain = policy.subdomain || ((activeCode === 'GIYEONLIFT' || activeCode === 'GIYEUN') ? 'giyeon' : activeCode.toLowerCase());
       const loginUrl = `https://${subdomain}.ebro.run`;
       openDefaultBrowser(loginUrl);
     }, 600);

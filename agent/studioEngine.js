@@ -702,6 +702,7 @@ function launchStudioWindow(port = 5175) {
 
 // ──  고밀도 데스크톱 스튜디오 HTML 렌더링 ──
 function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 'GIYEONLIFT') {
+  const effectiveCode = agentPolicy.tenantCode || tenantCode || 'EBRO';
   const TENANT_NAME_MAP = {
     'GIYEONLIFT': '(주)기연리프트 전용',
     'GIYEON': '(주)기연리프트 전용',
@@ -710,7 +711,9 @@ function renderStudioHtml(port = 5175, version = 'v2.0.0.Build.1', tenantCode = 
     'SAMWOO': '삼우렌탈 전용',
     'EBRO': 'eBro ERP 표준'
   };
-  const tenantLabel = TENANT_NAME_MAP[String(tenantCode || 'GIYEONLIFT').toUpperCase()] || `${tenantCode} 전용`;
+  const tenantLabel = agentPolicy.tenantName
+    ? `${agentPolicy.tenantName} 전용`
+    : (TENANT_NAME_MAP[String(effectiveCode).toUpperCase()] || `${effectiveCode} 전용`);
   return `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -1769,7 +1772,7 @@ function renderSilentCoreHtml(port = 5175, version = 'v2.0.0.Build.6', tenantCod
       <div class="logo-badge">eB</div>
       <div class="title-area">
         <h1>eBro Agent — 기본 업무 지원 모드</h1>
-        <p>포트: ${port} | 버전: ${version} | 테넌트: ${tenantCode}</p>
+        <p>포트: ${port} | 버전: ${version} | 테넌트: ${agentPolicy.tenantName || agentPolicy.tenantCode || tenantCode}</p>
       </div>
     </div>
 
@@ -1806,7 +1809,7 @@ function renderSilentCoreHtml(port = 5175, version = 'v2.0.0.Build.6', tenantCod
       <button class="btn btn-secondary" onclick="fetch('/api/open-archive', {method:'POST'}).catch(alert)">
         로컬 문서고 열기
       </button>
-      <a class="btn btn-primary" href="${(tenantCode === 'GIYEONLIFT' || tenantCode === 'GIYEUN') ? 'https://giyeon.ebro.run' : (tenantCode ? 'https://' + tenantCode.toLowerCase() + '.ebro.run' : 'https://ebro.run?mode=tenant')}" target="_blank">
+      <a class="btn btn-primary" href="${agentPolicy.subdomain ? 'https://' + String(agentPolicy.subdomain).toLowerCase() + '.ebro.run' : ((tenantCode === 'GIYEONLIFT' || tenantCode === 'GIYEUN') ? 'https://giyeon.ebro.run' : (tenantCode ? 'https://' + tenantCode.toLowerCase() + '.ebro.run' : 'https://ebro.run?mode=tenant'))}" target="_blank">
         eBro ERP 로그인
       </a>
     </div>
@@ -1817,6 +1820,7 @@ function renderSilentCoreHtml(port = 5175, version = 'v2.0.0.Build.6', tenantCod
 
 // ──  HTTP 핸들러 라우팅 연동 ──
 async function handleStudioRequest(req, res, pathname, searchParams, port = 5175, version = 'v2.0.0.Build.1', tenantCode = 'GIYEONLIFT') {
+  const effectiveTenantCode = agentPolicy.tenantCode || tenantCode || 'EBRO';
   // 0. 스튜디오 파비콘 및 작업표시줄 아이콘 서빙
   if (req.method === 'GET' && (pathname === '/favicon.ico' || pathname.startsWith('/icon') || pathname.startsWith('/eBroAgent'))) {
     const rawName = pathname.replace(/^\//, '');
@@ -1888,8 +1892,8 @@ async function handleStudioRequest(req, res, pathname, searchParams, port = 5175
   if (req.method === 'GET' && (pathname === '/studio' || pathname === '/studio/' || pathname === '/ui' || pathname === '/ui/')) {
     // 🛡️ AI 비활성화(Silent Core 모드) 시 조용한 지원 UI 렌더링
     const html = isAiEnabled() 
-      ? renderStudioHtml(port, version, tenantCode) 
-      : renderSilentCoreHtml(port, version, tenantCode);
+      ? renderStudioHtml(port, version, effectiveTenantCode) 
+      : renderSilentCoreHtml(port, version, effectiveTenantCode);
 
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
