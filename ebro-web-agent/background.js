@@ -44,26 +44,26 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 /**
- * 활성 eBro ERP 탭 감지 (giyuonlift.ebro.run 및 실서버 우선)
+ * 활성 eBro ERP 탭 감지 (*.ebro.run 실서버 및 로컬 탭 통합 감지)
  */
 async function findActiveErpTab() {
   // 1순위: 현재 브라우저에서 포커스되어 있는 활성 탭이 ERP 사이트인지 검사
   const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
   if (activeTabs.length > 0 && activeTabs[0].url) {
     const activeUrl = activeTabs[0].url.toLowerCase();
-    if (activeUrl.includes('ebro.run') || activeUrl.includes('giyuonlift') || activeUrl.includes('localhost:5174') || activeUrl.includes('localhost:5173') || activeUrl.includes('ebro')) {
+    if (activeUrl.includes('ebro.run') || activeUrl.includes('localhost:5174') || activeUrl.includes('localhost:5173') || activeUrl.includes('ebro')) {
       activeErpTabId = activeTabs[0].id;
       return activeTabs[0];
     }
   }
 
-  // 2순위: 전체 탭 중에서 giyuonlift.ebro.run 등 ebro.run 실서버 탭 탐색
+  // 2순위: 전체 탭 중에서 *.ebro.run 실서버 탭 탐색 (테넌트 무관)
   const allTabs = await chrome.tabs.query({});
-  let erpTab = allTabs.find(t => t.url && (t.url.includes('giyuonlift') || t.url.includes('ebro.run')));
+  let erpTab = allTabs.find(t => t.url && t.url.toLowerCase().includes('ebro.run'));
 
   // 3순위: 로컬호스트 개발 탭
   if (!erpTab) {
-    erpTab = allTabs.find(t => t.url && (t.url.includes('localhost:5174') || t.url.includes('localhost:5173') || t.url.includes('ebro')));
+    erpTab = allTabs.find(t => t.url && (t.url.includes('localhost:5174') || t.url.includes('localhost:5173') || t.url.toLowerCase().includes('ebro')));
   }
 
   // 4순위: 현재 활성 탭
