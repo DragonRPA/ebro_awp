@@ -93,16 +93,10 @@ class RealGmailService {
     
     const allDbConfigs = [...(db.googleConfigs || [])].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
     const tenantConfigs = allDbConfigs.filter(c => isTenantMatch(c.tenantId));
-    // 1순위: 현재 테넌트 일치 + 개발자 기본 계정이 아닌 실제 설정 계정 (최신 갱신순)
-    let dbConfig = tenantConfigs.find(c => c.googleEmail && !c.googleEmail.includes('victor.lee') && c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'));
-    // 2순위: 현재 테넌트 일치 + 유효 앱비밀번호
-    if (!dbConfig) {
-      dbConfig = tenantConfigs.find(c => c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'));
-    }
-    // 3순위: 현재 테넌트 일치 첫번째 설정 (타 테넌트 설정 침범 원천 차단)
-    if (!dbConfig) {
-      dbConfig = tenantConfigs[0] || (!activeTenantId ? allDbConfigs[0] : undefined);
-    }
+    // 현재 접속 테넌트에 저장된 유효 설정 (개발자 계정 초기 세팅 및 고객사 확정 계정 모두 동일하게 존중)
+    let dbConfig = tenantConfigs.find(c => c.googleEmail && c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'))
+      || tenantConfigs[0]
+      || (!activeTenantId ? allDbConfigs[0] : undefined);
     
     const lsVal = localStorage.getItem('erp_googleConfigs');
     const rawLsConfigs: any[] = lsVal ? JSON.parse(lsVal) : [];
@@ -110,13 +104,9 @@ class RealGmailService {
       ? [...rawLsConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
       : [];
     const lsTenantConfigs = lsConfigs.filter((c: any) => isTenantMatch(c.tenantId));
-    let lsConfig = lsTenantConfigs.find((c: any) => c.googleEmail && !c.googleEmail.includes('victor.lee') && c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'));
-    if (!lsConfig) {
-      lsConfig = lsTenantConfigs.find((c: any) => c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'));
-    }
-    if (!lsConfig) {
-      lsConfig = lsTenantConfigs[0] || (!activeTenantId ? lsConfigs[0] : undefined);
-    }
+    let lsConfig = lsTenantConfigs.find((c: any) => c.googleEmail && c.gmailAppPassword && c.gmailAppPassword.trim() && !c.gmailAppPassword.includes('•'))
+      || lsTenantConfigs[0]
+      || (!activeTenantId ? lsConfigs[0] : undefined);
 
     const googleEmail = (
       dbConfig?.googleEmail ||

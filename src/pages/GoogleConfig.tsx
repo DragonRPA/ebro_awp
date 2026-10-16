@@ -194,14 +194,9 @@ export const GoogleConfig: React.FC = () => {
     if (!googleConfigs || googleConfigs.length === 0) return undefined;
     const sorted = [...googleConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
     const tenantMatched = sorted.filter(c => isTenantMatch(c.tenantId));
-    // 1순위: 현재 테넌트 일치 + 개발자 기본 메일(77.victor.lee@gmail.com)이 아닌 실제 등록 메일 중 최신 갱신된 설정
-    const tenantCustom = tenantMatched.find(c => c.googleEmail && !c.googleEmail.includes('victor.lee'));
-    if (tenantCustom) return tenantCustom;
-    // 2순위: 현재 테넌트 일치 중 최신 갱신된 설정
     if (tenantMatched.length > 0) return tenantMatched[0];
-    // 3순위: 테넌트가 단일 1개뿐인 환경에서만 레거시 호환 폴백
-    return undefined;
-  }, [googleConfigs, isTenantMatch]);
+    return !activeTenantId ? sorted[0] : undefined;
+  }, [googleConfigs, isTenantMatch, activeTenantId]);
 
   useEffect(() => {
     if (currentConfig) {

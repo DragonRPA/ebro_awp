@@ -65,12 +65,12 @@ export const OfficialMailPage: React.FC = () => {
   };
 
   const officialConfig = useMemo(() => {
-    // 1. Context에 로드된 googleConfigs 탐색 (최신 갱신순 + 현재 테넌트 격리)
+    // 1. Context에 로드된 googleConfigs 탐색 (현재 테넌트 1:1 매핑, 최신 갱신순)
     if (googleConfigs && googleConfigs.length > 0) {
       const sorted = [...googleConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
       const tenantMatched = sorted.filter(c => isTenantMatch(c.tenantId));
-      const tenantCustom = tenantMatched.find(c => c.googleEmail && !c.googleEmail.includes('victor.lee'));
-      if (tenantCustom) return tenantCustom;
+      const validTenantCfg = tenantMatched.find(c => c.googleEmail && c.googleEmail.trim());
+      if (validTenantCfg) return validTenantCfg;
       if (tenantMatched.length > 0) return tenantMatched[0];
       if (!activeTenantId) return sorted[0];
     }
@@ -78,8 +78,8 @@ export const OfficialMailPage: React.FC = () => {
     // 2. DB(db.googleConfigs) 탐색
     const allDbConfigs = [...(db.googleConfigs || [])].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
     const dbTenantMatched = allDbConfigs.filter(c => isTenantMatch(c.tenantId));
-    const dbExact = dbTenantMatched.find(c => c.googleEmail && !c.googleEmail.includes('victor.lee'));
-    if (dbExact) return dbExact;
+    const dbValid = dbTenantMatched.find(c => c.googleEmail && c.googleEmail.trim());
+    if (dbValid) return dbValid;
     if (dbTenantMatched.length > 0) return dbTenantMatched[0];
 
     // 3. localStorage('erp_googleConfigs') 탐색
@@ -90,8 +90,8 @@ export const OfficialMailPage: React.FC = () => {
         if (Array.isArray(rawLsConfigs) && rawLsConfigs.length > 0) {
           const lsConfigs = [...rawLsConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
           const lsTenantMatched = lsConfigs.filter((c: any) => isTenantMatch(c.tenantId));
-          const lsExact = lsTenantMatched.find((c: any) => c.googleEmail && !c.googleEmail.includes('victor.lee'));
-          if (lsExact) return lsExact;
+          const lsValid = lsTenantMatched.find((c: any) => c.googleEmail && c.googleEmail.trim());
+          if (lsValid) return lsValid;
           if (lsTenantMatched.length > 0) return lsTenantMatched[0];
         }
       }
