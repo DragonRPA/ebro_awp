@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { db, Customer, CustomerContact, CustomerSite } from '../services/db';
 import { emailService, SentEmail } from '../services/email';
 
-type TemplateType = 'QUOTE' | 'COMPANY_PROFILE' | 'CATALOG_SPEC' | 'CONTRACT_BUNDLE' | 'CUSTOM';
+type TemplateType = 'COMPANY_PROFILE' | 'CATALOG_SPEC' | 'CONTRACT_BUNDLE' | 'CUSTOM';
 
 interface MailAttachment {
   filename: string;
@@ -27,13 +27,7 @@ export const OfficialMailPage: React.FC = () => {
   const [ccEmail, setCcEmail] = useState<string>('');
 
   // 2. 템플릿 및 첨부 (우상단 Pipeline)
-  const [templateType, setTemplateType] = useState<TemplateType>('QUOTE');
-  const [quoteModel, setQuoteModel] = useState<string>('GS-1930');
-  const [quoteQuantity, setQuoteQuantity] = useState<number>(1);
-  const [quoteMonthlyRate, setQuoteMonthlyRate] = useState<number>(450000);
-  const [quoteDailyRate, setQuoteDailyRate] = useState<number>(50000);
-  const [quoteDeliveryFee, setQuoteDeliveryFee] = useState<number>(150000);
-  const [quotePeriod, setQuotePeriod] = useState<string>('1개월');
+  const [templateType, setTemplateType] = useState<TemplateType>('COMPANY_PROFILE');
   const [specModel, setSpecModel] = useState<string>('GS-1930');
 
   // 3. 본문 및 제목 (중앙 본문)
@@ -179,111 +173,102 @@ export const OfficialMailPage: React.FC = () => {
     }
   };
 
-  // 템플릿 변경 시 본문 및 첨부 파일 자동 재구성
-  useEffect(() => {
+  // 첨부된 파일 명칭 기준으로 제목 및 안내 문구 자동 생성
+  const syncComposeWithAttachments = React.useCallback((atts: MailAttachment[], mode: TemplateType) => {
     const custTitle = recipientName || (currentCustomer ? currentCustomer.name : '고객사');
     const siteTitle = selectedSiteId ? (relatedSites.find(s => s.id === selectedSiteId)?.name || '') : '';
+    const siteLine = siteTitle ? `• 관련 현장: ${siteTitle}\n` : '';
 
+    if (atts.length === 0) {
+      if (mode === 'CUSTOM') {
+        setSubject(prev => prev || `[${senderBrand}] ${custTitle} 업무 협조의 건`);
+        setBody(prev => prev || `안녕하십니까, ${custTitle} 담당자님.\n${senderBrand} 입니다.\n\n내용을 입력하세요.\n\n감사합니다.`);
+      } else {
+        setSubject(`[${senderBrand}] ${custTitle} 안내 메일`);
+        setBody(
+          `안녕하십니까, ${custTitle} 담당자님.\n` +
+          `${senderBrand} 입니다.\n\n` +
+          (siteLine ? `${siteLine}\n` : '') +
+          `문의 사항이 있으시면 언제든지 연락 주시기 바랍니다.\n\n` +
+          `감사합니다.\n` +
+          `${senderBrand} 배상`
+        );
+      }
+      return;
+    }
+
+    const docLabels = atts.map(a => a.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' '));
+    const hasCompanyProfile = atts.some(a => a.filename.includes('회사소개서'));
+    const hasSpec = atts.some(a => a.filename.includes('제원표'));
+    const hasContract = atts.some(a => a.filename.includes('계약서') || a.filename.includes('체크리스트') || a.filename.includes('안전점검'));
+
+    let summaryTitle = '';
+    if (hasContract && atts.length >= 2) {
+      summaryTitle = '표준 계약 서식 세트';
+    } else if (hasCompanyProfile && hasSpec && atts.length === 2) {
+      summaryTitle = `회사소개서 및 ${specModel} 표준제원표`;
+    } else if (hasCompanyProfile && atts.length === 1) {
+      summaryTitle = '회사소개서';
+    } else if (hasSpec && atts.length === 1) {
+      summaryTitle = `${specModel} 표준제원표`;
+    } else if (atts.length === 1) {
+      summaryTitle = docLabels[0];
+    } else {
+      summaryTitle = `${docLabels[0]} 외 ${atts.length - 1}건`;
+    }
+
+    setSubject(`[${senderBrand}] ${custTitle} ${summaryTitle} 송부`);
+
+    const attachmentListText = atts
+      .map((a, idx) => `${idx + 1}. ${a.filename}`)
+      .join('\n');
+
+    setBody(
+      `안녕하십니까, ${custTitle} 담당자님.\n` +
+      `${senderBrand} 입니다.\n\n` +
+      `요청하신 ${summaryTitle} 파일을 아래와 같이 첨부하여 송부드립니다.\n\n` +
+      `■ 첨부 파일 내역 (${atts.length}건)\n` +
+      (siteLine ? `${siteLine}` : '') +
+      `${attachmentListText}\n\n` +
+      `첨부된 파일을 확인해 주시기 바라며, 추가 문의 사항이 있으시면 언제든지 연락 주시기 바랍니다.\n\n` +
+      `감사합니다.\n` +
+      `${senderBrand} 배상`
+    );
+  }, [recipientName, currentCustomer, selectedSiteId, relatedSites, senderBrand, specModel]);
+
+  // 템플릿 변경 시 해당 서식 파일 로드 및 본문/제목 동기화
+  useEffect(() => {
     const applyTemplate = async () => {
       setIsAttaching(true);
       const newAtts: MailAttachment[] = [];
 
-      if (templateType === 'QUOTE') {
-        setSubject(`[${senderBrand}] ${custTitle} 고소작업대 견적서 송부`);
-        setBody(
-          `안녕하십니까, ${custTitle} 담당자님.\n` +
-          `${senderBrand} 영업팀입니다.\n\n` +
-          `요청하신 고소작업대 임대 견적서를 아래와 같이 송부드립니다.\n\n` +
-          `■ 견적 명세 요약\n` +
-          `• 현장명: ${siteTitle || '지정 현장'}\n` +
-          `• 장비 기종: ${quoteModel}\n` +
-          `• 요청 수량: ${quoteQuantity}대\n` +
-          `• 예상 사용 기간: ${quotePeriod}\n` +
-          `• 월 임대료: 대당 ₩${quoteMonthlyRate.toLocaleString()} (부가세 별도)\n` +
-          `• 일 임대료: 대당 ₩${quoteDailyRate.toLocaleString()} (부가세 별도)\n` +
-          `• 왕복 운송비: ₩${quoteDeliveryFee.toLocaleString()} (현장 협의 가능)\n\n` +
-          `상기 단가는 당사 표준 정기점검 및 안전인증 장비 기준이며, 세부 조건 협의 가능합니다.\n` +
-          `검토 후 회신 또는 유선 연락 주시면 신속히 배차 지원하겠습니다.\n\n` +
-          `감사합니다.\n` +
-          `${senderBrand} 영업부\n` +
-          `대표전화: 031-000-0000`
-        );
-
-        // 회사소개서 및 표준제원표 자동 번들 첨부
-        const prof = await fetchTemplateBase64('/tenants/giyuen/templates/회사소개서_공식.pdf', `(주)기연리프트_회사소개서.pdf`);
+      if (templateType === 'COMPANY_PROFILE') {
+        const prof = await fetchTemplateBase64('/tenants/giyuen/templates/회사소개서_공식.pdf', `${senderBrand}_회사소개서.pdf`);
         if (prof) newAtts.push(prof);
-        const spec = await fetchTemplateBase64('/tenants/giyuen/templates/표준제원표양식.pdf', `고소작업대_${quoteModel}_표준제원표.pdf`);
-        if (spec) newAtts.push(spec);
-
-      } else if (templateType === 'COMPANY_PROFILE') {
-        setSubject(`[${senderBrand}] ${custTitle} 회사소개서 송부`);
-        setBody(
-          `안녕하십니까, ${custTitle} 담당자님.\n` +
-          `고소작업대 렌탈 전문기업 ${senderBrand} 입니다.\n\n` +
-          `당사의 사업 영역 및 보유 장비, 안전관리 체계를 수록한 회사소개서를 첨부 파일로 송부드립니다.\n\n` +
-          `■ 주요 사업 안내\n` +
-          `1. 직진/굴절 붐, 시저리프트 전 기종 최신 장비 렌탈 및 현장 배차\n` +
-          `2. 100% 사내 전문 정비팀 정기 점검 및 안전인증 검사필 필증 부착\n` +
-          `3. 수도권 24시간 긴급 현장 출동 AS 체계 구축\n\n` +
-          `문의 사항이나 필요 장비가 있으시면 언제든지 편하게 연락 주시기 바랍니다.\n\n` +
-          `감사합니다.\n` +
-          `${senderBrand} 배상`
-        );
-
-        const prof = await fetchTemplateBase64('/tenants/giyuen/templates/회사소개서_공식.pdf', `(주)기연리프트_회사소개서.pdf`);
-        if (prof) newAtts.push(prof);
-
       } else if (templateType === 'CATALOG_SPEC') {
-        setSubject(`[${senderBrand}] ${custTitle} ${specModel} 장비 제원표 및 카탈로그 송부`);
-        setBody(
-          `안녕하십니까, ${custTitle} 담당자님.\n` +
-          `${senderBrand} 기술지원팀입니다.\n\n` +
-          `요청하신 [${specModel}] 고소작업대의 상세 규격, 작업 반경도 및 안전 하중 제원표를 첨부 송부드립니다.\n\n` +
-          `■ 장비 제원 확인 사항\n` +
-          `• 모델명: ${specModel}\n` +
-          `• 주요 용도: 실내 마감, 배관, 닥트, 전기 통신 및 고소 설치 공사\n` +
-          `• 안전 수칙 및 장비 치수 명세 첨부 참조\n\n` +
-          `현장 여건(출입문 높이, 바닥 하중 등)에 따른 추가 문의사항은 연락 주시면 상세 안내드리겠습니다.\n\n` +
-          `감사합니다.\n` +
-          `${senderBrand} 기술지원팀`
-        );
-
-        const spec = await fetchTemplateBase64('/tenants/giyuen/templates/표준제원표양식.pdf', `고소작업대_${specModel}_제원표.pdf`);
+        const spec = await fetchTemplateBase64('/tenants/giyuen/templates/표준제원표양식.pdf', `고소작업대_${specModel}_표준제원표.pdf`);
         if (spec) newAtts.push(spec);
-
       } else if (templateType === 'CONTRACT_BUNDLE') {
-        setSubject(`[${senderBrand}] ${custTitle} 고소작업대 표준 계약 서식 패키지 송부`);
-        setBody(
-          `안녕하십니까, ${custTitle} 담당자님.\n` +
-          `${senderBrand} 관리부입니다.\n\n` +
-          `현장 투입 및 사전 등록에 필요한 당사 표준 계약 서식 3종을 첨부 송부드립니다.\n\n` +
-          `■ 첨부 서식 목록\n` +
-          `1. 고소작업대 임대차 계약서 양식\n` +
-          `2. 자산별 반입 전 CHECK LIST 양식\n` +
-          `3. 자체 안전점검 결과서 양식\n\n` +
-          `내용 확인하시고 날인 및 서류 접수 진행 부탁드립니다.\n\n` +
-          `감사합니다.\n` +
-          `${senderBrand} 관리부`
-        );
-
         const c1 = await fetchTemplateBase64('/tenants/giyuen/templates/임대차계약서_양식_원본.pdf', `임대차계약서_양식.pdf`);
         if (c1) newAtts.push(c1);
         const c2 = await fetchTemplateBase64('/tenants/giyuen/templates/반입전체크리스트_양식_원본.pdf', `반입전체크리스트_양식.pdf`);
         if (c2) newAtts.push(c2);
         const c3 = await fetchTemplateBase64('/tenants/giyuen/templates/안전점검결과서_양식_원본.pdf', `안전점검결과서_양식.pdf`);
         if (c3) newAtts.push(c3);
-
-      } else if (templateType === 'CUSTOM') {
-        if (!subject) setSubject(`[${senderBrand}] ${custTitle} 업무 협조의 건`);
-        if (!body) setBody(`안녕하십니까, ${custTitle} 담당자님.\n${senderBrand} 입니다.\n\n내용을 입력하세요.\n\n감사합니다.`);
       }
 
       setAttachments(newAtts);
+      syncComposeWithAttachments(newAtts, templateType);
       setIsAttaching(false);
     };
 
     applyTemplate();
-  }, [templateType, selectedCustomerId, recipientName, selectedSiteId, quoteModel, quoteQuantity, quoteMonthlyRate, quoteDailyRate, quoteDeliveryFee, quotePeriod, specModel]);
+  }, [templateType, specModel, senderBrand]);
+
+  // 수신처/현장 변경 시 현재 첨부파일 기준으로 제목과 안내 문구 갱신
+  useEffect(() => {
+    syncComposeWithAttachments(attachments, templateType);
+  }, [selectedCustomerId, recipientName, selectedSiteId]);
 
   // 로컬 파일 사용자 직접 추가
   const handleUserFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -294,7 +279,11 @@ export const OfficialMailPage: React.FC = () => {
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64data = (reader.result as string).split(',')[1];
-        setAttachments(prev => [...prev, { filename: file.name, content: base64data, size: file.size }]);
+        setAttachments(prev => {
+          const next = [...prev, { filename: file.name, content: base64data, size: file.size }];
+          syncComposeWithAttachments(next, templateType);
+          return next;
+        });
       };
       reader.readAsDataURL(file);
     });
@@ -303,7 +292,11 @@ export const OfficialMailPage: React.FC = () => {
 
   // 첨부 파일 삭제
   const removeAttachment = (index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index));
+    setAttachments(prev => {
+      const next = prev.filter((_, i) => i !== index);
+      syncComposeWithAttachments(next, templateType);
+      return next;
+    });
   };
 
   // 이메일 최종 발송
@@ -602,9 +595,8 @@ export const OfficialMailPage: React.FC = () => {
               <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                 발송 서식 템플릿 선택
               </label>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '8px' }}>
                 {[
-                  { key: 'QUOTE', label: '견적서' },
                   { key: 'COMPANY_PROFILE', label: '회사소개서' },
                   { key: 'CATALOG_SPEC', label: '제원표/카탈로그' },
                   { key: 'CONTRACT_BUNDLE', label: '계약서식 세트' },
@@ -636,100 +628,6 @@ export const OfficialMailPage: React.FC = () => {
                 })}
               </div>
             </div>
-
-            {/* 견적서 선택 시 전용 파라미터 입력 블록 */}
-            {templateType === 'QUOTE' && (
-              <div style={{
-                padding: '14px',
-                backgroundColor: 'var(--bg-app)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '8px',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-                gap: '12px'
-              }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>장비 기종</label>
-                  <select
-                    value={quoteModel}
-                    onChange={(e) => setQuoteModel(e.target.value)}
-                    style={{
-                      height: '32px',
-                      padding: '0 8px',
-                      fontSize: '11.5px',
-                      backgroundColor: 'var(--bg-card)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '4px',
-                      color: 'var(--text-main)'
-                    }}
-                  >
-                    <option value="GS-1930">GS-1930 (6m 시저)</option>
-                    <option value="GS-3246">GS-3246 (10m 시저)</option>
-                    <option value="GS-4047">GS-4047 (12m 시저)</option>
-                    <option value="SJ-3219">SJ-3219 (6m 시저)</option>
-                    <option value="Z-34/22">Z-34/22 (굴절 붐)</option>
-                    <option value="S-60">S-60 (직진 붐)</option>
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>수량 (대)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={quoteQuantity}
-                    onChange={(e) => setQuoteQuantity(Number(e.target.value) || 1)}
-                    style={{
-                      height: '32px',
-                      padding: '0 8px',
-                      fontSize: '11.5px',
-                      backgroundColor: 'var(--bg-card)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '4px',
-                      color: 'var(--text-main)'
-                    }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>월 단가 (원)</label>
-                  <input
-                    type="number"
-                    step="10000"
-                    value={quoteMonthlyRate}
-                    onChange={(e) => setQuoteMonthlyRate(Number(e.target.value) || 0)}
-                    style={{
-                      height: '32px',
-                      padding: '0 8px',
-                      fontSize: '11.5px',
-                      backgroundColor: 'var(--bg-card)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '4px',
-                      color: 'var(--text-main)'
-                    }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>예상 사용기간</label>
-                  <input
-                    type="text"
-                    value={quotePeriod}
-                    onChange={(e) => setQuotePeriod(e.target.value)}
-                    placeholder="예: 3개월"
-                    style={{
-                      height: '32px',
-                      padding: '0 8px',
-                      fontSize: '11.5px',
-                      backgroundColor: 'var(--bg-card)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '4px',
-                      color: 'var(--text-main)'
-                    }}
-                  />
-                </div>
-              </div>
-            )}
 
             {/* 제원표 선택 시 기종 선택 */}
             {templateType === 'CATALOG_SPEC' && (
