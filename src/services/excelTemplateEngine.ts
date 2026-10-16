@@ -466,6 +466,10 @@ export interface TransactionStatementPdfData {
   lessorName?: string;
   lessorCeo?: string;
   lessorAddress?: string;
+  lessorBizType?: string;
+  lessorBizItem?: string;
+  lessorTel?: string;
+  lessorFax?: string;
   salespersonName?: string;
   salespersonPhone?: string;
   billingManagerName?: string;
