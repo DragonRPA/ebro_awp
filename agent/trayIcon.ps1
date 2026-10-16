@@ -1,4 +1,4 @@
-# agent/trayIcon.ps1
+﻿# agent/trayIcon.ps1
 # eBro AI Agent Windows System Tray Icon Worker
 param(
     [int]$AgentPid = 0,
