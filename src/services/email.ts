@@ -169,11 +169,9 @@ class RealGmailService {
       );
     }
 
-    // 로컬 파일 경로(localPath) 첨부가 포함된 경우 로컬 에이전트 구동이 필수임
-    const hasLocalPathAttachment = attachments.some(att => Boolean(att.localPath) && !att.content);
     const resolvedFromName = fromName || defaultBrandName;
 
-    // 2. 이메일 발송 실행: 로컬 에이전트(http://127.0.0.1:5175/api/send-email) 우선
+    // 2. 이메일 발송 실행: 모든 이메일 발송은 반드시 로컬 에이전트(eBroAgent)를 통해서만 수행 (클라우드 폴백 제거)
     let sendSuccess = false;
     let lastError = '';
 
@@ -191,17 +189,14 @@ class RealGmailService {
       fromName: resolvedFromName
     };
 
-    // 2-1. 로컬 에이전트 작업 큐에 이메일 발송 등록 후 결과 확인 (HTTP 연결 블로킹 제거, localPath 직접 첨부)
-    let agentResponded = false;
     try {
       const localResp = await fetchWithAgentFallback('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...localPayload, asyncQueue: true }),
-        requireAgent: hasLocalPathAttachment,
+        requireAgent: true,
         actionName: '이메일 발송'
       });
-      agentResponded = true;
       if (localResp.ok) {
         let localRes = await localResp.json();
         if (localRes.queued && localRes.jobId) {
@@ -245,92 +240,7 @@ class RealGmailService {
       }
     } catch (localErr: any) {
       lastError = localErr.message || String(localErr);
-      // 로컬 파일 전용 첨부여서 에이전트가 필수인 경우 즉시 에러 반환 (안내 모달은 fetchWithAgentFallback에서 이미 표출됨)
-      if (hasLocalPathAttachment) {
-        throw new Error(lastError);
-      }
-      // 일반 Base64 첨부 또는 본문 메일인 경우 로컬 에이전트 미구동 시 클라우드(Vercel) 서버리스로 즉시 폴백
-    }
-
-    // 2-2. 로컬 에이전트가 미구동(네트워크 미응답)이고 로컬 파일 전용 첨부가 아닌 경우에만 Vercel 서버리스 폴백
-    // (로컬 에이전트가 응답했으나 SMTP 인증 오류 등이 난 경우에는 동일한 계정 오류이므로 불필요한 이중 발송을 하지 않음)
-    if (!sendSuccess && !agentResponded && !hasLocalPathAttachment) {
-      let processedAttachments: any[] = [...attachments];
-      const totalContentLength = attachments.reduce((sum, att) => sum + (att.content?.length || 0), 0);
-      
-      // Vercel 4.5MB 페이로드 초과 방지: 1.5MB 이상이면 Supabase Storage에 임시 업로드하여 URL로 전달
-      if (totalContentLength > 1.5 * 1024 * 1024) {
-        try {
-          const { uploadToSupabaseStorage } = await import('./supabaseStorage');
-          processedAttachments = await Promise.all(attachments.map(async (att) => {
-            if (!att.content || att.content.length < 100) return att;
-            
-            const base64Data = att.content.replace(/^data:.*?;base64,/, '');
-            const binaryStr = atob(base64Data);
-            const bytes = new Uint8Array(binaryStr.length);
-            for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
-            const file = new File([bytes.buffer], att.filename || 'attachment.pdf', { type: 'application/pdf' });
-            
-            const uploadRes = await uploadToSupabaseStorage({
-              file,
-              fileName: `email_${Date.now()}_${Math.random().toString(36).substring(2, 7)}_${att.filename || 'file.pdf'}`,
-              folder: 'temp_emails'
-            });
-            
-            if (uploadRes.success) {
-              return { filename: att.filename, url: uploadRes.fileUrl };
-            }
-            throw new Error('Supabase Storage 업로드에 실패하여 URL을 확보하지 못했습니다.');
-          }));
-        } catch (err: any) {
-          console.warn('첨부파일 스토리지 임시 업로드 실패:', err);
-          throw new Error(`대용량 첨부파일 처리 중 오류가 발생했습니다: ${err.message || err}`);
-        }
-      }
-
-      const vercelPayload = {
-        to,
-        cc,
-        subject,
-        body,
-        googleEmail,
-        gmailAppPassword,
-        smtpProvider,
-        smtpHost,
-        smtpPort,
-        attachments: processedAttachments,
-        fromName: resolvedFromName
-      };
-
-      try {
-        const resp = await fetch('/api/send-email', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(vercelPayload)
-        });
-
-        const rawText = await resp.text();
-        let result: any = {};
-        try {
-          result = JSON.parse(rawText);
-        } catch (_) {
-          // 로컬 개발서버(Vite) 등에서 /api/send-email 엔드포인트가 없고 로컬 에이전트도 꺼져 있었던 경우
-          if (lastError && lastError.includes('eBroAgent')) {
-            const { notifyAgentRequired } = await import('./agentService');
-            notifyAgentRequired('이메일 발송');
-            throw new Error(lastError);
-          }
-          throw new Error(`메일 발송 서버 응답 오류 (${resp.status}): 로컬 에이전트(eBroAgent)가 실행 중인지 확인해 주십시오.`);
-        }
-
-        if (resp.ok && result.success) {
-          sendSuccess = true;
-        } else {
-          lastError = result.error || lastError || '메일 서버 전송에 실패했습니다.';
-        }
-      } catch (vercelErr: any) {
-        lastError = vercelErr.message || lastError;
-      }
+      throw new Error(lastError);
     }
 
     if (!sendSuccess) {
