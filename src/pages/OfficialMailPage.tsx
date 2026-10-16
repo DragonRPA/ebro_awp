@@ -13,7 +13,7 @@ interface MailAttachment {
 }
 
 export const OfficialMailPage: React.FC = () => {
-  const { customers, products, googleConfigs, currentUser } = useApp();
+  const { customers, products, googleConfigs, currentUser, currentTenant } = useApp();
   const customerContacts: CustomerContact[] = db.contacts;
   const customerSites: CustomerSite[] = db.sites;
 
@@ -47,13 +47,50 @@ export const OfficialMailPage: React.FC = () => {
   const [sendResultMsg, setSendResultMsg] = useState<{ success: boolean; text: string } | null>(null);
   const [sentHistory, setSentHistory] = useState<SentEmail[]>([]);
 
-  // 공식 발신 계정
+  // 공식 발신 계정 (SSOT: 현재 테넌트 설정 및 실제 유효 이메일 우선 매핑)
+  const activeTenantId = currentTenant?.id || currentTenant?.tenantCode || import.meta.env.VITE_TENANT_ID || 'giyuen';
   const officialConfig = useMemo(() => {
-    return googleConfigs.find(c => c.googleEmail && c.gmailAppPassword && !c.gmailAppPassword.includes('•')) || googleConfigs[0];
-  }, [googleConfigs]);
+    // 1. Context에 로드된 googleConfigs 탐색
+    if (googleConfigs && googleConfigs.length > 0) {
+      const exact = googleConfigs.find(c => c.tenantId && (c.tenantId === activeTenantId || c.tenantId === currentTenant?.id || c.tenantId === currentTenant?.tenantCode));
+      if (exact && exact.googleEmail && !exact.googleEmail.includes('victor.lee')) return exact;
 
-  const senderEmail = officialConfig?.googleEmail || '미설정 (구글 관리자 설정 필요)';
-  const senderBrand = '(주)기연리프트';
+      const tenantMatched = googleConfigs.find(c => c.tenantId && (c.tenantId === 'giyuen' || c.tenantId === 'giyeonlift' || c.tenantId === 'tenant-giyeonlift'));
+      if (tenantMatched && tenantMatched.googleEmail && !tenantMatched.googleEmail.includes('victor.lee')) return tenantMatched;
+
+      const customEmailConfigs = googleConfigs.filter(c => c.googleEmail && !c.googleEmail.includes('victor.lee'));
+      if (customEmailConfigs.length > 0) {
+        return [...customEmailConfigs].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))[0];
+      }
+      if (exact) return exact;
+      if (tenantMatched) return tenantMatched;
+    }
+
+    // 2. DB(db.googleConfigs) 탐색
+    const allDbConfigs = db.googleConfigs || [];
+    const dbExact = allDbConfigs.find(c => c.tenantId && (c.tenantId === activeTenantId || c.tenantId === currentTenant?.id || c.tenantId === currentTenant?.tenantCode));
+    if (dbExact && dbExact.googleEmail && !dbExact.googleEmail.includes('victor.lee')) return dbExact;
+
+    const dbCustom = allDbConfigs.find(c => c.googleEmail && !c.googleEmail.includes('victor.lee'));
+    if (dbCustom) return dbCustom;
+
+    // 3. localStorage('erp_googleConfigs') 탐색
+    try {
+      const lsVal = localStorage.getItem('erp_googleConfigs');
+      if (lsVal) {
+        const lsConfigs: any[] = JSON.parse(lsVal);
+        if (Array.isArray(lsConfigs) && lsConfigs.length > 0) {
+          const lsCustom = lsConfigs.find((c: any) => c.googleEmail && !c.googleEmail.includes('victor.lee'));
+          if (lsCustom) return lsCustom;
+        }
+      }
+    } catch {}
+
+    return googleConfigs[0];
+  }, [googleConfigs, activeTenantId, currentTenant]);
+
+  const senderEmail = officialConfig?.googleEmail || currentTenant?.email || currentTenant?.taxEmail || '미설정 (공식 메일 연동 설정 필요)';
+  const senderBrand = currentTenant?.tradeName || currentTenant?.corporateName || '(주)기연리프트';
 
   // 최근 발송 이력 로드
   const loadHistory = () => {
@@ -260,6 +297,7 @@ export const OfficialMailPage: React.FC = () => {
 
   // 이메일 최종 발송
   const handleSendEmail = async () => {
+    if (isSending) return;
     if (!recipientEmail || !recipientEmail.trim()) {
       alert('수신자 이메일 주소를 입력해 주세요.');
       return;
@@ -310,7 +348,7 @@ export const OfficialMailPage: React.FC = () => {
           <div>
             <h2 data-mid="official_mail-header" style={{ fontSize: '17px', fontWeight: 700, margin: 0, color: 'var(--text-main)', whiteSpace: 'nowrap' }}>공식 메일 발송</h2>
             <p style={{ fontSize: '12px', color: 'var(--text-muted)', margin: '2px 0 0' }}>
-              회사 공식 구글 계정({senderEmail}) 기반 견적서·회사소개서·제원표·서식 발송 센터
+              회사 공식 메일 계정({senderEmail}) 기반 견적서·회사소개서·제원표·서식 발송 센터
             </p>
           </div>
         </div>

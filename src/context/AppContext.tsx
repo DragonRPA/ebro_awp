@@ -1161,6 +1161,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     'corporate_card':       ['vendors', 'billings'],
     'cash_flow':            ['billings', 'payments', 'contracts', 'assets'],
     'delinquency':          ['billings', 'customers', 'contracts'],
+    'official_mail':        ['googleConfigs', 'customers', 'contacts', 'sites', 'products'],
     'google_config':        ['googleConfigs'],
     'depreciation_execution': ['depreciationLogs', 'assets'],
     'leave_application':    ['users', 'annualLeaveQuotas', 'leaveUsages'],
