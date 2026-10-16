@@ -415,6 +415,8 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
   }
 
   // 🚀 [2단계: 에이전트 생존 확인 완료 -> 본 작업 실행 (인위적 타임아웃 없이 완료까지 대기)]
+  // 💡 에이전트로부터 HTTP 응답(200, 400, 404, 500 등 상태 코드 무관)을 수신했다면 에이전트는 정상 가동 중임.
+  //    500(SMTP 인증 오류, 파일 생성 오류 등)을 에이전트 미실행으로 오판하여 재시도하거나 AgentRequiredModal을 띄우지 않는다.
   // 2-1. HTTPS 환경이며 확장 프로그램이 활성화되어 있는 경우 1순위 시도
   if (isHttps && hasExtension) {
     try {
@@ -422,12 +424,10 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
         ...init,
         timeout: effectiveTimeout
       } as RequestInit & { timeout?: number });
-      if (extRes.ok || extRes.status < 500) {
-        setGlobalAgentStatus(true);
-        return extRes;
-      }
+      setGlobalAgentStatus(true);
+      return extRes;
     } catch (extErr) {
-      // 확장 프로그램 응답 실패 시 루프백 직접 fetch로 인계
+      // 확장 프로그램 브리지 통신 자체 실패 시 루프백 직접 fetch로 인계
     }
   }
 
@@ -458,28 +458,24 @@ export async function fetchWithAgentFallback(path: string, init?: AgentFetchOpti
       const res = await fetch(`${host}${path}`, mergedInit);
       if (timeoutTimer) clearTimeout(timeoutTimer);
 
-      if (res.ok || res.status < 500) {
-        activeAgentBaseUrl = host;
-        setGlobalAgentStatus(true);
-        return res;
-      }
+      activeAgentBaseUrl = host;
+      setGlobalAgentStatus(true);
+      return res;
     } catch (e: any) {
       if (timeoutTimer) clearTimeout(timeoutTimer);
       lastErr = e;
     }
   }
 
-  // 2-3. 직접 fetch가 실패했고 확장 프로그램이 있다면 최종 보조 시도
+  // 2-3. 직접 fetch가 네트워크 레벨에서 실패했고 확장 프로그램이 있다면 최종 보조 시도
   if (hasExtension) {
     try {
       const extRes = await fetchViaExtensionBridge(path, {
         ...init,
         timeout: effectiveTimeout
       } as RequestInit & { timeout?: number });
-      if (extRes.ok || extRes.status < 500) {
-        setGlobalAgentStatus(true);
-        return extRes;
-      }
+      setGlobalAgentStatus(true);
+      return extRes;
     } catch (e) {}
   }
 

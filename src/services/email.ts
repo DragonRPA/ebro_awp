@@ -203,6 +203,7 @@ class RealGmailService {
     };
 
     // 2-1. 로컬 에이전트 시도 (사전 /health 핑 확인 후 완료 시까지 대기)
+    let agentResponded = false;
     try {
       const localResp = await fetchWithAgentFallback('/api/send-email', {
         method: 'POST',
@@ -211,6 +212,7 @@ class RealGmailService {
         requireAgent: hasLocalPathAttachment,
         actionName: '이메일 발송'
       });
+      agentResponded = true;
       if (localResp.ok) {
         const localRes = await localResp.json();
         if (localRes.success) {
@@ -222,6 +224,13 @@ class RealGmailService {
         const errJson = await localResp.json().catch(() => ({}));
         lastError = errJson.error || `로컬 에이전트 응답 오류 (${localResp.status})`;
       }
+      if (!sendSuccess && (lastError.includes('535') || lastError.includes('Invalid login') || lastError.includes('Username and Password not accepted'))) {
+        if (smtpHost.includes('naver.com')) {
+          lastError = `[네이버 메일(smtp.naver.com) 로그인 거부]\n${lastError}\n\n• 네이버 메일 웹 환경설정 > [POP3/SMTP 설정]에서 'POP3/SMTP 사용함'이 켜져 있는지 확인해 주세요.\n• 네이버 2단계 인증을 사용 중인 경우, 일반 로그인 비밀번호가 아닌 네이버 '애플리케이션 비밀번호'를 발급받아 [공식 메일 연동 설정]에 입력해야 합니다.`;
+        } else if (smtpHost.includes('daum.net')) {
+          lastError = `[다음/카카오 메일(smtp.daum.net) 로그인 거부]\n${lastError}\n\n• 다음 메일 환경설정 > [IMAP/POP3 설정]에서 '사용함' 설정 및 카카오 '앱 비밀번호' 입력 여부를 확인해 주세요.`;
+        }
+      }
     } catch (localErr: any) {
       lastError = localErr.message || String(localErr);
       // 로컬 파일 전용 첨부여서 에이전트가 필수인 경우 즉시 에러 반환 (안내 모달은 fetchWithAgentFallback에서 이미 표출됨)
@@ -231,8 +240,9 @@ class RealGmailService {
       // 일반 Base64 첨부 또는 본문 메일인 경우 로컬 에이전트 미구동 시 클라우드(Vercel) 서버리스로 즉시 폴백
     }
 
-    // 2-2. 에이전트 발송 실패(또는 미구동) 시 -> Supabase 임시 업로드 및 Vercel 서버리스 폴백
-    if (!sendSuccess) {
+    // 2-2. 로컬 에이전트가 미구동(네트워크 미응답)이고 로컬 파일 전용 첨부가 아닌 경우에만 Vercel 서버리스 폴백
+    // (로컬 에이전트가 응답했으나 SMTP 인증 오류 등이 난 경우에는 동일한 계정 오류이므로 불필요한 이중 발송을 하지 않음)
+    if (!sendSuccess && !agentResponded && !hasLocalPathAttachment) {
       let processedAttachments: any[] = [...attachments];
       const totalContentLength = attachments.reduce((sum, att) => sum + (att.content?.length || 0), 0);
       

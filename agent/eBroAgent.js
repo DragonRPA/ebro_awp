@@ -825,154 +825,134 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 3-2-2.  실시간 Gmail SMTP 이메일 발송 API (/api/send-email)
-  if (req.method === 'POST' && pathname === '/api/send-email') {
-    let bodyData = '';
-    req.on('data', chunk => { bodyData += chunk; });
-    req.on('end', async () => {
-      try {
-        const payload = JSON.parse(bodyData || '{}');
-        const { to, cc, subject, body, googleEmail, gmailAppPassword, smtpProvider, smtpHost, smtpPort, attachments, fromName } = payload;
+// ── [백그라운드 시스템 작업 큐 (Excel COM 조립 / 이메일 발송 비동기 완수 워커)] ──
+const systemJobQueue = [];
+let isSystemJobWorkerRunning = false;
 
-        if (!to || !subject || !body) {
-          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-          res.end(JSON.stringify({ success: false, error: '수신자(to), 제목(subject), 본문(body)은 필수 항목입니다.' }));
-          return;
-        }
+async function executeSendEmailInternal(payload) {
+  const { to, cc, subject, body, googleEmail, gmailAppPassword, smtpProvider, smtpHost, smtpPort, attachments, fromName } = payload;
 
-        const cleanEmail = String(googleEmail || '').trim();
-        const cleanPass = String(gmailAppPassword || '').replace(/\s+/g, '').trim();
-
-        if (!cleanEmail || !cleanPass) {
-          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-          res.end(JSON.stringify({ success: false, error: '발송 계정 이메일과 앱 비밀번호가 필요합니다.' }));
-          return;
-        }
-
-        const nodemailer = require('nodemailer');
-
-        // SMTP 호스트 및 포트 결정 (NAVER, DAUM, GMAIL, CUSTOM 등 지원)
-        let resolvedHost = smtpHost;
-        let resolvedPort = Number(smtpPort) || 465;
-        const emailLower = cleanEmail.toLowerCase();
-
-        if (!resolvedHost || (emailLower.endsWith('@naver.com') && resolvedHost.includes('gmail.com')) || ((emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) && resolvedHost.includes('gmail.com'))) {
-          const provider = (smtpProvider || '').toUpperCase();
-          if (provider === 'NAVER' || emailLower.endsWith('@naver.com')) {
-            resolvedHost = 'smtp.naver.com';
-            resolvedPort = resolvedPort || 465;
-          } else if (provider === 'DAUM' || emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) {
-            resolvedHost = 'smtp.daum.net';
-            resolvedPort = resolvedPort || 465;
-          } else {
-            resolvedHost = 'smtp.gmail.com';
-            resolvedPort = resolvedPort || 465;
-          }
-        }
-
-        const isSecure = resolvedPort === 465;
-
-        agentLog('INFO', `[SMTP] 메일 발송 시도: Host=${resolvedHost}, Port=${resolvedPort}, Secure=${isSecure}, User=${cleanEmail}, To=${to}`);
-
-        const transporter = nodemailer.createTransport({
-          host: resolvedHost,
-          port: resolvedPort,
-          secure: isSecure,
-          auth: { user: cleanEmail, pass: cleanPass },
-          connectionTimeout: 15000,
-          greetingTimeout: 10000,
-          socketTimeout: 20000
-        });
-
-        const parsedAttachments = Array.isArray(attachments) ? attachments.map((att) => {
-          if (att.localPath) {
-            const fs = require('fs');
-            const path = require('path');
-            if (fs.existsSync(att.localPath)) {
-              return {
-                filename: att.filename || path.basename(att.localPath),
-                path: att.localPath,
-                contentType: att.contentType || 'application/pdf'
-              };
-            }
-          }
-          const base64Data = String(att.content || '').replace(/^data:.*?;base64,/, '');
-          return {
-            filename: att.filename || '계약서.pdf',
-            content: Buffer.from(base64Data, 'base64'),
-            contentType: att.contentType || 'application/pdf'
-          };
-        }) : undefined;
-
-        const senderDisplayName = fromName || payload.tenantCorp || payload.tenantBrand || policyData.tenantName || TENANT_CODE || 'e-Bro ERP';
-
-        const info = await transporter.sendMail({
-          from: `"${senderDisplayName}" <${cleanEmail}>`,
-          to: String(to).trim(),
-          cc: cc ? String(cc).trim() : undefined,
-          subject: String(subject).trim(),
-          text: String(body),
-          attachments: parsedAttachments
-        });
-
-        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify({ success: true, messageId: info.messageId, accepted: info.accepted }));
-      } catch (err) {
-        agentLog('ERROR', '메일 전송 오류: ' + (err.message || err));
-        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify({ success: false, error: err.message || '이메일 발송에 실패했습니다.' }));
-      }
-    });
-    return;
+  if (!to || !subject || !body) {
+    throw new Error('수신자(to), 제목(subject), 본문(body)은 필수 항목입니다.');
   }
 
-  // 3-3.  정품 엑셀 원본 기반 7종 통합 계약 서류팩 PDF 생성 엔진 (Excel COM + pdf-lib)
-  if (req.method === 'POST' && pathname === '/api/generate-contract-bundle') {
-    let body = '';
-    req.on('data', chunk => { body += chunk; });
-    req.on('end', async () => {
-      const tempBuildDir = path.join(AGENT_HOME, 'temp_build_' + Date.now());
+  const cleanEmail = String(googleEmail || '').trim();
+  const cleanPass = String(gmailAppPassword || '').replace(/\s+/g, '').trim();
+
+  if (!cleanEmail || !cleanPass) {
+    throw new Error('발송 계정 이메일과 앱 비밀번호가 필요합니다.');
+  }
+
+  const nodemailer = require('nodemailer');
+
+  // SMTP 호스트 및 포트 결정 (NAVER, DAUM, GMAIL, CUSTOM 등 지원)
+  let resolvedHost = smtpHost;
+  let resolvedPort = Number(smtpPort) || 465;
+  const emailLower = cleanEmail.toLowerCase();
+
+  if (!resolvedHost || (emailLower.endsWith('@naver.com') && resolvedHost.includes('gmail.com')) || ((emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) && resolvedHost.includes('gmail.com'))) {
+    const provider = (smtpProvider || '').toUpperCase();
+    if (provider === 'NAVER' || emailLower.endsWith('@naver.com')) {
+      resolvedHost = 'smtp.naver.com';
+      resolvedPort = resolvedPort || 465;
+    } else if (provider === 'DAUM' || emailLower.endsWith('@daum.net') || emailLower.endsWith('@hanmail.net')) {
+      resolvedHost = 'smtp.daum.net';
+      resolvedPort = resolvedPort || 465;
+    } else {
+      resolvedHost = 'smtp.gmail.com';
+      resolvedPort = resolvedPort || 465;
+    }
+  }
+
+  const isSecure = resolvedPort === 465;
+
+  agentLog('INFO', `[SMTP] 메일 발송 시도: Host=${resolvedHost}, Port=${resolvedPort}, Secure=${isSecure}, User=${cleanEmail}, To=${to}`);
+
+  const transporter = nodemailer.createTransport({
+    host: resolvedHost,
+    port: resolvedPort,
+    secure: isSecure,
+    auth: { user: cleanEmail, pass: cleanPass },
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 30000
+  });
+
+  const parsedAttachments = Array.isArray(attachments) ? attachments.map((att) => {
+    if (att.localPath) {
+      if (fs.existsSync(att.localPath)) {
+        return {
+          filename: att.filename || path.basename(att.localPath),
+          path: att.localPath,
+          contentType: att.contentType || 'application/pdf'
+        };
+      }
+    }
+    const base64Data = String(att.content || '').replace(/^data:.*?;base64,/, '');
+    return {
+      filename: att.filename || '계약서.pdf',
+      content: Buffer.from(base64Data, 'base64'),
+      contentType: att.contentType || 'application/pdf'
+    };
+  }) : undefined;
+
+  const senderDisplayName = fromName || payload.tenantCorp || payload.tenantBrand || policyData.tenantName || TENANT_CODE || 'e-Bro ERP';
+
+  const info = await transporter.sendMail({
+    from: `"${senderDisplayName}" <${cleanEmail}>`,
+    to: String(to).trim(),
+    cc: cc ? String(cc).trim() : undefined,
+    subject: String(subject).trim(),
+    text: String(body),
+    attachments: parsedAttachments
+  });
+
+  agentLog('INFO', `[SMTP] 메일 발송 완료: MessageId=${info.messageId}, To=${to}`);
+  return { success: true, messageId: info.messageId, accepted: info.accepted };
+}
+
+async function executeContractBundleInternal(payload) {
+  const tempBuildDir = path.join(AGENT_HOME, 'temp_build_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6));
+  try {
+    if (!fs.existsSync(tempBuildDir)) fs.mkdirSync(tempBuildDir, { recursive: true });
+    const tenantName = payload.tenantName || payload.corporateName || policyData.tenantName || TENANT_CODE || 'e-Bro ERP';
+
+    const custName = payload.customerName || '고객사';
+    const bizRegNo = payload.bizRegNo || '등록번호미지정';
+    const ceoName = payload.ceoName || '대표자';
+    const contractDate = payload.contractDate || new Date().toISOString().split('T')[0];
+    const siteName = payload.siteName || '현장미지정';
+    const siteAddress = payload.siteAddress || '';
+    const managerName = payload.managerName || '현장담당자';
+    const managerPhone = payload.managerPhone || '010-0000-0000';
+    const optionsText = payload.optionsText || '협착방지대, 튜브소화기';
+    const remarksText = payload.remarksText || '안전발판 지급';
+    const deliveryDate = payload.deliveryDate || payload.contractStartDate || contractDate;
+    let inspectionDate = payload.inspectionDate;
+    if (!inspectionDate) {
       try {
-        const payload = JSON.parse(body || '{}');
-        if (!fs.existsSync(tempBuildDir)) fs.mkdirSync(tempBuildDir, { recursive: true });
-        const tenantName = payload.tenantName || payload.corporateName || policyData.tenantName || TENANT_CODE || 'e-Bro ERP';
-
-        const custName = payload.customerName || '고객사';
-        const bizRegNo = payload.bizRegNo || '등록번호미지정';
-        const ceoName = payload.ceoName || '대표자';
-        const contractDate = payload.contractDate || new Date().toISOString().split('T')[0];
-        const siteName = payload.siteName || '현장미지정';
-        const siteAddress = payload.siteAddress || '';
-        const managerName = payload.managerName || '현장담당자';
-        const managerPhone = payload.managerPhone || '010-0000-0000';
-        const optionsText = payload.optionsText || '협착방지대, 튜브소화기';
-        const remarksText = payload.remarksText || '안전발판 지급';
-        const deliveryDate = payload.deliveryDate || payload.contractStartDate || contractDate;
-        let inspectionDate = payload.inspectionDate;
-        if (!inspectionDate) {
-          try {
-            const cleanD = String(deliveryDate).replace(/[^0-9-]/g, '').slice(0, 10);
-            const d = new Date(cleanD);
-            if (!isNaN(d.getTime())) {
-              d.setDate(d.getDate() - 2);
-              inspectionDate = d.toISOString().split('T')[0];
-            } else {
-              inspectionDate = contractDate;
-            }
-          } catch (e) {
-            inspectionDate = contractDate;
-          }
+        const cleanD = String(deliveryDate).replace(/[^0-9-]/g, '').slice(0, 10);
+        const d = new Date(cleanD);
+        if (!isNaN(d.getTime())) {
+          d.setDate(d.getDate() - 2);
+          inspectionDate = d.toISOString().split('T')[0];
+        } else {
+          inspectionDate = contractDate;
         }
+      } catch (e) {
+        inspectionDate = contractDate;
+      }
+    }
 
-        const assets = payload.assets && payload.assets.length > 0 ? payload.assets : [
-          { assetNo: 'G06119', modelName: 'GTJZ0608ME', sn: '0108000379', rentalFee: 390000 }
-        ];
+    const assets = payload.assets && payload.assets.length > 0 ? payload.assets : [
+      { assetNo: 'G06119', modelName: 'GTJZ0608ME', sn: '0108000379', rentalFee: 390000 }
+    ];
 
-        const primaryAsset = assets[0];
-        const totalRentalFee = assets.reduce((sum, a) => sum + (Number(a.rentalFee) || 0), 0);
+    const primaryAsset = assets[0];
+    const totalRentalFee = assets.reduce((sum, a) => sum + (Number(a.rentalFee) || 0), 0);
 
-        // PowerShell 스크립트 작성 (UTF-8 BOM 필수)
-        const psScript = `\ufeff
+    // PowerShell 스크립트 작성 (UTF-8 BOM 필수)
+    const psScript = `\ufeff
 $ErrorActionPreference = 'Stop'
 
 $excel = New-Object -ComObject Excel.Application
@@ -1132,81 +1112,269 @@ $excel.Quit()
 [System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel) | Out-Null
 `;
 
-        const psFile = path.join(tempBuildDir, 'build_bundle.ps1');
-        fs.writeFileSync(psFile, psScript, 'utf8');
+    const psFile = path.join(tempBuildDir, 'build_bundle.ps1');
+    fs.writeFileSync(psFile, psScript, 'utf8');
 
-        // Excel 변환 동기 실행
-        execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, { cwd: tempBuildDir, encoding: 'utf8', timeout: 60000, windowsHide: true });
+    // Excel 변환 실행 (다수 자산 계약 대응을 위해 인위적 짧은 타임아웃 제거)
+    execSync(`powershell -NoProfile -ExecutionPolicy Bypass -File "${psFile}"`, { cwd: tempBuildDir, encoding: 'utf8', timeout: 600000, windowsHide: true });
 
-        // PDF 병합 (pdf-lib)
-        const { PDFDocument } = require('pdf-lib');
+    // PDF 병합 (pdf-lib)
+    const { PDFDocument } = require('pdf-lib');
 
-        const mergedPdf = await PDFDocument.create();
-        const pdfSources = [
-          path.join(tempBuildDir, '01.계약서패키지.pdf')
-        ];
+    const mergedPdf = await PDFDocument.create();
+    const pdfSources = [
+      path.join(tempBuildDir, '01.계약서패키지.pdf')
+    ];
 
-        // 중복 모델 제거
-        const uniqueModels = [...new Set((assets || []).map(a => a.modelName).filter(Boolean))];
-        
-        // Eq_doc 내의 모델 폴더에서 PDF 파일들 추가
-        for (const model of uniqueModels) {
-          const eqDocDir = path.join(DRIVE_MIRROR_DIR, 'Eq_doc', model);
-          if (fs.existsSync(eqDocDir)) {
-            const files = fs.readdirSync(eqDocDir).filter(f => f.toLowerCase().endsWith('.pdf'));
-            // 정렬해서 넣기 (예: 01.제원표, 02.등록증 등)
-            files.sort();
-            for (const f of files) {
-              pdfSources.push(path.join(eqDocDir, f));
-            }
-          }
+    // 중복 모델 제거
+    const uniqueModels = [...new Set((assets || []).map(a => a.modelName).filter(Boolean))];
+    
+    // Eq_doc 내의 모델 폴더에서 PDF 파일들 추가
+    for (const model of uniqueModels) {
+      const eqDocDir = path.join(DRIVE_MIRROR_DIR, 'Eq_doc', model);
+      if (fs.existsSync(eqDocDir)) {
+        const files = fs.readdirSync(eqDocDir).filter(f => f.toLowerCase().endsWith('.pdf'));
+        files.sort();
+        for (const f of files) {
+          pdfSources.push(path.join(eqDocDir, f));
         }
+      }
+    }
 
-        // 공통 서류 추가
-        pdfSources.push(path.join(DRIVE_MIRROR_DIR, '08.생산물배상책임보험증권.pdf'));
-        pdfSources.push(path.join(DRIVE_MIRROR_DIR, '09.사업자등록증.pdf'));
-        pdfSources.push(path.join(DRIVE_MIRROR_DIR, '10.통장사본.pdf'));
+    // 공통 서류 추가
+    pdfSources.push(path.join(DRIVE_MIRROR_DIR, '08.생산물배상책임보험증권.pdf'));
+    pdfSources.push(path.join(DRIVE_MIRROR_DIR, '09.사업자등록증.pdf'));
+    pdfSources.push(path.join(DRIVE_MIRROR_DIR, '10.통장사본.pdf'));
 
+    for (const p of pdfSources) {
+      if (fs.existsSync(p)) {
+        const bytes = fs.readFileSync(p);
+        const doc = await PDFDocument.load(bytes);
+        const copied = await mergedPdf.copyPages(doc, doc.getPageIndices());
+        copied.forEach(page => mergedPdf.addPage(page));
+      }
+    }
 
-        for (const p of pdfSources) {
-          if (fs.existsSync(p)) {
-            const bytes = fs.readFileSync(p);
-            const doc = await PDFDocument.load(bytes);
-            const copied = await mergedPdf.copyPages(doc, doc.getPageIndices());
-            copied.forEach(page => mergedPdf.addPage(page));
-          }
+    const finalPdfBytes = await mergedPdf.save();
+    const pageCount = mergedPdf.getPageCount();
+    const safeCustName = (payload.customerName || '고객').replace(/[\\/:*?"<>|]/g, '');
+    const safeSiteName = String(payload.siteName || '현장').replace(/[\\/:*?"<>|]/g, '');
+    const contractStartDateStr = String(payload.contractStartDate || payload.contractDate || '').replace(/[\\/:*?"<>|]/g, '');
+    const cleanTenantPrefix = String(tenantName).replace(/^\(주\)|주식회사/g, '').trim() || '기연리프트';
+    const fileName = `[${cleanTenantPrefix}계약서]_${safeCustName}_${safeSiteName}_${contractStartDateStr}.pdf`;
+
+    // 로컬 문서고 영구 아카이빙
+    const yyyyMm = contractDate.substring(0, 7) || new Date().toISOString().substring(0, 7);
+    const archiveDir = path.join(ARCHIVE_ROOT, yyyyMm);
+    if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
+    const localSavePath = path.join(archiveDir, fileName);
+    fs.writeFileSync(localSavePath, finalPdfBytes);
+
+    try { fs.rmSync(tempBuildDir, { recursive: true, force: true }); } catch (e) {}
+
+    const b64 = Buffer.from(finalPdfBytes).toString('base64');
+    agentLog('JOB', `계약서패키지 PDF 조립 완료: ${localSavePath} (${pageCount}p)`);
+    return {
+      success: true,
+      fileName,
+      pageCount,
+      localPath: localSavePath,
+      base64Content: b64,
+      message: `100% 정품 엑셀 기반 7종 통합 서류팩 생성 완료 (총 ${pageCount}페이지)`
+    };
+  } catch (bundleErr) {
+    try { fs.rmSync(tempBuildDir, { recursive: true, force: true }); } catch (e) {}
+    throw bundleErr;
+  }
+}
+
+function processSystemJobQueue() {
+  if (isSystemJobWorkerRunning) return;
+  const nextJob = systemJobQueue.find(j => j.status === 'PENDING');
+  if (!nextJob) return;
+
+  isSystemJobWorkerRunning = true;
+  (async () => {
+    try {
+      nextJob.status = 'RUNNING';
+      nextJob.startedAt = new Date().toISOString();
+      agentLog('JOB', `[큐 워커 시작] ${nextJob.jobType} (ID: ${nextJob.id})`);
+
+      if (nextJob.jobType === 'SEND_EMAIL') {
+        nextJob.result = await executeSendEmailInternal(nextJob.payload);
+      } else if (nextJob.jobType === 'CONTRACT_BUNDLE_EMAIL') {
+        const { bundleOptions, emailPayload } = nextJob.payload;
+        let pdfFilePath = emailPayload?.localPath;
+        let pdfFileName = emailPayload?.fileName;
+        if (!pdfFilePath || !fs.existsSync(pdfFilePath)) {
+          const bundleRes = await executeContractBundleInternal(bundleOptions);
+          pdfFilePath = bundleRes.localPath;
+          pdfFileName = bundleRes.fileName;
         }
-
-        const finalPdfBytes = await mergedPdf.save();
-        const pageCount = mergedPdf.getPageCount();
-        const safeCustName = (payload.customerName || '고객').replace(/[\\/:*?"<>|]/g, '');
-        const safeSiteName = String(payload.siteName || '현장').replace(/[\\/:*?"<>|]/g, '');
-        const contractStartDateStr = String(payload.contractStartDate || payload.contractDate || '').replace(/[\\/:*?"<>|]/g, '');
-        const fileName = `[기연리프트계약서]_${safeCustName}_${safeSiteName}_${contractStartDateStr}.pdf`;
-
-        // 로컬 문서고 영구 아카이빙
-        const yyyyMm = contractDate.substring(0, 7) || new Date().toISOString().substring(0, 7);
-        const archiveDir = path.join(ARCHIVE_ROOT, yyyyMm);
-        if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true });
-        const localSavePath = path.join(archiveDir, fileName);
-        fs.writeFileSync(localSavePath, finalPdfBytes);
-
-        // 임시 폴더 청소
-        try { fs.rmSync(tempBuildDir, { recursive: true, force: true }); } catch (e) {}
-
-        const b64 = Buffer.from(finalPdfBytes).toString('base64');
-        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-        res.end(JSON.stringify({
+        const finalEmailPayload = {
+          ...emailPayload,
+          attachments: [{ filename: pdfFileName, localPath: pdfFilePath }]
+        };
+        const mailRes = await executeSendEmailInternal(finalEmailPayload);
+        nextJob.result = { ...mailRes, localPath: pdfFilePath, fileName: pdfFileName };
+      } else if (nextJob.jobType === 'GENERATE_BUNDLE') {
+        const bundleRes = await executeContractBundleInternal(nextJob.payload);
+        if (nextJob.payload?.openAfterComplete && bundleRes.localPath && fs.existsSync(bundleRes.localPath)) {
+          exec(`cmd /c start "" "${bundleRes.localPath}"`, { windowsHide: true });
+        }
+        nextJob.result = {
           success: true,
-          fileName,
-          pageCount,
-          localPath: localSavePath,
-          base64Content: b64,
-          message: ` 100% 정품 엑셀 기반 7종 통합 서류팩 생성 완료 (총 ${pageCount}페이지)`
-        }));
+          fileName: bundleRes.fileName,
+          pageCount: bundleRes.pageCount,
+          localPath: bundleRes.localPath
+        };
+      }
+      nextJob.status = 'COMPLETED';
+      nextJob.completedAt = new Date().toISOString();
+      agentLog('JOB', `[큐 워커 완료] ${nextJob.jobType} (ID: ${nextJob.id})`);
+    } catch (err) {
+      nextJob.status = 'FAILED';
+      nextJob.error = err.message || String(err);
+      nextJob.completedAt = new Date().toISOString();
+      agentLog('ERROR', `[큐 워커 실패] ${nextJob.jobType} (ID: ${nextJob.id}): ${nextJob.error}`);
+    } finally {
+      isSystemJobWorkerRunning = false;
+      setTimeout(processSystemJobQueue, 200);
+    }
+  })();
+}
+
+function enqueueSystemJob(jobType, payload) {
+  const job = {
+    id: `JOB-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 5).toUpperCase()}`,
+    jobType,
+    payload,
+    status: 'PENDING',
+    createdAt: new Date().toISOString()
+  };
+  systemJobQueue.unshift(job);
+  if (systemJobQueue.length > 100) systemJobQueue.pop();
+  processSystemJobQueue();
+  return job;
+}
+
+  // 3-2-1-B. 로컬 파일/폴더 즉시 열기 API (/api/open-local-file)
+  if (req.method === 'POST' && pathname === '/api/open-local-file') {
+    let bodyData = '';
+    req.on('data', chunk => { bodyData += chunk; });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(bodyData || '{}');
+        const targetPath = payload.filePath || payload.localPath;
+        if (!targetPath) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: '열기 대상 파일 경로(filePath)가 지정되지 않았습니다.' }));
+          return;
+        }
+        if (!fs.existsSync(targetPath)) {
+          res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: `로컬 파일을 찾을 수 없습니다: ${targetPath}` }));
+          return;
+        }
+        exec(`cmd /c start "" "${targetPath}"`, { windowsHide: true });
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: true, filePath: targetPath }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // 3-2-1-C. 백그라운드 시스템 작업 큐 등록 및 조회 API (/api/job-queue)
+  if (pathname === '/api/job-queue') {
+    if (req.method === 'GET') {
+      const jobId = searchParams.get('jobId');
+      const target = jobId ? systemJobQueue.find(j => j.id === jobId) : null;
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({
+        success: true,
+        job: target,
+        jobs: systemJobQueue.slice(0, 30).map(j => ({
+          id: j.id,
+          jobType: j.jobType,
+          status: j.status,
+          createdAt: j.createdAt,
+          completedAt: j.completedAt,
+          error: j.error,
+          result: j.result
+        }))
+      }));
+      return;
+    }
+    if (req.method === 'POST') {
+      let bodyData = '';
+      req.on('data', chunk => { bodyData += chunk; });
+      req.on('end', () => {
+        try {
+          const payload = JSON.parse(bodyData || '{}');
+          const job = enqueueSystemJob(payload.jobType || 'GENERAL', payload);
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({
+            success: true,
+            queued: true,
+            jobId: job.id,
+            status: job.status,
+            message: '작업이 로컬 에이전트 큐에 등록되어 백그라운드에서 실행됩니다.'
+          }));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+      });
+      return;
+    }
+  }
+
+  // 3-2-2. 실시간 SMTP 이메일 발송 API (/api/send-email) — 동기 및 큐(asyncQueue) 지원
+  if (req.method === 'POST' && pathname === '/api/send-email') {
+    let bodyData = '';
+    req.on('data', chunk => { bodyData += chunk; });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(bodyData || '{}');
+        if (payload.asyncQueue) {
+          const job = enqueueSystemJob('SEND_EMAIL', payload);
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: true, queued: true, jobId: job.id }));
+          return;
+        }
+        const info = await executeSendEmailInternal(payload);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(info));
+      } catch (err) {
+        agentLog('ERROR', '메일 전송 오류: ' + (err.message || err));
+        res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify({ success: false, error: err.message || '이메일 발송에 실패했습니다.' }));
+      }
+    });
+    return;
+  }
+
+  // 3-3. 정품 엑셀 원본 기반 7종 통합 계약 서류팩 PDF 생성 엔진 (Excel COM + pdf-lib)
+  if (req.method === 'POST' && pathname === '/api/generate-contract-bundle') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        if (payload.asyncQueue) {
+          const job = enqueueSystemJob('GENERATE_BUNDLE', payload);
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+          res.end(JSON.stringify({ success: true, queued: true, jobId: job.id }));
+          return;
+        }
+        const bundleRes = await executeContractBundleInternal(payload);
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+        res.end(JSON.stringify(bundleRes));
       } catch (bundleErr) {
         agentLog('ERROR', '서류팩 생성 실패: ' + (bundleErr.message || bundleErr));
-        try { fs.rmSync(tempBuildDir, { recursive: true, force: true }); } catch (e) {}
         res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ success: false, error: bundleErr.message }));
       }

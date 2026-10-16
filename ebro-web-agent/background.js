@@ -282,12 +282,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const { url, options } = request;
     (async () => {
       try {
-        const timeoutMs = options?.timeout || 120000;
+        const timeoutMs = Number(options?.timeout) || 0;
         const fetchOptions = {
           method: options?.method || 'GET',
-          headers: options?.headers || {},
-          signal: AbortSignal.timeout(timeoutMs)
+          headers: options?.headers || {}
         };
+        if (timeoutMs > 0) {
+          fetchOptions.signal = AbortSignal.timeout(timeoutMs);
+        }
         if (options?.body) {
           fetchOptions.body = options.body;
         }

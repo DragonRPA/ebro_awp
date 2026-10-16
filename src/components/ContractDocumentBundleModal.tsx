@@ -525,7 +525,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
       const agentResp = await fetchWithAgentFallback('/api/generate-contract-bundle', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bundleOptions),
+        body: JSON.stringify({ ...bundleOptions, asyncQueue: true }),
         requireAgent: true,
         actionName: '계약서 패키지 PDF 생성'
       });
@@ -535,26 +535,80 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         throw new Error(errJson?.error ? `에이전트 오류: ${errJson.error}` : `에이전트 응답 오류: HTTP ${agentResp.status}`);
       }
 
-      const agentRes = await agentResp.json();
+      let agentRes = await agentResp.json();
+
+      if (agentRes.queued && agentRes.jobId) {
+        const jobId = agentRes.jobId;
+        setProgressText(`에이전트 큐(${jobId})에서 엑셀 조립 및 PDF 병합 진행 중...`);
+        setProgressPercent(50);
+
+        while (true) {
+          await new Promise(r => setTimeout(r, 1200));
+          const pollResp = await fetchWithAgentFallback(`/api/job-queue?jobId=${encodeURIComponent(jobId)}`, {
+            method: 'GET',
+            skipPrecheck: true
+          });
+          if (pollResp.ok) {
+            const pollData = await pollResp.json();
+            const job = pollData.job;
+            if (job) {
+              if (job.status === 'COMPLETED' && job.result) {
+                agentRes = job.result;
+                break;
+              } else if (job.status === 'FAILED') {
+                throw new Error(job.error || '에이전트 큐 작업 중 오류가 발생했습니다.');
+              } else {
+                setProgressPercent(prev => Math.min(88, prev + 6));
+              }
+            }
+          }
+        }
+      }
+
       const returnedPath = agentRes.localPath || agentRes.filePath || agentRes.localFilePath;
       if (!agentRes.success || !returnedPath) {
         throw new Error(agentRes.error || '에이전트에서 PDF 생성 및 문서고 저장에 실패했습니다. (경로가 반환되지 않았습니다.)');
       }
 
-      setProgressPercent(90);
+      setProgressPercent(92);
+
+      let blobUrl = '';
+      try {
+        if (agentRes.base64Content) {
+          const byteChars = atob(agentRes.base64Content);
+          const byteNumbers = new Array(byteChars.length);
+          for (let i = 0; i < byteChars.length; i++) {
+            byteNumbers[i] = byteChars.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: 'application/pdf' });
+          blobUrl = URL.createObjectURL(blob);
+        } else {
+          const fileResp = await fetchWithAgentFallback(`/api/get-file?fileName=${encodeURIComponent(returnedPath)}`, {
+            method: 'GET',
+            skipPrecheck: true
+          });
+          if (fileResp.ok) {
+            const blob = await fileResp.blob();
+            blobUrl = URL.createObjectURL(blob);
+          }
+        }
+      } catch (blobErr) {
+        console.warn('PDF Blob 생성 생략:', blobErr);
+      }
 
       const tenantBrand = currentTenant?.displayName || currentTenant?.tradeName || 'e-Bro Lift';
       const finalRes = {
-        url: '', // 더 이상 Blob URL을 사용하지 않음
+        url: blobUrl,
         filePath: returnedPath,
         fileName: agentRes.fileName || `[${tenantBrand}]_계약서패키지_${custName}_${siteName}(${agentRes.pageCount || 37}p).pdf`,
         pageCount: agentRes.pageCount || 37
       };
 
       setProgressPercent(100);
-      let successMsg = `총 ${finalRes.pageCount}페이지 정품 계약서패키지 조립 완료!`;
+      let successMsg = `총 ${finalRes.pageCount}페이지 계약서패키지 조립 완료`;
       if (agentRes.missingAttachments && agentRes.missingAttachments.length > 0) {
-        successMsg += ` (일부 첨부 서류 미보유: ${agentRes.missingAttachments.join(', ')})`;
+        successMsg += ` (일부 첨부 미보유: ${agentRes.missingAttachments.join(', ')})`;
       }
       setProgressText(successMsg);
       setGeneratedResult(finalRes);
@@ -568,24 +622,73 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     }
   };
 
-  // ── [액션 1, 2 공통] 로컬 파일 열기 핸들러 ──
-  const handleOpenLocalFile = async () => {
+  // ── [액션 1] 계약서패키지 PDF 다운로드 핸들러 (브라우저 파일 다운로드 + 로컬 뷰어 열기) ──
+  const handleDownloadPdf = async () => {
     try {
-      const pdf = await buildBundlePdf();
-      await fetchWithAgentFallback('/api/open-local-file', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath: pdf.filePath }),
-        requireAgent: true,
-        actionName: '로컬 PDF 파일 열기'
-      });
+      let pdf = generatedResult;
+      if (!pdf || !pdf.filePath) {
+        pdf = await buildBundlePdf();
+      }
+
+      let downloadedInBrowser = false;
+      if (pdf.url) {
+        const a = document.createElement('a');
+        a.href = pdf.url;
+        a.download = pdf.fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        downloadedInBrowser = true;
+      }
+
+      if (pdf.filePath) {
+        const openResp = await fetchWithAgentFallback('/api/open-local-file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filePath: pdf.filePath }),
+          requireAgent: !downloadedInBrowser,
+          actionName: '로컬 PDF 파일 열기'
+        }).catch(() => null);
+
+        if (!downloadedInBrowser && (!openResp || !openResp.ok)) {
+          throw new Error(`로컬 문서고에 저장된 파일(${pdf.filePath})을 열 수 없습니다.`);
+        }
+      }
     } catch (err: any) {
-      showErrorModal?.(`파일 열기 실패:\n${err.message || err}`);
+      showErrorModal?.(`PDF 다운로드 실패:\n${err.message || err}`);
     }
   };
 
-  const handleDownloadPdf = handleOpenLocalFile;
-  const handlePreviewPdf = handleOpenLocalFile;
+  // ── [액션 2] 새 창 미리보기 핸들러 ──
+  const handlePreviewPdf = async () => {
+    try {
+      let pdf = generatedResult;
+      if (!pdf || !pdf.filePath) {
+        pdf = await buildBundlePdf();
+      }
+
+      if (pdf.url) {
+        const win = window.open(pdf.url, '_blank');
+        if (win) return;
+      }
+
+      if (pdf.filePath) {
+        const openResp = await fetchWithAgentFallback('/api/open-local-file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filePath: pdf.filePath }),
+          requireAgent: true,
+          actionName: '로컬 PDF 파일 열기'
+        });
+        if (!openResp.ok) {
+          const errJson = await openResp.json().catch(() => null);
+          throw new Error(errJson?.error || `로컬 파일 열기 실패 (HTTP ${openResp.status})`);
+        }
+      }
+    } catch (err: any) {
+      showErrorModal?.(`파일 미리보기 실패:\n${err.message || err}`);
+    }
+  };
 
   // ── [액션 3] 계약서패키지 이메일 발송 핸들러 (1-A, 2-A, 3-yes 완벽 적용) ──
   const handleSendPackageEmail = async () => {
@@ -670,8 +773,8 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
     } catch (err: any) {
       console.error('이메일 발송 실패:', err);
       const errMsg = String(err?.message || err || '');
-      // 로컬 에이전트 미실행/통신 불가의 경우 이미 전용 안내 모달(AgentRequiredModal)이 뜨므로 중복 에러 모달을 띄우지 않음
-      if (!errMsg.includes('eBroAgent')) {
+      // 로컬 에이전트 미실행/통신 불가의 경우에만 전용 안내 모달(AgentRequiredModal)이 뜨므로, 그 외(SMTP 인증 오류 등)는 상세 에러 모달을 즉시 표출
+      if (!errMsg.includes('eBroAgent)가 실행되고 있지 않습니다') && !errMsg.includes('eBroAgent)와 통신할 수 없습니다')) {
         showErrorModal?.(`이메일 발송 실패:\n${errMsg}`);
       }
     } finally {
