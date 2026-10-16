@@ -161,13 +161,14 @@ class RealGmailService {
       fromName: fromName || '(주)기연리프트'
     };
 
-    // 2-1. 로컬 에이전트 시도
+    // 2-1. 로컬 에이전트 시도 (SMTP 연결 및 첨부파일 전송 고려하여 30초 타임아웃 부여)
     try {
       const localResp = await fetchWithAgentFallback('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(localPayload)
-      });
+        body: JSON.stringify(localPayload),
+        timeout: 30000
+      } as any);
       if (localResp.ok) {
         const localRes = await localResp.json();
         if (localRes.success) {
@@ -175,8 +176,12 @@ class RealGmailService {
         } else {
           lastError = localRes.error || '';
         }
+      } else {
+        const errJson = await localResp.json().catch(() => ({}));
+        lastError = errJson.error || `에이전트 응답 오류 (${localResp.status})`;
       }
     } catch (localErr: any) {
+      lastError = localErr.message || String(localErr);
       // 로컬 에이전트 미구동 시 조용히 Vercel로 폴백
     }
 

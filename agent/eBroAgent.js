@@ -832,7 +832,7 @@ const server = http.createServer(async (req, res) => {
     req.on('end', async () => {
       try {
         const payload = JSON.parse(bodyData || '{}');
-        const { to, cc, subject, body, googleEmail, gmailAppPassword, attachments } = payload;
+        const { to, cc, subject, body, googleEmail, gmailAppPassword, smtpProvider, smtpHost, smtpPort, attachments, fromName } = payload;
 
         if (!to || !subject || !body) {
           res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -845,20 +845,45 @@ const server = http.createServer(async (req, res) => {
 
         if (!cleanEmail || !cleanPass) {
           res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
-          res.end(JSON.stringify({ success: false, error: '구글 계정 이메일과 16자리 앱 비밀번호가 필요합니다.' }));
+          res.end(JSON.stringify({ success: false, error: '발송 계정 이메일과 앱 비밀번호가 필요합니다.' }));
           return;
         }
 
         const nodemailer = require('nodemailer');
 
+        // SMTP 호스트 및 포트 결정 (NAVER, DAUM, GMAIL, CUSTOM 등 지원)
+        let resolvedHost = smtpHost;
+        let resolvedPort = Number(smtpPort) || 465;
+
+        if (!resolvedHost) {
+          const provider = (smtpProvider || '').toUpperCase();
+          if (provider === 'NAVER' || cleanEmail.toLowerCase().endsWith('@naver.com')) {
+            resolvedHost = 'smtp.naver.com';
+            resolvedPort = resolvedPort || 465;
+          } else if (provider === 'DAUM' || cleanEmail.toLowerCase().endsWith('@daum.net') || cleanEmail.toLowerCase().endsWith('@hanmail.net')) {
+            resolvedHost = 'smtp.daum.net';
+            resolvedPort = resolvedPort || 465;
+          } else {
+            resolvedHost = 'smtp.gmail.com';
+            resolvedPort = resolvedPort || 465;
+          }
+        }
+
+        const isSecure = resolvedPort === 465;
+
+        agentLog('INFO', `[SMTP] 메일 발송 시도: Host=${resolvedHost}, Port=${resolvedPort}, Secure=${isSecure}, User=${cleanEmail}, To=${to}`);
+
         const transporter = nodemailer.createTransport({
-          host: 'smtp.gmail.com',
-          port: 465,
-          secure: true,
-          auth: { user: cleanEmail, pass: cleanPass }
+          host: resolvedHost,
+          port: resolvedPort,
+          secure: isSecure,
+          auth: { user: cleanEmail, pass: cleanPass },
+          connectionTimeout: 15000,
+          greetingTimeout: 10000,
+          socketTimeout: 20000
         });
 
-                const parsedAttachments = Array.isArray(attachments) ? attachments.map((att) => {
+        const parsedAttachments = Array.isArray(attachments) ? attachments.map((att) => {
           if (att.localPath) {
             const fs = require('fs');
             const path = require('path');
@@ -878,8 +903,10 @@ const server = http.createServer(async (req, res) => {
           };
         }) : undefined;
 
+        const senderDisplayName = fromName || '(주)기연리프트';
+
         const info = await transporter.sendMail({
-          from: `"(주)기연리프트" <${cleanEmail}>`,
+          from: `"${senderDisplayName}" <${cleanEmail}>`,
           to: String(to).trim(),
           cc: cc ? String(cc).trim() : undefined,
           subject: String(subject).trim(),
