@@ -201,7 +201,10 @@ class RealGmailService {
         let localRes = await localResp.json();
         if (localRes.queued && localRes.jobId) {
           const jobId = localRes.jobId;
-          while (true) {
+          let pollAttempts = 0;
+          let nullJobCount = 0;
+          while (pollAttempts < 90) {
+            pollAttempts++;
             await new Promise(r => setTimeout(r, 800));
             const pollResp = await fetchWithAgentFallback(`/api/job-queue?jobId=${encodeURIComponent(jobId)}`, {
               method: 'GET',
@@ -211,6 +214,7 @@ class RealGmailService {
               const pollData = await pollResp.json();
               const job = pollData.job;
               if (job) {
+                nullJobCount = 0;
                 if (job.status === 'COMPLETED') {
                   localRes = job.result || { success: true };
                   break;
@@ -218,8 +222,17 @@ class RealGmailService {
                   localRes = { success: false, error: job.error || '이메일 발송 작업 실패' };
                   break;
                 }
+              } else {
+                nullJobCount++;
+                if (nullJobCount >= 10) {
+                  localRes = { success: false, error: `에이전트 작업 큐에서 메일 발송 작업(${jobId})을 찾을 수 없습니다.` };
+                  break;
+                }
               }
             }
+          }
+          if (localRes.queued) {
+            localRes = { success: false, error: '이메일 발송 큐 응답 대기 시간(72초)이 초과되었습니다.' };
           }
         }
         if (localRes.success) {

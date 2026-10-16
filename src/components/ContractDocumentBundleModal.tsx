@@ -542,7 +542,10 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
         setProgressText(`에이전트 큐(${jobId})에서 엑셀 조립 및 PDF 병합 진행 중...`);
         setProgressPercent(50);
 
-        while (true) {
+        let pollAttempts = 0;
+        let nullJobCount = 0;
+        while (pollAttempts < 150) {
+          pollAttempts++;
           await new Promise(r => setTimeout(r, 1200));
           const pollResp = await fetchWithAgentFallback(`/api/job-queue?jobId=${encodeURIComponent(jobId)}`, {
             method: 'GET',
@@ -552,6 +555,7 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
             const pollData = await pollResp.json();
             const job = pollData.job;
             if (job) {
+              nullJobCount = 0;
               if (job.status === 'COMPLETED' && job.result) {
                 agentRes = job.result;
                 break;
@@ -560,8 +564,16 @@ export const ContractDocumentBundleModal: React.FC<Props> = ({ isOpen, onClose, 
               } else {
                 setProgressPercent(prev => Math.min(88, prev + 6));
               }
+            } else {
+              nullJobCount++;
+              if (nullJobCount >= 10) {
+                throw new Error(`에이전트 작업 큐에서 작업(${jobId})을 찾을 수 없습니다. 에이전트가 재시작되었거나 구버전일 수 있습니다.`);
+              }
             }
           }
+        }
+        if (agentRes.queued) {
+          throw new Error('계약서패키지 PDF 생성 대기 시간(180초)이 초과되었습니다.');
         }
       }
 

@@ -503,17 +503,47 @@ export async function generateTransactionStatementPdf(data: TransactionStatement
   try {
     const payload = {
       ...data,
-      excelMappingRules: db.currentTenant?.excelMappingRules
+      excelMappingRules: db.currentTenant?.excelMappingRules,
+      asyncQueue: true
     };
     
     const agentResp = await fetchWithAgentFallback('/api/generate-statement', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      requireAgent: true,
+      actionName: '거래명세서 PDF 생성'
     });
 
     if (agentResp.ok) {
-      const agentRes = await agentResp.json();
+      let agentRes = await agentResp.json();
+      if (agentRes.queued && agentRes.jobId) {
+        const jobId = agentRes.jobId;
+        let pollAttempts = 0;
+        while (pollAttempts < 150) {
+          pollAttempts++;
+          await new Promise(r => setTimeout(r, 1000));
+          const pollResp = await fetchWithAgentFallback(`/api/job-queue?jobId=${encodeURIComponent(jobId)}`, {
+            method: 'GET',
+            skipPrecheck: true
+          });
+          if (pollResp.ok) {
+            const pollData = await pollResp.json();
+            const job = pollData.job;
+            if (job) {
+              if (job.status === 'COMPLETED' && job.result) {
+                agentRes = job.result;
+                break;
+              } else if (job.status === 'FAILED') {
+                throw new Error(job.error || '거래명세서 PDF 생성 작업 실패');
+              }
+            }
+          }
+        }
+        if (agentRes.queued) {
+          throw new Error('거래명세서 PDF 생성 대기 시간(150초)이 초과되었습니다.');
+        }
+      }
       if (agentRes.success && agentRes.base64Content) {
         const binaryStr = atob(agentRes.base64Content);
         const bytes = new Uint8Array(binaryStr.length);
@@ -527,9 +557,9 @@ export async function generateTransactionStatementPdf(data: TransactionStatement
     throw new Error(`에이전트 응답 오류 (HTTP ${agentResp.status})`);
   } catch (agentErr: any) {
     throw new Error(
-      `⚠️ 로컬 엑셀 COM 에이전트(eBroAgent) 연결 불가:\n\n` +
+      `로컬 엑셀 COM 에이전트(eBroAgent) 연결 또는 변환 실패:\n\n` +
       `거래명세서 PDF는 정품 MS Excel COM 엔진을 통해서만 생성됩니다.\n` +
-      `C:\\eBroAgent\\eBroAgent.js 또는 eBroAgent.exe 가 실행 중인지 확인해 주세요.\n` +
+      `C:\\eBroAgent\\eBroAgent.exe 가 실행 중인지 확인해 주세요.\n` +
       `(원인: ${agentErr?.message || agentErr})`
     );
   }
